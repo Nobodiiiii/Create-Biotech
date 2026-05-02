@@ -48,7 +48,6 @@ import org.joml.Quaternionf;
 public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEntity> {
 
 	private static final int SLIME_TINT = 0xB9F4A8;
-	private static final float BACK_TRACK_ITEM_DROP = 1 / 8f;
 
 	public SlimeBeltRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -194,44 +193,24 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		}
 
 		float loopPosition = SlimeBeltHelper.normalizeLoopPosition(be, Mth.lerp(partialTicks, prev, current));
-		float offset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
 		float sideOffset = Mth.lerp(partialTicks, transported.prevSideOffset, transported.sideOffset);
-		float verticalMovement = verticality;
-		boolean backTrack = SlimeBeltHelper.isBackTrack(be, loopPosition);
+		float frontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
 
 		if (be.getSpeed() == 0) {
 			loopPosition = transported.beltPosition;
-			offset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
+			frontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
 			sideOffset = transported.sideOffset;
-			backTrack = SlimeBeltHelper.isBackTrack(be, loopPosition);
 		}
 
-		if (offset < .5f)
-			verticalMovement = 0;
-		else
-			verticalMovement = verticality * (Math.min(offset, be.beltLength - .5f) - .5f);
-		Vec3 offsetVec = Vec3.atLowerCornerOf(directionVec).scale(offset);
-		if (verticalMovement != 0)
-			offsetVec = offsetVec.add(0, verticalMovement, 0);
-		offsetVec = offsetVec.add(SlimeBeltHelper.getTrackShift(be, loopPosition));
-		if (backTrack && slope == BeltSlope.HORIZONTAL)
-			offsetVec = offsetVec.add(0, -BACK_TRACK_ITEM_DROP, 0);
-
-		boolean onSlope = (slope == BeltSlope.DOWNWARD || slope == BeltSlope.UPWARD)
-			&& Mth.clamp(offset, .5f, be.beltLength - .5f) == offset;
-		boolean tiltForward = (slope == BeltSlope.DOWNWARD
-			^ beltFacing.getAxisDirection() == AxisDirection.POSITIVE) == (beltFacing.getAxis() == Direction.Axis.Z);
-		float slopeAngle = onSlope ? tiltForward ? -45 : 45 : 0;
-
 		Vec3 itemPos = SlimeBeltHelper.getVectorForOffset(be, loopPosition);
-		if (backTrack && slope == BeltSlope.HORIZONTAL)
-			itemPos = itemPos.add(0, -BACK_TRACK_ITEM_DROP, 0);
 		if (shouldCullItem(itemPos, be.getLevel()))
 			return;
+		Vec3 localPos = itemPos.subtract(Vec3.atLowerCornerOf(be.getBlockPos()))
+			.subtract(beltStartOffset);
 
 		ms.pushPose();
 		TransformStack.of(ms).nudge(transported.angle);
-		ms.translate(offsetVec.x, offsetVec.y, offsetVec.z);
+		ms.translate(localPos.x, localPos.y, localPos.z);
 
 		boolean alongX = beltFacing.getClockWise().getAxis() == Direction.Axis.X;
 		if (!alongX)
@@ -242,8 +221,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		if (onContraption) {
 			stackLight = light;
 		} else {
-			int segment = Mth.clamp((int) Math.floor(offset), 0, be.beltLength - 1);
-			mutablePos.set(be.getBlockPos()).move(directionVec.getX() * segment, verticality * segment, directionVec.getZ() * segment);
+			int segment = Mth.clamp((int) Math.floor(frontOffset), 0, be.beltLength - 1);
+			mutablePos.set(SlimeBeltHelper.getPositionForOffset(be, segment));
 			stackLight = LevelRenderer.getLightColor(be.getLevel(), mutablePos);
 		}
 
@@ -256,24 +235,11 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 			count = (int) (Mth.log2((int) transported.stack.getCount())) / 2;
 
 		Random random = new Random(transported.angle);
-		boolean slopeShadowOnly = renderUpright && onSlope;
-		float slopeOffset = 1 / 8f;
-		if (slopeShadowOnly)
-			ms.pushPose();
-		if (backTrack)
-			ms.mulPose((beltFacing.getAxis() == Direction.Axis.X ? Axis.XP : Axis.ZP).rotationDegrees(180));
-		if (!renderUpright || slopeShadowOnly)
-			ms.mulPose((slopeAlongX ? Axis.ZP : Axis.XP).rotationDegrees(slopeAngle));
-		if (onSlope)
-			ms.translate(0, slopeOffset, 0);
+		applyTrackNormal(ms, SlimeBeltHelper.getTrackNormal(be, loopPosition));
 		ms.pushPose();
 		ms.translate(0, -1 / 8f + 0.005f, 0);
 		ShadowRenderHelper.renderShadow(ms, buffer, .75f, .2f);
 		ms.popPose();
-		if (slopeShadowOnly) {
-			ms.popPose();
-			ms.translate(0, slopeOffset, 0);
-		}
 
 		if (renderUpright) {
 			Entity renderViewEntity = mc.cameraEntity;

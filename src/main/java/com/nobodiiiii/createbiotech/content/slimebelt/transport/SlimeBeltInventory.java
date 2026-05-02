@@ -13,6 +13,7 @@ import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
+import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.LoopSection;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.Track;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
@@ -55,6 +56,11 @@ public class SlimeBeltInventory {
 		WAIT,
 		INSERT,
 		BLOCKED
+	}
+
+	private enum Connector {
+		END,
+		START
 	}
 
 	public SlimeBeltInventory(SlimeBeltBlockEntity be) {
@@ -100,7 +106,9 @@ public class SlimeBeltInventory {
 		Set<TransportedItemStack> transferredThisTick = Collections.newSetFromMap(new IdentityHashMap<>());
 
 		processTrack(Track.FRONT, trackSpeed, onClient, world, horizontalProcessing, ending, transferredThisTick);
+		processConnector(beltMovementPositive ? Connector.END : Connector.START, trackSpeed, onClient, transferredThisTick);
 		processTrack(Track.BACK, trackSpeed, onClient, world, false, ending, transferredThisTick);
+		processConnector(beltMovementPositive ? Connector.START : Connector.END, trackSpeed, onClient, transferredThisTick);
 	}
 
 	private void processTrack(Track track, float trackSpeed, boolean onClient, Level world, boolean horizontalProcessing,
@@ -144,6 +152,7 @@ public class SlimeBeltInventory {
 			}
 
 			Track targetTrack = track == Track.FRONT ? Track.BACK : Track.FRONT;
+			Connector exitConnector = getExitConnector(track);
 			float diffToEnd = belt.beltLength - currentProgress;
 			boolean approachingSeam = Math.abs(diffToEnd) < Math.abs(movement) + 1;
 			boolean crossingSeam = movement > 0 && currentProgress + movement >= belt.beltLength;
@@ -158,10 +167,10 @@ public class SlimeBeltInventory {
 					} else if (ending[0] == Ending.BLOCKED) {
 						seamAction = SeamAction.BLOCKED;
 					} else {
-						seamAction = isTransferEntryClear(targetTrack, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
+						seamAction = isConnectorEntryClear(exitConnector, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
 					}
 				} else {
-					seamAction = isTransferEntryClear(targetTrack, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
+					seamAction = isConnectorEntryClear(exitConnector, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
 				}
 
 				float margin = seamAction == SeamAction.TRANSFER ? 0
@@ -200,7 +209,8 @@ public class SlimeBeltInventory {
 				&& currentProgress + limitedMovement >= belt.beltLength - SEAM_EPSILON;
 
 			if (reachedTransferSeam) {
-				transferToTrack(currentItem, targetTrack);
+				float overshoot = Math.max(0, currentProgress + limitedMovement - belt.beltLength);
+				moveIntoConnector(currentItem, exitConnector, overshoot);
 				transferredThisTick.add(currentItem);
 				continue;
 			}
@@ -222,6 +232,76 @@ public class SlimeBeltInventory {
 						continue;
 					}
 				}
+			}
+
+			stackInFront = currentItem;
+		}
+	}
+
+	private void processConnector(Connector connector, float trackSpeed, boolean onClient,
+		Set<TransportedItemStack> transferredThisTick) {
+		TransportedItemStack stackInFront = null;
+		float spacing = 1;
+		float connectorLength = getConnectorLength();
+		Track targetTrack = getTargetTrack(connector);
+
+		for (TransportedItemStack currentItem : getItemsOnConnectorOrdered(connector)) {
+			if (transferredThisTick.contains(currentItem))
+				continue;
+
+			currentItem.prevBeltPosition = currentItem.beltPosition;
+			currentItem.prevSideOffset = currentItem.sideOffset;
+
+			if (currentItem.stack.isEmpty()) {
+				items.remove(currentItem);
+				continue;
+			}
+
+			float movement = trackSpeed;
+			if (onClient)
+				movement *= ServerSpeedProvider.get();
+
+			if (belt.getLevel().isClientSide && currentItem.locked)
+				continue;
+
+			if (currentItem.lockedExternally) {
+				currentItem.lockedExternally = false;
+				continue;
+			}
+
+			float currentProgress = getConnectorProgress(connector, currentItem.beltPosition);
+			boolean noMovement = false;
+
+			if (stackInFront != null) {
+				float diff = getConnectorProgress(connector, stackInFront.beltPosition) - currentProgress;
+				if (Math.abs(diff) <= spacing)
+					noMovement = true;
+				movement = Math.min(movement, diff - spacing);
+			}
+
+			float diffToEnd = connectorLength - currentProgress;
+			boolean crossingConnectorEnd = movement > 0 && currentProgress + movement >= connectorLength;
+			boolean targetEntryClear = isTransferEntryClear(targetTrack, currentItem);
+			if (Math.abs(diffToEnd) < Math.abs(movement) + 1 && !targetEntryClear)
+				movement = Math.min(movement, diffToEnd - TRANSFER_WAIT_MARGIN);
+
+			if (noMovement) {
+				stackInFront = currentItem;
+				continue;
+			}
+
+			float nextProgress = currentProgress + movement;
+			currentItem.beltPosition = getLoopPositionForConnectorProgress(connector, nextProgress);
+			float diffToMiddle = currentItem.getTargetSideOffset() - currentItem.sideOffset;
+			currentItem.sideOffset += Mth.clamp(diffToMiddle * Math.abs(movement) * 6f, -Math.abs(diffToMiddle),
+				Math.abs(diffToMiddle));
+
+			if (targetEntryClear && crossingConnectorEnd
+				&& currentProgress + movement >= connectorLength - SEAM_EPSILON) {
+				float overshoot = Math.max(0, currentProgress + movement - connectorLength);
+				transferToTrack(currentItem, targetTrack, overshoot);
+				transferredThisTick.add(currentItem);
+				continue;
 			}
 
 			stackInFront = currentItem;
@@ -352,25 +432,28 @@ public class SlimeBeltInventory {
 
 	public float getInsertionPosition(int segment, Direction side) {
 		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
-		float basePosition;
+		float trackProgress;
 		if (side != null && side == belt.getMovementFacing() && track == Track.FRONT) {
-			basePosition = beltMovementPositive ? segment : segment + 1f;
+			trackProgress = beltMovementPositive ? segment : belt.beltLength - (segment + 1f);
 		} else {
 			float halfSegment = segment + .5f;
 			float offset = beltMovementPositive ? -1 / 16f : 1 / 16f;
-			basePosition = track == Track.FRONT ? halfSegment + offset
-				: SlimeBeltHelper.getLoopLength(belt) - halfSegment + offset;
+			float frontOffset = halfSegment + offset;
+			if (track == Track.FRONT)
+				trackProgress = beltMovementPositive ? frontOffset : belt.beltLength - frontOffset;
+			else
+				trackProgress = beltMovementPositive ? belt.beltLength - frontOffset : frontOffset;
 		}
-		float position = basePosition;
-		return SlimeBeltHelper.normalizeLoopPosition(belt, position);
+		return getLoopPositionForTrackProgress(track, trackProgress);
 	}
 
 	public float getSmoothInsertionPosition(int segment, Direction side, float extraOffset) {
 		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
 		if (track != Track.FRONT || side != belt.getMovementFacing())
 			return getInsertionPosition(segment, side);
-		float position = beltMovementPositive ? segment - extraOffset : segment + 1f + extraOffset;
-		return SlimeBeltHelper.normalizeLoopPosition(belt, position);
+		float trackProgress = beltMovementPositive ? segment - extraOffset
+			: belt.beltLength - (segment + 1f + extraOffset);
+		return getLoopPositionForTrackProgress(Track.FRONT, trackProgress);
 	}
 
 	public void prepareInsertedItem(TransportedItemStack transported, int segment, Direction side) {
@@ -383,7 +466,7 @@ public class SlimeBeltInventory {
 	}
 
 	private boolean isBlocking(Track track, float insertPos, TransportedItemStack stack) {
-		if (SlimeBeltHelper.isBackTrack(belt, stack.beltPosition) != (track == Track.BACK))
+		if (getTrackForLoopPosition(stack.beltPosition) != track)
 			return false;
 		float insertProgress = getTrackProgress(track, insertPos);
 		float currentProgress = getTrackProgress(track, stack.beltPosition);
@@ -412,26 +495,43 @@ public class SlimeBeltInventory {
 	private List<TransportedItemStack> getItemsOnTrackOrdered(Track track) {
 		List<TransportedItemStack> ordered = new ArrayList<>();
 		for (TransportedItemStack stack : items)
-			if (SlimeBeltHelper.isBackTrack(belt, stack.beltPosition) == (track == Track.BACK))
+			if (getTrackForLoopPosition(stack.beltPosition) == track)
 				ordered.add(stack);
 		ordered.sort((first, second) -> Float.compare(getTrackProgress(track, second.beltPosition),
 			getTrackProgress(track, first.beltPosition)));
 		return ordered;
 	}
 
+	private List<TransportedItemStack> getItemsOnConnectorOrdered(Connector connector) {
+		List<TransportedItemStack> ordered = new ArrayList<>();
+		LoopSection section = getSectionForConnector(connector);
+		for (TransportedItemStack stack : items)
+			if (SlimeBeltHelper.getLoopSection(belt, stack.beltPosition) == section)
+				ordered.add(stack);
+		ordered.sort((first, second) -> Float.compare(getConnectorProgress(connector, second.beltPosition),
+			getConnectorProgress(connector, first.beltPosition)));
+		return ordered;
+	}
+
 	private float getTrackProgress(Track track, float loopPosition) {
 		float normalized = SlimeBeltHelper.normalizeLoopPosition(belt, loopPosition);
 		float length = belt.beltLength;
+		float connectorLength = getConnectorLength();
+		float backTrackStart = length + connectorLength;
+		float backTrackEnd = backTrackStart + length;
 		if (beltMovementPositive)
-			return track == Track.FRONT ? normalized : normalized - length;
-		return track == Track.FRONT ? length - normalized : 2 * length - normalized;
+			return track == Track.FRONT ? normalized : normalized - backTrackStart;
+		return track == Track.FRONT ? length - normalized : backTrackEnd - normalized;
 	}
 
 	private float getLoopPositionForTrackProgress(Track track, float progress) {
 		float clamped = Mth.clamp(progress, 0, belt.beltLength);
 		float length = belt.beltLength;
-		float loopPos = beltMovementPositive ? (track == Track.FRONT ? clamped : length + clamped)
-			: (track == Track.FRONT ? length - clamped : 2 * length - clamped);
+		float connectorLength = getConnectorLength();
+		float backTrackStart = length + connectorLength;
+		float backTrackEnd = backTrackStart + length;
+		float loopPos = beltMovementPositive ? (track == Track.FRONT ? clamped : backTrackStart + clamped)
+			: (track == Track.FRONT ? length - clamped : backTrackEnd - clamped);
 		return SlimeBeltHelper.normalizeLoopPosition(belt, loopPos);
 	}
 
@@ -443,6 +543,27 @@ public class SlimeBeltInventory {
 
 	private void setLoopPositionFromTrackProgress(TransportedItemStack currentItem, Track track, float progress) {
 		currentItem.beltPosition = getLoopPositionForTrackProgress(track, progress);
+	}
+
+	private float getConnectorProgress(Connector connector, float loopPosition) {
+		float normalized = SlimeBeltHelper.normalizeLoopPosition(belt, loopPosition);
+		float connectorStart = getConnectorStart(connector);
+		float connectorLength = getConnectorLength();
+		if (beltMovementPositive)
+			return normalized - connectorStart;
+		if (connector == Connector.END)
+			return connectorStart + connectorLength - normalized;
+		return SlimeBeltHelper.getLoopLength(belt) - normalized;
+	}
+
+	private float getLoopPositionForConnectorProgress(Connector connector, float progress) {
+		float clamped = Mth.clamp(progress, 0, getConnectorLength());
+		float connectorStart = getConnectorStart(connector);
+		if (beltMovementPositive)
+			return SlimeBeltHelper.normalizeLoopPosition(belt, connectorStart + clamped);
+		if (connector == Connector.END)
+			return SlimeBeltHelper.normalizeLoopPosition(belt, connectorStart + getConnectorLength() - clamped);
+		return SlimeBeltHelper.normalizeLoopPosition(belt, SlimeBeltHelper.getLoopLength(belt) - clamped);
 	}
 
 	private boolean isTransferEntryClear(Track targetTrack, TransportedItemStack currentItem) {
@@ -460,9 +581,61 @@ public class SlimeBeltInventory {
 		return getLoopPositionForTrackProgress(targetTrack, WRAP_ENTRY_OFFSET);
 	}
 
-	private void transferToTrack(TransportedItemStack currentItem, Track targetTrack) {
+	private void transferToTrack(TransportedItemStack currentItem, Track targetTrack, float overshoot) {
 		currentItem.prevBeltPosition = currentItem.beltPosition;
-		currentItem.beltPosition = getTrackEntryPosition(targetTrack);
+		currentItem.beltPosition = getLoopPositionForTrackProgress(targetTrack, WRAP_ENTRY_OFFSET + overshoot);
+	}
+
+	private boolean isConnectorEntryClear(Connector connector, TransportedItemStack currentItem) {
+		LoopSection section = getSectionForConnector(connector);
+		for (TransportedItemStack stack : items)
+			if (stack != currentItem && !toRemove.contains(stack)
+				&& SlimeBeltHelper.getLoopSection(belt, stack.beltPosition) == section)
+				return false;
+		for (TransportedItemStack stack : toInsert)
+			if (SlimeBeltHelper.getLoopSection(belt, stack.beltPosition) == section)
+				return false;
+		return true;
+	}
+
+	private void moveIntoConnector(TransportedItemStack currentItem, Connector connector, float overshoot) {
+		currentItem.prevBeltPosition = currentItem.beltPosition;
+		float connectorProgress = Mth.clamp(Math.max(WRAP_ENTRY_OFFSET, overshoot), WRAP_ENTRY_OFFSET,
+			Math.max(WRAP_ENTRY_OFFSET, getConnectorLength() - SEAM_EPSILON));
+		currentItem.beltPosition = getLoopPositionForConnectorProgress(connector, connectorProgress);
+	}
+
+	private Connector getExitConnector(Track track) {
+		if (track == Track.FRONT)
+			return beltMovementPositive ? Connector.END : Connector.START;
+		return beltMovementPositive ? Connector.START : Connector.END;
+	}
+
+	private Track getTargetTrack(Connector connector) {
+		if (connector == Connector.END)
+			return beltMovementPositive ? Track.BACK : Track.FRONT;
+		return beltMovementPositive ? Track.FRONT : Track.BACK;
+	}
+
+	private LoopSection getSectionForConnector(Connector connector) {
+		return connector == Connector.END ? LoopSection.END_TURN : LoopSection.START_TURN;
+	}
+
+	private Track getTrackForLoopPosition(float loopPosition) {
+		LoopSection section = SlimeBeltHelper.getLoopSection(belt, loopPosition);
+		if (section == LoopSection.FRONT)
+			return Track.FRONT;
+		if (section == LoopSection.BACK)
+			return Track.BACK;
+		return null;
+	}
+
+	private float getConnectorStart(Connector connector) {
+		return connector == Connector.END ? belt.beltLength : belt.beltLength + getConnectorLength() + belt.beltLength;
+	}
+
+	private float getConnectorLength() {
+		return SlimeBeltHelper.getConnectorLength(belt);
 	}
 
 	public TransportedItemStack getStackAtOffset(int offset, Direction side) {
@@ -473,7 +646,7 @@ public class SlimeBeltInventory {
 			if (toRemove.contains(stack))
 				continue;
 			if (SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), stack.insertedFrom) != track
-				&& SlimeBeltHelper.isBackTrack(belt, stack.beltPosition) != (track == Track.BACK))
+				&& getTrackForLoopPosition(stack.beltPosition) != track)
 				continue;
 			float frontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(belt, stack.beltPosition);
 			if (frontOffset > max)
@@ -532,7 +705,7 @@ public class SlimeBeltInventory {
 		for (TransportedItemStack transported : items) {
 			if (toRemove.contains(transported))
 				continue;
-			if (SlimeBeltHelper.isBackTrack(belt, transported.beltPosition))
+			if (SlimeBeltHelper.getLoopSection(belt, transported.beltPosition) != LoopSection.FRONT)
 				continue;
 			ItemStack stackBefore = transported.stack.copy();
 			float frontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(belt, transported.beltPosition);
