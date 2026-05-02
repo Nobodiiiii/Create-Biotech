@@ -430,6 +430,17 @@ public class SlimeBeltInventory {
 		return true;
 	}
 
+	public boolean canInsertAtOnTrack(int segment, Track track) {
+		float insertPos = getInsertionPositionForTrack(segment, track);
+		for (TransportedItemStack stack : items)
+			if (isBlocking(track, insertPos, stack))
+				return false;
+		for (TransportedItemStack stack : toInsert)
+			if (isBlocking(track, insertPos, stack))
+				return false;
+		return true;
+	}
+
 	public float getInsertionPosition(int segment, Direction side) {
 		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
 		float trackProgress;
@@ -444,6 +455,16 @@ public class SlimeBeltInventory {
 			else
 				trackProgress = beltMovementPositive ? belt.beltLength - frontOffset : frontOffset;
 		}
+		return getLoopPositionForTrackProgress(track, trackProgress);
+	}
+
+	public float getInsertionPositionForTrack(int segment, Track track) {
+		float halfSegment = segment + .5f;
+		float offset = beltMovementPositive ? -1 / 16f : 1 / 16f;
+		float frontOffset = halfSegment + offset;
+		float trackProgress = track == Track.FRONT
+			? beltMovementPositive ? frontOffset : belt.beltLength - frontOffset
+			: beltMovementPositive ? belt.beltLength - frontOffset : frontOffset;
 		return getLoopPositionForTrackProgress(track, trackProgress);
 	}
 
@@ -462,6 +483,15 @@ public class SlimeBeltInventory {
 		transported.prevBeltPosition = insertionPosition;
 		transported.insertedAt = segment;
 		transported.insertedFrom = side;
+		transported.prevSideOffset = transported.sideOffset;
+	}
+
+	public void prepareInsertedItemOnTrack(TransportedItemStack transported, int segment, Track track) {
+		float insertionPosition = getInsertionPositionForTrack(segment, track);
+		transported.beltPosition = insertionPosition;
+		transported.prevBeltPosition = insertionPosition;
+		transported.insertedAt = segment;
+		transported.insertedFrom = getRepresentativeSideForTrack(segment, track);
 		transported.prevSideOffset = transported.sideOffset;
 	}
 
@@ -628,6 +658,18 @@ public class SlimeBeltInventory {
 		if (section == LoopSection.BACK)
 			return Track.BACK;
 		return null;
+	}
+
+	private Direction getRepresentativeSideForTrack(int segment, Track track) {
+		Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(belt.getBlockState());
+		Direction primary = track == Track.FRONT ? Direction.UP : Direction.DOWN;
+		Direction alternate = track == Track.FRONT ? frontInputSide : frontInputSide.getOpposite();
+		Vec3 trackNormal = SlimeBeltHelper.getTrackNormal(belt, getInsertionPositionForTrack(segment, track));
+		return getAlignment(trackNormal, alternate) > getAlignment(trackNormal, primary) ? alternate : primary;
+	}
+
+	private double getAlignment(Vec3 normal, Direction side) {
+		return normal.dot(Vec3.atLowerCornerOf(side.getNormal()));
 	}
 
 	private float getConnectorStart(Connector connector) {

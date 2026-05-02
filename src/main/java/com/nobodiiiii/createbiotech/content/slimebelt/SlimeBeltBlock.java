@@ -17,6 +17,7 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltPart;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
+import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.foundation.block.IBE;
@@ -157,16 +158,20 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		if (beltInventory == null || controller == null)
 			return;
 
-		Direction insertSide = getClosestCaptureSide(entity, belt, beltInventory, controller);
-		Vec3 targetLocation = getCaptureTarget(belt, beltInventory, controller, insertSide);
+		SlimeBeltHelper.Track insertTrack = getClosestCaptureTrack(entity, belt, beltInventory, controller);
+		if (insertTrack == null)
+			return;
+
+		Vec3 targetLocation = getCaptureTarget(belt, beltInventory, controller, insertTrack);
 		if (!PackageEntity.centerPackage(entity, targetLocation))
 			return;
 
-		IItemHandler handler = belt.getCapability(ForgeCapabilities.ITEM_HANDLER, insertSide).orElse(null);
-		if (handler == null)
-			return;
-
-		ItemStack remainder = handler.insertItem(0, asItem, false);
+		ItemStack remainder = ItemHelper.limitCountToMaxStackSize(asItem, false);
+		TransportedItemStack transported = new TransportedItemStack(asItem);
+		beltInventory.prepareInsertedItemOnTrack(transported, belt.index, insertTrack);
+		beltInventory.addItem(transported);
+		controller.setChanged();
+		controller.sendData();
 		if (remainder.isEmpty())
 			entity.discard();
 		else if (entity instanceof ItemEntity itemEntity && remainder.getCount() != itemEntity.getItem().getCount())
@@ -177,20 +182,27 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		return state.is(CBBlocks.SLIME_BELT.get());
 	}
 
-	private static Direction getClosestCaptureSide(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
+	private static SlimeBeltHelper.Track getClosestCaptureTrack(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
 		SlimeBeltBlockEntity controller) {
 		Vec3 entityCenter = entity.getBoundingBox()
 			.getCenter();
-		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, Direction.UP);
-		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, Direction.DOWN);
-		return entityCenter.distanceToSqr(backTarget) < entityCenter.distanceToSqr(frontTarget) ? Direction.DOWN
-			: Direction.UP;
+		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.FRONT);
+		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.BACK);
+		SlimeBeltHelper.Track primary = entityCenter.distanceToSqr(backTarget) < entityCenter.distanceToSqr(frontTarget)
+			? SlimeBeltHelper.Track.BACK : SlimeBeltHelper.Track.FRONT;
+		SlimeBeltHelper.Track secondary = primary == SlimeBeltHelper.Track.FRONT ? SlimeBeltHelper.Track.BACK
+			: SlimeBeltHelper.Track.FRONT;
+		if (beltInventory.canInsertAtOnTrack(belt.index, primary))
+			return primary;
+		if (beltInventory.canInsertAtOnTrack(belt.index, secondary))
+			return secondary;
+		return null;
 	}
 
 	// Dropped items can touch either exposed belt surface, so choose the insertion point on the nearest track.
 	private static Vec3 getCaptureTarget(SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
-		SlimeBeltBlockEntity controller, Direction side) {
-		float insertionPosition = beltInventory.getInsertionPosition(belt.index, side);
+		SlimeBeltBlockEntity controller, SlimeBeltHelper.Track track) {
+		float insertionPosition = beltInventory.getInsertionPositionForTrack(belt.index, track);
 		return SlimeBeltHelper.getVectorForOffset(controller, insertionPosition);
 	}
 
