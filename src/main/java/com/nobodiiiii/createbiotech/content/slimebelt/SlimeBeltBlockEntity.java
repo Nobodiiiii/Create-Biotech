@@ -219,6 +219,12 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		BlockState blockState = getBlockState();
 		Direction beltFacing = blockState.getValue(BlockStateProperties.HORIZONTAL_FACING);
 		BeltSlope slope = blockState.getValue(SlimeBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL) {
+			int chainStep = beltFacing.getAxisDirection()
+				.getStep();
+			int y = getDirectionAwareBeltMovementSpeed() > 0 ? chainStep : -chainStep;
+			return new Vec3i(0, y, 0);
+		}
 		BeltPart part = blockState.getValue(SlimeBeltBlock.PART);
 		Axis axis = beltFacing.getAxis();
 
@@ -239,6 +245,8 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	public Direction getMovementFacing() {
+		if (getBlockState().getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL)
+			return getDirectionAwareBeltMovementSpeed() > 0 ? Direction.UP : Direction.DOWN;
 		Axis axis = getBeltFacing().getAxis();
 		return Direction.fromAxisAndDirection(axis, getBeltMovementSpeed() < 0 ^ axis == Axis.X ? NEGATIVE : POSITIVE);
 	}
@@ -276,7 +284,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	private boolean canInsertFrom(Direction side) {
-		return getSpeed() != 0;
+		return getSpeed() != 0 && side != getMovementFacing().getOpposite();
 	}
 
 	private boolean isOccupied(Direction side) {
@@ -288,13 +296,32 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		SlimeBeltInventory beltInventory = getInventory();
 		if (!SlimeBeltBlock.canTransportObjects(getBlockState()) || beltInventory == null)
 			return transportedStack.stack;
-		if (!beltInventory.canInsertAtFromSide(index, side))
+		if (getMovementFacing() == side.getOpposite() || !beltInventory.canInsertAtFromSide(index, side))
 			return transportedStack.stack;
 		if (simulate)
 			return ItemStack.EMPTY;
 
 		TransportedItemStack copied = transportedStack.copy();
 		beltInventory.prepareInsertedItem(copied, index, side);
+		Direction movementFacing = getMovementFacing();
+		if (!side.getAxis()
+			.isVertical()) {
+			Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(getBlockState());
+			boolean trackFaceInsert = side == frontInputSide || side == frontInputSide.getOpposite();
+			if (side == movementFacing) {
+				float extraOffset = copied.prevBeltPosition != 0
+					&& SlimeBeltHelper.getSegmentBE(level, worldPosition.relative(movementFacing.getOpposite())) != null ? .26f : 0;
+				copied.beltPosition =
+					beltInventory.getSmoothInsertionPosition(index, side, extraOffset);
+			} else if (!trackFaceInsert) {
+				copied.sideOffset = side.getAxisDirection()
+					.getStep() * .675f;
+				if (side.getAxis() == Axis.X)
+					copied.sideOffset *= -1;
+			}
+		}
+		copied.prevBeltPosition = copied.beltPosition;
+		copied.prevSideOffset = copied.sideOffset;
 		beltInventory.addItem(copied);
 		setChanged();
 		sendData();

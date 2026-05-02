@@ -82,6 +82,12 @@ public class SlimeBeltHelper {
 			.getNormal();
 		BeltSlope slope = controller.getBlockState()
 			.getValue(SlimeBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL) {
+			int chainStep = controller.getBeltFacing()
+				.getAxisDirection()
+				.getStep();
+			return pos.above(offset * chainStep);
+		}
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 
 		return pos.offset(offset * vec.getX(), Mth.clamp(offset, 0, controller.beltLength - 1) * verticality,
@@ -115,7 +121,7 @@ public class SlimeBeltHelper {
 	public static Direction getFrontInputSide(net.minecraft.world.level.block.state.BlockState state) {
 		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
 		Direction facing = state.getValue(SlimeBeltBlock.HORIZONTAL_FACING);
-		return slope == BeltSlope.VERTICAL ? facing : facing.getClockWise();
+		return slope == BeltSlope.VERTICAL ? facing.getOpposite() : facing.getClockWise();
 	}
 
 	public static Track resolveInputTrack(net.minecraft.world.level.block.state.BlockState state, Direction side) {
@@ -133,32 +139,77 @@ public class SlimeBeltHelper {
 		return Track.FRONT;
 	}
 
-	public static Vec3 getTrackShift(SlimeBeltBlockEntity controller, float loopPosition) {
-		boolean backTrack = isBackTrack(controller, loopPosition);
-		if (!backTrack && controller.getBlockState().getValue(SlimeBeltBlock.SLOPE) != BeltSlope.VERTICAL)
-			return Vec3.ZERO;
+	public static Vec3 getFrontSurfaceNormal(SlimeBeltBlockEntity controller) {
+		BlockState state = controller.getBlockState();
+		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL)
+			return Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+				.getOpposite()
+				.getNormal());
+		if (slope == BeltSlope.SIDEWAYS)
+			return Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+				.getClockWise()
+				.getNormal());
+		if (slope == BeltSlope.HORIZONTAL)
+			return new Vec3(0, 1, 0);
 
+		int verticality = slope == BeltSlope.DOWNWARD ? -1 : 1;
+		Vec3 travel = Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+			.getNormal())
+			.add(0, verticality, 0)
+			.normalize();
+		Vec3 across = Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+			.getClockWise()
+			.getNormal());
+		return across.cross(travel)
+			.normalize();
+	}
+
+	public static Vec3 getTrackNormal(SlimeBeltBlockEntity controller, float loopPosition) {
+		Vec3 frontNormal = getFrontSurfaceNormal(controller);
+		return isBackTrack(controller, loopPosition) ? frontNormal.scale(-1) : frontNormal;
+	}
+
+	public static Vec3 getTrackShift(SlimeBeltBlockEntity controller, float loopPosition) {
 		BeltSlope slope = controller.getBlockState()
 			.getValue(SlimeBeltBlock.SLOPE);
-		if (slope == BeltSlope.VERTICAL) {
-			double distance = backTrack ? -0.42 : 0.42;
-			return Vec3.atLowerCornerOf(controller.getBeltFacing()
-				.getNormal())
-				.scale(distance);
-		}
-		if (slope == BeltSlope.SIDEWAYS) {
-			Direction side = controller.getBeltFacing()
-				.getClockWise();
-			return Vec3.atLowerCornerOf(side.getNormal())
-				.scale(backTrack ? -0.35 : 0.35);
-		}
-		return backTrack ? new Vec3(0, -10 / 16f, 0) : Vec3.ZERO;
+		if (slope == BeltSlope.VERTICAL)
+			return getTrackNormal(controller, loopPosition).scale(7d / 16d);
+		if (!isBackTrack(controller, loopPosition))
+			return Vec3.ZERO;
+		return getTrackNormal(controller, loopPosition).scale(10d / 16d);
+	}
+
+	public static Vec3 getPathAxis(SlimeBeltBlockEntity controller) {
+		BlockState state = controller.getBlockState();
+		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL)
+			return new Vec3(0, state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+				.getAxisDirection()
+				.getStep(), 0);
+		if (slope == BeltSlope.SIDEWAYS)
+			return Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+				.getNormal());
+		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
+		return Vec3.atLowerCornerOf(state.getValue(SlimeBeltBlock.HORIZONTAL_FACING)
+			.getNormal())
+			.add(0, verticality, 0)
+			.normalize();
 	}
 
 	public static Vec3 getVectorForOffset(SlimeBeltBlockEntity controller, float loopPosition) {
 		float offset = getFrontOffsetForLoopPosition(controller, loopPosition);
 		BeltSlope slope = controller.getBlockState()
 			.getValue(SlimeBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL) {
+			int chainStep = controller.getBeltFacing()
+				.getAxisDirection()
+				.getStep();
+			double y = chainStep > 0 ? offset : 1d - offset;
+			Vec3 vec = Vec3.atLowerCornerOf(controller.getBlockPos())
+				.add(.5d, y, .5d);
+			return vec.add(getTrackShift(controller, loopPosition));
+		}
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 		float verticalMovement = verticality;
 		if (offset < .5)

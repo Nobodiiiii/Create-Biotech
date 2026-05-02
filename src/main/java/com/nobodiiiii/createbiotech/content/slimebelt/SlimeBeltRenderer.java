@@ -43,6 +43,8 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+import org.joml.Quaternionf;
+
 public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEntity> {
 
 	private static final int SLIME_TINT = 0xB9F4A8;
@@ -150,7 +152,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 
 		Direction beltFacing = be.getBeltFacing();
 		Vec3i directionVec = beltFacing.getNormal();
-		Vec3 beltStartOffset = Vec3.atLowerCornerOf(directionVec).scale(-.5).add(.5, 15 / 16f, .5);
+		boolean vertical = be.getBlockState().getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL;
+		Vec3 beltStartOffset = vertical ? Vec3.ZERO : Vec3.atLowerCornerOf(directionVec).scale(-.5).add(.5, 15 / 16f, .5);
 		ms.translate(beltStartOffset.x, beltStartOffset.y, beltStartOffset.z);
 		BeltSlope slope = be.getBlockState().getValue(SlimeBeltBlock.SLOPE);
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
@@ -170,6 +173,11 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 	private void renderItem(SlimeBeltBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer, int light,
 		int overlay, Direction beltFacing, Vec3i directionVec, BeltSlope slope, int verticality, boolean slopeAlongX,
 		boolean onContraption, TransportedItemStack transported, Vec3 beltStartOffset) {
+		if (slope == BeltSlope.VERTICAL) {
+			renderVerticalItem(be, partialTicks, ms, buffer, light, overlay, onContraption, transported);
+			return;
+		}
+
 		Minecraft mc = Minecraft.getInstance();
 		ItemRenderer itemRenderer = mc.getItemRenderer();
 		MutableBlockPos mutablePos = new MutableBlockPos();
@@ -188,11 +196,13 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		float offset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
 		float sideOffset = Mth.lerp(partialTicks, transported.prevSideOffset, transported.sideOffset);
 		float verticalMovement = verticality;
+		boolean backTrack = SlimeBeltHelper.isBackTrack(be, loopPosition);
 
 		if (be.getSpeed() == 0) {
 			loopPosition = transported.beltPosition;
 			offset = SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition);
 			sideOffset = transported.sideOffset;
+			backTrack = SlimeBeltHelper.isBackTrack(be, loopPosition);
 		}
 
 		if (offset < .5f)
@@ -204,7 +214,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 			offsetVec = offsetVec.add(0, verticalMovement, 0);
 		offsetVec = offsetVec.add(SlimeBeltHelper.getTrackShift(be, loopPosition));
 
-		boolean onSlope = slope != BeltSlope.HORIZONTAL && Mth.clamp(offset, .5f, be.beltLength - .5f) == offset;
+		boolean onSlope = (slope == BeltSlope.DOWNWARD || slope == BeltSlope.UPWARD)
+			&& Mth.clamp(offset, .5f, be.beltLength - .5f) == offset;
 		boolean tiltForward = (slope == BeltSlope.DOWNWARD
 			^ beltFacing.getAxisDirection() == AxisDirection.POSITIVE) == (beltFacing.getAxis() == Direction.Axis.Z);
 		float slopeAngle = onSlope ? tiltForward ? -45 : 45 : 0;
@@ -244,6 +255,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		float slopeOffset = 1 / 8f;
 		if (slopeShadowOnly)
 			ms.pushPose();
+		if (backTrack)
+			ms.mulPose((beltFacing.getAxis() == Direction.Axis.X ? Axis.XP : Axis.ZP).rotationDegrees(180));
 		if (!renderUpright || slopeShadowOnly)
 			ms.mulPose((slopeAlongX ? Axis.ZP : Axis.XP).rotationDegrees(slopeAngle));
 		if (onSlope)
@@ -300,5 +313,117 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		}
 
 		ms.popPose();
+	}
+
+	private void renderVerticalItem(SlimeBeltBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+		int light, int overlay, boolean onContraption, TransportedItemStack transported) {
+		Minecraft mc = Minecraft.getInstance();
+		ItemRenderer itemRenderer = mc.getItemRenderer();
+		MutableBlockPos mutablePos = new MutableBlockPos();
+		float loopLength = SlimeBeltHelper.getLoopLength(be);
+
+		float prev = transported.prevBeltPosition;
+		float current = transported.beltPosition;
+		if (Math.abs(current - prev) > loopLength / 2f) {
+			if (current > prev)
+				prev += loopLength;
+			else
+				current += loopLength;
+		}
+
+		float loopPosition = SlimeBeltHelper.normalizeLoopPosition(be, Mth.lerp(partialTicks, prev, current));
+		float sideOffset = Mth.lerp(partialTicks, transported.prevSideOffset, transported.sideOffset);
+		if (be.getSpeed() == 0) {
+			loopPosition = transported.beltPosition;
+			sideOffset = transported.sideOffset;
+		}
+
+		Vec3 itemPos = SlimeBeltHelper.getVectorForOffset(be, loopPosition);
+		if (shouldCullItem(itemPos, be.getLevel()))
+			return;
+
+		ms.pushPose();
+		TransformStack.of(ms).nudge(transported.angle);
+
+		Vec3 localPos = itemPos.subtract(Vec3.atLowerCornerOf(be.getBlockPos()));
+		ms.translate(localPos.x, localPos.y, localPos.z);
+
+		Vec3 lateral = Vec3.atLowerCornerOf(be.getBeltFacing().getClockWise().getNormal()).scale(sideOffset);
+		ms.translate(lateral.x, lateral.y, lateral.z);
+		applyTrackNormal(ms, SlimeBeltHelper.getTrackNormal(be, loopPosition));
+
+		int stackLight;
+		if (onContraption) {
+			stackLight = light;
+		} else {
+			int segment = Mth.clamp((int) Math.floor(SlimeBeltHelper.getFrontOffsetForLoopPosition(be, loopPosition)), 0,
+				be.beltLength - 1);
+			mutablePos.set(SlimeBeltHelper.getPositionForOffset(be, segment));
+			stackLight = LevelRenderer.getLightColor(be.getLevel(), mutablePos);
+		}
+
+		boolean renderUpright = SlimeBeltHelper.isItemUpright(transported.stack);
+		BakedModel bakedModel = itemRenderer.getModel(transported.stack, be.getLevel(), null, 0);
+		boolean blockItem = bakedModel.isGui3d();
+
+		int count = 0;
+		if (be.getLevel() instanceof PonderLevel || mc.player != null && mc.player.getEyePosition(1.0F).distanceTo(itemPos) < 16)
+			count = (int) (Mth.log2((int) transported.stack.getCount())) / 2;
+
+		Random random = new Random(transported.angle);
+
+		ms.pushPose();
+		ms.translate(0, -1 / 8f + 0.005f, 0);
+		ShadowRenderHelper.renderShadow(ms, buffer, .75f, .2f);
+		ms.popPose();
+
+		if (renderUpright) {
+			Entity renderViewEntity = mc.cameraEntity;
+			if (renderViewEntity != null) {
+				Vec3 diff = itemPos.subtract(renderViewEntity.position());
+				float yRot = (float) (Mth.atan2(diff.x, diff.z) + Math.PI);
+				ms.mulPose(Axis.YP.rotation(yRot));
+			}
+			ms.translate(0, 3 / 32d, 1 / 16f);
+		}
+
+		for (int i = 0; i <= count; i++) {
+			ms.pushPose();
+			boolean box = PackageItem.isPackage(transported.stack);
+			ms.mulPose(Axis.YP.rotationDegrees(transported.angle));
+			if (!blockItem && !renderUpright) {
+				ms.translate(0, -.09375, 0);
+				ms.mulPose(Axis.XP.rotationDegrees(90));
+			}
+
+			if (blockItem && !box)
+				ms.translate(random.nextFloat() * .0625f * i, 0, random.nextFloat() * .0625f * i);
+
+			if (box) {
+				ms.translate(0, 4 / 16f, 0);
+				ms.scale(1.5f, 1.5f, 1.5f);
+			} else {
+				ms.scale(.5f, .5f, .5f);
+			}
+
+			itemRenderer.render(transported.stack, ItemDisplayContext.FIXED, false, ms, buffer, stackLight, overlay,
+				bakedModel);
+			ms.popPose();
+
+			if (!renderUpright) {
+				if (!blockItem)
+					ms.mulPose(Axis.YP.rotationDegrees(10));
+				ms.translate(0, blockItem ? 1 / 64d : 1 / 16d, 0);
+			} else {
+				ms.translate(0, 0, -1 / 16f);
+			}
+		}
+
+		ms.popPose();
+	}
+
+	private void applyTrackNormal(PoseStack ms, Vec3 trackNormal) {
+		Vec3 normal = trackNormal.normalize();
+		ms.mulPose(new Quaternionf().rotationTo(0, 1, 0, (float) normal.x, (float) normal.y, (float) normal.z));
 	}
 }

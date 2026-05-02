@@ -292,14 +292,15 @@ public class SlimeBeltInventory {
 	private Ending resolveEnding() {
 		Level world = belt.getLevel();
 		BlockPos nextPosition = SlimeBeltHelper.getPositionForOffset(belt, beltMovementPositive ? belt.beltLength : -1);
+		Direction movementFacing = belt.getMovementFacing();
 
 		DirectBeltInputBehaviour inputBehaviour =
 			BlockEntityBehaviour.get(world, nextPosition, DirectBeltInputBehaviour.TYPE);
-		if (inputBehaviour != null)
+		if (inputBehaviour != null && inputBehaviour.canInsertFromSide(movementFacing))
 			return Ending.INSERT;
 
 		if (BlockHelper.hasBlockSolidSide(world.getBlockState(nextPosition), world, nextPosition,
-			belt.getMovementFacing()
+			movementFacing
 				.getOpposite()))
 			return Ending.BLOCKED;
 
@@ -311,6 +312,8 @@ public class SlimeBeltInventory {
 	}
 
 	public boolean canInsertAtFromSide(int segment, Direction side) {
+		if (side != null && belt.getMovementFacing() == side.getOpposite())
+			return false;
 		float insertPos = getInsertionPosition(segment, side);
 		for (TransportedItemStack stack : items)
 			if (isBlocking(insertPos, stack))
@@ -322,11 +325,25 @@ public class SlimeBeltInventory {
 	}
 
 	public float getInsertionPosition(int segment, Direction side) {
-		float halfSegment = segment + .5f;
-		float offset = beltMovementPositive ? -1 / 16f : 1 / 16f;
 		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
-		float position = track == Track.FRONT ? halfSegment + offset
-			: SlimeBeltHelper.getLoopLength(belt) - halfSegment + offset;
+		float basePosition;
+		if (side != null && side == belt.getMovementFacing() && track == Track.FRONT) {
+			basePosition = beltMovementPositive ? segment : segment + 1f;
+		} else {
+			float halfSegment = segment + .5f;
+			float offset = beltMovementPositive ? -1 / 16f : 1 / 16f;
+			basePosition = track == Track.FRONT ? halfSegment + offset
+				: SlimeBeltHelper.getLoopLength(belt) - halfSegment + offset;
+		}
+		float position = basePosition;
+		return SlimeBeltHelper.normalizeLoopPosition(belt, position);
+	}
+
+	public float getSmoothInsertionPosition(int segment, Direction side, float extraOffset) {
+		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
+		if (track != Track.FRONT || side != belt.getMovementFacing())
+			return getInsertionPosition(segment, side);
+		float position = beltMovementPositive ? segment - extraOffset : segment + 1f + extraOffset;
 		return SlimeBeltHelper.normalizeLoopPosition(belt, position);
 	}
 
