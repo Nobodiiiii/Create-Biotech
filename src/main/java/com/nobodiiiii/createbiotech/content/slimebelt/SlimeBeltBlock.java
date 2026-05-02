@@ -162,7 +162,7 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		if (insertTrack == null)
 			return;
 
-		Vec3 targetLocation = getCaptureTarget(belt, beltInventory, controller, insertTrack);
+		Vec3 targetLocation = getCaptureTarget(belt, controller, insertTrack);
 		if (!PackageEntity.centerPackage(entity, targetLocation))
 			return;
 
@@ -185,7 +185,7 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 	private static SlimeBeltHelper.Track getClosestCaptureTrack(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
 		SlimeBeltBlockEntity controller) {
 		SlimeBeltHelper.Track primary = getNearestTrack(entity.getBoundingBox()
-			.getCenter(), belt, beltInventory, controller);
+			.getCenter(), belt, controller);
 		SlimeBeltHelper.Track secondary = primary == SlimeBeltHelper.Track.FRONT ? SlimeBeltHelper.Track.BACK
 			: SlimeBeltHelper.Track.FRONT;
 		if (beltInventory.canInsertAtOnTrack(belt.index, primary))
@@ -196,16 +196,15 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 	}
 
 	// Dropped items can touch either exposed belt surface, so choose the insertion point on the nearest track.
-	private static Vec3 getCaptureTarget(SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
-		SlimeBeltBlockEntity controller, SlimeBeltHelper.Track track) {
-		float insertionPosition = beltInventory.getInsertionPositionForTrack(belt.index, track);
-		return SlimeBeltHelper.getVectorForOffset(controller, insertionPosition);
+	private static Vec3 getCaptureTarget(SlimeBeltBlockEntity belt, SlimeBeltBlockEntity controller,
+		SlimeBeltHelper.Track track) {
+		return SlimeBeltHelper.getTrackCenterVector(controller, belt.index, track);
 	}
 
 	private static SlimeBeltHelper.Track getNearestTrack(Vec3 referencePoint, SlimeBeltBlockEntity belt,
-		SlimeBeltInventory beltInventory, SlimeBeltBlockEntity controller) {
-		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.FRONT);
-		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.BACK);
+		SlimeBeltBlockEntity controller) {
+		Vec3 frontTarget = getCaptureTarget(belt, controller, SlimeBeltHelper.Track.FRONT);
+		Vec3 backTarget = getCaptureTarget(belt, controller, SlimeBeltHelper.Track.BACK);
 		return referencePoint.distanceToSqr(backTarget) < referencePoint.distanceToSqr(frontTarget)
 			? SlimeBeltHelper.Track.BACK : SlimeBeltHelper.Track.FRONT;
 	}
@@ -253,13 +252,11 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 				return InteractionResult.SUCCESS;
 
 			SlimeBeltInventory beltInventory = controllerBelt.getInventory();
-			SlimeBeltHelper.Track clickedTrack = getNearestTrack(hit.getLocation(), belt, beltInventory, controllerBelt);
-			MutableBoolean success = new MutableBoolean(false);
-			beltInventory.applyToEachWithin(belt.index + .5f, .55f, clickedTrack, transportedItemStack -> {
-				player.getInventory().placeItemBackInInventory(transportedItemStack.stack);
-				success.setTrue();
-				return TransportedResult.removeItem();
-			});
+			SlimeBeltHelper.Track clickedTrack = getNearestTrack(hit.getLocation(), belt, controllerBelt);
+			MutableBoolean success = tryPickupItemFromTrack(player, belt, beltInventory, clickedTrack);
+			if (!success.isTrue())
+				success = tryPickupItemFromTrack(player, belt, beltInventory,
+					clickedTrack == SlimeBeltHelper.Track.FRONT ? SlimeBeltHelper.Track.BACK : SlimeBeltHelper.Track.FRONT);
 
 			if (success.isTrue())
 				world.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, .2f,
@@ -279,6 +276,17 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		}
 
 		return InteractionResult.PASS;
+	}
+
+	private static MutableBoolean tryPickupItemFromTrack(Player player, SlimeBeltBlockEntity belt,
+		SlimeBeltInventory beltInventory, SlimeBeltHelper.Track track) {
+		MutableBoolean success = new MutableBoolean(false);
+		beltInventory.applyToEachWithin(belt.index + .5f, .55f, track, transportedItemStack -> {
+			player.getInventory().placeItemBackInInventory(transportedItemStack.stack);
+			success.setTrue();
+			return TransportedResult.removeItem();
+		});
+		return success;
 	}
 
 	@Override

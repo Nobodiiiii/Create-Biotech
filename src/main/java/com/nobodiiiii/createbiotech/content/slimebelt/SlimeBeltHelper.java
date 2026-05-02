@@ -203,6 +203,11 @@ public class SlimeBeltHelper {
 			getFrontOffsetForLoopPosition(controller, loopPosition)));
 	}
 
+	public static Vec3 getTrackCenterVector(SlimeBeltBlockEntity controller, int segment, Track track) {
+		float segmentCenter = Mth.clamp(segment + .5f, .5f, Math.max(.5f, controller.beltLength - .5f));
+		return getStraightVectorForTrack(controller, track, segmentCenter);
+	}
+
 	public static Vec3 getPathAxis(SlimeBeltBlockEntity controller) {
 		BlockState state = controller.getBlockState();
 		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
