@@ -48,6 +48,7 @@ import org.joml.Quaternionf;
 public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEntity> {
 
 	private static final int SLIME_TINT = 0xB9F4A8;
+	private static final float BACK_TRACK_ITEM_DROP = 1 / 8f;
 
 	public SlimeBeltRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -213,6 +214,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		if (verticalMovement != 0)
 			offsetVec = offsetVec.add(0, verticalMovement, 0);
 		offsetVec = offsetVec.add(SlimeBeltHelper.getTrackShift(be, loopPosition));
+		if (backTrack && slope == BeltSlope.HORIZONTAL)
+			offsetVec = offsetVec.add(0, -BACK_TRACK_ITEM_DROP, 0);
 
 		boolean onSlope = (slope == BeltSlope.DOWNWARD || slope == BeltSlope.UPWARD)
 			&& Mth.clamp(offset, .5f, be.beltLength - .5f) == offset;
@@ -221,6 +224,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		float slopeAngle = onSlope ? tiltForward ? -45 : 45 : 0;
 
 		Vec3 itemPos = SlimeBeltHelper.getVectorForOffset(be, loopPosition);
+		if (backTrack && slope == BeltSlope.HORIZONTAL)
+			itemPos = itemPos.add(0, -BACK_TRACK_ITEM_DROP, 0);
 		if (shouldCullItem(itemPos, be.getLevel()))
 			return;
 
