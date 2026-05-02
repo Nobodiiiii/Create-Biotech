@@ -8,6 +8,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInventory;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
@@ -22,7 +23,6 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import com.simibubi.create.foundation.item.ItemHelper;
 
-import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -152,11 +152,17 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		if (world.isClientSide || entity.getDeltaMovement().y > 0)
 			return;
 
-		Vec3 targetLocation = VecHelper.getCenterOf(pos).add(0, 5 / 16f, 0);
+		SlimeBeltInventory beltInventory = belt.getInventory();
+		SlimeBeltBlockEntity controller = belt.getControllerBE();
+		if (beltInventory == null || controller == null)
+			return;
+
+		Direction insertSide = getClosestCaptureSide(entity, belt, beltInventory, controller);
+		Vec3 targetLocation = getCaptureTarget(belt, beltInventory, controller, insertSide);
 		if (!PackageEntity.centerPackage(entity, targetLocation))
 			return;
 
-		IItemHandler handler = belt.getCapability(ForgeCapabilities.ITEM_HANDLER, Direction.UP).orElse(null);
+		IItemHandler handler = belt.getCapability(ForgeCapabilities.ITEM_HANDLER, insertSide).orElse(null);
 		if (handler == null)
 			return;
 
@@ -169,6 +175,23 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 
 	public static boolean canTransportObjects(BlockState state) {
 		return state.is(CBBlocks.SLIME_BELT.get());
+	}
+
+	private static Direction getClosestCaptureSide(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
+		SlimeBeltBlockEntity controller) {
+		Vec3 entityCenter = entity.getBoundingBox()
+			.getCenter();
+		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, Direction.UP);
+		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, Direction.DOWN);
+		return entityCenter.distanceToSqr(backTarget) < entityCenter.distanceToSqr(frontTarget) ? Direction.DOWN
+			: Direction.UP;
+	}
+
+	// Dropped items can touch either exposed belt surface, so choose the insertion point on the nearest track.
+	private static Vec3 getCaptureTarget(SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
+		SlimeBeltBlockEntity controller, Direction side) {
+		float insertionPosition = beltInventory.getInsertionPosition(belt.index, side);
+		return SlimeBeltHelper.getVectorForOffset(controller, insertionPosition);
 	}
 
 	@Override
