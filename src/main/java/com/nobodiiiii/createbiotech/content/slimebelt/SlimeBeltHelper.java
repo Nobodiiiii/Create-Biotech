@@ -23,7 +23,8 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 
 public class SlimeBeltHelper {
 
-	private static final double SURFACE_HALF_THICKNESS = 7d / 16d;
+	private static final double SURFACE_HALF_THICKNESS = 8d / 16d;
+	private static final double EXTRA_TURN_AND_SLOPE_OFFSET = 1d / 16d;
 
 	public enum Track {
 		FRONT,
@@ -183,7 +184,19 @@ public class SlimeBeltHelper {
 
 	public static Vec3 getTrackNormal(SlimeBeltBlockEntity controller, float loopPosition) {
 		Vec3 frontNormal = getFrontSurfaceNormal(controller);
+		BeltSlope slope = controller.getBlockState()
+			.getValue(SlimeBeltBlock.SLOPE);
 		LoopSection section = getLoopSection(controller, loopPosition);
+		if (isDiagonalSlope(slope)) {
+			float frontOffset = getFrontOffsetForLoopPosition(controller, loopPosition);
+			if (section == LoopSection.FRONT)
+				return frontNormal;
+			if (section == LoopSection.END_TURN)
+				return getHorizontalEndSurfaceNormal(controller);
+			if (section == LoopSection.BACK)
+				return isSlopeMiddle(controller, frontOffset) ? frontNormal.scale(-1) : new Vec3(0, -1, 0);
+			return getHorizontalEndSurfaceNormal(controller).scale(-1);
+		}
 		if (section == LoopSection.FRONT)
 			return frontNormal;
 		if (section == LoopSection.END_TURN)
@@ -220,22 +233,25 @@ public class SlimeBeltHelper {
 		float beltLength = controller.beltLength;
 		float connectorLength = getConnectorLength(controller);
 		LoopSection section = getLoopSection(controller, normalized);
+		Vec3 position;
 
 		if (section == LoopSection.FRONT)
-			return getStraightVectorForTrack(controller, Track.FRONT, normalized);
-		if (section == LoopSection.END_TURN) {
+			position = getStraightVectorForTrack(controller, Track.FRONT, normalized);
+		else if (section == LoopSection.END_TURN) {
 			float turnProgress = connectorLength <= 0 ? 1 : (normalized - beltLength) / connectorLength;
-			return getStraightVectorForTrack(controller, Track.FRONT, beltLength)
+			position = getStraightVectorForTrack(controller, Track.FRONT, beltLength)
 				.lerp(getStraightVectorForTrack(controller, Track.BACK, beltLength), turnProgress);
-		}
-		if (section == LoopSection.BACK) {
+		} else if (section == LoopSection.BACK) {
 			float progress = normalized - beltLength - connectorLength;
-			return getStraightVectorForTrack(controller, Track.BACK, beltLength - progress);
+			position = getStraightVectorForTrack(controller, Track.BACK, beltLength - progress);
+		} else {
+			float turnProgress = connectorLength <= 0 ? 1
+				: (normalized - (beltLength + connectorLength + beltLength)) / connectorLength;
+			position = getStraightVectorForTrack(controller, Track.BACK, 0)
+				.lerp(getStraightVectorForTrack(controller, Track.FRONT, 0), turnProgress);
 		}
-		float turnProgress = connectorLength <= 0 ? 1
-			: (normalized - (beltLength + connectorLength + beltLength)) / connectorLength;
-		return getStraightVectorForTrack(controller, Track.BACK, 0)
-			.lerp(getStraightVectorForTrack(controller, Track.FRONT, 0), turnProgress);
+
+		return position.add(getAdditionalSurfaceOffset(controller, normalized, section));
 	}
 
 	public static float getConnectorLength(SlimeBeltBlockEntity controller) {
@@ -297,6 +313,35 @@ public class SlimeBeltHelper {
 			return Vec3.atLowerCornerOf(controller.getBeltFacing()
 				.getNormal());
 		return pathAxis.normalize();
+	}
+
+	private static Vec3 getHorizontalEndSurfaceNormal(SlimeBeltBlockEntity controller) {
+		return Vec3.atLowerCornerOf(controller.getBeltFacing()
+			.getNormal());
+	}
+
+	private static boolean isDiagonalSlope(BeltSlope slope) {
+		return slope == BeltSlope.UPWARD || slope == BeltSlope.DOWNWARD;
+	}
+
+	private static boolean isSlopeMiddle(SlimeBeltBlockEntity controller, float frontOffset) {
+		return Mth.clamp(frontOffset, .5f, controller.beltLength - .5f) == frontOffset;
+	}
+
+	private static Vec3 getAdditionalSurfaceOffset(SlimeBeltBlockEntity controller, float loopPosition, LoopSection section) {
+		if (section == LoopSection.END_TURN || section == LoopSection.START_TURN)
+			return getTrackNormal(controller, loopPosition).scale(EXTRA_TURN_AND_SLOPE_OFFSET);
+
+		BeltSlope slope = controller.getBlockState()
+			.getValue(SlimeBeltBlock.SLOPE);
+		if (!isDiagonalSlope(slope))
+			return Vec3.ZERO;
+
+		float frontOffset = getFrontOffsetForLoopPosition(controller, loopPosition);
+		if (!isSlopeMiddle(controller, frontOffset))
+			return Vec3.ZERO;
+
+		return getTrackNormal(controller, loopPosition).scale(EXTRA_TURN_AND_SLOPE_OFFSET);
 	}
 
 	public static Vec3 getBeltVector(BlockState state) {

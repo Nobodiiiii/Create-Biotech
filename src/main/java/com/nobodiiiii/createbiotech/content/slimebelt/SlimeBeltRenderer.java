@@ -45,6 +45,8 @@ import net.minecraft.world.phys.Vec3;
 
 import org.joml.Quaternionf;
 
+import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.LoopSection;
+
 public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEntity> {
 
 	private static final int SLIME_TINT = 0xB9F4A8;
@@ -229,17 +231,42 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		boolean renderUpright = SlimeBeltHelper.isItemUpright(transported.stack);
 		BakedModel bakedModel = itemRenderer.getModel(transported.stack, be.getLevel(), null, 0);
 		boolean blockItem = bakedModel.isGui3d();
+		LoopSection section = SlimeBeltHelper.getLoopSection(be, loopPosition);
 
 		int count = 0;
 		if (be.getLevel() instanceof PonderLevel || mc.player.getEyePosition(1.0F).distanceTo(itemPos) < 16)
 			count = (int) (Mth.log2((int) transported.stack.getCount())) / 2;
 
 		Random random = new Random(transported.angle);
-		applyTrackNormal(ms, SlimeBeltHelper.getTrackNormal(be, loopPosition));
-		ms.pushPose();
-		ms.translate(0, -1 / 8f + 0.005f, 0);
-		ShadowRenderHelper.renderShadow(ms, buffer, .75f, .2f);
-		ms.popPose();
+		boolean vanillaSlopeTop = (slope == BeltSlope.DOWNWARD || slope == BeltSlope.UPWARD) && section == LoopSection.FRONT;
+		if (vanillaSlopeTop) {
+			boolean onSlope = Mth.clamp(frontOffset, .5f, be.beltLength - .5f) == frontOffset;
+			boolean tiltForward = (slope == BeltSlope.DOWNWARD
+				^ beltFacing.getAxisDirection() == AxisDirection.POSITIVE) == (beltFacing.getAxis() == Direction.Axis.Z);
+			float slopeAngle = onSlope ? tiltForward ? -45 : 45 : 0;
+			boolean slopeShadowOnly = renderUpright && onSlope;
+			float slopeOffset = 1 / 8f;
+			if (slopeShadowOnly)
+				ms.pushPose();
+			if (!renderUpright || slopeShadowOnly)
+				ms.mulPose((slopeAlongX ? Axis.ZP : Axis.XP).rotationDegrees(slopeAngle));
+			if (onSlope)
+				ms.translate(0, slopeOffset, 0);
+			ms.pushPose();
+			ms.translate(0, -1 / 8f + 0.005f, 0);
+			ShadowRenderHelper.renderShadow(ms, buffer, .75f, .2f);
+			ms.popPose();
+			if (slopeShadowOnly) {
+				ms.popPose();
+				ms.translate(0, slopeOffset, 0);
+			}
+		} else {
+			applyTrackNormal(ms, SlimeBeltHelper.getTrackNormal(be, loopPosition));
+			ms.pushPose();
+			ms.translate(0, -1 / 8f + 0.005f, 0);
+			ShadowRenderHelper.renderShadow(ms, buffer, .75f, .2f);
+			ms.popPose();
+		}
 
 		if (renderUpright) {
 			Entity renderViewEntity = mc.cameraEntity;
