@@ -79,6 +79,8 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		boolean alongX = facing.getAxis() == Direction.Axis.X;
 
 		PoseStack localTransforms = new PoseStack();
+		if (beltSlope == BeltSlope.VERTICAL)
+			localTransforms.translate(0, -SlimeBeltHelper.VERTICAL_BELT_DROP, 0);
 		var msr = TransformStack.of(localTransforms);
 		VertexConsumer vb = buffer.getBuffer(RenderType.solid());
 		float renderTick = AnimationTickHolder.getRenderTime(be.getLevel());

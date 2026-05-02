@@ -184,12 +184,8 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 
 	private static SlimeBeltHelper.Track getClosestCaptureTrack(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
 		SlimeBeltBlockEntity controller) {
-		Vec3 entityCenter = entity.getBoundingBox()
-			.getCenter();
-		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.FRONT);
-		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.BACK);
-		SlimeBeltHelper.Track primary = entityCenter.distanceToSqr(backTarget) < entityCenter.distanceToSqr(frontTarget)
-			? SlimeBeltHelper.Track.BACK : SlimeBeltHelper.Track.FRONT;
+		SlimeBeltHelper.Track primary = getNearestTrack(entity.getBoundingBox()
+			.getCenter(), belt, beltInventory, controller);
 		SlimeBeltHelper.Track secondary = primary == SlimeBeltHelper.Track.FRONT ? SlimeBeltHelper.Track.BACK
 			: SlimeBeltHelper.Track.FRONT;
 		if (beltInventory.canInsertAtOnTrack(belt.index, primary))
@@ -204,6 +200,14 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 		SlimeBeltBlockEntity controller, SlimeBeltHelper.Track track) {
 		float insertionPosition = beltInventory.getInsertionPositionForTrack(belt.index, track);
 		return SlimeBeltHelper.getVectorForOffset(controller, insertionPosition);
+	}
+
+	private static SlimeBeltHelper.Track getNearestTrack(Vec3 referencePoint, SlimeBeltBlockEntity belt,
+		SlimeBeltInventory beltInventory, SlimeBeltBlockEntity controller) {
+		Vec3 frontTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.FRONT);
+		Vec3 backTarget = getCaptureTarget(belt, beltInventory, controller, SlimeBeltHelper.Track.BACK);
+		return referencePoint.distanceToSqr(backTarget) < referencePoint.distanceToSqr(frontTarget)
+			? SlimeBeltHelper.Track.BACK : SlimeBeltHelper.Track.FRONT;
 	}
 
 	@Override
@@ -248,8 +252,10 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 			if (world.isClientSide)
 				return InteractionResult.SUCCESS;
 
+			SlimeBeltInventory beltInventory = controllerBelt.getInventory();
+			SlimeBeltHelper.Track clickedTrack = getNearestTrack(hit.getLocation(), belt, beltInventory, controllerBelt);
 			MutableBoolean success = new MutableBoolean(false);
-			controllerBelt.getInventory().applyToEachWithin(belt.index + .5f, .55f, transportedItemStack -> {
+			beltInventory.applyToEachWithin(belt.index + .5f, .55f, clickedTrack, transportedItemStack -> {
 				player.getInventory().placeItemBackInInventory(transportedItemStack.stack);
 				success.setTrue();
 				return TransportedResult.removeItem();

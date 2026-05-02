@@ -219,7 +219,7 @@ public class SlimeBeltShapes {
 
 		public static VoxelShaper make(VoxelShape southBeltShape){
 			return forDirectionsWithRotation(
-					rotatedCopy(southBeltShape, new Vec3(-90,0,0)),
+					rotatedCopy(southBeltShape, new Vec3(-90,0,0)).move(0, -SlimeBeltHelper.VERTICAL_BELT_DROP, 0),
 					Direction.SOUTH,
 					Direction.Plane.HORIZONTAL,//idk, this can probably be improved :S
 					direction -> new Vec3(

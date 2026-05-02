@@ -25,6 +25,7 @@ public class SlimeBeltHelper {
 
 	private static final double SURFACE_HALF_THICKNESS = 8d / 16d;
 	private static final double EXTRA_TURN_AND_SLOPE_OFFSET = 1d / 16d;
+	public static final double VERTICAL_BELT_DROP = 1d / 16d;
 
 	public enum Track {
 		FRONT,
@@ -286,7 +287,7 @@ public class SlimeBeltHelper {
 				.getStep();
 			double y = chainStep > 0 ? frontOffset : 1d - frontOffset;
 			return Vec3.atLowerCornerOf(controller.getBlockPos())
-				.add(.5d, y, .5d);
+				.add(.5d, y - VERTICAL_BELT_DROP, .5d);
 		}
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 		float verticalMovement = frontOffset < .5f ? 0

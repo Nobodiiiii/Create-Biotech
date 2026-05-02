@@ -743,11 +743,16 @@ public class SlimeBeltInventory {
 
 	public void applyToEachWithin(float position, float maxDistanceToPosition,
 								  Function<TransportedItemStack, TransportedResult> processFunction) {
+		applyToEachWithin(position, maxDistanceToPosition, Track.FRONT, processFunction);
+	}
+
+	public void applyToEachWithin(float position, float maxDistanceToPosition, Track track,
+								  Function<TransportedItemStack, TransportedResult> processFunction) {
 		boolean dirty = false;
 		for (TransportedItemStack transported : items) {
 			if (toRemove.contains(transported))
 				continue;
-			if (SlimeBeltHelper.getLoopSection(belt, transported.beltPosition) != LoopSection.FRONT)
+			if (getTrackForLoopPosition(transported.beltPosition) != track)
 				continue;
 			ItemStack stackBefore = transported.stack.copy();
 			float frontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(belt, transported.beltPosition);
