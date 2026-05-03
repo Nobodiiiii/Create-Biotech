@@ -107,8 +107,7 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 			float speed = be.getSpeed();
 			if (speed != 0) {
 				float time = renderTick * axisDirection.getStep();
-				if (diagonal && (downward ^ alongX) || !sideways && !diagonal && alongX
-					|| sideways && axisDirection == AxisDirection.NEGATIVE)
+				if (diagonal && (downward ^ alongX) || !diagonal && alongX)
 					speed = -speed;
 
 				float scrollMult = diagonal ? 3f / 8f : 0.5f;
