@@ -32,6 +32,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
@@ -48,8 +49,6 @@ import org.joml.Quaternionf;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.LoopSection;
 
 public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEntity> {
-
-	private static final int SLIME_TINT = 0xB9F4A8;
 
 	public SlimeBeltRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -100,19 +99,23 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		for (boolean bottom : Iterate.trueAndFalse) {
 			PartialModel beltPartial = BeltRenderer.getBeltPartial(diagonal, start, end, bottom);
 			SuperByteBuffer beltBuffer = CachedBuffers.partial(beltPartial, blockState)
-				.light(light)
-				.color(SLIME_TINT);
+				.light(light);
 
-			SpriteShiftEntry spriteShift = BeltRenderer.getSpriteShiftEntry(null, diagonal, bottom);
+			SpriteShiftEntry spriteShift = getSpriteShiftEntry(diagonal, bottom);
 			float speed = be.getSpeed();
+			double scroll = bottom ? 0.5 : 0.0;
 			if (speed != 0) {
 				float time = renderTick * axisDirection.getStep();
 				if (diagonal && (downward ^ alongX) || !diagonal && alongX)
 					speed = -speed;
 
-				float scrollMult = diagonal ? 3f / 8f : 0.5f;
-				float spriteSize = spriteShift.getTarget().getV1() - spriteShift.getTarget().getV0();
-				double scroll = speed * time / (31.5 * 16) + (bottom ? 0.5 : 0.0);
+				scroll += speed * time / (31.5 * 16);
+			}
+			float scrollMult = diagonal ? 3f / 8f : 0.5f;
+			TextureAtlasSprite originalSprite = spriteShift.getOriginal();
+			TextureAtlasSprite targetSprite = spriteShift.getTarget();
+			if (originalSprite != null && targetSprite != null) {
+				float spriteSize = targetSprite.getV1() - targetSprite.getV0();
 				scroll = scroll - Math.floor(scroll);
 				scroll = scroll * spriteSize * scrollMult;
 				beltBuffer.shiftUVScrolling(spriteShift, (float) scroll);
@@ -144,6 +147,11 @@ public class SlimeBeltRenderer extends SafeBlockEntityRenderer<SlimeBeltBlockEnt
 		}
 
 		renderItems(be, partialTicks, ms, buffer, light, overlay);
+	}
+
+	private static SpriteShiftEntry getSpriteShiftEntry(boolean diagonal, boolean bottom) {
+		return diagonal ? SlimeBeltSpriteShifts.BELT_DIAGONAL
+			: bottom ? SlimeBeltSpriteShifts.BELT_OFFSET : SlimeBeltSpriteShifts.BELT;
 	}
 
 	private void renderItems(SlimeBeltBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,

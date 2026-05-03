@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.client;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
+import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.minecraftforge.api.distmarker.Dist;
@@ -21,6 +22,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
+		SlimeBeltSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 	}
 }

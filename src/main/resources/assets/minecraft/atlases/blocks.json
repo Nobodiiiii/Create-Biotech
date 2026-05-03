@@ -1,0 +1,12 @@
+{
+  "sources": [
+    {
+      "type": "single",
+      "resource": "create_biotech:block/slime_belt_scroll"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/slime_belt_diagonal_scroll"
+    }
+  ]
+}

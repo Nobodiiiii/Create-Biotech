@@ -2,7 +2,7 @@
   "multipart": [
     {
       "apply": {
-        "model": "create:block/belt/particle"
+        "model": "create_biotech:block/slime_belt/particle"
       }
     }
   ]
