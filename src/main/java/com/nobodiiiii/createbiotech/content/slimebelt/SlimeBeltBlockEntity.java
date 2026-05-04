@@ -69,6 +69,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
 		super.addBehaviours(behaviours);
 		behaviours.add(new DirectBeltInputBehaviour(this).onlyInsertWhen(this::canInsertFrom)
+			.allowingBeltFunnels()
 			.setInsertionHandler(this::tryInsertingFromSide)
 			.considerOccupiedWhen(this::isOccupied));
 		behaviours.add(new TransportedItemStackHandlerBehaviour(this, this::applyToAllItems)

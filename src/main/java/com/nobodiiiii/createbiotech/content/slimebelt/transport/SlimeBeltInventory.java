@@ -195,6 +195,9 @@ public class SlimeBeltInventory {
 					continue;
 			}
 
+			if (track == Track.FRONT && SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, nextFrontOffset))
+				continue;
+
 			if (noMovement) {
 				stackInFront = currentItem;
 				continue;
@@ -571,7 +574,7 @@ public class SlimeBeltInventory {
 			: (track == Track.FRONT ? belt.beltLength - clamped : clamped);
 	}
 
-	private void setLoopPositionFromTrackProgress(TransportedItemStack currentItem, Track track, float progress) {
+	void setLoopPositionFromTrackProgress(TransportedItemStack currentItem, Track track, float progress) {
 		currentItem.beltPosition = getLoopPositionForTrackProgress(track, progress);
 	}
 

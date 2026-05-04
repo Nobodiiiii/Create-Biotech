@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 
 import net.minecraft.world.level.block.Block;
@@ -21,6 +22,13 @@ public class CBBlocks {
 			.sound(SoundType.WOOL)
 			.strength(0.8f)
 			.mapColor(MapColor.COLOR_LIGHT_GREEN)
+			.noOcclusion()));
+
+	public static final RegistryObject<EvokerTankBlock> EVOKER_TANK = BLOCKS.register("evoker_tank",
+		() -> new EvokerTankBlock(Block.Properties.of()
+			.sound(SoundType.COPPER)
+			.strength(2.5f)
+			.mapColor(MapColor.METAL)
 			.noOcclusion()));
 
 	private CBBlocks() {}

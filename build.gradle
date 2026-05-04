@@ -17,6 +17,11 @@ java {
     withSourcesJar()
 }
 
+mixin {
+    add sourceSets.main, "create_biotech.refmap.json"
+    config "create_biotech.mixins.json"
+}
+
 legacyForge {
     version = "${minecraft_version}-${forge_version}"
 
@@ -76,6 +81,10 @@ dependencies {
     modRuntimeOnly("dev.engine-room.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}")
     modRuntimeOnly("dev.engine-room.vanillin:vanillin-forge-${minecraft_version}:${vanillin_version}")
     modImplementation("net.createmod.ponder:Ponder-Forge-${minecraft_version}:${ponder_version}")
+
+    if (!Boolean.getBoolean("idea.sync.active")) {
+        annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+    }
 }
 
 processResources {
@@ -139,7 +148,8 @@ jar {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'MixinConfigs'            : 'create_biotech.mixins.json'
         ])
     }
 }

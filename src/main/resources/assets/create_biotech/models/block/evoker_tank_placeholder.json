@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "particle": "create:block/fluid_tank"
+  },
+  "elements": []
+}

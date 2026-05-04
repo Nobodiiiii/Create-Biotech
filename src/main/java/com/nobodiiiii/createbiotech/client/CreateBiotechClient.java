@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.client;
 
+import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankRenderer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
@@ -17,6 +18,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.EVOKER_TANK.get(), EvokerTankRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SLIME_BELT.get(), SlimeBeltRenderer::new);
 	}
 

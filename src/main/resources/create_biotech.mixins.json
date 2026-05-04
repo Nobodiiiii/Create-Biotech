@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.nobodiiiii.createbiotech.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "create_biotech.refmap.json",
+  "mixins": [
+    "BeltFunnelBlockMixin",
+    "FunnelBlockEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

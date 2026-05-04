@@ -1,0 +1,9 @@
+{
+  "multipart": [
+    {
+      "apply": {
+        "model": "create_biotech:block/evoker_tank_placeholder"
+      }
+    }
+  ]
+}
