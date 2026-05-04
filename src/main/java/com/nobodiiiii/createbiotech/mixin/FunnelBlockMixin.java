@@ -14,11 +14,41 @@ import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 
 @Mixin(FunnelBlock.class)
 public abstract class FunnelBlockMixin {
+
+	@Inject(method = "getStateForPlacement(Lnet/minecraft/world/item/context/BlockPlaceContext;)Lnet/minecraft/world/level/block/state/BlockState;",
+		at = @At("RETURN"), cancellable = true)
+	private void createBiotech$getStateForPlacement(BlockPlaceContext context,
+		CallbackInfoReturnable<BlockState> cir) {
+		BlockState state = cir.getReturnValue();
+		if (state == null)
+			return;
+
+		Direction funnelFacing = AbstractFunnelBlock.getFunnelFacing(state);
+		if (funnelFacing == null || funnelFacing.getAxis()
+			.isVertical())
+			return;
+
+		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(context.getLevel(), context.getClickedPos());
+		if (support == null)
+			return;
+		if (support.side()
+			.getAxis()
+			.isHorizontal() && support.side() != funnelFacing)
+			return;
+
+		BlockState equivalentFunnel = ProperWaterloggedBlock.withWater(context.getLevel(),
+			((FunnelBlock) (Object) this).getEquivalentBeltFunnel(context.getLevel(), context.getClickedPos(), state),
+			context.getClickedPos());
+		cir.setReturnValue(equivalentFunnel.setValue(BeltFunnelBlock.SHAPE,
+			BeltFunnelBlock.getShapeForPosition(context.getLevel(), context.getClickedPos(), funnelFacing,
+				state.getValue(FunnelBlock.EXTRACTING))));
+	}
 
 	@Inject(method = "updateShape(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;",
 		at = @At("HEAD"), cancellable = true)
@@ -32,6 +62,10 @@ public abstract class FunnelBlockMixin {
 		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(world, pos);
 		if (support == null || direction != support.side()
 			.getOpposite())
+			return;
+		if (support.side()
+			.getAxis()
+			.isHorizontal() && support.side() != funnelFacing)
 			return;
 
 		BlockState equivalentFunnel = ProperWaterloggedBlock.withWater(world,

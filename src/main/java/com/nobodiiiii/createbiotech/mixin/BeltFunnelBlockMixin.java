@@ -38,9 +38,8 @@ public abstract class BeltFunnelBlockMixin {
 			return;
 
 		Shape perpendicularState = extracting ? Shape.PUSHING : Shape.PULLING;
-		cir.setReturnValue(support.controller()
-			.getBeltFacing()
-			.getAxis() != facing.getAxis() ? perpendicularState : Shape.RETRACTED);
+		Direction movementFacing = SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track());
+		cir.setReturnValue(movementFacing.getAxis() != facing.getAxis() ? perpendicularState : Shape.RETRACTED);
 	}
 
 	@Inject(method = "isOnValidBelt(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;)Z",

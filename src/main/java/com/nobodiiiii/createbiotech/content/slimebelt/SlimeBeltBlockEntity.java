@@ -288,10 +288,14 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		if (getSpeed() == 0)
 			return false;
 		BlockState state = getBlockState();
-		if (state.hasProperty(SlimeBeltBlock.SLOPE) && (state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.SIDEWAYS
-			|| state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL))
+		if (side == getMovementFacing().getOpposite())
 			return false;
-		return side != getMovementFacing().getOpposite();
+		if (state.hasProperty(SlimeBeltBlock.SLOPE) && (state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.SIDEWAYS
+			|| state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL)) {
+			Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(state);
+			return side == frontInputSide || side == frontInputSide.getOpposite();
+		}
+		return true;
 	}
 
 	private boolean isOccupied(Direction side) {
