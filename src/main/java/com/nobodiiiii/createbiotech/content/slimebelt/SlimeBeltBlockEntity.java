@@ -284,7 +284,13 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	private boolean canInsertFrom(Direction side) {
-		return getSpeed() != 0 && side != getMovementFacing().getOpposite();
+		if (getSpeed() == 0)
+			return false;
+		BlockState state = getBlockState();
+		if (state.hasProperty(SlimeBeltBlock.SLOPE) && (state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.SIDEWAYS
+			|| state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL))
+			return false;
+		return side != getMovementFacing().getOpposite();
 	}
 
 	private boolean isOccupied(Direction side) {
@@ -296,7 +302,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		SlimeBeltInventory beltInventory = getInventory();
 		if (!SlimeBeltBlock.canTransportObjects(getBlockState()) || beltInventory == null)
 			return transportedStack.stack;
-		if (getMovementFacing() == side.getOpposite() || !beltInventory.canInsertAtFromSide(index, side))
+		if (!canInsertFrom(side) || !beltInventory.canInsertAtFromSide(index, side))
 			return transportedStack.stack;
 		if (simulate)
 			return ItemStack.EMPTY;
