@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.content.slimebelt;
 
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import com.simibubi.create.AllTags.AllItemTags;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
 
@@ -36,6 +38,10 @@ public class SlimeBeltHelper {
 		END_TURN,
 		BACK,
 		START_TURN
+	}
+
+	public record FunnelSupport(SlimeBeltBlockEntity segment, SlimeBeltBlockEntity controller, Track track,
+		Direction side) {
 	}
 
 	public static Map<Item, Boolean> uprightCache = new Object2BooleanOpenHashMap<>();
@@ -208,6 +214,41 @@ public class SlimeBeltHelper {
 		return getStraightVectorForTrack(controller, track, segmentCenter);
 	}
 
+	public static Direction getRepresentativeSideForTrack(SlimeBeltBlockEntity controller, int segment, Track track) {
+		Direction frontInputSide = getFrontInputSide(controller.getBlockState());
+		Direction primary = track == Track.FRONT ? Direction.UP : Direction.DOWN;
+		Direction alternate = track == Track.FRONT ? frontInputSide : frontInputSide.getOpposite();
+		Vec3 trackNormal = getTrackNormal(controller, getTrackCenterLoopPosition(controller, segment, track));
+		return getAlignment(trackNormal, alternate) > getAlignment(trackNormal, primary) ? alternate : primary;
+	}
+
+	public static BlockPos getFunnelPositionForTrack(SlimeBeltBlockEntity controller, int segment, Track track) {
+		return getPositionForOffset(controller, segment)
+			.relative(getRepresentativeSideForTrack(controller, segment, track));
+	}
+
+	public static Direction getMovementFacingForTrack(SlimeBeltBlockEntity controller, Track track) {
+		Direction frontMovement = controller.getMovementFacing();
+		return track == Track.FRONT ? frontMovement : frontMovement.getOpposite();
+	}
+
+	@Nullable
+	public static FunnelSupport getFunnelSupport(LevelAccessor world, BlockPos funnelPos) {
+		for (Direction side : Direction.values()) {
+			BlockPos beltPos = funnelPos.relative(side.getOpposite());
+			SlimeBeltBlockEntity segment = getSegmentBE(world, beltPos);
+			if (segment == null)
+				continue;
+			SlimeBeltBlockEntity controller = segment.getControllerBE();
+			if (controller == null)
+				continue;
+			for (Track track : Track.values())
+				if (getRepresentativeSideForTrack(controller, segment.index, track) == side)
+					return new FunnelSupport(segment, controller, track, side);
+		}
+		return null;
+	}
+
 	public static Vec3 getPathAxis(SlimeBeltBlockEntity controller) {
 		BlockState state = controller.getBlockState();
 		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
@@ -257,6 +298,13 @@ public class SlimeBeltHelper {
 
 	private static Vec3 getStraightVectorForTrack(SlimeBeltBlockEntity controller, Track track, float frontOffset) {
 		return getStraightBaseVector(controller, frontOffset).add(getTrackOffsetVector(controller, track));
+	}
+
+	private static float getTrackCenterLoopPosition(SlimeBeltBlockEntity controller, int segment, Track track) {
+		float segmentCenter = Mth.clamp(segment + .5f, .5f, Math.max(.5f, controller.beltLength - .5f));
+		if (track == Track.FRONT)
+			return segmentCenter;
+		return 2 * controller.beltLength + getConnectorLength(controller) - segmentCenter;
 	}
 
 	private static Vec3 getStraightBaseVector(SlimeBeltBlockEntity controller, float frontOffset) {
@@ -401,6 +449,10 @@ public class SlimeBeltHelper {
 		return vector.scale(cos)
 			.add(cross.scale(sin))
 			.add(normalizedAxis.scale(dot * (1 - cos)));
+	}
+
+	private static double getAlignment(Vec3 normal, Direction side) {
+		return normal.dot(Vec3.atLowerCornerOf(side.getNormal()));
 	}
 
 	public static Vec3 getBeltVector(BlockState state) {

@@ -23,23 +23,23 @@ import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 public class SlimeBeltFunnelInteractionHandler {
 
 	public static boolean checkForFunnels(SlimeBeltInventory beltInventory, TransportedItemStack currentItem,
-		float nextOffset) {
+		Track track, float nextOffset) {
 		boolean beltMovementPositive = beltInventory.beltMovementPositive;
+		boolean movingTowardHigherSegments = track == Track.FRONT ? beltMovementPositive : !beltMovementPositive;
 		float currentOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(beltInventory.belt, currentItem.beltPosition);
 		int firstUpcomingSegment = (int) Math.floor(currentOffset);
-		int step = beltMovementPositive ? 1 : -1;
+		int step = movingTowardHigherSegments ? 1 : -1;
 		firstUpcomingSegment = Mth.clamp(firstUpcomingSegment, 0, beltInventory.belt.beltLength - 1);
+		Direction movementFacing = SlimeBeltHelper.getMovementFacingForTrack(beltInventory.belt, track);
+		Level world = beltInventory.belt.getLevel();
 
-		for (int segment = firstUpcomingSegment; beltMovementPositive ? segment <= nextOffset
+		for (int segment = firstUpcomingSegment; movingTowardHigherSegments ? segment <= nextOffset
 			: segment + 1 >= nextOffset; segment += step) {
-			BlockPos funnelPos = SlimeBeltHelper.getPositionForOffset(beltInventory.belt, segment)
-				.above();
-			Level world = beltInventory.belt.getLevel();
+			BlockPos funnelPos = SlimeBeltHelper.getFunnelPositionForTrack(beltInventory.belt, segment, track);
 			BlockState funnelState = world.getBlockState(funnelPos);
 			if (!(funnelState.getBlock() instanceof BeltFunnelBlock))
 				continue;
 			Direction funnelFacing = funnelState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
-			Direction movementFacing = beltInventory.belt.getMovementFacing();
 			boolean blocking = funnelFacing == movementFacing.getOpposite();
 			if (funnelFacing == movementFacing)
 				continue;
@@ -48,13 +48,13 @@ public class SlimeBeltFunnelInteractionHandler {
 
 			float funnelEntry = segment + .5f;
 			if (funnelState.getValue(BeltFunnelBlock.SHAPE) == Shape.EXTENDED)
-				funnelEntry += .499f * (beltMovementPositive ? -1 : 1);
-			boolean hasCrossed = nextOffset > funnelEntry && beltMovementPositive
-				|| nextOffset < funnelEntry && !beltMovementPositive;
+				funnelEntry += .499f * (movingTowardHigherSegments ? -1 : 1);
+			boolean hasCrossed = movingTowardHigherSegments ? nextOffset > funnelEntry : nextOffset < funnelEntry;
 			if (!hasCrossed)
 				return false;
 			if (blocking)
-				beltInventory.setLoopPositionFromTrackProgress(currentItem, Track.FRONT, funnelEntry);
+				beltInventory.setLoopPositionFromTrackProgress(currentItem, track,
+					beltInventory.getTrackProgressForFrontOffset(track, funnelEntry));
 
 			if (world.isClientSide || funnelState.getOptionalValue(BeltFunnelBlock.POWERED)
 				.orElse(false))

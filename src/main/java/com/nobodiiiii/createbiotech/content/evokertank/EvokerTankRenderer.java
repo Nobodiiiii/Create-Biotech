@@ -17,6 +17,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Evoker;
+import net.minecraft.world.entity.monster.SpellcasterIllager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -34,9 +35,9 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 	private static final float LEFT_LEG_Z_ROT = -0.07853982f;
 
 	private final BlockRenderDispatcher blockRenderer;
-	private final IllagerModel<Evoker> evokerModel;
+	private final IllagerModel<RenderEvoker> evokerModel;
 	private final BlockState tankState;
-	private Evoker cachedEvoker;
+	private RenderEvoker cachedEvoker;
 	private ClientLevel cachedLevel;
 
 	public EvokerTankRenderer(BlockEntityRendererProvider.Context context) {
@@ -50,11 +51,11 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 		MultiBufferSource buffer, int packedLight, int packedOverlay) {
 		renderTank(poseStack, buffer, packedLight, packedOverlay);
 
-		Evoker evoker = getOrCreateEvoker(blockEntity.getLevel());
+		RenderEvoker evoker = getOrCreateEvoker(blockEntity.getLevel());
 		if (evoker == null)
 			return;
 
-		prepareEvokerModel(evoker);
+		prepareEvokerModel(evoker, blockEntity, partialTick);
 
 		poseStack.pushPose();
 		poseStack.translate(0.5d, 1.55d, 0.5d);
@@ -73,10 +74,12 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 		poseStack.popPose();
 	}
 
-	private void prepareEvokerModel(Evoker evoker) {
+	private void prepareEvokerModel(RenderEvoker evoker, EvokerTankBlockEntity blockEntity, float partialTick) {
+		evoker.setCasting(blockEntity.isCastingSpell());
+
 		ModelPart root = evokerModel.root();
 		root.getAllParts().forEach(ModelPart::resetPose);
-		evokerModel.setupAnim(evoker, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+		evokerModel.setupAnim(evoker, 0.0f, 0.0f, blockEntity.getAnimationTime(partialTick), 0.0f, 0.0f);
 
 		ModelPart head = root.getChild("head");
 		ModelPart rightLeg = root.getChild("right_leg");
@@ -91,13 +94,13 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 		leftLeg.zRot = LEFT_LEG_Z_ROT;
 	}
 
-	private Evoker getOrCreateEvoker(Level level) {
+	private RenderEvoker getOrCreateEvoker(Level level) {
 		if (!(level instanceof ClientLevel clientLevel))
 			return null;
 
 		if (cachedEvoker == null || cachedLevel != clientLevel) {
 			cachedLevel = clientLevel;
-			cachedEvoker = EntityType.EVOKER.create(clientLevel);
+			cachedEvoker = new RenderEvoker(clientLevel);
 			if (cachedEvoker != null) {
 				cachedEvoker.setNoAi(true);
 				cachedEvoker.setSilent(true);
@@ -149,5 +152,16 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private static BlockState setPropertyValue(BlockState state, Property property, Comparable value) {
 		return state.setValue(property, value);
+	}
+
+	private static class RenderEvoker extends Evoker {
+
+		private RenderEvoker(ClientLevel level) {
+			super(EntityType.EVOKER, level);
+		}
+
+		private void setCasting(boolean casting) {
+			setIsCastingSpell(casting ? SpellcasterIllager.IllagerSpell.FANGS : SpellcasterIllager.IllagerSpell.NONE);
+		}
 	}
 }

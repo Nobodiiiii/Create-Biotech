@@ -195,7 +195,7 @@ public class SlimeBeltInventory {
 					continue;
 			}
 
-			if (track == Track.FRONT && SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, nextFrontOffset))
+			if (SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, track, nextFrontOffset))
 				continue;
 
 			if (noMovement) {
@@ -494,7 +494,7 @@ public class SlimeBeltInventory {
 		transported.beltPosition = insertionPosition;
 		transported.prevBeltPosition = insertionPosition;
 		transported.insertedAt = segment;
-		transported.insertedFrom = getRepresentativeSideForTrack(segment, track);
+		transported.insertedFrom = SlimeBeltHelper.getRepresentativeSideForTrack(belt, segment, track);
 		transported.prevSideOffset = transported.sideOffset;
 	}
 
@@ -570,6 +570,12 @@ public class SlimeBeltInventory {
 
 	private float getFrontOffsetForTrackProgress(Track track, float progress) {
 		float clamped = Mth.clamp(progress, 0, belt.beltLength);
+		return beltMovementPositive ? (track == Track.FRONT ? clamped : belt.beltLength - clamped)
+			: (track == Track.FRONT ? belt.beltLength - clamped : clamped);
+	}
+
+	float getTrackProgressForFrontOffset(Track track, float frontOffset) {
+		float clamped = Mth.clamp(frontOffset, 0, belt.beltLength);
 		return beltMovementPositive ? (track == Track.FRONT ? clamped : belt.beltLength - clamped)
 			: (track == Track.FRONT ? belt.beltLength - clamped : clamped);
 	}
@@ -661,18 +667,6 @@ public class SlimeBeltInventory {
 		if (section == LoopSection.BACK)
 			return Track.BACK;
 		return null;
-	}
-
-	private Direction getRepresentativeSideForTrack(int segment, Track track) {
-		Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(belt.getBlockState());
-		Direction primary = track == Track.FRONT ? Direction.UP : Direction.DOWN;
-		Direction alternate = track == Track.FRONT ? frontInputSide : frontInputSide.getOpposite();
-		Vec3 trackNormal = SlimeBeltHelper.getTrackNormal(belt, getInsertionPositionForTrack(segment, track));
-		return getAlignment(trackNormal, alternate) > getAlignment(trackNormal, primary) ? alternate : primary;
-	}
-
-	private double getAlignment(Vec3 normal, Direction side) {
-		return normal.dot(Vec3.atLowerCornerOf(side.getNormal()));
 	}
 
 	private float getConnectorStart(Connector connector) {
