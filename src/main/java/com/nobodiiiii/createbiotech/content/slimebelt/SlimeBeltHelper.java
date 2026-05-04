@@ -16,6 +16,7 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -60,7 +61,7 @@ public class SlimeBeltHelper {
 		);
 	}
 
-	public static SlimeBeltBlockEntity getSegmentBE(LevelAccessor world, BlockPos pos) {
+	public static SlimeBeltBlockEntity getSegmentBE(BlockGetter world, BlockPos pos) {
 		if (world instanceof Level l && !l.isLoaded(pos))
 			return null;
 		BlockEntity blockEntity = world.getBlockEntity(pos);
@@ -69,7 +70,7 @@ public class SlimeBeltHelper {
 		return (SlimeBeltBlockEntity) blockEntity;
 	}
 
-	public static SlimeBeltBlockEntity getControllerBE(LevelAccessor world, BlockPos pos) {
+	public static SlimeBeltBlockEntity getControllerBE(BlockGetter world, BlockPos pos) {
 		SlimeBeltBlockEntity segment = getSegmentBE(world, pos);
 		if (segment == null)
 			return null;
@@ -233,7 +234,7 @@ public class SlimeBeltHelper {
 	}
 
 	@Nullable
-	public static FunnelSupport getFunnelSupport(LevelAccessor world, BlockPos funnelPos) {
+	public static FunnelSupport getFunnelSupport(BlockGetter world, BlockPos funnelPos) {
 		for (Direction side : Direction.values()) {
 			BlockPos beltPos = funnelPos.relative(side.getOpposite());
 			SlimeBeltBlockEntity segment = getSegmentBE(world, beltPos);
