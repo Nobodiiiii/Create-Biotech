@@ -394,25 +394,26 @@ public class SlimeBeltInventory {
 		for (int segment = minSegment; segment <= maxSegment; segment++) {
 			Vec3 trackNormal = SlimeBeltHelper.getTrackNormal(belt, segment, track);
 			Direction outgoingSide = Direction.getNearest(trackNormal.x, trackNormal.y, trackNormal.z);
-			if (outgoingSide.getAxis().isVertical())
-				continue;
 
 			BlockPos sourceSegmentPos = SlimeBeltHelper.getPositionForOffset(belt, segment);
 			BlockPos targetPos = sourceSegmentPos.relative(outgoingSide);
+			Direction incomingFace = outgoingSide.getOpposite();
 			BlockEntity targetBlockEntity = belt.getLevel().getBlockEntity(targetPos);
 			if (targetBlockEntity instanceof SlimeBeltBlockEntity targetSegment) {
 				SlimeBeltBlockEntity targetController = targetSegment.getControllerBE();
 				if (targetController == null || targetController.getBlockPos().equals(belt.getController()))
 					continue;
 
-				for (Direction insertSide : new Direction[] { Direction.UP, Direction.DOWN }) {
+				for (Direction insertSide : Direction.values()) {
+					if (!isCornerTransfer(incomingFace, insertSide))
+						continue;
 					Track targetTrack = SlimeBeltHelper.resolveInputTrack(targetSegment.getBlockState(), insertSide);
 					if (SlimeBeltHelper.getRepresentativeSideForTrack(targetController, targetSegment.index, targetTrack) != insertSide)
 						continue;
-					if (!canSideTransferInto(targetController, targetSegment, targetTrack, outgoingSide.getOpposite()))
+					if (!canSideTransferInto(targetController, targetSegment, targetTrack, incomingFace))
 						continue;
 
-					SideTransferCandidate candidate = createSideTransferCandidate(targetPos, outgoingSide.getOpposite(),
+					SideTransferCandidate candidate = createSideTransferCandidate(targetPos, incomingFace,
 						insertSide, currentProgress, nextProgress, start, end);
 					if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
 						bestCandidate = candidate;
@@ -421,10 +422,13 @@ public class SlimeBeltInventory {
 			}
 
 			if (targetBlockEntity instanceof BeltBlockEntity) {
-				if (!canSideTransferInto((BeltBlockEntity) targetBlockEntity, outgoingSide.getOpposite()))
+				Direction insertSide = Direction.UP;
+				if (!isCornerTransfer(incomingFace, insertSide))
 					continue;
-				SideTransferCandidate candidate = createSideTransferCandidate(targetPos, outgoingSide.getOpposite(),
-					Direction.UP, currentProgress, nextProgress, start, end);
+				if (!canSideTransferInto((BeltBlockEntity) targetBlockEntity, incomingFace))
+					continue;
+				SideTransferCandidate candidate = createSideTransferCandidate(targetPos, incomingFace,
+					insertSide, currentProgress, nextProgress, start, end);
 				if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
 					bestCandidate = candidate;
 			}
@@ -447,9 +451,14 @@ public class SlimeBeltInventory {
 		return new SideTransferCandidate(targetPos, insertSide, contactProgress, contactParam, distanceSqr);
 	}
 
+	private boolean isCornerTransfer(Direction incomingFace, Direction insertSide) {
+		return incomingFace.getAxis() != insertSide.getAxis();
+	}
+
 	private boolean canSideTransferInto(SlimeBeltBlockEntity targetController, SlimeBeltBlockEntity targetSegment,
 		Track targetTrack, Direction incomingFace) {
-		if (targetSegment.getBlockState().getValue(SlimeBeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+		BeltSlope slope = targetSegment.getBlockState().getValue(SlimeBeltBlock.SLOPE);
+		if (slope != BeltSlope.HORIZONTAL && slope != BeltSlope.VERTICAL)
 			return true;
 		return SlimeBeltHelper.getMovementFacingForTrack(targetController, targetTrack) == incomingFace.getOpposite();
 	}
@@ -462,7 +471,8 @@ public class SlimeBeltInventory {
 
 	private Vec3 getTransferCorner(BlockPos targetPos, Direction incomingFace, Direction insertSide) {
 		return Vec3.atCenterOf(targetPos)
-			.add(incomingFace.getStepX() * .5, insertSide == Direction.UP ? .5 : -.5, incomingFace.getStepZ() * .5);
+			.add(incomingFace.getStepX() * .5, incomingFace.getStepY() * .5, incomingFace.getStepZ() * .5)
+			.add(insertSide.getStepX() * .5, insertSide.getStepY() * .5, insertSide.getStepZ() * .5);
 	}
 
 	private float getClosestPointParam(Vec3 start, Vec3 end, Vec3 point) {
