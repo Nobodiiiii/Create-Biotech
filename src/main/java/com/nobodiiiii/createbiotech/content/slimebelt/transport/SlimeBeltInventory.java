@@ -174,7 +174,7 @@ public class SlimeBeltInventory {
 					} else {
 						seamAction = isConnectorEntryClear(exitConnector, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
 					}
-				} else if (canBackTrackInsertIntoVerticalBelt(outputPosition, movementFacing)) {
+				} else if (canBackTrackInsertIntoSlimeBelt(track, outputPosition, movementFacing)) {
 					seamAction = SeamAction.INSERT;
 				} else {
 					seamAction = isConnectorEntryClear(exitConnector, currentItem) ? SeamAction.TRANSFER : SeamAction.WAIT;
@@ -230,7 +230,7 @@ public class SlimeBeltInventory {
 			}
 
 			if (!onClient && seamAction == SeamAction.INSERT && approachingSeam && limitedMovement != movement) {
-				Direction insertSide = getDirectInsertSide(outputPosition, movementFacing);
+				Direction insertSide = getDirectInsertSide(track, outputPosition, movementFacing);
 				DirectBeltInputBehaviour inputBehaviour =
 					BlockEntityBehaviour.get(world, outputPosition, DirectBeltInputBehaviour.TYPE);
 				if (inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide)) {
@@ -436,24 +436,40 @@ public class SlimeBeltInventory {
 		return SlimeBeltHelper.getPositionForOffset(belt, outputOffset);
 	}
 
-	private boolean canBackTrackInsertIntoVerticalBelt(BlockPos outputPosition, Direction movementFacing) {
-		if (!isVerticalSlimeBelt(outputPosition))
+	private BlockPos getTrackEdgePosition(Track track) {
+		int edgeOffset = beltMovementPositive ? (track == Track.FRONT ? belt.beltLength - 1 : 0)
+			: (track == Track.FRONT ? 0 : belt.beltLength - 1);
+		return SlimeBeltHelper.getPositionForOffset(belt, edgeOffset);
+	}
+
+	private boolean canBackTrackInsertIntoSlimeBelt(Track track, BlockPos outputPosition, Direction movementFacing) {
+		SlimeBeltBlockEntity targetBelt = SlimeBeltHelper.getSegmentBE(belt.getLevel(), outputPosition);
+		if (targetBelt == null)
 			return false;
-		Direction insertSide = getDirectInsertSide(outputPosition, movementFacing);
+		Direction insertSide = getDirectInsertSide(track, outputPosition, movementFacing);
 		DirectBeltInputBehaviour inputBehaviour =
 			BlockEntityBehaviour.get(belt.getLevel(), outputPosition, DirectBeltInputBehaviour.TYPE);
 		return inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide);
 	}
 
-	private boolean isVerticalSlimeBelt(BlockPos pos) {
+	private boolean usesTrackFaceInsertSide(BlockPos pos) {
 		if (!belt.getLevel().getBlockState(pos).is(CBBlocks.SLIME_BELT.get()))
 			return false;
-		return belt.getLevel().getBlockState(pos).getValue(SlimeBeltBlock.SLOPE)
-			== com.simibubi.create.content.kinetics.belt.BeltSlope.VERTICAL;
+		com.simibubi.create.content.kinetics.belt.BeltSlope slope =
+			belt.getLevel().getBlockState(pos).getValue(SlimeBeltBlock.SLOPE);
+		return slope == com.simibubi.create.content.kinetics.belt.BeltSlope.VERTICAL
+			|| slope == com.simibubi.create.content.kinetics.belt.BeltSlope.SIDEWAYS;
 	}
 
-	private Direction getDirectInsertSide(BlockPos outputPosition, Direction movementFacing) {
-		return isVerticalSlimeBelt(outputPosition) ? movementFacing.getOpposite() : movementFacing;
+	private Direction getDirectInsertSide(Track track, BlockPos outputPosition, Direction movementFacing) {
+		if (track == Track.BACK && belt.getLevel().getBlockState(outputPosition).is(CBBlocks.SLIME_BELT.get())
+			&& !usesTrackFaceInsertSide(outputPosition))
+			return Direction.DOWN;
+		if (!usesTrackFaceInsertSide(outputPosition))
+			return movementFacing;
+		BlockPos edgePosition = getTrackEdgePosition(track);
+		return Direction.getNearest(edgePosition.getX() - outputPosition.getX(),
+			edgePosition.getY() - outputPosition.getY(), edgePosition.getZ() - outputPosition.getZ());
 	}
 
 	public boolean canInsertAt(int segment) {
