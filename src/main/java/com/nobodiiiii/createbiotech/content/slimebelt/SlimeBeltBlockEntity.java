@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInvento
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeItemHandlerBeltSegment;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltPart;
@@ -22,6 +23,7 @@ import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehavi
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
+import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.VersionedInventoryTrackerBehaviour;
 
@@ -285,6 +287,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	private boolean canInsertFrom(Direction side) {
+		side = resolveInsertionSide(side);
 		if (getSpeed() == 0)
 			return false;
 		BlockState state = getBlockState();
@@ -299,11 +302,13 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	private boolean isOccupied(Direction side) {
+		side = resolveInsertionSide(side);
 		SlimeBeltInventory beltInventory = getInventory();
 		return beltInventory == null || getSpeed() == 0 || !beltInventory.canInsertAtFromSide(index, side);
 	}
 
 	private ItemStack tryInsertingFromSide(TransportedItemStack transportedStack, Direction side, boolean simulate) {
+		side = resolveInsertionSide(side);
 		SlimeBeltInventory beltInventory = getInventory();
 		if (!SlimeBeltBlock.canTransportObjects(getBlockState()) || beltInventory == null)
 			return transportedStack.stack;
@@ -337,6 +342,43 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		setChanged();
 		sendData();
 		return ItemStack.EMPTY;
+	}
+
+	private Direction resolveInsertionSide(Direction side) {
+		if (side == null || level == null || side.getAxis().isVertical())
+			return side;
+		BlockState state = getBlockState();
+		if (!state.hasProperty(SlimeBeltBlock.SLOPE))
+			return side;
+		BeltSlope slope = state.getValue(SlimeBeltBlock.SLOPE);
+		if (slope != BeltSlope.SIDEWAYS && slope != BeltSlope.VERTICAL)
+			return side;
+
+		Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(state);
+		if (side != frontInputSide && side != frontInputSide.getOpposite())
+			return side;
+
+		// Adjacent belts pass their movement direction to DirectBeltInputBehaviour. For vertical and sideways
+		// slime belts we need the physical entry side instead, so recover it from the neighbouring source belt.
+		if (hasAdjacentFunnel(side))
+			return side;
+		if (hasAdjacentBeltSource(side.getOpposite()))
+			return side.getOpposite();
+		return side;
+	}
+
+	private boolean hasAdjacentBeltSource(Direction physicalSide) {
+		BlockEntity blockEntity = level.getBlockEntity(worldPosition.relative(physicalSide));
+		Direction expectedMovement = physicalSide.getOpposite();
+		if (blockEntity instanceof SlimeBeltBlockEntity slimeBelt)
+			return slimeBelt.getSpeed() != 0 && slimeBelt.getMovementFacing() == expectedMovement;
+		if (blockEntity instanceof BeltBlockEntity belt)
+			return belt.getSpeed() != 0 && belt.getMovementFacing() == expectedMovement;
+		return false;
+	}
+
+	private boolean hasAdjacentFunnel(Direction physicalSide) {
+		return level.getBlockState(worldPosition.relative(physicalSide)).getBlock() instanceof BeltFunnelBlock;
 	}
 
 	private void applyToAllItems(float maxDistanceFromCenter,
