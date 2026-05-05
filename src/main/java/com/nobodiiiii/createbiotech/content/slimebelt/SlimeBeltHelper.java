@@ -32,6 +32,7 @@ public class SlimeBeltHelper {
 	private static final double TRACK_RENDER_OFFSET = 7d / 16d;
 	public static final double VERTICAL_BELT_DROP = 1d / 16d;
 	private static final float FUNNEL_FACING_EPSILON = 1.0E-4f;
+	private static final double TRACK_INPUT_EPSILON = 1.0E-4d;
 
 	public enum Track {
 		FRONT,
@@ -262,6 +263,16 @@ public class SlimeBeltHelper {
 		Direction alternate = track == Track.FRONT ? frontInputSide : frontInputSide.getOpposite();
 		Vec3 trackNormal = getTrackNormal(controller, segment, track);
 		return getAlignment(trackNormal, alternate) > getAlignment(trackNormal, primary) ? alternate : primary;
+	}
+
+	public static boolean isTrackClosestToInputSide(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction inputSide) {
+		if (inputSide == null)
+			return true;
+		Track other = track == Track.FRONT ? Track.BACK : Track.FRONT;
+		double trackAlignment = getAlignment(getTrackNormal(controller, segment, track), inputSide);
+		double otherAlignment = getAlignment(getTrackNormal(controller, segment, other), inputSide);
+		return trackAlignment + TRACK_INPUT_EPSILON >= otherAlignment;
 	}
 
 	public static BlockPos getFunnelPositionForTrack(SlimeBeltBlockEntity controller, int segment, Track track) {

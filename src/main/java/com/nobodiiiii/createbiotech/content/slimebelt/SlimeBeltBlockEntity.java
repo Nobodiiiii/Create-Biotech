@@ -18,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovemen
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler.TransportedEntityInfo;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -321,6 +322,12 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		BlockState state = getBlockState();
 		if (side == getMovementFacing().getOpposite())
 			return false;
+		SlimeBeltBlockEntity controllerBE = getControllerBE();
+		if (controllerBE == null)
+			return false;
+		SlimeBeltHelper.Track track = SlimeBeltHelper.resolveInputTrack(state, side);
+		if (!SlimeBeltHelper.isTrackClosestToInputSide(controllerBE, index, track, side))
+			return false;
 		if (state.hasProperty(SlimeBeltBlock.SLOPE) && (state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.SIDEWAYS
 			|| state.getValue(SlimeBeltBlock.SLOPE) == BeltSlope.VERTICAL)) {
 			Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(state);
@@ -373,7 +380,15 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	private Direction resolveInsertionSide(Direction side) {
-		if (side == null || level == null || side.getAxis().isVertical())
+		if (side == null || level == null)
+			return side;
+		if (hasAdjacentFunnel(side))
+			return side;
+		Direction physicalSourceSide = side.getOpposite();
+		if (hasAdjacentHorizontalVerticalBeltSource(physicalSourceSide))
+			return physicalSourceSide;
+
+		if (side.getAxis().isVertical())
 			return side;
 		BlockState state = getBlockState();
 		if (!state.hasProperty(SlimeBeltBlock.SLOPE))
@@ -388,21 +403,53 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 
 		// Adjacent belts pass their movement direction to DirectBeltInputBehaviour. For vertical and sideways
 		// slime belts we need the physical entry side instead, so recover it from the neighbouring source belt.
-		if (hasAdjacentFunnel(side))
-			return side;
-		if (hasAdjacentBeltSource(side.getOpposite()))
-			return side.getOpposite();
+		if (hasAdjacentBeltSource(physicalSourceSide))
+			return physicalSourceSide;
 		return side;
+	}
+
+	private boolean hasAdjacentHorizontalVerticalBeltSource(Direction physicalSide) {
+		BeltSlope targetSlope = getBlockState().getValue(SlimeBeltBlock.SLOPE);
+		BlockEntity blockEntity = level.getBlockEntity(worldPosition.relative(physicalSide));
+		if (blockEntity instanceof SlimeBeltBlockEntity slimeBelt) {
+			BeltSlope sourceSlope = slimeBelt.getBlockState().getValue(SlimeBeltBlock.SLOPE);
+			return isHorizontalVerticalPair(targetSlope, sourceSlope) && isSlimeBeltSourceMovingToward(slimeBelt,
+				physicalSide);
+		}
+		if (blockEntity instanceof BeltBlockEntity belt) {
+			BeltSlope sourceSlope = belt.getBlockState().getValue(BeltBlock.SLOPE);
+			return isHorizontalVerticalPair(targetSlope, sourceSlope) && isBeltSourceMovingToward(belt, physicalSide);
+		}
+		return false;
+	}
+
+	private boolean isHorizontalVerticalPair(BeltSlope first, BeltSlope second) {
+		return first == BeltSlope.HORIZONTAL && second == BeltSlope.VERTICAL
+			|| first == BeltSlope.VERTICAL && second == BeltSlope.HORIZONTAL;
 	}
 
 	private boolean hasAdjacentBeltSource(Direction physicalSide) {
 		BlockEntity blockEntity = level.getBlockEntity(worldPosition.relative(physicalSide));
-		Direction expectedMovement = physicalSide.getOpposite();
 		if (blockEntity instanceof SlimeBeltBlockEntity slimeBelt)
-			return slimeBelt.getSpeed() != 0 && slimeBelt.getMovementFacing() == expectedMovement;
+			return isSlimeBeltSourceMovingToward(slimeBelt, physicalSide);
 		if (blockEntity instanceof BeltBlockEntity belt)
-			return belt.getSpeed() != 0 && belt.getMovementFacing() == expectedMovement;
+			return isBeltSourceMovingToward(belt, physicalSide);
 		return false;
+	}
+
+	private boolean isSlimeBeltSourceMovingToward(SlimeBeltBlockEntity slimeBelt, Direction physicalSide) {
+		if (slimeBelt.getSpeed() == 0)
+			return false;
+		SlimeBeltBlockEntity sourceController = slimeBelt.getControllerBE();
+		if (sourceController == null)
+			return false;
+		Direction expectedMovement = physicalSide.getOpposite();
+		return SlimeBeltHelper.getMovementFacingForTrack(sourceController, SlimeBeltHelper.Track.FRONT) == expectedMovement
+			|| SlimeBeltHelper.getMovementFacingForTrack(sourceController, SlimeBeltHelper.Track.BACK) == expectedMovement;
+	}
+
+	private boolean isBeltSourceMovingToward(BeltBlockEntity belt, Direction physicalSide) {
+		return belt.getSpeed() != 0 && belt.getMovementFacing() == physicalSide.getOpposite();
 	}
 
 	private boolean hasAdjacentFunnel(Direction physicalSide) {

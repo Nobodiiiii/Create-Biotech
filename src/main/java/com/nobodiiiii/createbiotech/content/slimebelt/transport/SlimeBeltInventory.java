@@ -408,6 +408,9 @@ public class SlimeBeltInventory {
 					if (!isCornerTransfer(incomingFace, insertSide))
 						continue;
 					Track targetTrack = SlimeBeltHelper.resolveInputTrack(targetSegment.getBlockState(), insertSide);
+					if (!SlimeBeltHelper.isTrackClosestToInputSide(targetController, targetSegment.index, targetTrack,
+						incomingFace))
+						continue;
 					if (SlimeBeltHelper.getRepresentativeSideForTrack(targetController, targetSegment.index, targetTrack) != insertSide)
 						continue;
 					if (!canSideTransferInto(targetController, targetSegment, targetTrack, incomingFace))
@@ -648,6 +651,8 @@ public class SlimeBeltInventory {
 		if (side != null && belt.getMovementFacing() == side.getOpposite())
 			return false;
 		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
+		if (!SlimeBeltHelper.isTrackClosestToInputSide(belt, segment, track, side))
+			return false;
 		float insertPos = getInsertionPosition(segment, side);
 		for (TransportedItemStack stack : items)
 			if (isBlocking(track, insertPos, stack))
