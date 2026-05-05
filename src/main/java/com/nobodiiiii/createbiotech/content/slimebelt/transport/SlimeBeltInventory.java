@@ -16,6 +16,9 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.LoopSection;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.Track;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.simibubi.create.content.kinetics.belt.BeltBlock;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
+import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
@@ -35,7 +38,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import com.simibubi.create.content.kinetics.belt.BeltSlope;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 
 public class SlimeBeltInventory {
@@ -67,7 +70,7 @@ public class SlimeBeltInventory {
 		START
 	}
 
-	private record SideTransferCandidate(SlimeBeltBlockEntity targetSegment, Direction insertSide,
+	private record SideTransferCandidate(BlockPos targetPos, Direction insertSide,
 		float contactProgress, float contactParam, double distanceSqr) {
 	}
 
@@ -347,7 +350,7 @@ public class SlimeBeltInventory {
 			return false;
 
 		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(belt.getLevel(), candidate.targetSegment().getBlockPos(), DirectBeltInputBehaviour.TYPE);
+			BlockEntityBehaviour.get(belt.getLevel(), candidate.targetPos(), DirectBeltInputBehaviour.TYPE);
 		if (inputBehaviour == null || !inputBehaviour.canInsertFromSide(candidate.insertSide()))
 			return false;
 
@@ -396,31 +399,33 @@ public class SlimeBeltInventory {
 
 			BlockPos sourceSegmentPos = SlimeBeltHelper.getPositionForOffset(belt, segment);
 			BlockPos targetPos = sourceSegmentPos.relative(outgoingSide);
-			SlimeBeltBlockEntity targetSegment = SlimeBeltHelper.getSegmentBE(belt.getLevel(), targetPos);
-			if (targetSegment == null)
+			BlockEntity targetBlockEntity = belt.getLevel().getBlockEntity(targetPos);
+			if (targetBlockEntity instanceof SlimeBeltBlockEntity targetSegment) {
+				SlimeBeltBlockEntity targetController = targetSegment.getControllerBE();
+				if (targetController == null || targetController.getBlockPos().equals(belt.getController()))
+					continue;
+
+				for (Direction insertSide : new Direction[] { Direction.UP, Direction.DOWN }) {
+					Track targetTrack = SlimeBeltHelper.resolveInputTrack(targetSegment.getBlockState(), insertSide);
+					if (SlimeBeltHelper.getRepresentativeSideForTrack(targetController, targetSegment.index, targetTrack) != insertSide)
+						continue;
+					if (!canSideTransferInto(targetController, targetSegment, targetTrack, outgoingSide.getOpposite()))
+						continue;
+
+					SideTransferCandidate candidate = createSideTransferCandidate(targetPos, outgoingSide.getOpposite(),
+						insertSide, currentProgress, nextProgress, start, end);
+					if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
+						bestCandidate = candidate;
+				}
 				continue;
-			SlimeBeltBlockEntity targetController = targetSegment.getControllerBE();
-			if (targetController == null || targetController.getBlockPos().equals(belt.getController()))
-				continue;
+			}
 
-			for (Direction insertSide : new Direction[] { Direction.UP, Direction.DOWN }) {
-				Track targetTrack = SlimeBeltHelper.resolveInputTrack(targetSegment.getBlockState(), insertSide);
-				if (SlimeBeltHelper.getRepresentativeSideForTrack(targetController, targetSegment.index, targetTrack) != insertSide)
+			if (targetBlockEntity instanceof BeltBlockEntity) {
+				if (!canSideTransferInto((BeltBlockEntity) targetBlockEntity, outgoingSide.getOpposite()))
 					continue;
-				if (!canSideTransferInto(targetController, targetSegment, targetTrack, outgoingSide.getOpposite()))
-					continue;
-
-				Vec3 transferPoint = getTransferCorner(targetSegment.getBlockPos(), outgoingSide.getOpposite(), insertSide);
-				float contactParam = getClosestPointParam(start, end, transferPoint);
-				Vec3 closestPoint = start.lerp(end, contactParam);
-				double distanceSqr = closestPoint.distanceToSqr(transferPoint);
-				if (distanceSqr > SIDE_TRANSFER_DISTANCE_SQR)
-					continue;
-
-				float contactProgress = Mth.lerp(contactParam, currentProgress, nextProgress);
-				SideTransferCandidate candidate =
-					new SideTransferCandidate(targetSegment, insertSide, contactProgress, contactParam, distanceSqr);
-				if (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr())
+				SideTransferCandidate candidate = createSideTransferCandidate(targetPos, outgoingSide.getOpposite(),
+					Direction.UP, currentProgress, nextProgress, start, end);
+				if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
 					bestCandidate = candidate;
 			}
 		}
@@ -428,11 +433,31 @@ public class SlimeBeltInventory {
 		return bestCandidate;
 	}
 
+	@Nullable
+	private SideTransferCandidate createSideTransferCandidate(BlockPos targetPos, Direction incomingFace,
+		Direction insertSide, float currentProgress, float nextProgress, Vec3 start, Vec3 end) {
+		Vec3 transferPoint = getTransferCorner(targetPos, incomingFace, insertSide);
+		float contactParam = getClosestPointParam(start, end, transferPoint);
+		Vec3 closestPoint = start.lerp(end, contactParam);
+		double distanceSqr = closestPoint.distanceToSqr(transferPoint);
+		if (distanceSqr > SIDE_TRANSFER_DISTANCE_SQR)
+			return null;
+
+		float contactProgress = Mth.lerp(contactParam, currentProgress, nextProgress);
+		return new SideTransferCandidate(targetPos, insertSide, contactProgress, contactParam, distanceSqr);
+	}
+
 	private boolean canSideTransferInto(SlimeBeltBlockEntity targetController, SlimeBeltBlockEntity targetSegment,
 		Track targetTrack, Direction incomingFace) {
 		if (targetSegment.getBlockState().getValue(SlimeBeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
 			return true;
 		return SlimeBeltHelper.getMovementFacingForTrack(targetController, targetTrack) == incomingFace.getOpposite();
+	}
+
+	private boolean canSideTransferInto(BeltBlockEntity targetBelt, Direction incomingFace) {
+		if (targetBelt.getBlockState().getValue(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+			return true;
+		return targetBelt.getMovementFacing() == incomingFace.getOpposite();
 	}
 
 	private Vec3 getTransferCorner(BlockPos targetPos, Direction incomingFace, Direction insertSide) {
