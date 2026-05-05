@@ -9,8 +9,10 @@ import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInventory;
+import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler.TransportedEntityInfo;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
+import com.simibubi.create.content.equipment.armor.DivingBootsItem;
 import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -34,6 +36,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -64,6 +67,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.EntityCollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.items.IItemHandler;
@@ -142,44 +147,76 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 	public void entityInside(BlockState state, Level world, BlockPos pos, Entity entity) {
 		if (!canTransportObjects(state))
 			return;
+		if (entity instanceof Player player) {
+			if (player.isShiftKeyDown() && !AllItems.CARDBOARD_BOOTS.isIn(player.getItemBySlot(EquipmentSlot.FEET)))
+				return;
+			if (player.getAbilities().flying)
+				return;
+		}
+
+		if (DivingBootsItem.isWornBy(entity))
+			return;
 
 		SlimeBeltBlockEntity belt = SlimeBeltHelper.getSegmentBE(world, pos);
 		if (belt == null)
 			return;
 
 		ItemStack asItem = ItemHelper.fromItemEntity(entity);
-		if (asItem.isEmpty())
+		if (!asItem.isEmpty()) {
+			if (world.isClientSide || entity.getDeltaMovement().y > 0)
+				return;
+
+			SlimeBeltInventory beltInventory = belt.getInventory();
+			SlimeBeltBlockEntity controller = belt.getControllerBE();
+			if (beltInventory == null || controller == null)
+				return;
+
+			SlimeBeltHelper.Track insertTrack = getClosestCaptureTrack(entity, belt, beltInventory, controller);
+			if (insertTrack == null)
+				return;
+
+			Vec3 targetLocation = getCaptureTarget(belt, controller, insertTrack);
+			if (!PackageEntity.centerPackage(entity, targetLocation))
+				return;
+
+			ItemStack remainder = ItemHelper.limitCountToMaxStackSize(asItem, false);
+			TransportedItemStack transported = new TransportedItemStack(asItem);
+			beltInventory.prepareInsertedItemOnTrack(transported, belt.index, insertTrack);
+			beltInventory.addItem(transported);
+			controller.setChanged();
+			controller.sendData();
+			if (remainder.isEmpty())
+				entity.discard();
+			else if (entity instanceof ItemEntity itemEntity && remainder.getCount() != itemEntity.getItem().getCount())
+				itemEntity.setItem(remainder);
 			return;
-		if (world.isClientSide || entity.getDeltaMovement().y > 0)
+		}
+
+		if (!canTransportEntities(state))
 			return;
 
-		SlimeBeltInventory beltInventory = belt.getInventory();
-		SlimeBeltBlockEntity controller = belt.getControllerBE();
-		if (beltInventory == null || controller == null)
+		SlimeBeltBlockEntity controller = SlimeBeltHelper.getControllerBE(world, pos);
+		if (controller == null || controller.passengers == null)
 			return;
-
-		SlimeBeltHelper.Track insertTrack = getClosestCaptureTrack(entity, belt, beltInventory, controller);
-		if (insertTrack == null)
-			return;
-
-		Vec3 targetLocation = getCaptureTarget(belt, controller, insertTrack);
-		if (!PackageEntity.centerPackage(entity, targetLocation))
-			return;
-
-		ItemStack remainder = ItemHelper.limitCountToMaxStackSize(asItem, false);
-		TransportedItemStack transported = new TransportedItemStack(asItem);
-		beltInventory.prepareInsertedItemOnTrack(transported, belt.index, insertTrack);
-		beltInventory.addItem(transported);
-		controller.setChanged();
-		controller.sendData();
-		if (remainder.isEmpty())
-			entity.discard();
-		else if (entity instanceof ItemEntity itemEntity && remainder.getCount() != itemEntity.getItem().getCount())
-			itemEntity.setItem(remainder);
+		if (controller.passengers.containsKey(entity)) {
+			TransportedEntityInfo info = controller.passengers.get(entity);
+			if (info.getTicksSinceLastCollision() != 0 || pos.equals(entity.blockPosition()))
+				info.refresh(pos, state);
+		} else {
+			controller.passengers.put(entity, new TransportedEntityInfo(pos, state));
+			entity.setOnGround(true);
+		}
 	}
 
 	public static boolean canTransportObjects(BlockState state) {
 		return state.is(CBBlocks.SLIME_BELT.get());
+	}
+
+	public static boolean canTransportEntities(BlockState state) {
+		if (!state.is(CBBlocks.SLIME_BELT.get()))
+			return false;
+		BeltSlope slope = state.getValue(SLOPE);
+		return slope != BeltSlope.VERTICAL && slope != BeltSlope.SIDEWAYS;
 	}
 
 	private static SlimeBeltHelper.Track getClosestCaptureTrack(Entity entity, SlimeBeltBlockEntity belt, SlimeBeltInventory beltInventory,
@@ -322,7 +359,25 @@ public class SlimeBeltBlock extends HorizontalKineticBlock implements IBE<SlimeB
 
 	@Override
 	public VoxelShape getCollisionShape(BlockState state, BlockGetter world, BlockPos pos, CollisionContext context) {
-		return state.getBlock() == this ? SlimeBeltShapes.getCollisionShape(state) : super.getCollisionShape(state, world, pos, context);
+		if (state.getBlock() != this)
+			return Shapes.empty();
+
+		VoxelShape shape = getShape(state, world, pos, context);
+		if (!(context instanceof EntityCollisionContext entityContext))
+			return shape;
+
+		return getBlockEntityOptional(world, pos).map(be -> {
+			Entity entity = entityContext.getEntity();
+			if (entity == null)
+				return shape;
+
+			SlimeBeltBlockEntity controller = be.getControllerBE();
+			if (controller == null)
+				return shape;
+			if (controller.passengers == null || !controller.passengers.containsKey(entity))
+				return SlimeBeltShapes.getCollisionShape(state);
+			return shape;
+		}).orElse(shape);
 	}
 
 	@Override

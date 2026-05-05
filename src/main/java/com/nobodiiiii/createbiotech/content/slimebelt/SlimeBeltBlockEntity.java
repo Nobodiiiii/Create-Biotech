@@ -5,13 +5,17 @@ import static com.simibubi.create.content.kinetics.belt.BeltSlope.HORIZONTAL;
 import static net.minecraft.core.Direction.AxisDirection.NEGATIVE;
 import static net.minecraft.core.Direction.AxisDirection.POSITIVE;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInventory;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeItemHandlerBeltSegment;
+import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler;
+import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler.TransportedEntityInfo;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
@@ -33,6 +37,7 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Vec3i;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -46,6 +51,7 @@ import net.minecraftforge.items.IItemHandler;
 
 public class SlimeBeltBlockEntity extends KineticBlockEntity {
 
+	public Map<Entity, TransportedEntityInfo> passengers;
 	public int beltLength;
 	public int index;
 	protected BlockPos controller;
@@ -94,6 +100,27 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 
 		invalidateRenderBoundingBox();
 		getInventory().tick();
+
+		if (getSpeed() == 0)
+			return;
+
+		if (passengers == null)
+			passengers = new HashMap<>();
+
+		List<Entity> toRemove = new ArrayList<>();
+		passengers.forEach((entity, info) -> {
+			boolean canBeTransported = SlimeBeltMovementHandler.canBeTransported(entity);
+			boolean leftTheBelt =
+				info.getTicksSinceLastCollision() > (getBlockState().getValue(SlimeBeltBlock.SLOPE) != HORIZONTAL ? 3 : 1);
+			if (!canBeTransported || leftTheBelt) {
+				toRemove.add(entity);
+				return;
+			}
+
+			info.tick();
+			SlimeBeltMovementHandler.transportEntity(this, entity, info);
+		});
+		toRemove.forEach(passengers::remove);
 	}
 
 	@Override
@@ -167,6 +194,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		beltLength = 0;
 		index = 0;
 		controller = null;
+		passengers = null;
 		trackerUpdateTag = new CompoundTag();
 		invalidateItemHandlers();
 	}
