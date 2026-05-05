@@ -352,11 +352,11 @@ public class SlimeBeltInventory {
 		DirectBeltInputBehaviour inputBehaviour =
 			BlockEntityBehaviour.get(belt.getLevel(), candidate.targetPos(), DirectBeltInputBehaviour.TYPE);
 		if (inputBehaviour == null || !inputBehaviour.canInsertFromSide(candidate.insertSide()))
-			return false;
+			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
 
 		ItemStack simulatedRemainder = inputBehaviour.handleInsertion(currentItem.copy(), candidate.insertSide(), true);
 		if (simulatedRemainder.equals(currentItem.stack, false))
-			return false;
+			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
 
 		if (onClient)
 			moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
@@ -365,7 +365,7 @@ public class SlimeBeltInventory {
 
 		ItemStack remainder = inputBehaviour.handleInsertion(currentItem, candidate.insertSide(), false);
 		if (remainder.equals(currentItem.stack, false))
-			return false;
+			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
 
 		moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
 		currentItem.stack = remainder;
@@ -375,6 +375,12 @@ public class SlimeBeltInventory {
 			items.remove(currentItem);
 		}
 		belt.notifyUpdate();
+		return true;
+	}
+
+	private boolean waitAtSideTransferPoint(TransportedItemStack currentItem, Track track, float movement,
+		SideTransferCandidate candidate) {
+		moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
 		return true;
 	}
 
