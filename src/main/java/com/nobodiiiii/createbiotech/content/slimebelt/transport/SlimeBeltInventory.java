@@ -35,6 +35,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import net.minecraft.world.phys.Vec3;
 
 public class SlimeBeltInventory {
@@ -48,6 +49,8 @@ public class SlimeBeltInventory {
 	private static final float WRAP_ENTRY_OFFSET = 1 / 512f;
 	private static final float TRANSFER_WAIT_MARGIN = .25f;
 	private static final float SEAM_EPSILON = 1 / 1024f;
+	private static final float SIDE_TRANSFER_DISTANCE = 3 / 16f;
+	private static final double SIDE_TRANSFER_DISTANCE_SQR = SIDE_TRANSFER_DISTANCE * SIDE_TRANSFER_DISTANCE;
 
 	TransportedItemStack lazyClientItem;
 
@@ -62,6 +65,10 @@ public class SlimeBeltInventory {
 	private enum Connector {
 		END,
 		START
+	}
+
+	private record SideTransferCandidate(SlimeBeltBlockEntity targetSegment, Direction insertSide,
+		float contactProgress, float contactParam, double distanceSqr) {
 	}
 
 	public SlimeBeltInventory(SlimeBeltBlockEntity be) {
@@ -209,6 +216,11 @@ public class SlimeBeltInventory {
 				continue;
 			}
 
+			if (tryTransferToAdjacentBelt(currentItem, track, currentProgress, nextProgress, limitedMovement, onClient)) {
+				stackInFront = currentItem;
+				continue;
+			}
+
 			if (noMovement) {
 				stackInFront = currentItem;
 				continue;
@@ -324,6 +336,127 @@ public class SlimeBeltInventory {
 
 			stackInFront = currentItem;
 		}
+	}
+
+	private boolean tryTransferToAdjacentBelt(TransportedItemStack currentItem, Track track, float currentProgress,
+		float nextProgress, float movement, boolean onClient) {
+		if (movement <= 0)
+			return false;
+		SideTransferCandidate candidate = findSideTransferCandidate(track, currentProgress, nextProgress);
+		if (candidate == null)
+			return false;
+
+		DirectBeltInputBehaviour inputBehaviour =
+			BlockEntityBehaviour.get(belt.getLevel(), candidate.targetSegment().getBlockPos(), DirectBeltInputBehaviour.TYPE);
+		if (inputBehaviour == null || !inputBehaviour.canInsertFromSide(candidate.insertSide()))
+			return false;
+
+		ItemStack simulatedRemainder = inputBehaviour.handleInsertion(currentItem.copy(), candidate.insertSide(), true);
+		if (simulatedRemainder.equals(currentItem.stack, false))
+			return false;
+
+		if (onClient)
+			moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
+		if (onClient)
+			return true;
+
+		ItemStack remainder = inputBehaviour.handleInsertion(currentItem, candidate.insertSide(), false);
+		if (remainder.equals(currentItem.stack, false))
+			return false;
+
+		moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
+		currentItem.stack = remainder;
+		if (remainder.isEmpty()) {
+			lazyClientItem = currentItem;
+			lazyClientItem.locked = false;
+			items.remove(currentItem);
+		}
+		belt.notifyUpdate();
+		return true;
+	}
+
+	@Nullable
+	private SideTransferCandidate findSideTransferCandidate(Track track, float currentProgress, float nextProgress) {
+		Vec3 start = SlimeBeltHelper.getVectorForOffset(belt, getLoopPositionForTrackProgress(track, currentProgress));
+		Vec3 end = SlimeBeltHelper.getVectorForOffset(belt, getLoopPositionForTrackProgress(track, nextProgress));
+		if (start.distanceToSqr(end) < 1.0E-6)
+			return null;
+
+		float currentFrontOffset = getFrontOffsetForTrackProgress(track, currentProgress);
+		float nextFrontOffset = getFrontOffsetForTrackProgress(track, nextProgress);
+		int minSegment = Mth.clamp(Mth.floor(Math.min(currentFrontOffset, nextFrontOffset)) - 1, 0, belt.beltLength - 1);
+		int maxSegment = Mth.clamp(Mth.floor(Math.max(currentFrontOffset, nextFrontOffset)) + 1, 0, belt.beltLength - 1);
+
+		SideTransferCandidate bestCandidate = null;
+		for (int segment = minSegment; segment <= maxSegment; segment++) {
+			Vec3 trackNormal = SlimeBeltHelper.getTrackNormal(belt, segment, track);
+			Direction outgoingSide = Direction.getNearest(trackNormal.x, trackNormal.y, trackNormal.z);
+			if (outgoingSide.getAxis().isVertical())
+				continue;
+
+			BlockPos sourceSegmentPos = SlimeBeltHelper.getPositionForOffset(belt, segment);
+			BlockPos targetPos = sourceSegmentPos.relative(outgoingSide);
+			SlimeBeltBlockEntity targetSegment = SlimeBeltHelper.getSegmentBE(belt.getLevel(), targetPos);
+			if (targetSegment == null)
+				continue;
+			SlimeBeltBlockEntity targetController = targetSegment.getControllerBE();
+			if (targetController == null || targetController.getBlockPos().equals(belt.getController()))
+				continue;
+
+			for (Direction insertSide : new Direction[] { Direction.UP, Direction.DOWN }) {
+				Track targetTrack = SlimeBeltHelper.resolveInputTrack(targetSegment.getBlockState(), insertSide);
+				if (SlimeBeltHelper.getRepresentativeSideForTrack(targetController, targetSegment.index, targetTrack) != insertSide)
+					continue;
+				if (!canSideTransferInto(targetController, targetSegment, targetTrack, outgoingSide.getOpposite()))
+					continue;
+
+				Vec3 transferPoint = getTransferCorner(targetSegment.getBlockPos(), outgoingSide.getOpposite(), insertSide);
+				float contactParam = getClosestPointParam(start, end, transferPoint);
+				Vec3 closestPoint = start.lerp(end, contactParam);
+				double distanceSqr = closestPoint.distanceToSqr(transferPoint);
+				if (distanceSqr > SIDE_TRANSFER_DISTANCE_SQR)
+					continue;
+
+				float contactProgress = Mth.lerp(contactParam, currentProgress, nextProgress);
+				SideTransferCandidate candidate =
+					new SideTransferCandidate(targetSegment, insertSide, contactProgress, contactParam, distanceSqr);
+				if (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr())
+					bestCandidate = candidate;
+			}
+		}
+
+		return bestCandidate;
+	}
+
+	private boolean canSideTransferInto(SlimeBeltBlockEntity targetController, SlimeBeltBlockEntity targetSegment,
+		Track targetTrack, Direction incomingFace) {
+		if (targetSegment.getBlockState().getValue(SlimeBeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+			return true;
+		return SlimeBeltHelper.getMovementFacingForTrack(targetController, targetTrack) == incomingFace.getOpposite();
+	}
+
+	private Vec3 getTransferCorner(BlockPos targetPos, Direction incomingFace, Direction insertSide) {
+		return Vec3.atCenterOf(targetPos)
+			.add(incomingFace.getStepX() * .5, insertSide == Direction.UP ? .5 : -.5, incomingFace.getStepZ() * .5);
+	}
+
+	private float getClosestPointParam(Vec3 start, Vec3 end, Vec3 point) {
+		Vec3 delta = end.subtract(start);
+		double lengthSqr = delta.lengthSqr();
+		if (lengthSqr < 1.0E-6)
+			return 0;
+		double projected = point.subtract(start)
+			.dot(delta) / lengthSqr;
+		return (float) Mth.clamp(projected, 0, 1);
+	}
+
+	private void moveItemToSideTransferPoint(TransportedItemStack currentItem, Track track, float contactProgress,
+		float movement, float contactParam) {
+		setLoopPositionFromTrackProgress(currentItem, track, contactProgress);
+		float partialMovement = Math.abs(movement * contactParam);
+		float diffToMiddle = currentItem.getTargetSideOffset() - currentItem.sideOffset;
+		currentItem.sideOffset += Mth.clamp(diffToMiddle * partialMovement * 6f, -Math.abs(diffToMiddle),
+			Math.abs(diffToMiddle));
 	}
 
 	protected boolean handleBeltProcessingAndCheckIfRemoved(TransportedItemStack currentItem, float nextOffset,
