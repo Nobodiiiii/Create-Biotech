@@ -8,6 +8,9 @@ import com.simibubi.create.AllTags.AllItemTags;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
 
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -28,6 +31,7 @@ public class SlimeBeltHelper {
 
 	private static final double TRACK_RENDER_OFFSET = 7d / 16d;
 	public static final double VERTICAL_BELT_DROP = 1d / 16d;
+	private static final float FUNNEL_FACING_EPSILON = 1.0E-4f;
 
 	public enum Track {
 		FRONT,
@@ -215,11 +219,48 @@ public class SlimeBeltHelper {
 		return getStraightVectorForTrack(controller, track, segmentCenter);
 	}
 
+	public static Vec3 getTrackNormal(SlimeBeltBlockEntity controller, int segment, Track track) {
+		return getTrackNormal(controller, getTrackCenterLoopPosition(controller, segment, track));
+	}
+
+	public static Vec3 getTrackNormal(FunnelSupport support) {
+		return getTrackNormal(support.controller(), support.segment().index, support.track());
+	}
+
+	public static boolean isValidFunnelFacing(FunnelSupport support, Direction worldFacing) {
+		return isValidFunnelFacing(support.controller(), support.segment().index, support.track(), worldFacing);
+	}
+
+	public static boolean isValidFunnelFacing(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction worldFacing) {
+		Vector3f localFacing = rotateWorldDirectionToLocal(controller, segment, track, worldFacing);
+		float horizontalMagnitude = Math.max(Math.abs(localFacing.x()), Math.abs(localFacing.z()));
+		return Math.abs(localFacing.y()) <= horizontalMagnitude + FUNNEL_FACING_EPSILON;
+	}
+
+	public static Direction getLocalFunnelFacing(FunnelSupport support, Direction worldFacing) {
+		return getLocalFunnelFacing(support.controller(), support.segment().index, support.track(), worldFacing);
+	}
+
+	public static Direction getLocalFunnelFacing(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction worldFacing) {
+		return getNearestHorizontalDirection(rotateWorldDirectionToLocal(controller, segment, track, worldFacing));
+	}
+
+	public static Direction getWorldFunnelFacing(FunnelSupport support, Direction localFacing) {
+		return getWorldFunnelFacing(support.controller(), support.segment().index, support.track(), localFacing);
+	}
+
+	public static Direction getWorldFunnelFacing(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction localFacing) {
+		return getNearestDirection(rotateLocalDirectionToWorld(controller, segment, track, localFacing));
+	}
+
 	public static Direction getRepresentativeSideForTrack(SlimeBeltBlockEntity controller, int segment, Track track) {
 		Direction frontInputSide = getFrontInputSide(controller.getBlockState());
 		Direction primary = track == Track.FRONT ? Direction.UP : Direction.DOWN;
 		Direction alternate = track == Track.FRONT ? frontInputSide : frontInputSide.getOpposite();
-		Vec3 trackNormal = getTrackNormal(controller, getTrackCenterLoopPosition(controller, segment, track));
+		Vec3 trackNormal = getTrackNormal(controller, segment, track);
 		return getAlignment(trackNormal, alternate) > getAlignment(trackNormal, primary) ? alternate : primary;
 	}
 
@@ -454,6 +495,40 @@ public class SlimeBeltHelper {
 
 	private static double getAlignment(Vec3 normal, Direction side) {
 		return normal.dot(Vec3.atLowerCornerOf(side.getNormal()));
+	}
+
+	private static Quaternionf getFunnelTiltRotation(SlimeBeltBlockEntity controller, int segment, Track track) {
+		Vec3 normal = getTrackNormal(controller, segment, track).normalize();
+		return new Quaternionf().rotationTo(0, 1, 0, (float) normal.x, (float) normal.y, (float) normal.z);
+	}
+
+	private static Vector3f rotateWorldDirectionToLocal(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction worldFacing) {
+		Quaternionf inverseRotation = getFunnelTiltRotation(controller, segment, track).conjugate(new Quaternionf());
+		return new Vector3f(worldFacing.getStepX(), worldFacing.getStepY(), worldFacing.getStepZ()).rotate(inverseRotation);
+	}
+
+	private static Vector3f rotateLocalDirectionToWorld(SlimeBeltBlockEntity controller, int segment, Track track,
+		Direction localFacing) {
+		Quaternionf rotation = getFunnelTiltRotation(controller, segment, track);
+		return new Vector3f(localFacing.getStepX(), localFacing.getStepY(), localFacing.getStepZ()).rotate(rotation);
+	}
+
+	private static Direction getNearestHorizontalDirection(Vector3f direction) {
+		return Math.abs(direction.x()) >= Math.abs(direction.z())
+			? direction.x() >= 0 ? Direction.EAST : Direction.WEST
+			: direction.z() >= 0 ? Direction.SOUTH : Direction.NORTH;
+	}
+
+	private static Direction getNearestDirection(Vector3f direction) {
+		float absX = Math.abs(direction.x());
+		float absY = Math.abs(direction.y());
+		float absZ = Math.abs(direction.z());
+		if (absY > absX && absY > absZ)
+			return direction.y() >= 0 ? Direction.UP : Direction.DOWN;
+		if (absX > absZ)
+			return direction.x() >= 0 ? Direction.EAST : Direction.WEST;
+		return direction.z() >= 0 ? Direction.SOUTH : Direction.NORTH;
 	}
 
 	public static Vec3 getBeltVector(BlockState state) {

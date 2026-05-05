@@ -133,11 +133,14 @@ public class SlimeBeltInventory {
 			if (onClient)
 				movement *= ServerSpeedProvider.get();
 
-			if (world.isClientSide && currentItem.locked)
+			if (world.isClientSide && currentItem.locked) {
+				stackInFront = currentItem;
 				continue;
+			}
 
 			if (currentItem.lockedExternally) {
 				currentItem.lockedExternally = false;
+				stackInFront = currentItem;
 				continue;
 			}
 
@@ -191,12 +194,16 @@ public class SlimeBeltInventory {
 				}
 				if (item != currentItem.stack)
 					belt.notifyUpdate();
-				if (currentItem.locked)
+				if (currentItem.locked) {
+					stackInFront = currentItem;
 					continue;
+				}
 			}
 
-			if (SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, track, nextFrontOffset))
+			if (SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, track, nextFrontOffset)) {
+				stackInFront = currentItem;
 				continue;
+			}
 
 			if (noMovement) {
 				stackInFront = currentItem;
@@ -232,6 +239,7 @@ public class SlimeBeltInventory {
 							items.remove(currentItem);
 						}
 						belt.notifyUpdate();
+						stackInFront = currentItem;
 						continue;
 					}
 				}
@@ -264,11 +272,14 @@ public class SlimeBeltInventory {
 			if (onClient)
 				movement *= ServerSpeedProvider.get();
 
-			if (belt.getLevel().isClientSide && currentItem.locked)
+			if (belt.getLevel().isClientSide && currentItem.locked) {
+				stackInFront = currentItem;
 				continue;
+			}
 
 			if (currentItem.lockedExternally) {
 				currentItem.lockedExternally = false;
+				stackInFront = currentItem;
 				continue;
 			}
 

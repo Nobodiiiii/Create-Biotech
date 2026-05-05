@@ -6,6 +6,7 @@
   "refmap": "create_biotech.refmap.json",
   "mixins": [
     "BeltFunnelBlockMixin",
+    "BeltFunnelShapeMixin",
     "FunnelBlockMixin",
     "FunnelBlockEntityMixin"
   ],

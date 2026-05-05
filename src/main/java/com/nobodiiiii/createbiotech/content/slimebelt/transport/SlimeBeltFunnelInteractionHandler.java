@@ -39,7 +39,8 @@ public class SlimeBeltFunnelInteractionHandler {
 			BlockState funnelState = world.getBlockState(funnelPos);
 			if (!(funnelState.getBlock() instanceof BeltFunnelBlock))
 				continue;
-			Direction funnelFacing = funnelState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
+			Direction funnelFacing = SlimeBeltHelper.getWorldFunnelFacing(beltInventory.belt, segment, track,
+				funnelState.getValue(BeltFunnelBlock.HORIZONTAL_FACING));
 			boolean blocking = funnelFacing == movementFacing.getOpposite();
 			if (funnelFacing == movementFacing)
 				continue;

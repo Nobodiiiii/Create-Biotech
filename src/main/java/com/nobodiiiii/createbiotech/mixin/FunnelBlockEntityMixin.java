@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.mixin;
 
+import java.util.List;
+
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -11,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
+import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
@@ -20,8 +23,10 @@ import com.simibubi.create.foundation.blockEntity.behaviour.inventory.VersionedI
 import com.simibubi.create.foundation.item.ItemHelper.ExtractionCountMode;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
+import net.createmod.catnip.math.BlockFace;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 @Mixin(FunnelBlockEntity.class)
@@ -54,9 +59,21 @@ public abstract class FunnelBlockEntityMixin {
 		if (support == null)
 			return;
 
-		Direction facing = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
+		Direction facing =
+			SlimeBeltHelper.getWorldFunnelFacing(support, blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING));
 		cir.setReturnValue(getMode(SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track()) == facing
 			? "PUSHING_TO_BELT" : "TAKING_FROM_BELT"));
+	}
+
+	@Inject(method = "addBehaviours(Ljava/util/List;)V", at = @At("TAIL"), remap = false)
+	private void createBiotech$replaceInventoryTarget(List<BlockEntityBehaviour> behaviours, CallbackInfo ci) {
+		int index = behaviours.indexOf(invManipulation);
+		if (index == -1)
+			return;
+		InvManipulationBehaviour remapped = new InvManipulationBehaviour((FunnelBlockEntity) (Object) this,
+			FunnelBlockEntityMixin::createBiotech$getInventoryTarget);
+		behaviours.set(index, remapped);
+		invManipulation = remapped;
 	}
 
 	@Inject(method = "supportsAmountOnFilter()Z", at = @At("HEAD"), cancellable = true, remap = false)
@@ -129,6 +146,17 @@ public abstract class FunnelBlockEntityMixin {
 		} catch (ReflectiveOperationException exception) {
 			throw new IllegalStateException("Failed to resolve FunnelBlockEntity mode " + name, exception);
 		}
+	}
+
+	private static BlockFace createBiotech$getInventoryTarget(Level world, net.minecraft.core.BlockPos pos,
+		BlockState state) {
+		Direction facing = AbstractFunnelBlock.getFunnelFacing(state);
+		if (world != null && facing != null && state.getBlock() instanceof BeltFunnelBlock) {
+			FunnelSupport support = SlimeBeltHelper.getFunnelSupport(world, pos);
+			if (support != null)
+				facing = SlimeBeltHelper.getWorldFunnelFacing(support, facing);
+		}
+		return new BlockFace(pos, facing == null ? Direction.DOWN : facing.getOpposite());
 	}
 
 }

@@ -30,24 +30,23 @@ public abstract class FunnelBlockMixin {
 			return;
 
 		Direction funnelFacing = AbstractFunnelBlock.getFunnelFacing(state);
-		if (funnelFacing == null || funnelFacing.getAxis()
-			.isVertical())
+		if (funnelFacing == null)
 			return;
 
 		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(context.getLevel(), context.getClickedPos());
 		if (support == null)
 			return;
-		if (support.side()
-			.getAxis()
-			.isHorizontal() && support.side() != funnelFacing)
+		if (!SlimeBeltHelper.isValidFunnelFacing(support, funnelFacing))
 			return;
+		Direction localFacing = SlimeBeltHelper.getLocalFunnelFacing(support, funnelFacing);
+		BlockState localState = state.setValue(FunnelBlock.FACING, localFacing);
 
 		BlockState equivalentFunnel = ProperWaterloggedBlock.withWater(context.getLevel(),
-			((FunnelBlock) (Object) this).getEquivalentBeltFunnel(context.getLevel(), context.getClickedPos(), state),
+			((FunnelBlock) (Object) this).getEquivalentBeltFunnel(context.getLevel(), context.getClickedPos(), localState),
 			context.getClickedPos());
-		cir.setReturnValue(equivalentFunnel.setValue(BeltFunnelBlock.SHAPE,
-			BeltFunnelBlock.getShapeForPosition(context.getLevel(), context.getClickedPos(), funnelFacing,
-				state.getValue(FunnelBlock.EXTRACTING))));
+		cir.setReturnValue(equivalentFunnel.setValue(BeltFunnelBlock.HORIZONTAL_FACING, localFacing)
+			.setValue(BeltFunnelBlock.SHAPE, BeltFunnelBlock.getShapeForPosition(context.getLevel(),
+				context.getClickedPos(), localFacing, state.getValue(FunnelBlock.EXTRACTING))));
 	}
 
 	@Inject(method = "updateShape(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/core/Direction;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/LevelAccessor;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/BlockPos;)Lnet/minecraft/world/level/block/state/BlockState;",
@@ -55,23 +54,23 @@ public abstract class FunnelBlockMixin {
 	private void createBiotech$updateShape(BlockState state, Direction direction, BlockState neighbour,
 		LevelAccessor world, BlockPos pos, BlockPos neighbourPos, CallbackInfoReturnable<BlockState> cir) {
 		Direction funnelFacing = AbstractFunnelBlock.getFunnelFacing(state);
-		if (funnelFacing == null || funnelFacing.getAxis()
-			.isVertical())
+		if (funnelFacing == null)
 			return;
 
 		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(world, pos);
 		if (support == null || direction != support.side()
 			.getOpposite())
 			return;
-		if (support.side()
-			.getAxis()
-			.isHorizontal() && support.side() != funnelFacing)
+		if (!SlimeBeltHelper.isValidFunnelFacing(support, funnelFacing))
 			return;
+		Direction localFacing = SlimeBeltHelper.getLocalFunnelFacing(support, funnelFacing);
+		BlockState localState = state.setValue(FunnelBlock.FACING, localFacing);
 
 		BlockState equivalentFunnel = ProperWaterloggedBlock.withWater(world,
-			((FunnelBlock) (Object) this).getEquivalentBeltFunnel(world, pos, state), pos);
-		cir.setReturnValue(equivalentFunnel.setValue(BeltFunnelBlock.SHAPE,
-			BeltFunnelBlock.getShapeForPosition(world, pos, funnelFacing, state.getValue(FunnelBlock.EXTRACTING))));
+			((FunnelBlock) (Object) this).getEquivalentBeltFunnel(world, pos, localState), pos);
+		cir.setReturnValue(equivalentFunnel.setValue(BeltFunnelBlock.HORIZONTAL_FACING, localFacing)
+			.setValue(BeltFunnelBlock.SHAPE,
+				BeltFunnelBlock.getShapeForPosition(world, pos, localFacing, state.getValue(FunnelBlock.EXTRACTING))));
 	}
 
 }
