@@ -65,18 +65,13 @@ public class UniversalJointBlock extends KineticBlock implements IBE<UniversalJo
 
 	@Override
 	public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-		Direction facing = state.getValue(FACING);
-		BlockPos neighbourPos = pos.relative(facing);
-		BlockState neighbourState = level.getBlockState(neighbourPos);
-		return !neighbourState.isAir() && !neighbourState.canBeReplaced();
+		return true;
 	}
 
 	@Override
 	public BlockState updateShape(BlockState state, Direction direction, BlockState neighbourState,
 		LevelAccessor level, BlockPos currentPos, BlockPos neighbourPos) {
 		updateWater(level, state, currentPos);
-		if (direction == state.getValue(FACING) && !state.canSurvive(level, currentPos))
-			return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
 		return state;
 	}
 

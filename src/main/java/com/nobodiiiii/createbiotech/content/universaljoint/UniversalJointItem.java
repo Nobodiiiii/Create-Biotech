@@ -24,8 +24,8 @@ import net.minecraft.world.level.material.Fluids;
 
 public class UniversalJointItem extends BlockItem {
 
-	private static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
-	private static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
+	public static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
+	public static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
 
 	public UniversalJointItem(Properties properties) {
 		super(CBBlocks.UNIVERSAL_JOINT.get(), properties);
@@ -99,18 +99,29 @@ public class UniversalJointItem extends BlockItem {
 			&& isWithinPlacementRange(first, second);
 	}
 
+	public static boolean canConnect(Level level, BlockPos firstTarget, Direction firstFace, BlockPos secondTarget,
+		Direction secondFace) {
+		Endpoint firstEndpoint = Endpoint.fromClick(level, firstTarget, firstFace);
+		Endpoint secondEndpoint = Endpoint.fromClick(level, secondTarget, secondFace);
+		return firstEndpoint != null && secondEndpoint != null && canPair(firstEndpoint, secondEndpoint);
+	}
+
+	public static BlockPos getJointPos(BlockPos targetPos, Direction clickedFace) {
+		return targetPos.relative(clickedFace);
+	}
+
 	private static boolean isWithinPlacementRange(Endpoint first, Endpoint second) {
 		Direction forward = first.clickedFace;
 		Direction.Axis forwardAxis = forward.getAxis();
 		BlockPos diff = second.jointPos.subtract(first.jointPos);
 		int depth = forwardAxis.choose(diff.getX(), diff.getY(), diff.getZ()) * forward.getAxisDirection().getStep();
-		if (depth < 0 || depth >= 3)
+		if (depth < 0 || depth >= 2)
 			return false;
 
 		for (Direction.Axis axis : Direction.Axis.values()) {
 			if (axis == forwardAxis)
 				continue;
-			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > 2)
+			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > 1)
 				return false;
 		}
 

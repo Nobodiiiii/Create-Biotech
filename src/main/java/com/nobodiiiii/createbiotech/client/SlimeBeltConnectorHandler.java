@@ -138,15 +138,33 @@ public class SlimeBeltConnectorHandler {
 			step = new Vec3(Math.signum(step.x), Math.signum(step.y), Math.signum(step.z));
 			for (float f = 0; f < length; f += .0625f) {
 				Vec3 position = start.add(step.scale(f));
-				if (RANDOM.nextInt(10) == 0) {
-					world.addParticle(
-						new DustParticleOptions(new Vector3f(canConnect ? .3f : .9f, canConnect ? .9f : .3f, .5f), 1),
-						position.x + .5f, position.y + .5f, position.z + .5f, 0, 0, 0);
-				}
+				spawnConnectionParticle(world, position.add(.5f, .5f, .5f), canConnect);
 			}
 
 			return;
 		}
+	}
+
+	public static void spawnConnectionLine(Level world, Vec3 start, Vec3 end, boolean canConnect) {
+		Vec3 diff = end.subtract(start);
+		double length = diff.length();
+		if (length < 1.0E-6d) {
+			spawnConnectionParticle(world, start, canConnect);
+			return;
+		}
+
+		Vec3 step = diff.normalize();
+		for (float f = 0; f < length; f += .0625f)
+			spawnConnectionParticle(world, start.add(step.scale(f)), canConnect);
+	}
+
+	public static void spawnConnectionParticle(Level world, Vec3 position, boolean canConnect) {
+		if (RANDOM.nextInt(10) != 0)
+			return;
+
+		world.addParticle(
+			new DustParticleOptions(new Vector3f(canConnect ? .3f : .9f, canConnect ? .9f : .3f, .5f), 1),
+			position.x, position.y, position.z, 0, 0, 0);
 	}
 
 	private static float randomOffset(float range) {
