@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInventory;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeItemHandlerBeltSegment;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler;
@@ -458,6 +460,11 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 			return isHorizontalVerticalPair(targetSlope, sourceSlope) && isSlimeBeltSourceMovingToward(slimeBelt,
 				physicalSide);
 		}
+		if (blockEntity instanceof MagmaBeltBlockEntity magmaBelt) {
+			BeltSlope sourceSlope = magmaBelt.getBlockState().getValue(MagmaBeltBlock.SLOPE);
+			return isHorizontalVerticalPair(targetSlope, sourceSlope) && isMagmaBeltSourceMovingToward(magmaBelt,
+				physicalSide);
+		}
 		if (blockEntity instanceof BeltBlockEntity belt) {
 			BeltSlope sourceSlope = belt.getBlockState().getValue(BeltBlock.SLOPE);
 			return isHorizontalVerticalPair(targetSlope, sourceSlope) && isBeltSourceMovingToward(belt, physicalSide);
@@ -474,6 +481,8 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		BlockEntity blockEntity = level.getBlockEntity(worldPosition.relative(physicalSide));
 		if (blockEntity instanceof SlimeBeltBlockEntity slimeBelt)
 			return isSlimeBeltSourceMovingToward(slimeBelt, physicalSide);
+		if (blockEntity instanceof MagmaBeltBlockEntity magmaBelt)
+			return isMagmaBeltSourceMovingToward(magmaBelt, physicalSide);
 		if (blockEntity instanceof BeltBlockEntity belt)
 			return isBeltSourceMovingToward(belt, physicalSide);
 		return false;
@@ -488,6 +497,10 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		Direction expectedMovement = physicalSide.getOpposite();
 		return SlimeBeltHelper.getMovementFacingForTrack(sourceController, SlimeBeltHelper.Track.FRONT) == expectedMovement
 			|| SlimeBeltHelper.getMovementFacingForTrack(sourceController, SlimeBeltHelper.Track.BACK) == expectedMovement;
+	}
+
+	private boolean isMagmaBeltSourceMovingToward(MagmaBeltBlockEntity magmaBelt, Direction physicalSide) {
+		return magmaBelt.getSpeed() != 0 && magmaBelt.getMovementFacing() == physicalSide.getOpposite();
 	}
 
 	private boolean isBeltSourceMovingToward(BeltBlockEntity belt, Direction physicalSide) {

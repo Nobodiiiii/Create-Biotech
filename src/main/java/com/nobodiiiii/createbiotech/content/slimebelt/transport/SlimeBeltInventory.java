@@ -10,6 +10,8 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
@@ -440,6 +442,19 @@ public class SlimeBeltInventory {
 					insertSide, currentProgress, nextProgress, start, end);
 				if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
 					bestCandidate = candidate;
+				continue;
+			}
+
+			if (targetBlockEntity instanceof MagmaBeltBlockEntity) {
+				Direction insertSide = Direction.UP;
+				if (!isCornerTransfer(incomingFace, insertSide))
+					continue;
+				if (!canSideTransferInto((MagmaBeltBlockEntity) targetBlockEntity, incomingFace))
+					continue;
+				SideTransferCandidate candidate = createSideTransferCandidate(targetPos, incomingFace,
+					insertSide, currentProgress, nextProgress, start, end);
+				if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
+					bestCandidate = candidate;
 			}
 		}
 
@@ -474,6 +489,12 @@ public class SlimeBeltInventory {
 
 	private boolean canSideTransferInto(BeltBlockEntity targetBelt, Direction incomingFace) {
 		if (targetBelt.getBlockState().getValue(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+			return true;
+		return targetBelt.getMovementFacing() == incomingFace.getOpposite();
+	}
+
+	private boolean canSideTransferInto(MagmaBeltBlockEntity targetBelt, Direction incomingFace) {
+		if (targetBelt.getBlockState().getValue(MagmaBeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
 			return true;
 		return targetBelt.getMovementFacing() == incomingFace.getOpposite();
 	}
