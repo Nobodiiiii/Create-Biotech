@@ -136,8 +136,6 @@ public class MagmaBeltInventory {
 				currentItem = null;
 				continue;
 			}
-			if (currentItem.processedBy == AllFanProcessingTypes.BLASTING && currentItem.locked)
-				continue;
 
 			// Don't move if other items are waiting in front
 			boolean noMovement = false;
@@ -163,14 +161,16 @@ public class MagmaBeltInventory {
 
 			// Belt item processing
 			if (!onClient && horizontal) {
-				ItemStack item = currentItem.stack;
+				ItemStack stackBeforeProcessing = currentItem.stack.copy();
 				if (handleBeltProcessingAndCheckIfRemoved(currentItem, nextOffset, noMovement)) {
 					iterator.remove();
 					belt.notifyUpdate();
 					continue;
 				}
-				if (item != currentItem.stack)
+				if (!ItemStack.matches(stackBeforeProcessing, currentItem.stack)) {
+					clearMagmaBlastingData(currentItem);
 					belt.notifyUpdate();
+				}
 				if (currentItem.locked)
 					continue;
 			}
@@ -272,7 +272,7 @@ public class MagmaBeltInventory {
 	}
 
 	protected boolean handleMagmaBlastingAndCheckIfRemoved(TransportedItemStack currentItem) {
-		if (currentItem.locked && currentItem.processedBy != AllFanProcessingTypes.BLASTING)
+		if (currentItem.locked)
 			return false;
 		if (currentItem.processedBy != null && currentItem.processedBy != AllFanProcessingTypes.BLASTING)
 			return false;
@@ -290,7 +290,6 @@ public class MagmaBeltInventory {
 		ItemStack stackBefore = currentItem.stack.copy();
 		TransportedResult result = FanProcessing.applyProcessing(currentItem, belt.getLevel(), AllFanProcessingTypes.BLASTING);
 		if (result.doesNothing()) {
-			currentItem.locked = true;
 			if (!wasProcessing || !currentItem.stack.equals(stackBefore, false))
 				belt.notifyUpdate();
 			else
@@ -327,6 +326,11 @@ public class MagmaBeltInventory {
 		output.clearFanProcessingData();
 		output.locked = false;
 		output.lockedExternally = false;
+	}
+
+	private void clearMagmaBlastingData(TransportedItemStack item) {
+		if (item.processedBy == AllFanProcessingTypes.BLASTING)
+			item.clearFanProcessingData();
 	}
 
 	protected boolean handleBeltProcessingAndCheckIfRemoved(TransportedItemStack currentItem, float nextOffset,
@@ -559,9 +563,12 @@ public class MagmaBeltInventory {
 			dirty = true;
 			if (result.hasHeldOutput()) {
 				TransportedItemStack held = result.getHeldOutput();
+				clearMagmaBlastingData(held);
 				held.beltPosition = ((int) position) + .5f - (beltMovementPositive ? 1 / 512f : -1 / 512f);
 				toInsert.add(held);
 			}
+			result.getOutputs()
+				.forEach(this::clearMagmaBlastingData);
 			toInsert.addAll(result.getOutputs());
 			toRemove.add(transported);
 		}

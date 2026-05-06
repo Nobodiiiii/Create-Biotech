@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import com.simibubi.create.AllBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -43,7 +42,6 @@ import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -104,6 +102,10 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 
 		if (!MagmaBeltBlock.isMagmaBelt(level.getBlockState(worldPosition)))
 			return;
+		if (!level.isClientSide && getBlockState().getValue(MagmaBeltBlock.CASING))
+			KineticBlockEntity.switchToBlockState(level, worldPosition, getBlockState().setValue(MagmaBeltBlock.CASING, false));
+		casing = CasingType.NONE;
+		covered = false;
 
 		initializeItemHandler();
 
@@ -235,8 +237,8 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 
 		CasingType casingBefore = casing;
 		boolean coverBefore = covered;
-		casing = NBTHelper.readEnum(compound, "Casing", CasingType.class);
-		covered = compound.getBoolean("Covered");
+		casing = CasingType.NONE;
+		covered = false;
 
 		if (!clientPacket)
 			return;
@@ -412,28 +414,23 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 	}
 
 	public void setCasingType(CasingType type) {
-		if (casing == type)
-			return;
-
 		BlockState blockState = getBlockState();
-		boolean shouldBlockHaveCasing = type != CasingType.NONE;
 
 		if (level.isClientSide) {
-			casing = type;
-			level.setBlock(worldPosition, blockState.setValue(MagmaBeltBlock.CASING, shouldBlockHaveCasing), 0);
+			casing = CasingType.NONE;
+			covered = false;
+			if (blockState.getValue(MagmaBeltBlock.CASING))
+				level.setBlock(worldPosition, blockState.setValue(MagmaBeltBlock.CASING, false), 0);
 			requestModelDataUpdate();
 			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 16);
 			return;
 		}
 
-		if (casing != CasingType.NONE)
-			level.levelEvent(2001, worldPosition,
-				Block.getId(casing == CasingType.ANDESITE ? AllBlocks.ANDESITE_CASING.getDefaultState()
-					: AllBlocks.BRASS_CASING.getDefaultState()));
-		if (blockState.getValue(MagmaBeltBlock.CASING) != shouldBlockHaveCasing)
+		if (blockState.getValue(MagmaBeltBlock.CASING))
 			KineticBlockEntity.switchToBlockState(level, worldPosition,
-				blockState.setValue(MagmaBeltBlock.CASING, shouldBlockHaveCasing));
-		casing = type;
+				blockState.setValue(MagmaBeltBlock.CASING, false));
+		casing = CasingType.NONE;
+		covered = false;
 		setChanged();
 		sendData();
 	}
