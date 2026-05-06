@@ -4,8 +4,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
-import com.simibubi.create.content.kinetics.base.IRotate;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
@@ -97,7 +95,26 @@ public class UniversalJointItem extends BlockItem {
 
 	private static boolean canPair(Endpoint first, Endpoint second) {
 		return !first.jointPos.equals(second.jointPos)
-			&& !first.targetPos.equals(second.targetPos);
+			&& !first.targetPos.equals(second.targetPos)
+			&& isWithinPlacementRange(first, second);
+	}
+
+	private static boolean isWithinPlacementRange(Endpoint first, Endpoint second) {
+		Direction forward = first.clickedFace;
+		Direction.Axis forwardAxis = forward.getAxis();
+		BlockPos diff = second.jointPos.subtract(first.jointPos);
+		int depth = forwardAxis.choose(diff.getX(), diff.getY(), diff.getZ()) * forward.getAxisDirection().getStep();
+		if (depth < 0 || depth >= 3)
+			return false;
+
+		for (Direction.Axis axis : Direction.Axis.values()) {
+			if (axis == forwardAxis)
+				continue;
+			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > 2)
+				return false;
+		}
+
+		return true;
 	}
 
 	private static boolean placeJointPair(Level level, Endpoint first, Endpoint second) {
@@ -157,13 +174,7 @@ public class UniversalJointItem extends BlockItem {
 				return false;
 
 			BlockState targetState = level.getBlockState(targetPos);
-			if (!(targetState.getBlock() instanceof IRotate rotate))
-				return false;
-			if (!rotate.hasShaftTowards(level, targetPos, targetState, clickedFace))
-				return false;
-
-			BlockEntity blockEntity = level.getBlockEntity(targetPos);
-			return blockEntity instanceof KineticBlockEntity;
+			return !targetState.isAir() && !targetState.canBeReplaced();
 		}
 
 		private static boolean canPlaceEndpoint(Level level, BlockPos jointPos) {

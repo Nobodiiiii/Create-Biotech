@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.universaljoint;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
-import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
@@ -56,7 +55,7 @@ public class UniversalJointBlock extends KineticBlock implements IBE<UniversalJo
 
 	@Override
 	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face == state.getValue(FACING);
+		return face.getAxis() == state.getValue(FACING).getAxis();
 	}
 
 	@Override
@@ -69,9 +68,7 @@ public class UniversalJointBlock extends KineticBlock implements IBE<UniversalJo
 		Direction facing = state.getValue(FACING);
 		BlockPos neighbourPos = pos.relative(facing);
 		BlockState neighbourState = level.getBlockState(neighbourPos);
-		if (!(neighbourState.getBlock() instanceof IRotate rotate))
-			return false;
-		return rotate.hasShaftTowards(level, neighbourPos, neighbourState, facing.getOpposite());
+		return !neighbourState.isAir() && !neighbourState.canBeReplaced();
 	}
 
 	@Override
