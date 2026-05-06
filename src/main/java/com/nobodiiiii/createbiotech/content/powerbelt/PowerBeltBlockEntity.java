@@ -21,6 +21,8 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	public static final float MIN_SURFACE_SPEED = 1.0E-4f;
 
+	private static final int SURFACE_SPEED_DETECTION_INTERVAL = 10;
+	private static final float GENERATED_RPM_THRESHOLD = 4f;
 	private static final float SURFACE_SPEED_TO_RPM = 480f;
 	private static final float REFERENCE_BELT_RPM = 64f;
 	private static final float SU_PER_REFERENCE_SPEED = 128f;
@@ -31,7 +33,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	protected BlockPos controller;
 
 	private long lastMovementGameTime = Long.MIN_VALUE;
+	private long nextDetectionGameTime = Long.MIN_VALUE;
 	private float collectedSurfaceSpeed;
+	private float collectedDetectionSurfaceSpeed;
+	private int collectedDetectionTicks;
 	private float generatedSpeed;
 	private float generatedCapacity;
 
@@ -57,8 +62,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		if (!isController())
 			return;
 
-		if (level.getGameTime() != lastMovementGameTime && generatedSpeed != 0)
-			setGeneratedOutput(0, 0);
+		sampleSurfaceMovementBefore(level.getGameTime());
 	}
 
 	public void addSurfaceMovement(float signedSurfaceSpeed) {
@@ -75,15 +79,63 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 			return;
 
 		long gameTime = level.getGameTime();
+		sampleSurfaceMovementBefore(gameTime);
 		if (gameTime != lastMovementGameTime) {
 			lastMovementGameTime = gameTime;
 			collectedSurfaceSpeed = 0;
 		}
 
 		collectedSurfaceSpeed += signedSurfaceSpeed;
-		float speed = surfaceSpeedToGeneratedRpm(collectedSurfaceSpeed);
-		float capacity = Math.abs(speed) < MIN_SURFACE_SPEED ? 0 : CAPACITY_PER_RPM;
+	}
+
+	private void sampleSurfaceMovementBefore(long gameTime) {
+		if (nextDetectionGameTime == Long.MIN_VALUE)
+			nextDetectionGameTime = gameTime;
+
+		while (nextDetectionGameTime < gameTime) {
+			float surfaceSpeed = nextDetectionGameTime == lastMovementGameTime ? collectedSurfaceSpeed : 0;
+			collectedDetectionSurfaceSpeed += surfaceSpeed;
+			collectedDetectionTicks++;
+
+			if (nextDetectionGameTime == lastMovementGameTime)
+				collectedSurfaceSpeed = 0;
+
+			nextDetectionGameTime++;
+
+			if (collectedDetectionTicks >= SURFACE_SPEED_DETECTION_INTERVAL)
+				applyDetectedSurfaceMovement();
+		}
+	}
+
+	private void applyDetectedSurfaceMovement() {
+		float averageSurfaceSpeed = collectedDetectionSurfaceSpeed / collectedDetectionTicks;
+		float speed = surfaceSpeedToGeneratedRpm(averageSurfaceSpeed);
+		if (isBelowRpmThreshold(speed))
+			speed = 0;
+
+		collectedDetectionSurfaceSpeed = 0;
+		collectedDetectionTicks = 0;
+
+		if (!shouldApplyDetectedSpeed(speed))
+			return;
+
+		float capacity = speed == 0 ? 0 : CAPACITY_PER_RPM;
 		setGeneratedOutput(speed, capacity);
+	}
+
+	private static boolean isBelowRpmThreshold(float speed) {
+		float absoluteSpeed = Math.abs(speed);
+		return absoluteSpeed < GENERATED_RPM_THRESHOLD && !Mth.equal(absoluteSpeed, GENERATED_RPM_THRESHOLD);
+	}
+
+	private boolean shouldApplyDetectedSpeed(float speed) {
+		if (Mth.equal(generatedSpeed, speed))
+			return false;
+		if (generatedSpeed == 0 || speed == 0)
+			return true;
+
+		float difference = Math.abs(speed - generatedSpeed);
+		return difference > GENERATED_RPM_THRESHOLD || Mth.equal(difference, GENERATED_RPM_THRESHOLD);
 	}
 
 	private float surfaceSpeedToGeneratedRpm(float signedSurfaceSpeed) {
@@ -134,7 +186,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		index = 0;
 		controller = null;
 		lastMovementGameTime = Long.MIN_VALUE;
+		nextDetectionGameTime = Long.MIN_VALUE;
 		collectedSurfaceSpeed = 0;
+		collectedDetectionSurfaceSpeed = 0;
+		collectedDetectionTicks = 0;
 		generatedSpeed = 0;
 		generatedCapacity = 0;
 	}
@@ -207,7 +262,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		index = 0;
 		controller = null;
 		lastMovementGameTime = Long.MIN_VALUE;
+		nextDetectionGameTime = Long.MIN_VALUE;
 		collectedSurfaceSpeed = 0;
+		collectedDetectionSurfaceSpeed = 0;
+		collectedDetectionTicks = 0;
 		generatedSpeed = 0;
 		generatedCapacity = 0;
 	}

@@ -25,7 +25,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -154,8 +153,10 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 		if (Math.abs(surfaceSpeed) < PowerBeltBlockEntity.MIN_SURFACE_SPEED)
 			return;
 
-		if (Math.abs(movedSurfaceSpeed) >= PowerBeltBlockEntity.MIN_SURFACE_SPEED)
-			entity.move(MoverType.SELF, beltAxis.scale(-movedSurfaceSpeed));
+		if (Math.abs(movedSurfaceSpeed) >= PowerBeltBlockEntity.MIN_SURFACE_SPEED) {
+			Vec3 correction = beltAxis.scale(movedSurfaceSpeed);
+			entity.setPos(entity.getX() - correction.x, entity.getY(), entity.getZ() - correction.z);
+		}
 		if (Math.abs(motionSurfaceSpeed) >= PowerBeltBlockEntity.MIN_SURFACE_SPEED)
 			entity.setDeltaMovement(motion.subtract(beltAxis.scale(motionSurfaceSpeed)));
 		entity.hurtMarked = true;
