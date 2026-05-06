@@ -26,8 +26,7 @@ public class UniversalJointItem extends BlockItem {
 
 	public static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
 	public static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
-	private static final int RANGE_SIDE_RADIUS = 2;
-	private static final int RANGE_DEPTH = 3;
+	private static final int RANGE_RADIUS = 2;
 	private static final int PREVIEW_RANGE = 16;
 
 	public UniversalJointItem(Properties properties) {
@@ -99,7 +98,7 @@ public class UniversalJointItem extends BlockItem {
 	private static boolean canPair(Endpoint first, Endpoint second) {
 		return !first.jointPos.equals(second.jointPos)
 			&& !first.targetPos.equals(second.targetPos)
-			&& isWithinHitRange(first.jointPos, first.clickedFace, second.jointPos);
+			&& isWithinHitRange(first.jointPos, second.jointPos);
 	}
 
 	public static boolean canConnect(Level level, BlockPos firstTarget, Direction firstFace, BlockPos secondTarget,
@@ -113,21 +112,11 @@ public class UniversalJointItem extends BlockItem {
 		return targetPos.relative(clickedFace);
 	}
 
-	public static boolean isWithinHitRange(BlockPos firstJoint, Direction forward, BlockPos secondJoint) {
-		Direction.Axis forwardAxis = forward.getAxis();
+	public static boolean isWithinHitRange(BlockPos firstJoint, BlockPos secondJoint) {
 		BlockPos diff = secondJoint.subtract(firstJoint);
-		int depth = forwardAxis.choose(diff.getX(), diff.getY(), diff.getZ()) * forward.getAxisDirection().getStep();
-		if (depth < 0 || depth >= RANGE_DEPTH)
-			return false;
-
-		for (Direction.Axis axis : Direction.Axis.values()) {
-			if (axis == forwardAxis)
-				continue;
-			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > RANGE_SIDE_RADIUS)
-				return false;
-		}
-
-		return true;
+		return Math.abs(diff.getX()) <= RANGE_RADIUS
+			&& Math.abs(diff.getY()) <= RANGE_RADIUS
+			&& Math.abs(diff.getZ()) <= RANGE_RADIUS;
 	}
 
 	public static boolean isWithinPreviewRange(BlockPos firstJoint, BlockPos secondJoint) {
