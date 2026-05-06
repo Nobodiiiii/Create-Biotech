@@ -7,6 +7,14 @@
     {
       "type": "single",
       "resource": "create_biotech:block/slime_belt_diagonal_scroll"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/magma_belt_scroll"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/magma_belt_diagonal_scroll"
     }
   ]
 }

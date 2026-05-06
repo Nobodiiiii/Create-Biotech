@@ -168,8 +168,8 @@ public class MagmaBeltRenderer extends SafeBlockEntityRenderer<MagmaBeltBlockEnt
 			return (diagonal ? AllSpriteShifts.DYED_DIAGONAL_BELTS
 				: bottom ? AllSpriteShifts.DYED_OFFSET_BELTS : AllSpriteShifts.DYED_BELTS).get(color);
 		} else
-			return diagonal ? AllSpriteShifts.BELT_DIAGONAL
-				: bottom ? AllSpriteShifts.BELT_OFFSET : AllSpriteShifts.BELT;
+			return diagonal ? MagmaBeltSpriteShifts.BELT_DIAGONAL
+				: bottom ? MagmaBeltSpriteShifts.BELT_OFFSET : MagmaBeltSpriteShifts.BELT;
 	}
 
 	public static PartialModel getBeltPartial(boolean diagonal, boolean start, boolean end, boolean bottom) {

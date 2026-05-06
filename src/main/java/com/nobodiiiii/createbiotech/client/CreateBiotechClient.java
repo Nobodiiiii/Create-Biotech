@@ -5,6 +5,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
@@ -32,6 +33,7 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
 		SlimeBeltSpriteShifts.init();
+		MagmaBeltSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
 	}
