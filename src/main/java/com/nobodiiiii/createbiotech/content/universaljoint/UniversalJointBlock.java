@@ -34,12 +34,12 @@ public class UniversalJointBlock extends KineticBlock implements IBE<UniversalJo
 
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
-	private static final VoxelShape DOWN_SHAPE = Block.box(6, 0, 6, 10, 4, 10);
-	private static final VoxelShape UP_SHAPE = Block.box(6, 12, 6, 10, 16, 10);
-	private static final VoxelShape NORTH_SHAPE = Block.box(6, 6, 0, 10, 10, 4);
-	private static final VoxelShape SOUTH_SHAPE = Block.box(6, 6, 12, 10, 10, 16);
-	private static final VoxelShape WEST_SHAPE = Block.box(0, 6, 6, 4, 10, 10);
-	private static final VoxelShape EAST_SHAPE = Block.box(12, 6, 6, 16, 10, 10);
+	private static final VoxelShape DOWN_SHAPE = Block.box(6, 0, 6, 10, 6, 10);
+	private static final VoxelShape UP_SHAPE = Block.box(6, 10, 6, 10, 16, 10);
+	private static final VoxelShape NORTH_SHAPE = Block.box(6, 6, 0, 10, 10, 6);
+	private static final VoxelShape SOUTH_SHAPE = Block.box(6, 6, 10, 10, 10, 16);
+	private static final VoxelShape WEST_SHAPE = Block.box(0, 6, 6, 6, 10, 10);
+	private static final VoxelShape EAST_SHAPE = Block.box(10, 6, 6, 16, 10, 10);
 
 	public UniversalJointBlock(Properties properties) {
 		super(properties);
