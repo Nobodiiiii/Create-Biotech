@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.client.PowerBeltClientReporter;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -58,6 +59,8 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerBeltBlockEntity>, ProperWaterloggedBlock {
 
@@ -136,6 +139,19 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 
 	@Override
 	public void entityInside(BlockState state, Level level, BlockPos pos, Entity entity) {
+		if (entity instanceof Player)
+			return;
+		captureSurfaceMovement(state, level, pos, entity);
+	}
+
+	@Override
+	public void stepOn(Level level, BlockPos pos, BlockState state, Entity entity) {
+		if (entity instanceof Player)
+			captureSurfaceMovement(state, level, pos, entity);
+		super.stepOn(level, pos, state, entity);
+	}
+
+	private static void captureSurfaceMovement(BlockState state, Level level, BlockPos pos, Entity entity) {
 		if (!isPowerBelt(state) || state.getValue(SLOPE) != BeltSlope.HORIZONTAL)
 			return;
 		if (!isEntityOnBeltSurface(pos, entity))
@@ -161,7 +177,15 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 			entity.setDeltaMovement(motion.subtract(beltAxis.scale(motionSurfaceSpeed)));
 		entity.hurtMarked = true;
 
-		if (level.isClientSide)
+		if (level.isClientSide) {
+			if (entity instanceof Player player) {
+				float reportedSpeed = (float) surfaceSpeed;
+				DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+					() -> () -> PowerBeltClientReporter.reportSurfaceMovement(player, pos, reportedSpeed));
+			}
+			return;
+		}
+		if (entity instanceof Player)
 			return;
 
 		BlockEntity blockEntity = level.getBlockEntity(pos);
@@ -209,7 +233,7 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 		return InteractionResult.SUCCESS;
 	}
 
-	private static boolean isEntityOnBeltSurface(BlockPos pos, Entity entity) {
+	static boolean isEntityOnBeltSurface(BlockPos pos, Entity entity) {
 		return entity.getY() - .25f >= pos.getY();
 	}
 

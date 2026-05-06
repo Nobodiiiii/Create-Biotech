@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -18,6 +19,7 @@ public class CreateBiotech {
 		CBBlocks.register(modEventBus);
 		CBItems.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
+		CBPackets.register();
 		modEventBus.addListener(CBItems::addToCreativeTabs);
 	}
 

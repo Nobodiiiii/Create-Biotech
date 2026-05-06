@@ -140,7 +140,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	private float surfaceSpeedToGeneratedRpm(float signedSurfaceSpeed) {
 		Direction facing = getBlockState().getValue(PowerBeltBlock.HORIZONTAL_FACING);
-		return signedSurfaceSpeed * SURFACE_SPEED_TO_RPM / getDirectionFactor(facing);
+		return -signedSurfaceSpeed * SURFACE_SPEED_TO_RPM / getDirectionFactor(facing);
 	}
 
 	private static float getDirectionFactor(Direction facing) {
