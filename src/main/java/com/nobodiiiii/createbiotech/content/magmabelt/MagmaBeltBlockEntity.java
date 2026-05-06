@@ -37,8 +37,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
@@ -117,6 +119,9 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 
 		getInventory().tick();
 
+		if (level.isClientSide)
+			spawnFlameParticles();
+
 		if (getSpeed() == 0)
 			return;
 
@@ -138,6 +143,42 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 			MagmaBeltMovementHandler.transportEntity(this, entity, info);
 		});
 		toRemove.forEach(passengers::remove);
+	}
+
+	private void spawnFlameParticles() {
+		if (beltLength <= 0)
+			return;
+
+		RandomSource random = level.random;
+		float chance = Math.min(.16f, .025f + beltLength * .006f);
+		if (random.nextFloat() >= chance)
+			return;
+
+		int count = random.nextFloat() < .15f ? 2 : 1;
+		for (int i = 0; i < count; i++)
+			spawnFlameParticle(random);
+	}
+
+	private void spawnFlameParticle(RandomSource random) {
+		float frontOffset = random.nextFloat() * beltLength;
+		Vec3 normal = MagmaBeltHelper.getSurfaceNormal(this)
+			.normalize();
+		Vec3 across = MagmaBeltHelper.getPathAxis(this)
+			.cross(normal);
+		if (across.lengthSqr() > 1.0E-6d)
+			across = across.normalize()
+				.scale((random.nextDouble() - .5d) * .55d);
+		else
+			across = Vec3.ZERO;
+
+		Vec3 position = MagmaBeltHelper.getVectorForOffset(this, frontOffset)
+			.add(across)
+			.add(normal.scale(7d / 16d + random.nextDouble() * .05d));
+		double drift = .0125d;
+		Vec3 motion = normal.scale(.01d + random.nextDouble() * .015d)
+			.add((random.nextDouble() - .5d) * drift, .0125d + random.nextDouble() * .025d,
+				(random.nextDouble() - .5d) * drift);
+		level.addParticle(ParticleTypes.FLAME, position.x, position.y, position.z, motion.x, motion.y, motion.z);
 	}
 
 	@Override

@@ -75,7 +75,9 @@ public class MagmaBeltInventory {
 		}
 
 		if (belt.getSpeed() == 0) {
-			if (!belt.getLevel().isClientSide || belt.isVirtual())
+			if (belt.getLevel().isClientSide && !belt.isVirtual())
+				spawnMagmaBlastingParticles();
+			else
 				tickMagmaBlastingWithoutMovement();
 			return;
 		}
@@ -116,6 +118,9 @@ public class MagmaBeltInventory {
 				currentItem = null;
 				continue;
 			}
+
+			if (onClient)
+				spawnMagmaBlastingParticles(currentItem);
 
 			float movement = beltSpeed;
 			if (onClient)
@@ -244,6 +249,23 @@ public class MagmaBeltInventory {
 				continue;
 			}
 		}
+	}
+
+	private void spawnMagmaBlastingParticles() {
+		for (TransportedItemStack item : items) {
+			if (item.stack.isEmpty())
+				continue;
+			spawnMagmaBlastingParticles(item);
+		}
+	}
+
+	private void spawnMagmaBlastingParticles(TransportedItemStack item) {
+		if (item.processedBy != AllFanProcessingTypes.BLASTING || item.processingTime < 0)
+			return;
+		Vec3 pos = MagmaBeltHelper.getVectorForOffset(belt, item.beltPosition)
+			.add(MagmaBeltHelper.getSurfaceNormal(belt)
+				.scale(.25d));
+		AllFanProcessingTypes.BLASTING.spawnProcessingParticles(belt.getLevel(), pos);
 	}
 
 	private void tickMagmaBlastingWithoutMovement() {

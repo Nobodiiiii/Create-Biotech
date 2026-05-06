@@ -8,6 +8,7 @@ import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import it.unimi.dsi.fastutil.objects.Object2BooleanOpenHashMap;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Vec3i;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
@@ -85,6 +86,14 @@ public class MagmaBeltHelper {
 	public static Vec3 getVectorForOffset(MagmaBeltBlockEntity controller, float offset) {
 		BeltSlope slope = controller.getBlockState()
 			.getValue(MagmaBeltBlock.SLOPE);
+		if (slope == BeltSlope.VERTICAL) {
+			int chainStep = controller.getBeltFacing()
+				.getAxisDirection()
+				.getStep();
+			double y = chainStep > 0 ? offset : 1d - offset;
+			return Vec3.atLowerCornerOf(controller.getBlockPos())
+				.add(.5d, y, .5d);
+		}
 		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
 		float verticalMovement = verticality;
 		if (offset < .5)
@@ -101,6 +110,44 @@ public class MagmaBeltHelper {
 		vec = vec.add(horizontalMovement)
 			.add(0, verticalMovement, 0);
 		return vec;
+	}
+
+	public static Vec3 getSurfaceNormal(MagmaBeltBlockEntity controller) {
+		BlockState state = controller.getBlockState();
+		BeltSlope slope = state.getValue(MagmaBeltBlock.SLOPE);
+		Direction facing = state.getValue(MagmaBeltBlock.HORIZONTAL_FACING);
+		if (slope == BeltSlope.VERTICAL)
+			return Vec3.atLowerCornerOf(facing.getOpposite()
+				.getNormal());
+		if (slope == BeltSlope.SIDEWAYS)
+			return Vec3.atLowerCornerOf(facing.getClockWise()
+				.getNormal());
+		if (slope == BeltSlope.HORIZONTAL)
+			return new Vec3(0, 1, 0);
+
+		int verticality = slope == BeltSlope.DOWNWARD ? -1 : 1;
+		Vec3 travel = Vec3.atLowerCornerOf(facing.getNormal())
+			.add(0, verticality, 0)
+			.normalize();
+		Vec3 across = Vec3.atLowerCornerOf(facing.getClockWise()
+			.getNormal());
+		return across.cross(travel)
+			.normalize();
+	}
+
+	public static Vec3 getPathAxis(MagmaBeltBlockEntity controller) {
+		BlockState state = controller.getBlockState();
+		BeltSlope slope = state.getValue(MagmaBeltBlock.SLOPE);
+		Direction facing = state.getValue(MagmaBeltBlock.HORIZONTAL_FACING);
+		if (slope == BeltSlope.VERTICAL)
+			return new Vec3(0, facing.getAxisDirection()
+				.getStep(), 0);
+		if (slope == BeltSlope.SIDEWAYS)
+			return Vec3.atLowerCornerOf(facing.getNormal());
+		int verticality = slope == BeltSlope.DOWNWARD ? -1 : slope == BeltSlope.UPWARD ? 1 : 0;
+		return Vec3.atLowerCornerOf(facing.getNormal())
+			.add(0, verticality, 0)
+			.normalize();
 	}
 
 	public static Vec3 getBeltVector(BlockState state) {
