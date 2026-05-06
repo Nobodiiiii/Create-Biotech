@@ -1,0 +1,28 @@
+{
+  "multipart": [
+    {
+      "when": { "facing": "north" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint" }
+    },
+    {
+      "when": { "facing": "east" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint", "y": 90 }
+    },
+    {
+      "when": { "facing": "south" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint", "y": 180 }
+    },
+    {
+      "when": { "facing": "west" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint", "y": 270 }
+    },
+    {
+      "when": { "facing": "up" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint", "x": 270 }
+    },
+    {
+      "when": { "facing": "down" },
+      "apply": { "model": "create_biotech:block/universal_joint_endpoint", "x": 90 }
+    }
+  ]
+}

@@ -3,5 +3,6 @@
   "block.create_biotech.magma_belt": "Magma Cube Belt",
   "item.create_biotech.magma_belt_connector": "Magma Cube Belt Connector",
   "block.create_biotech.slime_belt": "Slime Belt",
-  "item.create_biotech.slime_belt_connector": "Slime Belt Connector"
+  "item.create_biotech.slime_belt_connector": "Slime Belt Connector",
+  "block.create_biotech.universal_joint": "Universal Joint"
 }

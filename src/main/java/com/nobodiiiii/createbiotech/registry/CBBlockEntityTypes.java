@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
+import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlockEntity;
 
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -29,6 +30,11 @@ public class CBBlockEntityTypes {
 	public static final RegistryObject<BlockEntityType<EvokerTankBlockEntity>> EVOKER_TANK =
 		BLOCK_ENTITY_TYPES.register("evoker_tank",
 			() -> BlockEntityType.Builder.of(EvokerTankBlockEntity::new, CBBlocks.EVOKER_TANK.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<UniversalJointBlockEntity>> UNIVERSAL_JOINT =
+		BLOCK_ENTITY_TYPES.register("universal_joint",
+			() -> BlockEntityType.Builder.of(UniversalJointBlockEntity::new, CBBlocks.UNIVERSAL_JOINT.get())
 				.build(null));
 
 	private CBBlockEntityTypes() {}

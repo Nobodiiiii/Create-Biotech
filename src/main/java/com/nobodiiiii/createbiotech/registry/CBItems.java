@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTabs;
@@ -28,6 +29,9 @@ public class CBItems {
 	public static final RegistryObject<Item> MAGMA_BELT_CONNECTOR = ITEMS.register("magma_belt_connector",
 		() -> new MagmaBeltConnectorItem(new Item.Properties()));
 
+	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
+		() -> new UniversalJointItem(new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {
@@ -39,6 +43,7 @@ public class CBItems {
 			event.accept(EVOKER_TANK.get());
 			event.accept(SLIME_BELT_CONNECTOR.get());
 			event.accept(MAGMA_BELT_CONNECTOR.get());
+			event.accept(UNIVERSAL_JOINT.get());
 		}
 	}
 

@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
+import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -36,6 +37,13 @@ public class CBBlocks {
 		() -> new EvokerTankBlock(Block.Properties.of()
 			.sound(SoundType.COPPER)
 			.strength(2.5f)
+			.mapColor(MapColor.METAL)
+			.noOcclusion()));
+
+	public static final RegistryObject<UniversalJointBlock> UNIVERSAL_JOINT = BLOCKS.register("universal_joint",
+		() -> new UniversalJointBlock(Block.Properties.of()
+			.sound(SoundType.COPPER)
+			.strength(0.8f)
 			.mapColor(MapColor.METAL)
 			.noOcclusion()));
 
