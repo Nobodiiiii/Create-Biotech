@@ -10,6 +10,7 @@ import mezz.jei.api.recipe.category.AbstractRecipeCategory;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.EntityType;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.simibubi.create.compat.jei.category.CreateRecipeCategory;
@@ -34,14 +35,14 @@ public class SlimeTransformationJeiCategory extends AbstractRecipeCategory<Slime
 	private static final int HINT_WIDTH = 82;
 	private static final int HINT_HEIGHT = 28;
 
-	private static final Component DROP_CONDITION_TEXT =
-		Component.literal("击杀体型>=2、吸收了传送带掉落物的史莱姆掉落");
-
 	private final SlimeEntityDrawable slimeDrawable;
+	private final SlimeEntityDrawable magmaDrawable;
 
 	public SlimeTransformationJeiCategory() {
-		super(TYPE, Component.literal("史莱姆转化"), new SlimeEntityDrawable(16, 16, 10, 2, -0.75f, -0.6f), WIDTH, HEIGHT);
-		this.slimeDrawable = new SlimeEntityDrawable(32, 24, 18, 2, -0.75f, -0.6f);
+		super(TYPE, Component.literal("史莱姆转化"),
+			new SlimeEntityDrawable(16, 16, 10, 2, -0.75f, -0.6f, EntityType.SLIME), WIDTH, HEIGHT);
+		this.slimeDrawable = new SlimeEntityDrawable(32, 24, 18, 2, -0.75f, -0.6f, EntityType.SLIME);
+		this.magmaDrawable = new SlimeEntityDrawable(32, 24, 18, 2, -0.75f, -0.6f, EntityType.MAGMA_CUBE);
 	}
 
 	@Override
@@ -58,7 +59,7 @@ public class SlimeTransformationJeiCategory extends AbstractRecipeCategory<Slime
 	public void draw(SlimeTransformationJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics guiGraphics,
 		double mouseX, double mouseY) {
 		AllGuiTextures.JEI_LONG_ARROW.render(guiGraphics, ARROW_X, ARROW_Y);
-		slimeDrawable.draw(guiGraphics, SLIME_X, SLIME_Y);
+		getDrawable(recipe).draw(guiGraphics, SLIME_X, SLIME_Y);
 	}
 
 	@Override
@@ -66,12 +67,16 @@ public class SlimeTransformationJeiCategory extends AbstractRecipeCategory<Slime
 		double mouseX, double mouseY) {
 		if (mouseX >= HINT_X && mouseX < HINT_X + HINT_WIDTH && mouseY >= HINT_Y
 			&& mouseY < HINT_Y + HINT_HEIGHT) {
-			tooltip.add(DROP_CONDITION_TEXT);
+			tooltip.add(recipe.dropConditionText());
 		}
 	}
 
 	@Override
 	public ResourceLocation getRegistryName(SlimeTransformationJeiRecipe recipe) {
 		return recipe.id();
+	}
+
+	private SlimeEntityDrawable getDrawable(SlimeTransformationJeiRecipe recipe) {
+		return recipe.entityType() == EntityType.MAGMA_CUBE ? magmaDrawable : slimeDrawable;
 	}
 }

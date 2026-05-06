@@ -25,6 +25,8 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerRecipes(IRecipeRegistration registration) {
-		registration.addRecipes(SlimeTransformationJeiCategory.TYPE, List.of(SlimeTransformationJeiRecipe.beltToSlimeBelt()));
+		registration.addRecipes(SlimeTransformationJeiCategory.TYPE, List.of(
+			SlimeTransformationJeiRecipe.beltToSlimeBelt(),
+			SlimeTransformationJeiRecipe.beltToMagmaBelt()));
 	}
 }

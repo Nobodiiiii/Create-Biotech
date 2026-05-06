@@ -17,19 +17,22 @@ public class SlimeEntityDrawable implements IDrawable {
 	private final int slimeSize;
 	private final float angleX;
 	private final float angleY;
+	private final EntityType<? extends Slime> entityType;
 
 	@Nullable
 	private Slime cachedSlime;
 	@Nullable
 	private Level cachedLevel;
 
-	public SlimeEntityDrawable(int width, int height, int scale, int slimeSize, float angleX, float angleY) {
+	public SlimeEntityDrawable(int width, int height, int scale, int slimeSize, float angleX, float angleY,
+		EntityType<? extends Slime> entityType) {
 		this.width = width;
 		this.height = height;
 		this.scale = scale;
 		this.slimeSize = slimeSize;
 		this.angleX = angleX;
 		this.angleY = angleY;
+		this.entityType = entityType;
 	}
 
 	@Override
@@ -58,10 +61,12 @@ public class SlimeEntityDrawable implements IDrawable {
 	}
 
 	private Slime getOrCreateSlime(Level level) {
-		if (cachedSlime != null && cachedLevel == level)
+		if (cachedSlime != null && cachedLevel == level && cachedSlime.getType() == entityType)
 			return cachedSlime;
 
-		Slime slime = new Slime(EntityType.SLIME, level);
+		Slime slime = entityType.create(level);
+		if (slime == null)
+			return null;
 		slime.setNoAi(true);
 		slime.setSize(slimeSize, false);
 		slime.tickCount = 0;
