@@ -36,8 +36,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Vec3i;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -104,6 +106,9 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 
 		if (getSpeed() == 0)
 			return;
+
+		if (level.isClientSide)
+			spawnSlimeParticles();
 
 		if (passengers == null)
 			passengers = new HashMap<>();
@@ -229,6 +234,43 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 		if (getBeltFacing().getAxis() == Axis.X)
 			offset *= -1;
 		return getBeltMovementSpeed() * offset;
+	}
+
+	private void spawnSlimeParticles() {
+		if (beltLength <= 0)
+			return;
+
+		RandomSource random = level.random;
+		float chance = Math.min(.18f, .035f + beltLength * .008f + Math.abs(getBeltMovementSpeed()) * .12f);
+		if (random.nextFloat() >= chance)
+			return;
+
+		int count = random.nextFloat() < .2f ? 2 : 1;
+		for (int i = 0; i < count; i++)
+			spawnSlimeParticle(random);
+	}
+
+	private void spawnSlimeParticle(RandomSource random) {
+		float frontOffset = random.nextFloat() * beltLength;
+		Vec3 surface = SlimeBeltHelper.getVectorForOffset(this, frontOffset);
+		Vec3 normal = SlimeBeltHelper.getTrackNormal(this, frontOffset)
+			.normalize();
+		Vec3 across = SlimeBeltHelper.getPathAxis(this)
+			.cross(normal);
+		if (across.lengthSqr() > 1.0E-6d)
+			across = across.normalize()
+				.scale((random.nextDouble() - .5d) * .55d);
+		else
+			across = Vec3.ZERO;
+
+		Vec3 position = surface.add(across)
+			.add(normal.scale(.04d + random.nextDouble() * .04d));
+		double pop = .025d + random.nextDouble() * .045d;
+		double drift = .015d;
+		Vec3 motion = normal.scale(pop)
+			.add((random.nextDouble() - .5d) * drift, random.nextDouble() * .035d,
+				(random.nextDouble() - .5d) * drift);
+		level.addParticle(ParticleTypes.ITEM_SLIME, position.x, position.y, position.z, motion.x, motion.y, motion.z);
 	}
 
 	public boolean hasPulley() {

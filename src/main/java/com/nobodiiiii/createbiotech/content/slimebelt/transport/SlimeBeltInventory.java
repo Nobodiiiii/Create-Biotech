@@ -199,7 +199,7 @@ public class SlimeBeltInventory {
 			float nextProgress = currentProgress + limitedMovement;
 			float nextFrontOffset = getFrontOffsetForTrackProgress(track, nextProgress);
 
-			if (!onClient && horizontalProcessing && track == Track.FRONT && seamAction == SeamAction.NONE) {
+			if (!onClient && horizontalProcessing && track == Track.FRONT) {
 				ItemStack item = currentItem.stack;
 				if (handleBeltProcessingAndCheckIfRemoved(currentItem, nextFrontOffset, noMovement)) {
 					items.remove(currentItem);
