@@ -26,6 +26,9 @@ public class UniversalJointItem extends BlockItem {
 
 	public static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
 	public static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
+	private static final int RANGE_SIDE_RADIUS = 1;
+	private static final int RANGE_DEPTH = 2;
+	private static final int PREVIEW_RANGE = 16;
 
 	public UniversalJointItem(Properties properties) {
 		super(CBBlocks.UNIVERSAL_JOINT.get(), properties);
@@ -96,7 +99,7 @@ public class UniversalJointItem extends BlockItem {
 	private static boolean canPair(Endpoint first, Endpoint second) {
 		return !first.jointPos.equals(second.jointPos)
 			&& !first.targetPos.equals(second.targetPos)
-			&& isWithinPlacementRange(first, second);
+			&& isWithinHitRange(first.jointPos, first.clickedFace, second.jointPos);
 	}
 
 	public static boolean canConnect(Level level, BlockPos firstTarget, Direction firstFace, BlockPos secondTarget,
@@ -110,22 +113,28 @@ public class UniversalJointItem extends BlockItem {
 		return targetPos.relative(clickedFace);
 	}
 
-	private static boolean isWithinPlacementRange(Endpoint first, Endpoint second) {
-		Direction forward = first.clickedFace;
+	public static boolean isWithinHitRange(BlockPos firstJoint, Direction forward, BlockPos secondJoint) {
 		Direction.Axis forwardAxis = forward.getAxis();
-		BlockPos diff = second.jointPos.subtract(first.jointPos);
+		BlockPos diff = secondJoint.subtract(firstJoint);
 		int depth = forwardAxis.choose(diff.getX(), diff.getY(), diff.getZ()) * forward.getAxisDirection().getStep();
-		if (depth < 0 || depth >= 2)
+		if (depth < 0 || depth >= RANGE_DEPTH)
 			return false;
 
 		for (Direction.Axis axis : Direction.Axis.values()) {
 			if (axis == forwardAxis)
 				continue;
-			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > 1)
+			if (Math.abs(axis.choose(diff.getX(), diff.getY(), diff.getZ())) > RANGE_SIDE_RADIUS)
 				return false;
 		}
 
 		return true;
+	}
+
+	public static boolean isWithinPreviewRange(BlockPos firstJoint, BlockPos secondJoint) {
+		BlockPos diff = secondJoint.subtract(firstJoint);
+		return Math.abs(diff.getX()) < PREVIEW_RANGE
+			&& Math.abs(diff.getY()) < PREVIEW_RANGE
+			&& Math.abs(diff.getZ()) < PREVIEW_RANGE;
 	}
 
 	private static boolean placeJointPair(Level level, Endpoint first, Endpoint second) {

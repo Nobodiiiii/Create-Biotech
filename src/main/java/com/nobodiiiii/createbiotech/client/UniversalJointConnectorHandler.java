@@ -66,6 +66,9 @@ public class UniversalJointConnectorHandler {
 			BlockPos secondTarget = blockHitResult.getBlockPos();
 			Direction secondFace = blockHitResult.getDirection();
 			BlockPos secondJoint = UniversalJointItem.getJointPos(secondTarget, secondFace);
+			if (!UniversalJointItem.isWithinPreviewRange(firstJoint, secondJoint))
+				return;
+
 			boolean canConnect = UniversalJointItem.canConnect(level, firstTarget, firstFace, secondTarget, secondFace);
 
 			SlimeBeltConnectorHandler.spawnConnectionLine(level, Vec3.atCenterOf(firstJoint),
