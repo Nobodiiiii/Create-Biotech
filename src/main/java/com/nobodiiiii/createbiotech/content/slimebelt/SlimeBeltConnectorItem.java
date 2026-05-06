@@ -111,6 +111,12 @@ public class SlimeBeltConnectorItem extends BlockItem {
 		level.playSound(null, BlockPos.containing(VecHelper.getCenterOf(start.offset(end)).scale(.5f)),
 			SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 0.5F, 1F);
 
+		if (isVerticalConnection(start, end) && start.getY() > end.getY()) {
+			BlockPos lower = end;
+			end = start;
+			start = lower;
+		}
+
 		BeltSlope slope = getSlopeBetween(start, end);
 		Direction facing = getFacingFromTo(start, end);
 		BlockPos diff = end.subtract(start);
@@ -165,6 +171,11 @@ public class SlimeBeltConnectorItem extends BlockItem {
 			axisDirection = beltAxis.choose(diff.getX(), 0, diff.getZ()) > 0 ? AxisDirection.POSITIVE : AxisDirection.NEGATIVE;
 
 		return Direction.get(axisDirection, beltAxis);
+	}
+
+	private static boolean isVerticalConnection(BlockPos start, BlockPos end) {
+		BlockPos diff = end.subtract(start);
+		return diff.getX() == 0 && diff.getZ() == 0 && diff.getY() != 0;
 	}
 
 	private static BeltSlope getSlopeBetween(BlockPos start, BlockPos end) {
