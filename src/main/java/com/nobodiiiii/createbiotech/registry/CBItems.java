@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -24,6 +25,9 @@ public class CBItems {
 	public static final RegistryObject<Item> SLIME_BELT_CONNECTOR = ITEMS.register("slime_belt_connector",
 		() -> new SlimeBeltConnectorItem(new Item.Properties()));
 
+	public static final RegistryObject<Item> MAGMA_BELT_CONNECTOR = ITEMS.register("magma_belt_connector",
+		() -> new MagmaBeltConnectorItem(new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {
@@ -34,10 +38,19 @@ public class CBItems {
 		if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
 			event.accept(EVOKER_TANK.get());
 			event.accept(SLIME_BELT_CONNECTOR.get());
+			event.accept(MAGMA_BELT_CONNECTOR.get());
 		}
 	}
 
 	public static boolean isSlimeBeltConnector(ItemStack stack) {
 		return stack.is(SLIME_BELT_CONNECTOR.get());
+	}
+
+	public static boolean isMagmaBeltConnector(ItemStack stack) {
+		return stack.is(MAGMA_BELT_CONNECTOR.get());
+	}
+
+	public static boolean isCustomBeltConnector(ItemStack stack) {
+		return isSlimeBeltConnector(stack) || isMagmaBeltConnector(stack);
 	}
 }

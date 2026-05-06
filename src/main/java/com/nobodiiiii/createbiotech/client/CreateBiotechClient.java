@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.client;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankRenderer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
@@ -24,12 +26,14 @@ public class CreateBiotechClient {
 	public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.EVOKER_TANK.get(), EvokerTankRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SLIME_BELT.get(), SlimeBeltRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.MAGMA_BELT.get(), MagmaBeltRenderer::new);
 	}
 
 	@SubscribeEvent
 	public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
 		SlimeBeltSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
+		event.registerReloadListener(MagmaBeltHelper.LISTENER);
 	}
 
 	@SubscribeEvent

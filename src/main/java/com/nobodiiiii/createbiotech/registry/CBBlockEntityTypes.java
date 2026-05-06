@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -18,6 +19,11 @@ public class CBBlockEntityTypes {
 	public static final RegistryObject<BlockEntityType<SlimeBeltBlockEntity>> SLIME_BELT =
 		BLOCK_ENTITY_TYPES.register("slime_belt",
 			() -> BlockEntityType.Builder.of(SlimeBeltBlockEntity::new, CBBlocks.SLIME_BELT.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<MagmaBeltBlockEntity>> MAGMA_BELT =
+		BLOCK_ENTITY_TYPES.register("magma_belt",
+			() -> BlockEntityType.Builder.of(MagmaBeltBlockEntity::new, CBBlocks.MAGMA_BELT.get())
 				.build(null));
 
 	public static final RegistryObject<BlockEntityType<EvokerTankBlockEntity>> EVOKER_TANK =

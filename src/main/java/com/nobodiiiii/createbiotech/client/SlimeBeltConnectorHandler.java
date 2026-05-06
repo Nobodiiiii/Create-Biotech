@@ -7,6 +7,7 @@ import java.util.Random;
 import org.joml.Vector3f;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.kinetics.simpleRelays.ShaftBlock;
@@ -52,8 +53,9 @@ public class SlimeBeltConnectorHandler {
 
 		for (InteractionHand hand : InteractionHand.values()) {
 			ItemStack heldItem = player.getItemInHand(hand);
-			if (!CBItems.isSlimeBeltConnector(heldItem) || !heldItem.hasTag())
+			if (!CBItems.isCustomBeltConnector(heldItem) || !heldItem.hasTag())
 				continue;
+			boolean magmaConnector = CBItems.isMagmaBeltConnector(heldItem);
 
 			CompoundTag tag = heldItem.getTag();
 			if (tag == null || !tag.contains("FirstPulley"))
@@ -80,11 +82,15 @@ public class SlimeBeltConnectorHandler {
 				return;
 			if (!ShaftBlock.isShaft(world.getBlockState(selected)))
 				selected = selected.relative(blockHitResult.getDirection());
-			if (!selected.closerThan(first, SlimeBeltConnectorItem.maxLength()))
+			int maxLength = magmaConnector ? MagmaBeltConnectorItem.maxLength() : SlimeBeltConnectorItem.maxLength();
+			if (!selected.closerThan(first, maxLength))
 				return;
 
-			boolean canConnect = SlimeBeltConnectorItem.validateAxis(world, selected)
-				&& SlimeBeltConnectorItem.canConnect(world, first, selected);
+			boolean canConnect = magmaConnector
+				? MagmaBeltConnectorItem.validateAxis(world, selected)
+					&& MagmaBeltConnectorItem.canConnect(world, first, selected)
+				: SlimeBeltConnectorItem.validateAxis(world, selected)
+					&& SlimeBeltConnectorItem.canConnect(world, first, selected);
 
 			Vec3 start = Vec3.atLowerCornerOf(first);
 			Vec3 end = Vec3.atLowerCornerOf(selected);

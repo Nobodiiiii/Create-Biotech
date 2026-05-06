@@ -11,6 +11,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.MagmaCube;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
@@ -21,6 +22,7 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class SlimeBeltAcquisitionHandler {
 	private static final String HAS_SLIME_BELT_TAG = "HasSlimeBelt";
+	private static final String HAS_MAGMA_BELT_TAG = "HasMagmaBelt";
 	private static final String DATA_ROOT = "CreateBiotech";
 
 	private SlimeBeltAcquisitionHandler() {}
@@ -31,7 +33,9 @@ public class SlimeBeltAcquisitionHandler {
 			return;
 		if (slime.level().isClientSide || slime.tickCount % 10 != 0)
 			return;
-		if (slime.getSize() < 2 || hasSlimeBelt(slime))
+		boolean magma = slime instanceof MagmaCube;
+		String beltTag = magma ? HAS_MAGMA_BELT_TAG : HAS_SLIME_BELT_TAG;
+		if (slime.getSize() < 2 || hasBelt(slime, beltTag))
 			return;
 
 		List<ItemEntity> nearbyBelts = slime.level().getEntitiesOfClass(ItemEntity.class, slime.getBoundingBox().inflate(.35d),
@@ -52,30 +56,35 @@ public class SlimeBeltAcquisitionHandler {
 		else
 			itemEntity.setItem(stack);
 
-		setHasSlimeBelt(slime, true);
+		setHasBelt(slime, beltTag, true);
 		slime.level().playSound(null, slime.getX(), slime.getY(), slime.getZ(), SoundEvents.ITEM_PICKUP,
 			SoundSource.HOSTILE, 0.2f, (slime.getRandom().nextFloat() - slime.getRandom().nextFloat()) * 0.7f + 1.0f);
 	}
 
 	@SubscribeEvent
 	public static void onLivingDrops(LivingDropsEvent event) {
-		if (!(event.getEntity() instanceof Slime slime) || !hasSlimeBelt(slime))
+		if (!(event.getEntity() instanceof Slime slime))
 			return;
 
-		ItemStack drop = new ItemStack(CBItems.SLIME_BELT_CONNECTOR.get());
+		boolean magma = slime instanceof MagmaCube;
+		String beltTag = magma ? HAS_MAGMA_BELT_TAG : HAS_SLIME_BELT_TAG;
+		if (!hasBelt(slime, beltTag))
+			return;
+
+		ItemStack drop = new ItemStack(magma ? CBItems.MAGMA_BELT_CONNECTOR.get() : CBItems.SLIME_BELT_CONNECTOR.get());
 		event.getDrops().add(new ItemEntity(slime.level(), slime.getX(), slime.getY(), slime.getZ(), drop));
 	}
 
-	private static boolean hasSlimeBelt(Slime slime) {
-		return getCreateBiotechData(slime).getBoolean(HAS_SLIME_BELT_TAG);
+	private static boolean hasBelt(Slime slime, String tag) {
+		return getCreateBiotechData(slime).getBoolean(tag);
 	}
 
-	private static void setHasSlimeBelt(Slime slime, boolean value) {
+	private static void setHasBelt(Slime slime, String tag, boolean value) {
 		CompoundTag data = getCreateBiotechData(slime);
 		if (value)
-			data.putBoolean(HAS_SLIME_BELT_TAG, true);
+			data.putBoolean(tag, true);
 		else
-			data.remove(HAS_SLIME_BELT_TAG);
+			data.remove(tag);
 	}
 
 	private static CompoundTag getCreateBiotechData(Slime slime) {
