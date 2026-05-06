@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
@@ -29,6 +30,9 @@ public class CBItems {
 	public static final RegistryObject<Item> MAGMA_BELT_CONNECTOR = ITEMS.register("magma_belt_connector",
 		() -> new MagmaBeltConnectorItem(new Item.Properties()));
 
+	public static final RegistryObject<Item> POWER_BELT_CONNECTOR = ITEMS.register("power_belt_connector",
+		() -> new PowerBeltConnectorItem(new Item.Properties()));
+
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
 
@@ -43,6 +47,7 @@ public class CBItems {
 			event.accept(EVOKER_TANK.get());
 			event.accept(SLIME_BELT_CONNECTOR.get());
 			event.accept(MAGMA_BELT_CONNECTOR.get());
+			event.accept(POWER_BELT_CONNECTOR.get());
 			event.accept(UNIVERSAL_JOINT.get());
 		}
 	}
@@ -55,7 +60,11 @@ public class CBItems {
 		return stack.is(MAGMA_BELT_CONNECTOR.get());
 	}
 
+	public static boolean isPowerBeltConnector(ItemStack stack) {
+		return stack.is(POWER_BELT_CONNECTOR.get());
+	}
+
 	public static boolean isCustomBeltConnector(ItemStack stack) {
-		return isSlimeBeltConnector(stack) || isMagmaBeltConnector(stack);
+		return isSlimeBeltConnector(stack) || isMagmaBeltConnector(stack) || isPowerBeltConnector(stack);
 	}
 }

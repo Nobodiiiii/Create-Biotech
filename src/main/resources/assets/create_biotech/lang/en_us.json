@@ -2,6 +2,8 @@
   "block.create_biotech.evoker_tank": "Evoker on Copper Tank",
   "block.create_biotech.magma_belt": "Magma Cube Belt",
   "item.create_biotech.magma_belt_connector": "Magma Cube Belt Connector",
+  "block.create_biotech.power_belt": "Power Belt",
+  "item.create_biotech.power_belt_connector": "Power Belt Connector",
   "block.create_biotech.slime_belt": "Slime Belt",
   "item.create_biotech.slime_belt_connector": "Slime Belt Connector",
   "block.create_biotech.universal_joint": "Universal Joint"

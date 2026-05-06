@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
+import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 
@@ -31,6 +32,13 @@ public class CBBlocks {
 			.sound(SoundType.WOOL)
 			.strength(0.8f)
 			.mapColor(MapColor.COLOR_RED)
+			.noOcclusion()));
+
+	public static final RegistryObject<PowerBeltBlock> POWER_BELT = BLOCKS.register("power_belt",
+		() -> new PowerBeltBlock(Block.Properties.of()
+			.sound(SoundType.WOOL)
+			.strength(0.8f)
+			.mapColor(MapColor.COLOR_GRAY)
 			.noOcclusion()));
 
 	public static final RegistryObject<EvokerTankBlock> EVOKER_TANK = BLOCKS.register("evoker_tank",

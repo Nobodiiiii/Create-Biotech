@@ -8,6 +8,7 @@ import org.joml.Vector3f;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.kinetics.simpleRelays.ShaftBlock;
@@ -56,6 +57,7 @@ public class SlimeBeltConnectorHandler {
 			if (!CBItems.isCustomBeltConnector(heldItem) || !heldItem.hasTag())
 				continue;
 			boolean magmaConnector = CBItems.isMagmaBeltConnector(heldItem);
+			boolean powerConnector = CBItems.isPowerBeltConnector(heldItem);
 
 			CompoundTag tag = heldItem.getTag();
 			if (tag == null || !tag.contains("FirstPulley"))
@@ -82,15 +84,18 @@ public class SlimeBeltConnectorHandler {
 				return;
 			if (!ShaftBlock.isShaft(world.getBlockState(selected)))
 				selected = selected.relative(blockHitResult.getDirection());
-			int maxLength = magmaConnector ? MagmaBeltConnectorItem.maxLength() : SlimeBeltConnectorItem.maxLength();
+			int maxLength = powerConnector ? PowerBeltConnectorItem.maxLength()
+				: magmaConnector ? MagmaBeltConnectorItem.maxLength() : SlimeBeltConnectorItem.maxLength();
 			if (!selected.closerThan(first, maxLength))
 				return;
 
-			boolean canConnect = magmaConnector
-				? MagmaBeltConnectorItem.validateAxis(world, selected)
+			boolean canConnect = powerConnector
+				? PowerBeltConnectorItem.validateAxis(world, selected)
+					&& PowerBeltConnectorItem.canConnect(world, first, selected)
+				: magmaConnector ? MagmaBeltConnectorItem.validateAxis(world, selected)
 					&& MagmaBeltConnectorItem.canConnect(world, first, selected)
-				: SlimeBeltConnectorItem.validateAxis(world, selected)
-					&& SlimeBeltConnectorItem.canConnect(world, first, selected);
+					: SlimeBeltConnectorItem.validateAxis(world, selected)
+						&& SlimeBeltConnectorItem.canConnect(world, first, selected);
 
 			Vec3 start = Vec3.atLowerCornerOf(first);
 			Vec3 end = Vec3.atLowerCornerOf(selected);
