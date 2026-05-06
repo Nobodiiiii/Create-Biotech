@@ -55,7 +55,7 @@ public class UniversalJointBlock extends KineticBlock implements IBE<UniversalJo
 
 	@Override
 	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
-		return face.getAxis() == state.getValue(FACING).getAxis();
+		return face == state.getValue(FACING);
 	}
 
 	@Override
