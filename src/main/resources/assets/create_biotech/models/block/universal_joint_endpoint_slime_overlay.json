@@ -1,0 +1,54 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "particle": "minecraft:block/slime_block",
+    "slime": "create_biotech:block/universal_joint_endpoint_slime_overlay"
+  },
+  "elements": [
+    {
+      "name": "Slime Overlay 0",
+      "from": [5.99, 5.99, 2],
+      "to": [10.01, 10.01, 3],
+      "faces": {
+        "east": { "texture": "#slime", "uv": [6, 0, 10, 1], "rotation": 270 },
+        "west": { "texture": "#slime", "uv": [6, 0, 10, 1], "rotation": 90 },
+        "up": { "texture": "#slime", "uv": [6, 0, 10, 1], "rotation": 180 },
+        "down": { "texture": "#slime", "uv": [6, 0, 10, 1] }
+      }
+    },
+    {
+      "name": "Slime Overlay 1",
+      "from": [5.99, 5.99, 3],
+      "to": [10.01, 10.01, 4],
+      "faces": {
+        "east": { "texture": "#slime", "uv": [6, 1, 10, 2], "rotation": 270 },
+        "west": { "texture": "#slime", "uv": [6, 1, 10, 2], "rotation": 90 },
+        "up": { "texture": "#slime", "uv": [6, 1, 10, 2], "rotation": 180 },
+        "down": { "texture": "#slime", "uv": [6, 1, 10, 2] }
+      }
+    },
+    {
+      "name": "Slime Overlay 2",
+      "from": [5.99, 5.99, 4],
+      "to": [10.01, 10.01, 5],
+      "faces": {
+        "east": { "texture": "#slime", "uv": [6, 2, 10, 3], "rotation": 270 },
+        "west": { "texture": "#slime", "uv": [6, 2, 10, 3], "rotation": 90 },
+        "up": { "texture": "#slime", "uv": [6, 2, 10, 3], "rotation": 180 },
+        "down": { "texture": "#slime", "uv": [6, 2, 10, 3] }
+      }
+    },
+    {
+      "name": "Slime Overlay 3",
+      "from": [5.99, 5.99, 5],
+      "to": [10.01, 10.01, 6],
+      "faces": {
+        "east": { "texture": "#slime", "uv": [6, 3, 10, 4], "rotation": 270 },
+        "south": { "texture": "#slime", "uv": [6, 6, 10, 10], "rotation": 180 },
+        "west": { "texture": "#slime", "uv": [6, 3, 10, 4], "rotation": 90 },
+        "up": { "texture": "#slime", "uv": [6, 3, 10, 4], "rotation": 180 },
+        "down": { "texture": "#slime", "uv": [6, 3, 10, 4] }
+      }
+    }
+  ]
+}

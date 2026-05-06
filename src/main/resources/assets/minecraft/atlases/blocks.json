@@ -15,6 +15,10 @@
     {
       "type": "single",
       "resource": "create_biotech:block/magma_belt_diagonal_scroll"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/universal_joint_endpoint_slime_overlay"
     }
   ]
 }

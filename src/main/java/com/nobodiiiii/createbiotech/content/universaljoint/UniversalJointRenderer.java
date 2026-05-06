@@ -2,9 +2,13 @@ package com.nobodiiiii.createbiotech.content.universaljoint;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
+import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
+import net.createmod.catnip.render.CachedBuffers;
+import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.model.SlimeModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.core.BlockPos;
@@ -24,6 +28,8 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	private static final double MIN_SHAFT_LENGTH = 1.0E-4d;
 	private static final double PERPENDICULAR_EPSILON = 1.0E-7d;
 	private static final ResourceLocation SLIME_TEXTURE = new ResourceLocation("textures/entity/slime/slime.png");
+	private static final PartialModel ENDPOINT_SLIME_OVERLAY =
+		PartialModel.of(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
 	private static final float SLIME_MODEL_DIAMETER = 8 / 16f;
 	private static final float SHAFT_DIAMETER = 4 / 16f;
 	private static final float SHAFT_RADIUS = SHAFT_DIAMETER / 2;
@@ -45,7 +51,36 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		BlockState state = getRenderedBlockState(be);
 		VertexConsumer solidBuffer = buffer.getBuffer(RenderType.solid());
 		renderRotatingBuffer(be, getRotatedModel(be, state), ms, solidBuffer, light);
+		renderEndpointSlimeOverlay(be, state, ms, buffer, light);
 		renderDriveShaft(be, state, ms, buffer, light, overlay);
+	}
+
+	private void renderEndpointSlimeOverlay(UniversalJointBlockEntity be, BlockState state, PoseStack ms,
+		MultiBufferSource buffer, int light) {
+		if (!state.hasProperty(UniversalJointBlock.FACING))
+			return;
+
+		Direction facing = state.getValue(UniversalJointBlock.FACING);
+		SuperByteBuffer overlayBuffer = CachedBuffers.partialDirectional(ENDPOINT_SLIME_OVERLAY, state, facing,
+			() -> getEndpointFacingTransform(facing));
+		renderRotatingBuffer(be, overlayBuffer, ms, buffer.getBuffer(RenderType.translucent()), light);
+	}
+
+	private static PoseStack getEndpointFacingTransform(Direction facing) {
+		PoseStack transform = new PoseStack();
+		var stack = TransformStack.of(transform);
+		stack.center();
+		switch (facing) {
+		case EAST -> stack.rotateYDegrees(270);
+		case SOUTH -> stack.rotateYDegrees(180);
+		case WEST -> stack.rotateYDegrees(90);
+		case UP -> stack.rotateXDegrees(90);
+		case DOWN -> stack.rotateXDegrees(270);
+		case NORTH -> {
+		}
+		}
+		stack.uncenter();
+		return transform;
 	}
 
 	private void renderDriveShaft(UniversalJointBlockEntity be, BlockState state, PoseStack ms, MultiBufferSource buffer,
