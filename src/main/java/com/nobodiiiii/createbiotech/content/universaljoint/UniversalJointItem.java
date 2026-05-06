@@ -26,8 +26,8 @@ public class UniversalJointItem extends BlockItem {
 
 	public static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
 	public static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
-	private static final int RANGE_SIDE_RADIUS = 1;
-	private static final int RANGE_DEPTH = 2;
+	private static final int RANGE_SIDE_RADIUS = 2;
+	private static final int RANGE_DEPTH = 3;
 	private static final int PREVIEW_RANGE = 16;
 
 	public UniversalJointItem(Properties properties) {

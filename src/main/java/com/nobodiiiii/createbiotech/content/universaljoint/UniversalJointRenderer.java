@@ -20,6 +20,7 @@ import net.minecraft.world.phys.Vec3;
 public class UniversalJointRenderer extends KineticBlockEntityRenderer<UniversalJointBlockEntity> {
 
 	private static final double MIN_SHAFT_LENGTH = 1.0E-4d;
+	private static final double PERPENDICULAR_EPSILON = 1.0E-7d;
 
 	public UniversalJointRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
@@ -65,6 +66,9 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		Vec3 direction = shaft.scale(1 / length);
 		float shaftRotationModifier =
 			UniversalJointBlockEntity.getShaftRotationModifier(state, linkedState, linkedPos.subtract(be.getBlockPos()));
+		if (isPerpendicularBridgeBetweenParallelEndpoints(state, linkedState, direction))
+			shaftRotationModifier *= -1;
+
 		PoseStack shaftTransforms = new PoseStack();
 		TransformStack.of(shaftTransforms)
 			.translate(start)
@@ -77,6 +81,16 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 			.light(light)
 			.transform(shaftTransforms);
 		shaftBuffer.renderInto(ms, buffer);
+	}
+
+	private static boolean isPerpendicularBridgeBetweenParallelEndpoints(BlockState state, BlockState linkedState,
+		Vec3 direction) {
+		Direction facing = state.getValue(UniversalJointBlock.FACING);
+		Direction linkedFacing = linkedState.getValue(UniversalJointBlock.FACING);
+		if (facing.getAxis() != linkedFacing.getAxis())
+			return false;
+
+		return Math.abs(facing.getAxis().choose(direction.x, direction.y, direction.z)) < PERPENDICULAR_EPSILON;
 	}
 
 	private static boolean isPrimaryEndpoint(BlockPos first, BlockPos second) {
