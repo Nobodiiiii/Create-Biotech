@@ -9,12 +9,17 @@ import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 public class UniversalJointBlockEntity extends KineticBlockEntity {
+
+	private static final double ENDPOINT_INNER_OFFSET = 4 / 16d;
+	private static final double SHAFT_SIDE_EPSILON = 1.0E-7d;
 
 	@Nullable
 	private BlockPos linkedPos;
@@ -75,7 +80,7 @@ public class UniversalJointBlockEntity extends KineticBlockEntity {
 	@Override
 	public float propagateRotationTo(KineticBlockEntity target, BlockState stateFrom, BlockState stateTo, BlockPos diff,
 		boolean connectedViaAxes, boolean connectedViaCogs) {
-		return isPairedWith(target) ? 1 : 0;
+		return isPairedWith(target) ? getRotationModifier(stateFrom, stateTo, diff) : 0;
 	}
 
 	@Override
@@ -97,5 +102,52 @@ public class UniversalJointBlockEntity extends KineticBlockEntity {
 			return false;
 		return linkedPos != null && linkedPos.equals(other.getBlockPos())
 			&& other.linkedPos != null && other.linkedPos.equals(getBlockPos());
+	}
+
+	public static Vec3 getInnerEndpoint(BlockPos pos, BlockState state) {
+		Direction facing = state.getValue(UniversalJointBlock.FACING);
+		return Vec3.atLowerCornerOf(pos)
+			.add(.5d + facing.getStepX() * ENDPOINT_INNER_OFFSET,
+				.5d + facing.getStepY() * ENDPOINT_INNER_OFFSET,
+				.5d + facing.getStepZ() * ENDPOINT_INNER_OFFSET);
+	}
+
+	public static float getShaftRotationModifier(BlockState state, BlockState linkedState, BlockPos diffToLinked) {
+		if (!state.hasProperty(UniversalJointBlock.FACING) || !linkedState.hasProperty(UniversalJointBlock.FACING))
+			return 1;
+
+		Vec3 shaft = getShaftVector(state, linkedState, diffToLinked);
+		return getEndpointShaftModifier(state.getValue(UniversalJointBlock.FACING), shaft);
+	}
+
+	public static float getRotationModifier(BlockState stateFrom, BlockState stateTo, BlockPos diff) {
+		if (!stateFrom.hasProperty(UniversalJointBlock.FACING) || !stateTo.hasProperty(UniversalJointBlock.FACING))
+			return 0;
+
+		Direction fromFacing = stateFrom.getValue(UniversalJointBlock.FACING);
+		Direction toFacing = stateTo.getValue(UniversalJointBlock.FACING);
+		if (fromFacing.getAxis() == toFacing.getAxis())
+			return fromFacing == toFacing ? -1 : 1;
+
+		Vec3 shaft = getShaftVector(stateFrom, stateTo, diff);
+		float fromModifier = getEndpointShaftModifier(fromFacing, shaft);
+		float toModifier = getEndpointShaftModifier(toFacing, shaft);
+		return fromModifier * toModifier;
+	}
+
+	private static Vec3 getShaftVector(BlockState stateFrom, BlockState stateTo, BlockPos diff) {
+		Direction fromFacing = stateFrom.getValue(UniversalJointBlock.FACING);
+		Direction toFacing = stateTo.getValue(UniversalJointBlock.FACING);
+		return new Vec3(diff.getX() + (toFacing.getStepX() - fromFacing.getStepX()) * ENDPOINT_INNER_OFFSET,
+			diff.getY() + (toFacing.getStepY() - fromFacing.getStepY()) * ENDPOINT_INNER_OFFSET,
+			diff.getZ() + (toFacing.getStepZ() - fromFacing.getStepZ()) * ENDPOINT_INNER_OFFSET);
+	}
+
+	private static float getEndpointShaftModifier(Direction facing, Vec3 shaft) {
+		int axisSign = facing.getAxisDirection().getStep();
+		double side = shaft.x * facing.getStepX() + shaft.y * facing.getStepY() + shaft.z * facing.getStepZ();
+		if (Math.abs(side) < SHAFT_SIDE_EPSILON)
+			return axisSign;
+		return (float) (axisSign * Math.signum(side));
 	}
 }

@@ -19,7 +19,6 @@ import net.minecraft.world.phys.Vec3;
 
 public class UniversalJointRenderer extends KineticBlockEntityRenderer<UniversalJointBlockEntity> {
 
-	private static final double ENDPOINT_INNER_OFFSET = 4 / 16d;
 	private static final double MIN_SHAFT_LENGTH = 1.0E-4d;
 
 	public UniversalJointRenderer(BlockEntityRendererProvider.Context context) {
@@ -56,19 +55,21 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 			return;
 
 		Vec3 blockOrigin = Vec3.atLowerCornerOf(be.getBlockPos());
-		Vec3 start = getInnerEndpoint(be.getBlockPos(), state).subtract(blockOrigin);
-		Vec3 end = getInnerEndpoint(linkedPos, linkedState).subtract(blockOrigin);
+		Vec3 start = UniversalJointBlockEntity.getInnerEndpoint(be.getBlockPos(), state).subtract(blockOrigin);
+		Vec3 end = UniversalJointBlockEntity.getInnerEndpoint(linkedPos, linkedState).subtract(blockOrigin);
 		Vec3 shaft = end.subtract(start);
 		double length = shaft.length();
 		if (length < MIN_SHAFT_LENGTH)
 			return;
 
 		Vec3 direction = shaft.scale(1 / length);
+		float shaftRotationModifier =
+			UniversalJointBlockEntity.getShaftRotationModifier(state, linkedState, linkedPos.subtract(be.getBlockPos()));
 		PoseStack shaftTransforms = new PoseStack();
 		TransformStack.of(shaftTransforms)
 			.translate(start)
 			.rotateTo(0, 0, 1, (float) direction.x, (float) direction.y, (float) direction.z)
-			.rotateZ(getAngleForBe(be, be.getBlockPos(), getRotationAxisOf(be)))
+			.rotateZ(getAngleForBe(be, be.getBlockPos(), getRotationAxisOf(be)) * shaftRotationModifier)
 			.scale(1, 1, (float) length)
 			.translate(-.5f, -.5f, 0);
 
@@ -76,14 +77,6 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 			.light(light)
 			.transform(shaftTransforms);
 		shaftBuffer.renderInto(ms, buffer);
-	}
-
-	private static Vec3 getInnerEndpoint(BlockPos pos, BlockState state) {
-		Direction facing = state.getValue(UniversalJointBlock.FACING);
-		return Vec3.atLowerCornerOf(pos)
-			.add(.5d + facing.getStepX() * ENDPOINT_INNER_OFFSET,
-				.5d + facing.getStepY() * ENDPOINT_INNER_OFFSET,
-				.5d + facing.getStepZ() * ENDPOINT_INNER_OFFSET);
 	}
 
 	private static boolean isPrimaryEndpoint(BlockPos first, BlockPos second) {
