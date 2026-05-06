@@ -68,6 +68,7 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/mirror' }
     maven { url = 'https://maven.minecraftforge.net/' }
+    maven { url = 'https://maven.blamejared.com' }
     mavenCentral()
 }
 
@@ -81,6 +82,9 @@ dependencies {
     modRuntimeOnly("dev.engine-room.flywheel:flywheel-forge-${minecraft_version}:${flywheel_version}")
     modRuntimeOnly("dev.engine-room.vanillin:vanillin-forge-${minecraft_version}:${vanillin_version}")
     modImplementation("net.createmod.ponder:Ponder-Forge-${minecraft_version}:${ponder_version}")
+    modCompileOnly("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
+    modCompileOnly("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
+    modRuntimeOnly("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
 
     if (!Boolean.getBoolean("idea.sync.active")) {
         annotationProcessor "org.spongepowered:mixin:0.8.5:processor"

@@ -29,3 +29,10 @@ mandatory = true
 versionRange = "[6.0.0,)"
 ordering = "AFTER"
 side = "BOTH"
+
+[[dependencies.${mod_id}]]
+modId = "jei"
+mandatory = false
+versionRange = "[15.20.0,)"
+ordering = "AFTER"
+side = "CLIENT"
