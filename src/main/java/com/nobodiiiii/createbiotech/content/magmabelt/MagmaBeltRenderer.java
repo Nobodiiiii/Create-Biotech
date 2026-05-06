@@ -34,6 +34,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.BlockPos.MutableBlockPos;
 import net.minecraft.core.Direction;
@@ -108,20 +109,22 @@ public class MagmaBeltRenderer extends SafeBlockEntityRenderer<MagmaBeltBlockEnt
 
 				// UV shift
 				float speed = be.getSpeed();
-				if (speed != 0 || be.color.isPresent()) {
+				double scroll = bottom ? 0.5 : 0.0;
+				if (speed != 0) {
 					float time = renderTick * axisDirection.getStep();
 					if (diagonal && (downward ^ alongX) || !sideways && !diagonal && alongX
 						|| sideways && axisDirection == AxisDirection.NEGATIVE)
 						speed = -speed;
 
-					float scrollMult = diagonal ? 3f / 8f : 0.5f;
+					scroll += speed * time / (31.5 * 16);
+				}
 
-					float spriteSize = spriteShift.getTarget()
-						.getV1()
-						- spriteShift.getTarget()
-							.getV0();
+				float scrollMult = diagonal ? 3f / 8f : 0.5f;
+				TextureAtlasSprite originalSprite = spriteShift.getOriginal();
+				TextureAtlasSprite targetSprite = spriteShift.getTarget();
+				if (originalSprite != null && targetSprite != null) {
+					float spriteSize = targetSprite.getV1() - targetSprite.getV0();
 
-					double scroll = speed * time / (31.5 * 16) + (bottom ? 0.5 : 0.0);
 					scroll = scroll - Math.floor(scroll);
 					scroll = scroll * spriteSize * scrollMult;
 
