@@ -17,6 +17,7 @@ public class SlimeEntityDrawable implements IDrawable {
 	private final int slimeSize;
 	private final float angleX;
 	private final float angleY;
+	private final int renderYOffset;
 	private final EntityType<? extends Slime> entityType;
 
 	@Nullable
@@ -26,12 +27,18 @@ public class SlimeEntityDrawable implements IDrawable {
 
 	public SlimeEntityDrawable(int width, int height, int scale, int slimeSize, float angleX, float angleY,
 		EntityType<? extends Slime> entityType) {
+		this(width, height, scale, slimeSize, angleX, angleY, 2, entityType);
+	}
+
+	public SlimeEntityDrawable(int width, int height, int scale, int slimeSize, float angleX, float angleY,
+		int renderYOffset, EntityType<? extends Slime> entityType) {
 		this.width = width;
 		this.height = height;
 		this.scale = scale;
 		this.slimeSize = slimeSize;
 		this.angleX = angleX;
 		this.angleY = angleY;
+		this.renderYOffset = renderYOffset;
 		this.entityType = entityType;
 	}
 
@@ -56,7 +63,7 @@ public class SlimeEntityDrawable implements IDrawable {
 		if (slime == null)
 			return;
 
-		InventoryScreen.renderEntityInInventoryFollowsAngle(guiGraphics, xOffset + width / 2, yOffset + height + 2, scale,
+		InventoryScreen.renderEntityInInventoryFollowsAngle(guiGraphics, xOffset + width / 2, yOffset + height + renderYOffset, scale,
 			angleX, angleY, slime);
 	}
 
