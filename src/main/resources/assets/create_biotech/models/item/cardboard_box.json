@@ -1,0 +1,22 @@
+{
+	"parent": "create:item/package_transforms",
+	"textures": {
+		"0": "create:item/package/cardboard",
+		"particle": "create:item/package/cardboard_particle"
+	},
+	"elements": [
+		{
+			"name": "box",
+			"from": [2, 0, 2],
+			"to": [14, 10, 14],
+			"faces": {
+				"north": {"uv": [3, 5.25, 6, 7.75], "texture": "#0"},
+				"east": {"uv": [3, 0.25, 6, 2.75], "texture": "#0"},
+				"south": {"uv": [6, 5.25, 3, 7.75], "texture": "#0"},
+				"west": {"uv": [3, 2.75, 6, 5.25], "texture": "#0"},
+				"up": {"uv": [3, 7.75, 6, 10.75], "rotation": 180, "texture": "#0"},
+				"down": {"uv": [3, 10.75, 6, 13.75], "rotation": 270, "texture": "#0"}
+			}
+		}
+	]
+}

@@ -11,5 +11,7 @@
   "block.create_biotech.slime_belt": "Slime Belt",
   "item.create_biotech.slime_belt_connector": "Slime Belt",
   "block.create_biotech.universal_joint": "Universal Joint",
-  "item.create_biotech.universal_joint": "Universal Joint"
+  "item.create_biotech.universal_joint": "Universal Joint",
+  "item.create_biotech.cardboard_box": "Cardboard Box",
+  "item.create_biotech.cardboard_box.filled": "Contains %s"
 }

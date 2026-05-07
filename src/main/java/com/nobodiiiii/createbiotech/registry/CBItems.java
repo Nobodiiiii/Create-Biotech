@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
@@ -40,6 +41,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
+
+	public static final RegistryObject<Item> CARDBOARD_BOX = ITEMS.register("cardboard_box",
+		() -> new CardboardBoxItem(new Item.Properties()));
 
 	public static final RegistryObject<Item> FIXED_CARROT_FISHING_ROD = ITEMS.register("fixed_carrot_fishing_rod",
 		() -> new BlockItem(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), new Item.Properties()));
