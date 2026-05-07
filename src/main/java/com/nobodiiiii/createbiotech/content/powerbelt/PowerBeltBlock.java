@@ -6,6 +6,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.client.PowerBeltClientReporter;
+import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -26,6 +27,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -169,6 +171,9 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 		if (Math.abs(surfaceSpeed) < PowerBeltBlockEntity.MIN_SURFACE_SPEED)
 			return;
 
+		if (level.isClientSide && entity instanceof LivingEntity livingEntity)
+			PowerBeltWalkAnimation.recordSurfaceMovement(livingEntity, (float) Math.abs(surfaceSpeed));
+
 		if (Math.abs(movedSurfaceSpeed) >= PowerBeltBlockEntity.MIN_SURFACE_SPEED) {
 			Vec3 correction = beltAxis.scale(movedSurfaceSpeed);
 			entity.setPos(entity.getX() - correction.x, entity.getY(), entity.getZ() - correction.z);
@@ -183,6 +188,9 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 			}
 			return;
 		}
+		if (entity instanceof LivingEntity)
+			CBPackets.sendToTrackingEntity(new PowerBeltEntityAnimationPacket(entity.getId(), (float) Math.abs(surfaceSpeed)),
+				entity);
 		if (entity instanceof Player)
 			return;
 
