@@ -22,11 +22,13 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	public static final float MIN_SURFACE_SPEED = 1.0E-4f;
 
 	private static final int SURFACE_SPEED_DETECTION_INTERVAL = 10;
-	private static final float GENERATED_RPM_THRESHOLD = 4f;
-	private static final float SURFACE_SPEED_TO_RPM = 480f;
-	private static final float REFERENCE_BELT_RPM = 64f;
-	private static final float SU_PER_REFERENCE_SPEED = 128f;
-	private static final float CAPACITY_PER_RPM = SU_PER_REFERENCE_SPEED / REFERENCE_BELT_RPM;
+	private static final float GENERATED_RPM_STEP = 4f;
+	private static final float MAX_GENERATED_RPM = 256f;
+	private static final float MAX_STRESS_CAPACITY = 1024f;
+	private static final float STRESS_CAPACITY_PER_RPM = MAX_STRESS_CAPACITY / MAX_GENERATED_RPM;
+	private static final float SURFACE_METERS_PER_SECOND_TO_RPM = 24f;
+	private static final float TICKS_PER_SECOND = 20f;
+	private static final float SURFACE_SPEED_TO_RPM = SURFACE_METERS_PER_SECOND_TO_RPM * TICKS_PER_SECOND;
 
 	public int beltLength;
 	public int index;
@@ -34,8 +36,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	private long lastMovementGameTime = Long.MIN_VALUE;
 	private long nextDetectionGameTime = Long.MIN_VALUE;
-	private float collectedSurfaceSpeed;
-	private float collectedDetectionSurfaceSpeed;
+	private float collectedGeneratedSpeed;
+	private float collectedStressCapacity;
+	private float collectedDetectionGeneratedSpeed;
+	private float collectedDetectionStressCapacity;
 	private int collectedDetectionTicks;
 	private float generatedSpeed;
 	private float generatedCapacity;
@@ -78,14 +82,20 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		if (Math.abs(signedSurfaceSpeed) < MIN_SURFACE_SPEED)
 			return;
 
+		float speed = surfaceSpeedToGeneratedRpm(signedSurfaceSpeed);
+		if (speed == 0)
+			return;
+
 		long gameTime = level.getGameTime();
 		sampleSurfaceMovementBefore(gameTime);
 		if (gameTime != lastMovementGameTime) {
 			lastMovementGameTime = gameTime;
-			collectedSurfaceSpeed = 0;
+			collectedGeneratedSpeed = 0;
+			collectedStressCapacity = 0;
 		}
 
-		collectedSurfaceSpeed += signedSurfaceSpeed;
+		collectedGeneratedSpeed = getStrongerSpeed(collectedGeneratedSpeed, speed);
+		collectedStressCapacity += getStressCapacityForSpeed(speed);
 	}
 
 	private void sampleSurfaceMovementBefore(long gameTime) {
@@ -93,12 +103,16 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 			nextDetectionGameTime = gameTime;
 
 		while (nextDetectionGameTime < gameTime) {
-			float surfaceSpeed = nextDetectionGameTime == lastMovementGameTime ? collectedSurfaceSpeed : 0;
-			collectedDetectionSurfaceSpeed += surfaceSpeed;
+			float speed = nextDetectionGameTime == lastMovementGameTime ? collectedGeneratedSpeed : 0;
+			float stressCapacity = nextDetectionGameTime == lastMovementGameTime ? collectedStressCapacity : 0;
+			collectedDetectionGeneratedSpeed += speed;
+			collectedDetectionStressCapacity += stressCapacity;
 			collectedDetectionTicks++;
 
-			if (nextDetectionGameTime == lastMovementGameTime)
-				collectedSurfaceSpeed = 0;
+			if (nextDetectionGameTime == lastMovementGameTime) {
+				collectedGeneratedSpeed = 0;
+				collectedStressCapacity = 0;
+			}
 
 			nextDetectionGameTime++;
 
@@ -108,39 +122,54 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	private void applyDetectedSurfaceMovement() {
-		float averageSurfaceSpeed = collectedDetectionSurfaceSpeed / collectedDetectionTicks;
-		float speed = surfaceSpeedToGeneratedRpm(averageSurfaceSpeed);
-		if (isBelowRpmThreshold(speed))
-			speed = 0;
+		float speed = roundToGeneratedRpmStep(collectedDetectionGeneratedSpeed / collectedDetectionTicks);
+		float stressCapacity = collectedDetectionStressCapacity / collectedDetectionTicks;
+		float capacity = speed == 0 ? 0 : stressCapacity / Math.abs(speed);
 
-		collectedDetectionSurfaceSpeed = 0;
+		collectedDetectionGeneratedSpeed = 0;
+		collectedDetectionStressCapacity = 0;
 		collectedDetectionTicks = 0;
 
-		if (!shouldApplyDetectedSpeed(speed))
+		if (!shouldApplyDetectedOutput(speed, capacity))
 			return;
 
-		float capacity = speed == 0 ? 0 : CAPACITY_PER_RPM;
 		setGeneratedOutput(speed, capacity);
 	}
 
-	private static boolean isBelowRpmThreshold(float speed) {
-		float absoluteSpeed = Math.abs(speed);
-		return absoluteSpeed < GENERATED_RPM_THRESHOLD && !Mth.equal(absoluteSpeed, GENERATED_RPM_THRESHOLD);
-	}
-
-	private boolean shouldApplyDetectedSpeed(float speed) {
+	private boolean shouldApplyDetectedOutput(float speed, float capacity) {
 		if (Mth.equal(generatedSpeed, speed))
-			return false;
+			return !Mth.equal(generatedCapacity, capacity);
 		if (generatedSpeed == 0 || speed == 0)
 			return true;
 
 		float difference = Math.abs(speed - generatedSpeed);
-		return difference > GENERATED_RPM_THRESHOLD || Mth.equal(difference, GENERATED_RPM_THRESHOLD);
+		return difference > GENERATED_RPM_STEP || Mth.equal(difference, GENERATED_RPM_STEP);
 	}
 
 	private float surfaceSpeedToGeneratedRpm(float signedSurfaceSpeed) {
 		Direction facing = getBlockState().getValue(PowerBeltBlock.HORIZONTAL_FACING);
-		return -signedSurfaceSpeed * SURFACE_SPEED_TO_RPM / getDirectionFactor(facing);
+		return roundToGeneratedRpmStep(-signedSurfaceSpeed * SURFACE_SPEED_TO_RPM / getDirectionFactor(facing));
+	}
+
+	private float getStrongerSpeed(float currentSpeed, float candidateSpeed) {
+		float currentMagnitude = Math.abs(currentSpeed);
+		float candidateMagnitude = Math.abs(candidateSpeed);
+		if (candidateMagnitude > currentMagnitude && !Mth.equal(candidateMagnitude, currentMagnitude))
+			return candidateSpeed;
+		if (Mth.equal(candidateMagnitude, currentMagnitude) && currentSpeed != 0
+			&& Math.signum(candidateSpeed) == Math.signum(generatedSpeed))
+			return candidateSpeed;
+		return currentSpeed == 0 ? candidateSpeed : currentSpeed;
+	}
+
+	private static float roundToGeneratedRpmStep(float speed) {
+		float magnitude = Mth.clamp(Math.round(Math.abs(speed) / GENERATED_RPM_STEP) * GENERATED_RPM_STEP, 0,
+			MAX_GENERATED_RPM);
+		return Math.copySign(magnitude, speed);
+	}
+
+	private static float getStressCapacityForSpeed(float speed) {
+		return Math.abs(speed) * STRESS_CAPACITY_PER_RPM;
 	}
 
 	private static float getDirectionFactor(Direction facing) {
@@ -187,8 +216,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		controller = null;
 		lastMovementGameTime = Long.MIN_VALUE;
 		nextDetectionGameTime = Long.MIN_VALUE;
-		collectedSurfaceSpeed = 0;
-		collectedDetectionSurfaceSpeed = 0;
+		collectedGeneratedSpeed = 0;
+		collectedStressCapacity = 0;
+		collectedDetectionGeneratedSpeed = 0;
+		collectedDetectionStressCapacity = 0;
 		collectedDetectionTicks = 0;
 		generatedSpeed = 0;
 		generatedCapacity = 0;
@@ -263,8 +294,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		controller = null;
 		lastMovementGameTime = Long.MIN_VALUE;
 		nextDetectionGameTime = Long.MIN_VALUE;
-		collectedSurfaceSpeed = 0;
-		collectedDetectionSurfaceSpeed = 0;
+		collectedGeneratedSpeed = 0;
+		collectedStressCapacity = 0;
+		collectedDetectionGeneratedSpeed = 0;
+		collectedDetectionStressCapacity = 0;
 		collectedDetectionTicks = 0;
 		generatedSpeed = 0;
 		generatedCapacity = 0;

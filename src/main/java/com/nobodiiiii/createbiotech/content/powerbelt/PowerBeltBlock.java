@@ -173,8 +173,6 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 			Vec3 correction = beltAxis.scale(movedSurfaceSpeed);
 			entity.setPos(entity.getX() - correction.x, entity.getY(), entity.getZ() - correction.z);
 		}
-		if (Math.abs(motionSurfaceSpeed) >= PowerBeltBlockEntity.MIN_SURFACE_SPEED)
-			entity.setDeltaMovement(motion.subtract(beltAxis.scale(motionSurfaceSpeed)));
 		entity.hurtMarked = true;
 
 		if (level.isClientSide) {
