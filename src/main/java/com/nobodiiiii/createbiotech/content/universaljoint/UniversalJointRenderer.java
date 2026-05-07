@@ -3,16 +3,21 @@ package com.nobodiiiii.createbiotech.content.universaljoint;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.mixin.client.LevelRendererAccessor;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
+import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.SlimeModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Direction.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -50,20 +55,21 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		int light, int overlay) {
 		BlockState state = getRenderedBlockState(be);
 		VertexConsumer solidBuffer = buffer.getBuffer(RenderType.solid());
-		renderRotatingBuffer(be, getRotatedModel(be, state), ms, solidBuffer, light);
-		renderEndpointSlimeOverlay(be, state, ms, buffer, light);
-		renderDriveShaft(be, state, ms, buffer, light, overlay);
+		renderSyncedRotatingBuffer(be, getRotatedModel(be, state), ms, solidBuffer, light, partialTicks);
+		renderEndpointSlimeOverlay(be, state, ms, buffer, light, partialTicks);
+		renderDriveShaft(be, state, ms, buffer, light, overlay, partialTicks);
 	}
 
 	private void renderEndpointSlimeOverlay(UniversalJointBlockEntity be, BlockState state, PoseStack ms,
-		MultiBufferSource buffer, int light) {
+		MultiBufferSource buffer, int light, float partialTicks) {
 		if (!state.hasProperty(UniversalJointBlock.FACING))
 			return;
 
 		Direction facing = state.getValue(UniversalJointBlock.FACING);
 		SuperByteBuffer overlayBuffer = CachedBuffers.partialDirectional(ENDPOINT_SLIME_OVERLAY, state, facing,
 			() -> getEndpointFacingTransform(facing));
-		renderRotatingBuffer(be, overlayBuffer, ms, buffer.getBuffer(RenderType.translucent()), light);
+		renderSyncedRotatingBuffer(be, overlayBuffer, ms, buffer.getBuffer(RenderType.translucent()), light,
+			partialTicks);
 	}
 
 	private static PoseStack getEndpointFacingTransform(Direction facing) {
@@ -84,7 +90,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	}
 
 	private void renderDriveShaft(UniversalJointBlockEntity be, BlockState state, PoseStack ms, MultiBufferSource buffer,
-		int light, int overlay) {
+		int light, int overlay, float partialTicks) {
 		BlockPos linkedPos = be.getLinkedPos();
 		if (linkedPos == null || !isPrimaryEndpoint(be.getBlockPos(), linkedPos))
 			return;
@@ -121,7 +127,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		TransformStack.of(shaftTransforms)
 			.translate(start)
 			.rotateTo(1, 0, 0, (float) direction.x, (float) direction.y, (float) direction.z)
-			.rotateX(getAngleForBe(be, be.getBlockPos(), getRotationAxisOf(be)) * shaftRotationModifier)
+			.rotateX(getShaftAngle(be, shaftRotationModifier, partialTicks))
 			.translate(length / 2, -SHAFT_RADIUS, 0)
 			.scale((float) (length / SLIME_MODEL_DIAMETER), SHAFT_CROSS_SECTION_SCALE, SHAFT_CROSS_SECTION_SCALE);
 
@@ -141,6 +147,36 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		outerSlime.renderToBuffer(ms, buffer.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE)), light, overlay,
 			1, 1, 1, 1);
 		ms.popPose();
+	}
+
+	private static void renderSyncedRotatingBuffer(UniversalJointBlockEntity be, SuperByteBuffer superBuffer,
+		PoseStack ms, VertexConsumer buffer, int light, float partialTicks) {
+		Axis axis = getRotationAxisOf(be);
+		float angle = getAngleForBe(be, be.getBlockPos(), axis, partialTicks);
+		kineticRotationTransform(superBuffer, be, axis, angle, light).renderInto(ms, buffer);
+	}
+
+	private static float getAngleForBe(UniversalJointBlockEntity be, BlockPos pos, Axis axis, float partialTicks) {
+		float time = getKineticRenderTicks(be.getLevel(), partialTicks);
+		float offset = getRotationOffsetForPosition(be, pos, axis);
+		return ((time * be.getSpeed() * 3f / 10 + offset) % 360) / 180 * (float) Math.PI;
+	}
+
+	private static float getShaftAngle(UniversalJointBlockEntity be, float shaftRotationModifier, float partialTicks) {
+		Axis axis = getRotationAxisOf(be);
+		float time = getKineticRenderTicks(be.getLevel(), partialTicks);
+		float offset = getRotationOffsetForPosition(be, be.getBlockPos(), axis);
+		float angle = (time * be.getSpeed() * 3f / 10) % 360;
+		angle *= shaftRotationModifier;
+		angle += offset;
+		return angle / 180f * (float) Math.PI;
+	}
+
+	private static float getKineticRenderTicks(Level level, float partialTicks) {
+		if (level != null && VisualizationManager.supportsVisualization(level)
+			&& Minecraft.getInstance().levelRenderer instanceof LevelRendererAccessor accessor)
+			return accessor.create_biotech$getTicks() + partialTicks;
+		return AnimationTickHolder.getRenderTime(level);
 	}
 
 	private static boolean isPerpendicularBridgeBetweenParallelEndpoints(BlockState state, BlockState linkedState,

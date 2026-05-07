@@ -14,7 +14,8 @@
   "client": [
     "client.FlapStuffsMixin",
     "client.FunnelRendererMixin",
-    "client.FunnelVisualMixin"
+    "client.FunnelVisualMixin",
+    "client.LevelRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
