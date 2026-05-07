@@ -1,11 +1,12 @@
 {
+  "itemGroup.create_biotech.main": "机械动力：生物科技",
   "block.create_biotech.evoker_tank": "唤魔者铜罐",
   "block.create_biotech.fixed_carrot_fishing_rod": "固定的胡萝卜钓杆",
   "block.create_biotech.magma_belt": "岩浆怪传送带",
-  "item.create_biotech.magma_belt_connector": "岩浆怪传送带连接器",
+  "item.create_biotech.magma_belt_connector": "岩浆怪传送带",
   "block.create_biotech.power_belt": "动力传送带",
-  "item.create_biotech.power_belt_connector": "动力传送带连接器",
+  "item.create_biotech.power_belt_connector": "动力传送带",
   "block.create_biotech.slime_belt": "史莱姆传送带",
-  "item.create_biotech.slime_belt_connector": "史莱姆传送带连接器",
+  "item.create_biotech.slime_belt_connector": "史莱姆传送带",
   "block.create_biotech.universal_joint": "万向节"
 }

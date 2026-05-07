@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFis
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.resources.ResourceLocation;
@@ -19,10 +20,10 @@ public class CreateBiotech {
 		IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 		CBBlocks.register(modEventBus);
 		CBItems.register(modEventBus);
+		CBCreativeModeTabs.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
 		CBPackets.register();
 		FixedCarrotFishingRodGoalHandler.register();
-		modEventBus.addListener(CBItems::addToCreativeTabs);
 	}
 
 	public static ResourceLocation asResource(String path) {

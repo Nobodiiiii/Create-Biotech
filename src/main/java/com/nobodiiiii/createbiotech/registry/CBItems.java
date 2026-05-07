@@ -7,10 +7,8 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
 import net.minecraft.world.item.BlockItem;
-import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -43,17 +41,6 @@ public class CBItems {
 
 	public static void register(IEventBus modEventBus) {
 		ITEMS.register(modEventBus);
-	}
-
-	public static void addToCreativeTabs(BuildCreativeModeTabContentsEvent event) {
-		if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
-			event.accept(EVOKER_TANK.get());
-			event.accept(SLIME_BELT_CONNECTOR.get());
-			event.accept(MAGMA_BELT_CONNECTOR.get());
-			event.accept(POWER_BELT_CONNECTOR.get());
-			event.accept(UNIVERSAL_JOINT.get());
-			event.accept(FIXED_CARROT_FISHING_ROD.get());
-		}
 	}
 
 	public static boolean isSlimeBeltConnector(ItemStack stack) {
