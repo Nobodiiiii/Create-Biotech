@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
+import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
@@ -54,6 +55,15 @@ public class CBBlocks {
 			.strength(0.8f)
 			.mapColor(MapColor.METAL)
 			.noOcclusion()));
+
+	public static final RegistryObject<FixedCarrotFishingRodBlock> FIXED_CARROT_FISHING_ROD =
+		BLOCKS.register("fixed_carrot_fishing_rod",
+			() -> new FixedCarrotFishingRodBlock(Block.Properties.of()
+				.sound(SoundType.WOOD)
+				.strength(0.4f)
+				.mapColor(MapColor.WOOD)
+				.noCollission()
+				.noOcclusion()));
 
 	private CBBlocks() {}
 

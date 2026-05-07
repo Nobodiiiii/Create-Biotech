@@ -36,6 +36,9 @@ public class CBItems {
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
 
+	public static final RegistryObject<Item> FIXED_CARROT_FISHING_ROD = ITEMS.register("fixed_carrot_fishing_rod",
+		() -> new BlockItem(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {
@@ -49,6 +52,7 @@ public class CBItems {
 			event.accept(MAGMA_BELT_CONNECTOR.get());
 			event.accept(POWER_BELT_CONNECTOR.get());
 			event.accept(UNIVERSAL_JOINT.get());
+			event.accept(FIXED_CARROT_FISHING_ROD.get());
 		}
 	}
 
