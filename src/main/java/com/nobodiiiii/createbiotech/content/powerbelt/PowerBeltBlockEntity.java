@@ -24,8 +24,9 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	private static final int SURFACE_SPEED_DETECTION_INTERVAL = 10;
 	private static final float GENERATED_RPM_STEP = 4f;
 	private static final float MAX_GENERATED_RPM = 256f;
-	private static final float MAX_STRESS_CAPACITY = 1024f;
-	private static final float STRESS_CAPACITY_PER_RPM = MAX_STRESS_CAPACITY / MAX_GENERATED_RPM;
+	private static final float STRESS_CAPACITY_PER_RPM = 4f;
+	private static final float GENERATED_STRESS_STEP = GENERATED_RPM_STEP * STRESS_CAPACITY_PER_RPM;
+	private static final float MAX_STRESS_CAPACITY_PER_SEGMENT = 1024f;
 	private static final float SURFACE_METERS_PER_SECOND_TO_RPM = 24f;
 	private static final float TICKS_PER_SECOND = 20f;
 	private static final float SURFACE_SPEED_TO_RPM = SURFACE_METERS_PER_SECOND_TO_RPM * TICKS_PER_SECOND;
@@ -95,7 +96,8 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		}
 
 		collectedGeneratedSpeed = getStrongerSpeed(collectedGeneratedSpeed, speed);
-		collectedStressCapacity += getStressCapacityForSpeed(speed);
+		collectedStressCapacity =
+			Mth.clamp(collectedStressCapacity + getStressCapacityForRpm(speed), 0, getMaxStressCapacity());
 	}
 
 	private void sampleSurfaceMovementBefore(long gameTime) {
@@ -123,8 +125,9 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	private void applyDetectedSurfaceMovement() {
 		float speed = roundToGeneratedRpmStep(collectedDetectionGeneratedSpeed / collectedDetectionTicks);
-		float stressCapacity = collectedDetectionStressCapacity / collectedDetectionTicks;
-		float capacity = speed == 0 ? 0 : stressCapacity / Math.abs(speed);
+		float generatedStressCapacity =
+			roundToGeneratedStressStep(collectedDetectionStressCapacity / collectedDetectionTicks);
+		float capacity = speed == 0 ? 0 : generatedStressCapacity / Math.abs(speed);
 
 		collectedDetectionGeneratedSpeed = 0;
 		collectedDetectionStressCapacity = 0;
@@ -168,8 +171,17 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		return Math.copySign(magnitude, speed);
 	}
 
-	private static float getStressCapacityForSpeed(float speed) {
-		return Math.abs(speed) * STRESS_CAPACITY_PER_RPM;
+	private static float getStressCapacityForRpm(float rpm) {
+		return Math.abs(rpm) * STRESS_CAPACITY_PER_RPM;
+	}
+
+	private float roundToGeneratedStressStep(float stressCapacity) {
+		float capacity = Math.round(stressCapacity / GENERATED_STRESS_STEP) * GENERATED_STRESS_STEP;
+		return Mth.clamp(capacity, 0, getMaxStressCapacity());
+	}
+
+	private float getMaxStressCapacity() {
+		return Math.max(0, beltLength) * MAX_STRESS_CAPACITY_PER_SEGMENT;
 	}
 
 	private static float getDirectionFactor(Direction facing) {
