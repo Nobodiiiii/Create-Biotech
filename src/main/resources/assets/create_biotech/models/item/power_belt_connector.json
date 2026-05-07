@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "create:item/belt_connector"
+    "layer0": "create_biotech:item/power_belt_connector"
   }
 }
