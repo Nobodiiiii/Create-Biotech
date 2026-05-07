@@ -21,7 +21,6 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.HitResult;
-import net.minecraft.world.phys.shapes.BooleanOp;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -30,30 +29,35 @@ public class FixedCarrotFishingRodBlock extends HorizontalDirectionalBlock imple
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
-	private static final VoxelShape NORTH_SHAPE = Shapes.joinUnoptimized(
-		Shapes.or(
-			Block.box(6, 6, 12, 10, 10, 16),
-			Block.box(7, 7, 1, 9, 9, 12)),
-		Block.box(4.5, -9, 0.5, 11.5, -1, 1.5),
-		BooleanOp.OR);
-	private static final VoxelShape SOUTH_SHAPE = Shapes.joinUnoptimized(
-		Shapes.or(
-			Block.box(6, 6, 0, 10, 10, 4),
-			Block.box(7, 7, 4, 9, 9, 15)),
-		Block.box(4.5, -9, 14.5, 11.5, -1, 15.5),
-		BooleanOp.OR);
-	private static final VoxelShape WEST_SHAPE = Shapes.joinUnoptimized(
-		Shapes.or(
-			Block.box(12, 6, 6, 16, 10, 10),
-			Block.box(1, 7, 7, 12, 9, 9)),
-		Block.box(0.5, -9, 4.5, 1.5, -1, 11.5),
-		BooleanOp.OR);
-	private static final VoxelShape EAST_SHAPE = Shapes.joinUnoptimized(
-		Shapes.or(
-			Block.box(0, 6, 6, 4, 10, 10),
-			Block.box(4, 7, 7, 15, 9, 9)),
-		Block.box(14.5, -9, 4.5, 15.5, -1, 11.5),
-		BooleanOp.OR);
+	private static final VoxelShape NORTH_COLLISION = Shapes.or(
+		Block.box(6, 10, 12, 10, 14, 16),
+		Block.box(7, 11, 1, 9, 13, 12));
+	private static final VoxelShape SOUTH_COLLISION = Shapes.or(
+		Block.box(6, 10, 0, 10, 14, 4),
+		Block.box(7, 11, 4, 9, 13, 15));
+	private static final VoxelShape WEST_COLLISION = Shapes.or(
+		Block.box(12, 10, 6, 16, 14, 10),
+		Block.box(1, 11, 7, 12, 13, 9));
+	private static final VoxelShape EAST_COLLISION = Shapes.or(
+		Block.box(0, 10, 6, 4, 14, 10),
+		Block.box(4, 11, 7, 15, 13, 9));
+
+	private static final VoxelShape NORTH_SHAPE = Shapes.or(
+		NORTH_COLLISION,
+		Block.box(7.875, 3, 1.375, 8.125, 11, 1.625),
+		Block.box(4, -4, 1, 12, 4, 2));
+	private static final VoxelShape SOUTH_SHAPE = Shapes.or(
+		SOUTH_COLLISION,
+		Block.box(7.875, 3, 14.375, 8.125, 11, 14.625),
+		Block.box(4, -4, 14, 12, 4, 15));
+	private static final VoxelShape WEST_SHAPE = Shapes.or(
+		WEST_COLLISION,
+		Block.box(1.375, 3, 7.875, 1.625, 11, 8.125),
+		Block.box(1, -4, 4, 2, 4, 12));
+	private static final VoxelShape EAST_SHAPE = Shapes.or(
+		EAST_COLLISION,
+		Block.box(14.375, 3, 7.875, 14.625, 11, 8.125),
+		Block.box(14, -4, 4, 15, 4, 12));
 
 	public FixedCarrotFishingRodBlock(Properties properties) {
 		super(properties);
@@ -93,6 +97,17 @@ public class FixedCarrotFishingRodBlock extends HorizontalDirectionalBlock imple
 		case WEST -> WEST_SHAPE;
 		case EAST -> EAST_SHAPE;
 		default -> NORTH_SHAPE;
+		};
+	}
+
+	@Override
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return switch (state.getValue(FACING)) {
+		case NORTH -> NORTH_COLLISION;
+		case SOUTH -> SOUTH_COLLISION;
+		case WEST -> WEST_COLLISION;
+		case EAST -> EAST_COLLISION;
+		default -> NORTH_COLLISION;
 		};
 	}
 

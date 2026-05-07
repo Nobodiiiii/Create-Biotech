@@ -62,7 +62,6 @@ public class CBBlocks {
 				.sound(SoundType.WOOD)
 				.strength(0.4f)
 				.mapColor(MapColor.WOOD)
-				.noCollission()
 				.noOcclusion()));
 
 	private CBBlocks() {}
