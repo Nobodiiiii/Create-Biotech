@@ -101,6 +101,16 @@ public class BasinEntityProcessing {
 
 	public static ItemStack extractCapturedSmallSlimeItems(BasinBlockEntity basin, ExtractionCountMode mode, int amount,
 		Predicate<ItemStack> filter, boolean simulate) {
+		ItemStack stack = getCapturedSmallSlimeExtractionStack(basin, mode, amount, filter);
+		if (stack.isEmpty())
+			return ItemStack.EMPTY;
+		if (!simulate)
+			extractCapturedSmallSlimes(basin, mode, amount, filter, false);
+		return stack;
+	}
+
+	public static ItemStack getCapturedSmallSlimeExtractionStack(BasinBlockEntity basin, ExtractionCountMode mode,
+		int amount, Predicate<ItemStack> filter) {
 		if (amount <= 0)
 			amount = MAX_CAPTURED_SMALL_SLIMES;
 
@@ -116,14 +126,24 @@ public class BasinEntityProcessing {
 		if (!filter.test(stack))
 			return ItemStack.EMPTY;
 
+		return stack;
+	}
+
+	public static List<Slime> extractCapturedSmallSlimes(BasinBlockEntity basin, ExtractionCountMode mode, int amount,
+		Predicate<ItemStack> filter, boolean simulate) {
+		ItemStack stack = getCapturedSmallSlimeExtractionStack(basin, mode, amount, filter);
+		if (stack.isEmpty())
+			return Collections.emptyList();
+
+		List<Slime> slimes = getCapturedSmallSlimes(basin.getLevel(), basin.getBlockPos());
+		List<Slime> extracted = new ArrayList<>(slimes.subList(0, Math.min(stack.getCount(), slimes.size())));
 		if (!simulate) {
-			for (int i = 0; i < extracted; i++)
-				slimes.get(i)
-					.discard();
+			for (Slime slime : extracted)
+				releaseCapturedSlime(slime);
 			notifyBasinContentsChanged(basin);
 		}
 
-		return stack;
+		return extracted;
 	}
 
 	public static void setCapturedSmallSlimeItemCount(BasinBlockEntity basin, int count) {

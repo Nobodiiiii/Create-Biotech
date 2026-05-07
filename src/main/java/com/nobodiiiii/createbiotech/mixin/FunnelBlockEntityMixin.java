@@ -35,6 +35,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -151,30 +152,20 @@ public abstract class FunnelBlockEntityMixin {
 		if (createBiotech$isExtractorOutputBlocked(funnel))
 			return;
 
-		ItemStack stack = BasinEntityProcessing.extractCapturedSmallSlimeItems(basin, modeToExtract, amountToExtract,
-			createBiotech$getFunnelFilter(funnel, extracted -> true), false);
+		Predicate<ItemStack> filter = createBiotech$getFunnelFilter(funnel, extracted -> true);
+		ItemStack stack =
+			BasinEntityProcessing.getCapturedSmallSlimeExtractionStack(basin, modeToExtract, amountToExtract, filter);
 		if (stack.isEmpty())
+			return;
+		List<Slime> slimes =
+			BasinEntityProcessing.extractCapturedSmallSlimes(basin, modeToExtract, amountToExtract, filter, false);
+		if (slimes.isEmpty())
 			return;
 
 		funnel.flap(false);
 		funnel.onTransfer(stack);
-
-		Vec3 outputPos = VecHelper.getCenterOf(funnel.getBlockPos());
-		boolean vertical = facing.getAxis()
-			.isVertical();
-		boolean up = facing == Direction.UP;
-
-		outputPos = outputPos.add(Vec3.atLowerCornerOf(facing.getNormal())
-			.scale(vertical ? up ? .15f : .5f : .25f));
-		if (!vertical)
-			outputPos = outputPos.subtract(0, .45f, 0);
-
-		Vec3 motion = up ? new Vec3(0, 4 / 16f, 0) : Vec3.ZERO;
-		ItemEntity item = new ItemEntity(level, outputPos.x, outputPos.y, outputPos.z, stack.copy());
-		item.setDefaultPickUpDelay();
-		item.setDeltaMovement(motion);
-		level.addFreshEntity(item);
-		lastObserved = new WeakReference<>(item);
+		createBiotech$outputCapturedSlimes(slimes, createBiotech$getExtractorSlimeOutputPosition(funnel, facing),
+			facing == Direction.UP ? new Vec3(0, 4 / 16f, 0) : Vec3.ZERO, facing);
 
 		extractionCooldown = AllConfigs.server()
 			.logistics.defaultExtractionTimer.get();
@@ -193,7 +184,7 @@ public abstract class FunnelBlockEntityMixin {
 			DirectBeltInputBehaviour inputBehaviour =
 				BlockEntityBehaviour.get(funnel.getLevel(), funnel.getBlockPos().below(), DirectBeltInputBehaviour.TYPE);
 			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING),
-				inputBehaviour))
+				funnel.getBlockPos().below(), inputBehaviour))
 				ci.cancel();
 			return;
 		}
@@ -223,7 +214,8 @@ public abstract class FunnelBlockEntityMixin {
 			return false;
 		});
 		if (stack.isEmpty()) {
-			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, insertSide, inputBehaviour))
+			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, insertSide, support.segment().getBlockPos(),
+				inputBehaviour))
 				return;
 			if (deniedByInsertion.isFalse())
 				invVersionTracker.awaitNewVersion(invManipulation.getInventory());
@@ -248,7 +240,7 @@ public abstract class FunnelBlockEntityMixin {
 	}
 
 	private boolean createBiotech$tryExtractCapturedSlimeToBelt(FunnelBlockEntity funnel, Direction insertSide,
-		DirectBeltInputBehaviour inputBehaviour) {
+		BlockPos beltPos, DirectBeltInputBehaviour inputBehaviour) {
 		if (invVersionTracker.stillWaiting(invManipulation) || inputBehaviour == null)
 			return false;
 		if (!inputBehaviour.canInsertFromSide(insertSide))
@@ -262,21 +254,27 @@ public abstract class FunnelBlockEntityMixin {
 
 		int amountToExtract = funnel.getAmountToExtract();
 		ExtractionCountMode modeToExtract = funnel.getModeToExtract();
-		Predicate<ItemStack> insertionFilter = extracted -> inputBehaviour.handleInsertion(extracted, insertSide, true)
-			.isEmpty();
 		if (!invManipulation.simulate()
-			.extract(modeToExtract, amountToExtract, insertionFilter)
+			.extract(modeToExtract, amountToExtract)
 			.isEmpty())
 			return false;
 
-		ItemStack stack = BasinEntityProcessing.extractCapturedSmallSlimeItems(basin, modeToExtract, amountToExtract,
-			createBiotech$getFunnelFilter(funnel, insertionFilter), false);
+		Predicate<ItemStack> filter = createBiotech$getFunnelFilter(funnel, extracted -> true);
+		ItemStack stack =
+			BasinEntityProcessing.getCapturedSmallSlimeExtractionStack(basin, modeToExtract, amountToExtract, filter);
 		if (stack.isEmpty())
+			return false;
+		List<Slime> slimes =
+			BasinEntityProcessing.extractCapturedSmallSlimes(basin, modeToExtract, amountToExtract, filter, false);
+		if (slimes.isEmpty())
 			return false;
 
 		funnel.flap(false);
 		funnel.onTransfer(stack);
-		inputBehaviour.handleInsertion(stack, insertSide, false);
+		createBiotech$outputCapturedSlimes(slimes, createBiotech$getBeltSlimeOutputPosition(beltPos),
+			Vec3.atLowerCornerOf(insertSide.getNormal())
+				.scale(1 / 16d),
+			insertSide);
 		extractionCooldown = AllConfigs.server()
 			.logistics.defaultExtractionTimer.get();
 		return true;
@@ -298,6 +296,49 @@ public abstract class FunnelBlockEntityMixin {
 		FilteringBehaviour filtering = BlockEntityBehaviour.get(funnel.getLevel(), funnel.getBlockPos(),
 			FilteringBehaviour.TYPE);
 		return stack -> (filtering == null || filtering.test(stack)) && customFilter.test(stack);
+	}
+
+	private Vec3 createBiotech$getExtractorSlimeOutputPosition(FunnelBlockEntity funnel, Direction facing) {
+		Vec3 outputPos = VecHelper.getCenterOf(funnel.getBlockPos());
+		boolean vertical = facing.getAxis()
+			.isVertical();
+		boolean up = facing == Direction.UP;
+
+		outputPos = outputPos.add(Vec3.atLowerCornerOf(facing.getNormal())
+			.scale(vertical ? up ? .15f : .5f : .25f));
+		if (!vertical)
+			outputPos = outputPos.subtract(0, .45f, 0);
+		return outputPos;
+	}
+
+	private Vec3 createBiotech$getBeltSlimeOutputPosition(BlockPos beltPos) {
+		return VecHelper.getCenterOf(beltPos)
+			.add(0, .6f, 0);
+	}
+
+	private void createBiotech$outputCapturedSlimes(List<Slime> slimes, Vec3 outputPos, Vec3 motion,
+		Direction facing) {
+		for (int i = 0; i < slimes.size(); i++) {
+			Slime slime = slimes.get(i);
+			Vec3 position = outputPos.add(createBiotech$getSlimeOutputSpread(facing, i, slimes.size()));
+			slime.stopRiding();
+			slime.moveTo(position.x, position.y, position.z, slime.getYRot(), slime.getXRot());
+			slime.fallDistance = 0;
+			slime.setDeltaMovement(motion);
+			lastObserved = new WeakReference<>(slime);
+		}
+	}
+
+	private Vec3 createBiotech$getSlimeOutputSpread(Direction facing, int index, int count) {
+		if (count <= 1)
+			return Vec3.ZERO;
+		double offset = (index - (count - 1) / 2d) * .25d;
+		if (facing.getAxis()
+			.isHorizontal())
+			return Vec3.atLowerCornerOf(facing.getClockWise()
+				.getNormal())
+				.scale(offset);
+		return new Vec3(offset, 0, 0);
 	}
 
 	private boolean createBiotech$isExtractorOutputBlocked(FunnelBlockEntity funnel) {
