@@ -1,15 +1,6 @@
 {
-  "parent": "create_biotech:block/fixed_carrot_fishing_rod",
-  "display": {
-    "gui": {
-      "rotation": [30, 225, 0],
-      "translation": [0, 2, 0],
-      "scale": [0.8, 0.8, 0.8]
-    },
-    "fixed": {
-      "rotation": [0, 180, 0],
-      "translation": [0, 0, 0],
-      "scale": [0.75, 0.75, 0.75]
-    }
+  "parent": "minecraft:item/handheld_rod",
+  "textures": {
+    "layer0": "create_biotech:item/fixed_carrot_fishing_rod"
   }
 }
