@@ -9,6 +9,7 @@ import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
+import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
@@ -44,6 +45,8 @@ public class PowerBeltConversionHandler {
 		ItemStack heldItem = player.getItemInHand(event.getHand());
 		if (!AllItems.ANDESITE_ALLOY.isIn(heldItem))
 			return;
+		if (state.getValue(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
+			return;
 
 		event.setCanceled(true);
 		if (level.isClientSide) {
@@ -64,7 +67,7 @@ public class PowerBeltConversionHandler {
 		if (beltChain.size() < 2)
 			return false;
 		for (BlockPos beltPos : beltChain)
-			if (!level.isLoaded(beltPos) || !AllBlocks.BELT.has(level.getBlockState(beltPos)))
+			if (!level.isLoaded(beltPos) || !isHorizontalBelt(level.getBlockState(beltPos)))
 				return false;
 
 		BeltBlockEntity controllerBE = BeltHelper.getSegmentBE(level, controllerPos);
@@ -110,7 +113,7 @@ public class PowerBeltConversionHandler {
 			if (!level.isLoaded(currentPos))
 				return null;
 			BlockState currentState = level.getBlockState(currentPos);
-			if (!AllBlocks.BELT.has(currentState))
+			if (!isHorizontalBelt(currentState))
 				return null;
 
 			BlockPos nextSegmentPosition = BeltBlock.nextSegmentPosition(currentState, currentPos, false);
@@ -119,5 +122,9 @@ public class PowerBeltConversionHandler {
 			currentPos = nextSegmentPosition;
 		}
 		return null;
+	}
+
+	private static boolean isHorizontalBelt(BlockState state) {
+		return AllBlocks.BELT.has(state) && state.getValue(BeltBlock.SLOPE) == BeltSlope.HORIZONTAL;
 	}
 }
