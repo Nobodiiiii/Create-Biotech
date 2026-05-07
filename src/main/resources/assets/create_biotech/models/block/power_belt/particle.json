@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "particle": "create_biotech:block/power_belt"
+  },
+  "elements": []
+}

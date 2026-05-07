@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltRenderer;
+import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
@@ -50,6 +51,7 @@ public class CreateBiotechClient {
 	public static void registerReloadListeners(RegisterClientReloadListenersEvent event) {
 		SlimeBeltSpriteShifts.init();
 		MagmaBeltSpriteShifts.init();
+		PowerBeltSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
 	}

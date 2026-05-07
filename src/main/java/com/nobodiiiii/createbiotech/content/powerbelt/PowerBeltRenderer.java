@@ -74,11 +74,10 @@ public class PowerBeltRenderer extends SafeBlockEntityRenderer<PowerBeltBlockEnt
 			SuperByteBuffer beltBuffer = CachedBuffers.partial(beltPartial, blockState)
 				.light(light);
 
-			SpriteShiftEntry spriteShift = BeltRenderer.getSpriteShiftEntry(null, diagonal, bottom);
+			SpriteShiftEntry spriteShift = getSpriteShiftEntry(diagonal, bottom);
 			float speed = be.getSpeed();
-			if (speed != 0)
-				shiftBeltUvs(beltBuffer, spriteShift, speed, renderTick, axisDirection, diagonal, downward, alongX,
-					sideways, bottom);
+			shiftBeltUvs(beltBuffer, spriteShift, speed, renderTick, axisDirection, diagonal, downward, alongX,
+				sideways, bottom);
 
 			beltBuffer.transform(localTransforms)
 				.renderInto(ms, vb);
@@ -109,6 +108,11 @@ public class PowerBeltRenderer extends SafeBlockEntityRenderer<PowerBeltBlockEnt
 		scroll = scroll - Math.floor(scroll);
 		scroll = scroll * spriteSize * scrollMult;
 		beltBuffer.shiftUVScrolling(spriteShift, (float) scroll);
+	}
+
+	private static SpriteShiftEntry getSpriteShiftEntry(boolean diagonal, boolean bottom) {
+		return diagonal ? PowerBeltSpriteShifts.BELT_DIAGONAL
+			: bottom ? PowerBeltSpriteShifts.BELT_OFFSET : PowerBeltSpriteShifts.BELT;
 	}
 
 	private static void renderPulley(PowerBeltBlockEntity be, BlockState blockState, PoseStack ms, VertexConsumer vb,

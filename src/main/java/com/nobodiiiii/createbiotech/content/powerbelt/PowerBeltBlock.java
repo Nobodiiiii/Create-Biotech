@@ -105,6 +105,8 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 
 	@Override
 	public Axis getRotationAxis(BlockState state) {
+		if (state.getValue(SLOPE) == BeltSlope.SIDEWAYS)
+			return Axis.Y;
 		return state.getValue(HORIZONTAL_FACING)
 			.getClockWise()
 			.getAxis();
