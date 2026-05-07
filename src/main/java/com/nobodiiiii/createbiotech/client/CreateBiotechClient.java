@@ -15,9 +15,11 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
 
+import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraftforge.api.distmarker.Dist;
@@ -26,6 +28,7 @@ import net.minecraftforge.client.event.ModelEvent;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -64,6 +67,10 @@ public class CreateBiotechClient {
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("brass_belt_funnel"), SlimeBeltFunnelModel::new);
+			if (ModList.get()
+				.isLoaded("jei"))
+				ItemProperties.register(CBItems.CAPTURED_SMALL_SLIME.get(),
+					CreateBiotech.asResource("jei_slime_model"), (stack, level, entity, seed) -> 1);
 		});
 	}
 }

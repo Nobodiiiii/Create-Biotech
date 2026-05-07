@@ -6,8 +6,14 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
+import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
+import com.simibubi.create.content.kinetics.belt.BeltHelper;
 import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
+import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
+import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.content.logistics.funnel.FunnelBlock;
 import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
@@ -182,17 +188,12 @@ public class BasinEntityProcessing {
 			return false;
 
 		BlockState blockState = funnel.getBlockState();
-		if (!(blockState.getBlock() instanceof FunnelBlock))
-			return false;
 		if (blockState.getOptionalValue(AbstractFunnelBlock.POWERED)
 			.orElse(false))
 			return false;
-		if (blockState.getValue(FunnelBlock.EXTRACTING))
-			return false;
 
-		Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
-		if (facing == null || !facing.getAxis()
-			.isHorizontal())
+		Direction facing = getSmallSlimeInputFacing(level, funnel.getBlockPos(), blockState);
+		if (facing == null)
 			return false;
 
 		BlockPos basinPos = funnel.getBlockPos()
@@ -205,6 +206,59 @@ public class BasinEntityProcessing {
 			return false;
 
 		return captureSmallSlimeInBasin(basin, slime);
+	}
+
+	public static boolean isBeltFunnelSmallSlimeInput(FunnelBlockEntity funnel) {
+		Level level = funnel.getLevel();
+		if (level == null)
+			return false;
+
+		BlockState blockState = funnel.getBlockState();
+		if (!(blockState.getBlock() instanceof BeltFunnelBlock))
+			return false;
+
+		return getSmallSlimeInputFacing(level, funnel.getBlockPos(), blockState) != null;
+	}
+
+	private static Direction getSmallSlimeInputFacing(Level level, BlockPos funnelPos, BlockState blockState) {
+		if (blockState.getBlock() instanceof FunnelBlock) {
+			if (blockState.getValue(FunnelBlock.EXTRACTING))
+				return null;
+			Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
+			return facing != null && facing.getAxis()
+				.isHorizontal() ? facing : null;
+		}
+
+		if (!(blockState.getBlock() instanceof BeltFunnelBlock))
+			return null;
+
+		Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
+		if (facing == null)
+			return null;
+
+		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(level, funnelPos);
+		if (support != null)
+			facing = SlimeBeltHelper.getWorldFunnelFacing(support, facing);
+		if (!facing.getAxis()
+			.isHorizontal())
+			return null;
+
+		return isTakingFromBelt(level, funnelPos, blockState, facing, support) ? facing : null;
+	}
+
+	private static boolean isTakingFromBelt(Level level, BlockPos funnelPos, BlockState blockState,
+		Direction worldFacing, FunnelSupport support) {
+		Shape shape = blockState.getValue(BeltFunnelBlock.SHAPE);
+		if (shape == Shape.PULLING)
+			return true;
+		if (shape == Shape.PUSHING)
+			return false;
+
+		if (support != null)
+			return SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track()) != worldFacing;
+
+		BeltBlockEntity belt = BeltHelper.getSegmentBE(level, funnelPos.below());
+		return belt != null && belt.getMovementFacing() != worldFacing;
 	}
 
 	public static void tickCapturedSmallSlime(Slime slime) {
@@ -276,6 +330,12 @@ public class BasinEntityProcessing {
 		Vec3 motion = slime.getDeltaMovement();
 		slime.setDeltaMovement(0, motion.y, 0);
 		return true;
+	}
+
+	public static boolean isCapturedSmallSlime(Entity entity) {
+		if (!(entity instanceof Slime slime) || slime.getSize() != 1)
+			return false;
+		return isCaptured(entity);
 	}
 
 	private static void releaseCapturedSlime(Slime slime) {

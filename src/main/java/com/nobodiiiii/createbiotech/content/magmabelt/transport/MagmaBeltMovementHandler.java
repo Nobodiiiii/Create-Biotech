@@ -6,6 +6,7 @@ import static net.minecraft.world.entity.MoverType.SELF;
 
 import java.util.List;
 
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.equipment.armor.CardboardArmorHandler;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
@@ -60,6 +61,8 @@ public class MagmaBeltMovementHandler {
 
 	public static boolean canBeTransported(Entity entity) {
 		if (!entity.isAlive())
+			return false;
+		if (BasinEntityProcessing.isCapturedSmallSlime(entity))
 			return false;
 		if (entity instanceof Player p && p.isShiftKeyDown()
 			&& !CardboardArmorHandler.testForStealth(entity))

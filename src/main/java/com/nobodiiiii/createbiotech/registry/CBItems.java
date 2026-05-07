@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
@@ -35,7 +36,7 @@ public class CBItems {
 		() -> new Item(new Item.Properties()));
 
 	public static final RegistryObject<Item> CAPTURED_SMALL_SLIME = ITEMS.register("captured_small_slime",
-		() -> new Item(new Item.Properties().stacksTo(4)));
+		() -> new CapturedSmallSlimeItem(new Item.Properties().stacksTo(4)));
 
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));

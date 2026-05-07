@@ -2,5 +2,13 @@
   "parent": "minecraft:item/generated",
   "textures": {
     "layer0": "minecraft:item/slime_ball"
-  }
+  },
+  "overrides": [
+    {
+      "predicate": {
+        "create_biotech:jei_slime_model": 1.0
+      },
+      "model": "create_biotech:item/captured_small_slime_jei"
+    }
+  ]
 }

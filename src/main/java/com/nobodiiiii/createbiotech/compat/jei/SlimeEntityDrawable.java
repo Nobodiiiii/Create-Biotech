@@ -63,11 +63,12 @@ public class SlimeEntityDrawable implements IDrawable {
 		if (slime == null)
 			return;
 
-		InventoryScreen.renderEntityInInventoryFollowsAngle(guiGraphics, xOffset + width / 2, yOffset + height + renderYOffset, scale,
-			angleX, angleY, slime);
+		InventoryScreen.renderEntityInInventoryFollowsAngle(guiGraphics, xOffset + width / 2,
+			yOffset + height + renderYOffset, scale, angleX, angleY, slime);
 	}
 
-	private Slime getOrCreateSlime(Level level) {
+	@Nullable
+	Slime getOrCreateSlime(Level level) {
 		if (cachedSlime != null && cachedLevel == level && cachedSlime.getType() == entityType)
 			return cachedSlime;
 

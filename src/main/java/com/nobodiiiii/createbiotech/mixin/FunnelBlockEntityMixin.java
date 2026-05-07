@@ -68,8 +68,13 @@ public abstract class FunnelBlockEntityMixin {
 	private void createBiotech$captureSmallSlimeForBasin(CallbackInfo ci) {
 		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
 		if (funnel.getLevel() == null || funnel.getLevel()
-			.isClientSide || extractionCooldown > 0)
+			.isClientSide)
 			return;
+		if (extractionCooldown > 0) {
+			if (BasinEntityProcessing.isBeltFunnelSmallSlimeInput(funnel))
+				extractionCooldown--;
+			return;
+		}
 
 		if (!BasinEntityProcessing.tryCaptureSmallSlimeFromFunnel(funnel))
 			return;
