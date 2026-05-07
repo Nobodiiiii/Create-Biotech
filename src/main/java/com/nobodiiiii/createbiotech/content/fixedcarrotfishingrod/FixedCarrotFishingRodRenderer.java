@@ -1,20 +1,27 @@
 package com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class FixedCarrotFishingRodRenderer implements BlockEntityRenderer<FixedCarrotFishingRodBlockEntity> {
 
-	private static final float STRING_XZ_OFFSET = 7 / 16f;
-	private static final float STRING_TOP_Y = 7 / 16f;
-	private static final float STRING_BOTTOM_Y = -1 / 16f;
+	private static final ItemStack CARROT = new ItemStack(Items.CARROT);
+	private static final float CARROT_XZ_OFFSET = 6.5f / 16f;
+	private static final float CARROT_CENTER_Y = 0;
+	private static final float CARROT_FACE_SCALE = 0.5f;
+	private static final float CARROT_THICKNESS_SCALE = 0.5f;
 
 	public FixedCarrotFishingRodRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -26,18 +33,28 @@ public class FixedCarrotFishingRodRenderer implements BlockEntityRenderer<FixedC
 			return;
 
 		Direction facing = state.getValue(FixedCarrotFishingRodBlock.FACING);
-		float x = 0.5f + facing.getStepX() * STRING_XZ_OFFSET;
-		float z = 0.5f + facing.getStepZ() * STRING_XZ_OFFSET;
+		float x = 0.5f + facing.getStepX() * CARROT_XZ_OFFSET;
+		float z = 0.5f + facing.getStepZ() * CARROT_XZ_OFFSET;
 
-		VertexConsumer consumer = buffer.getBuffer(RenderType.lines());
-		PoseStack.Pose pose = poseStack.last();
-		consumer.vertex(pose.pose(), x, STRING_TOP_Y, z)
-			.color(0.16f, 0.14f, 0.1f, 1.0f)
-			.normal(pose.normal(), 0.0f, -1.0f, 0.0f)
-			.endVertex();
-		consumer.vertex(pose.pose(), x, STRING_BOTTOM_Y, z)
-			.color(0.16f, 0.14f, 0.1f, 1.0f)
-			.normal(pose.normal(), 0.0f, -1.0f, 0.0f)
-			.endVertex();
+		poseStack.pushPose();
+		poseStack.translate(x, CARROT_CENTER_Y, z);
+		poseStack.mulPose(Axis.YP.rotationDegrees(carrotYRotation(facing)));
+		poseStack.scale(CARROT_FACE_SCALE, CARROT_FACE_SCALE, CARROT_THICKNESS_SCALE);
+
+		ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
+		BakedModel bakedModel = itemRenderer.getModel(CARROT, blockEntity.getLevel(), null, 0);
+		itemRenderer.render(CARROT, ItemDisplayContext.NONE, false, poseStack, buffer, packedLight, packedOverlay,
+			bakedModel);
+
+		poseStack.popPose();
+	}
+
+	private static float carrotYRotation(Direction facing) {
+		return switch (facing) {
+		case EAST -> 90;
+		case SOUTH -> 180;
+		case WEST -> 270;
+		default -> 0;
+		};
 	}
 }
