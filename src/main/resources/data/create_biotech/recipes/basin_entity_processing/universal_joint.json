@@ -1,0 +1,21 @@
+{
+  "type": "create_biotech:basin_entity_processing",
+  "operation": "pressing",
+  "ingredients": [
+    {
+      "item": "create_biotech:half_shaft"
+    },
+    {
+      "item": "create_biotech:half_shaft"
+    }
+  ],
+  "entity": {
+    "type": "minecraft:slime",
+    "slime_size": 1
+  },
+  "results": [
+    {
+      "item": "create_biotech:universal_joint"
+    }
+  ]
+}

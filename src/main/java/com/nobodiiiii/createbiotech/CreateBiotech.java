@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -22,6 +23,7 @@ public class CreateBiotech {
 		CBItems.register(modEventBus);
 		CBCreativeModeTabs.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
+		CBRecipeTypes.register(modEventBus);
 		CBPackets.register();
 		FixedCarrotFishingRodGoalHandler.register();
 	}

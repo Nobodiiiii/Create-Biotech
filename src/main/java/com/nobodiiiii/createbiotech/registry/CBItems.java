@@ -31,6 +31,9 @@ public class CBItems {
 	public static final RegistryObject<Item> POWER_BELT_CONNECTOR = ITEMS.register("power_belt_connector",
 		() -> new PowerBeltConnectorItem(new Item.Properties()));
 
+	public static final RegistryObject<Item> HALF_SHAFT = ITEMS.register("half_shaft",
+		() -> new Item(new Item.Properties()));
+
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
 
