@@ -281,6 +281,10 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		compound.putBoolean("IsController", isController());
 		compound.putInt("Length", beltLength);
 		compound.putInt("Index", index);
+		if (isController()) {
+			compound.putFloat("GeneratedSpeed", generatedSpeed);
+			compound.putFloat("GeneratedCapacity", generatedCapacity);
+		}
 		super.write(compound, clientPacket);
 	}
 
@@ -296,6 +300,14 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 				controller = NbtUtils.readBlockPos(compound.getCompound("Controller"));
 			index = compound.getInt("Index");
 			beltLength = compound.getInt("Length");
+		}
+
+		if (compound.contains("GeneratedSpeed")) {
+			generatedSpeed = compound.getFloat("GeneratedSpeed");
+			generatedCapacity = compound.getFloat("GeneratedCapacity");
+		} else if (isController() && !Mth.equal(lastCapacityProvided, 0) && !Mth.equal(getTheoreticalSpeed(), 0)) {
+			generatedSpeed = getTheoreticalSpeed();
+			generatedCapacity = lastCapacityProvided;
 		}
 	}
 
