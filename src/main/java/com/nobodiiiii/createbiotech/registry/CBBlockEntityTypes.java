@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
+import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
@@ -41,6 +42,12 @@ public class CBBlockEntityTypes {
 	public static final RegistryObject<BlockEntityType<UniversalJointBlockEntity>> UNIVERSAL_JOINT =
 		BLOCK_ENTITY_TYPES.register("universal_joint",
 			() -> BlockEntityType.Builder.of(UniversalJointBlockEntity::new, CBBlocks.UNIVERSAL_JOINT.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<FixedCarrotFishingRodBlockEntity>> FIXED_CARROT_FISHING_ROD =
+		BLOCK_ENTITY_TYPES.register("fixed_carrot_fishing_rod",
+			() -> BlockEntityType.Builder
+				.of(FixedCarrotFishingRodBlockEntity::new, CBBlocks.FIXED_CARROT_FISHING_ROD.get())
 				.build(null));
 
 	private CBBlockEntityTypes() {}

@@ -5,7 +5,6 @@
     "particle": "create:block/andesite_block",
     "andesite": "create:block/andesite_block",
     "wood": "minecraft:block/oak_planks",
-    "string": "minecraft:block/light_gray_wool",
     "carrot": "minecraft:item/carrot"
   },
   "elements": [
@@ -34,31 +33,11 @@
       }
     },
     {
-      "from": [7.5, -1, 0.5],
-      "to": [8.5, 7, 1.5],
-      "faces": {
-        "down": { "texture": "#string" },
-        "up": { "texture": "#string" },
-        "north": { "texture": "#string" },
-        "south": { "texture": "#string" },
-        "west": { "texture": "#string" },
-        "east": { "texture": "#string" }
-      }
-    },
-    {
-      "from": [4.5, -9, 0.95],
-      "to": [11.5, -1, 1.05],
+      "from": [4.5, -9, 0.5],
+      "to": [11.5, -1, 1.5],
       "faces": {
         "north": { "uv": [0, 0, 16, 16], "texture": "#carrot" },
         "south": { "uv": [0, 0, 16, 16], "texture": "#carrot" }
-      }
-    },
-    {
-      "from": [7.95, -9, -2.5],
-      "to": [8.05, -1, 4.5],
-      "faces": {
-        "west": { "uv": [0, 0, 16, 16], "texture": "#carrot" },
-        "east": { "uv": [0, 0, 16, 16], "texture": "#carrot" }
       }
     }
   ]
