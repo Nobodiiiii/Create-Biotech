@@ -21,8 +21,8 @@ import org.joml.Quaternionf;
 @OnlyIn(Dist.CLIENT)
 public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRenderer {
 	private static final int GUI_LIGHT = 15728880;
-	private static final float ANGLE_X = -0.75f;
-	private static final float ANGLE_Y = -0.6f;
+	private static final float ANGLE_X = 0.75f;
+	private static final float ANGLE_Y = 0.6f;
 
 	private static final IClientItemExtensions ITEM_EXTENSIONS = new IClientItemExtensions() {
 		private CapturedSmallSlimeJeiItemRenderer renderer;
@@ -36,7 +36,7 @@ public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRe
 	};
 
 	private final SlimeEntityDrawable slimeDrawable =
-		new SlimeEntityDrawable(16, 16, 10, 1, ANGLE_X, ANGLE_Y, -1, EntityType.SLIME);
+		new SlimeEntityDrawable(16, 16, 10, 2, ANGLE_X, ANGLE_Y, -1, EntityType.SLIME);
 
 	private CapturedSmallSlimeJeiItemRenderer() {
 		super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
@@ -64,7 +64,7 @@ public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRe
 		if (gui)
 			Lighting.setupForEntityInInventory();
 
-		renderAngledSlime(slime, poseStack, buffer, gui ? GUI_LIGHT : packedLight);
+		renderSlime(slime, poseStack, buffer, gui ? GUI_LIGHT : packedLight);
 
 		if (gui)
 			Lighting.setupFor3DItems();
@@ -74,16 +74,15 @@ public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRe
 	private static void applyTransform(ItemDisplayContext displayContext, PoseStack poseStack) {
 		if (displayContext == ItemDisplayContext.GUI) {
 			poseStack.translate(0.5f, 0.2f, 0.5f);
-			poseStack.scale(1.55f, 1.55f, -1.55f);
+			poseStack.scale(0.7f, 0.7f, -0.7f);
 			return;
 		}
-
 		poseStack.translate(0.5f, 0.45f, 0.5f);
 		float scale = displayContext == ItemDisplayContext.GROUND ? 0.75f : 0.55f;
 		poseStack.scale(scale, scale, -scale);
 	}
 
-	private static void renderAngledSlime(Slime slime, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+	private static void renderSlime(Slime slime, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
 		Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
 		Quaternionf camera = new Quaternionf().rotateX(ANGLE_Y * 20.0f * ((float) Math.PI / 180.0f));
 		pose.mul(camera);

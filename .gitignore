@@ -3,6 +3,7 @@
 build/
 run/
 out/
+bin/
 .minecraft/
 *.log
 
@@ -12,6 +13,7 @@ out/
 /.classpath
 /.project
 /.settings/
+/.eclipse/
 
 ref/Create/build/
 ref/Create/run/
