@@ -17,6 +17,7 @@
     "PowerBeltWalkAnimationMixin"
   ],
   "client": [
+    "client.BasinRendererMixin",
     "client.FlapStuffsMixin",
     "client.FunnelRendererMixin",
     "client.FunnelVisualMixin",

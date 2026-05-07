@@ -73,7 +73,7 @@ public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRe
 
 	private static void applyTransform(ItemDisplayContext displayContext, PoseStack poseStack) {
 		if (displayContext == ItemDisplayContext.GUI) {
-			poseStack.translate(0.5f, 1.0f, 0.5f);
+			poseStack.translate(0.5f, 0.2f, 0.5f);
 			poseStack.scale(1.55f, 1.55f, -1.55f);
 			return;
 		}
@@ -87,6 +87,7 @@ public class CapturedSmallSlimeJeiItemRenderer extends BlockEntityWithoutLevelRe
 		Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
 		Quaternionf camera = new Quaternionf().rotateX(ANGLE_Y * 20.0f * ((float) Math.PI / 180.0f));
 		pose.mul(camera);
+		pose.rotateZ((float) Math.PI);
 
 		float bodyRot = slime.yBodyRot;
 		float yRot = slime.getYRot();
