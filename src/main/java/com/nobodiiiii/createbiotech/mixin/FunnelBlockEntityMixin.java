@@ -1,6 +1,8 @@
 package com.nobodiiiii.createbiotech.mixin;
 
+import java.lang.ref.WeakReference;
 import java.util.List;
+import java.util.function.Predicate;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,21 +16,30 @@ import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessi
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
+import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
+import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.InvManipulationBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.VersionedInventoryTrackerBehaviour;
 import com.simibubi.create.foundation.item.ItemHelper.ExtractionCountMode;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.createmod.catnip.math.BlockFace;
+import net.createmod.catnip.math.VecHelper;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(FunnelBlockEntity.class)
 public abstract class FunnelBlockEntityMixin {
@@ -43,6 +54,14 @@ public abstract class FunnelBlockEntityMixin {
 
 	@Shadow(remap = false)
 	private int extractionCooldown;
+
+	@Shadow(remap = false)
+	private WeakReference<Entity> lastObserved;
+
+	@Shadow(remap = false)
+	private AABB getEntityOverflowScanningArea() {
+		throw new AssertionError();
+	}
 
 	@Inject(method = "tick()V", at = @At("HEAD"), remap = false)
 	private void createBiotech$captureSmallSlimeForBasin(CallbackInfo ci) {
@@ -107,6 +126,61 @@ public abstract class FunnelBlockEntityMixin {
 			cir.setReturnValue(true);
 	}
 
+	@Inject(method = "activateExtractor()V", at = @At("HEAD"), cancellable = true, remap = false)
+	private void createBiotech$extractCapturedSmallSlime(CallbackInfo ci) {
+		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
+		Level level = funnel.getLevel();
+		if (level == null || invVersionTracker.stillWaiting(invManipulation))
+			return;
+
+		BlockState blockState = funnel.getBlockState();
+		Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
+		if (facing == null)
+			return;
+
+		BasinBlockEntity basin = createBiotech$getTargetBasin(funnel);
+		if (basin == null || !BasinEntityProcessing.hasCapturedSmallSlimes(basin))
+			return;
+
+		int amountToExtract = funnel.getAmountToExtract();
+		ExtractionCountMode modeToExtract = funnel.getModeToExtract();
+		if (!invManipulation.simulate()
+			.extract(modeToExtract, amountToExtract)
+			.isEmpty())
+			return;
+		if (createBiotech$isExtractorOutputBlocked(funnel))
+			return;
+
+		ItemStack stack = BasinEntityProcessing.extractCapturedSmallSlimeItems(basin, modeToExtract, amountToExtract,
+			createBiotech$getFunnelFilter(funnel, extracted -> true), false);
+		if (stack.isEmpty())
+			return;
+
+		funnel.flap(false);
+		funnel.onTransfer(stack);
+
+		Vec3 outputPos = VecHelper.getCenterOf(funnel.getBlockPos());
+		boolean vertical = facing.getAxis()
+			.isVertical();
+		boolean up = facing == Direction.UP;
+
+		outputPos = outputPos.add(Vec3.atLowerCornerOf(facing.getNormal())
+			.scale(vertical ? up ? .15f : .5f : .25f));
+		if (!vertical)
+			outputPos = outputPos.subtract(0, .45f, 0);
+
+		Vec3 motion = up ? new Vec3(0, 4 / 16f, 0) : Vec3.ZERO;
+		ItemEntity item = new ItemEntity(level, outputPos.x, outputPos.y, outputPos.z, stack.copy());
+		item.setDefaultPickUpDelay();
+		item.setDeltaMovement(motion);
+		level.addFreshEntity(item);
+		lastObserved = new WeakReference<>(item);
+
+		extractionCooldown = AllConfigs.server()
+			.logistics.defaultExtractionTimer.get();
+		ci.cancel();
+	}
+
 	@Inject(method = "activateExtractingBeltFunnel()V", at = @At("HEAD"), cancellable = true, remap = false)
 	private void createBiotech$activateExtractingBeltFunnel(CallbackInfo ci) {
 		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
@@ -114,8 +188,15 @@ public abstract class FunnelBlockEntityMixin {
 			return;
 
 		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(funnel.getLevel(), funnel.getBlockPos());
-		if (support == null)
+		if (support == null) {
+			BlockState blockState = funnel.getBlockState();
+			DirectBeltInputBehaviour inputBehaviour =
+				BlockEntityBehaviour.get(funnel.getLevel(), funnel.getBlockPos().below(), DirectBeltInputBehaviour.TYPE);
+			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING),
+				inputBehaviour))
+				ci.cancel();
 			return;
+		}
 
 		ci.cancel();
 		if (invVersionTracker.stillWaiting(invManipulation))
@@ -142,6 +223,8 @@ public abstract class FunnelBlockEntityMixin {
 			return false;
 		});
 		if (stack.isEmpty()) {
+			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, insertSide, inputBehaviour))
+				return;
 			if (deniedByInsertion.isFalse())
 				invVersionTracker.awaitNewVersion(invManipulation.getInventory());
 			return;
@@ -162,6 +245,80 @@ public abstract class FunnelBlockEntityMixin {
 		} catch (ReflectiveOperationException exception) {
 			throw new IllegalStateException("Failed to resolve FunnelBlockEntity mode " + name, exception);
 		}
+	}
+
+	private boolean createBiotech$tryExtractCapturedSlimeToBelt(FunnelBlockEntity funnel, Direction insertSide,
+		DirectBeltInputBehaviour inputBehaviour) {
+		if (invVersionTracker.stillWaiting(invManipulation) || inputBehaviour == null)
+			return false;
+		if (!inputBehaviour.canInsertFromSide(insertSide))
+			return false;
+		if (inputBehaviour.isOccupied(insertSide))
+			return false;
+
+		BasinBlockEntity basin = createBiotech$getTargetBasin(funnel);
+		if (basin == null || !BasinEntityProcessing.hasCapturedSmallSlimes(basin))
+			return false;
+
+		int amountToExtract = funnel.getAmountToExtract();
+		ExtractionCountMode modeToExtract = funnel.getModeToExtract();
+		Predicate<ItemStack> insertionFilter = extracted -> inputBehaviour.handleInsertion(extracted, insertSide, true)
+			.isEmpty();
+		if (!invManipulation.simulate()
+			.extract(modeToExtract, amountToExtract, insertionFilter)
+			.isEmpty())
+			return false;
+
+		ItemStack stack = BasinEntityProcessing.extractCapturedSmallSlimeItems(basin, modeToExtract, amountToExtract,
+			createBiotech$getFunnelFilter(funnel, insertionFilter), false);
+		if (stack.isEmpty())
+			return false;
+
+		funnel.flap(false);
+		funnel.onTransfer(stack);
+		inputBehaviour.handleInsertion(stack, insertSide, false);
+		extractionCooldown = AllConfigs.server()
+			.logistics.defaultExtractionTimer.get();
+		return true;
+	}
+
+	private BasinBlockEntity createBiotech$getTargetBasin(FunnelBlockEntity funnel) {
+		Level level = funnel.getLevel();
+		if (level == null)
+			return null;
+
+		BlockFace targetFace = invManipulation.getTarget()
+			.getOpposite();
+		BlockPos targetPos = targetFace.getPos();
+		return level.getBlockEntity(targetPos) instanceof BasinBlockEntity basin ? basin : null;
+	}
+
+	private Predicate<ItemStack> createBiotech$getFunnelFilter(FunnelBlockEntity funnel,
+		Predicate<ItemStack> customFilter) {
+		FilteringBehaviour filtering = BlockEntityBehaviour.get(funnel.getLevel(), funnel.getBlockPos(),
+			FilteringBehaviour.TYPE);
+		return stack -> (filtering == null || filtering.test(stack)) && customFilter.test(stack);
+	}
+
+	private boolean createBiotech$isExtractorOutputBlocked(FunnelBlockEntity funnel) {
+		AABB area = getEntityOverflowScanningArea();
+		if (lastObserved != null) {
+			Entity lastEntity = lastObserved.get();
+			if (lastEntity != null && lastEntity.isAlive() && lastEntity.getBoundingBox()
+				.intersects(area))
+				return true;
+			lastObserved = null;
+		}
+
+		for (Entity entity : funnel.getLevel()
+			.getEntities(null, area)) {
+			if (entity instanceof ItemEntity || entity instanceof PackageEntity) {
+				lastObserved = new WeakReference<>(entity);
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static BlockFace createBiotech$getInventoryTarget(Level world, net.minecraft.core.BlockPos pos,

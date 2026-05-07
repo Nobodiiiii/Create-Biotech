@@ -34,6 +34,9 @@ public class CBItems {
 	public static final RegistryObject<Item> HALF_SHAFT = ITEMS.register("half_shaft",
 		() -> new Item(new Item.Properties()));
 
+	public static final RegistryObject<Item> CAPTURED_SMALL_SLIME = ITEMS.register("captured_small_slime",
+		() -> new Item(new Item.Properties().stacksTo(4)));
+
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
 
