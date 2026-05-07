@@ -5,17 +5,21 @@ import java.util.Collections;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
+import com.simibubi.create.content.logistics.funnel.FunnelBlock;
+import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
@@ -25,6 +29,7 @@ public class BasinEntityProcessing {
 	private static final double BASIN_INNER_MIN = 2 / 16d;
 	private static final double BASIN_INNER_MAX = 14 / 16d;
 	private static final double ENTITY_SCAN_HEIGHT = 1.25d;
+	private static final double BASIN_SLIME_Y_OFFSET = 0.125d;
 	private static final String DATA_ROOT = CreateBiotech.MOD_ID;
 	private static final String CAPTURED_TAG = "BasinEntityProcessingCaptured";
 	private static final String BASIN_POS_TAG = "BasinEntityProcessingBasinPos";
@@ -84,20 +89,66 @@ public class BasinEntityProcessing {
 			basinPos.getZ() + BASIN_INNER_MAX);
 	}
 
-	public static boolean handleSmallSlimeInBasin(Slime slime) {
+	public static boolean tryCaptureSmallSlimeFromFunnel(FunnelBlockEntity funnel) {
+		Level level = funnel.getLevel();
+		if (level == null || level.isClientSide)
+			return false;
+
+		BlockState blockState = funnel.getBlockState();
+		if (!(blockState.getBlock() instanceof FunnelBlock))
+			return false;
+		if (blockState.getOptionalValue(AbstractFunnelBlock.POWERED)
+			.orElse(false))
+			return false;
+		if (blockState.getValue(FunnelBlock.EXTRACTING))
+			return false;
+
+		Direction facing = AbstractFunnelBlock.getFunnelFacing(blockState);
+		if (facing == null || !facing.getAxis()
+			.isHorizontal())
+			return false;
+
+		BlockPos basinPos = funnel.getBlockPos()
+			.relative(facing.getOpposite());
+		if (!(level.getBlockEntity(basinPos) instanceof BasinBlockEntity basin))
+			return false;
+
+		Slime slime = findSmallSlimeInFrontOfFunnel(level, funnel.getBlockPos(), facing);
+		if (slime == null)
+			return false;
+
+		return captureSmallSlimeInBasin(basin, slime);
+	}
+
+	public static void tickCapturedSmallSlime(Slime slime) {
 		Level level = slime.level();
 		if (level.isClientSide)
-			return false;
+			return;
+
+		CompoundTag data = getExistingCreateBiotechData(slime);
+		if (data == null || !data.getBoolean(CAPTURED_TAG))
+			return;
 		if (slime.getSize() != 1) {
 			releaseCapturedSlime(slime);
-			return false;
+			return;
 		}
 
-		BlockPos basinPos = findContainingBasin(level, slime);
-		if (basinPos == null) {
+		BlockPos basinPos = BlockPos.of(data.getLong(BASIN_POS_TAG));
+		if (!(level.getBlockEntity(basinPos) instanceof BasinBlockEntity)
+			|| !isInBasinProcessingArea(slime, basinPos)) {
 			releaseCapturedSlime(slime);
-			return false;
+			return;
 		}
+
+		disableAiForSmallSlimeInBasin(level, basinPos, slime);
+	}
+
+	private static boolean captureSmallSlimeInBasin(BasinBlockEntity basin, Slime slime) {
+		Level level = basin.getLevel();
+		if (level == null || level.isClientSide || !slime.isAlive() || slime.getSize() != 1)
+			return false;
+
+		BlockPos basinPos = basin.getBlockPos();
 
 		CompoundTag data = getCreateBiotechData(slime);
 		boolean wasCaptured = data.getBoolean(CAPTURED_TAG);
@@ -109,9 +160,15 @@ public class BasinEntityProcessing {
 
 		data.putBoolean(CAPTURED_TAG, true);
 		data.putLong(BASIN_POS_TAG, basinPos.asLong());
+
+		Vec3 target = Vec3.atCenterOf(basinPos)
+			.add(0, BASIN_SLIME_Y_OFFSET - 0.5d, 0);
+		slime.stopRiding();
+		slime.moveTo(target.x, target.y, target.z, slime.getYRot(), slime.getXRot());
+		slime.fallDistance = 0;
 		disableAiForSmallSlimeInBasin(level, basinPos, slime);
 
-		if (changedBasin && level.getBlockEntity(basinPos) instanceof BasinBlockEntity basin)
+		if (changedBasin)
 			basin.notifyChangeOfContents();
 
 		return true;
@@ -131,20 +188,9 @@ public class BasinEntityProcessing {
 		return true;
 	}
 
-	private static BlockPos findContainingBasin(Level level, Slime slime) {
-		BlockPos entityPos = slime.blockPosition();
-		for (int yOffset = 0; yOffset >= -2; yOffset--) {
-			BlockPos basinPos = entityPos.offset(0, yOffset, 0);
-			BlockEntity blockEntity = level.getBlockEntity(basinPos);
-			if (blockEntity instanceof BasinBlockEntity && isInBasinProcessingArea(slime, basinPos))
-				return basinPos;
-		}
-		return null;
-	}
-
 	private static void releaseCapturedSlime(Slime slime) {
-		CompoundTag data = getCreateBiotechData(slime);
-		if (!data.getBoolean(CAPTURED_TAG))
+		CompoundTag data = getExistingCreateBiotechData(slime);
+		if (data == null || !data.getBoolean(CAPTURED_TAG))
 			return;
 
 		slime.setNoAi(data.getBoolean(PREVIOUS_NO_AI_TAG));
@@ -158,11 +204,36 @@ public class BasinEntityProcessing {
 	private static boolean canProcessEntity(Entity entity, BlockPos basinPos, BasinEntityProcessingRecipe recipe) {
 		if (!entity.isAlive() || entity instanceof Player)
 			return false;
+		if (entity instanceof Slime && !isCapturedInBasin(entity, basinPos))
+			return false;
 		if (!recipe.getEntityIngredient()
 			.test(entity))
 			return false;
 
 		return isInBasinProcessingArea(entity, basinPos);
+	}
+
+	private static boolean isCapturedInBasin(Entity entity, BlockPos basinPos) {
+		CompoundTag data = getExistingCreateBiotechData(entity);
+		if (data == null)
+			return false;
+		return data.getBoolean(CAPTURED_TAG) && data.getLong(BASIN_POS_TAG) == basinPos.asLong();
+	}
+
+	private static boolean isCaptured(Entity entity) {
+		CompoundTag data = getExistingCreateBiotechData(entity);
+		return data != null && data.getBoolean(CAPTURED_TAG);
+	}
+
+	private static Slime findSmallSlimeInFrontOfFunnel(Level level, BlockPos funnelPos, Direction facing) {
+		AABB bounds = getSmallSlimeCaptureBounds(funnelPos, facing);
+		List<Slime> slimes = level.getEntitiesOfClass(Slime.class, bounds,
+			slime -> slime.isAlive() && slime.getSize() == 1 && !isCaptured(slime));
+		return slimes.isEmpty() ? null : slimes.get(0);
+	}
+
+	private static AABB getSmallSlimeCaptureBounds(BlockPos funnelPos, Direction facing) {
+		return new AABB(funnelPos.relative(facing));
 	}
 
 	private static boolean isInBasinProcessingArea(Entity entity, BlockPos basinPos) {
@@ -216,5 +287,10 @@ public class BasinEntityProcessing {
 		if (!persistentData.contains(DATA_ROOT))
 			persistentData.put(DATA_ROOT, new CompoundTag());
 		return persistentData.getCompound(DATA_ROOT);
+	}
+
+	private static CompoundTag getExistingCreateBiotechData(Entity entity) {
+		CompoundTag persistentData = entity.getPersistentData();
+		return persistentData.contains(DATA_ROOT) ? persistentData.getCompound(DATA_ROOT) : null;
 	}
 }

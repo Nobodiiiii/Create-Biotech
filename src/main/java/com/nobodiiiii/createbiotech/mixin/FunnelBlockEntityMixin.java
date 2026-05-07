@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
@@ -42,6 +43,21 @@ public abstract class FunnelBlockEntityMixin {
 
 	@Shadow(remap = false)
 	private int extractionCooldown;
+
+	@Inject(method = "tick()V", at = @At("HEAD"), remap = false)
+	private void createBiotech$captureSmallSlimeForBasin(CallbackInfo ci) {
+		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
+		if (funnel.getLevel() == null || funnel.getLevel()
+			.isClientSide || extractionCooldown > 0)
+			return;
+
+		if (!BasinEntityProcessing.tryCaptureSmallSlimeFromFunnel(funnel))
+			return;
+
+		funnel.flap(true);
+		extractionCooldown = AllConfigs.server()
+			.logistics.defaultExtractionTimer.get();
+	}
 
 	@Inject(method = "determineCurrentMode()Lcom/simibubi/create/content/logistics/funnel/FunnelBlockEntity$Mode;",
 		at = @At("HEAD"), cancellable = true, remap = false)

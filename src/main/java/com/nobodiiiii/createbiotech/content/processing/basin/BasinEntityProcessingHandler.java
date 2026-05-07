@@ -16,6 +16,6 @@ public class BasinEntityProcessingHandler {
 	@SubscribeEvent
 	public static void onLivingTick(LivingEvent.LivingTickEvent event) {
 		if (event.getEntity() instanceof Slime slime && slime.tickCount % CHECK_INTERVAL == 0)
-			BasinEntityProcessing.handleSmallSlimeInBasin(slime);
+			BasinEntityProcessing.tickCapturedSmallSlime(slime);
 	}
 }
