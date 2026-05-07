@@ -28,6 +28,7 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -69,6 +70,8 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 	public static final Property<BeltSlope> SLOPE = BeltBlock.SLOPE;
 	public static final Property<BeltPart> PART = BeltBlock.PART;
 	public static final BooleanProperty CASING = BeltBlock.CASING;
+	private static final BlockPathTypes POWER_BELT_PATH_TYPE =
+		BlockPathTypes.create("CREATE_BIOTECH_POWER_BELT", 0.0F);
 
 	public PowerBeltBlock(Properties properties) {
 		super(properties);
@@ -250,9 +253,8 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 	}
 
 	@Override
-	public BlockPathTypes getBlockPathType(BlockState state, BlockGetter world, BlockPos pos,
-		net.minecraft.world.entity.Mob entity) {
-		return BlockPathTypes.RAIL;
+	public BlockPathTypes getBlockPathType(BlockState state, BlockGetter world, BlockPos pos, @Nullable Mob entity) {
+		return POWER_BELT_PATH_TYPE;
 	}
 
 	@Override
