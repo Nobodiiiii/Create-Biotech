@@ -13,13 +13,7 @@
       "item": "minecraft:redstone_torch"
     },
     "C": {
-      "type": "forge:partial_nbt",
-      "item": "create_biotech:cardboard_box",
-      "nbt": {
-        "CapturedEntity": {
-          "id": "minecraft:cat"
-        }
-      }
+      "item": "create_biotech:cardboard_box"
     }
   },
   "result": {

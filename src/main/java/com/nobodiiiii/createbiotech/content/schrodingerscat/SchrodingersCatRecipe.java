@@ -1,20 +1,27 @@
 package com.nobodiiiii.createbiotech.content.schrodingerscat;
 
+import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.level.Level;
 
 import com.google.gson.JsonObject;
 
 public class SchrodingersCatRecipe extends ShapedRecipe {
+
+	private static final Ingredient CAT_BOX_DISPLAY = createCatBoxDisplay();
 
 	public SchrodingersCatRecipe(ResourceLocation id, String group, int width, int height,
 		NonNullList<Ingredient> recipeItems, ItemStack result) {
@@ -22,8 +29,53 @@ public class SchrodingersCatRecipe extends ShapedRecipe {
 	}
 
 	@Override
+	public NonNullList<Ingredient> getIngredients() {
+		NonNullList<Ingredient> original = super.getIngredients();
+		NonNullList<Ingredient> display = NonNullList.create();
+		for (Ingredient ing : original) {
+			ItemStack[] items = ing.getItems();
+			if (items.length > 0 && items[0].is(CBItems.CARDBOARD_BOX.get()))
+				display.add(CAT_BOX_DISPLAY);
+			else
+				display.add(ing);
+		}
+		return display;
+	}
+
+	private static Ingredient createCatBoxDisplay() {
+		ItemStack catBox = new ItemStack(CBItems.CARDBOARD_BOX.get());
+		CompoundTag tag = catBox.getOrCreateTag();
+		CompoundTag entityData = new CompoundTag();
+		entityData.putString("id", "minecraft:cat");
+		tag.put("CapturedEntity", entityData);
+		tag.putString("CapturedEntityDescId", "entity.minecraft.cat");
+		return Ingredient.of(catBox);
+	}
+
+	@Override
+	public boolean matches(CraftingContainer inv, Level level) {
+		if (!super.matches(inv, level))
+			return false;
+		for (int i = 0; i < inv.getContainerSize(); i++) {
+			ItemStack stack = inv.getItem(i);
+			if (stack.is(CBItems.CARDBOARD_BOX.get()) && hasCatInBox(stack))
+				return true;
+		}
+		return false;
+	}
+
+	@Override
 	public RecipeSerializer<?> getSerializer() {
 		return CBRecipeTypes.SCHRODINGERS_CAT_SERIALIZER.get();
+	}
+
+	private static boolean hasCatInBox(ItemStack stack) {
+		if (!CardboardBoxItem.hasCapturedEntity(stack))
+			return false;
+		CompoundTag tag = stack.getTag();
+		if (tag == null)
+			return false;
+		return "minecraft:cat".equals(tag.getCompound("CapturedEntity").getString("id"));
 	}
 
 	public static class Serializer implements RecipeSerializer<SchrodingersCatRecipe> {
