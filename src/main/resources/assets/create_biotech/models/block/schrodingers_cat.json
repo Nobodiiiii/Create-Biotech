@@ -1,12 +1,23 @@
 {
-  "parent": "minecraft:block/cube",
-  "textures": {
-    "particle": "create:item/package/cardboard_particle",
-    "north": "create:item/package/cardboard",
-    "east": "create:item/package/cardboard",
-    "south": "create:item/package/cardboard",
-    "west": "create:item/package/cardboard",
-    "up": "create:item/package/cardboard",
-    "down": "create:item/package/cardboard"
-  }
+	"parent": "block/block",
+	"textures": {
+		"0": "create:block/cardboard_block_front",
+		"1": "create:block/cardboard_block_side",
+		"2": "create:block/cardboard_block_top",
+		"particle": "create:block/cardboard_block_side"
+	},
+	"elements": [
+		{
+			"from": [0, 0, 0],
+			"to": [16, 16, 16],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface": "north"},
+				"east": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "east"},
+				"south": {"uv": [0, 0, 16, 16], "texture": "#0", "cullface": "south"},
+				"west": {"uv": [0, 0, 16, 16], "texture": "#1", "cullface": "west"},
+				"up": {"uv": [0, 0, 16, 16], "rotation": 90, "texture": "#2", "cullface": "up"},
+				"down": {"uv": [0, 0, 16, 16], "rotation": 90, "texture": "#2", "cullface": "down"}
+			}
+		}
+	]
 }

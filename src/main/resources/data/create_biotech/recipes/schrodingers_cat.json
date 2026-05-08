@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:crafting_shaped",
+  "type": "create_biotech:schrodingers_cat",
   "pattern": [
     " I ",
     "RCR",

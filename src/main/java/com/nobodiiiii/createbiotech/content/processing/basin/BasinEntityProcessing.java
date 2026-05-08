@@ -32,6 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.IItemHandler;
 
 public class BasinEntityProcessing {
@@ -65,14 +66,14 @@ public class BasinEntityProcessing {
 
 		if (!extractIngredients(availableItems, recipe.getIngredients(), true))
 			return false;
-		if (!basin.acceptOutputs(copyResults(recipe), Collections.emptyList(), true))
+		if (!basin.acceptOutputs(copyResults(recipe), copyFluidResults(recipe), true))
 			return false;
 		if (test)
 			return true;
 
 		if (!extractIngredients(availableItems, recipe.getIngredients(), false))
 			return false;
-		if (!basin.acceptOutputs(copyResults(recipe), Collections.emptyList(), false))
+		if (!basin.acceptOutputs(copyResults(recipe), copyFluidResults(recipe), false))
 			return false;
 
 		entity.discard();
@@ -453,6 +454,14 @@ public class BasinEntityProcessing {
 	private static List<ItemStack> copyResults(BasinEntityProcessingRecipe recipe) {
 		List<ItemStack> results = new ArrayList<>();
 		for (ItemStack result : recipe.getRollableResults())
+			if (!result.isEmpty())
+				results.add(result.copy());
+		return results;
+	}
+
+	private static List<FluidStack> copyFluidResults(BasinEntityProcessingRecipe recipe) {
+		List<FluidStack> results = new ArrayList<>();
+		for (FluidStack result : recipe.getFluidResults())
 			if (!result.isEmpty())
 				results.add(result.copy());
 		return results;

@@ -7,7 +7,8 @@ import com.google.gson.JsonSyntaxException;
 import net.minecraft.network.FriendlyByteBuf;
 
 public enum BasinEntityProcessingOperation {
-	PRESSING("pressing");
+	PRESSING("pressing"),
+	MIXING("mixing");
 
 	private final String serializedName;
 

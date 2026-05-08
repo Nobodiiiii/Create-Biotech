@@ -1,12 +1,13 @@
 package com.nobodiiiii.createbiotech.content.processing.basin;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
-
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.FriendlyByteBuf;
@@ -20,6 +21,8 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public class BasinEntityProcessingRecipe implements Recipe<Container> {
 	private final ResourceLocation id;
@@ -27,14 +30,17 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 	private final NonNullList<Ingredient> ingredients;
 	private final BasinEntityIngredient entityIngredient;
 	private final NonNullList<ItemStack> results;
+	private final List<FluidStack> fluidResults;
 
 	public BasinEntityProcessingRecipe(ResourceLocation id, BasinEntityProcessingOperation operation,
-		NonNullList<Ingredient> ingredients, BasinEntityIngredient entityIngredient, NonNullList<ItemStack> results) {
+		NonNullList<Ingredient> ingredients, BasinEntityIngredient entityIngredient, NonNullList<ItemStack> results,
+		List<FluidStack> fluidResults) {
 		this.id = id;
 		this.operation = operation;
 		this.ingredients = ingredients;
 		this.entityIngredient = entityIngredient;
 		this.results = results;
+		this.fluidResults = fluidResults;
 	}
 
 	@Override
@@ -90,6 +96,10 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 		return results;
 	}
 
+	public List<FluidStack> getFluidResults() {
+		return fluidResults;
+	}
+
 	public static class Serializer implements RecipeSerializer<BasinEntityProcessingRecipe> {
 
 		@Override
@@ -113,10 +123,25 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 				if (!stack.isEmpty())
 					results.add(stack);
 			}
-			if (results.isEmpty())
-				throw new JsonSyntaxException("Basin entity processing recipes require at least one item result");
 
-			return new BasinEntityProcessingRecipe(id, operation, ingredients, entityIngredient, results);
+			List<FluidStack> fluidResults = new ArrayList<>();
+			if (GsonHelper.isValidNode(json, "fluid_results")) {
+				JsonArray fluidResultsJson = GsonHelper.getAsJsonArray(json, "fluid_results");
+				for (JsonElement element : fluidResultsJson) {
+					JsonObject fluidObj = element.getAsJsonObject();
+					ResourceLocation fluidId = new ResourceLocation(GsonHelper.getAsString(fluidObj, "fluid"));
+					int amount = GsonHelper.getAsInt(fluidObj, "amount");
+					net.minecraft.world.level.material.Fluid fluid = ForgeRegistries.FLUIDS.getValue(fluidId);
+					if (fluid == null)
+						throw new JsonSyntaxException("Unknown fluid: " + fluidId);
+					fluidResults.add(new FluidStack(fluid, amount));
+				}
+			}
+
+			if (results.isEmpty() && fluidResults.isEmpty())
+				throw new JsonSyntaxException("Basin entity processing recipes require at least one result");
+
+			return new BasinEntityProcessingRecipe(id, operation, ingredients, entityIngredient, results, fluidResults);
 		}
 
 		@Override
@@ -135,7 +160,12 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 			for (int i = 0; i < resultCount; i++)
 				results.add(buffer.readItem());
 
-			return new BasinEntityProcessingRecipe(id, operation, ingredients, entityIngredient, results);
+			List<FluidStack> fluidResults = new ArrayList<>();
+			int fluidResultCount = buffer.readVarInt();
+			for (int i = 0; i < fluidResultCount; i++)
+				fluidResults.add(FluidStack.readFromPacket(buffer));
+
+			return new BasinEntityProcessingRecipe(id, operation, ingredients, entityIngredient, results, fluidResults);
 		}
 
 		@Override
@@ -151,6 +181,10 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 			buffer.writeVarInt(recipe.results.size());
 			for (ItemStack stack : recipe.results)
 				buffer.writeItem(stack);
+
+			buffer.writeVarInt(recipe.fluidResults.size());
+			for (FluidStack fluidStack : recipe.fluidResults)
+				fluidStack.writeToPacket(buffer);
 		}
 	}
 }

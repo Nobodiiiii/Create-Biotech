@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessingRecipe;
+import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRecipe;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -20,6 +21,10 @@ public class CBRecipeTypes {
 	public static final RegistryObject<RecipeSerializer<BasinEntityProcessingRecipe>>
 		BASIN_ENTITY_PROCESSING_SERIALIZER = RECIPE_SERIALIZERS.register("basin_entity_processing",
 			BasinEntityProcessingRecipe.Serializer::new);
+
+	public static final RegistryObject<RecipeSerializer<SchrodingersCatRecipe>>
+		SCHRODINGERS_CAT_SERIALIZER = RECIPE_SERIALIZERS.register("schrodingers_cat",
+			SchrodingersCatRecipe.Serializer::new);
 
 	public static final RegistryObject<RecipeType<BasinEntityProcessingRecipe>> BASIN_ENTITY_PROCESSING_TYPE =
 		RECIPE_TYPES.register("basin_entity_processing",
