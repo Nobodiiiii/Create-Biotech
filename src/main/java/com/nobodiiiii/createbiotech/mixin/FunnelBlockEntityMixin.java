@@ -42,7 +42,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-@Mixin(FunnelBlockEntity.class)
+@Mixin(value = FunnelBlockEntity.class, priority = 1001)
 public abstract class FunnelBlockEntityMixin {
 
 	private static final String FUNNEL_MODE_CLASS = "com.simibubi.create.content.logistics.funnel.FunnelBlockEntity$Mode";
@@ -234,11 +234,20 @@ public abstract class FunnelBlockEntityMixin {
 			.logistics.defaultExtractionTimer.get();
 	}
 
+	private static volatile Class cachedModeClass;
+
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	private static Object getMode(String name) {
 		try {
-			Class enumClass = Class.forName(FUNNEL_MODE_CLASS);
-			return Enum.valueOf(enumClass, name);
+			Class modeClass = cachedModeClass;
+			if (modeClass == null) {
+				synchronized (FunnelBlockEntityMixin.class) {
+					modeClass = cachedModeClass;
+					if (modeClass == null)
+						cachedModeClass = modeClass = Class.forName(FUNNEL_MODE_CLASS);
+				}
+			}
+			return Enum.valueOf(modeClass, name);
 		} catch (ReflectiveOperationException exception) {
 			throw new IllegalStateException("Failed to resolve FunnelBlockEntity mode " + name, exception);
 		}

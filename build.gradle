@@ -69,6 +69,7 @@ repositories {
     maven { url = 'https://maven.ithundxr.dev/mirror' }
     maven { url = 'https://maven.minecraftforge.net/' }
     maven { url = 'https://maven.blamejared.com' }
+    maven { url = 'https://api.modrinth.com/maven' }
     mavenCentral()
 }
 
@@ -85,9 +86,12 @@ dependencies {
     modCompileOnly("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
     modCompileOnly("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
     modRuntimeOnly("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
+    modImplementation("io.github.llamalad7:mixinextras-forge:${mixinextras_version}")
+    compileOnly("io.github.llamalad7:mixinextras-common:${mixinextras_version}")
 
     if (!Boolean.getBoolean("idea.sync.active")) {
         annotationProcessor "org.spongepowered:mixin:0.8.5:processor"
+        annotationProcessor "io.github.llamalad7:mixinextras-common:${mixinextras_version}"
     }
 }
 

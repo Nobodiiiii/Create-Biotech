@@ -16,7 +16,7 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.wrapper.CombinedInvWrapper;
 
-@Mixin(BasinBlockEntity.class)
+@Mixin(value = BasinBlockEntity.class, priority = 1001)
 public abstract class BasinBlockEntityMixin {
 
 	@Shadow(remap = false)
