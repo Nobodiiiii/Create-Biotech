@@ -100,8 +100,18 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 					} else {
 						boolean isController = state.getBlock() instanceof CreeperBlastChamberBlock;
 						boolean isCasing = state.is(CBBlocks.EXPLOSION_PROOF_CASING.get());
-						if (!isController && !isCasing)
-							return false;
+						boolean isVerticalEdge = !isInnerX && !isInnerZ;
+						boolean isTopOrBottom = (y == 0 || y == 3);
+
+						if (isTopOrBottom || isVerticalEdge) {
+							if (!isController && !isCasing)
+								return false;
+						} else {
+							boolean isGlass = state.is(CBBlocks.BLAST_PROOF_GLASS.get())
+								|| state.is(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get());
+							if (!isController && !isCasing && !isGlass)
+								return false;
+						}
 					}
 				}
 			}

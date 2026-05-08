@@ -35,6 +35,10 @@
     {
       "type": "single",
       "resource": "create_biotech:block/explosion_proof_casing_side_connected"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/blast_proof_framed_glass_connected"
     }
   ]
 }
