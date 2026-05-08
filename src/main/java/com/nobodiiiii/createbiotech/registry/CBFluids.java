@@ -63,6 +63,7 @@ public class CBFluids {
 			LIQUID_LIVING_SLIME_TYPE,
 			LIQUID_LIVING_SLIME,
 			LIQUID_LIVING_SLIME_FLOWING)
+			.block(LIQUID_LIVING_SLIME_BLOCK)
 			.levelDecreasePerBlock(2)
 			.tickRate(60)
 			.slopeFindDistance(4)

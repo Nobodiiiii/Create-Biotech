@@ -8,12 +8,14 @@
     "BasinRecipeMixin",
     "BasinBlockEntityMixin",
     "BasinBlockMixin",
+    "BasinOperatingBlockEntityMixin",
     "BeltMovementHandlerMixin",
     "BeltFunnelBlockMixin",
     "BeltFunnelShapeMixin",
     "FunnelBlockMixin",
     "FunnelBlockEntityMixin",
     "MechanicalPressBlockEntityMixin",
+    "MechanicalMixerBlockEntityMixin",
     "PowerBeltWalkAnimationMixin"
   ],
   "client": [

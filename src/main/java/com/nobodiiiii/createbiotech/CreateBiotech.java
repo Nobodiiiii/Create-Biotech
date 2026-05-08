@@ -5,6 +5,7 @@ import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
+import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 
@@ -21,6 +22,7 @@ public class CreateBiotech {
 		IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 		CBBlocks.register(modEventBus);
 		CBItems.register(modEventBus);
+		CBFluids.register(modEventBus);
 		CBCreativeModeTabs.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
 		CBRecipeTypes.register(modEventBus);

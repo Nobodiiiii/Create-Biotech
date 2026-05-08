@@ -15,6 +15,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
@@ -63,6 +64,7 @@ public class CreateBiotechClient {
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), RenderType.cutout());
+				ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()

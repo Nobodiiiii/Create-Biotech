@@ -1,0 +1,15 @@
+{
+  "type": "create_biotech:basin_entity_processing",
+  "operation": "mixing",
+  "ingredients": [],
+  "entity": {
+    "type": "minecraft:slime"
+  },
+  "results": [],
+  "fluid_results": [
+    {
+      "fluid": "create_biotech:liquid_living_slime",
+      "amount": 250
+    }
+  ]
+}

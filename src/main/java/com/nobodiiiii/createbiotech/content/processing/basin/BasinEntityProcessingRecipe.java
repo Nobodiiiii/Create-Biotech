@@ -110,8 +110,6 @@ public class BasinEntityProcessingRecipe implements Recipe<Container> {
 			NonNullList<Ingredient> ingredients = NonNullList.create();
 			for (var element : GsonHelper.getAsJsonArray(json, "ingredients"))
 				ingredients.add(Ingredient.fromJson(element));
-			if (ingredients.isEmpty())
-				throw new JsonSyntaxException("Basin entity processing recipes require at least one item ingredient");
 
 			BasinEntityIngredient entityIngredient =
 				BasinEntityIngredient.fromJson(GsonHelper.getAsJsonObject(json, "entity"));
