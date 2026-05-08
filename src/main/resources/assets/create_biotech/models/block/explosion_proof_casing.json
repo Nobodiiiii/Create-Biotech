@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "create_biotech:block/explosion_proof_casing",
+    "side": "create_biotech:block/explosion_proof_casing_side"
+  }
+}

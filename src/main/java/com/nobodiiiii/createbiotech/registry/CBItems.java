@@ -54,6 +54,9 @@ public class CBItems {
 	public static final RegistryObject<Item> BIOTECH_REACTOR = ITEMS.register("biotech_reactor",
 		() -> new BlockItem(CBBlocks.BIOTECH_REACTOR.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
+		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {

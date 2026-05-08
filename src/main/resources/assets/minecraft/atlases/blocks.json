@@ -27,6 +27,14 @@
     {
       "type": "single",
       "resource": "create_biotech:block/universal_joint_endpoint_slime_overlay"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/explosion_proof_casing_connected"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/explosion_proof_casing_side_connected"
     }
   ]
 }

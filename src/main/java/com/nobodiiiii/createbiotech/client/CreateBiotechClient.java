@@ -20,6 +20,8 @@ import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
+import com.simibubi.create.foundation.block.connected.CTModel;
+import com.simibubi.create.foundation.block.connected.HorizontalCTBehaviour;
 
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -59,6 +61,7 @@ public class CreateBiotechClient {
 		SlimeBeltSpriteShifts.init();
 		MagmaBeltSpriteShifts.init();
 		PowerBeltSpriteShifts.init();
+		CBSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
 	}
@@ -72,6 +75,12 @@ public class CreateBiotechClient {
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("brass_belt_funnel"), SlimeBeltFunnelModel::new);
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("explosion_proof_casing"),
+					model -> new CTModel(model, new HorizontalCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
+						CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.EXPLOSION_PROOF_CASING.get(),
+				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE);
 			if (ModList.get()
 				.isLoaded("jei"))
 				ItemProperties.register(CBItems.CAPTURED_SMALL_SLIME.get(),

@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 import com.nobodiiiii.createbiotech.content.bioreactor.BiotechReactorBlock;
+import com.simibubi.create.content.decoration.encasing.CasingBlock;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -81,6 +82,14 @@ public class CBBlocks {
 				.strength(2.5f)
 				.mapColor(MapColor.METAL)
 				.noOcclusion()));
+
+	public static final RegistryObject<CasingBlock> EXPLOSION_PROOF_CASING =
+		BLOCKS.register("explosion_proof_casing",
+			() -> new CasingBlock(Block.Properties.of()
+				.sound(SoundType.NETHERITE_BLOCK)
+				.strength(50.0f, 1200.0f)
+				.requiresCorrectToolForDrops()
+				.mapColor(MapColor.COLOR_GRAY)));
 
 	private CBBlocks() {}
 
