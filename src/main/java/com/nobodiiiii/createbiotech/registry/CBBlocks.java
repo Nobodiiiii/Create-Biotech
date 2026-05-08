@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFis
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
+import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 
 import net.minecraft.world.level.block.Block;
@@ -63,6 +64,13 @@ public class CBBlocks {
 				.strength(0.4f)
 				.mapColor(MapColor.WOOD)
 				.noOcclusion()));
+
+	public static final RegistryObject<SchrodingersCatBlock> SCHRODINGERS_CAT =
+		BLOCKS.register("schrodingers_cat",
+			() -> new SchrodingersCatBlock(Block.Properties.of()
+				.sound(SoundType.WOOL)
+				.strength(0.8f)
+				.mapColor(MapColor.COLOR_BROWN)));
 
 	private CBBlocks() {}
 

@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "particle": "create:item/package/cardboard_particle",
+    "north": "create:item/package/cardboard",
+    "east": "create:item/package/cardboard",
+    "south": "create:item/package/cardboard",
+    "west": "create:item/package/cardboard",
+    "up": "create:item/package/cardboard",
+    "down": "create:item/package/cardboard"
+  }
+}

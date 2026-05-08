@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlockEntity;
+import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
@@ -32,6 +33,12 @@ public class CBBlockEntityTypes {
 	public static final RegistryObject<BlockEntityType<PowerBeltBlockEntity>> POWER_BELT =
 		BLOCK_ENTITY_TYPES.register("power_belt",
 			() -> BlockEntityType.Builder.of(PowerBeltBlockEntity::new, CBBlocks.POWER_BELT.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<SchrodingersCatBlockEntity>> SCHRODINGERS_CAT =
+		BLOCK_ENTITY_TYPES.register("schrodingers_cat",
+			() -> BlockEntityType.Builder
+				.of(SchrodingersCatBlockEntity::new, CBBlocks.SCHRODINGERS_CAT.get())
 				.build(null));
 
 	public static final RegistryObject<BlockEntityType<EvokerTankBlockEntity>> EVOKER_TANK =

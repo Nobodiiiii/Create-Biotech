@@ -13,5 +13,6 @@
   "block.create_biotech.universal_joint": "万向节",
   "item.create_biotech.universal_joint": "万向节",
   "item.create_biotech.cardboard_box": "纸箱",
-  "item.create_biotech.cardboard_box.filled": "装有 %s"
+  "item.create_biotech.cardboard_box.filled": "装有 %s",
+  "block.create_biotech.schrodingers_cat": "薛定谔的猫"
 }

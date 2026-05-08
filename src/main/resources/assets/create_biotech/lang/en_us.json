@@ -13,5 +13,6 @@
   "block.create_biotech.universal_joint": "Universal Joint",
   "item.create_biotech.universal_joint": "Universal Joint",
   "item.create_biotech.cardboard_box": "Cardboard Box",
-  "item.create_biotech.cardboard_box.filled": "Contains %s"
+  "item.create_biotech.cardboard_box.filled": "Contains %s",
+  "block.create_biotech.schrodingers_cat": "Schrödinger's Cat"
 }

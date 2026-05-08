@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " I ",
+    "RCR",
+    " R "
+  ],
+  "key": {
+    "I": {
+      "item": "minecraft:iron_sword"
+    },
+    "R": {
+      "item": "minecraft:redstone_torch"
+    },
+    "C": {
+      "item": "create_biotech:cardboard_box"
+    }
+  },
+  "result": {
+    "item": "create_biotech:schrodingers_cat"
+  }
+}
