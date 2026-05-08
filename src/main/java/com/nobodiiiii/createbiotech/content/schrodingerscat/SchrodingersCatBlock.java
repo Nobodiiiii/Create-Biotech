@@ -19,8 +19,12 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class SchrodingersCatBlock extends BaseEntityBlock {
+
+	private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 10, 14);
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
@@ -55,6 +59,11 @@ public class SchrodingersCatBlock extends BaseEntityBlock {
 	}
 
 	@Override
+	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return SHAPE;
+	}
+
+	@Override
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
 		return new SchrodingersCatBlockEntity(pos, state);
 	}
@@ -78,12 +87,12 @@ public class SchrodingersCatBlock extends BaseEntityBlock {
 		if (!(be instanceof SchrodingersCatBlockEntity cat))
 			return 0;
 
-		Direction facing = state.getValue(FACING);
-		Direction back = facing.getOpposite();
-		Direction left = facing.getCounterClockWise();
-		Direction right = facing.getClockWise();
+		Direction face = state.getValue(FACING);
+		Direction faceBack = face.getOpposite();
+		Direction left = face.getCounterClockWise();
+		Direction right = face.getClockWise();
 
-		if (side == back)
+		if (side == faceBack)
 			return cat.getSignalStrength();
 		if (side == left)
 			return cat.getLeftPulse() ? 15 : 0;
@@ -96,10 +105,10 @@ public class SchrodingersCatBlock extends BaseEntityBlock {
 	public boolean canConnectRedstone(BlockState state, BlockGetter world, BlockPos pos, Direction side) {
 		if (side == null)
 			return false;
-		Direction facing = state.getValue(FACING);
-		Direction back = facing.getOpposite();
-		Direction left = facing.getCounterClockWise();
-		Direction right = facing.getClockWise();
-		return side == back || side == left || side == right;
+		Direction face = state.getValue(FACING);
+		Direction faceBack = face.getOpposite();
+		Direction left = face.getCounterClockWise();
+		Direction right = face.getClockWise();
+		return side == faceBack || side == left || side == right;
 	}
 }

@@ -70,7 +70,8 @@ public class CBBlocks {
 			() -> new SchrodingersCatBlock(Block.Properties.of()
 				.sound(SoundType.WOOL)
 				.strength(0.8f)
-				.mapColor(MapColor.COLOR_BROWN)));
+				.mapColor(MapColor.COLOR_BROWN)
+				.noOcclusion()));
 
 	private CBBlocks() {}
 
