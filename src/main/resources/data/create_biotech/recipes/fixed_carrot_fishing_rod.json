@@ -1,14 +1,14 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "AC"
+    "AF"
   ],
   "key": {
     "A": {
       "item": "create:andesite_alloy"
     },
-    "C": {
-      "item": "minecraft:carrot_on_a_stick"
+    "F": {
+      "item": "minecraft:fishing_rod"
     }
   },
   "result": {

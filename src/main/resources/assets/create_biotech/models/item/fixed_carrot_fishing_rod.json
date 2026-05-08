@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/handheld_rod",
   "textures": {
-    "layer0": "create_biotech:item/fixed_carrot_fishing_rod"
+    "layer0": "minecraft:item/fishing_rod"
   }
 }

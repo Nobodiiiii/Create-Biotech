@@ -19,8 +19,6 @@ public class FixedCarrotFishingRodGoalHandler {
 			return;
 		if (!(event.getEntity() instanceof Animal animal))
 			return;
-		if (!FixedCarrotFishingRodTemptGoal.isTemptedByCarrot(animal))
-			return;
 		if (hasFixedCarrotFishingRodGoal(animal))
 			return;
 
