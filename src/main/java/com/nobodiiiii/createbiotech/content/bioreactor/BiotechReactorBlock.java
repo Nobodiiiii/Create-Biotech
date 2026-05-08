@@ -43,7 +43,8 @@ public class BiotechReactorBlock extends BaseEntityBlock {
 	@Override
 	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moved) {
 		super.onPlace(state, level, pos, oldState, moved);
-		BiotechReactorBlockEntity.checkStructure(level, pos);
+		if (level.getBlockEntity(pos) instanceof BiotechReactorBlockEntity be)
+			be.forceStructureCheck();
 	}
 
 	@Override
@@ -52,15 +53,15 @@ public class BiotechReactorBlock extends BaseEntityBlock {
 		if (level.isClientSide)
 			return InteractionResult.SUCCESS;
 
-		boolean valid = BiotechReactorBlockEntity.checkStructure(level, pos);
+		if (!(level.getBlockEntity(pos) instanceof BiotechReactorBlockEntity be))
+			return InteractionResult.PASS;
 
-		if (level.getBlockEntity(pos) instanceof BiotechReactorBlockEntity be) {
-			be.forceStructureCheck();
-		}
+		be.forceStructureCheck();
 
-		if (valid) {
+		if (be.isStructureValid()) {
 			player.displayClientMessage(
-				Component.translatable("block.create_biotech.biotech_reactor.status.formed"), true);
+				Component.translatable("block.create_biotech.biotech_reactor.status.formed",
+					be.getStructureSize(), be.getStructureSize()), true);
 		} else {
 			player.displayClientMessage(
 				Component.translatable("block.create_biotech.biotech_reactor.status.not_formed"), true);
