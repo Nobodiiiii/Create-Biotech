@@ -10,8 +10,10 @@ import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.simibubi.create.content.decoration.encasing.CasingBlock;
+import com.simibubi.create.content.decoration.palettes.ConnectedGlassBlock;
 
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.GlassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -90,6 +92,22 @@ public class CBBlocks {
 				.strength(50.0f, 1200.0f)
 				.requiresCorrectToolForDrops()
 				.mapColor(MapColor.COLOR_GRAY)));
+
+	public static final RegistryObject<GlassBlock> BLAST_PROOF_GLASS =
+		BLOCKS.register("blast_proof_glass",
+			() -> new GlassBlock(Block.Properties.of()
+				.sound(SoundType.GLASS)
+				.strength(50.0f, 1200.0f)
+				.noOcclusion()
+				.mapColor(MapColor.NONE)));
+
+	public static final RegistryObject<ConnectedGlassBlock> BLAST_PROOF_FRAMED_GLASS =
+		BLOCKS.register("blast_proof_framed_glass",
+			() -> new ConnectedGlassBlock(Block.Properties.of()
+				.sound(SoundType.GLASS)
+				.strength(50.0f, 1200.0f)
+				.noOcclusion()
+				.mapColor(MapColor.NONE)));
 
 	private CBBlocks() {}
 

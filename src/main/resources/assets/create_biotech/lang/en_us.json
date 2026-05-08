@@ -17,6 +17,8 @@
   "block.create_biotech.schrodingers_cat": "Schrodinger's Cat",
   "block.create_biotech.creeper_blast_chamber": "Creeper Blast Chamber",
   "block.create_biotech.explosion_proof_casing": "Explosion-Proof Casing",
+  "block.create_biotech.blast_proof_glass": "Blast-Proof Glass",
+  "block.create_biotech.blast_proof_framed_glass": "Blast-Proof Framed Glass",
   "block.create_biotech.creeper_blast_chamber.status.formed": "Chamber formed! Size: %sx%s. Ready for detonation.",
   "block.create_biotech.creeper_blast_chamber.status.not_formed": "Structure incomplete. Requires an explosion-proof casing frame (3x3 to 5x5) with a Mechanical Press facing down on top center and Packers on the bottom center.",
   "block.create_biotech.liquid_living_slime": "Liquid Living Slime",

@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "create_biotech:block/blast_proof_glass"
+    }
+  }
+}

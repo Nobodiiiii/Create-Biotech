@@ -57,6 +57,12 @@ public class CBItems {
 	public static final RegistryObject<Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> BLAST_PROOF_GLASS = ITEMS.register("blast_proof_glass",
+		() -> new BlockItem(CBBlocks.BLAST_PROOF_GLASS.get(), new Item.Properties()));
+
+	public static final RegistryObject<Item> BLAST_PROOF_FRAMED_GLASS = ITEMS.register("blast_proof_framed_glass",
+		() -> new BlockItem(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get(), new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {

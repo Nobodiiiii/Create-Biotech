@@ -22,6 +22,7 @@ import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.foundation.block.connected.CTModel;
 import com.simibubi.create.foundation.block.connected.HorizontalCTBehaviour;
+import com.simibubi.create.foundation.block.connected.SimpleCTBehaviour;
 
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
@@ -70,6 +71,8 @@ public class CreateBiotechClient {
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), RenderType.cutout());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_GLASS.get(), RenderType.cutout());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get(), RenderType.cutout());
 				ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
@@ -79,6 +82,9 @@ public class CreateBiotechClient {
 				.register(CreateBiotech.asResource("explosion_proof_casing"),
 					model -> new CTModel(model, new HorizontalCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
 						CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("blast_proof_framed_glass"),
+					model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
 			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.EXPLOSION_PROOF_CASING.get(),
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE);
 			if (ModList.get()
