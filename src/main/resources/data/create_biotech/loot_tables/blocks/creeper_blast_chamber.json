@@ -6,7 +6,7 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "create_biotech:biotech_reactor"
+          "name": "create_biotech:creeper_blast_chamber"
         }
       ],
       "conditions": [

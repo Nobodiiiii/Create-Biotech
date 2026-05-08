@@ -8,7 +8,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
-import com.nobodiiiii.createbiotech.content.bioreactor.BiotechReactorBlock;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.simibubi.create.content.decoration.encasing.CasingBlock;
 
 import net.minecraft.world.level.block.Block;
@@ -75,9 +75,9 @@ public class CBBlocks {
 				.mapColor(MapColor.COLOR_BROWN)
 				.noOcclusion()));
 
-	public static final RegistryObject<BiotechReactorBlock> BIOTECH_REACTOR =
-		BLOCKS.register("biotech_reactor",
-			() -> new BiotechReactorBlock(Block.Properties.of()
+	public static final RegistryObject<CreeperBlastChamberBlock> CREEPER_BLAST_CHAMBER =
+		BLOCKS.register("creeper_blast_chamber",
+			() -> new CreeperBlastChamberBlock(Block.Properties.of()
 				.sound(SoundType.COPPER)
 				.strength(2.5f)
 				.mapColor(MapColor.METAL)

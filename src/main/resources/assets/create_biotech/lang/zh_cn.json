@@ -15,10 +15,10 @@
   "item.create_biotech.cardboard_box": "纸箱",
   "item.create_biotech.cardboard_box.filled": "装有 %s",
   "block.create_biotech.schrodingers_cat": "薛定谔的猫",
-  "block.create_biotech.biotech_reactor": "生物反应器",
+  "block.create_biotech.creeper_blast_chamber": "苦力怕爆破室",
   "block.create_biotech.explosion_proof_casing": "防爆机壳",
-  "block.create_biotech.biotech_reactor.status.formed": "结构已成型！尺寸：%sx%s。反应器正在运转。",
-  "block.create_biotech.biotech_reactor.status.not_formed": "结构不完整。需要黄铜机壳框架（3x3至5x5），顶面中心放置同向动力辊压机。",
+  "block.create_biotech.creeper_blast_chamber.status.formed": "结构已成型！尺寸：%sx%s。准备引爆。",
+  "block.create_biotech.creeper_blast_chamber.status.not_formed": "结构不完整。需要防爆机壳框架（3x3至5x5），顶面中心放置朝下的动力辊压机，底面中心放置打包机。",
   "block.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "fluid_type.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "item.create_biotech.liquid_living_slime_bucket": "液态活体史莱姆桶"

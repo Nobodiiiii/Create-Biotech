@@ -1,8 +1,9 @@
-package com.nobodiiiii.createbiotech.content.bioreactor;
+package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
 import javax.annotation.Nullable;
 
 import com.simibubi.create.AllBlocks;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.createmod.catnip.animation.LerpedFloat;
@@ -13,7 +14,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-public class BiotechReactorBlockEntity extends BlockEntity {
+public class CreeperBlastChamberBlockEntity extends BlockEntity {
 
 	private static final int MIN_SIZE = 3;
 	private static final int MAX_SIZE = 5;
@@ -24,12 +25,12 @@ public class BiotechReactorBlockEntity extends BlockEntity {
 	private BlockPos structureOrigin;
 	private int recheckTimer;
 
-	public BiotechReactorBlockEntity(BlockPos pos, BlockState state) {
-		super(CBBlockEntityTypes.BIOTECH_REACTOR.get(), pos, state);
+	public CreeperBlastChamberBlockEntity(BlockPos pos, BlockState state) {
+		super(CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get(), pos, state);
 		gauge.startWithValue(0);
 	}
 
-	public static void tick(Level level, BlockPos pos, BlockState state, BiotechReactorBlockEntity be) {
+	public static void tick(Level level, BlockPos pos, BlockState state, CreeperBlastChamberBlockEntity be) {
 		if (level.isClientSide) {
 			float target = be.structureValid ? (float) be.structureSize / MAX_SIZE : 0f;
 			be.gauge.chase(target, 0.125f, Chaser.EXP);
@@ -64,13 +65,11 @@ public class BiotechReactorBlockEntity extends BlockEntity {
 
 	@Nullable
 	private static BlockPos findOrigin(Level level, BlockPos controllerPos, int size) {
-		for (int dy = 0; dy < 4; dy++) {
-			for (int dx = 0; dx < size; dx++) {
-				for (int dz = 0; dz < size; dz++) {
-					BlockPos origin = controllerPos.offset(-dx, -dy, -dz);
-					if (verifyStructure(level, origin, size))
-						return origin;
-				}
+		for (int dx = 0; dx < size; dx++) {
+			for (int dz = 0; dz < size; dz++) {
+				BlockPos origin = controllerPos.offset(-dx, 0, -dz);
+				if (verifyStructure(level, origin, size))
+					return origin;
 			}
 		}
 		return null;
@@ -95,10 +94,13 @@ public class BiotechReactorBlockEntity extends BlockEntity {
 					} else if (isCenter && (y == 1 || y == 2)) {
 						if (!state.isAir())
 							return false;
+					} else if (isCenter && y == 0) {
+						if (!AllBlocks.PACKAGER.has(state))
+							return false;
 					} else {
-						boolean isController = state.getBlock() instanceof BiotechReactorBlock;
-						boolean isBrass = AllBlocks.BRASS_CASING.has(state);
-						if (!isController && !isBrass)
+						boolean isController = state.getBlock() instanceof CreeperBlastChamberBlock;
+						boolean isCasing = state.is(CBBlocks.EXPLOSION_PROOF_CASING.get());
+						if (!isController && !isCasing)
 							return false;
 					}
 				}

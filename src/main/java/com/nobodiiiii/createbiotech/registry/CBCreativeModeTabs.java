@@ -31,7 +31,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.CARDBOARD_BOX.get());
 				output.accept(CBItems.SCHRODINGERS_CAT.get());
 				output.accept(CBItems.FIXED_CARROT_FISHING_ROD.get());
-				output.accept(CBItems.BIOTECH_REACTOR.get());
+				output.accept(CBItems.CREEPER_BLAST_CHAMBER.get());
 				output.accept(CBItems.EXPLOSION_PROOF_CASING.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 			})

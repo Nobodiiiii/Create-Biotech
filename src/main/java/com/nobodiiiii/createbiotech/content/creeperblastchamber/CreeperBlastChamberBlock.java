@@ -1,4 +1,4 @@
-package com.nobodiiiii.createbiotech.content.bioreactor;
+package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
@@ -16,9 +16,9 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class BiotechReactorBlock extends BaseEntityBlock {
+public class CreeperBlastChamberBlock extends BaseEntityBlock {
 
-	public BiotechReactorBlock(Properties properties) {
+	public CreeperBlastChamberBlock(Properties properties) {
 		super(properties);
 	}
 
@@ -29,21 +29,21 @@ public class BiotechReactorBlock extends BaseEntityBlock {
 
 	@Override
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-		return new BiotechReactorBlockEntity(pos, state);
+		return new CreeperBlastChamberBlockEntity(pos, state);
 	}
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
 																	BlockEntityType<T> type) {
-		return createTickerHelper(type, CBBlockEntityTypes.BIOTECH_REACTOR.get(),
-			BiotechReactorBlockEntity::tick);
+		return createTickerHelper(type, CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get(),
+			CreeperBlastChamberBlockEntity::tick);
 	}
 
 	@Override
 	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moved) {
 		super.onPlace(state, level, pos, oldState, moved);
-		if (level.getBlockEntity(pos) instanceof BiotechReactorBlockEntity be)
+		if (level.getBlockEntity(pos) instanceof CreeperBlastChamberBlockEntity be)
 			be.forceStructureCheck();
 	}
 
@@ -53,18 +53,18 @@ public class BiotechReactorBlock extends BaseEntityBlock {
 		if (level.isClientSide)
 			return InteractionResult.SUCCESS;
 
-		if (!(level.getBlockEntity(pos) instanceof BiotechReactorBlockEntity be))
+		if (!(level.getBlockEntity(pos) instanceof CreeperBlastChamberBlockEntity be))
 			return InteractionResult.PASS;
 
 		be.forceStructureCheck();
 
 		if (be.isStructureValid()) {
 			player.displayClientMessage(
-				Component.translatable("block.create_biotech.biotech_reactor.status.formed",
+				Component.translatable("block.create_biotech.creeper_blast_chamber.status.formed",
 					be.getStructureSize(), be.getStructureSize()), true);
 		} else {
 			player.displayClientMessage(
-				Component.translatable("block.create_biotech.biotech_reactor.status.not_formed"), true);
+				Component.translatable("block.create_biotech.creeper_blast_chamber.status.not_formed"), true);
 		}
 
 		return InteractionResult.SUCCESS;

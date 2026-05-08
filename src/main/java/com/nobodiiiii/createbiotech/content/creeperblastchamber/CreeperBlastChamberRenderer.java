@@ -1,4 +1,4 @@
-package com.nobodiiiii.createbiotech.content.bioreactor;
+package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -13,12 +13,12 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.block.state.BlockState;
 
-public class BiotechReactorRenderer implements BlockEntityRenderer<BiotechReactorBlockEntity> {
+public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperBlastChamberBlockEntity> {
 
-	public BiotechReactorRenderer(BlockEntityRendererProvider.Context context) {}
+	public CreeperBlastChamberRenderer(BlockEntityRendererProvider.Context context) {}
 
 	@Override
-	public void render(BiotechReactorBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
+	public void render(CreeperBlastChamberBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
 					   int light, int overlay) {
 		float progress = be.gauge.getValue(partialTicks);
 		if (progress <= 0.01f)

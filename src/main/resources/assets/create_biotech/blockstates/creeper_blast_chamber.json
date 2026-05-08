@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "create_biotech:block/creeper_blast_chamber" }
+  }
+}
