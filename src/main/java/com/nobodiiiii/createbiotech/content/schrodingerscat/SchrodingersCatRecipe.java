@@ -1,21 +1,16 @@
 package com.nobodiiiii.createbiotech.content.schrodingerscat;
 
-import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.ShapedRecipe;
-import net.minecraft.world.level.Level;
 
 import com.google.gson.JsonObject;
 
@@ -27,34 +22,8 @@ public class SchrodingersCatRecipe extends ShapedRecipe {
 	}
 
 	@Override
-	public boolean matches(CraftingContainer inv, Level level) {
-		boolean hasCatBox = false;
-		for (int i = 0; i < inv.getContainerSize(); i++) {
-			ItemStack stack = inv.getItem(i);
-			if (stack.is(CBItems.CARDBOARD_BOX.get()) && hasCatInBox(stack)) {
-				hasCatBox = true;
-				break;
-			}
-		}
-		if (!hasCatBox)
-			return false;
-		return super.matches(inv, level);
-	}
-
-	@Override
 	public RecipeSerializer<?> getSerializer() {
 		return CBRecipeTypes.SCHRODINGERS_CAT_SERIALIZER.get();
-	}
-
-	private static boolean hasCatInBox(ItemStack stack) {
-		if (!CardboardBoxItem.hasCapturedEntity(stack))
-			return false;
-		CompoundTag tag = stack.getTag();
-		if (tag == null)
-			return false;
-		CompoundTag entityData = tag.getCompound("CapturedEntity");
-		String id = entityData.getString("id");
-		return "minecraft:cat".equals(id);
 	}
 
 	public static class Serializer implements RecipeSerializer<SchrodingersCatRecipe> {

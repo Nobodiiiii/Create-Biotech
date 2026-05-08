@@ -16,6 +16,6 @@
   "item.create_biotech.cardboard_box.filled": "Contains %s",
   "block.create_biotech.schrodingers_cat": "Schrödinger's Cat",
   "block.create_biotech.liquid_living_slime": "Liquid Living Slime",
-  "fluid.create_biotech.liquid_living_slime": "Liquid Living Slime",
+  "fluid_type.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "item.create_biotech.liquid_living_slime_bucket": "Liquid Living Slime Bucket"
 }
