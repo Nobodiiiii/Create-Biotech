@@ -27,8 +27,10 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -159,6 +161,8 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 	}
 
 	private static void captureSurfaceMovement(BlockState state, Level level, BlockPos pos, Entity entity) {
+		if (entity instanceof ItemEntity || entity instanceof ExperienceOrb)
+			return;
 		if (!isPowerBelt(state) || state.getValue(SLOPE) != BeltSlope.HORIZONTAL)
 			return;
 		if (!isEntityOnBeltSurface(pos, entity))
