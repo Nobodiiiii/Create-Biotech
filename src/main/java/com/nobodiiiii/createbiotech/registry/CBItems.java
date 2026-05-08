@@ -51,6 +51,9 @@ public class CBItems {
 	public static final RegistryObject<Item> FIXED_CARROT_FISHING_ROD = ITEMS.register("fixed_carrot_fishing_rod",
 		() -> new BlockItem(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> BIOTECH_REACTOR = ITEMS.register("biotech_reactor",
+		() -> new BlockItem(CBBlocks.BIOTECH_REACTOR.get(), new Item.Properties()));
+
 	private CBItems() {}
 
 	public static void register(IEventBus modEventBus) {

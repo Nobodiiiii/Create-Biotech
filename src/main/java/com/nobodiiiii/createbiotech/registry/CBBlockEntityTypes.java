@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlockEntity;
+import com.nobodiiiii.createbiotech.content.bioreactor.BiotechReactorBlockEntity;
 
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -55,6 +56,12 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("fixed_carrot_fishing_rod",
 			() -> BlockEntityType.Builder
 				.of(FixedCarrotFishingRodBlockEntity::new, CBBlocks.FIXED_CARROT_FISHING_ROD.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<BiotechReactorBlockEntity>> BIOTECH_REACTOR =
+		BLOCK_ENTITY_TYPES.register("biotech_reactor",
+			() -> BlockEntityType.Builder
+				.of(BiotechReactorBlockEntity::new, CBBlocks.BIOTECH_REACTOR.get())
 				.build(null));
 
 	private CBBlockEntityTypes() {}

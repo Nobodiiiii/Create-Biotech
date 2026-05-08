@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
+import com.nobodiiiii.createbiotech.content.bioreactor.BiotechReactorBlock;
 
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
@@ -71,6 +72,14 @@ public class CBBlocks {
 				.sound(SoundType.WOOL)
 				.strength(0.8f)
 				.mapColor(MapColor.COLOR_BROWN)
+				.noOcclusion()));
+
+	public static final RegistryObject<BiotechReactorBlock> BIOTECH_REACTOR =
+		BLOCKS.register("biotech_reactor",
+			() -> new BiotechReactorBlock(Block.Properties.of()
+				.sound(SoundType.COPPER)
+				.strength(2.5f)
+				.mapColor(MapColor.METAL)
 				.noOcclusion()));
 
 	private CBBlocks() {}

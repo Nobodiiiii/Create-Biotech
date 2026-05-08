@@ -15,6 +15,9 @@
   "item.create_biotech.cardboard_box": "纸箱",
   "item.create_biotech.cardboard_box.filled": "装有 %s",
   "block.create_biotech.schrodingers_cat": "薛定谔的猫",
+  "block.create_biotech.biotech_reactor": "生物反应器",
+  "block.create_biotech.biotech_reactor.status.formed": "结构已成型！反应器正在运转。",
+  "block.create_biotech.biotech_reactor.status.not_formed": "结构不完整。需要3x3x4黄铜机壳框架，顶面中心放置动力辊压机。",
   "block.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "fluid_type.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "item.create_biotech.liquid_living_slime_bucket": "液态活体史莱姆桶"

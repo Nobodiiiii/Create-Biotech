@@ -15,6 +15,9 @@
   "item.create_biotech.cardboard_box": "Cardboard Box",
   "item.create_biotech.cardboard_box.filled": "Contains %s",
   "block.create_biotech.schrodingers_cat": "Schrödinger's Cat",
+  "block.create_biotech.biotech_reactor": "Biotech Reactor",
+  "block.create_biotech.biotech_reactor.status.formed": "Structure formed! The reactor is humming.",
+  "block.create_biotech.biotech_reactor.status.not_formed": "Structure incomplete. Requires a 3x3x4 brass casing frame with Mechanical Press on top center.",
   "block.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "fluid_type.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "item.create_biotech.liquid_living_slime_bucket": "Liquid Living Slime Bucket"
