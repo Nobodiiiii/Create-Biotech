@@ -14,7 +14,7 @@
 			"uvlock": true
 		},
 		"axis=x,axis_along_first=false,part=start": {
-			"model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+			"model": "create_biotech:block/blast_proof_chain_drive/end_horizontal_start_axis_x",
 			"x": 180,
 			"uvlock": true
 		},
@@ -34,7 +34,7 @@
 			"uvlock": true
 		},
 		"axis=x,axis_along_first=true,part=start": {
-			"model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+			"model": "create_biotech:block/blast_proof_chain_drive/end_horizontal_start_axis_x",
 			"x": 270,
 			"uvlock": true
 		},
