@@ -176,11 +176,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			BlockPos edge2Pos = pressPos.relative(towardEdge2, distFromPressToEdge)
 				.relative(alongEdge, i);
 			if (!level.getBlockState(edge1Pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
-				level.setBlock(edge1Pos,
-					chainState.setValue(BlastProofChainDriveBlock.VISUAL_SIDE, towardEdge1), 3);
+				level.setBlock(edge1Pos, chainState, 3);
 			if (!level.getBlockState(edge2Pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
-				level.setBlock(edge2Pos,
-					chainState.setValue(BlastProofChainDriveBlock.VISUAL_SIDE, towardEdge2), 3);
+				level.setBlock(edge2Pos, chainState, 3);
 		}
 
 		for (int i = -perSide / 2; i <= perSide / 2; i++) {
@@ -188,8 +186,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 				.relative(alongEdge, i);
 			BlockPos edge2Pos = pressPos.relative(towardEdge2, distFromPressToEdge)
 				.relative(alongEdge, i);
-			updateChainDriveState(level, edge1Pos, axis, alongEdgeAxis, towardEdge1);
-			updateChainDriveState(level, edge2Pos, axis, alongEdgeAxis, towardEdge2);
+			updateChainDriveState(level, edge1Pos, axis, alongEdgeAxis);
+			updateChainDriveState(level, edge2Pos, axis, alongEdgeAxis);
 		}
 	}
 
@@ -216,15 +214,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			level.setBlock(pos, CBBlocks.EXPLOSION_PROOF_CASING.get().defaultBlockState(), 3);
 	}
 
-	private void updateChainDriveState(Level level, BlockPos pos, Axis axis, Axis alongEdgeAxis, Direction visualSide) {
+	private void updateChainDriveState(Level level, BlockPos pos, Axis axis, Axis alongEdgeAxis) {
 		BlockState state = level.getBlockState(pos);
 		if (!state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
 			return;
 		ChainDriveBlock chainDrive = (ChainDriveBlock) CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get();
 		boolean alongFirst = axis == Axis.Z && alongEdgeAxis == Axis.X;
 		BlockState updated = state.setValue(BlockStateProperties.AXIS, axis)
-			.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, alongFirst)
-			.setValue(BlastProofChainDriveBlock.VISUAL_SIDE, visualSide);
+			.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, alongFirst);
 		for (Direction facing : Iterate.directions) {
 			if (facing.getAxis() == axis)
 				continue;
