@@ -522,8 +522,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			readyOutputList.add(readyOutput.write());
 		tag.put(READY_OUTPUTS_TAG, readyOutputList);
 		ListTag markedCreeperList = new ListTag();
-		for (TrackedMarkedCreeper tracked : getTrackedMarkedCreepers())
-			markedCreeperList.add(tracked.write());
+		for (Map.Entry<UUID, BlockPos> entry : syncedMarkedCreepers.entrySet())
+			markedCreeperList.add(new TrackedMarkedCreeper(entry.getKey(), entry.getValue()).write());
 		tag.put(MARKED_CREEPERS_TAG, markedCreeperList);
 		if (structureOrigin != null) {
 			tag.putInt("OriginX", structureOrigin.getX());
@@ -975,8 +975,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			packager.notifyUpdate();
 			packager.setChanged();
 			Creeper creeper = findMarkedCreeperByUuid(pending.creeperUuid, pending.packagerPos);
-			if (creeper != null)
+			if (creeper != null) {
+				removeTrackedMarkedCreeper(creeper.getUUID());
 				creeper.discard();
+			}
 			readyOutputs.add(new ReadyOutput(pending.packagerPos, pending.boxStack.copy(), READY_OUTPUT_TIMEOUT));
 			iterator.remove();
 			changed = true;
@@ -1142,23 +1144,26 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return;
 
 		double x = packagerPos.getX() + 0.5d;
-		double y = packagerPos.getY() + 1.0d;
+		double y = packagerPos.getY() + 1.15d;
 		double z = packagerPos.getZ() + 0.5d;
 
-		level.addParticle(ParticleTypes.EXPLOSION, x, y, z, 0, 0, 0);
+		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION_EMITTER, true, x, y, z, 0, 0, 0);
+		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, y, z, 0, 0, 0);
 
 		for (int i = 0; i < 6; i++) {
-			double velocityX = (level.random.nextDouble() - 0.5d) * 0.12d;
-			double velocityY = 0.02d + level.random.nextDouble() * 0.05d;
-			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.12d;
-			level.addParticle(ParticleTypes.CLOUD, x, y, z, velocityX, velocityY, velocityZ);
+			double velocityX = (level.random.nextDouble() - 0.5d) * 0.1d;
+			double velocityY = 0.02d + level.random.nextDouble() * 0.04d;
+			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.1d;
+			level.addAlwaysVisibleParticle(ParticleTypes.POOF, true, x, y, z, velocityX, velocityY, velocityZ);
+			level.addAlwaysVisibleParticle(ParticleTypes.CLOUD, true, x, y, z, velocityX * 0.7d, velocityY,
+				velocityZ * 0.7d);
 		}
 
 		for (int i = 0; i < 8; i++) {
-			double velocityX = (level.random.nextDouble() - 0.5d) * 0.16d;
-			double velocityY = 0.03d + level.random.nextDouble() * 0.06d;
-			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.16d;
-			level.addParticle(ParticleTypes.SMOKE, x, y, z, velocityX, velocityY, velocityZ);
+			double velocityX = (level.random.nextDouble() - 0.5d) * 0.12d;
+			double velocityY = 0.03d + level.random.nextDouble() * 0.05d;
+			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.12d;
+			level.addAlwaysVisibleParticle(ParticleTypes.SMOKE, true, x, y, z, velocityX, velocityY, velocityZ);
 		}
 	}
 
@@ -1416,8 +1421,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		creeper.fallDistance = 0;
 		creeper.setInvisible(true);
 		markCreeper(creeper, pending.packagerPos);
-		if (!level.addFreshEntity(creeper))
+		if (!level.addFreshEntity(creeper)) {
+			removeTrackedMarkedCreeper(creeper.getUUID());
 			return false;
+		}
 		pendingAppearances.add(new PendingAppearance(pending.packagerPos, creeper.getUUID(), CREEPER_ENTRY_ANIMATION_TICKS));
 		notifyUpdate();
 
@@ -1472,6 +1479,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			creeper.fallDistance = 0;
 			return;
 		}
+		removeTrackedMarkedCreeper(pending.creeperUuid);
 		if (dropIfMissing)
 			dropPackagedBox(pending.boxStack, pending.packagerPos);
 	}
@@ -1591,6 +1599,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		data.putBoolean(MARKED_CREEPER_TAG, true);
 		data.putLong(CONTROLLER_POS_TAG, getBlockPos().asLong());
 		data.putLong(PACKAGER_POS_TAG, packagerPos.asLong());
+		syncedMarkedCreepers.put(creeper.getUUID(), packagerPos);
+	}
+
+	private void removeTrackedMarkedCreeper(UUID creeperUuid) {
+		syncedMarkedCreepers.remove(creeperUuid);
 	}
 
 	@Nullable
@@ -1692,19 +1705,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static float getCompressionFromPressOffset(float pressOffset) {
 		return Mth.clamp((pressOffset - CLIENT_PRESS_EFFECT_START_OFFSET) / (1f - CLIENT_PRESS_EFFECT_START_OFFSET), 0f,
 			1f);
-	}
-
-	private List<TrackedMarkedCreeper> getTrackedMarkedCreepers() {
-		List<TrackedMarkedCreeper> tracked = new ArrayList<>();
-		Level level = getLevel();
-		if (level == null || level.isClientSide)
-			return tracked;
-		for (BlockPos packagerPos : getPackagerPositions()) {
-			Creeper creeper = getMarkedCreeperAtPackager(packagerPos);
-			if (creeper != null)
-				tracked.add(new TrackedMarkedCreeper(creeper.getUUID(), packagerPos));
-		}
-		return tracked;
 	}
 
 	@Nullable
