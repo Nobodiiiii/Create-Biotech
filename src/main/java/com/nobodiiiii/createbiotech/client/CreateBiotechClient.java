@@ -18,15 +18,17 @@ import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
+import com.simibubi.create.content.decoration.encasing.EncasedCTBehaviour;
 import com.simibubi.create.foundation.block.connected.CTModel;
-import com.simibubi.create.foundation.block.connected.HorizontalCTBehaviour;
 import com.simibubi.create.foundation.block.connected.SimpleCTBehaviour;
 
 import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
@@ -80,13 +82,21 @@ public class CreateBiotechClient {
 				.register(Create.asResource("brass_belt_funnel"), SlimeBeltFunnelModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("explosion_proof_casing"),
-					model -> new CTModel(model, new HorizontalCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
-						CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+					model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
+						CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE, CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("blast_proof_chain_drive"),
+					model -> new CTModel(model,
+						new EncasedCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE)));
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("blast_proof_framed_glass"),
 					model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
 			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.EXPLOSION_PROOF_CASING.get(),
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE);
+			CreateClient.CASING_CONNECTIVITY.make(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get(),
+				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
+				(state, face) -> face.getAxis().isHorizontal()
+					&& face.getAxis() != state.getValue(BlockStateProperties.AXIS));
 			if (ModList.get()
 				.isLoaded("jei"))
 				ItemProperties.register(CBItems.CAPTURED_SMALL_SLIME.get(),

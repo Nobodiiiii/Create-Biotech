@@ -1,3 +1,7 @@
 {
-  "parent": "create:block/encased_chain_drive/end_horizontal"
+  "parent": "create:block/encased_chain_drive/end_horizontal",
+  "textures": {
+    "side": "create_biotech:block/explosion_proof_casing_side",
+    "particle": "create_biotech:block/explosion_proof_casing_side"
+  }
 }
