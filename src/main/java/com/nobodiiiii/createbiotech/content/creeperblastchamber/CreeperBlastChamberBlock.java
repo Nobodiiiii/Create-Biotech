@@ -58,6 +58,10 @@ public class CreeperBlastChamberBlock extends BaseEntityBlock {
 
 		be.forceStructureCheck();
 
+		InteractionResult boxResult = be.tryInsertLargeCreeperBox(player, hand);
+		if (boxResult != InteractionResult.PASS)
+			return boxResult;
+
 		if (be.isStructureValid()) {
 			player.displayClientMessage(
 				Component.translatable("block.create_biotech.creeper_blast_chamber.status.formed",

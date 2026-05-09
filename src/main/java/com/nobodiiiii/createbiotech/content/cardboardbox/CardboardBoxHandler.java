@@ -3,8 +3,6 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -17,7 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Set;
 
@@ -68,15 +65,8 @@ public class CardboardBoxHandler {
 		if (player.level().isClientSide())
 			return;
 
-		CompoundTag entityData = new CompoundTag();
-		livingTarget.saveWithoutId(entityData);
-		ResourceLocation entityId = ForgeRegistries.ENTITY_TYPES.getKey(livingTarget.getType());
-		if (entityId == null) return;
-		entityData.putString("id", entityId.toString());
-
-		stack.getOrCreateTag().put("CapturedEntity", entityData);
-		stack.getOrCreateTag().putString("CapturedEntityDescId", livingTarget.getType().getDescriptionId());
-
+		if (!CapturedEntityBoxHelper.captureEntity(stack, livingTarget))
+			return;
 		livingTarget.discard();
 	}
 

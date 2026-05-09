@@ -14,6 +14,8 @@
   "item.create_biotech.universal_joint": "Universal Joint",
   "item.create_biotech.cardboard_box": "Cardboard Box",
   "item.create_biotech.cardboard_box.filled": "Contains %s",
+  "item.create_biotech.large_cardboard_box": "Large Cardboard Box",
+  "item.create_biotech.large_cardboard_box.filled": "Contains %s",
   "block.create_biotech.schrodingers_cat": "Schrodinger's Cat",
   "block.create_biotech.creeper_blast_chamber": "Creeper Blast Chamber",
   "block.create_biotech.explosion_proof_casing": "Explosion-Proof Casing",
@@ -21,6 +23,9 @@
   "block.create_biotech.blast_proof_framed_glass": "Blast-Proof Framed Glass",
   "block.create_biotech.creeper_blast_chamber.status.formed": "Chamber formed! Size: %sx%s. Ready for detonation.",
   "block.create_biotech.creeper_blast_chamber.status.not_formed": "Structure incomplete. Requires an explosion-proof casing frame (3x3 to 5x5) with a Mechanical Press facing down on top center and Packers on the bottom center.",
+  "block.create_biotech.creeper_blast_chamber.status.accepted": "Sent the large creeper box into a packager.",
+  "block.create_biotech.creeper_blast_chamber.status.invalid_input": "This chamber only accepts large cardboard boxes containing a creeper.",
+  "block.create_biotech.creeper_blast_chamber.status.full": "All bottom packagers are occupied right now.",
   "block.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "fluid_type.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "item.create_biotech.liquid_living_slime_bucket": "Liquid Living Slime Bucket"

@@ -14,6 +14,8 @@
   "item.create_biotech.universal_joint": "万向节",
   "item.create_biotech.cardboard_box": "纸箱",
   "item.create_biotech.cardboard_box.filled": "装有 %s",
+  "item.create_biotech.large_cardboard_box": "大型纸箱",
+  "item.create_biotech.large_cardboard_box.filled": "装有 %s",
   "block.create_biotech.schrodingers_cat": "薛定谔的猫",
   "block.create_biotech.creeper_blast_chamber": "苦力怕爆破室",
   "block.create_biotech.explosion_proof_casing": "防爆机壳",
@@ -21,6 +23,9 @@
   "block.create_biotech.blast_proof_framed_glass": "防爆边框玻璃",
   "block.create_biotech.creeper_blast_chamber.status.formed": "结构已成型！尺寸：%sx%s。准备引爆。",
   "block.create_biotech.creeper_blast_chamber.status.not_formed": "结构不完整。需要防爆机壳框架（3x3至5x5），顶面中心放置朝下的动力辊压机，底面中心放置打包机。",
+  "block.create_biotech.creeper_blast_chamber.status.accepted": "大型苦力怕纸箱已送入打包机。",
+  "block.create_biotech.creeper_blast_chamber.status.invalid_input": "这里只能输入装有苦力怕的大型纸箱。",
+  "block.create_biotech.creeper_blast_chamber.status.full": "底部打包机都已占用，暂时无法继续输入。",
   "block.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "fluid_type.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "item.create_biotech.liquid_living_slime_bucket": "液态活体史莱姆桶"

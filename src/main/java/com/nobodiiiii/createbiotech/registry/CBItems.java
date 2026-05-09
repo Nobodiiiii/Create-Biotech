@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
+import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
@@ -44,6 +45,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> CARDBOARD_BOX = ITEMS.register("cardboard_box",
 		() -> new CardboardBoxItem(new Item.Properties()));
+
+	public static final RegistryObject<Item> LARGE_CARDBOARD_BOX = ITEMS.register("large_cardboard_box",
+		() -> new LargeCardboardBoxItem(new Item.Properties().stacksTo(1)));
 
 	public static final RegistryObject<Item> SCHRODINGERS_CAT = ITEMS.register("schrodingers_cat",
 		() -> new BlockItem(CBBlocks.SCHRODINGERS_CAT.get(), new Item.Properties()));
