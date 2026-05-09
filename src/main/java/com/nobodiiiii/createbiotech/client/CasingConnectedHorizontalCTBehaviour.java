@@ -19,10 +19,6 @@ public class CasingConnectedHorizontalCTBehaviour extends HorizontalCTBehaviour 
 	@Override
 	public boolean connectsTo(BlockState state, BlockState other, BlockAndTintGetter reader, BlockPos pos,
 		BlockPos otherPos, Direction face) {
-		if (face.getAxis().isVertical()) {
-			return super.connectsTo(state, other, reader, pos, otherPos, face);
-		}
-
 		if (isBeingBlocked(state, reader, pos, otherPos, face)) {
 			return false;
 		}

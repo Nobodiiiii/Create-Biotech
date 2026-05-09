@@ -95,8 +95,7 @@ public class CreateBiotechClient {
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE);
 			CreateClient.CASING_CONNECTIVITY.make(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get(),
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
-				(state, face) -> face.getAxis().isHorizontal()
-					&& face.getAxis() != state.getValue(BlockStateProperties.AXIS));
+				(state, face) -> face.getAxis() != state.getValue(BlockStateProperties.AXIS));
 			if (ModList.get()
 				.isLoaded("jei"))
 				ItemProperties.register(CBItems.CAPTURED_SMALL_SLIME.get(),
