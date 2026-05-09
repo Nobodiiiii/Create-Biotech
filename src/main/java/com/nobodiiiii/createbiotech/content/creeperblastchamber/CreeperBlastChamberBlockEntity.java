@@ -98,6 +98,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static boolean verifyStructure(Level level, BlockPos origin, int size) {
 		int innerMin = 1;
 		int innerMax = size - 2;
+		BlockState centerPressState = level.getBlockState(origin.offset(size / 2, 3, size / 2));
+
+		if (!AllBlocks.MECHANICAL_PRESS.has(centerPressState))
+			return false;
+		Axis pressShaftAxis = getPressShaftAxis(centerPressState);
 
 		for (int y = 0; y < 4; y++) {
 			for (int x = 0; x < size; x++) {
@@ -109,7 +114,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 					boolean isCenter = isInnerX && isInnerZ;
 
 					if (isCenter && y == 3) {
-						if (!AllBlocks.MECHANICAL_PRESS.has(state))
+						if (!isMechanicalPressOnAxis(state, pressShaftAxis))
 							return false;
 					} else if (isCenter && (y == 1 || y == 2)) {
 						if (!state.isAir())
@@ -120,7 +125,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 					} else {
 						boolean isController = state.getBlock() instanceof CreeperBlastChamberBlock;
 						boolean isCasing = state.is(CBBlocks.EXPLOSION_PROOF_CASING.get());
-						boolean isChainDrive = state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get());
+						boolean isChainDrive = isBlastProofChainDriveOnAxis(state, pressShaftAxis);
 						boolean isVerticalEdge = !isInnerX && !isInnerZ;
 						boolean isTopOrBottom = (y == 0 || y == 3);
 
@@ -140,6 +145,21 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return true;
 	}
 
+	private static Axis getPressShaftAxis(BlockState state) {
+		return state.getValue(BlockStateProperties.HORIZONTAL_FACING)
+			.getAxis();
+	}
+
+	private static boolean isMechanicalPressOnAxis(BlockState state, Axis axis) {
+		return AllBlocks.MECHANICAL_PRESS.has(state) && getPressShaftAxis(state) == axis;
+	}
+
+	private static boolean isBlastProofChainDriveOnAxis(BlockState state, Axis axis) {
+		return state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get())
+			&& state.hasProperty(BlockStateProperties.AXIS)
+			&& state.getValue(BlockStateProperties.AXIS) == axis;
+	}
+
 	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin) {
 		structureValid = valid;
 		structureSize = size;
@@ -153,22 +173,21 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private void onStructureFormed(Level level, int size, BlockPos origin) {
 		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
 		BlockState pressState = level.getBlockState(pressPos);
-		Direction facing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
-		// Chain drives go on the two edges parallel to the press facing
-		// Axis is horizontal, perpendicular to the edge (= aligned with facing)
-		Axis axis = facing.getAxis();
+		Direction shaftFacing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
+		// Chain drives sit on the two side edges that line up with the press shaft.
+		Axis axis = getPressShaftAxis(pressState);
 		int perSide = size - 2;
-		Direction alongEdge = facing.getClockWise();
+		Direction alongEdge = shaftFacing.getClockWise();
 		Axis alongEdgeAxis = alongEdge.getAxis();
 		boolean alongFirst = axis == Axis.Z && alongEdgeAxis == Axis.X;
 		BlockState chainState = CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get().defaultBlockState()
 			.setValue(BlockStateProperties.AXIS, axis)
 			.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, alongFirst);
 
-		// Edge 1: the edge in the facing direction from press
-		// Edge 2: the edge in the opposite direction from press
-		Direction towardEdge1 = facing;
-		Direction towardEdge2 = facing.getOpposite();
+		// Edge 1: the edge in the shaft direction from press
+		// Edge 2: the edge in the opposite shaft direction from press
+		Direction towardEdge1 = shaftFacing;
+		Direction towardEdge2 = shaftFacing.getOpposite();
 		int distFromPressToEdge = size / 2;
 		for (int i = -perSide / 2; i <= perSide / 2; i++) {
 			BlockPos edge1Pos = pressPos.relative(towardEdge1, distFromPressToEdge)
@@ -192,20 +211,15 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	private void onStructureBroken(Level level, int size, BlockPos origin) {
-		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
-		BlockState pressState = level.getBlockState(pressPos);
-		Direction facing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
-		Direction towardEdge1 = facing;
-		Direction towardEdge2 = facing.getOpposite();
-		Direction alongEdge = facing.getClockWise();
-		int perSide = size - 2;
-		int distFromPressToEdge = size / 2;
+		int innerMin = 1;
+		int innerMax = size - 2;
+		int topY = 3;
 
-		for (int i = -perSide / 2; i <= perSide / 2; i++) {
-			revertToCasing(level, pressPos.relative(towardEdge1, distFromPressToEdge)
-				.relative(alongEdge, i));
-			revertToCasing(level, pressPos.relative(towardEdge2, distFromPressToEdge)
-				.relative(alongEdge, i));
+		for (int i = innerMin; i <= innerMax; i++) {
+			revertToCasing(level, origin.offset(i, topY, 0));
+			revertToCasing(level, origin.offset(i, topY, size - 1));
+			revertToCasing(level, origin.offset(0, topY, i));
+			revertToCasing(level, origin.offset(size - 1, topY, i));
 		}
 	}
 
