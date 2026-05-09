@@ -40,6 +40,7 @@ import net.createmod.catnip.data.Iterate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -83,7 +84,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
-	private static final float CLIENT_PRIME_SOUND_THRESHOLD = 0.55f;
+	private static final float CLIENT_PRESS_EFFECT_START_OFFSET = 0.4f;
+	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
+	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
 	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 	private static final Map<UUID, ClientTrackedCreeper> CLIENT_TRACKED_CREEPERS = new HashMap<>();
 
@@ -104,6 +107,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private final Map<UUID, BlockPos> syncedMarkedCreepers = new HashMap<>();
 	private boolean controllerOutputRequested;
 	private final Map<Long, Float> clientPressOffsets = new HashMap<>();
+	private final Set<Long> clientReturnEffectsArmed = new HashSet<>();
 	private final Set<UUID> clientTrackedCreeperUuids = new HashSet<>();
 	private final ChamberInputHandler inputHandler = new ChamberInputHandler();
 	private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> inputHandler);
@@ -626,6 +630,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return;
 		}
 
+		synchronizePressesToMaster(presses, press, true);
+
 		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
 		if (press.getSpeed() == 0) {
 			if (!pressingBehaviour.running || pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS)
@@ -815,6 +821,50 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return pressingBehaviour.getRenderedHeadOffset(partialTicks) * pressingBehaviour.mode.headOffset;
 	}
 
+	private void synchronizePressesToMaster(List<MechanicalPressBlockEntity> presses,
+		@Nullable MechanicalPressBlockEntity masterPress, boolean sendDataToClient) {
+		if (masterPress == null || presses.size() <= 1)
+			return;
+
+		PressingBehaviour masterBehaviour = masterPress.getPressingBehaviour();
+		for (MechanicalPressBlockEntity press : presses) {
+			if (press == masterPress)
+				continue;
+			if (!copyPressState(masterBehaviour, press.getPressingBehaviour()))
+				continue;
+			press.setChanged();
+			if (sendDataToClient)
+				press.sendData();
+		}
+	}
+
+	private boolean copyPressState(PressingBehaviour source, PressingBehaviour target) {
+		boolean changed = false;
+
+		if (target.mode != source.mode) {
+			target.mode = source.mode;
+			changed = true;
+		}
+		if (target.running != source.running) {
+			target.running = source.running;
+			changed = true;
+		}
+		if (target.finished != source.finished) {
+			target.finished = source.finished;
+			changed = true;
+		}
+		if (target.prevRunningTicks != source.prevRunningTicks) {
+			target.prevRunningTicks = source.prevRunningTicks;
+			changed = true;
+		}
+		if (target.runningTicks != source.runningTicks) {
+			target.runningTicks = source.runningTicks;
+			changed = true;
+		}
+
+		return changed;
+	}
+
 	private void resetPressProgress(List<MechanicalPressBlockEntity> presses) {
 		for (MechanicalPressBlockEntity press : presses) {
 			PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
@@ -974,9 +1024,22 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	private void tickClientAnimations() {
 		syncClientTrackedCreepers();
+		syncClientPressPhases();
 		tickClientAnimationList(pendingAppearances);
 		tickClientAnimationList(pendingPackagings);
 		tickClientWorkingCreeperEffects();
+	}
+
+	private void syncClientPressPhases() {
+		Level level = getLevel();
+		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null)
+			return;
+
+		List<MechanicalPressBlockEntity> presses = getMechanicalPresses();
+		if (presses.size() <= 1)
+			return;
+
+		synchronizePressesToMaster(presses, getMasterPress(presses), false);
 	}
 
 	private void syncClientTrackedCreepers() {
@@ -1017,29 +1080,86 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		if (level == null || !structureValid) {
 			resetClientWorkingCreeperEffects();
 			clientPressOffsets.clear();
+			clientReturnEffectsArmed.clear();
 			return;
 		}
 
 		Map<Long, Float> nextPressOffsets = new HashMap<>();
+		Set<Long> activePackagers = new HashSet<>();
+		Set<UUID> activeCreepers = new HashSet<>();
 		for (RenderManagedCreeper creeper : getWorkingRenderCreepers()) {
 			long key = creeper.packagerPos().asLong();
 			float pressOffset = getRenderedPressHeadOffset(creeper.packagerPos(), 0);
+			float previousOffset = clientPressOffsets.getOrDefault(key, 0f);
+			boolean returning = isPressReturning(previousOffset, pressOffset);
+
 			nextPressOffsets.put(key, pressOffset);
+			activePackagers.add(key);
+			activeCreepers.add(creeper.creeperUuid());
+
 			Creeper creeperEntity = getAnimatedCreeper(creeper.creeperUuid(), creeper.packagerPos());
 			if (creeperEntity != null)
-				applyClientWorkingCreeperVisualState(creeperEntity, pressOffset);
+				applyClientWorkingCreeperVisualState(creeperEntity, pressOffset, !returning);
 
-			float previousOffset = clientPressOffsets.getOrDefault(key, 0f);
-			if (previousOffset < CLIENT_PRIME_SOUND_THRESHOLD && pressOffset >= CLIENT_PRIME_SOUND_THRESHOLD) {
+			if (previousOffset < CLIENT_PRESS_EFFECT_START_OFFSET && pressOffset >= CLIENT_PRESS_EFFECT_START_OFFSET) {
 				BlockPos pos = creeper.packagerPos();
 				float pitch = 0.9f + ((Math.floorMod(pos.getX() * 31 + pos.getZ() * 17, 8)) * 0.025f);
 				level.playLocalSound(pos.getX() + 0.5d, pos.getY() + 1d, pos.getZ() + 0.5d, SoundEvents.CREEPER_PRIMED,
 					SoundSource.BLOCKS, 0.2f, pitch, false);
 			}
+
+			if (pressOffset >= CLIENT_RETURN_EFFECT_ARM_THRESHOLD)
+				clientReturnEffectsArmed.add(key);
+			if (clientReturnEffectsArmed.contains(key) && returning) {
+				spawnClientReturnExplosionEffect(creeper.packagerPos());
+				clientReturnEffectsArmed.remove(key);
+			}
+			if (pressOffset <= CLIENT_PRESS_EFFECT_START_OFFSET * 0.5f)
+				clientReturnEffectsArmed.remove(key);
+		}
+
+		for (UUID uuid : syncedMarkedCreepers.keySet()) {
+			if (activeCreepers.contains(uuid))
+				continue;
+			Creeper creeper = findClientTrackedCreeper(uuid);
+			if (creeper != null)
+				applyClientWorkingCreeperVisualState(creeper, 0f, false);
 		}
 
 		clientPressOffsets.clear();
 		clientPressOffsets.putAll(nextPressOffsets);
+		clientReturnEffectsArmed.removeIf(key -> !activePackagers.contains(key));
+	}
+
+	private boolean isPressReturning(float previousOffset, float pressOffset) {
+		return previousOffset > pressOffset + CLIENT_PRESS_RETURN_EPSILON
+			&& previousOffset >= CLIENT_PRESS_EFFECT_START_OFFSET;
+	}
+
+	private void spawnClientReturnExplosionEffect(BlockPos packagerPos) {
+		Level level = getLevel();
+		if (level == null || !level.isClientSide)
+			return;
+
+		double x = packagerPos.getX() + 0.5d;
+		double y = packagerPos.getY() + 1.0d;
+		double z = packagerPos.getZ() + 0.5d;
+
+		level.addParticle(ParticleTypes.EXPLOSION, x, y, z, 0, 0, 0);
+
+		for (int i = 0; i < 6; i++) {
+			double velocityX = (level.random.nextDouble() - 0.5d) * 0.12d;
+			double velocityY = 0.02d + level.random.nextDouble() * 0.05d;
+			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.12d;
+			level.addParticle(ParticleTypes.CLOUD, x, y, z, velocityX, velocityY, velocityZ);
+		}
+
+		for (int i = 0; i < 8; i++) {
+			double velocityX = (level.random.nextDouble() - 0.5d) * 0.16d;
+			double velocityY = 0.03d + level.random.nextDouble() * 0.06d;
+			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.16d;
+			level.addParticle(ParticleTypes.SMOKE, x, y, z, velocityX, velocityY, velocityZ);
+		}
 	}
 
 	private void resetClientWorkingCreeperEffects() {
@@ -1049,7 +1169,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		for (UUID uuid : syncedMarkedCreepers.keySet()) {
 			Creeper creeper = findClientTrackedCreeper(uuid);
 			if (creeper != null)
-				applyClientWorkingCreeperVisualState(creeper, 0f);
+				applyClientWorkingCreeperVisualState(creeper, 0f, false);
 		}
 	}
 
@@ -1454,11 +1574,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			|| isPackagerPackaging(packagerPos);
 	}
 
-	private void applyClientWorkingCreeperVisualState(Creeper creeper, float pressOffset) {
+	private void applyClientWorkingCreeperVisualState(Creeper creeper, float pressOffset, boolean allowWhiteFlash) {
 		CreeperAccessor accessor = (CreeperAccessor) creeper;
-		float compression = getCompressionFromPressOffset(pressOffset);
-		float pulse = 0.5f + 0.5f * Mth.sin((creeper.level().getGameTime()) * 0.9f);
-		int renderSwell = Mth.floor(Mth.clamp(compression * Mth.lerp(pulse, 0.55f, 1f), 0f, 1f) * 24f);
+		int renderSwell = 0;
+		if (allowWhiteFlash) {
+			float compression = getCompressionFromPressOffset(pressOffset);
+			float pulse = 0.5f + 0.5f * Mth.sin((creeper.level().getGameTime()) * 0.9f);
+			renderSwell = Mth.floor(Mth.clamp(compression * Mth.lerp(pulse, 0.55f, 1f), 0f, 1f) * 24f);
+		}
 		accessor.createBiotech$setOldSwell(renderSwell);
 		accessor.createBiotech$setSwell(renderSwell);
 	}
@@ -1567,7 +1690,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	private static float getCompressionFromPressOffset(float pressOffset) {
-		return Mth.clamp((pressOffset - 0.2f) / 0.8f, 0f, 1f);
+		return Mth.clamp((pressOffset - CLIENT_PRESS_EFFECT_START_OFFSET) / (1f - CLIENT_PRESS_EFFECT_START_OFFSET), 0f,
+			1f);
 	}
 
 	private List<TrackedMarkedCreeper> getTrackedMarkedCreepers() {
