@@ -3,12 +3,14 @@ package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 import javax.annotation.Nullable;
 
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.chainDrive.ChainDriveBlock;
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
+import net.createmod.catnip.data.Iterate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -153,18 +155,20 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		BlockState pressState = level.getBlockState(pressPos);
 		Direction facing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
 		// Chain drives go on the two edges parallel to the press facing
-		// Axis is horizontal, along the edge (= perpendicular to facing)
-		Axis axis = facing.getClockWise().getAxis();
+		// Axis is horizontal, perpendicular to the edge (= aligned with facing)
+		Axis axis = facing.getAxis();
 		int perSide = size - 2;
+		Direction alongEdge = facing.getClockWise();
+		Axis alongEdgeAxis = alongEdge.getAxis();
+		boolean alongFirst = axis == Axis.Z && alongEdgeAxis == Axis.X;
 		BlockState chainState = CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get().defaultBlockState()
-			.setValue(BlockStateProperties.AXIS, axis);
+			.setValue(BlockStateProperties.AXIS, axis)
+			.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, alongFirst);
 
 		// Edge 1: the edge in the facing direction from press
 		// Edge 2: the edge in the opposite direction from press
 		Direction towardEdge1 = facing;
 		Direction towardEdge2 = facing.getOpposite();
-		Direction alongEdge = facing.getClockWise();
-
 		int distFromPressToEdge = size / 2;
 		for (int i = -perSide / 2; i <= perSide / 2; i++) {
 			BlockPos edge1Pos = pressPos.relative(towardEdge1, distFromPressToEdge)
@@ -175,6 +179,15 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 				level.setBlock(edge1Pos, chainState, 3);
 			if (!level.getBlockState(edge2Pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
 				level.setBlock(edge2Pos, chainState, 3);
+		}
+
+		for (int i = -perSide / 2; i <= perSide / 2; i++) {
+			BlockPos edge1Pos = pressPos.relative(towardEdge1, distFromPressToEdge)
+				.relative(alongEdge, i);
+			BlockPos edge2Pos = pressPos.relative(towardEdge2, distFromPressToEdge)
+				.relative(alongEdge, i);
+			updateChainDriveState(level, edge1Pos, axis, alongEdgeAxis);
+			updateChainDriveState(level, edge2Pos, axis, alongEdgeAxis);
 		}
 	}
 
@@ -199,6 +212,24 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private void revertToCasing(Level level, BlockPos pos) {
 		if (level.getBlockState(pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
 			level.setBlock(pos, CBBlocks.EXPLOSION_PROOF_CASING.get().defaultBlockState(), 3);
+	}
+
+	private void updateChainDriveState(Level level, BlockPos pos, Axis axis, Axis alongEdgeAxis) {
+		BlockState state = level.getBlockState(pos);
+		if (!state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
+			return;
+		ChainDriveBlock chainDrive = (ChainDriveBlock) CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get();
+		boolean alongFirst = axis == Axis.Z && alongEdgeAxis == Axis.X;
+		BlockState updated = state.setValue(BlockStateProperties.AXIS, axis)
+			.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, alongFirst);
+		for (Direction facing : Iterate.directions) {
+			if (facing.getAxis() == axis)
+				continue;
+			BlockPos offset = pos.relative(facing);
+			updated = chainDrive.updateShape(updated, facing, level.getBlockState(offset), level, pos, offset);
+		}
+		if (updated != state)
+			level.setBlock(pos, updated, 3);
 	}
 
 	@Override
