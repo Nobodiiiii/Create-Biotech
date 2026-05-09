@@ -18,9 +18,7 @@ import net.minecraft.world.entity.monster.Creeper;
 public abstract class CreeperRendererMixin {
 
 	@Unique
-	private static final float CREATE_BIOTECH_CREEPER_PRESS_SINK = 0.08f;
-	@Unique
-	private static final float CREATE_BIOTECH_CREEPER_MAX_SQUASH = 0.45f;
+	private static final float CREATE_BIOTECH_CREEPER_FINAL_HEIGHT_SCALE = 1f / 1.8f;
 	@Unique
 	private static final float CREATE_BIOTECH_CREEPER_MAX_SPREAD = 0.2f;
 	@Unique
@@ -38,11 +36,9 @@ public abstract class CreeperRendererMixin {
 			return;
 
 		float horizontalScale = 1f + CREATE_BIOTECH_CREEPER_MAX_SPREAD * compression;
-		float verticalScale = 1f - CREATE_BIOTECH_CREEPER_MAX_SQUASH * compression;
-		float yOffset = -CREATE_BIOTECH_CREEPER_PRESS_SINK * compression;
+		float verticalScale = 1f + (CREATE_BIOTECH_CREEPER_FINAL_HEIGHT_SCALE - 1f) * compression;
 
 		poseStack.pushPose();
-		poseStack.translate(0, yOffset, 0);
 		poseStack.scale(horizontalScale, verticalScale, horizontalScale);
 		CREATE_BIOTECH_TRANSFORM_DEPTH.set(CREATE_BIOTECH_TRANSFORM_DEPTH.get() + 1);
 	}
