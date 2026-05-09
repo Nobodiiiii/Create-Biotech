@@ -1,8 +1,11 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -10,17 +13,25 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.chainDrive.ChainDriveBlock;
+import com.simibubi.create.content.kinetics.press.MechanicalPressBlockEntity;
+import com.simibubi.create.content.kinetics.press.PressingBehaviour;
 import com.simibubi.create.content.logistics.packager.PackagerBlock;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
+import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
+import com.simibubi.create.foundation.item.ItemHelper;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
+import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import net.createmod.catnip.data.Iterate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -43,6 +54,9 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemHandlerHelper;
+import net.minecraftforge.items.ItemStackHandler;
+import net.minecraftforge.items.wrapper.RecipeWrapper;
 
 public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
@@ -56,8 +70,12 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final String PENDING_PACKAGINGS_TAG = "PendingPackagings";
 	private static final String PENDING_APPEARANCES_TAG = "PendingAppearances";
 	private static final String READY_OUTPUTS_TAG = "ReadyOutputs";
+	private static final String INPUT_VAULT_CONTROLLER_TAG = "InputVaultController";
+	private static final String OUTPUT_VAULT_CONTROLLER_TAG = "OutputVaultController";
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
+	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
+	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 
 	public LerpedFloat gauge = LerpedFloat.linear();
 	public LerpedFloat displayGauge = LerpedFloat.linear();
@@ -65,6 +83,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private int structureSize;
 	private BlockPos structureOrigin;
 	private BlockPos bottomCenter;
+	private BlockPos inputVaultController;
+	private BlockPos outputVaultController;
+	private boolean pressCycleProcessed;
 	private int recheckTimer;
 	private final List<PendingUnpack> pendingUnpacks = new ArrayList<>();
 	private final List<PendingAppearance> pendingAppearances = new ArrayList<>();
@@ -95,6 +116,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		be.tickPendingAppearances();
 		be.tickPendingPackagings();
 		be.tickReadyOutputs();
+		be.tickPressProcessing();
 
 		if (be.recheckTimer > 0) {
 			be.recheckTimer--;
@@ -126,44 +148,53 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		BlockPos pos = getBlockPos();
 
 		for (int s = MIN_SIZE; s <= MAX_SIZE; s++) {
-			BlockPos origin = findOrigin(level, pos, s);
-			if (origin != null) {
+			StructureScanResult result = findStructure(level, pos, s);
+			if (result != null) {
 				boolean wasValid = structureValid;
 				int oldSize = structureSize;
-				setStructure(level, true, s, origin);
-				if (!wasValid || oldSize != s)
-					onStructureFormed(level, s, origin);
+				BlockPos oldOrigin = structureOrigin;
+				BlockPos oldInputVault = inputVaultController;
+				BlockPos oldOutputVault = outputVaultController;
+				setStructure(level, true, result.size, result.origin, result.inputVaultController,
+					result.outputVaultController);
+				if (!wasValid || oldSize != result.size || !result.origin.equals(oldOrigin)
+					|| !result.inputVaultController.equals(oldInputVault)
+					|| !result.outputVaultController.equals(oldOutputVault))
+					onStructureFormed(level, result.size, result.origin);
 				return;
 			}
 		}
 		boolean wasValid = structureValid;
 		int oldSize = structureSize;
 		BlockPos oldOrigin = structureOrigin;
-		setStructure(level, false, 0, null);
+		setStructure(level, false, 0, null, null, null);
 		if (wasValid)
 			onStructureBroken(level, oldSize, oldOrigin);
 	}
 
 	@Nullable
-	private static BlockPos findOrigin(Level level, BlockPos controllerPos, int size) {
+	private StructureScanResult findStructure(Level level, BlockPos controllerPos, int size) {
 		for (int dx = 0; dx < size; dx++) {
 			for (int dz = 0; dz < size; dz++) {
 				BlockPos origin = controllerPos.offset(-dx, 0, -dz);
-				if (verifyStructure(level, origin, size))
-					return origin;
+				StructureScanResult result = scanStructure(level, origin, size);
+				if (result != null)
+					return result;
 			}
 		}
 		return null;
 	}
 
-	private static boolean verifyStructure(Level level, BlockPos origin, int size) {
+	@Nullable
+	private StructureScanResult scanStructure(Level level, BlockPos origin, int size) {
 		int innerMin = 1;
 		int innerMax = size - 2;
 		BlockState centerPressState = level.getBlockState(origin.offset(size / 2, 3, size / 2));
 
 		if (!AllBlocks.MECHANICAL_PRESS.has(centerPressState))
-			return false;
+			return null;
 		Axis pressShaftAxis = getPressShaftAxis(centerPressState);
+		Map<Long, BlockPos> vaultControllers = new LinkedHashMap<>();
 
 		for (int y = 0; y < 4; y++) {
 			for (int x = 0; x < size; x++) {
@@ -176,34 +207,55 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 					if (isCenter && y == 3) {
 						if (!isMechanicalPressOnAxis(state, pressShaftAxis))
-							return false;
+							return null;
 					} else if (isCenter && (y == 1 || y == 2)) {
 						if (!state.isAir())
-							return false;
+							return null;
 					} else if (isCenter && y == 0) {
 						if (!AllBlocks.PACKAGER.has(state))
-							return false;
+							return null;
 					} else {
 						boolean isController = state.getBlock() instanceof CreeperBlastChamberBlock;
 						boolean isCasing = state.is(CBBlocks.EXPLOSION_PROOF_CASING.get());
 						boolean isChainDrive = isBlastProofChainDriveOnAxis(state, pressShaftAxis);
+						boolean isVault = ExplosionProofItemVaultBlock.isVault(state);
 						boolean isVerticalEdge = !isInnerX && !isInnerZ;
 						boolean isTopOrBottom = (y == 0 || y == 3);
+						boolean chainDriveReserved = isReservedChainDrivePosition(x, y, z, size, pressShaftAxis);
+
+						if (isVault) {
+							if (chainDriveReserved)
+								return null;
+							ExplosionProofItemVaultBlockEntity controller = resolveVaultController(level, pos);
+							if (controller == null || !isWholeVaultInsideStructure(level, controller, origin, size))
+								return null;
+							vaultControllers.putIfAbsent(controller.getBlockPos().asLong(), controller.getBlockPos());
+							continue;
+						}
+
+						if (isChainDrive && !chainDriveReserved)
+							return null;
 
 						if (isTopOrBottom || isVerticalEdge) {
 							if (!isController && !isCasing && !isChainDrive)
-								return false;
-						} else {
-							boolean isGlass = state.is(CBBlocks.BLAST_PROOF_GLASS.get())
-								|| state.is(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get());
-							if (!isController && !isCasing && !isGlass)
-								return false;
+								return null;
+							continue;
 						}
+
+						boolean isGlass = state.is(CBBlocks.BLAST_PROOF_GLASS.get())
+							|| state.is(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get());
+						if (!isController && !isCasing && !isGlass)
+							return null;
 					}
 				}
 			}
 		}
-		return true;
+
+		if (vaultControllers.size() != 2)
+			return null;
+
+		List<BlockPos> orderedControllers = new ArrayList<>(vaultControllers.values());
+		return new StructureScanResult(size, origin, orderedControllers.get(0), orderedControllers.get(1));
 	}
 
 	private static Axis getPressShaftAxis(BlockState state) {
@@ -221,13 +273,71 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			&& state.getValue(BlockStateProperties.AXIS) == axis;
 	}
 
-	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin) {
+	private boolean isReservedChainDrivePosition(int x, int y, int z, int size, Axis pressShaftAxis) {
+		if (y != 3)
+			return false;
+		if (pressShaftAxis == Axis.X)
+			return (x == 0 || x == size - 1) && z >= 1 && z < size - 1;
+		return (z == 0 || z == size - 1) && x >= 1 && x < size - 1;
+	}
+
+	@Nullable
+	private ExplosionProofItemVaultBlockEntity resolveVaultController(Level level, BlockPos pos) {
+		BlockEntity blockEntity = level.getBlockEntity(pos);
+		if (!(blockEntity instanceof ExplosionProofItemVaultBlockEntity vault))
+			return null;
+		if (vault.isController())
+			return vault;
+		return vault.getControllerBE() instanceof ExplosionProofItemVaultBlockEntity controller ? controller : null;
+	}
+
+	private boolean isWholeVaultInsideStructure(Level level, ExplosionProofItemVaultBlockEntity controller, BlockPos origin,
+		int size) {
+		BlockPos controllerPos = controller.getBlockPos();
+		Axis axis = controller.getMainConnectionAxis();
+		int width = controller.getWidth();
+		int height = controller.getHeight();
+
+		for (int yOffset = 0; yOffset < height; yOffset++) {
+			for (int xOffset = 0; xOffset < width; xOffset++) {
+				for (int zOffset = 0; zOffset < width; zOffset++) {
+					BlockPos vaultPos = axis == Axis.Z ? controllerPos.offset(xOffset, zOffset, yOffset)
+						: controllerPos.offset(yOffset, xOffset, zOffset);
+					if (!isWithinStructureVolume(vaultPos, origin, size))
+						return false;
+					if (!ExplosionProofItemVaultBlock.isVault(level.getBlockState(vaultPos)))
+						return false;
+					ExplosionProofItemVaultBlockEntity vaultPart =
+						ConnectivityHandler.partAt(CBBlockEntityTypes.EXPLOSION_PROOF_ITEM_VAULT.get(), level, vaultPos);
+					if (vaultPart == null)
+						return false;
+					if (!(vaultPart.getControllerBE() instanceof ExplosionProofItemVaultBlockEntity partController)
+						|| !controllerPos.equals(partController.getBlockPos()))
+						return false;
+				}
+			}
+		}
+		return true;
+	}
+
+	private static boolean isWithinStructureVolume(BlockPos pos, BlockPos origin, int size) {
+		return pos.getX() >= origin.getX() && pos.getX() < origin.getX() + size
+			&& pos.getY() >= origin.getY() && pos.getY() < origin.getY() + 4
+			&& pos.getZ() >= origin.getZ() && pos.getZ() < origin.getZ() + size;
+	}
+
+	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin,
+		@Nullable BlockPos inputVault, @Nullable BlockPos outputVault) {
 		structureValid = valid;
 		structureSize = size;
 		structureOrigin = origin;
+		inputVaultController = inputVault;
+		outputVaultController = outputVault;
 		bottomCenter = valid && origin != null
 			? origin.offset(size / 2, 0, size / 2)
 			: null;
+		if (!valid)
+			pressCycleProcessed = false;
 		notifyUpdate();
 	}
 
@@ -235,6 +345,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
 		BlockState pressState = level.getBlockState(pressPos);
 		Direction shaftFacing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
+		resetPressProgress(getMechanicalPress(pressPos));
 		setPackagerOutputsDown(level, origin, size);
 		// Chain drives sit on the two side edges that line up with the press shaft.
 		Axis axis = getPressShaftAxis(pressState);
@@ -387,6 +498,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			tag.putInt("BottomY", bottomCenter.getY());
 			tag.putInt("BottomZ", bottomCenter.getZ());
 		}
+		if (inputVaultController != null)
+			tag.putLong(INPUT_VAULT_CONTROLLER_TAG, inputVaultController.asLong());
+		if (outputVaultController != null)
+			tag.putLong(OUTPUT_VAULT_CONTROLLER_TAG, outputVaultController.asLong());
 	}
 
 	@Override
@@ -418,6 +533,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		} else {
 			bottomCenter = null;
 		}
+		inputVaultController = tag.contains(INPUT_VAULT_CONTROLLER_TAG)
+			? BlockPos.of(tag.getLong(INPUT_VAULT_CONTROLLER_TAG))
+			: null;
+		outputVaultController = tag.contains(OUTPUT_VAULT_CONTROLLER_TAG)
+			? BlockPos.of(tag.getLong(OUTPUT_VAULT_CONTROLLER_TAG))
+			: null;
+		pressCycleProcessed = false;
 	}
 
 	public void forceStructureCheck() {
@@ -443,16 +565,211 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return bottomCenter;
 	}
 
+	private void tickPressProcessing() {
+		if (!structureValid || structureOrigin == null || inputVaultController == null || outputVaultController == null) {
+			pressCycleProcessed = false;
+			return;
+		}
+
+		MechanicalPressBlockEntity press = getMechanicalPress();
+		if (press == null) {
+			pressCycleProcessed = false;
+			return;
+		}
+
+		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+		if (press.getSpeed() == 0) {
+			if (!pressingBehaviour.running || pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS)
+				pressCycleProcessed = false;
+			return;
+		}
+
+		if (!pressingBehaviour.running) {
+			pressCycleProcessed = false;
+			pressingBehaviour.start(PressingBehaviour.Mode.WORLD);
+			return;
+		}
+
+		if (pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS) {
+			pressCycleProcessed = false;
+			return;
+		}
+
+		if (pressCycleProcessed)
+			return;
+
+		pressCycleProcessed = true;
+		processMarkedCreepersCycle(countMarkedCreepers());
+	}
+
+	private void processMarkedCreepersCycle(int markedCreeperCount) {
+		if (markedCreeperCount <= 0)
+			return;
+
+		IItemHandler inputHandler = getVaultItemHandler(inputVaultController);
+		IItemHandler outputHandler = getVaultItemHandler(outputVaultController);
+		if (inputHandler == null || outputHandler == null)
+			return;
+
+		for (int i = 0; i < markedCreeperCount; i++) {
+			ProcessingAttemptResult result = processNextVaultStack(inputHandler, outputHandler);
+			if (result == ProcessingAttemptResult.NO_INPUT || result == ProcessingAttemptResult.BLOCKED_OUTPUT)
+				return;
+		}
+	}
+
+	private ProcessingAttemptResult processNextVaultStack(IItemHandler inputHandler, IItemHandler outputHandler) {
+		for (int slot = 0; slot < inputHandler.getSlots(); slot++) {
+			ItemStack stackInSlot = inputHandler.getStackInSlot(slot);
+			if (stackInSlot.isEmpty())
+				continue;
+			return processVaultStack(inputHandler, outputHandler, slot, stackInSlot.copy());
+		}
+		return ProcessingAttemptResult.NO_INPUT;
+	}
+
+	private ProcessingAttemptResult processVaultStack(IItemHandler inputHandler, IItemHandler outputHandler, int slot,
+		ItemStack stackToProcess) {
+		Optional<ProcessingRecipe<RecipeWrapper>> recipe = findCrushingRecipe(stackToProcess);
+		if (recipe.isEmpty()) {
+			inputHandler.extractItem(slot, stackToProcess.getCount(), false);
+			return ProcessingAttemptResult.PROCESSED;
+		}
+
+		List<ItemStack> outputs = rollProcessingResults(stackToProcess, recipe.get());
+		if (!canFullyInsertAll(outputHandler, outputs))
+			return ProcessingAttemptResult.BLOCKED_OUTPUT;
+
+		ItemStack extracted = inputHandler.extractItem(slot, stackToProcess.getCount(), false);
+		if (extracted.getCount() != stackToProcess.getCount())
+			return ProcessingAttemptResult.NO_INPUT;
+
+		insertAllOutputs(outputHandler, outputs);
+		return ProcessingAttemptResult.PROCESSED;
+	}
+
+	private Optional<ProcessingRecipe<RecipeWrapper>> findCrushingRecipe(ItemStack stack) {
+		Level level = getLevel();
+		if (level == null || stack.isEmpty())
+			return Optional.empty();
+
+		CRUSHING_RECIPE_WRAPPER.setItem(0, stack);
+		Optional<ProcessingRecipe<RecipeWrapper>> recipe = AllRecipeTypes.CRUSHING.find(CRUSHING_RECIPE_WRAPPER, level);
+		if (recipe.isEmpty())
+			recipe = AllRecipeTypes.MILLING.find(CRUSHING_RECIPE_WRAPPER, level);
+		return recipe;
+	}
+
+	private List<ItemStack> rollProcessingResults(ItemStack input, ProcessingRecipe<RecipeWrapper> recipe) {
+		List<ItemStack> outputs = new ArrayList<>();
+		for (int roll = 0; roll < input.getCount(); roll++) {
+			for (ItemStack rolledResult : recipe.rollResults())
+				ItemHelper.addToList(rolledResult, outputs);
+		}
+		if (input.hasCraftingRemainingItem())
+			ItemHelper.addToList(input.getCraftingRemainingItem(), outputs);
+		return outputs;
+	}
+
+	private boolean canFullyInsertAll(IItemHandler outputHandler, List<ItemStack> outputs) {
+		List<ItemStack> simulatedSlots = new ArrayList<>(outputHandler.getSlots());
+		for (int slot = 0; slot < outputHandler.getSlots(); slot++)
+			simulatedSlots.add(outputHandler.getStackInSlot(slot).copy());
+
+		for (ItemStack output : outputs) {
+			ItemStack remainder = output.copy();
+			for (int slot = 0; slot < simulatedSlots.size() && !remainder.isEmpty(); slot++) {
+				ItemStack simulatedStack = simulatedSlots.get(slot);
+				int slotLimit = Math.min(outputHandler.getSlotLimit(slot), remainder.getMaxStackSize());
+
+				if (simulatedStack.isEmpty()) {
+					int inserted = Math.min(slotLimit, remainder.getCount());
+					if (inserted <= 0)
+						continue;
+					ItemStack insertedStack = remainder.copy();
+					insertedStack.setCount(inserted);
+					simulatedSlots.set(slot, insertedStack);
+					remainder.shrink(inserted);
+					continue;
+				}
+
+				if (!ItemHandlerHelper.canItemStacksStack(simulatedStack, remainder))
+					continue;
+
+				int space = Math.min(slotLimit, simulatedStack.getMaxStackSize()) - simulatedStack.getCount();
+				if (space <= 0)
+					continue;
+
+				int inserted = Math.min(space, remainder.getCount());
+				simulatedStack.grow(inserted);
+				remainder.shrink(inserted);
+			}
+
+			if (!remainder.isEmpty())
+				return false;
+		}
+
+		return true;
+	}
+
+	private void insertAllOutputs(IItemHandler outputHandler, List<ItemStack> outputs) {
+		for (ItemStack output : outputs) {
+			ItemStack remainder = output.copy();
+			for (int slot = 0; slot < outputHandler.getSlots() && !remainder.isEmpty(); slot++)
+				remainder = outputHandler.insertItem(slot, remainder, false);
+		}
+	}
+
+	@Nullable
+	private IItemHandler getVaultItemHandler(@Nullable BlockPos controllerPos) {
+		if (controllerPos == null || level == null)
+			return null;
+		BlockEntity blockEntity = level.getBlockEntity(controllerPos);
+		if (!(blockEntity instanceof ExplosionProofItemVaultBlockEntity vault))
+			return null;
+		return vault.getCapability(ForgeCapabilities.ITEM_HANDLER, null)
+			.orElse(null);
+	}
+
+	@Nullable
+	private MechanicalPressBlockEntity getMechanicalPress() {
+		if (!structureValid || structureOrigin == null)
+			return null;
+		return getMechanicalPress(structureOrigin.offset(structureSize / 2, 3, structureSize / 2));
+	}
+
+	@Nullable
+	private MechanicalPressBlockEntity getMechanicalPress(BlockPos pressPos) {
+		if (level == null)
+			return null;
+		BlockEntity blockEntity = level.getBlockEntity(pressPos);
+		return blockEntity instanceof MechanicalPressBlockEntity press ? press : null;
+	}
+
+	private void resetPressProgress(@Nullable MechanicalPressBlockEntity press) {
+		if (press == null)
+			return;
+		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+		pressingBehaviour.running = false;
+		pressingBehaviour.finished = false;
+		pressingBehaviour.prevRunningTicks = 0;
+		pressingBehaviour.runningTicks = 0;
+		pressingBehaviour.particleItems.clear();
+		press.setChanged();
+		press.sendData();
+		pressCycleProcessed = false;
+	}
+
 	private void tickPendingUnpacks() {
 		Level level = getLevel();
 		if (level == null || pendingUnpacks.isEmpty())
 			return;
 
-		if (!structureValid || structureOrigin == null || !verifyStructure(level, structureOrigin, structureSize)) {
+		if (!structureValid || structureOrigin == null || scanStructure(level, structureOrigin, structureSize) == null) {
 			if (structureValid && structureOrigin != null) {
 				int oldSize = structureSize;
 				BlockPos oldOrigin = structureOrigin;
-				setStructure(level, false, 0, null);
+				setStructure(level, false, 0, null, null, null);
 				onStructureBroken(level, oldSize, oldOrigin);
 			}
 			return;
@@ -1152,6 +1469,12 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		}
 	}
 
+	private enum ProcessingAttemptResult {
+		PROCESSED,
+		NO_INPUT,
+		BLOCKED_OUTPUT
+	}
+
 	private class ChamberInputHandler implements IItemHandler {
 		@Override
 		public int getSlots() {
@@ -1216,4 +1539,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		boolean exiting) {}
 
 	private record MarkedCreeperTarget(BlockPos packagerPos, Creeper creeper) {}
+
+	private record StructureScanResult(int size, BlockPos origin, BlockPos inputVaultController,
+		BlockPos outputVaultController) {}
 }
