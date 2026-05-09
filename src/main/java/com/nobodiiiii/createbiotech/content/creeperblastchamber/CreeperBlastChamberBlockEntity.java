@@ -20,14 +20,17 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 	private static final int MAX_SIZE = 5;
 
 	public LerpedFloat gauge = LerpedFloat.linear();
+	public LerpedFloat displayGauge = LerpedFloat.linear();
 	private boolean structureValid;
 	private int structureSize;
 	private BlockPos structureOrigin;
+	private BlockPos bottomCenter;
 	private int recheckTimer;
 
 	public CreeperBlastChamberBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get(), pos, state);
 		gauge.startWithValue(0);
+		displayGauge.startWithValue(0);
 	}
 
 	public static void tick(Level level, BlockPos pos, BlockState state, CreeperBlastChamberBlockEntity be) {
@@ -35,6 +38,9 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 			float target = be.structureValid ? (float) be.structureSize / MAX_SIZE : 0f;
 			be.gauge.chase(target, 0.125f, Chaser.EXP);
 			be.gauge.tickChaser();
+			float displayTarget = be.structureValid ? (be.structureSize - MIN_SIZE + 1f) / (MAX_SIZE - MIN_SIZE + 1f) : 0f;
+			be.displayGauge.chase(displayTarget, 0.125f, Chaser.EXP);
+			be.displayGauge.tickChaser();
 			return;
 		}
 
@@ -125,8 +131,48 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 		structureValid = valid;
 		structureSize = size;
 		structureOrigin = origin;
+		bottomCenter = valid && origin != null
+			? origin.offset(size / 2, 0, size / 2)
+			: null;
 		setChanged();
 		level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+	}
+
+	@Override
+	public CompoundTag getUpdateTag() {
+		CompoundTag tag = super.getUpdateTag();
+		tag.putBoolean("StructureValid", structureValid);
+		tag.putInt("StructureSize", structureSize);
+		if (structureOrigin != null) {
+			tag.putInt("OriginX", structureOrigin.getX());
+			tag.putInt("OriginY", structureOrigin.getY());
+			tag.putInt("OriginZ", structureOrigin.getZ());
+		}
+		if (bottomCenter != null) {
+			tag.putInt("BottomX", bottomCenter.getX());
+			tag.putInt("BottomY", bottomCenter.getY());
+			tag.putInt("BottomZ", bottomCenter.getZ());
+		}
+		return tag;
+	}
+
+	@Override
+	public void handleUpdateTag(CompoundTag tag) {
+		super.handleUpdateTag(tag);
+		structureValid = tag.getBoolean("StructureValid");
+		structureSize = tag.getInt("StructureSize");
+		if (tag.contains("OriginX")) {
+			structureOrigin = new BlockPos(
+				tag.getInt("OriginX"), tag.getInt("OriginY"), tag.getInt("OriginZ"));
+		} else {
+			structureOrigin = null;
+		}
+		if (tag.contains("BottomX")) {
+			bottomCenter = new BlockPos(
+				tag.getInt("BottomX"), tag.getInt("BottomY"), tag.getInt("BottomZ"));
+		} else {
+			bottomCenter = null;
+		}
 	}
 
 	public void forceStructureCheck() {
@@ -147,6 +193,11 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 		return structureOrigin;
 	}
 
+	@Nullable
+	public BlockPos getBottomCenter() {
+		return bottomCenter;
+	}
+
 	@Override
 	protected void saveAdditional(CompoundTag tag) {
 		super.saveAdditional(tag);
@@ -156,6 +207,11 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 			tag.putInt("OriginX", structureOrigin.getX());
 			tag.putInt("OriginY", structureOrigin.getY());
 			tag.putInt("OriginZ", structureOrigin.getZ());
+		}
+		if (bottomCenter != null) {
+			tag.putInt("BottomX", bottomCenter.getX());
+			tag.putInt("BottomY", bottomCenter.getY());
+			tag.putInt("BottomZ", bottomCenter.getZ());
 		}
 	}
 
@@ -167,6 +223,14 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 		if (tag.contains("OriginX")) {
 			structureOrigin = new BlockPos(
 				tag.getInt("OriginX"), tag.getInt("OriginY"), tag.getInt("OriginZ"));
+		} else {
+			structureOrigin = null;
+		}
+		if (tag.contains("BottomX")) {
+			bottomCenter = new BlockPos(
+				tag.getInt("BottomX"), tag.getInt("BottomY"), tag.getInt("BottomZ"));
+		} else {
+			bottomCenter = null;
 		}
 	}
 }

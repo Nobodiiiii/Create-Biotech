@@ -1,0 +1,33 @@
+{
+	"credit": "Made with Blockbench",
+	"render_type": "cutout",
+	"textures": {
+		"0": "create:block/boiler_gauge",
+		"particle": "create:block/boiler_gauge"
+	},
+	"elements": [
+		{
+			"name": "rim",
+			"from": [14.5, 2.5, 2.5],
+			"to": [16, 13.5, 13.5],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 8, 8]},
+			"faces": {
+				"north": {"uv": [0, 2.5, 2, 13.5], "texture": "#0"},
+				"south": {"uv": [14, 2.5, 16, 13.5], "texture": "#0"},
+				"west": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
+				"east": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
+				"up": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
+				"down": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"}
+			}
+		},
+		{
+			"name": "face",
+			"from": [16, 2.5, 2.5],
+			"to": [16, 13.5, 13.5],
+			"rotation": {"angle": 0, "axis": "y", "origin": [8, 8, 8]},
+			"faces": {
+				"west": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"}
+			}
+		}
+	]
+}

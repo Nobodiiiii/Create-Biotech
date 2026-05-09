@@ -1,0 +1,17 @@
+{
+	"credit": "Made with Blockbench",
+	"textures": {
+		"0": "create:block/boiler_gauge",
+		"particle": "create:block/boiler_gauge"
+	},
+	"elements": [
+		{
+			"name": "needle",
+			"from": [16.5, 6, 7.5],
+			"to": [16.5, 13, 8.5],
+			"faces": {
+				"east": {"uv": [15, 4, 15.5, 7.5], "texture": "#0"}
+			}
+		}
+	]
+}
