@@ -33,7 +33,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 
 	@Override
 	public void render(CreeperBlastChamberBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
-					   int light, int overlay) {
+		int light, int overlay) {
 		BlockPos origin = be.getStructureOrigin();
 		int size = be.getStructureSize();
 		if (origin == null || !be.isStructureValid())
@@ -61,11 +61,6 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 				d.getAxis() == Direction.Axis.X ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0) : half,
 				0,
 				d.getAxis() == Direction.Axis.Z ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0) : half);
-
-			// BlockPos neighborPos = wallPos.relative(d);
-			// BlockState neighbor = level.getBlockState(neighborPos);
-			// if (neighbor.isSolidRender(level, neighborPos))
-			// 	continue;
 
 			double dx = wallPos.getX() - be.getBlockPos().getX();
 			double dy = wallPos.getY() - be.getBlockPos().getY();

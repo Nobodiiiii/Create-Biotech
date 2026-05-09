@@ -1,11 +1,14 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
@@ -15,6 +18,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
+import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -39,6 +43,9 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Creeper;
@@ -70,12 +77,15 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final String PENDING_PACKAGINGS_TAG = "PendingPackagings";
 	private static final String PENDING_APPEARANCES_TAG = "PendingAppearances";
 	private static final String READY_OUTPUTS_TAG = "ReadyOutputs";
+	private static final String MARKED_CREEPERS_TAG = "MarkedCreepers";
 	private static final String INPUT_VAULT_CONTROLLER_TAG = "InputVaultController";
 	private static final String OUTPUT_VAULT_CONTROLLER_TAG = "OutputVaultController";
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
+	private static final float CLIENT_PRIME_SOUND_THRESHOLD = 0.55f;
 	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
+	private static final Map<UUID, ClientTrackedCreeper> CLIENT_TRACKED_CREEPERS = new HashMap<>();
 
 	public LerpedFloat gauge = LerpedFloat.linear();
 	public LerpedFloat displayGauge = LerpedFloat.linear();
@@ -91,6 +101,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private final List<PendingAppearance> pendingAppearances = new ArrayList<>();
 	private final List<PendingPackaging> pendingPackagings = new ArrayList<>();
 	private final List<ReadyOutput> readyOutputs = new ArrayList<>();
+	private final Map<UUID, BlockPos> syncedMarkedCreepers = new HashMap<>();
+	private boolean controllerOutputRequested;
+	private final Map<Long, Float> clientPressOffsets = new HashMap<>();
+	private final Set<UUID> clientTrackedCreeperUuids = new HashSet<>();
 	private final ChamberInputHandler inputHandler = new ChamberInputHandler();
 	private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> inputHandler);
 
@@ -115,6 +129,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		be.tickPendingUnpacks();
 		be.tickPendingAppearances();
 		be.tickPendingPackagings();
+		be.tickControllerOutputRequest();
 		be.tickReadyOutputs();
 		be.tickPressProcessing();
 
@@ -127,6 +142,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		be.tryDetectStructure();
 	}
 
+	@Override
+	public AABB getRenderBoundingBox() {
+		if (structureValid && structureOrigin != null)
+			return new AABB(structureOrigin, structureOrigin.offset(structureSize, 4, structureSize)).inflate(1);
+		return new AABB(worldPosition).inflate(1);
+	}
+
 	@Nonnull
 	@Override
 	public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side) {
@@ -137,8 +159,15 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	@Override
 	public void invalidateCaps() {
+		clearClientTrackedCreepers();
 		super.invalidateCaps();
 		itemCapability.invalidate();
+	}
+
+	@Override
+	public void setRemoved() {
+		clearClientTrackedCreepers();
+		super.setRemoved();
 	}
 
 	private void tryDetectStructure() {
@@ -345,7 +374,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
 		BlockState pressState = level.getBlockState(pressPos);
 		Direction shaftFacing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
-		resetPressProgress(getMechanicalPress(pressPos));
+		resetPressProgress(getMechanicalPresses());
 		setPackagerOutputsDown(level, origin, size);
 		// Chain drives sit on the two side edges that line up with the press shaft.
 		Axis axis = getPressShaftAxis(pressState);
@@ -488,6 +517,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		for (ReadyOutput readyOutput : readyOutputs)
 			readyOutputList.add(readyOutput.write());
 		tag.put(READY_OUTPUTS_TAG, readyOutputList);
+		ListTag markedCreeperList = new ListTag();
+		for (TrackedMarkedCreeper tracked : getTrackedMarkedCreepers())
+			markedCreeperList.add(tracked.write());
+		tag.put(MARKED_CREEPERS_TAG, markedCreeperList);
 		if (structureOrigin != null) {
 			tag.putInt("OriginX", structureOrigin.getX());
 			tag.putInt("OriginY", structureOrigin.getY());
@@ -521,6 +554,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		readyOutputs.clear();
 		for (Tag readyOutputTag : tag.getList(READY_OUTPUTS_TAG, Tag.TAG_COMPOUND))
 			readyOutputs.add(ReadyOutput.read((CompoundTag) readyOutputTag));
+		syncedMarkedCreepers.clear();
+		for (Tag markedCreeperTag : tag.getList(MARKED_CREEPERS_TAG, Tag.TAG_COMPOUND)) {
+			TrackedMarkedCreeper tracked = TrackedMarkedCreeper.read((CompoundTag) markedCreeperTag);
+			syncedMarkedCreepers.put(tracked.creeperUuid, tracked.packagerPos);
+		}
 		if (tag.contains("OriginX")) {
 			structureOrigin = new BlockPos(
 				tag.getInt("OriginX"), tag.getInt("OriginY"), tag.getInt("OriginZ"));
@@ -571,7 +609,18 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return;
 		}
 
-		MechanicalPressBlockEntity press = getMechanicalPress();
+		List<MechanicalPressBlockEntity> presses = getMechanicalPresses();
+		if (presses.isEmpty()) {
+			pressCycleProcessed = false;
+			return;
+		}
+
+		for (MechanicalPressBlockEntity press : presses) {
+			if (press.getSpeed() != 0 && !press.getPressingBehaviour().running)
+				press.getPressingBehaviour().start(PressingBehaviour.Mode.WORLD);
+		}
+
+		MechanicalPressBlockEntity press = getMasterPress(presses);
 		if (press == null) {
 			pressCycleProcessed = false;
 			return;
@@ -581,12 +630,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		if (press.getSpeed() == 0) {
 			if (!pressingBehaviour.running || pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS)
 				pressCycleProcessed = false;
-			return;
-		}
-
-		if (!pressingBehaviour.running) {
-			pressCycleProcessed = false;
-			pressingBehaviour.start(PressingBehaviour.Mode.WORLD);
 			return;
 		}
 
@@ -732,13 +775,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	@Nullable
-	private MechanicalPressBlockEntity getMechanicalPress() {
-		if (!structureValid || structureOrigin == null)
+	private MechanicalPressBlockEntity getMasterPress(List<MechanicalPressBlockEntity> presses) {
+		if (presses.isEmpty())
 			return null;
-		return getMechanicalPress(structureOrigin.offset(structureSize / 2, 3, structureSize / 2));
+		MechanicalPressBlockEntity centerPress = getMechanicalPress(structureOrigin.offset(structureSize / 2, 3,
+			structureSize / 2));
+		return centerPress != null ? centerPress : presses.get(0);
 	}
 
-	@Nullable
 	private MechanicalPressBlockEntity getMechanicalPress(BlockPos pressPos) {
 		if (level == null)
 			return null;
@@ -746,17 +790,42 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return blockEntity instanceof MechanicalPressBlockEntity press ? press : null;
 	}
 
-	private void resetPressProgress(@Nullable MechanicalPressBlockEntity press) {
+	private List<MechanicalPressBlockEntity> getMechanicalPresses() {
+		List<MechanicalPressBlockEntity> presses = new ArrayList<>();
+		if (!structureValid || structureOrigin == null)
+			return presses;
+
+		for (int x = 1; x < structureSize - 1; x++) {
+			for (int z = 1; z < structureSize - 1; z++) {
+				MechanicalPressBlockEntity press = getMechanicalPress(structureOrigin.offset(x, 3, z));
+				if (press != null)
+					presses.add(press);
+			}
+		}
+		return presses;
+	}
+
+	float getRenderedPressHeadOffset(BlockPos packagerPos, float partialTicks) {
+		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
 		if (press == null)
-			return;
+			return 0;
 		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
-		pressingBehaviour.running = false;
-		pressingBehaviour.finished = false;
-		pressingBehaviour.prevRunningTicks = 0;
-		pressingBehaviour.runningTicks = 0;
-		pressingBehaviour.particleItems.clear();
-		press.setChanged();
-		press.sendData();
+		if (pressingBehaviour.mode == null)
+			return 0;
+		return pressingBehaviour.getRenderedHeadOffset(partialTicks) * pressingBehaviour.mode.headOffset;
+	}
+
+	private void resetPressProgress(List<MechanicalPressBlockEntity> presses) {
+		for (MechanicalPressBlockEntity press : presses) {
+			PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+			pressingBehaviour.running = false;
+			pressingBehaviour.finished = false;
+			pressingBehaviour.prevRunningTicks = 0;
+			pressingBehaviour.runningTicks = 0;
+			pressingBehaviour.particleItems.clear();
+			press.setChanged();
+			press.sendData();
+		}
 		pressCycleProcessed = false;
 	}
 
@@ -883,7 +952,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			if (readyOutput.ticksRemaining > 0)
 				continue;
 
-			BlockPos targetPackager = findIdlePackager();
+			BlockPos targetPackager = findFirstEmptyPackagerSlot();
 			if (targetPackager != null && queueUnpack(targetPackager, readyOutput.boxStack, false)) {
 				iterator.remove();
 				changed = true;
@@ -894,9 +963,94 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			setChanged();
 	}
 
+	private void tickControllerOutputRequest() {
+		if (!controllerOutputRequested || !readyOutputs.isEmpty() || !pendingPackagings.isEmpty())
+			return;
+		if (packageMarkedCreeperForOutput()) {
+			controllerOutputRequested = false;
+			setChanged();
+		}
+	}
+
 	private void tickClientAnimations() {
+		syncClientTrackedCreepers();
 		tickClientAnimationList(pendingAppearances);
 		tickClientAnimationList(pendingPackagings);
+		tickClientWorkingCreeperEffects();
+	}
+
+	private void syncClientTrackedCreepers() {
+		Level level = getLevel();
+		if (level == null || !level.isClientSide) {
+			clearClientTrackedCreepers();
+			return;
+		}
+
+		clientTrackedCreeperUuids.removeIf(uuid -> {
+			if (syncedMarkedCreepers.containsKey(uuid))
+				return false;
+			ClientTrackedCreeper tracked = CLIENT_TRACKED_CREEPERS.get(uuid);
+			if (tracked != null && tracked.controllerPos.equals(getBlockPos()))
+				CLIENT_TRACKED_CREEPERS.remove(uuid);
+			return true;
+		});
+
+		for (Map.Entry<UUID, BlockPos> entry : syncedMarkedCreepers.entrySet()) {
+			CLIENT_TRACKED_CREEPERS.put(entry.getKey(), new ClientTrackedCreeper(getBlockPos(), entry.getValue()));
+			clientTrackedCreeperUuids.add(entry.getKey());
+		}
+	}
+
+	private void clearClientTrackedCreepers() {
+		if (!clientTrackedCreeperUuids.isEmpty()) {
+			for (UUID uuid : clientTrackedCreeperUuids) {
+				ClientTrackedCreeper tracked = CLIENT_TRACKED_CREEPERS.get(uuid);
+				if (tracked != null && tracked.controllerPos.equals(getBlockPos()))
+					CLIENT_TRACKED_CREEPERS.remove(uuid);
+			}
+			clientTrackedCreeperUuids.clear();
+		}
+	}
+
+	private void tickClientWorkingCreeperEffects() {
+		Level level = getLevel();
+		if (level == null || !structureValid) {
+			resetClientWorkingCreeperEffects();
+			clientPressOffsets.clear();
+			return;
+		}
+
+		Map<Long, Float> nextPressOffsets = new HashMap<>();
+		for (RenderManagedCreeper creeper : getWorkingRenderCreepers()) {
+			long key = creeper.packagerPos().asLong();
+			float pressOffset = getRenderedPressHeadOffset(creeper.packagerPos(), 0);
+			nextPressOffsets.put(key, pressOffset);
+			Creeper creeperEntity = getAnimatedCreeper(creeper.creeperUuid(), creeper.packagerPos());
+			if (creeperEntity != null)
+				applyClientWorkingCreeperVisualState(creeperEntity, pressOffset);
+
+			float previousOffset = clientPressOffsets.getOrDefault(key, 0f);
+			if (previousOffset < CLIENT_PRIME_SOUND_THRESHOLD && pressOffset >= CLIENT_PRIME_SOUND_THRESHOLD) {
+				BlockPos pos = creeper.packagerPos();
+				float pitch = 0.9f + ((Math.floorMod(pos.getX() * 31 + pos.getZ() * 17, 8)) * 0.025f);
+				level.playLocalSound(pos.getX() + 0.5d, pos.getY() + 1d, pos.getZ() + 0.5d, SoundEvents.CREEPER_PRIMED,
+					SoundSource.BLOCKS, 0.2f, pitch, false);
+			}
+		}
+
+		clientPressOffsets.clear();
+		clientPressOffsets.putAll(nextPressOffsets);
+	}
+
+	private void resetClientWorkingCreeperEffects() {
+		Level level = getLevel();
+		if (level == null)
+			return;
+		for (UUID uuid : syncedMarkedCreepers.keySet()) {
+			Creeper creeper = findClientTrackedCreeper(uuid);
+			if (creeper != null)
+				applyClientWorkingCreeperVisualState(creeper, 0f);
+		}
 	}
 
 	private static <T extends TimedAnimation> void tickClientAnimationList(List<T> animations) {
@@ -911,26 +1065,22 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	@Nullable
-	private BlockPos findAvailablePackager() {
-		if (!hasAvailableCreeperSlot())
+	private BlockPos findAvailablePackagerForNewInput() {
+		if (getHeldCreeperCount() >= getPackagerPositions().size())
 			return null;
-		return findIdlePackager();
+		return findFirstEmptyPackagerSlot();
 	}
 
 	@Nullable
-	private BlockPos findIdlePackager() {
+	private BlockPos findFirstEmptyPackagerSlot() {
 		for (BlockPos packagerPos : getPackagerPositions()) {
-			if (isPackagerIdle(packagerPos))
+			if (isPackagerSlotEmpty(packagerPos) && canUsePackagerForInternalTransfer(getPackager(packagerPos)))
 				return packagerPos;
 		}
 		return null;
 	}
 
-	private boolean hasAvailableCreeperSlot() {
-		return getOccupiedCreeperSlots() < getPackagerPositions().size();
-	}
-
-	private int getOccupiedCreeperSlots() {
+	private int getHeldCreeperCount() {
 		return pendingUnpacks.size() + readyOutputs.size() + countMarkedCreepers();
 	}
 
@@ -943,22 +1093,21 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			.size();
 	}
 
-	private boolean isPackagerIdle(BlockPos packagerPos) {
-		if (isPackagerReserved(packagerPos) || isPackagerPackaging(packagerPos)
-			|| hasMarkedCreeperAtPackager(packagerPos))
-			return false;
+	private boolean isPackagerSlotEmpty(BlockPos packagerPos) {
+		return !isPackagerReserved(packagerPos)
+			&& !isPackagerPackaging(packagerPos)
+			&& !hasMarkedCreeperAtPackager(packagerPos);
+	}
 
-		PackagerBlockEntity packager = getPackager(packagerPos);
+	private boolean canUsePackagerForInternalTransfer(@Nullable PackagerBlockEntity packager) {
 		return packager != null
 			&& packager.animationTicks <= 0
-			&& packager.heldBox.isEmpty()
-			&& packager.previouslyUnwrapped.isEmpty()
-			&& packager.queuedExitingPackages.isEmpty();
+			&& packager.heldBox.isEmpty();
 	}
 
 	private boolean queueUnpack(BlockPos packagerPos, ItemStack boxStack, boolean returnBox) {
 		PackagerBlockEntity packager = getPackager(packagerPos);
-		if (packager == null || !isPackagerIdle(packagerPos))
+		if (!isPackagerSlotEmpty(packagerPos) || !canUsePackagerForInternalTransfer(packager))
 			return false;
 
 		packager.previouslyUnwrapped = boxStack.copy();
@@ -984,7 +1133,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		if (!structureValid)
 			return new InsertResult(false, stack);
 
-		BlockPos targetPackager = findAvailablePackager();
+		BlockPos targetPackager = findAvailablePackagerForNewInput();
 		if (targetPackager == null)
 			return new InsertResult(false, stack);
 
@@ -1009,12 +1158,17 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	@Nullable
-	private ItemStack getAvailableOutputPreview() {
-		if (!readyOutputs.isEmpty())
-			return readyOutputs.get(0).boxStack.copy();
+	private ItemStack getActualControllerOutput() {
+		if (readyOutputs.isEmpty())
+			return null;
+		return readyOutputs.get(0).boxStack.copy();
+	}
 
-		MarkedCreeperTarget target = findMarkedCreeperForOutput();
-		return target == null ? null : createBoxedCreeper(target.creeper);
+	private void requestControllerOutput() {
+		if (controllerOutputRequested)
+			return;
+		controllerOutputRequested = true;
+		setChanged();
 	}
 
 	@Nullable
@@ -1040,7 +1194,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return false;
 
 		PackagerBlockEntity packager = getPackager(target.packagerPos);
-		if (packager == null || packager.animationTicks > 0 || !packager.heldBox.isEmpty())
+		if (!canUsePackagerForInternalTransfer(packager))
 			return false;
 
 		target.creeper.setInvisible(true);
@@ -1068,8 +1222,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			if (isPackagerReserved(packagerPos) || isPackagerPackaging(packagerPos))
 				continue;
 			PackagerBlockEntity packager = getPackager(packagerPos);
-			if (packager == null || packager.animationTicks > 0 || !packager.heldBox.isEmpty()
-				|| !packager.previouslyUnwrapped.isEmpty() || !packager.queuedExitingPackages.isEmpty())
+			if (!canUsePackagerForInternalTransfer(packager))
 				continue;
 
 			List<Creeper> creepers = level.getEntitiesOfClass(Creeper.class, getPackagerCreeperSearchBounds(packagerPos),
@@ -1094,14 +1247,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private boolean isPackagerPackaging(BlockPos packagerPos) {
 		for (PendingPackaging pending : pendingPackagings) {
 			if (pending.packagerPos.equals(packagerPos))
-				return true;
-		}
-		return false;
-	}
-
-	private boolean hasReadyOutput(BlockPos packagerPos) {
-		for (ReadyOutput readyOutput : readyOutputs) {
-			if (readyOutput.packagerPos.equals(packagerPos))
 				return true;
 		}
 		return false;
@@ -1248,13 +1393,29 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	private boolean hasMarkedCreeperAtPackager(BlockPos packagerPos) {
+		return getMarkedCreeperAtPackager(packagerPos) != null;
+	}
+
+	@Nullable
+	private Creeper getMarkedCreeperAtPackager(BlockPos packagerPos) {
 		Level level = getLevel();
 		if (level == null)
-			return false;
+			return null;
 
-		return !level.getEntitiesOfClass(Creeper.class, getMarkedCreeperSearchBounds(),
-			creeper -> creeper.isAlive() && isMarkedCreeperForThisChamber(creeper, packagerPos))
-			.isEmpty();
+		if (level.isClientSide) {
+			for (Map.Entry<UUID, BlockPos> entry : syncedMarkedCreepers.entrySet()) {
+				if (!entry.getValue().equals(packagerPos))
+					continue;
+				Creeper creeper = findClientTrackedCreeper(entry.getKey());
+				if (creeper != null)
+					return creeper;
+			}
+			return null;
+		}
+
+		List<Creeper> creepers = level.getEntitiesOfClass(Creeper.class, getMarkedCreeperSearchBounds(),
+			creeper -> creeper.isAlive() && isMarkedCreeperForThisChamber(creeper, packagerPos));
+		return creepers.isEmpty() ? null : creepers.get(0);
 	}
 
 	private AABB getMarkedCreeperSearchBounds() {
@@ -1270,6 +1431,36 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		if (data.getLong(CONTROLLER_POS_TAG) != getBlockPos().asLong())
 			return false;
 		return packagerPos == null || data.getLong(PACKAGER_POS_TAG) == packagerPos.asLong();
+	}
+
+	private boolean isPackagerAppearing(BlockPos packagerPos) {
+		for (PendingAppearance pending : pendingAppearances) {
+			if (pending.packagerPos.equals(packagerPos))
+				return true;
+		}
+		return false;
+	}
+
+	private boolean shouldRenderManagedMarkedCreeper(Creeper creeper) {
+		if (!structureValid)
+			return false;
+		BlockPos packagerPos = getLevel() != null && getLevel().isClientSide
+			? syncedMarkedCreepers.get(creeper.getUUID())
+			: getMarkedCreeperPackagerPos(creeper);
+		if (packagerPos == null)
+			return false;
+		return isPackagerPartOfStructure(packagerPos)
+			|| isPackagerAppearing(packagerPos)
+			|| isPackagerPackaging(packagerPos);
+	}
+
+	private void applyClientWorkingCreeperVisualState(Creeper creeper, float pressOffset) {
+		CreeperAccessor accessor = (CreeperAccessor) creeper;
+		float compression = getCompressionFromPressOffset(pressOffset);
+		float pulse = 0.5f + 0.5f * Mth.sin((creeper.level().getGameTime()) * 0.9f);
+		int renderSwell = Mth.floor(Mth.clamp(compression * Mth.lerp(pulse, 0.55f, 1f), 0f, 1f) * 24f);
+		accessor.createBiotech$setOldSwell(renderSwell);
+		accessor.createBiotech$setSwell(renderSwell);
 	}
 
 	private void markCreeper(Creeper creeper, BlockPos packagerPos) {
@@ -1293,10 +1484,46 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return findMarkedCreeperByUuid(creeperUuid, packagerPos);
 	}
 
+	List<RenderManagedCreeper> getWorkingRenderCreepers() {
+		List<RenderManagedCreeper> creepers = new ArrayList<>();
+		Level level = getLevel();
+		if (!structureValid || level == null)
+			return creepers;
+
+		if (level.isClientSide) {
+			for (Map.Entry<UUID, BlockPos> entry : syncedMarkedCreepers.entrySet()) {
+				BlockPos packagerPos = entry.getValue();
+				if (isPackagerAppearing(packagerPos) || isPackagerPackaging(packagerPos))
+					continue;
+				Creeper creeper = findClientTrackedCreeper(entry.getKey());
+				if (creeper != null)
+					creepers.add(new RenderManagedCreeper(packagerPos, entry.getKey()));
+			}
+			return creepers;
+		}
+
+		for (BlockPos packagerPos : getPackagerPositions()) {
+			if (isPackagerAppearing(packagerPos) || isPackagerPackaging(packagerPos))
+				continue;
+			Creeper creeper = getMarkedCreeperAtPackager(packagerPos);
+			if (creeper != null)
+				creepers.add(new RenderManagedCreeper(packagerPos, creeper.getUUID()));
+		}
+		return creepers;
+	}
+
 	private Creeper findMarkedCreeperByUuid(UUID creeperUuid, BlockPos packagerPos) {
 		Level level = getLevel();
 		if (level == null)
 			return null;
+
+		if (level.isClientSide) {
+			BlockPos syncedPackagerPos = syncedMarkedCreepers.get(creeperUuid);
+			if (syncedPackagerPos == null || !syncedPackagerPos.equals(packagerPos))
+				return null;
+			Creeper creeper = findClientTrackedCreeper(creeperUuid);
+			return creeper != null && getPackagerCreeperSearchBounds(packagerPos).contains(creeper.position()) ? creeper : null;
+		}
 
 		List<Creeper> creepers = level.getEntitiesOfClass(Creeper.class, getPackagerCreeperSearchBounds(packagerPos),
 			creeper -> creeper.isAlive() && creeperUuid.equals(creeper.getUUID())
@@ -1315,6 +1542,57 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return animations;
 	}
 
+	public static boolean shouldCancelDefaultMarkedCreeperRender(Creeper creeper) {
+		Level level = creeper.level();
+		BlockPos controllerPos = getMarkedCreeperControllerPos(creeper);
+		if (level == null || controllerPos == null || !level.isLoaded(controllerPos))
+			return false;
+		BlockEntity blockEntity = level.getBlockEntity(controllerPos);
+		return blockEntity instanceof CreeperBlastChamberBlockEntity chamber
+			&& chamber.shouldRenderManagedMarkedCreeper(creeper);
+	}
+
+	public static float getClientWorkingCreeperCompression(Creeper creeper, float partialTicks) {
+		Level level = creeper.level();
+		ClientTrackedCreeper tracked = CLIENT_TRACKED_CREEPERS.get(creeper.getUUID());
+		if (level == null || tracked == null || !level.isLoaded(tracked.controllerPos))
+			return 0f;
+		BlockEntity blockEntity = level.getBlockEntity(tracked.controllerPos);
+		if (!(blockEntity instanceof CreeperBlastChamberBlockEntity chamber))
+			return 0f;
+		if (!chamber.structureValid || chamber.isPackagerAppearing(tracked.packagerPos)
+			|| chamber.isPackagerPackaging(tracked.packagerPos))
+			return 0f;
+		return getCompressionFromPressOffset(chamber.getRenderedPressHeadOffset(tracked.packagerPos, partialTicks));
+	}
+
+	private static float getCompressionFromPressOffset(float pressOffset) {
+		return Mth.clamp((pressOffset - 0.2f) / 0.8f, 0f, 1f);
+	}
+
+	private List<TrackedMarkedCreeper> getTrackedMarkedCreepers() {
+		List<TrackedMarkedCreeper> tracked = new ArrayList<>();
+		Level level = getLevel();
+		if (level == null || level.isClientSide)
+			return tracked;
+		for (BlockPos packagerPos : getPackagerPositions()) {
+			Creeper creeper = getMarkedCreeperAtPackager(packagerPos);
+			if (creeper != null)
+				tracked.add(new TrackedMarkedCreeper(creeper.getUUID(), packagerPos));
+		}
+		return tracked;
+	}
+
+	@Nullable
+	private Creeper findClientTrackedCreeper(UUID creeperUuid) {
+		Level level = getLevel();
+		if (level == null)
+			return null;
+		List<Creeper> creepers = level.getEntitiesOfClass(Creeper.class, getMarkedCreeperSearchBounds(),
+			creeper -> creeper.isAlive() && creeperUuid.equals(creeper.getUUID()));
+		return creepers.isEmpty() ? null : creepers.get(0);
+	}
+
 	private static CompoundTag getCreateBiotechData(Entity entity) {
 		CompoundTag persistentData = entity.getPersistentData();
 		if (!persistentData.contains(DATA_ROOT))
@@ -1325,6 +1603,22 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static CompoundTag getExistingCreateBiotechData(Entity entity) {
 		CompoundTag persistentData = entity.getPersistentData();
 		return persistentData.contains(DATA_ROOT) ? persistentData.getCompound(DATA_ROOT) : null;
+	}
+
+	@Nullable
+	public static BlockPos getMarkedCreeperControllerPos(Entity entity) {
+		CompoundTag data = getExistingCreateBiotechData(entity);
+		if (data == null || !data.getBoolean(MARKED_CREEPER_TAG) || !data.contains(CONTROLLER_POS_TAG, Tag.TAG_LONG))
+			return null;
+		return BlockPos.of(data.getLong(CONTROLLER_POS_TAG));
+	}
+
+	@Nullable
+	static BlockPos getMarkedCreeperPackagerPos(Entity entity) {
+		CompoundTag data = getExistingCreateBiotechData(entity);
+		if (data == null || !data.getBoolean(MARKED_CREEPER_TAG) || !data.contains(PACKAGER_POS_TAG, Tag.TAG_LONG))
+			return null;
+		return BlockPos.of(data.getLong(PACKAGER_POS_TAG));
 	}
 
 	private static class PendingUnpack {
@@ -1484,8 +1778,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		@Override
 		public ItemStack getStackInSlot(int slot) {
 			validateSlot(slot);
-			ItemStack preview = getAvailableOutputPreview();
-			return preview == null ? ItemStack.EMPTY : preview;
+			ItemStack output = getActualControllerOutput();
+			return output == null ? ItemStack.EMPTY : output;
 		}
 
 		@Override
@@ -1508,12 +1802,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			if (extracted != null)
 				return extracted;
 
-			if (simulate) {
-				ItemStack preview = getAvailableOutputPreview();
-				return preview == null ? ItemStack.EMPTY : preview;
-			}
-
-			packageMarkedCreeperForOutput();
+			requestControllerOutput();
+			if (!simulate)
+				tickControllerOutputRequest();
 			return ItemStack.EMPTY;
 		}
 
@@ -1537,6 +1828,23 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	record RenderCreeperAnimation(BlockPos packagerPos, UUID creeperUuid, int ticksRemaining, int totalTicks,
 		boolean exiting) {}
+
+	record RenderManagedCreeper(BlockPos packagerPos, UUID creeperUuid) {}
+
+	private record TrackedMarkedCreeper(UUID creeperUuid, BlockPos packagerPos) {
+		private CompoundTag write() {
+			CompoundTag tag = new CompoundTag();
+			tag.putUUID("CreeperUuid", creeperUuid);
+			tag.putLong("PackagerPos", packagerPos.asLong());
+			return tag;
+		}
+
+		private static TrackedMarkedCreeper read(CompoundTag tag) {
+			return new TrackedMarkedCreeper(tag.getUUID("CreeperUuid"), BlockPos.of(tag.getLong("PackagerPos")));
+		}
+	}
+
+	private record ClientTrackedCreeper(BlockPos controllerPos, BlockPos packagerPos) {}
 
 	private record MarkedCreeperTarget(BlockPos packagerPos, Creeper creeper) {}
 

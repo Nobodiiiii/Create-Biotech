@@ -20,6 +20,8 @@
   ],
   "client": [
     "client.BasinRendererMixin",
+    "client.CreeperAccessor",
+    "client.CreeperRendererMixin",
     "client.FlapStuffsMixin",
     "client.FunnelRendererMixin",
     "client.FunnelVisualMixin",
