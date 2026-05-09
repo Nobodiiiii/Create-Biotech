@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.simibubi.create.AllPartialModels;
@@ -43,16 +44,18 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float dialPivotZ = 8f / 16;
 		int half = size / 2;
 
+		RenderSystem.disableDepthTest();
+
 		for (Direction d : Iterate.horizontalDirections) {
 			BlockPos wallPos = origin.offset(
 				d.getAxis() == Direction.Axis.X ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0) : half,
 				0,
 				d.getAxis() == Direction.Axis.Z ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0) : half);
 
-			BlockPos neighborPos = wallPos.relative(d);
-			BlockState neighbor = level.getBlockState(neighborPos);
-			if (neighbor.isSolidRender(level, neighborPos))
-				continue;
+			// BlockPos neighborPos = wallPos.relative(d);
+			// BlockState neighbor = level.getBlockState(neighborPos);
+			// if (neighbor.isSolidRender(level, neighborPos))
+			// 	continue;
 
 			double dx = wallPos.getX() - be.getBlockPos().getX();
 			double dy = wallPos.getY() - be.getBlockPos().getY();
@@ -82,6 +85,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 
 			ms.popPose();
 		}
+
+		RenderSystem.enableDepthTest();
 	}
 
 	@Override
