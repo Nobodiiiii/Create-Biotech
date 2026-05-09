@@ -64,7 +64,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			ms.pushPose();
 			ms.translate(dx + 0.5, dy + 0.5, dz + 0.5);
 
-			int displayLight = LevelRenderer.getLightColor(level, wallPos);
+			int displayLight = LevelRenderer.getLightColor(level, wallPos.relative(d));
 
 			float yRot = -d.toYRot() - 90;
 			CachedBuffers.partial(AllPartialModels.BOILER_GAUGE, blockState)

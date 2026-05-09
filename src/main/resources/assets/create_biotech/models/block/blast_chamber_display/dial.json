@@ -1,5 +1,6 @@
 {
 	"credit": "Made with Blockbench",
+	"render_type": "cutout",
 	"textures": {
 		"0": "create:block/boiler_gauge",
 		"particle": "create:block/boiler_gauge"
