@@ -19,6 +19,7 @@
   "block.create_biotech.schrodingers_cat": "Schrodinger's Cat",
   "block.create_biotech.creeper_blast_chamber": "Creeper Blast Chamber",
   "block.create_biotech.explosion_proof_casing": "Explosion-Proof Casing",
+  "block.create_biotech.explosion_proof_item_vault": "Explosion-Proof Item Vault",
   "block.create_biotech.blast_proof_glass": "Blast-Proof Glass",
   "block.create_biotech.blast_proof_framed_glass": "Blast-Proof Framed Glass",
   "block.create_biotech.creeper_blast_chamber.status.formed": "Chamber formed! Size: %sx%s. Ready for detonation.",

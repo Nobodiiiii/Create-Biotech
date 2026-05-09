@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
@@ -84,6 +85,9 @@ public class CreateBiotechClient {
 				.register(CreateBiotech.asResource("explosion_proof_casing"),
 					model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
 						CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE, CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("explosion_proof_item_vault"),
+					model -> new CTModel(model, new ExplosionProofItemVaultCTBehaviour()));
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("blast_proof_chain_drive"),
 					model -> new CTModel(model,

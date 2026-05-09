@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlockEntity;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
@@ -62,6 +63,12 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("creeper_blast_chamber",
 			() -> BlockEntityType.Builder
 				.of(CreeperBlastChamberBlockEntity::new, CBBlocks.CREEPER_BLAST_CHAMBER.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<ExplosionProofItemVaultBlockEntity>> EXPLOSION_PROOF_ITEM_VAULT =
+		BLOCK_ENTITY_TYPES.register("explosion_proof_item_vault",
+			() -> BlockEntityType.Builder
+				.of(ExplosionProofItemVaultBlockEntity::new, CBBlocks.EXPLOSION_PROOF_ITEM_VAULT.get())
 				.build(null));
 
 	private CBBlockEntityTypes() {}

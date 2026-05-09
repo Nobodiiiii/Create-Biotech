@@ -38,6 +38,38 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_top_medium"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_top_large"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_front_medium"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_front_large"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_side_medium"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_side_large"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_bottom_medium"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/vault/explosion_proof_item_vault_bottom_large"
+    },
+    {
+      "type": "single",
       "resource": "create_biotech:block/blast_proof_framed_glass_connected"
     }
   ]

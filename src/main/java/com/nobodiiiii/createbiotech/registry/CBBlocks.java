@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
@@ -14,6 +15,7 @@ import com.simibubi.create.content.decoration.encasing.CasingBlock;
 import com.simibubi.create.content.decoration.palettes.ConnectedGlassBlock;
 
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.GlassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.MapColor;
@@ -93,6 +95,13 @@ public class CBBlocks {
 				.strength(50.0f, 1200.0f)
 				.requiresCorrectToolForDrops()
 				.mapColor(MapColor.COLOR_GRAY)));
+
+	public static final RegistryObject<ExplosionProofItemVaultBlock> EXPLOSION_PROOF_ITEM_VAULT =
+		BLOCKS.register("explosion_proof_item_vault",
+			() -> new ExplosionProofItemVaultBlock(Block.Properties.copy(Blocks.GOLD_BLOCK)
+				.mapColor(MapColor.COLOR_GRAY)
+				.sound(SoundType.NETHERITE_BLOCK)
+				.explosionResistance(1200.0f)));
 
 	public static final RegistryObject<GlassBlock> BLAST_PROOF_GLASS =
 		BLOCKS.register("blast_proof_glass",

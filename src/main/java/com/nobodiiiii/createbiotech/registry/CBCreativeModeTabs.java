@@ -34,6 +34,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.FIXED_CARROT_FISHING_ROD.get());
 				output.accept(CBItems.CREEPER_BLAST_CHAMBER.get());
 				output.accept(CBItems.EXPLOSION_PROOF_CASING.get());
+				output.accept(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get());
 				output.accept(CBItems.BLAST_PROOF_GLASS.get());
 				output.accept(CBItems.BLAST_PROOF_FRAMED_GLASS.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());

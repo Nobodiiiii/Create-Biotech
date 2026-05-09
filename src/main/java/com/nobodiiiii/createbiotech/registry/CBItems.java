@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
+import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
@@ -60,6 +61,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));
+
+	public static final RegistryObject<Item> EXPLOSION_PROOF_ITEM_VAULT = ITEMS.register("explosion_proof_item_vault",
+		() -> new ExplosionProofItemVaultItem(CBBlocks.EXPLOSION_PROOF_ITEM_VAULT.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> BLAST_PROOF_GLASS = ITEMS.register("blast_proof_glass",
 		() -> new BlockItem(CBBlocks.BLAST_PROOF_GLASS.get(), new Item.Properties()));

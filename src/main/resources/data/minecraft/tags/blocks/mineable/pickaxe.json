@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "create_biotech:explosion_proof_casing"
+    "create_biotech:explosion_proof_casing",
+    "create_biotech:explosion_proof_item_vault"
   ]
 }
