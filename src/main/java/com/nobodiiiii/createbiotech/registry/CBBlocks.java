@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.simibubi.create.content.decoration.encasing.CasingBlock;
 import com.simibubi.create.content.decoration.palettes.ConnectedGlassBlock;
@@ -100,6 +101,15 @@ public class CBBlocks {
 				.strength(50.0f, 1200.0f)
 				.noOcclusion()
 				.mapColor(MapColor.NONE)));
+
+	public static final RegistryObject<BlastProofChainDriveBlock> BLAST_PROOF_CHAIN_DRIVE =
+			BLOCKS.register("blast_proof_chain_drive",
+				() -> new BlastProofChainDriveBlock(Block.Properties.of()
+					.sound(SoundType.NETHERITE_BLOCK)
+					.strength(50.0f, 1200.0f)
+					.requiresCorrectToolForDrops()
+					.noOcclusion()
+					.mapColor(MapColor.COLOR_GRAY)));
 
 	public static final RegistryObject<ConnectedGlassBlock> BLAST_PROOF_FRAMED_GLASS =
 		BLOCKS.register("blast_proof_framed_glass",

@@ -3,18 +3,21 @@ package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 import javax.annotation.Nullable;
 
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.Direction.Axis;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
-public class CreeperBlastChamberBlockEntity extends BlockEntity {
+public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	private static final int MIN_SIZE = 3;
 	private static final int MAX_SIZE = 5;
@@ -62,11 +65,20 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 		for (int s = MIN_SIZE; s <= MAX_SIZE; s++) {
 			BlockPos origin = findOrigin(level, pos, s);
 			if (origin != null) {
+				boolean wasValid = structureValid;
+				int oldSize = structureSize;
 				setStructure(level, true, s, origin);
+				if (!wasValid || oldSize != s)
+					onStructureFormed(level, s, origin);
 				return;
 			}
 		}
+		boolean wasValid = structureValid;
+		int oldSize = structureSize;
+		BlockPos oldOrigin = structureOrigin;
 		setStructure(level, false, 0, null);
+		if (wasValid)
+			onStructureBroken(level, oldSize, oldOrigin);
 	}
 
 	@Nullable
@@ -106,11 +118,12 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 					} else {
 						boolean isController = state.getBlock() instanceof CreeperBlastChamberBlock;
 						boolean isCasing = state.is(CBBlocks.EXPLOSION_PROOF_CASING.get());
+						boolean isChainDrive = state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get());
 						boolean isVerticalEdge = !isInnerX && !isInnerZ;
 						boolean isTopOrBottom = (y == 0 || y == 3);
 
 						if (isTopOrBottom || isVerticalEdge) {
-							if (!isController && !isCasing)
+							if (!isController && !isCasing && !isChainDrive)
 								return false;
 						} else {
 							boolean isGlass = state.is(CBBlocks.BLAST_PROOF_GLASS.get())
@@ -126,21 +139,71 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 	}
 
 	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin) {
-		if (valid == structureValid && size == structureSize)
-			return;
 		structureValid = valid;
 		structureSize = size;
 		structureOrigin = origin;
 		bottomCenter = valid && origin != null
 			? origin.offset(size / 2, 0, size / 2)
 			: null;
-		setChanged();
-		level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
+		notifyUpdate();
+	}
+
+	private void onStructureFormed(Level level, int size, BlockPos origin) {
+		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
+		BlockState pressState = level.getBlockState(pressPos);
+		Direction facing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
+		// Chain drives go on the two edges parallel to the press facing
+		// Axis is horizontal, along the edge (= perpendicular to facing)
+		Axis axis = facing.getClockWise().getAxis();
+		int perSide = size - 2;
+		BlockState chainState = CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get().defaultBlockState()
+			.setValue(BlockStateProperties.AXIS, axis);
+
+		// Edge 1: the edge in the facing direction from press
+		// Edge 2: the edge in the opposite direction from press
+		Direction towardEdge1 = facing;
+		Direction towardEdge2 = facing.getOpposite();
+		Direction alongEdge = facing.getClockWise();
+
+		int distFromPressToEdge = size / 2;
+		for (int i = -perSide / 2; i <= perSide / 2; i++) {
+			BlockPos edge1Pos = pressPos.relative(towardEdge1, distFromPressToEdge)
+				.relative(alongEdge, i);
+			BlockPos edge2Pos = pressPos.relative(towardEdge2, distFromPressToEdge)
+				.relative(alongEdge, i);
+			if (!level.getBlockState(edge1Pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
+				level.setBlock(edge1Pos, chainState, 3);
+			if (!level.getBlockState(edge2Pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
+				level.setBlock(edge2Pos, chainState, 3);
+		}
+	}
+
+	private void onStructureBroken(Level level, int size, BlockPos origin) {
+		BlockPos pressPos = origin.offset(size / 2, 3, size / 2);
+		BlockState pressState = level.getBlockState(pressPos);
+		Direction facing = pressState.getValue(BlockStateProperties.HORIZONTAL_FACING);
+		Direction towardEdge1 = facing;
+		Direction towardEdge2 = facing.getOpposite();
+		Direction alongEdge = facing.getClockWise();
+		int perSide = size - 2;
+		int distFromPressToEdge = size / 2;
+
+		for (int i = -perSide / 2; i <= perSide / 2; i++) {
+			revertToCasing(level, pressPos.relative(towardEdge1, distFromPressToEdge)
+				.relative(alongEdge, i));
+			revertToCasing(level, pressPos.relative(towardEdge2, distFromPressToEdge)
+				.relative(alongEdge, i));
+		}
+	}
+
+	private void revertToCasing(Level level, BlockPos pos) {
+		if (level.getBlockState(pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
+			level.setBlock(pos, CBBlocks.EXPLOSION_PROOF_CASING.get().defaultBlockState(), 3);
 	}
 
 	@Override
-	public CompoundTag getUpdateTag() {
-		CompoundTag tag = super.getUpdateTag();
+	protected void saveAdditional(CompoundTag tag) {
+		super.saveAdditional(tag);
 		tag.putBoolean("StructureValid", structureValid);
 		tag.putInt("StructureSize", structureSize);
 		if (structureOrigin != null) {
@@ -153,12 +216,11 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 			tag.putInt("BottomY", bottomCenter.getY());
 			tag.putInt("BottomZ", bottomCenter.getZ());
 		}
-		return tag;
 	}
 
 	@Override
-	public void handleUpdateTag(CompoundTag tag) {
-		super.handleUpdateTag(tag);
+	public void load(CompoundTag tag) {
+		super.load(tag);
 		structureValid = tag.getBoolean("StructureValid");
 		structureSize = tag.getInt("StructureSize");
 		if (tag.contains("OriginX")) {
@@ -196,41 +258,5 @@ public class CreeperBlastChamberBlockEntity extends BlockEntity {
 	@Nullable
 	public BlockPos getBottomCenter() {
 		return bottomCenter;
-	}
-
-	@Override
-	protected void saveAdditional(CompoundTag tag) {
-		super.saveAdditional(tag);
-		tag.putBoolean("StructureValid", structureValid);
-		tag.putInt("StructureSize", structureSize);
-		if (structureOrigin != null) {
-			tag.putInt("OriginX", structureOrigin.getX());
-			tag.putInt("OriginY", structureOrigin.getY());
-			tag.putInt("OriginZ", structureOrigin.getZ());
-		}
-		if (bottomCenter != null) {
-			tag.putInt("BottomX", bottomCenter.getX());
-			tag.putInt("BottomY", bottomCenter.getY());
-			tag.putInt("BottomZ", bottomCenter.getZ());
-		}
-	}
-
-	@Override
-	public void load(CompoundTag tag) {
-		super.load(tag);
-		structureValid = tag.getBoolean("StructureValid");
-		structureSize = tag.getInt("StructureSize");
-		if (tag.contains("OriginX")) {
-			structureOrigin = new BlockPos(
-				tag.getInt("OriginX"), tag.getInt("OriginY"), tag.getInt("OriginZ"));
-		} else {
-			structureOrigin = null;
-		}
-		if (tag.contains("BottomX")) {
-			bottomCenter = new BlockPos(
-				tag.getInt("BottomX"), tag.getInt("BottomY"), tag.getInt("BottomZ"));
-		} else {
-			bottomCenter = null;
-		}
 	}
 }

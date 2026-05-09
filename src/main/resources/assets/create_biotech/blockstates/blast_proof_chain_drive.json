@@ -1,0 +1,85 @@
+{
+  "variants": {
+    "axis=y,part=none": {
+      "model": "create_biotech:block/blast_proof_chain_drive/single",
+      "x": 90
+    },
+    "axis=y,part=start,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_vertical"
+    },
+    "axis=y,part=start,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_vertical",
+      "y": 180
+    },
+    "axis=y,part=middle,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_vertical"
+    },
+    "axis=y,part=middle,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_vertical",
+      "y": 90
+    },
+    "axis=y,part=end,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_vertical",
+      "y": 180
+    },
+    "axis=y,part=end,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_vertical",
+      "y": 90
+    },
+    "axis=x,part=none": {
+      "model": "create_biotech:block/blast_proof_chain_drive/single",
+      "y": 90
+    },
+    "axis=x,part=start,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 90
+    },
+    "axis=x,part=start,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 90,
+      "x": 180
+    },
+    "axis=x,part=middle,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_horizontal"
+    },
+    "axis=x,part=middle,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_horizontal",
+      "y": 90
+    },
+    "axis=x,part=end,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 270
+    },
+    "axis=x,part=end,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 90,
+      "x": 180
+    },
+    "axis=z,part=none": {
+      "model": "create_biotech:block/blast_proof_chain_drive/single"
+    },
+    "axis=z,part=start,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "x": 180
+    },
+    "axis=z,part=start,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 90,
+      "x": 180
+    },
+    "axis=z,part=middle,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_horizontal",
+      "y": 90
+    },
+    "axis=z,part=middle,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/middle_horizontal"
+    },
+    "axis=z,part=end,axis_along_first=false": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal"
+    },
+    "axis=z,part=end,axis_along_first=true": {
+      "model": "create_biotech:block/blast_proof_chain_drive/end_horizontal",
+      "y": 90
+    }
+  }
+}
