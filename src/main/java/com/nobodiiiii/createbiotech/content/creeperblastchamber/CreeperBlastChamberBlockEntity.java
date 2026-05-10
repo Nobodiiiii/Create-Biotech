@@ -25,6 +25,7 @@ import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.chainDrive.ChainDriveBlock;
 import com.simibubi.create.content.kinetics.press.MechanicalPressBlockEntity;
 import com.simibubi.create.content.kinetics.press.PressingBehaviour;
@@ -504,6 +505,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 					updateChainDriveState(level, origin.offset(0, topY, z), axis, alongEdgeAxis);
 					updateChainDriveState(level, origin.offset(size - 1, topY, z), axis, alongEdgeAxis);
 				}
+				refreshStructureKinetics(level, origin, size);
 				return;
 			}
 
@@ -520,6 +522,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 				updateChainDriveState(level, origin.offset(x, topY, 0), axis, alongEdgeAxis);
 				updateChainDriveState(level, origin.offset(x, topY, size - 1), axis, alongEdgeAxis);
 			}
+			refreshStructureKinetics(level, origin, size);
 			return;
 		}
 
@@ -548,6 +551,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			updateChainDriveState(level, edge1Pos, axis, alongEdgeAxis);
 			updateChainDriveState(level, edge2Pos, axis, alongEdgeAxis);
 		}
+
+		refreshStructureKinetics(level, origin, size);
 	}
 
 	private void onStructureBroken(Level level, int size, BlockPos origin) {
@@ -563,6 +568,32 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		}
 
 		cancelPendingUnpacks();
+	}
+
+	private void refreshStructureKinetics(Level level, BlockPos origin, int size) {
+		if (level.isClientSide)
+			return;
+
+		List<KineticBlockEntity> kinetics = new ArrayList<>();
+		int topY = 3;
+		for (int x = 0; x < size; x++) {
+			for (int z = 0; z < size; z++) {
+				BlockEntity blockEntity = level.getBlockEntity(origin.offset(x, topY, z));
+				if (blockEntity instanceof KineticBlockEntity kinetic)
+					kinetics.add(kinetic);
+			}
+		}
+
+		for (KineticBlockEntity kinetic : kinetics) {
+			kinetic.detachKinetics();
+			kinetic.removeSource();
+		}
+
+		for (KineticBlockEntity kinetic : kinetics) {
+			kinetic.attachKinetics();
+			kinetic.setChanged();
+			kinetic.sendData();
+		}
 	}
 
 	private void revertToCasing(Level level, BlockPos pos) {
@@ -736,14 +767,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return;
 		}
 
-		synchronizePressesToMaster(presses, press, true);
-
 		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
 		if (press.getSpeed() == 0) {
 			if (!pressingBehaviour.running || pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS)
 				pressCycleProcessed = false;
 			return;
 		}
+
+		synchronizePressesToMaster(presses, press, true);
 
 		if (pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS) {
 			pressCycleProcessed = false;
@@ -919,6 +950,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	float getRenderedPressHeadOffset(BlockPos packagerPos, float partialTicks) {
 		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
+		return getSynchronizedPressHeadOffset(press, partialTicks);
+	}
+
+	float getRenderedCreeperEffectPressOffset(BlockPos packagerPos, float partialTicks) {
+		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
+		if (press == null || press.getSpeed() == 0)
+			return 0f;
 		return getSynchronizedPressHeadOffset(press, partialTicks);
 	}
 
@@ -1228,7 +1266,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		boolean spawnedReturnEffectThisTick = false;
 		for (RenderManagedCreeper creeper : getWorkingRenderCreepers()) {
 			long key = creeper.packagerPos().asLong();
-			float pressOffset = getRenderedPressHeadOffset(creeper.packagerPos(), 0);
+			float pressOffset = getRenderedCreeperEffectPressOffset(creeper.packagerPos(), 0);
 			float previousOffset = clientPressOffsets.getOrDefault(key, 0f);
 			boolean returning = isPressReturning(previousOffset, pressOffset);
 
@@ -1858,7 +1896,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		if (!chamber.structureValid || chamber.isPackagerAppearing(tracked.packagerPos)
 			|| chamber.isPackagerPackaging(tracked.packagerPos))
 			return 0f;
-		return getCompressionFromPressOffset(chamber.getRenderedPressHeadOffset(tracked.packagerPos, partialTicks));
+		return getCompressionFromPressOffset(chamber.getRenderedCreeperEffectPressOffset(tracked.packagerPos, partialTicks));
 	}
 
 	public static float getSynchronizedPressHeadProgress(@Nullable MechanicalPressBlockEntity press, float partialTicks) {
