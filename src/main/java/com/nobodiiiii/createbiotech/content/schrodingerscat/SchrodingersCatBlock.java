@@ -86,9 +86,8 @@ public class SchrodingersCatBlock extends BaseEntityBlock {
 			return 0;
 
 		Direction front = state.getValue(FACING);
-		Direction back = front.getOpposite();
 
-		if (side == back)
+		if (side == front)
 			return cat.getOutputSignal();
 		return 0;
 	}
@@ -98,7 +97,6 @@ public class SchrodingersCatBlock extends BaseEntityBlock {
 		if (side == null)
 			return false;
 		Direction front = state.getValue(FACING);
-		Direction back = front.getOpposite();
-		return side == back;
+		return side == front;
 	}
 }

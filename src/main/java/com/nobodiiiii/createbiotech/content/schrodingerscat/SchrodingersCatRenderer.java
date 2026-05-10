@@ -54,7 +54,7 @@ public class SchrodingersCatRenderer extends SmartBlockEntityRenderer<Schrodinge
 
 		CachedBuffers.partial(powered ? TORCH_ON : TORCH_OFF, state)
 			.center()
-			.rotateYDegrees(blockModelYRotation(facing))
+			.rotateYDegrees(blockModelYRotation(facing.getOpposite()))
 			.uncenter()
 			.light(packedLight)
 			.renderInto(poseStack, cutoutBuffer);
@@ -71,8 +71,8 @@ public class SchrodingersCatRenderer extends SmartBlockEntityRenderer<Schrodinge
 
 		poseStack.pushPose();
 		poseStack.translate(0.5f, 10f / 16f, 0.5f);
-		poseStack.mulPose(Axis.YP.rotationDegrees(blockModelYRotation(facing) + 45));
-		poseStack.mulPose(Axis.ZP.rotationDegrees(180));
+		poseStack.mulPose(Axis.YP.rotationDegrees(blockModelYRotation(facing)));
+		poseStack.mulPose(Axis.ZP.rotationDegrees(225));
 		poseStack.scale(SWORD_SCALE, SWORD_SCALE, SWORD_SCALE);
 		itemRenderer.render(DISPLAY_SWORD, ItemDisplayContext.NONE, false, poseStack, buffer, packedLight,
 			packedOverlay, bakedModel);
