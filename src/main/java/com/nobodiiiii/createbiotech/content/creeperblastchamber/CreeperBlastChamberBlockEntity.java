@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -81,6 +82,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final String MARKED_CREEPERS_TAG = "MarkedCreepers";
 	private static final String INPUT_VAULT_CONTROLLER_TAG = "InputVaultController";
 	private static final String OUTPUT_VAULT_CONTROLLER_TAG = "OutputVaultController";
+	private static final String CONFIGURED_INPUT_VAULT_CONTROLLER_TAG = "ConfiguredInputVaultController";
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
@@ -105,6 +107,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private BlockPos bottomCenter;
 	private BlockPos inputVaultController;
 	private BlockPos outputVaultController;
+	private BlockPos configuredInputVaultController;
 	private boolean pressCycleProcessed;
 	private int recheckTimer;
 	private final List<PendingUnpack> pendingUnpacks = new ArrayList<>();
@@ -178,6 +181,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	@Override
 	public void setRemoved() {
 		clearClientTrackedCreepers();
+		clearCurrentVaultRoleBindings();
 		super.setRemoved();
 	}
 
@@ -197,9 +201,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 				BlockPos oldOutputVault = outputVaultController;
 				setStructure(level, true, result.size, result.origin, result.inputVaultController,
 					result.outputVaultController);
-				if (!wasValid || oldSize != result.size || !result.origin.equals(oldOrigin)
-					|| !result.inputVaultController.equals(oldInputVault)
-					|| !result.outputVaultController.equals(oldOutputVault))
+				if (!wasValid || oldSize != result.size || !Objects.equals(result.origin, oldOrigin)
+					|| !Objects.equals(inputVaultController, oldInputVault)
+					|| !Objects.equals(outputVaultController, oldOutputVault))
 					onStructureFormed(level, result.size, result.origin);
 				return;
 			}
@@ -367,17 +371,104 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin,
-		@Nullable BlockPos inputVault, @Nullable BlockPos outputVault) {
+		@Nullable BlockPos firstVaultController, @Nullable BlockPos secondVaultController) {
+		BlockPos previousInput = inputVaultController;
+		BlockPos previousOutput = outputVaultController;
 		structureValid = valid;
 		structureSize = size;
 		structureOrigin = origin;
-		inputVaultController = inputVault;
-		outputVaultController = outputVault;
+		if (valid && firstVaultController != null && secondVaultController != null) {
+			VaultRoleAssignment assignment = resolveVaultRoleAssignment(firstVaultController, secondVaultController);
+			inputVaultController = assignment.inputVaultController();
+			outputVaultController = assignment.outputVaultController();
+			configuredInputVaultController = inputVaultController;
+		} else {
+			inputVaultController = null;
+			outputVaultController = null;
+		}
 		bottomCenter = valid && origin != null
 			? origin.offset(size / 2, 0, size / 2)
 			: null;
 		if (!valid)
 			pressCycleProcessed = false;
+		syncVaultRoleBindings(level, previousInput, previousOutput);
+		notifyUpdate();
+	}
+
+	private VaultRoleAssignment resolveVaultRoleAssignment(BlockPos firstVaultController, BlockPos secondVaultController) {
+		if (configuredInputVaultController != null) {
+			if (configuredInputVaultController.equals(firstVaultController))
+				return new VaultRoleAssignment(firstVaultController, secondVaultController);
+			if (configuredInputVaultController.equals(secondVaultController))
+				return new VaultRoleAssignment(secondVaultController, firstVaultController);
+		}
+
+		if (inputVaultController != null) {
+			if (inputVaultController.equals(firstVaultController))
+				return new VaultRoleAssignment(firstVaultController, secondVaultController);
+			if (inputVaultController.equals(secondVaultController))
+				return new VaultRoleAssignment(secondVaultController, firstVaultController);
+		}
+
+		return new VaultRoleAssignment(firstVaultController, secondVaultController);
+	}
+
+	private void syncVaultRoleBindings(Level level, @Nullable BlockPos previousInput, @Nullable BlockPos previousOutput) {
+		if (level.isClientSide)
+			return;
+
+		if (previousInput != null && (!previousInput.equals(inputVaultController) || !structureValid))
+			setVaultRoleBinding(previousInput, null);
+		if (previousOutput != null && (!previousOutput.equals(outputVaultController) || !structureValid))
+			setVaultRoleBinding(previousOutput, null);
+
+		if (inputVaultController != null)
+			setVaultRoleBinding(inputVaultController, CreeperBlastChamberVaultRole.INPUT);
+		if (outputVaultController != null)
+			setVaultRoleBinding(outputVaultController, CreeperBlastChamberVaultRole.OUTPUT);
+	}
+
+	private void clearCurrentVaultRoleBindings() {
+		Level level = getLevel();
+		if (level == null || level.isClientSide)
+			return;
+		setVaultRoleBinding(inputVaultController, null);
+		setVaultRoleBinding(outputVaultController, null);
+	}
+
+	private void setVaultRoleBinding(@Nullable BlockPos controllerPos, @Nullable CreeperBlastChamberVaultRole role) {
+		if (controllerPos == null || level == null)
+			return;
+		BlockEntity blockEntity = level.getBlockEntity(controllerPos);
+		if (!(blockEntity instanceof ExplosionProofItemVaultBlockEntity vault))
+			return;
+		if (role == null) {
+			vault.clearBlastChamberBinding(getBlockPos());
+			return;
+		}
+		vault.bindToBlastChamber(getBlockPos(), role);
+	}
+
+	public void configureVaultRole(BlockPos vaultControllerPos, CreeperBlastChamberVaultRole role) {
+		if (level == null || level.isClientSide || !structureValid || inputVaultController == null
+			|| outputVaultController == null)
+			return;
+		if (!vaultControllerPos.equals(inputVaultController) && !vaultControllerPos.equals(outputVaultController))
+			return;
+
+		BlockPos previousInput = inputVaultController;
+		BlockPos previousOutput = outputVaultController;
+		configuredInputVaultController = role == CreeperBlastChamberVaultRole.INPUT
+			? vaultControllerPos
+			: vaultControllerPos.equals(inputVaultController) ? outputVaultController : inputVaultController;
+
+		VaultRoleAssignment assignment = resolveVaultRoleAssignment(previousInput, previousOutput);
+		inputVaultController = assignment.inputVaultController();
+		outputVaultController = assignment.outputVaultController();
+		if (Objects.equals(previousInput, inputVaultController) && Objects.equals(previousOutput, outputVaultController))
+			return;
+
+		syncVaultRoleBindings(level, previousInput, previousOutput);
 		notifyUpdate();
 	}
 
@@ -546,6 +637,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			tag.putLong(INPUT_VAULT_CONTROLLER_TAG, inputVaultController.asLong());
 		if (outputVaultController != null)
 			tag.putLong(OUTPUT_VAULT_CONTROLLER_TAG, outputVaultController.asLong());
+		if (configuredInputVaultController != null)
+			tag.putLong(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG, configuredInputVaultController.asLong());
 	}
 
 	@Override
@@ -588,6 +681,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		outputVaultController = tag.contains(OUTPUT_VAULT_CONTROLLER_TAG)
 			? BlockPos.of(tag.getLong(OUTPUT_VAULT_CONTROLLER_TAG))
 			: null;
+		configuredInputVaultController = tag.contains(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG)
+			? BlockPos.of(tag.getLong(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG))
+			: inputVaultController;
 		pressCycleProcessed = false;
 	}
 
@@ -1989,6 +2085,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private record ClientTrackedCreeper(BlockPos controllerPos, BlockPos packagerPos) {}
 
 	private record MarkedCreeperTarget(BlockPos packagerPos, Creeper creeper) {}
+
+	private record VaultRoleAssignment(BlockPos inputVaultController, BlockPos outputVaultController) {}
 
 	private record StructureScanResult(int size, BlockPos origin, BlockPos inputVaultController,
 		BlockPos outputVaultController) {}
