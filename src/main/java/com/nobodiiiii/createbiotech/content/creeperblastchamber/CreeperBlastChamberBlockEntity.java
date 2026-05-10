@@ -826,6 +826,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 		}
 
+		if (hasUnworkablePresses(presses)) {
+			resetPressProgress(presses);
+			return;
+		}
+
 		for (MechanicalPressBlockEntity press : presses) {
 			if (press.getSpeed() != 0 && !press.getPressingBehaviour().running)
 				press.getPressingBehaviour().start(PressingBehaviour.Mode.WORLD);
@@ -844,8 +849,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 		}
 
-		synchronizePressesToMaster(presses, press, true);
-
 		if (pressingBehaviour.runningTicks < PRESSING_TRIGGER_TICKS) {
 			pressCycleProcessed = false;
 			return;
@@ -863,6 +866,20 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 
 		processMarkedCreepersCycle(workableCreeperCount);
+	}
+
+	private boolean hasUnworkablePresses(List<MechanicalPressBlockEntity> presses) {
+		boolean hasWorkingPress = false;
+		boolean hasStoppedPress = false;
+		for (MechanicalPressBlockEntity press : presses) {
+			if (press.getSpeed() != 0)
+				hasWorkingPress = true;
+			else
+				hasStoppedPress = true;
+			if (hasWorkingPress && hasStoppedPress)
+				return true;
+		}
+		return false;
 	}
 
 	private boolean applyOverloadFromPress(MechanicalPressBlockEntity press, int markedCreeperCount) {
@@ -1059,7 +1076,17 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return null;
 		MechanicalPressBlockEntity centerPress = getMechanicalPress(structureOrigin.offset(structureSize / 2, 3,
 			structureSize / 2));
-		return centerPress != null ? centerPress : presses.get(0);
+		if (centerPress != null && centerPress.getSpeed() != 0)
+			return centerPress;
+		for (MechanicalPressBlockEntity press : presses)
+			if (press.getSpeed() != 0)
+				return press;
+		if (centerPress != null)
+			return centerPress;
+		for (MechanicalPressBlockEntity press : presses)
+			if (press.getPressingBehaviour().running)
+				return press;
+		return presses.get(0);
 	}
 
 	private MechanicalPressBlockEntity getMechanicalPress(BlockPos pressPos) {
@@ -1091,58 +1118,19 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 	float getRenderedCreeperEffectPressOffset(BlockPos packagerPos, float partialTicks) {
 		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
-		if (press == null || press.getSpeed() == 0)
+		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
+		if (press == null || masterPress == null || masterPress.getSpeed() == 0)
 			return 0f;
 		return getSynchronizedPressHeadOffset(press, partialTicks);
-	}
-
-	private void synchronizePressesToMaster(List<MechanicalPressBlockEntity> presses,
-		@Nullable MechanicalPressBlockEntity masterPress, boolean sendDataToClient) {
-		if (masterPress == null || presses.size() <= 1)
-			return;
-
-		PressingBehaviour masterBehaviour = masterPress.getPressingBehaviour();
-		for (MechanicalPressBlockEntity press : presses) {
-			if (press == masterPress)
-				continue;
-			if (!copyPressState(masterBehaviour, press.getPressingBehaviour()))
-				continue;
-			press.setChanged();
-			if (sendDataToClient)
-				press.sendData();
-		}
-	}
-
-	private boolean copyPressState(PressingBehaviour source, PressingBehaviour target) {
-		boolean changed = false;
-
-		if (target.mode != source.mode) {
-			target.mode = source.mode;
-			changed = true;
-		}
-		if (target.running != source.running) {
-			target.running = source.running;
-			changed = true;
-		}
-		if (target.finished != source.finished) {
-			target.finished = source.finished;
-			changed = true;
-		}
-		if (target.prevRunningTicks != source.prevRunningTicks) {
-			target.prevRunningTicks = source.prevRunningTicks;
-			changed = true;
-		}
-		if (target.runningTicks != source.runningTicks) {
-			target.runningTicks = source.runningTicks;
-			changed = true;
-		}
-
-		return changed;
 	}
 
 	private void resetPressProgress(List<MechanicalPressBlockEntity> presses) {
 		for (MechanicalPressBlockEntity press : presses) {
 			PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+			boolean changed = pressingBehaviour.running || pressingBehaviour.finished || pressingBehaviour.prevRunningTicks != 0
+				|| pressingBehaviour.runningTicks != 0 || !pressingBehaviour.particleItems.isEmpty();
+			if (!changed)
+				continue;
 			pressingBehaviour.running = false;
 			pressingBehaviour.finished = false;
 			pressingBehaviour.prevRunningTicks = 0;
@@ -1345,7 +1333,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private void tickClientAnimations() {
 		syncClientPressControllers();
 		syncClientTrackedCreepers();
-		syncClientPressPhases();
 		tickClientAnimationList(pendingAppearances);
 		tickClientAnimationList(pendingPackagings);
 		tickClientWorkingCreeperEffects();
@@ -1373,18 +1360,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 				CLIENT_PRESS_CONTROLLERS.remove(key);
 			return true;
 		});
-	}
-
-	private void syncClientPressPhases() {
-		Level level = getLevel();
-		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null)
-			return;
-
-		List<MechanicalPressBlockEntity> presses = getMechanicalPresses();
-		if (presses.size() <= 1)
-			return;
-
-		synchronizePressesToMaster(presses, getMasterPress(presses), false);
 	}
 
 	private void syncClientTrackedCreepers() {
@@ -1995,10 +1970,17 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 		return null;
 	}
-
 	public static InteractionResult onStructureCasingWrenched(Level level, BlockPos clickedPos, @Nullable Player player) {
 		CreeperBlastChamberBlockEntity chamber = findStructureController(level, clickedPos);
-		if (chamber == null || !chamber.canToggleCreeperFaceAt(clickedPos))
+		if (chamber == null)
+			return InteractionResult.FAIL;
+		if (chamber.canToggleReservedChainDriveAt(clickedPos)) {
+			if (level.isClientSide)
+				return InteractionResult.SUCCESS;
+			chamber.toggleReservedChainDrive(clickedPos);
+			return InteractionResult.SUCCESS;
+		}
+		if (!chamber.canToggleCreeperFaceAt(clickedPos))
 			return InteractionResult.FAIL;
 		if (level.isClientSide)
 			return InteractionResult.SUCCESS;
@@ -2021,6 +2003,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		return !isReservedChainDrivePosition(pos);
 	}
 
+	private boolean canToggleReservedChainDriveAt(BlockPos pos) {
+		if (!isStructurePart(pos) || level == null || !isReservedChainDrivePosition(pos))
+			return false;
+		BlockState state = level.getBlockState(pos);
+		return state.is(CBBlocks.EXPLOSION_PROOF_CASING.get()) || state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get());
+	}
+
 	private boolean isReservedChainDrivePosition(BlockPos pos) {
 		if (!structureValid || structureOrigin == null || structurePressAxis == null)
 			return false;
@@ -2030,6 +2019,27 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (x < 0 || x >= structureSize || y < 0 || y >= 4 || z < 0 || z >= structureSize)
 			return false;
 		return isReservedChainDrivePosition(x, y, z, structureSize, structurePressAxis);
+	}
+
+	private void toggleReservedChainDrive(BlockPos pos) {
+		if (level == null || !structureValid || structureOrigin == null || structurePressAxis == null)
+			return;
+
+		BlockState state = level.getBlockState(pos);
+		if (state.is(CBBlocks.EXPLOSION_PROOF_CASING.get())) {
+			Axis alongEdgeAxis = structurePressAxis == Axis.X ? Axis.Z : Axis.X;
+			BlockState chainState = CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get().defaultBlockState()
+				.setValue(BlockStateProperties.AXIS, structurePressAxis)
+				.setValue(ChainDriveBlock.CONNECTED_ALONG_FIRST_COORDINATE, structurePressAxis == Axis.Z);
+			level.setBlock(pos, chainState, 3);
+			updateChainDriveState(level, pos, structurePressAxis, alongEdgeAxis);
+		} else if (state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get())) {
+			level.setBlock(pos, CBBlocks.EXPLOSION_PROOF_CASING.get().defaultBlockState(), 3);
+		} else {
+			return;
+		}
+
+		refreshStructureKinetics(level, structureOrigin, structureSize);
 	}
 
 	private void toggleCreeperFaceVisible(@Nullable Player player) {
@@ -2057,10 +2067,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private String getStatusTranslationKey() {
+		List<MechanicalPressBlockEntity> presses = getMechanicalPresses();
+		if (hasUnworkablePresses(presses))
+			return "create_biotech.creeper_blast_chamber.tooltip.status.blocked_press";
+
 		if (isCurrentlyOverloading())
 			return "create_biotech.creeper_blast_chamber.tooltip.status.overloading";
 
-		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
+		MechanicalPressBlockEntity masterPress = getMasterPress(presses);
 		if (masterPress == null || masterPress.getSpeed() == 0)
 			return "create_biotech.creeper_blast_chamber.tooltip.status.insufficient_stress";
 
@@ -2068,6 +2082,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private ChatFormatting getStatusColor() {
+		if (hasUnworkablePresses(getMechanicalPresses()))
+			return ChatFormatting.RED;
+
 		if (isCurrentlyOverloading())
 			return ChatFormatting.DARK_RED;
 
@@ -2330,7 +2347,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
 		}
 
-		MechanicalPressBlockEntity masterPress = chamber.getMasterPress(chamber.getMechanicalPresses());
+		List<MechanicalPressBlockEntity> presses = chamber.getMechanicalPresses();
+		if (chamber.hasUnworkablePresses(presses))
+			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
+
+		MechanicalPressBlockEntity masterPress = chamber.getMasterPress(presses);
 		if (masterPress == null)
 			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
 

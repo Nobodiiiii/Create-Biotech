@@ -1,0 +1,65 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "create_biotech:explosion_proof_casing"
+  },
+  "loops": 1,
+  "results": [
+    {
+      "item": "create_biotech:creeper_blast_chamber"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        },
+        {
+          "item": "minecraft:barrel"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        },
+        {
+          "item": "create:precision_mechanism"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        },
+        {
+          "item": "minecraft:lime_dye"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_creeper_blast_chamber"
+        }
+      ]
+    }
+  ],
+  "transitionalItem": {
+    "item": "create_biotech:incomplete_creeper_blast_chamber"
+  }
+}

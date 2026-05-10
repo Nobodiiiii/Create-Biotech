@@ -83,9 +83,10 @@ public class CBBlocks {
 	public static final RegistryObject<CreeperBlastChamberBlock> CREEPER_BLAST_CHAMBER =
 		BLOCKS.register("creeper_blast_chamber",
 			() -> new CreeperBlastChamberBlock(Block.Properties.of()
-				.sound(SoundType.COPPER)
-				.strength(2.5f)
-				.mapColor(MapColor.METAL)
+				.sound(SoundType.NETHERITE_BLOCK)
+				.strength(50.0f, 1200.0f)
+				.requiresCorrectToolForDrops()
+				.mapColor(MapColor.COLOR_GRAY)
 				.noOcclusion()));
 
 	public static final RegistryObject<ExplosionProofCasingBlock> EXPLOSION_PROOF_CASING =

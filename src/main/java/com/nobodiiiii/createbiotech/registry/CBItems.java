@@ -59,6 +59,9 @@ public class CBItems {
 	public static final RegistryObject<Item> CREEPER_BLAST_CHAMBER = ITEMS.register("creeper_blast_chamber",
 		() -> new BlockItem(CBBlocks.CREEPER_BLAST_CHAMBER.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> INCOMPLETE_CREEPER_BLAST_CHAMBER =
+		ITEMS.register("incomplete_creeper_blast_chamber", () -> new Item(new Item.Properties()));
+
 	public static final RegistryObject<Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));
 
