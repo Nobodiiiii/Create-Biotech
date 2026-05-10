@@ -74,8 +74,8 @@ public class CreateBiotechClient {
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_GLASS.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get(), RenderType.translucent());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_GLASS.get(), RenderType.cutout());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get(), RenderType.cutout());
 				ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);

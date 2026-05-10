@@ -105,11 +105,7 @@ public class CBBlocks {
 
 	public static final RegistryObject<GlassBlock> BLAST_PROOF_GLASS =
 		BLOCKS.register("blast_proof_glass",
-			() -> new GlassBlock(Block.Properties.of()
-				.sound(SoundType.GLASS)
-				.strength(50.0f, 1200.0f)
-				.noOcclusion()
-				.mapColor(MapColor.NONE)));
+			() -> new GlassBlock(blastProofGlassProperties()));
 
 	public static final RegistryObject<BlastProofChainDriveBlock> BLAST_PROOF_CHAIN_DRIVE =
 			BLOCKS.register("blast_proof_chain_drive",
@@ -122,11 +118,12 @@ public class CBBlocks {
 
 	public static final RegistryObject<ConnectedGlassBlock> BLAST_PROOF_FRAMED_GLASS =
 		BLOCKS.register("blast_proof_framed_glass",
-			() -> new ConnectedGlassBlock(Block.Properties.of()
-				.sound(SoundType.GLASS)
-				.strength(50.0f, 1200.0f)
-				.noOcclusion()
-				.mapColor(MapColor.NONE)));
+			() -> new ConnectedGlassBlock(blastProofGlassProperties()));
+
+	private static Block.Properties blastProofGlassProperties() {
+		return Block.Properties.copy(Blocks.GLASS)
+			.strength(50.0f, 1200.0f);
+	}
 
 	private CBBlocks() {}
 
