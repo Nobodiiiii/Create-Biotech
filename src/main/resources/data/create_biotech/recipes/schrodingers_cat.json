@@ -2,8 +2,8 @@
   "type": "create_biotech:schrodingers_cat",
   "pattern": [
     " I ",
-    "RCR",
-    " R "
+    " CR",
+    "   "
   ],
   "key": {
     "I": {
