@@ -27,6 +27,7 @@
     "client.FlapStuffsMixin",
     "client.FunnelRendererMixin",
     "client.FunnelVisualMixin",
+    "client.GameRendererMixin",
     "client.GoggleOverlayRendererMixin",
     "client.PressingBehaviourMixin",
     "client.LevelRendererAccessor"

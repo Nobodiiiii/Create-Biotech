@@ -9,6 +9,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.common.SoundActions;
@@ -54,6 +55,7 @@ public class CBFluids {
 		FLUID_BLOCKS.register("liquid_living_slime",
 			() -> new LiquidBlock(LIQUID_LIVING_SLIME, Block.Properties.of()
 				.noCollission()
+				.sound(SoundType.SLIME_BLOCK)
 				.strength(100f)
 				.noLootTable()
 				.liquid()));
