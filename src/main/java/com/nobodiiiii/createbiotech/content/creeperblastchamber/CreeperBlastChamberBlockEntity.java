@@ -20,6 +20,7 @@ import com.nobodiiiii.createbiotech.client.CreeperBlastChamberClientSoundHandler
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
+import com.nobodiiiii.createbiotech.mixin.MobAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
@@ -96,7 +97,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private static final String CREEPER_FACE_VISIBLE_TAG = "CreeperFaceVisible";
 	private static final String OVERLOAD_POINTS_TAG = "OverloadPoints";
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
-	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
+	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 5;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
 	private static final int OVERLOAD_THRESHOLD_RPM = 128;
 	private static final int OVERLOAD_POINTS_CAP = OVERLOAD_THRESHOLD_RPM * 64;
@@ -163,6 +164,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		be.tickPendingUnpacks();
 		be.tickPendingAppearances();
 		be.tickPendingPackagings();
+		be.cleanupMissingMarkedCreepers();
 		be.tickControllerOutputRequest();
 		be.tickReadyOutputs();
 		be.tickPressProcessing();
@@ -605,6 +607,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private void onStructureBroken(Level level, int size, BlockPos origin, @Nullable Axis pressAxis) {
 		restoreChainDrivePositionsToCasing(level, origin, size, pressAxis);
 		refreshStructureKinetics(level, origin, size);
+		releaseManagedCreepers(origin, size);
 		cancelPendingUnpacks();
 	}
 
@@ -852,14 +855,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 
 		pressCycleProcessed = true;
-		int markedCreeperCount = countMarkedCreepers();
-		if (markedCreeperCount <= 0)
+		int workableCreeperCount = countWorkableMarkedCreepers();
+		if (workableCreeperCount <= 0)
 			return;
 
-		if (applyOverloadFromPress(press, markedCreeperCount))
+		if (applyOverloadFromPress(press, workableCreeperCount))
 			return;
 
-		processMarkedCreepersCycle(markedCreeperCount);
+		processMarkedCreepersCycle(workableCreeperCount);
 	}
 
 	private boolean applyOverloadFromPress(MechanicalPressBlockEntity press, int markedCreeperCount) {
@@ -1263,6 +1266,48 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		}
 	}
 
+	private void cleanupMissingMarkedCreepers() {
+		Level level = getLevel();
+		if (level == null || level.isClientSide)
+			return;
+
+		boolean changed = false;
+		Iterator<PendingAppearance> appearanceIterator = pendingAppearances.iterator();
+		while (appearanceIterator.hasNext()) {
+			PendingAppearance pending = appearanceIterator.next();
+			if (findMarkedCreeperByUuid(pending.creeperUuid, pending.packagerPos) != null)
+				continue;
+			removeTrackedMarkedCreeper(pending.creeperUuid);
+			appearanceIterator.remove();
+			changed = true;
+		}
+
+		Iterator<PendingPackaging> packagingIterator = pendingPackagings.iterator();
+		while (packagingIterator.hasNext()) {
+			PendingPackaging pending = packagingIterator.next();
+			if (findMarkedCreeperByUuid(pending.creeperUuid, pending.packagerPos) != null)
+				continue;
+			clearPackagerAnimationState(pending.packagerPos);
+			restorePendingPackaging(pending, true);
+			packagingIterator.remove();
+			changed = true;
+		}
+
+		Iterator<Map.Entry<UUID, BlockPos>> trackedIterator = syncedMarkedCreepers.entrySet().iterator();
+		while (trackedIterator.hasNext()) {
+			Map.Entry<UUID, BlockPos> entry = trackedIterator.next();
+			if (findMarkedCreeperByUuid(entry.getKey(), entry.getValue()) != null)
+				continue;
+			trackedIterator.remove();
+			changed = true;
+		}
+
+		if (changed) {
+			setChanged();
+			notifyUpdate();
+		}
+	}
+
 	private void tickReadyOutputs() {
 		Level level = getLevel();
 		if (level == null || readyOutputs.isEmpty() || !structureValid)
@@ -1541,6 +1586,17 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			.size();
 	}
 
+	private int countWorkableMarkedCreepers() {
+		int count = 0;
+		for (BlockPos packagerPos : getPackagerPositions()) {
+			if (isPackagerAppearing(packagerPos) || isPackagerPackaging(packagerPos))
+				continue;
+			if (getMarkedCreeperAtPackager(packagerPos) != null)
+				count++;
+		}
+		return count;
+	}
+
 	private boolean isPackagerSlotEmpty(BlockPos packagerPos) {
 		return !isPackagerReserved(packagerPos)
 			&& !isPackagerPackaging(packagerPos)
@@ -1667,7 +1723,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return null;
 
 		for (BlockPos packagerPos : getPackagerPositions()) {
-			if (isPackagerReserved(packagerPos) || isPackagerPackaging(packagerPos))
+			if (isPackagerReserved(packagerPos) || isPackagerAppearing(packagerPos) || isPackagerPackaging(packagerPos))
 				continue;
 			PackagerBlockEntity packager = getPackager(packagerPos);
 			if (!canUsePackagerForInternalTransfer(packager))
@@ -1761,23 +1817,64 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		for (PendingUnpack pending : pendingUnpacks)
 			dropBox(pending);
 		pendingUnpacks.clear();
-		cancelPendingPackagings();
 		setChanged();
 	}
 
-	private void cancelPendingPackagings() {
-		for (PendingPackaging pending : pendingPackagings) {
-			PackagerBlockEntity packager = getPackager(pending.packagerPos);
-			if (packager != null) {
-				packager.heldBox = ItemStack.EMPTY;
-				packager.animationTicks = 0;
-				packager.notifyUpdate();
-				packager.setChanged();
-			}
-			restorePendingPackaging(pending, true);
+	private void releaseManagedCreepers(BlockPos origin, int size) {
+		Level level = getLevel();
+		if (level == null || level.isClientSide)
+			return;
+
+		for (PendingPackaging pending : pendingPackagings)
+			clearPackagerAnimationState(pending.packagerPos);
+
+		AABB searchBounds = new AABB(origin, origin.offset(size, 4, size)).inflate(32);
+		for (Creeper creeper : level.getEntitiesOfClass(Creeper.class, searchBounds,
+			entity -> entity.isAlive() && isMarkedCreeperForThisChamber(entity, null))) {
+			releaseManagedCreeper(creeper);
 		}
+
+		pendingAppearances.clear();
 		pendingPackagings.clear();
+		syncedMarkedCreepers.clear();
+		controllerOutputRequested = false;
+		setChanged();
 		notifyUpdate();
+	}
+
+	private void clearPackagerAnimationState(BlockPos packagerPos) {
+		PackagerBlockEntity packager = getPackager(packagerPos);
+		if (packager == null)
+			return;
+		packager.heldBox = ItemStack.EMPTY;
+		packager.animationTicks = 0;
+		packager.notifyUpdate();
+		packager.setChanged();
+	}
+
+	private void releaseManagedCreeper(Creeper creeper) {
+		clearMarkedCreeperData(creeper);
+		creeper.setNoAi(false);
+		creeper.setInvisible(false);
+		creeper.setDeltaMovement(Vec3.ZERO);
+		creeper.fallDistance = 0;
+		((MobAccessor) creeper).createBiotech$setPersistenceRequired(false);
+	}
+
+	private void clearMarkedCreeperData(Entity entity) {
+		CompoundTag persistentData = entity.getPersistentData();
+		if (!persistentData.contains(DATA_ROOT, Tag.TAG_COMPOUND))
+			return;
+
+		CompoundTag data = persistentData.getCompound(DATA_ROOT);
+		data.remove(MARKED_CREEPER_TAG);
+		data.remove(CONTROLLER_POS_TAG);
+		data.remove(PACKAGER_POS_TAG);
+		if (data.isEmpty()) {
+			persistentData.remove(DATA_ROOT);
+			return;
+		}
+		persistentData.put(DATA_ROOT, data);
 	}
 
 	private void dropBox(PendingUnpack pending) {

@@ -1,8 +1,8 @@
 {
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "create:block/boiler_gauge",
-		"particle": "create:block/boiler_gauge"
+		"0": "create_biotech:block/blast_chamber_display/panel",
+		"particle": "create_biotech:block/blast_chamber_display/panel"
 	},
 	"elements": [
 		{
