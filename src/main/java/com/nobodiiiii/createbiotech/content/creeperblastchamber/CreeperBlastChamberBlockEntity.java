@@ -26,6 +26,7 @@ import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.chainDrive.ChainDriveBlock;
 import com.simibubi.create.content.kinetics.press.MechanicalPressBlockEntity;
@@ -35,11 +36,13 @@ import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.foundation.blockEntity.SyncedBlockEntity;
 import com.simibubi.create.foundation.item.ItemHelper;
+import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import net.createmod.catnip.data.Iterate;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -47,6 +50,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
@@ -71,7 +75,7 @@ import net.minecraftforge.items.wrapper.RecipeWrapper;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 
-public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
+public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements IHaveGoggleInformation {
 
 	private static final int MIN_SIZE = 3;
 	private static final int MAX_SIZE = 5;
@@ -87,9 +91,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final String INPUT_VAULT_CONTROLLER_TAG = "InputVaultController";
 	private static final String OUTPUT_VAULT_CONTROLLER_TAG = "OutputVaultController";
 	private static final String CONFIGURED_INPUT_VAULT_CONTROLLER_TAG = "ConfiguredInputVaultController";
+	private static final String OVERLOAD_POINTS_TAG = "OverloadPoints";
 	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
+	private static final int OVERLOAD_THRESHOLD_RPM = 128;
+	private static final int OVERLOAD_POINTS_CAP = OVERLOAD_THRESHOLD_RPM * 64;
+	private static final int OVERLOAD_TNT_EQUIVALENT_PER_CREEPER = 4;
+	private static final float TNT_EXPLOSION_POWER = 4f;
 	private static final float CLIENT_PRESS_EFFECT_START_OFFSET = 0.4f;
 	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
 	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
@@ -113,6 +122,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private BlockPos inputVaultController;
 	private BlockPos outputVaultController;
 	private BlockPos configuredInputVaultController;
+	private int overloadPoints;
 	private boolean pressCycleProcessed;
 	private int recheckTimer;
 	private final List<PendingUnpack> pendingUnpacks = new ArrayList<>();
@@ -136,11 +146,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	public static void tick(Level level, BlockPos pos, BlockState state, CreeperBlastChamberBlockEntity be) {
 		if (level.isClientSide) {
-			float target = be.structureValid ? (float) be.structureSize / MAX_SIZE : 0f;
-			be.gauge.chase(target, 0.125f, Chaser.EXP);
+			float overloadTarget = be.structureValid ? be.getOverloadFraction() : 0f;
+			be.gauge.chase(overloadTarget, 0.125f, Chaser.EXP);
 			be.gauge.tickChaser();
-			float displayTarget = be.structureValid ? (be.structureSize - MIN_SIZE + 1f) / (MAX_SIZE - MIN_SIZE + 1f) : 0f;
-			be.displayGauge.chase(displayTarget, 0.125f, Chaser.EXP);
+			be.displayGauge.chase(overloadTarget, 0.125f, Chaser.EXP);
 			be.displayGauge.tickChaser();
 			be.tickClientAnimations();
 			return;
@@ -660,6 +669,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		for (Map.Entry<UUID, BlockPos> entry : syncedMarkedCreepers.entrySet())
 			markedCreeperList.add(new TrackedMarkedCreeper(entry.getKey(), entry.getValue()).write());
 		tag.put(MARKED_CREEPERS_TAG, markedCreeperList);
+		tag.putInt(OVERLOAD_POINTS_TAG, overloadPoints);
 		if (structureOrigin != null) {
 			tag.putInt("OriginX", structureOrigin.getX());
 			tag.putInt("OriginY", structureOrigin.getY());
@@ -721,6 +731,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		configuredInputVaultController = tag.contains(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG)
 			? BlockPos.of(tag.getLong(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG))
 			: inputVaultController;
+		overloadPoints = Mth.clamp(tag.getInt(OVERLOAD_POINTS_TAG), 0, OVERLOAD_POINTS_CAP);
 		pressCycleProcessed = false;
 	}
 
@@ -788,7 +799,54 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			return;
 
 		pressCycleProcessed = true;
-		processMarkedCreepersCycle(countMarkedCreepers());
+		int markedCreeperCount = countMarkedCreepers();
+		if (markedCreeperCount <= 0)
+			return;
+
+		if (applyOverloadFromPress(press, markedCreeperCount))
+			return;
+
+		processMarkedCreepersCycle(markedCreeperCount);
+	}
+
+	private boolean applyOverloadFromPress(MechanicalPressBlockEntity press, int markedCreeperCount) {
+		int rpm = Mth.floor(Math.abs(press.getSpeed()));
+		int overloadGain = rpm - OVERLOAD_THRESHOLD_RPM;
+		if (overloadGain <= 0)
+			return false;
+
+		int nextOverloadPoints = overloadPoints + overloadGain;
+		if (nextOverloadPoints > OVERLOAD_POINTS_CAP) {
+			triggerOverload(markedCreeperCount);
+			return true;
+		}
+
+		setOverloadPoints(nextOverloadPoints);
+		return false;
+	}
+
+	private void triggerOverload(int markedCreeperCount) {
+		Level level = getLevel();
+		if (level == null || level.isClientSide || !structureValid || structureOrigin == null)
+			return;
+
+		setOverloadPoints(0);
+		if (markedCreeperCount <= 0)
+			return;
+
+		Vec3 center = Vec3.atCenterOf(structureOrigin.offset(structureSize / 2, 1, structureSize / 2));
+		float explosionPower = markedCreeperCount * OVERLOAD_TNT_EQUIVALENT_PER_CREEPER * TNT_EXPLOSION_POWER;
+		level.explode(null, center.x, center.y, center.z, explosionPower, Level.ExplosionInteraction.TNT);
+	}
+
+	private void setOverloadPoints(int overloadPoints) {
+		int clampedOverloadPoints = Mth.clamp(overloadPoints, 0, OVERLOAD_POINTS_CAP);
+		if (this.overloadPoints == clampedOverloadPoints)
+			return;
+		this.overloadPoints = clampedOverloadPoints;
+		setChanged();
+		if (level != null && !level.isClientSide)
+			notifyUpdate();
 	}
 
 	private void processMarkedCreepersCycle(int markedCreeperCount) {
@@ -1737,6 +1795,67 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			}
 		}
 		return false;
+	}
+
+	@Nullable
+	public static BlockPos findGoggleInformationSource(Level level, BlockPos structurePos) {
+		BlockEntity directBlockEntity = level.getBlockEntity(structurePos);
+		if (directBlockEntity instanceof CreeperBlastChamberBlockEntity chamber
+			&& chamber.isStructurePart(structurePos))
+			return chamber.getBlockPos();
+
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		for (int y = structurePos.getY() - 3; y <= structurePos.getY() + 3; y++) {
+			for (int x = structurePos.getX() - MAX_SIZE; x <= structurePos.getX() + MAX_SIZE; x++) {
+				for (int z = structurePos.getZ() - MAX_SIZE; z <= structurePos.getZ() + MAX_SIZE; z++) {
+					cursor.set(x, y, z);
+					if (!(level.getBlockEntity(cursor) instanceof CreeperBlastChamberBlockEntity chamber))
+						continue;
+					if (chamber.isStructurePart(structurePos))
+						return chamber.getBlockPos();
+				}
+			}
+		}
+
+		return null;
+	}
+
+	private boolean isStructurePart(BlockPos pos) {
+		return structureValid && structureOrigin != null && isWithinStructureVolume(pos, structureOrigin, structureSize);
+	}
+
+	public float getOverloadFraction() {
+		return overloadPoints / (float) OVERLOAD_POINTS_CAP;
+	}
+
+	public int getOverloadPercent() {
+		return Mth.clamp(Math.round(getOverloadFraction() * 100f), 0, 100);
+	}
+
+	private ChatFormatting getOverloadDisplayColor() {
+		float overloadFraction = getOverloadFraction();
+		if (overloadFraction >= 1f)
+			return ChatFormatting.DARK_RED;
+		if (overloadFraction >= 0.75f)
+			return ChatFormatting.RED;
+		if (overloadFraction >= 0.5f)
+			return ChatFormatting.GOLD;
+		if (overloadFraction >= 0.25f)
+			return ChatFormatting.YELLOW;
+		return ChatFormatting.GREEN;
+	}
+
+	@Override
+	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+		if (!structureValid)
+			return false;
+
+		Component overloadPercent = Component.literal(getOverloadPercent() + "%")
+			.withStyle(getOverloadDisplayColor());
+		CreateLang.builder()
+			.add(Component.translatable("create_biotech.creeper_blast_chamber.tooltip.overload", overloadPercent))
+			.forGoggles(tooltip);
+		return true;
 	}
 
 	private boolean isPackagerReserved(BlockPos packagerPos) {

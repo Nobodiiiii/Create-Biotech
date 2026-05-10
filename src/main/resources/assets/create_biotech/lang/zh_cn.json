@@ -27,6 +27,7 @@
   "block.create_biotech.creeper_blast_chamber.status.accepted": "大型苦力怕纸箱已送入打包机。",
   "block.create_biotech.creeper_blast_chamber.status.invalid_input": "这里只能输入装有苦力怕的大型纸箱。",
   "block.create_biotech.creeper_blast_chamber.status.full": "底部打包机都已占用，暂时无法继续输入。",
+  "create_biotech.creeper_blast_chamber.tooltip.overload": "过载值：%s",
   "create_biotech.creeper_blast_chamber.vault_role.label": "爆破室保险库角色",
   "create_biotech.creeper_blast_chamber.vault_role.input": "结构输入",
   "create_biotech.creeper_blast_chamber.vault_role.output": "结构输出",

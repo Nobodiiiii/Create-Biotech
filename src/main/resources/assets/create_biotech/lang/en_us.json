@@ -27,6 +27,7 @@
   "block.create_biotech.creeper_blast_chamber.status.accepted": "Sent the large creeper box into a packager.",
   "block.create_biotech.creeper_blast_chamber.status.invalid_input": "This chamber only accepts large cardboard boxes containing a creeper.",
   "block.create_biotech.creeper_blast_chamber.status.full": "All bottom packagers are occupied right now.",
+  "create_biotech.creeper_blast_chamber.tooltip.overload": "Overload: %s",
   "create_biotech.creeper_blast_chamber.vault_role.label": "Blast Chamber Vault Role",
   "create_biotech.creeper_blast_chamber.vault_role.input": "Structure Input",
   "create_biotech.creeper_blast_chamber.vault_role.output": "Structure Output",
