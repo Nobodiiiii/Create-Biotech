@@ -87,6 +87,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final float CLIENT_PRESS_EFFECT_START_OFFSET = 0.4f;
 	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
 	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
+	private static final double CLIENT_RETURN_EFFECT_Y_OFFSET = 2.5d;
 	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 	private static final Map<UUID, ClientTrackedCreeper> CLIENT_TRACKED_CREEPERS = new HashMap<>();
 
@@ -1089,6 +1090,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		Map<Long, Float> nextPressOffsets = new HashMap<>();
 		Set<Long> activePackagers = new HashSet<>();
 		Set<UUID> activeCreepers = new HashSet<>();
+		boolean spawnedReturnEffectThisTick = false;
 		for (RenderManagedCreeper creeper : getWorkingRenderCreepers()) {
 			long key = creeper.packagerPos().asLong();
 			float pressOffset = getRenderedPressHeadOffset(creeper.packagerPos(), 0);
@@ -1112,9 +1114,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 			if (pressOffset >= CLIENT_RETURN_EFFECT_ARM_THRESHOLD)
 				clientReturnEffectsArmed.add(key);
-			if (clientReturnEffectsArmed.contains(key) && returning) {
-				spawnClientReturnExplosionEffect(creeper.packagerPos());
-				clientReturnEffectsArmed.remove(key);
+			if (!spawnedReturnEffectThisTick && clientReturnEffectsArmed.contains(key) && returning) {
+				spawnClientReturnExplosionEffect();
+				spawnedReturnEffectThisTick = true;
 			}
 			if (pressOffset <= CLIENT_PRESS_EFFECT_START_OFFSET * 0.5f)
 				clientReturnEffectsArmed.remove(key);
@@ -1130,6 +1132,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 		clientPressOffsets.clear();
 		clientPressOffsets.putAll(nextPressOffsets);
+		if (spawnedReturnEffectThisTick)
+			clientReturnEffectsArmed.clear();
 		clientReturnEffectsArmed.removeIf(key -> !activePackagers.contains(key));
 	}
 
@@ -1138,32 +1142,23 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			&& previousOffset >= CLIENT_PRESS_EFFECT_START_OFFSET;
 	}
 
-	private void spawnClientReturnExplosionEffect(BlockPos packagerPos) {
+	private void spawnClientReturnExplosionEffect() {
 		Level level = getLevel();
-		if (level == null || !level.isClientSide)
+		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null)
 			return;
 
-		double x = packagerPos.getX() + 0.5d;
-		double y = packagerPos.getY() + 1.15d;
-		double z = packagerPos.getZ() + 0.5d;
+		int innerSize = Mth.clamp(structureSize - 2, 1, 3);
+		double centerX = structureOrigin.getX() + structureSize / 2d;
+		double centerY = structureOrigin.getY() + CLIENT_RETURN_EFFECT_Y_OFFSET;
+		double centerZ = structureOrigin.getZ() + structureSize / 2d;
+		double firstOffset = -((innerSize - 1) / 2d);
 
-		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION_EMITTER, true, x, y, z, 0, 0, 0);
-		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, y, z, 0, 0, 0);
-
-		for (int i = 0; i < 6; i++) {
-			double velocityX = (level.random.nextDouble() - 0.5d) * 0.1d;
-			double velocityY = 0.02d + level.random.nextDouble() * 0.04d;
-			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.1d;
-			level.addAlwaysVisibleParticle(ParticleTypes.POOF, true, x, y, z, velocityX, velocityY, velocityZ);
-			level.addAlwaysVisibleParticle(ParticleTypes.CLOUD, true, x, y, z, velocityX * 0.7d, velocityY,
-				velocityZ * 0.7d);
-		}
-
-		for (int i = 0; i < 8; i++) {
-			double velocityX = (level.random.nextDouble() - 0.5d) * 0.12d;
-			double velocityY = 0.03d + level.random.nextDouble() * 0.05d;
-			double velocityZ = (level.random.nextDouble() - 0.5d) * 0.12d;
-			level.addAlwaysVisibleParticle(ParticleTypes.SMOKE, true, x, y, z, velocityX, velocityY, velocityZ);
+		for (int xIndex = 0; xIndex < innerSize; xIndex++) {
+			for (int zIndex = 0; zIndex < innerSize; zIndex++) {
+				double x = centerX + firstOffset + xIndex;
+				double z = centerZ + firstOffset + zIndex;
+				level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, centerY, z, 0, 0, 0);
+			}
 		}
 	}
 
