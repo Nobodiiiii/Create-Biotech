@@ -69,23 +69,56 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			return;
 
 		int size = be.getStructureSize();
-		int half = size / 2;
+		double centerLine = size / 2d;
 		for (Direction d : Iterate.horizontalDirections) {
-			BlockPos wallPos = origin.offset(
+			if (isFormedPanelBlocked(level, origin, size, d))
+				continue;
+
+			double renderX = origin.getX()
+				+ (d.getAxis() == Direction.Axis.X ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 0.5d : 0.5d)
+					: centerLine);
+			double renderY = origin.getY() + 0.5d;
+			double renderZ = origin.getZ()
+				+ (d.getAxis() == Direction.Axis.Z ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 0.5d : 0.5d)
+					: centerLine);
+			BlockPos lightPos = origin.offset(
 				d.getAxis() == Direction.Axis.X ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0)
-					: half,
+					: Mth.clamp(Mth.floor(centerLine), 0, size - 1),
 				0,
 				d.getAxis() == Direction.Axis.Z ? (d.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size - 1 : 0)
-					: half);
+					: Mth.clamp(Mth.floor(centerLine), 0, size - 1));
 
 			ms.pushPose();
 			ms.translate(
-				wallPos.getX() - be.getBlockPos().getX() + 0.5d,
-				wallPos.getY() - be.getBlockPos().getY() + 0.5d,
-				wallPos.getZ() - be.getBlockPos().getZ() + 0.5d);
-			renderGauge(ms, vb, blockState, d, LevelRenderer.getLightColor(level, wallPos.relative(d)), progress);
+				renderX - be.getBlockPos().getX(),
+				renderY - be.getBlockPos().getY(),
+				renderZ - be.getBlockPos().getZ());
+			renderGauge(ms, vb, blockState, d, LevelRenderer.getLightColor(level, lightPos.relative(d)), progress);
 			ms.popPose();
 		}
+	}
+
+	private boolean isFormedPanelBlocked(Level level, BlockPos origin, int size, Direction side) {
+		int lowerCenter = (size - 1) / 2;
+		int upperCenter = size / 2;
+		int x = side.getAxis() == Direction.Axis.X ? origin.getX() + (side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size : -1)
+			: 0;
+		int z = side.getAxis() == Direction.Axis.Z ? origin.getZ() + (side.getAxisDirection() == Direction.AxisDirection.POSITIVE ? size : -1)
+			: 0;
+
+		if (side.getAxis() == Direction.Axis.X) {
+			for (int zOffset = lowerCenter; zOffset <= upperCenter; zOffset++) {
+				if (!level.isEmptyBlock(new BlockPos(x, origin.getY(), origin.getZ() + zOffset)))
+					return true;
+			}
+			return false;
+		}
+
+		for (int xOffset = lowerCenter; xOffset <= upperCenter; xOffset++) {
+			if (!level.isEmptyBlock(new BlockPos(origin.getX() + xOffset, origin.getY(), z)))
+				return true;
+		}
+		return false;
 	}
 
 	private void renderStandalonePanels(CreeperBlastChamberBlockEntity be, PoseStack ms, VertexConsumer vb,
