@@ -2,6 +2,7 @@
   "parent": "create_biotech:item/package_transforms",
   "textures": {
     "0": "create_biotech:item/package/cardboard",
+    "front": "create_biotech:item/package/cardboard_front",
     "particle": "create_biotech:item/package/cardboard_particle"
   },
   "elements": [
@@ -10,7 +11,7 @@
       "from": [2, 0, 2],
       "to": [14, 10, 14],
       "faces": {
-        "north": {"uv": [3, 0.25, 6, 2.75], "texture": "#0"},
+        "north": {"uv": [0, 0, 12, 10], "texture": "#front"},
         "east": {"uv": [6, 5.25, 3, 7.75], "texture": "#0"},
         "south": {"uv": [3, 2.75, 6, 5.25], "texture": "#0"},
         "west": {"uv": [3, 5.25, 6, 7.75], "texture": "#0"},

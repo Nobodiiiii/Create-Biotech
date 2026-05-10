@@ -20,7 +20,7 @@
   "create_biotech.schrodingers_cat.interval.label": "Detection Interval",
   "create_biotech.schrodingers_cat.output_mode.label": "Output Mode",
   "create_biotech.schrodingers_cat.output_mode.sustained": "Sustained Signal",
-  "create_biotech.schrodingers_cat.output_mode.pulse": "2-Tick Pulse",
+  "create_biotech.schrodingers_cat.output_mode.pulse": "Pulse Signal",
   "block.create_biotech.creeper_blast_chamber": "Blast Chamber Core",
   "item.create_biotech.incomplete_creeper_blast_chamber": "Incomplete Blast Chamber Core",
   "block.create_biotech.explosion_proof_casing": "Explosion-Proof Casing",

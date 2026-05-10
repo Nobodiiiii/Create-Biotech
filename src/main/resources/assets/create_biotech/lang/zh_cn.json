@@ -20,7 +20,7 @@
   "create_biotech.schrodingers_cat.interval.label": "检测间隔",
   "create_biotech.schrodingers_cat.output_mode.label": "输出模式",
   "create_biotech.schrodingers_cat.output_mode.sustained": "持续信号",
-  "create_biotech.schrodingers_cat.output_mode.pulse": "2刻脉冲",
+  "create_biotech.schrodingers_cat.output_mode.pulse": "脉冲信号",
   "block.create_biotech.creeper_blast_chamber": "爆破室核心",
   "item.create_biotech.incomplete_creeper_blast_chamber": "未完成的爆破室核心",
   "block.create_biotech.explosion_proof_casing": "防爆机壳",

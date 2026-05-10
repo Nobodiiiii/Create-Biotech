@@ -1,0 +1,36 @@
+{
+  "credit": "Made with Blockbench",
+  "render_type": "cutout",
+  "textures": {
+    "torch": "minecraft:block/redstone_torch_off",
+    "particle": "minecraft:block/redstone_torch_off"
+  },
+  "elements": [
+    {
+      "name": "stick",
+      "from": [7, 2.5, 14],
+      "to": [9, 5.5, 16],
+      "faces": {
+        "north": {"uv": [7, 8, 9, 11], "texture": "#torch"},
+        "east": {"uv": [7, 8, 9, 11], "texture": "#torch"},
+        "south": {"uv": [7, 8, 9, 11], "texture": "#torch"},
+        "west": {"uv": [7, 8, 9, 11], "texture": "#torch"},
+        "up": {"uv": [7, 8, 9, 10], "texture": "#torch"},
+        "down": {"uv": [7, 11, 9, 13], "texture": "#torch"}
+      }
+    },
+    {
+      "name": "tip",
+      "from": [7, 5.5, 14],
+      "to": [9, 7.5, 16],
+      "faces": {
+        "north": {"uv": [7, 6, 9, 8], "texture": "#torch"},
+        "east": {"uv": [7, 6, 9, 8], "texture": "#torch"},
+        "south": {"uv": [7, 6, 9, 8], "texture": "#torch"},
+        "west": {"uv": [7, 6, 9, 8], "texture": "#torch"},
+        "up": {"uv": [7, 6, 9, 8], "texture": "#torch"},
+        "down": {"uv": [7, 8, 9, 10], "texture": "#torch"}
+      }
+    }
+  ]
+}

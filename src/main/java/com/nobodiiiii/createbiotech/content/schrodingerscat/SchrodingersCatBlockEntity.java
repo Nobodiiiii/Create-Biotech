@@ -45,6 +45,8 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 	private static final String SIGNAL_STRENGTH_TAG = "SignalStrength";
 	private static final String TICK_COUNTER_TAG = "TickCounter";
 	private static final String PULSE_TICKS_TAG = "PulseTicks";
+	private static final int DETECTION_INTERVAL_NET_ID = 0;
+	private static final int OUTPUT_MODE_NET_ID = 1;
 
 	private DetectionIntervalValueBehaviour detectionIntervalValue;
 	private OutputModeValueBehaviour outputModeValue;
@@ -85,21 +87,31 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 			return;
 
 		int previousOutput = getOutputSignal();
+		boolean dataChanged = false;
 
-		if (pulseTicks > 0)
+		if (pulseTicks > 0) {
 			pulseTicks--;
+			dataChanged = pulseTicks == 0;
+		}
 
 		tickCounter++;
 		if (tickCounter >= getDetectionInterval()) {
 			tickCounter = 0;
 			signalStrength = RANDOM.nextBoolean() ? 15 : 0;
 			pulseTicks = getOutputMode() == SchrodingersCatOutputMode.PULSE && signalStrength > 0 ? PULSE_DURATION : 0;
-			setChanged();
+			dataChanged = true;
 		}
 
 		if (previousOutput != getOutputSignal()) {
 			setChanged();
+			sendData();
 			level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
+			return;
+		}
+
+		if (dataChanged) {
+			setChanged();
+			sendData();
 		}
 	}
 
@@ -136,11 +148,13 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 	private void onDetectionIntervalChanged(int newInterval) {
 		tickCounter = 0;
 		setChanged();
+		sendData();
 	}
 
 	private void onOutputModeChanged(int newValue) {
 		pulseTicks = 0;
 		setChanged();
+		sendData();
 
 		if (level != null && !level.isClientSide)
 			level.updateNeighborsAt(worldPosition, getBlockState().getBlock());
@@ -229,6 +243,11 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 			return "CatTimings";
 		}
 
+		@Override
+		public int netId() {
+			return DETECTION_INTERVAL_NET_ID;
+		}
+
 	}
 
 	private static class OutputModeValueBehaviour extends ScrollOptionBehaviour<SchrodingersCatOutputMode> {
@@ -260,6 +279,11 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 		@Override
 		public String getClipboardKey() {
 			return "CatOutputMode";
+		}
+
+		@Override
+		public int netId() {
+			return OUTPUT_MODE_NET_ID;
 		}
 
 	}
@@ -297,7 +321,7 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 
 		@Override
 		public Vec3 getLocalOffset(LevelAccessor level, BlockPos pos, BlockState state) {
-			return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 8, 15.5),
+			return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 5, 13.5),
 				AngleHelper.horizontalAngle(getSide(state)), Axis.Y);
 		}
 
