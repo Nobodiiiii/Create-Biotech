@@ -23,10 +23,10 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class SchrodingersCatRenderer extends SmartBlockEntityRenderer<SchrodingersCatBlockEntity> {
 
-	private static final PartialModel TORCH_ON =
-		PartialModel.of(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
-	private static final PartialModel TORCH_OFF =
+	private static final PartialModel TORCH_BASE =
 		PartialModel.of(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_off"));
+	private static final PartialModel TORCH_GLOW =
+		PartialModel.of(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
 	private static final ItemStack DISPLAY_SWORD = new ItemStack(Items.IRON_SWORD);
 	private static final float SWORD_SCALE = 0.5f;
 
@@ -53,11 +53,21 @@ public class SchrodingersCatRenderer extends SmartBlockEntityRenderer<Schrodinge
 		boolean powered = blockEntity.getOutputSignal() > 0;
 		VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.cutout());
 
-		CachedBuffers.partial(powered ? TORCH_ON : TORCH_OFF, state)
+		CachedBuffers.partial(TORCH_BASE, state)
 			.center()
 			.rotateYDegrees(blockModelYRotation(facing))
 			.uncenter()
 			.light(powered ? LightTexture.FULL_BRIGHT : packedLight)
+			.renderInto(poseStack, vertexConsumer);
+
+		if (!powered)
+			return;
+
+		CachedBuffers.partial(TORCH_GLOW, state)
+			.center()
+			.rotateYDegrees(blockModelYRotation(facing))
+			.uncenter()
+			.light(LightTexture.FULL_BRIGHT)
 			.renderInto(poseStack, vertexConsumer);
 	}
 
@@ -72,7 +82,7 @@ public class SchrodingersCatRenderer extends SmartBlockEntityRenderer<Schrodinge
 
 		poseStack.pushPose();
 		poseStack.translate(0.5f, 10f / 16f, 0.5f);
-		poseStack.mulPose(Axis.YP.rotationDegrees(blockModelYRotation(facing)));
+		poseStack.mulPose(Axis.YP.rotationDegrees(blockModelYRotation(facing) + 45));
 		poseStack.mulPose(Axis.ZP.rotationDegrees(180));
 		poseStack.scale(SWORD_SCALE, SWORD_SCALE, SWORD_SCALE);
 		itemRenderer.render(DISPLAY_SWORD, ItemDisplayContext.NONE, false, poseStack, buffer, packedLight,
