@@ -87,7 +87,12 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final float CLIENT_PRESS_EFFECT_START_OFFSET = 0.4f;
 	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
 	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
-	private static final double CLIENT_RETURN_EFFECT_Y_OFFSET = 2.5d;
+	private static final double CLIENT_RETURN_EFFECT_Y_OFFSET = 2d;
+	private static final int CLIENT_RETURN_EXTRA_EXPLOSION_MIN = 1;
+	private static final int CLIENT_RETURN_EXTRA_EXPLOSION_MAX = 9;
+	private static final double CLIENT_RETURN_EXTRA_EXPLOSION_RADIUS = 1d;
+	private static final double CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MIN = 0.15d;
+	private static final double CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MAX = 0.95d;
 	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 	private static final Map<UUID, ClientTrackedCreeper> CLIENT_TRACKED_CREEPERS = new HashMap<>();
 
@@ -1157,9 +1162,24 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			for (int zIndex = 0; zIndex < innerSize; zIndex++) {
 				double x = centerX + firstOffset + xIndex;
 				double z = centerZ + firstOffset + zIndex;
-				level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, centerY, z, 0, 0, 0);
+				spawnRandomizedReturnExplosionParticle(level, x, centerY, z);
 			}
 		}
+
+		int extraExplosionCount = level.random.nextInt(
+			CLIENT_RETURN_EXTRA_EXPLOSION_MAX - CLIENT_RETURN_EXTRA_EXPLOSION_MIN + 1)
+			+ CLIENT_RETURN_EXTRA_EXPLOSION_MIN;
+		for (int i = 0; i < extraExplosionCount; i++) {
+			double x = centerX + (level.random.nextDouble() * 2d - 1d) * CLIENT_RETURN_EXTRA_EXPLOSION_RADIUS;
+			double z = centerZ + (level.random.nextDouble() * 2d - 1d) * CLIENT_RETURN_EXTRA_EXPLOSION_RADIUS;
+			spawnRandomizedReturnExplosionParticle(level, x, centerY, z);
+		}
+	}
+
+	private void spawnRandomizedReturnExplosionParticle(Level level, double x, double y, double z) {
+		double sizeParam = Mth.lerp(level.random.nextDouble(),
+			CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MIN, CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MAX);
+		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, y, z, sizeParam, 0, 0);
 	}
 
 	private void resetClientWorkingCreeperEffects() {
