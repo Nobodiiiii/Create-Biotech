@@ -98,6 +98,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final double CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MAX = 0.95d;
 	private static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 	private static final Map<UUID, ClientTrackedCreeper> CLIENT_TRACKED_CREEPERS = new HashMap<>();
+	private static final Map<Long, BlockPos> CLIENT_PRESS_CONTROLLERS = new HashMap<>();
 
 	public LerpedFloat gauge = LerpedFloat.linear();
 	public LerpedFloat displayGauge = LerpedFloat.linear();
@@ -119,6 +120,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private final Map<Long, Float> clientPressOffsets = new HashMap<>();
 	private final Set<Long> clientReturnEffectsArmed = new HashSet<>();
 	private final Set<UUID> clientTrackedCreeperUuids = new HashSet<>();
+	private final Set<Long> clientTrackedPressPositions = new HashSet<>();
 	private final ChamberInputHandler inputHandler = new ChamberInputHandler();
 	private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> inputHandler);
 
@@ -174,6 +176,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	@Override
 	public void invalidateCaps() {
 		clearClientTrackedCreepers();
+		clearClientTrackedPresses();
 		super.invalidateCaps();
 		itemCapability.invalidate();
 	}
@@ -181,6 +184,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	@Override
 	public void setRemoved() {
 		clearClientTrackedCreepers();
+		clearClientTrackedPresses();
 		super.setRemoved();
 	}
 
@@ -915,12 +919,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 	float getRenderedPressHeadOffset(BlockPos packagerPos, float partialTicks) {
 		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
-		if (press == null)
-			return 0;
-		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
-		if (pressingBehaviour.mode == null)
-			return 0;
-		return pressingBehaviour.getRenderedHeadOffset(partialTicks) * pressingBehaviour.mode.headOffset;
+		return getSynchronizedPressHeadOffset(press, partialTicks);
 	}
 
 	private void synchronizePressesToMaster(List<MechanicalPressBlockEntity> presses,
@@ -1127,11 +1126,36 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	}
 
 	private void tickClientAnimations() {
+		syncClientPressControllers();
 		syncClientTrackedCreepers();
 		syncClientPressPhases();
 		tickClientAnimationList(pendingAppearances);
 		tickClientAnimationList(pendingPackagings);
 		tickClientWorkingCreeperEffects();
+	}
+
+	private void syncClientPressControllers() {
+		Level level = getLevel();
+		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null) {
+			clearClientTrackedPresses();
+			return;
+		}
+
+		Set<Long> activePressPositions = new HashSet<>();
+		for (MechanicalPressBlockEntity press : getMechanicalPresses()) {
+			long key = press.getBlockPos().asLong();
+			activePressPositions.add(key);
+			CLIENT_PRESS_CONTROLLERS.put(key, getBlockPos());
+			clientTrackedPressPositions.add(key);
+		}
+
+		clientTrackedPressPositions.removeIf(key -> {
+			if (activePressPositions.contains(key))
+				return false;
+			if (Objects.equals(CLIENT_PRESS_CONTROLLERS.get(key), getBlockPos()))
+				CLIENT_PRESS_CONTROLLERS.remove(key);
+			return true;
+		});
 	}
 
 	private void syncClientPressPhases() {
@@ -1176,6 +1200,16 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 					CLIENT_TRACKED_CREEPERS.remove(uuid);
 			}
 			clientTrackedCreeperUuids.clear();
+		}
+	}
+
+	private void clearClientTrackedPresses() {
+		if (!clientTrackedPressPositions.isEmpty()) {
+			for (long key : clientTrackedPressPositions) {
+				if (Objects.equals(CLIENT_PRESS_CONTROLLERS.get(key), getBlockPos()))
+					CLIENT_PRESS_CONTROLLERS.remove(key);
+			}
+			clientTrackedPressPositions.clear();
 		}
 	}
 
@@ -1625,6 +1659,18 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			&& AllBlocks.PACKAGER.has(level.getBlockState(packagerPos));
 	}
 
+	private boolean isPressPartOfStructure(BlockPos pressPos) {
+		Level level = getLevel();
+		if (level == null || !structureValid || structureOrigin == null || pressPos.getY() != structureOrigin.getY() + 3)
+			return false;
+
+		int x = pressPos.getX() - structureOrigin.getX();
+		int z = pressPos.getZ() - structureOrigin.getZ();
+		return x >= 1 && x < structureSize - 1
+			&& z >= 1 && z < structureSize - 1
+			&& AllBlocks.MECHANICAL_PRESS.has(level.getBlockState(pressPos));
+	}
+
 	private boolean isPackagerReserved(BlockPos packagerPos) {
 		for (PendingUnpack pending : pendingUnpacks) {
 			if (pending.packagerPos.equals(packagerPos))
@@ -1815,9 +1861,59 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return getCompressionFromPressOffset(chamber.getRenderedPressHeadOffset(tracked.packagerPos, partialTicks));
 	}
 
+	public static float getSynchronizedPressHeadProgress(@Nullable MechanicalPressBlockEntity press, float partialTicks) {
+		if (press == null)
+			return 0f;
+
+		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+		if (pressingBehaviour.mode == null)
+			return 0f;
+
+		Level level = press.getLevel();
+		if (level == null || !level.isClientSide)
+			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
+
+		BlockPos controllerPos = CLIENT_PRESS_CONTROLLERS.get(press.getBlockPos().asLong());
+		if (controllerPos == null)
+			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
+
+		BlockEntity blockEntity = level.getBlockEntity(controllerPos);
+		if (!(blockEntity instanceof CreeperBlastChamberBlockEntity chamber)
+			|| !chamber.structureValid
+			|| !chamber.isPressPartOfStructure(press.getBlockPos())) {
+			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
+		}
+
+		MechanicalPressBlockEntity masterPress = chamber.getMasterPress(chamber.getMechanicalPresses());
+		if (masterPress == null)
+			return getLocalPressHeadProgress(pressingBehaviour, partialTicks);
+
+		return getLocalPressHeadProgress(masterPress.getPressingBehaviour(), partialTicks);
+	}
+
+	public static float getSynchronizedPressHeadOffset(@Nullable MechanicalPressBlockEntity press, float partialTicks) {
+		if (press == null)
+			return 0f;
+		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
+		if (pressingBehaviour.mode == null)
+			return 0f;
+		return getSynchronizedPressHeadProgress(press, partialTicks) * pressingBehaviour.mode.headOffset;
+	}
+
 	private static float getCompressionFromPressOffset(float pressOffset) {
 		return Mth.clamp((pressOffset - CLIENT_PRESS_EFFECT_START_OFFSET) / (1f - CLIENT_PRESS_EFFECT_START_OFFSET), 0f,
 			1f);
+	}
+
+	private static float getLocalPressHeadProgress(PressingBehaviour pressingBehaviour, float partialTicks) {
+		if (pressingBehaviour.mode == null || !pressingBehaviour.running)
+			return 0f;
+
+		int runningTicks = Math.abs(pressingBehaviour.runningTicks);
+		float renderedTick = Mth.lerp(partialTicks, pressingBehaviour.prevRunningTicks, runningTicks);
+		if (runningTicks < 160)
+			return (float) Mth.clamp(Math.pow(renderedTick / 240f * 2f, 3), 0d, 1d);
+		return Mth.clamp((240f - renderedTick) / 240f * 3f, 0f, 1f);
 	}
 
 	@Nullable

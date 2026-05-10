@@ -25,6 +25,7 @@
     "client.FlapStuffsMixin",
     "client.FunnelRendererMixin",
     "client.FunnelVisualMixin",
+    "client.PressingBehaviourMixin",
     "client.LevelRendererAccessor"
   ],
   "injectors": {
