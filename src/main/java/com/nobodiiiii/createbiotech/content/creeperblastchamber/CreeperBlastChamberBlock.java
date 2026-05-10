@@ -74,6 +74,7 @@ public class CreeperBlastChamberBlock extends BaseEntityBlock {
 	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
 		if (!state.is(newState.getBlock())
 			&& level.getBlockEntity(pos) instanceof CreeperBlastChamberBlockEntity be) {
+			be.onControllerRemoved();
 			be.clearCurrentVaultRoleBindings();
 		}
 		super.onRemove(state, level, pos, newState, moved);

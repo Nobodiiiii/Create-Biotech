@@ -40,8 +40,6 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			return;
 
 		float progress = be.displayGauge.getValue(partialTicks);
-		if (progress <= 0.01f)
-			return;
 
 		Level level = be.getLevel();
 		if (level == null)

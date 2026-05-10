@@ -122,6 +122,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private BlockPos inputVaultController;
 	private BlockPos outputVaultController;
 	private BlockPos configuredInputVaultController;
+	private Axis structurePressAxis;
 	private int overloadPoints;
 	private boolean pressCycleProcessed;
 	private int recheckTimer;
@@ -161,6 +162,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		be.tickControllerOutputRequest();
 		be.tickReadyOutputs();
 		be.tickPressProcessing();
+		be.tickOverloadDecay(level);
 
 		if (be.recheckTimer > 0) {
 			be.recheckTimer--;
@@ -227,9 +229,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		boolean wasValid = structureValid;
 		int oldSize = structureSize;
 		BlockPos oldOrigin = structureOrigin;
+		Axis oldPressAxis = structurePressAxis;
 		setStructure(level, false, 0, null, null, null);
 		if (wasValid)
-			onStructureBroken(level, oldSize, oldOrigin);
+			onStructureBroken(level, oldSize, oldOrigin, oldPressAxis);
 	}
 
 	@Nullable
@@ -398,9 +401,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			inputVaultController = assignment.inputVaultController();
 			outputVaultController = assignment.outputVaultController();
 			configuredInputVaultController = inputVaultController;
+			BlockState pressState = level.getBlockState(origin.offset(size / 2, 3, size / 2));
+			structurePressAxis = AllBlocks.MECHANICAL_PRESS.has(pressState) ? getPressShaftAxis(pressState) : null;
 		} else {
 			inputVaultController = null;
 			outputVaultController = null;
+			structurePressAxis = null;
+			overloadPoints = 0;
 		}
 		bottomCenter = valid && origin != null
 			? origin.offset(size / 2, 0, size / 2)
@@ -450,6 +457,13 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 		setVaultRoleBinding(inputVaultController, null);
 		setVaultRoleBinding(outputVaultController, null);
+	}
+
+	public void onControllerRemoved() {
+		Level level = getLevel();
+		if (level == null || level.isClientSide || !structureValid || structureOrigin == null)
+			return;
+		onStructureBroken(level, structureSize, structureOrigin, structurePressAxis);
 	}
 
 	private void setVaultRoleBinding(@Nullable BlockPos controllerPos, @Nullable CreeperBlastChamberVaultRole role) {
@@ -567,19 +581,29 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		refreshStructureKinetics(level, origin, size);
 	}
 
-	private void onStructureBroken(Level level, int size, BlockPos origin) {
-		int innerMin = 1;
-		int innerMax = size - 2;
-		int topY = 3;
+	private void onStructureBroken(Level level, int size, BlockPos origin, @Nullable Axis pressAxis) {
+		restoreChainDrivePositionsToCasing(level, origin, size, pressAxis);
+		refreshStructureKinetics(level, origin, size);
+		cancelPendingUnpacks();
+	}
 
-		for (int i = innerMin; i <= innerMax; i++) {
-			revertToCasing(level, origin.offset(i, topY, 0));
-			revertToCasing(level, origin.offset(i, topY, size - 1));
-			revertToCasing(level, origin.offset(0, topY, i));
-			revertToCasing(level, origin.offset(size - 1, topY, i));
+	private void restoreChainDrivePositionsToCasing(Level level, BlockPos origin, int size, @Nullable Axis pressAxis) {
+		if (pressAxis == null)
+			return;
+
+		int topY = 3;
+		if (pressAxis == Axis.X) {
+			for (int z = 1; z < size - 1; z++) {
+				revertToCasing(level, origin.offset(0, topY, z));
+				revertToCasing(level, origin.offset(size - 1, topY, z));
+			}
+			return;
 		}
 
-		cancelPendingUnpacks();
+		for (int x = 1; x < size - 1; x++) {
+			revertToCasing(level, origin.offset(x, topY, 0));
+			revertToCasing(level, origin.offset(x, topY, size - 1));
+		}
 	}
 
 	private void refreshStructureKinetics(Level level, BlockPos origin, int size) {
@@ -609,7 +633,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private void revertToCasing(Level level, BlockPos pos) {
-		if (level.getBlockState(pos).is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
+		BlockState state = level.getBlockState(pos);
+		if (state.is(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get()))
 			level.setBlock(pos, CBBlocks.EXPLOSION_PROOF_CASING.get().defaultBlockState(), 3);
 	}
 
@@ -732,6 +757,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			? BlockPos.of(tag.getLong(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG))
 			: inputVaultController;
 		overloadPoints = Mth.clamp(tag.getInt(OVERLOAD_POINTS_TAG), 0, OVERLOAD_POINTS_CAP);
+		structurePressAxis = structureValid ? getStoredPressAxis() : null;
 		pressCycleProcessed = false;
 	}
 
@@ -810,6 +836,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private boolean applyOverloadFromPress(MechanicalPressBlockEntity press, int markedCreeperCount) {
+		if (overloadPoints >= OVERLOAD_POINTS_CAP) {
+			triggerOverload(markedCreeperCount);
+			return true;
+		}
+
 		int rpm = Mth.floor(Math.abs(press.getSpeed()));
 		int overloadGain = rpm - OVERLOAD_THRESHOLD_RPM;
 		if (overloadGain <= 0)
@@ -817,8 +848,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 		int nextOverloadPoints = overloadPoints + overloadGain;
 		if (nextOverloadPoints > OVERLOAD_POINTS_CAP) {
-			triggerOverload(markedCreeperCount);
-			return true;
+			setOverloadPoints(OVERLOAD_POINTS_CAP);
+			return false;
 		}
 
 		setOverloadPoints(nextOverloadPoints);
@@ -863,6 +894,20 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			if (result == ProcessingAttemptResult.NO_INPUT || result == ProcessingAttemptResult.BLOCKED_OUTPUT)
 				return;
 		}
+	}
+
+	private void tickOverloadDecay(Level level) {
+		if (overloadPoints <= 0 || isCurrentlyOverloading() || level.getGameTime() % 20 != 0)
+			return;
+		setOverloadPoints(overloadPoints - OVERLOAD_THRESHOLD_RPM);
+	}
+
+	private boolean isCurrentlyOverloading() {
+		if (!structureValid || structureOrigin == null)
+			return false;
+
+		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
+		return masterPress != null && Math.abs(masterPress.getSpeed()) > OVERLOAD_THRESHOLD_RPM;
 	}
 
 	private ProcessingAttemptResult processNextVaultStack(IItemHandler inputHandler, IItemHandler outputHandler) {
@@ -1088,8 +1133,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			if (structureValid && structureOrigin != null) {
 				int oldSize = structureSize;
 				BlockPos oldOrigin = structureOrigin;
+				Axis oldPressAxis = structurePressAxis;
 				setStructure(level, false, 0, null, null, null);
-				onStructureBroken(level, oldSize, oldOrigin);
+				onStructureBroken(level, oldSize, oldOrigin, oldPressAxis);
 			}
 			return;
 		}
@@ -1832,6 +1878,33 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		return Mth.clamp(Math.round(getOverloadFraction() * 100f), 0, 100);
 	}
 
+	private Component getStatusComponent() {
+		return Component.translatable(getStatusTranslationKey())
+			.withStyle(getStatusColor());
+	}
+
+	private String getStatusTranslationKey() {
+		if (isCurrentlyOverloading())
+			return "create_biotech.creeper_blast_chamber.tooltip.status.overloading";
+
+		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
+		if (masterPress == null || masterPress.getSpeed() == 0)
+			return "create_biotech.creeper_blast_chamber.tooltip.status.insufficient_stress";
+
+		return "create_biotech.creeper_blast_chamber.tooltip.status.working";
+	}
+
+	private ChatFormatting getStatusColor() {
+		if (isCurrentlyOverloading())
+			return ChatFormatting.DARK_RED;
+
+		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
+		if (masterPress == null || masterPress.getSpeed() == 0)
+			return ChatFormatting.GOLD;
+
+		return ChatFormatting.GREEN;
+	}
+
 	private ChatFormatting getOverloadDisplayColor() {
 		float overloadFraction = getOverloadFraction();
 		if (overloadFraction >= 1f)
@@ -1850,12 +1923,25 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (!structureValid)
 			return false;
 
+		CreateLang.builder()
+			.add(Component.translatable("create_biotech.creeper_blast_chamber.tooltip.status", getStatusComponent()))
+			.forGoggles(tooltip);
+
 		Component overloadPercent = Component.literal(getOverloadPercent() + "%")
 			.withStyle(getOverloadDisplayColor());
 		CreateLang.builder()
 			.add(Component.translatable("create_biotech.creeper_blast_chamber.tooltip.overload", overloadPercent))
 			.forGoggles(tooltip);
 		return true;
+	}
+
+	@Nullable
+	private Axis getStoredPressAxis() {
+		if (!structureValid || structureOrigin == null || level == null)
+			return null;
+
+		BlockState pressState = level.getBlockState(structureOrigin.offset(structureSize / 2, 3, structureSize / 2));
+		return AllBlocks.MECHANICAL_PRESS.has(pressState) ? getPressShaftAxis(pressState) : null;
 	}
 
 	private boolean isPackagerReserved(BlockPos packagerPos) {
