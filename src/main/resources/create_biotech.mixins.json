@@ -16,6 +16,7 @@
     "FunnelBlockEntityMixin",
     "MechanicalPressBlockEntityMixin",
     "MechanicalMixerBlockEntityMixin",
+    "PressingBehaviourSoundMixin",
     "PowerBeltWalkAnimationMixin"
   ],
   "client": [

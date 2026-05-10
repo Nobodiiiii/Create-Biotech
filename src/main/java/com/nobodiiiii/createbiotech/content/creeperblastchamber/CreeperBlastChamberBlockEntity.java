@@ -16,6 +16,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.client.CreeperBlastChamberClientSoundHandler;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
@@ -67,6 +68,8 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.wrapper.RecipeWrapper;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
@@ -1325,6 +1328,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		double centerY = structureOrigin.getY() + CLIENT_RETURN_EFFECT_Y_OFFSET;
 		double centerZ = structureOrigin.getZ() + structureSize / 2d;
 		double firstOffset = -((innerSize - 1) / 2d);
+		DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+			() -> () -> CreeperBlastChamberClientSoundHandler.stopManagedPrimedSound());
+		level.playLocalSound(centerX, centerY, centerZ, SoundEvents.GENERIC_EXPLODE, SoundSource.BLOCKS, 0.45f, 1.15f,
+			false);
 
 		for (int xIndex = 0; xIndex < innerSize; xIndex++) {
 			for (int zIndex = 0; zIndex < innerSize; zIndex++) {
@@ -1707,6 +1714,29 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 		return x >= 1 && x < structureSize - 1
 			&& z >= 1 && z < structureSize - 1
 			&& AllBlocks.MECHANICAL_PRESS.has(level.getBlockState(pressPos));
+	}
+
+	public static boolean shouldMutePressActivationSound(MechanicalPressBlockEntity press) {
+		Level level = press.getLevel();
+		if (level == null)
+			return false;
+
+		BlockPos pressPos = press.getBlockPos();
+		BlockPos min = pressPos.offset(-MAX_SIZE, -3, -MAX_SIZE);
+		BlockPos max = pressPos.offset(MAX_SIZE, 0, MAX_SIZE);
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		for (int y = min.getY(); y <= max.getY(); y++) {
+			for (int x = min.getX(); x <= max.getX(); x++) {
+				for (int z = min.getZ(); z <= max.getZ(); z++) {
+					cursor.set(x, y, z);
+					if (!(level.getBlockEntity(cursor) instanceof CreeperBlastChamberBlockEntity chamber))
+						continue;
+					if (chamber.structureValid && chamber.isPressPartOfStructure(pressPos))
+						return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean isPackagerReserved(BlockPos packagerPos) {
