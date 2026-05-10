@@ -61,6 +61,8 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
 		event.register(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
+		event.register(CreateBiotech.asResource("block/blast_chamber_display/panel"));
+		event.register(CreateBiotech.asResource("block/blast_chamber_display/dial"));
 	}
 
 	@SubscribeEvent

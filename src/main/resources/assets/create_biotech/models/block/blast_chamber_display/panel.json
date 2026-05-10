@@ -2,31 +2,34 @@
 	"credit": "Made with Blockbench",
 	"render_type": "cutout",
 	"textures": {
-		"0": "create:block/boiler_gauge",
-		"particle": "create:block/boiler_gauge"
+		"0": "create_biotech:block/blast_chamber_display/panel",
+		"particle": "create_biotech:block/blast_chamber_display/panel"
 	},
 	"elements": [
 		{
-			"name": "rim",
-			"from": [14.5, 2.5, 2.5],
-			"to": [16, 13.5, 13.5],
-			"rotation": {"angle": 0, "axis": "y", "origin": [8, 8, 8]},
+			"name": "casing",
+			"from": [14.05, 1.05, 1.05],
+			"to": [16.95, 14.95, 14.95],
+			"rotation": {"angle": 0, "axis": "y", "origin": [22, 8, 8]},
 			"faces": {
-				"north": {"uv": [0, 2.5, 2, 13.5], "texture": "#0"},
-				"south": {"uv": [14, 2.5, 16, 13.5], "texture": "#0"},
-				"west": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
-				"east": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
-				"up": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"},
-				"down": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"}
+				"north": {"uv": [10.5, 8.5, 12, 15.5], "texture": "#0"},
+				"east": {"uv": [0.5, 0.5, 7.5, 7.5], "texture": "#0"},
+				"south": {"uv": [12, 8.5, 10.5, 15.5], "texture": "#0"},
+				"up": {"uv": [10, 8.5, 8.5, 15.5], "texture": "#0"},
+				"down": {"uv": [12.5, 8.5, 14, 15.5], "rotation": 180, "texture": "#0"}
 			}
 		},
 		{
-			"name": "face",
-			"from": [16, 2.5, 2.5],
-			"to": [16, 13.5, 13.5],
-			"rotation": {"angle": 0, "axis": "y", "origin": [8, 8, 8]},
+			"name": "interior",
+			"from": [16.95, 1.05, 1.05],
+			"to": [16.05, 14.95, 14.95],
+			"rotation": {"angle": 0, "axis": "y", "origin": [22, 8, 8]},
 			"faces": {
-				"west": {"uv": [2.5, 2.5, 13.5, 13.5], "texture": "#0"}
+				"north": {"uv": [13.5, 8.5, 14, 15.5], "texture": "#0"},
+				"east": {"uv": [0.5, 8.5, 7.5, 15.5], "texture": "#0"},
+				"south": {"uv": [14, 8.5, 13.5, 15.5], "texture": "#0"},
+				"up": {"uv": [14, 8.5, 13.5, 15.5], "texture": "#0"},
+				"down": {"uv": [13.5, 8.5, 14, 15.5], "rotation": 180, "texture": "#0"}
 			}
 		}
 	]

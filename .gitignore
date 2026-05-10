@@ -6,6 +6,8 @@ out/
 bin/
 .minecraft/
 *.log
+/AGENTS.md
+/CLAUDE.md
 
 /.idea/
 /.vscode/

@@ -3,10 +3,11 @@ package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.simibubi.create.AllPartialModels;
+import com.nobodiiiii.createbiotech.CreateBiotech;
 
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.render.CachedBuffers;
+import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -25,6 +26,10 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 
 	private static final float CREEPER_ANIMATION_Y_OFFSET = 0.12f;
 	private static final float CREEPER_ANIMATION_START_SCALE = 0.92f;
+	private static final PartialModel DISPLAY_PANEL =
+		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/panel"));
+	private static final PartialModel DISPLAY_DIAL =
+		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/dial"));
 	private final EntityRenderDispatcher entityRenderDispatcher;
 
 	public CreeperBlastChamberRenderer(BlockEntityRendererProvider.Context context) {
@@ -70,13 +75,13 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			int displayLight = LevelRenderer.getLightColor(level, wallPos.relative(d));
 
 			float yRot = -d.toYRot() - 90;
-			CachedBuffers.partial(AllPartialModels.BOILER_GAUGE, blockState)
+			CachedBuffers.partial(DISPLAY_PANEL, blockState)
 				.rotateYDegrees(yRot)
 				.uncenter()
 				.translate(1f / 2f - 6f / 16f, 0, 0)
 				.light(displayLight)
 				.renderInto(ms, vb);
-			CachedBuffers.partial(AllPartialModels.BOILER_GAUGE_DIAL, blockState)
+			CachedBuffers.partial(DISPLAY_DIAL, blockState)
 				.rotateYDegrees(yRot)
 				.uncenter()
 				.translate(1f / 2f - 6f / 16f, 0, 0)
