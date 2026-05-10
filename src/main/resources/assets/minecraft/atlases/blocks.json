@@ -26,6 +26,14 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:fluid/liquid_living_slime_flow"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:fluid/liquid_living_slime_still"
+    },
+    {
+      "type": "single",
       "resource": "create_biotech:block/universal_joint_endpoint_slime_overlay"
     },
     {
