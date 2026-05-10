@@ -88,6 +88,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
 	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
 	private static final double CLIENT_RETURN_EFFECT_Y_OFFSET = 2d;
+	private static final double CLIENT_RETURN_BASE_EXPLOSION_JITTER = 0.2d;
 	private static final int CLIENT_RETURN_EXTRA_EXPLOSION_MIN = 1;
 	private static final int CLIENT_RETURN_EXTRA_EXPLOSION_MAX = 9;
 	private static final double CLIENT_RETURN_EXTRA_EXPLOSION_RADIUS = 1d;
@@ -1160,8 +1161,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 
 		for (int xIndex = 0; xIndex < innerSize; xIndex++) {
 			for (int zIndex = 0; zIndex < innerSize; zIndex++) {
-				double x = centerX + firstOffset + xIndex;
-				double z = centerZ + firstOffset + zIndex;
+				double x = centerX + firstOffset + xIndex
+					+ (level.random.nextDouble() * 2d - 1d) * CLIENT_RETURN_BASE_EXPLOSION_JITTER;
+				double z = centerZ + firstOffset + zIndex
+					+ (level.random.nextDouble() * 2d - 1d) * CLIENT_RETURN_BASE_EXPLOSION_JITTER;
 				spawnRandomizedReturnExplosionParticle(level, x, centerY, z);
 			}
 		}
