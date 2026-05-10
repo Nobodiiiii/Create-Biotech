@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.client;
 
 import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankRenderer;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
@@ -51,6 +52,8 @@ public class CreateBiotechClient {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.UNIVERSAL_JOINT.get(), UniversalJointRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.FIXED_CARROT_FISHING_ROD.get(),
 			FixedCarrotFishingRodRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.BLAST_PROOF_CHAIN_DRIVE.get(),
+			BlastProofChainDriveRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get(),
 			CreeperBlastChamberRenderer::new);
 	}

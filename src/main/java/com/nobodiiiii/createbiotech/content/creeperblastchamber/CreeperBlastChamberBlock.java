@@ -69,4 +69,13 @@ public class CreeperBlastChamberBlock extends BaseEntityBlock {
 
 		return InteractionResult.SUCCESS;
 	}
+
+	@Override
+	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+		if (!state.is(newState.getBlock())
+			&& level.getBlockEntity(pos) instanceof CreeperBlastChamberBlockEntity be) {
+			be.clearCurrentVaultRoleBindings();
+		}
+		super.onRemove(state, level, pos, newState, moved);
+	}
 }

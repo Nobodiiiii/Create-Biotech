@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlockEntity;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlockEntity;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlockEntity;
 
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -69,6 +70,12 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("explosion_proof_item_vault",
 			() -> BlockEntityType.Builder
 				.of(ExplosionProofItemVaultBlockEntity::new, CBBlocks.EXPLOSION_PROOF_ITEM_VAULT.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<BlastProofChainDriveBlockEntity>> BLAST_PROOF_CHAIN_DRIVE =
+		BLOCK_ENTITY_TYPES.register("blast_proof_chain_drive",
+			() -> BlockEntityType.Builder
+				.of(BlastProofChainDriveBlockEntity::new, CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get())
 				.build(null));
 
 	private CBBlockEntityTypes() {}

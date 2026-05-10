@@ -181,7 +181,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 	@Override
 	public void setRemoved() {
 		clearClientTrackedCreepers();
-		clearCurrentVaultRoleBindings();
 		super.setRemoved();
 	}
 
@@ -428,7 +427,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity {
 			setVaultRoleBinding(outputVaultController, CreeperBlastChamberVaultRole.OUTPUT);
 	}
 
-	private void clearCurrentVaultRoleBindings() {
+	public void clearCurrentVaultRoleBindings() {
 		Level level = getLevel();
 		if (level == null || level.isClientSide)
 			return;
