@@ -29,12 +29,14 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final double MAX_HORIZONTAL_SPEED = 0.35d;
 	private static final double MAX_VERTICAL_SPEED = 0.25d;
 	private static final float TURN_ACCELERATION = 1.0f;
-	private static final float TURN_DRAG = 0.85f;
+	private static final float TURN_BRAKE = 4.0f;
+	private static final float TURN_DIRECTION_CHANGE_BRAKE = 6.0f;
 	private static final float MAX_TURN_SPEED = 6.0f;
 	private static final float MAX_CONTRAPTION_YAW_STEP = MAX_TURN_SPEED;
 	private static final double STATIC_TURN_SPEED_THRESHOLD = 0.01d;
 	private static final float STATIC_TURN_YAW_THRESHOLD = 0.5f;
 	private static final float STATIC_TURN_VISUAL_YAW_STEP = 4.0f;
+	private static final float TURN_STOP_EPSILON = 0.05f;
 	private static final double MOTION_EPSILON = 1.0E-4d;
 	private static final int INPUT_TIMEOUT_TICKS = 8;
 
@@ -101,6 +103,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		if (!toGlobalVector(VecHelper.getCenterOf(controlsLocalPos), 1).closerThan(player.position(), 8))
 			return false;
 		clearInputs();
+		deltaRotation = 0;
 		inputTimeout = 0;
 		return true;
 	}
@@ -133,6 +136,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	public void stopControlling(BlockPos controlsLocalPos) {
 		super.stopControlling(controlsLocalPos);
 		clearInputs();
+		deltaRotation = 0;
 		inputTimeout = 0;
 	}
 
@@ -176,15 +180,13 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private void applyControlledMovement(Ghast ghast) {
 		Vec3 movement = ghast.getDeltaMovement().multiply(HORIZONTAL_DRAG, VERTICAL_DRAG, HORIZONTAL_DRAG);
 
-		if (inputLeft)
-			deltaRotation -= TURN_ACCELERATION;
-		if (inputRight)
-			deltaRotation += TURN_ACCELERATION;
+		float desiredTurnSpeed = 0;
+		if (inputLeft != inputRight)
+			desiredTurnSpeed = inputRight ? MAX_TURN_SPEED : -MAX_TURN_SPEED;
+		deltaRotation = updateTurnSpeed(deltaRotation, desiredTurnSpeed);
 
-		deltaRotation = Mth.clamp(deltaRotation, -MAX_TURN_SPEED, MAX_TURN_SPEED);
 		float yaw = ghast.getYRot() + deltaRotation;
 		applyYaw(ghast, yaw);
-		deltaRotation *= TURN_DRAG;
 
 		double thrust = 0;
 		if (inputForward)
@@ -207,6 +209,20 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		ghast.move(MoverType.SELF, movement);
 		ghast.hasImpulse = true;
 		ghast.hurtMarked = true;
+	}
+
+	private static float updateTurnSpeed(float currentTurnSpeed, float desiredTurnSpeed) {
+		float response = TURN_ACCELERATION;
+		if (desiredTurnSpeed == 0) {
+			response = TURN_BRAKE;
+		} else if (currentTurnSpeed != 0 && Math.signum(currentTurnSpeed) != Math.signum(desiredTurnSpeed)) {
+			response = TURN_DIRECTION_CHANGE_BRAKE;
+		}
+
+		float nextTurnSpeed = Mth.approach(currentTurnSpeed, desiredTurnSpeed, response);
+		if (desiredTurnSpeed == 0 && Math.abs(nextTurnSpeed) < TURN_STOP_EPSILON)
+			return 0;
+		return Mth.clamp(nextTurnSpeed, -MAX_TURN_SPEED, MAX_TURN_SPEED);
 	}
 
 	private void syncVisualYawWhileTurningInPlace(Ghast ghast, Vec3 movement) {
