@@ -13,6 +13,7 @@ import com.simibubi.create.content.contraptions.render.ContraptionMatrices;
 import com.simibubi.create.foundation.virtualWorld.VirtualRenderWorld;
 
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.transform.TransformStack;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -34,6 +35,8 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 
 public class GhastHelmMovementBehaviour implements MovementBehaviour {
 
+	static final PartialModel GHAST_HELM_BODY =
+		PartialModel.of(CreateBiotech.asResource("block/ghast_helm/block_open"));
 	static final PartialModel GHAST_HELM_COVER =
 		PartialModel.of(CreateBiotech.asResource("block/ghast_helm/train/cover"));
 	static final PartialModel GHAST_HELM_LEVER =
@@ -70,6 +73,8 @@ public class GhastHelmMovementBehaviour implements MovementBehaviour {
 	@OnlyIn(Dist.CLIENT)
 	public void renderInContraption(MovementContext context, VirtualRenderWorld renderWorld,
 		ContraptionMatrices matrices, MultiBufferSource buffer) {
+		if (VisualizationManager.supportsVisualization(context.world))
+			return;
 		if (!(context.contraption.entity instanceof GhastHotAirBalloonEntity balloon))
 			return;
 		LeverAngles angles = getAngles(context);
@@ -124,9 +129,17 @@ public class GhastHelmMovementBehaviour implements MovementBehaviour {
 		BlockState state = context.state;
 		Direction facing = state.getValue(ControlsBlock.FACING);
 
+		SuperByteBuffer body = CachedBuffers.partial(GHAST_HELM_BODY, state);
 		SuperByteBuffer cover = CachedBuffers.partial(GHAST_HELM_COVER, state);
 		float hAngle = 180 + AngleHelper.horizontalAngle(facing);
 		var ms = matrices.getModel();
+		body.transform(ms)
+			.center()
+			.rotateYDegrees(hAngle)
+			.uncenter()
+			.light(LevelRenderer.getLightColor(renderWorld, context.localPos))
+			.useLevelLight(context.world, matrices.getWorld())
+			.renderInto(matrices.getViewProjection(), buffer.getBuffer(RenderType.cutoutMipped()));
 		cover.transform(ms)
 			.center()
 			.rotateYDegrees(hAngle)

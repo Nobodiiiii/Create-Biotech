@@ -63,7 +63,9 @@ public class GhastHotAirBalloonContraption extends TranslatingContraption {
 		if (!info.state().is(com.nobodiiiii.createbiotech.registry.CBBlocks.GHAST_HELM.get()))
 			return captured;
 
-		BlockState openState = info.state().setValue(ControlsBlock.OPEN, true);
+		BlockState openState = info.state()
+			.setValue(ControlsBlock.OPEN, true)
+			.setValue(ControlsBlock.VIRTUAL, false);
 		StructureBlockInfo openInfo = new StructureBlockInfo(info.pos(), openState, info.nbt());
 		return Pair.of(openInfo, captured.getRight());
 	}

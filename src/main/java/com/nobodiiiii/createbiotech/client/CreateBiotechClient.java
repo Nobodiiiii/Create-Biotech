@@ -87,6 +87,7 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_off"));
+		event.register(CreateBiotech.asResource("block/ghast_helm/block_open"));
 		event.register(CreateBiotech.asResource("block/ghast_helm/train/cover"));
 		event.register(CreateBiotech.asResource("block/ghast_helm/train/lever"));
 	}

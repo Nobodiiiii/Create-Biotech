@@ -18,6 +18,7 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class GhastHelmActorVisual extends ActorVisual {
 
+	private final TransformedInstance body;
 	private final TransformedInstance cover;
 	private final TransformedInstance firstLever;
 	private final TransformedInstance secondLever;
@@ -30,8 +31,12 @@ public class GhastHelmActorVisual extends ActorVisual {
 		BlockState state = movementContext.state;
 		facing = state.getValue(com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock.FACING);
 
-		cover = instancerProvider.instancer(InstanceTypes.TRANSFORMED, Models.partial(GhastHelmMovementBehaviour.GHAST_HELM_COVER))
-			.createInstance();
+		body =
+			instancerProvider.instancer(InstanceTypes.TRANSFORMED, Models.partial(GhastHelmMovementBehaviour.GHAST_HELM_BODY))
+				.createInstance();
+		cover =
+			instancerProvider.instancer(InstanceTypes.TRANSFORMED, Models.partial(GhastHelmMovementBehaviour.GHAST_HELM_COVER))
+				.createInstance();
 		firstLever =
 			instancerProvider.instancer(InstanceTypes.TRANSFORMED, Models.partial(GhastHelmMovementBehaviour.GHAST_HELM_LEVER))
 				.createInstance();
@@ -40,6 +45,7 @@ public class GhastHelmActorVisual extends ActorVisual {
 				.createInstance();
 
 		int blockLight = localBlockLight();
+		body.light(blockLight, 0).setChanged();
 		cover.light(blockLight, 0).setChanged();
 		firstLever.light(blockLight, 0).setChanged();
 		secondLever.light(blockLight, 0).setChanged();
@@ -61,6 +67,13 @@ public class GhastHelmActorVisual extends ActorVisual {
 
 	private void updateInstances(float equipAnimation, float first, float second) {
 		float hAngle = 180 + AngleHelper.horizontalAngle(facing);
+
+		body.setIdentityTransform()
+			.translate(context.localPos)
+			.center()
+			.rotateYDegrees(hAngle)
+			.uncenter()
+			.setChanged();
 
 		cover.setIdentityTransform()
 			.translate(context.localPos)
@@ -92,6 +105,7 @@ public class GhastHelmActorVisual extends ActorVisual {
 
 	@Override
 	protected void _delete() {
+		body.delete();
 		cover.delete();
 		firstLever.delete();
 		secondLever.delete();
