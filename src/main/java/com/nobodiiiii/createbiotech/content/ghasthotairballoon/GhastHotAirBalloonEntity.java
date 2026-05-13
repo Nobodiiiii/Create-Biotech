@@ -37,6 +37,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final float STATIC_TURN_YAW_THRESHOLD = 0.5f;
 	private static final float STATIC_TURN_VISUAL_YAW_STEP = 4.0f;
 	private static final float TURN_STOP_EPSILON = 0.05f;
+	private static final float TURN_DIRECTION_EPSILON = 0.25f;
 	private static final double MOTION_EPSILON = 1.0E-4d;
 	private static final int INPUT_TIMEOUT_TICKS = 8;
 
@@ -212,17 +213,22 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	}
 
 	private static float updateTurnSpeed(float currentTurnSpeed, float desiredTurnSpeed) {
-		float response = TURN_ACCELERATION;
+		if (Math.abs(currentTurnSpeed) < TURN_DIRECTION_EPSILON)
+			currentTurnSpeed = 0;
+
 		if (desiredTurnSpeed == 0) {
-			response = TURN_BRAKE;
-		} else if (currentTurnSpeed != 0 && Math.signum(currentTurnSpeed) != Math.signum(desiredTurnSpeed)) {
-			response = TURN_DIRECTION_CHANGE_BRAKE;
+			float nextTurnSpeed = Mth.approach(currentTurnSpeed, 0, TURN_BRAKE);
+			return Math.abs(nextTurnSpeed) < TURN_STOP_EPSILON ? 0 : nextTurnSpeed;
 		}
 
-		float nextTurnSpeed = Mth.approach(currentTurnSpeed, desiredTurnSpeed, response);
-		if (desiredTurnSpeed == 0 && Math.abs(nextTurnSpeed) < TURN_STOP_EPSILON)
-			return 0;
-		return Mth.clamp(nextTurnSpeed, -MAX_TURN_SPEED, MAX_TURN_SPEED);
+		if (currentTurnSpeed != 0 && Math.signum(currentTurnSpeed) != Math.signum(desiredTurnSpeed)) {
+			float brakedTurnSpeed = Mth.approach(currentTurnSpeed, 0, TURN_DIRECTION_CHANGE_BRAKE);
+			if (Math.abs(brakedTurnSpeed) >= TURN_DIRECTION_EPSILON)
+				return brakedTurnSpeed;
+			currentTurnSpeed = 0;
+		}
+
+		return Mth.approach(currentTurnSpeed, desiredTurnSpeed, TURN_ACCELERATION);
 	}
 
 	private void syncVisualYawWhileTurningInPlace(Ghast ghast, Vec3 movement) {
