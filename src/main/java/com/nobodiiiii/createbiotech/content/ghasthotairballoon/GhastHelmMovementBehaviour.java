@@ -110,9 +110,9 @@ public class GhastHelmMovementBehaviour implements MovementBehaviour {
 			Collection<Integer> pressed = ControlsHandler.currentlyPressed;
 			angles.equipAnimation.chase(1, .2f, Chaser.EXP);
 			angles.steering.chase((pressed.contains(3) ? 1 : 0) + (pressed.contains(2) ? -1 : 0), 0.2f, Chaser.EXP);
-			angles.altitude.chase((pressed.contains(4) ? 1 : 0) + (pressed.contains(5) ? -1 : 0), 0.2f,
+			angles.altitude.chase((pressed.contains(5) ? 1 : 0) + (pressed.contains(4) ? -1 : 0), 0.2f,
 				Chaser.EXP);
-			float speedInput = (pressed.contains(0) ? 1 : 0) + (pressed.contains(1) ? -1 : 0);
+			float speedInput = (pressed.contains(1) ? 1 : 0) + (pressed.contains(0) ? -1 : 0);
 			angles.speed.chase(inverted ? -speedInput : speedInput, 0.2f, Chaser.EXP);
 			return;
 		}
