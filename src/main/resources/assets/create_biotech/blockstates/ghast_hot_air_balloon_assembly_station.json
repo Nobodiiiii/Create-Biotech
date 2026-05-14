@@ -1,18 +1,18 @@
 {
   "variants": {
     "facing=north": {
-      "model": "create:block/rope_pulley/block"
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station"
     },
     "facing=east": {
-      "model": "create:block/rope_pulley/block",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station",
       "y": 90
     },
     "facing=south": {
-      "model": "create:block/rope_pulley/block",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station",
       "y": 180
     },
     "facing=west": {
-      "model": "create:block/rope_pulley/block",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station",
       "y": 270
     }
   }

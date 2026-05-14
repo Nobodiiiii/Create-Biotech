@@ -225,6 +225,14 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 		return extending || retracting || offset > 0;
 	}
 
+	public boolean isReadyToAccept() {
+		if (level == null)
+			return false;
+		if (wasPowered || extending || retracting || offset != 0f)
+			return false;
+		return !GhastHotAirBalloonAssemblyStationBlock.isSeatOccupied(level, worldPosition);
+	}
+
 	public float getInterpolatedOffset(float partialTicks) {
 		return Mth.lerp(partialTicks, prevOffset, offset);
 	}

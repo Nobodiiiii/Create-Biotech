@@ -49,5 +49,6 @@
   "entity.create_biotech.ghast_hot_air_balloon": "Ghast Hot Air Balloon",
   "block.create_biotech.ghast_hot_air_balloon_assembly_station": "Ghast Hot Air Balloon Assembly Station",
   "block.create_biotech.ghast_helm": "Ghast Helm",
-  "block.create_biotech.air_cushion": "Air Cushion"
+  "block.create_biotech.air_cushion": "Air Cushion",
+  "create_biotech.gui.ghast_balloon.magnet_prompt": "Hold Alt to approach a nearby assembly station"
 }

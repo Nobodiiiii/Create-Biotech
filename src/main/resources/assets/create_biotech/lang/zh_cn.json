@@ -49,5 +49,6 @@
   "entity.create_biotech.ghast_hot_air_balloon": "恶魂热气球",
   "block.create_biotech.ghast_hot_air_balloon_assembly_station": "恶魂热气球装配站",
   "block.create_biotech.ghast_helm": "恶魂驾驶台",
-  "block.create_biotech.air_cushion": "气垫"
+  "block.create_biotech.air_cushion": "气垫",
+  "create_biotech.gui.ghast_balloon.magnet_prompt": "按住Alt靠近附近的装配站"
 }
