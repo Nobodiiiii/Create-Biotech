@@ -43,6 +43,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get());
 				output.accept(CBItems.BLAST_PROOF_GLASS.get());
 				output.accept(CBItems.BLAST_PROOF_FRAMED_GLASS.get());
+				output.accept(CBItems.BIONIC_MECHANISM.get());
 				acceptBufferPads(output);
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 			})

@@ -1,0 +1,24 @@
+{
+  "replace": false,
+  "values": [
+    {
+      "id": "#minecraft:saplings",
+      "required": false
+    },
+    {
+      "id": "#minecraft:flowers",
+      "required": false
+    },
+    "minecraft:wheat_seeds",
+    "minecraft:beetroot_seeds",
+    "minecraft:pumpkin_seeds",
+    "minecraft:melon_seeds",
+    "minecraft:torchflower_seeds",
+    "minecraft:pitcher_pod",
+    "minecraft:sweet_berries",
+    "minecraft:glow_berries",
+    "minecraft:sugar_cane",
+    "minecraft:bamboo",
+    "minecraft:kelp"
+  ]
+}
