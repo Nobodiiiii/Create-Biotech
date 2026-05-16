@@ -17,6 +17,8 @@
   "item.create_biotech.large_cardboard_box": "大型纸箱",
   "item.create_biotech.large_cardboard_box.filled": "装有 %s",
   "block.create_biotech.schrodingers_cat": "薛定谔的猫",
+  "block.create_biotech.spider_assembly_table": "蜘蛛装配台",
+  "create_biotech.gui.spider_assembly_table.empty_fluid": "空",
   "create_biotech.schrodingers_cat.interval.label": "检测间隔",
   "create_biotech.schrodingers_cat.output_mode.label": "输出模式",
   "create_biotech.schrodingers_cat.output_mode.sustained": "持续信号",

@@ -1,0 +1,21 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "minecraft:entity/spider/spider",
+    "spider": "minecraft:entity/spider/spider"
+  },
+  "elements": [
+    {
+      "from": [4, 3.5, 9],
+      "to": [12, 8.5, 14],
+      "faces": {
+        "north": { "texture": "#spider", "uv": [8, 0, 16, 5] },
+        "south": { "texture": "#spider", "uv": [8, 5, 16, 10] },
+        "east": { "texture": "#spider", "uv": [8, 0, 13, 5] },
+        "west": { "texture": "#spider", "uv": [8, 5, 13, 10] },
+        "up": { "texture": "#spider", "uv": [8, 0, 16, 5] },
+        "down": { "texture": "#spider", "uv": [8, 10, 16, 15] }
+      }
+    }
+  ]
+}

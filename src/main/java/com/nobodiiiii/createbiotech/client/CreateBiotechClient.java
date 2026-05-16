@@ -22,6 +22,8 @@ import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRende
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderer;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableScreen;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
@@ -29,6 +31,7 @@ import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
@@ -43,6 +46,7 @@ import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 import net.createmod.ponder.foundation.PonderIndex;
 
 import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -68,6 +72,8 @@ public class CreateBiotechClient {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.POWER_BELT.get(), PowerBeltRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.UNIVERSAL_JOINT.get(), UniversalJointRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SCHRODINGERS_CAT.get(), SchrodingersCatRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.SPIDER_ASSEMBLY_TABLE.get(),
+			SpiderAssemblyTableRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.FIXED_CARROT_FISHING_ROD.get(),
 			FixedCarrotFishingRodRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BLAST_PROOF_CHAIN_DRIVE.get(),
@@ -90,6 +96,10 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_off"));
+		event.register(CreateBiotech.asResource("block/spider_assembly_table/body"));
+		event.register(CreateBiotech.asResource("block/spider_assembly_table/head"));
+		event.register(CreateBiotech.asResource("block/spider_assembly_table/abdomen"));
+		event.register(CreateBiotech.asResource("block/spider_assembly_table/leg"));
 		event.register(CreateBiotech.asResource("block/ghast_helm/block_open"));
 		event.register(CreateBiotech.asResource("block/ghast_helm/train/cover"));
 		event.register(CreateBiotech.asResource("block/ghast_helm/train/lever"));
@@ -124,6 +134,7 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
+			MenuScreens.register(CBMenuTypes.SPIDER_ASSEMBLY_TABLE.get(), SpiderAssemblyTableScreen::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()

@@ -58,6 +58,9 @@ public class CBItems {
 	public static final RegistryObject<Item> SCHRODINGERS_CAT = ITEMS.register("schrodingers_cat",
 		() -> new BlockItem(CBBlocks.SCHRODINGERS_CAT.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> SPIDER_ASSEMBLY_TABLE = ITEMS.register("spider_assembly_table",
+		() -> new BlockItem(CBBlocks.SPIDER_ASSEMBLY_TABLE.get(), new Item.Properties()));
+
 	public static final RegistryObject<Item> FIXED_CARROT_FISHING_ROD = ITEMS.register("fixed_carrot_fishing_rod",
 		() -> new BlockItem(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), new Item.Properties()));
 

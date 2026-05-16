@@ -1,0 +1,52 @@
+{
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "minecraft:entity/spider/spider",
+    "spider": "minecraft:entity/spider/spider"
+  },
+  "elements": [
+    {
+      "from": [5, 4, 5],
+      "to": [11, 8, 11],
+      "faces": {
+        "north": { "texture": "#spider", "uv": [4, 4, 10, 8] },
+        "south": { "texture": "#spider", "uv": [4, 4, 10, 8] },
+        "east": { "texture": "#spider", "uv": [4, 4, 10, 8] },
+        "west": { "texture": "#spider", "uv": [4, 4, 10, 8] },
+        "up": { "texture": "#spider", "uv": [4, 0, 10, 6] },
+        "down": { "texture": "#spider", "uv": [4, 8, 10, 14] }
+      }
+    },
+    {
+      "from": [4.5, 4, 2.5],
+      "to": [11.5, 9, 6.5],
+      "faces": {
+        "north": { "texture": "#spider", "uv": [0, 0, 7, 5] },
+        "south": { "texture": "#spider", "uv": [0, 5, 7, 10] },
+        "east": { "texture": "#spider", "uv": [7, 0, 11, 5] },
+        "west": { "texture": "#spider", "uv": [7, 5, 11, 10] },
+        "up": { "texture": "#spider", "uv": [0, 0, 7, 4] },
+        "down": { "texture": "#spider", "uv": [0, 10, 7, 14] }
+      }
+    },
+    {
+      "from": [4, 3.5, 9],
+      "to": [12, 8.5, 14],
+      "faces": {
+        "north": { "texture": "#spider", "uv": [8, 0, 16, 5] },
+        "south": { "texture": "#spider", "uv": [8, 5, 16, 10] },
+        "east": { "texture": "#spider", "uv": [8, 0, 13, 5] },
+        "west": { "texture": "#spider", "uv": [8, 5, 13, 10] },
+        "up": { "texture": "#spider", "uv": [8, 0, 16, 5] },
+        "down": { "texture": "#spider", "uv": [8, 10, 16, 15] }
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [30, 225, 0],
+      "translation": [0, 0, 0],
+      "scale": [0.9, 0.9, 0.9]
+    }
+  }
+}

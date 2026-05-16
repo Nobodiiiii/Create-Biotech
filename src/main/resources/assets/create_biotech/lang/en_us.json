@@ -17,6 +17,8 @@
   "item.create_biotech.large_cardboard_box": "Large Cardboard Box",
   "item.create_biotech.large_cardboard_box.filled": "Contains %s",
   "block.create_biotech.schrodingers_cat": "Schrodinger's Cat",
+  "block.create_biotech.spider_assembly_table": "Spider Assembly Table",
+  "create_biotech.gui.spider_assembly_table.empty_fluid": "Empty",
   "create_biotech.schrodingers_cat.interval.label": "Detection Interval",
   "create_biotech.schrodingers_cat.output_mode.label": "Output Mode",
   "create_biotech.schrodingers_cat.output_mode.sustained": "Sustained Signal",

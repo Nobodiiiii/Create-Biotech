@@ -79,6 +79,10 @@
     {
       "type": "single",
       "resource": "create_biotech:block/blast_proof_framed_glass_connected"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/spider/spider"
     }
   ]
 }
