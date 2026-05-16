@@ -1,10 +1,13 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import org.joml.Quaternionf;
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
@@ -24,6 +27,7 @@ public class HighPressureCreeperDrawable extends AnimatedKinetics {
 	private static final int PRESS_X_OFFSET = 5;
 	private static final int PRESS_Y_OFFSET = 6;
 	private static final int PRESS_SCALE = 24;
+	private static final float CHAMBER_LOCAL_Y_OFFSET = 1.65f;
 	private static final float PRESS_EFFECT_START_OFFSET = 0.4f;
 	private static final CompoundTag CHARGED_CREEPER_TAG = createChargedCreeperTag();
 
@@ -78,6 +82,7 @@ public class HighPressureCreeperDrawable extends AnimatedKinetics {
 
 		float headOffset = getAnimatedHeadOffset();
 		renderPressBody(guiGraphics, xOffset + PRESS_X_OFFSET, yOffset + PRESS_Y_OFFSET);
+		renderChamberBody(guiGraphics, xOffset + PRESS_X_OFFSET, yOffset + PRESS_Y_OFFSET);
 		renderCreeper(guiGraphics, creeper, xOffset, yOffset, headOffset);
 		renderPressHead(guiGraphics, xOffset + PRESS_X_OFFSET, yOffset + PRESS_Y_OFFSET, headOffset);
 	}
@@ -116,6 +121,23 @@ public class HighPressureCreeperDrawable extends AnimatedKinetics {
 		poseStack.popPose();
 	}
 
+	private void renderChamberBody(GuiGraphics guiGraphics, int xOffset, int yOffset) {
+		PoseStack poseStack = guiGraphics.pose();
+		poseStack.pushPose();
+		poseStack.translate(xOffset, yOffset, 200);
+		poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
+		poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+
+		blockElement(CBBlocks.CREEPER_BLAST_CHAMBER.get()
+			.defaultBlockState()
+			.setValue(CreeperBlastChamberBlock.FORMED, true))
+			.atLocal(0, CHAMBER_LOCAL_Y_OFFSET, 0)
+			.scale(PRESS_SCALE)
+			.render(guiGraphics);
+
+		poseStack.popPose();
+	}
+
 	private void renderCreeper(GuiGraphics guiGraphics, Creeper creeper, int xOffset, int yOffset, float headOffset) {
 		float compression = getCompressionFromHeadOffset(headOffset);
 		float pulse = 0.5f + 0.5f * Mth.sin(AnimationTickHolder.getRenderTime() * 0.9f);
@@ -137,9 +159,38 @@ public class HighPressureCreeperDrawable extends AnimatedKinetics {
 		poseStack.scale(appliedHorizontalScale, appliedVerticalScale, appliedHorizontalScale);
 		poseStack.translate(-renderX, -renderY, 0);
 		creeper.tickCount = Mth.floor(AnimationTickHolder.getRenderTime());
-		InventoryScreen.renderEntityInInventoryFollowsAngle(guiGraphics, (int) renderX, (int) renderY, scale, angleX,
-			angleY, creeper);
+		renderCreeperFacingPress(guiGraphics, creeper, (int) renderX, (int) renderY);
 		poseStack.popPose();
+	}
+
+	private void renderCreeperFacingPress(GuiGraphics guiGraphics, Creeper creeper, int x, int y) {
+		Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
+		Quaternionf camera = new Quaternionf().rotateX(angleY * 20.0f * ((float) Math.PI / 180.0f));
+		pose.mul(camera);
+
+		float bodyRot = creeper.yBodyRot;
+		float bodyRotO = creeper.yBodyRotO;
+		float yRot = creeper.getYRot();
+		float xRot = creeper.getXRot();
+		float headRotO = creeper.yHeadRotO;
+		float headRot = creeper.yHeadRot;
+		float desiredYaw = 180.0f + angleX * 40.0f;
+
+		creeper.setYBodyRot(desiredYaw);
+		creeper.yBodyRotO = desiredYaw;
+		creeper.setYRot(desiredYaw);
+		creeper.setXRot(-angleY * 20.0f);
+		creeper.yHeadRot = desiredYaw;
+		creeper.yHeadRotO = desiredYaw;
+
+		InventoryScreen.renderEntityInInventory(guiGraphics, x, y, scale, pose, camera, creeper);
+
+		creeper.setYBodyRot(bodyRot);
+		creeper.yBodyRotO = bodyRotO;
+		creeper.setYRot(yRot);
+		creeper.setXRot(xRot);
+		creeper.yHeadRotO = headRotO;
+		creeper.yHeadRot = headRot;
 	}
 
 	private float getAnimatedHeadOffset() {
