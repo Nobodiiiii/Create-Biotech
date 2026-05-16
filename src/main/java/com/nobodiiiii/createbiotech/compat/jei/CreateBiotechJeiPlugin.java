@@ -4,13 +4,16 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessingRecipe;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.Create;
+import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 import com.simibubi.create.content.kinetics.deployer.ItemApplicationRecipe;
 import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.content.kinetics.mixer.CompactingRecipe;
+import com.simibubi.create.content.kinetics.press.PressingRecipe;
 import com.simibubi.create.content.processing.basin.BasinRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeBuilder;
 
@@ -18,6 +21,7 @@ import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -30,6 +34,8 @@ import net.minecraft.world.item.crafting.Ingredient;
 public class CreateBiotechJeiPlugin implements IModPlugin {
 	private static final RecipeType<BasinRecipe> CREATE_PACKING =
 		new RecipeType<>(Create.asResource("packing"), BasinRecipe.class);
+	private static final RecipeType<AbstractCrushingRecipe> CREATE_CRUSHING =
+		new RecipeType<>(Create.asResource("crushing"), AbstractCrushingRecipe.class);
 	private static final RecipeType<ItemApplicationRecipe> CREATE_ITEM_APPLICATION =
 		new RecipeType<>(Create.asResource("item_application"), ItemApplicationRecipe.class);
 
@@ -41,6 +47,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	@Override
 	public void registerCategories(IRecipeCategoryRegistration registration) {
 		registration.addRecipeCategories(new SlimeTransformationJeiCategory());
+		registration.addRecipeCategories(new CreeperBlastChamberHighPressureJeiCategory());
 	}
 
 	@Override
@@ -48,8 +55,17 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		registration.addRecipes(SlimeTransformationJeiCategory.TYPE, List.of(
 			SlimeTransformationJeiRecipe.beltToSlimeBelt(),
 			SlimeTransformationJeiRecipe.beltToMagmaBelt()));
+		registration.addRecipes(CreeperBlastChamberHighPressureJeiCategory.TYPE,
+			CreeperBlastChamberHighPressureJeiRecipes.create());
 		registration.addRecipes(CREATE_PACKING, basinEntityProcessingPackingRecipes());
 		registration.addRecipes(CREATE_ITEM_APPLICATION, List.of(powerBeltConversion()));
+	}
+
+	@Override
+	public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+		registration.addRecipeCatalyst(CBBlocks.CREEPER_BLAST_CHAMBER.get(), CREATE_CRUSHING);
+		registration.addRecipeCatalyst(CBBlocks.CREEPER_BLAST_CHAMBER.get(),
+			CreeperBlastChamberHighPressureJeiCategory.TYPE);
 	}
 
 	private static List<BasinRecipe> basinEntityProcessingPackingRecipes() {

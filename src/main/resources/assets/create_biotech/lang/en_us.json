@@ -38,6 +38,7 @@
   "create_biotech.creeper_blast_chamber.tooltip.status.insufficient_stress": "Insufficient Stress Input",
   "create_biotech.creeper_blast_chamber.tooltip.status.overloading": "Overloading",
   "create_biotech.creeper_blast_chamber.tooltip.overload": "Overload: %s",
+  "create_biotech.recipe.creeper_blast_chamber_high_pressure": "High-Pressure Implosion",
   "create_biotech.creeper_blast_chamber.creeper_face.shown": "Core creeper face: shown",
   "create_biotech.creeper_blast_chamber.creeper_face.hidden": "Core creeper face: hidden",
   "create_biotech.creeper_blast_chamber.vault_role.label": "Blast Chamber Vault Role",

@@ -38,6 +38,7 @@
   "create_biotech.creeper_blast_chamber.tooltip.status.insufficient_stress": "应力输入不足",
   "create_biotech.creeper_blast_chamber.tooltip.status.overloading": "过载中",
   "create_biotech.creeper_blast_chamber.tooltip.overload": "过载值：%s",
+  "create_biotech.recipe.creeper_blast_chamber_high_pressure": "高压聚爆",
   "create_biotech.creeper_blast_chamber.creeper_face.shown": "核心苦力怕头像：显示",
   "create_biotech.creeper_blast_chamber.creeper_face.hidden": "核心苦力怕头像：隐藏",
   "create_biotech.creeper_blast_chamber.vault_role.label": "爆破室保险库角色",
