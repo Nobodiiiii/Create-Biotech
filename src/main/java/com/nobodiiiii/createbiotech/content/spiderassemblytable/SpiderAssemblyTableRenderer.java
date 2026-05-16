@@ -9,7 +9,10 @@ import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
+import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.AngleHelper;
+import net.createmod.catnip.platform.ForgeCatnipServices;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.Minecraft;
@@ -20,17 +23,22 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Spider;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
 import net.minecraftforge.items.ItemStackHandler;
 
 import org.joml.Quaternionf;
@@ -93,13 +101,15 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		ms.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE);
 		VertexConsumer spiderBuffer = buffer.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
 		spiderModel.renderToBuffer(ms, spiderBuffer, light, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
-		renderLegMachines(be, ms, buffer, light);
+		renderLegMachines(be, partialTicks, ms, buffer, light);
 		ms.popPose();
 	}
 
-	private void renderLegMachines(SpiderAssemblyTableBlockEntity be, PoseStack ms, MultiBufferSource buffer, int light) {
+	private void renderLegMachines(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
+		MultiBufferSource buffer, int light) {
 		ModelPart root = spiderModel.root();
 		ItemStackHandler inventory = be.getInventory();
+		int activeSlot = be.getActiveSlot();
 
 		for (int slot = 0; slot < SpiderAssemblyTableBlockEntity.LEG_COUNT; slot++) {
 			ItemStack machineStack = inventory.getStackInSlot(SpiderAssemblyTableBlockEntity.MACHINE_SLOT_START + slot);
@@ -124,9 +134,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			float axisY = sign * sz * cy;
 			float axisZ = -sign * sy;
 
-			float tipMx = sign * LEG_PIVOT_X_MODEL + LEG_LENGTH_MODEL * axisX;
-			float tipMy = 15f + LEG_LENGTH_MODEL * axisY;
-			float tipMz = LEG_PIVOT_Z_MODEL[slot] + LEG_LENGTH_MODEL * axisZ;
+			float anchorLength = LEG_LENGTH_MODEL - 1f;
+			float tipMx = sign * LEG_PIVOT_X_MODEL + anchorLength * axisX;
+			float tipMy = 15f + anchorLength * axisY;
+			float tipMz = LEG_PIVOT_Z_MODEL[slot] + anchorLength * axisZ;
 
 			float dx = DEPOT_X_MODEL - tipMx;
 			float dy = DEPOT_Y_MODEL - tipMy;
@@ -139,6 +150,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			dz /= dLen;
 
 			Quaternionf orientation = shortestArcFromDownY(dx, dy, dz);
+			boolean isActive = (slot == activeSlot);
 
 			ms.pushPose();
 			ms.translate(tipMx / 16f, tipMy / 16f, tipMz / 16f);
@@ -152,10 +164,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 					.getBlockRenderer()
 					.renderSingleBlock(machineState, ms, buffer, light, OverlayTexture.NO_OVERLAY,
 						ModelData.EMPTY, null);
-				renderMachineParts(kind, machineState, ms, buffer, light);
+				renderMachineParts(be, slot, kind, machineState, ms, buffer, light, partialTicks, isActive);
 			} else {
 				ms.translate(-0.5d, -1.5d, -0.5d);
-				renderMachineParts(kind, machineState, ms, buffer, light);
+				renderMachineParts(be, slot, kind, machineState, ms, buffer, light, partialTicks, isActive);
 			}
 			ms.popPose();
 		}
@@ -190,17 +202,25 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		return state;
 	}
 
-	private static void renderMachineParts(MachineKind kind, BlockState state, PoseStack ms, MultiBufferSource buffer,
-		int light) {
+	private static void renderMachineParts(SpiderAssemblyTableBlockEntity be, int slot, MachineKind kind,
+		BlockState state, PoseStack ms, MultiBufferSource buffer, int light, float partialTicks, boolean isActive) {
 		VertexConsumer solid = buffer.getBuffer(RenderType.solid());
+		ItemStackHandler inventory = be.getInventory();
 		switch (kind) {
 		case DEPLOYER -> {
+			ItemStack heldItem =
+				inventory.getStackInSlot(SpiderAssemblyTableBlockEntity.ITEM_CACHE_SLOT_START + slot);
+			PartialModel handPose = (isActive || !heldItem.isEmpty())
+				? AllPartialModels.DEPLOYER_HAND_PUNCHING
+				: AllPartialModels.DEPLOYER_HAND_POINTING;
 			transformDeployerPart(CachedBuffers.partial(AllPartialModels.DEPLOYER_POLE, state), state, true)
 				.light(light)
 				.renderInto(ms, solid);
-			transformDeployerPart(CachedBuffers.partial(AllPartialModels.DEPLOYER_HAND_POINTING, state), state, false)
+			transformDeployerPart(CachedBuffers.partial(handPose, state), state, false)
 				.light(light)
 				.renderInto(ms, solid);
+			if (!heldItem.isEmpty())
+				renderDeployerHeldItem(be, heldItem, ms, buffer, light);
 		}
 		case PRESS -> {
 			BlockState poleState = deployerPoleState();
@@ -219,8 +239,15 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 				.light(light)
 				.renderInto(ms, solid);
 			SuperByteBuffer blade = CachedBuffers.partialFacing(AllPartialModels.SAW_BLADE_VERTICAL_INACTIVE, state);
-			if (state.getValue(DirectionalAxisKineticBlock.AXIS_ALONG_FIRST_COORDINATE))
+			boolean axisAlongFirst = state.getValue(DirectionalAxisKineticBlock.AXIS_ALONG_FIRST_COORDINATE);
+			if (axisAlongFirst)
 				blade.rotateCentered(AngleHelper.rad(90), Direction.UP);
+			if (isActive) {
+				float time = AnimationTickHolder.getRenderTime(be.getLevel()) + partialTicks;
+				float spinAngle = AngleHelper.rad(time * 24f);
+				Direction spinAxis = axisAlongFirst ? Direction.EAST : Direction.SOUTH;
+				blade.rotateCentered(spinAngle, spinAxis);
+			}
 			blade.color(0xFFFFFF)
 				.light(light)
 				.renderInto(ms, buffer.getBuffer(RenderType.cutoutMipped()));
@@ -235,8 +262,46 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			CachedBuffers.partial(AllPartialModels.SPOUT_BOTTOM, state)
 				.light(light)
 				.renderInto(ms, solid);
+			renderSpoutFluid(be.getFluidTank(slot), ms, buffer, light);
 		}
 		}
+	}
+
+	private static void renderDeployerHeldItem(SpiderAssemblyTableBlockEntity be, ItemStack heldItem, PoseStack ms,
+		MultiBufferSource buffer, int light) {
+		ItemRenderer itemRenderer = Minecraft.getInstance()
+			.getItemRenderer();
+		BakedModel model = itemRenderer.getModel(heldItem, be.getLevel(), null, 0);
+		ms.pushPose();
+		ms.translate(0.5d, -0.25d, 0.5d);
+		ms.scale(0.5f, 0.5f, 0.5f);
+		itemRenderer.render(heldItem, ItemDisplayContext.FIXED, false, ms, buffer, light, OverlayTexture.NO_OVERLAY,
+			model);
+		ms.popPose();
+	}
+
+	private static void renderSpoutFluid(FluidTank tank, PoseStack ms, MultiBufferSource buffer, int light) {
+		FluidStack fluid = tank.getFluid();
+		if (fluid.isEmpty() || tank.getCapacity() <= 0)
+			return;
+		float level = Mth.clamp((float) tank.getFluidAmount() / tank.getCapacity(), 0f, 1f);
+		if (level < 1e-3f)
+			return;
+		level = Math.max(level, 0.175f);
+		float min = 2.5f / 16f;
+		float max = min + 11f / 16f;
+		float yOffset = (11f / 16f) * level;
+		boolean top = fluid.getFluid()
+			.getFluidType()
+			.isLighterThanAir();
+		ms.pushPose();
+		if (!top)
+			ms.translate(0, yOffset, 0);
+		else
+			ms.translate(0, max - min, 0);
+		ForgeCatnipServices.FLUID_RENDERER.renderFluidBox(fluid, min, min - yOffset, min, max, min, max, buffer, ms,
+			light, false, true);
+		ms.popPose();
 	}
 
 	private static SuperByteBuffer transformDeployerPart(SuperByteBuffer buffer, BlockState state,
