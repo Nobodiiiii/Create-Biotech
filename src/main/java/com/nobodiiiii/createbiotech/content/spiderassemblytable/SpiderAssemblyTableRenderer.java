@@ -33,6 +33,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.client.model.data.ModelData;
 import net.minecraftforge.items.ItemStackHandler;
 
+import org.joml.Quaternionf;
+
 public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<SpiderAssemblyTableBlockEntity> {
 
 	private static final ResourceLocation SPIDER_TEXTURE =
@@ -41,8 +43,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
 	private static final float ACTIVE_LEG_BEND = (float) Math.toRadians(20);
 	private static final float SHAFT_OFFSET = 0.34f;
-	private static final float LEG_TIP_OFFSET = 15f / 16f;
-	private static final float MACHINE_HANG_OFFSET = 5f / 16f;
 	private static final float MACHINE_SCALE = 0.4f;
 	private static final float LEG_LENGTH_MODEL = 15.0f;
 	private static final float LEG_PIVOT_X_MODEL = 4.0f;
@@ -113,15 +113,38 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 			BlockState machineState = machineStateFor(kind);
 			boolean leftSide = slot < 4;
-			float tipX = leftSide ? LEG_TIP_OFFSET : -LEG_TIP_OFFSET;
+			float sign = leftSide ? 1f : -1f;
+
+			float cz = Mth.cos(leg.zRot);
+			float sz = Mth.sin(leg.zRot);
+			float cy = Mth.cos(leg.yRot);
+			float sy = Mth.sin(leg.yRot);
+
+			float axisX = sign * cz * cy;
+			float axisY = sign * sz * cy;
+			float axisZ = -sign * sy;
+
+			float tipMx = sign * LEG_PIVOT_X_MODEL + LEG_LENGTH_MODEL * axisX;
+			float tipMy = 15f + LEG_LENGTH_MODEL * axisY;
+			float tipMz = LEG_PIVOT_Z_MODEL[slot] + LEG_LENGTH_MODEL * axisZ;
+
+			float dx = DEPOT_X_MODEL - tipMx;
+			float dy = DEPOT_Y_MODEL - tipMy;
+			float dz = DEPOT_Z_MODEL - tipMz;
+			float dLen = Mth.sqrt(dx * dx + dy * dy + dz * dz);
+			if (dLen < 1e-5f)
+				continue;
+			dx /= dLen;
+			dy /= dLen;
+			dz /= dLen;
+
+			Quaternionf orientation = shortestArcFromDownY(dx, dy, dz);
 
 			ms.pushPose();
-			leg.translateAndRotate(ms);
-			ms.translate(tipX, 0, 0);
-			ms.translate(0, MACHINE_HANG_OFFSET, 0);
-			ms.mulPose(Axis.XP.rotationDegrees(180));
+			ms.translate(tipMx / 16f, tipMy / 16f, tipMz / 16f);
+			ms.mulPose(orientation);
 			ms.scale(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
-			ms.translate(-0.5d, -0.5d, -0.5d);
+			ms.translate(-0.5d, -1.0d, -0.5d);
 			Minecraft.getInstance()
 				.getBlockRenderer()
 				.renderSingleBlock(machineState, ms, buffer, light, OverlayTexture.NO_OVERLAY,
@@ -129,6 +152,21 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			renderMachineParts(kind, machineState, ms, buffer, light);
 			ms.popPose();
 		}
+	}
+
+	private static Quaternionf shortestArcFromDownY(float dx, float dy, float dz) {
+		float cosA = -dy;
+		if (cosA > 0.99999f)
+			return new Quaternionf();
+		if (cosA < -0.99999f)
+			return new Quaternionf().setAngleAxis((float) Math.PI, 1f, 0f, 0f);
+		float axX = -dz;
+		float axZ = dx;
+		float axLen = Mth.sqrt(axX * axX + axZ * axZ);
+		axX /= axLen;
+		axZ /= axLen;
+		float angle = (float) Math.acos(Mth.clamp(cosA, -1f, 1f));
+		return new Quaternionf().setAngleAxis(angle, axX, 0f, axZ);
 	}
 
 	private static BlockState machineStateFor(MachineKind kind) {
@@ -205,63 +243,13 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 		int activeSlot = be.getActiveSlot();
 		ModelPart activeLeg = getAnimatedLeg(root, activeSlot);
-		if (activeLeg != null) {
-			float progress = be.getProcessingProgress(partialTicks);
-			float bend = Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND;
-			boolean leftSide = activeSlot < 4;
-			activeLeg.zRot += leftSide ? bend : -bend;
-		}
+		if (activeLeg == null)
+			return;
 
-		for (int slot = 0; slot < SpiderAssemblyTableBlockEntity.LEG_COUNT; slot++) {
-			ModelPart leg = getAnimatedLeg(root, slot);
-			if (leg != null)
-				aimMachineAtDepot(leg, slot);
-		}
-	}
-
-	private static void aimMachineAtDepot(ModelPart leg, int slot) {
-		boolean leftSide = slot < 4;
-		float sign = leftSide ? +1f : -1f;
-
-		float zRot = leg.zRot;
-		float yRot = leg.yRot;
-		float cz = Mth.cos(zRot);
-		float sz = Mth.sin(zRot);
-		float cy = Mth.cos(yRot);
-		float sy = Mth.sin(yRot);
-
-		float axisX = sign * cz * cy;
-		float axisY = sign * sz * cy;
-		float axisZ = -sign * sy;
-
-		float pivotX = sign * LEG_PIVOT_X_MODEL;
-		float pivotY = 15f;
-		float pivotZ = LEG_PIVOT_Z_MODEL[slot];
-
-		float tipX = pivotX + LEG_LENGTH_MODEL * axisX;
-		float tipY = pivotY + LEG_LENGTH_MODEL * axisY;
-		float tipZ = pivotZ + LEG_LENGTH_MODEL * axisZ;
-
-		float dx = DEPOT_X_MODEL - tipX;
-		float dy = DEPOT_Y_MODEL - tipY;
-		float dz = DEPOT_Z_MODEL - tipZ;
-
-		float along = dx * axisX + dy * axisY + dz * axisZ;
-		float perpX = dx - along * axisX;
-		float perpY = dy - along * axisY;
-		float perpZ = dz - along * axisZ;
-
-		float e0X = -sz;
-		float e0Y = cz;
-		float e0Z = 0f;
-		float e1X = cz * sy;
-		float e1Y = sz * sy;
-		float e1Z = cy;
-
-		float cosA = perpX * e0X + perpY * e0Y + perpZ * e0Z;
-		float sinA = perpX * e1X + perpY * e1Y + perpZ * e1Z;
-
-		leg.xRot = (float) Math.atan2(sinA, cosA);
+		float progress = be.getProcessingProgress(partialTicks);
+		float bend = Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND;
+		boolean leftSide = activeSlot < 4;
+		activeLeg.zRot += leftSide ? bend : -bend;
 	}
 
 	private static ModelPart getAnimatedLeg(ModelPart root, int slot) {
