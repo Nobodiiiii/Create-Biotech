@@ -64,8 +64,8 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float VECTOR_EPSILON = 1e-5f;
 	private static final float OUTER_LEG_OUTWARD_ROTATION_DEGREES = 11.75f;
 	private static final float INNER_LEG_OUTWARD_ROTATION_DEGREES = 0f;
-	private static final float JOINT_GEAR_SCALE = 0.28f;
-	private static final float JOINT_GEAR_ARM_OFFSET_MODEL = 1.5f;
+	private static final float JOINT_GEAR_SCALE = 0.22f;
+	private static final float JOINT_GEAR_Y_OFFSET = 0f;
 
 	private final SpiderModel<RenderSpider> spiderModel;
 	private RenderSpider cachedSpider;
@@ -160,15 +160,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			float perpX = -sz;
 			float perpY = cz;
 			float perpZ = 0f;
-			float sideX = perpY * axisZ - perpZ * axisY;
-			float sideY = perpZ * axisX - perpX * axisZ;
-			float sideZ = perpX * axisY - perpY * axisX;
-			float sideLen = Mth.sqrt(sideX * sideX + sideY * sideY + sideZ * sideZ);
-			if (sideLen < VECTOR_EPSILON)
-				continue;
-			sideX /= sideLen;
-			sideY /= sideLen;
-			sideZ /= sideLen;
 			float outwardRotationDegrees = isOuterLeg(slot)
 				? OUTER_LEG_OUTWARD_ROTATION_DEGREES
 				: INNER_LEG_OUTWARD_ROTATION_DEGREES;
@@ -202,9 +193,9 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			Quaternionf orientation = armOrientation(dx, dy, dz, restAxisX, restAxisY, restAxisZ);
 
 			ms.pushPose();
-			renderJointGear(be, ms, buffer, light, tipMx, tipMy, tipMz, dx, dy, dz, sideX, sideY, sideZ);
 			ms.translate(tipMx / 16f, tipMy / 16f, tipMz / 16f);
 			ms.mulPose(orientation);
+			renderJointGear(ms, buffer, light);
 			ms.scale(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
 
 			if (kind == MachineKind.SPOUT) {
@@ -303,21 +294,9 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		return slot == 0 || slot == 3 || slot == 4 || slot == 7;
 	}
 
-	private static void renderJointGear(SpiderAssemblyTableBlockEntity be, PoseStack ms, MultiBufferSource buffer, int light,
-		float tipMx, float tipMy, float tipMz, float armX, float armY, float armZ, float gearAxisX, float gearAxisY,
-		float gearAxisZ) {
-		float centerMx = tipMx + armX * JOINT_GEAR_ARM_OFFSET_MODEL;
-		float centerMy = tipMy + armY * JOINT_GEAR_ARM_OFFSET_MODEL;
-		float centerMz = tipMz + armZ * JOINT_GEAR_ARM_OFFSET_MODEL;
-		float angle = ((AnimationTickHolder.getRenderTime(be.getLevel()) * be.getSpeed() * 3f / 10f) % 360f) / 180f
-			* (float) Math.PI;
-		Quaternionf orientation = shortestArcFromDownY(-gearAxisX, -gearAxisY, -gearAxisZ);
-		Quaternionf spin = new Quaternionf().setAngleAxis(angle, 0f, 1f, 0f);
-		Quaternionf totalRotation = new Quaternionf(orientation).mul(spin);
-
+	private static void renderJointGear(PoseStack ms, MultiBufferSource buffer, int light) {
 		ms.pushPose();
-		ms.translate(centerMx / 16f, centerMy / 16f, centerMz / 16f);
-		ms.mulPose(totalRotation);
+		ms.translate(0d, JOINT_GEAR_Y_OFFSET, 0d);
 		ms.scale(JOINT_GEAR_SCALE, JOINT_GEAR_SCALE, JOINT_GEAR_SCALE);
 		ms.translate(-0.5d, -0.5d, -0.5d);
 		CachedBuffers.partial(AllPartialModels.SHAFTLESS_COGWHEEL, AllBlocks.COGWHEEL.getDefaultState())
