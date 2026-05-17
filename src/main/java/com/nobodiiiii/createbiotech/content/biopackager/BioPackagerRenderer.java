@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider.Con
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
@@ -30,12 +31,34 @@ public class BioPackagerRenderer extends SmartBlockEntityRenderer<BioPackagerBlo
 		int light, int overlay) {
 		super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
 
-		ItemStack renderedBox = be.getRenderedBox();
-		float trayOffset = be.getTrayOffset(partialTicks);
 		BlockState blockState = be.getBlockState();
+		renderAnimated(blockState, be.getLevel(), be.getRenderedBox(), be.getTrayOffset(partialTicks),
+			getHatchModel(be.animationInward, be.animationTicks), ms, buffer, light, overlay);
+	}
+
+	private static PartialModel getHatchModel(BioPackagerBlockEntity be) {
+		return getHatchModel(be.animationInward, be.animationTicks);
+	}
+
+	private static boolean isHatchOpen(BioPackagerBlockEntity be) {
+		return isHatchOpen(be.animationInward, be.animationTicks);
+	}
+
+	public static PartialModel getHatchModel(boolean animationInward, int animationTicks) {
+		return isHatchOpen(animationInward, animationTicks) ? AllPartialModels.PACKAGER_HATCH_OPEN
+			: AllPartialModels.PACKAGER_HATCH_CLOSED;
+	}
+
+	public static boolean isHatchOpen(boolean animationInward, int animationTicks) {
+		return animationTicks > (animationInward ? 1 : 5)
+			&& animationTicks < BioPackagerBlockEntity.CYCLE - (animationInward ? 5 : 1);
+	}
+
+	public static void renderAnimated(BlockState blockState, Level level, ItemStack renderedBox, float trayOffset,
+		PartialModel hatchModel, PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
 		Direction facing = blockState.getValue(BioPackagerBlock.FACING).getOpposite();
 
-		SuperByteBuffer sbb = CachedBuffers.partial(getHatchModel(be), blockState);
+		SuperByteBuffer sbb = CachedBuffers.partial(hatchModel, blockState);
 		sbb.translate(Vec3.atLowerCornerOf(facing.getNormal()).scale(.49999f))
 			.rotateYCenteredDegrees(AngleHelper.horizontalAngle(facing))
 			.rotateXCenteredDegrees(AngleHelper.verticalAngle(facing))
@@ -48,28 +71,19 @@ public class BioPackagerRenderer extends SmartBlockEntityRenderer<BioPackagerBlo
 			.light(light)
 			.renderInto(ms, buffer.getBuffer(RenderType.cutoutMipped()));
 
-		if (!renderedBox.isEmpty()) {
-			ms.pushPose();
-			var msr = TransformStack.of(ms);
-			msr.translate(Vec3.atLowerCornerOf(facing.getNormal()).scale(trayOffset))
-				.translate(.5f, .5f, .5f)
-				.rotateYDegrees(facing.toYRot())
-				.translate(0, 2 / 16f, 0)
-				.scale(1.49f, 1.49f, 1.49f);
-			Minecraft.getInstance()
-				.getItemRenderer()
-				.renderStatic(null, renderedBox, ItemDisplayContext.FIXED, false, ms, buffer, be.getLevel(), light,
-					overlay, 0);
-			ms.popPose();
-		}
-	}
+		if (renderedBox.isEmpty())
+			return;
 
-	private static PartialModel getHatchModel(BioPackagerBlockEntity be) {
-		return isHatchOpen(be) ? AllPartialModels.PACKAGER_HATCH_OPEN : AllPartialModels.PACKAGER_HATCH_CLOSED;
-	}
-
-	private static boolean isHatchOpen(BioPackagerBlockEntity be) {
-		return be.animationTicks > (be.animationInward ? 1 : 5)
-			&& be.animationTicks < BioPackagerBlockEntity.CYCLE - (be.animationInward ? 5 : 1);
+		ms.pushPose();
+		var msr = TransformStack.of(ms);
+		msr.translate(Vec3.atLowerCornerOf(facing.getNormal()).scale(trayOffset))
+			.translate(.5f, .5f, .5f)
+			.rotateYDegrees(facing.toYRot())
+			.translate(0, 2 / 16f, 0)
+			.scale(1.49f, 1.49f, 1.49f);
+		Minecraft.getInstance()
+			.getItemRenderer()
+			.renderStatic(null, renderedBox, ItemDisplayContext.FIXED, false, ms, buffer, level, light, overlay, 0);
+		ms.popPose();
 	}
 }

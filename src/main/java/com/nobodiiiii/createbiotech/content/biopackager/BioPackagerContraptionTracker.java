@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 import com.simibubi.create.content.contraptions.MountedStorageManager;
@@ -52,6 +53,10 @@ public final class BioPackagerContraptionTracker {
 		ContraptionEntry entry = ACTIVE.computeIfAbsent(id, k -> new ContraptionEntry(contraptionEntity));
 		entry.entityRef = new WeakReference<>(contraptionEntity);
 		entry.states.put(localPos, new PackagingState(filledBox.copy(), CYCLE));
+		CBPackets.sendToTrackingEntity(
+			new BioPackagerContraptionAnimationPacket(contraptionEntity.getId(), localPos, filledBox, ItemStack.EMPTY,
+				false),
+			contraptionEntity);
 	}
 
 	public static void tickAll(Level level) {

@@ -5,6 +5,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSurfaceMovementPacket;
@@ -35,6 +36,9 @@ public class CBPackets {
 			PowerBeltSurfaceMovementPacket::write, PowerBeltSurfaceMovementPacket::handle, NetworkDirection.PLAY_TO_SERVER);
 		register(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write, PowerBeltEntityAnimationPacket::handle,
+			NetworkDirection.PLAY_TO_CLIENT);
+		register(BioPackagerContraptionAnimationPacket.class, BioPackagerContraptionAnimationPacket::new,
+			BioPackagerContraptionAnimationPacket::write, BioPackagerContraptionAnimationPacket::handle,
 			NetworkDirection.PLAY_TO_CLIENT);
 		register(GhastBalloonMagnetTargetPacket.class, GhastBalloonMagnetTargetPacket::new,
 			GhastBalloonMagnetTargetPacket::write, GhastBalloonMagnetTargetPacket::handle,

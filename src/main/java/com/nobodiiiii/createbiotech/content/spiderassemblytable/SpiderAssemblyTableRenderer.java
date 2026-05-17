@@ -62,6 +62,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float DEPOT_Z_MODEL = 0f;
 	private static final float SAW_BLADE_ROOT_OFFSET = 3f / 16f;
 	private static final float VECTOR_EPSILON = 1e-5f;
+	private static final float OUTER_LEG_OUTWARD_ROTATION_DEGREES = 11.75f;
+	private static final float INNER_LEG_OUTWARD_ROTATION_DEGREES = 0f;
+	private static final float JOINT_GEAR_SCALE = 0.28f;
+	private static final float JOINT_GEAR_ARM_OFFSET_MODEL = 1.5f;
 
 	private final SpiderModel<RenderSpider> spiderModel;
 	private RenderSpider cachedSpider;
@@ -156,6 +160,22 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			float perpX = -sz;
 			float perpY = cz;
 			float perpZ = 0f;
+			float sideX = perpY * axisZ - perpZ * axisY;
+			float sideY = perpZ * axisX - perpX * axisZ;
+			float sideZ = perpX * axisY - perpY * axisX;
+			float sideLen = Mth.sqrt(sideX * sideX + sideY * sideY + sideZ * sideZ);
+			if (sideLen < VECTOR_EPSILON)
+				continue;
+			sideX /= sideLen;
+			sideY /= sideLen;
+			sideZ /= sideLen;
+			float outwardRotationDegrees = isOuterLeg(slot)
+				? OUTER_LEG_OUTWARD_ROTATION_DEGREES
+				: INNER_LEG_OUTWARD_ROTATION_DEGREES;
+			Vector3f adjustedPerp = rotateTowardLegAxis(perpX, perpY, perpZ, axisX, axisY, axisZ, outwardRotationDegrees);
+			perpX = adjustedPerp.x;
+			perpY = adjustedPerp.y;
+			perpZ = adjustedPerp.z;
 
 			float depotX = DEPOT_X_MODEL - tipMx;
 			float depotY = DEPOT_Y_MODEL - tipMy;
@@ -182,6 +202,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			Quaternionf orientation = armOrientation(dx, dy, dz, restAxisX, restAxisY, restAxisZ);
 
 			ms.pushPose();
+			renderJointGear(be, ms, buffer, light, tipMx, tipMy, tipMz, dx, dy, dz, sideX, sideY, sideZ);
 			ms.translate(tipMx / 16f, tipMy / 16f, tipMz / 16f);
 			ms.mulPose(orientation);
 			ms.scale(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
@@ -272,11 +293,60 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		float crossZ = currentFront.x * frontY - currentFront.y * frontX;
 		float signedSin = crossX * dx + crossY * dy + crossZ * dz;
 		float twistAngle = (float) Math.atan2(signedSin, dot);
-		if (Math.abs(twistAngle) < VECTOR_EPSILON)
-			return baseOrientation;
+		return Math.abs(twistAngle) < VECTOR_EPSILON
+			? baseOrientation
+			: new Quaternionf().setAngleAxis(twistAngle, dx, dy, dz)
+				.mul(baseOrientation);
+	}
 
-		return new Quaternionf().setAngleAxis(twistAngle, dx, dy, dz)
-			.mul(baseOrientation);
+	private static boolean isOuterLeg(int slot) {
+		return slot == 0 || slot == 3 || slot == 4 || slot == 7;
+	}
+
+	private static void renderJointGear(SpiderAssemblyTableBlockEntity be, PoseStack ms, MultiBufferSource buffer, int light,
+		float tipMx, float tipMy, float tipMz, float armX, float armY, float armZ, float gearAxisX, float gearAxisY,
+		float gearAxisZ) {
+		float centerMx = tipMx + armX * JOINT_GEAR_ARM_OFFSET_MODEL;
+		float centerMy = tipMy + armY * JOINT_GEAR_ARM_OFFSET_MODEL;
+		float centerMz = tipMz + armZ * JOINT_GEAR_ARM_OFFSET_MODEL;
+		float angle = ((AnimationTickHolder.getRenderTime(be.getLevel()) * be.getSpeed() * 3f / 10f) % 360f) / 180f
+			* (float) Math.PI;
+		Quaternionf orientation = shortestArcFromDownY(-gearAxisX, -gearAxisY, -gearAxisZ);
+		Quaternionf spin = new Quaternionf().setAngleAxis(angle, 0f, 1f, 0f);
+		Quaternionf totalRotation = new Quaternionf(orientation).mul(spin);
+
+		ms.pushPose();
+		ms.translate(centerMx / 16f, centerMy / 16f, centerMz / 16f);
+		ms.mulPose(totalRotation);
+		ms.scale(JOINT_GEAR_SCALE, JOINT_GEAR_SCALE, JOINT_GEAR_SCALE);
+		ms.translate(-0.5d, -0.5d, -0.5d);
+		CachedBuffers.partial(AllPartialModels.SHAFTLESS_COGWHEEL, AllBlocks.COGWHEEL.getDefaultState())
+			.light(light)
+			.renderInto(ms, buffer.getBuffer(RenderType.solid()));
+		ms.popPose();
+	}
+
+	private static Vector3f rotateTowardLegAxis(float dirX, float dirY, float dirZ, float legX, float legY, float legZ,
+		float extraDegrees) {
+		Vector3f direction = new Vector3f(dirX, dirY, dirZ);
+		if (Math.abs(extraDegrees) < VECTOR_EPSILON)
+			return direction;
+
+		float hingeX = dirY * legZ - dirZ * legY;
+		float hingeY = dirZ * legX - dirX * legZ;
+		float hingeZ = dirX * legY - dirY * legX;
+		float hingeLen = Mth.sqrt(hingeX * hingeX + hingeY * hingeY + hingeZ * hingeZ);
+		if (hingeLen < VECTOR_EPSILON)
+			return direction;
+
+		hingeX /= hingeLen;
+		hingeY /= hingeLen;
+		hingeZ /= hingeLen;
+		direction.rotate(new Quaternionf().setAngleAxis(AngleHelper.rad(extraDegrees), hingeX, hingeY, hingeZ));
+		float rotatedLen = direction.length();
+		if (rotatedLen < VECTOR_EPSILON)
+			return new Vector3f(dirX, dirY, dirZ);
+		return direction.div(rotatedLen);
 	}
 
 	private static BlockState machineStateFor(MachineKind kind) {
@@ -325,7 +395,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			ms.translate(-0.5d, 0d, -0.5d);
 			Direction pressFacing = state.getValue(BlockStateProperties.HORIZONTAL_FACING);
 			CachedBuffers.partialFacing(AllPartialModels.MECHANICAL_PRESS_HEAD, state, pressFacing)
-				.translate(0, -0.85f, 0)
+				.translate(0, -0.55f, 0)
 				.light(light)
 				.renderInto(ms, solid);
 			ms.popPose();

@@ -215,15 +215,25 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 	}
 
 	public float getTrayOffset(float partialTicks) {
-		float tickCycle = animationInward ? animationTicks - partialTicks : animationTicks - 5 - partialTicks;
+		return calculateTrayOffset(animationInward, animationTicks - partialTicks);
+	}
+
+	public static float calculateTrayOffset(boolean animationInward, float remainingTicks) {
+		float tickCycle = animationInward ? remainingTicks : remainingTicks - 5;
 		float progress = Mth.clamp(tickCycle / (CYCLE - 5) * 2 - 1, -1, 1);
 		progress = 1 - progress * progress;
 		return progress * progress;
 	}
 
 	public ItemStack getRenderedBox() {
+		return getRenderedBox(animationInward, animationTicks, heldBox, previouslyUnwrapped);
+	}
+
+	public static ItemStack getRenderedBox(boolean animationInward, int animationTicks, ItemStack heldBox,
+		ItemStack previouslyUnwrapped) {
 		if (animationInward)
-			return animationTicks <= CYCLE / 2 ? ItemStack.EMPTY : previouslyUnwrapped.isEmpty() ? heldBox : previouslyUnwrapped;
+			return animationTicks <= CYCLE / 2 ? ItemStack.EMPTY
+				: previouslyUnwrapped.isEmpty() ? heldBox : previouslyUnwrapped;
 		return animationTicks >= CYCLE / 2 ? ItemStack.EMPTY : heldBox;
 	}
 }
