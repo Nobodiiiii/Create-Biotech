@@ -12,6 +12,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -59,7 +60,7 @@ public class CBItems {
 		() -> new BlockItem(CBBlocks.SCHRODINGERS_CAT.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> SPIDER_ASSEMBLY_TABLE = ITEMS.register("spider_assembly_table",
-		() -> new BlockItem(CBBlocks.SPIDER_ASSEMBLY_TABLE.get(), new Item.Properties()));
+		() -> new SpiderAssemblyTableItem(CBBlocks.SPIDER_ASSEMBLY_TABLE.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> FIXED_CARROT_FISHING_ROD = ITEMS.register("fixed_carrot_fishing_rod",
 		() -> new BlockItem(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), new Item.Properties()));

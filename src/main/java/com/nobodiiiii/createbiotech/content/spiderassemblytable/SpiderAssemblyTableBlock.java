@@ -42,6 +42,7 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 9, 16);
 	private static final ThreadLocal<Boolean> REMOVING_MAIN_FROM_TAIL = ThreadLocal.withInitial(() -> false);
 	private static final ThreadLocal<Boolean> REMOVING_TAIL_FROM_MAIN = ThreadLocal.withInitial(() -> false);
+	private static final ThreadLocal<Direction> FORCED_PLACEMENT_FACING = new ThreadLocal<>();
 
 	public SpiderAssemblyTableBlock(Properties properties) {
 		super(properties);
@@ -50,11 +51,7 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		Direction preferred = getPreferredHorizontalFacing(context);
-		Direction facing =
-			preferred != null && (context.getPlayer() == null || !context.getPlayer().isShiftKeyDown())
-				? preferred.getOpposite()
-				: context.getHorizontalDirection().getOpposite();
+		Direction facing = getPlacementFacing(context);
 		BlockPos tailPos = context.getClickedPos().relative(facing.getOpposite());
 		if (!context.getLevel().getBlockState(tailPos).canBeReplaced(context))
 			return null;
@@ -86,6 +83,8 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	@Override
 	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
 		BlockHitResult hit) {
+		if (!player.isShiftKeyDown() && player.mayBuild() && player.getItemInHand(hand).is(CBItems.SPIDER_ASSEMBLY_TABLE.get()))
+			return InteractionResult.PASS;
 		return openMenu(level, pos, player);
 	}
 
@@ -187,6 +186,24 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 
 	static BlockPos getTailPos(BlockPos pos, BlockState state) {
 		return pos.relative(state.getValue(FACING).getOpposite());
+	}
+
+	Direction getPlacementFacing(BlockPlaceContext context) {
+		Direction forcedFacing = FORCED_PLACEMENT_FACING.get();
+		if (forcedFacing != null)
+			return forcedFacing;
+		Direction preferred = getPreferredHorizontalFacing(context);
+		if (preferred != null && (context.getPlayer() == null || !context.getPlayer().isShiftKeyDown()))
+			return preferred.getOpposite();
+		return context.getHorizontalDirection().getOpposite();
+	}
+
+	static void setForcedPlacementFacing(Direction facing) {
+		FORCED_PLACEMENT_FACING.set(facing);
+	}
+
+	static void clearForcedPlacementFacing() {
+		FORCED_PLACEMENT_FACING.remove();
 	}
 
 	private static void removeTail(Level level, BlockPos pos, BlockState state) {
