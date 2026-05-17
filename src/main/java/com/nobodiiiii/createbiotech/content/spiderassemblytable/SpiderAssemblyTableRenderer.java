@@ -66,6 +66,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float INNER_LEG_OUTWARD_ROTATION_DEGREES = 0f;
 	private static final float JOINT_GEAR_SCALE = 0.22f;
 	private static final float JOINT_GEAR_Y_OFFSET = 0f;
+	private static final float JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES = 90f;
 
 	private final SpiderModel<RenderSpider> spiderModel;
 	private RenderSpider cachedSpider;
@@ -297,6 +298,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static void renderJointGear(PoseStack ms, MultiBufferSource buffer, int light) {
 		ms.pushPose();
 		ms.translate(0d, JOINT_GEAR_Y_OFFSET, 0d);
+		ms.mulPose(Axis.ZP.rotationDegrees(JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES));
 		ms.scale(JOINT_GEAR_SCALE, JOINT_GEAR_SCALE, JOINT_GEAR_SCALE);
 		ms.translate(-0.5d, -0.5d, -0.5d);
 		CachedBuffers.partial(AllPartialModels.SHAFTLESS_COGWHEEL, AllBlocks.COGWHEEL.getDefaultState())
