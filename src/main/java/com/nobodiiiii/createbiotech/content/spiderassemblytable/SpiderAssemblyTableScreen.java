@@ -18,6 +18,7 @@ import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 import com.simibubi.create.foundation.gui.widget.IconButton;
 
 import net.createmod.catnip.gui.element.GuiGameElement;
+import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
@@ -229,6 +230,9 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 	}
 
 	private class LockIconButton extends IconButton {
+		private static final ScreenElement LOCKED_ICON_YELLOW =
+			new TintedIcon(AllIcons.I_CONFIG_LOCKED, 0xFFE6B33A);
+
 		private final int hybridIndex;
 
 		LockIconButton(int x, int y, int hybridIndex) {
@@ -239,8 +243,29 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 		@Override
 		public void doRender(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 			boolean locked = menu.getBlockEntity().isHybridSlotLocked(hybridIndex);
-			setIcon(locked ? AllIcons.I_CONFIG_LOCKED : AllIcons.I_CONFIG_UNLOCKED);
+			setIcon(locked ? LOCKED_ICON_YELLOW : AllIcons.I_CONFIG_UNLOCKED);
 			super.doRender(graphics, mouseX, mouseY, partialTicks);
+		}
+	}
+
+	private static class TintedIcon implements ScreenElement {
+		private final ScreenElement delegate;
+		private final float r;
+		private final float g;
+		private final float b;
+
+		TintedIcon(ScreenElement delegate, int color) {
+			this.delegate = delegate;
+			this.r = ((color >> 16) & 0xFF) / 255f;
+			this.g = ((color >> 8) & 0xFF) / 255f;
+			this.b = (color & 0xFF) / 255f;
+		}
+
+		@Override
+		public void render(GuiGraphics graphics, int x, int y) {
+			RenderSystem.setShaderColor(r, g, b, 1f);
+			delegate.render(graphics, x, y);
+			RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 		}
 	}
 }
