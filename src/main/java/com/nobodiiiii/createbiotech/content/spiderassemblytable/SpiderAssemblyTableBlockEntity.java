@@ -66,14 +66,13 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	public static final int LEG_COUNT = 8;
 	public static final int MACHINE_SLOT_START = 0;
-	public static final int ITEM_CACHE_SLOT_START = MACHINE_SLOT_START + LEG_COUNT;
-	public static final int FLUID_CONTAINER_SLOT_START = ITEM_CACHE_SLOT_START + LEG_COUNT;
-	public static final int SLOT_COUNT = FLUID_CONTAINER_SLOT_START + LEG_COUNT;
+	public static final int HYBRID_SLOT_START = MACHINE_SLOT_START + LEG_COUNT;
+	public static final int SLOT_COUNT = HYBRID_SLOT_START + LEG_COUNT;
 	public static final int FLUID_CAPACITY = 1000;
 
 	private final SpiderAssemblyInventory inventory = new SpiderAssemblyInventory();
 	private final FluidTank[] fluidTanks = new FluidTank[LEG_COUNT];
-	private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> new ItemCacheWrapper(inventory));
+	private final LazyOptional<IItemHandler> itemCapability = LazyOptional.of(() -> new HybridItemWrapper(inventory));
 	private final LazyOptional<IFluidHandler> fluidCapability = LazyOptional.of(() -> new SpiderFluidHandler());
 
 	private int nextSlot;
@@ -108,7 +107,6 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			return;
 		}
 
-		processFluidContainerSlots();
 		tickAssembly();
 	}
 
@@ -234,6 +232,58 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		fluidCapability.invalidate();
 	}
 
+	public boolean isHybridSlotItemOnly(int hybridIndex) {
+		return fluidTanks[hybridIndex].getFluid().isEmpty();
+	}
+
+	public boolean isHybridSlotFluidOnly(int hybridIndex) {
+		return !fluidTanks[hybridIndex].getFluid().isEmpty();
+	}
+
+	public FluidExchangeResult exchangeFluidWithItem(int hybridIndex, ItemStack singleItem) {
+		if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
+			return FluidExchangeResult.failure();
+
+		ItemStack slotItem = inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex);
+		if (!slotItem.isEmpty())
+			return FluidExchangeResult.failure();
+
+		IFluidHandlerItem itemHandler = singleItem.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).orElse(null);
+		if (itemHandler == null)
+			return FluidExchangeResult.failure();
+
+		FluidTank tank = fluidTanks[hybridIndex];
+		boolean changed = false;
+
+		FluidStack itemFluid = itemHandler.getTanks() > 0 ? itemHandler.getFluidInTank(0).copy() : FluidStack.EMPTY;
+		if (!itemFluid.isEmpty()) {
+			int canFill = tank.fill(itemFluid, FluidAction.SIMULATE);
+			if (canFill > 0) {
+				FluidStack drained = itemHandler.drain(canFill, FluidAction.EXECUTE);
+				if (!drained.isEmpty()) {
+					tank.fill(drained, FluidAction.EXECUTE);
+					changed = true;
+				}
+			}
+		}
+
+		if (!changed && !tank.getFluid().isEmpty()) {
+			FluidStack tankFluid = tank.getFluid().copy();
+			int filled = itemHandler.fill(tankFluid, FluidAction.EXECUTE);
+			if (filled > 0) {
+				tank.drain(filled, FluidAction.EXECUTE);
+				changed = true;
+			}
+		}
+
+		if (!changed)
+			return FluidExchangeResult.failure();
+
+		setChanged();
+		sendData();
+		return FluidExchangeResult.success(itemHandler.getContainer());
+	}
+
 	private void tickAssembly() {
 		if (getSpeed() == 0)
 			return;
@@ -280,7 +330,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	private ItemStack resolveImpactItem(DepotBlockEntity depot) {
 		if (activeMachine == MachineKind.DEPLOYER && activeSlot >= 0) {
-			ItemStack held = inventory.getStackInSlot(ITEM_CACHE_SLOT_START + activeSlot);
+			ItemStack held = inventory.getStackInSlot(HYBRID_SLOT_START + activeSlot);
 			if (!held.isEmpty())
 				return held;
 		}
@@ -410,7 +460,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	private Optional<DeployerApplicationRecipe> findDeployingRecipe(int slot, ItemStack input) {
-		ItemStack held = inventory.getStackInSlot(ITEM_CACHE_SLOT_START + slot);
+		ItemStack held = inventory.getStackInSlot(HYBRID_SLOT_START + slot);
 		if (held.isEmpty())
 			return Optional.empty();
 
@@ -481,8 +531,8 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		if (recipe.shouldKeepHeldItem())
 			return;
 
-		int cacheSlot = ITEM_CACHE_SLOT_START + slot;
-		ItemStack held = inventory.getStackInSlot(cacheSlot);
+		int hybridSlot = HYBRID_SLOT_START + slot;
+		ItemStack held = inventory.getStackInSlot(hybridSlot);
 		if (held.isEmpty())
 			return;
 
@@ -491,12 +541,12 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			held.setDamageValue(held.getDamageValue() + 1);
 			if (held.getDamageValue() >= held.getMaxDamage())
 				held.shrink(1);
-			inventory.setStackInSlot(cacheSlot, held);
+			inventory.setStackInSlot(hybridSlot, held);
 			return;
 		}
 
 		held.shrink(1);
-		inventory.setStackInSlot(cacheSlot, held);
+		inventory.setStackInSlot(hybridSlot, held);
 		if (!remainder.isEmpty())
 			insertIntoItemCacheOrDrop(slot, remainder);
 	}
@@ -505,30 +555,38 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		if (stack.isEmpty())
 			return;
 
-		int slot = ITEM_CACHE_SLOT_START + preferredSlot;
-		ItemStack existing = inventory.getStackInSlot(slot);
-		if (existing.isEmpty()) {
-			inventory.setStackInSlot(slot, stack);
-			return;
-		}
-		if (ItemHandlerHelper.canItemStacksStack(existing, stack)) {
-			int moved = Math.min(existing.getMaxStackSize() - existing.getCount(), stack.getCount());
-			existing.grow(moved);
-			stack.shrink(moved);
-			inventory.setStackInSlot(slot, existing);
-			if (stack.isEmpty())
+		int slot = HYBRID_SLOT_START + preferredSlot;
+		if (canHoldItemInHybrid(preferredSlot)) {
+			ItemStack existing = inventory.getStackInSlot(slot);
+			if (existing.isEmpty()) {
+				inventory.setStackInSlot(slot, stack);
 				return;
+			}
+			if (ItemHandlerHelper.canItemStacksStack(existing, stack)) {
+				int moved = Math.min(existing.getMaxStackSize() - existing.getCount(), stack.getCount());
+				existing.grow(moved);
+				stack.shrink(moved);
+				inventory.setStackInSlot(slot, existing);
+				if (stack.isEmpty())
+					return;
+			}
 		}
 
 		for (int i = 0; i < LEG_COUNT; i++) {
-			int cacheSlot = ITEM_CACHE_SLOT_START + i;
-			ItemStack remainder = inventory.insertItem(cacheSlot, stack, false);
+			if (!canHoldItemInHybrid(i))
+				continue;
+			int hybridSlot = HYBRID_SLOT_START + i;
+			ItemStack remainder = inventory.insertItem(hybridSlot, stack, false);
 			if (remainder.isEmpty())
 				return;
 			stack = remainder;
 		}
 
 		dropStackNearTable(stack);
+	}
+
+	private boolean canHoldItemInHybrid(int hybridIndex) {
+		return fluidTanks[hybridIndex].getFluid().isEmpty();
 	}
 
 	private void dropStackNearDepot(BlockPos depotPos, ItemStack stack) {
@@ -589,52 +647,6 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		sendData();
 	}
 
-	private void processFluidContainerSlots() {
-		for (int i = 0; i < LEG_COUNT; i++) {
-			int slot = FLUID_CONTAINER_SLOT_START + i;
-			ItemStack stack = inventory.getStackInSlot(slot);
-			if (stack.isEmpty())
-				continue;
-
-			LazyOptional<IFluidHandlerItem> capability = stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM);
-			if (!capability.isPresent())
-				continue;
-
-			int index = i;
-			capability.ifPresent(handler -> processFluidContainer(slot, index, handler));
-		}
-	}
-
-	private void processFluidContainer(int slot, int tankIndex, IFluidHandlerItem handler) {
-		FluidTank tank = fluidTanks[tankIndex];
-		int space = tank.getCapacity() - tank.getFluidAmount();
-		boolean changed = false;
-
-		if (space > 0) {
-			FluidStack simulatedDrain = handler.drain(space, FluidAction.SIMULATE);
-			if (!simulatedDrain.isEmpty()) {
-				int accepted = tank.fill(simulatedDrain, FluidAction.SIMULATE);
-				if (accepted > 0) {
-					FluidStack drained = handler.drain(accepted, FluidAction.EXECUTE);
-					tank.fill(drained, FluidAction.EXECUTE);
-					changed = true;
-				}
-			}
-		}
-
-		if (!changed && !tank.getFluid().isEmpty()) {
-			FluidStack offered = tank.getFluid().copy();
-			int filled = handler.fill(offered, FluidAction.EXECUTE);
-			if (filled > 0) {
-				tank.drain(filled, FluidAction.EXECUTE);
-				changed = true;
-			}
-		}
-
-		if (changed)
-			inventory.setStackInSlot(slot, handler.getContainer());
-	}
-
 	public enum MachineKind {
 		DEPLOYER(AllBlocks.DEPLOYER.get()),
 		PRESS(AllBlocks.MECHANICAL_PRESS.get()),
@@ -667,6 +679,16 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	private record ProcessingPlan(MachineKind kind, int duration) {}
 
+	public record FluidExchangeResult(boolean success, ItemStack remainingContainer) {
+		public static FluidExchangeResult failure() {
+			return new FluidExchangeResult(false, ItemStack.EMPTY);
+		}
+
+		public static FluidExchangeResult success(ItemStack remainingContainer) {
+			return new FluidExchangeResult(true, remainingContainer);
+		}
+	}
+
 	private class SpiderAssemblyInventory extends ItemStackHandler {
 
 		private SpiderAssemblyInventory() {
@@ -680,27 +702,26 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 		@Override
 		public int getSlotLimit(int slot) {
-			if (slot < ITEM_CACHE_SLOT_START)
-				return 1;
-			if (slot >= FLUID_CONTAINER_SLOT_START)
+			if (slot < HYBRID_SLOT_START)
 				return 1;
 			return 64;
 		}
 
 		@Override
 		public boolean isItemValid(int slot, @Nonnull ItemStack stack) {
-			if (slot < ITEM_CACHE_SLOT_START)
+			if (slot < HYBRID_SLOT_START)
 				return MachineKind.fromStack(stack) != null;
-			if (slot >= FLUID_CONTAINER_SLOT_START)
-				return stack.getCapability(ForgeCapabilities.FLUID_HANDLER_ITEM).isPresent();
-			return true;
+			int hybridIndex = slot - HYBRID_SLOT_START;
+			if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
+				return false;
+			return fluidTanks[hybridIndex].getFluid().isEmpty();
 		}
 	}
 
-	private static class ItemCacheWrapper implements IItemHandlerModifiable {
+	private static class HybridItemWrapper implements IItemHandlerModifiable {
 		private final ItemStackHandler inventory;
 
-		private ItemCacheWrapper(ItemStackHandler inventory) {
+		private HybridItemWrapper(ItemStackHandler inventory) {
 			this.inventory = inventory;
 		}
 
@@ -711,32 +732,32 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 		@Override
 		public ItemStack getStackInSlot(int slot) {
-			return inventory.getStackInSlot(ITEM_CACHE_SLOT_START + slot);
+			return inventory.getStackInSlot(HYBRID_SLOT_START + slot);
 		}
 
 		@Override
 		public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-			return inventory.insertItem(ITEM_CACHE_SLOT_START + slot, stack, simulate);
+			return inventory.insertItem(HYBRID_SLOT_START + slot, stack, simulate);
 		}
 
 		@Override
 		public ItemStack extractItem(int slot, int amount, boolean simulate) {
-			return inventory.extractItem(ITEM_CACHE_SLOT_START + slot, amount, simulate);
+			return inventory.extractItem(HYBRID_SLOT_START + slot, amount, simulate);
 		}
 
 		@Override
 		public int getSlotLimit(int slot) {
-			return inventory.getSlotLimit(ITEM_CACHE_SLOT_START + slot);
+			return inventory.getSlotLimit(HYBRID_SLOT_START + slot);
 		}
 
 		@Override
 		public boolean isItemValid(int slot, ItemStack stack) {
-			return inventory.isItemValid(ITEM_CACHE_SLOT_START + slot, stack);
+			return inventory.isItemValid(HYBRID_SLOT_START + slot, stack);
 		}
 
 		@Override
 		public void setStackInSlot(int slot, @Nonnull ItemStack stack) {
-			inventory.setStackInSlot(ITEM_CACHE_SLOT_START + slot, stack);
+			inventory.setStackInSlot(HYBRID_SLOT_START + slot, stack);
 		}
 	}
 
@@ -769,7 +790,9 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 		@Override
 		public boolean isFluidValid(int tank, FluidStack stack) {
-			return fluidTanks[tank].isFluidValid(stack);
+			if (!fluidTanks[tank].isFluidValid(stack))
+				return false;
+			return inventory.getStackInSlot(HYBRID_SLOT_START + tank).isEmpty();
 		}
 
 		@Override
@@ -785,7 +808,10 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 		private int fillTanks(FluidStack resource, FluidAction action, boolean emptyOnly) {
 			int filled = 0;
-			for (FluidTank tank : fluidTanks) {
+			for (int i = 0; i < fluidTanks.length; i++) {
+				FluidTank tank = fluidTanks[i];
+				if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty())
+					continue;
 				if (emptyOnly != tank.getFluid().isEmpty())
 					continue;
 				FluidStack attempt = resource.copy();

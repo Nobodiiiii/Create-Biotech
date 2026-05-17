@@ -342,7 +342,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		switch (kind) {
 		case DEPLOYER -> {
 			ItemStack heldItem =
-				inventory.getStackInSlot(SpiderAssemblyTableBlockEntity.ITEM_CACHE_SLOT_START + slot);
+				inventory.getStackInSlot(SpiderAssemblyTableBlockEntity.HYBRID_SLOT_START + slot);
 			PartialModel handPose = heldItem.isEmpty()
 				? AllPartialModels.DEPLOYER_HAND_POINTING
 				: AllPartialModels.DEPLOYER_HAND_HOLDING;

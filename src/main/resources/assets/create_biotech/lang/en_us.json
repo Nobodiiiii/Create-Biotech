@@ -20,7 +20,6 @@
   "block.create_biotech.schrodingers_cat": "Schrodinger's Cat",
   "block.create_biotech.spider_assembly_table": "Spider Assembly Table",
   "block.create_biotech.spider_assembly_table_cog": "Spider Assembly Tail Cog",
-  "create_biotech.gui.spider_assembly_table.empty_fluid": "Empty",
   "create_biotech.schrodingers_cat.interval.label": "Detection Interval",
   "create_biotech.schrodingers_cat.output_mode.label": "Output Mode",
   "create_biotech.schrodingers_cat.output_mode.sustained": "Sustained Signal",

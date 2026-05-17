@@ -20,7 +20,6 @@
   "block.create_biotech.schrodingers_cat": "薛定谔的猫",
   "block.create_biotech.spider_assembly_table": "蜘蛛装配台",
   "block.create_biotech.spider_assembly_table_cog": "蜘蛛装配台尾齿轮",
-  "create_biotech.gui.spider_assembly_table.empty_fluid": "空",
   "create_biotech.schrodingers_cat.interval.label": "检测间隔",
   "create_biotech.schrodingers_cat.output_mode.label": "输出模式",
   "create_biotech.schrodingers_cat.output_mode.sustained": "持续信号",
