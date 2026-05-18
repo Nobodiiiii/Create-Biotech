@@ -1,21 +1,22 @@
 package com.nobodiiiii.createbiotech.content.experience;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.fluids.tank.FluidTankBlock.Shape;
 import com.simibubi.create.foundation.block.IBE;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition.Builder;
@@ -41,31 +42,23 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 	}
 
 	@Override
+	public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
+		super.setPlacedBy(level, pos, state, placer, stack);
+		withBlockEntityDo(level, pos, ExperienceTankBlockEntity::requestConnectivityUpdate);
+	}
+
+	@Override
 	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moved) {
 		if (oldState.getBlock() == state.getBlock() || moved)
 			return;
-		if (!level.isClientSide)
-			recomputeColumn(level, pos);
-	}
-
-	@Override
-	public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level,
-		BlockPos currentPos, BlockPos neighborPos) {
-		if ((direction == Direction.UP || direction == Direction.DOWN) && !level.isClientSide())
-			level.scheduleTick(currentPos, this, 1);
-		return state;
-	}
-
-	@Override
-	public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-		recomputeColumn(level, pos);
+		withBlockEntityDo(level, pos, ExperienceTankBlockEntity::requestConnectivityUpdate);
 	}
 
 	@Override
 	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (!context.getLevel().isClientSide && context.getLevel()
-			.getBlockEntity(context.getClickedPos()) instanceof ExperienceTankBlockEntity tank)
-			tank.toggleWindows();
+		if (context.getLevel().isClientSide)
+			return InteractionResult.SUCCESS;
+		withBlockEntityDo(context.getLevel(), context.getClickedPos(), ExperienceTankBlockEntity::toggleWindows);
 		return InteractionResult.SUCCESS;
 	}
 
@@ -75,14 +68,6 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 			&& level.getBlockEntity(pos) instanceof ExperienceTankBlockEntity tank)
 			tank.handleRemoved();
 		super.onRemove(state, level, pos, newState, isMoving);
-		if (!level.isClientSide && state.getBlock() != newState.getBlock()) {
-			if (level.getBlockState(pos.above())
-				.is(this))
-				level.scheduleTick(pos.above(), this, 1);
-			if (level.getBlockState(pos.below())
-				.is(this))
-				level.scheduleTick(pos.below(), this, 1);
-		}
 	}
 
 	@Override
@@ -92,7 +77,8 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 
 	@Override
 	public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
-		if (!(level.getBlockEntity(pos) instanceof ExperienceTankBlockEntity tank))
+		ExperienceTankBlockEntity tank = ConnectivityHandler.partAt(getBlockEntityType(), level, pos);
+		if (tank == null)
 			return 0;
 		float fill = tank.getFillState();
 		return fill <= 0 ? 0 : Mth.clamp(Mth.ceil(fill * 15.0f), 1, 15);
@@ -113,51 +99,11 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 		return CBBlockEntityTypes.EXPERIENCE_TANK.get();
 	}
 
-	public static void recomputeColumn(Level level, BlockPos pos) {
-		if (level.isClientSide)
-			return;
-		BlockPos bottom = pos;
-		while (level.getBlockState(bottom.below())
-			.is(level.getBlockState(pos)
-				.getBlock()))
-			bottom = bottom.below();
-
-		BlockPos top = pos;
-		while (level.getBlockState(top.above())
-			.is(level.getBlockState(pos)
-				.getBlock()))
-			top = top.above();
-
-		int stored = 0;
-		boolean window = false;
-		for (BlockPos cursor = bottom; cursor.getY() <= top.getY(); cursor = cursor.above()) {
-			if (!(level.getBlockEntity(cursor) instanceof ExperienceTankBlockEntity tank))
-				continue;
-			if (tank.isController())
-				stored += tank.getStoredExperienceDirect();
-			window |= tank.hasWindow();
-		}
-		applyColumn(level, bottom, top, stored, window);
-	}
-
-	static void applyColumn(Level level, BlockPos bottom, BlockPos top, int stored, boolean window) {
-		int height = top.getY() - bottom.getY() + 1;
-		int capacity = height * ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
-		int clampedStored = Math.min(stored, capacity);
-		if (stored > clampedStored)
-			ExperienceHelper.spawnExperience(level, bottom.getCenter(), stored - clampedStored);
-
-		for (BlockPos cursor = bottom; cursor.getY() <= top.getY(); cursor = cursor.above()) {
-			if (!(level.getBlockEntity(cursor) instanceof ExperienceTankBlockEntity tank))
-				continue;
-			boolean isBottom = cursor.getY() == bottom.getY();
-			boolean isTop = cursor.getY() == top.getY();
-			tank.applyStructure(bottom, height, isBottom ? clampedStored : 0, window);
-			BlockState state = level.getBlockState(cursor);
-			if (state.getBlock() instanceof ExperienceTankBlock)
-				level.setBlock(cursor, state.setValue(BOTTOM, isBottom)
-					.setValue(TOP, isTop)
-					.setValue(SHAPE, window ? Shape.WINDOW : Shape.PLAIN), 22);
-		}
+	@Override
+	@SuppressWarnings("unchecked")
+	public <S extends BlockEntity> BlockEntityTicker<S> getTicker(Level level, BlockState state,
+		BlockEntityType<S> type) {
+		return type == getBlockEntityType() ? (BlockEntityTicker<S>) (BlockEntityTicker<ExperienceTankBlockEntity>) ExperienceTankBlockEntity::tick
+			: null;
 	}
 }

@@ -1,33 +1,98 @@
 package com.nobodiiiii.createbiotech.content.experience;
 
+import java.util.List;
+import java.util.Objects;
+
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.api.connectivity.ConnectivityHandler;
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
+import com.simibubi.create.content.fluids.tank.FluidTankBlock.Shape;
+import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
+import com.simibubi.create.foundation.utility.CreateLang;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-public class ExperienceTankBlockEntity extends BlockEntity implements ExperienceSource, ExperienceSink {
+public class ExperienceTankBlockEntity extends BlockEntity
+	implements ExperienceSource, ExperienceSink, IHaveGoggleInformation, IMultiBlockEntityContainer.Fluid {
+
+	public static final int MAX_WIDTH = 3;
+	public static final int MAX_HEIGHT = 32;
+
 	@Nullable
-	private BlockPos controller;
-	private int storedExperience;
-	private int height = 1;
-	private boolean window = true;
+	protected BlockPos controller;
+	@Nullable
+	protected BlockPos lastKnownPos;
+	protected int storedExperience;
+	protected int width = 1;
+	protected int height = 1;
+	protected boolean window = true;
+	protected boolean updateConnectivity;
 
 	public ExperienceTankBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.EXPERIENCE_TANK.get(), pos, state);
 	}
 
-	public boolean isController() {
-		return controller == null || controller.equals(worldPosition);
+	public static void tick(Level level, BlockPos pos, BlockState state, ExperienceTankBlockEntity be) {
+		if (level.isClientSide)
+			return;
+		if (be.lastKnownPos == null)
+			be.lastKnownPos = pos;
+		else if (!be.lastKnownPos.equals(pos)) {
+			be.onPositionChanged();
+			return;
+		}
+
+		if (be.updateConnectivity)
+			be.updateConnectivity();
+
+		if (be.isController()) {
+			int capacity = be.getCapacity();
+			if (be.storedExperience > capacity) {
+				int overflow = be.storedExperience - capacity;
+				be.storedExperience = capacity;
+				ExperienceHelper.spawnExperience(level, pos.getCenter(), overflow);
+				be.sendData();
+			}
+		}
 	}
 
-	@Nullable
+	protected void updateConnectivity() {
+		updateConnectivity = false;
+		if (level == null || level.isClientSide)
+			return;
+		if (!isController())
+			return;
+		ConnectivityHandler.formMulti(this);
+	}
+
+	public void requestConnectivityUpdate() {
+		updateConnectivity = true;
+	}
+
+	private void onPositionChanged() {
+		removeController(true);
+		lastKnownPos = worldPosition;
+	}
+
+	@Override
+	public boolean isController() {
+		return controller == null || worldPosition.equals(controller);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
 	public ExperienceTankBlockEntity getControllerBE() {
 		if (isController())
 			return this;
@@ -35,6 +100,163 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 			return null;
 		BlockEntity be = level.getBlockEntity(controller);
 		return be instanceof ExperienceTankBlockEntity tank ? tank : null;
+	}
+
+	@Override
+	public BlockPos getController() {
+		return isController() ? worldPosition : controller;
+	}
+
+	@Override
+	public void setController(BlockPos controller) {
+		if (level != null && level.isClientSide)
+			return;
+		if (Objects.equals(this.controller, controller))
+			return;
+
+		boolean wasController = isController();
+		int transferred = wasController ? storedExperience : 0;
+		this.controller = controller;
+		if (wasController && transferred > 0 && !controller.equals(worldPosition)) {
+			storedExperience = 0;
+			ExperienceTankBlockEntity newController = getControllerBE();
+			if (newController != null)
+				newController.storedExperience += transferred;
+		}
+		setChanged();
+		sendData();
+	}
+
+	@Override
+	public void removeController(boolean keepContents) {
+		if (level == null || level.isClientSide)
+			return;
+		updateConnectivity = true;
+		controller = null;
+		width = 1;
+		height = 1;
+		BlockState state = getBlockState();
+		if (state.getBlock() instanceof ExperienceTankBlock)
+			level.setBlock(worldPosition, state.setValue(ExperienceTankBlock.TOP, true)
+				.setValue(ExperienceTankBlock.BOTTOM, true)
+				.setValue(ExperienceTankBlock.SHAPE, window ? Shape.WINDOW : Shape.PLAIN), 22);
+		setChanged();
+		sendData();
+	}
+
+	@Override
+	public BlockPos getLastKnownPos() {
+		return lastKnownPos;
+	}
+
+	@Override
+	public void preventConnectivityUpdate() {
+		updateConnectivity = false;
+	}
+
+	@Override
+	public void notifyMultiUpdated() {
+		BlockState state = getBlockState();
+		if (state.getBlock() instanceof ExperienceTankBlock) {
+			BlockPos ctrl = getController();
+			state = state.setValue(ExperienceTankBlock.BOTTOM, ctrl.getY() == worldPosition.getY());
+			state = state.setValue(ExperienceTankBlock.TOP, ctrl.getY() + height - 1 == worldPosition.getY());
+			level.setBlock(worldPosition, state, 6);
+		}
+		if (isController())
+			setWindows(window);
+		setChanged();
+	}
+
+	public void setWindows(boolean window) {
+		this.window = window;
+		if (level == null || !isController())
+			return;
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				for (int z = 0; z < width; z++) {
+					BlockPos pos = worldPosition.offset(x, y, z);
+					BlockState state = level.getBlockState(pos);
+					if (!(state.getBlock() instanceof ExperienceTankBlock))
+						continue;
+
+					Shape shape = Shape.PLAIN;
+					if (window) {
+						if (width == 1) {
+							shape = Shape.WINDOW;
+						} else if (width == 2) {
+							shape = x == 0 ? z == 0 ? Shape.WINDOW_NW : Shape.WINDOW_SW
+								: z == 0 ? Shape.WINDOW_NE : Shape.WINDOW_SE;
+						} else if (width == 3) {
+							if (Math.abs(Math.abs(x) - Math.abs(z)) == 1)
+								shape = Shape.WINDOW;
+						}
+					}
+					level.setBlock(pos, state.setValue(ExperienceTankBlock.SHAPE, shape), 22);
+				}
+			}
+		}
+	}
+
+	@Override
+	public Direction.Axis getMainConnectionAxis() {
+		return Direction.Axis.Y;
+	}
+
+	@Override
+	public int getMaxLength(Direction.Axis longAxis, int width) {
+		if (longAxis == Direction.Axis.Y)
+			return MAX_HEIGHT;
+		return MAX_WIDTH;
+	}
+
+	@Override
+	public int getMaxWidth() {
+		return MAX_WIDTH;
+	}
+
+	@Override
+	public int getHeight() {
+		return height;
+	}
+
+	@Override
+	public void setHeight(int height) {
+		this.height = Math.max(1, height);
+	}
+
+	@Override
+	public int getWidth() {
+		return width;
+	}
+
+	@Override
+	public void setWidth(int width) {
+		this.width = Math.max(1, width);
+	}
+
+	@Override
+	public boolean hasTank() {
+		return false;
+	}
+
+	@Override
+	public void setExtraData(@Nullable Object data) {
+		if (data instanceof Boolean w)
+			window = w;
+	}
+
+	@Override
+	@Nullable
+	public Object getExtraData() {
+		return window;
+	}
+
+	@Override
+	public Object modifyExtraData(Object data) {
+		if (data instanceof Boolean windows)
+			return windows | window;
+		return data;
 	}
 
 	@Override
@@ -47,7 +269,7 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 		int accepted = Math.min(amount, getExperienceSpace());
 		if (!simulate && accepted > 0) {
 			storedExperience += accepted;
-			syncToClient();
+			sendData();
 		}
 		return accepted;
 	}
@@ -62,7 +284,7 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 		int extracted = Math.min(maxAmount, storedExperience);
 		if (!simulate && extracted > 0) {
 			storedExperience -= extracted;
-			syncToClient();
+			sendData();
 		}
 		return extracted;
 	}
@@ -71,10 +293,6 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 	public int getStoredExperience() {
 		ExperienceTankBlockEntity controllerBE = getControllerBE();
 		return controllerBE == null ? 0 : controllerBE.storedExperience;
-	}
-
-	int getStoredExperienceDirect() {
-		return storedExperience;
 	}
 
 	@Override
@@ -87,13 +305,14 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 
 	public int getCapacity() {
 		ExperienceTankBlockEntity controllerBE = getControllerBE();
-		return controllerBE == null ? ExperienceConstants.TANK_CAPACITY_PER_BLOCK
-			: controllerBE.height * ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
+		if (controllerBE == null)
+			return ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
+		return controllerBE.width * controllerBE.width * controllerBE.height
+			* ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
 	}
 
-	public int getHeight() {
-		ExperienceTankBlockEntity controllerBE = getControllerBE();
-		return controllerBE == null ? height : controllerBE.height;
+	public int getTotalSize() {
+		return width * width * height;
 	}
 
 	public boolean hasWindow() {
@@ -108,89 +327,117 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 
 	public void toggleWindows() {
 		ExperienceTankBlockEntity controllerBE = getControllerBE();
-		if (controllerBE == null || controllerBE.level == null)
+		if (controllerBE == null)
 			return;
-		controllerBE.window = !controllerBE.window;
-		BlockPos bottom = controllerBE.worldPosition;
-		BlockPos top = bottom.above(controllerBE.height - 1);
-		ExperienceTankBlock.applyColumn(controllerBE.level, bottom, top, controllerBE.storedExperience,
-			controllerBE.window);
-	}
-
-	void applyStructure(BlockPos controller, int height, int storedExperience, boolean window) {
-		this.controller = controller;
-		this.height = Math.max(1, height);
-		this.storedExperience = storedExperience;
-		this.window = window;
-		syncToClient();
+		controllerBE.setWindows(!controllerBE.window);
+		controllerBE.setChanged();
+		controllerBE.sendData();
 	}
 
 	public void handleRemoved() {
 		if (level == null || level.isClientSide)
 			return;
-		ExperienceTankBlockEntity controllerBE = getControllerBE();
-		if (controllerBE == null)
-			return;
-		int total = controllerBE.storedExperience;
-		int released = Math.min(ExperienceConstants.TANK_CAPACITY_PER_BLOCK, total);
-		int remaining = total - released;
-		if (released > 0)
-			ExperienceHelper.spawnExperience(level, worldPosition.getCenter(), released);
 
-		BlockPos belowTop = worldPosition.below();
-		if (level.getBlockState(belowTop)
-			.is(getBlockState().getBlock())) {
-			BlockPos bottom = belowTop;
-			while (level.getBlockState(bottom.below())
-				.is(getBlockState().getBlock()))
-				bottom = bottom.below();
-			int heightBelow = belowTop.getY() - bottom.getY() + 1;
-			int keptBelow = Math.min(remaining, heightBelow * ExperienceConstants.TANK_CAPACITY_PER_BLOCK);
-			ExperienceTankBlock.applyColumn(level, bottom, belowTop, keptBelow, controllerBE.window);
-			remaining -= keptBelow;
+		if (isController() && storedExperience > 0) {
+			ExperienceTankBlockEntity survivor = findSurvivingPart();
+			if (survivor != null) {
+				survivor.storedExperience += storedExperience;
+				storedExperience = 0;
+			} else {
+				ExperienceHelper.spawnExperience(level, worldPosition.getCenter(), storedExperience);
+				storedExperience = 0;
+			}
 		}
 
-		BlockPos aboveBottom = worldPosition.above();
-		if (level.getBlockState(aboveBottom)
-			.is(getBlockState().getBlock())) {
-			BlockPos top = aboveBottom;
-			while (level.getBlockState(top.above())
-				.is(getBlockState().getBlock()))
-				top = top.above();
-			int heightAbove = top.getY() - aboveBottom.getY() + 1;
-			int keptAbove = Math.min(remaining, heightAbove * ExperienceConstants.TANK_CAPACITY_PER_BLOCK);
-			ExperienceTankBlock.applyColumn(level, aboveBottom, top, keptAbove, controllerBE.window);
-			remaining -= keptAbove;
-		}
+		ConnectivityHandler.splitMulti(this);
+	}
 
-		if (remaining > 0)
-			ExperienceHelper.spawnExperience(level, worldPosition.getCenter(), remaining);
+	@Nullable
+	private ExperienceTankBlockEntity findSurvivingPart() {
+		if (level == null || !isController())
+			return null;
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				for (int z = 0; z < width; z++) {
+					BlockPos pos = worldPosition.offset(x, y, z);
+					if (pos.equals(worldPosition))
+						continue;
+					BlockEntity be = level.getBlockEntity(pos);
+					if (be instanceof ExperienceTankBlockEntity tank && !tank.isRemoved())
+						return tank;
+				}
+			}
+		}
+		return null;
 	}
 
 	@Override
 	public AABB getRenderBoundingBox() {
 		if (!isController())
 			return new AABB(worldPosition);
-		return new AABB(worldPosition, worldPosition.offset(1, height, 1));
+		return new AABB(worldPosition, worldPosition.offset(width, height, width));
+	}
+
+	@Override
+	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+		ExperienceTankBlockEntity controllerBE = getControllerBE();
+		if (controllerBE == null)
+			return false;
+
+		CreateLang.builder()
+			.add(Component.translatable("create_biotech.gui.goggles.experience_container"))
+			.forGoggles(tooltip);
+
+		int stored = controllerBE.getStoredExperience();
+		int capacity = controllerBE.getCapacity();
+		String unitKey = "create_biotech.generic.unit.experience_points";
+
+		CreateLang.builder()
+			.add(CreateLang.number(stored)
+				.add(Component.translatable(unitKey))
+				.style(ChatFormatting.GOLD))
+			.text(ChatFormatting.GRAY, " / ")
+			.add(CreateLang.number(capacity)
+				.add(Component.translatable(unitKey))
+				.style(ChatFormatting.DARK_GRAY))
+			.forGoggles(tooltip, 1);
+
+		return true;
 	}
 
 	@Override
 	protected void saveAdditional(CompoundTag tag) {
 		super.saveAdditional(tag);
+		if (updateConnectivity)
+			tag.putBoolean("Uninitialized", true);
+		if (lastKnownPos != null)
+			tag.put("LastKnownPos", NbtUtils.writeBlockPos(lastKnownPos));
 		if (!isController() && controller != null)
 			tag.put("Controller", NbtUtils.writeBlockPos(controller));
-		tag.putInt("StoredExperience", storedExperience);
-		tag.putInt("Height", height);
-		tag.putBoolean("Window", window);
+		if (isController()) {
+			tag.putInt("StoredExperience", storedExperience);
+			tag.putInt("Width", width);
+			tag.putInt("Height", height);
+			tag.putBoolean("Window", window);
+		}
 	}
 
 	@Override
 	public void load(CompoundTag tag) {
 		super.load(tag);
-		controller = tag.contains("Controller") ? NbtUtils.readBlockPos(tag.getCompound("Controller")) : null;
-		storedExperience = tag.getInt("StoredExperience");
-		height = Math.max(1, tag.getInt("Height"));
-		window = !tag.contains("Window") || tag.getBoolean("Window");
+		updateConnectivity = tag.contains("Uninitialized");
+		controller = null;
+		lastKnownPos = null;
+		if (tag.contains("LastKnownPos"))
+			lastKnownPos = NbtUtils.readBlockPos(tag.getCompound("LastKnownPos"));
+		if (tag.contains("Controller"))
+			controller = NbtUtils.readBlockPos(tag.getCompound("Controller"));
+		if (isController()) {
+			storedExperience = tag.getInt("StoredExperience");
+			width = Math.max(1, tag.getInt("Width"));
+			height = Math.max(1, tag.getInt("Height"));
+			window = !tag.contains("Window") || tag.getBoolean("Window");
+		}
 	}
 
 	@Override
@@ -203,7 +450,7 @@ public class ExperienceTankBlockEntity extends BlockEntity implements Experience
 		return ClientboundBlockEntityDataPacket.create(this);
 	}
 
-	void syncToClient() {
+	public void sendData() {
 		if (level == null)
 			return;
 		setChanged();

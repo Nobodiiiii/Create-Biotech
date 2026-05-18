@@ -1,11 +1,17 @@
 package com.nobodiiiii.createbiotech.content.experience;
 
+import java.util.List;
+
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllItems;
+import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
+import com.simibubi.create.foundation.utility.CreateLang;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -15,7 +21,7 @@ import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 
-public class ExperienceCrystallizerBlockEntity extends BlockEntity implements ExperienceSink {
+public class ExperienceCrystallizerBlockEntity extends BlockEntity implements ExperienceSink, IHaveGoggleInformation {
 	private static final int MAX_STACK = 64;
 
 	private ItemStack output = ItemStack.EMPTY;
@@ -59,6 +65,39 @@ public class ExperienceCrystallizerBlockEntity extends BlockEntity implements Ex
 
 	public boolean hasOutput() {
 		return !output.isEmpty();
+	}
+
+	@Override
+	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+		CreateLang.builder()
+			.add(Component.translatable("create_biotech.gui.goggles.experience_buffer"))
+			.forGoggles(tooltip);
+
+		String unitKey = "create_biotech.generic.unit.experience_points";
+		CreateLang.builder()
+			.add(CreateLang.number(bufferedXp)
+				.add(Component.translatable(unitKey))
+				.style(ChatFormatting.GOLD))
+			.text(ChatFormatting.GRAY, " / ")
+			.add(CreateLang.number(ExperienceConstants.XP_PER_NUGGET)
+				.add(Component.translatable(unitKey))
+				.style(ChatFormatting.DARK_GRAY))
+			.forGoggles(tooltip, 1);
+
+		if (!output.isEmpty()) {
+			CreateLang.builder()
+				.add(Component.translatable("create_biotech.gui.goggles.crystallized_nuggets"))
+				.forGoggles(tooltip);
+			CreateLang.builder()
+				.add(CreateLang.number(output.getCount())
+					.style(ChatFormatting.GOLD))
+				.text(ChatFormatting.GRAY, " / ")
+				.add(CreateLang.number(MAX_STACK)
+					.style(ChatFormatting.DARK_GRAY))
+				.forGoggles(tooltip, 1);
+		}
+
+		return true;
 	}
 
 	public ItemStack extractOutput() {
