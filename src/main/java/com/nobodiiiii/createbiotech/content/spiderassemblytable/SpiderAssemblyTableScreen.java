@@ -11,7 +11,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
@@ -25,13 +25,11 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
@@ -85,13 +83,9 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 	}
 
 	private void renderTableModel(GuiGraphics graphics) {
-		BlockState state = CBBlocks.SPIDER_ASSEMBLY_TABLE.get().defaultBlockState();
-		if (state.hasProperty(SpiderAssemblyTableBlock.HORIZONTAL_FACING))
-			state = state.setValue(SpiderAssemblyTableBlock.HORIZONTAL_FACING, Direction.SOUTH);
-		GuiGameElement.of(state).<GuiGameElement.GuiRenderBuilder>at(
-			leftPos + BG_WIDTH + 4, topPos + BG_HEIGHT + 4, 100)
-			.scale(40)
-			.rotate(-22, 63, 0)
+		GuiGameElement.of(new ItemStack(CBItems.SPIDER_ASSEMBLY_TABLE.get()))
+			.<GuiGameElement.GuiRenderBuilder>at(leftPos + BG_WIDTH + 12, topPos + BG_HEIGHT - 40, -200)
+			.scale(4)
 			.render(graphics);
 	}
 
