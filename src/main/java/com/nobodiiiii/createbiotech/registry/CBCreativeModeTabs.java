@@ -22,10 +22,12 @@ public class CBCreativeModeTabs {
 		() -> CreativeModeTab.builder()
 			.title(Component.translatable("itemGroup.create_biotech.main"))
 			.withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
-			.icon(() -> CBItems.EVOKER_TANK.get()
+			.icon(() -> CBItems.EVOKER_ENCHANTING_CHAMBER.get()
 				.getDefaultInstance())
 			.displayItems((parameters, output) -> {
-				output.accept(CBItems.EVOKER_TANK.get());
+				output.accept(CBItems.EVOKER_ENCHANTING_CHAMBER.get());
+				output.accept(CBItems.SQUID_PRINTER.get());
+				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
 				output.accept(CBItems.SLIME_BELT_CONNECTOR.get());
 				output.accept(CBItems.MAGMA_BELT_CONNECTOR.get());
 				output.accept(CBItems.POWER_BELT_CONNECTOR.get());

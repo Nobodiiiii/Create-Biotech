@@ -1,6 +1,12 @@
 {
   "itemGroup.create_biotech.main": "机械动力：生物科技",
-  "block.create_biotech.evoker_tank": "唤魔者铜罐",
+  "block.create_biotech.evoker_enchanting_chamber": "唤魔者附魔室",
+  "block.create_biotech.squid_printer": "鱿鱼打印机",
+  "item.create_biotech.enchantment_book_copy": "附魔书的复印本",
+  "create_biotech.jei.squid_printer.note.template": "在侧面标记一本作为模板的附魔书",
+  "create_biotech.jei.squid_printer.note.water_cost": "工作时每 %2$s tick 消耗 %1$s mB 的水",
+  "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "唤魔者咏唱 %s tick 完成仪式",
+  "create_biotech.jei.evoker_enchanting_chamber.note.blocked_until_extracted": "未取出成果前附魔室保持锁定状态",
   "block.create_biotech.fixed_carrot_fishing_rod": "固定的钓杆",
   "block.create_biotech.magma_belt": "岩浆怪传送带",
   "item.create_biotech.magma_belt_connector": "岩浆怪传送带",

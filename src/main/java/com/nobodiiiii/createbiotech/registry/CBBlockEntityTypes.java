@@ -2,7 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
-import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlockEntity;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlockEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlockEntity;
@@ -13,6 +13,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlockEntity;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlockEntity;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlockEntity;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlockEntity;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlockEntity;
@@ -61,9 +62,17 @@ public class CBBlockEntityTypes {
 				.of(SpiderAssemblyTableCogBlockEntity::new, CBBlocks.SPIDER_ASSEMBLY_TABLE_COG.get())
 				.build(null));
 
-	public static final RegistryObject<BlockEntityType<EvokerTankBlockEntity>> EVOKER_TANK =
-		BLOCK_ENTITY_TYPES.register("evoker_tank",
-			() -> BlockEntityType.Builder.of(EvokerTankBlockEntity::new, CBBlocks.EVOKER_TANK.get())
+	public static final RegistryObject<BlockEntityType<EvokerEnchantingChamberBlockEntity>> EVOKER_ENCHANTING_CHAMBER =
+		BLOCK_ENTITY_TYPES.register("evoker_enchanting_chamber",
+			() -> BlockEntityType.Builder
+				.of(EvokerEnchantingChamberBlockEntity::new, CBBlocks.EVOKER_ENCHANTING_CHAMBER.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<SquidPrinterBlockEntity>> SQUID_PRINTER =
+		BLOCK_ENTITY_TYPES.register("squid_printer",
+			() -> BlockEntityType.Builder
+				.of((pos, state) -> new SquidPrinterBlockEntity(CBBlockEntityTypes.SQUID_PRINTER.get(), pos, state),
+					CBBlocks.SQUID_PRINTER.get())
 				.build(null));
 
 	public static final RegistryObject<BlockEntityType<UniversalJointBlockEntity>> UNIVERSAL_JOINT =

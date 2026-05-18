@@ -7,7 +7,7 @@ import java.util.Map;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlock;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadBlock;
-import com.nobodiiiii.createbiotech.content.evokertank.EvokerTankBlock;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlock;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlock;
@@ -16,6 +16,7 @@ import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlock;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlock;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogBlock;
@@ -62,11 +63,19 @@ public class CBBlocks {
 			.mapColor(MapColor.COLOR_GRAY)
 			.noOcclusion()));
 
-	public static final RegistryObject<EvokerTankBlock> EVOKER_TANK = BLOCKS.register("evoker_tank",
-		() -> new EvokerTankBlock(Block.Properties.of()
+	public static final RegistryObject<EvokerEnchantingChamberBlock> EVOKER_ENCHANTING_CHAMBER =
+		BLOCKS.register("evoker_enchanting_chamber",
+			() -> new EvokerEnchantingChamberBlock(Block.Properties.of()
+				.sound(SoundType.COPPER)
+				.strength(2.5f)
+				.mapColor(MapColor.METAL)
+				.noOcclusion()));
+
+	public static final RegistryObject<SquidPrinterBlock> SQUID_PRINTER = BLOCKS.register("squid_printer",
+		() -> new SquidPrinterBlock(Block.Properties.of()
 			.sound(SoundType.COPPER)
-			.strength(2.5f)
-			.mapColor(MapColor.METAL)
+			.strength(2.0f)
+			.mapColor(MapColor.TERRACOTTA_BLUE)
 			.noOcclusion()));
 
 	public static final RegistryObject<UniversalJointBlock> UNIVERSAL_JOINT = BLOCKS.register("universal_joint",

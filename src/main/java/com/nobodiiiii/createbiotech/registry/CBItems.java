@@ -13,6 +13,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
+import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -29,8 +30,14 @@ public class CBItems {
 	public static final DeferredRegister<Item> ITEMS =
 		DeferredRegister.create(ForgeRegistries.ITEMS, CreateBiotech.MOD_ID);
 
-	public static final RegistryObject<Item> EVOKER_TANK = ITEMS.register("evoker_tank",
-		() -> new BlockItem(CBBlocks.EVOKER_TANK.get(), new Item.Properties()));
+	public static final RegistryObject<Item> EVOKER_ENCHANTING_CHAMBER = ITEMS.register("evoker_enchanting_chamber",
+		() -> new BlockItem(CBBlocks.EVOKER_ENCHANTING_CHAMBER.get(), new Item.Properties()));
+
+	public static final RegistryObject<Item> SQUID_PRINTER = ITEMS.register("squid_printer",
+		() -> new BlockItem(CBBlocks.SQUID_PRINTER.get(), new Item.Properties()));
+
+	public static final RegistryObject<EnchantmentBookCopyItem> ENCHANTMENT_BOOK_COPY =
+		ITEMS.register("enchantment_book_copy", () -> new EnchantmentBookCopyItem(new Item.Properties()));
 
 	public static final RegistryObject<Item> SLIME_BELT_CONNECTOR = ITEMS.register("slime_belt_connector",
 		() -> new SlimeBeltConnectorItem(new Item.Properties()));

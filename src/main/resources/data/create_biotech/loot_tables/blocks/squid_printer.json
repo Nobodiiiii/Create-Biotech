@@ -6,17 +6,10 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "create_biotech:evoker_tank"
+          "name": "create_biotech:squid_printer"
         }
       ],
       "conditions": [
-        {
-          "condition": "minecraft:block_state_property",
-          "block": "create_biotech:evoker_tank",
-          "properties": {
-            "half": "lower"
-          }
-        },
         {
           "condition": "minecraft:survives_explosion"
         }

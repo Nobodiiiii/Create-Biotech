@@ -1,10 +1,12 @@
-package com.nobodiiiii.createbiotech.content.evokertank;
+package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.InteractionHand;
@@ -33,12 +35,12 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class EvokerTankBlock extends BaseEntityBlock {
+public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 	public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
 
-	public EvokerTankBlock(Properties properties) {
+	public EvokerEnchantingChamberBlock(Properties properties) {
 		super(properties);
 		registerDefaultState(defaultBlockState()
 			.setValue(FACING, Direction.NORTH)
@@ -103,7 +105,8 @@ public class EvokerTankBlock extends BaseEntityBlock {
 					level.levelEvent(player, 2001, lowerPos, Block.getId(lowerState));
 				} else {
 					BlockEntity lowerBlockEntity = level.getBlockEntity(lowerPos);
-					dropResources(lowerState, (ServerLevel) level, lowerPos, lowerBlockEntity, player, player.getMainHandItem());
+					dropResources(lowerState, (ServerLevel) level, lowerPos, lowerBlockEntity, player,
+						player.getMainHandItem());
 					level.setBlock(lowerPos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
 				}
 			}
@@ -140,27 +143,36 @@ public class EvokerTankBlock extends BaseEntityBlock {
 	@Override
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
 		return state.getValue(HALF) == DoubleBlockHalf.LOWER
-			? CBBlockEntityTypes.EVOKER_TANK.get().create(pos, state)
+			? CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get().create(pos, state)
 			: null;
 	}
 
 	@Override
 	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
 		BlockHitResult hit) {
-		EvokerTankBlockEntity blockEntity = getTankBlockEntity(level, pos, state);
+		EvokerEnchantingChamberBlockEntity blockEntity = getChamberBlockEntity(level, pos, state);
 		if (blockEntity == null)
 			return InteractionResult.PASS;
 
-		if (!level.isClientSide)
-			blockEntity.triggerCasting();
+		ItemStack heldStack = player.getItemInHand(hand);
+		if (level.isClientSide)
+			return blockEntity.canInteract(heldStack) ? InteractionResult.SUCCESS : InteractionResult.PASS;
 
-		return InteractionResult.sidedSuccess(level.isClientSide);
+		if (blockEntity.tryInsertFromPlayer(player, hand, heldStack))
+			return InteractionResult.CONSUME;
+		if (blockEntity.tryExtractToPlayer(player)) {
+			level.playSound(null, pos, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.2f, 1f);
+			return InteractionResult.CONSUME;
+		}
+		return InteractionResult.PASS;
 	}
 
 	@Override
-	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
+		BlockEntityType<T> type) {
 		return state.getValue(HALF) == DoubleBlockHalf.LOWER
-			? createTickerHelper(type, CBBlockEntityTypes.EVOKER_TANK.get(), EvokerTankBlockEntity::tick)
+			? createTickerHelper(type, CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get(),
+				EvokerEnchantingChamberBlockEntity::tick)
 			: null;
 	}
 
@@ -169,9 +181,10 @@ public class EvokerTankBlock extends BaseEntityBlock {
 		builder.add(FACING, HALF);
 	}
 
-	private static EvokerTankBlockEntity getTankBlockEntity(Level level, BlockPos pos, BlockState state) {
+	private static EvokerEnchantingChamberBlockEntity getChamberBlockEntity(Level level, BlockPos pos,
+		BlockState state) {
 		BlockPos basePos = state.getValue(HALF) == DoubleBlockHalf.LOWER ? pos : pos.below();
 		BlockEntity blockEntity = level.getBlockEntity(basePos);
-		return blockEntity instanceof EvokerTankBlockEntity tank ? tank : null;
+		return blockEntity instanceof EvokerEnchantingChamberBlockEntity chamber ? chamber : null;
 	}
 }

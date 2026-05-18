@@ -1,10 +1,11 @@
-package com.nobodiiiii.createbiotech.content.evokertank;
+package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.simibubi.create.AllBlocks;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.IllagerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
@@ -13,16 +14,19 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Evoker;
 import net.minecraft.world.entity.monster.SpellcasterIllager;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
-public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEntity> {
+public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<EvokerEnchantingChamberBlockEntity> {
 
 	private static final ResourceLocation EVOKER_TEXTURE =
 		new ResourceLocation("minecraft", "textures/entity/illager/evoker.png");
@@ -40,31 +44,67 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 	private RenderEvoker cachedEvoker;
 	private ClientLevel cachedLevel;
 
-	public EvokerTankRenderer(BlockEntityRendererProvider.Context context) {
+	public EvokerEnchantingChamberRenderer(BlockEntityRendererProvider.Context context) {
 		blockRenderer = context.getBlockRenderDispatcher();
 		evokerModel = new IllagerModel<>(context.bakeLayer(ModelLayers.EVOKER));
 		tankState = configureTankState(AllBlocks.FLUID_TANK.getDefaultState());
 	}
 
 	@Override
-	public void render(EvokerTankBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+	public void render(EvokerEnchantingChamberBlockEntity blockEntity, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, int packedOverlay) {
 		renderTank(poseStack, buffer, packedLight, packedOverlay);
 
 		RenderEvoker evoker = getOrCreateEvoker(blockEntity.getLevel());
-		if (evoker == null)
+		if (evoker != null) {
+			prepareEvokerModel(evoker, blockEntity, partialTick);
+
+			poseStack.pushPose();
+			poseStack.translate(0.5d, 1.55d, 0.5d);
+			poseStack.mulPose(Axis.YP.rotationDegrees(
+				180.0f - blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.FACING).toYRot()));
+			poseStack.scale(-EVOKER_SCALE, -EVOKER_SCALE, EVOKER_SCALE);
+
+			VertexConsumer consumer = buffer.getBuffer(evokerModel.renderType(EVOKER_TEXTURE));
+			evokerModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 1.0f, 1.0f, 1.0f,
+				1.0f);
+			poseStack.popPose();
+		}
+
+		renderHeldItem(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);
+	}
+
+	private void renderHeldItem(EvokerEnchantingChamberBlockEntity be, float partialTick, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight, int packedOverlay) {
+		ItemStack toDisplay;
+		if (be.isCastingSpell())
+			toDisplay = be.getHeldItem();
+		else if (!be.getPendingOutput().isEmpty())
+			toDisplay = be.getPendingOutput();
+		else
+			toDisplay = be.getHeldItem();
+
+		if (toDisplay.isEmpty())
 			return;
 
-		prepareEvokerModel(evoker, blockEntity, partialTick);
-
+		ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
 		poseStack.pushPose();
-		poseStack.translate(0.5d, 1.55d, 0.5d);
-		poseStack.mulPose(Axis.YP.rotationDegrees(180.0f - blockEntity.getBlockState().getValue(EvokerTankBlock.FACING).toYRot()));
-		poseStack.scale(-EVOKER_SCALE, -EVOKER_SCALE, EVOKER_SCALE);
+		poseStack.translate(0.5d, 1.05d, 0.5d);
 
-		VertexConsumer consumer = buffer.getBuffer(evokerModel.renderType(EVOKER_TEXTURE));
-		evokerModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 1.0f, 1.0f, 1.0f,
-			1.0f);
+		float bob = 0.0f;
+		float spin = 0.0f;
+		Level level = be.getLevel();
+		if (level != null) {
+			float time = level.getGameTime() + partialTick;
+			bob = (float) Math.sin(time * 0.1f) * 0.05f;
+			spin = time * 3.0f;
+		}
+		poseStack.translate(0.0d, bob, 0.0d);
+		poseStack.mulPose(Axis.YP.rotationDegrees(spin));
+		poseStack.scale(0.6f, 0.6f, 0.6f);
+
+		itemRenderer.renderStatic(toDisplay, ItemDisplayContext.GROUND, packedLight, packedOverlay, poseStack, buffer,
+			level, 0);
 		poseStack.popPose();
 	}
 
@@ -74,7 +114,8 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 		poseStack.popPose();
 	}
 
-	private void prepareEvokerModel(RenderEvoker evoker, EvokerTankBlockEntity blockEntity, float partialTick) {
+	private void prepareEvokerModel(RenderEvoker evoker, EvokerEnchantingChamberBlockEntity blockEntity,
+		float partialTick) {
 		evoker.setCasting(blockEntity.isCastingSpell());
 
 		ModelPart root = evokerModel.root();
@@ -101,19 +142,15 @@ public class EvokerTankRenderer implements BlockEntityRenderer<EvokerTankBlockEn
 		if (cachedEvoker == null || cachedLevel != clientLevel) {
 			cachedLevel = clientLevel;
 			cachedEvoker = new RenderEvoker(clientLevel);
-			if (cachedEvoker != null) {
-				cachedEvoker.setNoAi(true);
-				cachedEvoker.setSilent(true);
-			}
+			cachedEvoker.setNoAi(true);
+			cachedEvoker.setSilent(true);
 		}
 
-		if (cachedEvoker != null) {
-			cachedEvoker.setYRot(0.0f);
-			cachedEvoker.setYBodyRot(0.0f);
-			cachedEvoker.yBodyRotO = 0.0f;
-			cachedEvoker.yHeadRot = 0.0f;
-			cachedEvoker.yHeadRotO = 0.0f;
-		}
+		cachedEvoker.setYRot(0.0f);
+		cachedEvoker.setYBodyRot(0.0f);
+		cachedEvoker.yBodyRotO = 0.0f;
+		cachedEvoker.yHeadRot = 0.0f;
+		cachedEvoker.yHeadRotO = 0.0f;
 
 		return cachedEvoker;
 	}

@@ -1,6 +1,12 @@
 {
   "itemGroup.create_biotech.main": "Create: Biotech",
-  "block.create_biotech.evoker_tank": "Evoker on Copper Tank",
+  "block.create_biotech.evoker_enchanting_chamber": "Evoker Enchanting Chamber",
+  "block.create_biotech.squid_printer": "Squid Printer",
+  "item.create_biotech.enchantment_book_copy": "Enchantment Book Copy",
+  "create_biotech.jei.squid_printer.note.template": "Mark a template enchantment book on the side",
+  "create_biotech.jei.squid_printer.note.water_cost": "Consumes %s mB of water every %s ticks while running",
+  "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "Evoker performs the ritual for %s ticks",
+  "create_biotech.jei.evoker_enchanting_chamber.note.blocked_until_extracted": "Chamber stays blocked until the result is extracted",
   "block.create_biotech.fixed_carrot_fishing_rod": "Fixed Fishing Rod",
   "block.create_biotech.magma_belt": "Magma Cube Belt",
   "item.create_biotech.magma_belt_connector": "Magma Cube Belt",
