@@ -10,6 +10,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -74,10 +75,33 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 	}
 
 	@Override
+	public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+		Direction facing = state.getValue(FACING);
+		BlockPos attachedPos = pos.relative(facing.getOpposite());
+		BlockState attachedState = level.getBlockState(attachedPos);
+		return attachedState.isFaceSturdy(level, attachedPos, facing)
+			|| attachedState.getBlock() instanceof BuddingExperienceBlock;
+	}
+
+	@Override
 	public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor level,
 		BlockPos pos, BlockPos neighborPos) {
 		updateWater(level, state, pos);
 		return super.updateShape(state, direction, neighborState, level, pos, neighborPos);
+	}
+
+	@Override
+	public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos neighborPos,
+		boolean isMoving) {
+		super.neighborChanged(state, level, pos, neighborBlock, neighborPos, isMoving);
+		if (level.isClientSide)
+			return;
+		Direction facing = state.getValue(FACING);
+		if (!neighborPos.equals(pos.relative(facing.getOpposite())))
+			return;
+		if (state.canSurvive(level, pos))
+			return;
+		level.destroyBlock(pos, true);
 	}
 
 	@Override
