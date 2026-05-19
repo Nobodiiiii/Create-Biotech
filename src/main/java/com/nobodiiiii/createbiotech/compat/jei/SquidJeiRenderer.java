@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.gui.GuiEntityElement;
+import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
@@ -36,7 +37,7 @@ public final class SquidJeiRenderer {
 			return;
 
 		GuiEntityElement.of(squid)
-			.lighting(GuiEntityElement.DEFAULT_LIGHTING)
+			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)
 			.at(centerX, centerY + GUI_Y_OFFSET, GUI_RENDER_Z)
 			.rotate(-15.5d, 22.5d, 0d)
 			.scale(GUI_SCALE * scale)

@@ -64,6 +64,10 @@ public final class GuiEntityElement {
 		private float partialTicks = AnimationTickHolder.getPartialTicks();
 		@Nullable
 		private EntityStateModifier<T> stateModifier;
+		@Nullable
+		private Quaternionf poseOrientation;
+		@Nullable
+		private Quaternionf cameraOrientationOverride;
 
 		private GuiEntityRenderBuilder(T entity) {
 			this.entity = entity;
@@ -190,6 +194,32 @@ public final class GuiEntityElement {
 			return this;
 		}
 
+		public GuiEntityRenderBuilder<T> poseOrientation(Quaternionf poseOrientation) {
+			this.poseOrientation = new Quaternionf(poseOrientation);
+			return this;
+		}
+
+		public GuiEntityRenderBuilder<T> cameraOrientation(Quaternionf cameraOrientation) {
+			this.cameraOrientationOverride = new Quaternionf(cameraOrientation);
+			return this;
+		}
+
+		public GuiEntityRenderBuilder<T> inventoryLike(float angleXComponent, float angleYComponent) {
+			Quaternionf camera = new Quaternionf().rotateX((float) Math.toRadians(angleYComponent * 20.0F));
+			Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
+			pose.mul(camera);
+			float yaw = 180.0F + angleXComponent * 40.0F;
+
+			return scaleEntity(1.0d, -1.0d, -1.0d)
+				.poseOrientation(pose)
+				.cameraOrientation(camera)
+				.bodyYaw(180.0F + angleXComponent * 20.0F)
+				.yaw(yaw)
+				.pitch(-angleYComponent * 20.0F)
+				.headYaw(yaw)
+				.dispatcherYaw(0.0F);
+		}
+
 		public GuiEntityRenderBuilder<T> face(Direction direction) {
 			renderSettings.face(direction);
 			return this;
@@ -210,6 +240,8 @@ public final class GuiEntityElement {
 			poseStack.mulPose(Axis.XP.rotationDegrees((float) xRot));
 			poseStack.mulPose(Axis.YP.rotationDegrees((float) yRot));
 			poseStack.translate(-rotationOffset.x, -rotationOffset.y, -rotationOffset.z);
+			if (poseOrientation != null)
+				poseStack.mulPose(new Quaternionf(poseOrientation));
 
 			Quaternionf sceneCameraOrientation = new Quaternionf()
 				.rotateZ((float) Math.toRadians(-zRot))
@@ -220,7 +252,7 @@ public final class GuiEntityElement {
 			try {
 				if (stateModifier != null)
 					customStateRestorer = stateModifier.apply(entity, partialTicks);
-				renderSettings.cameraOrientation(sceneCameraOrientation)
+				renderSettings.cameraOrientation(cameraOrientationOverride != null ? cameraOrientationOverride : sceneCameraOrientation)
 					.flushBuffers(true);
 				EntityRenderHelper.render(renderSettings, poseStack, graphics.bufferSource());
 			} finally {
