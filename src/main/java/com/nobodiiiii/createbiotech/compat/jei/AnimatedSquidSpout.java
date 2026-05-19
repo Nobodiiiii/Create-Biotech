@@ -12,12 +12,15 @@ import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.gui.UIRenderHelper;
+import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.platform.ForgeCatnipServices;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.fluids.FluidStack;
 
 public class AnimatedSquidSpout extends AnimatedKinetics {
@@ -84,15 +87,33 @@ public class AnimatedSquidSpout extends AnimatedKinetics {
 			graphics.bufferSource(), matrixStack, LightTexture.FULL_BRIGHT, false, true);
 		matrixStack.popPose();
 
-		float width = 1 / 128f * squeeze;
+		matrixStack.pushPose();
 		matrixStack.translate(scale / 2f, scale * 1.5f, scale / 2f);
 		UIRenderHelper.flipForGuiRender(matrixStack);
 		matrixStack.scale(16, 16, 16);
-		matrixStack.translate(-0.5f, 0, -0.5f);
-		from = -width / 2 + 0.5f;
-		to = width / 2 + 0.5f;
-		ForgeCatnipServices.FLUID_RENDERER.renderFluidBox(fluidStack, from, 0, from, to, 2, to,
-			graphics.bufferSource(), matrixStack, LightTexture.FULL_BRIGHT, false, true);
+
+		BlockState inkBlock = Blocks.BLACK_CONCRETE.defaultBlockState();
+		float renderTime = AnimationTickHolder.getRenderTime();
+		float strength = squeeze / 20f;
+		int particleCount = 6;
+		float cycleDuration = 18f;
+		float particleSize = 0.07f + strength * 0.05f;
+
+		for (int i = 0; i < particleCount; i++) {
+			float phase = ((renderTime + i * cycleDuration / particleCount) % cycleDuration) / cycleDuration;
+			float y = 1.875f - phase * 1.25f;
+			float xJitter = (float) Math.sin(i * 1.7f + renderTime * 0.05f) * 0.10f * strength;
+			float zJitter = (float) Math.cos(i * 2.3f + renderTime * 0.05f) * 0.10f * strength;
+
+			matrixStack.pushPose();
+			matrixStack.translate(xJitter, y, zJitter);
+			matrixStack.scale(particleSize, particleSize, particleSize);
+			GuiGameElement.of(inkBlock)
+				.atLocal(-0.5, 0.5, -0.5)
+				.render(graphics);
+			matrixStack.popPose();
+		}
+		matrixStack.popPose();
 		buffer.endBatch();
 		Lighting.setupFor3DItems();
 

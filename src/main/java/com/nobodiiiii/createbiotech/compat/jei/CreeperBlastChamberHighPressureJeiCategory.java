@@ -28,7 +28,7 @@ public class CreeperBlastChamberHighPressureJeiCategory
 		RecipeType.create(CreateBiotech.MOD_ID, "creeper_blast_chamber_high_pressure",
 			CreeperBlastChamberHighPressureRecipe.class);
 	private static final HighPressureCreeperDrawable HIGH_PRESSURE_CREEPER =
-		new HighPressureCreeperDrawable(46, 42, 20, -0.5625f, -0.2f, 13, 39, 1.2f, 1f / 1.8f, 24);
+		new HighPressureCreeperDrawable(46, 42, -1.95d, 157.5f, 0f, 1.2f, 1f / 1.8f, 24);
 
 	public CreeperBlastChamberHighPressureJeiCategory() {
 		super(new CreateRecipeCategory.Info<>(TYPE,

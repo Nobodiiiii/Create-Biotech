@@ -45,7 +45,7 @@ public class SquidPrinterJeiCategory extends AbstractRecipeCategory<SquidPrinter
 		IRecipeSlotBuilder templateSlot = builder.addSlot(RecipeIngredientRole.INPUT, TEMPLATE_SLOT_X, TEMPLATE_SLOT_Y)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
 			.addItemStacks(recipe.templateBooks());
-		templateSlot.addTooltipCallback((view, tooltip) -> tooltip.add(1,
+		templateSlot.addRichTooltipCallback((view, tooltip) -> tooltip.add(
 			NOT_CONSUMED.copy().withStyle(ChatFormatting.GOLD)));
 
 		builder.addSlot(RecipeIngredientRole.OUTPUT, 132, 51)

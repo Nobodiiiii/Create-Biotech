@@ -49,7 +49,7 @@ public final class SquidJeiRenderer {
 		poseStack.scale(blockScale, blockScale, blockScale);
 		UIRenderHelper.flipForGuiRender(poseStack);
 
-		poseStack.translate(0.5d, 1.0d, 0.5d);
+		poseStack.translate(0.5d, 1.05d, 0.5d);
 		poseStack.scale(-SQUID_BLOCK_SCALE, -SQUID_BLOCK_SCALE, SQUID_BLOCK_SCALE);
 
 		renderSquidModel(poseStack, graphics.bufferSource(), FULL_BRIGHT, AnimationTickHolder.getRenderTime());
