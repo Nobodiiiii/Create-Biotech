@@ -121,8 +121,16 @@ public class ExperienceTankBlockEntity extends BlockEntity
 			storedExperience = 0;
 			ExperienceTankBlockEntity newController = getControllerBE();
 			if (newController != null)
-				newController.storedExperience += transferred;
+				newController.receiveTransferredExperience(transferred);
 		}
+		setChanged();
+		sendData();
+	}
+
+	private void receiveTransferredExperience(int amount) {
+		if (amount <= 0)
+			return;
+		storedExperience += amount;
 		setChanged();
 		sendData();
 	}
@@ -335,44 +343,67 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	}
 
 	public void handleRemoved() {
-		spillStoredXpOnRemove();
 		if (level != null && !level.isClientSide)
-			ConnectivityHandler.splitMulti(this);
+			splitTankAndInvalidate(this, worldPosition);
 	}
 
-	public void spillStoredXpOnRemove() {
+	public static void splitTankAndInvalidate(ExperienceTankBlockEntity be, BlockPos removedPos) {
+		Level level = be.getLevel();
 		if (level == null || level.isClientSide)
 			return;
 
-		if (isController() && storedExperience > 0) {
-			ExperienceTankBlockEntity survivor = findSurvivingPart();
-			if (survivor != null) {
-				survivor.storedExperience += storedExperience;
-				storedExperience = 0;
-			} else {
-				ExperienceHelper.spawnExperience(level, worldPosition.getCenter(), storedExperience);
-				storedExperience = 0;
-			}
-		}
-	}
+		be = be.getControllerBE();
+		if (be == null)
+			return;
 
-	@Nullable
-	private ExperienceTankBlockEntity findSurvivingPart() {
-		if (level == null || !isController())
-			return null;
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				for (int z = 0; z < width; z++) {
-					BlockPos pos = worldPosition.offset(x, y, z);
-					if (pos.equals(worldPosition))
+		int height = be.getHeight();
+		int width = be.getWidth();
+		BlockPos origin = be.getBlockPos();
+		Direction.Axis axis = be.getMainConnectionAxis();
+		Object extraData = be.getExtraData();
+		int remainingExperience = be.storedExperience;
+
+		if (!be.isRemoved()) {
+			int retainedExperience = Math.min(ExperienceConstants.TANK_CAPACITY_PER_BLOCK, remainingExperience);
+			be.storedExperience = retainedExperience;
+			remainingExperience -= retainedExperience;
+		} else {
+			be.storedExperience = 0;
+		}
+
+		for (int yOffset = 0; yOffset < height; yOffset++) {
+			for (int xOffset = 0; xOffset < width; xOffset++) {
+				for (int zOffset = 0; zOffset < width; zOffset++) {
+					BlockPos pos = switch (axis) {
+						case X -> origin.offset(yOffset, xOffset, zOffset);
+						case Y -> origin.offset(xOffset, yOffset, zOffset);
+						case Z -> origin.offset(xOffset, zOffset, yOffset);
+					};
+
+					ExperienceTankBlockEntity partAt = ConnectivityHandler.partAt(be.getType(), level, pos);
+					if (partAt == null)
 						continue;
-					BlockEntity be = level.getBlockEntity(pos);
-					if (be instanceof ExperienceTankBlockEntity tank && !tank.isRemoved())
-						return tank;
+					if (!partAt.getController()
+						.equals(origin))
+						continue;
+
+					partAt.setExtraData(extraData);
+					partAt.removeController(true);
+
+					if (partAt != be) {
+						int split = Math.min(ExperienceConstants.TANK_CAPACITY_PER_BLOCK, remainingExperience);
+						partAt.storedExperience = split;
+						remainingExperience -= split;
+					}
+
+					partAt.setChanged();
+					partAt.sendData();
 				}
 			}
 		}
-		return null;
+
+		if (remainingExperience > 0)
+			ExperienceHelper.spawnExperience(level, removedPos.getCenter(), remainingExperience);
 	}
 
 	@Override

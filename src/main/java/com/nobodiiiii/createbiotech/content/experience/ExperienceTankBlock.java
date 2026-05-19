@@ -84,9 +84,8 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 				super.onRemove(state, level, pos, newState, isMoving);
 				return;
 			}
-			tank.spillStoredXpOnRemove();
 			level.removeBlockEntity(pos);
-			ConnectivityHandler.splitMulti(tank);
+			ExperienceTankBlockEntity.splitTankAndInvalidate(tank, pos);
 		}
 		super.onRemove(state, level, pos, newState, isMoving);
 	}
