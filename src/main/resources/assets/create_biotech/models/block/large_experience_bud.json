@@ -1,3 +1,6 @@
 {
-  "parent": "minecraft:block/large_amethyst_bud"
+  "parent": "minecraft:block/cross",
+  "textures": {
+    "cross": "create_biotech:block/large_experience_bud"
+  }
 }
