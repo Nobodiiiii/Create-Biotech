@@ -27,7 +27,7 @@ public final class EvokerEnchantingChamberJeiRecipes {
 
 		List<Component> notes = List.of(
 			Component.translatable("create_biotech.jei.evoker_enchanting_chamber.note.ritual",
-				EvokerEnchantingChamberBlockEntity.CAST_DURATION_TICKS),
+				EvokerEnchantingChamberBlockEntity.CAST_DURATION_TICKS_PER_LEVEL),
 			Component.translatable("create_biotech.jei.evoker_enchanting_chamber.note.experience"),
 			Component.translatable("create_biotech.jei.evoker_enchanting_chamber.note.segmented"),
 			Component.translatable("create_biotech.jei.evoker_enchanting_chamber.note.blocked_until_extracted"));

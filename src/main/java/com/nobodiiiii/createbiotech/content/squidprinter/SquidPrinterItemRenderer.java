@@ -27,7 +27,7 @@ public class SquidPrinterItemRenderer extends CustomRenderedItemModelRenderer {
 			SquidPrinterSquidVisual.MODEL_HEIGHT_BLOCKS * SquidPrinterSquidVisual.RENDER_SCALE);
 	// The spout item parent already fits one slot; shrink the combined spout+squid assembly to that same envelope.
 	private static final float ITEM_ENVELOPE_SCALE = SPOUT_ITEM_HEIGHT_BLOCKS / TOTAL_RENDER_HEIGHT_BLOCKS;
-	private static final float ITEM_Y_OFFSET = 0.25f;
+	private static final float ITEM_Y_OFFSET = 0.15f;
 	private static final float SQUID_ATTACHMENT_Y = 0.55f;
 
 	@Nullable

@@ -33,12 +33,14 @@ import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTa
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
+import com.nobodiiiii.createbiotech.client.particle.StraightEnchantParticle;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
+import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
@@ -63,6 +65,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
+import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
@@ -140,6 +143,11 @@ public class CreateBiotechClient {
 		CBSpriteShifts.init();
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
+	}
+
+	@SubscribeEvent
+	public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
+		event.registerSpriteSet(CBParticleTypes.STRAIGHT_ENCHANT.get(), StraightEnchantParticle.Provider::new);
 	}
 
 	@SubscribeEvent

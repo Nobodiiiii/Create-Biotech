@@ -142,9 +142,7 @@ public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 
 	@Override
 	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-		return state.getValue(HALF) == DoubleBlockHalf.LOWER
-			? CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get().create(pos, state)
-			: null;
+		return CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get().create(pos, state);
 	}
 
 	@Override
@@ -174,6 +172,16 @@ public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 			? createTickerHelper(type, CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get(),
 				EvokerEnchantingChamberBlockEntity::tick)
 			: null;
+	}
+
+	@Override
+	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+		if (!state.is(newState.getBlock()) && state.getValue(HALF) == DoubleBlockHalf.LOWER) {
+			BlockEntity blockEntity = level.getBlockEntity(pos);
+			if (blockEntity instanceof EvokerEnchantingChamberBlockEntity chamber)
+				chamber.dropContentsAndExperience();
+		}
+		super.onRemove(state, level, pos, newState, isMoving);
 	}
 
 	@Override
