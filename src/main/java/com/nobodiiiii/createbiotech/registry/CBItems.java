@@ -18,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeI
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -69,7 +70,7 @@ public class CBItems {
 		() -> new HiddenExperienceItem(new Item.Properties()));
 
 	public static final RegistryObject<Item> SQUID_PRINTER = ITEMS.register("squid_printer",
-		() -> new BlockItem(CBBlocks.SQUID_PRINTER.get(), new Item.Properties()));
+		() -> new SquidPrinterItem(CBBlocks.SQUID_PRINTER.get(), new Item.Properties()));
 
 	public static final RegistryObject<EnchantmentBookCopyItem> ENCHANTMENT_BOOK_COPY =
 		ITEMS.register("enchantment_book_copy", () -> new EnchantmentBookCopyItem(new Item.Properties()));

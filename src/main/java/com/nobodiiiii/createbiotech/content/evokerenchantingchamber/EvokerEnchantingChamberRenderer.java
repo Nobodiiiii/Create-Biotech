@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.simibubi.create.AllBlocks;
 
 import net.minecraft.client.Minecraft;
@@ -59,16 +60,15 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		if (evoker != null) {
 			prepareEvokerModel(evoker, blockEntity, partialTick);
 
-			poseStack.pushPose();
-			poseStack.translate(0.5d, 1.55d, 0.5d);
-			poseStack.mulPose(Axis.YP.rotationDegrees(
-				180.0f - blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.FACING).toYRot()));
-			poseStack.scale(-EVOKER_SCALE, -EVOKER_SCALE, EVOKER_SCALE);
-
-			VertexConsumer consumer = buffer.getBuffer(evokerModel.renderType(EVOKER_TEXTURE));
-			evokerModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 1.0f, 1.0f, 1.0f,
-				1.0f);
-			poseStack.popPose();
+			BlockEntityModelElement.builder()
+				.atLocal(0.5d, 1.55d, 0.5d)
+				.rotateY(180.0f - blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.FACING).toYRot())
+				.scale(-EVOKER_SCALE, -EVOKER_SCALE, EVOKER_SCALE)
+				.packedLight(packedLight)
+				.render(poseStack, buffer, (ms, buf, lightArg) -> {
+					VertexConsumer consumer = buf.getBuffer(evokerModel.renderType(EVOKER_TEXTURE));
+					evokerModel.renderToBuffer(ms, consumer, lightArg, OverlayTexture.NO_OVERLAY, 1.0f, 1.0f, 1.0f, 1.0f);
+				});
 		}
 
 		renderHeldItem(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay);

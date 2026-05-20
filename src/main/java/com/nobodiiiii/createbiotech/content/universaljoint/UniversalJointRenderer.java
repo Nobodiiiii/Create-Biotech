@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.universaljoint;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.mixin.client.LevelRendererAccessor;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
@@ -39,7 +40,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	private static final float SHAFT_DIAMETER = 4 / 16f;
 	private static final float SHAFT_RADIUS = SHAFT_DIAMETER / 2;
 	private static final float SHAFT_CROSS_SECTION_SCALE = SHAFT_DIAMETER / SLIME_MODEL_DIAMETER;
-	private static final float SLIME_MODEL_Y_OFFSET = -1.501f;
+	private static final float SLIME_MODEL_Y_OFFSET = 1.501f;
 
 	private final SlimeModel<Entity> innerSlime;
 	private final SlimeModel<Entity> outerSlime;
@@ -139,14 +140,16 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	}
 
 	private void renderSlimeShaft(PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
-		ms.pushPose();
-		ms.scale(-1, -1, 1);
-		ms.translate(0, SLIME_MODEL_Y_OFFSET, 0);
-
-		innerSlime.renderToBuffer(ms, buffer.getBuffer(innerSlime.renderType(SLIME_TEXTURE)), light, overlay, 1, 1, 1, 1);
-		outerSlime.renderToBuffer(ms, buffer.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE)), light, overlay,
-			1, 1, 1, 1);
-		ms.popPose();
+		BlockEntityModelElement.builder()
+			.atLocal(0, SLIME_MODEL_Y_OFFSET, 0)
+			.scale(-1, -1, 1)
+			.packedLight(light)
+			.render(ms, buffer, (poseStack, buf, lightArg) -> {
+				innerSlime.renderToBuffer(poseStack, buf.getBuffer(innerSlime.renderType(SLIME_TEXTURE)), lightArg,
+					overlay, 1, 1, 1, 1);
+				outerSlime.renderToBuffer(poseStack, buf.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE)), lightArg,
+					overlay, 1, 1, 1, 1);
+			});
 	}
 
 	private static void renderSyncedRotatingBuffer(UniversalJointBlockEntity be, SuperByteBuffer superBuffer,

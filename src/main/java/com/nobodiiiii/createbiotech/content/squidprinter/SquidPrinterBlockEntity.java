@@ -90,6 +90,9 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		if (level == null)
 			return;
 
+		if (!level.isClientSide)
+			consumeCycleWaterIfNeeded();
+
 		if (running && processingTicks > FINISHING_TICKS)
 			processingTicks--;
 
@@ -182,18 +185,29 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		FluidStack stored = getFluid();
 		return recipe.recipe().getRequiredFluid()
 			.test(stored)
-			&& stored.getAmount() >= recipe.recipe()
-				.getRequiredWater(recipe.template());
+			&& stored.getAmount() >= CYCLE_WATER_COST;
 	}
 
 	private void startProcessing(PreparedRecipe recipe) {
 		processingTemplate = recipe.template();
 		processingTicks = recipe.recipe()
 			.getRequiredTicks(processingTemplate) + FINISHING_TICKS;
-		tank.getPrimaryHandler()
-			.drain(recipe.recipe()
-				.getRequiredWater(processingTemplate), FluidAction.EXECUTE);
 		running = true;
+	}
+
+	private void consumeCycleWaterIfNeeded() {
+		if (level == null || level.getGameTime() % CYCLE_TICKS != 0)
+			return;
+		if (tank == null)
+			return;
+
+		FluidStack stored = getFluid();
+		if (stored.isEmpty() || stored.getAmount() < CYCLE_WATER_COST)
+			return;
+
+		tank.getPrimaryHandler()
+			.drain(CYCLE_WATER_COST, FluidAction.EXECUTE);
+		notifyUpdate();
 	}
 
 	private void clearProcessingState() {

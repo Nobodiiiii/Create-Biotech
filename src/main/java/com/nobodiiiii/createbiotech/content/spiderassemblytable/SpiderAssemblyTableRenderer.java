@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlockEntity.MachineKind;
+import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
@@ -99,16 +100,18 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 		prepareSpiderModel(spider, be, partialTicks);
 
-		ms.pushPose();
-		ms.translate(0.5d, SPIDER_Y_OFFSET, 0.5d);
-		ms.mulPose(Axis.YP.rotationDegrees(yRotation(facing)));
-		ms.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE);
-		VertexConsumer spiderBuffer = buffer.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
-		spiderModel.renderToBuffer(ms, spiderBuffer, light, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
-		VertexConsumer spiderEyesBuffer = buffer.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
-		spiderModel.renderToBuffer(ms, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
-		renderLegMachines(be, partialTicks, ms, buffer, light);
-		ms.popPose();
+		BlockEntityModelElement.builder()
+			.atLocal(0.5d, SPIDER_Y_OFFSET, 0.5d)
+			.rotateY(yRotation(facing))
+			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
+			.packedLight(light)
+			.render(ms, buffer, (poseStack, buf, lightArg) -> {
+				VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
+				spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
+				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
+				spiderModel.renderToBuffer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY, 1, 1, 1, 1);
+				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
+			});
 	}
 
 	private void renderLegMachines(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
