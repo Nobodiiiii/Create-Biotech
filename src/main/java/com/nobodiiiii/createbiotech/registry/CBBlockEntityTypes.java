@@ -94,7 +94,8 @@ public class CBBlockEntityTypes {
 	public static final RegistryObject<BlockEntityType<ExperienceTankBlockEntity>> EXPERIENCE_TANK =
 		BLOCK_ENTITY_TYPES.register("experience_tank",
 			() -> BlockEntityType.Builder
-				.of(ExperienceTankBlockEntity::new, CBBlocks.EXPERIENCE_TANK.get())
+				.of((pos, state) -> new ExperienceTankBlockEntity(CBBlockEntityTypes.EXPERIENCE_TANK.get(), pos, state),
+					CBBlocks.EXPERIENCE_TANK.get())
 				.build(null));
 
 	public static final RegistryObject<BlockEntityType<SquidPrinterBlockEntity>> SQUID_PRINTER =

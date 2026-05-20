@@ -5,30 +5,30 @@ import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.fluids.tank.FluidTankBlock.Shape;
 import com.simibubi.create.foundation.block.IBE;
+import com.simibubi.create.foundation.blockEntity.ComparatorUtil;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition.Builder;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.util.ForgeSoundType;
 
 public class ExperienceTankBlock extends Block implements IWrenchable, IBE<ExperienceTankBlockEntity> {
@@ -39,6 +39,8 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 	public static final SoundType SILENCED_METAL =
 		new ForgeSoundType(0.1F, 1.5F, () -> SoundEvents.METAL_BREAK, () -> SoundEvents.METAL_STEP,
 			() -> SoundEvents.METAL_PLACE, () -> SoundEvents.METAL_HIT, () -> SoundEvents.METAL_FALL);
+
+	static final VoxelShape CAMPFIRE_SMOKE_CLIP = Block.box(0, 4, 0, 16, 16, 16);
 
 	public ExperienceTankBlock(Properties properties) {
 		super(properties);
@@ -57,37 +59,58 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 	}
 
 	@Override
-	public void setPlacedBy(Level level, BlockPos pos, BlockState state, LivingEntity placer, ItemStack stack) {
-		super.setPlacedBy(level, pos, state, placer, stack);
+	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moved) {
+		if (oldState.getBlock() == state.getBlock())
+			return;
+		if (moved)
+			return;
+		withBlockEntityDo(level, pos, ExperienceTankBlockEntity::updateConnectivity);
 	}
 
 	@Override
-	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean moved) {
-		if (oldState.getBlock() == state.getBlock() || moved)
-			return;
-		withBlockEntityDo(level, pos, ExperienceTankBlockEntity::requestConnectivityUpdate);
+	public int getLightEmission(BlockState state, BlockGetter world, BlockPos pos) {
+		ExperienceTankBlockEntity tankAt = ConnectivityHandler.partAt(getBlockEntityType(), world, pos);
+		if (tankAt == null || !tankAt.hasLevel())
+			return 0;
+		ExperienceTankBlockEntity controllerBE = tankAt.getControllerBE();
+		if (controllerBE == null || !controllerBE.window)
+			return 0;
+		return tankAt.getLuminosity();
 	}
 
 	@Override
 	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (context.getLevel().isClientSide)
-			return InteractionResult.SUCCESS;
 		withBlockEntityDo(context.getLevel(), context.getClickedPos(), ExperienceTankBlockEntity::toggleWindows);
 		return InteractionResult.SUCCESS;
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+	public VoxelShape getCollisionShape(BlockState pState, BlockGetter pLevel, BlockPos pPos,
+		CollisionContext pContext) {
+		if (pContext == CollisionContext.empty())
+			return CAMPFIRE_SMOKE_CLIP;
+		return pState.getShape(pLevel, pPos);
+	}
+
+	@Override
+	public VoxelShape getBlockSupportShape(BlockState pState, BlockGetter pReader, BlockPos pPos) {
+		return Shapes.block();
+	}
+
+	@Override
+	public BlockState updateShape(BlockState pState, Direction pDirection, BlockState pNeighborState,
+		LevelAccessor pLevel, BlockPos pCurrentPos, BlockPos pNeighborPos) {
+		return pState;
+	}
+
+	@Override
+	public void onRemove(BlockState state, Level world, BlockPos pos, BlockState newState, boolean isMoving) {
 		if (state.hasBlockEntity() && (state.getBlock() != newState.getBlock() || !newState.hasBlockEntity())) {
-			BlockEntity be = level.getBlockEntity(pos);
-			if (!(be instanceof ExperienceTankBlockEntity tank)) {
-				super.onRemove(state, level, pos, newState, isMoving);
-				return;
+			if (world.getBlockEntity(pos) instanceof ExperienceTankBlockEntity tankBE) {
+				world.removeBlockEntity(pos);
+				ExperienceTankBlockEntity.splitTankAndInvalidate(tankBE, pos);
 			}
-			level.removeBlockEntity(pos);
-			ExperienceTankBlockEntity.splitTankAndInvalidate(tank, pos);
 		}
-		super.onRemove(state, level, pos, newState, isMoving);
 	}
 
 	@Override
@@ -137,16 +160,9 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 
 	@Override
 	public int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
-		ExperienceTankBlockEntity tank = ConnectivityHandler.partAt(getBlockEntityType(), level, pos);
-		if (tank == null)
-			return 0;
-		float fill = tank.getFillState();
-		return fill <= 0 ? 0 : Mth.clamp(Mth.ceil(fill * 15.0f), 1, 15);
-	}
-
-	@Override
-	public boolean isPathfindable(BlockState state, BlockGetter reader, BlockPos pos, PathComputationType type) {
-		return false;
+		return getBlockEntityOptional(level, pos).map(ExperienceTankBlockEntity::getControllerBE)
+			.map(be -> ComparatorUtil.fractionToRedstoneLevel(be.getFillState()))
+			.orElse(0);
 	}
 
 	@Override
@@ -157,13 +173,5 @@ public class ExperienceTankBlock extends Block implements IWrenchable, IBE<Exper
 	@Override
 	public BlockEntityType<? extends ExperienceTankBlockEntity> getBlockEntityType() {
 		return CBBlockEntityTypes.EXPERIENCE_TANK.get();
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <S extends BlockEntity> BlockEntityTicker<S> getTicker(Level level, BlockState state,
-		BlockEntityType<S> type) {
-		return type == getBlockEntityType() ? (BlockEntityTicker<S>) (BlockEntityTicker<ExperienceTankBlockEntity>) ExperienceTankBlockEntity::tick
-			: null;
 	}
 }

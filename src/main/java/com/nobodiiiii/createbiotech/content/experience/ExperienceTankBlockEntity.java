@@ -6,11 +6,12 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.compat.jade.JadeExperienceProvider;
-import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.fluids.tank.FluidTankBlock.Shape;
 import com.simibubi.create.foundation.blockEntity.IMultiBlockEntityContainer;
+import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.minecraft.ChatFormatting;
@@ -19,13 +20,12 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-public class ExperienceTankBlockEntity extends BlockEntity
+public class ExperienceTankBlockEntity extends SmartBlockEntity
 	implements ExperienceSource, ExperienceSink, IHaveGoggleInformation, IMultiBlockEntityContainer.Fluid,
 	JadeExperienceProvider {
 
@@ -37,35 +37,47 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	@Nullable
 	protected BlockPos lastKnownPos;
 	protected int storedExperience;
-	protected int width = 1;
-	protected int height = 1;
-	protected boolean window = true;
+	protected int width;
+	protected int height;
+	protected boolean window;
+	protected int luminosity;
 	protected boolean updateConnectivity;
 
-	public ExperienceTankBlockEntity(BlockPos pos, BlockState state) {
-		super(CBBlockEntityTypes.EXPERIENCE_TANK.get(), pos, state);
+	public ExperienceTankBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+		super(type, pos, state);
+		updateConnectivity = false;
+		window = true;
+		height = 1;
+		width = 1;
+		luminosity = 0;
 	}
 
-	public static void tick(Level level, BlockPos pos, BlockState state, ExperienceTankBlockEntity be) {
-		if (level.isClientSide)
+	@Override
+	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (level == null || level.isClientSide)
 			return;
-		if (be.lastKnownPos == null)
-			be.lastKnownPos = pos;
-		else if (!be.lastKnownPos.equals(pos)) {
-			be.onPositionChanged();
+		if (lastKnownPos == null)
+			lastKnownPos = worldPosition;
+		else if (!lastKnownPos.equals(worldPosition)) {
+			onPositionChanged();
 			return;
 		}
 
-		if (be.updateConnectivity)
-			be.updateConnectivity();
+		if (updateConnectivity)
+			updateConnectivity();
 
-		if (be.isController()) {
-			int capacity = be.getCapacity();
-			if (be.storedExperience > capacity) {
-				int overflow = be.storedExperience - capacity;
-				be.storedExperience = capacity;
-				ExperienceHelper.spawnExperience(level, pos.getCenter(), overflow);
-				be.sendData();
+		if (isController()) {
+			int capacity = getCapacity();
+			if (storedExperience > capacity) {
+				int overflow = storedExperience - capacity;
+				storedExperience = capacity;
+				ExperienceHelper.spawnExperience(level, worldPosition.getCenter(), overflow);
+				sendData();
 			}
 		}
 	}
@@ -96,11 +108,9 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	@Override
 	@SuppressWarnings("unchecked")
 	public ExperienceTankBlockEntity getControllerBE() {
-		if (isController())
+		if (isController() || !hasLevel())
 			return this;
-		if (level == null || controller == null)
-			return null;
-		BlockEntity be = level.getBlockEntity(controller);
+		var be = level.getBlockEntity(controller);
 		return be instanceof ExperienceTankBlockEntity tank ? tank : null;
 	}
 
@@ -111,7 +121,7 @@ public class ExperienceTankBlockEntity extends BlockEntity
 
 	@Override
 	public void setController(BlockPos controller) {
-		if (level != null && level.isClientSide)
+		if (level != null && level.isClientSide && !isVirtual())
 			return;
 		if (Objects.equals(this.controller, controller))
 			return;
@@ -145,11 +155,14 @@ public class ExperienceTankBlockEntity extends BlockEntity
 		controller = null;
 		width = 1;
 		height = 1;
+		luminosity = 0;
 		BlockState state = getBlockState();
-		if (ExperienceTankBlock.isTank(state))
-			level.setBlock(worldPosition, state.setValue(ExperienceTankBlock.TOP, true)
-				.setValue(ExperienceTankBlock.BOTTOM, true)
-				.setValue(ExperienceTankBlock.SHAPE, window ? Shape.WINDOW : Shape.PLAIN), 22);
+		if (ExperienceTankBlock.isTank(state)) {
+			state = state.setValue(ExperienceTankBlock.BOTTOM, true);
+			state = state.setValue(ExperienceTankBlock.TOP, true);
+			state = state.setValue(ExperienceTankBlock.SHAPE, window ? Shape.WINDOW : Shape.PLAIN);
+			level.setBlock(worldPosition, state, 22);
+		}
 		setChanged();
 		sendData();
 	}
@@ -168,9 +181,9 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	public void notifyMultiUpdated() {
 		BlockState state = getBlockState();
 		if (state.getBlock() instanceof ExperienceTankBlock) {
-			BlockPos ctrl = getController();
-			state = state.setValue(ExperienceTankBlock.BOTTOM, ctrl.getY() == worldPosition.getY());
-			state = state.setValue(ExperienceTankBlock.TOP, ctrl.getY() + height - 1 == worldPosition.getY());
+			state = state.setValue(ExperienceTankBlock.BOTTOM, getController().getY() == worldPosition.getY());
+			state = state.setValue(ExperienceTankBlock.TOP,
+				getController().getY() + height - 1 == worldPosition.getY());
 			level.setBlock(worldPosition, state, 6);
 		}
 		if (isController())
@@ -180,29 +193,26 @@ public class ExperienceTankBlockEntity extends BlockEntity
 
 	public void setWindows(boolean window) {
 		this.window = window;
-		if (level == null || !isController())
-			return;
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				for (int z = 0; z < width; z++) {
-					BlockPos pos = worldPosition.offset(x, y, z);
-					BlockState state = level.getBlockState(pos);
-					if (!(state.getBlock() instanceof ExperienceTankBlock))
+		for (int yOffset = 0; yOffset < height; yOffset++) {
+			for (int xOffset = 0; xOffset < width; xOffset++) {
+				for (int zOffset = 0; zOffset < width; zOffset++) {
+					BlockPos pos = worldPosition.offset(xOffset, yOffset, zOffset);
+					BlockState blockState = level.getBlockState(pos);
+					if (!ExperienceTankBlock.isTank(blockState))
 						continue;
 
 					Shape shape = Shape.PLAIN;
 					if (window) {
-						if (width == 1) {
+						if (width == 1)
 							shape = Shape.WINDOW;
-						} else if (width == 2) {
-							shape = x == 0 ? z == 0 ? Shape.WINDOW_NW : Shape.WINDOW_SW
-								: z == 0 ? Shape.WINDOW_NE : Shape.WINDOW_SE;
-						} else if (width == 3) {
-							if (Math.abs(Math.abs(x) - Math.abs(z)) == 1)
-								shape = Shape.WINDOW;
-						}
+						if (width == 2)
+							shape = xOffset == 0 ? zOffset == 0 ? Shape.WINDOW_NW : Shape.WINDOW_SW
+								: zOffset == 0 ? Shape.WINDOW_NE : Shape.WINDOW_SE;
+						if (width == 3 && Math.abs(Math.abs(xOffset) - Math.abs(zOffset)) == 1)
+							shape = Shape.WINDOW;
 					}
-					level.setBlock(pos, state.setValue(ExperienceTankBlock.SHAPE, shape), 22);
+
+					level.setBlock(pos, blockState.setValue(ExperienceTankBlock.SHAPE, shape), 22);
 					level.getChunkSource()
 						.getLightEngine()
 						.checkBlock(pos);
@@ -255,8 +265,8 @@ public class ExperienceTankBlockEntity extends BlockEntity
 
 	@Override
 	public void setExtraData(@Nullable Object data) {
-		if (data instanceof Boolean w)
-			window = w;
+		if (data instanceof Boolean)
+			window = (boolean) data;
 	}
 
 	@Override
@@ -267,8 +277,10 @@ public class ExperienceTankBlockEntity extends BlockEntity
 
 	@Override
 	public Object modifyExtraData(Object data) {
-		if (data instanceof Boolean windows)
-			return windows | window;
+		if (data instanceof Boolean windows) {
+			windows |= window;
+			return windows;
+		}
 		return data;
 	}
 
@@ -348,18 +360,15 @@ public class ExperienceTankBlockEntity extends BlockEntity
 		return capacity <= 0 ? 0 : (float) getStoredExperience() / capacity;
 	}
 
-	public void toggleWindows() {
-		ExperienceTankBlockEntity controllerBE = getControllerBE();
-		if (controllerBE == null)
-			return;
-		controllerBE.setWindows(!controllerBE.window);
-		controllerBE.setChanged();
-		controllerBE.sendData();
+	public int getLuminosity() {
+		return luminosity;
 	}
 
-	public void handleRemoved() {
-		if (level != null && !level.isClientSide)
-			splitTankAndInvalidate(this, worldPosition);
+	public void toggleWindows() {
+		ExperienceTankBlockEntity be = getControllerBE();
+		if (be == null)
+			return;
+		be.setWindows(!be.window);
 	}
 
 	public static void splitTankAndInvalidate(ExperienceTankBlockEntity be, BlockPos removedPos) {
@@ -422,10 +431,10 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	}
 
 	@Override
-	public AABB getRenderBoundingBox() {
-		if (!isController())
-			return new AABB(worldPosition);
-		return new AABB(worldPosition, worldPosition.offset(width, height, width));
+	protected AABB createRenderBoundingBox() {
+		if (isController())
+			return super.createRenderBoundingBox().expandTowards(width - 1, height - 1, width - 1);
+		return super.createRenderBoundingBox();
 	}
 
 	@Override
@@ -456,55 +465,71 @@ public class ExperienceTankBlockEntity extends BlockEntity
 	}
 
 	@Override
-	protected void saveAdditional(CompoundTag tag) {
-		super.saveAdditional(tag);
-		if (updateConnectivity)
-			tag.putBoolean("Uninitialized", true);
-		if (lastKnownPos != null)
-			tag.put("LastKnownPos", NbtUtils.writeBlockPos(lastKnownPos));
-		if (!isController() && controller != null)
-			tag.put("Controller", NbtUtils.writeBlockPos(controller));
-		if (isController()) {
-			tag.putInt("StoredExperience", storedExperience);
-			tag.putInt("Width", width);
-			tag.putInt("Height", height);
-			tag.putBoolean("Window", window);
-		}
-	}
+	protected void read(CompoundTag compound, boolean clientPacket) {
+		BlockPos controllerBefore = controller;
+		int prevSize = width;
+		int prevHeight = height;
+		int prevLum = luminosity;
 
-	@Override
-	public void load(CompoundTag tag) {
-		super.load(tag);
-		updateConnectivity = tag.contains("Uninitialized");
+		super.read(compound, clientPacket);
+
+		updateConnectivity = compound.contains("Uninitialized");
+		luminosity = compound.getInt("Luminosity");
 		controller = null;
 		lastKnownPos = null;
-		if (tag.contains("LastKnownPos"))
-			lastKnownPos = NbtUtils.readBlockPos(tag.getCompound("LastKnownPos"));
-		if (tag.contains("Controller"))
-			controller = NbtUtils.readBlockPos(tag.getCompound("Controller"));
+
+		if (compound.contains("LastKnownPos"))
+			lastKnownPos = NbtUtils.readBlockPos(compound.getCompound("LastKnownPos"));
+		if (compound.contains("Controller"))
+			controller = NbtUtils.readBlockPos(compound.getCompound("Controller"));
+
 		if (isController()) {
-			storedExperience = tag.getInt("StoredExperience");
-			width = Math.max(1, tag.getInt("Width"));
-			height = Math.max(1, tag.getInt("Height"));
-			window = !tag.contains("Window") || tag.getBoolean("Window");
+			storedExperience = compound.getInt("StoredExperience");
+			width = Math.max(1, compound.getInt("Width"));
+			height = Math.max(1, compound.getInt("Height"));
+			window = !compound.contains("Window") || compound.getBoolean("Window");
 		}
-	}
 
-	@Override
-	public CompoundTag getUpdateTag() {
-		return saveWithoutMetadata();
-	}
-
-	@Override
-	public ClientboundBlockEntityDataPacket getUpdatePacket() {
-		return ClientboundBlockEntityDataPacket.create(this);
-	}
-
-	public void sendData() {
-		if (level == null)
+		if (!clientPacket)
 			return;
-		setChanged();
-		BlockState state = getBlockState();
-		level.sendBlockUpdated(worldPosition, state, state, 3);
+
+		boolean changeOfController = !Objects.equals(controllerBefore, controller);
+		if (changeOfController || prevSize != width || prevHeight != height) {
+			if (hasLevel())
+				level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 16);
+			invalidateRenderBoundingBox();
+		}
+		if (luminosity != prevLum && hasLevel())
+			level.getChunkSource()
+				.getLightEngine()
+				.checkBlock(worldPosition);
+	}
+
+	@Override
+	protected void write(CompoundTag compound, boolean clientPacket) {
+		super.write(compound, clientPacket);
+		if (updateConnectivity)
+			compound.putBoolean("Uninitialized", true);
+		if (lastKnownPos != null)
+			compound.put("LastKnownPos", NbtUtils.writeBlockPos(lastKnownPos));
+		if (!isController() && controller != null)
+			compound.put("Controller", NbtUtils.writeBlockPos(controller));
+		if (isController()) {
+			compound.putInt("StoredExperience", storedExperience);
+			compound.putInt("Width", width);
+			compound.putInt("Height", height);
+			compound.putBoolean("Window", window);
+		}
+		compound.putInt("Luminosity", luminosity);
+	}
+
+	@Override
+	public void writeSafe(CompoundTag compound) {
+		super.writeSafe(compound);
+		if (isController()) {
+			compound.putBoolean("Window", window);
+			compound.putInt("Width", width);
+			compound.putInt("Height", height);
+		}
 	}
 }

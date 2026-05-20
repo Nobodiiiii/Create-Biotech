@@ -122,7 +122,8 @@ public class CBBlocks {
 			.sound(SoundType.COPPER)
 			.strength(2.5f)
 			.mapColor(MapColor.METAL)
-			.noOcclusion()));
+			.noOcclusion()
+			.isRedstoneConductor((p1, p2, p3) -> true)));
 
 	public static final RegistryObject<SquidPrinterBlock> SQUID_PRINTER = BLOCKS.register("squid_printer",
 		() -> new SquidPrinterBlock(Block.Properties.of()
