@@ -3,6 +3,9 @@ package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 import java.util.function.Consumer;
 
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.belt.BeltBlock;
+import com.simibubi.create.content.kinetics.belt.BeltSlope;
+import com.simibubi.create.content.processing.basin.BasinBlock;
 import com.simibubi.create.foundation.item.render.SimpleCustomRenderer;
 
 import net.minecraft.core.BlockPos;
@@ -11,6 +14,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
@@ -36,14 +40,22 @@ public class SpiderAssemblyTableItem extends BlockItem {
 		Level level = context.getLevel();
 		BlockState placedOnState = level.getBlockState(placedOnPos);
 
-		if (context.getClickedFace() == Direction.UP
-			&& (AllBlocks.DEPOT.has(placedOnState) || AllBlocks.WEIGHTED_EJECTOR.has(placedOnState))) {
+		if (context.getClickedFace() == Direction.UP && operatesOn(level, placedOnPos, placedOnState)) {
 			BlockPos mainPos = placedOnPos.above(2);
+			if (!level.getBlockState(mainPos).canBeReplaced())
+				return InteractionResult.FAIL;
 			return placeAtMainPos(context, mainPos);
 		}
 
 		BlockPos tailPos = context.getClickedPos();
 		return placeAnchoredAtTail(context, tailPos);
+	}
+
+	protected boolean operatesOn(LevelReader world, BlockPos pos, BlockState placedOnState) {
+		if (AllBlocks.BELT.has(placedOnState))
+			return placedOnState.getValue(BeltBlock.SLOPE) == BeltSlope.HORIZONTAL;
+		return BasinBlock.isBasin(world, pos) || AllBlocks.DEPOT.has(placedOnState)
+			|| AllBlocks.WEIGHTED_EJECTOR.has(placedOnState);
 	}
 
 	private InteractionResult placeAnchoredAtTail(BlockPlaceContext context, BlockPos tailPos) {

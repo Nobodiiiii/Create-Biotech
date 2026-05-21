@@ -41,6 +41,7 @@ import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.animation.LerpedFloat;
 import net.createmod.catnip.animation.LerpedFloat.Chaser;
+import net.createmod.catnip.animation.AnimationTickHolder;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
 import net.createmod.catnip.data.Iterate;
 import net.minecraft.ChatFormatting;
@@ -2401,7 +2402,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		int renderSwell = 0;
 		if (allowWhiteFlash) {
 			float compression = getCompressionFromPressOffset(pressOffset);
-			float pulse = 0.5f + 0.5f * Mth.sin((creeper.level().getGameTime()) * 0.9f);
+			float pulse = 0.5f + 0.5f * Mth.sin(AnimationTickHolder.getRenderTime(creeper.level()) * 0.9f);
 			renderSwell = Mth.floor(Mth.clamp(compression * Mth.lerp(pulse, 0.55f, 1f), 0f, 1f) * 24f);
 		}
 		accessor.createBiotech$setOldSwell(renderSwell);

@@ -55,6 +55,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 	private boolean running;
 	private ItemStack processingTemplate;
+	private int idleTicksWhileRunning;
 
 	public SquidPrinterBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
@@ -90,8 +91,13 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		if (level == null)
 			return;
 
-		if (!level.isClientSide)
+		if (!level.isClientSide) {
 			consumeCycleWaterIfNeeded();
+			if (running && ++idleTicksWhileRunning >= 3) {
+				clearProcessingState();
+				notifyUpdate();
+			}
+		}
 
 		if (running && processingTicks > FINISHING_TICKS)
 			processingTicks--;
@@ -116,6 +122,8 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		TransportedItemStackHandlerBehaviour handler) {
 		if (!isApplicableInput(transported.stack))
 			return PASS;
+
+		idleTicksWhileRunning = 0;
 
 		if (processingTicks != -1) {
 			if (processingTicks > FINISHING_TICKS)
@@ -193,6 +201,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		processingTicks = recipe.recipe()
 			.getRequiredTicks(processingTemplate) + FINISHING_TICKS;
 		running = true;
+		idleTicksWhileRunning = 0;
 	}
 
 	private void consumeCycleWaterIfNeeded() {
@@ -214,6 +223,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		processingTicks = -1;
 		running = false;
 		processingTemplate = ItemStack.EMPTY;
+		idleTicksWhileRunning = 0;
 	}
 
 	private ItemStack getTemplate() {

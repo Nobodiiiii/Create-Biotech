@@ -514,12 +514,13 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	}
 
 	private RenderSpider getOrCreateSpider(Level level) {
-		if (!(level instanceof ClientLevel clientLevel))
+		ClientLevel hostLevel = level instanceof ClientLevel cl ? cl : Minecraft.getInstance().level;
+		if (hostLevel == null)
 			return null;
 
-		if (cachedSpider == null || cachedLevel != clientLevel) {
-			cachedLevel = clientLevel;
-			cachedSpider = new RenderSpider(clientLevel);
+		if (cachedSpider == null || cachedLevel != hostLevel) {
+			cachedLevel = hostLevel;
+			cachedSpider = new RenderSpider(hostLevel);
 			cachedSpider.setNoAi(true);
 			cachedSpider.setSilent(true);
 		}
