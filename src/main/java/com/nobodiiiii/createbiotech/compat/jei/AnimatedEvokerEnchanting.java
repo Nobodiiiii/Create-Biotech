@@ -2,76 +2,36 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.mojang.blaze3d.platform.Lighting;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceOrbModelRenderer;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingVisual;
-import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
-import net.createmod.catnip.gui.UIRenderHelper;
+import net.createmod.catnip.gui.element.GuiGameElement;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.BookModel;
-import net.minecraft.client.model.IllagerModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
-import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 
-	private static final ResourceLocation BOOK_TEXTURE =
-		new ResourceLocation("minecraft", "textures/entity/enchanting_table_book.png");
-	private static final BlockState ENCHANTING_TABLE = Blocks.ENCHANTING_TABLE.defaultBlockState();
-	private static final Direction FACING = Direction.NORTH;
-	private static final int SCENE_SCALE = 20;
-	private static final int PACKED_LIGHT = LightTexture.FULL_BRIGHT;
-	private static final float ENCHANTING_TABLE_TOP_Y = 14f / 16f;
-	private static final float UPPER_BLOCK_TOP_Y = 1.95f;
-	private static final float EVOKER_BODY_HEIGHT_UNITS = 22f;
-	private static final float EVOKER_SCALE =
-		(UPPER_BLOCK_TOP_Y - ENCHANTING_TABLE_TOP_Y) * 16f / EVOKER_BODY_HEIGHT_UNITS;
-	private static final float EVOKER_ROOT_Y = ENCHANTING_TABLE_TOP_Y + 12f / 16f * EVOKER_SCALE;
-	private static final float EVOKER_BACK_GAP = 1f / 16f;
-	private static final float EVOKER_BACK_HALF_DEPTH = 3f / 16f * EVOKER_SCALE;
-	private static final float EVOKER_BACK_OFFSET_FROM_CENTER =
-		0.5f - (EVOKER_BACK_HALF_DEPTH + EVOKER_BACK_GAP);
-	private static final float BOOK_FRONT_OFFSET = 4f / 16f;
-	private static final float BOOK_BASE_Y = ENCHANTING_TABLE_TOP_Y + 4f / 16f;
-	private static final float BOOK_BOB_AMPLITUDE = 0.04f;
-	private static final float BOOK_BOB_SPEED = 0.08f;
-	private static final float BOOK_Z_ROTATION = 80f;
-	private static final float ITEM_BASE_Y = BOOK_BASE_Y + 6f / 16f;
-	private static final float ITEM_BOB_AMPLITUDE = 0.06f;
-	private static final float ITEM_BOB_SPEED = 0.1f;
-	private static final float ITEM_SPIN_SPEED = 2.5f;
-	private static final float ITEM_SCALE = 0.7f;
-	private static final float DISPLAY_TRANSFORM_CYCLE = 80f;
+	private static final float RENDER_SCALE = 20f;
+	private static final int PREVIEW_STORED_EXPERIENCE = 1;
+	private static final int PREVIEW_XP_TOTAL = 1;
+	private static final int DISPLAY_TRANSFORM_CYCLE = 80;
 	private static final float OUTPUT_PHASE_START = 0.72f;
-	private static final float PARTICLE_SOURCE_SPREAD = 0.72f;
-	private static final float PARTICLE_TARGET_SPREAD = 0.16f;
-	private static final float PARTICLE_SPEED = 0.09f;
-	private static final int PARTICLE_COUNT = 7;
-	private static final float PARTICLE_ORB_SCALE = 0.18f;
 
 	private ItemStack inputCopy = ItemStack.EMPTY;
 	private ItemStack outputBook = ItemStack.EMPTY;
 	@Nullable
-	private IllagerModel<EvokerEnchantingVisual.RenderEvoker> evokerModel;
-	@Nullable
-	private BookModel bookModel;
-	@Nullable
-	private EvokerEnchantingVisual.RenderEvoker cachedEvoker;
+	private EvokerEnchantingChamberBlockEntity cachedBlockEntity;
 	@Nullable
 	private ClientLevel cachedLevel;
 
@@ -86,160 +46,42 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 	@Override
 	public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
 		ClientLevel level = Minecraft.getInstance().level;
-		if (level == null)
+		EvokerEnchantingChamberBlockEntity blockEntity = getOrCreateBlockEntity(level);
+		if (level == null || blockEntity == null)
 			return;
 
-		PoseStack poseStack = graphics.pose();
+		updatePreviewState(blockEntity);
+
+		var poseStack = graphics.pose();
 		poseStack.pushPose();
 		poseStack.translate(xOffset, yOffset, 100);
 		poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
 		poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
 
-		blockElement(ENCHANTING_TABLE)
-			.scale(SCENE_SCALE)
+		GuiGameElement.of(blockEntity)
+			.lighting(DEFAULT_LIGHTING)
+			.scale(RENDER_SCALE)
 			.render(graphics);
-		renderEvoker(level, graphics);
-
-		DEFAULT_LIGHTING.applyLighting();
-		try {
-			renderBook(graphics);
-			renderEnchantingItem(level, graphics);
-			renderEnchantParticles(graphics);
-		} finally {
-			Lighting.setupFor3DItems();
-		}
 
 		poseStack.popPose();
 	}
 
-	private void renderEvoker(ClientLevel level, GuiGraphics graphics) {
-		EvokerEnchantingVisual.RenderEvoker evoker = getOrCreateEvoker(level);
-		IllagerModel<EvokerEnchantingVisual.RenderEvoker> evokerModel = getEvokerModel();
-		if (evoker == null || evokerModel == null)
-			return;
-
-		float renderTime = AnimationTickHolder.getRenderTime();
-		double rootX = 0.5d - FACING.getStepX() * EVOKER_BACK_OFFSET_FROM_CENTER;
-		double rootZ = 0.5d - FACING.getStepZ() * EVOKER_BACK_OFFSET_FROM_CENTER;
-
-		graphics.pose()
-			.pushPose();
-		graphics.pose()
-			.scale(SCENE_SCALE, SCENE_SCALE, SCENE_SCALE);
-		UIRenderHelper.flipForGuiRender(graphics.pose());
-		BlockEntityModelElement.builder()
-			.packedLight(PACKED_LIGHT)
-			.atLocal(rootX, EVOKER_ROOT_Y, rootZ)
-			.rotateY(180.0d - FACING.toYRot())
-			.scale(EVOKER_SCALE, -EVOKER_SCALE, -EVOKER_SCALE)
-			.render(graphics.pose(), graphics.bufferSource(), (poseStack, buffer, packedLight) -> {
-				EvokerEnchantingVisual.prepareModel(evokerModel, evoker, renderTime, true);
-				EvokerEnchantingVisual.renderModel(evokerModel, poseStack, buffer, packedLight);
-			});
-		graphics.pose()
-			.popPose();
-	}
-
-	private void renderBook(GuiGraphics graphics) {
-		BookModel bookModel = getBookModel();
-		if (bookModel == null)
-			return;
-
-		float renderTime = AnimationTickHolder.getRenderTime();
-		float bob = Mth.sin(renderTime * BOOK_BOB_SPEED) * BOOK_BOB_AMPLITUDE;
-		double bookX = 0.5d + FACING.getStepX() * BOOK_FRONT_OFFSET;
-		double bookZ = 0.5d + FACING.getStepZ() * BOOK_FRONT_OFFSET;
-		double bookY = BOOK_BASE_Y + bob;
-		float bookYRot = (180f - FACING.toYRot()) - 90f;
-		float pageFlutter = Mth.sin(renderTime * 0.135f) * 0.05f;
-
-		graphics.pose()
-			.pushPose();
-		graphics.pose()
-			.scale(SCENE_SCALE, SCENE_SCALE, SCENE_SCALE);
-		UIRenderHelper.flipForGuiRender(graphics.pose());
-		graphics.pose()
-			.translate(bookX, bookY, bookZ);
-		graphics.pose()
-			.mulPose(Axis.YP.rotationDegrees(bookYRot));
-		graphics.pose()
-			.mulPose(Axis.ZP.rotationDegrees(BOOK_Z_ROTATION));
-
-		bookModel.setupAnim(renderTime, pageFlutter, pageFlutter, 1.0f);
-		VertexConsumer bookConsumer = graphics.bufferSource()
-			.getBuffer(bookModel.renderType(BOOK_TEXTURE));
-		bookModel.renderToBuffer(graphics.pose(), bookConsumer, PACKED_LIGHT, OverlayTexture.NO_OVERLAY, 1.0f, 1.0f,
-			1.0f, 1.0f);
-		graphics.pose()
-			.popPose();
-	}
-
-	private void renderEnchantingItem(ClientLevel level, GuiGraphics graphics) {
-		ItemStack displayStack = getDisplayedItem(AnimationTickHolder.getRenderTime());
-		if (displayStack.isEmpty())
-			return;
-
-		float renderTime = AnimationTickHolder.getRenderTime();
-		float bob = Mth.sin(renderTime * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE;
-		float spin = renderTime * ITEM_SPIN_SPEED;
-		double itemX = 0.5d + FACING.getStepX() * BOOK_FRONT_OFFSET;
-		double itemZ = 0.5d + FACING.getStepZ() * BOOK_FRONT_OFFSET;
-		double itemY = ITEM_BASE_Y + bob;
-
-		graphics.pose()
-			.pushPose();
-		graphics.pose()
-			.scale(SCENE_SCALE, SCENE_SCALE, SCENE_SCALE);
-		UIRenderHelper.flipForGuiRender(graphics.pose());
-		graphics.pose()
-			.translate(itemX, itemY, itemZ);
-		graphics.pose()
-			.mulPose(Axis.YP.rotationDegrees(spin));
-		graphics.pose()
-			.scale(ITEM_SCALE, ITEM_SCALE, ITEM_SCALE);
-
-		Minecraft.getInstance()
-			.getItemRenderer()
-			.renderStatic(displayStack, ItemDisplayContext.GROUND, PACKED_LIGHT, OverlayTexture.NO_OVERLAY,
-				graphics.pose(), graphics.bufferSource(), level, 0);
-		graphics.pose()
-			.popPose();
-	}
-
-	private void renderEnchantParticles(GuiGraphics graphics) {
-		float renderTime = AnimationTickHolder.getRenderTime();
-		float sourceY = BOOK_BASE_Y + Mth.sin(renderTime * BOOK_BOB_SPEED) * BOOK_BOB_AMPLITUDE - 0.02f;
-		float targetY = ITEM_BASE_Y + Mth.sin(renderTime * ITEM_BOB_SPEED) * ITEM_BOB_AMPLITUDE;
-		float anchorX = 0.5f + FACING.getStepX() * BOOK_FRONT_OFFSET;
-		float anchorZ = 0.5f + FACING.getStepZ() * BOOK_FRONT_OFFSET;
-
-		for (int i = 0; i < PARTICLE_COUNT; i++) {
-			float progress = (renderTime * PARTICLE_SPEED + i / (float) PARTICLE_COUNT) % 1.0f;
-			float eased = progress * progress * (3.0f - 2.0f * progress);
-			float sourceAngle = i * 1.91f + renderTime * 0.07f;
-			float targetAngle = i * 1.37f + renderTime * 0.11f;
-			float startX = anchorX + Mth.sin(sourceAngle) * PARTICLE_SOURCE_SPREAD * 0.5f;
-			float startZ = anchorZ + Mth.cos(sourceAngle) * PARTICLE_SOURCE_SPREAD * 0.5f;
-			float endX = anchorX + Mth.sin(targetAngle) * PARTICLE_TARGET_SPREAD;
-			float endZ = anchorZ + Mth.cos(targetAngle) * PARTICLE_TARGET_SPREAD;
-			float x = Mth.lerp(eased, startX, endX);
-			float y = Mth.lerp(eased, sourceY, targetY);
-			float z = Mth.lerp(eased, startZ, endZ);
-			renderParticle(graphics, x, y, z, renderTime, i);
-		}
-	}
-
-	private void renderParticle(GuiGraphics graphics, float x, float y, float z, float renderTime, int index) {
-		graphics.pose()
-			.pushPose();
-		graphics.pose()
-			.scale(SCENE_SCALE, SCENE_SCALE, SCENE_SCALE);
-		graphics.pose()
-			.translate(x, y, z);
-		ExperienceOrbModelRenderer.render(graphics.pose(), graphics.bufferSource(), PACKED_LIGHT,
-			renderTime * 2.0f + index * 5.0f, index & 0x0F, PARTICLE_ORB_SCALE);
-		graphics.pose()
-			.popPose();
+	private void updatePreviewState(EvokerEnchantingChamberBlockEntity blockEntity) {
+		ItemStack displayedItem = getDisplayedItem(AnimationTickHolder.getRenderTime());
+		boolean casting = !displayedItem.isEmpty() && ItemStack.isSameItemSameTags(displayedItem, inputCopy);
+		ItemStack heldItem = casting ? displayedItem : ItemStack.EMPTY;
+		ItemStack pendingOutput = casting ? ItemStack.EMPTY : displayedItem;
+		int xpRemaining = casting ? PREVIEW_XP_TOTAL : 0;
+		CompoundTag tag = new CompoundTag();
+		tag.putInt("StoredExperience", PREVIEW_STORED_EXPERIENCE);
+		tag.putInt("XpRemaining", xpRemaining);
+		tag.putInt("XpTotal", PREVIEW_XP_TOTAL);
+		tag.putBoolean("WaitingForExperience", false);
+		if (!heldItem.isEmpty())
+			tag.put("HeldItem", heldItem.serializeNBT());
+		if (!pendingOutput.isEmpty())
+			tag.put("PendingOutput", pendingOutput.serializeNBT());
+		blockEntity.load(tag);
 	}
 
 	private ItemStack getDisplayedItem(float renderTime) {
@@ -252,35 +94,23 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 		return cycle >= OUTPUT_PHASE_START ? outputBook : inputCopy;
 	}
 
-	private @Nullable IllagerModel<EvokerEnchantingVisual.RenderEvoker> getEvokerModel() {
-		if (evokerModel == null && Minecraft.getInstance().getEntityModels() != null)
-			evokerModel = new IllagerModel<>(Minecraft.getInstance()
-				.getEntityModels()
-				.bakeLayer(ModelLayers.EVOKER));
-		return evokerModel;
-	}
+	private @Nullable EvokerEnchantingChamberBlockEntity getOrCreateBlockEntity(@Nullable Level level) {
+		if (!(level instanceof ClientLevel clientLevel))
+			return cachedBlockEntity;
 
-	private @Nullable BookModel getBookModel() {
-		if (bookModel == null && Minecraft.getInstance().getEntityModels() != null)
-			bookModel = new BookModel(Minecraft.getInstance()
-				.getEntityModels()
-				.bakeLayer(ModelLayers.BOOK));
-		return bookModel;
-	}
-
-	private @Nullable EvokerEnchantingVisual.RenderEvoker getOrCreateEvoker(ClientLevel level) {
-		if (cachedEvoker == null || cachedLevel != level) {
-			cachedLevel = level;
-			cachedEvoker = new EvokerEnchantingVisual.RenderEvoker(level);
-			cachedEvoker.setNoAi(true);
-			cachedEvoker.setSilent(true);
+		if (cachedBlockEntity == null || cachedLevel != clientLevel) {
+			cachedLevel = clientLevel;
+			cachedBlockEntity = new EvokerEnchantingChamberBlockEntity(BlockPos.ZERO, createRenderState());
 		}
 
-		cachedEvoker.setYRot(0.0f);
-		cachedEvoker.setYBodyRot(0.0f);
-		cachedEvoker.yBodyRotO = 0.0f;
-		cachedEvoker.yHeadRot = 0.0f;
-		cachedEvoker.yHeadRotO = 0.0f;
-		return cachedEvoker;
+		cachedBlockEntity.setLevel(clientLevel);
+		return cachedBlockEntity;
+	}
+
+	private static BlockState createRenderState() {
+		return CBBlocks.EVOKER_ENCHANTING_CHAMBER.get()
+			.defaultBlockState()
+			.setValue(EvokerEnchantingChamberBlock.FACING, Direction.SOUTH)
+			.setValue(EvokerEnchantingChamberBlock.HALF, DoubleBlockHalf.LOWER);
 	}
 }

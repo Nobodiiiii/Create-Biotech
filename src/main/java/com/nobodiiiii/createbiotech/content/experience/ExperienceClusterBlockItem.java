@@ -16,6 +16,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 
 public class ExperienceClusterBlockItem extends BlockItem {
+	private static final int MAX_ORBS_PER_PINCH = 5;
+	// Below this much XP per orb a pinch emits a single orb instead of splitting.
+	private static final int MIN_XP_PER_SPLIT_ORB = 37;
+
 	private final int xpNuggetValue;
 
 	public ExperienceClusterBlockItem(Block block, int xpNuggetValue, Properties properties) {
@@ -44,22 +48,31 @@ public class ExperienceClusterBlockItem extends BlockItem {
 		int amountUsed = player.isShiftKeyDown() ? 1 : itemInHand.getCount();
 		int xpPerCluster = xpNuggetValue * ExperienceConstants.XP_PER_NUGGET;
 		int total = amountUsed * xpPerCluster;
-		int orbs = Math.min(amountUsed * 5, Math.max(1, total / 4));
-		int valuePer = Math.max(1, total / orbs);
-		int emitted = 0;
 
-		for (int i = 0; i < orbs && emitted < total; i++) {
-			int value = Math.min(valuePer, total - emitted);
-			if (value <= 0)
-				continue;
-			emitted += value;
+		// Cap each pinch at MAX_ORBS_PER_PINCH regardless of stack size. Each orb gets a slightly
+		// different value (spread symmetrically around the mean) so vanilla's tryMergeToExisting
+		// can't collapse same-value orbs back into one entity.
+		int orbs = Math.max(1, Math.min(MAX_ORBS_PER_PINCH, total / MIN_XP_PER_SPLIT_ORB));
+		int baseValue = total / orbs;
+		int remainder = total - baseValue * orbs;
+		int half = orbs / 2;
 
-			Vec3 offset = VecHelper.offsetRandomly(Vec3.ZERO, level.random, 1)
+		for (int i = 0; i < orbs; i++) {
+			int offset = i - half;
+			if (orbs % 2 == 0 && offset >= 0)
+				offset++;
+			int value = baseValue + offset;
+			if (orbs - 1 - i < remainder)
+				value++;
+			if (value < 1)
+				value = 1;
+
+			Vec3 randomOff = VecHelper.offsetRandomly(Vec3.ZERO, level.random, 1)
 				.normalize();
 			Vec3 look = player.getLookAngle();
 			Vec3 motion = look.scale(0.2)
 				.add(0, 0.2, 0)
-				.add(offset.scale(0.1));
+				.add(randomOff.scale(0.1));
 			Vec3 cross = look.cross(VecHelper.rotate(new Vec3(-0.75f, 0, 0), -player.getYRot(), Axis.Y));
 			Vec3 global = player.getEyePosition()
 				.add(look.scale(0.5f))
@@ -69,9 +82,6 @@ public class ExperienceClusterBlockItem extends BlockItem {
 			xp.setDeltaMovement(motion);
 			level.addFreshEntity(xp);
 		}
-
-		if (emitted < total)
-			ExperienceHelper.spawnExperience(level, player.getEyePosition(), total - emitted);
 
 		itemInHand.shrink(amountUsed);
 		if (!itemInHand.isEmpty())

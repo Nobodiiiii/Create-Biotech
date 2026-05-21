@@ -1,9 +1,9 @@
 package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.foundation.render.EntityModelElement;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
@@ -61,12 +61,23 @@ public class SpiderAssemblyTableItemRenderer extends CustomRenderedItemModelRend
 		if (spider == null || getSpiderModel() == null)
 			return;
 
-		EntityModelElement.of(spider)
-			.lighting(transformType == ItemDisplayContext.GUI ? EntityModelElement.DEFAULT_GUI_LIGHTING : null)
-			.packedLight(light)
-			.atLocal(0, SPIDER_Y_OFFSET, -HALF_BLOCK_OFFSET)
-			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
-			.render(ms, buffer, this::renderSpiderModel);
+		renderSpiderAssembly(spider, ms, buffer, light, transformType == ItemDisplayContext.GUI);
+	}
+
+	private void renderSpiderAssembly(RenderSpider spider, PoseStack ms, MultiBufferSource buffer, int packedLight,
+		boolean guiLighting) {
+		ms.pushPose();
+		if (guiLighting)
+			Lighting.setupForEntityInInventory();
+		try {
+			ms.translate(0, SPIDER_Y_OFFSET, -HALF_BLOCK_OFFSET);
+			ms.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE);
+			renderSpiderModel(spider, ms, buffer, packedLight);
+		} finally {
+			ms.popPose();
+			if (guiLighting)
+				Lighting.setupFor3DItems();
+		}
 	}
 
 	private void prepareSpiderModel(RenderSpider spider) {

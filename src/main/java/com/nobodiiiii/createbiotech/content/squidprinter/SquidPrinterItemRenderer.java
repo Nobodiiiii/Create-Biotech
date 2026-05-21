@@ -2,8 +2,8 @@ package com.nobodiiiii.createbiotech.content.squidprinter;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.foundation.render.EntityModelElement;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
@@ -46,16 +46,27 @@ public class SquidPrinterItemRenderer extends CustomRenderedItemModelRenderer {
 		renderer.render(model.getOriginalModel(), light);
 
 		Squid squid = getOrCreateSquid(Minecraft.getInstance().level);
-		if (squid != null && getSquidModel() != null) {
-			EntityModelElement.of(squid)
-				.lighting(transformType == ItemDisplayContext.GUI ? EntityModelElement.DEFAULT_GUI_LIGHTING : null)
-				.packedLight(light)
-				.atLocal(0, SQUID_ATTACHMENT_Y, 0)
-				.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
-					SquidPrinterSquidVisual.RENDER_SCALE)
-				.render(ms, buffer, this::renderSquid);
-		}
+		boolean guiLighting = transformType == ItemDisplayContext.GUI;
+		if (squid != null && getSquidModel() != null)
+			renderSquidAssembly(squid, ms, buffer, light, guiLighting);
 		ms.popPose();
+	}
+
+	private void renderSquidAssembly(Squid squid, PoseStack ms, MultiBufferSource buffer, int packedLight,
+		boolean guiLighting) {
+		ms.pushPose();
+		if (guiLighting)
+			Lighting.setupForEntityInInventory();
+		try {
+			ms.translate(0, SQUID_ATTACHMENT_Y, 0);
+			ms.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
+				SquidPrinterSquidVisual.RENDER_SCALE);
+			renderSquid(squid, ms, buffer, packedLight);
+		} finally {
+			ms.popPose();
+			if (guiLighting)
+				Lighting.setupFor3DItems();
+		}
 	}
 
 	private void renderSquid(Squid squid, PoseStack ms, MultiBufferSource buffer, int packedLight) {
