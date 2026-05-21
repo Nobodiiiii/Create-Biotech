@@ -120,6 +120,7 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/dial"));
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
 		event.register(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
+		event.register(ExperiencePumpRenderer.COG_MODEL_LOCATION);
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
 		event.register(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_off"));
 		event.register(CreateBiotech.asResource("block/spider_assembly_table/body"));

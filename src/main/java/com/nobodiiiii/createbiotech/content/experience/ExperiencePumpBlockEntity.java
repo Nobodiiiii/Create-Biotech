@@ -35,7 +35,17 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 	private static final double ATTRACT_ACCEL = 0.05d;
 	private static final double MAX_ATTRACT_SPEED = 0.45d;
 
+	// Budget can grow up to this so a single cluster (192 XP) can be pulled at low speeds.
+	private static final double MAX_BUDGET_BACKLOG = 256.0d;
+
+	// Emission accumulator: spit a single big orb when this threshold is hit,
+	// or after holding XP for this many ticks (whichever comes first).
+	private static final int EMISSION_LARGE_ORB_THRESHOLD = 64;
+	private static final int EMISSION_MAX_HOLD_TICKS = 30;
+
 	private double fractionalXp;
+	private int pendingEmissionXp;
+	private int pendingEmissionTicks;
 
 	public ExperiencePumpBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.EXPERIENCE_PUMP.get(), pos, state);
@@ -46,19 +56,21 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 		super.tick();
 		if (level == null || level.isClientSide)
 			return;
+
 		float speed = Math.abs(getSpeed());
-		if (speed <= 0)
-			return;
+		if (speed > 0) {
+			fractionalXp += speed * ExperienceConstants.PUMP_XP_PER_RPM_PER_SECOND / 20.0d;
+			int budget = (int) Math.floor(fractionalXp);
+			if (budget > 0) {
+				int transferred = transferExperience(budget);
+				if (transferred > 0)
+					fractionalXp -= transferred;
+			}
+			if (fractionalXp > MAX_BUDGET_BACKLOG)
+				fractionalXp = MAX_BUDGET_BACKLOG;
+		}
 
-		fractionalXp += speed * ExperienceConstants.PUMP_XP_PER_RPM_PER_SECOND / 20.0d;
-		int budget = (int) Math.floor(fractionalXp);
-		if (budget <= 0)
-			return;
-
-		transferExperience(budget);
-		fractionalXp -= budget;
-		if (fractionalXp >= 1.0d)
-			fractionalXp = 0.999d;
+		tickPendingEmission();
 	}
 
 	private int transferExperience(int budget) {
@@ -83,7 +95,7 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 		if (inputBE instanceof ExperienceSource source)
 			return source.extractExperience(budget, false);
 
-		int fromContainer = extractNuggets(inputBE, inputSide.getOpposite(), budget);
+		int fromContainer = extractFromContainer(inputBE, inputSide.getOpposite(), budget);
 		if (fromContainer > 0)
 			return fromContainer;
 
@@ -93,26 +105,42 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 		return 0;
 	}
 
-	private int extractNuggets(@Nullable BlockEntity inputBE, Direction sideForContainer, int budget) {
-		if (inputBE == null || budget < ExperienceConstants.XP_PER_NUGGET)
+	private int extractFromContainer(@Nullable BlockEntity inputBE, Direction sideForContainer, int budget) {
+		if (inputBE == null || budget <= 0)
 			return 0;
 		IItemHandler handler = inputBE.getCapability(ForgeCapabilities.ITEM_HANDLER, sideForContainer)
 			.orElse(null);
 		if (handler == null)
 			return 0;
 
-		int nuggetsToExtract = budget / ExperienceConstants.XP_PER_NUGGET;
-		int extracted = 0;
-		for (int slot = 0; slot < handler.getSlots() && extracted < nuggetsToExtract; slot++) {
-			ItemStack simulated = handler.extractItem(slot, nuggetsToExtract - extracted, true);
-			if (simulated.isEmpty() || !simulated.is(AllItems.EXP_NUGGET.get()))
+		int totalXp = 0;
+		int remaining = budget;
+		for (int slot = 0; slot < handler.getSlots() && remaining > 0; slot++) {
+			ItemStack peek = handler.extractItem(slot, handler.getSlotLimit(slot), true);
+			if (peek.isEmpty())
 				continue;
-			ItemStack actual = handler.extractItem(slot, simulated.getCount(), false);
-			if (actual.isEmpty() || !actual.is(AllItems.EXP_NUGGET.get()))
+			int xpPerItem = xpValueOf(peek);
+			if (xpPerItem <= 0 || xpPerItem > remaining)
 				continue;
-			extracted += actual.getCount();
+			int maxItems = Math.min(peek.getCount(), remaining / xpPerItem);
+			if (maxItems <= 0)
+				continue;
+			ItemStack actual = handler.extractItem(slot, maxItems, false);
+			if (actual.isEmpty())
+				continue;
+			int gained = actual.getCount() * xpPerItem;
+			totalXp += gained;
+			remaining -= gained;
 		}
-		return ExperienceHelper.nuggetsToXp(extracted);
+		return totalXp;
+	}
+
+	private static int xpValueOf(ItemStack stack) {
+		if (stack.is(AllItems.EXP_NUGGET.get()))
+			return ExperienceConstants.XP_PER_NUGGET;
+		if (stack.getItem() instanceof ExperienceClusterBlockItem cluster)
+			return cluster.getXpNuggetValue() * ExperienceConstants.XP_PER_NUGGET;
+		return 0;
 	}
 
 	private int suctionOpenWorld(Direction inputSide, int budget, boolean nozzle) {
@@ -235,36 +263,49 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 		return getOutputSide().getOpposite();
 	}
 
-	private void emitExperience(Direction outputSide, boolean nozzle, int amount) {
+	private void bufferEmission(int amount) {
 		if (amount <= 0)
 			return;
-		double normalizedSpeed = Math.min(Math.abs(getSpeed()) / ExperienceConstants.SPEED_NORMALIZATION_RPM, 1.0d);
+		pendingEmissionXp += amount;
+	}
+
+	private void tickPendingEmission() {
+		if (pendingEmissionXp <= 0) {
+			pendingEmissionTicks = 0;
+			return;
+		}
+		pendingEmissionTicks++;
+		if (pendingEmissionXp >= EMISSION_LARGE_ORB_THRESHOLD || pendingEmissionTicks >= EMISSION_MAX_HOLD_TICKS)
+			flushPendingEmission();
+	}
+
+	private void flushPendingEmission() {
+		if (pendingEmissionXp <= 0 || level == null || level.isClientSide)
+			return;
+		Direction outputSide = getOutputSide();
+		BlockPos outputPos = worldPosition.relative(outputSide);
+		boolean nozzle = isNozzleFacing(outputPos, outputSide);
+		// Spawn regardless of whether the output is still open — if a block was placed
+		// in front after we buffered, physics will push the orb back into open space.
+		// Discarding instead would silently lose XP.
+		int amount = pendingEmissionXp;
+		pendingEmissionXp = 0;
+		pendingEmissionTicks = 0;
+		spawnLargeOrb(outputSide, nozzle, amount);
+	}
+
+	private void spawnLargeOrb(Direction outputSide, boolean nozzle, int amount) {
 		Vec3 direction = Vec3.atLowerCornerOf(outputSide.getNormal());
 		Vec3 base = Vec3.atCenterOf(worldPosition)
 			.add(direction.scale(nozzle ? 1.8d : 1.05d));
-		int packets = Math.max(1, Math.min(8, amount / 12 + 1));
-		int remaining = amount;
-		for (int i = 0; i < packets; i++) {
-			int value = remaining / (packets - i);
-			remaining -= value;
-			Vec3 spread = nozzle ? randomPerpendicular(outputSide, normalizedSpeed * 0.45d) : Vec3.ZERO;
-			Vec3 pos = base.add(spread);
-			ExperienceOrb orb = new ExperienceOrb(level, pos.x, pos.y, pos.z, value);
-			if (nozzle)
-				orb.setDeltaMovement(direction.scale(0.08d + normalizedSpeed * 0.18d)
-					.add(spread.scale(0.08d)));
-			level.addFreshEntity(orb);
-		}
-	}
-
-	private Vec3 randomPerpendicular(Direction direction, double scale) {
-		double a = (level.random.nextDouble() - 0.5d) * scale;
-		double b = (level.random.nextDouble() - 0.5d) * scale;
-		return switch (direction.getAxis()) {
-			case X -> new Vec3(0, a, b);
-			case Y -> new Vec3(a, 0, b);
-			case Z -> new Vec3(a, b, 0);
-		};
+		double normalizedSpeed = Math.min(Math.abs(getSpeed()) / ExperienceConstants.SPEED_NORMALIZATION_RPM, 1.0d);
+		ExperienceOrb orb = new ExperienceOrb(level, base.x, base.y, base.z, amount);
+		if (nozzle)
+			orb.setDeltaMovement(direction.scale(0.08d + normalizedSpeed * 0.18d));
+		// ExperienceOrb's EntityType uses updateInterval(20); force velocity sync so the
+		// initial motion isn't visually delayed by ~1s of position-only packets.
+		orb.hurtMarked = true;
+		level.addFreshEntity(orb);
 	}
 
 	private static AABB cubeAround(Vec3 center, double halfExtent) {
@@ -276,12 +317,16 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 	protected void write(CompoundTag compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		compound.putDouble("FractionalXp", fractionalXp);
+		compound.putInt("PendingEmissionXp", pendingEmissionXp);
+		compound.putInt("PendingEmissionTicks", pendingEmissionTicks);
 	}
 
 	@Override
 	protected void read(CompoundTag compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		fractionalXp = compound.getDouble("FractionalXp");
+		pendingEmissionXp = compound.getInt("PendingEmissionXp");
+		pendingEmissionTicks = compound.getInt("PendingEmissionTicks");
 	}
 
 	private record OutputTarget(boolean blocked, int capacity, @Nullable ExperienceSink sink,
@@ -303,7 +348,7 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 			if (sink != null)
 				return sink.insertExperience(amount, false);
 			if (pump != null && openSide != null) {
-				pump.emitExperience(openSide, nozzle, amount);
+				pump.bufferEmission(amount);
 				return amount;
 			}
 			return 0;
