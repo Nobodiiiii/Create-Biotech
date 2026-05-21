@@ -91,6 +91,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private static final String MARKED_CREEPER_TAG = "CreeperBlastChamberMarked";
 	private static final String CONTROLLER_POS_TAG = "CreeperBlastChamberControllerPos";
 	private static final String PACKAGER_POS_TAG = "CreeperBlastChamberPackagerPos";
+	public static final String PONDER_COMPRESSION_TAG = "PonderCompression";
 	private static final String PENDING_UNPACKS_TAG = "PendingUnpacks";
 	private static final String PENDING_PACKAGINGS_TAG = "PendingPackagings";
 	private static final String PENDING_APPEARANCES_TAG = "PendingAppearances";
@@ -2504,6 +2505,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	public static float getClientWorkingCreeperCompression(Creeper creeper, float partialTicks) {
+		CompoundTag biotechData = getExistingCreateBiotechData(creeper);
+		if (biotechData != null && biotechData.contains(PONDER_COMPRESSION_TAG, Tag.TAG_FLOAT)) {
+			return Mth.clamp(biotechData.getFloat(PONDER_COMPRESSION_TAG), 0f, 1f);
+		}
 		Level level = creeper.level();
 		ClientTrackedCreeper tracked = CLIENT_TRACKED_CREEPERS.get(creeper.getUUID());
 		if (level == null || tracked == null || !level.isLoaded(tracked.controllerPos))
@@ -2515,6 +2520,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			|| chamber.isPackagerPackaging(tracked.packagerPos))
 			return 0f;
 		return getCompressionFromPressOffset(chamber.getRenderedCreeperEffectPressOffset(tracked.packagerPos, partialTicks));
+	}
+
+	public static boolean isPonderCompressionActive(Creeper creeper) {
+		CompoundTag biotechData = getExistingCreateBiotechData(creeper);
+		return biotechData != null && biotechData.contains(PONDER_COMPRESSION_TAG, Tag.TAG_FLOAT);
 	}
 
 	public static float getSynchronizedPressHeadProgress(@Nullable MechanicalPressBlockEntity press, float partialTicks) {

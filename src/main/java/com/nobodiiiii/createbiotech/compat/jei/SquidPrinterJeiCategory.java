@@ -48,9 +48,12 @@ public class SquidPrinterJeiCategory extends AbstractRecipeCategory<SquidPrinter
 		templateSlot.addRichTooltipCallback((view, tooltip) -> tooltip.add(
 			NOT_CONSUMED.copy().withStyle(ChatFormatting.GOLD)));
 
-		builder.addSlot(RecipeIngredientRole.OUTPUT, 132, 51)
+		IRecipeSlotBuilder outputSlot = builder.addSlot(RecipeIngredientRole.OUTPUT, 132, 51)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
 			.addItemStacks(recipe.outputCopies());
+
+		if (recipe.templateBooks().size() == recipe.outputCopies().size() && recipe.templateBooks().size() > 1)
+			builder.createFocusLink(templateSlot, outputSlot);
 	}
 
 	@Override

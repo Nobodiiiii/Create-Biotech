@@ -7,6 +7,8 @@ import com.simibubi.create.compat.jei.category.CreateRecipeCategory;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
+import mezz.jei.api.gui.ingredient.IRecipeSlotView;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
@@ -22,6 +24,9 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 
 	public static final RecipeType<EvokerEnchantingChamberJeiRecipe> TYPE =
 		RecipeType.create(CreateBiotech.MOD_ID, "evoker_enchanting_chamber", EvokerEnchantingChamberJeiRecipe.class);
+
+	private static final String INPUT_SLOT_NAME = "input";
+	private static final String OUTPUT_SLOT_NAME = "output";
 
 	private static final int WIDTH = 177;
 	private static final int HEIGHT = 70;
@@ -45,24 +50,47 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
 			.addItemStack(new ItemStack(CBItems.EXPERIENCE.get()));
 
-		builder.addSlot(RecipeIngredientRole.INPUT, INPUT_X, INPUT_Y)
+		IRecipeSlotBuilder inputSlot = builder.addSlot(RecipeIngredientRole.INPUT, INPUT_X, INPUT_Y)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStack(recipe.inputCopy().copy());
+			.setSlotName(INPUT_SLOT_NAME)
+			.addItemStacks(recipe.inputCopies());
 
-		builder.addSlot(RecipeIngredientRole.OUTPUT, OUTPUT_X, OUTPUT_Y)
+		IRecipeSlotBuilder outputSlot = builder.addSlot(RecipeIngredientRole.OUTPUT, OUTPUT_X, OUTPUT_Y)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStack(recipe.outputBook().copy());
+			.setSlotName(OUTPUT_SLOT_NAME)
+			.addItemStacks(recipe.outputBooks());
+
+		if (recipe.inputCopies().size() == recipe.outputBooks().size() && recipe.inputCopies().size() > 1)
+			builder.createFocusLink(inputSlot, outputSlot);
 	}
 
 	@Override
 	public void draw(EvokerEnchantingChamberJeiRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics graphics,
 		double mouseX, double mouseY) {
+		int level = displayedLevel(recipeSlotsView, recipe);
+		ItemStack currentInput = recipe.inputCopies().get(level);
+		ItemStack currentOutput = recipe.outputBooks().get(level);
+		int xpCost = recipe.xpCosts().get(level);
+
 		AllGuiTextures.JEI_SHADOW.render(graphics, 62, 57);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 126, 29);
-		enchanting.withRecipe(recipe)
+		enchanting.withItems(currentInput, currentOutput)
 			.draw(graphics, WIDTH / 2 - 13, 22);
 		graphics.renderItemDecorations(Minecraft.getInstance().font, new ItemStack(CBItems.EXPERIENCE.get()), CATALYST_X,
-			CATALYST_Y, String.valueOf(recipe.xpCost()));
+			CATALYST_Y, String.valueOf(xpCost));
+	}
+
+	private static int displayedLevel(IRecipeSlotsView slotsView, EvokerEnchantingChamberJeiRecipe recipe) {
+		ItemStack shown = slotsView.findSlotByName(OUTPUT_SLOT_NAME)
+			.flatMap(IRecipeSlotView::getDisplayedItemStack)
+			.orElse(ItemStack.EMPTY);
+		if (shown.isEmpty())
+			return recipe.outputBooks().size() - 1;
+		for (int i = 0; i < recipe.outputBooks().size(); i++) {
+			if (ItemStack.isSameItemSameTags(shown, recipe.outputBooks().get(i)))
+				return i;
+		}
+		return recipe.outputBooks().size() - 1;
 	}
 
 	@Override

@@ -260,6 +260,24 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return pendingOutput;
 	}
 
+	public void setRenderPreviewState(ItemStack heldItem, ItemStack pendingOutput, int storedExperience, int xpRemaining,
+		int xpTotal, boolean waitingForExperience) {
+		EvokerEnchantingChamberBlockEntity controller = getController();
+		if (controller != null && controller != this) {
+			controller.setRenderPreviewState(heldItem, pendingOutput, storedExperience, xpRemaining, xpTotal,
+				waitingForExperience);
+			return;
+		}
+
+		this.heldItem = heldItem.copy();
+		this.pendingOutput = pendingOutput.copy();
+		this.storedExperience = storedExperience;
+		this.xpRemaining = xpRemaining;
+		this.xpTotal = xpTotal;
+		this.waitingForExperience = waitingForExperience;
+		this.clientSyncTimer = 0;
+	}
+
 	@Override
 	public AABB getRenderBoundingBox() {
 		return new AABB(worldPosition, worldPosition.offset(1, 2, 1));
@@ -487,7 +505,13 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return extracted;
 	}
 
-	private static void spawnBookEnchantParticlesClient(Level level, BlockPos pos, BlockState state) {
+	@FunctionalInterface
+	public interface StraightEnchantParticleEmitter {
+		void emit(double x, double y, double z, double dx, double dy, double dz);
+	}
+
+	public static void forEachStraightEnchantParticle(Level level, BlockPos pos, BlockState state,
+		StraightEnchantParticleEmitter emitter) {
 		Direction facing = state.getValue(EvokerEnchantingChamberBlock.FACING);
 		double anchorX = pos.getX() + 0.5d + facing.getStepX() * BOOK_FRONT_OFFSET;
 		double anchorZ = pos.getZ() + 0.5d + facing.getStepZ() * BOOK_FRONT_OFFSET;
@@ -501,9 +525,13 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			double startZ = anchorZ + (level.random.nextDouble() - 0.5d) * BOOK_PARTICLE_SOURCE_SPREAD;
 			double targetX = anchorX + (level.random.nextDouble() - 0.5d) * BOOK_PARTICLE_TARGET_SPREAD;
 			double targetZ = anchorZ + (level.random.nextDouble() - 0.5d) * BOOK_PARTICLE_TARGET_SPREAD;
-			level.addParticle(CBParticleTypes.STRAIGHT_ENCHANT.get(), startX, startY, startZ,
-				targetX - startX, targetY - startY, targetZ - startZ);
+			emitter.emit(startX, startY, startZ, targetX - startX, targetY - startY, targetZ - startZ);
 		}
+	}
+
+	private static void spawnBookEnchantParticlesClient(Level level, BlockPos pos, BlockState state) {
+		forEachStraightEnchantParticle(level, pos, state,
+			(x, y, z, dx, dy, dz) -> level.addParticle(CBParticleTypes.STRAIGHT_ENCHANT.get(), x, y, z, dx, dy, dz));
 	}
 
 	public class ChamberItemHandler implements IItemHandler {

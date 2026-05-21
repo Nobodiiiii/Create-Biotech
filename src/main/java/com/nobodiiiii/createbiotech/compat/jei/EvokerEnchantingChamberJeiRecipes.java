@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
@@ -30,16 +31,26 @@ public final class EvokerEnchantingChamberJeiRecipes {
 			Enchantment enchantment = ForgeRegistries.ENCHANTMENTS.getValue(enchId);
 			if (enchantment == null)
 				continue;
-			int level = Math.max(1, enchantment.getMaxLevel());
-			ItemStack templateBook = new ItemStack(Items.ENCHANTED_BOOK);
-			EnchantedBookItem.addEnchantment(templateBook, new EnchantmentInstance(enchantment, level));
+			int maxLevel = Math.max(1, enchantment.getMaxLevel());
 
-			ItemStack inputCopy = EnchantmentBookCopyItem.fromTemplate(templateBook, CBItems.ENCHANTMENT_BOOK_COPY.get());
-			int xpCost = level * ExperienceConstants.CHAMBER_XP_PER_LEVEL;
+			List<ItemStack> outputBooks = IntStream.rangeClosed(1, maxLevel)
+				.mapToObj(level -> {
+					ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+					EnchantedBookItem.addEnchantment(book, new EnchantmentInstance(enchantment, level));
+					return book;
+				})
+				.toList();
+			List<ItemStack> inputCopies = outputBooks.stream()
+				.map(book -> EnchantmentBookCopyItem.fromTemplate(book, CBItems.ENCHANTMENT_BOOK_COPY.get()))
+				.toList();
+			List<Integer> xpCosts = IntStream.rangeClosed(1, maxLevel)
+				.map(level -> level * ExperienceConstants.CHAMBER_XP_PER_LEVEL)
+				.boxed()
+				.toList();
 
 			ResourceLocation id = CreateBiotech.asResource(
-				"evoker_enchanting_chamber/" + enchId.getNamespace() + "_" + enchId.getPath() + "_" + level);
-			recipes.add(new EvokerEnchantingChamberJeiRecipe(id, inputCopy, templateBook, xpCost));
+				"evoker_enchanting_chamber/" + enchId.getNamespace() + "_" + enchId.getPath());
+			recipes.add(new EvokerEnchantingChamberJeiRecipe(id, inputCopies, outputBooks, xpCosts));
 		}
 		return recipes;
 	}

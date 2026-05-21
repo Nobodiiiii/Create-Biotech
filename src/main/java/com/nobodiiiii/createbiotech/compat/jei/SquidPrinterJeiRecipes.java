@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.EnchantmentInstance;
-import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public final class SquidPrinterJeiRecipes {
@@ -33,15 +32,15 @@ public final class SquidPrinterJeiRecipes {
 		if (recipes.isEmpty())
 			return List.of();
 
-		List<ItemStack> templateBooks = createTemplateSamples();
-		List<ItemStack> outputCopies = templateBooks.stream()
-			.map(template -> EnchantmentBookCopyItem.fromTemplate(template, CBItems.ENCHANTMENT_BOOK_COPY.get()))
-			.toList();
-
-		List<SquidPrinterJeiRecipe> displays = new ArrayList<>(recipes.size());
+		List<EnchantmentEntry> entries = createEnchantmentEntries();
+		List<SquidPrinterJeiRecipe> displays = new ArrayList<>(recipes.size() * entries.size());
 		for (SquidPrinterRecipe recipe : recipes) {
-			displays.add(new SquidPrinterJeiRecipe(recipe.getId(), new ItemStack(Items.BOOK), recipe.getRequiredFluid(),
-				templateBooks, outputCopies));
+			for (EnchantmentEntry entry : entries) {
+				ResourceLocation id = new ResourceLocation(recipe.getId().getNamespace(),
+					recipe.getId().getPath() + "/" + entry.idSegment());
+				displays.add(new SquidPrinterJeiRecipe(id, new ItemStack(Items.BOOK), recipe.getRequiredFluid(),
+					entry.templateBooks(), entry.outputCopies()));
+			}
 		}
 		return displays;
 	}
@@ -67,8 +66,8 @@ public final class SquidPrinterJeiRecipes {
 			.getAllRecipesFor(CBRecipeTypes.SQUID_PRINTER_TYPE.get());
 	}
 
-	private static List<ItemStack> createTemplateSamples() {
-		List<ItemStack> templates = new ArrayList<>();
+	private static List<EnchantmentEntry> createEnchantmentEntries() {
+		List<EnchantmentEntry> entries = new ArrayList<>();
 		for (ResourceLocation enchantmentId : ForgeRegistries.ENCHANTMENTS.getKeys()
 			.stream()
 			.sorted()
@@ -76,13 +75,27 @@ public final class SquidPrinterJeiRecipes {
 			Enchantment enchantment = ForgeRegistries.ENCHANTMENTS.getValue(enchantmentId);
 			if (enchantment == null)
 				continue;
-			int level = Math.max(1, enchantment.getMaxLevel());
-			ItemStack template = new ItemStack(Items.ENCHANTED_BOOK);
-			EnchantedBookItem.addEnchantment(template, new EnchantmentInstance(enchantment, level));
-			templates.add(template);
+			int maxLevel = Math.max(1, enchantment.getMaxLevel());
+			List<ItemStack> templates = new ArrayList<>(maxLevel);
+			for (int level = 1; level <= maxLevel; level++) {
+				ItemStack template = new ItemStack(Items.ENCHANTED_BOOK);
+				EnchantedBookItem.addEnchantment(template, new EnchantmentInstance(enchantment, level));
+				templates.add(template);
+			}
+			List<ItemStack> outputs = templates.stream()
+				.map(template -> EnchantmentBookCopyItem.fromTemplate(template, CBItems.ENCHANTMENT_BOOK_COPY.get()))
+				.toList();
+			entries.add(new EnchantmentEntry(
+				enchantmentId.getNamespace() + "_" + enchantmentId.getPath(), templates, outputs));
 		}
-		if (templates.isEmpty())
-			templates.add(new ItemStack(Items.ENCHANTED_BOOK));
-		return templates;
+		if (entries.isEmpty()) {
+			ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
+			ItemStack copy = new ItemStack(CBItems.ENCHANTMENT_BOOK_COPY.get());
+			entries.add(new EnchantmentEntry("empty", List.of(book), List.of(copy)));
+		}
+		return entries;
+	}
+
+	private record EnchantmentEntry(String idSegment, List<ItemStack> templateBooks, List<ItemStack> outputCopies) {
 	}
 }

@@ -539,6 +539,25 @@ public final class GeneratedPonderSupport {
         }
     }
 
+    public static void emitParticles(SceneBuilder scene, String particleId, Vec3 location, Vec3 motion,
+                                     float amountPerCycle, int cycles) {
+        if (particleId == null || location == null) {
+            return;
+        }
+        ResourceLocation loc = ResourceLocation.tryParse(particleId);
+        if (loc == null) {
+            return;
+        }
+        net.minecraft.core.particles.ParticleType<?> type =
+            BuiltInRegistries.PARTICLE_TYPE.getOptional(loc).orElse(null);
+        if (!(type instanceof net.minecraft.core.particles.SimpleParticleType simple)) {
+            return;
+        }
+        Vec3 vel = motion == null ? Vec3.ZERO : motion;
+        var emitter = scene.effects().simpleParticleEmitter(simple, vel);
+        scene.effects().emitParticles(location, emitter, amountPerCycle, Math.max(1, cycles));
+    }
+
     public static void clearEntities(SceneBuilder scene, boolean fullScene, String entityId,
                                      BlockPos pos1, BlockPos pos2) {
         ResourceLocation filter = entityId == null || entityId.isBlank() ? null : ResourceLocation.tryParse(entityId);
