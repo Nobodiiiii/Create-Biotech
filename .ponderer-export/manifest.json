@@ -280,6 +280,55 @@
           "create_biotech.ponder.universal_joint.text_2": "以一个节点为中心，另一个节点需要在5×5×5范围内"
         }
       }
+    },
+    "ponderer:experience_pump": {
+      "sceneId": "ponderer:experience_pump",
+      "sceneKey": "ponderer:experience_pump",
+      "className": "com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedExperiencePump_e984f13b",
+      "status": "COMPLETE",
+      "contentHash": "2b95596144d0276cb85ac2060a73cc22acc5cb496fe332eb601ba498ace3c5e9",
+      "javaFiles": [
+        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedExperiencePump_e984f13b.java"
+      ],
+      "resourceFiles": [
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ex_bumper.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/exp1.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/exp2.nbt"
+      ],
+      "langEntries": {
+        "zh_cn": {
+          "create_biotech.ponder.experience_pump_scene_1.header": "经验泵 输入",
+          "create_biotech.ponder.experience_pump_scene_1.text_1": "经验泵可以用于在泵两端传递经验",
+          "create_biotech.ponder.experience_pump_scene_1.text_2": "输入端接受多种形式的经验",
+          "create_biotech.ponder.experience_pump_scene_1.text_3": "经验球...",
+          "create_biotech.ponder.experience_pump_scene_1.text_4": "经验储罐...",
+          "create_biotech.ponder.experience_pump_scene_1.text_5": "装有经验物品的储物方块...",
+          "create_biotech.ponder.experience_pump_scene_1.text_6": "或者玩家",
+          "create_biotech.ponder.experience_pump_scene_1.text_7": "在输入端安装分散网，可以吸引更远范围的经验球",
+          "create_biotech.ponder.experience_pump_s_40666.header": "经验泵 输出",
+          "create_biotech.ponder.experience_pump_s_40666.text_1": "输出端在没有阻塞时会输出经验球",
+          "create_biotech.ponder.experience_pump_s_40666.text_2": "也可以输出到经验储罐，或其他接受经验的容器",
+          "create_biotech.ponder.experience_pump_s_40666.text_3": "输出端不能直接将经验转化为物品",
+          "create_biotech.ponder.experience_pump_s_40666.text_4": "你需要将经验通入经验母岩...",
+          "create_biotech.ponder.experience_pump_s_40666.text_5": "催化成熟的经验簇会自然掉落，它存储的经验值远高于经验颗粒"
+        },
+        "en_us": {
+          "create_biotech.ponder.experience_pump_scene_1.header": "Scene 1",
+          "create_biotech.ponder.experience_pump_scene_1.text_1": "经验泵可以用于在泵两端传递经验",
+          "create_biotech.ponder.experience_pump_scene_1.text_2": "输入端接受多种形式的经验",
+          "create_biotech.ponder.experience_pump_scene_1.text_3": "经验球...",
+          "create_biotech.ponder.experience_pump_scene_1.text_4": "经验储罐...",
+          "create_biotech.ponder.experience_pump_scene_1.text_5": "装有经验物品的储物方块...",
+          "create_biotech.ponder.experience_pump_scene_1.text_6": "或者玩家",
+          "create_biotech.ponder.experience_pump_scene_1.text_7": "在输入端安装分散网，可以吸引更远范围的经验球",
+          "create_biotech.ponder.experience_pump_s_40666.header": "经验泵 输出",
+          "create_biotech.ponder.experience_pump_s_40666.text_1": "输出端在没有阻塞时会输出经验球",
+          "create_biotech.ponder.experience_pump_s_40666.text_2": "也可以输出到经验储罐，或其他接受经验的容器",
+          "create_biotech.ponder.experience_pump_s_40666.text_3": "输出端不能直接将经验转化为物品",
+          "create_biotech.ponder.experience_pump_s_40666.text_4": "你需要将经验通入经验母岩...",
+          "create_biotech.ponder.experience_pump_s_40666.text_5": "催化成熟的经验簇会自然掉落，它存储的经验值远高于经验颗粒"
+        }
+      }
     }
   }
 }

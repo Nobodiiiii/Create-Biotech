@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedMagmaBeltCo
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSlimeClutch_7a6c2b57;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSquidPrinter_68898fcb;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedUniversalJoint_09ad9873;
+import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedExperiencePump_e984f13b;
 
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
@@ -26,6 +27,7 @@ public final class GeneratedPonderIndex {
         GeneratedSlimeClutch_7a6c2b57.register(helper);
         GeneratedSquidPrinter_68898fcb.register(helper);
         GeneratedUniversalJoint_09ad9873.register(helper);
+        GeneratedExperiencePump_e984f13b.register(helper);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -36,5 +38,6 @@ public final class GeneratedPonderIndex {
         GeneratedSlimeClutch_7a6c2b57.registerTags(helper);
         GeneratedSquidPrinter_68898fcb.registerTags(helper);
         GeneratedUniversalJoint_09ad9873.registerTags(helper);
+        GeneratedExperiencePump_e984f13b.registerTags(helper);
     }
 }
