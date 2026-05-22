@@ -20,7 +20,7 @@ public final class GeneratedMagmaBeltConnector_bce67acc {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "magma_belt_connector")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/1"), GeneratedMagmaBeltConnector_bce67acc::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/magma_belt_connector_base"), GeneratedMagmaBeltConnector_bce67acc::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -47,11 +47,12 @@ public final class GeneratedMagmaBeltConnector_bce67acc {
         GeneratedPonderSupport.setBlock(scene, context, "create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("waterlogged", "false"), Map.entry("part", "middle"), Map.entry("facing", "west"), Map.entry("slope", "horizontal")), new BlockPos(2, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:1,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:9,Stress:32.0f},Source:{X:-22,Y:-59,Z:7},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         GeneratedPonderSupport.setBlock(scene, context, "create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("waterlogged", "false"), Map.entry("part", "end"), Map.entry("facing", "west"), Map.entry("slope", "horizontal")), new BlockPos(1, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:2,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:8,Stress:32.0f},Source:{X:-22,Y:-59,Z:8},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "使用岩浆怪传送带", new Vec3(3.5, 1.5, 2.0), 60, null, true);
-        scene.idle(70);
-        GeneratedPonderSupport.showText(scene, "它会自动烧炼其上方的物品，所需时间与鼓风机相同", new Vec3(3.5, 1.5, 2.0), 90, null, true);
+        GeneratedPonderSupport.showText(scene, "使用岩浆怪传送带", new Vec3(3.5, 1.5, 2.0), 90, null, true);
         scene.idle(100);
-        GeneratedPonderSupport.showText(scene, "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！", new Vec3(3.5, 1.5, 2.0), 90, "red", true);
+        GeneratedPonderSupport.showText(scene, "它会自动烧炼其上方的物品，所需时间与鼓风机相同", new Vec3(3.5, 1.5, 2.0), 120, null, true);
+        scene.idle(130);
+        GeneratedPonderSupport.showText(scene, "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！", new Vec3(3.5, 1.5, 2.0), 120, "red", true);
+        scene.idle(130);
     }
 
 }

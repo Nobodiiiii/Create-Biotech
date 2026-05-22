@@ -19,11 +19,11 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "creeper_blast_chamber")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$0, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$1, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$2, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$3, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$4, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/creeper_blast_chamber_base_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/creeper_blast_chamber_base_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$1, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/creeper_blast_chamber_base_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$2, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/creeper_blast_chamber_base_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$3, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/creeper_blast_chamber_base_xl"), GeneratedCreeperBlastChamber_685cd207::storyboard$4, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -38,7 +38,7 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         scene.addKeyframe();
         GeneratedPonderSupport.showStructure(scene, context, new BlockPos(0, 0, 0), new BlockPos(9, 0, 9), null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_l.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_large.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(6, 1, 2), null, null, 20, "down", null, null, null, null);
         scene.idle(20);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(6, 1, 2), new BlockPos(2, 5, 6), null, 20, "down", "west", 20, 1, true);
@@ -63,16 +63,16 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(0, 0, 0), new BlockPos(6, 5, 6));
         GeneratedPonderSupport.showStructure(scene, context, null, null, null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_s.nbt"), new BlockPos(4, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_small.nbt"), new BlockPos(4, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "结构支持3种尺寸", new Vec3(4.5, 4.5, 2.0), 120, null, true);
         scene.idle(30);
         GeneratedPonderSupport.setBlock(scene, context, "minecraft:air", null, new BlockPos(0, 1, 0), new BlockPos(6, 5, 6), null, true, null, "none", null, null, null, null, null);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_m.nbt"), new BlockPos(3, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_medium.nbt"), new BlockPos(3, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(0, 0, 0), new BlockPos(6, 5, 6), null, 0, "down", null, null, null, null);
         scene.idle(30);
         GeneratedPonderSupport.setBlock(scene, context, "minecraft:air", null, new BlockPos(0, 1, 0), new BlockPos(6, 5, 6), null, true, null, "none", null, null, null, null, null);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_l.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_large.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(0, 0, 0), new BlockPos(6, 5, 6), null, 0, "down", null, null, null, null);
         scene.idle(80);
         scene.addKeyframe();
@@ -117,7 +117,7 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(2, 1, 1), new BlockPos(6, 4, 5));
         GeneratedPonderSupport.showStructure(scene, context, null, null, null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_l.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_large.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(40);
         GeneratedPonderSupport.setBlock(scene, context, "create:andesite_funnel", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("powered", "false"), Map.entry("facing", "north"), Map.entry("extracting", "false")), new BlockPos(6, 1, 1), null, "{Filter:{Count:1b,id:\"minecraft:air\"},FilterAmount:64,ForgeCaps:{},Owner:[I;-503341427,743590127,-1630936259,1659302309],TransferCooldown:0,UpTo:1b}", true, null, "none", null, null, null, null, null);
         scene.addKeyframe();
@@ -142,7 +142,7 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "通入应力...", new Vec3(3.5, 4.5, 2.0), 60, null, true);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_press.nbt"), new BlockPos(3, 4, 2), 0, false, true, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_press_array.nbt"), new BlockPos(3, 4, 2), 0, false, true, false, "none", null, null, null, null, null);
         PonderSupportExt.startPressCycle(scene, new BlockPos(3, 4, 3), new BlockPos(5, 4, 5), -64.0f);
         PonderSupportExt.startCompressionAnimation(scene, "minecraft:creeper", 0, 64, 1.0f);
         GeneratedPonderSupport.playSound(scene, "minecraft:entity.creeper.primed", 0.55f, 1.0f, "blocks");
@@ -190,15 +190,15 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(2, 1, 1), new BlockPos(3, 4, 2));
         GeneratedPonderSupport.showStructure(scene, context, null, null, null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_l.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, false, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_large.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(30);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "苦力怕爆破室最高接受128rpm的转速", new Vec3(4.5, 4.5, 2.0), 120, null, true);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_128rpm.nbt"), new BlockPos(3, 4, 1), 0, false, true, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_128rpm.nbt"), new BlockPos(3, 4, 1), 0, false, true, false, "none", null, null, null, null, null);
         scene.idle(130);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "超过128rpm的转速会使其进入过载状态", new Vec3(4.0, 4.5, 1.5), 120, "red", true);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_256rpm.nbt"), new BlockPos(3, 4, 1), 0, false, true, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_256rpm.nbt"), new BlockPos(3, 4, 1), 0, false, true, false, "none", null, null, null, null, null);
         scene.idle(130);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "不要长时间过载，除非你想引起一次足以炸毁你基地的大爆炸！", new Vec3(4.0, 4.5, 1.5), 120, "red", true);
@@ -211,7 +211,7 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(2, 1, 2), new BlockPos(2, 1, 2));
         GeneratedPonderSupport.showStructure(scene, context, null, null, null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/blast_chamber_l.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/creeper_blast_chamber_large.nbt"), new BlockPos(2, 1, 2), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(20);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "向爆破室中输入高压苦力怕...", new Vec3(6.5, 1.5, 2.0), 100, null, true);

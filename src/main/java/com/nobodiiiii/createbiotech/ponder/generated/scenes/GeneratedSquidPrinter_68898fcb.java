@@ -20,8 +20,8 @@ public final class GeneratedSquidPrinter_68898fcb {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "squid_printer")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/1"), GeneratedSquidPrinter_68898fcb::storyboard$0, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/1"), GeneratedSquidPrinter_68898fcb::storyboard$1, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/enchanting_line_base"), GeneratedSquidPrinter_68898fcb::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/enchanting_line_base"), GeneratedSquidPrinter_68898fcb::storyboard$1, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {

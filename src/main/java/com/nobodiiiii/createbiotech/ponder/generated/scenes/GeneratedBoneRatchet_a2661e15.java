@@ -20,7 +20,7 @@ public final class GeneratedBoneRatchet_a2661e15 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "bone_ratchet")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/bone1"), GeneratedBoneRatchet_a2661e15::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/bone_ratchet_base"), GeneratedBoneRatchet_a2661e15::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -40,7 +40,7 @@ public final class GeneratedBoneRatchet_a2661e15 {
         GeneratedPonderSupport.showText(scene, "骨质棘轮只接受一种方向的旋转", new Vec3(1.0, 1.5, 4.5), 90, null, true);
         scene.idle(105);
         scene.addKeyframe();
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/bone2.nbt"), new BlockPos(1, 1, 1), 0, false, true, false, "none", null, null, null, null, null);
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/bone_ratchet_reverse_jam.nbt"), new BlockPos(1, 1, 1), 0, false, true, false, "none", null, null, null, null, null);
         scene.idle(5);
         GeneratedPonderSupport.setBlock(scene, context, "create_biotech:bone_ratchet", Map.ofEntries(Map.entry("facing", "south")), new BlockPos(1, 1, 4), null, "{ForgeCaps:{},Network:{AddedStress:20000.0f,Capacity:344064.0f,Id:-7421703438396L,Size:9,Stress:840084.0f},Source:{X:-29,Y:-59,Z:9},Speed:-42.0f}", true, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.modifyBlockEntity(scene, null, "{Speed:0f}", true, new BlockPos(0, 0, 4), new BlockPos(4, 1, 5));

@@ -13,6 +13,7 @@ import net.minecraft.util.Mth;
 
 import org.joml.Matrix3f;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 public final class ExperienceOrbModelRenderer {
 	private static final ResourceLocation TEXTURE = new ResourceLocation("textures/entity/experience_orb.png");
@@ -21,7 +22,7 @@ public final class ExperienceOrbModelRenderer {
 	private ExperienceOrbModelRenderer() {}
 
 	public static void render(PoseStack ms, MultiBufferSource buffer, int packedLight, float ageTicks, int iconValue,
-		float scale) {
+		float scale, Quaternionf billboardRotation) {
 		int i = Math.max(0, Math.min(15, iconValue));
 		float u0 = (i % 4 * 16) / 64.0F;
 		float u1 = (i % 4 * 16 + 16) / 64.0F;
@@ -34,9 +35,12 @@ public final class ExperienceOrbModelRenderer {
 		int blue = (int) ((Mth.sin(half + 4.1887903F) + 1.0F) * 0.1F * 255.0F);
 
 		ms.pushPose();
-		ms.mulPose(Minecraft.getInstance()
-			.getEntityRenderDispatcher()
-			.cameraOrientation());
+		if (billboardRotation != null)
+			ms.mulPose(new Quaternionf(billboardRotation));
+		else
+			ms.mulPose(Minecraft.getInstance()
+				.getEntityRenderDispatcher()
+				.cameraOrientation());
 		ms.mulPose(Axis.YP.rotationDegrees(180.0F));
 		float renderScale = scale * 0.3F;
 		ms.scale(renderScale, renderScale, renderScale);

@@ -15,13 +15,13 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedCreeperBlastChamber_685cd207.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic_xl.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bomber.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bomber_xs.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bomber_s.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/powered_bomber.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/128bomber.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/256bomber.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_base_xl.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_small.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_medium.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_large.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_press_array.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_128rpm.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_256rpm.nbt"
       ],
       "langEntries": {
         "zh_cn": {
@@ -104,8 +104,8 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBoneRatchet_a2661e15.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone1.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone2.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone_ratchet_base.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone_ratchet_reverse_jam.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -130,7 +130,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedEvokerEnchantingChamber_fcd0c16f.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/1.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/enchanting_line_base.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -171,7 +171,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedMagmaBeltConnector_bce67acc.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/1.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/magma_belt_connector_base.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -200,7 +200,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSlimeClutch_7a6c2b57.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime2.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_clutch_base.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -225,7 +225,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSquidPrinter_68898fcb.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/1.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/enchanting_line_base.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -266,7 +266,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedUniversalJoint_09ad9873.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime1.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/universal_joint_base.nbt"
       ],
       "langEntries": {
         "zh_cn": {

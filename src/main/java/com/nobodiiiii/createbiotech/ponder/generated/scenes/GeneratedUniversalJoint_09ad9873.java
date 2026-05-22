@@ -20,7 +20,7 @@ public final class GeneratedUniversalJoint_09ad9873 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "universal_joint")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/slime1"), GeneratedUniversalJoint_09ad9873::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/universal_joint_base"), GeneratedUniversalJoint_09ad9873::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {

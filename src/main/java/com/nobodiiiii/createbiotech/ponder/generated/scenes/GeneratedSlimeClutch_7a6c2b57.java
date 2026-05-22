@@ -20,7 +20,7 @@ public final class GeneratedSlimeClutch_7a6c2b57 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "slime_clutch")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/slime2"), GeneratedSlimeClutch_7a6c2b57::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/slime_clutch_base"), GeneratedSlimeClutch_7a6c2b57::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {

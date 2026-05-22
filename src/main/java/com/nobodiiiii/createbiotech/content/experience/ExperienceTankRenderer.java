@@ -7,9 +7,12 @@ import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.createmod.ponder.api.level.PonderLevel;
+import net.createmod.ponder.foundation.PonderScene;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
+import org.joml.Quaternionf;
 
 public class ExperienceTankRenderer implements BlockEntityRenderer<ExperienceTankBlockEntity> {
 
@@ -46,6 +49,7 @@ public class ExperienceTankRenderer implements BlockEntityRenderer<ExperienceTan
 		float zMin = EDGE_PADDING;
 		float zMax = width - EDGE_PADDING;
 		float time = ageTicks * ORB_SPEED;
+		Quaternionf billboardRotation = createBillboardRotation(level, partialTick);
 
 		for (int i = 0; i < orbCount; i++) {
 			float seedA = i * 13.7f;
@@ -78,9 +82,19 @@ public class ExperienceTankRenderer implements BlockEntityRenderer<ExperienceTan
 			poseStack.pushPose();
 			poseStack.translate(x, y, z);
 			ExperienceOrbModelRenderer.render(poseStack, buffer, orbLight, ageTicks * ORB_TURN_RATE * 25f + seedA,
-				icon, 1.0f);
+				icon, 1.0f, billboardRotation);
 			poseStack.popPose();
 		}
+	}
+
+	private static Quaternionf createBillboardRotation(Level level, float partialTick) {
+		if (!(level instanceof PonderLevel ponderLevel) || ponderLevel.scene == null)
+			return null;
+
+		PonderScene.SceneTransform transform = ponderLevel.scene.getTransform();
+		PonderScene.SceneCamera camera = new PonderScene.SceneCamera();
+		camera.set(transform.xRotation.getValue(partialTick) + 90.0f, transform.yRotation.getValue(partialTick) + 180.0f);
+		return new Quaternionf(camera.rotation());
 	}
 
 	private static float animatedCoordinate(float base, float time, float phaseA, float phaseB, float amplitude) {
