@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelRenderHelper;
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelRenderHelper.SlimeBeltFunnelTransform;
+import com.nobodiiiii.createbiotech.client.render.BeltSurfaceRenderScope;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
 import com.simibubi.create.content.logistics.FlapStuffs;
 
 import net.createmod.catnip.render.SuperByteBuffer;
@@ -23,20 +23,20 @@ public abstract class FlapStuffsMixin {
 
 	@Inject(method = "renderFlaps(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/createmod/catnip/render/SuperByteBuffer;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/core/Direction;FFI)V",
 		at = @At("HEAD"), remap = false)
-	private static void createBiotech$applySlimeBeltTilt(PoseStack ms, VertexConsumer vb, SuperByteBuffer flapBuffer,
+	private static void createBiotech$applySurfaceTilt(PoseStack ms, VertexConsumer vb, SuperByteBuffer flapBuffer,
 		Vec3 pivot, Direction funnelFacing, float flapness, float zOffset, int light, CallbackInfo ci) {
-		SlimeBeltFunnelTransform transform = SlimeBeltFunnelRenderHelper.getCurrentTransform();
-		if (transform == null)
+		BeltSurface surface = BeltSurfaceRenderScope.current();
+		if (surface == null)
 			return;
 		ms.pushPose();
-		SlimeBeltFunnelRenderHelper.applyTilt(ms, transform);
+		BeltSurfaceRenderScope.applyTilt(ms, surface);
 	}
 
 	@Inject(method = "renderFlaps(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;Lnet/createmod/catnip/render/SuperByteBuffer;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/core/Direction;FFI)V",
 		at = @At("RETURN"), remap = false)
-	private static void createBiotech$restoreSlimeBeltTilt(PoseStack ms, VertexConsumer vb, SuperByteBuffer flapBuffer,
+	private static void createBiotech$restoreSurfaceTilt(PoseStack ms, VertexConsumer vb, SuperByteBuffer flapBuffer,
 		Vec3 pivot, Direction funnelFacing, float flapness, float zOffset, int light, CallbackInfo ci) {
-		if (SlimeBeltFunnelRenderHelper.getCurrentTransform() != null)
+		if (BeltSurfaceRenderScope.current() != null)
 			ms.popPose();
 	}
 
@@ -44,10 +44,9 @@ public abstract class FlapStuffsMixin {
 		at = @At("HEAD"), cancellable = true, remap = false)
 	private static void createBiotech$tiltedCommonTransform(BlockPos visualPosition, Direction side, float baseZOffset,
 		CallbackInfoReturnable<Matrix4f> cir) {
-		SlimeBeltFunnelTransform transform = SlimeBeltFunnelRenderHelper.getCurrentTransform();
-		if (transform == null)
+		BeltSurface surface = BeltSurfaceRenderScope.current();
+		if (surface == null)
 			return;
-		cir.setReturnValue(SlimeBeltFunnelRenderHelper.createTiltedCommonTransform(visualPosition, side, baseZOffset,
-			transform));
+		cir.setReturnValue(BeltSurfaceRenderScope.tiltedCommonTransform(visualPosition, side, baseZOffset, surface));
 	}
 }

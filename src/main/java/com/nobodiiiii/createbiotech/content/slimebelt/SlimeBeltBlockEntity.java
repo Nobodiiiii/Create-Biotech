@@ -12,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceHost;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltInventory;
@@ -54,7 +56,7 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.IItemHandler;
 
-public class SlimeBeltBlockEntity extends KineticBlockEntity {
+public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurfaceHost {
 
 	public Map<Entity, TransportedEntityInfo> passengers;
 	public int beltLength;
@@ -546,5 +548,23 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity {
 			return isController();
 		BlockState state = getBlockState();
 		return state != null && state.hasProperty(SlimeBeltBlock.PART) && state.getValue(SlimeBeltBlock.PART) == BeltPart.START;
+	}
+
+	@Override
+	public List<BeltSurface> surfaces() {
+		if (level == null)
+			return List.of();
+		SlimeBeltBlockEntity controller = getControllerBE();
+		if (controller == null || controller.beltLength == 0)
+			return List.of();
+		List<BeltSurface> result = new ArrayList<>(2);
+		for (SlimeBeltHelper.Track track : SlimeBeltHelper.Track.values()) {
+			Direction outwardNormal = SlimeBeltHelper.getRepresentativeSideForTrack(controller, index, track);
+			Direction movementFacing = SlimeBeltHelper.getMovementFacingForTrack(controller, track);
+			if (outwardNormal.getAxis() == movementFacing.getAxis())
+				continue;
+			result.add(BeltSurface.of(this, worldPosition, index, outwardNormal, movementFacing));
+		}
+		return result;
 	}
 }

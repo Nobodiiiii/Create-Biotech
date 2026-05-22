@@ -7,7 +7,8 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelRenderHelper.SlimeBeltFunnelTransform;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.simibubi.create.foundation.model.BakedModelWrapperWithData;
 import com.simibubi.create.foundation.model.BakedQuadHelper;
 
@@ -26,7 +27,7 @@ import net.minecraftforge.client.model.data.ModelProperty;
 
 public class SlimeBeltFunnelModel extends BakedModelWrapperWithData {
 
-	private static final ModelProperty<SlimeBeltFunnelTransform> TRANSFORM_PROPERTY = new ModelProperty<>();
+	private static final ModelProperty<BeltSurface> SURFACE_PROPERTY = new ModelProperty<>();
 
 	public SlimeBeltFunnelModel(BakedModel originalModel) {
 		super(originalModel);
@@ -35,15 +36,15 @@ public class SlimeBeltFunnelModel extends BakedModelWrapperWithData {
 	@Override
 	protected Builder gatherModelData(Builder builder, BlockAndTintGetter world, BlockPos pos, BlockState state,
 		ModelData blockEntityData) {
-		SlimeBeltFunnelTransform transform = SlimeBeltFunnelRenderHelper.getTransform(world, pos);
-		return transform == null ? builder : builder.with(TRANSFORM_PROPERTY, transform);
+		BeltSurface surface = BeltSurfaceResolver.resolve(world, pos);
+		return surface == null ? builder : builder.with(SURFACE_PROPERTY, surface);
 	}
 
 	@Override
 	public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side,
 		@NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
-		SlimeBeltFunnelTransform transform = extraData.get(TRANSFORM_PROPERTY);
-		if (transform == null)
+		BeltSurface surface = extraData.get(SURFACE_PROPERTY);
+		if (surface == null)
 			return super.getQuads(state, side, rand, extraData, renderType);
 		if (state == null)
 			return Collections.emptyList();
@@ -56,17 +57,17 @@ public class SlimeBeltFunnelModel extends BakedModelWrapperWithData {
 		for (BakedQuad templateQuad : templateQuads) {
 			int[] transformedVertices = templateQuad.getVertices().clone();
 			for (int vertex = 0; vertex < 4; vertex++) {
-				Vec3 transformedPosition = transform.transformPosition(BakedQuadHelper.getXYZ(transformedVertices, vertex));
-				Vec3 transformedNormal = transform.transformDirection(BakedQuadHelper.getNormalXYZ(transformedVertices, vertex))
+				Vec3 transformedPosition = surface.transformPosition(BakedQuadHelper.getXYZ(transformedVertices, vertex));
+				Vec3 transformedNormal = surface.transformDirection(BakedQuadHelper.getNormalXYZ(transformedVertices, vertex))
 					.normalize();
 				BakedQuadHelper.setXYZ(transformedVertices, vertex, transformedPosition);
 				BakedQuadHelper.setNormalXYZ(transformedVertices, vertex, transformedNormal);
 			}
 
-			Vec3 quadNormal = transform.transformDirection(Vec3.atLowerCornerOf(templateQuad.getDirection().getNormal()))
+			Vec3 quadNormal = surface.transformDirection(Vec3.atLowerCornerOf(templateQuad.getDirection().getNormal()))
 				.normalize();
 			quads.add(new BakedQuad(transformedVertices, templateQuad.getTintIndex(),
-				transform.getNearestDirection(quadNormal), templateQuad.getSprite(), templateQuad.isShade()));
+				BeltSurface.nearestDirection(quadNormal), templateQuad.getSprite(), templateQuad.isShade()));
 		}
 
 		return quads;

@@ -10,6 +10,7 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.content.beltsurface.FunnelInteractionCore;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
@@ -216,7 +217,7 @@ public class SlimeBeltInventory {
 				}
 			}
 
-			if (SlimeBeltFunnelInteractionHandler.checkForFunnels(this, currentItem, track, nextFrontOffset)) {
+			if (FunnelInteractionCore.check(new SlimeBeltSurfaceTickContext(this, track), currentItem, nextFrontOffset)) {
 				stackInFront = currentItem;
 				continue;
 			}

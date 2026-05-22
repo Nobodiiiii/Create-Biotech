@@ -7,8 +7,8 @@ import java.util.function.Predicate;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
@@ -238,26 +238,26 @@ public class BasinEntityProcessing {
 		if (facing == null)
 			return null;
 
-		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(level, funnelPos);
-		if (support != null)
-			facing = SlimeBeltHelper.getWorldFunnelFacing(support, facing);
+		BeltSurface surface = BeltSurfaceResolver.resolve(level, funnelPos);
+		if (surface != null)
+			facing = surface.worldize(facing);
 		if (!facing.getAxis()
 			.isHorizontal())
 			return null;
 
-		return isTakingFromBelt(level, funnelPos, blockState, facing, support) ? facing : null;
+		return isTakingFromBelt(level, funnelPos, blockState, facing, surface) ? facing : null;
 	}
 
 	private static boolean isTakingFromBelt(Level level, BlockPos funnelPos, BlockState blockState,
-		Direction worldFacing, FunnelSupport support) {
+		Direction worldFacing, BeltSurface surface) {
 		Shape shape = blockState.getValue(BeltFunnelBlock.SHAPE);
 		if (shape == Shape.PULLING)
 			return true;
 		if (shape == Shape.PUSHING)
 			return false;
 
-		if (support != null)
-			return SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track()) != worldFacing;
+		if (surface != null)
+			return surface.movementFacing() != worldFacing;
 
 		BeltBlockEntity belt = BeltHelper.getSegmentBE(level, funnelPos.below());
 		return belt != null && belt.getMovementFacing() != worldFacing;

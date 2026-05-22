@@ -7,8 +7,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelRenderHelper;
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelRenderHelper.SlimeBeltFunnelTransform;
+import com.nobodiiiii.createbiotech.client.render.BeltSurfaceRenderScope;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
 import com.simibubi.create.content.logistics.funnel.FunnelVisual;
 
@@ -23,10 +24,9 @@ public abstract class FunnelVisualMixin {
 		remap = false)
 	private Matrix4f createBiotech$wrapCommonTransform(BlockPos visualPosition, Direction side, float baseZOffset,
 		Operation<Matrix4f> original, @Local FunnelBlockEntity blockEntity) {
-		SlimeBeltFunnelTransform transform =
-			SlimeBeltFunnelRenderHelper.getTransform(blockEntity.getLevel(), blockEntity.getBlockPos());
-		if (transform == null)
+		BeltSurface surface = BeltSurfaceResolver.resolve(blockEntity.getLevel(), blockEntity.getBlockPos());
+		if (surface == null)
 			return original.call(visualPosition, side, baseZOffset);
-		return SlimeBeltFunnelRenderHelper.createTiltedCommonTransform(visualPosition, side, baseZOffset, transform);
+		return BeltSurfaceRenderScope.tiltedCommonTransform(visualPosition, side, baseZOffset, surface);
 	}
 }

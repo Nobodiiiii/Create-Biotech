@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
@@ -96,14 +96,12 @@ public abstract class FunnelBlockEntityMixin {
 		if (shape == Shape.PULLING || shape == Shape.PUSHING || funnel.getLevel() == null)
 			return;
 
-		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(funnel.getLevel(), funnel.getBlockPos());
-		if (support == null)
+		BeltSurface surface = BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos());
+		if (surface == null)
 			return;
 
-		Direction facing =
-			SlimeBeltHelper.getWorldFunnelFacing(support, blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING));
-		cir.setReturnValue(getMode(SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track()) == facing
-			? "PUSHING_TO_BELT" : "TAKING_FROM_BELT"));
+		Direction facing = surface.worldize(blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING));
+		cir.setReturnValue(getMode(surface.movementFacing() == facing ? "PUSHING_TO_BELT" : "TAKING_FROM_BELT"));
 	}
 
 	@Inject(method = "addBehaviours(Ljava/util/List;)V", at = @At("TAIL"), remap = false)
@@ -128,7 +126,7 @@ public abstract class FunnelBlockEntityMixin {
 		if (shape == Shape.PUSHING)
 			return;
 
-		if (SlimeBeltHelper.getFunnelSupport(funnel.getLevel(), funnel.getBlockPos()) != null)
+		if (BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos()) != null)
 			cir.setReturnValue(true);
 	}
 
@@ -183,8 +181,8 @@ public abstract class FunnelBlockEntityMixin {
 		if (funnel.getLevel() == null)
 			return;
 
-		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(funnel.getLevel(), funnel.getBlockPos());
-		if (support == null) {
+		BeltSurface surface = BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos());
+		if (surface == null) {
 			BlockState blockState = funnel.getBlockState();
 			DirectBeltInputBehaviour inputBehaviour =
 				BlockEntityBehaviour.get(funnel.getLevel(), funnel.getBlockPos().below(), DirectBeltInputBehaviour.TYPE);
@@ -198,9 +196,9 @@ public abstract class FunnelBlockEntityMixin {
 		if (invVersionTracker.stillWaiting(invManipulation))
 			return;
 
-		Direction insertSide = support.side();
+		Direction insertSide = surface.outwardNormal();
 		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(funnel.getLevel(), support.segment().getBlockPos(), DirectBeltInputBehaviour.TYPE);
+			BlockEntityBehaviour.get(funnel.getLevel(), surface.beltPos(), DirectBeltInputBehaviour.TYPE);
 		if (inputBehaviour == null)
 			return;
 		if (!inputBehaviour.canInsertFromSide(insertSide))
@@ -219,8 +217,7 @@ public abstract class FunnelBlockEntityMixin {
 			return false;
 		});
 		if (stack.isEmpty()) {
-			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, insertSide, support.segment().getBlockPos(),
-				inputBehaviour))
+			if (createBiotech$tryExtractCapturedSlimeToBelt(funnel, insertSide, surface.beltPos(), inputBehaviour))
 				return;
 			if (deniedByInsertion.isFalse())
 				invVersionTracker.awaitNewVersion(invManipulation.getInventory());
@@ -380,9 +377,9 @@ public abstract class FunnelBlockEntityMixin {
 		BlockState state) {
 		Direction facing = AbstractFunnelBlock.getFunnelFacing(state);
 		if (world != null && facing != null && state.getBlock() instanceof BeltFunnelBlock) {
-			FunnelSupport support = SlimeBeltHelper.getFunnelSupport(world, pos);
-			if (support != null)
-				facing = SlimeBeltHelper.getWorldFunnelFacing(support, facing);
+			BeltSurface surface = BeltSurfaceResolver.resolve(world, pos);
+			if (surface != null)
+				facing = surface.worldize(facing);
 		}
 		return new BlockFace(pos, facing == null ? Direction.DOWN : facing.getOpposite());
 	}

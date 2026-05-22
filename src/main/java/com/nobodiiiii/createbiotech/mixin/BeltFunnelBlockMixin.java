@@ -5,10 +5,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper.FunnelSupport;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
@@ -19,7 +17,6 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -28,26 +25,22 @@ public abstract class BeltFunnelBlockMixin {
 
 	@Inject(method = "getShapeForPosition(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lnet/minecraft/core/Direction;Z)Lcom/simibubi/create/content/logistics/funnel/BeltFunnelBlock$Shape;",
 		at = @At("HEAD"), cancellable = true, remap = false)
-	private static void createBiotech$getShapeForPosition(BlockGetter world, BlockPos pos, Direction facing,
+	private static void createBiotech$getShapeForPosition(BlockGetter world, BlockPos pos, Direction localFacing,
 		boolean extracting, CallbackInfoReturnable<Shape> cir) {
-		if (!(world instanceof LevelAccessor levelAccessor))
+		BeltSurface surface = BeltSurfaceResolver.resolve(world, pos);
+		if (surface == null)
 			return;
-
-		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(levelAccessor, pos);
-		if (support == null)
-			return;
-
-		Shape perpendicularState = extracting ? Shape.PUSHING : Shape.PULLING;
-		Direction movementFacing = SlimeBeltHelper.getMovementFacingForTrack(support.controller(), support.track());
-		Direction worldFacing = SlimeBeltHelper.getWorldFunnelFacing(support, facing);
-		cir.setReturnValue(movementFacing.getAxis() != worldFacing.getAxis() ? perpendicularState : Shape.RETRACTED);
+		// localFacing is in surface-local frame; surface forward (= belt motion) is local NORTH.
+		// Same axis as forward → RETRACTED; perpendicular → PUSHING/PULLING.
+		Shape perpendicular = extracting ? Shape.PUSHING : Shape.PULLING;
+		cir.setReturnValue(localFacing.getAxis() == Direction.NORTH.getAxis() ? Shape.RETRACTED : perpendicular);
 	}
 
 	@Inject(method = "isOnValidBelt(Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/level/LevelReader;Lnet/minecraft/core/BlockPos;)Z",
 		at = @At("HEAD"), cancellable = true, remap = false)
 	private static void createBiotech$isOnValidBelt(BlockState state, LevelReader world, BlockPos pos,
 		CallbackInfoReturnable<Boolean> cir) {
-		if (world instanceof LevelAccessor levelAccessor && SlimeBeltHelper.getFunnelSupport(levelAccessor, pos) != null)
+		if (BeltSurfaceResolver.resolve(world, pos) != null)
 			cir.setReturnValue(true);
 	}
 
@@ -56,8 +49,8 @@ public abstract class BeltFunnelBlockMixin {
 	private void createBiotech$onWrenched(BlockState state, UseOnContext context,
 		CallbackInfoReturnable<InteractionResult> cir) {
 		Level world = context.getLevel();
-		FunnelSupport support = SlimeBeltHelper.getFunnelSupport(world, context.getClickedPos());
-		if (support == null)
+		BeltSurface surface = BeltSurfaceResolver.resolve(world, context.getClickedPos());
+		if (surface == null)
 			return;
 		if (world.isClientSide) {
 			cir.setReturnValue(InteractionResult.SUCCESS);
@@ -73,11 +66,11 @@ public abstract class BeltFunnelBlockMixin {
 		else if (shape == Shape.EXTENDED)
 			newShape = Shape.RETRACTED;
 		else if (shape == Shape.RETRACTED) {
-			SlimeBeltBlockEntity belt = support.segment();
-			if (belt.getBlockState()
-				.getValue(SlimeBeltBlock.SLOPE) != com.simibubi.create.content.kinetics.belt.BeltSlope.HORIZONTAL)
-				newShape = Shape.RETRACTED;
-			else
+			// EXTENDED is only meaningful on the canonical "horizontal belt, top track" surface:
+			// outwardNormal = UP and belt motion is horizontal. Otherwise stay RETRACTED.
+			boolean canExtend = surface.outwardNormal() == Direction.UP
+				&& surface.movementFacing().getAxis().isHorizontal();
+			if (canExtend)
 				newShape = Shape.EXTENDED;
 		}
 
@@ -89,15 +82,14 @@ public abstract class BeltFunnelBlockMixin {
 		world.setBlockAndUpdate(context.getClickedPos(), state.setValue(BeltFunnelBlock.SHAPE, newShape));
 
 		if (newShape == Shape.EXTENDED) {
-			Direction facing = state.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
-			BlockState opposite = world.getBlockState(context.getClickedPos()
-				.relative(facing));
-			if (opposite.getBlock() instanceof BeltFunnelBlock && opposite.getValue(BeltFunnelBlock.SHAPE) == Shape.EXTENDED
-				&& opposite.getValue(BeltFunnelBlock.HORIZONTAL_FACING) == facing.getOpposite())
+			Direction localFacing = state.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
+			BlockState opposite = world.getBlockState(context.getClickedPos().relative(surface.worldize(localFacing)));
+			if (opposite.getBlock() instanceof BeltFunnelBlock
+				&& opposite.getValue(BeltFunnelBlock.SHAPE) == Shape.EXTENDED
+				&& opposite.getValue(BeltFunnelBlock.HORIZONTAL_FACING) == localFacing.getOpposite())
 				AllAdvancements.FUNNEL_KISS.awardTo(context.getPlayer());
 		}
 
 		cir.setReturnValue(InteractionResult.SUCCESS);
 	}
-
 }
