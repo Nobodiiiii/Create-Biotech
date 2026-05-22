@@ -88,7 +88,8 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
 		super.addBehaviours(behaviours);
 		behaviours.add(new DirectBeltInputBehaviour(this).onlyInsertWhen(this::canInsertFrom)
-			.setInsertionHandler(this::tryInsertingFromSide).considerOccupiedWhen(this::isOccupied));
+			.setInsertionHandler(this::tryInsertingFromSide).considerOccupiedWhen(this::isOccupied)
+			.allowingBeltFunnelsWhen(() -> MagmaBeltBlock.canTransportObjects(getBlockState())));
 		behaviours.add(new TransportedItemStackHandlerBehaviour(this, this::applyToAllItems)
 			.withStackPlacement(this::getWorldPositionOf));
 		behaviours.add(invVersionTracker = new VersionedInventoryTrackerBehaviour(this));

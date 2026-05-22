@@ -2,8 +2,11 @@
 // 由思索者自动生成 — 请勿手动修改；下次导出时会被覆盖。
 package com.nobodiiiii.createbiotech.ponder.generated.scenes;
 
+import com.nobodiiiii.createbiotech.foundation.ponder.PonderPlayerElement;
+import com.nobodiiiii.createbiotech.foundation.ponder.PonderPlayerSupport;
 import com.nobodiiiii.createbiotech.ponder.generated.GeneratedPonderAttribution;
 import com.nobodiiiii.createbiotech.ponder.generated.GeneratedPonderSupport;
+import net.createmod.ponder.api.element.ElementLink;
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
 import net.createmod.ponder.api.scene.SceneBuilder;
@@ -64,9 +67,10 @@ public final class GeneratedExperiencePump_e984f13b {
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "或者玩家", new Vec3(2.5, 1.5, 3.5), 50, null, true);
         GeneratedPonderSupport.destroyBlock(scene, context, new BlockPos(2, 1, 3), null);
-        GeneratedPonderSupport.createEntity(scene, "minecraft:armor_stand", new Vec3(2.5, 1.0, 3.5), null, null, null, "{ArmorItems:[{},{},{},{Count:1b,id:\"minecraft:player_head\",tag:{SkullOwner:\"Nobodiiiii\"}}],DisabledSlots:4144959,Invisible:1b,Marker:0b,NoBasePlate:1b,NoGravity:1b,Pose:{Body:[0.0f,0.0f,0.0f],Head:[0.0f,0.0f,0.0f],LeftArm:[-10.0f,0.0f,-10.0f],LeftLeg:[-1.0f,0.0f,-1.0f],RightArm:[-15.0f,0.0f,10.0f],RightLeg:[1.0f,0.0f,1.0f]},ShowArms:1b}");
+        ElementLink<PonderPlayerElement> playerLink = PonderPlayerSupport.addPlayer(scene, new Vec3(2.5, 1.0, 3.5));
         scene.idle(60);
         GeneratedPonderSupport.clearEntities(scene, true, null, null, null);
+        PonderPlayerSupport.removePlayer(scene, playerLink, 10);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "在输入端安装分散网，可以吸引更远范围的经验球", new Vec3(2.5, 1.0, 4.5), 100, null, true);
         GeneratedPonderSupport.setBlock(scene, context, "create:nozzle", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(2, 1, 3), null, "{ForgeCaps:{}}", false, false, "simultaneous", 20, 1, false, null, "down");
