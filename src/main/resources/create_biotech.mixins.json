@@ -35,7 +35,8 @@
     "client.ItemApplicationCategoryMixin",
     "client.PressingBehaviourMixin",
     "client.SpoutCategoryMixin",
-    "client.LevelRendererAccessor"
+    "client.LevelRendererAccessor",
+    "client.PonderWorldParticlesMixin"
   ],
   "injectors": {
     "defaultRequire": 1

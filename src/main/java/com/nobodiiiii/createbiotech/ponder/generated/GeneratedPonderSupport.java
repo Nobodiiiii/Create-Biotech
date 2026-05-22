@@ -598,6 +598,28 @@ public final class GeneratedPonderSupport {
         });
     }
 
+    public static void startPressCycle(SceneBuilder scene, BlockPos pos1, BlockPos pos2, float kineticSpeed) {
+        BlockPos posMin = new BlockPos(
+            Math.min(pos1.getX(), pos2.getX()),
+            Math.min(pos1.getY(), pos2.getY()),
+            Math.min(pos1.getZ(), pos2.getZ()));
+        BlockPos posMax = new BlockPos(
+            Math.max(pos1.getX(), pos2.getX()),
+            Math.max(pos1.getY(), pos2.getY()),
+            Math.max(pos1.getZ(), pos2.getZ()));
+        Selection selection = scene.getScene().getSceneBuildingUtil().select().fromTo(posMin, posMax);
+        scene.world().modifyBlockEntityNBT(selection,
+            com.simibubi.create.content.kinetics.base.KineticBlockEntity.class,
+            nbt -> nbt.putFloat("Speed", kineticSpeed));
+        for (BlockPos pos : BlockPos.betweenClosed(posMin, posMax)) {
+            BlockPos copy = pos.immutable();
+            scene.world().modifyBlockEntity(copy,
+                com.simibubi.create.content.kinetics.press.MechanicalPressBlockEntity.class,
+                press -> press.getPressingBehaviour().start(
+                    com.simibubi.create.content.kinetics.press.PressingBehaviour.Mode.WORLD));
+        }
+    }
+
     public static void clearEntities(SceneBuilder scene, boolean fullScene, String entityId,
                                      BlockPos pos1, BlockPos pos2) {
         ResourceLocation filter = entityId == null || entityId.isBlank() ? null : ResourceLocation.tryParse(entityId);
