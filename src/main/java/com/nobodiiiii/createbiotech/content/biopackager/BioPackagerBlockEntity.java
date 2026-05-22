@@ -35,6 +35,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 	public int animationTicks;
 	public boolean animationInward;
 	public boolean redstonePowered;
+	public boolean chainReturnAnimation;
 
 	public InvManipulationBehaviour targetInventory;
 	public BioPackagerItemHandler inventory;
@@ -46,6 +47,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 		previouslyUnwrapped = ItemStack.EMPTY;
 		animationTicks = 0;
 		animationInward = true;
+		chainReturnAnimation = false;
 		redstonePowered = state.getOptionalValue(BioPackagerBlock.POWERED).orElse(false);
 		inventory = new BioPackagerItemHandler(this);
 		invProvider = LazyOptional.of(() -> inventory);
@@ -62,7 +64,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 
 		if (animationTicks == 0) {
 			previouslyUnwrapped = ItemStack.EMPTY;
-			if (!level.isClientSide && heldBox.isEmpty() && isRedstonePowered())
+			if (!level.isClientSide && heldBox.isEmpty() && !chainReturnAnimation && isRedstonePowered())
 				attemptAutoExtract();
 			return;
 		}
@@ -75,14 +77,22 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 					true);
 		}
 
-		if (!level.isClientSide && animationInward && animationTicks == CYCLE / 2) {
-			releaseCapturedEntity();
-		}
-
 		animationTicks--;
 
-		if (animationTicks == 0 && !level.isClientSide)
+		if (animationTicks == 0 && !level.isClientSide) {
+			if (chainReturnAnimation) {
+				if (!animationInward) {
+					releaseCapturedEntityForReturn();
+					animationInward = true;
+					animationTicks = CYCLE;
+					notifyUpdate();
+				} else {
+					depositReturnedBox();
+					chainReturnAnimation = false;
+				}
+			}
 			setChanged();
+		}
 	}
 
 	private void attemptAutoExtract() {
@@ -108,13 +118,14 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 			return false;
 		heldBox = box.copy();
 		previouslyUnwrapped = ItemStack.EMPTY;
-		animationInward = true;
+		animationInward = false;
 		animationTicks = CYCLE;
+		chainReturnAnimation = true;
 		notifyUpdate();
 		return true;
 	}
 
-	private void releaseCapturedEntity() {
+	private void releaseCapturedEntityForReturn() {
 		if (heldBox.isEmpty() || !CapturedEntityBoxHelper.hasCapturedEntity(heldBox))
 			return;
 
@@ -135,14 +146,18 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 		emptyBox.setCount(1);
 		CapturedEntityBoxHelper.clearCapturedEntity(emptyBox);
 
-		previouslyUnwrapped = heldBox;
-		heldBox = ItemStack.EMPTY;
+		heldBox = emptyBox;
+		previouslyUnwrapped = ItemStack.EMPTY;
+	}
 
-		ItemStack leftover = pushToTargetOrDrop(emptyBox);
+	private void depositReturnedBox() {
+		if (heldBox.isEmpty())
+			return;
+		ItemStack leftover = pushToTargetOrDrop(heldBox);
+		heldBox = ItemStack.EMPTY;
 		if (!leftover.isEmpty())
 			Containers.dropItemStack(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5,
 				worldPosition.getZ() + 0.5, leftover);
-
 		notifyUpdate();
 	}
 
@@ -210,6 +225,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 		redstonePowered = compound.getBoolean("Active");
 		animationInward = compound.getBoolean("AnimationInward");
 		animationTicks = compound.getInt("AnimationTicks");
+		chainReturnAnimation = compound.getBoolean("ChainReturnAnimation");
 		heldBox = ItemStack.of(compound.getCompound("HeldBox"));
 		previouslyUnwrapped = ItemStack.of(compound.getCompound("InsertedBox"));
 	}
@@ -220,6 +236,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 		compound.putBoolean("Active", redstonePowered);
 		compound.putBoolean("AnimationInward", animationInward);
 		compound.putInt("AnimationTicks", animationTicks);
+		compound.putBoolean("ChainReturnAnimation", chainReturnAnimation);
 		compound.put("HeldBox", heldBox.serializeNBT());
 		compound.put("InsertedBox", previouslyUnwrapped.serializeNBT());
 	}

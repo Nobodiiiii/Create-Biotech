@@ -16,9 +16,12 @@ import com.simibubi.create.content.fluids.transfer.GenericItemEmptying;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity.CasingType;
 import com.simibubi.create.content.kinetics.belt.BeltPart;
 import com.simibubi.create.content.kinetics.belt.BeltShapes;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
+import com.simibubi.create.content.logistics.funnel.FunnelBlock;
+import com.simibubi.create.content.logistics.tunnel.BeltTunnelBlock;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
@@ -26,6 +29,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
 import net.minecraft.core.Direction.AxisDirection;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
@@ -45,6 +49,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -58,6 +63,7 @@ import net.minecraft.world.level.pathfinder.BlockPathTypes;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -229,16 +235,48 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 		if (isWrench)
 			return PowerBeltSlicer.useWrench(state, world, pos, player, hand, hit, new PowerBeltSlicer.Feedback());
 
+		if (AllBlocks.BRASS_CASING.isIn(heldItem)) {
+			withBlockEntityDo(world, pos, be -> be.setCasingType(CasingType.BRASS));
+			updateCoverProperty(world, pos, world.getBlockState(pos));
+
+			SoundType soundType = AllBlocks.BRASS_CASING.getDefaultState()
+				.getSoundType(world, pos, player);
+			world.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
+				(soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+
+			return InteractionResult.SUCCESS;
+		}
+
+		if (AllBlocks.ANDESITE_CASING.isIn(heldItem)) {
+			withBlockEntityDo(world, pos, be -> be.setCasingType(CasingType.ANDESITE));
+			updateCoverProperty(world, pos, world.getBlockState(pos));
+
+			SoundType soundType = AllBlocks.ANDESITE_CASING.getDefaultState()
+				.getSoundType(world, pos, player);
+			world.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
+				(soundType.getVolume() + 1.0F) / 2.0F, soundType.getPitch() * 0.8F);
+
+			return InteractionResult.SUCCESS;
+		}
+
 		return InteractionResult.PASS;
 	}
 
 	@Override
 	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (state.getValue(PART) != BeltPart.PULLEY)
-			return InteractionResult.PASS;
 		Level world = context.getLevel();
 		Player player = context.getPlayer();
 		BlockPos pos = context.getClickedPos();
+
+		if (state.getValue(CASING)) {
+			if (world.isClientSide)
+				return InteractionResult.SUCCESS;
+			withBlockEntityDo(world, pos, be -> be.setCasingType(CasingType.NONE));
+			return InteractionResult.SUCCESS;
+		}
+
+		if (state.getValue(PART) != BeltPart.PULLEY)
+			return InteractionResult.PASS;
 		if (world.isClientSide)
 			return InteractionResult.SUCCESS;
 		KineticBlockEntity.switchToBlockState(world, pos, state.setValue(PART, BeltPart.MIDDLE));
@@ -277,7 +315,7 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 
 	@Override
 	public RenderShape getRenderShape(BlockState state) {
-		return RenderShape.ENTITYBLOCK_ANIMATED;
+		return state.getValue(CASING) ? RenderShape.MODEL : RenderShape.ENTITYBLOCK_ANIMATED;
 	}
 
 	public static void initBelt(Level world, BlockPos pos) {
@@ -361,7 +399,35 @@ public class PowerBeltBlock extends HorizontalKineticBlock implements IBE<PowerB
 	public BlockState updateShape(BlockState state, Direction side, BlockState neighbourState, LevelAccessor world,
 		BlockPos pos, BlockPos neighbourPos) {
 		updateWater(world, state, pos);
+		if (side == Direction.UP)
+			updateCoverProperty(world, pos, state);
 		return state;
+	}
+
+	public void updateCoverProperty(LevelAccessor world, BlockPos pos, BlockState state) {
+		if (world.isClientSide())
+			return;
+		if (state.getValue(CASING) && state.getValue(SLOPE) == BeltSlope.HORIZONTAL)
+			withBlockEntityDo(world, pos, bbe -> bbe.setCovered(isBlockCoveringBelt(world, pos.above())));
+	}
+
+	public static boolean isBlockCoveringBelt(LevelAccessor world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		VoxelShape collisionShape = blockState.getCollisionShape(world, pos);
+		if (collisionShape.isEmpty())
+			return false;
+		AABB bounds = collisionShape.bounds();
+		if (bounds.getXsize() < .5f || bounds.getZsize() < .5f)
+			return false;
+		if (bounds.minY > 0)
+			return false;
+		if (AllBlocks.CRUSHING_WHEEL_CONTROLLER.has(blockState))
+			return false;
+		if (FunnelBlock.isFunnel(blockState) && FunnelBlock.getFunnelFacing(blockState) != Direction.UP)
+			return false;
+		if (blockState.getBlock() instanceof BeltTunnelBlock)
+			return false;
+		return true;
 	}
 
 	@Override

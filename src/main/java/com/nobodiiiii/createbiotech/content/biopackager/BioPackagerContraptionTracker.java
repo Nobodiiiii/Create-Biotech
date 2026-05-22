@@ -79,7 +79,7 @@ public final class BioPackagerContraptionTracker {
 				Map.Entry<BlockPos, PackagingState> stateEntry = inner.next();
 				PackagingState state = stateEntry.getValue();
 				state.ticksRemaining--;
-				if (!state.deposited && state.ticksRemaining <= CYCLE / 2) {
+				if (!state.deposited && state.ticksRemaining <= 0) {
 					depositIntoContraption(contraption, stateEntry.getKey(), state.filledBox);
 					state.deposited = true;
 				}

@@ -2,16 +2,20 @@ package com.nobodiiiii.createbiotech.content.powerbelt;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.content.kinetics.belt.BeltBlockEntity.CasingType;
 import com.simibubi.create.content.kinetics.belt.BeltPart;
 
+import net.createmod.catnip.nbt.NBTHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,6 +39,9 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	public int index;
 	protected BlockPos controller;
 
+	public CasingType casing;
+	public boolean covered;
+
 	private long lastMovementGameTime = Long.MIN_VALUE;
 	private long nextDetectionGameTime = Long.MIN_VALUE;
 	private float collectedGeneratedSpeed;
@@ -47,6 +54,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	public PowerBeltBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
 		super(type, pos, state);
+		casing = CasingType.NONE;
 	}
 
 	public PowerBeltBlockEntity(BlockPos pos, BlockState state) {
@@ -281,6 +289,8 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 		compound.putBoolean("IsController", isController());
 		compound.putInt("Length", beltLength);
 		compound.putInt("Index", index);
+		NBTHelper.writeEnum(compound, "Casing", casing);
+		compound.putBoolean("Covered", covered);
 		if (isController()) {
 			compound.putFloat("GeneratedSpeed", generatedSpeed);
 			compound.putFloat("GeneratedCapacity", generatedCapacity);
@@ -309,6 +319,54 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 			generatedSpeed = getTheoreticalSpeed();
 			generatedCapacity = lastCapacityProvided;
 		}
+
+		CasingType casingBefore = casing;
+		boolean coverBefore = covered;
+		casing = NBTHelper.readEnum(compound, "Casing", CasingType.class);
+		covered = compound.getBoolean("Covered");
+
+		if (!clientPacket)
+			return;
+		if (casingBefore == casing && coverBefore == covered)
+			return;
+		if (!isVirtual())
+			requestModelDataUpdate();
+		if (hasLevel())
+			level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 16);
+	}
+
+	public void setCasingType(CasingType type) {
+		if (casing == type)
+			return;
+
+		BlockState blockState = getBlockState();
+		boolean shouldBlockHaveCasing = type != CasingType.NONE;
+
+		if (level.isClientSide) {
+			casing = type;
+			level.setBlock(worldPosition, blockState.setValue(PowerBeltBlock.CASING, shouldBlockHaveCasing), 0);
+			requestModelDataUpdate();
+			level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 16);
+			return;
+		}
+
+		if (casing != CasingType.NONE)
+			level.levelEvent(2001, worldPosition,
+				Block.getId(casing == CasingType.ANDESITE ? AllBlocks.ANDESITE_CASING.getDefaultState()
+					: AllBlocks.BRASS_CASING.getDefaultState()));
+		if (blockState.getValue(PowerBeltBlock.CASING) != shouldBlockHaveCasing)
+			KineticBlockEntity.switchToBlockState(level, worldPosition,
+				blockState.setValue(PowerBeltBlock.CASING, shouldBlockHaveCasing));
+		casing = type;
+		setChanged();
+		sendData();
+	}
+
+	public void setCovered(boolean blockCoveringBelt) {
+		if (blockCoveringBelt == covered)
+			return;
+		covered = blockCoveringBelt;
+		notifyUpdate();
 	}
 
 	void resetChainState() {
