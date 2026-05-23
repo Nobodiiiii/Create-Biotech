@@ -360,6 +360,11 @@ public final class GeneratedPonderSupport {
         updateVisibleRange(context, pos1, targetPos2, false);
     }
 
+    /** Legacy 4-arg signature retained for code emitted before destroy_block grew a range. */
+    public static void destroyBlock(SceneBuilder scene, Context context, BlockPos pos, Boolean destroyParticles) {
+        destroyBlock(scene, context, pos, null, destroyParticles);
+    }
+
     public static void replaceBlocks(SceneBuilder scene, Context context, String blockId,
                                      Map<String, String> blockProperties, BlockPos pos1, BlockPos pos2,
                                      Boolean spawnParticles) {
