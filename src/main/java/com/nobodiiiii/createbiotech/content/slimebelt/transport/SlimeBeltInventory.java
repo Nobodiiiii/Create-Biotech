@@ -627,19 +627,28 @@ public class SlimeBeltInventory {
 
 		DirectBeltInputBehaviour inputBehaviour =
 			BlockEntityBehaviour.get(world, outputPosition, DirectBeltInputBehaviour.TYPE);
-		if (inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide))
-			return Ending.INSERT;
 
-		// If an adjacent slime belt of a different chain rejected our INSERT
-		// (e.g. antiparallel rotation), treat it as a hard obstruction rather
-		// than letting items wrap around our own connector loop to escape it.
+		// Detect a foreign slime belt sitting at the seam — any "I can't push into it
+		// right now" answer should become a hard BLOCK rather than letting our items
+		// fall back to wrapping around our own connector loop.
 		SlimeBeltBlockEntity adjacentSegment = SlimeBeltHelper.getSegmentBE(world, outputPosition);
-		if (adjacentSegment != null) {
-			SlimeBeltBlockEntity adjacentController = adjacentSegment.getControllerBE();
-			if (adjacentController != null
-				&& !adjacentController.getBlockPos().equals(belt.getBlockPos()))
+		boolean adjacentIsForeignSlimeBelt = adjacentSegment != null
+			&& adjacentSegment.getControllerBE() != null
+			&& !adjacentSegment.getControllerBE().getBlockPos().equals(belt.getBlockPos());
+
+		if (inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide)) {
+			// Structurally compatible. If the downstream foreign slime belt is currently
+			// occupied (entry slot full), BLOCK rather than let items camp at INSERT
+			// margin retrying every tick or risk slipping into our own connector loop.
+			if (adjacentIsForeignSlimeBelt && inputBehaviour.isOccupied(insertSide))
 				return Ending.BLOCKED;
+			return Ending.INSERT;
 		}
+
+		// Not structurally compatible (e.g. antiparallel rotation). Foreign slime belt
+		// in front of us is still a hard obstruction; do not wrap.
+		if (adjacentIsForeignSlimeBelt)
+			return Ending.BLOCKED;
 
 		if (BlockHelper.hasBlockSolidSide(world.getBlockState(outputPosition), world, outputPosition,
 			insertSide.getOpposite()))
