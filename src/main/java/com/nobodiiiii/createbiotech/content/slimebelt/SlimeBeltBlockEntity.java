@@ -377,7 +377,10 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurf
 		SlimeBeltBlockEntity controllerBE = getControllerBE();
 		if (controllerBE == null)
 			return false;
-		return SlimeBeltHelper.resolveIOTarget(controllerBE, index, side) != null;
+		SlimeBeltHelper.IOTarget target = SlimeBeltHelper.resolveIOTarget(controllerBE, index, side);
+		if (target == null)
+			return false;
+		return isCompatibleAdjacentSlimeBeltChainInput(side, controllerBE, target.track());
 	}
 
 	private boolean isOccupied(Direction side) {
@@ -431,6 +434,20 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurf
 		if (hasAdjacentBeltSource(physicalSourceSide))
 			return physicalSourceSide;
 		return side;
+	}
+
+	private boolean isCompatibleAdjacentSlimeBeltChainInput(Direction side, SlimeBeltBlockEntity targetController,
+		SlimeBeltHelper.Track targetTrack) {
+		if (side == null || level == null || side.getAxis() != SlimeBeltHelper.getChainBlockAxis(targetController))
+			return true;
+		BlockEntity sourceBE = level.getBlockEntity(worldPosition.relative(side.getOpposite()));
+		if (!(sourceBE instanceof SlimeBeltBlockEntity sourceSegment))
+			return true;
+		SlimeBeltBlockEntity sourceController = sourceSegment.getControllerBE();
+		if (sourceController == null || sourceController.getController().equals(targetController.getController()))
+			return true;
+		SlimeBeltHelper.Track sourceTrack = SlimeBeltHelper.getEndpointOutputTrack(sourceController, sourceSegment.index);
+		return sourceTrack != null && sourceTrack == targetTrack;
 	}
 
 	private boolean hasAdjacentHorizontalVerticalBeltSource(Direction physicalSide) {

@@ -185,19 +185,13 @@ public class SlimeBeltHelper {
 			return null;
 
 		if (side != null && side.getAxis() == getChainBlockAxis(controller)) {
-			boolean atEndpoint = segment == 0 || segment == controller.beltLength - 1;
-			if (!atEndpoint)
+			Track entryTrack = getEndpointEntryTrack(controller, segment);
+			if (entryTrack == null)
 				return null;
 			// Chain-axis input at an endpoint is a chain-continuation: the entering
 			// item's motion direction (side) must match the motion of whichever track
 			// has its entry at this segment. Otherwise reject (e.g. antiparallel
 			// belts pointing at each other).
-			boolean positiveBelt = controller.getDirectionAwareBeltMovementSpeed() > 0;
-			Track entryTrack;
-			if (segment == 0)
-				entryTrack = positiveBelt ? Track.FRONT : Track.BACK;
-			else
-				entryTrack = positiveBelt ? Track.BACK : Track.FRONT;
 			Direction entryMotion = entryTrack == Track.FRONT
 				? controller.getMovementFacing()
 				: controller.getMovementFacing().getOpposite();
@@ -212,7 +206,27 @@ public class SlimeBeltHelper {
 		return IOTarget.ofTrack(track);
 	}
 
-	private static net.minecraft.core.Direction.Axis getChainBlockAxis(SlimeBeltBlockEntity controller) {
+	public static Track getEndpointEntryTrack(SlimeBeltBlockEntity controller, int segment) {
+		if (controller == null || controller.beltLength <= 0)
+			return null;
+		boolean atStart = segment == 0;
+		boolean atEnd = segment == controller.beltLength - 1;
+		if (!atStart && !atEnd)
+			return null;
+		boolean positiveBelt = controller.getDirectionAwareBeltMovementSpeed() > 0;
+		if (atStart)
+			return positiveBelt ? Track.FRONT : Track.BACK;
+		return positiveBelt ? Track.BACK : Track.FRONT;
+	}
+
+	public static Track getEndpointOutputTrack(SlimeBeltBlockEntity controller, int segment) {
+		Track entryTrack = getEndpointEntryTrack(controller, segment);
+		if (entryTrack == null)
+			return null;
+		return entryTrack == Track.FRONT ? Track.BACK : Track.FRONT;
+	}
+
+	public static net.minecraft.core.Direction.Axis getChainBlockAxis(SlimeBeltBlockEntity controller) {
 		BeltSlope slope = controller.getBlockState().getValue(SlimeBeltBlock.SLOPE);
 		if (slope == BeltSlope.VERTICAL)
 			return net.minecraft.core.Direction.Axis.Y;

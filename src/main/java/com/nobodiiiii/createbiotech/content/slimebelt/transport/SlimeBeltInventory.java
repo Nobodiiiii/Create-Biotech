@@ -670,7 +670,10 @@ public class SlimeBeltInventory {
 	}
 
 	public void prepareInsertedItem(TransportedItemStack transported, int segment, Direction side) {
-		Track track = SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
+		SlimeBeltHelper.IOTarget target = SlimeBeltHelper.resolveIOTarget(belt, segment, side);
+		Track track = target != null && target.track() != null
+			? target.track()
+			: SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
 		Direction mf = belt.getMovementFacing();
 
 		float trackProgress;
