@@ -19,7 +19,7 @@
       "omittedSteps": 0,
       "ownedFiles": [
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSpiderAssemblyTable_f7772189.java",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/spider.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/spider_assembly_table_base.nbt"
       ],
       "messages": []
     }

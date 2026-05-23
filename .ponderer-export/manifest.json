@@ -291,8 +291,8 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBioPackager_bad667d8.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/packager1.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bio_packager_release.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bio_packager_capture.nbt"
       ],
       "langEntries": {
         "zh_cn": {
@@ -370,7 +370,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSchrodingersCat_646f5047.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/schrodingers_cat_base.nbt"
       ],
       "langEntries": {
         "zh_cn": {
@@ -395,9 +395,9 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSlimeBeltConnector_c6a43e38.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slimebelt1.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slimebelt3.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slimebelt5.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_horizontal.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_vertical.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_loop.nbt"
       ],
       "langEntries": {
         "zh_cn": {
@@ -426,7 +426,7 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSpiderAssemblyTable_f7772189.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/spider.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/spider_assembly_table_base.nbt"
       ],
       "langEntries": {
         "zh_cn": {

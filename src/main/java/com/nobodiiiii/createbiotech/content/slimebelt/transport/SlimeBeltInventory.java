@@ -651,7 +651,29 @@ public class SlimeBeltInventory {
 		SlimeBeltHelper.IOTarget target = SlimeBeltHelper.resolveIOTarget(belt, segment, side);
 		if (target == null)
 			return false;
-		return canInsertAtOnTrack(segment, target.track());
+		Track track = target.track();
+		if (track == null)
+			return false;
+
+		// For chain INSERTs the item lands at the track entry (trackProgress 0),
+		// not at the segment-center general position. Check blocking against that
+		// same position so a free entry slot isn't falsely rejected when the next
+		// segment is full.
+		Direction mf = belt.getMovementFacing();
+		boolean isChainInsert = side != null && (
+			(side == mf && track == Track.FRONT)
+			|| (side == mf.getOpposite() && track == Track.BACK));
+		float insertPos = isChainInsert
+			? getLoopPositionForTrackProgress(track, 0f)
+			: getInsertionPositionForTrack(segment, track);
+
+		for (TransportedItemStack stack : items)
+			if (isBlocking(track, insertPos, stack))
+				return false;
+		for (TransportedItemStack stack : toInsert)
+			if (isBlocking(track, insertPos, stack))
+				return false;
+		return true;
 	}
 
 	public boolean canInsertAtOnTrack(int segment, Track track) {
@@ -676,24 +698,39 @@ public class SlimeBeltInventory {
 			: SlimeBeltHelper.resolveInputTrack(belt.getBlockState(), side);
 		Direction mf = belt.getMovementFacing();
 
+		boolean isFrontChain = side != null && side == mf && track == Track.FRONT;
+		boolean isBackChain = side != null && side == mf.getOpposite() && track == Track.BACK;
+
 		float trackProgress;
-		if (side != null && side == mf && track == Track.FRONT) {
-			// Smooth chain-continuation path: land at the FRONT entry of this segment,
-			// shifted further back when the prior belt is directly behind us.
+		if (isFrontChain) {
+			// Smooth FRONT chain-continuation: land at the FRONT entry of this
+			// segment, optionally extrapolated back when the prior belt is directly
+			// behind us so items render seamlessly across the seam.
 			float continuationBias = (transported.prevBeltPosition != 0
 				&& hasAdjacentBeltSegmentBehind(segment)) ? INSERT_CHAIN_CONTINUATION_BIAS : 0f;
 			trackProgress = beltMovementPositive
 				? segment - continuationBias
 				: belt.beltLength - (segment + 1f + continuationBias);
+		} else if (isBackChain) {
+			// BACK chain-continuation: land exactly at the BACK entry (trackProgress 0).
+			// Extrapolating BACK backward would overlap the END_TURN connector arc, so
+			// we forgo the visual continuationBias here. Placing at entry also keeps
+			// the blocking check in canInsertAtFromSide consistent with reality: the
+			// next-segment item is one full unit ahead, not 0.5+1/16 ahead, so a single
+			// empty entry slot is accepted even if the segment past it is occupied.
+			trackProgress = 0f;
 		} else {
 			trackProgress = computeGeneralTrackProgress(segment, track);
 		}
 		transported.beltPosition = getLoopPositionForTrackProgress(track, trackProgress);
 
-		// Cross-axis side offset: when the input face is neither the
-		// FRONT/BACK track surface nor along the motion axis, visually push
-		// the item toward the face it arrived from.
-		if (side != null && !side.getAxis().isVertical() && side != mf) {
+		// Cross-axis side offset: only for sides perpendicular to the chain axis
+		// AND not on the FRONT/BACK track-face. Chain-axis sides (FRONT/BACK chain
+		// INSERTs) must NOT get a sideways push — that produced the "slide in from
+		// the side" animation for BACK chain entries.
+		if (side != null && !side.getAxis().isVertical()
+			&& side.getAxis() != SlimeBeltHelper.getChainBlockAxis(belt)
+			&& side != mf) {
 			Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(belt.getBlockState());
 			boolean trackFaceInsert = side == frontInputSide || side == frontInputSide.getOpposite();
 			if (!trackFaceInsert) {

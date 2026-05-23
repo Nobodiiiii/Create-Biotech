@@ -20,7 +20,7 @@ public final class GeneratedSlimeBeltConnector_c6a43e38 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "slime_belt_connector")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/slimebelt1"), GeneratedSlimeBeltConnector_c6a43e38::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/slime_belt_connector_horizontal"), GeneratedSlimeBeltConnector_c6a43e38::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -51,7 +51,7 @@ public final class GeneratedSlimeBeltConnector_c6a43e38 {
         GeneratedPonderSupport.hideSection(scene, context, new BlockPos(0, 1, 0), new BlockPos(7, 7, 7), 20, "up");
         scene.addKeyframe();
         GeneratedPonderSupport.rotateCameraY(scene, -35.0f, -35.0f, 20);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/slimebelt3.nbt"), new BlockPos(2, 1, 3), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/slime_belt_connector_vertical.nbt"), new BlockPos(2, 1, 3), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
         GeneratedPonderSupport.showText(scene, "史莱姆传送带还可以竖直传动物品", new Vec3(2.5, 2.5, 3.0), 120, null, true);
         scene.idle(20);
         GeneratedPonderSupport.modifyBlockEntity(scene, null, "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"create_biotech:large_cardboard_box\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:-16.0f}", null, new BlockPos(3, 2, 3), null);
@@ -61,7 +61,7 @@ public final class GeneratedSlimeBeltConnector_c6a43e38 {
         scene.idle(20);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "相连的史莱姆传送带可以形成一个回环", new Vec3(2.5, 2.5, 3.0), 120, null, true);
-        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/slimebelt5.nbt"), new BlockPos(0, 0, 3), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
+        GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/slime_belt_connector_loop.nbt"), new BlockPos(0, 0, 3), 0, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(10);
         GeneratedPonderSupport.modifyBlockEntity(scene, Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("part", "start"), Map.entry("facing", "east"), Map.entry("slope", "horizontal")), "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:329,InDirection:1,InSegment:0,Item:{Count:1b,id:\"create_biotech:large_cardboard_box\"},Offset:0.0f,Pos:0.0f,PrevOffset:0.0f,PrevPos:0.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:21,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}", null, new BlockPos(1, 2, 3), null);
         scene.idle(52);

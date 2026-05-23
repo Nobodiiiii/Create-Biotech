@@ -20,8 +20,8 @@ public final class GeneratedBioPackager_bad667d8 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "bio_packager")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic"), GeneratedBioPackager_bad667d8::storyboard$0, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/packager1"), GeneratedBioPackager_bad667d8::storyboard$1, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/bio_packager_release"), GeneratedBioPackager_bad667d8::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/bio_packager_capture"), GeneratedBioPackager_bad667d8::storyboard$1, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -60,15 +60,18 @@ public final class GeneratedBioPackager_bad667d8 {
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(0, 0, 0), new BlockPos(6, 3, 6));
         GeneratedPonderSupport.showStructure(scene, context, new BlockPos(0, 0, 0), new BlockPos(6, 0, 6), null, null);
         scene.idle(20);
-        GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(3, 1, 0), new BlockPos(5, 1, 1), null, 20, "west", "simultaneous", 20, 1, false);
+        GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(3, 1, 1), new BlockPos(5, 1, 1), null, 20, "west", "simultaneous", 20, 1, false);
+        GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(3, 1, 0), null, "piston_rod", 20, "west", "simultaneous", 20, 1, false);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(2, 1, 2), new BlockPos(3, 3, 3), "default", 20, "down", "simultaneous", 20, 1, false);
+        GeneratedPonderSupport.moveSection(scene, context, "default", null, null, new Vec3(0.0, 0.0, -1.0), 0);
         GeneratedPonderSupport.createEntity(scene, "minecraft:slime", new Vec3(1.8, 1.0, 3.5), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.30000001192092896d,Name:\"minecraft:generic.movement_speed\"},{Base:1.0d,Name:\"minecraft:generic.max_health\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,Size:0,wasOnGround:1b}");
         scene.idle(20);
         scene.addKeyframe();
         GeneratedPonderSupport.moveSection(scene, context, "default", null, null, new Vec3(0.0, 0.0, 1.0), 20);
+        GeneratedPonderSupport.moveSection(scene, context, "piston_rod", null, null, new Vec3(0.0, 0.0, 1.0), 20);
         scene.idle(15);
         GeneratedPonderSupport.clearEntities(scene, true, null, null, null);
-        GeneratedPonderSupport.modifyBlockEntity(scene, Map.ofEntries(Map.entry("powered", "false"), Map.entry("facing", "west")), "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:large_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 2, 2), null);
+        GeneratedPonderSupport.modifyBlockEntity(scene, Map.ofEntries(Map.entry("powered", "false"), Map.entry("facing", "west")), "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:large_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 2, 3), null);
         scene.idle(20);
         GeneratedPonderSupport.showText(scene, "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物", new Vec3(2.5, 2.0, 3.5), 120, null, true);
         scene.idle(130);

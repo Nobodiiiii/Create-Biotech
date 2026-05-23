@@ -20,7 +20,7 @@ public final class GeneratedSchrodingersCat_646f5047 {
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
         var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "schrodingers_cat")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/basic"), GeneratedSchrodingersCat_646f5047::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/schrodingers_cat_base"), GeneratedSchrodingersCat_646f5047::storyboard$0, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
