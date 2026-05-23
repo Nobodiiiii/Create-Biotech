@@ -132,6 +132,10 @@ public class SlimeBeltHelper {
 		float loopLength = getLoopLength(controller);
 		if (loopLength <= 0)
 			return 0;
+		// Allow small negatives to pass through unchanged — this preserves the
+		// FRONT-track extrapolation used by smooth belt-to-belt INSERT visuals.
+		if (loopPosition >= -1f && loopPosition < 0f)
+			return loopPosition;
 		float normalized = loopPosition % loopLength;
 		if (normalized < 0)
 			normalized += loopLength;
@@ -184,6 +188,22 @@ public class SlimeBeltHelper {
 			boolean atEndpoint = segment == 0 || segment == controller.beltLength - 1;
 			if (!atEndpoint)
 				return null;
+			// Chain-axis input at an endpoint is a chain-continuation: the entering
+			// item's motion direction (side) must match the motion of whichever track
+			// has its entry at this segment. Otherwise reject (e.g. antiparallel
+			// belts pointing at each other).
+			boolean positiveBelt = controller.getDirectionAwareBeltMovementSpeed() > 0;
+			Track entryTrack;
+			if (segment == 0)
+				entryTrack = positiveBelt ? Track.FRONT : Track.BACK;
+			else
+				entryTrack = positiveBelt ? Track.BACK : Track.FRONT;
+			Direction entryMotion = entryTrack == Track.FRONT
+				? controller.getMovementFacing()
+				: controller.getMovementFacing().getOpposite();
+			if (side != entryMotion)
+				return null;
+			return IOTarget.ofTrack(entryTrack);
 		}
 
 		Track track = resolveInputTrack(controller.getBlockState(), side);
@@ -300,6 +320,11 @@ public class SlimeBeltHelper {
 	}
 
 	public static Vec3 getVectorForOffset(SlimeBeltBlockEntity controller, float loopPosition) {
+		// Smooth chain-INSERT extrapolation: a loopPosition in [-1, 0) represents
+		// FRONT track extrapolated backward of FRONT@0 by that amount. This matches
+		// vanilla Create's behaviour where freshly INSERTed items render at the seam.
+		if (loopPosition >= -1f && loopPosition < 0f)
+			return getStraightVectorForTrack(controller, Track.FRONT, loopPosition);
 		float normalized = normalizeLoopPosition(controller, loopPosition);
 		float beltLength = controller.beltLength;
 		float connectorLength = getConnectorLength(controller);

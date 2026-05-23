@@ -398,25 +398,6 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurf
 
 		TransportedItemStack copied = transportedStack.copy();
 		beltInventory.prepareInsertedItem(copied, index, side);
-		Direction movementFacing = getMovementFacing();
-		if (!side.getAxis()
-			.isVertical()) {
-			Direction frontInputSide = SlimeBeltHelper.getFrontInputSide(getBlockState());
-			boolean trackFaceInsert = side == frontInputSide || side == frontInputSide.getOpposite();
-			if (side == movementFacing) {
-				float extraOffset = copied.prevBeltPosition != 0
-					&& SlimeBeltHelper.getSegmentBE(level, worldPosition.relative(movementFacing.getOpposite())) != null ? .26f : 0;
-				copied.beltPosition =
-					beltInventory.getSmoothInsertionPosition(index, side, extraOffset);
-			} else if (!trackFaceInsert) {
-				copied.sideOffset = side.getAxisDirection()
-					.getStep() * .675f;
-				if (side.getAxis() == Axis.X)
-					copied.sideOffset *= -1;
-			}
-		}
-		copied.prevBeltPosition = copied.beltPosition;
-		copied.prevSideOffset = copied.sideOffset;
 		beltInventory.addItem(copied);
 		setChanged();
 		sendData();
