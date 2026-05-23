@@ -281,36 +281,6 @@
         }
       }
     },
-    "ponderer:bio_packager": {
-      "sceneId": "ponderer:bio_packager",
-      "sceneKey": "ponderer:bio_packager",
-      "className": "com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedBioPackager_bad667d8",
-      "status": "COMPLETE",
-      "contentHash": "d95244b7792ae72ef5e40e4fa78938c761685de32a1e6fac41c78b5251741d11",
-      "javaFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBioPackager_bad667d8.java"
-      ],
-      "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bio_packager_release.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bio_packager_capture.nbt"
-      ],
-      "langEntries": {
-        "zh_cn": {
-          "create_biotech.ponder.bio_packager_scene_1.header": "生物打包机 释放",
-          "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
-          "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
-          "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
-          "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"
-        },
-        "en_us": {
-          "create_biotech.ponder.bio_packager_scene_1.header": "Scene 1",
-          "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
-          "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
-          "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
-          "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"
-        }
-      }
-    },
     "ponderer:experience_pump": {
       "sceneId": "ponderer:experience_pump",
       "sceneKey": "ponderer:experience_pump",
@@ -442,6 +412,36 @@
           "create_biotech.ponder.spider_assembly_table.text_2": "右键打开界面，在第一行放入装配所需要的机器...",
           "create_biotech.ponder.spider_assembly_table.text_3": "在第二行放入装配所需原料",
           "create_biotech.ponder.spider_assembly_table.text_4": "装配！"
+        }
+      }
+    },
+    "ponderer:bio_packager": {
+      "sceneId": "ponderer:bio_packager",
+      "sceneKey": "ponderer:bio_packager",
+      "className": "com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedBioPackager_bad667d8",
+      "status": "COMPLETE",
+      "contentHash": "bfa5acbab31aadb54269be54c207502675a7c817a7952127f96d3c9e8ec5c45d",
+      "javaFiles": [
+        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBioPackager_bad667d8.java"
+      ],
+      "resourceFiles": [
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/packager1.nbt"
+      ],
+      "langEntries": {
+        "zh_cn": {
+          "create_biotech.ponder.bio_packager_scene_1.header": "生物打包机 释放",
+          "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
+          "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
+          "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
+          "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"
+        },
+        "en_us": {
+          "create_biotech.ponder.bio_packager_scene_1.header": "Scene 1",
+          "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
+          "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
+          "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
+          "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"
         }
       }
     }

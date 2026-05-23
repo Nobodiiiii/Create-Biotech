@@ -217,11 +217,6 @@
   "create_biotech.ponder.universal_joint.header": "场景 1",
   "create_biotech.ponder.universal_joint.text_1": "史莱姆万向节可以在相近的任意两个点之间传播应力",
   "create_biotech.ponder.universal_joint.text_2": "以一个节点为中心，另一个节点需要在5×5×5范围内",
-  "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
-  "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物",
-  "create_biotech.ponder.bio_packager_scene_1.header": "生物打包机 释放",
-  "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
-  "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
   "create_biotech.ponder.experience_pump_s_40666.header": "经验泵 输出",
   "create_biotech.ponder.experience_pump_s_40666.text_1": "输出端在没有阻塞时会输出经验球",
   "create_biotech.ponder.experience_pump_s_40666.text_2": "也可以输出到经验储罐，或其他接受经验的容器",
@@ -249,6 +244,11 @@
   "create_biotech.ponder.spider_assembly_table.text_2": "右键打开界面，在第一行放入装配所需要的机器...",
   "create_biotech.ponder.spider_assembly_table.text_3": "在第二行放入装配所需原料",
   "create_biotech.ponder.spider_assembly_table.text_4": "装配！",
+  "create_biotech.ponder.bio_packager_s_fe8b2.header": "生物打包机 捕捉",
+  "create_biotech.ponder.bio_packager_s_fe8b2.text_1": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物",
+  "create_biotech.ponder.bio_packager_scene_1.header": "生物打包机 释放",
+  "create_biotech.ponder.bio_packager_scene_1.text_1": "接入红石信号...",
+  "create_biotech.ponder.bio_packager_scene_1.text_2": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
   "create_biotech.ponder.tag.ponderer_exported": "思索者...",
   "create_biotech.ponder.tag.ponderer_exported.description": "以上思索由模组思索者（Ponderer）制作并导出，了解更多：https://modrinth.com/mod/the-ponderer"
 }
