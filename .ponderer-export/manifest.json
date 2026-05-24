@@ -477,18 +477,68 @@
         }
       }
     },
+    "ponderer:ghast_helm": {
+      "sceneId": "ponderer:ghast_helm",
+      "sceneKey": "ponderer:ghast_helm",
+      "className": "com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedGhastHelm_b77c337a",
+      "status": "COMPLETE",
+      "contentHash": "6a7227d8741330a05b356a5e1331fa985cb5853fc6afa7981071db52e49d2101",
+      "javaFiles": [
+        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHelm_b77c337a.java"
+      ],
+      "resourceFiles": [
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/rope.nbt"
+      ],
+      "langEntries": {
+        "en_us": {
+          "create_biotech.ponder.ghast_helm_scene_1.header": "Scene 1",
+          "create_biotech.ponder.ghast_helm_scene_1.text_1": "使用恶魂热气球装配站来组装你的恶魂热气球",
+          "create_biotech.ponder.ghast_helm_scene_1.text_2": "使用强力胶粘合你的热气球",
+          "create_biotech.ponder.ghast_helm_scene_1.text_3": "使用缓冲垫可以防止结构陷入地下",
+          "create_biotech.ponder.ghast_helm_scene_1.text_4": "然后为热气球装配站接入红石...",
+          "create_biotech.ponder.ghast_helm_scene_1.text_5": "再在装配站上方放一只恶魂...",
+          "create_biotech.ponder.ghast_helm_scene_1.text_6": "组装完成！",
+          "create_biotech.ponder.ghast_helm_scene_1.text_7": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体",
+          "create_biotech.ponder.ghast_helm_s_29671.header": "恶魂热气球装配站 操纵",
+          "create_biotech.ponder.ghast_helm_s_29671.text_1": "使用恶魂驾驶台来操控恶魂热气球",
+          "create_biotech.ponder.ghast_helm_s_29671.text_2": "W/S 前后移动",
+          "create_biotech.ponder.ghast_helm_s_29671.text_3": "A/D 左右转弯",
+          "create_biotech.ponder.ghast_helm_s_29671.text_4": "空格/Shift 上下移动",
+          "create_biotech.ponder.ghast_helm_s_29671.text_5": "Ctrl 停止操控",
+          "create_biotech.ponder.ghast_helm_s_29671.text_6": "Alt 自动靠近附近未充能的装配站"
+        },
+        "zh_cn": {
+          "create_biotech.ponder.ghast_helm_scene_1.header": "恶魂热气球装配站 组装",
+          "create_biotech.ponder.ghast_helm_scene_1.text_1": "使用恶魂热气球装配站来组装你的恶魂热气球",
+          "create_biotech.ponder.ghast_helm_scene_1.text_2": "使用强力胶粘合你的热气球",
+          "create_biotech.ponder.ghast_helm_scene_1.text_3": "使用缓冲垫可以防止结构陷入地下",
+          "create_biotech.ponder.ghast_helm_scene_1.text_4": "然后为热气球装配站接入红石...",
+          "create_biotech.ponder.ghast_helm_scene_1.text_5": "再在装配站上方放一只恶魂...",
+          "create_biotech.ponder.ghast_helm_scene_1.text_6": "组装完成！",
+          "create_biotech.ponder.ghast_helm_scene_1.text_7": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体",
+          "create_biotech.ponder.ghast_helm_s_29671.header": "恶魂热气球装配站 操纵",
+          "create_biotech.ponder.ghast_helm_s_29671.text_1": "使用恶魂驾驶台来操控恶魂热气球",
+          "create_biotech.ponder.ghast_helm_s_29671.text_2": "W/S 前后移动",
+          "create_biotech.ponder.ghast_helm_s_29671.text_3": "A/D 左右转弯",
+          "create_biotech.ponder.ghast_helm_s_29671.text_4": "空格/Shift 上下移动",
+          "create_biotech.ponder.ghast_helm_s_29671.text_5": "Ctrl 停止操控",
+          "create_biotech.ponder.ghast_helm_s_29671.text_6": "Alt 自动靠近附近未充能的装配站"
+        }
+      }
+    },
     "ponderer:ghast_hot_air_balloon_assembly_station": {
       "sceneId": "ponderer:ghast_hot_air_balloon_assembly_station",
       "sceneKey": "ponderer:ghast_hot_air_balloon_assembly_station",
       "className": "com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd",
       "status": "COMPLETE",
-      "contentHash": "ce2b1b6a803d880be8d8e8fb26c879333de4877ffadc293cfe361e4d5f9cf8f6",
+      "contentHash": "cad6dadb05eb1c533677f5a204e5b46445230fddbdd3d35b761d209a81a72096",
       "javaFiles": [
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_rope.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/rope.nbt"
       ],
       "langEntries": {
         "en_us": {
@@ -496,8 +546,10 @@
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_1": "使用恶魂热气球装配站来组装你的恶魂热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_2": "使用强力胶粘合你的热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_3": "使用缓冲垫可以防止结构陷入地下",
-          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_4": "然后为热气球装配站接入红石",
-          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_5": "再在装配站上方放一只恶魂",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_4": "然后为热气球装配站接入红石...",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_5": "再在装配站上方放一只恶魂...",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_6": "组装完成！",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_7": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.header": "恶魂热气球装配站 操纵",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.text_1": "使用恶魂驾驶台来操控恶魂热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.text_2": "W/S 前后移动",
@@ -511,8 +563,10 @@
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_1": "使用恶魂热气球装配站来组装你的恶魂热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_2": "使用强力胶粘合你的热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_3": "使用缓冲垫可以防止结构陷入地下",
-          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_4": "然后为热气球装配站接入红石",
-          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_5": "再在装配站上方放一只恶魂",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_4": "然后为热气球装配站接入红石...",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_5": "再在装配站上方放一只恶魂...",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_6": "组装完成！",
+          "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_scene_1.text_7": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.header": "恶魂热气球装配站 操纵",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.text_1": "使用恶魂驾驶台来操控恶魂热气球",
           "create_biotech.ponder.ghast_hot_air_balloon_assembly_station_s_29671.text_2": "W/S 前后移动",

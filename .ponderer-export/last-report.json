@@ -9,18 +9,34 @@
   "ignoredFindings": [],
   "sceneOutcomes": [
     {
-      "sceneId": "ponderer:ghast_hot_air_balloon_assembly_station",
-      "sceneKey": "ponderer:ghast_hot_air_balloon_assembly_station",
-      "className": "GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd",
+      "sceneId": "ponderer:ghast_helm",
+      "sceneKey": "ponderer:ghast_helm",
+      "className": "GeneratedGhastHelm_b77c337a",
       "status": "COMPLETE",
       "replaced": false,
       "exportedSegments": 2,
       "blankSegments": 0,
       "omittedSteps": 0,
       "ownedFiles": [
+        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHelm_b77c337a.java",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/rope.nbt"
+      ],
+      "messages": []
+    },
+    {
+      "sceneId": "ponderer:ghast_hot_air_balloon_assembly_station",
+      "sceneKey": "ponderer:ghast_hot_air_balloon_assembly_station",
+      "className": "GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd",
+      "status": "COMPLETE",
+      "replaced": true,
+      "exportedSegments": 2,
+      "blankSegments": 0,
+      "omittedSteps": 0,
+      "ownedFiles": [
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd.java",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_rope.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/rope.nbt"
       ],
       "messages": []
     }

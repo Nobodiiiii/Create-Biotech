@@ -13,24 +13,24 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 
-public final class GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd {
-    private GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd() {
+public final class GeneratedGhastHelm_b77c337a {
+    private GeneratedGhastHelm_b77c337a() {
     }
 
     public static void register(PonderSceneRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation[] tags = new ResourceLocation[]{new ResourceLocation("create_biotech", "ponderer_exported")};
-        var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "ghast_hot_air_balloon_assembly_station")));
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/ghast_hot_air_balloon_assembly_station_base"), GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd::storyboard$0, tags);
-        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/ghast_hot_air_balloon_assembly_station_base"), GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd::storyboard$1, tags);
+        var multi = helper.forComponents(java.util.List.of(new ResourceLocation("create_biotech", "ghast_helm")));
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/ghast_hot_air_balloon_assembly_station_base"), GeneratedGhastHelm_b77c337a::storyboard$0, tags);
+        multi.addStoryBoard(new ResourceLocation("create_biotech", "generated/ponderer/ghast_hot_air_balloon_assembly_station_base"), GeneratedGhastHelm_b77c337a::storyboard$1, tags);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
         ResourceLocation tag = GeneratedPonderAttribution.tag();
-        helper.addTagToComponent(new ResourceLocation("create_biotech", "ghast_hot_air_balloon_assembly_station"), tag);
+        helper.addTagToComponent(new ResourceLocation("create_biotech", "ghast_helm"), tag);
     }
 
     private static void storyboard$0(SceneBuilder scene, SceneBuildingUtil util) {
-        scene.title("ghast_hot_air_balloon_assembly_station_scene_1", "Scene 1");
+        scene.title("ghast_helm_scene_1", "Scene 1");
         GeneratedPonderSupport.Context context = new GeneratedPonderSupport.Context();
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(0, 0, 0), new BlockPos(9, 9, 9));
         scene.addKeyframe();
@@ -90,7 +90,7 @@ public final class GeneratedGhastHotAirBalloonAssemblyStation_0bf36ffd {
     }
 
     private static void storyboard$1(SceneBuilder scene, SceneBuildingUtil util) {
-        scene.title("ghast_hot_air_balloon_assembly_station_s_29671", "恶魂热气球装配站 操纵");
+        scene.title("ghast_helm_s_29671", "恶魂热气球装配站 操纵");
         GeneratedPonderSupport.Context context = new GeneratedPonderSupport.Context();
         GeneratedPonderSupport.preScanBounds(scene, new BlockPos(4, 1, 2), new BlockPos(4, 6, 4));
         GeneratedPonderSupport.showStructure(scene, context, null, null, 0.800000011920929f, null);
