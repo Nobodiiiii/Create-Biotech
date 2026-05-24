@@ -6,6 +6,7 @@ import com.mojang.logging.LogUtils;
 import net.createmod.catnip.math.Pointing;
 import net.createmod.ponder.api.PonderPalette;
 import net.createmod.ponder.api.element.ElementLink;
+import net.createmod.ponder.api.element.EntityElement;
 import net.createmod.ponder.api.element.InputElementBuilder;
 import net.createmod.ponder.api.element.TextElementBuilder;
 import net.createmod.ponder.api.element.WorldSectionElement;
@@ -31,6 +32,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
@@ -64,6 +66,7 @@ public final class GeneratedPonderSupport {
 
     public static final class Context {
         final Map<String, ElementLink<WorldSectionElement>> sectionLinks = new HashMap<>();
+        final Map<String, ElementLink<EntityElement>> entityLinks = new HashMap<>();
         final Set<Long> visibleBlockKeys = new HashSet<>();
         final Set<Long> hiddenBlockKeys = new HashSet<>();
         boolean allBlocksVisible;
@@ -167,6 +170,139 @@ public final class GeneratedPonderSupport {
             }
             return entity;
         });
+    }
+
+    public static void createEntityWithDropIn(SceneBuilder scene, Context context, String entityKey,
+                                              String entityId, Vec3 pos, Vec3 lookAt,
+                                              Float yaw, Float pitch, String nbt,
+                                              double dropHeight, int dropDurationTicks) {
+        ResourceLocation loc = entityId == null ? null : ResourceLocation.tryParse(entityId);
+        if (loc == null) {
+            return;
+        }
+        Vec3 startPos = pos.add(0, dropHeight, 0);
+        Float yawCap = yaw;
+        Float pitchCap = pitch;
+        String nbtCap = nbt;
+        Vec3 lookAtCap = lookAt;
+        ElementLink<EntityElement> link = scene.world().createEntity((Level level) -> {
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(loc).orElse(null);
+            if (type == null) {
+                return null;
+            }
+            Entity entity = type.create(level);
+            if (entity == null) {
+                return null;
+            }
+            entity.setPosRaw(startPos.x, startPos.y, startPos.z);
+            entity.setOldPosAndRot();
+            Vec3 targetLook = lookAtCap == null ? startPos.add(0, 0, -1) : lookAtCap;
+            entity.lookAt(EntityAnchorArgument.Anchor.FEET, targetLook);
+            if (yawCap != null) {
+                entity.setYRot(yawCap);
+                entity.setYHeadRot(yawCap);
+                entity.setYBodyRot(yawCap);
+            }
+            if (pitchCap != null) {
+                entity.setXRot(pitchCap);
+            }
+            if (entity instanceof Mob mob) {
+                mob.setNoAi(true);
+            }
+            entity.setNoGravity(true);
+            entity.setDeltaMovement(Vec3.ZERO);
+            if (nbtCap != null && !nbtCap.isBlank()) {
+                try {
+                    CompoundTag patch = TagParser.parseTag(nbtCap);
+                    CompoundTag data = new CompoundTag();
+                    entity.saveWithoutId(data);
+                    data.merge(patch);
+                    entity.load(data);
+                } catch (Exception ignored) {
+                }
+            }
+            return entity;
+        });
+        if (entityKey != null && !entityKey.isBlank() && link != null) {
+            context.entityLinks.put(entityKey, link);
+        }
+        int duration = Math.max(1, dropDurationTicks);
+        for (int i = 1; i <= duration; i++) {
+            final double progress = (double) i / duration;
+            final double targetY = startPos.y - dropHeight * progress;
+            scene.world().modifyEntity(link, e -> {
+                if (e == null) {
+                    return;
+                }
+                double curX = e.getX();
+                double curY = e.getY();
+                double curZ = e.getZ();
+                e.xo = curX;
+                e.yo = curY;
+                e.zo = curZ;
+                e.setPos(curX, targetY, curZ);
+            });
+            scene.idle(1);
+        }
+    }
+
+    public static void clearEntitiesWithRiseOut(SceneBuilder scene, Context context,
+                                                double riseHeight, int riseDurationTicks) {
+        if (context.entityLinks.isEmpty()) {
+            clearEntities(scene, true, null, null, null);
+            return;
+        }
+        int duration = Math.max(1, riseDurationTicks);
+        java.util.List<ElementLink<EntityElement>> links = new java.util.ArrayList<>(context.entityLinks.values());
+        for (int i = 1; i <= duration; i++) {
+            final double progress = (double) i / duration;
+            final double targetOffset = riseHeight * progress;
+            for (ElementLink<EntityElement> link : links) {
+                scene.world().modifyEntity(link, e -> {
+                    if (e == null) {
+                        return;
+                    }
+                    double curX = e.getX();
+                    double curY = e.getY();
+                    double curZ = e.getZ();
+                    e.xo = curX;
+                    e.yo = curY;
+                    e.zo = curZ;
+                    e.setPos(curX, curY + targetOffset / duration, curZ);
+                });
+            }
+            scene.idle(1);
+        }
+        for (ElementLink<EntityElement> link : links) {
+            scene.world().modifyEntity(link, Entity::discard);
+        }
+        context.entityLinks.clear();
+    }
+
+    public static void playWalkAnimation(SceneBuilder scene, Context context,
+                                         Map<String, Float> entitySpeeds, int durationTicks) {
+        if (entitySpeeds == null || entitySpeeds.isEmpty() || durationTicks <= 0) {
+            if (durationTicks > 0) {
+                scene.idle(durationTicks);
+            }
+            return;
+        }
+        for (int t = 0; t < durationTicks; t++) {
+            for (Map.Entry<String, Float> entry : entitySpeeds.entrySet()) {
+                ElementLink<EntityElement> link = context.entityLinks.get(entry.getKey());
+                if (link == null) {
+                    continue;
+                }
+                final float speed = entry.getValue() == null ? 0f : entry.getValue();
+                scene.world().modifyEntity(link, e -> {
+                    if (e instanceof LivingEntity living) {
+                        living.walkAnimation.setSpeed(speed);
+                        living.walkAnimation.update(speed, 1.0f);
+                    }
+                });
+            }
+            scene.idle(1);
+        }
     }
 
     public static void createItemEntity(SceneBuilder scene, String itemId, int count, Vec3 pos,

@@ -455,10 +455,10 @@
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedPowerBeltConnector_f5338733.java"
       ],
       "resourceFiles": [
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/powerbelt.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/powerbelt1.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/powerbelt2.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/powerbelt3.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_base.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_64rpm.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_144rpm.nbt",
+        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_80rpm.nbt"
       ],
       "langEntries": {
         "en_us": {

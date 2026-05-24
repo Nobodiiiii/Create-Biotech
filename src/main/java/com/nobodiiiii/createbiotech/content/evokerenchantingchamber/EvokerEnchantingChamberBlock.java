@@ -51,7 +51,7 @@ public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
 		BlockPos pos = context.getClickedPos();
 		Level level = context.getLevel();
-		if (pos.getY() >= level.getMaxBuildHeight() - 1)
+		if (!hasSpaceForUpperHalf(level, pos))
 			return null;
 		if (!level.getBlockState(pos.above()).canBeReplaced(context))
 			return null;
@@ -194,5 +194,11 @@ public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 		BlockPos basePos = state.getValue(HALF) == DoubleBlockHalf.LOWER ? pos : pos.below();
 		BlockEntity blockEntity = level.getBlockEntity(basePos);
 		return blockEntity instanceof EvokerEnchantingChamberBlockEntity chamber ? chamber : null;
+	}
+
+	public static boolean hasSpaceForUpperHalf(Level level, BlockPos lowerPos) {
+		if (lowerPos.getY() >= level.getMaxBuildHeight() - 1)
+			return false;
+		return level.getBlockState(lowerPos.above()).canBeReplaced();
 	}
 }
