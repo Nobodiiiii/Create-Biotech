@@ -1,12 +1,15 @@
 package com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod;
 
 import java.util.EnumSet;
+import java.util.UUID;
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.item.ItemStack;
@@ -75,6 +78,8 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 		Vec3 baitPosition = getBaitPosition(rodPos);
 		if (baitPosition == null)
 			return;
+
+		awardIfAnimalReachedPowerBelt();
 
 		animal.getLookControl()
 			.setLookAt(baitPosition.x, baitPosition.y, baitPosition.z,
@@ -155,5 +160,23 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 			pos.getX() + 0.5 + facing.getStepX() * ITEM_XZ_OFFSET,
 			pos.getY(),
 			pos.getZ() + 0.5 + facing.getStepZ() * ITEM_XZ_OFFSET);
+	}
+
+	private void awardIfAnimalReachedPowerBelt() {
+		if (!(animal.level() instanceof ServerLevel serverLevel) || rodPos == null)
+			return;
+		if (!isOnPowerBelt(animal.blockPosition()) && !isOnPowerBelt(animal.blockPosition().below()))
+			return;
+		if (!(serverLevel.getBlockEntity(rodPos) instanceof FixedCarrotFishingRodBlockEntity rodEntity))
+			return;
+
+		UUID owner = rodEntity.getAdvancementOwner();
+		if (owner != null)
+			CBAdvancements.awardPlayer(serverLevel, owner, CBAdvancements.VOLUNTARY_OVERTIME);
+	}
+
+	private boolean isOnPowerBelt(BlockPos pos) {
+		return animal.level().getBlockState(pos)
+			.is(CBBlocks.POWER_BELT.get());
 	}
 }

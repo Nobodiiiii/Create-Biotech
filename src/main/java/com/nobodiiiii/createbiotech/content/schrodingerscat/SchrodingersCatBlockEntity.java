@@ -5,6 +5,7 @@ import java.util.Random;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
@@ -103,6 +104,8 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 		}
 
 		if (previousOutput != getOutputSignal()) {
+			if (previousOutput <= 0 && getOutputSignal() > 0)
+				CBAdvancements.awardNearby(level, worldPosition, 16, CBAdvancements.SCHRODINGERS_CAT);
 			setChanged();
 			sendData();
 			level.updateNeighborsAt(worldPosition, getBlockState().getBlock());

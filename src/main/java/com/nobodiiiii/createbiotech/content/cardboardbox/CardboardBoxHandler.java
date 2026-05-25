@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.world.InteractionHand;
@@ -68,6 +69,8 @@ public class CardboardBoxHandler {
 		if (!CapturedEntityBoxHelper.captureEntity(stack, livingTarget))
 			return;
 		livingTarget.discard();
+		if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+			CBAdvancements.award(serverPlayer, CBAdvancements.CARDBOARD_BOX);
 	}
 
 	private static boolean isSmallMob(LivingEntity target) {

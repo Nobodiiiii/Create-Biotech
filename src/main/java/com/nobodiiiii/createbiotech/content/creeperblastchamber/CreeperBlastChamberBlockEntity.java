@@ -21,6 +21,7 @@ import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.mixin.MobAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
@@ -980,7 +981,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		return Vec3.atCenterOf(structureOrigin.offset(structureSize / 2, 1, structureSize / 2));
 	}
 
+	private void awardSafeBlastAdvancement() {
+		if (level == null || structureOrigin == null)
+			return;
+		CBAdvancements.awardNearby(level, getOverloadExplosionCenter(), 32, CBAdvancements.CREEPER_BLAST_CHAMBER);
+	}
+
 	private void explodeOverloadAt(Level level, Vec3 position, float explosionPower) {
+		CBAdvancements.awardNearby(level, position, 32, CBAdvancements.CREEPER_BLAST_CHAMBER_OVERLOAD);
 		level.explode(null, position.x, position.y, position.z, explosionPower, Level.ExplosionInteraction.TNT);
 	}
 
@@ -1024,13 +1032,19 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (inputHandler == null || outputHandler == null)
 			return;
 
+		int processedOperations = 0;
 		for (int i = 0; i < operations; i++) {
 			ProcessingAttemptResult result = highPressure
 				? processNextHighPressureVaultItem(inputHandler, outputHandler)
 				: processNextVaultStack(inputHandler, outputHandler);
-			if (result == ProcessingAttemptResult.NO_INPUT || result == ProcessingAttemptResult.BLOCKED_OUTPUT)
-				return;
+			if (result == ProcessingAttemptResult.PROCESSED) {
+				processedOperations++;
+				continue;
+			}
+			break;
 		}
+		if (processedOperations > 0)
+			awardSafeBlastAdvancement();
 	}
 
 	private void tickOverloadDecay(Level level) {

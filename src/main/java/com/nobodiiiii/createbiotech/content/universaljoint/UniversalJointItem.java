@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.universaljoint;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
@@ -16,6 +17,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -68,6 +70,8 @@ public class UniversalJointItem extends BlockItem {
 			if (!context.getItemInHand().isEmpty())
 				context.getItemInHand().setTag(null);
 			player.getCooldowns().addCooldown(this, 5);
+			if (player instanceof ServerPlayer serverPlayer)
+				CBAdvancements.award(serverPlayer, CBAdvancements.UNIVERSAL_JOINT);
 			return InteractionResult.SUCCESS;
 		}
 

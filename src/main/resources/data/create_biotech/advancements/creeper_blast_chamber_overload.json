@@ -1,0 +1,32 @@
+{
+  "parent": "create_biotech:creeper_blast_chamber",
+  "criteria": {
+    "grant": {
+      "trigger": "minecraft:impossible"
+    }
+  },
+  "display": {
+    "announce_to_chat": true,
+    "description": {
+      "color": "#DBA213",
+      "translate": "advancement.create_biotech.creeper_blast_chamber_overload.desc"
+    },
+    "frame": "goal",
+    "hidden": true,
+    "icon": {
+      "item": "create_biotech:creeper_blast_chamber"
+    },
+    "show_toast": true,
+    "title": {
+      "translate": "advancement.create_biotech.creeper_blast_chamber_overload"
+    },
+    "x": 8,
+    "y": 11
+  },
+  "requirements": [
+    [
+      "grant"
+    ]
+  ],
+  "sends_telemetry_event": true
+}

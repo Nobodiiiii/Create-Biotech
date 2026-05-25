@@ -150,6 +150,7 @@ public class FixedCarrotFishingRodBlock extends HorizontalDirectionalBlock imple
 			ItemStack copy = heldItem.copy();
 			copy.setCount(1);
 			blockEntity.setBaitItem(copy);
+			blockEntity.setAdvancementOwner(player);
 			if (!player.isCreative())
 				heldItem.shrink(1);
 		} else if (!baitItem.isEmpty() && heldItem.isEmpty()) {
@@ -160,6 +161,7 @@ public class FixedCarrotFishingRodBlock extends HorizontalDirectionalBlock imple
 			ItemStack copy = heldItem.copy();
 			copy.setCount(1);
 			blockEntity.setBaitItem(copy);
+			blockEntity.setAdvancementOwner(player);
 			if (!player.isCreative())
 				heldItem.shrink(1);
 		} else {

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.content.kinetics.RotationPropagator;
 import com.simibubi.create.content.kinetics.base.IRotate;
@@ -99,6 +100,8 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 			if (state.getBlock() instanceof SlimeClutchBlock clutch)
 				clutch.detachKinetics(level, getBlockPos(), true);
 			level.setBlock(getBlockPos(), state.setValue(BlockStateProperties.POWERED, toPowered), 2 | 16);
+			if (toPowered)
+				CBAdvancements.awardNearby(level, getBlockPos(), 16, CBAdvancements.SLIME_CLUTCH);
 		} finally {
 			processingTransition = false;
 		}

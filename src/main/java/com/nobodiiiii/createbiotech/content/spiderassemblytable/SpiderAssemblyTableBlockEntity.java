@@ -6,10 +6,13 @@ import static com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessing
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
+import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
@@ -44,6 +47,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -94,6 +98,8 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	private boolean impactPending;
 	private ItemStack impactDisplayItem = ItemStack.EMPTY;
 	private ItemStack cachedInput = ItemStack.EMPTY;
+	@Nullable
+	private UUID advancementOwner;
 
 	protected BeltProcessingBehaviour beltProcessing;
 
@@ -160,6 +166,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		tag.putInt("ProcessingTicksTotal", processingTicksTotal);
 		if (!cachedInput.isEmpty())
 			tag.put("CachedInput", cachedInput.serializeNBT());
+		PlacedByPlayerAdvancementTracker.writeOwner(tag, advancementOwner);
 		if (clientPacket && impactPending) {
 			tag.putBoolean("Impact", true);
 			if (!impactDisplayItem.isEmpty())
@@ -196,6 +203,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		processingTicksRemaining = tag.getInt("ProcessingTicksRemaining");
 		processingTicksTotal = tag.getInt("ProcessingTicksTotal");
 		cachedInput = tag.contains("CachedInput") ? ItemStack.of(tag.getCompound("CachedInput")) : ItemStack.EMPTY;
+		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
 		super.read(tag, clientPacket);
 
 		if (clientPacket && tag.getBoolean("Impact")) {
@@ -591,6 +599,9 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			handler.handleProcessingOnItem(transported, TransportedResult.convertToAndLeaveHeld(outList, held));
 		}
 
+		if (containsCompletedSequencedAssembly(outputs))
+			PlacedByPlayerAdvancementTracker.awardPlacedBy(level, advancementOwner, CBAdvancements.SPIDER_ASSEMBLY_TABLE);
+
 		resetActiveProcess();
 		setChanged();
 		sendData();
@@ -869,6 +880,16 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		level.addFreshEntity(entity);
 	}
 
+	private boolean containsCompletedSequencedAssembly(List<ItemStack> outputs) {
+		for (ItemStack output : outputs) {
+			if (output.isEmpty())
+				continue;
+			if (!output.hasTag() || !output.getTag().contains("SequencedAssembly"))
+				return true;
+		}
+		return false;
+	}
+
 	private int getPressDuration() {
 		int tickSpeed = Math.max(1, (int) Mth.lerp(Mth.clamp(Math.abs(getSpeed()) / 512f, 0, 1), 1, 60));
 		return Mth.ceil(PressingBehaviour.CYCLE / (float) tickSpeed);
@@ -889,6 +910,11 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	private MachineKind getMachineKind(int slot) {
 		return MachineKind.fromStack(inventory.getStackInSlot(MACHINE_SLOT_START + slot));
+	}
+
+	public void setAdvancementOwner(@Nullable LivingEntity placer) {
+		advancementOwner = PlacedByPlayerAdvancementTracker.ownerFrom(placer);
+		setChanged();
 	}
 
 	private void updateStressFromMachineSlots() {

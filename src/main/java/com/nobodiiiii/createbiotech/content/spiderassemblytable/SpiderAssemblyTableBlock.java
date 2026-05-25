@@ -78,6 +78,7 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 			.defaultBlockState()
 			.setValue(SpiderAssemblyTableCogBlock.FACING, state.getValue(FACING));
 		level.setBlock(tailPos, tailState, Block.UPDATE_ALL);
+		withBlockEntityDo(level, pos, be -> be.setAdvancementOwner(placer));
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.ghasthotairballoon;
 import java.util.UUID;
 
 import com.google.common.base.Objects;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsBlock;
@@ -11,6 +12,7 @@ import com.simibubi.create.content.contraptions.actors.trainControls.ControlsHan
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
@@ -36,6 +38,8 @@ public class GhastHelmMovingInteraction extends MovingInteractionBehaviour {
 
 		if (!player.level().isClientSide && !ghastBalloon.startControlling(localPos, player))
 			return false;
+		if (player instanceof ServerPlayer serverPlayer)
+			CBAdvancements.award(serverPlayer, CBAdvancements.GHAST_HELM);
 
 		contraptionEntity.setControllingPlayer(player.getUUID());
 		if (player.level().isClientSide) {

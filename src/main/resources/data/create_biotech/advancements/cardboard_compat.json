@@ -1,5 +1,5 @@
 {
-  "parent": "create_biotech:belt_compat",
+  "parent": "create_biotech:root",
   "criteria": {
     "grant": {
       "trigger": "minecraft:impossible"
@@ -9,19 +9,19 @@
     "announce_to_chat": false,
     "description": {
       "color": "#DBA213",
-      "translate": "advancement.create_biotech.magma_belt.desc"
+      "translate": "advancement.create_biotech.cardboard_compat.desc"
     },
     "frame": "task",
     "hidden": false,
     "icon": {
-      "item": "create_biotech:magma_belt_connector"
+      "item": "create:cardboard"
     },
-    "show_toast": true,
+    "show_toast": false,
     "title": {
-      "translate": "advancement.create_biotech.magma_belt"
+      "translate": "advancement.create_biotech.cardboard_compat"
     },
-    "x": 4,
-    "y": -3
+    "x": 0,
+    "y": 14
   },
   "requirements": [
     [

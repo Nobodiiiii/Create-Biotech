@@ -1,12 +1,12 @@
 {
-  "parent": "create_biotech:experience_pump",
+  "parent": "create_biotech:root",
   "criteria": {
-    "has_tank": {
+    "has_bionic_mechanism": {
       "conditions": {
         "items": [
           {
             "items": [
-              "create_biotech:experience_tank"
+              "create_biotech:bionic_mechanism"
             ]
           }
         ]
@@ -18,23 +18,23 @@
     "announce_to_chat": false,
     "description": {
       "color": "#DBA213",
-      "translate": "advancement.create_biotech.experience_tank.desc"
+      "translate": "advancement.create_biotech.bionic_mechanism.desc"
     },
     "frame": "task",
     "hidden": false,
     "icon": {
-      "item": "create_biotech:experience_tank"
+      "item": "create_biotech:bionic_mechanism"
     },
     "show_toast": true,
     "title": {
-      "translate": "advancement.create_biotech.experience_tank"
+      "translate": "advancement.create_biotech.bionic_mechanism"
     },
-    "x": 4,
-    "y": 2
+    "x": 2,
+    "y": 10
   },
   "requirements": [
     [
-      "has_tank"
+      "has_bionic_mechanism"
     ]
   ],
   "sends_telemetry_event": true

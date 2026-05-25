@@ -6,6 +6,8 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.ControlledContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -20,6 +22,7 @@ import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.vehicle.MinecartFurnace;
 import net.minecraft.world.level.Level;
@@ -61,6 +64,8 @@ public final class BufferPadCollisionHelper {
 		boolean collision = collidesWithWorld(context.position, context.world, collisionNormal);
 		boolean previouslyColliding = collision
 			&& collidesWithWorld(context.position.subtract(context.motion), context.world, collisionNormal);
+		if (collision && !previouslyColliding)
+			awardSoftLanding(context.contraption.entity);
 		resolveCollision(context.contraption.entity, context.motion, context.data, ACTOR_TAGS,
 			collision ? collisionNormal : null, previouslyColliding, -1);
 	}
@@ -599,6 +604,17 @@ public final class BufferPadCollisionHelper {
 		case WEST -> 0.5d - shapeBounds.minX;
 		case EAST -> shapeBounds.maxX - 0.5d;
 		};
+	}
+
+	private static void awardSoftLanding(AbstractContraptionEntity entity) {
+		if (!(entity instanceof GhastHotAirBalloonEntity) || !(entity.level() instanceof ServerLevel serverLevel))
+			return;
+
+		boolean awarded = entity.getControllingPlayer()
+			.map(playerId -> CBAdvancements.awardPlayer(serverLevel, playerId, CBAdvancements.SOFT_LANDING))
+			.orElse(false);
+		if (!awarded)
+			CBAdvancements.awardNearby(serverLevel, entity.position(), 32, CBAdvancements.SOFT_LANDING);
 	}
 
 	private record CollisionTagSet(String escapePushNormalX, String escapePushNormalY, String escapePushNormalZ,

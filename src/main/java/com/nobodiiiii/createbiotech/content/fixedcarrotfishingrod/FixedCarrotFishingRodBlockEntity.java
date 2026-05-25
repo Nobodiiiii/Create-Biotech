@@ -3,6 +3,9 @@ package com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.UUID;
+
+import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 
 import net.minecraft.core.BlockPos;
@@ -12,6 +15,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -21,6 +25,9 @@ import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.ItemStackHandler;
 
 public class FixedCarrotFishingRodBlockEntity extends BlockEntity {
+
+	@Nullable
+	private UUID advancementOwner;
 
 	private final ItemStackHandler inventory = new ItemStackHandler(1) {
 		@Override
@@ -55,6 +62,16 @@ public class FixedCarrotFishingRodBlockEntity extends BlockEntity {
 		return inventory;
 	}
 
+	public void setAdvancementOwner(@Nullable LivingEntity placer) {
+		advancementOwner = PlacedByPlayerAdvancementTracker.ownerFrom(placer);
+		setChanged();
+	}
+
+	@Nullable
+	public UUID getAdvancementOwner() {
+		return advancementOwner;
+	}
+
 	@Nonnull
 	@Override
 	public <T> LazyOptional<T> getCapability(@Nonnull Capability<T> cap, @Nullable Direction side) {
@@ -78,18 +95,21 @@ public class FixedCarrotFishingRodBlockEntity extends BlockEntity {
 	protected void saveAdditional(CompoundTag tag) {
 		super.saveAdditional(tag);
 		tag.put("Inventory", inventory.serializeNBT());
+		PlacedByPlayerAdvancementTracker.writeOwner(tag, advancementOwner);
 	}
 
 	@Override
 	public void load(CompoundTag tag) {
 		super.load(tag);
 		inventory.deserializeNBT(tag.getCompound("Inventory"));
+		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
 	}
 
 	@Override
 	public CompoundTag getUpdateTag() {
 		CompoundTag tag = super.getUpdateTag();
 		tag.put("Inventory", inventory.serializeNBT());
+		PlacedByPlayerAdvancementTracker.writeOwner(tag, advancementOwner);
 		return tag;
 	}
 
@@ -97,6 +117,7 @@ public class FixedCarrotFishingRodBlockEntity extends BlockEntity {
 	public void handleUpdateTag(CompoundTag tag) {
 		super.handleUpdateTag(tag);
 		inventory.deserializeNBT(tag.getCompound("Inventory"));
+		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
 	}
 
 	@Override

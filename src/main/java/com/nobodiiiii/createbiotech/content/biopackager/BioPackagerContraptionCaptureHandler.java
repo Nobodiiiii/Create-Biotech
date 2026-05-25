@@ -5,6 +5,7 @@ import java.util.Map;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxHandler;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 
@@ -66,6 +67,7 @@ public class BioPackagerContraptionCaptureHandler {
 
 		event.setCanceled(true);
 		target.discard();
+		CBAdvancements.awardNearby(level, target.blockPosition(), 16, CBAdvancements.BIO_PACKAGER);
 	}
 
 	@SubscribeEvent

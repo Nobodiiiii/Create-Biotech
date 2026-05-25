@@ -1,5 +1,5 @@
 {
-  "parent": "create_biotech:root",
+  "parent": "create_biotech:experience_pump",
   "criteria": {
     "grant": {
       "trigger": "minecraft:impossible"

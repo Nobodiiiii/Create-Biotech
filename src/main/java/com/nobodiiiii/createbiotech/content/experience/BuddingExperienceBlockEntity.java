@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.experience;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -149,6 +150,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 		if (!(clusterState.getBlock() instanceof ExperienceClusterBlock))
 			return;
 		Block.popResource(serverLevel, clusterPos, new ItemStack(CBItems.EXPERIENCE_CLUSTER.get()));
+		CBAdvancements.awardNearby(serverLevel, clusterPos, 16, CBAdvancements.EXPERIENCE_CLUSTER);
 		boolean waterlogged = clusterState.getValue(ExperienceClusterBlock.WATERLOGGED);
 		BlockState replacement = waterlogged ? Fluids.WATER.defaultFluidState()
 			.createLegacyBlock() : Blocks.AIR.defaultBlockState();

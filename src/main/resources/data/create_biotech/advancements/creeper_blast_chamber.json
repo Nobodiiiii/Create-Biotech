@@ -1,5 +1,5 @@
 {
-  "parent": "create_biotech:belt_compat",
+  "parent": "create_biotech:bombproof",
   "criteria": {
     "grant": {
       "trigger": "minecraft:impossible"
@@ -9,19 +9,19 @@
     "announce_to_chat": false,
     "description": {
       "color": "#DBA213",
-      "translate": "advancement.create_biotech.magma_belt.desc"
+      "translate": "advancement.create_biotech.creeper_blast_chamber.desc"
     },
     "frame": "task",
     "hidden": false,
     "icon": {
-      "item": "create_biotech:magma_belt_connector"
+      "item": "create_biotech:creeper_blast_chamber"
     },
     "show_toast": true,
     "title": {
-      "translate": "advancement.create_biotech.magma_belt"
+      "translate": "advancement.create_biotech.creeper_blast_chamber"
     },
-    "x": 4,
-    "y": -3
+    "x": 6,
+    "y": 11
   },
   "requirements": [
     [

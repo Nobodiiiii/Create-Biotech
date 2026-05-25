@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.boneratchet;
 
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.stress.BlockStressValues;
@@ -17,6 +18,7 @@ public class BoneRatchetBlockEntity extends SimpleKineticBlockEntity {
 	private static final float CREATIVE_MOTOR_MARGIN = 1024f;
 
 	private boolean refreshingStress;
+	private boolean wasReverseRotation;
 
 	public BoneRatchetBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.BONE_RATCHET.get(), pos, state);
@@ -43,6 +45,11 @@ public class BoneRatchetBlockEntity extends SimpleKineticBlockEntity {
 	private void refreshStressFromDirection(boolean forceNetworkUpdate) {
 		if (level == null || level.isClientSide || !hasNetwork() || refreshingStress)
 			return;
+
+		boolean reverseRotation = isReverseRotation();
+		if (reverseRotation && !wasReverseRotation)
+			CBAdvancements.awardNearby(level, getBlockPos(), 16, CBAdvancements.BONE_RATCHET);
+		wasReverseRotation = reverseRotation;
 
 		float directionalStress = getDirectionalStressImpact();
 		if (!forceNetworkUpdate && Mth.equal(lastStressApplied, directionalStress))

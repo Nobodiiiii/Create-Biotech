@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.world.InteractionHand;
@@ -75,6 +76,8 @@ public class LargeCardboardBoxHandler {
 
 		event.setCanceled(true);
 		target.discard();
+		CBAdvancements.awardPlayer((net.minecraft.server.level.ServerLevel) player.level(), player.getUUID(),
+			CBAdvancements.LARGE_CARDBOARD_BOX);
 	}
 
 	private static Player getCapturingPlayer(DamageSource source) {
