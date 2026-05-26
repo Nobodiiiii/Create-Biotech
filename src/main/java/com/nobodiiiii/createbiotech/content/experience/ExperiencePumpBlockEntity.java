@@ -1,357 +1,75 @@
 package com.nobodiiiii.createbiotech.content.experience;
 
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import org.apache.commons.lang3.mutable.MutableBoolean;
+
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperienceConnection;
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperiencePropagator;
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperienceTransportBehaviour;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
-import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
+import net.createmod.catnip.data.Couple;
+import net.createmod.catnip.data.Iterate;
+import net.createmod.catnip.data.Pair;
+import net.createmod.catnip.math.BlockFace;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockAndTintGetter;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.items.IItemHandler;
 
 public class ExperiencePumpBlockEntity extends KineticBlockEntity {
-	private static final double ATTRACT_HALF_EXTENT = 1.5d; // 3x3x3 default
-	private static final double ABSORB_HALF_EXTENT = 0.75d; // 1.5x1.5x1.5
-	private static final double NOZZLE_ATTRACT_RPM_DIVISOR = 16.0d;
-	private static final double NO_NOZZLE_CENTER_OFFSET = 1.05d;
-	private static final double NOZZLE_CENTER_OFFSET = 1.65d;
-	private static final double ATTRACT_ACCEL = 0.05d;
-	private static final double MAX_ATTRACT_SPEED = 0.45d;
+	private final Couple<MutableBoolean> sidesToUpdate;
+	public boolean pressureUpdate;
 
-	// Budget can grow up to this so a single cluster (192 XP) can be pulled at low speeds.
-	private static final double MAX_BUDGET_BACKLOG = 256.0d;
-
-	// Emission accumulator: flush as a burst of up to MAX_ORBS_PER_FLUSH orbs when this threshold
-	// is hit, or after holding XP for this many ticks (whichever comes first).
-	private static final int EMISSION_LARGE_ORB_THRESHOLD = 16;
-	private static final int EMISSION_MAX_HOLD_TICKS = 5;
-	private static final int MAX_ORBS_PER_FLUSH = 5;
-	// Below this much XP a flush emits a single orb instead of splitting — keeps small flushes
-	// from showering tiny <icon-3 orbs everywhere.
-	private static final int MIN_XP_PER_SPLIT_ORB = 37;
-
-	private double fractionalXp;
-	private int pendingEmissionXp;
-	private int pendingEmissionTicks;
 	@Nullable
 	private UUID advancementOwner;
 
 	public ExperiencePumpBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.EXPERIENCE_PUMP.get(), pos, state);
+		this.sidesToUpdate = Couple.create(MutableBoolean::new);
+	}
+
+	@Override
+	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+		super.addBehaviours(behaviours);
+		behaviours.add(new PumpExperienceTransportBehaviour(this));
 	}
 
 	@Override
 	public void tick() {
 		super.tick();
-		if (level == null || level.isClientSide)
+		if (level.isClientSide && !isVirtual())
 			return;
 
-		float speed = Math.abs(getSpeed());
-		if (speed > 0) {
-			fractionalXp += speed * ExperienceConstants.PUMP_XP_PER_RPM_PER_SECOND / 20.0d;
-			int budget = (int) Math.floor(fractionalXp);
-			if (budget > 0) {
-				int transferred = transferExperience(budget);
-				if (transferred > 0)
-					fractionalXp -= transferred;
-			}
-			if (fractionalXp > MAX_BUDGET_BACKLOG)
-				fractionalXp = MAX_BUDGET_BACKLOG;
-		}
+		if (pressureUpdate)
+			updatePressureChange();
 
-		tickPendingEmission();
-	}
-
-	private int transferExperience(int budget) {
-		Direction outputSide = getOutputSide();
-		OutputTarget output = resolveOutput(outputSide, budget);
-		if (output.blocked() || output.capacity() <= 0)
-			return 0;
-
-		int outputBudget = Math.min(budget, output.capacity());
-		int extracted = extractFromInput(getInputSide(), outputBudget);
-		if (extracted <= 0)
-			return 0;
-		int accepted = output.accept(extracted);
-		return Math.max(0, accepted);
-	}
-
-	private int extractFromInput(Direction inputSide, int budget) {
-		BlockPos inputPos = worldPosition.relative(inputSide);
-		BlockState inputState = level.getBlockState(inputPos);
-		BlockEntity inputBE = level.getBlockEntity(inputPos);
-
-		if (inputBE instanceof ExperienceSource source)
-			return source.extractExperience(budget, false);
-
-		int fromContainer = extractFromContainer(inputBE, inputSide.getOpposite(), budget);
-		if (fromContainer > 0)
-			return fromContainer;
-
-		if (isOpenEndpoint(inputPos, inputState, inputSide))
-			return suctionOpenWorld(inputSide, budget, isNozzleFacing(inputPos, inputSide));
-
-		return 0;
-	}
-
-	private int extractFromContainer(@Nullable BlockEntity inputBE, Direction sideForContainer, int budget) {
-		if (inputBE == null || budget <= 0)
-			return 0;
-		IItemHandler handler = inputBE.getCapability(ForgeCapabilities.ITEM_HANDLER, sideForContainer)
-			.orElse(null);
-		if (handler == null)
-			return 0;
-
-		int totalXp = 0;
-		int remaining = budget;
-		for (int slot = 0; slot < handler.getSlots() && remaining > 0; slot++) {
-			ItemStack peek = handler.extractItem(slot, handler.getSlotLimit(slot), true);
-			if (peek.isEmpty())
-				continue;
-			int xpPerItem = xpValueOf(peek);
-			if (xpPerItem <= 0 || xpPerItem > remaining)
-				continue;
-			int maxItems = Math.min(peek.getCount(), remaining / xpPerItem);
-			if (maxItems <= 0)
-				continue;
-			ItemStack actual = handler.extractItem(slot, maxItems, false);
-			if (actual.isEmpty())
-				continue;
-			int gained = actual.getCount() * xpPerItem;
-			totalXp += gained;
-			remaining -= gained;
-		}
-		return totalXp;
-	}
-
-	private static int xpValueOf(ItemStack stack) {
-		if (stack.is(AllItems.EXP_NUGGET.get()))
-			return ExperienceConstants.XP_PER_NUGGET;
-		if (stack.getItem() instanceof ExperienceClusterBlockItem cluster)
-			return cluster.getXpNuggetValue() * ExperienceConstants.XP_PER_NUGGET;
-		return 0;
-	}
-
-	private int suctionOpenWorld(Direction inputSide, int budget, boolean nozzle) {
-		double offset = nozzle ? NOZZLE_CENTER_OFFSET : NO_NOZZLE_CENTER_OFFSET;
-		Vec3 center = Vec3.atCenterOf(worldPosition)
-			.add(Vec3.atLowerCornerOf(inputSide.getNormal()).scale(offset));
-		double speedMag = Math.abs(getSpeed());
-		double normalizedSpeed = Math.min(speedMag / ExperienceConstants.SPEED_NORMALIZATION_RPM, 1.0d);
-		double attractHalf = nozzle
-			? Math.max(ABSORB_HALF_EXTENT, ATTRACT_HALF_EXTENT * speedMag / NOZZLE_ATTRACT_RPM_DIVISOR)
-			: ATTRACT_HALF_EXTENT;
-		AABB attractionBox = cubeAround(center, attractHalf);
-		AABB absorbBox = cubeAround(center, ABSORB_HALF_EXTENT);
-		int remaining = budget;
-		int absorbed = 0;
-
-		List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class, attractionBox, orb -> orb.isAlive());
-		for (ExperienceOrb orb : orbs) {
-			if (!absorbBox.contains(orb.position())) {
-				attractOrb(orb, center, normalizedSpeed);
-				continue;
-			}
-			if (remaining <= 0)
-				continue;
-			int value = orb.getValue();
-			if (value <= 0)
-				continue;
-			int taken = Math.min(value, remaining);
-			orb.discard();
-			if (value > taken)
-				ExperienceHelper.spawnExperience(level, orb.position(), value - taken);
-			remaining -= taken;
-			absorbed += taken;
-		}
-
-		if (remaining > 0) {
-			List<Player> players = level.getEntitiesOfClass(Player.class, absorbBox,
-				player -> player.isAlive() && !player.isSpectator());
-			for (Player player : players) {
-				if (remaining <= 0)
-					break;
-				int drained = ExperienceHelper.drainPlayerExperience(player, remaining);
-				remaining -= drained;
-				absorbed += drained;
-			}
-		}
-
-		return absorbed;
-	}
-
-	private void attractOrb(ExperienceOrb orb, Vec3 center, double normalizedSpeed) {
-		Vec3 delta = center.subtract(orb.position());
-		double distSqr = delta.lengthSqr();
-		if (distSqr < 1.0E-4d)
-			return;
-		double speedScale = 0.4d + 0.6d * normalizedSpeed;
-		double accel = ATTRACT_ACCEL * speedScale;
-		double maxSpeed = MAX_ATTRACT_SPEED * speedScale;
-		Vec3 dir = delta.normalize();
-		Vec3 next = orb.getDeltaMovement().add(dir.scale(accel));
-		double speedSqr = next.lengthSqr();
-		if (speedSqr > maxSpeed * maxSpeed)
-			next = next.normalize().scale(maxSpeed);
-		orb.setDeltaMovement(next);
-		// ExperienceOrb's EntityType uses updateInterval(20); without forcing velocity sync,
-		// clients only see position packets every second and the orb appears to teleport.
-		orb.hurtMarked = true;
-	}
-
-	private OutputTarget resolveOutput(Direction outputSide, int budget) {
-		BlockPos outputPos = worldPosition.relative(outputSide);
-		BlockState outputState = level.getBlockState(outputPos);
-		ExperienceSink sink = findExperienceSink(outputPos, outputState);
-		if (sink != null) {
-			int accepted = sink.insertExperience(budget, true);
-			return accepted <= 0 ? OutputTarget.blockedTarget() : OutputTarget.sink(sink, accepted);
-		}
-
-		if (isOpenEndpoint(outputPos, outputState, outputSide))
-			return OutputTarget.open(this, outputSide, isNozzleFacing(outputPos, outputSide), budget);
-
-		return OutputTarget.blockedTarget();
-	}
-
-	@Nullable
-	private ExperienceSink findExperienceSink(BlockPos pos, BlockState state) {
-		BlockEntity be = level.getBlockEntity(pos);
-		if (be instanceof ExperienceSink sink)
-			return sink;
-		if (state.is(com.nobodiiiii.createbiotech.registry.CBBlocks.EVOKER_ENCHANTING_CHAMBER.get())
-			&& state.getValue(EvokerEnchantingChamberBlock.HALF) == DoubleBlockHalf.UPPER) {
-			BlockEntity lower = level.getBlockEntity(pos.below());
-			if (lower instanceof EvokerEnchantingChamberBlockEntity chamber)
-				return chamber;
-		}
-		return null;
-	}
-
-	private boolean isOpenEndpoint(BlockPos pos, BlockState state, Direction side) {
-		if (state.isAir())
-			return true;
-		if (isNozzleFacing(pos, side))
-			return true;
-		return state.getCollisionShape(level, pos)
-			.isEmpty();
-	}
-
-	private boolean isNozzleFacing(BlockPos pos, Direction side) {
-		BlockState state = level.getBlockState(pos);
-		// Our nozzle FACING is flipped from vanilla: it points toward the pump (== side.getOpposite()).
-		return AllBlocks.NOZZLE.has(state) && state.hasProperty(BlockStateProperties.FACING)
-			&& state.getValue(BlockStateProperties.FACING) == side.getOpposite();
-	}
-
-	private Direction getOutputSide() {
-		return getBlockState().getValue(ExperiencePumpBlock.FACING);
-	}
-
-	private Direction getInputSide() {
-		return getOutputSide().getOpposite();
-	}
-
-	private void bufferEmission(int amount) {
-		if (amount <= 0)
-			return;
-		pendingEmissionXp += amount;
-	}
-
-	private void tickPendingEmission() {
-		if (pendingEmissionXp <= 0) {
-			pendingEmissionTicks = 0;
-			return;
-		}
-		pendingEmissionTicks++;
-		if (pendingEmissionXp >= EMISSION_LARGE_ORB_THRESHOLD || pendingEmissionTicks >= EMISSION_MAX_HOLD_TICKS)
-			flushPendingEmission();
-	}
-
-	private void flushPendingEmission() {
-		if (pendingEmissionXp <= 0 || level == null || level.isClientSide)
-			return;
-		Direction outputSide = getOutputSide();
-		BlockPos outputPos = worldPosition.relative(outputSide);
-		boolean nozzle = isNozzleFacing(outputPos, outputSide);
-		int amount = pendingEmissionXp;
-		pendingEmissionXp = 0;
-		pendingEmissionTicks = 0;
-		spawnExperienceOrbs(outputSide, nozzle, amount);
-	}
-
-	private void spawnExperienceOrbs(Direction outputSide, boolean nozzle, int amount) {
-		Vec3 direction = Vec3.atLowerCornerOf(outputSide.getNormal());
-		// Spawn just outside the pump's output face (the "mouth"), not in the next block's center.
-		// Pump face is 0.5 from center; orb bbox half-extent is 0.25, so 0.8 gives small clearance.
-		Vec3 base = Vec3.atCenterOf(worldPosition)
-			.add(direction.scale(0.8d));
-		double normalizedSpeed = Math.min(Math.abs(getSpeed()) / ExperienceConstants.SPEED_NORMALIZATION_RPM, 1.0d);
-		double velMag = (nozzle ? 0.12d : 0.08d) + normalizedSpeed * 0.15d;
-		Vec3 baseVelocity = direction.scale(velMag);
-
-		// Cap the burst at MAX_ORBS_PER_FLUSH and consolidate everything else into per-orb value.
-		// Each orb gets a slightly different value (spread around the mean) so vanilla's
-		// tryMergeToExisting can't fold same-value orbs back into one entity.
-		int orbCount = Math.max(1, Math.min(MAX_ORBS_PER_FLUSH, amount / MIN_XP_PER_SPLIT_ORB));
-		int baseValue = amount / orbCount;
-		int remainder = amount - baseValue * orbCount;
-		for (int i = 0; i < orbCount; i++) {
-			int value = baseValue + i - (orbCount - 1) / 2;
-			if (orbCount - 1 - i < remainder)
-				value++;
-			if (value < 1)
-				value = 1;
-			Vec3 spread = randomPerpendicular(outputSide, 0.05d);
-			ExperienceOrb orb = new ExperienceOrb(level, base.x + spread.x, base.y + spread.y, base.z + spread.z,
-				value);
-			orb.setDeltaMovement(baseVelocity.add(spread));
-			// ExperienceOrb's EntityType uses updateInterval(20); force velocity sync so the
-			// initial motion isn't visually delayed by ~1s of position-only packets.
-			orb.hurtMarked = true;
-			level.addFreshEntity(orb);
-		}
-	}
-
-	private Vec3 randomPerpendicular(Direction direction, double scale) {
-		double a = (level.random.nextDouble() - 0.5d) * scale;
-		double b = (level.random.nextDouble() - 0.5d) * scale;
-		return switch (direction.getAxis()) {
-			case X -> new Vec3(0, a, b);
-			case Y -> new Vec3(a, 0, b);
-			case Z -> new Vec3(a, b, 0);
-		};
-	}
-
-	private static AABB cubeAround(Vec3 center, double halfExtent) {
-		return new AABB(center.x - halfExtent, center.y - halfExtent, center.z - halfExtent, center.x + halfExtent,
-			center.y + halfExtent, center.z + halfExtent);
-	}
-
-	public void setAdvancementOwner(@Nullable LivingEntity placer) {
-		advancementOwner = PlacedByPlayerAdvancementTracker.ownerFrom(placer);
-		setChanged();
+		sidesToUpdate.forEachWithContext((update, isFront) -> {
+			if (update.isFalse())
+				return;
+			update.setFalse();
+			distributePressureTo(isFront ? getFront() : getFront().getOpposite());
+		});
 	}
 
 	@Override
@@ -361,49 +79,260 @@ public class ExperiencePumpBlockEntity extends KineticBlockEntity {
 			return;
 		if (getSpeed() != 0)
 			PlacedByPlayerAdvancementTracker.awardPlacedBy(level, advancementOwner, CBAdvancements.EXPERIENCE_PUMP);
+		if (level.isClientSide && !isVirtual())
+			return;
+		updatePressureChange();
+	}
+
+	public void updatePressureChange() {
+		pressureUpdate = false;
+		Direction front = getFront();
+		if (front == null)
+			return;
+
+		BlockPos frontPos = worldPosition.relative(front);
+		BlockPos backPos = worldPosition.relative(front.getOpposite());
+		ExperiencePropagator.propagateChangedPipe(level, frontPos, level.getBlockState(frontPos));
+		ExperiencePropagator.propagateChangedPipe(level, backPos, level.getBlockState(backPos));
+
+		ExperienceTransportBehaviour behaviour = getBehaviour(ExperienceTransportBehaviour.TYPE);
+		if (behaviour != null)
+			behaviour.wipePressure();
+		sidesToUpdate.forEach(MutableBoolean::setTrue);
+	}
+
+	private void distributePressureTo(Direction side) {
+		if (getSpeed() == 0)
+			return;
+
+		BlockFace start = new BlockFace(worldPosition, side);
+		boolean pull = isPullingOnSide(isFront(side));
+		Set<BlockFace> targets = new HashSet<>();
+		Map<BlockPos, Pair<Integer, Map<Direction, Boolean>>> pipeGraph = new HashMap<>();
+
+		if (!pull)
+			ExperiencePropagator.resetAffectedExperienceNetworks(level, worldPosition, side.getOpposite());
+
+		if (!hasReachedValidEndpoint(level, start, pull)) {
+			pipeGraph.computeIfAbsent(worldPosition, $ -> Pair.of(0, new IdentityHashMap<>()))
+				.getSecond()
+				.put(side, pull);
+			pipeGraph.computeIfAbsent(start.getConnectedPos(), $ -> Pair.of(1, new IdentityHashMap<>()))
+				.getSecond()
+				.put(side.getOpposite(), !pull);
+
+			List<Pair<Integer, BlockPos>> frontier = new ArrayList<>();
+			Set<BlockPos> visited = new HashSet<>();
+			int maxDistance = ExperiencePropagator.getPumpRange();
+			frontier.add(Pair.of(1, start.getConnectedPos()));
+
+			while (!frontier.isEmpty()) {
+				Pair<Integer, BlockPos> entry = frontier.remove(0);
+				int distance = entry.getFirst();
+				BlockPos currentPos = entry.getSecond();
+
+				if (!level.isLoaded(currentPos) || visited.contains(currentPos))
+					continue;
+				visited.add(currentPos);
+				BlockState currentState = level.getBlockState(currentPos);
+				ExperienceTransportBehaviour pipe = ExperiencePropagator.getPipe(level, currentPos);
+				if (pipe == null)
+					continue;
+
+				for (Direction face : ExperiencePropagator.getPipeConnections(currentState, pipe)) {
+					BlockFace blockFace = new BlockFace(currentPos, face);
+					BlockPos connectedPos = blockFace.getConnectedPos();
+
+					if (!level.isLoaded(connectedPos) || blockFace.isEquivalent(start))
+						continue;
+					if (hasReachedValidEndpoint(level, blockFace, pull)) {
+						pipeGraph.computeIfAbsent(currentPos, $ -> Pair.of(distance, new IdentityHashMap<>()))
+							.getSecond()
+							.put(face, pull);
+						targets.add(blockFace);
+						continue;
+					}
+
+					ExperienceTransportBehaviour pipeBehaviour = ExperiencePropagator.getPipe(level, connectedPos);
+					if (pipeBehaviour == null || pipeBehaviour instanceof PumpExperienceTransportBehaviour
+						|| visited.contains(connectedPos))
+						continue;
+					if (distance + 1 >= maxDistance) {
+						pipeGraph.computeIfAbsent(currentPos, $ -> Pair.of(distance, new IdentityHashMap<>()))
+							.getSecond()
+							.put(face, pull);
+						targets.add(blockFace);
+						continue;
+					}
+
+					pipeGraph.computeIfAbsent(currentPos, $ -> Pair.of(distance, new IdentityHashMap<>()))
+						.getSecond()
+						.put(face, pull);
+					pipeGraph.computeIfAbsent(connectedPos, $ -> Pair.of(distance + 1, new IdentityHashMap<>()))
+						.getSecond()
+						.put(face.getOpposite(), !pull);
+					frontier.add(Pair.of(distance + 1, connectedPos));
+				}
+			}
+		}
+
+		Map<Integer, Set<BlockFace>> validFaces = new HashMap<>();
+		searchForEndpointRecursively(pipeGraph, targets, validFaces, new BlockFace(start.getPos(), start.getOppositeFace()),
+			pull);
+
+		float pressure = Math.abs(getSpeed());
+		for (Set<BlockFace> set : validFaces.values()) {
+			int parallelBranches = Math.max(1, set.size() - 1);
+			for (BlockFace face : set) {
+				BlockPos pipePos = face.getPos();
+				Direction pipeSide = face.getFace();
+				if (pipePos.equals(worldPosition))
+					continue;
+
+				boolean inbound = pipeGraph.get(pipePos).getSecond().get(pipeSide);
+				ExperienceTransportBehaviour pipeBehaviour = ExperiencePropagator.getPipe(level, pipePos);
+				if (pipeBehaviour != null)
+					pipeBehaviour.addPressure(pipeSide, inbound, pressure / parallelBranches);
+			}
+		}
+	}
+
+	private boolean searchForEndpointRecursively(Map<BlockPos, Pair<Integer, Map<Direction, Boolean>>> pipeGraph,
+		Set<BlockFace> targets, Map<Integer, Set<BlockFace>> validFaces, BlockFace currentFace, boolean pull) {
+		BlockPos currentPos = currentFace.getPos();
+		if (!pipeGraph.containsKey(currentPos))
+			return false;
+		Pair<Integer, Map<Direction, Boolean>> pair = pipeGraph.get(currentPos);
+		int distance = pair.getFirst();
+
+		boolean atLeastOneBranchSuccessful = false;
+		for (Direction nextFacing : Iterate.directions) {
+			if (nextFacing == currentFace.getFace())
+				continue;
+			Map<Direction, Boolean> map = pair.getSecond();
+			if (!map.containsKey(nextFacing))
+				continue;
+
+			BlockFace localTarget = new BlockFace(currentPos, nextFacing);
+			if (targets.contains(localTarget)) {
+				validFaces.computeIfAbsent(distance, $ -> new HashSet<>()).add(localTarget);
+				atLeastOneBranchSuccessful = true;
+				continue;
+			}
+
+			if (map.get(nextFacing) != pull)
+				continue;
+			if (!searchForEndpointRecursively(pipeGraph, targets, validFaces,
+				new BlockFace(currentPos.relative(nextFacing), nextFacing.getOpposite()), pull))
+				continue;
+
+			validFaces.computeIfAbsent(distance, $ -> new HashSet<>()).add(localTarget);
+			atLeastOneBranchSuccessful = true;
+		}
+
+		if (atLeastOneBranchSuccessful)
+			validFaces.computeIfAbsent(distance, $ -> new HashSet<>()).add(currentFace);
+		return atLeastOneBranchSuccessful;
+	}
+
+	private boolean hasReachedValidEndpoint(LevelAccessor world, BlockFace blockFace, boolean pull) {
+		BlockPos connectedPos = blockFace.getConnectedPos();
+		BlockState connectedState = world.getBlockState(connectedPos);
+		BlockEntity blockEntity = world.getBlockEntity(connectedPos);
+		Direction face = blockFace.getFace();
+
+		if (ExperiencePumpBlock.isPump(connectedState) && connectedState.getValue(ExperiencePumpBlock.FACING).getAxis() == face.getAxis()
+			&& blockEntity instanceof ExperiencePumpBlockEntity pump)
+			return pump.isPullingOnSide(pump.isFront(blockFace.getOppositeFace())) != pull;
+
+		ExperienceTransportBehaviour pipe = ExperiencePropagator.getPipe(world, connectedPos);
+		if (pipe != null && pipe.canHaveFlowToward(connectedState, blockFace.getOppositeFace()))
+			return false;
+
+		if (ExperiencePropagator.hasExperienceEndpoint(world, connectedPos, face.getOpposite()))
+			return true;
+
+		return ExperiencePropagator.isOpenEnd(world, blockFace.getPos(), face);
+	}
+
+	public void updatePipesOnSide(Direction side) {
+		if (!isSideAccessible(side))
+			return;
+		updatePipeNetwork(isFront(side));
+		ExperienceTransportBehaviour behaviour = getBehaviour(ExperienceTransportBehaviour.TYPE);
+		if (behaviour != null)
+			behaviour.wipePressure();
+	}
+
+	private boolean isFront(Direction side) {
+		BlockState state = getBlockState();
+		return state.getBlock() instanceof ExperiencePumpBlock && side == state.getValue(ExperiencePumpBlock.FACING);
+	}
+
+	@Nullable
+	private Direction getFront() {
+		BlockState state = getBlockState();
+		return state.getBlock() instanceof ExperiencePumpBlock ? state.getValue(ExperiencePumpBlock.FACING) : null;
+	}
+
+	private void updatePipeNetwork(boolean front) {
+		sidesToUpdate.get(front).setTrue();
+	}
+
+	private boolean isSideAccessible(Direction side) {
+		BlockState state = getBlockState();
+		return state.getBlock() instanceof ExperiencePumpBlock
+			&& state.getValue(ExperiencePumpBlock.FACING).getAxis() == side.getAxis();
+	}
+
+	public boolean isPullingOnSide(boolean front) {
+		return !front;
+	}
+
+	public void setAdvancementOwner(@Nullable LivingEntity placer) {
+		advancementOwner = PlacedByPlayerAdvancementTracker.ownerFrom(placer);
+		setChanged();
 	}
 
 	@Override
 	protected void write(CompoundTag compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
-		compound.putDouble("FractionalXp", fractionalXp);
-		compound.putInt("PendingEmissionXp", pendingEmissionXp);
-		compound.putInt("PendingEmissionTicks", pendingEmissionTicks);
 		PlacedByPlayerAdvancementTracker.writeOwner(compound, advancementOwner);
 	}
 
 	@Override
 	protected void read(CompoundTag compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
-		fractionalXp = compound.getDouble("FractionalXp");
-		pendingEmissionXp = compound.getInt("PendingEmissionXp");
-		pendingEmissionTicks = compound.getInt("PendingEmissionTicks");
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(compound);
 	}
 
-	private record OutputTarget(boolean blocked, int capacity, @Nullable ExperienceSink sink,
-		@Nullable ExperiencePumpBlockEntity pump, @Nullable Direction openSide, boolean nozzle) {
+	class PumpExperienceTransportBehaviour extends ExperienceTransportBehaviour {
 
-		static OutputTarget blockedTarget() {
-			return new OutputTarget(true, 0, null, null, null, false);
+		public PumpExperienceTransportBehaviour(SmartBlockEntity blockEntity) {
+			super(blockEntity);
 		}
 
-		static OutputTarget sink(ExperienceSink sink, int capacity) {
-			return new OutputTarget(false, capacity, sink, null, null, false);
-		}
-
-		static OutputTarget open(ExperiencePumpBlockEntity pump, Direction side, boolean nozzle, int capacity) {
-			return new OutputTarget(false, capacity, null, pump, side, nozzle);
-		}
-
-		int accept(int amount) {
-			if (sink != null)
-				return sink.insertExperience(amount, false);
-			if (pump != null && openSide != null) {
-				pump.bufferEmission(amount);
-				return amount;
+		@Override
+		public void tick() {
+			super.tick();
+			for (Entry<Direction, ExperienceConnection> entry : interfaces.entrySet()) {
+				boolean pull = isPullingOnSide(isFront(entry.getKey()));
+				Couple<Float> pressure = entry.getValue().getPressure();
+				pressure.set(pull, Math.abs(getSpeed()));
+				pressure.set(!pull, 0f);
 			}
-			return 0;
+		}
+
+		@Override
+		public boolean canHaveFlowToward(BlockState state, Direction direction) {
+			return isSideAccessible(direction);
+		}
+
+		@Override
+		public AttachmentTypes getRenderedRimAttachment(BlockAndTintGetter world, BlockPos pos, BlockState state,
+			Direction direction) {
+			AttachmentTypes attachment = super.getRenderedRimAttachment(world, pos, state, direction);
+			return attachment == AttachmentTypes.RIM ? AttachmentTypes.NONE : attachment;
 		}
 	}
 }

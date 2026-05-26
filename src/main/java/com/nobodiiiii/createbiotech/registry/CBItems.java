@@ -67,6 +67,9 @@ public class CBItems {
 	public static final RegistryObject<Item> EXPERIENCE_TANK = ITEMS.register("experience_tank",
 		() -> new ExperienceTankItem(CBBlocks.EXPERIENCE_TANK.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> EXPERIENCE_PIPE = ITEMS.register("experience_pipe",
+		() -> new BlockItem(CBBlocks.EXPERIENCE_PIPE.get(), new Item.Properties()));
+
 	public static final RegistryObject<Item> EXPERIENCE = ITEMS.register("experience",
 		() -> new HiddenExperienceItem(new Item.Properties()));
 

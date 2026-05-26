@@ -15,6 +15,8 @@ import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceCrystallizerBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceTankBlock;
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperienceEncasedPipeBlock;
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperiencePipeBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlock;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlock;
@@ -124,6 +126,21 @@ public class CBBlocks {
 			.mapColor(MapColor.METAL)
 			.noOcclusion()
 			.isRedstoneConductor((p1, p2, p3) -> true)));
+
+	public static final RegistryObject<ExperiencePipeBlock> EXPERIENCE_PIPE = BLOCKS.register("experience_pipe",
+		() -> new ExperiencePipeBlock(Block.Properties.of()
+			.sound(SoundType.COPPER)
+			.strength(2.0f)
+			.mapColor(MapColor.METAL)
+			.noOcclusion()));
+
+	public static final RegistryObject<ExperienceEncasedPipeBlock> ENCASED_EXPERIENCE_PIPE =
+		BLOCKS.register("encased_experience_pipe",
+			() -> new ExperienceEncasedPipeBlock(Block.Properties.of()
+				.sound(SoundType.COPPER)
+				.strength(2.0f)
+				.mapColor(MapColor.METAL)
+				.noOcclusion(), com.simibubi.create.AllBlocks.COPPER_CASING::get));
 
 	public static final RegistryObject<SquidPrinterBlock> SQUID_PRINTER = BLOCKS.register("squid_printer",
 		() -> new SquidPrinterBlock(Block.Properties.of()

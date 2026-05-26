@@ -20,6 +20,7 @@ import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
+import com.simibubi.create.content.decoration.encasing.EncasingRegistry;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
@@ -52,6 +53,7 @@ public class CreateBiotech {
 	private static void onCommonSetup(FMLCommonSetupEvent event) {
 		event.enqueueWork(() -> {
 			ExplosionProofItemVaultCompat.register();
+			EncasingRegistry.addVariant(CBBlocks.EXPERIENCE_PIPE.get(), CBBlocks.ENCASED_EXPERIENCE_PIPE.get());
 			MovementBehaviour.REGISTRY.register(CBBlocks.GHAST_HELM.get(), new GhastHelmMovementBehaviour());
 			BufferPadMovementBehaviour bufferPadMovementBehaviour = new BufferPadMovementBehaviour();
 			for (DyeColor color : DyeColor.values())

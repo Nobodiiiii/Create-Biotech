@@ -60,6 +60,7 @@ import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 
+import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.lang.FontHelper;
 import net.createmod.ponder.foundation.PonderIndex;
 
@@ -67,6 +68,7 @@ import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.Direction;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.api.distmarker.Dist;
@@ -137,6 +139,7 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/bio_packager/hatch_open"));
 		event.register(CreateBiotech.asResource("block/bio_packager/hatch_closed"));
 		event.register(CreateBiotech.asResource("block/bio_packager/tray"));
+		registerExperiencePipeAttachmentModels(event);
 	}
 
 	@SubscribeEvent
@@ -189,6 +192,8 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.LARGE_EXPERIENCE_BUD.get(), RenderType.cutout());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_CLUSTER.get(), RenderType.cutout());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_TANK.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_PIPE.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ENCASED_EXPERIENCE_PIPE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SQUID_PRINTER.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SLIME_CLUTCH.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BONE_RATCHET.get(), RenderType.cutout());
@@ -211,6 +216,12 @@ public class CreateBiotechClient {
 					com.simibubi.create.content.kinetics.belt.BeltModel::new);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("experience_tank"), ExperienceTankModel::create);
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("experience_pipe"), ExperiencePipeAttachmentModel::withAO);
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("encased_experience_pipe"), ExperiencePipeAttachmentModel::withAO);
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("experience_pump"), ExperiencePipeAttachmentModel::withAO);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("explosion_proof_casing"),
 					model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
@@ -259,6 +270,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.LARGE_EXPERIENCE_BUD.get());
 		registerCreateStyleTooltip(CBItems.EXPERIENCE_CLUSTER.get());
 		registerCreateStyleTooltip(CBItems.EXPERIENCE_TANK.get());
+		registerCreateStyleTooltip(CBItems.EXPERIENCE_PIPE.get());
 		registerCreateStyleTooltip(CBItems.CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.FIXED_CARROT_FISHING_ROD.get());
@@ -269,5 +281,16 @@ public class CreateBiotechClient {
 	private static void registerCreateStyleTooltip(Item item) {
 		TooltipModifier.REGISTRY.register(item,
 			new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE));
+	}
+
+	private static void registerExperiencePipeAttachmentModels(ModelEvent.RegisterAdditional event) {
+		event.register(CreateBiotech.asResource("block/experience_pipe/casing"));
+		for (Direction direction : Iterate.directions) {
+			String directionName = direction.getName();
+			event.register(CreateBiotech.asResource("block/experience_pipe/connection/" + directionName));
+			event.register(CreateBiotech.asResource("block/experience_pipe/rim_connector/" + directionName));
+			event.register(CreateBiotech.asResource("block/experience_pipe/rim/" + directionName));
+			event.register(CreateBiotech.asResource("block/experience_pipe/drain/" + directionName));
+		}
 	}
 }

@@ -4,6 +4,8 @@
     "create_biotech:experience_pump",
     "create_biotech:experience_crystallizer",
     "create_biotech:experience_tank",
+    "create_biotech:experience_pipe",
+    "create_biotech:encased_experience_pipe",
     "create_biotech:budding_experience",
     "create_biotech:small_experience_bud",
     "create_biotech:medium_experience_bud",

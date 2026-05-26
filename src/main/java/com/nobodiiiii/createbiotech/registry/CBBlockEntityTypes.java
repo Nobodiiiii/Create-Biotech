@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlockEnt
 import com.nobodiiiii.createbiotech.content.experience.ExperienceCrystallizerBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceTankBlockEntity;
+import com.nobodiiiii.createbiotech.content.experience.pipe.ExperiencePipeBlockEntity;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlockEntity;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlockEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlockEntity;
@@ -96,6 +97,20 @@ public class CBBlockEntityTypes {
 			() -> BlockEntityType.Builder
 				.of((pos, state) -> new ExperienceTankBlockEntity(CBBlockEntityTypes.EXPERIENCE_TANK.get(), pos, state),
 					CBBlocks.EXPERIENCE_TANK.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<ExperiencePipeBlockEntity>> EXPERIENCE_PIPE =
+		BLOCK_ENTITY_TYPES.register("experience_pipe",
+			() -> BlockEntityType.Builder
+				.of((pos, state) -> new ExperiencePipeBlockEntity(CBBlockEntityTypes.EXPERIENCE_PIPE.get(), pos, state),
+					CBBlocks.EXPERIENCE_PIPE.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<ExperiencePipeBlockEntity>> ENCASED_EXPERIENCE_PIPE =
+		BLOCK_ENTITY_TYPES.register("encased_experience_pipe",
+			() -> BlockEntityType.Builder
+				.of((pos, state) -> new ExperiencePipeBlockEntity(CBBlockEntityTypes.ENCASED_EXPERIENCE_PIPE.get(), pos, state),
+					CBBlocks.ENCASED_EXPERIENCE_PIPE.get())
 				.build(null));
 
 	public static final RegistryObject<BlockEntityType<SquidPrinterBlockEntity>> SQUID_PRINTER =
