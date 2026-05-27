@@ -61,7 +61,8 @@ public class ExperienceConnection {
 	public void manageSource(Level world, BlockPos pos) {
 		if (source.isEmpty() && !determineSource(world, pos))
 			return;
-		source.ifPresent(currentSource -> currentSource.manageSource(world));
+		ExperienceFlowSource flowSource = source.get();
+		flowSource.manageSource(world);
 	}
 
 	public boolean manageFlows(Level world, BlockPos pos, boolean internalFlowAvailable) {

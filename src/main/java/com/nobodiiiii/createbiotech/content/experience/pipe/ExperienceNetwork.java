@@ -73,10 +73,8 @@ public class ExperienceNetwork {
 				BlockFace blockFace = pair.getFirst();
 				ExperienceConnection connection = pair.getSecond();
 
-				if (!connection.hasFlow()) {
-					iterator.remove();
+				if (!connection.hasFlow())
 					continue;
-				}
 
 				ExperienceConnection.Flow flow = connection.flow.get();
 				if (!flow.inbound) {
@@ -113,8 +111,14 @@ public class ExperienceNetwork {
 						continue;
 					}
 
-					ExperienceEndpoint endpoint = adjacent.provideEndpoint();
-					if (endpoint != null && endpoint.insert(1, true) > 0) {
+					// Give a newly connected pipe end one chance to resolve its endpoint before
+					// deciding whether this branch is a transport target or another pipe segment.
+					if (adjacent.source.isEmpty() && !adjacent.determineSource(world, blockFace.getPos())) {
+						canRemove = false;
+						continue;
+					}
+
+					if (adjacent.source.isPresent() && adjacent.source.get().isEndpoint()) {
 						targets.add(adjacentLocation);
 						continue;
 					}
