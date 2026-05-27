@@ -130,6 +130,18 @@ public final class ExperienceTransport {
 		}
 
 		@Override
+		public boolean canExtract() {
+			for (int slot = 0; slot < itemHandler.getSlots(); slot++) {
+				ItemStack peek = itemHandler.extractItem(slot, itemHandler.getSlotLimit(slot), true);
+				if (peek.isEmpty())
+					continue;
+				if (xpValueOf(peek) > 0)
+					return true;
+			}
+			return false;
+		}
+
+		@Override
 		public int insert(int amount, boolean simulate) {
 			return 0;
 		}

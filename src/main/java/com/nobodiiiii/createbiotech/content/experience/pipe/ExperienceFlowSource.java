@@ -18,7 +18,7 @@ public abstract class ExperienceFlowSource {
 
 	public boolean canProvideExperience() {
 		ExperienceEndpoint endpoint = provideEndpoint();
-		return endpoint != null && endpoint.extract(1, true) > 0;
+		return endpoint != null && endpoint.canExtract();
 	}
 
 	public void manageSource(Level world) {}
