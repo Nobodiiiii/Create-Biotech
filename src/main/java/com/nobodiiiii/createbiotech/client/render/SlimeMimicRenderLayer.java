@@ -28,6 +28,7 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 	private static final ResourceLocation SLIME_TEXTURE = new ResourceLocation("textures/entity/slime/slime.png");
 	private static final float SLIME_MODEL_WIDTH = 8.0f;
 	private static final float SLIME_MODEL_CENTER_Y = 20.0f / 16.0f;
+	private static final float OUTER_CUBE_INFLATE_PIXELS = 0.1f;
 	private static final float INNER_RED = 1.0f;
 	private static final float INNER_GREEN = 1.0f;
 	private static final float INNER_BLUE = 1.0f;
@@ -145,17 +146,28 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		VertexConsumer innerConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(SLIME_TEXTURE));
 		VertexConsumer outerConsumer = buffer.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE));
 
-		poseStack.pushPose();
-		poseStack.translate(centerX, centerY, centerZ);
-		poseStack.scale(width / SLIME_MODEL_WIDTH, height / SLIME_MODEL_WIDTH, depth / SLIME_MODEL_WIDTH);
-		poseStack.translate(0.0f, -SLIME_MODEL_CENTER_Y, 0.0f);
+		float outerWidth = width + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
+		float outerHeight = height + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
+		float outerDepth = depth + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
+
 		runWithoutPartInterception(() -> {
+			poseStack.pushPose();
+			poseStack.translate(centerX, centerY, centerZ);
+			poseStack.scale(width / SLIME_MODEL_WIDTH, height / SLIME_MODEL_WIDTH, depth / SLIME_MODEL_WIDTH);
+			poseStack.translate(0.0f, -SLIME_MODEL_CENTER_Y, 0.0f);
 			innerCube().render(poseStack, innerConsumer, packedLight, overlay, INNER_RED, INNER_GREEN, INNER_BLUE,
 				INNER_ALPHA);
+			poseStack.popPose();
+
+			poseStack.pushPose();
+			poseStack.translate(centerX, centerY, centerZ);
+			poseStack.scale(outerWidth / SLIME_MODEL_WIDTH, outerHeight / SLIME_MODEL_WIDTH,
+				outerDepth / SLIME_MODEL_WIDTH);
+			poseStack.translate(0.0f, -SLIME_MODEL_CENTER_Y, 0.0f);
 			outerCube().render(poseStack, outerConsumer, packedLight, overlay, OUTER_RED, OUTER_GREEN, OUTER_BLUE,
 				OUTER_ALPHA);
+			poseStack.popPose();
 		});
-		poseStack.popPose();
 	}
 
 	private static void renderFallbackOverlay(EntityModel<?> model, LivingEntity entity, PoseStack poseStack,
