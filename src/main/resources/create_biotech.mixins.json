@@ -41,6 +41,7 @@
     "client.GameRendererMixin",
     "client.GoggleOverlayRendererMixin",
     "client.ItemApplicationCategoryMixin",
+    "client.LlamaModelAccessor",
     "client.LivingEntityRendererMixin",
     "client.PressingBehaviourMixin",
     "client.SpoutCategoryMixin",

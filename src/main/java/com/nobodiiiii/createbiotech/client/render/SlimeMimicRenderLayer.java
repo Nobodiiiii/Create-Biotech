@@ -1,11 +1,13 @@
 package com.nobodiiiii.createbiotech.client.render;
 
+import java.util.List;
 import java.util.Map;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.mixin.client.AgeableListModelFieldsAccessor;
+import com.nobodiiiii.createbiotech.mixin.client.LlamaModelAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
 import com.simibubi.create.foundation.mixin.accessor.AgeableListModelAccessor;
 
@@ -13,6 +15,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.AgeableListModel;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HierarchicalModel;
+import net.minecraft.client.model.LlamaModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -22,7 +25,6 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.RenderLayerParent;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -75,7 +77,8 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 	}
 
 	public static boolean supportsSlimeMimicModel(EntityModel<?> model) {
-		return model instanceof HierarchicalModel<?> || model instanceof AgeableListModel<?>;
+		return model instanceof HierarchicalModel<?> || model instanceof AgeableListModel<?>
+			|| model instanceof LlamaModel<?>;
 	}
 
 	public static void registerOnAll(EntityRenderDispatcher dispatcher) {
@@ -96,6 +99,11 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 	private void renderSlimeBody(M model, PoseStack poseStack, MultiBufferSource buffer, int packedLight, int overlay) {
 		if (model instanceof HierarchicalModel<?> hierarchicalModel) {
 			renderPartRecursive(((HierarchicalModel<T>) hierarchicalModel).root(), poseStack, buffer, packedLight, overlay);
+			return;
+		}
+
+		if (model instanceof LlamaModel<?> llamaModel) {
+			renderLlamaModel(llamaModel, poseStack, buffer, packedLight, overlay);
 			return;
 		}
 
@@ -126,6 +134,44 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 
 		renderParts(headParts, poseStack, buffer, packedLight, overlay);
 		renderParts(bodyParts, poseStack, buffer, packedLight, overlay);
+	}
+
+	private void renderLlamaModel(LlamaModel<?> llamaModel, PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, int overlay) {
+		LlamaModelAccessor accessor = (LlamaModelAccessor) (Object) llamaModel;
+		ModelPart head = accessor.createBiotech$getHead();
+		ModelPart body = accessor.createBiotech$getBody();
+		ModelPart rightHindLeg = accessor.createBiotech$getRightHindLeg();
+		ModelPart leftHindLeg = accessor.createBiotech$getLeftHindLeg();
+		ModelPart rightFrontLeg = accessor.createBiotech$getRightFrontLeg();
+		ModelPart leftFrontLeg = accessor.createBiotech$getLeftFrontLeg();
+		ModelPart rightChest = accessor.createBiotech$getRightChest();
+		ModelPart leftChest = accessor.createBiotech$getLeftChest();
+
+		if (llamaModel.young) {
+			poseStack.pushPose();
+			poseStack.scale(0.71428573f, 0.64935064f, 0.7936508f);
+			poseStack.translate(0.0f, 1.3125f, 0.22f);
+			renderPartRecursive(head, poseStack, buffer, packedLight, overlay);
+			poseStack.popPose();
+
+			poseStack.pushPose();
+			poseStack.scale(0.625f, 0.45454544f, 0.45454544f);
+			poseStack.translate(0.0f, 2.0625f, 0.0f);
+			renderPartRecursive(body, poseStack, buffer, packedLight, overlay);
+			poseStack.popPose();
+
+			poseStack.pushPose();
+			poseStack.scale(0.45454544f, 0.41322312f, 0.45454544f);
+			poseStack.translate(0.0f, 2.0625f, 0.0f);
+			renderParts(List.of(rightHindLeg, leftHindLeg, rightFrontLeg, leftFrontLeg, rightChest, leftChest), poseStack,
+				buffer, packedLight, overlay);
+			poseStack.popPose();
+			return;
+		}
+
+		renderParts(List.of(head, body, rightHindLeg, leftHindLeg, rightFrontLeg, leftFrontLeg, rightChest, leftChest),
+			poseStack, buffer, packedLight, overlay);
 	}
 
 	private void renderParts(Iterable<ModelPart> parts, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
