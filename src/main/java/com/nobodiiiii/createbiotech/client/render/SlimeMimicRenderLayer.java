@@ -66,8 +66,10 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 			return;
 
 		M model = getParentModel();
-		if (supportsSlimeMimicModel(model))
+		if (supportsSlimeMimicModel(model)) {
 			renderSlimeBody(model, poseStack, buffer, packedLight, overlay(entity));
+			return;
+		}
 
 		renderFallbackOverlay(entity, poseStack, buffer, packedLight, overlay(entity));
 	}
@@ -165,7 +167,7 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		float centerZ = (cube.minZ + cube.maxZ) * 0.5f / 16.0f;
 
 		VertexConsumer innerConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(SLIME_TEXTURE));
-		VertexConsumer outerConsumer = buffer.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE));
+		VertexConsumer outerConsumer = buffer.getBuffer(RenderType.entityTranslucentCull(SLIME_TEXTURE));
 
 		poseStack.pushPose();
 		poseStack.translate(centerX, centerY, centerZ);

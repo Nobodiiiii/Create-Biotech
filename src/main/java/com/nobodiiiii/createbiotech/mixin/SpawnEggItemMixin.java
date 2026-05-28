@@ -28,10 +28,11 @@ public abstract class SpawnEggItemMixin {
 	private Entity createBiotech$markBlockSpawnedEntity(EntityType<?> entityType, ServerLevel level, ItemStack stack,
 		Player player, BlockPos pos, MobSpawnType spawnType, boolean alignSpawn, boolean invertYOffset,
 		Operation<Entity> original, @Local(argsOnly = true) UseOnContext context) {
-		Entity entity = original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
-		if (SlimeMimicHandler.shouldSlimeifySpawn(context.getPlayer(), context.getHand()))
-			SlimeMimicHandler.markSpawnedEntity(entity);
-		return entity;
+		if (!SlimeMimicHandler.shouldSlimeifySpawn(context.getPlayer(), context.getHand()))
+			return original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
+
+		return createBiotech$spawnWithPreparedTag(entityType, level, stack, player, pos, spawnType, alignSpawn,
+			invertYOffset, original);
 	}
 
 	@WrapOperation(method = "use",
@@ -40,9 +41,24 @@ public abstract class SpawnEggItemMixin {
 	private Entity createBiotech$markFluidSpawnedEntity(EntityType<?> entityType, ServerLevel level, ItemStack stack,
 		Player player, BlockPos pos, MobSpawnType spawnType, boolean alignSpawn, boolean invertYOffset,
 		Operation<Entity> original, @Local(argsOnly = true) InteractionHand usedHand) {
-		Entity entity = original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
-		if (SlimeMimicHandler.shouldSlimeifySpawn(player, usedHand))
+		if (!SlimeMimicHandler.shouldSlimeifySpawn(player, usedHand))
+			return original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
+
+		return createBiotech$spawnWithPreparedTag(entityType, level, stack, player, pos, spawnType, alignSpawn,
+			invertYOffset, original);
+	}
+
+	private static Entity createBiotech$spawnWithPreparedTag(EntityType<?> entityType, ServerLevel level, ItemStack stack,
+		Player player, BlockPos pos, MobSpawnType spawnType, boolean alignSpawn, boolean invertYOffset,
+		Operation<Entity> original) {
+		var originalTag = stack.getTag();
+		stack.setTag(SlimeMimicHandler.createPreparedSpawnEggTag(stack));
+		try {
+			Entity entity = original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
 			SlimeMimicHandler.markSpawnedEntity(entity);
-		return entity;
+			return entity;
+		} finally {
+			stack.setTag(originalTag == null ? null : originalTag.copy());
+		}
 	}
 }

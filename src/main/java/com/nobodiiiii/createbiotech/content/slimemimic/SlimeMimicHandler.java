@@ -15,6 +15,8 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -42,6 +44,16 @@ public final class SlimeMimicHandler {
 	public static void markSpawnedEntity(@Nullable Entity entity) {
 		if (entity instanceof LivingEntity livingEntity)
 			setSlimeMimic(livingEntity, true);
+	}
+
+	public static CompoundTag createPreparedSpawnEggTag(ItemStack stack) {
+		CompoundTag preparedTag = stack.getTag() == null ? new CompoundTag() : stack.getTag().copy();
+		CompoundTag entityTag = preparedTag.contains("EntityTag", Tag.TAG_COMPOUND)
+			? preparedTag.getCompound("EntityTag").copy()
+			: new CompoundTag();
+		entityTag.putBoolean(SLIME_MIMIC_TAG, true);
+		preparedTag.put("EntityTag", entityTag);
+		return preparedTag;
 	}
 
 	public static boolean shouldSlimeifySpawn(@Nullable Player player, InteractionHand usedHand) {
