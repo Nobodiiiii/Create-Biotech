@@ -71,6 +71,8 @@ import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Direction;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraftforge.api.distmarker.Dist;
@@ -161,6 +163,12 @@ public class CreateBiotechClient {
 		MagmaBeltSpriteShifts.init();
 		PowerBeltSpriteShifts.init();
 		CBSpriteShifts.init();
+		event.registerReloadListener(new ResourceManagerReloadListener() {
+			@Override
+			public void onResourceManagerReload(ResourceManager resourceManager) {
+				SlimeMimicRenderLayer.clearCachedTextureData();
+			}
+		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
 	}
