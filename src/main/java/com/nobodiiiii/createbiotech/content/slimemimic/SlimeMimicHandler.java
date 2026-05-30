@@ -9,11 +9,13 @@ import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.storage.loot.BuiltInLootTables;
@@ -22,6 +24,7 @@ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
@@ -64,6 +67,29 @@ public final class SlimeMimicHandler {
 	public static boolean shouldSlimeifySpawn(@Nullable Player player, InteractionHand usedHand) {
 		return player != null && usedHand == InteractionHand.MAIN_HAND
 			&& player.getOffhandItem().is(CBItems.BIONIC_MECHANISM.get());
+	}
+
+	@SubscribeEvent
+	public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+		Player player = event.getEntity();
+		ItemStack heldItem = player.getItemInHand(event.getHand());
+		if (!heldItem.is(Items.GOLDEN_APPLE))
+			return;
+
+		if (!(event.getTarget() instanceof LivingEntity livingTarget))
+			return;
+		if (!isSlimeMimic(livingTarget))
+			return;
+
+		event.setCanceled(true);
+		event.setCancellationResult(InteractionResult.SUCCESS);
+
+		if (player.level().isClientSide())
+			return;
+
+		setSlimeMimic(livingTarget, false);
+		if (!player.getAbilities().instabuild)
+			heldItem.shrink(1);
 	}
 
 	@SubscribeEvent

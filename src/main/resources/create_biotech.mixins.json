@@ -23,6 +23,7 @@
     "MagmaBeltFunnelBlockMixin",
     "MechanicalPressBlockEntityMixin",
     "MechanicalMixerBlockEntityMixin",
+    "LivingEntitySlimeMimicHurtSoundMixin",
     "LivingEntitySlimeMimicMixin",
     "NozzleBlockMixin",
     "MobAccessor",
