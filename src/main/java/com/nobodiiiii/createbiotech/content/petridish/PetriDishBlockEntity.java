@@ -54,12 +54,15 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public static final int SCAN_RADIUS = 2;
 	public static final int TANK_CAPACITY = 51200;
 	public static final int GROWTH_ANIMATION_DURATION = 8;
+	public static final int EMERGENCE_ANIMATION_DURATION = 20;
 
 	private static final String INVENTORY_TAG = "Inventory";
 	private static final String TANK_TAG = "Tank";
 	private static final String RECORDED_ENTITY_ID_TAG = "RecordedEntityId";
 	private static final String RECORDED_MAX_HEALTH_TAG = "RecordedMaxHealth";
 	private static final String SCAN_COOLDOWN_TAG = "ScanCooldown";
+	private static final String EMERGENCE_IN_PROGRESS_TAG = "EmergenceInProgress";
+	private static final String EMERGENCE_TICKS_REMAINING_TAG = "EmergenceTicksRemaining";
 
 	private final ItemStackHandler inventory = new ItemStackHandler(1) {
 		@Override
@@ -112,6 +115,16 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private int clientQueuedGrowthSteps;
 	private int clientGrowthAnimationTick;
 	private int clientPreviousGrowthAnimationTick;
+	private boolean emergenceInProgress;
+	private int emergenceTicksRemaining;
+	private boolean clientEmergenceAnimating;
+	private int clientEmergenceAnimationTick;
+	private int clientPreviousEmergenceAnimationTick;
+	private int clientLastSyncedEmergenceTicksRemaining;
+	@Nullable
+	private ResourceLocation clientPreviewEntityId;
+	@Nullable
+	private LivingEntity clientPreviewEntity;
 
 	public PetriDishBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.PETRI_DISH.get(), pos, state);
@@ -132,6 +145,11 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		}
 
+		if (emergenceInProgress) {
+			tickEmergence();
+			return;
+		}
+
 		if (scanCooldown > 0)
 			scanCooldown--;
 
@@ -144,6 +162,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	private void tickClientAnimation() {
+		syncClientEmergenceAnimation();
+
 		int actualStage = getSlimeGrowthStage();
 
 		if (!clientAnimationInitialized) {
@@ -179,6 +199,38 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
 		if (!clientGrowthAnimating && clientQueuedGrowthSteps > 0 && clientSettledStage < actualStage)
 			startNextClientGrowthAnimation();
+
+		if (clientEmergenceAnimating) {
+			clientPreviousEmergenceAnimationTick = clientEmergenceAnimationTick;
+			if (clientEmergenceAnimationTick < EMERGENCE_ANIMATION_DURATION)
+				clientEmergenceAnimationTick++;
+			if (!emergenceInProgress && clientEmergenceAnimationTick >= EMERGENCE_ANIMATION_DURATION)
+				stopClientEmergenceAnimation();
+		}
+	}
+
+	private void syncClientEmergenceAnimation() {
+		if (!emergenceInProgress)
+			return;
+
+		int syncedTick =
+			Mth.clamp(EMERGENCE_ANIMATION_DURATION - emergenceTicksRemaining, 0, EMERGENCE_ANIMATION_DURATION);
+		if (!clientEmergenceAnimating || emergenceTicksRemaining > clientLastSyncedEmergenceTicksRemaining) {
+			clientEmergenceAnimating = true;
+			clientEmergenceAnimationTick = syncedTick;
+			clientPreviousEmergenceAnimationTick = syncedTick;
+		} else if (syncedTick > clientEmergenceAnimationTick) {
+			clientEmergenceAnimationTick = syncedTick;
+			clientPreviousEmergenceAnimationTick = syncedTick;
+		}
+		clientLastSyncedEmergenceTicksRemaining = emergenceTicksRemaining;
+	}
+
+	private void stopClientEmergenceAnimation() {
+		clientEmergenceAnimating = false;
+		clientEmergenceAnimationTick = 0;
+		clientPreviousEmergenceAnimationTick = 0;
+		clientLastSyncedEmergenceTicksRemaining = 0;
 	}
 
 	private void snapClientAnimation(int stage) {
@@ -204,6 +256,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public InteractionResult use(Player player, InteractionHand hand) {
 		if (level == null)
 			return InteractionResult.PASS;
+		if (emergenceInProgress)
+			return InteractionResult.SUCCESS;
 
 		ItemStack heldItem = player.getItemInHand(hand);
 		if (FluidHelper.tryEmptyItemIntoBE(level, player, hand, heldItem, this))
@@ -298,6 +352,41 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		return level != null && level.isClientSide && clientAnimationInitialized && clientGrowthAnimating;
 	}
 
+	public boolean isEmergenceAnimating() {
+		return level != null && level.isClientSide && clientEmergenceAnimating;
+	}
+
+	public float getEmergenceAnimationProgress(float partialTicks) {
+		if (!isEmergenceAnimating())
+			return 0.0f;
+		float tick = Mth.lerp(partialTicks, clientPreviousEmergenceAnimationTick, clientEmergenceAnimationTick);
+		return Mth.clamp(tick / EMERGENCE_ANIMATION_DURATION, 0.0f, 1.0f);
+	}
+
+	@Nullable
+	public LivingEntity getClientPreviewEntity() {
+		if (level == null || !level.isClientSide || recordedEntityId == null)
+			return null;
+
+		if (clientPreviewEntity != null && Objects.equals(clientPreviewEntityId, recordedEntityId)
+			&& clientPreviewEntity.level() == level)
+			return clientPreviewEntity;
+
+		EntityType<?> entityType = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getValue(recordedEntityId);
+		if (entityType == null)
+			return null;
+
+		Entity preview = entityType.create(level);
+		if (!(preview instanceof LivingEntity livingPreview))
+			return null;
+
+		SlimeMimicHandler.setSlimeMimic(livingPreview, true);
+		livingPreview.setNoGravity(true);
+		clientPreviewEntityId = recordedEntityId;
+		clientPreviewEntity = livingPreview;
+		return clientPreviewEntity;
+	}
+
 	public int getGrowthAnimationFromStage() {
 		return level != null && level.isClientSide && clientAnimationInitialized ? clientGrowthFromStage : getSlimeGrowthStage();
 	}
@@ -344,7 +433,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	private void tryCompleteSpawn() {
-		if (!(level instanceof ServerLevel serverLevel))
+		if (!(level instanceof ServerLevel))
 			return;
 		if (!hasBionicMechanism())
 			return;
@@ -366,6 +455,54 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			spawnPos.getY() + 2, spawnPos.getZ() + 1)))
 			return;
 
+		beginEmergence();
+	}
+
+	private void beginEmergence() {
+		emergenceInProgress = true;
+		emergenceTicksRemaining = EMERGENCE_ANIMATION_DURATION;
+		setChanged();
+		sendData();
+		level.playSound(null, worldPosition, SoundEvents.SLIME_JUMP, SoundSource.BLOCKS, 0.8f, 0.9f);
+	}
+
+	private void tickEmergence() {
+		if (!(level instanceof ServerLevel serverLevel))
+			return;
+		if (!emergenceInProgress)
+			return;
+		if (emergenceTicksRemaining > 0)
+			emergenceTicksRemaining--;
+		if (emergenceTicksRemaining > 0)
+			return;
+
+		finishEmergence(serverLevel);
+	}
+
+	private void finishEmergence(ServerLevel serverLevel) {
+		if (recordedEntityId == null) {
+			cancelEmergence();
+			return;
+		}
+		EntityType<?> entityType = net.minecraftforge.registries.ForgeRegistries.ENTITY_TYPES.getValue(recordedEntityId);
+		if (entityType == null) {
+			cancelEmergence();
+			return;
+		}
+
+		BlockPos spawnPos = worldPosition.above();
+		if (!level.noCollision(new AABB(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), spawnPos.getX() + 1,
+			spawnPos.getY() + 2, spawnPos.getZ() + 1))) {
+			cancelEmergence();
+			return;
+		}
+
+		int required = getRequiredFluidAmount();
+		if (required <= 0 || fluidTank.getFluidAmount() < required) {
+			cancelEmergence();
+			return;
+		}
+
 		Entity spawned = entityType.spawn(serverLevel, ItemStack.EMPTY, null, spawnPos, MobSpawnType.DISPENSER, true,
 			false);
 		if (spawned == null) {
@@ -376,14 +513,28 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 				serverLevel.addFreshEntity(spawned);
 			}
 		}
-		if (!(spawned instanceof LivingEntity livingEntity))
+		if (!(spawned instanceof LivingEntity livingEntity)) {
+			cancelEmergence();
 			return;
+		}
 
+		float spawnYaw = getSpawnYaw();
+		livingEntity.moveTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ(), spawnYaw,
+			livingEntity.getXRot());
 		SlimeMimicHandler.markSpawnedEntity(livingEntity);
+		emergenceInProgress = false;
+		emergenceTicksRemaining = 0;
 		fluidTank.drain(required, FluidAction.EXECUTE);
 		inventory.extractItem(0, 1, false);
 		clearRecordedEntity();
 		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE, SoundSource.BLOCKS, 0.7f, 0.9f);
+		sendData();
+	}
+
+	private void cancelEmergence() {
+		emergenceInProgress = false;
+		emergenceTicksRemaining = 0;
+		setChanged();
 		sendData();
 	}
 
@@ -459,8 +610,19 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		recordedEntityId = null;
 		recordedMaxHealth = 0;
 		scanCooldown = 0;
+		emergenceInProgress = false;
+		emergenceTicksRemaining = 0;
+		clientPreviewEntityId = null;
+		clientPreviewEntity = null;
+		stopClientEmergenceAnimation();
 		setChanged();
 		sendData();
+	}
+
+	private float getSpawnYaw() {
+		if (getBlockState().hasProperty(PetriDishBlock.FACING))
+			return getBlockState().getValue(PetriDishBlock.FACING).toYRot();
+		return 0.0f;
 	}
 
 	@Override
@@ -484,6 +646,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			tag.putString(RECORDED_ENTITY_ID_TAG, recordedEntityId.toString());
 		tag.putFloat(RECORDED_MAX_HEALTH_TAG, recordedMaxHealth);
 		tag.putInt(SCAN_COOLDOWN_TAG, scanCooldown);
+		tag.putBoolean(EMERGENCE_IN_PROGRESS_TAG, emergenceInProgress);
+		tag.putInt(EMERGENCE_TICKS_REMAINING_TAG, emergenceTicksRemaining);
 		PlacedByPlayerAdvancementTracker.writeOwner(tag, advancementOwner);
 	}
 
@@ -496,6 +660,12 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			tag.contains(RECORDED_ENTITY_ID_TAG) ? new ResourceLocation(tag.getString(RECORDED_ENTITY_ID_TAG)) : null;
 		recordedMaxHealth = tag.getFloat(RECORDED_MAX_HEALTH_TAG);
 		scanCooldown = tag.getInt(SCAN_COOLDOWN_TAG);
+		emergenceInProgress = tag.getBoolean(EMERGENCE_IN_PROGRESS_TAG);
+		emergenceTicksRemaining = tag.getInt(EMERGENCE_TICKS_REMAINING_TAG);
+		if (!emergenceInProgress)
+			stopClientEmergenceAnimation();
+		clientPreviewEntityId = null;
+		clientPreviewEntity = null;
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
 	}
 
