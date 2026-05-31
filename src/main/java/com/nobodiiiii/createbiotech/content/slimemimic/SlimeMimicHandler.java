@@ -8,29 +8,33 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.world.level.storage.loot.BuiltInLootTables;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.event.entity.living.MobEffectEvent;
+import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class SlimeMimicHandler {
 	public static final String SLIME_MIMIC_TAG = "CreateBiotechSlimeMimic";
+	public static final String HAUNT_PROGRESS_TAG = "CreateBiotechHaunting";
+	public static final int HAUNT_CYCLE_TICKS = 100;
 	private static final ResourceLocation VANILLA_SLIME_LOOT_TABLE = new ResourceLocation("minecraft", "entities/slime");
 
 	private SlimeMimicHandler() {
@@ -74,26 +78,35 @@ public final class SlimeMimicHandler {
 	}
 
 	@SubscribeEvent
-	public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-		Player player = event.getEntity();
-		ItemStack heldItem = player.getItemInHand(event.getHand());
-		if (!heldItem.is(Items.GOLDEN_APPLE))
+	public static void onMobEffectApplicable(MobEffectEvent.Applicable event) {
+		if (event.getEffectInstance().getEffect() == MobEffects.REGENERATION && isSlimeMimic(event.getEntity()))
+			event.setResult(Event.Result.ALLOW);
+	}
+
+	public static void advanceHaunting(LivingEntity mimic, Level level) {
+		if (level.isClientSide())
 			return;
 
-		if (!(event.getTarget() instanceof LivingEntity livingTarget))
+		CompoundTag data = mimic.getPersistentData();
+		if (!mimic.hasEffect(MobEffects.REGENERATION)) {
+			data.putInt(HAUNT_PROGRESS_TAG, 0);
 			return;
-		if (!isSlimeMimic(livingTarget))
+		}
+
+		int progress = data.getInt(HAUNT_PROGRESS_TAG);
+		if (progress < HAUNT_CYCLE_TICKS) {
+			if (progress % 20 == 0)
+				level.playSound(null, mimic.blockPosition(), SoundEvents.SOUL_ESCAPE, SoundSource.NEUTRAL,
+					1f, 0.5f + 1.5f * progress / HAUNT_CYCLE_TICKS);
+			data.putInt(HAUNT_PROGRESS_TAG, progress + 1);
 			return;
+		}
 
-		event.setCanceled(true);
-		event.setCancellationResult(InteractionResult.SUCCESS);
-
-		if (player.level().isClientSide())
-			return;
-
-		setSlimeMimic(livingTarget, false);
-		if (!player.getAbilities().instabuild)
-			heldItem.shrink(1);
+		data.remove(HAUNT_PROGRESS_TAG);
+		mimic.removeEffect(MobEffects.REGENERATION);
+		level.playSound(null, mimic.blockPosition(), SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.NEUTRAL,
+			1.25f, 0.65f);
+		setSlimeMimic(mimic, false);
 	}
 
 	@SubscribeEvent

@@ -27,6 +27,7 @@
     "MechanicalMixerBlockEntityMixin",
     "LivingEntitySlimeMimicHurtSoundMixin",
     "LivingEntitySlimeMimicMixin",
+    "HauntingTypeSlimeMimicMixin",
     "NozzleBlockMixin",
     "MobAccessor",
     "PressingBehaviourSoundMixin",
