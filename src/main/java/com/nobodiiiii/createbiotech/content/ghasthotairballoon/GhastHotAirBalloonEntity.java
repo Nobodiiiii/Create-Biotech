@@ -31,6 +31,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 	private static final String PERSISTED_SEAT_INDEX_TAG = "CreateBiotechGhastBalloonSeatIndex";
 	private static final String PERSISTED_VEHICLE_TAG = "CreateBiotechGhastBalloonVehicle";
+	private static final String STEERING_YAW_TAG = "CreateBiotechGhastBalloonSteeringYaw";
 
 	private static final double FORWARD_ACCELERATION = 0.04d;
 	private static final double BACKWARD_ACCELERATION = 0.02d;
@@ -44,9 +45,6 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final float TURN_DIRECTION_CHANGE_BRAKE = 6.0f;
 	private static final float MAX_TURN_SPEED = 6.0f;
 	private static final float MAX_CONTRAPTION_YAW_STEP = MAX_TURN_SPEED;
-	private static final double STATIC_TURN_SPEED_THRESHOLD = 0.01d;
-	private static final float STATIC_TURN_YAW_THRESHOLD = 0.5f;
-	private static final float STATIC_TURN_VISUAL_YAW_STEP = 4.0f;
 	private static final float TURN_STOP_EPSILON = 0.05f;
 	private static final float TURN_DIRECTION_EPSILON = 0.25f;
 	private static final double MOTION_EPSILON = 1.0E-4d;
@@ -56,6 +54,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final double MAGNET_BRAKE_DISTANCE = 2.5d;
 
 	private float deltaRotation;
+	private float steeringYaw;
 	private int inputTimeout;
 	private boolean inputForward;
 	private boolean inputBackward;
@@ -79,6 +78,26 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		entity.setInitialOrientation(initialOrientation);
 		entity.startAtInitialYaw();
 		return entity;
+	}
+
+	@Override
+	public void startAtYaw(float yaw) {
+		super.startAtYaw(yaw);
+		steeringYaw = AngleHelper.wrapAngle180(yaw);
+	}
+
+	@Override
+	protected void readAdditional(CompoundTag compound, boolean spawnPacket) {
+		super.readAdditional(compound, spawnPacket);
+		steeringYaw = compound.contains(STEERING_YAW_TAG, Tag.TAG_FLOAT)
+			? AngleHelper.wrapAngle180(compound.getFloat(STEERING_YAW_TAG))
+			: AngleHelper.wrapAngle180(yaw);
+	}
+
+	@Override
+	protected void writeAdditional(CompoundTag compound, boolean spawnPacket) {
+		super.writeAdditional(compound, spawnPacket);
+		compound.putFloat(STEERING_YAW_TAG, steeringYaw);
 	}
 
 	@Override
@@ -116,7 +135,9 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			cachePassengerSeatMappings();
 
 		if (ghast != null)
-			syncVisualYawWhileTurningInPlace(ghast, ghast.getDeltaMovement());
+			syncGhastYawToBalloon(ghast);
+		if (!inputLeft && !inputRight && deltaRotation == 0)
+			steeringYaw = AngleHelper.wrapAngle180(yaw);
 	}
 
 	public void setMagnetTarget(BlockPos pos) {
@@ -220,6 +241,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			return false;
 		clearInputs();
 		deltaRotation = 0;
+		steeringYaw = AngleHelper.wrapAngle180(yaw);
 		inputTimeout = 0;
 		return true;
 	}
@@ -253,6 +275,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		super.stopControlling(controlsLocalPos);
 		clearInputs();
 		deltaRotation = 0;
+		steeringYaw = AngleHelper.wrapAngle180(yaw);
 		inputTimeout = 0;
 	}
 
@@ -338,8 +361,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			desiredTurnSpeed = inputRight ? MAX_TURN_SPEED : -MAX_TURN_SPEED;
 		deltaRotation = updateTurnSpeed(deltaRotation, desiredTurnSpeed);
 
-		float yaw = ghast.getYRot() + deltaRotation;
-		applyYaw(ghast, yaw);
+		steeringYaw = AngleHelper.wrapAngle180(steeringYaw + deltaRotation);
+		applyYaw(ghast, steeringYaw);
 
 		double thrust = 0;
 		if (inputForward)
@@ -347,7 +370,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		if (inputBackward)
 			thrust -= BACKWARD_ACCELERATION;
 		if (thrust != 0)
-			movement = movement.add(Vec3.directionFromRotation(0, yaw).scale(thrust));
+			movement = movement.add(Vec3.directionFromRotation(0, steeringYaw).scale(thrust));
 
 		double verticalThrust = 0;
 		if (inputUp)
@@ -389,7 +412,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		deltaRotation = 0;
 		if (horizDist > 1.0E-6) {
 			float targetYaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
-			applyYaw(ghast, targetYaw);
+			steeringYaw = AngleHelper.wrapAngle180(targetYaw);
+			applyYaw(ghast, steeringYaw);
 		}
 
 		ghast.setDeltaMovement(movement);
@@ -417,36 +441,15 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		return Mth.approach(currentTurnSpeed, desiredTurnSpeed, TURN_ACCELERATION);
 	}
 
-	private void syncVisualYawWhileTurningInPlace(Ghast ghast, Vec3 movement) {
-		if (movement.horizontalDistanceSqr() > STATIC_TURN_SPEED_THRESHOLD * STATIC_TURN_SPEED_THRESHOLD)
-			return;
-		float yaw = ghast.getYRot();
-		boolean rotating = Math.abs(deltaRotation) >= STATIC_TURN_YAW_THRESHOLD
-			|| inputLeft || inputRight
-			|| Math.abs(AngleHelper.getShortestAngleDiff(ghast.yBodyRot, yaw)) >= STATIC_TURN_YAW_THRESHOLD;
-		if (!rotating)
-			return;
-
-		if (level().isClientSide) {
-			float bodyYaw = approachAngle(ghast.yBodyRot, yaw, STATIC_TURN_VISUAL_YAW_STEP);
-			float headYaw = approachAngle(ghast.yHeadRot, yaw, STATIC_TURN_VISUAL_YAW_STEP);
-			ghast.yBodyRotO = ghast.yBodyRot;
-			ghast.yHeadRotO = ghast.yHeadRot;
-			ghast.setYBodyRot(bodyYaw);
-			ghast.setYHeadRot(headYaw);
-			return;
-		}
-
-		ghast.setYBodyRot(yaw);
-		ghast.setYHeadRot(yaw);
-		ghast.yBodyRotO = yaw;
-		ghast.yHeadRotO = yaw;
-	}
-
-	private static float approachAngle(float current, float target, float maxStep) {
-		float diff = AngleHelper.getShortestAngleDiff(current, target);
-		diff = Mth.clamp(diff, -maxStep, maxStep);
-		return AngleHelper.wrapAngle180(current + diff);
+	private void syncGhastYawToBalloon(Ghast ghast) {
+		float previousYaw = AngleHelper.wrapAngle180(prevYaw);
+		float currentYaw = AngleHelper.wrapAngle180(yaw);
+		ghast.yRotO = previousYaw;
+		ghast.setYRot(currentYaw);
+		ghast.yBodyRotO = previousYaw;
+		ghast.setYBodyRot(currentYaw);
+		ghast.yHeadRotO = previousYaw;
+		ghast.setYHeadRot(currentYaw);
 	}
 
 	private static void applyYaw(Ghast ghast, float yaw) {
