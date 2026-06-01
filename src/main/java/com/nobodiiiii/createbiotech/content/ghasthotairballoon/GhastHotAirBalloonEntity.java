@@ -16,6 +16,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -32,6 +35,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final String PERSISTED_SEAT_INDEX_TAG = "CreateBiotechGhastBalloonSeatIndex";
 	private static final String PERSISTED_VEHICLE_TAG = "CreateBiotechGhastBalloonVehicle";
 	private static final String STEERING_YAW_TAG = "CreateBiotechGhastBalloonSteeringYaw";
+	private static final EntityDataAccessor<Float> SYNCED_STEERING_YAW =
+		SynchedEntityData.defineId(GhastHotAirBalloonEntity.class, EntityDataSerializers.FLOAT);
 
 	private static final double FORWARD_ACCELERATION = 0.04d;
 	private static final double BACKWARD_ACCELERATION = 0.02d;
@@ -81,17 +86,30 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	}
 
 	@Override
+	protected void defineSynchedData() {
+		super.defineSynchedData();
+		entityData.define(SYNCED_STEERING_YAW, 0f);
+	}
+
+	@Override
 	public void startAtYaw(float yaw) {
 		super.startAtYaw(yaw);
-		steeringYaw = AngleHelper.wrapAngle180(yaw);
+		setSteeringYaw(yaw);
+	}
+
+	@Override
+	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+		super.onSyncedDataUpdated(key);
+		if (SYNCED_STEERING_YAW.equals(key))
+			steeringYaw = AngleHelper.wrapAngle180(entityData.get(SYNCED_STEERING_YAW));
 	}
 
 	@Override
 	protected void readAdditional(CompoundTag compound, boolean spawnPacket) {
 		super.readAdditional(compound, spawnPacket);
-		steeringYaw = compound.contains(STEERING_YAW_TAG, Tag.TAG_FLOAT)
+		setSteeringYaw(compound.contains(STEERING_YAW_TAG, Tag.TAG_FLOAT)
 			? AngleHelper.wrapAngle180(compound.getFloat(STEERING_YAW_TAG))
-			: AngleHelper.wrapAngle180(yaw);
+			: AngleHelper.wrapAngle180(yaw));
 	}
 
 	@Override
@@ -136,8 +154,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 		if (ghast != null)
 			syncGhastYawToBalloon(ghast);
-		if (!inputLeft && !inputRight && deltaRotation == 0)
-			steeringYaw = AngleHelper.wrapAngle180(yaw);
+		if (!level().isClientSide && !inputLeft && !inputRight && deltaRotation == 0)
+			setSteeringYaw(yaw);
 	}
 
 	public void setMagnetTarget(BlockPos pos) {
@@ -241,7 +259,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			return false;
 		clearInputs();
 		deltaRotation = 0;
-		steeringYaw = AngleHelper.wrapAngle180(yaw);
+		setSteeringYaw(yaw);
 		inputTimeout = 0;
 		return true;
 	}
@@ -275,7 +293,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		super.stopControlling(controlsLocalPos);
 		clearInputs();
 		deltaRotation = 0;
-		steeringYaw = AngleHelper.wrapAngle180(yaw);
+		setSteeringYaw(yaw);
 		inputTimeout = 0;
 	}
 
@@ -294,9 +312,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		if (!Float.isNaN(movementApproach))
 			return Math.abs(movementApproach) > 0.01f;
 
-		targetYaw = AngleHelper.wrapAngle180(ghast.getYRot());
-		yaw = targetYaw;
-		return Math.abs(AngleHelper.getShortestAngleDiff(prevYaw, yaw)) > 0.01f;
+		float steeringApproach = updateYawToward(steeringYaw, Float.NaN);
+		return Math.abs(steeringApproach) > 0.01f;
 	}
 
 	private float updateYawFromMovement(Vec3 locationDiff, Vec3 deltaMovement) {
@@ -307,19 +324,22 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		if (horizontalMotion.lengthSqr() <= MOTION_EPSILON)
 			return Float.NaN;
 
-		targetYaw = yawFromVector(horizontalMotion.normalize());
+		float yawHint = horizontalLocationDiff.lengthSqr() > MOTION_EPSILON
+			? AngleHelper.getShortestAngleDiff(yaw, yawFromVector(horizontalLocationDiff))
+			: Float.NaN;
+		return updateYawToward(yawFromVector(horizontalMotion.normalize()), yawHint);
+	}
+
+	private float updateYawToward(float desiredYaw, float yawHint) {
+		targetYaw = desiredYaw;
 		if (targetYaw < 0)
 			targetYaw += 360;
 		if (yaw < 0)
 			yaw += 360;
 
-		float approach;
-		if (horizontalLocationDiff.lengthSqr() > MOTION_EPSILON) {
-			float yawHint = AngleHelper.getShortestAngleDiff(yaw, yawFromVector(horizontalLocationDiff));
-			approach = AngleHelper.getShortestAngleDiff(yaw, targetYaw, yawHint);
-		} else {
-			approach = AngleHelper.getShortestAngleDiff(yaw, targetYaw);
-		}
+		float approach = Float.isNaN(yawHint)
+			? AngleHelper.getShortestAngleDiff(yaw, targetYaw)
+			: AngleHelper.getShortestAngleDiff(yaw, targetYaw, yawHint);
 
 		approach = Mth.clamp(approach, -MAX_CONTRAPTION_YAW_STEP, MAX_CONTRAPTION_YAW_STEP);
 		yaw = AngleHelper.wrapAngle180(yaw + approach);
@@ -361,7 +381,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			desiredTurnSpeed = inputRight ? MAX_TURN_SPEED : -MAX_TURN_SPEED;
 		deltaRotation = updateTurnSpeed(deltaRotation, desiredTurnSpeed);
 
-		steeringYaw = AngleHelper.wrapAngle180(steeringYaw + deltaRotation);
+		setSteeringYaw(steeringYaw + deltaRotation);
 		applyYaw(ghast, steeringYaw);
 
 		double thrust = 0;
@@ -412,7 +432,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		deltaRotation = 0;
 		if (horizDist > 1.0E-6) {
 			float targetYaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
-			steeringYaw = AngleHelper.wrapAngle180(targetYaw);
+			setSteeringYaw(targetYaw);
 			applyYaw(ghast, steeringYaw);
 		}
 
@@ -439,6 +459,12 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		}
 
 		return Mth.approach(currentTurnSpeed, desiredTurnSpeed, TURN_ACCELERATION);
+	}
+
+	private void setSteeringYaw(float yaw) {
+		steeringYaw = AngleHelper.wrapAngle180(yaw);
+		if (!level().isClientSide)
+			entityData.set(SYNCED_STEERING_YAW, steeringYaw);
 	}
 
 	private void syncGhastYawToBalloon(Ghast ghast) {
