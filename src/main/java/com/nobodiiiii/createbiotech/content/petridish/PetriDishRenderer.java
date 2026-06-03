@@ -21,7 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 public class PetriDishRenderer extends SmartBlockEntityRenderer<PetriDishBlockEntity> {
 
 	private static final BlockState SLIME_BLOCK = Blocks.SLIME_BLOCK.defaultBlockState();
-	private static final float SLIME_BASE_Y = 4.25f / 16.0f;
+	private static final float SLIME_BASE_Y = 2.25f / 16.0f;
 	private static final float SLIME_MAX_TOP_Y = 0.96f;
 	private static final float[] STAGE_SCALES = { 0.0f, 0.28f, 0.42f, 0.56f, 0.70f };
 	private static final float IDLE_SPEED = 0.18f;

@@ -23,11 +23,21 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class PetriDishBlock extends HorizontalDirectionalBlock implements IBE<PetriDishBlockEntity>, IWrenchable {
 
-	private static final VoxelShape SHAPE = box(0, 0, 0, 16, 16, 16);
+	private static final VoxelShape SHAPE = Shapes.or(
+		box(0, 0, 0, 16, 2, 16),
+		box(0, 2, 2, 1, 4, 14),
+		box(15, 2, 2, 16, 4, 14),
+		box(2, 2, 0, 14, 4, 1),
+		box(2, 2, 15, 14, 4, 16),
+		box(2, 2, 1, 15, 8, 2),
+		box(1, 2, 14, 14, 8, 15),
+		box(1, 2, 1, 2, 8, 14),
+		box(14, 2, 2, 15, 8, 15));
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 
 	public PetriDishBlock(Properties properties) {
@@ -37,6 +47,11 @@ public class PetriDishBlock extends HorizontalDirectionalBlock implements IBE<Pe
 
 	@Override
 	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return SHAPE;
+	}
+
+	@Override
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
 		return SHAPE;
 	}
 
