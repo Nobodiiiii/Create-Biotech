@@ -6,7 +6,7 @@
       "item": "create:cardboard_block"
     },
     "C": {
-      "tag": "forge:ingots/brass"
+      "item": "create_biotech:asurine_alloy"
     },
     "R": {
       "tag": "forge:dusts/redstone"
