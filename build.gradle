@@ -120,12 +120,17 @@ tasks.withType(JavaCompile).configureEach {
     options.release = 17
 }
 
-tasks.register('quickPlayClient', Exec) {
-    group = 'mod development'
-    description = 'Runs test.py to build, copy the mod jar, and quickplay the local client.'
-    workingDir = projectDir
+def configureQuickPlayClientTask = { Exec task, boolean onlineBuild ->
+    task.group = 'mod development'
+    task.description = onlineBuild
+            ? 'Runs test.py with an online Gradle build, copies the mod jar, and quickplays the local client.'
+            : 'Runs test.py with an offline Gradle build, copies the mod jar, and quickplays the local client.'
+    task.workingDir = projectDir
 
     def command = [findProperty('pythonExecutable') ?: 'python', 'test.py']
+    if (onlineBuild) {
+        command += ['--online-build']
+    }
     if (hasProperty('instance')) {
         command += ['--instance', property('instance').toString()]
     }
@@ -145,7 +150,15 @@ tasks.register('quickPlayClient', Exec) {
         command += ['--height', property('height').toString()]
     }
 
-    commandLine command
+    task.commandLine command
+}
+
+tasks.register('quickPlayClient', Exec) {
+    configureQuickPlayClientTask(delegate, false)
+}
+
+tasks.register('quickPlayClientOnline', Exec) {
+    configureQuickPlayClientTask(delegate, true)
 }
 
 jar {

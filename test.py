@@ -201,10 +201,14 @@ def newest_world() -> str:
     return max(worlds, key=lambda path: (path / "level.dat").stat().st_mtime).name
 
 
-def run_build() -> None:
+def run_build(offline: bool = True) -> None:
     env = os.environ.copy()
     env.setdefault("GRADLE_USER_HOME", str(PROJECT_ROOT / ".gradle-user"))
-    subprocess.run([str(PROJECT_ROOT / "gradlew.bat"), "build"], cwd=PROJECT_ROOT, env=env, check=True)
+    command = [str(PROJECT_ROOT / "gradlew.bat")]
+    if offline:
+        command.append("--offline")
+    command.append("build")
+    subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=True)
 
 
 def copy_mod_jar() -> Path:
@@ -266,6 +270,7 @@ def main() -> int:
     parser.add_argument("--instance", default=DEFAULT_INSTANCE)
     parser.add_argument("--world", help="Save folder name under .minecraft/saves. Defaults to the newest world.")
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--online-build", action="store_true")
     parser.add_argument("--no-copy", action="store_true")
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
@@ -276,8 +281,8 @@ def main() -> int:
         raise FileNotFoundError(f"World not found: {SAVES_DIR / world}")
 
     if not args.skip_build:
-        print("[BUILD] gradlew build")
-        run_build()
+        print("[BUILD] gradlew build" if args.online_build else "[BUILD] gradlew --offline build")
+        run_build(offline=not args.online_build)
 
     if not args.no_copy:
         print(f"[COPY] {copy_mod_jar()}")

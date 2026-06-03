@@ -38,6 +38,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.shapes.BooleanOp;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
@@ -54,7 +58,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public static final int SCAN_RADIUS = 2;
 	public static final int TANK_CAPACITY = 51200;
 	public static final int GROWTH_ANIMATION_DURATION = 8;
-	public static final int EMERGENCE_ANIMATION_DURATION = 20;
+	public static final int EMERGENCE_ANIMATION_DURATION = 24;
+	public static final double EMERGENCE_SPAWN_Y_OFFSET = 2.0d / 16.0d;
 
 	private static final String INVENTORY_TAG = "Inventory";
 	private static final String TANK_TAG = "Tank";
@@ -450,9 +455,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (entityType == null)
 			return;
 
-		BlockPos spawnPos = worldPosition.above();
-		if (!level.noCollision(new AABB(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), spawnPos.getX() + 1,
-			spawnPos.getY() + 2, spawnPos.getZ() + 1)))
+		if (!hasClearEmergenceSpace(entityType))
 			return;
 
 		beginEmergence();
@@ -490,9 +493,11 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		}
 
-		BlockPos spawnPos = worldPosition.above();
-		if (!level.noCollision(new AABB(spawnPos.getX(), spawnPos.getY(), spawnPos.getZ(), spawnPos.getX() + 1,
-			spawnPos.getY() + 2, spawnPos.getZ() + 1))) {
+		double spawnX = worldPosition.getX() + 0.5d;
+		double spawnY = worldPosition.getY() + EMERGENCE_SPAWN_Y_OFFSET;
+		double spawnZ = worldPosition.getZ() + 0.5d;
+		BlockPos spawnPos = BlockPos.containing(spawnX, spawnY, spawnZ);
+		if (!hasClearEmergenceSpace(entityType)) {
 			cancelEmergence();
 			return;
 		}
@@ -508,8 +513,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (spawned == null) {
 			spawned = entityType.create(serverLevel);
 			if (spawned != null) {
-				spawned.moveTo(spawnPos.getX() + 0.5d, spawnPos.getY(), spawnPos.getZ() + 0.5d,
-					serverLevel.random.nextFloat() * 360.0f, 0.0f);
+				spawned.moveTo(spawnX, spawnY, spawnZ, serverLevel.random.nextFloat() * 360.0f, 0.0f);
 				serverLevel.addFreshEntity(spawned);
 			}
 		}
@@ -519,8 +523,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 
 		float spawnYaw = getSpawnYaw();
-		livingEntity.moveTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ(), spawnYaw,
-			livingEntity.getXRot());
+		livingEntity.moveTo(spawnX, spawnY, spawnZ, spawnYaw, livingEntity.getXRot());
 		livingEntity.setYRot(spawnYaw);
 		livingEntity.yRotO = spawnYaw;
 		livingEntity.setYBodyRot(spawnYaw);
@@ -535,6 +538,52 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		clearRecordedEntity();
 		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE, SoundSource.BLOCKS, 0.7f, 0.9f);
 		sendData();
+	}
+
+	private boolean hasClearEmergenceSpace(EntityType<?> entityType) {
+		if (level == null)
+			return false;
+
+		Entity probe = entityType.create(level);
+		if (probe == null)
+			return false;
+
+		double spawnX = worldPosition.getX() + 0.5d;
+		double spawnY = worldPosition.getY() + EMERGENCE_SPAWN_Y_OFFSET;
+		double spawnZ = worldPosition.getZ() + 0.5d;
+		float spawnYaw = getSpawnYaw();
+		probe.moveTo(spawnX, spawnY, spawnZ, spawnYaw, probe.getXRot());
+
+		AABB bounds = probe.getBoundingBox().deflate(1.0E-6d);
+		if (!level.getEntityCollisions(probe, bounds)
+			.isEmpty())
+			return false;
+
+		CollisionContext collisionContext = CollisionContext.of(probe);
+		VoxelShape boundsShape = Shapes.create(bounds);
+		BlockPos minPos = BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ);
+		BlockPos maxPos = BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ);
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+
+		for (int x = minPos.getX(); x <= maxPos.getX(); x++) {
+			for (int y = minPos.getY(); y <= maxPos.getY(); y++) {
+				for (int z = minPos.getZ(); z <= maxPos.getZ(); z++) {
+					cursor.set(x, y, z);
+					if (cursor.equals(worldPosition))
+						continue;
+
+					BlockState state = level.getBlockState(cursor);
+					VoxelShape collisionShape = state.getCollisionShape(level, cursor, collisionContext);
+					if (collisionShape.isEmpty())
+						continue;
+
+					if (Shapes.joinIsNotEmpty(collisionShape.move(x, y, z), boundsShape, BooleanOp.AND))
+						return false;
+				}
+			}
+		}
+
+		return true;
 	}
 
 	private void cancelEmergence() {
