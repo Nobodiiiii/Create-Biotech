@@ -56,6 +56,36 @@ public class PetriDishBlock extends HorizontalDirectionalBlock implements IBE<Pe
 	}
 
 	@Override
+	public VoxelShape getVisualShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+		return Shapes.empty();
+	}
+
+	@Override
+	public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+		return Shapes.empty();
+	}
+
+	@Override
+	public boolean useShapeForLightOcclusion(BlockState state) {
+		return false;
+	}
+
+	@Override
+	public int getLightBlock(BlockState state, BlockGetter level, BlockPos pos) {
+		return 0;
+	}
+
+	@Override
+	public boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+		return true;
+	}
+
+	@Override
+	public float getShadeBrightness(BlockState state, BlockGetter level, BlockPos pos) {
+		return 1.0f;
+	}
+
+	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
 		builder.add(FACING);
 	}

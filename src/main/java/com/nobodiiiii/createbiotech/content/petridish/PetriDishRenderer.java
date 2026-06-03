@@ -32,7 +32,7 @@ public class PetriDishRenderer extends SmartBlockEntityRenderer<PetriDishBlockEn
 	private static final float GROWTH_OVERSHOOT = 1.15f;
 	private static final float EMERGENCE_OVERSHOOT = 1.3f;
 	private static final float EMERGENCE_OVERSHOOT_END = 0.86f;
-	private static final float EMERGENCE_OVERSHOOT_FACTOR = 1.1f;
+	private static final float EMERGENCE_OVERSHOOT_FACTOR = 1.2f;
 	private static final float EMERGENCE_END_FACTOR = 1.0f;
 	private static final float BIONIC_ITEM_Y = 3.2f / 16.0f;
 	private static final float BIONIC_ITEM_SCALE = 0.5f;
