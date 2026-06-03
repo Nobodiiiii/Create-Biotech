@@ -12,6 +12,7 @@
     "create_biotech:large_experience_bud",
     "create_biotech:experience_cluster",
     "create_biotech:petri_dish",
+    "create_biotech:asurine_casing",
     "create_biotech:explosion_proof_casing",
     "create_biotech:explosion_proof_item_vault"
   ]

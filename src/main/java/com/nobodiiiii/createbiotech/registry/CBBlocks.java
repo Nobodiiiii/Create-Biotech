@@ -34,6 +34,7 @@ import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.ExplosionProofCasingBlock;
+import com.simibubi.create.content.decoration.encasing.CasingBlock;
 import com.simibubi.create.content.decoration.palettes.ConnectedGlassBlock;
 
 import net.minecraft.world.level.block.Block;
@@ -233,6 +234,12 @@ public class CBBlocks {
 				.requiresCorrectToolForDrops()
 				.mapColor(MapColor.COLOR_GRAY)
 				.noOcclusion()));
+
+	public static final RegistryObject<CasingBlock> ASURINE_CASING =
+		BLOCKS.register("asurine_casing",
+			() -> new CasingBlock(Block.Properties.copy(Blocks.ANDESITE)
+				.sound(SoundType.WOOD)
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
 
 	public static final RegistryObject<ExplosionProofCasingBlock> EXPLOSION_PROOF_CASING =
 		BLOCKS.register("explosion_proof_casing",

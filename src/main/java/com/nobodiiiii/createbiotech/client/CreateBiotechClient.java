@@ -252,9 +252,14 @@ public class CreateBiotechClient {
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("experience_pump"), ExperiencePipeAttachmentModel::withAO);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
+				.register(CreateBiotech.asResource("asurine_casing"),
+					model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.ASURINE_CASING)));
+			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("explosion_proof_casing"),
 					model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
 						CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE, CBSpriteShifts.EXPLOSION_PROOF_CASING)));
+			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.ASURINE_CASING.get(),
+				CBSpriteShifts.ASURINE_CASING);
 			CreateClient.MODEL_SWAPPER.getCustomBlockModels()
 				.register(CreateBiotech.asResource("creeper_blast_chamber"),
 					model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(

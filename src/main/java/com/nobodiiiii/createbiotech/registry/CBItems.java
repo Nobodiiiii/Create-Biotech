@@ -148,8 +148,14 @@ public class CBItems {
 	public static final RegistryObject<Item> BIONIC_MECHANISM = ITEMS.register("bionic_mechanism",
 		() -> new Item(new Item.Properties()));
 
+	public static final RegistryObject<Item> ASURINE_ALLOY = ITEMS.register("asurine_alloy",
+		() -> new Item(new Item.Properties()));
+
 	public static final RegistryObject<Item> INCOMPLETE_BIONIC_MECHANISM =
 		ITEMS.register("incomplete_bionic_mechanism", () -> new Item(new Item.Properties()));
+
+	public static final RegistryObject<Item> ASURINE_CASING = ITEMS.register("asurine_casing",
+		() -> new BlockItem(CBBlocks.ASURINE_CASING.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));

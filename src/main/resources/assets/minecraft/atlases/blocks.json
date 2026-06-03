@@ -38,6 +38,10 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:block/asurine_casing_connected"
+    },
+    {
+      "type": "single",
       "resource": "create_biotech:block/explosion_proof_casing_connected"
     },
     {

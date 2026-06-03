@@ -9,7 +9,8 @@ import net.createmod.catnip.data.Couple;
 
 public class CBSpriteShifts {
 
-	public static final CTSpriteShiftEntry EXPLOSION_PROOF_CASING = omni("explosion_proof_casing"),
+	public static final CTSpriteShiftEntry ASURINE_CASING = omni("asurine_casing"),
+		EXPLOSION_PROOF_CASING = omni("explosion_proof_casing"),
 		EXPLOSION_PROOF_CASING_SIDE = omni("explosion_proof_casing_side"),
 		BLAST_PROOF_FRAMED_GLASS = omni("blast_proof_framed_glass"),
 		EXPERIENCE_TANK = rectangle("experience_tank"),
