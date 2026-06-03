@@ -2,7 +2,7 @@
   "credit": "Made with Blockbench",
   "render_type": "cutout",
   "textures": {
-    "1": "create_biotech:block/bio_packager_details"
+    "1": "create_biotech:block/bio_packager_tray"
   },
   "elements": [
     {
