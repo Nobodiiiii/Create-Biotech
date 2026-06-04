@@ -23,7 +23,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.CatVariant;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -85,9 +84,9 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         if(cat == null) cat =EntityType.CAT.create(level);
         cat.setVariant(BuiltInRegistries.CAT_VARIANT.get(catVariant));
         cat.setPos(getBlockPos().getCenter());
-        Player player = level.getNearestPlayer(cat,6);
-        if(player!=null)
-            cat.setLeashedTo(player, true);
+        if (cat.isLeashed()) {
+            cat.dropLeash(true, false);
+        }
         cat.revive();
         return cat;
     }
@@ -208,7 +207,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return hasBread()? ModPartialModels.BCE_BREAD:ModPartialModels.BCE_EMPTY;
     }
     public PartialModel getRopeModel() {
-        return hasBread() ? ModPartialModels.BCE_ROPE : ModPartialModels.BCE_EMPTY;
+        return ModPartialModels.BCE_EMPTY;
     }
     ///================collision================
     static class BCEValueBox extends ValueBoxTransform.Sided {

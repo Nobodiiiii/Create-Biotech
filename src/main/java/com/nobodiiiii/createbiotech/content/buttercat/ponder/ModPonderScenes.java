@@ -6,6 +6,7 @@ import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import net.createmod.catnip.math.Pointing;
 import net.createmod.ponder.api.scene.SceneBuilder;
 import net.createmod.ponder.api.scene.SceneBuildingUtil;
@@ -17,7 +18,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
@@ -48,12 +48,13 @@ public class ModPonderScenes {
         });
 
         scene.overlay().showText(50)
-                .text("Secure the cat to the Shafts with a lead.")
+                .text("Use a cardboard box containing a cat on the Shafts.")
                 .placeNearTarget()
                 .pointAt(util.vector().topOf(catPos));
         scene.idle(60);
 
-        scene.overlay().showControls(util.vector().topOf(catPos), Pointing.LEFT, 20).rightClick().withItem(Items.LEAD.getDefaultInstance());
+        ItemStack boxedCat = CBItems.CARDBOARD_BOX.get().getDefaultInstance();
+        scene.overlay().showControls(util.vector().topOf(catPos), Pointing.LEFT, 20).rightClick().withItem(boxedCat);
         scene.idle(45);
 
         scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.LEFT, 20).rightClick();
@@ -74,7 +75,7 @@ public class ModPonderScenes {
 
         scene.addKeyframe();
 
-        scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(Items.BREAD.getDefaultInstance());
+        scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(net.minecraft.world.item.Items.BREAD.getDefaultInstance());
         scene.idle(5);
         scene.world().modifyBlockEntity(enginePos,ButterCatEngineBlockEntity.class, ButterCatEngineBlockEntity::addBread);
         scene.idle(40);
