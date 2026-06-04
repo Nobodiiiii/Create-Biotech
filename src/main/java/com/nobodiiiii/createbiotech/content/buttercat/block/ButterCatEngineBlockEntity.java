@@ -188,7 +188,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return hasBread()? ModPartialModels.BCE_BREAD:ModPartialModels.BCE_EMPTY;
     }
     public PartialModel getRopeModel() {
-        return ModPartialModels.BCE_EMPTY;
+        return hasBread() ? ModPartialModels.BCE_ROPE : ModPartialModels.BCE_EMPTY;
     }
     public int getMaxButterCount(){
         return ModConfigs.COMMON.maxButterCount.get();
