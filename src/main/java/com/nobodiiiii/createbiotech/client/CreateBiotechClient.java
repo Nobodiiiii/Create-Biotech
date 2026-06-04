@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.client;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceTankRenderer;
+import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerVisual;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetRenderer;
@@ -189,6 +190,7 @@ public class CreateBiotechClient {
 		event.enqueueWork(() -> {
 			registerItemTooltips();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
+			ButterCatModule.clientInit();
 			SimpleEntityVisualizer.<GhastHotAirBalloonEntity>builder(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get())
 				.factory(ContraptionVisual::new)
 				.apply();

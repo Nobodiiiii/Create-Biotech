@@ -76,4 +76,6 @@ tools/, test.py             # 辅助脚本；test.py 驱动 quickPlayClient
 
 ## 许可证
 
-MIT，详见 [gradle.properties](gradle.properties)。
+本仓库不是单一许可证结构。
+
+原创代码采用 MIT，Create: Biotech 原创资源通常为保留所有权利，另外仓库中还包含改编自 `SylviaX-390/createbuttercat` 的 MIT 许可内容。详见 [LICENSE.md](LICENSE.md) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

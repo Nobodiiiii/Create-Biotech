@@ -1,20 +1,28 @@
 # License Overview
 
-## Assets License (All Rights Reserved)
+This repository contains a mix of original Create: Biotech material and adapted third-party material.
 
-All Rights Reserved
+## Original Create: Biotech Assets
+
+Unless stated otherwise in this repository or in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), original Create: Biotech assets are All Rights Reserved.
 
 Copyright (c) Nobodiiiii
 
-This license applies to any files under the following directories:
+This generally includes the original project-owned portions of:
 
-- ./src/main/resources/assets/
+- `./src/main/resources/assets/`
 
----
+## Adapted Third-Party Material
 
-## Code License (MIT)
+This repository also contains code, assets, data, and other material adapted from or derived from `SylviaX-390/createbuttercat`.
 
-All other files are licensed under the MIT License:
+Those portions, including later modifications or derivative adaptations of those portions, remain available under the upstream MIT License terms reproduced in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+To avoid doubt: moving, renaming, editing, or further integrating those adapted portions into other parts of this repository does not remove the upstream MIT notice requirement for those portions.
+
+## Repository Code License (MIT)
+
+Unless a file or adapted portion is covered by the section above, the remaining code and documentation in this repository are licensed under the MIT License:
 
 MIT License
 

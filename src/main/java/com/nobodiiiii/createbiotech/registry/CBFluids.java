@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModFluids;
 import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeFluidType;
+import com.tterrag.registrate.util.entry.FluidEntry;
 
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
@@ -65,6 +67,10 @@ public class CBFluids {
 			() -> new BucketItem(LIQUID_LIVING_SLIME, new Item.Properties()
 				.craftRemainder(Items.BUCKET)
 				.stacksTo(1)));
+
+	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
+	// here so the project's primary fluid registry remains the place to inspect mod fluids.
+	public static final FluidEntry<ForgeFlowingFluid.Flowing> CREAM = ModFluids.CREAM;
 
 	private static ForgeFlowingFluid.Properties liquidLivingSlimeProperties() {
 		return new ForgeFlowingFluid.Properties(

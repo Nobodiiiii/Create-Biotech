@@ -1,0 +1,12 @@
+# Blender 5.1.0 MTL File: 'cat.blend'
+# www.blender.org
+
+newmtl axis
+map_Kd #axis
+
+newmtl axis_top
+map_Kd #axis_top
+
+newmtl m_1
+map_Kd #0
+

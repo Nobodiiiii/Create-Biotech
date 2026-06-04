@@ -1,0 +1,6 @@
+{
+	"parent": "block/block",
+	"textures": {
+		"particle": "create_biotech:block/butter/butter"
+	}
+}

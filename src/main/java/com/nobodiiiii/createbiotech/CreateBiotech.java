@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech;
 
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodGoalHandler;
+import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadMovementBehaviour;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCompat;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonRopeShearsInteraction;
@@ -45,6 +46,7 @@ public class CreateBiotech {
 		CBMenuTypes.register(modEventBus);
 		CBParticleTypes.register(modEventBus);
 		CBRecipeTypes.register(modEventBus);
+		ButterCatModule.init(modEventBus);
 		modEventBus.addListener(CreateBiotech::onCommonSetup);
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();

@@ -1,0 +1,67 @@
+{
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "create_biotech:honey_butter"
+  },
+  "loops": 1,
+  "results": [
+    {
+      "item": "create_biotech:super_butter"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        },
+        [
+          {
+            "item": "minecraft:chorus_fruit"
+          },
+          {
+            "item": "minecraft:popped_chorus_fruit"
+          }
+        ]
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        },
+        {
+          "item": "minecraft:nether_star"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        }
+      ]
+    },
+    {
+      "type": "create:pressing",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        }
+      ]
+    }
+  ],
+  "transitionalItem": {
+    "item": "create_biotech:incomplete_super_butter"
+  }
+}

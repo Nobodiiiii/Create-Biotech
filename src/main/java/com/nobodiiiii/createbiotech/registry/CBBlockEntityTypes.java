@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetBlockEntity;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
+import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlockEnetities;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlockEntity;
@@ -29,6 +31,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import com.tterrag.registrate.util.entry.BlockEntityEntry;
 
 public class CBBlockEntityTypes {
 
@@ -171,6 +174,11 @@ public class CBBlockEntityTypes {
 			() -> BlockEntityType.Builder
 				.of(BioPackagerBlockEntity::new, CBBlocks.BIO_PACKAGER.get())
 				.build(null));
+
+	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
+	// here so the project's primary block entity registry remains the place to inspect mod blocks.
+	public static final BlockEntityEntry<ButterCatEngineBlockEntity> BUTTER_CAT_ENGINE =
+		ModBlockEnetities.BUTTER_CAT_ENGINE_BE;
 
 	private CBBlockEntityTypes() {}
 

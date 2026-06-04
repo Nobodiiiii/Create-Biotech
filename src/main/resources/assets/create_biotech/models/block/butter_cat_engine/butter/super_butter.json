@@ -1,0 +1,7 @@
+{
+	"parent": "create_biotech:block/butter_cat_engine/butter/butter_big",
+	"textures": {
+		"1": "create_biotech:block/butter/super_butter",
+		"particle": "create_biotech:block/butter/super_butter"
+	}
+}

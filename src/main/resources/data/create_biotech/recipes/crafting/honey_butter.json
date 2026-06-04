@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    [
+      {
+        "tag": "c:butter"
+      },
+      {
+        "tag": "c:foods/butter"
+      }
+    ],
+    {
+      "item": "minecraft:honey_bottle"
+    }
+  ],
+  "result": {
+    "item": "create_biotech:honey_butter"
+  }
+}

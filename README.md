@@ -76,4 +76,6 @@ Open [src/main/java/com/nobodiiiii/createbiotech/content/](src/main/java/com/nob
 
 ## License
 
-MIT. See [gradle.properties](gradle.properties).
+This repository is not license-uniform.
+
+Original code is MIT, original Create: Biotech assets are generally All Rights Reserved, and the repository also includes adapted material from `SylviaX-390/createbuttercat` under MIT. See [LICENSE.md](LICENSE.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

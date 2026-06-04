@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlockItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
@@ -23,6 +24,7 @@ import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
+import com.simibubi.create.content.processing.sequenced.SequencedAssemblyItem;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
@@ -32,6 +34,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import com.tterrag.registrate.util.entry.ItemEntry;
 
 public class CBItems {
 
@@ -174,6 +177,14 @@ public class CBItems {
 
 	public static final Map<DyeColor, RegistryObject<Item>> BUFFER_PADS = registerBufferPads();
 	public static final RegistryObject<Item> BUFFER_PAD = BUFFER_PADS.get(DyeColor.RED);
+
+	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
+	// here so the project's primary item registry remains the place to inspect mod items.
+	public static final ItemEntry<Item> BUTTER = ModItems.BUTTER;
+	public static final ItemEntry<Item> HONEY_BUTTER = ModItems.HONEY_BUTTER;
+	public static final ItemEntry<SequencedAssemblyItem> INCOMPLETE_SUPER_BUTTER =
+		ModItems.INCOMPLETE_SUPER_BUTTER;
+	public static final ItemEntry<Item> SUPER_BUTTER = ModItems.SUPER_BUTTER;
 
 	private CBItems() {}
 

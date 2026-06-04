@@ -7,6 +7,8 @@ import java.util.Map;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetBlock;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlock;
+import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadBlock;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
 import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlock;
@@ -46,6 +48,7 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import com.tterrag.registrate.util.entry.BlockEntry;
 
 public class CBBlocks {
 
@@ -279,6 +282,10 @@ public class CBBlocks {
 
 	public static final Map<DyeColor, RegistryObject<BufferPadBlock>> BUFFER_PADS = registerBufferPads();
 	public static final RegistryObject<BufferPadBlock> BUFFER_PAD = BUFFER_PADS.get(DyeColor.RED);
+
+	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
+	// here so the project's primary block registry remains the place to inspect mod blocks.
+	public static final BlockEntry<ButterCatEngineBlock> BUTTER_CAT_ENGINE = ModBlocks.BUTTER_CAT_ENGINE;
 
 	private static Block.Properties blastProofGlassProperties() {
 		return Block.Properties.copy(Blocks.GLASS)

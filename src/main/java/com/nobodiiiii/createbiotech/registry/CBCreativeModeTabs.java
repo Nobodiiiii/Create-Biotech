@@ -1,7 +1,6 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
@@ -66,6 +65,12 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
 				output.accept(CBItems.HALF_SHAFT.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
+				output.accept(CBItems.BUTTER.get());
+				output.accept(CBItems.HONEY_BUTTER.get());
+				output.accept(CBItems.INCOMPLETE_SUPER_BUTTER.get());
+				output.accept(CBItems.SUPER_BUTTER.get());
+				CBFluids.CREAM.getBucket().ifPresent(output::accept);
+				output.accept(CBBlocks.BUTTER_CAT_ENGINE.get().asItem());
 			})
 			.build());
 

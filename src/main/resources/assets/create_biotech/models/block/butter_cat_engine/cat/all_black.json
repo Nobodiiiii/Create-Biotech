@@ -1,0 +1,11 @@
+{
+	"parent": "block/block",
+	"loader": "forge:obj",
+	"flip_v": true,
+	"model": "create_biotech:models/block/butter_cat_engine/cat/cat.obj",
+	"textures": {
+		"0": "create_biotech:block/cat/all_black",
+		"particle": "create_biotech:block/cat/all_black"
+	}
+}
+

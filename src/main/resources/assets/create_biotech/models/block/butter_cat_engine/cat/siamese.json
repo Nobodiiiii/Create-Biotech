@@ -1,0 +1,7 @@
+{
+	"parent": "create_biotech:block/butter_cat_engine/cat/all_black",
+	"textures": {
+		"0": "create_biotech:block/cat/siamese",
+		"particle": "create_biotech:block/cat/siamese"
+	}
+}
