@@ -1,11 +1,73 @@
 {
-	"parent": "block/block",
-	"loader": "forge:obj",
-	"flip_v": true,
-	"model": "create_biotech:models/block/butter_cat_engine/butter/bread.obj",
+	"format_version": "1.21.11",
+	"credit": "Rebuilt as a pixel-aligned Blockbench-style model.",
+	"ambientocclusion": false,
+	"render_type": "cutout",
 	"textures": {
 		"bread": "create_biotech:block/butter/bread",
 		"rope": "create_biotech:block/butter/rope",
 		"particle": "create_biotech:block/butter/bread"
-	}
+	},
+	"elements": [
+		{
+			"name": "body",
+			"from": [6.4375, 12.75, 6.75],
+			"to": [9.5625, 13.25, 9.875],
+			"faces": {
+				"north": {"uv": [0, 6, 1, 16], "texture": "#bread"},
+				"east": {"uv": [0, 6, 1, 16], "texture": "#bread"},
+				"south": {"uv": [0, 6, 1, 16], "texture": "#bread"},
+				"west": {"uv": [0, 6, 1, 16], "texture": "#bread"},
+				"up": {"uv": [4, 6, 14, 16], "rotation": 180, "texture": "#bread"},
+				"down": {"uv": [4, 6, 14, 16], "rotation": 180, "texture": "#bread"}
+			}
+		},
+		{
+			"name": "shoulders",
+			"from": [5.8125, 12.75, 9.875],
+			"to": [10.1875, 13.25, 11.125],
+			"faces": {
+				"north": {"uv": [0, 2, 1, 6], "texture": "#bread"},
+				"east": {"uv": [0, 2, 1, 6], "texture": "#bread"},
+				"south": {"uv": [0, 2, 1, 6], "texture": "#bread"},
+				"west": {"uv": [0, 2, 1, 6], "texture": "#bread"},
+				"up": {"uv": [2, 2, 16, 6], "rotation": 180, "texture": "#bread"},
+				"down": {"uv": [2, 2, 16, 6], "rotation": 180, "texture": "#bread"}
+			}
+		},
+		{
+			"name": "upper_mid",
+			"from": [6.4375, 12.75, 11.125],
+			"to": [9.5625, 13.25, 11.4375],
+			"faces": {
+				"north": {"uv": [0, 1, 1, 2], "texture": "#bread"},
+				"east": {"uv": [0, 1, 1, 2], "texture": "#bread"},
+				"south": {"uv": [0, 1, 1, 2], "texture": "#bread"},
+				"west": {"uv": [0, 1, 1, 2], "texture": "#bread"},
+				"up": {"uv": [4, 1, 14, 2], "rotation": 180, "texture": "#bread"},
+				"down": {"uv": [4, 1, 14, 2], "rotation": 180, "texture": "#bread"}
+			}
+		},
+		{
+			"name": "crown",
+			"from": [7.0625, 12.75, 11.4375],
+			"to": [8.9375, 13.25, 11.75],
+			"faces": {
+				"north": {"uv": [0, 0, 1, 1], "texture": "#bread"},
+				"east": {"uv": [0, 0, 1, 1], "texture": "#bread"},
+				"south": {"uv": [0, 0, 1, 1], "texture": "#bread"},
+				"west": {"uv": [0, 0, 1, 1], "texture": "#bread"},
+				"up": {"uv": [6, 0, 12, 1], "rotation": 180, "texture": "#bread"},
+				"down": {"uv": [6, 0, 12, 1], "rotation": 180, "texture": "#bread"}
+			}
+		}
+	],
+	"groups": [
+		{
+			"name": "bread",
+			"origin": [8, 13, 9],
+			"color": 0,
+			"children": [0, 1, 2, 3]
+		}
+	]
 }
