@@ -41,6 +41,22 @@ public abstract class CapturedEntityBoxItem extends Item {
 		return InteractionResult.sidedSuccess(level.isClientSide());
 	}
 
+	@Override
+	public boolean hasCraftingRemainingItem(ItemStack stack) {
+		return hasCapturedEntity(stack);
+	}
+
+	@Override
+	public ItemStack getCraftingRemainingItem(ItemStack stack) {
+		if (!hasCapturedEntity(stack))
+			return ItemStack.EMPTY;
+
+		ItemStack remainder = stack.copy();
+		remainder.setCount(1);
+		CapturedEntityBoxHelper.clearCapturedEntity(remainder);
+		return remainder;
+	}
+
 	public static boolean hasCapturedEntity(ItemStack stack) {
 		return CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
