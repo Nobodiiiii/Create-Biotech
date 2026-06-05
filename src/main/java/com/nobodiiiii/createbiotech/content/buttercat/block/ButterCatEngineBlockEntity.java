@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.content.buttercat.register.ModConfigs;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModPartialModels;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -17,6 +18,8 @@ import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 import java.util.List;
 
@@ -31,6 +34,8 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     protected int overflowCount = 0;
     protected int cd = 0;
     protected Cat cat;
+    protected float clientVisualRotationOffset;
+    protected boolean clientVisualRotationOffsetInitialized;
 
     public ButterCatEngineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -138,6 +143,11 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     protected float getDirectionalGeneratedSpeed(float speed) {
         return convertToDirection(speed, getBlockState().getValue(HORIZONTAL_FACING));
     }
+
+    @Override
+    public int getRotationAngleOffset(Direction.Axis axis) {
+        return super.getRotationAngleOffset(axis) + Math.round(clientVisualRotationOffset);
+    }
     ///================serialize================
     @Override
     protected void write(CompoundTag compound,boolean clientPacket) {
@@ -153,6 +163,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     }
     @Override
     protected void read(CompoundTag compound, boolean clientPacket) {
+        float previousSpeed = getTheoreticalSpeed();
         super.read(compound,clientPacket);
 
         if(compound.contains("infinite")) infinite = compound.getBoolean("infinite");
@@ -163,6 +174,10 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
 
         if (compound.contains("catVariant"))
             catVariant = ResourceKey.create(Registries.CAT_VARIANT, new ResourceLocation(compound.getString("catVariant")));
+
+        if (level != null && level.isClientSide)
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ButterCatEngineClientRotation.sync(this, previousSpeed, clientPacket));
 
     }
     ///================get models================
