@@ -35,6 +35,7 @@ public class AddCatHandler {
 
         if (player.isCrouching() || !player.mayBuild()) return;
         if (!state.is(AllBlocks.SHAFT.get())) return;
+        if (state.getValue(BlockStateProperties.AXIS) == Direction.Axis.Y) return;
         if (!CapturedEntityBoxHelper.containsEntityType(heldItem, net.minecraft.world.entity.EntityType.CAT)) return;
 
         event.setCanceled(true);
