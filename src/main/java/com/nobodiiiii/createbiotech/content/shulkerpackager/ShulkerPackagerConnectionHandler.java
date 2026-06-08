@@ -71,13 +71,15 @@ public class ShulkerPackagerConnectionHandler {
 		ArmInteractionPoint selected = getSelected(pos);
 		if (selected == null) {
 			ArmInteractionPoint point = ArmInteractionPoint.create(world, pos, state);
-			if (!ShulkerPackagerArmInteractions.isPoint(point))
+			if (point == null)
 				return;
 			selected = point;
 			put(point);
 		}
 
-		selected.cycleMode();
+		if (ShulkerPackagerArmInteractions.canBeInput(selected))
+			selected.cycleMode();
+
 		if (player != null) {
 			Mode mode = selected.getMode();
 			CreateLang.builder()

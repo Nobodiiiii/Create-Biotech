@@ -118,10 +118,10 @@ public class ShulkerPackagerBlock extends WrenchableDirectionalBlock
 				if (PackageItem.isPackage(itemInHand)) {
 					if (worldIn.isClientSide())
 						return InteractionResult.SUCCESS;
-					ItemStack inserted = itemInHand.copy();
-					inserted.setCount(1);
-					if (!be.startIncomingTransfer(inserted))
+					if (!be.unwrapBox(itemInHand.copy(), true))
 						return InteractionResult.SUCCESS;
+					be.unwrapBox(itemInHand.copy(), false);
+					be.triggerStockCheck();
 					itemInHand.shrink(1);
 					AllSoundEvents.DEPOT_PLOP.playOnServer(worldIn, pos);
 					if (itemInHand.isEmpty())

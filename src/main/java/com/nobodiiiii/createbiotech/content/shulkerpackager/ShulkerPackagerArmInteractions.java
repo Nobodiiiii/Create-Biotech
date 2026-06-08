@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.shulkerpackager;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.api.registry.CreateBuiltInRegistries;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPointType;
 
@@ -25,11 +26,26 @@ public class ShulkerPackagerArmInteractions {
 	public static void register() {}
 
 	public static boolean isSelectable(BlockState state) {
+		return isShulkerPackager(state) || isVanillaPackager(state);
+	}
+
+	public static boolean isShulkerPackager(BlockState state) {
 		return state.is(CBBlocks.SHULKER_PACKAGER.get());
+	}
+
+	public static boolean isVanillaPackager(BlockState state) {
+		return AllBlocks.PACKAGER.has(state) || AllBlocks.REPACKAGER.has(state);
 	}
 
 	public static boolean isPoint(ArmInteractionPoint point) {
 		return point != null && point.getType() == SHULKER_PACKAGER;
+	}
+
+	public static boolean canBeInput(ArmInteractionPoint point) {
+		if (point == null || point.getLevel() == null)
+			return false;
+		return isShulkerPackager(point.getLevel()
+			.getBlockState(point.getPos()));
 	}
 
 	public static class ShulkerPackagerType extends ArmInteractionPointType {
