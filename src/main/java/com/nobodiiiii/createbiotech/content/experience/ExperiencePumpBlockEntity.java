@@ -9,11 +9,13 @@ import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.fluids.FluidPropagator;
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.content.fluids.PipeConnection;
 import com.simibubi.create.content.fluids.pump.PumpBlockEntity;
+import com.simibubi.create.content.kinetics.fan.NozzleBlock;
 import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -42,6 +44,10 @@ import net.minecraftforge.items.IItemHandler;
 
 public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 	private static final double OPEN_INPUT_HALF_EXTENT = 0.75d;
+	private static final double NOZZLE_ATTRACTION_SIZE_AT_256_RPM = 33d;
+	private static final double NOZZLE_ATTRACTION_ACCELERATION_AT_256_RPM = 0.05d;
+	private static final double NOZZLE_ATTRACTION_MAX_SPEED_AT_256_RPM = 0.7d;
+	private static final double MIN_ATTRACTION_DISTANCE_SQR = 1.0E-4d;
 
 	@Nullable
 	private UUID advancementOwner;
@@ -69,7 +75,10 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		if (output == null)
 			return;
 		Direction input = output.getOpposite();
-		if (!hasPotentialSpecialSource(input))
+		boolean hasOpenExperienceSource = hasOpenExperienceSource(input);
+		if (hasOpenExperienceSource)
+			tickOpenInputExperienceOrbs(input);
+		if (!hasOpenExperienceSource && !hasExperienceItemEndpoint(input))
 			return;
 
 		BlockPos outputPos = worldPosition.relative(output);
@@ -165,7 +174,14 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			return false;
 		if (FluidPropagator.hasFluidCapability(level, inputPos, input.getOpposite()))
 			return false;
-		return FluidPropagator.isOpenEnd(level, worldPosition, input);
+		return hasInputNozzle(input) || FluidPropagator.isOpenEnd(level, worldPosition, input);
+	}
+
+	private boolean hasInputNozzle(Direction input) {
+		if (level == null)
+			return false;
+		BlockState inputState = level.getBlockState(worldPosition.relative(input));
+		return AllBlocks.NOZZLE.has(inputState) && inputState.getValue(NozzleBlock.FACING) == input.getOpposite();
 	}
 
 	private boolean hasExperienceItemEndpoint(Direction input) {
@@ -207,6 +223,55 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		return ExperienceFluidHelper.experienceStack(extracted);
 	}
 
+	private void tickOpenInputExperienceOrbs(Direction input) {
+		Vec3 center = getEndpointCenter(input);
+		AABB absorbBox = cubeAround(center, OPEN_INPUT_HALF_EXTENT);
+		absorbInputOrbsIntoBuffer(absorbBox);
+		if (hasInputNozzle(input))
+			attractInputOrbs(center, absorbBox);
+	}
+
+	private void absorbInputOrbsIntoBuffer(AABB absorbBox) {
+		if (level == null || level.isClientSide || bufferedExperience == Integer.MAX_VALUE)
+			return;
+		int absorbed = drainExperienceOrbs(absorbBox, Integer.MAX_VALUE - bufferedExperience,
+			IFluidHandler.FluidAction.EXECUTE);
+		if (absorbed <= 0)
+			return;
+		bufferedExperience += absorbed;
+		setChanged();
+	}
+
+	private void attractInputOrbs(Vec3 center, AABB absorbBox) {
+		if (level == null || level.isClientSide)
+			return;
+		double speedScale = Math.abs(getSpeed()) / 256d;
+		double attractionHalfExtent = NOZZLE_ATTRACTION_SIZE_AT_256_RPM * speedScale / 2d;
+		if (attractionHalfExtent <= OPEN_INPUT_HALF_EXTENT)
+			return;
+
+		AABB attractionBox = cubeAround(center, attractionHalfExtent);
+		double acceleration = NOZZLE_ATTRACTION_ACCELERATION_AT_256_RPM * speedScale;
+		double maxSpeed = NOZZLE_ATTRACTION_MAX_SPEED_AT_256_RPM * speedScale;
+		double maxSpeedSqr = maxSpeed * maxSpeed;
+
+		List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class, attractionBox,
+			orb -> orb.isAlive() && !absorbBox.contains(orb.position()));
+		for (ExperienceOrb orb : orbs) {
+			Vec3 toCenter = center.subtract(orb.position());
+			if (toCenter.lengthSqr() < MIN_ATTRACTION_DISTANCE_SQR)
+				continue;
+			Vec3 motion = orb.getDeltaMovement()
+				.add(toCenter.normalize()
+					.scale(acceleration));
+			if (motion.lengthSqr() > maxSpeedSqr)
+				motion = motion.normalize()
+					.scale(maxSpeed);
+			orb.setDeltaMovement(motion);
+			orb.hurtMarked = true;
+		}
+	}
+
 	private int drainOpenInput(Direction input, int maxAmount, IFluidHandler.FluidAction action) {
 		if (maxAmount <= 0 || level == null || level.isClientSide)
 			return 0;
@@ -216,6 +281,33 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		int remaining = maxAmount;
 		int absorbed = 0;
 
+		int orbXp = drainExperienceOrbs(absorbBox, remaining, action);
+		remaining -= orbXp;
+		absorbed += orbXp;
+
+		if (remaining <= 0)
+			return absorbed;
+
+		List<Player> players = level.getEntitiesOfClass(Player.class, absorbBox,
+			player -> player.isAlive() && !player.isSpectator());
+		for (Player player : players) {
+			if (remaining <= 0)
+				break;
+			int drained = action.simulate() ? Math.min(remaining, Math.max(0, player.totalExperience))
+				: ExperienceHelper.drainPlayerExperience(player, remaining);
+			remaining -= drained;
+			absorbed += drained;
+		}
+
+		return absorbed;
+	}
+
+	private int drainExperienceOrbs(AABB absorbBox, int maxAmount, IFluidHandler.FluidAction action) {
+		if (maxAmount <= 0 || level == null || level.isClientSide)
+			return 0;
+
+		int remaining = maxAmount;
+		int absorbed = 0;
 		List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class, absorbBox, ExperienceOrb::isAlive);
 		for (ExperienceOrb orb : orbs) {
 			if (remaining <= 0)
@@ -232,21 +324,6 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			remaining -= taken;
 			absorbed += taken;
 		}
-
-		if (remaining <= 0)
-			return absorbed;
-
-		List<Player> players = level.getEntitiesOfClass(Player.class, absorbBox,
-			player -> player.isAlive() && !player.isSpectator());
-		for (Player player : players) {
-			if (remaining <= 0)
-				break;
-			int drained = action.simulate() ? Math.min(remaining, Math.max(0, player.totalExperience))
-				: ExperienceHelper.drainPlayerExperience(player, remaining);
-			remaining -= drained;
-			absorbed += drained;
-		}
-
 		return absorbed;
 	}
 
