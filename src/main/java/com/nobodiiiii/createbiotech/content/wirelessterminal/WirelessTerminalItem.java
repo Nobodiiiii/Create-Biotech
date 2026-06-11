@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerInteractionHandler;
@@ -12,11 +13,14 @@ import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -38,7 +42,6 @@ public class WirelessTerminalItem extends Item {
 
 	private static final String BOUND_POS_KEY = "BoundPos";
 	private static final String BOUND_DIMENSION_KEY = "BoundDimension";
-	private static final int ACCESS_RANGE = WirelessStockKeeperRequestMenu.ACCESS_RANGE;
 
 	public WirelessTerminalItem(Properties properties) {
 		super(properties);
@@ -77,20 +80,28 @@ public class WirelessTerminalItem extends Item {
 			return InteractionResultHolder.fail(stack);
 		}
 
-		if (!boundTarget.dimension().equals(level.dimension().location())) {
+		boolean sameDimension = boundTarget.dimension().equals(level.dimension().location());
+		if (!sameDimension && !allowsCrossDimensionTerminal()) {
 			if (!level.isClientSide)
 				sendStatus(player, "item.create_biotech.wireless_terminal.wrong_dimension", ChatFormatting.RED);
 			return InteractionResultHolder.fail(stack);
 		}
 
-		if (!isWithinRange(player, boundTarget.pos())) {
+		if (sameDimension && !isWithinRange(player, boundTarget.pos())) {
 			if (!level.isClientSide)
 				sendStatus(player, "item.create_biotech.wireless_terminal.out_of_range", ChatFormatting.RED,
-					ACCESS_RANGE);
+					getAccessRange());
 			return InteractionResultHolder.fail(stack);
 		}
 
-		if (!(level.getBlockEntity(boundTarget.pos()) instanceof StockTickerBlockEntity stockTicker)) {
+		Level targetLevel = sameDimension ? level : getBoundServerLevel(player, boundTarget);
+		if (targetLevel == null) {
+			if (!level.isClientSide)
+				sendStatus(player, "item.create_biotech.wireless_terminal.wrong_dimension", ChatFormatting.RED);
+			return InteractionResultHolder.fail(stack);
+		}
+
+		if (!(targetLevel.getBlockEntity(boundTarget.pos()) instanceof StockTickerBlockEntity stockTicker)) {
 			if (!level.isClientSide)
 				sendStatus(player, "item.create_biotech.wireless_terminal.target_missing", ChatFormatting.RED);
 			return InteractionResultHolder.fail(stack);
@@ -189,7 +200,25 @@ public class WirelessTerminalItem extends Item {
 	}
 
 	private static boolean isWithinRange(Player player, BlockPos stockTickerPos) {
-		return player.distanceToSqr(Vec3.atCenterOf(stockTickerPos)) <= ACCESS_RANGE * ACCESS_RANGE;
+		int accessRange = getAccessRange();
+		return player.distanceToSqr(Vec3.atCenterOf(stockTickerPos)) <= accessRange * accessRange;
+	}
+
+	private static int getAccessRange() {
+		return WirelessStockKeeperRequestMenu.getAccessRange();
+	}
+
+	private static boolean allowsCrossDimensionTerminal() {
+		return CBConfigs.COMMON.wireless.allowCrossDimensionTerminal.get();
+	}
+
+	@Nullable
+	private static Level getBoundServerLevel(Player player, BoundTarget boundTarget) {
+		if (!(player instanceof ServerPlayer serverPlayer))
+			return null;
+		ResourceKey<Level> targetDimension = ResourceKey.create(Registries.DIMENSION, boundTarget.dimension());
+		ServerLevel targetLevel = serverPlayer.server.getLevel(targetDimension);
+		return targetLevel;
 	}
 
 	private static void bind(ItemStack stack, Level level, BlockPos stockTickerPos) {

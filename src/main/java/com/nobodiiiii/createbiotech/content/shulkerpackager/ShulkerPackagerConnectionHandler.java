@@ -7,9 +7,9 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint.Mode;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -111,7 +111,7 @@ public class ShulkerPackagerConnectionHandler {
 		for (Iterator<ArmInteractionPoint> iterator = currentSelection.iterator(); iterator.hasNext();) {
 			ArmInteractionPoint point = iterator.next();
 			if (point.getPos()
-				.closerThan(pos, ArmBlockEntity.getRange()))
+				.closerThan(pos, getConnectionRange()))
 				continue;
 			iterator.remove();
 			removed++;
@@ -233,5 +233,9 @@ public class ShulkerPackagerConnectionHandler {
 				.equals(pos))
 				return point;
 		return null;
+	}
+
+	private static int getConnectionRange() {
+		return CBConfigs.COMMON.shulkerPackager.connectionRange.get();
 	}
 }

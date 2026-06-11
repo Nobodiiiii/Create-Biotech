@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.experience;
 
+import java.util.function.IntSupplier;
+
 import net.createmod.catnip.math.VecHelper;
 
 import net.minecraft.core.Direction.Axis;
@@ -16,19 +18,19 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 
 public class ExperienceClusterBlockItem extends BlockItem {
-	private static final int MAX_ORBS_PER_PINCH = 5;
-	// Below this much XP per orb a pinch emits a single orb instead of splitting.
-	private static final int MIN_XP_PER_SPLIT_ORB = 37;
-
-	private final int xpNuggetValue;
+	private final IntSupplier xpNuggetValue;
 
 	public ExperienceClusterBlockItem(Block block, int xpNuggetValue, Properties properties) {
+		this(block, () -> xpNuggetValue, properties);
+	}
+
+	public ExperienceClusterBlockItem(Block block, IntSupplier xpNuggetValue, Properties properties) {
 		super(block, properties);
 		this.xpNuggetValue = xpNuggetValue;
 	}
 
 	public int getXpNuggetValue() {
-		return xpNuggetValue;
+		return xpNuggetValue.getAsInt();
 	}
 
 	@Override
@@ -46,13 +48,14 @@ public class ExperienceClusterBlockItem extends BlockItem {
 		}
 
 		int amountUsed = player.isShiftKeyDown() ? 1 : itemInHand.getCount();
-		int xpPerCluster = xpNuggetValue * ExperienceConstants.XP_PER_NUGGET;
+		int xpPerCluster = getXpNuggetValue() * ExperienceConstants.xpPerNugget();
 		int total = amountUsed * xpPerCluster;
 
-		// Cap each pinch at MAX_ORBS_PER_PINCH regardless of stack size. Each orb gets a slightly
+		// Cap each pinch at the configured orb count regardless of stack size. Each orb gets a slightly
 		// different value (spread symmetrically around the mean) so vanilla's tryMergeToExisting
 		// can't collapse same-value orbs back into one entity.
-		int orbs = Math.max(1, Math.min(MAX_ORBS_PER_PINCH, total / MIN_XP_PER_SPLIT_ORB));
+		int orbs = Math.max(1, Math.min(ExperienceConstants.clusterMaxOrbsPerPinch(),
+			total / ExperienceConstants.clusterMinXpPerSplitOrb()));
 		int baseValue = total / orbs;
 		int remainder = total - baseValue * orbs;
 		int half = orbs / 2;

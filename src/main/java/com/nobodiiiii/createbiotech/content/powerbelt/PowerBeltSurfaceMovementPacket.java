@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.powerbelt;
 
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
 
 import net.minecraft.core.BlockPos;
@@ -14,8 +15,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraftforge.network.NetworkEvent.Context;
 
 public class PowerBeltSurfaceMovementPacket {
-
-	private static final float MAX_PLAYER_SURFACE_SPEED = 1.0f;
 
 	private final BlockPos pos;
 	private final float surfaceSpeed;
@@ -60,13 +59,17 @@ public class PowerBeltSurfaceMovementPacket {
 
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 		if (blockEntity instanceof PowerBeltBlockEntity powerBelt)
-			powerBelt.addSurfaceMovement(Mth.clamp(surfaceSpeed, -MAX_PLAYER_SURFACE_SPEED,
-				MAX_PLAYER_SURFACE_SPEED));
+			powerBelt.addSurfaceMovement(Mth.clamp(surfaceSpeed, -getMaxPlayerSurfaceSpeed(),
+				getMaxPlayerSurfaceSpeed()));
 	}
 
 	private static boolean isHorizontallyOverBelt(Player player, BlockPos pos) {
 		AABB box = player.getBoundingBox();
 		return box.maxX > pos.getX() && box.minX < pos.getX() + 1
 			&& box.maxZ > pos.getZ() && box.minZ < pos.getZ() + 1;
+	}
+
+	private static float getMaxPlayerSurfaceSpeed() {
+		return CBConfigs.COMMON.powerBelt.maxPlayerSurfaceSpeed.get().floatValue();
 	}
 }

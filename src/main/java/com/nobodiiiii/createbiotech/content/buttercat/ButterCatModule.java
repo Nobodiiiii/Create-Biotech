@@ -4,7 +4,6 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModArmInteractions;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlockEnetities;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
-import com.nobodiiiii.createbiotech.content.buttercat.register.ModConfigs;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModEffects;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModFluids;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
@@ -24,8 +23,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.registries.RegisterEvent;
 
 public final class ButterCatModule {
@@ -56,7 +53,6 @@ public final class ButterCatModule {
 		ModPotions.register(modEventBus);
 		ModPartialModels.init();
 		modEventBus.addListener(ButterCatModule::onRegister);
-		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, ModConfigs.COMMON_SPEC);
 	}
 
 	public static void clientInit() {

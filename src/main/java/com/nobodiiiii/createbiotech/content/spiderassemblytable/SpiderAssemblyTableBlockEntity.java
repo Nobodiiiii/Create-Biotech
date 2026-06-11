@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllSoundEvents;
@@ -79,7 +80,6 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	public static final int MACHINE_SLOT_START = 0;
 	public static final int HYBRID_SLOT_START = MACHINE_SLOT_START + LEG_COUNT;
 	public static final int SLOT_COUNT = HYBRID_SLOT_START + LEG_COUNT;
-	public static final int FLUID_CAPACITY = 1000;
 
 	private final SpiderAssemblyInventory inventory = new SpiderAssemblyInventory();
 	private final FluidTank[] fluidTanks = new FluidTank[LEG_COUNT];
@@ -897,15 +897,31 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	private int getDeployerDuration() {
 		int timerSpeed = Math.max(1, (int) Mth.clamp(Math.abs(getSpeed() * 2), 8, 512));
-		return Mth.ceil(2000f / timerSpeed);
+		return Mth.ceil((float) getDeployerBaseDuration() / timerSpeed);
 	}
 
 	private int getSawDuration(CuttingRecipe recipe) {
 		int recipeDuration = recipe.getProcessingDuration();
 		if (recipeDuration <= 0)
-			recipeDuration = 50;
-		float processingSpeed = Mth.clamp(Math.abs(getSpeed()) / 24f, 1, 128);
+			recipeDuration = getSawFallbackDuration();
+		float processingSpeed = Mth.clamp((float) (Math.abs(getSpeed()) / getSawSpeedDivisor()), 1, 128);
 		return Mth.ceil(recipeDuration / processingSpeed);
+	}
+
+	private static int getFluidCapacityPerLeg() {
+		return CBConfigs.COMMON.spiderAssemblyTable.fluidCapacityPerLeg.get();
+	}
+
+	private static double getDeployerBaseDuration() {
+		return CBConfigs.COMMON.spiderAssemblyTable.deployerBaseDuration.get();
+	}
+
+	private static int getSawFallbackDuration() {
+		return CBConfigs.COMMON.spiderAssemblyTable.sawFallbackDuration.get();
+	}
+
+	private static double getSawSpeedDivisor() {
+		return CBConfigs.COMMON.spiderAssemblyTable.sawSpeedDivisor.get();
 	}
 
 	private MachineKind getMachineKind(int slot) {
@@ -1060,7 +1076,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	private class SpiderFluidTank extends FluidTank {
 		private SpiderFluidTank() {
-			super(FLUID_CAPACITY);
+			super(getFluidCapacityPerLeg());
 		}
 
 		@Override

@@ -29,9 +29,6 @@ public class ExperienceTankBlockEntity extends SmartBlockEntity
 	implements ExperienceSource, ExperienceSink, IHaveGoggleInformation, IMultiBlockEntityContainer.Fluid,
 	JadeExperienceProvider {
 
-	public static final int MAX_WIDTH = 3;
-	public static final int MAX_HEIGHT = 32;
-
 	@Nullable
 	protected BlockPos controller;
 	@Nullable
@@ -229,13 +226,13 @@ public class ExperienceTankBlockEntity extends SmartBlockEntity
 	@Override
 	public int getMaxLength(Direction.Axis longAxis, int width) {
 		if (longAxis == Direction.Axis.Y)
-			return MAX_HEIGHT;
-		return MAX_WIDTH;
+			return ExperienceConstants.tankMaxHeight();
+		return ExperienceConstants.tankMaxWidth();
 	}
 
 	@Override
 	public int getMaxWidth() {
-		return MAX_WIDTH;
+		return ExperienceConstants.tankMaxWidth();
 	}
 
 	@Override
@@ -331,9 +328,9 @@ public class ExperienceTankBlockEntity extends SmartBlockEntity
 	public int getCapacity() {
 		ExperienceTankBlockEntity controllerBE = getControllerBE();
 		if (controllerBE == null)
-			return ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
+			return ExperienceConstants.tankCapacityPerBlock();
 		return controllerBE.width * controllerBE.width * controllerBE.height
-			* ExperienceConstants.TANK_CAPACITY_PER_BLOCK;
+			* ExperienceConstants.tankCapacityPerBlock();
 	}
 
 	@Override
@@ -388,7 +385,7 @@ public class ExperienceTankBlockEntity extends SmartBlockEntity
 		int remainingExperience = be.storedExperience;
 
 		if (!be.isRemoved()) {
-			int retainedExperience = Math.min(ExperienceConstants.TANK_CAPACITY_PER_BLOCK, remainingExperience);
+			int retainedExperience = Math.min(ExperienceConstants.tankCapacityPerBlock(), remainingExperience);
 			be.storedExperience = retainedExperience;
 			remainingExperience -= retainedExperience;
 		} else {
@@ -415,7 +412,7 @@ public class ExperienceTankBlockEntity extends SmartBlockEntity
 					partAt.removeController(true);
 
 					if (partAt != be) {
-						int split = Math.min(ExperienceConstants.TANK_CAPACITY_PER_BLOCK, remainingExperience);
+						int split = Math.min(ExperienceConstants.tankCapacityPerBlock(), remainingExperience);
 						partAt.storedExperience = split;
 						remainingExperience -= split;
 					}

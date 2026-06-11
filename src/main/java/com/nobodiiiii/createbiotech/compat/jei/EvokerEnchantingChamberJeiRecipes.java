@@ -44,7 +44,7 @@ public final class EvokerEnchantingChamberJeiRecipes {
 				.map(book -> EnchantmentBookCopyItem.fromTemplate(book, CBItems.ENCHANTMENT_BOOK_COPY.get()))
 				.toList();
 			List<Integer> xpCosts = IntStream.rangeClosed(1, maxLevel)
-				.map(level -> level * ExperienceConstants.CHAMBER_XP_PER_LEVEL)
+				.map(level -> level * ExperienceConstants.chamberXpPerLevel())
 				.boxed()
 				.toList();
 

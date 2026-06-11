@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
@@ -46,11 +47,6 @@ import net.minecraftforge.items.wrapper.RecipeWrapper;
 
 public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
-	public static final int CYCLE_TICKS = 20;
-	public static final int CYCLE_WATER_COST = 50;
-	public static final int TANK_CAPACITY = 1000;
-	public static final int FINISHING_TICKS = 5;
-
 	private static final RecipeWrapper RECIPE_WRAPPER = new RecipeWrapper(new ItemStackHandler(1));
 
 	public int processingTicks;
@@ -75,7 +71,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		tank = SmartFluidTankBehaviour.single(this, TANK_CAPACITY);
+		tank = SmartFluidTankBehaviour.single(this, getTankCapacity());
 		behaviours.add(tank);
 
 		beltProcessing = new BeltProcessingBehaviour(this).whenItemEnters(this::onItemReceived)
@@ -108,13 +104,13 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			}
 		}
 
-		if (running && processingTicks > FINISHING_TICKS)
+		if (running && processingTicks > getFinishingTicks())
 			processingTicks--;
 
-		if (level.isClientSide && running && processingTicks >= FINISHING_TICKS + 3)
+		if (level.isClientSide && running && processingTicks >= getFinishingTicks() + 3)
 			spawnInkParticles();
 
-		if (level.isClientSide && running && processingTicks > FINISHING_TICKS && level.getGameTime() % 3 == 0)
+		if (level.isClientSide && running && processingTicks > getFinishingTicks() && level.getGameTime() % 3 == 0)
 			spawnAmbientInk();
 	}
 
@@ -135,7 +131,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		idleTicksWhileRunning = 0;
 
 		if (processingTicks != -1) {
-			if (processingTicks > FINISHING_TICKS)
+			if (processingTicks > getFinishingTicks())
 				return HOLD;
 
 			ItemStack out = produceCopy();
@@ -203,29 +199,30 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		FluidStack stored = getFluid();
 		return recipe.recipe().getRequiredFluid()
 			.test(stored)
-			&& stored.getAmount() >= CYCLE_WATER_COST;
+			&& stored.getAmount() >= getCycleWaterCost();
 	}
 
 	private void startProcessing(PreparedRecipe recipe) {
 		processingTemplate = recipe.template();
 		processingTicks = recipe.recipe()
-			.getRequiredTicks(processingTemplate) + FINISHING_TICKS;
+			.getRequiredTicks(processingTemplate) + getFinishingTicks();
 		running = true;
 		idleTicksWhileRunning = 0;
 	}
 
 	private void consumeCycleWaterIfNeeded() {
-		if (level == null || level.getGameTime() % CYCLE_TICKS != 0)
+		if (level == null || level.getGameTime() % getCycleTicks() != 0)
 			return;
 		if (tank == null)
 			return;
 
 		FluidStack stored = getFluid();
-		if (stored.isEmpty() || stored.getAmount() < CYCLE_WATER_COST)
+		int cycleWaterCost = getCycleWaterCost();
+		if (stored.isEmpty() || stored.getAmount() < cycleWaterCost)
 			return;
 
 		tank.getPrimaryHandler()
-			.drain(CYCLE_WATER_COST, FluidAction.EXECUTE);
+			.drain(cycleWaterCost, FluidAction.EXECUTE);
 		notifyUpdate();
 	}
 
@@ -264,7 +261,23 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 	public int getComparatorOutput() {
 		FluidStack stored = getFluid();
-		return stored.isEmpty() ? 0 : Math.max(1, (int) Math.round(stored.getAmount() * 14.0 / TANK_CAPACITY) + 1);
+		return stored.isEmpty() ? 0 : Math.max(1, (int) Math.round(stored.getAmount() * 14.0 / getTankCapacity()) + 1);
+	}
+
+	private static int getCycleTicks() {
+		return CBConfigs.COMMON.squidPrinter.cycleTicks.get();
+	}
+
+	private static int getCycleWaterCost() {
+		return CBConfigs.COMMON.squidPrinter.cycleWaterCost.get();
+	}
+
+	private static int getTankCapacity() {
+		return CBConfigs.COMMON.squidPrinter.tankCapacity.get();
+	}
+
+	private static int getFinishingTicks() {
+		return CBConfigs.COMMON.squidPrinter.finishingTicks.get();
 	}
 
 	private void spawnInkParticles() {

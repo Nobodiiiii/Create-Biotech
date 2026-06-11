@@ -5,6 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.resources.ResourceLocation;
@@ -13,6 +14,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -34,7 +36,6 @@ import net.minecraftforge.fml.common.Mod;
 public final class SlimeMimicHandler {
 	public static final String SLIME_MIMIC_TAG = "CreateBiotechSlimeMimic";
 	public static final String HAUNT_PROGRESS_TAG = "CreateBiotechHaunting";
-	public static final int HAUNT_CYCLE_TICKS = 100;
 	private static final ResourceLocation VANILLA_SLIME_LOOT_TABLE = new ResourceLocation("minecraft", "entities/slime");
 
 	private SlimeMimicHandler() {
@@ -51,15 +52,29 @@ public final class SlimeMimicHandler {
 	public static void setSlimeMimic(LivingEntity entity, boolean slimeMimic) {
 		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && !slimeMimic)
 			SlimeMimicVillagerTrades.restoreOriginalOffers(villager);
+		if (slimeMimic && !canBecomeSlimeMimic(entity)) {
+			slimeMimic = false;
+		}
 		if (entity instanceof SlimeMimicAccess access)
 			access.createBiotech$setSlimeMimic(slimeMimic);
-		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && slimeMimic)
+		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && slimeMimic
+			&& CBConfigs.COMMON.slimeMimic.rewriteVillagerTrades.get())
 			SlimeMimicVillagerTrades.rewriteSellItems(villager);
 	}
 
 	public static void markSpawnedEntity(@Nullable Entity entity) {
 		if (entity instanceof LivingEntity livingEntity)
 			setSlimeMimic(livingEntity, true);
+	}
+
+	public static boolean canBecomeSlimeMimic(LivingEntity entity) {
+		return canBecomeSlimeMimic(entity.getType());
+	}
+
+	public static boolean canBecomeSlimeMimic(EntityType<?> type) {
+		CBConfigs.SlimeMimic config = CBConfigs.COMMON.slimeMimic;
+		return CBConfigs.isEntityTypeAllowed(type, config.entityListMode.get(), config.entityAllowlist.get(),
+			config.entityDenylist.get());
 	}
 
 	public static CompoundTag createPreparedEntityTag(@Nullable CompoundTag originalTag) {
@@ -79,7 +94,12 @@ public final class SlimeMimicHandler {
 
 	public static boolean shouldSlimeifySpawn(@Nullable Player player, InteractionHand usedHand) {
 		return player != null && usedHand == InteractionHand.MAIN_HAND
+			&& CBConfigs.COMMON.slimeMimic.allowSpawnInjection.get()
 			&& player.getOffhandItem().is(CBItems.BIONIC_MECHANISM.get());
+	}
+
+	public static boolean shouldSlimeifySpawn(@Nullable Player player, InteractionHand usedHand, EntityType<?> type) {
+		return shouldSlimeifySpawn(player, usedHand) && canBecomeSlimeMimic(type);
 	}
 
 	@SubscribeEvent
@@ -99,10 +119,11 @@ public final class SlimeMimicHandler {
 		}
 
 		int progress = data.getInt(HAUNT_PROGRESS_TAG);
-		if (progress < HAUNT_CYCLE_TICKS) {
+		int hauntCycleTicks = getHauntCycleTicks();
+		if (progress < hauntCycleTicks) {
 			if (progress % 20 == 0)
 				level.playSound(null, mimic.blockPosition(), SoundEvents.SOUL_ESCAPE, SoundSource.NEUTRAL,
-					1f, 0.5f + 1.5f * progress / HAUNT_CYCLE_TICKS);
+					1f, 0.5f + 1.5f * progress / hauntCycleTicks);
 			data.putInt(HAUNT_PROGRESS_TAG, progress + 1);
 			return;
 		}
@@ -117,6 +138,8 @@ public final class SlimeMimicHandler {
 	@SubscribeEvent
 	public static void onLivingDrops(LivingDropsEvent event) {
 		if (!isSlimeMimic(event.getEntity()))
+			return;
+		if (!CBConfigs.COMMON.slimeMimic.replaceDropsWithSlime.get())
 			return;
 
 		LivingEntity entity = event.getEntity();
@@ -161,5 +184,9 @@ public final class SlimeMimicHandler {
 			slimeDrop.setDeltaMovement(dropVelocity);
 			event.getDrops().add(slimeDrop);
 		}
+	}
+
+	private static int getHauntCycleTicks() {
+		return CBConfigs.COMMON.slimeMimic.hauntCycleTicks.get();
 	}
 }

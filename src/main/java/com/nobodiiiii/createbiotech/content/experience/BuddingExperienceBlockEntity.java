@@ -63,7 +63,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 	}
 
 	public void naturalTick(ServerLevel serverLevel, BlockPos pos, RandomSource random) {
-		if (random.nextInt(ExperienceConstants.BUDDING_GROWTH_CHANCE) != 0)
+		if (random.nextInt(ExperienceConstants.buddingGrowthChance()) != 0)
 			return;
 		Direction face = Direction.values()[random.nextInt(6)];
 		int idx = face.get3DDataValue();
@@ -96,7 +96,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 			currentStage = 0;
 		}
 
-		int newXp = Math.min(ExperienceConstants.BUDDING_MATURE_XP, faceXp[idx] + amount);
+		int newXp = Math.min(ExperienceConstants.buddingMatureXp(), faceXp[idx] + amount);
 		int newStage = stageOf(newXp);
 
 		while (currentStage < newStage) {
@@ -198,23 +198,23 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 	}
 
 	private static int stageOf(int xp) {
-		if (xp >= ExperienceConstants.BUDDING_MATURE_XP)
+		if (xp >= ExperienceConstants.buddingMatureXp())
 			return 4;
-		if (xp >= ExperienceConstants.LARGE_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET)
+		if (xp >= ExperienceConstants.largeBudNuggetValue() * ExperienceConstants.xpPerNugget())
 			return 3;
-		if (xp >= ExperienceConstants.MEDIUM_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET)
+		if (xp >= ExperienceConstants.mediumBudNuggetValue() * ExperienceConstants.xpPerNugget())
 			return 2;
-		if (xp >= ExperienceConstants.SMALL_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET)
+		if (xp >= ExperienceConstants.smallBudNuggetValue() * ExperienceConstants.xpPerNugget())
 			return 1;
 		return 0;
 	}
 
 	private static int stageThreshold(int stage) {
 		return switch (stage) {
-			case 1 -> ExperienceConstants.SMALL_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET;
-			case 2 -> ExperienceConstants.MEDIUM_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET;
-			case 3 -> ExperienceConstants.LARGE_BUD_NUGGET_VALUE * ExperienceConstants.XP_PER_NUGGET;
-			case 4 -> ExperienceConstants.BUDDING_MATURE_XP;
+			case 1 -> ExperienceConstants.smallBudNuggetValue() * ExperienceConstants.xpPerNugget();
+			case 2 -> ExperienceConstants.mediumBudNuggetValue() * ExperienceConstants.xpPerNugget();
+			case 3 -> ExperienceConstants.largeBudNuggetValue() * ExperienceConstants.xpPerNugget();
+			case 4 -> ExperienceConstants.buddingMatureXp();
 			default -> 0;
 		};
 	}
@@ -246,7 +246,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 				.text(": ")
 				.add(Component.translatable(stageKey)
 					.withStyle(ChatFormatting.GOLD))
-				.text(ChatFormatting.DARK_GRAY, " (" + xp + " / " + ExperienceConstants.BUDDING_MATURE_XP + " XP)")
+				.text(ChatFormatting.DARK_GRAY, " (" + xp + " / " + ExperienceConstants.buddingMatureXp() + " XP)")
 				.forGoggles(tooltip, 1);
 		}
 		return true;

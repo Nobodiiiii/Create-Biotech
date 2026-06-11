@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.api.contraption.BlockMovementChecks;
 import com.simibubi.create.content.contraptions.AssemblyException;
 import com.simibubi.create.infrastructure.config.AllConfigs;
@@ -32,10 +33,6 @@ import net.minecraft.world.phys.AABB;
 
 public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 
-	public static final float SPEED = 0.5f; // 256 RPM equivalent (= 256 / 512 blocks/tick)
-	private static final int ATTRACT_PERIOD_TICKS = 20;
-	private static final double MAX_VELOCITY_FOR_ATTRACT_SQR = 1.0E-3d;
-
 	private boolean wasPowered;
 
 	private boolean extending;
@@ -58,9 +55,9 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 
 		if (level.isClientSide) {
 			if (be.extending)
-				be.offset += SPEED;
+				be.offset += getAssemblyStationSpeed();
 			else if (be.retracting)
-				be.offset = Math.max(0, be.offset - SPEED);
+				be.offset = Math.max(0, be.offset - getAssemblyStationSpeed());
 			return;
 		}
 
@@ -78,14 +75,14 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 		else if (be.retracting)
 			be.tickRetraction();
 
-		if (level.getGameTime() % ATTRACT_PERIOD_TICKS == 0)
+		if (level.getGameTime() % getAttractPeriodTicks() == 0)
 			be.tickAutoAttract(level, pos, state);
 
 		be.tryAssembleIfReady(level, pos);
 	}
 
 	private void tickExtension(Level level, BlockPos pos) {
-		offset += SPEED;
+		offset += getAssemblyStationSpeed();
 		int nextDepth = Mth.floor(offset) + 1;
 		BlockPos checkPos = pos.below(nextDepth);
 
@@ -102,7 +99,7 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 	}
 
 	private void tickRetraction() {
-		offset -= SPEED;
+		offset -= getAssemblyStationSpeed();
 		if (offset <= 0) {
 			offset = 0;
 			retracting = false;
@@ -138,7 +135,7 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 		for (Ghast ghast : GhastHotAirBalloonAssemblyStationBlock.findGhastsToSeat(level, pos)) {
 			if (!GhastHotAirBalloonAssemblyStationBlock.canBePickedUp(ghast, stationIdle))
 				continue;
-			if (ghast.getDeltaMovement().lengthSqr() > MAX_VELOCITY_FOR_ATTRACT_SQR)
+			if (ghast.getDeltaMovement().lengthSqr() > getMaxVelocityForAttractSqr())
 				continue;
 			GhastHotAirBalloonAssemblyStationBlock.sitDown(level, pos, state, ghast);
 			return;
@@ -352,5 +349,17 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
 		if (!wasExtending && !wasRetracting)
 			prevOffset = offset;
+	}
+
+	private static float getAssemblyStationSpeed() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.assemblyStationSpeed.get().floatValue();
+	}
+
+	private static int getAttractPeriodTicks() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.attractPeriodTicks.get();
+	}
+
+	private static double getMaxVelocityForAttractSqr() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.maxVelocityForAttractSqr.get();
 	}
 }

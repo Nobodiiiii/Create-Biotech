@@ -10,6 +10,7 @@ import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 
 import com.nobodiiiii.createbiotech.mixin.AbstractVillagerAccessor;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 public final class SlimeMimicVillagerTrades {
 	private static final String ORIGINAL_RESULTS_TAG = "CreateBiotechOriginalOfferResults";
@@ -74,7 +75,7 @@ public final class SlimeMimicVillagerTrades {
 		for (int i = 0; i < currentOffers.size(); i++) {
 			MerchantOffer offer = currentOffers.get(i);
 			ItemStack result = isOriginalResult(offer.getResult(), originalResults, i)
-				? new ItemStack(Items.SLIME_BALL, villager.getRandom().nextInt(3) + 1)
+				? new ItemStack(Items.SLIME_BALL, getRandomSlimeBallTradeCount(villager))
 				: offer.getResult().copy();
 			rewrittenOffers.add(copyOfferWithResult(offer, result));
 		}
@@ -104,7 +105,24 @@ public final class SlimeMimicVillagerTrades {
 	}
 
 	private static boolean isSlimeBallResult(ItemStack result) {
-		return result.is(Items.SLIME_BALL) && result.getCount() >= 1 && result.getCount() <= 3;
+		return result.is(Items.SLIME_BALL) && result.getCount() >= getMinSlimeBallTradeCount()
+			&& result.getCount() <= getMaxSlimeBallTradeCount();
+	}
+
+	private static int getRandomSlimeBallTradeCount(AbstractVillager villager) {
+		int min = getMinSlimeBallTradeCount();
+		int max = getMaxSlimeBallTradeCount();
+		return min + villager.getRandom().nextInt(max - min + 1);
+	}
+
+	private static int getMinSlimeBallTradeCount() {
+		return Math.min(CBConfigs.COMMON.slimeMimic.villagerTradeMinSlimeBalls.get(),
+			CBConfigs.COMMON.slimeMimic.villagerTradeMaxSlimeBalls.get());
+	}
+
+	private static int getMaxSlimeBallTradeCount() {
+		return Math.max(CBConfigs.COMMON.slimeMimic.villagerTradeMinSlimeBalls.get(),
+			CBConfigs.COMMON.slimeMimic.villagerTradeMaxSlimeBalls.get());
 	}
 
 	private static MerchantOffers getOffersField(AbstractVillager villager) {

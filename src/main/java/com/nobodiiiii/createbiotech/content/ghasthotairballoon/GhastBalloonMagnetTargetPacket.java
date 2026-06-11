@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.ghasthotairballoon;
 
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,7 +13,6 @@ import net.minecraftforge.network.NetworkEvent.Context;
 
 public class GhastBalloonMagnetTargetPacket {
 
-	private static final double MAX_DISTANCE_SQR = 32d * 32d;
 	private static final long NO_TARGET = Long.MIN_VALUE;
 
 	private final int entityId;
@@ -59,7 +60,7 @@ public class GhastBalloonMagnetTargetPacket {
 		if (!level.isLoaded(targetPos))
 			return;
 		if (ghast.position().distanceToSqr(targetPos.getX() + 0.5, targetPos.getY() + 1, targetPos.getZ() + 0.5)
-			> MAX_DISTANCE_SQR)
+			> getMaxDistanceSqr())
 			return;
 		BlockEntity be = level.getBlockEntity(targetPos);
 		if (!(be instanceof GhastHotAirBalloonAssemblyStationBlockEntity station))
@@ -68,5 +69,10 @@ public class GhastBalloonMagnetTargetPacket {
 			return;
 
 		balloon.setMagnetTarget(targetPos);
+	}
+
+	private static double getMaxDistanceSqr() {
+		double distance = CBConfigs.COMMON.ghastHotAirBalloon.magnetMaxDistance.get();
+		return distance * distance;
 	}
 }

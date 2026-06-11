@@ -28,7 +28,7 @@ public abstract class SpawnEggItemMixin {
 	private Entity createBiotech$markBlockSpawnedEntity(EntityType<?> entityType, ServerLevel level, ItemStack stack,
 		Player player, BlockPos pos, MobSpawnType spawnType, boolean alignSpawn, boolean invertYOffset,
 		Operation<Entity> original, @Local(argsOnly = true) UseOnContext context) {
-		if (!SlimeMimicHandler.shouldSlimeifySpawn(context.getPlayer(), context.getHand()))
+		if (!SlimeMimicHandler.shouldSlimeifySpawn(context.getPlayer(), context.getHand(), entityType))
 			return original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
 
 		return createBiotech$spawnWithPreparedTag(entityType, level, stack, player, pos, spawnType, alignSpawn,
@@ -41,7 +41,7 @@ public abstract class SpawnEggItemMixin {
 	private Entity createBiotech$markFluidSpawnedEntity(EntityType<?> entityType, ServerLevel level, ItemStack stack,
 		Player player, BlockPos pos, MobSpawnType spawnType, boolean alignSpawn, boolean invertYOffset,
 		Operation<Entity> original, @Local(argsOnly = true) InteractionHand usedHand) {
-		if (!SlimeMimicHandler.shouldSlimeifySpawn(player, usedHand))
+		if (!SlimeMimicHandler.shouldSlimeifySpawn(player, usedHand, entityType))
 			return original.call(entityType, level, stack, player, pos, spawnType, alignSpawn, invertYOffset);
 
 		return createBiotech$spawnWithPreparedTag(entityType, level, stack, player, pos, spawnType, alignSpawn,

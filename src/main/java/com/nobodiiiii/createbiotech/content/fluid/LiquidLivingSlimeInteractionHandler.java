@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 
 import net.minecraft.core.BlockPos;
@@ -31,7 +32,6 @@ import net.minecraftforge.fml.common.Mod;
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class LiquidLivingSlimeInteractionHandler {
 
-	private static final int SOURCE_HITS_TO_BREAK = 4;
 	private static final String WAS_TOUCHING_LIQUID_LIVING_SLIME_KEY =
 		CreateBiotech.MOD_ID + ".was_touching_liquid_living_slime";
 	private static final String PREVIOUS_VERTICAL_SPEED_KEY =
@@ -90,16 +90,18 @@ public class LiquidLivingSlimeInteractionHandler {
 
 		SourceKey key = new SourceKey(level.dimension(), pos.immutable());
 		int hits = SOURCE_HIT_COUNTS.getOrDefault(key, 0) + 1;
-		if (hits < SOURCE_HITS_TO_BREAK) {
+		int hitsToBreak = getSourceHitsToBreak();
+		if (hits < hitsToBreak) {
 			SOURCE_HIT_COUNTS.put(key, hits);
-			level.destroyBlockProgress(progressIdFor(pos), pos, hitToProgressStage(hits));
+			level.destroyBlockProgress(progressIdFor(pos), pos, hitToProgressStage(hits, hitsToBreak));
 			return;
 		}
 
 		SOURCE_HIT_COUNTS.remove(key);
 		level.destroyBlockProgress(progressIdFor(pos), pos, -1);
 		clearFluid(level, pos);
-		Block.popResource(level, pos, new ItemStack(Items.SLIME_BALL));
+		if (shouldDropSlimeBallWhenSourceBreaks())
+			Block.popResource(level, pos, new ItemStack(Items.SLIME_BALL));
 	}
 
 	private static void clearFluid(ServerLevel level, BlockPos pos) {
@@ -126,12 +128,23 @@ public class LiquidLivingSlimeInteractionHandler {
 		return !fluidState.isEmpty() && fluidState.getFluidType() == CBFluids.LIQUID_LIVING_SLIME_TYPE.get();
 	}
 
-	private static int hitToProgressStage(int hits) {
-		return switch (hits) {
-		case 1 -> 2;
-		case 2 -> 5;
-		default -> 8;
-		};
+	private static int hitToProgressStage(int hits, int hitsToBreak) {
+		if (hitsToBreak == 4) {
+			return switch (hits) {
+			case 1 -> 2;
+			case 2 -> 5;
+			default -> 8;
+			};
+		}
+		return Mth.clamp((int) Math.round(hits * 9.0d / hitsToBreak), 0, 8);
+	}
+
+	private static int getSourceHitsToBreak() {
+		return CBConfigs.COMMON.liquidLivingSlime.sourceHitsToBreak.get();
+	}
+
+	private static boolean shouldDropSlimeBallWhenSourceBreaks() {
+		return CBConfigs.COMMON.liquidLivingSlime.dropSlimeBallWhenSourceBreaks.get();
 	}
 
 	private static int progressIdFor(BlockPos pos) {

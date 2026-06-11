@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -149,7 +150,9 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 			return;
 
 		RandomSource random = level.random;
-		float chance = Math.min(.16f, .025f + beltLength * .006f);
+		CBConfigs.BeltParticles particles = CBConfigs.COMMON.beltParticles;
+		float chance = (float) Math.min(particles.magmaBeltMaxChance.get(),
+			particles.magmaBeltBaseChance.get() + beltLength * particles.magmaBeltLengthChance.get());
 		if (random.nextFloat() >= chance)
 			return;
 

@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.ControlledContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
@@ -34,8 +35,6 @@ import net.minecraft.world.phys.Vec3;
 public final class BufferPadCollisionHelper {
 
 	private static final double IMPACT_SAMPLE_DISTANCE = 1.0E-4d;
-	private static final double MOVEMENT_EPSILON = 1.0E-4d;
-	private static final double ESCAPE_PUSH_SPEED = 0.05d;
 
 	private static final CollisionTagSet ACTOR_TAGS = new CollisionTagSet(
 		"EscapePushNormalX", "EscapePushNormalY", "EscapePushNormalZ",
@@ -141,7 +140,7 @@ public final class BufferPadCollisionHelper {
 		Direction collisionFace = context.state.getValue(BufferPadBlock.FACING)
 			.getOpposite();
 		Vec3 collisionNormal = context.rotation.apply(Vec3.atLowerCornerOf(collisionFace.getNormal()));
-		if (collisionNormal.lengthSqr() < MOVEMENT_EPSILON)
+		if (collisionNormal.lengthSqr() < getMovementEpsilon())
 			return null;
 		return collisionNormal.normalize();
 	}
@@ -156,7 +155,7 @@ public final class BufferPadCollisionHelper {
 		Vec3 collisionNormal = Vec3.atLowerCornerOf(state.getValue(BufferPadBlock.FACING)
 			.getOpposite()
 			.getNormal());
-		if (collisionNormal.lengthSqr() < MOVEMENT_EPSILON)
+		if (collisionNormal.lengthSqr() < getMovementEpsilon())
 			return null;
 		return collisionNormal.normalize();
 	}
@@ -233,7 +232,7 @@ public final class BufferPadCollisionHelper {
 			return null;
 
 		double collisionExtent = getCollisionExtent(sample.shapeBounds(), collisionNormal);
-		if (collisionExtent <= MOVEMENT_EPSILON)
+		if (collisionExtent <= getMovementEpsilon())
 			return null;
 
 		Vec3 padCenter = VecHelper.getCenterOf(padPos);
@@ -243,12 +242,13 @@ public final class BufferPadCollisionHelper {
 		double previousPenetration = sample.previousCenter()
 			.subtract(padCenter)
 			.dot(collisionNormal) + collisionExtent;
-		boolean currentlyColliding = currentPenetration > MOVEMENT_EPSILON;
-		boolean crossedIntoPad = previousPenetration <= MOVEMENT_EPSILON && currentPenetration > -MOVEMENT_EPSILON;
+		boolean currentlyColliding = currentPenetration > getMovementEpsilon();
+		boolean crossedIntoPad = previousPenetration <= getMovementEpsilon()
+			&& currentPenetration > -getMovementEpsilon();
 		if (!currentlyColliding && !crossedIntoPad)
 			return null;
 
-		boolean previouslyColliding = previousPenetration > MOVEMENT_EPSILON;
+		boolean previouslyColliding = previousPenetration > getMovementEpsilon();
 		return new WorldCollisionCandidate(collisionNormal, sample.motion(), previouslyColliding,
 			Math.max(currentPenetration, 0));
 	}
@@ -257,7 +257,7 @@ public final class BufferPadCollisionHelper {
 		double priority = candidate.previouslyColliding() ? 1 : 0;
 		double inwardMotion = candidate.actorMotion()
 			.dot(candidate.collisionNormal());
-		if (inwardMotion > MOVEMENT_EPSILON)
+		if (inwardMotion > getMovementEpsilon())
 			priority += 2 + inwardMotion;
 		else
 			priority += inwardMotion;
@@ -269,7 +269,7 @@ public final class BufferPadCollisionHelper {
 
 	private static boolean shouldApplyEscapePush(Vec3 actorMotion, Vec3 collisionNormal, boolean previouslyColliding) {
 		double inwardMotion = actorMotion.dot(collisionNormal);
-		if (inwardMotion <= MOVEMENT_EPSILON)
+		if (inwardMotion <= getMovementEpsilon())
 			return true;
 		return previouslyColliding;
 	}
@@ -325,7 +325,7 @@ public final class BufferPadCollisionHelper {
 			return;
 
 		double referenceSpeed = getTrainReferenceSpeed(train);
-		if (Math.abs(referenceSpeed) < MOVEMENT_EPSILON && actorMotion.lengthSqr() < MOVEMENT_EPSILON)
+		if (Math.abs(referenceSpeed) < getMovementEpsilon() && actorMotion.lengthSqr() < getMovementEpsilon())
 			return;
 
 		double adjustedSpeed = getAdjustedTrainSpeed(actorMotion, adjustedMotion, referenceSpeed, escapeFromBlock);
@@ -353,12 +353,12 @@ public final class BufferPadCollisionHelper {
 			return;
 
 		double intoCollisionFace = positionCorrection;
-		if (intoCollisionFace <= MOVEMENT_EPSILON) {
+		if (intoCollisionFace <= getMovementEpsilon()) {
 			Vec3 displacement = entity.position()
 				.subtract(entity.xo, entity.yo, entity.zo);
 			intoCollisionFace = displacement.dot(collisionNormal);
 		}
-		if (intoCollisionFace <= MOVEMENT_EPSILON)
+		if (intoCollisionFace <= getMovementEpsilon())
 			return;
 
 		Vec3 correctedPosition = entity.position()
@@ -407,7 +407,7 @@ public final class BufferPadCollisionHelper {
 
 	private static void clipFurnacePush(MinecartFurnace furnaceCart, Vec3 collisionNormal, boolean escapeFromBlock) {
 		Vec3 horizontalNormal = new Vec3(collisionNormal.x, 0, collisionNormal.z);
-		if (horizontalNormal.lengthSqr() < MOVEMENT_EPSILON)
+		if (horizontalNormal.lengthSqr() < getMovementEpsilon())
 			return;
 
 		horizontalNormal = horizontalNormal.normalize();
@@ -425,7 +425,7 @@ public final class BufferPadCollisionHelper {
 
 	private static void trimFurnacePush(MinecartFurnace furnaceCart, Vec3 collisionNormal) {
 		Vec3 horizontalNormal = new Vec3(collisionNormal.x, 0, collisionNormal.z);
-		if (horizontalNormal.lengthSqr() < MOVEMENT_EPSILON)
+		if (horizontalNormal.lengthSqr() < getMovementEpsilon())
 			return;
 
 		horizontalNormal = horizontalNormal.normalize();
@@ -443,28 +443,28 @@ public final class BufferPadCollisionHelper {
 
 	private static double getTrainReferenceSpeed(Train train) {
 		double currentSpeed = train.speedBeforeStall != null ? train.speedBeforeStall : train.speed;
-		if (Math.abs(currentSpeed) >= MOVEMENT_EPSILON)
+		if (Math.abs(currentSpeed) >= getMovementEpsilon())
 			return currentSpeed;
-		if (Math.abs(train.targetSpeed) >= MOVEMENT_EPSILON)
+		if (Math.abs(train.targetSpeed) >= getMovementEpsilon())
 			return train.targetSpeed;
 		return 0;
 	}
 
 	private static double getAdjustedTrainSpeed(Vec3 actorMotion, Vec3 adjustedMotion, double referenceSpeed,
 		boolean escapeFromBlock) {
-		if (actorMotion.lengthSqr() < MOVEMENT_EPSILON) {
-			if (!escapeFromBlock || Math.abs(referenceSpeed) < MOVEMENT_EPSILON)
+		if (actorMotion.lengthSqr() < getMovementEpsilon()) {
+			if (!escapeFromBlock || Math.abs(referenceSpeed) < getMovementEpsilon())
 				return referenceSpeed;
-			return -Math.copySign(ESCAPE_PUSH_SPEED, referenceSpeed);
+			return -Math.copySign(getEscapePushSpeed(), referenceSpeed);
 		}
 
 		Vec3 travelAxis = actorMotion.normalize();
 		double alongTravel = adjustedMotion.dot(travelAxis);
-		if (escapeFromBlock && alongTravel > -ESCAPE_PUSH_SPEED)
-			alongTravel = -ESCAPE_PUSH_SPEED;
+		if (escapeFromBlock && alongTravel > -getEscapePushSpeed())
+			alongTravel = -getEscapePushSpeed();
 
 		double speedMagnitude = Math.abs(alongTravel);
-		if (speedMagnitude < MOVEMENT_EPSILON)
+		if (speedMagnitude < getMovementEpsilon())
 			return 0;
 
 		double speed = Math.copySign(speedMagnitude, referenceSpeed);
@@ -481,7 +481,7 @@ public final class BufferPadCollisionHelper {
 
 	private static void clipTrainTargetSpeed(CompoundTag data, CollisionTagSet tags, Vec3 actorMotion, Train train,
 		Vec3 collisionNormal, double referenceSpeed) {
-		if (Math.abs(train.targetSpeed) < MOVEMENT_EPSILON)
+		if (Math.abs(train.targetSpeed) < getMovementEpsilon())
 			return;
 
 		Vec3 positiveAxis = getTrainPositiveAxis(data, tags, actorMotion, referenceSpeed);
@@ -491,7 +491,7 @@ public final class BufferPadCollisionHelper {
 		Vec3 targetMotion = positiveAxis.scale(train.targetSpeed);
 		Vec3 adjustedTargetMotion = removeVelocityIntoCollisionFace(targetMotion, collisionNormal);
 		double adjustedTargetSpeed = adjustedTargetMotion.dot(positiveAxis);
-		train.targetSpeed = Math.abs(adjustedTargetSpeed) < MOVEMENT_EPSILON ? 0 : adjustedTargetSpeed;
+		train.targetSpeed = Math.abs(adjustedTargetSpeed) < getMovementEpsilon() ? 0 : adjustedTargetSpeed;
 	}
 
 	private static Vec3 adjustMotionAgainstCollision(Vec3 motion, Vec3 collisionNormal, boolean escapeFromBlock) {
@@ -503,32 +503,32 @@ public final class BufferPadCollisionHelper {
 
 	private static Vec3 ensureEscapeVelocity(Vec3 motion, Vec3 collisionNormal) {
 		double normalSpeed = motion.dot(collisionNormal);
-		if (normalSpeed <= -ESCAPE_PUSH_SPEED)
+		if (normalSpeed <= -getEscapePushSpeed())
 			return motion;
-		return motion.subtract(collisionNormal.scale(normalSpeed + ESCAPE_PUSH_SPEED));
+		return motion.subtract(collisionNormal.scale(normalSpeed + getEscapePushSpeed()));
 	}
 
 	private static Vec3 removeEscapeVelocityContribution(Vec3 motion, Vec3 collisionNormal) {
 		double normalSpeed = motion.dot(collisionNormal);
-		if (normalSpeed >= -MOVEMENT_EPSILON)
+		if (normalSpeed >= -getMovementEpsilon())
 			return motion;
-		double cancelledSpeed = Math.min(-normalSpeed, ESCAPE_PUSH_SPEED);
+		double cancelledSpeed = Math.min(-normalSpeed, getEscapePushSpeed());
 		return motion.add(collisionNormal.scale(cancelledSpeed));
 	}
 
 	private static Vec3 removeVelocityIntoCollisionFace(Vec3 motion, Vec3 collisionNormal) {
 		double intoCollisionFace = motion.dot(collisionNormal);
-		if (intoCollisionFace <= MOVEMENT_EPSILON)
+		if (intoCollisionFace <= getMovementEpsilon())
 			return motion;
 		return motion.subtract(collisionNormal.scale(intoCollisionFace));
 	}
 
 	private static double trimEscapeSpeedMagnitude(double speed) {
 		double magnitude = Math.abs(speed);
-		if (magnitude < MOVEMENT_EPSILON)
+		if (magnitude < getMovementEpsilon())
 			return 0;
-		double trimmedMagnitude = Math.max(0, magnitude - ESCAPE_PUSH_SPEED);
-		if (trimmedMagnitude < MOVEMENT_EPSILON)
+		double trimmedMagnitude = Math.max(0, magnitude - getEscapePushSpeed());
+		if (trimmedMagnitude < getMovementEpsilon())
 			return 0;
 		return Math.copySign(trimmedMagnitude, speed);
 	}
@@ -553,7 +553,7 @@ public final class BufferPadCollisionHelper {
 
 		Vec3 collisionNormal = new Vec3(data.getDouble(tags.escapePushNormalX()), data.getDouble(tags.escapePushNormalY()),
 			data.getDouble(tags.escapePushNormalZ()));
-		if (collisionNormal.lengthSqr() < MOVEMENT_EPSILON)
+		if (collisionNormal.lengthSqr() < getMovementEpsilon())
 			return null;
 		return collisionNormal.normalize();
 	}
@@ -561,7 +561,8 @@ public final class BufferPadCollisionHelper {
 	@Nullable
 	private static Vec3 getTrainPositiveAxis(CompoundTag data, CollisionTagSet tags, Vec3 actorMotion,
 		double referenceSpeed) {
-		if (actorMotion.lengthSqr() >= MOVEMENT_EPSILON && Math.abs(referenceSpeed) >= MOVEMENT_EPSILON) {
+		if (actorMotion.lengthSqr() >= getMovementEpsilon()
+			&& Math.abs(referenceSpeed) >= getMovementEpsilon()) {
 			Vec3 positiveAxis = actorMotion.normalize();
 			if (referenceSpeed < 0)
 				positiveAxis = positiveAxis.scale(-1);
@@ -586,7 +587,7 @@ public final class BufferPadCollisionHelper {
 
 		Vec3 positiveAxis = new Vec3(data.getDouble(tags.trainPositiveAxisX()), data.getDouble(tags.trainPositiveAxisY()),
 			data.getDouble(tags.trainPositiveAxisZ()));
-		if (positiveAxis.lengthSqr() < MOVEMENT_EPSILON)
+		if (positiveAxis.lengthSqr() < getMovementEpsilon())
 			return null;
 		return positiveAxis.normalize();
 	}
@@ -604,6 +605,14 @@ public final class BufferPadCollisionHelper {
 		case WEST -> 0.5d - shapeBounds.minX;
 		case EAST -> shapeBounds.maxX - 0.5d;
 		};
+	}
+
+	private static double getMovementEpsilon() {
+		return CBConfigs.COMMON.bufferPad.movementEpsilon.get();
+	}
+
+	private static double getEscapePushSpeed() {
+		return CBConfigs.COMMON.bufferPad.escapePushSpeed.get();
 	}
 
 	private static void awardSoftLanding(AbstractContraptionEntity entity) {

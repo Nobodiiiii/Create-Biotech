@@ -12,9 +12,9 @@ import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlockEntity;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllTags.AllBlockTags;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.utility.BlockHelper;
-import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.data.Pair;
@@ -179,7 +179,7 @@ public class ExperiencePropagator {
 	}
 
 	public static int getPumpRange() {
-		return AllConfigs.server().fluids.mechanicalPumpRange.get();
+		return ExperienceConstants.pumpRange();
 	}
 
 	@Nullable

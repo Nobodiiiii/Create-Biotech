@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
@@ -37,11 +38,8 @@ import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.items.IItemHandler;
 
 public class BasinEntityProcessing {
-	public static final int MAX_CAPTURED_SMALL_SLIMES = 4;
-
 	private static final double BASIN_INNER_MIN = 2 / 16d;
 	private static final double BASIN_INNER_MAX = 14 / 16d;
-	private static final double ENTITY_SCAN_HEIGHT = 1.25d;
 	private static final double BASIN_SLIME_Y_OFFSET = 0.125d;
 	private static final String DATA_ROOT = CreateBiotech.MOD_ID;
 	private static final String CAPTURED_TAG = "BasinEntityProcessingCaptured";
@@ -120,7 +118,7 @@ public class BasinEntityProcessing {
 	public static ItemStack getCapturedSmallSlimeExtractionStack(BasinBlockEntity basin, ExtractionCountMode mode,
 		int amount, Predicate<ItemStack> filter) {
 		if (amount <= 0)
-			amount = MAX_CAPTURED_SMALL_SLIMES;
+			amount = getMaxCapturedSmallSlimes();
 
 		List<Slime> slimes = getCapturedSmallSlimes(basin.getLevel(), basin.getBlockPos());
 		int available = slimes.size();
@@ -155,7 +153,7 @@ public class BasinEntityProcessing {
 	}
 
 	public static void setCapturedSmallSlimeItemCount(BasinBlockEntity basin, int count) {
-		int targetCount = Math.max(0, Math.min(MAX_CAPTURED_SMALL_SLIMES, count));
+		int targetCount = Math.max(0, Math.min(getMaxCapturedSmallSlimes(), count));
 		int currentCount = getCapturedSmallSlimeCount(basin);
 		if (targetCount >= currentCount)
 			return;
@@ -180,7 +178,7 @@ public class BasinEntityProcessing {
 			basinPos.getY(),
 			basinPos.getZ() + BASIN_INNER_MIN,
 			basinPos.getX() + BASIN_INNER_MAX,
-			basinPos.getY() + ENTITY_SCAN_HEIGHT,
+			basinPos.getY() + getEntityScanHeight(),
 			basinPos.getZ() + BASIN_INNER_MAX);
 	}
 
@@ -293,7 +291,7 @@ public class BasinEntityProcessing {
 
 		BlockPos basinPos = basin.getBlockPos();
 		if (!isCapturedInBasin(slime, basinPos)
-			&& getCapturedSmallSlimes(level, basinPos).size() >= MAX_CAPTURED_SMALL_SLIMES)
+			&& getCapturedSmallSlimes(level, basinPos).size() >= getMaxCapturedSmallSlimes())
 			return false;
 
 		CompoundTag data = getCreateBiotechData(slime);
@@ -424,7 +422,15 @@ public class BasinEntityProcessing {
 			&& center.z >= basinPos.getZ() + BASIN_INNER_MIN
 			&& center.z <= basinPos.getZ() + BASIN_INNER_MAX
 			&& center.y >= basinPos.getY()
-			&& center.y <= basinPos.getY() + ENTITY_SCAN_HEIGHT;
+			&& center.y <= basinPos.getY() + getEntityScanHeight();
+	}
+
+	public static int getMaxCapturedSmallSlimes() {
+		return CBConfigs.COMMON.basinEntityProcessing.maxCapturedSmallSlimes.get();
+	}
+
+	private static double getEntityScanHeight() {
+		return CBConfigs.COMMON.basinEntityProcessing.entityScanHeight.get();
 	}
 
 	private static boolean extractIngredients(IItemHandler availableItems, List<Ingredient> ingredients,

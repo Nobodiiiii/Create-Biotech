@@ -81,9 +81,9 @@ public final class ExperienceTransport {
 
 	private static int xpValueOf(ItemStack stack) {
 		if (stack.is(AllItems.EXP_NUGGET.get()))
-			return ExperienceConstants.XP_PER_NUGGET;
+			return ExperienceConstants.xpPerNugget();
 		if (stack.getItem() instanceof ExperienceClusterBlockItem cluster)
-			return cluster.getXpNuggetValue() * ExperienceConstants.XP_PER_NUGGET;
+			return cluster.getXpNuggetValue() * ExperienceConstants.xpPerNugget();
 		return 0;
 	}
 

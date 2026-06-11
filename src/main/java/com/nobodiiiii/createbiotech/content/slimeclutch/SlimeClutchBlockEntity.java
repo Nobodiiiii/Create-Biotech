@@ -12,6 +12,7 @@ import java.util.Queue;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.RotationPropagator;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
@@ -25,9 +26,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
-
-	private static final int RECHECK_PERIOD = 20;
-	private static final int MAX_WALK = 1024;
 
 	private static final MethodHandle ROTATION_MODIFIER = resolveModifier();
 
@@ -80,7 +78,7 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 			if (pendingTrip) {
 				pendingTrip = false;
 				performTransition(true);
-				recheckCounter = RECHECK_PERIOD;
+				recheckCounter = getRecheckPeriod();
 			}
 			return;
 		}
@@ -88,8 +86,8 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 		pendingTrip = false;
 		if (--recheckCounter > 0)
 			return;
-		recheckCounter = RECHECK_PERIOD;
-		if (canSafelyMerge())
+		recheckCounter = getRecheckPeriod();
+		if (!isSoftOverloadCheckEnabled() || canSafelyMerge())
 			performTransition(false);
 	}
 
@@ -130,7 +128,7 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 		int walked = 0;
 
 		while (!frontier.isEmpty()) {
-			if (++walked > MAX_WALK)
+			if (++walked > getMaxWalk())
 				return false;
 			KineticBlockEntity kbe = frontier.poll();
 			BlockPos kbePos = kbe.getBlockPos();
@@ -188,5 +186,17 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 			result.add(kbe);
 		}
 		return result;
+	}
+
+	private static int getRecheckPeriod() {
+		return CBConfigs.COMMON.slimeClutch.recheckPeriod.get();
+	}
+
+	private static int getMaxWalk() {
+		return CBConfigs.COMMON.slimeClutch.maxWalk.get();
+	}
+
+	private static boolean isSoftOverloadCheckEnabled() {
+		return CBConfigs.COMMON.slimeClutch.enableSoftOverloadCheck.get();
 	}
 }

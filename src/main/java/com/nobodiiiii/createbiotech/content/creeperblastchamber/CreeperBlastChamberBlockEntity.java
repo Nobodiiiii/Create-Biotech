@@ -26,6 +26,7 @@ import com.nobodiiiii.createbiotech.mixin.MobAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.AllRecipeTypes;
@@ -86,8 +87,6 @@ import net.minecraftforge.registries.ForgeRegistries;
 
 public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements IHaveGoggleInformation {
 
-	private static final int MIN_SIZE = 3;
-	private static final int MAX_SIZE = 5;
 	private static final String DATA_ROOT = CreateBiotech.MOD_ID;
 	private static final String MARKED_CREEPER_TAG = "CreeperBlastChamberMarked";
 	private static final String CONTROLLER_POS_TAG = "CreeperBlastChamberControllerPos";
@@ -104,14 +103,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private static final String CONFIGURED_INPUT_VAULT_CONTROLLER_TAG = "ConfiguredInputVaultController";
 	private static final String CREEPER_FACE_VISIBLE_TAG = "CreeperFaceVisible";
 	private static final String OVERLOAD_POINTS_TAG = "OverloadPoints";
-	private static final int READY_OUTPUT_TIMEOUT = 20 * 5;
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 5;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
-	private static final int OVERLOAD_THRESHOLD_RPM = 128;
-	private static final int OVERLOAD_POINTS_CAP = OVERLOAD_THRESHOLD_RPM * 64;
-	private static final int OVERLOAD_TNT_EQUIVALENT_PER_CREEPER = 2;
-	private static final int CHARGED_CREEPER_EQUIVALENT_MULTIPLIER = 2;
-	private static final float TNT_EXPLOSION_POWER = 4f;
 	private static final float CLIENT_PRESS_EFFECT_START_OFFSET = 0.4f;
 	private static final float CLIENT_RETURN_EFFECT_ARM_THRESHOLD = 0.95f;
 	private static final float CLIENT_PRESS_RETURN_EPSILON = 0.001f;
@@ -232,7 +225,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 		BlockPos pos = getBlockPos();
 
-		for (int s = MIN_SIZE; s <= MAX_SIZE; s++) {
+		for (int s = getMinSize(); s <= getMaxSize(); s++) {
 			StructureScanResult result = findStructure(level, pos, s);
 			if (result != null) {
 				boolean wasValid = structureValid;
@@ -863,7 +856,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		configuredInputVaultController = tag.contains(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG)
 			? BlockPos.of(tag.getLong(CONFIGURED_INPUT_VAULT_CONTROLLER_TAG))
 			: inputVaultController;
-		overloadPoints = Mth.clamp(tag.getInt(OVERLOAD_POINTS_TAG), 0, OVERLOAD_POINTS_CAP);
+		overloadPoints = Mth.clamp(tag.getInt(OVERLOAD_POINTS_TAG), 0, getOverloadPointsCap());
 		structurePressAxis = structureValid ? getStoredPressAxis() : null;
 		pressCycleProcessed = false;
 	}
@@ -964,19 +957,25 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private boolean applyOverloadFromPress(MechanicalPressBlockEntity press, CreeperCountSummary creeperCounts) {
-		if (overloadPoints >= OVERLOAD_POINTS_CAP) {
+		if (!isOverloadExplosionsEnabled()) {
+			if (overloadPoints > 0)
+				setOverloadPoints(0);
+			return false;
+		}
+
+		if (overloadPoints >= getOverloadPointsCap()) {
 			triggerOverload(creeperCounts);
 			return true;
 		}
 
 		int rpm = Mth.floor(Math.abs(press.getSpeed()));
-		int overloadGain = rpm - OVERLOAD_THRESHOLD_RPM;
+		int overloadGain = rpm - getOverloadThresholdRpm();
 		if (overloadGain <= 0)
 			return false;
 
 		int nextOverloadPoints = overloadPoints + overloadGain;
-		if (nextOverloadPoints > OVERLOAD_POINTS_CAP) {
-			setOverloadPoints(OVERLOAD_POINTS_CAP);
+		if (nextOverloadPoints > getOverloadPointsCap()) {
+			setOverloadPoints(getOverloadPointsCap());
 			return false;
 		}
 
@@ -987,6 +986,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private void triggerOverload(CreeperCountSummary creeperCounts) {
 		Level level = getLevel();
 		if (level == null || level.isClientSide || !structureValid || structureOrigin == null)
+			return;
+		if (!isOverloadExplosionsEnabled())
 			return;
 
 		setOverloadPoints(0);
@@ -1000,7 +1001,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return;
 		}
 
-		float explosionPower = effectiveExplosionCount * TNT_EXPLOSION_POWER;
+		float explosionPower = effectiveExplosionCount * getTntExplosionPower();
 		explodeOverloadAt(level, getOverloadExplosionCenter(), explosionPower);
 	}
 
@@ -1008,7 +1009,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (structureOrigin == null)
 			return;
 
-		float explosionPower = effectiveExplosionCount * OVERLOAD_TNT_EQUIVALENT_PER_CREEPER * TNT_EXPLOSION_POWER;
+		float explosionPower = effectiveExplosionCount * getOverloadTntEquivalentPerCreeper() * getTntExplosionPower();
 		double[] xCoords = {structureOrigin.getX() + 0.5d, structureOrigin.getX() + structureSize - 0.5d};
 		double[] yCoords = {structureOrigin.getY() + 0.5d, structureOrigin.getY() + 3.5d};
 		double[] zCoords = {structureOrigin.getZ() + 0.5d, structureOrigin.getZ() + structureSize - 0.5d};
@@ -1055,7 +1056,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private void setOverloadPoints(int overloadPoints) {
-		int clampedOverloadPoints = Mth.clamp(overloadPoints, 0, OVERLOAD_POINTS_CAP);
+		int clampedOverloadPoints = Mth.clamp(overloadPoints, 0, getOverloadPointsCap());
 		if (this.overloadPoints == clampedOverloadPoints)
 			return;
 		this.overloadPoints = clampedOverloadPoints;
@@ -1094,7 +1095,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private void tickOverloadDecay(Level level) {
 		if (overloadPoints <= 0 || isCurrentlyOverloading() || level.getGameTime() % 20 != 0)
 			return;
-		setOverloadPoints(overloadPoints - OVERLOAD_THRESHOLD_RPM);
+		setOverloadPoints(overloadPoints - getOverloadDecayPointsPerSecond());
 	}
 
 	private boolean isCurrentlyOverloading() {
@@ -1102,7 +1103,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return false;
 
 		MechanicalPressBlockEntity masterPress = getMasterPress(getMechanicalPresses());
-		return masterPress != null && Math.abs(masterPress.getSpeed()) > OVERLOAD_THRESHOLD_RPM;
+		return masterPress != null && Math.abs(masterPress.getSpeed()) > getOverloadThresholdRpm();
 	}
 
 	private ProcessingAttemptResult processNextVaultStack(IItemHandler inputHandler, IItemHandler outputHandler) {
@@ -1477,7 +1478,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 				removeTrackedMarkedCreeper(creeper.getUUID());
 				creeper.discard();
 			}
-			readyOutputs.add(new ReadyOutput(pending.packagerPos, pending.boxStack.copy(), READY_OUTPUT_TIMEOUT));
+			readyOutputs.add(new ReadyOutput(pending.packagerPos, pending.boxStack.copy(), getReadyOutputTimeout()));
 			iterator.remove();
 			changed = true;
 		}
@@ -1707,6 +1708,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		Level level = getLevel();
 		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null)
 			return;
+		if (!areExplosionParticlesEnabled())
+			return;
 
 		int innerSize = Mth.clamp(structureSize - 2, 1, 3);
 		double centerX = structureOrigin.getX() + structureSize / 2d;
@@ -1741,6 +1744,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private void spawnRandomizedReturnExplosionParticle(Level level, double x, double y, double z) {
+		if (!areExplosionParticlesEnabled())
+			return;
 		double sizeParam = Mth.lerp(level.random.nextDouble(),
 			CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MIN, CLIENT_RETURN_EXPLOSION_SIZE_PARAM_MAX);
 		level.addAlwaysVisibleParticle(ParticleTypes.EXPLOSION, true, x, y, z, sizeParam, 0, 0);
@@ -2278,8 +2283,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return false;
 
 		BlockPos pressPos = press.getBlockPos();
-		BlockPos min = pressPos.offset(-MAX_SIZE, -3, -MAX_SIZE);
-		BlockPos max = pressPos.offset(MAX_SIZE, 0, MAX_SIZE);
+		int maxSize = getMaxSize();
+		BlockPos min = pressPos.offset(-maxSize, -3, -maxSize);
+		BlockPos max = pressPos.offset(maxSize, 0, maxSize);
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 		for (int y = min.getY(); y <= max.getY(); y++) {
 			for (int x = min.getX(); x <= max.getX(); x++) {
@@ -2310,8 +2316,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
 		for (int y = structurePos.getY() - 3; y <= structurePos.getY() + 3; y++) {
-			for (int x = structurePos.getX() - MAX_SIZE; x <= structurePos.getX() + MAX_SIZE; x++) {
-				for (int z = structurePos.getZ() - MAX_SIZE; z <= structurePos.getZ() + MAX_SIZE; z++) {
+			int maxSize = getMaxSize();
+			for (int x = structurePos.getX() - maxSize; x <= structurePos.getX() + maxSize; x++) {
+				for (int z = structurePos.getZ() - maxSize; z <= structurePos.getZ() + maxSize; z++) {
 					cursor.set(x, y, z);
 					if (!(level.getBlockEntity(cursor) instanceof CreeperBlastChamberBlockEntity chamber))
 						continue;
@@ -2407,7 +2414,52 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	public float getOverloadFraction() {
-		return overloadPoints / (float) OVERLOAD_POINTS_CAP;
+		return overloadPoints / (float) getOverloadPointsCap();
+	}
+
+	private static int getMinSize() {
+		return CBConfigs.COMMON.creeperBlastChamber.minSize.get();
+	}
+
+	private static int getMaxSize() {
+		return Math.max(getMinSize(), CBConfigs.COMMON.creeperBlastChamber.maxSize.get());
+	}
+
+	private static int getOverloadThresholdRpm() {
+		return CBConfigs.COMMON.creeperBlastChamber.overloadThresholdRpm.get();
+	}
+
+	private static int getOverloadPointsCap() {
+		return Math.max(1, CBConfigs.COMMON.creeperBlastChamber.overloadPointsCap.get());
+	}
+
+	private static int getOverloadDecayPointsPerSecond() {
+		return CBConfigs.COMMON.creeperBlastChamber.overloadDecayPointsPerSecond.get();
+	}
+
+	private static int getOverloadTntEquivalentPerCreeper() {
+		return CBConfigs.COMMON.creeperBlastChamber.overloadTntEquivalentPerCreeper.get();
+	}
+
+	private static int getChargedCreeperEquivalentMultiplier() {
+		return CBConfigs.COMMON.creeperBlastChamber.chargedCreeperEquivalentMultiplier.get();
+	}
+
+	private static float getTntExplosionPower() {
+		return CBConfigs.COMMON.creeperBlastChamber.tntExplosionPower.get()
+			.floatValue();
+	}
+
+	private static int getReadyOutputTimeout() {
+		return CBConfigs.COMMON.creeperBlastChamber.readyOutputTimeout.get();
+	}
+
+	private static boolean isOverloadExplosionsEnabled() {
+		return CBConfigs.COMMON.creeperBlastChamber.enableOverloadExplosions.get();
+	}
+
+	private static boolean areExplosionParticlesEnabled() {
+		return CBConfigs.COMMON.creeperBlastChamber.enableExplosionParticles.get();
 	}
 
 	public int getOverloadPercent() {
@@ -2977,7 +3029,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		}
 
 		private int getExplosionEquivalentCount() {
-			return normalCount + chargedCount * CHARGED_CREEPER_EQUIVALENT_MULTIPLIER;
+			return normalCount + chargedCount * getChargedCreeperEquivalentMultiplier();
 		}
 	}
 

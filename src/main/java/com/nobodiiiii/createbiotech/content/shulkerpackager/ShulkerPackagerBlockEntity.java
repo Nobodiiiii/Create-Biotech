@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint.Mode;
@@ -27,8 +28,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkSource;
 
 public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
-
-	public static final int TRANSFER_DELAY = 16;
 
 	List<ArmInteractionPoint> inputs;
 	List<ArmInteractionPoint> outputs;
@@ -77,7 +76,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 		if (!heldBox.isEmpty()) {
 			heldBoxIdleTicks++;
-			if (heldBoxIdleTicks >= TRANSFER_DELAY)
+			if (heldBoxIdleTicks >= getTransferDelay())
 				attemptTransferToOutput();
 			return;
 		}
@@ -96,7 +95,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 	public boolean canExportHeldBoxTo(PackagerBlockEntity target) {
 		return target != null && target != this && !heldBox.isEmpty() && PackageItem.isPackage(heldBox)
-			&& heldBoxIdleTicks >= TRANSFER_DELAY && animationTicks == 0 && queuedExitingPackages.isEmpty()
+			&& heldBoxIdleTicks >= getTransferDelay() && animationTicks == 0 && queuedExitingPackages.isEmpty()
 			&& canReceiveTransferredPackage(target, heldBox);
 	}
 
@@ -198,13 +197,15 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		if (level == null || point == null || !point.isValid())
 			return null;
 		BlockEntity blockEntity = level.getBlockEntity(point.getPos());
+		if (shouldOnlyConnectToShulkerPackagers())
+			return blockEntity instanceof ShulkerPackagerBlockEntity packager ? packager : null;
 		return blockEntity instanceof PackagerBlockEntity packager ? packager : null;
 	}
 
 	private void initInteractionPoints() {
 		if (!updateInteractionPoints || interactionPointTag == null || level == null)
 			return;
-		if (!isAreaActuallyLoaded(worldPosition, ArmBlockEntity.getRange() + 1))
+		if (!isAreaActuallyLoaded(worldPosition, getConnectionRange() + 1))
 			return;
 
 		inputs.clear();
@@ -244,6 +245,18 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		target.notifyUpdate();
 		target.setChanged();
 		return true;
+	}
+
+	private static int getTransferDelay() {
+		return CBConfigs.COMMON.shulkerPackager.transferDelay.get();
+	}
+
+	private static int getConnectionRange() {
+		return CBConfigs.COMMON.shulkerPackager.connectionRange.get();
+	}
+
+	private static boolean shouldOnlyConnectToShulkerPackagers() {
+		return CBConfigs.COMMON.shulkerPackager.onlyConnectToShulkerPackagers.get();
 	}
 
 	private boolean isAreaActuallyLoaded(BlockPos center, int range) {

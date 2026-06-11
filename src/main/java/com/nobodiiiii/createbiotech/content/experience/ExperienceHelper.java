@@ -20,11 +20,11 @@ public final class ExperienceHelper {
 	}
 
 	public static int nuggetsToXp(int nuggets) {
-		return Math.max(0, nuggets) * ExperienceConstants.XP_PER_NUGGET;
+		return Math.max(0, nuggets) * ExperienceConstants.xpPerNugget();
 	}
 
 	public static int xpToNuggets(int xp) {
-		return Math.max(0, xp) / ExperienceConstants.XP_PER_NUGGET;
+		return Math.max(0, xp) / ExperienceConstants.xpPerNugget();
 	}
 
 	public static int sumStoredEnchantmentLevels(ItemStack copyStack) {

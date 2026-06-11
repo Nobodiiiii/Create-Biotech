@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.simibubi.create.AllPackets;
 import com.simibubi.create.content.contraptions.OrientedContraptionEntity;
@@ -38,24 +39,10 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private static final EntityDataAccessor<Float> SYNCED_YAW =
 		SynchedEntityData.defineId(GhastHotAirBalloonEntity.class, EntityDataSerializers.FLOAT);
 
-	private static final double FORWARD_ACCELERATION = 0.04d;
-	private static final double BACKWARD_ACCELERATION = 0.02d;
-	private static final double VERTICAL_ACCELERATION = 0.03d;
-	private static final double HORIZONTAL_DRAG = 0.9d;
-	private static final double VERTICAL_DRAG = 0.85d;
-	private static final double MAX_HORIZONTAL_SPEED = 0.35d;
-	private static final double MAX_VERTICAL_SPEED = 0.25d;
-	private static final float TURN_ACCELERATION = 1.0f;
-	private static final float TURN_BRAKE = 4.0f;
-	private static final float TURN_DIRECTION_CHANGE_BRAKE = 6.0f;
-	private static final float MAX_TURN_SPEED = 6.0f;
 	private static final float TURN_STOP_EPSILON = 0.05f;
 	private static final float TURN_DIRECTION_EPSILON = 0.25f;
 	private static final double MOTION_EPSILON = 1.0E-4d;
-	private static final int INPUT_TIMEOUT_TICKS = 8;
-	private static final int MAGNET_TIMEOUT_TICKS = 12;
 	private static final double MAGNET_ARRIVAL_DEADZONE_SQR = 0.01d;
-	private static final double MAGNET_BRAKE_DISTANCE = 2.5d;
 
 	private float deltaRotation;
 	private int inputTimeout;
@@ -168,7 +155,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 	public void setMagnetTarget(BlockPos pos) {
 		magnetTargetPos = pos;
-		magnetExpireTicks = MAGNET_TIMEOUT_TICKS;
+		magnetExpireTicks = getMagnetTimeoutTicks();
 	}
 
 	public void clearMagnetTarget() {
@@ -327,7 +314,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		inputRight = heldControls.contains(3);
 		inputUp = heldControls.contains(4);
 		inputDown = heldControls.contains(5);
-		inputTimeout = INPUT_TIMEOUT_TICKS;
+		inputTimeout = getInputTimeoutTicks();
 		return true;
 	}
 
@@ -387,11 +374,11 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			return;
 		}
 
-		Vec3 movement = ghast.getDeltaMovement().multiply(HORIZONTAL_DRAG, VERTICAL_DRAG, HORIZONTAL_DRAG);
+		Vec3 movement = ghast.getDeltaMovement().multiply(getHorizontalDrag(), getVerticalDrag(), getHorizontalDrag());
 
 		float desiredTurnSpeed = 0;
 		if (inputLeft != inputRight)
-			desiredTurnSpeed = inputRight ? MAX_TURN_SPEED : -MAX_TURN_SPEED;
+			desiredTurnSpeed = inputRight ? getMaxTurnSpeed() : -getMaxTurnSpeed();
 		deltaRotation = updateTurnSpeed(deltaRotation, desiredTurnSpeed);
 
 		float currentYaw = getControlledYaw();
@@ -403,17 +390,17 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 		double thrust = 0;
 		if (inputForward)
-			thrust += FORWARD_ACCELERATION;
+			thrust += getForwardAcceleration();
 		if (inputBackward)
-			thrust -= BACKWARD_ACCELERATION;
+			thrust -= getBackwardAcceleration();
 		if (thrust != 0)
 			movement = movement.add(Vec3.directionFromRotation(0, currentYaw).scale(thrust));
 
 		double verticalThrust = 0;
 		if (inputUp)
-			verticalThrust += VERTICAL_ACCELERATION;
+			verticalThrust += getVerticalAcceleration();
 		if (inputDown)
-			verticalThrust -= VERTICAL_ACCELERATION;
+			verticalThrust -= getVerticalAcceleration();
 		if (verticalThrust != 0)
 			movement = movement.add(0, verticalThrust, 0);
 
@@ -438,9 +425,12 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		}
 
 		double horizDist = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-		double horizSpeed = Math.min(MAX_HORIZONTAL_SPEED, horizDist / MAGNET_BRAKE_DISTANCE * MAX_HORIZONTAL_SPEED);
-		double vertSpeed = Mth.clamp(delta.y / MAGNET_BRAKE_DISTANCE * MAX_VERTICAL_SPEED,
-			-MAX_VERTICAL_SPEED, MAX_VERTICAL_SPEED);
+		double maxHorizontalSpeed = getMaxHorizontalSpeed();
+		double maxVerticalSpeed = getMaxVerticalSpeed();
+		double magnetBrakeDistance = getMagnetBrakeDistance();
+		double horizSpeed = Math.min(maxHorizontalSpeed, horizDist / magnetBrakeDistance * maxHorizontalSpeed);
+		double vertSpeed = Mth.clamp(delta.y / magnetBrakeDistance * maxVerticalSpeed,
+			-maxVerticalSpeed, maxVerticalSpeed);
 
 		double mx = horizDist > 1.0E-6 ? delta.x / horizDist * horizSpeed : 0;
 		double mz = horizDist > 1.0E-6 ? delta.z / horizDist * horizSpeed : 0;
@@ -464,18 +454,18 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 			currentTurnSpeed = 0;
 
 		if (desiredTurnSpeed == 0) {
-			float nextTurnSpeed = Mth.approach(currentTurnSpeed, 0, TURN_BRAKE);
+			float nextTurnSpeed = Mth.approach(currentTurnSpeed, 0, getTurnBrake());
 			return Math.abs(nextTurnSpeed) < TURN_STOP_EPSILON ? 0 : nextTurnSpeed;
 		}
 
 		if (currentTurnSpeed != 0 && Math.signum(currentTurnSpeed) != Math.signum(desiredTurnSpeed)) {
-			float brakedTurnSpeed = Mth.approach(currentTurnSpeed, 0, TURN_DIRECTION_CHANGE_BRAKE);
+			float brakedTurnSpeed = Mth.approach(currentTurnSpeed, 0, getTurnDirectionChangeBrake());
 			if (Math.abs(brakedTurnSpeed) >= TURN_DIRECTION_EPSILON)
 				return brakedTurnSpeed;
 			currentTurnSpeed = 0;
 		}
 
-		return Mth.approach(currentTurnSpeed, desiredTurnSpeed, TURN_ACCELERATION);
+		return Mth.approach(currentTurnSpeed, desiredTurnSpeed, getTurnAcceleration());
 	}
 
 	private void setControlledYaw(float yaw) {
@@ -509,18 +499,76 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 	private static Vec3 clampMovement(Vec3 movement) {
 		double horizontalSpeed = movement.horizontalDistance();
-		if (horizontalSpeed > MAX_HORIZONTAL_SPEED) {
-			double scale = MAX_HORIZONTAL_SPEED / horizontalSpeed;
+		double maxHorizontalSpeed = getMaxHorizontalSpeed();
+		if (horizontalSpeed > maxHorizontalSpeed) {
+			double scale = maxHorizontalSpeed / horizontalSpeed;
 			movement = new Vec3(movement.x * scale, movement.y, movement.z * scale);
 		}
 
-		double verticalSpeed = Mth.clamp(movement.y, -MAX_VERTICAL_SPEED, MAX_VERTICAL_SPEED);
+		double maxVerticalSpeed = getMaxVerticalSpeed();
+		double verticalSpeed = Mth.clamp(movement.y, -maxVerticalSpeed, maxVerticalSpeed);
 		movement = new Vec3(movement.x, verticalSpeed, movement.z);
 
 		double x = Math.abs(movement.x) < MOTION_EPSILON ? 0 : movement.x;
 		double y = Math.abs(movement.y) < MOTION_EPSILON ? 0 : movement.y;
 		double z = Math.abs(movement.z) < MOTION_EPSILON ? 0 : movement.z;
 		return new Vec3(x, y, z);
+	}
+
+	private static double getForwardAcceleration() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.forwardAcceleration.get();
+	}
+
+	private static double getBackwardAcceleration() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.backwardAcceleration.get();
+	}
+
+	private static double getVerticalAcceleration() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.verticalAcceleration.get();
+	}
+
+	private static double getHorizontalDrag() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.horizontalDrag.get();
+	}
+
+	private static double getVerticalDrag() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.verticalDrag.get();
+	}
+
+	private static double getMaxHorizontalSpeed() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.maxHorizontalSpeed.get();
+	}
+
+	private static double getMaxVerticalSpeed() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.maxVerticalSpeed.get();
+	}
+
+	private static float getTurnAcceleration() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.turnAcceleration.get().floatValue();
+	}
+
+	private static float getTurnBrake() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.turnBrake.get().floatValue();
+	}
+
+	private static float getTurnDirectionChangeBrake() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.turnDirectionChangeBrake.get().floatValue();
+	}
+
+	private static float getMaxTurnSpeed() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.maxTurnSpeed.get().floatValue();
+	}
+
+	private static int getInputTimeoutTicks() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.inputTimeoutTicks.get();
+	}
+
+	private static int getMagnetTimeoutTicks() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.magnetTimeoutTicks.get();
+	}
+
+	private static double getMagnetBrakeDistance() {
+		return CBConfigs.COMMON.ghastHotAirBalloon.magnetBrakeDistance.get();
 	}
 
 	public static EntityType.Builder<?> build(EntityType.Builder<?> builder) {

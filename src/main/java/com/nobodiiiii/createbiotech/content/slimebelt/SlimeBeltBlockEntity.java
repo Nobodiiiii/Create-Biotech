@@ -22,6 +22,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovemen
 import com.nobodiiiii.createbiotech.content.slimebelt.transport.SlimeBeltMovementHandler.TransportedEntityInfo;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.base.IRotate;
@@ -245,7 +246,10 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurf
 			return;
 
 		RandomSource random = level.random;
-		float chance = Math.min(.18f, .035f + beltLength * .008f + Math.abs(getBeltMovementSpeed()) * .12f);
+		CBConfigs.BeltParticles particles = CBConfigs.COMMON.beltParticles;
+		float chance = (float) Math.min(particles.slimeBeltMaxChance.get(),
+			particles.slimeBeltBaseChance.get() + beltLength * particles.slimeBeltLengthChance.get()
+				+ Math.abs(getBeltMovementSpeed()) * particles.slimeBeltSpeedChance.get());
 		if (random.nextFloat() >= chance)
 			return;
 

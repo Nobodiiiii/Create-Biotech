@@ -46,7 +46,7 @@ public class RotationHandler {
         return (getTickAngleSpeed(a) * pt ) % 360;
     }
     private static float getTickAngleSpeed(int amplifier){
-        return (3*amplifier+1)* ButterRotationEffect.ROTATION_ANGULAR_SPEED * acceleration;
+        return (3*amplifier+1)* ButterRotationEffect.getRotationAngularSpeed() * acceleration;
     }
 }
 

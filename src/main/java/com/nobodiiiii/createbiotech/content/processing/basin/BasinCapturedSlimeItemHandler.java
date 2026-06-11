@@ -47,7 +47,7 @@ public class BasinCapturedSlimeItemHandler implements IItemHandlerModifiable {
 	public int getSlotLimit(int slot) {
 		validateSlot(slot);
 		if (isCapturedSlimeSlot(slot))
-			return BasinEntityProcessing.MAX_CAPTURED_SMALL_SLIMES;
+			return BasinEntityProcessing.getMaxCapturedSmallSlimes();
 		return wrapped.getSlotLimit(slot);
 	}
 

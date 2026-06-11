@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.shulkerpackager;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.api.registry.CreateBuiltInRegistries;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
@@ -26,7 +27,7 @@ public class ShulkerPackagerArmInteractions {
 	public static void register() {}
 
 	public static boolean isSelectable(BlockState state) {
-		return isShulkerPackager(state) || isVanillaPackager(state);
+		return isShulkerPackager(state) || (!shouldOnlyConnectToShulkerPackagers() && isVanillaPackager(state));
 	}
 
 	public static boolean isShulkerPackager(BlockState state) {
@@ -58,5 +59,9 @@ public class ShulkerPackagerArmInteractions {
 		public ArmInteractionPoint createPoint(Level level, BlockPos pos, BlockState state) {
 			return new ArmInteractionPoint(this, level, pos, state);
 		}
+	}
+
+	private static boolean shouldOnlyConnectToShulkerPackagers() {
+		return CBConfigs.COMMON.shulkerPackager.onlyConnectToShulkerPackagers.get();
 	}
 }

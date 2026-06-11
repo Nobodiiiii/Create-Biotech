@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.experience;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.function.IntSupplier;
 
 import javax.annotation.Nullable;
 
@@ -38,7 +39,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class ExperienceClusterBlock extends Block implements ProperWaterloggedBlock {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
-	private final int xpNuggetValue;
+	private final IntSupplier xpNuggetValue;
 	private final VoxelShape northShape;
 	private final VoxelShape southShape;
 	private final VoxelShape eastShape;
@@ -47,6 +48,10 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 	private final VoxelShape downShape;
 
 	public ExperienceClusterBlock(int height, int xzOffset, int xpNuggetValue, Properties properties) {
+		this(height, xzOffset, () -> xpNuggetValue, properties);
+	}
+
+	public ExperienceClusterBlock(int height, int xzOffset, IntSupplier xpNuggetValue, Properties properties) {
 		super(properties);
 		this.xpNuggetValue = xpNuggetValue;
 		this.upShape = Block.box(xzOffset, 0.0, xzOffset, 16 - xzOffset, height, 16 - xzOffset);
@@ -61,7 +66,7 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 	}
 
 	public int getXpNuggetValue() {
-		return xpNuggetValue;
+		return xpNuggetValue.getAsInt();
 	}
 
 	@Override
@@ -152,7 +157,7 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 			Vec3 origin = builder.getOptionalParameter(LootContextParams.ORIGIN);
 			if (origin == null)
 				origin = Vec3.atCenterOf(BlockPos.ZERO);
-			ExperienceOrb.award(serverLevel, origin, xpNuggetValue * ExperienceConstants.XP_PER_NUGGET);
+			ExperienceOrb.award(serverLevel, origin, getXpValue());
 		}
 		return Collections.emptyList();
 	}
@@ -162,6 +167,10 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 		int silkTouchLevel) {
 		if (silkTouchLevel > 0)
 			return 0;
-		return xpNuggetValue * ExperienceConstants.XP_PER_NUGGET;
+		return getXpValue();
+	}
+
+	private int getXpValue() {
+		return getXpNuggetValue() * ExperienceConstants.xpPerNugget();
 	}
 }

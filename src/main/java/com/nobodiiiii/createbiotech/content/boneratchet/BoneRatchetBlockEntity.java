@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.boneratchet;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.stress.BlockStressValues;
 import com.simibubi.create.content.kinetics.base.DirectionalKineticBlock;
@@ -13,9 +14,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
 
 public class BoneRatchetBlockEntity extends SimpleKineticBlockEntity {
-
-	private static final float FALLBACK_JAM_STRESS_IMPACT = 20000f;
-	private static final float CREATIVE_MOTOR_MARGIN = 1024f;
 
 	private boolean refreshingStress;
 	private boolean wasReverseRotation;
@@ -79,7 +77,15 @@ public class BoneRatchetBlockEntity extends SimpleKineticBlockEntity {
 
 	private static float getJammingStressImpact() {
 		double creativeMotorCapacity = BlockStressValues.getCapacity(AllBlocks.CREATIVE_MOTOR.get());
-		double impact = Math.max(FALLBACK_JAM_STRESS_IMPACT, creativeMotorCapacity + CREATIVE_MOTOR_MARGIN);
+		double impact = Math.max(getFallbackJamStressImpact(), creativeMotorCapacity + getCreativeMotorMargin());
 		return impact > Float.MAX_VALUE ? Float.MAX_VALUE : (float) impact;
+	}
+
+	private static double getFallbackJamStressImpact() {
+		return CBConfigs.COMMON.boneRatchet.fallbackJamStressImpact.get();
+	}
+
+	private static double getCreativeMotorMargin() {
+		return CBConfigs.COMMON.boneRatchet.creativeMotorMargin.get();
 	}
 }

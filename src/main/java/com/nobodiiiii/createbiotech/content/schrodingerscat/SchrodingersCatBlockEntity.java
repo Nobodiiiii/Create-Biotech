@@ -7,6 +7,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -29,6 +30,7 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
@@ -39,8 +41,6 @@ import net.minecraft.world.phys.Vec3;
 public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 
 	private static final Random RANDOM = new Random();
-	private static final int DEFAULT_INTERVAL = 20;
-	private static final int MAX_INTERVAL = 60 * 20 * 60;
 	private static final int PULSE_DURATION = 2;
 
 	private static final String SIGNAL_STRENGTH_TAG = "SignalStrength";
@@ -68,10 +68,10 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
 		detectionIntervalValue =
 			new DetectionIntervalValueBehaviour(this, new SchrodingersCatSideValueBoxTransform(true));
-		detectionIntervalValue.between(1, MAX_INTERVAL);
+		detectionIntervalValue.between(1, getMaxInterval());
 		detectionIntervalValue.withFormatter(this::formatDetectionInterval);
 		detectionIntervalValue.withCallback(this::onDetectionIntervalChanged);
-		detectionIntervalValue.setValue(DEFAULT_INTERVAL);
+		detectionIntervalValue.setValue(getDefaultInterval());
 		behaviours.add(detectionIntervalValue);
 
 		outputModeValue = new OutputModeValueBehaviour(this, new SchrodingersCatSideValueBoxTransform(false));
@@ -98,7 +98,7 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 		tickCounter++;
 		if (tickCounter >= getDetectionInterval()) {
 			tickCounter = 0;
-			signalStrength = RANDOM.nextBoolean() ? 15 : 0;
+			signalStrength = RANDOM.nextDouble() < getHighSignalChance() ? 15 : 0;
 			pulseTicks = getOutputMode() == SchrodingersCatOutputMode.PULSE && signalStrength > 0 ? PULSE_DURATION : 0;
 			dataChanged = true;
 		}
@@ -141,7 +141,8 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 	}
 
 	private int getDetectionInterval() {
-		return detectionIntervalValue == null ? DEFAULT_INTERVAL : detectionIntervalValue.getValue();
+		return detectionIntervalValue == null ? getDefaultInterval()
+			: Mth.clamp(detectionIntervalValue.getValue(), 1, getMaxInterval());
 	}
 
 	private SchrodingersCatOutputMode getOutputMode() {
@@ -171,6 +172,18 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 		return value / 20 / 60 + "m";
 	}
 
+	private static int getDefaultInterval() {
+		return Mth.clamp(CBConfigs.COMMON.schrodingersCat.defaultInterval.get(), 1, getMaxInterval());
+	}
+
+	private static int getMaxInterval() {
+		return Math.max(1, CBConfigs.COMMON.schrodingersCat.maxInterval.get());
+	}
+
+	private static double getHighSignalChance() {
+		return CBConfigs.COMMON.schrodingersCat.highSignalChance.get();
+	}
+
 	private static class DetectionIntervalValueBehaviour extends ScrollValueBehaviour {
 
 		private static final BehaviourType<DetectionIntervalValueBehaviour> TYPE = new BehaviourType<>();
@@ -193,7 +206,7 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 		@Override
 		public void read(CompoundTag nbt, boolean clientPacket) {
 			if (nbt.contains(TAG))
-				value = nbt.getInt(TAG);
+				value = Mth.clamp(nbt.getInt(TAG), 1, getMaxInterval());
 		}
 
 		@Override

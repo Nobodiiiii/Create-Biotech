@@ -2,8 +2,10 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -16,28 +18,10 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-
-import java.util.Set;
+import net.minecraftforge.registries.ForgeRegistries;
 
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class CardboardBoxHandler {
-
-	public static final Set<EntityType<?>> SMALL_MOBS = Set.of(
-		EntityType.SLIME,
-		EntityType.CAT,
-		EntityType.BAT,
-		EntityType.CHICKEN,
-		EntityType.RABBIT,
-		EntityType.SILVERFISH,
-		EntityType.ENDERMITE,
-		EntityType.BEE,
-		EntityType.PARROT,
-		EntityType.ALLAY,
-		EntityType.FROG,
-		EntityType.OCELOT,
-		EntityType.VEX,
-		EntityType.MAGMA_CUBE
-	);
 
 	private CardboardBoxHandler() {}
 
@@ -81,6 +65,8 @@ public class CardboardBoxHandler {
 		EntityType<?> type = target.getType();
 		if (target instanceof Slime slime && slime.getSize() > 1) return false;
 		if (target instanceof MagmaCube magmaCube && magmaCube.getSize() > 1) return false;
-		return SMALL_MOBS.contains(type);
+		ResourceLocation id = ForgeRegistries.ENTITY_TYPES.getKey(type);
+		return id != null && CBConfigs.containsResourceLocation(
+			CBConfigs.COMMON.cardboardBox.smallBoxEntityAllowlist.get(), id);
 	}
 }

@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.world.InteractionHand;
@@ -25,12 +26,12 @@ public class LargeCardboardBoxHandler {
 	@SubscribeEvent
 	public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
 		Player player = event.getEntity();
-		if (!player.isCreative())
-			return;
 
 		InteractionHand hand = event.getHand();
 		ItemStack stack = player.getItemInHand(hand);
 		if (!stack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
+			return;
+		if (CBConfigs.COMMON.cardboardBox.largeBoxCreativeOnly.get() && !player.isCreative())
 			return;
 		if (player.isShiftKeyDown())
 			return;
@@ -39,6 +40,8 @@ public class LargeCardboardBoxHandler {
 
 		Entity target = event.getTarget();
 		if (!(target instanceof Mob mobTarget))
+			return;
+		if (!canLargeBoxCapture(mobTarget))
 			return;
 
 		event.setCanceled(true);
@@ -54,10 +57,15 @@ public class LargeCardboardBoxHandler {
 
 	@SubscribeEvent
 	public static void onLivingDamage(LivingDamageEvent event) {
+		if (!CBConfigs.COMMON.cardboardBox.lethalCaptureEnabled.get())
+			return;
+
 		LivingEntity target = event.getEntity();
 		if (target.level().isClientSide())
 			return;
-		if (!(target instanceof Mob))
+		if (!(target instanceof Mob mobTarget))
+			return;
+		if (!canLargeBoxCapture(mobTarget))
 			return;
 		if (target.getHealth() > event.getAmount())
 			return;
@@ -83,5 +91,11 @@ public class LargeCardboardBoxHandler {
 	private static Player getCapturingPlayer(DamageSource source) {
 		Entity sourceEntity = source.getEntity();
 		return sourceEntity instanceof Player player ? player : null;
+	}
+
+	private static boolean canLargeBoxCapture(Mob target) {
+		CBConfigs.CardboardBox config = CBConfigs.COMMON.cardboardBox;
+		return CBConfigs.isEntityTypeAllowed(target.getType(), config.largeBoxEntityListMode.get(),
+			config.largeBoxEntityAllowlist.get(), config.largeBoxEntityDenylist.get());
 	}
 }

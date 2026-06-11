@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
@@ -28,8 +29,6 @@ public class UniversalJointItem extends BlockItem {
 
 	public static final String FIRST_TARGET_KEY = "FirstUniversalJointTarget";
 	public static final String FIRST_FACE_KEY = "FirstUniversalJointFace";
-	private static final int RANGE_RADIUS = 2;
-	private static final int PREVIEW_RANGE = 16;
 
 	public UniversalJointItem(Properties properties) {
 		super(CBBlocks.UNIVERSAL_JOINT.get(), properties);
@@ -69,7 +68,7 @@ public class UniversalJointItem extends BlockItem {
 				context.getItemInHand().shrink(1);
 			if (!context.getItemInHand().isEmpty())
 				context.getItemInHand().setTag(null);
-			player.getCooldowns().addCooldown(this, 5);
+			player.getCooldowns().addCooldown(this, getItemCooldownTicks());
 			if (player instanceof ServerPlayer serverPlayer)
 				CBAdvancements.award(serverPlayer, CBAdvancements.UNIVERSAL_JOINT);
 			return InteractionResult.SUCCESS;
@@ -77,7 +76,7 @@ public class UniversalJointItem extends BlockItem {
 
 		writeFirstEndpoint(tag, clickedEndpoint);
 		context.getItemInHand().setTag(tag);
-		player.getCooldowns().addCooldown(this, 5);
+		player.getCooldowns().addCooldown(this, getItemCooldownTicks());
 		return InteractionResult.SUCCESS;
 	}
 
@@ -118,16 +117,30 @@ public class UniversalJointItem extends BlockItem {
 
 	public static boolean isWithinHitRange(BlockPos firstJoint, BlockPos secondJoint) {
 		BlockPos diff = secondJoint.subtract(firstJoint);
-		return Math.abs(diff.getX()) <= RANGE_RADIUS
-			&& Math.abs(diff.getY()) <= RANGE_RADIUS
-			&& Math.abs(diff.getZ()) <= RANGE_RADIUS;
+		int range = getMaxConnectionRange();
+		return Math.abs(diff.getX()) <= range
+			&& Math.abs(diff.getY()) <= range
+			&& Math.abs(diff.getZ()) <= range;
 	}
 
 	public static boolean isWithinPreviewRange(BlockPos firstJoint, BlockPos secondJoint) {
 		BlockPos diff = secondJoint.subtract(firstJoint);
-		return Math.abs(diff.getX()) < PREVIEW_RANGE
-			&& Math.abs(diff.getY()) < PREVIEW_RANGE
-			&& Math.abs(diff.getZ()) < PREVIEW_RANGE;
+		int range = getPreviewRange();
+		return Math.abs(diff.getX()) < range
+			&& Math.abs(diff.getY()) < range
+			&& Math.abs(diff.getZ()) < range;
+	}
+
+	private static int getMaxConnectionRange() {
+		return CBConfigs.COMMON.universalJoint.maxConnectionRange.get();
+	}
+
+	private static int getPreviewRange() {
+		return CBConfigs.COMMON.universalJoint.previewRange.get();
+	}
+
+	private static int getItemCooldownTicks() {
+		return CBConfigs.COMMON.universalJoint.itemCooldownTicks.get();
 	}
 
 	private static boolean placeJointPair(Level level, Endpoint first, Endpoint second) {

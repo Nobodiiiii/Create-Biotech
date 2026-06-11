@@ -41,7 +41,6 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	implements ExperienceSink, IHaveGoggleInformation, JadeExperienceProvider {
 
 	public static final int CAST_DURATION_TICKS_PER_LEVEL = 40;
-	public static final int XP_PER_TICK = ExperienceConstants.CHAMBER_XP_PER_LEVEL / CAST_DURATION_TICKS_PER_LEVEL;
 	private static final int CLIENT_SYNC_INTERVAL_TICKS = 10;
 	private static final double BOOK_FRONT_OFFSET = 4d / 16d;
 	private static final double BOOK_BASE_Y = 20d / 16d;
@@ -78,7 +77,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		if (be.heldItem.isEmpty() || be.xpRemaining <= 0)
 			return;
 
-		int drain = Math.min(XP_PER_TICK, Math.min(be.xpRemaining, be.storedExperience));
+		int drain = Math.min(getXpPerTick(), Math.min(be.xpRemaining, be.storedExperience));
 		if (drain <= 0) {
 			if (!be.waitingForExperience) {
 				be.waitingForExperience = true;
@@ -163,7 +162,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	private void startCasting(ItemStack copyStack) {
 		heldItem = copyStack;
 		int totalLevels = ExperienceHelper.sumStoredEnchantmentLevels(copyStack);
-		xpTotal = totalLevels * ExperienceConstants.CHAMBER_XP_PER_LEVEL;
+		xpTotal = totalLevels * ExperienceConstants.chamberXpPerLevel();
 		xpRemaining = xpTotal;
 		waitingForExperience = xpTotal > 0 && storedExperience <= 0;
 		clientSyncTimer = 0;
@@ -236,7 +235,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 	@Override
 	public int getJadeMaxXp() {
-		return ExperienceConstants.CHAMBER_CACHE_CAPACITY;
+		return ExperienceConstants.chamberCacheCapacity();
 	}
 
 	public boolean isBlocked() {
@@ -360,7 +359,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
 			return controller.getExperienceSpace();
-		return Math.max(0, ExperienceConstants.CHAMBER_CACHE_CAPACITY - storedExperience);
+		return Math.max(0, ExperienceConstants.chamberCacheCapacity() - storedExperience);
 	}
 
 	@Override
@@ -384,7 +383,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 				.add(Component.translatable(unitKey))
 				.style(ChatFormatting.GOLD))
 			.text(ChatFormatting.GRAY, " / ")
-			.add(CreateLang.number(ExperienceConstants.CHAMBER_CACHE_CAPACITY)
+			.add(CreateLang.number(ExperienceConstants.chamberCacheCapacity())
 				.add(Component.translatable(unitKey))
 				.style(ChatFormatting.DARK_GRAY))
 			.forGoggles(tooltip, 1);
@@ -601,5 +600,10 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 	public void dropContents() {
 		dropContentsAndExperience();
+	}
+
+	private static int getXpPerTick() {
+		return Math.max(1, Mth.ceil((float) ExperienceConstants.chamberXpPerLevel()
+			/ Math.max(1, com.nobodiiiii.createbiotech.registry.CBConfigs.COMMON.evokerEnchantingChamber.castDurationTicksPerLevel.get())));
 	}
 }

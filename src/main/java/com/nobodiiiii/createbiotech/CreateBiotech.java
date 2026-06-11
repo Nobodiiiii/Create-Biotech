@@ -11,6 +11,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovement
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBContraptionTypes;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
@@ -38,6 +39,7 @@ public class CreateBiotech {
 
 	public CreateBiotech() {
 		IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+		CBConfigs.register();
 		CBBlocks.register(modEventBus);
 		CBItems.register(modEventBus);
 		CBFluids.register(modEventBus);

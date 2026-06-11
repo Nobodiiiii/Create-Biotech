@@ -102,19 +102,19 @@ public class CBBlocks {
 
 	public static final RegistryObject<ExperienceClusterBlock> SMALL_EXPERIENCE_BUD =
 		BLOCKS.register("small_experience_bud",
-			() -> new ExperienceClusterBlock(3, 4, ExperienceConstants.SMALL_BUD_NUGGET_VALUE, clusterProperties()));
+			() -> new ExperienceClusterBlock(3, 4, ExperienceConstants::smallBudNuggetValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> MEDIUM_EXPERIENCE_BUD =
 		BLOCKS.register("medium_experience_bud",
-			() -> new ExperienceClusterBlock(4, 3, ExperienceConstants.MEDIUM_BUD_NUGGET_VALUE, clusterProperties()));
+			() -> new ExperienceClusterBlock(4, 3, ExperienceConstants::mediumBudNuggetValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> LARGE_EXPERIENCE_BUD =
 		BLOCKS.register("large_experience_bud",
-			() -> new ExperienceClusterBlock(5, 3, ExperienceConstants.LARGE_BUD_NUGGET_VALUE, clusterProperties()));
+			() -> new ExperienceClusterBlock(5, 3, ExperienceConstants::largeBudNuggetValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> EXPERIENCE_CLUSTER =
 		BLOCKS.register("experience_cluster",
-			() -> new ExperienceClusterBlock(7, 3, ExperienceConstants.CLUSTER_NUGGET_VALUE, clusterProperties()));
+			() -> new ExperienceClusterBlock(7, 3, ExperienceConstants::clusterNuggetValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceTankBlock> EXPERIENCE_TANK = BLOCKS.register("experience_tank",
 		() -> new ExperienceTankBlock(Block.Properties.of()

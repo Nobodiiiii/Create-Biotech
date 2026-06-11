@@ -6,6 +6,8 @@ import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
+import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterFoodItem;
+import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterSequencedAssemblyItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlockItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
@@ -25,7 +27,6 @@ import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
-import com.simibubi.create.content.processing.sequenced.SequencedAssemblyItem;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
@@ -53,19 +54,19 @@ public class CBItems {
 
 	public static final RegistryObject<Item> SMALL_EXPERIENCE_BUD = ITEMS.register("small_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.SMALL_EXPERIENCE_BUD.get(),
-			ExperienceConstants.SMALL_BUD_NUGGET_VALUE, new Item.Properties()));
+			ExperienceConstants::smallBudNuggetValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> MEDIUM_EXPERIENCE_BUD = ITEMS.register("medium_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.MEDIUM_EXPERIENCE_BUD.get(),
-			ExperienceConstants.MEDIUM_BUD_NUGGET_VALUE, new Item.Properties()));
+			ExperienceConstants::mediumBudNuggetValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> LARGE_EXPERIENCE_BUD = ITEMS.register("large_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.LARGE_EXPERIENCE_BUD.get(),
-			ExperienceConstants.LARGE_BUD_NUGGET_VALUE, new Item.Properties()));
+			ExperienceConstants::largeBudNuggetValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPERIENCE_CLUSTER = ITEMS.register("experience_cluster",
 		() -> new ExperienceClusterBlockItem(CBBlocks.EXPERIENCE_CLUSTER.get(),
-			ExperienceConstants.CLUSTER_NUGGET_VALUE, new Item.Properties()));
+			ExperienceConstants::clusterNuggetValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPERIENCE_TANK = ITEMS.register("experience_tank",
 		() -> new ExperienceTankItem(CBBlocks.EXPERIENCE_TANK.get(), new Item.Properties()));
@@ -184,11 +185,11 @@ public class CBItems {
 
 	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
 	// here so the project's primary item registry remains the place to inspect mod items.
-	public static final ItemEntry<Item> BUTTER = ModItems.BUTTER;
-	public static final ItemEntry<Item> HONEY_BUTTER = ModItems.HONEY_BUTTER;
-	public static final ItemEntry<SequencedAssemblyItem> INCOMPLETE_SUPER_BUTTER =
+	public static final ItemEntry<ConfigurableButterFoodItem> BUTTER = ModItems.BUTTER;
+	public static final ItemEntry<ConfigurableButterFoodItem> HONEY_BUTTER = ModItems.HONEY_BUTTER;
+	public static final ItemEntry<ConfigurableButterSequencedAssemblyItem> INCOMPLETE_SUPER_BUTTER =
 		ModItems.INCOMPLETE_SUPER_BUTTER;
-	public static final ItemEntry<Item> SUPER_BUTTER = ModItems.SUPER_BUTTER;
+	public static final ItemEntry<ConfigurableButterFoodItem> SUPER_BUTTER = ModItems.SUPER_BUTTER;
 
 	private CBItems() {}
 

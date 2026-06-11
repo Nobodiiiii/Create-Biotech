@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.wirelessterminal;
 
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.simibubi.create.content.logistics.stockTicker.StockKeeperRequestMenu;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
@@ -12,8 +13,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.phys.Vec3;
 
 public class WirelessStockKeeperRequestMenu extends StockKeeperRequestMenu {
-
-	public static final int ACCESS_RANGE = 32;
 
 	public WirelessStockKeeperRequestMenu(int id, Inventory inv, FriendlyByteBuf extraData) {
 		this(CBMenuTypes.WIRELESS_STOCK_KEEPER_REQUEST.get(), id, inv, extraData);
@@ -35,7 +34,14 @@ public class WirelessStockKeeperRequestMenu extends StockKeeperRequestMenu {
 
 	@Override
 	public boolean stillValid(Player player) {
-		return contentHolder != null && !contentHolder.isRemoved() && player.level() == contentHolder.getLevel()
-			&& player.position().closerThan(Vec3.atCenterOf(contentHolder.getBlockPos()), ACCESS_RANGE + 0.5d);
+		if (contentHolder == null || contentHolder.isRemoved())
+			return false;
+		if (player.level() != contentHolder.getLevel())
+			return CBConfigs.COMMON.wireless.allowCrossDimensionTerminal.get();
+		return player.position().closerThan(Vec3.atCenterOf(contentHolder.getBlockPos()), getAccessRange() + 0.5d);
+	}
+
+	public static int getAccessRange() {
+		return CBConfigs.COMMON.wireless.terminalAccessRange.get();
 	}
 }

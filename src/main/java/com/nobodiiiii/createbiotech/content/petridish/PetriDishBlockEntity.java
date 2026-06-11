@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
@@ -53,10 +54,6 @@ import net.minecraftforge.items.ItemStackHandler;
 
 public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
-	public static final int SCAN_INTERVAL = 20;
-	public static final int FLUID_PER_HEALTH = 250;
-	public static final int SCAN_RADIUS = 2;
-	public static final int TANK_CAPACITY = 51200;
 	public static final int GROWTH_ANIMATION_DURATION = 8;
 	public static final int EMERGENCE_ANIMATION_DURATION = 20;
 	public static final double EMERGENCE_SPAWN_Y_OFFSET = 2.0d / 16.0d;
@@ -90,7 +87,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 	};
 
-	private final FluidTank fluidTank = new FluidTank(TANK_CAPACITY) {
+	private final FluidTank fluidTank = new FluidTank(getTankCapacity()) {
 		@Override
 		public boolean isFluidValid(FluidStack stack) {
 			return isAcceptedFluid(stack);
@@ -159,7 +156,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			scanCooldown--;
 
 		if (hasBionicMechanism() && scanCooldown <= 0) {
-			scanCooldown = SCAN_INTERVAL;
+			scanCooldown = getScanInterval();
 			updateRecordedEntityFromNearby();
 		}
 
@@ -324,7 +321,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public int getRequiredFluidAmount() {
 		if (recordedEntityId == null || recordedMaxHealth <= 0)
 			return 0;
-		return Math.max(1, (int) Math.ceil(recordedMaxHealth)) * FLUID_PER_HEALTH;
+		return Math.max(1, (int) Math.ceil(recordedMaxHealth)) * getFluidPerHealth();
 	}
 
 	public float getFillProgress() {
@@ -421,7 +418,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			updateRecordedEntityFromNearby();
 			return recordedEntityId != null;
 		}
-		return hasMatchingEntityNearby();
+		return !requiresNearbyMatchingEntity() || hasMatchingEntityNearby();
 	}
 
 	private boolean hasBionicMechanism() {
@@ -451,7 +448,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		if (recordedEntityId == null || recordedMaxHealth <= 0)
 			return;
-		if (!hasMatchingEntityNearby())
+		if (requiresNearbyMatchingEntity() && !hasMatchingEntityNearby())
 			return;
 
 		int required = getRequiredFluidAmount();
@@ -608,7 +605,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (level == null || !hasBionicMechanism())
 			return;
 		if (recordedEntityId != null) {
-			if (!hasMatchingEntityNearby()) {
+			if (requiresNearbyMatchingEntity() && !hasMatchingEntityNearby()) {
 				// Keep the record, but reject further filling until the type comes back nearby.
 				sendData();
 			}
@@ -638,8 +635,28 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private List<LivingEntity> getNearbyLivingEntities() {
 		if (level == null)
 			return List.of();
-		AABB bounds = new AABB(worldPosition).inflate(SCAN_RADIUS);
+		AABB bounds = new AABB(worldPosition).inflate(getScanRadius());
 		return level.getEntitiesOfClass(LivingEntity.class, bounds, this::isRecordableEntity);
+	}
+
+	private static int getScanInterval() {
+		return CBConfigs.COMMON.petriDish.scanInterval.get();
+	}
+
+	private static int getFluidPerHealth() {
+		return CBConfigs.COMMON.petriDish.fluidPerHealth.get();
+	}
+
+	private static int getScanRadius() {
+		return CBConfigs.COMMON.petriDish.scanRadius.get();
+	}
+
+	private static int getTankCapacity() {
+		return CBConfigs.COMMON.petriDish.tankCapacity.get();
+	}
+
+	private static boolean requiresNearbyMatchingEntity() {
+		return CBConfigs.COMMON.petriDish.requireNearbyMatchingEntity.get();
 	}
 
 	private boolean isRecordableEntity(LivingEntity entity) {

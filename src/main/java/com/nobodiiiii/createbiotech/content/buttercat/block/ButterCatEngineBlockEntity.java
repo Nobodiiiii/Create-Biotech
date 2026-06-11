@@ -2,8 +2,8 @@ package com.nobodiiiii.createbiotech.content.buttercat.block;
 
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.nobodiiiii.createbiotech.content.buttercat.register.ModConfigs;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModPartialModels;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -104,7 +104,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     }
 
     public int getCd(boolean remaining) {
-        return remaining ? 200 - cd : cd;
+        return remaining ? getButterDecayTicks() - cd : cd;
     }
 
     public void tick(){
@@ -113,7 +113,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         if(butterCount > 0){
             cd++;
         }
-        if(cd > 200 ){
+        if(cd > getButterDecayTicks() ){
             if(butterCount > 0) butterCount --;
             if(overflowCount > 0){
                 butterCount ++;
@@ -128,14 +128,19 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     //应力生产速度，黄油输入16个后达到最大速度，超出部分继续累加在应力系数上
     @Override
     public float getGeneratedSpeed() {
-        if (isInfinite()) return getDirectionalGeneratedSpeed(256);
-        int speed = butterCount <= 16  ? butterCount * 16 : 256;
+        float maxGeneratedRpm = (float) CBConfigs.COMMON.butterCat.maxGeneratedRpm.get().doubleValue();
+        if (isInfinite()) return getDirectionalGeneratedSpeed(maxGeneratedRpm);
+        int butterForMaxRpm = Math.max(1, CBConfigs.COMMON.butterCat.butterForMaxRpm.get());
+        float speed = butterCount <= butterForMaxRpm
+            ? butterCount * (float) CBConfigs.COMMON.butterCat.rpmPerButter.get().doubleValue()
+            : maxGeneratedRpm;
+        speed = Math.min(speed, maxGeneratedRpm);
         return getDirectionalGeneratedSpeed(speed);
     }
     //应力系数
     @Override
     public float calculateAddedStressCapacity() {
-        float capacity = this.butterCount * 2;
+        float capacity = this.butterCount * (float) CBConfigs.COMMON.butterCat.stressCapacityPerButter.get().doubleValue();
         if(isInfinite()) capacity = getMaxInfiniteOutput();
         this.lastCapacityProvided = capacity;
         return capacity;
@@ -206,10 +211,13 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return hasBread() ? ModPartialModels.BCE_ROPE : ModPartialModels.BCE_EMPTY;
     }
     public int getMaxButterCount(){
-        return ModConfigs.COMMON.maxButterCount.get();
+        return CBConfigs.COMMON.butterCat.maxButterCount.get();
     }
     public int getMaxInfiniteOutput(){
-        return ModConfigs.COMMON.maxInfiniteCapacity.get();
+        return CBConfigs.COMMON.butterCat.maxInfiniteCapacity.get();
+    }
+    private int getButterDecayTicks() {
+        return CBConfigs.COMMON.butterCat.butterDecayTicks.get();
     }
 }
 

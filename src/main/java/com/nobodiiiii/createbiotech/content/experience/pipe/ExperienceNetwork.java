@@ -149,7 +149,7 @@ public class ExperienceNetwork {
 		if (pressure <= 0)
 			return;
 
-		accumulatedTransfer += pressure * ExperienceConstants.PUMP_XP_PER_RPM_PER_SECOND / 20.0d;
+		accumulatedTransfer += pressure * ExperienceConstants.pumpXpPerRpmPerSecond() / 20.0d;
 		int budget = (int) Math.floor(accumulatedTransfer);
 		if (budget <= 0)
 			return;

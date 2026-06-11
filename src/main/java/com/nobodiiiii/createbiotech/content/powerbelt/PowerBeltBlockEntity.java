@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.powerbelt;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.IRotate;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
@@ -27,15 +28,8 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	public static final float MIN_SURFACE_SPEED = 1.0E-4f;
 
-	private static final int SURFACE_SPEED_DETECTION_INTERVAL = 10;
 	private static final float GENERATED_RPM_STEP = 4f;
-	private static final float MAX_GENERATED_RPM = 256f;
-	private static final float STRESS_CAPACITY_PER_RPM = 4f;
-	private static final float GENERATED_STRESS_STEP = GENERATED_RPM_STEP * STRESS_CAPACITY_PER_RPM;
-	private static final float MAX_STRESS_CAPACITY_PER_SEGMENT = 1024f;
-	private static final float SURFACE_METERS_PER_SECOND_TO_RPM = 24f;
 	private static final float TICKS_PER_SECOND = 20f;
-	private static final float SURFACE_SPEED_TO_RPM = SURFACE_METERS_PER_SECOND_TO_RPM * TICKS_PER_SECOND;
 
 	public int beltLength;
 	public int index;
@@ -128,7 +122,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 			nextDetectionGameTime++;
 
-			if (collectedDetectionTicks >= SURFACE_SPEED_DETECTION_INTERVAL)
+			if (collectedDetectionTicks >= getSurfaceSpeedDetectionInterval())
 				applyDetectedSurfaceMovement();
 		}
 	}
@@ -161,7 +155,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	private float surfaceSpeedToGeneratedRpm(float signedSurfaceSpeed) {
 		Direction facing = getBlockState().getValue(PowerBeltBlock.HORIZONTAL_FACING);
-		return roundToGeneratedRpmStep(-signedSurfaceSpeed * SURFACE_SPEED_TO_RPM / getDirectionFactor(facing));
+		return roundToGeneratedRpmStep(-signedSurfaceSpeed * getSurfaceSpeedToRpm() / getDirectionFactor(facing));
 	}
 
 	private float getStrongerSpeed(float currentSpeed, float candidateSpeed) {
@@ -177,21 +171,24 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 
 	private static float roundToGeneratedRpmStep(float speed) {
 		float magnitude = Mth.clamp(Math.round(Math.abs(speed) / GENERATED_RPM_STEP) * GENERATED_RPM_STEP, 0,
-			MAX_GENERATED_RPM);
+			getMaxGeneratedRpm());
 		return Math.copySign(magnitude, speed);
 	}
 
 	private static float getStressCapacityForRpm(float rpm) {
-		return Math.abs(rpm) * STRESS_CAPACITY_PER_RPM;
+		return Math.abs(rpm) * getStressCapacityPerRpm();
 	}
 
 	private float roundToGeneratedStressStep(float stressCapacity) {
-		float capacity = Math.round(stressCapacity / GENERATED_STRESS_STEP) * GENERATED_STRESS_STEP;
+		float generatedStressStep = getGeneratedStressStep();
+		if (generatedStressStep <= 0)
+			return 0;
+		float capacity = Math.round(stressCapacity / generatedStressStep) * generatedStressStep;
 		return Mth.clamp(capacity, 0, getMaxStressCapacity());
 	}
 
 	private float getMaxStressCapacity() {
-		return Math.max(0, beltLength) * MAX_STRESS_CAPACITY_PER_SEGMENT;
+		return Math.max(0, beltLength) * getMaxStressCapacityPerSegment();
 	}
 
 	private static float getDirectionFactor(Direction facing) {
@@ -276,7 +273,7 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	public float getBeltMovementSpeed() {
-		return getSpeed() / SURFACE_SPEED_TO_RPM;
+		return getSpeed() / getSurfaceSpeedToRpm();
 	}
 
 	@Override
@@ -411,5 +408,30 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	@Override
 	protected boolean isNoisy() {
 		return false;
+	}
+
+	private static int getSurfaceSpeedDetectionInterval() {
+		return Math.max(1, CBConfigs.COMMON.powerBelt.surfaceSpeedDetectionInterval.get());
+	}
+
+	private static float getMaxGeneratedRpm() {
+		return CBConfigs.COMMON.powerBelt.maxGeneratedRpm.get().floatValue();
+	}
+
+	private static float getStressCapacityPerRpm() {
+		return CBConfigs.COMMON.powerBelt.stressCapacityPerRpm.get().floatValue();
+	}
+
+	private static float getGeneratedStressStep() {
+		return GENERATED_RPM_STEP * getStressCapacityPerRpm();
+	}
+
+	private static float getMaxStressCapacityPerSegment() {
+		return CBConfigs.COMMON.powerBelt.maxStressCapacityPerSegment.get().floatValue();
+	}
+
+	private static float getSurfaceSpeedToRpm() {
+		float surfaceMetersPerSecondToRpm = CBConfigs.COMMON.powerBelt.surfaceMetersPerSecondToRpm.get().floatValue();
+		return Math.max(1.0E-6f, surfaceMetersPerSecondToRpm * TICKS_PER_SECOND);
 	}
 }

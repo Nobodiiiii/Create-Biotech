@@ -6,10 +6,12 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.item.ItemStack;
@@ -20,10 +22,6 @@ import net.minecraft.world.phys.Vec3;
 
 public class FixedCarrotFishingRodTemptGoal extends Goal {
 
-	private static final double SPEED_MODIFIER = 1.2;
-	private static final int SEARCH_RANGE = 10;
-	private static final double SEARCH_RANGE_SQR = SEARCH_RANGE * SEARCH_RANGE;
-	private static final double STOP_DISTANCE_SQR = 2.5 * 2.5;
 	private static final double ITEM_XZ_OFFSET = 6.5 / 16.0;
 
 	private final Animal animal;
@@ -50,7 +48,7 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 			return false;
 		}
 
-		searchCooldown = adjustedTickDelay(20);
+		searchCooldown = adjustedTickDelay(getSearchCooldown());
 		if (!animal.isAlive() || animal.isNoAi() || animal.isVehicle())
 			return false;
 
@@ -70,7 +68,7 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 		rodPos = null;
 		cachedBait = null;
 		animal.getNavigation().stop();
-		calmDown = adjustedTickDelay(100);
+		calmDown = adjustedTickDelay(getStopCooldown());
 	}
 
 	@Override
@@ -85,12 +83,12 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 			.setLookAt(baitPosition.x, baitPosition.y, baitPosition.z,
 				(float) (animal.getMaxHeadYRot() + 20), (float) animal.getMaxHeadXRot());
 
-		if (animal.distanceToSqr(baitPosition) < STOP_DISTANCE_SQR) {
+		if (animal.distanceToSqr(baitPosition) < getStopDistanceSqr()) {
 			animal.getNavigation().stop();
 			return;
 		}
 
-		animal.getNavigation().moveTo(baitPosition.x, baitPosition.y, baitPosition.z, SPEED_MODIFIER);
+		animal.getNavigation().moveTo(baitPosition.x, baitPosition.y, baitPosition.z, getSpeedModifier());
 	}
 
 	@Nullable
@@ -101,10 +99,12 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 		BlockPos nearest = null;
 		ItemStack nearestBait = null;
 		double nearestDistance = Double.MAX_VALUE;
+		int searchRange = getSearchBlockRange();
+		double searchRangeSqr = getSearchRangeSqr();
 
-		for (int x = animalPos.getX() - SEARCH_RANGE; x <= animalPos.getX() + SEARCH_RANGE; x++) {
-			for (int y = animalPos.getY() - SEARCH_RANGE; y <= animalPos.getY() + SEARCH_RANGE; y++) {
-				for (int z = animalPos.getZ() - SEARCH_RANGE; z <= animalPos.getZ() + SEARCH_RANGE; z++) {
+		for (int x = animalPos.getX() - searchRange; x <= animalPos.getX() + searchRange; x++) {
+			for (int y = animalPos.getY() - searchRange; y <= animalPos.getY() + searchRange; y++) {
+				for (int z = animalPos.getZ() - searchRange; z <= animalPos.getZ() + searchRange; z++) {
 					cursor.set(x, y, z);
 					BlockState state = level.getBlockState(cursor);
 					if (!state.is(CBBlocks.FIXED_CARROT_FISHING_ROD.get()))
@@ -120,7 +120,7 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 
 					Vec3 baitPosition = getBaitPosition(cursor.immutable(), state);
 					double distance = animal.distanceToSqr(baitPosition);
-					if (distance > SEARCH_RANGE_SQR || distance >= nearestDistance)
+					if (distance > searchRangeSqr || distance >= nearestDistance)
 						continue;
 
 					nearestDistance = distance;
@@ -151,7 +151,37 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 			return null;
 
 		Vec3 baitPosition = getBaitPosition(pos, state);
-		return animal.distanceToSqr(baitPosition) <= SEARCH_RANGE_SQR ? baitPosition : null;
+		return animal.distanceToSqr(baitPosition) <= getSearchRangeSqr() ? baitPosition : null;
+	}
+
+	private static double getSpeedModifier() {
+		return CBConfigs.COMMON.fixedCarrotFishingRod.speedModifier.get();
+	}
+
+	private static double getSearchRange() {
+		return CBConfigs.COMMON.fixedCarrotFishingRod.searchRange.get();
+	}
+
+	private static int getSearchBlockRange() {
+		return Mth.ceil(getSearchRange());
+	}
+
+	private static double getSearchRangeSqr() {
+		double searchRange = getSearchRange();
+		return searchRange * searchRange;
+	}
+
+	private static double getStopDistanceSqr() {
+		double stopDistance = CBConfigs.COMMON.fixedCarrotFishingRod.stopDistance.get();
+		return stopDistance * stopDistance;
+	}
+
+	private static int getSearchCooldown() {
+		return CBConfigs.COMMON.fixedCarrotFishingRod.searchCooldown.get();
+	}
+
+	private static int getStopCooldown() {
+		return CBConfigs.COMMON.fixedCarrotFishingRod.stopCooldown.get();
 	}
 
 	private static Vec3 getBaitPosition(BlockPos pos, BlockState state) {
