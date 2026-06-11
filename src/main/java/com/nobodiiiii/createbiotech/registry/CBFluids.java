@@ -1,10 +1,14 @@
 package com.nobodiiiii.createbiotech.registry;
 
+import java.util.function.Consumer;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModFluids;
 import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeFluidType;
+import com.simibubi.create.content.fluids.VirtualFluid;
 import com.tterrag.registrate.util.entry.FluidEntry;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -13,6 +17,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.material.Fluid;
+import net.minecraftforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.common.SoundActions;
 import net.minecraftforge.fluids.FluidType;
@@ -34,6 +39,37 @@ public class CBFluids {
 
 	public static final DeferredRegister<Item> FLUID_ITEMS =
 		DeferredRegister.create(ForgeRegistries.ITEMS, CreateBiotech.MOD_ID);
+
+	private static final ResourceLocation EXPERIENCE_STILL_TEXTURE =
+		new ResourceLocation("create_enchantment_industry", "fluid/experience_still");
+	private static final ResourceLocation EXPERIENCE_FLOW_TEXTURE =
+		new ResourceLocation("create_enchantment_industry", "fluid/experience_flow");
+
+	public static final RegistryObject<FluidType> EXPERIENCE_TYPE =
+		FLUID_TYPES.register("experience",
+			() -> new FluidType(FluidType.Properties.create()
+				.lightLevel(15)) {
+				@Override
+				public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
+					consumer.accept(new IClientFluidTypeExtensions() {
+						@Override
+						public ResourceLocation getStillTexture() {
+							return EXPERIENCE_STILL_TEXTURE;
+						}
+
+						@Override
+						public ResourceLocation getFlowingTexture() {
+							return EXPERIENCE_FLOW_TEXTURE;
+						}
+					});
+				}
+			});
+
+	public static final RegistryObject<VirtualFluid> EXPERIENCE =
+		FLUIDS.register("experience", () -> VirtualFluid.createSource(experienceProperties()));
+
+	public static final RegistryObject<VirtualFluid> EXPERIENCE_FLOWING =
+		FLUIDS.register("flowing_experience", () -> VirtualFluid.createFlowing(experienceProperties()));
 
 	public static final RegistryObject<LiquidLivingSlimeFluidType> LIQUID_LIVING_SLIME_TYPE =
 		FLUID_TYPES.register("liquid_living_slime",
@@ -71,6 +107,10 @@ public class CBFluids {
 	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
 	// here so the project's primary fluid registry remains the place to inspect mod fluids.
 	public static final FluidEntry<ForgeFlowingFluid.Flowing> CREAM = ModFluids.CREAM;
+
+	private static ForgeFlowingFluid.Properties experienceProperties() {
+		return new ForgeFlowingFluid.Properties(EXPERIENCE_TYPE, EXPERIENCE, EXPERIENCE_FLOWING);
+	}
 
 	private static ForgeFlowingFluid.Properties liquidLivingSlimeProperties() {
 		return new ForgeFlowingFluid.Properties(

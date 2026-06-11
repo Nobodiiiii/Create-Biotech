@@ -40,9 +40,7 @@ public class ExperiencePumpJeiCategory extends AbstractRecipeCategory<Experience
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
 			.addItemStack(recipe.input().copy());
 
-		builder.addSlot(RecipeIngredientRole.OUTPUT, 121, 34)
-			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStack(recipe.output().copy());
+		CreateRecipeCategory.addFluidSlot(builder, 121, 34, recipe.output().copy());
 	}
 
 	@Override

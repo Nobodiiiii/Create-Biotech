@@ -1,5 +1,5 @@
 {
-  "parent": "create_biotech:experience_tank",
+  "parent": "create_biotech:experience_pump",
   "criteria": {
     "has_budding_experience": {
       "conditions": {

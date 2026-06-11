@@ -41,9 +41,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.MAGMA_BELT_CONNECTOR.get());
 				output.accept(CBItems.EVOKER_ENCHANTING_CHAMBER.get());
 				output.accept(CBItems.SQUID_PRINTER.get());
-				output.accept(CBItems.EXPERIENCE_TANK.get());
 				output.accept(CBItems.EXPERIENCE_PUMP.get());
-				output.accept(CBItems.EXPERIENCE_PIPE.get());
 				output.accept(CBItems.BUDDING_EXPERIENCE.get());
 				output.accept(CBItems.SMALL_EXPERIENCE_BUD.get());
 				output.accept(CBItems.MEDIUM_EXPERIENCE_BUD.get());

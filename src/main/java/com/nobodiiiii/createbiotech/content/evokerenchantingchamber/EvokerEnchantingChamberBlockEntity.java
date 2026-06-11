@@ -4,8 +4,8 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.compat.jade.JadeExperienceProvider;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceFluidHelper;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceHelper;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceSink;
 import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -35,10 +35,12 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 public class EvokerEnchantingChamberBlockEntity extends BlockEntity
-	implements ExperienceSink, IHaveGoggleInformation, JadeExperienceProvider {
+	implements IHaveGoggleInformation, JadeExperienceProvider {
 
 	public static final int CAST_DURATION_TICKS_PER_LEVEL = 40;
 	private static final int CLIENT_SYNC_INTERVAL_TICKS = 10;
@@ -60,10 +62,12 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	private ItemStack heldItem = ItemStack.EMPTY;
 	private ItemStack pendingOutput = ItemStack.EMPTY;
 	private final LazyOptional<IItemHandler> itemHandlerCap;
+	private final LazyOptional<IFluidHandler> fluidHandlerCap;
 
 	public EvokerEnchantingChamberBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get(), pos, state);
 		itemHandlerCap = LazyOptional.of(this::createItemHandler);
+		fluidHandlerCap = LazyOptional.of(() -> new ChamberFluidHandler());
 	}
 
 	public static void tick(Level level, BlockPos pos, BlockState state, EvokerEnchantingChamberBlockEntity be) {
@@ -330,16 +334,17 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 	@Override
 	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
-		if (cap == ForgeCapabilities.ITEM_HANDLER) {
+		if (cap == ForgeCapabilities.ITEM_HANDLER || cap == ForgeCapabilities.FLUID_HANDLER) {
 			EvokerEnchantingChamberBlockEntity controller = getController();
 			if (controller != null && controller != this)
 				return controller.getCapability(cap, side);
+			if (cap == ForgeCapabilities.FLUID_HANDLER)
+				return fluidHandlerCap.cast();
 			return itemHandlerCap.cast();
 		}
 		return super.getCapability(cap, side);
 	}
 
-	@Override
 	public int insertExperience(int amount, boolean simulate) {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
@@ -354,7 +359,6 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return accepted;
 	}
 
-	@Override
 	public int getExperienceSpace() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
@@ -422,6 +426,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	public void invalidateCaps() {
 		super.invalidateCaps();
 		itemHandlerCap.invalidate();
+		fluidHandlerCap.invalidate();
 	}
 
 	private void syncToClient() {
@@ -595,6 +600,45 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		public boolean isItemValid(int slot, ItemStack stack) {
 			return slot == 0 && stack.getItem() == CBItems.ENCHANTMENT_BOOK_COPY.get()
 				&& EnchantmentBookCopyItem.hasStoredEnchantments(stack);
+		}
+	}
+
+	private class ChamberFluidHandler implements IFluidHandler {
+		@Override
+		public int getTanks() {
+			return 1;
+		}
+
+		@Override
+		public FluidStack getFluidInTank(int tank) {
+			return ExperienceFluidHelper.experienceStack(storedExperience);
+		}
+
+		@Override
+		public int getTankCapacity(int tank) {
+			return ExperienceConstants.chamberCacheCapacity();
+		}
+
+		@Override
+		public boolean isFluidValid(int tank, FluidStack stack) {
+			return ExperienceFluidHelper.isExperience(stack);
+		}
+
+		@Override
+		public int fill(FluidStack resource, FluidAction action) {
+			if (!ExperienceFluidHelper.isExperience(resource))
+				return 0;
+			return insertExperience(ExperienceFluidHelper.fluidAmountToXp(resource.getAmount()), action.simulate());
+		}
+
+		@Override
+		public FluidStack drain(FluidStack resource, FluidAction action) {
+			return FluidStack.EMPTY;
+		}
+
+		@Override
+		public FluidStack drain(int maxDrain, FluidAction action) {
+			return FluidStack.EMPTY;
 		}
 	}
 

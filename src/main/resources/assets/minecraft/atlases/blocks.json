@@ -98,18 +98,6 @@
     },
     {
       "type": "single",
-      "resource": "create_biotech:block/experience_tank/base_connected"
-    },
-    {
-      "type": "single",
-      "resource": "create_biotech:block/experience_tank/top_connected"
-    },
-    {
-      "type": "single",
-      "resource": "create_biotech:block/experience_tank/inner_connected"
-    },
-    {
-      "type": "single",
       "resource": "create_biotech:entity/spider_assembly_table/spider"
     },
     {

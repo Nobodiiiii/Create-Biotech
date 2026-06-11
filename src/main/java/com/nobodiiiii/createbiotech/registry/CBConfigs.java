@@ -119,40 +119,22 @@ public class CBConfigs {
 
 	public static class Experience {
 		public final ForgeConfigSpec.IntValue xpPerNugget;
-		public final ForgeConfigSpec.IntValue tankCapacityPerBlock;
-		public final ForgeConfigSpec.IntValue chamberCacheCapacity;
-		public final ForgeConfigSpec.IntValue chamberXpPerLevel;
-		public final ForgeConfigSpec.DoubleValue pumpEfficiency;
-		public final ForgeConfigSpec.DoubleValue pumpXpPerRpmPerSecond;
-		public final ForgeConfigSpec.DoubleValue speedNormalizationRpm;
 		public final ForgeConfigSpec.IntValue clusterNuggetValue;
 		public final ForgeConfigSpec.IntValue largeBudNuggetValue;
 		public final ForgeConfigSpec.IntValue mediumBudNuggetValue;
 		public final ForgeConfigSpec.IntValue smallBudNuggetValue;
 		public final ForgeConfigSpec.IntValue buddingGrowthChance;
-		public final ForgeConfigSpec.IntValue tankMaxWidth;
-		public final ForgeConfigSpec.IntValue tankMaxHeight;
-		public final ForgeConfigSpec.IntValue pumpRange;
 		public final ForgeConfigSpec.IntValue clusterMaxOrbsPerPinch;
 		public final ForgeConfigSpec.IntValue clusterMinXpPerSplitOrb;
 
 		Experience(ForgeConfigSpec.Builder builder) {
 			builder.push("experience");
 			xpPerNugget = builder.defineInRange("xpPerNugget", 3, 1, Integer.MAX_VALUE);
-			tankCapacityPerBlock = builder.defineInRange("tankCapacityPerBlock", 3000, 1, Integer.MAX_VALUE);
-			chamberCacheCapacity = builder.defineInRange("chamberCacheCapacity", 3000, 1, Integer.MAX_VALUE);
-			chamberXpPerLevel = builder.defineInRange("chamberXpPerLevel", 1000, 1, Integer.MAX_VALUE);
-			pumpEfficiency = builder.defineInRange("pumpEfficiency", 1.0d, 0.0d, Double.MAX_VALUE);
-			pumpXpPerRpmPerSecond = builder.defineInRange("pumpXpPerRpmPerSecond", 0.75d, 0.0d, Double.MAX_VALUE);
-			speedNormalizationRpm = builder.defineInRange("speedNormalizationRpm", 256.0d, 1.0d, Double.MAX_VALUE);
 			clusterNuggetValue = builder.defineInRange("clusterNuggetValue", 64, 1, Integer.MAX_VALUE);
 			largeBudNuggetValue = builder.defineInRange("largeBudNuggetValue", 32, 1, Integer.MAX_VALUE);
 			mediumBudNuggetValue = builder.defineInRange("mediumBudNuggetValue", 16, 1, Integer.MAX_VALUE);
 			smallBudNuggetValue = builder.defineInRange("smallBudNuggetValue", 8, 1, Integer.MAX_VALUE);
 			buddingGrowthChance = builder.defineInRange("buddingGrowthChance", 20, 1, Integer.MAX_VALUE);
-			tankMaxWidth = builder.defineInRange("tankMaxWidth", 3, 1, 16);
-			tankMaxHeight = builder.defineInRange("tankMaxHeight", 32, 1, 256);
-			pumpRange = builder.defineInRange("pumpRange", 16, 1, 1024);
 			clusterMaxOrbsPerPinch = builder.defineInRange("clusterMaxOrbsPerPinch", 5, 1, 64);
 			clusterMinXpPerSplitOrb = builder.defineInRange("clusterMinXpPerSplitOrb", 37, 1, Integer.MAX_VALUE);
 			builder.pop();

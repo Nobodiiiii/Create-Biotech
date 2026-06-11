@@ -11,7 +11,6 @@ import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterSeq
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlockItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceTankItem;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberItem;
 import com.nobodiiiii.createbiotech.content.experience.HiddenExperienceItem;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultItem;
@@ -67,12 +66,6 @@ public class CBItems {
 	public static final RegistryObject<Item> EXPERIENCE_CLUSTER = ITEMS.register("experience_cluster",
 		() -> new ExperienceClusterBlockItem(CBBlocks.EXPERIENCE_CLUSTER.get(),
 			ExperienceConstants::clusterNuggetValue, new Item.Properties()));
-
-	public static final RegistryObject<Item> EXPERIENCE_TANK = ITEMS.register("experience_tank",
-		() -> new ExperienceTankItem(CBBlocks.EXPERIENCE_TANK.get(), new Item.Properties()));
-
-	public static final RegistryObject<Item> EXPERIENCE_PIPE = ITEMS.register("experience_pipe",
-		() -> new BlockItem(CBBlocks.EXPERIENCE_PIPE.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPERIENCE = ITEMS.register("experience",
 		() -> new HiddenExperienceItem(new Item.Properties()));

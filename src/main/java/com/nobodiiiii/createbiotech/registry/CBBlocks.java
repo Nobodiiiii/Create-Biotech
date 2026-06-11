@@ -15,9 +15,6 @@ import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlock;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceTankBlock;
-import com.nobodiiiii.createbiotech.content.experience.pipe.ExperienceEncasedPipeBlock;
-import com.nobodiiiii.createbiotech.content.experience.pipe.ExperiencePipeBlock;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultBlock;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodBlock;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlock;
@@ -115,29 +112,6 @@ public class CBBlocks {
 	public static final RegistryObject<ExperienceClusterBlock> EXPERIENCE_CLUSTER =
 		BLOCKS.register("experience_cluster",
 			() -> new ExperienceClusterBlock(7, 3, ExperienceConstants::clusterNuggetValue, clusterProperties()));
-
-	public static final RegistryObject<ExperienceTankBlock> EXPERIENCE_TANK = BLOCKS.register("experience_tank",
-		() -> new ExperienceTankBlock(Block.Properties.of()
-			.sound(SoundType.COPPER)
-			.strength(2.5f)
-			.mapColor(MapColor.METAL)
-			.noOcclusion()
-			.isRedstoneConductor((p1, p2, p3) -> true)));
-
-	public static final RegistryObject<ExperiencePipeBlock> EXPERIENCE_PIPE = BLOCKS.register("experience_pipe",
-		() -> new ExperiencePipeBlock(Block.Properties.of()
-			.sound(SoundType.COPPER)
-			.strength(2.0f)
-			.mapColor(MapColor.METAL)
-			.noOcclusion()));
-
-	public static final RegistryObject<ExperienceEncasedPipeBlock> ENCASED_EXPERIENCE_PIPE =
-		BLOCKS.register("encased_experience_pipe",
-			() -> new ExperienceEncasedPipeBlock(Block.Properties.of()
-				.sound(SoundType.COPPER)
-				.strength(2.0f)
-				.mapColor(MapColor.METAL)
-				.noOcclusion(), com.simibubi.create.AllBlocks.COPPER_CASING::get));
 
 	public static final RegistryObject<SquidPrinterBlock> SQUID_PRINTER = BLOCKS.register("squid_printer",
 		() -> new SquidPrinterBlock(Block.Properties.of()

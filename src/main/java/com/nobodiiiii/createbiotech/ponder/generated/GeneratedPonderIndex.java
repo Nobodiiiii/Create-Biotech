@@ -9,7 +9,6 @@ import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedMagmaBeltCo
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSlimeClutch_7a6c2b57;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSquidPrinter_68898fcb;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedUniversalJoint_09ad9873;
-import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedExperiencePump_e984f13b;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSchrodingersCat_646f5047;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSlimeBeltConnector_c6a43e38;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSpiderAssemblyTable_f7772189;
@@ -34,7 +33,6 @@ public final class GeneratedPonderIndex {
         GeneratedSlimeClutch_7a6c2b57.register(helper);
         GeneratedSquidPrinter_68898fcb.register(helper);
         GeneratedUniversalJoint_09ad9873.register(helper);
-        GeneratedExperiencePump_e984f13b.register(helper);
         GeneratedSchrodingersCat_646f5047.register(helper);
         GeneratedSlimeBeltConnector_c6a43e38.register(helper);
         GeneratedSpiderAssemblyTable_f7772189.register(helper);
@@ -52,7 +50,6 @@ public final class GeneratedPonderIndex {
         GeneratedSlimeClutch_7a6c2b57.registerTags(helper);
         GeneratedSquidPrinter_68898fcb.registerTags(helper);
         GeneratedUniversalJoint_09ad9873.registerTags(helper);
-        GeneratedExperiencePump_e984f13b.registerTags(helper);
         GeneratedSchrodingersCat_646f5047.registerTags(helper);
         GeneratedSlimeBeltConnector_c6a43e38.registerTags(helper);
         GeneratedSpiderAssemblyTable_f7772189.registerTags(helper);

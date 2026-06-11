@@ -3,8 +3,6 @@ package com.nobodiiiii.createbiotech.compat.jade;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceTankBlock;
-import com.nobodiiiii.createbiotech.content.experience.ExperienceTankBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
@@ -48,14 +46,12 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 
 	@Override
 	public void register(IWailaCommonRegistration registration) {
-		registration.registerBlockDataProvider(ExperienceServerData.INSTANCE, ExperienceTankBlockEntity.class);
 		registration.registerBlockDataProvider(ExperienceServerData.INSTANCE,
 			EvokerEnchantingChamberBlockEntity.class);
 	}
 
 	@Override
 	public void registerClient(IWailaClientRegistration registration) {
-		registration.registerBlockComponent(ExperienceComponent.INSTANCE, ExperienceTankBlock.class);
 		registration.registerBlockComponent(ExperienceComponent.INSTANCE, EvokerEnchantingChamberBlock.class);
 		registration.registerEntityComponent(BionicNameComponent.INSTANCE, LivingEntity.class);
 	}

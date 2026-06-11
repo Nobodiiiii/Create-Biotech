@@ -13,10 +13,7 @@ public class CBSpriteShifts {
 		BIOTECH_CASING = omni("biotech_casing"),
 		EXPLOSION_PROOF_CASING = omni("explosion_proof_casing"),
 		EXPLOSION_PROOF_CASING_SIDE = omni("explosion_proof_casing_side"),
-		BLAST_PROOF_FRAMED_GLASS = omni("blast_proof_framed_glass"),
-		EXPERIENCE_TANK = rectangle("experience_tank/base"),
-		EXPERIENCE_TANK_TOP = rectangle("experience_tank/top"),
-		EXPERIENCE_TANK_INNER = rectangle("experience_tank/inner");
+		BLAST_PROOF_FRAMED_GLASS = omni("blast_proof_framed_glass");
 
 	public static final Couple<CTSpriteShiftEntry> EXPLOSION_PROOF_ITEM_VAULT_TOP = vault("explosion_proof_item_vault_top"),
 		EXPLOSION_PROOF_ITEM_VAULT_FRONT = vault("explosion_proof_item_vault_front"),
@@ -29,11 +26,6 @@ public class CBSpriteShifts {
 
 	private static CTSpriteShiftEntry omni(String name) {
 		return CTSpriteShifter.getCT(AllCTTypes.OMNIDIRECTIONAL, CreateBiotech.asResource("block/" + name),
-			CreateBiotech.asResource("block/" + name + "_connected"));
-	}
-
-	private static CTSpriteShiftEntry rectangle(String name) {
-		return CTSpriteShifter.getCT(AllCTTypes.RECTANGLE, CreateBiotech.asResource("block/" + name),
 			CreateBiotech.asResource("block/" + name + "_connected"));
 	}
 

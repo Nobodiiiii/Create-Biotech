@@ -3,7 +3,8 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceFluidHelper;
 import com.simibubi.create.AllItems;
 
 import net.minecraft.network.chat.Component;
@@ -15,13 +16,9 @@ public final class ExperienceJeiRecipes {
 	}
 
 	public static List<ExperiencePumpJeiRecipe> pump() {
-		ItemStack virtualExperience = new ItemStack(CBItems.EXPERIENCE.get());
 		return List.of(
 			new ExperiencePumpJeiRecipe(CreateBiotech.asResource("experience_pump/nugget_extraction"),
-				new ItemStack(AllItems.EXP_NUGGET.get()), virtualExperience.copy(),
-				List.of(Component.translatable("create_biotech.jei.experience_pump.note.nuggets"))),
-			new ExperiencePumpJeiRecipe(CreateBiotech.asResource("experience_pump/open_output"),
-				virtualExperience.copy(), virtualExperience.copy(),
-				List.of(Component.translatable("create_biotech.jei.experience_pump.note.open_output"))));
+				new ItemStack(AllItems.EXP_NUGGET.get()), ExperienceFluidHelper.experienceStack(ExperienceConstants.xpPerNugget()),
+				List.of(Component.translatable("create_biotech.jei.experience_pump.note.nuggets"))));
 	}
 }

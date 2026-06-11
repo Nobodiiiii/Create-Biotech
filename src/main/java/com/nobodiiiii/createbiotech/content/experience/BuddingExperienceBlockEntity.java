@@ -25,17 +25,22 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.registries.RegistryObject;
 
-public class BuddingExperienceBlockEntity extends BlockEntity implements ExperienceSink, IHaveGoggleInformation {
+public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGoggleInformation {
 
 	private final int[] faceXp = new int[6];
+	private final LazyOptional<IFluidHandler> fluidHandlerCap = LazyOptional.of(() -> new ExperienceInputFluidHandler());
 
 	public BuddingExperienceBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.BUDDING_EXPERIENCE.get(), pos, state);
 	}
 
-	@Override
 	public int insertExperience(int amount, boolean simulate) {
 		if (amount <= 0 || level == null)
 			return 0;
@@ -50,14 +55,12 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 		return amount;
 	}
 
-	@Override
 	public int getExperienceSpace() {
 		if (level == null)
 			return 0;
 		return findOpenFaces().isEmpty() ? 0 : Integer.MAX_VALUE / 4;
 	}
 
-	@Override
 	public boolean isExperienceInputBlocked() {
 		return level == null || findOpenFaces().isEmpty();
 	}
@@ -294,5 +297,57 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements Experie
 		setChanged();
 		BlockState state = getBlockState();
 		level.sendBlockUpdated(worldPosition, state, state, 3);
+	}
+
+	@Override
+	public <T> LazyOptional<T> getCapability(Capability<T> cap, Direction side) {
+		if (cap == ForgeCapabilities.FLUID_HANDLER)
+			return fluidHandlerCap.cast();
+		return super.getCapability(cap, side);
+	}
+
+	@Override
+	public void invalidateCaps() {
+		super.invalidateCaps();
+		fluidHandlerCap.invalidate();
+	}
+
+	private class ExperienceInputFluidHandler implements IFluidHandler {
+		@Override
+		public int getTanks() {
+			return 1;
+		}
+
+		@Override
+		public FluidStack getFluidInTank(int tank) {
+			return FluidStack.EMPTY;
+		}
+
+		@Override
+		public int getTankCapacity(int tank) {
+			return getExperienceSpace();
+		}
+
+		@Override
+		public boolean isFluidValid(int tank, FluidStack stack) {
+			return ExperienceFluidHelper.isExperience(stack);
+		}
+
+		@Override
+		public int fill(FluidStack resource, FluidAction action) {
+			if (!ExperienceFluidHelper.isExperience(resource))
+				return 0;
+			return insertExperience(ExperienceFluidHelper.fluidAmountToXp(resource.getAmount()), action.simulate());
+		}
+
+		@Override
+		public FluidStack drain(FluidStack resource, FluidAction action) {
+			return FluidStack.EMPTY;
+		}
+
+		@Override
+		public FluidStack drain(int maxDrain, FluidAction action) {
+			return FluidStack.EMPTY;
+		}
 	}
 }

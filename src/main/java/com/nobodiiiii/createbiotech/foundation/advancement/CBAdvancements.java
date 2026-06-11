@@ -33,7 +33,6 @@ public final class CBAdvancements {
 	public static final ResourceLocation POWER_BELT = CreateBiotech.asResource("power_belt");
 	public static final ResourceLocation VOLUNTARY_OVERTIME = CreateBiotech.asResource("voluntary_overtime");
 	public static final ResourceLocation EXPERIENCE_PUMP = CreateBiotech.asResource("experience_pump");
-	public static final ResourceLocation EXPERIENCE_TANK = CreateBiotech.asResource("experience_tank");
 	public static final ResourceLocation BUDDING_EXPERIENCE = CreateBiotech.asResource("budding_experience");
 	public static final ResourceLocation EXPERIENCE_CLUSTER = CreateBiotech.asResource("experience_cluster");
 	public static final ResourceLocation SQUID_PRINTER = CreateBiotech.asResource("squid_printer");
