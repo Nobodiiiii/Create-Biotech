@@ -259,7 +259,7 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 
 		int extracted = 0;
 		for (int slot = 0; slot < itemHandler.getSlots() && extracted < maxAmount; slot++) {
-			ItemStack peek = itemHandler.extractItem(slot, itemHandler.getSlotLimit(slot), true);
+			ItemStack peek = getExtractableItemPreview(itemHandler, slot);
 			if (peek.isEmpty())
 				continue;
 			int xpPerItem = xpValueOf(peek);
@@ -281,6 +281,14 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			setChanged();
 		}
 		return extracted;
+	}
+
+	private ItemStack getExtractableItemPreview(IItemHandler itemHandler, int slot) {
+		ItemStack preview = itemHandler.getStackInSlot(slot);
+		if (preview.isEmpty())
+			return ItemStack.EMPTY;
+		ItemStack extracted = itemHandler.extractItem(slot, 1, true);
+		return extracted.isEmpty() ? ItemStack.EMPTY : preview;
 	}
 
 	private int estimateSpecialSource(int maxAmount) {
