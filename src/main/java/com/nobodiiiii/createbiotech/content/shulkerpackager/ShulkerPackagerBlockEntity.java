@@ -248,15 +248,15 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	private static int getTransferDelay() {
-		return CBConfigs.COMMON.shulkerPackager.transferDelay.get();
+		return CBConfigs.SERVER.shulkerPackager.transferDelay.get();
 	}
 
 	private static int getConnectionRange() {
-		return CBConfigs.COMMON.shulkerPackager.connectionRange.get();
+		return CBConfigs.SERVER.shulkerPackager.connectionRange.get();
 	}
 
 	private static boolean shouldOnlyConnectToShulkerPackagers() {
-		return CBConfigs.COMMON.shulkerPackager.onlyConnectToShulkerPackagers.get();
+		return CBConfigs.SERVER.shulkerPackager.onlyConnectToShulkerPackagers.get();
 	}
 
 	private boolean isAreaActuallyLoaded(BlockPos center, int range) {

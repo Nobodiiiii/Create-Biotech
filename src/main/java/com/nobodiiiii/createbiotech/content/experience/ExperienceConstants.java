@@ -7,44 +7,44 @@ public final class ExperienceConstants {
 	}
 
 	public static int xpPerNugget() {
-		return CBConfigs.COMMON.experience.xpPerNugget.get();
+		return CBConfigs.SERVER.experience.xpPerNugget.get();
 	}
 
 	public static int tankCapacityPerBlock() {
-		return CBConfigs.COMMON.experience.tankCapacityPerBlock.get();
+		return CBConfigs.SERVER.experience.tankCapacityPerBlock.get();
 	}
 
 	public static int chamberCacheCapacity() {
-		return CBConfigs.COMMON.evokerEnchantingChamber.cacheCapacity.get();
+		return CBConfigs.SERVER.evokerEnchantingChamber.cacheCapacity.get();
 	}
 
 	public static int chamberXpPerLevel() {
-		return CBConfigs.COMMON.evokerEnchantingChamber.xpPerLevel.get();
+		return CBConfigs.SERVER.evokerEnchantingChamber.xpPerLevel.get();
 	}
 
 	public static float pumpXpPerRpmPerSecond() {
-		return (float) (CBConfigs.COMMON.experience.pumpXpPerRpmPerSecond.get()
-			* CBConfigs.COMMON.experience.pumpEfficiency.get());
+		return (float) (CBConfigs.SERVER.experience.pumpXpPerRpmPerSecond.get()
+			* CBConfigs.SERVER.experience.pumpEfficiency.get());
 	}
 
 	public static float speedNormalizationRpm() {
-		return CBConfigs.COMMON.experience.speedNormalizationRpm.get().floatValue();
+		return CBConfigs.SERVER.experience.speedNormalizationRpm.get().floatValue();
 	}
 
 	public static int clusterNuggetValue() {
-		return CBConfigs.COMMON.experience.clusterNuggetValue.get();
+		return CBConfigs.SERVER.experience.clusterNuggetValue.get();
 	}
 
 	public static int largeBudNuggetValue() {
-		return CBConfigs.COMMON.experience.largeBudNuggetValue.get();
+		return CBConfigs.SERVER.experience.largeBudNuggetValue.get();
 	}
 
 	public static int mediumBudNuggetValue() {
-		return CBConfigs.COMMON.experience.mediumBudNuggetValue.get();
+		return CBConfigs.SERVER.experience.mediumBudNuggetValue.get();
 	}
 
 	public static int smallBudNuggetValue() {
-		return CBConfigs.COMMON.experience.smallBudNuggetValue.get();
+		return CBConfigs.SERVER.experience.smallBudNuggetValue.get();
 	}
 
 	public static int buddingMatureXp() {
@@ -52,26 +52,26 @@ public final class ExperienceConstants {
 	}
 
 	public static int buddingGrowthChance() {
-		return CBConfigs.COMMON.experience.buddingGrowthChance.get();
+		return CBConfigs.SERVER.experience.buddingGrowthChance.get();
 	}
 
 	public static int tankMaxWidth() {
-		return CBConfigs.COMMON.experience.tankMaxWidth.get();
+		return CBConfigs.SERVER.experience.tankMaxWidth.get();
 	}
 
 	public static int tankMaxHeight() {
-		return CBConfigs.COMMON.experience.tankMaxHeight.get();
+		return CBConfigs.SERVER.experience.tankMaxHeight.get();
 	}
 
 	public static int pumpRange() {
-		return CBConfigs.COMMON.experience.pumpRange.get();
+		return CBConfigs.SERVER.experience.pumpRange.get();
 	}
 
 	public static int clusterMaxOrbsPerPinch() {
-		return CBConfigs.COMMON.experience.clusterMaxOrbsPerPinch.get();
+		return CBConfigs.SERVER.experience.clusterMaxOrbsPerPinch.get();
 	}
 
 	public static int clusterMinXpPerSplitOrb() {
-		return CBConfigs.COMMON.experience.clusterMinXpPerSplitOrb.get();
+		return CBConfigs.SERVER.experience.clusterMinXpPerSplitOrb.get();
 	}
 }

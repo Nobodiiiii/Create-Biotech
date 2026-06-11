@@ -20,7 +20,7 @@ public final class ButterFoodProperties {
 	private ButterFoodProperties() {}
 
 	public static FoodProperties create(Variant variant) {
-		CBConfigs.ButterCat config = CBConfigs.COMMON.butterCat;
+		CBConfigs.ButterCat config = CBConfigs.SERVER.butterCat;
 		FoodProperties.Builder builder = switch (variant) {
 		case BUTTER -> food(config.butterNutrition.get(), config.butterSaturation.get());
 		case HONEY_BUTTER -> food(config.honeyButterNutrition.get(), config.honeyButterSaturation.get())

@@ -604,6 +604,6 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 	private static int getXpPerTick() {
 		return Math.max(1, Mth.ceil((float) ExperienceConstants.chamberXpPerLevel()
-			/ Math.max(1, com.nobodiiiii.createbiotech.registry.CBConfigs.COMMON.evokerEnchantingChamber.castDurationTicksPerLevel.get())));
+			/ Math.max(1, com.nobodiiiii.createbiotech.registry.CBConfigs.SERVER.evokerEnchantingChamber.castDurationTicksPerLevel.get())));
 	}
 }

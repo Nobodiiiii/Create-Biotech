@@ -426,11 +426,11 @@ public class BasinEntityProcessing {
 	}
 
 	public static int getMaxCapturedSmallSlimes() {
-		return CBConfigs.COMMON.basinEntityProcessing.maxCapturedSmallSlimes.get();
+		return CBConfigs.SERVER.basinEntityProcessing.maxCapturedSmallSlimes.get();
 	}
 
 	private static double getEntityScanHeight() {
-		return CBConfigs.COMMON.basinEntityProcessing.entityScanHeight.get();
+		return CBConfigs.SERVER.basinEntityProcessing.entityScanHeight.get();
 	}
 
 	private static boolean extractIngredients(IItemHandler availableItems, List<Ingredient> ingredients,

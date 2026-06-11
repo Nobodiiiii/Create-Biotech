@@ -352,14 +352,14 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 	}
 
 	private static float getAssemblyStationSpeed() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.assemblyStationSpeed.get().floatValue();
+		return CBConfigs.SERVER.ghastHotAirBalloon.assemblyStationSpeed.get().floatValue();
 	}
 
 	private static int getAttractPeriodTicks() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.attractPeriodTicks.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.attractPeriodTicks.get();
 	}
 
 	private static double getMaxVelocityForAttractSqr() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.maxVelocityForAttractSqr.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.maxVelocityForAttractSqr.get();
 	}
 }

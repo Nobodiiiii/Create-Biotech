@@ -72,7 +72,7 @@ public class GhastBalloonMagnetTargetPacket {
 	}
 
 	private static double getMaxDistanceSqr() {
-		double distance = CBConfigs.COMMON.ghastHotAirBalloon.magnetMaxDistance.get();
+		double distance = CBConfigs.SERVER.ghastHotAirBalloon.magnetMaxDistance.get();
 		return distance * distance;
 	}
 }

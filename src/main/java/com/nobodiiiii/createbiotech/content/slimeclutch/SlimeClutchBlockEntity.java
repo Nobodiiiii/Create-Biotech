@@ -189,14 +189,14 @@ public class SlimeClutchBlockEntity extends SplitShaftBlockEntity {
 	}
 
 	private static int getRecheckPeriod() {
-		return CBConfigs.COMMON.slimeClutch.recheckPeriod.get();
+		return CBConfigs.SERVER.slimeClutch.recheckPeriod.get();
 	}
 
 	private static int getMaxWalk() {
-		return CBConfigs.COMMON.slimeClutch.maxWalk.get();
+		return CBConfigs.SERVER.slimeClutch.maxWalk.get();
 	}
 
 	private static boolean isSoftOverloadCheckEnabled() {
-		return CBConfigs.COMMON.slimeClutch.enableSoftOverloadCheck.get();
+		return CBConfigs.SERVER.slimeClutch.enableSoftOverloadCheck.get();
 	}
 }

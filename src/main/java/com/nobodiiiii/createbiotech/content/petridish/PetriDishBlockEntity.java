@@ -640,23 +640,23 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	private static int getScanInterval() {
-		return CBConfigs.COMMON.petriDish.scanInterval.get();
+		return CBConfigs.SERVER.petriDish.scanInterval.get();
 	}
 
 	private static int getFluidPerHealth() {
-		return CBConfigs.COMMON.petriDish.fluidPerHealth.get();
+		return CBConfigs.SERVER.petriDish.fluidPerHealth.get();
 	}
 
 	private static int getScanRadius() {
-		return CBConfigs.COMMON.petriDish.scanRadius.get();
+		return CBConfigs.SERVER.petriDish.scanRadius.get();
 	}
 
 	private static int getTankCapacity() {
-		return CBConfigs.COMMON.petriDish.tankCapacity.get();
+		return CBConfigs.SERVER.petriDish.tankCapacity.get();
 	}
 
 	private static boolean requiresNearbyMatchingEntity() {
-		return CBConfigs.COMMON.petriDish.requireNearbyMatchingEntity.get();
+		return CBConfigs.SERVER.petriDish.requireNearbyMatchingEntity.get();
 	}
 
 	private boolean isRecordableEntity(LivingEntity entity) {

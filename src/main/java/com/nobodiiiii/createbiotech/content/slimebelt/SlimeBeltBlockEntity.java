@@ -246,7 +246,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity implements BeltSurf
 			return;
 
 		RandomSource random = level.random;
-		CBConfigs.BeltParticles particles = CBConfigs.COMMON.beltParticles;
+		CBConfigs.BeltParticles particles = CBConfigs.CLIENT.beltParticles;
 		float chance = (float) Math.min(particles.slimeBeltMaxChance.get(),
 			particles.slimeBeltBaseChance.get() + beltLength * particles.slimeBeltLengthChance.get()
 				+ Math.abs(getBeltMovementSpeed()) * particles.slimeBeltSpeedChance.get());

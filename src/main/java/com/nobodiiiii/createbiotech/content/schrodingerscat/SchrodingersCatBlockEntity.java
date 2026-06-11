@@ -173,15 +173,15 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 	}
 
 	private static int getDefaultInterval() {
-		return Mth.clamp(CBConfigs.COMMON.schrodingersCat.defaultInterval.get(), 1, getMaxInterval());
+		return Mth.clamp(CBConfigs.SERVER.schrodingersCat.defaultInterval.get(), 1, getMaxInterval());
 	}
 
 	private static int getMaxInterval() {
-		return Math.max(1, CBConfigs.COMMON.schrodingersCat.maxInterval.get());
+		return Math.max(1, CBConfigs.SERVER.schrodingersCat.maxInterval.get());
 	}
 
 	private static double getHighSignalChance() {
-		return CBConfigs.COMMON.schrodingersCat.highSignalChance.get();
+		return CBConfigs.SERVER.schrodingersCat.highSignalChance.get();
 	}
 
 	private static class DetectionIntervalValueBehaviour extends ScrollValueBehaviour {

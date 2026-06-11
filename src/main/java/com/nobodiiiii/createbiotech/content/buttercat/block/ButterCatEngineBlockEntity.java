@@ -128,11 +128,11 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     //应力生产速度，黄油输入16个后达到最大速度，超出部分继续累加在应力系数上
     @Override
     public float getGeneratedSpeed() {
-        float maxGeneratedRpm = (float) CBConfigs.COMMON.butterCat.maxGeneratedRpm.get().doubleValue();
+        float maxGeneratedRpm = (float) CBConfigs.SERVER.butterCat.maxGeneratedRpm.get().doubleValue();
         if (isInfinite()) return getDirectionalGeneratedSpeed(maxGeneratedRpm);
-        int butterForMaxRpm = Math.max(1, CBConfigs.COMMON.butterCat.butterForMaxRpm.get());
+        int butterForMaxRpm = Math.max(1, CBConfigs.SERVER.butterCat.butterForMaxRpm.get());
         float speed = butterCount <= butterForMaxRpm
-            ? butterCount * (float) CBConfigs.COMMON.butterCat.rpmPerButter.get().doubleValue()
+            ? butterCount * (float) CBConfigs.SERVER.butterCat.rpmPerButter.get().doubleValue()
             : maxGeneratedRpm;
         speed = Math.min(speed, maxGeneratedRpm);
         return getDirectionalGeneratedSpeed(speed);
@@ -140,7 +140,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     //应力系数
     @Override
     public float calculateAddedStressCapacity() {
-        float capacity = this.butterCount * (float) CBConfigs.COMMON.butterCat.stressCapacityPerButter.get().doubleValue();
+        float capacity = this.butterCount * (float) CBConfigs.SERVER.butterCat.stressCapacityPerButter.get().doubleValue();
         if(isInfinite()) capacity = getMaxInfiniteOutput();
         this.lastCapacityProvided = capacity;
         return capacity;
@@ -211,13 +211,13 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return hasBread() ? ModPartialModels.BCE_ROPE : ModPartialModels.BCE_EMPTY;
     }
     public int getMaxButterCount(){
-        return CBConfigs.COMMON.butterCat.maxButterCount.get();
+        return CBConfigs.SERVER.butterCat.maxButterCount.get();
     }
     public int getMaxInfiniteOutput(){
-        return CBConfigs.COMMON.butterCat.maxInfiniteCapacity.get();
+        return CBConfigs.SERVER.butterCat.maxInfiniteCapacity.get();
     }
     private int getButterDecayTicks() {
-        return CBConfigs.COMMON.butterCat.butterDecayTicks.get();
+        return CBConfigs.SERVER.butterCat.butterDecayTicks.get();
     }
 }
 

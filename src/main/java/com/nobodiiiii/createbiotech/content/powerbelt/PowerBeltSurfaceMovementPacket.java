@@ -70,6 +70,6 @@ public class PowerBeltSurfaceMovementPacket {
 	}
 
 	private static float getMaxPlayerSurfaceSpeed() {
-		return CBConfigs.COMMON.powerBelt.maxPlayerSurfaceSpeed.get().floatValue();
+		return CBConfigs.SERVER.powerBelt.maxPlayerSurfaceSpeed.get().floatValue();
 	}
 }

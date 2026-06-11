@@ -150,7 +150,7 @@ public class MagmaBeltBlockEntity extends KineticBlockEntity {
 			return;
 
 		RandomSource random = level.random;
-		CBConfigs.BeltParticles particles = CBConfigs.COMMON.beltParticles;
+		CBConfigs.BeltParticles particles = CBConfigs.CLIENT.beltParticles;
 		float chance = (float) Math.min(particles.magmaBeltMaxChance.get(),
 			particles.magmaBeltBaseChance.get() + beltLength * particles.magmaBeltLengthChance.get());
 		if (random.nextFloat() >= chance)

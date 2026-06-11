@@ -236,6 +236,6 @@ public class ShulkerPackagerConnectionHandler {
 	}
 
 	private static int getConnectionRange() {
-		return CBConfigs.COMMON.shulkerPackager.connectionRange.get();
+		return CBConfigs.SERVER.shulkerPackager.connectionRange.get();
 	}
 }

@@ -12,20 +12,36 @@ import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class CBConfigs {
+	public static final Client CLIENT;
+	public static final ForgeConfigSpec CLIENT_SPEC;
 	public static final Common COMMON;
 	public static final ForgeConfigSpec COMMON_SPEC;
+	public static final Server SERVER;
+	public static final ForgeConfigSpec SERVER_SPEC;
 
 	static {
+		Pair<Client, ForgeConfigSpec> clientSpecPair =
+			new ForgeConfigSpec.Builder().configure(Client::new);
+		CLIENT = clientSpecPair.getLeft();
+		CLIENT_SPEC = clientSpecPair.getRight();
+
 		Pair<Common, ForgeConfigSpec> commonSpecPair =
 			new ForgeConfigSpec.Builder().configure(Common::new);
 		COMMON = commonSpecPair.getLeft();
 		COMMON_SPEC = commonSpecPair.getRight();
+
+		Pair<Server, ForgeConfigSpec> serverSpecPair =
+			new ForgeConfigSpec.Builder().configure(Server::new);
+		SERVER = serverSpecPair.getLeft();
+		SERVER_SPEC = serverSpecPair.getRight();
 	}
 
 	private CBConfigs() {}
 
 	public static void register() {
+		ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC);
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC);
+		ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, SERVER_SPEC);
 	}
 
 	public enum EntityListMode {
@@ -35,6 +51,23 @@ public class CBConfigs {
 	}
 
 	public static class Common {
+		Common(ForgeConfigSpec.Builder builder) {
+		}
+	}
+
+	public static class Client {
+		public final ClientCreeperBlastChamber creeperBlastChamber;
+		public final ClientUniversalJoint universalJoint;
+		public final BeltParticles beltParticles;
+
+		Client(ForgeConfigSpec.Builder builder) {
+			creeperBlastChamber = new ClientCreeperBlastChamber(builder);
+			universalJoint = new ClientUniversalJoint(builder);
+			beltParticles = new BeltParticles(builder);
+		}
+	}
+
+	public static class Server {
 		public final Experience experience;
 		public final CreeperBlastChamber creeperBlastChamber;
 		public final PowerBelt powerBelt;
@@ -55,11 +88,10 @@ public class CBConfigs {
 		public final SlimeClutch slimeClutch;
 		public final LiquidLivingSlime liquidLivingSlime;
 		public final FixedCarrotFishingRod fixedCarrotFishingRod;
-		public final BeltParticles beltParticles;
 		public final BufferPad bufferPad;
 		public final ShulkerPackager shulkerPackager;
 
-		Common(ForgeConfigSpec.Builder builder) {
+		Server(ForgeConfigSpec.Builder builder) {
 			experience = new Experience(builder);
 			creeperBlastChamber = new CreeperBlastChamber(builder);
 			powerBelt = new PowerBelt(builder);
@@ -80,7 +112,6 @@ public class CBConfigs {
 			slimeClutch = new SlimeClutch(builder);
 			liquidLivingSlime = new LiquidLivingSlime(builder);
 			fixedCarrotFishingRod = new FixedCarrotFishingRod(builder);
-			beltParticles = new BeltParticles(builder);
 			bufferPad = new BufferPad(builder);
 			shulkerPackager = new ShulkerPackager(builder);
 		}
@@ -139,7 +170,6 @@ public class CBConfigs {
 		public final ForgeConfigSpec.DoubleValue tntExplosionPower;
 		public final ForgeConfigSpec.IntValue readyOutputTimeout;
 		public final ForgeConfigSpec.BooleanValue enableOverloadExplosions;
-		public final ForgeConfigSpec.BooleanValue enableExplosionParticles;
 
 		CreeperBlastChamber(ForgeConfigSpec.Builder builder) {
 			builder.push("creeperBlastChamber");
@@ -153,6 +183,15 @@ public class CBConfigs {
 			tntExplosionPower = builder.defineInRange("tntExplosionPower", 4.0d, 0.0d, Double.MAX_VALUE);
 			readyOutputTimeout = builder.defineInRange("readyOutputTimeout", 20 * 5, 1, Integer.MAX_VALUE);
 			enableOverloadExplosions = builder.define("enableOverloadExplosions", true);
+			builder.pop();
+		}
+	}
+
+	public static class ClientCreeperBlastChamber {
+		public final ForgeConfigSpec.BooleanValue enableExplosionParticles;
+
+		ClientCreeperBlastChamber(ForgeConfigSpec.Builder builder) {
+			builder.push("creeperBlastChamber");
 			enableExplosionParticles = builder.define("enableExplosionParticles", true);
 			builder.pop();
 		}
@@ -395,14 +434,22 @@ public class CBConfigs {
 
 	public static class UniversalJoint {
 		public final ForgeConfigSpec.IntValue maxConnectionRange;
-		public final ForgeConfigSpec.IntValue previewRange;
 		public final ForgeConfigSpec.IntValue itemCooldownTicks;
 
 		UniversalJoint(ForgeConfigSpec.Builder builder) {
 			builder.push("universalJoint");
 			maxConnectionRange = builder.defineInRange("maxConnectionRange", 2, 0, 64);
-			previewRange = builder.defineInRange("previewRange", 16, 0, 256);
 			itemCooldownTicks = builder.defineInRange("itemCooldownTicks", 5, 0, Integer.MAX_VALUE);
+			builder.pop();
+		}
+	}
+
+	public static class ClientUniversalJoint {
+		public final ForgeConfigSpec.IntValue previewRange;
+
+		ClientUniversalJoint(ForgeConfigSpec.Builder builder) {
+			builder.push("universalJoint");
+			previewRange = builder.defineInRange("previewRange", 16, 0, 256);
 			builder.pop();
 		}
 	}

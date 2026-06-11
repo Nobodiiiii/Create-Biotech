@@ -30,7 +30,7 @@ public class ButterRotationEffect extends MobEffect {
     }
 
     public static float getRotationAngularSpeed() {
-        return CBConfigs.COMMON.butterCat.rotationAngularSpeed.get().floatValue();
+        return CBConfigs.SERVER.butterCat.rotationAngularSpeed.get().floatValue();
     }
 }
 

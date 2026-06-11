@@ -62,6 +62,6 @@ public class ShulkerPackagerArmInteractions {
 	}
 
 	private static boolean shouldOnlyConnectToShulkerPackagers() {
-		return CBConfigs.COMMON.shulkerPackager.onlyConnectToShulkerPackagers.get();
+		return CBConfigs.SERVER.shulkerPackager.onlyConnectToShulkerPackagers.get();
 	}
 }

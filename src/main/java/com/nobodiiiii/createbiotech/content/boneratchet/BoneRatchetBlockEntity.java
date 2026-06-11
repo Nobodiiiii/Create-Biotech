@@ -82,10 +82,10 @@ public class BoneRatchetBlockEntity extends SimpleKineticBlockEntity {
 	}
 
 	private static double getFallbackJamStressImpact() {
-		return CBConfigs.COMMON.boneRatchet.fallbackJamStressImpact.get();
+		return CBConfigs.SERVER.boneRatchet.fallbackJamStressImpact.get();
 	}
 
 	private static double getCreativeMotorMargin() {
-		return CBConfigs.COMMON.boneRatchet.creativeMotorMargin.get();
+		return CBConfigs.SERVER.boneRatchet.creativeMotorMargin.get();
 	}
 }

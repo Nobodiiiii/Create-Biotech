@@ -411,15 +411,15 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	private static int getSurfaceSpeedDetectionInterval() {
-		return Math.max(1, CBConfigs.COMMON.powerBelt.surfaceSpeedDetectionInterval.get());
+		return Math.max(1, CBConfigs.SERVER.powerBelt.surfaceSpeedDetectionInterval.get());
 	}
 
 	private static float getMaxGeneratedRpm() {
-		return CBConfigs.COMMON.powerBelt.maxGeneratedRpm.get().floatValue();
+		return CBConfigs.SERVER.powerBelt.maxGeneratedRpm.get().floatValue();
 	}
 
 	private static float getStressCapacityPerRpm() {
-		return CBConfigs.COMMON.powerBelt.stressCapacityPerRpm.get().floatValue();
+		return CBConfigs.SERVER.powerBelt.stressCapacityPerRpm.get().floatValue();
 	}
 
 	private static float getGeneratedStressStep() {
@@ -427,11 +427,11 @@ public class PowerBeltBlockEntity extends GeneratingKineticBlockEntity {
 	}
 
 	private static float getMaxStressCapacityPerSegment() {
-		return CBConfigs.COMMON.powerBelt.maxStressCapacityPerSegment.get().floatValue();
+		return CBConfigs.SERVER.powerBelt.maxStressCapacityPerSegment.get().floatValue();
 	}
 
 	private static float getSurfaceSpeedToRpm() {
-		float surfaceMetersPerSecondToRpm = CBConfigs.COMMON.powerBelt.surfaceMetersPerSecondToRpm.get().floatValue();
+		float surfaceMetersPerSecondToRpm = CBConfigs.SERVER.powerBelt.surfaceMetersPerSecondToRpm.get().floatValue();
 		return Math.max(1.0E-6f, surfaceMetersPerSecondToRpm * TICKS_PER_SECOND);
 	}
 }

@@ -608,11 +608,11 @@ public final class BufferPadCollisionHelper {
 	}
 
 	private static double getMovementEpsilon() {
-		return CBConfigs.COMMON.bufferPad.movementEpsilon.get();
+		return CBConfigs.SERVER.bufferPad.movementEpsilon.get();
 	}
 
 	private static double getEscapePushSpeed() {
-		return CBConfigs.COMMON.bufferPad.escapePushSpeed.get();
+		return CBConfigs.SERVER.bufferPad.escapePushSpeed.get();
 	}
 
 	private static void awardSoftLanding(AbstractContraptionEntity entity) {

@@ -58,7 +58,7 @@ public final class SlimeMimicHandler {
 		if (entity instanceof SlimeMimicAccess access)
 			access.createBiotech$setSlimeMimic(slimeMimic);
 		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && slimeMimic
-			&& CBConfigs.COMMON.slimeMimic.rewriteVillagerTrades.get())
+			&& CBConfigs.SERVER.slimeMimic.rewriteVillagerTrades.get())
 			SlimeMimicVillagerTrades.rewriteSellItems(villager);
 	}
 
@@ -72,7 +72,7 @@ public final class SlimeMimicHandler {
 	}
 
 	public static boolean canBecomeSlimeMimic(EntityType<?> type) {
-		CBConfigs.SlimeMimic config = CBConfigs.COMMON.slimeMimic;
+		CBConfigs.SlimeMimic config = CBConfigs.SERVER.slimeMimic;
 		return CBConfigs.isEntityTypeAllowed(type, config.entityListMode.get(), config.entityAllowlist.get(),
 			config.entityDenylist.get());
 	}
@@ -94,7 +94,7 @@ public final class SlimeMimicHandler {
 
 	public static boolean shouldSlimeifySpawn(@Nullable Player player, InteractionHand usedHand) {
 		return player != null && usedHand == InteractionHand.MAIN_HAND
-			&& CBConfigs.COMMON.slimeMimic.allowSpawnInjection.get()
+			&& CBConfigs.SERVER.slimeMimic.allowSpawnInjection.get()
 			&& player.getOffhandItem().is(CBItems.BIONIC_MECHANISM.get());
 	}
 
@@ -139,7 +139,7 @@ public final class SlimeMimicHandler {
 	public static void onLivingDrops(LivingDropsEvent event) {
 		if (!isSlimeMimic(event.getEntity()))
 			return;
-		if (!CBConfigs.COMMON.slimeMimic.replaceDropsWithSlime.get())
+		if (!CBConfigs.SERVER.slimeMimic.replaceDropsWithSlime.get())
 			return;
 
 		LivingEntity entity = event.getEntity();
@@ -187,6 +187,6 @@ public final class SlimeMimicHandler {
 	}
 
 	private static int getHauntCycleTicks() {
-		return CBConfigs.COMMON.slimeMimic.hauntCycleTicks.get();
+		return CBConfigs.SERVER.slimeMimic.hauntCycleTicks.get();
 	}
 }

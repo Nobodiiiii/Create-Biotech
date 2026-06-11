@@ -2418,48 +2418,48 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private static int getMinSize() {
-		return CBConfigs.COMMON.creeperBlastChamber.minSize.get();
+		return CBConfigs.SERVER.creeperBlastChamber.minSize.get();
 	}
 
 	private static int getMaxSize() {
-		return Math.max(getMinSize(), CBConfigs.COMMON.creeperBlastChamber.maxSize.get());
+		return Math.max(getMinSize(), CBConfigs.SERVER.creeperBlastChamber.maxSize.get());
 	}
 
 	private static int getOverloadThresholdRpm() {
-		return CBConfigs.COMMON.creeperBlastChamber.overloadThresholdRpm.get();
+		return CBConfigs.SERVER.creeperBlastChamber.overloadThresholdRpm.get();
 	}
 
 	private static int getOverloadPointsCap() {
-		return Math.max(1, CBConfigs.COMMON.creeperBlastChamber.overloadPointsCap.get());
+		return Math.max(1, CBConfigs.SERVER.creeperBlastChamber.overloadPointsCap.get());
 	}
 
 	private static int getOverloadDecayPointsPerSecond() {
-		return CBConfigs.COMMON.creeperBlastChamber.overloadDecayPointsPerSecond.get();
+		return CBConfigs.SERVER.creeperBlastChamber.overloadDecayPointsPerSecond.get();
 	}
 
 	private static int getOverloadTntEquivalentPerCreeper() {
-		return CBConfigs.COMMON.creeperBlastChamber.overloadTntEquivalentPerCreeper.get();
+		return CBConfigs.SERVER.creeperBlastChamber.overloadTntEquivalentPerCreeper.get();
 	}
 
 	private static int getChargedCreeperEquivalentMultiplier() {
-		return CBConfigs.COMMON.creeperBlastChamber.chargedCreeperEquivalentMultiplier.get();
+		return CBConfigs.SERVER.creeperBlastChamber.chargedCreeperEquivalentMultiplier.get();
 	}
 
 	private static float getTntExplosionPower() {
-		return CBConfigs.COMMON.creeperBlastChamber.tntExplosionPower.get()
+		return CBConfigs.SERVER.creeperBlastChamber.tntExplosionPower.get()
 			.floatValue();
 	}
 
 	private static int getReadyOutputTimeout() {
-		return CBConfigs.COMMON.creeperBlastChamber.readyOutputTimeout.get();
+		return CBConfigs.SERVER.creeperBlastChamber.readyOutputTimeout.get();
 	}
 
 	private static boolean isOverloadExplosionsEnabled() {
-		return CBConfigs.COMMON.creeperBlastChamber.enableOverloadExplosions.get();
+		return CBConfigs.SERVER.creeperBlastChamber.enableOverloadExplosions.get();
 	}
 
 	private static boolean areExplosionParticlesEnabled() {
-		return CBConfigs.COMMON.creeperBlastChamber.enableExplosionParticles.get();
+		return CBConfigs.CLIENT.creeperBlastChamber.enableExplosionParticles.get();
 	}
 
 	public int getOverloadPercent() {

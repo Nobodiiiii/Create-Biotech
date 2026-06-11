@@ -140,11 +140,11 @@ public class LiquidLivingSlimeInteractionHandler {
 	}
 
 	private static int getSourceHitsToBreak() {
-		return CBConfigs.COMMON.liquidLivingSlime.sourceHitsToBreak.get();
+		return CBConfigs.SERVER.liquidLivingSlime.sourceHitsToBreak.get();
 	}
 
 	private static boolean shouldDropSlimeBallWhenSourceBreaks() {
-		return CBConfigs.COMMON.liquidLivingSlime.dropSlimeBallWhenSourceBreaks.get();
+		return CBConfigs.SERVER.liquidLivingSlime.dropSlimeBallWhenSourceBreaks.get();
 	}
 
 	private static int progressIdFor(BlockPos pos) {

@@ -116,13 +116,13 @@ public final class SlimeMimicVillagerTrades {
 	}
 
 	private static int getMinSlimeBallTradeCount() {
-		return Math.min(CBConfigs.COMMON.slimeMimic.villagerTradeMinSlimeBalls.get(),
-			CBConfigs.COMMON.slimeMimic.villagerTradeMaxSlimeBalls.get());
+		return Math.min(CBConfigs.SERVER.slimeMimic.villagerTradeMinSlimeBalls.get(),
+			CBConfigs.SERVER.slimeMimic.villagerTradeMaxSlimeBalls.get());
 	}
 
 	private static int getMaxSlimeBallTradeCount() {
-		return Math.max(CBConfigs.COMMON.slimeMimic.villagerTradeMinSlimeBalls.get(),
-			CBConfigs.COMMON.slimeMimic.villagerTradeMaxSlimeBalls.get());
+		return Math.max(CBConfigs.SERVER.slimeMimic.villagerTradeMinSlimeBalls.get(),
+			CBConfigs.SERVER.slimeMimic.villagerTradeMaxSlimeBalls.get());
 	}
 
 	private static MerchantOffers getOffersField(AbstractVillager villager) {

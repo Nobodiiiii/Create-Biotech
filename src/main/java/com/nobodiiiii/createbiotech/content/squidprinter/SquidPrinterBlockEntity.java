@@ -265,19 +265,19 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	}
 
 	private static int getCycleTicks() {
-		return CBConfigs.COMMON.squidPrinter.cycleTicks.get();
+		return CBConfigs.SERVER.squidPrinter.cycleTicks.get();
 	}
 
 	private static int getCycleWaterCost() {
-		return CBConfigs.COMMON.squidPrinter.cycleWaterCost.get();
+		return CBConfigs.SERVER.squidPrinter.cycleWaterCost.get();
 	}
 
 	private static int getTankCapacity() {
-		return CBConfigs.COMMON.squidPrinter.tankCapacity.get();
+		return CBConfigs.SERVER.squidPrinter.tankCapacity.get();
 	}
 
 	private static int getFinishingTicks() {
-		return CBConfigs.COMMON.squidPrinter.finishingTicks.get();
+		return CBConfigs.SERVER.squidPrinter.finishingTicks.get();
 	}
 
 	private void spawnInkParticles() {

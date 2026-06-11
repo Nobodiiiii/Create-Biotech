@@ -31,7 +31,7 @@ public class LargeCardboardBoxHandler {
 		ItemStack stack = player.getItemInHand(hand);
 		if (!stack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
 			return;
-		if (CBConfigs.COMMON.cardboardBox.largeBoxCreativeOnly.get() && !player.isCreative())
+		if (CBConfigs.SERVER.cardboardBox.largeBoxCreativeOnly.get() && !player.isCreative())
 			return;
 		if (player.isShiftKeyDown())
 			return;
@@ -57,7 +57,7 @@ public class LargeCardboardBoxHandler {
 
 	@SubscribeEvent
 	public static void onLivingDamage(LivingDamageEvent event) {
-		if (!CBConfigs.COMMON.cardboardBox.lethalCaptureEnabled.get())
+		if (!CBConfigs.SERVER.cardboardBox.lethalCaptureEnabled.get())
 			return;
 
 		LivingEntity target = event.getEntity();
@@ -94,7 +94,7 @@ public class LargeCardboardBoxHandler {
 	}
 
 	private static boolean canLargeBoxCapture(Mob target) {
-		CBConfigs.CardboardBox config = CBConfigs.COMMON.cardboardBox;
+		CBConfigs.CardboardBox config = CBConfigs.SERVER.cardboardBox;
 		return CBConfigs.isEntityTypeAllowed(target.getType(), config.largeBoxEntityListMode.get(),
 			config.largeBoxEntityAllowlist.get(), config.largeBoxEntityDenylist.get());
 	}

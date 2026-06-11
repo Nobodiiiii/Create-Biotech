@@ -909,19 +909,19 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	private static int getFluidCapacityPerLeg() {
-		return CBConfigs.COMMON.spiderAssemblyTable.fluidCapacityPerLeg.get();
+		return CBConfigs.SERVER.spiderAssemblyTable.fluidCapacityPerLeg.get();
 	}
 
 	private static double getDeployerBaseDuration() {
-		return CBConfigs.COMMON.spiderAssemblyTable.deployerBaseDuration.get();
+		return CBConfigs.SERVER.spiderAssemblyTable.deployerBaseDuration.get();
 	}
 
 	private static int getSawFallbackDuration() {
-		return CBConfigs.COMMON.spiderAssemblyTable.sawFallbackDuration.get();
+		return CBConfigs.SERVER.spiderAssemblyTable.sawFallbackDuration.get();
 	}
 
 	private static double getSawSpeedDivisor() {
-		return CBConfigs.COMMON.spiderAssemblyTable.sawSpeedDivisor.get();
+		return CBConfigs.SERVER.spiderAssemblyTable.sawSpeedDivisor.get();
 	}
 
 	private MachineKind getMachineKind(int slot) {

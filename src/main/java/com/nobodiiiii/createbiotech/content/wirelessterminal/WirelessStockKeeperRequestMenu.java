@@ -37,11 +37,11 @@ public class WirelessStockKeeperRequestMenu extends StockKeeperRequestMenu {
 		if (contentHolder == null || contentHolder.isRemoved())
 			return false;
 		if (player.level() != contentHolder.getLevel())
-			return CBConfigs.COMMON.wireless.allowCrossDimensionTerminal.get();
+			return CBConfigs.SERVER.wireless.allowCrossDimensionTerminal.get();
 		return player.position().closerThan(Vec3.atCenterOf(contentHolder.getBlockPos()), getAccessRange() + 0.5d);
 	}
 
 	public static int getAccessRange() {
-		return CBConfigs.COMMON.wireless.terminalAccessRange.get();
+		return CBConfigs.SERVER.wireless.terminalAccessRange.get();
 	}
 }

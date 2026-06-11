@@ -516,59 +516,59 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	}
 
 	private static double getForwardAcceleration() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.forwardAcceleration.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.forwardAcceleration.get();
 	}
 
 	private static double getBackwardAcceleration() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.backwardAcceleration.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.backwardAcceleration.get();
 	}
 
 	private static double getVerticalAcceleration() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.verticalAcceleration.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.verticalAcceleration.get();
 	}
 
 	private static double getHorizontalDrag() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.horizontalDrag.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.horizontalDrag.get();
 	}
 
 	private static double getVerticalDrag() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.verticalDrag.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.verticalDrag.get();
 	}
 
 	private static double getMaxHorizontalSpeed() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.maxHorizontalSpeed.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.maxHorizontalSpeed.get();
 	}
 
 	private static double getMaxVerticalSpeed() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.maxVerticalSpeed.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.maxVerticalSpeed.get();
 	}
 
 	private static float getTurnAcceleration() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.turnAcceleration.get().floatValue();
+		return CBConfigs.SERVER.ghastHotAirBalloon.turnAcceleration.get().floatValue();
 	}
 
 	private static float getTurnBrake() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.turnBrake.get().floatValue();
+		return CBConfigs.SERVER.ghastHotAirBalloon.turnBrake.get().floatValue();
 	}
 
 	private static float getTurnDirectionChangeBrake() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.turnDirectionChangeBrake.get().floatValue();
+		return CBConfigs.SERVER.ghastHotAirBalloon.turnDirectionChangeBrake.get().floatValue();
 	}
 
 	private static float getMaxTurnSpeed() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.maxTurnSpeed.get().floatValue();
+		return CBConfigs.SERVER.ghastHotAirBalloon.maxTurnSpeed.get().floatValue();
 	}
 
 	private static int getInputTimeoutTicks() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.inputTimeoutTicks.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.inputTimeoutTicks.get();
 	}
 
 	private static int getMagnetTimeoutTicks() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.magnetTimeoutTicks.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.magnetTimeoutTicks.get();
 	}
 
 	private static double getMagnetBrakeDistance() {
-		return CBConfigs.COMMON.ghastHotAirBalloon.magnetBrakeDistance.get();
+		return CBConfigs.SERVER.ghastHotAirBalloon.magnetBrakeDistance.get();
 	}
 
 	public static EntityType.Builder<?> build(EntityType.Builder<?> builder) {

@@ -132,15 +132,15 @@ public class UniversalJointItem extends BlockItem {
 	}
 
 	private static int getMaxConnectionRange() {
-		return CBConfigs.COMMON.universalJoint.maxConnectionRange.get();
+		return CBConfigs.SERVER.universalJoint.maxConnectionRange.get();
 	}
 
 	private static int getPreviewRange() {
-		return CBConfigs.COMMON.universalJoint.previewRange.get();
+		return CBConfigs.CLIENT.universalJoint.previewRange.get();
 	}
 
 	private static int getItemCooldownTicks() {
-		return CBConfigs.COMMON.universalJoint.itemCooldownTicks.get();
+		return CBConfigs.SERVER.universalJoint.itemCooldownTicks.get();
 	}
 
 	private static boolean placeJointPair(Level level, Endpoint first, Endpoint second) {

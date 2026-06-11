@@ -67,6 +67,6 @@ public class CardboardBoxHandler {
 		if (target instanceof MagmaCube magmaCube && magmaCube.getSize() > 1) return false;
 		ResourceLocation id = ForgeRegistries.ENTITY_TYPES.getKey(type);
 		return id != null && CBConfigs.containsResourceLocation(
-			CBConfigs.COMMON.cardboardBox.smallBoxEntityAllowlist.get(), id);
+			CBConfigs.SERVER.cardboardBox.smallBoxEntityAllowlist.get(), id);
 	}
 }

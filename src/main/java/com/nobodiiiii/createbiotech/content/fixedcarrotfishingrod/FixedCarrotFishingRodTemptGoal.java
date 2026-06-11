@@ -155,11 +155,11 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 	}
 
 	private static double getSpeedModifier() {
-		return CBConfigs.COMMON.fixedCarrotFishingRod.speedModifier.get();
+		return CBConfigs.SERVER.fixedCarrotFishingRod.speedModifier.get();
 	}
 
 	private static double getSearchRange() {
-		return CBConfigs.COMMON.fixedCarrotFishingRod.searchRange.get();
+		return CBConfigs.SERVER.fixedCarrotFishingRod.searchRange.get();
 	}
 
 	private static int getSearchBlockRange() {
@@ -172,16 +172,16 @@ public class FixedCarrotFishingRodTemptGoal extends Goal {
 	}
 
 	private static double getStopDistanceSqr() {
-		double stopDistance = CBConfigs.COMMON.fixedCarrotFishingRod.stopDistance.get();
+		double stopDistance = CBConfigs.SERVER.fixedCarrotFishingRod.stopDistance.get();
 		return stopDistance * stopDistance;
 	}
 
 	private static int getSearchCooldown() {
-		return CBConfigs.COMMON.fixedCarrotFishingRod.searchCooldown.get();
+		return CBConfigs.SERVER.fixedCarrotFishingRod.searchCooldown.get();
 	}
 
 	private static int getStopCooldown() {
-		return CBConfigs.COMMON.fixedCarrotFishingRod.stopCooldown.get();
+		return CBConfigs.SERVER.fixedCarrotFishingRod.stopCooldown.get();
 	}
 
 	private static Vec3 getBaitPosition(BlockPos pos, BlockState state) {

@@ -209,7 +209,7 @@ public class WirelessTerminalItem extends Item {
 	}
 
 	private static boolean allowsCrossDimensionTerminal() {
-		return CBConfigs.COMMON.wireless.allowCrossDimensionTerminal.get();
+		return CBConfigs.SERVER.wireless.allowCrossDimensionTerminal.get();
 	}
 
 	@Nullable
