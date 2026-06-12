@@ -22,6 +22,7 @@
     "FunnelBlockMixin",
     "FunnelBlockEntityMixin",
     "FunnelItemMixin",
+    "FluidTankBlockEntityMixin",
     "MagmaBeltFunnelBlockMixin",
     "MechanicalPressBlockEntityMixin",
     "MechanicalMixerBlockEntityMixin",

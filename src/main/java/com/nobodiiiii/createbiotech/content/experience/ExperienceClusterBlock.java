@@ -39,7 +39,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class ExperienceClusterBlock extends Block implements ProperWaterloggedBlock {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
-	private final IntSupplier xpNuggetValue;
+	private final IntSupplier xpValue;
 	private final VoxelShape northShape;
 	private final VoxelShape southShape;
 	private final VoxelShape eastShape;
@@ -47,13 +47,13 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 	private final VoxelShape upShape;
 	private final VoxelShape downShape;
 
-	public ExperienceClusterBlock(int height, int xzOffset, int xpNuggetValue, Properties properties) {
-		this(height, xzOffset, () -> xpNuggetValue, properties);
+	public ExperienceClusterBlock(int height, int xzOffset, int xpValue, Properties properties) {
+		this(height, xzOffset, () -> xpValue, properties);
 	}
 
-	public ExperienceClusterBlock(int height, int xzOffset, IntSupplier xpNuggetValue, Properties properties) {
+	public ExperienceClusterBlock(int height, int xzOffset, IntSupplier xpValue, Properties properties) {
 		super(properties);
-		this.xpNuggetValue = xpNuggetValue;
+		this.xpValue = xpValue;
 		this.upShape = Block.box(xzOffset, 0.0, xzOffset, 16 - xzOffset, height, 16 - xzOffset);
 		this.downShape = Block.box(xzOffset, 16 - height, xzOffset, 16 - xzOffset, 16, 16 - xzOffset);
 		this.northShape = Block.box(xzOffset, xzOffset, 16 - height, 16 - xzOffset, 16 - xzOffset, 16);
@@ -65,8 +65,8 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 			.setValue(WATERLOGGED, Boolean.FALSE));
 	}
 
-	public int getXpNuggetValue() {
-		return xpNuggetValue.getAsInt();
+	public int getXpValue() {
+		return xpValue.getAsInt();
 	}
 
 	@Override
@@ -168,9 +168,5 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 		if (silkTouchLevel > 0)
 			return 0;
 		return getXpValue();
-	}
-
-	private int getXpValue() {
-		return getXpNuggetValue() * ExperienceConstants.xpPerNugget();
 	}
 }

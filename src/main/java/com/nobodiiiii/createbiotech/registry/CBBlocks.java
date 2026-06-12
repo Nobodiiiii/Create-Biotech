@@ -99,19 +99,19 @@ public class CBBlocks {
 
 	public static final RegistryObject<ExperienceClusterBlock> SMALL_EXPERIENCE_BUD =
 		BLOCKS.register("small_experience_bud",
-			() -> new ExperienceClusterBlock(3, 4, ExperienceConstants::smallBudNuggetValue, clusterProperties()));
+			() -> new ExperienceClusterBlock(3, 4, ExperienceConstants::smallBudXpValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> MEDIUM_EXPERIENCE_BUD =
 		BLOCKS.register("medium_experience_bud",
-			() -> new ExperienceClusterBlock(4, 3, ExperienceConstants::mediumBudNuggetValue, clusterProperties()));
+			() -> new ExperienceClusterBlock(4, 3, ExperienceConstants::mediumBudXpValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> LARGE_EXPERIENCE_BUD =
 		BLOCKS.register("large_experience_bud",
-			() -> new ExperienceClusterBlock(5, 3, ExperienceConstants::largeBudNuggetValue, clusterProperties()));
+			() -> new ExperienceClusterBlock(5, 3, ExperienceConstants::largeBudXpValue, clusterProperties()));
 
 	public static final RegistryObject<ExperienceClusterBlock> EXPERIENCE_CLUSTER =
 		BLOCKS.register("experience_cluster",
-			() -> new ExperienceClusterBlock(7, 3, ExperienceConstants::clusterNuggetValue, clusterProperties()));
+			() -> new ExperienceClusterBlock(7, 3, ExperienceConstants::clusterXpValue, clusterProperties()));
 
 	public static final RegistryObject<SquidPrinterBlock> SQUID_PRINTER = BLOCKS.register("squid_printer",
 		() -> new SquidPrinterBlock(Block.Properties.of()

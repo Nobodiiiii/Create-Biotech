@@ -49,16 +49,6 @@ public class ExperiencePumpBlock extends PumpBlock {
 	}
 
 	@Override
-	public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
-		if (!state.is(newState.getBlock())) {
-			BlockEntity blockEntity = level.getBlockEntity(pos);
-			if (blockEntity instanceof ExperiencePumpBlockEntity pump)
-				pump.dropBufferedExperience();
-		}
-		super.onRemove(state, level, pos, newState, isMoving);
-	}
-
-	@Override
 	public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 		if (blockEntity instanceof ExperiencePumpBlockEntity pump)

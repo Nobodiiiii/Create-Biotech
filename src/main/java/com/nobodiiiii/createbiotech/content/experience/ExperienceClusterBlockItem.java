@@ -18,19 +18,19 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 
 public class ExperienceClusterBlockItem extends BlockItem {
-	private final IntSupplier xpNuggetValue;
+	private final IntSupplier xpValue;
 
-	public ExperienceClusterBlockItem(Block block, int xpNuggetValue, Properties properties) {
-		this(block, () -> xpNuggetValue, properties);
+	public ExperienceClusterBlockItem(Block block, int xpValue, Properties properties) {
+		this(block, () -> xpValue, properties);
 	}
 
-	public ExperienceClusterBlockItem(Block block, IntSupplier xpNuggetValue, Properties properties) {
+	public ExperienceClusterBlockItem(Block block, IntSupplier xpValue, Properties properties) {
 		super(block, properties);
-		this.xpNuggetValue = xpNuggetValue;
+		this.xpValue = xpValue;
 	}
 
-	public int getXpNuggetValue() {
-		return xpNuggetValue.getAsInt();
+	public int getXpValue() {
+		return xpValue.getAsInt();
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public class ExperienceClusterBlockItem extends BlockItem {
 		}
 
 		int amountUsed = player.isShiftKeyDown() ? 1 : itemInHand.getCount();
-		int xpPerCluster = getXpNuggetValue() * ExperienceConstants.xpPerNugget();
+		int xpPerCluster = getXpValue();
 		int total = amountUsed * xpPerCluster;
 
 		// Cap each pinch at the configured orb count regardless of stack size. Each orb gets a slightly

@@ -119,10 +119,10 @@ public class CBConfigs {
 
 	public static class Experience {
 		public final ForgeConfigSpec.IntValue xpPerNugget;
-		public final ForgeConfigSpec.IntValue clusterNuggetValue;
-		public final ForgeConfigSpec.IntValue largeBudNuggetValue;
-		public final ForgeConfigSpec.IntValue mediumBudNuggetValue;
-		public final ForgeConfigSpec.IntValue smallBudNuggetValue;
+		public final ForgeConfigSpec.IntValue clusterXpValue;
+		public final ForgeConfigSpec.IntValue largeBudXpValue;
+		public final ForgeConfigSpec.IntValue mediumBudXpValue;
+		public final ForgeConfigSpec.IntValue smallBudXpValue;
 		public final ForgeConfigSpec.IntValue buddingGrowthChance;
 		public final ForgeConfigSpec.IntValue clusterMaxOrbsPerPinch;
 		public final ForgeConfigSpec.IntValue clusterMinXpPerSplitOrb;
@@ -130,10 +130,10 @@ public class CBConfigs {
 		Experience(ForgeConfigSpec.Builder builder) {
 			builder.push("experience");
 			xpPerNugget = builder.defineInRange("xpPerNugget", 3, 1, Integer.MAX_VALUE);
-			clusterNuggetValue = builder.defineInRange("clusterNuggetValue", 64, 1, Integer.MAX_VALUE);
-			largeBudNuggetValue = builder.defineInRange("largeBudNuggetValue", 32, 1, Integer.MAX_VALUE);
-			mediumBudNuggetValue = builder.defineInRange("mediumBudNuggetValue", 16, 1, Integer.MAX_VALUE);
-			smallBudNuggetValue = builder.defineInRange("smallBudNuggetValue", 8, 1, Integer.MAX_VALUE);
+			clusterXpValue = builder.defineInRange("clusterXpValue", 128, 1, Integer.MAX_VALUE);
+			largeBudXpValue = builder.defineInRange("largeBudXpValue", 64, 1, Integer.MAX_VALUE);
+			mediumBudXpValue = builder.defineInRange("mediumBudXpValue", 32, 1, Integer.MAX_VALUE);
+			smallBudXpValue = builder.defineInRange("smallBudXpValue", 16, 1, Integer.MAX_VALUE);
 			buddingGrowthChance = builder.defineInRange("buddingGrowthChance", 20, 1, Integer.MAX_VALUE);
 			clusterMaxOrbsPerPinch = builder.defineInRange("clusterMaxOrbsPerPinch", 5, 1, 64);
 			clusterMinXpPerSplitOrb = builder.defineInRange("clusterMinXpPerSplitOrb", 37, 1, Integer.MAX_VALUE);

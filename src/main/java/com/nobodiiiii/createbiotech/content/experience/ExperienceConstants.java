@@ -18,24 +18,24 @@ public final class ExperienceConstants {
 		return CBConfigs.SERVER.evokerEnchantingChamber.xpPerLevel.get();
 	}
 
-	public static int clusterNuggetValue() {
-		return CBConfigs.SERVER.experience.clusterNuggetValue.get();
+	public static int clusterXpValue() {
+		return CBConfigs.SERVER.experience.clusterXpValue.get();
 	}
 
-	public static int largeBudNuggetValue() {
-		return CBConfigs.SERVER.experience.largeBudNuggetValue.get();
+	public static int largeBudXpValue() {
+		return CBConfigs.SERVER.experience.largeBudXpValue.get();
 	}
 
-	public static int mediumBudNuggetValue() {
-		return CBConfigs.SERVER.experience.mediumBudNuggetValue.get();
+	public static int mediumBudXpValue() {
+		return CBConfigs.SERVER.experience.mediumBudXpValue.get();
 	}
 
-	public static int smallBudNuggetValue() {
-		return CBConfigs.SERVER.experience.smallBudNuggetValue.get();
+	public static int smallBudXpValue() {
+		return CBConfigs.SERVER.experience.smallBudXpValue.get();
 	}
 
 	public static int buddingMatureXp() {
-		return clusterNuggetValue() * xpPerNugget();
+		return clusterXpValue();
 	}
 
 	public static int buddingGrowthChance() {

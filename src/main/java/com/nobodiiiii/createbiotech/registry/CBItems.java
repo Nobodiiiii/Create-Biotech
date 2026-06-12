@@ -53,19 +53,19 @@ public class CBItems {
 
 	public static final RegistryObject<Item> SMALL_EXPERIENCE_BUD = ITEMS.register("small_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.SMALL_EXPERIENCE_BUD.get(),
-			ExperienceConstants::smallBudNuggetValue, new Item.Properties()));
+			ExperienceConstants::smallBudXpValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> MEDIUM_EXPERIENCE_BUD = ITEMS.register("medium_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.MEDIUM_EXPERIENCE_BUD.get(),
-			ExperienceConstants::mediumBudNuggetValue, new Item.Properties()));
+			ExperienceConstants::mediumBudXpValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> LARGE_EXPERIENCE_BUD = ITEMS.register("large_experience_bud",
 		() -> new ExperienceClusterBlockItem(CBBlocks.LARGE_EXPERIENCE_BUD.get(),
-			ExperienceConstants::largeBudNuggetValue, new Item.Properties()));
+			ExperienceConstants::largeBudXpValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPERIENCE_CLUSTER = ITEMS.register("experience_cluster",
 		() -> new ExperienceClusterBlockItem(CBBlocks.EXPERIENCE_CLUSTER.get(),
-			ExperienceConstants::clusterNuggetValue, new Item.Properties()));
+			ExperienceConstants::clusterXpValue, new Item.Properties()));
 
 	public static final RegistryObject<Item> EXPERIENCE = ITEMS.register("experience",
 		() -> new HiddenExperienceItem(new Item.Properties()));

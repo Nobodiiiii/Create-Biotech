@@ -51,7 +51,6 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 
 	@Nullable
 	private UUID advancementOwner;
-	private int bufferedExperience;
 	private final LazyOptional<IFluidHandler> specialSourceCapability;
 
 	public ExperiencePumpBlockEntity(BlockPos pos, BlockState state) {
@@ -76,16 +75,17 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			return;
 		Direction input = output.getOpposite();
 		boolean hasOpenExperienceSource = hasOpenExperienceSource(input);
-		if (hasOpenExperienceSource)
-			tickOpenInputExperienceOrbs(input);
 		if (!hasOpenExperienceSource && !hasExperienceItemEndpoint(input))
 			return;
 
 		BlockPos outputPos = worldPosition.relative(output);
 		BlockState outputState = level.getBlockState(outputPos);
 		FluidTransportBehaviour outputPipe = FluidPropagator.getPipe(level, outputPos);
-		if (outputPipe != null && outputPipe.canHaveFlowToward(outputState, output.getOpposite()))
+		if (outputPipe != null && outputPipe.canHaveFlowToward(outputState, output.getOpposite())) {
+			if (hasOpenExperienceSource)
+				attractOpenInputExperienceOrbs(input);
 			return;
+		}
 
 		int rate = getFluidPumpRatePerTick();
 
@@ -98,6 +98,8 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 				int accepted = target.fill(offered, IFluidHandler.FluidAction.SIMULATE);
 				if (accepted <= 0)
 					return;
+				if (hasOpenExperienceSource)
+					attractOpenInputExperienceOrbs(input);
 				FluidStack drained = drainSpecialSource(accepted, IFluidHandler.FluidAction.EXECUTE);
 				if (drained.isEmpty())
 					return;
@@ -119,14 +121,6 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		setChanged();
 	}
 
-	public void dropBufferedExperience() {
-		if (level == null || level.isClientSide || bufferedExperience <= 0)
-			return;
-		ExperienceHelper.spawnExperience(level, Vec3.atCenterOf(worldPosition), bufferedExperience);
-		bufferedExperience = 0;
-		setChanged();
-	}
-
 	@Override
 	public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
 		if (cap == ForgeCapabilities.FLUID_HANDLER && side != null && canExposeSpecialSource(side))
@@ -144,15 +138,12 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 	protected void write(CompoundTag compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		PlacedByPlayerAdvancementTracker.writeOwner(compound, advancementOwner);
-		if (bufferedExperience > 0)
-			compound.putInt("BufferedExperience", bufferedExperience);
 	}
 
 	@Override
 	protected void read(CompoundTag compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(compound);
-		bufferedExperience = compound.getInt("BufferedExperience");
 	}
 
 	private boolean canExposeSpecialSource(Direction side) {
@@ -198,48 +189,21 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		if (maxAmount <= 0 || level == null)
 			return FluidStack.EMPTY;
 
-		int extracted = 0;
-		if (bufferedExperience > 0) {
-			int taken = Math.min(maxAmount, bufferedExperience);
-			if (action.execute()) {
-				bufferedExperience -= taken;
-				setChanged();
-			}
-			extracted += taken;
-			maxAmount -= taken;
-		}
-
-		if (maxAmount > 0) {
-			Direction output = getFront();
-			if (output == null)
-				return ExperienceFluidHelper.experienceStack(extracted);
-			Direction input = output.getOpposite();
-			int taken = hasExperienceItemEndpoint(input)
-				? drainItemInput(input, maxAmount, action)
-				: drainOpenInput(input, maxAmount, action);
-			extracted += taken;
-		}
-
-		return ExperienceFluidHelper.experienceStack(extracted);
+		Direction output = getFront();
+		if (output == null)
+			return FluidStack.EMPTY;
+		Direction input = output.getOpposite();
+		int taken = hasExperienceItemEndpoint(input)
+			? drainItemInput(input, maxAmount, action)
+			: drainOpenInput(input, maxAmount, action);
+		return ExperienceFluidHelper.experienceStack(taken);
 	}
 
-	private void tickOpenInputExperienceOrbs(Direction input) {
+	private void attractOpenInputExperienceOrbs(Direction input) {
+		if (!hasInputNozzle(input))
+			return;
 		Vec3 center = getEndpointCenter(input);
-		AABB absorbBox = cubeAround(center, OPEN_INPUT_HALF_EXTENT);
-		absorbInputOrbsIntoBuffer(absorbBox);
-		if (hasInputNozzle(input))
-			attractInputOrbs(center, absorbBox);
-	}
-
-	private void absorbInputOrbsIntoBuffer(AABB absorbBox) {
-		if (level == null || level.isClientSide || bufferedExperience == Integer.MAX_VALUE)
-			return;
-		int absorbed = drainExperienceOrbs(absorbBox, Integer.MAX_VALUE - bufferedExperience,
-			IFluidHandler.FluidAction.EXECUTE);
-		if (absorbed <= 0)
-			return;
-		bufferedExperience += absorbed;
-		setChanged();
+		attractInputOrbs(center, cubeAround(center, OPEN_INPUT_HALF_EXTENT));
 	}
 
 	private void attractInputOrbs(Vec3 center, AABB absorbBox) {
@@ -343,19 +307,17 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			if (xpPerItem <= 0)
 				continue;
 			int missing = maxAmount - extracted;
-			int items = Math.min(peek.getCount(), Math.max(1, (missing + xpPerItem - 1) / xpPerItem));
+			int items = Math.min(peek.getCount(), missing / xpPerItem);
+			if (items <= 0)
+				continue;
 			if (action.simulate()) {
-				extracted += Math.min(missing, items * xpPerItem);
+				extracted += items * xpPerItem;
 				continue;
 			}
 			ItemStack actual = itemHandler.extractItem(slot, items, false);
 			if (actual.isEmpty())
 				continue;
-			int gained = actual.getCount() * xpPerItem;
-			int used = Math.min(missing, gained);
-			extracted += used;
-			bufferedExperience += gained - used;
-			setChanged();
+			extracted += actual.getCount() * xpPerItem;
 		}
 		return extracted;
 	}
@@ -371,15 +333,12 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 	private int estimateSpecialSource(int maxAmount) {
 		if (maxAmount <= 0)
 			return 0;
-		int amount = Math.min(maxAmount, bufferedExperience);
-		if (amount >= maxAmount)
-			return amount;
 		Direction input = getFront() == null ? null : getFront().getOpposite();
 		if (input == null)
-			return amount;
+			return 0;
 		if (hasExperienceItemEndpoint(input))
-			return amount + drainItemInput(input, maxAmount - amount, IFluidHandler.FluidAction.SIMULATE);
-		return amount + drainOpenInput(input, maxAmount - amount, IFluidHandler.FluidAction.SIMULATE);
+			return drainItemInput(input, maxAmount, IFluidHandler.FluidAction.SIMULATE);
+		return drainOpenInput(input, maxAmount, IFluidHandler.FluidAction.SIMULATE);
 	}
 
 	@Nullable
@@ -410,7 +369,7 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		if (stack.is(AllItems.EXP_NUGGET.get()))
 			return ExperienceConstants.xpPerNugget();
 		if (stack.getItem() instanceof ExperienceClusterBlockItem cluster)
-			return cluster.getXpNuggetValue() * ExperienceConstants.xpPerNugget();
+			return cluster.getXpValue();
 		return 0;
 	}
 

@@ -203,20 +203,20 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 	private static int stageOf(int xp) {
 		if (xp >= ExperienceConstants.buddingMatureXp())
 			return 4;
-		if (xp >= ExperienceConstants.largeBudNuggetValue() * ExperienceConstants.xpPerNugget())
+		if (xp >= ExperienceConstants.largeBudXpValue())
 			return 3;
-		if (xp >= ExperienceConstants.mediumBudNuggetValue() * ExperienceConstants.xpPerNugget())
+		if (xp >= ExperienceConstants.mediumBudXpValue())
 			return 2;
-		if (xp >= ExperienceConstants.smallBudNuggetValue() * ExperienceConstants.xpPerNugget())
+		if (xp >= ExperienceConstants.smallBudXpValue())
 			return 1;
 		return 0;
 	}
 
 	private static int stageThreshold(int stage) {
 		return switch (stage) {
-			case 1 -> ExperienceConstants.smallBudNuggetValue() * ExperienceConstants.xpPerNugget();
-			case 2 -> ExperienceConstants.mediumBudNuggetValue() * ExperienceConstants.xpPerNugget();
-			case 3 -> ExperienceConstants.largeBudNuggetValue() * ExperienceConstants.xpPerNugget();
+			case 1 -> ExperienceConstants.smallBudXpValue();
+			case 2 -> ExperienceConstants.mediumBudXpValue();
+			case 3 -> ExperienceConstants.largeBudXpValue();
 			case 4 -> ExperienceConstants.buddingMatureXp();
 			default -> 0;
 		};
