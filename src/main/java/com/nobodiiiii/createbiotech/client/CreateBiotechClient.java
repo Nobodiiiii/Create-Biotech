@@ -26,6 +26,8 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.petridish.PetriDishRenderer;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
+import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRenderer;
+import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
@@ -37,8 +39,6 @@ import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRendere
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestScreen;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftRenderer;
-import com.simibubi.create.content.logistics.packager.PackagerRenderer;
-import com.simibubi.create.content.logistics.packager.PackagerVisual;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
 import com.nobodiiiii.createbiotech.client.particle.StraightEnchantParticle;
 import com.nobodiiiii.createbiotech.client.render.SlimeMimicRenderLayer;
@@ -120,7 +120,7 @@ public class CreateBiotechClient {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get(),
 			GhastHotAirBalloonAssemblyStationRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BIO_PACKAGER.get(), BioPackagerRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_PACKAGER.get(), PackagerRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_PACKAGER.get(), ShulkerPackagerRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BONE_RATCHET.get(), BoneRatchetRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.PETRI_DISH.get(), PetriDishRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get(),
@@ -154,6 +154,9 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/bio_packager/hatch_open"));
 		event.register(CreateBiotech.asResource("block/bio_packager/hatch_closed"));
 		event.register(CreateBiotech.asResource("block/bio_packager/tray"));
+		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_open"));
+		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_closed"));
+		event.register(CreateBiotech.asResource("block/shulker_packager/tray"));
 	}
 
 	@SubscribeEvent
@@ -197,7 +200,7 @@ public class CreateBiotechClient {
 				.neverSkipVanillaRender()
 				.apply();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.SHULKER_PACKAGER.get())
-				.factory((context, blockEntity, partialTick) -> new PackagerVisual<>(context, blockEntity, partialTick))
+				.factory(ShulkerPackagerVisual::new)
 				.neverSkipVanillaRender()
 				.apply();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.BONE_RATCHET.get())

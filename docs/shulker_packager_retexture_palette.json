@@ -1,0 +1,1456 @@
+{
+  "method": "Exact source-palette remap with end-stone/purple targets swapped. Colors that previously mapped to end_stone now map to vanilla shulker_shell.png/chorus_fruit.png purple colors. Colors that previously mapped to shulker/chorus purple now map to vanilla end_stone.png colors. Redstone_original entries keep the original Create packager redstone colors. Alpha is preserved and no pixels are hand drawn.",
+  "create_source_directory": "D:\\Files\\create_biotech\\ref\\Create\\src\\main\\resources\\assets\\create\\textures\\block",
+  "vanilla_source_jar": "D:\\Files\\create_biotech\\.minecraft\\libraries\\net\\minecraft\\client\\1.20.1-20230612.114412\\client-1.20.1-20230612.114412-extra.jar",
+  "source_textures": [
+    "packager_details.png",
+    "packager_vertical_unpowered.png",
+    "packager_vertical_powered.png",
+    "packager_vertical_linked.png",
+    "packager_particle.png",
+    "packager_iris_open.png",
+    "packager_iris_closed.png",
+    "packager_horizontal_unpowered.png",
+    "packager_horizontal_powered.png",
+    "packager_horizontal_linked.png",
+    "packager_frame.png"
+  ],
+  "target_pools": {
+    "end_stone": [
+      "assets/minecraft/textures/block/end_stone.png"
+    ],
+    "shulker_shell": [
+      "assets/minecraft/textures/item/shulker_shell.png"
+    ],
+    "chorus_fruit": [
+      "assets/minecraft/textures/item/chorus_fruit.png"
+    ]
+  },
+  "source_palette_size": 53,
+  "replacement_map_entries": 53,
+  "replacement_unique_colors": 31,
+  "palette": [
+    {
+      "source": "#323236",
+      "source_rgba": [
+        50,
+        50,
+        54,
+        255
+      ],
+      "target": "#3A143A",
+      "target_rgba": [
+        58,
+        20,
+        58,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 50,
+      "source_textures": {
+        "packager_details.png": 12,
+        "packager_iris_closed.png": 38
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#35343D",
+      "source_rgba": [
+        53,
+        52,
+        61,
+        255
+      ],
+      "target": "#432650",
+      "target_rgba": [
+        67,
+        38,
+        80,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 110,
+      "source_textures": {
+        "packager_details.png": 12,
+        "packager_horizontal_linked.png": 14,
+        "packager_horizontal_powered.png": 14,
+        "packager_horizontal_unpowered.png": 14,
+        "packager_particle.png": 2,
+        "packager_vertical_linked.png": 18,
+        "packager_vertical_powered.png": 18,
+        "packager_vertical_unpowered.png": 18
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#303A38",
+      "source_rgba": [
+        48,
+        58,
+        56,
+        255
+      ],
+      "target": "#432650",
+      "target_rgba": [
+        67,
+        38,
+        80,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 201,
+      "source_textures": {
+        "packager_details.png": 6,
+        "packager_frame.png": 151,
+        "packager_horizontal_linked.png": 4,
+        "packager_horizontal_powered.png": 8,
+        "packager_horizontal_unpowered.png": 8,
+        "packager_particle.png": 4,
+        "packager_vertical_linked.png": 4,
+        "packager_vertical_powered.png": 8,
+        "packager_vertical_unpowered.png": 8
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#3D3C48",
+      "source_rgba": [
+        61,
+        60,
+        72,
+        255
+      ],
+      "target": "#5E2E5C",
+      "target_rgba": [
+        94,
+        46,
+        92,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 305,
+      "source_textures": {
+        "packager_details.png": 41,
+        "packager_horizontal_linked.png": 44,
+        "packager_horizontal_powered.png": 44,
+        "packager_horizontal_unpowered.png": 44,
+        "packager_vertical_linked.png": 44,
+        "packager_vertical_powered.png": 44,
+        "packager_vertical_unpowered.png": 44
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#3E3D41",
+      "source_rgba": [
+        62,
+        61,
+        65,
+        255
+      ],
+      "target": "#523460",
+      "target_rgba": [
+        82,
+        52,
+        96,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 68,
+      "source_textures": {
+        "packager_details.png": 24,
+        "packager_iris_closed.png": 44
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#3F3E42",
+      "source_rgba": [
+        63,
+        62,
+        66,
+        255
+      ],
+      "target": "#523460",
+      "target_rgba": [
+        82,
+        52,
+        96,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 12,
+      "source_textures": {
+        "packager_details.png": 12
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#414150",
+      "source_rgba": [
+        65,
+        65,
+        80,
+        255
+      ],
+      "target": "#654864",
+      "target_rgba": [
+        101,
+        72,
+        100,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 89,
+      "source_textures": {
+        "packager_details.png": 13,
+        "packager_horizontal_linked.png": 10,
+        "packager_horizontal_powered.png": 10,
+        "packager_horizontal_unpowered.png": 10,
+        "packager_particle.png": 10,
+        "packager_vertical_linked.png": 12,
+        "packager_vertical_powered.png": 12,
+        "packager_vertical_unpowered.png": 12
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#444444",
+      "source_rgba": [
+        68,
+        68,
+        68,
+        255
+      ],
+      "target": "#6C486B",
+      "target_rgba": [
+        108,
+        72,
+        107,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 12,
+      "source_textures": {
+        "packager_details.png": 12
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#414844",
+      "source_rgba": [
+        65,
+        72,
+        68,
+        255
+      ],
+      "target": "#6C486B",
+      "target_rgba": [
+        108,
+        72,
+        107,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 270,
+      "source_textures": {
+        "packager_details.png": 20,
+        "packager_frame.png": 140,
+        "packager_horizontal_linked.png": 10,
+        "packager_horizontal_powered.png": 20,
+        "packager_horizontal_unpowered.png": 20,
+        "packager_particle.png": 10,
+        "packager_vertical_linked.png": 10,
+        "packager_vertical_powered.png": 20,
+        "packager_vertical_unpowered.png": 20
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#44485A",
+      "source_rgba": [
+        68,
+        72,
+        90,
+        255
+      ],
+      "target": "#845289",
+      "target_rgba": [
+        132,
+        82,
+        137,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 34,
+      "source_textures": {
+        "packager_details.png": 34
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#4F4F4F",
+      "source_rgba": [
+        79,
+        79,
+        79,
+        255
+      ],
+      "target": "#785978",
+      "target_rgba": [
+        120,
+        89,
+        120,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 62,
+      "source_textures": {
+        "packager_details.png": 44,
+        "packager_iris_closed.png": 18
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#535751",
+      "source_rgba": [
+        83,
+        87,
+        81,
+        255
+      ],
+      "target": "#8F638F",
+      "target_rgba": [
+        143,
+        99,
+        143,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 420,
+      "source_textures": {
+        "packager_details.png": 12,
+        "packager_frame.png": 56,
+        "packager_horizontal_linked.png": 32,
+        "packager_horizontal_powered.png": 64,
+        "packager_horizontal_unpowered.png": 64,
+        "packager_particle.png": 32,
+        "packager_vertical_linked.png": 32,
+        "packager_vertical_powered.png": 64,
+        "packager_vertical_unpowered.png": 64
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#595858",
+      "source_rgba": [
+        89,
+        88,
+        88,
+        255
+      ],
+      "target": "#8F638F",
+      "target_rgba": [
+        143,
+        99,
+        143,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 42,
+      "source_textures": {
+        "packager_details.png": 24,
+        "packager_iris_closed.png": 18
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#5A5D5A",
+      "source_rgba": [
+        90,
+        93,
+        90,
+        255
+      ],
+      "target": "#8E678D",
+      "target_rgba": [
+        142,
+        103,
+        141,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 4,
+      "source_textures": {
+        "packager_details.png": 4
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#676161",
+      "source_rgba": [
+        103,
+        97,
+        97,
+        255
+      ],
+      "target": "#976997",
+      "target_rgba": [
+        151,
+        105,
+        151,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 4,
+      "source_textures": {
+        "packager_details.png": 4
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#696962",
+      "source_rgba": [
+        105,
+        105,
+        98,
+        255
+      ],
+      "target": "#976997",
+      "target_rgba": [
+        151,
+        105,
+        151,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 238,
+      "source_textures": {
+        "packager_details.png": 8,
+        "packager_frame.png": 12,
+        "packager_horizontal_linked.png": 18,
+        "packager_horizontal_powered.png": 38,
+        "packager_horizontal_unpowered.png": 38,
+        "packager_iris_closed.png": 4,
+        "packager_iris_open.png": 4,
+        "packager_particle.png": 18,
+        "packager_vertical_linked.png": 18,
+        "packager_vertical_powered.png": 40,
+        "packager_vertical_unpowered.png": 40
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#696E69",
+      "source_rgba": [
+        105,
+        110,
+        105,
+        255
+      ],
+      "target": "#A381A2",
+      "target_rgba": [
+        163,
+        129,
+        162,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 2,
+      "source_textures": {
+        "packager_details.png": 2
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#707570",
+      "source_rgba": [
+        112,
+        117,
+        112,
+        255
+      ],
+      "target": "#AB84AA",
+      "target_rgba": [
+        171,
+        132,
+        170,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 5,
+      "source_textures": {
+        "packager_details.png": 5
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#797E7B",
+      "source_rgba": [
+        121,
+        126,
+        123,
+        255
+      ],
+      "target": "#AB84AA",
+      "target_rgba": [
+        171,
+        132,
+        170,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 10,
+      "source_textures": {
+        "packager_details.png": 10
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/shulker_shell.png"
+      ]
+    },
+    {
+      "source": "#848277",
+      "source_rgba": [
+        132,
+        130,
+        119,
+        255
+      ],
+      "target": "#BA9BBA",
+      "target_rgba": [
+        186,
+        155,
+        186,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 240,
+      "source_textures": {
+        "packager_details.png": 12,
+        "packager_frame.png": 48,
+        "packager_horizontal_linked.png": 14,
+        "packager_horizontal_powered.png": 27,
+        "packager_horizontal_unpowered.png": 27,
+        "packager_iris_closed.png": 16,
+        "packager_iris_open.png": 16,
+        "packager_particle.png": 14,
+        "packager_vertical_linked.png": 14,
+        "packager_vertical_powered.png": 26,
+        "packager_vertical_unpowered.png": 26
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#828784",
+      "source_rgba": [
+        130,
+        135,
+        132,
+        255
+      ],
+      "target": "#E1D7E1",
+      "target_rgba": [
+        225,
+        215,
+        225,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 11,
+      "source_textures": {
+        "packager_details.png": 11
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#9F9B93",
+      "source_rgba": [
+        159,
+        155,
+        147,
+        255
+      ],
+      "target": "#E1D7E1",
+      "target_rgba": [
+        225,
+        215,
+        225,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 335,
+      "source_textures": {
+        "packager_details.png": 20,
+        "packager_frame.png": 12,
+        "packager_horizontal_linked.png": 23,
+        "packager_horizontal_powered.png": 43,
+        "packager_horizontal_unpowered.png": 43,
+        "packager_iris_closed.png": 32,
+        "packager_iris_open.png": 32,
+        "packager_particle.png": 23,
+        "packager_vertical_linked.png": 23,
+        "packager_vertical_powered.png": 42,
+        "packager_vertical_unpowered.png": 42
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#BCB6AE",
+      "source_rgba": [
+        188,
+        182,
+        174,
+        255
+      ],
+      "target": "#F7F4F7",
+      "target_rgba": [
+        247,
+        244,
+        247,
+        255
+      ],
+      "group": "end_stone_area_to_purple",
+      "pixel_count": 241,
+      "source_textures": {
+        "packager_details.png": 32,
+        "packager_frame.png": 44,
+        "packager_horizontal_linked.png": 15,
+        "packager_horizontal_powered.png": 30,
+        "packager_horizontal_unpowered.png": 30,
+        "packager_particle.png": 15,
+        "packager_vertical_linked.png": 15,
+        "packager_vertical_powered.png": 30,
+        "packager_vertical_unpowered.png": 30
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/item/chorus_fruit.png"
+      ]
+    },
+    {
+      "source": "#05040E",
+      "source_rgba": [
+        5,
+        4,
+        14,
+        255
+      ],
+      "target": "#C5BE8B",
+      "target_rgba": [
+        197,
+        190,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 79,
+      "source_textures": {
+        "packager_iris_open.png": 79
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#0C0A15",
+      "source_rgba": [
+        12,
+        10,
+        21,
+        255
+      ],
+      "target": "#C5BE8B",
+      "target_rgba": [
+        197,
+        190,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 24,
+      "source_textures": {
+        "packager_iris_open.png": 24
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#120F1B",
+      "source_rgba": [
+        18,
+        15,
+        27,
+        255
+      ],
+      "target": "#C5BE8B",
+      "target_rgba": [
+        197,
+        190,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 39,
+      "source_textures": {
+        "packager_iris_closed.png": 2,
+        "packager_iris_open.png": 37
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#1E1827",
+      "source_rgba": [
+        30,
+        24,
+        39,
+        255
+      ],
+      "target": "#CDC68B",
+      "target_rgba": [
+        205,
+        198,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 2,
+      "source_textures": {
+        "packager_iris_closed.png": 2
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#2A2435",
+      "source_rgba": [
+        42,
+        36,
+        53,
+        255
+      ],
+      "target": "#CDC68B",
+      "target_rgba": [
+        205,
+        198,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 4,
+      "source_textures": {
+        "packager_iris_open.png": 4
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#2B2B2E",
+      "source_rgba": [
+        43,
+        43,
+        46,
+        255
+      ],
+      "target": "#CDC68B",
+      "target_rgba": [
+        205,
+        198,
+        139,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 22,
+      "source_textures": {
+        "packager_iris_closed.png": 22
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#2B2B31",
+      "source_rgba": [
+        43,
+        43,
+        49,
+        255
+      ],
+      "target": "#D5DA94",
+      "target_rgba": [
+        213,
+        218,
+        148,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 50,
+      "source_textures": {
+        "packager_horizontal_linked.png": 10,
+        "packager_horizontal_powered.png": 10,
+        "packager_horizontal_unpowered.png": 10,
+        "packager_particle.png": 2,
+        "packager_vertical_linked.png": 6,
+        "packager_vertical_powered.png": 6,
+        "packager_vertical_unpowered.png": 6
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#252F2D",
+      "source_rgba": [
+        37,
+        47,
+        45,
+        255
+      ],
+      "target": "#D5DA94",
+      "target_rgba": [
+        213,
+        218,
+        148,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 23,
+      "source_textures": {
+        "packager_frame.png": 23
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#553A1F",
+      "source_rgba": [
+        85,
+        58,
+        31,
+        255
+      ],
+      "target": "#D5DA94",
+      "target_rgba": [
+        213,
+        218,
+        148,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 116,
+      "source_textures": {
+        "packager_details.png": 30,
+        "packager_horizontal_powered.png": 24,
+        "packager_horizontal_unpowered.png": 18,
+        "packager_vertical_powered.png": 22,
+        "packager_vertical_unpowered.png": 22
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#5A4424",
+      "source_rgba": [
+        90,
+        68,
+        36,
+        255
+      ],
+      "target": "#D5DA94",
+      "target_rgba": [
+        213,
+        218,
+        148,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 44,
+      "source_textures": {
+        "packager_details.png": 44
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#614B2E",
+      "source_rgba": [
+        97,
+        75,
+        46,
+        255
+      ],
+      "target": "#D5DA94",
+      "target_rgba": [
+        213,
+        218,
+        148,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 146,
+      "source_textures": {
+        "packager_details.png": 46,
+        "packager_horizontal_powered.png": 18,
+        "packager_horizontal_unpowered.png": 18,
+        "packager_vertical_powered.png": 32,
+        "packager_vertical_unpowered.png": 32
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#495669",
+      "source_rgba": [
+        73,
+        86,
+        105,
+        255
+      ],
+      "target": "#DEE6A4",
+      "target_rgba": [
+        222,
+        230,
+        164,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 42,
+      "source_textures": {
+        "packager_horizontal_linked.png": 6,
+        "packager_horizontal_powered.png": 6,
+        "packager_horizontal_unpowered.png": 6,
+        "packager_vertical_linked.png": 8,
+        "packager_vertical_powered.png": 8,
+        "packager_vertical_unpowered.png": 8
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#70522E",
+      "source_rgba": [
+        112,
+        82,
+        46,
+        255
+      ],
+      "target": "#DEE6A4",
+      "target_rgba": [
+        222,
+        230,
+        164,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 123,
+      "source_textures": {
+        "packager_details.png": 23,
+        "packager_horizontal_powered.png": 24,
+        "packager_horizontal_unpowered.png": 24,
+        "packager_vertical_powered.png": 26,
+        "packager_vertical_unpowered.png": 26
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#4B5E71",
+      "source_rgba": [
+        75,
+        94,
+        113,
+        255
+      ],
+      "target": "#DEE6A4",
+      "target_rgba": [
+        222,
+        230,
+        164,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 62,
+      "source_textures": {
+        "packager_horizontal_linked.png": 8,
+        "packager_horizontal_powered.png": 8,
+        "packager_horizontal_unpowered.png": 8,
+        "packager_particle.png": 8,
+        "packager_vertical_linked.png": 10,
+        "packager_vertical_powered.png": 10,
+        "packager_vertical_unpowered.png": 10
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#19733E",
+      "source_rgba": [
+        25,
+        115,
+        62,
+        255
+      ],
+      "target": "#EEF6B4",
+      "target_rgba": [
+        238,
+        246,
+        180,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 18,
+      "source_textures": {
+        "packager_horizontal_linked.png": 8,
+        "packager_vertical_linked.png": 10
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#7A5A34",
+      "source_rgba": [
+        122,
+        90,
+        52,
+        255
+      ],
+      "target": "#EEF6B4",
+      "target_rgba": [
+        238,
+        246,
+        180,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 47,
+      "source_textures": {
+        "packager_details.png": 31,
+        "packager_horizontal_powered.png": 4,
+        "packager_horizontal_unpowered.png": 4,
+        "packager_vertical_powered.png": 4,
+        "packager_vertical_unpowered.png": 4
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#82613A",
+      "source_rgba": [
+        130,
+        97,
+        58,
+        255
+      ],
+      "target": "#EEF6B4",
+      "target_rgba": [
+        238,
+        246,
+        180,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 54,
+      "source_textures": {
+        "packager_details.png": 18,
+        "packager_horizontal_powered.png": 12,
+        "packager_horizontal_unpowered.png": 12,
+        "packager_vertical_powered.png": 6,
+        "packager_vertical_unpowered.png": 6
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#886539",
+      "source_rgba": [
+        136,
+        101,
+        57,
+        255
+      ],
+      "target": "#EEF6B4",
+      "target_rgba": [
+        238,
+        246,
+        180,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 52,
+      "source_textures": {
+        "packager_details.png": 8,
+        "packager_horizontal_powered.png": 12,
+        "packager_horizontal_unpowered.png": 12,
+        "packager_vertical_powered.png": 10,
+        "packager_vertical_unpowered.png": 10
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#298B3B",
+      "source_rgba": [
+        41,
+        139,
+        59,
+        255
+      ],
+      "target": "#EEF6B4",
+      "target_rgba": [
+        238,
+        246,
+        180,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 22,
+      "source_textures": {
+        "packager_horizontal_linked.png": 10,
+        "packager_vertical_linked.png": 12
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#38A43F",
+      "source_rgba": [
+        56,
+        164,
+        63,
+        255
+      ],
+      "target": "#F6FABD",
+      "target_rgba": [
+        246,
+        250,
+        189,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 22,
+      "source_textures": {
+        "packager_horizontal_linked.png": 10,
+        "packager_vertical_linked.png": 12
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#4AB741",
+      "source_rgba": [
+        74,
+        183,
+        65,
+        255
+      ],
+      "target": "#F6FABD",
+      "target_rgba": [
+        246,
+        250,
+        189,
+        255
+      ],
+      "group": "purple_area_to_end_stone",
+      "pixel_count": 4,
+      "source_textures": {
+        "packager_horizontal_linked.png": 2,
+        "packager_vertical_linked.png": 2
+      },
+      "target_source_textures": [
+        "assets/minecraft/textures/block/end_stone.png"
+      ]
+    },
+    {
+      "source": "#370000",
+      "source_rgba": [
+        55,
+        0,
+        0,
+        255
+      ],
+      "target": "#370000",
+      "target_rgba": [
+        55,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 11,
+      "source_textures": {
+        "packager_horizontal_unpowered.png": 5,
+        "packager_vertical_unpowered.png": 6
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_unpowered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_unpowered.png"
+      ]
+    },
+    {
+      "source": "#3B0000",
+      "source_rgba": [
+        59,
+        0,
+        0,
+        255
+      ],
+      "target": "#3B0000",
+      "target_rgba": [
+        59,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 43,
+      "source_textures": {
+        "packager_horizontal_unpowered.png": 21,
+        "packager_vertical_unpowered.png": 22
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_unpowered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_unpowered.png"
+      ]
+    },
+    {
+      "source": "#460000",
+      "source_rgba": [
+        70,
+        0,
+        0,
+        255
+      ],
+      "target": "#460000",
+      "target_rgba": [
+        70,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 8,
+      "source_textures": {
+        "packager_horizontal_unpowered.png": 4,
+        "packager_vertical_unpowered.png": 4
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_unpowered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_unpowered.png"
+      ]
+    },
+    {
+      "source": "#500101",
+      "source_rgba": [
+        80,
+        1,
+        1,
+        255
+      ],
+      "target": "#500101",
+      "target_rgba": [
+        80,
+        1,
+        1,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 38,
+      "source_textures": {
+        "packager_horizontal_unpowered.png": 18,
+        "packager_vertical_unpowered.png": 20
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_unpowered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_unpowered.png"
+      ]
+    },
+    {
+      "source": "#580101",
+      "source_rgba": [
+        88,
+        1,
+        1,
+        255
+      ],
+      "target": "#580101",
+      "target_rgba": [
+        88,
+        1,
+        1,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 38,
+      "source_textures": {
+        "packager_horizontal_unpowered.png": 18,
+        "packager_vertical_unpowered.png": 20
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_unpowered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_unpowered.png"
+      ]
+    },
+    {
+      "source": "#660000",
+      "source_rgba": [
+        102,
+        0,
+        0,
+        255
+      ],
+      "target": "#660000",
+      "target_rgba": [
+        102,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 8,
+      "source_textures": {
+        "packager_horizontal_powered.png": 4,
+        "packager_vertical_powered.png": 4
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_powered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_powered.png"
+      ]
+    },
+    {
+      "source": "#970000",
+      "source_rgba": [
+        151,
+        0,
+        0,
+        255
+      ],
+      "target": "#970000",
+      "target_rgba": [
+        151,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 44,
+      "source_textures": {
+        "packager_horizontal_powered.png": 20,
+        "packager_vertical_powered.png": 24
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_powered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_powered.png"
+      ]
+    },
+    {
+      "source": "#AE0000",
+      "source_rgba": [
+        174,
+        0,
+        0,
+        255
+      ],
+      "target": "#AE0000",
+      "target_rgba": [
+        174,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 44,
+      "source_textures": {
+        "packager_horizontal_powered.png": 20,
+        "packager_vertical_powered.png": 24
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_powered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_powered.png"
+      ]
+    },
+    {
+      "source": "#CD0000",
+      "source_rgba": [
+        205,
+        0,
+        0,
+        255
+      ],
+      "target": "#CD0000",
+      "target_rgba": [
+        205,
+        0,
+        0,
+        255
+      ],
+      "group": "redstone_original",
+      "pixel_count": 36,
+      "source_textures": {
+        "packager_horizontal_powered.png": 16,
+        "packager_vertical_powered.png": 20
+      },
+      "target_source_textures": [
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_horizontal_powered.png",
+        "ref/Create/src/main/resources/assets/create/textures/block/packager_vertical_powered.png"
+      ]
+    }
+  ]
+}

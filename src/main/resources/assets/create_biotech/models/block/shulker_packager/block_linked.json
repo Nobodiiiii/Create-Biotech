@@ -1,0 +1,6 @@
+{
+	"parent": "create_biotech:block/shulker_packager/block",
+	"textures": {
+		"2": "create_biotech:block/shulker_packager/horizontal_linked"
+	}
+}
