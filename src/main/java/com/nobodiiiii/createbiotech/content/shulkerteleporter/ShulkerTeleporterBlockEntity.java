@@ -187,6 +187,10 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			bottom.getX() + 0.82d, bottom.getY() + 2.85d, bottom.getZ() + 0.82d);
 	}
 
+	public boolean isPlayerInTeleportArea(Player player) {
+		return player.isAlive() && !player.isSpectator() && getTeleportArea().intersects(player.getBoundingBox());
+	}
+
 	@Override
 	public AABB getRenderBoundingBox() {
 		return new AABB(getBottomPos()).expandTowards(0, 3, 0);
@@ -233,7 +237,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	}
 
 	private boolean canTeleportPlayer(ServerPlayer player) {
-		if (player.isSpectator() || !player.isAlive())
+		if (!isPlayerInTeleportArea(player))
 			return false;
 		return !arrivalCooldowns.containsKey(player.getUUID());
 	}

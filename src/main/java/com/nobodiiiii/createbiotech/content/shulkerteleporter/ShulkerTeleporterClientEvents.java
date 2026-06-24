@@ -65,26 +65,33 @@ public class ShulkerTeleporterClientEvents {
 		renderingClippedPlayer = false;
 	}
 
+	public static double getFirstPersonCameraYOffset(Player player, float partialTick) {
+		ShulkerTeleporterBlockEntity teleporter = findRelevantTeleporter(player, partialTick);
+		if (teleporter == null)
+			return 0.0d;
+		return teleporter.getTopShellYOffset(partialTick) - ShulkerTeleporterBlockEntity.TOP_SHELL_OPEN_Y;
+	}
+
 	private static ShulkerTeleporterBlockEntity findRelevantTeleporter(Player player, float partialTick) {
 		Level level = player.level();
 		BlockPos center = player.blockPosition();
+		ShulkerTeleporterBlockEntity best = null;
+		float bestProgress = 0.0f;
 		for (BlockPos pos : BlockPos.betweenClosed(center.offset(-1, -1, -1), center.offset(1, 4, 1))) {
 			BlockEntity blockEntity = level.getBlockEntity(pos);
 			if (!(blockEntity instanceof ShulkerTeleporterBlockEntity teleporter))
 				continue;
-			if (teleporter.getClosingProgress(partialTick) <= 0)
+			float progress = teleporter.getClosingProgress(partialTick);
+			if (progress <= 0)
 				continue;
-			if (!isHorizontallyInside(player, teleporter))
+			if (!teleporter.isPlayerInTeleportArea(player))
 				continue;
-			return teleporter;
+			if (best == null || progress > bestProgress) {
+				best = teleporter;
+				bestProgress = progress;
+			}
 		}
-		return null;
-	}
-
-	private static boolean isHorizontallyInside(Player player, ShulkerTeleporterBlockEntity teleporter) {
-		BlockPos bottom = teleporter.getBottomPos();
-		return player.getX() >= bottom.getX() + 0.18d && player.getX() <= bottom.getX() + 0.82d
-			&& player.getZ() >= bottom.getZ() + 0.18d && player.getZ() <= bottom.getZ() + 0.82d;
+		return best;
 	}
 
 	private static class YClippingVertexConsumer implements VertexConsumer {

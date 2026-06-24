@@ -39,6 +39,7 @@
   ],
   "client": [
     "client.BasinRendererMixin",
+    "client.CameraMixin",
     "client.CreeperAccessor",
     "client.CreeperRendererMixin",
     "client.FlapStuffsMixin",
