@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterClientEvents;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -24,9 +25,11 @@ public abstract class CameraMixin {
 	@Shadow
 	protected abstract void setPosition(Vec3 pPos);
 
-	@Inject(method = "setup", at = @At("RETURN"))
+	@Inject(method = "setup", at = @At("RETURN"), require = 0)
 	private void createBiotech$lowerFirstPersonViewInShulkerTeleporter(BlockGetter level, Entity entity,
 		boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
+		if (!CBConfigs.CLIENT.enableShulkerTeleporterCameraOffset.get())
+			return;
 		if (detached)
 			return;
 		if (!(entity instanceof Player player))

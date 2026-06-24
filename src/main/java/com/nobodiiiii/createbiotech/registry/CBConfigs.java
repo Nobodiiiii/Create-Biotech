@@ -56,11 +56,15 @@ public class CBConfigs {
 	}
 
 	public static class Client {
+		public final ForgeConfigSpec.BooleanValue enableShulkerTeleporterCameraOffset;
+		public final ForgeConfigSpec.BooleanValue enableShulkerTeleporterPlayerClipping;
 		public final ClientCreeperBlastChamber creeperBlastChamber;
 		public final ClientUniversalJoint universalJoint;
 		public final BeltParticles beltParticles;
 
 		Client(ForgeConfigSpec.Builder builder) {
+			enableShulkerTeleporterCameraOffset = builder.define("enableShulkerTeleporterCameraOffset", true);
+			enableShulkerTeleporterPlayerClipping = builder.define("enableShulkerTeleporterPlayerClipping", true);
 			creeperBlastChamber = new ClientCreeperBlastChamber(builder);
 			universalJoint = new ClientUniversalJoint(builder);
 			beltParticles = new BeltParticles(builder);

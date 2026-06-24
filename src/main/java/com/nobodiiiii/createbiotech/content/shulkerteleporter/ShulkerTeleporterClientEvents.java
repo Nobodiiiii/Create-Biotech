@@ -6,6 +6,7 @@ import java.util.List;
 import org.joml.Matrix4f;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
@@ -30,10 +31,26 @@ import net.minecraft.client.renderer.RenderType;
 public class ShulkerTeleporterClientEvents {
 
 	private static boolean renderingClippedPlayer;
+	private static boolean playerClippingDisabledThisSession;
 
 	@SubscribeEvent
 	public static void clipPlayerAboveClosingShell(RenderPlayerEvent.Pre event) {
 		if (renderingClippedPlayer)
+			return;
+		if (playerClippingDisabledThisSession)
+			return;
+
+		try {
+			clipPlayerAboveClosingShellSafely(event);
+		} catch (Throwable throwable) {
+			playerClippingDisabledThisSession = true;
+			renderingClippedPlayer = false;
+			event.setCanceled(false);
+		}
+	}
+
+	private static void clipPlayerAboveClosingShellSafely(RenderPlayerEvent.Pre event) {
+		if (!CBConfigs.CLIENT.enableShulkerTeleporterPlayerClipping.get())
 			return;
 
 		Player player = event.getEntity();
@@ -58,11 +75,14 @@ public class ShulkerTeleporterClientEvents {
 			.getBuffer(renderType), clipY);
 		float yaw = Mth.lerp(event.getPartialTick(), player.yRotO, player.getYRot());
 
-		renderingClippedPlayer = true;
-		event.getRenderer()
-			.render(clientPlayer, yaw, event.getPartialTick(), event.getPoseStack(), clippedBuffer,
-				event.getPackedLight());
-		renderingClippedPlayer = false;
+		try {
+			renderingClippedPlayer = true;
+			event.getRenderer()
+				.render(clientPlayer, yaw, event.getPartialTick(), event.getPoseStack(), clippedBuffer,
+					event.getPackedLight());
+		} finally {
+			renderingClippedPlayer = false;
+		}
 	}
 
 	public static double getFirstPersonCameraYOffset(Player player, float partialTick) {
