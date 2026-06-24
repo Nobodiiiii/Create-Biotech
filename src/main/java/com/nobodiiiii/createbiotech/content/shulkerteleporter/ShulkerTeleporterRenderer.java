@@ -24,10 +24,7 @@ import net.createmod.catnip.render.SuperByteBuffer;
 public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<ShulkerTeleporterBlockEntity> {
 
 	private static final float LOWER_SHELL_Y = -2.0f;
-	private static final float TOP_OPEN_Y = -1.0f;
-	private static final float TOP_CLOSED_Y = -2.0f;
-	private static final float MIXER_POLE_Y_OFFSET = -1 - 7 / 16f;
-	private static final float MIXER_POLE_CLOSE_TRAVEL = -1.0f;
+	private static final float MIXER_IDLE_HEAD_OFFSET = 7 / 16f;
 	private static final float FULL_SPIN_DEGREES = 720.0f;
 
 	private final ShulkerModel<Shulker> model;
@@ -43,12 +40,12 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 		VertexConsumer vertexConsumer = Sheets.DEFAULT_SHULKER_TEXTURE_LOCATION.buffer(bufferSource,
 			RenderType::entityCutoutNoCull);
 		float progress = be.getClosingProgress(partialTick);
-		float topY = TOP_OPEN_Y + (TOP_CLOSED_Y - TOP_OPEN_Y) * progress;
+		float topY = be.getTopShellYOffset(partialTick);
 		float spin = progress * FULL_SPIN_DEGREES;
 
 		renderMixerBody(be, poseStack, bufferSource, packedLight, packedOverlay);
 		renderDriveCog(be, poseStack, bufferSource, packedLight);
-		renderMixerPole(be, poseStack, bufferSource, packedLight, progress);
+		renderMixerPole(be, poseStack, bufferSource, packedLight, topY);
 		renderBase(poseStack, vertexConsumer, packedLight, packedOverlay);
 		renderLid(poseStack, vertexConsumer, packedLight, packedOverlay, topY, spin);
 	}
@@ -73,10 +70,10 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 	}
 
 	private void renderMixerPole(ShulkerTeleporterBlockEntity be, PoseStack poseStack, MultiBufferSource bufferSource,
-		int packedLight, float progress) {
+		int packedLight, float topShellY) {
 		BlockState blockState = be.getBlockState();
 		CachedBuffers.partial(AllPartialModels.MECHANICAL_MIXER_POLE, blockState)
-			.translate(0, MIXER_POLE_Y_OFFSET + MIXER_POLE_CLOSE_TRAVEL * progress, 0)
+			.translate(0, topShellY - ShulkerTeleporterBlockEntity.TOP_SHELL_OPEN_Y - MIXER_IDLE_HEAD_OFFSET, 0)
 			.light(packedLight)
 			.renderInto(poseStack, bufferSource.getBuffer(RenderType.solid()));
 	}

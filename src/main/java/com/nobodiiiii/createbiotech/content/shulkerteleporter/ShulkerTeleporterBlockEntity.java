@@ -41,13 +41,15 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	public static final int CLOSE_TICKS = 80;
 	public static final int SEALED_HOLD_TICKS = 10;
 	public static final int ARRIVAL_COOLDOWN_TICKS = 80;
+	public static final float TOP_SHELL_OPEN_Y = -1.0f;
+	public static final float TOP_SHELL_CLOSED_Y = -2.0f;
 	private static final int MAX_ADDRESS_LENGTH = 32;
 	private static final Map<ResourceKey<Level>, Map<String, Set<BlockPos>>> ADDRESS_INDEX = new HashMap<>();
 
 	private String ownAddress = "";
 	private String targetAddress = "";
-	private int closingTicks;
-	private int previousClosingTicks;
+	private float closingTicks;
+	private float previousClosingTicks;
 	private int sealedHoldTicks;
 	private boolean closing;
 	private final Map<UUID, Integer> arrivalCooldowns = new HashMap<>();
@@ -72,10 +74,11 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			return;
 
 		if (level.isClientSide) {
+			float animationStep = getAnimationStep();
 			if (closing && closingTicks < CLOSE_TICKS)
-				closingTicks++;
+				closingTicks = Math.min(CLOSE_TICKS, closingTicks + animationStep);
 			else if (!closing && closingTicks > 0)
-				closingTicks--;
+				closingTicks = Math.max(0, closingTicks - animationStep);
 			return;
 		}
 
@@ -87,17 +90,17 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		boolean shouldClose = !playersInside.isEmpty() && hasUsableTarget() && Math.abs(getSpeed()) > 0;
 
 		if (shouldClose) {
+			float animationStep = getAnimationStep();
 			if (!closing) {
 				closing = true;
 				sendBlockUpdate();
 			}
 			if (closingTicks < CLOSE_TICKS)
-				closingTicks++;
+				closingTicks = Math.min(CLOSE_TICKS, closingTicks + animationStep);
 			if (closingTicks >= CLOSE_TICKS && ++sealedHoldTicks >= SEALED_HOLD_TICKS) {
 				ServerPlayer player = playersInside.get(0);
 				if (teleport(player)) {
 					closing = false;
-					closingTicks = 0;
 					sealedHoldTicks = 0;
 					sendBlockUpdate();
 				}
@@ -107,7 +110,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 
 		if (closing || closingTicks > 0) {
 			closing = false;
-			closingTicks = Math.max(0, closingTicks - 2);
+			closingTicks = Math.max(0, closingTicks - getAnimationStep());
 			sealedHoldTicks = 0;
 			sendBlockUpdate();
 		}
@@ -158,8 +161,24 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			1.0f);
 	}
 
+	public float getTopShellYOffset(float partialTicks) {
+		float progress = getClosingProgress(partialTicks);
+		return Mth.lerp(progress, TOP_SHELL_OPEN_Y, TOP_SHELL_CLOSED_Y);
+	}
+
+	public double getTopShellTopY(float partialTicks) {
+		return worldPosition.getY() + getTopShellYOffset(partialTicks) + 1.0d;
+	}
+
 	public boolean isClosing() {
 		return closing;
+	}
+
+	private float getAnimationStep() {
+		float speed = Math.abs(getSpeed());
+		if (speed <= 0)
+			return 1.0f;
+		return Mth.clamp(speed / 64.0f, 0.25f, 4.0f);
 	}
 
 	public AABB getTeleportArea() {
@@ -183,7 +202,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	protected void write(CompoundTag tag, boolean clientPacket) {
 		tag.putString("OwnAddress", ownAddress);
 		tag.putString("TargetAddress", targetAddress);
-		tag.putInt("ClosingTicks", closingTicks);
+		tag.putFloat("ClosingTicks", closingTicks);
 		tag.putInt("SealedHoldTicks", sealedHoldTicks);
 		tag.putBoolean("Closing", closing);
 		super.write(tag, clientPacket);
@@ -194,7 +213,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		super.read(tag, clientPacket);
 		ownAddress = normalizeAddress(tag.getString("OwnAddress"));
 		targetAddress = normalizeAddress(tag.getString("TargetAddress"));
-		closingTicks = Mth.clamp(tag.getInt("ClosingTicks"), 0, CLOSE_TICKS);
+		closingTicks = Mth.clamp(tag.getFloat("ClosingTicks"), 0, CLOSE_TICKS);
 		previousClosingTicks = closingTicks;
 		sealedHoldTicks = Mth.clamp(tag.getInt("SealedHoldTicks"), 0, SEALED_HOLD_TICKS);
 		closing = tag.getBoolean("Closing");
