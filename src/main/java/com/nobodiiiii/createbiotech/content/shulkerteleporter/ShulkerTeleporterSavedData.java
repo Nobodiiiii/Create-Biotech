@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,7 +58,20 @@ public class ShulkerTeleporterSavedData extends SavedData {
 			if (!entry.getKey().equals(source) && entry.getValue().equals(address))
 				targets.add(entry.getKey());
 		}
+		targets.sort(targetOrder(source));
 		return targets;
+	}
+
+	private static Comparator<Location> targetOrder(Location source) {
+		return Comparator
+			.comparing((Location target) -> !target.dimension().equals(source.dimension()))
+			.thenComparingDouble(target -> target.dimension().equals(source.dimension())
+				? target.pos().distSqr(source.pos())
+				: 0)
+			.thenComparing(target -> target.dimension().location().toString())
+			.thenComparingInt(target -> target.pos().getX())
+			.thenComparingInt(target -> target.pos().getY())
+			.thenComparingInt(target -> target.pos().getZ());
 	}
 
 	@Override

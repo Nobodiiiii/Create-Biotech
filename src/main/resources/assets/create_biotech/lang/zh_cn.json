@@ -404,7 +404,7 @@
   "block.create_biotech.shulker_teleporter.tooltip.condition1": "打开界面",
   "block.create_biotech.shulker_teleporter.tooltip.behaviour1": "可以设置自己的_地址标识_，以及要前往的_目标地址_。",
   "block.create_biotech.shulker_teleporter.tooltip.condition2": "生物或掉落物位于底座且目标在线时",
-  "block.create_biotech.shulker_teleporter.tooltip.behaviour2": "上方贝壳会旋转下压并闭合，等待目标完全打开后再传送；离开底座则取消。",
+  "block.create_biotech.shulker_teleporter.tooltip.behaviour2": "上方贝壳会旋转下压并闭合；同名目标中优先选择同维度最近的空闲站点，并将底座上的所有目标一起传送。全部离开则取消。",
   "create_biotech.shulker_teleporter.own_address": "本机地址",
   "create_biotech.shulker_teleporter.target_address": "目标地址",
   "create_biotech.shulker_teleporter.save": "保存"

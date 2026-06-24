@@ -404,7 +404,7 @@
   "block.create_biotech.shulker_teleporter.tooltip.condition1": "When opened",
   "block.create_biotech.shulker_teleporter.tooltip.behaviour1": "Allows setting this teleporter's _own address_ and the _target address_ it should send living entities to.",
   "block.create_biotech.shulker_teleporter.tooltip.condition2": "When a living entity or dropped item is on the base and the target is online",
-  "block.create_biotech.shulker_teleporter.tooltip.behaviour2": "The upper shell closes, waits for the destination to open fully, then teleports the target; leaving the base cancels it.",
+  "block.create_biotech.shulker_teleporter.tooltip.behaviour2": "The upper shell closes, prefers the nearest idle same-address destination in its dimension, and teleports everything on the base together. It cancels when the base is empty.",
   "create_biotech.shulker_teleporter.own_address": "Own Address",
   "create_biotech.shulker_teleporter.target_address": "Target Address",
   "create_biotech.shulker_teleporter.save": "Save"

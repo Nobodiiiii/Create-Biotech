@@ -104,8 +104,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 				if (sealedHoldTicks < SEALED_HOLD_TICKS)
 					sealedHoldTicks++;
 				if (sealedHoldTicks >= SEALED_HOLD_TICKS) {
-					Entity entity = entitiesInside.get(0);
-					if (teleport(entity)) {
+					if (teleport(entitiesInside)) {
 						closing = false;
 						sealedHoldTicks = 0;
 						sendBlockUpdate();
@@ -252,19 +251,27 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		return !arrivalCooldowns.containsKey(entity.getUUID());
 	}
 
-	private boolean teleport(Entity entity) {
-		ShulkerTeleporterBlockEntity target = findOpenTarget(entity.getId());
+	private boolean teleport(List<Entity> entities) {
+		if (entities.isEmpty())
+			return false;
+
+		ShulkerTeleporterBlockEntity target = findOpenTarget(entities.get(0).getId());
 		if (target == null || !(target.level instanceof ServerLevel targetLevel))
 			return false;
 
 		BlockPos targetBottom = target.getBottomPos();
-		entity.resetFallDistance();
-		boolean teleported = entity.teleportTo(targetLevel, targetBottom.getX() + 0.5d,
-			targetBottom.getY() + 1.0d / 16.0d, targetBottom.getZ() + 0.5d, Set.<RelativeMovement>of(),
-			entity.getYRot(), entity.getXRot());
-		if (teleported)
+		boolean teleportedAny = false;
+		for (Entity entity : entities) {
+			entity.resetFallDistance();
+			boolean teleported = entity.teleportTo(targetLevel, targetBottom.getX() + 0.5d,
+				targetBottom.getY() + 1.0d / 16.0d, targetBottom.getZ() + 0.5d,
+				Set.<RelativeMovement>of(), entity.getYRot(), entity.getXRot());
+			if (!teleported)
+				continue;
 			target.markArrivalCooldown(entity.getUUID());
-		return teleported;
+			teleportedAny = true;
+		}
+		return teleportedAny;
 	}
 
 	private void markArrivalCooldown(UUID uuid) {
@@ -310,11 +317,23 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 				savedData.register(location, target.ownAddress);
 				continue;
 			}
-			if (!target.isFullyOpen())
+			if (!target.canReceiveTeleport())
 				continue;
 			return target;
 		}
 		return null;
+	}
+
+	private boolean canReceiveTeleport() {
+		if (!isFullyOpen() || level == null)
+			return false;
+		return level.getEntitiesOfClass(Entity.class, getTeleportArea(), this::blocksIncomingTeleport)
+			.isEmpty();
+	}
+
+	private boolean blocksIncomingTeleport(Entity entity) {
+		return entity.isAlive() && !entity.isSpectator()
+			&& (entity instanceof LivingEntity || entity instanceof ItemEntity);
 	}
 
 	private boolean isFullyOpen() {
