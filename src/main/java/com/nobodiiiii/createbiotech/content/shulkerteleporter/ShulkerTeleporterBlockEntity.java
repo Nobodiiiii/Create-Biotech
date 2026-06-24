@@ -43,6 +43,8 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	public static final int ARRIVAL_COOLDOWN_TICKS = 80;
 	public static final float TOP_SHELL_OPEN_Y = -1.0f;
 	public static final float TOP_SHELL_CLOSED_Y = -2.0f;
+	private static final AABB TELEPORT_TRIGGER_AREA = new AABB(1.0d / 16.0d, 0.0d, 1.0d / 16.0d,
+		15.0d / 16.0d, 0.25d, 15.0d / 16.0d);
 	private static final int MAX_ADDRESS_LENGTH = 32;
 	private static final Map<ResourceKey<Level>, Map<String, Set<BlockPos>>> ADDRESS_INDEX = new HashMap<>();
 
@@ -182,9 +184,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	}
 
 	public AABB getTeleportArea() {
-		BlockPos bottom = getBottomPos();
-		return new AABB(bottom.getX() + 0.18d, bottom.getY(), bottom.getZ() + 0.18d,
-			bottom.getX() + 0.82d, bottom.getY() + 2.85d, bottom.getZ() + 0.82d);
+		return TELEPORT_TRIGGER_AREA.move(getBottomPos());
 	}
 
 	public boolean isPlayerInTeleportArea(Player player) {
@@ -249,7 +249,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 
 		target.markArrivalCooldown(player.getUUID());
 		BlockPos targetBottom = target.getBottomPos();
-		player.teleportTo(targetLevel, targetBottom.getX() + 0.5d, targetBottom.getY() + 0.05d,
+		player.teleportTo(targetLevel, targetBottom.getX() + 0.5d, targetBottom.getY() + 1.0d / 16.0d,
 			targetBottom.getZ() + 0.5d, player.getYRot(), player.getXRot());
 		player.resetFallDistance();
 		return true;

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
@@ -70,9 +71,15 @@ public class ShulkerTeleporterClientEvents {
 			.gameRenderer
 			.getMainCamera()
 			.getPosition();
+		float cameraPitch = Minecraft.getInstance()
+			.gameRenderer
+			.getMainCamera()
+			.getXRot();
 		double clipY = teleporter.getTopShellTopY(event.getPartialTick()) - camera.y;
+		double pitchRadians = Math.toRadians(cameraPitch);
+		Vector3f clipNormal = new Vector3f(0.0f, (float) Math.cos(pitchRadians), (float) Math.sin(pitchRadians));
 		MultiBufferSource clippedBuffer = renderType -> new YClippingVertexConsumer(event.getMultiBufferSource()
-			.getBuffer(renderType), clipY);
+			.getBuffer(renderType), clipNormal, clipY);
 		float yaw = Mth.lerp(event.getPartialTick(), player.yRotO, player.getYRot());
 
 		try {
@@ -116,13 +123,15 @@ public class ShulkerTeleporterClientEvents {
 
 	private static class YClippingVertexConsumer implements VertexConsumer {
 		private final VertexConsumer wrapped;
-		private final double clipY;
+		private final Vector3f clipNormal;
+		private final double clipDistance;
 		private final List<ClippedVertex> quad = new ArrayList<>(4);
 		private ClippedVertex current = new ClippedVertex();
 
-		private YClippingVertexConsumer(VertexConsumer wrapped, double clipY) {
+		private YClippingVertexConsumer(VertexConsumer wrapped, Vector3f clipNormal, double clipDistance) {
 			this.wrapped = wrapped;
-			this.clipY = clipY;
+			this.clipNormal = clipNormal;
+			this.clipDistance = clipDistance;
 		}
 
 		@Override
@@ -139,7 +148,7 @@ public class ShulkerTeleporterClientEvents {
 			return vertex(matrix.transformPosition(x, y, z, new org.joml.Vector3f()));
 		}
 
-		private VertexConsumer vertex(org.joml.Vector3f vec) {
+		private VertexConsumer vertex(Vector3f vec) {
 			return vertex(vec.x(), vec.y(), vec.z());
 		}
 
@@ -211,15 +220,22 @@ public class ShulkerTeleporterClientEvents {
 			for (int i = 0; i < source.size(); i++) {
 				ClippedVertex current = source.get(i);
 				ClippedVertex previous = source.get((i + source.size() - 1) % source.size());
-				boolean currentInside = current.y <= clipY;
-				boolean previousInside = previous.y <= clipY;
+				double currentDistance = signedDistanceToClipPlane(current);
+				double previousDistance = signedDistanceToClipPlane(previous);
+				boolean currentInside = currentDistance <= 0;
+				boolean previousInside = previousDistance <= 0;
 
 				if (currentInside != previousInside)
-					result.add(ClippedVertex.lerp(previous, current, (clipY - previous.y) / (current.y - previous.y)));
+					result.add(ClippedVertex.lerp(previous, current,
+						-previousDistance / (currentDistance - previousDistance)));
 				if (currentInside)
 					result.add(current);
 			}
 			return result;
+		}
+
+		private double signedDistanceToClipPlane(ClippedVertex vertex) {
+			return vertex.x * clipNormal.x() + vertex.y * clipNormal.y() + vertex.z * clipNormal.z() - clipDistance;
 		}
 
 		private void emitDegenerateQuad(ClippedVertex a, ClippedVertex b, ClippedVertex c) {
