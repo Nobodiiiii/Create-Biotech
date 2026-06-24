@@ -12,6 +12,8 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
 public abstract class CapturedEntityBoxItem extends Item {
+	private static final int EMPTY_BOX_MAX_STACK_SIZE = 16;
+
 	private final String filledTranslationKey;
 
 	protected CapturedEntityBoxItem(Properties properties, String filledTranslationKey) {
@@ -55,6 +57,11 @@ public abstract class CapturedEntityBoxItem extends Item {
 		remainder.setCount(1);
 		CapturedEntityBoxHelper.clearCapturedEntity(remainder);
 		return remainder;
+	}
+
+	@Override
+	public int getMaxStackSize(ItemStack stack) {
+		return hasCapturedEntity(stack) ? 1 : EMPTY_BOX_MAX_STACK_SIZE;
 	}
 
 	public static boolean hasCapturedEntity(ItemStack stack) {

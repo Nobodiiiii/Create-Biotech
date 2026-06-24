@@ -49,7 +49,7 @@ public class LargeCardboardBoxHandler {
 
 		if (player.level().isClientSide())
 			return;
-		if (!CapturedEntityBoxHelper.captureEntity(stack, mobTarget))
+		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(stack, player, mobTarget))
 			return;
 
 		mobTarget.discard();
@@ -79,7 +79,7 @@ public class LargeCardboardBoxHandler {
 			return;
 		if (CapturedEntityBoxItem.hasCapturedEntity(offhandStack))
 			return;
-		if (!CapturedEntityBoxHelper.captureEntity(offhandStack, target))
+		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(offhandStack, player, target))
 			return;
 
 		event.setCanceled(true);

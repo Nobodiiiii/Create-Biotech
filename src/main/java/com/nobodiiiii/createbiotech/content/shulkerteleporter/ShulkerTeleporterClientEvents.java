@@ -11,14 +11,18 @@ import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.client.event.RenderPlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
@@ -31,21 +35,39 @@ import net.minecraft.client.renderer.RenderType;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public class ShulkerTeleporterClientEvents {
 
-	private static boolean renderingClippedPlayer;
-	private static boolean playerClippingDisabledThisSession;
+	private static boolean renderingClippedEntity;
+	private static boolean entityClippingDisabledThisSession;
 
 	@SubscribeEvent
 	public static void clipPlayerAboveClosingShell(RenderPlayerEvent.Pre event) {
-		if (renderingClippedPlayer)
+		if (renderingClippedEntity)
 			return;
-		if (playerClippingDisabledThisSession)
+		if (entityClippingDisabledThisSession)
 			return;
 
 		try {
 			clipPlayerAboveClosingShellSafely(event);
 		} catch (Throwable throwable) {
-			playerClippingDisabledThisSession = true;
-			renderingClippedPlayer = false;
+			entityClippingDisabledThisSession = true;
+			renderingClippedEntity = false;
+			event.setCanceled(false);
+		}
+	}
+
+	@SubscribeEvent
+	public static void clipLivingEntityAboveClosingShell(RenderLivingEvent.Pre<?, ?> event) {
+		if (event.getEntity() instanceof Player)
+			return;
+		if (renderingClippedEntity)
+			return;
+		if (entityClippingDisabledThisSession)
+			return;
+
+		try {
+			clipLivingEntityAboveClosingShellSafely(event);
+		} catch (Throwable throwable) {
+			entityClippingDisabledThisSession = true;
+			renderingClippedEntity = false;
 			event.setCanceled(false);
 		}
 	}
@@ -67,6 +89,48 @@ public class ShulkerTeleporterClientEvents {
 
 		event.setCanceled(true);
 
+		MultiBufferSource clippedBuffer = createClippedBuffer(event.getMultiBufferSource(), teleporter,
+			event.getPartialTick());
+		float yaw = Mth.lerp(event.getPartialTick(), player.yRotO, player.getYRot());
+
+		try {
+			renderingClippedEntity = true;
+			event.getRenderer()
+				.render(clientPlayer, yaw, event.getPartialTick(), event.getPoseStack(), clippedBuffer,
+					event.getPackedLight());
+		} finally {
+			renderingClippedEntity = false;
+		}
+	}
+
+	private static <T extends LivingEntity, M extends EntityModel<T>> void clipLivingEntityAboveClosingShellSafely(
+		RenderLivingEvent.Pre<T, M> event) {
+		if (!CBConfigs.CLIENT.enableShulkerTeleporterPlayerClipping.get())
+			return;
+
+		@SuppressWarnings("unchecked")
+		T entity = (T) event.getEntity();
+		ShulkerTeleporterBlockEntity teleporter = findRelevantTeleporter(entity, event.getPartialTick());
+		if (teleporter == null)
+			return;
+
+		event.setCanceled(true);
+		MultiBufferSource clippedBuffer = createClippedBuffer(event.getMultiBufferSource(), teleporter,
+			event.getPartialTick());
+		float yaw = Mth.lerp(event.getPartialTick(), entity.yRotO, entity.getYRot());
+
+		try {
+			renderingClippedEntity = true;
+			LivingEntityRenderer<T, M> renderer = event.getRenderer();
+			renderer.render(entity, yaw, event.getPartialTick(), event.getPoseStack(), clippedBuffer,
+				event.getPackedLight());
+		} finally {
+			renderingClippedEntity = false;
+		}
+	}
+
+	private static MultiBufferSource createClippedBuffer(MultiBufferSource bufferSource,
+		ShulkerTeleporterBlockEntity teleporter, float partialTick) {
 		Vec3 camera = Minecraft.getInstance()
 			.gameRenderer
 			.getMainCamera()
@@ -75,21 +139,10 @@ public class ShulkerTeleporterClientEvents {
 			.gameRenderer
 			.getMainCamera()
 			.getXRot();
-		double clipY = teleporter.getTopShellTopY(event.getPartialTick()) - camera.y;
+		double clipY = teleporter.getTopShellTopY(partialTick) - camera.y;
 		double pitchRadians = Math.toRadians(cameraPitch);
 		Vector3f clipNormal = new Vector3f(0.0f, (float) Math.cos(pitchRadians), (float) Math.sin(pitchRadians));
-		MultiBufferSource clippedBuffer = renderType -> new YClippingVertexConsumer(event.getMultiBufferSource()
-			.getBuffer(renderType), clipNormal, clipY);
-		float yaw = Mth.lerp(event.getPartialTick(), player.yRotO, player.getYRot());
-
-		try {
-			renderingClippedPlayer = true;
-			event.getRenderer()
-				.render(clientPlayer, yaw, event.getPartialTick(), event.getPoseStack(), clippedBuffer,
-					event.getPackedLight());
-		} finally {
-			renderingClippedPlayer = false;
-		}
+		return renderType -> new YClippingVertexConsumer(bufferSource.getBuffer(renderType), clipNormal, clipY);
 	}
 
 	public static double getFirstPersonCameraYOffset(Player player, float partialTick) {
@@ -99,9 +152,9 @@ public class ShulkerTeleporterClientEvents {
 		return teleporter.getTopShellYOffset(partialTick) - ShulkerTeleporterBlockEntity.TOP_SHELL_OPEN_Y;
 	}
 
-	private static ShulkerTeleporterBlockEntity findRelevantTeleporter(Player player, float partialTick) {
-		Level level = player.level();
-		BlockPos center = player.blockPosition();
+	private static ShulkerTeleporterBlockEntity findRelevantTeleporter(LivingEntity entity, float partialTick) {
+		Level level = entity.level();
+		BlockPos center = entity.blockPosition();
 		ShulkerTeleporterBlockEntity best = null;
 		float bestProgress = 0.0f;
 		for (BlockPos pos : BlockPos.betweenClosed(center.offset(-1, -1, -1), center.offset(1, 4, 1))) {
@@ -111,7 +164,7 @@ public class ShulkerTeleporterClientEvents {
 			float progress = teleporter.getClosingProgress(partialTick);
 			if (progress <= 0)
 				continue;
-			if (!teleporter.isPlayerInTeleportArea(player))
+			if (!teleporter.isEntityInTeleportArea(entity))
 				continue;
 			if (best == null || progress > bestProgress) {
 				best = teleporter;

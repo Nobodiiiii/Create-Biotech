@@ -50,7 +50,7 @@ public class CardboardBoxHandler {
 		if (player.level().isClientSide())
 			return;
 
-		if (!CapturedEntityBoxHelper.captureEntity(stack, livingTarget))
+		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(stack, player, livingTarget))
 			return;
 		livingTarget.discard();
 		if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)

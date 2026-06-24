@@ -110,10 +110,10 @@ public class CBItems {
 		() -> new BlockItem(CBBlocks.BONE_RATCHET.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> CARDBOARD_BOX = ITEMS.register("cardboard_box",
-		() -> new CardboardBoxItem(new Item.Properties()));
+		() -> new CardboardBoxItem(new Item.Properties().stacksTo(16)));
 
 	public static final RegistryObject<Item> LARGE_CARDBOARD_BOX = ITEMS.register("large_cardboard_box",
-		() -> new LargeCardboardBoxItem(new Item.Properties().stacksTo(1)));
+		() -> new LargeCardboardBoxItem(new Item.Properties().stacksTo(16)));
 
 	public static final RegistryObject<Item> SCHRODINGERS_CAT = ITEMS.register("schrodingers_cat",
 		() -> new BlockItem(CBBlocks.SCHRODINGERS_CAT.get(), new Item.Properties()));

@@ -1,7 +1,6 @@
 package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -22,14 +21,18 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.RelativeMovement;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -46,7 +49,6 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	private static final AABB TELEPORT_TRIGGER_AREA = new AABB(1.0d / 16.0d, 0.0d, 1.0d / 16.0d,
 		15.0d / 16.0d, 0.25d, 15.0d / 16.0d);
 	private static final int MAX_ADDRESS_LENGTH = 32;
-	private static final Map<ResourceKey<Level>, Map<String, Set<BlockPos>>> ADDRESS_INDEX = new HashMap<>();
 
 	private String ownAddress = "";
 	private String targetAddress = "";
@@ -84,12 +86,11 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			return;
 		}
 
-		registerAddress();
 		tickArrivalCooldowns();
 
-		List<ServerPlayer> playersInside = level.getEntitiesOfClass(ServerPlayer.class, getTeleportArea(),
-			this::canTeleportPlayer);
-		boolean shouldClose = !playersInside.isEmpty() && hasUsableTarget() && Math.abs(getSpeed()) > 0;
+		List<Entity> entitiesInside = level.getEntitiesOfClass(Entity.class, getTeleportArea(),
+			this::canTeleportEntity);
+		boolean shouldClose = !entitiesInside.isEmpty() && hasUsableTarget() && Math.abs(getSpeed()) > 0;
 
 		if (shouldClose) {
 			float animationStep = getAnimationStep();
@@ -99,12 +100,16 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			}
 			if (closingTicks < CLOSE_TICKS)
 				closingTicks = Math.min(CLOSE_TICKS, closingTicks + animationStep);
-			if (closingTicks >= CLOSE_TICKS && ++sealedHoldTicks >= SEALED_HOLD_TICKS) {
-				ServerPlayer player = playersInside.get(0);
-				if (teleport(player)) {
-					closing = false;
-					sealedHoldTicks = 0;
-					sendBlockUpdate();
+			if (closingTicks >= CLOSE_TICKS) {
+				if (sealedHoldTicks < SEALED_HOLD_TICKS)
+					sealedHoldTicks++;
+				if (sealedHoldTicks >= SEALED_HOLD_TICKS) {
+					Entity entity = entitiesInside.get(0);
+					if (teleport(entity)) {
+						closing = false;
+						sealedHoldTicks = 0;
+						sendBlockUpdate();
+					}
 				}
 			}
 			return;
@@ -187,8 +192,8 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		return TELEPORT_TRIGGER_AREA.move(getBottomPos());
 	}
 
-	public boolean isPlayerInTeleportArea(Player player) {
-		return player.isAlive() && !player.isSpectator() && getTeleportArea().intersects(player.getBoundingBox());
+	public boolean isEntityInTeleportArea(Entity entity) {
+		return entity.isAlive() && !entity.isSpectator() && getTeleportArea().intersects(entity.getBoundingBox());
 	}
 
 	@Override
@@ -233,26 +238,33 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	}
 
 	private boolean hasUsableTarget() {
-		return !targetAddress.isBlank() && findTarget() != null;
-	}
-
-	private boolean canTeleportPlayer(ServerPlayer player) {
-		if (!isPlayerInTeleportArea(player))
+		if (targetAddress.isBlank() || !(level instanceof ServerLevel serverLevel))
 			return false;
-		return !arrivalCooldowns.containsKey(player.getUUID());
+		return ShulkerTeleporterSavedData.get(serverLevel.getServer())
+			.hasTarget(targetAddress, getSavedLocation());
 	}
 
-	private boolean teleport(ServerPlayer player) {
-		ShulkerTeleporterBlockEntity target = findTarget();
+	private boolean canTeleportEntity(Entity entity) {
+		if (!(entity instanceof LivingEntity) && !(entity instanceof ItemEntity))
+			return false;
+		if (!isEntityInTeleportArea(entity))
+			return false;
+		return !arrivalCooldowns.containsKey(entity.getUUID());
+	}
+
+	private boolean teleport(Entity entity) {
+		ShulkerTeleporterBlockEntity target = findOpenTarget(entity.getId());
 		if (target == null || !(target.level instanceof ServerLevel targetLevel))
 			return false;
 
-		target.markArrivalCooldown(player.getUUID());
 		BlockPos targetBottom = target.getBottomPos();
-		player.teleportTo(targetLevel, targetBottom.getX() + 0.5d, targetBottom.getY() + 1.0d / 16.0d,
-			targetBottom.getZ() + 0.5d, player.getYRot(), player.getXRot());
-		player.resetFallDistance();
-		return true;
+		entity.resetFallDistance();
+		boolean teleported = entity.teleportTo(targetLevel, targetBottom.getX() + 0.5d,
+			targetBottom.getY() + 1.0d / 16.0d, targetBottom.getZ() + 0.5d, Set.<RelativeMovement>of(),
+			entity.getYRot(), entity.getXRot());
+		if (teleported)
+			target.markArrivalCooldown(entity.getUUID());
+		return teleported;
 	}
 
 	private void markArrivalCooldown(UUID uuid) {
@@ -272,58 +284,59 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	}
 
 	@Nullable
-	private ShulkerTeleporterBlockEntity findTarget() {
+	private ShulkerTeleporterBlockEntity findOpenTarget(int ticketOwner) {
 		if (!(level instanceof ServerLevel serverLevel) || serverLevel.getServer() == null)
 			return null;
 
-		for (ServerLevel candidateLevel : serverLevel.getServer().getAllLevels()) {
-			Map<String, Set<BlockPos>> byAddress = ADDRESS_INDEX.get(candidateLevel.dimension());
-			if (byAddress == null)
+		ShulkerTeleporterSavedData savedData = ShulkerTeleporterSavedData.get(serverLevel.getServer());
+		for (ShulkerTeleporterSavedData.Location location : savedData.getTargets(targetAddress,
+			getSavedLocation())) {
+			ServerLevel candidateLevel = serverLevel.getServer().getLevel(location.dimension());
+			if (candidateLevel == null) {
+				savedData.unregister(location);
 				continue;
-			Set<BlockPos> positions = byAddress.get(targetAddress);
-			if (positions == null)
-				continue;
-
-			Iterator<BlockPos> iterator = positions.iterator();
-			while (iterator.hasNext()) {
-				BlockPos targetPos = iterator.next();
-				BlockEntity blockEntity = candidateLevel.getBlockEntity(targetPos);
-				if (!(blockEntity instanceof ShulkerTeleporterBlockEntity target)) {
-					iterator.remove();
-					continue;
-				}
-				if (target == this)
-					continue;
-				if (!targetAddress.equals(target.ownAddress)) {
-					iterator.remove();
-					continue;
-				}
-				return target;
 			}
+
+			ChunkPos targetChunk = new ChunkPos(location.pos());
+			// This ticket expires after five ticks and is only refreshed while an entity is waiting to teleport.
+			candidateLevel.getChunkSource()
+				.addRegionTicket(TicketType.POST_TELEPORT, targetChunk, 1, ticketOwner);
+			BlockEntity blockEntity = candidateLevel.getBlockEntity(location.pos());
+			if (!(blockEntity instanceof ShulkerTeleporterBlockEntity target)) {
+				savedData.unregister(location);
+				continue;
+			}
+			if (!targetAddress.equals(target.ownAddress)) {
+				savedData.register(location, target.ownAddress);
+				continue;
+			}
+			if (!target.isFullyOpen())
+				continue;
+			return target;
 		}
 		return null;
 	}
 
+	private boolean isFullyOpen() {
+		return !closing && closingTicks <= 0;
+	}
+
 	private void registerAddress() {
-		if (level == null || level.isClientSide || ownAddress.isBlank())
+		if (!(level instanceof ServerLevel serverLevel))
 			return;
-		ADDRESS_INDEX.computeIfAbsent(level.dimension(), key -> new HashMap<>())
-			.computeIfAbsent(ownAddress, key -> new HashSet<>())
-			.add(worldPosition);
+		ShulkerTeleporterSavedData.get(serverLevel.getServer())
+			.register(getSavedLocation(), ownAddress);
 	}
 
 	public void unregisterAddress() {
-		if (level == null || level.isClientSide || ownAddress.isBlank())
+		if (!(level instanceof ServerLevel serverLevel))
 			return;
-		Map<String, Set<BlockPos>> byAddress = ADDRESS_INDEX.get(level.dimension());
-		if (byAddress == null)
-			return;
-		Set<BlockPos> positions = byAddress.get(ownAddress);
-		if (positions == null)
-			return;
-		positions.remove(worldPosition);
-		if (positions.isEmpty())
-			byAddress.remove(ownAddress);
+		ShulkerTeleporterSavedData.get(serverLevel.getServer())
+			.unregister(getSavedLocation());
+	}
+
+	private ShulkerTeleporterSavedData.Location getSavedLocation() {
+		return new ShulkerTeleporterSavedData.Location(level.dimension(), worldPosition.immutable());
 	}
 
 	private void sendBlockUpdate() {
