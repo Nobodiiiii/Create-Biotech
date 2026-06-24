@@ -28,6 +28,9 @@ import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRende
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterRenderer;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterScreen;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
@@ -121,6 +124,7 @@ public class CreateBiotechClient {
 			GhastHotAirBalloonAssemblyStationRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BIO_PACKAGER.get(), BioPackagerRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_PACKAGER.get(), ShulkerPackagerRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BONE_RATCHET.get(), BoneRatchetRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.PETRI_DISH.get(), PetriDishRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get(),
@@ -212,6 +216,7 @@ public class CreateBiotechClient {
 				.apply();
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BIO_PACKAGER.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SHULKER_PACKAGER.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SHULKER_TELEPORTER.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_PUMP.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.MAGMA_BELT.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.POWER_BELT.get(), RenderType.cutoutMipped());
@@ -230,6 +235,13 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
 			MenuScreens.register(CBMenuTypes.SPIDER_ASSEMBLY_TABLE.get(), SpiderAssemblyTableScreen::new);
+			MenuScreens.register(CBMenuTypes.SHULKER_TELEPORTER.get(), new MenuScreens.ScreenConstructor() {
+				@Override
+				public net.minecraft.client.gui.screens.Screen create(AbstractContainerMenu menu, Inventory inventory,
+					net.minecraft.network.chat.Component title) {
+					return new ShulkerTeleporterScreen((ShulkerTeleporterMenu) menu, inventory, title);
+				}
+			});
 			MenuScreens.register(CBMenuTypes.WIRELESS_STOCK_KEEPER_REQUEST.get(), new MenuScreens.ScreenConstructor() {
 				@Override
 				public net.minecraft.client.gui.screens.Screen create(AbstractContainerMenu menu, Inventory inventory,
@@ -310,6 +322,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.FIXED_CARROT_FISHING_ROD.get());
 		registerCreateStyleTooltip(CBItems.WIRELESS_TERMINAL.get());
 		registerCreateStyleTooltip(CBItems.SHULKER_PACKAGER.get());
+		registerCreateStyleTooltip(CBItems.SHULKER_TELEPORTER.get());
 		CBItems.BUFFER_PADS.values()
 			.forEach(entry -> registerCreateStyleTooltip(entry.get()));
 	}

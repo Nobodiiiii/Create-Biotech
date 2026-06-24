@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "facing=north,part=0": { "model": "minecraft:block/purple_shulker_box" },
+    "facing=east,part=0": { "model": "minecraft:block/purple_shulker_box", "y": 90 },
+    "facing=south,part=0": { "model": "minecraft:block/purple_shulker_box", "y": 180 },
+    "facing=west,part=0": { "model": "minecraft:block/purple_shulker_box", "y": 270 },
+    "facing=north,part=1": { "model": "minecraft:block/purple_shulker_box" },
+    "facing=east,part=1": { "model": "minecraft:block/purple_shulker_box", "y": 90 },
+    "facing=south,part=1": { "model": "minecraft:block/purple_shulker_box", "y": 180 },
+    "facing=west,part=1": { "model": "minecraft:block/purple_shulker_box", "y": 270 },
+    "facing=north,part=2": { "model": "minecraft:block/purple_shulker_box" },
+    "facing=east,part=2": { "model": "minecraft:block/purple_shulker_box", "y": 90 },
+    "facing=south,part=2": { "model": "minecraft:block/purple_shulker_box", "y": 180 },
+    "facing=west,part=2": { "model": "minecraft:block/purple_shulker_box", "y": 270 }
+  }
+}

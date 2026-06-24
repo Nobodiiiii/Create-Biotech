@@ -140,6 +140,9 @@ public class CBItems {
 	public static final RegistryObject<Item> SHULKER_PACKAGER = ITEMS.register("shulker_packager",
 		() -> new ShulkerPackagerItem(CBBlocks.SHULKER_PACKAGER.get(), new Item.Properties()));
 
+	public static final RegistryObject<Item> SHULKER_TELEPORTER = ITEMS.register("shulker_teleporter",
+		() -> new BlockItem(CBBlocks.SHULKER_TELEPORTER.get(), new Item.Properties()));
+
 	public static final RegistryObject<Item> INCOMPLETE_CREEPER_BLAST_CHAMBER =
 		ITEMS.register("incomplete_creeper_blast_chamber", () -> new Item(new Item.Properties()));
 

@@ -398,5 +398,14 @@
   "create_biotech.ponder.butter_cat_engine.text_2": "这就是黄油猫引擎，给它放上一片面包和一些黄油吧。",
   "create_biotech.ponder.butter_cat_engine.text_3": "黄油越多，它提供的动能输出就越大。",
   "create_biotech.ponder.butter_cat_engine.text_4": "如果换成超级黄油？那就是永动机了。",
-  "create_biotech.ponder.butter_cat_engine.text_5": "别担心，猫还在，只是它已经不认识主人了……"
+  "create_biotech.ponder.butter_cat_engine.text_5": "别担心，猫还在，只是它已经不认识主人了……",
+  "block.create_biotech.shulker_teleporter": "潜影传送器",
+  "block.create_biotech.shulker_teleporter.tooltip.summary": "三格高的_潜影贝传送舱_，会把站在里面的玩家送往目标地址。",
+  "block.create_biotech.shulker_teleporter.tooltip.condition1": "打开界面",
+  "block.create_biotech.shulker_teleporter.tooltip.behaviour1": "可以设置自己的_地址标识_，以及要前往的_目标地址_。",
+  "block.create_biotech.shulker_teleporter.tooltip.condition2": "玩家站在内部且目标在线时",
+  "block.create_biotech.shulker_teleporter.tooltip.behaviour2": "上方贝壳会旋转下压并闭合，随后把玩家传送到对应地址的另一台潜影传送器中。",
+  "create_biotech.shulker_teleporter.own_address": "本机地址",
+  "create_biotech.shulker_teleporter.target_address": "目标地址",
+  "create_biotech.shulker_teleporter.save": "保存"
 }

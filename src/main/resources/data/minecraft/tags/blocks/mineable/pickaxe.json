@@ -9,6 +9,7 @@
     "create_biotech:experience_cluster",
     "create_biotech:petri_dish",
     "create_biotech:shulker_packager",
+    "create_biotech:shulker_teleporter",
     "create_biotech:asurine_casing",
     "create_biotech:biotech_casing",
     "create_biotech:explosion_proof_casing",

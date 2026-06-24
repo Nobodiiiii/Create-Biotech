@@ -27,6 +27,7 @@ import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlock;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerBlock;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterBlock;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlock;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogBlock;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlock;
@@ -257,6 +258,14 @@ public class CBBlocks {
 			.strength(2.0f)
 			.mapColor(MapColor.WOOD)
 			.noOcclusion()));
+
+	public static final RegistryObject<ShulkerTeleporterBlock> SHULKER_TELEPORTER =
+		BLOCKS.register("shulker_teleporter",
+			() -> new ShulkerTeleporterBlock(Block.Properties.of()
+				.sound(SoundType.STONE)
+				.strength(2.0f)
+				.mapColor(MapColor.COLOR_PURPLE)
+				.noOcclusion()));
 
 	public static final RegistryObject<ConnectedGlassBlock> BLAST_PROOF_FRAMED_GLASS =
 		BLOCKS.register("blast_proof_framed_glass",

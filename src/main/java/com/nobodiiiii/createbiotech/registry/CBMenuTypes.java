@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 
@@ -22,6 +23,9 @@ public class CBMenuTypes {
 	public static final RegistryObject<MenuType<WirelessStockKeeperRequestMenu>> WIRELESS_STOCK_KEEPER_REQUEST =
 		MENU_TYPES.register("wireless_stock_keeper_request",
 			() -> IForgeMenuType.create(WirelessStockKeeperRequestMenu::new));
+
+	public static final RegistryObject<MenuType<ShulkerTeleporterMenu>> SHULKER_TELEPORTER =
+		MENU_TYPES.register("shulker_teleporter", () -> IForgeMenuType.create(ShulkerTeleporterMenu::new));
 
 	private CBMenuTypes() {}
 

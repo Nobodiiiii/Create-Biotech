@@ -13,6 +13,7 @@ import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFis
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlockEntity;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlockEntity;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerBlockEntity;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterBlockEntity;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogBlockEntity;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
@@ -157,6 +158,12 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("shulker_packager",
 			() -> BlockEntityType.Builder
 				.of(ShulkerPackagerBlockEntity::new, CBBlocks.SHULKER_PACKAGER.get())
+				.build(null));
+
+	public static final RegistryObject<BlockEntityType<ShulkerTeleporterBlockEntity>> SHULKER_TELEPORTER =
+		BLOCK_ENTITY_TYPES.register("shulker_teleporter",
+			() -> BlockEntityType.Builder
+				.of(ShulkerTeleporterBlockEntity::new, CBBlocks.SHULKER_TELEPORTER.get())
 				.build(null));
 
 	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
