@@ -3,31 +3,42 @@ package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.AllPartialModels;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
+
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.ShulkerModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
-import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.level.block.state.BlockState;
+import net.createmod.catnip.render.CachedBuffers;
+import net.createmod.catnip.render.SuperByteBuffer;
 
-public class ShulkerTeleporterRenderer implements BlockEntityRenderer<ShulkerTeleporterBlockEntity> {
+public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<ShulkerTeleporterBlockEntity> {
 
-	private static final float TOP_OPEN_Y = 2.0f;
-	private static final float TOP_CLOSED_Y = 0.0f;
+	private static final float LOWER_SHELL_Y = -2.0f;
+	private static final float TOP_OPEN_Y = -1.0f;
+	private static final float TOP_CLOSED_Y = -2.0f;
+	private static final float MIXER_POLE_Y_OFFSET = -1 - 7 / 16f;
+	private static final float MIXER_POLE_CLOSE_TRAVEL = -1.0f;
 	private static final float FULL_SPIN_DEGREES = 720.0f;
 
 	private final ShulkerModel<Shulker> model;
 
 	public ShulkerTeleporterRenderer(BlockEntityRendererProvider.Context context) {
+		super(context);
 		model = new ShulkerModel<>(context.bakeLayer(ModelLayers.SHULKER));
 	}
 
 	@Override
-	public void render(ShulkerTeleporterBlockEntity be, float partialTick, PoseStack poseStack,
+	protected void renderSafe(ShulkerTeleporterBlockEntity be, float partialTick, PoseStack poseStack,
 		MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
 		VertexConsumer vertexConsumer = Sheets.DEFAULT_SHULKER_TEXTURE_LOCATION.buffer(bufferSource,
 			RenderType::entityCutoutNoCull);
@@ -35,8 +46,39 @@ public class ShulkerTeleporterRenderer implements BlockEntityRenderer<ShulkerTel
 		float topY = TOP_OPEN_Y + (TOP_CLOSED_Y - TOP_OPEN_Y) * progress;
 		float spin = progress * FULL_SPIN_DEGREES;
 
+		renderMixerBody(be, poseStack, bufferSource, packedLight, packedOverlay);
+		renderDriveCog(be, poseStack, bufferSource, packedLight);
+		renderMixerPole(be, poseStack, bufferSource, packedLight, progress);
 		renderBase(poseStack, vertexConsumer, packedLight, packedOverlay);
 		renderLid(poseStack, vertexConsumer, packedLight, packedOverlay, topY, spin);
+	}
+
+	private void renderMixerBody(ShulkerTeleporterBlockEntity be, PoseStack poseStack, MultiBufferSource bufferSource,
+		int packedLight,
+		int packedOverlay) {
+		poseStack.pushPose();
+		Minecraft.getInstance()
+			.getBlockRenderer()
+			.renderSingleBlock(AllBlocks.MECHANICAL_MIXER.getDefaultState(), poseStack, bufferSource, packedLight,
+				packedOverlay);
+		poseStack.popPose();
+	}
+
+	private void renderDriveCog(ShulkerTeleporterBlockEntity be, PoseStack poseStack, MultiBufferSource bufferSource,
+		int packedLight) {
+		BlockState blockState = be.getBlockState();
+		SuperByteBuffer cog = CachedBuffers.partial(AllPartialModels.SHAFTLESS_COGWHEEL, blockState);
+		standardKineticRotationTransform(cog, be, packedLight)
+			.renderInto(poseStack, bufferSource.getBuffer(RenderType.solid()));
+	}
+
+	private void renderMixerPole(ShulkerTeleporterBlockEntity be, PoseStack poseStack, MultiBufferSource bufferSource,
+		int packedLight, float progress) {
+		BlockState blockState = be.getBlockState();
+		CachedBuffers.partial(AllPartialModels.MECHANICAL_MIXER_POLE, blockState)
+			.translate(0, MIXER_POLE_Y_OFFSET + MIXER_POLE_CLOSE_TRAVEL * progress, 0)
+			.light(packedLight)
+			.renderInto(poseStack, bufferSource.getBuffer(RenderType.solid()));
 	}
 
 	private void renderBase(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay) {
@@ -44,6 +86,7 @@ public class ShulkerTeleporterRenderer implements BlockEntityRenderer<ShulkerTel
 		resetModel();
 
 		poseStack.pushPose();
+		poseStack.translate(0.0d, LOWER_SHELL_Y, 0.0d);
 		applyShulkerBoxPose(poseStack);
 		for (ModelPart part : model.parts()) {
 			if (part != lid)

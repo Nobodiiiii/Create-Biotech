@@ -4,6 +4,9 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.content.kinetics.base.KineticBlock;
+import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
+import com.simibubi.create.foundation.block.IBE;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -18,7 +21,6 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
-import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -39,7 +41,8 @@ import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.network.NetworkHooks;
 
-public class ShulkerTeleporterBlock extends BaseEntityBlock {
+public class ShulkerTeleporterBlock extends KineticBlock
+	implements IBE<ShulkerTeleporterBlockEntity>, ICogWheel {
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 	public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
@@ -49,6 +52,7 @@ public class ShulkerTeleporterBlock extends BaseEntityBlock {
 	public static final int TOP = 2;
 
 	private static final VoxelShape OUTLINE = Block.box(1, 0, 1, 15, 16, 15);
+	private static final VoxelShape TOP_COLLISION = Block.box(1, 0, 1, 15, 16, 15);
 	private static final VoxelShape EMPTY = Block.box(0, 0, 0, 0, 0, 0);
 	private static final ThreadLocal<Boolean> REMOVING_STRUCTURE = ThreadLocal.withInitial(() -> false);
 	private static final ThreadLocal<Boolean> PLACING_STRUCTURE = ThreadLocal.withInitial(() -> false);
@@ -91,12 +95,15 @@ public class ShulkerTeleporterBlock extends BaseEntityBlock {
 	@Override
 	public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand,
 		BlockHitResult hit) {
-		BlockPos bottom = getBottomPos(pos, state);
+		if (state.getValue(PART) == TOP)
+			return InteractionResult.PASS;
+
+		BlockPos top = getTopPos(pos, state);
 		if (level.isClientSide)
 			return InteractionResult.SUCCESS;
 		if (!(player instanceof ServerPlayer serverPlayer))
 			return InteractionResult.PASS;
-		BlockEntity blockEntity = level.getBlockEntity(bottom);
+		BlockEntity blockEntity = level.getBlockEntity(top);
 		if (!(blockEntity instanceof ShulkerTeleporterBlockEntity teleporter))
 			return InteractionResult.PASS;
 		NetworkHooks.openScreen(serverPlayer, teleporter, teleporter::sendToMenu);
@@ -124,8 +131,10 @@ public class ShulkerTeleporterBlock extends BaseEntityBlock {
 		if (!REMOVING_STRUCTURE.get())
 			removeStructure(level, pos, state, state.getValue(PART) != BOTTOM);
 
-		if (state.hasBlockEntity())
-			super.onRemove(state, level, pos, newState, isMoving);
+		if (state.getValue(PART) == TOP && level.getBlockEntity(pos) instanceof ShulkerTeleporterBlockEntity teleporter)
+			teleporter.unregisterAddress();
+
+		super.onRemove(state, level, pos, newState, isMoving);
 	}
 
 	@Override
@@ -140,7 +149,7 @@ public class ShulkerTeleporterBlock extends BaseEntityBlock {
 
 	@Override
 	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-		return EMPTY;
+		return state.getValue(PART) == TOP ? TOP_COLLISION : EMPTY;
 	}
 
 	@Override
@@ -168,23 +177,48 @@ public class ShulkerTeleporterBlock extends BaseEntityBlock {
 		return new ItemStack(CBItems.SHULKER_TELEPORTER.get());
 	}
 
-	@Nullable
 	@Override
-	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-		return state.getValue(PART) == BOTTOM ? new ShulkerTeleporterBlockEntity(pos, state) : null;
+	public boolean hasShaftTowards(LevelReader world, BlockPos pos, BlockState state, Direction face) {
+		return false;
+	}
+
+	@Override
+	public Direction.Axis getRotationAxis(BlockState state) {
+		return Direction.Axis.Y;
+	}
+
+	@Override
+	public float getParticleTargetRadius() {
+		return .85f;
+	}
+
+	@Override
+	public float getParticleInitialRadius() {
+		return .75f;
 	}
 
 	@Nullable
 	@Override
-	public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state,
-		BlockEntityType<T> type) {
-		return state.getValue(PART) == BOTTOM
-			? createTickerHelper(type, CBBlockEntityTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterBlockEntity::tick)
-			: null;
+	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+		return state.getValue(PART) == TOP ? new ShulkerTeleporterBlockEntity(pos, state) : null;
+	}
+
+	@Override
+	public Class<ShulkerTeleporterBlockEntity> getBlockEntityClass() {
+		return ShulkerTeleporterBlockEntity.class;
+	}
+
+	@Override
+	public BlockEntityType<? extends ShulkerTeleporterBlockEntity> getBlockEntityType() {
+		return CBBlockEntityTypes.SHULKER_TELEPORTER.get();
 	}
 
 	public static BlockPos getBottomPos(BlockPos pos, BlockState state) {
 		return pos.below(state.getValue(PART));
+	}
+
+	public static BlockPos getTopPos(BlockPos pos, BlockState state) {
+		return getBottomPos(pos, state).above(TOP);
 	}
 
 	private static boolean canPlaceAt(Level level, BlockPos pos, BlockPlaceContext context) {

@@ -12,6 +12,8 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -34,7 +36,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
-public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuProvider {
+public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements MenuProvider {
 
 	public static final int CLOSE_TICKS = 80;
 	public static final int SEALED_HOLD_TICKS = 10;
@@ -58,7 +60,12 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 		be.tick();
 	}
 
+	@Override
+	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
+
+	@Override
 	public void tick() {
+		super.tick();
 		previousClosingTicks = closingTicks;
 
 		if (level == null)
@@ -77,7 +84,7 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 
 		List<ServerPlayer> playersInside = level.getEntitiesOfClass(ServerPlayer.class, getTeleportArea(),
 			this::canTeleportPlayer);
-		boolean shouldClose = !playersInside.isEmpty() && hasUsableTarget();
+		boolean shouldClose = !playersInside.isEmpty() && hasUsableTarget() && Math.abs(getSpeed()) > 0;
 
 		if (shouldClose) {
 			if (!closing) {
@@ -124,9 +131,9 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 	}
 
 	public boolean canPlayerUse(Player player) {
+		BlockPos bottom = getBottomPos();
 		return level != null && level.getBlockEntity(worldPosition) == this
-			&& player.distanceToSqr(worldPosition.getX() + 0.5d, worldPosition.getY() + 1.0d,
-				worldPosition.getZ() + 0.5d) <= 64.0d;
+			&& player.distanceToSqr(bottom.getX() + 0.5d, bottom.getY() + 1.0d, bottom.getZ() + 0.5d) <= 64.0d;
 	}
 
 	public String getOwnAddress() {
@@ -156,13 +163,14 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 	}
 
 	public AABB getTeleportArea() {
-		return new AABB(worldPosition.getX() + 0.18d, worldPosition.getY(), worldPosition.getZ() + 0.18d,
-			worldPosition.getX() + 0.82d, worldPosition.getY() + 2.85d, worldPosition.getZ() + 0.82d);
+		BlockPos bottom = getBottomPos();
+		return new AABB(bottom.getX() + 0.18d, bottom.getY(), bottom.getZ() + 0.18d,
+			bottom.getX() + 0.82d, bottom.getY() + 2.85d, bottom.getZ() + 0.82d);
 	}
 
 	@Override
 	public AABB getRenderBoundingBox() {
-		return new AABB(worldPosition).expandTowards(0, 3, 0);
+		return new AABB(getBottomPos()).expandTowards(0, 3, 0);
 	}
 
 	@Override
@@ -172,48 +180,24 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 	}
 
 	@Override
-	public void setRemoved() {
-		unregisterAddress();
-		super.setRemoved();
-	}
-
-	@Override
-	protected void saveAdditional(CompoundTag tag) {
-		super.saveAdditional(tag);
+	protected void write(CompoundTag tag, boolean clientPacket) {
 		tag.putString("OwnAddress", ownAddress);
 		tag.putString("TargetAddress", targetAddress);
 		tag.putInt("ClosingTicks", closingTicks);
 		tag.putInt("SealedHoldTicks", sealedHoldTicks);
 		tag.putBoolean("Closing", closing);
+		super.write(tag, clientPacket);
 	}
 
 	@Override
-	public void load(CompoundTag tag) {
-		super.load(tag);
+	protected void read(CompoundTag tag, boolean clientPacket) {
+		super.read(tag, clientPacket);
 		ownAddress = normalizeAddress(tag.getString("OwnAddress"));
 		targetAddress = normalizeAddress(tag.getString("TargetAddress"));
 		closingTicks = Mth.clamp(tag.getInt("ClosingTicks"), 0, CLOSE_TICKS);
 		previousClosingTicks = closingTicks;
 		sealedHoldTicks = Mth.clamp(tag.getInt("SealedHoldTicks"), 0, SEALED_HOLD_TICKS);
 		closing = tag.getBoolean("Closing");
-	}
-
-	@Override
-	public CompoundTag getUpdateTag() {
-		CompoundTag tag = super.getUpdateTag();
-		saveAdditional(tag);
-		return tag;
-	}
-
-	@Override
-	public void handleUpdateTag(CompoundTag tag) {
-		super.handleUpdateTag(tag);
-		load(tag);
-	}
-
-	@Override
-	public Packet<ClientGamePacketListener> getUpdatePacket() {
-		return ClientboundBlockEntityDataPacket.create(this);
 	}
 
 	static String normalizeAddress(String address) {
@@ -241,8 +225,9 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 			return false;
 
 		target.markArrivalCooldown(player.getUUID());
-		player.teleportTo(targetLevel, target.worldPosition.getX() + 0.5d, target.worldPosition.getY() + 0.05d,
-			target.worldPosition.getZ() + 0.5d, player.getYRot(), player.getXRot());
+		BlockPos targetBottom = target.getBottomPos();
+		player.teleportTo(targetLevel, targetBottom.getX() + 0.5d, targetBottom.getY() + 0.05d,
+			targetBottom.getZ() + 0.5d, player.getYRot(), player.getXRot());
 		player.resetFallDistance();
 		return true;
 	}
@@ -304,7 +289,7 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 			.add(worldPosition);
 	}
 
-	private void unregisterAddress() {
+	public void unregisterAddress() {
 		if (level == null || level.isClientSide || ownAddress.isBlank())
 			return;
 		Map<String, Set<BlockPos>> byAddress = ADDRESS_INDEX.get(level.dimension());
@@ -323,5 +308,9 @@ public class ShulkerTeleporterBlockEntity extends BlockEntity implements MenuPro
 			return;
 		setChanged();
 		level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+	}
+
+	public BlockPos getBottomPos() {
+		return worldPosition.below(ShulkerTeleporterBlock.TOP);
 	}
 }
