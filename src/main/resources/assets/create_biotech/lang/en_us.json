@@ -53,7 +53,7 @@
   "create_biotech.jei.evoker_enchanting_chamber.note.segmented": "Casting pauses between segments until more XP arrives",
   "create_biotech.recipe.experience_pumping": "Experience Pumping",
   "create_biotech.jei.experience_pump.note.nuggets": "Pulls Create Experience Nuggets from inventories and converts each to 3 XP",
-  "create_biotech.recipe.processing.random_amount": "Random Amount: %s-%s",
+  "create_biotech.recipe.processing.random_amount": "%s-%s items",
   "block.create_biotech.fixed_carrot_fishing_rod": "Fixed Fishing Rod",
   "block.create_biotech.fixed_carrot_fishing_rod.tooltip.summary": "Mount your _Fishing Rod_ on the wall!",
   "block.create_biotech.fixed_carrot_fishing_rod.tooltip.condition1": "When R-Clicked",

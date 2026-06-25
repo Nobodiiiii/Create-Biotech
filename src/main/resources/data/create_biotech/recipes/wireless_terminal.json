@@ -2,19 +2,19 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "pattern": [
-    " B ",
-    "LEL",
-    " B "
+    "T",
+    "E",
+    "A"
   ],
   "key": {
-    "B": {
-      "item": "create:brass_sheet"
+    "T": {
+      "item": "create:transmitter"
     },
     "E": {
-      "item": "create:electron_tube"
+      "item": "minecraft:ender_pearl"
     },
-    "L": {
-      "item": "create:linked_controller"
+    "A": {
+      "item": "create:andesite_casing"
     }
   },
   "result": {

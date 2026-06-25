@@ -216,6 +216,10 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 		return index >= 0 && index < resultCountRanges.size() ? resultCountRanges.get(index) : null;
 	}
 
+	public boolean hasExclusiveResults() {
+		return exclusiveResults;
+	}
+
 	public static class Serializer extends ProcessingRecipeSerializer<CreeperBlastChamberHighPressureRecipe> {
 
 		public Serializer() {

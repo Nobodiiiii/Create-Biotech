@@ -13,8 +13,7 @@
       "count_max": 3
     },
     {
-      "item": "create_biotech:budding_experience",
-      "chance": 0.25
+      "item": "create_biotech:budding_experience"
     }
   ]
 }

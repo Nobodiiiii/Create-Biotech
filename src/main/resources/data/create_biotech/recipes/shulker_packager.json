@@ -1,13 +1,21 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "ingredients": [
-    {
+  "key": {
+    "C": {
+      "item": "minecraft:chorus_fruit"
+    },
+    "P": {
       "item": "create:packager"
     },
-    {
+    "S": {
       "item": "minecraft:shulker_shell"
     }
+  },
+  "pattern": [
+    " S ",
+    "CPC",
+    " S "
   ],
   "result": {
     "item": "create_biotech:shulker_packager"

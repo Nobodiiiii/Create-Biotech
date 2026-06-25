@@ -3,19 +3,16 @@
   "category": "misc",
   "key": {
     "A": {
-      "item": "create:cardboard_block"
-    },
-    "C": {
       "item": "create_biotech:asurine_alloy"
     },
-    "R": {
-      "tag": "forge:dusts/redstone"
+    "P": {
+      "item": "create:packager"
     }
   },
   "pattern": [
-    " C ",
-    "CAC",
-    "RCR"
+    " A ",
+    "APA",
+    " A "
   ],
   "result": {
     "item": "create_biotech:bio_packager"
