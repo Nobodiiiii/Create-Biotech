@@ -12,8 +12,9 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlockEntity;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterSquidVisual;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllPartialModels;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.gui.UIRenderHelper;
@@ -31,14 +32,11 @@ import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.util.Mth;
-import net.minecraft.world.entity.animal.Squid;
 import net.minecraftforge.fluids.FluidStack;
 import org.joml.Quaternionf;
 
 public class AnimatedSquidSpout extends AnimatedKineticsWithEntities {
-	private static final double SQUID_ATTACHMENT_Y = -0.2d;
-	private static final double SQUID_SCALE = 0.8d;
+	private static final double SQUID_ATTACHMENT_Y = SquidPrinterSquidVisual.HEAD_TOP_Y;
 	private static final int SCENE_SCALE = 20;
 	private static final BlockPos PARTICLE_ORIGIN = BlockPos.ZERO;
 	private static final double JEI_INK_RANGE_SCALE = 0.5d;
@@ -72,40 +70,12 @@ public class AnimatedSquidSpout extends AnimatedKineticsWithEntities {
 		matrixStack.mulPose(Axis.YP.rotationDegrees(22.5f));
 		int scale = SCENE_SCALE;
 
-		blockElement(AllBlocks.SPOUT.getDefaultState())
+		blockElement(CBBlocks.SQUID_PRINTER.get()
+			.defaultBlockState())
 			.scale(scale)
 			.render(graphics);
 
-		float cycle = (AnimationTickHolder.getRenderTime() - offset * 8) % 30;
-		float squeeze = cycle < 20 ? Mth.sin((float) (cycle / 20f * Math.PI)) : 0;
-		squeeze *= 20;
-
-		matrixStack.pushPose();
-
-		blockElement(AllPartialModels.SPOUT_TOP)
-			.scale(scale)
-			.render(graphics);
-		matrixStack.translate(0, -3 * squeeze / 32f, 0);
-		blockElement(AllPartialModels.SPOUT_MIDDLE)
-			.scale(scale)
-			.render(graphics);
-		matrixStack.translate(0, -3 * squeeze / 32f, 0);
-		blockElement(AllPartialModels.SPOUT_BOTTOM)
-			.scale(scale)
-			.render(graphics);
-		matrixStack.translate(0, -3 * squeeze / 32f, 0);
-
-		matrixStack.popPose();
-
-		Squid squid = SquidJeiRenderer.getOrCreateSquid();
-		if (squid != null) {
-			entityElement(squid)
-				.atLocal(0.5d, SQUID_ATTACHMENT_Y, 0.5d)
-				.scale(scale)
-				.scaleEntity(SQUID_SCALE)
-				.stateModifier(SquidJeiRenderer::animateTentacles)
-				.render(graphics);
-		}
+		SquidJeiRenderer.renderOpenInScene(graphics, 0.5d, SQUID_ATTACHMENT_Y, 0.5d, scale);
 
 		blockElement(AllBlocks.DEPOT.getDefaultState())
 			.atLocal(0, 2, 0)

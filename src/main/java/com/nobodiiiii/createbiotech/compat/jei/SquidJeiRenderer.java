@@ -2,98 +2,95 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.foundation.gui.GuiEntityElement;
+import com.mojang.blaze3d.platform.Lighting;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterSquidVisual;
 import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 
-import net.createmod.catnip.animation.AnimationTickHolder;
+import net.createmod.catnip.gui.UIRenderHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.client.model.SquidModel;
+import net.minecraft.client.model.geom.ModelLayers;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.world.entity.animal.Squid;
-import net.minecraft.world.level.Level;
-import net.minecraft.util.Mth;
 
 public final class SquidJeiRenderer {
 
 	private static final float GUI_SCALE = 20.0f;
-	private static final float SQUID_ENTITY_SCALE = 0.8f;
 	private static final float GUI_Y_OFFSET = -32.0f;
 	private static final float GUI_RENDER_Z = 100.0f;
-	private static final float RUN_CYCLE_SPEED = 0.045f;
-	private static final float RUN_MIN_TENTACLE_ANGLE = 0.14f;
-	private static final float RUN_MAX_TENTACLE_ANGLE = Mth.PI * 0.25f;
 
 	@Nullable
-	private static Squid cachedSquid;
-	@Nullable
-	private static Level cachedLevel;
+	private static SquidModel<Squid> squidModel;
 
 	private SquidJeiRenderer() {
 	}
 
 	public static void render(GuiGraphics graphics, int centerX, int centerY, float scale) {
-		Squid squid = getOrCreateSquid();
-		if (squid == null)
+		SquidModel<Squid> model = getSquidModel();
+		if (model == null)
 			return;
 
-		GuiEntityElement.of(squid)
-			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)
-			.at(centerX, centerY + GUI_Y_OFFSET, GUI_RENDER_Z)
-			.rotate(-15.5d, 22.5d, 0d)
-			.scale(GUI_SCALE * scale)
-			.scaleEntity(SQUID_ENTITY_SCALE)
-			.stateModifier(SquidJeiRenderer::animateTentacles)
-			.render(graphics);
-	}
-
-	@Nullable
-	public static Squid getOrCreateSquid() {
-		Level level = Minecraft.getInstance().level;
-		if (level == null)
-			return null;
-		if (cachedSquid != null && cachedLevel == level)
-			return cachedSquid;
-
-		Squid squid = EntityType.SQUID.create(level);
-		if (squid == null)
-			return null;
-		squid.setNoAi(true);
-		squid.tickCount = 0;
-		cachedLevel = level;
-		cachedSquid = squid;
-		return squid;
-	}
-
-	static GuiEntityElement.StateRestorer animateTentacles(Squid squid, float partialTicks) {
-		SquidAnimationState state = SquidAnimationState.capture(squid);
-		float renderTime = AnimationTickHolder.getRenderTime();
-		squid.oldTentacleAngle = getTentacleAngle(renderTime - partialTicks);
-		squid.tentacleAngle = getTentacleAngle(renderTime);
-		return () -> state.restore(squid);
-	}
-
-	private static float getTentacleAngle(float renderTime) {
-		float runningCycle = renderTime * RUN_CYCLE_SPEED;
-		runningCycle -= Mth.floor(runningCycle);
-		float openness = smoothPingPong(runningCycle);
-		return Mth.lerp(openness, RUN_MIN_TENTACLE_ANGLE, RUN_MAX_TENTACLE_ANGLE);
-	}
-
-	private static float smoothPingPong(float cycle) {
-		float pingPong = cycle < 0.5f ? cycle * 2.0f : (1.0f - cycle) * 2.0f;
-		pingPong = Mth.clamp(pingPong, 0.0f, 1.0f);
-		return pingPong * pingPong * (3.0f - 2.0f * pingPong);
-	}
-
-	private record SquidAnimationState(float oldTentacleAngle, float tentacleAngle) {
-
-		private static SquidAnimationState capture(Squid squid) {
-			return new SquidAnimationState(squid.oldTentacleAngle, squid.tentacleAngle);
+		PoseStack poseStack = graphics.pose();
+		preparePose(poseStack);
+		try {
+			poseStack.translate(centerX, centerY + GUI_Y_OFFSET, GUI_RENDER_Z);
+			poseStack.scale(GUI_SCALE * scale, GUI_SCALE * scale, GUI_SCALE * scale);
+			UIRenderHelper.flipForGuiRender(poseStack);
+			poseStack.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
+				SquidPrinterSquidVisual.RENDER_SCALE);
+			poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
+			poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+			renderOpenSquid(model, graphics, poseStack);
+		} finally {
+			cleanUpPose(poseStack);
 		}
+	}
 
-		private void restore(Squid squid) {
-			squid.oldTentacleAngle = oldTentacleAngle;
-			squid.tentacleAngle = tentacleAngle;
+	public static void renderOpenInScene(GuiGraphics graphics, double x, double y, double z, float sceneScale) {
+		SquidModel<Squid> model = getSquidModel();
+		if (model == null)
+			return;
+
+		PoseStack poseStack = graphics.pose();
+		preparePose(poseStack);
+		try {
+			poseStack.scale(sceneScale, sceneScale, sceneScale);
+			poseStack.translate(x, y, z);
+			UIRenderHelper.flipForGuiRender(poseStack);
+			poseStack.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
+				SquidPrinterSquidVisual.RENDER_SCALE);
+			renderOpenSquid(model, graphics, poseStack);
+		} finally {
+			cleanUpPose(poseStack);
 		}
+	}
+
+	private static void renderOpenSquid(SquidModel<Squid> model, GuiGraphics graphics, PoseStack poseStack) {
+		SquidPrinterSquidVisual.prepareOpenModel(model);
+		SquidPrinterSquidVisual.renderModel(model, poseStack, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+	}
+
+	private static void preparePose(PoseStack poseStack) {
+		poseStack.pushPose();
+		RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+		RenderSystem.enableDepthTest();
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		AnimatedKinetics.DEFAULT_LIGHTING.applyLighting();
+	}
+
+	private static void cleanUpPose(PoseStack poseStack) {
+		poseStack.popPose();
+		Lighting.setupFor3DItems();
+	}
+
+	private static @Nullable SquidModel<Squid> getSquidModel() {
+		if (squidModel == null && Minecraft.getInstance().getEntityModels() != null)
+			squidModel = new SquidModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.SQUID));
+		return squidModel;
 	}
 }

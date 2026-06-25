@@ -30,6 +30,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -59,6 +60,8 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	private boolean running;
 	private ItemStack processingTemplate;
 	private int idleTicksWhileRunning;
+	private float squidPose;
+	private float squidPoseOld;
 	@Nullable
 	private UUID advancementOwner;
 
@@ -103,6 +106,9 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 				notifyUpdate();
 			}
 		}
+
+		if (level.isClientSide)
+			tickSquidPose();
 
 		if (running && processingTicks > getFinishingTicks())
 			processingTicks--;
@@ -247,6 +253,15 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 	public boolean isRunning() {
 		return running;
+	}
+
+	float getSquidPose(float partialTicks) {
+		return Mth.lerp(partialTicks, squidPoseOld, squidPose);
+	}
+
+	private void tickSquidPose() {
+		squidPoseOld = squidPose;
+		squidPose = Mth.approach(squidPose, running ? 1.0f : 0.0f, SquidPrinterSquidVisual.POSE_SPEED);
 	}
 
 	public void setAdvancementOwner(@Nullable LivingEntity placer) {
