@@ -102,6 +102,7 @@
   "item.create_biotech.large_cardboard_box.filled": "装有 %s",
   "block.create_biotech.bio_packager": "生物打包机",
   "block.create_biotech.shulker_packager": "潜影打包机",
+  "item.create_biotech.shulker_package": "潜影包裹",
   "block.create_biotech.shulker_packager.tooltip.summary": "原版打包机的_潜影转运_版本。",
   "block.create_biotech.shulker_packager.tooltip.condition1": "接到红石或物流请求时",
   "block.create_biotech.shulker_packager.tooltip.behaviour1": "将附着库存中的物品_打包_成裹包，并像普通打包机一样停在托盘上等待取走。",

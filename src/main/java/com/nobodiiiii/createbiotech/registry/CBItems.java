@@ -23,6 +23,7 @@ import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerItem;
+import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackageItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
@@ -139,6 +140,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> SHULKER_PACKAGER = ITEMS.register("shulker_packager",
 		() -> new ShulkerPackagerItem(CBBlocks.SHULKER_PACKAGER.get(), new Item.Properties()));
+
+	public static final RegistryObject<Item> SHULKER_PACKAGE = ITEMS.register("shulker_package",
+		() -> new ShulkerPackageItem(new Item.Properties().stacksTo(1)));
 
 	public static final RegistryObject<Item> SHULKER_TELEPORTER = ITEMS.register("shulker_teleporter",
 		() -> new BlockItem(CBBlocks.SHULKER_TELEPORTER.get(), new Item.Properties()));

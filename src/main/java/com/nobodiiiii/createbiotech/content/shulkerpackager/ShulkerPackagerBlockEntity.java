@@ -5,17 +5,28 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.compat.computercraft.events.PackageEvent;
+import com.simibubi.create.content.logistics.BigItemStack;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint.Mode;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
+import com.simibubi.create.content.logistics.packager.PackagerItemHandler;
+import com.simibubi.create.content.logistics.packager.PackagingRequest;
+import com.simibubi.create.content.logistics.packagerLink.PackagerLinkBlock;
+import com.simibubi.create.content.logistics.packagerLink.PackagerLinkBlockEntity;
+import com.simibubi.create.content.logistics.stockTicker.PackageOrderWithCrafts;
+import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.CenteredSideValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOptionBehaviour;
 import com.simibubi.create.foundation.utility.CreateLang;
 
+import net.createmod.catnip.data.Iterate;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -26,6 +37,9 @@ import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkSource;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemHandlerHelper;
+import net.minecraftforge.items.ItemStackHandler;
 
 public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
@@ -97,6 +111,148 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		return target != null && target != this && !heldBox.isEmpty() && PackageItem.isPackage(heldBox)
 			&& heldBoxIdleTicks >= getTransferDelay() && animationTicks == 0 && queuedExitingPackages.isEmpty()
 			&& canReceiveTransferredPackage(target, heldBox);
+	}
+
+	@Override
+	public void attemptToSend(List<PackagingRequest> queuedRequests) {
+		if (queuedRequests == null && (!heldBox.isEmpty() || animationTicks != 0 || buttonCooldown > 0))
+			return;
+
+		IItemHandler targetInv = targetInventory.getInventory();
+		if (targetInv == null || targetInv instanceof PackagerItemHandler)
+			return;
+
+		boolean anyItemPresent = false;
+		ItemStackHandler extractedItems = new ItemStackHandler(PackageItem.SLOTS);
+		ItemStack extractedPackageItem = ItemStack.EMPTY;
+		PackagingRequest nextRequest = null;
+		String fixedAddress = null;
+		int fixedOrderId = 0;
+
+		int linkIndexInOrder = 0;
+		boolean finalLinkInOrder = false;
+		int packageIndexAtLink = 0;
+		boolean finalPackageAtLink = false;
+		PackageOrderWithCrafts orderContext = null;
+		boolean requestQueue = queuedRequests != null;
+
+		if (requestQueue && !queuedRequests.isEmpty()) {
+			nextRequest = queuedRequests.get(0);
+			fixedAddress = nextRequest.address();
+			fixedOrderId = nextRequest.orderId();
+			linkIndexInOrder = nextRequest.linkIndex();
+			finalLinkInOrder = nextRequest.finalLink()
+				.booleanValue();
+			packageIndexAtLink = nextRequest.packageCounter()
+				.getAndIncrement();
+			orderContext = nextRequest.context();
+		}
+
+		Outer:
+		for (int i = 0; i < PackageItem.SLOTS; i++) {
+			boolean continuePacking = true;
+
+			while (continuePacking) {
+				continuePacking = false;
+
+				for (int slot = 0; slot < targetInv.getSlots(); slot++) {
+					int initialCount = requestQueue ? Math.min(64, nextRequest.getCount()) : 64;
+					ItemStack extracted = targetInv.extractItem(slot, initialCount, true);
+					if (extracted.isEmpty())
+						continue;
+					if (requestQueue && !ItemHandlerHelper.canItemStacksStack(extracted, nextRequest.item()))
+						continue;
+
+					boolean bulky = !extracted.getItem()
+						.canFitInsideContainerItems();
+					if (bulky && anyItemPresent)
+						continue;
+
+					anyItemPresent = true;
+					int leftovers = ItemHandlerHelper.insertItemStacked(extractedItems, extracted.copy(), false)
+						.getCount();
+					int transferred = extracted.getCount() - leftovers;
+					targetInv.extractItem(slot, transferred, false);
+
+					if (extracted.getItem() instanceof PackageItem)
+						extractedPackageItem = extracted;
+
+					if (!requestQueue) {
+						if (bulky)
+							break Outer;
+						continue;
+					}
+
+					nextRequest.subtract(transferred);
+
+					if (!nextRequest.isEmpty()) {
+						if (bulky)
+							break Outer;
+						continue;
+					}
+
+					finalPackageAtLink = true;
+					queuedRequests.remove(0);
+					if (queuedRequests.isEmpty())
+						break Outer;
+					int previousCount = nextRequest.packageCounter()
+						.intValue();
+					nextRequest = queuedRequests.get(0);
+					if (!fixedAddress.equals(nextRequest.address()))
+						break Outer;
+					if (fixedOrderId != nextRequest.orderId())
+						break Outer;
+
+					nextRequest.packageCounter()
+						.setValue(previousCount);
+					finalPackageAtLink = false;
+					continuePacking = true;
+					if (nextRequest.context() != null)
+						orderContext = nextRequest.context();
+
+					if (bulky)
+						break Outer;
+					break;
+				}
+			}
+		}
+
+		if (!anyItemPresent) {
+			if (nextRequest != null)
+				queuedRequests.remove(0);
+			return;
+		}
+
+		ItemStack createdBox = extractedPackageItem.isEmpty() ? ShulkerPackageItem.containing(extractedItems)
+			: extractedPackageItem.copy();
+		computerBehaviour.prepareComputerEvent(new PackageEvent(createdBox, "package_created"));
+		PackageItem.clearAddress(createdBox);
+
+		if (fixedAddress != null)
+			PackageItem.addAddress(createdBox, fixedAddress);
+		if (requestQueue)
+			PackageItem.setOrder(createdBox, fixedOrderId, linkIndexInOrder, finalLinkInOrder, packageIndexAtLink,
+				finalPackageAtLink, orderContext);
+		if (!requestQueue && !signBasedAddress.isBlank())
+			PackageItem.addAddress(createdBox, signBasedAddress);
+
+		BlockPos linkPos = getLinkPos();
+		if (extractedPackageItem.isEmpty() && linkPos != null
+			&& level.getBlockEntity(linkPos) instanceof PackagerLinkBlockEntity plbe)
+			plbe.behaviour.deductFromAccurateSummary(extractedItems);
+
+		if (!heldBox.isEmpty() || animationTicks != 0) {
+			queuedExitingPackages.add(new BigItemStack(createdBox, 1));
+			return;
+		}
+
+		heldBox = createdBox;
+		animationInward = false;
+		animationTicks = CYCLE;
+
+		award(AllAdvancements.PACKAGER);
+		triggerStockCheck();
+		notifyUpdate();
 	}
 
 	public List<ArmInteractionPoint> getInputs() {
@@ -257,6 +413,18 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 	private static boolean shouldOnlyConnectToShulkerPackagers() {
 		return CBConfigs.SERVER.shulkerPackager.onlyConnectToShulkerPackagers.get();
+	}
+
+	private BlockPos getLinkPos() {
+		for (Direction d : Iterate.directions) {
+			BlockState adjacentState = level.getBlockState(worldPosition.relative(d));
+			if (!AllBlocks.STOCK_LINK.has(adjacentState))
+				continue;
+			if (PackagerLinkBlock.getConnectedDirection(adjacentState) != d)
+				continue;
+			return worldPosition.relative(d);
+		}
+		return null;
 	}
 
 	private boolean isAreaActuallyLoaded(BlockPos center, int range) {

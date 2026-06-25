@@ -102,6 +102,7 @@
   "item.create_biotech.large_cardboard_box.filled": "Contains %s",
   "block.create_biotech.bio_packager": "Bio Packager",
   "block.create_biotech.shulker_packager": "Shulker Packager",
+  "item.create_biotech.shulker_package": "Shulker Package",
   "block.create_biotech.shulker_packager.tooltip.summary": "A _Packager_ variant with built-in shulker routing.",
   "block.create_biotech.shulker_packager.tooltip.condition1": "When powered or handling logistics requests",
   "block.create_biotech.shulker_packager.tooltip.behaviour1": "_Packages_ items from the attached inventory and leaves the box on its tray just like a normal Packager.",
