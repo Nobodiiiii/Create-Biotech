@@ -27,6 +27,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.petridish.PetriDishRenderer;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
+import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagePartials;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
@@ -163,6 +164,7 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_open"));
 		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_closed"));
 		event.register(CreateBiotech.asResource("block/shulker_packager/tray"));
+		event.register(CreateBiotech.asResource("item/shulker_package"));
 		event.register(CreateBiotech.asResource("item/cardboard_box"));
 		event.register(CreateBiotech.asResource("item/large_cardboard_box"));
 	}
@@ -200,6 +202,7 @@ public class CreateBiotechClient {
 			registerItemTooltips();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
 			ButterCatModule.clientInit();
+			ShulkerPackagePartials.register();
 			SimpleEntityVisualizer.<GhastHotAirBalloonEntity>builder(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get())
 				.factory(ContraptionVisual::new)
 				.apply();

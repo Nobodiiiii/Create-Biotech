@@ -13,7 +13,7 @@ import net.minecraftforge.items.ItemStackHandler;
 
 public class ShulkerPackageItem extends PackageItem {
 
-	public static final PackageStyle STYLE = new PackageStyle("shulker", 12, 10, 21f, false);
+	public static final PackageStyle STYLE = new PackageStyle("shulker", 12, 12, 23f, false);
 
 	public ShulkerPackageItem(Item.Properties properties) {
 		super(properties, STYLE);
