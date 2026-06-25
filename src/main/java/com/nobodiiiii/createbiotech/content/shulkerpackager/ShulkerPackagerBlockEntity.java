@@ -344,7 +344,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	private void playTransferEffects(PackagerBlockEntity target) {
 		spawnTransferParticles(this);
 		spawnTransferParticles(target);
-		playTransferSound(target);
+		playTransferSound(this);
 	}
 
 	private static void spawnTransferParticles(PackagerBlockEntity packager) {

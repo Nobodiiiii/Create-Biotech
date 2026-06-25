@@ -257,6 +257,8 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	private boolean teleport(List<Entity> entities) {
 		if (entities.isEmpty())
 			return false;
+		if (!(level instanceof ServerLevel sourceLevel))
+			return false;
 
 		ShulkerTeleporterBlockEntity target = findOpenTarget(entities.get(0).getId());
 		if (target == null || !(target.level instanceof ServerLevel targetLevel))
@@ -275,7 +277,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			teleportedAny = true;
 		}
 		if (teleportedAny) {
-			playTeleportEffects((ServerLevel) level, getBottomPos());
+			playTeleportEffects(sourceLevel, getBottomPos());
 			playTeleportEffects(targetLevel, targetBottom);
 		}
 		return teleportedAny;
