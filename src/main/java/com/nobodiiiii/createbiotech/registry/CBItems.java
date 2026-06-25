@@ -152,6 +152,12 @@ public class CBItems {
 	public static final RegistryObject<Item> ASURINE_ALLOY = ITEMS.register("asurine_alloy",
 		() -> new Item(new Item.Properties()));
 
+	public static final RegistryObject<Item> CARBON_POWDER = ITEMS.register("carbon_powder",
+		() -> new Item(new Item.Properties()));
+
+	public static final RegistryObject<Item> GRAPHITE = ITEMS.register("graphite",
+		() -> new Item(new Item.Properties()));
+
 	public static final RegistryObject<Item> ZINC_SHEET = ITEMS.register("zinc_sheet",
 		() -> new Item(new Item.Properties()));
 

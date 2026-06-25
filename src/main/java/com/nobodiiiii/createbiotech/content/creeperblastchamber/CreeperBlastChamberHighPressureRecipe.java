@@ -54,6 +54,7 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 	private static final RandomSource RANDOM = RandomSource.create();
 
 	private final List<ResultCountRange> resultCountRanges = new ArrayList<>();
+	private boolean exclusiveResults;
 
 	public CreeperBlastChamberHighPressureRecipe(ProcessingRecipeParams params) {
 		super(TYPE_INFO, params);
@@ -90,6 +91,9 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 
 	@Override
 	public List<ItemStack> rollResults(List<ProcessingOutput> rollableResults) {
+		if (exclusiveResults)
+			return rollExclusiveResult(rollableResults);
+
 		List<ItemStack> rolledResults = new ArrayList<>();
 		for (int i = 0; i < rollableResults.size(); i++) {
 			ProcessingOutput output = rollableResults.get(i);
@@ -111,8 +115,34 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 		return rolledResults;
 	}
 
+	private List<ItemStack> rollExclusiveResult(List<ProcessingOutput> rollableResults) {
+		float totalWeight = 0;
+		for (ProcessingOutput output : rollableResults)
+			totalWeight += Math.max(0, output.getChance());
+		if (totalWeight <= 0)
+			return List.of();
+
+		float selectedWeight = RANDOM.nextFloat() * totalWeight;
+		for (int i = 0; i < rollableResults.size(); i++) {
+			ProcessingOutput output = rollableResults.get(i);
+			float weight = Math.max(0, output.getChance());
+			if (selectedWeight >= weight) {
+				selectedWeight -= weight;
+				continue;
+			}
+
+			ItemStack stack = output.getStack().copy();
+			ResultCountRange range = getResultCountRange(i);
+			if (range != null)
+				stack.setCount(range.roll(RANDOM));
+			return stack.isEmpty() ? List.of() : List.of(stack);
+		}
+		return List.of();
+	}
+
 	@Override
 	public void readAdditional(JsonObject json) {
+		exclusiveResults = GsonHelper.getAsBoolean(json, "exclusiveResults", false);
 		resultCountRanges.clear();
 		JsonArray resultsJson = GsonHelper.getAsJsonArray(json, "results");
 		for (JsonElement resultElement : resultsJson) {
@@ -137,6 +167,8 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 	public void writeAdditional(JsonObject json) {
 		if (!json.has("results"))
 			return;
+		if (exclusiveResults)
+			json.addProperty("exclusiveResults", true);
 
 		JsonArray resultsJson = json.getAsJsonArray("results");
 		int itemResultIndex = 0;
@@ -163,6 +195,7 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 			}
 			resultCountRanges.add(new ResultCountRange(buffer.readVarInt(), buffer.readVarInt()));
 		}
+		exclusiveResults = buffer.readBoolean();
 	}
 
 	@Override
@@ -176,6 +209,7 @@ public class CreeperBlastChamberHighPressureRecipe extends ProcessingRecipe<Reci
 				buffer.writeVarInt(range.max());
 			}
 		}
+		buffer.writeBoolean(exclusiveResults);
 	}
 
 	public ResultCountRange getResultCountRange(int index) {

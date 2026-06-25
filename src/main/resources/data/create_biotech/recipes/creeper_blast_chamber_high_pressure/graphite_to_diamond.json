@@ -1,14 +1,19 @@
 {
   "type": "create_biotech:creeper_blast_chamber_high_pressure",
+  "exclusiveResults": true,
   "ingredients": [
     {
-      "item": "minecraft:coal"
+      "item": "create_biotech:graphite"
     }
   ],
   "results": [
     {
       "item": "minecraft:diamond",
-      "chance": 0.25
+      "chance": 0.5
+    },
+    {
+      "item": "create_biotech:carbon_powder",
+      "chance": 0.5
     }
   ]
 }

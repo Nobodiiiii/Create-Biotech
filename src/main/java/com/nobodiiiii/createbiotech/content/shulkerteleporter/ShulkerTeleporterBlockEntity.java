@@ -15,6 +15,7 @@ import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -23,6 +24,8 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
@@ -271,7 +274,19 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			target.markArrivalCooldown(entity.getUUID());
 			teleportedAny = true;
 		}
+		if (teleportedAny) {
+			playTeleportEffects((ServerLevel) level, getBottomPos());
+			playTeleportEffects(targetLevel, targetBottom);
+		}
 		return teleportedAny;
+	}
+
+	private static void playTeleportEffects(ServerLevel level, BlockPos bottom) {
+		double x = bottom.getX() + 0.5d;
+		double y = bottom.getY() + 1.0d;
+		double z = bottom.getZ() + 0.5d;
+		level.playSound(null, x, y, z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.BLOCKS, 1.0f, 1.0f);
+		level.sendParticles(ParticleTypes.PORTAL, x, y, z, 32, 0.45d, 1.0d, 0.45d, 0.2d);
 	}
 
 	private void markArrivalCooldown(UUID uuid) {

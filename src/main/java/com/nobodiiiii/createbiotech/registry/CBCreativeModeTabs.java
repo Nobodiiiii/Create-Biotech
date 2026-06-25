@@ -60,6 +60,8 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.BIOTECH_CASING.get());
 				output.accept(CBItems.PETRI_DISH.get());
 				output.accept(CBItems.ASURINE_ALLOY.get());
+				output.accept(CBItems.CARBON_POWDER.get());
+				output.accept(CBItems.GRAPHITE.get());
 				output.accept(CBItems.ZINC_SHEET.get());
 				output.accept(CBItems.BIONIC_MECHANISM.get());
 				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
