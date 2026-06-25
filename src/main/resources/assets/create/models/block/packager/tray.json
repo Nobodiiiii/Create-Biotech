@@ -2,7 +2,7 @@
 	"credit": "Made with Blockbench",
 	"render_type": "cutout",
 	"textures": {
-		"1": "create_biotech:block/shulker_packager/details"
+		"1": "create:block/packager_details"
 	},
 	"elements": [
 		{

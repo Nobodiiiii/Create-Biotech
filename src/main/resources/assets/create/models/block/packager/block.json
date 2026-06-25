@@ -2,10 +2,10 @@
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {
-		"0": "create_biotech:block/shulker_packager/frame",
-		"1": "create_biotech:block/shulker_packager/details",
-		"2": "create_biotech:block/shulker_packager/horizontal_unpowered",
-		"particle": "create_biotech:block/shulker_packager/particle"
+		"0": "create:block/packager_frame",
+		"1": "create:block/packager_details",
+		"2": "create:block/packager_horizontal_unpowered",
+		"particle": "create:block/packager_particle"
 	},
 	"elements": [
 		{

@@ -1,9 +1,9 @@
 {
 	"credit": "Made with Blockbench",
 	"textures": {
-		"1": "create_biotech:block/shulker_packager/details",
-		"3": "create_biotech:block/shulker_packager/iris_closed",
-		"particle": "create_biotech:block/shulker_packager/particle"
+		"1": "create:block/packager_details",
+		"3": "create:block/packager_iris_closed",
+		"particle": "create:block/vault/vault_front_small"
 	},
 	"elements": [
 		{

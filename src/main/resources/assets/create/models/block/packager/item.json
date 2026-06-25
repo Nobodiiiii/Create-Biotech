@@ -2,11 +2,11 @@
 	"parent": "block/block",
 	"credit": "Made with Blockbench",
 	"textures": {
-		"0": "create_biotech:block/shulker_packager/frame",
-		"1": "create_biotech:block/shulker_packager/details",
-		"2": "create_biotech:block/shulker_packager/horizontal_unpowered",
-		"3": "create_biotech:block/shulker_packager/iris_closed",
-		"particle": "create_biotech:block/shulker_packager/particle"
+		"0": "create:block/packager_frame",
+		"1": "create:block/packager_details",
+		"2": "create:block/packager_horizontal_unpowered",
+		"3": "create:block/packager_iris_closed",
+		"particle": "create:block/packager_particle"
 	},
 	"elements": [
 		{
