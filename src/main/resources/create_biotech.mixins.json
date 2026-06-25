@@ -34,6 +34,7 @@
     "PressingBehaviourSoundMixin",
     "PowerBeltWalkAnimationMixin",
     "MixinSuperGlueSelectionHelper",
+    "SawBlockEntityMixin",
     "SpawnEggItemMixin",
     "VillagerSlimeMimicTradesMixin"
   ],

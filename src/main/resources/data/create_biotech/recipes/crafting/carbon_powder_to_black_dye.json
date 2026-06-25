@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "create_biotech:carbon_powder"
+    }
+  ],
+  "result": {
+    "item": "minecraft:black_dye"
+  }
+}

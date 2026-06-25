@@ -1,11 +1,14 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
+import com.simibubi.create.content.logistics.box.PackageEntity;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraftforge.event.entity.EntityAttributeCreationEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -15,6 +18,16 @@ public class CBEntityTypes {
 
 	public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
 		DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, CreateBiotech.MOD_ID);
+
+	public static final RegistryObject<EntityType<CardboardBoxEntity>> CARDBOARD_BOX =
+		ENTITY_TYPES.register("cardboard_box", () -> EntityType.Builder
+			.<CardboardBoxEntity>of(CardboardBoxEntity::new, MobCategory.MISC)
+			.setTrackingRange(10)
+			.setUpdateInterval(3)
+			.setShouldReceiveVelocityUpdates(true)
+			.setCustomClientFactory(CardboardBoxEntity::spawn)
+			.sized(1, 1)
+			.build("cardboard_box"));
 
 	public static final RegistryObject<EntityType<GhastHotAirBalloonEntity>> GHAST_HOT_AIR_BALLOON =
 		ENTITY_TYPES.register("ghast_hot_air_balloon", () -> {
@@ -43,5 +56,11 @@ public class CBEntityTypes {
 
 	public static void register(IEventBus modEventBus) {
 		ENTITY_TYPES.register(modEventBus);
+		modEventBus.addListener(CBEntityTypes::registerEntityAttributes);
+	}
+
+	private static void registerEntityAttributes(EntityAttributeCreationEvent event) {
+		event.put(CARDBOARD_BOX.get(), PackageEntity.createPackageAttributes()
+			.build());
 	}
 }

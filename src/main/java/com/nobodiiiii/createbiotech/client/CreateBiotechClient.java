@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerVisual;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetRenderer;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxEntityRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
@@ -131,6 +132,7 @@ public class CreateBiotechClient {
 			GhastHotAirBalloonEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON_SEAT.get(),
 			GhastHotAirBalloonSeatEntity.Render::new);
+		event.registerEntityRenderer(CBEntityTypes.CARDBOARD_BOX.get(), CardboardBoxEntityRenderer::new);
 	}
 
 	@SubscribeEvent
@@ -161,6 +163,8 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_open"));
 		event.register(CreateBiotech.asResource("block/shulker_packager/hatch_closed"));
 		event.register(CreateBiotech.asResource("block/shulker_packager/tray"));
+		event.register(CreateBiotech.asResource("item/cardboard_box"));
+		event.register(CreateBiotech.asResource("item/large_cardboard_box"));
 	}
 
 	@SubscribeEvent

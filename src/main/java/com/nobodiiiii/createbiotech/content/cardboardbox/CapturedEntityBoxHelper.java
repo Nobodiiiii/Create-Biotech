@@ -19,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.registries.ForgeRegistries;
 
 public class CapturedEntityBoxHelper {
@@ -156,6 +157,21 @@ public class CapturedEntityBoxHelper {
 		if (entity instanceof LivingEntity living && stackTag.contains(CAPTURED_ENTITY_HEALTH_TAG, Tag.TAG_ANY_NUMERIC))
 			living.setHealth(Math.min(living.getMaxHealth(), stackTag.getFloat(CAPTURED_ENTITY_HEALTH_TAG)));
 
+		if (!level.addFreshEntity(entity))
+			return false;
+
+		clearCapturedEntity(stack);
+		return true;
+	}
+
+	public static boolean releaseCapturedEntity(ItemStack stack, Level level, Vec3 spawnPos, Vec3 motion) {
+		Entity entity = createCapturedEntity(stack, level);
+		if (entity == null)
+			return false;
+
+		entity.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, entity.getYRot(), entity.getXRot());
+		entity.setDeltaMovement(motion);
+		entity.fallDistance = 0;
 		if (!level.addFreshEntity(entity))
 			return false;
 
