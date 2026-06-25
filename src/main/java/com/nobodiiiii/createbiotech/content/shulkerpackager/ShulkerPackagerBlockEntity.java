@@ -10,7 +10,6 @@ import com.simibubi.create.api.packager.unpacking.UnpackingHandler;
 import com.simibubi.create.compat.computercraft.events.PackageEvent;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint.Mode;
 import com.simibubi.create.content.logistics.BigItemStack;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
@@ -50,7 +49,6 @@ import net.minecraftforge.items.ItemStackHandler;
 
 public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
-	List<ArmInteractionPoint> inputs;
 	List<ArmInteractionPoint> outputs;
 	ListTag interactionPointTag;
 	boolean updateInteractionPoints;
@@ -59,20 +57,17 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	boolean transferOutAnimation;
 
 	protected ScrollOptionBehaviour<ArmBlockEntity.SelectionMode> selectionMode;
-	protected int lastInputIndex;
 	protected int lastOutputIndex;
 
 	public ShulkerPackagerBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.SHULKER_PACKAGER.get(), pos, state);
 		inventory = new ShulkerPackagerItemHandler(this);
-		inputs = new ArrayList<>();
 		outputs = new ArrayList<>();
 		interactionPointTag = new ListTag();
 		updateInteractionPoints = true;
 		heldBoxIdleTicks = 0;
 		pendingTransferredPackage = ItemStack.EMPTY;
 		transferOutAnimation = false;
-		lastInputIndex = -1;
 		lastOutputIndex = -1;
 	}
 
@@ -126,7 +121,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		}
 
 		heldBoxIdleTicks = 0;
-		attemptPullFromInput();
 	}
 
 	public boolean canAcceptTransferredPackage(ItemStack stack) {
@@ -138,9 +132,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	public boolean canExportHeldBoxTo(PackagerBlockEntity target) {
-		return target != null && target != this && !heldBox.isEmpty() && PackageItem.isPackage(heldBox)
-			&& heldBoxIdleTicks >= getTransferDelay() && animationTicks == 0 && queuedExitingPackages.isEmpty()
-			&& canReceiveTransferredPackage(target, heldBox);
+		return canTransferHeldBoxTo(target);
 	}
 
 	@Override
@@ -285,11 +277,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		notifyUpdate();
 	}
 
-	public List<ArmInteractionPoint> getInputs() {
-		initInteractionPoints();
-		return inputs;
-	}
-
 	public List<ArmInteractionPoint> getOutputs() {
 		initInteractionPoints();
 		return outputs;
@@ -300,34 +287,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		updateInteractionPoints = true;
 		notifyUpdate();
 		setChanged();
-	}
-
-	private void attemptPullFromInput() {
-		if (inputs.isEmpty())
-			return;
-
-		boolean foundInput = false;
-		int startIndex = selectionMode.get() == ArmBlockEntity.SelectionMode.PREFER_FIRST ? 0 : lastInputIndex + 1;
-		int scanRange = selectionMode.get() == ArmBlockEntity.SelectionMode.FORCED_ROUND_ROBIN ? lastInputIndex + 2
-			: inputs.size();
-		if (scanRange > inputs.size())
-			scanRange = inputs.size();
-
-		for (int i = startIndex; i < scanRange; i++) {
-			ShulkerPackagerBlockEntity source = getConnectedPackager(inputs.get(i));
-			if (source == null || !source.canExportHeldBoxTo(this))
-				continue;
-			if (!source.transferHeldBoxTo(this))
-				continue;
-			lastInputIndex = i;
-			foundInput = true;
-			break;
-		}
-
-		if (!foundInput && selectionMode.get() == ArmBlockEntity.SelectionMode.ROUND_ROBIN)
-			lastInputIndex = -1;
-		if (lastInputIndex == inputs.size() - 1)
-			lastInputIndex = -1;
 	}
 
 	private void attemptTransferToOutput() {
@@ -343,7 +302,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 		for (int i = startIndex; i < scanRange; i++) {
 			PackagerBlockEntity target = getConnectedPackagerTarget(outputs.get(i));
-			if (target == null || target == this || !canExportHeldBoxTo(target))
+			if (target == null || target == this || !canTransferHeldBoxTo(target))
 				continue;
 			if (!transferHeldBoxTo(target))
 				continue;
@@ -358,8 +317,14 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			lastOutputIndex = -1;
 	}
 
+	private boolean canTransferHeldBoxTo(PackagerBlockEntity target) {
+		return target != null && target != this && !heldBox.isEmpty() && PackageItem.isPackage(heldBox)
+			&& heldBoxIdleTicks >= getTransferDelay() && animationTicks == 0 && queuedExitingPackages.isEmpty()
+			&& canReceiveTransferredPackage(target, heldBox);
+	}
+
 	private boolean transferHeldBoxTo(PackagerBlockEntity target) {
-		if (!canExportHeldBoxTo(target))
+		if (!canTransferHeldBoxTo(target))
 			return false;
 		ItemStack box = heldBox.copy();
 		if (!receiveTransferredPackage(target, box))
@@ -413,19 +378,10 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 				.scale(.65d));
 	}
 
-	private ShulkerPackagerBlockEntity getConnectedPackager(ArmInteractionPoint point) {
-		if (level == null || point == null || !point.isValid())
-			return null;
-		BlockEntity blockEntity = level.getBlockEntity(point.getPos());
-		return blockEntity instanceof ShulkerPackagerBlockEntity packager ? packager : null;
-	}
-
 	private PackagerBlockEntity getConnectedPackagerTarget(ArmInteractionPoint point) {
 		if (level == null || point == null || !point.isValid())
 			return null;
 		BlockEntity blockEntity = level.getBlockEntity(point.getPos());
-		if (shouldOnlyConnectToShulkerPackagers())
-			return blockEntity instanceof ShulkerPackagerBlockEntity packager ? packager : null;
 		return blockEntity instanceof PackagerBlockEntity packager ? packager : null;
 	}
 
@@ -435,21 +391,15 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		if (!isAreaActuallyLoaded(worldPosition, getConnectionRange() + 1))
 			return;
 
-		inputs.clear();
 		outputs.clear();
 
 		for (Tag tag : interactionPointTag) {
 			ArmInteractionPoint point = ArmInteractionPoint.deserialize((CompoundTag) tag, level, worldPosition);
 			if (point == null)
 				continue;
-			if (!ShulkerPackagerArmInteractions.canBeInput(point)) {
-				outputs.add(point);
-				continue;
-			}
-			if (point.getMode() == Mode.DEPOSIT)
-				outputs.add(point);
-			else if (point.getMode() == Mode.TAKE)
-				inputs.add(point);
+			if (point.getMode() == ArmInteractionPoint.Mode.TAKE)
+				point.cycleMode();
+			outputs.add(point);
 		}
 
 		updateInteractionPoints = false;
@@ -539,10 +489,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		return CBConfigs.SERVER.shulkerPackager.connectionRange.get();
 	}
 
-	private static boolean shouldOnlyConnectToShulkerPackagers() {
-		return CBConfigs.SERVER.shulkerPackager.onlyConnectToShulkerPackagers.get();
-	}
-
 	private BlockPos getLinkPos() {
 		for (Direction d : Iterate.directions) {
 			BlockState adjacentState = level.getBlockState(worldPosition.relative(d));
@@ -591,9 +537,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		}
 
 		ListTag pointsNBT = new ListTag();
-		inputs.stream()
-			.map(aip -> aip.serialize(worldPosition))
-			.forEach(pointsNBT::add);
 		outputs.stream()
 			.map(aip -> aip.serialize(worldPosition))
 			.forEach(pointsNBT::add);
@@ -628,8 +571,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	@Override
 	public void setLevel(Level level) {
 		super.setLevel(level);
-		for (ArmInteractionPoint input : inputs)
-			input.setLevel(level);
 		for (ArmInteractionPoint output : outputs)
 			output.setLevel(level);
 	}

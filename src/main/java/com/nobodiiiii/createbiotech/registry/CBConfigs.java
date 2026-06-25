@@ -589,13 +589,11 @@ public class CBConfigs {
 	public static class ShulkerPackager {
 		public final ForgeConfigSpec.IntValue transferDelay;
 		public final ForgeConfigSpec.IntValue connectionRange;
-		public final ForgeConfigSpec.BooleanValue onlyConnectToShulkerPackagers;
 
 		ShulkerPackager(ForgeConfigSpec.Builder builder) {
 			builder.push("shulkerPackager");
-			transferDelay = builder.defineInRange("transferDelay", 16, 1, Integer.MAX_VALUE);
+			transferDelay = builder.defineInRange("transferDelay", 8, 1, Integer.MAX_VALUE);
 			connectionRange = builder.defineInRange("connectionRange", 5, 0, 64);
-			onlyConnectToShulkerPackagers = builder.define("onlyConnectToShulkerPackagers", false);
 			builder.pop();
 		}
 	}

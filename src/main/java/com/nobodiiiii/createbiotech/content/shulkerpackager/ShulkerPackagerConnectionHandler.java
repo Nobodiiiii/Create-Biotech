@@ -11,7 +11,6 @@ import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint.Mode;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.outliner.Outliner;
@@ -77,15 +76,13 @@ public class ShulkerPackagerConnectionHandler {
 			put(point);
 		}
 
-		if (ShulkerPackagerArmInteractions.canBeInput(selected))
-			selected.cycleMode();
-
 		if (player != null) {
-			Mode mode = selected.getMode();
 			CreateLang.builder()
-				.translate(mode.getTranslationKey(), CreateLang.blockName(state)
+				.translate(selected.getMode()
+					.getTranslationKey(), CreateLang.blockName(state)
 					.style(ChatFormatting.WHITE))
-				.color(mode.getColor())
+				.color(selected.getMode()
+					.getColor())
 				.sendStatus(player);
 		}
 
@@ -124,16 +121,10 @@ public class ShulkerPackagerConnectionHandler {
 				.style(ChatFormatting.RED)
 				.sendStatus(player);
 		} else {
-			int inputs = 0;
-			int outputs = 0;
-			for (ArmInteractionPoint armInteractionPoint : currentSelection)
-				if (armInteractionPoint.getMode() == Mode.DEPOSIT)
-					outputs++;
-				else
-					inputs++;
-			if (inputs + outputs > 0)
+			int outputs = currentSelection.size();
+			if (outputs > 0)
 				CreateLang.builder()
-					.translate("mechanical_arm.summary", inputs, outputs)
+					.translate("mechanical_arm.summary", 0, outputs)
 					.style(ChatFormatting.WHITE)
 					.sendStatus(player);
 		}
@@ -181,8 +172,6 @@ public class ShulkerPackagerConnectionHandler {
 
 		if (lastBlockPos == -1 || lastBlockPos != pos.asLong()) {
 			currentSelection.clear();
-			packager.getInputs()
-				.forEach(ShulkerPackagerConnectionHandler::put);
 			packager.getOutputs()
 				.forEach(ShulkerPackagerConnectionHandler::put);
 			lastBlockPos = pos.asLong();

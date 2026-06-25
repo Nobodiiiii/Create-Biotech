@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.shulkerpackager;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
-import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.api.registry.CreateBuiltInRegistries;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
@@ -27,7 +26,7 @@ public class ShulkerPackagerArmInteractions {
 	public static void register() {}
 
 	public static boolean isSelectable(BlockState state) {
-		return isShulkerPackager(state) || (!shouldOnlyConnectToShulkerPackagers() && isVanillaPackager(state));
+		return isShulkerPackager(state) || isVanillaPackager(state);
 	}
 
 	public static boolean isShulkerPackager(BlockState state) {
@@ -42,13 +41,6 @@ public class ShulkerPackagerArmInteractions {
 		return point != null && point.getType() == SHULKER_PACKAGER;
 	}
 
-	public static boolean canBeInput(ArmInteractionPoint point) {
-		if (point == null || point.getLevel() == null)
-			return false;
-		return isShulkerPackager(point.getLevel()
-			.getBlockState(point.getPos()));
-	}
-
 	public static class ShulkerPackagerType extends ArmInteractionPointType {
 		@Override
 		public boolean canCreatePoint(Level level, BlockPos pos, BlockState state) {
@@ -59,9 +51,5 @@ public class ShulkerPackagerArmInteractions {
 		public ArmInteractionPoint createPoint(Level level, BlockPos pos, BlockState state) {
 			return new ArmInteractionPoint(this, level, pos, state);
 		}
-	}
-
-	private static boolean shouldOnlyConnectToShulkerPackagers() {
-		return CBConfigs.SERVER.shulkerPackager.onlyConnectToShulkerPackagers.get();
 	}
 }
