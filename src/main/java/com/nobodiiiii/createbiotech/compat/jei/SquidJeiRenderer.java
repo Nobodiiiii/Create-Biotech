@@ -20,7 +20,7 @@ import net.minecraft.world.entity.animal.Squid;
 public final class SquidJeiRenderer {
 
 	private static final float GUI_SCALE = 20.0f;
-	private static final float GUI_Y_OFFSET = -32.0f;
+	private static final float GUI_Y_OFFSET = -72.0f;
 	private static final float GUI_RENDER_Z = 100.0f;
 
 	@Nullable

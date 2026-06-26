@@ -24,8 +24,8 @@ public class SquidPrinterItemRenderer extends CustomRenderedItemModelRenderer {
 			SquidPrinterSquidVisual.MODEL_HEIGHT_BLOCKS * SquidPrinterSquidVisual.RENDER_SCALE);
 	// Keep the taller squid assembly within the same item slot envelope used by Create's spout item.
 	private static final float ITEM_ENVELOPE_SCALE = ITEM_ENVELOPE_HEIGHT_BLOCKS / TOTAL_RENDER_HEIGHT_BLOCKS;
-	private static final float ITEM_Y_OFFSET = 0.15f;
-	private static final float SQUID_ATTACHMENT_Y = (float) SquidPrinterSquidVisual.HEAD_TOP_Y;
+	private static final float ITEM_Y_OFFSET = 0.2125f;
+	private static final float SQUID_ATTACHMENT_Y = (float) SquidPrinterSquidVisual.HEAD_TOP_Y - 0.5f;
 
 	@Nullable
 	private SquidModel<Squid> squidModel;

@@ -36,8 +36,8 @@ import net.minecraftforge.fluids.FluidStack;
 import org.joml.Quaternionf;
 
 public class AnimatedSquidSpout extends AnimatedKineticsWithEntities {
-	private static final double SQUID_ATTACHMENT_Y = SquidPrinterSquidVisual.HEAD_TOP_Y;
 	private static final int SCENE_SCALE = 20;
+	private static final double SQUID_ATTACHMENT_Y = SquidPrinterSquidVisual.HEAD_TOP_Y - 2.0d;
 	private static final BlockPos PARTICLE_ORIGIN = BlockPos.ZERO;
 	private static final double JEI_INK_RANGE_SCALE = 0.5d;
 	private static final float JEI_INK_SIZE_SCALE = 0.5f;
