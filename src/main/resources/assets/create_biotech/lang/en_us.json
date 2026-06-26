@@ -108,6 +108,8 @@
   "block.create_biotech.shulker_packager.tooltip.behaviour1": "_Packages_ items from the attached inventory and leaves the box on its tray just like a normal Packager.",
   "block.create_biotech.shulker_packager.tooltip.condition2": "When a package remains on the tray briefly",
   "block.create_biotech.shulker_packager.tooltip.behaviour2": "If configured with arm-style links, it _teleports_ the box to another idle Shulker Packager using the same scheduling rules.",
+  "create_biotech.shulker_packager.store_package_to": "Store packages at %s",
+  "create_biotech.shulker_packager.output_summary": "Shulker Packager now has %s outputs",
   "create_biotech.petri_dish.goggles.title": "Petri Dish",
   "create_biotech.petri_dish.goggles.bionic_loaded": "Bionic mechanism loaded",
   "create_biotech.petri_dish.goggles.bionic_missing": "Missing bionic mechanism",

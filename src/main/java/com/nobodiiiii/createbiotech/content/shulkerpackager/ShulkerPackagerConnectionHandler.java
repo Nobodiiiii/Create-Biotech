@@ -13,6 +13,7 @@ import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.foundation.utility.CreateLang;
 
+import net.createmod.catnip.lang.LangBuilder;
 import net.createmod.catnip.outliner.Outliner;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -77,12 +78,10 @@ public class ShulkerPackagerConnectionHandler {
 		}
 
 		if (player != null) {
-			CreateLang.builder()
-				.translate(selected.getMode()
-					.getTranslationKey(), CreateLang.blockName(state)
+			createBiotechLang()
+				.translate("shulker_packager.store_package_to", CreateLang.blockName(state)
 					.style(ChatFormatting.WHITE))
-				.color(selected.getMode()
-					.getColor())
+				.color(0xDDC166)
 				.sendStatus(player);
 		}
 
@@ -123,8 +122,8 @@ public class ShulkerPackagerConnectionHandler {
 		} else {
 			int outputs = currentSelection.size();
 			if (outputs > 0)
-				CreateLang.builder()
-					.translate("mechanical_arm.summary", 0, outputs)
+				createBiotechLang()
+					.translate("shulker_packager.output_summary", outputs)
 					.style(ChatFormatting.WHITE)
 					.sendStatus(player);
 		}
@@ -226,5 +225,9 @@ public class ShulkerPackagerConnectionHandler {
 
 	private static int getConnectionRange() {
 		return CBConfigs.SERVER.shulkerPackager.connectionRange.get();
+	}
+
+	private static LangBuilder createBiotechLang() {
+		return new LangBuilder(CreateBiotech.MOD_ID);
 	}
 }

@@ -108,6 +108,8 @@
   "block.create_biotech.shulker_packager.tooltip.behaviour1": "将附着库存中的物品_打包_成裹包，并像普通打包机一样停在托盘上等待取走。",
   "block.create_biotech.shulker_packager.tooltip.condition2": "裹包短暂停留后仍未被取出时",
   "block.create_biotech.shulker_packager.tooltip.behaviour2": "若已按机械臂规则配置连接目标，则按相同调度模式_瞬移_到另一台空闲的潜影打包机。",
+  "create_biotech.shulker_packager.store_package_to": "将包裹存储至%s",
+  "create_biotech.shulker_packager.output_summary": "潜影打包机现在有%s个输出",
   "create_biotech.petri_dish.goggles.title": "史莱姆培养皿",
   "create_biotech.petri_dish.goggles.bionic_loaded": "已装入仿生构件",
   "create_biotech.petri_dish.goggles.bionic_missing": "未装入仿生构件",

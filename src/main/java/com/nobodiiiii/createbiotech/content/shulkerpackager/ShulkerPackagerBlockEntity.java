@@ -410,18 +410,25 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			|| !target.heldBox.isEmpty() || !target.queuedExitingPackages.isEmpty())
 			return false;
 		if (target instanceof ShulkerPackagerBlockEntity shulkerTarget)
-			return shulkerTarget.pendingTransferredPackage.isEmpty() && shulkerTarget.unpackTransferredPackage(box, true);
-		return target.unwrapBox(box, true);
+			return shulkerTarget.pendingTransferredPackage.isEmpty();
+		return true;
 	}
 
 	private static boolean receiveTransferredPackage(PackagerBlockEntity target, ItemStack box) {
 		if (!canReceiveTransferredPackage(target, box))
 			return false;
-		if (target instanceof ShulkerPackagerBlockEntity shulkerTarget)
-			return shulkerTarget.startIncomingTransfer(box);
-		if (!target.unwrapBox(box.copy(), false))
-			return false;
+		target.heldBox = box.copy();
+		target.previouslyUnwrapped = box.copy();
+		target.animationInward = true;
+		target.animationTicks = CYCLE;
+		if (target instanceof ShulkerPackagerBlockEntity shulkerTarget) {
+			shulkerTarget.pendingTransferredPackage = ItemStack.EMPTY;
+			shulkerTarget.heldBoxIdleTicks = 0;
+			shulkerTarget.transferOutAnimation = false;
+		}
+		target.computerBehaviour.prepareComputerEvent(new PackageEvent(box, "package_received"));
 		target.triggerStockCheck();
+		target.notifyUpdate();
 		return true;
 	}
 
