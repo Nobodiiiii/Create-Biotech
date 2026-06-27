@@ -276,6 +276,7 @@ public class CBBlocks {
 
 	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
 	// here so the project's primary block registry remains the place to inspect mod blocks.
+	public static final BlockEntry<ButterCatEngineBlock> CUTE_CAT_ON_SHAFT = ModBlocks.CUTE_CAT_ON_SHAFT;
 	public static final BlockEntry<ButterCatEngineBlock> BUTTER_CAT_ENGINE = ModBlocks.BUTTER_CAT_ENGINE;
 
 	private static Block.Properties blastProofGlassProperties() {

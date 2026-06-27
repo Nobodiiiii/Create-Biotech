@@ -4,14 +4,13 @@ import java.util.IdentityHashMap;
 
 import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.buttercat.datagen.other.ModTags;
-import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatEngineBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterFoodProperties;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterFoodItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterSequencedAssemblyItem;
-import com.tterrag.registrate.util.entry.ItemEntry;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
+import com.tterrag.registrate.util.entry.ItemEntry;
 
 import static com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule.REGISTRATE;
 
@@ -42,10 +41,6 @@ public class ModItems {
             .tag(ModTags.BUTTER)
             .tag(ModTags.FOOD_BUTTER)
             .properties(p -> p.food(ButterFoodProperties.create(ButterFoodProperties.Variant.INCOMPLETE_SUPER_BUTTER)))
-            .register();
-    public static final ItemEntry<ButterCatEngineBlockItem> BUTTER_CAT_ENGINE = REGISTRATE
-            .item("butter_cat_engine_item", properties -> new ButterCatEngineBlockItem(
-                    ModBlocks.BUTTER_CAT_ENGINE.get(), properties, "item.create_biotech.butter_cat_engine", true))
             .register();
 
     private static final IdentityHashMap<Item, Integer> BUTTER_LEVEL_MAP = new IdentityHashMap<>();

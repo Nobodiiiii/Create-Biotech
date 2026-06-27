@@ -1,6 +1,5 @@
 package com.nobodiiiii.createbiotech.content.buttercat.ponder;
 
-import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.gauge.StressGaugeBlockEntity;
 import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
@@ -18,7 +17,6 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class ModPonderScenes {
@@ -34,7 +32,6 @@ public class ModPonderScenes {
 
         BlockPos catPos = util.grid().at(2, 1, 1);
         BlockPos enginePos = util.grid().at(2, 2, 2);
-        BlockPos catDropPos = util.grid().at(2, 1, 2);
         BlockPos stressPos = util.grid().at(4, 2, 2);
         BlockPos speedPos = util.grid().at(0, 2, 2);
 
@@ -61,14 +58,14 @@ public class ModPonderScenes {
         scene.idle(5);
         scene.world().modifyEntities(Cat.class, Entity::discard);
         scene.world().setBlock(enginePos,
-                ModBlocks.BUTTER_CAT_ENGINE
+                ModBlocks.CUTE_CAT_ON_SHAFT
                 .getDefaultState()
                 .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST),
                 true);
         scene.idle(60);
 
         scene.overlay().showText(50)
-                .text("This is the Butter Cat engine, let`s put bread and butter on it.")
+                .text("This is a Cute Cat on a Shaft. Add bread and butter to turn it into a Butter Cat Engine.")
                 .placeNearTarget()
                 .pointAt(util.vector().topOf(enginePos));
         scene.idle(90);
@@ -77,7 +74,11 @@ public class ModPonderScenes {
 
         scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(net.minecraft.world.item.Items.BREAD.getDefaultInstance());
         scene.idle(5);
-        scene.world().modifyBlockEntity(enginePos,ButterCatEngineBlockEntity.class, ButterCatEngineBlockEntity::addBread);
+        scene.world().setBlock(enginePos,
+                ModBlocks.BUTTER_CAT_ENGINE
+                        .getDefaultState()
+                        .setValue(BlockStateProperties.HORIZONTAL_FACING, Direction.EAST),
+                true);
         scene.idle(40);
 
         scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(ModItems.BUTTER.asStack());
@@ -127,30 +128,6 @@ public class ModPonderScenes {
                 nbt -> nbt.putFloat("Value",.9f));
         scene.effects().indicateSuccess(speedPos);
         scene.effects().indicateRedstone(stressPos);
-        scene.idle(60);
-
-        scene.addKeyframe();
-
-        scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(AllItems.WRENCH.asStack());
-        scene.idle(5);
-
-        scene.world().setKineticSpeed(util.select().everywhere(), 0);
-        scene.world().modifyBlockEntityNBT(util.select().position(stressPos), StressGaugeBlockEntity.class,
-                nbt -> nbt.putFloat("Value",0));
-        scene.world().setBlock(enginePos, Blocks.AIR.defaultBlockState(), true);
-        scene.world().createEntity(world->{
-            Cat c = EntityType.CAT.create(world);
-            c.setPos(catDropPos.getCenter().x,catDropPos.getCenter().y-.5,catDropPos.getCenter().z);
-            c.setYRot(180);
-            c.setVariant(BuiltInRegistries.CAT_VARIANT.get(CatVariant.TABBY));
-            c.setLying(true);
-            return c;
-        });
-        scene.idle(20);
-        scene.overlay().showText(50)
-                .text("Don't worry, the cat is still here,it just doesn't recognize its owner anymore...")
-                .placeNearTarget()
-                .pointAt(util.vector().topOf(catDropPos));
         scene.idle(60);
         scene.markAsFinished();
     }

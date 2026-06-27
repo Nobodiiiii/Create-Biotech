@@ -74,14 +74,6 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
         }
 
         if (!be.hasBread()) {
-            if (ModTags.matchesIngredient(itemStack, ModTags.getBreads())) {
-                be.addBread();
-                itemStack.shrink(1);
-                if (level.isClientSide) {
-                    ClientEffect.create(level, pos, ClientEffect.EffectType.BREAD);
-                }
-                return InteractionResult.SUCCESS;
-            }
             displayMessage(player, "string.create_biotech.no_bread");
             return InteractionResult.SUCCESS;
         }
@@ -127,24 +119,20 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
         if (!(be instanceof ButterCatEngineBlockEntity blockEntity))
             return InteractionResultHolder.fail(ItemStack.EMPTY);
 
+        if (!blockEntity.hasBread())
+            return InteractionResultHolder.fail(ItemStack.EMPTY);
         if ( blockEntity.isFull())
             return InteractionResultHolder.fail(ItemStack.EMPTY);
 
-        // 0=bread
-        // 1=butter
-        // 2=super butter
+        // 0=butter
+        // 1=super butter
         // else
         int butterType = -1;
 
-        if(!blockEntity.hasBread()){
-            if(ModTags.matchesIngredient(itemStack,ModTags.getBreads()))
-                butterType = 0;
-        }else {
-            if ( ModTags.matchesIngredient(itemStack,ModTags.getButters()))
-                butterType = 1;
-            else if (itemStack.is(ModItems.SUPER_BUTTER.get()))
-                butterType = 2;
-        }
+        if (ModTags.matchesIngredient(itemStack,ModTags.getButters()))
+            butterType = 0;
+        else if (itemStack.is(ModItems.SUPER_BUTTER.get()))
+            butterType = 1;
 
         if(butterType == -1 )
             return InteractionResultHolder.fail(ItemStack.EMPTY);
@@ -152,15 +140,12 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
         if(!simulate){
             switch (butterType){
                 case 0 -> {
-                    blockEntity.addBread();
-                }
-                case 1 -> {
                     int levelCount = ModItems.getButterLevel(itemStack.getItem());
                     if (!blockEntity.canAcceptButter(levelCount))
                         return InteractionResultHolder.fail(ItemStack.EMPTY);
                     blockEntity.addButterCount(levelCount);
                 }
-                case 2 ->  {
+                case 1 ->  {
                     blockEntity.setInfinite(true);
                 }
             }
@@ -204,17 +189,17 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
         if (state.hasBlockEntity() && (state.getBlock() != newState.getBlock() || !newState.hasBlockEntity())) {
             if (level.getBlockEntity(pos) instanceof ButterCatEngineBlockEntity be) {
                 if (!level.isClientSide) {
-                    level.addFreshEntity(be.getCat(level));
+                    if (be.isInfinite()) {
+                        Block.popResource(level, pos, new ItemStack(ModItems.SUPER_BUTTER.get()));
+                    } else {
+                        int butterCount = be.getTotalCount();
+                        if (butterCount > 0)
+                            Block.popResource(level, pos, new ItemStack(ModItems.BUTTER.get(), butterCount));
+                    }
                 }
-                if (be.isInfinite()) {
-                    Block.popResource(level, pos, new ItemStack(ModItems.SUPER_BUTTER.get()));
-                } else {
-                    int butterCount = be.getTotalCount();
-                    if (butterCount > 0) Block.popResource(level, pos, new ItemStack(ModItems.BUTTER.get(), butterCount));
-                }
-                level.removeBlockEntity(pos);
             }
         }
+        super.onRemove(state, level, pos, newState, isMoving);
     }
 }
 

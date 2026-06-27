@@ -6,7 +6,6 @@ import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
-import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatEngineBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterFoodItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterSequencedAssemblyItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
@@ -197,7 +196,6 @@ public class CBItems {
 	public static final ItemEntry<ConfigurableButterSequencedAssemblyItem> INCOMPLETE_SUPER_BUTTER =
 		ModItems.INCOMPLETE_SUPER_BUTTER;
 	public static final ItemEntry<ConfigurableButterFoodItem> SUPER_BUTTER = ModItems.SUPER_BUTTER;
-	public static final ItemEntry<ButterCatEngineBlockItem> BUTTER_CAT_ENGINE = ModItems.BUTTER_CAT_ENGINE;
 
 	private CBItems() {}
 

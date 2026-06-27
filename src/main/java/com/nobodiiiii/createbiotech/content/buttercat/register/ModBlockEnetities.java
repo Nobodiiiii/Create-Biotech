@@ -12,7 +12,7 @@ public class ModBlockEnetities {
     public static final BlockEntityEntry<ButterCatEngineBlockEntity> BUTTER_CAT_ENGINE_BE= REGISTRATE
             .blockEntity("butter_cat_engine_be", ButterCatEngineBlockEntity::new)
             .visual(()-> ButterCatEngineVisual::new,false )
-            .validBlocks(ModBlocks.BUTTER_CAT_ENGINE)
+            .validBlocks(ModBlocks.CUTE_CAT_ON_SHAFT, ModBlocks.BUTTER_CAT_ENGINE)
             .renderer(() -> ButterCatEngineRenderer::new)
             .register();
 

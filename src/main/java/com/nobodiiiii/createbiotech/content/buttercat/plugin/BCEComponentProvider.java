@@ -22,7 +22,6 @@ import snownee.jade.api.ui.IElementHelper;
 
 public enum  BCEComponentProvider implements IBlockComponentProvider, IServerDataProvider<BlockAccessor>{
     INSTANCE;
-    private static final String BREAD = "bread";
     private static final String INFINITE = "infinite";
     private static final String BUTTER_COUNT = "butterCount";
     private static final String MAX_BUTTER_COUNT = "maxButterCount";
@@ -30,16 +29,16 @@ public enum  BCEComponentProvider implements IBlockComponentProvider, IServerDat
 
     @Override
     public IElement getIcon(BlockAccessor accessor, IPluginConfig config, IElement currentIcon) {
-        ItemStack iconStack = accessor.getServerData().getBoolean(BREAD)
-            ? ModItems.BUTTER_CAT_ENGINE.asStack()
-            : ModBlocks.BUTTER_CAT_ENGINE.asStack();
+        ItemStack iconStack = ModBlocks.BUTTER_CAT_ENGINE.has(accessor.getBlockState())
+            ? ModBlocks.BUTTER_CAT_ENGINE.asStack()
+            : ModBlocks.CUTE_CAT_ON_SHAFT.asStack();
         return IElementHelper.get().item(iconStack, 0.5f);
     }
 
     @Override
     public void appendTooltip(ITooltip iTooltip, BlockAccessor blockAccessor, IPluginConfig iPluginConfig) {
         CompoundTag compound = blockAccessor.getServerData();
-        replaceTitle(iTooltip, compound);
+        replaceTitle(iTooltip, blockAccessor);
 
         IElementHelper elements = IElementHelper.get();
         IElement butter = elements.item(new ItemStack(ModItems.BUTTER.get()), 0.5f).size(new Vec2(10, 10)).translate(new Vec2(0, -1));
@@ -48,7 +47,7 @@ public enum  BCEComponentProvider implements IBlockComponentProvider, IServerDat
         super_butter.message(null);
         IElement clock = elements.item(new ItemStack(Items.CLOCK), 0.5f).size(new Vec2(10, 10)).translate(new Vec2(0, -1));
         clock.message(null);
-        if (!compound.getBoolean(BREAD)) {
+        if (!ModBlocks.BUTTER_CAT_ENGINE.has(blockAccessor.getBlockState())) {
             return;
         }
 
@@ -76,13 +75,13 @@ public enum  BCEComponentProvider implements IBlockComponentProvider, IServerDat
 
     }
 
-    private static void replaceTitle(ITooltip tooltip, CompoundTag compound) {
+    private static void replaceTitle(ITooltip tooltip, BlockAccessor accessor) {
         if (tooltip.get(Identifiers.CORE_OBJECT_NAME).isEmpty())
             return;
 
-        MutableComponent title = Component.translatable(compound.getBoolean(BREAD)
-                ? "item.create_biotech.butter_cat_engine"
-                : "item.create_biotech.cute_cat_on_shaft");
+        MutableComponent title = Component.translatable(ModBlocks.BUTTER_CAT_ENGINE.has(accessor.getBlockState())
+                ? "block.create_biotech.butter_cat_engine"
+                : "block.create_biotech.cute_cat_on_shaft");
         tooltip.remove(Identifiers.CORE_OBJECT_NAME);
         tooltip.add(0, IThemeHelper.get().title(title), Identifiers.CORE_OBJECT_NAME);
     }
@@ -90,7 +89,6 @@ public enum  BCEComponentProvider implements IBlockComponentProvider, IServerDat
     @Override
     public void appendServerData(CompoundTag compoundTag, BlockAccessor blockAccessor) {
         ButterCatEngineBlockEntity blockEntity = (ButterCatEngineBlockEntity) blockAccessor.getBlockEntity();
-        compoundTag.putBoolean(BREAD, blockEntity.hasBread());
         compoundTag.putBoolean(INFINITE, blockEntity.isInfinite());
         compoundTag.putInt(BUTTER_COUNT, blockEntity.getTotalCount());
         compoundTag.putInt(MAX_BUTTER_COUNT, blockEntity.getMaxButterCount());

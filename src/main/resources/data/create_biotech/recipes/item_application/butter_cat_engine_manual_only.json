@@ -2,11 +2,10 @@
   "type": "create:item_application",
   "ingredients": [
     {
-      "item": "create:shaft"
+      "item": "create_biotech:cute_cat_on_shaft"
     },
     {
-      "type": "create_biotech:captured_entity_box",
-      "entity": "minecraft:cat"
+      "item": "minecraft:bread"
     }
   ],
   "results": [

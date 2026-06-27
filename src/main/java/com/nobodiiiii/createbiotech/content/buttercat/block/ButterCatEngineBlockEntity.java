@@ -3,19 +3,16 @@ package com.nobodiiiii.createbiotech.content.buttercat.block;
 import com.simibubi.create.content.kinetics.base.GeneratingKineticBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModPartialModels;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.animal.CatVariant;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.api.distmarker.Dist;
@@ -30,12 +27,10 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     private static final int OVERFLOW_BUTTER_COUNT = 1;
 
     protected ResourceKey<CatVariant> catVariant = CatVariant.TABBY;
-    protected boolean bread =false;
     protected boolean infinite =false;
     protected int butterCount = 0;
     protected int overflowCount = 0;
     protected int cd = 0;
-    protected Cat cat;
     protected float clientVisualRotationOffset;
     protected boolean clientVisualRotationOffsetInitialized;
 
@@ -65,31 +60,11 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return butterCount + overflowCount;
     }
 
-    public void setCat(Cat cat) {
-        this.cat = cat;
-        catVariant= BuiltInRegistries.CAT_VARIANT.getResourceKey(cat.getVariant()).get();
-    }
-
-    public Cat getCat(Level level) {
-        if(cat == null) cat =EntityType.CAT.create(level);
-        cat.setVariant(BuiltInRegistries.CAT_VARIANT.get(catVariant));
-        cat.setPos(getBlockPos().getCenter());
-        if (cat.isLeashed()) {
-            cat.dropLeash(true, false);
-        }
-        cat.revive();
-        return cat;
-    }
-    public void addBread(){
-        bread = true;
-        updateGeneratedRotation();
-    }
     public boolean hasBread(){
-        return bread;
+        return getBlockState() != null && ModBlocks.BUTTER_CAT_ENGINE.has(getBlockState());
     }
 
     public void setInfinite(boolean bool) {
-        bread = bool;
         infinite = bool;
         overflowCount = 0;
         if(bool)
@@ -171,7 +146,6 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         super.write(compound,  clientPacket);
 
         compound.putBoolean("infinite",infinite);
-        compound.putBoolean("bread",bread);
         compound.putInt("cd",cd);
         compound.putInt("butterCount",butterCount);
         compound.putInt("overflowCount",overflowCount);
@@ -184,7 +158,6 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         super.read(compound,clientPacket);
 
         if(compound.contains("infinite")) infinite = compound.getBoolean("infinite");
-        if(compound.contains("bread")) bread = compound.getBoolean("bread");
         if(compound.contains("cd")) cd = compound.getInt("cd");
         if(compound.contains("butterCount")) butterCount = compound.getInt("butterCount");
         if(compound.contains("overflowCount")) overflowCount = compound.getInt("overflowCount");

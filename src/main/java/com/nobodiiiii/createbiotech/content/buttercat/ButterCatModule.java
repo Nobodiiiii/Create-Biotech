@@ -34,10 +34,10 @@ public final class ButterCatModule {
 
 	static {
 		REGISTRATE.setTooltipModifierFactory(item -> {
-			if ("item.create_biotech.cute_cat_on_shaft".equals(item.getDescriptionId()))
-				return TooltipModifier.EMPTY;
-			return new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE)
-				.andThen(TooltipModifier.mapNull(KineticStats.create(item)));
+			TooltipModifier description = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE);
+			if (item == ModBlocks.CUTE_CAT_ON_SHAFT.asItem())
+				return description;
+			return description.andThen(TooltipModifier.mapNull(KineticStats.create(item)));
 		});
 	}
 
@@ -64,8 +64,8 @@ public final class ButterCatModule {
 			return;
 		clientInitialized = true;
 
-		ItemDescription.useKey(ModItems.BUTTER_CAT_ENGINE, "block.create_biotech.butter_cat_engine");
 		PonderIndex.addPlugin(new ModPonder());
+		ItemBlockRenderTypes.setRenderLayer(ModBlocks.CUTE_CAT_ON_SHAFT.get(), RenderType.cutoutMipped());
 		ItemBlockRenderTypes.setRenderLayer(ModBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
 		ItemBlockRenderTypes.setRenderLayer(ModFluids.CREAM.getSource(), RenderType.translucent());
 		ItemBlockRenderTypes.setRenderLayer(ModFluids.CREAM.get(), RenderType.translucent());

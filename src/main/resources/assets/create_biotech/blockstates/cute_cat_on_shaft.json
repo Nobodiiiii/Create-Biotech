@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=east": {
+      "model": "create_biotech:block/cute_cat_on_shaft/block",
+      "y": 90
+    },
+    "facing=north": {
+      "model": "create_biotech:block/cute_cat_on_shaft/block"
+    },
+    "facing=south": {
+      "model": "create_biotech:block/cute_cat_on_shaft/block",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "create_biotech:block/cute_cat_on_shaft/block",
+      "y": 270
+    }
+  }
+}
