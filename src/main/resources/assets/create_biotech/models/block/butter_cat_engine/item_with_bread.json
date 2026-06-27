@@ -1,0 +1,56 @@
+{
+  "loader": "forge:composite",
+  "parent": "block/block",
+  "textures": {
+    "particle": "create_biotech:block/cat/tabby"
+  },
+  "children": {
+    "cat": {
+      "parent": "create_biotech:block/butter_cat_engine/item"
+    },
+    "bread": {
+      "parent": "create_biotech:block/butter_cat_engine/butter/bread"
+    },
+    "rope": {
+      "parent": "create_biotech:block/butter_cat_engine/butter/rope"
+    }
+  },
+  "item_render_order": [
+    "cat",
+    "bread",
+    "rope"
+  ],
+  "display": {
+    "thirdperson_righthand": {
+      "rotation": [75, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.375, 0.375, 0.375]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [75, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.375, 0.375, 0.375]
+    },
+    "firstperson_righthand": {
+      "rotation": [0, 45, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.4, 0.4, 0.4]
+    },
+    "firstperson_lefthand": {
+      "rotation": [0, -135, 0],
+      "translation": [0, 2.5, 0],
+      "scale": [0.4, 0.4, 0.4]
+    },
+    "ground": {
+      "translation": [0, 3, 0],
+      "scale": [0.25, 0.25, 0.25]
+    },
+    "gui": {
+      "rotation": [30, -135, 0],
+      "scale": [0.75, 0.75, 0.75]
+    },
+    "fixed": {
+      "scale": [0.5, 0.5, 0.5]
+    }
+  }
+}
