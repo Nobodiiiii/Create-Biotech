@@ -1,6 +1,8 @@
 package com.nobodiiiii.createbiotech.content.buttercat;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock;
+import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatEngineTooltipModifier;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModArmInteractions;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlockEnetities;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
@@ -21,6 +23,7 @@ import net.createmod.ponder.foundation.PonderIndex;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.BlockItem;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.registries.RegisterEvent;
@@ -33,8 +36,12 @@ public final class ButterCatModule {
 	private static boolean clientInitialized;
 
 	static {
-		REGISTRATE.setTooltipModifierFactory(item -> new ItemDescription.Modifier(item,
-			FontHelper.Palette.STANDARD_CREATE).andThen(TooltipModifier.mapNull(KineticStats.create(item))));
+		REGISTRATE.setTooltipModifierFactory(item -> {
+			TooltipModifier modifier = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE);
+			if (item instanceof BlockItem blockItem && blockItem.getBlock() instanceof ButterCatEngineBlock)
+				return modifier.andThen(new ButterCatEngineTooltipModifier());
+			return modifier.andThen(TooltipModifier.mapNull(KineticStats.create(item)));
+		});
 	}
 
 	private ButterCatModule() {}

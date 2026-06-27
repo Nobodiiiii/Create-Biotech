@@ -343,12 +343,12 @@ public class CBConfigs {
 
 	public static class ButterCat {
 		public final ForgeConfigSpec.IntValue maxButterCount;
-		public final ForgeConfigSpec.IntValue maxInfiniteCapacity;
 		public final ForgeConfigSpec.IntValue butterDecayTicks;
 		public final ForgeConfigSpec.IntValue butterForMaxRpm;
 		public final ForgeConfigSpec.DoubleValue rpmPerButter;
 		public final ForgeConfigSpec.DoubleValue maxGeneratedRpm;
-		public final ForgeConfigSpec.DoubleValue stressCapacityPerButter;
+		public final ForgeConfigSpec.DoubleValue stressCapacityPerRpm;
+		public final ForgeConfigSpec.DoubleValue maxStressCapacity;
 		public final ForgeConfigSpec.DoubleValue rotationAngularSpeed;
 		public final ForgeConfigSpec.IntValue butterNutrition;
 		public final ForgeConfigSpec.DoubleValue butterSaturation;
@@ -369,13 +369,13 @@ public class CBConfigs {
 
 		ButterCat(ForgeConfigSpec.Builder builder) {
 			builder.push("butterCat");
-			maxButterCount = builder.defineInRange("maxButterCount", 64, 1, 8192);
-			maxInfiniteCapacity = builder.defineInRange("maxInfiniteCapacity", 576, 2, Integer.MAX_VALUE / 256);
-			butterDecayTicks = builder.defineInRange("butterDecayTicks", 200, 1, Integer.MAX_VALUE);
+			maxButterCount = builder.defineInRange("maxButterCount", 16, 1, 8192);
+			butterDecayTicks = builder.defineInRange("butterDecayTicks", 20 * 16, 1, Integer.MAX_VALUE);
 			butterForMaxRpm = builder.defineInRange("butterForMaxRpm", 16, 1, Integer.MAX_VALUE);
 			rpmPerButter = builder.defineInRange("rpmPerButter", 16.0d, 0.0d, Double.MAX_VALUE);
 			maxGeneratedRpm = builder.defineInRange("maxGeneratedRpm", 256.0d, 0.0d, Double.MAX_VALUE);
-			stressCapacityPerButter = builder.defineInRange("stressCapacityPerButter", 2.0d, 0.0d, Double.MAX_VALUE);
+			stressCapacityPerRpm = builder.defineInRange("stressCapacityPerRpm", 64.0d, 0.0d, Double.MAX_VALUE);
+			maxStressCapacity = builder.defineInRange("maxStressCapacity", 8192.0d, 0.0d, Double.MAX_VALUE);
 			rotationAngularSpeed = builder.defineInRange("rotationAngularSpeed", Math.PI / 2.0d, 0.0d, Double.MAX_VALUE);
 			butterNutrition = builder.defineInRange("butterNutrition", 1, 0, 20);
 			butterSaturation = builder.defineInRange("butterSaturation", 0.5d, 0.0d, 20.0d);

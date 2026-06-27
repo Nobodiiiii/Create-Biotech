@@ -27,6 +27,8 @@ import static com.simibubi.create.content.kinetics.base.HorizontalKineticBlock.H
 
 
 public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
+    private static final int OVERFLOW_BUTTER_COUNT = 1;
+
     protected ResourceKey<CatVariant> catVariant = CatVariant.TABBY;
     protected boolean bread =false;
     protected boolean infinite =false;
@@ -47,13 +49,13 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     }
     ///================getter/setter================
     public void addButterCount(int count) {
-        this.butterCount += count;
-        if (this.butterCount < 0) this.butterCount = 0;
-        if (this.butterCount > getMaxButterCount()) {
-            this.overflowCount += this.butterCount - getMaxButterCount();
-            this.butterCount = getMaxButterCount();
-        }
-
+        if (count == 0 || infinite) return;
+        int total = Math.max(0, getTotalCount() + count);
+        int maxStoredButterCount = getMaxStoredButterCount();
+        if (total > maxStoredButterCount)
+            total = maxStoredButterCount;
+        butterCount = Math.min(total, getMaxButterCount());
+        overflowCount = total - butterCount;
         updateGeneratedRotation();
     }
     public int getButterCount() {
@@ -89,6 +91,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     public void setInfinite(boolean bool) {
         bread = bool;
         infinite = bool;
+        overflowCount = 0;
         if(bool)
             butterCount = getMaxButterCount();
         else
@@ -100,11 +103,15 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return infinite;
     }
     public boolean isFull() {
-        return overflowCount !=0 || isInfinite();
+        return isInfinite() || getTotalCount() >= getMaxStoredButterCount();
+    }
+
+    public boolean canAcceptButter(int count) {
+        return !isInfinite() && count > 0 && getTotalCount() + count <= getMaxStoredButterCount();
     }
 
     public int getCd(boolean remaining) {
-        return remaining ? getButterDecayTicks() - cd : cd;
+        return remaining ? Math.max(0, getButterDecayTicks() - cd) : cd;
     }
 
     public void tick(){
@@ -113,7 +120,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         if(butterCount > 0){
             cd++;
         }
-        if(cd > getButterDecayTicks() ){
+        if(cd >= getButterDecayTicks() ){
             if(butterCount > 0) butterCount --;
             if(overflowCount > 0){
                 butterCount ++;
@@ -140,8 +147,13 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     //应力系数
     @Override
     public float calculateAddedStressCapacity() {
-        float capacity = this.butterCount * (float) CBConfigs.SERVER.butterCat.stressCapacityPerButter.get().doubleValue();
-        if(isInfinite()) capacity = getMaxInfiniteOutput();
+        float speed = Math.abs(getGeneratedSpeed());
+        float capacity = 0;
+        if (speed > 0) {
+            float maxStressCapacity = getMaxStressCapacity();
+            float stressPerRpm = getStressCapacityPerRpm();
+            capacity = Math.min(maxStressCapacity, stressPerRpm * speed) / speed;
+        }
         this.lastCapacityProvided = capacity;
         return capacity;
     }
@@ -180,6 +192,8 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         if (compound.contains("catVariant"))
             catVariant = ResourceKey.create(Registries.CAT_VARIANT, new ResourceLocation(compound.getString("catVariant")));
 
+        normalizeStoredButter();
+
         if (level != null && level.isClientSide)
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                 () -> () -> ButterCatEngineClientRotation.sync(this, previousSpeed, clientPacket));
@@ -213,11 +227,32 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     public int getMaxButterCount(){
         return CBConfigs.SERVER.butterCat.maxButterCount.get();
     }
-    public int getMaxInfiniteOutput(){
-        return CBConfigs.SERVER.butterCat.maxInfiniteCapacity.get();
+    public int getMaxStoredButterCount() {
+        return getMaxButterCount() + OVERFLOW_BUTTER_COUNT;
     }
     private int getButterDecayTicks() {
         return CBConfigs.SERVER.butterCat.butterDecayTicks.get();
+    }
+    public float getStressCapacityPerRpm() {
+        return CBConfigs.SERVER.butterCat.stressCapacityPerRpm.get().floatValue();
+    }
+    public float getMaxStressCapacity() {
+        return CBConfigs.SERVER.butterCat.maxStressCapacity.get().floatValue();
+    }
+
+    private void normalizeStoredButter() {
+        if (infinite) {
+            butterCount = getMaxButterCount();
+            overflowCount = 0;
+            return;
+        }
+
+        int total = Math.max(0, butterCount) + Math.max(0, overflowCount);
+        int maxStoredButterCount = getMaxStoredButterCount();
+        if (total > maxStoredButterCount)
+            total = maxStoredButterCount;
+        butterCount = Math.min(total, getMaxButterCount());
+        overflowCount = total - butterCount;
     }
 }
 

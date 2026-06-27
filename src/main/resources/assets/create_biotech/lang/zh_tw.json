@@ -1,5 +1,10 @@
 {
   "block.create_biotech.butter_cat_engine": "奶油貓引擎",
+  "block.create_biotech.butter_cat_engine.tooltip.summary": "把貓和奶油變成高速、可預續的_動能輸出_。",
+  "block.create_biotech.butter_cat_engine.tooltip.condition1": "每份奶油貼上後",
+  "block.create_biotech.butter_cat_engine.tooltip.behaviour1": "持續 _16秒_；最多存 _16份_ 並在 _16份_ 時達到 _256 RPM_，還能提前續到 _17/16_。",
+  "block.create_biotech.butter_cat_engine.tooltip.condition2": "作為動力源時",
+  "block.create_biotech.butter_cat_engine.tooltip.behaviour2": "按 _64 x RPM_ 提供應力，最高 _8192 SU_。",
   "block.create_biotech.cream": "鮮奶油",
   "create_biotech.ponder.butter_cat_engine.header": "讓奶油貓轉起來！",
   "create_biotech.ponder.butter_cat_engine.text_1": "拿著裝有貓的紙箱對傳動桿使用。",
@@ -27,6 +32,8 @@
   "string.create_biotech.infinite": "無限供應",
   "string.create_biotech.no_bread": "麵包呢？",
   "string.create_biotech.no_butter": "奶油呢？",
-  "string.create_biotech.remaining" : "剩餘"
+  "string.create_biotech.remaining" : "剩餘",
+  "create_biotech.butter_cat_engine.tooltip.capacity_formula": "%s x RPM",
+  "create_biotech.butter_cat_engine.tooltip.capacity_cap": "-> 最高 %s SU"
 }
 

@@ -83,7 +83,7 @@ public class ModPonderScenes {
         scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick().withItem(ModItems.BUTTER.asStack());
         scene.idle(5);
         scene.world().modifyBlockEntity(enginePos,ButterCatEngineBlockEntity.class,(be)->be.addButterCount(1));
-        scene.world().setKineticSpeed(util.select().everywhere(), 32);
+        scene.world().setKineticSpeed(util.select().everywhere(), 16);
         scene.world().modifyBlockEntityNBT(util.select().position(stressPos), StressGaugeBlockEntity.class,
                 nbt -> nbt.putFloat("Value", .1f));
         scene.effects().indicateSuccess(speedPos);
@@ -102,9 +102,10 @@ public class ModPonderScenes {
             scene.world().modifyBlockEntity(enginePos,ButterCatEngineBlockEntity.class,(be)->be.addButterCount(1));
 
             int i1 = i+1;
-            scene.world().setKineticSpeed(util.select().everywhere(), Math.min(256,i1*64));
+            int totalButter = i1 + 1;
+            scene.world().setKineticSpeed(util.select().everywhere(), Math.min(256, totalButter * 16));
             scene.world().modifyBlockEntityNBT(util.select().position(stressPos), StressGaugeBlockEntity.class,
-                    nbt -> nbt.putFloat("Value", (i1+1)*0.1f));
+                    nbt -> nbt.putFloat("Value", Math.min(.9f, totalButter / 8f * .9f)));
             scene.effects().indicateSuccess(speedPos);
             scene.effects().indicateRedstone(stressPos);
             scene.idle(15);
