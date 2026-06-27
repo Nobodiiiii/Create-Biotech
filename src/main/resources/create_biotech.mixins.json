@@ -49,6 +49,8 @@
     "client.GameRendererMixin",
     "client.GoggleOverlayRendererMixin",
     "client.ItemApplicationCategoryMixin",
+    "client.JeiRecipeLayoutMixin",
+    "client.JeiRecipeSlotMixin",
     "client.LivingEntityRendererMixin",
     "client.PressingBehaviourMixin",
     "client.SpoutCategoryMixin",

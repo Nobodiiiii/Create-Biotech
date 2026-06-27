@@ -1,17 +1,21 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
 import com.nobodiiiii.createbiotech.foundation.item.RenderedLivingEntityItem;
+import org.joml.Matrix4f;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -55,11 +59,38 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 		if (entity == null)
 			return;
 
-		renderEntity(entity, poseStack, buffer, packedLight);
+		renderEntity(entity, item.getRenderedEntityScaleMultiplier(), poseStack, buffer, packedLight);
 	}
 
-	private void renderEntity(T entity, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		float scale = BASE_RENDER_SCALE * item.getRenderedEntityScaleMultiplier() / getLargestDimension(entity);
+	public static void renderGuiEntityItem(GuiGraphics graphics, ItemStack transformStack, LivingEntity entity,
+		float scaleMultiplier, int x, int y) {
+		if (transformStack.isEmpty())
+			return;
+
+		Minecraft minecraft = Minecraft.getInstance();
+		BakedModel model = minecraft.getItemRenderer()
+			.getModel(transformStack, minecraft.level, minecraft.player, 0);
+
+		PoseStack poseStack = graphics.pose();
+		poseStack.pushPose();
+		poseStack.translate(x + 8.0f, y + 8.0f, 150.0f);
+		poseStack.mulPoseMatrix(new Matrix4f().scaling(1.0f, -1.0f, 1.0f));
+		poseStack.scale(16.0f, 16.0f, 16.0f);
+		ForgeHooksClient.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
+		poseStack.translate(-0.5f, -0.5f, -0.5f);
+		renderEntity(entity, scaleMultiplier, poseStack, graphics.bufferSource(), 15728880);
+		graphics.flush();
+		poseStack.popPose();
+	}
+
+	public static void renderGuiEntityItem(GuiGraphics graphics, ItemStack transformStack, LivingEntity entity,
+		EntityScaleProvider scaleProvider, int x, int y) {
+		renderGuiEntityItem(graphics, transformStack, entity, scaleProvider.getScaleMultiplier(entity), x, y);
+	}
+
+	public static void renderEntity(LivingEntity entity, float scaleMultiplier, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
+		float scale = BASE_RENDER_SCALE * scaleMultiplier / getLargestDimension(entity);
 
 		poseStack.pushPose();
 		poseStack.translate(0.0d, FOOT_GAP, 0.0d);
@@ -76,7 +107,7 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 		poseStack.popPose();
 	}
 
-	private float getLargestDimension(T entity) {
+	private static float getLargestDimension(LivingEntity entity) {
 		EntityDimensions dimensions = entity.getDimensions(entity.getPose());
 		return Math.max(Math.max(dimensions.width, dimensions.height), MIN_AUTO_SCALE_DIMENSION);
 	}
@@ -110,5 +141,10 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 		cachedLevel = level;
 		cachedEntity = entity;
 		return entity;
+	}
+
+	@FunctionalInterface
+	public interface EntityScaleProvider {
+		float getScaleMultiplier(LivingEntity entity);
 	}
 }
