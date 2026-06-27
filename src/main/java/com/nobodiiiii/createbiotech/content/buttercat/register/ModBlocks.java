@@ -2,7 +2,9 @@ package com.nobodiiiii.createbiotech.content.buttercat.register;
 
 import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.api.stress.BlockStressValues;
 import com.simibubi.create.foundation.data.BlockStateGen;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;
@@ -21,6 +23,15 @@ public class ModBlocks {
             .initialProperties(SharedProperties::wooden)
             .properties(p -> p.sound(SoundType.WOOL).noOcclusion().mapColor(MapColor.TERRACOTTA_YELLOW))
             .blockstate(BlockStateGen.horizontalBlockProvider(true))
+            .onRegister(block -> BlockStressValues.CAPACITIES.register(block, () -> {
+                double maxStressCapacity = CBConfigs.SERVER.butterCat.maxStressCapacity.get();
+                double maxGeneratedRpm = CBConfigs.SERVER.butterCat.maxGeneratedRpm.get();
+                return maxGeneratedRpm == 0 ? 0 : maxStressCapacity / maxGeneratedRpm;
+            }))
+            .onRegister(block -> BlockStressValues.RPM.register(block,
+                    new BlockStressValues.GeneratedRpm(
+                            (int) Math.round(CBConfigs.SERVER.butterCat.maxGeneratedRpm.get()),
+                            true)))
             .loot((loot,block)->loot.dropOther(block, AllBlocks.SHAFT))
             .item()
             .model((c, p) -> p.blockItem(c, "/item"))
