@@ -6,7 +6,6 @@ import java.util.List;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.api.packager.unpacking.UnpackingHandler;
 import com.simibubi.create.compat.computercraft.events.PackageEvent;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
@@ -53,8 +52,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	ListTag interactionPointTag;
 	boolean updateInteractionPoints;
 	int heldBoxIdleTicks;
-	ItemStack pendingTransferredPackage;
-	boolean transferOutAnimation;
 
 	protected ScrollOptionBehaviour<ArmBlockEntity.SelectionMode> selectionMode;
 	protected int lastOutputIndex;
@@ -66,8 +63,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		interactionPointTag = new ListTag();
 		updateInteractionPoints = true;
 		heldBoxIdleTicks = 0;
-		pendingTransferredPackage = ItemStack.EMPTY;
-		transferOutAnimation = false;
 		lastOutputIndex = -1;
 	}
 
@@ -89,25 +84,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		if (level == null || level.isClientSide)
 			return;
 
-		if (transferOutAnimation) {
-			heldBoxIdleTicks = 0;
-			if (animationTicks <= CYCLE / 2) {
-				transferOutAnimation = false;
-				previouslyUnwrapped = ItemStack.EMPTY;
-				animationTicks = 0;
-				notifyUpdate();
-				setChanged();
-			}
-			return;
-		}
-
-		if (!pendingTransferredPackage.isEmpty()) {
-			heldBoxIdleTicks = 0;
-			if (animationTicks <= CYCLE / 2)
-				finishIncomingTransfer();
-			return;
-		}
-
 		if (animationTicks != 0) {
 			heldBoxIdleTicks = 0;
 			return;
@@ -124,7 +100,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	public boolean canAcceptTransferredPackage(ItemStack stack) {
-		return canReceiveTransferredPackage(this, stack);
+		return canInsertPackageFromAutomation(this, stack);
 	}
 
 	public boolean canExportHeldBoxTo(ShulkerPackagerBlockEntity target) {
@@ -318,27 +294,43 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	}
 
 	private boolean canTransferHeldBoxTo(PackagerBlockEntity target) {
-		return target != null && target != this && !heldBox.isEmpty() && PackageItem.isPackage(heldBox)
-			&& heldBoxIdleTicks >= getTransferDelay() && animationTicks == 0 && queuedExitingPackages.isEmpty()
-			&& canReceiveTransferredPackage(target, heldBox);
+		ItemStack extracted = inventory.extractItem(0, 1, true);
+		return target != null && target != this && PackageItem.isPackage(extracted)
+			&& heldBoxIdleTicks >= getTransferDelay() && canInsertPackageFromAutomation(target, extracted);
 	}
 
 	private boolean transferHeldBoxTo(PackagerBlockEntity target) {
 		if (!canTransferHeldBoxTo(target))
 			return false;
-		ItemStack box = heldBox.copy();
-		if (!receiveTransferredPackage(target, box))
+
+		ItemStack extracted = inventory.extractItem(0, 1, false);
+		if (extracted.isEmpty())
 			return false;
+		ItemStack toInsert = singlePackageStack(extracted);
+		ItemStack remainder = target.inventory.insertItem(0, toInsert, false);
+		if (!remainder.isEmpty()) {
+			inventory.setStackInSlot(0, extracted);
+			return false;
+		}
+
 		playTransferEffects(target);
-		heldBox = ItemStack.EMPTY;
-		previouslyUnwrapped = box.copy();
-		animationInward = false;
-		animationTicks = CYCLE;
-		transferOutAnimation = true;
 		heldBoxIdleTicks = 0;
-		notifyUpdate();
 		setChanged();
 		return true;
+	}
+
+	private static boolean canInsertPackageFromAutomation(PackagerBlockEntity target, ItemStack stack) {
+		if (target == null || stack.isEmpty() || !PackageItem.isPackage(stack))
+			return false;
+		ItemStack toInsert = singlePackageStack(stack);
+		ItemStack remainder = target.inventory.insertItem(0, toInsert, true);
+		return remainder.getCount() < toInsert.getCount();
+	}
+
+	private static ItemStack singlePackageStack(ItemStack stack) {
+		ItemStack copy = stack.copy();
+		copy.setCount(1);
+		return copy;
 	}
 
 	private void playTransferEffects(PackagerBlockEntity target) {
@@ -403,89 +395,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		}
 
 		updateInteractionPoints = false;
-	}
-
-	private static boolean canReceiveTransferredPackage(PackagerBlockEntity target, ItemStack box) {
-		if (target == null || box.isEmpty() || !PackageItem.isPackage(box) || target.animationTicks != 0
-			|| !target.heldBox.isEmpty() || !target.queuedExitingPackages.isEmpty())
-			return false;
-		if (target instanceof ShulkerPackagerBlockEntity shulkerTarget)
-			return shulkerTarget.pendingTransferredPackage.isEmpty();
-		return true;
-	}
-
-	private static boolean receiveTransferredPackage(PackagerBlockEntity target, ItemStack box) {
-		if (!canReceiveTransferredPackage(target, box))
-			return false;
-		target.heldBox = box.copy();
-		target.previouslyUnwrapped = box.copy();
-		target.animationInward = true;
-		target.animationTicks = CYCLE;
-		if (target instanceof ShulkerPackagerBlockEntity shulkerTarget) {
-			shulkerTarget.pendingTransferredPackage = ItemStack.EMPTY;
-			shulkerTarget.heldBoxIdleTicks = 0;
-			shulkerTarget.transferOutAnimation = false;
-		}
-		target.computerBehaviour.prepareComputerEvent(new PackageEvent(box, "package_received"));
-		target.triggerStockCheck();
-		target.notifyUpdate();
-		return true;
-	}
-
-	private boolean startIncomingTransfer(ItemStack box) {
-		if (!canReceiveTransferredPackage(this, box))
-			return false;
-		pendingTransferredPackage = box.copy();
-		previouslyUnwrapped = box.copy();
-		animationInward = true;
-		animationTicks = CYCLE;
-		heldBoxIdleTicks = 0;
-		notifyUpdate();
-		setChanged();
-		return true;
-	}
-
-	private void finishIncomingTransfer() {
-		ItemStack box = pendingTransferredPackage.copy();
-		pendingTransferredPackage = ItemStack.EMPTY;
-		previouslyUnwrapped = ItemStack.EMPTY;
-		animationInward = true;
-
-		if (unpackTransferredPackage(box, false)) {
-			triggerStockCheck();
-		} else if (heldBox.isEmpty()) {
-			heldBox = box.copy();
-			animationInward = false;
-			animationTicks = 0;
-		}
-
-		notifyUpdate();
-		setChanged();
-	}
-
-	private boolean unpackTransferredPackage(ItemStack box, boolean simulate) {
-		if (level == null)
-			return false;
-
-		ItemStackHandler contents = PackageItem.getContents(box);
-		List<ItemStack> items = ItemHelper.getNonEmptyStacks(contents);
-		if (items.isEmpty())
-			return true;
-
-		PackageOrderWithCrafts orderContext = PackageItem.getOrderContext(box);
-		Direction facing = getBlockState().getOptionalValue(ShulkerPackagerBlock.FACING)
-			.orElse(Direction.UP);
-		BlockPos target = worldPosition.relative(facing.getOpposite());
-		BlockState targetState = level.getBlockState(target);
-
-		UnpackingHandler handler = UnpackingHandler.REGISTRY.get(targetState);
-		UnpackingHandler toUse = handler != null ? handler : UnpackingHandler.DEFAULT;
-		boolean unpacked = toUse.unpack(level, target, targetState, facing, items, orderContext, simulate);
-
-		if (unpacked && !simulate)
-			computerBehaviour.prepareComputerEvent(new PackageEvent(box, "package_received"));
-
-		return unpacked;
 	}
 
 	private static int getTransferDelay() {
@@ -554,24 +463,18 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	public void write(CompoundTag compound, boolean clientPacket) {
 		super.write(compound, clientPacket);
 		writeInteractionPoints(compound);
-		compound.put("PendingTransferredPackage", pendingTransferredPackage.serializeNBT());
-		compound.putBoolean("TransferOutAnimation", transferOutAnimation);
 	}
 
 	@Override
 	public void writeSafe(CompoundTag compound) {
 		super.writeSafe(compound);
 		writeInteractionPoints(compound);
-		compound.put("PendingTransferredPackage", pendingTransferredPackage.serializeNBT());
-		compound.putBoolean("TransferOutAnimation", transferOutAnimation);
 	}
 
 	@Override
 	protected void read(CompoundTag compound, boolean clientPacket) {
 		super.read(compound, clientPacket);
 		interactionPointTag = compound.getList("InteractionPoints", Tag.TAG_COMPOUND);
-		pendingTransferredPackage = ItemStack.of(compound.getCompound("PendingTransferredPackage"));
-		transferOutAnimation = compound.getBoolean("TransferOutAnimation");
 		updateInteractionPoints = true;
 	}
 
@@ -584,12 +487,5 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 	public static boolean isSelectableFace(LevelAccessor level, BlockPos pos, BlockState state) {
 		return true;
-	}
-
-	@Override
-	public ItemStack getRenderedBox() {
-		if (transferOutAnimation && animationTicks > 0)
-			return animationTicks > CYCLE / 2 ? previouslyUnwrapped : ItemStack.EMPTY;
-		return super.getRenderedBox();
 	}
 }
