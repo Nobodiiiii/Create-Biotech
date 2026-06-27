@@ -130,6 +130,14 @@ public final class EntityRenderHelper {
 			return this;
 		}
 
+		public RenderSettings<T> preserveOrientation() {
+			this.renderYaw = null;
+			this.bodyYaw = null;
+			this.headYaw = null;
+			this.pitch = null;
+			return this;
+		}
+
 		public RenderSettings<T> face(Direction direction) {
 			float yaw = direction.toYRot();
 			return yaw(yaw).bodyYaw(yaw).headYaw(yaw);

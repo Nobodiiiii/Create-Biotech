@@ -28,7 +28,7 @@ import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends CustomRenderedItemModelRenderer {
 	private static final float CAMERA_X_ROTATION_DEGREES = 12.5f;
-	private static final float ENTITY_YAW_DEGREES = 167.5f;
+	private static final float CAMERA_Y_ROTATION_DEGREES = 167.5f;
 	private static final float MIN_AUTO_SCALE_DIMENSION = 0.6f;
 	private static final Vector3f GUI_LIGHT_0 = createGuiLight(12.5f, 45.0f);
 	private static final Vector3f GUI_LIGHT_1 = createGuiLight(-20.0f, 50.0f);
@@ -68,11 +68,13 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Cu
 		boolean guiLighting = transformType == ItemDisplayContext.GUI;
 		double scale = parameters.scale() * item.getRenderedEntityScaleMultiplier() / getLargestDimension(entity);
 		int appliedLight = guiLighting ? LightTexture.FULL_BRIGHT : packedLight;
-
-		Quaternionf camera = new Quaternionf().rotateX(CAMERA_X_ROTATION_DEGREES * Mth.DEG_TO_RAD);
-		Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
-		pose.mul(camera);
-		pose.rotateZ((float) Math.PI);
+		Quaternionf camera = parameters.hasAngleCorrection()
+			? new Quaternionf().rotateY(CAMERA_Y_ROTATION_DEGREES * Mth.DEG_TO_RAD)
+				.rotateX(parameters.cameraXRotationDegrees() * Mth.DEG_TO_RAD)
+			: null;
+		Quaternionf pose = camera == null ? null : new Quaternionf().rotateZ((float) Math.PI)
+			.mul(camera)
+			.rotateZ((float) Math.PI);
 
 		ms.pushPose();
 		if (guiLighting)
@@ -80,16 +82,14 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Cu
 		try {
 			ms.translate(parameters.x(), parameters.y(), parameters.z());
 			ms.scale((float) scale, (float) scale, (float) -scale);
-			ms.mulPose(pose);
+			if (pose != null)
+				ms.mulPose(pose);
 
 			EntityRenderHelper.render(EntityRenderHelper.settings(entity)
+				.preserveOrientation()
 				.packedLight(appliedLight)
 				.partialTicks(1.0f)
 				.cameraOrientation(camera)
-				.bodyYaw(ENTITY_YAW_DEGREES)
-				.yaw(ENTITY_YAW_DEGREES)
-				.pitch(-CAMERA_X_ROTATION_DEGREES)
-				.headYaw(ENTITY_YAW_DEGREES)
 				.dispatcherYaw(0.0f)
 				.flushBuffers(false), ms, buffer);
 			if (buffer instanceof MultiBufferSource.BufferSource bufferSource)
@@ -131,10 +131,6 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Cu
 			mob.setNoAi(true);
 		entity.setSilent(true);
 		entity.setOnGround(true);
-		entity.setYRot(ENTITY_YAW_DEGREES);
-		entity.yRotO = ENTITY_YAW_DEGREES;
-		entity.setXRot(0.0f);
-		entity.xRotO = 0.0f;
 		entity.tickCount = 0;
 
 		cachedLevel = level;
@@ -142,18 +138,28 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Cu
 		return entity;
 	}
 
-	private record DisplayParameters(double x, double y, double z, double scale) {
+	private record DisplayParameters(double x, double y, double z, double scale, boolean hasAngleCorrection,
+		float cameraXRotationDegrees) {
 		// CustomRenderedItemModelRenderer already centers the item at (0.5, 0.5, 0.5),
 		// so these offsets are relative to that centered origin instead of absolute block-space.
-		private static final DisplayParameters GUI = new DisplayParameters(0.0d, -0.3d, 0.0d, 0.5d);
-		private static final DisplayParameters GROUND = new DisplayParameters(0.0d, -0.05d, 0.0d, 0.75d);
-		private static final DisplayParameters DEFAULT = new DisplayParameters(0.0d, -0.05d, 0.0d, 0.55d);
+		private static final DisplayParameters GUI = new DisplayParameters(0.0d, -0.3d, 0.0d, 1.0d, true,
+			-CAMERA_X_ROTATION_DEGREES);
+		private static final DisplayParameters GROUND = new DisplayParameters(0.0d, -0.05d, 0.0d, 1.0d, false,
+			0.0f);
+		private static final DisplayParameters HAND = new DisplayParameters(0.0d, -0.05d, 0.0d, 1.0d, true,
+			CAMERA_X_ROTATION_DEGREES);
+		private static final DisplayParameters DEFAULT = HAND;
 
 		private static DisplayParameters forContext(ItemDisplayContext transformType) {
 			if (transformType == ItemDisplayContext.GUI)
 				return GUI;
 			if (transformType == ItemDisplayContext.GROUND)
 				return GROUND;
+			if (transformType == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
+				|| transformType == ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
+				|| transformType == ItemDisplayContext.THIRD_PERSON_LEFT_HAND
+				|| transformType == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND)
+				return HAND;
 			return DEFAULT;
 		}
 	}
