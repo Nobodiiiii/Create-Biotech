@@ -72,7 +72,12 @@ public class SlimeEntityDrawable implements IDrawable {
 			.scale(scale)
 			.packedLight(LightTexture.FULL_BRIGHT)
 			.partialTicks(1.0f)
-			.inventoryLike(angleX, angleY)
+			.rotate(0.0d, angleX * 40.0d, 0.0d)
+			.dispatcherYaw(0.0f)
+			.yaw(0.0f)
+			.bodyYaw(0.0f)
+			.headYaw(0.0f)
+			.pitch(0.0f)
 			.render(guiGraphics);
 	}
 

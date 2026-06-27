@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
+import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -37,17 +38,23 @@ public final class EntityRenderHelper {
 			settings.applyEntityState();
 			if (settings.cameraOrientation != null)
 				dispatcher.overrideCameraOrientation(new Quaternionf(settings.cameraOrientation).conjugate());
-			dispatcher.setRenderShadow(settings.renderShadow);
-			RenderSystem.runAsFancy(() -> dispatcher.render(settings.entity, 0, 0, 0, settings.dispatcherYaw,
-				settings.partialTicks, poseStack, buffer, settings.packedLight));
+			RenderSystem.runAsFancy(
+				() -> renderWithAssignedRenderer(dispatcher, settings, poseStack, buffer));
 			if (settings.flushBuffers && buffer instanceof MultiBufferSource.BufferSource bufferSource)
 				bufferSource.endBatch();
 		} finally {
-			dispatcher.setRenderShadow(true);
 			if (previousCamera != null)
 				dispatcher.overrideCameraOrientation(previousCamera);
 			state.restore(settings.entity);
 		}
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private static <T extends Entity> void renderWithAssignedRenderer(EntityRenderDispatcher dispatcher,
+		RenderSettings<T> settings, PoseStack poseStack, MultiBufferSource buffer) {
+		EntityRenderer renderer = dispatcher.getRenderer(settings.entity);
+		renderer.render(settings.entity, settings.dispatcherYaw, settings.partialTicks, poseStack, buffer,
+			settings.packedLight);
 	}
 
 	public static class RenderSettings<T extends Entity> {
@@ -170,15 +177,16 @@ public final class EntityRenderHelper {
 	}
 
 	private record EntityRenderState(float yRot, float yRotO, float xRot, float xRotO, int tickCount,
-		float bodyYaw, float bodyYawO, float headYaw, float headYawO, boolean living) {
+		float bodyYaw, float bodyYawO, float headYaw, float headYawO, int hurtTime, int deathTime,
+		boolean living) {
 
 		private static EntityRenderState capture(Entity entity) {
 			if (entity instanceof LivingEntity livingEntity)
 				return new EntityRenderState(entity.getYRot(), entity.yRotO, entity.getXRot(), entity.xRotO,
 					entity.tickCount, livingEntity.yBodyRot, livingEntity.yBodyRotO, livingEntity.yHeadRot,
-					livingEntity.yHeadRotO, true);
+					livingEntity.yHeadRotO, livingEntity.hurtTime, livingEntity.deathTime, true);
 			return new EntityRenderState(entity.getYRot(), entity.yRotO, entity.getXRot(), entity.xRotO,
-				entity.tickCount, 0, 0, 0, 0, false);
+				entity.tickCount, 0, 0, 0, 0, 0, 0, false);
 		}
 
 		private void restore(Entity entity) {
@@ -192,6 +200,8 @@ public final class EntityRenderHelper {
 				livingEntity.yBodyRotO = bodyYawO;
 				livingEntity.yHeadRot = headYaw;
 				livingEntity.yHeadRotO = headYawO;
+				livingEntity.hurtTime = hurtTime;
+				livingEntity.deathTime = deathTime;
 			}
 		}
 	}
