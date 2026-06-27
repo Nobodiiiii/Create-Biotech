@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.nobodiiiii.createbiotech.compat.jei.CuteCatOnShaftJeiRenderer;
 import com.nobodiiiii.createbiotech.compat.jei.SquidJeiRenderer;
 import com.nobodiiiii.createbiotech.compat.jei.SquidPrinterJeiRecipes;
 import com.simibubi.create.content.kinetics.deployer.ItemApplicationRecipe;
@@ -16,6 +17,18 @@ import net.minecraft.client.gui.GuiGraphics;
 @Pseudo
 @Mixin(targets = "com.simibubi.create.compat.jei.category.ItemApplicationCategory", remap = false)
 public abstract class ItemApplicationCategoryMixin {
+	@Inject(method = "draw", at = @At("HEAD"), cancellable = true, remap = false)
+	private void createBiotech$drawCuteCatOnShaft(ItemApplicationRecipe recipe, IRecipeSlotsView recipeSlotsView,
+		GuiGraphics graphics, double mouseX, double mouseY, CallbackInfo ci) {
+		CuteCatOnShaftJeiRenderer.PreviewKind previewKind =
+			CuteCatOnShaftJeiRenderer.getPreviewKind(recipe, recipeSlotsView);
+		if (previewKind == null)
+			return;
+
+		if (CuteCatOnShaftJeiRenderer.render(graphics, previewKind))
+			ci.cancel();
+	}
+
 	@Inject(method = "draw", at = @At("TAIL"), remap = false)
 	private void createBiotech$drawSquid(ItemApplicationRecipe recipe, IRecipeSlotsView recipeSlotsView, GuiGraphics graphics, double mouseX,
 		double mouseY, CallbackInfo ci) {

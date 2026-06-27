@@ -74,7 +74,6 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
         }
 
         if (!be.hasBread()) {
-            displayMessage(player, "string.create_biotech.no_bread");
             return InteractionResult.SUCCESS;
         }
 
@@ -98,10 +97,6 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
             if (level.isClientSide) {
                 ClientEffect.create(level, pos, ClientEffect.EffectType.BUTTER);
             }
-        }
-
-        if (be.getButterCount() == 0) {
-            displayMessage(player, "string.create_biotech.no_butter");
         }
 
         return InteractionResult.SUCCESS;
