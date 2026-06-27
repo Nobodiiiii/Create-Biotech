@@ -1,25 +1,16 @@
 package com.nobodiiiii.createbiotech.content.processing.basin;
 
-import java.util.function.Consumer;
+import com.nobodiiiii.createbiotech.foundation.item.RenderedLivingEntityItem;
 
-import com.nobodiiiii.createbiotech.compat.jei.CapturedSmallSlimeJeiItemRenderer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.monster.Slime;
 
-import net.minecraft.world.item.Item;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
-import net.minecraftforge.fml.ModList;
-
-public class CapturedSmallSlimeItem extends Item {
+public class CapturedSmallSlimeItem extends RenderedLivingEntityItem<Slime> {
 	public CapturedSmallSlimeItem(Properties properties) {
-		super(properties);
+		super(properties, EntityType.SLIME, CapturedSmallSlimeItem::configureSlime);
 	}
 
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		if (ModList.get()
-			.isLoaded("jei"))
-			consumer.accept(CapturedSmallSlimeJeiItemRenderer.itemExtensions());
+	private static void configureSlime(Slime slime) {
+		slime.setSize(2, false);
 	}
 }

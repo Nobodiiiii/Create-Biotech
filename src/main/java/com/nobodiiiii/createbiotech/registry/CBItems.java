@@ -27,7 +27,9 @@ import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackageItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
+import com.nobodiiiii.createbiotech.foundation.item.RenderedLivingEntityItem;
 
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
@@ -100,6 +102,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> CAPTURED_SMALL_SLIME = ITEMS.register("captured_small_slime",
 		() -> new CapturedSmallSlimeItem(new Item.Properties().stacksTo(4)));
+
+	public static final RegistryObject<Item> ZOMBIE_RENDER_TEST = ITEMS.register("zombie_render_test",
+		() -> new RenderedLivingEntityItem<>(new Item.Properties(), EntityType.ZOMBIE));
 
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));

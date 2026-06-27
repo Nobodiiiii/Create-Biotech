@@ -75,7 +75,6 @@ import net.createmod.catnip.lang.FontHelper;
 import net.createmod.ponder.foundation.PonderIndex;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -94,7 +93,6 @@ import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 @Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
@@ -303,10 +301,6 @@ public class CreateBiotechClient {
 			CreateClient.CASING_CONNECTIVITY.make(CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get(),
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
 				(state, face) -> face.getAxis() != state.getValue(BlockStateProperties.AXIS));
-			if (ModList.get()
-				.isLoaded("jei"))
-				ItemProperties.register(CBItems.CAPTURED_SMALL_SLIME.get(),
-					CreateBiotech.asResource("jei_slime_model"), (stack, level, entity, seed) -> 1);
 		});
 	}
 

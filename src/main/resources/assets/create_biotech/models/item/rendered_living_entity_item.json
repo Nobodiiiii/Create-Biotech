@@ -1,9 +1,6 @@
 {
-  "parent": "builtin/entity",
+  "parent": "minecraft:item/generated",
   "gui_light": "front",
-  "textures": {
-    "particle": "minecraft:item/slime_ball"
-  },
   "display": {
     "gui": {
       "rotation": [0, 0, 0],

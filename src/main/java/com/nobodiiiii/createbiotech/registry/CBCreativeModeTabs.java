@@ -63,6 +63,8 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.CARBON_POWDER.get());
 				output.accept(CBItems.GRAPHITE.get());
 				output.accept(CBItems.ZINC_SHEET.get());
+				output.accept(CBItems.CAPTURED_SMALL_SLIME.get());
+				output.accept(CBItems.ZOMBIE_RENDER_TEST.get());
 				output.accept(CBItems.BIONIC_MECHANISM.get());
 				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
 				output.accept(CBItems.HALF_SHAFT.get());
