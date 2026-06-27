@@ -22,6 +22,7 @@ public class ModPlugin implements IWailaPlugin {
 
     @Override
     public void registerClient(IWailaClientRegistration registration) {
+        registration.registerBlockIcon(BCEComponentProvider.INSTANCE, ButterCatEngineBlock.class);
         registration.registerBlockComponent(BCEComponentProvider.INSTANCE, ButterCatEngineBlock.class);
     }
 }

@@ -64,6 +64,7 @@ public final class ButterCatModule {
 			return;
 		clientInitialized = true;
 
+		ItemDescription.useKey(ModItems.BUTTER_CAT_ENGINE, "block.create_biotech.butter_cat_engine");
 		PonderIndex.addPlugin(new ModPonder());
 		ItemBlockRenderTypes.setRenderLayer(ModBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
 		ItemBlockRenderTypes.setRenderLayer(ModFluids.CREAM.getSource(), RenderType.translucent());
