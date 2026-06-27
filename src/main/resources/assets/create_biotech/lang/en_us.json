@@ -74,6 +74,7 @@
   "item.create_biotech.power_belt_connector": "Power Belt",
   "item.create_biotech.captured_small_slime": "Small Slime",
   "item.create_biotech.zombie_render_test": "Zombie (Render Test)",
+  "item.create_biotech.wither_render_test": "Wither (Render Test)",
   "item.create_biotech.half_shaft": "Half Shaft",
   "item.create_biotech.smart_super_glue": "Smart Super Glue",
   "item.create_biotech.smart_super_glue.tooltip.summary": "Batch-process _Super Glue_ selections.",

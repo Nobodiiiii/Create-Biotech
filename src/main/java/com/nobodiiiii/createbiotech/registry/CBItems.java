@@ -106,6 +106,9 @@ public class CBItems {
 	public static final RegistryObject<Item> ZOMBIE_RENDER_TEST = ITEMS.register("zombie_render_test",
 		() -> new RenderedLivingEntityItem<>(new Item.Properties(), EntityType.ZOMBIE));
 
+	public static final RegistryObject<Item> WITHER_RENDER_TEST = ITEMS.register("wither_render_test",
+		() -> new RenderedLivingEntityItem<>(new Item.Properties(), EntityType.WITHER));
+
 	public static final RegistryObject<Item> UNIVERSAL_JOINT = ITEMS.register("universal_joint",
 		() -> new UniversalJointItem(new Item.Properties()));
 

@@ -74,6 +74,7 @@
   "item.create_biotech.power_belt_connector": "动力传送带",
   "item.create_biotech.captured_small_slime": "小型史莱姆",
   "item.create_biotech.zombie_render_test": "僵尸（渲染测试）",
+  "item.create_biotech.wither_render_test": "凋灵（渲染测试）",
   "item.create_biotech.half_shaft": "半截传动杆",
   "item.create_biotech.smart_super_glue": "智能强力胶",
   "item.create_biotech.smart_super_glue.tooltip.summary": "批量处理_强力胶_选区。",
