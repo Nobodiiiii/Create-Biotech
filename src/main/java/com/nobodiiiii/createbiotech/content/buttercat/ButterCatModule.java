@@ -33,8 +33,12 @@ public final class ButterCatModule {
 	private static boolean clientInitialized;
 
 	static {
-		REGISTRATE.setTooltipModifierFactory(item -> new ItemDescription.Modifier(item,
-			FontHelper.Palette.STANDARD_CREATE).andThen(TooltipModifier.mapNull(KineticStats.create(item))));
+		REGISTRATE.setTooltipModifierFactory(item -> {
+			if ("item.create_biotech.cute_cat_on_shaft".equals(item.getDescriptionId()))
+				return TooltipModifier.EMPTY;
+			return new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE)
+				.andThen(TooltipModifier.mapNull(KineticStats.create(item)));
+		});
 	}
 
 	private ButterCatModule() {}

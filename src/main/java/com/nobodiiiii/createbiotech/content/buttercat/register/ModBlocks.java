@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.buttercat.register;
 
 import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock;
+import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatEngineBlockItem;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.stress.BlockStressValues;
@@ -33,7 +34,8 @@ public class ModBlocks {
                             (int) Math.round(CBConfigs.SERVER.butterCat.maxGeneratedRpm.get()),
                             true)))
             .loot((loot,block)->loot.dropOther(block, AllBlocks.SHAFT))
-            .item()
+            .item((block, properties) -> new ButterCatEngineBlockItem(block, properties,
+                    "item.create_biotech.cute_cat_on_shaft", false))
             .model((c, p) -> p.blockItem(c, "/item"))
             .build()
             .register();
