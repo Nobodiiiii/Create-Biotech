@@ -85,7 +85,7 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 	}
 
 	/**
-	 * Prefixes the name of bionic creatures (slime mimics) with the "Bionic" label.
+	 * Prefixes the name of slime mimics with the "Mimic" label.
 	 * Runs after Jade's core {@code object_name} provider (priority -10100, so the name is
 	 * already present), then replaces that line with a prefixed copy.
 	 */
