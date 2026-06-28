@@ -42,7 +42,6 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float ICON_SCALE = 0.6f;
 	private static final float GUI_CENTERING_X = -2.0f / 16.0f;
 	private static final float GUI_CENTERING_Y = 4.0f / 16.0f;
-	private static final float SQUID_ENTITY_SCALE_MULTIPLIER = 0.45f;
 	private static final float SQUID_ENTITY_FOOT_Y_OFFSET = 1.1f;
 	private static final float ITEM_PLANE_TO_FACE_Y_ROT = itemPlaneToFaceYRot(ICON_FACE);
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
@@ -59,6 +58,13 @@ public final class CapturedEntityBoxIconRenderer {
 	public static void renderOnEntity(ItemStack stack, float yaw, PoseStack poseStack, MultiBufferSource buffer,
 		int light) {
 		render(stack, poseStack, buffer, light, yaw);
+	}
+
+	public static void renderOnItem(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light) {
+		poseStack.pushPose();
+		poseStack.translate(0.0f, -0.5f, 0.0f);
+		render(stack, poseStack, buffer, light, -90.0f);
+		poseStack.popPose();
 	}
 
 	private static void render(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light, float yaw) {
@@ -111,7 +117,7 @@ public final class CapturedEntityBoxIconRenderer {
 	private static EntityRenderTuning getEntityRenderTuning(LivingEntity entity) {
 		EntityType<?> type = entity.getType();
 		if (type == EntityType.SQUID || type == EntityType.GLOW_SQUID)
-			return new EntityRenderTuning(SQUID_ENTITY_SCALE_MULTIPLIER, SQUID_ENTITY_FOOT_Y_OFFSET);
+			return new EntityRenderTuning(1.0f, SQUID_ENTITY_FOOT_Y_OFFSET);
 		return new EntityRenderTuning(1.0f, 0.0f);
 	}
 

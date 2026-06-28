@@ -13,8 +13,8 @@ import com.nobodiiiii.createbiotech.registry.CBItems;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
@@ -26,7 +26,6 @@ public final class CapturedEntityBoxJeiRenderer {
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
 	private static final ItemStack LARGE_BOX_BADGE = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
 	private static final long BOX_CYCLE_TIME_MS = 1000L;
-	private static final float SQUID_ENTITY_SCALE_MULTIPLIER = 0.45f;
 	private static final float SQUID_ENTITY_FOOT_Y_OFFSET = 1.1f;
 	private static final float BADGE_SCALE = 0.55f;
 	private static final int BADGE_Z = 200;
@@ -78,7 +77,7 @@ public final class CapturedEntityBoxJeiRenderer {
 	private static EntityRenderTuning getEntityRenderTuning(LivingEntity entity) {
 		EntityType<?> type = entity.getType();
 		if (type == EntityType.SQUID || type == EntityType.GLOW_SQUID)
-			return new EntityRenderTuning(SQUID_ENTITY_SCALE_MULTIPLIER, SQUID_ENTITY_FOOT_Y_OFFSET);
+			return new EntityRenderTuning(1.0f, SQUID_ENTITY_FOOT_Y_OFFSET);
 		return new EntityRenderTuning(1.0f, 0.0f);
 	}
 

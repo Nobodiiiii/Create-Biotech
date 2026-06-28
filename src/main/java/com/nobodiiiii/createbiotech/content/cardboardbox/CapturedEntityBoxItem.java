@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import java.util.List;
+import java.util.function.Consumer;
 
+import com.simibubi.create.foundation.item.render.SimpleCustomRenderer;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.box.PackageStyles;
 import com.simibubi.create.content.logistics.box.PackageStyles.PackageStyle;
@@ -16,6 +18,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
+import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 public abstract class CapturedEntityBoxItem extends PackageItem {
 	private static final int EMPTY_BOX_MAX_STACK_SIZE = 16;
@@ -101,5 +106,11 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 
 	public static boolean isBox(ItemStack stack) {
 		return stack.getItem() instanceof CapturedEntityBoxItem;
+	}
+
+	@Override
+	@OnlyIn(Dist.CLIENT)
+	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+		consumer.accept(SimpleCustomRenderer.create(this, new CapturedEntityBoxItemRenderer()));
 	}
 }

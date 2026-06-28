@@ -2,11 +2,15 @@ package com.nobodiiiii.createbiotech.foundation.render;
 
 import com.nobodiiiii.createbiotech.foundation.item.RenderedLivingEntityItem;
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.jetbrains.annotations.Nullable;
+
+import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.EntityDimensions;
@@ -133,8 +137,29 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 	}
 
 	private static float getLargestDimension(LivingEntity entity) {
+		GeometryBounds bounds = measureRenderBounds(entity);
+		if (bounds.hasVertices())
+			return Math.max(bounds.largestDimension(), MIN_AUTO_SCALE_DIMENSION);
+
 		EntityDimensions dimensions = entity.getDimensions(entity.getPose());
 		return Math.max(Math.max(dimensions.width, dimensions.height), MIN_AUTO_SCALE_DIMENSION);
+	}
+
+	private static GeometryBounds measureRenderBounds(LivingEntity entity) {
+		GeometryBounds bounds = new GeometryBounds();
+		PoseStack poseStack = new PoseStack();
+		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(bounds);
+
+		EntityRenderHelper.render(EntityRenderHelper.settings(entity)
+			.packedLight(LightTexture.FULL_BRIGHT)
+			.partialTicks(1.0f)
+			.dispatcherYaw(0.0f)
+			.yaw(0.0f)
+			.bodyYaw(0.0f)
+			.headYaw(0.0f)
+			.pitch(0.0f)
+			.flushBuffers(false), poseStack, measuringBuffer);
+		return bounds;
 	}
 
 	@Nullable
@@ -174,4 +199,90 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 	}
 
 	public record EntityRenderTuning(float scaleMultiplier, float footYOffset) {}
+
+	private static class GeometryBounds {
+		private float minX = Float.POSITIVE_INFINITY;
+		private float minY = Float.POSITIVE_INFINITY;
+		private float minZ = Float.POSITIVE_INFINITY;
+		private float maxX = Float.NEGATIVE_INFINITY;
+		private float maxY = Float.NEGATIVE_INFINITY;
+		private float maxZ = Float.NEGATIVE_INFINITY;
+
+		private void include(Vector3f vertex) {
+			minX = Math.min(minX, vertex.x());
+			minY = Math.min(minY, vertex.y());
+			minZ = Math.min(minZ, vertex.z());
+			maxX = Math.max(maxX, vertex.x());
+			maxY = Math.max(maxY, vertex.y());
+			maxZ = Math.max(maxZ, vertex.z());
+		}
+
+		private boolean hasVertices() {
+			return minX != Float.POSITIVE_INFINITY;
+		}
+
+		private float largestDimension() {
+			return Math.max(Math.max(maxX - minX, maxY - minY), maxZ - minZ);
+		}
+	}
+
+	private static class GeometryBoundsVertexConsumer implements VertexConsumer {
+		private final GeometryBounds bounds;
+
+		private GeometryBoundsVertexConsumer(GeometryBounds bounds) {
+			this.bounds = bounds;
+		}
+
+		@Override
+		public VertexConsumer vertex(double x, double y, double z) {
+			bounds.include(new Vector3f((float) x, (float) y, (float) z));
+			return this;
+		}
+
+		@Override
+		public VertexConsumer vertex(Matrix4f matrix, float x, float y, float z) {
+			return vertex(matrix.transformPosition(x, y, z, new Vector3f()));
+		}
+
+		private VertexConsumer vertex(Vector3f vec) {
+			return vertex(vec.x(), vec.y(), vec.z());
+		}
+
+		@Override
+		public VertexConsumer color(int red, int green, int blue, int alpha) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer uv(float u, float v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer overlayCoords(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer uv2(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer normal(float x, float y, float z) {
+			return this;
+		}
+
+		@Override
+		public void endVertex() {
+		}
+
+		@Override
+		public void defaultColor(int red, int green, int blue, int alpha) {
+		}
+
+		@Override
+		public void unsetDefaultColor() {
+		}
+	}
 }
