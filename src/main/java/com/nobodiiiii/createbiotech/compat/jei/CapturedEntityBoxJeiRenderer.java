@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import java.util.List;
+
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
@@ -20,8 +22,10 @@ import net.minecraft.world.level.Level;
 
 public final class CapturedEntityBoxJeiRenderer {
 	private static final ThreadLocal<Boolean> CURRENT_SLOT_HOVERED = ThreadLocal.withInitial(() -> false);
+	private static final ThreadLocal<IRecipeSlotDrawable> CURRENT_SLOT = new ThreadLocal<>();
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
 	private static final ItemStack LARGE_BOX_BADGE = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
+	private static final long BOX_CYCLE_TIME_MS = 1000L;
 	private static final float SQUID_ENTITY_SCALE_MULTIPLIER = 0.45f;
 	private static final float SQUID_ENTITY_FOOT_Y_OFFSET = 1.1f;
 	private static final float BADGE_SCALE = 0.55f;
@@ -39,9 +43,11 @@ public final class CapturedEntityBoxJeiRenderer {
 	public static void drawSlotWithHoverContext(IRecipeSlotDrawable slot, GuiGraphics graphics, double mouseX,
 		double mouseY) {
 		CURRENT_SLOT_HOVERED.set(slot.isMouseOver(mouseX, mouseY));
+		CURRENT_SLOT.set(slot);
 		try {
 			slot.draw(graphics);
 		} finally {
+			CURRENT_SLOT.remove();
 			CURRENT_SLOT_HOVERED.remove();
 		}
 	}
@@ -49,8 +55,11 @@ public final class CapturedEntityBoxJeiRenderer {
 	public static boolean renderCapturedEntityBox(GuiGraphics graphics, ItemStack stack, int x, int y) {
 		if (!(stack.getItem() instanceof CapturedEntityBoxItem) || !CapturedEntityBoxHelper.hasCapturedEntity(stack))
 			return false;
-		if (CURRENT_SLOT_HOVERED.get())
-			return false;
+		if (CURRENT_SLOT_HOVERED.get()) {
+			ItemStack displayedBox = getHoveredBoxStack(stack);
+			graphics.renderItem(displayedBox, x, y);
+			return true;
+		}
 
 		LivingEntity entity = getOrCreateEntity(stack);
 		if (entity == null)
@@ -80,6 +89,25 @@ public final class CapturedEntityBoxJeiRenderer {
 		poseStack.scale(BADGE_SCALE, BADGE_SCALE, BADGE_SCALE);
 		graphics.renderItem(LARGE_BOX_BADGE, 0, 0);
 		poseStack.popPose();
+	}
+
+	private static ItemStack getHoveredBoxStack(ItemStack fallback) {
+		IRecipeSlotDrawable slot = CURRENT_SLOT.get();
+		if (slot == null)
+			return fallback;
+
+		List<ItemStack> boxes = slot.getItemStacks()
+			.filter(CapturedEntityBoxJeiRenderer::isCapturedEntityBox)
+			.toList();
+		if (boxes.isEmpty())
+			return fallback;
+
+		int index = (int) ((System.currentTimeMillis() / BOX_CYCLE_TIME_MS) % boxes.size());
+		return boxes.get(index);
+	}
+
+	private static boolean isCapturedEntityBox(ItemStack stack) {
+		return stack.getItem() instanceof CapturedEntityBoxItem && CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
 
 	@Nullable

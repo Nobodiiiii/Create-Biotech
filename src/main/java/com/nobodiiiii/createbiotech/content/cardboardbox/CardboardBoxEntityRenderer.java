@@ -30,7 +30,9 @@ public class CardboardBoxEntityRenderer extends EntityRenderer<CardboardBoxEntit
 	@Override
 	public void render(CardboardBoxEntity entity, float yaw, float partialTicks, PoseStack poseStack,
 		MultiBufferSource buffer, int light) {
-		PackageRenderer.renderBox(entity, yaw, poseStack, buffer, light, getModel(entity.getBox()));
+		ItemStack stack = entity.getBox();
+		PackageRenderer.renderBox(entity, yaw, poseStack, buffer, light, getModel(stack));
+		CapturedEntityBoxIconRenderer.renderOnEntity(stack, yaw, poseStack, buffer, light);
 		super.render(entity, yaw, partialTicks, poseStack, buffer, light);
 	}
 

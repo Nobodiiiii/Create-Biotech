@@ -65,8 +65,13 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 	}
 
 	@Override
+	public boolean hasCustomEntity(ItemStack stack) {
+		return hasCapturedEntity(stack);
+	}
+
+	@Override
 	public Entity createEntity(Level world, Entity location, ItemStack itemstack) {
-		return CardboardBoxEntity.fromDroppedItem(world, location, itemstack);
+		return hasCapturedEntity(itemstack) ? CardboardBoxEntity.fromDroppedItem(world, location, itemstack) : null;
 	}
 
 	@Override
