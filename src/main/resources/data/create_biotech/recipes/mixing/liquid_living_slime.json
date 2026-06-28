@@ -1,0 +1,22 @@
+{
+  "type": "create:mixing",
+  "ingredients": [
+    {
+      "item": "minecraft:slime_ball"
+    },
+    {
+      "amount": 250,
+      "fluid": "create:potion",
+      "nbt": {
+        "Bottle": "REGULAR",
+        "Potion": "minecraft:regeneration"
+      }
+    }
+  ],
+  "results": [
+    {
+      "amount": 250,
+      "fluid": "create_biotech:liquid_living_slime"
+    }
+  ]
+}

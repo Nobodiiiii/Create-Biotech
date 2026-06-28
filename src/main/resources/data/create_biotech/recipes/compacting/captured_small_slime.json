@@ -1,0 +1,15 @@
+{
+  "type": "create:compacting",
+  "ingredients": [
+    {
+      "amount": 250,
+      "fluid": "create_biotech:liquid_living_slime",
+      "nbt": {}
+    }
+  ],
+  "results": [
+    {
+      "item": "create_biotech:captured_small_slime"
+    }
+  ]
+}

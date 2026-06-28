@@ -59,6 +59,10 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return butterCount + overflowCount;
     }
 
+    public ResourceKey<CatVariant> getCatVariant() {
+        return catVariant;
+    }
+
     public boolean hasBread(){
         return getBlockState() != null && ModBlocks.BUTTER_CAT_ENGINE.has(getBlockState());
     }

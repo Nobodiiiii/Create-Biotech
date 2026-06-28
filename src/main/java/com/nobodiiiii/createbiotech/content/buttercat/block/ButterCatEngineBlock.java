@@ -1,20 +1,33 @@
 package com.nobodiiiii.createbiotech.content.buttercat.block;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.foundation.block.IBE;
 import com.nobodiiiii.createbiotech.content.buttercat.datagen.other.ModTags;
 import com.nobodiiiii.createbiotech.content.buttercat.event.ClientEffect;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlockEnetities;
+import com.nobodiiiii.createbiotech.content.buttercat.register.ModBlocks;
 import com.nobodiiiii.createbiotech.content.buttercat.register.ModItems;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.animal.Cat;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -22,7 +35,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -177,6 +193,52 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
     @Override
     public BlockEntityType<? extends ButterCatEngineBlockEntity> getBlockEntityType() {
         return ModBlockEnetities.BUTTER_CAT_ENGINE_BE.get();
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public List<ItemStack> getDrops(BlockState state, LootParams.Builder builder) {
+        ItemStack tool = builder.getOptionalParameter(LootContextParams.TOOL);
+        if (preservesWholeBlock(tool))
+            return super.getDrops(state, builder);
+
+        List<ItemStack> drops = new ArrayList<>();
+        drops.add(AllBlocks.SHAFT.asStack());
+        if (hasBread(state))
+            drops.add(new ItemStack(Items.BREAD));
+
+        BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
+        if (blockEntity instanceof ButterCatEngineBlockEntity be)
+            spawnCat(builder, be);
+
+        return drops;
+    }
+
+    private boolean preservesWholeBlock(ItemStack tool) {
+        return tool != null && (tool.is(AllItems.WRENCH.get())
+            || EnchantmentHelper.getItemEnchantmentLevel(Enchantments.SILK_TOUCH, tool) > 0);
+    }
+
+    private boolean hasBread(BlockState state) {
+        return ModBlocks.BUTTER_CAT_ENGINE.has(state);
+    }
+
+    private void spawnCat(LootParams.Builder builder, ButterCatEngineBlockEntity be) {
+        ServerLevel level = builder.getLevel();
+        Vec3 origin = builder.getOptionalParameter(LootContextParams.ORIGIN);
+        if (origin == null)
+            origin = Vec3.atCenterOf(be.getBlockPos());
+
+        Entity source = builder.getOptionalParameter(LootContextParams.THIS_ENTITY);
+        Cat cat = EntityType.CAT.create(level);
+        if (cat == null)
+            return;
+
+        cat.setVariant(BuiltInRegistries.CAT_VARIANT.get(be.getCatVariant()));
+        cat.moveTo(origin.x, origin.y, origin.z, source == null ? level.random.nextFloat() * 360 : source.getYRot(),
+            0);
+        cat.setDeltaMovement(0, .15, 0);
+        level.addFreshEntity(cat);
     }
 
     @Override
