@@ -21,6 +21,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -100,17 +101,26 @@ public final class CapturedEntityBoxIconRenderer {
 	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, EntityRenderTuning tuning,
 		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
 		GeometryBounds bounds = new GeometryBounds();
+		GeometryBounds centerBounds = new GeometryBounds();
 		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
+		Matrix4f renderToEntityBase = new Matrix4f(poseStack.last()
+			.pose()).invert();
+		EntityDimensions dimensions = entity.getDimensions(entity.getPose());
+		float renderScale = RenderedLivingEntityItemRenderer.getEntityRenderScale(entity, tuning.scaleMultiplier());
+		float collisionHalfWidth = dimensions.width * renderScale / 2.0f;
 		MultiBufferSource measuringBuffer =
-			renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
+			renderType -> new GeometryBoundsVertexConsumer(renderToBox, renderToEntityBase, collisionHalfWidth, bounds,
+				centerBounds);
 
 		RenderedLivingEntityItemRenderer.renderEntity(entity, tuning.scaleMultiplier(), tuning.footYOffset(), poseStack,
 			measuringBuffer, packedLight);
 		if (!bounds.hasVertices())
 			return FaceAlignment.none();
 
-		float xAlignment = face.x() - bounds.centerX();
-		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(), face.centerZ() - bounds.centerZ(),
+		GeometryBounds horizontalCenterBounds = centerBounds.hasVertices() ? centerBounds : bounds;
+		float xAlignment = face.x() - horizontalCenterBounds.centerX();
+		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(),
+			face.centerZ() - horizontalCenterBounds.centerZ(),
 			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
 	}
 
@@ -259,16 +269,28 @@ public final class CapturedEntityBoxIconRenderer {
 
 	private static class GeometryBoundsVertexConsumer implements VertexConsumer {
 		private final Matrix4f renderToBox;
+		private final Matrix4f renderToEntityBase;
+		private final float collisionHalfWidth;
 		private final GeometryBounds bounds;
+		private final GeometryBounds centerBounds;
 
-		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, GeometryBounds bounds) {
+		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, Matrix4f renderToEntityBase,
+			float collisionHalfWidth, GeometryBounds bounds, GeometryBounds centerBounds) {
 			this.renderToBox = renderToBox;
+			this.renderToEntityBase = renderToEntityBase;
+			this.collisionHalfWidth = collisionHalfWidth;
 			this.bounds = bounds;
+			this.centerBounds = centerBounds;
 		}
 
 		@Override
 		public VertexConsumer vertex(double x, double y, double z) {
-			bounds.include(renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f()));
+			Vector3f boxLocal = renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f());
+			bounds.include(boxLocal);
+			Vector3f entityLocal =
+				renderToEntityBase.transformPosition((float) x, (float) y, (float) z, new Vector3f());
+			if (Math.abs(entityLocal.x()) <= collisionHalfWidth && Math.abs(entityLocal.z()) <= collisionHalfWidth)
+				centerBounds.include(boxLocal);
 			return this;
 		}
 

@@ -131,7 +131,7 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 			scaleMultiplier) / 2.0d;
 	}
 
-	private static float getEntityRenderScale(LivingEntity entity, float scaleMultiplier) {
+	public static float getEntityRenderScale(LivingEntity entity, float scaleMultiplier) {
 		float autoScale = BASE_RENDER_SCALE / getLargestDimension(entity);
 		return Math.min(autoScale, MAX_AUTO_RENDER_SCALE) * scaleMultiplier;
 	}
