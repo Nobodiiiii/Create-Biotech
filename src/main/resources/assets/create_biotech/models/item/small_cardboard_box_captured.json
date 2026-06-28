@@ -22,7 +22,7 @@
 			}
 		}
 	],
-	"gui_light": "front",
+	"gui_light": "side",
 	"display": {
 		"thirdperson_righthand": {
 			"rotation": [75, 45, 0],

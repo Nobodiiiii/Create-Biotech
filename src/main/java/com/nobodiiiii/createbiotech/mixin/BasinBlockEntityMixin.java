@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinCapturedSlimeItemHandler;
+import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.core.BlockPos;
@@ -28,5 +29,10 @@ public abstract class BasinBlockEntityMixin {
 		BasinBlockEntity basin = (BasinBlockEntity) (Object) this;
 		itemCapability = LazyOptional.of(() -> new BasinCapturedSlimeItemHandler(basin,
 			new CombinedInvWrapper(basin.getInputInventory(), basin.getOutputInventory())));
+	}
+
+	@Inject(method = "tick()V", at = @At("TAIL"), remap = false)
+	private void createBiotech$materializeCapturedSmallSlimeItems(CallbackInfo ci) {
+		CapturedSmallSlimeItem.materializeInBasin((BasinBlockEntity) (Object) this);
 	}
 }

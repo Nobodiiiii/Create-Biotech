@@ -284,7 +284,7 @@ public class BasinEntityProcessing {
 		disableAiForSmallSlimeInBasin(level, basinPos, slime);
 	}
 
-	private static boolean captureSmallSlimeInBasin(BasinBlockEntity basin, Slime slime) {
+	static boolean captureSmallSlimeInBasin(BasinBlockEntity basin, Slime slime) {
 		Level level = basin.getLevel();
 		if (level == null || level.isClientSide || !slime.isAlive() || slime.getSize() != 1)
 			return false;
