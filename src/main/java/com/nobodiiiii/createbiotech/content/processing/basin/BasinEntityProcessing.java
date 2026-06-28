@@ -25,6 +25,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -93,12 +94,68 @@ public class BasinEntityProcessing {
 	}
 
 	public static ItemStack getCapturedSmallSlimeItemStack(BasinBlockEntity basin) {
-		int count = getCapturedSmallSlimeCount(basin);
+		int count = Math.min(getCapturedSmallSlimeCount(basin), getMaxCapturedSmallSlimes());
 		return count == 0 ? ItemStack.EMPTY : new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get(), count);
 	}
 
 	public static boolean isCapturedSmallSlimeItem(ItemStack stack) {
 		return stack.is(CBItems.CAPTURED_SMALL_SLIME.get());
+	}
+
+	public static int getRemainingCapturedSmallSlimeCapacity(BasinBlockEntity basin) {
+		return Math.max(0, getMaxCapturedSmallSlimes() - getCapturedSmallSlimeCount(basin));
+	}
+
+	public static boolean canAcceptCapturedSmallSlimeOutput(BasinBlockEntity basin, int count) {
+		return count >= 0 && count <= getRemainingCapturedSmallSlimeCapacity(basin);
+	}
+
+	public static boolean materializeCapturedSmallSlimeOutput(BasinBlockEntity basin, int count) {
+		if (!canAcceptCapturedSmallSlimeOutput(basin, count))
+			return false;
+
+		for (int i = 0; i < count; i++)
+			if (!spawnCapturedSmallSlimeInBasin(basin))
+				return false;
+
+		if (count > 0)
+			notifyBasinContentsChanged(basin);
+		return true;
+	}
+
+	public static boolean spawnCapturedSmallSlimeInBasin(BasinBlockEntity basin) {
+		Level level = basin.getLevel();
+		if (level == null || level.isClientSide || !canAcceptCapturedSmallSlimeOutput(basin, 1))
+			return false;
+
+		BlockPos basinPos = basin.getBlockPos();
+		Slime slime = createSmallSlime(level, Vec3.atCenterOf(basinPos)
+			.add(0, BASIN_SLIME_Y_OFFSET - 0.5d, 0), Vec3.ZERO);
+		if (slime == null)
+			return false;
+		if (!level.addFreshEntity(slime))
+			return false;
+
+		if (captureSmallSlimeInBasin(basin, slime))
+			return true;
+
+		slime.discard();
+		return false;
+	}
+
+	public static Slime createSmallSlime(Level level, Vec3 position, Vec3 motion) {
+		if (level == null)
+			return null;
+
+		Slime slime = EntityType.SLIME.create(level);
+		if (slime == null)
+			return null;
+
+		slime.setSize(1, true);
+		slime.moveTo(position.x, position.y, position.z, level.random.nextFloat() * 360, 0);
+		slime.setDeltaMovement(motion);
+		slime.fallDistance = 0;
+		return slime;
 	}
 
 	public static ItemStack extractCapturedSmallSlimeItems(BasinBlockEntity basin, int amount, boolean simulate) {
@@ -117,8 +174,11 @@ public class BasinEntityProcessing {
 
 	public static ItemStack getCapturedSmallSlimeExtractionStack(BasinBlockEntity basin, ExtractionCountMode mode,
 		int amount, Predicate<ItemStack> filter) {
+		int maxStackSize = getMaxCapturedSmallSlimes();
 		if (amount <= 0)
-			amount = getMaxCapturedSmallSlimes();
+			amount = maxStackSize;
+		else
+			amount = Math.min(amount, maxStackSize);
 
 		List<Slime> slimes = getCapturedSmallSlimes(basin.getLevel(), basin.getBlockPos());
 		int available = slimes.size();
@@ -339,6 +399,21 @@ public class BasinEntityProcessing {
 		return isCaptured(entity);
 	}
 
+	public static void releaseCapturedSmallSlime(Slime slime) {
+		releaseCapturedSlime(slime);
+	}
+
+	public static boolean enforceCapturedSmallSlimeLimit(BasinBlockEntity basin) {
+		List<Slime> slimes = getCapturedSmallSlimes(basin.getLevel(), basin.getBlockPos());
+		int maxCount = getMaxCapturedSmallSlimes();
+		if (slimes.size() <= maxCount)
+			return false;
+
+		for (int i = maxCount; i < slimes.size(); i++)
+			releaseCapturedSlime(slimes.get(i));
+		return true;
+	}
+
 	private static void releaseCapturedSlime(Slime slime) {
 		CompoundTag data = getExistingCreateBiotechData(slime);
 		if (data == null || !data.getBoolean(CAPTURED_TAG))
@@ -426,7 +501,8 @@ public class BasinEntityProcessing {
 	}
 
 	public static int getMaxCapturedSmallSlimes() {
-		return CBConfigs.SERVER.basinEntityProcessing.maxCapturedSmallSlimes.get();
+		return Math.min(CBConfigs.SERVER.basinEntityProcessing.maxCapturedSmallSlimes.get(),
+			new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get()).getMaxStackSize());
 	}
 
 	private static double getEntityScanHeight() {
