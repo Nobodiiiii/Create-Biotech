@@ -1,0 +1,24 @@
+{
+  "type": "create:mixing",
+  "heatRequirement": "superheated",
+  "ingredients": [
+    {
+      "item": "create:crushed_raw_copper"
+    },
+    {
+      "item": "create:crushed_raw_copper"
+    },
+    {
+      "item": "minecraft:stone"
+    },
+    {
+      "item": "minecraft:stone"
+    }
+  ],
+  "results": [
+    {
+      "count": 2,
+      "item": "create:veridium"
+    }
+  ]
+}
