@@ -12,6 +12,8 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetSnapOverlay;
@@ -78,6 +80,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.MenuScreens;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.item.ItemProperties;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
@@ -164,7 +167,10 @@ public class CreateBiotechClient {
 		event.register(CreateBiotech.asResource("block/shulker_packager/tray"));
 		event.register(CreateBiotech.asResource("item/shulker_package"));
 		event.register(CreateBiotech.asResource("item/cardboard_box"));
+		event.register(CreateBiotech.asResource("item/small_cardboard_box"));
+		event.register(CreateBiotech.asResource("item/small_cardboard_box_captured"));
 		event.register(CreateBiotech.asResource("item/large_cardboard_box"));
+		event.register(CreateBiotech.asResource("item/large_cardboard_box_captured"));
 	}
 
 	@SubscribeEvent
@@ -198,8 +204,10 @@ public class CreateBiotechClient {
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
 			registerItemTooltips();
+			registerCardboardBoxModelProperties();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
 			ButterCatModule.clientInit();
+			CardboardBoxPartials.register();
 			ShulkerPackagePartials.register();
 			SimpleEntityVisualizer.<GhastHotAirBalloonEntity>builder(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get())
 				.factory(ContraptionVisual::new)
@@ -331,5 +339,12 @@ public class CreateBiotechClient {
 	private static void registerCreateStyleTooltip(Item item) {
 		TooltipModifier.REGISTRY.register(item,
 			new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE));
+	}
+
+	private static void registerCardboardBoxModelProperties() {
+		ItemProperties.register(CBItems.CARDBOARD_BOX.get(), CreateBiotech.asResource("captured"),
+			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
+		ItemProperties.register(CBItems.LARGE_CARDBOARD_BOX.get(), CreateBiotech.asResource("captured"),
+			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
 	}
 }

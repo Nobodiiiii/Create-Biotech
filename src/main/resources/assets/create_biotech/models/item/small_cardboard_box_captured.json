@@ -1,0 +1,57 @@
+{
+	"format_version": "1.21.11",
+	"credit": "Made with Blockbench",
+	"parent": "create_biotech:item/package_transforms",
+	"textures": {
+		"0": "create_biotech:item/package/cardboard",
+		"particle": "create_biotech:item/package/cardboard_particle"
+	},
+	"elements": [
+		{
+			"name": "cardboard_box_body",
+			"from": [2, 0, 2],
+			"to": [14, 12, 14],
+			"rotation": {"angle": 0, "axis": "y", "origin": [16, 0, 16]},
+			"faces": {
+				"north": {"uv": [12, 3.25, 15, 6.25], "texture": "#0"},
+				"east": {"uv": [4.5, 3.25, 7.5, 6.25], "texture": "#0"},
+				"south": {"uv": [12, 3.25, 15, 6.25], "texture": "#0"},
+				"west": {"uv": [4.5, 3.25, 7.5, 6.25], "texture": "#0"},
+				"up": {"uv": [12, 0.25, 15, 3.25], "rotation": 180, "texture": "#0"},
+				"down": {"uv": [4.5, 6.25, 7.5, 9.25], "rotation": 90, "texture": "#0"}
+			}
+		}
+	],
+	"gui_light": "front",
+	"display": {
+		"thirdperson_righthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [0.375, 0.375, 0.375]
+		},
+		"thirdperson_lefthand": {
+			"rotation": [75, 45, 0],
+			"translation": [0, 2.5, 0],
+			"scale": [0.375, 0.375, 0.375]
+		},
+		"firstperson_righthand": {
+			"rotation": [0, 45, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"firstperson_lefthand": {
+			"rotation": [0, -135, 0],
+			"scale": [0.4, 0.4, 0.4]
+		},
+		"ground": {
+			"translation": [0, 3, 0],
+			"scale": [0.25, 0.25, 0.25]
+		},
+		"gui": {
+			"rotation": [30, -135, 0],
+			"scale": [0.625, 0.625, 0.625]
+		},
+		"fixed": {
+			"scale": [0.5, 0.5, 0.5]
+		}
+	}
+}

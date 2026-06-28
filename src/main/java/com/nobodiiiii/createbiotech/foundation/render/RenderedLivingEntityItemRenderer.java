@@ -23,6 +23,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends BlockEntityWithoutLevelRenderer {
 	private static final float MIN_AUTO_SCALE_DIMENSION = 0.6f;
 	private static final float BASE_RENDER_SCALE = 1.75f;
+	private static final float MAX_AUTO_RENDER_SCALE = 2.0f;
 	private static final double FOOT_GAP = 1.0d / 16.0d;
 
 	private final RenderedLivingEntityItem<T> item;
@@ -100,7 +101,8 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 
 	public static void renderEntity(LivingEntity entity, float scaleMultiplier, float footYOffset, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
-		float scale = BASE_RENDER_SCALE * scaleMultiplier / getLargestDimension(entity);
+		float autoScale = BASE_RENDER_SCALE / getLargestDimension(entity);
+		float scale = Math.min(autoScale, MAX_AUTO_RENDER_SCALE) * scaleMultiplier;
 
 		poseStack.pushPose();
 		poseStack.translate(0.0d, FOOT_GAP + footYOffset, 0.0d);

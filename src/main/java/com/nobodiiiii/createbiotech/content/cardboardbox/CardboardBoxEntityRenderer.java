@@ -13,9 +13,14 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 public class CardboardBoxEntityRenderer extends EntityRenderer<CardboardBoxEntity> {
-	private static final PartialModel CARDBOARD_BOX = PartialModel.of(CreateBiotech.asResource("item/cardboard_box"));
+	private static final PartialModel SMALL_CARDBOARD_BOX =
+		PartialModel.of(CreateBiotech.asResource("item/small_cardboard_box"));
+	private static final PartialModel SMALL_CARDBOARD_BOX_CAPTURED =
+		PartialModel.of(CreateBiotech.asResource("item/small_cardboard_box_captured"));
 	private static final PartialModel LARGE_CARDBOARD_BOX =
 		PartialModel.of(CreateBiotech.asResource("item/large_cardboard_box"));
+	private static final PartialModel LARGE_CARDBOARD_BOX_CAPTURED =
+		PartialModel.of(CreateBiotech.asResource("item/large_cardboard_box_captured"));
 
 	public CardboardBoxEntityRenderer(EntityRendererProvider.Context context) {
 		super(context);
@@ -30,7 +35,10 @@ public class CardboardBoxEntityRenderer extends EntityRenderer<CardboardBoxEntit
 	}
 
 	private PartialModel getModel(ItemStack stack) {
-		return stack.is(CBItems.LARGE_CARDBOARD_BOX.get()) ? LARGE_CARDBOARD_BOX : CARDBOARD_BOX;
+		boolean captured = CapturedEntityBoxHelper.hasCapturedEntity(stack);
+		if (stack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
+			return captured ? LARGE_CARDBOARD_BOX_CAPTURED : LARGE_CARDBOARD_BOX;
+		return captured ? SMALL_CARDBOARD_BOX_CAPTURED : SMALL_CARDBOARD_BOX;
 	}
 
 	@Override
