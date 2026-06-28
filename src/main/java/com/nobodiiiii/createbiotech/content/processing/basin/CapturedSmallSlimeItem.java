@@ -11,6 +11,6 @@ public class CapturedSmallSlimeItem extends RenderedLivingEntityItem<Slime> {
 	}
 
 	private static void configureSlime(Slime slime) {
-		slime.setSize(2, false);
+		slime.setSize(1, false);
 	}
 }

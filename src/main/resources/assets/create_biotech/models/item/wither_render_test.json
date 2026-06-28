@@ -1,6 +1,0 @@
-{
-  "parent": "create_biotech:item/rendered_living_entity_item",
-  "textures": {
-    "layer0": "minecraft:item/nether_star"
-  }
-}

@@ -64,8 +64,6 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.GRAPHITE.get());
 				output.accept(CBItems.ZINC_SHEET.get());
 				output.accept(CBItems.CAPTURED_SMALL_SLIME.get());
-				output.accept(CBItems.ZOMBIE_RENDER_TEST.get());
-				output.accept(CBItems.WITHER_RENDER_TEST.get());
 				output.accept(CBItems.BIONIC_MECHANISM.get());
 				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
 				output.accept(CBItems.HALF_SHAFT.get());
@@ -73,7 +71,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.BUTTER.get());
 				output.accept(CBItems.SUPER_BUTTER.get());
 				CBFluids.CREAM.getBucket().ifPresent(output::accept);
-				output.accept(CBBlocks.CUTE_CAT_ON_SHAFT.get().asItem());
+				output.accept(CBBlocks.CUTE_CAT_ON_SHAFT.get().asItem(), TabVisibility.SEARCH_TAB_ONLY);
 				output.accept(CBBlocks.BUTTER_CAT_ENGINE.get().asItem());
 			})
 			.build());

@@ -2,6 +2,7 @@
   "credit": "Adapted from Create's mechanical mixer item model",
   "parent": "create:block/large_wheels",
   "ambientocclusion": false,
+  "render_type": "minecraft:cutout",
   "textures": {
     "2": "block/spruce_log_top",
     "4": "create:block/mixer_base_side",
@@ -18,7 +19,7 @@
       "from": [0, -8, 0],
       "to": [16, 0, 16],
       "faces": {
-        "down": {"uv": [4, 7, 8, 11], "texture": "#shulker"},
+        "down": {"uv": [8, 7, 12, 11], "texture": "#shulker"},
         "up": {"uv": [8, 11, 12, 7], "texture": "#shulker"},
         "west": {"uv": [0, 11, 4, 13], "texture": "#shulker"},
         "north": {"uv": [4, 11, 8, 13], "texture": "#shulker"},
@@ -32,7 +33,7 @@
       "to": [16, 8, 16],
       "faces": {
         "down": {"uv": [4, 0, 8, 4], "texture": "#shulker"},
-        "up": {"uv": [8, 4, 12, 0], "texture": "#shulker"},
+        "up": {"uv": [4, 4, 8, 0], "texture": "#shulker"},
         "west": {"uv": [0, 4, 4, 7], "texture": "#shulker"},
         "north": {"uv": [4, 4, 8, 7], "texture": "#shulker"},
         "east": {"uv": [8, 4, 12, 7], "texture": "#shulker"},
