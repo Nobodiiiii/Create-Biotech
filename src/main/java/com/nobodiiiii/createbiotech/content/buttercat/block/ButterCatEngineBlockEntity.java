@@ -14,6 +14,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 
 import java.util.List;
 
@@ -28,6 +30,8 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     protected int butterCount = 0;
     protected int overflowCount = 0;
     protected int cd = 0;
+    protected float clientAttachmentRotationOffset;
+    protected boolean clientAttachmentRotationOffsetInitialized;
 
     public ButterCatEngineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -131,6 +135,10 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
         return convertToDirection(speed, getBlockState().getValue(HORIZONTAL_FACING));
     }
 
+    float getAttachmentRotationOffset() {
+        return clientAttachmentRotationOffset;
+    }
+
     ///================serialize================
     @Override
     protected void write(CompoundTag compound,boolean clientPacket) {
@@ -145,6 +153,7 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
     }
     @Override
     protected void read(CompoundTag compound, boolean clientPacket) {
+        float previousSpeed = getSpeed();
         super.read(compound,clientPacket);
 
         if(compound.contains("infinite")) infinite = compound.getBoolean("infinite");
@@ -156,6 +165,10 @@ public class  ButterCatEngineBlockEntity  extends GeneratingKineticBlockEntity {
             catVariant = ResourceKey.create(Registries.CAT_VARIANT, new ResourceLocation(compound.getString("catVariant")));
 
         normalizeStoredButter();
+
+        if (level != null && level.isClientSide)
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                () -> () -> ButterCatEngineClientRotation.sync(this, previousSpeed, clientPacket));
 
     }
     ///================get models================

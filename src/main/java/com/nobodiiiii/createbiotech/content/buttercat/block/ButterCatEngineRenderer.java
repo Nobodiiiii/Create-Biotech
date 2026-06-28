@@ -14,6 +14,7 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
+import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -44,34 +45,37 @@ public class ButterCatEngineRenderer  extends KineticBlockEntityRenderer<ButterC
         BlockState blockState = be.getBlockState();
         Direction direction = blockState.getValue(HORIZONTAL_FACING);
         Axis axis = getRotationAxisOf(be);
-        float angle = getAngleForBe(be, be.getBlockPos(), axis, partialTicks);
-        float degree = (float) Math.toDegrees(angle);
+        Direction positiveAxis = Direction.get(AxisDirection.POSITIVE, axis);
+        float degree = getAttachmentAngleForBe(be, be.getBlockPos(), axis, partialTicks);
 
         //cat
         SuperByteBuffer cat = CachedBuffers.partialFacing(be.getCatModel(), blockState, direction);
-        cat.rotateCenteredDegrees(degree, direction);
+        cat.rotateCenteredDegrees(degree, positiveAxis);
         cat.light(light).overlay(overlay).renderInto(ms, buffer.getBuffer(RenderType.cutoutMipped()));
 
         //butter
         SuperByteBuffer butter = CachedBuffers.partialFacing(be.getButterModel(), blockState, direction);
-        butter.rotateCenteredDegrees(degree, direction);
+        butter.rotateCenteredDegrees(degree, positiveAxis);
         butter.light(light).overlay(overlay).renderInto(ms, buffer.getBuffer(RenderType.solid()));
 
         //bread
         SuperByteBuffer bread = CachedBuffers.partialFacing(be.getBreadModel(), blockState, direction);
-        bread.rotateCenteredDegrees(degree, direction);
+        bread.rotateCenteredDegrees(degree, positiveAxis);
         bread.light(light).overlay(overlay).renderInto(ms, buffer.getBuffer(RenderType.solid()));
 
         //rope
         SuperByteBuffer rope = CachedBuffers.partialFacing(be.getRopeModel(), blockState, direction);
-        rope.rotateCenteredDegrees(degree, direction);
+        rope.rotateCenteredDegrees(degree, positiveAxis);
         rope.light(light).overlay(overlay).renderInto(ms, buffer.getBuffer(RenderType.solid()));
     }
 
-    static float getAngleForBe(ButterCatEngineBlockEntity be, BlockPos pos, Axis axis, float partialTicks) {
+    static float getAttachmentAngleForBe(ButterCatEngineBlockEntity be, BlockPos pos, Axis axis, float partialTicks) {
         float time = getKineticRenderTicks(be.getLevel(), partialTicks);
-        float offset = getRotationOffsetForPosition(be, pos, axis);
-        return ((time * be.getSpeed() * 3f / 10 + offset) % 360) / 180 * (float) Math.PI;
+        return (time * be.getSpeed() * 3f / 10 + getAttachmentRotationOffsetForBe(be, pos, axis)) % 360;
+    }
+
+    static float getAttachmentRotationOffsetForBe(ButterCatEngineBlockEntity be, BlockPos pos, Axis axis) {
+        return getRotationOffsetForPosition(be, pos, axis) + be.getAttachmentRotationOffset();
     }
 
     static float getKineticRenderTicks(Level level, float partialTicks) {
