@@ -327,6 +327,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.PETRI_DISH.get());
 		registerCreateStyleTooltip(CBItems.CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
+		registerCreateStyleTooltip(CBItems.CAPTURED_SMALL_SLIME.get());
 		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());
 		registerCreateStyleTooltip(CBItems.FIXED_CARROT_FISHING_ROD.get());
 		registerCreateStyleTooltip(CBItems.WIRELESS_TERMINAL.get());

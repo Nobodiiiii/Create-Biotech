@@ -28,7 +28,6 @@ import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.NonNullList;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -72,8 +71,6 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		registration.addRecipes(CREATE_MIXING, basinEntityProcessingRecipes(BasinEntityProcessingOperation.MIXING));
 		registration.addRecipes(CREATE_PACKING, basinEntityProcessingRecipes(BasinEntityProcessingOperation.PRESSING));
 		registration.addRecipes(CREATE_ITEM_APPLICATION, itemApplicationRecipes());
-		registration.addIngredientInfo(CBItems.CAPTURED_SMALL_SLIME.get(),
-			Component.translatable("create_biotech.jei.captured_small_slime.info"));
 	}
 
 	@Override
