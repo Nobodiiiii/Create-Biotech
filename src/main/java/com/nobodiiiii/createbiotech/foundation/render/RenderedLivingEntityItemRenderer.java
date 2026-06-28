@@ -101,8 +101,7 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 
 	public static void renderEntity(LivingEntity entity, float scaleMultiplier, float footYOffset, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
-		float autoScale = BASE_RENDER_SCALE / getLargestDimension(entity);
-		float scale = Math.min(autoScale, MAX_AUTO_RENDER_SCALE) * scaleMultiplier;
+		float scale = getEntityRenderScale(entity, scaleMultiplier);
 
 		poseStack.pushPose();
 		poseStack.translate(0.0d, FOOT_GAP + footYOffset, 0.0d);
@@ -117,6 +116,20 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 			.pitch(0.0f)
 			.flushBuffers(false), poseStack, buffer);
 		poseStack.popPose();
+	}
+
+	public static double getEntityRenderCenterYOffset(LivingEntity entity, float scaleMultiplier) {
+		return getEntityRenderCenterYOffset(entity, scaleMultiplier, 0.0f);
+	}
+
+	public static double getEntityRenderCenterYOffset(LivingEntity entity, float scaleMultiplier, float footYOffset) {
+		return FOOT_GAP + footYOffset + entity.getDimensions(entity.getPose()).height * getEntityRenderScale(entity,
+			scaleMultiplier) / 2.0d;
+	}
+
+	private static float getEntityRenderScale(LivingEntity entity, float scaleMultiplier) {
+		float autoScale = BASE_RENDER_SCALE / getLargestDimension(entity);
+		return Math.min(autoScale, MAX_AUTO_RENDER_SCALE) * scaleMultiplier;
 	}
 
 	private static float getLargestDimension(LivingEntity entity) {

@@ -36,8 +36,10 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float LARGE_BOX_MAX = 1.0f;
 	private static final float LARGE_BOX_HEIGHT = 1.0f;
 	private static final float FACE_OFFSET = 1.0f / 128.0f;
-	private static final float FLATTENED_DEPTH_SCALE = 1.0f / 4096.0f;
-	private static final float MAX_FLATTENED_DEPTH_OFFSET = 1.0f / 64.0f;
+	private static final float MAX_FLATTENED_DEPTH_OFFSET = 1.0f / 512.0f;
+	private static final float ICON_SCALE = 0.6f;
+	private static final float GUI_CENTERING_X = -2.0f / 16.0f;
+	private static final float GUI_CENTERING_Y = 4.0f / 16.0f;
 	private static final float ITEM_PLANE_TO_FACE_Y_ROT = itemPlaneToFaceYRot(ICON_FACE);
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
 
@@ -72,13 +74,32 @@ public final class CapturedEntityBoxIconRenderer {
 			.render(poseStack, buffer, (iconPoseStack, iconBuffer, packedLight) -> {
 				Matrix4f boxToRender = new Matrix4f(iconPoseStack.last()
 					.pose());
-				MultiBufferSource clippedBuffer =
-					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face);
 
 				applyEntityItemTransform(iconPoseStack, face);
+				FaceAlignment alignment =
+					measureGeometryAlignment(capturedEntity, iconPoseStack, boxToRender, face, packedLight);
+				MultiBufferSource clippedBuffer =
+					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face,
+						alignment);
 				RenderedLivingEntityItemRenderer.renderEntity(capturedEntity, 1.0f, iconPoseStack, clippedBuffer,
 					packedLight);
 			});
+	}
+
+	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, PoseStack poseStack, Matrix4f boxToRender,
+		FaceBounds face, int packedLight) {
+		GeometryBounds bounds = new GeometryBounds();
+		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
+		MultiBufferSource measuringBuffer =
+			renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
+
+		RenderedLivingEntityItemRenderer.renderEntity(entity, 1.0f, poseStack, measuringBuffer, packedLight);
+		if (!bounds.hasVertices())
+			return FaceAlignment.none();
+
+		float xAlignment = face.x() - bounds.centerX();
+		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(), face.centerZ() - bounds.centerZ(),
+			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
 	}
 
 	private static void applyEntityItemTransform(PoseStack poseStack, FaceBounds face) {
@@ -88,7 +109,9 @@ public final class CapturedEntityBoxIconRenderer {
 
 		poseStack.translate(face.x + FACE_OFFSET, face.centerY(), face.centerZ());
 		poseStack.mulPose(Axis.YP.rotationDegrees(ITEM_PLANE_TO_FACE_Y_ROT));
-		poseStack.scale(face.itemScale(), face.itemScale(), face.itemScale());
+		float scale = face.itemScale() * ICON_SCALE;
+		poseStack.scale(scale, scale, scale);
+		poseStack.translate(GUI_CENTERING_X, GUI_CENTERING_Y, 0.0f);
 		ForgeHooksClient.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
 		poseStack.translate(-0.5f, -0.5f, -0.5f);
 	}
@@ -159,19 +182,140 @@ public final class CapturedEntityBoxIconRenderer {
 		}
 	}
 
+	private record FaceAlignment(float x, float y, float z, float minX, float maxX) {
+		private static FaceAlignment none() {
+			return new FaceAlignment(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+		}
+
+		private float depthOffset(double localX) {
+			float depth = maxX - minX;
+			if (depth <= 1.0e-6f)
+				return 0.0f;
+			float normalizedDepth = Mth.clamp(((float) localX - minX) / depth, 0.0f, 1.0f);
+			return normalizedDepth * MAX_FLATTENED_DEPTH_OFFSET;
+		}
+	}
+
+	private static class GeometryBounds {
+		private float minX = Float.POSITIVE_INFINITY;
+		private float minY = Float.POSITIVE_INFINITY;
+		private float minZ = Float.POSITIVE_INFINITY;
+		private float maxX = Float.NEGATIVE_INFINITY;
+		private float maxY = Float.NEGATIVE_INFINITY;
+		private float maxZ = Float.NEGATIVE_INFINITY;
+
+		private void include(Vector3f vertex) {
+			minX = Math.min(minX, vertex.x());
+			minY = Math.min(minY, vertex.y());
+			minZ = Math.min(minZ, vertex.z());
+			maxX = Math.max(maxX, vertex.x());
+			maxY = Math.max(maxY, vertex.y());
+			maxZ = Math.max(maxZ, vertex.z());
+		}
+
+		private boolean hasVertices() {
+			return minX != Float.POSITIVE_INFINITY;
+		}
+
+		private float centerX() {
+			return (minX + maxX) / 2.0f;
+		}
+
+		private float minX() {
+			return minX;
+		}
+
+		private float maxX() {
+			return maxX;
+		}
+
+		private float centerY() {
+			return (minY + maxY) / 2.0f;
+		}
+
+		private float centerZ() {
+			return (minZ + maxZ) / 2.0f;
+		}
+	}
+
+	private static class GeometryBoundsVertexConsumer implements VertexConsumer {
+		private final Matrix4f renderToBox;
+		private final GeometryBounds bounds;
+
+		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, GeometryBounds bounds) {
+			this.renderToBox = renderToBox;
+			this.bounds = bounds;
+		}
+
+		@Override
+		public VertexConsumer vertex(double x, double y, double z) {
+			bounds.include(renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f()));
+			return this;
+		}
+
+		@Override
+		public VertexConsumer vertex(Matrix4f matrix, float x, float y, float z) {
+			return vertex(matrix.transformPosition(x, y, z, new Vector3f()));
+		}
+
+		private VertexConsumer vertex(Vector3f vec) {
+			return vertex(vec.x(), vec.y(), vec.z());
+		}
+
+		@Override
+		public VertexConsumer color(int red, int green, int blue, int alpha) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer uv(float u, float v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer overlayCoords(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer uv2(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer normal(float x, float y, float z) {
+			return this;
+		}
+
+		@Override
+		public void endVertex() {
+		}
+
+		@Override
+		public void defaultColor(int red, int green, int blue, int alpha) {
+		}
+
+		@Override
+		public void unsetDefaultColor() {
+		}
+	}
+
 	private static class FaceClippingVertexConsumer implements VertexConsumer {
 		private final VertexConsumer wrapped;
 		private final Matrix4f boxToRender;
 		private final Matrix4f renderToBox;
 		private final FaceBounds face;
+		private final FaceAlignment alignment;
 		private final List<ClippedVertex> quad = new ArrayList<>(4);
 		private ClippedVertex current = new ClippedVertex();
 
-		private FaceClippingVertexConsumer(VertexConsumer wrapped, Matrix4f boxToRender, FaceBounds face) {
+		private FaceClippingVertexConsumer(VertexConsumer wrapped, Matrix4f boxToRender, FaceBounds face,
+			FaceAlignment alignment) {
 			this.wrapped = wrapped;
 			this.boxToRender = new Matrix4f(boxToRender);
 			this.renderToBox = new Matrix4f(boxToRender).invert();
 			this.face = face;
+			this.alignment = alignment;
 		}
 
 		@Override
@@ -181,9 +325,9 @@ public final class CapturedEntityBoxIconRenderer {
 			current.y = y;
 			current.z = z;
 			Vector3f local = renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f());
-			current.localX = local.x();
-			current.localY = local.y();
-			current.localZ = local.z();
+			current.localX = local.x() + alignment.x();
+			current.localY = local.y() + alignment.y();
+			current.localZ = local.z() + alignment.z();
 			return this;
 		}
 
@@ -298,8 +442,7 @@ public final class CapturedEntityBoxIconRenderer {
 		}
 
 		private void emit(ClippedVertex vertex) {
-			float depthOffset = Mth.clamp((float) (vertex.localX - face.x) * FLATTENED_DEPTH_SCALE,
-				-MAX_FLATTENED_DEPTH_OFFSET, MAX_FLATTENED_DEPTH_OFFSET);
+			float depthOffset = alignment.depthOffset(vertex.localX);
 			Vector3f projected = boxToRender.transformPosition(face.x + FACE_OFFSET + depthOffset,
 				(float) vertex.localY, (float) vertex.localZ, new Vector3f());
 			wrapped.vertex(projected.x(), projected.y(), projected.z())
