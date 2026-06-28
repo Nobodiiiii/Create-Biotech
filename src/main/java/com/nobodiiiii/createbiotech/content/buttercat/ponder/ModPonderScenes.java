@@ -96,9 +96,8 @@ public class ModPonderScenes {
                 .pointAt(util.vector().topOf(enginePos));
 
         scene.idle(90);
-        ItemStack[] butters = new ItemStack[]{ModItems.BUTTER.asStack(),ModItems.HONEY_BUTTER.asStack()};
         for (int i = 0;i<5 ;i ++){
-            scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 10).rightClick().withItem(butters[i%2]);
+            scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 10).rightClick().withItem(ModItems.BUTTER.asStack());
             scene.idle(5);
             scene.world().modifyBlockEntity(enginePos,ButterCatEngineBlockEntity.class,(be)->be.addButterCount(1));
 

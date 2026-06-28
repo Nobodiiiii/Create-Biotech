@@ -352,10 +352,6 @@ public class CBConfigs {
 		public final ForgeConfigSpec.DoubleValue rotationAngularSpeed;
 		public final ForgeConfigSpec.IntValue butterNutrition;
 		public final ForgeConfigSpec.DoubleValue butterSaturation;
-		public final ForgeConfigSpec.IntValue honeyButterNutrition;
-		public final ForgeConfigSpec.DoubleValue honeyButterSaturation;
-		public final ForgeConfigSpec.IntValue honeyButterRotationDuration;
-		public final ForgeConfigSpec.IntValue honeyButterRotationAmplifier;
 		public final ForgeConfigSpec.IntValue superButterNutrition;
 		public final ForgeConfigSpec.DoubleValue superButterSaturation;
 		public final ForgeConfigSpec.IntValue superButterRotationDuration;
@@ -375,14 +371,10 @@ public class CBConfigs {
 			rpmPerButter = builder.defineInRange("rpmPerButter", 16.0d, 0.0d, Double.MAX_VALUE);
 			maxGeneratedRpm = builder.defineInRange("maxGeneratedRpm", 256.0d, 0.0d, Double.MAX_VALUE);
 			stressCapacityPerRpm = builder.defineInRange("stressCapacityPerRpm", 64.0d, 0.0d, Double.MAX_VALUE);
-			maxStressCapacity = builder.defineInRange("maxStressCapacity", 8192.0d, 0.0d, Double.MAX_VALUE);
+			maxStressCapacity = builder.defineInRange("maxStressCapacity", 16384.0d, 0.0d, Double.MAX_VALUE);
 			rotationAngularSpeed = builder.defineInRange("rotationAngularSpeed", Math.PI / 2.0d, 0.0d, Double.MAX_VALUE);
 			butterNutrition = builder.defineInRange("butterNutrition", 1, 0, 20);
 			butterSaturation = builder.defineInRange("butterSaturation", 0.5d, 0.0d, 20.0d);
-			honeyButterNutrition = builder.defineInRange("honeyButterNutrition", 2, 0, 20);
-			honeyButterSaturation = builder.defineInRange("honeyButterSaturation", 0.5d, 0.0d, 20.0d);
-			honeyButterRotationDuration = builder.defineInRange("honeyButterRotationDuration", 60, 0, Integer.MAX_VALUE);
-			honeyButterRotationAmplifier = builder.defineInRange("honeyButterRotationAmplifier", 0, 0, 255);
 			superButterNutrition = builder.defineInRange("superButterNutrition", 18, 0, 20);
 			superButterSaturation = builder.defineInRange("superButterSaturation", 0.5d, 0.0d, 20.0d);
 			superButterRotationDuration = builder.defineInRange("superButterRotationDuration", 90, 0, Integer.MAX_VALUE);

@@ -64,6 +64,11 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 
 	public static void renderGuiEntityItem(GuiGraphics graphics, ItemStack transformStack, LivingEntity entity,
 		float scaleMultiplier, int x, int y) {
+		renderGuiEntityItem(graphics, transformStack, entity, new EntityRenderTuning(scaleMultiplier, 0.0f), x, y);
+	}
+
+	public static void renderGuiEntityItem(GuiGraphics graphics, ItemStack transformStack, LivingEntity entity,
+		EntityRenderTuning tuning, int x, int y) {
 		if (transformStack.isEmpty())
 			return;
 
@@ -78,22 +83,27 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 		poseStack.scale(16.0f, 16.0f, 16.0f);
 		ForgeHooksClient.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
 		poseStack.translate(-0.5f, -0.5f, -0.5f);
-		renderEntity(entity, scaleMultiplier, poseStack, graphics.bufferSource(), 15728880);
+		renderEntity(entity, tuning.scaleMultiplier(), tuning.footYOffset(), poseStack, graphics.bufferSource(), 15728880);
 		graphics.flush();
 		poseStack.popPose();
 	}
 
 	public static void renderGuiEntityItem(GuiGraphics graphics, ItemStack transformStack, LivingEntity entity,
-		EntityScaleProvider scaleProvider, int x, int y) {
-		renderGuiEntityItem(graphics, transformStack, entity, scaleProvider.getScaleMultiplier(entity), x, y);
+		EntityRenderTuningProvider tuningProvider, int x, int y) {
+		renderGuiEntityItem(graphics, transformStack, entity, tuningProvider.getRenderTuning(entity), x, y);
 	}
 
 	public static void renderEntity(LivingEntity entity, float scaleMultiplier, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
+		renderEntity(entity, scaleMultiplier, 0.0f, poseStack, buffer, packedLight);
+	}
+
+	public static void renderEntity(LivingEntity entity, float scaleMultiplier, float footYOffset, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
 		float scale = BASE_RENDER_SCALE * scaleMultiplier / getLargestDimension(entity);
 
 		poseStack.pushPose();
-		poseStack.translate(0.0d, FOOT_GAP, 0.0d);
+		poseStack.translate(0.0d, FOOT_GAP + footYOffset, 0.0d);
 		poseStack.scale(scale, scale, scale);
 		EntityRenderHelper.render(EntityRenderHelper.settings(entity)
 			.packedLight(packedLight)
@@ -144,7 +154,9 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 	}
 
 	@FunctionalInterface
-	public interface EntityScaleProvider {
-		float getScaleMultiplier(LivingEntity entity);
+	public interface EntityRenderTuningProvider {
+		EntityRenderTuning getRenderTuning(LivingEntity entity);
 	}
+
+	public record EntityRenderTuning(float scaleMultiplier, float footYOffset) {}
 }

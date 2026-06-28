@@ -24,12 +24,6 @@ public class ModItems {
             .tag(ModTags.FOOD_BUTTER)
             .properties(p -> p.food(ButterFoodProperties.create(ButterFoodProperties.Variant.BUTTER)))
             .register();
-    public static final ItemEntry<ConfigurableButterFoodItem> HONEY_BUTTER = REGISTRATE
-            .item("honey_butter", properties -> new ConfigurableButterFoodItem(properties, ButterFoodProperties.Variant.HONEY_BUTTER))
-            .tag(ModTags.BUTTER)
-            .tag(ModTags.FOOD_BUTTER)
-            .properties(p -> p.food(ButterFoodProperties.create(ButterFoodProperties.Variant.HONEY_BUTTER)))
-            .register();
     public static final ItemEntry<ConfigurableButterFoodItem> SUPER_BUTTER = REGISTRATE
             .item("super_butter", properties -> new ConfigurableButterFoodItem(properties, ButterFoodProperties.Variant.SUPER_BUTTER))
             .properties(p -> p.food(ButterFoodProperties.create(ButterFoodProperties.Variant.SUPER_BUTTER)).rarity(Rarity.EPIC))
@@ -50,7 +44,6 @@ public class ModItems {
         // 懒加载
         if (BUTTER_LEVEL_MAP.isEmpty()) {
             BUTTER_LEVEL_MAP.put(BUTTER.get(), 1);
-            BUTTER_LEVEL_MAP.put(HONEY_BUTTER.get(), 2);
             BUTTER_LEVEL_MAP.put(INCOMPLETE_SUPER_BUTTER.get(), 3);
             BUTTER_LEVEL_MAP.put(SUPER_BUTTER.get(), 5);
         }

@@ -71,8 +71,6 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.HALF_SHAFT.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 				output.accept(CBItems.BUTTER.get());
-				output.accept(CBItems.HONEY_BUTTER.get());
-				output.accept(CBItems.INCOMPLETE_SUPER_BUTTER.get());
 				output.accept(CBItems.SUPER_BUTTER.get());
 				CBFluids.CREAM.getBucket().ifPresent(output::accept);
 				output.accept(CBBlocks.CUTE_CAT_ON_SHAFT.get().asItem());

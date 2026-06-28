@@ -102,6 +102,10 @@
     },
     {
       "type": "single",
+      "resource": "minecraft:entity/shulker/shulker"
+    },
+    {
+      "type": "single",
       "resource": "minecraft:entity/experience_orb"
     }
   ]

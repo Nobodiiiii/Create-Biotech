@@ -200,7 +200,6 @@ public class CBItems {
 	// Butter Cat content is registered through the shared ButterCat registrate, and re-exported
 	// here so the project's primary item registry remains the place to inspect mod items.
 	public static final ItemEntry<ConfigurableButterFoodItem> BUTTER = ModItems.BUTTER;
-	public static final ItemEntry<ConfigurableButterFoodItem> HONEY_BUTTER = ModItems.HONEY_BUTTER;
 	public static final ItemEntry<ConfigurableButterSequencedAssemblyItem> INCOMPLETE_SUPER_BUTTER =
 		ModItems.INCOMPLETE_SUPER_BUTTER;
 	public static final ItemEntry<ConfigurableButterFoodItem> SUPER_BUTTER = ModItems.SUPER_BUTTER;

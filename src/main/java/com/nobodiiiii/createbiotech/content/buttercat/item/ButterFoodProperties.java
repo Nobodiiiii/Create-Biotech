@@ -12,7 +12,6 @@ public final class ButterFoodProperties {
 
 	public enum Variant {
 		BUTTER,
-		HONEY_BUTTER,
 		SUPER_BUTTER,
 		INCOMPLETE_SUPER_BUTTER
 	}
@@ -23,9 +22,6 @@ public final class ButterFoodProperties {
 		CBConfigs.ButterCat config = CBConfigs.SERVER.butterCat;
 		FoodProperties.Builder builder = switch (variant) {
 		case BUTTER -> food(config.butterNutrition.get(), config.butterSaturation.get());
-		case HONEY_BUTTER -> food(config.honeyButterNutrition.get(), config.honeyButterSaturation.get())
-			.withEffect(ModEffects.BUTTER_ROTATION_EFFECT.get(), config.honeyButterRotationDuration.get(),
-				config.honeyButterRotationAmplifier.get());
 		case SUPER_BUTTER -> food(config.superButterNutrition.get(), config.superButterSaturation.get())
 			.withEffect(ModEffects.BUTTER_ROTATION_EFFECT.get(), config.superButterRotationDuration.get(),
 				config.superButterRotationAmplifier.get())

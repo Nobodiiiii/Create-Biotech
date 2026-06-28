@@ -1,0 +1,28 @@
+{
+  "type": "create:mechanical_crafting",
+  "acceptMirrored": false,
+  "pattern": [
+    "G",
+    "A",
+    "S",
+    "C",
+    "S"
+  ],
+  "key": {
+    "G": {
+      "item": "create:cogwheel"
+    },
+    "A": {
+      "item": "create:andesite_casing"
+    },
+    "S": {
+      "item": "minecraft:shulker_shell"
+    },
+    "C": {
+      "item": "minecraft:chorus_fruit"
+    }
+  },
+  "result": {
+    "item": "create_biotech:shulker_teleporter"
+  }
+}

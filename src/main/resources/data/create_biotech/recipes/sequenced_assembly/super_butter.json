@@ -1,7 +1,7 @@
 {
   "type": "create:sequenced_assembly",
   "ingredient": {
-    "item": "create_biotech:honey_butter"
+    "item": "create_biotech:butter"
   },
   "loops": 1,
   "results": [
@@ -39,6 +39,24 @@
         },
         {
           "item": "minecraft:nether_star"
+        }
+      ],
+      "results": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        }
+      ]
+    },
+    {
+      "type": "create:filling",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_super_butter"
+        },
+        {
+          "amount": 250,
+          "fluid": "create:honey",
+          "nbt": {}
         }
       ],
       "results": [
