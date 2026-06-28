@@ -101,27 +101,40 @@ public final class CapturedEntityBoxIconRenderer {
 	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, EntityRenderTuning tuning,
 		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
 		GeometryBounds bounds = new GeometryBounds();
-		GeometryBounds centerBounds = new GeometryBounds();
 		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
-		Matrix4f renderToEntityBase = new Matrix4f(poseStack.last()
-			.pose()).invert();
 		EntityDimensions dimensions = entity.getDimensions(entity.getPose());
 		float renderScale = RenderedLivingEntityItemRenderer.getEntityRenderScale(entity, tuning.scaleMultiplier());
 		float collisionHalfWidth = dimensions.width * renderScale / 2.0f;
-		MultiBufferSource measuringBuffer =
-			renderType -> new GeometryBoundsVertexConsumer(renderToBox, renderToEntityBase, collisionHalfWidth, bounds,
-				centerBounds);
+		GeometryBounds horizontalCenterBounds =
+			measureCollisionHorizontalBounds(poseStack, renderToBox, collisionHalfWidth);
+		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
 
 		RenderedLivingEntityItemRenderer.renderEntity(entity, tuning.scaleMultiplier(), tuning.footYOffset(), poseStack,
 			measuringBuffer, packedLight);
 		if (!bounds.hasVertices())
 			return FaceAlignment.none();
 
-		GeometryBounds horizontalCenterBounds = centerBounds.hasVertices() ? centerBounds : bounds;
 		float xAlignment = face.x() - horizontalCenterBounds.centerX();
 		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(),
 			face.centerZ() - horizontalCenterBounds.centerZ(),
 			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
+	}
+
+	private static GeometryBounds measureCollisionHorizontalBounds(PoseStack poseStack, Matrix4f renderToBox,
+		float collisionHalfWidth) {
+		GeometryBounds bounds = new GeometryBounds();
+		Matrix4f entityBaseToBox = new Matrix4f(renderToBox).mul(poseStack.last()
+			.pose());
+
+		includeCollisionCorner(bounds, entityBaseToBox, -collisionHalfWidth, -collisionHalfWidth);
+		includeCollisionCorner(bounds, entityBaseToBox, -collisionHalfWidth, collisionHalfWidth);
+		includeCollisionCorner(bounds, entityBaseToBox, collisionHalfWidth, -collisionHalfWidth);
+		includeCollisionCorner(bounds, entityBaseToBox, collisionHalfWidth, collisionHalfWidth);
+		return bounds;
+	}
+
+	private static void includeCollisionCorner(GeometryBounds bounds, Matrix4f entityBaseToBox, float x, float z) {
+		bounds.include(entityBaseToBox.transformPosition(x, 0.0f, z, new Vector3f()));
 	}
 
 	private static EntityRenderTuning getEntityRenderTuning(LivingEntity entity) {
@@ -269,28 +282,17 @@ public final class CapturedEntityBoxIconRenderer {
 
 	private static class GeometryBoundsVertexConsumer implements VertexConsumer {
 		private final Matrix4f renderToBox;
-		private final Matrix4f renderToEntityBase;
-		private final float collisionHalfWidth;
 		private final GeometryBounds bounds;
-		private final GeometryBounds centerBounds;
 
-		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, Matrix4f renderToEntityBase,
-			float collisionHalfWidth, GeometryBounds bounds, GeometryBounds centerBounds) {
+		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, GeometryBounds bounds) {
 			this.renderToBox = renderToBox;
-			this.renderToEntityBase = renderToEntityBase;
-			this.collisionHalfWidth = collisionHalfWidth;
 			this.bounds = bounds;
-			this.centerBounds = centerBounds;
 		}
 
 		@Override
 		public VertexConsumer vertex(double x, double y, double z) {
 			Vector3f boxLocal = renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f());
 			bounds.include(boxLocal);
-			Vector3f entityLocal =
-				renderToEntityBase.transformPosition((float) x, (float) y, (float) z, new Vector3f());
-			if (Math.abs(entityLocal.x()) <= collisionHalfWidth && Math.abs(entityLocal.z()) <= collisionHalfWidth)
-				centerBounds.include(boxLocal);
 			return this;
 		}
 
