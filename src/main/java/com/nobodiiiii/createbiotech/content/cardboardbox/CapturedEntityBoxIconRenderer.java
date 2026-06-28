@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer;
+import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer.EntityRenderTuning;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,7 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -40,6 +42,8 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float ICON_SCALE = 0.6f;
 	private static final float GUI_CENTERING_X = -2.0f / 16.0f;
 	private static final float GUI_CENTERING_Y = 4.0f / 16.0f;
+	private static final float SQUID_ENTITY_SCALE_MULTIPLIER = 0.45f;
+	private static final float SQUID_ENTITY_FOOT_Y_OFFSET = 1.1f;
 	private static final float ITEM_PLANE_TO_FACE_Y_ROT = itemPlaneToFaceYRot(ICON_FACE);
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
 
@@ -76,30 +80,39 @@ public final class CapturedEntityBoxIconRenderer {
 					.pose());
 
 				applyEntityItemTransform(iconPoseStack, face);
+				EntityRenderTuning tuning = getEntityRenderTuning(capturedEntity);
 				FaceAlignment alignment =
-					measureGeometryAlignment(capturedEntity, iconPoseStack, boxToRender, face, packedLight);
+					measureGeometryAlignment(capturedEntity, tuning, iconPoseStack, boxToRender, face, packedLight);
 				MultiBufferSource clippedBuffer =
 					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face,
 						alignment);
-				RenderedLivingEntityItemRenderer.renderEntity(capturedEntity, 1.0f, iconPoseStack, clippedBuffer,
-					packedLight);
+				RenderedLivingEntityItemRenderer.renderEntity(capturedEntity, tuning.scaleMultiplier(),
+					tuning.footYOffset(), iconPoseStack, clippedBuffer, packedLight);
 			});
 	}
 
-	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, PoseStack poseStack, Matrix4f boxToRender,
-		FaceBounds face, int packedLight) {
+	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, EntityRenderTuning tuning,
+		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
 		GeometryBounds bounds = new GeometryBounds();
 		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
 		MultiBufferSource measuringBuffer =
 			renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
 
-		RenderedLivingEntityItemRenderer.renderEntity(entity, 1.0f, poseStack, measuringBuffer, packedLight);
+		RenderedLivingEntityItemRenderer.renderEntity(entity, tuning.scaleMultiplier(), tuning.footYOffset(), poseStack,
+			measuringBuffer, packedLight);
 		if (!bounds.hasVertices())
 			return FaceAlignment.none();
 
 		float xAlignment = face.x() - bounds.centerX();
 		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(), face.centerZ() - bounds.centerZ(),
 			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
+	}
+
+	private static EntityRenderTuning getEntityRenderTuning(LivingEntity entity) {
+		EntityType<?> type = entity.getType();
+		if (type == EntityType.SQUID || type == EntityType.GLOW_SQUID)
+			return new EntityRenderTuning(SQUID_ENTITY_SCALE_MULTIPLIER, SQUID_ENTITY_FOOT_Y_OFFSET);
+		return new EntityRenderTuning(1.0f, 0.0f);
 	}
 
 	private static void applyEntityItemTransform(PoseStack poseStack, FaceBounds face) {
