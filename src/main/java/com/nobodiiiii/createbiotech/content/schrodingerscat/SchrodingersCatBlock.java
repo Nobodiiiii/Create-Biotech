@@ -24,7 +24,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class SchrodingersCatBlock extends BaseEntityBlock {
 
-	private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 10, 14);
+	private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 12, 14);
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 

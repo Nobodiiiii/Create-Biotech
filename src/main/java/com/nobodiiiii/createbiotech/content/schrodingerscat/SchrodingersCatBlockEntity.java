@@ -337,7 +337,7 @@ public class SchrodingersCatBlockEntity extends SmartBlockEntity {
 
 		@Override
 		public Vec3 getLocalOffset(LevelAccessor level, BlockPos pos, BlockState state) {
-			return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 5, 13.5),
+			return VecHelper.rotateCentered(VecHelper.voxelSpace(8, 6, 13.5),
 				AngleHelper.horizontalAngle(getSide(state)), Axis.Y);
 		}
 
