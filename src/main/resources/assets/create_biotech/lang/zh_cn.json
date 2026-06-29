@@ -410,9 +410,11 @@
   "block.create_biotech.shulker_teleporter": "潜影传送站",
   "block.create_biotech.shulker_teleporter.tooltip.summary": "用于_传送_实体和掉落物，在GUI中设置本机地址和目标地址。",
   "create_biotech.shulker_teleporter.own_address": "本机地址",
+  "create_biotech.shulker_teleporter.own_address.tooltip": "其他传送站通过该地址识别你",
   "create_biotech.shulker_teleporter.target_address": "目标地址",
   "create_biotech.shulker_teleporter.save": "保存",
   "create_biotech.shulker_teleporter.search": "搜索地址",
-  "create_biotech.shulker_teleporter.new_address": "新增地址",
+  "create_biotech.shulker_teleporter.new_address": "新增目标地址",
+  "create_biotech.shulker_teleporter.select_target": "左键点击选择",
   "create_biotech.shulker_teleporter.no_addresses": "暂无候选地址"
 }
