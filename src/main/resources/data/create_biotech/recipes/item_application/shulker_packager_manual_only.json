@@ -1,0 +1,17 @@
+{
+  "type": "create:item_application",
+  "ingredients": [
+    {
+      "item": "create:packager"
+    },
+    {
+      "type": "create_biotech:captured_entity_box",
+      "entity": "minecraft:shulker"
+    }
+  ],
+  "results": [
+    {
+      "item": "create_biotech:shulker_packager"
+    }
+  ]
+}

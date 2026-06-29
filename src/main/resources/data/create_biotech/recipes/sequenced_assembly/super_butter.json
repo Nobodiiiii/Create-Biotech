@@ -3,7 +3,7 @@
   "ingredient": {
     "item": "create_biotech:butter"
   },
-  "loops": 1,
+  "loops": 3,
   "results": [
     {
       "item": "create_biotech:super_butter"
