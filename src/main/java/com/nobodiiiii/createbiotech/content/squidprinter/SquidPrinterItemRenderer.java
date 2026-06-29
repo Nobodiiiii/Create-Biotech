@@ -31,7 +31,7 @@ public class SquidPrinterItemRenderer extends OversizedBlockItemRenderer<SquidPr
 	protected void renderTransformed(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
 		ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay,
 		SquidPrinterBlockEntity blockEntity) {
-		renderer.render(model.getOriginalModel(), light);
+		renderOriginalModel(model, renderer, ms, light);
 
 		boolean guiLighting = transformType == ItemDisplayContext.GUI;
 		if (guiLighting)

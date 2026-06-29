@@ -226,13 +226,6 @@ public class ShulkerTeleporterBlock extends KineticBlock
 		return getBottomPos(pos, state).above(TOP);
 	}
 
-	public static BlockState defaultItemRenderState() {
-		return com.nobodiiiii.createbiotech.registry.CBBlocks.SHULKER_TELEPORTER.get()
-			.defaultBlockState()
-			.setValue(FACING, Direction.NORTH)
-			.setValue(PART, TOP);
-	}
-
 	private static boolean canPlaceAt(Level level, BlockPos pos, BlockPlaceContext context) {
 		return level.getBlockState(pos.above()).canBeReplaced(context)
 			&& level.getBlockState(pos.above(2)).canBeReplaced(context);

@@ -50,6 +50,15 @@ public abstract class OversizedBlockItemRenderer<T extends BlockEntity> extends 
 		renderBlockEntity(blockEntity, ms, buffer, light, overlay);
 	}
 
+	protected final void renderOriginalModel(CustomRenderedItemModel model, PartialItemModelRenderer renderer,
+		PoseStack ms, int light) {
+		ms.pushPose();
+		// PartialItemModelRenderer centers baked block models around the origin internally.
+		ms.translate(0.5f, 0.5f, 0.5f);
+		renderer.render(model.getOriginalModel(), light);
+		ms.popPose();
+	}
+
 	protected void setBlockEntityLevel(T blockEntity, ClientLevel level) {
 		blockEntity.setLevel(level);
 	}
