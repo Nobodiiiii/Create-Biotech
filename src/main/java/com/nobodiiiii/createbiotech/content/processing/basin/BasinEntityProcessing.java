@@ -206,6 +206,18 @@ public class BasinEntityProcessing {
 		releaseCapturedSlime(slime);
 	}
 
+	public static void onCapturedSmallSlimeRemoved(Slime slime) {
+		CompoundTag data = getExistingCreateBiotechData(slime);
+		if (data == null || !data.getBoolean(CAPTURED_TAG) || !data.contains(BASIN_POS_TAG))
+			return;
+
+		Level level = slime.level();
+		if (!(level.getBlockEntity(BlockPos.of(data.getLong(BASIN_POS_TAG))) instanceof BasinBlockEntity basin))
+			return;
+
+		syncCapturedSmallSlimeItems(basin);
+	}
+
 	public static Slime createSmallSlime(Level level, Vec3 position, Vec3 motion) {
 		if (level == null)
 			return null;
@@ -215,6 +227,7 @@ public class BasinEntityProcessing {
 			return null;
 
 		slime.setSize(1, true);
+		slime.setPersistenceRequired();
 		slime.moveTo(position.x, position.y, position.z, level.random.nextFloat() * 360, 0);
 		slime.setDeltaMovement(motion);
 		slime.fallDistance = 0;
