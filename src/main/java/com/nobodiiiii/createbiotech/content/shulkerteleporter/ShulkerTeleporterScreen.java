@@ -16,6 +16,7 @@ import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -46,13 +47,13 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private static final int SEARCH_X = 71;
 	private static final int SEARCH_Y = 25;
 	private static final int SEARCH_WIDTH = 103;
-	private static final int TARGET_LABEL_X = 43;
-	private static final int TARGET_LABEL_WIDTH = 47;
-	private static final int TARGET_TEXT_X = 98;
-	private static final int TARGET_TEXT_WIDTH = 114;
-	private static final int TARGET_TEXT_Y = 47;
-	private static final int ROW_X = 26;
-	private static final int ACTION_X = 193;
+	private static final int TARGET_LABEL_X = 27;
+	private static final int TARGET_LABEL_WIDTH = 48;
+	private static final int TARGET_TEXT_X = 83;
+	private static final int TARGET_TEXT_WIDTH = 113;
+	private static final int TARGET_TEXT_Y = 46;
+	private static final int ROW_X = 28;
+	private static final int ACTION_X = 188;
 	private static final int ENTRY_TEXT_Y = 5;
 	private static final int PENDING_ENTRY_TEXT_Y = 5;
 	private static final int FOOTER_TEXT_Y = 7;
@@ -75,9 +76,9 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private String pendingNewAddress = "";
 	private double scrollOffset;
 
-	private EditBox searchBox;
-	private EditBox ownAddressBox;
-	private EditBox newAddressBox;
+	private CursorEditBox searchBox;
+	private CursorEditBox ownAddressBox;
+	private CursorEditBox newAddressBox;
 
 	public ShulkerTeleporterScreen(ShulkerTeleporterMenu menu, Inventory inventory, Component title) {
 		super(menu, inventory, title);
@@ -96,7 +97,8 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 		NoShadowFontWrapper noShadowFont = new NoShadowFontWrapper(font);
 
-		searchBox = new EditBox(noShadowFont, leftPos + SEARCH_X, topPos + SEARCH_Y, SEARCH_WIDTH, 10, SEARCH_LABEL);
+		searchBox = new CursorEditBox(noShadowFont, leftPos + SEARCH_X, topPos + SEARCH_Y, SEARCH_WIDTH, 10,
+			SEARCH_LABEL);
 		searchBox.setBordered(false);
 		searchBox.setMaxLength(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH);
 		searchBox.setTextColor(SEARCH_TEXT_COLOR);
@@ -107,8 +109,9 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		});
 		addRenderableWidget(searchBox);
 
-		ownAddressBox = new EditBox(noShadowFont, leftPos + 32, getFooterY() + FOOTER_TEXT_Y, FOOTER_TEXT_WIDTH, 10,
-			OWN_LABEL);
+		ownAddressBox =
+			new CursorEditBox(noShadowFont, leftPos + 32, getFooterY() + FOOTER_TEXT_Y, FOOTER_TEXT_WIDTH, 10,
+				OWN_LABEL);
 		ownAddressBox.setBordered(false);
 		ownAddressBox.setMaxLength(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH);
 		ownAddressBox.setTextColor(VALUE_COLOR);
@@ -122,7 +125,6 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		if (addingAddress)
 			createNewAddressBox(noShadowFont);
 
-		setInitialFocus(searchBox);
 		clampScroll();
 	}
 
@@ -148,11 +150,10 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		GuiTexture.FOOTER.render(graphics, leftPos, y);
 
 		drawCenteredString(graphics, GUI_TITLE.getString(), leftPos + WINDOW_WIDTH / 2, topPos + TITLE_Y, TITLE_COLOR);
-		drawCenteredClippedString(graphics, TARGET_LABEL.getString(),
-			leftPos + TARGET_LABEL_X + TARGET_LABEL_WIDTH / 2, topPos + TARGET_TEXT_Y, TARGET_LABEL_WIDTH,
-			LABEL_COLOR);
-		drawCenteredClippedString(graphics, targetAddress, leftPos + TARGET_TEXT_X + TARGET_TEXT_WIDTH / 2,
-			topPos + TARGET_TEXT_Y, TARGET_TEXT_WIDTH, VALUE_COLOR);
+		drawCenteredClippedString(graphics, TARGET_LABEL.getString(), leftPos + TARGET_LABEL_X,
+			topPos + TARGET_TEXT_Y, TARGET_LABEL_WIDTH, LABEL_COLOR);
+		drawCenteredClippedString(graphics, targetAddress, leftPos + TARGET_TEXT_X, topPos + TARGET_TEXT_Y,
+			TARGET_TEXT_WIDTH, VALUE_COLOR);
 
 		if (searchBox.getValue().isBlank() && !searchBox.isFocused())
 			drawCenteredString(graphics, SEARCH_LABEL.getString(), leftPos + WINDOW_WIDTH / 2, searchBox.getY(),
@@ -167,18 +168,25 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	@Override
 	public boolean mouseClicked(double mouseX, double mouseY, int button) {
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && addingAddress && isWithinPendingEntryRow(mouseX, mouseY)) {
-			boolean clicked = super.mouseClicked(mouseX, mouseY, button);
-			focusEditBox(newAddressBox);
-			return clicked || true;
+			clickEditBox(newAddressBox, mouseX, mouseY);
+			return true;
+		}
+
+		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && isWithinOwnAddressRow(mouseX, mouseY)) {
+			if (addingAddress)
+				finishAddingAddress(true);
+			clickEditBox(ownAddressBox, mouseX, mouseY);
+			return true;
+		}
+
+		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && searchBox != null && searchBox.isMouseOver(mouseX, mouseY)) {
+			if (addingAddress)
+				finishAddingAddress(true);
+			return super.mouseClicked(mouseX, mouseY, button);
 		}
 
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && addingAddress)
 			finishAddingAddress(true);
-
-		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && isWithinOwnAddressRow(mouseX, mouseY)) {
-			focusEditBox(ownAddressBox);
-			return true;
-		}
 
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && isWithinAddButton(mouseX, mouseY)) {
 			startAddingAddress();
@@ -189,6 +197,9 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			CandidateHit hit = getCandidateHit(mouseX, mouseY);
 			if (hit != null) {
+				blurEditBox(searchBox);
+				blurEditBox(ownAddressBox);
+				blurEditBox(newAddressBox);
 				applyCandidateHit(hit);
 				playClick();
 				return true;
@@ -196,8 +207,8 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		}
 
 		boolean clicked = super.mouseClicked(mouseX, mouseY, button);
-		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && searchBox.isMouseOver(mouseX, mouseY))
-			focusEditBox(searchBox);
+		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && !clicked)
+			blurAllEditBoxes();
 		return clicked;
 	}
 
@@ -228,15 +239,15 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 		if (searchBox.isFocused()) {
 			if (hitEnter || hitEscape) {
-				searchBox.setFocused(false);
-				return true;
+				blurEditBox(searchBox);
+				return hitEnter;
 			}
 		}
 
 		if (ownAddressBox.isFocused()) {
 			if (hitEnter || hitEscape) {
-				ownAddressBox.setFocused(false);
-				return true;
+				blurEditBox(ownAddressBox);
+				return hitEnter;
 			}
 		}
 
@@ -269,7 +280,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		int listTop = getListTop();
 		int listHeight = getListHeight();
 
-		graphics.enableScissor(leftPos + ROW_X, listTop, leftPos + ROW_X + 176, listTop + listHeight);
+		graphics.enableScissor(leftPos + ROW_X, listTop, leftPos + ACTION_X + GuiTexture.UP.width, listTop + listHeight);
 		for (int i = 0; i < visibleCandidates.size(); i++) {
 			int rowY = listTop + i * ROW_HEIGHT - (int) scrollOffset;
 			if (rowY + GuiTexture.ENTRY.height < listTop || rowY > listTop + listHeight)
@@ -287,7 +298,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 			}
 
 			GuiTexture.ENTRY.render(graphics, leftPos + ROW_X, rowY);
-			drawClippedString(graphics, candidate.address(), leftPos + ROW_X + 9, rowY + ENTRY_TEXT_Y, 120,
+			drawClippedString(graphics, candidate.address(), leftPos + ROW_X + 15, rowY + ENTRY_TEXT_Y, 120,
 				selected ? VALUE_COLOR : LIST_TEXT_COLOR);
 
 			if (i > 0)
@@ -339,14 +350,14 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 	private void startAddingAddress() {
 		if (addingAddress) {
-			focusEditBox(newAddressBox);
+			focusEditBoxAtEnd(newAddressBox);
 			return;
 		}
 
 		addingAddress = true;
 		scrollOffset = 0;
 		createNewAddressBox(new NoShadowFontWrapper(font));
-		focusEditBox(newAddressBox);
+		focusEditBoxAtEnd(newAddressBox);
 	}
 
 	private void finishAddingAddress(boolean commit) {
@@ -368,6 +379,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		addingAddress = false;
 		pendingNewAddress = "";
 		if (newAddressBox != null) {
+			blurEditBox(newAddressBox);
 			removeWidget(newAddressBox);
 			newAddressBox = null;
 		}
@@ -460,7 +472,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 			removeWidget(newAddressBox);
 
 		newAddressBox =
-			new EditBox(noShadowFont, leftPos + ROW_X + 9, getPendingEntryY() + PENDING_ENTRY_TEXT_Y, 120, 10,
+			new CursorEditBox(noShadowFont, leftPos + ROW_X + 9, getPendingEntryY() + PENDING_ENTRY_TEXT_Y, 120, 10,
 				NEW_ADDRESS_LABEL);
 		newAddressBox.setBordered(false);
 		newAddressBox.setMaxLength(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH);
@@ -476,8 +488,6 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int ownAddressBoxX(String text) {
-		if (ownAddressBox.isFocused())
-			return leftPos + WINDOW_WIDTH / 2 - ownAddressBox.getWidth() / 2;
 		return leftPos + WINDOW_WIDTH / 2 - Math.min(font.width(text), ownAddressBox.getWidth()) / 2;
 	}
 
@@ -500,7 +510,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private boolean isWithinCandidateViewport(double mouseX, double mouseY) {
-		return mouseX >= leftPos + ROW_X && mouseX < leftPos + ROW_X + GuiTexture.ENTRY.width + 18
+		return mouseX >= leftPos + ROW_X && mouseX < leftPos + ACTION_X + GuiTexture.UP.width
 			&& mouseY >= getListTop() && mouseY < getListTop() + getListHeight();
 	}
 
@@ -515,7 +525,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int getAddButtonY() {
-		return topPos + GuiTexture.TOP.height + 8;
+		return topPos + GuiTexture.TOP.height - 1;
 	}
 
 	private int getPendingEntryY() {
@@ -527,7 +537,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int getListHeight() {
-		return getFooterY() - 8 - getListTop();
+		return getFooterY() - 2 - getListTop();
 	}
 
 	private int getFooterY() {
@@ -538,9 +548,36 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		if (box == null)
 			return;
 		setFocused(box);
-		box.setFocused(true);
-		box.moveCursorToEnd();
-		box.setHighlightPos(0);
+	}
+
+	private void focusEditBoxAtEnd(EditBox box) {
+		if (box == null)
+			return;
+		focusEditBox(box);
+		int end = box.getValue().length();
+		box.setCursorPosition(end);
+		box.setHighlightPos(end);
+	}
+
+	private void clickEditBox(EditBox box, double mouseX, double mouseY) {
+		if (box == null)
+			return;
+		focusEditBox(box);
+		box.onClick(mouseX, mouseY);
+	}
+
+	private void blurEditBox(EditBox box) {
+		if (box == null)
+			return;
+		if (getFocused() == box)
+			setFocused((GuiEventListener) null);
+		box.setFocused(false);
+	}
+
+	private void blurAllEditBoxes() {
+		blurEditBox(searchBox);
+		blurEditBox(ownAddressBox);
+		blurEditBox(newAddressBox);
 	}
 
 	private void playClick() {
@@ -551,9 +588,10 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		graphics.drawString(font, text, centerX - font.width(text) / 2, y, color, false);
 	}
 
-	private void drawCenteredClippedString(GuiGraphics graphics, String text, int centerX, int y, int width,
+	private void drawCenteredClippedString(GuiGraphics graphics, String text, int x, int y, int width,
 		int color) {
-		drawCenteredString(graphics, clip(text, width), centerX, y, color);
+		String clipped = clip(text, width);
+		graphics.drawString(font, clipped, x + (width - font.width(clipped)) / 2, y, color, false);
 	}
 
 	private void drawClippedString(GuiGraphics graphics, String text, int x, int y, int width, int color) {
@@ -580,15 +618,38 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 	private record CandidateHit(int actualIndex, int visibleIndex, String address, CandidateAction action) {}
 
+	private static class CursorEditBox extends EditBox {
+
+		CursorEditBox(NoShadowFontWrapper font, int x, int y, int width, int height, Component message) {
+			super(font, x, y, width, height, message);
+		}
+
+		@Override
+		public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			boolean wasFocused = isFocused();
+			boolean clicked = super.mouseClicked(mouseX, mouseY, button);
+			if (clicked && !wasFocused)
+				setHighlightPos(getCursorPosition());
+			return clicked;
+		}
+
+		@Override
+		public void setFocused(boolean focused) {
+			super.setFocused(focused);
+			if (!focused)
+				setHighlightPos(getCursorPosition());
+		}
+	}
+
 	private enum GuiTexture implements ScreenElement {
 		TOP(23, 0, 210, 63),
 		BODY(32, 79, 192, 24),
 		FOOTER(16, 121, 224, 42),
-		ADD(42, 179, 21, 18),
-		ENTRY(42, 211, 165, 18),
+		ADD(43, 179, 27, 18),
+		ENTRY(43, 211, 160, 18),
 		EDIT(242, 125, 13, 13),
-		UP(209, 212, 8, 8),
-		DOWN(209, 221, 8, 8);
+		UP(205, 212, 8, 8),
+		DOWN(205, 221, 8, 8);
 
 		private static final ResourceLocation LOCATION =
 			CreateBiotech.asResource("textures/gui/shulker_teleporter.png");
