@@ -125,10 +125,14 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		}
 
 		if (closing || closingTicks > 0) {
+			boolean wasClosing = closing;
 			closing = false;
 			closingTicks = Math.max(0, closingTicks - getAnimationStep());
 			sealedHoldTicks = 0;
-			sendBlockUpdate();
+			if (wasClosing || closingTicks <= 0)
+				sendBlockUpdate();
+			else
+				setChanged();
 		}
 	}
 

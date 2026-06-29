@@ -51,9 +51,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 			.withStyle(ChatFormatting.DARK_GRAY, ChatFormatting.ITALIC);
 
 	private static final int WINDOW_WIDTH = 224;
-	private static final int BODY_SLICES = 6;
-	private static final int WINDOW_HEIGHT =
-		GuiTexture.TOP.height + GuiTexture.BODY.height * BODY_SLICES + GuiTexture.FOOTER.height;
+	private static final int MIN_BODY_SLICES = 4;
 	private static final int ROW_HEIGHT = 22;
 
 	private static final int TITLE_Y = 7;
@@ -78,6 +76,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private static final int SEARCH_TEXT_COLOR = 0xC8BFCE;
 	private static final int SEARCH_HINT_COLOR = 0x8A8290;
 	private static final int LABEL_COLOR = 0xA9A1AE;
+	private static final int TITLE_COLOR = 0xD6BBD6;
 	private static final int VALUE_COLOR = 0x4A2D31;
 	private static final int LIST_TEXT_COLOR = 0x625C67;
 	private static final int LIST_HINT_COLOR = 0x9B92A0;
@@ -89,6 +88,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private boolean addingAddress;
 	private String pendingNewAddress = "";
 	private double scrollOffset;
+	private int bodySlices = MIN_BODY_SLICES;
 
 	private CursorEditBox searchBox;
 	private CursorEditBox ownAddressBox;
@@ -105,7 +105,8 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		String searchValue = searchBox == null ? "" : searchBox.getValue();
 		String ownAddressValue = ownAddressBox == null ? menu.getOwnAddress() : ownAddressBox.getValue();
 
-		setWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+		bodySlices = calculateBodySlices();
+		setWindowSize(WINDOW_WIDTH, getWindowHeight());
 		super.init();
 		clearWidgets();
 
@@ -157,13 +158,13 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		int y = topPos;
 		GuiTexture.TOP.render(graphics, leftPos + 7, y);
 		y += GuiTexture.TOP.height;
-		for (int i = 0; i < BODY_SLICES; i++) {
+		for (int i = 0; i < bodySlices; i++) {
 			GuiTexture.BODY.render(graphics, leftPos + 16, y);
 			y += GuiTexture.BODY.height;
 		}
 		GuiTexture.FOOTER.render(graphics, leftPos, y);
 
-		drawCenteredString(graphics, GUI_TITLE.getString(), leftPos + WINDOW_WIDTH / 2, topPos + TITLE_Y, VALUE_COLOR);
+		drawCenteredString(graphics, GUI_TITLE.getString(), leftPos + WINDOW_WIDTH / 2, topPos + TITLE_Y, TITLE_COLOR);
 		drawCenteredClippedString(graphics, TARGET_LABEL.getString(), leftPos + TARGET_LABEL_X,
 			topPos + TARGET_TEXT_Y, TARGET_LABEL_WIDTH, LABEL_COLOR);
 		drawCenteredClippedString(graphics, targetAddress, leftPos + TARGET_TEXT_X, topPos + TARGET_TEXT_Y,
@@ -276,7 +277,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 	@Override
 	public void removed() {
-		finishAddingAddress(true);
+		finishAddingAddress(true, false);
 		CBPackets.sendToServer(new ShulkerTeleporterConfigPacket(menu.getBlockPos(),
 			ownAddressBox == null ? menu.getOwnAddress() : ownAddressBox.getValue(), targetAddress, candidateAddresses));
 		super.removed();
@@ -398,11 +399,15 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 		addingAddress = true;
 		scrollOffset = 0;
-		createNewAddressBox(new NoShadowFontWrapper(font));
+		rebuildLayout();
 		focusEditBoxAtEnd(newAddressBox);
 	}
 
 	private void finishAddingAddress(boolean commit) {
+		finishAddingAddress(commit, true);
+	}
+
+	private void finishAddingAddress(boolean commit, boolean refreshLayout) {
 		if (!addingAddress)
 			return;
 
@@ -425,7 +430,11 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 			removeWidget(newAddressBox);
 			newAddressBox = null;
 		}
-		clampScroll();
+
+		if (refreshLayout)
+			rebuildLayout();
+		else
+			clampScroll();
 	}
 
 	private void applyCandidateHit(CandidateHit hit) {
@@ -435,7 +444,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 				candidateAddresses.remove(hit.actualIndex());
 				if (targetAddress.equals(hit.address()))
 					targetAddress = "";
-				clampScroll();
+				rebuildLayout();
 			}
 			case MOVE_UP -> moveVisibleCandidate(hit.visibleIndex(), -1);
 			case MOVE_DOWN -> moveVisibleCandidate(hit.visibleIndex(), 1);
@@ -509,6 +518,32 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		return Math.max(0, contentHeight - getListHeight());
 	}
 
+	private void rebuildLayout() {
+		if (newAddressBox != null)
+			pendingNewAddress = newAddressBox.getValue();
+		init();
+	}
+
+	private int calculateBodySlices() {
+		int requiredRows = candidateAddresses.size() + (addingAddress ? 1 : 0);
+		int desiredSlices =
+			Math.max(MIN_BODY_SLICES, Mth.ceil((requiredRows * ROW_HEIGHT + getListHeightInset()) / (float) GuiTexture.BODY.height));
+
+		int maxHeight = height - 10;
+		maxHeight -= Mth.positiveModulo(maxHeight - GuiTexture.TOP.height - GuiTexture.FOOTER.height,
+			GuiTexture.BODY.height);
+		int maxSlices = Math.max(1, (maxHeight - GuiTexture.TOP.height - GuiTexture.FOOTER.height) / GuiTexture.BODY.height);
+		return Mth.clamp(desiredSlices, 1, maxSlices);
+	}
+
+	private int getWindowHeight() {
+		return GuiTexture.TOP.height + GuiTexture.BODY.height * bodySlices + GuiTexture.FOOTER.height;
+	}
+
+	private int getListHeightInset() {
+		return 23;
+	}
+
 	private void createNewAddressBox(NoShadowFontWrapper noShadowFont) {
 		if (newAddressBox != null)
 			removeWidget(newAddressBox);
@@ -579,15 +614,15 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int getListHeight() {
-		return getFooterY() - 2 - getListTop();
+		return Math.max(0, getFooterY() - 2 - getListTop());
 	}
 
 	private int getFooterY() {
-		return topPos + GuiTexture.TOP.height + GuiTexture.BODY.height * BODY_SLICES;
+		return topPos + GuiTexture.TOP.height + GuiTexture.BODY.height * bodySlices;
 	}
 
 	private int getSelectedOverlayX() {
-		return leftPos + ROW_X + (GuiTexture.ENTRY.width - SELECTED_OVERLAY_WIDTH) / 2;
+		return leftPos + (WINDOW_WIDTH - SELECTED_OVERLAY_WIDTH) / 2;
 	}
 
 	private void focusEditBox(EditBox box) {
