@@ -36,6 +36,8 @@
   "create_biotech.generic.unit.experience_points": "XP",
   "item.create_biotech.experience": "Experience",
   "item.create_biotech.experience.tooltip": "Internal display item",
+  "fluid_type.create_biotech.experience": "Experience",
+  "fluid.create_biotech.experience": "Experience",
   "block.create_biotech.squid_printer": "Squid Printer",
   "block.create_biotech.petri_dish": "Petri Dish",
   "block.create_biotech.petri_dish.tooltip.summary": "Work in progress.",

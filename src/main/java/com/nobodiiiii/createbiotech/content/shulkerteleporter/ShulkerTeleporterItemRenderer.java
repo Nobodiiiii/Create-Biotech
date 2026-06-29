@@ -1,4 +1,4 @@
-package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
+package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -8,15 +8,12 @@ import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
-public class EvokerEnchantingChamberItemRenderer extends OversizedBlockItemRenderer<EvokerEnchantingChamberBlockEntity> {
+public class ShulkerTeleporterItemRenderer extends OversizedBlockItemRenderer<ShulkerTeleporterBlockEntity> {
 
-	private static final float ITEM_Y_OFFSET = -0.25f;
+	private static final float ITEM_Y_OFFSET = 0.25f;
 
 	@Override
 	protected float getRenderYOffset() {
@@ -24,14 +21,14 @@ public class EvokerEnchantingChamberItemRenderer extends OversizedBlockItemRende
 	}
 
 	@Override
-	protected EvokerEnchantingChamberBlockEntity createBlockEntity() {
-		return new EvokerEnchantingChamberBlockEntity(BlockPos.ZERO, createRenderState());
+	protected ShulkerTeleporterBlockEntity createBlockEntity() {
+		return new ShulkerTeleporterBlockEntity(BlockPos.ZERO, ShulkerTeleporterBlock.defaultItemRenderState());
 	}
 
 	@Override
 	protected void renderTransformed(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
 		ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay,
-		EvokerEnchantingChamberBlockEntity blockEntity) {
+		ShulkerTeleporterBlockEntity blockEntity) {
 		boolean guiLighting = transformType == ItemDisplayContext.GUI;
 		if (guiLighting)
 			Lighting.setupForEntityInInventory();
@@ -41,12 +38,5 @@ public class EvokerEnchantingChamberItemRenderer extends OversizedBlockItemRende
 			if (guiLighting)
 				Lighting.setupFor3DItems();
 		}
-	}
-
-	private static BlockState createRenderState() {
-		return com.nobodiiiii.createbiotech.registry.CBBlocks.EVOKER_ENCHANTING_CHAMBER.get()
-			.defaultBlockState()
-			.setValue(EvokerEnchantingChamberBlock.FACING, Direction.NORTH)
-			.setValue(EvokerEnchantingChamberBlock.HALF, DoubleBlockHalf.LOWER);
 	}
 }

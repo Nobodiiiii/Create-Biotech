@@ -41,9 +41,9 @@ public class CBFluids {
 		DeferredRegister.create(ForgeRegistries.ITEMS, CreateBiotech.MOD_ID);
 
 	private static final ResourceLocation EXPERIENCE_STILL_TEXTURE =
-		new ResourceLocation("create_enchantment_industry", "fluid/experience_still");
+		CreateBiotech.asResource("fluid/experience_still");
 	private static final ResourceLocation EXPERIENCE_FLOW_TEXTURE =
-		new ResourceLocation("create_enchantment_industry", "fluid/experience_flow");
+		CreateBiotech.asResource("fluid/experience_flow");
 
 	public static final RegistryObject<FluidType> EXPERIENCE_TYPE =
 		FLUID_TYPES.register("experience",

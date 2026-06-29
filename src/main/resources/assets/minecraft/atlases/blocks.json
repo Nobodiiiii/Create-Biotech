@@ -42,6 +42,14 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:fluid/experience_flow"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:fluid/experience_still"
+    },
+    {
+      "type": "single",
       "resource": "create_biotech:block/universal_joint_endpoint_slime_overlay"
     },
     {

@@ -36,6 +36,8 @@
   "create_biotech.generic.unit.experience_points": "XP",
   "item.create_biotech.experience": "经验",
   "item.create_biotech.experience.tooltip": "内部显示物品",
+  "fluid_type.create_biotech.experience": "经验",
+  "fluid.create_biotech.experience": "经验",
   "block.create_biotech.squid_printer": "鱿鱼打印机",
   "block.create_biotech.petri_dish": "史莱姆培养皿",
   "block.create_biotech.petri_dish.tooltip.summary": "待完善物品。",
