@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 
 import net.minecraft.core.BlockPos;
@@ -16,6 +19,7 @@ public class ShulkerTeleporterMenu extends AbstractContainerMenu {
 	private final BlockPos blockPos;
 	private final String ownAddress;
 	private final String targetAddress;
+	private final List<String> candidateAddresses;
 
 	public ShulkerTeleporterMenu(int id, Inventory playerInventory, FriendlyByteBuf data) {
 		this(id, playerInventory, getBlockEntity(playerInventory, data.readBlockPos()), data);
@@ -27,6 +31,7 @@ public class ShulkerTeleporterMenu extends AbstractContainerMenu {
 		this.blockPos = blockEntity.getBlockPos();
 		this.ownAddress = blockEntity.getOwnAddress();
 		this.targetAddress = blockEntity.getTargetAddress();
+		this.candidateAddresses = List.copyOf(blockEntity.getCandidateAddresses());
 	}
 
 	private ShulkerTeleporterMenu(int id, Inventory playerInventory, ShulkerTeleporterBlockEntity blockEntity,
@@ -34,8 +39,9 @@ public class ShulkerTeleporterMenu extends AbstractContainerMenu {
 		super(CBMenuTypes.SHULKER_TELEPORTER.get(), id);
 		this.blockEntity = blockEntity;
 		this.blockPos = blockEntity.getBlockPos();
-		this.ownAddress = data.readUtf(32);
-		this.targetAddress = data.readUtf(32);
+		this.ownAddress = data.readUtf(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH);
+		this.targetAddress = data.readUtf(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH);
+		this.candidateAddresses = readCandidateAddresses(data);
 	}
 
 	@Override
@@ -58,6 +64,18 @@ public class ShulkerTeleporterMenu extends AbstractContainerMenu {
 
 	public String getTargetAddress() {
 		return targetAddress;
+	}
+
+	public List<String> getCandidateAddresses() {
+		return candidateAddresses;
+	}
+
+	private static List<String> readCandidateAddresses(FriendlyByteBuf data) {
+		int size = data.readVarInt();
+		List<String> addresses = new ArrayList<>(size);
+		for (int i = 0; i < size; i++)
+			addresses.add(data.readUtf(ShulkerTeleporterBlockEntity.MAX_ADDRESS_LENGTH));
+		return List.copyOf(addresses);
 	}
 
 	private static ShulkerTeleporterBlockEntity getBlockEntity(Inventory playerInventory, BlockPos pos) {

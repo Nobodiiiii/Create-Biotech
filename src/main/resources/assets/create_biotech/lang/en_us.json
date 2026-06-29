@@ -411,5 +411,8 @@
   "block.create_biotech.shulker_teleporter.tooltip.summary": "Used to _teleport_ entities and dropped items. Set the own address and target address in the GUI.",
   "create_biotech.shulker_teleporter.own_address": "Own Address",
   "create_biotech.shulker_teleporter.target_address": "Target Address",
-  "create_biotech.shulker_teleporter.save": "Save"
+  "create_biotech.shulker_teleporter.save": "Save",
+  "create_biotech.shulker_teleporter.search": "Search addresses",
+  "create_biotech.shulker_teleporter.new_address": "New address",
+  "create_biotech.shulker_teleporter.no_addresses": "No candidate addresses"
 }

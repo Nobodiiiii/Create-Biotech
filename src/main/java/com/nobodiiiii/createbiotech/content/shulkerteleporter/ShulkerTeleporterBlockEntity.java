@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -17,6 +19,9 @@ import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
@@ -49,12 +54,14 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	public static final int ARRIVAL_COOLDOWN_TICKS = 80;
 	public static final float TOP_SHELL_OPEN_Y = -1.0f;
 	public static final float TOP_SHELL_CLOSED_Y = -2.0f;
+	public static final int MAX_ADDRESS_LENGTH = 32;
+	public static final int MAX_CANDIDATE_ADDRESSES = 64;
 	private static final AABB TELEPORT_TRIGGER_AREA = new AABB(1.0d / 16.0d, 0.0d, 1.0d / 16.0d,
 		15.0d / 16.0d, 0.25d, 15.0d / 16.0d);
-	private static final int MAX_ADDRESS_LENGTH = 32;
 
 	private String ownAddress = "";
 	private String targetAddress = "";
+	private final List<String> candidateAddresses = new ArrayList<>();
 	private float closingTicks;
 	private float previousClosingTicks;
 	private int sealedHoldTicks;
@@ -129,6 +136,9 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		buffer.writeBlockPos(worldPosition);
 		buffer.writeUtf(ownAddress, MAX_ADDRESS_LENGTH);
 		buffer.writeUtf(targetAddress, MAX_ADDRESS_LENGTH);
+		buffer.writeVarInt(candidateAddresses.size());
+		for (String candidateAddress : candidateAddresses)
+			buffer.writeUtf(candidateAddress, MAX_ADDRESS_LENGTH);
 	}
 
 	@Override
@@ -156,10 +166,20 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		return targetAddress;
 	}
 
+	public List<String> getCandidateAddresses() {
+		return List.copyOf(candidateAddresses);
+	}
+
 	public void setAddresses(String ownAddress, String targetAddress) {
+		setConfiguration(ownAddress, targetAddress, candidateAddresses);
+	}
+
+	public void setConfiguration(String ownAddress, String targetAddress, List<String> candidateAddresses) {
 		unregisterAddress();
 		this.ownAddress = normalizeAddress(ownAddress);
 		this.targetAddress = normalizeAddress(targetAddress);
+		this.candidateAddresses.clear();
+		this.candidateAddresses.addAll(normalizeCandidateAddresses(candidateAddresses));
 		registerAddress();
 		setChanged();
 		sendBlockUpdate();
@@ -213,6 +233,10 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	protected void write(CompoundTag tag, boolean clientPacket) {
 		tag.putString("OwnAddress", ownAddress);
 		tag.putString("TargetAddress", targetAddress);
+		ListTag candidateTags = new ListTag();
+		for (String candidateAddress : candidateAddresses)
+			candidateTags.add(StringTag.valueOf(candidateAddress));
+		tag.put("CandidateAddresses", candidateTags);
 		tag.putFloat("ClosingTicks", closingTicks);
 		tag.putInt("SealedHoldTicks", sealedHoldTicks);
 		tag.putBoolean("Closing", closing);
@@ -224,6 +248,12 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		super.read(tag, clientPacket);
 		ownAddress = normalizeAddress(tag.getString("OwnAddress"));
 		targetAddress = normalizeAddress(tag.getString("TargetAddress"));
+		candidateAddresses.clear();
+		ListTag candidateTags = tag.getList("CandidateAddresses", Tag.TAG_STRING);
+		List<String> loadedCandidates = new ArrayList<>(candidateTags.size());
+		for (Tag candidateTag : candidateTags)
+			loadedCandidates.add(candidateTag.getAsString());
+		candidateAddresses.addAll(normalizeCandidateAddresses(loadedCandidates));
 		closingTicks = Mth.clamp(tag.getFloat("ClosingTicks"), 0, CLOSE_TICKS);
 		previousClosingTicks = closingTicks;
 		sealedHoldTicks = Mth.clamp(tag.getInt("SealedHoldTicks"), 0, SEALED_HOLD_TICKS);
@@ -237,6 +267,20 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		if (trimmed.length() > MAX_ADDRESS_LENGTH)
 			trimmed = trimmed.substring(0, MAX_ADDRESS_LENGTH);
 		return trimmed.toLowerCase(Locale.ROOT);
+	}
+
+	static List<String> normalizeCandidateAddresses(List<String> addresses) {
+		LinkedHashSet<String> normalizedAddresses = new LinkedHashSet<>();
+		if (addresses != null)
+			for (String address : addresses) {
+				String normalizedAddress = normalizeAddress(address);
+				if (normalizedAddress.isBlank())
+					continue;
+				normalizedAddresses.add(normalizedAddress);
+				if (normalizedAddresses.size() >= MAX_CANDIDATE_ADDRESSES)
+					break;
+			}
+		return new ArrayList<>(normalizedAddresses);
 	}
 
 	private boolean hasUsableTarget() {
