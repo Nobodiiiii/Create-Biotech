@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFis
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerArmInteractions;
 import com.nobodiiiii.createbiotech.content.buttercat.ButterCatModule;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadMovementBehaviour;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceOpenPipeEffectHandler;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCompat;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonRopeShearsInteraction;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovingInteraction;
@@ -58,6 +59,7 @@ public class CreateBiotech {
 
 	private static void onCommonSetup(FMLCommonSetupEvent event) {
 		event.enqueueWork(() -> {
+			ExperienceOpenPipeEffectHandler.register();
 			ExplosionProofItemVaultCompat.register();
 			MovementBehaviour.REGISTRY.register(CBBlocks.GHAST_HELM.get(), new GhastHelmMovementBehaviour());
 			BufferPadMovementBehaviour bufferPadMovementBehaviour = new BufferPadMovementBehaviour();

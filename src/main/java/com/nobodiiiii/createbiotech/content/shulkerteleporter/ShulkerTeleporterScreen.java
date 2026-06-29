@@ -9,20 +9,25 @@ import org.lwjgl.glfw.GLFW;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.content.trains.station.NoShadowFontWrapper;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 
+import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.renderer.Rect2i;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.level.block.state.BlockState;
 
 public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<ShulkerTeleporterMenu> {
 
@@ -72,6 +77,10 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private static final int FOOTER_TEXT_WIDTH = 158;
 	private static final int FOOTER_EDIT_Y = 4;
 	private static final int SELECTED_OVERLAY_WIDTH = 180;
+	private static final int PREVIEW_AREA_WIDTH = 68;
+	private static final int PREVIEW_AREA_HEIGHT = 72;
+	private static final int PREVIEW_X_OFFSET = 4;
+	private static final int PREVIEW_BOTTOM_OFFSET = 6;
 
 	private static final int SEARCH_TEXT_COLOR = 0xC8BFCE;
 	private static final int SEARCH_HINT_COLOR = 0x8A8290;
@@ -93,6 +102,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private CursorEditBox searchBox;
 	private CursorEditBox ownAddressBox;
 	private CursorEditBox newAddressBox;
+	private List<Rect2i> extraAreas = Collections.emptyList();
 
 	public ShulkerTeleporterScreen(ShulkerTeleporterMenu menu, Inventory inventory, Component title) {
 		super(menu, inventory, title);
@@ -140,6 +150,8 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		if (addingAddress)
 			createNewAddressBox(noShadowFont);
 
+		extraAreas =
+			List.of(new Rect2i(getPreviewAreaX(), getPreviewAreaY(), PREVIEW_AREA_WIDTH, PREVIEW_AREA_HEIGHT));
 		clampScroll();
 	}
 
@@ -178,6 +190,12 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		renderNewEntryRow(graphics);
 		renderCandidates(graphics);
 		renderFooter(graphics);
+		renderBlockPreview(graphics);
+	}
+
+	@Override
+	public List<Rect2i> getExtraAreas() {
+		return extraAreas;
 	}
 
 	@Override
@@ -391,6 +409,14 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		graphics.renderComponentTooltip(font, List.of(Component.literal(hit.address()), CLICK_TO_SELECT), mouseX, mouseY);
 	}
 
+	private void renderBlockPreview(GuiGraphics graphics) {
+		GuiGameElement.of(getPreviewBlockState())
+			.<GuiGameElement.GuiRenderBuilder>at(getPreviewAnchorX(), getPreviewAnchorY(), -100)
+			.scale(48)
+			.rotateBlock(-22.5f, -45, 0)
+			.render(graphics);
+	}
+
 	private void startAddingAddress() {
 		if (addingAddress) {
 			focusEditBoxAtEnd(newAddressBox);
@@ -540,6 +566,13 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		return GuiTexture.TOP.height + GuiTexture.BODY.height * bodySlices + GuiTexture.FOOTER.height;
 	}
 
+	private BlockState getPreviewBlockState() {
+		return CBBlocks.SHULKER_TELEPORTER.get()
+			.defaultBlockState()
+			.setValue(ShulkerTeleporterBlock.FACING, Direction.SOUTH)
+			.setValue(ShulkerTeleporterBlock.PART, ShulkerTeleporterBlock.BOTTOM);
+	}
+
 	private int getListHeightInset() {
 		return 23;
 	}
@@ -623,6 +656,22 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 
 	private int getSelectedOverlayX() {
 		return leftPos + (WINDOW_WIDTH - SELECTED_OVERLAY_WIDTH) / 2;
+	}
+
+	private int getPreviewAreaX() {
+		return leftPos + WINDOW_WIDTH + PREVIEW_X_OFFSET;
+	}
+
+	private int getPreviewAreaY() {
+		return getPreviewAnchorY() - PREVIEW_AREA_HEIGHT;
+	}
+
+	private int getPreviewAnchorX() {
+		return getPreviewAreaX() + PREVIEW_AREA_WIDTH / 2;
+	}
+
+	private int getPreviewAnchorY() {
+		return topPos + getWindowHeight() - PREVIEW_BOTTOM_OFFSET;
 	}
 
 	private void focusEditBox(EditBox box) {

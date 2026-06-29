@@ -40,6 +40,7 @@
     "client.CreeperAccessor",
     "client.CreeperRendererMixin",
     "client.FlapStuffsMixin",
+    "client.FluidTankRendererMixin",
     "client.FunnelRendererMixin",
     "client.FunnelVisualMixin",
     "client.GameRendererMixin",
