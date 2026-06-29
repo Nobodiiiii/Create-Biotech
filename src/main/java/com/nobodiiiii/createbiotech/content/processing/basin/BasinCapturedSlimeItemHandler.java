@@ -6,31 +6,28 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 public class BasinCapturedSlimeItemHandler implements IItemHandlerModifiable {
-	private final BasinBlockEntity basin;
 	private final IItemHandlerModifiable wrapped;
 
 	public BasinCapturedSlimeItemHandler(BasinBlockEntity basin, IItemHandlerModifiable wrapped) {
-		this.basin = basin;
 		this.wrapped = wrapped;
 	}
 
 	@Override
 	public int getSlots() {
-		return wrapped.getSlots() + 1;
+		return wrapped.getSlots();
 	}
 
 	@Override
 	public ItemStack getStackInSlot(int slot) {
 		validateSlot(slot);
-		if (isCapturedSlimeSlot(slot))
-			return BasinEntityProcessing.getCapturedSmallSlimeItemStack(basin);
 		return wrapped.getStackInSlot(slot);
 	}
 
 	@Override
 	public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
 		validateSlot(slot);
-		if (isCapturedSlimeSlot(slot) || BasinEntityProcessing.isCapturedSmallSlimeItem(stack))
+		if (BasinEntityProcessing.isCapturedSmallSlimeItem(stack)
+			&& !BasinEntityProcessing.canMoveCapturedSmallSlimeItems())
 			return stack;
 		return wrapped.insertItem(slot, stack, simulate);
 	}
@@ -38,7 +35,8 @@ public class BasinCapturedSlimeItemHandler implements IItemHandlerModifiable {
 	@Override
 	public ItemStack extractItem(int slot, int amount, boolean simulate) {
 		validateSlot(slot);
-		if (isCapturedSlimeSlot(slot))
+		if (BasinEntityProcessing.isCapturedSmallSlimeItem(wrapped.getStackInSlot(slot))
+			&& !BasinEntityProcessing.canMoveCapturedSmallSlimeItems())
 			return ItemStack.EMPTY;
 		return wrapped.extractItem(slot, amount, simulate);
 	}
@@ -46,15 +44,14 @@ public class BasinCapturedSlimeItemHandler implements IItemHandlerModifiable {
 	@Override
 	public int getSlotLimit(int slot) {
 		validateSlot(slot);
-		if (isCapturedSlimeSlot(slot))
-			return BasinEntityProcessing.getMaxCapturedSmallSlimes();
 		return wrapped.getSlotLimit(slot);
 	}
 
 	@Override
 	public boolean isItemValid(int slot, ItemStack stack) {
 		validateSlot(slot);
-		if (isCapturedSlimeSlot(slot) || BasinEntityProcessing.isCapturedSmallSlimeItem(stack))
+		if (BasinEntityProcessing.isCapturedSmallSlimeItem(stack)
+			&& !BasinEntityProcessing.canMoveCapturedSmallSlimeItems())
 			return false;
 		return wrapped.isItemValid(slot, stack);
 	}
@@ -62,13 +59,12 @@ public class BasinCapturedSlimeItemHandler implements IItemHandlerModifiable {
 	@Override
 	public void setStackInSlot(int slot, ItemStack stack) {
 		validateSlot(slot);
-		if (!isCapturedSlimeSlot(slot)) {
-			wrapped.setStackInSlot(slot, stack);
-		}
-	}
-
-	private boolean isCapturedSlimeSlot(int slot) {
-		return slot == wrapped.getSlots();
+		ItemStack current = wrapped.getStackInSlot(slot);
+		if ((BasinEntityProcessing.isCapturedSmallSlimeItem(current)
+			|| BasinEntityProcessing.isCapturedSmallSlimeItem(stack))
+			&& !BasinEntityProcessing.canMoveCapturedSmallSlimeItems())
+			return;
+		wrapped.setStackInSlot(slot, stack);
 	}
 
 	private void validateSlot(int slot) {

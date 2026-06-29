@@ -1,0 +1,14 @@
+{
+  "type": "create:mixing",
+  "ingredients": [
+    {
+      "item": "create_biotech:captured_small_slime"
+    }
+  ],
+  "results": [
+    {
+      "amount": 250,
+      "fluid": "create_biotech:liquid_living_slime"
+    }
+  ]
+}

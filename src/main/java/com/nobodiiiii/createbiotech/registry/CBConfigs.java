@@ -489,12 +489,10 @@ public class CBConfigs {
 	}
 
 	public static class BasinEntityProcessing {
-		public final ForgeConfigSpec.IntValue maxCapturedSmallSlimes;
 		public final ForgeConfigSpec.DoubleValue entityScanHeight;
 
 		BasinEntityProcessing(ForgeConfigSpec.Builder builder) {
 			builder.push("basinEntityProcessing");
-			maxCapturedSmallSlimes = builder.defineInRange("maxCapturedSmallSlimes", 4, 1, 64);
 			entityScanHeight = builder.defineInRange("entityScanHeight", 1.25d, 0.0d, 16.0d);
 			builder.pop();
 		}

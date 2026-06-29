@@ -40,7 +40,7 @@ public abstract class BasinBlockEntityMixin {
 
 	@Inject(method = "tick()V", at = @At("TAIL"), remap = false)
 	private void createBiotech$materializeCapturedSmallSlimeItems(CallbackInfo ci) {
-		CapturedSmallSlimeItem.materializeInBasin((BasinBlockEntity) (Object) this);
+		CapturedSmallSlimeItem.syncInBasin((BasinBlockEntity) (Object) this);
 	}
 
 	@Inject(method = "acceptOutputs(Ljava/util/List;Ljava/util/List;Z)Z",
@@ -60,14 +60,19 @@ public abstract class BasinBlockEntityMixin {
 			return;
 
 		BasinBlockEntity basin = (BasinBlockEntity) (Object) this;
-		if (!BasinEntityProcessing.canAcceptCapturedSmallSlimeOutput(basin, capturedSlimeCount)
+		List<ItemStack> capturedSlimeItems = List.of(new ItemStack(outputItems.stream()
+			.filter(BasinEntityProcessing::isCapturedSmallSlimeItem)
+			.findFirst()
+			.orElse(ItemStack.EMPTY)
+			.getItem(), capturedSlimeCount));
+		if (!BasinEntityProcessing.acceptsCapturedSmallSlimeOutput(basin, capturedSlimeItems, true)
 			|| !basin.acceptOutputs(otherItems, outputFluids, true)) {
 			cir.setReturnValue(false);
 			return;
 		}
 
 		if (!simulate) {
-			if (!BasinEntityProcessing.materializeCapturedSmallSlimeOutput(basin, capturedSlimeCount)) {
+			if (!BasinEntityProcessing.acceptsCapturedSmallSlimeOutput(basin, capturedSlimeItems, false)) {
 				cir.setReturnValue(false);
 				return;
 			}
@@ -75,6 +80,7 @@ public abstract class BasinBlockEntityMixin {
 				cir.setReturnValue(false);
 				return;
 			}
+			CapturedSmallSlimeItem.syncInBasin(basin);
 		}
 
 		cir.setReturnValue(true);

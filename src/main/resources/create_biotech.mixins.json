@@ -10,10 +10,8 @@
     "AbstractVillagerSlimeMimicTradesMixin",
     "AbstractHorizontalFunnelBlockMixin",
     "AssemblyOperatorBlockItemMixin",
-    "BasinRecipeMixin",
     "BasinBlockEntityMixin",
     "BasinBlockMixin",
-    "BasinOperatingBlockEntityMixin",
     "BlockBreakingMovementBehaviourMixin",
     "BeltMovementHandlerMixin",
     "BeltFunnelBlockMixin",
@@ -24,8 +22,6 @@
     "FunnelItemMixin",
     "FluidTankBlockEntityMixin",
     "MagmaBeltFunnelBlockMixin",
-    "MechanicalPressBlockEntityMixin",
-    "MechanicalMixerBlockEntityMixin",
     "LivingEntitySlimeMimicHurtSoundMixin",
     "LivingEntitySlimeMimicMixin",
     "HauntingTypeSlimeMimicMixin",
@@ -39,7 +35,6 @@
     "VillagerSlimeMimicTradesMixin"
   ],
   "client": [
-    "client.BasinRendererMixin",
     "client.CameraMixin",
     "client.CreeperAccessor",
     "client.CreeperRendererMixin",

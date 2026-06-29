@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
-import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessingRecipe;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeSerializer;
 
@@ -20,10 +19,6 @@ public class CBRecipeTypes {
 	private static final DeferredRegister<RecipeType<?>> RECIPE_TYPES =
 		DeferredRegister.create(Registries.RECIPE_TYPE, CreateBiotech.MOD_ID);
 
-	public static final RegistryObject<RecipeSerializer<BasinEntityProcessingRecipe>>
-		BASIN_ENTITY_PROCESSING_SERIALIZER = RECIPE_SERIALIZERS.register("basin_entity_processing",
-			BasinEntityProcessingRecipe.Serializer::new);
-
 	public static final RegistryObject<RecipeSerializer<CreeperBlastChamberHighPressureRecipe>>
 		CREEPER_BLAST_CHAMBER_HIGH_PRESSURE_SERIALIZER =
 			RECIPE_SERIALIZERS.register("creeper_blast_chamber_high_pressure",
@@ -32,10 +27,6 @@ public class CBRecipeTypes {
 	public static final RegistryObject<RecipeSerializer<SquidPrinterRecipe>> SQUID_PRINTER_SERIALIZER =
 		RECIPE_SERIALIZERS.register("squid_printer",
 			() -> new ProcessingRecipeSerializer<>(SquidPrinterRecipe::new));
-
-	public static final RegistryObject<RecipeType<BasinEntityProcessingRecipe>> BASIN_ENTITY_PROCESSING_TYPE =
-		RECIPE_TYPES.register("basin_entity_processing",
-			() -> RecipeType.simple(CreateBiotech.asResource("basin_entity_processing")));
 
 	public static final RegistryObject<RecipeType<CreeperBlastChamberHighPressureRecipe>>
 		CREEPER_BLAST_CHAMBER_HIGH_PRESSURE_TYPE =
