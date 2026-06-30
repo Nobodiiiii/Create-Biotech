@@ -53,7 +53,7 @@ public final class GeneratedExperiencePump_e984f13b {
         scene.idle(40);
         GeneratedPonderSupport.clearEntities(scene, true, null, null, null);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "流体储罐...", new Vec3(2.5, 1.5, 3.5), 30, null, true);
+        GeneratedPonderSupport.showText(scene, "储罐或流体管道中的经验流体...", new Vec3(2.5, 1.5, 3.5), 30, null, true);
         GeneratedPonderSupport.setBlock(scene, context, "create:fluid_tank", Map.ofEntries(Map.entry("shape", "window"), Map.entry("top", "true"), Map.entry("bottom", "false")), new BlockPos(2, 2, 3), null, "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-58,Z:-1},Luminosity:0}", false, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.setBlock(scene, context, "create:fluid_tank", Map.ofEntries(Map.entry("shape", "window"), Map.entry("top", "false"), Map.entry("bottom", "true")), new BlockPos(2, 1, 3), null, "{ForgeCaps:{},Height:2,LastKnownPos:{X:-25,Y:-59,Z:-1},Luminosity:0,Size:1,TankContent:{Amount:6000,FluidName:\"create_biotech:experience\"},Window:1b}", false, false, "none", null, null, null, null, null);
         GeneratedPonderSupport.showSectionAndMerge(scene, context, new BlockPos(2, 1, 3), new BlockPos(2, 2, 3), null, 20, "down", "simultaneous", 20, 1, false);
@@ -61,9 +61,10 @@ public final class GeneratedExperiencePump_e984f13b {
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "装有经验物品的储物方块...", new Vec3(2.5, 1.5, 3.5), 30, null, true);
         GeneratedPonderSupport.destroyBlock(scene, context, new BlockPos(2, 2, 3), null);
-        GeneratedPonderSupport.setBlock(scene, context, "minecraft:chest", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("facing", "west"), Map.entry("type", "single")), new BlockPos(2, 1, 3), null, "{ForgeCaps:{},Items:[]}", false, false, "simultaneous", 20, 1, false, null, "down");
+        GeneratedPonderSupport.setBlock(scene, context, "minecraft:chest", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("facing", "west"), Map.entry("type", "single")), new BlockPos(2, 1, 3), null, "{ForgeCaps:{},Items:[{Slot:0b,id:\"create:experience_nugget\",Count:16b}]}", false, false, "simultaneous", 20, 1, false, null, "down");
         GeneratedPonderSupport.showControls(scene, new Vec3(2.5, 2.0, 3.5), "down", 40, null, "create:experience_nugget", null, false, false);
         scene.idle(40);
+        GeneratedPonderSupport.clearEntities(scene, true, null, null, null);
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "或者玩家", new Vec3(2.5, 1.5, 3.5), 50, null, true);
         GeneratedPonderSupport.destroyBlock(scene, context, new BlockPos(2, 1, 3), null);
@@ -99,10 +100,10 @@ public final class GeneratedExperiencePump_e984f13b {
         scene.idle(70);
         GeneratedPonderSupport.destroyBlock(scene, context, new BlockPos(2, 1, 1), null);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "输出端不能直接将经验转化为物品", new Vec3(2.5, 1.0, 1.5), 100, "red", true);
+        GeneratedPonderSupport.showText(scene, "输出端不能直接将经验流体转化为物品", new Vec3(2.5, 1.0, 1.5), 100, "red", true);
         scene.idle(110);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "你需要将经验通入经验母岩...", new Vec3(2.5, 1.0, 1.5), 100, null, true);
+        GeneratedPonderSupport.showText(scene, "你需要将经验流体通入经验母岩...", new Vec3(2.5, 1.0, 1.5), 100, null, true);
         GeneratedPonderSupport.setBlock(scene, context, "create_biotech:budding_experience", null, new BlockPos(2, 1, 1), null, "{Face0:0,Face1:0,Face2:0,Face3:0,Face4:0,Face5:0,ForgeCaps:{}}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
         GeneratedPonderSupport.showExtraStructure(scene, context, new ResourceLocation("create_biotech", "ponder/generated/ponderer/exp1.nbt"), new BlockPos(1, 1, 0), 0, false, true, false, "none", null, null, null, null, null);
