@@ -1,11 +1,12 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.experience.ExperienceFluidHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.compat.jei.category.CreateRecipeCategory;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
+import mezz.jei.api.forge.ForgeTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
@@ -14,7 +15,6 @@ import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.category.AbstractRecipeCategory;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -34,8 +34,8 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 	private static final int INPUT_Y = 51;
 	private static final int OUTPUT_X = 132;
 	private static final int OUTPUT_Y = 51;
-	private static final int CATALYST_X = 51;
-	private static final int CATALYST_Y = 5;
+	private static final int FLUID_X = 51;
+	private static final int FLUID_Y = 5;
 
 	private final AnimatedEvokerEnchanting enchanting = new AnimatedEvokerEnchanting();
 
@@ -46,9 +46,13 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 
 	@Override
 	public void setRecipe(IRecipeLayoutBuilder builder, EvokerEnchantingChamberJeiRecipe recipe, IFocusGroup focuses) {
-		builder.addSlot(RecipeIngredientRole.CATALYST, CATALYST_X, CATALYST_Y)
-			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStack(new ItemStack(CBItems.EXPERIENCE.get()));
+		IRecipeSlotBuilder fluidSlot = CreateRecipeCategory.addFluidSlot(builder, FLUID_X, FLUID_Y,
+				RecipeIngredientRole.INPUT)
+			.addIngredients(ForgeTypes.FLUID_STACK, recipe.fluidAmounts()
+				.stream()
+				.map(ExperienceFluidHelper::experienceStack)
+				.filter(stack -> !stack.isEmpty())
+				.toList());
 
 		IRecipeSlotBuilder inputSlot = builder.addSlot(RecipeIngredientRole.INPUT, INPUT_X, INPUT_Y)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
@@ -61,7 +65,7 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 			.addItemStacks(recipe.outputBooks());
 
 		if (recipe.inputCopies().size() == recipe.outputBooks().size() && recipe.inputCopies().size() > 1)
-			builder.createFocusLink(inputSlot, outputSlot);
+			builder.createFocusLink(inputSlot, outputSlot, fluidSlot);
 	}
 
 	@Override
@@ -70,14 +74,11 @@ public class EvokerEnchantingChamberJeiCategory extends AbstractRecipeCategory<E
 		int level = displayedLevel(recipeSlotsView, recipe);
 		ItemStack currentInput = recipe.inputCopies().get(level);
 		ItemStack currentOutput = recipe.outputBooks().get(level);
-		int xpCost = recipe.xpCosts().get(level);
 
 		AllGuiTextures.JEI_SHADOW.render(graphics, 62, 57);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 126, 29);
 		enchanting.withItems(currentInput, currentOutput)
 			.draw(graphics, WIDTH / 2 - 13, 22);
-		graphics.renderItemDecorations(Minecraft.getInstance().font, new ItemStack(CBItems.EXPERIENCE.get()), CATALYST_X,
-			CATALYST_Y, String.valueOf(xpCost));
 	}
 
 	private static int displayedLevel(IRecipeSlotsView slotsView, EvokerEnchantingChamberJeiRecipe recipe) {

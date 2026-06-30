@@ -34,14 +34,14 @@ import net.minecraftforge.registries.RegistryObject;
 
 public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGoggleInformation {
 
-	private final int[] faceXp = new int[6];
+	private final int[] faceFluidAmounts = new int[6];
 	private final LazyOptional<IFluidHandler> fluidHandlerCap = LazyOptional.of(() -> new ExperienceInputFluidHandler());
 
 	public BuddingExperienceBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.BUDDING_EXPERIENCE.get(), pos, state);
 	}
 
-	public int insertExperience(int amount, boolean simulate) {
+	public int insertFluid(int amount, boolean simulate) {
 		if (amount <= 0 || level == null)
 			return 0;
 		List<Direction> open = findOpenFaces();
@@ -51,17 +51,17 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 			return amount;
 
 		Direction face = open.get(level.random.nextInt(open.size()));
-		applyXpToFace(face, amount);
+		applyFluidToFace(face, amount);
 		return amount;
 	}
 
-	public int getExperienceSpace() {
+	public int getFluidSpace() {
 		if (level == null)
 			return 0;
 		return findOpenFaces().isEmpty() ? 0 : Integer.MAX_VALUE / 4;
 	}
 
-	public boolean isExperienceInputBlocked() {
+	public boolean isFluidInputBlocked() {
 		return level == null || findOpenFaces().isEmpty();
 	}
 
@@ -70,9 +70,9 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 			return;
 		Direction face = Direction.values()[random.nextInt(6)];
 		int idx = face.get3DDataValue();
-		int currentStage = stageOf(faceXp[idx]);
+		int currentStage = stageOf(faceFluidAmounts[idx]);
 		if (!worldMatchesStage(face, currentStage)) {
-			faceXp[idx] = 0;
+			faceFluidAmounts[idx] = 0;
 			currentStage = 0;
 		}
 		if (currentStage >= 4)
@@ -81,39 +81,39 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		if (!canPlaceStage(serverLevel, face, currentStage))
 			return;
 		placeStageBlock(serverLevel, face, targetStage);
-		faceXp[idx] = stageThreshold(targetStage);
+		faceFluidAmounts[idx] = stageThreshold(targetStage);
 		syncToClient();
 	}
 
-	private void applyXpToFace(Direction face, int amount) {
+	private void applyFluidToFace(Direction face, int amount) {
 		int idx = face.get3DDataValue();
-		int currentStage = stageOf(faceXp[idx]);
+		int currentStage = stageOf(faceFluidAmounts[idx]);
 		if (!worldMatchesStage(face, currentStage)) {
-			faceXp[idx] = 0;
+			faceFluidAmounts[idx] = 0;
 			currentStage = 0;
 		}
 
 		if (currentStage == 4) {
 			harvestMatureCluster(face);
-			faceXp[idx] = 0;
+			faceFluidAmounts[idx] = 0;
 			currentStage = 0;
 		}
 
-		int newXp = Math.min(ExperienceConstants.buddingMatureXp(), faceXp[idx] + amount);
-		int newStage = stageOf(newXp);
+		int newAmount = Math.min(ExperienceConstants.buddingMatureXp(), faceFluidAmounts[idx] + amount);
+		int newStage = stageOf(newAmount);
 
 		while (currentStage < newStage) {
 			int targetStage = currentStage + 1;
 			if (!(level instanceof ServerLevel serverLevel)
 				|| !canPlaceStage(serverLevel, face, currentStage)) {
-				newXp = Math.min(newXp, stageThreshold(currentStage + 1) - 1);
+				newAmount = Math.min(newAmount, stageThreshold(currentStage + 1) - 1);
 				break;
 			}
 			placeStageBlock(serverLevel, face, targetStage);
 			currentStage = targetStage;
 		}
 
-		faceXp[idx] = newXp;
+		faceFluidAmounts[idx] = newAmount;
 		syncToClient();
 	}
 
@@ -180,7 +180,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 			return open;
 		for (Direction dir : Direction.values()) {
 			int idx = dir.get3DDataValue();
-			int storedStage = stageOf(faceXp[idx]);
+			int storedStage = stageOf(faceFluidAmounts[idx]);
 			if (worldMatchesStage(dir, storedStage)) {
 				if (storedStage > 0) {
 					open.add(dir);
@@ -200,14 +200,14 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		return open;
 	}
 
-	private static int stageOf(int xp) {
-		if (xp >= ExperienceConstants.buddingMatureXp())
+	private static int stageOf(int fluidAmount) {
+		if (fluidAmount >= ExperienceConstants.buddingMatureXp())
 			return 4;
-		if (xp >= ExperienceConstants.largeBudXpValue())
+		if (fluidAmount >= ExperienceConstants.largeBudXpValue())
 			return 3;
-		if (xp >= ExperienceConstants.mediumBudXpValue())
+		if (fluidAmount >= ExperienceConstants.mediumBudXpValue())
 			return 2;
-		if (xp >= ExperienceConstants.smallBudXpValue())
+		if (fluidAmount >= ExperienceConstants.smallBudXpValue())
 			return 1;
 		return 0;
 	}
@@ -239,8 +239,8 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 			.forGoggles(tooltip);
 		for (Direction dir : Direction.values()) {
 			int idx = dir.get3DDataValue();
-			int xp = faceXp[idx];
-			int stage = stageOf(xp);
+			int fluidAmount = faceFluidAmounts[idx];
+			int stage = stageOf(fluidAmount);
 			String stageKey = "create_biotech.gui.goggles.budding_experience.stage." + stage;
 			String facingKey = "create_biotech.gui.goggles.budding_experience.facing." + dir.getName();
 			CreateLang.builder()
@@ -249,21 +249,22 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 				.text(": ")
 				.add(Component.translatable(stageKey)
 					.withStyle(ChatFormatting.GOLD))
-				.text(ChatFormatting.DARK_GRAY, " (" + xp + " / " + ExperienceConstants.buddingMatureXp() + " XP)")
+				.text(ChatFormatting.DARK_GRAY,
+					" (" + fluidAmount + " / " + ExperienceConstants.buddingMatureXp() + " mB)")
 				.forGoggles(tooltip, 1);
 		}
 		return true;
 	}
 
-	public int getFaceXp(Direction direction) {
-		return faceXp[direction.get3DDataValue()];
+	public int getFaceFluidAmount(Direction direction) {
+		return faceFluidAmounts[direction.get3DDataValue()];
 	}
 
 	public void resetFaceState(Direction face) {
 		int idx = face.get3DDataValue();
-		if (faceXp[idx] == 0)
+		if (faceFluidAmounts[idx] == 0)
 			return;
-		faceXp[idx] = 0;
+		faceFluidAmounts[idx] = 0;
 		syncToClient();
 	}
 
@@ -271,14 +272,14 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 	protected void saveAdditional(CompoundTag tag) {
 		super.saveAdditional(tag);
 		for (int i = 0; i < 6; i++)
-			tag.putInt("Face" + i, faceXp[i]);
+			tag.putInt("Face" + i, faceFluidAmounts[i]);
 	}
 
 	@Override
 	public void load(CompoundTag tag) {
 		super.load(tag);
 		for (int i = 0; i < 6; i++)
-			faceXp[i] = tag.getInt("Face" + i);
+			faceFluidAmounts[i] = tag.getInt("Face" + i);
 	}
 
 	@Override
@@ -325,19 +326,19 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 
 		@Override
 		public int getTankCapacity(int tank) {
-			return getExperienceSpace();
+			return tank == 0 ? getFluidSpace() : 0;
 		}
 
 		@Override
 		public boolean isFluidValid(int tank, FluidStack stack) {
-			return ExperienceFluidHelper.isExperience(stack);
+			return tank == 0 && ExperienceFluidHelper.isExperience(stack);
 		}
 
 		@Override
 		public int fill(FluidStack resource, FluidAction action) {
 			if (!ExperienceFluidHelper.isExperience(resource))
 				return 0;
-			return insertExperience(ExperienceFluidHelper.fluidAmountToXp(resource.getAmount()), action.simulate());
+			return insertFluid(resource.getAmount(), action.simulate());
 		}
 
 		@Override

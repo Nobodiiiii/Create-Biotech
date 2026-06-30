@@ -58,6 +58,10 @@ public class ShulkerTeleporterMenu extends AbstractContainerMenu {
 		return blockPos;
 	}
 
+	public ShulkerTeleporterBlockEntity getBlockEntity() {
+		return blockEntity;
+	}
+
 	public String getOwnAddress() {
 		return ownAddress;
 	}

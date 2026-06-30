@@ -179,7 +179,7 @@ public class EvokerEnchantingChamberBlock extends BaseEntityBlock {
 		if (!state.is(newState.getBlock()) && state.getValue(HALF) == DoubleBlockHalf.LOWER) {
 			BlockEntity blockEntity = level.getBlockEntity(pos);
 			if (blockEntity instanceof EvokerEnchantingChamberBlockEntity chamber)
-				chamber.dropContentsAndExperience();
+				chamber.dropContentsAndFluid();
 		}
 		super.onRemove(state, level, pos, newState, isMoving);
 	}

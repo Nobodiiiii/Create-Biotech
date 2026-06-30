@@ -2,7 +2,7 @@ package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
 import java.util.List;
 
-import com.nobodiiiii.createbiotech.compat.jade.JadeExperienceProvider;
+import com.nobodiiiii.createbiotech.compat.jade.JadeFluidProvider;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceFluidHelper;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceHelper;
@@ -17,6 +17,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.sounds.SoundEvents;
@@ -40,7 +41,7 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 public class EvokerEnchantingChamberBlockEntity extends BlockEntity
-	implements IHaveGoggleInformation, JadeExperienceProvider {
+	implements IHaveGoggleInformation, JadeFluidProvider {
 
 	public static final int CAST_DURATION_TICKS_PER_LEVEL = 40;
 	private static final int CLIENT_SYNC_INTERVAL_TICKS = 10;
@@ -54,10 +55,10 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	private static final double ITEM_BOB_AMPLITUDE = 0.06d;
 	private static final double ITEM_BOB_SPEED = 0.1d;
 
-	private int xpRemaining;
-	private int xpTotal;
-	private int storedExperience;
-	private boolean waitingForExperience;
+	private int fluidRemaining;
+	private int fluidTotal;
+	private FluidStack storedFluid = FluidStack.EMPTY;
+	private boolean waitingForFluid;
 	private int clientSyncTimer;
 	private ItemStack heldItem = ItemStack.EMPTY;
 	private ItemStack pendingOutput = ItemStack.EMPTY;
@@ -78,24 +79,24 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			return;
 		}
 
-		if (be.heldItem.isEmpty() || be.xpRemaining <= 0)
+		if (be.heldItem.isEmpty() || be.fluidRemaining <= 0)
 			return;
 
-		int drain = Math.min(getXpPerTick(), Math.min(be.xpRemaining, be.storedExperience));
+		int drain = Math.min(getFluidPerTick(), Math.min(be.fluidRemaining, be.getStoredFluidAmount()));
 		if (drain <= 0) {
-			if (!be.waitingForExperience) {
-				be.waitingForExperience = true;
+			if (!be.waitingForFluid) {
+				be.waitingForFluid = true;
 				be.syncToClient();
 			}
 			return;
 		}
 
-		boolean wasWaiting = be.waitingForExperience;
-		be.waitingForExperience = false;
-		be.storedExperience -= drain;
-		be.xpRemaining -= drain;
+		boolean wasWaiting = be.waitingForFluid;
+		be.waitingForFluid = false;
+		be.shrinkStoredFluid(drain);
+		be.fluidRemaining -= drain;
 
-		if (be.xpRemaining <= 0) {
+		if (be.fluidRemaining <= 0) {
 			be.completeCasting();
 			be.syncToClient();
 			return;
@@ -166,11 +167,11 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	private void startCasting(ItemStack copyStack) {
 		heldItem = copyStack;
 		int totalLevels = ExperienceHelper.sumStoredEnchantmentLevels(copyStack);
-		xpTotal = totalLevels * ExperienceConstants.chamberXpPerLevel();
-		xpRemaining = xpTotal;
-		waitingForExperience = xpTotal > 0 && storedExperience <= 0;
+		fluidTotal = totalLevels * ExperienceConstants.chamberFluidPerLevel();
+		fluidRemaining = fluidTotal;
+		waitingForFluid = fluidTotal > 0 && getStoredFluidAmount() <= 0;
 		clientSyncTimer = 0;
-		if (xpTotal <= 0) {
+		if (fluidTotal <= 0) {
 			completeCasting();
 		}
 		setChanged();
@@ -182,9 +183,9 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			return;
 		pendingOutput = EnchantmentBookCopyItem.toEnchantedBook(heldItem);
 		heldItem = ItemStack.EMPTY;
-		xpRemaining = 0;
-		xpTotal = 0;
-		waitingForExperience = false;
+		fluidRemaining = 0;
+		fluidTotal = 0;
+		waitingForFluid = false;
 		clientSyncTimer = 0;
 		if (level != null && !level.isClientSide)
 			level.playSound(null, worldPosition, SoundEvents.ENCHANTMENT_TABLE_USE, SoundSource.BLOCKS, 0.85f, 1.0f);
@@ -194,51 +195,51 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
 			return controller.isCastingSpell();
-		return !heldItem.isEmpty() && xpRemaining > 0 && !waitingForExperience;
+		return !heldItem.isEmpty() && fluidRemaining > 0 && !waitingForFluid;
 	}
 
-	public boolean isWaitingForExperience() {
+	public boolean isWaitingForFluid() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.isWaitingForExperience();
-		return waitingForExperience;
+			return controller.isWaitingForFluid();
+		return waitingForFluid;
 	}
 
-	public int getStoredExperience() {
+	public int getStoredFluidAmount() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.getStoredExperience();
-		return storedExperience;
+			return controller.getStoredFluidAmount();
+		return storedFluid.getAmount();
 	}
 
-	public int getXpRemaining() {
+	public int getFluidRemaining() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.getXpRemaining();
-		return xpRemaining;
+			return controller.getFluidRemaining();
+		return fluidRemaining;
 	}
 
-	public int getXpTotal() {
+	public int getFluidTotal() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.getXpTotal();
-		return xpTotal;
+			return controller.getFluidTotal();
+		return fluidTotal;
 	}
 
-	public int getXpConsumed() {
+	public int getFluidConsumed() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.getXpConsumed();
-		return Math.max(0, xpTotal - xpRemaining);
+			return controller.getFluidConsumed();
+		return Math.max(0, fluidTotal - fluidRemaining);
 	}
 
 	@Override
-	public int getJadeCurrentXp() {
-		return getStoredExperience();
+	public int getJadeCurrentFluidAmount() {
+		return getStoredFluidAmount();
 	}
 
 	@Override
-	public int getJadeMaxXp() {
+	public int getJadeMaxFluidAmount() {
 		return ExperienceConstants.chamberCacheCapacity();
 	}
 
@@ -263,21 +264,21 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return pendingOutput;
 	}
 
-	public void setRenderPreviewState(ItemStack heldItem, ItemStack pendingOutput, int storedExperience, int xpRemaining,
-		int xpTotal, boolean waitingForExperience) {
+	public void setRenderPreviewState(ItemStack heldItem, ItemStack pendingOutput, int storedFluidAmount,
+		int fluidRemaining, int fluidTotal, boolean waitingForFluid) {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this) {
-			controller.setRenderPreviewState(heldItem, pendingOutput, storedExperience, xpRemaining, xpTotal,
-				waitingForExperience);
+			controller.setRenderPreviewState(heldItem, pendingOutput, storedFluidAmount, fluidRemaining, fluidTotal,
+				waitingForFluid);
 			return;
 		}
 
 		this.heldItem = heldItem.copy();
 		this.pendingOutput = pendingOutput.copy();
-		this.storedExperience = storedExperience;
-		this.xpRemaining = xpRemaining;
-		this.xpTotal = xpTotal;
-		this.waitingForExperience = waitingForExperience;
+		this.storedFluid = ExperienceFluidHelper.experienceStack(storedFluidAmount);
+		this.fluidRemaining = fluidRemaining;
+		this.fluidTotal = fluidTotal;
+		this.waitingForFluid = waitingForFluid;
 		this.clientSyncTimer = 0;
 	}
 
@@ -291,10 +292,11 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		super.saveAdditional(tag);
 		if (isUpperHalf())
 			return;
-		tag.putInt("XpRemaining", xpRemaining);
-		tag.putInt("XpTotal", xpTotal);
-		tag.putInt("StoredExperience", storedExperience);
-		tag.putBoolean("WaitingForExperience", waitingForExperience);
+		tag.putInt("FluidRemaining", fluidRemaining);
+		tag.putInt("FluidTotal", fluidTotal);
+		if (!storedFluid.isEmpty())
+			tag.put("TankContent", storedFluid.writeToNBT(new CompoundTag()));
+		tag.putBoolean("WaitingForFluid", waitingForFluid);
 		if (!heldItem.isEmpty())
 			tag.put("HeldItem", heldItem.serializeNBT());
 		if (!pendingOutput.isEmpty())
@@ -305,21 +307,33 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 	public void load(CompoundTag tag) {
 		super.load(tag);
 		if (isUpperHalf()) {
-			xpRemaining = 0;
-			xpTotal = 0;
-			storedExperience = 0;
-			waitingForExperience = false;
+			fluidRemaining = 0;
+			fluidTotal = 0;
+			storedFluid = FluidStack.EMPTY;
+			waitingForFluid = false;
 			heldItem = ItemStack.EMPTY;
 			pendingOutput = ItemStack.EMPTY;
 			return;
 		}
-		xpRemaining = tag.getInt("XpRemaining");
-		xpTotal = tag.getInt("XpTotal");
-		storedExperience = tag.getInt("StoredExperience");
-		waitingForExperience = tag.getBoolean("WaitingForExperience");
+		fluidRemaining = tag.contains("FluidRemaining") ? tag.getInt("FluidRemaining") : tag.getInt("XpRemaining");
+		fluidTotal = tag.contains("FluidTotal") ? tag.getInt("FluidTotal") : tag.getInt("XpTotal");
+		storedFluid = readStoredFluid(tag);
+		waitingForFluid = tag.contains("WaitingForFluid")
+			? tag.getBoolean("WaitingForFluid")
+			: tag.getBoolean("WaitingForExperience");
 		heldItem = tag.contains("HeldItem") ? ItemStack.of(tag.getCompound("HeldItem")) : ItemStack.EMPTY;
 		pendingOutput = tag.contains("PendingOutput") ? ItemStack.of(tag.getCompound("PendingOutput"))
 			: ItemStack.EMPTY;
+	}
+
+	private static FluidStack readStoredFluid(CompoundTag tag) {
+		if (tag.contains("TankContent", Tag.TAG_COMPOUND)) {
+			FluidStack fluid = FluidStack.loadFluidStackFromNBT(tag.getCompound("TankContent"));
+			return ExperienceFluidHelper.isExperience(fluid) ? fluid : FluidStack.EMPTY;
+		}
+		if (tag.contains("StoredExperience", Tag.TAG_INT))
+			return ExperienceFluidHelper.experienceStack(tag.getInt("StoredExperience"));
+		return FluidStack.EMPTY;
 	}
 
 	@Override
@@ -345,25 +359,70 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return super.getCapability(cap, side);
 	}
 
-	public int insertExperience(int amount, boolean simulate) {
+	public int insertFluid(FluidStack resource, boolean simulate) {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.insertExperience(amount, simulate);
-		if (amount <= 0)
+			return controller.insertFluid(resource, simulate);
+		if (!canFillWith(resource))
 			return 0;
-		int accepted = Math.min(amount, getExperienceSpace());
+		int accepted = Math.min(resource.getAmount(), getFluidSpace());
 		if (simulate || accepted <= 0)
 			return accepted;
-		storedExperience += accepted;
+		if (storedFluid.isEmpty()) {
+			storedFluid = resource.copy();
+			storedFluid.setAmount(accepted);
+		} else {
+			storedFluid.grow(accepted);
+		}
 		syncToClient();
 		return accepted;
 	}
 
-	public int getExperienceSpace() {
+	public int getFluidSpace() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
-			return controller.getExperienceSpace();
-		return Math.max(0, ExperienceConstants.chamberCacheCapacity() - storedExperience);
+			return controller.getFluidSpace();
+		return Math.max(0, ExperienceConstants.chamberCacheCapacity() - getStoredFluidAmount());
+	}
+
+	private boolean canFillWith(FluidStack resource) {
+		return ExperienceFluidHelper.isExperience(resource)
+			&& (storedFluid.isEmpty() || storedFluid.isFluidEqual(resource))
+			&& getFluidSpace() > 0;
+	}
+
+	private void shrinkStoredFluid(int amount) {
+		if (amount <= 0 || storedFluid.isEmpty())
+			return;
+		storedFluid.shrink(amount);
+		if (storedFluid.isEmpty())
+			storedFluid = FluidStack.EMPTY;
+	}
+
+	private FluidStack drainFluid(FluidStack resource, boolean simulate) {
+		EvokerEnchantingChamberBlockEntity controller = getController();
+		if (controller != null && controller != this)
+			return controller.drainFluid(resource, simulate);
+		if (resource.isEmpty() || storedFluid.isEmpty() || !storedFluid.isFluidEqual(resource))
+			return FluidStack.EMPTY;
+		return drainFluid(resource.getAmount(), simulate);
+	}
+
+	private FluidStack drainFluid(int maxDrain, boolean simulate) {
+		EvokerEnchantingChamberBlockEntity controller = getController();
+		if (controller != null && controller != this)
+			return controller.drainFluid(maxDrain, simulate);
+		if (maxDrain <= 0 || storedFluid.isEmpty())
+			return FluidStack.EMPTY;
+
+		int drained = Math.min(maxDrain, storedFluid.getAmount());
+		FluidStack result = storedFluid.copy();
+		result.setAmount(drained);
+		if (!simulate) {
+			shrinkStoredFluid(drained);
+			syncToClient();
+		}
+		return result;
 	}
 
 	@Override
@@ -376,14 +435,14 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			.add(Component.translatable("create_biotech.gui.goggles.enchanting_chamber"))
 			.forGoggles(tooltip);
 
-		String unitKey = "create_biotech.generic.unit.experience_points";
+		String unitKey = "create_biotech.generic.unit.millibuckets";
 
 		CreateLang.builder()
 			.add(Component.translatable("create_biotech.gui.goggles.enchanting_chamber.cache")
 				.withStyle(ChatFormatting.GRAY))
 			.forGoggles(tooltip, 1);
 		CreateLang.builder()
-			.add(CreateLang.number(storedExperience)
+			.add(CreateLang.number(getStoredFluidAmount())
 				.add(Component.translatable(unitKey))
 				.style(ChatFormatting.GOLD))
 			.text(ChatFormatting.GRAY, " / ")
@@ -392,21 +451,21 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 				.style(ChatFormatting.DARK_GRAY))
 			.forGoggles(tooltip, 1);
 
-		if (xpTotal > 0 && !heldItem.isEmpty()) {
+		if (fluidTotal > 0 && !heldItem.isEmpty()) {
 			CreateLang.builder()
 				.add(Component.translatable("create_biotech.gui.goggles.enchanting_chamber.progress")
 					.withStyle(ChatFormatting.GRAY))
 				.forGoggles(tooltip, 1);
 			CreateLang.builder()
-				.add(CreateLang.number(getXpConsumed())
+				.add(CreateLang.number(getFluidConsumed())
 					.add(Component.translatable(unitKey))
 					.style(ChatFormatting.AQUA))
 				.text(ChatFormatting.GRAY, " / ")
-				.add(CreateLang.number(xpTotal)
+				.add(CreateLang.number(fluidTotal)
 					.add(Component.translatable(unitKey))
 					.style(ChatFormatting.DARK_GRAY))
 				.forGoggles(tooltip, 1);
-			if (waitingForExperience) {
+			if (waitingForFluid) {
 				CreateLang.builder()
 					.add(Component.translatable("create_biotech.gui.goggles.enchanting_chamber.waiting")
 						.withStyle(ChatFormatting.RED))
@@ -453,10 +512,10 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		return below instanceof EvokerEnchantingChamberBlockEntity chamber ? chamber : null;
 	}
 
-	public void dropContentsAndExperience() {
+	public void dropContentsAndFluid() {
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this) {
-			controller.dropContentsAndExperience();
+			controller.dropContentsAndFluid();
 			return;
 		}
 		if (level == null || level.isClientSide)
@@ -467,8 +526,6 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			Containers.dropItemStack(level, dropPos.x, dropPos.y, dropPos.z, heldItem.copy());
 		if (!pendingOutput.isEmpty())
 			Containers.dropItemStack(level, dropPos.x, dropPos.y, dropPos.z, pendingOutput.copy());
-		if (storedExperience > 0)
-			ExperienceHelper.spawnExperience(level, dropPos, storedExperience);
 		clearState(true);
 	}
 
@@ -488,15 +545,15 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 			level.setBlockEntity(proxy);
 	}
 
-	private void clearState(boolean clearStoredExperience) {
+	private void clearState(boolean clearStoredFluid) {
 		heldItem = ItemStack.EMPTY;
 		pendingOutput = ItemStack.EMPTY;
-		xpRemaining = 0;
-		xpTotal = 0;
-		waitingForExperience = false;
+		fluidRemaining = 0;
+		fluidTotal = 0;
+		waitingForFluid = false;
 		clientSyncTimer = 0;
-		if (clearStoredExperience)
-			storedExperience = 0;
+		if (clearStoredFluid)
+			storedFluid = FluidStack.EMPTY;
 		syncToClient();
 	}
 
@@ -611,43 +668,41 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 		@Override
 		public FluidStack getFluidInTank(int tank) {
-			return ExperienceFluidHelper.experienceStack(storedExperience);
+			return tank == 0 ? storedFluid.copy() : FluidStack.EMPTY;
 		}
 
 		@Override
 		public int getTankCapacity(int tank) {
-			return ExperienceConstants.chamberCacheCapacity();
+			return tank == 0 ? ExperienceConstants.chamberCacheCapacity() : 0;
 		}
 
 		@Override
 		public boolean isFluidValid(int tank, FluidStack stack) {
-			return ExperienceFluidHelper.isExperience(stack);
+			return tank == 0 && ExperienceFluidHelper.isExperience(stack);
 		}
 
 		@Override
 		public int fill(FluidStack resource, FluidAction action) {
-			if (!ExperienceFluidHelper.isExperience(resource))
-				return 0;
-			return insertExperience(ExperienceFluidHelper.fluidAmountToXp(resource.getAmount()), action.simulate());
+			return insertFluid(resource, action.simulate());
 		}
 
 		@Override
 		public FluidStack drain(FluidStack resource, FluidAction action) {
-			return FluidStack.EMPTY;
+			return drainFluid(resource, action.simulate());
 		}
 
 		@Override
 		public FluidStack drain(int maxDrain, FluidAction action) {
-			return FluidStack.EMPTY;
+			return drainFluid(maxDrain, action.simulate());
 		}
 	}
 
 	public void dropContents() {
-		dropContentsAndExperience();
+		dropContentsAndFluid();
 	}
 
-	private static int getXpPerTick() {
-		return Math.max(1, Mth.ceil((float) ExperienceConstants.chamberXpPerLevel()
+	private static int getFluidPerTick() {
+		return Math.max(1, Mth.ceil((float) ExperienceConstants.chamberFluidPerLevel()
 			/ Math.max(1, com.nobodiiiii.createbiotech.registry.CBConfigs.SERVER.evokerEnchantingChamber.castDurationTicksPerLevel.get())));
 	}
 }

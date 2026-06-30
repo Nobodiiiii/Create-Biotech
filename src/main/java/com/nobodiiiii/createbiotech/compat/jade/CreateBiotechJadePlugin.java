@@ -36,8 +36,8 @@ import snownee.jade.api.theme.IThemeHelper;
 @WailaPlugin
 public class CreateBiotechJadePlugin implements IWailaPlugin {
 
-	private static final String CURRENT_XP = "CurrentXp";
-	private static final String MAX_XP = "MaxXp";
+	private static final String CURRENT_FLUID = "CurrentFluid";
+	private static final String MAX_FLUID = "MaxFluid";
 
 	private static final String BIONIC_NAME_PREFIX_KEY = "create_biotech.jade.bionic_prefix";
 
@@ -62,20 +62,20 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 		@Override
 		public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
 			CompoundTag data = accessor.getServerData();
-			if (!data.contains(CURRENT_XP) || !data.contains(MAX_XP))
+			if (!data.contains(CURRENT_FLUID) || !data.contains(MAX_FLUID))
 				return;
 
-			int current = data.getInt(CURRENT_XP);
-			int max = data.getInt(MAX_XP);
+			int current = data.getInt(CURRENT_FLUID);
+			int max = data.getInt(MAX_FLUID);
 
 			tooltip.add(tooltip.getElementHelper()
 				.smallItem(new ItemStack(CBItems.EXPERIENCE.get())));
 			tooltip.append(tooltip.getElementHelper()
 				.spacer(2, 1));
-			tooltip.append(Component.literal(Integer.toString(current))
+			tooltip.append(Component.literal(current + " mB")
 				.withStyle(ChatFormatting.GOLD)
 				.append(Component.literal(" / ").withStyle(ChatFormatting.GRAY))
-				.append(Component.literal(max + " XP").withStyle(ChatFormatting.DARK_GRAY)));
+				.append(Component.literal(max + " mB").withStyle(ChatFormatting.DARK_GRAY)));
 		}
 
 		@Override
@@ -117,16 +117,16 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 
 		@Override
 		public void appendServerData(CompoundTag tag, BlockAccessor accessor) {
-			JadeExperienceProvider provider = resolveProvider(accessor);
+			JadeFluidProvider provider = resolveProvider(accessor);
 			if (provider == null)
 				return;
-			tag.putInt(CURRENT_XP, provider.getJadeCurrentXp());
-			tag.putInt(MAX_XP, provider.getJadeMaxXp());
+			tag.putInt(CURRENT_FLUID, provider.getJadeCurrentFluidAmount());
+			tag.putInt(MAX_FLUID, provider.getJadeMaxFluidAmount());
 		}
 
-		private static JadeExperienceProvider resolveProvider(BlockAccessor accessor) {
+		private static JadeFluidProvider resolveProvider(BlockAccessor accessor) {
 			BlockEntity be = accessor.getBlockEntity();
-			if (be instanceof JadeExperienceProvider provider)
+			if (be instanceof JadeFluidProvider provider)
 				return provider;
 
 			BlockState state = accessor.getBlockState();
@@ -134,7 +134,7 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 				&& state.getValue(EvokerEnchantingChamberBlock.HALF) == DoubleBlockHalf.UPPER) {
 				BlockPos lowerPos = accessor.getPosition().below();
 				BlockEntity lower = accessor.getLevel().getBlockEntity(lowerPos);
-				if (lower instanceof JadeExperienceProvider provider)
+				if (lower instanceof JadeFluidProvider provider)
 					return provider;
 			}
 			return null;

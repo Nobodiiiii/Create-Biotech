@@ -7,13 +7,15 @@ import java.util.Locale;
 
 import org.lwjgl.glfw.GLFW;
 
+import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.content.trains.station.NoShadowFontWrapper;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
+import com.simibubi.create.foundation.gui.CustomLightingSettings;
 import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 
+import net.createmod.catnip.gui.ILightingSettings;
 import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.ChatFormatting;
@@ -21,13 +23,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.level.block.state.BlockState;
 
 public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<ShulkerTeleporterMenu> {
 
@@ -77,10 +77,16 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private static final int FOOTER_TEXT_WIDTH = 158;
 	private static final int FOOTER_EDIT_Y = 4;
 	private static final int SELECTED_OVERLAY_WIDTH = 180;
-	private static final int PREVIEW_AREA_WIDTH = 68;
-	private static final int PREVIEW_AREA_HEIGHT = 72;
+	private static final int PREVIEW_AREA_WIDTH = 136;
+	private static final int PREVIEW_AREA_HEIGHT = 144;
 	private static final int PREVIEW_X_OFFSET = 4;
 	private static final int PREVIEW_BOTTOM_OFFSET = 6;
+	private static final int PREVIEW_Y_OFFSET_UP = 18;
+	private static final float PREVIEW_MODEL_SCALE = 44.0f;
+	private static final ILightingSettings PREVIEW_LIGHTING = CustomLightingSettings.builder()
+		.firstLightRotation(12.5f, 45.0f)
+		.secondLightRotation(-20.0f, 50.0f)
+		.build();
 
 	private static final int SEARCH_TEXT_COLOR = 0xC8BFCE;
 	private static final int SEARCH_HINT_COLOR = 0x8A8290;
@@ -410,11 +416,21 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private void renderBlockPreview(GuiGraphics graphics) {
-		GuiGameElement.of(getPreviewBlockState())
-			.<GuiGameElement.GuiRenderBuilder>at(getPreviewAnchorX(), getPreviewAnchorY(), -100)
-			.scale(48)
-			.rotateBlock(-22.5f, -45, 0)
+		graphics.pose()
+			.pushPose();
+		graphics.pose()
+			.translate(getPreviewAnchorX(), getPreviewAnchorY(), 100);
+		graphics.pose()
+			.mulPose(Axis.XP.rotationDegrees(-22.5f));
+		graphics.pose()
+			.mulPose(Axis.YP.rotationDegrees(-45.0f));
+		GuiGameElement.of(menu.getBlockEntity())
+			.lighting(PREVIEW_LIGHTING)
+			.atLocal(0.0d, -ShulkerTeleporterBlock.TOP, 0.0d)
+			.scale(PREVIEW_MODEL_SCALE)
 			.render(graphics);
+		graphics.pose()
+			.popPose();
 	}
 
 	private void startAddingAddress() {
@@ -566,13 +582,6 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		return GuiTexture.TOP.height + GuiTexture.BODY.height * bodySlices + GuiTexture.FOOTER.height;
 	}
 
-	private BlockState getPreviewBlockState() {
-		return CBBlocks.SHULKER_TELEPORTER.get()
-			.defaultBlockState()
-			.setValue(ShulkerTeleporterBlock.FACING, Direction.SOUTH)
-			.setValue(ShulkerTeleporterBlock.PART, ShulkerTeleporterBlock.BOTTOM);
-	}
-
 	private int getListHeightInset() {
 		return 23;
 	}
@@ -659,7 +668,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int getPreviewAreaX() {
-		return leftPos + WINDOW_WIDTH + PREVIEW_X_OFFSET;
+		return leftPos - PREVIEW_AREA_WIDTH - PREVIEW_X_OFFSET;
 	}
 
 	private int getPreviewAreaY() {
@@ -671,7 +680,7 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	}
 
 	private int getPreviewAnchorY() {
-		return topPos + getWindowHeight() - PREVIEW_BOTTOM_OFFSET;
+		return topPos + getWindowHeight() - PREVIEW_BOTTOM_OFFSET - PREVIEW_Y_OFFSET_UP;
 	}
 
 	private void focusEditBox(EditBox box) {

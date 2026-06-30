@@ -450,13 +450,13 @@ public class CBConfigs {
 
 	public static class EvokerEnchantingChamber {
 		public final ForgeConfigSpec.IntValue castDurationTicksPerLevel;
-		public final ForgeConfigSpec.IntValue xpPerLevel;
+		public final ForgeConfigSpec.IntValue fluidPerLevel;
 		public final ForgeConfigSpec.IntValue cacheCapacity;
 
 		EvokerEnchantingChamber(ForgeConfigSpec.Builder builder) {
 			builder.push("evokerEnchantingChamber");
 			castDurationTicksPerLevel = builder.defineInRange("castDurationTicksPerLevel", 40, 1, Integer.MAX_VALUE);
-			xpPerLevel = builder.defineInRange("xpPerLevel", 1000, 1, Integer.MAX_VALUE);
+			fluidPerLevel = builder.defineInRange("fluidPerLevel", 1000, 1, Integer.MAX_VALUE);
 			cacheCapacity = builder.defineInRange("cacheCapacity", 3000, 1, Integer.MAX_VALUE);
 			builder.pop();
 		}

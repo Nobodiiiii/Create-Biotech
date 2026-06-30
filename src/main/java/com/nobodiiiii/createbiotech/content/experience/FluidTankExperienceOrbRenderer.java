@@ -14,7 +14,7 @@ import net.minecraftforge.fluids.FluidStack;
 import org.joml.Quaternionf;
 
 public final class FluidTankExperienceOrbRenderer {
-	private static final int XP_PER_ORB = 300;
+	private static final int FLUID_PER_ORB = 300;
 	private static final int MAX_ORBS = 384;
 	private static final float ORB_SPEED = 0.06f;
 	private static final float ORB_TURN_RATE = 0.04f;
@@ -32,21 +32,24 @@ public final class FluidTankExperienceOrbRenderer {
 		if (level == null)
 			return false;
 
-		int storedExperience = ExperienceFluidHelper.fluidAmountToXp(fluidStack.getAmount());
-		if (storedExperience <= 0)
+		int fluidAmount = fluidStack.getAmount();
+		if (fluidAmount <= 0)
 			return false;
+
+		float fullYMin = fullTankYMin(be, fluidStack, yMin, yMax);
+		float fullYMax = fullYMin + renderableTankHeight(be);
 
 		float x0 = paddedMin(xMin, xMax);
 		float x1 = paddedMax(xMin, xMax);
-		float y0 = paddedMin(yMin, yMax);
-		float y1 = paddedMax(yMin, yMax);
+		float y0 = paddedMin(fullYMin, fullYMax);
+		float y1 = paddedMax(fullYMin, fullYMax);
 		float z0 = paddedMin(zMin, zMax);
 		float z1 = paddedMax(zMin, zMax);
 		if (x1 < x0 || y1 < y0 || z1 < z0)
 			return false;
 
 		int maxOrbsForTank = Math.min(MAX_ORBS, Math.max(24, be.getTotalTankSize() * 12));
-		int orbCount = Math.max(1, Math.min(maxOrbsForTank, storedExperience / XP_PER_ORB));
+		int orbCount = Math.max(1, Math.min(maxOrbsForTank, fluidAmount / FLUID_PER_ORB));
 		float ageTicks = AnimationTickHolder.getRenderTime(level);
 		float time = ageTicks * ORB_SPEED;
 		Quaternionf billboardRotation = createBillboardRotation(level, partialTicks);
@@ -95,6 +98,21 @@ public final class FluidTankExperienceOrbRenderer {
 
 	private static float padding(float min, float max) {
 		return Math.min(EDGE_PADDING, Math.max(0, max - min) * 0.35f);
+	}
+
+	private static float fullTankYMin(FluidTankBlockEntity be, FluidStack fluidStack, float yMin, float yMax) {
+		float visibleHeight = renderableTankHeight(be);
+		if (!fluidStack.getFluid()
+			.getFluidType()
+			.isLighterThanAir())
+			return yMin;
+		return yMax - visibleHeight;
+	}
+
+	private static float renderableTankHeight(FluidTankBlockEntity be) {
+		float capHeight = 1 / 4f;
+		float minPuddleHeight = 1 / 16f;
+		return Math.max(0, be.getHeight() - 2 * capHeight - minPuddleHeight);
 	}
 
 	private static Quaternionf createBillboardRotation(Level level, float partialTicks) {

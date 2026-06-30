@@ -42,8 +42,8 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 	private static final float RENDER_SCALE = 20f;
 	private static final int RENDER_Z = 100;
 	private static final double RENDER_Y_OFFSET_BLOCKS = 2.0d;
-	private static final int PREVIEW_STORED_EXPERIENCE = 1;
-	private static final int PREVIEW_XP_TOTAL = 1;
+	private static final int PREVIEW_STORED_FLUID = 1;
+	private static final int PREVIEW_FLUID_TOTAL = 1;
 	private static final int DISPLAY_TRANSFORM_CYCLE = 80;
 	private static final float OUTPUT_PHASE_START = 0.72f;
 
@@ -93,9 +93,9 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 		boolean casting = !displayedItem.isEmpty() && ItemStack.isSameItemSameTags(displayedItem, inputCopy);
 		ItemStack heldItem = casting ? displayedItem : ItemStack.EMPTY;
 		ItemStack pendingOutput = casting ? ItemStack.EMPTY : displayedItem;
-		int xpRemaining = casting ? PREVIEW_XP_TOTAL : 0;
-		blockEntity.setRenderPreviewState(heldItem, pendingOutput, PREVIEW_STORED_EXPERIENCE, xpRemaining,
-			PREVIEW_XP_TOTAL, false);
+		int fluidRemaining = casting ? PREVIEW_FLUID_TOTAL : 0;
+		blockEntity.setRenderPreviewState(heldItem, pendingOutput, PREVIEW_STORED_FLUID, fluidRemaining,
+			PREVIEW_FLUID_TOTAL, false);
 	}
 
 	private ItemStack getDisplayedItem(float renderTime) {

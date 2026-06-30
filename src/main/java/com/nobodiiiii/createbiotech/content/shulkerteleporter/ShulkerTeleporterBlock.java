@@ -51,8 +51,9 @@ public class ShulkerTeleporterBlock extends KineticBlock
 	public static final int MIDDLE = 1;
 	public static final int TOP = 2;
 
+	private static final VoxelShape FULL_OUTLINE = Block.box(0, 0, 0, 16, 16, 16);
 	private static final VoxelShape OUTLINE = Block.box(1, 0, 1, 15, 16, 15);
-	private static final VoxelShape BOTTOM_COLLISION = Block.box(0, 0, 0, 16, 1, 16);
+	private static final VoxelShape BOTTOM_COLLISION = Block.box(1, -1, 1, 15, 0, 15);
 	private static final VoxelShape TOP_COLLISION = Block.box(1, 0, 1, 15, 16, 15);
 	private static final VoxelShape EMPTY = Block.box(0, 0, 0, 0, 0, 0);
 	private static final ThreadLocal<Boolean> REMOVING_STRUCTURE = ThreadLocal.withInitial(() -> false);
@@ -145,7 +146,7 @@ public class ShulkerTeleporterBlock extends KineticBlock
 
 	@Override
 	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-		return OUTLINE;
+		return state.getValue(PART) == TOP ? OUTLINE : FULL_OUTLINE;
 	}
 
 	@Override

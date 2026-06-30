@@ -14,8 +14,8 @@ public final class ExperienceConstants {
 		return CBConfigs.SERVER.evokerEnchantingChamber.cacheCapacity.get();
 	}
 
-	public static int chamberXpPerLevel() {
-		return CBConfigs.SERVER.evokerEnchantingChamber.xpPerLevel.get();
+	public static int chamberFluidPerLevel() {
+		return CBConfigs.SERVER.evokerEnchantingChamber.fluidPerLevel.get();
 	}
 
 	public static int clusterXpValue() {

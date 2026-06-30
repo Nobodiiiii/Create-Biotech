@@ -43,14 +43,14 @@ public final class EvokerEnchantingChamberJeiRecipes {
 			List<ItemStack> inputCopies = outputBooks.stream()
 				.map(book -> EnchantmentBookCopyItem.fromTemplate(book, CBItems.ENCHANTMENT_BOOK_COPY.get()))
 				.toList();
-			List<Integer> xpCosts = IntStream.rangeClosed(1, maxLevel)
-				.map(level -> level * ExperienceConstants.chamberXpPerLevel())
+			List<Integer> fluidAmounts = IntStream.rangeClosed(1, maxLevel)
+				.map(level -> level * ExperienceConstants.chamberFluidPerLevel())
 				.boxed()
 				.toList();
 
 			ResourceLocation id = CreateBiotech.asResource(
 				"evoker_enchanting_chamber/" + enchId.getNamespace() + "_" + enchId.getPath());
-			recipes.add(new EvokerEnchantingChamberJeiRecipe(id, inputCopies, outputBooks, xpCosts));
+			recipes.add(new EvokerEnchantingChamberJeiRecipe(id, inputCopies, outputBooks, fluidAmounts));
 		}
 		return recipes;
 	}
