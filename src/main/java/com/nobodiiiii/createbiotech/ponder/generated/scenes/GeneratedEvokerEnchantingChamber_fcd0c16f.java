@@ -65,11 +65,11 @@ public final class GeneratedEvokerEnchantingChamber_fcd0c16f {
         scene.idle(130);
         GeneratedPonderSupport.rotateCameraY(scene, -90.0f, 0f, 20);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "通过经验泵向其输送附魔所需要的经验流体", new Vec3(2.0, 1.5, 5.5), 120, null, true);
+        GeneratedPonderSupport.showText(scene, "通过经验泵向其输送附魔所需要的经验", new Vec3(2.0, 1.5, 5.5), 120, null, true);
         scene.idle(130);
         GeneratedPonderSupport.rotateCameraY(scene, 90.0f, 0f, 20);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "附魔书的总等级越高，所需的经验流体越多，时间越长", new Vec3(2.5, 3.5, 6.0), 120, null, true);
+        GeneratedPonderSupport.showText(scene, "附魔书的总等级越高，所需的经验越多，时间越长", new Vec3(2.5, 3.5, 6.0), 120, null, true);
         scene.idle(130);
     }
 
