@@ -51,7 +51,7 @@
   "create_biotech.jei.squid_printer.note.water_cost": "Each enchantment level takes %2$s ticks and consumes %1$s mB of water",
   "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "Each paid enchantment level casts for %s ticks",
   "create_biotech.jei.evoker_enchanting_chamber.note.blocked_until_extracted": "Chamber stays blocked until the result is extracted",
-  "create_biotech.jei.evoker_enchanting_chamber.note.experience": "Costs 1000 mB per total enchantment level; cache holds 3000 mB",
+  "create_biotech.jei.evoker_enchanting_chamber.note.experience": "Costs 1000 mB per total enchantment level; cache holds 4000 mB",
   "create_biotech.jei.evoker_enchanting_chamber.note.segmented": "Casting pauses between segments until more experience arrives",
   "create_biotech.recipe.experience_pumping": "Experience Pumping",
   "create_biotech.jei.experience_pump.note.nuggets": "Pulls Create Experience Nuggets from inventories and converts each to 3 mB",

@@ -51,7 +51,7 @@
   "create_biotech.jei.squid_printer.note.water_cost": "每级附魔需要 %2$s tick，并消耗 %1$s mB 的水",
   "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "每个已支付的附魔等级咏唱 %s tick",
   "create_biotech.jei.evoker_enchanting_chamber.note.blocked_until_extracted": "未取出成果前附魔室保持锁定状态",
-  "create_biotech.jei.evoker_enchanting_chamber.note.experience": "每个总附魔等级消耗 1000 mB；缓存上限 3000 mB",
+  "create_biotech.jei.evoker_enchanting_chamber.note.experience": "每个总附魔等级消耗 1000 mB；缓存上限 4000 mB",
   "create_biotech.jei.evoker_enchanting_chamber.note.segmented": "分段咏唱，经验不足时会暂停等待输入",
   "create_biotech.recipe.experience_pumping": "经验泵送",
   "create_biotech.jei.experience_pump.note.nuggets": "从容器中抽取机械动力经验粒，并将每个经验粒转化为 3 mB",

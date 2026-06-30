@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
 import java.util.List;
 
-import com.nobodiiiii.createbiotech.compat.jade.JadeFluidProvider;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceFluidHelper;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceHelper;
@@ -41,7 +40,7 @@ import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.items.IItemHandler;
 
 public class EvokerEnchantingChamberBlockEntity extends BlockEntity
-	implements IHaveGoggleInformation, JadeFluidProvider {
+	implements IHaveGoggleInformation {
 
 	public static final int CAST_DURATION_TICKS_PER_LEVEL = 40;
 	private static final int CLIENT_SYNC_INTERVAL_TICKS = 10;
@@ -231,16 +230,6 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		if (controller != null && controller != this)
 			return controller.getFluidConsumed();
 		return Math.max(0, fluidTotal - fluidRemaining);
-	}
-
-	@Override
-	public int getJadeCurrentFluidAmount() {
-		return getStoredFluidAmount();
-	}
-
-	@Override
-	public int getJadeMaxFluidAmount() {
-		return ExperienceConstants.chamberCacheCapacity();
 	}
 
 	public boolean isBlocked() {

@@ -457,7 +457,7 @@ public class CBConfigs {
 			builder.push("evokerEnchantingChamber");
 			castDurationTicksPerLevel = builder.defineInRange("castDurationTicksPerLevel", 40, 1, Integer.MAX_VALUE);
 			fluidPerLevel = builder.defineInRange("fluidPerLevel", 1000, 1, Integer.MAX_VALUE);
-			cacheCapacity = builder.defineInRange("cacheCapacity", 3000, 1, Integer.MAX_VALUE);
+			cacheCapacity = builder.defineInRange("cacheCapacity", 4000, 1, Integer.MAX_VALUE);
 			builder.pop();
 		}
 	}
