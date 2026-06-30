@@ -26,7 +26,6 @@ public class CBCreativeModeTabs {
 			.displayItems((parameters, output) -> {
 				output.accept(CBItems.CARDBOARD_BOX.get());
 				output.accept(CBItems.LARGE_CARDBOARD_BOX.get());
-				output.accept(CBItems.SCHRODINGERS_CAT.get());
 				output.accept(CBItems.SMART_SUPER_GLUE.get());
 				output.accept(CBItems.WIRELESS_TERMINAL.get());
 				output.accept(CBItems.BIO_PACKAGER.get());
@@ -36,6 +35,8 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.SLIME_CLUTCH.get());
 				output.accept(CBItems.BONE_RATCHET.get());
 				output.accept(CBItems.SPIDER_ASSEMBLY_TABLE.get());
+				output.accept(CBBlocks.CUTE_CAT_ON_SHAFT.get().asItem(), TabVisibility.SEARCH_TAB_ONLY);
+				output.accept(CBBlocks.BUTTER_CAT_ENGINE.get().asItem());
 				output.accept(CBItems.FIXED_CARROT_FISHING_ROD.get());
 				output.accept(CBItems.POWER_BELT_CONNECTOR.get());
 				output.accept(CBItems.SLIME_BELT_CONNECTOR.get());
@@ -59,20 +60,19 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.ASURINE_CASING.get());
 				output.accept(CBItems.BIOTECH_CASING.get());
 				output.accept(CBItems.PETRI_DISH.get());
+				output.accept(CBItems.SCHRODINGERS_CAT.get());
 				output.accept(CBItems.ASURINE_ALLOY.get());
 				output.accept(CBItems.CARBON_POWDER.get());
 				output.accept(CBItems.GRAPHITE.get());
 				output.accept(CBItems.ZINC_SHEET.get());
-				output.accept(CBItems.CAPTURED_SMALL_SLIME.get());
 				output.accept(CBItems.BIONIC_MECHANISM.get());
 				output.accept(CBItems.ENCHANTMENT_BOOK_COPY.get());
-				output.accept(CBItems.HALF_SHAFT.get());
-				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 				output.accept(CBItems.BUTTER.get());
 				output.accept(CBItems.SUPER_BUTTER.get());
+				output.accept(CBItems.HALF_SHAFT.get());
+				output.accept(CBItems.CAPTURED_SMALL_SLIME.get());
+				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 				CBFluids.CREAM.getBucket().ifPresent(output::accept);
-				output.accept(CBBlocks.CUTE_CAT_ON_SHAFT.get().asItem(), TabVisibility.SEARCH_TAB_ONLY);
-				output.accept(CBBlocks.BUTTER_CAT_ENGINE.get().asItem());
 			})
 			.build());
 

@@ -35,7 +35,7 @@ MODRINTH_API = "https://api.modrinth.com/v2"
 MODRINTH_PROJECT_ID = "UW0IjVT0"
 
 CURSEFORGE_UPLOAD_API = "https://minecraft.curseforge.com/api"
-CURSEFORGE_PROJECT_ID = 0  # TODO: 填入 CurseForge 项目 ID（项目页面右侧 About Project 区可见）
+CURSEFORGE_PROJECT_ID = 1553210
 
 # CurseForge 固定版本 ID（1.20.1 / 1.21.1）
 CF_MC_VERSION_IDS = {
