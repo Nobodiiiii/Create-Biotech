@@ -50,7 +50,6 @@ public class CreateBiotech {
 		CBParticleTypes.register(modEventBus);
 		CBRecipeTypes.register(modEventBus);
 		ButterCatModule.init(modEventBus);
-		ShulkerPackagerArmInteractions.register();
 		modEventBus.addListener(CreateBiotech::onCommonSetup);
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();
@@ -73,6 +72,7 @@ public class CreateBiotech {
 	}
 
 	private static void onRegister(RegisterEvent event) {
+		ShulkerPackagerArmInteractions.register();
 		CBContraptionTypes.init();
 	}
 

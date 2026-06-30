@@ -7,27 +7,45 @@ public final class LegacyExperienceCompat {
 	private LegacyExperienceCompat() {
 	}
 
-	public static void migrateTankNbt(CompoundTag compound) {
+	public static boolean migrateTankNbt(CompoundTag compound) {
 		if (!isLegacyExperienceTank(compound))
-			return;
+			return false;
 
-		if (!compound.contains("Size", Tag.TAG_INT))
+		boolean migrated = false;
+
+		if (!compound.contains("Size", Tag.TAG_INT)) {
 			compound.putInt("Size", legacyTankWidth(compound));
-		if (!compound.contains("Height", Tag.TAG_INT))
+			migrated = true;
+		}
+		if (!compound.contains("Height", Tag.TAG_INT)) {
 			compound.putInt("Height", 1);
-		if (!compound.contains("Window", Tag.TAG_BYTE))
+			migrated = true;
+		}
+		if (!compound.contains("Window", Tag.TAG_BYTE)) {
 			compound.putBoolean("Window", true);
+			migrated = true;
+		}
 
 		if (!compound.contains("TankContent", Tag.TAG_COMPOUND)
 			&& compound.contains("StoredExperience", Tag.TAG_INT)) {
 			int amount = ExperienceFluidHelper.xpToFluidAmount(compound.getInt("StoredExperience"));
-			if (amount > 0)
+			if (amount > 0) {
 				compound.put("TankContent", ExperienceFluidHelper.experienceStack(amount)
 					.writeToNBT(new CompoundTag()));
+				migrated = true;
+			}
 		}
 
-		compound.remove("StoredExperience");
-		compound.remove("Width");
+		if (compound.contains("StoredExperience", Tag.TAG_INT)) {
+			compound.remove("StoredExperience");
+			migrated = true;
+		}
+		if (compound.contains("Width", Tag.TAG_INT)) {
+			compound.remove("Width");
+			migrated = true;
+		}
+
+		return migrated;
 	}
 
 	private static boolean isLegacyExperienceTank(CompoundTag compound) {
