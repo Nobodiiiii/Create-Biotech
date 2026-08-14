@@ -11,8 +11,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
-import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer;
-import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer.EntityRenderTuning;
+import com.nobodiiiii.createbiotech.foundation.render.BlockCenteredRenderedLivingEntityItemRenderer;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.client.Minecraft;
@@ -21,8 +20,6 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -40,10 +37,8 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float LARGE_BOX_HEIGHT = 1.0f;
 	private static final float FACE_OFFSET = 1.0f / 128.0f;
 	private static final float MAX_FLATTENED_DEPTH_OFFSET = 1.0f / 512.0f;
-	private static final float ICON_SCALE = 0.6f;
-	private static final float GUI_CENTERING_X = -2.0f / 16.0f;
-	private static final float GUI_CENTERING_Y = 4.0f / 16.0f;
-	private static final float SQUID_ENTITY_FOOT_Y_OFFSET = 1.1f;
+	private static final float ICON_FRAME_FILL = 0.6f;
+	private static final float MAX_AUTO_RENDER_SCALE = 1.5f;
 	private static final float ITEM_PLANE_TO_FACE_Y_ROT = itemPlaneToFaceYRot(ICON_FACE);
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
 
@@ -87,61 +82,53 @@ public final class CapturedEntityBoxIconRenderer {
 					.pose());
 
 				applyEntityItemTransform(iconPoseStack, face);
-				EntityRenderTuning tuning = getEntityRenderTuning(capturedEntity);
+				float renderScale = getProjectedAutoScale(capturedEntity, iconPoseStack, boxToRender, face, packedLight);
 				FaceAlignment alignment =
-					measureGeometryAlignment(capturedEntity, tuning, iconPoseStack, boxToRender, face, packedLight);
+					measureGeometryAlignment(capturedEntity, renderScale, iconPoseStack, boxToRender, face, packedLight);
 				MultiBufferSource clippedBuffer =
 					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face,
 						alignment);
-				RenderedLivingEntityItemRenderer.renderEntity(capturedEntity, tuning.scaleMultiplier(),
-					tuning.footYOffset(), iconPoseStack, clippedBuffer, packedLight);
+				BlockCenteredRenderedLivingEntityItemRenderer.renderBlockCenteredEntity(capturedEntity, renderScale,
+					iconPoseStack, clippedBuffer, packedLight);
 			});
 	}
 
-	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, EntityRenderTuning tuning,
-		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
-		GeometryBounds bounds = new GeometryBounds();
-		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
-		EntityDimensions dimensions = entity.getDimensions(entity.getPose());
-		float renderScale = RenderedLivingEntityItemRenderer.getEntityRenderScale(entity, tuning.scaleMultiplier());
-		float collisionHalfWidth = dimensions.width * renderScale / 2.0f;
-		GeometryBounds horizontalCenterBounds =
-			measureCollisionHorizontalBounds(poseStack, renderToBox, collisionHalfWidth);
-		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
+	private static float getProjectedAutoScale(LivingEntity entity, PoseStack poseStack, Matrix4f boxToRender,
+		FaceBounds face, int packedLight) {
+		GeometryBounds bounds = measureProjectedBounds(entity, 1.0f, poseStack, boxToRender, packedLight);
+		if (!bounds.hasVertices())
+			return 1.0f;
 
-		RenderedLivingEntityItemRenderer.renderEntity(entity, tuning.scaleMultiplier(), tuning.footYOffset(), poseStack,
-			measuringBuffer, packedLight);
+		float projectedWidth = bounds.sizeZ();
+		float projectedHeight = bounds.sizeY();
+		if (projectedWidth <= 1.0e-6f || projectedHeight <= 1.0e-6f)
+			return 1.0f;
+
+		float widthScale = face.width() * ICON_FRAME_FILL / projectedWidth;
+		float heightScale = face.height() * ICON_FRAME_FILL / projectedHeight;
+		return Math.min(Math.min(widthScale, heightScale), MAX_AUTO_RENDER_SCALE);
+	}
+
+	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, float renderScale,
+		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
+		GeometryBounds bounds = measureProjectedBounds(entity, renderScale, poseStack, boxToRender, packedLight);
 		if (!bounds.hasVertices())
 			return FaceAlignment.none();
 
-		float xAlignment = face.x() - horizontalCenterBounds.centerX();
+		float xAlignment = face.x() - bounds.centerX();
 		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(),
-			face.centerZ() - horizontalCenterBounds.centerZ(),
+			face.centerZ() - bounds.centerZ(),
 			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
 	}
 
-	private static GeometryBounds measureCollisionHorizontalBounds(PoseStack poseStack, Matrix4f renderToBox,
-		float collisionHalfWidth) {
+	private static GeometryBounds measureProjectedBounds(LivingEntity entity, float renderScale, PoseStack poseStack,
+		Matrix4f boxToRender, int packedLight) {
 		GeometryBounds bounds = new GeometryBounds();
-		Matrix4f entityBaseToBox = new Matrix4f(renderToBox).mul(poseStack.last()
-			.pose());
-
-		includeCollisionCorner(bounds, entityBaseToBox, -collisionHalfWidth, -collisionHalfWidth);
-		includeCollisionCorner(bounds, entityBaseToBox, -collisionHalfWidth, collisionHalfWidth);
-		includeCollisionCorner(bounds, entityBaseToBox, collisionHalfWidth, -collisionHalfWidth);
-		includeCollisionCorner(bounds, entityBaseToBox, collisionHalfWidth, collisionHalfWidth);
+		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
+		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
+		BlockCenteredRenderedLivingEntityItemRenderer.renderBlockCenteredEntity(entity, renderScale, poseStack,
+			measuringBuffer, packedLight);
 		return bounds;
-	}
-
-	private static void includeCollisionCorner(GeometryBounds bounds, Matrix4f entityBaseToBox, float x, float z) {
-		bounds.include(entityBaseToBox.transformPosition(x, 0.0f, z, new Vector3f()));
-	}
-
-	private static EntityRenderTuning getEntityRenderTuning(LivingEntity entity) {
-		EntityType<?> type = entity.getType();
-		if (type == EntityType.SQUID || type == EntityType.GLOW_SQUID)
-			return new EntityRenderTuning(1.0f, SQUID_ENTITY_FOOT_Y_OFFSET);
-		return new EntityRenderTuning(1.0f, 0.0f);
 	}
 
 	private static void applyEntityItemTransform(PoseStack poseStack, FaceBounds face) {
@@ -151,9 +138,8 @@ public final class CapturedEntityBoxIconRenderer {
 
 		poseStack.translate(face.x + FACE_OFFSET, face.centerY(), face.centerZ());
 		poseStack.mulPose(Axis.YP.rotationDegrees(ITEM_PLANE_TO_FACE_Y_ROT));
-		float scale = face.itemScale() * ICON_SCALE;
+		float scale = face.itemScale();
 		poseStack.scale(scale, scale, scale);
-		poseStack.translate(GUI_CENTERING_X, GUI_CENTERING_Y, 0.0f);
 		ForgeHooksClient.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
 		poseStack.translate(-0.5f, -0.5f, -0.5f);
 	}
@@ -277,6 +263,14 @@ public final class CapturedEntityBoxIconRenderer {
 
 		private float centerZ() {
 			return (minZ + maxZ) / 2.0f;
+		}
+
+		private float sizeY() {
+			return maxY - minY;
+		}
+
+		private float sizeZ() {
+			return maxZ - minZ;
 		}
 	}
 

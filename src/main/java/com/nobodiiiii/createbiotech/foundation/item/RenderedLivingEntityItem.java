@@ -7,6 +7,8 @@ import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRe
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
@@ -49,5 +51,18 @@ public class RenderedLivingEntityItem<T extends LivingEntity> extends Item {
 
 	public void configureRenderedEntity(T entity) {
 		entityConfigurer.accept(entity);
+	}
+
+	public void configureRenderedEntity(T entity, ItemStack stack, ItemDisplayContext displayContext) {
+		configureRenderedEntity(entity);
+	}
+
+	public void configureRenderedEntityForGeometryMeasurement(T entity, ItemStack stack,
+		ItemDisplayContext displayContext) {
+		configureRenderedEntity(entity, stack, displayContext);
+	}
+
+	public float getRenderedEntityYRotation(ItemStack stack, ItemDisplayContext displayContext) {
+		return 0.0f;
 	}
 }

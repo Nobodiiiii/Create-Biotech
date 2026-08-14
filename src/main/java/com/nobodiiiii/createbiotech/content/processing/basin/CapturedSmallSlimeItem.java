@@ -1,6 +1,6 @@
 package com.nobodiiiii.createbiotech.content.processing.basin;
 
-import com.nobodiiiii.createbiotech.foundation.item.RenderedLivingEntityItem;
+import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.world.entity.Entity;
@@ -10,9 +10,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
-public class CapturedSmallSlimeItem extends RenderedLivingEntityItem<Slime> {
+public class CapturedSmallSlimeItem extends BlockCenteredRenderedLivingEntityItem<Slime> {
+	private static final float ITEM_RENDER_SCALE = 1.5f;
+
 	public CapturedSmallSlimeItem(Properties properties) {
-		super(properties, EntityType.SLIME, CapturedSmallSlimeItem::configureSlime);
+		super(properties, EntityType.SLIME, CapturedSmallSlimeItem::configureSlime, ITEM_RENDER_SCALE);
 	}
 
 	@Override
