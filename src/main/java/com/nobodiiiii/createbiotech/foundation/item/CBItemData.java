@@ -11,8 +11,12 @@ import net.minecraft.world.item.ItemStack;
 public final class CBItemData {
 	private CBItemData() {}
 
+	/**
+	 * Returns a zero-copy view of the stack's custom data. This is intentionally
+	 * read-only; use {@link #edit(ItemStack, Consumer)} for writes.
+	 */
 	@Nullable
-	public static CompoundTag get(ItemStack stack) {
+	public static CompoundTag getReadOnly(ItemStack stack) {
 		return stack.getTag();
 	}
 

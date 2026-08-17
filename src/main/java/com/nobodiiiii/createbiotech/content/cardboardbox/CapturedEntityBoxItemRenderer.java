@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
@@ -24,19 +25,23 @@ public class CapturedEntityBoxItemRenderer extends CustomRenderedItemModelRender
 	@Override
 	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
 		ItemDisplayContext transformType, PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
-		renderer.render(getBoxModel(stack, model.getOriginalModel(), transformType), light);
-		CapturedEntityBoxIconRenderer.renderOnItem(stack, poseStack, buffer, light);
+		boolean captured = CapturedEntityBoxHelper.hasCapturedEntity(stack);
+		boolean renderCapturedEntity = captured && CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get();
+		renderer.render(getBoxModel(stack, model.getOriginalModel(), transformType, captured, renderCapturedEntity), light);
+		if (renderCapturedEntity)
+			CapturedEntityBoxIconRenderer.renderOnItem(stack, true, transformType, poseStack, buffer, light);
 	}
 
-	private BakedModel getBoxModel(ItemStack stack, BakedModel fallback, ItemDisplayContext transformType) {
-		boolean captured = CapturedEntityBoxHelper.hasCapturedEntity(stack);
+	private BakedModel getBoxModel(ItemStack stack, BakedModel fallback, ItemDisplayContext transformType,
+		boolean captured, boolean renderCapturedEntity) {
 		if (transformType == ItemDisplayContext.FIXED)
-			return getModel(captured ? getCapturedModelLocation(stack) : CardboardBoxPartials.getLogisticsModelLocation(stack),
-				fallback);
+			return getModel(renderCapturedEntity ? getCapturedModelLocation(stack)
+				: CardboardBoxPartials.getLogisticsModelLocation(stack), fallback);
 		if (!captured)
 			return fallback;
 
-		return getModel(getCapturedModelLocation(stack), fallback);
+		return getModel(renderCapturedEntity ? getCapturedModelLocation(stack)
+			: CardboardBoxPartials.getLogisticsModelLocation(stack), fallback);
 	}
 
 	private ResourceLocation getCapturedModelLocation(ItemStack stack) {

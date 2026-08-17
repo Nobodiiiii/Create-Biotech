@@ -18,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderManager;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
 import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodRenderer;
@@ -221,6 +222,7 @@ public class CreateBiotechClient {
 			@Override
 			public void onResourceManagerReload(ResourceManager resourceManager) {
 				SlimeMimicRenderLayer.clearCachedTextureData();
+				CapturedEntityRenderManager.clearForResourceReload();
 			}
 		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);

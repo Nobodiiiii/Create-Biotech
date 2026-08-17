@@ -73,6 +73,7 @@
     "client.StockKeeperRequestScreenMixin",
     "client.LevelRendererAccessor",
     "client.MixinSuperGlueSelectionHandler",
+    "client.MinecraftPartialTickMixin",
     "client.ModelPartAccessor",
     "client.ModelPartRenderMixin",
     "client.PonderSceneMixin",

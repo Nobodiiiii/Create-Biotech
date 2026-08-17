@@ -7,6 +7,7 @@ import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
+import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.simibubi.create.content.logistics.box.PackageItem;
 
 import net.minecraft.ChatFormatting;
@@ -213,11 +214,14 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static Entity createCapturedEntity(ItemStack stack, Level level) {
-		CompoundTag entityData = getCapturedEntityData(stack);
-		if (entityData == null)
+		CapturedEntityRenderData renderData = getCapturedEntityRenderData(stack);
+		if (renderData == null)
 			return null;
+		return createCapturedEntity(renderData, level);
+	}
 
-		CompoundTag entityDataForLoad = entityData.copy();
+	static Entity createCapturedEntity(CapturedEntityRenderData renderData, Level level) {
+		CompoundTag entityDataForLoad = renderData.entityData.copy();
 		if (level instanceof ServerLevel serverLevel
 			&& hasUuidCollision(serverLevel.getServer(), entityDataForLoad))
 			reseedEntityTree(entityDataForLoad);
@@ -226,10 +230,8 @@ public class CapturedEntityBoxHelper {
 		if (entity == null)
 			return null;
 
-		CompoundTag stackTag = stack.getTag();
-		if (entity instanceof LivingEntity living && stackTag != null
-			&& stackTag.contains(CAPTURED_ENTITY_HEALTH_TAG, Tag.TAG_ANY_NUMERIC))
-			living.setHealth(Math.min(living.getMaxHealth(), stackTag.getFloat(CAPTURED_ENTITY_HEALTH_TAG)));
+		if (entity instanceof LivingEntity living && renderData.hasCapturedHealth())
+			living.setHealth(Math.min(living.getMaxHealth(), renderData.capturedHealth()));
 
 		return entity;
 	}
@@ -272,8 +274,85 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean hasCapturedEntity(ItemStack stack) {
-		CompoundTag tag = stack.getTag();
+		CompoundTag tag = CBItemData.getReadOnly(stack);
 		return tag != null && tag.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND);
+	}
+
+	/**
+	 * Builds the small immutable descriptor used by the client render caches without
+	 * copying NBT. The root tag exposed by this record is read-only.
+	 */
+	static CapturedEntityRenderData getCapturedEntityRenderData(ItemStack stack) {
+		CompoundTag root = CBItemData.getReadOnly(stack);
+		if (root == null || !root.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND))
+			return null;
+
+		CompoundTag entityData = root.getCompound(CAPTURED_ENTITY_TAG);
+		if (!entityData.contains("id", Tag.TAG_STRING))
+			return null;
+
+		String entityId = entityData.getString("id");
+		if (entityId.isEmpty())
+			return null;
+
+		boolean hasHealth = root.contains(CAPTURED_ENTITY_HEALTH_TAG, Tag.TAG_ANY_NUMERIC);
+		boolean prototype = entityData.size() == 1 && !hasHealth && hasOnlyPrototypeRootData(root);
+		return new CapturedEntityRenderData(root, entityData, entityId, prototype,
+			hasHealth, hasHealth ? root.getFloat(CAPTURED_ENTITY_HEALTH_TAG) : 0.0f);
+	}
+
+	private static boolean hasOnlyPrototypeRootData(CompoundTag root) {
+		for (String key : root.getAllKeys())
+			if (!CAPTURED_ENTITY_TAG.equals(key) && !CAPTURED_ENTITY_DESC_ID_TAG.equals(key))
+				return false;
+		return true;
+	}
+
+	/**
+	 * Identifies one captured entity for the client render caches.
+	 *
+	 * <p>{@link #root()} is the stack's own tag instance, used as an identity cache
+	 * key. Unlike 1.21's immutable data component, {@link ItemStack#copy()} produces
+	 * a fresh tag here, so a re-synced stack costs one rebake; per-frame rendering
+	 * reads the same stack instance and stays a cache hit.
+	 */
+	static final class CapturedEntityRenderData {
+		private final CompoundTag root;
+		private final CompoundTag entityData;
+		private final String entityId;
+		private final boolean prototype;
+		private final boolean hasCapturedHealth;
+		private final float capturedHealth;
+
+		private CapturedEntityRenderData(CompoundTag root, CompoundTag entityData, String entityId,
+			boolean prototype, boolean hasCapturedHealth, float capturedHealth) {
+			this.root = root;
+			this.entityData = entityData;
+			this.entityId = entityId;
+			this.prototype = prototype;
+			this.hasCapturedHealth = hasCapturedHealth;
+			this.capturedHealth = capturedHealth;
+		}
+
+		CompoundTag root() {
+			return root;
+		}
+
+		String entityId() {
+			return entityId;
+		}
+
+		boolean prototype() {
+			return prototype;
+		}
+
+		boolean hasCapturedHealth() {
+			return hasCapturedHealth;
+		}
+
+		float capturedHealth() {
+			return capturedHealth;
+		}
 	}
 
 	public static ItemStackHandler applyVirtualSelfFallbackContents(ItemStack box, ItemStackHandler contents) {

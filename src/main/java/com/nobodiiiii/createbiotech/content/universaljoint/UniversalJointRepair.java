@@ -108,7 +108,7 @@ public final class UniversalJointRepair {
 
 	@Nullable
 	public static Selection readSelection(ItemStack stack) {
-		CompoundTag root = CBItemData.get(stack);
+		CompoundTag root = CBItemData.getReadOnly(stack);
 		if (root == null
 			|| !root.contains(REPAIR_SELECTION_TAG, Tag.TAG_COMPOUND))
 			return null;

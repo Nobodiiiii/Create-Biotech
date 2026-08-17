@@ -59,7 +59,7 @@ public class UniversalJointConnectorHandler {
 	}
 
 	private static void renderPlacementPreview(Minecraft minecraft, Level level, ItemStack held) {
-		CompoundTag tag = CBItemData.get(held);
+		CompoundTag tag = CBItemData.getReadOnly(held);
 		if (tag == null)
 			return;
 		Endpoint first = UniversalJointItem.readFirstEndpoint(level, tag);

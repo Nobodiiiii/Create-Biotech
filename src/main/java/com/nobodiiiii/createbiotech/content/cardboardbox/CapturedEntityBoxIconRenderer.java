@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -11,21 +10,22 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.foundation.render.GuiEntityItemElement;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraftforge.client.ForgeHooksClient;
+import net.minecraftforge.registries.ForgeRegistries;
 
 public final class CapturedEntityBoxIconRenderer {
 	private static final Direction ICON_FACE = Direction.EAST;
@@ -39,36 +39,48 @@ public final class CapturedEntityBoxIconRenderer {
 	private static final float MAX_FLATTENED_DEPTH_OFFSET = 1.0f / 512.0f;
 	private static final float ICON_FRAME_FILL = 0.6f;
 	private static final float MAX_AUTO_RENDER_SCALE = 1.5f;
+	private static final float MIN_VISIBLE_FACE_DOT = 1.0e-4f;
+	private static final int MAX_CAPTURED_VERTICES = 262_144;
 	private static final float ITEM_PLANE_TO_FACE_Y_ROT = itemPlaneToFaceYRot(ICON_FACE);
 	private static final ItemStack ENTITY_ITEM_TRANSFORM = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
-
-	@Nullable
-	private static ItemStack cachedStack;
-	@Nullable
-	private static Level cachedLevel;
-	@Nullable
-	private static LivingEntity cachedCapturedEntity;
+	private static final EntityGeometry.Collector GEOMETRY_COLLECTOR =
+		EntityGeometry.Collector.caching(MAX_CAPTURED_VERTICES);
+	private static final Vector3f FACE_CENTER_SCRATCH = new Vector3f();
+	private static final Vector3f FACE_NORMAL_SCRATCH = new Vector3f();
 
 	private CapturedEntityBoxIconRenderer() {}
 
 	public static void renderOnEntity(ItemStack stack, float yaw, PoseStack poseStack, MultiBufferSource buffer,
 		int light) {
-		render(stack, poseStack, buffer, light, yaw);
+		renderOnEntity(stack, CapturedEntityBoxHelper.hasCapturedEntity(stack), yaw, poseStack, buffer, light);
 	}
 
-	public static void renderOnItem(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light) {
+	static void renderOnEntity(ItemStack stack, boolean captured, float yaw,
+		PoseStack poseStack, MultiBufferSource buffer, int light) {
+		render(stack, captured, poseStack, buffer, light, yaw,
+			CapturedEntityRenderManager.RequestPriority.WORLD, false);
+	}
+
+	public static void renderOnItem(ItemStack stack, ItemDisplayContext displayContext, PoseStack poseStack,
+		MultiBufferSource buffer, int light) {
+		renderOnItem(stack, CapturedEntityBoxHelper.hasCapturedEntity(stack), displayContext, poseStack,
+			buffer, light);
+	}
+
+	static void renderOnItem(ItemStack stack, boolean captured,
+		ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource buffer, int light) {
 		poseStack.pushPose();
 		poseStack.translate(0.0f, -0.5f, 0.0f);
-		render(stack, poseStack, buffer, light, -90.0f);
+		render(stack, captured, poseStack, buffer, light, -90.0f,
+			CapturedEntityRenderManager.RequestPriority.forDisplayContext(displayContext),
+			displayContext == ItemDisplayContext.GUI);
 		poseStack.popPose();
 	}
 
-	private static void render(ItemStack stack, PoseStack poseStack, MultiBufferSource buffer, int light, float yaw) {
-		if (!CapturedEntityBoxHelper.hasCapturedEntity(stack))
-			return;
-
-		LivingEntity capturedEntity = getOrCreateCapturedEntity(stack);
-		if (capturedEntity == null)
+	private static void render(ItemStack stack, boolean captured,
+		PoseStack poseStack, MultiBufferSource buffer, int light, float yaw,
+		CapturedEntityRenderManager.RequestPriority priority, boolean orthographicView) {
+		if (!captured || !CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get())
 			return;
 
 		FaceBounds face = FaceBounds.of(stack);
@@ -78,63 +90,127 @@ public final class CapturedEntityBoxIconRenderer {
 			.rotateCentered(0.0f, -yaw - 90.0f, 0.0f)
 			.packedLight(light)
 			.render(poseStack, buffer, (iconPoseStack, iconBuffer, packedLight) -> {
-				Matrix4f boxToRender = new Matrix4f(iconPoseStack.last()
-					.pose());
+				if (!isFrontFaceVisible(iconPoseStack, face, orthographicView))
+					return;
 
-				applyEntityItemTransform(iconPoseStack, face);
-				float renderScale = getProjectedAutoScale(capturedEntity, iconPoseStack, boxToRender, face, packedLight);
-				FaceAlignment alignment =
-					measureGeometryAlignment(capturedEntity, renderScale, iconPoseStack, boxToRender, face, packedLight);
-				MultiBufferSource clippedBuffer =
-					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face,
-						alignment);
-				GuiEntityItemElement.of(capturedEntity)
-					.blockCentered()
-					.fixedScale(renderScale)
-					.packedLight(packedLight)
-					.render(iconPoseStack, clippedBuffer);
+				CapturedEntityBoxHelper.CapturedEntityRenderData renderData =
+					CapturedEntityBoxHelper.getCapturedEntityRenderData(stack);
+				if (renderData == null)
+					return;
+
+				BakedCapturedEntityIcon icon =
+					CapturedEntityRenderManager.getOrSchedule(renderData, face.large(), priority);
+				if (icon != null)
+					icon.render(iconPoseStack, iconBuffer, packedLight);
 			});
 	}
 
-	private static float getProjectedAutoScale(LivingEntity entity, PoseStack poseStack, Matrix4f boxToRender,
-		FaceBounds face, int packedLight) {
-		GeometryBounds bounds = measureProjectedBounds(entity, 1.0f, poseStack, boxToRender, packedLight);
-		if (!bounds.hasVertices())
-			return 1.0f;
+	private static boolean isFrontFaceVisible(PoseStack poseStack, FaceBounds face, boolean orthographicView) {
+		PoseStack.Pose pose = poseStack.last();
+		pose.normal()
+			.transform(ICON_FACE.getStepX(), ICON_FACE.getStepY(), ICON_FACE.getStepZ(), FACE_NORMAL_SCRATCH);
+		float normalLengthSquared = FACE_NORMAL_SCRATCH.lengthSquared();
+		if (normalLengthSquared <= 1.0e-12f)
+			return false;
 
-		float projectedWidth = bounds.sizeZ();
-		float projectedHeight = bounds.sizeY();
-		if (projectedWidth <= 1.0e-6f || projectedHeight <= 1.0e-6f)
-			return 1.0f;
+		if (orthographicView)
+			return FACE_NORMAL_SCRATCH.z() / Mth.sqrt(normalLengthSquared) > MIN_VISIBLE_FACE_DOT;
 
-		float widthScale = face.width() * ICON_FRAME_FILL / projectedWidth;
-		float heightScale = face.height() * ICON_FRAME_FILL / projectedHeight;
-		return Math.min(Math.min(widthScale, heightScale), MAX_AUTO_RENDER_SCALE);
+		pose.pose()
+			.transformPosition(face.x(), face.centerY(), face.centerZ(), FACE_CENTER_SCRATCH);
+		float viewLengthSquared = FACE_CENTER_SCRATCH.lengthSquared();
+		if (viewLengthSquared <= 1.0e-12f)
+			return true;
+
+		float facing = -FACE_NORMAL_SCRATCH.dot(FACE_CENTER_SCRATCH)
+			/ Mth.sqrt(normalLengthSquared * viewLengthSquared);
+		return facing > MIN_VISIBLE_FACE_DOT;
 	}
 
-	private static FaceAlignment measureGeometryAlignment(LivingEntity entity, float renderScale,
-		PoseStack poseStack, Matrix4f boxToRender, FaceBounds face, int packedLight) {
-		GeometryBounds bounds = measureProjectedBounds(entity, renderScale, poseStack, boxToRender, packedLight);
-		if (!bounds.hasVertices())
-			return FaceAlignment.none();
+	static GeometryProfile prepareGeometry(LivingEntity entity) {
+		GEOMETRY_COLLECTOR.reset();
+		CapturedEntityRenderTime.push();
+		try {
+			EntityGeometry.measureInto(entity, GEOMETRY_COLLECTOR);
+		} finally {
+			CapturedEntityRenderTime.pop();
+		}
 
-		float xAlignment = face.x() - bounds.centerX();
-		return new FaceAlignment(xAlignment, face.centerY() - bounds.centerY(),
-			face.centerZ() - bounds.centerZ(),
-			bounds.minX() + xAlignment, bounds.maxX() + xAlignment);
+		if (!GEOMETRY_COLLECTOR.hasVertices())
+			GEOMETRY_COLLECTOR.includeEntityDimensions(entity.getDimensions(entity.getPose()));
+
+		Vector3f geometryCenter = GEOMETRY_COLLECTOR.bounds()
+			.center();
+		FaceProjection small = projectGeometry(geometryCenter, FaceBounds.SMALL);
+		FaceProjection large = projectGeometry(geometryCenter, FaceBounds.LARGE);
+		return new GeometryProfile(geometryCenter, small, large);
 	}
 
-	private static GeometryBounds measureProjectedBounds(LivingEntity entity, float renderScale, PoseStack poseStack,
-		Matrix4f boxToRender, int packedLight) {
-		GeometryBounds bounds = new GeometryBounds();
-		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
-		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
-		GuiEntityItemElement.of(entity)
-			.blockCentered()
-			.fixedScale(renderScale)
-			.packedLight(packedLight)
-			.render(poseStack, measuringBuffer);
-		return bounds;
+	/**
+	 * Runs the live entity-render-and-clip pipeline once in box-local space and
+	 * captures the emitted stream as a replayable mesh. The identity
+	 * box-to-render matrix makes the clipper's output coordinates box-local, so
+	 * replaying them under any later pose reproduces exactly what the live path
+	 * would have drawn that frame.
+	 */
+	static BakedCapturedEntityIcon bakeIcon(LivingEntity entity, GeometryProfile geometry, boolean largeBox) {
+		FaceBounds face = FaceBounds.forFace(largeBox);
+		FaceProjection projection = geometry.forFace(largeBox);
+		BakedCapturedEntityIcon.Builder builder = BakedCapturedEntityIcon.builder();
+		Matrix4f identityBoxToRender = new Matrix4f();
+		MultiBufferSource clippingSource = renderType -> new FaceClippingVertexConsumer(builder.target(renderType),
+			identityBoxToRender, face, projection.alignment());
+
+		PoseStack poseStack = new PoseStack();
+		applyEntityItemTransform(poseStack, face);
+		CapturedEntityRenderTime.push();
+		try {
+			GuiEntityItemElement.of(entity)
+				.blockCentered()
+				.geometryCenter(geometry.geometryCenter())
+				.fixedScale(projection.renderScale())
+				.packedLight(BakedCapturedEntityIcon.LIGHT_SENTINEL)
+				.render(poseStack, clippingSource);
+		} finally {
+			CapturedEntityRenderTime.pop();
+		}
+
+		ResourceLocation entityId = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+		return builder.build(entityId == null ? entity.getType()
+			.getDescriptionId() : entityId.toString());
+	}
+
+	private static FaceProjection projectGeometry(Vector3f geometryCenter, FaceBounds face) {
+		EntityGeometry.Bounds unitBounds = projectBounds(geometryCenter, face, 1.0f);
+		if (!unitBounds.hasVertices())
+			return new FaceProjection(1.0f, FaceAlignment.none());
+
+		float projectedWidth = unitBounds.sizeZ();
+		float projectedHeight = unitBounds.sizeY();
+		float renderScale = 1.0f;
+		if (projectedWidth > 1.0e-6f && projectedHeight > 1.0e-6f) {
+			float widthScale = face.width() * ICON_FRAME_FILL / projectedWidth;
+			float heightScale = face.height() * ICON_FRAME_FILL / projectedHeight;
+			renderScale = Math.min(Math.min(widthScale, heightScale), MAX_AUTO_RENDER_SCALE);
+		}
+
+		EntityGeometry.Bounds finalBounds = projectBounds(geometryCenter, face, renderScale);
+		if (!finalBounds.hasVertices())
+			return new FaceProjection(renderScale, FaceAlignment.none());
+
+		float xAlignment = face.x() - finalBounds.centerX();
+		FaceAlignment alignment = new FaceAlignment(xAlignment, face.centerY() - finalBounds.centerY(),
+			face.centerZ() - finalBounds.centerZ(), finalBounds.minX() + xAlignment,
+			finalBounds.maxX() + xAlignment);
+		return new FaceProjection(renderScale, alignment);
+	}
+
+	private static EntityGeometry.Bounds projectBounds(Vector3f geometryCenter, FaceBounds face, float renderScale) {
+		PoseStack poseStack = new PoseStack();
+		applyEntityItemTransform(poseStack, face);
+		GuiEntityItemElement.applyBlockCenteredTransform(poseStack, geometryCenter, renderScale);
+		return GEOMETRY_COLLECTOR.transformBounds(poseStack.last()
+			.pose());
 	}
 
 	private static void applyEntityItemTransform(PoseStack poseStack, FaceBounds face) {
@@ -160,39 +236,18 @@ public final class CapturedEntityBoxIconRenderer {
 		};
 	}
 
-	@Nullable
-	private static LivingEntity getOrCreateCapturedEntity(ItemStack stack) {
-		Level level = Minecraft.getInstance().level;
-		if (level == null)
-			return null;
-		if (cachedCapturedEntity != null && cachedLevel == level && cachedStack != null
-			&& ItemStack.isSameItemSameTags(cachedStack, stack))
-			return cachedCapturedEntity;
+	private record FaceBounds(float x, float minY, float maxY, float minZ, float maxZ, boolean large) {
+		private static final FaceBounds SMALL =
+			new FaceBounds(SMALL_BOX_MAX, 0.0f, SMALL_BOX_HEIGHT, SMALL_BOX_MIN, SMALL_BOX_MAX, false);
+		private static final FaceBounds LARGE =
+			new FaceBounds(LARGE_BOX_MAX, 0.0f, LARGE_BOX_HEIGHT, LARGE_BOX_MIN, LARGE_BOX_MAX, true);
 
-		Entity entity = CapturedEntityBoxHelper.createCapturedEntity(stack, level);
-		if (!(entity instanceof LivingEntity livingEntity))
-			return null;
-
-		if (livingEntity instanceof Mob mob)
-			mob.setNoAi(true);
-		livingEntity.setSilent(true);
-		livingEntity.setOnGround(true);
-		livingEntity.tickCount = 0;
-		livingEntity.hurtTime = 0;
-		livingEntity.deathTime = 0;
-		livingEntity.hurtMarked = false;
-
-		cachedLevel = level;
-		cachedStack = stack.copy();
-		cachedCapturedEntity = livingEntity;
-		return livingEntity;
-	}
-
-	private record FaceBounds(float x, float minY, float maxY, float minZ, float maxZ) {
 		private static FaceBounds of(ItemStack stack) {
-			if (stack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
-				return new FaceBounds(LARGE_BOX_MAX, 0.0f, LARGE_BOX_HEIGHT, LARGE_BOX_MIN, LARGE_BOX_MAX);
-			return new FaceBounds(SMALL_BOX_MAX, 0.0f, SMALL_BOX_HEIGHT, SMALL_BOX_MIN, SMALL_BOX_MAX);
+			return stack.is(CBItems.LARGE_CARDBOARD_BOX.get()) ? LARGE : SMALL;
+		}
+
+		private static FaceBounds forFace(boolean large) {
+			return large ? LARGE : SMALL;
 		}
 
 		private float width() {
@@ -216,6 +271,15 @@ public final class CapturedEntityBoxIconRenderer {
 		}
 	}
 
+	static record GeometryProfile(Vector3f geometryCenter, FaceProjection small, FaceProjection large) {
+		private FaceProjection forFace(boolean largeBox) {
+			return largeBox ? large : small;
+		}
+	}
+
+	private record FaceProjection(float renderScale, FaceAlignment alignment) {
+	}
+
 	private record FaceAlignment(float x, float y, float z, float minX, float maxX) {
 		private static FaceAlignment none() {
 			return new FaceAlignment(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
@@ -227,119 +291,6 @@ public final class CapturedEntityBoxIconRenderer {
 				return 0.0f;
 			float normalizedDepth = Mth.clamp(((float) localX - minX) / depth, 0.0f, 1.0f);
 			return normalizedDepth * MAX_FLATTENED_DEPTH_OFFSET;
-		}
-	}
-
-	private static class GeometryBounds {
-		private float minX = Float.POSITIVE_INFINITY;
-		private float minY = Float.POSITIVE_INFINITY;
-		private float minZ = Float.POSITIVE_INFINITY;
-		private float maxX = Float.NEGATIVE_INFINITY;
-		private float maxY = Float.NEGATIVE_INFINITY;
-		private float maxZ = Float.NEGATIVE_INFINITY;
-
-		private void include(Vector3f vertex) {
-			minX = Math.min(minX, vertex.x());
-			minY = Math.min(minY, vertex.y());
-			minZ = Math.min(minZ, vertex.z());
-			maxX = Math.max(maxX, vertex.x());
-			maxY = Math.max(maxY, vertex.y());
-			maxZ = Math.max(maxZ, vertex.z());
-		}
-
-		private boolean hasVertices() {
-			return minX != Float.POSITIVE_INFINITY;
-		}
-
-		private float centerX() {
-			return (minX + maxX) / 2.0f;
-		}
-
-		private float minX() {
-			return minX;
-		}
-
-		private float maxX() {
-			return maxX;
-		}
-
-		private float centerY() {
-			return (minY + maxY) / 2.0f;
-		}
-
-		private float centerZ() {
-			return (minZ + maxZ) / 2.0f;
-		}
-
-		private float sizeY() {
-			return maxY - minY;
-		}
-
-		private float sizeZ() {
-			return maxZ - minZ;
-		}
-	}
-
-	private static class GeometryBoundsVertexConsumer implements VertexConsumer {
-		private final Matrix4f renderToBox;
-		private final GeometryBounds bounds;
-
-		private GeometryBoundsVertexConsumer(Matrix4f renderToBox, GeometryBounds bounds) {
-			this.renderToBox = renderToBox;
-			this.bounds = bounds;
-		}
-
-		@Override
-		public VertexConsumer vertex(double x, double y, double z) {
-			Vector3f boxLocal = renderToBox.transformPosition((float) x, (float) y, (float) z, new Vector3f());
-			bounds.include(boxLocal);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer vertex(Matrix4f matrix, float x, float y, float z) {
-			return vertex(matrix.transformPosition(x, y, z, new Vector3f()));
-		}
-
-		private VertexConsumer vertex(Vector3f vec) {
-			return vertex(vec.x(), vec.y(), vec.z());
-		}
-
-		@Override
-		public VertexConsumer color(int red, int green, int blue, int alpha) {
-			return this;
-		}
-
-		@Override
-		public VertexConsumer uv(float u, float v) {
-			return this;
-		}
-
-		@Override
-		public VertexConsumer overlayCoords(int u, int v) {
-			return this;
-		}
-
-		@Override
-		public VertexConsumer uv2(int u, int v) {
-			return this;
-		}
-
-		@Override
-		public VertexConsumer normal(float x, float y, float z) {
-			return this;
-		}
-
-		@Override
-		public void endVertex() {
-		}
-
-		@Override
-		public void defaultColor(int red, int green, int blue, int alpha) {
-		}
-
-		@Override
-		public void unsetDefaultColor() {
 		}
 	}
 
