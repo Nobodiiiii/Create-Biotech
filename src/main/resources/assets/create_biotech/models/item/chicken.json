@@ -1,0 +1,7 @@
+{
+  "parent": "create_biotech:item/block_centered_rendered_living_entity_item",
+  "textures": {
+    "particle": "minecraft:item/egg",
+    "layer0": "minecraft:item/egg"
+  }
+}
