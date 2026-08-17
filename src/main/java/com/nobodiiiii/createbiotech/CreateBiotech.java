@@ -24,6 +24,7 @@ import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.nobodiiiii.createbiotech.registry.CBMobEffects;
 import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
+import com.nobodiiiii.createbiotech.registry.CBSoundEvents;
 import com.nobodiiiii.createbiotech.registry.CBPoiTypes;
 import com.nobodiiiii.createbiotech.registry.CBPotions;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
@@ -64,6 +65,7 @@ public class CreateBiotech {
 		CBParticleTypes.register(modEventBus);
 		CBRecipeTypes.register(modEventBus);
 		CBMobEffects.register(modEventBus);
+		CBSoundEvents.register(modEventBus);
 		CBPotions.register(modEventBus);
 		modEventBus.addListener(CBDataGenerators::gatherData);
 		modEventBus.addListener(CreateBiotech::onCommonSetup);

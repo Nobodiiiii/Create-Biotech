@@ -39,6 +39,7 @@
     "NozzleBlockMixin",
     "NetherPortalBlockMixin",
     "PortalForcerMixin",
+    "LevelEntityRedstoneMixin",
     "MobAccessor",
     "PackageItemCardboardBoxMixin",
     "PressingBehaviourSoundMixin",
@@ -46,12 +47,14 @@
     "WalkAnimationStateAccessor",
     "MixinSuperGlueSelectionHelper",
     "SawBlockEntityMixin",
+    "ServerLevelEntityRedstoneMixin",
     "SchematicannonBlockEntityMixin",
     "SequencedRecipeMixin",
     "SmartBlockEntityLegacyRefreshMixin",
     "SpawnEggItemMixin",
     "StockKeeperRequestMenuAccessor",
-    "VillagerSlimeMimicTradesMixin"
+    "VillagerSlimeMimicTradesMixin",
+    "RedStoneWireEntityRedstoneMixin"
   ],
   "client": [
     "client.BasinRendererMixin",

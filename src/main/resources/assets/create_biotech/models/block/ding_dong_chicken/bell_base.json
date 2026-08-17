@@ -1,0 +1,20 @@
+{
+  "parent": "block/block",
+  "textures": {
+    "bell": "create_biotech:block/chicken_bell"
+  },
+  "elements": [
+    {
+      "from": [5, 0, 5],
+      "to": [11, 1, 11],
+      "faces": {
+        "north": { "uv": [1, 7, 7, 8], "texture": "#bell" },
+        "east": { "uv": [1, 7, 7, 8], "texture": "#bell" },
+        "south": { "uv": [1, 7, 7, 8], "texture": "#bell" },
+        "west": { "uv": [1, 7, 7, 8], "texture": "#bell" },
+        "up": { "uv": [1, 9, 7, 15], "texture": "#bell" },
+        "down": { "uv": [1, 9, 7, 15], "texture": "#bell" }
+      }
+    }
+  ]
+}

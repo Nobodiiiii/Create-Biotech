@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
+import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSurfaceMovementPacket;
@@ -29,7 +30,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public class CBPackets {
 
-	private static final String NETWORK_VERSION = "12";
+	private static final String NETWORK_VERSION = "13";
 	private static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder.named(CreateBiotech.asResource("main"))
 		.serverAcceptedVersions(NETWORK_VERSION::equals)
 		.clientAcceptedVersions(NETWORK_VERSION::equals)
@@ -79,6 +80,9 @@ public class CBPackets {
 			NetworkDirection.PLAY_TO_CLIENT);
 		register(AllayCourierHudPacket.class, AllayCourierHudPacket::new,
 			AllayCourierHudPacket::write, AllayCourierHudPacket::handle,
+			NetworkDirection.PLAY_TO_CLIENT);
+		register(DingDongChickenVoiceSoundPacket.class, DingDongChickenVoiceSoundPacket::new,
+			DingDongChickenVoiceSoundPacket::write, DingDongChickenVoiceSoundPacket::handle,
 			NetworkDirection.PLAY_TO_CLIENT);
 	}
 

@@ -29,6 +29,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
+import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenRenderer;
 import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltVisual;
@@ -156,6 +157,7 @@ public class CreateBiotechClient {
 			GhastHotAirBalloonEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON_SEAT.get(),
 			GhastHotAirBalloonSeatEntity.Render::new);
+		event.registerEntityRenderer(CBEntityTypes.DING_DONG_CHICKEN.get(), DingDongChickenRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.CARDBOARD_BOX.get(), CardboardBoxEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.ALLAY_COURIER.get(),
 			context -> new AllayCourierEntityRenderer(context));
@@ -170,6 +172,9 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
 		event.register(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
+		event.register(DingDongChickenRenderer.BELL_BASE_MODEL.modelLocation());
+		event.register(DingDongChickenRenderer.BELL_MODEL.modelLocation());
+		event.register(DingDongChickenRenderer.BELL_PLUNGER_MODEL.modelLocation());
 		event.register(AutomaticFishReleaseMachineRenderer.BLADE_CLAMP_MODEL_LOCATION);
 		event.register(HalfShaftVisual.MODEL.modelLocation());
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/panel"));

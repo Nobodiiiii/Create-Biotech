@@ -1,0 +1,15 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.nobodiiiii.createbiotech.mixin.compat.alternatecurrent",
+  "plugin": "com.nobodiiiii.createbiotech.mixin.compat.alternatecurrent.AlternateCurrentMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "create_biotech.refmap.json",
+  "mixins": [
+    "AlternateCurrentNodeMixin",
+    "AlternateCurrentWireHandlerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

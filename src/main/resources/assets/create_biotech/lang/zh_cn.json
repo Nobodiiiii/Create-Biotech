@@ -181,6 +181,15 @@
   "fluid_type.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "item.create_biotech.liquid_living_slime_bucket": "液态活体史莱姆桶",
   "entity.create_biotech.ghast_hot_air_balloon": "恶魂热气球",
+  "entity.create_biotech.ding_dong_chicken": "叮咚鸡",
+  "item.create_biotech.chicken": "鸡",
+  "item.create_biotech.ding_dong_chicken": "叮咚鸡",
+  "item.create_biotech.ding_dong_chicken.tooltip.summary": "_大狗叫_的好朋友。对_鸡_使用_呼唤铃_转化得到。",
+  "item.create_biotech.ding_dong_chicken.tooltip.condition1": "右击时",
+  "item.create_biotech.ding_dong_chicken.tooltip.behaviour1": "发出铃声和_红石脉冲_",
+  "item.create_biotech.ding_dong_chicken.tooltip.condition2": "使用音符盒右击时",
+  "item.create_biotech.ding_dong_chicken.tooltip.behaviour2": "加装来自东方的神秘_语音包_",
+  "item.create_biotech.ding_dong_chicken_spawn_egg": "叮咚鸡刷怪蛋",
   "block.create_biotech.ghast_hot_air_balloon_assembly_station": "恶魂热气球装配站",
   "block.create_biotech.ghast_helm": "恶魂驾驶台",
   "create_biotech.gui.ghast_balloon.magnet_prompt": "按住Alt靠近附近的装配站",
@@ -522,5 +531,6 @@
   "block.create_biotech.half_shaft": "半截传动杆",
   "create_biotech.universal_joint.repair.selected": "已选择第一根半截传动杆",
   "create_biotech.universal_joint.repair.invalid": "这两根半截传动杆无法重新连接",
-  "create_biotech.universal_joint.repair.success": "史莱姆万向节已重新连接"
+  "create_biotech.universal_joint.repair.success": "史莱姆万向节已重新连接",
+  "subtitles.create_biotech.ding_dong_chicken.voice_pack": "叮咚鸡播放语音"
 }

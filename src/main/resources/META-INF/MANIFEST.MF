@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-MixinConfigs: create_biotech.mixins.json
+MixinConfigs: create_biotech.mixins.json,create_biotech_allay.mixins.json,create_biotech_alternate_current.mixins.json

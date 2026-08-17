@@ -181,6 +181,15 @@
   "fluid_type.create_biotech.liquid_living_slime": "Liquid Living Slime",
   "item.create_biotech.liquid_living_slime_bucket": "Liquid Living Slime Bucket",
   "entity.create_biotech.ghast_hot_air_balloon": "Ghast Hot Air Balloon",
+  "entity.create_biotech.ding_dong_chicken": "Ding-Dong Chicken",
+  "item.create_biotech.chicken": "Chicken",
+  "item.create_biotech.ding_dong_chicken": "Ding-Dong Chicken",
+  "item.create_biotech.ding_dong_chicken.tooltip.summary": "A good friend of the _Big Dog Bark_. Use a _Desk Bell_ on a _Chicken_ to convert it.",
+  "item.create_biotech.ding_dong_chicken.tooltip.condition1": "When R-Clicked",
+  "item.create_biotech.ding_dong_chicken.tooltip.behaviour1": "Rings and emits a _Redstone Pulse_",
+  "item.create_biotech.ding_dong_chicken.tooltip.condition2": "When R-Clicked with a Note Block",
+  "item.create_biotech.ding_dong_chicken.tooltip.behaviour2": "Installs a mysterious _Voice Pack_ from the East",
+  "item.create_biotech.ding_dong_chicken_spawn_egg": "Ding-Dong Chicken Spawn Egg",
   "block.create_biotech.ghast_hot_air_balloon_assembly_station": "Ghast Hot Air Balloon Assembly Station",
   "block.create_biotech.ghast_helm": "Ghast Helm",
   "create_biotech.gui.ghast_balloon.magnet_prompt": "Hold Alt to approach a nearby assembly station",
@@ -522,5 +531,6 @@
   "block.create_biotech.half_shaft": "Half Shaft",
   "create_biotech.universal_joint.repair.selected": "First half shaft selected",
   "create_biotech.universal_joint.repair.invalid": "These half shafts cannot be reconnected",
-  "create_biotech.universal_joint.repair.success": "Universal joint reconnected"
+  "create_biotech.universal_joint.repair.success": "Universal joint reconnected",
+  "subtitles.create_biotech.ding_dong_chicken.voice_pack": "Ding-Dong Chicken speaks"
 }

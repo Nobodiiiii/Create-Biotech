@@ -38,6 +38,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.LARGE_CARDBOARD_BOX.get());
 				output.accept(CBItems.SMART_SUPER_GLUE.get());
 				output.accept(CBItems.WIRELESS_TERMINAL.get());
+				output.accept(CBItems.DING_DONG_CHICKEN.get());
 				output.accept(CBItems.BIO_PACKAGER.get());
 				output.accept(CBItems.SHULKER_PACKAGER.get());
 				output.accept(CBItems.SHULKER_TELEPORTER.get());
@@ -93,6 +94,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBFluids.TELEPORTATION_BUCKET.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
 				output.accept(CBFluids.CREAM_BUCKET.get());
+				output.accept(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get());
 			})
 			.build());
 

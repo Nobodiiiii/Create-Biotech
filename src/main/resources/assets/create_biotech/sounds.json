@@ -1,0 +1,8 @@
+{
+  "ding_dong_chicken.voice_pack": {
+    "subtitle": "subtitles.create_biotech.ding_dong_chicken.voice_pack",
+    "sounds": [
+      "create_biotech:ding_dong_chicken/ding_dong_chicken_voice_pack"
+    ]
+  }
+}

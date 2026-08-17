@@ -30,6 +30,7 @@ mixin {
     add sourceSets.main, "create_biotech.refmap.json"
     config "create_biotech.mixins.json"
     config "create_biotech_allay.mixins.json"
+    config "create_biotech_alternate_current.mixins.json"
 }
 
 legacyForge {
@@ -97,6 +98,9 @@ dependencies {
     modCompileOnly("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
     modRuntimeOnly("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
     modCompileOnly("maven.modrinth:jade:${jade_version}")
+    modCompileOnly("maven.modrinth:r0v8vy1s:${alternate_current_version}") {
+        transitive = false
+    }
     modImplementation("io.github.llamalad7:mixinextras-forge:${mixinextras_version}")
     compileOnly("io.github.llamalad7:mixinextras-common:${mixinextras_version}")
 
@@ -181,7 +185,7 @@ jar {
                 'Implementation-Version'  : project.jar.archiveVersion,
                 'Implementation-Vendor'   : mod_authors,
                 'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                'MixinConfigs'            : 'create_biotech.mixins.json,create_biotech_allay.mixins.json'
+                'MixinConfigs'            : 'create_biotech.mixins.json,create_biotech_allay.mixins.json,create_biotech_alternate_current.mixins.json'
         ])
     }
 }
