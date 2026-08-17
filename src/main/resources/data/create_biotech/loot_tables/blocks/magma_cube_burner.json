@@ -1,0 +1,80 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:empty_magma_cube_burner",
+          "conditions": [
+            {
+              "condition": "minecraft:block_state_property",
+              "block": "create_biotech:magma_cube_burner",
+              "properties": {
+                "blaze": "none"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:magma_cube_burner",
+          "conditions": [
+            {
+              "condition": "minecraft:block_state_property",
+              "block": "create_biotech:magma_cube_burner",
+              "properties": {
+                "blaze": "smouldering"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:magma_cube_burner",
+          "conditions": [
+            {
+              "condition": "minecraft:block_state_property",
+              "block": "create_biotech:magma_cube_burner",
+              "properties": {
+                "blaze": "fading"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:magma_cube_burner",
+          "conditions": [
+            {
+              "condition": "minecraft:block_state_property",
+              "block": "create_biotech:magma_cube_burner",
+              "properties": {
+                "blaze": "kindled"
+              }
+            }
+          ]
+        },
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:magma_cube_burner",
+          "conditions": [
+            {
+              "condition": "minecraft:block_state_property",
+              "block": "create_biotech:magma_cube_burner",
+              "properties": {
+                "blaze": "seething"
+              }
+            }
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        }
+      ]
+    }
+  ]
+}

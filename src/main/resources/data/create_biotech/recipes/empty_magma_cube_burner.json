@@ -1,0 +1,27 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " P ",
+    "IBI",
+    " S "
+  ],
+  "key": {
+    "B": {
+      "item": "minecraft:blackstone"
+    },
+    "I": {
+      "item": "minecraft:iron_ingot"
+    },
+    "P": {
+      "tag": "forge:plates/iron"
+    },
+    "S": {
+      "item": "create:brass_sheet"
+    }
+  },
+  "result": {
+    "item": "create_biotech:empty_magma_cube_burner"
+  },
+  "show_notification": true
+}

@@ -17,6 +17,7 @@ import com.nobodiiiii.createbiotech.content.experience.HiddenExperienceItem;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
@@ -96,6 +97,13 @@ public class CBItems {
 
 	public static final RegistryObject<Item> MAGMA_BELT_CONNECTOR = ITEMS.register("magma_belt_connector",
 		() -> new MagmaBeltConnectorItem(new Item.Properties()));
+
+	public static final RegistryObject<Item> EMPTY_MAGMA_CUBE_BURNER =
+		ITEMS.register("empty_magma_cube_burner",
+			() -> MagmaCubeBurnerItem.empty(CBBlocks.MAGMA_CUBE_BURNER.get(), new Item.Properties()));
+
+	public static final RegistryObject<Item> MAGMA_CUBE_BURNER = ITEMS.register("magma_cube_burner",
+		() -> MagmaCubeBurnerItem.withMagmaCube(CBBlocks.MAGMA_CUBE_BURNER.get(), new Item.Properties()));
 
 	public static final RegistryObject<Item> POWER_BELT_CONNECTOR = ITEMS.register("power_belt_connector",
 		() -> new PowerBeltConnectorItem(new Item.Properties()));
