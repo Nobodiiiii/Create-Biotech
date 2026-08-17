@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.mixin;
 
+import java.util.Arrays;
+
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -7,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.nobodiiiii.createbiotech.foundation.block.CBBeltChainData;
 import com.nobodiiiii.createbiotech.foundation.block.CBBeltChainPlacement;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity.CasingType;
 import com.simibubi.create.content.schematics.cannon.LaunchedItem;
@@ -25,13 +28,14 @@ public abstract class LaunchedItemForBeltMixin implements CBBeltChainData {
 	@Override
 	@Unique
 	public void createBiotech$setPulleyOffsets(int[] offsets) {
-		createBiotech$pulleyOffsets = offsets == null ? null : offsets.clone();
+		createBiotech$pulleyOffsets = offsets == null ? null : Arrays.copyOf(offsets, offsets.length);
 	}
 
 	@Override
 	@Unique
 	public int[] createBiotech$getPulleyOffsets() {
-		return createBiotech$pulleyOffsets == null ? null : createBiotech$pulleyOffsets.clone();
+		return createBiotech$pulleyOffsets == null ? null
+			: Arrays.copyOf(createBiotech$pulleyOffsets, createBiotech$pulleyOffsets.length);
 	}
 
 	@Inject(method = "serializeNBT", at = @At("RETURN"))
@@ -56,7 +60,7 @@ public abstract class LaunchedItemForBeltMixin implements CBBeltChainData {
 		int[] pulleys = createBiotech$pulleyOffsets == null ? new int[0] : createBiotech$pulleyOffsets;
 		CasingType[] beltCasings = belt.casings == null ? new CasingType[belt.length] : belt.casings;
 		if (belt.casings == null)
-			java.util.Arrays.fill(beltCasings, CasingType.NONE);
+			Arrays.fill(beltCasings, CasingType.NONE);
 		CBBeltChainPlacement.placeAtomically(world, belt.state,
 			CBBeltChainPlacement.positionsFromPayload(belt.state, belt.target, belt.length), pulleys, beltCasings);
 		ci.cancel();
