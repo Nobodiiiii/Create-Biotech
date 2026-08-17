@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlockEntity;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterInkParticleOption;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterSquidVisual;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.AllBlocks;
@@ -31,7 +32,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.MultiBufferSource.BufferSource;
 import net.minecraft.client.renderer.texture.TextureAtlas;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraftforge.fluids.FluidStack;
 import org.joml.Quaternionf;
 
@@ -170,28 +170,32 @@ public class AnimatedSquidSpout extends AnimatedKineticsWithEntities {
 
 		if (cycleTick >= BURST_PHASE_TICKS)
 			SquidPrinterBlockEntity.forEachBurstInkParticle(level, PARTICLE_ORIGIN,
-				(x, y, z, dx, dy, dz) -> spawnScaledInkParticle(x, y, z, dx, dy, dz, BURST_CENTER_X, BURST_CENTER_Y,
-					BURST_CENTER_Z));
+				(options, x, y, z, dx, dy, dz) -> spawnScaledInkParticle(options, x, y, z, dx, dy, dz, BURST_CENTER_X,
+					BURST_CENTER_Y, BURST_CENTER_Z));
 		if (currentTick % 3 == 0 && cycleTick >= BURST_PHASE_TICKS)
 			SquidPrinterBlockEntity.forEachAmbientInkParticle(level, PARTICLE_ORIGIN,
-				(x, y, z, dx, dy, dz) -> spawnScaledInkParticle(x, y, z, dx, dy, dz, AMBIENT_CENTER_X,
-					AMBIENT_CENTER_Y, AMBIENT_CENTER_Z));
+				(options, x, y, z, dx, dy, dz) -> spawnScaledInkParticle(options, x, y, z, dx, dy, dz,
+					AMBIENT_CENTER_X, AMBIENT_CENTER_Y, AMBIENT_CENTER_Z));
 	}
 
-	private void spawnScaledInkParticle(double x, double y, double z, double dx, double dy, double dz,
-		double anchorX, double anchorY, double anchorZ) {
+	private void spawnScaledInkParticle(SquidPrinterInkParticleOption options, double x, double y, double z, double dx,
+		double dy, double dz, double anchorX, double anchorY, double anchorZ) {
 		double scaledX = anchorX + (x - anchorX) * JEI_INK_RANGE_SCALE;
 		double scaledY = anchorY + (y - anchorY) * JEI_INK_RANGE_SCALE;
 		double scaledZ = anchorZ + (z - anchorZ) * JEI_INK_RANGE_SCALE;
 		double scaledDx = dx * JEI_INK_RANGE_SCALE;
 		double scaledDy = dy * JEI_INK_RANGE_SCALE;
 		double scaledDz = dz * JEI_INK_RANGE_SCALE;
+		// The scene compresses the machine, so the depth the ink is allowed to sink
+		// has to shrink with it or the preview trail would overshoot the depot.
+		SquidPrinterInkParticleOption scaledOptions =
+			new SquidPrinterInkParticleOption((float) (options.fallLimit() * JEI_INK_RANGE_SCALE));
 
 		Minecraft minecraft = Minecraft.getInstance();
 		ClientLevel level = minecraft.level;
 		if (level == null)
 			return;
-		Particle particle = minecraft.particleEngine.createParticle(ParticleTypes.SQUID_INK, scaledX, scaledY,
+		Particle particle = minecraft.particleEngine.createParticle(scaledOptions, scaledX, scaledY,
 			scaledZ, scaledDx, scaledDy, scaledDz);
 		if (particle != null) {
 			particle.scale(JEI_INK_SIZE_SCALE);

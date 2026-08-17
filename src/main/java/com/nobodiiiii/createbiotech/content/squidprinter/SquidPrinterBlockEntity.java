@@ -271,7 +271,8 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 	@FunctionalInterface
 	public interface SquidInkParticleEmitter {
-		void emit(double x, double y, double z, double dx, double dy, double dz);
+		void emit(SquidPrinterInkParticleOption options, double x, double y, double z, double dx, double dy,
+			double dz);
 	}
 
 	public int getComparatorOutput() {
@@ -299,24 +300,40 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		if (level == null)
 			return;
 		forEachBurstInkParticle(level, worldPosition,
-			(x, y, z, dx, dy, dz) -> level.addParticle(ParticleTypes.SQUID_INK, x, y, z, dx, dy, dz));
+			(options, x, y, z, dx, dy, dz) -> level.addParticle(options, x, y, z, dx, dy, dz));
 	}
 
 	private void spawnAmbientInk() {
 		if (level == null)
 			return;
 		forEachAmbientInkParticle(level, worldPosition,
-			(x, y, z, dx, dy, dz) -> level.addParticle(ParticleTypes.SQUID_INK, x, y, z, dx, dy, dz));
+			(options, x, y, z, dx, dy, dz) -> level.addParticle(options, x, y, z, dx, dy, dz));
+	}
+
+	/**
+	 * Ink from both streams vanishes this far below the printer, so it never sinks
+	 * past the depot it is printing onto.
+	 */
+	private static final double INK_FALL_LIMIT_BELOW_BLOCK = 1.2d;
+
+	/**
+	 * Converts the shared depth limit into the per-particle allowance, which
+	 * differs between the two streams because they are released at different
+	 * heights.
+	 */
+	private static SquidPrinterInkParticleOption inkOptions(BlockPos pos, double spawnY) {
+		return new SquidPrinterInkParticleOption((float) (INK_FALL_LIMIT_BELOW_BLOCK + (spawnY - pos.getY())));
 	}
 
 	public static void forEachBurstInkParticle(Level level, BlockPos pos, SquidInkParticleEmitter emitter) {
 		double centerX = pos.getX() + 0.5d;
 		double centerY = pos.getY() - 0.5d;
 		double centerZ = pos.getZ() + 0.5d;
+		SquidPrinterInkParticleOption options = inkOptions(pos, centerY);
 		for (int i = 0; i < 4; i++) {
 			double offsetX = (level.random.nextDouble() - 0.5d) * 0.4d;
 			double offsetZ = (level.random.nextDouble() - 0.5d) * 0.4d;
-			emitter.emit(centerX + offsetX, centerY, centerZ + offsetZ, 0d, -0.05d, 0d);
+			emitter.emit(options, centerX + offsetX, centerY, centerZ + offsetZ, 0d, -0.05d, 0d);
 		}
 	}
 
@@ -326,7 +343,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		double centerZ = pos.getZ() + 0.5d;
 		double offsetX = (level.random.nextDouble() - 0.5d) * 0.3d;
 		double offsetZ = (level.random.nextDouble() - 0.5d) * 0.3d;
-		emitter.emit(centerX + offsetX, centerY, centerZ + offsetZ, 0d, -0.04d, 0d);
+		emitter.emit(inkOptions(pos, centerY), centerX + offsetX, centerY, centerZ + offsetZ, 0d, -0.04d, 0d);
 	}
 
 	@Override
