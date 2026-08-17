@@ -12,6 +12,17 @@ public final class CBSoundEvents {
 	private static final DeferredRegister<SoundEvent> SOUND_EVENTS =
 		DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, CreateBiotech.MOD_ID);
 
+	/** A controllable event containing only vanilla {@code mob/wolf/growl1}. */
+	public static final RegistryObject<SoundEvent> SONIC_DOG_CANNON_GROWL1 =
+		register("sonic_dog_cannon.growl1");
+	public static final RegistryObject<SoundEvent> SONIC_DOG_CANNON_VOICE_PACK_CHARGE_START =
+		register("sonic_dog_cannon.voice_pack.charge_start");
+	public static final RegistryObject<SoundEvent> SONIC_DOG_CANNON_VOICE_PACK_CHARGE_LOOP =
+		register("sonic_dog_cannon.voice_pack.charge_loop");
+	public static final RegistryObject<SoundEvent> SONIC_DOG_CANNON_VOICE_PACK_FIRE_FULL =
+		register("sonic_dog_cannon.voice_pack.fire_full");
+	public static final RegistryObject<SoundEvent> SONIC_DOG_CANNON_VOICE_PACK_FIRE_PARTIAL =
+		register("sonic_dog_cannon.voice_pack.fire_partial");
 	public static final RegistryObject<SoundEvent> DING_DONG_CHICKEN_VOICE_PACK =
 		register("ding_dong_chicken.voice_pack");
 

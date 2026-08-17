@@ -60,6 +60,7 @@ import com.yision.allay.client.render.AllayPortRenderer;
 import com.yision.allay.client.render.AllayPortVisual;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
 import com.nobodiiiii.createbiotech.client.particle.CourierNoteParticle;
+import com.nobodiiiii.createbiotech.client.particle.SonicConeWaveParticle;
 import com.nobodiiiii.createbiotech.client.particle.SquidPrinterInkParticle;
 import com.nobodiiiii.createbiotech.client.particle.StraightEnchantParticle;
 import com.nobodiiiii.createbiotech.client.render.SlimeMimicRenderLayer;
@@ -175,6 +176,19 @@ public class CreateBiotechClient {
 		event.register(DingDongChickenRenderer.BELL_BASE_MODEL.modelLocation());
 		event.register(DingDongChickenRenderer.BELL_MODEL.modelLocation());
 		event.register(DingDongChickenRenderer.BELL_PLUNGER_MODEL.modelLocation());
+		event.register(SonicDogCannonItemRenderer.GEAR_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.SCOPE_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.LEFT_SCOPE_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.FOLDED_SCOPE_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.LEFT_FOLDED_SCOPE_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.COLLAR_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.WOLF_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.WOLF_ANGRY_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.SHRIEK_EYES_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.PAW_LEFT_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.PAW_RIGHT_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.PAW_LEFT_ANGRY_MODEL_LOCATION);
+		event.register(SonicDogCannonItemRenderer.PAW_RIGHT_ANGRY_MODEL_LOCATION);
 		event.register(AutomaticFishReleaseMachineRenderer.BLADE_CLAMP_MODEL_LOCATION);
 		event.register(HalfShaftVisual.MODEL.modelLocation());
 		event.register(CreateBiotech.asResource("block/blast_chamber_display/panel"));
@@ -242,6 +256,7 @@ public class CreateBiotechClient {
 		event.registerSpriteSet(CBParticleTypes.STRAIGHT_ENCHANT.get(), StraightEnchantParticle.Provider::new);
 		event.registerSpriteSet(CBParticleTypes.ALLAY_COURIER_NOTE.get(), CourierNoteParticle.Provider::new);
 		event.registerSpriteSet(CBParticleTypes.SQUID_PRINTER_INK.get(), SquidPrinterInkParticle.Provider::new);
+		event.registerSpriteSet(CBParticleTypes.SONIC_CONE_WAVE.get(), SonicConeWaveParticle.Provider::new);
 	}
 
 	@SubscribeEvent
@@ -400,6 +415,9 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());
 		registerCreateStyleTooltip(CBItems.FIXED_CARROT_FISHING_ROD.get());
 		registerCreateStyleTooltip(CBItems.WIRELESS_TERMINAL.get());
+		registerCreateStyleTooltip(CBItems.DING_DONG_CHICKEN.get());
+		TooltipModifier.REGISTRY.register(CBItems.SONIC_DOG_CANNON.get(),
+			new SonicDogCannonTooltipModifier());
 		registerCreateStyleTooltip(CBItems.SHULKER_PACKAGER.get());
 		registerCreateStyleTooltip(CBItems.SHULKER_TELEPORTER.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());

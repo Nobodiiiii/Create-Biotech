@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
@@ -17,6 +18,7 @@ import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
+import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
@@ -42,6 +44,12 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		registration.addRecipeCategories(new CreeperBlastChamberHighPressureJeiCategory());
 		registration.addRecipeCategories(new SquidPrinterJeiCategory());
 		registration.addRecipeCategories(new EvokerEnchantingChamberJeiCategory());
+	}
+
+	@Override
+	public void registerVanillaCategoryExtensions(IVanillaCategoryExtensionRegistration registration) {
+		registration.getSmithingCategory()
+			.addExtension(SonicDogCannonUpgradeRecipe.class, new SonicDogCannonUpgradeJeiExtension());
 	}
 
 	@Override

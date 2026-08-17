@@ -11,6 +11,9 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagne
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSurfaceMovementPacket;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerPlacementPacket;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonChargeSoundPacket;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonFirePacket;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonGearAnimationPacket;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterConfigPacket;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueRemovalPacket;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueSelectionPacket;
@@ -30,7 +33,7 @@ import net.minecraftforge.network.simple.SimpleChannel;
 
 public class CBPackets {
 
-	private static final String NETWORK_VERSION = "13";
+	private static final String NETWORK_VERSION = "14";
 	private static final SimpleChannel CHANNEL = NetworkRegistry.ChannelBuilder.named(CreateBiotech.asResource("main"))
 		.serverAcceptedVersions(NETWORK_VERSION::equals)
 		.clientAcceptedVersions(NETWORK_VERSION::equals)
@@ -83,6 +86,15 @@ public class CBPackets {
 			NetworkDirection.PLAY_TO_CLIENT);
 		register(DingDongChickenVoiceSoundPacket.class, DingDongChickenVoiceSoundPacket::new,
 			DingDongChickenVoiceSoundPacket::write, DingDongChickenVoiceSoundPacket::handle,
+			NetworkDirection.PLAY_TO_CLIENT);
+		register(SonicDogCannonChargeSoundPacket.class, SonicDogCannonChargeSoundPacket::new,
+			SonicDogCannonChargeSoundPacket::write, SonicDogCannonChargeSoundPacket::handle,
+			NetworkDirection.PLAY_TO_CLIENT);
+		register(SonicDogCannonFirePacket.class, SonicDogCannonFirePacket::new,
+			SonicDogCannonFirePacket::write, SonicDogCannonFirePacket::handle,
+			NetworkDirection.PLAY_TO_CLIENT);
+		register(SonicDogCannonGearAnimationPacket.class, SonicDogCannonGearAnimationPacket::new,
+			SonicDogCannonGearAnimationPacket::write, SonicDogCannonGearAnimationPacket::handle,
 			NetworkDirection.PLAY_TO_CLIENT);
 	}
 

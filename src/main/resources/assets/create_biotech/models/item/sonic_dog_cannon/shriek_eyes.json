@@ -1,0 +1,24 @@
+{
+	"textures": {
+		"0": "create_biotech:item/sonic_dog_cannon/shriek_eyes",
+		"particle": "create_biotech:item/sonic_dog_cannon/shriek_eyes"
+	},
+	"elements": [
+		{
+			"name": "left_eye_overlay",
+			"from": [6, 7, -11.01],
+			"to": [7, 8, -11.01],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0"}
+			}
+		},
+		{
+			"name": "right_eye_overlay",
+			"from": [9, 7, -11.01],
+			"to": [10, 8, -11.01],
+			"faces": {
+				"north": {"uv": [0, 0, 16, 16], "texture": "#0"}
+			}
+		}
+	]
+}

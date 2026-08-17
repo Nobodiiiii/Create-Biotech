@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRecipe;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeSerializer;
 
@@ -27,6 +28,10 @@ public class CBRecipeTypes {
 	public static final RegistryObject<RecipeSerializer<SquidPrinterRecipe>> SQUID_PRINTER_SERIALIZER =
 		RECIPE_SERIALIZERS.register("squid_printer",
 			() -> new ProcessingRecipeSerializer<>(SquidPrinterRecipe::new));
+
+	public static final RegistryObject<RecipeSerializer<SonicDogCannonUpgradeRecipe>>
+		SONIC_DOG_CANNON_UPGRADE_SERIALIZER =
+			RECIPE_SERIALIZERS.register("sonic_dog_cannon_upgrade", SonicDogCannonUpgradeRecipe.Serializer::new);
 
 	public static final RegistryObject<RecipeType<CreeperBlastChamberHighPressureRecipe>>
 		CREEPER_BLAST_CHAMBER_HIGH_PRESSURE_TYPE =

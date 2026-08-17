@@ -28,6 +28,7 @@ import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerItem;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackageItem;
 import com.nobodiiiii.createbiotech.content.slimearmor.SlimeArmorItem;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
@@ -130,6 +131,9 @@ public class CBItems {
 
 	public static final RegistryObject<Item> WIRELESS_TERMINAL = ITEMS.register("wireless_terminal",
 		() -> new WirelessTerminalItem(new Item.Properties().stacksTo(1)));
+
+	public static final RegistryObject<SonicDogCannonItem> SONIC_DOG_CANNON = ITEMS.register("sonic_dog_cannon",
+		() -> new SonicDogCannonItem(new Item.Properties().durability(SonicDogCannonItem.MAX_DURABILITY)));
 
 	public static final RegistryObject<Item> HALF_SHAFT = ITEMS.register("half_shaft",
 		() -> new Item(new Item.Properties()));

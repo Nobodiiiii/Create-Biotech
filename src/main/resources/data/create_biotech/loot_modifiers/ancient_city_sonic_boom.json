@@ -1,0 +1,10 @@
+{
+  "type": "create_biotech:add_table",
+  "conditions": [
+    {
+      "condition": "forge:loot_table_id",
+      "loot_table_id": "minecraft:chests/ancient_city"
+    }
+  ],
+  "table": "create_biotech:chests/ancient_city_sonic_boom"
+}

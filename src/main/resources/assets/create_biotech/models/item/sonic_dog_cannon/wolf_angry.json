@@ -1,0 +1,7 @@
+{
+	"parent": "create_biotech:item/sonic_dog_cannon/wolf",
+	"textures": {
+		"0": "create_biotech:item/sonic_dog_cannon/wolf_angry",
+		"particle": "create_biotech:item/sonic_dog_cannon/wolf_angry"
+	}
+}

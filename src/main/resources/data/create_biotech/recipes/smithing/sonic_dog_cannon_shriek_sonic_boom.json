@@ -1,0 +1,7 @@
+{
+  "type": "create_biotech:sonic_dog_cannon_upgrade",
+  "addition": {
+    "item": "minecraft:sculk_shrieker"
+  },
+  "upgrade": "shriek_sonic_boom"
+}

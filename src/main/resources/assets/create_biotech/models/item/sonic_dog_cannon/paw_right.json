@@ -1,0 +1,23 @@
+{
+	"texture_size": [64, 32],
+	"textures": {
+		"0": "create_biotech:item/sonic_dog_cannon/wolf",
+		"particle": "create_biotech:item/sonic_dog_cannon/wolf"
+	},
+	"elements": [
+		{
+			"name": "wolf_paw_r",
+			"from": [11, 4, -10],
+			"to": [13, 6, -4],
+			"rotation": {"angle": -22.5, "axis": "y", "origin": [12, 5, -7]},
+			"faces": {
+				"north": {"uv": [1.5, 9, 1, 10], "texture": "#0"},
+				"east": {"uv": [0, 10, 0.5, 13], "rotation": 90, "texture": "#0"},
+				"south": {"uv": [1, 10, 0.5, 9], "texture": "#0"},
+				"west": {"uv": [1, 10, 1.5, 13], "rotation": 90, "texture": "#0"},
+				"up": {"uv": [0.5, 14, 1, 11], "texture": "#0"},
+				"down": {"uv": [1.5, 11, 2, 14], "texture": "#0"}
+			}
+		}
+	]
+}

@@ -1,0 +1,39 @@
+{
+  "forge:conditions": [
+    {
+      "type": "create_biotech:feature_enabled",
+      "feature": "cardboardBox"
+    }
+  ],
+  "type": "create:mechanical_crafting",
+  "category": "misc",
+  "pattern": [
+    "WBCIA",
+    "  TA "
+  ],
+  "key": {
+    "W": {
+      "type": "create_biotech:captured_entity_box",
+      "entity": "minecraft:wolf"
+    },
+    "B": {
+      "item": "create_biotech:bionic_mechanism"
+    },
+    "C": {
+      "item": "create:cogwheel"
+    },
+    "I": {
+      "item": "create:andesite_casing"
+    },
+    "A": {
+      "item": "create:andesite_alloy"
+    },
+    "T": {
+      "item": "create:andesite_table_cloth"
+    }
+  },
+  "result": {
+    "item": "create_biotech:sonic_dog_cannon"
+  },
+  "accept_mirrored": false
+}

@@ -1,0 +1,7 @@
+{
+  "type": "create_biotech:sonic_dog_cannon_upgrade",
+  "addition": {
+    "tag": "forge:dyes"
+  },
+  "upgrade": "dog_collar"
+}

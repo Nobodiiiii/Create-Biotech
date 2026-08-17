@@ -1,4 +1,30 @@
 {
+  "sonic_dog_cannon.growl1": {
+    "subtitle": "subtitles.entity.wolf.growl",
+    "sounds": [
+      "minecraft:mob/wolf/growl1"
+    ]
+  },
+  "sonic_dog_cannon.voice_pack.charge_start": {
+    "sounds": [
+      "create_biotech:sonic_dog_cannon/voice_pack/sonic_dog_cannon_voice_pack_charge_start"
+    ]
+  },
+  "sonic_dog_cannon.voice_pack.charge_loop": {
+    "sounds": [
+      "create_biotech:sonic_dog_cannon/voice_pack/sonic_dog_cannon_voice_pack_charge_loop"
+    ]
+  },
+  "sonic_dog_cannon.voice_pack.fire_full": {
+    "sounds": [
+      "create_biotech:sonic_dog_cannon/voice_pack/sonic_dog_cannon_voice_pack_fire_full"
+    ]
+  },
+  "sonic_dog_cannon.voice_pack.fire_partial": {
+    "sounds": [
+      "create_biotech:sonic_dog_cannon/voice_pack/sonic_dog_cannon_voice_pack_fire_partial"
+    ]
+  },
   "ding_dong_chicken.voice_pack": {
     "subtitle": "subtitles.create_biotech.ding_dong_chicken.voice_pack",
     "sounds": [

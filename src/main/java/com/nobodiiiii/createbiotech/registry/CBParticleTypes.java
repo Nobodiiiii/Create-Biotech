@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.mojang.serialization.Codec;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicConeWaveParticleOption;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterInkParticleOption;
 
 import net.minecraft.core.particles.ParticleType;
@@ -26,6 +27,15 @@ public class CBParticleTypes {
 				@Override
 				public Codec<SquidPrinterInkParticleOption> codec() {
 					return SquidPrinterInkParticleOption.CODEC;
+				}
+			});
+
+	public static final RegistryObject<ParticleType<SonicConeWaveParticleOption>> SONIC_CONE_WAVE =
+		PARTICLE_TYPES.register("sonic_cone_wave",
+			() -> new ParticleType<SonicConeWaveParticleOption>(true, SonicConeWaveParticleOption.DESERIALIZER) {
+				@Override
+				public Codec<SonicConeWaveParticleOption> codec() {
+					return SonicConeWaveParticleOption.CODEC;
 				}
 			});
 
