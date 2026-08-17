@@ -1,0 +1,23 @@
+{
+  "forge:conditions": [
+    {
+      "type": "create_biotech:feature_enabled",
+      "feature": "cardboardBox"
+    }
+  ],
+  "type": "create:item_application",
+  "ingredients": [
+    {
+      "item": "create:empty_blaze_burner"
+    },
+    {
+      "type": "create_biotech:captured_entity_box",
+      "entity": "minecraft:blaze"
+    }
+  ],
+  "results": [
+    {
+      "item": "create:blaze_burner"
+    }
+  ]
+}
