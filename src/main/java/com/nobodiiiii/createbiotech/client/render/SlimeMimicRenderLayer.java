@@ -134,12 +134,36 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		if (context.mode == RenderMode.SKIP_MODEL_PARTS)
 			return true;
 
-		renderPartRecursive(part, poseStack, context, packedLight, overlay);
+		context.deferredParts()
+			.add(new DeferredPart(part, new Matrix4f(poseStack.last().pose()),
+				new Matrix3f(poseStack.last().normal()), packedLight, overlay));
+		renderPartRecursive(part, poseStack, context, packedLight, overlay, RenderPass.INNER);
 		return true;
 	}
 
+	/**
+	 * Draws the translucent outer jelly for every part the model already drew its
+	 * opaque interior for. Deferring the whole outer pass means the interior of the
+	 * creature is behind finished geometry by the time anything see-through is
+	 * written, so the jelly never sorts in front of a limb it should be covering.
+	 */
+	public static void renderDeferredOuterParts() {
+		RenderContext context = currentContext();
+		if (context == null || context.mode() != RenderMode.SLIMEIFY_MODEL_PARTS)
+			return;
+
+		for (DeferredPart deferredPart : context.deferredParts()) {
+			PoseStack poseStack = new PoseStack();
+			poseStack.last().pose().set(deferredPart.pose());
+			poseStack.last().normal().set(deferredPart.normal());
+			renderPartRecursive(deferredPart.part(), poseStack, context, deferredPart.packedLight(),
+				deferredPart.overlay(), RenderPass.OUTER);
+		}
+		context.deferredParts().clear();
+	}
+
 	private static void renderPartRecursive(ModelPart part, PoseStack poseStack, RenderContext context,
-		int packedLight, int overlay) {
+		int packedLight, int overlay, RenderPass pass) {
 		if (!part.visible)
 			return;
 
@@ -149,17 +173,17 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
 		if (!part.skipDraw) {
 			for (ModelPart.Cube cube : accessor.createBiotech$getCubes())
-				renderCube(cube, poseStack, context, packedLight, overlay);
+				renderCube(cube, poseStack, context, packedLight, overlay, pass);
 		}
 
 		for (Map.Entry<String, ModelPart> child : accessor.createBiotech$getChildren().entrySet())
-			renderPartRecursive(child.getValue(), poseStack, context, packedLight, overlay);
+			renderPartRecursive(child.getValue(), poseStack, context, packedLight, overlay, pass);
 
 		poseStack.popPose();
 	}
 
 	private static void renderCube(ModelPart.Cube cube, PoseStack poseStack, RenderContext context, int packedLight,
-		int overlay) {
+		int overlay, RenderPass pass) {
 		if (!cubeHasVisiblePixels(cube, context.texture()))
 			return;
 
@@ -176,37 +200,51 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		float centerZ = (cube.minZ + cube.maxZ) * 0.5f / 16.0f;
 
 		if (flatCube) {
-			renderFlatCubeFilter(cube, poseStack, context, packedLight, overlay);
+			if (pass == RenderPass.INNER)
+				renderFlatCubeBase(cube, poseStack, context, packedLight, overlay);
+			else
+				renderFlatCubeFilter(cube, poseStack, context, packedLight, overlay);
 			return;
 		}
 
-		VertexConsumer innerConsumer = context.buffer()
-			.getBuffer(RenderType.entityCutoutNoCull(SLIME_TEXTURE));
+		if (pass == RenderPass.INNER) {
+			VertexConsumer innerConsumer = context.buffer()
+				.getBuffer(RenderType.entityCutoutNoCull(SLIME_TEXTURE));
+			renderSlimeCube(innerCube(), poseStack, innerConsumer, packedLight, overlay, centerX, centerY, centerZ,
+				width, height, depth, INNER_RED, INNER_GREEN, INNER_BLUE, INNER_ALPHA);
+			return;
+		}
+
 		VertexConsumer outerConsumer = context.buffer()
 			.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE));
+		renderSlimeCube(outerCube(), poseStack, outerConsumer, packedLight, overlay, centerX, centerY, centerZ,
+			width + 2.0f * OUTER_CUBE_INFLATE_PIXELS, height + 2.0f * OUTER_CUBE_INFLATE_PIXELS,
+			depth + 2.0f * OUTER_CUBE_INFLATE_PIXELS, OUTER_RED, OUTER_GREEN, OUTER_BLUE, OUTER_ALPHA);
+	}
 
-		float outerWidth = width + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
-		float outerHeight = height + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
-		float outerDepth = depth + 2.0f * OUTER_CUBE_INFLATE_PIXELS;
-
+	private static void renderSlimeCube(ModelPart slimeCube, PoseStack poseStack, VertexConsumer consumer,
+		int packedLight, int overlay, float centerX, float centerY, float centerZ, float width, float height,
+		float depth, float red, float green, float blue, float alpha) {
 		runWithoutPartInterception(() -> {
 			poseStack.pushPose();
 			poseStack.translate(centerX, centerY, centerZ);
 			poseStack.scale(width / SLIME_MODEL_WIDTH, height / SLIME_MODEL_WIDTH, depth / SLIME_MODEL_WIDTH);
 			poseStack.translate(0.0f, -SLIME_MODEL_CENTER_Y, 0.0f);
-			innerCube().render(poseStack, innerConsumer, packedLight, overlay, INNER_RED, INNER_GREEN, INNER_BLUE,
-				INNER_ALPHA);
-			poseStack.popPose();
-
-			poseStack.pushPose();
-			poseStack.translate(centerX, centerY, centerZ);
-			poseStack.scale(outerWidth / SLIME_MODEL_WIDTH, outerHeight / SLIME_MODEL_WIDTH,
-				outerDepth / SLIME_MODEL_WIDTH);
-			poseStack.translate(0.0f, -SLIME_MODEL_CENTER_Y, 0.0f);
-			outerCube().render(poseStack, outerConsumer, packedLight, overlay, OUTER_RED, OUTER_GREEN, OUTER_BLUE,
-				OUTER_ALPHA);
+			slimeCube.render(poseStack, consumer, packedLight, overlay, red, green, blue, alpha);
 			poseStack.popPose();
 		});
+	}
+
+	private static void renderFlatCubeBase(ModelPart.Cube cube, PoseStack poseStack, RenderContext context,
+		int packedLight, int overlay) {
+		ResourceLocation texture = context.texture();
+		if (texture == null)
+			return;
+
+		VertexConsumer baseConsumer = context.buffer()
+			.getBuffer(RenderType.entityCutoutNoCull(texture));
+		runWithoutPartInterception(() ->
+			cube.compile(poseStack.last(), baseConsumer, packedLight, overlay, 1.0f, 1.0f, 1.0f, 1.0f));
 	}
 
 	private static void renderFlatCubeFilter(ModelPart.Cube cube, PoseStack poseStack, RenderContext context,
@@ -215,16 +253,12 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		if (texture == null)
 			return;
 
-		VertexConsumer baseConsumer = context.buffer()
-			.getBuffer(RenderType.entityCutoutNoCull(texture));
 		VertexConsumer filterConsumer = context.buffer()
 			.getBuffer(RenderType.entityTranslucent(texture));
 
-		runWithoutPartInterception(() -> {
-			cube.compile(poseStack.last(), baseConsumer, packedLight, overlay, 1.0f, 1.0f, 1.0f, 1.0f);
+		runWithoutPartInterception(() ->
 			compileCubeWithNormalOffset(cube, poseStack.last(), filterConsumer, packedLight, overlay,
-				OVERLAY_RED, OVERLAY_GREEN, OVERLAY_BLUE, FLAT_CUBE_FILTER_ALPHA, FLAT_CUBE_FILTER_NORMAL_OFFSET);
-		});
+				OVERLAY_RED, OVERLAY_GREEN, OVERLAY_BLUE, FLAT_CUBE_FILTER_ALPHA, FLAT_CUBE_FILTER_NORMAL_OFFSET));
 	}
 
 	private static boolean isFlatCube(float width, float height, float depth) {
@@ -306,7 +340,19 @@ public class SlimeMimicRenderLayer<T extends LivingEntity, M extends EntityModel
 		SKIP_MODEL_PARTS
 	}
 
-	private record RenderContext(RenderMode mode, MultiBufferSource buffer, ResourceLocation texture) {
+	private enum RenderPass {
+		INNER,
+		OUTER
+	}
+
+	private record RenderContext(RenderMode mode, MultiBufferSource buffer, ResourceLocation texture,
+		List<DeferredPart> deferredParts) {
+		private RenderContext(RenderMode mode, MultiBufferSource buffer, ResourceLocation texture) {
+			this(mode, buffer, texture, new ArrayList<>());
+		}
+	}
+
+	private record DeferredPart(ModelPart part, Matrix4f pose, Matrix3f normal, int packedLight, int overlay) {
 	}
 
 	private static boolean cubeHasVisiblePixels(ModelPart.Cube cube, ResourceLocation texture) {
