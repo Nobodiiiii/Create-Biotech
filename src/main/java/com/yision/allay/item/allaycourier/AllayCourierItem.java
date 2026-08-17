@@ -1,12 +1,12 @@
 package com.yision.allay.item.allaycourier;
 
 import com.simibubi.create.content.logistics.box.PackageItem;
-import com.simibubi.create.foundation.item.render.SimpleCustomRenderer;
-import com.yision.allay.client.render.AllayCourierItemRenderer;
+import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
+import com.yision.allay.entity.courier.AllayCourierEntity;
 import com.yision.allay.logistics.courier.AllayCourierDispatchService;
+import com.yision.allay.registry.AllEntityTypes;
 import com.yision.allay.registry.AllItems;
 import java.util.List;
-import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -20,19 +20,17 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
-public class AllayCourierItem extends Item {
+public class AllayCourierItem extends BlockCenteredRenderedLivingEntityItem<AllayCourierEntity> {
+	private static final float ITEM_RENDER_SCALE = 1.5f;
 	private static final int EMPTY_CARRIER_MAX_STACK_SIZE = 64;
 	private static final String CARGO_KEY = "Cargo";
 	private static final String HEADING_KEY = "Heading";
@@ -40,7 +38,34 @@ public class AllayCourierItem extends Item {
 	private static final double PLAYER_LAUNCH_EYE_OFFSET = -0.35;
 
 	public AllayCourierItem(Properties properties) {
-		super(properties);
+		super(properties, AllEntityTypes.ALLAY_COURIER.get(), ITEM_RENDER_SCALE);
+	}
+
+	@Override
+	public void configureRenderedEntity(AllayCourierEntity courier, ItemStack stack,
+		ItemDisplayContext displayContext) {
+		configureRenderedCourier(courier, copyCargoPackage(stack), true);
+	}
+
+	/**
+	 * Measured without cargo so a carried package cannot drag the courier off the
+	 * center the other display contexts are aligned to.
+	 */
+	@Override
+	public void configureRenderedEntityForGeometryMeasurement(AllayCourierEntity courier, ItemStack stack,
+		ItemDisplayContext displayContext) {
+		configureRenderedCourier(courier, ItemStack.EMPTY, true);
+	}
+
+	/**
+	 * Only the fixed and dropped presentations keep the delivery heading; in hand
+	 * and in the GUI the courier faces the viewer.
+	 */
+	@Override
+	public float getRenderedEntityYRotation(ItemStack stack, ItemDisplayContext displayContext) {
+		if (displayContext != ItemDisplayContext.FIXED && displayContext != ItemDisplayContext.GROUND)
+			return 0.0f;
+		return hasHeadingAngle(stack) ? getHeadingAngle(stack) : 0.0f;
 	}
 
 	@Override
@@ -255,10 +280,13 @@ public class AllayCourierItem extends Item {
 		}
 	}
 
-	@SuppressWarnings("removal")
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(SimpleCustomRenderer.create(this, new AllayCourierItemRenderer()));
+	static void configureRenderedCourier(AllayCourierEntity courier, ItemStack cargoPackage,
+		boolean renderLogisticsHat) {
+		courier.setPackage(cargoPackage);
+		courier.setPhase(AllayCourierEntity.Phase.WAITING);
+		courier.setRenderLogisticsHat(renderLogisticsHat);
+		courier.setNoGravity(true);
+		courier.setDeltaMovement(Vec3.ZERO);
+		courier.setPos(0, 0, 0);
 	}
 }

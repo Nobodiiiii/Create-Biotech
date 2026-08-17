@@ -1,24 +1,22 @@
 package com.yision.allay.item.allaycourier;
 
-import java.util.function.Consumer;
+import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
+import com.yision.allay.entity.courier.AllayCourierEntity;
+import com.yision.allay.registry.AllEntityTypes;
 
-import com.simibubi.create.foundation.item.render.SimpleCustomRenderer;
-import com.yision.allay.client.render.AllayCourierItemRenderer;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
 
-import net.minecraft.world.item.Item;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.api.distmarker.OnlyIn;
-import net.minecraftforge.client.extensions.common.IClientItemExtensions;
+public class IncompleteAllayCourierItem extends BlockCenteredRenderedLivingEntityItem<AllayCourierEntity> {
+	private static final float ITEM_RENDER_SCALE = 1.5f;
 
-public class IncompleteAllayCourierItem extends Item {
 	public IncompleteAllayCourierItem(Properties properties) {
-		super(properties);
+		super(properties, AllEntityTypes.ALLAY_COURIER.get(), ITEM_RENDER_SCALE);
 	}
 
-	@SuppressWarnings("removal")
 	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(SimpleCustomRenderer.create(this, new AllayCourierItemRenderer(false)));
+	public void configureRenderedEntity(AllayCourierEntity courier, ItemStack stack,
+		ItemDisplayContext displayContext) {
+		AllayCourierItem.configureRenderedCourier(courier, ItemStack.EMPTY, false);
 	}
 }

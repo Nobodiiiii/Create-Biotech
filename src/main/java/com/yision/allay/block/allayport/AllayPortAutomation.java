@@ -1,7 +1,6 @@
 package com.yision.allay.block.allayport;
 
 import com.simibubi.create.content.logistics.box.PackageItem;
-import com.simibubi.create.content.logistics.packager.PackagerItemHandler;
 import com.simibubi.create.foundation.item.ItemHelper;
 import com.yision.allay.logistics.address.AllayAddressRules;
 import net.minecraft.core.Direction;
@@ -41,11 +40,20 @@ final class AllayPortAutomation {
 			if (packageInSlot.isEmpty())
 				continue;
 
-			ItemStack remainder = ItemHandlerHelper.insertItemStacked(destination, packageInSlot, false);
-			if (!remainder.isEmpty())
+			ItemStack simulatedRemainder = ItemHandlerHelper.insertItemStacked(destination, packageInSlot, true);
+			if (!simulatedRemainder.isEmpty())
 				continue;
 
-			source.extractItem(slot, 1, false);
+			ItemStack extracted = source.extractItem(slot, 1, false);
+			if (extracted.isEmpty())
+				continue;
+
+			ItemStack remainder = ItemHandlerHelper.insertItemStacked(destination, extracted, false);
+			if (!remainder.isEmpty()) {
+				ItemStack rollbackRemainder = port.inventory.insertItem(slot, remainder, false);
+				if (!rollbackRemainder.isEmpty())
+					port.drop(rollbackRemainder);
+			}
 			port.markPortContentsChanged();
 		}
 	}
@@ -56,25 +64,12 @@ final class AllayPortAutomation {
 	}
 
 	private boolean tryPullingFrom(IItemHandler handler) {
-		ItemStack extract = ItemHelper.extract(handler, stack -> {
-			if (!PackageItem.isPackage(stack)) {
-				return false;
-			}
-			String filterString = port.getFilterString();
-			return filterString == null || handler instanceof PackagerItemHandler
-				|| !AllayAddressRules.matchesPackage(stack, filterString);
-		}, true);
-		if (extract.isEmpty() || !inventory.addPackage(extract, true)) {
-			return false;
-		}
-
 		ItemStack extracted = ItemHelper.extract(handler, stack -> {
 			if (!PackageItem.isPackage(stack)) {
 				return false;
 			}
 			String filterString = port.getFilterString();
-			return filterString == null || handler instanceof PackagerItemHandler
-				|| !AllayAddressRules.matchesPackage(stack, filterString);
+			return filterString == null || !AllayAddressRules.matchesPackage(stack, filterString);
 		}, false);
 		if (extracted.isEmpty()) {
 			return false;
