@@ -11,7 +11,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
-import com.nobodiiiii.createbiotech.foundation.render.BlockCenteredRenderedLivingEntityItemRenderer;
+import com.nobodiiiii.createbiotech.foundation.render.GuiEntityItemElement;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.client.Minecraft;
@@ -88,8 +88,11 @@ public final class CapturedEntityBoxIconRenderer {
 				MultiBufferSource clippedBuffer =
 					renderType -> new FaceClippingVertexConsumer(iconBuffer.getBuffer(renderType), boxToRender, face,
 						alignment);
-				BlockCenteredRenderedLivingEntityItemRenderer.renderBlockCenteredEntity(capturedEntity, renderScale,
-					iconPoseStack, clippedBuffer, packedLight);
+				GuiEntityItemElement.of(capturedEntity)
+					.blockCentered()
+					.fixedScale(renderScale)
+					.packedLight(packedLight)
+					.render(iconPoseStack, clippedBuffer);
 			});
 	}
 
@@ -126,8 +129,11 @@ public final class CapturedEntityBoxIconRenderer {
 		GeometryBounds bounds = new GeometryBounds();
 		Matrix4f renderToBox = new Matrix4f(boxToRender).invert();
 		MultiBufferSource measuringBuffer = renderType -> new GeometryBoundsVertexConsumer(renderToBox, bounds);
-		BlockCenteredRenderedLivingEntityItemRenderer.renderBlockCenteredEntity(entity, renderScale, poseStack,
-			measuringBuffer, packedLight);
+		GuiEntityItemElement.of(entity)
+			.blockCentered()
+			.fixedScale(renderScale)
+			.packedLight(packedLight)
+			.render(poseStack, measuringBuffer);
 		return bounds;
 	}
 

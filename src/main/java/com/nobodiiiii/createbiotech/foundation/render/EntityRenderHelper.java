@@ -26,6 +26,25 @@ public final class EntityRenderHelper {
 		return new RenderSettings<>(entity);
 	}
 
+	/**
+	 * Renders an entity with every orientation input pinned to zero, so the result
+	 * depends only on the caller's pose. Used by every off-world display path
+	 * (item models, GUI slots, baked box-face icons) and by the geometry
+	 * measurement passes that must observe exactly what those paths draw.
+	 */
+	public static void renderUnoriented(Entity entity, PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight) {
+		render(settings(entity)
+			.packedLight(packedLight)
+			.partialTicks(1.0f)
+			.dispatcherYaw(0.0f)
+			.yaw(0.0f)
+			.bodyYaw(0.0f)
+			.headYaw(0.0f)
+			.pitch(0.0f)
+			.flushBuffers(false), poseStack, buffer);
+	}
+
 	public static <T extends Entity> void render(RenderSettings<T> settings, PoseStack poseStack,
 		MultiBufferSource buffer) {
 		EntityRenderDispatcher dispatcher = Minecraft.getInstance()

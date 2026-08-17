@@ -18,7 +18,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 
 public abstract class OversizedBlockItemRenderer<T extends BlockEntity> extends CustomRenderedItemModelRenderer {
 
-	private static final float ITEM_SCALE = 0.67f;
+	private static final float DEFAULT_ITEM_SCALE = 0.67f;
 
 	@Nullable
 	private T cachedBlockEntity;
@@ -34,7 +34,8 @@ public abstract class OversizedBlockItemRenderer<T extends BlockEntity> extends 
 
 		ms.pushPose();
 		ms.translate(0, getRenderYOffset(), 0);
-		ms.scale(ITEM_SCALE, ITEM_SCALE, ITEM_SCALE);
+		float itemScale = getItemScale();
+		ms.scale(itemScale, itemScale, itemScale);
 		ms.translate(-0.5f, -0.5f, -0.5f);
 		renderTransformed(stack, model, renderer, transformType, ms, buffer, light, overlay, blockEntity);
 		ms.popPose();
@@ -43,6 +44,10 @@ public abstract class OversizedBlockItemRenderer<T extends BlockEntity> extends 
 	protected abstract T createBlockEntity();
 
 	protected abstract float getRenderYOffset();
+
+	protected float getItemScale() {
+		return DEFAULT_ITEM_SCALE;
+	}
 
 	protected void renderTransformed(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
 		ItemDisplayContext transformType, PoseStack ms, MultiBufferSource buffer, int light, int overlay,

@@ -204,22 +204,6 @@ public final class GuiEntityElement {
 			return this;
 		}
 
-		public GuiEntityRenderBuilder<T> inventoryLike(float angleXComponent, float angleYComponent) {
-			Quaternionf camera = new Quaternionf().rotateX((float) Math.toRadians(angleYComponent * 20.0F));
-			Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
-			pose.mul(camera);
-			float yaw = 180.0F + angleXComponent * 40.0F;
-
-			return scaleEntity(1.0d, -1.0d, -1.0d)
-				.poseOrientation(pose)
-				.cameraOrientation(camera)
-				.bodyYaw(180.0F + angleXComponent * 20.0F)
-				.yaw(yaw)
-				.pitch(-angleYComponent * 20.0F)
-				.headYaw(yaw)
-				.dispatcherYaw(0.0F);
-		}
-
 		public GuiEntityRenderBuilder<T> face(Direction direction) {
 			renderSettings.face(direction);
 			return this;

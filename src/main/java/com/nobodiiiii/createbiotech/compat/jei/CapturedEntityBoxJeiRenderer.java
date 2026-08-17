@@ -6,7 +6,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
-import com.nobodiiiii.createbiotech.foundation.render.BlockCenteredRenderedLivingEntityItemRenderer;
+import com.nobodiiiii.createbiotech.foundation.render.GuiEntityItemElement;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
@@ -75,8 +75,10 @@ public final class CapturedEntityBoxJeiRenderer {
 	}
 
 	private static void renderEntity(GuiGraphics graphics, LivingEntity entity, int x, int y) {
-		BlockCenteredRenderedLivingEntityItemRenderer.renderAutoScaledGuiEntityItem(graphics, ENTITY_ITEM_TRANSFORM,
-			entity, 1.0f, x, y);
+		GuiEntityItemElement.of(entity)
+			.blockCentered()
+			.autoScale(1.0f)
+			.renderInGuiSlot(graphics, ENTITY_ITEM_TRANSFORM, x, y);
 	}
 
 	private static void renderBadge(GuiGraphics graphics, int x, int y) {
