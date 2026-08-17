@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.foundation.item;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.foundation.render.BlockCenteredRenderedLivingEntityItemRenderer;
 
@@ -34,6 +35,27 @@ public class BlockCenteredRenderedLivingEntityItem<T extends LivingEntity> exten
 	public BlockCenteredRenderedLivingEntityItem(Properties properties, EntityType<T> entityType,
 		Consumer<T> entityConfigurer, float scaleMultiplier) {
 		super(properties, entityType, entityConfigurer, scaleMultiplier);
+	}
+
+	public BlockCenteredRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier) {
+		super(properties, entityTypeSupplier);
+	}
+
+	public BlockCenteredRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier, float scaleMultiplier) {
+		super(properties, entityTypeSupplier, entity -> {
+		}, scaleMultiplier);
+	}
+
+	public BlockCenteredRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier, Consumer<T> entityConfigurer) {
+		super(properties, entityTypeSupplier, entityConfigurer);
+	}
+
+	public BlockCenteredRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier, Consumer<T> entityConfigurer, float scaleMultiplier) {
+		super(properties, entityTypeSupplier, entityConfigurer, scaleMultiplier);
 	}
 
 	@Override

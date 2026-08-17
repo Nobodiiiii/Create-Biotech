@@ -11,7 +11,7 @@ public class IncompleteAllayCourierItem extends BlockCenteredRenderedLivingEntit
 	private static final float ITEM_RENDER_SCALE = 1.5f;
 
 	public IncompleteAllayCourierItem(Properties properties) {
-		super(properties, AllEntityTypes.ALLAY_COURIER.get(), ITEM_RENDER_SCALE);
+		super(properties, AllEntityTypes.ALLAY_COURIER, ITEM_RENDER_SCALE);
 	}
 
 	@Override

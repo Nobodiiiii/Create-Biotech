@@ -43,7 +43,7 @@ public class BlockCenteredRenderedLivingEntityItemRenderer<T extends LivingEntit
 	private BlockCenteredRenderedLivingEntityItemRenderer(RenderedLivingEntityItem<T> item) {
 		super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
 		this.item = item;
-		this.renderEntity = CachedRenderEntity.of(item.getRenderedEntityType())
+		this.renderEntity = CachedRenderEntity.of(level -> item.getRenderedEntityType().create(level))
 			.configure(item::configureRenderedEntity);
 	}
 

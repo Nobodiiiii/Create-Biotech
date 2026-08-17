@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.foundation.item;
 
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer;
 
@@ -14,23 +15,38 @@ import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.client.extensions.common.IClientItemExtensions;
 
 public class RenderedLivingEntityItem<T extends LivingEntity> extends Item {
-	private final EntityType<T> entityType;
+	private final Supplier<? extends EntityType<T>> entityTypeSupplier;
 	private final Consumer<T> entityConfigurer;
 	private final float scaleMultiplier;
 
 	public RenderedLivingEntityItem(Properties properties, EntityType<T> entityType) {
-		this(properties, entityType, entity -> {
+		this(properties, () -> entityType, entity -> {
 		});
 	}
 
 	public RenderedLivingEntityItem(Properties properties, EntityType<T> entityType, Consumer<T> entityConfigurer) {
-		this(properties, entityType, entityConfigurer, 1.0f);
+		this(properties, () -> entityType, entityConfigurer, 1.0f);
 	}
 
 	public RenderedLivingEntityItem(Properties properties, EntityType<T> entityType, Consumer<T> entityConfigurer,
 		float scaleMultiplier) {
+		this(properties, () -> entityType, entityConfigurer, scaleMultiplier);
+	}
+
+	public RenderedLivingEntityItem(Properties properties, Supplier<? extends EntityType<T>> entityTypeSupplier) {
+		this(properties, entityTypeSupplier, entity -> {
+		});
+	}
+
+	public RenderedLivingEntityItem(Properties properties, Supplier<? extends EntityType<T>> entityTypeSupplier,
+		Consumer<T> entityConfigurer) {
+		this(properties, entityTypeSupplier, entityConfigurer, 1.0f);
+	}
+
+	public RenderedLivingEntityItem(Properties properties, Supplier<? extends EntityType<T>> entityTypeSupplier,
+		Consumer<T> entityConfigurer, float scaleMultiplier) {
 		super(properties);
-		this.entityType = entityType;
+		this.entityTypeSupplier = entityTypeSupplier;
 		this.entityConfigurer = entityConfigurer;
 		this.scaleMultiplier = scaleMultiplier;
 	}
@@ -42,7 +58,7 @@ public class RenderedLivingEntityItem<T extends LivingEntity> extends Item {
 	}
 
 	public EntityType<T> getRenderedEntityType() {
-		return entityType;
+		return entityTypeSupplier.get();
 	}
 
 	public float getRenderedEntityScaleMultiplier() {

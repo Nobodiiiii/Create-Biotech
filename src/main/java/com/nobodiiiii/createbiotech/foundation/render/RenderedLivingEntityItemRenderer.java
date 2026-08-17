@@ -38,7 +38,7 @@ public class RenderedLivingEntityItemRenderer<T extends LivingEntity> extends Bl
 	private RenderedLivingEntityItemRenderer(RenderedLivingEntityItem<T> item) {
 		super(Minecraft.getInstance().getBlockEntityRenderDispatcher(), Minecraft.getInstance().getEntityModels());
 		this.item = item;
-		this.renderEntity = CachedRenderEntity.of(item.getRenderedEntityType())
+		this.renderEntity = CachedRenderEntity.of(level -> item.getRenderedEntityType().create(level))
 			.configure(item::configureRenderedEntity);
 	}
 
