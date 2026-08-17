@@ -40,9 +40,9 @@ public class SlimeTransformationJeiCategory extends AbstractRecipeCategory<Slime
 
 	public SlimeTransformationJeiCategory() {
 		super(TYPE, Component.literal("史莱姆转化"),
-			new SlimeEntityDrawable(16, 16, 10, 2, -0.75f, -0.6f, -1, EntityType.SLIME), WIDTH, HEIGHT);
-		this.slimeDrawable = new SlimeEntityDrawable(32, 24, 18, 2, -0.75f, -0.6f, EntityType.SLIME);
-		this.magmaDrawable = new SlimeEntityDrawable(32, 24, 18, 2, -0.75f, -0.6f, EntityType.MAGMA_CUBE);
+			new SlimeEntityDrawable(16, 16, 2, EntityType.SLIME), WIDTH, HEIGHT);
+		this.slimeDrawable = new SlimeEntityDrawable(32, 24, 2, EntityType.SLIME);
+		this.magmaDrawable = new SlimeEntityDrawable(32, 24, 2, EntityType.MAGMA_CUBE);
 	}
 
 	@Override

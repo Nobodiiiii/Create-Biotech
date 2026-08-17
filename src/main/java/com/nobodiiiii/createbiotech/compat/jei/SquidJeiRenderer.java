@@ -15,13 +15,22 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.model.SquidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.animal.Squid;
 
+/**
+ * Draws the printer's squid into a JEI scene.
+ *
+ * <p>The squid is a bare {@link SquidModel} rather than an entity, so it cannot
+ * go through {@link com.nobodiiiii.createbiotech.foundation.gui.GuiEntityElement}.
+ * The placement is kept in step with
+ * {@code SquidPrinterRenderer#renderSquid} instead: same local attachment point,
+ * same model-space correction, so the preview and the real block agree.
+ */
 public final class SquidJeiRenderer {
 
-	private static final float GUI_SCALE = 20.0f;
-	private static final float GUI_Y_OFFSET = -72.0f;
-	private static final float GUI_RENDER_Z = 100.0f;
+	private static final double SQUID_LOCAL_X = 0.5d;
+	private static final double SQUID_LOCAL_Z = 0.5d;
 
 	@Nullable
 	private static SquidModel<Squid> squidModel;
@@ -29,63 +38,41 @@ public final class SquidJeiRenderer {
 	private SquidJeiRenderer() {
 	}
 
-	public static void render(GuiGraphics graphics, int centerX, int centerY, float scale) {
+	/**
+	 * Places the open squid on the printer already drawn at the origin of the
+	 * current JEI scene, turned to the given facing exactly as the world renderer
+	 * turns it. The squid's texture has one distinctive side; pointing it the same
+	 * way the block points means the preview shows what a placed printer shows.
+	 */
+	public static void renderOpenInScene(GuiGraphics graphics, Direction facing, float sceneScale) {
 		SquidModel<Squid> model = getSquidModel();
 		if (model == null)
 			return;
 
 		PoseStack poseStack = graphics.pose();
-		preparePose(poseStack);
-		try {
-			poseStack.translate(centerX, centerY + GUI_Y_OFFSET, GUI_RENDER_Z);
-			poseStack.scale(GUI_SCALE * scale, GUI_SCALE * scale, GUI_SCALE * scale);
-			UIRenderHelper.flipForGuiRender(poseStack);
-			poseStack.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
-				SquidPrinterSquidVisual.RENDER_SCALE);
-			poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-			poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
-			renderOpenSquid(model, graphics, poseStack);
-		} finally {
-			cleanUpPose(poseStack);
-		}
-	}
-
-	public static void renderOpenInScene(GuiGraphics graphics, double x, double y, double z, float sceneScale) {
-		SquidModel<Squid> model = getSquidModel();
-		if (model == null)
-			return;
-
-		PoseStack poseStack = graphics.pose();
-		preparePose(poseStack);
-		try {
-			poseStack.scale(sceneScale, sceneScale, sceneScale);
-			poseStack.translate(x, y, z);
-			UIRenderHelper.flipForGuiRender(poseStack);
-			poseStack.scale(-SquidPrinterSquidVisual.RENDER_SCALE, -SquidPrinterSquidVisual.RENDER_SCALE,
-				SquidPrinterSquidVisual.RENDER_SCALE);
-			renderOpenSquid(model, graphics, poseStack);
-		} finally {
-			cleanUpPose(poseStack);
-		}
-	}
-
-	private static void renderOpenSquid(SquidModel<Squid> model, GuiGraphics graphics, PoseStack poseStack) {
-		SquidPrinterSquidVisual.prepareOpenModel(model);
-		SquidPrinterSquidVisual.renderModel(model, poseStack, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
-	}
-
-	private static void preparePose(PoseStack poseStack) {
 		poseStack.pushPose();
 		RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
 		RenderSystem.enableDepthTest();
 		RenderSystem.enableBlend();
 		RenderSystem.defaultBlendFunc();
 		AnimatedKinetics.DEFAULT_LIGHTING.applyLighting();
-	}
 
-	private static void cleanUpPose(PoseStack poseStack) {
-		poseStack.popPose();
-		Lighting.setupFor3DItems();
+		try {
+			poseStack.scale(sceneScale, sceneScale, sceneScale);
+			// Scene-local offsets are applied before the GUI flip, where +Y points
+			// down, so the world renderer's attachment height is negated here.
+			poseStack.translate(SQUID_LOCAL_X, -SquidPrinterSquidVisual.HEAD_TOP_Y, SQUID_LOCAL_Z);
+			UIRenderHelper.flipForGuiRender(poseStack);
+			poseStack.mulPose(Axis.YP.rotationDegrees(180.0f - facing.toYRot()));
+			float scale = SquidPrinterSquidVisual.RENDER_SCALE;
+			poseStack.scale(-scale, -scale, scale);
+
+			SquidPrinterSquidVisual.prepareOpenModel(model);
+			SquidPrinterSquidVisual.renderModel(model, poseStack, graphics.bufferSource(), LightTexture.FULL_BRIGHT);
+		} finally {
+			poseStack.popPose();
+			Lighting.setupFor3DItems();
+		}
 	}
 
 	private static @Nullable SquidModel<Squid> getSquidModel() {

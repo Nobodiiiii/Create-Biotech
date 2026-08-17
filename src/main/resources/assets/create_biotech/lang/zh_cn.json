@@ -54,6 +54,8 @@
   "block.create_biotech.petri_dish": "史莱姆培养皿",
   "create_biotech.recipe.printing": "打印",
   "item.create_biotech.enchantment_book_copy": "附魔书（复印本）",
+  "create_biotech.jei.biological_transformation.slime": "击杀体型>=2、吸收了传送带掉落物的史莱姆掉落",
+  "create_biotech.jei.biological_transformation.magma_cube": "击杀体型>=2、吸收了传送带掉落物的岩浆怪掉落",
   "create_biotech.jei.squid_printer.note.template": "在侧面标记一本作为模板的附魔书",
   "create_biotech.jei.squid_printer.note.water_cost": "每级附魔需要 %2$s tick，并消耗 %1$s mB 的水",
   "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "每个已支付的附魔等级咏唱 %s tick",

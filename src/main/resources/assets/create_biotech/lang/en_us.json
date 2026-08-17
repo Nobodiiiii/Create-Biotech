@@ -54,6 +54,8 @@
   "block.create_biotech.petri_dish": "Petri Dish",
   "create_biotech.recipe.printing": "Printing",
   "item.create_biotech.enchantment_book_copy": "Enchanted Book (Copy)",
+  "create_biotech.jei.biological_transformation.slime": "Dropped by a size 2+ Slime that absorbed a Belt Connector",
+  "create_biotech.jei.biological_transformation.magma_cube": "Dropped by a size 2+ Magma Cube that absorbed a Belt Connector",
   "create_biotech.jei.squid_printer.note.template": "Mark a template enchantment book on the side",
   "create_biotech.jei.squid_printer.note.water_cost": "Each enchantment level takes %2$s ticks and consumes %1$s mB of water",
   "create_biotech.jei.evoker_enchanting_chamber.note.ritual": "Each paid enchantment level casts for %s ticks",

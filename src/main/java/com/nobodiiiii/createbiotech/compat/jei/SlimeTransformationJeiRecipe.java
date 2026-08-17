@@ -16,12 +16,13 @@ public record SlimeTransformationJeiRecipe(ResourceLocation id, ItemStack input,
 	public static SlimeTransformationJeiRecipe beltToSlimeBelt() {
 		return new SlimeTransformationJeiRecipe(CreateBiotech.asResource("slime_transformation/belt_connector"),
 			AllItems.BELT_CONNECTOR.asStack(), new ItemStack(CBItems.SLIME_BELT_CONNECTOR.get()), EntityType.SLIME,
-			Component.literal("击杀体型>=2、吸收了传送带掉落物的史莱姆掉落"));
+			Component.translatable("create_biotech.jei.biological_transformation.slime"));
 	}
 
 	public static SlimeTransformationJeiRecipe beltToMagmaBelt() {
 		return new SlimeTransformationJeiRecipe(CreateBiotech.asResource("slime_transformation/magma_belt_connector"),
 			AllItems.BELT_CONNECTOR.asStack(), new ItemStack(CBItems.MAGMA_BELT_CONNECTOR.get()),
-			EntityType.MAGMA_CUBE, Component.literal("击杀体型>=2、吸收了传送带掉落物的岩浆怪掉落"));
+			EntityType.MAGMA_CUBE,
+			Component.translatable("create_biotech.jei.biological_transformation.magma_cube"));
 	}
 }

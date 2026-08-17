@@ -2,12 +2,10 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.foundation.render.CachedRenderEntity;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
-import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
@@ -15,12 +13,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.level.Level;
 
 public class HighPressureCreeperDrawable extends AnimatedKineticsWithEntities {
 	private static final int PRESS_CYCLE = 30;
-	private static final int PRESS_RENDER_Z = 100;
 	private static final int PRESS_SCALE = 20;
 	private static final double CREEPER_ATTACHMENT_Y = 2d;
 	private static final float PRESS_EFFECT_START_OFFSET = 0.4f;
@@ -32,10 +29,8 @@ public class HighPressureCreeperDrawable extends AnimatedKineticsWithEntities {
 	private final float verticalScale;
 	private final int swell;
 
-	@Nullable
-	private Creeper cachedCreeper;
-	@Nullable
-	private Level cachedLevel;
+	private final CachedRenderEntity<Creeper, Void> renderCreeper = CachedRenderEntity.of(EntityType.CREEPER)
+		.configure(creeper -> creeper.readAdditionalSaveData(CHARGED_CREEPER_TAG));
 
 	public HighPressureCreeperDrawable(int width, int height, float horizontalScale, float verticalScale, int swell) {
 		this.width = width;
@@ -57,39 +52,29 @@ public class HighPressureCreeperDrawable extends AnimatedKineticsWithEntities {
 
 	@Override
 	public void draw(GuiGraphics guiGraphics, int xOffset, int yOffset) {
-		Minecraft minecraft = Minecraft.getInstance();
-		Level level = minecraft.level;
-		if (level == null)
-			return;
-
-		Creeper creeper = getOrCreateCreeper(level);
+		@Nullable
+		Creeper creeper = renderCreeper.get(Minecraft.getInstance().level);
 		if (creeper == null)
 			return;
 
 		float headOffset = getAnimatedHeadOffset();
-		PoseStack poseStack = guiGraphics.pose();
-		poseStack.pushPose();
-		poseStack.translate(xOffset, yOffset, PRESS_RENDER_Z);
-		poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		scene(guiGraphics, xOffset, yOffset, () -> {
+			blockElement(shaft(Direction.Axis.Z))
+				.rotateBlock(0, 0, getCurrentAngle())
+				.scale(PRESS_SCALE)
+				.render(guiGraphics);
 
-		blockElement(shaft(Direction.Axis.Z))
-			.rotateBlock(0, 0, getCurrentAngle())
-			.scale(PRESS_SCALE)
-			.render(guiGraphics);
+			blockElement(AllBlocks.MECHANICAL_PRESS.getDefaultState())
+				.scale(PRESS_SCALE)
+				.render(guiGraphics);
 
-		blockElement(AllBlocks.MECHANICAL_PRESS.getDefaultState())
-			.scale(PRESS_SCALE)
-			.render(guiGraphics);
+			renderCreeper(guiGraphics, creeper, headOffset);
 
-		renderCreeper(guiGraphics, creeper, headOffset);
-
-		blockElement(AllPartialModels.MECHANICAL_PRESS_HEAD)
-			.atLocal(0, -headOffset, 0)
-			.scale(PRESS_SCALE)
-			.render(guiGraphics);
-
-		poseStack.popPose();
+			blockElement(AllPartialModels.MECHANICAL_PRESS_HEAD)
+				.atLocal(0, -headOffset, 0)
+				.scale(PRESS_SCALE)
+				.render(guiGraphics);
+		});
 	}
 
 	private void renderCreeper(GuiGraphics guiGraphics, Creeper creeper, float headOffset) {
@@ -134,21 +119,5 @@ public class HighPressureCreeperDrawable extends AnimatedKineticsWithEntities {
 		CompoundTag tag = new CompoundTag();
 		tag.putBoolean("powered", true);
 		return tag;
-	}
-
-	@Nullable
-	private Creeper getOrCreateCreeper(Level level) {
-		if (cachedCreeper != null && cachedLevel == level)
-			return cachedCreeper;
-
-		Creeper creeper = net.minecraft.world.entity.EntityType.CREEPER.create(level);
-		if (creeper == null)
-			return null;
-		creeper.setNoAi(true);
-		creeper.readAdditionalSaveData(CHARGED_CREEPER_TAG);
-		creeper.tickCount = 0;
-		cachedLevel = level;
-		cachedCreeper = creeper;
-		return creeper;
 	}
 }

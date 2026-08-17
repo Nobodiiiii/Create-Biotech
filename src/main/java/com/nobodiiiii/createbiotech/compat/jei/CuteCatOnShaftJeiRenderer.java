@@ -6,7 +6,6 @@ import org.jetbrains.annotations.Nullable;
 
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.ButterCatPartials;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
@@ -37,7 +36,8 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public final class CuteCatOnShaftJeiRenderer {
 	private static final float RENDER_SCALE = 20f;
-	private static final int RENDER_Z = 100;
+	private static final int PREVIEW_X = 74;
+	private static final int PREVIEW_Y = 51;
 	private static final Direction PREVIEW_FACING = Direction.NORTH;
 
 	@Nullable
@@ -66,9 +66,7 @@ public final class CuteCatOnShaftJeiRenderer {
 
 		var poseStack = graphics.pose();
 		poseStack.pushPose();
-		poseStack.translate(74, 51, RENDER_Z);
-		poseStack.mulPose(Axis.XP.rotationDegrees(-15.5f));
-		poseStack.mulPose(Axis.YP.rotationDegrees(22.5f));
+		AnimatedKineticsWithEntities.applySceneTransform(poseStack, PREVIEW_X, PREVIEW_Y);
 
 		GuiGameElement.of(createShaftState())
 			.lighting(AnimatedKinetics.DEFAULT_LIGHTING)
