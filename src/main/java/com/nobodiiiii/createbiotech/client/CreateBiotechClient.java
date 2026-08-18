@@ -50,6 +50,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltVisual;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderer;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
+import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgrade;
 import com.nobodiiiii.createbiotech.content.universaljoint.HalfShaftVisual;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftRenderer;
@@ -59,6 +60,7 @@ import com.yision.allay.client.render.AllayCourierEntityRenderer;
 import com.yision.allay.client.render.AllayPortRenderer;
 import com.yision.allay.client.render.AllayPortVisual;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
+import com.nobodiiiii.createbiotech.foundation.ponder.CreatePonderAliasPlugin;
 import com.nobodiiiii.createbiotech.client.particle.CourierNoteParticle;
 import com.nobodiiiii.createbiotech.client.particle.SonicConeWaveParticle;
 import com.nobodiiiii.createbiotech.client.particle.SquidPrinterInkParticle;
@@ -107,6 +109,7 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.client.event.EntityRenderersEvent;
 import net.minecraftforge.client.event.ModelEvent;
+import net.minecraftforge.client.event.RegisterColorHandlersEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterGuiOverlaysEvent;
@@ -260,6 +263,20 @@ public class CreateBiotechClient {
 	}
 
 	@SubscribeEvent
+	public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
+		event.register((stack, tintIndex) -> tintIndex == 0
+			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
+			? packRgb(SonicDogCannonUpgrade.getCollarColor(stack).getTextureDiffuseColors())
+			: -1, CBItems.SONIC_DOG_CANNON.get());
+	}
+
+	private static int packRgb(float[] color) {
+		return (int) (color[0] * 255.0f) << 16
+			| (int) (color[1] * 255.0f) << 8
+			| (int) (color[2] * 255.0f);
+	}
+
+	@SubscribeEvent
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		MinecraftForge.EVENT_BUS.addListener(RotationHandler::onClientTick);
 		MinecraftForge.EVENT_BUS.addListener(RotationHandler::onRender);
@@ -267,6 +284,7 @@ public class CreateBiotechClient {
 			registerItemTooltips();
 			registerCardboardBoxModelProperties();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
+			PonderIndex.addPlugin(new CreatePonderAliasPlugin());
 			CardboardBoxPartials.register();
 			ShulkerPackagePartials.register();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.AUTOMATIC_FISH_RELEASE_MACHINE.get())
