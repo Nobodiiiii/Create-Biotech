@@ -22,7 +22,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -43,6 +42,7 @@ public class MagmaCubeBurnerBlockEntity extends SmartBlockEntity implements IHav
 	public static final int LAVA_PER_RENDER_PIXEL = FluidType.BUCKET_VOLUME / 4;
 	static final int BURNING_ANIMATION_PERIOD = 40;
 	static final int BURNING_LANDING_TICK = 32;
+	private static final int MAGMA_CUBE_SIZE = 1;
 
 	private static final String LAVA_TANK_TAG = "LavaTank";
 	private static final String BURN_PROGRESS_TAG = "BurnProgress";
@@ -199,12 +199,11 @@ public class MagmaCubeBurnerBlockEntity extends SmartBlockEntity implements IHav
 
 	private void spawnMagmaCubeLandingParticles() {
 		RandomSource random = level.getRandom();
-		float diameter = EntityType.MAGMA_CUBE.getDimensions().width * 2;
-		float radius = diameter / 2;
+		float radius = MAGMA_CUBE_SIZE * .5f;
 		double centerX = worldPosition.getX() + .5;
 		double y = worldPosition.getY() + 2 / 16d;
 		double centerZ = worldPosition.getZ() + .5;
-		for (int i = 0; i < diameter * 16; i++) {
+		for (int i = 0; i < MAGMA_CUBE_SIZE * 8; i++) {
 			float angle = random.nextFloat() * Mth.TWO_PI;
 			float distance = random.nextFloat() * .5f + .5f;
 			float xOffset = Mth.sin(angle) * radius * distance;

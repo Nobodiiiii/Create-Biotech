@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import java.util.EnumMap;
 import java.util.List;
 
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.feature.CBFeature;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -10,11 +11,19 @@ import org.apache.commons.lang3.tuple.Pair;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntityType;
 import net.minecraftforge.common.ForgeConfigSpec;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.ModLoadingContext;
+import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
+@Mod.EventBusSubscriber(modid = CreateBiotech.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class CBConfigs {
+	private static final int SHULKER_PACKAGER_OLD_DEFAULT_RANGE = 5;
+	private static final int SHULKER_PACKAGER_DEFAULT_RANGE = 8;
+	private static final int SHULKER_PACKAGER_CONFIG_VERSION = 1;
+
 	public static final Client CLIENT;
 	public static final ForgeConfigSpec CLIENT_SPEC;
 	public static final Common COMMON;
@@ -45,6 +54,32 @@ public class CBConfigs {
 		ModLoadingContext.get().registerConfig(ModConfig.Type.CLIENT, CLIENT_SPEC);
 		ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, COMMON_SPEC);
 		ModLoadingContext.get().registerConfig(ModConfig.Type.SERVER, SERVER_SPEC);
+	}
+
+	@SubscribeEvent
+	public static void onConfigLoad(ModConfigEvent.Loading event) {
+		migrateShulkerPackagerConfig(event.getConfig());
+	}
+
+	@SubscribeEvent
+	public static void onConfigReload(ModConfigEvent.Reloading event) {
+		migrateShulkerPackagerConfig(event.getConfig());
+	}
+
+	private static void migrateShulkerPackagerConfig(ModConfig config) {
+		if (config.getSpec() != SERVER_SPEC)
+			return;
+
+		ShulkerPackager shulkerPackager = SERVER.shulkerPackager;
+		if (shulkerPackager.configVersion.get() >= SHULKER_PACKAGER_CONFIG_VERSION)
+			return;
+
+		// Only migrate servers that still have the old default. Preserve explicit custom values.
+		if (shulkerPackager.connectionRange.get() == SHULKER_PACKAGER_OLD_DEFAULT_RANGE)
+			shulkerPackager.connectionRange.set(SHULKER_PACKAGER_DEFAULT_RANGE);
+
+		shulkerPackager.configVersion.set(SHULKER_PACKAGER_CONFIG_VERSION);
+		config.save();
 	}
 
 	public enum EntityListMode {
@@ -641,12 +676,16 @@ public class CBConfigs {
 
 	public static class ShulkerPackager {
 		public final ForgeConfigSpec.IntValue transferDelay;
+		public final ForgeConfigSpec.IntValue configVersion;
 		public final ForgeConfigSpec.IntValue connectionRange;
 
 		ShulkerPackager(ForgeConfigSpec.Builder builder) {
 			builder.push("shulkerPackager");
 			transferDelay = builder.defineInRange("transferDelay", 8, 1, Integer.MAX_VALUE);
-			connectionRange = builder.defineInRange("connectionRange", 5, 0, 64);
+			configVersion = builder
+				.comment("Internal migration marker. Do not edit.")
+				.defineInRange("configVersion", 0, 0, SHULKER_PACKAGER_CONFIG_VERSION);
+			connectionRange = builder.defineInRange("connectionRange", SHULKER_PACKAGER_DEFAULT_RANGE, 0, 64);
 			builder.pop();
 		}
 	}
