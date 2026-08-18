@@ -12,7 +12,7 @@ public class DingDongChickenItem extends BlockCenteredSpawnableRenderedLivingEnt
 	private static final float ITEM_RENDER_SCALE = 1.5f;
 
 	public DingDongChickenItem(Properties properties) {
-		super(properties, CBEntityTypes.DING_DONG_CHICKEN.get(), ITEM_RENDER_SCALE);
+		super(properties, CBEntityTypes.DING_DONG_CHICKEN, ITEM_RENDER_SCALE);
 	}
 
 	@Override

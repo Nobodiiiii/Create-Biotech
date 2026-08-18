@@ -21,7 +21,7 @@ public class MagmaCubeBurnerItem extends BlockItem {
 	}
 
 	public static MagmaCubeBurnerItem withMagmaCube(Block block, Properties properties) {
-		return new MagmaCubeBurnerItem(block, properties, true);
+		return new CapturedMagmaCubeBurnerItem(block, properties);
 	}
 
 	private MagmaCubeBurnerItem(Block block, Properties properties, boolean capturedMagmaCube) {
@@ -41,15 +41,22 @@ public class MagmaCubeBurnerItem extends BlockItem {
 		return capturedMagmaCube ? super.getDescriptionId() : "item.create_biotech.empty_magma_cube_burner";
 	}
 
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		if (!capturedMagmaCube)
-			return;
-		consumer.accept(SimpleCustomRenderer.create(this, new MagmaCubeBurnerItemRenderer()));
-	}
-
 	public boolean hasCapturedMagmaCube() {
 		return capturedMagmaCube;
+	}
+
+	private static final class CapturedMagmaCubeBurnerItem extends MagmaCubeBurnerItem {
+
+		private CapturedMagmaCubeBurnerItem(Block block, Properties properties) {
+			super(block, properties, true);
+		}
+
+		@Override
+		@OnlyIn(Dist.CLIENT)
+		public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+			// Item invokes this method from its constructor, before MagmaCubeBurnerItem's
+			// instance fields are assigned. The subtype itself identifies the captured variant.
+			consumer.accept(SimpleCustomRenderer.create(this, new MagmaCubeBurnerItemRenderer()));
+		}
 	}
 }

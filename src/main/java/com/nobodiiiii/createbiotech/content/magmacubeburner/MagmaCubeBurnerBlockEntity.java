@@ -29,6 +29,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.fluids.FluidStack;
@@ -45,8 +46,8 @@ public class MagmaCubeBurnerBlockEntity extends SmartBlockEntity implements IHav
 
 	private static final String LAVA_TANK_TAG = "LavaTank";
 	private static final String BURN_PROGRESS_TAG = "BurnProgress";
-	private static final int LAVA_BUCKET_BURN_TIME =
-		Math.max(1, Items.LAVA_BUCKET.getDefaultInstance().getBurnTime(null));
+	private static final int VANILLA_LAVA_BUCKET_BURN_TIME = 20_000;
+	private static int lavaBucketBurnTime;
 
 	private final FluidTank lavaTank = new FluidTank(TANK_CAPACITY) {
 		@Override
@@ -245,7 +246,14 @@ public class MagmaCubeBurnerBlockEntity extends SmartBlockEntity implements IHav
 	}
 
 	public static int getLavaBucketBurnTime() {
-		return LAVA_BUCKET_BURN_TIME;
+		if (lavaBucketBurnTime > 0)
+			return lavaBucketBurnTime;
+
+		// ItemStack#getBurnTime() only asks the item override and returns -1 for a
+		// vanilla lava bucket. ForgeHooks also consults the vanilla furnace fuel map.
+		int reportedBurnTime = ForgeHooks.getBurnTime(Items.LAVA_BUCKET.getDefaultInstance(), null);
+		lavaBucketBurnTime = reportedBurnTime > 0 ? reportedBurnTime : VANILLA_LAVA_BUCKET_BURN_TIME;
+		return lavaBucketBurnTime;
 	}
 
 	@Override

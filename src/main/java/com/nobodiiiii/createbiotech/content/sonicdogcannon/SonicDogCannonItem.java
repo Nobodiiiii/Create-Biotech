@@ -266,6 +266,9 @@ public class SonicDogCannonItem extends Item {
 	@Override
 	@OnlyIn(Dist.CLIENT)
 	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+		// Forge extends ArmPose at runtime. Create it during item initialization, before
+		// HumanoidModel's enum switch table can be initialized with only vanilla poses.
+		HumanoidModel.ArmPose armPose = SonicDogCannonArmPose.ARM_POSE;
 		CustomRenderedItems.register(this);
 		consumer.accept(new IClientItemExtensions() {
 			private final SonicDogCannonItemRenderer renderer = new SonicDogCannonItemRenderer();
@@ -292,7 +295,7 @@ public class SonicDogCannonItem extends Item {
 
 			@Override
 			public HumanoidModel.ArmPose getArmPose(LivingEntity entity, InteractionHand hand, ItemStack stack) {
-				return SonicDogCannonArmPose.ARM_POSE;
+				return armPose;
 			}
 
 			@Override

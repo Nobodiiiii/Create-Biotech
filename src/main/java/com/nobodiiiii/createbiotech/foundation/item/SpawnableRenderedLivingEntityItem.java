@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.foundation.item;
 
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -33,6 +34,22 @@ public class SpawnableRenderedLivingEntityItem<T extends Mob> extends RenderedLi
 	public SpawnableRenderedLivingEntityItem(Properties properties, EntityType<T> entityType,
 		Consumer<T> renderedEntityConfigurer, float scaleMultiplier) {
 		super(properties, entityType, renderedEntityConfigurer, scaleMultiplier);
+	}
+
+	public SpawnableRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier) {
+		super(properties, entityTypeSupplier);
+	}
+
+	public SpawnableRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier, Consumer<T> renderedEntityConfigurer) {
+		super(properties, entityTypeSupplier, renderedEntityConfigurer);
+	}
+
+	public SpawnableRenderedLivingEntityItem(Properties properties,
+		Supplier<? extends EntityType<T>> entityTypeSupplier, Consumer<T> renderedEntityConfigurer,
+		float scaleMultiplier) {
+		super(properties, entityTypeSupplier, renderedEntityConfigurer, scaleMultiplier);
 	}
 
 	@Override
