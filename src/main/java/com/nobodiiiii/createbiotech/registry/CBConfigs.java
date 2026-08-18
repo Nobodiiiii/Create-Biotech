@@ -685,7 +685,9 @@ public class CBConfigs {
 			configVersion = builder
 				.comment("Internal migration marker. Do not edit.")
 				.defineInRange("configVersion", 0, 0, SHULKER_PACKAGER_CONFIG_VERSION);
-			connectionRange = builder.defineInRange("connectionRange", SHULKER_PACKAGER_DEFAULT_RANGE, 0, 64);
+			connectionRange = builder
+				.comment("Half-size of the axis-aligned output cube. The default 8 creates a 17x17x17 cube.")
+				.defineInRange("connectionRange", SHULKER_PACKAGER_DEFAULT_RANGE, 0, 64);
 			builder.pop();
 		}
 	}

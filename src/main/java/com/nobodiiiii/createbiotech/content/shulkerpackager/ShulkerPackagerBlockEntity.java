@@ -279,7 +279,9 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 
 		for (int i = startIndex; i < scanRange; i++) {
 			PackagerBlockEntity target = getConnectedPackagerTarget(outputs.get(i));
-			if (target == null || target == this || !canTransferHeldBoxTo(target))
+			if (target == null || target == this
+				|| !ShulkerPackagerRange.isWithinCube(worldPosition, target.getBlockPos(), getConnectionRange())
+				|| !canTransferHeldBoxTo(target))
 				continue;
 			if (!transferHeldBoxTo(target))
 				continue;
@@ -391,6 +393,8 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		for (Tag tag : interactionPointTag) {
 			ArmInteractionPoint point = ArmInteractionPoint.deserialize((CompoundTag) tag, level, worldPosition);
 			if (point == null)
+				continue;
+			if (!ShulkerPackagerRange.isWithinCube(worldPosition, point.getPos(), getConnectionRange()))
 				continue;
 			if (point.getMode() == ArmInteractionPoint.Mode.TAKE)
 				point.cycleMode();

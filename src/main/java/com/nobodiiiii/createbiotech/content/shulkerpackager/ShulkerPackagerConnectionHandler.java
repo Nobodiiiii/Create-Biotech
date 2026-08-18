@@ -106,8 +106,7 @@ public class ShulkerPackagerConnectionHandler {
 		int removed = 0;
 		for (Iterator<ArmInteractionPoint> iterator = currentSelection.iterator(); iterator.hasNext();) {
 			ArmInteractionPoint point = iterator.next();
-			if (point.getPos()
-				.closerThan(pos, getConnectionRange()))
+			if (ShulkerPackagerRange.isWithinCube(pos, point.getPos(), getConnectionRange()))
 				continue;
 			iterator.remove();
 			removed++;
