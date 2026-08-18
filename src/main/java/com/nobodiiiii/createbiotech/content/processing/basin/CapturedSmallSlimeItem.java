@@ -5,6 +5,7 @@ import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -43,6 +44,28 @@ public class CapturedSmallSlimeItem extends BlockCenteredSpawnableRenderedLiving
 		}
 
 		return firstSlime;
+	}
+
+	/**
+	 * Materialize a transported stack using the same dropped-item replacement contract as Create packages.
+	 * Belt funnels normally insert straight into a belt inventory, so no {@link ItemEntity} is added to the
+	 * level and Forge never gets an opportunity to call {@link #createEntity}. The temporary item entity here
+	 * supplies the position and motion that the normal replacement callback would have received.
+	 */
+	public static boolean materializeTransportedStack(Level level, Vec3 position, Vec3 motion, ItemStack stack) {
+		if (level == null || level.isClientSide || stack.isEmpty()
+			|| !(stack.getItem() instanceof CapturedSmallSlimeItem item))
+			return false;
+
+		ItemStack droppedStack = stack.copy();
+		ItemEntity droppedItem = new ItemEntity(level, position.x, position.y, position.z, droppedStack);
+		droppedItem.setDeltaMovement(motion);
+		Entity replacement = item.createEntity(level, droppedItem, droppedStack);
+		if (replacement == null)
+			return false;
+
+		level.addFreshEntity(replacement);
+		return true;
 	}
 
 	public static boolean syncInBasin(BasinBlockEntity basin) {

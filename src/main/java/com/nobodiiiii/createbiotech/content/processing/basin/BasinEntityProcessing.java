@@ -46,6 +46,9 @@ public class BasinEntityProcessing {
 
 	private static final String CREATE_FUNNEL_PACKAGE = "com.simibubi.create.content.logistics.funnel.";
 	private static final String CREATE_BASIN_RECIPE = "com.simibubi.create.content.processing.basin.BasinRecipe";
+	private static final String CREATE_BASIN_BLOCK_ENTITY =
+		"com.simibubi.create.content.processing.basin.BasinBlockEntity";
+	private static final String CREATE_BASIN_ACTIVE_OUTPUT_METHOD = "updateSpoutput";
 	private static final String FUNNEL_MIXIN = "com.nobodiiiii.createbiotech.mixin.FunnelBlockEntityMixin";
 	private static final ThreadLocal<Integer> CAPTURED_SLIME_ITEM_MOVEMENT_DEPTH = new ThreadLocal<>();
 
@@ -70,11 +73,15 @@ public class BasinEntityProcessing {
 		if (movementDepth != null && movementDepth > 0)
 			return true;
 
+		// Keep extraction closed by default. Besides Create funnels and recipe-internal movement, only the basin's
+		// own active spoutput is allowed to pull a captured-slime stack out of BasinInventory.
 		for (StackTraceElement frame : Thread.currentThread()
 			.getStackTrace()) {
 			String className = frame.getClassName();
 			if (className.startsWith(CREATE_FUNNEL_PACKAGE) || className.equals(CREATE_BASIN_RECIPE)
-				|| className.equals(FUNNEL_MIXIN))
+				|| className.equals(FUNNEL_MIXIN)
+				|| (className.equals(CREATE_BASIN_BLOCK_ENTITY)
+					&& frame.getMethodName().equals(CREATE_BASIN_ACTIVE_OUTPUT_METHOD)))
 				return true;
 		}
 		return false;

@@ -17,6 +17,7 @@ import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
+import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.SlimeCaptureFunnelAccess;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
@@ -37,6 +38,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.Vec3;
 
 @Mixin(value = FunnelBlockEntity.class, priority = 1001)
 public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess {
@@ -150,16 +152,21 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 		BlockState blockState = funnel.getBlockState();
 		BeltSurface surface =
 			BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos(), blockState);
-		if (surface == null)
-			return;
-
+		Direction insertSide;
+		BlockPos beltPos;
+		if (surface != null) {
+			insertSide = surface.outwardNormal();
+			beltPos = surface.beltPos();
+		} else {
+			insertSide = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
+			beltPos = funnel.getBlockPos().below();
+		}
 		ci.cancel();
 		if (invVersionTracker.stillWaiting(invManipulation))
 			return;
 
-		Direction insertSide = surface.outwardNormal();
 		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(funnel.getLevel(), surface.beltPos(), DirectBeltInputBehaviour.TYPE);
+			BlockEntityBehaviour.get(funnel.getLevel(), beltPos, DirectBeltInputBehaviour.TYPE);
 		if (inputBehaviour == null)
 			return;
 		if (!inputBehaviour.canInsertFromSide(insertSide))
@@ -185,9 +192,28 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 
 		funnel.flap(false);
 		funnel.onTransfer(stack);
-		inputBehaviour.handleInsertion(stack, insertSide, false);
+		if (!createBiotech$materializeCapturedSmallSlimes(stack))
+			inputBehaviour.handleInsertion(stack, insertSide, false);
 		extractionCooldown = AllConfigs.server()
 			.logistics.defaultExtractionTimer.get();
+	}
+
+	@Unique
+	private boolean createBiotech$materializeCapturedSmallSlimes(ItemStack stack) {
+		if (!BasinEntityProcessing.isCapturedSmallSlimeItem(stack))
+			return false;
+
+		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
+		Level level = funnel.getLevel();
+		if (level == null)
+			return false;
+
+		Direction attachment = funnel.getBlockState()
+			.getOptionalValue(BeltFunnelStateExtensions.ATTACHMENT_SURFACE)
+			.orElse(Direction.DOWN);
+		Vec3 surfacePosition = Vec3.atCenterOf(funnel.getBlockPos())
+			.add(Vec3.atLowerCornerOf(attachment.getNormal()).scale(.5d));
+		return CapturedSmallSlimeItem.materializeTransportedStack(level, surfacePosition, Vec3.ZERO, stack);
 	}
 
 	private static volatile Class cachedModeClass;
