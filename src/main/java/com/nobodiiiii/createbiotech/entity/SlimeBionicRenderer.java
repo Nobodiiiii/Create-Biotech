@@ -74,12 +74,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	@Override
 	public void render(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
+		boolean hideOriginal = entity.isDeadOrDying() && SlimeMimicHandler.isSlimeMimic(entity);
+		if (hideOriginal && SlimeMimicDeathClient.hasReported(entity))
+			return;
+		MultiBufferSource sourceBuffer = hideOriginal ? hiddenBuffer() : buffer;
 		SurgicalAssembly assembly = entity.getAssembly();
 		if (assembly != null) {
 			float bodyYaw = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 			BodyFrame bodyFrame = BodyFrame.of(bodyYaw, poseStack.last().pose());
 			if (assembly.preservesLayout() || assembly.sources().size() > 1) {
-				renderComposite(entity, assembly, bodyFrame, partialTick, poseStack, buffer, packedLight);
+				renderComposite(entity, assembly, bodyFrame, partialTick, poseStack, sourceBuffer, packedLight);
+				if (hideOriginal)
+					return;
 				renderAttackRange(entity, assembly, bodyFrame, poseStack, buffer);
 				super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
 				return;
@@ -115,13 +121,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				localRotations = frame.mergeRotations(localRotations);
 			}
 			if (preview != null) {
-				boolean reportDeath = entity.isDeadOrDying();
+				boolean reportDeath = hideOriginal;
 				Vec3 cameraPosition = reportDeath
 					? Minecraft.getInstance().gameRenderer.getMainCamera().getPosition() : null;
 				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(preview,
 					assembly.cubeCount(), presentCubes,
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
-					poseStack, buffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
+					poseStack, sourceBuffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
 					!slimeForm);
 				if (reportDeath)
 					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
@@ -129,12 +135,20 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 						.toList());
 			}
 			poseStack.popPose();
+			if (hideOriginal)
+				return;
 			renderAttackRange(entity, assembly, bodyFrame, poseStack, buffer);
 		} else {
 			GEOMETRY.remove(entity);
 			COMPOSITE_GEOMETRY.remove(entity);
 		}
-		super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
+		if (!hideOriginal)
+			super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
+	}
+
+	private static MultiBufferSource hiddenBuffer() {
+		EntityGeometry.Collector hidden = EntityGeometry.Collector.boundsOnly();
+		return renderType -> hidden;
 	}
 
 	/** Temporary combat debug view: the server-authoritative attack sector in blue. */
@@ -189,7 +203,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 		List<SlimeBionicAnimator.Frame> frames = cached == null ? List.of()
 			: SlimeBionicAnimator.resolve(entity, assembly, cached.sources, partialTick);
-		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying() ? new ArrayList<>() : null;
+		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying()
+			&& SlimeMimicHandler.isSlimeMimic(entity) ? new ArrayList<>() : null;
 		Vec3 cameraPosition = deathGeometry == null ? null
 			: Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		poseStack.pushPose();

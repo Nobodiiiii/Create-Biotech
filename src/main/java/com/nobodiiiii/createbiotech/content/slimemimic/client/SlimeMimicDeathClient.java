@@ -20,6 +20,10 @@ public final class SlimeMimicDeathClient {
 
 	private SlimeMimicDeathClient() {}
 
+	public static boolean hasReported(LivingEntity entity) {
+		return entity != null && REPORTED.containsKey(entity);
+	}
+
 	public static void report(LivingEntity entity, List<SlimeMimicCubeGeometry> cubes) {
 		if (entity == null || !entity.isDeadOrDying() || cubes == null || cubes.isEmpty()
 			|| cubes.size() > SurgicalAssembly.MAX_CUBES || REPORTED.putIfAbsent(entity, Boolean.TRUE) != null)

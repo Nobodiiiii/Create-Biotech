@@ -96,13 +96,23 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 	}
 
 	@Override
-	public AABB getBoundingBoxForCulling() {
-		float targetSide = slimeSize > 0 ? slimeSize * 0.5f : 0.0f;
-		double halfWidth = Math.max(initialWidth, targetSide) * 0.5d;
-		double halfDepth = Math.max(initialDepth, targetSide) * 0.5d;
-		double height = Math.max(initialHeight, targetSide);
+	protected AABB makeBoundingBox() {
+		double halfWidth = Math.max(MIN_COLLISION_SIZE, initialWidth) * 0.5d;
+		double halfDepth = Math.max(MIN_COLLISION_SIZE, initialDepth) * 0.5d;
+		double height = Math.max(MIN_COLLISION_SIZE, initialHeight);
 		return new AABB(getX() - halfWidth, getY(), getZ() - halfDepth,
 			getX() + halfWidth, getY() + height, getZ() + halfDepth);
+	}
+
+	@Override
+	public AABB getBoundingBoxForCulling() {
+		float targetSide = slimeSize > 0 ? slimeSize * 0.5f : 0.0f;
+		double radius = Math.max(targetSide * Math.sqrt(3.0d) * 0.5d,
+			Math.sqrt(initialWidth * initialWidth + initialHeight * initialHeight
+				+ initialDepth * initialDepth) * 0.5d);
+		double initialCenterY = getY() + initialHeight * 0.5d;
+		return new AABB(getX() - radius, Math.min(getY(), initialCenterY - radius), getZ() - radius,
+			getX() + radius, Math.max(getY() + targetSide, initialCenterY + radius), getZ() + radius);
 	}
 
 	@Override
@@ -175,19 +185,8 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 		return visualDimension(initialDepth, partialTick);
 	}
 
-	public CubeFrame visualFrame(float partialTick) {
-		float progress = morphProgress(partialTick);
-		if (progress <= 0.0f)
-			return initialFrame;
-		CubeFrame target;
-		if (slimeSize > 0) {
-			float side = slimeSize * 0.5f;
-			target = axisAlignedFrame(side, side, side);
-		} else {
-			Vec3 center = initialFrame.origin.add(initialFrame.a.add(initialFrame.b).add(initialFrame.c).scale(0.5d));
-			target = new CubeFrame(center, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO);
-		}
-		return initialFrame.lerp(target, progress);
+	public CubeFrame initialFrame() {
+		return initialFrame;
 	}
 
 	private float visualDimension(float initial, float partialTick) {
@@ -299,11 +298,6 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 			a = sanitize(a, new Vec3(0.5d, 0.0d, 0.0d));
 			b = sanitize(b, new Vec3(0.0d, 0.5d, 0.0d));
 			c = sanitize(c, new Vec3(0.0d, 0.0d, 0.5d));
-		}
-
-		private CubeFrame lerp(CubeFrame target, double progress) {
-			return new CubeFrame(origin.lerp(target.origin, progress), a.lerp(target.a, progress),
-				b.lerp(target.b, progress), c.lerp(target.c, progress));
 		}
 
 		private CompoundTag save() {

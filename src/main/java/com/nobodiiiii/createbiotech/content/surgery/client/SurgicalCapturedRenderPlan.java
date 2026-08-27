@@ -157,10 +157,14 @@ public final class SurgicalCapturedRenderPlan {
 		if (entity instanceof SlimeBionicEntity || !SlimeMimicHandler.isSlimeMimic(entity)
 			|| entity.isInvisible())
 			return false;
+		if (entity.isDeadOrDying() && SlimeMimicDeathClient.hasReported(entity))
+			return true;
 		SurgicalCapturedRenderPlan frame = capture((EntityRenderer<LivingEntity>) renderer, entity,
 			yaw, partialTick);
-		if (entity.isDeadOrDying())
+		if (entity.isDeadOrDying()) {
 			SlimeMimicDeathClient.report(entity, frame.deathGeometry(0, entity.position()));
+			return true;
+		}
 		frame.render(poseStack, buffer, packedLight, 0, ALL_COMPONENTS, NO_OFFSETS, NO_ROTATIONS,
 			false, null, false);
 		return true;
