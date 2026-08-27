@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
@@ -24,6 +25,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
+import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathClient;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderStateAccessor;
@@ -70,7 +73,8 @@ public final class SurgicalCapturedRenderPlan {
 	private static final float POSITION_EPSILON = 2.0e-5f;
 	private static final float POSITION_QUANTIZATION = 100_000.0f;
 
-	private static final Map<ResourceLocation, AlphaMask> ALPHA_MASKS = new HashMap<>();
+	private static final Map<ResourceLocation, CachedAlphaMask> ALPHA_MASKS = new ConcurrentHashMap<>();
+	private static volatile int resourceGeneration;
 	private static final ThreadLocal<Deque<List<ObservedCube>>> MODEL_CUBE_CAPTURES =
 		ThreadLocal.withInitial(ArrayDeque::new);
 	private static volatile int activeModelCubeCaptureCount;
@@ -90,6 +94,11 @@ public final class SurgicalCapturedRenderPlan {
 
 	static SurgicalCapturedRenderPlan capture(EntityRenderer<LivingEntity> renderer, LivingEntity preview,
 		float yaw, float partialTick) {
+		return build(captureInput(renderer, preview, yaw, partialTick));
+	}
+
+	static CapturedInput captureInput(EntityRenderer<LivingEntity> renderer, LivingEntity preview,
+		float yaw, float partialTick) {
 		RecordingBuffer recording = new RecordingBuffer();
 		PoseStack neutralPose = new PoseStack();
 		List<ObservedCube> observedCubes = new ArrayList<>();
@@ -105,7 +114,11 @@ public final class SurgicalCapturedRenderPlan {
 			if (captures.isEmpty())
 				MODEL_CUBE_CAPTURES.remove();
 		}
-		return build(recording.streams, observedCubes);
+		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes));
+	}
+
+	static SurgicalCapturedRenderPlan build(CapturedInput captured) {
+		return build(captured.streams, captured.observedCubes);
 	}
 
 	/** Records unscaled ModelPart pixel bounds while the renderer emits the matching transformed vertices. */
@@ -146,6 +159,8 @@ public final class SurgicalCapturedRenderPlan {
 			return false;
 		SurgicalCapturedRenderPlan frame = capture((EntityRenderer<LivingEntity>) renderer, entity,
 			yaw, partialTick);
+		if (entity.isDeadOrDying())
+			SlimeMimicDeathClient.report(entity, frame.deathGeometry(0, entity.position()));
 		frame.render(poseStack, buffer, packedLight, 0, ALL_COMPONENTS, NO_OFFSETS, NO_ROTATIONS,
 			false, null, false);
 		return true;
@@ -159,6 +174,14 @@ public final class SurgicalCapturedRenderPlan {
 		int expectedCubeCount, BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
 		Map<Integer, SurgicalCubeRotation> cubeRotations,
 		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry) {
+		return render(poseStack, buffer, packedLight, expectedCubeCount, presentCubes, cubeOffsets,
+			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, true);
+	}
+
+	private SurgicalModelRenderContext.Snapshot render(PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, int expectedCubeCount, BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
+		Map<Integer, SurgicalCubeRotation> cubeRotations, boolean collectGeometry,
+		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry, boolean renderExtras) {
 		if (renderSourceGeometry) {
 			for (Component component : components)
 				if (isPresent(component.id, expectedCubeCount, presentCubes))
@@ -190,12 +213,39 @@ public final class SurgicalCapturedRenderPlan {
 
 		// Lines, text, beams and genuinely non-cuboid meshes are visual effects rather than
 		// surgical topology. Preserve them exactly and keep them out of cube numbering.
-		for (SourceBatch extra : extras)
-			extra.render(poseStack, buffer, packedLight, null);
+		if (renderExtras)
+			for (SourceBatch extra : extras)
+				extra.render(poseStack, buffer, packedLight, null);
 
 		if (!collectGeometry)
 			return new SurgicalModelRenderContext.Snapshot(components.size(), List.of());
 		return snapshot(poseStack, expectedCubeCount, presentCubes, cubeOffsets, cubeRotations, cameraPosition);
+	}
+
+	SurgicalModelRenderContext.Snapshot renderSingleCube(PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, int cube) {
+		if (cube < 0 || cube >= components.size())
+			return new SurgicalModelRenderContext.Snapshot(0, List.of());
+		BitSet present = new BitSet(components.size());
+		present.set(cube);
+		return render(poseStack, buffer, packedLight, components.size(), present, NO_OFFSETS,
+			NO_ROTATIONS, false, null, false, false);
+	}
+
+	@Nullable
+	SurgicalModelRenderContext.CubeGeometry singleCubeGeometry(int cube) {
+		if (cube < 0 || cube >= components.size())
+			return null;
+		return components.get(cube).geometry(new PoseStack(), null, null, null);
+	}
+
+	private List<SlimeMimicCubeGeometry> deathGeometry(int source, Vec3 worldOrigin) {
+		List<SlimeMimicCubeGeometry> geometry = new ArrayList<>(components.size());
+		PoseStack poseStack = new PoseStack();
+		for (Component component : components)
+			geometry.add(new SlimeMimicCubeGeometry(source, component.id,
+				component.geometry(poseStack, null, null, worldOrigin).corners()));
+		return List.copyOf(geometry);
 	}
 
 	SurgicalModelRenderContext.Snapshot snapshot(PoseStack poseStack, int expectedCubeCount,
@@ -212,6 +262,7 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	static void clearResources() {
+		resourceGeneration++;
 		ALPHA_MASKS.clear();
 		innerCube = null;
 		outerCube = null;
@@ -407,7 +458,24 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static AlphaMask alphaMask(ResourceLocation texture) {
-		return ALPHA_MASKS.computeIfAbsent(texture, SurgicalCapturedRenderPlan::loadAlphaMask);
+		int generation = resourceGeneration;
+		CachedAlphaMask cached = ALPHA_MASKS.get(texture);
+		if (cached != null && cached.generation == generation)
+			return cached.mask;
+		AlphaMask loaded = loadAlphaMask(texture);
+		if (generation != resourceGeneration)
+			return loaded;
+		CachedAlphaMask candidate = new CachedAlphaMask(generation, loaded);
+		CachedAlphaMask stored = ALPHA_MASKS.compute(texture, (ignored, existing) -> {
+			if (generation != resourceGeneration)
+				return existing;
+			return existing != null && existing.generation == generation ? existing : candidate;
+		});
+		if (generation != resourceGeneration) {
+			ALPHA_MASKS.remove(texture, candidate);
+			return loaded;
+		}
+		return stored == null ? loaded : stored.mask;
 	}
 
 	private static AlphaMask loadAlphaMask(ResourceLocation texture) {
@@ -679,6 +747,10 @@ public final class SurgicalCapturedRenderPlan {
 	private record CapturedVertex(float x, float y, float z, int red, int green, int blue, int alpha,
 		float u, float v, int overlayU, int overlayV, int lightU, int lightV,
 		float normalX, float normalY, float normalZ) {}
+
+	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes) {}
+
+	private record CachedAlphaMask(int generation, AlphaMask mask) {}
 
 	private static List<Vec3> matchingModelCorners(RecoveredCuboid cuboid, List<ObservedCube> observedCubes) {
 		GeometryKey targetKey = GeometryKey.of(cuboid.corners);

@@ -18,7 +18,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathClient;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
@@ -32,6 +34,7 @@ import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -112,9 +115,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				localRotations = frame.mergeRotations(localRotations);
 			}
 			if (preview != null) {
-				SurgicalSourceModelRenderer.render(preview, assembly.cubeCount(), presentCubes,
+				boolean reportDeath = entity.isDeadOrDying();
+				Vec3 cameraPosition = reportDeath
+					? Minecraft.getInstance().gameRenderer.getMainCamera().getPosition() : null;
+				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(preview,
+					assembly.cubeCount(), presentCubes,
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
-					poseStack, buffer, packedLight, 0.0f, partialTick, false, null, !slimeForm);
+					poseStack, buffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
+					!slimeForm);
+				if (reportDeath)
+					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
+						.map(cube -> new SlimeMimicCubeGeometry(0, cube.cubeId(), cube.corners()))
+						.toList());
 			}
 			poseStack.popPose();
 			renderAttackRange(entity, assembly, bodyFrame, poseStack, buffer);
@@ -177,13 +189,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 		List<SlimeBionicAnimator.Frame> frames = cached == null ? List.of()
 			: SlimeBionicAnimator.resolve(entity, assembly, cached.sources, partialTick);
+		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying() ? new ArrayList<>() : null;
+		Vec3 cameraPosition = deathGeometry == null ? null
+			: Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		poseStack.pushPose();
 		bodyFrame.apply(poseStack);
 		if (cached != null)
 			poseStack.translate(cached.modelOffset.x, cached.modelOffset.y, cached.modelOffset.z);
 		renderCompositeSources(entity, assembly, bodyFrame, partialTick, poseStack, buffer, packedLight,
-			!slimeForm, frames, null);
+			!slimeForm, frames, null, deathGeometry, cameraPosition);
 		poseStack.popPose();
+		if (deathGeometry != null)
+			SlimeMimicDeathClient.report(entity, deathGeometry);
 	}
 
 	/**
@@ -200,7 +217,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		MultiBufferSource measuringBuffer = renderType -> geometry;
 		List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>(assembly.sources().size());
 		renderCompositeSources(entity, assembly, BodyFrame.IDENTITY, partialTick, new PoseStack(),
-			measuringBuffer, packedLight, !slimeForm, List.of(), sources);
+			measuringBuffer, packedLight, !slimeForm, List.of(), sources, null, null);
 		if (!geometry.hasVertices())
 			return null;
 		EntityGeometry.Bounds bounds = geometry.bounds();
@@ -261,7 +278,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static void renderCompositeSources(SlimeBionicEntity entity, SurgicalAssembly assembly,
 		BodyFrame bodyFrame, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		boolean renderSourceGeometry, List<SlimeBionicAnimator.Frame> frames,
-		@Nullable List<SlimeBionicAnimator.SourceState> restStates) {
+		@Nullable List<SlimeBionicAnimator.SourceState> restStates,
+		@Nullable List<SlimeMimicCubeGeometry> deathGeometry, @Nullable Vec3 cameraPosition) {
 		poseStack.pushPose();
 		SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
 		List<SurgicalAssembly.Source> sources = assembly.sources();
@@ -288,8 +306,14 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(preview,
 				source.cubeCount(), source.presentCubes(), renderOffsets, renderRotations,
-				poseStack, buffer, packedLight, 0.0f, partialTick, restStates != null, null,
+				poseStack, buffer, packedLight, 0.0f, partialTick,
+				restStates != null || deathGeometry != null, cameraPosition,
 				renderSourceGeometry);
+			if (deathGeometry != null) {
+				int sourceIndex = index;
+				snapshot.cubes().forEach(cube -> deathGeometry.add(new SlimeMimicCubeGeometry(
+					sourceIndex, cube.cubeId(), cube.corners())));
+			}
 			if (restStates != null)
 				restStates.add(new SlimeBionicAnimator.SourceState(
 					SlimeBionicAnimator.measure(snapshot), offsets, rotations));

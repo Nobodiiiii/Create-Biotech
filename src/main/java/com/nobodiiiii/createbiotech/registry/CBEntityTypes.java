@@ -12,6 +12,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.nobodiiiii.createbiotech.content.allay.entity.courier.AllayCourierEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeEntity;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
@@ -86,6 +87,15 @@ public class CBEntityTypes {
 			.sized(0.6F, 0.8F)
 			.setTrackingRange(10)
 			.build("slime_bionic"));
+
+	public static final DeferredHolder<EntityType<?>, EntityType<SlimeMimicCubeEntity>> SLIME_MIMIC_CUBE =
+		ENTITY_TYPES.register("slime_mimic_cube", () -> EntityType.Builder
+			.<SlimeMimicCubeEntity>of(SlimeMimicCubeEntity::new, MobCategory.MISC)
+			.sized(0.5F, 0.5F)
+			.setTrackingRange(10)
+			.setUpdateInterval(1)
+			.setShouldReceiveVelocityUpdates(true)
+			.build("slime_mimic_cube"));
 
 	private CBEntityTypes() {}
 

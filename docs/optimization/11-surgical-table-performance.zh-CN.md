@@ -38,8 +38,10 @@
 
 ### PERF-SURGERY-02：恢复可见性和距离裁剪（P0/P1）
 
-- 手术台只在新数据尚未测得来源模型 AABB 时允许一次保守 off-screen capture；之后准确 render AABB 交给
-  视锥裁剪，不再永久声明 off-screen 可见。
+- subject 所属 controller 继续用整个连通桌面与已测模型的联合 AABB 参与 BER 调度，保证玩家靠近大型桌面
+  远端、controller 已离开所在 render section 时，远端 subject 仍能被唤醒。
+- controller 被调度后，再按每个 subject 的精确世界 AABB 做视锥裁剪；冷缓存使用持久化占地与保守高度范围，
+  不会因为还没有模型测量值而永远无法进入准备队列。
 - 距离判断改为相机到整个桌面/模型包围盒的最近距离，而不是永远 true，也不会只按远端 controller 坐标
   错误裁掉大型桌面另一端的 subject。
 - renderer 一帧只取一次 subjects 只读视图，不再反复 `List.copyOf`。
@@ -85,6 +87,27 @@
   stack backing deque保留在线程中复用。
 - renderer 资源对象变化时丢弃对应 id cache，避免资源重载后沿用旧模型 identity。
 
+### PERF-SURGERY-07：可见组分帧冷启动（P0）
+
+- 进入视野时只准备视锥内 subject；若该 subject 通过胶点或 combination 与其他 subject 连通，则整组进入
+  同一个准备队列，距离按各 subject 自己的世界 AABB 排序，不按 controller 距离排序。
+- 每帧主线程最多开始 4 个冷 subject，并设置 2 ms 的软预算。共享同一来源模型的 pending plan 只轮询一次，
+  不消耗后续帧的冷构建名额。
+- 来源实体 renderer 的录制保留在客户端线程；耗时的 cuboid 恢复、材质可见性分析和不可变 render plan 构建
+  移到后台。连通组内所有 geometry、contact topology 与 render revision 就绪前整组不提交显示，避免半组使用
+  旧 grounding、半组使用新 grounding。
+
+### PERF-SURGERY-08：有界后台队列与加权几何 LRU（P1）
+
+- render plan 和大型 contact topology 共用模组私有、低优先级、最多 2 worker、128 队列深度的 executor；
+  队列满时后续帧重投，不回退到公共 ForkJoinPool，也不在渲染线程同步计算。
+- 待构建 render plan 上限为 64；资源重载以 generation 隔离旧 future 和纹理 alpha mask，旧任务完成后不能把
+  过期结果重新写入缓存。
+- `TABLES` 从固定 tick TTL 改为按 cube、seam、contact/face point 估算权重的 LRU；最近 1 秒正在渲染或作为
+  连通 grounding 依赖的 geometry 受保护，大桌子短暂离开视锥不会立刻付出完整重建成本。
+- 无旋转且无位移的 cube 直接复用原 geometry；其余变换使用预分配循环，减少 stream/lambda 和无效 corner
+  对象分配。
+
 ## 正确性边界
 
 - 服务端 packet 距离、plane、占地与拓扑验证未删除；客户端缓存只影响显示和候选计算。
@@ -105,10 +128,6 @@
 2. 多个可见 subject仍各自调用一次原实体 `LivingEntityRenderer`。若 GPU/vertex submission占主导，可增加
    可配置手术台专用视距/LOD；不要缓存动态 VertexBuffer，除非解决资源重载、RenderType、动画层和模组实体
    renderer兼容生命周期。
-3. contact topology 大模型已异步计算；如果 profiler显示 common pool争用，应改为模组有界 executor，并在
-   level unload取消未完成 future。
-4. `TABLES` 当前按“连续 5 tick未渲染”清理。若频繁进出视锥导致反复 geometry capture，可改为受内存上限
-   约束的 LRU，而不是简单无限延长 TTL。
 
 ## 性能验证矩阵
 
@@ -124,6 +143,8 @@
 | 静止放置/剪切/粘合预览 | 1024 tile，多个 subject | 同一游戏 tick不重复 layout search/geometry translate |
 | 持续拖动预览 | 64/256/1024 tile | 定位 `orderedCells` 是否成为剩余首要热点 |
 | 频繁进出视锥 | 64 cube subject | geometry capture次数、缓存回收和 1% low无周期性尖峰 |
+| 首次看向大型桌面 | 64+ subject、混合模型 | `capture(plan-input)` 分散到多帧；`build(plan)` 仅出现在 Surgical Worker |
+| 远离 controller 操作连通组 | 跨多个 table tile 的胶合 subject | 远端仍渲染/可选取；同一连通组不出现半刷新 grounding |
 
 验收建议：
 

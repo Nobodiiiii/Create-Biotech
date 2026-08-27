@@ -1,9 +1,12 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -15,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -23,6 +27,7 @@ import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalSourceModelRenderer {
 	private static final int MAX_RENDER_PLANS = 512;
+	private static final int MAX_PENDING_RENDER_PLANS = 64;
 	private static final Map<Object, Map<MimicProfile, CachedPreview>> PREVIEWS = new WeakHashMap<>();
 	private static final Map<LivingEntity, MimicProfile> PREVIEW_PROFILES = new WeakHashMap<>();
 	private static final Map<RenderPlanKey, SurgicalCapturedRenderPlan> RENDER_PLANS =
@@ -32,9 +37,17 @@ public final class SurgicalSourceModelRenderer {
 				return size() > MAX_RENDER_PLANS;
 			}
 		};
+	private static final Map<RenderPlanKey, PendingRenderPlan> PENDING_RENDER_PLANS = new HashMap<>();
 	private static final Map<LivingEntity, CachedRenderPlan> FALLBACK_RENDER_PLANS = new WeakHashMap<>();
+	private static int resourceGeneration;
 
 	private SurgicalSourceModelRenderer() {}
+
+	enum RenderPlanState {
+		READY,
+		PENDING,
+		MISSING
+	}
 
 	@Nullable
 	public static LivingEntity preview(Object owner, MimicProfile profile) {
@@ -123,13 +136,37 @@ public final class SurgicalSourceModelRenderer {
 			collectGeometry, cameraPosition, renderSourceGeometry);
 	}
 
+	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
+	public static SurgicalModelRenderContext.Snapshot renderSingleCube(Object owner, MimicProfile profile,
+		int cube, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+		LivingEntity preview = preview(owner, profile);
+		if (preview == null)
+			return new SurgicalModelRenderContext.Snapshot(0, java.util.List.of());
+		preparePreview(preview, 0.0f);
+		return plan(preview, 0.0f, 0.0f).renderSingleCube(poseStack, buffer, packedLight, cube);
+	}
+
+	/** Returns the neutral-pose source geometry used to align one released cuboid to its entity. */
+	@Nullable
+	public static SurgicalModelRenderContext.CubeGeometry singleCubeGeometry(Object owner,
+		MimicProfile profile, int cube) {
+		LivingEntity preview = preview(owner, profile);
+		if (preview == null)
+			return null;
+		preparePreview(preview, 0.0f);
+		return plan(preview, 0.0f, 0.0f).singleCubeGeometry(cube);
+	}
+
 	private static SurgicalCapturedRenderPlan plan(LivingEntity preview, float yaw, float partialTick) {
 		EntityRenderer<LivingEntity> renderer = renderer(preview);
 		MimicProfile profile = PREVIEW_PROFILES.get(preview);
 		if (profile != null) {
 			RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
-			SurgicalCapturedRenderPlan plan = RENDER_PLANS.get(key);
+			SurgicalCapturedRenderPlan plan = completedPlan(key);
 			if (plan == null) {
+				PendingRenderPlan pending = PENDING_RENDER_PLANS.remove(key);
+				if (pending != null)
+					pending.future.cancel(false);
 				long started = SurgicalProfiler.begin();
 				plan = SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick);
 				SurgicalProfiler.end("capture(plan)", started);
@@ -147,6 +184,125 @@ public final class SurgicalSourceModelRenderer {
 			FALLBACK_RENDER_PLANS.put(preview, cached);
 		}
 		return cached.plan;
+	}
+
+	static RenderPlanState renderPlanState(LivingEntity preview, float yaw) {
+		EntityRenderer<LivingEntity> renderer = renderer(preview);
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		if (profile == null)
+			return RenderPlanState.MISSING;
+		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
+		if (RENDER_PLANS.containsKey(key))
+			return RenderPlanState.READY;
+		return PENDING_RENDER_PLANS.containsKey(key) ? RenderPlanState.PENDING : RenderPlanState.MISSING;
+	}
+
+	/**
+	 * Captures the renderer on the client thread, then recovers cuboids and texture metadata on the
+	 * bounded surgical worker pool. A null result means the immutable plan is still being built and
+	 * the caller should retry on a later frame.
+	 */
+	@Nullable
+	public static SurgicalModelRenderContext.Snapshot captureGeometryDeferred(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, PoseStack poseStack, float yaw, float partialTick,
+		@Nullable Vec3 cameraPosition) {
+		preparePreview(preview, yaw);
+		EntityRenderer<LivingEntity> renderer = renderer(preview);
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		if (profile == null)
+			return captureGeometry(preview, cubeCount, presentCubes, poseStack, LightTexture.FULL_BRIGHT,
+				yaw, partialTick, cameraPosition, false);
+
+		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
+		SurgicalCapturedRenderPlan plan = completedPlan(key);
+		if (plan == null) {
+			PendingRenderPlan pending = PENDING_RENDER_PLANS.get(key);
+			if (pending == null) {
+				if (PENDING_RENDER_PLANS.size() >= MAX_PENDING_RENDER_PLANS)
+					return null;
+				long started = SurgicalProfiler.begin();
+				SurgicalCapturedRenderPlan.CapturedInput captured =
+					SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, partialTick);
+				SurgicalProfiler.end("capture(plan-input)", started);
+				int generation = resourceGeneration;
+				pending = new PendingRenderPlan(generation,
+					SurgicalClientExecutors.submit(() -> buildPlan(captured)));
+				PENDING_RENDER_PLANS.put(key, pending);
+				// Publish only from the next frame. Besides keeping the handoff deterministic, this
+				// prevents a full worker queue from causing several same-frame recaptures of one profile.
+				return null;
+			}
+			plan = completedPlan(key);
+			if (plan == null)
+				return null;
+		}
+
+		long started = SurgicalProfiler.begin();
+		SurgicalModelRenderContext.Snapshot snapshot = plan.snapshot(poseStack, cubeCount, presentCubes,
+			Map.of(), Map.of(), cameraPosition);
+		SurgicalProfiler.end("captureGeometry", started);
+		return snapshot;
+	}
+
+	private static SurgicalCapturedRenderPlan buildPlan(SurgicalCapturedRenderPlan.CapturedInput captured) {
+		long started = SurgicalProfiler.begin();
+		try {
+			return SurgicalCapturedRenderPlan.build(captured);
+		} finally {
+			SurgicalProfiler.end("build(plan)", started);
+		}
+	}
+
+	/** Publishes completed worker results on the client thread and frees pending-capacity promptly. */
+	static void collectCompletedPlans() {
+		Iterator<Map.Entry<RenderPlanKey, PendingRenderPlan>> iterator =
+			PENDING_RENDER_PLANS.entrySet().iterator();
+		while (iterator.hasNext()) {
+			Map.Entry<RenderPlanKey, PendingRenderPlan> entry = iterator.next();
+			PendingRenderPlan pending = entry.getValue();
+			if (pending.generation != resourceGeneration) {
+				pending.future.cancel(false);
+				iterator.remove();
+				continue;
+			}
+			if (!pending.future.isDone())
+				continue;
+			iterator.remove();
+			try {
+				SurgicalCapturedRenderPlan completed = pending.future.join();
+				if (pending.generation == resourceGeneration)
+					RENDER_PLANS.put(entry.getKey(), completed);
+			} catch (RuntimeException ignored) {
+				// A later visible-frame request may retry this immutable plan.
+			}
+		}
+	}
+
+	@Nullable
+	private static SurgicalCapturedRenderPlan completedPlan(RenderPlanKey key) {
+		SurgicalCapturedRenderPlan completed = RENDER_PLANS.get(key);
+		if (completed != null)
+			return completed;
+		PendingRenderPlan pending = PENDING_RENDER_PLANS.get(key);
+		if (pending == null)
+			return null;
+		if (pending.generation != resourceGeneration) {
+			pending.future.cancel(false);
+			PENDING_RENDER_PLANS.remove(key);
+			return null;
+		}
+		if (!pending.future.isDone())
+			return null;
+		PENDING_RENDER_PLANS.remove(key);
+		try {
+			completed = pending.future.join();
+		} catch (RuntimeException ignored) {
+			return null;
+		}
+		if (pending.generation != resourceGeneration)
+			return null;
+		RENDER_PLANS.put(key, completed);
+		return completed;
 	}
 
 	/** Captures unoffset source geometry without submitting the temporary model to the visible buffer. */
@@ -182,6 +338,9 @@ public final class SurgicalSourceModelRenderer {
 		PREVIEWS.clear();
 		PREVIEW_PROFILES.clear();
 		RENDER_PLANS.clear();
+		resourceGeneration++;
+		PENDING_RENDER_PLANS.values().forEach(pending -> pending.future.cancel(false));
+		PENDING_RENDER_PLANS.clear();
 		FALLBACK_RENDER_PLANS.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}
@@ -192,6 +351,8 @@ public final class SurgicalSourceModelRenderer {
 
 	private record CachedRenderPlan(EntityRenderer<LivingEntity> renderer, float yaw,
 		SurgicalCapturedRenderPlan plan) {}
+
+	private record PendingRenderPlan(int generation, CompletableFuture<SurgicalCapturedRenderPlan> future) {}
 
 	private record AlphaBufferSource(MultiBufferSource delegate, float alpha) implements MultiBufferSource {
 		@Override

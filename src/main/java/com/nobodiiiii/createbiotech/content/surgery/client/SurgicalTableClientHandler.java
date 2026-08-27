@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -99,12 +100,10 @@ public final class SurgicalTableClientHandler {
 	private static final double GLUE_POINT_CROSS_HALF_LENGTH_PIXELS = 0.3d;
 	private static final double GLUE_POINT_PIXEL_EPSILON = 1.0e-4d;
 	private static final int ASYNC_TOPOLOGY_CUBE_THRESHOLD = 32;
-	/**
-	 * How long a captured geometry survives after the last frame that used it. Rebuilding one costs a
-	 * full model capture plus a contact-topology pass, so a table must not have to pay that again just
-	 * because the player glanced away for a moment.
-	 */
-	private static final int GEOMETRY_RETENTION_TICKS = 200;
+	/** Approximate retained cube/vertex/contact units; currently about eight maximum-size subjects. */
+	private static final long MAX_GEOMETRY_CACHE_WEIGHT = 262_144L;
+	/** RenderFrame follows ClientTick.Post, so protect a short window rather than only equal game-time. */
+	private static final int GEOMETRY_CACHE_RECENT_TICKS = 20;
 	private static final int VISUAL_COMMIT_TIMEOUT_TICKS = 40;
 	private static final InteractionHand[] HANDS = { InteractionHand.MAIN_HAND, InteractionHand.OFF_HAND };
 	private static final OutlineState SEAM_OUTLINE = new OutlineState();
@@ -172,7 +171,8 @@ public final class SurgicalTableClientHandler {
 		if (geometry == null)
 			return true;
 		if (!geometry.matchesModel(table, subject)) {
-			TABLES.remove(key);
+			TABLES.remove(key).dispose();
+			geometryGeneration++;
 			return true;
 		}
 		if (geometry.refresh(table, subject))
@@ -180,6 +180,19 @@ public final class SurgicalTableClientHandler {
 		else
 			geometry.reportBounds(table);
 		return false;
+	}
+
+	public static boolean isRenderReady(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		return geometry != null && geometry.matchesModel(table, subject) && geometry.topologyReady()
+			&& geometry.renderRevision == subject.clientRenderRevision();
+	}
+
+	@Nullable
+	public static AABB cachedRenderBounds(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		return geometry != null && geometry.matchesModel(table, subject)
+			&& geometry.renderRevision == subject.clientRenderRevision() ? geometry.bounds : null;
 	}
 
 	public static void updateGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
@@ -190,6 +203,7 @@ public final class SurgicalTableClientHandler {
 		int cubeCount = snapshot.observedCubeCount();
 		List<SurgicalAssembly.Seam> seams;
 		List<SurgicalClientTopology.Contact> contacts;
+		Supplier<SurgicalClientTopology.ContactTopology> topologyBuild = null;
 		CompletableFuture<SurgicalClientTopology.ContactTopology> pendingTopology = null;
 		if (subject.cubeCount() == cubeCount) {
 			seams = subject.seams();
@@ -197,9 +211,16 @@ public final class SurgicalTableClientHandler {
 				List<SurgicalAssembly.Seam> frozenSeams = List.copyOf(seams);
 				List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(snapshot.cubes());
 				contacts = List.of();
-				pendingTopology = CompletableFuture.supplyAsync(() ->
-					new SurgicalClientTopology.ContactTopology(frozenSeams,
-						SurgicalClientTopology.contactsFor(frozenSeams, frozenCubes)));
+				topologyBuild = () -> {
+					long started = SurgicalProfiler.begin();
+					try {
+						return new SurgicalClientTopology.ContactTopology(frozenSeams,
+							SurgicalClientTopology.contactsFor(frozenSeams, frozenCubes));
+					} finally {
+						SurgicalProfiler.end("contactsFor(async)", started);
+					}
+				};
+				pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
 			} else {
 				contacts = SurgicalClientTopology.contactsFor(seams, snapshot.cubes());
 			}
@@ -208,8 +229,15 @@ public final class SurgicalTableClientHandler {
 				List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(snapshot.cubes());
 				seams = List.of();
 				contacts = List.of();
-				pendingTopology = CompletableFuture.supplyAsync(() ->
-					SurgicalClientTopology.buildContactTopology(cubeCount, frozenCubes));
+				topologyBuild = () -> {
+					long started = SurgicalProfiler.begin();
+					try {
+						return SurgicalClientTopology.buildContactTopology(cubeCount, frozenCubes);
+					} finally {
+						SurgicalProfiler.end("buildContactTopology(async)", started);
+					}
+				};
+				pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
 			} else {
 				long started = SurgicalProfiler.begin();
 				SurgicalClientTopology.ContactTopology topology =
@@ -220,10 +248,12 @@ public final class SurgicalTableClientHandler {
 			}
 		}
 		TableGeometry geometry = new TableGeometry(subject.id(), profile, subject.layPose(),
-			subject.originOffsetX(), subject.originOffsetZ(), cubeCount, snapshot.cubes(), seams, contacts, pendingTopology,
-			table.getLevel().getGameTime());
+			subject.originOffsetX(), subject.originOffsetZ(), cubeCount, snapshot.cubes(), seams, contacts,
+			topologyBuild, pendingTopology, table.getLevel().getGameTime());
 		geometry.refresh(table, subject);
-		TABLES.put(new SubjectKey(table.getBlockPos(), subject.id()), geometry);
+		TableGeometry replaced = TABLES.put(new SubjectKey(table.getBlockPos(), subject.id()), geometry);
+		if (replaced != null)
+			replaced.dispose();
 		geometryGeneration++;
 	}
 
@@ -277,6 +307,7 @@ public final class SurgicalTableClientHandler {
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		clearPlacementPreview();
+		TABLES.values().forEach(TableGeometry::dispose);
 		TABLES.clear();
 		COMBINATION_OUTLINES.clear();
 		geometryGeneration++;
@@ -313,22 +344,39 @@ public final class SurgicalTableClientHandler {
 
 		long now = level.getGameTime();
 		updatePendingVisualCommit(level);
-		boolean strandedGeometry = false;
+		boolean removedGeometry = false;
+		long retainedWeight = 0L;
 		for (java.util.Iterator<Map.Entry<SubjectKey, TableGeometry>> iterator = TABLES.entrySet().iterator();
 			iterator.hasNext();) {
 			Map.Entry<SubjectKey, TableGeometry> entry = iterator.next();
-			boolean expired = now - entry.getValue().lastSeenTick > GEOMETRY_RETENTION_TICKS;
-			if (!expired
-				&& level.getBlockEntity(entry.getKey().tablePos) instanceof SurgicalTableBlockEntity table
+			if (level.getBlockEntity(entry.getKey().tablePos) instanceof SurgicalTableBlockEntity table
 				&& table.hasSubject(entry.getKey().subjectId))
+			{
+				retainedWeight += entry.getValue().cacheWeight();
 				continue;
+			}
+			entry.getValue().dispose();
 			iterator.remove();
-			// Only a vanished table or subject can strand a cached selection or outline. A geometry that
-			// merely aged out of view was not feeding either of them, so it must not invalidate the
-			// caches belonging to tables the player is still looking at.
-			strandedGeometry |= !expired;
+			removedGeometry = true;
 		}
-		if (strandedGeometry)
+		// Last-use ordering evicts the coldest live geometries first. A short grace window protects
+		// visible geometry across ClientTick.Post -> RenderFrame ordering and brief frame stalls.
+		if (retainedWeight > MAX_GEOMETRY_CACHE_WEIGHT) {
+			List<Map.Entry<SubjectKey, TableGeometry>> evictionCandidates = TABLES.entrySet().stream()
+				.filter(entry -> entry.getValue().lastSeenTick < now - GEOMETRY_CACHE_RECENT_TICKS)
+				.sorted(java.util.Comparator.comparingLong(entry -> entry.getValue().lastSeenTick))
+				.toList();
+			for (Map.Entry<SubjectKey, TableGeometry> entry : evictionCandidates) {
+				if (retainedWeight <= MAX_GEOMETRY_CACHE_WEIGHT)
+					break;
+				TableGeometry geometry = entry.getValue();
+				retainedWeight -= geometry.cacheWeight();
+				geometry.dispose();
+				TABLES.remove(entry.getKey(), geometry);
+				removedGeometry = true;
+			}
+		}
+		if (removedGeometry)
 			geometryGeneration++;
 		if (pendingCut != null && !TABLES.containsKey(new SubjectKey(pendingCut.tablePos, pendingCut.subjectId)))
 			abortPendingCut();
@@ -352,6 +400,7 @@ public final class SurgicalTableClientHandler {
 
 	@SubscribeEvent
 	public static void onRenderFrame(RenderFrameEvent.Pre event) {
+		SurgicalTableRenderer.beginFrame();
 		if (Minecraft.getInstance().level != null)
 			updatePendingVisualCommit(Minecraft.getInstance().level);
 		updatePlacementPreview();
@@ -1898,9 +1947,14 @@ public final class SurgicalTableClientHandler {
 		for (SurgicalModelRenderContext.CubeGeometry cube : cubes) {
 			SurgicalCubeRotation rotation = rotations.getOrDefault(cube.cubeId(), SurgicalCubeRotation.IDENTITY);
 			Vec3 offset = offsets.getOrDefault(cube.cubeId(), Vec3.ZERO);
+			if (rotation.isIdentity() && offset.lengthSqr() <= 1.0e-24d) {
+				transformed.add(cube);
+				continue;
+			}
 			Vec3 center = cubeCenter(cube);
-			List<Vec3> corners = cube.corners().stream()
-				.map(corner -> center.add(rotation.rotate(corner.subtract(center))).add(offset)).toList();
+			List<Vec3> corners = new ArrayList<>(8);
+			for (Vec3 corner : cube.corners())
+				corners.add(center.add(rotation.rotate(corner.subtract(center))).add(offset));
 			transformed.add(cube.withCorners(corners));
 		}
 		return List.copyOf(transformed);
@@ -3503,6 +3557,8 @@ public final class SurgicalTableClientHandler {
 		private List<SurgicalClientTopology.Contact> contacts;
 		private List<List<SurgicalClientTopology.Contact>> contactsByCube;
 		@Nullable
+		private Supplier<SurgicalClientTopology.ContactTopology> topologyBuild;
+		@Nullable
 		private CompletableFuture<SurgicalClientTopology.ContactTopology> pendingTopology;
 		private boolean topologyAvailable;
 		private BitSet presentCubes = new BitSet();
@@ -3511,6 +3567,7 @@ public final class SurgicalTableClientHandler {
 		private Map<Integer, Vec3> offsets = Map.of();
 		private Map<Integer, SurgicalCubeRotation> serverRotations = Map.of();
 		private Map<Integer, SurgicalCubeRotation> rotations = Map.of();
+		private long cacheWeight;
 		private Map<Integer, Vec3> pendingGroundingOffsets = Map.of();
 		private Map<Integer, SurgicalCubeRotation> pendingGroundingRotations = Map.of();
 		private BitSet pendingGroundingCutSeams = new BitSet();
@@ -3527,6 +3584,7 @@ public final class SurgicalTableClientHandler {
 			double originOffsetZ, int observedCubeCount,
 			List<SurgicalModelRenderContext.CubeGeometry> cubes, List<SurgicalAssembly.Seam> seams,
 			List<SurgicalClientTopology.Contact> contacts,
+			@Nullable Supplier<SurgicalClientTopology.ContactTopology> topologyBuild,
 			@Nullable CompletableFuture<SurgicalClientTopology.ContactTopology> pendingTopology,
 			long lastSeenTick) {
 			this.subjectId = subjectId;
@@ -3547,8 +3605,10 @@ public final class SurgicalTableClientHandler {
 			this.baseContacts = List.copyOf(contacts);
 			this.contacts = this.baseContacts;
 			this.contactsByCube = contactsByCube(observedCubeCount, this.contacts);
+			this.cacheWeight = estimateCacheWeight(this.baseCubes, this.seams, this.baseContacts);
+			this.topologyBuild = topologyBuild;
 			this.pendingTopology = pendingTopology;
-			this.topologyAvailable = pendingTopology == null;
+			this.topologyAvailable = topologyBuild == null;
 			this.lastSeenTick = lastSeenTick;
 		}
 
@@ -3571,6 +3631,7 @@ public final class SurgicalTableClientHandler {
 				seams = List.copyOf(subject.seams());
 				seamIds = seamIds(seams);
 				baseContacts = SurgicalClientTopology.contactsFor(seams, baseCubes);
+				cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
 			}
 			presentCubes = subject.presentCubesForRender(observedCubeCount);
 			cutSeams = subject.cutSeamsForRender();
@@ -3701,19 +3762,28 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private boolean resolvePendingTopology() {
-			if (pendingTopology == null || !pendingTopology.isDone())
+			if (pendingTopology == null) {
+				if (topologyBuild != null)
+					pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
+				return false;
+			}
+			if (!pendingTopology.isDone())
 				return false;
 			SurgicalClientTopology.ContactTopology topology;
 			try {
 				topology = pendingTopology.join();
 			} catch (RuntimeException exception) {
 				pendingTopology = null;
+				if (!SurgicalClientExecutors.wasQueueFull(exception))
+					topologyBuild = null;
 				return false;
 			}
 			pendingTopology = null;
+			topologyBuild = null;
 			seams = topology.seams();
 			seamIds = seamIds(seams);
 			baseContacts = topology.contacts();
+			cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
 			topologyAvailable = true;
 			return true;
 		}
@@ -3725,6 +3795,29 @@ public final class SurgicalTableClientHandler {
 		private void markSeen(SurgicalTableBlockEntity table) {
 			if (table.getLevel() != null)
 				lastSeenTick = table.getLevel().getGameTime();
+		}
+
+		private long cacheWeight() {
+			return cacheWeight;
+		}
+
+		private static long estimateCacheWeight(List<SurgicalModelRenderContext.CubeGeometry> cubes,
+			List<SurgicalAssembly.Seam> seams, List<SurgicalClientTopology.Contact> contacts) {
+			long weight = 64L + cubes.size() * 32L + seams.size() * 2L;
+			for (SurgicalClientTopology.Contact contact : contacts) {
+				weight += 8L;
+				for (List<Vec3> face : contact.faces())
+					weight += face.size();
+			}
+			return weight;
+		}
+
+		private void dispose() {
+			topologyBuild = null;
+			if (pendingTopology != null) {
+				pendingTopology.cancel(false);
+				pendingTopology = null;
+			}
 		}
 
 		private List<SurgicalClientTopology.Contact> contactsFor(int cubeId) {

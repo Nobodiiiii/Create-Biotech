@@ -1,8 +1,11 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.BitSet;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
@@ -11,11 +14,13 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlockEntity;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.simibubi.create.foundation.mixin.accessor.LevelRendererAccessor;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -23,8 +28,18 @@ import net.minecraft.world.phys.Vec3;
 
 public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableBlockEntity> {
 	private static final BitSet EMPTY_CUBES = new BitSet();
+	private static final int MAX_COLD_SUBJECTS_PER_FRAME = 4;
+	private static final long COLD_BUILD_BUDGET_NANOS = 2_000_000L;
+	private static int coldSubjectsThisFrame;
+	private static long coldBuildStarted;
 
 	public SurgicalTableRenderer(BlockEntityRendererProvider.Context context) {}
+
+	static void beginFrame() {
+		coldSubjectsThisFrame = 0;
+		coldBuildStarted = 0L;
+		SurgicalSourceModelRenderer.collectCompletedPlans();
+	}
 
 	@Override
 	public AABB getRenderBoundingBox(SurgicalTableBlockEntity table) {
@@ -62,15 +77,69 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		if (subjects.isEmpty())
 			return;
 		boolean projectSourceGeometry = projectsSourceGeometry(table);
-		// Refresh every subject before any of them is drawn. Connected grounding can span several
-		// subjects, and a table sync advances all of their revisions at once. Refreshing and drawing
-		// one subject at a time exposed a partially refreshed table for one frame.
-		for (SurgicalSubject subject : subjects)
-			prepareSubjectGeometry(table, subject, poseStack, packedLight, projectSourceGeometry);
+		Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+		Frustum frustum = currentFrustum();
+		List<RenderCandidate> visible = new java.util.ArrayList<>();
+		Map<Integer, SurgicalSubject> subjectsById = new java.util.HashMap<>();
+		for (SurgicalSubject subject : subjects) {
+			subjectsById.put(subject.id(), subject);
+			AABB bounds = subjectRenderBounds(table, subject);
+			if (frustum == null || frustum.isVisible(bounds))
+				visible.add(new RenderCandidate(subject, bounds, distanceToSqr(bounds, camera)));
+		}
+		if (visible.isEmpty())
+			return;
+
+		// The controller remains active through the whole connected table AABB. Only the contents are
+		// narrowed here, and any visible linked subject pulls its entire logical grounding group into
+		// the preparation queue. This keeps remote table tiles independent of the controller position
+		// without exposing a half-refreshed glued body.
+		Set<Integer> prepareIds = new LinkedHashSet<>();
+		Map<Integer, Set<Integer>> preparationGroups = new java.util.HashMap<>();
+		for (RenderCandidate candidate : visible) {
+			SurgicalSubject subject = candidate.subject;
+			Set<Integer> group;
+			if (subject.linkedToOtherSubjects()) {
+				Set<Integer> connected = new LinkedHashSet<>();
+				connected.add(subject.id());
+				connected.addAll(table.connectedSubjectIds(subject.id()));
+				group = Set.copyOf(connected);
+			} else {
+				group = Set.of(subject.id());
+			}
+			preparationGroups.put(subject.id(), group);
+			prepareIds.addAll(group);
+		}
+		List<RenderCandidate> preparation = new java.util.ArrayList<>(prepareIds.size());
+		for (int subjectId : prepareIds) {
+			SurgicalSubject subject = subjectsById.get(subjectId);
+			if (subject == null)
+				continue;
+			AABB bounds = subjectRenderBounds(table, subject);
+			preparation.add(new RenderCandidate(subject, bounds, distanceToSqr(bounds, camera)));
+		}
+		preparation.sort(Comparator.comparingDouble(RenderCandidate::distanceToCameraSqr));
+		for (RenderCandidate candidate : preparation) {
+			SurgicalSubject subject = candidate.subject;
+			if (!SurgicalTableClientHandler.needsGeometryUpdate(table, subject))
+				continue;
+			if (!prepareSubjectGeometry(table, subject, poseStack, camera))
+				break;
+		}
 		SurgicalTableClientHandler.completePlacementHandoffIfReady(table);
-		for (SurgicalSubject subject : subjects)
-			if (!SurgicalTableClientHandler.suppressForPlacementHandoff(table, subject))
-				renderSubject(table, subject, poseStack, buffer, packedLight, projectSourceGeometry);
+		Map<Set<Integer>, Boolean> groupReadiness = new java.util.HashMap<>();
+		for (RenderCandidate candidate : visible) {
+			SurgicalSubject subject = candidate.subject;
+			Set<Integer> group = preparationGroups.get(subject.id());
+			Boolean ready = groupReadiness.get(group);
+			if (ready == null) {
+				ready = isPreparationGroupReady(table, group);
+				groupReadiness.put(group, ready);
+			}
+			if (ready
+				&& !SurgicalTableClientHandler.suppressForPlacementHandoff(table, subject))
+				renderSubject(table, subject, poseStack, buffer, packedLight, projectSourceGeometry, camera);
+		}
 	}
 
 	static boolean projectsSourceGeometry(SurgicalTableBlockEntity table) {
@@ -82,13 +151,18 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 			.anyMatch(pos -> level.getBlockState(pos).is(CBBlocks.PROJECTION_SURGICAL_TABLE.get()));
 	}
 
-	private static void prepareSubjectGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
-		PoseStack poseStack, int packedLight, boolean projectSourceGeometry) {
-		if (!SurgicalTableClientHandler.needsGeometryUpdate(table, subject))
-			return;
+	/** Returns false only when this frame's main-thread cold-build budget is exhausted. */
+	private static boolean prepareSubjectGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		PoseStack poseStack, Vec3 camera) {
 		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject, subject.profile());
 		if (preview == null)
-			return;
+			return true;
+		SurgicalSourceModelRenderer.RenderPlanState planState =
+			SurgicalSourceModelRenderer.renderPlanState(preview, 0.0f);
+		if (planState == SurgicalSourceModelRenderer.RenderPlanState.PENDING)
+			return true;
+		if (!claimColdBuildSlot())
+			return false;
 
 		// BlockEntityRenderDispatcher has already established the table's world/camera transform on
 		// this stack. Geometry and grounding operate in that coordinate space, so retain the exact
@@ -99,15 +173,26 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		int storedCount = subject.cubeCount();
 		BitSet present = storedCount > 0
 			? SurgicalTableClientHandler.presentCubesFor(table, subject, storedCount) : EMPTY_CUBES;
-		Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-		SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.captureGeometry(preview,
-			storedCount, present, poseStack, packedLight, 0.0f, 0.0f, camera, projectSourceGeometry);
+		SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.captureGeometryDeferred(preview,
+			storedCount, present, poseStack, 0.0f, 0.0f, camera);
 		poseStack.popPose();
-		SurgicalTableClientHandler.updateGeometry(table, subject, snapshot);
+		if (snapshot != null)
+			SurgicalTableClientHandler.updateGeometry(table, subject, snapshot);
+		return true;
+	}
+
+	private static boolean isPreparationGroupReady(SurgicalTableBlockEntity table, Set<Integer> group) {
+		for (int subjectId : group) {
+			SurgicalSubject connected = table.getSubject(subjectId);
+			if (connected == null || !SurgicalTableClientHandler.isRenderReady(table, connected))
+				return false;
+		}
+		return true;
 	}
 
 	private static void renderSubject(SurgicalTableBlockEntity table, SurgicalSubject subject,
-		PoseStack poseStack, MultiBufferSource buffer, int packedLight, boolean projectSourceGeometry) {
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, boolean projectSourceGeometry,
+		Vec3 camera) {
 		MimicProfile profile = subject.profile();
 		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject, profile);
 		if (preview == null)
@@ -119,7 +204,6 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		int storedCount = subject.cubeCount();
 		BitSet present = storedCount > 0
 			? SurgicalTableClientHandler.presentCubesFor(table, subject, storedCount) : EMPTY_CUBES;
-		Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		Map<Integer, Vec3> offsets = SurgicalTableClientHandler.offsetsFor(table, subject);
 		Map<Integer, SurgicalCubeRotation> rotations = SurgicalTableClientHandler.rotationsFor(table, subject);
 		// The immutable captured source plan is cached by MimicProfile. Lay pose, grounded Y,
@@ -129,4 +213,58 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 			packedLight, 0.0f, 0.0f, false, camera, projectSourceGeometry);
 		poseStack.popPose();
 	}
+
+	private static AABB subjectRenderBounds(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		AABB cached = SurgicalTableClientHandler.cachedRenderBounds(table, subject);
+		if (cached != null)
+			return cached.inflate(2.0d);
+		double minX = Double.POSITIVE_INFINITY;
+		double minZ = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double maxZ = Double.NEGATIVE_INFINITY;
+		for (var footprint : subject.occupiedFootprints()) {
+			minX = Math.min(minX, footprint.minX());
+			minZ = Math.min(minZ, footprint.minZ());
+			maxX = Math.max(maxX, footprint.maxX());
+			maxZ = Math.max(maxZ, footprint.maxZ());
+		}
+		if (!Double.isFinite(minX)) {
+			minX = table.getBlockPos().getX() + subject.originOffsetX();
+			minZ = table.getBlockPos().getZ() + subject.originOffsetZ();
+			maxX = minX + 1.0d;
+			maxZ = minZ + 1.0d;
+		}
+		// This is used only before exact source-model bounds exist. Keep the vertical range deliberately
+		// conservative so a tall modded entity cannot disappear during its cold-plan build.
+		double tableY = table.getBlockPos().getY();
+		return new AABB(minX, tableY - 16.0d, minZ, maxX, tableY + 32.0d, maxZ).inflate(0.5d);
+	}
+
+	private static double distanceToSqr(AABB bounds, Vec3 point) {
+		double x = Math.max(bounds.minX, Math.min(point.x, bounds.maxX));
+		double y = Math.max(bounds.minY, Math.min(point.y, bounds.maxY));
+		double z = Math.max(bounds.minZ, Math.min(point.z, bounds.maxZ));
+		return point.distanceToSqr(x, y, z);
+	}
+
+	private static boolean claimColdBuildSlot() {
+		if (coldSubjectsThisFrame >= MAX_COLD_SUBJECTS_PER_FRAME)
+			return false;
+		long now = System.nanoTime();
+		if (coldBuildStarted == 0L)
+			coldBuildStarted = now;
+		else if (now - coldBuildStarted >= COLD_BUILD_BUDGET_NANOS)
+			return false;
+		coldSubjectsThisFrame++;
+		return true;
+	}
+
+	private static Frustum currentFrustum() {
+		if (!(Minecraft.getInstance().levelRenderer instanceof LevelRendererAccessor accessor))
+			return null;
+		Frustum captured = accessor.create$getCapturedFrustum();
+		return captured != null ? captured : accessor.create$getCullingFrustum();
+	}
+
+	private record RenderCandidate(SurgicalSubject subject, AABB bounds, double distanceToCameraSqr) {}
 }
