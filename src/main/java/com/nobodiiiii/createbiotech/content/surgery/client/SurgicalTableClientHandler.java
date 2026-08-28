@@ -1443,6 +1443,15 @@ public final class SurgicalTableClientHandler {
 			return null;
 		Vec3 faceCenter = cubeFaceCenter(cube, faceIndex);
 		Vec3 axis = faceCenter == null ? Vec3.ZERO : faceCenter.subtract(cubeCenter(cube));
+		if (axis.lengthSqr() <= 1.0e-18d) {
+			// Opposite faces of a planar cube share its center, so recover their directed
+			// normal from the face winding instead of rejecting the glue endpoint.
+			int[] face = SurgicalClientTopology.CUBE_FACES[faceIndex];
+			List<Vec3> corners = cube.corners();
+			Vec3 origin = corners.get(face[0]);
+			axis = corners.get(face[1]).subtract(origin)
+				.cross(corners.get(face[3]).subtract(origin));
+		}
 		if (axis.lengthSqr() <= 1.0e-18d)
 			return null;
 		return axis.normalize();
@@ -2436,7 +2445,9 @@ public final class SurgicalTableClientHandler {
 				Vec3 target = geometry.serverOffsets.getOrDefault(cube, Vec3.ZERO).add(delta);
 				if (target.lengthSqr() > 1.0e-24d)
 					targetOffsets.put(cube, target);
-				if (delta.horizontalDistanceSqr() > 1.0e-18d)
+				// Group zero is the stable remainder and can have no horizontal delta. It still belongs
+				// to this batch cut and may move vertically when the newly separated bodies are grounded.
+				if (groupId >= 0)
 					movedCubes.set(cube);
 			}
 			if (!movedCubes.isEmpty())

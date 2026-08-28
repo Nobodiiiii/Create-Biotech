@@ -33,10 +33,10 @@ public final class SurgicalBodyBounds {
 			body = all;
 		Envelope rawEnvelope = Envelope.of(all);
 		Envelope bodyEnvelope = Envelope.of(body);
-		Envelope visible = visibleEnvelope != null && visibleEnvelope.valid()
-			? visibleEnvelope : rawEnvelope;
-		if (rawEnvelope == null || bodyEnvelope == null || visible == null)
+		if (rawEnvelope == null || bodyEnvelope == null)
 			return null;
+		Envelope visible = visibleEnvelope != null && visibleEnvelope.valid()
+			? visibleEnvelope.include(rawEnvelope) : rawEnvelope;
 
 		double[] collisionMin = new double[3];
 		double[] collisionMax = new double[3];
@@ -61,8 +61,18 @@ public final class SurgicalBodyBounds {
 			double upperPadding = Math.max(0.0d, visible.max(axis) - rawEnvelope.max(axis));
 			collisionMin[axis] = Math.max(visible.min(axis), coreMin - lowerPadding);
 			collisionMax[axis] = Math.min(visible.max(axis), coreMax + upperPadding);
-			if (collisionMax[axis] - collisionMin[axis] < SurgicalAssembly.MIN_BODY_SIZE)
-				return null;
+			double collisionSize = collisionMax[axis] - collisionMin[axis];
+			if (collisionSize < SurgicalAssembly.MIN_BODY_SIZE) {
+				double missing = SurgicalAssembly.MIN_BODY_SIZE - collisionSize;
+				if (missing > GEOMETRY_EPSILON)
+					return null;
+				if (axis == 1) {
+					collisionMax[axis] += missing;
+				} else {
+					collisionMin[axis] -= missing * 0.5d;
+					collisionMax[axis] += missing * 0.5d;
+				}
+			}
 		}
 
 		return SurgicalAssembly.BodyBounds.create(
@@ -162,6 +172,12 @@ public final class SurgicalBodyBounds {
 		private double center(int axis) {
 			return (min(axis) + max(axis)) * 0.5d;
 		}
+
+		private Envelope include(Envelope other) {
+			return new Envelope(Math.min(minX, other.minX), Math.min(minY, other.minY),
+				Math.min(minZ, other.minZ), Math.max(maxX, other.maxX),
+				Math.max(maxY, other.maxY), Math.max(maxZ, other.maxZ));
+		}
 	}
 
 	private record CubeMass(double[] min, double[] max, double volume) {
@@ -183,23 +199,63 @@ public final class SurgicalBodyBounds {
 				max[1] = Math.max(max[1], corner.y);
 				max[2] = Math.max(max[2], corner.z);
 			}
+			double volume = orientedVolume(corners);
+			if (!(volume > GEOMETRY_EPSILON)) {
+				double area = orientedArea(corners);
+				if (!(area > GEOMETRY_EPSILON))
+					return null;
+				ensureMinimumSpans(min, max);
+				volume = area * SurgicalAssembly.MIN_BODY_SIZE;
+			}
 			double axisVolume = (max[0] - min[0]) * (max[1] - min[1]) * (max[2] - min[2]);
 			if (!Double.isFinite(axisVolume) || axisVolume <= GEOMETRY_EPSILON)
 				return null;
-			double volume = orientedVolume(corners, axisVolume);
+			volume = Math.min(volume, axisVolume);
 			return Double.isFinite(volume) && volume > GEOMETRY_EPSILON
 				? new CubeMass(min, max, volume) : null;
 		}
 
 		/** Capture orders corners by x, then y, then z, so 1, 2 and 4 are the three box edges. */
-		private static double orientedVolume(List<Vec3> corners, double fallback) {
+		private static double orientedVolume(List<Vec3> corners) {
 			Vec3 origin = corners.getFirst();
 			Vec3 xEdge = corners.get(1).subtract(origin);
 			Vec3 yEdge = corners.get(2).subtract(origin);
 			Vec3 zEdge = corners.get(4).subtract(origin);
-			double volume = Math.abs(xEdge.dot(yEdge.cross(zEdge)));
-			return Double.isFinite(volume) && volume > GEOMETRY_EPSILON
-				? Math.min(volume, fallback) : fallback;
+			return Math.abs(xEdge.dot(yEdge.cross(zEdge)));
+		}
+
+		/** Largest real face area; a flat ModelPart has two non-zero edges and one zero edge. */
+		private static double orientedArea(List<Vec3> corners) {
+			Vec3 origin = corners.getFirst();
+			Vec3[] edges = {
+				corners.get(1).subtract(origin),
+				corners.get(2).subtract(origin),
+				corners.get(4).subtract(origin)
+			};
+			double area = 0.0d;
+			for (int first = 0; first < edges.length; first++)
+				for (int second = first + 1; second < edges.length; second++)
+					area = Math.max(area, edges[first].cross(edges[second]).length());
+			return area;
+		}
+
+		/**
+		 * Gives a planar cube the smallest legal axis-aligned collision span. Horizontal spans stay
+		 * centred on the rendered sheet; vertical span grows upward so {@code minY} remains relative
+		 * to the real visible bottom rather than moving below it.
+		 */
+		private static void ensureMinimumSpans(double[] min, double[] max) {
+			for (int axis = 0; axis < 3; axis++) {
+				double missing = SurgicalAssembly.MIN_BODY_SIZE - (max[axis] - min[axis]);
+				if (!(missing > 0.0d))
+					continue;
+				if (axis == 1) {
+					max[axis] += missing;
+				} else {
+					min[axis] -= missing * 0.5d;
+					max[axis] += missing * 0.5d;
+				}
+			}
 		}
 	}
 }
