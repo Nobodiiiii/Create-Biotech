@@ -67,7 +67,15 @@ public final class SurgicalCapturedRenderPlan {
 	private static final int CAPTURE_LIGHT = LightTexture.pack(7, 11);
 	private static final float SLIME_CENTER_Y = 20.0f / 16.0f;
 	/** Total render-only size removed from each local axis of the translucent slime shell. */
-	private static final float OUTER_SHELL_SHRINK = 0.002f;
+	private static final float OUTER_SHELL_SHRINK_CLOSE = 0.0005f;
+	private static final float OUTER_SHELL_SHRINK_MID = 0.002f;
+	private static final float OUTER_SHELL_SHRINK_FAR = 0.01f;
+	private static final float OUTER_SHELL_MID_DISTANCE = 6.0f;
+	private static final float OUTER_SHELL_MID_DISTANCE_SQR =
+		OUTER_SHELL_MID_DISTANCE * OUTER_SHELL_MID_DISTANCE;
+	private static final float OUTER_SHELL_FAR_DISTANCE = 16.0f;
+	private static final float OUTER_SHELL_FAR_DISTANCE_SQR =
+		OUTER_SHELL_FAR_DISTANCE * OUTER_SHELL_FAR_DISTANCE;
 	private static final float THIN_EDGE = 0.05f / 16.0f;
 	private static final float OVERLAY_EXPANSION_MAX = 1.1f / 16.0f;
 	private static final float OVERLAY_CENTER_EPSILON = 0.1f / 16.0f;
@@ -194,6 +202,7 @@ public final class SurgicalCapturedRenderPlan {
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
 						cubeRotations.get(component.id));
 		} else {
+			float outerShellShrink = outerShellShrink(poseStack.last().pose());
 			for (Component component : components) {
 				if (!isPresent(component.id, expectedCubeCount, presentCubes))
 					continue;
@@ -202,12 +211,12 @@ public final class SurgicalCapturedRenderPlan {
 						cubeRotations.get(component.id));
 				else
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), false);
+						cubeRotations.get(component.id), false, outerShellShrink);
 			}
 			for (Component component : components)
 				if (!component.preserveSource && isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), true);
+						cubeRotations.get(component.id), true, outerShellShrink);
 			// Villager professions, emissive eyes and similar layers intentionally redraw the
 			// same model cube with another material. Keep those pixels attached to the one
 			// surgical component instead of admitting duplicate topology or discarding them.
@@ -604,6 +613,17 @@ public final class SurgicalCapturedRenderPlan {
 		return expectedCubeCount <= 0 || presentCubes.get(cubeId);
 	}
 
+	private static float outerShellShrink(Matrix4f pose) {
+		float x = pose.m30();
+		float y = pose.m31();
+		float z = pose.m32();
+		float distanceSqr = x * x + y * y + z * z;
+		if (distanceSqr >= OUTER_SHELL_FAR_DISTANCE_SQR)
+			return OUTER_SHELL_SHRINK_FAR;
+		return distanceSqr >= OUTER_SHELL_MID_DISTANCE_SQR
+			? OUTER_SHELL_SHRINK_MID : OUTER_SHELL_SHRINK_CLOSE;
+	}
+
 	private static ModelPart innerCube() {
 		if (innerCube == null)
 			innerCube = Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.SLIME).getChild("cube");
@@ -976,7 +996,8 @@ public final class SurgicalCapturedRenderPlan {
 		}
 
 		private void renderSlime(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, boolean outer) {
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, boolean outer,
+			float outerShellShrink) {
 			PoseStack cubePose = new PoseStack();
 			Matrix4f basePose = new Matrix4f(poseStack.last().pose());
 			Vector3f center = center();
@@ -993,9 +1014,9 @@ public final class SurgicalCapturedRenderPlan {
 			transformedPose.mul(basePose);
 			cubePose.mulPose(transformedPose);
 
-			float aScale = slimeAxisScale(a, outer);
-			float bScale = slimeAxisScale(b, outer);
-			float cScale = slimeAxisScale(c, outer);
+			float aScale = slimeAxisScale(a, outer, outerShellShrink);
+			float bScale = slimeAxisScale(b, outer, outerShellShrink);
+			float cScale = slimeAxisScale(c, outer, outerShellShrink);
 			Matrix4f transform = new Matrix4f().identity();
 			transform.m00(aScale * a.x).m01(aScale * a.y).m02(aScale * a.z);
 			transform.m10(bScale * b.x).m11(bScale * b.y).m12(bScale * b.z);
@@ -1017,13 +1038,13 @@ public final class SurgicalCapturedRenderPlan {
 		 * exactly to the captured component. Pulling each local axis in by a fixed world-space
 		 * amount keeps adjacent components visually joined without changing their topology.
 		 */
-		private static float slimeAxisScale(Vector3f axis, boolean outer) {
+		private static float slimeAxisScale(Vector3f axis, boolean outer, float outerShellShrink) {
 			if (!outer)
 				return 2.0f;
 			float length = axis.length();
 			if (length <= POSITION_EPSILON)
 				return 2.0f;
-			float renderedLength = Math.max(length - OUTER_SHELL_SHRINK, POSITION_EPSILON);
+			float renderedLength = Math.max(length - outerShellShrink, POSITION_EPSILON);
 			return 2.0f * renderedLength / length;
 		}
 
