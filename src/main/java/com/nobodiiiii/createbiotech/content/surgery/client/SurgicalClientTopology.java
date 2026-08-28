@@ -1251,6 +1251,19 @@ public final class SurgicalClientTopology {
 		return List.copyOf(edges);
 	}
 
+	/** Removes coincident line segments regardless of their direction or source cube. */
+	public static List<Edge> distinctEdges(List<Edge> edges) {
+		if (edges == null || edges.isEmpty())
+			return List.of();
+		Map<OutlineEdgeKey, Edge> distinct = new LinkedHashMap<>();
+		for (Edge edge : edges) {
+			if (edge == null || edge.start().distanceToSqr(edge.end()) <= DEGENERATE_EPSILON)
+				continue;
+			distinct.putIfAbsent(OutlineEdgeKey.of(edge), edge);
+		}
+		return List.copyOf(distinct.values());
+	}
+
 	/**
 	 * Returns the crease outline of the solid union of the supplied model cubes.
 	 * Cube edges hidden inside another cube and coplanar edges that only divide one

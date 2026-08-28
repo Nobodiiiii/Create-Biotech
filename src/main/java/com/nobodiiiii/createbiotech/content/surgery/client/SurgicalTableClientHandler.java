@@ -106,6 +106,8 @@ public final class SurgicalTableClientHandler {
 	private static final long MAX_GEOMETRY_CACHE_WEIGHT = 262_144L;
 	/** RenderFrame follows ClientTick.Post, so protect a short window rather than only equal game-time. */
 	private static final int GEOMETRY_CACHE_RECENT_TICKS = 20;
+	/** Lets a geometry survive the old-controller-empty -> new-controller-full packet handoff. */
+	private static final int GEOMETRY_OWNER_HANDOFF_TICKS = 40;
 	private static final int VISUAL_COMMIT_TIMEOUT_TICKS = 40;
 	private static final float BATCH_CUT_ANIMATION_TICKS = 5.0f;
 	private static final int BATCH_CUT_ANIMATION_TIMEOUT_TICKS = 40;
@@ -116,7 +118,14 @@ public final class SurgicalTableClientHandler {
 	private static final OutlineState GLUE_EDIT_OUTLINE = new OutlineState();
 	private static final OutlineState GLUE_POINT_OUTLINE = new OutlineState(GLUE_POINT_LINE_WIDTH);
 	private static final Object PLACEMENT_OUTLINE_SLOT = new Object();
+	/** Current interaction/render address. This changes whenever the north-west controller moves. */
 	private static final Map<SubjectKey, TableGeometry> TABLES = new HashMap<>();
+	/** Stable geometry ownership. A controller move must not invalidate immutable model geometry. */
+	private static final Map<UUID, TableGeometry> SUBJECT_GEOMETRIES = new HashMap<>();
+	@Nullable
+	private static OwnerHandoffKey validatedOwnerHandoff;
+	private static final Set<UUID> SAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
+	private static final Set<UUID> UNSAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static final Map<CombinationOutlineKey, CombinationOutlineCache> COMBINATION_OUTLINES =
 		new HashMap<>();
 	private static long lastPlacementOutlineTick = Long.MIN_VALUE;
@@ -173,15 +182,9 @@ public final class SurgicalTableClientHandler {
 	public static boolean needsGeometryUpdate(SurgicalTableBlockEntity table, SurgicalSubject subject) {
 		if (table.getLevel() == null)
 			return false;
-		SubjectKey key = new SubjectKey(table.getBlockPos(), subject.id());
-		TableGeometry geometry = TABLES.get(key);
+		TableGeometry geometry = geometryFor(table, subject);
 		if (geometry == null)
 			return true;
-		if (!geometry.matchesModel(table, subject)) {
-			TABLES.remove(key).dispose();
-			geometryGeneration++;
-			return true;
-		}
 		if (geometry.refresh(table, subject))
 			geometryGeneration++;
 		else
@@ -190,14 +193,14 @@ public final class SurgicalTableClientHandler {
 	}
 
 	public static boolean isRenderReady(SurgicalTableBlockEntity table, SurgicalSubject subject) {
-		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		TableGeometry geometry = geometryFor(table, subject);
 		return geometry != null && geometry.matchesModel(table, subject) && geometry.topologyReady()
 			&& geometry.renderRevision == subject.clientRenderRevision();
 	}
 
 	@Nullable
 	public static AABB cachedRenderBounds(SurgicalTableBlockEntity table, SurgicalSubject subject) {
-		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		TableGeometry geometry = geometryFor(table, subject);
 		if (geometry == null || !geometry.matchesModel(table, subject)
 			|| geometry.renderRevision != subject.clientRenderRevision())
 			return null;
@@ -261,18 +264,17 @@ public final class SurgicalTableClientHandler {
 				contacts = topology.contacts();
 			}
 		}
-		TableGeometry geometry = new TableGeometry(subject.id(), profile, subject.layPose(),
-			subject.originOffsetX(), subject.originOffsetZ(), cubeCount, snapshot.cubes(), seams, contacts,
+		TableGeometry geometry = new TableGeometry(subject.persistentId(), subject.id(), profile,
+			subject.layPose(), worldOriginX(table, subject), worldOriginZ(table, subject), cubeCount,
+			snapshot.cubes(), seams, contacts,
 			topologyBuild, pendingTopology, table.getLevel().getGameTime());
 		geometry.refresh(table, subject);
-		TableGeometry replaced = TABLES.put(new SubjectKey(table.getBlockPos(), subject.id()), geometry);
-		if (replaced != null)
-			replaced.dispose();
+		registerGeometry(table, subject, geometry);
 		geometryGeneration++;
 	}
 
 	public static Map<Integer, Vec3> offsetsFor(SurgicalTableBlockEntity table, SurgicalSubject subject) {
-		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		TableGeometry geometry = geometryFor(table, subject);
 		if (geometry == null || !geometry.matchesModel(table, subject))
 			return subject.componentOffsetsForRender();
 		if (geometry.retryPendingGrounding(table))
@@ -283,7 +285,7 @@ public final class SurgicalTableClientHandler {
 
 	public static Map<Integer, SurgicalCubeRotation> rotationsFor(SurgicalTableBlockEntity table,
 		SurgicalSubject subject) {
-		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		TableGeometry geometry = geometryFor(table, subject);
 		if (geometry == null || !geometry.matchesModel(table, subject))
 			return subject.componentRotationsForRender();
 		geometry.markSeen(table);
@@ -292,7 +294,7 @@ public final class SurgicalTableClientHandler {
 
 	public static BitSet presentCubesFor(SurgicalTableBlockEntity table, SurgicalSubject subject,
 		int observedCubeCount) {
-		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+		TableGeometry geometry = geometryFor(table, subject);
 		BitSet present = geometry != null && geometry.observedCubeCount == observedCubeCount
 			&& geometry.matchesModel(table, subject)
 			? geometry.presentCubes : subject.presentCubesForRender(observedCubeCount);
@@ -309,6 +311,124 @@ public final class SurgicalTableClientHandler {
 		return visible == null ? present : visible;
 	}
 
+	/**
+	 * Resolves a geometry by the subject's persistent identity, then publishes it at the controller's
+	 * current transient address. Adding or removing the north-west table changes that address and the
+	 * subject's controller-relative origin, but server-side rebasing keeps the world origin unchanged,
+	 * so neither change requires another model capture.
+	 */
+	@Nullable
+	private static TableGeometry geometryFor(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		SubjectKey address = new SubjectKey(table.getBlockPos(), subject.id());
+		TableGeometry addressed = TABLES.get(address);
+		if (addressed != null && !addressed.persistentId.equals(subject.persistentId())) {
+			TABLES.remove(address, addressed);
+			addressed.orphan(table.getLevel() == null ? Long.MIN_VALUE : table.getLevel().getGameTime());
+			addressed = null;
+		}
+		TableGeometry geometry = addressed != null ? addressed
+			: SUBJECT_GEOMETRIES.get(subject.persistentId());
+		if (geometry == null)
+			return null;
+		if (!geometry.matchesModel(table, subject)) {
+			removeGeometry(geometry);
+			geometryGeneration++;
+			return null;
+		}
+		bindGeometry(address, geometry);
+		return geometry;
+	}
+
+	private static void registerGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		TableGeometry geometry) {
+		TableGeometry previous = SUBJECT_GEOMETRIES.put(subject.persistentId(), geometry);
+		if (previous != null && previous != geometry)
+			removeGeometry(previous);
+		bindGeometry(new SubjectKey(table.getBlockPos(), subject.id()), geometry);
+	}
+
+	private static void bindGeometry(SubjectKey address, TableGeometry geometry) {
+		SubjectKey previousAddress = geometry.ownerKey;
+		if (previousAddress != null && !previousAddress.equals(address)) {
+			TABLES.remove(previousAddress, geometry);
+			geometry.ownerChanged = true;
+		}
+		TableGeometry displaced = TABLES.put(address, geometry);
+		if (displaced != null && displaced != geometry) {
+			displaced.orphan(geometry.lastSeenTick);
+			if (displaced.ownerKey != null)
+				TABLES.remove(displaced.ownerKey, displaced);
+		}
+		geometry.ownerKey = address;
+		geometry.subjectId = address.subjectId;
+		geometry.orphanedAtTick = Long.MIN_VALUE;
+	}
+
+	private static void removeGeometry(TableGeometry geometry) {
+		if (geometry.ownerKey != null)
+			TABLES.remove(geometry.ownerKey, geometry);
+		SUBJECT_GEOMETRIES.remove(geometry.persistentId, geometry);
+		geometry.ownerKey = null;
+		geometry.dispose();
+	}
+
+	private static double worldOriginX(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		return table.getBlockPos().getX() + subject.originOffsetX();
+	}
+
+	private static double worldOriginZ(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		return table.getBlockPos().getZ() + subject.originOffsetZ();
+	}
+
+	/** Verifies that a linked body's complete grounding group is only changing controller address. */
+	private static boolean migrationGroupUnchanged(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		OwnerHandoffKey handoff) {
+		if (!handoff.equals(validatedOwnerHandoff)) {
+			validatedOwnerHandoff = handoff;
+			SAFE_OWNER_HANDOFFS.clear();
+			UNSAFE_OWNER_HANDOFFS.clear();
+		}
+		if (SAFE_OWNER_HANDOFFS.contains(subject.persistentId()))
+			return true;
+		if (UNSAFE_OWNER_HANDOFFS.contains(subject.persistentId()))
+			return false;
+		Set<Integer> group = new java.util.HashSet<>();
+		group.add(subject.id());
+		if (subject.linkedToOtherSubjects())
+			group.addAll(table.connectedSubjectIds(subject.id()));
+		Set<UUID> persistentIds = new java.util.HashSet<>(group.size());
+		boolean unchanged = true;
+		for (int subjectId : group) {
+			SurgicalSubject member = table.getSubject(subjectId);
+			if (member != null)
+				persistentIds.add(member.persistentId());
+			TableGeometry geometry = member == null ? null
+				: SUBJECT_GEOMETRIES.get(member.persistentId());
+			if (geometry == null || !geometry.matchesModel(table, member)
+				|| !SubjectGeometryState.capture(member, geometry.observedCubeCount)
+					.equals(geometry.subjectState)) {
+				unchanged = false;
+				break;
+			}
+			if (geometry.ownerChanged || handoff.equals(geometry.cheapOwnerHandoff)
+				|| ownerAddressIsStale(table.getLevel() instanceof ClientLevel level ? level : null, geometry))
+				continue;
+			unchanged = false;
+			break;
+		}
+		(unchanged ? SAFE_OWNER_HANDOFFS : UNSAFE_OWNER_HANDOFFS).addAll(persistentIds);
+		return unchanged;
+	}
+
+	private static boolean ownerAddressIsStale(@Nullable ClientLevel level, TableGeometry geometry) {
+		if (level == null || geometry.ownerKey == null)
+			return geometry.ownerKey == null;
+		if (!(level.getBlockEntity(geometry.ownerKey.tablePos) instanceof SurgicalTableBlockEntity owner))
+			return true;
+		SurgicalSubject owned = owner.getSubject(geometry.ownerKey.subjectId);
+		return owned == null || !geometry.persistentId.equals(owned.persistentId());
+	}
+
 	public static void clear() {
 		pendingCut = null;
 		pendingGlueCut = null;
@@ -323,8 +443,12 @@ public final class SurgicalTableClientHandler {
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
 		clearPlacementPreview();
-		TABLES.values().forEach(TableGeometry::dispose);
+		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
 		TABLES.clear();
+		SUBJECT_GEOMETRIES.clear();
+		validatedOwnerHandoff = null;
+		SAFE_OWNER_HANDOFFS.clear();
+		UNSAFE_OWNER_HANDOFFS.clear();
 		COMBINATION_OUTLINES.clear();
 		geometryGeneration++;
 		lastSelectionRay = null;
@@ -363,34 +487,40 @@ public final class SurgicalTableClientHandler {
 		updatePendingVisualCommit(level);
 		updateBatchCutAnimation(level);
 		boolean removedGeometry = false;
-		long retainedWeight = 0L;
 		for (java.util.Iterator<Map.Entry<SubjectKey, TableGeometry>> iterator = TABLES.entrySet().iterator();
 			iterator.hasNext();) {
 			Map.Entry<SubjectKey, TableGeometry> entry = iterator.next();
-			if (level.getBlockEntity(entry.getKey().tablePos) instanceof SurgicalTableBlockEntity table
-				&& table.hasSubject(entry.getKey().subjectId))
-			{
-				retainedWeight += entry.getValue().cacheWeight();
+			TableGeometry geometry = entry.getValue();
+			SurgicalSubject subject = level.getBlockEntity(entry.getKey().tablePos)
+				instanceof SurgicalTableBlockEntity table ? table.getSubject(entry.getKey().subjectId) : null;
+			if (subject != null && geometry.persistentId.equals(subject.persistentId()))
 				continue;
-			}
-			entry.getValue().dispose();
 			iterator.remove();
+			geometry.orphan(now);
 			removedGeometry = true;
 		}
+		for (TableGeometry geometry : List.copyOf(SUBJECT_GEOMETRIES.values())) {
+			if (geometry.ownerKey != null || geometry.orphanedAtTick == Long.MIN_VALUE
+				|| now - geometry.orphanedAtTick <= GEOMETRY_OWNER_HANDOFF_TICKS)
+				continue;
+			removeGeometry(geometry);
+			removedGeometry = true;
+		}
+		long retainedWeight = SUBJECT_GEOMETRIES.values().stream()
+			.mapToLong(TableGeometry::cacheWeight)
+			.sum();
 		// Last-use ordering evicts the coldest live geometries first. A short grace window protects
-		// visible geometry across ClientTick.Post -> RenderFrame ordering and brief frame stalls.
+		// visible geometry across ClientTick.Post -> RenderFrame ordering and controller handoffs.
 		if (retainedWeight > MAX_GEOMETRY_CACHE_WEIGHT) {
-			List<Map.Entry<SubjectKey, TableGeometry>> evictionCandidates = TABLES.entrySet().stream()
-				.filter(entry -> entry.getValue().lastSeenTick < now - GEOMETRY_CACHE_RECENT_TICKS)
-				.sorted(java.util.Comparator.comparingLong(entry -> entry.getValue().lastSeenTick))
+			List<TableGeometry> evictionCandidates = SUBJECT_GEOMETRIES.values().stream()
+				.filter(geometry -> geometry.lastSeenTick < now - GEOMETRY_CACHE_RECENT_TICKS)
+				.sorted(java.util.Comparator.comparingLong(geometry -> geometry.lastSeenTick))
 				.toList();
-			for (Map.Entry<SubjectKey, TableGeometry> entry : evictionCandidates) {
+			for (TableGeometry geometry : evictionCandidates) {
 				if (retainedWeight <= MAX_GEOMETRY_CACHE_WEIGHT)
 					break;
-				TableGeometry geometry = entry.getValue();
 				retainedWeight -= geometry.cacheWeight();
-				geometry.dispose();
-				TABLES.remove(entry.getKey(), geometry);
+				removeGeometry(geometry);
 				removedGeometry = true;
 			}
 		}
@@ -756,7 +886,7 @@ public final class SurgicalTableClientHandler {
 			SurgicalSubject subject = table.getSubject(moved.subjectId);
 			if (subject == null)
 				continue;
-			LivingEntity entity = SurgicalSourceModelRenderer.preview(subject, subject.profile());
+			LivingEntity entity = SurgicalSourceModelRenderer.preview(subject.persistentId(), subject.profile());
 			if (entity == null)
 				continue;
 			poseStack.pushPose();
@@ -806,8 +936,7 @@ public final class SurgicalTableClientHandler {
 			seamSelection = null;
 			cubeSelection = null;
 			componentSelection = null;
-			if (!highlightGluePreview())
-				clearSeamHighlight();
+			clearSeamHighlight();
 			showGlueEditPrompt(player, level);
 			refreshGlueEditGuide(player, level, glueEditor);
 			return;
@@ -876,7 +1005,7 @@ public final class SurgicalTableClientHandler {
 		componentSelection = holdingHoney
 			? findConnectedComponentSelection(cubeHit)
 			: holdingGlue
-			? findConnectedComponentSelection(glueHit)
+			? (pendingGlue == null ? findConnectedComponentSelection(glueHit) : findCubeSelection(glueHit))
 			: highlightingDirectConnections
 			? findDirectConnectionSelection(cubeHit)
 			: !holdingShears && holdingEmptyLargeBox ? findConnectedComponentSelection(cubeHit) : null;
@@ -885,7 +1014,7 @@ public final class SurgicalTableClientHandler {
 
 	private static void refreshCurrentSelectionHighlight() {
 		refreshGluePointHighlight();
-		if (highlightGluePreview())
+		if (highlightGlueTargetCube())
 			return;
 		if (pendingLimb != null) {
 			List<SurgicalClientTopology.Edge> edges = new ArrayList<>(pendingLimb.selection.cubeEdges);
@@ -921,44 +1050,17 @@ public final class SurgicalTableClientHandler {
 			GLUE_POINT_OUTLINE.show(edges, CUBE_HIGHLIGHT_COLOR);
 	}
 
-	private static boolean highlightGluePreview() {
+	/** During the second glue click, only the hovered target cube is outlined at its preview position. */
+	private static boolean highlightGlueTargetCube() {
 		if (gluePreview == null)
 			return false;
-		ClientLevel level = Minecraft.getInstance().level;
-		SurgicalTableBlockEntity table = level != null
-			&& level.getBlockEntity(gluePreview.ownerPos) instanceof SurgicalTableBlockEntity found
-			? found : null;
-		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
-		List<SurgicalClientTopology.Edge> combinationEdges = new ArrayList<>();
-		java.util.Set<UUID> collapsed = new java.util.HashSet<>();
-		for (GlueSubjectPreview subject : gluePreview.subjects) {
-			BitSet ordinary = (BitSet) subject.cubes.clone();
-			SurgicalSubject source = table == null ? null : table.getSubject(subject.subjectId);
-			for (int cubeId = subject.cubes.nextSetBit(0); cubeId >= 0;
-				cubeId = subject.cubes.nextSetBit(cubeId + 1)) {
-				SurgicalCombination combination = source == null ? null
-					: source.combinationContaining(cubeId);
-				if (combination == null || !combinationFullyPreviewed(gluePreview.subjects, table, combination))
-					continue;
-				for (SurgicalCombination.Member member : combination.members())
-					if (member.subjectKey().equals(source.persistentId()))
-						ordinary.clear(member.cubeId());
-				if (collapsed.add(combination.id()))
-					combinationEdges.addAll(previewCombinationOuterEdges(
-						gluePreview.subjects, table, combination));
-			}
-			for (int cubeId = ordinary.nextSetBit(0); cubeId >= 0;
-				cubeId = ordinary.nextSetBit(cubeId + 1)) {
-				SurgicalModelRenderContext.CubeGeometry cube = previewCube(subject, cubeId);
-				if (cube != null)
-					edges.addAll(SurgicalClientTopology.cubeEdges(cube));
-			}
-		}
-		if (edges.isEmpty() && combinationEdges.isEmpty())
+		SurgicalModelRenderContext.CubeGeometry cube = previewCube(gluePreview.subjects,
+			gluePreview.targetSubjectId, gluePreview.targetCubeId);
+		if (cube == null)
 			return false;
 		SEAM_OUTLINE.clear();
-		CUBE_OUTLINE.show(edges, CUBE_HIGHLIGHT_COLOR);
-		COMBINATION_OUTLINE.show(combinationEdges, HONEY_HIGHLIGHT_COLOR);
+		CUBE_OUTLINE.show(SurgicalClientTopology.cubeEdges(cube), CUBE_HIGHLIGHT_COLOR);
+		COMBINATION_OUTLINE.clear();
 		return true;
 	}
 
@@ -1153,7 +1255,8 @@ public final class SurgicalTableClientHandler {
 		Vec3 localHit = hit.location.subtract(Vec3.atLowerCornerOf(hit.tablePos));
 		if (pendingGlue == null) {
 			pendingGlue = new PendingGlue(selected, localHit, hand, hit.faceIndex, hit.gluePoint);
-			componentSelection = findConnectedComponentSelection(hit);
+			componentSelection = null;
+			clearSeamHighlight();
 			player.displayClientMessage(Component.translatable(
 				"message.create_biotech.surgical_table.glue_first"), true);
 			AllSoundEvents.SLIME_ADDED.playAt(level, BlockPos.containing(hit.location), 0.5f, 0.85f, false);
@@ -1214,6 +1317,9 @@ public final class SurgicalTableClientHandler {
 			gluePreview = preview;
 			glueEditor = new GlueEditor(hand, firstEndpoint, secondEndpoint, preview,
 				axisCenter, faceCenter, editAxis, glueEditGuideRadius(editCube, axisCenter, editAxis));
+			hoveredGluePoint = null;
+			GLUE_POINT_OUTLINE.clear();
+			clearSeamHighlight();
 			showGlueEditPrompt(player, level);
 			refreshGlueEditGuide(player, level, glueEditor);
 			AllSoundEvents.SLIME_ADDED.playAt(level, BlockPos.containing(hit.location), 0.5f, 0.9f, false);
@@ -3019,9 +3125,8 @@ public final class SurgicalTableClientHandler {
 			SurgicalAssembly.Seam.of(0, 1), List.of(
 				new SurgicalModelRenderContext.CubeGeometry(0, first.corners()),
 				new SurgicalModelRenderContext.CubeGeometry(1, second.corners())));
-		List<SurgicalClientTopology.Edge> cubeEdges = new ArrayList<>(24);
-		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(first));
-		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(second));
+		List<SurgicalClientTopology.Edge> cubeEdges =
+			SurgicalClientTopology.outerEdges(List.of(first, second));
 		Selection selection = new Selection(tablePos, geometry.subjectId, jointId,
 			geometry.observedCubeCount, geometry.seams, contact == null ? List.of() : contact.edges(),
 			List.copyOf(cubeEdges), true);
@@ -3067,6 +3172,19 @@ public final class SurgicalTableClientHandler {
 		connectedSelectionCache = new CubeSelectionCache(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
 			table.clientDataRevision(), hit.geometry.renderRevision, selection);
 		return selection;
+	}
+
+	/** Selects one model cube without expanding through seams, glue joints, or combinations. */
+	@Nullable
+	private static Selection findCubeSelection(@Nullable CubeHit hit) {
+		if (hit == null)
+			return null;
+		SurgicalModelRenderContext.CubeGeometry cube = hit.geometry.cubesById.get(hit.cubeId);
+		if (cube == null)
+			return null;
+		return new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
+			hit.geometry.observedCubeCount, hit.geometry.seams, List.of(),
+			List.copyOf(SurgicalClientTopology.cubeEdges(cube)));
 	}
 
 	/** Measures and permanently bakes the selected body's invariant physical data. */
@@ -3181,7 +3299,7 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static SelectionHighlightEdges connectedSelectionEdges(BlockPos tablePos,
 		SurgicalTableBlockEntity table, Map<Integer, BitSet> components) {
-		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
+		List<SurgicalModelRenderContext.CubeGeometry> ordinaryCubes = new ArrayList<>();
 		List<SurgicalClientTopology.Edge> combinationEdges = new ArrayList<>();
 		java.util.Set<UUID> collapsed = new java.util.HashSet<>();
 		for (Map.Entry<Integer, BitSet> entry : components.entrySet()) {
@@ -3202,9 +3320,10 @@ public final class SurgicalTableClientHandler {
 				if (collapsed.add(combination.id()))
 					combinationEdges.addAll(combinationOuterEdges(tablePos, table, combination));
 			}
-			edges.addAll(geometry.componentCubeEdges(ordinary));
+			ordinaryCubes.addAll(geometry.componentCubes(ordinary));
 		}
-		return new SelectionHighlightEdges(edges, combinationEdges);
+		return new SelectionHighlightEdges(SurgicalClientTopology.outerEdges(ordinaryCubes),
+			combinationEdges);
 	}
 
 	private static boolean combinationFullySelected(SurgicalTableBlockEntity table,
@@ -3216,34 +3335,6 @@ public final class SurgicalTableClientHandler {
 				return false;
 		}
 		return true;
-	}
-
-	private static boolean combinationFullyPreviewed(List<GlueSubjectPreview> previews,
-		@Nullable SurgicalTableBlockEntity table, SurgicalCombination combination) {
-		if (table == null)
-			return false;
-		for (SurgicalCombination.Member member : combination.members()) {
-			SurgicalSubject subject = table.getSubjectByPersistentId(member.subjectKey());
-			if (subject == null || previewSubject(previews, subject.id(), member.cubeId()) == null)
-				return false;
-		}
-		return true;
-	}
-
-	private static List<SurgicalClientTopology.Edge> previewCombinationOuterEdges(
-		List<GlueSubjectPreview> previews, @Nullable SurgicalTableBlockEntity table,
-		SurgicalCombination combination) {
-		if (table == null)
-			return List.of();
-		List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>();
-		for (SurgicalCombination.Member member : combination.members()) {
-			SurgicalSubject subject = table.getSubjectByPersistentId(member.subjectKey());
-			SurgicalModelRenderContext.CubeGeometry cube = subject == null ? null
-				: previewCube(previews, subject.id(), member.cubeId());
-			if (cube != null)
-				cubes.add(cube);
-		}
-		return outerEdgesForCubes(cubes);
 	}
 
 	private static List<SurgicalClientTopology.Edge> combinationOuterEdges(BlockPos tablePos,
@@ -3812,11 +3903,12 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static final class TableGeometry {
-		private final int subjectId;
+		private final UUID persistentId;
+		private int subjectId;
 		private final MimicProfile profile;
 		private final SurgicalLayPose layPose;
-		private final double originOffsetX;
-		private final double originOffsetZ;
+		private final double worldOriginX;
+		private final double worldOriginZ;
 		private final int observedCubeCount;
 		private final List<SurgicalModelRenderContext.CubeGeometry> baseCubes;
 		private final Map<Integer, SurgicalModelRenderContext.CubeGeometry> baseCubesById;
@@ -3854,19 +3946,28 @@ public final class SurgicalTableClientHandler {
 		private long transformGeneration;
 		private int renderRevision = Integer.MIN_VALUE;
 		private long lastSeenTick;
+		@Nullable
+		private SubjectKey ownerKey;
+		private boolean ownerChanged;
+		private long orphanedAtTick = Long.MIN_VALUE;
+		@Nullable
+		private SubjectGeometryState subjectState;
+		@Nullable
+		private OwnerHandoffKey cheapOwnerHandoff;
 
-		private TableGeometry(int subjectId, MimicProfile profile, SurgicalLayPose layPose, double originOffsetX,
-			double originOffsetZ, int observedCubeCount,
+		private TableGeometry(UUID persistentId, int subjectId, MimicProfile profile, SurgicalLayPose layPose,
+			double worldOriginX, double worldOriginZ, int observedCubeCount,
 			List<SurgicalModelRenderContext.CubeGeometry> cubes, List<SurgicalAssembly.Seam> seams,
 			List<SurgicalClientTopology.Contact> contacts,
 			@Nullable Supplier<SurgicalClientTopology.ContactTopology> topologyBuild,
 			@Nullable CompletableFuture<SurgicalClientTopology.ContactTopology> pendingTopology,
 			long lastSeenTick) {
+			this.persistentId = persistentId;
 			this.subjectId = subjectId;
 			this.profile = profile;
 			this.layPose = layPose;
-			this.originOffsetX = originOffsetX;
-			this.originOffsetZ = originOffsetZ;
+			this.worldOriginX = worldOriginX;
+			this.worldOriginZ = worldOriginZ;
 			this.observedCubeCount = observedCubeCount;
 			this.baseCubes = List.copyOf(cubes);
 			this.baseCubesById = indexCubes(this.baseCubes);
@@ -3888,10 +3989,10 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private boolean matchesModel(SurgicalTableBlockEntity table, SurgicalSubject subject) {
-			return table.hasSubject(subjectId) && subject.id() == subjectId && profile.equals(subject.profile())
+			return persistentId.equals(subject.persistentId()) && profile.equals(subject.profile())
 				&& subject.layPose().equals(layPose)
-				&& Double.doubleToLongBits(subject.originOffsetX()) == Double.doubleToLongBits(originOffsetX)
-				&& Double.doubleToLongBits(subject.originOffsetZ()) == Double.doubleToLongBits(originOffsetZ)
+				&& Double.doubleToLongBits(worldOriginX(table, subject)) == Double.doubleToLongBits(worldOriginX)
+				&& Double.doubleToLongBits(worldOriginZ(table, subject)) == Double.doubleToLongBits(worldOriginZ)
 				&& (subject.cubeCount() == 0 || subject.cubeCount() == observedCubeCount);
 		}
 
@@ -3899,8 +4000,21 @@ public final class SurgicalTableClientHandler {
 			markSeen(table);
 			boolean topologyChanged = resolvePendingTopology();
 			int revision = subject.clientRenderRevision();
-			if (revision == renderRevision && !topologyChanged)
+			SubjectGeometryState nextState = SubjectGeometryState.capture(subject, observedCubeCount);
+			boolean stateChanged = !nextState.equals(subjectState);
+			OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
+			if (!ownerChanged && revision == renderRevision && !topologyChanged && !stateChanged)
 				return false;
+			// A controller migration changes the block-entity revision and transient subject address. If
+			// every member of this grounding group still has the exact cached state and world anchor, the
+			// already-grounded cubes remain valid and only the new owner needs their cached bounds.
+			if (ownerChanged && !topologyChanged && !stateChanged
+				&& migrationGroupUnchanged(table, subject, handoff)) {
+				renderRevision = revision;
+				ownerChanged = false;
+				cheapOwnerHandoff = handoff;
+				return false;
+			}
 
 			if (subject.cubeCount() == observedCubeCount && !seams.equals(subject.seams())) {
 				seams = List.copyOf(subject.seams());
@@ -3912,11 +4026,20 @@ public final class SurgicalTableClientHandler {
 			cutSeams = subject.cutSeamsForRender();
 			serverOffsets = Map.copyOf(subject.componentOffsetsForRender());
 			serverRotations = Map.copyOf(subject.componentRotationsForRender());
+			subjectState = nextState;
+			ownerChanged = false;
+			cheapOwnerHandoff = null;
 			// Publish the revision before grounding so a newly refreshed connected group can prove
 			// that every geometry snapshot belongs to the same table update.
 			renderRevision = revision;
 			applyTransforms(table, serverOffsets, serverRotations);
 			return true;
+		}
+
+		private void orphan(long now) {
+			ownerKey = null;
+			ownerChanged = true;
+			orphanedAtTick = now;
 		}
 
 		private void applyPreview(SurgicalTableBlockEntity table, Map<Integer, Vec3> previewOffsets,
@@ -4100,24 +4223,24 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private List<SurgicalClientTopology.Edge> cubeEdges(SurgicalAssembly.Seam seam) {
-			List<SurgicalClientTopology.Edge> edges = new ArrayList<>(24);
+			List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>(2);
 			SurgicalModelRenderContext.CubeGeometry first = cubesById.get(seam.first());
 			SurgicalModelRenderContext.CubeGeometry second = cubesById.get(seam.second());
 			if (first != null)
-				edges.addAll(SurgicalClientTopology.cubeEdges(first));
+				cubes.add(first);
 			if (second != null)
-				edges.addAll(SurgicalClientTopology.cubeEdges(second));
-			return List.copyOf(edges);
+				cubes.add(second);
+			return SurgicalClientTopology.outerEdges(cubes);
 		}
 
-		private List<SurgicalClientTopology.Edge> componentCubeEdges(BitSet component) {
-			List<SurgicalClientTopology.Edge> edges = new ArrayList<>(component.cardinality() * 12);
+		private List<SurgicalModelRenderContext.CubeGeometry> componentCubes(BitSet component) {
+			List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>(component.cardinality());
 			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1)) {
 				SurgicalModelRenderContext.CubeGeometry geometry = cubesById.get(cube);
 				if (geometry != null)
-					edges.addAll(SurgicalClientTopology.cubeEdges(geometry));
+					cubes.add(geometry);
 			}
-			return List.copyOf(edges);
+			return List.copyOf(cubes);
 		}
 
 		private static Map<Integer, SurgicalModelRenderContext.CubeGeometry> indexCubes(
@@ -4191,6 +4314,7 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private void show(List<SurgicalClientTopology.Edge> nextEdges, int color) {
+			nextEdges = SurgicalClientTopology.distinctEdges(nextEdges);
 			ClientLevel level = Minecraft.getInstance().level;
 			long tick = level == null ? Long.MIN_VALUE : level.getGameTime();
 			if (edges.equals(nextEdges)) {
@@ -4226,7 +4350,43 @@ public final class SurgicalTableClientHandler {
 		}
 	}
 
-	private record SubjectKey(BlockPos tablePos, int subjectId) {}
+	private record SubjectKey(BlockPos tablePos, int subjectId) {
+		private SubjectKey {
+			tablePos = tablePos.immutable();
+		}
+	}
+
+	/** Exact dynamic state whose equality makes an owner-only cache handoff safe. */
+	private record SubjectGeometryState(BitSet presentCubes, List<SurgicalAssembly.Seam> seams,
+		BitSet cutSeams, Map<Integer, Vec3> offsets,
+		Map<Integer, SurgicalCubeRotation> rotations, Set<SurgicalGlueJoint> glueJoints,
+		Map<UUID, List<SurgicalCombination.Member>> combinations) {
+
+		private SubjectGeometryState {
+			presentCubes = (BitSet) presentCubes.clone();
+			seams = List.copyOf(seams);
+			cutSeams = (BitSet) cutSeams.clone();
+			offsets = Map.copyOf(offsets);
+			rotations = Map.copyOf(rotations);
+			glueJoints = Set.copyOf(glueJoints);
+			combinations = Map.copyOf(combinations);
+		}
+
+		private static SubjectGeometryState capture(SurgicalSubject subject, int observedCubeCount) {
+			Map<UUID, List<SurgicalCombination.Member>> combinations = new HashMap<>();
+			for (SurgicalCombination combination : subject.combinations())
+				combinations.put(combination.id(), List.copyOf(combination.members()));
+			return new SubjectGeometryState(subject.presentCubesForRender(observedCubeCount), subject.seams(),
+				subject.cutSeamsForRender(), subject.componentOffsetsForRender(),
+				subject.componentRotationsForRender(), Set.copyOf(subject.glueJoints()), combinations);
+		}
+	}
+
+	private record OwnerHandoffKey(BlockPos tablePos, int tableRevision) {
+		private OwnerHandoffKey {
+			tablePos = tablePos.immutable();
+		}
+	}
 	private record PackedBodyMetrics(SurgicalAssembly.BodyBounds bodyBounds,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
 	private record PackedBodyMeasurement(List<SlimeBionicAnimator.SourceState> sources,
