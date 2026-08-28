@@ -30,8 +30,11 @@ public final class SurgicalClientTopology {
 	};
 	private static final double COMPONENT_OFFSET = 1.0d / 16.0d;
 	private static final double LAYOUT_QUANTUM = 1.0d / 1024.0d;
-	private static final double SEPARATION_GAP = 1.0d / 1024.0d;
+	private static final double SEPARATION_GAP = SurgicalTableLayout.COMPONENT_CLEARANCE;
 	private static final int MAX_LAYOUT_SEARCH_NODES = 8192;
+	private static final int MAX_BATCH_LAYOUT_SEARCH_NODES = 262_144;
+	private static final double BATCH_CUT_CLEARANCE = SurgicalTableLayout.COMPONENT_CLEARANCE;
+	private static final double BATCH_CUT_MIN_TRAVEL = 1.0d / 16.0d;
 	private static final double DISTANCE_EPSILON = 1.0e-9d;
 	private static final double INTERSECTION_EPSILON = 1.0e-12d;
 	private static final double DEGENERATE_EPSILON = 1.0e-18d;
@@ -440,7 +443,7 @@ public final class SurgicalClientTopology {
 				if (obstacle == null)
 					continue;
 				obstacle = obstacle.translate(offsets.getOrDefault(obstacleCube, Vec3.ZERO));
-				if (moved.overlapsStrictly(obstacle))
+				if (moved.conflictsHorizontally(obstacle))
 					return new Collision(moved, obstacle);
 			}
 		}
@@ -561,6 +564,146 @@ public final class SurgicalClientTopology {
 				return new ConnectedPlacement(new Vec3(deltaX, 0.0d, deltaZ));
 		}
 		return null;
+	}
+
+	/**
+	 * Places every connected group produced by one batch cut as a whole. Group zero is the stable,
+	 * largest remainder. Unlike the component-at-a-time layout path, this searches the complete
+	 * arrangement and backtracks when a tempting nearby slot would strand a later group.
+	 */
+	@Nullable
+	public static ConnectedGroupLayout autoSnapConnectedGroups(
+		List<List<SurgicalTableLayout.Footprint>> groups, SurgicalTablePlane.WorkArea workArea,
+		List<SurgicalTableLayout.Footprint> occupiedFootprints) {
+		if (groups == null || groups.isEmpty() || groups.size() > SurgicalAssembly.MAX_CUBES
+			|| workArea.isEmpty() || occupiedFootprints == null)
+			return null;
+		for (List<SurgicalTableLayout.Footprint> group : groups)
+			if (group == null || group.isEmpty()
+				|| group.stream().anyMatch(footprint -> !SurgicalTableLayout.validStoredFootprint(footprint)))
+				return null;
+		if (occupiedFootprints.stream()
+			.anyMatch(footprint -> !SurgicalTableLayout.validStoredFootprint(footprint))
+			|| !footprintsFit(workArea, groups.getFirst())
+			|| footprintsCollide(groups.getFirst(), occupiedFootprints, BATCH_CUT_CLEARANCE))
+			return null;
+
+		List<Vec3> stationary = new ArrayList<>(groups.size());
+		for (int group = 0; group < groups.size(); group++)
+			stationary.add(Vec3.ZERO);
+		if (groups.size() == 1)
+			return new ConnectedGroupLayout(stationary);
+
+		return searchConnectedGroupLayout(groups, workArea, occupiedFootprints,
+			BATCH_CUT_CLEARANCE, BATCH_CUT_MIN_TRAVEL);
+	}
+
+	@Nullable
+	private static ConnectedGroupLayout searchConnectedGroupLayout(
+		List<List<SurgicalTableLayout.Footprint>> groups, SurgicalTablePlane.WorkArea workArea,
+		List<SurgicalTableLayout.Footprint> occupiedFootprints, double clearance, double minimumTravel) {
+		List<SurgicalTableLayout.Footprint> permanent = new ArrayList<>(occupiedFootprints.size()
+			+ groups.getFirst().size());
+		permanent.addAll(occupiedFootprints);
+		permanent.addAll(groups.getFirst());
+		List<BatchPlacementRequest> requests = new ArrayList<>(groups.size() - 1);
+		double minimumTravelSqr = minimumTravel * minimumTravel;
+		for (int groupId = 1; groupId < groups.size(); groupId++) {
+			List<SurgicalTableLayout.Footprint> footprints = groups.get(groupId);
+			double minX = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::minX).min()
+				.orElse(Double.NaN);
+			double minZ = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::minZ).min()
+				.orElse(Double.NaN);
+			double maxX = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::maxX).max()
+				.orElse(Double.NaN);
+			double maxZ = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::maxZ).max()
+				.orElse(Double.NaN);
+			if (!Double.isFinite(minX) || !Double.isFinite(minZ)
+				|| !Double.isFinite(maxX) || !Double.isFinite(maxZ))
+				return null;
+			double centerX = (minX + maxX) * 0.5d;
+			double centerZ = (minZ + maxZ) * 0.5d;
+			List<BatchPlacementCandidate> candidates = new ArrayList<>();
+			for (GridCell cell : orderedCells(workArea, centerX, centerZ)) {
+				Vec3 delta = new Vec3(cell.centerX() - centerX, 0.0d, cell.centerZ() - centerZ);
+				if (delta.horizontalDistanceSqr() + DISTANCE_EPSILON < minimumTravelSqr)
+					continue;
+				List<SurgicalTableLayout.Footprint> translated = translateFootprints(footprints, delta);
+				if (!footprintsFit(workArea, translated)
+					|| footprintsCollide(translated, permanent, clearance))
+					continue;
+				candidates.add(new BatchPlacementCandidate(delta, translated));
+			}
+			if (candidates.isEmpty())
+				return null;
+			double area = Math.max(0.0d, maxX - minX) * Math.max(0.0d, maxZ - minZ);
+			requests.add(new BatchPlacementRequest(groupId, area, List.copyOf(candidates)));
+		}
+		// Most-constrained and then physically largest groups go first. Candidate order itself remains
+		// nearest-first, so the first complete arrangement stays compact and deterministic.
+		requests.sort(Comparator.comparingInt((BatchPlacementRequest request) -> request.candidates.size())
+			.thenComparing(Comparator.comparingDouble(BatchPlacementRequest::area).reversed())
+			.thenComparingInt(BatchPlacementRequest::groupId));
+		List<Vec3> deltas = new ArrayList<>(groups.size());
+		for (int group = 0; group < groups.size(); group++)
+			deltas.add(Vec3.ZERO);
+		List<SurgicalTableLayout.Footprint> placed = new ArrayList<>(permanent);
+		int[] examined = { 0 };
+		if (!placeConnectedGroups(requests, 0, placed, deltas, clearance, examined))
+			return null;
+		return new ConnectedGroupLayout(deltas);
+	}
+
+	private static boolean placeConnectedGroups(List<BatchPlacementRequest> requests, int requestIndex,
+		List<SurgicalTableLayout.Footprint> placed, List<Vec3> deltas, double clearance, int[] examined) {
+		if (requestIndex >= requests.size())
+			return true;
+		if (examined[0] >= MAX_BATCH_LAYOUT_SEARCH_NODES)
+			return false;
+		BatchPlacementRequest request = requests.get(requestIndex);
+		for (BatchPlacementCandidate candidate : request.candidates) {
+			if (++examined[0] > MAX_BATCH_LAYOUT_SEARCH_NODES)
+				return false;
+			if (footprintsCollide(candidate.footprints, placed, clearance))
+				continue;
+			int previousSize = placed.size();
+			placed.addAll(candidate.footprints);
+			deltas.set(request.groupId, candidate.delta);
+			if (placeConnectedGroups(requests, requestIndex + 1, placed, deltas, clearance, examined))
+				return true;
+			placed.subList(previousSize, placed.size()).clear();
+			deltas.set(request.groupId, Vec3.ZERO);
+		}
+		return false;
+	}
+
+	private static List<SurgicalTableLayout.Footprint> translateFootprints(
+		List<SurgicalTableLayout.Footprint> footprints, Vec3 delta) {
+		return footprints.stream().map(footprint -> new SurgicalTableLayout.Footprint(
+			footprint.componentRoot(), footprint.minX() + delta.x, footprint.minZ() + delta.z,
+			footprint.maxX() + delta.x, footprint.maxZ() + delta.z,
+			SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED)).toList();
+	}
+
+	private static boolean footprintsFit(SurgicalTablePlane.WorkArea workArea,
+		List<SurgicalTableLayout.Footprint> footprints) {
+		for (SurgicalTableLayout.Footprint footprint : footprints)
+			if (!workArea.contains(footprint.minX(), footprint.minZ(), footprint.maxX(), footprint.maxZ(),
+				DISTANCE_EPSILON))
+				return false;
+		return true;
+	}
+
+	private static boolean footprintsCollide(List<SurgicalTableLayout.Footprint> first,
+		List<SurgicalTableLayout.Footprint> second, double clearance) {
+		for (SurgicalTableLayout.Footprint candidate : first)
+			for (SurgicalTableLayout.Footprint obstacle : second)
+				if (candidate.minX() < obstacle.maxX() + clearance - DISTANCE_EPSILON
+					&& candidate.maxX() > obstacle.minX() - clearance + DISTANCE_EPSILON
+					&& candidate.minZ() < obstacle.maxZ() + clearance - DISTANCE_EPSILON
+					&& candidate.maxZ() > obstacle.minZ() - clearance + DISTANCE_EPSILON)
+					return true;
+		return false;
 	}
 
 	/** Builds a proposal for a cut that does not create a new detached component. */
@@ -886,7 +1029,7 @@ public final class SurgicalClientTopology {
 			for (int first = 0; first < footprints.size(); first++)
 				for (int second = first + 1; second < footprints.size(); second++)
 					if (footprints.get(first).componentRoot() != footprints.get(second).componentRoot()
-						&& footprints.get(first).overlapsStrictly(footprints.get(second)))
+						&& footprints.get(first).conflictsWith(footprints.get(second)))
 						return null;
 		for (SurgicalTableLayout.Footprint footprint : footprints)
 			if (overlapsAny(footprint, occupiedFootprints))
@@ -934,7 +1077,7 @@ public final class SurgicalClientTopology {
 			if (component.equals(moving))
 				continue;
 			Bounds obstacleEnvelope = unionBounds(component, baseBounds, offsets);
-			if (obstacleEnvelope == null || !candidate.overlapsHorizontally(obstacleEnvelope))
+			if (obstacleEnvelope == null || !candidate.conflictsHorizontally(obstacleEnvelope))
 				continue;
 			for (int movingCube = moving.nextSetBit(0); movingCube >= 0;
 				movingCube = moving.nextSetBit(movingCube + 1)) {
@@ -948,7 +1091,7 @@ public final class SurgicalClientTopology {
 					if (obstacleBounds == null)
 						continue;
 					obstacleBounds = obstacleBounds.translate(offsets.getOrDefault(obstacleCube, Vec3.ZERO));
-					if (movingBounds.overlapsHorizontally(obstacleBounds))
+					if (movingBounds.conflictsHorizontally(obstacleBounds))
 						return true;
 				}
 			}
@@ -969,16 +1112,16 @@ public final class SurgicalClientTopology {
 	private static boolean overlapsAny(SurgicalTableLayout.Footprint footprint,
 		List<SurgicalTableLayout.Footprint> occupiedFootprints) {
 		for (SurgicalTableLayout.Footprint occupied : occupiedFootprints)
-			if (footprint.overlapsStrictly(occupied))
+			if (footprint.conflictsWith(occupied))
 				return true;
 		return false;
 	}
 
 	private static boolean overlapsHorizontally(Bounds bounds, SurgicalTableLayout.Footprint footprint) {
-		return bounds.minX < footprint.maxX() - DISTANCE_EPSILON
-			&& bounds.maxX > footprint.minX() + DISTANCE_EPSILON
-			&& bounds.minZ < footprint.maxZ() - DISTANCE_EPSILON
-			&& bounds.maxZ > footprint.minZ() + DISTANCE_EPSILON;
+		return bounds.minX < footprint.maxX() + SurgicalTableLayout.COMPONENT_CLEARANCE - DISTANCE_EPSILON
+			&& bounds.maxX > footprint.minX() - SurgicalTableLayout.COMPONENT_CLEARANCE + DISTANCE_EPSILON
+			&& bounds.minZ < footprint.maxZ() + SurgicalTableLayout.COMPONENT_CLEARANCE - DISTANCE_EPSILON
+			&& bounds.maxZ > footprint.minZ() - SurgicalTableLayout.COMPONENT_CLEARANCE + DISTANCE_EPSILON;
 	}
 
 	private static boolean fits(SurgicalTablePlane.WorkArea workArea, Bounds bounds) {
@@ -1508,6 +1651,12 @@ public final class SurgicalClientTopology {
 
 	public record ConnectedPlacement(Vec3 delta) {}
 
+	public record ConnectedGroupLayout(List<Vec3> deltas) {
+		public ConnectedGroupLayout {
+			deltas = List.copyOf(deltas);
+		}
+	}
+
 	public record PlannedLayout(Map<Integer, Vec3> offsets, SurgicalTableLayout.Proposal proposal) {
 		public PlannedLayout {
 			offsets = Map.copyOf(offsets);
@@ -1529,6 +1678,10 @@ public final class SurgicalClientTopology {
 	public record GroundingLink<K>(K firstBody, int firstCube, K secondBody, int secondCube) {}
 
 	private record SnapRequest(BitSet component, double targetX, double targetZ) {}
+	private record BatchPlacementRequest(int groupId, double area,
+		List<BatchPlacementCandidate> candidates) {}
+	private record BatchPlacementCandidate(Vec3 delta,
+		List<SurgicalTableLayout.Footprint> footprints) {}
 
 	private record GridCell(int gridX, int gridZ) {
 		private double centerX() {
@@ -1591,6 +1744,13 @@ public final class SurgicalClientTopology {
 		private boolean overlapsHorizontally(Bounds other) {
 			return minX < other.maxX - DISTANCE_EPSILON && maxX > other.minX + DISTANCE_EPSILON
 				&& minZ < other.maxZ - DISTANCE_EPSILON && maxZ > other.minZ + DISTANCE_EPSILON;
+		}
+
+		private boolean conflictsHorizontally(Bounds other) {
+			return minX < other.maxX + SurgicalTableLayout.COMPONENT_CLEARANCE - DISTANCE_EPSILON
+				&& maxX > other.minX - SurgicalTableLayout.COMPONENT_CLEARANCE + DISTANCE_EPSILON
+				&& minZ < other.maxZ + SurgicalTableLayout.COMPONENT_CLEARANCE - DISTANCE_EPSILON
+				&& maxZ > other.minZ - SurgicalTableLayout.COMPONENT_CLEARANCE + DISTANCE_EPSILON;
 		}
 
 		private double centerX() {

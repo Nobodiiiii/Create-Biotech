@@ -28,6 +28,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalGlueJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBatchCutPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLayout;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlockEntity;
@@ -105,6 +106,8 @@ public final class SurgicalTableClientHandler {
 	/** RenderFrame follows ClientTick.Post, so protect a short window rather than only equal game-time. */
 	private static final int GEOMETRY_CACHE_RECENT_TICKS = 20;
 	private static final int VISUAL_COMMIT_TIMEOUT_TICKS = 40;
+	private static final float BATCH_CUT_ANIMATION_TICKS = 5.0f;
+	private static final int BATCH_CUT_ANIMATION_TIMEOUT_TICKS = 40;
 	private static final InteractionHand[] HANDS = { InteractionHand.MAIN_HAND, InteractionHand.OFF_HAND };
 	private static final OutlineState SEAM_OUTLINE = new OutlineState();
 	private static final OutlineState CUBE_OUTLINE = new OutlineState();
@@ -156,6 +159,8 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static PendingVisualCommit pendingVisualCommit;
 	@Nullable
+	private static BatchCutAnimation batchCutAnimation;
+	@Nullable
 	private static CubeSelectionCache connectedSelectionCache;
 	@Nullable
 	private static CubeSelectionCache directSelectionCache;
@@ -191,8 +196,15 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	public static AABB cachedRenderBounds(SurgicalTableBlockEntity table, SurgicalSubject subject) {
 		TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
-		return geometry != null && geometry.matchesModel(table, subject)
-			&& geometry.renderRevision == subject.clientRenderRevision() ? geometry.bounds : null;
+		if (geometry == null || !geometry.matchesModel(table, subject)
+			|| geometry.renderRevision != subject.clientRenderRevision())
+			return null;
+		AABB bounds = geometry.bounds;
+		BatchCutAnimation animation = batchCutAnimation;
+		BatchCutMotion motion = animation != null && animation.tablePos.equals(table.getBlockPos())
+			? animation.motions.get(subject.id()) : null;
+		return bounds == null || motion == null || motion.startBounds == null
+			? bounds : bounds.minmax(motion.startBounds);
 	}
 
 	public static void updateGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
@@ -264,7 +276,7 @@ public final class SurgicalTableClientHandler {
 		if (geometry.retryPendingGrounding(table))
 			geometryGeneration++;
 		geometry.markSeen(table);
-		return geometry.offsets;
+		return batchCutRenderOffsets(table, subject, geometry);
 	}
 
 	public static Map<Integer, SurgicalCubeRotation> rotationsFor(SurgicalTableBlockEntity table,
@@ -306,6 +318,7 @@ public final class SurgicalTableClientHandler {
 		placementSource = null;
 		placementSuppression = null;
 		pendingVisualCommit = null;
+		batchCutAnimation = null;
 		clearPlacementPreview();
 		TABLES.values().forEach(TableGeometry::dispose);
 		TABLES.clear();
@@ -328,6 +341,7 @@ public final class SurgicalTableClientHandler {
 		ClientLevel level = minecraft.level;
 		if (player == null || level == null || minecraft.screen != null) {
 			cancelPendingVisualCommit(level, true);
+			batchCutAnimation = null;
 			abortPendingCut();
 			abortPendingGlueCut();
 			pendingGlue = null;
@@ -344,6 +358,7 @@ public final class SurgicalTableClientHandler {
 
 		long now = level.getGameTime();
 		updatePendingVisualCommit(level);
+		updateBatchCutAnimation(level);
 		boolean removedGeometry = false;
 		long retainedWeight = 0L;
 		for (java.util.Iterator<Map.Entry<SubjectKey, TableGeometry>> iterator = TABLES.entrySet().iterator();
@@ -401,8 +416,10 @@ public final class SurgicalTableClientHandler {
 	@SubscribeEvent
 	public static void onRenderFrame(RenderFrameEvent.Pre event) {
 		SurgicalTableRenderer.beginFrame();
-		if (Minecraft.getInstance().level != null)
+		if (Minecraft.getInstance().level != null) {
 			updatePendingVisualCommit(Minecraft.getInstance().level);
+			updateBatchCutAnimation(Minecraft.getInstance().level);
+		}
 		updatePlacementPreview();
 		updateSelections();
 	}
@@ -907,6 +924,8 @@ public final class SurgicalTableClientHandler {
 		if (minecraft.screen != null || minecraft.player == null)
 			return;
 		KeyMapping key = event.getKeyMapping();
+		if (batchCutAnimation != null && (event.isUseItem() || key == minecraft.options.keyAttack))
+			batchCutAnimation = null;
 		if (minecraft.level != null)
 			updatePendingVisualCommit(minecraft.level);
 		if (pendingVisualCommit != null && key == minecraft.options.keyUse && event.isUseItem()) {
@@ -984,14 +1003,16 @@ public final class SurgicalTableClientHandler {
 					consumeInteraction(event, hand);
 					return;
 				}
-				SurgicalClientTopology.PlannedLayout planned = planBatchCut(level, selected);
+				BatchCutLayout planned = planBatchCut(level, selected);
 				if (planned == null) {
 					showNoSpace(minecraft.player);
 					consumeInteraction(event, hand);
 					return;
 				}
-				sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.CUT_CUBE_CONNECTIONS,
-					planned.proposal());
+				beginBatchCutAnimation(level, selected, planned);
+				CBPackets.sendToServer(new SurgicalTableBatchCutPacket(selected.tablePos, hand,
+					selected.subjectId, selected.targetId, selected.observedCubeCount, selected.seams,
+					planned.layout.proposal(), planned.groupDeltas));
 			} else {
 				selected = findSeamSelection(minecraft.player, level, ray, cubeHit);
 				seamSelection = selected;
@@ -2228,52 +2249,243 @@ public final class SurgicalTableClientHandler {
 	}
 
 	@Nullable
-	private static SurgicalClientTopology.PlannedLayout planBatchCut(ClientLevel level, Selection selected) {
+	private static BatchCutLayout planBatchCut(ClientLevel level, Selection selected) {
 		TableGeometry geometry = TABLES.get(new SubjectKey(selected.tablePos, selected.subjectId));
 		SurgicalTableBlockEntity table = level.getBlockEntity(selected.tablePos)
 			instanceof SurgicalTableBlockEntity found ? found : null;
 		if (geometry == null || table == null
 			|| selected.targetId < 0 || selected.targetId >= geometry.observedCubeCount)
 			return null;
-		BitSet proposedCuts = (BitSet) geometry.cutSeams.clone();
-		for (int seamId = 0; seamId < geometry.seams.size(); seamId++) {
-			SurgicalAssembly.Seam seam = geometry.seams.get(seamId);
-			if (!proposedCuts.get(seamId) && (seam.first() == selected.targetId
-				|| seam.second() == selected.targetId))
-				proposedCuts.set(seamId);
-		}
-		BitSet affected = SurgicalAssembly.componentContaining(geometry.observedCubeCount, geometry.presentCubes,
-			geometry.seams, geometry.cutSeams, selected.targetId);
-		List<BitSet> split = SurgicalAssembly.components(geometry.observedCubeCount, affected, geometry.seams,
-			proposedCuts);
-		List<BitSet> moving = new ArrayList<>();
-		if (split.size() > 1)
-			for (BitSet component : split.subList(1, split.size())) {
-				Map<Integer, BitSet> connected = table.connectedComponentsAfterCuttingCube(
-					selected.subjectId, component.nextSetBit(0), selected.targetId,
-					selected.observedCubeCount, selected.seams);
-				BitSet local = connected.get(selected.subjectId);
-				if (connected.size() == 1 && component.equals(local))
-					moving.add(component);
-			}
+		SurgicalTableBlockEntity.BatchCutPlan cut = table.batchCutPlan(selected.subjectId,
+			selected.targetId, selected.observedCubeCount, selected.seams);
+		if (cut == null)
+			return null;
 		SurgicalTablePlane.Plane plane = clientPlane(level, selected.tablePos);
 		if (!plane.valid() || !selected.tablePos.equals(plane.source()))
 			return null;
-		List<SurgicalTableLayout.Footprint> occupied = occupiedOutsideEditingGroup(level, plane,
-			selected.tablePos, selected.subjectId);
-		if (occupied == null)
+		SurgicalClientTopology.PlannedLayout base = SurgicalClientTopology.preserveCompositeLayout(
+			geometry.observedCubeCount, geometry.presentCubes, geometry.seams, cut.proposedCuts(),
+			geometry.layoutCubes, geometry.serverOffsets, plane.workArea(), List.of());
+		if (base == null)
 			return null;
-		SurgicalClientTopology.PlannedLayout planned = moving.isEmpty()
-			? SurgicalClientTopology.currentLayout(geometry.observedCubeCount, geometry.presentCubes,
-				geometry.seams, proposedCuts, geometry.layoutCubes, geometry.serverOffsets, plane.workArea(), occupied)
-			: SurgicalClientTopology.autoSnapComponents(geometry.observedCubeCount, geometry.presentCubes,
-				geometry.seams, proposedCuts, geometry.layoutCubes, geometry.serverOffsets, plane.workArea(), moving,
-				occupied);
-		// Persist server-space offsets. TableGeometry applies the retained glue graph's shared
-		// grounding only while rendering; storing that derived lift on this subject alone would make
-		// the next refresh apply it a second time relative to the untouched connected subjects.
-		return planned != null && clientAcceptsComponentLayout(level, selected.tablePos,
-			selected.subjectId, proposedCuts, planned.proposal(), plane) ? planned : null;
+		BatchCutFootprints footprints = batchCutFootprints(table, selected.subjectId, cut.groups(),
+			base.proposal());
+		if (footprints == null)
+			return null;
+		SurgicalClientTopology.ConnectedGroupLayout groupLayout =
+			SurgicalClientTopology.autoSnapConnectedGroups(footprints.groups, plane.workArea(),
+				footprints.occupied);
+		if (groupLayout == null)
+			return null;
+		SurgicalClientTopology.PlannedLayout planned = translateBatchProposal(base.proposal(),
+			cut.groups(), groupLayout.deltas(), selected.subjectId);
+		if (planned == null || !table.canApplyBatchCut(selected.subjectId, selected.targetId,
+			selected.observedCubeCount, selected.seams, plane, planned.proposal(), groupLayout.deltas()))
+			return null;
+		return new BatchCutLayout(planned, groupLayout.deltas(), cut.groups(), cut.proposedCuts());
+	}
+
+	@Nullable
+	private static BatchCutFootprints batchCutFootprints(SurgicalTableBlockEntity table, int editedSubjectId,
+		List<Map<Integer, BitSet>> groups, SurgicalTableLayout.Proposal editedLayout) {
+		List<List<SurgicalTableLayout.Footprint>> grouped = new ArrayList<>(groups.size());
+		for (int groupId = 0; groupId < groups.size(); groupId++)
+			grouped.add(new ArrayList<>());
+		List<SurgicalTableLayout.Footprint> occupied = new ArrayList<>();
+		for (SurgicalSubject subject : table.getSubjects()) {
+			List<SurgicalTableLayout.Footprint> footprints = subject.id() == editedSubjectId
+				? editedLayout.footprints() : subject.occupiedFootprints();
+			if (footprints.isEmpty())
+				return null;
+			for (SurgicalTableLayout.Footprint footprint : footprints) {
+				int groupId = batchGroupContaining(groups, subject.id(), footprint);
+				(groupId < 0 ? occupied : grouped.get(groupId)).add(footprint);
+			}
+		}
+		for (List<SurgicalTableLayout.Footprint> group : grouped)
+			if (group.isEmpty())
+				return null;
+		return new BatchCutFootprints(grouped.stream().map(List::copyOf).toList(),
+			List.copyOf(occupied));
+	}
+
+	@Nullable
+	private static SurgicalClientTopology.PlannedLayout translateBatchProposal(
+		SurgicalTableLayout.Proposal base, List<Map<Integer, BitSet>> groups, List<Vec3> deltas,
+		int subjectId) {
+		if (groups.size() != deltas.size())
+			return null;
+		Map<Integer, Vec3> offsets = new HashMap<>();
+		List<SurgicalTableLayout.CubeOffset> translatedOffsets = new ArrayList<>(base.offsets().size());
+		for (SurgicalTableLayout.CubeOffset offset : base.offsets()) {
+			int groupId = batchGroupContaining(groups, subjectId, offset.cubeId());
+			Vec3 delta = groupId < 0 ? Vec3.ZERO : deltas.get(groupId);
+			Vec3 translated = new Vec3(offset.x() + delta.x, offset.y(), offset.z() + delta.z);
+			offsets.put(offset.cubeId(), translated);
+			translatedOffsets.add(new SurgicalTableLayout.CubeOffset(offset.cubeId(), translated.x,
+				translated.y, translated.z));
+		}
+		List<SurgicalTableLayout.Footprint> translatedFootprints = new ArrayList<>(base.footprints().size());
+		for (SurgicalTableLayout.Footprint footprint : base.footprints()) {
+			int groupId = batchGroupContaining(groups, subjectId, footprint);
+			Vec3 delta = groupId < 0 ? Vec3.ZERO : deltas.get(groupId);
+			translatedFootprints.add(new SurgicalTableLayout.Footprint(footprint.componentRoot(),
+				footprint.minX() + delta.x, footprint.minZ() + delta.z,
+				footprint.maxX() + delta.x, footprint.maxZ() + delta.z,
+				SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
+		}
+		return new SurgicalClientTopology.PlannedLayout(Map.copyOf(offsets),
+			new SurgicalTableLayout.Proposal(translatedOffsets, translatedFootprints));
+	}
+
+	private static int batchGroupContaining(List<Map<Integer, BitSet>> groups, int subjectId,
+		int cubeId) {
+		if (cubeId < 0)
+			return -1;
+		for (int groupId = 0; groupId < groups.size(); groupId++) {
+			BitSet cubes = groups.get(groupId).get(subjectId);
+			if (cubes != null && cubes.get(cubeId))
+				return groupId;
+		}
+		return -1;
+	}
+
+	private static int batchGroupContaining(List<Map<Integer, BitSet>> groups, int subjectId,
+		SurgicalTableLayout.Footprint footprint) {
+		if (footprint.componentRoot() >= 0)
+			return batchGroupContaining(groups, subjectId, footprint.componentRoot());
+		int matched = -1;
+		for (int groupId = 0; groupId < groups.size(); groupId++) {
+			BitSet cubes = groups.get(groupId).get(subjectId);
+			if (cubes == null || cubes.isEmpty())
+				continue;
+			if (matched >= 0)
+				return -1;
+			matched = groupId;
+		}
+		return matched;
+	}
+
+	private static void beginBatchCutAnimation(ClientLevel level, Selection selected, BatchCutLayout layout) {
+		batchCutAnimation = null;
+		if (!(level.getBlockEntity(selected.tablePos) instanceof SurgicalTableBlockEntity table))
+			return;
+		Map<Integer, BatchCutMotion> motions = new HashMap<>();
+		for (SurgicalSubject subject : table.getSubjects()) {
+			TableGeometry geometry = TABLES.get(new SubjectKey(selected.tablePos, subject.id()));
+			if (geometry == null || !geometry.matchesModel(table, subject))
+				continue;
+			BitSet movedCubes = new BitSet(geometry.observedCubeCount);
+			Map<Integer, Vec3> targetOffsets = new HashMap<>();
+			for (int cube = geometry.presentCubes.nextSetBit(0); cube >= 0;
+				cube = geometry.presentCubes.nextSetBit(cube + 1)) {
+				int groupId = batchGroupContaining(layout.groups, subject.id(), cube);
+				Vec3 delta = groupId < 0 ? Vec3.ZERO : layout.groupDeltas.get(groupId);
+				Vec3 target = geometry.serverOffsets.getOrDefault(cube, Vec3.ZERO).add(delta);
+				if (target.lengthSqr() > 1.0e-24d)
+					targetOffsets.put(cube, target);
+				if (delta.horizontalDistanceSqr() > 1.0e-18d)
+					movedCubes.set(cube);
+			}
+			if (!movedCubes.isEmpty())
+				motions.put(subject.id(), new BatchCutMotion(movedCubes, geometry.offsets,
+					Map.copyOf(targetOffsets), geometry.bounds));
+		}
+		if (motions.isEmpty())
+			return;
+		batchCutAnimation = new BatchCutAnimation(selected.tablePos, table.clientDataRevision(),
+			level.getGameTime() + BATCH_CUT_ANIMATION_TIMEOUT_TICKS, selected.subjectId,
+			layout.proposedCuts, Map.copyOf(motions));
+	}
+
+	private static void updateBatchCutAnimation(ClientLevel level) {
+		BatchCutAnimation animation = batchCutAnimation;
+		if (animation == null)
+			return;
+		if (level.getGameTime() >= animation.expiresAtTick
+			|| !(level.getBlockEntity(animation.tablePos) instanceof SurgicalTableBlockEntity table)) {
+			batchCutAnimation = null;
+			return;
+		}
+		int revision = table.clientDataRevision();
+		if (!animation.acknowledged) {
+			if (revision == animation.tableRevision)
+				return;
+			if (!batchCutStateMatches(table, animation)) {
+				batchCutAnimation = null;
+				return;
+			}
+			animation.acknowledged = true;
+			animation.acknowledgedRevision = revision;
+		} else if (revision != animation.acknowledgedRevision) {
+			// Any later edit interrupts this one-shot visual. It is never reconstructed from synced state.
+			batchCutAnimation = null;
+			return;
+		}
+		if (!Float.isNaN(animation.startedAt)
+			&& AnimationTickHolder.getRenderTime(level) - animation.startedAt >= BATCH_CUT_ANIMATION_TICKS) {
+			batchCutAnimation = null;
+			return;
+		}
+		if (!Float.isNaN(animation.startedAt))
+			for (int subjectId : animation.motions.keySet())
+				if (!TABLES.containsKey(new SubjectKey(animation.tablePos, subjectId))) {
+					batchCutAnimation = null;
+					return;
+				}
+	}
+
+	private static boolean batchCutStateMatches(SurgicalTableBlockEntity table,
+		BatchCutAnimation animation) {
+		SurgicalSubject edited = table.getSubject(animation.editedSubjectId);
+		if (edited == null || !edited.cutSeamsForRender().equals(animation.proposedCuts))
+			return false;
+		for (Map.Entry<Integer, BatchCutMotion> entry : animation.motions.entrySet()) {
+			SurgicalSubject subject = table.getSubject(entry.getKey());
+			if (subject == null || !offsetMapsEqual(subject.componentOffsetsForRender(),
+				entry.getValue().targetServerOffsets))
+				return false;
+		}
+		return true;
+	}
+
+	private static Map<Integer, Vec3> batchCutRenderOffsets(SurgicalTableBlockEntity table,
+		SurgicalSubject subject, TableGeometry geometry) {
+		BatchCutAnimation animation = batchCutAnimation;
+		if (animation == null || !animation.tablePos.equals(table.getBlockPos()))
+			return geometry.offsets;
+		BatchCutMotion motion = animation.motions.get(subject.id());
+		if (motion == null)
+			return geometry.offsets;
+		if (table.getLevel() instanceof ClientLevel level)
+			updateBatchCutAnimation(level);
+		animation = batchCutAnimation;
+		if (animation == null || animation.motions.get(subject.id()) != motion || !animation.acknowledged)
+			return geometry.offsets;
+		if (!offsetMapsEqual(geometry.serverOffsets, motion.targetServerOffsets))
+			return motion.interpolate(geometry.offsets, 0.0d);
+		float renderTime = AnimationTickHolder.getRenderTime(table.getLevel());
+		if (Float.isNaN(animation.startedAt))
+			animation.startedAt = renderTime;
+		double progress = Math.max(0.0d, Math.min(1.0d,
+			(renderTime - animation.startedAt) / BATCH_CUT_ANIMATION_TICKS));
+		if (progress >= 1.0d) {
+			batchCutAnimation = null;
+			return geometry.offsets;
+		}
+		double remaining = 1.0d - progress;
+		double eased = 1.0d - remaining * remaining * remaining;
+		return motion.interpolate(geometry.offsets, eased);
+	}
+
+	private static boolean offsetMapsEqual(Map<Integer, Vec3> first, Map<Integer, Vec3> second) {
+		Set<Integer> cubes = new java.util.HashSet<>(first.keySet());
+		cubes.addAll(second.keySet());
+		for (int cube : cubes)
+			if (first.getOrDefault(cube, Vec3.ZERO)
+				.distanceToSqr(second.getOrDefault(cube, Vec3.ZERO)) > 1.0e-12d)
+				return false;
+		return true;
 	}
 
 	private static void updatePendingCut(@Nullable LocalPlayer player, ClientLevel level) {
@@ -4345,6 +4557,82 @@ public final class SurgicalTableClientHandler {
 
 	private record FootprintGroups(List<SurgicalTableLayout.Footprint> moving,
 		List<SurgicalTableLayout.Footprint> occupied) {}
+
+	private record BatchCutLayout(SurgicalClientTopology.PlannedLayout layout, List<Vec3> groupDeltas,
+		List<Map<Integer, BitSet>> groups, BitSet proposedCuts) {
+		private BatchCutLayout {
+			groupDeltas = List.copyOf(groupDeltas);
+			List<Map<Integer, BitSet>> frozenGroups = new ArrayList<>(groups.size());
+			for (Map<Integer, BitSet> group : groups) {
+				Map<Integer, BitSet> frozenGroup = new HashMap<>();
+				group.forEach((subjectId, cubes) -> frozenGroup.put(subjectId, (BitSet) cubes.clone()));
+				frozenGroups.add(Map.copyOf(frozenGroup));
+			}
+			groups = List.copyOf(frozenGroups);
+			proposedCuts = (BitSet) proposedCuts.clone();
+		}
+	}
+
+	private record BatchCutFootprints(List<List<SurgicalTableLayout.Footprint>> groups,
+		List<SurgicalTableLayout.Footprint> occupied) {
+		private BatchCutFootprints {
+			groups = groups.stream().map(List::copyOf).toList();
+			occupied = List.copyOf(occupied);
+		}
+	}
+
+	/** Ephemeral client-only state; server sync can acknowledge it but can never recreate it. */
+	private static final class BatchCutAnimation {
+		private final BlockPos tablePos;
+		private final int tableRevision;
+		private final long expiresAtTick;
+		private final int editedSubjectId;
+		private final BitSet proposedCuts;
+		private final Map<Integer, BatchCutMotion> motions;
+		private boolean acknowledged;
+		private int acknowledgedRevision = Integer.MIN_VALUE;
+		private float startedAt = Float.NaN;
+
+		private BatchCutAnimation(BlockPos tablePos, int tableRevision, long expiresAtTick,
+			int editedSubjectId, BitSet proposedCuts, Map<Integer, BatchCutMotion> motions) {
+			this.tablePos = tablePos.immutable();
+			this.tableRevision = tableRevision;
+			this.expiresAtTick = expiresAtTick;
+			this.editedSubjectId = editedSubjectId;
+			this.proposedCuts = (BitSet) proposedCuts.clone();
+			this.motions = Map.copyOf(motions);
+		}
+	}
+
+	private static final class BatchCutMotion {
+		private final BitSet movedCubes;
+		private final Map<Integer, Vec3> startRenderOffsets;
+		private final Map<Integer, Vec3> targetServerOffsets;
+		@Nullable
+		private final AABB startBounds;
+
+		private BatchCutMotion(BitSet movedCubes, Map<Integer, Vec3> startRenderOffsets,
+			Map<Integer, Vec3> targetServerOffsets, @Nullable AABB startBounds) {
+			this.movedCubes = (BitSet) movedCubes.clone();
+			this.startRenderOffsets = Map.copyOf(startRenderOffsets);
+			this.targetServerOffsets = Map.copyOf(targetServerOffsets);
+			this.startBounds = startBounds;
+		}
+
+		private Map<Integer, Vec3> interpolate(Map<Integer, Vec3> logicalOffsets, double progress) {
+			Map<Integer, Vec3> rendered = new HashMap<>(logicalOffsets);
+			for (int cube = movedCubes.nextSetBit(0); cube >= 0; cube = movedCubes.nextSetBit(cube + 1)) {
+				Vec3 start = startRenderOffsets.getOrDefault(cube, Vec3.ZERO);
+				Vec3 end = logicalOffsets.getOrDefault(cube, Vec3.ZERO);
+				Vec3 offset = start.lerp(end, progress);
+				if (offset.lengthSqr() <= 1.0e-24d)
+					rendered.remove(cube);
+				else
+					rendered.put(cube, offset);
+			}
+			return Map.copyOf(rendered);
+		}
+	}
 
 	private record PendingGlue(Selection selection, Vec3 hit, InteractionHand hand, int faceIndex,
 		GluePoint point) {}

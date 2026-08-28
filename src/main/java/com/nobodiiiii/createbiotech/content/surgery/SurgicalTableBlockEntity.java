@@ -608,6 +608,160 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return true;
 	}
 
+	/**
+	 * Server-authoritative batch cut for layouts that may move retained glue/combination groups across
+	 * several subjects. The client supplies only one delta per deterministically ordered post-cut
+	 * group; group membership is always rebuilt from server topology before validation or mutation.
+	 */
+	public boolean cutCubeConnections(Player player, ItemStack shears, InteractionHand hand, int subjectId,
+		int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal proposal, List<Vec3> groupDeltas) {
+		SurgicalSubject subject = getSubject(subjectId);
+		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
+			return false;
+		BatchCutState cut = batchCutState(subject, cubeId);
+		if (cut == null || !validateBatchCut(subject, cut, proposal, groupDeltas, plane))
+			return false;
+
+		subject.cutSeams = cut.proposedCuts;
+		List<Integer> updatedOrder = new ArrayList<>(subject.cutOrder);
+		updatedOrder.addAll(cut.cutSeamIds);
+		subject.cutOrder = SurgicalAssembly.normalizeCutOrder(updatedOrder, subject.cutSeams,
+			subject.seams.size());
+		subject.applyLayout(proposal);
+		for (int groupId = 0; groupId < cut.groups.size(); groupId++) {
+			Vec3 delta = groupDeltas.get(groupId);
+			if (delta.horizontalDistanceSqr() <= 1.0e-24d)
+				continue;
+			for (Map.Entry<UUID, BitSet> entry : cut.groups.get(groupId).components.entrySet()) {
+				if (entry.getKey().equals(subject.persistentId()))
+					continue;
+				SurgicalSubject moved = getSubjectByPersistentId(entry.getKey());
+				if (moved != null)
+					moved.translateComponent(entry.getValue(), delta);
+			}
+		}
+		if (!cut.glueCuts.isEmpty())
+			for (SurgicalSubject connected : subjects)
+				connected.removeGlueJoints(cut.glueCuts);
+		shears.hurtAndBreak(cut.cutCount, player, LivingEntity.getSlotForHand(hand));
+		clientRenderBounds = null;
+		setChangedAndSync();
+		if (level != null)
+			level.playSound(null, worldPosition, SoundEvents.SHEEP_SHEAR, SoundSource.BLOCKS, 0.8f, 1.15f);
+		return true;
+	}
+
+	public boolean canApplyBatchCut(int subjectId, int cubeId, int observedCubeCount,
+		List<SurgicalAssembly.Seam> observedSeams, SurgicalTablePlane.Plane plane,
+		SurgicalTableLayout.Proposal proposal, List<Vec3> groupDeltas) {
+		SurgicalSubject subject = getSubject(subjectId);
+		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
+			return false;
+		BatchCutState cut = batchCutState(subject, cubeId);
+		return cut != null && validateBatchCut(subject, cut, proposal, groupDeltas, plane);
+	}
+
+	private boolean validateBatchCut(SurgicalSubject edited, BatchCutState cut,
+		SurgicalTableLayout.Proposal proposal, List<Vec3> groupDeltas, SurgicalTablePlane.Plane plane) {
+		if (!plane.valid() || groupDeltas == null || groupDeltas.size() != cut.groups.size()
+			|| groupDeltas.isEmpty())
+			return false;
+		for (int groupId = 0; groupId < groupDeltas.size(); groupId++) {
+			Vec3 delta = groupDeltas.get(groupId);
+			if (delta == null || !validCutDelta(delta.x, delta.z) || Math.abs(delta.y) > 1.0e-9d
+				|| groupId == 0 && delta.horizontalDistanceSqr() > 1.0e-18d
+				|| groupId > 0 && delta.horizontalDistanceSqr() <= 1.0e-18d)
+				return false;
+		}
+
+		Map<Integer, Vec3> expectedOffsets = new HashMap<>();
+		for (int cube = edited.presentCubes.nextSetBit(0); cube >= 0;
+			cube = edited.presentCubes.nextSetBit(cube + 1)) {
+			int groupId = batchGroupContaining(cut.groups, edited.persistentId(), cube);
+			Vec3 delta = groupId < 0 ? Vec3.ZERO : groupDeltas.get(groupId);
+			expectedOffsets.put(cube, edited.componentOffsets.getOrDefault(cube, Vec3.ZERO).add(delta));
+		}
+		if (!layoutMatchesTranslations(proposal, expectedOffsets)
+			|| !SurgicalTableLayout.validateEditedGlueComponents(plane, edited.cubeCount,
+				edited.presentCubes, edited.seams, cut.proposedCuts, proposal, List.of()))
+			return false;
+
+		List<List<SurgicalTableLayout.Footprint>> groupFootprints = new ArrayList<>(cut.groups.size());
+		for (int groupId = 0; groupId < cut.groups.size(); groupId++)
+			groupFootprints.add(new ArrayList<>());
+		List<SurgicalTableLayout.Footprint> obstacles = new ArrayList<>();
+		for (SurgicalTableLayout.Footprint footprint : proposal.footprints()) {
+			int groupId = batchGroupContaining(cut.groups, edited.persistentId(), footprint.componentRoot());
+			(groupId < 0 ? obstacles : groupFootprints.get(groupId)).add(footprint);
+		}
+		for (SurgicalSubject other : subjects) {
+			if (other == edited)
+				continue;
+			if (other.occupiedFootprints().isEmpty())
+				return false;
+			for (SurgicalTableLayout.Footprint footprint : other.occupiedFootprints()) {
+				int groupId = batchGroupContaining(cut.groups, other, footprint);
+				if (groupId < 0) {
+					obstacles.add(footprint);
+					continue;
+				}
+				Vec3 delta = groupDeltas.get(groupId);
+				SurgicalTableLayout.Footprint translated = translateFootprint(footprint, delta);
+				if (!plane.workArea().contains(translated.minX(), translated.minZ(), translated.maxX(),
+					translated.maxZ(), 1.0e-6d))
+					return false;
+				groupFootprints.get(groupId).add(translated);
+			}
+		}
+		for (List<SurgicalTableLayout.Footprint> group : groupFootprints) {
+			if (group.isEmpty())
+				return false;
+			for (SurgicalTableLayout.Footprint footprint : group)
+				for (SurgicalTableLayout.Footprint obstacle : obstacles)
+					if (footprint.conflictsWith(obstacle))
+						return false;
+		}
+		for (int first = 0; first < groupFootprints.size(); first++)
+			for (int second = first + 1; second < groupFootprints.size(); second++)
+				for (SurgicalTableLayout.Footprint firstFootprint : groupFootprints.get(first))
+					for (SurgicalTableLayout.Footprint secondFootprint : groupFootprints.get(second))
+						if (firstFootprint.conflictsWith(secondFootprint))
+							return false;
+		return true;
+	}
+
+	private static SurgicalTableLayout.Footprint translateFootprint(SurgicalTableLayout.Footprint footprint,
+		Vec3 delta) {
+		return new SurgicalTableLayout.Footprint(footprint.componentRoot(),
+			footprint.minX() + delta.x, footprint.minZ() + delta.z,
+			footprint.maxX() + delta.x, footprint.maxZ() + delta.z,
+			SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED);
+	}
+
+	private static int batchGroupContaining(List<ComponentGroup> groups, UUID subjectKey, int cubeId) {
+		if (cubeId < 0)
+			return -1;
+		for (int groupId = 0; groupId < groups.size(); groupId++) {
+			BitSet cubes = groups.get(groupId).components.get(subjectKey);
+			if (cubes != null && cubes.get(cubeId))
+				return groupId;
+		}
+		return -1;
+	}
+
+	private static int batchGroupContaining(List<ComponentGroup> groups, SurgicalSubject subject,
+		SurgicalTableLayout.Footprint footprint) {
+		for (int groupId = 0; groupId < groups.size(); groupId++) {
+			BitSet cubes = groups.get(groupId).components.get(subject.persistentId());
+			if (subject.containsFootprint(cubes, footprint))
+				return groupId;
+		}
+		return -1;
+	}
+
 	public boolean packComponent(Player player, ItemStack boxes, int subjectId, int cubeId,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
@@ -1071,7 +1225,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		for (SurgicalTableLayout.Footprint moved : moving)
 			for (SurgicalTableLayout.Footprint obstacle : fixed)
-				if (moved.overlapsStrictly(obstacle))
+				if (moved.conflictsWith(obstacle))
 					return false;
 		return true;
 	}
@@ -1469,6 +1623,69 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				graph.componentContaining(subject.persistentId(), startCube).members()));
 	}
 
+	/** Complete post-cut groups for the shift-shears operation, largest and stable remainder first. */
+	@Nullable
+	public BatchCutPlan batchCutPlan(int subjectId, int cubeId, int observedCubeCount,
+		List<SurgicalAssembly.Seam> observedSeams) {
+		SurgicalSubject subject = getSubject(subjectId);
+		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
+			return null;
+		BatchCutState state = batchCutState(subject, cubeId);
+		if (state == null)
+			return null;
+		List<Map<Integer, BitSet>> groups = state.groups.stream()
+			.map(this::componentsBySubjectId).toList();
+		return new BatchCutPlan(state.proposedCuts, groups);
+	}
+
+	@Nullable
+	private BatchCutState batchCutState(SurgicalSubject subject, int cubeId) {
+		BitSet proposedCuts = (BitSet) subject.cutSeams.clone();
+		List<Integer> seamIds = new ArrayList<>();
+		for (int seamId = 0; seamId < subject.seams.size(); seamId++) {
+			if (subject.cutSeams.get(seamId))
+				continue;
+			SurgicalAssembly.Seam seam = subject.seams.get(seamId);
+			if ((seam.first() == cubeId || seam.second() == cubeId)
+				&& subject.validPresentCube(seam.first()) && subject.validPresentCube(seam.second())) {
+				proposedCuts.set(seamId);
+				seamIds.add(seamId);
+			}
+		}
+		Set<SurgicalGlueJoint> glueCuts = new HashSet<>();
+		for (SurgicalGlueJoint joint : allGlueJoints())
+			if (joint.touches(subject.persistentId(), cubeId))
+				glueCuts.add(joint);
+		int cutCount = seamIds.size() + glueCuts.size();
+		if (cutCount == 0)
+			return null;
+
+		SurgicalConnectionGraph<UUID> before = connectionGraph(null);
+		SurgicalConnectionGraph<UUID> after = connectionGraph(glueCuts,
+			Map.of(subject.persistentId(), proposedCuts));
+		if (before == null || after == null)
+			return null;
+		ComponentGroup affected = new ComponentGroup(
+			before.componentContaining(subject.persistentId(), cubeId).members());
+		if (affected.components.isEmpty())
+			return null;
+		List<ComponentGroup> groups = new ArrayList<>();
+		int covered = 0;
+		for (SurgicalConnectionGraph.Component<UUID> component : after.components()) {
+			ComponentGroup group = new ComponentGroup(component.members());
+			if (!group.intersects(affected))
+				continue;
+			groups.add(group);
+			covered += componentSize(group);
+		}
+		if (groups.isEmpty() || covered != componentSize(affected)
+			|| groups.size() > SurgicalAssembly.MAX_CUBES)
+			return null;
+		return new BatchCutState(proposedCuts, List.copyOf(seamIds), Set.copyOf(glueCuts),
+			List.copyOf(groups), cutCount);
+	}
+
 	@Nullable
 	public SeamCutPlan seamCutPlan(int subjectId, int seamId) {
 		SurgicalSubject subject = getSubject(subjectId);
@@ -1575,7 +1792,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 		for (SurgicalTableLayout.Footprint placed : translated)
 			for (SurgicalTableLayout.Footprint obstacle : obstacles)
-				if (placed.overlapsStrictly(obstacle))
+				if (placed.conflictsWith(obstacle))
 					return false;
 		return true;
 	}
@@ -1890,6 +2107,29 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			Map<Integer, BitSet> frozen = new HashMap<>();
 			movingComponents.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
 			movingComponents = Map.copyOf(frozen);
+		}
+	}
+
+	public record BatchCutPlan(BitSet proposedCuts, List<Map<Integer, BitSet>> groups) {
+		public BatchCutPlan {
+			proposedCuts = (BitSet) proposedCuts.clone();
+			List<Map<Integer, BitSet>> frozenGroups = new ArrayList<>(groups.size());
+			for (Map<Integer, BitSet> group : groups) {
+				Map<Integer, BitSet> frozen = new HashMap<>();
+				group.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
+				frozenGroups.add(Map.copyOf(frozen));
+			}
+			groups = List.copyOf(frozenGroups);
+		}
+	}
+
+	private record BatchCutState(BitSet proposedCuts, List<Integer> cutSeamIds,
+		Set<SurgicalGlueJoint> glueCuts, List<ComponentGroup> groups, int cutCount) {
+		private BatchCutState {
+			proposedCuts = (BitSet) proposedCuts.clone();
+			cutSeamIds = List.copyOf(cutSeamIds);
+			glueCuts = Set.copyOf(glueCuts);
+			groups = List.copyOf(groups);
 		}
 	}
 

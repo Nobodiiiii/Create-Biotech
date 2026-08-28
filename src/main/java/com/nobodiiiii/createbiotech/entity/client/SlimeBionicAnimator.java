@@ -281,7 +281,7 @@ public final class SlimeBionicAnimator {
 		if (connections == null)
 			return List.of();
 		double bodyCenterX = bodyCenter(sources, AXIS_X);
-		List<ResolvedLimb> resolved = new ArrayList<>();
+		List<LimbGeometry> geometries = new ArrayList<>();
 		for (SurgicalAssembly.Limb limb : assembly.limbs()) {
 			Member selectedChild = new Member(limb.childSource(), limb.childCube());
 			Member selectedParent = new Member(limb.parentSource(), limb.parentCube());
@@ -295,16 +295,39 @@ public final class SlimeBionicAnimator {
 			CubeBox parent = box(sources, connection.parent());
 			if (child == null || parent == null)
 				continue;
-			Vec3 pivot = pivot(limb.type(), child, parent);
-			Vec3 drivenCenter = groupCenter(childMembers, sources);
-			Vec3 restDirection = (drivenCenter == null ? child.center() : drivenCenter).subtract(pivot);
+			geometries.add(new LimbGeometry(limb.type(), childMembers, connection.parent(), child, parent));
+		}
+
+		List<ResolvedLimb> resolved = new ArrayList<>(geometries.size());
+		for (LimbGeometry geometry : geometries) {
+			Vec3 pivot = pivot(geometry.type(), geometry.child(), geometry.parentBox(),
+				secondaryPivot(geometry, geometries));
+			Vec3 drivenCenter = groupCenter(geometry.members(), sources);
+			Vec3 restDirection = (drivenCenter == null ? geometry.child().center() : drivenCenter)
+				.subtract(pivot);
 			if (restDirection.lengthSqr() < GEOMETRY_EPSILON)
 				continue;
-			resolved.add(new ResolvedLimb(limb.type(), childMembers, connection.parent(), pivot,
-				BODY_SPACE.project(child.center(), AXIS_X) - bodyCenterX,
-				BODY_SPACE.restAlignment(limb.type(), restDirection), null, -1));
+			resolved.add(new ResolvedLimb(geometry.type(), geometry.members(), geometry.parent(), pivot,
+				BODY_SPACE.project(geometry.child().center(), AXIS_X) - bodyCenterX,
+				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1));
 		}
 		return linkHierarchy(assignBones(resolved));
+	}
+
+	/** Finds the elbow/knee that hangs from this upper limb and resolves its physical hinge. */
+	@Nullable
+	private static Vec3 secondaryPivot(LimbGeometry primary, List<LimbGeometry> geometries) {
+		SurgicalLimbType secondaryType = switch (primary.type()) {
+		case SHOULDER -> SurgicalLimbType.ELBOW;
+		case HIP -> SurgicalLimbType.KNEE;
+		default -> null;
+		};
+		if (secondaryType == null)
+			return null;
+		for (LimbGeometry candidate : geometries)
+			if (candidate.type() == secondaryType && primary.members().contains(candidate.parent()))
+				return pivot(candidate.type(), candidate.child(), candidate.parentBox(), null);
+		return null;
 	}
 
 	/** Assigns stable left/right animation channels independently at every anatomical level. */
@@ -600,13 +623,16 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Places the hinge on the child end that meets its parent.
+	 * Places the hinge on the appropriate end of the rotating child.
 	 *
 	 * <p>Elongated parts use their principal geometric axis, so the calculation follows an arm or leg
 	 * after the player lays it flat or points it upward. Cube-like parts use the surface reached by a
-	 * ray toward the parent, which is the stable choice for heads and other compact pieces.</p>
+	 * ray toward the parent, which is the stable choice for heads and other compact pieces. When a
+	 * flush side contact makes both elongated-part ends equally close to the parent, the end farther
+	 * from its elbow or knee wins; without that secondary joint, the upper end wins.</p>
 	 */
-	private static Vec3 pivot(SurgicalLimbType type, CubeBox child, CubeBox parent) {
+	private static Vec3 pivot(SurgicalLimbType type, CubeBox child, CubeBox parent,
+		@Nullable Vec3 secondaryPivot) {
 		// Head pitch and yaw must originate at the neck connection itself. Using an endpoint of an
 		// elongated or unusually shaped head makes it orbit around its own centre instead of nodding.
 		if (type == SurgicalLimbType.NECK)
@@ -623,17 +649,17 @@ public final class SlimeBionicAnimator {
 		if (Math.abs(firstDistance - secondDistance) > GEOMETRY_EPSILON)
 			return firstDistance < secondDistance ? first : second;
 
-		// A vertical arm can run beside the whole torso, making both ends equally close. In that
-		// genuinely ambiguous case, choose the end facing the parent's vertical centre; a centred
-		// shoulder/hip uses its upper end, matching the canonical humanoid rest pose.
-		double childY = BODY_SPACE.project(child.center(), AXIS_Y);
-		double parentY = BODY_SPACE.project(parent.center(), AXIS_Y);
+		if (secondaryPivot != null) {
+			double firstSecondaryDistance = first.distanceToSqr(secondaryPivot);
+			double secondSecondaryDistance = second.distanceToSqr(secondaryPivot);
+			if (Math.abs(firstSecondaryDistance - secondSecondaryDistance) > GEOMETRY_EPSILON)
+				return firstSecondaryDistance > secondSecondaryDistance ? first : second;
+		}
+
+		// BODY_SPACE Y follows model-space Y and therefore increases downward.
 		double firstY = BODY_SPACE.project(first, AXIS_Y);
 		double secondY = BODY_SPACE.project(second, AXIS_Y);
-		double targetY = childY < parentY ? Math.max(firstY, secondY) : Math.min(firstY, secondY);
-		if (type == SurgicalLimbType.NECK && Math.abs(childY - parentY) <= GEOMETRY_EPSILON)
-			targetY = Math.max(firstY, secondY);
-		return Math.abs(firstY - targetY) <= Math.abs(secondY - targetY) ? first : second;
+		return firstY <= secondY ? first : second;
 	}
 
 
@@ -665,6 +691,8 @@ public final class SlimeBionicAnimator {
 
 	private record Member(int source, int cube) {}
 	private record Connection(Member child, Member parent) {}
+	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member parent,
+		CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
 
 	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member parent,

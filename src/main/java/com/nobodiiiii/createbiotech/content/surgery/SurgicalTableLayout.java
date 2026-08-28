@@ -17,6 +17,8 @@ public final class SurgicalTableLayout {
 	public static final int SUBDIVISIONS = 4;
 	public static final int SLOTS_PER_TILE = SUBDIVISIONS * SUBDIVISIONS;
 	public static final int UNSNAPPED = Integer.MIN_VALUE;
+	/** Minimum horizontal air gap between independently placeable parts. */
+	public static final double COMPONENT_CLEARANCE = 1.0d / 16.0d;
 	private static final double EPSILON = 1.0e-6d;
 	private static final double MAX_OFFSET = SurgicalTablePlane.MAX_TILES + 2.0d;
 
@@ -225,7 +227,7 @@ public final class SurgicalTableLayout {
 				for (int secondRoot = firstRoot + 1; secondRoot < roots.size(); secondRoot++)
 					for (Footprint first : footprints.get(roots.get(firstRoot)))
 						for (Footprint second : footprints.get(roots.get(secondRoot)))
-							if (first.overlapsStrictly(second))
+							if (first.conflictsWith(second))
 								return false;
 		}
 		return doesNotOverlap(proposal.footprints(), occupiedFootprints);
@@ -294,7 +296,7 @@ public final class SurgicalTableLayout {
 	private static boolean doesNotOverlap(List<Footprint> proposed, List<Footprint> occupied) {
 		for (Footprint footprint : proposed)
 			for (Footprint obstacle : occupied)
-				if (footprint.overlapsStrictly(obstacle))
+				if (footprint.conflictsWith(obstacle))
 					return false;
 		return true;
 	}
@@ -323,6 +325,14 @@ public final class SurgicalTableLayout {
 		public boolean overlapsStrictly(Footprint other) {
 			return minX < other.maxX - EPSILON && maxX > other.minX + EPSILON
 				&& minZ < other.maxZ - EPSILON && maxZ > other.minZ + EPSILON;
+		}
+
+		/** Treats each other part as occupying its bounds plus the global 1/16-block margin. */
+		public boolean conflictsWith(Footprint other) {
+			return minX < other.maxX + COMPONENT_CLEARANCE - EPSILON
+				&& maxX > other.minX - COMPONENT_CLEARANCE + EPSILON
+				&& minZ < other.maxZ + COMPONENT_CLEARANCE - EPSILON
+				&& maxZ > other.minZ - COMPONENT_CLEARANCE + EPSILON;
 		}
 	}
 
