@@ -39,6 +39,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
@@ -151,9 +152,10 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static GlueEditor glueEditor;
 	@Nullable
-	private static PlacementSource placementSource;
+	private static PlacementCandidate placementCandidate;
 	@Nullable
 	private static PlacementPreview placementPreview;
+	private static SurgicalTablePlacementResult placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
 	@Nullable
 	private static PlacementSuppression placementSuppression;
 	@Nullable
@@ -315,7 +317,8 @@ public final class SurgicalTableClientHandler {
 		gluePreview = null;
 		glueEditor = null;
 		lastGlueEditPromptTick = Long.MIN_VALUE;
-		placementSource = null;
+		placementCandidate = null;
+		placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
@@ -429,6 +432,7 @@ public final class SurgicalTableClientHandler {
 		LocalPlayer player = minecraft.player;
 		ClientLevel level = minecraft.level;
 		if (retainsPlacementPreview()) {
+			placementPreviewResult = SurgicalTablePlacementResult.SUCCESS;
 			if (level != null && level.getGameTime() != lastPlacementOutlineTick) {
 				Outliner.getInstance().keep(PLACEMENT_OUTLINE_SLOT);
 				lastPlacementOutlineTick = level.getGameTime();
@@ -442,7 +446,7 @@ public final class SurgicalTableClientHandler {
 			if (inventoryUpdated || level.getGameTime() >= suppression.expiresAtTick) {
 				placementSuppression = null;
 			} else {
-				clearPlacementPreview();
+				rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
 				return;
 			}
 		}
@@ -450,32 +454,32 @@ public final class SurgicalTableClientHandler {
 			|| pendingCut != null || pendingGlueCut != null
 			|| !(minecraft.hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock)) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
 		}
 
 		InteractionHand hand = null;
 		PlacementSource source = null;
-		for (InteractionHand candidate : HANDS) {
-			ItemStack held = player.getItemInHand(candidate);
+		for (InteractionHand candidateHand : HANDS) {
+			ItemStack held = player.getItemInHand(candidateHand);
 			if (!(held.getItem() instanceof CapturedEntityBoxItem)
 				|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 				continue;
-			PlacementSource prepared = placementSourceFor(held, level);
-			if (prepared != null) {
-				hand = candidate;
-				source = prepared;
+			PlacementCandidate prepared = placementCandidateFor(held, level);
+			if (prepared.source() != null) {
+				hand = candidateHand;
+				source = prepared.source();
 				break;
 			}
 		}
 		if (hand == null || source == null) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.UNSUPPORTED_SUBJECT);
 			return;
 		}
 
 		SurgicalTablePlane.Plane plane = clientPlane(level, hit.getBlockPos());
 		if (!plane.valid() || plane.source() == null || plane.workArea().isEmpty()) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
 		}
 		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().y() + 1.01d);
@@ -483,13 +487,19 @@ public final class SurgicalTableClientHandler {
 		Direction placementFacing = player.getDirection();
 		SurgicalTableBlockEntity controller = level.getBlockEntity(ownerPos) instanceof SurgicalTableBlockEntity table
 			? table : null;
-		boolean projectSourceGeometry = controller != null
-			? controller.clientProjectsSourceGeometry()
-			: SurgicalTableRenderer.projectsSourceGeometry(level, plane);
-		int tableRevision = controller == null ? Integer.MIN_VALUE : controller.clientDataRevision();
+		if (controller == null) {
+			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
+			return;
+		}
+		if (controller.getSubjects().size() > SurgicalTableBlockEntity.MAX_SUBJECTS - source.subjectSlots()) {
+			rejectPlacementPreview(SurgicalTablePlacementResult.TABLE_FULL);
+			return;
+		}
+		boolean projectSourceGeometry = controller.clientProjectsSourceGeometry();
+		int tableRevision = controller.clientDataRevision();
 		PlacementGeometry placementGeometry = source.measure(placementFacing, projectSourceGeometry);
 		if (placementGeometry == null) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.MODEL_UNAVAILABLE);
 			return;
 		}
 		PlacementPreview previous = placementPreview;
@@ -498,21 +508,40 @@ public final class SurgicalTableClientHandler {
 			&& previous.projectSourceGeometry == projectSourceGeometry
 			&& previous.tableRevision == tableRevision && previous.workArea == plane.workArea()
 			&& sameHorizontalTarget(target, previous.targetX, previous.targetZ)) {
+			placementPreviewResult = SurgicalTablePlacementResult.SUCCESS;
 			refreshPlacementFeedback(player, level);
 			return;
 		}
 		List<SurgicalTableLayout.Footprint> occupied = SurgicalTablePlane.occupiedFootprints(level, plane, -1);
 		if (occupied == null) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
 		}
+		SurgicalClientTopology.PlacementPlan plan;
+		DiscoveredPlacement discovered = DiscoveredPlacement.EMPTY;
 		EntityGeometry.Bounds localBounds = placementGeometry.bounds();
 		SurgicalModelRenderContext.CubeGeometry renderedBounds = boundsGeometry(localBounds,
 			Vec3.atLowerCornerOf(ownerPos));
-		SurgicalClientTopology.PlacementPlan plan = SurgicalClientTopology.planInitialPlacement(
-			List.of(renderedBounds), plane.workArea(), target.x, target.z, occupied);
+		if (source.assembly == null) {
+			List<SurgicalModelRenderContext.CubeGeometry> worldCubes = translateCubes(
+				placementGeometry.discoveredCubes(), Vec3.atLowerCornerOf(ownerPos));
+			SurgicalClientTopology.DiscoveredPlacementPlan discoveredPlan =
+				SurgicalClientTopology.planDiscoveredPlacement(placementGeometry.discoveredCubeCount(),
+					placementGeometry.discoveredSeams(), renderedBounds, worldCubes, plane.workArea(), target.x,
+					target.z, occupied);
+			if (discoveredPlan == null) {
+				rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
+				return;
+			}
+			plan = discoveredPlan.placement();
+			discovered = new DiscoveredPlacement(placementGeometry.discoveredCubeCount(),
+				placementGeometry.discoveredSeams(), discoveredPlan.componentFootprints());
+		} else {
+			plan = SurgicalClientTopology.planInitialPlacement(List.of(renderedBounds),
+				plane.workArea(), target.x, target.z, occupied);
+		}
 		if (plan == null) {
-			clearPlacementPreview();
+			rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
 			return;
 		}
 		plan = exactInitialPlacement(source, placementGeometry, plan);
@@ -520,14 +549,16 @@ public final class SurgicalTableClientHandler {
 			ownerPos, plan, plane, occupied);
 		if (sourceLayouts == null || !SurgicalTableLayout.validateSubjectPlacement(plane, source.assembly,
 			placementFacing, placementGeometry.layPose(), plan.originOffsetX(), plan.originOffsetZ(),
-			plan.proposal(), sourceLayouts, occupied)) {
-			clearPlacementPreview();
+			plan.proposal(), discovered.cubeCount(), discovered.seams(), discovered.footprints(),
+			sourceLayouts, occupied)) {
+			rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
 			return;
 		}
 
+		placementPreviewResult = SurgicalTablePlacementResult.SUCCESS;
 		placementPreview = new PlacementPreview(ownerPos, hand, source, placementFacing,
 			placementGeometry.layPose(), plan,
-			placementGeometry.sources(), sourceLayouts, projectSourceGeometry,
+			placementGeometry.sources(), discovered, sourceLayouts, projectSourceGeometry,
 			plane.workArea(), target.x, target.z, tableRevision);
 		SurgicalTableLayout.Footprint footprint = plan.proposal().footprints().getFirst();
 		Outliner.getInstance().showAABB(PLACEMENT_OUTLINE_SLOT,
@@ -591,27 +622,35 @@ public final class SurgicalTableClientHandler {
 		return List.copyOf(layouts);
 	}
 
-	@Nullable
-	private static PlacementSource placementSourceFor(ItemStack held, ClientLevel level) {
-		if (placementSource != null && ItemStack.isSameItemSameComponents(placementSource.box, held))
-			return placementSource;
+	private static PlacementCandidate placementCandidateFor(ItemStack held, ClientLevel level) {
+		if (placementCandidate != null && ItemStack.isSameItemSameComponents(placementCandidate.box(), held))
+			return placementCandidate;
 		Entity captured = CapturedEntityBoxHelper.createCapturedEntity(held, level);
+		if (captured == null)
+			return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_CAPTURE);
 		MimicProfile profile;
 		SurgicalAssembly assembly = null;
 		if (captured instanceof SlimeBionicEntity bionic) {
 			assembly = bionic.getAssembly();
 			if (assembly == null)
-				return null;
+				return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_ASSEMBLY);
 			profile = assembly.profile();
 		} else if (captured instanceof LivingEntity living && SlimeMimicHandler.isSlimeMimic(living)) {
 			profile = MimicProfile.capture(living);
 			if (profile == null)
-				return null;
-		} else {
-			return null;
-		}
-		placementSource = new PlacementSource(held.copyWithCount(1), profile, assembly);
-		return placementSource;
+				return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_CAPTURE);
+		} else if (captured instanceof LivingEntity)
+			return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.UNSUPPORTED_SUBJECT);
+		else
+			return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_CAPTURE);
+		return cachePlacementCandidate(held,
+			new PlacementSource(held.copyWithCount(1), profile, assembly), SurgicalTablePlacementResult.SUCCESS);
+	}
+
+	private static PlacementCandidate cachePlacementCandidate(ItemStack held, @Nullable PlacementSource source,
+		SurgicalTablePlacementResult result) {
+		placementCandidate = new PlacementCandidate(held.copyWithCount(1), source, result);
+		return placementCandidate;
 	}
 
 	private static void clearPlacementPreview() {
@@ -621,6 +660,11 @@ public final class SurgicalTableClientHandler {
 		Outliner.getInstance().remove(PLACEMENT_OUTLINE_SLOT);
 		lastPlacementOutlineTick = Long.MIN_VALUE;
 		lastPlacementPromptTick = Long.MIN_VALUE;
+	}
+
+	private static void rejectPlacementPreview(SurgicalTablePlacementResult result) {
+		clearPlacementPreview();
+		placementPreviewResult = result;
 	}
 
 	private static void refreshPlacementFeedback(LocalPlayer player, ClientLevel level) {
@@ -2033,17 +2077,25 @@ public final class SurgicalTableClientHandler {
 			|| !(Minecraft.getInstance().hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))
 			return false;
+		PlacementCandidate candidate = placementCandidateFor(held, level);
+		if (!candidate.result().succeeded()) {
+			candidate.result().display(player);
+			return true;
+		}
 		updatePlacementPreview();
 		PlacementPreview placement = placementPreview;
 		if (placement == null || placement.hand != hand
 			|| !ItemStack.isSameItemSameComponents(placement.source.box, held)) {
-			showNoSpace(player);
+			SurgicalTablePlacementResult result = placementPreviewResult.succeeded()
+				? SurgicalTablePlacementResult.NO_SPACE : placementPreviewResult;
+			result.display(player);
 			return true;
 		}
 
 		CBPackets.sendToServer(new SurgicalTablePlacementPacket(placement.ownerPos, hand, placement.facing,
 			placement.plan.originOffsetX(), placement.plan.originOffsetZ(), placement.layPose,
-			placement.plan.proposal(),
+			placement.plan.proposal(), placement.discovered.cubeCount(), placement.discovered.seams(),
+			placement.discovered.footprints(),
 			placement.sourceLayouts));
 		beginVisualCommit(level, placement.ownerPos, placement.tableRevision, List.of(), true, false);
 		return true;
@@ -4245,9 +4297,16 @@ public final class SurgicalTableClientHandler {
 	}
 
 
+	private record PlacementCandidate(ItemStack box, @Nullable PlacementSource source,
+		SurgicalTablePlacementResult result) {
+		private PlacementCandidate {
+			box = box.copyWithCount(1);
+		}
+	}
+
 	private record PlacementPreview(BlockPos ownerPos, InteractionHand hand, PlacementSource source,
 		Direction facing, SurgicalLayPose layPose, SurgicalClientTopology.PlacementPlan plan,
-		List<SourcePlacementGeometry> sourceGeometries,
+		List<SourcePlacementGeometry> sourceGeometries, DiscoveredPlacement discovered,
 		List<SurgicalTableLayout.Proposal> sourceLayouts, boolean projectSourceGeometry,
 		SurgicalTablePlane.WorkArea workArea, double targetX, double targetZ, int tableRevision) {
 		private PlacementPreview {
@@ -4263,11 +4322,14 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private record PlacementGeometry(EntityGeometry.Bounds bounds, SurgicalLayPose layPose,
-		Map<Integer, Vec3> cubeOffsets,
-		List<SourcePlacementGeometry> sources) {
+		Map<Integer, Vec3> cubeOffsets, List<SourcePlacementGeometry> sources,
+		int discoveredCubeCount, List<SurgicalAssembly.Seam> discoveredSeams,
+		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes) {
 		private PlacementGeometry {
 			cubeOffsets = Map.copyOf(cubeOffsets);
 			sources = List.copyOf(sources);
+			discoveredSeams = List.copyOf(discoveredSeams);
+			discoveredCubes = List.copyOf(discoveredCubes);
 		}
 	}
 
@@ -4318,6 +4380,10 @@ public final class SurgicalTableClientHandler {
 			return assembly != null && (assembly.preservesLayout() || assembly.sources().size() != 1);
 		}
 
+		private int subjectSlots() {
+			return assembly != null && isComposite() ? assembly.sources().size() : 1;
+		}
+
 		@Nullable
 		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry) {
 			if (measuredGeometry != null && measuredFacing == facing
@@ -4344,6 +4410,19 @@ public final class SurgicalTableClientHandler {
 				0.0f, 0.0f, true, null, projectSourceGeometry);
 			if (!sink.hasVertices())
 				return null;
+			int discoveredCubeCount = 0;
+			List<SurgicalAssembly.Seam> discoveredSeams = List.of();
+			List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes = List.of();
+			if (assembly == null) {
+				discoveredCubeCount = snapshot.observedCubeCount();
+				if (!SurgicalAssembly.validCubeCount(discoveredCubeCount)
+					|| snapshot.cubes().size() != discoveredCubeCount)
+					return null;
+				SurgicalClientTopology.ContactTopology topology = SurgicalClientTopology.buildContactTopology(
+					discoveredCubeCount, snapshot.cubes());
+				discoveredSeams = topology.seams();
+				discoveredCubes = snapshot.cubes();
+			}
 
 			Map<Integer, Vec3> cubeOffsets = groundedOffsets(snapshot);
 			EntityGeometry.Bounds bounds = sink.bounds();
@@ -4360,7 +4439,8 @@ public final class SurgicalTableClientHandler {
 			}
 			measuredFacing = facing;
 			measuredSourceGeometry = projectSourceGeometry;
-			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of());
+			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of(),
+				discoveredCubeCount, discoveredSeams, discoveredCubes);
 			return measuredGeometry;
 		}
 
@@ -4435,7 +4515,7 @@ public final class SurgicalTableClientHandler {
 					geometry.renderOffsets(), previewOffsets, geometry.renderRotations()));
 			}
 			return new PlacementGeometry(combined.bounds(), assembly.placedLayPose(facing), Map.of(),
-				previewGeometries);
+				previewGeometries, 0, List.of(), List.of());
 		}
 
 		private PoseStack sourcePose(SurgicalAssembly.PlacedSource placedSource, LivingEntity entity) {
@@ -4570,6 +4650,16 @@ public final class SurgicalTableClientHandler {
 			}
 			groups = List.copyOf(frozenGroups);
 			proposedCuts = (BitSet) proposedCuts.clone();
+		}
+	}
+
+	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams,
+		List<SurgicalTableLayout.Footprint> footprints) {
+		private static final DiscoveredPlacement EMPTY = new DiscoveredPlacement(0, List.of(), List.of());
+
+		private DiscoveredPlacement {
+			seams = List.copyOf(seams);
+			footprints = List.copyOf(footprints);
 		}
 	}
 

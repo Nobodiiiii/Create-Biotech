@@ -567,6 +567,68 @@ public final class SurgicalClientTopology {
 	}
 
 	/**
+	 * Places a newly captured mimic whose model already contains multiple disconnected components.
+	 * The complete model envelope still determines its snapped anchor and table fit, while collision
+	 * checks use one tight envelope per native component so empty space between them stays available.
+	 */
+	@Nullable
+	public static DiscoveredPlacementPlan planDiscoveredPlacement(int cubeCount,
+		List<SurgicalAssembly.Seam> seams, SurgicalModelRenderContext.CubeGeometry envelopeGeometry,
+		List<SurgicalModelRenderContext.CubeGeometry> cubes,
+		SurgicalTablePlane.WorkArea workArea, double targetX, double targetZ,
+		List<SurgicalTableLayout.Footprint> occupiedFootprints) {
+		if (!SurgicalAssembly.validTopology(cubeCount, seams) || workArea.isEmpty()
+			|| envelopeGeometry == null || occupiedFootprints == null)
+			return null;
+		BitSet present = new BitSet(cubeCount);
+		present.set(0, cubeCount);
+		Map<Integer, Bounds> cubeBounds = layoutBounds(present, cubes);
+		if (cubeBounds.size() != cubeCount)
+			return null;
+		List<BitSet> components = SurgicalAssembly.components(cubeCount, present, seams, new BitSet());
+		if (components.isEmpty())
+			return null;
+		List<Integer> componentRoots = new ArrayList<>(components.size());
+		List<Bounds> componentBounds = new ArrayList<>(components.size());
+		for (BitSet component : components) {
+			Bounds bounds = unionBounds(component, cubeBounds, Map.of());
+			if (bounds == null)
+				return null;
+			componentRoots.add(component.nextSetBit(0));
+			componentBounds.add(bounds);
+		}
+		Bounds envelope = Bounds.of(envelopeGeometry);
+		if (envelope == null)
+			return null;
+
+		for (GridCell cell : orderedCells(workArea, targetX, targetZ)) {
+			Vec3 delta = new Vec3(cell.centerX() - envelope.centerX(), 0.0d,
+				cell.centerZ() - envelope.centerZ());
+			Bounds placedEnvelope = envelope.translate(delta);
+			if (!fits(workArea, placedEnvelope))
+				continue;
+			List<SurgicalTableLayout.Footprint> componentFootprints = new ArrayList<>(components.size());
+			boolean blocked = false;
+			for (int componentId = 0; componentId < componentBounds.size(); componentId++) {
+				SurgicalTableLayout.Footprint footprint = footprint(componentRoots.get(componentId),
+					componentBounds.get(componentId).translate(delta), null);
+				if (overlapsAny(footprint, occupiedFootprints)) {
+					blocked = true;
+					break;
+				}
+				componentFootprints.add(footprint);
+			}
+			if (blocked)
+				continue;
+			SurgicalTableLayout.Footprint envelopeFootprint = footprint(-1, placedEnvelope, cell);
+			PlacementPlan placement = new PlacementPlan(delta.x, delta.z,
+				new SurgicalTableLayout.Proposal(List.of(), List.of(envelopeFootprint)));
+			return new DiscoveredPlacementPlan(placement, componentFootprints);
+		}
+		return null;
+	}
+
+	/**
 	 * Places every connected group produced by one batch cut as a whole. Group zero is the stable,
 	 * largest remainder. Unlike the component-at-a-time layout path, this searches the complete
 	 * arrangement and backtracks when a tempting nearby slot would strand a later group.
@@ -1648,6 +1710,13 @@ public final class SurgicalClientTopology {
 
 	public record PlacementPlan(double originOffsetX, double originOffsetZ,
 		SurgicalTableLayout.Proposal proposal) {}
+
+	public record DiscoveredPlacementPlan(PlacementPlan placement,
+		List<SurgicalTableLayout.Footprint> componentFootprints) {
+		public DiscoveredPlacementPlan {
+			componentFootprints = List.copyOf(componentFootprints);
+		}
+	}
 
 	public record ConnectedPlacement(Vec3 delta) {}
 

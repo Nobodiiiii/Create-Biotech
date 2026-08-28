@@ -343,18 +343,27 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return List.copyOf(limbsWithin(connectedGroup(subject, cubeId)));
 	}
 
-	public boolean tryPlaceSubject(ItemStack box, SurgicalTablePlane.Plane plane, Direction placementFacing,
+	public SurgicalTablePlacementResult tryPlaceSubject(ItemStack box, SurgicalTablePlane.Plane plane,
+		Direction placementFacing,
 		SurgicalLayPose layPose, double placedOriginOffsetX, double placedOriginOffsetZ,
 		SurgicalTableLayout.Proposal proposal,
+		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
 		List<SurgicalTableLayout.Footprint> occupied = occupiedForValidation(plane, -1);
-		if (level == null || level.isClientSide || subjects.size() >= MAX_SUBJECTS
-			|| !worldPosition.equals(plane.source()) || !(box.getItem() instanceof CapturedEntityBoxItem)
-			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || occupied == null
-			|| sourceLayouts == null || layPose == null || !layPose.valid())
-			return false;
+		if (level == null || level.isClientSide || !worldPosition.equals(plane.source()) || occupied == null)
+			return SurgicalTablePlacementResult.INVALID_TABLE;
+		if (subjects.size() >= MAX_SUBJECTS)
+			return SurgicalTablePlacementResult.TABLE_FULL;
+		if (!(box.getItem() instanceof CapturedEntityBoxItem)
+			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
+			|| componentFootprints == null || sourceLayouts == null
+			|| layPose == null || !layPose.valid())
+			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 
 		Entity captured = CapturedEntityBoxHelper.createCapturedEntity(box, level);
+		if (captured == null)
+			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 		SurgicalAssembly placementAssembly = null;
 		MimicProfile profile;
 		int cubeCount;
@@ -362,64 +371,75 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		List<SurgicalAssembly.Seam> seams;
 		BitSet cuts;
 		List<Integer> cutOrder;
+		List<SurgicalTableLayout.Footprint> storedFootprints;
 		if (captured instanceof SlimeBionicEntity bionic) {
 			SurgicalAssembly assembly = bionic.getAssembly();
 			if (assembly == null)
-				return false;
+				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
 			placementAssembly = assembly;
 			if (assembly.preservesLayout() || assembly.sources().size() != 1) {
 				if (!SurgicalTableLayout.validateSubjectPlacement(plane, assembly, placementFacing, layPose,
-					placedOriginOffsetX, placedOriginOffsetZ, proposal, sourceLayouts, occupied))
-					return false;
+					placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
+					componentFootprints, sourceLayouts, occupied))
+					return SurgicalTablePlacementResult.NO_SPACE;
 				return tryPlaceComposite(box, placementFacing, placedOriginOffsetX, placedOriginOffsetZ,
 					sourceLayouts, assembly);
 			}
 			if (!sourceLayouts.isEmpty())
-				return false;
+				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
 			profile = assembly.profile();
 			cubeCount = assembly.cubeCount();
 			present = assembly.presentCubes();
 			seams = assembly.seams();
 			cuts = assembly.cutSeams();
 			cutOrder = assembly.cutOrder();
+			storedFootprints = proposal.footprints();
 		} else if (captured instanceof LivingEntity living && SlimeMimicHandler.isSlimeMimic(living)) {
 			if (!sourceLayouts.isEmpty())
-				return false;
+				return SurgicalTablePlacementResult.INVALID_CAPTURE;
+			if (!SurgicalAssembly.validTopology(observedCubeCount, observedSeams))
+				return SurgicalTablePlacementResult.INVALID_CAPTURE;
 			profile = MimicProfile.capture(living);
 			if (profile == null)
-				return false;
-			cubeCount = 0;
-			present = new BitSet();
-			seams = List.of();
+				return SurgicalTablePlacementResult.INVALID_CAPTURE;
+			cubeCount = observedCubeCount;
+			present = new BitSet(cubeCount);
+			if (cubeCount > 0)
+				present.set(0, cubeCount);
+			seams = List.copyOf(observedSeams);
 			cuts = new BitSet();
 			cutOrder = List.of();
-		} else {
-			return false;
-		}
+			storedFootprints = List.copyOf(componentFootprints);
+		} else if (captured instanceof LivingEntity)
+			return SurgicalTablePlacementResult.UNSUPPORTED_SUBJECT;
+		else
+			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 		if (!SurgicalTableLayout.validateSubjectPlacement(plane, placementAssembly, placementFacing, layPose,
-			placedOriginOffsetX, placedOriginOffsetZ, proposal, sourceLayouts, occupied))
-			return false;
+			placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
+			componentFootprints, sourceLayouts, occupied))
+			return SurgicalTablePlacementResult.NO_SPACE;
 
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), profile, placementFacing, layPose, cubeCount,
 			present, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ, placementOffsets(proposal),
-			proposal.footprints());
+			storedFootprints);
 		addSubject(subject);
 		clientRenderBounds = null;
 		CapturedEntityBoxHelper.clearCapturedEntity(box);
 		setChangedAndSync();
 		level.playSound(null, worldPosition, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 0.8f, 0.9f);
-		return true;
+		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
-	private boolean tryPlaceComposite(ItemStack box, Direction placementFacing,
+	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing,
 		double placedOriginOffsetX, double placedOriginOffsetZ,
 		List<SurgicalTableLayout.Proposal> sourceLayouts, SurgicalAssembly assembly) {
 		List<SurgicalAssembly.Source> assemblySources = assembly.sources();
 		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing);
 		if (sourceLayouts.size() != assemblySources.size()
-			|| placedSources.size() != assemblySources.size()
-			|| subjects.size() > MAX_SUBJECTS - assemblySources.size())
-			return false;
+			|| placedSources.size() != assemblySources.size())
+			return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
+		if (subjects.size() > MAX_SUBJECTS - assemblySources.size())
+			return SurgicalTablePlacementResult.TABLE_FULL;
 
 		// Restore sources as normal table subjects so each source keeps its own model topology and
 		// automatically participates in the existing ray selection and shears workflow.
@@ -453,7 +473,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			}
 			SurgicalCombination combination = SurgicalCombination.create(encoded.id(), members);
 			if (combination == null)
-				return false;
+				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
 			for (int source : encoded.members().stream()
 				.mapToInt(SurgicalAssembly.CombinationMember::source).distinct().toArray())
 				restored.get(source).addCombination(combination);
@@ -473,7 +493,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		CapturedEntityBoxHelper.clearCapturedEntity(box);
 		setChangedAndSync();
 		level.playSound(null, worldPosition, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 0.8f, 0.9f);
-		return true;
+		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
 	private static Map<Integer, Vec3> placementOffsets(SurgicalTableLayout.Proposal proposal) {

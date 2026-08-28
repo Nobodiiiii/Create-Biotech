@@ -34,14 +34,19 @@ public final class SurgicalTableLayout {
 
 	public static boolean validatePlacement(SurgicalTablePlane.Plane plane, double originOffsetX,
 		double originOffsetZ, Proposal proposal, List<Footprint> occupiedFootprints) {
+		return validatePlacementBounds(plane, originOffsetX, originOffsetZ, proposal)
+			&& doesNotOverlap(proposal.footprints(), occupiedFootprints);
+	}
+
+	private static boolean validatePlacementBounds(SurgicalTablePlane.Plane plane, double originOffsetX,
+		double originOffsetZ, Proposal proposal) {
 		if (!plane.valid() || plane.workArea().isEmpty() || !finiteBounded(originOffsetX)
 			|| !finiteBounded(originOffsetZ) || indexOffsets(proposal.offsets()) == null
 			|| proposal.footprints().size() != 1)
 			return false;
 		Footprint footprint = proposal.footprints().getFirst();
 		return footprint.componentRoot() == -1
-			&& validFootprints(plane.workArea(), List.of(footprint), true)
-			&& doesNotOverlap(proposal.footprints(), occupiedFootprints);
+			&& validFootprints(plane.workArea(), List.of(footprint), true);
 	}
 
 	/**
@@ -53,13 +58,21 @@ public final class SurgicalTableLayout {
 	public static boolean validateSubjectPlacement(SurgicalTablePlane.Plane plane,
 		@Nullable SurgicalAssembly assembly, Direction placementFacing, SurgicalLayPose layPose,
 		double originOffsetX, double originOffsetZ, Proposal envelope,
+		int discoveredCubeCount, List<SurgicalAssembly.Seam> discoveredSeams,
+		List<Footprint> discoveredFootprints,
 		List<Proposal> sourceLayouts, List<Footprint> occupiedFootprints) {
 		if (placementFacing == null || !placementFacing.getAxis().isHorizontal()
 			|| layPose == null || !layPose.valid() || sourceLayouts == null
-			|| !validatePlacement(plane, originOffsetX, originOffsetZ, envelope, occupiedFootprints))
+			|| discoveredSeams == null || discoveredFootprints == null
+			|| !validatePlacementBounds(plane, originOffsetX, originOffsetZ, envelope))
 			return false;
 		if (assembly == null)
-			return sourceLayouts.isEmpty() && envelope.offsets().isEmpty();
+			return sourceLayouts.isEmpty() && envelope.offsets().isEmpty()
+				&& validateDiscoveredPlacement(plane, discoveredCubeCount, discoveredSeams,
+					discoveredFootprints, envelope.footprints().getFirst(), occupiedFootprints);
+		if (discoveredCubeCount != 0 || !discoveredSeams.isEmpty() || !discoveredFootprints.isEmpty()
+			|| !doesNotOverlap(envelope.footprints(), occupiedFootprints))
+			return false;
 
 		boolean composite = assembly.preservesLayout() || assembly.sources().size() != 1;
 		if (!composite)
@@ -86,6 +99,31 @@ public final class SurgicalTableLayout {
 				return false;
 		}
 		return true;
+	}
+
+	private static boolean validateDiscoveredPlacement(SurgicalTablePlane.Plane plane, int cubeCount,
+		List<SurgicalAssembly.Seam> seams, List<Footprint> footprints, Footprint envelope,
+		List<Footprint> occupiedFootprints) {
+		if (!SurgicalAssembly.validTopology(cubeCount, seams) || occupiedFootprints == null)
+			return false;
+		BitSet present = new BitSet(cubeCount);
+		present.set(0, cubeCount);
+		List<BitSet> components = SurgicalAssembly.components(cubeCount, present, seams, new BitSet());
+		if (components.isEmpty() || footprints.size() != components.size())
+			return false;
+		Set<Integer> expectedRoots = new HashSet<>();
+		for (BitSet component : components)
+			expectedRoots.add(component.nextSetBit(0));
+		Set<Integer> actualRoots = new HashSet<>();
+		for (Footprint footprint : footprints) {
+			if (footprint == null || footprint.gridX() != UNSNAPPED || footprint.gridZ() != UNSNAPPED
+				|| !expectedRoots.contains(footprint.componentRoot())
+				|| !actualRoots.add(footprint.componentRoot())
+				|| !validFootprintBounds(plane.workArea(), footprint)
+				|| !contains(envelope, footprint))
+				return false;
+		}
+		return actualRoots.equals(expectedRoots) && doesNotOverlap(footprints, occupiedFootprints);
 	}
 
 	private static boolean validateInitialOffsets(SurgicalAssembly assembly, List<CubeOffset> proposed) {

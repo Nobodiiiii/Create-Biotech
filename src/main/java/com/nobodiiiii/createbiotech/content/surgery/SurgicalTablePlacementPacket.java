@@ -9,7 +9,6 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -20,13 +19,21 @@ import net.minecraft.world.phys.Vec3;
 public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, Direction placementFacing,
 	 double originOffsetX, double originOffsetZ, SurgicalLayPose layPose,
 	 SurgicalTableLayout.Proposal envelope,
+	 int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+	 List<SurgicalTableLayout.Footprint> componentFootprints,
 	 List<SurgicalTableLayout.Proposal> sourceLayouts) {
 
 	public SurgicalTablePlacementPacket {
 		placementFacing = placementFacing == null ? Direction.NORTH : placementFacing;
 		layPose = layPose == null ? SurgicalLayPose.IDENTITY : layPose;
 		envelope = envelope == null ? SurgicalTableLayout.Proposal.EMPTY : envelope;
+		observedSeams = observedSeams == null ? List.of() : List.copyOf(observedSeams);
+		componentFootprints = componentFootprints == null ? List.of() : List.copyOf(componentFootprints);
 		sourceLayouts = sourceLayouts == null ? List.of() : List.copyOf(sourceLayouts);
+		if (observedCubeCount < 0 || observedCubeCount > SurgicalAssembly.MAX_CUBES
+			|| observedSeams.size() > SurgicalAssembly.MAX_SEAMS
+			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES)
+			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
 	}
@@ -34,7 +41,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 	public SurgicalTablePlacementPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readEnum(Direction.class),
 			buffer.readDouble(),
-			buffer.readDouble(), SurgicalLayPose.read(buffer), readLayout(buffer), readSourceLayouts(buffer));
+			buffer.readDouble(), SurgicalLayPose.read(buffer), readLayout(buffer), buffer.readVarInt(),
+			readSeams(buffer), readFootprints(buffer), readSourceLayouts(buffer));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -45,6 +53,13 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		buffer.writeDouble(originOffsetZ);
 		layPose.write(buffer);
 		writeLayout(buffer, envelope);
+		buffer.writeVarInt(observedCubeCount);
+		buffer.writeVarInt(observedSeams.size());
+		for (SurgicalAssembly.Seam seam : observedSeams) {
+			buffer.writeVarInt(seam.first());
+			buffer.writeVarInt(seam.second());
+		}
+		writeFootprints(buffer, componentFootprints);
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
 			writeLayout(buffer, sourceLayout);
@@ -63,10 +78,10 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		if (table == null || !(held.getItem() instanceof CapturedEntityBoxItem)
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 			return;
-		if (!table.tryPlaceSubject(held, plane, placementFacing, layPose, originOffsetX, originOffsetZ,
-			envelope, sourceLayouts))
-			player.displayClientMessage(Component.translatable(
-				"message.create_biotech.surgical_table.no_space"), true);
+		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,
+			originOffsetX, originOffsetZ, envelope, observedCubeCount, observedSeams,
+			componentFootprints, sourceLayouts);
+		result.display(player);
 	}
 
 	private static List<SurgicalTableLayout.Proposal> readSourceLayouts(FriendlyByteBuf buffer) {
@@ -86,6 +101,41 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			layouts.add(layout);
 		}
 		return List.copyOf(layouts);
+	}
+
+	private static List<SurgicalAssembly.Seam> readSeams(FriendlyByteBuf buffer) {
+		int count = buffer.readVarInt();
+		if (count < 0 || count > SurgicalAssembly.MAX_SEAMS)
+			throw new IllegalArgumentException("Invalid discovered surgical placement seam count " + count);
+		List<SurgicalAssembly.Seam> seams = new ArrayList<>(count);
+		for (int index = 0; index < count; index++)
+			seams.add(SurgicalAssembly.Seam.of(buffer.readVarInt(), buffer.readVarInt()));
+		return List.copyOf(seams);
+	}
+
+	private static void writeFootprints(FriendlyByteBuf buffer,
+		List<SurgicalTableLayout.Footprint> footprints) {
+		buffer.writeVarInt(footprints.size());
+		for (SurgicalTableLayout.Footprint footprint : footprints) {
+			buffer.writeVarInt(footprint.componentRoot());
+			buffer.writeDouble(footprint.minX());
+			buffer.writeDouble(footprint.minZ());
+			buffer.writeDouble(footprint.maxX());
+			buffer.writeDouble(footprint.maxZ());
+			buffer.writeInt(footprint.gridX());
+			buffer.writeInt(footprint.gridZ());
+		}
+	}
+
+	private static List<SurgicalTableLayout.Footprint> readFootprints(FriendlyByteBuf buffer) {
+		int count = buffer.readVarInt();
+		if (count < 0 || count > SurgicalAssembly.MAX_CUBES)
+			throw new IllegalArgumentException("Invalid discovered surgical placement footprint count " + count);
+		List<SurgicalTableLayout.Footprint> footprints = new ArrayList<>(count);
+		for (int index = 0; index < count; index++)
+			footprints.add(new SurgicalTableLayout.Footprint(buffer.readVarInt(), buffer.readDouble(),
+				buffer.readDouble(), buffer.readDouble(), buffer.readDouble(), buffer.readInt(), buffer.readInt()));
+		return List.copyOf(footprints);
 	}
 
 	private static void writeLayout(FriendlyByteBuf buffer, SurgicalTableLayout.Proposal layout) {
