@@ -90,6 +90,7 @@ public final class SurgicalTableClientHandler {
 	private static final int CUBE_HIGHLIGHT_COLOR = PonderPalette.BLUE.getColor();
 	private static final int HONEY_HIGHLIGHT_COLOR = 0xE8A43A;
 	private static final float HIGHLIGHT_LINE_WIDTH = 1.0f / 32.0f;
+	private static final float SEAM_HIGHLIGHT_LINE_WIDTH = HIGHLIGHT_LINE_WIDTH * 1.25f;
 	private static final float GLUE_POINT_LINE_WIDTH = HIGHLIGHT_LINE_WIDTH / 4.0f;
 	private static final float GLUE_FIRST_PREVIEW_ALPHA = 0.5f;
 	private static final double MAX_SELECTION_THRESHOLD = 3.0d / 16.0d;
@@ -112,7 +113,7 @@ public final class SurgicalTableClientHandler {
 	private static final float BATCH_CUT_ANIMATION_TICKS = 5.0f;
 	private static final int BATCH_CUT_ANIMATION_TIMEOUT_TICKS = 40;
 	private static final InteractionHand[] HANDS = { InteractionHand.MAIN_HAND, InteractionHand.OFF_HAND };
-	private static final OutlineState SEAM_OUTLINE = new OutlineState();
+	private static final OutlineState SEAM_OUTLINE = new OutlineState(SEAM_HIGHLIGHT_LINE_WIDTH);
 	private static final OutlineState CUBE_OUTLINE = new OutlineState();
 	private static final OutlineState COMBINATION_OUTLINE = new OutlineState();
 	private static final OutlineState GLUE_EDIT_OUTLINE = new OutlineState();
@@ -126,8 +127,6 @@ public final class SurgicalTableClientHandler {
 	private static OwnerHandoffKey validatedOwnerHandoff;
 	private static final Set<UUID> SAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static final Set<UUID> UNSAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
-	private static final Map<CombinationOutlineKey, CombinationOutlineCache> COMBINATION_OUTLINES =
-		new HashMap<>();
 	private static long lastPlacementOutlineTick = Long.MIN_VALUE;
 	private static long lastPlacementPromptTick = Long.MIN_VALUE;
 	private static long lastGlueEditPromptTick = Long.MIN_VALUE;
@@ -449,7 +448,6 @@ public final class SurgicalTableClientHandler {
 		validatedOwnerHandoff = null;
 		SAFE_OWNER_HANDOFFS.clear();
 		UNSAFE_OWNER_HANDOFFS.clear();
-		COMBINATION_OUTLINES.clear();
 		geometryGeneration++;
 		lastSelectionRay = null;
 		lastSelectionPendingGlue = null;
@@ -2927,7 +2925,7 @@ public final class SurgicalTableClientHandler {
 		SurgicalCombination combination) {
 		return new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
 			hit.geometry.observedCubeCount, hit.geometry.seams, List.of(),
-			combinationOuterEdges(hit.tablePos, table, combination), false, true);
+			combinationCubeEdges(hit.tablePos, table, combination), false, true);
 	}
 
 	@Nullable
@@ -2962,14 +2960,14 @@ public final class SurgicalTableClientHandler {
 			bestDistance = distance;
 			List<SurgicalClientTopology.Edge> routedEdges = new ArrayList<>();
 			List<SurgicalClientTopology.Edge> routedCombinationEdges = new ArrayList<>(
-				combinationOuterEdges(hit.tablePos, table, combination));
+				combinationCubeEdges(hit.tablePos, table, combination));
 			SurgicalGlueJoint.Endpoint outside = combination.contains(joint.first().subjectKey(),
 				joint.first().cubeId()) ? joint.second() : joint.first();
 			SurgicalSubject outsideSubject = table.getSubjectByPersistentId(outside.subjectKey());
 			SurgicalCombination outsideCombination = outsideSubject == null ? null
 				: outsideSubject.combinationContaining(outside.cubeId());
 			if (outsideCombination != null)
-				routedCombinationEdges.addAll(combinationOuterEdges(
+				routedCombinationEdges.addAll(combinationCubeEdges(
 					hit.tablePos, table, outsideCombination));
 			else if (outsideSubject != null) {
 				TableGeometry outsideGeometry = TABLES.get(new SubjectKey(hit.tablePos, outsideSubject.id()));
@@ -3125,8 +3123,9 @@ public final class SurgicalTableClientHandler {
 			SurgicalAssembly.Seam.of(0, 1), List.of(
 				new SurgicalModelRenderContext.CubeGeometry(0, first.corners()),
 				new SurgicalModelRenderContext.CubeGeometry(1, second.corners())));
-		List<SurgicalClientTopology.Edge> cubeEdges =
-			SurgicalClientTopology.outerEdges(List.of(first, second));
+		List<SurgicalClientTopology.Edge> cubeEdges = new ArrayList<>(24);
+		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(first));
+		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(second));
 		Selection selection = new Selection(tablePos, geometry.subjectId, jointId,
 			geometry.observedCubeCount, geometry.seams, contact == null ? List.of() : contact.edges(),
 			List.copyOf(cubeEdges), true);
@@ -3299,7 +3298,7 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static SelectionHighlightEdges connectedSelectionEdges(BlockPos tablePos,
 		SurgicalTableBlockEntity table, Map<Integer, BitSet> components) {
-		List<SurgicalModelRenderContext.CubeGeometry> ordinaryCubes = new ArrayList<>();
+		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
 		List<SurgicalClientTopology.Edge> combinationEdges = new ArrayList<>();
 		java.util.Set<UUID> collapsed = new java.util.HashSet<>();
 		for (Map.Entry<Integer, BitSet> entry : components.entrySet()) {
@@ -3318,12 +3317,11 @@ public final class SurgicalTableClientHandler {
 					if (member.subjectKey().equals(subject.persistentId()))
 						ordinary.clear(member.cubeId());
 				if (collapsed.add(combination.id()))
-					combinationEdges.addAll(combinationOuterEdges(tablePos, table, combination));
+					combinationEdges.addAll(combinationCubeEdges(tablePos, table, combination));
 			}
-			ordinaryCubes.addAll(geometry.componentCubes(ordinary));
+			edges.addAll(geometry.componentCubeEdges(ordinary));
 		}
-		return new SelectionHighlightEdges(SurgicalClientTopology.outerEdges(ordinaryCubes),
-			combinationEdges);
+		return new SelectionHighlightEdges(edges, combinationEdges);
 	}
 
 	private static boolean combinationFullySelected(SurgicalTableBlockEntity table,
@@ -3337,18 +3335,10 @@ public final class SurgicalTableClientHandler {
 		return true;
 	}
 
-	private static List<SurgicalClientTopology.Edge> combinationOuterEdges(BlockPos tablePos,
+	/** Uses the ordinary per-cube wireframe for honey combinations; only its colour is special. */
+	private static List<SurgicalClientTopology.Edge> combinationCubeEdges(BlockPos tablePos,
 		SurgicalTableBlockEntity table, SurgicalCombination combination) {
-		CombinationOutlineKey key = new CombinationOutlineKey(tablePos, combination.id());
-		// The outline is a union contour over the member cubes, which is superlinear in cube count, so
-		// it must survive everything except those cubes actually moving. Keying it on the global
-		// geometry generation instead threw it away whenever any table in the world was touched.
-		long transformSignature = combinationTransformSignature(tablePos, table, combination);
-		CombinationOutlineCache cached = COMBINATION_OUTLINES.get(key);
-		if (cached != null && cached.tableRevision == table.clientDataRevision()
-			&& cached.transformSignature == transformSignature)
-			return cached.edges;
-		List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>();
+		List<SurgicalClientTopology.Edge> edges = new ArrayList<>(combination.members().size() * 12);
 		for (SurgicalCombination.Member member : combination.members()) {
 			SurgicalSubject subject = table.getSubjectByPersistentId(member.subjectKey());
 			TableGeometry geometry = subject == null ? null
@@ -3356,33 +3346,9 @@ public final class SurgicalTableClientHandler {
 			SurgicalModelRenderContext.CubeGeometry cube = geometry == null ? null
 				: geometry.cubesById.get(member.cubeId());
 			if (cube != null)
-				cubes.add(cube);
+				edges.addAll(SurgicalClientTopology.cubeEdges(cube));
 		}
-		List<SurgicalClientTopology.Edge> edges = outerEdgesForCubes(cubes);
-		COMBINATION_OUTLINES.put(key, new CombinationOutlineCache(table.clientDataRevision(),
-			transformSignature, edges));
-		return edges;
-	}
-
-	/** Identifies the exact transform state every member cube of one combination was last drawn at. */
-	private static long combinationTransformSignature(BlockPos tablePos, SurgicalTableBlockEntity table,
-		SurgicalCombination combination) {
-		long signature = 1L;
-		for (SurgicalCombination.Member member : combination.members()) {
-			SurgicalSubject subject = table.getSubjectByPersistentId(member.subjectKey());
-			TableGeometry geometry = subject == null ? null
-				: TABLES.get(new SubjectKey(tablePos, subject.id()));
-			signature = signature * 31L + (geometry == null ? 0L : geometry.transformGeneration + 1L);
-		}
-		return signature;
-	}
-
-	private static List<SurgicalClientTopology.Edge> outerEdgesForCubes(
-		List<SurgicalModelRenderContext.CubeGeometry> cubes) {
-		long started = SurgicalProfiler.begin();
-		List<SurgicalClientTopology.Edge> edges = SurgicalClientTopology.outerEdges(cubes);
-		SurgicalProfiler.end("outerEdges", started);
-		return edges;
+		return List.copyOf(edges);
 	}
 
 	@Nullable
@@ -3403,16 +3369,40 @@ public final class SurgicalTableClientHandler {
 			return null;
 		Map<Integer, BitSet> direct = table.directConnections(hit.geometry.subjectId, hit.cubeId,
 			hit.geometry.observedCubeCount, hit.geometry.seams);
-		SelectionHighlightEdges highlighted = direct.isEmpty() ? null
-			: connectedSelectionEdges(hit.tablePos, table, direct);
-		if (highlighted == null)
+		List<SurgicalClientTopology.Edge> connectedEdges = direct.isEmpty() ? null
+			: directConnectionEdges(hit, table, direct);
+		SurgicalModelRenderContext.CubeGeometry hitCube = hit.geometry.cubesById.get(hit.cubeId);
+		if (connectedEdges == null || hitCube == null)
 			return null;
 		Selection selection = new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
-			hit.geometry.observedCubeCount, hit.geometry.seams, List.of(), highlighted.cubeEdges,
-			highlighted.combinationEdges, false, false);
+			hit.geometry.observedCubeCount, hit.geometry.seams,
+			SurgicalClientTopology.cubeEdges(hitCube), connectedEdges);
 		directSelectionCache = new CubeSelectionCache(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
 			table.clientDataRevision(), hit.geometry.renderRevision, selection);
 		return selection;
+	}
+
+	/** Shift-shears renders every one-hop neighbour blue while reserving red for the hit cube. */
+	@Nullable
+	private static List<SurgicalClientTopology.Edge> directConnectionEdges(CubeHit hit,
+		SurgicalTableBlockEntity table, Map<Integer, BitSet> direct) {
+		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
+		for (Map.Entry<Integer, BitSet> entry : direct.entrySet()) {
+			SurgicalSubject subject = table.getSubject(entry.getKey());
+			TableGeometry geometry = TABLES.get(new SubjectKey(hit.tablePos, entry.getKey()));
+			if (subject == null || geometry == null || !geometry.topologyReady()
+				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
+				return null;
+			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
+				cube = entry.getValue().nextSetBit(cube + 1)) {
+				if (entry.getKey() == hit.geometry.subjectId && cube == hit.cubeId)
+					continue;
+				SurgicalModelRenderContext.CubeGeometry connected = geometry.cubesById.get(cube);
+				if (connected != null)
+					edges.addAll(SurgicalClientTopology.cubeEdges(connected));
+			}
+		}
+		return List.copyOf(edges);
 	}
 
 	@Nullable
@@ -4223,24 +4213,24 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private List<SurgicalClientTopology.Edge> cubeEdges(SurgicalAssembly.Seam seam) {
-			List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>(2);
+			List<SurgicalClientTopology.Edge> edges = new ArrayList<>(24);
 			SurgicalModelRenderContext.CubeGeometry first = cubesById.get(seam.first());
 			SurgicalModelRenderContext.CubeGeometry second = cubesById.get(seam.second());
 			if (first != null)
-				cubes.add(first);
+				edges.addAll(SurgicalClientTopology.cubeEdges(first));
 			if (second != null)
-				cubes.add(second);
-			return SurgicalClientTopology.outerEdges(cubes);
+				edges.addAll(SurgicalClientTopology.cubeEdges(second));
+			return List.copyOf(edges);
 		}
 
-		private List<SurgicalModelRenderContext.CubeGeometry> componentCubes(BitSet component) {
-			List<SurgicalModelRenderContext.CubeGeometry> cubes = new ArrayList<>(component.cardinality());
+		private List<SurgicalClientTopology.Edge> componentCubeEdges(BitSet component) {
+			List<SurgicalClientTopology.Edge> edges = new ArrayList<>(component.cardinality() * 12);
 			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1)) {
 				SurgicalModelRenderContext.CubeGeometry geometry = cubesById.get(cube);
 				if (geometry != null)
-					cubes.add(geometry);
+					edges.addAll(SurgicalClientTopology.cubeEdges(geometry));
 			}
-			return List.copyOf(cubes);
+			return List.copyOf(edges);
 		}
 
 		private static Map<Integer, SurgicalModelRenderContext.CubeGeometry> indexCubes(
@@ -4298,11 +4288,13 @@ public final class SurgicalTableClientHandler {
 		}
 	}
 
-	/** Reuses Create outline objects and only rewrites geometry/colour when the selection changes. */
+	/** Keeps one joined edge mesh per colour and only rewrites it when the selection changes. */
 	private static final class OutlineState {
-		private final List<Object> slots = new ArrayList<>();
+		private final Object slot = new Object();
+		private final SurgicalEdgeOutline outline = new SurgicalEdgeOutline();
 		private final float lineWidth;
 		private List<SurgicalClientTopology.Edge> edges = List.of();
+		private int color = -1;
 		private long lastRefreshTick = Long.MIN_VALUE;
 
 		private OutlineState() {
@@ -4314,38 +4306,35 @@ public final class SurgicalTableClientHandler {
 		}
 
 		private void show(List<SurgicalClientTopology.Edge> nextEdges, int color) {
-			nextEdges = SurgicalClientTopology.distinctEdges(nextEdges);
+			if (nextEdges.isEmpty()) {
+				clear();
+				return;
+			}
 			ClientLevel level = Minecraft.getInstance().level;
 			long tick = level == null ? Long.MIN_VALUE : level.getGameTime();
-			if (edges.equals(nextEdges)) {
+			if (edges.equals(nextEdges) && this.color == color) {
 				if (tick != lastRefreshTick) {
-					for (int edge = 0; edge < edges.size(); edge++)
-						Outliner.getInstance().keep(slots.get(edge));
+					Outliner.getInstance().keep(slot);
 					lastRefreshTick = tick;
 				}
 				return;
 			}
 
-			int previousCount = edges.size();
-			int edgeCount = nextEdges.size();
-			while (slots.size() < edgeCount)
-				slots.add(new Object());
-			for (int edge = 0; edge < edgeCount; edge++)
-				Outliner.getInstance()
-					.showLine(slots.get(edge), nextEdges.get(edge).start(), nextEdges.get(edge).end())
-					.lineWidth(lineWidth)
-					.disableLineNormals()
-					.colored(color);
-			for (int edge = edgeCount; edge < previousCount; edge++)
-				Outliner.getInstance().remove(slots.get(edge));
+			outline.setEdges(nextEdges);
+			Outliner.getInstance().showOutline(slot, outline)
+				.lineWidth(lineWidth)
+				.disableLineNormals()
+				.colored(color);
 			edges = List.copyOf(nextEdges);
+			this.color = color;
 			lastRefreshTick = tick;
 		}
 
 		private void clear() {
-			for (int edge = 0; edge < edges.size(); edge++)
-				Outliner.getInstance().remove(slots.get(edge));
+			if (!edges.isEmpty())
+				Outliner.getInstance().remove(slot);
 			edges = List.of();
+			color = -1;
 			lastRefreshTick = Long.MIN_VALUE;
 		}
 	}
@@ -4391,11 +4380,6 @@ public final class SurgicalTableClientHandler {
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
 	private record PackedBodyMeasurement(List<SlimeBionicAnimator.SourceState> sources,
 		SurgicalBodyBounds.Envelope visible) {}
-
-	private record CombinationOutlineKey(BlockPos tablePos, UUID combinationId) {}
-
-	private record CombinationOutlineCache(int tableRevision, long transformSignature,
-		List<SurgicalClientTopology.Edge> edges) {}
 
 	private record SelectionHighlightEdges(List<SurgicalClientTopology.Edge> cubeEdges,
 		List<SurgicalClientTopology.Edge> combinationEdges) {
