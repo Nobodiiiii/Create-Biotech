@@ -73,9 +73,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private boolean cachedConnectionValid;
 	@Nullable
 	private SurgicalTablePlane.Plane serverPlane;
-	private long serverPlaneTick = Long.MIN_VALUE;
 	private int serverPlaneLayout = -1;
-	private long consolidatedPlaneTick = Long.MIN_VALUE;
+	private int consolidatedPlaneLayout = -1;
 	private int consolidatedPlaneTiles = -1;
 	@Nullable
 	private SurgicalConnectionGraph<UUID> variantConnectionGraph;
@@ -93,6 +92,24 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {}
+
+	/**
+	 * A loading tile can reshape every cached plane in two ways: it may carry subjects that belong to
+	 * the controller, and it may complete a surface that {@link SurgicalTablePlane#scan} previously
+	 * stopped short of, because that scan drops neighbours in unloaded chunks without reporting the
+	 * result as incomplete. Cached planes outlive a tick, so both have to invalidate them.
+	 */
+	@Override
+	public void initialize() {
+		invalidateTableLayout();
+		super.initialize();
+	}
+
+	@Override
+	public void onChunkUnloaded() {
+		super.onChunkUnloaded();
+		invalidateTableLayout();
+	}
 
 	@Override
 	public void lazyTick() {
@@ -152,14 +169,15 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	/**
 	 * The server asks for the same plane repeatedly inside a single edit: once in the packet handler
 	 * and again from every validator that needs the occupied footprints. Each scan is a BFS over the
-	 * whole connected surface, so on a wide table that dominated the edit. A cached plane is reused
-	 * within one tick, and only while no surgical table block has been added or removed since.
+	 * whole connected surface, so on a wide table that dominated the edit. The scan result is a pure
+	 * function of the surrounding block layout and of which neighbouring chunks are loaded, so the
+	 * cache is keyed on {@link #tableLayoutRevision} alone; that counter is bumped on block
+	 * placement and removal and, because {@link SurgicalTablePlane#scan} silently stops at an
+	 * unloaded neighbour, on table block entity load and unload as well.
 	 */
 	private SurgicalTablePlane.Plane getServerPlane() {
-		long now = level.getGameTime();
-		if (serverPlane == null || serverPlaneTick != now || serverPlaneLayout != tableLayoutRevision) {
+		if (serverPlane == null || serverPlaneLayout != tableLayoutRevision) {
 			serverPlane = SurgicalTablePlane.scan(level, worldPosition);
-			serverPlaneTick = now;
 			serverPlaneLayout = tableLayoutRevision;
 		}
 		return serverPlane;
@@ -2205,12 +2223,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return;
 		// controller() runs this on every plane lookup, and one edit looks the plane up two or three
 		// times; each pass is a block-entity fetch for every tile of the surface. Subjects can only
-		// appear on a non-source tile when the plane's block layout changes, so a result from this same
-		// tick still holds. The tile count is compared as well so a mid-tick layout change is not missed.
-		long now = level.getGameTime();
-		if (controller.consolidatedPlaneTick == now
-			&& controller.consolidatedPlaneTiles == plane.tiles().size()
-			&& controller.serverPlaneLayout == tableLayoutRevision)
+		// appear on a non-source tile when the plane's block layout changes or when a tile that
+		// already holds them loads, and both bump the layout revision, so a result carried over from
+		// an earlier tick still holds. The tile count is compared as well so a layout change that
+		// happens to land on the same revision is not missed.
+		if (controller.consolidatedPlaneLayout == tableLayoutRevision
+			&& controller.consolidatedPlaneTiles == plane.tiles().size())
 			return;
 		boolean changed = false;
 		for (BlockPos tile : plane.tiles()) {
@@ -2222,7 +2240,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			other.setChangedAndSync();
 			changed = true;
 		}
-		controller.consolidatedPlaneTick = now;
+		controller.consolidatedPlaneLayout = tableLayoutRevision;
 		controller.consolidatedPlaneTiles = plane.tiles().size();
 		if (changed)
 			controller.setChangedAndSync();

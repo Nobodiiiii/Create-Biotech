@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.fluid;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 
@@ -14,31 +17,45 @@ import net.neoforged.fml.common.EventBusSubscriber;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class LiquidLivingSlimeInteractionHandler {
 
-	private static final String WAS_TOUCHING_LIQUID_LIVING_SLIME_KEY =
-		CreateBiotech.MOD_ID + ".was_touching_liquid_living_slime";
-	private static final String PREVIOUS_VERTICAL_SPEED_KEY =
-		CreateBiotech.MOD_ID + ".previous_liquid_living_slime_vertical_speed";
 	private static final double LANDING_VERTICAL_SPEED_THRESHOLD = -0.16D;
+
+	/**
+	 * Descent speed of entities that were falling fast enough to land, measured on the last tick
+	 * they were still outside the fluid. This is per-tick scratch with no reason to survive a save,
+	 * so it deliberately does not live in persistent data: this handler sees every living entity in
+	 * the level on every tick, and touching {@code getPersistentData()} there allocates a tag for
+	 * every entity in the world and grows it on disk forever. Keys are weak so an entity removed
+	 * mid-fall drops out on its own.
+	 */
+	private static final Map<LivingEntity, Double> DESCENDING = new WeakHashMap<>();
 
 	private LiquidLivingSlimeInteractionHandler() {}
 
 	@SubscribeEvent
 	public static void onLivingTick(EntityTickEvent.Post event) {
-		if (!(event.getEntity() instanceof LivingEntity entity))
+		if (!(event.getEntity() instanceof LivingEntity entity) || entity.level().isClientSide)
 			return;
-		boolean wasTouchingLiquidLivingSlime =
-			entity.getPersistentData().getBoolean(WAS_TOUCHING_LIQUID_LIVING_SLIME_KEY);
-		double previousVerticalSpeed = entity.getPersistentData().getDouble(PREVIOUS_VERTICAL_SPEED_KEY);
+
+		// getFluidTypeHeight reads NeoForge's per-tick fluid cache, making it the cheapest available
+		// discriminator. Entities that are neither in the fluid nor descending fast enough to ever
+		// produce a landing - nearly all of them - leave here without touching the map.
 		boolean touchingLiquidLivingSlime =
 			entity.getFluidTypeHeight(CBFluids.LIQUID_LIVING_SLIME_TYPE.get()) > 0.0D;
+		double verticalSpeed = entity.getDeltaMovement().y;
 
-		if (!entity.level().isClientSide && touchingLiquidLivingSlime && !wasTouchingLiquidLivingSlime
-			&& previousVerticalSpeed < LANDING_VERTICAL_SPEED_THRESHOLD) {
-			playLandingSound(entity, previousVerticalSpeed);
+		if (touchingLiquidLivingSlime) {
+			// An entry exists only if the previous tick found this entity outside the fluid and
+			// descending past the threshold, which is exactly the original entry condition.
+			Double descentSpeed = DESCENDING.isEmpty() ? null : DESCENDING.remove(entity);
+			if (descentSpeed != null)
+				playLandingSound(entity, descentSpeed);
+			return;
 		}
 
-		entity.getPersistentData().putBoolean(WAS_TOUCHING_LIQUID_LIVING_SLIME_KEY, touchingLiquidLivingSlime);
-		entity.getPersistentData().putDouble(PREVIOUS_VERTICAL_SPEED_KEY, entity.getDeltaMovement().y);
+		if (verticalSpeed < LANDING_VERTICAL_SPEED_THRESHOLD)
+			DESCENDING.put(entity, verticalSpeed);
+		else if (!DESCENDING.isEmpty())
+			DESCENDING.remove(entity);
 	}
 
 	private static void playLandingSound(LivingEntity entity, double previousVerticalSpeed) {

@@ -29,9 +29,6 @@ public final class SurgicalClientTopology {
 		{0, 2, 3, 1}, {4, 5, 7, 6}
 	};
 	private static final double COMPONENT_OFFSET = 1.0d / 16.0d;
-	private static final double LAYOUT_QUANTUM = 1.0d / 1024.0d;
-	private static final double SEPARATION_GAP = SurgicalTableLayout.COMPONENT_CLEARANCE;
-	private static final int MAX_LAYOUT_SEARCH_NODES = 8192;
 	private static final int MAX_BATCH_LAYOUT_SEARCH_NODES = 262_144;
 	private static final double BATCH_CUT_CLEARANCE = SurgicalTableLayout.COMPONENT_CLEARANCE;
 	private static final double BATCH_CUT_MIN_TRAVEL = 1.0d / 16.0d;
@@ -137,12 +134,19 @@ public final class SurgicalClientTopology {
 
 		PreparedCube smaller = first.volume <= second.volume ? first : second;
 		PreparedCube other = smaller == first ? second : first;
-		List<Plane> intersectionPlanes = new ArrayList<>(first.planes.size() + second.planes.size());
-		intersectionPlanes.addAll(first.planes);
-		intersectionPlanes.addAll(second.planes);
-		List<List<Vec3>> intersectionFaces = convexIntersectionFaces(intersectionPlanes);
-		if (!intersectionFaces.isEmpty())
-			return new Contact(seam, smaller.geometry.cubeId(), intersectionFaces);
+		// A pair whose bounds are disjoint cannot share an intersection solid, and
+		// convexIntersectionFaces is a C(12,3) triple loop allocating several Vec3 per triple. The
+		// seam builder deliberately admits merely tolerance-adjacent neighbours, so the empty result
+		// is the common case; those pairs now fall straight through to the planar fallback below,
+		// which is where they were always resolved. Same rejection cubesActuallyIntersect makes.
+		if (first.bounds.overlapsWithin(second.bounds, POLYHEDRON_EPSILON)) {
+			List<Plane> intersectionPlanes = new ArrayList<>(first.planes.size() + second.planes.size());
+			intersectionPlanes.addAll(first.planes);
+			intersectionPlanes.addAll(second.planes);
+			List<List<Vec3>> intersectionFaces = convexIntersectionFaces(intersectionPlanes);
+			if (!intersectionFaces.isEmpty())
+				return new Contact(seam, smaller.geometry.cubeId(), intersectionFaces);
+		}
 
 		// Keep near-adjacent model parts connected. This is deliberately a planar
 		// fallback: only real overlap is represented by the complete intersection solid.
@@ -311,161 +315,6 @@ public final class SurgicalClientTopology {
 		return Map.copyOf(offsets);
 	}
 
-	/** Replays cuts in order and lays every separated component out without overlap. */
-	public static Map<Integer, Vec3> componentOffsets(int cubeCount, BitSet presentCubes,
-		List<SurgicalAssembly.Seam> seams, BitSet cutSeams,
-		List<SurgicalModelRenderContext.CubeGeometry> cubes, List<Integer> cutOrder, Vec3 tableCenter) {
-		if (!SurgicalAssembly.validTopology(cubeCount, seams) || cutSeams.isEmpty())
-			return Map.of();
-
-		Map<Integer, SurgicalModelRenderContext.CubeGeometry> byId = byId(cubes);
-		if (byId.size() < presentCubes.cardinality())
-			return Map.of();
-		Map<Integer, Bounds> baseBounds = new HashMap<>();
-		for (Map.Entry<Integer, SurgicalModelRenderContext.CubeGeometry> entry : byId.entrySet())
-			baseBounds.put(entry.getKey(), Bounds.of(entry.getValue()));
-
-		List<Integer> normalizedOrder = SurgicalAssembly.normalizeCutOrder(cutOrder, cutSeams, seams.size());
-		BitSet appliedCuts = new BitSet(seams.size());
-		Map<Integer, Vec3> offsets = new HashMap<>();
-		for (int seamId : normalizedOrder) {
-			appliedCuts.set(seamId);
-			SurgicalAssembly.Seam seam = seams.get(seamId);
-			if (!presentCubes.get(seam.first()) || !presentCubes.get(seam.second()))
-				continue;
-
-			BitSet firstComponent = SurgicalAssembly.componentContaining(cubeCount, presentCubes,
-				seams, appliedCuts, seam.first());
-			BitSet secondComponent = SurgicalAssembly.componentContaining(cubeCount, presentCubes,
-				seams, appliedCuts, seam.second());
-			if (firstComponent.isEmpty() || secondComponent.isEmpty() || firstComponent.equals(secondComponent))
-				continue;
-
-			Vec3 firstCenter = componentCenter(firstComponent, byId, offsets);
-			Vec3 secondCenter = componentCenter(secondComponent, byId, offsets);
-			double firstDistance = firstCenter.distanceToSqr(tableCenter);
-			double secondDistance = secondCenter.distanceToSqr(tableCenter);
-			Vec3 firstCubeCenter = center(byId.get(seam.first())).add(offsets.getOrDefault(seam.first(), Vec3.ZERO));
-			Vec3 secondCubeCenter = center(byId.get(seam.second())).add(offsets.getOrDefault(seam.second(), Vec3.ZERO));
-			boolean moveFirst = firstDistance > secondDistance;
-			if (Math.abs(firstDistance - secondDistance) < DISTANCE_EPSILON)
-				moveFirst = firstCubeCenter.distanceToSqr(tableCenter)
-					> secondCubeCenter.distanceToSqr(tableCenter);
-
-			BitSet movingComponent = moveFirst ? firstComponent : secondComponent;
-			Vec3 direction = moveFirst
-				? firstCubeCenter.subtract(secondCubeCenter)
-				: secondCubeCenter.subtract(firstCubeCenter);
-			direction = new Vec3(direction.x, 0.0d, direction.z);
-			if (direction.lengthSqr() < DISTANCE_EPSILON) {
-				Vec3 componentDirection = (moveFirst ? firstCenter : secondCenter)
-					.subtract(moveFirst ? secondCenter : firstCenter);
-				direction = new Vec3(componentDirection.x, 0.0d, componentDirection.z);
-			}
-			if (direction.lengthSqr() < DISTANCE_EPSILON)
-				direction = (seamId & 1) == 0 ? new Vec3(1.0d, 0.0d, 0.0d)
-					: new Vec3(0.0d, 0.0d, 1.0d);
-
-			Vec3 delta = findNonIntersectingOffset(movingComponent, presentCubes, baseBounds, offsets, direction);
-			if (delta.lengthSqr() <= DISTANCE_EPSILON)
-				continue;
-			for (int cube = movingComponent.nextSetBit(0); cube >= 0;
-				cube = movingComponent.nextSetBit(cube + 1))
-				offsets.put(cube, offsets.getOrDefault(cube, Vec3.ZERO).add(delta));
-		}
-		offsets.entrySet().removeIf(entry -> entry.getValue().lengthSqr() <= DISTANCE_EPSILON);
-		return Map.copyOf(offsets);
-	}
-
-	private static Vec3 findNonIntersectingOffset(BitSet moving, BitSet present,
-		Map<Integer, Bounds> baseBounds, Map<Integer, Vec3> offsets, Vec3 direction) {
-		int signX = direction.x > DISTANCE_EPSILON ? 1 : direction.x < -DISTANCE_EPSILON ? -1 : 0;
-		int signZ = direction.z > DISTANCE_EPSILON ? 1 : direction.z < -DISTANCE_EPSILON ? -1 : 0;
-		if (signX == 0 && signZ == 0)
-			signX = 1;
-
-		PriorityQueue<SearchPoint> frontier = new PriorityQueue<>(Comparator
-			.comparingDouble(SearchPoint::distanceSqr)
-			.thenComparingLong(SearchPoint::totalSteps)
-			.thenComparingLong(SearchPoint::xSteps)
-			.thenComparingLong(SearchPoint::zSteps));
-		Set<SearchPoint> visited = new HashSet<>();
-		frontier.add(new SearchPoint(0, 0));
-		int examined = 0;
-		while (!frontier.isEmpty() && examined++ < MAX_LAYOUT_SEARCH_NODES) {
-			SearchPoint point = frontier.remove();
-			if (!visited.add(point))
-				continue;
-			Vec3 candidate = point.offset(signX, signZ);
-			Collision collision = firstCollision(moving, present, baseBounds, offsets, candidate);
-			if (collision == null)
-				return candidate;
-
-			if (signX != 0) {
-				// Clearance is measured from the leading face, not the trailing one.
-				double extra = signX > 0
-					? collision.obstacle.maxX + SEPARATION_GAP - collision.moving.minX
-					: collision.moving.maxX + SEPARATION_GAP - collision.obstacle.minX;
-				frontier.add(new SearchPoint(quantizedSteps(point.x() + Math.max(extra, LAYOUT_QUANTUM)),
-					point.zSteps));
-			}
-			if (signZ != 0) {
-				double extra = signZ > 0
-					? collision.obstacle.maxZ + SEPARATION_GAP - collision.moving.minZ
-					: collision.moving.maxZ + SEPARATION_GAP - collision.obstacle.minZ;
-				frontier.add(new SearchPoint(point.xSteps,
-					quantizedSteps(point.z() + Math.max(extra, LAYOUT_QUANTUM))));
-			}
-		}
-		return fallbackOutsideAll(moving, present, baseBounds, offsets, direction, signX, signZ);
-	}
-
-	@Nullable
-	private static Collision firstCollision(BitSet moving, BitSet present, Map<Integer, Bounds> baseBounds,
-		Map<Integer, Vec3> offsets, Vec3 candidate) {
-		for (int movingCube = moving.nextSetBit(0); movingCube >= 0;
-			movingCube = moving.nextSetBit(movingCube + 1)) {
-			Bounds source = baseBounds.get(movingCube);
-			if (source == null)
-				continue;
-			Bounds moved = source.translate(offsets.getOrDefault(movingCube, Vec3.ZERO).add(candidate));
-			for (int obstacleCube = present.nextSetBit(0); obstacleCube >= 0;
-				obstacleCube = present.nextSetBit(obstacleCube + 1)) {
-				if (moving.get(obstacleCube))
-					continue;
-				Bounds obstacle = baseBounds.get(obstacleCube);
-				if (obstacle == null)
-					continue;
-				obstacle = obstacle.translate(offsets.getOrDefault(obstacleCube, Vec3.ZERO));
-				if (moved.conflictsHorizontally(obstacle))
-					return new Collision(moved, obstacle);
-			}
-		}
-		return null;
-	}
-
-	private static Vec3 fallbackOutsideAll(BitSet moving, BitSet present, Map<Integer, Bounds> baseBounds,
-		Map<Integer, Vec3> offsets, Vec3 direction, int signX, int signZ) {
-		Bounds movingBounds = unionBounds(moving, baseBounds, offsets);
-		BitSet obstacles = (BitSet) present.clone();
-		obstacles.andNot(moving);
-		Bounds obstacleBounds = unionBounds(obstacles, baseBounds, offsets);
-		if (movingBounds == null || obstacleBounds == null)
-			return Vec3.ZERO;
-
-		boolean useX = signX != 0 && (signZ == 0 || Math.abs(direction.x) >= Math.abs(direction.z));
-		if (useX) {
-			double distance = signX > 0
-				? obstacleBounds.maxX + SEPARATION_GAP - movingBounds.minX
-				: movingBounds.maxX + SEPARATION_GAP - obstacleBounds.minX;
-			return new Vec3(signX * quantizeUp(Math.max(distance, 0.0d)), 0.0d, 0.0d);
-		}
-		double distance = signZ > 0
-			? obstacleBounds.maxZ + SEPARATION_GAP - movingBounds.minZ
-			: movingBounds.maxZ + SEPARATION_GAP - obstacleBounds.minZ;
-		return new Vec3(0.0d, 0.0d, signZ * quantizeUp(Math.max(distance, 0.0d)));
-	}
-
 	@Nullable
 	private static Bounds unionBounds(BitSet cubes, Map<Integer, Bounds> baseBounds, Map<Integer, Vec3> offsets) {
 		Bounds result = null;
@@ -477,14 +326,6 @@ public final class SurgicalClientTopology {
 			result = result == null ? bounds : result.union(bounds);
 		}
 		return result;
-	}
-
-	private static long quantizedSteps(double distance) {
-		return Math.max(0L, (long) Math.ceil((distance - DISTANCE_EPSILON) / LAYOUT_QUANTUM));
-	}
-
-	private static double quantizeUp(double distance) {
-		return quantizedSteps(distance) * LAYOUT_QUANTUM;
 	}
 
 	/** Places a new subject on the nearest free 1/4-block slot to the supplied world-space target. */
@@ -1467,32 +1308,6 @@ public final class SurgicalClientTopology {
 				List.copyOf(clipPlanes(geometry)), Bounds.of(geometry));
 		}
 	}
-
-	private record SearchPoint(long xSteps, long zSteps) {
-		private double x() {
-			return xSteps * LAYOUT_QUANTUM;
-		}
-
-		private double z() {
-			return zSteps * LAYOUT_QUANTUM;
-		}
-
-		private double distanceSqr() {
-			double x = x();
-			double z = z();
-			return x * x + z * z;
-		}
-
-		private long totalSteps() {
-			return xSteps + zSteps;
-		}
-
-		private Vec3 offset(int signX, int signZ) {
-			return new Vec3(signX * x(), 0.0d, signZ * z());
-		}
-	}
-
-	private record Collision(Bounds moving, Bounds obstacle) {}
 
 	public record PlacementPlan(double originOffsetX, double originOffsetZ,
 		SurgicalTableLayout.Proposal proposal) {}

@@ -3459,16 +3459,19 @@ public final class SurgicalTableClientHandler {
 		CubeHit best = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Map.Entry<SubjectKey, TableGeometry> entry : TABLES.entrySet()) {
+			TableGeometry geometry = entry.getValue();
+			// The slab test allocates nothing and touches neither the world nor the subject, while
+			// matchesObservedTopology boxes a Long per seam. Both are pure rejections, so the free
+			// one runs first and the rest of the loop body is skipped for every table the ray misses.
+			if (geometry.bounds == null || !rayIntersectsBounds(ray, geometry.bounds, 1.0e-6d))
+				continue;
 			BlockPos pos = entry.getKey().tablePos;
 			if (!(level.getBlockEntity(pos) instanceof SurgicalTableBlockEntity table)
 				|| !table.hasSubject(entry.getKey().subjectId))
 				continue;
-			TableGeometry geometry = entry.getValue();
 			SurgicalSubject subject = table.getSubject(geometry.subjectId);
 			if (!geometry.topologyReady()
 				|| subject == null || !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
-				continue;
-			if (geometry.bounds == null || !rayIntersectsBounds(ray, geometry.bounds, 1.0e-6d))
 				continue;
 			for (CubeTarget target : geometry.cubeTargets) {
 				SurgicalModelRenderContext.CubeGeometry cube = target.geometry;
