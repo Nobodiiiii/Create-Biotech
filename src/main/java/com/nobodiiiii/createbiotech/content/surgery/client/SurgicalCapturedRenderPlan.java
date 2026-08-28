@@ -66,6 +66,8 @@ public final class SurgicalCapturedRenderPlan {
 	// value directly would otherwise make every recorded vertex permanently glow.
 	private static final int CAPTURE_LIGHT = LightTexture.pack(7, 11);
 	private static final float SLIME_CENTER_Y = 20.0f / 16.0f;
+	/** Total render-only size removed from each local axis of the translucent slime shell. */
+	private static final float OUTER_SHELL_SHRINK = 0.002f;
 	private static final float THIN_EDGE = 0.05f / 16.0f;
 	private static final float OVERLAY_EXPANSION_MAX = 1.1f / 16.0f;
 	private static final float OVERLAY_CENTER_EPSILON = 0.1f / 16.0f;
@@ -991,10 +993,13 @@ public final class SurgicalCapturedRenderPlan {
 			transformedPose.mul(basePose);
 			cubePose.mulPose(transformedPose);
 
+			float aScale = slimeAxisScale(a, outer);
+			float bScale = slimeAxisScale(b, outer);
+			float cScale = slimeAxisScale(c, outer);
 			Matrix4f transform = new Matrix4f().identity();
-			transform.m00(2.0f * a.x).m01(2.0f * a.y).m02(2.0f * a.z);
-			transform.m10(2.0f * b.x).m11(2.0f * b.y).m12(2.0f * b.z);
-			transform.m20(2.0f * c.x).m21(2.0f * c.y).m22(2.0f * c.z);
+			transform.m00(aScale * a.x).m01(aScale * a.y).m02(aScale * a.z);
+			transform.m10(bScale * b.x).m11(bScale * b.y).m12(bScale * b.z);
+			transform.m20(cScale * c.x).m21(cScale * c.y).m22(cScale * c.z);
 			transform.m30(center.x).m31(center.y).m32(center.z);
 			cubePose.mulPose(transform);
 			cubePose.translate(0.0f, -SLIME_CENTER_Y, 0.0f);
@@ -1005,6 +1010,21 @@ public final class SurgicalCapturedRenderPlan {
 					batches.getFirst().vertices.getFirst().overlayV);
 			VertexConsumer consumer = buffer.getBuffer(outer ? OUTER_RENDER_TYPE : INNER_RENDER_TYPE);
 			(outer ? outerCube() : innerCube()).render(cubePose, consumer, packedLight, overlay, 0xFFFFFFFF);
+		}
+
+		/**
+		 * The baked outer slime cube spans half a model unit, so a multiplier of two fits it
+		 * exactly to the captured component. Pulling each local axis in by a fixed world-space
+		 * amount keeps adjacent components visually joined without changing their topology.
+		 */
+		private static float slimeAxisScale(Vector3f axis, boolean outer) {
+			if (!outer)
+				return 2.0f;
+			float length = axis.length();
+			if (length <= POSITION_EPSILON)
+				return 2.0f;
+			float renderedLength = Math.max(length - OUTER_SHELL_SHRINK, POSITION_EPSILON);
+			return 2.0f * renderedLength / length;
 		}
 
 		private SurgicalModelRenderContext.CubeGeometry geometry(PoseStack poseStack, @Nullable Vec3 offset,
@@ -1053,13 +1073,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center) {
-			RenderType offsetRenderType = renderType;
-			ResourceLocation texture = renderTypeTexture(renderType);
-			// Vanilla profession/type layers use this memoized cutout type. Match by identity so
-			// translucent, emissive and other special-material overlays retain their original state.
-			if (texture != null && renderType == RenderType.entityCutoutNoCull(texture))
-				offsetRenderType = RenderType.entityCutoutNoCullZOffset(texture);
-			render(poseStack, buffer, packedLight, offset, rotation, center, offsetRenderType);
+			render(poseStack, buffer, packedLight, offset, rotation, center, renderType);
 		}
 
 		private void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, @Nullable Vec3 offset,
