@@ -647,7 +647,7 @@ public final class SurgicalTableClientHandler {
 		}
 		SurgicalClientTopology.PlacementPlan plan;
 		DiscoveredPlacement discovered = DiscoveredPlacement.EMPTY;
-		EntityGeometry.Bounds localBounds = placementGeometry.bounds();
+		AABB localBounds = placementGeometry.bounds();
 		SurgicalModelRenderContext.CubeGeometry renderedBounds = boundsGeometry(localBounds,
 			Vec3.atLowerCornerOf(ownerPos));
 		if (source.assembly == null) {
@@ -2827,14 +2827,14 @@ public final class SurgicalTableClientHandler {
 		return SurgicalTablePlane.occupiedFootprints(level, plane, table.connectedSubjectIds(subjectId));
 	}
 
-	private static SurgicalModelRenderContext.CubeGeometry boundsGeometry(EntityGeometry.Bounds bounds,
+	private static SurgicalModelRenderContext.CubeGeometry boundsGeometry(AABB bounds,
 		Vec3 worldOffset) {
 		List<Vec3> corners = new ArrayList<>(8);
 		for (int z = 0; z < 2; z++)
 			for (int y = 0; y < 2; y++)
 				for (int x = 0; x < 2; x++)
-					corners.add(new Vec3(x == 0 ? bounds.minX() : bounds.maxX(),
-						y == 0 ? bounds.minY() : bounds.maxY(), z == 0 ? bounds.minZ() : bounds.maxZ())
+					corners.add(new Vec3(x == 0 ? bounds.minX : bounds.maxX,
+						y == 0 ? bounds.minY : bounds.maxY, z == 0 ? bounds.minZ : bounds.maxZ)
 						.add(worldOffset));
 		return new SurgicalModelRenderContext.CubeGeometry(0, corners);
 	}
@@ -2848,6 +2848,32 @@ public final class SurgicalTableClientHandler {
 			translated.add(cube.withCorners(
 				cube.corners().stream().map(corner -> corner.add(offset)).toList()));
 		return List.copyOf(translated);
+	}
+
+	/**
+	 * Expands a logical model envelope from captured component corners. Render batches are
+	 * deliberately not consulted here: translucent-shell shrink, surface overlays and other
+	 * presentation-only geometry must never alter table fit or persisted occupied footprints.
+	 */
+	@Nullable
+	private static AABB logicalBounds(List<SurgicalModelRenderContext.CubeGeometry> cubes,
+		Map<Integer, Vec3> offsets) {
+		if (cubes.isEmpty())
+			return null;
+		AABB bounds = null;
+		for (SurgicalModelRenderContext.CubeGeometry cube : cubes) {
+			Vec3 offset = offsets.getOrDefault(cube.cubeId(), Vec3.ZERO);
+			for (Vec3 corner : cube.corners()) {
+				double x = corner.x + offset.x;
+				double y = corner.y + offset.y;
+				double z = corner.z + offset.z;
+				if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z))
+					return null;
+				AABB point = new AABB(x, y, z, x, y, z);
+				bounds = bounds == null ? point : bounds.minmax(point);
+			}
+		}
+		return bounds;
 	}
 
 	private static void showNoSpace(@Nullable LocalPlayer player) {
@@ -3245,8 +3271,9 @@ public final class SurgicalTableClientHandler {
 	/** Runs the same rest-pose render used by the packed entity, once, while generating it. */
 	@Nullable
 	private static PackedBodyMeasurement measurePackedBody(SurgicalAssembly assembly) {
-		EntityGeometry.Collector visible = EntityGeometry.Collector.boundsOnly();
-		MultiBufferSource measuringBuffer = renderType -> visible;
+		EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
+		MultiBufferSource discardedBuffer = renderType -> discarded;
+		AABB logicalEnvelope = null;
 		List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>(assembly.sources().size());
 		PoseStack poseStack = new PoseStack();
 		SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
@@ -3262,20 +3289,24 @@ public final class SurgicalTableClientHandler {
 			if (assembly.preservesLayout())
 				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(entity,
-				source.cubeCount(), source.presentCubes(), offsets, rotations, poseStack, measuringBuffer,
+				source.cubeCount(), source.presentCubes(), offsets, rotations, poseStack, discardedBuffer,
 				LightTexture.FULL_BRIGHT, 0.0f, 0.0f, true, null, false);
 			poseStack.popPose();
 			if (snapshot.observedCubeCount() != source.cubeCount()
 				|| snapshot.cubes().size() != source.presentCubes().cardinality())
 				return null;
+			AABB sourceBounds = logicalBounds(snapshot.cubes(), Map.of());
+			if (sourceBounds == null)
+				return null;
+			logicalEnvelope = logicalEnvelope == null ? sourceBounds : logicalEnvelope.minmax(sourceBounds);
 			sources.add(new SlimeBionicAnimator.SourceState(
 				SlimeBionicAnimator.measure(snapshot), offsets, rotations));
 		}
-		if (!visible.hasVertices())
+		if (logicalEnvelope == null)
 			return null;
-		EntityGeometry.Bounds bounds = visible.bounds();
-		SurgicalBodyBounds.Envelope envelope = new SurgicalBodyBounds.Envelope(bounds.minX(),
-			bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ());
+		SurgicalBodyBounds.Envelope envelope = new SurgicalBodyBounds.Envelope(logicalEnvelope.minX,
+			logicalEnvelope.minY, logicalEnvelope.minZ, logicalEnvelope.maxX, logicalEnvelope.maxY,
+			logicalEnvelope.maxZ);
 		return new PackedBodyMeasurement(List.copyOf(sources), envelope);
 	}
 
@@ -4476,7 +4507,7 @@ public final class SurgicalTableClientHandler {
 		}
 	}
 
-	private record PlacementGeometry(EntityGeometry.Bounds bounds, SurgicalLayPose layPose,
+	private record PlacementGeometry(AABB bounds, SurgicalLayPose layPose,
 		Map<Integer, Vec3> cubeOffsets, List<SourcePlacementGeometry> sources,
 		int discoveredCubeCount, List<SurgicalAssembly.Seam> discoveredSeams,
 		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes) {
@@ -4558,12 +4589,12 @@ public final class SurgicalTableClientHandler {
 			SurgicalTablePoseResolver.SurgicalPose resolved =
 				SurgicalTablePoseResolver.resolve(this, profile, entity, facing);
 			resolved.apply(poseStack);
-			EntityGeometry.Collector sink = EntityGeometry.Collector.boundsOnly();
-			MultiBufferSource measuringBuffer = renderType -> sink;
+			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
+			MultiBufferSource discardedBuffer = renderType -> discarded;
 			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(entity,
-				cubeCount(), presentCubes(), Map.of(), poseStack, measuringBuffer, LightTexture.FULL_BRIGHT,
+				cubeCount(), presentCubes(), Map.of(), poseStack, discardedBuffer, LightTexture.FULL_BRIGHT,
 				0.0f, 0.0f, true, null, projectSourceGeometry);
-			if (!sink.hasVertices())
+			if (snapshot.cubes().isEmpty())
 				return null;
 			int discoveredCubeCount = 0;
 			List<SurgicalAssembly.Seam> discoveredSeams = List.of();
@@ -4580,18 +4611,9 @@ public final class SurgicalTableClientHandler {
 			}
 
 			Map<Integer, Vec3> cubeOffsets = groundedOffsets(snapshot);
-			EntityGeometry.Bounds bounds = sink.bounds();
-			if (!cubeOffsets.isEmpty()) {
-				sink.reset();
-				poseStack = new PoseStack();
-				resolved.apply(poseStack);
-				SurgicalSourceModelRenderer.render(entity, cubeCount(), presentCubes(), cubeOffsets, poseStack,
-					measuringBuffer, LightTexture.FULL_BRIGHT, 0.0f, 0.0f, false, null,
-					projectSourceGeometry);
-				if (!sink.hasVertices())
-					return null;
-				bounds = sink.bounds();
-			}
+			AABB bounds = logicalBounds(snapshot.cubes(), cubeOffsets);
+			if (bounds == null)
+				return null;
 			measuredFacing = facing;
 			measuredSourceGeometry = projectSourceGeometry;
 			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of(),
@@ -4603,8 +4625,6 @@ public final class SurgicalTableClientHandler {
 		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry) {
 			if (assembly == null)
 				return null;
-			EntityGeometry.Collector combined = EntityGeometry.Collector.boundsOnly();
-			MultiBufferSource combinedBuffer = renderType -> combined;
 			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
 			MultiBufferSource discardedBuffer = renderType -> discarded;
 			List<SourcePlacementGeometry> geometries = new ArrayList<>(assembly.sources().size());
@@ -4628,15 +4648,7 @@ public final class SurgicalTableClientHandler {
 				geometries.add(new SourcePlacementGeometry(placedSource, snapshot.cubes(), renderOffsets,
 					renderOffsets, placedSource.cubeRotations()));
 				discarded.reset();
-
-				poseStack = sourcePose(placedSource, entity);
-				SurgicalSourceModelRenderer.render(entity, source.cubeCount(), source.presentCubes(),
-					renderOffsets, placedSource.cubeRotations(), poseStack, combinedBuffer,
-					LightTexture.FULL_BRIGHT,
-					0.0f, 0.0f, false, null, projectSourceGeometry);
 			}
-			if (!combined.hasVertices())
-				return null;
 			List<SurgicalClientTopology.GroundingBody<Integer>> bodies = new ArrayList<>(geometries.size());
 			for (int sourceId = 0; sourceId < geometries.size(); sourceId++) {
 				SourcePlacementGeometry geometry = geometries.get(sourceId);
@@ -4669,7 +4681,16 @@ public final class SurgicalTableClientHandler {
 				previewGeometries.add(new SourcePlacementGeometry(geometry.placedSource(), geometry.baseCubes(),
 					geometry.renderOffsets(), previewOffsets, geometry.renderRotations()));
 			}
-			return new PlacementGeometry(combined.bounds(), assembly.placedLayPose(facing), Map.of(),
+			AABB bounds = null;
+			for (SourcePlacementGeometry geometry : previewGeometries) {
+				AABB sourceBounds = logicalBounds(geometry.baseCubes(), geometry.previewOffsets());
+				if (sourceBounds == null)
+					return null;
+				bounds = bounds == null ? sourceBounds : bounds.minmax(sourceBounds);
+			}
+			if (bounds == null)
+				return null;
+			return new PlacementGeometry(bounds, assembly.placedLayPose(facing), Map.of(),
 				previewGeometries, 0, List.of(), List.of());
 		}
 
