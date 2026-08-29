@@ -120,10 +120,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		}
 		preparation.sort(Comparator.comparingDouble(RenderCandidate::distanceToCameraSqr));
 		for (RenderCandidate candidate : preparation) {
-			SurgicalSubject subject = candidate.subject;
-			if (!SurgicalTableClientHandler.needsGeometryUpdate(table, subject))
-				continue;
-			if (!prepareSubjectGeometry(table, subject, poseStack, camera))
+			if (!prepareSubjectGeometry(table, candidate.subject, poseStack, camera))
 				break;
 		}
 		SurgicalTableClientHandler.completePlacementHandoffIfReady(table);
@@ -154,12 +151,23 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 	/** Returns false only when this frame's main-thread cold-build budget is exhausted. */
 	private static boolean prepareSubjectGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
 		PoseStack poseStack, Vec3 camera) {
+		// Called unconditionally, exactly as before: needsGeometryUpdate() is what drives refresh(),
+		// which polls pending async topology and reports this subject's render bounds. Gating it behind
+		// plan state could shrink the table's accumulated bounds until the block entity culled itself
+		// out of the very render pass that would have restored them.
+		boolean geometryUpdate = SurgicalTableClientHandler.needsGeometryUpdate(table, subject);
 		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject.profile());
 		if (preview == null)
 			return true;
 		SurgicalSourceModelRenderer.RenderPlanState planState =
 			SurgicalSourceModelRenderer.renderPlanState(preview, 0.0f);
 		if (planState == SurgicalSourceModelRenderer.RenderPlanState.PENDING)
+			return true;
+		// The plan LRU is independent of the geometry cache, so a subject whose geometry is still valid
+		// can nonetheless have lost its plan to eviction. Resubmitting it here is what keeps
+		// renderSubject() on the cached path instead of plan()'s synchronous capture, so the geometry
+		// check may only skip preparation once the plan is known to be live.
+		if (planState == SurgicalSourceModelRenderer.RenderPlanState.READY && !geometryUpdate)
 			return true;
 		if (!claimColdBuildSlot())
 			return false;
@@ -185,6 +193,14 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		for (int subjectId : group) {
 			SurgicalSubject connected = table.getSubject(subjectId);
 			if (connected == null || !SurgicalTableClientHandler.isRenderReady(table, connected))
+				return false;
+			// Geometry readiness and plan readiness are separate caches, and renderSubject() needs both.
+			// A cached snapshot whose plan has been evicted is precisely the case that used to fall
+			// through to the synchronous capture, so hold the group back one frame and let the
+			// preparation pass above resubmit the plan asynchronously instead.
+			LivingEntity preview = SurgicalSourceModelRenderer.preview(connected.profile());
+			if (preview != null && SurgicalSourceModelRenderer.renderPlanState(preview, 0.0f)
+				!= SurgicalSourceModelRenderer.RenderPlanState.READY)
 				return false;
 		}
 		return true;

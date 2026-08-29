@@ -11,8 +11,14 @@ import java.util.function.Supplier;
 
 /** Bounded workers for immutable surgical render/topology data. */
 final class SurgicalClientExecutors {
-	private static final int WORKERS = Math.max(1,
-		Math.min(2, Runtime.getRuntime().availableProcessors() / 2));
+	/**
+	 * Cold builds arrive in bursts - a table with many subjects coming into view - and then stop, so
+	 * the pool is sized for the burst rather than for steady state. Two workers serialised an entire
+	 * queue of captures behind them; the upper cap keeps this below-normal-priority pool from crowding
+	 * the render and chunk-build threads on smaller machines.
+	 */
+	private static final int WORKERS = Math.max(2,
+		Math.min(6, Runtime.getRuntime().availableProcessors() / 2));
 	private static final AtomicInteger THREAD_IDS = new AtomicInteger();
 	private static final ThreadFactory THREAD_FACTORY = task -> {
 		Thread thread = new Thread(task,

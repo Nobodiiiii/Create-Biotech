@@ -168,9 +168,11 @@ public final class SurgicalSourceModelRenderer {
 			RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
 			SurgicalCapturedRenderPlan plan = completedPlan(key);
 			if (plan == null) {
-				PendingRenderPlan pending = PENDING_RENDER_PLANS.remove(key);
-				if (pending != null)
-					pending.future.cancel(false);
+				// Deliberately leave any in-flight build alone. cancel(false) cannot stop a worker that
+				// has already started, so cancelling only discarded a result that was often milliseconds
+				// from completion while the thread kept running - paying for the same plan twice and
+				// stalling this frame either way. collectCompletedPlans() harvests the duplicate on a
+				// later frame and overwrites this entry with an equal, immutable plan.
 				long started = SurgicalProfiler.begin();
 				plan = SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick, true);
 				SurgicalProfiler.end("capture(plan)", started);
@@ -196,7 +198,11 @@ public final class SurgicalSourceModelRenderer {
 		if (profile == null)
 			return RenderPlanState.MISSING;
 		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
-		if (RENDER_PLANS.containsKey(key))
+		// get(), not containsKey(): RENDER_PLANS is an access-ordered LRU and only get() marks an entry
+		// as recently used. Probing with containsKey() left a plan looking stale to the eviction policy
+		// however often it was asked about, so the very plan a visible subject checks every frame could
+		// still be evicted - and plan() would then rebuild it synchronously on the render thread.
+		if (RENDER_PLANS.get(key) != null)
 			return RenderPlanState.READY;
 		return PENDING_RENDER_PLANS.containsKey(key) ? RenderPlanState.PENDING : RenderPlanState.MISSING;
 	}

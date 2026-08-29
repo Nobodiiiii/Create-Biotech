@@ -4044,9 +4044,32 @@ public final class SurgicalTableClientHandler {
 			}
 
 			if (subject.cubeCount() == observedCubeCount && !seams.equals(subject.seams())) {
-				seams = List.copyOf(subject.seams());
-				seamIds = seamIds(seams);
-				baseContacts = SurgicalClientTopology.contactsFor(seams, baseCubes);
+				List<SurgicalAssembly.Seam> updatedSeams = List.copyOf(subject.seams());
+				seams = updatedSeams;
+				seamIds = seamIds(updatedSeams);
+				if (observedCubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
+					// The same deferral updateGeometry() applies to a first build. contactsFor() runs a
+					// C(12,3) convex clip per seam over up to MAX_SEAMS seams, and this path had no
+					// threshold at all - so a server seam update on a large body solved the entire
+					// contact set inline on the render thread. Publish an empty set now and let
+					// resolvePendingTopology() adopt the real one; topologyReady() keeps consumers off
+					// it in the meantime, exactly as it does for a cold build.
+					List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(baseCubes);
+					baseContacts = List.of();
+					topologyAvailable = false;
+					topologyBuild = () -> {
+						long started = SurgicalProfiler.begin();
+						try {
+							return new SurgicalClientTopology.ContactTopology(updatedSeams,
+								SurgicalClientTopology.contactsFor(updatedSeams, frozenCubes));
+						} finally {
+							SurgicalProfiler.end("contactsFor(async)", started);
+						}
+					};
+					pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
+				} else {
+					baseContacts = SurgicalClientTopology.contactsFor(updatedSeams, baseCubes);
+				}
 				cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
 			}
 			presentCubes = subject.presentCubesForRender(observedCubeCount);
