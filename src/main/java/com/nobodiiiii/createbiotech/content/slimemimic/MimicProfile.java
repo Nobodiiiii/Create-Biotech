@@ -9,6 +9,9 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.collect.Interner;
+import com.google.common.collect.Interners;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -59,8 +62,22 @@ public final class MimicProfile {
 		entry(EntityType.WOLF, List.of("variant"))
 	);
 
-	private final ResourceLocation entityTypeId;
-	private final CompoundTag stableData;
+	/**
+	 * Canonical pool for decoded profiles.
+	 *
+	 * <p>Every surgical subject decodes its own profile, so the parts cut from one creature end up
+	 * holding equal but distinct instances. That matters because a profile is a render-cache key:
+	 * {@code equals} short-circuits on identity, but across two instances it has to walk the entire
+	 * preview NBT, and the shared render-plan cache is looked up several times per subject per frame.
+	 * Interning on decode makes all of them the same object, turning those comparisons into pointer
+	 * checks and collapsing the duplicated tags to one copy.
+	 *
+	 * <p>Weak, so a profile is collected as soon as nothing references it; equal profiles are
+	 * interchangeable by definition, since this type is immutable and compares by full content.
+	 */
+	private static final Interner<MimicProfile> POOL = Interners.newWeakInterner();
+
+	private final ResourceLocation entityTypeId;	private final CompoundTag stableData;
 	private final CompoundTag previewData;
 	@Nullable
 	private final Boolean baby;
@@ -103,7 +120,7 @@ public final class MimicProfile {
 			copyVillagerType(completeData, stableData);
 
 		Boolean baby = entity instanceof Mob && !(entity instanceof AgeableMob) ? entity.isBaby() : null;
-		return new MimicProfile(entityTypeId, stableData, sanitizePreviewData(completeData), baby);
+		return POOL.intern(new MimicProfile(entityTypeId, stableData, sanitizePreviewData(completeData), baby));
 	}
 
 	@Nullable
@@ -125,7 +142,7 @@ public final class MimicProfile {
 		CompoundTag previewData = version >= 2 && tag.contains(PREVIEW_DATA_TAG, Tag.TAG_COMPOUND)
 			? sanitizePreviewData(tag.getCompound(PREVIEW_DATA_TAG)) : new CompoundTag();
 		Boolean baby = tag.contains(BABY_TAG, Tag.TAG_BYTE) ? tag.getBoolean(BABY_TAG) : null;
-		return new MimicProfile(entityTypeId, stableData, previewData, baby);
+		return POOL.intern(new MimicProfile(entityTypeId, stableData, previewData, baby));
 	}
 
 	public CompoundTag save() {

@@ -213,6 +213,11 @@ def configureQuickPlayClientTask = { Exec task, boolean onlineBuild, boolean smo
     if (project.hasProperty('height')) {
         command += ['--height', project.property('height').toString()]
     }
+    if (project.hasProperty('jvmArg')) {
+        project.property('jvmArg').toString().split(';').findAll { !it.isEmpty() }.each {
+            command += ['--jvm-arg', it]
+        }
+    }
 
     task.commandLine command
 }

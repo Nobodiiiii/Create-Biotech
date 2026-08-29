@@ -38,6 +38,10 @@ DEFAULT_SMOKE_LOG_LINES = 160
 POST_ENTRY_SETTLE_SECONDS = 2.0
 QUICKPLAY_MODS_DIR = PROJECT_ROOT / "build" / "quickplay" / "mods"
 
+# Extra -D/-X flags for the game JVM, filled from --jvm-arg. Kept module level because
+# build_jvm_args sits behind three launch paths that would all need the parameter threaded through.
+EXTRA_JVM_ARGS: list[str] = []
+
 SUCCESS_PATTERNS = (
     re.compile(r"\[Server thread/INFO\](?: \[[^\]]+\])?: .+ logged in with entity id "),
     re.compile(r"\[Server thread/INFO\](?: \[[^\]]+\])?: .+ joined the game"),
@@ -187,6 +191,7 @@ def build_jvm_args(version_data: dict, instance_dir: Path, classpath: str) -> li
     log4j_config = instance_dir / "log4j2.xml"
     if log4j_config.exists():
         args.append(f"-Dlog4j.configurationFile={log4j_config}")
+    args.extend(EXTRA_JVM_ARGS)
     return args
 
 
@@ -525,11 +530,20 @@ def main() -> int:
     parser.add_argument("--smoke-log-lines", type=int, default=DEFAULT_SMOKE_LOG_LINES)
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     parser.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
+    parser.add_argument(
+        "--jvm-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="Extra flag for the game JVM, repeatable. "
+             "Example: --jvm-arg=-Dcreate_biotech.surgery.profile=true",
+    )
     args = parser.parse_args()
     if args.smoke_timeout <= 0:
         parser.error("--smoke-timeout must be greater than 0")
     if args.smoke_log_lines <= 0:
         parser.error("--smoke-log-lines must be greater than 0")
+    EXTRA_JVM_ARGS.extend(args.jvm_arg)
 
     game_directory = resolve_game_directory(args.instance)
     saves_dir = game_directory / "saves"

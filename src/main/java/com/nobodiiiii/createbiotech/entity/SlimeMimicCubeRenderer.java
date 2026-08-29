@@ -44,7 +44,7 @@ public class SlimeMimicCubeRenderer extends EntityRenderer<SlimeMimicCubeEntity>
 		if (cached == null || !cached.profile.equals(profile) || cached.cube != entity.cube()
 			|| !cached.initialFrame.equals(initialFrame)) {
 			SurgicalModelRenderContext.CubeGeometry geometry =
-				SurgicalSourceModelRenderer.singleCubeGeometry(entity, profile, entity.cube());
+				SurgicalSourceModelRenderer.singleCubeGeometry(profile, entity.cube());
 			if (geometry == null)
 				return;
 			cached = new CachedCube(profile, entity.cube(), initialFrame,
@@ -58,7 +58,7 @@ public class SlimeMimicCubeRenderer extends EntityRenderer<SlimeMimicCubeEntity>
 
 		poseStack.pushPose();
 		poseStack.mulPose(transform);
-		SurgicalSourceModelRenderer.renderSingleCube(entity, profile, entity.cube(), poseStack,
+		SurgicalSourceModelRenderer.renderSingleCube(profile, entity.cube(), poseStack,
 			buffer, packedLight);
 		poseStack.popPose();
 		super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);

@@ -885,7 +885,7 @@ public final class SurgicalTableClientHandler {
 			SurgicalSubject subject = table.getSubject(moved.subjectId);
 			if (subject == null)
 				continue;
-			LivingEntity entity = SurgicalSourceModelRenderer.preview(subject.persistentId(), subject.profile());
+			LivingEntity entity = SurgicalSourceModelRenderer.preview(subject.profile());
 			if (entity == null)
 				continue;
 			poseStack.pushPose();
@@ -3281,7 +3281,7 @@ public final class SurgicalTableClientHandler {
 		PoseStack poseStack = new PoseStack();
 		SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
 		for (SurgicalAssembly.Source source : assembly.sources()) {
-			LivingEntity entity = SurgicalSourceModelRenderer.preview(assembly, source.profile());
+			LivingEntity entity = SurgicalSourceModelRenderer.preview(source.profile());
 			if (entity == null)
 				return null;
 			((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(true);
@@ -4598,7 +4598,7 @@ public final class SurgicalTableClientHandler {
 
 		@Nullable
 		private LivingEntity preview(MimicProfile sourceProfile) {
-			return SurgicalSourceModelRenderer.preview(this, sourceProfile);
+			return SurgicalSourceModelRenderer.preview(sourceProfile);
 		}
 
 		private boolean isComposite() {

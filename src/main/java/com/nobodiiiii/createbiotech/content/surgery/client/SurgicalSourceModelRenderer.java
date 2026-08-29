@@ -28,7 +28,13 @@ import net.minecraft.world.phys.Vec3;
 public final class SurgicalSourceModelRenderer {
 	private static final int MAX_RENDER_PLANS = 512;
 	private static final int MAX_PENDING_RENDER_PLANS = 64;
-	private static final Map<Object, Map<MimicProfile, CachedPreview>> PREVIEWS = new WeakHashMap<>();
+	/**
+	 * One preview per distinct appearance. A preview entity is a pure function of its profile - it is
+	 * never added to the level, carries no owner state, and {@link MimicProfile#createPreviewEntity}
+	 * fully determines it - so keying this per owner meant every part cut from one creature built and
+	 * held its own identical entity. Profiles are interned, so equal appearances land on one entry.
+	 */
+	private static final Map<MimicProfile, CachedPreview> PREVIEWS = new WeakHashMap<>();
 	private static final Map<LivingEntity, MimicProfile> PREVIEW_PROFILES = new WeakHashMap<>();
 	private static final Map<RenderPlanKey, SurgicalCapturedRenderPlan> RENDER_PLANS =
 		new LinkedHashMap<>(64, 0.75f, true) {
@@ -50,16 +56,14 @@ public final class SurgicalSourceModelRenderer {
 	}
 
 	@Nullable
-	public static LivingEntity preview(Object owner, MimicProfile profile) {
+	public static LivingEntity preview(MimicProfile profile) {
 		Minecraft minecraft = Minecraft.getInstance();
 		ClientLevel level = minecraft.level;
 		if (level == null)
 			return null;
 
-		Map<MimicProfile, CachedPreview> ownerPreviews = PREVIEWS.computeIfAbsent(owner,
-			ignored -> new java.util.HashMap<>());
-		CachedPreview cached = ownerPreviews.get(profile);
-		if (cached != null && cached.level == level && cached.profile.equals(profile))
+		CachedPreview cached = PREVIEWS.get(profile);
+		if (cached != null && cached.level == level)
 			return cached.entity;
 
 		long started = SurgicalProfiler.begin();
@@ -67,23 +71,23 @@ public final class SurgicalSourceModelRenderer {
 		SurgicalProfiler.end("createPreviewEntity", started);
 		if (entity == null)
 			return null;
-		ownerPreviews.put(profile, new CachedPreview(level, profile, entity));
+		PREVIEWS.put(profile, new CachedPreview(level, entity));
 		PREVIEW_PROFILES.put(entity, profile);
 		return entity;
 	}
 
-	public static SurgicalModelRenderContext.Snapshot render(Object owner, MimicProfile profile, int cubeCount,
+	public static SurgicalModelRenderContext.Snapshot render(MimicProfile profile, int cubeCount,
 		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition) {
-		return render(owner, profile, cubeCount, presentCubes, cubeOffsets, Map.of(), poseStack, buffer, packedLight,
+		return render(profile, cubeCount, presentCubes, cubeOffsets, Map.of(), poseStack, buffer, packedLight,
 			yaw, partialTick, collectGeometry, cameraPosition);
 	}
 
-	public static SurgicalModelRenderContext.Snapshot render(Object owner, MimicProfile profile, int cubeCount,
+	public static SurgicalModelRenderContext.Snapshot render(MimicProfile profile, int cubeCount,
 		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
 		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition) {
-		LivingEntity preview = preview(owner, profile);
+		LivingEntity preview = preview(profile);
 		if (preview == null)
 			return new SurgicalModelRenderContext.Snapshot(0, java.util.List.of());
 		return render(preview, cubeCount, presentCubes, cubeOffsets, cubeRotations, poseStack, buffer, packedLight,
@@ -137,9 +141,9 @@ public final class SurgicalSourceModelRenderer {
 	}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
-	public static SurgicalModelRenderContext.Snapshot renderSingleCube(Object owner, MimicProfile profile,
+	public static SurgicalModelRenderContext.Snapshot renderSingleCube(MimicProfile profile,
 		int cube, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		LivingEntity preview = preview(owner, profile);
+		LivingEntity preview = preview(profile);
 		if (preview == null)
 			return new SurgicalModelRenderContext.Snapshot(0, java.util.List.of());
 		preparePreview(preview, 0.0f);
@@ -148,9 +152,9 @@ public final class SurgicalSourceModelRenderer {
 
 	/** Returns the neutral-pose source geometry used to align one released cuboid to its entity. */
 	@Nullable
-	public static SurgicalModelRenderContext.CubeGeometry singleCubeGeometry(Object owner,
+	public static SurgicalModelRenderContext.CubeGeometry singleCubeGeometry(
 		MimicProfile profile, int cube) {
-		LivingEntity preview = preview(owner, profile);
+		LivingEntity preview = preview(profile);
 		if (preview == null)
 			return null;
 		preparePreview(preview, 0.0f);
@@ -345,7 +349,11 @@ public final class SurgicalSourceModelRenderer {
 		SurgicalCapturedRenderPlan.clearResources();
 	}
 
-	private record CachedPreview(ClientLevel level, MimicProfile profile, LivingEntity entity) {}
+	/**
+	 * Deliberately does not hold its profile: the profile is this entry's key in a weak map, so a
+	 * reference from the value back to it would pin every entry forever.
+	 */
+	private record CachedPreview(ClientLevel level, LivingEntity entity) {}
 
 	private record RenderPlanKey(MimicProfile profile, EntityRenderer<LivingEntity> renderer, int yawBits) {}
 

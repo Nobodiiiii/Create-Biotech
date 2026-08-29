@@ -154,7 +154,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 	/** Returns false only when this frame's main-thread cold-build budget is exhausted. */
 	private static boolean prepareSubjectGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,
 		PoseStack poseStack, Vec3 camera) {
-		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject.persistentId(), subject.profile());
+		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject.profile());
 		if (preview == null)
 			return true;
 		SurgicalSourceModelRenderer.RenderPlanState planState =
@@ -194,7 +194,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight, boolean projectSourceGeometry,
 		Vec3 camera) {
 		MimicProfile profile = subject.profile();
-		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject.persistentId(), profile);
+		LivingEntity preview = SurgicalSourceModelRenderer.preview(profile);
 		if (preview == null)
 			return;
 

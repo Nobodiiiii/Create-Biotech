@@ -92,7 +92,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			}
 			COMPOSITE_GEOMETRY.remove(entity);
 			poseStack.pushPose();
-			LivingEntity preview = SurgicalSourceModelRenderer.preview(entity, assembly.profile());
+			LivingEntity preview = SurgicalSourceModelRenderer.preview(assembly.profile());
 			boolean slimeForm = SlimeMimicHandler.isSlimeMimic(entity);
 			if (preview != null)
 				((SlimeMimicAccess) (Object) preview).createBiotech$setSlimeMimic(true);
@@ -301,7 +301,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		List<SurgicalAssembly.Source> sources = assembly.sources();
 		for (int index = 0; index < sources.size(); index++) {
 			SurgicalAssembly.Source source = sources.get(index);
-			LivingEntity preview = SurgicalSourceModelRenderer.preview(entity, source.profile());
+			LivingEntity preview = SurgicalSourceModelRenderer.preview(source.profile());
 			if (preview == null) {
 				if (restStates != null)
 					restStates.add(new SlimeBionicAnimator.SourceState(Map.of(), Map.of(), Map.of()));
