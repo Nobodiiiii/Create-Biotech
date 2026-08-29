@@ -7,8 +7,10 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
+import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
 import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
@@ -45,7 +47,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.common.Tags;
 
-/** A real, walking entity whose visible body is supplied by a surgical assembly. */
+/** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob {
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
@@ -85,6 +87,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		// The bionic body begins in the same synced slime state used by ordinary mimics.
 		// Loading a cured entity can still restore this value to false from its saved data.
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(true);
+		moveControl = new SlimeBionicMoveControl(this);
 		setPersistenceRequired();
 	}
 
@@ -123,6 +126,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	protected void updateWalkAnimation(float movement) {
+		if (getLocomotionLegCount() < 2) {
+			walkAnimation.update(0.0f, 0.4f);
+			return;
+		}
 		// Vanilla clamps movement * 4 to 1, so speeds above roughly 0.25 blocks/tick cannot raise
 		// cadence. Preserve the full configured bionic range and let the renderer cap swing angle.
 		float animationSpeed = Math.min(movement * 4.0f, SurgicalGait.MAX_WALK_ANIMATION_SPEED);
@@ -167,6 +174,18 @@ public class SlimeBionicEntity extends PathfinderMob {
 			cachedAssembly = SurgicalAssembly.load(encoded);
 		}
 		return cachedAssembly;
+	}
+
+	/** Hip joints are authoritative leg roots; a knee only articulates the hip chain that owns it. */
+	public int getLocomotionLegCount() {
+		SurgicalAssembly assembly = getAssembly();
+		if (assembly == null)
+			return 0;
+		int legs = 0;
+		for (SurgicalAssembly.Limb limb : assembly.limbs())
+			if (limb.type() == SurgicalLimbType.HIP)
+				legs++;
+		return legs;
 	}
 
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */

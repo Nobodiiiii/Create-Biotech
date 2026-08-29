@@ -70,21 +70,17 @@ public final class SlimeBionicAnimations {
 		rotations.put(Bone.HEAD, Rotation.of(model.head));
 		rotations.put(Bone.RIGHT_SHOULDER, Rotation.of(model.rightArm));
 		rotations.put(Bone.LEFT_SHOULDER, Rotation.of(model.leftArm));
-		rotations.put(Bone.RIGHT_HIP, Rotation.of(model.rightLeg));
-		rotations.put(Bone.LEFT_HIP, Rotation.of(model.leftLeg));
-		addLowerLimbPose(rotations, context);
+		addElbowPose(rotations, context);
 		addArticulatedAttackPose(rotations, context);
 		return new Pose(rotations);
 	}
 
-	/** Maledictus-inspired alternating flexion, expressed locally beneath each upper limb. */
-	private static void addLowerLimbPose(EnumMap<Bone, Rotation> rotations, Context context) {
+	/** Maledictus-inspired arm flexion, expressed locally beneath each upper arm. */
+	private static void addElbowPose(EnumMap<Bone, Rotation> rotations, Context context) {
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
 		if (weight <= 0.0f) {
 			rotations.put(Bone.RIGHT_ELBOW, Rotation.IDENTITY);
 			rotations.put(Bone.LEFT_ELBOW, Rotation.IDENTITY);
-			rotations.put(Bone.RIGHT_KNEE, Rotation.IDENTITY);
-			rotations.put(Bone.LEFT_KNEE, Rotation.IDENTITY);
 			return;
 		}
 
@@ -94,15 +90,29 @@ public final class SlimeBionicAnimations {
 			MIN_WALK_ELBOW_DEGREES, MAX_WALK_ELBOW_DEGREES);
 		float leftElbowDegrees = Mth.lerp((1.0f + alternating) * 0.5f,
 			MIN_WALK_ELBOW_DEGREES, MAX_WALK_ELBOW_DEGREES);
-		float rightKneeDegrees = Mth.lerp(Math.max(0.0f, Mth.sin(phase)),
-			MIN_WALK_KNEE_DEGREES, MAX_WALK_KNEE_DEGREES);
-		float leftKneeDegrees = Mth.lerp(Math.max(0.0f, -Mth.sin(phase)),
-			MIN_WALK_KNEE_DEGREES, MAX_WALK_KNEE_DEGREES);
 
 		rotations.put(Bone.RIGHT_ELBOW, Rotation.x(-rightElbowDegrees * Mth.DEG_TO_RAD * weight));
 		rotations.put(Bone.LEFT_ELBOW, Rotation.x(-leftElbowDegrees * Mth.DEG_TO_RAD * weight));
-		rotations.put(Bone.RIGHT_KNEE, Rotation.x(rightKneeDegrees * Mth.DEG_TO_RAD * weight));
-		rotations.put(Bone.LEFT_KNEE, Rotation.x(leftKneeDegrees * Mth.DEG_TO_RAD * weight));
+	}
+
+	/**
+	 * Samples one dynamically assigned leg channel. The caller supplies a stable phase for the
+	 * complete hip/knee chain, so this same fixed curve works for every gait from two to eight feet.
+	 */
+	public static Rotation sampleLeg(Context context, boolean knee, float phaseOffset) {
+		if (context == null)
+			return Rotation.IDENTITY;
+		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
+		if (weight <= 0.0f)
+			return Rotation.IDENTITY;
+		float phase = context.limbSwing() * WALK_PHASE_SCALE + phaseOffset;
+		if (!knee) {
+			float swing = Mth.cos(phase) * 1.4f * context.limbSwingAmount();
+			return Rotation.x(swing);
+		}
+		float bend = Math.max(0.0f, Mth.sin(phase));
+		float degrees = Mth.lerp(bend, MIN_WALK_KNEE_DEGREES, MAX_WALK_KNEE_DEGREES);
+		return Rotation.x(degrees * Mth.DEG_TO_RAD * weight);
 	}
 
 	/** Retimes the selected authored attack to the entity's synced attack-cadence window. */
@@ -178,11 +188,7 @@ public final class SlimeBionicAnimations {
 		RIGHT_SHOULDER,
 		LEFT_SHOULDER,
 		RIGHT_ELBOW,
-		LEFT_ELBOW,
-		RIGHT_HIP,
-		LEFT_HIP,
-		RIGHT_KNEE,
-		LEFT_KNEE
+		LEFT_ELBOW
 	}
 
 	/** Which installed articulated arm performs the current one-handed attack. */
