@@ -23,6 +23,8 @@ import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
@@ -361,6 +363,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (subject == null || !subject.validPresentCube(cubeId))
 			return List.of();
 		return List.copyOf(limbsWithin(connectedGroup(subject, cubeId)));
+	}
+
+	/** All anatomical joints installed on this table, without the per-subject storage duplicates. */
+	public List<SurgicalLimbJoint> limbJoints() {
+		return List.copyOf(allLimbJoints());
 	}
 
 	public SurgicalTablePlacementResult tryPlaceSubject(ItemStack box, SurgicalTablePlane.Plane plane,
@@ -978,6 +985,39 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		player.displayClientMessage(Component.translatable(
 			"message.create_biotech.surgical_table.limb_attached_" + type.id()), true);
 		return true;
+	}
+
+	/** Removes one server-authoritative joint and returns its item, following Create's wrench pickup rules. */
+	public boolean detachLimb(Player player, SurgicalLimbJoint joint) {
+		if (joint == null || !allLimbJoints().contains(joint))
+			return false;
+		SurgicalSubject child = getSubjectByPersistentId(joint.child().subjectKey());
+		SurgicalSubject parent = getSubjectByPersistentId(joint.parent().subjectKey());
+		if (child == null || parent == null || !child.validPresentCube(joint.child().cubeId())
+			|| !parent.validPresentCube(joint.parent().cubeId()))
+			return false;
+
+		Set<SurgicalLimbJoint> removed = Set.of(joint);
+		for (SurgicalSubject subject : subjects)
+			subject.removeLimbJoints(removed);
+		if (!player.getAbilities().instabuild)
+			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
+		setChangedAndSync();
+		if (level != null)
+			IWrenchable.playRemoveSound(level, worldPosition);
+		player.displayClientMessage(Component.translatable(
+			"message.create_biotech.surgical_table.limb_detached_" + joint.type().id()), true);
+		return true;
+	}
+
+	private static ItemStack limbItem(SurgicalLimbType type) {
+		return switch (type) {
+		case NECK -> new ItemStack(CBItems.NECK_JOINT.get());
+		case SHOULDER -> new ItemStack(CBItems.SHOULDER_JOINT.get());
+		case ELBOW -> new ItemStack(CBItems.ELBOW_JOINT.get());
+		case HIP -> new ItemStack(CBItems.HIP_JOINT.get());
+		case KNEE -> new ItemStack(CBItems.KNEE_JOINT.get());
+		};
 	}
 
 	private boolean refuse(Player player, String message) {

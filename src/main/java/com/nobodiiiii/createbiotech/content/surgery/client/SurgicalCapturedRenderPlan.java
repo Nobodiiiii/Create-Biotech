@@ -12,6 +12,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
@@ -50,10 +51,12 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Immutable, model-library-neutral output of one living-entity render.
  *
- * <p>The source renderer is executed once into a recording buffer. Consecutive six-quad
+ * <p>The source renderer is executed once into a recording buffer. Complete and partial
  * cuboids are recovered from the final vertex stream, deduplicated across base and layer
- * passes, and assigned stable surgical ids. Everything else is retained as original
- * geometry. This deliberately observes only the public {@link VertexConsumer} contract;
+ * passes, and assigned stable surgical ids. Remaining connected model-textured quad islands
+ * receive a synthetic oriented bounding box unless they are an exact surface overlay.
+ * Everything else is retained as original geometry. This deliberately observes only the public
+ * {@link VertexConsumer} contract;
  * vanilla {@code ModelPart}, third-party model libraries and hand-written render layers require no
  * individual model bridge.</p>
  */
@@ -81,6 +84,7 @@ public final class SurgicalCapturedRenderPlan {
 	private static final float OVERLAY_EXPANSION_MAX = 1.1f / 16.0f;
 	private static final float OVERLAY_CENTER_EPSILON = 0.1f / 16.0f;
 	private static final float PARALLEL_DOT_MIN = 0.999f;
+	private static final float SYNTHETIC_PARALLEL_DOT_MIN = 0.995f;
 	private static final float POSITION_EPSILON = 2.0e-5f;
 	private static final float POSITION_QUANTIZATION = 100_000.0f;
 
@@ -327,6 +331,7 @@ public final class SurgicalCapturedRenderPlan {
 		List<ObservedCube> observedCubes, boolean topology) {
 		Map<GeometryKey, List<ComponentBuilder>> recovered = new LinkedHashMap<>();
 		List<SourceBatch> extras = new ArrayList<>();
+		List<PendingQuad> pendingQuads = new ArrayList<>();
 		int order = 0;
 
 		for (CaptureStream stream : streams) {
@@ -338,19 +343,23 @@ public final class SurgicalCapturedRenderPlan {
 			}
 
 			int cursor = 0;
-			while (cursor + 24 <= vertices.size()) {
-				List<CapturedVertex> candidateVertices = vertices.subList(cursor, cursor + 24);
-				RecoveredCuboid cuboid = recoverCuboid(candidateVertices);
-				if (cuboid == null) {
-					addVisibleQuadExtra(stream.renderType, vertices, cursor, extras);
+			while (cursor + 4 <= vertices.size()) {
+				RecoveredCandidate candidate = recoverCandidate(vertices, cursor);
+				if (candidate == null) {
+					List<CapturedVertex> quad = vertices.subList(cursor, cursor + 4);
+					if (quadVisible(stream.renderType, quad))
+						pendingQuads.add(new PendingQuad(stream.id, stream.renderType,
+							List.copyOf(quad), order++));
 					cursor += 4;
 					continue;
 				}
 
+				List<CapturedVertex> candidateVertices = candidate.vertices;
+				RecoveredCuboid cuboid = candidate.cuboid;
 				GeometryKey key = GeometryKey.of(cuboid.corners);
 				List<ComponentBuilder> matches = recovered.computeIfAbsent(key, ignored -> new ArrayList<>());
 				ComponentBuilder builder = matches.stream()
-					.filter(candidate -> !candidate.captureStreams.get(stream.id))
+					.filter(match -> !match.captureStreams.get(stream.id))
 					.findFirst()
 					.orElse(null);
 				if (builder == null) {
@@ -362,16 +371,44 @@ public final class SurgicalCapturedRenderPlan {
 				builder.observeMaterial(stream.renderType);
 				if (hasVisibleQuad(stream.renderType, candidateVertices))
 					builder.addVisibleBatch(stream.renderType, candidateVertices);
-				cursor += 24;
-			}
-
-			while (cursor + 4 <= vertices.size()) {
-				addVisibleQuadExtra(stream.renderType, vertices, cursor, extras);
-				cursor += 4;
+				cursor += candidateVertices.size();
 			}
 			if (cursor < vertices.size())
 				extras.add(new SourceBatch(stream.renderType,
 					List.copyOf(vertices.subList(cursor, vertices.size())), false));
+		}
+
+		List<ComponentBuilder> recoveredBuilders = recovered.values().stream()
+			.flatMap(List::stream)
+			.toList();
+		for (PendingMesh mesh : connectedPendingMeshes(pendingQuads)) {
+			ComponentBuilder overlayOwner = surfaceOverlayOwner(mesh.vertices, recoveredBuilders);
+			if (overlayOwner != null) {
+				overlayOwner.addSurfaceOverlayBatch(mesh.renderType, mesh.vertices);
+				continue;
+			}
+
+			RecoveredCuboid bounds = syntheticBounds(mesh.vertices);
+			if (bounds == null || isFlat(bounds) && !sharesCapturedTexture(mesh.renderType, recoveredBuilders)) {
+				extras.add(new SourceBatch(mesh.renderType, mesh.vertices, false));
+				continue;
+			}
+
+			GeometryKey key = GeometryKey.of(bounds.corners);
+			List<ComponentBuilder> matches = recovered.computeIfAbsent(key, ignored -> new ArrayList<>());
+			ComponentBuilder builder = matches.stream()
+				.filter(candidate -> !candidate.captureStreams.get(mesh.streamId))
+				.findFirst()
+				.orElse(null);
+			if (builder == null) {
+				builder = new ComponentBuilder(mesh.order, bounds,
+					topology ? matchingModelCorners(bounds, key, observedCubes) : List.of(), topology);
+				matches.add(builder);
+				recoveredBuilders = recovered.values().stream().flatMap(List::stream).toList();
+			}
+			builder.captureStreams.set(mesh.streamId);
+			builder.observeMaterial(mesh.renderType);
+			builder.addVisibleBatch(mesh.renderType, mesh.vertices);
 		}
 
 		List<ComponentBuilder> visible = recovered.values().stream()
@@ -385,6 +422,223 @@ public final class SurgicalCapturedRenderPlan {
 			components.add(builder.build(id, shouldPreserveSource(builder, visible)));
 		}
 		return new SurgicalCapturedRenderPlan(components, extras);
+	}
+
+	/**
+	 * A normal model cube contributes six consecutive quads. Some renderers omit hidden or
+	 * unavailable faces, so also accept a shorter prefix when its vertices still describe faces of
+	 * one three-dimensional oriented box. A lone quad is deliberately left for the overlay/model
+	 * texture classifier: promoting every glyph and nameplate quad would turn effects into topology.
+	 */
+	@Nullable
+	private static RecoveredCandidate recoverCandidate(List<CapturedVertex> vertices, int cursor) {
+		int maxFaces = Math.min(6, (vertices.size() - cursor) / 4);
+		for (int faces = maxFaces; faces >= 2; faces--) {
+			List<CapturedVertex> candidate = vertices.subList(cursor, cursor + faces * 4);
+			RecoveredCuboid cuboid = recoverCuboid(candidate);
+			if (faces < 6 && cuboid != null
+				&& (isFlat(cuboid) || !facesBelongToOneBox(candidate)))
+				cuboid = null;
+			if (cuboid == null)
+				cuboid = recoverPartialCuboid(candidate);
+			if (cuboid != null)
+				return new RecoveredCandidate(cuboid, List.copyOf(candidate));
+		}
+		return null;
+	}
+
+	@Nullable
+	private static RecoveredCuboid recoverPartialCuboid(List<CapturedVertex> vertices) {
+		RecoveredCuboid bounds = syntheticBounds(vertices);
+		if (bounds == null || isFlat(bounds) || !facesBelongToOneBox(vertices))
+			return null;
+		for (int cursor = 0; cursor + 4 <= vertices.size(); cursor += 4) {
+			List<CapturedVertex> quad = vertices.subList(cursor, cursor + 4);
+			if (!isParallelogram(quad) || !quadOnBoundsFace(quad, bounds))
+				return null;
+		}
+		return bounds;
+	}
+
+	private static boolean facesBelongToOneBox(List<CapturedVertex> vertices) {
+		int faceCount = vertices.size() / 4;
+		if (faceCount < 2)
+			return false;
+		if (faceCount == 2) {
+			List<CapturedVertex> first = vertices.subList(0, 4);
+			List<CapturedVertex> second = vertices.subList(4, 8);
+			if (sharesEdge(first, second))
+				return true;
+			Vector3f firstNormal = quadNormal(first);
+			Vector3f secondNormal = quadNormal(second);
+			return firstNormal != null && secondNormal != null
+				&& firstNormal.dot(secondNormal) <= -SYNTHETIC_PARALLEL_DOT_MIN;
+		}
+
+		BitSet connected = new BitSet(faceCount);
+		connected.set(0);
+		for (int pass = 0; pass < faceCount; pass++) {
+			boolean changed = false;
+			for (int known = connected.nextSetBit(0); known >= 0; known = connected.nextSetBit(known + 1)) {
+				List<CapturedVertex> knownFace = vertices.subList(known * 4, known * 4 + 4);
+				for (int candidate = 0; candidate < faceCount; candidate++) {
+					if (connected.get(candidate))
+						continue;
+					List<CapturedVertex> candidateFace = vertices.subList(candidate * 4, candidate * 4 + 4);
+					if (!sharesEdge(knownFace, candidateFace))
+						continue;
+					connected.set(candidate);
+					changed = true;
+				}
+			}
+			if (!changed)
+				break;
+		}
+		return connected.cardinality() == faceCount;
+	}
+
+	private static List<PendingMesh> connectedPendingMeshes(List<PendingQuad> quads) {
+		List<PendingMesh> meshes = new ArrayList<>();
+		BitSet claimed = new BitSet(quads.size());
+		for (int start = 0; start < quads.size(); start++) {
+			if (claimed.get(start))
+				continue;
+			PendingQuad seed = quads.get(start);
+			claimed.set(start);
+			List<Integer> open = new ArrayList<>();
+			open.add(start);
+			List<CapturedVertex> vertices = new ArrayList<>(seed.vertices);
+			int order = seed.order;
+			for (int openIndex = 0; openIndex < open.size(); openIndex++) {
+				PendingQuad current = quads.get(open.get(openIndex));
+				for (int candidateIndex = start + 1; candidateIndex < quads.size(); candidateIndex++) {
+					if (claimed.get(candidateIndex))
+						continue;
+					PendingQuad candidate = quads.get(candidateIndex);
+					if (candidate.streamId != seed.streamId
+						|| !sharesEdge(current.vertices, candidate.vertices))
+						continue;
+					claimed.set(candidateIndex);
+					open.add(candidateIndex);
+					vertices.addAll(candidate.vertices);
+					order = Math.min(order, candidate.order);
+				}
+			}
+			meshes.add(new PendingMesh(seed.streamId, seed.renderType, List.copyOf(vertices), order));
+		}
+		return List.copyOf(meshes);
+	}
+
+	private static boolean sharesEdge(List<CapturedVertex> first, List<CapturedVertex> second) {
+		int matches = 0;
+		for (CapturedVertex left : first) {
+			for (CapturedVertex right : second) {
+				if (!samePosition(left, position(right)))
+					continue;
+				matches++;
+				break;
+			}
+		}
+		return matches >= 2;
+	}
+
+	private static boolean sharesCapturedTexture(RenderType renderType, List<ComponentBuilder> components) {
+		ResourceLocation texture = renderTypeTexture(renderType);
+		if (texture == null)
+			return false;
+		for (ComponentBuilder component : components)
+			for (SourceBatch batch : component.batches)
+				if (Objects.equals(texture, renderTypeTexture(batch.renderType)))
+					return true;
+		return false;
+	}
+
+	@Nullable
+	private static ComponentBuilder surfaceOverlayOwner(List<CapturedVertex> vertices,
+		List<ComponentBuilder> components) {
+		ComponentBuilder best = null;
+		float bestScore = Float.POSITIVE_INFINITY;
+		for (ComponentBuilder component : components) {
+			if (component.batches.isEmpty())
+				continue;
+			float score = surfaceOverlayScore(vertices, component.cuboid);
+			if (score < bestScore) {
+				best = component;
+				bestScore = score;
+			}
+		}
+		return best;
+	}
+
+	private static float surfaceOverlayScore(List<CapturedVertex> vertices, RecoveredCuboid cuboid) {
+		Vector3f origin = cuboid.corners.getFirst();
+		Vector3f[] edges = { cuboid.a, cuboid.b, cuboid.c };
+		Vector3f[] axes = new Vector3f[3];
+		float[] lengths = new float[3];
+		for (int axis = 0; axis < 3; axis++) {
+			lengths[axis] = edges[axis].length();
+			if (lengths[axis] <= POSITION_EPSILON)
+				return Float.POSITIVE_INFINITY;
+			axes[axis] = new Vector3f(edges[axis]).div(lengths[axis]);
+		}
+
+		float score = 0.0f;
+		for (int cursor = 0; cursor + 4 <= vertices.size(); cursor += 4) {
+			List<CapturedVertex> quad = vertices.subList(cursor, cursor + 4);
+			Vector3f normal = quadNormal(quad);
+			if (normal == null)
+				return Float.POSITIVE_INFINITY;
+			int planeAxis = -1;
+			float bestParallel = 0.0f;
+			for (int axis = 0; axis < 3; axis++) {
+				float parallel = Math.abs(normal.dot(axes[axis]));
+				if (parallel > bestParallel) {
+					bestParallel = parallel;
+					planeAxis = axis;
+				}
+			}
+			if (bestParallel < SYNTHETIC_PARALLEL_DOT_MIN)
+				return Float.POSITIVE_INFINITY;
+
+			float[][] ranges = projectedRanges(quad, origin, axes);
+			float planeMin = ranges[planeAxis][0];
+			float planeMax = ranges[planeAxis][1];
+			if (planeMax - planeMin > OVERLAY_CENTER_EPSILON)
+				return Float.POSITIVE_INFINITY;
+			float plane = (planeMin + planeMax) * 0.5f;
+			float distance = Math.min(Math.abs(plane), Math.abs(plane - lengths[planeAxis]));
+			if (distance > OVERLAY_CENTER_EPSILON)
+				return Float.POSITIVE_INFINITY;
+			for (int axis = 0; axis < 3; axis++) {
+				if (axis == planeAxis)
+					continue;
+				if (ranges[axis][0] < -OVERLAY_EXPANSION_MAX
+					|| ranges[axis][1] > lengths[axis] + OVERLAY_EXPANSION_MAX
+					|| ranges[axis][1] < -POSITION_EPSILON
+					|| ranges[axis][0] > lengths[axis] + POSITION_EPSILON)
+					return Float.POSITIVE_INFINITY;
+			}
+			score += distance;
+		}
+		return score;
+	}
+
+	private static float[][] projectedRanges(List<CapturedVertex> vertices, Vector3f origin,
+		Vector3f[] axes) {
+		float[][] ranges = {
+			{ Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY },
+			{ Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY },
+			{ Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY }
+		};
+		for (CapturedVertex vertex : vertices) {
+			Vector3f relative = position(vertex).sub(origin);
+			for (int axis = 0; axis < 3; axis++) {
+				float projection = relative.dot(axes[axis]);
+				ranges[axis][0] = Math.min(ranges[axis][0], projection);
+				ranges[axis][1] = Math.max(ranges[axis][1], projection);
+			}
+		}
+		return ranges;
 	}
 
 	/**
@@ -460,13 +714,6 @@ public final class SurgicalCapturedRenderPlan {
 			.add(new Vector3f(cuboid.a).mul(0.5f))
 			.add(new Vector3f(cuboid.b).mul(0.5f))
 			.add(new Vector3f(cuboid.c).mul(0.5f));
-	}
-
-	private static void addVisibleQuadExtra(RenderType renderType, List<CapturedVertex> vertices, int cursor,
-		List<SourceBatch> extras) {
-		List<CapturedVertex> quad = vertices.subList(cursor, cursor + 4);
-		if (quadVisible(renderType, quad))
-			extras.add(new SourceBatch(renderType, List.copyOf(quad), false));
 	}
 
 	private static boolean hasVisibleQuad(RenderType renderType, List<CapturedVertex> vertices) {
@@ -603,6 +850,136 @@ public final class SurgicalCapturedRenderPlan {
 			return new RecoveredCuboid(parallelepiped(origin, a, b, zero), a, b, zero);
 		}
 		return null;
+	}
+
+	/**
+	 * Fits a deterministic model-local oriented bounding box. The first non-degenerate quad supplies
+	 * the local basis, which keeps rotated accessories tight instead of expanding them to renderer
+	 * axes. The captured source vertices remain unchanged; this box is only surgical topology.
+	 */
+	@Nullable
+	private static RecoveredCuboid syntheticBounds(List<CapturedVertex> vertices) {
+		if (vertices.size() < 4)
+			return null;
+		Vector3f reference = null;
+		Vector3f u = null;
+		Vector3f v = null;
+		for (int cursor = 0; cursor + 4 <= vertices.size(); cursor += 4) {
+			Vector3f candidateReference = position(vertices.get(cursor));
+			Vector3f candidateU = position(vertices.get(cursor + 1)).sub(candidateReference);
+			if (candidateU.lengthSquared() <= 1.0e-8f)
+				continue;
+			candidateU.normalize();
+			Vector3f candidateV = position(vertices.get(cursor + 3)).sub(candidateReference);
+			candidateV.sub(new Vector3f(candidateU).mul(candidateV.dot(candidateU)));
+			if (candidateV.lengthSquared() <= 1.0e-8f) {
+				candidateV = position(vertices.get(cursor + 2)).sub(candidateReference);
+				candidateV.sub(new Vector3f(candidateU).mul(candidateV.dot(candidateU)));
+			}
+			if (candidateV.lengthSquared() <= 1.0e-8f)
+				continue;
+			reference = candidateReference;
+			u = candidateU;
+			v = candidateV.normalize();
+			break;
+		}
+		if (reference == null || u == null || v == null)
+			return null;
+
+		Vector3f w = new Vector3f(u).cross(v);
+		if (w.lengthSquared() <= 1.0e-8f)
+			return null;
+		w.normalize();
+		Vector3f[] axes = { u, v, w };
+		float[] minimum = { Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY };
+		float[] maximum = { Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY };
+		for (CapturedVertex vertex : vertices) {
+			Vector3f relative = position(vertex).sub(reference);
+			for (int axis = 0; axis < 3; axis++) {
+				float projection = relative.dot(axes[axis]);
+				minimum[axis] = Math.min(minimum[axis], projection);
+				maximum[axis] = Math.max(maximum[axis], projection);
+			}
+		}
+		if (maximum[0] - minimum[0] <= POSITION_EPSILON
+			|| maximum[1] - minimum[1] <= POSITION_EPSILON)
+			return null;
+
+		Vector3f origin = new Vector3f(reference);
+		for (int axis = 0; axis < 3; axis++)
+			origin.add(new Vector3f(axes[axis]).mul(minimum[axis]));
+		Vector3f a = new Vector3f(u).mul(maximum[0] - minimum[0]);
+		Vector3f b = new Vector3f(v).mul(maximum[1] - minimum[1]);
+		float depth = maximum[2] - minimum[2];
+		Vector3f c = depth <= POSITION_EPSILON ? new Vector3f() : new Vector3f(w).mul(depth);
+		return new RecoveredCuboid(parallelepiped(origin, a, b, c), a, b, c);
+	}
+
+	private static boolean isFlat(RecoveredCuboid cuboid) {
+		return cuboid.a.length() <= POSITION_EPSILON
+			|| cuboid.b.length() <= POSITION_EPSILON
+			|| cuboid.c.length() <= POSITION_EPSILON;
+	}
+
+	private static boolean isParallelogram(List<CapturedVertex> quad) {
+		if (quad.size() != 4)
+			return false;
+		Vector3f firstDiagonal = position(quad.get(0)).add(position(quad.get(2)));
+		Vector3f secondDiagonal = position(quad.get(1)).add(position(quad.get(3)));
+		return firstDiagonal.distanceSquared(secondDiagonal)
+			<= POSITION_EPSILON * POSITION_EPSILON * 16.0f;
+	}
+
+	@Nullable
+	private static Vector3f quadNormal(List<CapturedVertex> quad) {
+		if (quad.size() != 4)
+			return null;
+		Vector3f captured = new Vector3f();
+		for (CapturedVertex vertex : quad)
+			captured.add(vertex.normalX, vertex.normalY, vertex.normalZ);
+		if (captured.lengthSquared() > 1.0e-8f)
+			return captured.normalize();
+		Vector3f origin = position(quad.get(0));
+		Vector3f normal = position(quad.get(1)).sub(origin)
+			.cross(position(quad.get(3)).sub(origin));
+		if (normal.lengthSquared() <= 1.0e-8f)
+			return null;
+		return normal.normalize();
+	}
+
+	private static boolean quadOnBoundsFace(List<CapturedVertex> quad, RecoveredCuboid bounds) {
+		Vector3f origin = bounds.corners.getFirst();
+		Vector3f[] edges = { bounds.a, bounds.b, bounds.c };
+		Vector3f[] axes = new Vector3f[3];
+		float[] lengths = new float[3];
+		for (int axis = 0; axis < 3; axis++) {
+			lengths[axis] = edges[axis].length();
+			if (lengths[axis] <= POSITION_EPSILON)
+				return false;
+			axes[axis] = new Vector3f(edges[axis]).div(lengths[axis]);
+		}
+
+		float[][] ranges = projectedRanges(quad, origin, axes);
+		boolean onFace = false;
+		for (int axis = 0; axis < 3; axis++) {
+			boolean atMinimum = Math.abs(ranges[axis][0]) <= POSITION_EPSILON * 4.0f
+				&& Math.abs(ranges[axis][1]) <= POSITION_EPSILON * 4.0f;
+			boolean atMaximum = Math.abs(ranges[axis][0] - lengths[axis]) <= POSITION_EPSILON * 4.0f
+				&& Math.abs(ranges[axis][1] - lengths[axis]) <= POSITION_EPSILON * 4.0f;
+			onFace |= atMinimum || atMaximum;
+		}
+		if (!onFace)
+			return false;
+		for (CapturedVertex vertex : quad) {
+			Vector3f relative = position(vertex).sub(origin);
+			for (int axis = 0; axis < 3; axis++) {
+				float projection = relative.dot(axes[axis]);
+				if (Math.abs(projection) > POSITION_EPSILON * 4.0f
+					&& Math.abs(projection - lengths[axis]) > POSITION_EPSILON * 4.0f)
+					return false;
+			}
+		}
+		return true;
 	}
 
 	private static Vector3f position(CapturedVertex vertex) {
@@ -815,6 +1192,14 @@ public final class SurgicalCapturedRenderPlan {
 		float u, float v, int overlayU, int overlayV, int lightU, int lightV,
 		float normalX, float normalY, float normalZ) {}
 
+	private record RecoveredCandidate(RecoveredCuboid cuboid, List<CapturedVertex> vertices) {}
+
+	private record PendingQuad(int streamId, RenderType renderType, List<CapturedVertex> vertices,
+		int order) {}
+
+	private record PendingMesh(int streamId, RenderType renderType, List<CapturedVertex> vertices,
+		int order) {}
+
 	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes,
 		boolean topology) {}
 
@@ -859,7 +1244,7 @@ public final class SurgicalCapturedRenderPlan {
 		RenderType renderType, List<CapturedVertex> vertices) {
 		ResourceLocation texture = renderTypeTexture(renderType);
 		AlphaMask textureInfo = texture == null ? null : alphaMask(texture);
-		if (textureInfo == null || textureInfo.width <= 0 || textureInfo.height <= 0 || vertices.size() < 24)
+		if (textureInfo == null || textureInfo.width <= 0 || textureInfo.height <= 0 || vertices.size() < 4)
 			return List.of();
 		List<SurgicalModelRenderContext.FaceGrid> grids = new ArrayList<>(6);
 		for (int[] face : SurgicalClientTopology.CUBE_FACES) {
@@ -961,6 +1346,12 @@ public final class SurgicalCapturedRenderPlan {
 			batches.add(batch);
 			if (surfaceOverlay)
 				surfaceOverlays.add(batch);
+		}
+
+		private void addSurfaceOverlayBatch(RenderType renderType, List<CapturedVertex> vertices) {
+			SourceBatch batch = new SourceBatch(renderType, List.copyOf(vertices), true);
+			batches.add(batch);
+			surfaceOverlays.add(batch);
 		}
 
 		private Component build(int id, boolean preserveSource) {

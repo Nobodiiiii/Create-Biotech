@@ -44,6 +44,10 @@ public final class SlimeBionicAnimator {
 	private static final int AXIS_Y = 1;
 	private static final int AXIS_Z = 2;
 	private static final double GEOMETRY_EPSILON = 1.0e-10d;
+	private static final double VOLUME_OVERLAP_EPSILON = 1.0e-7d;
+	private static final int ARM_VOLUME_SAMPLES_PER_BOX = 64;
+	private static final int MAX_ARM_VOLUME_SAMPLE_POINTS = 32_768;
+	private static final long MAX_ARM_VOLUME_COVERAGE_TESTS = 8_000_000L;
 	/**
 	 * Connection graphs keyed by the immutable assembly they describe. Weak so a despawned body's
 	 * graph is collected with it.
@@ -121,8 +125,124 @@ public final class SlimeBionicAnimator {
 			Math.min(distal.pivot().y, tip.center().y)) - tip.radius();
 		float maximumY = (float) Math.max(attackOrigin.y,
 			Math.max(distal.pivot().y, tip.center().y)) + tip.radius();
+		float volume = armVolume(limbs, sources, shoulderIndex, elbowIndex);
 		return SurgicalAssembly.ArmAttackGeometry.create(attackOrigin.subtract(bodyOrigin), reach,
-			minimumY - (float) bodyOrigin.y, maximumY - (float) bodyOrigin.y, tip.radius());
+			minimumY - (float) bodyOrigin.y, maximumY - (float) bodyOrigin.y, tip.radius(), volume);
+	}
+
+	/** Coverage-weighted union of the distinct cuboids driven by this arm's joints. */
+	private static float armVolume(List<ResolvedLimb> limbs, List<SourceState> sources,
+		int shoulderIndex, int elbowIndex) {
+		Set<Member> members = new HashSet<>();
+		if (shoulderIndex >= 0)
+			members.addAll(limbs.get(shoulderIndex).members());
+		if (elbowIndex >= 0)
+			members.addAll(limbs.get(elbowIndex).members());
+		List<VolumeBox> boxes = new ArrayList<>(members.size());
+		for (Member member : members) {
+			CubeBox box = box(sources, member);
+			VolumeBox volumeBox = box == null ? null : VolumeBox.of(box);
+			if (volumeBox != null)
+				boxes.add(volumeBox);
+		}
+		double volume = unionVolume(boxes);
+		return (float) Mth.clamp(volume, 0.0d,
+			SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE
+				* SurgicalAssembly.MAX_BODY_SIZE);
+	}
+
+	/**
+	 * Adds isolated cuboids exactly and samples only broad-phase overlap components. For a sampled
+	 * point covered by {@code n} cuboids, its source cuboid contributes {@code 1 / n}; summing every
+	 * source therefore estimates the geometric union instead of counting overlap repeatedly.
+	 */
+	private static double unionVolume(List<VolumeBox> boxes) {
+		if (boxes.isEmpty())
+			return 0.0d;
+		int[] parents = new int[boxes.size()];
+		for (int index = 0; index < parents.length; index++)
+			parents[index] = index;
+		for (int first = 0; first < boxes.size(); first++)
+			for (int second = first + 1; second < boxes.size(); second++)
+				if (boxes.get(first).overlapsEnvelope(boxes.get(second)))
+					union(parents, first, second);
+
+		List<List<Integer>> components = new ArrayList<>(boxes.size());
+		for (int index = 0; index < boxes.size(); index++)
+			components.add(new ArrayList<>());
+		for (int index = 0; index < boxes.size(); index++)
+			components.get(findRoot(parents, index)).add(index);
+		int sampledBoxes = 0;
+		for (List<Integer> component : components)
+			if (component.size() > 1)
+				sampledBoxes += component.size();
+
+		double volume = 0.0d;
+		for (List<Integer> component : components) {
+			if (component.isEmpty())
+				continue;
+			if (component.size() == 1) {
+				volume += boxes.get(component.getFirst()).volume();
+				continue;
+			}
+			volume += sampledUnionVolume(boxes, component, sampledBoxes);
+		}
+		return volume;
+	}
+
+	private static double sampledUnionVolume(List<VolumeBox> boxes, List<Integer> component,
+		int sampledBoxes) {
+		int pointBudget = Math.max(1, MAX_ARM_VOLUME_SAMPLE_POINTS / Math.max(1, sampledBoxes));
+		long componentPairs = (long) component.size() * component.size();
+		int coverageBudget = (int) Math.max(1L,
+			MAX_ARM_VOLUME_COVERAGE_TESTS / Math.max(1L, componentPairs));
+		int samplesPerBox = Math.min(ARM_VOLUME_SAMPLES_PER_BOX,
+			Math.min(pointBudget, coverageBudget));
+		double volume = 0.0d;
+		for (int sourceIndex : component) {
+			VolumeBox source = boxes.get(sourceIndex);
+			double sampleWeight = source.volume() / samplesPerBox;
+			for (int sample = 0; sample < samplesPerBox; sample++) {
+				Vec3 point = source.sample(sample);
+				int coverage = 0;
+				for (int candidateIndex : component)
+					if (boxes.get(candidateIndex).contains(point))
+						coverage++;
+				volume += sampleWeight / Math.max(1, coverage);
+			}
+		}
+		return volume;
+	}
+
+	/** Low-discrepancy coordinate in {@code (0, 1)} for deterministic interior sampling. */
+	private static double halton(int index, int base) {
+		double fraction = 1.0d;
+		double result = 0.0d;
+		while (index > 0) {
+			fraction /= base;
+			result += fraction * (index % base);
+			index /= base;
+		}
+		return result;
+	}
+
+	private static void union(int[] parents, int first, int second) {
+		int firstRoot = findRoot(parents, first);
+		int secondRoot = findRoot(parents, second);
+		if (firstRoot != secondRoot)
+			parents[secondRoot] = firstRoot;
+	}
+
+	private static int findRoot(int[] parents, int index) {
+		int root = index;
+		while (parents[root] != root)
+			root = parents[root];
+		while (parents[index] != index) {
+			int next = parents[index];
+			parents[index] = root;
+			index = next;
+		}
+		return root;
 	}
 
 	@Nullable
@@ -740,6 +860,77 @@ public final class SlimeBionicAnimator {
 
 		private ResolvedLimb withParent(int parentIndex) {
 			return new ResolvedLimb(type, members, parent, pivot, side, restAlignment, bone, parentIndex);
+		}
+	}
+
+	/** Precomputed oriented-box basis used only while baking overlap-aware arm volume. */
+	private record VolumeBox(Vec3 origin, Vec3 a, Vec3 b, Vec3 c,
+		Vec3 reciprocalA, Vec3 reciprocalB, Vec3 reciprocalC,
+		double volume, double[] minimum, double[] maximum) {
+		@Nullable
+		private static VolumeBox of(CubeBox box) {
+			if (box.points().size() != 8)
+				return null;
+			Vec3 origin = box.points().get(0);
+			Vec3 a = box.points().get(1).subtract(origin);
+			Vec3 b = box.points().get(2).subtract(origin);
+			Vec3 c = box.points().get(4).subtract(origin);
+			Vec3 bCrossC = b.cross(c);
+			double determinant = a.dot(bCrossC);
+			if (!Double.isFinite(determinant) || Math.abs(determinant) < GEOMETRY_EPSILON)
+				return null;
+			double inverseDeterminant = 1.0d / determinant;
+			double[] minimum = { Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
+				Double.POSITIVE_INFINITY };
+			double[] maximum = { Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+				Double.NEGATIVE_INFINITY };
+			for (Vec3 point : box.points()) {
+				minimum[AXIS_X] = Math.min(minimum[AXIS_X], point.x);
+				minimum[AXIS_Y] = Math.min(minimum[AXIS_Y], point.y);
+				minimum[AXIS_Z] = Math.min(minimum[AXIS_Z], point.z);
+				maximum[AXIS_X] = Math.max(maximum[AXIS_X], point.x);
+				maximum[AXIS_Y] = Math.max(maximum[AXIS_Y], point.y);
+				maximum[AXIS_Z] = Math.max(maximum[AXIS_Z], point.z);
+			}
+			return new VolumeBox(origin, a, b, c, bCrossC.scale(inverseDeterminant),
+				c.cross(a).scale(inverseDeterminant), a.cross(b).scale(inverseDeterminant),
+				Math.abs(determinant), minimum, maximum);
+		}
+
+		private boolean overlapsEnvelope(VolumeBox other) {
+			for (int axis = AXIS_X; axis <= AXIS_Z; axis++)
+				if (Math.min(maximum[axis], other.maximum[axis])
+					- Math.max(minimum[axis], other.minimum[axis]) <= VOLUME_OVERLAP_EPSILON)
+					return false;
+			return true;
+		}
+
+		private Vec3 sample(int sample) {
+			double u = halton(sample + 1, 2);
+			double v = halton(sample + 1, 3);
+			double w = halton(sample + 1, 5);
+			return new Vec3(origin.x + a.x * u + b.x * v + c.x * w,
+				origin.y + a.y * u + b.y * v + c.y * w,
+				origin.z + a.z * u + b.z * v + c.z * w);
+		}
+
+		private boolean contains(Vec3 point) {
+			if (point.x < minimum[AXIS_X] - VOLUME_OVERLAP_EPSILON
+				|| point.x > maximum[AXIS_X] + VOLUME_OVERLAP_EPSILON
+				|| point.y < minimum[AXIS_Y] - VOLUME_OVERLAP_EPSILON
+				|| point.y > maximum[AXIS_Y] + VOLUME_OVERLAP_EPSILON
+				|| point.z < minimum[AXIS_Z] - VOLUME_OVERLAP_EPSILON
+				|| point.z > maximum[AXIS_Z] + VOLUME_OVERLAP_EPSILON)
+				return false;
+			double dx = point.x - origin.x;
+			double dy = point.y - origin.y;
+			double dz = point.z - origin.z;
+			double u = dx * reciprocalA.x + dy * reciprocalA.y + dz * reciprocalA.z;
+			double v = dx * reciprocalB.x + dy * reciprocalB.y + dz * reciprocalB.z;
+			double w = dx * reciprocalC.x + dy * reciprocalC.y + dz * reciprocalC.z;
+			return u >= -VOLUME_OVERLAP_EPSILON && u <= 1.0d + VOLUME_OVERLAP_EPSILON
+				&& v >= -VOLUME_OVERLAP_EPSILON && v <= 1.0d + VOLUME_OVERLAP_EPSILON
+				&& w >= -VOLUME_OVERLAP_EPSILON && w <= 1.0d + VOLUME_OVERLAP_EPSILON;
 		}
 	}
 

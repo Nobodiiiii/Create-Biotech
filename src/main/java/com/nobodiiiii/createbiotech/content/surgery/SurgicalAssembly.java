@@ -28,7 +28,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_LIMBS = 9;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 14;
+	private static final int CURRENT_VERSION = 15;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -63,6 +63,7 @@ public final class SurgicalAssembly {
 	private static final String RIGHT_ARM_TAG = "RightArm";
 	private static final String LEFT_ARM_TAG = "LeftArm";
 	private static final String ATTACK_RADIUS_TAG = "Radius";
+	private static final String ATTACK_VOLUME_TAG = "Volume";
 	private static final String ATTACK_ORIGIN_X_TAG = "OriginX";
 	private static final String ATTACK_ORIGIN_Y_TAG = "OriginY";
 	private static final String ATTACK_ORIGIN_Z_TAG = "OriginZ";
@@ -668,9 +669,10 @@ public final class SurgicalAssembly {
 	}
 
 	public record ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
-		float radius) {
+		float radius, float volume) {
 		private static final float MIN_RADIUS = 0.05f;
 		private static final float MAX_RADIUS = 8.0f;
+		private static final float MAX_VOLUME = (float) (MAX_BODY_SIZE * MAX_BODY_SIZE * MAX_BODY_SIZE);
 		private static final int LEGACY_PATH_SAMPLES = 16;
 
 		public ArmAttackGeometry {
@@ -679,18 +681,28 @@ public final class SurgicalAssembly {
 				|| !Float.isFinite(minimumY) || !Float.isFinite(maximumY)
 				|| minimumY > maximumY || Math.abs(minimumY) > AttackGeometry.MAX_COORDINATE
 				|| Math.abs(maximumY) > AttackGeometry.MAX_COORDINATE
-				|| !Float.isFinite(radius) || radius < MIN_RADIUS || radius > MAX_RADIUS)
+				|| !Float.isFinite(radius) || radius < MIN_RADIUS || radius > MAX_RADIUS
+				|| !Float.isFinite(volume) || volume < 0.0f || volume > MAX_VOLUME)
 				throw new IllegalArgumentException("Invalid arm attack geometry");
 		}
 
 		@Nullable
 		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
-			float maximumY, float radius) {
+			float maximumY, float radius, float volume) {
 			try {
-				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius);
+				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume);
 			} catch (IllegalArgumentException ignored) {
 				return null;
 			}
+		}
+
+		/** Approximates saves predating explicit arm volume as a square shaft ending at the baked tip. */
+		@Nullable
+		private static ArmAttackGeometry createLegacy(Vec3 origin, float reach, float minimumY,
+			float maximumY, float radius) {
+			float length = Math.max(0.0f, reach - radius);
+			float estimatedVolume = Math.min(MAX_VOLUME, 2.0f * radius * radius * length);
+			return create(origin, reach, minimumY, maximumY, radius, estimatedVolume);
 		}
 
 		private CompoundTag save() {
@@ -702,6 +714,7 @@ public final class SurgicalAssembly {
 			tag.putFloat(ATTACK_MINIMUM_Y_TAG, minimumY);
 			tag.putFloat(ATTACK_MAXIMUM_Y_TAG, maximumY);
 			tag.putFloat(ATTACK_RADIUS_TAG, radius);
+			tag.putFloat(ATTACK_VOLUME_TAG, volume);
 			return tag;
 		}
 
@@ -713,13 +726,14 @@ public final class SurgicalAssembly {
 			buffer.writeFloat(minimumY);
 			buffer.writeFloat(maximumY);
 			buffer.writeFloat(radius);
+			buffer.writeFloat(volume);
 		}
 
 		@Nullable
 		private static ArmAttackGeometry read(FriendlyByteBuf buffer) {
 			Vec3 origin = new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
 			return create(origin, buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-				buffer.readFloat());
+				buffer.readFloat(), buffer.readFloat());
 		}
 
 		@Nullable
@@ -732,10 +746,16 @@ public final class SurgicalAssembly {
 				&& tag.contains(ATTACK_REACH_TAG, Tag.TAG_ANY_NUMERIC)
 				&& tag.contains(ATTACK_MINIMUM_Y_TAG, Tag.TAG_ANY_NUMERIC)
 				&& tag.contains(ATTACK_MAXIMUM_Y_TAG, Tag.TAG_ANY_NUMERIC))
-				return create(new Vec3(tag.getFloat(ATTACK_ORIGIN_X_TAG),
+				return tag.contains(ATTACK_VOLUME_TAG, Tag.TAG_ANY_NUMERIC)
+					? create(new Vec3(tag.getFloat(ATTACK_ORIGIN_X_TAG),
 					tag.getFloat(ATTACK_ORIGIN_Y_TAG), tag.getFloat(ATTACK_ORIGIN_Z_TAG)),
 					tag.getFloat(ATTACK_REACH_TAG), tag.getFloat(ATTACK_MINIMUM_Y_TAG),
-					tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG));
+					tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG),
+					tag.getFloat(ATTACK_VOLUME_TAG))
+					: createLegacy(new Vec3(tag.getFloat(ATTACK_ORIGIN_X_TAG),
+						tag.getFloat(ATTACK_ORIGIN_Y_TAG), tag.getFloat(ATTACK_ORIGIN_Z_TAG)),
+						tag.getFloat(ATTACK_REACH_TAG), tag.getFloat(ATTACK_MINIMUM_Y_TAG),
+						tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG));
 			return loadLegacy(tag);
 		}
 
@@ -765,7 +785,7 @@ public final class SurgicalAssembly {
 					minimumY = Math.min(minimumY, (float) point.y - radius);
 					maximumY = Math.max(maximumY, (float) point.y + radius);
 				}
-			return create(Vec3.ZERO, reach, minimumY, maximumY, radius);
+			return createLegacy(Vec3.ZERO, reach, minimumY, maximumY, radius);
 		}
 	}
 

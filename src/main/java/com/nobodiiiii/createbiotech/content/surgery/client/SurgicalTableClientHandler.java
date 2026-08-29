@@ -38,12 +38,14 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbRemovalPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
+import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.AllSoundEvents;
@@ -146,6 +148,8 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static Selection componentSelection;
 	private static Selection limbSelection;
+	@Nullable
+	private static LimbJointSelection wrenchSelection;
 	private static PendingLimb pendingLimb;
 	@Nullable
 	private static PendingCut pendingCut;
@@ -935,6 +939,7 @@ public final class SurgicalTableClientHandler {
 			seamSelection = null;
 			cubeSelection = null;
 			componentSelection = null;
+			wrenchSelection = null;
 			clearSeamHighlight();
 			showGlueEditPrompt(player, level);
 			refreshGlueEditGuide(player, level, glueEditor);
@@ -951,11 +956,13 @@ public final class SurgicalTableClientHandler {
 			|| player.getOffhandItem().is(Items.HONEY_BOTTLE);
 		boolean holdingJoint = heldLimbType(player.getMainHandItem()) != null
 			|| heldLimbType(player.getOffhandItem()) != null;
+		boolean holdingWrench = CBWrenchHelper.isWrench(player.getMainHandItem())
+			|| CBWrenchHelper.isWrench(player.getOffhandItem());
 		if (!holdingJoint && pendingLimb != null)
 			clearPendingLimb();
 		boolean highlightingDirectConnections = holdingShears && player.isShiftKeyDown();
 		if (!holdingShears && !holdingEmptyBox && !holdingEmptyLargeBox && !holdingGlue && !holdingHoney
-			&& !holdingJoint) {
+			&& !holdingJoint && !holdingWrench) {
 			hoveredGluePoint = null;
 			GLUE_POINT_OUTLINE.clear();
 			gluePreview = null;
@@ -963,6 +970,7 @@ public final class SurgicalTableClientHandler {
 			cubeSelection = null;
 			componentSelection = null;
 			limbSelection = null;
+			wrenchSelection = null;
 			lastSelectionMode = Integer.MIN_VALUE;
 			lastSelectionRay = null;
 			clearSeamHighlight();
@@ -972,7 +980,7 @@ public final class SurgicalTableClientHandler {
 		int selectionMode = (holdingShears ? 1 : 0) | (holdingEmptyBox ? 2 : 0)
 			| (holdingEmptyLargeBox ? 4 : 0) | (holdingGlue ? 8 : 0)
 			| (highlightingDirectConnections ? 16 : 0) | (holdingHoney ? 32 : 0)
-			| (holdingJoint ? 64 : 0);
+			| (holdingJoint ? 64 : 0) | (holdingWrench ? 128 : 0);
 		if (lastSelectionTick == level.getGameTime() && lastSelectionGeneration == geometryGeneration
 			&& lastSelectionMode == selectionMode && ray.equals(lastSelectionRay)
 			&& pendingGlue == lastSelectionPendingGlue && pendingLimb == lastSelectionPendingLimb) {
@@ -986,6 +994,7 @@ public final class SurgicalTableClientHandler {
 		lastSelectionPendingGlue = pendingGlue;
 		lastSelectionPendingLimb = pendingLimb;
 		CubeHit cubeHit = holdingShears || holdingEmptyBox || holdingGlue || holdingHoney || holdingJoint
+			|| holdingWrench
 			? findNearestCubeHit(player, level, ray) : null;
 		CubeHit glueHit = holdingGlue ? snapGlueHit(cubeHit) : null;
 		hoveredGluePoint = glueHit == null ? null : glueHit.gluePoint;
@@ -1001,6 +1010,7 @@ public final class SurgicalTableClientHandler {
 			? findSeamSelection(player, level, ray, cubeHit) : null;
 		cubeSelection = holdingEmptyBox ? findConnectedComponentSelection(cubeHit) : null;
 		limbSelection = holdingJoint ? findLimbTargetSelection(cubeHit) : null;
+		wrenchSelection = holdingWrench ? findLimbJointSelection(player, level, ray, cubeHit) : null;
 		componentSelection = holdingHoney
 			? findConnectedComponentSelection(cubeHit)
 			: holdingGlue
@@ -1024,7 +1034,9 @@ public final class SurgicalTableClientHandler {
 			CUBE_OUTLINE.show(edges, CUBE_HIGHLIGHT_COLOR);
 			return;
 		}
-		if (limbSelection != null)
+		if (wrenchSelection != null)
+			highlightSelection(wrenchSelection.selection);
+		else if (limbSelection != null)
 			highlightSelection(limbSelection);
 		else if (componentSelection != null)
 			highlightSelection(componentSelection);
@@ -1124,6 +1136,17 @@ public final class SurgicalTableClientHandler {
 		Selection selected;
 		Ray ray = playerRay(minecraft.player);
 		CubeHit cubeHit = findNearestCubeHit(minecraft.player, level, ray);
+		if (CBWrenchHelper.isWrench(held)) {
+			LimbJointSelection selectedJoint = findLimbJointSelection(minecraft.player, level, ray, cubeHit);
+			wrenchSelection = selectedJoint;
+			if (selectedJoint == null)
+				return;
+			CBPackets.sendToServer(new SurgicalTableLimbRemovalPacket(selectedJoint.selection.tablePos,
+				hand, selectedJoint.joint));
+			clearSelections();
+			consumeInteraction(event, hand);
+			return;
+		}
 		SurgicalLimbType limbType = heldLimbType(held);
 		if (limbType != null) {
 			if (handleLimbClick(minecraft.player, level, hand, limbType, cubeHit))
@@ -2889,7 +2912,10 @@ public final class SurgicalTableClientHandler {
 		ClientLevel level = Minecraft.getInstance().level;
 		if (level != null && (belongsToSelectionPlane(level, target, seamSelection)
 			|| belongsToSelectionPlane(level, target, cubeSelection)
-			|| belongsToSelectionPlane(level, target, componentSelection)))
+			|| belongsToSelectionPlane(level, target, componentSelection)
+			|| belongsToSelectionPlane(level, target, limbSelection)
+			|| belongsToSelectionPlane(level, target,
+				wrenchSelection == null ? null : wrenchSelection.selection)))
 			event.setCanceled(true);
 	}
 
@@ -3888,6 +3914,106 @@ public final class SurgicalTableClientHandler {
 		COMBINATION_OUTLINE.clear();
 	}
 
+	@Nullable
+	private static LimbJointSelection findLimbJointSelection(LocalPlayer player, ClientLevel level, Ray ray,
+		@Nullable CubeHit cubeHit) {
+		LimbJointSelection direct = findDirectLimbJointSelection(player, level, ray);
+		if (direct != null)
+			return direct;
+		if (cubeHit == null
+			|| !(level.getBlockEntity(cubeHit.tablePos) instanceof SurgicalTableBlockEntity table))
+			return null;
+		SurgicalSubject hitSubject = table.getSubject(cubeHit.geometry.subjectId);
+		if (hitSubject == null)
+			return null;
+
+		LimbJointSelection best = null;
+		double bestDistance = Double.MAX_VALUE;
+		for (SurgicalLimbJoint joint : table.limbJoints()) {
+			if (!joint.touches(hitSubject.persistentId(), cubeHit.cubeId))
+				continue;
+			LimbJointSelection candidate = limbJointSelection(cubeHit.tablePos, table, joint);
+			if (candidate == null)
+				continue;
+			double distance = candidate.contact == null ? 0.0d
+				: pointToContactDistance(cubeHit.location, candidate.contact);
+			if (distance >= bestDistance)
+				continue;
+			bestDistance = distance;
+			best = candidate;
+		}
+		return best;
+	}
+
+	@Nullable
+	private static LimbJointSelection findDirectLimbJointSelection(LocalPlayer player, ClientLevel level,
+		Ray ray) {
+		Set<BlockPos> checkedTables = new java.util.HashSet<>();
+		LimbJointSelection best = null;
+		Vec3 bestHit = null;
+		double bestDistance = Double.MAX_VALUE;
+		for (Map.Entry<SubjectKey, TableGeometry> entry : TABLES.entrySet()) {
+			TableGeometry geometry = entry.getValue();
+			if (geometry.bounds == null
+				|| !rayIntersectsBounds(ray, geometry.bounds, MAX_SELECTION_THRESHOLD))
+				continue;
+			BlockPos tablePos = entry.getKey().tablePos;
+			if (!checkedTables.add(tablePos)
+				|| !(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table))
+				continue;
+			for (SurgicalLimbJoint joint : table.limbJoints()) {
+				LimbJointSelection candidate = limbJointSelection(tablePos, table, joint);
+				if (candidate == null || candidate.contact == null)
+					continue;
+				Vec3 hit = intersectContact(ray, candidate.contact);
+				if (hit == null)
+					continue;
+				double distance = ray.start.distanceToSqr(hit);
+				if (distance >= bestDistance)
+					continue;
+				bestDistance = distance;
+				bestHit = hit;
+				best = candidate;
+			}
+		}
+		return best != null && bestHit != null
+			&& isOccluded(level, player, ray.start, bestHit, best.selection.tablePos) ? null : best;
+	}
+
+	@Nullable
+	private static LimbJointSelection limbJointSelection(BlockPos tablePos, SurgicalTableBlockEntity table,
+		SurgicalLimbJoint joint) {
+		SurgicalSubject childSubject = table.getSubjectByPersistentId(joint.child().subjectKey());
+		SurgicalSubject parentSubject = table.getSubjectByPersistentId(joint.parent().subjectKey());
+		if (childSubject == null || parentSubject == null)
+			return null;
+		TableGeometry childGeometry = TABLES.get(new SubjectKey(tablePos, childSubject.id()));
+		TableGeometry parentGeometry = TABLES.get(new SubjectKey(tablePos, parentSubject.id()));
+		if (childGeometry == null || parentGeometry == null || !childGeometry.topologyReady()
+			|| !parentGeometry.topologyReady()
+			|| !childSubject.matchesObservedTopology(childGeometry.observedCubeCount, childGeometry.seams)
+			|| !parentSubject.matchesObservedTopology(parentGeometry.observedCubeCount, parentGeometry.seams)
+			|| !childGeometry.presentCubes.get(joint.child().cubeId())
+			|| !parentGeometry.presentCubes.get(joint.parent().cubeId()))
+			return null;
+		SurgicalModelRenderContext.CubeGeometry child = childGeometry.cubesById.get(joint.child().cubeId());
+		SurgicalModelRenderContext.CubeGeometry parent = parentGeometry.cubesById.get(joint.parent().cubeId());
+		if (child == null || parent == null)
+			return null;
+
+		SurgicalClientTopology.Contact contact = SurgicalClientTopology.contactBetween(
+			SurgicalAssembly.Seam.of(0, 1), List.of(
+				new SurgicalModelRenderContext.CubeGeometry(0, child.corners()),
+				new SurgicalModelRenderContext.CubeGeometry(1, parent.corners())));
+		List<SurgicalClientTopology.Edge> cubeEdges = new ArrayList<>(24);
+		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(child));
+		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(parent));
+		Selection selection = new Selection(tablePos, childSubject.id(), joint.child().cubeId(),
+			childGeometry.observedCubeCount, childGeometry.seams,
+			contact == null ? List.of() : contact.edges(), List.copyOf(cubeEdges));
+		return new LimbJointSelection(selection, joint, contact);
+	}
+
 	/**
 	 * Highlights exactly what a joint would move: a honey combination behaves as one rigid part, so
 	 * the whole combination lights up, while a loose cube highlights on its own.
@@ -3918,6 +4044,7 @@ public final class SurgicalTableClientHandler {
 		cubeSelection = null;
 		componentSelection = null;
 		limbSelection = null;
+		wrenchSelection = null;
 		hoveredGluePoint = null;
 		connectedSelectionCache = null;
 		directSelectionCache = null;
@@ -4510,6 +4637,9 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private record GlueJointSelection(Selection selection,
+		@Nullable SurgicalClientTopology.Contact contact) {}
+
+	private record LimbJointSelection(Selection selection, SurgicalLimbJoint joint,
 		@Nullable SurgicalClientTopology.Contact contact) {}
 
 	private record Ray(Vec3 start, Vec3 end) {}

@@ -2,8 +2,10 @@ package com.nobodiiiii.createbiotech.entity;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
@@ -15,6 +17,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -24,6 +27,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -50,6 +54,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private static final int ATTACK_EVENT_VARIANTS =
 		SlimeBionicCombat.NORMAL_ATTACK_TICKS * ATTACK_EVENT_STRIDE;
 	private static final byte ATTACK_EVENT_BASE = -64;
+	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
+		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	@Nullable
@@ -223,10 +229,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			attackActionTick--;
 	}
 
-	/** Starts gameplay and presentation clocks together without making either consume the other. */
-	private int beginAttack(int attackInterval) {
-		attackActionDuration = SlimeBionicCombat.duration(attackInterval);
-		attackActionTick = attackActionDuration;
+	/** Selects and snapshots one arm before starting its gameplay and presentation clocks. */
+	private AttackStart beginAttack() {
 		attackActionWeapon = hasAttackWeapon();
 		if (attackActionWeapon) {
 			attackActionLeft = preferredAttackLeft(true);
@@ -234,6 +238,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 			attackActionLeft = nextEmptyHandAttackLeft;
 			nextEmptyHandAttackLeft = !nextEmptyHandAttackLeft;
 		}
+		SurgicalAssembly assembly = getAssembly();
+		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
+		SurgicalAssembly.ArmAttackGeometry arm = geometry == null ? null
+			: geometry.arm(attackActionLeft);
+		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(arm);
+		int attackInterval = stats.attackInterval();
+		attackActionDuration = SlimeBionicCombat.duration(attackInterval);
+		attackActionTick = attackActionDuration;
 
 		attackAnimationDuration = SlimeBionicAttackTiming.playbackTicks(attackInterval);
 		attackAnimationTick = attackAnimationDuration;
@@ -242,7 +254,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		int encoded = (attackActionDuration - 1) * ATTACK_EVENT_STRIDE
 			+ (attackActionWeapon ? 2 : 0) + (attackActionLeft ? 1 : 0);
 		level().broadcastEntityEvent(this, (byte) (ATTACK_EVENT_BASE + encoded));
-		return attackActionDuration;
+		return new AttackStart(attackActionDuration, attackInterval, stats.damageMultiplier(), arm);
 	}
 
 	/** Side the next attack will request before the renderer/geometry applies single-arm fallback. */
@@ -255,14 +267,27 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	/** Applies one logical attack hit without touching its independent presentation clock. */
-	private boolean performAttackDamage(Entity target) {
-		return super.doHurtTarget(target);
+	private boolean performAttackDamage(Entity target, double damageMultiplier) {
+		var attackDamage = getAttribute(Attributes.ATTACK_DAMAGE);
+		if (attackDamage == null || Math.abs(damageMultiplier - 1.0d) < 1.0e-8d)
+			return super.doHurtTarget(target);
+		attackDamage.removeModifier(ANATOMICAL_ATTACK_MODIFIER_ID);
+		attackDamage.addTransientModifier(new AttributeModifier(ANATOMICAL_ATTACK_MODIFIER_ID,
+			damageMultiplier - 1.0d, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
+		try {
+			return super.doHurtTarget(target);
+		} finally {
+			attackDamage.removeModifier(ANATOMICAL_ATTACK_MODIFIER_ID);
+		}
 	}
 
 	private boolean attackSectorIntersects(LivingEntity target,
 		SurgicalAssembly.ArmAttackGeometry arm) {
 		return SlimeBionicCombat.intersects(target.getBoundingBox(), position(), yBodyRot, arm);
 	}
+
+	private record AttackStart(int actionDuration, int attackInterval, double damageMultiplier,
+		@Nullable SurgicalAssembly.ArmAttackGeometry arm) {}
 
 	@Override
 	public void handleEntityEvent(byte id) {
@@ -365,6 +390,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 		private int pendingAttackElapsed;
 		private int pendingAttackDuration;
 		private boolean pendingImpactApplied;
+		private int anatomicalAttackCooldown;
+		private int currentAttackInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
+		private double pendingDamageMultiplier = 1.0d;
 		@Nullable
 		private SurgicalAssembly.ArmAttackGeometry pendingArmGeometry;
 
@@ -378,12 +406,15 @@ public class SlimeBionicEntity extends PathfinderMob {
 			super.start();
 			raiseArmTicks = 0;
 			clearPendingAttack();
+			anatomicalAttackCooldown = 0;
+			currentAttackInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
 		}
 
 		@Override
 		public void stop() {
 			super.stop();
 			clearPendingAttack();
+			anatomicalAttackCooldown = 0;
 			bionic.setAggressive(false);
 		}
 
@@ -399,14 +430,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 				return;
 			if (!canPerformAttack(target))
 				return;
-			resetAttackCooldown();
+			AttackStart attack = bionic.beginAttack();
+			anatomicalAttackCooldown = attack.attackInterval();
+			currentAttackInterval = attack.attackInterval();
 			bionic.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
-			pendingAttackDuration = bionic.beginAttack(getAttackInterval());
-			SurgicalAssembly assembly = bionic.getAssembly();
-			SurgicalAssembly.AttackGeometry attackGeometry = assembly == null
-				? null : assembly.attackGeometry();
-			pendingArmGeometry = attackGeometry == null ? null
-				: attackGeometry.arm(bionic.isAttackActionLeft());
+			pendingAttackDuration = attack.actionDuration();
+			pendingArmGeometry = attack.arm();
+			pendingDamageMultiplier = attack.damageMultiplier();
 			pendingAttackTarget = target;
 			pendingAttackElapsed = 0;
 			pendingImpactApplied = false;
@@ -425,7 +455,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 					: bionic.isWithinMeleeAttackRange(target);
 				if (intersects) {
 					pendingImpactApplied = true;
-					bionic.performAttackDamage(target);
+					bionic.performAttackDamage(target, pendingDamageMultiplier);
 				}
 			}
 			if (pendingAttackElapsed >= pendingAttackDuration)
@@ -452,10 +482,28 @@ public class SlimeBionicEntity extends PathfinderMob {
 			pendingAttackDuration = 0;
 			pendingImpactApplied = false;
 			pendingArmGeometry = null;
+			pendingDamageMultiplier = 1.0d;
+		}
+
+		@Override
+		protected boolean isTimeToAttack() {
+			return anatomicalAttackCooldown <= 0;
+		}
+
+		@Override
+		protected int getTicksUntilNextAttack() {
+			return anatomicalAttackCooldown;
+		}
+
+		@Override
+		protected int getAttackInterval() {
+			return currentAttackInterval;
 		}
 
 		@Override
 		public void tick() {
+			if (anatomicalAttackCooldown > 0)
+				anatomicalAttackCooldown--;
 			if (pendingAttackTarget != null)
 				advancePendingAttack();
 			super.tick();
