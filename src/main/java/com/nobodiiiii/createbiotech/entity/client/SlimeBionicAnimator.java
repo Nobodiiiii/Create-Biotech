@@ -176,21 +176,57 @@ public final class SlimeBionicAnimator {
 	 * <p>{@code sources} is indexed like {@link SurgicalAssembly#sources()}; each returned frame only
 	 * contains the cubes an installed joint actually moves.</p>
 	 */
+	/**
+	 * The limb solve and the leg-length curve derived from it. Both read only the assembly and the
+	 * rest-pose sources - never the entity, the pose or the partial tick - yet they ran on every
+	 * frame, and the pivot search behind them is a fixed 16-iteration power method per limb plus a
+	 * second one per shoulder and hip. The renderer holds one of these for as long as the body is
+	 * unchanged, which is exactly how long it stays valid.
+	 */
+	public static final class Rig {
+		private final SurgicalAssembly assembly;
+		private final List<SourceState> sources;
+		private final List<ResolvedLimb> limbs;
+		private final float legLength;
+
+		private Rig(SurgicalAssembly assembly, List<SourceState> sources, List<ResolvedLimb> limbs,
+			float legLength) {
+			this.assembly = assembly;
+			this.sources = sources;
+			this.limbs = limbs;
+			this.legLength = legLength;
+		}
+
+		private boolean matches(SurgicalAssembly otherAssembly, List<SourceState> otherSources) {
+			return assembly == otherAssembly && sources == otherSources;
+		}
+
+		public float legLength() {
+			return legLength;
+		}
+	}
+
+	public static Rig rig(SurgicalAssembly assembly, List<SourceState> sources) {
+		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
+		return new Rig(assembly, sources, limbs, effectiveLegLength(limbs, sources));
+	}
+
 	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
-		List<SourceState> sources, float partialTick) {
+		List<SourceState> sources, @Nullable Rig rig, float partialTick) {
 		int sourceCount = assembly.sources().size();
 		List<Frame> frames = new ArrayList<>(sourceCount);
 		for (int source = 0; source < sourceCount; source++)
 			frames.add(Frame.EMPTY);
 		if (assembly.limbs().isEmpty() || sources.size() != sourceCount)
 			return frames;
-		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
+		Rig resolved = rig != null && rig.matches(assembly, sources) ? rig : rig(assembly, sources);
+		List<ResolvedLimb> limbs = resolved.limbs;
 		if (limbs.isEmpty())
 			return frames;
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
 		Pose pose = SlimeBionicAnimations.sample(animationContext(entity, partialTick,
-			effectiveLegLength(limbs, sources), attackArm(limbs, preferredAttackArm),
+			resolved.legLength, attackArm(limbs, preferredAttackArm),
 			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND));
 
 		Map<Integer, Map<Integer, Vec3>> offsets = new HashMap<>();

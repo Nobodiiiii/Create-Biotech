@@ -73,8 +73,11 @@ public final class MimicProfile {
 	private MimicProfile(ResourceLocation entityTypeId, CompoundTag stableData, CompoundTag previewData,
 		@Nullable Boolean baby) {
 		this.entityTypeId = entityTypeId;
-		this.stableData = stableData.copy();
-		this.previewData = previewData.copy();
+		// Both callers hand over tags they just built: sanitizeSavedData starts from a new CompoundTag
+		// and sanitizePreviewData from source.copy(). Copying again duplicated the whole entity NBT -
+		// kilobytes for a villager - on every profile, including one per fragment on a mimic's death.
+		this.stableData = stableData;
+		this.previewData = previewData;
 		this.baby = baby;
 		this.hash = Objects.hash(entityTypeId, this.stableData, this.previewData, baby);
 	}

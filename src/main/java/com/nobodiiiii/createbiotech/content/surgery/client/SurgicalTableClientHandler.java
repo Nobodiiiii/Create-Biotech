@@ -404,8 +404,8 @@ public final class SurgicalTableClientHandler {
 			TableGeometry geometry = member == null ? null
 				: SUBJECT_GEOMETRIES.get(member.persistentId());
 			if (geometry == null || !geometry.matchesModel(table, member)
-				|| !SubjectGeometryState.capture(member, geometry.observedCubeCount)
-					.equals(geometry.subjectState)) {
+				|| geometry.subjectState == null
+				|| !geometry.subjectState.matches(member, geometry.observedCubeCount)) {
 				unchanged = false;
 				break;
 			}
@@ -3038,17 +3038,19 @@ public final class SurgicalTableClientHandler {
 		BlockPos bestTablePos = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Map.Entry<SubjectKey, TableGeometry> entry : TABLES.entrySet()) {
+			TableGeometry geometry = entry.getValue();
+			// Same ordering as findNearestCubeHit: the free slab test decides first, so a table the
+			// ray misses costs neither a block-entity fetch nor a per-seam topology check.
+			if (geometry.bounds == null
+				|| !rayIntersectsBounds(ray, geometry.bounds, MAX_SELECTION_THRESHOLD))
+				continue;
 			BlockPos tablePos = entry.getKey().tablePos;
 			if (!(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table)
 				|| !table.hasSubject(entry.getKey().subjectId))
 				continue;
-			TableGeometry geometry = entry.getValue();
 			SurgicalSubject subject = table.getSubject(geometry.subjectId);
 			if (!geometry.topologyReady()
 				|| subject == null || !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
-				continue;
-			if (geometry.bounds == null
-				|| !rayIntersectsBounds(ray, geometry.bounds, MAX_SELECTION_THRESHOLD))
 				continue;
 			for (SurgicalClientTopology.Contact contact : geometry.contacts) {
 				SurgicalAssembly.Seam seam = contact.seam();
@@ -4025,8 +4027,8 @@ public final class SurgicalTableClientHandler {
 			markSeen(table);
 			boolean topologyChanged = resolvePendingTopology();
 			int revision = subject.clientRenderRevision();
-			SubjectGeometryState nextState = SubjectGeometryState.capture(subject, observedCubeCount);
-			boolean stateChanged = !nextState.equals(subjectState);
+			boolean stateChanged = subjectState == null
+				|| !subjectState.matches(subject, observedCubeCount);
 			OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
 			if (!ownerChanged && revision == renderRevision && !topologyChanged && !stateChanged)
 				return false;
@@ -4051,7 +4053,7 @@ public final class SurgicalTableClientHandler {
 			cutSeams = subject.cutSeamsForRender();
 			serverOffsets = Map.copyOf(subject.componentOffsetsForRender());
 			serverRotations = Map.copyOf(subject.componentRotationsForRender());
-			subjectState = nextState;
+			subjectState = SubjectGeometryState.capture(subject, observedCubeCount);
 			ownerChanged = false;
 			cheapOwnerHandoff = null;
 			// Publish the revision before grounding so a newly refreshed connected group can prove
@@ -4347,7 +4349,10 @@ public final class SurgicalTableClientHandler {
 			}
 			ClientLevel level = Minecraft.getInstance().level;
 			long tick = level == null ? Long.MIN_VALUE : level.getGameTime();
-			if (edges.equals(nextEdges) && this.color == color) {
+			// Reference identity first: these lists are immutable and the unchanged case hands back
+			// the very same instance, so the element-wise compare below - two Vec3 per edge, hundreds
+			// of edges, three outlines, every frame - is only reached when something actually moved.
+			if ((edges == nextEdges || edges.equals(nextEdges)) && this.color == color) {
 				if (tick != lastRefreshTick) {
 					Outliner.getInstance().keep(slot);
 					lastRefreshTick = tick;
@@ -4394,6 +4399,36 @@ public final class SurgicalTableClientHandler {
 			rotations = Map.copyOf(rotations);
 			glueJoints = Set.copyOf(glueJoints);
 			combinations = Map.copyOf(combinations);
+		}
+
+		/**
+		 * Field-by-field comparison against the live subject. The snapshot this replaces was built and
+		 * thrown away on every call, and the callers ask once per subject per frame purely to learn
+		 * that nothing moved.
+		 *
+		 * <p>Relies on the glue-joint list being duplicate-free, which {@code addGlueJoint} enforces;
+		 * a duplicate would only cost a permanent cache miss, never a wrong answer.
+		 */
+		private boolean matches(@Nullable SurgicalSubject subject, int observedCubeCount) {
+			if (subject == null)
+				return false;
+			if (!seams.equals(subject.seams())
+				|| !offsets.equals(subject.componentOffsetsForRender())
+				|| !rotations.equals(subject.componentRotationsForRender()))
+				return false;
+			List<SurgicalGlueJoint> subjectJoints = subject.glueJoints();
+			if (glueJoints.size() != subjectJoints.size() || !glueJoints.containsAll(subjectJoints))
+				return false;
+			List<SurgicalCombination> subjectCombinations = subject.combinations();
+			if (combinations.size() != subjectCombinations.size())
+				return false;
+			for (SurgicalCombination combination : subjectCombinations) {
+				List<SurgicalCombination.Member> members = combinations.get(combination.id());
+				if (members == null || !members.equals(combination.members()))
+					return false;
+			}
+			return presentCubes.equals(subject.presentCubesForRender(observedCubeCount))
+				&& cutSeams.equals(subject.cutSeamsForRender());
 		}
 
 		private static SubjectGeometryState capture(SurgicalSubject subject, int observedCubeCount) {
