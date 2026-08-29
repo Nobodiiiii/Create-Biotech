@@ -36,6 +36,11 @@ public final class SlimeBionicAnimations {
 	private static final float MAX_WALK_ELBOW_DEGREES = 37.5f;
 	private static final float MIN_WALK_KNEE_DEGREES = 3.0f;
 	private static final float MAX_WALK_KNEE_DEGREES = 51.0f;
+	/** The dynamic yaw and lift amplitudes used by Minecraft's 1.21.1 SpiderModel. */
+	private static final float SPIDER_LEG_SWING = 0.4f;
+	private static final float SPIDER_LEG_LIFT = 0.4f;
+	/** Counter-rotating the lower leg twice keeps a two-segment M leg from folding upward. */
+	private static final float SPIDER_KNEE_COUNTER_ROTATION = 2.0f;
 	@Nullable
 	private static HumanoidModel<LivingEntity> humanoidModel;
 
@@ -95,16 +100,22 @@ public final class SlimeBionicAnimations {
 		rotations.put(Bone.LEFT_ELBOW, Rotation.x(-leftElbowDegrees * Mth.DEG_TO_RAD * weight));
 	}
 
-	/**
-	 * Samples one dynamically assigned leg channel. The caller supplies a stable phase for the
-	 * complete hip/knee chain, so this same fixed curve works for every gait from two to eight feet.
-	 */
-	public static Rotation sampleLeg(Context context, boolean knee, float phaseOffset) {
+	/** Samples one dynamically assigned humanoid or spider leg channel. */
+	public static Rotation sampleLeg(Context context, boolean knee, LegStyle style, boolean left,
+		float phaseOffset) {
 		if (context == null)
 			return Rotation.IDENTITY;
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
 		if (weight <= 0.0f)
 			return Rotation.IDENTITY;
+		return style == LegStyle.SPIDER
+			? sampleSpiderLeg(context, knee, left, phaseOffset, weight)
+			: sampleHumanoidLeg(context, knee, phaseOffset, weight);
+	}
+
+	/** Preserves the original pendulum-and-knee gait for downward, humanoid-like legs. */
+	private static Rotation sampleHumanoidLeg(Context context, boolean knee, float phaseOffset,
+		float weight) {
 		float phase = context.limbSwing() * WALK_PHASE_SCALE + phaseOffset;
 		if (!knee) {
 			float swing = Mth.cos(phase) * 1.4f * context.limbSwingAmount();
@@ -113,6 +124,22 @@ public final class SlimeBionicAnimations {
 		float bend = Math.max(0.0f, Mth.sin(phase));
 		float degrees = Mth.lerp(bend, MIN_WALK_KNEE_DEGREES, MAX_WALK_KNEE_DEGREES);
 		return Rotation.x(degrees * Mth.DEG_TO_RAD * weight);
+	}
+
+	/**
+	 * Reproduces SpiderModel's horizontal sweep and mirrored lift as deltas from the installed rest
+	 * pose. An articulated lower leg counter-rotates in the radial plane, so an M-shaped leg flexes
+	 * at its knee instead of making its complete lower half follow the hip as one rigid bar.
+	 */
+	private static Rotation sampleSpiderLeg(Context context, boolean knee, boolean left,
+		float phaseOffset, float weight) {
+		float phase = context.limbSwing() * WALK_PHASE_SCALE;
+		float side = left ? -1.0f : 1.0f;
+		float lift = Math.abs(Mth.sin(phase + phaseOffset)) * SPIDER_LEG_LIFT * weight;
+		if (knee)
+			return Rotation.z(-side * lift * SPIDER_KNEE_COUNTER_ROTATION);
+		float sweep = -Mth.cos(phase * 2.0f + phaseOffset) * SPIDER_LEG_SWING * weight;
+		return new Rotation(sweep, 0.0f, side * lift);
 	}
 
 	/** Retimes the selected authored attack to the entity's synced attack-cadence window. */
@@ -203,6 +230,12 @@ public final class SlimeBionicAnimations {
 		WEAPON
 	}
 
+	/** Geometry-selected walking style. Each installed hip owns one independent value. */
+	public enum LegStyle {
+		HUMANOID,
+		SPIDER
+	}
+
 	/** All time-varying inputs needed to sample one pose; no assembly or renderer state leaks in. */
 	public record Context(LivingEntity entity, float limbSwing, float limbSwingAmount,
 		float walkWeight, float ageInTicks, float netHeadYaw, float headPitch, float attackTime,
@@ -224,6 +257,10 @@ public final class SlimeBionicAnimations {
 
 		private static Rotation x(float radians) {
 			return new Rotation(radians, 0.0f, 0.0f);
+		}
+
+		private static Rotation z(float radians) {
+			return new Rotation(0.0f, 0.0f, radians);
 		}
 
 		static Rotation degrees(float x, float y, float z) {

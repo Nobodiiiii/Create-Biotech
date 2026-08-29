@@ -24,6 +24,7 @@ import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimation
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.AttackStyle;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Bone;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Context;
+import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.LegStyle;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Pose;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Rotation;
 
@@ -45,6 +46,8 @@ public final class SlimeBionicAnimator {
 	private static final int AXIS_Z = 2;
 	private static final double GEOMETRY_EPSILON = 1.0e-10d;
 	private static final double VOLUME_OVERLAP_EPSILON = 1.0e-7d;
+	/** Includes SpiderModel's outer legs, whose rest pose is exactly 45 degrees from horizontal. */
+	private static final double SPIDER_HORIZONTAL_TO_VERTICAL_RATIO = 0.75d;
 	private static final int ARM_VOLUME_SAMPLES_PER_BOX = 64;
 	private static final int MAX_ARM_VOLUME_SAMPLE_POINTS = 32_768;
 	private static final long MAX_ARM_VOLUME_COVERAGE_TESTS = 8_000_000L;
@@ -465,6 +468,7 @@ public final class SlimeBionicAnimator {
 			if (restDirection.lengthSqr() < GEOMETRY_EPSILON)
 				continue;
 			resolved.add(new ResolvedLimb(geometry.type(), geometry.members(), geometry.parent(), pivot,
+				restDirection,
 				BODY_SPACE.project(geometry.child().center(), AXIS_X) - bodyCenterX,
 				BODY_SPACE.project(geometry.child().center(), AXIS_Z),
 				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1, null));
@@ -566,9 +570,10 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Assigns every resolved hip to one of the fixed two-to-eight-foot gait channels. X chooses the
-	 * anatomical side and Z orders legs along that side. Even bodies alternate neighboring rows and
-	 * mirror the groups across the body; odd bodies use an evenly spaced wave around their perimeter.
+	 * Classifies and phases every resolved hip independently. A mostly downward upper leg retains the
+	 * existing humanoid pendulum gait; a mostly horizontal upper leg uses a SpiderModel-style gait.
+	 * Separating the two lists is what lets one body carry both kinds without an unrelated spider leg
+	 * changing the phase assignment of its humanoid legs.
 	 */
 	private static List<ResolvedLimb> assignLegGaits(List<ResolvedLimb> limbs) {
 		List<Integer> hips = new ArrayList<>();
@@ -577,6 +582,50 @@ public final class SlimeBionicAnimator {
 				hips.add(index);
 		if (hips.size() < 2)
 			return limbs;
+		List<Integer> humanoidHips = new ArrayList<>();
+		List<Integer> spiderHips = new ArrayList<>();
+		for (int index : hips) {
+			ResolvedLimb hip = limbs.get(index);
+			(legStyle(hip) == LegStyle.SPIDER ? spiderHips : humanoidHips).add(index);
+		}
+
+		List<ResolvedLimb> assigned = new ArrayList<>(limbs);
+		assignHumanoidGaits(assigned, limbs, humanoidHips);
+		assignSpiderGaits(assigned, limbs, spiderHips);
+
+		// A knee is a child-local hinge. It must inherit the exact style, side and phase of the hip
+		// whose rotating group owns its parent endpoint, especially on a mixed humanoid/spider body.
+		for (int index = 0; index < assigned.size(); index++) {
+			ResolvedLimb limb = assigned.get(index);
+			if (limb.type() != SurgicalLimbType.KNEE || limb.parentIndex() < 0)
+				continue;
+			ResolvedLimb parent = assigned.get(limb.parentIndex());
+			if (parent.type() == SurgicalLimbType.HIP && parent.gait() != null)
+				assigned.set(index, limb.withGait(parent.gait()));
+		}
+		return List.copyOf(assigned);
+	}
+
+	/**
+	 * A pronounced sideways reach marks a spider leg. The tolerance deliberately includes the
+	 * vanilla spider's 45-degree front and hind legs without catching ordinarily hanging legs.
+	 */
+	private static LegStyle legStyle(ResolvedLimb hip) {
+		Vec3 direction = hip.restDirection();
+		double vertical = BODY_SPACE.project(direction, AXIS_Y);
+		double lateral = BODY_SPACE.project(direction, AXIS_X);
+		double longitudinal = BODY_SPACE.project(direction, AXIS_Z);
+		double minimumHorizontal = vertical * SPIDER_HORIZONTAL_TO_VERTICAL_RATIO;
+		return lateral * lateral + longitudinal * longitudinal
+			>= minimumHorizontal * minimumHorizontal
+			? LegStyle.SPIDER : LegStyle.HUMANOID;
+	}
+
+	/** The pre-existing gait assignment, applied only to this body's humanoid-like hips. */
+	private static void assignHumanoidGaits(List<ResolvedLimb> assigned,
+		List<ResolvedLimb> limbs, List<Integer> hips) {
+		if (hips.isEmpty())
+			return;
 
 		java.util.Comparator<Integer> frontToBack = java.util.Comparator
 			.comparingDouble((Integer index) -> limbs.get(index).longitudinal())
@@ -604,10 +653,9 @@ public final class SlimeBionicAnimator {
 		right.sort(frontToBack);
 		left.sort(frontToBack);
 
-		List<ResolvedLimb> assigned = new ArrayList<>(limbs);
 		if ((hips.size() & 1) == 0) {
-			assignAlternatingSide(assigned, right, false);
-			assignAlternatingSide(assigned, left, true);
+			assignAlternatingHumanoidSide(assigned, right, false);
+			assignAlternatingHumanoidSide(assigned, left, true);
 		} else {
 			List<Integer> perimeter = new ArrayList<>(hips.size());
 			perimeter.addAll(right);
@@ -618,31 +666,77 @@ public final class SlimeBionicAnimator {
 				int index = perimeter.get(slot);
 				boolean isLeft = left.contains(index);
 				assigned.set(index, assigned.get(index)
-					.withGait(new GaitChannel(isLeft, slot, phaseStep * slot)));
+					.withGait(new GaitChannel(LegStyle.HUMANOID, isLeft, slot,
+						phaseStep * slot)));
 			}
 		}
-
-		// A knee is a child-local hinge. It must use the exact channel of the hip whose rotating
-		// group owns its parent endpoint or its bend would drift out of phase with the upper leg.
-		for (int index = 0; index < assigned.size(); index++) {
-			ResolvedLimb limb = assigned.get(index);
-			if (limb.type() != SurgicalLimbType.KNEE || limb.parentIndex() < 0)
-				continue;
-			ResolvedLimb parent = assigned.get(limb.parentIndex());
-			if (parent.type() == SurgicalLimbType.HIP && parent.gait() != null)
-				assigned.set(index, limb.withGait(parent.gait()));
-		}
-		return List.copyOf(assigned);
 	}
 
-	private static void assignAlternatingSide(List<ResolvedLimb> assigned,
+	/** Spider legs share phases across the body and mirror their lift across its sagittal plane. */
+	private static void assignSpiderGaits(List<ResolvedLimb> assigned,
+		List<ResolvedLimb> limbs, List<Integer> hips) {
+		if (hips.isEmpty())
+			return;
+		java.util.Comparator<Integer> frontToBack = java.util.Comparator
+			.comparingDouble((Integer index) -> limbs.get(index).longitudinal())
+			.thenComparingDouble(index -> limbs.get(index).side())
+			.thenComparingInt(Integer::intValue);
+		List<Integer> right = new ArrayList<>();
+		List<Integer> left = new ArrayList<>();
+		List<Integer> center = new ArrayList<>();
+		for (int index : hips) {
+			double side = limbs.get(index).side();
+			if (side < -GEOMETRY_EPSILON)
+				right.add(index);
+			else if (side > GEOMETRY_EPSILON)
+				left.add(index);
+			else
+				center.add(index);
+		}
+		center.sort(frontToBack);
+		for (int index : center) {
+			if (right.size() < left.size())
+				right.add(index);
+			else
+				left.add(index);
+		}
+		right.sort(frontToBack);
+		left.sort(frontToBack);
+		int rowCount = Math.max(right.size(), left.size());
+		assignSpiderSide(assigned, right, false, rowCount);
+		assignSpiderSide(assigned, left, true, rowCount);
+	}
+
+	private static void assignAlternatingHumanoidSide(List<ResolvedLimb> assigned,
 		List<Integer> indices, boolean left) {
 		for (int row = 0; row < indices.size(); row++) {
 			int index = indices.get(row);
 			int group = (row + (left ? 1 : 0)) & 1;
 			assigned.set(index, assigned.get(index)
-				.withGait(new GaitChannel(left, row, group * Mth.PI)));
+				.withGait(new GaitChannel(LegStyle.HUMANOID, left, row, group * Mth.PI)));
 		}
+	}
+
+	private static void assignSpiderSide(List<ResolvedLimb> assigned,
+		List<Integer> indices, boolean left, int rowCount) {
+		for (int row = 0; row < indices.size(); row++) {
+			int index = indices.get(row);
+			assigned.set(index, assigned.get(index)
+				.withGait(new GaitChannel(LegStyle.SPIDER, left, row,
+					spiderPhase(row, rowCount))));
+		}
+	}
+
+	/** The four-row case is the exact front-to-back phase order used by SpiderModel. */
+	private static float spiderPhase(int row, int rowCount) {
+		if (rowCount == 4)
+			return switch (row) {
+			case 0 -> Mth.PI * 1.5f;
+			case 1 -> Mth.HALF_PI;
+			case 2 -> Mth.PI;
+			default -> 0.0f;
+			};
+		return rowCount <= 1 ? 0.0f : Mth.TWO_PI * row / rowCount;
 	}
 
 	/** Uses the preferred articulated arm, falling back to the only installed elbow if necessary. */
@@ -675,7 +769,8 @@ public final class SlimeBionicAnimator {
 			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform, cache, resolving);
 		Rotation sampled = limb.gait() == null ? pose.rotation(limb.bone())
 			: SlimeBionicAnimations.sampleLeg(context,
-				limb.type() == SurgicalLimbType.KNEE, limb.gait().phase());
+				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
+				limb.gait().left(), limb.gait().phase());
 		SurgicalCubeRotation local = BODY_SPACE.reframe(limb.restAlignment(),
 			sampled.z(), sampled.y(), sampled.x());
 		SurgicalCubeRotation inheritedLocal = conjugate(parent.rotation(), local);
@@ -935,24 +1030,25 @@ public final class SlimeBionicAnimator {
 	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member parent,
 		CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
-	private record GaitChannel(boolean left, int row, float phase) {}
+	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
 
 	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member parent,
-		Vec3 pivot, double side, double longitudinal, SurgicalCubeRotation restAlignment,
+		Vec3 pivot, Vec3 restDirection, double side, double longitudinal,
+		SurgicalCubeRotation restAlignment,
 		@Nullable Bone bone, int parentIndex, @Nullable GaitChannel gait) {
 		private ResolvedLimb withBone(@Nullable Bone bone) {
-			return new ResolvedLimb(type, members, parent, pivot, side, longitudinal, restAlignment,
-				bone, parentIndex, gait);
+			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+				restAlignment, bone, parentIndex, gait);
 		}
 
 		private ResolvedLimb withParent(int parentIndex) {
-			return new ResolvedLimb(type, members, parent, pivot, side, longitudinal, restAlignment,
-				bone, parentIndex, gait);
+			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+				restAlignment, bone, parentIndex, gait);
 		}
 
 		private ResolvedLimb withGait(GaitChannel gait) {
-			return new ResolvedLimb(type, members, parent, pivot, side, longitudinal, restAlignment,
-				bone, parentIndex, gait);
+			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+				restAlignment, bone, parentIndex, gait);
 		}
 	}
 
