@@ -771,8 +771,12 @@ public final class SlimeBionicAnimator {
 			: SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
 				limb.gait().left(), limb.gait().phase());
-		SurgicalCubeRotation local = BODY_SPACE.reframe(limb.restAlignment(),
-			sampled.z(), sampled.y(), sampled.x());
+		SurgicalCubeRotation local = limb.gait() != null
+			&& limb.gait().style() == LegStyle.SPIDER && limb.type() == SurgicalLimbType.HIP
+				? BODY_SPACE.spiderReframe(limb.restDirection(), limb.gait().left(),
+					sampled.z(), sampled.y())
+				: BODY_SPACE.reframe(limb.restAlignment(),
+					sampled.z(), sampled.y(), sampled.x());
 		SurgicalCubeRotation inheritedLocal = conjugate(parent.rotation(), local);
 		Transform resolved = parent.rotateAround(parent.apply(limb.pivot()), inheritedLocal);
 		resolving[index] = false;
@@ -1010,19 +1014,23 @@ public final class SlimeBionicAnimator {
 		float limbSwing = 0.0f;
 		float limbSwingAmount = 0.0f;
 		float walkWeight = 0.0f;
+		float vanillaLimbSwing = 0.0f;
+		float vanillaLimbSwingAmount = 0.0f;
 		if (!entity.isPassenger() && entity.isAlive()) {
+			vanillaLimbSwing = entity.walkAnimation.position(partialTick);
+			vanillaLimbSwingAmount = Math.min(entity.walkAnimation.speed(partialTick), 1.0f);
 			// WalkAnimation.position keeps accumulating at the full movement-derived speed. Capping only
 			// the amount therefore converts speed beyond this point into faster steps, not wider swings.
 			float maximumAmount = SurgicalGait.maximumHumanoidSwingAmount(legLength);
-			limbSwingAmount = Math.min(entity.walkAnimation.speed(partialTick), maximumAmount);
+			limbSwingAmount = Math.min(vanillaLimbSwingAmount, maximumAmount);
 			walkWeight = maximumAmount <= 0.0f ? 0.0f : limbSwingAmount / maximumAmount;
-			limbSwing = entity.walkAnimation.position(partialTick)
-				* SurgicalGait.animationFrequencyScale(legLength);
+			limbSwing = vanillaLimbSwing * SurgicalGait.animationFrequencyScale(legLength);
 		}
-		return new Context(entity, limbSwing, limbSwingAmount, walkWeight, ageInTicks,
-			netHeadYaw, headPitch, entity.getAttackAnim(partialTick), entity.isPassenger(),
-			entity.getSwimAmount(partialTick), entity.getAttackAnimationTick(),
-			entity.getAttackAnimationDuration(), partialTick, attackArm, attackStyle);
+		return new Context(entity, limbSwing, limbSwingAmount, walkWeight, vanillaLimbSwing,
+			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
+			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
+			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
+			attackArm, attackStyle);
 	}
 
 	private record Member(int source, int cube) {}
@@ -1242,6 +1250,33 @@ public final class SlimeBionicAnimator {
 				.mul(new Quaternionf(alignment).conjugate());
 			Quaternionf world = new Quaternionf(modelToWorld)
 				.mul(modelRotation)
+				.mul(new Quaternionf(modelToWorld).conjugate());
+			return new SurgicalCubeRotation(world.x(), world.y(), world.z(), world.w());
+		}
+
+		/**
+		 * Applies SpiderModel's Y/Z Euler additions relative to the measured static leg pose. Vanilla
+		 * spider legs originate along model X rather than humanoid model Y, so passing these angles
+		 * through {@link #reframe} would rotate them around the wrong inferred axes. The measured
+		 * direction uniquely recovers the base Y/Z angles of an outward-pointing left or right leg;
+		 * {@code animated * inverse(rest)} then gives the exact pose delta to apply to baked geometry.
+		 */
+		private SurgicalCubeRotation spiderReframe(Vec3 restDirection, boolean left,
+			float zRot, float yRot) {
+			if (zRot == 0.0f && yRot == 0.0f)
+				return SurgicalCubeRotation.IDENTITY;
+			Vec3 actual = new Vec3(project(restDirection, AXIS_X),
+				project(restDirection, AXIS_Y), project(restDirection, AXIS_Z)).normalize();
+			float side = left ? 1.0f : -1.0f;
+			float horizontal = (float) Math.sqrt(actual.x * actual.x + actual.y * actual.y);
+			float baseY = (float) Math.atan2(-side * actual.z, horizontal);
+			float baseZ = (float) Math.atan2(side * actual.y, side * actual.x);
+			Quaternionf rest = new Quaternionf().rotationZYX(baseZ, baseY, 0.0f);
+			Quaternionf animated = new Quaternionf().rotationZYX(baseZ + zRot,
+				baseY + yRot, 0.0f);
+			Quaternionf modelDelta = animated.mul(new Quaternionf(rest).conjugate());
+			Quaternionf world = new Quaternionf(modelToWorld)
+				.mul(modelDelta)
 				.mul(new Quaternionf(modelToWorld).conjugate());
 			return new SurgicalCubeRotation(world.x(), world.y(), world.z(), world.w());
 		}

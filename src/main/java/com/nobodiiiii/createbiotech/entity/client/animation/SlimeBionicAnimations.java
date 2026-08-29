@@ -105,12 +105,12 @@ public final class SlimeBionicAnimations {
 		float phaseOffset) {
 		if (context == null)
 			return Rotation.IDENTITY;
+		if (style == LegStyle.SPIDER)
+			return sampleSpiderLeg(context, knee, left, phaseOffset);
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
 		if (weight <= 0.0f)
 			return Rotation.IDENTITY;
-		return style == LegStyle.SPIDER
-			? sampleSpiderLeg(context, knee, left, phaseOffset, weight)
-			: sampleHumanoidLeg(context, knee, phaseOffset, weight);
+		return sampleHumanoidLeg(context, knee, phaseOffset, weight);
 	}
 
 	/** Preserves the original pendulum-and-knee gait for downward, humanoid-like legs. */
@@ -132,14 +132,19 @@ public final class SlimeBionicAnimations {
 	 * at its knee instead of making its complete lower half follow the hip as one rigid bar.
 	 */
 	private static Rotation sampleSpiderLeg(Context context, boolean knee, boolean left,
-		float phaseOffset, float weight) {
-		float phase = context.limbSwing() * WALK_PHASE_SCALE;
-		float side = left ? -1.0f : 1.0f;
-		float lift = Math.abs(Mth.sin(phase + phaseOffset)) * SPIDER_LEG_LIFT * weight;
+		float phaseOffset) {
+		float amount = Mth.clamp(context.vanillaLimbSwingAmount(), 0.0f, 1.0f);
+		if (amount <= 0.0f)
+			return Rotation.IDENTITY;
+		float phase = context.vanillaLimbSwing() * WALK_PHASE_SCALE;
+		float mirror = left ? -1.0f : 1.0f;
+		float lift = Math.abs(Mth.sin(phase + phaseOffset)) * SPIDER_LEG_LIFT * amount
+			* mirror;
 		if (knee)
-			return Rotation.z(-side * lift * SPIDER_KNEE_COUNTER_ROTATION);
-		float sweep = -Mth.cos(phase * 2.0f + phaseOffset) * SPIDER_LEG_SWING * weight;
-		return new Rotation(sweep, 0.0f, side * lift);
+			return Rotation.z(-lift * SPIDER_KNEE_COUNTER_ROTATION);
+		float sweep = -Mth.cos(phase * 2.0f + phaseOffset) * SPIDER_LEG_SWING * amount
+			* mirror;
+		return new Rotation(0.0f, sweep, lift);
 	}
 
 	/** Retimes the selected authored attack to the entity's synced attack-cadence window. */
@@ -238,9 +243,10 @@ public final class SlimeBionicAnimations {
 
 	/** All time-varying inputs needed to sample one pose; no assembly or renderer state leaks in. */
 	public record Context(LivingEntity entity, float limbSwing, float limbSwingAmount,
-		float walkWeight, float ageInTicks, float netHeadYaw, float headPitch, float attackTime,
-		boolean riding, float swimAmount, int attackAnimationTick, int attackAnimationDuration,
-		float partialTick, Arm attackArm, AttackStyle attackStyle) {
+		float walkWeight, float vanillaLimbSwing, float vanillaLimbSwingAmount, float ageInTicks,
+		float netHeadYaw, float headPitch, float attackTime, boolean riding, float swimAmount,
+		int attackAnimationTick, int attackAnimationDuration, float partialTick, Arm attackArm,
+		AttackStyle attackStyle) {
 		public Context {
 			attackArm = attackArm == null ? Arm.NONE : attackArm;
 			attackStyle = attackStyle == null ? AttackStyle.EMPTY_HAND : attackStyle;
