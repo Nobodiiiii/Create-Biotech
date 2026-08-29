@@ -197,14 +197,23 @@ public final class SurgicalTableClientHandler {
 
 	public static boolean isRenderReady(SurgicalTableBlockEntity table, SurgicalSubject subject) {
 		TableGeometry geometry = geometryFor(table, subject);
-		return geometry != null && geometry.matchesModel(table, subject) && geometry.topologyReady()
-			&& geometry.renderRevision == subject.clientRenderRevision();
+		return geometryReadyForUse(table, subject, geometry);
+	}
+
+	private static boolean geometryReadyForUse(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		@Nullable TableGeometry geometry) {
+		if (geometry == null || !geometry.matchesModel(table, subject) || !geometry.topologyReady()
+			|| geometry.renderRevision != subject.clientRenderRevision())
+			return false;
+		if (geometry.retryPendingGrounding(table))
+			geometryGeneration++;
+		return !geometry.groundingPending;
 	}
 
 	@Nullable
 	public static AABB cachedRenderBounds(SurgicalTableBlockEntity table, SurgicalSubject subject) {
 		TableGeometry geometry = geometryFor(table, subject);
-		if (geometry == null || !geometry.matchesModel(table, subject)
+		if (geometry == null || geometry.groundingPending || !geometry.matchesModel(table, subject)
 			|| geometry.renderRevision != subject.clientRenderRevision())
 			return null;
 		AABB bounds = geometry.bounds;
@@ -1671,7 +1680,11 @@ public final class SurgicalTableClientHandler {
 	private static SurgicalTableLayout.Proposal currentGlueLayout(ClientLevel level, Selection selection) {
 		TableGeometry geometry = TABLES.get(new SubjectKey(selection.tablePos, selection.subjectId));
 		SurgicalTablePlane.Plane plane = clientPlane(level, selection.tablePos);
-		if (geometry == null || !plane.valid() || !selection.tablePos.equals(plane.source()))
+		SurgicalTableBlockEntity table = level.getBlockEntity(selection.tablePos)
+			instanceof SurgicalTableBlockEntity found ? found : null;
+		SurgicalSubject subject = table == null ? null : table.getSubject(selection.subjectId);
+		if (table == null || subject == null || !geometryReadyForUse(table, subject, geometry)
+			|| !plane.valid() || !selection.tablePos.equals(plane.source()))
 			return null;
 		List<SurgicalTableLayout.Footprint> occupied = occupiedOutsideEditingGroup(level, plane,
 			selection.tablePos, selection.subjectId);
@@ -1711,7 +1724,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : moving.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(targetHit.tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				return null;
 			BitSet cubes = (BitSet) entry.getValue().clone();
@@ -1742,7 +1755,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : anchored.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(targetHit.tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				return null;
 			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
@@ -1954,8 +1967,7 @@ public final class SurgicalTableClientHandler {
 				continue;
 			foundAddedSubject = true;
 			TableGeometry geometry = TABLES.get(new SubjectKey(commit.tablePos, subject.id()));
-			if (geometry == null || !geometry.matchesModel(table, subject) || !geometry.topologyReady()
-				|| geometry.renderRevision != subject.clientRenderRevision())
+			if (!geometryReadyForUse(table, subject, geometry))
 				return;
 		}
 		if (foundAddedSubject && table.getLevel() instanceof ClientLevel level)
@@ -2045,7 +2057,10 @@ public final class SurgicalTableClientHandler {
 		List<SurgicalClientTopology.GroundingBody<UUID>> bodies = new ArrayList<>();
 		Set<SurgicalGlueJoint> joints = new java.util.HashSet<>();
 		Set<SurgicalCombination> combinations = new java.util.HashSet<>();
+		Set<Integer> connectedSubjectIds = table.connectedSubjectIds(currentSubject.id());
 		for (SurgicalSubject subject : table.getSubjects()) {
+			if (!connectedSubjectIds.contains(subject.id()))
+				continue;
 			for (SurgicalGlueJoint joint : subject.glueJoints())
 				if (!joint.equals(excludedJoint))
 					joints.add(joint);
@@ -2055,11 +2070,8 @@ public final class SurgicalTableClientHandler {
 				: TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
 			if (geometry == null || !geometry.topologyReady()
 				|| geometry.renderRevision != subject.clientRenderRevision()
-				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams)) {
-				if (currentSubjectEntry)
-					return null;
-				continue;
-			}
+				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
+				return null;
 			Map<Integer, Vec3> offsets = currentSubjectEntry ? currentOffsets : geometry.serverOffsets;
 			BitSet cutSeams = currentSubjectEntry ? currentCutSeams : geometry.cutSeams;
 			bodies.add(new SurgicalClientTopology.GroundingBody<>(subject.persistentId(),
@@ -2323,7 +2335,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : pending.movingComponents.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams)) {
 				abortPendingGlueCut();
 				return;
@@ -2735,7 +2747,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : pending.movingComponents.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams)) {
 				abortPendingCut();
 				return;
@@ -3075,8 +3087,8 @@ public final class SurgicalTableClientHandler {
 				|| !table.hasSubject(entry.getKey().subjectId))
 				continue;
 			SurgicalSubject subject = table.getSubject(geometry.subjectId);
-			if (!geometry.topologyReady()
-				|| subject == null || !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
+				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				continue;
 			for (SurgicalClientTopology.Contact contact : geometry.contacts) {
 				SurgicalAssembly.Seam seam = contact.seam();
@@ -3364,7 +3376,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : components.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				return null;
 			BitSet ordinary = (BitSet) entry.getValue().clone();
@@ -3450,7 +3462,7 @@ public final class SurgicalTableClientHandler {
 		for (Map.Entry<Integer, BitSet> entry : direct.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(hit.tablePos, entry.getKey()));
-			if (subject == null || geometry == null || !geometry.topologyReady()
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				return null;
 			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
@@ -3499,8 +3511,8 @@ public final class SurgicalTableClientHandler {
 				|| !table.hasSubject(entry.getKey().subjectId))
 				continue;
 			SurgicalSubject subject = table.getSubject(geometry.subjectId);
-			if (!geometry.topologyReady()
-				|| subject == null || !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
+			if (subject == null || !geometryReadyForUse(table, subject, geometry)
+				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				continue;
 			for (CubeTarget target : geometry.cubeTargets) {
 				SurgicalModelRenderContext.CubeGeometry cube = target.geometry;
@@ -4242,6 +4254,12 @@ public final class SurgicalTableClientHandler {
 			Map<Integer, SurgicalCubeRotation> appliedRotations,
 			BitSet appliedCutSeams, @Nullable SurgicalGlueJoint excludedJoint) {
 			long started = SurgicalProfiler.begin();
+			boolean groundingRequestChanged = !pendingGroundingOffsets.equals(appliedOffsets)
+				|| !pendingGroundingRotations.equals(appliedRotations)
+				|| !pendingGroundingCutSeams.equals(appliedCutSeams)
+				|| !java.util.Objects.equals(pendingGroundingExcludedJoint, excludedJoint);
+			if (groundingRequestChanged)
+				lastGroundingAttemptGeneration = Long.MIN_VALUE;
 			pendingGroundingOffsets = Map.copyOf(appliedOffsets);
 			pendingGroundingRotations = Map.copyOf(appliedRotations);
 			pendingGroundingCutSeams = (BitSet) appliedCutSeams.clone();
@@ -4258,10 +4276,17 @@ public final class SurgicalTableClientHandler {
 				: groundConnectedComponents(table, subject, this, appliedOffsets,
 					appliedCutSeams, excludedJoint, surfaceY);
 			groundingPending = subject != null && linked && grounded == null;
-			offsets = grounded == null
-				? SurgicalClientTopology.groundAllComponents(observedCubeCount, presentCubes,
-					seams, appliedCutSeams, layoutCubes, appliedOffsets, surfaceY)
-				: grounded;
+			if (groundingPending) {
+				// A linked body's Y is defined by the complete cross-subject connection graph. Falling
+				// back to native per-subject grounding here briefly breaks strong-glue constraints and,
+				// worse, lets interaction planning persist that derived fallback Y on the server. Keep
+				// the last complete transform hidden until every member can be grounded together.
+				SurgicalProfiler.end("applyTransforms", started);
+				return;
+			}
+			offsets = linked ? grounded
+				: SurgicalClientTopology.groundAllComponents(observedCubeCount, presentCubes,
+					seams, appliedCutSeams, layoutCubes, appliedOffsets, surfaceY);
 			rotations = Map.copyOf(appliedRotations);
 			cubes = SurgicalTableClientHandler.transformCubes(baseCubes, rotations, offsets);
 			cubesById = indexCubes(cubes);
