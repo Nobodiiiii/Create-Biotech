@@ -1,8 +1,10 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
@@ -715,10 +717,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				return false;
 		}
 
+		BatchGroupIndex groupIndex = new BatchGroupIndex(cut.groups);
 		Map<Integer, Vec3> expectedOffsets = new HashMap<>();
 		for (int cube = edited.presentCubes.nextSetBit(0); cube >= 0;
 			cube = edited.presentCubes.nextSetBit(cube + 1)) {
-			int groupId = batchGroupContaining(cut.groups, edited.persistentId(), cube);
+			int groupId = groupIndex.groupOf(edited.persistentId(), cube);
 			Vec3 delta = groupId < 0 ? Vec3.ZERO : groupDeltas.get(groupId);
 			expectedOffsets.put(cube, edited.componentOffsets.getOrDefault(cube, Vec3.ZERO).add(delta));
 		}
@@ -732,7 +735,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			groupFootprints.add(new ArrayList<>());
 		List<SurgicalTableLayout.Footprint> obstacles = new ArrayList<>();
 		for (SurgicalTableLayout.Footprint footprint : proposal.footprints()) {
-			int groupId = batchGroupContaining(cut.groups, edited.persistentId(), footprint.componentRoot());
+			int groupId = groupIndex.groupOf(edited.persistentId(), footprint.componentRoot());
 			(groupId < 0 ? obstacles : groupFootprints.get(groupId)).add(footprint);
 		}
 		for (SurgicalSubject other : subjects) {
@@ -740,8 +743,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				continue;
 			if (other.occupiedFootprints().isEmpty())
 				return false;
+			// A footprint with no component root stands for the whole subject, which is a per-subject
+			// question rather than a per-footprint one; resolve it once instead of inside the loop.
+			int wholeSubjectGroup = groupIndex.wholeSubjectGroupOf(cut.groups, other);
 			for (SurgicalTableLayout.Footprint footprint : other.occupiedFootprints()) {
-				int groupId = batchGroupContaining(cut.groups, other, footprint);
+				int groupId = footprint.componentRoot() < 0 ? wholeSubjectGroup
+					: groupIndex.groupOf(other.persistentId(), footprint.componentRoot());
 				if (groupId < 0) {
 					obstacles.add(footprint);
 					continue;
@@ -754,21 +761,100 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				groupFootprints.get(groupId).add(translated);
 			}
 		}
-		for (List<SurgicalTableLayout.Footprint> group : groupFootprints) {
+		for (List<SurgicalTableLayout.Footprint> group : groupFootprints)
 			if (group.isEmpty())
 				return false;
-			for (SurgicalTableLayout.Footprint footprint : group)
-				for (SurgicalTableLayout.Footprint obstacle : obstacles)
-					if (footprint.conflictsWith(obstacle))
-						return false;
+		return noCrossGroupConflict(groupFootprints, obstacles);
+	}
+
+	/**
+	 * Rejects any pair of footprints carrying different group tags. Obstacles all share one tag and
+	 * same-group pairs were never compared, so this is exactly the pair of nested loops it replaces -
+	 * group against obstacle, and group against every other group - expressed over one tagged set.
+	 *
+	 * <p>Sorting by {@code minX} lets the inner scan stop at the first footprint that starts beyond
+	 * the outer one's reach, since none of the ones after it start any earlier. Cube counts, and
+	 * therefore footprint counts, are bounded only by {@link SurgicalAssembly#MAX_CUBES}, and the
+	 * whole set arrives from the client.
+	 */
+	private static boolean noCrossGroupConflict(List<List<SurgicalTableLayout.Footprint>> groupFootprints,
+		List<SurgicalTableLayout.Footprint> obstacles) {
+		List<TaggedFootprint> tagged = new ArrayList<>(obstacles.size());
+		for (SurgicalTableLayout.Footprint obstacle : obstacles)
+			tagged.add(new TaggedFootprint(-1, obstacle));
+		for (int groupId = 0; groupId < groupFootprints.size(); groupId++)
+			for (SurgicalTableLayout.Footprint footprint : groupFootprints.get(groupId))
+				tagged.add(new TaggedFootprint(groupId, footprint));
+		tagged.sort(Comparator.comparingDouble(entry -> entry.footprint.minX()));
+
+		for (int first = 0; first < tagged.size(); first++) {
+			TaggedFootprint start = tagged.get(first);
+			// Deliberately not subtracting conflictsWith's epsilon: a slightly long reach only costs a
+			// few extra exact tests, while a short one could skip a real conflict.
+			double reach = start.footprint.maxX() + SurgicalTableLayout.COMPONENT_CLEARANCE;
+			for (int second = first + 1; second < tagged.size(); second++) {
+				TaggedFootprint candidate = tagged.get(second);
+				if (candidate.footprint.minX() >= reach)
+					break;
+				if (start.group != candidate.group
+					&& start.footprint.conflictsWith(candidate.footprint))
+					return false;
+			}
 		}
-		for (int first = 0; first < groupFootprints.size(); first++)
-			for (int second = first + 1; second < groupFootprints.size(); second++)
-				for (SurgicalTableLayout.Footprint firstFootprint : groupFootprints.get(first))
-					for (SurgicalTableLayout.Footprint secondFootprint : groupFootprints.get(second))
-						if (firstFootprint.conflictsWith(secondFootprint))
-							return false;
 		return true;
+	}
+
+	private record TaggedFootprint(int group, SurgicalTableLayout.Footprint footprint) {}
+
+	/**
+	 * Group membership indexed by cube id. Resolving it by scanning {@code cut.groups} cost one
+	 * UUID-keyed map probe per group, and the callers ask once per cube and once per footprint, so
+	 * the scan was quadratic in two client-supplied quantities.
+	 */
+	private static final class BatchGroupIndex {
+		private final Map<UUID, int[]> cubeGroups = new HashMap<>();
+
+		private BatchGroupIndex(List<ComponentGroup> groups) {
+			for (int groupId = 0; groupId < groups.size(); groupId++)
+				for (Map.Entry<UUID, BitSet> entry : groups.get(groupId).components.entrySet())
+					index(entry.getKey(), entry.getValue(), groupId);
+		}
+
+		/** Lowest group id wins, matching the first-match order of the scan this replaces. */
+		private void index(UUID subjectKey, BitSet cubes, int groupId) {
+			if (cubes == null || cubes.isEmpty())
+				return;
+			int required = cubes.length();
+			int[] index = cubeGroups.get(subjectKey);
+			if (index == null) {
+				index = new int[required];
+				Arrays.fill(index, -1);
+			} else if (index.length < required) {
+				int previous = index.length;
+				index = Arrays.copyOf(index, required);
+				Arrays.fill(index, previous, required, -1);
+			}
+			cubeGroups.put(subjectKey, index);
+			for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
+				if (index[cube] < 0)
+					index[cube] = groupId;
+		}
+
+		private int groupOf(UUID subjectKey, int cubeId) {
+			if (cubeId < 0)
+				return -1;
+			int[] index = cubeGroups.get(subjectKey);
+			return index == null || cubeId >= index.length ? -1 : index[cubeId];
+		}
+
+		private int wholeSubjectGroupOf(List<ComponentGroup> groups, SurgicalSubject subject) {
+			for (int groupId = 0; groupId < groups.size(); groupId++) {
+				BitSet cubes = groups.get(groupId).components.get(subject.persistentId());
+				if (cubes != null && cubes.equals(subject.presentCubes))
+					return groupId;
+			}
+			return -1;
+		}
 	}
 
 	private static SurgicalTableLayout.Footprint translateFootprint(SurgicalTableLayout.Footprint footprint,
@@ -777,27 +863,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			footprint.minX() + delta.x, footprint.minZ() + delta.z,
 			footprint.maxX() + delta.x, footprint.maxZ() + delta.z,
 			SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED);
-	}
-
-	private static int batchGroupContaining(List<ComponentGroup> groups, UUID subjectKey, int cubeId) {
-		if (cubeId < 0)
-			return -1;
-		for (int groupId = 0; groupId < groups.size(); groupId++) {
-			BitSet cubes = groups.get(groupId).components.get(subjectKey);
-			if (cubes != null && cubes.get(cubeId))
-				return groupId;
-		}
-		return -1;
-	}
-
-	private static int batchGroupContaining(List<ComponentGroup> groups, SurgicalSubject subject,
-		SurgicalTableLayout.Footprint footprint) {
-		for (int groupId = 0; groupId < groups.size(); groupId++) {
-			BitSet cubes = groups.get(groupId).components.get(subject.persistentId());
-			if (subject.containsFootprint(cubes, footprint))
-				return groupId;
-		}
-		return -1;
 	}
 
 	public boolean packComponent(Player player, ItemStack boxes, int subjectId, int cubeId,

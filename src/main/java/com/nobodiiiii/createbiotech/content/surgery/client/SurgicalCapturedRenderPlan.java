@@ -8,6 +8,7 @@ import java.util.BitSet;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +94,8 @@ public final class SurgicalCapturedRenderPlan {
 	private static final BitSet ALL_COMPONENTS = new BitSet();
 	private static final Map<Integer, Vec3> NO_OFFSETS = Map.of();
 	private static final Map<Integer, SurgicalCubeRotation> NO_ROTATIONS = Map.of();
+	/** Render-thread only; cleared every frame by {@link #beginFrame()}. */
+	private static final Map<LivingEntity, LiveFrame> LIVE_FRAMES = new IdentityHashMap<>();
 
 	private final List<Component> components;
 	private final List<SourceBatch> extras;
@@ -102,33 +105,45 @@ public final class SurgicalCapturedRenderPlan {
 		this.extras = List.copyOf(extras);
 	}
 
+	/**
+	 * @param topology whether the caller will read {@code modelCorners} and {@code faceGrids} off the
+	 *   resulting components. Only {@link #snapshot} exposes them, so the live and death paths pass
+	 *   {@code false} and skip both the per-cube model observation and the recovery work behind it.
+	 */
 	static SurgicalCapturedRenderPlan capture(EntityRenderer<LivingEntity> renderer, LivingEntity preview,
-		float yaw, float partialTick) {
-		return build(captureInput(renderer, preview, yaw, partialTick));
+		float yaw, float partialTick, boolean topology) {
+		return build(captureInput(renderer, preview, yaw, partialTick, topology));
 	}
 
 	static CapturedInput captureInput(EntityRenderer<LivingEntity> renderer, LivingEntity preview,
-		float yaw, float partialTick) {
+		float yaw, float partialTick, boolean topology) {
 		RecordingBuffer recording = new RecordingBuffer();
 		PoseStack neutralPose = new PoseStack();
-		List<ObservedCube> observedCubes = new ArrayList<>();
-		Deque<List<ObservedCube>> captures = MODEL_CUBE_CAPTURES.get();
-		captures.push(observedCubes);
-		activeModelCubeCaptureCount++;
+		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
+		// Leaving the counter alone keeps observeModelCube - which the mixin runs for every cube of
+		// every entity model in the game - on its single-field-read rejection for this capture.
+		Deque<List<ObservedCube>> captures = null;
+		if (topology) {
+			captures = MODEL_CUBE_CAPTURES.get();
+			captures.push(observedCubes);
+			activeModelCubeCaptureCount++;
+		}
 		try {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
 			recording.finish();
-			captures.pop();
-			activeModelCubeCaptureCount = Math.max(0, activeModelCubeCaptureCount - 1);
-			if (captures.isEmpty())
-				MODEL_CUBE_CAPTURES.remove();
+			if (captures != null) {
+				captures.pop();
+				activeModelCubeCaptureCount = Math.max(0, activeModelCubeCaptureCount - 1);
+				if (captures.isEmpty())
+					MODEL_CUBE_CAPTURES.remove();
+			}
 		}
-		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes));
+		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology);
 	}
 
 	static SurgicalCapturedRenderPlan build(CapturedInput captured) {
-		return build(captured.streams, captured.observedCubes);
+		return build(captured.streams, captured.observedCubes, captured.topology);
 	}
 
 	/** Records unscaled ModelPart pixel bounds while the renderer emits the matching transformed vertices. */
@@ -169,7 +184,7 @@ public final class SurgicalCapturedRenderPlan {
 			return false;
 		if (entity.isDeadOrDying() && SlimeMimicDeathClient.hasReported(entity))
 			return true;
-		SurgicalCapturedRenderPlan frame = capture((EntityRenderer<LivingEntity>) renderer, entity,
+		SurgicalCapturedRenderPlan frame = liveFrame((EntityRenderer<LivingEntity>) renderer, entity,
 			yaw, partialTick);
 		if (entity.isDeadOrDying()) {
 			SlimeMimicDeathClient.report(entity, frame.deathGeometry(0, entity.position()));
@@ -179,6 +194,31 @@ public final class SurgicalCapturedRenderPlan {
 			false, null, false);
 		return true;
 	}
+
+	/**
+	 * A live mimic's pose changes every frame, so its plan cannot be cached across frames - but the
+	 * entity renderer runs more than once within a frame (a shadow pass under Iris/Oculus is the
+	 * common case), and every one of those passes rebuilds an identical plan. Reusing the plan for a
+	 * repeated (entity, yaw, partialTick) inside one frame is therefore free of visual difference.
+	 */
+	private static SurgicalCapturedRenderPlan liveFrame(EntityRenderer<LivingEntity> renderer,
+		LivingEntity entity, float yaw, float partialTick) {
+		LiveFrame cached = LIVE_FRAMES.get(entity);
+		if (cached != null && cached.yaw == yaw && cached.partialTick == partialTick
+			&& cached.renderer == renderer)
+			return cached.plan;
+		SurgicalCapturedRenderPlan plan = capture(renderer, entity, yaw, partialTick, false);
+		LIVE_FRAMES.put(entity, new LiveFrame(renderer, yaw, partialTick, plan));
+		return plan;
+	}
+
+	/** Drops the per-frame live mimic plans; called once per frame before any entity is drawn. */
+	static void beginFrame() {
+		LIVE_FRAMES.clear();
+	}
+
+	private record LiveFrame(EntityRenderer<LivingEntity> renderer, float yaw, float partialTick,
+		SurgicalCapturedRenderPlan plan) {}
 
 	int cubeCount() {
 		return components.size();
@@ -283,7 +323,8 @@ public final class SurgicalCapturedRenderPlan {
 		outerCube = null;
 	}
 
-	private static SurgicalCapturedRenderPlan build(List<CaptureStream> streams, List<ObservedCube> observedCubes) {
+	private static SurgicalCapturedRenderPlan build(List<CaptureStream> streams,
+		List<ObservedCube> observedCubes, boolean topology) {
 		Map<GeometryKey, List<ComponentBuilder>> recovered = new LinkedHashMap<>();
 		List<SourceBatch> extras = new ArrayList<>();
 		int order = 0;
@@ -314,7 +355,7 @@ public final class SurgicalCapturedRenderPlan {
 					.orElse(null);
 				if (builder == null) {
 					builder = new ComponentBuilder(order++, cuboid,
-						matchingModelCorners(cuboid, observedCubes));
+						topology ? matchingModelCorners(cuboid, key, observedCubes) : List.of(), topology);
 					matches.add(builder);
 				}
 				builder.captureStreams.set(stream.id);
@@ -774,14 +815,19 @@ public final class SurgicalCapturedRenderPlan {
 		float u, float v, int overlayU, int overlayV, int lightU, int lightV,
 		float normalX, float normalY, float normalZ) {}
 
-	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes) {}
+	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes,
+		boolean topology) {}
 
 	private record CachedAlphaMask(int generation, AlphaMask mask) {}
 
-	private static List<Vec3> matchingModelCorners(RecoveredCuboid cuboid, List<ObservedCube> observedCubes) {
-		GeometryKey targetKey = GeometryKey.of(cuboid.corners);
+	/**
+	 * @param targetKey the caller's already-computed key for {@code cuboid}; recomputing it here, and
+	 *   recomputing every observed cube's key on every call, made this quadratic in stream pipelines.
+	 */
+	private static List<Vec3> matchingModelCorners(RecoveredCuboid cuboid, GeometryKey targetKey,
+		List<ObservedCube> observedCubes) {
 		for (ObservedCube observed : observedCubes) {
-			if (!targetKey.equals(GeometryKey.of(observed.transformedCorners)))
+			if (!targetKey.equals(observed.key))
 				continue;
 			List<Vec3> ordered = new ArrayList<>(8);
 			for (Vector3f corner : cuboid.corners) {
@@ -886,6 +932,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final int order;
 		private final RecoveredCuboid cuboid;
 		private final List<Vec3> modelCorners;
+		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
 		private final List<SourceBatch> surfaceOverlays = new ArrayList<>();
 		private final BitSet captureStreams = new BitSet();
@@ -893,10 +940,12 @@ public final class SurgicalCapturedRenderPlan {
 		private RenderType primaryRenderType;
 		private List<SurgicalModelRenderContext.FaceGrid> faceGrids = List.of();
 
-		private ComponentBuilder(int order, RecoveredCuboid cuboid, List<Vec3> modelCorners) {
+		private ComponentBuilder(int order, RecoveredCuboid cuboid, List<Vec3> modelCorners,
+			boolean topology) {
 			this.order = order;
 			this.cuboid = cuboid;
 			this.modelCorners = List.copyOf(modelCorners);
+			this.topology = topology;
 		}
 
 		private void observeMaterial(RenderType renderType) {
@@ -906,7 +955,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private void addVisibleBatch(RenderType renderType, List<CapturedVertex> vertices) {
 			boolean surfaceOverlay = primaryRenderType != renderType;
-			if (faceGrids.isEmpty())
+			if (topology && faceGrids.isEmpty())
 				faceGrids = recoverFaceGrids(cuboid, renderType, vertices);
 			SourceBatch batch = new SourceBatch(renderType, List.copyOf(vertices), surfaceOverlay);
 			batches.add(batch);
@@ -922,10 +971,18 @@ public final class SurgicalCapturedRenderPlan {
 
 	private record RecoveredCuboid(List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c) {}
 
-	private record ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners) {
-		private ObservedCube {
-			transformedCorners = transformedCorners.stream().map(Vector3f::new).toList();
-			modelCorners = List.copyOf(modelCorners);
+	private static final class ObservedCube {
+		private final List<Vector3f> transformedCorners;
+		private final List<Vec3> modelCorners;
+		/** Computed once here rather than per comparison in {@link #matchingModelCorners}. */
+		private final GeometryKey key;
+
+		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners) {
+			// Both lists are built fresh per cube at the single call site and handed straight over, so
+			// they only need freezing, not the deep Vector3f copy this used to make.
+			this.transformedCorners = List.copyOf(transformedCorners);
+			this.modelCorners = List.copyOf(modelCorners);
+			this.key = GeometryKey.of(this.transformedCorners);
 		}
 	}
 

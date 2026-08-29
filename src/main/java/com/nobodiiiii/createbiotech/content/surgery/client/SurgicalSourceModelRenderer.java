@@ -168,7 +168,7 @@ public final class SurgicalSourceModelRenderer {
 				if (pending != null)
 					pending.future.cancel(false);
 				long started = SurgicalProfiler.begin();
-				plan = SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick);
+				plan = SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick, true);
 				SurgicalProfiler.end("capture(plan)", started);
 				RENDER_PLANS.put(key, plan);
 			}
@@ -179,7 +179,7 @@ public final class SurgicalSourceModelRenderer {
 		if (cached == null || cached.renderer != renderer
 			|| Float.floatToIntBits(cached.yaw) != Float.floatToIntBits(yaw)) {
 			SurgicalCapturedRenderPlan plan =
-				SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick);
+				SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick, true);
 			cached = new CachedRenderPlan(renderer, yaw, plan);
 			FALLBACK_RENDER_PLANS.put(preview, cached);
 		}
@@ -222,7 +222,7 @@ public final class SurgicalSourceModelRenderer {
 					return null;
 				long started = SurgicalProfiler.begin();
 				SurgicalCapturedRenderPlan.CapturedInput captured =
-					SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, partialTick);
+					SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, partialTick, true);
 				SurgicalProfiler.end("capture(plan-input)", started);
 				int generation = resourceGeneration;
 				pending = new PendingRenderPlan(generation,

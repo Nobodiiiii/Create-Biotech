@@ -546,6 +546,7 @@ public final class SurgicalTableClientHandler {
 
 	@SubscribeEvent
 	public static void onRenderFrame(RenderFrameEvent.Pre event) {
+		SurgicalCapturedRenderPlan.beginFrame();
 		SurgicalTableRenderer.beginFrame();
 		if (Minecraft.getInstance().level != null) {
 			updatePendingVisualCommit(Minecraft.getInstance().level);
