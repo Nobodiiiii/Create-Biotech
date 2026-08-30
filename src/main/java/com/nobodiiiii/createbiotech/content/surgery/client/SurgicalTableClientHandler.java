@@ -2638,7 +2638,10 @@ public final class SurgicalTableClientHandler {
 		pendingVisualCommit = null;
 		if (commit == null)
 			return;
-		if (rollbackGeometry && level != null
+		// Both rollback and acknowledgement must retire the preview transforms. On acknowledgement the
+		// table already contains the authoritative server state; clearing here keeps a subject disconnected
+		// by the edit from retaining an old pending grounding request outside the post-edit refresh group.
+		if (level != null
 			&& level.getBlockEntity(commit.tablePos) instanceof SurgicalTableBlockEntity table) {
 			for (int subjectId : commit.geometrySubjectIds) {
 				TableGeometry geometry = TABLES.get(new SubjectKey(commit.tablePos, subjectId));

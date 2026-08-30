@@ -382,11 +382,16 @@ public final class SlimeBionicAnimator {
 				.subtract(pivot);
 			if (restDirection.lengthSqr() < GEOMETRY_EPSILON)
 				continue;
+			// EndermanModel keeps the head as an unrotated root part at its neck attachment: yaw uses the
+			// body's vertical model Y axis and pitch uses model X. Preserve that fixed frame for surgical
+			// heads as well; aligning it to an off-centre head's rest direction would tilt horizontal yaw.
+			SurgicalCubeRotation restAlignment = geometry.type() == SurgicalLimbType.NECK
+				? SurgicalCubeRotation.IDENTITY : BODY_SPACE.restAlignment(geometry.type(), restDirection);
 			resolved.add(new ResolvedLimb(geometry.type(), geometry.members(), geometry.parent(), pivot,
 				restDirection,
 				BODY_SPACE.project(geometry.child().center(), AXIS_X) - bodyCenterX,
 				BODY_SPACE.project(geometry.child().center(), AXIS_Z),
-				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1, null, null));
+				restAlignment, null, -1, null, null));
 		}
 		List<ResolvedLimb> linked = linkHierarchy(assignBones(resolved));
 		return assignLegGaits(linked, groundedHipIndices(linked, sources));

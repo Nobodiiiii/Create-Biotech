@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -75,6 +76,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private SurgicalConnectionGraph<UUID> cachedConnectionGraph;
 	private long cachedConnectionSignature = Long.MIN_VALUE;
 	private boolean cachedConnectionValid;
+	private Map<Integer, Set<Integer>> cachedConnectedSubjectGroups = Map.of();
+	private long cachedConnectedSubjectGroupsSignature = Long.MIN_VALUE;
+	private boolean cachedConnectedSubjectGroupsValid;
 	@Nullable
 	private SurgicalTablePlane.Plane serverPlane;
 	private int serverPlaneLayout = -1;
@@ -213,6 +217,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subjects.add(subject);
 		subjectsById.put(subject.id(), subject);
 		subjectsByPersistentId.put(subject.persistentId(), subject);
+		cachedConnectedSubjectGroupsValid = false;
 	}
 
 	private void addSubjects(List<SurgicalSubject> added) {
@@ -224,12 +229,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subjects.remove(subject);
 		subjectsById.remove(subject.id(), subject);
 		subjectsByPersistentId.remove(subject.persistentId(), subject);
+		cachedConnectedSubjectGroupsValid = false;
 	}
 
 	private void clearSubjects() {
 		subjects.clear();
 		subjectsById.clear();
 		subjectsByPersistentId.clear();
+		cachedConnectedSubjectGroupsValid = false;
 	}
 
 	private void normalizeCombinations() {
@@ -2363,31 +2370,67 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	/** Subject ids that currently form one logical editing group through glue or combinations. */
 	public Set<Integer> connectedSubjectIds(int subjectId) {
-		SurgicalSubject start = getSubject(subjectId);
-		if (start == null)
+		if (!hasSubject(subjectId))
 			return Set.of();
-		SurgicalConnectionGraph<UUID> graph = connectionGraph(null);
-		if (graph == null)
-			return Set.of(subjectId);
-		Set<UUID> connected = new HashSet<>();
-		// One traversal per component rather than one per cube: every further cube of a component
-		// already found would only retrace the same BFS and rebuild the same member map.
-		BitSet visited = new BitSet();
-		for (int cube = start.presentCubes.nextSetBit(0); cube >= 0;
-			cube = start.presentCubes.nextSetBit(cube + 1)) {
-			if (visited.get(cube))
-				continue;
-			SurgicalConnectionGraph.Component<UUID> component =
-				graph.componentContaining(start.persistentId(), cube);
-			visited.set(cube);
-			visited.or(component.cubes(start.persistentId()));
-			connected.addAll(component.bodies());
-		}
-		Set<Integer> ids = new HashSet<>();
+		return connectedSubjectGroups().getOrDefault(subjectId, Set.of(subjectId));
+	}
+
+	/**
+	 * Projects cube-level links onto subject ownership and closes that graph transitively. A subject may
+	 * own several disconnected native components, so reaching any one of them also has to pull in links
+	 * stored on its other components; otherwise grounding can collect a link whose endpoint body was
+	 * omitted. The projection is rebuilt only when the same topology signature used by the connection
+	 * graph changes, then every lookup returns one shared immutable set.
+	 */
+	private Map<Integer, Set<Integer>> connectedSubjectGroups() {
+		long signature = connectionSignature();
+		if (cachedConnectedSubjectGroupsValid && cachedConnectedSubjectGroupsSignature == signature)
+			return cachedConnectedSubjectGroups;
+
+		Map<UUID, Set<UUID>> adjacency = new HashMap<>();
 		for (SurgicalSubject subject : subjects)
-			if (connected.contains(subject.persistentId()))
-				ids.add(subject.id());
-		return Set.copyOf(ids);
+			adjacency.put(subject.persistentId(), new HashSet<>());
+		for (SurgicalGlueJoint joint : allGlueJoints())
+			connectSubjectOwners(adjacency, joint.first().subjectKey(), joint.second().subjectKey());
+		for (SurgicalCombination combination : allCombinations()) {
+			UUID anchor = combination.members().getFirst().subjectKey();
+			for (SurgicalCombination.Member member : combination.members().subList(1,
+				combination.members().size()))
+				connectSubjectOwners(adjacency, anchor, member.subjectKey());
+		}
+
+		Map<Integer, Set<Integer>> groups = new HashMap<>();
+		Set<UUID> visited = new HashSet<>();
+		for (SurgicalSubject start : subjects) {
+			if (!visited.add(start.persistentId()))
+				continue;
+			Set<Integer> ids = new HashSet<>();
+			ArrayDeque<UUID> pending = new ArrayDeque<>();
+			pending.addLast(start.persistentId());
+			while (!pending.isEmpty()) {
+				UUID current = pending.removeFirst();
+				SurgicalSubject subject = subjectsByPersistentId.get(current);
+				if (subject != null)
+					ids.add(subject.id());
+				for (UUID neighbour : adjacency.getOrDefault(current, Set.of()))
+					if (visited.add(neighbour))
+						pending.addLast(neighbour);
+			}
+			Set<Integer> frozen = Set.copyOf(ids);
+			for (int id : frozen)
+				groups.put(id, frozen);
+		}
+		cachedConnectedSubjectGroups = Map.copyOf(groups);
+		cachedConnectedSubjectGroupsSignature = signature;
+		cachedConnectedSubjectGroupsValid = true;
+		return cachedConnectedSubjectGroups;
+	}
+
+	private static void connectSubjectOwners(Map<UUID, Set<UUID>> adjacency, UUID first, UUID second) {
+		if (first.equals(second) || !adjacency.containsKey(first) || !adjacency.containsKey(second))
+			return;
+		adjacency.get(first).add(second);
+		adjacency.get(second).add(first);
 	}
 
 	private Set<SurgicalGlueJoint> jointsWithin(ComponentGroup group) {
@@ -2795,23 +2838,16 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	 * packet no matter which one was actually edited.</p>
 	 */
 	private Set<UUID> groundingDependents(Set<UUID> changed) {
-		SurgicalConnectionGraph<UUID> graph = connectionGraph(null);
-		if (graph == null)
-			return changed;
 		Set<UUID> stale = new HashSet<>(changed);
-		for (SurgicalSubject subject : subjects) {
-			if (!changed.contains(subject.persistentId()) || !subject.linkedToOtherSubjects())
+		Map<Integer, Set<Integer>> groups = connectedSubjectGroups();
+		for (UUID persistentId : changed) {
+			SurgicalSubject subject = subjectsByPersistentId.get(persistentId);
+			if (subject == null)
 				continue;
-			BitSet visited = new BitSet();
-			for (int cube = subject.presentCubes.nextSetBit(0); cube >= 0;
-				cube = subject.presentCubes.nextSetBit(cube + 1)) {
-				if (visited.get(cube))
-					continue;
-				SurgicalConnectionGraph.Component<UUID> component =
-					graph.componentContaining(subject.persistentId(), cube);
-				visited.set(cube);
-				visited.or(component.cubes(subject.persistentId()));
-				stale.addAll(component.bodies());
+			for (int subjectId : groups.getOrDefault(subject.id(), Set.of(subject.id()))) {
+				SurgicalSubject dependent = getSubject(subjectId);
+				if (dependent != null)
+					stale.add(dependent.persistentId());
 			}
 		}
 		return stale;
