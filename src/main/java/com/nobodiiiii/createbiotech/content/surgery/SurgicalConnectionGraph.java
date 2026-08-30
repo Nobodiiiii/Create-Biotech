@@ -82,19 +82,34 @@ public final class SurgicalConnectionGraph<K> {
 
 	/** All cubes reachable through either native seams or explicit links. */
 	public Component<K> componentContaining(K body, int cube) {
+		return componentContainingExcluding(body, cube, Set.of());
+	}
+
+	/**
+	 * All cubes reachable without crossing a blocked cube. This is used to distinguish a joint's
+	 * dependent attachments from parts that have another path back to the joint's parent side.
+	 */
+	public Component<K> componentContainingExcluding(K body, int cube, Set<Endpoint<K>> excluded) {
 		if (body == null || cube < 0)
 			return Component.empty();
-		Endpoint<K> start = new Endpoint<>(body, cube);
-		if (!adjacency.containsKey(start))
+		return componentContainingAnyExcluding(Set.of(new Endpoint<>(body, cube)), excluded);
+	}
+
+	/** All cubes reachable from any supplied start without crossing a blocked cube. */
+	public Component<K> componentContainingAnyExcluding(Set<Endpoint<K>> starts,
+		Set<Endpoint<K>> excluded) {
+		if (starts == null || starts.isEmpty())
 			return Component.empty();
 		Set<Endpoint<K>> visited = new HashSet<>();
 		ArrayDeque<Endpoint<K>> pending = new ArrayDeque<>();
-		visited.add(start);
-		pending.add(start);
+		for (Endpoint<K> start : starts)
+			if (start != null && adjacency.containsKey(start)
+				&& (excluded == null || !excluded.contains(start)) && visited.add(start))
+				pending.addLast(start);
 		while (!pending.isEmpty()) {
 			Endpoint<K> current = pending.removeFirst();
 			for (Endpoint<K> neighbor : adjacency.getOrDefault(current, Set.of()))
-				if (visited.add(neighbor))
+				if ((excluded == null || !excluded.contains(neighbor)) && visited.add(neighbor))
 					pending.addLast(neighbor);
 		}
 		return component(visited);

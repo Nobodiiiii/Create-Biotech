@@ -523,9 +523,8 @@ public final class SurgicalAssembly {
 	}
 
 	/**
-	 * The rigid island moved by a valid limb. Anatomical ownership remains cube/honey based, while
-	 * motion also follows every ordinary seam or glue connection that does not cross an installed
-	 * hinge.
+	 * The child part and every attachment that depends on it to reach the joint's parent side. A part
+	 * with another path back to the parent is structural body material and does not follow the joint.
 	 */
 	public List<CombinationMember> rotatingGroup(int source, int cube) {
 		CombinationMember selected = new CombinationMember(source, cube);
@@ -638,17 +637,13 @@ public final class SurgicalAssembly {
 			effective.add(limb);
 		}
 
-		MotionComponents motion = buildMotionComponents();
+		SurgicalConnectionGraph<Integer> motionGraph = buildMotionGraph();
 		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
 		for (Limb limb : effective) {
-			CombinationMember childMember = new CombinationMember(limb.childSource(), limb.childCube());
-			CombinationMember parentMember = new CombinationMember(limb.parentSource(), limb.parentCube());
-			Integer motionChild = motion.componentIds.get(childMember);
-			Integer motionParent = motion.componentIds.get(parentMember);
 			Integer ownershipChild = childComponents.get(limb);
-			List<CombinationMember> group = motionChild != null && !motionChild.equals(motionParent)
-				? motion.components.get(motionChild)
-				: components.get(ownershipChild);
+			List<CombinationMember> ownershipGroup = components.get(ownershipChild);
+			List<CombinationMember> group = drivenMotionGroup(motionGraph, limb, ownershipGroup,
+				limbs, childComponents, components);
 			for (CombinationMember member : group)
 				groups.put(member, group);
 		}
@@ -656,12 +651,12 @@ public final class SurgicalAssembly {
 	}
 
 	/**
-	 * Splits the packed connection graph at every installed anatomical hinge. The child-side graph
-	 * component is the complete set of cubes that must physically follow that hinge, including cubes
-	 * attached to the limb by ordinary seams or glue. Ownership validation intentionally does not use
-	 * these broad components, so an unrelated connected cluster cannot block another primary joint.
+	 * Builds the rigid graph with every anatomical hinge removed. Per-joint movement then uses this
+	 * graph to retain direct and indirect attachments while rejecting parts with a bypass to the
+	 * parent side.
 	 */
-	private MotionComponents buildMotionComponents() {
+	@Nullable
+	private SurgicalConnectionGraph<Integer> buildMotionGraph() {
 		Set<ConnectionKey> hingeEdges = new HashSet<>();
 		for (Limb limb : limbs)
 			hingeEdges.add(ConnectionKey.of(limb.childSource(), limb.childCube(),
@@ -695,24 +690,56 @@ public final class SurgicalAssembly {
 					member.source(), member.cube()));
 		}
 		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
-		if (graph == null)
-			return MotionComponents.EMPTY;
+		return graph;
+	}
 
-		Map<CombinationMember, Integer> componentIds = new HashMap<>();
-		List<List<CombinationMember>> motionComponents = new ArrayList<>();
-		for (SurgicalConnectionGraph.Component<Integer> component : graph.components()) {
-			int componentId = motionComponents.size();
-			List<CombinationMember> members = new ArrayList<>(component.size());
-			for (Map.Entry<Integer, BitSet> entry : component.members().entrySet())
-				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
-					cubeId = entry.getValue().nextSetBit(cubeId + 1)) {
-					CombinationMember member = new CombinationMember(entry.getKey(), cubeId);
-					members.add(member);
-					componentIds.put(member, componentId);
-				}
-			motionComponents.add(List.copyOf(members));
+	/**
+	 * A member follows {@code limb} only when its rigid route to the parent side depends on the child
+	 * ownership group. The parent side and every other joint child are outside anchors. Removing an A
+	 * child group exposes bypasses: if A-B-C are pairwise connected and C also reaches the D parent,
+	 * both B and C remain reachable from D and are excluded. Likewise, two zombie legs joined by a
+	 * model seam remain separate because each leg is the child of its own joint. Without an outside
+	 * route or foreign joint child, a direct or indirect branch remains dependent on A and follows it.
+	 */
+	private static List<CombinationMember> drivenMotionGroup(
+		@Nullable SurgicalConnectionGraph<Integer> graph, Limb limb,
+		List<CombinationMember> ownershipGroup, List<Limb> allLimbs,
+		Map<Limb, Integer> childComponents, List<List<CombinationMember>> components) {
+		if (graph == null || ownershipGroup == null || ownershipGroup.isEmpty())
+			return ownershipGroup == null ? List.of() : ownershipGroup;
+
+		SurgicalConnectionGraph.Component<Integer> childSide =
+			graph.componentContaining(limb.childSource(), limb.childCube());
+		if (childSide.isEmpty())
+			return ownershipGroup;
+		Set<SurgicalConnectionGraph.Endpoint<Integer>> blocked = new HashSet<>();
+		for (CombinationMember member : ownershipGroup)
+			blocked.add(new SurgicalConnectionGraph.Endpoint<>(member.source(), member.cube()));
+		Set<SurgicalConnectionGraph.Endpoint<Integer>> outsideAnchors = new HashSet<>();
+		outsideAnchors.add(new SurgicalConnectionGraph.Endpoint<>(limb.parentSource(), limb.parentCube()));
+		for (Limb other : allLimbs) {
+			if (other.equals(limb))
+				continue;
+			Integer childComponent = childComponents.get(other);
+			if (childComponent == null)
+				continue;
+			for (CombinationMember member : components.get(childComponent))
+				outsideAnchors.add(new SurgicalConnectionGraph.Endpoint<>(member.source(), member.cube()));
 		}
-		return new MotionComponents(Map.copyOf(componentIds), List.copyOf(motionComponents));
+		SurgicalConnectionGraph.Component<Integer> outsideReachable =
+			graph.componentContainingAnyExcluding(outsideAnchors, blocked);
+		Map<Integer, BitSet> outsideMembers = outsideReachable.members();
+		List<CombinationMember> driven = new ArrayList<>();
+		for (Map.Entry<Integer, BitSet> entry : childSide.members().entrySet()) {
+			BitSet dependent = (BitSet) entry.getValue().clone();
+			BitSet bypass = outsideMembers.get(entry.getKey());
+			if (bypass != null)
+				dependent.andNot(bypass);
+			for (int cube = dependent.nextSetBit(0); cube >= 0;
+				cube = dependent.nextSetBit(cube + 1))
+				driven.add(new CombinationMember(entry.getKey(), cube));
+		}
+		return driven.containsAll(ownershipGroup) ? List.copyOf(driven) : ownershipGroup;
 	}
 
 	private record LimbTopology(List<Limb> effective,
@@ -721,11 +748,6 @@ public final class SurgicalAssembly {
 	}
 
 	private record LimbAttachment(Limb limb, boolean child) {}
-
-	private record MotionComponents(Map<CombinationMember, Integer> componentIds,
-		List<List<CombinationMember>> components) {
-		private static final MotionComponents EMPTY = new MotionComponents(Map.of(), List.of());
-	}
 
 	private record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
 		private static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {

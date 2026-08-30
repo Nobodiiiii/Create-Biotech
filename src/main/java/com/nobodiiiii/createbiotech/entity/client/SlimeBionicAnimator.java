@@ -933,7 +933,7 @@ public final class SlimeBionicAnimator {
 			bodyCenter(sources, AXIS_Z));
 	}
 
-	/** The cubes that rotate with {@code cube}, including ordinary attachments on its side of each hinge. */
+	/** The cubes that depend on {@code cube} to reach the hinge's parent side. */
 	private static List<Member> group(SurgicalAssembly assembly, int source, int cube) {
 		return assembly.rotatingGroup(source, cube).stream()
 			.map(member -> new Member(member.source(), member.cube())).toList();
