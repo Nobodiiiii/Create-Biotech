@@ -23,6 +23,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathClient;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
@@ -268,7 +269,15 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			if (legLength >= SurgicalAssembly.MIN_BODY_SIZE
 				&& legLength <= SurgicalAssembly.MAX_BODY_SIZE)
 				bodyBounds = bodyBounds.withLegLength(legLength);
-			entity.setClientBodyBounds(assembly, bodyBounds);
+			List<Map<Integer, List<Vec3>>> hitboxCubes = sources.stream()
+				.map(source -> source.boxes().entrySet().stream().collect(
+					java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,
+						entry -> entry.getValue().points())))
+				.toList();
+			SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(assembly,
+				hitboxCubes, visible, bodyBounds);
+			if (hitboxGeometry != null)
+				entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry);
 		}
 		return bodyBounds;
 	}

@@ -869,11 +869,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean packComponent(Player player, ItemStack boxes, int subjectId, int cubeId,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
+		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !CapturedEntityBoxItem.isBox(boxes)
-			|| CapturedEntityBoxItem.hasCapturedEntity(boxes) || bodyBounds == null)
+			|| CapturedEntityBoxItem.hasCapturedEntity(boxes) || bodyBounds == null
+			|| hitboxGeometry == null)
 			return false;
 
 		ComponentGroup group = connectedGroup(subject, cubeId);
@@ -887,7 +889,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			groupCombinations, groupLimbs);
 		if (assembly == null)
 			return false;
-		assembly = assembly.withBodyBounds(bodyBounds);
+		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry))
+			return false;
+		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry);
 		// Invalid or stale client combat geometry must not make an otherwise valid body unpackable.
 		// Keep it only when it still describes exactly the effective shoulder joints in this assembly.
 		int installedArms = (int) assembly.effectiveLimbs().stream()
@@ -970,7 +974,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| primaryTouchesDrivenPart(installedJoint, topology)))
 			return refuse(player, "limb_primary_conflict");
 		if (exceedsSecondaryCapacity(installedJoint, prospective, topology))
-			return refuse(player, "limb_secondary_limit");
+			return refuse(player, "limb_secondary_limit_" + type.id());
 
 		attachLimbJoint(installedJoint);
 		if (!player.getAbilities().instabuild)
@@ -983,6 +987,19 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		player.displayClientMessage(Component.translatable(
 			"message.create_biotech.surgical_table." + result + type.id()), true);
 		return true;
+	}
+
+	private static boolean validHitboxGeometry(SurgicalAssembly assembly,
+		SurgicalAssembly.BodyBounds bodyBounds, SurgicalAssembly.HitboxGeometry hitboxGeometry) {
+		long primaryLimbs = assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type().primary()).count();
+		if (primaryLimbs != hitboxGeometry.limbs().size())
+			return false;
+		SurgicalAssembly.VisualBounds collision = SurgicalAssembly.VisualBounds.create(
+			-bodyBounds.width() * 0.5d, bodyBounds.minY(), -bodyBounds.depth() * 0.5d,
+			bodyBounds.width() * 0.5d, bodyBounds.minY() + bodyBounds.height(),
+			bodyBounds.depth() * 0.5d);
+		return collision != null && hitboxGeometry.overall().contains(collision);
 	}
 
 	/** Removes one server-authoritative joint and returns its item, following Create's wrench pickup rules. */

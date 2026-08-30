@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.entity;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -16,10 +19,14 @@ import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerEntity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -45,11 +52,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.Tags;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob {
 	private static final float MAX_COLLISION_SIZE = 2.0f;
+	private static final int MAX_HIT_PARTS = SurgicalAssembly.MAX_HITBOX_LIMBS + 1;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
 	private static final double DEFAULT_ATTACK_DISTANCE_SQR = 5.0d * 5.0d;
@@ -70,9 +79,15 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Nullable
 	private SurgicalAssembly.BodyBounds clientBodyBounds;
 	@Nullable
+	private SurgicalAssembly.HitboxGeometry clientHitboxGeometry;
+	@Nullable
 	private SurgicalAssembly reportedBoundsAssembly;
 	@Nullable
 	private SurgicalAssembly.BodyBounds reportedBodyBounds;
+	@Nullable
+	private SurgicalAssembly.HitboxGeometry reportedHitboxGeometry;
+	private final SlimeBionicHitPart[] hitParts;
+	private SlimeBionicHitPart[] registeredHitParts;
 	private int attackAnimationTick;
 	private int attackAnimationDuration = SlimeBionicAttackTiming.PLAYBACK_TICKS;
 	private boolean attackAnimationLeft;
@@ -89,11 +104,48 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public SlimeBionicEntity(EntityType<? extends SlimeBionicEntity> type, Level level) {
 		super(type, level);
+		hitParts = new SlimeBionicHitPart[MAX_HIT_PARTS];
+		for (int index = 0; index < hitParts.length; index++)
+			hitParts[index] = new SlimeBionicHitPart(this);
+		// Unknown/legacy assemblies keep the full reserve so a later client measurement can activate it.
+		registeredHitParts = hitParts;
+		// Match the Ender Dragon: reserve one consecutive id block and keep every cached part stable.
+		setId(ENTITY_COUNTER.getAndAdd(hitParts.length + 1) + 1);
 		// The bionic body begins in the same synced slime state used by ordinary mimics.
 		// Loading a cured entity can still restore this value to false from its saved data.
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(true);
 		moveControl = new SlimeBionicMoveControl(this);
 		setPersistenceRequired();
+		updateHitParts();
+	}
+
+	@Override
+	public void setId(int id) {
+		super.setId(id);
+		if (hitParts != null)
+			for (int index = 0; index < hitParts.length; index++)
+				hitParts[index].setId(id + index + 1);
+	}
+
+	@Override
+	public boolean isMultipartEntity() {
+		return true;
+	}
+
+	@Override
+	public SlimeBionicHitPart[] getParts() {
+		return registeredHitParts;
+	}
+
+	@Override
+	public Packet<ClientGamePacketListener> getAddEntityPacket(ServerEntity entity) {
+		return new ClientboundAddEntityPacket(this, entity, registeredHitParts.length);
+	}
+
+	@Override
+	public void recreateFromPacket(ClientboundAddEntityPacket packet) {
+		super.recreateFromPacket(packet);
+		setRegisteredHitPartCount(Mth.clamp(packet.getData(), 1, MAX_HIT_PARTS));
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -152,12 +204,16 @@ public class SlimeBionicEntity extends PathfinderMob {
 		entityData.set(ASSEMBLY, encoded);
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
+		configureHitPartRegistration(assembly);
 		clientBoundsAssembly = null;
 		clientBodyBounds = null;
+		clientHitboxGeometry = null;
 		reportedBoundsAssembly = null;
 		reportedBodyBounds = null;
+		reportedHitboxGeometry = null;
 		refreshMovementSpeed(assembly);
 		refreshDimensions();
+		updateHitParts();
 	}
 
 	/** Applies the leg-length curve to the authoritative movement attribute. */
@@ -194,19 +250,26 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */
-	public void setClientBodyBounds(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bounds) {
-		if (!level().isClientSide || assembly == null || bounds == null || getAssembly() != assembly)
+	public void setClientBodyGeometry(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bounds,
+		SurgicalAssembly.HitboxGeometry hitboxGeometry) {
+		if (!level().isClientSide || assembly == null || bounds == null || hitboxGeometry == null
+			|| getAssembly() != assembly)
 			return;
-		if (clientBoundsAssembly == assembly && bounds.equals(clientBodyBounds))
+		if (clientBoundsAssembly == assembly && bounds.equals(clientBodyBounds)
+			&& hitboxGeometry.equals(clientHitboxGeometry))
 			return;
 		clientBoundsAssembly = assembly;
 		clientBodyBounds = bounds;
+		clientHitboxGeometry = hitboxGeometry;
 		refreshDimensions();
-		if (!bounds.equals(assembly.bodyBounds())
-			&& (reportedBoundsAssembly != assembly || !bounds.equals(reportedBodyBounds))) {
+		updateHitParts();
+		if ((!bounds.equals(assembly.bodyBounds()) || !hitboxGeometry.equals(assembly.hitboxGeometry()))
+			&& (reportedBoundsAssembly != assembly || !bounds.equals(reportedBodyBounds)
+				|| !hitboxGeometry.equals(reportedHitboxGeometry))) {
 			reportedBoundsAssembly = assembly;
 			reportedBodyBounds = bounds;
-			CBPackets.sendToServer(new SlimeBionicBodyBoundsPacket(getId(), bounds));
+			reportedHitboxGeometry = hitboxGeometry;
+			CBPackets.sendToServer(new SlimeBionicBodyBoundsPacket(getId(), bounds, hitboxGeometry));
 		}
 	}
 
@@ -289,6 +352,89 @@ public class SlimeBionicEntity extends PathfinderMob {
 			+ (attackActionWeapon ? 2 : 0) + (attackActionLeft ? 1 : 0);
 		level().broadcastEntityEvent(this, (byte) (ATTACK_EVENT_BASE + encoded));
 		return new AttackStart(attackActionDuration, attackInterval, stats.damageMultiplier(), arm);
+	}
+
+	@Nullable
+	private SurgicalAssembly.HitboxGeometry activeHitboxGeometry() {
+		SurgicalAssembly assembly = getAssembly();
+		return level().isClientSide && clientBoundsAssembly == assembly
+			? clientHitboxGeometry : assembly == null ? null : assembly.hitboxGeometry();
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		updateHitParts();
+	}
+
+	private void updateHitParts() {
+		if (hitParts == null)
+			return;
+		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		List<SurgicalAssembly.VisualBounds> bounds = geometry == null ? List.of()
+			: geometry.partBounds(MAX_COLLISION_SIZE);
+		if (bounds.size() > registeredHitParts.length)
+			bounds = List.of(geometry.overall());
+		for (int index = 0; index < registeredHitParts.length; index++)
+			registeredHitParts[index].setHitBounds(index < bounds.size() ? worldBounds(bounds.get(index)) : null);
+	}
+
+	/** Chooses the cached subset before level tracking starts; tracked part maps cannot grow later. */
+	private void configureHitPartRegistration(SurgicalAssembly assembly) {
+		if (isAddedToLevel())
+			return;
+		SurgicalAssembly.HitboxGeometry geometry = assembly == null ? null : assembly.hitboxGeometry();
+		if (geometry != null)
+			setRegisteredHitPartCount(geometry.partBounds(MAX_COLLISION_SIZE).size());
+	}
+
+	private void setRegisteredHitPartCount(int count) {
+		registeredHitParts = count >= hitParts.length ? hitParts
+			: Arrays.copyOf(hitParts, Mth.clamp(count, 1, hitParts.length));
+	}
+
+	private AABB worldBounds(SurgicalAssembly.VisualBounds bounds) {
+		float angle = -yBodyRot * Mth.DEG_TO_RAD;
+		double minX = Double.POSITIVE_INFINITY;
+		double minZ = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double maxZ = Double.NEGATIVE_INFINITY;
+		for (int xSide = 0; xSide < 2; xSide++)
+			for (int zSide = 0; zSide < 2; zSide++) {
+				Vec3 rotated = new Vec3(xSide == 0 ? bounds.minX() : bounds.maxX(), 0.0d,
+					zSide == 0 ? bounds.minZ() : bounds.maxZ()).yRot(angle);
+				minX = Math.min(minX, rotated.x);
+				minZ = Math.min(minZ, rotated.z);
+				maxX = Math.max(maxX, rotated.x);
+				maxZ = Math.max(maxZ, rotated.z);
+			}
+		return new AABB(getX() + minX, getY() + bounds.minY(), getZ() + minZ,
+			getX() + maxX, getY() + bounds.maxY(), getZ() + maxZ);
+	}
+
+	@Override
+	public AABB getBoundingBoxForCulling() {
+		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		return geometry == null ? super.getBoundingBoxForCulling()
+			: getBoundingBox().minmax(worldBounds(geometry.overall()));
+	}
+
+	@Override
+	public boolean shouldRenderAtSqrDistance(double distance) {
+		if (super.shouldRenderAtSqrDistance(distance))
+			return true;
+		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		if (geometry == null)
+			return false;
+		double physicalSize = Math.max(getBoundingBox().getSize(), 1.0e-6d);
+		double visualSize = Math.max(worldBounds(geometry.overall()).getSize(), physicalSize);
+		double scale = visualSize / physicalSize;
+		return super.shouldRenderAtSqrDistance(distance / (scale * scale));
+	}
+
+	@Override
+	public boolean isPickable() {
+		return activeHitboxGeometry() == null && super.isPickable();
 	}
 
 	/** Side the next attack will request before the renderer/geometry applies single-arm fallback. */
@@ -396,9 +542,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (ASSEMBLY.equals(key)) {
 			clientBoundsAssembly = null;
 			clientBodyBounds = null;
+			clientHitboxGeometry = null;
 			reportedBoundsAssembly = null;
 			reportedBodyBounds = null;
+			reportedHitboxGeometry = null;
 			refreshDimensions();
+			updateHitParts();
 		}
 	}
 
