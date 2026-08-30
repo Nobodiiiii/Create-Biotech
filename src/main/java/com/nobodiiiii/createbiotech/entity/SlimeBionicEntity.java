@@ -182,7 +182,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (assembly == null)
 			return 0;
 		int legs = 0;
-		for (SurgicalAssembly.Limb limb : assembly.limbs())
+		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.HIP)
 				legs++;
 		return legs;

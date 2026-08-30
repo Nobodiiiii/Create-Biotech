@@ -50,6 +50,7 @@ import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
+import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.outliner.Outliner;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -62,9 +63,11 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -1410,7 +1413,7 @@ public final class SurgicalTableClientHandler {
 		Vec3 editDirection = scroll < 0.0d ? glueEditor.axis.scale(-1.0d) : glueEditor.axis;
 		Vec3 translation = Vec3.ZERO;
 		SurgicalCubeRotation rotation = SurgicalCubeRotation.IDENTITY;
-		if (player.isShiftKeyDown())
+		if (Screen.hasControlDown())
 			rotation = SurgicalCubeRotation.around(editDirection, GLUE_EDIT_ROTATION_STEP);
 		else
 			translation = editDirection.scale(GLUE_EDIT_TRANSLATION_STEP);
@@ -1419,7 +1422,7 @@ public final class SurgicalTableClientHandler {
 			glueEditor.preview = adjusted;
 			gluePreview = adjusted;
 			AllSoundEvents.SCROLL_VALUE.playAt(level, BlockPos.containing(glueEditor.axisCenter),
-				0.35f, player.isShiftKeyDown() ? 0.85f : 1.0f, false);
+				0.35f, Screen.hasControlDown() ? 0.85f : 1.0f, false);
 		}
 		showGlueEditPrompt(player, level);
 		refreshGlueEditGuide(player, level, glueEditor);
@@ -1465,7 +1468,7 @@ public final class SurgicalTableClientHandler {
 			GLUE_EDIT_OUTLINE.clear();
 			return;
 		}
-		GLUE_EDIT_OUTLINE.show(glueEditGuideEdges(editor, player.isShiftKeyDown()), CUBE_HIGHLIGHT_COLOR);
+		GLUE_EDIT_OUTLINE.show(glueEditGuideEdges(editor, Screen.hasControlDown()), CUBE_HIGHLIGHT_COLOR);
 	}
 
 	private static boolean updateGlueEditAxis(LocalPlayer player, ClientLevel level, GlueEditor editor) {
@@ -2181,6 +2184,128 @@ public final class SurgicalTableClientHandler {
 		Minecraft minecraft = Minecraft.getInstance();
 		return minecraft.player != null && minecraft.level != null
 			&& findNearestCubeHit(minecraft.player, minecraft.level, playerRay(minecraft.player)) != null;
+	}
+
+	/** Builds the fixed HUD prompt only while a surgical interaction item is aimed at a model cube. */
+	@Nullable
+	public static InteractionPrompt interactionPrompt() {
+		Minecraft minecraft = Minecraft.getInstance();
+		LocalPlayer player = minecraft.player;
+		ClientLevel level = minecraft.level;
+		if (player == null || level == null || minecraft.screen != null || pendingVisualCommit != null)
+			return null;
+		InteractionHand hand = interactionPromptHand(player);
+		if (hand == null)
+			return null;
+		ItemStack stack = player.getItemInHand(hand);
+		Ray ray = playerRay(player);
+		boolean hitsCube = findNearestCubeHit(player, level, ray) != null;
+		if (!hitsCube && glueEditor != null && glueEditor.hand == hand)
+			hitsCube = findNearestGluePreviewHit(player, level, glueEditor) != null;
+		if (!hitsCube)
+			return null;
+
+		List<Component> tooltip = new ArrayList<>();
+		CreateLang.builder()
+			.add(stack.getHoverName())
+			.forGoggles(tooltip);
+		if (pendingCut != null || pendingGlueCut != null) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.confirm_cut");
+			addCancelControl(tooltip);
+		} else if (isSurgicalGlue(stack)) {
+			if (glueEditor != null) {
+				addInteractionControl(tooltip, Component.translatable(
+					"create_biotech.gui.surgical_table.control.scroll"),
+					"create_biotech.gui.surgical_table.action.move_glue");
+				addInteractionControl(tooltip, combinedControl(Component.translatable(
+					"create_biotech.gui.surgical_table.control.ctrl"),
+					Component.translatable("create_biotech.gui.surgical_table.control.scroll")),
+					"create_biotech.gui.surgical_table.action.rotate_glue");
+				addInteractionControl(tooltip, Component.keybind("key.use"),
+					"create_biotech.gui.surgical_table.action.confirm_glue");
+				addCancelControl(tooltip);
+			} else if (pendingGlue != null) {
+				addInteractionControl(tooltip, Component.keybind("key.use"),
+					"create_biotech.gui.surgical_table.action.select_second_glue");
+				addCancelControl(tooltip);
+			} else {
+				addInteractionControl(tooltip, Component.keybind("key.use"),
+					"create_biotech.gui.surgical_table.action.select_first_glue");
+			}
+		} else if (heldLimbType(stack) != null) {
+			boolean continuingLimb = pendingLimb != null && pendingLimb.hand() == hand
+				&& pendingLimb.type() == heldLimbType(stack);
+			addInteractionControl(tooltip, Component.keybind("key.use"), !continuingLimb
+				? "create_biotech.gui.surgical_table.action.select_moving_limb"
+				: "create_biotech.gui.surgical_table.action.select_pivot_limb");
+			if (pendingLimb != null)
+				addCancelControl(tooltip);
+		} else if (stack.is(Items.SHEARS)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.cut");
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"),
+				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut");
+		} else if (stack.is(Items.HONEY_BOTTLE)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.combine");
+		} else if (isEmptyBox(stack)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.pack");
+		} else if (CBWrenchHelper.isWrench(stack)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.remove_joint");
+		} else if (CapturedEntityBoxHelper.hasCapturedEntity(stack)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.place_subject");
+		} else {
+			return null;
+		}
+		return new InteractionPrompt(stack, tooltip);
+	}
+
+	@Nullable
+	private static InteractionHand interactionPromptHand(LocalPlayer player) {
+		if (pendingCut != null)
+			return pendingCut.hand;
+		if (pendingGlueCut != null)
+			return pendingGlueCut.hand;
+		if (glueEditor != null)
+			return glueEditor.hand;
+		if (pendingGlue != null)
+			return pendingGlue.hand;
+		if (pendingLimb != null)
+			return pendingLimb.hand();
+		for (InteractionHand hand : HANDS)
+			if (isSurgicalInteractionItem(player.getItemInHand(hand)))
+				return hand;
+		return null;
+	}
+
+	private static boolean isSurgicalInteractionItem(ItemStack stack) {
+		return CapturedEntityBoxItem.isBox(stack) || stack.is(Items.SHEARS)
+			|| isSurgicalGlue(stack) || stack.is(Items.HONEY_BOTTLE)
+			|| heldLimbType(stack) != null || CBWrenchHelper.isWrench(stack);
+	}
+
+	private static void addCancelControl(List<Component> tooltip) {
+		addInteractionControl(tooltip, Component.keybind("key.attack"),
+			"create_biotech.gui.surgical_table.action.cancel");
+	}
+
+	private static void addInteractionControl(List<Component> tooltip, Component control, String actionKey) {
+		CreateLang.builder()
+			.add(control.copy().withStyle(ChatFormatting.AQUA))
+			.text(ChatFormatting.DARK_GRAY, "  ")
+			.add(Component.translatable(actionKey).withStyle(ChatFormatting.GRAY))
+			.forGoggles(tooltip, 1);
+	}
+
+	private static MutableComponent combinedControl(Component first, Component second) {
+		return first.copy()
+			.append(Component.literal(" + ").withStyle(ChatFormatting.DARK_GRAY))
+			.append(second.copy());
 	}
 
 	private static void consumeInteraction(InputEvent.InteractionKeyMappingTriggered event, InteractionHand hand) {
@@ -3271,7 +3396,7 @@ public final class SurgicalTableClientHandler {
 		if (measured == null)
 			return null;
 		Set<SurgicalAssembly.CombinationMember> armCubes = new java.util.HashSet<>();
-		for (SurgicalAssembly.Limb limb : preview.limbs())
+		for (SurgicalAssembly.Limb limb : preview.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.SHOULDER || limb.type() == SurgicalLimbType.ELBOW)
 				armCubes.addAll(preview.rotatingGroup(limb.childSource(), limb.childCube()));
 		List<List<Vec3>> allCubes = new ArrayList<>();
@@ -3295,11 +3420,9 @@ public final class SurgicalTableClientHandler {
 			visible.minY(), (visible.minZ() + visible.maxZ()) * 0.5d + bodyBounds.centerZ());
 		SurgicalAssembly.AttackGeometry attackGeometry =
 			SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), bodyOrigin);
-		int installedShoulders = (int) preview.limbs().stream()
+		int installedShoulders = (int) preview.effectiveLimbs().stream()
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		int installedElbows = (int) preview.limbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.ELBOW).count();
-		int installedArms = Math.min(2, Math.max(installedShoulders, installedElbows));
+		int installedArms = Math.min(2, installedShoulders);
 		int bakedArms = attackGeometry == null ? 0
 			: (attackGeometry.right() == null ? 0 : 1) + (attackGeometry.left() == null ? 0 : 1);
 		if (bakedArms != installedArms)
@@ -5059,6 +5182,13 @@ public final class SurgicalTableClientHandler {
 		private BatchCutFootprints {
 			groups = groups.stream().map(List::copyOf).toList();
 			occupied = List.copyOf(occupied);
+		}
+	}
+
+	public record InteractionPrompt(ItemStack icon, List<Component> tooltip) {
+		public InteractionPrompt {
+			icon = icon.copy();
+			tooltip = List.copyOf(tooltip);
 		}
 	}
 

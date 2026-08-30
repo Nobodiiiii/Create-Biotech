@@ -340,7 +340,7 @@ public final class SlimeBionicAnimator {
 		List<Frame> frames = new ArrayList<>(sourceCount);
 		for (int source = 0; source < sourceCount; source++)
 			frames.add(Frame.EMPTY);
-		if (assembly.limbs().isEmpty() || sources.size() != sourceCount)
+		if (assembly.effectiveLimbs().isEmpty() || sources.size() != sourceCount)
 			return frames;
 		Rig resolved = rig != null && rig.matches(assembly, sources) ? rig : rig(assembly, sources);
 		List<ResolvedLimb> limbs = resolved.limbs;
@@ -442,7 +442,7 @@ public final class SlimeBionicAnimator {
 			return List.of();
 		double bodyCenterX = bodyCenter(sources, AXIS_X);
 		List<LimbGeometry> geometries = new ArrayList<>();
-		for (SurgicalAssembly.Limb limb : assembly.limbs()) {
+		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs()) {
 			Member selectedChild = new Member(limb.childSource(), limb.childCube());
 			Member selectedParent = new Member(limb.parentSource(), limb.parentCube());
 			List<Member> childMembers = group(assembly, selectedChild.source(), selectedChild.cube());
@@ -533,9 +533,9 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Connects the Maledictus-style lower bones to the installed upper bone whose driven group owns
-	 * their physical parent endpoint. An elbow or knee still animates independently when no matching
-	 * shoulder or hip was installed.
+	 * Connects lower bones to the effective matching upper joint whose automatically owned rigid
+	 * island contains their parent endpoint. Unmatched elbows and knees were retained by the assembly
+	 * but filtered out before this stage.
 	 */
 	private static List<ResolvedLimb> linkHierarchy(List<ResolvedLimb> limbs) {
 		List<ResolvedLimb> linked = new ArrayList<>(limbs);
@@ -894,23 +894,10 @@ public final class SlimeBionicAnimator {
 			bodyCenter(sources, AXIS_Z));
 	}
 
-	/** The cubes that rotate with {@code cube}: its honey combination, or the cube on its own. */
+	/** The cubes that rotate with {@code cube}, including automatic joint-owned rigid islands. */
 	private static List<Member> group(SurgicalAssembly assembly, int source, int cube) {
-		for (SurgicalAssembly.Combination combination : assembly.combinations()) {
-			boolean contains = false;
-			for (SurgicalAssembly.CombinationMember member : combination.members())
-				if (member.source() == source && member.cube() == cube) {
-					contains = true;
-					break;
-				}
-			if (!contains)
-				continue;
-			List<Member> members = new ArrayList<>(combination.members().size());
-			for (SurgicalAssembly.CombinationMember member : combination.members())
-				members.add(new Member(member.source(), member.cube()));
-			return List.copyOf(members);
-		}
-		return List.of(new Member(source, cube));
+		return assembly.rotatingGroup(source, cube).stream()
+			.map(member -> new Member(member.source(), member.cube())).toList();
 	}
 
 	@Nullable

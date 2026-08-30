@@ -100,6 +100,8 @@ public final class SurgicalAssembly {
 	private final List<Joint> joints;
 	private final List<Combination> combinations;
 	private final List<Limb> limbs;
+	@Nullable
+	private transient LimbTopology limbTopology;
 	private final boolean preserveLayout;
 	private final Direction layoutFacing;
 	private final SurgicalLayPose layoutLayPose;
@@ -435,6 +437,8 @@ public final class SurgicalAssembly {
 	public List<Joint> joints() { return joints; }
 	public List<Combination> combinations() { return combinations; }
 	public List<Limb> limbs() { return limbs; }
+	/** Installed joints that currently satisfy the rigid-island ownership and tier-matching rules. */
+	public List<Limb> effectiveLimbs() { return limbTopology().effective; }
 	public boolean preservesLayout() { return preserveLayout; }
 	public Direction layoutFacing() { return layoutFacing; }
 	public SurgicalLayPose layoutLayPose() { return layoutLayPose; }
@@ -457,13 +461,169 @@ public final class SurgicalAssembly {
 			layoutLayPose, bodyBounds, geometry);
 	}
 
-	/** The rigid combination moved by a limb endpoint, or just the endpoint cube itself. */
+	/**
+	 * The automatically owned rigid island moved by a valid limb, otherwise its honey combination or
+	 * the selected cube. Joint ownership never requires honey: the hinge edges themselves split the
+	 * packed connection graph into rigid islands.
+	 */
 	public List<CombinationMember> rotatingGroup(int source, int cube) {
 		CombinationMember selected = new CombinationMember(source, cube);
+		List<CombinationMember> automatic = limbTopology().groups.get(selected);
+		if (automatic != null)
+			return automatic;
 		for (Combination combination : combinations)
 			if (combination.members().contains(selected))
 				return combination.members();
 		return List.of(selected);
+	}
+
+	private LimbTopology limbTopology() {
+		LimbTopology cached = limbTopology;
+		if (cached != null)
+			return cached;
+		cached = buildLimbTopology();
+		limbTopology = cached;
+		return cached;
+	}
+
+	/**
+	 * Resolves the two explicit ownership cases:
+	 * <ul>
+	 *   <li>a rigid island whose only anatomical attachment is the child side of one joint;</li>
+	 *   <li>a middle island attached by one first-level child side and the matching second-level
+	 *       parent side, which belongs to the first-level joint.</li>
+	 * </ul>
+	 * A second-level joint remains serialized when unmatched, but is absent from {@code effective}.
+	 */
+	private LimbTopology buildLimbTopology() {
+		if (limbs.isEmpty())
+			return LimbTopology.EMPTY;
+		Set<ConnectionKey> hingeEdges = new HashSet<>();
+		for (Limb limb : limbs)
+			hingeEdges.add(ConnectionKey.of(limb.childSource(), limb.childCube(),
+				limb.parentSource(), limb.parentCube()));
+
+		List<SurgicalConnectionGraph.Body<Integer>> bodies = new ArrayList<>(sources.size());
+		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+			Source source = sources.get(sourceId);
+			BitSet rigidCuts = source.cutSeams();
+			for (int seamId = 0; seamId < source.seams.size(); seamId++) {
+				Seam seam = source.seams.get(seamId);
+				if (hingeEdges.contains(ConnectionKey.of(sourceId, seam.first(), sourceId, seam.second())))
+					rigidCuts.set(seamId);
+			}
+			bodies.add(new SurgicalConnectionGraph.Body<>(sourceId, source.cubeCount,
+				source.presentCubes, source.seams, rigidCuts));
+		}
+
+		List<SurgicalConnectionGraph.Link<Integer>> links = new ArrayList<>();
+		for (Joint joint : joints)
+			if (!hingeEdges.contains(ConnectionKey.of(joint.firstSource(), joint.firstCube(),
+				joint.secondSource(), joint.secondCube())))
+				links.add(new SurgicalConnectionGraph.Link<>(joint.firstSource(), joint.firstCube(),
+					joint.secondSource(), joint.secondCube()));
+		// Honey is an explicit rigid constraint. It is deliberately added after filtering hinge edges,
+		// so fusing across a joint keeps the installed item but makes that joint ineffective.
+		for (Combination combination : combinations) {
+			CombinationMember anchor = combination.members().getFirst();
+			for (CombinationMember member : combination.members().subList(1, combination.members().size()))
+				links.add(new SurgicalConnectionGraph.Link<>(anchor.source(), anchor.cube(),
+					member.source(), member.cube()));
+		}
+		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
+		if (graph == null)
+			return LimbTopology.EMPTY;
+
+		Map<CombinationMember, Integer> componentIds = new HashMap<>();
+		List<List<CombinationMember>> components = new ArrayList<>();
+		for (SurgicalConnectionGraph.Component<Integer> component : graph.components()) {
+			int componentId = components.size();
+			List<CombinationMember> members = new ArrayList<>(component.size());
+			for (Map.Entry<Integer, BitSet> entry : component.members().entrySet())
+				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
+					cubeId = entry.getValue().nextSetBit(cubeId + 1)) {
+					CombinationMember member = new CombinationMember(entry.getKey(), cubeId);
+					members.add(member);
+					componentIds.put(member, componentId);
+				}
+			components.add(List.copyOf(members));
+		}
+
+		Map<Integer, List<LimbAttachment>> attachments = new HashMap<>();
+		Map<Limb, Integer> childComponents = new HashMap<>();
+		Map<Limb, Integer> parentComponents = new HashMap<>();
+		for (Limb limb : limbs) {
+			Integer child = componentIds.get(new CombinationMember(limb.childSource(), limb.childCube()));
+			Integer parent = componentIds.get(new CombinationMember(limb.parentSource(), limb.parentCube()));
+			if (child == null || parent == null || child.equals(parent))
+				continue;
+			childComponents.put(limb, child);
+			parentComponents.put(limb, parent);
+			attachments.computeIfAbsent(child, ignored -> new ArrayList<>())
+				.add(new LimbAttachment(limb, true));
+			attachments.computeIfAbsent(parent, ignored -> new ArrayList<>())
+				.add(new LimbAttachment(limb, false));
+		}
+
+		Map<Integer, Limb> owners = new HashMap<>();
+		for (Map.Entry<Integer, List<LimbAttachment>> entry : attachments.entrySet()) {
+			List<LimbAttachment> attached = entry.getValue();
+			List<Limb> primaryChildren = new ArrayList<>();
+			boolean primaryParent = false;
+			List<Limb> secondaryChildren = new ArrayList<>();
+			for (LimbAttachment attachment : attached) {
+				if (attachment.child && attachment.limb.type().primary())
+					primaryChildren.add(attachment.limb);
+				else if (!attachment.child && attachment.limb.type().primary())
+					primaryParent = true;
+				else if (attachment.child && attachment.limb.type().secondary())
+					secondaryChildren.add(attachment.limb);
+			}
+			// Inactive second-level joints may be installed anywhere and therefore do not steal a rigid
+			// island from its one first-level child joint. A primary-to-primary chain remains ambiguous.
+			if (primaryChildren.size() == 1 && !primaryParent)
+				owners.put(entry.getKey(), primaryChildren.getFirst());
+			else if (primaryChildren.isEmpty() && !primaryParent && secondaryChildren.size() == 1
+				&& attached.size() == 1)
+				owners.put(entry.getKey(), secondaryChildren.getFirst());
+		}
+
+		List<Limb> effective = new ArrayList<>();
+		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
+		for (Limb limb : limbs) {
+			Integer child = childComponents.get(limb);
+			Integer parent = parentComponents.get(limb);
+			if (child == null || parent == null || owners.get(child) != limb)
+				continue;
+			if (limb.type().primary() && attachments.getOrDefault(parent, List.of()).stream()
+				.anyMatch(attachment -> attachment.child && attachment.limb.type().primary()))
+				continue;
+			if (limb.type().secondary()) {
+				Limb primary = owners.get(parent);
+				if (primary == null || primary.type() != limb.type().matchingPrimary())
+					continue;
+			}
+			effective.add(limb);
+			List<CombinationMember> group = components.get(child);
+			for (CombinationMember member : group)
+				groups.put(member, group);
+		}
+		return new LimbTopology(List.copyOf(effective), Map.copyOf(groups));
+	}
+
+	private record LimbTopology(List<Limb> effective,
+		Map<CombinationMember, List<CombinationMember>> groups) {
+		private static final LimbTopology EMPTY = new LimbTopology(List.of(), Map.of());
+	}
+
+	private record LimbAttachment(Limb limb, boolean child) {}
+
+	private record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
+		private static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {
+			return firstSource < secondSource || firstSource == secondSource && firstCube <= secondCube
+				? new ConnectionKey(firstSource, firstCube, secondSource, secondCube)
+				: new ConnectionKey(secondSource, secondCube, firstSource, firstCube);
+		}
 	}
 
 	public SurgicalLayPose placedLayPose(Direction placementFacing) {

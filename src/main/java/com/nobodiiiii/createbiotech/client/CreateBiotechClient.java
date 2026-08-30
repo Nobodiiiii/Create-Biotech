@@ -39,6 +39,7 @@ import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltVisual;
 import com.nobodiiiii.createbiotech.content.petridish.PetriDishRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHandler;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteractionOverlay;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
@@ -270,6 +271,8 @@ public class CreateBiotechClient {
 			GhastBalloonMagnetSnapOverlay.INSTANCE);
 		event.registerAbove(VanillaGuiLayers.HOTBAR, CreateBiotech.asResource("allay_courier_eta"),
 			AllayCourierHudOverlay.INSTANCE);
+		event.registerAbove(VanillaGuiLayers.HOTBAR, CreateBiotech.asResource("surgical_table_interaction"),
+			SurgicalTableInteractionOverlay.INSTANCE);
 	}
 
 	@SubscribeEvent

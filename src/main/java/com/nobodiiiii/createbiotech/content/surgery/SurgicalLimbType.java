@@ -32,6 +32,25 @@ public enum SurgicalLimbType {
 		return maxPerBody;
 	}
 
+	/** First-level joints attach an entire limb (or the head) directly to the body. */
+	public boolean primary() {
+		return this == NECK || this == SHOULDER || this == HIP;
+	}
+
+	/** Second-level joints articulate a limb only after it belongs to the matching first level. */
+	public boolean secondary() {
+		return this == ELBOW || this == KNEE;
+	}
+
+	@Nullable
+	public SurgicalLimbType matchingPrimary() {
+		return switch (this) {
+		case ELBOW -> SHOULDER;
+		case KNEE -> HIP;
+		default -> null;
+		};
+	}
+
 	@Nullable
 	public static SurgicalLimbType byId(String id) {
 		for (SurgicalLimbType type : values())

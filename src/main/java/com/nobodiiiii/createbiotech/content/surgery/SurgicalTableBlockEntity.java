@@ -889,21 +889,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalGlueJoint> groupJoints = jointsWithin(group);
 		Set<SurgicalCombination> groupCombinations = combinationsWithin(group);
 		Set<SurgicalLimbJoint> groupLimbs = limbsWithin(group);
-		int installedShoulders = (int) groupLimbs.stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		int installedElbows = (int) groupLimbs.stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.ELBOW).count();
-		// A shoulder drives a complete single-piece arm when no elbow is installed. Keep this
-		// authoritative check identical to the client-side geometry bake so that shoulder-only
-		// bodies are not rejected while being packed into a cardboard box.
-		int installedArms = Math.min(2, Math.max(installedShoulders, installedElbows));
-		int encodedArms = attackGeometry == null ? 0
-			: (attackGeometry.right() == null ? 0 : 1) + (attackGeometry.left() == null ? 0 : 1);
-		if (encodedArms != installedArms)
-			return false;
 		SurgicalAssembly assembly = packedAssembly(subject, component, group, groupJoints,
 			groupCombinations, groupLimbs);
 		if (assembly == null)
+			return false;
+		int installedShoulders = (int) assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
+		// Only an effective first-level shoulder creates an arm. An unmatched elbow remains packed but
+		// does not contribute animation, combat geometry or body counts.
+		int installedArms = Math.min(2, installedShoulders);
+		int encodedArms = attackGeometry == null ? 0
+			: (attackGeometry.right() == null ? 0 : 1) + (attackGeometry.left() == null ? 0 : 1);
+		if (encodedArms != installedArms)
 			return false;
 		assembly = assembly.withBodyBounds(bodyBounds);
 		if (attackGeometry != null)
@@ -976,14 +973,24 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (used >= type.maxPerBody())
 			return refuse(player, "limb_limit");
 
-		attachLimbJoint(new SurgicalLimbJoint(type, child, parent));
+		SurgicalLimbJoint installedJoint = new SurgicalLimbJoint(type, child, parent);
+		Set<SurgicalLimbJoint> prospective = new java.util.LinkedHashSet<>(allLimbJoints());
+		prospective.add(installedJoint);
+		TableLimbTopology topology = limbTopology(prospective);
+		if (type.primary() && (!topology.effective.contains(installedJoint)
+			|| primaryTouchesDrivenPart(installedJoint, topology)))
+			return refuse(player, "limb_primary_conflict");
+
+		attachLimbJoint(installedJoint);
 		if (!player.getAbilities().instabuild)
 			jointItem.shrink(1);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 0.8f, 1.1f);
+		String result = type.secondary() && !topology.effective.contains(installedJoint)
+			? "limb_attached_pending_" : "limb_attached_";
 		player.displayClientMessage(Component.translatable(
-			"message.create_biotech.surgical_table.limb_attached_" + type.id()), true);
+			"message.create_biotech.surgical_table." + result + type.id()), true);
 		return true;
 	}
 
@@ -1082,6 +1089,151 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				return true;
 		return false;
 	}
+
+	/** A first-level joint may use an existing second-level parent, but never a joint-driven island. */
+	private static boolean primaryTouchesDrivenPart(SurgicalLimbJoint candidate,
+		TableLimbTopology topology) {
+		Integer child = topology.components.get(candidate.child());
+		Integer parent = topology.components.get(candidate.parent());
+		if (child == null || parent == null)
+			return true;
+		return hasOtherChildAttachment(topology.attachments.get(child), candidate)
+			|| hasOtherChildAttachment(topology.attachments.get(parent), candidate);
+	}
+
+	private static boolean hasOtherChildAttachment(@Nullable List<TableLimbAttachment> attachments,
+		SurgicalLimbJoint candidate) {
+		if (attachments == null)
+			return false;
+		for (TableLimbAttachment attachment : attachments)
+			if (attachment.child() && !attachment.limb().equals(candidate))
+				return true;
+		return false;
+	}
+
+	/**
+	 * Resolves automatic rigid-island ownership for the currently installed anatomical joints.
+	 * Second-level joints are retained even when absent from {@link TableLimbTopology#effective}; a
+	 * later matching first-level joint can activate them without reinstalling the knee or elbow.
+	 */
+	private TableLimbTopology limbTopology(Set<SurgicalLimbJoint> installed) {
+		if (installed.isEmpty())
+			return TableLimbTopology.EMPTY;
+		Set<SurgicalGlueJoint> hingeEdges = new HashSet<>();
+		for (SurgicalLimbJoint limb : installed)
+			hingeEdges.add(SurgicalGlueJoint.of(limb.child(), limb.parent()));
+
+		List<SurgicalConnectionGraph.Body<UUID>> bodies = new ArrayList<>();
+		for (SurgicalSubject subject : subjects) {
+			BitSet rigidCuts = (BitSet) subject.cutSeams.clone();
+			for (int seamId = 0; seamId < subject.seams.size(); seamId++) {
+				SurgicalAssembly.Seam seam = subject.seams.get(seamId);
+				SurgicalGlueJoint edge = SurgicalGlueJoint.of(
+					new SurgicalGlueJoint.Endpoint(subject.persistentId(), seam.first()),
+					new SurgicalGlueJoint.Endpoint(subject.persistentId(), seam.second()));
+				if (hingeEdges.contains(edge))
+					rigidCuts.set(seamId);
+			}
+			bodies.add(new SurgicalConnectionGraph.Body<>(subject.persistentId(), subject.cubeCount,
+				subject.presentCubes, subject.seams, rigidCuts));
+		}
+
+		List<SurgicalConnectionGraph.Link<UUID>> links = new ArrayList<>();
+		for (SurgicalGlueJoint joint : allGlueJoints())
+			if (!hingeEdges.contains(joint))
+				links.add(new SurgicalConnectionGraph.Link<>(joint.first().subjectKey(), joint.first().cubeId(),
+					joint.second().subjectKey(), joint.second().cubeId()));
+		// A honey combination is a separate rigid constraint. Keeping it here means honey applied across
+		// a hinge makes that joint ineffective without deleting the installed joint item.
+		for (SurgicalCombination combination : allCombinations()) {
+			SurgicalCombination.Member anchor = combination.members().getFirst();
+			for (SurgicalCombination.Member member : combination.members().subList(1,
+				combination.members().size()))
+				links.add(new SurgicalConnectionGraph.Link<>(anchor.subjectKey(), anchor.cubeId(),
+					member.subjectKey(), member.cubeId()));
+		}
+		SurgicalConnectionGraph<UUID> graph = SurgicalConnectionGraph.create(bodies, links);
+		if (graph == null)
+			return TableLimbTopology.EMPTY;
+
+		Map<SurgicalGlueJoint.Endpoint, Integer> componentIds = new HashMap<>();
+		int nextComponentId = 0;
+		for (SurgicalConnectionGraph.Component<UUID> component : graph.components()) {
+			int componentId = nextComponentId++;
+			for (Map.Entry<UUID, BitSet> entry : component.members().entrySet())
+				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
+					cubeId = entry.getValue().nextSetBit(cubeId + 1))
+					componentIds.put(new SurgicalGlueJoint.Endpoint(entry.getKey(), cubeId), componentId);
+		}
+
+		Map<Integer, List<TableLimbAttachment>> attachments = new HashMap<>();
+		Map<SurgicalLimbJoint, Integer> children = new HashMap<>();
+		Map<SurgicalLimbJoint, Integer> parents = new HashMap<>();
+		for (SurgicalLimbJoint limb : installed) {
+			Integer child = componentIds.get(limb.child());
+			Integer parent = componentIds.get(limb.parent());
+			if (child == null || parent == null || child.equals(parent))
+				continue;
+			children.put(limb, child);
+			parents.put(limb, parent);
+			attachments.computeIfAbsent(child, ignored -> new ArrayList<>())
+				.add(new TableLimbAttachment(limb, true));
+			attachments.computeIfAbsent(parent, ignored -> new ArrayList<>())
+				.add(new TableLimbAttachment(limb, false));
+		}
+
+		Map<Integer, SurgicalLimbJoint> owners = new HashMap<>();
+		for (Map.Entry<Integer, List<TableLimbAttachment>> entry : attachments.entrySet()) {
+			List<TableLimbAttachment> attached = entry.getValue();
+			List<SurgicalLimbJoint> primaryChildren = new ArrayList<>();
+			boolean primaryParent = false;
+			List<SurgicalLimbJoint> secondaryChildren = new ArrayList<>();
+			for (TableLimbAttachment attachment : attached) {
+				if (attachment.child() && attachment.limb().type().primary())
+					primaryChildren.add(attachment.limb());
+				else if (!attachment.child() && attachment.limb().type().primary())
+					primaryParent = true;
+				else if (attachment.child() && attachment.limb().type().secondary())
+					secondaryChildren.add(attachment.limb());
+			}
+			if (primaryChildren.size() == 1 && !primaryParent)
+				owners.put(entry.getKey(), primaryChildren.getFirst());
+			else if (primaryChildren.isEmpty() && !primaryParent && secondaryChildren.size() == 1
+				&& attached.size() == 1)
+				owners.put(entry.getKey(), secondaryChildren.getFirst());
+		}
+
+		Set<SurgicalLimbJoint> effective = new java.util.LinkedHashSet<>();
+		for (SurgicalLimbJoint limb : installed) {
+			Integer child = children.get(limb);
+			Integer parent = parents.get(limb);
+			if (child == null || parent == null || !limb.equals(owners.get(child)))
+				continue;
+			if (limb.type().primary() && attachments.getOrDefault(parent, List.of()).stream()
+				.anyMatch(attachment -> attachment.child() && attachment.limb().type().primary()))
+				continue;
+			if (limb.type().secondary()) {
+				SurgicalLimbJoint primary = owners.get(parent);
+				if (primary == null || primary.type() != limb.type().matchingPrimary())
+					continue;
+			}
+			effective.add(limb);
+		}
+		Map<Integer, List<TableLimbAttachment>> frozenAttachments = new HashMap<>();
+		attachments.forEach((component, attached) ->
+			frozenAttachments.put(component, List.copyOf(attached)));
+		return new TableLimbTopology(Set.copyOf(effective), Map.copyOf(componentIds),
+			Map.copyOf(frozenAttachments));
+	}
+
+	private record TableLimbTopology(Set<SurgicalLimbJoint> effective,
+		Map<SurgicalGlueJoint.Endpoint, Integer> components,
+		Map<Integer, List<TableLimbAttachment>> attachments) {
+		private static final TableLimbTopology EMPTY =
+			new TableLimbTopology(Set.of(), Map.of(), Map.of());
+	}
+
+	private record TableLimbAttachment(SurgicalLimbJoint limb, boolean child) {}
 
 	public boolean combineConnected(Player player, ItemStack honeyBottle, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {

@@ -247,7 +247,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		SurgicalAssembly assembly,
 		EntityGeometry.Bounds bounds, List<SlimeBionicAnimator.SourceState> sources) {
 		Set<SurgicalAssembly.CombinationMember> armCubes = new HashSet<>();
-		for (SurgicalAssembly.Limb limb : assembly.limbs())
+		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.SHOULDER || limb.type() == SurgicalLimbType.ELBOW)
 				armCubes.addAll(assembly.rotatingGroup(limb.childSource(), limb.childCube()));
 		List<List<Vec3>> allCubes = new ArrayList<>();
