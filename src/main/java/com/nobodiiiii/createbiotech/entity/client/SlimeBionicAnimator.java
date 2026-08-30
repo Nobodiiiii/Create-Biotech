@@ -1056,7 +1056,8 @@ public final class SlimeBionicAnimator {
 			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
 			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
-			attackArm, entity.getAttackAnimationArmSlot(), attackStyle);
+			bodyRot, entity.getAttackAimYaw(), entity.getAttackAimPitch(), attackArm,
+			entity.getAttackAnimationArmSlot(), attackStyle);
 	}
 
 	private record Member(int source, int cube) {}
