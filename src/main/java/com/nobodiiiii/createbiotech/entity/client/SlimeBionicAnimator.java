@@ -262,8 +262,9 @@ public final class SlimeBionicAnimator {
 			return frames;
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
+		Arm attackArm = attackArm(limbs, preferredAttackArm);
 		Context context = animationContext(entity, partialTick, resolved.legLength,
-			attackArm(limbs, preferredAttackArm),
+			attackArm, attackArmHasElbow(limbs, attackArm, entity.getAttackAnimationArmSlot()),
 			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND);
 		Pose pose = SlimeBionicAnimations.sample(context);
 
@@ -694,6 +695,25 @@ public final class SlimeBionicAnimator {
 		return right ? Arm.RIGHT : left ? Arm.LEFT : Arm.NONE;
 	}
 
+	/** Reports whether the exact server-selected upper arm owns a linked elbow joint. */
+	private static boolean attackArmHasElbow(List<ResolvedLimb> limbs, Arm arm, int slot) {
+		if (arm == Arm.NONE)
+			return false;
+		boolean left = arm == Arm.LEFT;
+		for (int shoulderIndex = 0; shoulderIndex < limbs.size(); shoulderIndex++) {
+			ResolvedLimb shoulder = limbs.get(shoulderIndex);
+			if (shoulder.type() != SurgicalLimbType.SHOULDER || shoulder.arm() == null
+				|| shoulder.arm().left() != left || shoulder.arm().slot() != slot)
+				continue;
+			for (ResolvedLimb candidate : limbs)
+				if (candidate.type() == SurgicalLimbType.ELBOW
+					&& candidate.parentIndex() == shoulderIndex)
+					return true;
+			return false;
+		}
+		return false;
+	}
+
 	private static Transform resolveTransform(int index, List<ResolvedLimb> limbs, Pose pose,
 		Context context, Transform bodyTransform, Transform[] cache, boolean[] resolving) {
 		if (cache[index] != null)
@@ -1036,7 +1056,7 @@ public final class SlimeBionicAnimator {
 
 	/** Adapts entity state to the animation-only module's narrow, immutable input contract. */
 	private static Context animationContext(SlimeBionicEntity entity, float partialTick,
-		float legLength, Arm attackArm, AttackStyle attackStyle) {
+		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle) {
 		float bodyRot = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 		float headRot = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot);
 		float netHeadYaw = Mth.wrapDegrees(headRot - bodyRot);
@@ -1062,7 +1082,7 @@ public final class SlimeBionicAnimator {
 			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
 			bodyRot, entity.getAttackAimYaw(), entity.getAttackAimPitch(), attackArm,
-			entity.getAttackAnimationArmSlot(), attackStyle);
+			entity.getAttackAnimationArmSlot(), attackArmHasElbow, attackStyle);
 	}
 
 	private record Member(int source, int cube) {}

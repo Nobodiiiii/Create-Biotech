@@ -196,9 +196,8 @@ public final class SlimeBionicAnimations {
 		float remainingTicks = Mth.clamp(context.attackAnimationTick() - context.partialTick(),
 			0.0f, duration);
 		float progress = 1.0f - remainingTicks / duration;
-		SlimeBionicAttackAnimations.AttackPose attack = context.attackStyle() == AttackStyle.WEAPON
-			? SlimeBionicAttackAnimations.weaponSwing(progress)
-			: SlimeBionicAttackAnimations.emptyHandGolemSwing(progress);
+		SlimeBionicAttackAnimations.AttackPose attack = attackPose(progress,
+			context.attackStyle(), context.attackArmHasElbow());
 		boolean attackingSide = (context.attackArm() == Arm.LEFT) == left;
 		Rotation rotation = attackingSide
 			? elbow ? attack.attackingElbow() : attack.attackingShoulder()
@@ -249,7 +248,8 @@ public final class SlimeBionicAnimations {
 		float remainingTicks = Mth.clamp(context.attackAnimationTick() - context.partialTick(),
 			0.0f, duration);
 		float progress = 1.0f - remainingTicks / duration;
-		addArticulatedAttackPose(rotations, context.attackArm(), context.attackStyle(), progress);
+		addArticulatedAttackPose(rotations, context.attackArm(), context.attackStyle(),
+			context.attackArmHasElbow(), progress);
 	}
 
 	/** Samples only the authored attack channels for generation-time combat-path baking. */
@@ -257,16 +257,15 @@ public final class SlimeBionicAnimations {
 		if (arm == null || arm == Arm.NONE || style == null)
 			return Pose.EMPTY;
 		EnumMap<Bone, Rotation> rotations = new EnumMap<>(Bone.class);
-		addArticulatedAttackPose(rotations, arm, style, Mth.clamp(progress, 0.0f, 1.0f));
+		addArticulatedAttackPose(rotations, arm, style, true,
+			Mth.clamp(progress, 0.0f, 1.0f));
 		return new Pose(rotations);
 	}
 
 	private static void addArticulatedAttackPose(EnumMap<Bone, Rotation> rotations,
-		Arm arm, AttackStyle style, float progress) {
-		SlimeBionicAttackAnimations.AttackPose attack =
-			style == AttackStyle.WEAPON
-				? SlimeBionicAttackAnimations.weaponSwing(progress)
-				: SlimeBionicAttackAnimations.emptyHandGolemSwing(progress);
+		Arm arm, AttackStyle style, boolean attackArmHasElbow, float progress) {
+		SlimeBionicAttackAnimations.AttackPose attack = attackPose(progress, style,
+			attackArmHasElbow);
 		Rotation body = attack.body();
 		Rotation attackingShoulder = attack.attackingShoulder();
 		Rotation attackingElbow = attack.attackingElbow();
@@ -294,6 +293,15 @@ public final class SlimeBionicAnimations {
 		// complete rigid arm follow the authored upper-arm pose instead of remaining static.
 		rotations.merge(oppositeShoulderBone, oppositeShoulder, Rotation::plus);
 		rotations.merge(oppositeElbowBone, oppositeElbow, Rotation::plus);
+	}
+
+	private static SlimeBionicAttackAnimations.AttackPose attackPose(float progress,
+		AttackStyle style, boolean attackArmHasElbow) {
+		if (!attackArmHasElbow)
+			return SlimeBionicAttackAnimations.elbowlessBruteSwing(progress);
+		return style == AttackStyle.WEAPON
+			? SlimeBionicAttackAnimations.weaponSwing(progress)
+			: SlimeBionicAttackAnimations.emptyHandGolemSwing(progress);
 	}
 
 	@Nullable
@@ -340,7 +348,7 @@ public final class SlimeBionicAnimations {
 		float netHeadYaw, float headPitch, float attackTime, boolean riding, float swimAmount,
 		int attackAnimationTick, int attackAnimationDuration, float partialTick, float bodyYaw,
 		float attackAimYaw, float attackAimPitch, Arm attackArm, int attackArmSlot,
-		AttackStyle attackStyle) {
+		boolean attackArmHasElbow, AttackStyle attackStyle) {
 		public Context {
 			attackArm = attackArm == null ? Arm.NONE : attackArm;
 			attackArmSlot = Mth.clamp(attackArmSlot, 0, 7);

@@ -10,6 +10,16 @@ final class SlimeBionicAttackAnimations {
 	private static final float MALEDICTUS_SWING_DURATION_SECONDS = 1.125f;
 	private static final float ENDER_GOLEM_ATTACK_TICKS =
 		SlimeBionicAttackTiming.ENDER_GOLEM_SOURCE_TICKS;
+	private static final float DEEPLING_BRUTE_ATTACK_TICKS =
+		SlimeBionicAttackTiming.DEEPLING_BRUTE_SOURCE_TICKS;
+	private static final AttackPose DEEPLING_BRUTE_WINDUP = new AttackPose(
+		Rotation.degrees(-12.5f, 10.0f, -12.5f),
+		Rotation.degrees(0.0f, 0.0f, 75.0f), Rotation.IDENTITY,
+		Rotation.degrees(12.5f, 0.0f, -10.0f), Rotation.IDENTITY);
+	private static final AttackPose DEEPLING_BRUTE_STRIKE = new AttackPose(
+		Rotation.degrees(30.0f, -30.0f, -7.5f),
+		Rotation.degrees(-107.5f, -12.5f, 77.5f), Rotation.IDENTITY,
+		Rotation.degrees(15.0f, 0.0f, -10.0f), Rotation.IDENTITY);
 	private static final Rotation ENDER_GOLEM_WINDUP_BODY = Rotation.degrees(0.0f, 50.0f, 0.0f);
 	private static final Rotation ENDER_GOLEM_WINDUP_SHOULDER = Rotation.degrees(40.0f, 20.0f, 0.0f);
 	private static final Rotation ENDER_GOLEM_WINDUP_ELBOW = Rotation.degrees(-80.0f, 0.0f, 0.0f);
@@ -60,6 +70,25 @@ final class SlimeBionicAttackAnimations {
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 
 	private SlimeBionicAttackAnimations() {}
+
+	/**
+	 * Deepling Brute's complete right-handed melee curve for a rigid, elbowless pair of arms.
+	 *
+	 * <p>Source:
+	 * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/model/entity/Deepling_Brute_Model.java}.
+	 * The attacking hand, balancing hand and body channels retain the source's 4-tick wind-up,
+	 * 2-tick strike and 14-tick reset. Left-handed attacks are mirrored by the caller.</p>
+	 */
+	static AttackPose elbowlessBruteSwing(float progress) {
+		float tick = Mth.clamp(progress, 0.0f, 1.0f) * DEEPLING_BRUTE_ATTACK_TICKS;
+		if (tick < 4.0f)
+			return interpolate(AttackPose.IDENTITY, DEEPLING_BRUTE_WINDUP, tick / 4.0f);
+		if (tick < 6.0f)
+			return interpolate(DEEPLING_BRUTE_WINDUP, DEEPLING_BRUTE_STRIKE,
+				(tick - 4.0f) / 2.0f);
+		return interpolate(DEEPLING_BRUTE_STRIKE, AttackPose.IDENTITY,
+			(tick - 6.0f) / 14.0f);
+	}
 
 	static AttackPose weaponSwing(float progress) {
 		float sourceTime = Mth.clamp(progress, 0.0f, 1.0f)
