@@ -12,7 +12,6 @@ import com.nobodiiiii.createbiotech.registry.CBItems;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.MagmaCube;
@@ -42,8 +41,8 @@ public class CardboardBoxHandler {
 		if (CardboardBoxItem.hasCapturedEntity(stack))
 			return;
 
-		Entity target = event.getTarget();
-		if (!(target instanceof LivingEntity livingTarget))
+		LivingEntity livingTarget = CapturedEntityBoxHelper.resolveLivingTarget(event.getTarget());
+		if (livingTarget == null)
 			return;
 		if (!isSmallMob(livingTarget))
 			return;

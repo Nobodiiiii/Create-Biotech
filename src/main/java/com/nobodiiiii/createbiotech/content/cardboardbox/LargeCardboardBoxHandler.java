@@ -38,8 +38,8 @@ public class LargeCardboardBoxHandler {
 		if (CapturedEntityBoxItem.hasCapturedEntity(stack))
 			return;
 
-		Entity target = event.getTarget();
-		if (!(target instanceof Mob mobTarget))
+		LivingEntity livingTarget = CapturedEntityBoxHelper.resolveLivingTarget(event.getTarget());
+		if (!(livingTarget instanceof Mob mobTarget))
 			return;
 		if (!canLargeBoxCapture(mobTarget))
 			return;

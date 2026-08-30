@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
@@ -35,6 +37,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.entity.PartEntity;
 
 
 public class CapturedEntityBoxHelper {
@@ -51,6 +54,19 @@ public class CapturedEntityBoxHelper {
 	private static final String CHAMBER_PACKAGER_POS_TAG = "CreeperBlastChamberPackagerPos";
 
 	private CapturedEntityBoxHelper() {}
+
+	/** Resolves multipart interaction proxies to the living entity that owns the saved state. */
+	@Nullable
+	public static LivingEntity resolveLivingTarget(Entity target) {
+		Entity resolved = target;
+		while (resolved instanceof PartEntity<?> part) {
+			Entity parent = part.getParent();
+			if (parent == null || parent == resolved)
+				return null;
+			resolved = parent;
+		}
+		return resolved instanceof LivingEntity living ? living : null;
+	}
 
 	public static void markAiDisabledByMod(Entity entity) {
 		if (entity == null)
