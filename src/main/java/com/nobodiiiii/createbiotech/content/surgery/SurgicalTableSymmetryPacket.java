@@ -15,7 +15,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
-/** Server-validated second click for mirroring one surgical part across an installed glue joint. */
+/** Server-validated third-stage commit after choosing a centre plane for an installed glue joint. */
 public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 	SurgicalTableGluePacket.Endpoint first, SurgicalTableGluePacket.Endpoint mirroredAnchor,
 	Reference reference, SurgicalLayPose targetPose, List<SurgicalTableGluePacket.Move> moves,

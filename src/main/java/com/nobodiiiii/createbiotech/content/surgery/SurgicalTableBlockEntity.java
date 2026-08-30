@@ -1366,7 +1366,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	/**
 	 * Applies the same movement and joint transaction as strong glue after verifying the chosen
 	 * reference joint. A normal click requires its anchor to belong to the selected honey combination;
-	 * Ctrl mirrors around that one anchor cube directly. The wand itself is neither consumed nor damaged.
+	 * Ctrl mirrors around that one anchor cube directly. The selected centre plane is already expressed
+	 * by the mirrored endpoint and replay transform. The wand itself is neither consumed nor damaged.
 	 */
 	public boolean symmetryGlueComponents(Player player, ItemStack wand, InteractionHand hand,
 		int firstSubjectId, int firstCubeId, int secondSubjectId, int secondCubeId,
@@ -1472,6 +1473,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			subject.replaceGlueJoints(List.of());
 		for (SurgicalGlueJoint joint : remappedJoints)
 			attachJoint(joint);
+		// Glue joins motion components but never fuses their honey identities. Reattach every
+		// pre-existing combination separately so the blue glue boundary remains meaningful.
 		for (SurgicalSubject subject : subjects)
 			subject.replaceCombinations(List.of());
 		for (SurgicalCombination combination : existingCombinations) {
