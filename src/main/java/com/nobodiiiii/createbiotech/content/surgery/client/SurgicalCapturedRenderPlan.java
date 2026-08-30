@@ -244,7 +244,7 @@ public final class SurgicalCapturedRenderPlan {
 			for (Component component : components)
 				if (isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id));
+						cubeRotations.get(component.id), true);
 		} else {
 			float outerShellShrink = outerShellShrink(poseStack.last().pose());
 			for (Component component : components) {
@@ -252,7 +252,7 @@ public final class SurgicalCapturedRenderPlan {
 					continue;
 				if (component.preserveSource)
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id));
+						cubeRotations.get(component.id), false);
 				else
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
 						cubeRotations.get(component.id), false, outerShellShrink);
@@ -1432,9 +1432,11 @@ public final class SurgicalCapturedRenderPlan {
 		}
 
 		private void renderSource(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation) {
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation,
+			boolean offsetSurfaceOverlays) {
 			for (SourceBatch batch : batches)
-				batch.renderSource(poseStack, buffer, packedLight, offset, rotation, center());
+				batch.renderSource(poseStack, buffer, packedLight, offset, rotation, center(),
+					offsetSurfaceOverlays);
 		}
 
 		private void renderSurfaceOverlays(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
@@ -1533,16 +1535,31 @@ public final class SurgicalCapturedRenderPlan {
 		}
 
 		private void renderSource(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center) {
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center,
+			boolean offsetSurfaceOverlay) {
 			if (surfaceOverlay)
-				renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center);
+				renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center,
+					offsetSurfaceOverlay);
 			else
 				render(poseStack, buffer, packedLight, offset, rotation, center, renderType);
 		}
 
 		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center) {
-			render(poseStack, buffer, packedLight, offset, rotation, center, renderType);
+			renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center, false);
+		}
+
+		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center,
+			boolean depthOffset) {
+			RenderType effectiveRenderType = renderType;
+			ResourceLocation texture = renderTypeTexture(renderType);
+			// Villager type, profession and level layers redraw the exact source-model vertices.
+			// The projected source has no inset slime shell to separate those coplanar fragments,
+			// so retain the original material but use vanilla's view-space Z offset for cutout layers.
+			if (depthOffset && texture != null && renderType == RenderType.entityCutoutNoCull(texture))
+				effectiveRenderType = RenderType.entityCutoutNoCullZOffset(texture);
+			render(poseStack, buffer, packedLight, offset, rotation, center, effectiveRenderType);
 		}
 
 		private void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, @Nullable Vec3 offset,

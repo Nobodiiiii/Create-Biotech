@@ -1061,6 +1061,22 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return null;
 	}
 
+	/** Client-safe preview check used to hide a joint's invalid second target before it is clicked. */
+	public boolean canConnectLimbTargets(int firstSubjectId, int firstCubeId,
+		int secondSubjectId, int secondCubeId) {
+		SurgicalSubject firstSubject = getSubject(firstSubjectId);
+		SurgicalSubject secondSubject = getSubject(secondSubjectId);
+		if (firstSubject == null || secondSubject == null
+			|| !firstSubject.validPresentCube(firstCubeId)
+			|| !secondSubject.validPresentCube(secondCubeId))
+			return false;
+		SurgicalGlueJoint.Endpoint first = new SurgicalGlueJoint.Endpoint(firstSubject.persistentId(),
+			firstCubeId);
+		SurgicalGlueJoint.Endpoint second = new SurgicalGlueJoint.Endpoint(secondSubject.persistentId(),
+			secondCubeId);
+		return !rotatesTogether(first, second) && directConnection(first, second) != null;
+	}
+
 	private boolean directlyConnected(SurgicalGlueJoint.Endpoint first, SurgicalGlueJoint.Endpoint second,
 		SurgicalConnectionGraph<UUID> graph) {
 		return graph.directConnections(first.subjectKey(), first.cubeId())

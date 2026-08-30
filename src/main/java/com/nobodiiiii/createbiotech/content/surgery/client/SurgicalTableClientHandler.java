@@ -134,8 +134,6 @@ public final class SurgicalTableClientHandler {
 	private static final Set<UUID> SAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static final Set<UUID> UNSAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static long lastPlacementOutlineTick = Long.MIN_VALUE;
-	private static long lastPlacementPromptTick = Long.MIN_VALUE;
-	private static long lastGlueEditPromptTick = Long.MIN_VALUE;
 	private static long geometryGeneration;
 	private static long lastSelectionTick = Long.MIN_VALUE;
 	private static long lastSelectionGeneration = Long.MIN_VALUE;
@@ -454,7 +452,6 @@ public final class SurgicalTableClientHandler {
 		hoveredGluePoint = null;
 		gluePreview = null;
 		glueEditor = null;
-		lastGlueEditPromptTick = Long.MIN_VALUE;
 		placementCandidate = null;
 		placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
 		placementSuppression = null;
@@ -495,7 +492,6 @@ public final class SurgicalTableClientHandler {
 			hoveredGluePoint = null;
 			gluePreview = null;
 			glueEditor = null;
-			lastGlueEditPromptTick = Long.MIN_VALUE;
 			GLUE_EDIT_OUTLINE.clear();
 			GLUE_POINT_OUTLINE.clear();
 			clearPlacementPreview();
@@ -559,10 +555,8 @@ public final class SurgicalTableClientHandler {
 				|| table.clientDataRevision() != glueEditor.preview.tableRevision
 				|| !isSmartGlue(player.getItemInHand(glueEditor.hand))) {
 				clearPendingGlue();
-			} else {
-				showGlueEditPrompt(player, level);
+			} else
 				refreshGlueEditGuide(player, level, glueEditor);
-			}
 		}
 	}
 
@@ -719,7 +713,6 @@ public final class SurgicalTableClientHandler {
 			.disableLineNormals()
 			.lineWidth(HIGHLIGHT_LINE_WIDTH);
 		lastPlacementOutlineTick = level.getGameTime();
-		showPlacementPrompt(player, level);
 	}
 
 	private static SurgicalClientTopology.PlacementPlan exactInitialPlacement(PlacementSource source,
@@ -810,7 +803,6 @@ public final class SurgicalTableClientHandler {
 		placementPreview = null;
 		Outliner.getInstance().remove(PLACEMENT_OUTLINE_SLOT);
 		lastPlacementOutlineTick = Long.MIN_VALUE;
-		lastPlacementPromptTick = Long.MIN_VALUE;
 	}
 
 	private static void rejectPlacementPreview(SurgicalTablePlacementResult result) {
@@ -824,16 +816,6 @@ public final class SurgicalTableClientHandler {
 			Outliner.getInstance().keep(PLACEMENT_OUTLINE_SLOT);
 			lastPlacementOutlineTick = tick;
 		}
-		showPlacementPrompt(player, level);
-	}
-
-	private static void showPlacementPrompt(LocalPlayer player, ClientLevel level) {
-		long tick = level.getGameTime();
-		if (tick == lastPlacementPromptTick)
-			return;
-		player.displayClientMessage(Component.translatable(
-			"message.create_biotech.surgical_table.place_subject"), true);
-		lastPlacementPromptTick = tick;
 	}
 
 	@SubscribeEvent
@@ -959,7 +941,6 @@ public final class SurgicalTableClientHandler {
 			componentSelection = null;
 			wrenchSelection = null;
 			clearSeamHighlight();
-			showGlueEditPrompt(player, level);
 			refreshGlueEditGuide(player, level, glueEditor);
 			return;
 		}
@@ -1366,7 +1347,6 @@ public final class SurgicalTableClientHandler {
 			hoveredGluePoint = null;
 			GLUE_POINT_OUTLINE.clear();
 			clearSeamHighlight();
-			showGlueEditPrompt(player, level);
 			refreshGlueEditGuide(player, level, glueEditor);
 			AllSoundEvents.SLIME_ADDED.playAt(level, BlockPos.containing(hit.location), 0.5f, 0.9f, false);
 			return true;
@@ -1420,7 +1400,6 @@ public final class SurgicalTableClientHandler {
 			return;
 		if (!updateGlueEditAxis(player, level, glueEditor)) {
 			GLUE_EDIT_OUTLINE.clear();
-			showGlueEditPrompt(player, level);
 			event.setCanceled(true);
 			return;
 		}
@@ -1438,7 +1417,6 @@ public final class SurgicalTableClientHandler {
 			AllSoundEvents.SCROLL_VALUE.playAt(level, BlockPos.containing(glueEditor.axisCenter),
 				0.35f, Screen.hasControlDown() ? 0.85f : 1.0f, false);
 		}
-		showGlueEditPrompt(player, level);
 		refreshGlueEditGuide(player, level, glueEditor);
 		event.setCanceled(true);
 	}
@@ -1448,7 +1426,6 @@ public final class SurgicalTableClientHandler {
 		hoveredGluePoint = null;
 		gluePreview = null;
 		glueEditor = null;
-		lastGlueEditPromptTick = Long.MIN_VALUE;
 		GLUE_EDIT_OUTLINE.clear();
 		GLUE_POINT_OUTLINE.clear();
 		CUBE_OUTLINE.clear();
@@ -1461,20 +1438,10 @@ public final class SurgicalTableClientHandler {
 		hoveredGluePoint = null;
 		gluePreview = preview;
 		glueEditor = null;
-		lastGlueEditPromptTick = Long.MIN_VALUE;
 		GLUE_EDIT_OUTLINE.clear();
 		GLUE_POINT_OUTLINE.clear();
 		CUBE_OUTLINE.clear();
 		COMBINATION_OUTLINE.clear();
-	}
-
-	private static void showGlueEditPrompt(LocalPlayer player, ClientLevel level) {
-		long tick = level.getGameTime();
-		if (tick == lastGlueEditPromptTick)
-			return;
-		player.displayClientMessage(Component.translatable(
-			"message.create_biotech.surgical_table.smart_glue_edit"), true);
-		lastGlueEditPromptTick = tick;
 	}
 
 	private static void refreshGlueEditGuide(LocalPlayer player, ClientLevel level, GlueEditor editor) {
@@ -2200,7 +2167,7 @@ public final class SurgicalTableClientHandler {
 			&& findNearestCubeHit(minecraft.player, minecraft.level, playerRay(minecraft.player)) != null;
 	}
 
-	/** Builds the fixed HUD prompt only while a surgical interaction item is aimed at a model cube. */
+	/** Builds the fixed HUD prompt while aiming at a model cube or placing a compatible captured subject. */
 	@Nullable
 	public static InteractionPrompt interactionPrompt() {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -2216,8 +2183,12 @@ public final class SurgicalTableClientHandler {
 		boolean hitsCube = findNearestCubeHit(player, level, ray) != null;
 		if (!hitsCube && glueEditor != null && glueEditor.hand == hand)
 			hitsCube = findNearestGluePreviewHit(player, level, glueEditor) != null;
-		if (!hitsCube)
-			return null;
+		if (!hitsCube) {
+			hand = capturedSubjectPlacementPromptHand(player, level);
+			if (hand == null)
+				return null;
+			stack = player.getItemInHand(hand);
+		}
 
 		List<Component> tooltip = new ArrayList<>();
 		CreateLang.builder()
@@ -2277,6 +2248,23 @@ public final class SurgicalTableClientHandler {
 			return null;
 		}
 		return new InteractionPrompt(stack, tooltip);
+	}
+
+	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
+	@Nullable
+	private static InteractionHand capturedSubjectPlacementPromptHand(LocalPlayer player, ClientLevel level) {
+		Minecraft minecraft = Minecraft.getInstance();
+		if (!(minecraft.hitResult instanceof BlockHitResult hit)
+			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))
+			return null;
+		for (InteractionHand hand : HANDS) {
+			ItemStack stack = player.getItemInHand(hand);
+			if (stack.getItem() instanceof CapturedEntityBoxItem
+				&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
+				&& placementCandidateFor(stack, level).result().succeeded())
+				return hand;
+		}
+		return null;
 	}
 
 	@Nullable
@@ -2509,8 +2497,6 @@ public final class SurgicalTableClientHandler {
 			pending.observedCubeCount, pending.seams, List.of(), highlighted.cubeEdges,
 			highlighted.combinationEdges, true, false);
 		highlightSelection(componentSelection);
-		player.displayClientMessage(Component.translatable(
-			"message.create_biotech.surgical_table.place_cut"), true);
 	}
 
 	private static void confirmPendingGlueCut(LocalPlayer player) {
@@ -2922,8 +2908,6 @@ public final class SurgicalTableClientHandler {
 			pending.observedCubeCount, pending.seams, List.of(), highlighted.cubeEdges,
 			highlighted.combinationEdges, false, false);
 		highlightSelection(componentSelection);
-		player.displayClientMessage(Component.translatable(
-			"message.create_biotech.surgical_table.place_cut"), true);
 	}
 
 	private static void confirmPendingCut(LocalPlayer player) {
@@ -4181,14 +4165,33 @@ public final class SurgicalTableClientHandler {
 			&& level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity found ? found : null;
 		SurgicalCombination combination = table == null ? null
 			: table.combinationContaining(hit.geometry.subjectId, hit.cubeId);
-		if (combination != null)
-			return combinationSelection(hit, table, combination);
-		SurgicalModelRenderContext.CubeGeometry cube = hit.geometry.cubesById.get(hit.cubeId);
-		if (cube == null)
-			return null;
-		return new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
-			hit.geometry.observedCubeCount, hit.geometry.seams, List.of(),
-			List.copyOf(SurgicalClientTopology.cubeEdges(cube)));
+		Selection selected;
+		if (combination != null) {
+			selected = combinationSelection(hit, table, combination);
+		} else {
+			SurgicalModelRenderContext.CubeGeometry cube = hit.geometry.cubesById.get(hit.cubeId);
+			if (cube == null)
+				return null;
+			selected = new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
+				hit.geometry.observedCubeCount, hit.geometry.seams, List.of(),
+				List.copyOf(SurgicalClientTopology.cubeEdges(cube)));
+		}
+		return validSecondLimbTarget(selected, table) ? selected : null;
+	}
+
+	/** The first target stays highlighted, but a physically disconnected second target never does. */
+	private static boolean validSecondLimbTarget(Selection selected,
+		@Nullable SurgicalTableBlockEntity table) {
+		PendingLimb first = pendingLimb;
+		if (first == null)
+			return true;
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player == null
+			|| heldLimbType(minecraft.player.getItemInHand(first.hand())) != first.type())
+			return true;
+		return table != null && first.selection().tablePos().equals(selected.tablePos())
+			&& table.canConnectLimbTargets(first.selection().subjectId(), first.selection().targetId(),
+				selected.subjectId(), selected.targetId());
 	}
 
 	private record PendingLimb(SurgicalLimbType type, InteractionHand hand, Selection selection) {}
