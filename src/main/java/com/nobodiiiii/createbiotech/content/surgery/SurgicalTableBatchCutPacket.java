@@ -13,7 +13,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
-/** Server-validated, multi-subject layout for shift-shears cutting every edge around one cube. */
+/** Server-validated, multi-subject layout for Ctrl-shears cutting every edge around one cube. */
 public record SurgicalTableBatchCutPacket(BlockPos pos, InteractionHand hand, int subjectId, int cubeId,
 	int observedCubeCount, List<SurgicalAssembly.Seam> seams, SurgicalTableLayout.Proposal layout,
 	List<Vec3> groupDeltas) {

@@ -1742,7 +1742,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				graph.directConnections(start.persistentId(), cubeId).members()));
 	}
 
-	/** Connectivity after shift-shears removes every native and glue edge touching {@code cutCube}. */
+	/** Connectivity after Ctrl-shears removes every native and glue edge touching {@code cutCube}. */
 	public Map<Integer, BitSet> connectedComponentsAfterCuttingCube(int subjectId, int startCube, int cutCube,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
@@ -1766,7 +1766,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				graph.componentContaining(subject.persistentId(), startCube).members()));
 	}
 
-	/** Complete post-cut groups for the shift-shears operation, largest and stable remainder first. */
+	/** Complete post-cut groups for the Ctrl-shears operation, largest and stable remainder first. */
 	@Nullable
 	public BatchCutPlan batchCutPlan(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {

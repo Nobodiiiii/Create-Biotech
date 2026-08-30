@@ -56,6 +56,7 @@ import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.ponder.api.PonderPalette;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LightTexture;
@@ -969,7 +970,7 @@ public final class SurgicalTableClientHandler {
 			|| CBWrenchHelper.isWrench(player.getOffhandItem());
 		if (!holdingJoint && pendingLimb != null)
 			clearPendingLimb();
-		boolean highlightingDirectConnections = holdingShears && player.isShiftKeyDown();
+		boolean highlightingDirectConnections = holdingShears && Screen.hasControlDown();
 		if (!holdingShears && !holdingEmptyBox && !holdingEmptyLargeBox && !holdingGlue && !holdingHoney
 			&& !holdingJoint && !holdingWrench) {
 			hoveredGluePoint = null;
@@ -1098,10 +1099,7 @@ public final class SurgicalTableClientHandler {
 			consumeInteraction(event, event.getHand());
 			return;
 		}
-		if ((pendingCut != null || pendingGlueCut != null) && key == minecraft.options.keyAttack
-			&& minecraft.player.isShiftKeyDown()) {
-			abortPendingCut();
-			abortPendingGlueCut();
+		if (key == minecraft.options.keyAttack && cancelPendingInteraction()) {
 			event.setSwingHand(false);
 			event.setCanceled(true);
 			return;
@@ -1121,18 +1119,6 @@ public final class SurgicalTableClientHandler {
 		}
 		if (pendingGlueCut != null) {
 			confirmPendingGlueCut(minecraft.player);
-			consumeInteraction(event, hand);
-			return;
-		}
-		if (pendingGlue != null && glueEditor == null && minecraft.player.isShiftKeyDown()) {
-			clearPendingGlue();
-			clearSelections();
-			consumeInteraction(event, hand);
-			return;
-		}
-		if (pendingLimb != null && minecraft.player.isShiftKeyDown()) {
-			clearPendingLimb();
-			clearSelections();
 			consumeInteraction(event, hand);
 			return;
 		}
@@ -1167,7 +1153,7 @@ public final class SurgicalTableClientHandler {
 				consumeInteraction(event, hand);
 			return;
 		} else if (held.is(Items.SHEARS)) {
-			if (minecraft.player.isShiftKeyDown()) {
+			if (Screen.hasControlDown()) {
 				selected = findDirectConnectionCutSelection(cubeHit);
 				componentSelection = selected;
 				seamSelection = null;
@@ -1228,6 +1214,18 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 		consumeInteraction(event, hand);
+	}
+
+	/** Cancels every staged table interaction without letting the attack reach the world. */
+	private static boolean cancelPendingInteraction() {
+		if (pendingCut == null && pendingGlueCut == null && pendingGlue == null && pendingLimb == null)
+			return false;
+		abortPendingCut();
+		abortPendingGlueCut();
+		clearPendingGlue();
+		clearPendingLimb();
+		clearSelections();
+		return true;
 	}
 
 	/**
