@@ -56,7 +56,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		SurgicalTablePlane.Plane plane = SurgicalTablePlane.scan(player.level(), pos);
 		if (!plane.valid() || !pos.equals(plane.source()) || plane.tiles().stream()
 			.noneMatch(tile -> player.distanceToSqr(Vec3.atCenterOf(tile)) <= range * range)
-			|| !hitOnPlane(first.hit, plane) || !hitOnPlane(second.hit, plane))
+			|| !hitOnPlane(pos, first.hit, plane) || !hitOnPlane(pos, second.hit, plane))
 			return;
 		SurgicalTableBlockEntity table = SurgicalTableBlockEntity.controller(player.level(), plane);
 		if (table == null)
@@ -74,7 +74,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 				"message.create_biotech.surgical_table.glue_success"), true);
 	}
 
-	private static List<Move> readMoves(FriendlyByteBuf buffer) {
+	static List<Move> readMoves(FriendlyByteBuf buffer) {
 		int count = buffer.readVarInt();
 		if (count < 0 || count > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Invalid surgical glue move count " + count);
@@ -90,7 +90,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		return List.copyOf(moves);
 	}
 
-	private static List<AnchorMove> readAnchorMoves(FriendlyByteBuf buffer) {
+	static List<AnchorMove> readAnchorMoves(FriendlyByteBuf buffer) {
 		int count = buffer.readVarInt();
 		if (count < 0 || count > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Invalid surgical glue anchor move count " + count);
@@ -113,7 +113,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			layout = layout == null ? SurgicalTableLayout.Proposal.EMPTY : layout;
 		}
 
-		private void write(FriendlyByteBuf buffer) {
+		void write(FriendlyByteBuf buffer) {
 			buffer.writeVarInt(subjectId);
 			buffer.writeVarInt(translations.size());
 			for (CubeTranslation translation : translations) {
@@ -126,7 +126,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			Endpoint.writeLayout(buffer, layout);
 		}
 
-		private static Move read(FriendlyByteBuf buffer) {
+		static Move read(FriendlyByteBuf buffer) {
 			int subjectId = buffer.readVarInt();
 			int count = buffer.readVarInt();
 			if (count < 0 || count > SurgicalAssembly.MAX_CUBES)
@@ -145,7 +145,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			translations = List.copyOf(translations);
 		}
 
-		private void write(FriendlyByteBuf buffer) {
+		void write(FriendlyByteBuf buffer) {
 			buffer.writeVarInt(subjectId);
 			buffer.writeVarInt(translations.size());
 			for (CubeTranslation translation : translations) {
@@ -157,7 +157,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			}
 		}
 
-		private static AnchorMove read(FriendlyByteBuf buffer) {
+		static AnchorMove read(FriendlyByteBuf buffer) {
 			int subjectId = buffer.readVarInt();
 			int count = buffer.readVarInt();
 			if (count < 0 || count > SurgicalAssembly.MAX_CUBES)
@@ -189,7 +189,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		}
 	}
 
-	private boolean hitOnPlane(Vec3 localHit, SurgicalTablePlane.Plane plane) {
+	static boolean hitOnPlane(BlockPos pos, Vec3 localHit, SurgicalTablePlane.Plane plane) {
 		double worldX = pos.getX() + localHit.x;
 		double worldZ = pos.getZ() + localHit.z;
 		return localHit.y >= -64.0d && localHit.y <= 64.0d
@@ -203,7 +203,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			layout = layout == null ? SurgicalTableLayout.Proposal.EMPTY : layout;
 		}
 
-		private boolean valid() {
+		boolean valid() {
 			double bound = SurgicalTablePlane.MAX_TILES + 2.0d;
 			return subjectId >= 0 && cubeId >= 0 && cubeId < observedCubeCount
 				&& SurgicalAssembly.validTopology(observedCubeCount, seams)
@@ -211,7 +211,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 				&& Math.abs(hit.x) <= bound && Math.abs(hit.y) <= bound && Math.abs(hit.z) <= bound;
 		}
 
-		private void write(FriendlyByteBuf buffer) {
+		void write(FriendlyByteBuf buffer) {
 			buffer.writeVarInt(subjectId);
 			buffer.writeVarInt(cubeId);
 			buffer.writeVarInt(observedCubeCount);
@@ -226,7 +226,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			writeLayout(buffer, layout);
 		}
 
-		private static Endpoint read(FriendlyByteBuf buffer) {
+		static Endpoint read(FriendlyByteBuf buffer) {
 			int subjectId = buffer.readVarInt();
 			int cubeId = buffer.readVarInt();
 			int cubeCount = buffer.readVarInt();
@@ -240,7 +240,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 				new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()), readLayout(buffer));
 		}
 
-		private static void writeLayout(FriendlyByteBuf buffer, SurgicalTableLayout.Proposal layout) {
+		static void writeLayout(FriendlyByteBuf buffer, SurgicalTableLayout.Proposal layout) {
 			buffer.writeVarInt(layout.offsets().size());
 			for (SurgicalTableLayout.CubeOffset offset : layout.offsets()) {
 				buffer.writeVarInt(offset.cubeId());
@@ -260,7 +260,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			}
 		}
 
-		private static SurgicalTableLayout.Proposal readLayout(FriendlyByteBuf buffer) {
+		static SurgicalTableLayout.Proposal readLayout(FriendlyByteBuf buffer) {
 			int offsetCount = buffer.readVarInt();
 			if (offsetCount < 0 || offsetCount > SurgicalAssembly.MAX_CUBES)
 				throw new IllegalArgumentException("Invalid surgical offset count " + offsetCount);

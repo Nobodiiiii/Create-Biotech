@@ -1345,6 +1345,54 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout);
 		if (plan == null)
 			return false;
+		return applyGluePlan(player, glue, hand, firstCubeId, secondCubeId, targetPose,
+			firstLayout, secondLayout, plan, true);
+	}
+
+	/**
+	 * Applies the same movement and joint transaction as strong glue after verifying the chosen
+	 * reference joint. A normal click requires its anchor to belong to the selected honey combination;
+	 * Ctrl mirrors around that one anchor cube directly. The wand itself is neither consumed nor damaged.
+	 */
+	public boolean symmetryGlueComponents(Player player, ItemStack wand, InteractionHand hand,
+		int firstSubjectId, int firstCubeId, int secondSubjectId, int secondCubeId,
+		int referenceSubjectId, int referenceCubeId, UUID referenceAnchorSubjectKey,
+		int referenceAnchorCubeId, boolean singleCube, SurgicalLayPose targetPose,
+		List<SurgicalTableGluePacket.Move> moves, List<SurgicalTableGluePacket.AnchorMove> anchorMoves,
+		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
+		SurgicalTableLayout.Proposal secondLayout) {
+		SurgicalSubject referenceSubject = getSubject(referenceSubjectId);
+		SurgicalSubject referenceAnchorSubject = getSubjectByPersistentId(referenceAnchorSubjectKey);
+		SurgicalSubject mirroredAnchorSubject = getSubject(secondSubjectId);
+		if (referenceSubject == null || referenceAnchorSubject == null || mirroredAnchorSubject == null
+			|| !referenceSubject.validPresentCube(referenceCubeId)
+			|| !referenceAnchorSubject.validPresentCube(referenceAnchorCubeId))
+			return false;
+		SurgicalGlueJoint referenceJoint = SurgicalGlueJoint.of(
+			new SurgicalGlueJoint.Endpoint(referenceSubject.persistentId(), referenceCubeId),
+			new SurgicalGlueJoint.Endpoint(referenceAnchorSubjectKey, referenceAnchorCubeId));
+		if (!referenceSubject.glueJoints().contains(referenceJoint) || isInternalCombinationJoint(referenceJoint))
+			return false;
+		SurgicalCombination combination = referenceAnchorSubject.combinationContaining(referenceAnchorCubeId);
+		boolean validAnchor = singleCube
+			? mirroredAnchorSubject.persistentId().equals(referenceAnchorSubjectKey)
+				&& secondCubeId == referenceAnchorCubeId
+			: combination != null && combination.contains(mirroredAnchorSubject.persistentId(), secondCubeId);
+		if (!validAnchor)
+			return false;
+
+		ValidatedGluePlan plan = validateGluePlan(wand, firstSubjectId, firstCubeId,
+			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout);
+		if (plan == null)
+			return false;
+		return applyGluePlan(player, wand, hand, firstCubeId, secondCubeId, targetPose,
+			firstLayout, secondLayout, plan, false);
+	}
+
+	private boolean applyGluePlan(Player player, ItemStack tool, InteractionHand hand,
+		int firstCubeId, int secondCubeId, SurgicalLayPose targetPose,
+		SurgicalTableLayout.Proposal firstLayout, SurgicalTableLayout.Proposal secondLayout,
+		ValidatedGluePlan plan, boolean damageTool) {
 		SurgicalSubject first = plan.first;
 		SurgicalSubject second = plan.second;
 		ComponentGroup moving = plan.moving;
@@ -1407,12 +1455,17 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			new SurgicalGlueJoint.Endpoint(movedFirst.persistentId(), firstCubeId),
 			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId));
 		attachJoint(joint);
-		glue.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		if (damageTool)
+			tool.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		else
+			player.getCooldowns().addCooldown(tool.getItem(), 5);
 		clientRenderBounds = null;
 		setChangedAndSync();
 		if (level != null) {
 			level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 0.75f, 1.0f);
 			level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE, SoundSource.BLOCKS, 0.5f, 0.9f);
+			if (!damageTool)
+				level.playSound(null, worldPosition, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.5f, 1.35f);
 		}
 		return true;
 	}
