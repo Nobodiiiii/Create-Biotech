@@ -889,7 +889,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			groupCombinations, groupLimbs);
 		if (assembly == null)
 			return false;
-		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry))
+		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
+			|| !validMobilityMeasurements(assembly, bodyBounds))
 			return false;
 		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry);
 		// Invalid or stale client combat geometry must not make an otherwise valid body unpackable.
@@ -1000,6 +1001,16 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			bodyBounds.width() * 0.5d, bodyBounds.minY() + bodyBounds.height(),
 			bodyBounds.depth() * 0.5d);
 		return collision != null && hitboxGeometry.overall().contains(collision);
+	}
+
+	private static boolean validMobilityMeasurements(SurgicalAssembly assembly,
+		SurgicalAssembly.BodyBounds bodyBounds) {
+		long installedHips = assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.HIP).count();
+		long installedKnees = assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.KNEE).count();
+		return bodyBounds.groundedLegCount() <= installedHips
+			&& bodyBounds.groundedKneeCount() <= installedKnees;
 	}
 
 	/** Removes one server-authoritative joint and returns its item, following Create's wrench pickup rules. */

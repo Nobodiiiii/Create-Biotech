@@ -29,7 +29,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 18;
+	private static final int CURRENT_VERSION = 19;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -60,6 +60,9 @@ public final class SurgicalAssembly {
 	private static final String BODY_MIN_Y_TAG = "BodyMinY";
 	private static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
 	private static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
+	private static final String BODY_GROUNDED_LEGS_TAG = "BodyGroundedLegCount";
+	private static final String BODY_GROUNDED_KNEES_TAG = "BodyGroundedKneeCount";
+	private static final String BODY_LEG_VOLUME_RATIO_TAG = "BodyLegVolumeRatio";
 	private static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
 	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
 	private static final String RIGHT_ARMS_TAG = "RightArms";
@@ -348,8 +351,9 @@ public final class SurgicalAssembly {
 				assembly.limbs, false, assembly.layoutFacing,
 				assembly.layoutLayPose, null, null, null);
 		// Versions 9 and 10 used older bounds. Discard them so those bodies are measured again with
-		// the horizontal-only weighting introduced in version 11. Version 11 bounds remain usable;
-		// their absent leg length defaults to zero until a rendering client measures it.
+		// the horizontal-only weighting introduced in version 11. Older usable bounds keep loading;
+		// missing leg length and grounded mobility measurements default to zero until a rendering
+		// client measures them.
 		if (version >= 11 && tag.contains(BODY_WIDTH_TAG, Tag.TAG_ANY_NUMERIC)
 			&& tag.contains(BODY_HEIGHT_TAG, Tag.TAG_ANY_NUMERIC)
 			&& tag.contains(BODY_DEPTH_TAG, Tag.TAG_ANY_NUMERIC)
@@ -361,7 +365,11 @@ public final class SurgicalAssembly {
 				tag.getDouble(BODY_CENTER_X_TAG), tag.getDouble(BODY_MIN_Y_TAG),
 				tag.getDouble(BODY_CENTER_Z_TAG),
 				version >= 12 && tag.contains(BODY_LEG_LENGTH_TAG, Tag.TAG_ANY_NUMERIC)
-					? tag.getDouble(BODY_LEG_LENGTH_TAG) : 0.0d);
+					? tag.getDouble(BODY_LEG_LENGTH_TAG) : 0.0d,
+				version >= 19 ? tag.getInt(BODY_GROUNDED_LEGS_TAG) : 0,
+				version >= 19 ? tag.getInt(BODY_GROUNDED_KNEES_TAG) : 0,
+				version >= 19 && tag.contains(BODY_LEG_VOLUME_RATIO_TAG, Tag.TAG_ANY_NUMERIC)
+					? tag.getDouble(BODY_LEG_VOLUME_RATIO_TAG) : 0.0d);
 			if (bounds == null)
 				return null;
 			assembly = assembly.withBodyBounds(bounds);
@@ -470,6 +478,9 @@ public final class SurgicalAssembly {
 			tag.putFloat(BODY_MIN_Y_TAG, bodyBounds.minY());
 			tag.putFloat(BODY_CENTER_Z_TAG, bodyBounds.centerZ());
 			tag.putFloat(BODY_LEG_LENGTH_TAG, bodyBounds.legLength());
+			tag.putInt(BODY_GROUNDED_LEGS_TAG, bodyBounds.groundedLegCount());
+			tag.putInt(BODY_GROUNDED_KNEES_TAG, bodyBounds.groundedKneeCount());
+			tag.putFloat(BODY_LEG_VOLUME_RATIO_TAG, bodyBounds.legVolumeRatio());
 		}
 		if (attackGeometry != null)
 			tag.put(ATTACK_GEOMETRY_TAG, attackGeometry.save());
@@ -1179,13 +1190,15 @@ public final class SurgicalAssembly {
 		}
 	}
 
-	/** Volume-weighted upright collision core, visible offset and measured effective leg length. */
+	/** Volume-weighted collision core plus rest-pose measurements used by ground locomotion. */
 	public record BodyBounds(float width, float height, float depth,
-		float centerX, float minY, float centerZ, float legLength) {
+		float centerX, float minY, float centerZ, float legLength,
+		int groundedLegCount, int groundedKneeCount, float legVolumeRatio) {
 		public BodyBounds {
 			if (!validSize(width) || !validSize(height) || !validSize(depth)
 				|| !validOffset(centerX) || !validVerticalOffset(minY) || !validOffset(centerZ)
-				|| !validLegLength(legLength))
+				|| !validLegLength(legLength) || !validMobility(groundedLegCount,
+					groundedKneeCount, legVolumeRatio))
 				throw new IllegalArgumentException("Invalid surgical body bounds");
 		}
 
@@ -1203,20 +1216,39 @@ public final class SurgicalAssembly {
 		@Nullable
 		public static BodyBounds create(double width, double height, double depth,
 			double centerX, double minY, double centerZ, double legLength) {
+			return create(width, height, depth, centerX, minY, centerZ, legLength, 0, 0, 0.0d);
+		}
+
+		@Nullable
+		public static BodyBounds create(double width, double height, double depth,
+			double centerX, double minY, double centerZ, double legLength,
+			int groundedLegCount, int groundedKneeCount, double legVolumeRatio) {
 			if (!validSize(width) || !validSize(height) || !validSize(depth))
 				return null;
 			if (!validOffset(centerX) || !validVerticalOffset(minY) || !validOffset(centerZ)
-				|| !validLegLength(legLength))
+				|| !validLegLength(legLength)
+				|| !validMobility(groundedLegCount, groundedKneeCount, legVolumeRatio))
 				return null;
 			return new BodyBounds((float) width, (float) height, (float) depth,
-				(float) centerX, (float) minY, (float) centerZ, (float) legLength);
+				(float) centerX, (float) minY, (float) centerZ, (float) legLength,
+				groundedLegCount, groundedKneeCount, (float) legVolumeRatio);
 		}
 
 		public BodyBounds withLegLength(double measuredLegLength) {
 			if (!validLegLength(measuredLegLength))
 				throw new IllegalArgumentException("Invalid surgical leg length");
 			return new BodyBounds(width, height, depth, centerX, minY, centerZ,
-				(float) measuredLegLength);
+				(float) measuredLegLength, groundedLegCount, groundedKneeCount, legVolumeRatio);
+		}
+
+		public BodyBounds withMobility(double measuredLegLength, int measuredGroundedLegs,
+			int measuredGroundedKnees, double measuredLegVolumeRatio) {
+			if (!validLegLength(measuredLegLength)
+				|| !validMobility(measuredGroundedLegs, measuredGroundedKnees, measuredLegVolumeRatio))
+				throw new IllegalArgumentException("Invalid surgical mobility measurements");
+			return new BodyBounds(width, height, depth, centerX, minY, centerZ,
+				(float) measuredLegLength, measuredGroundedLegs, measuredGroundedKnees,
+				(float) measuredLegVolumeRatio);
 		}
 
 		private static boolean validSize(double value) {
@@ -1233,6 +1265,14 @@ public final class SurgicalAssembly {
 
 		private static boolean validLegLength(double value) {
 			return value == 0.0d || validSize(value);
+		}
+
+		private static boolean validMobility(int groundedLegCount, int groundedKneeCount,
+			double legVolumeRatio) {
+			return groundedLegCount >= 0 && groundedLegCount <= SurgicalLimbType.HIP.maxPerBody()
+				&& groundedKneeCount >= 0 && groundedKneeCount <= groundedLegCount
+				&& Double.isFinite(legVolumeRatio) && legVolumeRatio >= 0.0d
+				&& legVolumeRatio <= 1.0d;
 		}
 	}
 

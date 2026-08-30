@@ -6,7 +6,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.control.MoveControl;
 
-/** Switches a body with fewer than two legs from continuous walking to slime-like hops. */
+/** Switches a body with fewer than two grounded legs from continuous walking to slime-like hops. */
 public final class SlimeBionicMoveControl extends MoveControl {
 	private static final double MIN_WANTED_DISTANCE_SQR = 2.5e-7d;
 	private static final int MIN_JUMP_DELAY = 10;

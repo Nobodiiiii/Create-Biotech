@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -24,6 +25,9 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 		buffer.writeFloat(bounds.minY());
 		buffer.writeFloat(bounds.centerZ());
 		buffer.writeFloat(bounds.legLength());
+		buffer.writeVarInt(bounds.groundedLegCount());
+		buffer.writeVarInt(bounds.groundedKneeCount());
+		buffer.writeFloat(bounds.legVolumeRatio());
 		hitboxGeometry.write(buffer);
 	}
 
@@ -36,6 +40,7 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 			return;
 		SurgicalAssembly assembly = bionic.getAssembly();
 		if (assembly == null || !reasonableCorrection(assembly.bodyBounds(), bounds)
+			|| !validMobilityMeasurements(assembly, bounds)
 			|| !reasonableCorrection(assembly.hitboxGeometry(), hitboxGeometry))
 			return;
 		bionic.setAssembly(assembly.withBodyGeometry(bounds, hitboxGeometry));
@@ -44,7 +49,8 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 	private static SurgicalAssembly.BodyBounds readBounds(FriendlyByteBuf buffer) {
 		SurgicalAssembly.BodyBounds bounds = SurgicalAssembly.BodyBounds.create(
 			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-			buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readVarInt(),
+			buffer.readVarInt(), buffer.readFloat());
 		if (bounds == null)
 			throw new IllegalArgumentException("Invalid bionic body bounds");
 		return bounds;
@@ -57,7 +63,9 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 			&& closeOffset(existing.centerX(), measured.centerX())
 			&& closeOffset(existing.minY(), measured.minY())
 			&& closeOffset(existing.centerZ(), measured.centerZ())
-			&& reasonableLegLength(existing.legLength(), measured.legLength());
+			&& (existing.groundedLegCount() == 0
+				|| reasonableLegLength(existing.legLength(), measured.legLength()))
+			&& reasonableMobility(existing, measured);
 	}
 
 	private static boolean close(float expected, float measured) {
@@ -70,6 +78,24 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 
 	private static boolean reasonableLegLength(float expected, float measured) {
 		return expected == 0.0f || measured > 0.0f && close(expected, measured);
+	}
+
+	private static boolean reasonableMobility(SurgicalAssembly.BodyBounds expected,
+		SurgicalAssembly.BodyBounds measured) {
+		return expected.groundedLegCount() == 0
+			|| expected.groundedLegCount() == measured.groundedLegCount()
+				&& expected.groundedKneeCount() == measured.groundedKneeCount()
+				&& Math.abs(expected.legVolumeRatio() - measured.legVolumeRatio()) <= 0.1f;
+	}
+
+	private static boolean validMobilityMeasurements(SurgicalAssembly assembly,
+		SurgicalAssembly.BodyBounds measured) {
+		long installedHips = assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.HIP).count();
+		long installedKnees = assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.KNEE).count();
+		return measured.groundedLegCount() <= installedHips
+			&& measured.groundedKneeCount() <= installedKnees;
 	}
 
 	private static boolean reasonableCorrection(SurgicalAssembly.HitboxGeometry existing,

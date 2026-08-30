@@ -154,7 +154,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public static AttributeSupplier.Builder createAttributes() {
 		return createMobAttributes()
 			.add(Attributes.MAX_HEALTH, 400.0d)
-			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.VILLAGER_WALK_SPEED)
+			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.ATTACK_DAMAGE, 3.0d)
 			.add(Attributes.ARMOR, 2.0d)
 			.add(Attributes.FOLLOW_RANGE, 35.0d)
@@ -219,12 +219,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 		updateHitParts();
 	}
 
-	/** Applies the leg-length curve to the authoritative movement attribute. */
+	/** Applies the grounded anatomical gait calibration to the authoritative movement attribute. */
 	private void refreshMovementSpeed(SurgicalAssembly assembly) {
 		if (level().isClientSide)
 			return;
 		SurgicalAssembly.BodyBounds bounds = assembly.bodyBounds();
-		double speed = SurgicalGait.movementSpeed(bounds == null ? 0.0d : bounds.legLength());
+		double speed = bounds == null ? SurgicalGait.ZOMBIE_WALK_SPEED
+			: SurgicalGait.movementSpeed(bounds.legLength(), bounds.groundedLegCount(),
+				bounds.groundedKneeCount(), bounds.legVolumeRatio());
 		var movement = getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)
 			movement.setBaseValue(speed);
@@ -240,16 +242,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return cachedAssembly;
 	}
 
-	/** Hip joints are authoritative leg roots; a knee only articulates the hip chain that owns it. */
+	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */
 	public int getLocomotionLegCount() {
 		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null)
-			return 0;
-		int legs = 0;
-		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
-			if (limb.type() == SurgicalLimbType.HIP)
-				legs++;
-		return legs;
+		SurgicalAssembly.BodyBounds bounds = assembly == null ? null : assembly.bodyBounds();
+		return bounds == null ? 0 : bounds.groundedLegCount();
 	}
 
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */

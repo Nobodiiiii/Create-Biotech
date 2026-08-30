@@ -6,20 +6,24 @@ import net.minecraft.util.Mth;
 public final class SurgicalGait {
 	/** Villager legs are twelve model pixels long. */
 	public static final double VILLAGER_LEG_LENGTH = 12.0d / 16.0d;
+	/** A standard zombie uses the same twelve-pixel humanoid leg length. */
+	public static final double ZOMBIE_LEG_LENGTH = 12.0d / 16.0d;
 	/** Enderman legs are thirty model pixels long. */
 	public static final double ENDERMAN_LEG_LENGTH = 30.0d / 16.0d;
-	/** A villager's 0.5 movement attribute driven by its usual 0.5 behaviour speed. */
-	public static final double VILLAGER_WALK_SPEED = 0.25d;
+	/** Ordinary zombie ground speed and the fixed horizontal speed of zero/one-leg hoppers. */
+	public static final double ZOMBIE_WALK_SPEED = 0.23d;
 	/** An enderman's 0.30 base movement plus its 0.15 attacking modifier. */
 	public static final double ANGRY_ENDERMAN_SPEED = 0.45d;
+	/** Keeps extreme long-leg and multiplier combinations within the intended survival range. */
+	public static final double MAX_MOVEMENT_SPEED = 0.48d;
 	/** HumanoidModel's normal walking-angle multiplier. */
 	public static final float HUMANOID_LEG_SWING_FACTOR = 1.4f;
 	/** Villager legs reach 1.4 * 0.5 = 0.7 radians. */
 	public static final float VILLAGER_MAX_LEG_SWING = 0.7f;
 	/** EndermanModel halves and then clamps each leg to 0.4 radians. */
 	public static final float ENDERMAN_MAX_LEG_SWING = 0.4f;
-	/** Vanilla caps this at 1; the bionic gait preserves phase up to its 0.45 movement endpoint. */
-	public static final float MAX_WALK_ANIMATION_SPEED = (float) (ANGRY_ENDERMAN_SPEED * 4.0d);
+	/** Vanilla caps this at 1; the bionic gait preserves phase through its full movement endpoint. */
+	public static final float MAX_WALK_ANIMATION_SPEED = (float) (MAX_MOVEMENT_SPEED * 4.0d);
 
 	private static final float MIN_ANIMATION_FREQUENCY_SCALE = 0.25f;
 	private static final float MAX_ANIMATION_FREQUENCY_SCALE = 4.0f;
@@ -27,11 +31,40 @@ public final class SurgicalGait {
 	private SurgicalGait() {}
 
 	/**
-	 * Smoothly maps villager-length through enderman-length legs onto their characteristic speeds.
-	 * Shorter and longer bodies stay capped at those readable vanilla movement endpoints.
+	 * Calibrates two standard zombie-length grounded legs to ordinary zombie speed, then applies the
+	 * additive-inside-each-factor bonuses for extra grounded legs, grounded-leg volume and knees.
+	 * Bodies with at most one grounded leg use a fixed hopping speed instead.
 	 */
-	public static double movementSpeed(double legLength) {
-		return Mth.lerp(smoothLegProgress(legLength), VILLAGER_WALK_SPEED, ANGRY_ENDERMAN_SPEED);
+	public static double movementSpeed(double averageLegLength, int groundedLegCount,
+		int groundedKneeCount, double legVolumeRatio) {
+		if (groundedLegCount <= 1)
+			return ZOMBIE_WALK_SPEED;
+		double lengthSpeed = ZOMBIE_WALK_SPEED
+			* Math.max(0.0d, averageLegLength) / ZOMBIE_LEG_LENGTH;
+		double speed = lengthSpeed * legCountFactor(groundedLegCount)
+			* legVolumeFactor(legVolumeRatio) * kneeFactor(groundedKneeCount);
+		return Mth.clamp(speed, 0.0d, MAX_MOVEMENT_SPEED);
+	}
+
+	/** Legs three and four add 0.1 each; legs five through eight add 0.05 each. */
+	public static double legCountFactor(int groundedLegCount) {
+		int thirdAndFourth = Mth.clamp(groundedLegCount - 2, 0, 2);
+		int fifthThroughEighth = Mth.clamp(groundedLegCount - 4, 0, 4);
+		return 1.0d + thirdAndFourth * 0.1d + fifthThroughEighth * 0.05d;
+	}
+
+	/**
+	 * Concave factor in [0.8, 1.2]. The logarithmic calibration passes exactly through 1.0 when
+	 * grounded legs occupy one quarter of the sampled whole-body union volume.
+	 */
+	public static double legVolumeFactor(double legVolumeRatio) {
+		double ratio = Mth.clamp(legVolumeRatio, 0.0d, 1.0d);
+		return 0.8d + 0.4d * Math.log1p(8.0d * ratio) / Math.log(9.0d);
+	}
+
+	/** Every grounded knee adds 0.05 within one factor, capped at four knees / +0.2. */
+	public static double kneeFactor(int groundedKneeCount) {
+		return 1.0d + Mth.clamp(groundedKneeCount, 0, 4) * 0.05d;
 	}
 
 	/** Long legs use a progressively narrower arc, bottoming out at EndermanModel's limit. */

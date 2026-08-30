@@ -73,6 +73,9 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			buffer.writeFloat(bodyBounds.minY());
 			buffer.writeFloat(bodyBounds.centerZ());
 			buffer.writeFloat(bodyBounds.legLength());
+			buffer.writeVarInt(bodyBounds.groundedLegCount());
+			buffer.writeVarInt(bodyBounds.groundedKneeCount());
+			buffer.writeFloat(bodyBounds.legVolumeRatio());
 		}
 		buffer.writeBoolean(hitboxGeometry != null);
 		if (hitboxGeometry != null)
@@ -185,7 +188,8 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 		if (!buffer.readBoolean())
 			return null;
 		return SurgicalAssembly.BodyBounds.create(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
+			buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat());
 	}
 
 	@Nullable

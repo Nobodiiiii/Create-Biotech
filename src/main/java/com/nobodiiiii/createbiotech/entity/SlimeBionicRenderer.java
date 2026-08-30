@@ -46,7 +46,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
-	private static final boolean RENDER_ATTACK_RANGE = false;
+	private static final boolean RENDER_ATTACK_RANGE = true;
 	private static final int ATTACK_CONE_STEPS = 12;
 	private static final int ATTACK_CONE_RING_POINTS = 8;
 	private static final float MIN_SHADOW_RADIUS = 0.15f;
@@ -280,10 +280,10 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ());
 		SurgicalAssembly.BodyBounds bodyBounds = SurgicalBodyBounds.measure(bodyCubes, allCubes, visible);
 		if (bodyBounds != null) {
-			float legLength = SlimeBionicAnimator.effectiveLegLength(assembly, sources);
-			if (legLength >= SurgicalAssembly.MIN_BODY_SIZE
-				&& legLength <= SurgicalAssembly.MAX_BODY_SIZE)
-				bodyBounds = bodyBounds.withLegLength(legLength);
+			SlimeBionicAnimator.MobilityMetrics mobility =
+				SlimeBionicAnimator.measureMobility(assembly, sources);
+			bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
+				mobility.groundedLegCount(), mobility.groundedKneeCount(), mobility.legVolumeRatio());
 			List<Map<Integer, List<Vec3>>> hitboxCubes = sources.stream()
 				.map(source -> source.boxes().entrySet().stream().collect(
 					java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,

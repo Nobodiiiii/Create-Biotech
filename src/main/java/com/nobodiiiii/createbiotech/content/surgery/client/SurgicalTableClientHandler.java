@@ -4116,9 +4116,10 @@ public final class SurgicalTableClientHandler {
 			measured.visible());
 		if (bodyBounds == null)
 			return null;
-		float legLength = SlimeBionicAnimator.effectiveLegLength(preview, measured.sources());
-		if (legLength >= SurgicalAssembly.MIN_BODY_SIZE && legLength <= SurgicalAssembly.MAX_BODY_SIZE)
-			bodyBounds = bodyBounds.withLegLength(legLength);
+		SlimeBionicAnimator.MobilityMetrics mobility =
+			SlimeBionicAnimator.measureMobility(preview, measured.sources());
+		bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
+			mobility.groundedLegCount(), mobility.groundedKneeCount(), mobility.legVolumeRatio());
 		SurgicalBodyBounds.Envelope visible = measured.visible();
 		Vec3 bodyOrigin = new Vec3((visible.minX() + visible.maxX()) * 0.5d + bodyBounds.centerX(),
 			visible.minY(), (visible.minZ() + visible.maxZ()) * 0.5d + bodyBounds.centerZ());

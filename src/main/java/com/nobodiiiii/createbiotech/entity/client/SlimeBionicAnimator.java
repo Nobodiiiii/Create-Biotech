@@ -17,6 +17,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalConnectionGraph;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations;
@@ -45,12 +46,9 @@ public final class SlimeBionicAnimator {
 	private static final int AXIS_Y = 1;
 	private static final int AXIS_Z = 2;
 	private static final double GEOMETRY_EPSILON = 1.0e-10d;
-	private static final double VOLUME_OVERLAP_EPSILON = 1.0e-7d;
 	/** Includes SpiderModel's outer legs, whose rest pose is exactly 45 degrees from horizontal. */
 	private static final double SPIDER_HORIZONTAL_TO_VERTICAL_RATIO = 0.75d;
-	private static final int ARM_VOLUME_SAMPLES_PER_BOX = 64;
-	private static final int MAX_ARM_VOLUME_SAMPLE_POINTS = 32_768;
-	private static final long MAX_ARM_VOLUME_COVERAGE_TESTS = 8_000_000L;
+	private static final double GROUND_CONTACT_TOLERANCE = 2.0d / 16.0d;
 	/**
 	 * Connection graphs keyed by the immutable assembly they describe. Weak so a despawned body's
 	 * graph is collected with it.
@@ -152,111 +150,16 @@ public final class SlimeBionicAnimator {
 			members.addAll(limbs.get(shoulderIndex).members());
 		if (elbowIndex >= 0)
 			members.addAll(limbs.get(elbowIndex).members());
-		List<VolumeBox> boxes = new ArrayList<>(members.size());
+		List<List<Vec3>> cuboids = new ArrayList<>(members.size());
 		for (Member member : members) {
 			CubeBox box = box(sources, member);
-			VolumeBox volumeBox = box == null ? null : VolumeBox.of(box);
-			if (volumeBox != null)
-				boxes.add(volumeBox);
+			if (box != null)
+				cuboids.add(box.points());
 		}
-		double volume = unionVolume(boxes);
+		double volume = SurgicalVolumeSampler.unionVolume(cuboids);
 		return (float) Mth.clamp(volume, 0.0d,
 			SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE
 				* SurgicalAssembly.MAX_BODY_SIZE);
-	}
-
-	/**
-	 * Adds isolated cuboids exactly and samples only broad-phase overlap components. For a sampled
-	 * point covered by {@code n} cuboids, its source cuboid contributes {@code 1 / n}; summing every
-	 * source therefore estimates the geometric union instead of counting overlap repeatedly.
-	 */
-	private static double unionVolume(List<VolumeBox> boxes) {
-		if (boxes.isEmpty())
-			return 0.0d;
-		int[] parents = new int[boxes.size()];
-		for (int index = 0; index < parents.length; index++)
-			parents[index] = index;
-		for (int first = 0; first < boxes.size(); first++)
-			for (int second = first + 1; second < boxes.size(); second++)
-				if (boxes.get(first).overlapsEnvelope(boxes.get(second)))
-					union(parents, first, second);
-
-		List<List<Integer>> components = new ArrayList<>(boxes.size());
-		for (int index = 0; index < boxes.size(); index++)
-			components.add(new ArrayList<>());
-		for (int index = 0; index < boxes.size(); index++)
-			components.get(findRoot(parents, index)).add(index);
-		int sampledBoxes = 0;
-		for (List<Integer> component : components)
-			if (component.size() > 1)
-				sampledBoxes += component.size();
-
-		double volume = 0.0d;
-		for (List<Integer> component : components) {
-			if (component.isEmpty())
-				continue;
-			if (component.size() == 1) {
-				volume += boxes.get(component.getFirst()).volume();
-				continue;
-			}
-			volume += sampledUnionVolume(boxes, component, sampledBoxes);
-		}
-		return volume;
-	}
-
-	private static double sampledUnionVolume(List<VolumeBox> boxes, List<Integer> component,
-		int sampledBoxes) {
-		int pointBudget = Math.max(1, MAX_ARM_VOLUME_SAMPLE_POINTS / Math.max(1, sampledBoxes));
-		long componentPairs = (long) component.size() * component.size();
-		int coverageBudget = (int) Math.max(1L,
-			MAX_ARM_VOLUME_COVERAGE_TESTS / Math.max(1L, componentPairs));
-		int samplesPerBox = Math.min(ARM_VOLUME_SAMPLES_PER_BOX,
-			Math.min(pointBudget, coverageBudget));
-		double volume = 0.0d;
-		for (int sourceIndex : component) {
-			VolumeBox source = boxes.get(sourceIndex);
-			double sampleWeight = source.volume() / samplesPerBox;
-			for (int sample = 0; sample < samplesPerBox; sample++) {
-				Vec3 point = source.sample(sample);
-				int coverage = 0;
-				for (int candidateIndex : component)
-					if (boxes.get(candidateIndex).contains(point))
-						coverage++;
-				volume += sampleWeight / Math.max(1, coverage);
-			}
-		}
-		return volume;
-	}
-
-	/** Low-discrepancy coordinate in {@code (0, 1)} for deterministic interior sampling. */
-	private static double halton(int index, int base) {
-		double fraction = 1.0d;
-		double result = 0.0d;
-		while (index > 0) {
-			fraction /= base;
-			result += fraction * (index % base);
-			index /= base;
-		}
-		return result;
-	}
-
-	private static void union(int[] parents, int first, int second) {
-		int firstRoot = findRoot(parents, first);
-		int secondRoot = findRoot(parents, second);
-		if (firstRoot != secondRoot)
-			parents[secondRoot] = firstRoot;
-	}
-
-	private static int findRoot(int[] parents, int index) {
-		int root = index;
-		while (parents[root] != root)
-			root = parents[root];
-		while (parents[index] != index) {
-			int next = parents[index];
-			parents[index] = root;
-			index = next;
-		}
-		return root;
 	}
 
 	@Nullable
@@ -342,7 +245,7 @@ public final class SlimeBionicAnimator {
 
 	public static Rig rig(SurgicalAssembly assembly, List<SourceState> sources) {
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
-		return new Rig(assembly, sources, limbs, effectiveLegLength(limbs, sources));
+		return new Rig(assembly, sources, limbs, averageEffectiveLegLength(limbs, sources));
 	}
 
 	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
@@ -484,7 +387,8 @@ public final class SlimeBionicAnimator {
 				BODY_SPACE.project(geometry.child().center(), AXIS_Z),
 				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1, null, null));
 		}
-		return assignLegGaits(linkHierarchy(assignBones(resolved)));
+		List<ResolvedLimb> linked = linkHierarchy(assignBones(resolved));
+		return assignLegGaits(linked, groundedHipIndices(linked, sources));
 	}
 
 	/** Finds the elbow/knee that hangs from this upper limb and resolves its physical hinge. */
@@ -611,11 +515,9 @@ public final class SlimeBionicAnimator {
 	 * Separating the two lists is what lets one body carry both kinds without an unrelated spider leg
 	 * changing the phase assignment of its humanoid legs.
 	 */
-	private static List<ResolvedLimb> assignLegGaits(List<ResolvedLimb> limbs) {
-		List<Integer> hips = new ArrayList<>();
-		for (int index = 0; index < limbs.size(); index++)
-			if (limbs.get(index).type() == SurgicalLimbType.HIP)
-				hips.add(index);
+	private static List<ResolvedLimb> assignLegGaits(List<ResolvedLimb> limbs, Set<Integer> groundedHips) {
+		List<Integer> hips = new ArrayList<>(groundedHips);
+		hips.sort(Integer::compareTo);
 		if (hips.size() < 2)
 			return limbs;
 		List<Integer> humanoidHips = new ArrayList<>();
@@ -846,43 +748,146 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Measures the effective leg length used by movement and animation retargeting.
-	 *
-	 * <p>A vanilla humanoid's hip is twelve model pixels above its sole. For each installed hip we
-	 * instead measure from the resolved hinge down to the lowest point of the complete rotating leg
-	 * group. Averaging both sides keeps an asymmetric body on one shared alternating gait.</p>
+	 * Measures the grounded legs that may animate and contribute to movement. A leg touches the
+	 * body's rest-pose ground plane when its lowest point is less than two model pixels above the
+	 * complete body's lowest point. Its effective length is the geometric mean of vertical reach and
+	 * the hip-to-sole joint-chain length, so a tilted leg gains some real-length benefit without a
+	 * nearly horizontal appendage receiving its full span as stride.
 	 */
+	public static MobilityMetrics measureMobility(SurgicalAssembly assembly, List<SourceState> sources) {
+		if (assembly == null || sources == null || sources.size() != assembly.sources().size())
+			return MobilityMetrics.EMPTY;
+		return measureMobility(resolveLimbs(assembly, sources), sources);
+	}
+
+	private static MobilityMetrics measureMobility(List<ResolvedLimb> limbs,
+		List<SourceState> sources) {
+		Set<Integer> groundedHips = groundedHipIndices(limbs, sources);
+		if (groundedHips.isEmpty())
+			return MobilityMetrics.EMPTY;
+
+		double totalLength = 0.0d;
+		Set<Member> groundedLegMembers = new HashSet<>();
+		for (int hipIndex : groundedHips) {
+			LegMeasurement measurement = measureLeg(hipIndex, limbs, sources);
+			if (measurement != null)
+				totalLength += measurement.effectiveLength();
+			collectDescendantMembers(hipIndex, limbs, groundedLegMembers);
+		}
+		int groundedKnees = 0;
+		for (ResolvedLimb limb : limbs)
+			if (limb.type() == SurgicalLimbType.KNEE && limb.parentIndex() >= 0
+				&& groundedHips.contains(limb.parentIndex()))
+				groundedKnees++;
+
+		List<List<Vec3>> allCuboids = new ArrayList<>();
+		List<List<Vec3>> legCuboids = new ArrayList<>(groundedLegMembers.size());
+		for (int source = 0; source < sources.size(); source++)
+			for (Map.Entry<Integer, CubeBox> entry : sources.get(source).boxes().entrySet()) {
+				allCuboids.add(entry.getValue().points());
+				if (groundedLegMembers.contains(new Member(source, entry.getKey())))
+					legCuboids.add(entry.getValue().points());
+			}
+		double totalVolume = SurgicalVolumeSampler.unionVolume(allCuboids);
+		double legVolume = SurgicalVolumeSampler.unionVolume(legCuboids);
+		float legVolumeRatio = totalVolume <= GEOMETRY_EPSILON ? 0.0f
+			: (float) Mth.clamp(legVolume / totalVolume, 0.0d, 1.0d);
+		return new MobilityMetrics((float) (totalLength / groundedHips.size()),
+			groundedHips.size(), groundedKnees, legVolumeRatio);
+	}
+
+	/** Retained for animation callers that need only the grounded-leg average. */
 	public static float effectiveLegLength(SurgicalAssembly assembly, List<SourceState> sources) {
 		if (assembly == null || sources == null || sources.size() != assembly.sources().size())
 			return 0.0f;
-		return effectiveLegLength(resolveLimbs(assembly, sources), sources);
+		return averageEffectiveLegLength(resolveLimbs(assembly, sources), sources);
 	}
 
-	private static float effectiveLegLength(List<ResolvedLimb> limbs, List<SourceState> sources) {
-		double totalLength = 0.0d;
-		int measuredLegs = 0;
-		for (int hipIndex = 0; hipIndex < limbs.size(); hipIndex++) {
-			ResolvedLimb limb = limbs.get(hipIndex);
-			if (limb.type() != SurgicalLimbType.HIP)
-				continue;
-			double pivotHeight = BODY_SPACE.project(limb.pivot(), AXIS_Y);
-			double soleHeight = Double.NEGATIVE_INFINITY;
-			for (int candidateIndex = 0; candidateIndex < limbs.size(); candidateIndex++)
-				if (isDescendantOrSelf(candidateIndex, hipIndex, limbs))
-					for (Member member : limbs.get(candidateIndex).members()) {
-						CubeBox box = box(sources, member);
-						if (box != null)
-							soleHeight = Math.max(soleHeight, box.max()[AXIS_Y]);
-					}
-			double legLength = soleHeight - pivotHeight;
-			if (!Double.isFinite(legLength) || legLength <= GEOMETRY_EPSILON)
-				continue;
-			totalLength += legLength;
-			measuredLegs++;
-		}
-		if (measuredLegs == 0)
+	private static float averageEffectiveLegLength(List<ResolvedLimb> limbs,
+		List<SourceState> sources) {
+		Set<Integer> groundedHips = groundedHipIndices(limbs, sources);
+		if (groundedHips.isEmpty())
 			return 0.0f;
-		return (float) (totalLength / measuredLegs);
+		double totalLength = 0.0d;
+		for (int hipIndex : groundedHips) {
+			LegMeasurement measurement = measureLeg(hipIndex, limbs, sources);
+			if (measurement != null)
+				totalLength += measurement.effectiveLength();
+		}
+		return (float) (totalLength / groundedHips.size());
+	}
+
+	private static Set<Integer> groundedHipIndices(List<ResolvedLimb> limbs,
+		List<SourceState> sources) {
+		double groundHeight = Double.NEGATIVE_INFINITY;
+		for (SourceState source : sources)
+			for (CubeBox box : source.boxes().values())
+				groundHeight = Math.max(groundHeight, box.max()[AXIS_Y]);
+		if (!Double.isFinite(groundHeight))
+			return Set.of();
+		Set<Integer> grounded = new HashSet<>();
+		for (int index = 0; index < limbs.size(); index++) {
+			if (limbs.get(index).type() != SurgicalLimbType.HIP)
+				continue;
+			LegMeasurement measurement = measureLeg(index, limbs, sources);
+			if (measurement != null
+				&& groundHeight - measurement.soleHeight() < GROUND_CONTACT_TOLERANCE)
+				grounded.add(index);
+		}
+		return Set.copyOf(grounded);
+	}
+
+	@Nullable
+	private static LegMeasurement measureLeg(int hipIndex, List<ResolvedLimb> limbs,
+		List<SourceState> sources) {
+		ResolvedLimb hip = limbs.get(hipIndex);
+		double pivotHeight = BODY_SPACE.project(hip.pivot(), AXIS_Y);
+		double soleHeight = Double.NEGATIVE_INFINITY;
+		Set<Member> members = new HashSet<>();
+		collectDescendantMembers(hipIndex, limbs, members);
+		for (Member member : members) {
+			CubeBox box = box(sources, member);
+			if (box == null)
+				continue;
+			for (Vec3 point : box.points())
+				soleHeight = Math.max(soleHeight, BODY_SPACE.project(point, AXIS_Y));
+		}
+		if (!Double.isFinite(soleHeight))
+			return null;
+		Vec3 soleSum = Vec3.ZERO;
+		int solePoints = 0;
+		for (Member member : members) {
+			CubeBox box = box(sources, member);
+			if (box == null)
+				continue;
+			for (Vec3 point : box.points())
+				if (soleHeight - BODY_SPACE.project(point, AXIS_Y) <= GEOMETRY_EPSILON) {
+					soleSum = soleSum.add(point);
+					solePoints++;
+				}
+		}
+		if (solePoints == 0)
+			return null;
+		Vec3 soleCenter = soleSum.scale(1.0d / solePoints);
+		double verticalHeight = Math.max(0.0d, soleHeight - pivotHeight);
+		double actualLength = hip.pivot().distanceTo(soleCenter);
+		for (ResolvedLimb limb : limbs)
+			if (limb.type() == SurgicalLimbType.KNEE && limb.parentIndex() == hipIndex) {
+				actualLength = hip.pivot().distanceTo(limb.pivot())
+					+ limb.pivot().distanceTo(soleCenter);
+				break;
+			}
+		double effectiveLength = Math.sqrt(verticalHeight * actualLength);
+		return new LegMeasurement(soleHeight,
+			Double.isFinite(effectiveLength)
+				? Mth.clamp(effectiveLength, 0.0d, SurgicalAssembly.MAX_BODY_SIZE) : 0.0d);
+	}
+
+	private static void collectDescendantMembers(int hipIndex, List<ResolvedLimb> limbs,
+		Set<Member> members) {
+		for (int candidateIndex = 0; candidateIndex < limbs.size(); candidateIndex++)
+			if (isDescendantOrSelf(candidateIndex, hipIndex, limbs))
+				members.addAll(limbs.get(candidateIndex).members());
 	}
 
 	private static boolean isDescendantOrSelf(int candidate, int ancestor,
@@ -1067,6 +1072,13 @@ public final class SlimeBionicAnimator {
 	private record TipGeometry(Vec3 center, float radius) {}
 	private record ArmChannel(boolean left, int slot, float phase) {}
 	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
+	private record LegMeasurement(double soleHeight, double effectiveLength) {}
+
+	/** Immutable rest-pose measurements used by authoritative movement-speed calibration. */
+	public record MobilityMetrics(float averageLegLength, int groundedLegCount,
+		int groundedKneeCount, float legVolumeRatio) {
+		public static final MobilityMetrics EMPTY = new MobilityMetrics(0.0f, 0, 0, 0.0f);
+	}
 
 	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member parent,
 		Vec3 pivot, Vec3 restDirection, double side, double longitudinal,
@@ -1091,77 +1103,6 @@ public final class SlimeBionicAnimator {
 		private ResolvedLimb withGait(GaitChannel gait) {
 			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
 				restAlignment, bone, parentIndex, arm, gait);
-		}
-	}
-
-	/** Precomputed oriented-box basis used only while baking overlap-aware arm volume. */
-	private record VolumeBox(Vec3 origin, Vec3 a, Vec3 b, Vec3 c,
-		Vec3 reciprocalA, Vec3 reciprocalB, Vec3 reciprocalC,
-		double volume, double[] minimum, double[] maximum) {
-		@Nullable
-		private static VolumeBox of(CubeBox box) {
-			if (box.points().size() != 8)
-				return null;
-			Vec3 origin = box.points().get(0);
-			Vec3 a = box.points().get(1).subtract(origin);
-			Vec3 b = box.points().get(2).subtract(origin);
-			Vec3 c = box.points().get(4).subtract(origin);
-			Vec3 bCrossC = b.cross(c);
-			double determinant = a.dot(bCrossC);
-			if (!Double.isFinite(determinant) || Math.abs(determinant) < GEOMETRY_EPSILON)
-				return null;
-			double inverseDeterminant = 1.0d / determinant;
-			double[] minimum = { Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
-				Double.POSITIVE_INFINITY };
-			double[] maximum = { Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
-				Double.NEGATIVE_INFINITY };
-			for (Vec3 point : box.points()) {
-				minimum[AXIS_X] = Math.min(minimum[AXIS_X], point.x);
-				minimum[AXIS_Y] = Math.min(minimum[AXIS_Y], point.y);
-				minimum[AXIS_Z] = Math.min(minimum[AXIS_Z], point.z);
-				maximum[AXIS_X] = Math.max(maximum[AXIS_X], point.x);
-				maximum[AXIS_Y] = Math.max(maximum[AXIS_Y], point.y);
-				maximum[AXIS_Z] = Math.max(maximum[AXIS_Z], point.z);
-			}
-			return new VolumeBox(origin, a, b, c, bCrossC.scale(inverseDeterminant),
-				c.cross(a).scale(inverseDeterminant), a.cross(b).scale(inverseDeterminant),
-				Math.abs(determinant), minimum, maximum);
-		}
-
-		private boolean overlapsEnvelope(VolumeBox other) {
-			for (int axis = AXIS_X; axis <= AXIS_Z; axis++)
-				if (Math.min(maximum[axis], other.maximum[axis])
-					- Math.max(minimum[axis], other.minimum[axis]) <= VOLUME_OVERLAP_EPSILON)
-					return false;
-			return true;
-		}
-
-		private Vec3 sample(int sample) {
-			double u = halton(sample + 1, 2);
-			double v = halton(sample + 1, 3);
-			double w = halton(sample + 1, 5);
-			return new Vec3(origin.x + a.x * u + b.x * v + c.x * w,
-				origin.y + a.y * u + b.y * v + c.y * w,
-				origin.z + a.z * u + b.z * v + c.z * w);
-		}
-
-		private boolean contains(Vec3 point) {
-			if (point.x < minimum[AXIS_X] - VOLUME_OVERLAP_EPSILON
-				|| point.x > maximum[AXIS_X] + VOLUME_OVERLAP_EPSILON
-				|| point.y < minimum[AXIS_Y] - VOLUME_OVERLAP_EPSILON
-				|| point.y > maximum[AXIS_Y] + VOLUME_OVERLAP_EPSILON
-				|| point.z < minimum[AXIS_Z] - VOLUME_OVERLAP_EPSILON
-				|| point.z > maximum[AXIS_Z] + VOLUME_OVERLAP_EPSILON)
-				return false;
-			double dx = point.x - origin.x;
-			double dy = point.y - origin.y;
-			double dz = point.z - origin.z;
-			double u = dx * reciprocalA.x + dy * reciprocalA.y + dz * reciprocalA.z;
-			double v = dx * reciprocalB.x + dy * reciprocalB.y + dz * reciprocalB.z;
-			double w = dx * reciprocalC.x + dy * reciprocalC.y + dz * reciprocalC.z;
-			return u >= -VOLUME_OVERLAP_EPSILON && u <= 1.0d + VOLUME_OVERLAP_EPSILON
-				&& v >= -VOLUME_OVERLAP_EPSILON && v <= 1.0d + VOLUME_OVERLAP_EPSILON
-				&& w >= -VOLUME_OVERLAP_EPSILON && w <= 1.0d + VOLUME_OVERLAP_EPSILON;
 		}
 	}
 
