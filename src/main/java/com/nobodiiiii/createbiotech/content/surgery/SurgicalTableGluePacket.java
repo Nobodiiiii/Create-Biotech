@@ -16,18 +16,21 @@ import net.minecraft.world.phys.Vec3;
 
 /** Server-validated second click for gluing two surgical components at exact hit points. */
 public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoint first, Endpoint second,
-	SurgicalLayPose targetPose, List<Move> moves, List<AnchorMove> anchorMoves) {
+	SurgicalLayPose targetPose, List<Move> moves, List<AnchorMove> anchorMoves,
+	SurgicalGlueTransform replayTransform) {
 	public SurgicalTableGluePacket {
 		targetPose = targetPose == null ? SurgicalLayPose.IDENTITY : targetPose;
 		moves = moves == null ? List.of() : List.copyOf(moves);
 		anchorMoves = anchorMoves == null ? List.of() : List.copyOf(anchorMoves);
+		replayTransform = replayTransform == null ? SurgicalGlueTransform.IDENTITY : replayTransform;
 		if (moves.size() > SurgicalAssembly.MAX_SOURCES || anchorMoves.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical glue moves");
 	}
 
 	public SurgicalTableGluePacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), Endpoint.read(buffer), Endpoint.read(buffer),
-			SurgicalLayPose.read(buffer), readMoves(buffer), readAnchorMoves(buffer));
+			SurgicalLayPose.read(buffer), readMoves(buffer), readAnchorMoves(buffer),
+			SurgicalGlueTransform.read(buffer));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -42,6 +45,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		buffer.writeVarInt(anchorMoves.size());
 		for (AnchorMove move : anchorMoves)
 			move.write(buffer);
+		replayTransform.write(buffer);
 	}
 
 	public void handle(ServerPlayer player) {
@@ -68,7 +72,8 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			|| !secondSubject.initializeOrMatchTopology(second.observedCubeCount, second.seams))
 			return;
 		if (table.glueComponents(player, held, hand, first.subjectId, first.cubeId,
-			second.subjectId, second.cubeId, targetPose, moves, anchorMoves, plane,
+			second.subjectId, second.cubeId, targetPose, moves, anchorMoves, replayTransform,
+			second.contact, plane,
 			first.layout, second.layout))
 			player.displayClientMessage(Component.translatable(
 				"message.create_biotech.surgical_table.glue_success"), true);
@@ -197,7 +202,8 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 	}
 
 	public record Endpoint(int subjectId, int cubeId, int observedCubeCount,
-		List<SurgicalAssembly.Seam> seams, Vec3 hit, SurgicalTableLayout.Proposal layout) {
+		List<SurgicalAssembly.Seam> seams, Vec3 hit, SurgicalTableLayout.Proposal layout,
+		SurgicalGlueContact contact) {
 		public Endpoint {
 			seams = List.copyOf(seams);
 			layout = layout == null ? SurgicalTableLayout.Proposal.EMPTY : layout;
@@ -207,6 +213,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			double bound = SurgicalTablePlane.MAX_TILES + 2.0d;
 			return subjectId >= 0 && cubeId >= 0 && cubeId < observedCubeCount
 				&& SurgicalAssembly.validTopology(observedCubeCount, seams)
+				&& contact != null
 				&& hit != null && Double.isFinite(hit.x) && Double.isFinite(hit.y) && Double.isFinite(hit.z)
 				&& Math.abs(hit.x) <= bound && Math.abs(hit.y) <= bound && Math.abs(hit.z) <= bound;
 		}
@@ -224,6 +231,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			buffer.writeDouble(hit.y);
 			buffer.writeDouble(hit.z);
 			writeLayout(buffer, layout);
+			contact.write(buffer);
 		}
 
 		static Endpoint read(FriendlyByteBuf buffer) {
@@ -237,7 +245,8 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			for (int index = 0; index < seamCount; index++)
 				seams.add(SurgicalAssembly.Seam.of(buffer.readVarInt(), buffer.readVarInt()));
 			return new Endpoint(subjectId, cubeId, cubeCount, seams,
-				new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()), readLayout(buffer));
+				new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()), readLayout(buffer),
+				SurgicalGlueContact.read(buffer));
 		}
 
 		static void writeLayout(FriendlyByteBuf buffer, SurgicalTableLayout.Proposal layout) {

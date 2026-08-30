@@ -29,7 +29,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_LIMBS = 21;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 15;
+	private static final int CURRENT_VERSION = 16;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -95,6 +95,11 @@ public final class SurgicalAssembly {
 	private static final String FIRST_CUBE_TAG = "FirstCube";
 	private static final String SECOND_SOURCE_TAG = "SecondSource";
 	private static final String SECOND_CUBE_TAG = "SecondCube";
+	private static final String JOINT_REPLAY_TAG = "GlueReplay";
+	private static final String MOVING_SOURCE_TAG = "MovingSource";
+	private static final String MOVING_CUBE_TAG = "MovingCube";
+	private static final String GLUE_TRANSFORM_TAG = "Transform";
+	private static final String ANCHOR_CONTACT_TAG = "AnchorContact";
 
 	private final List<Source> sources;
 	private final List<Joint> joints;
@@ -182,11 +187,13 @@ public final class SurgicalAssembly {
 				return null;
 			frozenSources.add(source.copy());
 		}
-		Set<Joint> unique = new HashSet<>();
+		Set<ConnectionKey> unique = new HashSet<>();
 		List<Joint> frozenJoints = new ArrayList<>(joints.size());
 		for (Joint joint : joints) {
 			Joint normalized = joint == null ? null : joint.normalized();
-			if (normalized == null || !normalized.validFor(frozenSources) || !unique.add(normalized))
+			if (normalized == null || !normalized.validFor(frozenSources)
+				|| !unique.add(ConnectionKey.of(normalized.firstSource, normalized.firstCube,
+					normalized.secondSource, normalized.secondCube)))
 				return null;
 			frozenJoints.add(normalized);
 		}
@@ -264,8 +271,30 @@ public final class SurgicalAssembly {
 				return null;
 			for (int index = 0; index < encodedJoints.size(); index++) {
 				CompoundTag encoded = encodedJoints.getCompound(index);
-				joints.add(new Joint(encoded.getInt(FIRST_SOURCE_TAG), encoded.getInt(FIRST_CUBE_TAG),
-					encoded.getInt(SECOND_SOURCE_TAG), encoded.getInt(SECOND_CUBE_TAG)));
+				int firstSource = encoded.getInt(FIRST_SOURCE_TAG);
+				int firstCube = encoded.getInt(FIRST_CUBE_TAG);
+				int secondSource = encoded.getInt(SECOND_SOURCE_TAG);
+				int secondCube = encoded.getInt(SECOND_CUBE_TAG);
+				JointReplay replay = null;
+				if (version >= 16 && encoded.contains(JOINT_REPLAY_TAG, Tag.TAG_COMPOUND)) {
+					CompoundTag encodedReplay = encoded.getCompound(JOINT_REPLAY_TAG);
+					SurgicalGlueTransform transform = encodedReplay.contains(GLUE_TRANSFORM_TAG, Tag.TAG_COMPOUND)
+						? SurgicalGlueTransform.load(encodedReplay.getCompound(GLUE_TRANSFORM_TAG)) : null;
+					SurgicalGlueContact anchorContact = encodedReplay.contains(ANCHOR_CONTACT_TAG, Tag.TAG_COMPOUND)
+						? SurgicalGlueContact.load(encodedReplay.getCompound(ANCHOR_CONTACT_TAG)) : null;
+					if (encodedReplay.contains(MOVING_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
+						&& encodedReplay.contains(MOVING_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
+						&& transform != null && anchorContact != null) {
+						int movingSource = encodedReplay.getInt(MOVING_SOURCE_TAG);
+						int movingCube = encodedReplay.getInt(MOVING_CUBE_TAG);
+						if (movingSource >= 0 && movingCube >= 0)
+							replay = new JointReplay(movingSource, movingCube, transform, anchorContact);
+					}
+				}
+				if (replay != null && !replay.matches(firstSource, firstCube)
+					&& !replay.matches(secondSource, secondCube))
+					replay = null;
+				joints.add(new Joint(firstSource, firstCube, secondSource, secondCube, replay));
 			}
 		}
 		List<Combination> combinations = new ArrayList<>();
@@ -384,6 +413,14 @@ public final class SurgicalAssembly {
 				encoded.putInt(FIRST_CUBE_TAG, joint.firstCube);
 				encoded.putInt(SECOND_SOURCE_TAG, joint.secondSource);
 				encoded.putInt(SECOND_CUBE_TAG, joint.secondCube);
+				if (joint.replay != null) {
+					CompoundTag encodedReplay = new CompoundTag();
+					encodedReplay.putInt(MOVING_SOURCE_TAG, joint.replay.movingSource);
+					encodedReplay.putInt(MOVING_CUBE_TAG, joint.replay.movingCube);
+					encodedReplay.put(GLUE_TRANSFORM_TAG, joint.replay.transform.save());
+					encodedReplay.put(ANCHOR_CONTACT_TAG, joint.replay.anchorContact.save());
+					encoded.put(JOINT_REPLAY_TAG, encodedReplay);
+				}
 				encodedJoints.add(encoded);
 			}
 			tag.put(JOINTS_TAG, encodedJoints);
@@ -697,6 +734,12 @@ public final class SurgicalAssembly {
 				rotateClockwise(source.originOffset, turns), offsets, rotations));
 		}
 		return List.copyOf(placed);
+	}
+
+	/** Rotates recorded table-space glue edits into the same frame as {@link #placedSources}. */
+	public List<Joint> placedJoints(Direction placementFacing) {
+		int turns = clockwiseTurns(layoutFacing, horizontal(placementFacing));
+		return joints.stream().map(joint -> joint.rotateClockwise(turns)).toList();
 	}
 
 	/** Legacy single-source view retained for ordinary assemblies. */
@@ -1224,18 +1267,43 @@ public final class SurgicalAssembly {
 		}
 	}
 
-	public record Joint(int firstSource, int firstCube, int secondSource, int secondCube) {
+	public record Joint(int firstSource, int firstCube, int secondSource, int secondCube,
+		@Nullable JointReplay replay) {
+		public Joint(int firstSource, int firstCube, int secondSource, int secondCube) {
+			this(firstSource, firstCube, secondSource, secondCube, null);
+		}
+
 		private Joint normalized() {
 			return firstSource < secondSource || firstSource == secondSource && firstCube <= secondCube
-				? this : new Joint(secondSource, secondCube, firstSource, firstCube);
+				? this : new Joint(secondSource, secondCube, firstSource, firstCube, replay);
 		}
 
 		private boolean validFor(List<Source> sources) {
-			return firstSource >= 0 && firstSource < sources.size()
+			boolean endpointsValid = firstSource >= 0 && firstSource < sources.size()
 				&& secondSource >= 0 && secondSource < sources.size()
 				&& sources.get(firstSource).containsCube(firstCube)
 				&& sources.get(secondSource).containsCube(secondCube)
 				&& (firstSource != secondSource || firstCube != secondCube);
+			return endpointsValid && (replay == null || replay.matches(firstSource, firstCube)
+				|| replay.matches(secondSource, secondCube));
+		}
+
+		private Joint rotateClockwise(int turns) {
+			return replay == null ? this : new Joint(firstSource, firstCube, secondSource, secondCube,
+				new JointReplay(replay.movingSource, replay.movingCube,
+					replay.transform.rotateClockwise(turns), replay.anchorContact));
+		}
+	}
+
+	public record JointReplay(int movingSource, int movingCube, SurgicalGlueTransform transform,
+		SurgicalGlueContact anchorContact) {
+		public JointReplay {
+			if (movingSource < 0 || movingCube < 0 || transform == null || anchorContact == null)
+				throw new IllegalArgumentException("Invalid packed surgical glue replay");
+		}
+
+		private boolean matches(int source, int cube) {
+			return movingSource == source && movingCube == cube;
 		}
 	}
 

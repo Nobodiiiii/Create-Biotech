@@ -51,6 +51,8 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private static final ResourceLocation SPIDER_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
+	private static final ResourceLocation ANDESITE_ENCASED_SPIDER_TEXTURE =
+		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_andesite_encased.png");
 	private static final ResourceLocation SPIDER_EYES_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_eyes.png");
 	private static final int EYES_LIGHT = 15728640;
@@ -89,11 +91,14 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			return;
 
 		Direction facing = state.getValue(SpiderAssemblyTableBlock.FACING);
-		renderSpider(be, partialTicks, ms, buffer, light, facing);
+		ResourceLocation spiderTexture = state.getValue(SpiderAssemblyTableBlock.CASING)
+			? ANDESITE_ENCASED_SPIDER_TEXTURE
+			: SPIDER_TEXTURE;
+		renderSpider(be, partialTicks, ms, buffer, light, facing, spiderTexture);
 	}
 
 	private void renderSpider(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, Direction facing) {
+		MultiBufferSource buffer, int light, Direction facing, ResourceLocation spiderTexture) {
 		RenderSpider spider = getOrCreateSpider(be.getLevel());
 		if (spider == null)
 			return;
@@ -106,7 +111,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
+				VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(spiderTexture));
 				spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
 				spiderModel.renderToBuffer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,

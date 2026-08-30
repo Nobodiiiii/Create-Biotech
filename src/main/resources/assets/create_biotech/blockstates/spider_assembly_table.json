@@ -1,8 +1,12 @@
 {
   "variants": {
-    "facing=north": { "model": "create_biotech:block/spider_assembly_table/inventory" },
-    "facing=east": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 90 },
-    "facing=south": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 180 },
-    "facing=west": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 270 }
+    "casing=false,facing=north": { "model": "create_biotech:block/spider_assembly_table/inventory" },
+    "casing=false,facing=east": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 90 },
+    "casing=false,facing=south": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 180 },
+    "casing=false,facing=west": { "model": "create_biotech:block/spider_assembly_table/inventory", "y": 270 },
+    "casing=true,facing=north": { "model": "create_biotech:block/spider_assembly_table/inventory_andesite_encased" },
+    "casing=true,facing=east": { "model": "create_biotech:block/spider_assembly_table/inventory_andesite_encased", "y": 90 },
+    "casing=true,facing=south": { "model": "create_biotech:block/spider_assembly_table/inventory_andesite_encased", "y": 180 },
+    "casing=true,facing=west": { "model": "create_biotech:block/spider_assembly_table/inventory_andesite_encased", "y": 270 }
   }
 }

@@ -485,12 +485,21 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				sourceLayouts.get(sourceId).footprints());
 			restored.add(subject);
 		}
-		for (SurgicalAssembly.Joint encoded : assembly.joints()) {
+		for (SurgicalAssembly.Joint encoded : assembly.placedJoints(placementFacing)) {
 			SurgicalSubject first = restored.get(encoded.firstSource());
 			SurgicalSubject second = restored.get(encoded.secondSource());
-			SurgicalGlueJoint joint = SurgicalGlueJoint.of(
-				new SurgicalGlueJoint.Endpoint(first.persistentId(), encoded.firstCube()),
-				new SurgicalGlueJoint.Endpoint(second.persistentId(), encoded.secondCube()));
+			SurgicalGlueJoint.Endpoint firstEndpoint =
+				new SurgicalGlueJoint.Endpoint(first.persistentId(), encoded.firstCube());
+			SurgicalGlueJoint.Endpoint secondEndpoint =
+				new SurgicalGlueJoint.Endpoint(second.persistentId(), encoded.secondCube());
+			SurgicalGlueJoint.Replay replay = null;
+			if (encoded.replay() != null) {
+				SurgicalSubject moving = restored.get(encoded.replay().movingSource());
+				replay = new SurgicalGlueJoint.Replay(new SurgicalGlueJoint.Endpoint(
+					moving.persistentId(), encoded.replay().movingCube()), encoded.replay().transform(),
+					encoded.replay().anchorContact());
+			}
+			SurgicalGlueJoint joint = SurgicalGlueJoint.of(firstEndpoint, secondEndpoint, replay);
 			first.addGlueJoint(joint);
 			if (second != first)
 				second.addGlueJoint(joint);
@@ -1338,15 +1347,20 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean glueComponents(Player player, ItemStack glue, InteractionHand hand,
 		int firstSubjectId, int firstCubeId, int secondSubjectId, int secondCubeId,
 		SurgicalLayPose targetPose, List<SurgicalTableGluePacket.Move> moves,
-		List<SurgicalTableGluePacket.AnchorMove> anchorMoves,
+		List<SurgicalTableGluePacket.AnchorMove> anchorMoves, SurgicalGlueTransform replayTransform,
+		SurgicalGlueContact anchorContact,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
 		SurgicalTableLayout.Proposal secondLayout) {
-		ValidatedGluePlan plan = validateGluePlan(glue, firstSubjectId, firstCubeId,
-			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout);
+		if (replayTransform == null || anchorContact == null
+			|| !(glue.getItem() instanceof SmartSuperGlueItem) && !replayTransform.isIdentity())
+			return false;
+		ValidatedGluePlan plan = validateGluePlan(firstSubjectId, firstCubeId,
+			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
+			glue.getItem() instanceof SmartSuperGlueItem);
 		if (plan == null)
 			return false;
 		return applyGluePlan(player, glue, hand, firstCubeId, secondCubeId, targetPose,
-			firstLayout, secondLayout, plan, true);
+			firstLayout, secondLayout, plan, replayTransform, anchorContact, true);
 	}
 
 	/**
@@ -1359,6 +1373,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int referenceSubjectId, int referenceCubeId, UUID referenceAnchorSubjectKey,
 		int referenceAnchorCubeId, boolean singleCube, SurgicalLayPose targetPose,
 		List<SurgicalTableGluePacket.Move> moves, List<SurgicalTableGluePacket.AnchorMove> anchorMoves,
+		SurgicalGlueTransform replayTransform, SurgicalGlueContact anchorContact,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
 		SurgicalTableLayout.Proposal secondLayout) {
 		SurgicalSubject referenceSubject = getSubject(referenceSubjectId);
@@ -1368,10 +1383,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !referenceSubject.validPresentCube(referenceCubeId)
 			|| !referenceAnchorSubject.validPresentCube(referenceAnchorCubeId))
 			return false;
-		SurgicalGlueJoint referenceJoint = SurgicalGlueJoint.of(
-			new SurgicalGlueJoint.Endpoint(referenceSubject.persistentId(), referenceCubeId),
-			new SurgicalGlueJoint.Endpoint(referenceAnchorSubjectKey, referenceAnchorCubeId));
-		if (!referenceSubject.glueJoints().contains(referenceJoint) || isInternalCombinationJoint(referenceJoint))
+		SurgicalGlueJoint.Endpoint referenceEndpoint =
+			new SurgicalGlueJoint.Endpoint(referenceSubject.persistentId(), referenceCubeId);
+		SurgicalGlueJoint.Endpoint referenceAnchor =
+			new SurgicalGlueJoint.Endpoint(referenceAnchorSubjectKey, referenceAnchorCubeId);
+		SurgicalGlueJoint referenceJoint = findGlueJoint(referenceSubject, referenceEndpoint, referenceAnchor);
+		if (referenceJoint == null || replayTransform == null || anchorContact == null
+			|| isInternalCombinationJoint(referenceJoint))
+			return false;
+		SurgicalGlueTransform recorded = referenceJoint.replayFrom(referenceEndpoint);
+		if ((referenceJoint.replay() != null && recorded == null)
+			|| (recorded == null && !replayTransform.isIdentity())
+			|| (recorded != null && !recorded.mirrorMagnitudeMatches(replayTransform)))
 			return false;
 		SurgicalCombination combination = referenceAnchorSubject.combinationContaining(referenceAnchorCubeId);
 		boolean validAnchor = singleCube
@@ -1381,18 +1404,30 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!validAnchor)
 			return false;
 
-		ValidatedGluePlan plan = validateGluePlan(wand, firstSubjectId, firstCubeId,
-			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout);
+		ValidatedGluePlan plan = validateGluePlan(firstSubjectId, firstCubeId,
+			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
+			!replayTransform.isIdentity());
 		if (plan == null)
 			return false;
 		return applyGluePlan(player, wand, hand, firstCubeId, secondCubeId, targetPose,
-			firstLayout, secondLayout, plan, false);
+			firstLayout, secondLayout, plan, replayTransform, anchorContact, false);
+	}
+
+	@Nullable
+	private static SurgicalGlueJoint findGlueJoint(SurgicalSubject subject,
+		SurgicalGlueJoint.Endpoint first, SurgicalGlueJoint.Endpoint second) {
+		for (SurgicalGlueJoint joint : subject.glueJoints())
+			if (joint.touches(first.subjectKey(), first.cubeId())
+				&& joint.touches(second.subjectKey(), second.cubeId()))
+				return joint;
+		return null;
 	}
 
 	private boolean applyGluePlan(Player player, ItemStack tool, InteractionHand hand,
 		int firstCubeId, int secondCubeId, SurgicalLayPose targetPose,
 		SurgicalTableLayout.Proposal firstLayout, SurgicalTableLayout.Proposal secondLayout,
-		ValidatedGluePlan plan, boolean damageTool) {
+		ValidatedGluePlan plan, SurgicalGlueTransform replayTransform,
+		SurgicalGlueContact anchorContact, boolean damageTool) {
 		SurgicalSubject first = plan.first;
 		SurgicalSubject second = plan.second;
 		ComponentGroup moving = plan.moving;
@@ -1451,9 +1486,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				remapEndpoint(limb.parent(), extracted)));
 
 		SurgicalSubject movedFirst = remappedSubject(first, firstCubeId, extracted);
-		SurgicalGlueJoint joint = SurgicalGlueJoint.of(
+		SurgicalGlueJoint joint = SurgicalGlueJoint.attached(
 			new SurgicalGlueJoint.Endpoint(movedFirst.persistentId(), firstCubeId),
-			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId));
+			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId), replayTransform, anchorContact);
 		attachJoint(joint);
 		if (damageTool)
 			tool.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
@@ -1585,18 +1620,22 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean canGlueComponents(ItemStack glue, int firstSubjectId, int firstCubeId,
 		int secondSubjectId, int secondCubeId, SurgicalLayPose targetPose,
 		List<SurgicalTableGluePacket.Move> moves, List<SurgicalTableGluePacket.AnchorMove> anchorMoves,
+		SurgicalGlueTransform replayTransform,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
 		SurgicalTableLayout.Proposal secondLayout) {
-		return validateGluePlan(glue, firstSubjectId, firstCubeId, secondSubjectId, secondCubeId,
-			targetPose, moves, anchorMoves, plane, firstLayout, secondLayout) != null;
+		if (replayTransform == null)
+			return false;
+		return validateGluePlan(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId,
+			targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
+			glue.getItem() instanceof SmartSuperGlueItem || !replayTransform.isIdentity()) != null;
 	}
 
 	@Nullable
-	private ValidatedGluePlan validateGluePlan(ItemStack glue, int firstSubjectId, int firstCubeId,
+	private ValidatedGluePlan validateGluePlan(int firstSubjectId, int firstCubeId,
 		int secondSubjectId, int secondCubeId, SurgicalLayPose targetPose,
 		List<SurgicalTableGluePacket.Move> moves, List<SurgicalTableGluePacket.AnchorMove> anchorMoves,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
-		SurgicalTableLayout.Proposal secondLayout) {
+		SurgicalTableLayout.Proposal secondLayout, boolean allowEditedTransforms) {
 		SurgicalSubject first = getSubject(firstSubjectId);
 		SurgicalSubject second = getSubject(secondSubjectId);
 		if (first == null || second == null || !first.validPresentCube(firstCubeId)
@@ -1608,9 +1647,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 		ComponentGroup moving = connectedGroup(first, firstCubeId);
 		ComponentGroup anchored = connectedGroup(second, secondCubeId);
-		boolean editedTransforms = glue.getItem() instanceof SmartSuperGlueItem;
 		Map<UUID, ValidatedGlueMove> validated = validateGlueMoves(moving, anchored, moves, plane,
-			editedTransforms);
+			allowEditedTransforms);
 		Map<UUID, Map<Integer, Vec3>> validatedAnchors = validateGlueAnchors(anchored, anchorMoves);
 		if (moving.intersects(anchored) || validated == null || validatedAnchors == null)
 			return null;
@@ -1789,8 +1827,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	private static SurgicalGlueJoint remapJoint(SurgicalGlueJoint joint,
 		Map<UUID, ExtractedSubject> extracted) {
+		SurgicalGlueJoint.Replay replay = joint.replay() == null ? null
+			: new SurgicalGlueJoint.Replay(remapEndpoint(joint.replay().moving(), extracted),
+				joint.replay().transform(), joint.replay().anchorContact());
 		return SurgicalGlueJoint.of(remapEndpoint(joint.first(), extracted),
-			remapEndpoint(joint.second(), extracted));
+			remapEndpoint(joint.second(), extracted), replay);
 	}
 
 	private static SurgicalGlueJoint.Endpoint remapEndpoint(SurgicalGlueJoint.Endpoint endpoint,
@@ -2371,8 +2412,17 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			Integer secondSource = sourceIds.get(joint.second().subjectKey());
 			if (firstSource == null || secondSource == null)
 				return null;
+			SurgicalAssembly.JointReplay replay = null;
+			if (joint.replay() != null) {
+				Integer movingSource = sourceIds.get(joint.replay().moving().subjectKey());
+				if (movingSource == null)
+					return null;
+				replay = new SurgicalAssembly.JointReplay(movingSource,
+					joint.replay().moving().cubeId(), joint.replay().transform(),
+					joint.replay().anchorContact());
+			}
 			encodedJoints.add(new SurgicalAssembly.Joint(firstSource, joint.first().cubeId(),
-				secondSource, joint.second().cubeId()));
+				secondSource, joint.second().cubeId(), replay));
 		}
 		List<SurgicalAssembly.Combination> encodedCombinations = new ArrayList<>();
 		for (SurgicalCombination combination : combinations) {

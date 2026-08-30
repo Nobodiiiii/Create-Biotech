@@ -5,7 +5,9 @@ import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
+import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.item.ItemHelper;
 
@@ -13,6 +15,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -21,16 +24,21 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.block.RenderShape;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition.Builder;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.material.PushReaction;
 import net.minecraft.world.level.pathfinder.PathComputationType;
@@ -42,12 +50,15 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	implements IBE<SpiderAssemblyTableBlockEntity>, CBMultiBlockLifecycle.Part {
 
 	public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+	public static final BooleanProperty CASING = BooleanProperty.create("casing");
 	private static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 9, 16);
 	private static final ThreadLocal<Direction> FORCED_PLACEMENT_FACING = new ThreadLocal<>();
 
 	public SpiderAssemblyTableBlock(Properties properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH));
+		registerDefaultState(defaultBlockState()
+			.setValue(FACING, Direction.NORTH)
+			.setValue(CASING, false));
 	}
 
 	@Override
@@ -91,6 +102,17 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 		Player player, InteractionHand hand, BlockHitResult hit) {
 		if (CBWrenchHelper.isWrench(stack))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+		if (!player.isShiftKeyDown() && player.mayBuild() && !state.getValue(CASING)
+			&& AllBlocks.ANDESITE_CASING.isIn(stack)) {
+			if (!level.isClientSide) {
+				KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, true));
+				SoundType soundType = AllBlocks.ANDESITE_CASING.getDefaultState()
+					.getSoundType(level, pos, player);
+				level.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
+					(soundType.getVolume() + 1.0f) / 2.0f, soundType.getPitch() * 0.8f);
+			}
+			return ItemInteractionResult.SUCCESS;
+		}
 		if (!player.isShiftKeyDown() && player.mayBuild() && stack.is(CBItems.SPIDER_ASSEMBLY_TABLE.get()))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 		InteractionResult result = openMenu(level, pos, player);
@@ -103,6 +125,27 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player,
 		BlockHitResult hit) {
 		return openMenu(level, pos, player);
+	}
+
+	@Override
+	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
+		if (!state.getValue(CASING))
+			return super.onWrenched(state, context);
+
+		Level level = context.getLevel();
+		if (level.isClientSide)
+			return InteractionResult.SUCCESS;
+
+		BlockPos pos = context.getClickedPos();
+		level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, pos,
+			Block.getId(AllBlocks.ANDESITE_CASING.getDefaultState()));
+		KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, false));
+		return InteractionResult.SUCCESS;
+	}
+
+	@Override
+	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+		super.createBlockStateDefinition(builder.add(CASING));
 	}
 
 	@Override

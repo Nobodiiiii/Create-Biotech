@@ -19,11 +19,12 @@ import net.minecraft.world.phys.Vec3;
 public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 	SurgicalTableGluePacket.Endpoint first, SurgicalTableGluePacket.Endpoint mirroredAnchor,
 	Reference reference, SurgicalLayPose targetPose, List<SurgicalTableGluePacket.Move> moves,
-	List<SurgicalTableGluePacket.AnchorMove> anchorMoves) {
+	List<SurgicalTableGluePacket.AnchorMove> anchorMoves, SurgicalGlueTransform replayTransform) {
 	public SurgicalTableSymmetryPacket {
 		targetPose = targetPose == null ? SurgicalLayPose.IDENTITY : targetPose;
 		moves = moves == null ? List.of() : List.copyOf(moves);
 		anchorMoves = anchorMoves == null ? List.of() : List.copyOf(anchorMoves);
+		replayTransform = replayTransform == null ? SurgicalGlueTransform.IDENTITY : replayTransform;
 		if (moves.size() > SurgicalAssembly.MAX_SOURCES || anchorMoves.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical symmetry moves");
 	}
@@ -32,7 +33,7 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class),
 			SurgicalTableGluePacket.Endpoint.read(buffer), SurgicalTableGluePacket.Endpoint.read(buffer),
 			Reference.read(buffer), SurgicalLayPose.read(buffer), SurgicalTableGluePacket.readMoves(buffer),
-			SurgicalTableGluePacket.readAnchorMoves(buffer));
+			SurgicalTableGluePacket.readAnchorMoves(buffer), SurgicalGlueTransform.read(buffer));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -48,6 +49,7 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 		buffer.writeVarInt(anchorMoves.size());
 		for (SurgicalTableGluePacket.AnchorMove move : anchorMoves)
 			move.write(buffer);
+		replayTransform.write(buffer);
 	}
 
 	public void handle(ServerPlayer player) {
@@ -81,7 +83,8 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 		if (table.symmetryGlueComponents(player, held, hand, first.subjectId(), first.cubeId(),
 			mirroredAnchor.subjectId(), mirroredAnchor.cubeId(), reference.subjectId(), reference.cubeId(),
 			reference.anchorSubjectKey(), reference.anchorCubeId(), reference.singleCube(), targetPose,
-			moves, anchorMoves, plane, first.layout(), mirroredAnchor.layout()))
+			moves, anchorMoves, replayTransform, mirroredAnchor.contact(), plane,
+			first.layout(), mirroredAnchor.layout()))
 			player.displayClientMessage(Component.translatable(
 				"message.create_biotech.surgical_table.symmetry_success"), true);
 	}
