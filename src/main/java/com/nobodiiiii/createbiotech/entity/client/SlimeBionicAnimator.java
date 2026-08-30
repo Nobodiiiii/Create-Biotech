@@ -533,9 +533,9 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Connects lower bones to the effective matching upper joint whose automatically owned cube or
-	 * honey combination contains their parent endpoint. Unmatched elbows and knees remain in the assembly
-	 * but filtered out before this stage.
+	 * Connects lower bones to the effective matching upper joint whose child-side rigid island contains
+	 * their parent endpoint. Unmatched elbows and knees remain in the assembly but are filtered out before
+	 * this stage.
 	 */
 	private static List<ResolvedLimb> linkHierarchy(List<ResolvedLimb> limbs) {
 		List<ResolvedLimb> linked = new ArrayList<>(limbs);
@@ -894,7 +894,7 @@ public final class SlimeBionicAnimator {
 			bodyCenter(sources, AXIS_Z));
 	}
 
-	/** The cubes that rotate with {@code cube}, including automatic joint-owned rigid islands. */
+	/** The cubes that rotate with {@code cube}, including ordinary attachments on its side of each hinge. */
 	private static List<Member> group(SurgicalAssembly assembly, int source, int cube) {
 		return assembly.rotatingGroup(source, cube).stream()
 			.map(member -> new Member(member.source(), member.cube())).toList();

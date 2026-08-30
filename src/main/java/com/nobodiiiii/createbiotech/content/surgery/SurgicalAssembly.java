@@ -465,8 +465,9 @@ public final class SurgicalAssembly {
 	}
 
 	/**
-	 * The automatically owned cube or honey combination moved by a valid limb. Ordinary seams and
-	 * glue do not broaden ownership, so closed loops of connected cubes remain legal joint targets.
+	 * The rigid island moved by a valid limb. Anatomical ownership remains cube/honey based, while
+	 * motion also follows every ordinary seam or glue connection that does not cross an installed
+	 * hinge.
 	 */
 	public List<CombinationMember> rotatingGroup(int source, int cube) {
 		CombinationMember selected = new CombinationMember(source, cube);
@@ -500,8 +501,8 @@ public final class SurgicalAssembly {
 	private LimbTopology buildLimbTopology() {
 		if (limbs.isEmpty())
 			return LimbTopology.EMPTY;
-		// Ordinary model seams and glue only position cubes; they do not decide anatomical ownership.
-		// Honey combinations are the sole explicit way to make several cubes one ownership unit.
+		// Ordinary model seams and glue do not decide anatomical ownership. Honey combinations are the
+		// sole explicit way to make several cubes one ownership unit.
 		Map<CombinationMember, Integer> componentIds = new HashMap<>();
 		List<List<CombinationMember>> components = new ArrayList<>();
 		for (Combination combination : combinations) {
@@ -563,7 +564,6 @@ public final class SurgicalAssembly {
 		}
 
 		List<Limb> effective = new ArrayList<>();
-		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
 		for (Limb limb : limbs) {
 			Integer child = childComponents.get(limb);
 			Integer parent = parentComponents.get(limb);
@@ -578,11 +578,83 @@ public final class SurgicalAssembly {
 					continue;
 			}
 			effective.add(limb);
-			List<CombinationMember> group = components.get(child);
+		}
+
+		MotionComponents motion = buildMotionComponents();
+		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
+		for (Limb limb : effective) {
+			CombinationMember childMember = new CombinationMember(limb.childSource(), limb.childCube());
+			CombinationMember parentMember = new CombinationMember(limb.parentSource(), limb.parentCube());
+			Integer motionChild = motion.componentIds.get(childMember);
+			Integer motionParent = motion.componentIds.get(parentMember);
+			Integer ownershipChild = childComponents.get(limb);
+			List<CombinationMember> group = motionChild != null && !motionChild.equals(motionParent)
+				? motion.components.get(motionChild)
+				: components.get(ownershipChild);
 			for (CombinationMember member : group)
 				groups.put(member, group);
 		}
 		return new LimbTopology(List.copyOf(effective), Map.copyOf(groups));
+	}
+
+	/**
+	 * Splits the packed connection graph at every installed anatomical hinge. The child-side graph
+	 * component is the complete set of cubes that must physically follow that hinge, including cubes
+	 * attached to the limb by ordinary seams or glue. Ownership validation intentionally does not use
+	 * these broad components, so an unrelated connected cluster cannot block another primary joint.
+	 */
+	private MotionComponents buildMotionComponents() {
+		Set<ConnectionKey> hingeEdges = new HashSet<>();
+		for (Limb limb : limbs)
+			hingeEdges.add(ConnectionKey.of(limb.childSource(), limb.childCube(),
+				limb.parentSource(), limb.parentCube()));
+
+		List<SurgicalConnectionGraph.Body<Integer>> bodies = new ArrayList<>(sources.size());
+		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+			Source source = sources.get(sourceId);
+			BitSet rigidCuts = source.cutSeams();
+			for (int seamId = 0; seamId < source.seams.size(); seamId++) {
+				Seam seam = source.seams.get(seamId);
+				if (hingeEdges.contains(ConnectionKey.of(sourceId, seam.first(), sourceId, seam.second())))
+					rigidCuts.set(seamId);
+			}
+			bodies.add(new SurgicalConnectionGraph.Body<>(sourceId, source.cubeCount,
+				source.presentCubes, source.seams, rigidCuts));
+		}
+
+		List<SurgicalConnectionGraph.Link<Integer>> links = new ArrayList<>();
+		for (Joint joint : joints)
+			if (!hingeEdges.contains(ConnectionKey.of(joint.firstSource(), joint.firstCube(),
+				joint.secondSource(), joint.secondCube())))
+				links.add(new SurgicalConnectionGraph.Link<>(joint.firstSource(), joint.firstCube(),
+					joint.secondSource(), joint.secondCube()));
+		// Honey remains an explicit rigid constraint. Honey across a hinge therefore rejoins both sides,
+		// and the fallback below prevents that closed rigid loop from dragging the parent body around.
+		for (Combination combination : combinations) {
+			CombinationMember anchor = combination.members().getFirst();
+			for (CombinationMember member : combination.members().subList(1, combination.members().size()))
+				links.add(new SurgicalConnectionGraph.Link<>(anchor.source(), anchor.cube(),
+					member.source(), member.cube()));
+		}
+		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
+		if (graph == null)
+			return MotionComponents.EMPTY;
+
+		Map<CombinationMember, Integer> componentIds = new HashMap<>();
+		List<List<CombinationMember>> motionComponents = new ArrayList<>();
+		for (SurgicalConnectionGraph.Component<Integer> component : graph.components()) {
+			int componentId = motionComponents.size();
+			List<CombinationMember> members = new ArrayList<>(component.size());
+			for (Map.Entry<Integer, BitSet> entry : component.members().entrySet())
+				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
+					cubeId = entry.getValue().nextSetBit(cubeId + 1)) {
+					CombinationMember member = new CombinationMember(entry.getKey(), cubeId);
+					members.add(member);
+					componentIds.put(member, componentId);
+				}
+			motionComponents.add(List.copyOf(members));
+		}
+		return new MotionComponents(Map.copyOf(componentIds), List.copyOf(motionComponents));
 	}
 
 	private record LimbTopology(List<Limb> effective,
@@ -591,6 +663,19 @@ public final class SurgicalAssembly {
 	}
 
 	private record LimbAttachment(Limb limb, boolean child) {}
+
+	private record MotionComponents(Map<CombinationMember, Integer> componentIds,
+		List<List<CombinationMember>> components) {
+		private static final MotionComponents EMPTY = new MotionComponents(Map.of(), List.of());
+	}
+
+	private record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
+		private static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {
+			return firstSource < secondSource || firstSource == secondSource && firstCube <= secondCube
+				? new ConnectionKey(firstSource, firstCube, secondSource, secondCube)
+				: new ConnectionKey(secondSource, secondCube, firstSource, firstCube);
+		}
+	}
 
 	public SurgicalLayPose placedLayPose(Direction placementFacing) {
 		return layoutLayPose.rotateClockwise(clockwiseTurns(layoutFacing, horizontal(placementFacing)));
