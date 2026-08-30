@@ -533,8 +533,8 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Connects lower bones to the effective matching upper joint whose automatically owned rigid
-	 * island contains their parent endpoint. Unmatched elbows and knees were retained by the assembly
+	 * Connects lower bones to the effective matching upper joint whose automatically owned cube or
+	 * honey combination contains their parent endpoint. Unmatched elbows and knees remain in the assembly
 	 * but filtered out before this stage.
 	 */
 	private static List<ResolvedLimb> linkHierarchy(List<ResolvedLimb> limbs) {

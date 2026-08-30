@@ -220,12 +220,15 @@ public final class SurgicalAssembly {
 		if (limbs.isEmpty())
 			return List.of();
 		Map<SurgicalLimbType, Integer> counts = new HashMap<>();
-		Set<CombinationMember> children = new HashSet<>();
+		Set<CombinationMember> primaryChildren = new HashSet<>();
+		Set<CombinationMember> secondaryChildren = new HashSet<>();
 		List<Limb> normalized = new ArrayList<>(limbs.size());
 		for (Limb limb : limbs) {
 			if (limb == null || limb.type() == null || !limb.validFor(sources))
 				return null;
-			if (!children.add(new CombinationMember(limb.childSource(), limb.childCube())))
+			Set<CombinationMember> tierChildren = limb.type().primary()
+				? primaryChildren : secondaryChildren;
+			if (!tierChildren.add(new CombinationMember(limb.childSource(), limb.childCube())))
 				return null;
 			int used = counts.merge(limb.type(), 1, Integer::sum);
 			if (used > limb.type().maxPerBody())
@@ -437,7 +440,7 @@ public final class SurgicalAssembly {
 	public List<Joint> joints() { return joints; }
 	public List<Combination> combinations() { return combinations; }
 	public List<Limb> limbs() { return limbs; }
-	/** Installed joints that currently satisfy the rigid-island ownership and tier-matching rules. */
+	/** Installed joints that currently satisfy cube ownership and tier-matching rules. */
 	public List<Limb> effectiveLimbs() { return limbTopology().effective; }
 	public boolean preservesLayout() { return preserveLayout; }
 	public Direction layoutFacing() { return layoutFacing; }
@@ -462,9 +465,8 @@ public final class SurgicalAssembly {
 	}
 
 	/**
-	 * The automatically owned rigid island moved by a valid limb, otherwise its honey combination or
-	 * the selected cube. Joint ownership never requires honey: the hinge edges themselves split the
-	 * packed connection graph into rigid islands.
+	 * The automatically owned cube or honey combination moved by a valid limb. Ordinary seams and
+	 * glue do not broaden ownership, so closed loops of connected cubes remain legal joint targets.
 	 */
 	public List<CombinationMember> rotatingGroup(int source, int cube) {
 		CombinationMember selected = new CombinationMember(source, cube);
@@ -489,7 +491,7 @@ public final class SurgicalAssembly {
 	/**
 	 * Resolves the two explicit ownership cases:
 	 * <ul>
-	 *   <li>a rigid island whose only anatomical attachment is the child side of one joint;</li>
+	 *   <li>a cube (or honey combination) whose only anatomical attachment is one joint's child side;</li>
 	 *   <li>a middle island attached by one first-level child side and the matching second-level
 	 *       parent side, which belongs to the first-level joint.</li>
 	 * </ul>
@@ -498,55 +500,27 @@ public final class SurgicalAssembly {
 	private LimbTopology buildLimbTopology() {
 		if (limbs.isEmpty())
 			return LimbTopology.EMPTY;
-		Set<ConnectionKey> hingeEdges = new HashSet<>();
-		for (Limb limb : limbs)
-			hingeEdges.add(ConnectionKey.of(limb.childSource(), limb.childCube(),
-				limb.parentSource(), limb.parentCube()));
-
-		List<SurgicalConnectionGraph.Body<Integer>> bodies = new ArrayList<>(sources.size());
-		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
-			Source source = sources.get(sourceId);
-			BitSet rigidCuts = source.cutSeams();
-			for (int seamId = 0; seamId < source.seams.size(); seamId++) {
-				Seam seam = source.seams.get(seamId);
-				if (hingeEdges.contains(ConnectionKey.of(sourceId, seam.first(), sourceId, seam.second())))
-					rigidCuts.set(seamId);
-			}
-			bodies.add(new SurgicalConnectionGraph.Body<>(sourceId, source.cubeCount,
-				source.presentCubes, source.seams, rigidCuts));
-		}
-
-		List<SurgicalConnectionGraph.Link<Integer>> links = new ArrayList<>();
-		for (Joint joint : joints)
-			if (!hingeEdges.contains(ConnectionKey.of(joint.firstSource(), joint.firstCube(),
-				joint.secondSource(), joint.secondCube())))
-				links.add(new SurgicalConnectionGraph.Link<>(joint.firstSource(), joint.firstCube(),
-					joint.secondSource(), joint.secondCube()));
-		// Honey is an explicit rigid constraint. It is deliberately added after filtering hinge edges,
-		// so fusing across a joint keeps the installed item but makes that joint ineffective.
-		for (Combination combination : combinations) {
-			CombinationMember anchor = combination.members().getFirst();
-			for (CombinationMember member : combination.members().subList(1, combination.members().size()))
-				links.add(new SurgicalConnectionGraph.Link<>(anchor.source(), anchor.cube(),
-					member.source(), member.cube()));
-		}
-		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
-		if (graph == null)
-			return LimbTopology.EMPTY;
-
+		// Ordinary model seams and glue only position cubes; they do not decide anatomical ownership.
+		// Honey combinations are the sole explicit way to make several cubes one ownership unit.
 		Map<CombinationMember, Integer> componentIds = new HashMap<>();
 		List<List<CombinationMember>> components = new ArrayList<>();
-		for (SurgicalConnectionGraph.Component<Integer> component : graph.components()) {
+		for (Combination combination : combinations) {
 			int componentId = components.size();
-			List<CombinationMember> members = new ArrayList<>(component.size());
-			for (Map.Entry<Integer, BitSet> entry : component.members().entrySet())
-				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
-					cubeId = entry.getValue().nextSetBit(cubeId + 1)) {
-					CombinationMember member = new CombinationMember(entry.getKey(), cubeId);
-					members.add(member);
-					componentIds.put(member, componentId);
-				}
-			components.add(List.copyOf(members));
+			components.add(combination.members());
+			for (CombinationMember member : combination.members())
+				componentIds.put(member, componentId);
+		}
+		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+			Source source = sources.get(sourceId);
+			for (int cubeId = source.presentCubes.nextSetBit(0); cubeId >= 0;
+				cubeId = source.presentCubes.nextSetBit(cubeId + 1)) {
+				CombinationMember member = new CombinationMember(sourceId, cubeId);
+				if (componentIds.containsKey(member))
+					continue;
+				int componentId = components.size();
+				componentIds.put(member, componentId);
+				components.add(List.of(member));
+			}
 		}
 
 		Map<Integer, List<LimbAttachment>> attachments = new HashMap<>();
@@ -617,14 +591,6 @@ public final class SurgicalAssembly {
 	}
 
 	private record LimbAttachment(Limb limb, boolean child) {}
-
-	private record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
-		private static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {
-			return firstSource < secondSource || firstSource == secondSource && firstCube <= secondCube
-				? new ConnectionKey(firstSource, firstCube, secondSource, secondCube)
-				: new ConnectionKey(secondSource, secondCube, firstSource, firstCube);
-		}
-	}
 
 	public SurgicalLayPose placedLayPose(Direction placementFacing) {
 		return layoutLayPose.rotateClockwise(clockwiseTurns(layoutFacing, horizontal(placementFacing)));

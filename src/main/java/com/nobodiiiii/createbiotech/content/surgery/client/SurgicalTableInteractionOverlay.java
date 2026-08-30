@@ -14,6 +14,7 @@ import com.simibubi.create.infrastructure.config.CClient;
 import net.createmod.catnip.gui.element.BoxElement;
 import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.theme.Color;
+import net.minecraft.Util;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -31,7 +32,13 @@ public final class SurgicalTableInteractionOverlay implements LayeredDraw.Layer 
 	public static final SurgicalTableInteractionOverlay INSTANCE = new SurgicalTableInteractionOverlay();
 
 	private static final int RIGHT_PADDING = 18;
-	private static int hoverTicks;
+	private static final long FADE_IN_MILLIS = 200L;
+	private static final long MISS_HOLD_MILLIS = 150L;
+	private static final long FADE_OUT_MILLIS = 200L;
+	private static InteractionPrompt retainedPrompt;
+	private static float visibility;
+	private static long lastFrameMillis;
+	private static long missStartedMillis = -1L;
 
 	private SurgicalTableInteractionOverlay() {}
 
@@ -40,15 +47,15 @@ public final class SurgicalTableInteractionOverlay implements LayeredDraw.Layer 
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.options.hideGui || minecraft.player == null || minecraft.level == null
 			|| minecraft.screen != null) {
-			hoverTicks = 0;
+			resetTransition();
 			return;
 		}
-		InteractionPrompt prompt = SurgicalTableClientHandler.interactionPrompt();
-		if (prompt == null || prompt.tooltip().isEmpty()) {
-			hoverTicks = 0;
+		InteractionPrompt currentPrompt = SurgicalTableClientHandler.interactionPrompt();
+		if (currentPrompt != null && currentPrompt.tooltip().isEmpty())
+			currentPrompt = null;
+		InteractionPrompt prompt = updateTransition(currentPrompt);
+		if (prompt == null)
 			return;
-		}
-		hoverTicks++;
 
 		List<Component> tooltip = prompt.tooltip();
 		int tooltipTextWidth = 0;
@@ -65,8 +72,7 @@ public final class SurgicalTableInteractionOverlay implements LayeredDraw.Layer 
 		int anchorX = tooltipX - 12;
 		int anchorY = tooltipY + 12;
 
-		float fade = Mth.clamp((hoverTicks + deltaTracker.getGameTimeDeltaPartialTick(false)) / 12.0f,
-			0.0f, 1.0f);
+		float fade = Mth.clamp(visibility, 0.0f, 1.0f);
 		CClient config = AllConfigs.client();
 		boolean customColor = config.overlayCustomColor.get();
 		Color background = customColor ? new Color(config.overlayBackgroundColor.get())
@@ -108,6 +114,36 @@ public final class SurgicalTableInteractionOverlay implements LayeredDraw.Layer 
 		((MouseHandlerAccessor) mouseHandler).create$setXPos(cursorX);
 		((MouseHandlerAccessor) mouseHandler).create$setYPos(cursorY);
 		poseStack.popPose();
+	}
+
+	private static InteractionPrompt updateTransition(InteractionPrompt currentPrompt) {
+		long now = Util.getMillis();
+		long elapsedMillis = lastFrameMillis == 0L ? 0L : Mth.clamp(now - lastFrameMillis, 0L, 100L);
+		lastFrameMillis = now;
+		if (currentPrompt != null) {
+			retainedPrompt = currentPrompt;
+			missStartedMillis = -1L;
+			visibility = Math.min(1.0f, visibility + elapsedMillis / (float) FADE_IN_MILLIS);
+			return retainedPrompt;
+		}
+		if (retainedPrompt == null)
+			return null;
+		if (missStartedMillis < 0L)
+			missStartedMillis = now;
+		if (now - missStartedMillis >= MISS_HOLD_MILLIS)
+			visibility = Math.max(0.0f, visibility - elapsedMillis / (float) FADE_OUT_MILLIS);
+		if (visibility > 0.0f)
+			return retainedPrompt;
+		retainedPrompt = null;
+		missStartedMillis = -1L;
+		return null;
+	}
+
+	private static void resetTransition() {
+		retainedPrompt = null;
+		visibility = 0.0f;
+		lastFrameMillis = 0L;
+		missStartedMillis = -1L;
 	}
 
 	private static void drawTooltip(GuiGraphics graphics, List<Component> tooltip, int anchorX, int anchorY,

@@ -178,6 +178,8 @@ public final class SurgicalTableClientHandler {
 	private static PendingVisualCommit pendingVisualCommit;
 	@Nullable
 	private static BatchCutAnimation batchCutAnimation;
+	/** Keeps the cancel click from falling through into vanilla's same-tick/held block attack pass. */
+	private static boolean suppressAttackUntilRelease;
 	@Nullable
 	private static CubeSelectionCache connectedSelectionCache;
 	@Nullable
@@ -458,6 +460,7 @@ public final class SurgicalTableClientHandler {
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
+		suppressAttackUntilRelease = false;
 		clearPlacementPreview();
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
 		TABLES.clear();
@@ -479,6 +482,8 @@ public final class SurgicalTableClientHandler {
 	@SubscribeEvent
 	public static void onClientTick(ClientTickEvent.Post event) {
 		Minecraft minecraft = Minecraft.getInstance();
+		if (suppressAttackUntilRelease && !minecraft.options.keyAttack.isDown())
+			suppressAttackUntilRelease = false;
 		LocalPlayer player = minecraft.player;
 		ClientLevel level = minecraft.level;
 		if (player == null || level == null || minecraft.screen != null) {
@@ -1094,6 +1099,10 @@ public final class SurgicalTableClientHandler {
 		if (minecraft.screen != null || minecraft.player == null)
 			return;
 		KeyMapping key = event.getKeyMapping();
+		if (key == minecraft.options.keyAttack && suppressAttackUntilRelease) {
+			suppressAttack(event);
+			return;
+		}
 		if (batchCutAnimation != null && (event.isUseItem() || key == minecraft.options.keyAttack))
 			batchCutAnimation = null;
 		if (minecraft.level != null)
@@ -1103,8 +1112,8 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 		if (key == minecraft.options.keyAttack && cancelPendingInteraction()) {
-			event.setSwingHand(false);
-			event.setCanceled(true);
+			suppressAttackUntilRelease = true;
+			suppressAttack(event);
 			return;
 		}
 		if (key != minecraft.options.keyUse || !event.isUseItem())
@@ -1229,6 +1238,11 @@ public final class SurgicalTableClientHandler {
 		clearPendingLimb();
 		clearSelections();
 		return true;
+	}
+
+	private static void suppressAttack(InputEvent.InteractionKeyMappingTriggered event) {
+		event.setSwingHand(false);
+		event.setCanceled(true);
 	}
 
 	/**
@@ -2209,44 +2223,44 @@ public final class SurgicalTableClientHandler {
 		CreateLang.builder()
 			.add(stack.getHoverName())
 			.forGoggles(tooltip);
-		if (pendingCut != null || pendingGlueCut != null) {
+		if (isSurgicalGlue(stack)) {
+			boolean selectingFirst = pendingGlue == null && glueEditor == null;
+			boolean selectingSecond = pendingGlue != null && glueEditor == null;
+			boolean editing = glueEditor != null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.confirm_cut");
-			addCancelControl(tooltip);
-		} else if (isSurgicalGlue(stack)) {
-			if (glueEditor != null) {
+				"create_biotech.gui.surgical_table.action.select_first_glue", selectingFirst);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.select_second_glue", selectingSecond);
+			if (isSmartGlue(stack)) {
 				addInteractionControl(tooltip, Component.translatable(
 					"create_biotech.gui.surgical_table.control.scroll"),
-					"create_biotech.gui.surgical_table.action.move_glue");
+					"create_biotech.gui.surgical_table.action.move_glue", editing);
 				addInteractionControl(tooltip, combinedControl(Component.translatable(
 					"create_biotech.gui.surgical_table.control.ctrl"),
 					Component.translatable("create_biotech.gui.surgical_table.control.scroll")),
-					"create_biotech.gui.surgical_table.action.rotate_glue");
+					"create_biotech.gui.surgical_table.action.rotate_glue", editing);
 				addInteractionControl(tooltip, Component.keybind("key.use"),
-					"create_biotech.gui.surgical_table.action.confirm_glue");
-				addCancelControl(tooltip);
-			} else if (pendingGlue != null) {
-				addInteractionControl(tooltip, Component.keybind("key.use"),
-					"create_biotech.gui.surgical_table.action.select_second_glue");
-				addCancelControl(tooltip);
-			} else {
-				addInteractionControl(tooltip, Component.keybind("key.use"),
-					"create_biotech.gui.surgical_table.action.select_first_glue");
+					"create_biotech.gui.surgical_table.action.confirm_glue", editing);
 			}
+			addCancelControl(tooltip, pendingGlue != null);
 		} else if (heldLimbType(stack) != null) {
 			boolean continuingLimb = pendingLimb != null && pendingLimb.hand() == hand
 				&& pendingLimb.type() == heldLimbType(stack);
-			addInteractionControl(tooltip, Component.keybind("key.use"), !continuingLimb
-				? "create_biotech.gui.surgical_table.action.select_moving_limb"
-				: "create_biotech.gui.surgical_table.action.select_pivot_limb");
-			if (pendingLimb != null)
-				addCancelControl(tooltip);
-		} else if (stack.is(Items.SHEARS)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.cut");
+				"create_biotech.gui.surgical_table.action.select_moving_limb", !continuingLimb);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.select_pivot_limb", continuingLimb);
+			addCancelControl(tooltip, pendingLimb != null);
+		} else if (stack.is(Items.SHEARS)) {
+			boolean placingCut = pendingCut != null || pendingGlueCut != null;
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.cut", !placingCut);
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.ctrl"),
-				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut");
+				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut", !placingCut);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.confirm_cut", placingCut);
+			addCancelControl(tooltip, placingCut);
 		} else if (stack.is(Items.HONEY_BOTTLE)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.combine");
@@ -2289,22 +2303,29 @@ public final class SurgicalTableClientHandler {
 			|| heldLimbType(stack) != null || CBWrenchHelper.isWrench(stack);
 	}
 
-	private static void addCancelControl(List<Component> tooltip) {
+	private static void addCancelControl(List<Component> tooltip, boolean enabled) {
 		addInteractionControl(tooltip, Component.keybind("key.attack"),
-			"create_biotech.gui.surgical_table.action.cancel");
+			"create_biotech.gui.surgical_table.action.cancel", enabled);
 	}
 
 	private static void addInteractionControl(List<Component> tooltip, Component control, String actionKey) {
+		addInteractionControl(tooltip, control, actionKey, true);
+	}
+
+	private static void addInteractionControl(List<Component> tooltip, Component control, String actionKey,
+		boolean enabled) {
+		ChatFormatting controlColor = enabled ? ChatFormatting.AQUA : ChatFormatting.DARK_GRAY;
+		ChatFormatting actionColor = enabled ? ChatFormatting.GRAY : ChatFormatting.DARK_GRAY;
 		CreateLang.builder()
-			.add(control.copy().withStyle(ChatFormatting.AQUA))
+			.add(control.copy().withStyle(controlColor))
 			.text(ChatFormatting.DARK_GRAY, "  ")
-			.add(Component.translatable(actionKey).withStyle(ChatFormatting.GRAY))
+			.add(Component.translatable(actionKey).withStyle(actionColor))
 			.forGoggles(tooltip, 1);
 	}
 
 	private static MutableComponent combinedControl(Component first, Component second) {
 		return first.copy()
-			.append(Component.literal(" + ").withStyle(ChatFormatting.DARK_GRAY))
+			.append(Component.literal(" + "))
 			.append(second.copy());
 	}
 

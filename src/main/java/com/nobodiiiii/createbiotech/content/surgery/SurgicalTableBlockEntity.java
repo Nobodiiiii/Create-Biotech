@@ -285,7 +285,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return;
 		}
 		List<SurgicalLimbJoint> valid = new ArrayList<>();
-		Set<SurgicalGlueJoint.Endpoint> children = new HashSet<>();
+		Set<SurgicalGlueJoint.Endpoint> primaryChildren = new HashSet<>();
+		Set<SurgicalGlueJoint.Endpoint> secondaryChildren = new HashSet<>();
 		Map<UUID, Map<SurgicalLimbType, Integer>> counts = new HashMap<>();
 		// Limbs of one body all resolve to the same connection component, so the groups found so far are
 		// consulted before falling back to a traversal. This method runs on every edit and again on
@@ -294,9 +295,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalLimbJoint joint : seen) {
 			SurgicalSubject child = getSubjectByPersistentId(joint.child().subjectKey());
 			SurgicalSubject parent = getSubjectByPersistentId(joint.parent().subjectKey());
+			Set<SurgicalGlueJoint.Endpoint> tierChildren = joint.type().primary()
+				? primaryChildren : secondaryChildren;
 			if (child == null || parent == null || !child.validPresentCube(joint.child().cubeId())
 				|| !parent.validPresentCube(joint.parent().cubeId())
-				|| !children.add(joint.child()))
+				|| !tierChildren.add(joint.child()))
 				continue;
 			ComponentGroup body = null;
 			for (ComponentGroup known : knownBodies)
@@ -967,7 +970,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalLimbJoint existing : installed) {
 			if (existing.type() == type)
 				used++;
-			if (rotatesTogether(existing.child(), child))
+			if (rotatesTogether(existing.child(), child)
+				&& (type.primary() || existing.type().secondary()))
 				return refuse(player, "limb_already_driven");
 		}
 		if (used >= type.maxPerBody())
@@ -1112,58 +1116,31 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	/**
-	 * Resolves automatic rigid-island ownership for the currently installed anatomical joints.
+	 * Resolves automatic cube/combination ownership for the currently installed anatomical joints.
 	 * Second-level joints are retained even when absent from {@link TableLimbTopology#effective}; a
 	 * later matching first-level joint can activate them without reinstalling the knee or elbow.
 	 */
 	private TableLimbTopology limbTopology(Set<SurgicalLimbJoint> installed) {
 		if (installed.isEmpty())
 			return TableLimbTopology.EMPTY;
-		Set<SurgicalGlueJoint> hingeEdges = new HashSet<>();
-		for (SurgicalLimbJoint limb : installed)
-			hingeEdges.add(SurgicalGlueJoint.of(limb.child(), limb.parent()));
-
-		List<SurgicalConnectionGraph.Body<UUID>> bodies = new ArrayList<>();
-		for (SurgicalSubject subject : subjects) {
-			BitSet rigidCuts = (BitSet) subject.cutSeams.clone();
-			for (int seamId = 0; seamId < subject.seams.size(); seamId++) {
-				SurgicalAssembly.Seam seam = subject.seams.get(seamId);
-				SurgicalGlueJoint edge = SurgicalGlueJoint.of(
-					new SurgicalGlueJoint.Endpoint(subject.persistentId(), seam.first()),
-					new SurgicalGlueJoint.Endpoint(subject.persistentId(), seam.second()));
-				if (hingeEdges.contains(edge))
-					rigidCuts.set(seamId);
-			}
-			bodies.add(new SurgicalConnectionGraph.Body<>(subject.persistentId(), subject.cubeCount,
-				subject.presentCubes, subject.seams, rigidCuts));
-		}
-
-		List<SurgicalConnectionGraph.Link<UUID>> links = new ArrayList<>();
-		for (SurgicalGlueJoint joint : allGlueJoints())
-			if (!hingeEdges.contains(joint))
-				links.add(new SurgicalConnectionGraph.Link<>(joint.first().subjectKey(), joint.first().cubeId(),
-					joint.second().subjectKey(), joint.second().cubeId()));
-		// A honey combination is a separate rigid constraint. Keeping it here means honey applied across
-		// a hinge makes that joint ineffective without deleting the installed joint item.
-		for (SurgicalCombination combination : allCombinations()) {
-			SurgicalCombination.Member anchor = combination.members().getFirst();
-			for (SurgicalCombination.Member member : combination.members().subList(1,
-				combination.members().size()))
-				links.add(new SurgicalConnectionGraph.Link<>(anchor.subjectKey(), anchor.cubeId(),
-					member.subjectKey(), member.cubeId()));
-		}
-		SurgicalConnectionGraph<UUID> graph = SurgicalConnectionGraph.create(bodies, links);
-		if (graph == null)
-			return TableLimbTopology.EMPTY;
-
+		// Normal seams and glue do not merge anatomical ownership. Only an explicit honey combination
+		// turns several cubes into one unit for the rules below.
 		Map<SurgicalGlueJoint.Endpoint, Integer> componentIds = new HashMap<>();
 		int nextComponentId = 0;
-		for (SurgicalConnectionGraph.Component<UUID> component : graph.components()) {
+		for (SurgicalCombination combination : allCombinations()) {
 			int componentId = nextComponentId++;
-			for (Map.Entry<UUID, BitSet> entry : component.members().entrySet())
-				for (int cubeId = entry.getValue().nextSetBit(0); cubeId >= 0;
-					cubeId = entry.getValue().nextSetBit(cubeId + 1))
-					componentIds.put(new SurgicalGlueJoint.Endpoint(entry.getKey(), cubeId), componentId);
+			for (SurgicalCombination.Member member : combination.members())
+				componentIds.put(new SurgicalGlueJoint.Endpoint(member.subjectKey(), member.cubeId()),
+					componentId);
+		}
+		for (SurgicalSubject subject : subjects) {
+			for (int cubeId = subject.presentCubes.nextSetBit(0); cubeId >= 0;
+				cubeId = subject.presentCubes.nextSetBit(cubeId + 1)) {
+				SurgicalGlueJoint.Endpoint endpoint =
+					new SurgicalGlueJoint.Endpoint(subject.persistentId(), cubeId);
+				if (!componentIds.containsKey(endpoint))
+					componentIds.put(endpoint, nextComponentId++);
+			}
 		}
 
 		Map<Integer, List<TableLimbAttachment>> attachments = new HashMap<>();
