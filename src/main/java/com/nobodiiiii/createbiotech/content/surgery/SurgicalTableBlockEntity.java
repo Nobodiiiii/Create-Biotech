@@ -271,8 +271,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	/**
 	 * Rebuilds the limb-joint index from whatever survived the last edit. Cutting a limb away or
-	 * packing it into a box leaves dangling endpoints behind, and a body must never end up with
-	 * more joints of one kind than {@link SurgicalLimbType#maxPerBody()} allows.
+	 * packing it into a box leaves dangling endpoints behind. Joint slot limits are intentionally not
+	 * applied here: new excess joints are rejected by {@link #attachLimb}, while existing data remains
+	 * packable.
 	 */
 	private void normalizeLimbJoints() {
 		Set<SurgicalLimbJoint> seen = new java.util.LinkedHashSet<>();
@@ -286,10 +287,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		List<SurgicalLimbJoint> valid = new ArrayList<>();
 		Set<SurgicalGlueJoint.Endpoint> children = new HashSet<>();
-		Map<UUID, Map<SurgicalLimbType, Integer>> counts = new HashMap<>();
-		// Limbs of one body all resolve to the same connection component, so the groups found so far are
-		// consulted before falling back to a traversal. This method runs on every edit and again on
-		// every sync, once per limb joint on the whole table.
+		// Reuse already discovered bodies before falling back to another traversal. This method runs on
+		// every edit and again on every sync, once per limb joint on the whole table.
 		List<ComponentGroup> knownBodies = new ArrayList<>();
 		for (SurgicalLimbJoint joint : seen) {
 			SurgicalSubject child = getSubjectByPersistentId(joint.child().subjectKey());
@@ -310,26 +309,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			}
 			if (!body.contains(joint.child()))
 				continue;
-			UUID bodyKey = bodyKey(body);
-			int used = counts.computeIfAbsent(bodyKey, ignored -> new java.util.EnumMap<>(SurgicalLimbType.class))
-				.merge(joint.type(), 1, Integer::sum);
-			if (used > joint.type().maxPerBody())
-				continue;
 			valid.add(joint);
 		}
 		for (SurgicalSubject subject : subjects)
 			subject.replaceLimbJoints(List.of());
 		for (SurgicalLimbJoint joint : valid)
 			attachLimbJoint(joint);
-	}
-
-	/** A stable identity for one glued body, so per-body limb limits survive subject renumbering. */
-	private static UUID bodyKey(ComponentGroup group) {
-		UUID lowest = null;
-		for (Map.Entry<UUID, BitSet> entry : group.components.entrySet())
-			if (!entry.getValue().isEmpty() && (lowest == null || entry.getKey().compareTo(lowest) < 0))
-				lowest = entry.getKey();
-		return lowest == null ? new UUID(0L, 0L) : lowest;
 	}
 
 	private void attachLimbJoint(SurgicalLimbJoint joint) {
@@ -902,16 +887,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			groupCombinations, groupLimbs);
 		if (assembly == null)
 			return false;
-		int installedShoulders = (int) assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		// Only an effective first-level shoulder creates an arm. An unmatched elbow remains packed but
-		// does not contribute animation, combat geometry or body counts.
-		int installedArms = installedShoulders;
-		int encodedArms = attackGeometry == null ? 0 : attackGeometry.armCount();
-		if (encodedArms != installedArms)
-			return false;
 		assembly = assembly.withBodyBounds(bodyBounds);
-		if (attackGeometry != null)
+		// Invalid or stale client combat geometry must not make an otherwise valid body unpackable.
+		// Keep it only when it still describes exactly the effective shoulder joints in this assembly.
+		int installedArms = (int) assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
+		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
 			assembly = assembly.withAttackGeometry(attackGeometry);
 		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
 		if (bionic == null)
@@ -973,12 +954,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalLimbJoint> installed = limbsWithin(body);
 		int used = 0;
 		for (SurgicalLimbJoint existing : installed) {
-			if (existing.type() == type)
+			if (type.primary() && existing.type() == type)
 				used++;
 			if (rotatesTogether(existing.child(), child))
 				return refuse(player, "limb_already_driven");
 		}
-		if (used >= type.maxPerBody())
+		if (type.primary() && used >= type.maxPerBody())
 			return refuse(player, "limb_limit");
 
 		SurgicalLimbJoint installedJoint = new SurgicalLimbJoint(type, child, parent);
@@ -988,6 +969,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (type.primary() && (!topology.effective.contains(installedJoint)
 			|| primaryTouchesDrivenPart(installedJoint, topology)))
 			return refuse(player, "limb_primary_conflict");
+		if (exceedsSecondaryCapacity(installedJoint, prospective, topology))
+			return refuse(player, "limb_secondary_limit");
 
 		attachLimbJoint(installedJoint);
 		if (!player.getAbilities().instabuild)
@@ -1123,6 +1106,33 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return true;
 		return hasOtherChildAttachment(topology.attachments.get(child), candidate)
 			|| hasOtherChildAttachment(topology.attachments.get(parent), candidate);
+	}
+
+	/** Enforces the matching second-level allowance on only the arm or leg being edited. */
+	private static boolean exceedsSecondaryCapacity(SurgicalLimbJoint candidate,
+		Set<SurgicalLimbJoint> prospective, TableLimbTopology topology) {
+		SurgicalLimbType primaryType = candidate.type().primary()
+			? candidate.type() : candidate.type().matchingPrimary();
+		if (primaryType == null || primaryType.secondaryCapacity() <= 0)
+			return false;
+		SurgicalGlueJoint.Endpoint primaryChild = candidate.type().primary()
+			? candidate.child() : candidate.parent();
+		Integer primaryChildComponent = topology.components.get(primaryChild);
+		if (primaryChildComponent == null)
+			return false;
+
+		int used = 0;
+		for (SurgicalLimbJoint joint : prospective) {
+			if (joint.type().matchingPrimary() != primaryType)
+				continue;
+			Integer secondaryParentComponent = topology.components.get(joint.parent());
+			if (primaryChildComponent.equals(secondaryParentComponent)) {
+				used += joint.type().secondaryCost();
+				if (used > primaryType.secondaryCapacity())
+					return true;
+			}
+		}
+		return false;
 	}
 
 	private static boolean hasOtherChildAttachment(@Nullable List<TableLimbAttachment> attachments,

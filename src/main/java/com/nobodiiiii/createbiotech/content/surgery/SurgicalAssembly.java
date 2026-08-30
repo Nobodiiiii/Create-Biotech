@@ -25,11 +25,11 @@ public final class SurgicalAssembly {
 	public static final int MAX_CUBES = 1024;
 	public static final int MAX_SEAMS = 4096;
 	public static final int MAX_SOURCES = 256;
-	/** One neck plus as many as eight two-joint arms and eight two-joint legs. */
-	public static final int MAX_LIMBS = 33;
+	/** One body part plus at most three heads, eight arms and eight legs. */
+	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 17;
+	private static final int CURRENT_VERSION = 18;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -60,6 +60,7 @@ public final class SurgicalAssembly {
 	private static final String BODY_MIN_Y_TAG = "BodyMinY";
 	private static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
 	private static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
+	private static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
 	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
 	private static final String RIGHT_ARMS_TAG = "RightArms";
 	private static final String LEFT_ARMS_TAG = "LeftArms";
@@ -115,12 +116,14 @@ public final class SurgicalAssembly {
 	@Nullable
 	private final BodyBounds bodyBounds;
 	@Nullable
+	private final HitboxGeometry hitboxGeometry;
+	@Nullable
 	private final AttackGeometry attackGeometry;
 
 	private SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
 		List<Limb> limbs, boolean preserveLayout,
 		Direction layoutFacing, SurgicalLayPose layoutLayPose, @Nullable BodyBounds bodyBounds,
-		@Nullable AttackGeometry attackGeometry) {
+		@Nullable HitboxGeometry hitboxGeometry, @Nullable AttackGeometry attackGeometry) {
 		this.sources = List.copyOf(sources);
 		this.joints = List.copyOf(joints);
 		this.combinations = List.copyOf(combinations);
@@ -129,6 +132,7 @@ public final class SurgicalAssembly {
 		this.layoutFacing = horizontal(layoutFacing);
 		this.layoutLayPose = layoutLayPose == null ? SurgicalLayPose.IDENTITY : layoutLayPose;
 		this.bodyBounds = bodyBounds;
+		this.hitboxGeometry = hitboxGeometry;
 		this.attackGeometry = attackGeometry;
 	}
 
@@ -145,7 +149,7 @@ public final class SurgicalAssembly {
 			Direction.NORTH, SurgicalLayPose.IDENTITY, Vec3.ZERO, Map.of());
 		return source == null ? null
 			: new SurgicalAssembly(List.of(source), List.of(), List.of(), List.of(), false, Direction.NORTH,
-				SurgicalLayPose.IDENTITY, null, null);
+				SurgicalLayPose.IDENTITY, null, null, null);
 	}
 
 	@Nullable
@@ -177,7 +181,7 @@ public final class SurgicalAssembly {
 		SurgicalLayPose layoutLayPose) {
 		if (sources == null || sources.isEmpty() || sources.size() > MAX_SOURCES || joints == null
 			|| joints.size() > MAX_SEAMS || combinations == null || combinations.size() > MAX_CUBES
-			|| limbs == null || limbs.size() > MAX_LIMBS)
+			|| limbs == null)
 			return null;
 		List<Source> frozenSources = new ArrayList<>(sources.size());
 		int totalCubes = 0;
@@ -216,28 +220,24 @@ public final class SurgicalAssembly {
 		if (frozenLimbs == null)
 			return null;
 		return new SurgicalAssembly(frozenSources, frozenJoints, frozenCombinations, frozenLimbs, true,
-			layoutFacing, layoutLayPose, null, null);
+			layoutFacing, layoutLayPose, null, null, null);
 	}
 
 	/**
-	 * Drops limbs that no longer describe present cubes and enforces the per-type limits. Packing
-	 * and placement both round-trip through this, so a body can never carry a second neck or a limb
-	 * whose pivot has been cut away.
+	 * Validates the stored endpoints without applying gameplay slot limits. Those limits are enforced
+	 * when a joint is connected at the surgical table, so packing cannot reject a body merely because
+	 * of how many joints it already contains.
 	 */
 	@Nullable
 	private static List<Limb> normalizeLimbs(List<Limb> limbs, List<Source> sources) {
 		if (limbs.isEmpty())
 			return List.of();
-		Map<SurgicalLimbType, Integer> counts = new HashMap<>();
 		Set<CombinationMember> children = new HashSet<>();
 		List<Limb> normalized = new ArrayList<>(limbs.size());
 		for (Limb limb : limbs) {
 			if (limb == null || limb.type() == null || !limb.validFor(sources))
 				return null;
 			if (!children.add(new CombinationMember(limb.childSource(), limb.childCube())))
-				return null;
-			int used = counts.merge(limb.type(), 1, Integer::sum);
-			if (used > limb.type().maxPerBody())
 				return null;
 			normalized.add(limb);
 		}
@@ -324,8 +324,6 @@ public final class SurgicalAssembly {
 		List<Limb> limbs = new ArrayList<>();
 		if (version >= 8 && tag.contains(LIMBS_TAG, Tag.TAG_LIST)) {
 			ListTag encodedLimbs = tag.getList(LIMBS_TAG, Tag.TAG_COMPOUND);
-			if (encodedLimbs.size() > MAX_LIMBS)
-				return null;
 			for (int index = 0; index < encodedLimbs.size(); index++) {
 				CompoundTag encoded = encodedLimbs.getCompound(index);
 				SurgicalLimbType type = encoded.contains(LIMB_TYPE_TAG, Tag.TAG_STRING)
@@ -348,7 +346,7 @@ public final class SurgicalAssembly {
 		assembly = tag.getBoolean(PRESERVE_LAYOUT_TAG) ? assembly
 			: new SurgicalAssembly(assembly.sources, assembly.joints, assembly.combinations,
 				assembly.limbs, false, assembly.layoutFacing,
-				assembly.layoutLayPose, null, null);
+				assembly.layoutLayPose, null, null, null);
 		// Versions 9 and 10 used older bounds. Discard them so those bodies are measured again with
 		// the horizontal-only weighting introduced in version 11. Version 11 bounds remain usable;
 		// their absent leg length defaults to zero until a rendering client measures it.
@@ -373,6 +371,12 @@ public final class SurgicalAssembly {
 			if (geometry == null)
 				return null;
 			assembly = assembly.withAttackGeometry(geometry);
+		}
+		if (version >= 18 && tag.contains(HITBOX_GEOMETRY_TAG, Tag.TAG_COMPOUND)) {
+			HitboxGeometry geometry = HitboxGeometry.load(tag.getCompound(HITBOX_GEOMETRY_TAG));
+			if (geometry == null)
+				return null;
+			assembly = assembly.withHitboxGeometry(geometry);
 		}
 		return assembly;
 	}
@@ -469,6 +473,8 @@ public final class SurgicalAssembly {
 		}
 		if (attackGeometry != null)
 			tag.put(ATTACK_GEOMETRY_TAG, attackGeometry.save());
+		if (hitboxGeometry != null)
+			tag.put(HITBOX_GEOMETRY_TAG, hitboxGeometry.save());
 		return tag;
 	}
 
@@ -484,20 +490,36 @@ public final class SurgicalAssembly {
 	@Nullable
 	public BodyBounds bodyBounds() { return bodyBounds; }
 	@Nullable
+	public HitboxGeometry hitboxGeometry() { return hitboxGeometry; }
+	@Nullable
 	public AttackGeometry attackGeometry() { return attackGeometry; }
 
 	public SurgicalAssembly withBodyBounds(BodyBounds bounds) {
 		if (bounds == null)
 			throw new IllegalArgumentException("A surgical body requires valid bounds");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, attackGeometry);
+			layoutLayPose, bounds, hitboxGeometry, attackGeometry);
+	}
+
+	public SurgicalAssembly withHitboxGeometry(HitboxGeometry geometry) {
+		if (geometry == null)
+			throw new IllegalArgumentException("A surgical hitbox geometry cannot be null");
+		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bodyBounds, geometry, attackGeometry);
+	}
+
+	public SurgicalAssembly withBodyGeometry(BodyBounds bounds, HitboxGeometry geometry) {
+		if (bounds == null || geometry == null)
+			throw new IllegalArgumentException("A surgical body requires complete physical geometry");
+		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bounds, geometry, attackGeometry);
 	}
 
 	public SurgicalAssembly withAttackGeometry(AttackGeometry geometry) {
 		if (geometry == null)
 			throw new IllegalArgumentException("A surgical attack geometry cannot be null");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, geometry);
+			layoutLayPose, bodyBounds, hitboxGeometry, geometry);
 	}
 
 	/**
@@ -1189,6 +1211,199 @@ public final class SurgicalAssembly {
 
 		private static boolean validLegLength(double value) {
 			return value == 0.0d || validSize(value);
+		}
+	}
+
+	/** Complete upright render-space AABB after the model has been centred and grounded. */
+	public record VisualBounds(float minX, float minY, float minZ,
+		float maxX, float maxY, float maxZ) {
+		private static final String MIN_X_TAG = "MinX";
+		private static final String MIN_Y_TAG = "MinY";
+		private static final String MIN_Z_TAG = "MinZ";
+		private static final String MAX_X_TAG = "MaxX";
+		private static final String MAX_Y_TAG = "MaxY";
+		private static final String MAX_Z_TAG = "MaxZ";
+		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
+		private static final double MAX_SIZE = MAX_BODY_SIZE * 2.0d;
+		private static final double CONTAINMENT_EPSILON = 1.0e-3d;
+
+		public VisualBounds {
+			if (!valid(minX, minY, minZ, maxX, maxY, maxZ))
+				throw new IllegalArgumentException("Invalid surgical visual bounds");
+		}
+
+		@Nullable
+		public static VisualBounds create(double minX, double minY, double minZ,
+			double maxX, double maxY, double maxZ) {
+			if (!valid(minX, minY, minZ, maxX, maxY, maxZ))
+				return null;
+			return new VisualBounds((float) minX, (float) minY, (float) minZ,
+				(float) maxX, (float) maxY, (float) maxZ);
+		}
+
+		public float size(int axis) {
+			return axis == 0 ? maxX - minX : axis == 1 ? maxY - minY : maxZ - minZ;
+		}
+
+		public boolean contains(VisualBounds other) {
+			return other != null && other.minX >= minX - CONTAINMENT_EPSILON
+				&& other.minY >= minY - CONTAINMENT_EPSILON
+				&& other.minZ >= minZ - CONTAINMENT_EPSILON
+				&& other.maxX <= maxX + CONTAINMENT_EPSILON
+				&& other.maxY <= maxY + CONTAINMENT_EPSILON
+				&& other.maxZ <= maxZ + CONTAINMENT_EPSILON;
+		}
+
+		public void write(FriendlyByteBuf buffer) {
+			buffer.writeFloat(minX);
+			buffer.writeFloat(minY);
+			buffer.writeFloat(minZ);
+			buffer.writeFloat(maxX);
+			buffer.writeFloat(maxY);
+			buffer.writeFloat(maxZ);
+		}
+
+		public static VisualBounds read(FriendlyByteBuf buffer) {
+			VisualBounds bounds = create(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
+				buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
+			if (bounds == null)
+				throw new IllegalArgumentException("Invalid surgical visual bounds");
+			return bounds;
+		}
+
+		private CompoundTag save() {
+			CompoundTag tag = new CompoundTag();
+			tag.putFloat(MIN_X_TAG, minX);
+			tag.putFloat(MIN_Y_TAG, minY);
+			tag.putFloat(MIN_Z_TAG, minZ);
+			tag.putFloat(MAX_X_TAG, maxX);
+			tag.putFloat(MAX_Y_TAG, maxY);
+			tag.putFloat(MAX_Z_TAG, maxZ);
+			return tag;
+		}
+
+		@Nullable
+		private static VisualBounds load(CompoundTag tag) {
+			return create(tag.getDouble(MIN_X_TAG), tag.getDouble(MIN_Y_TAG), tag.getDouble(MIN_Z_TAG),
+				tag.getDouble(MAX_X_TAG), tag.getDouble(MAX_Y_TAG), tag.getDouble(MAX_Z_TAG));
+		}
+
+		private static boolean valid(double minX, double minY, double minZ,
+			double maxX, double maxY, double maxZ) {
+			return finiteCoordinate(minX) && finiteCoordinate(minY) && finiteCoordinate(minZ)
+				&& finiteCoordinate(maxX) && finiteCoordinate(maxY) && finiteCoordinate(maxZ)
+				&& validSpan(maxX - minX) && validSpan(maxY - minY) && validSpan(maxZ - minZ);
+		}
+
+		private static boolean finiteCoordinate(double value) {
+			return Double.isFinite(value) && Math.abs(value) <= MAX_COORDINATE;
+		}
+
+		private static boolean validSpan(double value) {
+			return Double.isFinite(value) && value >= MIN_BODY_SIZE && value <= MAX_SIZE;
+		}
+	}
+
+	/** Selectable render envelope, rigid body envelope and one envelope per primary limb chain. */
+	public record HitboxGeometry(VisualBounds overall, VisualBounds body,
+		List<VisualBounds> limbs) {
+		private static final String OVERALL_TAG = "Overall";
+		private static final String BODY_TAG = "Body";
+		private static final String LIMBS_TAG = "Limbs";
+		private static final float SPLIT_ABSOLUTE_GROWTH = 0.5f;
+		private static final float SPLIT_RELATIVE_GROWTH = 0.5f;
+
+		public HitboxGeometry {
+			limbs = limbs == null ? List.of() : List.copyOf(limbs);
+			if (overall == null || body == null || limbs.size() > MAX_HITBOX_LIMBS
+				|| !overall.contains(body) || limbs.stream().anyMatch(limb -> !overall.contains(limb)))
+				throw new IllegalArgumentException("Invalid surgical hitbox geometry");
+		}
+
+		@Nullable
+		public static HitboxGeometry create(VisualBounds overall, VisualBounds body,
+			List<VisualBounds> limbs) {
+			try {
+				return new HitboxGeometry(overall, body, limbs);
+			} catch (IllegalArgumentException exception) {
+				return null;
+			}
+		}
+
+		/** Splits long protruding limbs without turning every large torso into many entities. */
+		public boolean shouldSplit(float maximumPhysicalSize) {
+			for (int axis = 0; axis < 3; axis++) {
+				float overallSize = overall.size(axis);
+				float bodySize = body.size(axis);
+				float requiredGrowth = Math.max(SPLIT_ABSOLUTE_GROWTH,
+					bodySize * SPLIT_RELATIVE_GROWTH);
+				if (overallSize > maximumPhysicalSize && overallSize - bodySize > requiredGrowth)
+					return !limbs.isEmpty();
+			}
+			return false;
+		}
+
+		public List<VisualBounds> partBounds(float maximumPhysicalSize) {
+			if (!shouldSplit(maximumPhysicalSize))
+				return List.of(overall);
+			List<VisualBounds> split = new ArrayList<>(limbs.size() + 1);
+			split.add(body);
+			split.addAll(limbs);
+			return List.copyOf(split);
+		}
+
+		public void write(FriendlyByteBuf buffer) {
+			overall.write(buffer);
+			body.write(buffer);
+			buffer.writeVarInt(limbs.size());
+			for (VisualBounds limb : limbs)
+				limb.write(buffer);
+		}
+
+		public static HitboxGeometry read(FriendlyByteBuf buffer) {
+			VisualBounds overall = VisualBounds.read(buffer);
+			VisualBounds body = VisualBounds.read(buffer);
+			int count = buffer.readVarInt();
+			if (count < 0 || count > MAX_HITBOX_LIMBS)
+				throw new IllegalArgumentException("Invalid surgical hitbox limb count " + count);
+			List<VisualBounds> limbs = new ArrayList<>(count);
+			for (int index = 0; index < count; index++)
+				limbs.add(VisualBounds.read(buffer));
+			HitboxGeometry geometry = create(overall, body, limbs);
+			if (geometry == null)
+				throw new IllegalArgumentException("Invalid surgical hitbox geometry");
+			return geometry;
+		}
+
+		private CompoundTag save() {
+			CompoundTag tag = new CompoundTag();
+			tag.put(OVERALL_TAG, overall.save());
+			tag.put(BODY_TAG, body.save());
+			ListTag encodedLimbs = new ListTag();
+			for (VisualBounds limb : limbs)
+				encodedLimbs.add(limb.save());
+			tag.put(LIMBS_TAG, encodedLimbs);
+			return tag;
+		}
+
+		@Nullable
+		private static HitboxGeometry load(CompoundTag tag) {
+			if (!tag.contains(OVERALL_TAG, Tag.TAG_COMPOUND)
+				|| !tag.contains(BODY_TAG, Tag.TAG_COMPOUND))
+				return null;
+			VisualBounds overall = VisualBounds.load(tag.getCompound(OVERALL_TAG));
+			VisualBounds body = VisualBounds.load(tag.getCompound(BODY_TAG));
+			ListTag encodedLimbs = tag.getList(LIMBS_TAG, Tag.TAG_COMPOUND);
+			if (encodedLimbs.size() > MAX_HITBOX_LIMBS)
+				return null;
+			List<VisualBounds> limbs = new ArrayList<>(encodedLimbs.size());
+			for (int index = 0; index < encodedLimbs.size(); index++) {
+				VisualBounds limb = VisualBounds.load(encodedLimbs.getCompound(index));
+				if (limb == null)
+					return null;
+				limbs.add(limb);
+			}
+			return create(overall, body, limbs);
 		}
 	}
 

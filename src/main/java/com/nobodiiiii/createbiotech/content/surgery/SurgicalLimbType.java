@@ -5,31 +5,46 @@ import org.jetbrains.annotations.Nullable;
 /**
  * The anatomical joints a surgical body can carry.
  *
- * <p>Each joint pins one cube group to another and declares how many of its kind one body may
- * own. Both arms and legs accept as many as eight two-joint chains.</p>
+ * <p>First-level joints consume a body slot. A shoulder or hip also owns a separate allowance for
+ * matching second-level joints, so each arm and leg chain is limited independently.</p>
  */
 public enum SurgicalLimbType {
-	NECK("neck", 1),
-	SHOULDER("shoulder", 8),
-	HIP("hip", 8),
+	NECK("neck", 3, 1, 0),
+	SHOULDER("shoulder", 8, 1, 0),
+	HIP("hip", 8, 1, 0),
 	// Keep new values after the original three so their network ordinals remain stable.
-	ELBOW("elbow", 8),
-	KNEE("knee", 8);
+	ELBOW("elbow", 0, 0, 1),
+	KNEE("knee", 0, 0, 1);
 
 	private final String id;
 	private final int maxPerBody;
+	private final int secondaryCapacity;
+	private final int secondaryCost;
 
-	SurgicalLimbType(String id, int maxPerBody) {
+	SurgicalLimbType(String id, int maxPerBody, int secondaryCapacity, int secondaryCost) {
 		this.id = id;
 		this.maxPerBody = maxPerBody;
+		this.secondaryCapacity = secondaryCapacity;
+		this.secondaryCost = secondaryCost;
 	}
 
 	public String id() {
 		return id;
 	}
 
+	/** Maximum first-level joints of this type on one body. */
 	public int maxPerBody() {
 		return maxPerBody;
+	}
+
+	/** Matching second-level joints that one instance of this first-level joint may own. */
+	public int secondaryCapacity() {
+		return secondaryCapacity;
+	}
+
+	/** Allowance consumed when this second-level joint is attached to its matching first level. */
+	public int secondaryCost() {
+		return secondaryCost;
 	}
 
 	/** First-level joints attach an entire limb (or the head) directly to the body. */

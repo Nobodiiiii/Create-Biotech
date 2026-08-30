@@ -765,7 +765,7 @@ public final class SurgicalSubject {
 			return List.of();
 		ListTag encoded = tag.getList(LIMB_JOINTS_TAG, Tag.TAG_COMPOUND);
 		List<SurgicalLimbJoint> joints = new ArrayList<>();
-		for (int index = 0; index < encoded.size() && joints.size() < SurgicalAssembly.MAX_LIMBS; index++) {
+		for (int index = 0; index < encoded.size(); index++) {
 			SurgicalLimbJoint joint = SurgicalLimbJoint.load(encoded.getCompound(index));
 			if (joint != null && !joints.contains(joint))
 				joints.add(joint);
