@@ -2643,11 +2643,7 @@ public final class SurgicalTableClientHandler {
 		// by the edit from retaining an old pending grounding request outside the post-edit refresh group.
 		if (level != null
 			&& level.getBlockEntity(commit.tablePos) instanceof SurgicalTableBlockEntity table) {
-			for (int subjectId : commit.geometrySubjectIds) {
-				TableGeometry geometry = TABLES.get(new SubjectKey(commit.tablePos, subjectId));
-				if (geometry != null && table.hasSubject(subjectId))
-					geometry.clearPreview(table);
-			}
+			clearGeometryPreviews(table, commit.tablePos, commit.geometrySubjectIds);
 		}
 		PlacementPreview committedPlacement = commit.retainPlacementPreview ? placementPreview : null;
 		if (!rollbackGeometry && committedPlacement != null && level != null)
@@ -2727,8 +2723,11 @@ public final class SurgicalTableClientHandler {
 				|| geometry.renderRevision != subject.clientRenderRevision()
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				return null;
-			Map<Integer, Vec3> offsets = currentSubjectEntry ? currentOffsets : geometry.serverOffsets;
-			BitSet cutSeams = currentSubjectEntry ? currentCutSeams : geometry.cutSeams;
+			GeometryPreview preview = geometry.stagedPreview;
+			Map<Integer, Vec3> offsets = currentSubjectEntry ? currentOffsets
+				: preview == null ? geometry.serverOffsets : preview.previewOffsets();
+			BitSet cutSeams = currentSubjectEntry ? currentCutSeams
+				: preview == null ? geometry.cutSeams : preview.previewCutSeams();
 			bodies.add(new SurgicalClientTopology.GroundingBody<>(subject.persistentId(),
 				geometry.observedCubeCount, geometry.presentCubes, geometry.seams, cutSeams,
 				geometry.layoutCubes, offsets));
@@ -3156,6 +3155,7 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 
+		List<GeometryPreview> previews = new ArrayList<>(pending.movingComponents.size());
 		for (Map.Entry<Integer, BitSet> entry : pending.movingComponents.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, entry.getKey()));
@@ -3171,8 +3171,9 @@ public final class SurgicalTableClientHandler {
 			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
 				cube = entry.getValue().nextSetBit(cube + 1))
 					offsets.put(cube, offsets.getOrDefault(cube, Vec3.ZERO).add(planned.delta()));
-			geometry.applyPreview(table, Map.copyOf(offsets), geometry.cutSeams, pending.joint);
+			previews.add(new GeometryPreview(geometry, offsets, geometry.cutSeams, pending.joint));
 		}
+		applyGeometryPreviews(table, previews);
 		SelectionHighlightEdges highlighted = connectedSelectionEdges(
 			pending.tablePos, table, pending.movingComponents);
 		if (highlighted == null) {
@@ -3221,11 +3222,7 @@ public final class SurgicalTableClientHandler {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.level != null
 			&& minecraft.level.getBlockEntity(pending.tablePos) instanceof SurgicalTableBlockEntity table)
-			for (int subjectId : pending.movingComponents.keySet()) {
-				TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, subjectId));
-				if (geometry != null && table.hasSubject(subjectId))
-					geometry.clearPreview(table);
-			}
+			clearGeometryPreviews(table, pending.tablePos, pending.movingComponents.keySet());
 		componentSelection = null;
 	}
 
@@ -3566,6 +3563,7 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 
+		List<GeometryPreview> previews = new ArrayList<>(pending.movingComponents.size());
 		for (Map.Entry<Integer, BitSet> entry : pending.movingComponents.entrySet()) {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, entry.getKey()));
@@ -3581,8 +3579,9 @@ public final class SurgicalTableClientHandler {
 					cube = entry.getValue().nextSetBit(cube + 1))
 					offsets.put(cube, offsets.getOrDefault(cube, Vec3.ZERO).add(planned.delta()));
 			BitSet cuts = entry.getKey() == pending.subjectId ? pending.proposedCuts : geometry.cutSeams;
-			geometry.applyPreview(table, Map.copyOf(offsets), cuts);
+			previews.add(new GeometryPreview(geometry, offsets, cuts, null));
 		}
+		applyGeometryPreviews(table, previews);
 		SelectionHighlightEdges highlighted = connectedSelectionEdges(
 			pending.tablePos, table, pending.movingComponents);
 		if (highlighted == null) {
@@ -3633,12 +3632,32 @@ public final class SurgicalTableClientHandler {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.level != null
 			&& minecraft.level.getBlockEntity(pending.tablePos) instanceof SurgicalTableBlockEntity table)
-			for (int subjectId : pending.movingComponents.keySet()) {
-				TableGeometry geometry = TABLES.get(new SubjectKey(pending.tablePos, subjectId));
-				if (geometry != null && table.hasSubject(subjectId))
-					geometry.clearPreview(table);
-			}
+			clearGeometryPreviews(table, pending.tablePos, pending.movingComponents.keySet());
 		componentSelection = null;
+	}
+
+	/** Stages every member before grounding any of them, so cross-subject Y uses one preview snapshot. */
+	private static void applyGeometryPreviews(SurgicalTableBlockEntity table,
+		List<GeometryPreview> previews) {
+		for (GeometryPreview preview : previews)
+			preview.geometry().stagePreview(preview);
+		for (GeometryPreview preview : previews)
+			preview.geometry().applyStagedPreview(table);
+	}
+
+	/** Drops every staged member first; applying server state one-by-one must not see a half-old preview. */
+	private static void clearGeometryPreviews(SurgicalTableBlockEntity table, BlockPos tablePos,
+		Iterable<Integer> subjectIds) {
+		List<TableGeometry> geometries = new ArrayList<>();
+		for (int subjectId : subjectIds) {
+			TableGeometry geometry = TABLES.get(new SubjectKey(tablePos, subjectId));
+			if (geometry != null && table.hasSubject(subjectId))
+				geometries.add(geometry);
+		}
+		for (TableGeometry geometry : geometries)
+			geometry.discardStagedPreview();
+		for (TableGeometry geometry : geometries)
+			geometry.applyServerTransforms(table);
 	}
 
 	private static Vec3 tableSurfaceTarget(Ray ray, double surfaceY) {
@@ -5029,6 +5048,15 @@ public final class SurgicalTableClientHandler {
 		clearSymmetryPlaneHighlight();
 	}
 
+	private record GeometryPreview(TableGeometry geometry, Map<Integer, Vec3> previewOffsets,
+		BitSet previewCutSeams, @Nullable SurgicalGlueJoint excludedJoint) {
+		private GeometryPreview {
+			java.util.Objects.requireNonNull(geometry, "geometry");
+			previewOffsets = Map.copyOf(previewOffsets);
+			previewCutSeams = (BitSet) previewCutSeams.clone();
+		}
+	}
+
 	private static final class TableGeometry {
 		private final UUID persistentId;
 		private int subjectId;
@@ -5061,6 +5089,8 @@ public final class SurgicalTableClientHandler {
 		private Map<Integer, Vec3> offsets = Map.of();
 		private Map<Integer, SurgicalCubeRotation> serverRotations = Map.of();
 		private Map<Integer, SurgicalCubeRotation> rotations = Map.of();
+		@Nullable
+		private GeometryPreview stagedPreview;
 		private long cacheWeight;
 		private Map<Integer, Vec3> pendingGroundingOffsets = Map.of();
 		private Map<Integer, SurgicalCubeRotation> pendingGroundingRotations = Map.of();
@@ -5192,17 +5222,22 @@ public final class SurgicalTableClientHandler {
 			orphanedAtTick = now;
 		}
 
-		private void applyPreview(SurgicalTableBlockEntity table, Map<Integer, Vec3> previewOffsets,
-			BitSet previewCutSeams) {
-			applyTransforms(table, previewOffsets, serverRotations, previewCutSeams, null);
+		private void stagePreview(GeometryPreview preview) {
+			stagedPreview = preview;
 		}
 
-		private void applyPreview(SurgicalTableBlockEntity table, Map<Integer, Vec3> previewOffsets,
-			BitSet previewCutSeams, SurgicalGlueJoint excludedJoint) {
-			applyTransforms(table, previewOffsets, serverRotations, previewCutSeams, excludedJoint);
+		private void applyStagedPreview(SurgicalTableBlockEntity table) {
+			GeometryPreview preview = stagedPreview;
+			if (preview != null)
+				applyTransforms(table, preview.previewOffsets(), serverRotations,
+					preview.previewCutSeams(), preview.excludedJoint());
 		}
 
-		private void clearPreview(SurgicalTableBlockEntity table) {
+		private void discardStagedPreview() {
+			stagedPreview = null;
+		}
+
+		private void applyServerTransforms(SurgicalTableBlockEntity table) {
 			applyTransforms(table, serverOffsets, serverRotations);
 		}
 
