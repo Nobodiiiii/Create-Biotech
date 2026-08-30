@@ -285,8 +285,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return;
 		}
 		List<SurgicalLimbJoint> valid = new ArrayList<>();
-		Set<SurgicalGlueJoint.Endpoint> primaryChildren = new HashSet<>();
-		Set<SurgicalGlueJoint.Endpoint> secondaryChildren = new HashSet<>();
+		Set<SurgicalGlueJoint.Endpoint> children = new HashSet<>();
 		Map<UUID, Map<SurgicalLimbType, Integer>> counts = new HashMap<>();
 		// Limbs of one body all resolve to the same connection component, so the groups found so far are
 		// consulted before falling back to a traversal. This method runs on every edit and again on
@@ -295,11 +294,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalLimbJoint joint : seen) {
 			SurgicalSubject child = getSubjectByPersistentId(joint.child().subjectKey());
 			SurgicalSubject parent = getSubjectByPersistentId(joint.parent().subjectKey());
-			Set<SurgicalGlueJoint.Endpoint> tierChildren = joint.type().primary()
-				? primaryChildren : secondaryChildren;
 			if (child == null || parent == null || !child.validPresentCube(joint.child().cubeId())
 				|| !parent.validPresentCube(joint.parent().cubeId())
-				|| !tierChildren.add(joint.child()))
+				|| !children.add(joint.child()))
 				continue;
 			ComponentGroup body = null;
 			for (ComponentGroup known : knownBodies)
@@ -979,8 +976,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalLimbJoint existing : installed) {
 			if (existing.type() == type)
 				used++;
-			if (rotatesTogether(existing.child(), child)
-				&& (type.primary() || existing.type().secondary()))
+			if (rotatesTogether(existing.child(), child))
 				return refuse(player, "limb_already_driven");
 		}
 		if (used >= type.maxPerBody())

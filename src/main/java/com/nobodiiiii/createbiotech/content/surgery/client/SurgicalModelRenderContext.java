@@ -2,9 +2,6 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.List;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -18,20 +15,6 @@ import net.minecraft.world.phys.Vec3;
 public final class SurgicalModelRenderContext {
 
 	private SurgicalModelRenderContext() {}
-
-	/**
-	 * Anchors independently rendered geometry to the first direct source cube of a model part, so an
-	 * attachment disappears along with the cube it is mounted on.
-	 *
-	 * <p>This hook is currently inert: it answered from the capture context that this class no longer
-	 * owns, so it has returned {@code true} unconditionally since the capture moved to
-	 * {@link SurgicalCapturedRenderPlan}. It is kept as an explicit stub rather than deleted because
-	 * its caller expresses a real intent that nothing else implements. Re-wiring it means resolving
-	 * the anchor's cube against the active render plan.
-	 */
-	public static boolean prepareAttachment(ModelPart anchor, PoseStack poseStack) {
-		return true;
-	}
 
 	public record Snapshot(int observedCubeCount, List<CubeGeometry> cubes) {
 		public Snapshot {

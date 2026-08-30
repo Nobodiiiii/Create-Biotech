@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.content.dingdongchicken;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.createmod.catnip.render.CachedBuffers;
@@ -71,10 +70,6 @@ public class DingDongChickenRenderer
 
 			// Follow the chicken body, then stand the bell on the body's upper face.
 			getParentModel().translateToBody(poseStack);
-			if (!SurgicalModelRenderContext.prepareAttachment(getParentModel().bodyPart(), poseStack)) {
-				poseStack.popPose();
-				return;
-			}
 			poseStack.translate(0, 0, 3.0F / 16.0F);
 			poseStack.mulPose(Axis.XP.rotationDegrees(90));
 			poseStack.translate(-0.5F, 0, -0.5F);

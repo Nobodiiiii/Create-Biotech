@@ -227,15 +227,12 @@ public final class SurgicalAssembly {
 		if (limbs.isEmpty())
 			return List.of();
 		Map<SurgicalLimbType, Integer> counts = new HashMap<>();
-		Set<CombinationMember> primaryChildren = new HashSet<>();
-		Set<CombinationMember> secondaryChildren = new HashSet<>();
+		Set<CombinationMember> children = new HashSet<>();
 		List<Limb> normalized = new ArrayList<>(limbs.size());
 		for (Limb limb : limbs) {
 			if (limb == null || limb.type() == null || !limb.validFor(sources))
 				return null;
-			Set<CombinationMember> tierChildren = limb.type().primary()
-				? primaryChildren : secondaryChildren;
-			if (!tierChildren.add(new CombinationMember(limb.childSource(), limb.childCube())))
+			if (!children.add(new CombinationMember(limb.childSource(), limb.childCube())))
 				return null;
 			int used = counts.merge(limb.type(), 1, Integer::sum);
 			if (used > limb.type().maxPerBody())
