@@ -48,7 +48,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static final boolean RENDER_ATTACK_RANGE = true;
 	private static final int ATTACK_RANGE_GRID_STEPS = 12;
 	private static final float MIN_SHADOW_RADIUS = 0.15f;
-	private static final float MAX_SHADOW_RADIUS = 32.0f;
+	private static final float MAX_SHADOW_RADIUS = 1.0f;
 	private static final ResourceLocation SLIME_TEXTURE =
 		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
 	private static final Map<SlimeBionicEntity, CachedGeometry> GEOMETRY = new WeakHashMap<>();

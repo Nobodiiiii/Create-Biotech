@@ -49,6 +49,7 @@ import net.neoforged.neoforge.common.Tags;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob {
+	private static final float MAX_COLLISION_SIZE = 2.0f;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
 	private static final double DEFAULT_ATTACK_DISTANCE_SQR = 5.0d * 5.0d;
@@ -216,8 +217,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return super.getDefaultDimensions(pose);
 		// Vanilla mobs use one centred, yaw-independent square footprint whose side is the body's
 		// lateral width. Their fore-aft model depth is deliberately not promoted to collision width.
-		float width = bounds.width();
-		float height = bounds.minY() + bounds.height();
+		float width = Math.min(bounds.width(), MAX_COLLISION_SIZE);
+		float height = Math.min(bounds.minY() + bounds.height(), MAX_COLLISION_SIZE);
 		float eyeHeight = Mth.clamp(bounds.minY() + bounds.height() * 0.85f, 0.0f, height);
 		return EntityDimensions.fixed(width, height).withEyeHeight(eyeHeight);
 	}
