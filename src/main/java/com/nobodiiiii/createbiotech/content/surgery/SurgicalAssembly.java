@@ -1310,8 +1310,6 @@ public final class SurgicalAssembly {
 		private static final String OVERALL_TAG = "Overall";
 		private static final String BODY_TAG = "Body";
 		private static final String LIMBS_TAG = "Limbs";
-		private static final float SPLIT_ABSOLUTE_GROWTH = 0.5f;
-		private static final float SPLIT_RELATIVE_GROWTH = 0.5f;
 
 		public HitboxGeometry {
 			limbs = limbs == null ? List.of() : List.copyOf(limbs);
@@ -1330,21 +1328,18 @@ public final class SurgicalAssembly {
 			}
 		}
 
-		/** Splits long protruding limbs without turning every large torso into many entities. */
-		public boolean shouldSplit(float maximumPhysicalSize) {
-			for (int axis = 0; axis < 3; axis++) {
-				float overallSize = overall.size(axis);
-				float bodySize = body.size(axis);
-				float requiredGrowth = Math.max(SPLIT_ABSOLUTE_GROWTH,
-					bodySize * SPLIT_RELATIVE_GROWTH);
-				if (overallSize > maximumPhysicalSize && overallSize - bodySize > requiredGrowth)
-					return !limbs.isEmpty();
-			}
+		/** Bodies remain ordinary entities until one complete visual axis strictly exceeds the threshold. */
+		public boolean requiresMultipart(float threshold) {
+			for (int axis = 0; axis < 3; axis++)
+				if (overall.size(axis) > threshold)
+					return true;
 			return false;
 		}
 
-		public List<VisualBounds> partBounds(float maximumPhysicalSize) {
-			if (!shouldSplit(maximumPhysicalSize))
+		public List<VisualBounds> partBounds(float threshold) {
+			if (!requiresMultipart(threshold))
+				return List.of();
+			if (limbs.isEmpty())
 				return List.of(overall);
 			List<VisualBounds> split = new ArrayList<>(limbs.size() + 1);
 			split.add(body);

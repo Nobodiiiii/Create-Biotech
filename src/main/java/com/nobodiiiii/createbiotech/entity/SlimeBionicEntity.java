@@ -57,7 +57,9 @@ import net.neoforged.neoforge.common.Tags;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob {
-	private static final float MAX_COLLISION_SIZE = 2.0f;
+	private static final float MAX_COLLISION_WIDTH = 2.0f;
+	private static final float MAX_COLLISION_HEIGHT = 8.0f;
+	private static final float MULTIPART_THRESHOLD = 8.0f;
 	private static final int MAX_HIT_PARTS = SurgicalAssembly.MAX_HITBOX_LIMBS + 1;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
@@ -129,7 +131,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public boolean isMultipartEntity() {
-		return true;
+		return registeredHitParts != null && registeredHitParts.length > 0;
 	}
 
 	@Override
@@ -145,7 +147,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void recreateFromPacket(ClientboundAddEntityPacket packet) {
 		super.recreateFromPacket(packet);
-		setRegisteredHitPartCount(Mth.clamp(packet.getData(), 1, MAX_HIT_PARTS));
+		setRegisteredHitPartCount(Mth.clamp(packet.getData(), 0, MAX_HIT_PARTS));
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -280,8 +282,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return super.getDefaultDimensions(pose);
 		// Vanilla mobs use one centred, yaw-independent square footprint whose side is the body's
 		// lateral width. Their fore-aft model depth is deliberately not promoted to collision width.
-		float width = Math.min(bounds.width(), MAX_COLLISION_SIZE);
-		float height = Math.min(bounds.minY() + bounds.height(), MAX_COLLISION_SIZE);
+		float width = Math.min(bounds.width(), MAX_COLLISION_WIDTH);
+		float height = Math.min(bounds.minY() + bounds.height(), MAX_COLLISION_HEIGHT);
 		float eyeHeight = Mth.clamp(bounds.minY() + bounds.height() * 0.85f, 0.0f, height);
 		return EntityDimensions.fixed(width, height).withEyeHeight(eyeHeight);
 	}
@@ -368,11 +370,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	private void updateHitParts() {
-		if (hitParts == null)
+		if (hitParts == null || registeredHitParts.length == 0)
 			return;
 		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
 		List<SurgicalAssembly.VisualBounds> bounds = geometry == null ? List.of()
-			: geometry.partBounds(MAX_COLLISION_SIZE);
+			: geometry.partBounds(MULTIPART_THRESHOLD);
 		if (bounds.size() > registeredHitParts.length)
 			bounds = List.of(geometry.overall());
 		for (int index = 0; index < registeredHitParts.length; index++)
@@ -385,12 +387,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return;
 		SurgicalAssembly.HitboxGeometry geometry = assembly == null ? null : assembly.hitboxGeometry();
 		if (geometry != null)
-			setRegisteredHitPartCount(geometry.partBounds(MAX_COLLISION_SIZE).size());
+			setRegisteredHitPartCount(geometry.partBounds(MULTIPART_THRESHOLD).size());
 	}
 
 	private void setRegisteredHitPartCount(int count) {
 		registeredHitParts = count >= hitParts.length ? hitParts
-			: Arrays.copyOf(hitParts, Mth.clamp(count, 1, hitParts.length));
+			: Arrays.copyOf(hitParts, Mth.clamp(count, 0, hitParts.length));
 	}
 
 	private AABB worldBounds(SurgicalAssembly.VisualBounds bounds) {
@@ -434,7 +436,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public boolean isPickable() {
-		return activeHitboxGeometry() == null && super.isPickable();
+		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		boolean multipartActive = registeredHitParts.length > 0 && geometry != null
+			&& geometry.requiresMultipart(MULTIPART_THRESHOLD);
+		return !multipartActive && super.isPickable();
 	}
 
 	/** Side the next attack will request before the renderer/geometry applies single-arm fallback. */
