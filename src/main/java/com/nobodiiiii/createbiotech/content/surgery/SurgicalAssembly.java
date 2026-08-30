@@ -25,11 +25,11 @@ public final class SurgicalAssembly {
 	public static final int MAX_CUBES = 1024;
 	public static final int MAX_SEAMS = 4096;
 	public static final int MAX_SOURCES = 256;
-	/** One neck, two two-joint arms, and as many as eight two-joint legs. */
-	public static final int MAX_LIMBS = 21;
+	/** One neck plus as many as eight two-joint arms and eight two-joint legs. */
+	public static final int MAX_LIMBS = 33;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 16;
+	private static final int CURRENT_VERSION = 17;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -61,6 +61,8 @@ public final class SurgicalAssembly {
 	private static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
 	private static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
 	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
+	private static final String RIGHT_ARMS_TAG = "RightArms";
+	private static final String LEFT_ARMS_TAG = "LeftArms";
 	private static final String RIGHT_ARM_TAG = "RightArm";
 	private static final String LEFT_ARM_TAG = "LeftArm";
 	private static final String ATTACK_RADIUS_TAG = "Radius";
@@ -846,19 +848,23 @@ public final class SurgicalAssembly {
 		return List.copyOf(decoded);
 	}
 
-	/** Immutable physical arm dimensions baked once from the assembled model's rest geometry. */
-	public record AttackGeometry(@Nullable ArmAttackGeometry right,
-		@Nullable ArmAttackGeometry left) {
+	/** Immutable physical dimensions for every installed arm, baked from the rest geometry. */
+	public record AttackGeometry(List<ArmAttackGeometry> right,
+		List<ArmAttackGeometry> left) {
 		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
 
 		public AttackGeometry {
-			if (right == null && left == null)
+			right = freezeArms(right);
+			left = freezeArms(left);
+			if (right.isEmpty() && left.isEmpty())
 				throw new IllegalArgumentException("Attack geometry requires at least one arm");
+			if (right.size() + left.size() > SurgicalLimbType.SHOULDER.maxPerBody())
+				throw new IllegalArgumentException("Attack geometry exceeds the shoulder limit");
 		}
 
 		@Nullable
-		public static AttackGeometry create(@Nullable ArmAttackGeometry right,
-			@Nullable ArmAttackGeometry left) {
+		public static AttackGeometry create(List<ArmAttackGeometry> right,
+			List<ArmAttackGeometry> left) {
 			try {
 				return new AttackGeometry(right, left);
 			} catch (IllegalArgumentException ignored) {
@@ -866,43 +872,77 @@ public final class SurgicalAssembly {
 			}
 		}
 
+		/** Compatibility factory for saves and callers that still describe one arm per side. */
+		@Nullable
+		public static AttackGeometry create(@Nullable ArmAttackGeometry right,
+			@Nullable ArmAttackGeometry left) {
+			return create(right == null ? List.of() : List.of(right),
+				left == null ? List.of() : List.of(left));
+		}
+
 		@Nullable
 		public ArmAttackGeometry arm(boolean leftSide) {
-			ArmAttackGeometry preferred = leftSide ? left : right;
-			return preferred != null ? preferred : leftSide ? right : left;
+			return arm(leftSide, 0);
+		}
+
+		/** Chooses one arm on the requested side, falling back to the other side when necessary. */
+		@Nullable
+		public ArmAttackGeometry arm(boolean leftSide, int slot) {
+			List<ArmAttackGeometry> preferred = leftSide ? left : right;
+			List<ArmAttackGeometry> fallback = leftSide ? right : left;
+			List<ArmAttackGeometry> available = preferred.isEmpty() ? fallback : preferred;
+			return available.isEmpty() ? null : available.get(Math.floorMod(slot, available.size()));
+		}
+
+		public boolean hasArms(boolean leftSide) {
+			return !(leftSide ? left : right).isEmpty();
+		}
+
+		public int armCount(boolean leftSide) {
+			return (leftSide ? left : right).size();
+		}
+
+		public int armCount() {
+			return right.size() + left.size();
+		}
+
+		public List<ArmAttackGeometry> arms() {
+			List<ArmAttackGeometry> arms = new ArrayList<>(armCount());
+			arms.addAll(right);
+			arms.addAll(left);
+			return List.copyOf(arms);
 		}
 
 		private CompoundTag save() {
 			CompoundTag tag = new CompoundTag();
-			if (right != null)
-				tag.put(RIGHT_ARM_TAG, right.save());
-			if (left != null)
-				tag.put(LEFT_ARM_TAG, left.save());
+			putArms(tag, RIGHT_ARMS_TAG, right);
+			putArms(tag, LEFT_ARMS_TAG, left);
 			return tag;
 		}
 
 		public void write(FriendlyByteBuf buffer) {
-			buffer.writeBoolean(right != null);
-			if (right != null)
-				right.write(buffer);
-			buffer.writeBoolean(left != null);
-			if (left != null)
-				left.write(buffer);
+			writeArms(buffer, right);
+			writeArms(buffer, left);
 		}
 
 		@Nullable
 		public static AttackGeometry read(FriendlyByteBuf buffer) {
-			boolean hasRight = buffer.readBoolean();
-			ArmAttackGeometry right = hasRight ? ArmAttackGeometry.read(buffer) : null;
-			boolean hasLeft = buffer.readBoolean();
-			ArmAttackGeometry left = hasLeft ? ArmAttackGeometry.read(buffer) : null;
-			if (hasRight && right == null || hasLeft && left == null)
+			List<ArmAttackGeometry> right = readArms(buffer);
+			List<ArmAttackGeometry> left = readArms(buffer);
+			if (right == null || left == null)
 				return null;
 			return create(right, left);
 		}
 
 		@Nullable
 		private static AttackGeometry load(CompoundTag tag) {
+			if (tag.contains(RIGHT_ARMS_TAG, Tag.TAG_LIST)
+				|| tag.contains(LEFT_ARMS_TAG, Tag.TAG_LIST)) {
+				List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
+				List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
+				return right == null || left == null ? null : create(right, left);
+			}
+			// Versions 13-16 stored at most one arm on each side.
 			ArmAttackGeometry right = tag.contains(RIGHT_ARM_TAG, Tag.TAG_COMPOUND)
 				? ArmAttackGeometry.load(tag.getCompound(RIGHT_ARM_TAG)) : null;
 			ArmAttackGeometry left = tag.contains(LEFT_ARM_TAG, Tag.TAG_COMPOUND)
@@ -911,6 +951,60 @@ public final class SurgicalAssembly {
 				|| tag.contains(LEFT_ARM_TAG, Tag.TAG_COMPOUND) && left == null)
 				return null;
 			return create(right, left);
+		}
+
+		private static List<ArmAttackGeometry> freezeArms(List<ArmAttackGeometry> arms) {
+			if (arms == null || arms.size() > SurgicalLimbType.SHOULDER.maxPerBody()
+				|| arms.stream().anyMatch(java.util.Objects::isNull))
+				throw new IllegalArgumentException("Invalid arm attack geometry list");
+			return List.copyOf(arms);
+		}
+
+		private static void putArms(CompoundTag tag, String key, List<ArmAttackGeometry> arms) {
+			if (arms.isEmpty())
+				return;
+			ListTag encoded = new ListTag();
+			for (ArmAttackGeometry arm : arms)
+				encoded.add(arm.save());
+			tag.put(key, encoded);
+		}
+
+		private static void writeArms(FriendlyByteBuf buffer, List<ArmAttackGeometry> arms) {
+			buffer.writeVarInt(arms.size());
+			for (ArmAttackGeometry arm : arms)
+				arm.write(buffer);
+		}
+
+		@Nullable
+		private static List<ArmAttackGeometry> readArms(FriendlyByteBuf buffer) {
+			int count = buffer.readVarInt();
+			if (count < 0 || count > SurgicalLimbType.SHOULDER.maxPerBody())
+				return null;
+			List<ArmAttackGeometry> arms = new ArrayList<>(count);
+			for (int index = 0; index < count; index++) {
+				ArmAttackGeometry arm = ArmAttackGeometry.read(buffer);
+				if (arm == null)
+					return null;
+				arms.add(arm);
+			}
+			return List.copyOf(arms);
+		}
+
+		@Nullable
+		private static List<ArmAttackGeometry> loadArms(CompoundTag tag, String key) {
+			if (!tag.contains(key, Tag.TAG_LIST))
+				return List.of();
+			ListTag encoded = tag.getList(key, Tag.TAG_COMPOUND);
+			if (encoded.size() > SurgicalLimbType.SHOULDER.maxPerBody())
+				return null;
+			List<ArmAttackGeometry> arms = new ArrayList<>(encoded.size());
+			for (int index = 0; index < encoded.size(); index++) {
+				ArmAttackGeometry arm = ArmAttackGeometry.load(encoded.getCompound(index));
+				if (arm == null)
+					return null;
+				arms.add(arm);
+			}
+			return List.copyOf(arms);
 		}
 
 		private static boolean validPoint(Vec3 point) {

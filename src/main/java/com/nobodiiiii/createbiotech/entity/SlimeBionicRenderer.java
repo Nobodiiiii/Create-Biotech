@@ -161,7 +161,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		boolean active = SlimeBionicCombat.isActiveTick(elapsed, duration);
 		float alpha = active ? 0.32f : 0.14f;
 		SurgicalAssembly.ArmAttackGeometry arm = assembly.attackGeometry()
-			.arm(entity.isAttackActionLeft());
+			.arm(entity.isAttackActionLeft(), entity.getAttackActionArmSlot());
 		if (arm == null)
 			return;
 		VertexConsumer vertices = buffer.getBuffer(RenderType.debugFilledBox());

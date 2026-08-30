@@ -54,7 +54,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private static final double DEFAULT_ATTACK_DISTANCE_SQR = 5.0d * 5.0d;
 	private static final int ATTACK_EVENT_STRIDE = 4;
 	private static final int ATTACK_EVENT_VARIANTS =
-		SlimeBionicCombat.NORMAL_ATTACK_TICKS * ATTACK_EVENT_STRIDE;
+		SurgicalLimbType.SHOULDER.maxPerBody() * ATTACK_EVENT_STRIDE;
 	private static final byte ATTACK_EVENT_BASE = -64;
 	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
 		CreateBiotech.asResource("anatomical_attack");
@@ -75,12 +75,16 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private int attackAnimationTick;
 	private int attackAnimationDuration = SlimeBionicAttackTiming.PLAYBACK_TICKS;
 	private boolean attackAnimationLeft;
+	private int attackAnimationArmSlot;
 	private boolean attackAnimationWeapon;
 	private int attackActionTick;
 	private int attackActionDuration = SlimeBionicCombat.NORMAL_ATTACK_TICKS;
 	private boolean attackActionLeft;
+	private int attackActionArmSlot;
 	private boolean attackActionWeapon;
 	private boolean nextEmptyHandAttackLeft;
+	private int nextRightArmSlot;
+	private int nextLeftArmSlot;
 
 	public SlimeBionicEntity(EntityType<? extends SlimeBionicEntity> type, Level level) {
 		super(type, level);
@@ -232,11 +236,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (geometry == null)
 			return distanceToSqr(target) <= DEFAULT_ATTACK_DISTANCE_SQR;
 		AABB targetBounds = target.getBoundingBox();
-		boolean weapon = hasAttackWeapon();
-		SurgicalAssembly.ArmAttackGeometry arm = geometry.arm(preferredAttackLeft(weapon));
-		if (arm == null)
-			return false;
-		return SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), arm);
+		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms())
+			if (SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), arm))
+				return true;
+		return false;
 	}
 
 	@Override
@@ -251,16 +254,26 @@ public class SlimeBionicEntity extends PathfinderMob {
 	/** Selects and snapshots one arm before starting its gameplay and presentation clocks. */
 	private AttackStart beginAttack() {
 		attackActionWeapon = hasAttackWeapon();
+		boolean preferredLeft;
 		if (attackActionWeapon) {
-			attackActionLeft = preferredAttackLeft(true);
+			preferredLeft = preferredAttackLeft(true);
 		} else {
-			attackActionLeft = nextEmptyHandAttackLeft;
+			preferredLeft = nextEmptyHandAttackLeft;
 			nextEmptyHandAttackLeft = !nextEmptyHandAttackLeft;
 		}
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
+		attackActionLeft = geometry != null && !geometry.hasArms(preferredLeft)
+			&& geometry.hasArms(!preferredLeft) ? !preferredLeft : preferredLeft;
+		int armCount = geometry == null ? 0 : geometry.armCount(attackActionLeft);
+		if (armCount > 0) {
+			int nextSlot = attackActionLeft ? nextLeftArmSlot++ : nextRightArmSlot++;
+			attackActionArmSlot = Math.floorMod(nextSlot, armCount);
+		} else {
+			attackActionArmSlot = 0;
+		}
 		SurgicalAssembly.ArmAttackGeometry arm = geometry == null ? null
-			: geometry.arm(attackActionLeft);
+			: geometry.arm(attackActionLeft, attackActionArmSlot);
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(arm);
 		int attackInterval = stats.attackInterval();
 		attackActionDuration = SlimeBionicCombat.duration(attackInterval);
@@ -270,7 +283,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		attackAnimationTick = attackAnimationDuration;
 		attackAnimationWeapon = attackActionWeapon;
 		attackAnimationLeft = attackActionLeft;
-		int encoded = (attackActionDuration - 1) * ATTACK_EVENT_STRIDE
+		attackAnimationArmSlot = attackActionArmSlot;
+		int encoded = attackActionArmSlot * ATTACK_EVENT_STRIDE
 			+ (attackActionWeapon ? 2 : 0) + (attackActionLeft ? 1 : 0);
 		level().broadcastEntityEvent(this, (byte) (ATTACK_EVENT_BASE + encoded));
 		return new AttackStart(attackActionDuration, attackInterval, stats.damageMultiplier(), arm);
@@ -312,13 +326,20 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public void handleEntityEvent(byte id) {
 		int encoded = id - ATTACK_EVENT_BASE;
 		if (encoded >= 0 && encoded < ATTACK_EVENT_VARIANTS) {
-			attackActionDuration = encoded / ATTACK_EVENT_STRIDE + 1;
-			attackActionTick = attackActionDuration;
+			attackActionArmSlot = encoded / ATTACK_EVENT_STRIDE;
 			attackActionLeft = (encoded & 1) != 0;
 			attackActionWeapon = (encoded & 2) != 0;
-			attackAnimationDuration = SlimeBionicAttackTiming.playbackTicks(attackActionDuration);
+			SurgicalAssembly assembly = getAssembly();
+			SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
+			SurgicalAssembly.ArmAttackGeometry arm = geometry == null ? null
+				: geometry.arm(attackActionLeft, attackActionArmSlot);
+			int attackInterval = SurgicalCombatCalibration.stats(arm).attackInterval();
+			attackActionDuration = SlimeBionicCombat.duration(attackInterval);
+			attackActionTick = attackActionDuration;
+			attackAnimationDuration = SlimeBionicAttackTiming.playbackTicks(attackInterval);
 			attackAnimationTick = attackAnimationDuration;
 			attackAnimationLeft = attackActionLeft;
+			attackAnimationArmSlot = attackActionArmSlot;
 			attackAnimationWeapon = attackActionWeapon;
 		} else
 			super.handleEntityEvent(id);
@@ -336,6 +357,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return attackActionLeft;
 	}
 
+	public int getAttackActionArmSlot() {
+		return attackActionArmSlot;
+	}
+
 	public int getAttackAnimationTick() {
 		return attackAnimationTick;
 	}
@@ -346,6 +371,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public boolean isAttackAnimationLeft() {
 		return attackAnimationLeft;
+	}
+
+	public int getAttackAnimationArmSlot() {
+		return attackAnimationArmSlot;
 	}
 
 	public boolean isAttackAnimationWeapon() {

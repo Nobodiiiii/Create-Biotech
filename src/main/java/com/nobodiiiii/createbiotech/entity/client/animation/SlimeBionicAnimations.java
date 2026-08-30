@@ -113,6 +113,63 @@ public final class SlimeBionicAnimations {
 		return sampleHumanoidLeg(context, knee, phaseOffset, weight);
 	}
 
+	/** Samples one of as many as eight independently phased shoulder/elbow chains. */
+	public static Rotation sampleArm(Context context, Rotation sampled, boolean elbow, boolean left,
+		int slot, float phaseOffset) {
+		if (context == null)
+			return Rotation.IDENTITY;
+		Rotation result = sampled == null ? Rotation.IDENTITY : sampled;
+		float phase = context.limbSwing() * WALK_PHASE_SCALE;
+		if (context.walkWeight() > 0.0f) {
+			if (elbow) {
+				float canonicalOffset = left ? Mth.PI : 0.0f;
+				float desiredOffset = phaseOffset + Mth.PI;
+				float canonicalDegrees = elbowDegrees(phase + canonicalOffset);
+				float desiredDegrees = elbowDegrees(phase + desiredOffset);
+				result = result.plus(Rotation.x((canonicalDegrees - desiredDegrees)
+					* Mth.DEG_TO_RAD * Mth.clamp(context.walkWeight(), 0.0f, 1.0f)));
+			} else {
+				float canonicalOffset = left ? 0.0f : Mth.PI;
+				float delta = (Mth.cos(phase + phaseOffset) - Mth.cos(phase + canonicalOffset))
+					* context.limbSwingAmount();
+				result = result.plus(Rotation.x(delta));
+			}
+		}
+
+		Rotation attack = armAttackRotation(context, elbow, left);
+		if (attack == null)
+			return result;
+		// The shared pose initially contains the attack channel. Retain it only on the selected arm,
+		// plus one balancing arm on the opposite side.
+		result = result.minus(attack);
+		boolean attackingSide = (context.attackArm() == Arm.LEFT) == left;
+		return attackingSide ? slot == context.attackArmSlot() ? result.plus(attack) : result
+			: slot == 0 ? result.plus(attack) : result;
+	}
+
+	private static float elbowDegrees(float phase) {
+		return Mth.lerp((1.0f - Mth.cos(phase)) * 0.5f,
+			MIN_WALK_ELBOW_DEGREES, MAX_WALK_ELBOW_DEGREES);
+	}
+
+	@Nullable
+	private static Rotation armAttackRotation(Context context, boolean elbow, boolean left) {
+		if (context.attackArm() == Arm.NONE || context.attackAnimationTick() <= 0)
+			return null;
+		float duration = Math.max(1.0f, context.attackAnimationDuration());
+		float remainingTicks = Mth.clamp(context.attackAnimationTick() - context.partialTick(),
+			0.0f, duration);
+		float progress = 1.0f - remainingTicks / duration;
+		SlimeBionicAttackAnimations.AttackPose attack = context.attackStyle() == AttackStyle.WEAPON
+			? SlimeBionicAttackAnimations.weaponSwing(progress)
+			: SlimeBionicAttackAnimations.emptyHandGolemSwing(progress);
+		boolean attackingSide = (context.attackArm() == Arm.LEFT) == left;
+		Rotation rotation = attackingSide
+			? elbow ? attack.attackingElbow() : attack.attackingShoulder()
+			: elbow ? attack.oppositeElbow() : attack.oppositeShoulder();
+		return context.attackArm() == Arm.LEFT ? rotation.mirrorLeft() : rotation;
+	}
+
 	/** Preserves the original pendulum-and-knee gait for downward, humanoid-like legs. */
 	private static Rotation sampleHumanoidLeg(Context context, boolean knee, float phaseOffset,
 		float weight) {
@@ -246,9 +303,10 @@ public final class SlimeBionicAnimations {
 		float walkWeight, float vanillaLimbSwing, float vanillaLimbSwingAmount, float ageInTicks,
 		float netHeadYaw, float headPitch, float attackTime, boolean riding, float swimAmount,
 		int attackAnimationTick, int attackAnimationDuration, float partialTick, Arm attackArm,
-		AttackStyle attackStyle) {
+		int attackArmSlot, AttackStyle attackStyle) {
 		public Context {
 			attackArm = attackArm == null ? Arm.NONE : attackArm;
+			attackArmSlot = Mth.clamp(attackArmSlot, 0, 7);
 			attackStyle = attackStyle == null ? AttackStyle.EMPTY_HAND : attackStyle;
 		}
 	}
@@ -275,6 +333,10 @@ public final class SlimeBionicAnimations {
 
 		private Rotation plus(Rotation other) {
 			return new Rotation(x + other.x, y + other.y, z + other.z);
+		}
+
+		private Rotation minus(Rotation other) {
+			return new Rotation(x - other.x, y - other.y, z - other.z);
 		}
 
 		/** Mirrors a right-arm rotation across the body's sagittal plane. */

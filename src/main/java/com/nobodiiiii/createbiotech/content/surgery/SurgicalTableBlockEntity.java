@@ -906,9 +906,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
 		// Only an effective first-level shoulder creates an arm. An unmatched elbow remains packed but
 		// does not contribute animation, combat geometry or body counts.
-		int installedArms = Math.min(2, installedShoulders);
-		int encodedArms = attackGeometry == null ? 0
-			: (attackGeometry.right() == null ? 0 : 1) + (attackGeometry.left() == null ? 0 : 1);
+		int installedArms = installedShoulders;
+		int encodedArms = attackGeometry == null ? 0 : attackGeometry.armCount();
 		if (encodedArms != installedArms)
 			return false;
 		assembly = assembly.withBodyBounds(bodyBounds);

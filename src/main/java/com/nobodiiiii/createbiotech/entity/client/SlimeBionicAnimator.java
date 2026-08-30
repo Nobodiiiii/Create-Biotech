@@ -83,7 +83,7 @@ public final class SlimeBionicAnimator {
 		return Map.copyOf(boxes);
 	}
 
-	/** Bakes immutable arm dimensions for both articulated and single-piece arms. */
+	/** Bakes immutable dimensions for every articulated or single-piece arm. */
 	@Nullable
 	public static SurgicalAssembly.AttackGeometry bakeAttackGeometry(SurgicalAssembly assembly,
 		List<SourceState> sources, Vec3 bodyOrigin) {
@@ -93,27 +93,38 @@ public final class SlimeBionicAnimator {
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
 		if (limbs.isEmpty())
 			return null;
-		SurgicalAssembly.ArmAttackGeometry right = bakeArm(limbs, sources, bodyOrigin,
-			Bone.RIGHT_SHOULDER, Bone.RIGHT_ELBOW);
-		SurgicalAssembly.ArmAttackGeometry left = bakeArm(limbs, sources, bodyOrigin,
-			Bone.LEFT_SHOULDER, Bone.LEFT_ELBOW);
+		List<SurgicalAssembly.ArmAttackGeometry> right = new ArrayList<>();
+		List<SurgicalAssembly.ArmAttackGeometry> left = new ArrayList<>();
+		List<Integer> shoulders = new ArrayList<>();
+		for (int index = 0; index < limbs.size(); index++)
+			if (limbs.get(index).type() == SurgicalLimbType.SHOULDER
+				&& limbs.get(index).arm() != null)
+				shoulders.add(index);
+		shoulders.sort(java.util.Comparator
+			.comparing((Integer index) -> limbs.get(index).arm().left())
+			.thenComparingInt(index -> limbs.get(index).arm().slot()));
+		for (int shoulderIndex : shoulders) {
+			ResolvedLimb shoulder = limbs.get(shoulderIndex);
+			int elbowIndex = -1;
+			for (int candidate = 0; candidate < limbs.size(); candidate++)
+				if (limbs.get(candidate).type() == SurgicalLimbType.ELBOW
+					&& limbs.get(candidate).parentIndex() == shoulderIndex) {
+					elbowIndex = candidate;
+					break;
+				}
+			SurgicalAssembly.ArmAttackGeometry arm = bakeArm(limbs, sources, bodyOrigin,
+				shoulderIndex, elbowIndex);
+			if (arm == null)
+				continue;
+			(shoulder.arm().left() ? left : right).add(arm);
+		}
 		return SurgicalAssembly.AttackGeometry.create(right, left);
 	}
 
 	@Nullable
 	private static SurgicalAssembly.ArmAttackGeometry bakeArm(List<ResolvedLimb> limbs,
-		List<SourceState> sources, Vec3 bodyOrigin, Bone shoulderBone, Bone elbowBone) {
-		int shoulderIndex = -1;
-		int elbowIndex = -1;
-		for (int index = 0; index < limbs.size(); index++) {
-			if (limbs.get(index).type() == SurgicalLimbType.SHOULDER
-				&& limbs.get(index).bone() == shoulderBone)
-				shoulderIndex = index;
-			if (limbs.get(index).type() == SurgicalLimbType.ELBOW
-				&& limbs.get(index).bone() == elbowBone)
-				elbowIndex = index;
-		}
-		if (shoulderIndex < 0 && elbowIndex < 0)
+		List<SourceState> sources, Vec3 bodyOrigin, int shoulderIndex, int elbowIndex) {
+		if (shoulderIndex < 0)
 			return null;
 		ResolvedLimb distal = limbs.get(elbowIndex >= 0 ? elbowIndex : shoulderIndex);
 		TipGeometry tip = distalTip(distal, sources);
@@ -471,7 +482,7 @@ public final class SlimeBionicAnimator {
 				restDirection,
 				BODY_SPACE.project(geometry.child().center(), AXIS_X) - bodyCenterX,
 				BODY_SPACE.project(geometry.child().center(), AXIS_Z),
-				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1, null));
+				BODY_SPACE.restAlignment(geometry.type(), restDirection), null, -1, null, null));
 		}
 		return assignLegGaits(linkHierarchy(assignBones(resolved)));
 	}
@@ -492,7 +503,7 @@ public final class SlimeBionicAnimator {
 		return null;
 	}
 
-	/** Assigns stable left/right animation channels independently at every anatomical level. */
+	/** Assigns every arm to a stable left/right animation channel from its resting position. */
 	private static List<ResolvedLimb> assignBones(List<ResolvedLimb> limbs) {
 		List<ResolvedLimb> assigned = new ArrayList<>(limbs);
 		Map<SurgicalLimbType, List<Integer>> byType = new EnumMap<>(SurgicalLimbType.class);
@@ -500,7 +511,8 @@ public final class SlimeBionicAnimator {
 			byType.computeIfAbsent(limbs.get(index).type(), ignored -> new ArrayList<>()).add(index);
 		byType.forEach((type, indices) -> {
 			indices.sort((first, second) -> Double.compare(limbs.get(first).side(), limbs.get(second).side()));
-			if (type == SurgicalLimbType.HIP || type == SurgicalLimbType.KNEE)
+			if (type == SurgicalLimbType.HIP || type == SurgicalLimbType.KNEE
+				|| type == SurgicalLimbType.ELBOW)
 				return;
 			if (type == SurgicalLimbType.NECK) {
 				if (!indices.isEmpty()) {
@@ -509,17 +521,40 @@ public final class SlimeBionicAnimator {
 				}
 				return;
 			}
-			if (indices.size() == 1) {
-				int index = indices.getFirst();
-				assigned.set(index, assigned.get(index).withBone(bone(type, limbs.get(index).side() > 0.0d)));
-				return;
+			List<Integer> right = new ArrayList<>();
+			List<Integer> left = new ArrayList<>();
+			List<Integer> centre = new ArrayList<>();
+			for (int index : indices) {
+				double side = limbs.get(index).side();
+				if (side < -GEOMETRY_EPSILON)
+					right.add(index);
+				else if (side > GEOMETRY_EPSILON)
+					left.add(index);
+				else
+					centre.add(index);
 			}
-			for (int slot = 0; slot < indices.size() && slot < 2; slot++) {
-				int index = indices.get(slot);
-				assigned.set(index, assigned.get(index).withBone(bone(type, slot == 1)));
-			}
+			for (int index : centre)
+				(right.size() <= left.size() ? right : left).add(index);
+			java.util.Comparator<Integer> frontToBack = java.util.Comparator
+				.comparingDouble((Integer index) -> limbs.get(index).longitudinal())
+				.thenComparingDouble(index -> limbs.get(index).side())
+				.thenComparingInt(Integer::intValue);
+			right.sort(frontToBack);
+			left.sort(frontToBack);
+			assignArmSide(assigned, type, right, false);
+			assignArmSide(assigned, type, left, true);
 		});
 		return List.copyOf(assigned);
+	}
+
+	private static void assignArmSide(List<ResolvedLimb> assigned, SurgicalLimbType type,
+		List<Integer> indices, boolean left) {
+		for (int slot = 0; slot < indices.size(); slot++) {
+			int index = indices.get(slot);
+			float phase = ((slot + (left ? 0 : 1)) & 1) * Mth.PI;
+			assigned.set(index, assigned.get(index).withBone(bone(type, left))
+				.withArm(new ArmChannel(left, slot, phase)));
+		}
 	}
 
 	@Nullable
@@ -552,6 +587,7 @@ public final class SlimeBionicAnimator {
 				ResolvedLimb candidate = limbs.get(candidateIndex);
 				if (candidate.type() == parentType && candidate.members().contains(limb.parent())) {
 					linked.set(index, limb.withBone(childBone(limb.type(), candidate.bone()))
+						.withArm(candidate.arm())
 						.withParent(candidateIndex));
 					break;
 				}
@@ -739,16 +775,16 @@ public final class SlimeBionicAnimator {
 		return rowCount <= 1 ? 0.0f : Mth.TWO_PI * row / rowCount;
 	}
 
-	/** Uses the preferred articulated arm, falling back to the only installed elbow if necessary. */
+	/** Uses the preferred arm side, falling back when the body has arms only on the other side. */
 	private static Arm attackArm(List<ResolvedLimb> limbs, Arm preferred) {
 		boolean right = false;
 		boolean left = false;
 		for (ResolvedLimb limb : limbs) {
-			if (limb.type() != SurgicalLimbType.ELBOW)
+			if (limb.type() != SurgicalLimbType.SHOULDER)
 				continue;
-			if (limb.bone() == Bone.RIGHT_ELBOW)
+			if (limb.bone() == Bone.RIGHT_SHOULDER)
 				right = true;
-			if (limb.bone() == Bone.LEFT_ELBOW)
+			if (limb.bone() == Bone.LEFT_SHOULDER)
 				left = true;
 		}
 		if ((preferred == Arm.LEFT && left) || (preferred == Arm.RIGHT && right))
@@ -767,10 +803,13 @@ public final class SlimeBionicAnimator {
 		Transform parent = limb.parentIndex() < 0
 			? inheritsBodyRotation(limb) ? bodyTransform : Transform.IDENTITY
 			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform, cache, resolving);
-		Rotation sampled = limb.gait() == null ? pose.rotation(limb.bone())
-			: SlimeBionicAnimations.sampleLeg(context,
+		Rotation sampled = limb.gait() != null ? SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
-				limb.gait().left(), limb.gait().phase());
+				limb.gait().left(), limb.gait().phase())
+			: limb.arm() != null ? SlimeBionicAnimations.sampleArm(context,
+				pose.rotation(limb.bone()), limb.type() == SurgicalLimbType.ELBOW,
+				limb.arm().left(), limb.arm().slot(), limb.arm().phase())
+			: pose.rotation(limb.bone());
 		SurgicalCubeRotation local = limb.gait() != null
 			&& limb.gait().style() == LegStyle.SPIDER && limb.type() == SurgicalLimbType.HIP
 				? BODY_SPACE.spiderReframe(limb.restDirection(), limb.gait().left(),
@@ -1017,7 +1056,7 @@ public final class SlimeBionicAnimator {
 			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
 			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
-			attackArm, attackStyle);
+			attackArm, entity.getAttackAnimationArmSlot(), attackStyle);
 	}
 
 	private record Member(int source, int cube) {}
@@ -1025,25 +1064,32 @@ public final class SlimeBionicAnimator {
 	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member parent,
 		CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
+	private record ArmChannel(boolean left, int slot, float phase) {}
 	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
 
 	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member parent,
 		Vec3 pivot, Vec3 restDirection, double side, double longitudinal,
 		SurgicalCubeRotation restAlignment,
-		@Nullable Bone bone, int parentIndex, @Nullable GaitChannel gait) {
+		@Nullable Bone bone, int parentIndex, @Nullable ArmChannel arm,
+		@Nullable GaitChannel gait) {
 		private ResolvedLimb withBone(@Nullable Bone bone) {
 			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
-				restAlignment, bone, parentIndex, gait);
+				restAlignment, bone, parentIndex, arm, gait);
 		}
 
 		private ResolvedLimb withParent(int parentIndex) {
 			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
-				restAlignment, bone, parentIndex, gait);
+				restAlignment, bone, parentIndex, arm, gait);
+		}
+
+		private ResolvedLimb withArm(@Nullable ArmChannel arm) {
+			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+				restAlignment, bone, parentIndex, arm, gait);
 		}
 
 		private ResolvedLimb withGait(GaitChannel gait) {
 			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
-				restAlignment, bone, parentIndex, gait);
+				restAlignment, bone, parentIndex, arm, gait);
 		}
 	}
 

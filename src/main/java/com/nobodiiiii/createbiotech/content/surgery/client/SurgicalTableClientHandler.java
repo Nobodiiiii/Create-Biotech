@@ -4121,9 +4121,8 @@ public final class SurgicalTableClientHandler {
 			SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), bodyOrigin);
 		int installedShoulders = (int) preview.effectiveLimbs().stream()
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		int installedArms = Math.min(2, installedShoulders);
-		int bakedArms = attackGeometry == null ? 0
-			: (attackGeometry.right() == null ? 0 : 1) + (attackGeometry.left() == null ? 0 : 1);
+		int installedArms = installedShoulders;
+		int bakedArms = attackGeometry == null ? 0 : attackGeometry.armCount();
 		if (bakedArms != installedArms)
 			return null;
 		return new PackedBodyMetrics(bodyBounds, attackGeometry);

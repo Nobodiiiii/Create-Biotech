@@ -6,14 +6,14 @@ import org.jetbrains.annotations.Nullable;
  * The anatomical joints a surgical body can carry.
  *
  * <p>Each joint pins one cube group to another and declares how many of its kind one body may
- * own. Arms remain paired, while the procedural gait accepts as many as eight hip/knee chains.</p>
+ * own. Both arms and legs accept as many as eight two-joint chains.</p>
  */
 public enum SurgicalLimbType {
 	NECK("neck", 1),
-	SHOULDER("shoulder", 2),
+	SHOULDER("shoulder", 8),
 	HIP("hip", 8),
 	// Keep new values after the original three so their network ordinals remain stable.
-	ELBOW("elbow", 2),
+	ELBOW("elbow", 8),
 	KNEE("knee", 8);
 
 	private final String id;
