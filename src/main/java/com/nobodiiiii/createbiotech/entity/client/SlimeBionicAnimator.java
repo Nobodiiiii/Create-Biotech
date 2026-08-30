@@ -780,6 +780,29 @@ public final class SlimeBionicAnimator {
 		return measureMobility(resolveLimbs(assembly, sources), sources);
 	}
 
+	/** Y centre of the same neck-driven group assigned to the visible head animation. */
+	public static double primaryHeadCenterY(SurgicalAssembly assembly, List<SourceState> sources) {
+		if (assembly == null || sources == null || sources.size() != assembly.sources().size())
+			return Double.NaN;
+		for (ResolvedLimb limb : resolveLimbs(assembly, sources))
+			if (limb.bone() == Bone.HEAD) {
+				double minY = Double.POSITIVE_INFINITY;
+				double maxY = Double.NEGATIVE_INFINITY;
+				for (Member member : limb.members()) {
+					CubeBox box = box(sources, member);
+					if (box == null)
+						continue;
+					for (Vec3 point : box.points()) {
+						minY = Math.min(minY, point.y);
+						maxY = Math.max(maxY, point.y);
+					}
+				}
+				return Double.isFinite(minY) && Double.isFinite(maxY)
+					? (minY + maxY) * 0.5d : Double.NaN;
+			}
+		return Double.NaN;
+	}
+
 	private static MobilityMetrics measureMobility(List<ResolvedLimb> limbs,
 		List<SourceState> sources) {
 		Set<Integer> groundedHips = groundedHipIndices(limbs, sources);

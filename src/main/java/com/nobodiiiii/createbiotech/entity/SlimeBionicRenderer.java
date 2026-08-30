@@ -280,6 +280,9 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ());
 		SurgicalAssembly.BodyBounds bodyBounds = SurgicalBodyBounds.measure(bodyCubes, allCubes, visible);
 		if (bodyBounds != null) {
+			double headCenterY = SlimeBionicAnimator.primaryHeadCenterY(assembly, sources);
+			if (Double.isFinite(headCenterY))
+				bodyBounds = bodyBounds.withEyeHeight(Math.max(0.0d, headCenterY - bounds.minY()));
 			SlimeBionicAnimator.MobilityMetrics mobility =
 				SlimeBionicAnimator.measureMobility(assembly, sources);
 			bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),

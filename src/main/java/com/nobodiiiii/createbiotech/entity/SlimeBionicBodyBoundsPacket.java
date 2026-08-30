@@ -24,6 +24,7 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 		buffer.writeFloat(bounds.centerX());
 		buffer.writeFloat(bounds.minY());
 		buffer.writeFloat(bounds.centerZ());
+		buffer.writeFloat(bounds.eyeHeight());
 		buffer.writeFloat(bounds.legLength());
 		buffer.writeVarInt(bounds.groundedLegCount());
 		buffer.writeVarInt(bounds.groundedKneeCount());
@@ -49,7 +50,7 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 	private static SurgicalAssembly.BodyBounds readBounds(FriendlyByteBuf buffer) {
 		SurgicalAssembly.BodyBounds bounds = SurgicalAssembly.BodyBounds.create(
 			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readVarInt(),
+			buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat(), buffer.readVarInt(),
 			buffer.readVarInt(), buffer.readFloat());
 		if (bounds == null)
 			throw new IllegalArgumentException("Invalid bionic body bounds");

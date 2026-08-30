@@ -282,8 +282,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		// lateral width. Their fore-aft model depth is deliberately not promoted to collision width.
 		float width = Math.min(bounds.width(), MAX_COLLISION_WIDTH);
 		float height = Math.min(bounds.minY() + bounds.height(), MAX_COLLISION_HEIGHT);
-		float eyeHeight = Mth.clamp(bounds.minY() + bounds.height() * 0.85f, 0.0f, height);
-		return EntityDimensions.fixed(width, height).withEyeHeight(eyeHeight);
+		return EntityDimensions.fixed(width, height).withEyeHeight(bounds.eyeHeight());
 	}
 
 	@Nullable

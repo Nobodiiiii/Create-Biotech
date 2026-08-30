@@ -29,7 +29,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 19;
+	private static final int CURRENT_VERSION = 20;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -59,6 +59,7 @@ public final class SurgicalAssembly {
 	private static final String BODY_CENTER_X_TAG = "BodyCenterX";
 	private static final String BODY_MIN_Y_TAG = "BodyMinY";
 	private static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
+	private static final String BODY_EYE_HEIGHT_TAG = "BodyEyeHeight";
 	private static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
 	private static final String BODY_GROUNDED_LEGS_TAG = "BodyGroundedLegCount";
 	private static final String BODY_GROUNDED_KNEES_TAG = "BodyGroundedKneeCount";
@@ -364,6 +365,9 @@ public final class SurgicalAssembly {
 				tag.getDouble(BODY_HEIGHT_TAG), tag.getDouble(BODY_DEPTH_TAG),
 				tag.getDouble(BODY_CENTER_X_TAG), tag.getDouble(BODY_MIN_Y_TAG),
 				tag.getDouble(BODY_CENTER_Z_TAG),
+				version >= 20 && tag.contains(BODY_EYE_HEIGHT_TAG, Tag.TAG_ANY_NUMERIC)
+					? tag.getDouble(BODY_EYE_HEIGHT_TAG)
+					: tag.getDouble(BODY_MIN_Y_TAG) + tag.getDouble(BODY_HEIGHT_TAG) * 0.85d,
 				version >= 12 && tag.contains(BODY_LEG_LENGTH_TAG, Tag.TAG_ANY_NUMERIC)
 					? tag.getDouble(BODY_LEG_LENGTH_TAG) : 0.0d,
 				version >= 19 ? tag.getInt(BODY_GROUNDED_LEGS_TAG) : 0,
@@ -477,6 +481,7 @@ public final class SurgicalAssembly {
 			tag.putFloat(BODY_CENTER_X_TAG, bodyBounds.centerX());
 			tag.putFloat(BODY_MIN_Y_TAG, bodyBounds.minY());
 			tag.putFloat(BODY_CENTER_Z_TAG, bodyBounds.centerZ());
+			tag.putFloat(BODY_EYE_HEIGHT_TAG, bodyBounds.eyeHeight());
 			tag.putFloat(BODY_LEG_LENGTH_TAG, bodyBounds.legLength());
 			tag.putInt(BODY_GROUNDED_LEGS_TAG, bodyBounds.groundedLegCount());
 			tag.putInt(BODY_GROUNDED_KNEES_TAG, bodyBounds.groundedKneeCount());
@@ -1190,14 +1195,14 @@ public final class SurgicalAssembly {
 		}
 	}
 
-	/** Volume-weighted collision core plus rest-pose measurements used by ground locomotion. */
+	/** Volume-weighted collision core plus rest-pose eye and ground-locomotion measurements. */
 	public record BodyBounds(float width, float height, float depth,
-		float centerX, float minY, float centerZ, float legLength,
+		float centerX, float minY, float centerZ, float eyeHeight, float legLength,
 		int groundedLegCount, int groundedKneeCount, float legVolumeRatio) {
 		public BodyBounds {
 			if (!validSize(width) || !validSize(height) || !validSize(depth)
 				|| !validOffset(centerX) || !validVerticalOffset(minY) || !validOffset(centerZ)
-				|| !validLegLength(legLength) || !validMobility(groundedLegCount,
+				|| !validEyeHeight(eyeHeight) || !validLegLength(legLength) || !validMobility(groundedLegCount,
 					groundedKneeCount, legVolumeRatio))
 				throw new IllegalArgumentException("Invalid surgical body bounds");
 		}
@@ -1223,22 +1228,37 @@ public final class SurgicalAssembly {
 		public static BodyBounds create(double width, double height, double depth,
 			double centerX, double minY, double centerZ, double legLength,
 			int groundedLegCount, int groundedKneeCount, double legVolumeRatio) {
+			return create(width, height, depth, centerX, minY, centerZ,
+				minY + height * 0.85d, legLength, groundedLegCount, groundedKneeCount, legVolumeRatio);
+		}
+
+		@Nullable
+		public static BodyBounds create(double width, double height, double depth,
+			double centerX, double minY, double centerZ, double eyeHeight, double legLength,
+			int groundedLegCount, int groundedKneeCount, double legVolumeRatio) {
 			if (!validSize(width) || !validSize(height) || !validSize(depth))
 				return null;
 			if (!validOffset(centerX) || !validVerticalOffset(minY) || !validOffset(centerZ)
-				|| !validLegLength(legLength)
+				|| !validEyeHeight(eyeHeight) || !validLegLength(legLength)
 				|| !validMobility(groundedLegCount, groundedKneeCount, legVolumeRatio))
 				return null;
 			return new BodyBounds((float) width, (float) height, (float) depth,
-				(float) centerX, (float) minY, (float) centerZ, (float) legLength,
+				(float) centerX, (float) minY, (float) centerZ, (float) eyeHeight, (float) legLength,
 				groundedLegCount, groundedKneeCount, (float) legVolumeRatio);
+		}
+
+		public BodyBounds withEyeHeight(double measuredEyeHeight) {
+			if (!validEyeHeight(measuredEyeHeight))
+				throw new IllegalArgumentException("Invalid surgical eye height");
+			return new BodyBounds(width, height, depth, centerX, minY, centerZ,
+				(float) measuredEyeHeight, legLength, groundedLegCount, groundedKneeCount, legVolumeRatio);
 		}
 
 		public BodyBounds withLegLength(double measuredLegLength) {
 			if (!validLegLength(measuredLegLength))
 				throw new IllegalArgumentException("Invalid surgical leg length");
 			return new BodyBounds(width, height, depth, centerX, minY, centerZ,
-				(float) measuredLegLength, groundedLegCount, groundedKneeCount, legVolumeRatio);
+				eyeHeight, (float) measuredLegLength, groundedLegCount, groundedKneeCount, legVolumeRatio);
 		}
 
 		public BodyBounds withMobility(double measuredLegLength, int measuredGroundedLegs,
@@ -1247,7 +1267,7 @@ public final class SurgicalAssembly {
 				|| !validMobility(measuredGroundedLegs, measuredGroundedKnees, measuredLegVolumeRatio))
 				throw new IllegalArgumentException("Invalid surgical mobility measurements");
 			return new BodyBounds(width, height, depth, centerX, minY, centerZ,
-				(float) measuredLegLength, measuredGroundedLegs, measuredGroundedKnees,
+				eyeHeight, (float) measuredLegLength, measuredGroundedLegs, measuredGroundedKnees,
 				(float) measuredLegVolumeRatio);
 		}
 
@@ -1260,6 +1280,10 @@ public final class SurgicalAssembly {
 		}
 
 		private static boolean validVerticalOffset(double value) {
+			return Double.isFinite(value) && value >= 0.0d && value <= MAX_BODY_SIZE;
+		}
+
+		private static boolean validEyeHeight(double value) {
 			return Double.isFinite(value) && value >= 0.0d && value <= MAX_BODY_SIZE;
 		}
 
