@@ -273,7 +273,7 @@ public final class SlimeBionicAnimator {
 		Rotation bodyPose = pose.rotation(Bone.BODY);
 		SurgicalCubeRotation bodyRotation = BODY_SPACE.reframe(SurgicalCubeRotation.IDENTITY,
 			bodyPose.z(), bodyPose.y(), bodyPose.x());
-		Transform bodyTransform = Transform.IDENTITY.rotateAround(bodyPivot(sources), bodyRotation);
+		Transform bodyTransform = Transform.IDENTITY.rotateAround(bodyPivot(limbs, sources), bodyRotation);
 		if (!bodyTransform.isIdentity()) {
 			Set<Member> legMembers = legMembers(limbs);
 			for (int source = 0; source < sources.size(); source++)
@@ -953,7 +953,24 @@ public final class SlimeBionicAnimator {
 		return Double.isFinite(min) && Double.isFinite(max) ? (min + max) * 0.5d : 0.0d;
 	}
 
-	private static Vec3 bodyPivot(List<SourceState> sources) {
+	/**
+	 * Uses the centre of the installed hip hinges as the torso rotation point.
+	 *
+	 * <p>Both Deepling Brute and Ender Golem place their torso root at the midpoint between the leg
+	 * roots. The complete model-bounds centre is higher on an ordinary humanoid because it includes
+	 * the head and legs; rotating around that point pulls the torso away from the planted hip groups.
+	 * Bodies without hips retain the bounds-centre fallback because they have no anatomical waist.</p>
+	 */
+	private static Vec3 bodyPivot(List<ResolvedLimb> limbs, List<SourceState> sources) {
+		Vec3 hipSum = Vec3.ZERO;
+		int hipCount = 0;
+		for (ResolvedLimb limb : limbs)
+			if (limb.type() == SurgicalLimbType.HIP) {
+				hipSum = hipSum.add(limb.pivot());
+				hipCount++;
+			}
+		if (hipCount > 0)
+			return hipSum.scale(1.0d / hipCount);
 		return BODY_SPACE.point(bodyCenter(sources, AXIS_X), bodyCenter(sources, AXIS_Y),
 			bodyCenter(sources, AXIS_Z));
 	}
