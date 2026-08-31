@@ -35,7 +35,7 @@
     },
     {
       "predicate": { "create_biotech:surgical_tool": 8.5 },
-      "model": "create_biotech:item/large_cardboard_box_captured"
+      "model": "create_biotech:item/surgical_kit_large_cardboard_box_captured"
     }
   ]
 }

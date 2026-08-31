@@ -105,7 +105,7 @@
   "item.create_biotech.surgical_table.tooltip.condition5": "When used with a Honey Bottle",
   "item.create_biotech.surgical_table.tooltip.behaviour5": "Fuses the entire hit _Connected Component_ into one combination",
   "message.create_biotech.surgical_table.no_space": "The surgical table does not have enough space",
-  "message.create_biotech.surgical_table.invalid_capture": "The creature data in this box cannot be read",
+  "message.create_biotech.surgical_table.invalid_capture": "The box contents are no longer valid",
   "message.create_biotech.surgical_table.unsupported_subject": "Only Mimic Creatures can be placed on a surgical table",
   "message.create_biotech.surgical_table.invalid_assembly": "The Mimic Creature in this box has no valid assembly data",
   "message.create_biotech.surgical_table.model_unavailable": "A dissectible model could not be obtained for this creature",

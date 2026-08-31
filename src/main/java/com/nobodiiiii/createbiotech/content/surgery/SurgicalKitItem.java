@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitTemporaryBoxItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
@@ -34,6 +36,9 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
+import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 /**
  * A durable, surgical-table-only proxy for every tool or consumable used while editing a subject.
@@ -46,6 +51,8 @@ public class SurgicalKitItem extends Item {
 	private static final String TEMPORARY_MOVE_TAG = "SurgicalKitTemporaryMove";
 	private static final String MOVE_DIMENSION_TAG = "Dimension";
 	private static final String MOVE_TABLE_POS_TAG = "TablePos";
+	private static final String MOVE_ANCHOR_SUBJECT_TAG = "AnchorSubject";
+	private static final String MOVE_ANCHOR_CUBE_TAG = "AnchorCube";
 	private static final String MOVE_COMPONENTS_TAG = "Components";
 	private static final String MOVE_SUBJECT_TAG = "Subject";
 	private static final String MOVE_CUBES_TAG = "Cubes";
@@ -55,6 +62,20 @@ public class SurgicalKitItem extends Item {
 
 	public SurgicalKitItem(Properties properties) {
 		super(properties);
+	}
+
+	@Override
+	@OnlyIn(Dist.CLIENT)
+	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
+		consumer.accept(new IClientItemExtensions() {
+			private final SurgicalKitTemporaryBoxItemRenderer renderer =
+				new SurgicalKitTemporaryBoxItemRenderer();
+
+			@Override
+			public SurgicalKitTemporaryBoxItemRenderer getCustomRenderer() {
+				return renderer;
+			}
+		});
 	}
 
 	@Override
@@ -204,6 +225,8 @@ public class SurgicalKitItem extends Item {
 		CompoundTag encoded = root.getCompound(TEMPORARY_MOVE_TAG);
 		ResourceLocation dimension = ResourceLocation.tryParse(encoded.getString(MOVE_DIMENSION_TAG));
 		if (dimension == null || !encoded.contains(MOVE_TABLE_POS_TAG, Tag.TAG_LONG)
+			|| !encoded.hasUUID(MOVE_ANCHOR_SUBJECT_TAG)
+			|| !encoded.contains(MOVE_ANCHOR_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !encoded.contains(MOVE_COMPONENTS_TAG, Tag.TAG_LIST)
 			|| !encoded.contains(MOVE_ASSEMBLY_TAG, Tag.TAG_COMPOUND))
 			return null;
@@ -224,20 +247,30 @@ public class SurgicalKitItem extends Item {
 				|| sourceSubjects.putIfAbsent(subject, component.getCompound(MOVE_SUBJECT_STATE_TAG)) != null)
 				return null;
 		}
-		return new TemporaryMove(dimension, BlockPos.of(encoded.getLong(MOVE_TABLE_POS_TAG)), components,
-			sourceSubjects, encoded.getCompound(MOVE_ASSEMBLY_TAG));
+		UUID anchorSubject = encoded.getUUID(MOVE_ANCHOR_SUBJECT_TAG);
+		int anchorCube = encoded.getInt(MOVE_ANCHOR_CUBE_TAG);
+		BitSet anchorComponent = components.get(anchorSubject);
+		if (anchorComponent == null || anchorCube < 0 || !anchorComponent.get(anchorCube))
+			return null;
+		return new TemporaryMove(dimension, BlockPos.of(encoded.getLong(MOVE_TABLE_POS_TAG)),
+			anchorSubject, anchorCube, components, sourceSubjects, encoded.getCompound(MOVE_ASSEMBLY_TAG));
 	}
 
 	public static void setTemporaryMove(ItemStack stack, ResourceLocation dimension, BlockPos tablePos,
-		Map<UUID, BitSet> components, Map<UUID, CompoundTag> sourceSubjects, CompoundTag sourceAssembly) {
+		UUID anchorSubject, int anchorCube, Map<UUID, BitSet> components,
+		Map<UUID, CompoundTag> sourceSubjects, CompoundTag sourceAssembly) {
 		if (!isTemporaryBox(stack) || dimension == null || tablePos == null || components == null
 			|| components.isEmpty() || sourceSubjects == null
 			|| !sourceSubjects.keySet().equals(components.keySet())
+			|| anchorSubject == null || anchorCube < 0
+			|| !components.containsKey(anchorSubject) || !components.get(anchorSubject).get(anchorCube)
 			|| sourceAssembly == null || sourceAssembly.isEmpty())
 			return;
 		CompoundTag encoded = new CompoundTag();
 		encoded.putString(MOVE_DIMENSION_TAG, dimension.toString());
 		encoded.putLong(MOVE_TABLE_POS_TAG, tablePos.asLong());
+		encoded.putUUID(MOVE_ANCHOR_SUBJECT_TAG, anchorSubject);
+		encoded.putInt(MOVE_ANCHOR_CUBE_TAG, anchorCube);
 		ListTag encodedComponents = new ListTag();
 		components.forEach((subject, cubes) -> {
 			CompoundTag sourceState = sourceSubjects.get(subject);
@@ -314,6 +347,7 @@ public class SurgicalKitItem extends Item {
 	}
 
 	public record TemporaryMove(ResourceLocation dimension, BlockPos tablePos,
+		UUID anchorSubject, int anchorCube,
 		Map<UUID, BitSet> components, Map<UUID, CompoundTag> sourceSubjects,
 		CompoundTag sourceAssembly) {
 		public TemporaryMove {

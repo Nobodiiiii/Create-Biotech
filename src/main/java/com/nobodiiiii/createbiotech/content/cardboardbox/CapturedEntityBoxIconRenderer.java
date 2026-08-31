@@ -56,33 +56,46 @@ public final class CapturedEntityBoxIconRenderer {
 
 	static void renderOnEntity(ItemStack stack, boolean captured, float yaw,
 		PoseStack poseStack, MultiBufferSource buffer, int light) {
-		render(stack, captured, poseStack, buffer, light, yaw,
+		render(stack, captured, stack.is(CBItems.LARGE_CARDBOARD_BOX.get()), poseStack, buffer, light, yaw,
 			CapturedEntityRenderManager.RequestPriority.WORLD, false);
 	}
 
 	public static void renderOnItem(ItemStack stack, ItemDisplayContext displayContext, PoseStack poseStack,
 		MultiBufferSource buffer, int light) {
-		renderOnItem(stack, CapturedEntityBoxHelper.hasCapturedEntity(stack), displayContext, poseStack,
-			buffer, light);
+		renderOnItem(stack, CapturedEntityBoxHelper.hasCapturedEntity(stack),
+			stack.is(CBItems.LARGE_CARDBOARD_BOX.get()), displayContext, poseStack, buffer, light);
 	}
 
 	static void renderOnItem(ItemStack stack, boolean captured,
 		ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource buffer, int light) {
+		renderOnItem(stack, captured, stack.is(CBItems.LARGE_CARDBOARD_BOX.get()), displayContext,
+			poseStack, buffer, light);
+	}
+
+	/** Renders captured contents on an item that uses the large-box model but is not the box item itself. */
+	public static void renderOnLargeItem(ItemStack stack, ItemDisplayContext displayContext,
+		PoseStack poseStack, MultiBufferSource buffer, int light) {
+		renderOnItem(stack, CapturedEntityBoxHelper.hasCapturedEntity(stack), true, displayContext,
+			poseStack, buffer, light);
+	}
+
+	private static void renderOnItem(ItemStack stack, boolean captured, boolean largeBox,
+		ItemDisplayContext displayContext, PoseStack poseStack, MultiBufferSource buffer, int light) {
 		poseStack.pushPose();
 		poseStack.translate(0.0f, -0.5f, 0.0f);
-		render(stack, captured, poseStack, buffer, light, -90.0f,
+		render(stack, captured, largeBox, poseStack, buffer, light, -90.0f,
 			CapturedEntityRenderManager.RequestPriority.forDisplayContext(displayContext),
 			displayContext == ItemDisplayContext.GUI);
 		poseStack.popPose();
 	}
 
-	private static void render(ItemStack stack, boolean captured,
+	private static void render(ItemStack stack, boolean captured, boolean largeBox,
 		PoseStack poseStack, MultiBufferSource buffer, int light, float yaw,
 		CapturedEntityRenderManager.RequestPriority priority, boolean orthographicView) {
 		if (!captured || !CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get())
 			return;
 
-		FaceBounds face = FaceBounds.of(stack);
+		FaceBounds face = FaceBounds.forFace(largeBox);
 
 		BlockEntityModelElement.builder()
 			.atLocal(-0.5f, 0.0f, -0.5f)

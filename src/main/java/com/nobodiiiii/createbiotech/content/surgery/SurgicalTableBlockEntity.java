@@ -557,8 +557,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (sourceTable == null)
 			return null;
 		Map<UUID, BitSet> components = move.components();
-		SurgicalSubject anchor = null;
-		int anchorCube = -1;
+		SurgicalSubject anchor = sourceTable.getSubjectByPersistentId(move.anchorSubject());
+		int anchorCube = move.anchorCube();
+		BitSet storedAnchorComponent = components.get(move.anchorSubject());
+		if (anchor == null || storedAnchorComponent == null || !storedAnchorComponent.get(anchorCube)
+			|| !anchor.validPresentCube(anchorCube))
+			return null;
 		for (Map.Entry<UUID, BitSet> entry : components.entrySet()) {
 			SurgicalSubject candidate = sourceTable.getSubjectByPersistentId(entry.getKey());
 			int firstCube = entry.getValue().nextSetBit(0);
@@ -566,13 +570,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			if (candidate == null || sourceState == null || !candidate.save().equals(sourceState)
 				|| firstCube < 0 || !candidate.validPresentCube(firstCube))
 				return null;
-			if (anchor == null) {
-				anchor = candidate;
-				anchorCube = firstCube;
-			}
 		}
-		if (anchor == null)
-			return null;
 		ComponentGroup group = sourceTable.connectedGroup(anchor, anchorCube);
 		if (!group.components.equals(components))
 			return null;
@@ -1163,7 +1161,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
 			return false;
 		SurgicalKitItem.setTemporaryMove(kit, level.dimension().location(), worldPosition,
-			group.components, sourceSubjects, sourceAssembly.save());
+			subject.persistentId(), cubeId, group.components, sourceSubjects, sourceAssembly.save());
 		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
 	}
