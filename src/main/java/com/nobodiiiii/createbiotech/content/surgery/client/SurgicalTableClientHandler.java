@@ -5199,7 +5199,7 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isEmptyBox(ItemStack stack) {
-		return CapturedEntityBoxItem.isBox(stack) && !CapturedEntityBoxItem.hasCapturedEntity(stack)
+		return isEmptyLargeBox(stack)
 			|| SurgicalKitItem.isEmptyTemporaryBox(stack);
 	}
 

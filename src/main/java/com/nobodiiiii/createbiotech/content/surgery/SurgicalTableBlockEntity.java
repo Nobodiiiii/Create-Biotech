@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
+import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
@@ -1036,7 +1037,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
-			|| !subject.validPresentCube(cubeId) || !CapturedEntityBoxItem.isBox(boxes)
+			|| !subject.validPresentCube(cubeId) || !(boxes.getItem() instanceof LargeCardboardBoxItem)
 			|| CapturedEntityBoxItem.hasCapturedEntity(boxes) || bodyBounds == null
 			|| hitboxGeometry == null)
 			return false;
