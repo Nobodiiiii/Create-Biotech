@@ -127,6 +127,7 @@ public class CBConfigs {
 		public final PowerBelt powerBelt;
 		public final PetriDish petriDish;
 		public final SpiderAssemblyTable spiderAssemblyTable;
+		public final SurgicalTable surgicalTable;
 		public final CardboardBox cardboardBox;
 		public final SlimeMimic slimeMimic;
 		public final GhastHotAirBalloon ghastHotAirBalloon;
@@ -156,6 +157,7 @@ public class CBConfigs {
 			powerBelt = new PowerBelt(builder);
 			petriDish = new PetriDish(builder);
 			spiderAssemblyTable = new SpiderAssemblyTable(builder);
+			surgicalTable = new SurgicalTable(builder);
 			cardboardBox = new CardboardBox(builder);
 			slimeMimic = new SlimeMimic(builder);
 			ghastHotAirBalloon = new GhastHotAirBalloon(builder);
@@ -462,6 +464,19 @@ public class CBConfigs {
 			deployerBaseDuration = builder.defineInRange("deployerBaseDuration", 2000.0d, 1.0d, Double.MAX_VALUE);
 			sawFallbackDuration = builder.defineInRange("sawFallbackDuration", 50, 1, Integer.MAX_VALUE);
 			sawSpeedDivisor = builder.defineInRange("sawSpeedDivisor", 24.0d, 0.0001d, Double.MAX_VALUE);
+			builder.pop();
+		}
+	}
+
+	public static class SurgicalTable {
+		public final ModConfigSpec.BooleanValue consumeInteractionItems;
+
+		SurgicalTable(ModConfigSpec.Builder builder) {
+			builder.push("surgicalTable");
+			consumeInteractionItems = builder
+				.comment("Whether successful surgical-table interactions consume held materials or damage tools. "
+					+ "Cardboard boxes still change between their empty and filled states.")
+				.define("consumeInteractionItems", false);
 			builder.pop();
 		}
 	}

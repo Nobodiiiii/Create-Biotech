@@ -127,7 +127,7 @@
   "item.create_biotech.surgical_table.tooltip.condition8": "手持对称之杖时",
   "item.create_biotech.surgical_table.tooltip.behaviour8": "沿所选中心面对称复现参考粘合的位置、平移和旋转",
   "item.create_biotech.surgical_table.tooltip.condition9": "手持黏液球时",
-  "item.create_biotech.surgical_table.tooltip.behaviour9": "依次右击同一组合内两个_相交_但在连接图中_分离_的方块，补上一条_胶缝_",
+  "item.create_biotech.surgical_table.tooltip.behaviour9": "依次右击同一组合内两个_相交_但没有_直接连接_的方块，补上一条_胶缝_",
   "message.create_biotech.surgical_table.limb_first_neck": "已选择头部",
   "message.create_biotech.surgical_table.limb_first_shoulder": "已选择手臂",
   "message.create_biotech.surgical_table.limb_first_elbow": "已选择前臂",

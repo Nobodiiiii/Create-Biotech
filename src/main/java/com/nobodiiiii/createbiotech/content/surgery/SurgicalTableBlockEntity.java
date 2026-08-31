@@ -23,6 +23,7 @@ import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
@@ -573,7 +574,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subject.applyLayout(proposal);
 		if (cut.separates)
 			translateOtherSubjects(cut.moving, subject.persistentId(), new Vec3(moveX, 0.0d, moveZ));
-		shears.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, 1, player, hand);
 		clientRenderBounds = null;
 		setChangedAndSync();
 		if (level != null)
@@ -600,7 +601,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				if (moved != null)
 					moved.translateComponent(entry.getValue(), delta);
 			}
-		shears.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, 1, player, hand);
 		clientRenderBounds = null;
 		setChangedAndSync();
 		if (level != null)
@@ -649,7 +650,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!glueCuts.isEmpty())
 			for (SurgicalSubject connected : subjects)
 				connected.removeGlueJoints(glueCuts);
-		shears.hurtAndBreak(cutCount, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, cutCount, player, hand);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.SHEEP_SHEAR, SoundSource.BLOCKS, 0.8f, 1.15f);
@@ -693,7 +694,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!cut.glueCuts.isEmpty())
 			for (SurgicalSubject connected : subjects)
 				connected.removeGlueJoints(cut.glueCuts);
-		shears.hurtAndBreak(cut.cutCount, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, cut.cutCount, player, hand);
 		clientRenderBounds = null;
 		setChangedAndSync();
 		if (level != null)
@@ -985,7 +986,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return refuse(player, "limb_secondary_limit_" + type.id());
 
 		attachLimbJoint(installedJoint);
-		if (!player.getAbilities().instabuild)
+		if (consumeInteractionItems() && !player.getAbilities().instabuild)
 			jointItem.shrink(1);
 		setChangedAndSync();
 		if (level != null)
@@ -1033,7 +1034,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalLimbJoint> removed = Set.of(joint);
 		for (SurgicalSubject subject : subjects)
 			subject.removeLimbJoints(removed);
-		if (!player.getAbilities().instabuild)
+		if (consumeInteractionItems() && !player.getAbilities().instabuild)
 			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
 		setChangedAndSync();
 		if (level != null)
@@ -1337,7 +1338,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalCombination> removed = Set.of(combination);
 		for (SurgicalSubject candidate : subjects)
 			candidate.removeCombinations(removed);
-		shears.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, 1, player, hand);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.SHEEP_SHEAR, SoundSource.BLOCKS, 0.8f, 1.05f);
@@ -1361,7 +1362,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalGlueJoint> removed = Set.copyOf(external);
 		for (SurgicalSubject candidate : subjects)
 			candidate.removeGlueJoints(removed);
-		shears.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+		damageInteractionTool(shears, 1, player, hand);
 		clientRenderBounds = null;
 		setChangedAndSync();
 		if (level != null)
@@ -1372,7 +1373,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	private static void consumeHoneyBottle(Player player, ItemStack honeyBottle, InteractionHand hand) {
-		if (player.getAbilities().instabuild)
+		if (!consumeInteractionItems() || player.getAbilities().instabuild)
 			return;
 		honeyBottle.shrink(1);
 		ItemStack emptyBottle = new ItemStack(Items.GLASS_BOTTLE);
@@ -1386,8 +1387,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	/**
 	 * Adds a redundant glue edge inside one honey combination without moving either cube. Combination
-	 * edges are deliberately excluded from the connectivity check: the new seam must join two islands
-	 * that the model's native/glue graph still considers separate.
+	 * edges are deliberately excluded from the direct-edge check: the new seam may close a cycle in the
+	 * model's native/glue graph, but it must not duplicate an existing native seam or glue joint.
 	 */
 	public boolean addSlimeSeam(Player player, ItemStack slimeBall,
 		int firstSubjectId, int firstCubeId, int firstObservedCubeCount,
@@ -1406,7 +1407,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			new SurgicalGlueJoint.Endpoint(first.persistentId(), firstCubeId),
 			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId));
 		attachJoint(joint);
-		if (!player.getAbilities().instabuild)
+		if (consumeInteractionItems() && !player.getAbilities().instabuild)
 			slimeBall.shrink(1);
 		setChangedAndSync();
 		if (level != null)
@@ -1433,7 +1434,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 		SurgicalConnectionGraph<UUID> abstractGraph = connectionGraph(Set.of(), Map.of(), false);
 		return abstractGraph != null
-			&& !abstractGraph.componentContaining(first.persistentId(), firstCubeId)
+			&& !abstractGraph.directConnections(first.persistentId(), firstCubeId)
 				.contains(second.persistentId(), secondCubeId);
 	}
 
@@ -1587,7 +1588,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId), replayTransform, anchorContact);
 		attachJoint(joint);
 		if (damageTool)
-			tool.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+			damageInteractionTool(tool, 1, player, hand);
 		else
 			player.getCooldowns().addCooldown(tool.getItem(), 5);
 		clientRenderBounds = null;
@@ -1599,6 +1600,16 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				level.playSound(null, worldPosition, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.5f, 1.35f);
 		}
 		return true;
+	}
+
+	private static boolean consumeInteractionItems() {
+		return CBConfigs.SERVER.surgicalTable.consumeInteractionItems.get();
+	}
+
+	private static void damageInteractionTool(ItemStack tool, int amount, Player player,
+		InteractionHand hand) {
+		if (consumeInteractionItems())
+			tool.hurtAndBreak(amount, player, LivingEntity.getSlotForHand(hand));
 	}
 
 	/**
