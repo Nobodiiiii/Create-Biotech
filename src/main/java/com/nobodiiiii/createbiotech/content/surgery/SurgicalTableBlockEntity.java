@@ -39,6 +39,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
@@ -635,6 +636,32 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				removeSubject(groupedSubject);
 		}
 		clientRenderBounds = null;
+	}
+
+	/** Removes the complete server-authoritative connectivity group selected with a shovel. */
+	public boolean shovelConnectedGroup(Player player, ItemStack shovel, InteractionHand hand,
+		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		double volume) {
+		SurgicalSubject subject = getSubject(subjectId);
+		if (subject == null || !SurgicalKitItem.isShovel(shovel)
+			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.validPresentCube(cubeId) || !Double.isFinite(volume) || volume < 0.0d
+			|| !canPayInteractionCost(shovel, 1, player) || level == null)
+			return false;
+		ComponentGroup group = connectedGroup(subject, cubeId);
+		if (group.components.isEmpty())
+			return false;
+
+		damageInteractionTool(shovel, 1, player, hand);
+		removeTemporaryGroup(group);
+		setChangedAndSync();
+		int drops = SurgicalSlimeDrops.roll(volume, level.getRandom());
+		if (drops > 0)
+			Containers.dropItemStack(level, worldPosition.getX() + 0.5d, worldPosition.getY() + 1.1d,
+				worldPosition.getZ() + 0.5d, new ItemStack(Items.SLIME_BALL, drops));
+		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_BREAK,
+			SoundSource.BLOCKS, 0.8f, 1.0f);
+		return true;
 	}
 
 	private void finishSubjectPlacement(ItemStack box, @Nullable TemporaryMoveSource move) {

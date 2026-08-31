@@ -29,6 +29,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -172,8 +173,11 @@ public class SurgicalKitItem extends Item {
 
 	public static boolean isGlue(ItemStack stack) {
 		return stack.getItem() instanceof SuperGlueItem
-			|| selectedTool(stack) == Tool.SUPER_GLUE
 			|| selectedTool(stack) == Tool.SMART_SUPER_GLUE;
+	}
+
+	public static boolean isShovel(ItemStack stack) {
+		return stack.is(ItemTags.SHOVELS) || selectedTool(stack) == Tool.SHOVEL;
 	}
 
 	public static boolean isSmartGlue(ItemStack stack) {
@@ -303,7 +307,7 @@ public class SurgicalKitItem extends Item {
 
 	public enum Tool {
 		SHEARS("shears", () -> new ItemStack(Items.SHEARS)),
-		SUPER_GLUE("super_glue", () -> AllItems.SUPER_GLUE.asStack()),
+		SHOVEL("shovel", () -> new ItemStack(Items.WOODEN_SHOVEL)),
 		SMART_SUPER_GLUE("smart_super_glue", () -> new ItemStack(CBItems.SMART_SUPER_GLUE.get())),
 		HONEY_BOTTLE("honey_bottle", () -> new ItemStack(Items.HONEY_BOTTLE)),
 		SLIME_BALL("slime_ball", () -> new ItemStack(Items.SLIME_BALL)),
@@ -338,6 +342,9 @@ public class SurgicalKitItem extends Item {
 			if (id == null || id.isBlank())
 				return null;
 			String normalized = id.toLowerCase(Locale.ROOT);
+			// Migrate kits that had the replaced ordinary-super-glue wheel slot selected.
+			if ("super_glue".equals(normalized))
+				return SHOVEL;
 			for (Tool tool : values())
 				if (tool.id.equals(normalized))
 					return tool;

@@ -7,7 +7,7 @@
     },
     {
       "predicate": { "create_biotech:surgical_tool": 2.0 },
-      "model": "create:item/super_glue"
+      "model": "minecraft:item/wooden_shovel"
     },
     {
       "predicate": { "create_biotech:surgical_tool": 3.0 },

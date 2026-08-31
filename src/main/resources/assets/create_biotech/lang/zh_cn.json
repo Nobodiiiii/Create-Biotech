@@ -169,6 +169,7 @@
   "create_biotech.gui.surgical_table.action.select_first_slime_seam": "选择胶缝的第一个方块",
   "create_biotech.gui.surgical_table.action.select_second_slime_seam": "选择实际相连的第二个方块",
   "create_biotech.gui.surgical_table.action.remove_joint": "拆下并回收关节",
+  "create_biotech.gui.surgical_table.action.shovel_component": "铲除命中的连通联合体",
   "create_biotech.gui.surgical_table.action.cancel": "取消当前操作",
   "message.create_biotech.surgical_table.limb_detached_neck": "颈关节已拆下",
   "message.create_biotech.surgical_table.limb_detached_shoulder": "肩关节已拆下",
