@@ -10,6 +10,7 @@ import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonFirePac
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonGearAnimationPacket;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortFlapPacket;
 import com.nobodiiiii.createbiotech.content.allay.logistics.courier.hud.AllayCourierHudPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicAttackActionPacket;
 
 import net.minecraft.client.player.LocalPlayer;
@@ -48,6 +49,8 @@ final class CBClientPacketHandlers {
 			containedEntityHandoff.handle(player);
 		} else if (packet instanceof SlimeBionicAttackActionPacket bionicAttack) {
 			bionicAttack.handle(player);
+		} else if (packet instanceof SurgicalTableReleaseGeometryPacket.ClientBoundRequest releaseGeometry) {
+			releaseGeometry.handle(player);
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());

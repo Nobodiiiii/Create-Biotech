@@ -11,7 +11,6 @@ import java.util.UUID;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
-import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeEntity;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,10 +27,7 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class SlimeMimicDeathHandler {
 	private static final int GEOMETRY_WAIT_TICKS = 8;
-	private static final double SMALL_SLIME_VOLUME = 1.0d / 8.0d;
 	private static final double MAX_REPORT_DISTANCE_SQR = 128.0d * 128.0d;
-	private static final double MIN_EDGE = 1.0d / 1024.0d;
-	private static final double MAX_EDGE = 64.0d;
 	private static final Map<UUID, PendingDeath> PENDING = new HashMap<>();
 
 	private SlimeMimicDeathHandler() {}
@@ -89,7 +85,7 @@ public final class SlimeMimicDeathHandler {
 		Set<Long> identities = new HashSet<>();
 		List<SlimeMimicCubeGeometry> validated = new ArrayList<>(reported.size());
 		double totalVolume = 0.0d;
-		double authoritativeVolume = Math.max(SMALL_SLIME_VOLUME,
+		double authoritativeVolume = Math.max(SlimeMimicFragmentSpawner.SMALL_SLIME_VOLUME,
 			pending.bounds.getXsize() * pending.bounds.getYsize() * pending.bounds.getZsize());
 		double positionAllowance = Math.max(4.0d, Math.max(pending.bounds.getXsize(),
 			Math.max(pending.bounds.getYsize(), pending.bounds.getZsize())) * 2.0d);
@@ -99,12 +95,14 @@ public final class SlimeMimicDeathHandler {
 				|| geometry.cube() < 0 || geometry.cube() >= SurgicalAssembly.MAX_CUBES)
 				return List.of();
 			long identity = (long) geometry.source() << 32 | geometry.cube() & 0xffffffffL;
-			if (!identities.add(identity) || !reasonableCorners(geometry.corners(), allowed))
+			if (!identities.add(identity)
+				|| !SlimeMimicFragmentSpawner.cornersInside(geometry.corners(), allowed))
 				return List.of();
-			CubeMeasure measure = measure(geometry.corners());
+			SlimeMimicFragmentSpawner.Measure measure =
+				SlimeMimicFragmentSpawner.measure(geometry.corners());
 			if (measure == null)
 				return List.of();
-			totalVolume += measure.volume;
+			totalVolume += measure.volume();
 			if (totalVolume > authoritativeVolume * 8.0d + 1.0d)
 				return List.of();
 			validated.add(geometry);
@@ -112,80 +110,13 @@ public final class SlimeMimicDeathHandler {
 		return List.copyOf(validated);
 	}
 
-	private static boolean reasonableCorners(List<Vec3> corners, AABB allowed) {
-		if (corners.size() != 8)
-			return false;
-		for (Vec3 corner : corners)
-			if (corner == null || !Double.isFinite(corner.x) || !Double.isFinite(corner.y)
-				|| !Double.isFinite(corner.z) || !allowed.contains(corner))
-				return false;
-		return true;
-	}
-
 	private static void spawn(PendingDeath pending, List<SlimeMimicCubeGeometry> cubes) {
 		for (SlimeMimicCubeGeometry geometry : cubes) {
 			if (geometry.source() < 0 || geometry.source() >= pending.profiles.size())
 				continue;
-			CubeMeasure measure = measure(geometry.corners());
-			if (measure == null)
-				continue;
-			int slimeSize = slimeSize(measure.volume);
-			SlimeMimicCubeEntity fragment = SlimeMimicCubeEntity.create(pending.level,
-				pending.profiles.get(geometry.source()), geometry.cube(), measure.center,
-				(float) measure.width, (float) measure.height, (float) measure.depth,
-				measure.volume, slimeSize, geometry.corners());
-			if (fragment != null)
-				pending.level.addFreshEntity(fragment);
+			SlimeMimicFragmentSpawner.spawn(pending.level, pending.profiles.get(geometry.source()),
+				geometry.cube(), geometry.corners());
 		}
-	}
-
-	private static int slimeSize(double volume) {
-		if (volume + 1.0e-9d < SMALL_SLIME_VOLUME)
-			return 0;
-		return Math.max(1, Math.min(127,
-			(int) Math.floor(Math.cbrt(volume / SMALL_SLIME_VOLUME) + 1.0e-9d)));
-	}
-
-	private static CubeMeasure measure(List<Vec3> corners) {
-		if (corners == null || corners.size() != 8)
-			return null;
-		Vec3 a = corners.get(1).subtract(corners.get(0));
-		Vec3 b = corners.get(2).subtract(corners.get(0));
-		Vec3 c = corners.get(4).subtract(corners.get(0));
-		double edgeA = a.length();
-		double edgeB = b.length();
-		double edgeC = c.length();
-		if (!reasonableEdge(edgeA) || !reasonableEdge(edgeB) || !reasonableEdge(edgeC))
-			return null;
-		int dimensionalEdges = (edgeA >= MIN_EDGE ? 1 : 0) + (edgeB >= MIN_EDGE ? 1 : 0)
-			+ (edgeC >= MIN_EDGE ? 1 : 0);
-		if (dimensionalEdges < 2)
-			return null;
-		double volume = Math.abs(a.dot(b.cross(c)));
-		if (!Double.isFinite(volume))
-			return null;
-		double minX = Double.POSITIVE_INFINITY;
-		double minY = Double.POSITIVE_INFINITY;
-		double minZ = Double.POSITIVE_INFINITY;
-		double maxX = Double.NEGATIVE_INFINITY;
-		double maxY = Double.NEGATIVE_INFINITY;
-		double maxZ = Double.NEGATIVE_INFINITY;
-		Vec3 sum = Vec3.ZERO;
-		for (Vec3 corner : corners) {
-			minX = Math.min(minX, corner.x);
-			minY = Math.min(minY, corner.y);
-			minZ = Math.min(minZ, corner.z);
-			maxX = Math.max(maxX, corner.x);
-			maxY = Math.max(maxY, corner.y);
-			maxZ = Math.max(maxZ, corner.z);
-			sum = sum.add(corner);
-		}
-		return new CubeMeasure(sum.scale(1.0d / 8.0d), Math.max(MIN_EDGE, maxX - minX),
-			Math.max(MIN_EDGE, maxY - minY), Math.max(MIN_EDGE, maxZ - minZ), volume);
-	}
-
-	private static boolean reasonableEdge(double edge) {
-		return Double.isFinite(edge) && edge >= 0.0d && edge <= MAX_EDGE;
 	}
 
 	private static List<MimicProfile> profiles(LivingEntity entity) {
@@ -227,5 +158,4 @@ public final class SlimeMimicDeathHandler {
 		}
 	}
 
-	private record CubeMeasure(Vec3 center, double width, double height, double depth, double volume) {}
 }

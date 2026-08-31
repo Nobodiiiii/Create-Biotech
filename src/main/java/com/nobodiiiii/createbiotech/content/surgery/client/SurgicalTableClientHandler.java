@@ -45,6 +45,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbRemovalPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
@@ -257,6 +258,28 @@ public final class SurgicalTableClientHandler {
 			? animation.motions.get(subject.id()) : null;
 		return bounds == null || motion == null || motion.startBounds == null
 			? bounds : bounds.minmax(motion.startBounds);
+	}
+
+	/** Replies once with the current world-space cuboids for an entire unsupported release batch. */
+	public static void reportReleasedGeometry(
+		SurgicalTableReleaseGeometryPacket.ClientBoundRequest request) {
+		if (request == null || Minecraft.getInstance().level == null)
+			return;
+		List<SurgicalTableReleaseGeometryPacket.CubeGeometry> reported = new ArrayList<>();
+		for (SurgicalTableReleaseGeometryPacket.SubjectCubes requested : request.subjects()) {
+			TableGeometry geometry = SUBJECT_GEOMETRIES.get(requested.subjectKey());
+			if (geometry == null || geometry.groundingPending)
+				return;
+			for (int cubeId : requested.cubes()) {
+				SurgicalModelRenderContext.CubeGeometry cube = geometry.cubesById.get(cubeId);
+				if (cube == null)
+					return;
+				reported.add(new SurgicalTableReleaseGeometryPacket.CubeGeometry(
+					requested.subjectKey(), cubeId, cube.corners()));
+			}
+		}
+		if (!reported.isEmpty())
+			CBPackets.sendToServer(new SurgicalTableReleaseGeometryPacket(request.transaction(), reported));
 	}
 
 	public static void updateGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject,

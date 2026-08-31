@@ -25,7 +25,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.entity.IEntityWithComplexSpawn;
 
-/** One physical cuboid released by a dying slime mimic. */
+/** One physical source cuboid that falls and then morphs into a slime. */
 public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSpawn {
 	public static final int MORPH_TICKS = 20;
 	private static final int MAX_FALL_TICKS = 1200;

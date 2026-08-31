@@ -112,10 +112,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public void initialize() {
 		invalidateTableLayout();
 		super.initialize();
+		SurgicalTableSupportManager.track(this);
 	}
 
 	@Override
 	public void onChunkUnloaded() {
+		SurgicalTableSupportManager.untrack(this);
 		super.onChunkUnloaded();
 		invalidateTableLayout();
 	}
@@ -219,6 +221,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subjectsById.put(subject.id(), subject);
 		subjectsByPersistentId.put(subject.persistentId(), subject);
 		cachedConnectedSubjectGroupsValid = false;
+		SurgicalTableSupportManager.track(this);
 	}
 
 	private void addSubjects(List<SurgicalSubject> added) {
@@ -231,6 +234,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subjectsById.remove(subject.id(), subject);
 		subjectsByPersistentId.remove(subject.persistentId(), subject);
 		cachedConnectedSubjectGroupsValid = false;
+		SurgicalTableSupportManager.track(this);
 	}
 
 	private void clearSubjects() {
@@ -238,6 +242,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		subjectsById.clear();
 		subjectsByPersistentId.clear();
 		cachedConnectedSubjectGroupsValid = false;
+		SurgicalTableSupportManager.track(this);
 	}
 
 	private void normalizeCombinations() {
@@ -2928,67 +2933,171 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			controller.setChangedAndSync();
 	}
 
-	public static void transferBeforeRemoval(Level level, BlockPos removedPos, SurgicalTableBlockEntity removed) {
-		if (level.isClientSide)
-			return;
-		List<SurgicalTablePlane.Plane> remainingPlanes = new ArrayList<>();
-		Set<BlockPos> scanned = new HashSet<>();
-		for (Direction direction : Direction.Plane.HORIZONTAL) {
-			BlockPos neighbor = removedPos.relative(direction);
-			if (scanned.contains(neighbor)
-				|| !(level.getBlockState(neighbor).getBlock() instanceof SurgicalTableBlock))
-				continue;
-			SurgicalTablePlane.Plane plane = SurgicalTablePlane.scanExcluding(level, neighbor, removedPos);
-			if (!plane.valid() || plane.source() == null)
-				continue;
-			scanned.addAll(plane.tiles());
-			remainingPlanes.add(plane);
-		}
-		if (remainingPlanes.isEmpty())
-			return;
-
-		List<DetachedSubject> detached = new ArrayList<>();
-		Set<BlockPos> holderPositions = new HashSet<>();
-		holderPositions.add(removedPos);
-		for (SurgicalTablePlane.Plane plane : remainingPlanes)
-			holderPositions.addAll(plane.tiles());
-
-		Set<SurgicalTableBlockEntity> changedTables = new HashSet<>();
-		for (BlockPos holderPos : holderPositions) {
-			if (!(level.getBlockEntity(holderPos) instanceof SurgicalTableBlockEntity holder)
-				|| !holder.hasSubjects())
-				continue;
-			for (SurgicalSubject subject : holder.detachSubjects())
-				detached.add(new DetachedSubject(holderPos, subject));
-			changedTables.add(holder);
+	/** Removes every complete connectivity component whose horizontal projection has no table support. */
+	List<SurgicalTableSupportManager.ReleasedCube> releaseUnsupportedComponents() {
+		if (level == null || level.isClientSide || subjects.isEmpty())
+			return List.of();
+		SurgicalConnectionGraph<UUID> graph = connectionGraph(null);
+		if (graph == null) {
+			List<SurgicalTableSupportManager.ReleasedCube> released = new ArrayList<>();
+			for (SurgicalSubject subject : List.copyOf(subjects)) {
+				if (subjectHasProjectionSupport(subject))
+					continue;
+				BitSet cubes = (BitSet) subject.presentCubes.clone();
+				if (cubes.isEmpty())
+					cubes.set(0);
+				released.addAll(releasedCubes(subject, cubes));
+				removeSubject(subject);
+			}
+			clientRenderBounds = null;
+			return List.copyOf(released);
 		}
 
-		for (DetachedSubject entry : detached) {
-			SurgicalTablePlane.Plane target = bestContainingPlane(remainingPlanes, entry.subject());
-			if (target == null || !(level.getBlockEntity(target.source()) instanceof SurgicalTableBlockEntity next))
+		Map<UUID, BitSet> unsupported = new HashMap<>();
+		List<SurgicalTableSupportManager.ReleasedCube> released = new ArrayList<>();
+		for (SurgicalConnectionGraph.Component<UUID> component : graph.components()) {
+			ComponentGroup group = new ComponentGroup(component.members());
+			if (groupHasProjectionSupport(group))
 				continue;
-			next.adoptSubjects(entry.previousController(), List.of(entry.subject()));
-			changedTables.add(next);
+			group.components.forEach((subjectKey, cubes) ->
+				unsupported.computeIfAbsent(subjectKey, ignored -> new BitSet()).or(cubes));
+			for (SurgicalSubject subject : subjects) {
+				BitSet cubes = group.components.get(subject.persistentId());
+				if (cubes != null && !cubes.isEmpty())
+					released.addAll(releasedCubes(subject, cubes));
+			}
 		}
-		for (SurgicalTableBlockEntity table : changedTables)
-			table.setChangedAndSync();
+		if (!unsupported.isEmpty())
+			removeTemporaryGroup(new ComponentGroup(unsupported));
+		return List.copyOf(released);
 	}
 
-	private record DetachedSubject(BlockPos previousController, SurgicalSubject subject) {}
-
-	@Nullable
-	private static SurgicalTablePlane.Plane bestContainingPlane(List<SurgicalTablePlane.Plane> planes,
-		SurgicalSubject subject) {
-		for (SurgicalTablePlane.Plane plane : planes) {
-			boolean contains = !subject.occupiedFootprints().isEmpty();
+	/** Fast reverse lookup used to find data whose owner sits on another disconnected table plane. */
+	boolean projectionTouches(Set<Long> tableTiles) {
+		if (tableTiles.isEmpty())
+			return false;
+		for (SurgicalSubject subject : subjects)
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
-				contains &= plane.workArea().contains(footprint.minX(), footprint.minZ(), footprint.maxX(),
-					footprint.maxZ(), 1.0e-6d);
-			if (contains)
-				return plane;
+				if (footprintTouches(footprint, (x, z) ->
+					tableTiles.contains(BlockPos.asLong(x, worldPosition.getY(), z))))
+					return true;
+		return false;
+	}
+
+	private boolean groupHasProjectionSupport(ComponentGroup group) {
+		for (SurgicalSubject subject : subjects) {
+			BitSet cubes = group.components.get(subject.persistentId());
+			if (cubes == null)
+				continue;
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+				if (subject.containsFootprint(cubes, footprint) && footprintHasTableSupport(footprint))
+					return true;
 		}
-		return planes.stream().max(java.util.Comparator.comparingInt(plane -> plane.workArea().tileArea()))
-			.orElse(null);
+		return false;
+	}
+
+	private boolean subjectHasProjectionSupport(SurgicalSubject subject) {
+		for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+			if (footprintHasTableSupport(footprint))
+				return true;
+		return false;
+	}
+
+	private boolean footprintHasTableSupport(SurgicalTableLayout.Footprint footprint) {
+		return footprintTouches(footprint, (x, z) -> {
+			BlockPos pos = new BlockPos(x, worldPosition.getY(), z);
+			// An unloaded candidate is kept conservatively: no block can be destroyed there until it loads.
+			if (!level.isLoaded(pos))
+				return !isRemoved();
+			return level.getBlockState(pos).getBlock() instanceof SurgicalTableBlock;
+		});
+	}
+
+	private static boolean footprintTouches(SurgicalTableLayout.Footprint footprint, TilePredicate predicate) {
+		if (footprint == null || !Double.isFinite(footprint.minX()) || !Double.isFinite(footprint.minZ())
+			|| !Double.isFinite(footprint.maxX()) || !Double.isFinite(footprint.maxZ())
+			|| footprint.maxX() <= footprint.minX() || footprint.maxZ() <= footprint.minZ())
+			return false;
+		int firstX = (int) Math.floor(footprint.minX());
+		int lastX = (int) Math.ceil(footprint.maxX()) - 1;
+		int firstZ = (int) Math.floor(footprint.minZ());
+		int lastZ = (int) Math.ceil(footprint.maxZ()) - 1;
+		if ((long) lastX - firstX > SurgicalTablePlane.MAX_TILES
+			|| (long) lastZ - firstZ > SurgicalTablePlane.MAX_TILES)
+			return false;
+		for (int x = firstX; x <= lastX; x++) {
+			double overlapX = Math.min(footprint.maxX(), x + 1.0d) - Math.max(footprint.minX(), x);
+			if (overlapX <= 1.0e-9d)
+				continue;
+			for (int z = firstZ; z <= lastZ; z++) {
+				double overlapZ = Math.min(footprint.maxZ(), z + 1.0d) - Math.max(footprint.minZ(), z);
+				if (overlapZ > 1.0e-9d && predicate.test(x, z))
+					return true;
+			}
+		}
+		return false;
+	}
+
+	private List<SurgicalTableSupportManager.ReleasedCube> releasedCubes(SurgicalSubject subject,
+		BitSet cubes) {
+		List<SurgicalTableLayout.Footprint> footprints = subject.occupiedFootprints().stream()
+			.filter(footprint -> subject.containsFootprint(cubes, footprint)).toList();
+		double envelopeMinX = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::minX).min()
+			.orElse(worldPosition.getX() + subject.originOffsetX());
+		double envelopeMinZ = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::minZ).min()
+			.orElse(worldPosition.getZ() + subject.originOffsetZ());
+		double envelopeMaxX = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::maxX).max()
+			.orElse(envelopeMinX + 1.0d);
+		double envelopeMaxZ = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::maxZ).max()
+			.orElse(envelopeMinZ + 1.0d);
+		double minY = worldPosition.getY() + 1.0d;
+		List<SurgicalTableSupportManager.ReleasedCube> released = new ArrayList<>(cubes.cardinality());
+		int cubeCount = Math.max(1, cubes.cardinality());
+		boolean perCubeFootprints = footprints.size() == cubeCount;
+		double sharedScale = perCubeFootprints ? 1.0d : 1.0d / Math.cbrt(cubeCount);
+		int footprintIndex = 0;
+		for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1)) {
+			SurgicalTableLayout.Footprint footprint = perCubeFootprints ? footprints.get(footprintIndex++) : null;
+			double sourceMinX = footprint == null ? envelopeMinX : footprint.minX();
+			double sourceMinZ = footprint == null ? envelopeMinZ : footprint.minZ();
+			double sourceMaxX = footprint == null ? envelopeMaxX : footprint.maxX();
+			double sourceMaxZ = footprint == null ? envelopeMaxZ : footprint.maxZ();
+			double centerX = (sourceMinX + sourceMaxX) * 0.5d;
+			double centerZ = (sourceMinZ + sourceMaxZ) * 0.5d;
+			double width = Math.max(1.0d / 16.0d, (sourceMaxX - sourceMinX) * sharedScale);
+			double depth = Math.max(1.0d / 16.0d, (sourceMaxZ - sourceMinZ) * sharedScale);
+			double height = Math.max(1.0d / 16.0d, Math.min(2.0d, Math.max(width, depth)));
+			List<Vec3> fallback = boxCorners(centerX - width * 0.5d, minY, centerZ - depth * 0.5d,
+				centerX + width * 0.5d, minY + height, centerZ + depth * 0.5d);
+			released.add(new SurgicalTableSupportManager.ReleasedCube(subject.persistentId(),
+				subject.profile(), cube, fallback));
+		}
+		return released;
+	}
+
+	private static List<Vec3> boxCorners(double minX, double minY, double minZ,
+		double maxX, double maxY, double maxZ) {
+		return List.of(new Vec3(minX, minY, minZ), new Vec3(maxX, minY, minZ),
+			new Vec3(minX, maxY, minZ), new Vec3(maxX, maxY, minZ),
+			new Vec3(minX, minY, maxZ), new Vec3(maxX, minY, maxZ),
+			new Vec3(minX, maxY, maxZ), new Vec3(maxX, maxY, maxZ));
+	}
+
+	List<SurgicalSubject> detachSubjectsForSupport() {
+		return detachSubjects();
+	}
+
+	void adoptSubjectsForSupport(BlockPos previousController, List<SurgicalSubject> migrated) {
+		adoptSubjects(previousController, migrated);
+	}
+
+	void syncAfterSupportChange() {
+		setChangedAndSync();
+	}
+
+	@FunctionalInterface
+	private interface TilePredicate {
+		boolean test(int x, int z);
 	}
 
 	private void setChangedAndSync() {

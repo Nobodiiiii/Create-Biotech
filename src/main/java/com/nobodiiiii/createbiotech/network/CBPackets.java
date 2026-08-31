@@ -32,6 +32,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableGluePacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbRemovalPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicBodyBoundsPacket;
@@ -58,7 +59,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "38";
+	private static final String NETWORK_VERSION = "39";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -111,6 +112,8 @@ public final class CBPackets {
 			SurgicalTableSlimeSeamPacket::write, SurgicalTableSlimeSeamPacket::handle);
 		registerServer(SurgicalKitSelectionPacket.class, SurgicalKitSelectionPacket::new,
 			SurgicalKitSelectionPacket::write, SurgicalKitSelectionPacket::handle);
+		registerServer(SurgicalTableReleaseGeometryPacket.class, SurgicalTableReleaseGeometryPacket::new,
+			SurgicalTableReleaseGeometryPacket::write, SurgicalTableReleaseGeometryPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -141,6 +144,9 @@ public final class CBPackets {
 			ContainedEntityHandoffPacket::write);
 		registerClient(SlimeBionicAttackActionPacket.class, SlimeBionicAttackActionPacket::new,
 			SlimeBionicAttackActionPacket::write);
+		registerClient(SurgicalTableReleaseGeometryPacket.ClientBoundRequest.class,
+			SurgicalTableReleaseGeometryPacket.ClientBoundRequest::new,
+			SurgicalTableReleaseGeometryPacket.ClientBoundRequest::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

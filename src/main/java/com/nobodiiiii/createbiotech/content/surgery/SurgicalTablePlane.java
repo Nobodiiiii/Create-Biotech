@@ -201,6 +201,10 @@ public final class SurgicalTablePlane {
 			return pos.getY() == y && tileKeys.contains(pos.asLong());
 		}
 
+		public boolean containsTile(int x, int z) {
+			return tileKeys.contains(BlockPos.asLong(x, y, z));
+		}
+
 		/** True only when every tile touched by the horizontal bounds actually exists. */
 		public boolean contains(double boundMinX, double boundMinZ, double boundMaxX, double boundMaxZ,
 			double epsilon) {

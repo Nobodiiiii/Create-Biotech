@@ -10,7 +10,7 @@ import com.mojang.logging.LogUtils;
 
 /**
  * Opt-in timing probe for the surgical table, enabled with
- * {@code -Dcreate_biotech.surgery.profile=true} on the client command line.
+ * {@code -Dcreate_biotech.surgery.profile=true} on the game or dedicated-server command line.
  *
  * <p>The table has several independently expensive phases spread across the packet-decode path, the
  * render thread and a worker pool, and an averaged frame-rate readout hides a single long frame

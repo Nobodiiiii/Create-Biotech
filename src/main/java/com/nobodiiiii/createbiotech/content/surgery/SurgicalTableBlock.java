@@ -91,7 +91,7 @@ public class SurgicalTableBlock extends Block
 		if (!state.is(newState.getBlock())) {
 			SurgicalTableBlockEntity.invalidateTableLayout();
 			if (level.getBlockEntity(pos) instanceof SurgicalTableBlockEntity table)
-				SurgicalTableBlockEntity.transferBeforeRemoval(level, pos, table);
+				SurgicalTableSupportManager.enqueue(level, pos, table);
 		}
 		IBE.onRemove(state, level, pos, newState);
 	}
