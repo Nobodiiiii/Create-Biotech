@@ -1384,6 +1384,59 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			player.drop(emptyBottle, false);
 	}
 
+	/**
+	 * Adds a redundant glue edge inside one honey combination without moving either cube. Combination
+	 * edges are deliberately excluded from the connectivity check: the new seam must join two islands
+	 * that the model's native/glue graph still considers separate.
+	 */
+	public boolean addSlimeSeam(Player player, ItemStack slimeBall,
+		int firstSubjectId, int firstCubeId, int firstObservedCubeCount,
+		List<SurgicalAssembly.Seam> firstObservedSeams,
+		int secondSubjectId, int secondCubeId, int secondObservedCubeCount,
+		List<SurgicalAssembly.Seam> secondObservedSeams) {
+		SurgicalSubject first = getSubject(firstSubjectId);
+		SurgicalSubject second = getSubject(secondSubjectId);
+		if (!slimeBall.is(Items.SLIME_BALL) || first == null || second == null
+			|| !first.initializeOrMatchTopology(firstObservedCubeCount, firstObservedSeams)
+			|| !second.initializeOrMatchTopology(secondObservedCubeCount, secondObservedSeams)
+			|| !canAddSlimeSeamTargets(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId))
+			return false;
+
+		SurgicalGlueJoint joint = SurgicalGlueJoint.of(
+			new SurgicalGlueJoint.Endpoint(first.persistentId(), firstCubeId),
+			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId));
+		attachJoint(joint);
+		if (!player.getAbilities().instabuild)
+			slimeBall.shrink(1);
+		setChangedAndSync();
+		if (level != null)
+			level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE,
+				SoundSource.BLOCKS, 0.6f, 1.05f);
+		player.displayClientMessage(Component.translatable(
+			"message.create_biotech.surgical_table.slime_seam_success"), true);
+		return true;
+	}
+
+	/** Client-safe structural half of slime-seam validation; current cube geometry is checked client-side. */
+	public boolean canAddSlimeSeamTargets(int firstSubjectId, int firstCubeId,
+		int secondSubjectId, int secondCubeId) {
+		SurgicalSubject first = getSubject(firstSubjectId);
+		SurgicalSubject second = getSubject(secondSubjectId);
+		if (first == null || second == null || !first.validPresentCube(firstCubeId)
+			|| !second.validPresentCube(secondCubeId)
+			|| first == second && firstCubeId == secondCubeId
+			|| allGlueJoints().size() >= SurgicalAssembly.MAX_SEAMS)
+			return false;
+		SurgicalCombination combination = first.combinationContaining(firstCubeId);
+		if (combination == null || !combination.equals(second.combinationContaining(secondCubeId)))
+			return false;
+
+		SurgicalConnectionGraph<UUID> abstractGraph = connectionGraph(Set.of(), Map.of(), false);
+		return abstractGraph != null
+			&& !abstractGraph.componentContaining(first.persistentId(), firstCubeId)
+				.contains(second.persistentId(), secondCubeId);
+	}
+
 	public boolean glueComponents(Player player, ItemStack glue, InteractionHand hand,
 		int firstSubjectId, int firstCubeId, int secondSubjectId, int secondCubeId,
 		SurgicalLayPose targetPose, List<SurgicalTableGluePacket.Move> moves,
