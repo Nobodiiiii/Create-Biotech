@@ -3090,7 +3090,13 @@ public final class SurgicalTableClientHandler {
 
 		List<Component> tooltip = new ArrayList<>();
 		SurgicalKitItem.Tool selectedTool = SurgicalKitItem.selectedTool(stack);
+		String usageKey = interactionUsageKey(stack, selectedTool);
 		Component title = selectedTool == null ? stack.getHoverName() : selectedTool.displayName();
+		if (usageKey != null)
+			title = title.copy()
+				.append(Component.literal("  ").withStyle(ChatFormatting.GRAY))
+				.append(Component.translatable(usageKey)
+					.withStyle(ChatFormatting.GRAY));
 		CreateLang.builder()
 			.add(title)
 			.forGoggles(tooltip);
@@ -3175,6 +3181,36 @@ public final class SurgicalTableClientHandler {
 			return null;
 		}
 		return new InteractionPrompt(stack, tooltip);
+	}
+
+	@Nullable
+	private static String interactionUsageKey(ItemStack stack, @Nullable SurgicalKitItem.Tool selectedTool) {
+		String root = "item.create_biotech.surgical_kit.tool_usage.";
+		if (selectedTool != null)
+			return root + selectedTool.id();
+		if (isSmartGlue(stack))
+			return root + "smart_super_glue";
+		if (isStandardGlue(stack))
+			return root + "super_glue";
+		if (isSymmetryWand(stack))
+			return root + "symmetry_wand";
+		if (heldLimbType(stack) != null)
+			return root + "joint";
+		if (SurgicalKitItem.isSlimeBall(stack))
+			return root + "slime_ball";
+		if (SurgicalKitItem.isShovel(stack))
+			return root + "shovel";
+		if (SurgicalKitItem.isShears(stack))
+			return root + "shears";
+		if (SurgicalKitItem.isHoneyBottle(stack))
+			return root + "honey_bottle";
+		if (SurgicalKitItem.isWrench(stack))
+			return root + "wrench";
+		if (isEmptyBox(stack))
+			return root + "empty_box";
+		if (CapturedEntityBoxHelper.hasCapturedEntity(stack))
+			return root + "filled_box";
+		return null;
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
