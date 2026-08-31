@@ -1562,7 +1562,7 @@ public final class SurgicalTableClientHandler {
 		SurgicalTableGluePacket.Endpoint secondEndpoint = glueEndpoint(anchorSelection, anchorHit,
 			anchorLayout, target.mirroredAnchorHit.faceIndex);
 		if (firstEndpoint == null || secondEndpoint == null
-			|| !glueEndpointsActuallyIntersect(preview.subjects, firstEndpoint, secondEndpoint)
+			|| !glueEndpointsConnectWithinTolerance(preview.subjects, firstEndpoint, secondEndpoint)
 			|| glueTopologyKnown(firstSubject, anchorSubject)
 				&& !table.canGlueComponents(player.getItemInHand(hand), firstEndpoint.subjectId(),
 					firstEndpoint.cubeId(), secondEndpoint.subjectId(), secondEndpoint.cubeId(),
@@ -1593,7 +1593,7 @@ public final class SurgicalTableClientHandler {
 		SurgicalSubject firstSubject = table == null ? null : table.getSubject(editor.first.subjectId());
 		SurgicalSubject secondSubject = table == null ? null : table.getSubject(editor.second.subjectId());
 		SurgicalTablePlane.Plane plane = clientPlane(level, preview.ownerPos);
-		if (!glueEndpointsActuallyIntersect(preview.subjects, editor.first, editor.second)
+		if (!glueEndpointsConnectWithinTolerance(preview.subjects, editor.first, editor.second)
 			|| table == null || firstSubject == null || secondSubject == null
 			|| glueTopologyKnown(firstSubject, secondSubject)
 				&& !table.canGlueComponents(player.getItemInHand(editor.hand), editor.first.subjectId(),
@@ -1912,9 +1912,16 @@ public final class SurgicalTableClientHandler {
 		return SurgicalClientTopology.cubesActuallyIntersect(firstCube, secondCube);
 	}
 
-	private static boolean glueCubesActuallyIntersect(List<GlueSubjectPreview> previews,
+	private static boolean glueEndpointsConnectWithinTolerance(List<GlueSubjectPreview> previews,
+		SurgicalTableGluePacket.Endpoint first, SurgicalTableGluePacket.Endpoint second) {
+		return SurgicalClientTopology.cubesConnectWithinTolerance(
+			previewCube(previews, first.subjectId(), first.cubeId()),
+			previewCube(previews, second.subjectId(), second.cubeId()));
+	}
+
+	private static boolean glueCubesConnectWithinTolerance(List<GlueSubjectPreview> previews,
 		int firstSubjectId, int firstCubeId, int secondSubjectId, int secondCubeId) {
-		return SurgicalClientTopology.cubesActuallyIntersect(
+		return SurgicalClientTopology.cubesConnectWithinTolerance(
 			previewCube(previews, firstSubjectId, firstCubeId),
 			previewCube(previews, secondSubjectId, secondCubeId));
 	}
@@ -2475,7 +2482,7 @@ public final class SurgicalTableClientHandler {
 				preview.baseCubes, planned.offsets(), rotations, true));
 		}
 		if (moves.size() != current.moves.size()
-			|| !glueCubesActuallyIntersect(previews, firstSubjectId, firstCubeId,
+			|| !glueCubesConnectWithinTolerance(previews, firstSubjectId, firstCubeId,
 				secondSubjectId, secondCubeId))
 			return null;
 		return new GluePreview(current.request, current.ownerPos, current.targetSubjectId,
@@ -2489,7 +2496,7 @@ public final class SurgicalTableClientHandler {
 		GluePreview current = editor.preview;
 		if (!(level.getBlockEntity(current.ownerPos) instanceof SurgicalTableBlockEntity table)
 			|| table.clientDataRevision() != current.tableRevision
-			|| !glueEndpointsActuallyIntersect(current.subjects, editor.first, editor.second))
+			|| !glueEndpointsConnectWithinTolerance(current.subjects, editor.first, editor.second))
 			return null;
 		List<GlueSubjectPreview> previews = new ArrayList<>(current.subjects.size());
 		List<SurgicalTableGluePacket.Move> moves = new ArrayList<>(current.moves.size());
@@ -2550,7 +2557,7 @@ public final class SurgicalTableClientHandler {
 		}
 		if (moves.size() != current.moves.size())
 			return null;
-		if (!glueEndpointsActuallyIntersect(previews, editor.first, editor.second))
+		if (!glueEndpointsConnectWithinTolerance(previews, editor.first, editor.second))
 			return null;
 		GluePreview adjusted = new GluePreview(current.request, current.ownerPos,
 			current.targetSubjectId, current.targetCubeId,

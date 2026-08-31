@@ -124,6 +124,19 @@ public final class SurgicalClientTopology {
 		return !convexIntersectionFaces(intersectionPlanes).isEmpty();
 	}
 
+	/** Uses the same overlap and planar adjacency tolerance as automatic seam discovery. */
+	public static boolean cubesConnectWithinTolerance(
+		SurgicalModelRenderContext.CubeGeometry firstGeometry,
+		SurgicalModelRenderContext.CubeGeometry secondGeometry) {
+		if (firstGeometry == null || secondGeometry == null)
+			return false;
+		PreparedCube first = PreparedCube.of(firstGeometry);
+		PreparedCube second = PreparedCube.of(secondGeometry);
+		PreparedCube smaller = first.volume <= second.volume ? first : second;
+		PreparedCube other = smaller == first ? second : first;
+		return !contactFaces(smaller, other).isEmpty();
+	}
+
 	@Nullable
 	private static Contact contactBetween(SurgicalAssembly.Seam seam,
 		Map<Integer, PreparedCube> byId) {
@@ -134,18 +147,26 @@ public final class SurgicalClientTopology {
 
 		PreparedCube smaller = first.volume <= second.volume ? first : second;
 		PreparedCube other = smaller == first ? second : first;
+		List<List<Vec3>> faces = contactFaces(smaller, other);
+		return faces.isEmpty() ? null : new Contact(seam, smaller.geometry.cubeId(), faces);
+	}
+
+	/** Shared by seam discovery and smart-glue editing so both accept the same contact boundary. */
+	private static List<List<Vec3>> contactFaces(PreparedCube smaller, PreparedCube other) {
+		if (!smaller.bounds.overlapsWithin(other.bounds, CONTACT_TOLERANCE))
+			return List.of();
 		// A pair whose bounds are disjoint cannot share an intersection solid, and
 		// convexIntersectionFaces is a C(12,3) triple loop allocating several Vec3 per triple. The
 		// seam builder deliberately admits merely tolerance-adjacent neighbours, so the empty result
 		// is the common case; those pairs now fall straight through to the planar fallback below,
 		// which is where they were always resolved. Same rejection cubesActuallyIntersect makes.
-		if (first.bounds.overlapsWithin(second.bounds, POLYHEDRON_EPSILON)) {
-			List<Plane> intersectionPlanes = new ArrayList<>(first.planes.size() + second.planes.size());
-			intersectionPlanes.addAll(first.planes);
-			intersectionPlanes.addAll(second.planes);
+		if (smaller.bounds.overlapsWithin(other.bounds, POLYHEDRON_EPSILON)) {
+			List<Plane> intersectionPlanes = new ArrayList<>(smaller.planes.size() + other.planes.size());
+			intersectionPlanes.addAll(smaller.planes);
+			intersectionPlanes.addAll(other.planes);
 			List<List<Vec3>> intersectionFaces = convexIntersectionFaces(intersectionPlanes);
 			if (!intersectionFaces.isEmpty())
-				return new Contact(seam, smaller.geometry.cubeId(), intersectionFaces);
+				return intersectionFaces;
 		}
 
 		// Keep near-adjacent model parts connected. This is deliberately a planar
@@ -170,8 +191,7 @@ public final class SurgicalClientTopology {
 				bestContact = contact;
 			}
 		}
-		return bestContact.isEmpty() ? null
-			: new Contact(seam, smaller.geometry.cubeId(), List.of(bestContact));
+		return bestContact.isEmpty() ? List.of() : List.of(bestContact);
 	}
 
 	/** Builds every boundary face of the convex polyhedron shared by all half-spaces. */
