@@ -1427,10 +1427,13 @@ public final class SurgicalTableClientHandler {
 			if (selected == null)
 				return;
 			double volume = connectedComponentVolume(level, cubeHit);
-			if (!Double.isFinite(volume))
+			SurgicalModelRenderContext.CubeGeometry hitGeometry = cubeHit.geometry.cubesById.get(cubeHit.cubeId);
+			if (!Double.isFinite(volume) || hitGeometry == null)
 				return;
+			Vec3 dropPosition = SurgicalClientTopology.center(hitGeometry);
 			CBPackets.sendToServer(new SurgicalTableShovelPacket(selected.tablePos, hand,
-				selected.subjectId, selected.targetId, selected.observedCubeCount, selected.seams, volume));
+				selected.subjectId, selected.targetId, selected.observedCubeCount, selected.seams,
+				volume, dropPosition));
 			clearSelections();
 			consumeInteraction(event, hand);
 			return;
@@ -3086,8 +3089,10 @@ public final class SurgicalTableClientHandler {
 		}
 
 		List<Component> tooltip = new ArrayList<>();
+		SurgicalKitItem.Tool selectedTool = SurgicalKitItem.selectedTool(stack);
+		Component title = selectedTool == null ? stack.getHoverName() : selectedTool.displayName();
 		CreateLang.builder()
-			.add(stack.getHoverName())
+			.add(title)
 			.forGoggles(tooltip);
 		if (isSurgicalGlue(stack)) {
 			boolean selectingFirst = pendingGlue == null && glueEditor == null;

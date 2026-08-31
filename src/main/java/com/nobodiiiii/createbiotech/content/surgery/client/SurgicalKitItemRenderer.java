@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxIconRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.simibubi.create.Create;
+import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollValueHandler;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
@@ -33,6 +34,10 @@ public class SurgicalKitItemRenderer extends BlockEntityWithoutLevelRenderer {
 		PartialModel.of(Create.asResource("item/wand_of_symmetry/core"));
 	private static final PartialModel WAND_CORE_GLOW =
 		PartialModel.of(Create.asResource("item/wand_of_symmetry/core_glow"));
+	private static final PartialModel WRENCH_ITEM =
+		PartialModel.of(Create.asResource("item/wrench/item"));
+	private static final PartialModel WRENCH_GEAR =
+		PartialModel.of(Create.asResource("item/wrench/gear"));
 
 	public SurgicalKitItemRenderer() {
 		super(null, null);
@@ -46,8 +51,11 @@ public class SurgicalKitItemRenderer extends BlockEntityWithoutLevelRenderer {
 
 		poseStack.pushPose();
 		poseStack.translate(0.5f, 0.5f, 0.5f);
-		if (SurgicalKitItem.selectedTool(stack) == SurgicalKitItem.Tool.SYMMETRY_WAND)
+		SurgicalKitItem.Tool tool = SurgicalKitItem.selectedTool(stack);
+		if (tool == SurgicalKitItem.Tool.SYMMETRY_WAND)
 			renderSymmetryWand(renderer, poseStack, light);
+		else if (tool == SurgicalKitItem.Tool.WRENCH)
+			renderWrench(renderer, poseStack, light);
 		else
 			renderTemporaryBox(stack, transformType, renderer, poseStack, buffer, light);
 		poseStack.popPose();
@@ -63,6 +71,16 @@ public class SurgicalKitItemRenderer extends BlockEntityWithoutLevelRenderer {
 		poseStack.translate(0.0f, Mth.sin(worldTime) * 0.05f, 0.0f);
 		poseStack.mulPose(Axis.YP.rotationDegrees(worldTime * -10.0f % 360.0f));
 		renderer.renderGlowing(WAND_BITS.get(), maxLight);
+	}
+
+	private static void renderWrench(PartialItemModelRenderer renderer, PoseStack poseStack, int light) {
+		renderer.render(WRENCH_ITEM.get(), light);
+		float xOffset = -1.0f / 16.0f;
+		poseStack.translate(-xOffset, 0.0f, 0.0f);
+		poseStack.mulPose(Axis.YP.rotationDegrees(
+			ScrollValueHandler.getScroll(AnimationTickHolder.getPartialTicks())));
+		poseStack.translate(xOffset, 0.0f, 0.0f);
+		renderer.render(WRENCH_GEAR.get(), light);
 	}
 
 	private static void renderTemporaryBox(ItemStack stack, ItemDisplayContext transformType,

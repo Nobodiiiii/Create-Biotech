@@ -13,7 +13,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Shovels the complete connected group containing one client-selected model cube. */
 public record SurgicalTableShovelPacket(BlockPos pos, InteractionHand hand, int subjectId, int cubeId,
-	int observedCubeCount, List<SurgicalAssembly.Seam> seams, double volume) {
+	int observedCubeCount, List<SurgicalAssembly.Seam> seams, double volume, Vec3 dropPosition) {
 
 	public SurgicalTableShovelPacket {
 		seams = List.copyOf(seams);
@@ -21,7 +21,8 @@ public record SurgicalTableShovelPacket(BlockPos pos, InteractionHand hand, int 
 
 	public SurgicalTableShovelPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readVarInt(),
-			buffer.readVarInt(), buffer.readVarInt(), readSeams(buffer), buffer.readDouble());
+			buffer.readVarInt(), buffer.readVarInt(), readSeams(buffer), buffer.readDouble(),
+			new Vec3(buffer.readDouble(), buffer.readDouble(), buffer.readDouble()));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -36,18 +37,27 @@ public record SurgicalTableShovelPacket(BlockPos pos, InteractionHand hand, int 
 			buffer.writeVarInt(seam.second());
 		}
 		buffer.writeDouble(volume);
+		buffer.writeDouble(dropPosition.x);
+		buffer.writeDouble(dropPosition.y);
+		buffer.writeDouble(dropPosition.z);
 	}
 
 	public void handle(ServerPlayer player) {
 		if (player == null || player.isSpectator() || !player.mayBuild() || subjectId < 0 || cubeId < 0
 			|| cubeId >= observedCubeCount || !SurgicalAssembly.validTopology(observedCubeCount, seams)
-			|| !Double.isFinite(volume) || volume < 0.0d || !player.level().isLoaded(pos))
+			|| !Double.isFinite(volume) || volume < 0.0d || !validDropPosition(dropPosition)
+			|| !player.level().isLoaded(pos))
 			return;
 
 		double range = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d;
 		SurgicalTablePlane.Plane plane = SurgicalTablePlane.scan(player.level(), pos);
 		if (!plane.valid() || !pos.equals(plane.source()) || plane.tiles().stream()
 			.noneMatch(tile -> player.distanceToSqr(Vec3.atCenterOf(tile)) <= range * range))
+			return;
+		SurgicalTablePlane.WorkArea area = plane.workArea();
+		if (!area.contains(dropPosition.x, dropPosition.z, dropPosition.x, dropPosition.z, 1.0e-6d)
+			|| dropPosition.y < area.y() - SurgicalAssembly.MAX_BODY_SIZE
+			|| dropPosition.y > area.y() + 1.0d + SurgicalAssembly.MAX_BODY_SIZE)
 			return;
 		SurgicalTableBlockEntity table = SurgicalTableBlockEntity.controller(player.level(), plane);
 		if (table == null)
@@ -56,7 +66,12 @@ public record SurgicalTableShovelPacket(BlockPos pos, InteractionHand hand, int 
 		ItemStack held = player.getItemInHand(hand);
 		if (SurgicalKitItem.isShovel(held))
 			table.shovelConnectedGroup(player, held, hand, subjectId, cubeId,
-				observedCubeCount, seams, volume);
+				observedCubeCount, seams, volume, dropPosition);
+	}
+
+	private static boolean validDropPosition(Vec3 position) {
+		return position != null && Double.isFinite(position.x)
+			&& Double.isFinite(position.y) && Double.isFinite(position.z);
 	}
 
 	private static List<SurgicalAssembly.Seam> readSeams(FriendlyByteBuf buffer) {

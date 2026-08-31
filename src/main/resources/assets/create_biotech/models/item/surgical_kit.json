@@ -27,7 +27,7 @@
     },
     {
       "predicate": { "create_biotech:surgical_tool": 7.0 },
-      "model": "create:item/wrench"
+      "model": "create_biotech:item/surgical_kit_wrench"
     },
     {
       "predicate": { "create_biotech:surgical_tool": 8.0 },

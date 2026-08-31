@@ -641,12 +641,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	/** Removes the complete server-authoritative connectivity group selected with a shovel. */
 	public boolean shovelConnectedGroup(Player player, ItemStack shovel, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
-		double volume) {
+		double volume, Vec3 dropPosition) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !SurgicalKitItem.isShovel(shovel)
 			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !Double.isFinite(volume) || volume < 0.0d
-			|| !canPayInteractionCost(shovel, 1, player) || level == null)
+			|| dropPosition == null || !Double.isFinite(dropPosition.x) || !Double.isFinite(dropPosition.y)
+			|| !Double.isFinite(dropPosition.z) || !canPayInteractionCost(shovel, 1, player) || level == null)
 			return false;
 		ComponentGroup group = connectedGroup(subject, cubeId);
 		if (group.components.isEmpty())
@@ -657,8 +658,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		setChangedAndSync();
 		int drops = SurgicalSlimeDrops.roll(volume, level.getRandom());
 		if (drops > 0)
-			Containers.dropItemStack(level, worldPosition.getX() + 0.5d, worldPosition.getY() + 1.1d,
-				worldPosition.getZ() + 0.5d, new ItemStack(Items.SLIME_BALL, drops));
+			Containers.dropItemStack(level, dropPosition.x, dropPosition.y, dropPosition.z,
+				new ItemStack(Items.SLIME_BALL, drops));
 		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_BREAK,
 			SoundSource.BLOCKS, 0.8f, 1.0f);
 		return true;
