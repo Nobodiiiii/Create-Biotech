@@ -36,6 +36,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -369,12 +370,16 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
-		List<SurgicalTableLayout.Footprint> occupied = occupiedForValidation(plane, -1);
+		TemporaryMoveSource temporaryMove = SurgicalKitItem.hasTemporaryCapture(box)
+			? resolveTemporaryMove(box) : null;
+		if (SurgicalKitItem.isTemporaryBox(box) && temporaryMove == null)
+			return SurgicalTablePlacementResult.INVALID_CAPTURE;
+		List<SurgicalTableLayout.Footprint> occupied = temporaryMove != null
+			&& temporaryMove.sourceTable == this
+			? occupiedOutside(temporaryMove.group) : occupiedForValidation(plane, -1);
 		if (level == null || level.isClientSide || !worldPosition.equals(plane.source()) || occupied == null)
 			return SurgicalTablePlacementResult.INVALID_TABLE;
-		if (subjects.size() >= MAX_SUBJECTS)
-			return SurgicalTablePlacementResult.TABLE_FULL;
-		if (!(box.getItem() instanceof CapturedEntityBoxItem)
+		if (!(box.getItem() instanceof CapturedEntityBoxItem) && temporaryMove == null
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
 			|| componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
@@ -402,7 +407,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					componentFootprints, sourceLayouts, occupied))
 					return SurgicalTablePlacementResult.NO_SPACE;
 				return tryPlaceComposite(box, placementFacing, placedOriginOffsetX, placedOriginOffsetZ,
-					sourceLayouts, assembly);
+					sourceLayouts, assembly, temporaryMove);
 			}
 			if (!sourceLayouts.isEmpty())
 				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
@@ -433,6 +438,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.UNSUPPORTED_SUBJECT;
 		else
 			return SurgicalTablePlacementResult.INVALID_CAPTURE;
+		if (effectiveSubjectCount(temporaryMove) >= MAX_SUBJECTS)
+			return SurgicalTablePlacementResult.TABLE_FULL;
 		if (!SurgicalTableLayout.validateSubjectPlacement(plane, placementAssembly, placementFacing, layPose,
 			placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
 			componentFootprints, sourceLayouts, occupied))
@@ -441,23 +448,22 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), profile, placementFacing, layPose, cubeCount,
 			present, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ, placementOffsets(proposal),
 			storedFootprints);
+		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
-		clientRenderBounds = null;
-		CapturedEntityBoxHelper.clearCapturedEntity(box);
-		setChangedAndSync();
-		level.playSound(null, worldPosition, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 0.8f, 0.9f);
+		finishSubjectPlacement(box, temporaryMove);
 		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
 	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing,
 		double placedOriginOffsetX, double placedOriginOffsetZ,
-		List<SurgicalTableLayout.Proposal> sourceLayouts, SurgicalAssembly assembly) {
+		List<SurgicalTableLayout.Proposal> sourceLayouts, SurgicalAssembly assembly,
+		@Nullable TemporaryMoveSource temporaryMove) {
 		List<SurgicalAssembly.Source> assemblySources = assembly.sources();
 		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing);
 		if (sourceLayouts.size() != assemblySources.size()
 			|| placedSources.size() != assemblySources.size())
 			return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
-		if (subjects.size() > MAX_SUBJECTS - assemblySources.size())
+		if (effectiveSubjectCount(temporaryMove) > MAX_SUBJECTS - assemblySources.size())
 			return SurgicalTablePlacementResult.TABLE_FULL;
 
 		// Restore sources as normal table subjects so each source keeps its own model topology and
@@ -516,12 +522,127 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			if (parent != child)
 				parent.addLimbJoint(limb);
 		}
+		commitTemporaryMove(temporaryMove);
 		addSubjects(restored);
+		finishSubjectPlacement(box, temporaryMove);
+		return SurgicalTablePlacementResult.SUCCESS;
+	}
+
+	@Nullable
+	private TemporaryMoveSource resolveTemporaryMove(ItemStack kit) {
+		SurgicalKitItem.TemporaryMove move = SurgicalKitItem.temporaryMove(kit);
+		if (move == null || !(level instanceof ServerLevel sourceLevel)
+			|| !level.dimension().location().equals(move.dimension()) || !level.isLoaded(move.tablePos()))
+			return null;
+		TemporaryMoveSource resolved = resolveTemporaryMoveSource(sourceLevel, move);
+		if (resolved == null)
+			SurgicalKitItem.clearTemporaryCapture(kit);
+		return resolved;
+	}
+
+	/** Performs a read-only validity check once the source chunk is available. */
+	public static boolean isTemporaryMoveValid(ServerLevel sourceLevel,
+		SurgicalKitItem.TemporaryMove move) {
+		return sourceLevel != null && move != null && sourceLevel.isLoaded(move.tablePos())
+			&& resolveTemporaryMoveSource(sourceLevel, move) != null;
+	}
+
+	@Nullable
+	private static TemporaryMoveSource resolveTemporaryMoveSource(ServerLevel sourceLevel,
+		SurgicalKitItem.TemporaryMove move) {
+		if (!sourceLevel.dimension().location().equals(move.dimension()))
+			return null;
+		SurgicalTablePlane.Plane sourcePlane = SurgicalTablePlane.scan(sourceLevel, move.tablePos());
+		SurgicalTableBlockEntity sourceTable = controller(sourceLevel, sourcePlane);
+		if (sourceTable == null)
+			return null;
+		Map<UUID, BitSet> components = move.components();
+		SurgicalSubject anchor = null;
+		int anchorCube = -1;
+		for (Map.Entry<UUID, BitSet> entry : components.entrySet()) {
+			SurgicalSubject candidate = sourceTable.getSubjectByPersistentId(entry.getKey());
+			int firstCube = entry.getValue().nextSetBit(0);
+			CompoundTag sourceState = move.sourceSubject(entry.getKey());
+			if (candidate == null || sourceState == null || !candidate.save().equals(sourceState)
+				|| firstCube < 0 || !candidate.validPresentCube(firstCube))
+				return null;
+			if (anchor == null) {
+				anchor = candidate;
+				anchorCube = firstCube;
+			}
+		}
+		if (anchor == null)
+			return null;
+		ComponentGroup group = sourceTable.connectedGroup(anchor, anchorCube);
+		if (!group.components.equals(components))
+			return null;
+		BitSet anchorComponent = group.components.get(anchor.persistentId());
+		SurgicalAssembly current = sourceTable.packedAssembly(anchor, anchorComponent, group,
+			sourceTable.jointsWithin(group), sourceTable.combinationsWithin(group), sourceTable.limbsWithin(group));
+		if (current == null || !current.save().equals(move.sourceAssembly()))
+			return null;
+		return new TemporaryMoveSource(sourceTable, group, sourceTable.freedSubjectSlots(group));
+	}
+
+	@Nullable
+	private List<SurgicalTableLayout.Footprint> occupiedOutside(ComponentGroup group) {
+		List<SurgicalTableLayout.Footprint> occupied = new ArrayList<>();
+		for (SurgicalSubject subject : subjects) {
+			if (subject.occupiedFootprints().isEmpty())
+				return null;
+			BitSet moved = group.components.get(subject.persistentId());
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+				if (!subject.containsFootprint(moved, footprint))
+					occupied.add(footprint);
+		}
+		return List.copyOf(occupied);
+	}
+
+	private int freedSubjectSlots(ComponentGroup group) {
+		int freed = 0;
+		for (SurgicalSubject subject : subjects) {
+			BitSet moved = group.components.get(subject.persistentId());
+			if (moved != null && moved.equals(subject.presentCubes))
+				freed++;
+		}
+		return freed;
+	}
+
+	private int effectiveSubjectCount(@Nullable TemporaryMoveSource move) {
+		return subjects.size() - (move != null && move.sourceTable == this ? move.freedSubjects : 0);
+	}
+
+	private static void commitTemporaryMove(@Nullable TemporaryMoveSource move) {
+		if (move != null)
+			move.sourceTable.removeTemporaryGroup(move.group);
+	}
+
+	private void removeTemporaryGroup(ComponentGroup group) {
+		Set<SurgicalGlueJoint> removedJoints = jointsWithin(group);
+		Set<SurgicalCombination> removedCombinations = combinationsWithin(group);
+		Set<SurgicalLimbJoint> removedLimbs = limbsWithin(group);
+		for (SurgicalSubject groupedSubject : List.copyOf(subjects)) {
+			BitSet removed = group.components.get(groupedSubject.persistentId());
+			if (removed != null)
+				groupedSubject.removeComponent(removed);
+			groupedSubject.removeGlueJoints(removedJoints);
+			groupedSubject.removeCombinations(removedCombinations);
+			groupedSubject.removeLimbJoints(removedLimbs);
+			if (groupedSubject.isEmpty())
+				removeSubject(groupedSubject);
+		}
+		clientRenderBounds = null;
+	}
+
+	private void finishSubjectPlacement(ItemStack box, @Nullable TemporaryMoveSource move) {
 		clientRenderBounds = null;
 		CapturedEntityBoxHelper.clearCapturedEntity(box);
+		if (move != null)
+			SurgicalKitItem.clearTemporaryMove(box);
 		setChangedAndSync();
+		if (move != null && move.sourceTable != this)
+			move.sourceTable.setChangedAndSync();
 		level.playSound(null, worldPosition, SoundEvents.WOOL_PLACE, SoundSource.BLOCKS, 0.8f, 0.9f);
-		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
 	private static Map<Integer, Vec3> placementOffsets(SurgicalTableLayout.Proposal proposal) {
@@ -988,12 +1109,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return refuse(player, "limb_primary_conflict");
 		if (exceedsSecondaryCapacity(installedJoint, prospective, topology))
 			return refuse(player, "limb_secondary_limit_" + type.id());
-		if (!canPayInteractionCost(jointItem, 1, player))
-			return false;
-
 		attachLimbJoint(installedJoint);
-		if (consumeInteractionItems() && !player.getAbilities().instabuild)
-			consumeMaterial(jointItem, player, hand);
+		if (!player.getAbilities().instabuild)
+			jointItem.shrink(1);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 0.8f, 1.1f);
@@ -1001,6 +1119,52 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			? "limb_attached_pending_" : "limb_attached_";
 		player.displayClientMessage(Component.translatable(
 			"message.create_biotech.surgical_table." + result + type.id()), true);
+		return true;
+	}
+
+	/** Captures a placement snapshot without removing the source component from its table. */
+	public boolean captureTemporaryComponent(Player player, ItemStack kit, int subjectId, int cubeId,
+		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
+		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		SurgicalSubject subject = getSubject(subjectId);
+		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.validPresentCube(cubeId) || !SurgicalKitItem.isEmptyTemporaryBox(kit)
+			|| bodyBounds == null || hitboxGeometry == null || level == null)
+			return false;
+
+		ComponentGroup group = connectedGroup(subject, cubeId);
+		BitSet component = group.components.get(subject.persistentId());
+		if (component == null || component.isEmpty())
+			return false;
+		SurgicalAssembly sourceAssembly = packedAssembly(subject, component, group, jointsWithin(group),
+			combinationsWithin(group), limbsWithin(group));
+		if (sourceAssembly == null || !validHitboxGeometry(sourceAssembly, bodyBounds, hitboxGeometry)
+			|| !validMobilityMeasurements(sourceAssembly, bodyBounds))
+			return false;
+
+		SurgicalAssembly capturedAssembly = sourceAssembly.withBodyGeometry(bodyBounds, hitboxGeometry);
+		int installedArms = (int) capturedAssembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
+		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
+			capturedAssembly = capturedAssembly.withAttackGeometry(attackGeometry);
+		Map<UUID, CompoundTag> sourceSubjects = new HashMap<>();
+		for (UUID subjectKey : group.components.keySet()) {
+			SurgicalSubject sourceSubject = getSubjectByPersistentId(subjectKey);
+			if (sourceSubject == null)
+				return false;
+			sourceSubjects.put(subjectKey, sourceSubject.save());
+		}
+		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
+		if (bionic == null)
+			return false;
+		bionic.setAssembly(capturedAssembly);
+		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
+			return false;
+		SurgicalKitItem.setTemporaryMove(kit, level.dimension().location(), worldPosition,
+			group.components, sourceSubjects, sourceAssembly.save());
+		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
 	}
 
@@ -1040,7 +1204,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalLimbJoint> removed = Set.of(joint);
 		for (SurgicalSubject subject : subjects)
 			subject.removeLimbJoints(removed);
-		if (consumeInteractionItems() && !player.getAbilities().instabuild)
+		if (!player.getAbilities().instabuild)
 			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
 		setChangedAndSync();
 		if (level != null)
@@ -2638,6 +2802,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 		}
 	}
+
+	private record TemporaryMoveSource(SurgicalTableBlockEntity sourceTable, ComponentGroup group,
+		int freedSubjects) {}
 
 	private record GlueCutState(SurgicalGlueJoint joint, ComponentGroup moving, boolean separates) {}
 	private record SeamCutState(BitSet proposedCuts, ComponentGroup moving, boolean separates) {

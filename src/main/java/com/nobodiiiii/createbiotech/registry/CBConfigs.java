@@ -475,7 +475,8 @@ public class CBConfigs {
 			builder.push("surgicalTable");
 			consumeInteractionItems = builder
 				.comment("Whether successful surgical-table interactions consume held materials or damage tools. "
-					+ "Cardboard boxes still change between their empty and filled states.")
+					+ "Anatomical joints are always consumed; cardboard boxes still change between their empty "
+					+ "and filled states.")
 				.define("consumeInteractionItems", false);
 			builder.pop();
 		}

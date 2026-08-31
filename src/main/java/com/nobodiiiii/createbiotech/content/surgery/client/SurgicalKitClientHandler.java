@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.client.CBKeyMappings;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.simibubi.create.content.equipment.toolbox.RadialToolboxMenu;
 
@@ -23,7 +24,8 @@ public final class SurgicalKitClientHandler {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onKeyInput(InputEvent.Key event) {
 		Minecraft minecraft = Minecraft.getInstance();
-		if (event.getAction() != InputConstants.PRESS || !SurgicalKitKeyMappings.matches(event))
+		if (event.getAction() != InputConstants.PRESS
+			|| !CBKeyMappings.matches(CBKeyMappings.SURGICAL_KIT, event))
 			return;
 		if (minecraft.screen != null && !(minecraft.screen instanceof RadialToolboxMenu))
 			return;

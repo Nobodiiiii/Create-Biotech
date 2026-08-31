@@ -194,6 +194,10 @@ public final class SurgicalTableClientHandler {
 	private static GlueEditor glueEditor;
 	@Nullable
 	private static PlacementCandidate placementCandidate;
+	private static boolean temporaryMoveCacheInitialized;
+	private static ItemStack temporaryMoveCacheStack = ItemStack.EMPTY;
+	@Nullable
+	private static SurgicalKitItem.TemporaryMove temporaryMoveCache;
 	@Nullable
 	private static PlacementPreview placementPreview;
 	private static SurgicalTablePlacementResult placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
@@ -341,17 +345,48 @@ public final class SurgicalTableClientHandler {
 		BitSet present = geometry != null && geometry.observedCubeCount == observedCubeCount
 			&& geometry.matchesModel(table, subject)
 			? geometry.presentCubes : subject.presentCubesForRender(observedCubeCount);
+		BitSet visible = temporaryMoveVisibleCubes(subject, present);
 		if (gluePreview == null || !gluePreview.ownerPos.equals(table.getBlockPos()))
-			return present;
-		BitSet visible = null;
+			return visible;
 		for (GlueSubjectPreview moved : gluePreview.subjects) {
 			if (moved.subjectId != subject.id())
 				continue;
-			if (visible == null)
-				visible = (BitSet) present.clone();
 			visible.andNot(moved.cubes);
 		}
-		return visible == null ? present : visible;
+		return visible;
+	}
+
+	private static BitSet temporaryMoveVisibleCubes(SurgicalSubject subject, BitSet present) {
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player == null || minecraft.level == null)
+			return (BitSet) present.clone();
+		for (InteractionHand hand : HANDS) {
+			SurgicalKitItem.TemporaryMove move = cachedTemporaryMove(minecraft.player.getItemInHand(hand));
+			if (move == null || !minecraft.level.dimension().location().equals(move.dimension()))
+				continue;
+			BitSet moved = move.component(subject.persistentId());
+			if (moved == null || moved.isEmpty())
+				continue;
+			BitSet visible = (BitSet) present.clone();
+			visible.andNot(moved);
+			return visible;
+		}
+		return (BitSet) present.clone();
+	}
+
+	@Nullable
+	private static SurgicalKitItem.TemporaryMove cachedTemporaryMove(ItemStack stack) {
+		// A stored move remains dormant when another logical kit tool is selected. This mirrors the
+		// physical box interaction: only the box currently in hand suppresses its source rendering.
+		if (!SurgicalKitItem.isTemporaryBox(stack) || !CapturedEntityBoxHelper.hasCapturedEntity(stack))
+			return null;
+		if (temporaryMoveCacheInitialized
+			&& ItemStack.isSameItemSameComponents(temporaryMoveCacheStack, stack))
+			return temporaryMoveCache;
+		temporaryMoveCacheInitialized = true;
+		temporaryMoveCacheStack = stack.copy();
+		temporaryMoveCache = SurgicalKitItem.temporaryMove(stack);
+		return temporaryMoveCache;
 	}
 
 	/**
@@ -656,15 +691,18 @@ public final class SurgicalTableClientHandler {
 		}
 
 		InteractionHand hand = null;
+		ItemStack heldBox = ItemStack.EMPTY;
 		PlacementSource source = null;
 		for (InteractionHand candidateHand : HANDS) {
 			ItemStack held = player.getItemInHand(candidateHand);
 			if (!(held.getItem() instanceof CapturedEntityBoxItem)
+				&& !SurgicalKitItem.hasTemporaryCapture(held)
 				|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 				continue;
 			PlacementCandidate prepared = placementCandidateFor(held, level);
 			if (prepared.source() != null) {
 				hand = candidateHand;
+				heldBox = held;
 				source = prepared.source();
 				break;
 			}
@@ -688,7 +726,8 @@ public final class SurgicalTableClientHandler {
 			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
 		}
-		if (controller.getSubjects().size() > SurgicalTableBlockEntity.MAX_SUBJECTS - source.subjectSlots()) {
+		if (effectivePlacementSubjectCount(controller, heldBox)
+			> SurgicalTableBlockEntity.MAX_SUBJECTS - source.subjectSlots()) {
 			rejectPlacementPreview(SurgicalTablePlacementResult.TABLE_FULL);
 			return;
 		}
@@ -709,7 +748,8 @@ public final class SurgicalTableClientHandler {
 			refreshPlacementFeedback(player, level);
 			return;
 		}
-		List<SurgicalTableLayout.Footprint> occupied = SurgicalTablePlane.occupiedFootprints(level, plane, -1);
+		List<SurgicalTableLayout.Footprint> occupied = placementOccupiedFootprints(level, plane, controller,
+			heldBox);
 		if (occupied == null) {
 			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
@@ -831,6 +871,50 @@ public final class SurgicalTableClientHandler {
 			return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_CAPTURE);
 		return cachePlacementCandidate(held,
 			new PlacementSource(held.copyWithCount(1), profile, assembly), SurgicalTablePlacementResult.SUCCESS);
+	}
+
+	private static int effectivePlacementSubjectCount(SurgicalTableBlockEntity table, ItemStack held) {
+		SurgicalKitItem.TemporaryMove move = cachedTemporaryMove(held);
+		if (!temporaryMoveAppliesToTable(move, table))
+			return table.getSubjects().size();
+		int freed = 0;
+		Map<UUID, BitSet> components = move.components();
+		for (SurgicalSubject subject : table.getSubjects()) {
+			BitSet moved = components.get(subject.persistentId());
+			if (moved != null && moved.equals(subject.presentCubesForRender(subject.cubeCount())))
+				freed++;
+		}
+		return table.getSubjects().size() - freed;
+	}
+
+	@Nullable
+	private static List<SurgicalTableLayout.Footprint> placementOccupiedFootprints(ClientLevel level,
+		SurgicalTablePlane.Plane plane, SurgicalTableBlockEntity table, ItemStack held) {
+		SurgicalKitItem.TemporaryMove move = cachedTemporaryMove(held);
+		if (!temporaryMoveAppliesToTable(move, table))
+			return SurgicalTablePlane.occupiedFootprints(level, plane, -1);
+		Map<UUID, BitSet> components = move.components();
+		List<SurgicalTableLayout.Footprint> occupied = new ArrayList<>();
+		for (SurgicalSubject subject : table.getSubjects()) {
+			if (subject.occupiedFootprints().isEmpty())
+				return null;
+			BitSet moved = components.get(subject.persistentId());
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+				if (!subject.containsFootprint(moved, footprint))
+					occupied.add(footprint);
+		}
+		return List.copyOf(occupied);
+	}
+
+	private static boolean temporaryMoveAppliesToTable(@Nullable SurgicalKitItem.TemporaryMove move,
+		SurgicalTableBlockEntity table) {
+		if (move == null || table.getLevel() == null
+			|| !table.getLevel().dimension().location().equals(move.dimension()))
+			return false;
+		for (SurgicalSubject subject : table.getSubjects())
+			if (move.component(subject.persistentId()) != null)
+				return true;
+		return false;
 	}
 
 	private static PlacementCandidate cachePlacementCandidate(ItemStack held, @Nullable PlacementSource source,
@@ -3025,6 +3109,9 @@ public final class SurgicalTableClientHandler {
 		} else if (SurgicalKitItem.isHoneyBottle(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.combine");
+		} else if (SurgicalKitItem.isEmptyTemporaryBox(stack)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.move_subject");
 		} else if (isEmptyBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
@@ -3049,7 +3136,8 @@ public final class SurgicalTableClientHandler {
 			return null;
 		for (InteractionHand hand : HANDS) {
 			ItemStack stack = player.getItemInHand(hand);
-			if (stack.getItem() instanceof CapturedEntityBoxItem
+			if ((stack.getItem() instanceof CapturedEntityBoxItem
+				|| SurgicalKitItem.hasTemporaryCapture(stack))
 				&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
 				&& placementCandidateFor(stack, level).result().succeeded())
 				return hand;
@@ -3083,7 +3171,7 @@ public final class SurgicalTableClientHandler {
 		return CapturedEntityBoxItem.isBox(stack) || SurgicalKitItem.isShears(stack)
 			|| isSurgicalGlue(stack) || isSymmetryWand(stack) || SurgicalKitItem.isHoneyBottle(stack)
 			|| SurgicalKitItem.isSlimeBall(stack) || heldLimbType(stack) != null
-			|| SurgicalKitItem.isWrench(stack);
+			|| SurgicalKitItem.isWrench(stack) || SurgicalKitItem.isTemporaryBox(stack);
 	}
 
 	private static void addCancelControl(List<Component> tooltip, boolean enabled) {
@@ -3153,6 +3241,7 @@ public final class SurgicalTableClientHandler {
 	private static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
 		ItemStack held) {
 		if (!(held.getItem() instanceof CapturedEntityBoxItem)
+			&& !SurgicalKitItem.hasTemporaryCapture(held)
 			|| !(Minecraft.getInstance().hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))
 			return false;
@@ -4588,9 +4677,10 @@ public final class SurgicalTableClientHandler {
 			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
 				continue;
+			BitSet visibleCubes = temporaryMoveVisibleCubes(subject, geometry.presentCubes);
 			for (CubeTarget target : geometry.cubeTargets) {
 				SurgicalModelRenderContext.CubeGeometry cube = target.geometry;
-				if (!geometry.presentCubes.get(cube.cubeId()))
+				if (!visibleCubes.get(cube.cubeId()))
 					continue;
 				if (!rayIntersectsBounds(ray, target.bounds, 1.0e-6d))
 					continue;
@@ -5031,7 +5121,8 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isEmptyBox(ItemStack stack) {
-		return CapturedEntityBoxItem.isBox(stack) && !CapturedEntityBoxItem.hasCapturedEntity(stack);
+		return CapturedEntityBoxItem.isBox(stack) && !CapturedEntityBoxItem.hasCapturedEntity(stack)
+			|| SurgicalKitItem.isEmptyTemporaryBox(stack);
 	}
 
 	private static boolean isEmptyLargeBox(ItemStack stack) {

@@ -122,8 +122,12 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 				noSpace(player);
 		}
 		case PACK -> {
-			if (targetId < observedCubeCount
-				&& com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem.isBox(held)
+			if (targetId >= observedCubeCount)
+				break;
+			if (SurgicalKitItem.isEmptyTemporaryBox(held))
+				table.captureTemporaryComponent(player, held, subjectId, targetId, observedCubeCount, seams,
+					bodyBounds, hitboxGeometry, attackGeometry);
+			else if (com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem.isBox(held)
 				&& !com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem.hasCapturedEntity(held))
 				table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
 					hitboxGeometry, attackGeometry);

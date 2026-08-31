@@ -31,23 +31,11 @@
     },
     {
       "predicate": { "create_biotech:surgical_tool": 8.0 },
-      "model": "create_biotech:item/neck_joint"
+      "model": "create_biotech:item/large_cardboard_box"
     },
     {
-      "predicate": { "create_biotech:surgical_tool": 9.0 },
-      "model": "create_biotech:item/shoulder_joint"
-    },
-    {
-      "predicate": { "create_biotech:surgical_tool": 10.0 },
-      "model": "create_biotech:item/elbow_joint"
-    },
-    {
-      "predicate": { "create_biotech:surgical_tool": 11.0 },
-      "model": "create_biotech:item/hip_joint"
-    },
-    {
-      "predicate": { "create_biotech:surgical_tool": 12.0 },
-      "model": "create_biotech:item/knee_joint"
+      "predicate": { "create_biotech:surgical_tool": 8.5 },
+      "model": "create_biotech:item/large_cardboard_box_captured"
     }
   ]
 }

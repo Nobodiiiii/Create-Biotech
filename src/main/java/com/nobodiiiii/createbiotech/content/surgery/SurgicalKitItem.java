@@ -1,11 +1,16 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
+import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.UUID;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
@@ -13,12 +18,21 @@ import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
 import com.simibubi.create.content.equipment.symmetryWand.SymmetryWandItem;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
 
 /**
@@ -29,9 +43,47 @@ public class SurgicalKitItem extends Item {
 	public static final int MAX_DURABILITY = 200;
 	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
 	private static final String SELECTED_TOOL_TAG = "SurgicalKitTool";
+	private static final String TEMPORARY_MOVE_TAG = "SurgicalKitTemporaryMove";
+	private static final String MOVE_DIMENSION_TAG = "Dimension";
+	private static final String MOVE_TABLE_POS_TAG = "TablePos";
+	private static final String MOVE_COMPONENTS_TAG = "Components";
+	private static final String MOVE_SUBJECT_TAG = "Subject";
+	private static final String MOVE_CUBES_TAG = "Cubes";
+	private static final String MOVE_SUBJECT_STATE_TAG = "SourceState";
+	private static final String MOVE_ASSEMBLY_TAG = "SourceAssembly";
+	private static final int TEMPORARY_MOVE_VALIDATION_INTERVAL = 20;
 
 	public SurgicalKitItem(Properties properties) {
 		super(properties);
+	}
+
+	@Override
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
+		if (!(level instanceof ServerLevel currentLevel)
+			|| Math.floorMod(level.getGameTime() + entity.getId() + slotId,
+				TEMPORARY_MOVE_VALIDATION_INTERVAL) != 0)
+			return;
+		CompoundTag root = CBItemData.getReadOnly(stack);
+		boolean hasMoveData = root != null && root.contains(TEMPORARY_MOVE_TAG, Tag.TAG_COMPOUND);
+		boolean hasCapture = CapturedEntityBoxHelper.hasCapturedEntity(stack);
+		if (!hasMoveData && !hasCapture)
+			return;
+		TemporaryMove move = temporaryMove(stack);
+		if (!hasMoveData || !hasCapture || move == null) {
+			clearTemporaryCapture(stack);
+			return;
+		}
+		ServerLevel sourceLevel = currentLevel.getServer().getLevel(
+			ResourceKey.create(Registries.DIMENSION, move.dimension()));
+		if (sourceLevel == null) {
+			clearTemporaryCapture(stack);
+			return;
+		}
+		// An unloaded source is only temporarily unavailable. Keep the move until its chunk can be
+		// checked; once loaded, stale subject identity, topology or placement invalidates it.
+		if (sourceLevel.isLoaded(move.tablePos())
+			&& !SurgicalTableBlockEntity.isTemporaryMoveValid(sourceLevel, move))
+			clearTemporaryCapture(stack);
 	}
 
 	@Override
@@ -40,7 +92,9 @@ public class SurgicalKitItem extends Item {
 		Tool selected = selectedTool(stack);
 		if (selected != null)
 			tooltip.add(Component.translatable("item.create_biotech.surgical_kit.selected",
-				selected.displayStack().getHoverName()).withStyle(ChatFormatting.GRAY));
+				selected.displayName()).withStyle(ChatFormatting.GRAY));
+		if (selected == Tool.TEMPORARY_BOX && CapturedEntityBoxHelper.hasCapturedEntity(stack))
+			CapturedEntityBoxHelper.appendHoverText(stack, tooltip);
 		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.alt",
 			Component.keybind(OPEN_KEY_TRANSLATION))
 			.withStyle(ChatFormatting.DARK_GRAY));
@@ -66,7 +120,11 @@ public class SurgicalKitItem extends Item {
 
 	public static float modelValue(ItemStack stack) {
 		Tool tool = selectedTool(stack);
-		return tool == null ? 0.0f : tool.ordinal() + 1.0f;
+		if (tool == null)
+			return 0.0f;
+		float value = tool.ordinal() + 1.0f;
+		return tool == Tool.TEMPORARY_BOX && CapturedEntityBoxHelper.hasCapturedEntity(stack)
+			? value + 0.5f : value;
 	}
 
 	public static boolean isKit(ItemStack stack) {
@@ -119,8 +177,92 @@ public class SurgicalKitItem extends Item {
 	public static SurgicalLimbType limbType(ItemStack stack) {
 		if (stack.getItem() instanceof SurgicalJointItem joint)
 			return joint.limbType();
-		Tool selected = selectedTool(stack);
-		return selected == null ? null : selected.limbType;
+		return null;
+	}
+
+	public static boolean isTemporaryBox(ItemStack stack) {
+		return selectedTool(stack) == Tool.TEMPORARY_BOX;
+	}
+
+	public static boolean hasTemporaryCapture(ItemStack stack) {
+		return isTemporaryBox(stack) && CapturedEntityBoxHelper.hasCapturedEntity(stack)
+			&& temporaryMove(stack) != null;
+	}
+
+	public static boolean isEmptyTemporaryBox(ItemStack stack) {
+		return isTemporaryBox(stack) && !CapturedEntityBoxHelper.hasCapturedEntity(stack)
+			&& temporaryMove(stack) == null;
+	}
+
+	@Nullable
+	public static TemporaryMove temporaryMove(ItemStack stack) {
+		if (!isKit(stack))
+			return null;
+		CompoundTag root = CBItemData.getReadOnly(stack);
+		if (root == null || !root.contains(TEMPORARY_MOVE_TAG, Tag.TAG_COMPOUND))
+			return null;
+		CompoundTag encoded = root.getCompound(TEMPORARY_MOVE_TAG);
+		ResourceLocation dimension = ResourceLocation.tryParse(encoded.getString(MOVE_DIMENSION_TAG));
+		if (dimension == null || !encoded.contains(MOVE_TABLE_POS_TAG, Tag.TAG_LONG)
+			|| !encoded.contains(MOVE_COMPONENTS_TAG, Tag.TAG_LIST)
+			|| !encoded.contains(MOVE_ASSEMBLY_TAG, Tag.TAG_COMPOUND))
+			return null;
+		ListTag encodedComponents = encoded.getList(MOVE_COMPONENTS_TAG, Tag.TAG_COMPOUND);
+		if (encodedComponents.isEmpty() || encodedComponents.size() > SurgicalAssembly.MAX_SOURCES)
+			return null;
+		Map<UUID, BitSet> components = new HashMap<>();
+		Map<UUID, CompoundTag> sourceSubjects = new HashMap<>();
+		for (int index = 0; index < encodedComponents.size(); index++) {
+			CompoundTag component = encodedComponents.getCompound(index);
+			if (!component.hasUUID(MOVE_SUBJECT_TAG) || !component.contains(MOVE_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+				|| !component.contains(MOVE_SUBJECT_STATE_TAG, Tag.TAG_COMPOUND))
+				return null;
+			UUID subject = component.getUUID(MOVE_SUBJECT_TAG);
+			BitSet cubes = BitSet.valueOf(component.getLongArray(MOVE_CUBES_TAG));
+			if (cubes.isEmpty() || cubes.length() > SurgicalAssembly.MAX_CUBES
+				|| components.putIfAbsent(subject, cubes) != null
+				|| sourceSubjects.putIfAbsent(subject, component.getCompound(MOVE_SUBJECT_STATE_TAG)) != null)
+				return null;
+		}
+		return new TemporaryMove(dimension, BlockPos.of(encoded.getLong(MOVE_TABLE_POS_TAG)), components,
+			sourceSubjects, encoded.getCompound(MOVE_ASSEMBLY_TAG));
+	}
+
+	public static void setTemporaryMove(ItemStack stack, ResourceLocation dimension, BlockPos tablePos,
+		Map<UUID, BitSet> components, Map<UUID, CompoundTag> sourceSubjects, CompoundTag sourceAssembly) {
+		if (!isTemporaryBox(stack) || dimension == null || tablePos == null || components == null
+			|| components.isEmpty() || sourceSubjects == null
+			|| !sourceSubjects.keySet().equals(components.keySet())
+			|| sourceAssembly == null || sourceAssembly.isEmpty())
+			return;
+		CompoundTag encoded = new CompoundTag();
+		encoded.putString(MOVE_DIMENSION_TAG, dimension.toString());
+		encoded.putLong(MOVE_TABLE_POS_TAG, tablePos.asLong());
+		ListTag encodedComponents = new ListTag();
+		components.forEach((subject, cubes) -> {
+			CompoundTag sourceState = sourceSubjects.get(subject);
+			if (sourceState == null || sourceState.isEmpty())
+				return;
+			CompoundTag component = new CompoundTag();
+			component.putUUID(MOVE_SUBJECT_TAG, subject);
+			component.putLongArray(MOVE_CUBES_TAG, cubes.toLongArray());
+			component.put(MOVE_SUBJECT_STATE_TAG, sourceState.copy());
+			encodedComponents.add(component);
+		});
+		if (encodedComponents.size() != components.size())
+			return;
+		encoded.put(MOVE_COMPONENTS_TAG, encodedComponents);
+		encoded.put(MOVE_ASSEMBLY_TAG, sourceAssembly.copy());
+		CBItemData.edit(stack, root -> root.put(TEMPORARY_MOVE_TAG, encoded));
+	}
+
+	public static void clearTemporaryMove(ItemStack stack) {
+		CBItemData.edit(stack, root -> root.remove(TEMPORARY_MOVE_TAG));
+	}
+
+	public static void clearTemporaryCapture(ItemStack stack) {
+		CapturedEntityBoxHelper.clearCapturedEntity(stack);
+		clearTemporaryMove(stack);
 	}
 
 	public static boolean hasDurability(ItemStack stack, int amount) {
@@ -128,28 +270,21 @@ public class SurgicalKitItem extends Item {
 	}
 
 	public enum Tool {
-		SHEARS("shears", () -> new ItemStack(Items.SHEARS), null),
-		SUPER_GLUE("super_glue", () -> AllItems.SUPER_GLUE.asStack(), null),
-		SMART_SUPER_GLUE("smart_super_glue", () -> new ItemStack(CBItems.SMART_SUPER_GLUE.get()), null),
-		HONEY_BOTTLE("honey_bottle", () -> new ItemStack(Items.HONEY_BOTTLE), null),
-		SLIME_BALL("slime_ball", () -> new ItemStack(Items.SLIME_BALL), null),
-		SYMMETRY_WAND("symmetry_wand", () -> AllItems.WAND_OF_SYMMETRY.asStack(), null),
-		WRENCH("wrench", () -> AllItems.WRENCH.asStack(), null),
-		NECK_JOINT("neck_joint", () -> new ItemStack(CBItems.NECK_JOINT.get()), SurgicalLimbType.NECK),
-		SHOULDER_JOINT("shoulder_joint", () -> new ItemStack(CBItems.SHOULDER_JOINT.get()), SurgicalLimbType.SHOULDER),
-		ELBOW_JOINT("elbow_joint", () -> new ItemStack(CBItems.ELBOW_JOINT.get()), SurgicalLimbType.ELBOW),
-		HIP_JOINT("hip_joint", () -> new ItemStack(CBItems.HIP_JOINT.get()), SurgicalLimbType.HIP),
-		KNEE_JOINT("knee_joint", () -> new ItemStack(CBItems.KNEE_JOINT.get()), SurgicalLimbType.KNEE);
+		SHEARS("shears", () -> new ItemStack(Items.SHEARS)),
+		SUPER_GLUE("super_glue", () -> AllItems.SUPER_GLUE.asStack()),
+		SMART_SUPER_GLUE("smart_super_glue", () -> new ItemStack(CBItems.SMART_SUPER_GLUE.get())),
+		HONEY_BOTTLE("honey_bottle", () -> new ItemStack(Items.HONEY_BOTTLE)),
+		SLIME_BALL("slime_ball", () -> new ItemStack(Items.SLIME_BALL)),
+		SYMMETRY_WAND("symmetry_wand", () -> AllItems.WAND_OF_SYMMETRY.asStack()),
+		WRENCH("wrench", () -> AllItems.WRENCH.asStack()),
+		TEMPORARY_BOX("temporary_box", () -> new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get()));
 
 		private final String id;
 		private final Supplier<ItemStack> displayStack;
-		@Nullable
-		private final SurgicalLimbType limbType;
 
-		Tool(String id, Supplier<ItemStack> displayStack, @Nullable SurgicalLimbType limbType) {
+		Tool(String id, Supplier<ItemStack> displayStack) {
 			this.id = id;
 			this.displayStack = displayStack;
-			this.limbType = limbType;
 		}
 
 		public String id() {
@@ -158,6 +293,12 @@ public class SurgicalKitItem extends Item {
 
 		public ItemStack displayStack() {
 			return displayStack.get();
+		}
+
+		public Component displayName() {
+			return this == TEMPORARY_BOX
+				? Component.translatable("item.create_biotech.surgical_kit.temporary_box")
+				: displayStack().getHoverName();
 		}
 
 		@Nullable
@@ -169,6 +310,51 @@ public class SurgicalKitItem extends Item {
 				if (tool.id.equals(normalized))
 					return tool;
 			return null;
+		}
+	}
+
+	public record TemporaryMove(ResourceLocation dimension, BlockPos tablePos,
+		Map<UUID, BitSet> components, Map<UUID, CompoundTag> sourceSubjects,
+		CompoundTag sourceAssembly) {
+		public TemporaryMove {
+			Map<UUID, BitSet> frozen = new HashMap<>();
+			components.forEach((subject, cubes) -> frozen.put(subject, (BitSet) cubes.clone()));
+			components = Map.copyOf(frozen);
+			Map<UUID, CompoundTag> frozenSubjects = new HashMap<>();
+			sourceSubjects.forEach((subject, state) -> frozenSubjects.put(subject, state.copy()));
+			sourceSubjects = Map.copyOf(frozenSubjects);
+			sourceAssembly = sourceAssembly.copy();
+		}
+
+		@Override
+		public Map<UUID, BitSet> components() {
+			Map<UUID, BitSet> copy = new HashMap<>();
+			components.forEach((subject, cubes) -> copy.put(subject, (BitSet) cubes.clone()));
+			return Map.copyOf(copy);
+		}
+
+		@Override
+		public CompoundTag sourceAssembly() {
+			return sourceAssembly.copy();
+		}
+
+		@Override
+		public Map<UUID, CompoundTag> sourceSubjects() {
+			Map<UUID, CompoundTag> copy = new HashMap<>();
+			sourceSubjects.forEach((subject, state) -> copy.put(subject, state.copy()));
+			return Map.copyOf(copy);
+		}
+
+		@Nullable
+		public BitSet component(UUID subject) {
+			BitSet cubes = components.get(subject);
+			return cubes == null ? null : (BitSet) cubes.clone();
+		}
+
+		@Nullable
+		public CompoundTag sourceSubject(UUID subject) {
+			CompoundTag state = sourceSubjects.get(subject);
+			return state == null ? null : state.copy();
 		}
 	}
 }

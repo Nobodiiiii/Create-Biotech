@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.nobodiiiii.createbiotech.client.CBKeyMappings;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitSelectionPacket;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -65,7 +66,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 		poseStack.popPose();
 
 		Component tip = hoveredSlot >= 0
-			? TOOLS[hoveredSlot].displayStack().getHoverName().copy().withStyle(ChatFormatting.GOLD)
+			? TOOLS[hoveredSlot].displayName().copy().withStyle(ChatFormatting.GOLD)
 			: Component.translatable("item.create_biotech.surgical_kit.radial_hint",
 				Component.keybind(SurgicalKitItem.OPEN_KEY_TRANSLATION))
 				.withStyle(ChatFormatting.GRAY);
@@ -109,7 +110,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
 		InputConstants.Key key = InputConstants.getKey(keyCode, scanCode);
-		if (SurgicalKitKeyMappings.isBoundKey(key)) {
+		if (CBKeyMappings.isBoundKey(CBKeyMappings.SURGICAL_KIT, key)) {
 			commitAndClose();
 			return true;
 		}
