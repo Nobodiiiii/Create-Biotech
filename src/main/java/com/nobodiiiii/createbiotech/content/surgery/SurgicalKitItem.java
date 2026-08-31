@@ -114,13 +114,6 @@ public class SurgicalKitItem extends Item {
 		if (selected != null)
 			tooltip.add(Component.translatable("item.create_biotech.surgical_kit.selected",
 				selected.displayName()).withStyle(ChatFormatting.GRAY));
-		if (selected == Tool.TEMPORARY_BOX && CapturedEntityBoxHelper.hasCapturedEntity(stack))
-			CapturedEntityBoxHelper.appendHoverText(stack, tooltip);
-		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.alt",
-			Component.keybind(OPEN_KEY_TRANSLATION))
-			.withStyle(ChatFormatting.DARK_GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.table_only")
-			.withStyle(ChatFormatting.DARK_GRAY));
 	}
 
 	@Nullable

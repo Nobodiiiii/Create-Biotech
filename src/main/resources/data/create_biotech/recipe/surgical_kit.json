@@ -1,0 +1,42 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "BCP",
+    "WTG",
+    "MSH"
+  ],
+  "key": {
+    "B": {
+      "item": "create_biotech:large_cardboard_box"
+    },
+    "C": {
+      "item": "minecraft:shears"
+    },
+    "P": {
+      "item": "minecraft:wooden_shovel"
+    },
+    "W": {
+      "item": "create:wrench"
+    },
+    "T": {
+      "tag": "create:toolboxes"
+    },
+    "G": {
+      "item": "create_biotech:smart_super_glue"
+    },
+    "M": {
+      "item": "create:wand_of_symmetry"
+    },
+    "S": {
+      "item": "minecraft:slime_ball"
+    },
+    "H": {
+      "item": "minecraft:honey_bottle"
+    }
+  },
+  "result": {
+    "id": "create_biotech:surgical_kit"
+  },
+  "show_notification": true
+}
