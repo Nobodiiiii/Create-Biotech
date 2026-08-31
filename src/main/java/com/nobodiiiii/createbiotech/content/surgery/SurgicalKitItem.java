@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitTemporaryBoxItemRenderer;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
@@ -68,11 +68,10 @@ public class SurgicalKitItem extends Item {
 	@OnlyIn(Dist.CLIENT)
 	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
 		consumer.accept(new IClientItemExtensions() {
-			private final SurgicalKitTemporaryBoxItemRenderer renderer =
-				new SurgicalKitTemporaryBoxItemRenderer();
+			private final SurgicalKitItemRenderer renderer = new SurgicalKitItemRenderer();
 
 			@Override
-			public SurgicalKitTemporaryBoxItemRenderer getCustomRenderer() {
+			public SurgicalKitItemRenderer getCustomRenderer() {
 				return renderer;
 			}
 		});

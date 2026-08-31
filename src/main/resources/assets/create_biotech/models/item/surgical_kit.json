@@ -23,7 +23,7 @@
     },
     {
       "predicate": { "create_biotech:surgical_tool": 6.0 },
-      "model": "create:item/wand_of_symmetry"
+      "model": "create_biotech:item/surgical_kit_symmetry_wand"
     },
     {
       "predicate": { "create_biotech:surgical_tool": 7.0 },
