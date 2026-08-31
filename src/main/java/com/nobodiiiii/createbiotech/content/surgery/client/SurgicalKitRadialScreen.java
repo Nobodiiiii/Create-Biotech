@@ -7,7 +7,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitSelectionPacket;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBItems;
-import com.simibubi.create.AllKeys;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -67,7 +66,8 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 
 		Component tip = hoveredSlot >= 0
 			? TOOLS[hoveredSlot].displayStack().getHoverName().copy().withStyle(ChatFormatting.GOLD)
-			: Component.translatable("item.create_biotech.surgical_kit.radial_hint")
+			: Component.translatable("item.create_biotech.surgical_kit.radial_hint",
+				Component.keybind(SurgicalKitItem.OPEN_KEY_TRANSLATION))
 				.withStyle(ChatFormatting.GRAY);
 		int alpha = Mth.clamp((int) (fade * 255.0f), 0, 255);
 		if (alpha > 8) {
@@ -109,7 +109,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	@Override
 	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
 		InputConstants.Key key = InputConstants.getKey(keyCode, scanCode);
-		if (AllKeys.TOOLBELT.getKeybind().isActiveAndMatches(key)) {
+		if (SurgicalKitKeyMappings.isBoundKey(key)) {
 			commitAndClose();
 			return true;
 		}

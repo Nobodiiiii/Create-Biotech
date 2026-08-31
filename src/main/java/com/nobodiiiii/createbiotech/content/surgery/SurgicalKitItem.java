@@ -27,6 +27,7 @@ import net.neoforged.neoforge.common.Tags;
  */
 public class SurgicalKitItem extends Item {
 	public static final int MAX_DURABILITY = 200;
+	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
 	private static final String SELECTED_TOOL_TAG = "SurgicalKitTool";
 
 	public SurgicalKitItem(Properties properties) {
@@ -40,7 +41,8 @@ public class SurgicalKitItem extends Item {
 		if (selected != null)
 			tooltip.add(Component.translatable("item.create_biotech.surgical_kit.selected",
 				selected.displayStack().getHoverName()).withStyle(ChatFormatting.GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.alt")
+		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.alt",
+			Component.keybind(OPEN_KEY_TRANSLATION))
 			.withStyle(ChatFormatting.DARK_GRAY));
 		tooltip.add(Component.translatable("item.create_biotech.surgical_kit.table_only")
 			.withStyle(ChatFormatting.DARK_GRAY));
