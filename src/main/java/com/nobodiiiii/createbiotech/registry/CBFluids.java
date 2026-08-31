@@ -160,6 +160,12 @@ public class CBFluids {
 				.craftRemainder(Items.BUCKET)
 				.stacksTo(1)));
 
+	public static final DeferredHolder<Item, Item> LIQUID_LIVING_SLIME_BOTTLE =
+		FLUID_ITEMS.register("liquid_living_slime_bottle",
+			() -> new Item(new Item.Properties()
+				.craftRemainder(Items.GLASS_BOTTLE)
+				.stacksTo(1)));
+
 	public static final DeferredHolder<FluidType, CreamFluidType> CREAM_TYPE = FLUID_TYPES.register("cream",
 		() -> new CreamFluidType(FluidType.Properties.create()
 			.viscosity(100)

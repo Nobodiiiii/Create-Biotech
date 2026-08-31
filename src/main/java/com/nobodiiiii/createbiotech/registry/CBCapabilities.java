@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.registry;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
 import com.nobodiiiii.createbiotech.content.beltsurface.StandardItemBeltPort;
 import com.nobodiiiii.createbiotech.content.beltsurface.StandardItemBeltPortResolver;
+import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeBottleFluidHandler;
 import com.simibubi.create.AllBlockEntityTypes;
 
 import net.minecraft.core.Direction;
@@ -14,6 +15,9 @@ public final class CBCapabilities {
 	private CBCapabilities() {}
 
 	public static void register(RegisterCapabilitiesEvent event) {
+		event.registerItem(Capabilities.FluidHandler.ITEM,
+			(stack, context) -> new LiquidLivingSlimeBottleFluidHandler(stack),
+			CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get());
 		event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, CBBlockEntityTypes.BIO_PACKAGER.get(),
 			(be, side) -> be.getItemCapability(side));
 		event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, CBBlockEntityTypes.SHULKER_PACKAGER.get(),

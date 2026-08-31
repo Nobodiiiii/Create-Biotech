@@ -104,6 +104,7 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.SLIME_BOOTS.get());
 				output.accept(CBFluids.TELEPORTATION_BUCKET.get());
 				output.accept(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get());
+				output.accept(CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get());
 				output.accept(CBFluids.CREAM_BUCKET.get());
 				output.accept(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get());
 				output.accept(CBItems.GIANT_FROG.get());

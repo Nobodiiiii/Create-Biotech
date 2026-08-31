@@ -313,6 +313,7 @@
   "block.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "fluid_type.create_biotech.liquid_living_slime": "液态活体史莱姆",
   "item.create_biotech.liquid_living_slime_bucket": "液态活体史莱姆桶",
+  "item.create_biotech.liquid_living_slime_bottle": "液态活体史莱姆瓶",
   "entity.create_biotech.ghast_hot_air_balloon": "恶魂热气球",
   "entity.create_biotech.ding_dong_chicken": "叮咚鸡",
   "entity.create_biotech.slime_bionic": "史莱姆？",

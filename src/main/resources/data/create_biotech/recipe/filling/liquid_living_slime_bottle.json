@@ -1,0 +1,18 @@
+{
+  "type": "create:filling",
+  "ingredients": [
+    {
+      "item": "minecraft:glass_bottle"
+    },
+    {
+      "type": "neoforge:single",
+      "amount": 250,
+      "fluid": "create_biotech:liquid_living_slime"
+    }
+  ],
+  "results": [
+    {
+      "id": "create_biotech:liquid_living_slime_bottle"
+    }
+  ]
+}
