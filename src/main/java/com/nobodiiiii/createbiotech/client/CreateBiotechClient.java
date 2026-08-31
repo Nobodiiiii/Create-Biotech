@@ -42,6 +42,7 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHa
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteractionOverlay;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
@@ -276,6 +277,16 @@ public class CreateBiotechClient {
 			AllayCourierHudOverlay.INSTANCE);
 		event.registerAbove(VanillaGuiLayers.HOTBAR, CreateBiotech.asResource("surgical_table_interaction"),
 			SurgicalTableInteractionOverlay.INSTANCE);
+	}
+
+	@SubscribeEvent
+	public static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
+		ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
+			CreateBiotech.asResource("surgical_kit"));
+		var models = event.getModels();
+		var model = models.get(modelLocation);
+		if (model != null)
+			models.put(modelLocation, new SurgicalKitItemModel(model));
 	}
 
 	@SubscribeEvent
