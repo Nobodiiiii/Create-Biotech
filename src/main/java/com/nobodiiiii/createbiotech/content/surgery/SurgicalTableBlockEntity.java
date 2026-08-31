@@ -1397,9 +1397,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	/**
-	 * Adds a redundant glue edge inside one honey combination without moving either cube. Combination
-	 * edges are deliberately excluded from the direct-edge check: the new seam may close a cycle in the
-	 * model's native/glue graph, but it must not duplicate an existing native seam or glue joint.
+	 * Adds an in-place glue edge between two physically touching cubes. The new seam may close a cycle in
+	 * the model's native/glue graph, but it must not duplicate an existing native seam or glue joint.
 	 */
 	public boolean addSlimeSeam(Player player, ItemStack slimeBall, InteractionHand hand,
 		int firstSubjectId, int firstCubeId, int firstObservedCubeCount,
@@ -1440,10 +1439,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| first == second && firstCubeId == secondCubeId
 			|| allGlueJoints().size() >= SurgicalAssembly.MAX_SEAMS)
 			return false;
-		SurgicalCombination combination = first.combinationContaining(firstCubeId);
-		if (combination == null || !combination.equals(second.combinationContaining(secondCubeId)))
-			return false;
-
 		SurgicalConnectionGraph<UUID> abstractGraph = connectionGraph(Set.of(), Map.of(), false);
 		return abstractGraph != null
 			&& !abstractGraph.directConnections(first.persistentId(), firstCubeId)

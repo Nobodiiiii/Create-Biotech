@@ -94,8 +94,6 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 			onClose();
 			return;
 		}
-		if (ticksOpen > 2 && !AllKeys.TOOLBELT.isPressed())
-			commitAndClose();
 		super.tick();
 	}
 

@@ -1052,9 +1052,12 @@ public final class SurgicalTableClientHandler {
 		lastSelectionPendingSymmetryReference = pendingSymmetryReference;
 		lastSelectionPendingLimb = pendingLimb;
 		lastSelectionPendingSlimeSeam = pendingSlimeSeam;
+		InteractionHand promptHand = interactionPromptHand(player);
+		boolean selectingSlimeSeam = promptHand != null
+			&& SurgicalKitItem.isSlimeBall(player.getItemInHand(promptHand));
 		CubeHit cubeHit = holdingShears || holdingEmptyBox || holdingGlue || holdingSymmetry || holdingHoney || holdingJoint
 			|| holdingWrench || holdingSlimeBall
-			? pendingSlimeSeam != null && holdingSlimeBall
+			? selectingSlimeSeam
 				? findNearestSlimeSeamHit(player, level, ray, pendingSlimeSeam)
 				: findNearestCubeHit(player, level, ray)
 			: null;
@@ -1226,9 +1229,8 @@ public final class SurgicalTableClientHandler {
 			return;
 
 		Ray ray = playerRay(minecraft.player);
-		CubeHit cubeHit = pendingSlimeSeam != null && pendingSlimeSeam.hand == hand
-			? findNearestSlimeSeamHit(minecraft.player, level, ray, pendingSlimeSeam)
-			: findNearestCubeHit(minecraft.player, level, ray);
+		CubeHit cubeHit = findNearestSlimeSeamHit(minecraft.player, level, ray,
+			pendingSlimeSeam != null && pendingSlimeSeam.hand == hand ? pendingSlimeSeam : null);
 		if (handleSlimeSeamClick(minecraft.player, level, hand, cubeHit))
 			consumeInteraction(event, hand);
 	}
@@ -1433,7 +1435,7 @@ public final class SurgicalTableClientHandler {
 			selection.observedCubeCount, selection.seams);
 	}
 
-	/** Two right-clicks add an in-place glue edge without moving either combination member. */
+	/** Two right-clicks add an in-place glue edge between touching cubes without moving either one. */
 	private static boolean handleSlimeSeamClick(LocalPlayer player, ClientLevel level,
 		InteractionHand hand, @Nullable CubeHit hit) {
 		if (pendingSlimeSeam != null && pendingSlimeSeam.hand != hand) {
@@ -4213,7 +4215,7 @@ public final class SurgicalTableClientHandler {
 			|| !(level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity table))
 			return null;
 		if (pendingSlimeSeam == null) {
-			if (table.combinationContaining(hit.geometry.subjectId, hit.cubeId) == null)
+			if (!validSlimeSeamStartCube(level, hit.tablePos, hit.geometry, hit.cubeId))
 				return null;
 		} else if (!validSlimeSeamCube(level, pendingSlimeSeam,
 			hit.tablePos, hit.geometry, hit.cubeId))
@@ -4557,18 +4559,18 @@ public final class SurgicalTableClientHandler {
 
 	@Nullable
 	private static CubeHit findNearestCubeHit(LocalPlayer player, ClientLevel level, Ray ray) {
-		return findNearestCubeHit(player, level, ray, null);
+		return findNearestCubeHit(player, level, ray, null, false);
 	}
 
 	@Nullable
 	private static CubeHit findNearestSlimeSeamHit(LocalPlayer player, ClientLevel level, Ray ray,
-		PendingSlimeSeam pending) {
-		return findNearestCubeHit(player, level, ray, pending);
+		@Nullable PendingSlimeSeam pending) {
+		return findNearestCubeHit(player, level, ray, pending, true);
 	}
 
 	@Nullable
 	private static CubeHit findNearestCubeHit(LocalPlayer player, ClientLevel level, Ray ray,
-		@Nullable PendingSlimeSeam pendingSlime) {
+		@Nullable PendingSlimeSeam pendingSlime, boolean slimeSeamSelection) {
 		CubeHit best = null;
 		double bestDistance = Double.MAX_VALUE;
 		for (Map.Entry<SubjectKey, TableGeometry> entry : TABLES.entrySet()) {
@@ -4590,10 +4592,11 @@ public final class SurgicalTableClientHandler {
 				SurgicalModelRenderContext.CubeGeometry cube = target.geometry;
 				if (!geometry.presentCubes.get(cube.cubeId()))
 					continue;
-				if (pendingSlime != null
-					&& !validSlimeSeamCube(level, pendingSlime, pos, geometry, cube.cubeId()))
-					continue;
 				if (!rayIntersectsBounds(ray, target.bounds, 1.0e-6d))
+					continue;
+				if (slimeSeamSelection && (pendingSlime != null
+					? !validSlimeSeamCube(level, pendingSlime, pos, geometry, cube.cubeId())
+					: !validSlimeSeamStartCube(level, pos, geometry, cube.cubeId())))
 					continue;
 				for (int faceIndex = 0; faceIndex < SurgicalClientTopology.CUBE_FACES.length; faceIndex++) {
 					int[] faceIndices = SurgicalClientTopology.CUBE_FACES[faceIndex];
@@ -4611,23 +4614,52 @@ public final class SurgicalTableClientHandler {
 		return best != null && isOccluded(level, player, ray.start, best.location, best.tablePos) ? null : best;
 	}
 
+	/** A first click is useful only when that cube has at least one physically touching missing edge. */
+	private static boolean validSlimeSeamStartCube(ClientLevel level, BlockPos tablePos,
+		TableGeometry firstGeometry, int firstCubeId) {
+		if (!(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table))
+			return false;
+		for (SurgicalSubject secondSubject : table.getSubjects()) {
+			TableGeometry secondGeometry = TABLES.get(new SubjectKey(tablePos, secondSubject.id()));
+			if (secondGeometry == null)
+				continue;
+			for (int secondCubeId = secondGeometry.presentCubes.nextSetBit(0); secondCubeId >= 0;
+				secondCubeId = secondGeometry.presentCubes.nextSetBit(secondCubeId + 1))
+				if (validSlimeSeamPair(level, tablePos,
+					firstGeometry.subjectId, firstCubeId, firstGeometry.observedCubeCount, firstGeometry.seams,
+					secondGeometry, secondCubeId))
+					return true;
+		}
+		return false;
+	}
+
 	private static boolean validSlimeSeamCube(ClientLevel level, PendingSlimeSeam pending,
 		BlockPos tablePos, TableGeometry secondGeometry, int secondCubeId) {
 		Selection first = pending.selection;
-		if (!first.tablePos.equals(tablePos)
-			|| first.subjectId == secondGeometry.subjectId && first.targetId == secondCubeId
+		return first.tablePos.equals(tablePos) && validSlimeSeamPair(level, tablePos,
+			first.subjectId, first.targetId, first.observedCubeCount, first.seams,
+			secondGeometry, secondCubeId);
+	}
+
+	private static boolean validSlimeSeamPair(ClientLevel level, BlockPos tablePos,
+		int firstSubjectId, int firstCubeId, int firstObservedCubeCount,
+		List<SurgicalAssembly.Seam> firstSeams, TableGeometry secondGeometry, int secondCubeId) {
+		if (firstSubjectId == secondGeometry.subjectId && firstCubeId == secondCubeId
 			|| !(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table)
-			|| !table.canAddSlimeSeamTargets(first.subjectId, first.targetId,
+			|| !table.canAddSlimeSeamTargets(firstSubjectId, firstCubeId,
 				secondGeometry.subjectId, secondCubeId))
 			return false;
-		SurgicalSubject firstSubject = table.getSubject(first.subjectId);
-		TableGeometry firstGeometry = TABLES.get(new SubjectKey(tablePos, first.subjectId));
-		if (firstSubject == null || firstGeometry == null
+		SurgicalSubject firstSubject = table.getSubject(firstSubjectId);
+		SurgicalSubject secondSubject = table.getSubject(secondGeometry.subjectId);
+		TableGeometry firstGeometry = TABLES.get(new SubjectKey(tablePos, firstSubjectId));
+		if (firstSubject == null || secondSubject == null || firstGeometry == null
 			|| !geometryReadyForUse(table, firstSubject, firstGeometry)
-			|| !firstSubject.matchesObservedTopology(first.observedCubeCount, first.seams))
+			|| !geometryReadyForUse(table, secondSubject, secondGeometry)
+			|| !firstSubject.matchesObservedTopology(firstObservedCubeCount, firstSeams)
+			|| !secondSubject.matchesObservedTopology(secondGeometry.observedCubeCount, secondGeometry.seams))
 			return false;
 		return SurgicalClientTopology.cubesConnectWithinTolerance(
-			firstGeometry.cubesById.get(first.targetId), secondGeometry.cubesById.get(secondCubeId));
+			firstGeometry.cubesById.get(firstCubeId), secondGeometry.cubesById.get(secondCubeId));
 	}
 
 	@Nullable

@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.simibubi.create.AllKeys;
+import com.simibubi.create.content.equipment.toolbox.RadialToolboxMenu;
 
 import net.createmod.catnip.gui.ScreenOpener;
 import net.minecraft.client.Minecraft;
@@ -14,16 +15,18 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.InputEvent;
 
-/** Opens the kit wheel before Create's nearby-toolbox handler sees the shared Alt key. */
+/** Ensures a held kit wins even when Create opens its nearby-toolbox wheel for the same Alt press. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class SurgicalKitClientHandler {
 	private SurgicalKitClientHandler() {}
 
-	@SubscribeEvent(priority = EventPriority.HIGHEST)
+	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onKeyInput(InputEvent.Key event) {
 		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft.screen != null || event.getAction() == 0
+		if (event.getAction() == 0
 			|| !AllKeys.TOOLBELT.doesModifierAndCodeMatch(event.getKey()))
+			return;
+		if (minecraft.screen != null && !(minecraft.screen instanceof RadialToolboxMenu))
 			return;
 		LocalPlayer player = minecraft.player;
 		if (player == null || player.isSpectator())

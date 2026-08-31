@@ -11,7 +11,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
-/** Adds one in-place glue seam between two cubes without a direct edge in the same honey combination. */
+/** Adds one in-place glue seam between two physically touching cubes without a direct logical edge. */
 public record SurgicalTableSlimeSeamPacket(BlockPos pos, InteractionHand hand,
 	Target first, Target second) {
 
