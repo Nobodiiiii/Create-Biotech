@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import com.simibubi.create.content.equipment.symmetryWand.SymmetryWandItem;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -57,7 +55,7 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 			|| !first.valid() || !mirroredAnchor.valid() || !reference.valid())
 			return;
 		ItemStack held = player.getItemInHand(hand);
-		if (!(held.getItem() instanceof SymmetryWandItem))
+		if (!SurgicalKitItem.isSymmetryWand(held))
 			return;
 
 		double range = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d;

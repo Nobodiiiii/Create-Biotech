@@ -9,7 +9,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /** Adds one in-place glue seam between two cubes without a direct edge in the same honey combination. */
@@ -45,9 +44,9 @@ public record SurgicalTableSlimeSeamPacket(BlockPos pos, InteractionHand hand,
 			return;
 
 		ItemStack held = player.getItemInHand(hand);
-		if (!held.is(Items.SLIME_BALL))
+		if (!SurgicalKitItem.isSlimeBall(held))
 			return;
-		table.addSlimeSeam(player, held, first.subjectId, first.cubeId,
+		table.addSlimeSeam(player, held, hand, first.subjectId, first.cubeId,
 			first.observedCubeCount, first.seams, second.subjectId, second.cubeId,
 			second.observedCubeCount, second.seams);
 	}

@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.List;
@@ -110,14 +109,14 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			return;
 		switch (action) {
 		case CUT -> {
-			if (targetId < seams.size() && held.is(Items.SHEARS)) {
+			if (targetId < seams.size() && SurgicalKitItem.isShears(held)) {
 				if (!table.cutSeam(player, held, hand, subjectId, targetId, observedCubeCount, seams, plane,
 					layout, originOffsetX, originOffsetZ))
 					noSpace(player);
 			}
 		}
 		case CUT_GLUE -> {
-			if (held.is(Items.SHEARS)
+			if (SurgicalKitItem.isShears(held)
 				&& !table.cutGlueJoint(player, held, hand, subjectId, targetId, observedCubeCount, seams,
 					plane, originOffsetX, originOffsetZ))
 				noSpace(player);
@@ -130,22 +129,22 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 					hitboxGeometry, attackGeometry);
 		}
 		case CUT_CUBE_CONNECTIONS -> {
-			if (targetId < observedCubeCount && held.is(Items.SHEARS)) {
+			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)) {
 				if (!table.cutCubeConnections(player, held, hand, subjectId, targetId, observedCubeCount, seams,
 					plane, layout))
 					noSpace(player);
 			}
 		}
 		case COMBINE -> {
-			if (targetId < observedCubeCount && held.is(Items.HONEY_BOTTLE))
+			if (targetId < observedCubeCount && SurgicalKitItem.isHoneyBottle(held))
 				table.combineConnected(player, held, hand, subjectId, targetId, observedCubeCount, seams);
 		}
 		case BREAK_COMBINATION -> {
-			if (targetId < observedCubeCount && held.is(Items.SHEARS))
+			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held))
 				table.breakCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams);
 		}
 		case DETACH_COMBINATION -> {
-			if (targetId < observedCubeCount && held.is(Items.SHEARS))
+			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held))
 				table.detachCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams);
 		}
 		case PLACE -> {}

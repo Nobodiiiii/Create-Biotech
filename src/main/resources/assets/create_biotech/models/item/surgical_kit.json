@@ -1,0 +1,53 @@
+{
+  "parent": "create_biotech:item/surgical_kit_base",
+  "overrides": [
+    {
+      "predicate": { "create_biotech:surgical_tool": 1.0 },
+      "model": "minecraft:item/shears"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 2.0 },
+      "model": "create:item/super_glue"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 3.0 },
+      "model": "create_biotech:item/smart_super_glue"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 4.0 },
+      "model": "minecraft:item/honey_bottle"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 5.0 },
+      "model": "minecraft:item/slime_ball"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 6.0 },
+      "model": "create:item/wand_of_symmetry"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 7.0 },
+      "model": "create:item/wrench"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 8.0 },
+      "model": "create_biotech:item/neck_joint"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 9.0 },
+      "model": "create_biotech:item/shoulder_joint"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 10.0 },
+      "model": "create_biotech:item/elbow_joint"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 11.0 },
+      "model": "create_biotech:item/hip_joint"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 12.0 },
+      "model": "create_biotech:item/knee_joint"
+    }
+  ]
+}

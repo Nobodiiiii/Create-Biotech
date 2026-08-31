@@ -19,7 +19,6 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
-import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
@@ -563,7 +562,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			&& protectedCombination.contains(subject.persistentId(), seam.second()))
 			return false;
 		SeamCutState cut = seamCutState(subject, seamId);
-		if (cut == null || !validateSeamCut(subject, cut, proposal, moveX, moveZ, plane))
+		if (cut == null || !validateSeamCut(subject, cut, proposal, moveX, moveZ, plane)
+			|| !canPayInteractionCost(shears, 1, player))
 			return false;
 
 		subject.cutSeams = cut.proposedCuts;
@@ -587,7 +587,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalTablePlane.Plane plane, double moveX, double moveZ) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
-			|| !canApplyGlueCut(subjectId, glueJointId, moveX, moveZ, plane))
+			|| !canApplyGlueCut(subjectId, glueJointId, moveX, moveZ, plane)
+			|| !canPayInteractionCost(shears, 1, player))
 			return false;
 		GlueCutState cut = glueCutState(subject, glueJointId);
 		Vec3 delta = new Vec3(moveX, 0.0d, moveZ);
@@ -640,7 +641,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int cutCount = seamCutCount + glueCuts.size();
 		if (cutCount == 0)
 			return false;
-		if (!canApplyComponentLayout(subjectId, proposedCuts, proposal, plane))
+		if (!canApplyComponentLayout(subjectId, proposedCuts, proposal, plane)
+			|| !canPayInteractionCost(shears, cutCount, player))
 			return false;
 
 		subject.cutSeams = proposedCuts;
@@ -670,7 +672,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
 			return false;
 		BatchCutState cut = batchCutState(subject, cubeId);
-		if (cut == null || !validateBatchCut(subject, cut, proposal, groupDeltas, plane))
+		if (cut == null || !validateBatchCut(subject, cut, proposal, groupDeltas, plane)
+			|| !canPayInteractionCost(shears, cut.cutCount, player))
 			return false;
 
 		subject.cutSeams = cut.proposedCuts;
@@ -941,7 +944,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		List<SurgicalAssembly.Seam> parentSeams) {
 		SurgicalSubject childSubject = getSubject(childSubjectId);
 		SurgicalSubject parentSubject = getSubject(parentSubjectId);
-		if (type == null || childSubject == null || parentSubject == null
+		if (type == null || SurgicalKitItem.limbType(jointItem) != type
+			|| childSubject == null || parentSubject == null
 			|| !childSubject.initializeOrMatchTopology(childCubeCount, childSeams)
 			|| !parentSubject.initializeOrMatchTopology(parentCubeCount, parentSeams)
 			|| !childSubject.validPresentCube(childCubeId)
@@ -984,10 +988,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return refuse(player, "limb_primary_conflict");
 		if (exceedsSecondaryCapacity(installedJoint, prospective, topology))
 			return refuse(player, "limb_secondary_limit_" + type.id());
+		if (!canPayInteractionCost(jointItem, 1, player))
+			return false;
 
 		attachLimbJoint(installedJoint);
 		if (consumeInteractionItems() && !player.getAbilities().instabuild)
-			jointItem.shrink(1);
+			consumeMaterial(jointItem, player, hand);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.CHAIN_PLACE, SoundSource.BLOCKS, 0.8f, 1.1f);
@@ -1281,7 +1287,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean combineConnected(Player player, ItemStack honeyBottle, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !honeyBottle.is(Items.HONEY_BOTTLE)
+		if (subject == null || !SurgicalKitItem.isHoneyBottle(honeyBottle)
 			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId))
 			return false;
@@ -1311,7 +1317,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				return false;
 		}
 		SurgicalCombination combination = SurgicalCombination.create(members);
-		if (combination == null)
+		if (combination == null || !canPayInteractionCost(honeyBottle, 1, player))
 			return false;
 		for (SurgicalSubject candidate : subjects)
 			candidate.removeCombinations(replaced);
@@ -1329,11 +1335,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean breakCombination(Player player, ItemStack shears, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !shears.is(Items.SHEARS)
+		if (subject == null || !SurgicalKitItem.isShears(shears)
 			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams))
 			return false;
 		SurgicalCombination combination = subject.combinationContaining(cubeId);
-		if (combination == null || !externalCombinationJoints(combination).isEmpty())
+		if (combination == null || !externalCombinationJoints(combination).isEmpty()
+			|| !canPayInteractionCost(shears, 1, player))
 			return false;
 		Set<SurgicalCombination> removed = Set.of(combination);
 		for (SurgicalSubject candidate : subjects)
@@ -1350,11 +1357,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean detachCombination(Player player, ItemStack shears, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !shears.is(Items.SHEARS)
+		if (subject == null || !SurgicalKitItem.isShears(shears)
 			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams))
 			return false;
 		SurgicalCombination combination = subject.combinationContaining(cubeId);
-		if (combination == null)
+		if (combination == null || !canPayInteractionCost(shears, 1, player))
 			return false;
 		List<SurgicalGlueJoint> external = externalCombinationJoints(combination);
 		if (external.isEmpty())
@@ -1375,6 +1382,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private static void consumeHoneyBottle(Player player, ItemStack honeyBottle, InteractionHand hand) {
 		if (!consumeInteractionItems() || player.getAbilities().instabuild)
 			return;
+		if (SurgicalKitItem.isKit(honeyBottle)) {
+			damageInteractionTool(honeyBottle, 1, player, hand);
+			return;
+		}
 		honeyBottle.shrink(1);
 		ItemStack emptyBottle = new ItemStack(Items.GLASS_BOTTLE);
 		if (honeyBottle.isEmpty()) {
@@ -1390,17 +1401,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	 * edges are deliberately excluded from the direct-edge check: the new seam may close a cycle in the
 	 * model's native/glue graph, but it must not duplicate an existing native seam or glue joint.
 	 */
-	public boolean addSlimeSeam(Player player, ItemStack slimeBall,
+	public boolean addSlimeSeam(Player player, ItemStack slimeBall, InteractionHand hand,
 		int firstSubjectId, int firstCubeId, int firstObservedCubeCount,
 		List<SurgicalAssembly.Seam> firstObservedSeams,
 		int secondSubjectId, int secondCubeId, int secondObservedCubeCount,
 		List<SurgicalAssembly.Seam> secondObservedSeams) {
 		SurgicalSubject first = getSubject(firstSubjectId);
 		SurgicalSubject second = getSubject(secondSubjectId);
-		if (!slimeBall.is(Items.SLIME_BALL) || first == null || second == null
+		if (!SurgicalKitItem.isSlimeBall(slimeBall) || first == null || second == null
 			|| !first.initializeOrMatchTopology(firstObservedCubeCount, firstObservedSeams)
 			|| !second.initializeOrMatchTopology(secondObservedCubeCount, secondObservedSeams)
-			|| !canAddSlimeSeamTargets(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId))
+			|| !canAddSlimeSeamTargets(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId)
+			|| !canPayInteractionCost(slimeBall, 1, player))
 			return false;
 
 		SurgicalGlueJoint joint = SurgicalGlueJoint.of(
@@ -1408,7 +1420,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			new SurgicalGlueJoint.Endpoint(second.persistentId(), secondCubeId));
 		attachJoint(joint);
 		if (consumeInteractionItems() && !player.getAbilities().instabuild)
-			slimeBall.shrink(1);
+			consumeMaterial(slimeBall, player, hand);
 		setChangedAndSync();
 		if (level != null)
 			level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE,
@@ -1445,12 +1457,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalGlueContact anchorContact,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
 		SurgicalTableLayout.Proposal secondLayout) {
+		boolean smartGlue = SurgicalKitItem.isSmartGlue(glue);
 		if (replayTransform == null || anchorContact == null
-			|| !(glue.getItem() instanceof SmartSuperGlueItem) && !replayTransform.isIdentity())
+			|| !smartGlue && !replayTransform.isIdentity()
+			|| !canPayInteractionCost(glue, 1, player))
 			return false;
 		ValidatedGluePlan plan = validateGluePlan(firstSubjectId, firstCubeId,
 			secondSubjectId, secondCubeId, targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
-			glue.getItem() instanceof SmartSuperGlueItem);
+			smartGlue);
 		if (plan == null)
 			return false;
 		return applyGluePlan(player, glue, hand, firstCubeId, secondCubeId, targetPose,
@@ -1606,6 +1620,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return CBConfigs.SERVER.surgicalTable.consumeInteractionItems.get();
 	}
 
+	private static boolean canPayInteractionCost(ItemStack stack, int amount, Player player) {
+		return !consumeInteractionItems() || player.getAbilities().instabuild
+			|| SurgicalKitItem.hasDurability(stack, amount);
+	}
+
+	private static void consumeMaterial(ItemStack stack, Player player, InteractionHand hand) {
+		if (SurgicalKitItem.isKit(stack))
+			damageInteractionTool(stack, 1, player, hand);
+		else
+			stack.shrink(1);
+	}
+
 	private static void damageInteractionTool(ItemStack tool, int amount, Player player,
 		InteractionHand hand) {
 		if (consumeInteractionItems())
@@ -1734,7 +1760,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 		return validateGluePlan(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId,
 			targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
-			glue.getItem() instanceof SmartSuperGlueItem || !replayTransform.isIdentity()) != null;
+			SurgicalKitItem.isSmartGlue(glue) || !replayTransform.isIdentity()) != null;
 	}
 
 	@Nullable

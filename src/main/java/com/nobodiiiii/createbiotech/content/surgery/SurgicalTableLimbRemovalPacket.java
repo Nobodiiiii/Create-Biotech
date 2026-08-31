@@ -2,8 +2,6 @@ package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.UUID;
 
-import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -55,7 +53,7 @@ public record SurgicalTableLimbRemovalPacket(BlockPos pos, InteractionHand hand,
 			return;
 
 		ItemStack held = player.getItemInHand(hand);
-		if (!CBWrenchHelper.isWrench(held))
+		if (!SurgicalKitItem.isWrench(held))
 			return;
 		SurgicalLimbJoint joint = new SurgicalLimbJoint(type,
 			new SurgicalGlueJoint.Endpoint(childSubject, childCube),

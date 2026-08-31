@@ -36,6 +36,7 @@ public class CBCreativeModeTabs {
 			.displayItems((parameters, output) -> {
 				output.accept(CBItems.CARDBOARD_BOX.get());
 				output.accept(CBItems.LARGE_CARDBOARD_BOX.get());
+				output.accept(CBItems.SURGICAL_KIT.get());
 				output.accept(CBItems.SMART_SUPER_GLUE.get());
 				output.accept(CBItems.NECK_JOINT.get());
 				output.accept(CBItems.SHOULDER_JOINT.get());

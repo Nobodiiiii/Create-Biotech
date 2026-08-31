@@ -10,7 +10,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 /** Server-validated, multi-subject layout for Ctrl-shears cutting every edge around one cube. */
@@ -56,7 +55,7 @@ public record SurgicalTableBatchCutPacket(BlockPos pos, InteractionHand hand, in
 			|| !SurgicalAssembly.validTopology(observedCubeCount, seams))
 			return;
 		ItemStack held = player.getItemInHand(hand);
-		if (!held.is(Items.SHEARS))
+		if (!SurgicalKitItem.isShears(held))
 			return;
 
 		double range = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d;

@@ -38,7 +38,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlockEntity;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableInteractionPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableGluePacket;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
@@ -48,15 +48,11 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
-import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
-import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.AllSoundEvents;
-import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
-import com.simibubi.create.content.equipment.symmetryWand.SymmetryWandItem;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.outliner.Outliner;
@@ -80,7 +76,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.AABB;
@@ -596,7 +591,7 @@ public final class SurgicalTableClientHandler {
 		if (pendingSlimeSeam != null
 			&& (!TABLES.containsKey(new SubjectKey(pendingSlimeSeam.selection.tablePos,
 				pendingSlimeSeam.selection.subjectId))
-				|| !player.getItemInHand(pendingSlimeSeam.hand).is(Items.SLIME_BALL)))
+				|| !SurgicalKitItem.isSlimeBall(player.getItemInHand(pendingSlimeSeam.hand))))
 			clearPendingSlimeSeam();
 		if (pendingSymmetry != null && (!TABLES.containsKey(new SubjectKey(pendingSymmetry.selection.tablePos,
 			pendingSymmetry.selection.subjectId))
@@ -992,22 +987,22 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 
-		boolean holdingShears = player.getMainHandItem().is(Items.SHEARS)
-			|| player.getOffhandItem().is(Items.SHEARS);
+		boolean holdingShears = SurgicalKitItem.isShears(player.getMainHandItem())
+			|| SurgicalKitItem.isShears(player.getOffhandItem());
 		boolean holdingEmptyBox = isEmptyBox(player.getMainHandItem()) || isEmptyBox(player.getOffhandItem());
 		boolean holdingEmptyLargeBox = isEmptyLargeBox(player.getMainHandItem())
 			|| isEmptyLargeBox(player.getOffhandItem());
 		boolean holdingGlue = isSurgicalGlue(player.getMainHandItem()) || isSurgicalGlue(player.getOffhandItem());
 		boolean holdingSymmetry = isSymmetryWand(player.getMainHandItem())
 			|| isSymmetryWand(player.getOffhandItem());
-		boolean holdingHoney = player.getMainHandItem().is(Items.HONEY_BOTTLE)
-			|| player.getOffhandItem().is(Items.HONEY_BOTTLE);
-		boolean holdingSlimeBall = player.getMainHandItem().is(Items.SLIME_BALL)
-			|| player.getOffhandItem().is(Items.SLIME_BALL);
+		boolean holdingHoney = SurgicalKitItem.isHoneyBottle(player.getMainHandItem())
+			|| SurgicalKitItem.isHoneyBottle(player.getOffhandItem());
+		boolean holdingSlimeBall = SurgicalKitItem.isSlimeBall(player.getMainHandItem())
+			|| SurgicalKitItem.isSlimeBall(player.getOffhandItem());
 		boolean holdingJoint = heldLimbType(player.getMainHandItem()) != null
 			|| heldLimbType(player.getOffhandItem()) != null;
-		boolean holdingWrench = CBWrenchHelper.isWrench(player.getMainHandItem())
-			|| CBWrenchHelper.isWrench(player.getOffhandItem());
+		boolean holdingWrench = SurgicalKitItem.isWrench(player.getMainHandItem())
+			|| SurgicalKitItem.isWrench(player.getOffhandItem());
 		if (!holdingJoint && pendingLimb != null)
 			clearPendingLimb();
 		if (!holdingSlimeBall && pendingSlimeSeam != null)
@@ -1222,7 +1217,7 @@ public final class SurgicalTableClientHandler {
 
 		InteractionHand hand = event.getHand();
 		ItemStack held = minecraft.player.getItemInHand(hand);
-		if (!held.is(Items.SLIME_BALL))
+		if (!SurgicalKitItem.isSlimeBall(held))
 			return;
 
 		ClientLevel level = minecraft.level;
@@ -1279,7 +1274,7 @@ public final class SurgicalTableClientHandler {
 			consumeInteraction(event, hand);
 			return;
 		}
-		if (held.is(Items.SLIME_BALL))
+		if (SurgicalKitItem.isSlimeBall(held))
 			return;
 		if (CapturedEntityBoxHelper.hasCapturedEntity(held)
 			&& tryPlaceSubject(minecraft.player, level, hand, held)) {
@@ -1290,7 +1285,7 @@ public final class SurgicalTableClientHandler {
 		Selection selected;
 		Ray ray = playerRay(minecraft.player);
 		CubeHit cubeHit = findNearestCubeHit(minecraft.player, level, ray);
-		if (CBWrenchHelper.isWrench(held)) {
+		if (SurgicalKitItem.isWrench(held)) {
 			LimbJointSelection selectedJoint = findLimbJointSelection(minecraft.player, level, ray, cubeHit);
 			wrenchSelection = selectedJoint;
 			if (selectedJoint == null)
@@ -1316,7 +1311,7 @@ public final class SurgicalTableClientHandler {
 			if (handleGlueClick(minecraft.player, level, hand, cubeHit))
 				consumeInteraction(event, hand);
 			return;
-		} else if (held.is(Items.SHEARS)) {
+		} else if (SurgicalKitItem.isShears(held)) {
 			if (Screen.hasControlDown()) {
 				selected = findDirectConnectionCutSelection(cubeHit);
 				componentSelection = selected;
@@ -1354,7 +1349,7 @@ public final class SurgicalTableClientHandler {
 				else
 					beginSingleCut(level, selected, hand);
 			}
-		} else if (held.is(Items.HONEY_BOTTLE)) {
+		} else if (SurgicalKitItem.isHoneyBottle(held)) {
 			selected = findConnectedComponentSelection(cubeHit);
 			componentSelection = selected;
 			if (selected == null)
@@ -3008,14 +3003,14 @@ public final class SurgicalTableClientHandler {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.select_pivot_limb", continuingLimb);
 			addCancelControl(tooltip, pendingLimb != null);
-		} else if (stack.is(Items.SLIME_BALL)) {
+		} else if (SurgicalKitItem.isSlimeBall(stack)) {
 			boolean selectingFirst = pendingSlimeSeam == null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.select_first_slime_seam", selectingFirst);
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.select_second_slime_seam", !selectingFirst);
 			addCancelControl(tooltip, pendingSlimeSeam != null);
-		} else if (stack.is(Items.SHEARS)) {
+		} else if (SurgicalKitItem.isShears(stack)) {
 			boolean placingCut = pendingCut != null || pendingGlueCut != null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.cut", !placingCut);
@@ -3025,13 +3020,13 @@ public final class SurgicalTableClientHandler {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.confirm_cut", placingCut);
 			addCancelControl(tooltip, placingCut);
-		} else if (stack.is(Items.HONEY_BOTTLE)) {
+		} else if (SurgicalKitItem.isHoneyBottle(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.combine");
 		} else if (isEmptyBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
-		} else if (CBWrenchHelper.isWrench(stack)) {
+		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.remove_joint");
 		} else if (CapturedEntityBoxHelper.hasCapturedEntity(stack)) {
@@ -3083,9 +3078,10 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isSurgicalInteractionItem(ItemStack stack) {
-		return CapturedEntityBoxItem.isBox(stack) || stack.is(Items.SHEARS)
-			|| isSurgicalGlue(stack) || isSymmetryWand(stack) || stack.is(Items.HONEY_BOTTLE)
-			|| stack.is(Items.SLIME_BALL) || heldLimbType(stack) != null || CBWrenchHelper.isWrench(stack);
+		return CapturedEntityBoxItem.isBox(stack) || SurgicalKitItem.isShears(stack)
+			|| isSurgicalGlue(stack) || isSymmetryWand(stack) || SurgicalKitItem.isHoneyBottle(stack)
+			|| SurgicalKitItem.isSlimeBall(stack) || heldLimbType(stack) != null
+			|| SurgicalKitItem.isWrench(stack);
 	}
 
 	private static void addCancelControl(List<Component> tooltip, boolean enabled) {
@@ -3228,7 +3224,7 @@ public final class SurgicalTableClientHandler {
 		if (pending == null || player == null)
 			return;
 		if (!(level.getBlockEntity(pending.tablePos) instanceof SurgicalTableBlockEntity table)
-			|| !player.getItemInHand(pending.hand).is(Items.SHEARS)) {
+			|| !SurgicalKitItem.isShears(player.getItemInHand(pending.hand))) {
 			abortPendingGlueCut();
 			return;
 		}
@@ -3305,7 +3301,7 @@ public final class SurgicalTableClientHandler {
 		PendingGlueCut pending = pendingGlueCut;
 		if (pending == null)
 			return;
-		if (!player.getItemInHand(pending.hand).is(Items.SHEARS) || pending.planned == null) {
+		if (!SurgicalKitItem.isShears(player.getItemInHand(pending.hand)) || pending.planned == null) {
 			showNoSpace(player);
 			abortPendingGlueCut();
 			return;
@@ -3624,7 +3620,7 @@ public final class SurgicalTableClientHandler {
 		if (pending == null || player == null)
 			return;
 		if (!(level.getBlockEntity(pending.tablePos) instanceof SurgicalTableBlockEntity table)
-			|| !player.getItemInHand(pending.hand).is(Items.SHEARS)) {
+			|| !SurgicalKitItem.isShears(player.getItemInHand(pending.hand))) {
 			abortPendingCut();
 			return;
 		}
@@ -3714,7 +3710,7 @@ public final class SurgicalTableClientHandler {
 		PendingCut pending = pendingCut;
 		if (pending == null)
 			return;
-		if (!player.getItemInHand(pending.hand).is(Items.SHEARS) || pending.planned == null
+		if (!SurgicalKitItem.isShears(player.getItemInHand(pending.hand)) || pending.planned == null
 			|| pending.layout == null) {
 			showNoSpace(player);
 			abortPendingCut();
@@ -5012,11 +5008,11 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isStandardGlue(ItemStack stack) {
-		return stack.getItem() instanceof SuperGlueItem && !(stack.getItem() instanceof SmartSuperGlueItem);
+		return SurgicalKitItem.isStandardGlue(stack);
 	}
 
 	private static boolean isSmartGlue(ItemStack stack) {
-		return stack.getItem() instanceof SmartSuperGlueItem;
+		return SurgicalKitItem.isSmartGlue(stack);
 	}
 
 	private static boolean isSurgicalGlue(ItemStack stack) {
@@ -5024,12 +5020,12 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isSymmetryWand(ItemStack stack) {
-		return stack.getItem() instanceof SymmetryWandItem;
+		return SurgicalKitItem.isSymmetryWand(stack);
 	}
 
 	@Nullable
 	private static SurgicalLimbType heldLimbType(ItemStack stack) {
-		return stack.getItem() instanceof SurgicalJointItem joint ? joint.limbType() : null;
+		return SurgicalKitItem.limbType(stack);
 	}
 
 	private static void clearPendingLimb() {

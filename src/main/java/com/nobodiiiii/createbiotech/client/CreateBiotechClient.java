@@ -41,6 +41,8 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRe
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHandler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteractionOverlay;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagePartials;
@@ -130,6 +132,7 @@ import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
@@ -324,6 +327,7 @@ public class CreateBiotechClient {
 		event.enqueueWork(() -> {
 			registerItemTooltips();
 			registerCardboardBoxModelProperties();
+			registerSurgicalKitModelProperties();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
 			PonderIndex.addPlugin(new CreatePonderCompatPlugin());
 			CardboardBoxPartials.register();
@@ -421,6 +425,11 @@ public class CreateBiotechClient {
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
 				(state, face) -> face.getAxis() != state.getValue(BlockStateProperties.AXIS));
 		});
+	}
+
+	@SubscribeEvent
+	public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
+		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 	}
 
 	/**
@@ -523,5 +532,10 @@ public class CreateBiotechClient {
 			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
 		ItemProperties.register(CBItems.LARGE_CARDBOARD_BOX.get(), CreateBiotech.asResource("captured"),
 			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
+	}
+
+	private static void registerSurgicalKitModelProperties() {
+		ItemProperties.register(CBItems.SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
+			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
 	}
 }

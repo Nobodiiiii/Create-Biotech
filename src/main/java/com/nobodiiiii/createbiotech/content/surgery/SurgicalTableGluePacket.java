@@ -3,8 +3,6 @@ package com.nobodiiiii.createbiotech.content.surgery;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -53,7 +51,7 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 			|| !first.valid() || !second.valid())
 			return;
 		ItemStack held = player.getItemInHand(hand);
-		if (!(held.getItem() instanceof SuperGlueItem))
+		if (!SurgicalKitItem.isGlue(held))
 			return;
 
 		double range = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d;

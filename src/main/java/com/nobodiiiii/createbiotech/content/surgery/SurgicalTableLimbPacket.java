@@ -50,7 +50,7 @@ public record SurgicalTableLimbPacket(BlockPos pos, InteractionHand hand, Surgic
 			return;
 
 		ItemStack held = player.getItemInHand(hand);
-		if (!(held.getItem() instanceof SurgicalJointItem joint) || joint.limbType() != type)
+		if (SurgicalKitItem.limbType(held) != type)
 			return;
 		table.attachLimb(player, held, hand, type, child.subjectId, child.cubeId, parent.subjectId,
 			parent.cubeId, child.observedCubeCount, child.seams, parent.observedCubeCount, parent.seams);
