@@ -296,9 +296,6 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> ASURINE_TABLE_CLOTH = ITEMS.register("asurine_table_cloth",
 		() -> new TableClothBlockItem(CBBlocks.ASURINE_TABLE_CLOTH.get(), new Item.Properties()));
 
-	public static final DeferredHolder<Item, Item> BIOTECH_TABLE_CLOTH = ITEMS.register("biotech_table_cloth",
-		() -> new TableClothBlockItem(CBBlocks.BIOTECH_TABLE_CLOTH.get(), new Item.Properties()));
-
 	public static final DeferredHolder<Item, Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));
 

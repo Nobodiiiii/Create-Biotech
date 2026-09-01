@@ -419,7 +419,6 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.CUTE_CAT_ON_SHAFT.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_TABLE_CLOTH.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BIOTECH_TABLE_CLOTH.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SURGICAL_TABLE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.PROJECTION_SURGICAL_TABLE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
@@ -485,7 +484,6 @@ public class CreateBiotechClient {
 		customBlockModels.register(CreateBiotech.asResource("blast_proof_framed_glass"),
 			model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
 		customBlockModels.register(CreateBiotech.asResource("asurine_table_cloth"), TableClothModel::new);
-		customBlockModels.register(CreateBiotech.asResource("biotech_table_cloth"), TableClothModel::new);
 		customBlockModels.register(CreateBiotech.asResource("surgical_table"), SurgicalTableModel::new);
 		customBlockModels.register(CreateBiotech.asResource("projection_surgical_table"), SurgicalTableModel::new);
 		customBlockModelsRegistered = true;
@@ -499,7 +497,6 @@ public class CreateBiotechClient {
 		CBItems.BUFFER_PADS.values()
 			.forEach(entry -> ItemDescription.useKey(entry.get(), "block.create_biotech.buffer_pad"));
 		ItemDescription.useKey(CBItems.ASURINE_TABLE_CLOTH.get(), "block.create.table_cloth");
-		ItemDescription.useKey(CBItems.BIOTECH_TABLE_CLOTH.get(), "block.create.table_cloth");
 
 		registerCreateStyleTooltip(CBFluids.TELEPORTATION_BUCKET.get());
 		registerCreateStyleTooltip(CBItems.BUDDING_EXPERIENCE.get());
@@ -525,7 +522,6 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.ALLAY_COURIER.get());
 		registerCreateStyleTooltip(CBItems.CUTE_CAT_ON_SHAFT.get());
 		registerCreateStyleTooltip(CBItems.ASURINE_TABLE_CLOTH.get());
-		registerCreateStyleTooltip(CBItems.BIOTECH_TABLE_CLOTH.get());
 		TooltipModifier.REGISTRY.register(CBItems.SONIC_DOG_CANNON.get(),
 			new SonicDogCannonTooltipModifier()::modify);
 		registerKineticCreateStyleTooltip(CBItems.BUTTER_CAT_ENGINE.get());

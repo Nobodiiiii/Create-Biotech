@@ -6,7 +6,6 @@ import java.util.function.Predicate;
 import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
-import com.nobodiiiii.createbiotech.content.tablecloth.CBTableClothBlock;
 import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllShapes;
@@ -70,9 +69,7 @@ public class SurgicalTableBlock extends Block
 	}
 
 	public static boolean connectsVisuallyTo(BlockState adjacentState) {
-		Block adjacentBlock = adjacentState.getBlock();
-		return adjacentBlock instanceof SurgicalTableBlock
-			|| adjacentBlock instanceof CBTableClothBlock tableCloth && tableCloth.isBiotechSurface();
+		return adjacentState.getBlock() instanceof SurgicalTableBlock;
 	}
 
 	@Override

@@ -133,7 +133,7 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("table_cloth",
 			() -> BlockEntityType.Builder
 				.of((pos, state) -> new TableClothBlockEntity(CBBlockEntityTypes.TABLE_CLOTH.get(), pos, state),
-					CBBlocks.ASURINE_TABLE_CLOTH.get(), CBBlocks.BIOTECH_TABLE_CLOTH.get())
+					CBBlocks.ASURINE_TABLE_CLOTH.get())
 				.build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SurgicalTableBlockEntity>> SURGICAL_TABLE =

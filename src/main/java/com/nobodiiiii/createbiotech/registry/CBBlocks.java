@@ -251,12 +251,6 @@ public class CBBlocks {
 				.mapColor(MapColor.COLOR_LIGHT_BLUE)
 				.requiresCorrectToolForDrops(), "asurine"));
 
-	public static final DeferredHolder<Block, CBTableClothBlock> BIOTECH_TABLE_CLOTH =
-		BLOCKS.register("biotech_table_cloth",
-			() -> new CBTableClothBlock(CBSharedProperties.createStone()
-				.mapColor(MapColor.COLOR_LIGHT_BLUE)
-				.requiresCorrectToolForDrops(), "biotech"));
-
 	public static final DeferredHolder<Block, ExplosionProofCasingBlock> EXPLOSION_PROOF_CASING =
 		BLOCKS.register("explosion_proof_casing",
 			() -> new ExplosionProofCasingBlock(CBSharedProperties.withExplosionProofResistance(CBSharedProperties.createStone())

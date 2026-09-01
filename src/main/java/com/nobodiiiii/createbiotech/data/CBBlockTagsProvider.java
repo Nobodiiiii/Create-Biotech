@@ -63,7 +63,6 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.ASURINE_CASING.get(),
 			CBBlocks.BIOTECH_CASING.get(),
 			CBBlocks.ASURINE_TABLE_CLOTH.get(),
-			CBBlocks.BIOTECH_TABLE_CLOTH.get(),
 			CBBlocks.BIO_PACKAGER.get(),
 			CBBlocks.SHULKER_PACKAGER.get(),
 			CBBlocks.SHULKER_TELEPORTER.get(),
@@ -78,8 +77,7 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get());
 
 		add(BlockTags.INSIDE_STEP_SOUND_BLOCKS,
-			CBBlocks.ASURINE_TABLE_CLOTH.get(),
-			CBBlocks.BIOTECH_TABLE_CLOTH.get());
+			CBBlocks.ASURINE_TABLE_CLOTH.get());
 
 		add(BlockTags.NEEDS_DIAMOND_TOOL,
 			CBBlocks.CREEPER_BLAST_CHAMBER.get(),
