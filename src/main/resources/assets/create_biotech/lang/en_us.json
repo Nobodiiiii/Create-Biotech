@@ -85,7 +85,6 @@
   "block.create_biotech.squid_printer": "Squid Printer",
   "block.create_biotech.petri_dish": "Petri Dish",
   "block.create_biotech.surgical_table": "Surgical Table",
-  "block.create_biotech.projection_surgical_table": "Projection Surgical Table",
   "item.create_biotech.surgical_kit": "Surgical Kit",
   "item.create_biotech.surgical_kit.temporary_box": "Temporary Cardboard Box",
   "item.create_biotech.surgical_kit.selected": "Selected: %s",

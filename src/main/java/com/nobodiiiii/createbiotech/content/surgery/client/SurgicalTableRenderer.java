@@ -13,7 +13,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlockEntity;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.foundation.mixin.accessor.LevelRendererAccessor;
 
 import net.minecraft.client.Minecraft;
@@ -22,7 +21,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -141,11 +139,6 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 
 	static boolean projectsSourceGeometry(SurgicalTableBlockEntity table) {
 		return table.getLevel() != null && table.clientProjectsSourceGeometry();
-	}
-
-	static boolean projectsSourceGeometry(Level level, SurgicalTablePlane.Plane plane) {
-		return plane.valid() && plane.tiles().stream()
-			.anyMatch(pos -> level.getBlockState(pos).is(CBBlocks.PROJECTION_SURGICAL_TABLE.get()));
 	}
 
 	/** Returns false only when this frame's main-thread cold-build budget is exhausted. */

@@ -107,10 +107,6 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> SURGICAL_TABLE = ITEMS.register("surgical_table",
 		() -> new BlockItem(CBBlocks.SURGICAL_TABLE.get(), new Item.Properties()));
 
-	public static final DeferredHolder<Item, Item> PROJECTION_SURGICAL_TABLE =
-		ITEMS.register("projection_surgical_table",
-			() -> new BlockItem(CBBlocks.PROJECTION_SURGICAL_TABLE.get(), new Item.Properties()));
-
 	public static final DeferredHolder<Item, SurgicalKitItem> SURGICAL_KIT = ITEMS.register("surgical_kit",
 		() -> new SurgicalKitItem(new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY)));
 

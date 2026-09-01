@@ -158,13 +158,6 @@ public class CBBlocks {
 			.mapColor(MapColor.COLOR_LIGHT_BLUE)
 			.noOcclusion()));
 
-	public static final DeferredHolder<Block, SurgicalTableBlock> PROJECTION_SURGICAL_TABLE =
-		BLOCKS.register("projection_surgical_table",
-			() -> new SurgicalTableBlock(CBSharedProperties.createSoftMetal()
-				.sound(SoundType.METAL)
-				.mapColor(MapColor.COLOR_YELLOW)
-				.noOcclusion()));
-
 	public static final DeferredHolder<Block, UniversalJointBlock> UNIVERSAL_JOINT = BLOCKS.register("universal_joint",
 		() -> new UniversalJointBlock(CBSharedProperties.createStone()
 			.mapColor(MapColor.METAL)

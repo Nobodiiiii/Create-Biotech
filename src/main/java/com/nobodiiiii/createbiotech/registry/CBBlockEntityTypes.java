@@ -138,8 +138,7 @@ public class CBBlockEntityTypes {
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SurgicalTableBlockEntity>> SURGICAL_TABLE =
 		BLOCK_ENTITY_TYPES.register("surgical_table",
-			() -> BlockEntityType.Builder.of(SurgicalTableBlockEntity::new, CBBlocks.SURGICAL_TABLE.get(),
-				CBBlocks.PROJECTION_SURGICAL_TABLE.get())
+			() -> BlockEntityType.Builder.of(SurgicalTableBlockEntity::new, CBBlocks.SURGICAL_TABLE.get())
 				.build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<UniversalJointBlockEntity>> UNIVERSAL_JOINT =

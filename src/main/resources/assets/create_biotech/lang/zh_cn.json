@@ -85,7 +85,6 @@
   "block.create_biotech.squid_printer": "鱿鱼打印机",
   "block.create_biotech.petri_dish": "史莱姆培养皿",
   "block.create_biotech.surgical_table": "手术台",
-  "block.create_biotech.projection_surgical_table": "投影手术台",
   "item.create_biotech.surgical_kit": "手术盒",
   "item.create_biotech.surgical_kit.temporary_box": "临时纸箱",
   "item.create_biotech.surgical_kit.selected": "当前工具：%s",

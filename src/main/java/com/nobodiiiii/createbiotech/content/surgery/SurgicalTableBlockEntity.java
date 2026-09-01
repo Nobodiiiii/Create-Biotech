@@ -22,7 +22,6 @@ import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -75,6 +74,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private boolean clientProjectsSourceGeometry;
 	private long clientPlaneCacheUntil = Long.MIN_VALUE;
 	private int clientPlaneLayout = -1;
+	private int clientPlanePower = -1;
 	@Nullable
 	private SurgicalConnectionGraph<UUID> cachedConnectionGraph;
 	private long cachedConnectionSignature = Long.MIN_VALUE;
@@ -96,6 +96,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private boolean variantConnectionValid;
 	/** Bumped by {@link #invalidateTableLayout()}; see {@link #getServerPlane()}. */
 	private static int tableLayoutRevision;
+	/** Bumped when a table tile's local redstone input changes. */
+	private static int tablePowerRevision;
 
 	public SurgicalTableBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.SURGICAL_TABLE.get(), pos, state);
@@ -163,13 +165,22 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			clientPlaneCacheUntil = now + CLIENT_PLANE_CACHE_TICKS;
 			clientPlaneLayout = tableLayoutRevision;
 			clientPlaneBounds = new AABB(worldPosition);
-			clientProjectsSourceGeometry = false;
-			for (BlockPos tablePos : clientPlane.tiles()) {
+			for (BlockPos tablePos : clientPlane.tiles())
 				clientPlaneBounds = clientPlaneBounds.minmax(new AABB(tablePos));
+			// A topology refresh must also validate the aggregate in case a chunk packet bypassed the
+			// normal block-state transition callback.
+			clientPlanePower = -1;
+		}
+		if (clientPlanePower != tablePowerRevision) {
+			clientProjectsSourceGeometry = false;
+			// Fold local input states over the cached component. A redstone transition never performs
+			// another connectivity BFS and idle table tiles never receive block-entity ticks.
+			for (BlockPos tablePos : clientPlane.tiles()) {
 				if (!clientProjectsSourceGeometry
-					&& level.getBlockState(tablePos).is(CBBlocks.PROJECTION_SURGICAL_TABLE.get()))
+					&& level.getBlockState(tablePos).getValue(SurgicalTableBlock.POWERED))
 					clientProjectsSourceGeometry = true;
 			}
+			clientPlanePower = tablePowerRevision;
 		}
 		return clientPlane;
 	}
@@ -202,6 +213,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	 */
 	public static void invalidateTableLayout() {
 		tableLayoutRevision++;
+	}
+
+	public static void invalidateTablePower() {
+		tablePowerRevision++;
 	}
 
 	public int clientDataRevision() {

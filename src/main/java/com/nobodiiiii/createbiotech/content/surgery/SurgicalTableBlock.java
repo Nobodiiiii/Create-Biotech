@@ -23,11 +23,15 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition.Builder;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -36,15 +40,28 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class SurgicalTableBlock extends Block
 	implements IBE<SurgicalTableBlockEntity>, IWrenchable, IHaveBigOutline {
 	public static final MapCodec<SurgicalTableBlock> CODEC = simpleCodec(SurgicalTableBlock::new);
+	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
 	private static final int PLACEMENT_HELPER_ID = PlacementHelpers.register(new PlacementHelper());
 
 	public SurgicalTableBlock(Properties properties) {
 		super(properties);
+		registerDefaultState(defaultBlockState().setValue(POWERED, false));
 	}
 
 	@Override
 	protected MapCodec<? extends Block> codec() {
 		return CODEC;
+	}
+
+	@Override
+	protected void createBlockStateDefinition(Builder<Block, BlockState> builder) {
+		super.createBlockStateDefinition(builder.add(POWERED));
+	}
+
+	@Override
+	public BlockState getStateForPlacement(BlockPlaceContext context) {
+		return defaultBlockState().setValue(POWERED,
+			context.getLevel().hasNeighborSignal(context.getClickedPos()));
 	}
 
 	@Override
@@ -77,6 +94,18 @@ public class SurgicalTableBlock extends Block
 		if (side.getAxis().isHorizontal() && connectsVisuallyTo(adjacentState))
 			return true;
 		return super.skipRendering(state, adjacentState, side);
+	}
+
+	@Override
+	public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+		BlockPos neighborPos, boolean isMoving) {
+		if (level.isClientSide)
+			return;
+		// Store only this tile's input. The connected surface folds these states into one cached
+		// projection flag client-side, so idle tables never need a block or block-entity tick.
+		boolean powered = level.hasNeighborSignal(pos);
+		if (state.getValue(POWERED) != powered)
+			level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_CLIENTS);
 	}
 
 	@Override
@@ -120,8 +149,11 @@ public class SurgicalTableBlock extends Block
 
 	@Override
 	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
-		if (!state.is(oldState.getBlock()))
+		if (!state.is(oldState.getBlock())) {
 			SurgicalTableBlockEntity.invalidateTableLayout();
+		} else if (state.getValue(POWERED) != oldState.getValue(POWERED)) {
+			SurgicalTableBlockEntity.invalidateTablePower();
+		}
 		super.onPlace(state, level, pos, oldState, isMoving);
 	}
 

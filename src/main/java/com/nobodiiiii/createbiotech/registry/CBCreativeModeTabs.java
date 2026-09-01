@@ -87,7 +87,6 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.ASURINE_TABLE_CLOTH.get());
 				output.accept(CBItems.PETRI_DISH.get());
 				output.accept(CBItems.SURGICAL_TABLE.get());
-				output.accept(CBItems.PROJECTION_SURGICAL_TABLE.get());
 				output.accept(CBItems.SCHRODINGERS_CAT.get());
 				output.accept(CBItems.ASURINE_ALLOY.get());
 				output.accept(CBItems.CARBON_POWDER.get());
