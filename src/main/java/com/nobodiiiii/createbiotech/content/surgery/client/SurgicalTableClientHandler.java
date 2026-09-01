@@ -101,6 +101,7 @@ public final class SurgicalTableClientHandler {
 	private static final int CUBE_HIGHLIGHT_COLOR = PonderPalette.BLUE.getColor();
 	private static final int HONEY_HIGHLIGHT_COLOR = 0xE8A43A;
 	private static final int LIMB_JOINT_HIGHLIGHT_COLOR = 0xB46CFF;
+	private static final int RESERVED_HIGHLIGHT_COLOR = PonderPalette.GREEN.getColor();
 	private static final float HIGHLIGHT_LINE_WIDTH = 1.0f / 32.0f;
 	private static final float SEAM_HIGHLIGHT_LINE_WIDTH = HIGHLIGHT_LINE_WIDTH * 1.25f;
 	private static final float GLUE_POINT_LINE_WIDTH = HIGHLIGHT_LINE_WIDTH / 4.0f;
@@ -136,11 +137,27 @@ public final class SurgicalTableClientHandler {
 		new OutlineState(SEAM_HIGHLIGHT_LINE_WIDTH);
 	private static final OutlineState GLUE_EDIT_OUTLINE = new OutlineState();
 	private static final OutlineState GLUE_POINT_OUTLINE = new OutlineState(GLUE_POINT_LINE_WIDTH);
+	private static final OutlineState RESERVED_OUTLINE = new OutlineState();
+	private static final OutlineState RESERVED_SELECTION_OUTLINE = new OutlineState();
 	private static final Object PLACEMENT_OUTLINE_SLOT = new Object();
 	/** Current interaction/render address. This changes whenever the north-west controller moves. */
 	private static final Map<SubjectKey, TableGeometry> TABLES = new HashMap<>();
 	/** Stable geometry ownership. A controller move must not invalidate immutable model geometry. */
 	private static final Map<UUID, TableGeometry> SUBJECT_GEOMETRIES = new HashMap<>();
+	/**
+	 * Subjects whose stored topology contradicts the model this client observes, keyed by persistent
+	 * id.
+	 *
+	 * <p>Topology is persisted by the server but re-observed on every client session, by running the
+	 * source entity's renderer and recovering cuboids from its vertex stream. A third-party model
+	 * replacement therefore changes {@code observedCubeCount} for a creature whose stored count was
+	 * measured against the previous model, and {@link TableGeometry#matchesModel} rejects that pairing
+	 * permanently: the subject renders nothing and cannot be picked. Its footprints stay reserved on
+	 * the server regardless, so the space keeps refusing new placements and the parts still drop when
+	 * the table is broken. Marking the subject here is what turns that silent hole into a visible
+	 * reserved column.</p>
+	 */
+	private static final Map<UUID, ReservedSubject> RESERVED_SUBJECTS = new HashMap<>();
 	@Nullable
 	private static OwnerHandoffKey validatedOwnerHandoff;
 	private static final Set<UUID> SAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
@@ -167,6 +184,9 @@ public final class SurgicalTableClientHandler {
 	private static Selection cubeSelection;
 	@Nullable
 	private static Selection componentSelection;
+	/** Persistent id of the reserved column a held shovel is aimed at, if any. */
+	@Nullable
+	private static UUID reservedSelection;
 	@Nullable
 	private static Selection symmetrySelection;
 	private static Selection limbSelection;
@@ -290,6 +310,21 @@ public final class SurgicalTableClientHandler {
 		if (table.getLevel() == null || snapshot.observedCubeCount() <= 0)
 			return;
 		int cubeCount = snapshot.observedCubeCount();
+		if (subject.cubeCount() != 0 && subject.cubeCount() != cubeCount) {
+			// matchesModel() will reject this pairing for as long as the model stays replaced, so a
+			// geometry built here is discarded by the very next geometryFor() and rebuilt on the next
+			// frame - contact topology, grounding and all. Record the reserved column instead. The
+			// observation itself deliberately keeps running: the moment the model that produced the
+			// stored count is back, the counts agree again and the subject recovers on its own.
+			markReserved(table, subject, snapshot);
+			return;
+		}
+		if (RESERVED_SUBJECTS.remove(subject.persistentId()) != null) {
+			// This observation was taken over the whole model, because a reserved subject has no usable
+			// present-set to observe through. Now that the counts agree again, let the next frame
+			// re-observe properly rather than seeding the geometry with cubes the subject no longer has.
+			return;
+		}
 		List<SurgicalAssembly.Seam> seams;
 		List<SurgicalClientTopology.Contact> contacts;
 		Supplier<SurgicalClientTopology.ContactTopology> topologyBuild = null;
@@ -343,6 +378,217 @@ public final class SurgicalTableClientHandler {
 		geometry.refresh(table, subject);
 		registerGeometry(table, subject, geometry);
 		geometryGeneration++;
+	}
+
+	/**
+	 * Whether this subject's stored topology is known to contradict the model this client observes.
+	 *
+	 * <p>Such a subject can never be rendered from its stored present-set, and asking for that set
+	 * would filter the observation down to an arbitrary prefix of the replacement model's components.
+	 * The renderer uses this to observe the whole model instead, so the reserved column can be raised
+	 * to the height the source model actually measures.</p>
+	 */
+	public static boolean isReserved(SurgicalSubject subject) {
+		ReservedSubject reserved = RESERVED_SUBJECTS.get(subject.persistentId());
+		return reserved != null && reserved.storedCubeCount() == subject.cubeCount();
+	}
+
+	/**
+	 * Records the column a subject reserves while its model cannot be drawn: the footprints the
+	 * server still refuses to place anything into, raised from the table surface to the measured
+	 * height of the source model. The captured snapshot has not been grounded, so only its vertical
+	 * extent is used, never its absolute Y.
+	 */
+	private static void markReserved(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		SurgicalModelRenderContext.Snapshot snapshot) {
+		double modelMinX = Double.POSITIVE_INFINITY;
+		double modelMinY = Double.POSITIVE_INFINITY;
+		double modelMinZ = Double.POSITIVE_INFINITY;
+		double modelMaxX = Double.NEGATIVE_INFINITY;
+		double modelMaxY = Double.NEGATIVE_INFINITY;
+		double modelMaxZ = Double.NEGATIVE_INFINITY;
+		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
+			for (Vec3 corner : cube.corners()) {
+				modelMinX = Math.min(modelMinX, corner.x);
+				modelMinY = Math.min(modelMinY, corner.y);
+				modelMinZ = Math.min(modelMinZ, corner.z);
+				modelMaxX = Math.max(modelMaxX, corner.x);
+				modelMaxY = Math.max(modelMaxY, corner.y);
+				modelMaxZ = Math.max(modelMaxZ, corner.z);
+			}
+		if (!Double.isFinite(modelMinY)) {
+			RESERVED_SUBJECTS.remove(subject.persistentId());
+			return;
+		}
+
+		// Subjects saved before footprints existed carry none; the observed model is then the only
+		// horizontal extent available, and it is already in world space.
+		double minX = Double.POSITIVE_INFINITY;
+		double minZ = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double maxZ = Double.NEGATIVE_INFINITY;
+		for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
+			minX = Math.min(minX, footprint.minX());
+			minZ = Math.min(minZ, footprint.minZ());
+			maxX = Math.max(maxX, footprint.maxX());
+			maxZ = Math.max(maxZ, footprint.maxZ());
+		}
+		if (!Double.isFinite(minX)) {
+			minX = modelMinX;
+			minZ = modelMinZ;
+			maxX = modelMaxX;
+			maxZ = modelMaxZ;
+		}
+
+		double surfaceY = SurgicalTablePlane.surfaceY(table.getBlockPos().getY());
+		// The observed model's world corners carry the camera-relative render transform's float
+		// rounding, so quantise the height: an unquantised box jitters in its last bits as the player
+		// moves, which would rebuild the outline mesh and re-measure the volume on every frame.
+		double height = Math.max(Math.ceil((modelMaxY - modelMinY) * 1024.0d) / 1024.0d, MODEL_PIXEL_SIZE);
+		int observedCubeCount = snapshot.observedCubeCount();
+		ReservedSubject previous = RESERVED_SUBJECTS.get(subject.persistentId());
+		double volume = previous != null && previous.sameSubjectAndTopology(table.getBlockPos(),
+			subject.id(), subject.cubeCount(), observedCubeCount)
+			? previous.volume() : reservedVolume(subject, snapshot);
+		RESERVED_SUBJECTS.put(subject.persistentId(), new ReservedSubject(table.getBlockPos(),
+			subject.id(), subject.cubeCount(), observedCubeCount, volume,
+			new AABB(minX, surfaceY, minZ, maxX, surfaceY + height, maxZ)));
+	}
+
+	/**
+	 * Approximates how much creature the shovel is about to remove.
+	 *
+	 * <p>The two topologies share no cube numbering, so the stored present-set cannot be projected
+	 * onto the observed model. The union volume of the whole observed model is the honest measurement
+	 * available; scaling it by the fraction of stored cubes still present keeps a subject that was
+	 * mostly cut away from paying out as though it were intact.</p>
+	 */
+	private static double reservedVolume(SurgicalSubject subject,
+		SurgicalModelRenderContext.Snapshot snapshot) {
+		List<List<Vec3>> cuboids = new ArrayList<>(snapshot.cubes().size());
+		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
+			cuboids.add(cube.corners());
+		double volume = SurgicalVolumeSampler.unionVolume(cuboids);
+		if (!Double.isFinite(volume) || volume <= 0.0d)
+			return 0.0d;
+		int storedCubeCount = subject.cubeCount();
+		int presentCubeCount = subject.presentCubesForRender(storedCubeCount).cardinality();
+		return storedCubeCount <= 0 ? volume
+			: volume * Math.min(1.0d, (double) presentCubeCount / storedCubeCount);
+	}
+
+	/**
+	 * Draws one green box around every reserved column whose subject cannot be rendered, so the space
+	 * the table keeps refusing is visible instead of empty. The one a shovel is aimed at takes the
+	 * ordinary selection colour, exactly as a pickable component would.
+	 *
+	 * <p>{@link SurgicalEdgeOutline} centres its tubes on the edges it is given, so the box is pulled
+	 * inward by half the line width first: the outer surface of the drawn lines then lands exactly on
+	 * the reserved bounds rather than straddling them.</p>
+	 */
+	private static void updateReservedOutline() {
+		ClientLevel level = Minecraft.getInstance().level;
+		if (RESERVED_SUBJECTS.isEmpty() || level == null) {
+			RESERVED_OUTLINE.clear();
+			RESERVED_SELECTION_OUTLINE.clear();
+			return;
+		}
+		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
+		List<SurgicalClientTopology.Edge> selectedEdges = new ArrayList<>();
+		for (java.util.Iterator<Map.Entry<UUID, ReservedSubject>> iterator =
+			RESERVED_SUBJECTS.entrySet().iterator(); iterator.hasNext();) {
+			Map.Entry<UUID, ReservedSubject> entry = iterator.next();
+			ReservedSubject reserved = entry.getValue();
+			SurgicalSubject subject = level.getBlockEntity(reserved.tablePos())
+				instanceof SurgicalTableBlockEntity table ? table.getSubject(reserved.subjectId()) : null;
+			if (subject == null && !level.isLoaded(reserved.tablePos()))
+				continue;
+			// A subject that changed identity or stored topology has to be re-observed before anything
+			// can be claimed about it again.
+			if (subject == null || !subject.persistentId().equals(entry.getKey())
+				|| subject.cubeCount() != reserved.storedCubeCount()) {
+				iterator.remove();
+				continue;
+			}
+			(entry.getKey().equals(reservedSelection) ? selectedEdges : edges)
+				.addAll(SurgicalClientTopology.cubeEdges(boundsGeometry(
+					insetBox(reserved.bounds(), HIGHLIGHT_LINE_WIDTH / 2.0d), Vec3.ZERO)));
+		}
+		RESERVED_OUTLINE.show(edges, RESERVED_HIGHLIGHT_COLOR);
+		RESERVED_SELECTION_OUTLINE.show(selectedEdges, CUBE_HIGHLIGHT_COLOR);
+	}
+
+	/**
+	 * Nearest reserved column under the ray.
+	 *
+	 * <p>A reserved subject exposes no cube geometry, so its marker box is the only thing that can be
+	 * targeted - and the shovel is the only tool whose meaning survives without cube ids, because it
+	 * is the one that addresses a whole body rather than a numbered part of one.</p>
+	 */
+	@Nullable
+	private static UUID findReservedHit(LocalPlayer player, ClientLevel level, Ray ray) {
+		UUID best = null;
+		BlockPos bestTable = null;
+		Vec3 bestLocation = null;
+		double bestDistance = Double.MAX_VALUE;
+		for (Map.Entry<UUID, ReservedSubject> entry : RESERVED_SUBJECTS.entrySet()) {
+			ReservedSubject reserved = entry.getValue();
+			if (!rayIntersectsBounds(ray, reserved.bounds(), 1.0e-6d))
+				continue;
+			// clip() misses when the ray starts inside the box; the entry point is then the eye itself.
+			Vec3 location = reserved.bounds().clip(ray.start, ray.end).orElse(ray.start);
+			double distance = ray.start.distanceToSqr(location);
+			if (distance >= bestDistance)
+				continue;
+			best = entry.getKey();
+			bestTable = reserved.tablePos();
+			bestLocation = location;
+			bestDistance = distance;
+		}
+		return best == null || isOccluded(level, player, ray.start, bestLocation, bestTable) ? null : best;
+	}
+
+	/**
+	 * Removes a subject whose stored topology this client cannot match.
+	 *
+	 * <p>The server already treats a topology it cannot confirm as a whole-subject removal, which is
+	 * exactly the outcome wanted here, so the observed count is sent honestly and with no seams: it
+	 * contradicts the stored one by definition, which is what made the subject reserved in the first
+	 * place. The drop lands on the table surface at the centre of the reserved footprints, which the
+	 * server's work area always contains.</p>
+	 */
+	private static boolean shovelReservedSubject(InteractionHand hand) {
+		ReservedSubject reserved = reservedSelection == null ? null
+			: RESERVED_SUBJECTS.get(reservedSelection);
+		if (reserved == null)
+			return false;
+		Vec3 center = reserved.bounds().getCenter();
+		CBPackets.sendToServer(new SurgicalTableShovelPacket(reserved.tablePos(), hand,
+			reserved.subjectId(), 0, reportableCubeCount(reserved), List.of(), reserved.volume(),
+			new Vec3(center.x, reserved.bounds().minY, center.z)));
+		clearSelections();
+		return true;
+	}
+
+	/**
+	 * A cube count the server will accept and cannot confirm. The observed count is reported as
+	 * measured; it only needs clamping into the range the packet validates, and nudging off the
+	 * stored count in the one case where clamping could land on it - a replacement model that
+	 * recovers more than {@link SurgicalAssembly#MAX_CUBES} cuboids.
+	 */
+	private static int reportableCubeCount(ReservedSubject reserved) {
+		int reported = Math.max(1, Math.min(SurgicalAssembly.MAX_CUBES, reserved.observedCubeCount()));
+		return reported == reserved.storedCubeCount() ? Math.max(1, reported - 1) : reported;
+	}
+
+	/** Pulls a box inward on every side, leaving axes too thin to give it up collapsed, not inverted. */
+	private static AABB insetBox(AABB box, double inset) {
+		return box.inflate(-axisInset(box.maxX - box.minX, inset), -axisInset(box.maxY - box.minY, inset),
+			-axisInset(box.maxZ - box.minZ, inset));
+	}
+
+	private static double axisInset(double size, double inset) {
+		return Math.min(inset, Math.max(0.0d, size * 0.5d - 1.0e-4d));
 	}
 
 	public static Map<Integer, Vec3> offsetsFor(SurgicalTableBlockEntity table, SurgicalSubject subject) {
@@ -553,6 +799,12 @@ public final class SurgicalTableClientHandler {
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
 		TABLES.clear();
 		SUBJECT_GEOMETRIES.clear();
+		// A resource reload runs through here, and that is exactly when a replaced model may have gone
+		// back to the one the stored topology was measured against. Retire every marker so the next
+		// observation decides again.
+		RESERVED_SUBJECTS.clear();
+		RESERVED_OUTLINE.clear();
+		RESERVED_SELECTION_OUTLINE.clear();
 		validatedOwnerHandoff = null;
 		SAFE_OWNER_HANDOFFS.clear();
 		UNSAFE_OWNER_HANDOFFS.clear();
@@ -682,6 +934,7 @@ public final class SurgicalTableClientHandler {
 		}
 		updatePlacementPreview();
 		updateSelections();
+		updateReservedOutline();
 	}
 
 	private static void updatePlacementPreview() {
@@ -1128,6 +1381,7 @@ public final class SurgicalTableClientHandler {
 			seamSelection = null;
 			cubeSelection = null;
 			componentSelection = null;
+			reservedSelection = null;
 			symmetrySelection = null;
 			limbSelection = null;
 			slimeSeamSelection = null;
@@ -1214,6 +1468,10 @@ public final class SurgicalTableClientHandler {
 			: highlightingDirectConnections
 			? findDirectConnectionSelection(cubeHit)
 			: !holdingShears && holdingEmptyLargeBox ? findConnectedComponentSelection(cubeHit) : null;
+		// Only reached when nothing pickable is under the ray, so an ordinary component always wins
+		// over a reserved column standing in the same place.
+		reservedSelection = holdingShovel && componentSelection == null
+			? findReservedHit(player, level, ray) : null;
 		refreshCurrentSelectionHighlight();
 	}
 
@@ -1424,8 +1682,14 @@ public final class SurgicalTableClientHandler {
 		}
 		if (SurgicalKitItem.isShovel(held)) {
 			selected = findConnectedComponentSelection(cubeHit);
-			if (selected == null)
+			if (selected == null) {
+				// Nothing pickable there, but a reserved column may be: it is the one thing a shovel
+				// can still address on a subject whose cubes this client cannot name.
+				reservedSelection = findReservedHit(minecraft.player, level, ray);
+				if (shovelReservedSubject(hand))
+					consumeInteraction(event, hand);
 				return;
+			}
 			double volume = connectedComponentVolume(level, cubeHit);
 			SurgicalModelRenderContext.CubeGeometry hitGeometry = cubeHit.geometry.cubesById.get(cubeHit.cubeId);
 			if (!Double.isFinite(volume) || hitGeometry == null)
@@ -3081,6 +3345,9 @@ public final class SurgicalTableClientHandler {
 		boolean hitsCube = findNearestCubeHit(player, level, ray) != null;
 		if (!hitsCube && glueEditor != null && glueEditor.hand == hand)
 			hitsCube = findNearestGluePreviewHit(player, level, glueEditor) != null;
+		// A reserved column exposes no cube to hit, but a shovel can still act on it.
+		if (!hitsCube && SurgicalKitItem.isShovel(stack))
+			hitsCube = findReservedHit(player, level, ray) != null;
 		if (!hitsCube) {
 			hand = capturedSubjectPlacementPromptHand(player, level);
 			if (hand == null)
@@ -5393,6 +5660,7 @@ public final class SurgicalTableClientHandler {
 		seamSelection = null;
 		cubeSelection = null;
 		componentSelection = null;
+		reservedSelection = null;
 		symmetrySelection = null;
 		limbSelection = null;
 		slimeSeamSelection = null;
@@ -5918,6 +6186,26 @@ public final class SurgicalTableClientHandler {
 	private record SubjectKey(BlockPos tablePos, int subjectId) {
 		private SubjectKey {
 			tablePos = tablePos.immutable();
+		}
+	}
+
+	/**
+	 * One subject whose space stays reserved while its model cannot be drawn. {@code storedCubeCount}
+	 * is the count the mismatch was measured against, so a server-side topology change retires the
+	 * marker instead of keeping a stale box alive. {@code observedCubeCount} and {@code volume}
+	 * describe the model actually observed, and are what a shovel has to send to remove the subject.
+	 */
+	private record ReservedSubject(BlockPos tablePos, int subjectId, int storedCubeCount,
+		int observedCubeCount, double volume, AABB bounds) {
+		private ReservedSubject {
+			tablePos = tablePos.immutable();
+		}
+
+		/** Whether {@code other} describes the same subject, table and pair of contradicting counts. */
+		private boolean sameSubjectAndTopology(BlockPos otherTablePos, int otherSubjectId,
+			int otherStoredCubeCount, int otherObservedCubeCount) {
+			return subjectId == otherSubjectId && storedCubeCount == otherStoredCubeCount
+				&& observedCubeCount == otherObservedCubeCount && tablePos.equals(otherTablePos);
 		}
 	}
 

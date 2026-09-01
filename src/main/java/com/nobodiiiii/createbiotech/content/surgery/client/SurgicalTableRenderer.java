@@ -171,7 +171,11 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		poseStack.pushPose();
 		poseStack.translate(subject.originOffsetX(), 0.0d, subject.originOffsetZ());
 		SurgicalTablePoseResolver.resolve(subject.layPose()).apply(poseStack);
-		int storedCount = subject.cubeCount();
+		// A subject whose stored count contradicts the model cannot be rendered from its stored
+		// present-set at all, and asking for that set would clip the observation down to an arbitrary
+		// prefix of the replacement model's components. Observe the whole model instead, so the
+		// reserved-column marker measures the height the source model really has.
+		int storedCount = SurgicalTableClientHandler.isReserved(subject) ? 0 : subject.cubeCount();
 		BitSet present = storedCount > 0
 			? SurgicalTableClientHandler.presentCubesFor(table, subject, storedCount) : EMPTY_CUBES;
 		SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.captureGeometryDeferred(preview,
