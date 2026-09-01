@@ -117,6 +117,8 @@ public final class SurgicalTableClientHandler {
 	private static final double GLUE_POINT_PIXEL_EPSILON = 1.0e-4d;
 	private static final double SYMMETRY_PLANE_MARGIN = 1.0d / 32.0d;
 	private static final int ASYNC_TOPOLOGY_CUBE_THRESHOLD = 32;
+	/** How long a confirmed topology contradiction stands before the model is observed again. */
+	private static final int RESERVED_REOBSERVE_TICKS = 20;
 	/** Approximate retained cube/vertex/contact units; currently about eight maximum-size subjects. */
 	private static final long MAX_GEOMETRY_CACHE_WEIGHT = 262_144L;
 	/** RenderFrame follows ClientTick.Post, so protect a short window rather than only equal game-time. */
@@ -245,7 +247,7 @@ public final class SurgicalTableClientHandler {
 			return false;
 		TableGeometry geometry = geometryFor(table, subject);
 		if (geometry == null)
-			return true;
+			return !reservedObservationIsFresh(table, subject);
 		if (geometry.refresh(table, subject))
 			geometryGeneration++;
 		else
@@ -443,16 +445,41 @@ public final class SurgicalTableClientHandler {
 		double surfaceY = SurgicalTablePlane.surfaceY(table.getBlockPos().getY());
 		// The observed model's world corners carry the camera-relative render transform's float
 		// rounding, so quantise the height: an unquantised box jitters in its last bits as the player
-		// moves, which would rebuild the outline mesh and re-measure the volume on every frame.
+		// moves, which would rebuild the outline mesh on every frame.
 		double height = Math.max(Math.ceil((modelMaxY - modelMinY) * 1024.0d) / 1024.0d, MODEL_PIXEL_SIZE);
 		int observedCubeCount = snapshot.observedCubeCount();
 		ReservedSubject previous = RESERVED_SUBJECTS.get(subject.persistentId());
-		double volume = previous != null && previous.sameSubjectAndTopology(table.getBlockPos(),
-			subject.id(), subject.cubeCount(), observedCubeCount)
-			? previous.volume() : reservedVolume(subject, snapshot);
+		List<List<Vec3>> cuboids = previous != null && previous.sameSubjectAndTopology(table.getBlockPos(),
+			subject.id(), subject.cubeCount(), observedCubeCount) ? previous.cuboids() : cuboidsOf(snapshot);
 		RESERVED_SUBJECTS.put(subject.persistentId(), new ReservedSubject(table.getBlockPos(),
-			subject.id(), subject.cubeCount(), observedCubeCount, volume,
+			subject.id(), subject.cubeCount(), observedCubeCount, table.getLevel().getGameTime(), cuboids,
 			new AABB(minX, surfaceY, minZ, maxX, surfaceY + height, maxZ)));
+	}
+
+	private static List<List<Vec3>> cuboidsOf(SurgicalModelRenderContext.Snapshot snapshot) {
+		List<List<Vec3>> cuboids = new ArrayList<>(snapshot.cubes().size());
+		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
+			cuboids.add(cube.corners());
+		return List.copyOf(cuboids);
+	}
+
+	/**
+	 * Whether this subject was recently confirmed to contradict its stored topology.
+	 *
+	 * <p>Such a subject has no geometry to find, so {@link #needsGeometryUpdate} would otherwise ask
+	 * for a fresh observation on every frame for as long as it is in view - and every one of those
+	 * claims a slot from the shared cold-build budget, which is exactly what the subjects that can
+	 * still be built are queued on. The answer cannot change unless the model does, and every path
+	 * that changes the model clears the markers outright, so this slow retry only has to cover a
+	 * render-plan eviction.</p>
+	 */
+	private static boolean reservedObservationIsFresh(SurgicalTableBlockEntity table,
+		SurgicalSubject subject) {
+		ReservedSubject reserved = RESERVED_SUBJECTS.get(subject.persistentId());
+		if (reserved == null || reserved.storedCubeCount() != subject.cubeCount())
+			return false;
+		long elapsed = table.getLevel().getGameTime() - reserved.observedAtTick();
+		return elapsed >= 0L && elapsed < RESERVED_REOBSERVE_TICKS;
 	}
 
 	/**
@@ -462,13 +489,14 @@ public final class SurgicalTableClientHandler {
 	 * onto the observed model. The union volume of the whole observed model is the honest measurement
 	 * available; scaling it by the fraction of stored cubes still present keeps a subject that was
 	 * mostly cut away from paying out as though it were intact.</p>
+	 *
+	 * <p>Deliberately measured here, on the click, rather than when the marker is recorded:
+	 * {@link SurgicalVolumeSampler} is budgeted in millions of coverage tests, and paying that during
+	 * a render pass would stall the frame a reserved column first came into view. This is the same
+	 * moment the ordinary shovel measures its own component.</p>
 	 */
-	private static double reservedVolume(SurgicalSubject subject,
-		SurgicalModelRenderContext.Snapshot snapshot) {
-		List<List<Vec3>> cuboids = new ArrayList<>(snapshot.cubes().size());
-		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
-			cuboids.add(cube.corners());
-		double volume = SurgicalVolumeSampler.unionVolume(cuboids);
+	private static double reservedVolume(SurgicalSubject subject, ReservedSubject reserved) {
+		double volume = SurgicalVolumeSampler.unionVolume(reserved.cuboids());
 		if (!Double.isFinite(volume) || volume <= 0.0d)
 			return 0.0d;
 		int storedCubeCount = subject.cubeCount();
@@ -557,14 +585,19 @@ public final class SurgicalTableClientHandler {
 	 * place. The drop lands on the table surface at the centre of the reserved footprints, which the
 	 * server's work area always contains.</p>
 	 */
-	private static boolean shovelReservedSubject(InteractionHand hand) {
+	private static boolean shovelReservedSubject(ClientLevel level, InteractionHand hand) {
 		ReservedSubject reserved = reservedSelection == null ? null
 			: RESERVED_SUBJECTS.get(reservedSelection);
-		if (reserved == null)
+		if (reserved == null
+			|| !(level.getBlockEntity(reserved.tablePos()) instanceof SurgicalTableBlockEntity table))
+			return false;
+		SurgicalSubject subject = table.getSubject(reserved.subjectId());
+		if (subject == null || subject.cubeCount() != reserved.storedCubeCount())
 			return false;
 		Vec3 center = reserved.bounds().getCenter();
 		CBPackets.sendToServer(new SurgicalTableShovelPacket(reserved.tablePos(), hand,
-			reserved.subjectId(), 0, reportableCubeCount(reserved), List.of(), reserved.volume(),
+			reserved.subjectId(), 0, reportableCubeCount(reserved), List.of(),
+			reservedVolume(subject, reserved),
 			new Vec3(center.x, reserved.bounds().minY, center.z)));
 		clearSelections();
 		return true;
@@ -1686,7 +1719,7 @@ public final class SurgicalTableClientHandler {
 				// Nothing pickable there, but a reserved column may be: it is the one thing a shovel
 				// can still address on a subject whose cubes this client cannot name.
 				reservedSelection = findReservedHit(minecraft.player, level, ray);
-				if (shovelReservedSubject(hand))
+				if (shovelReservedSubject(level, hand))
 					consumeInteraction(event, hand);
 				return;
 			}
@@ -6192,13 +6225,14 @@ public final class SurgicalTableClientHandler {
 	/**
 	 * One subject whose space stays reserved while its model cannot be drawn. {@code storedCubeCount}
 	 * is the count the mismatch was measured against, so a server-side topology change retires the
-	 * marker instead of keeping a stale box alive. {@code observedCubeCount} and {@code volume}
+	 * marker instead of keeping a stale box alive. {@code observedCubeCount} and {@code cuboids}
 	 * describe the model actually observed, and are what a shovel has to send to remove the subject.
 	 */
 	private record ReservedSubject(BlockPos tablePos, int subjectId, int storedCubeCount,
-		int observedCubeCount, double volume, AABB bounds) {
+		int observedCubeCount, long observedAtTick, List<List<Vec3>> cuboids, AABB bounds) {
 		private ReservedSubject {
 			tablePos = tablePos.immutable();
+			cuboids = List.copyOf(cuboids);
 		}
 
 		/** Whether {@code other} describes the same subject, table and pair of contradicting counts. */
