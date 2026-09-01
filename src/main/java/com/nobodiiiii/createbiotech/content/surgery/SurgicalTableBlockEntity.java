@@ -639,18 +639,31 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		clientRenderBounds = null;
 	}
 
-	/** Removes the complete server-authoritative connectivity group selected with a shovel. */
+	/**
+	 * Removes the complete server-authoritative connectivity group selected with a shovel.
+	 *
+	 * <p>When the client's live model no longer matches the saved topology its cube ids may name
+	 * different parts, so per-cube selection is dropped and every component of the subject is
+	 * removed instead, closed over the connection graph. That degraded path reads only server-side
+	 * state, which keeps a body with a changed model recoverable rather than stranded on the table.
+	 * The reported volume is still used for the slime yield: the degraded group covers at least the
+	 * group the client measured, so an untrusted measurement can only under-reward.</p>
+	 */
 	public boolean shovelConnectedGroup(Player player, ItemStack shovel, InteractionHand hand,
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		double volume, Vec3 dropPosition) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !SurgicalKitItem.isShovel(shovel)
-			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
-			|| !subject.validPresentCube(cubeId) || !Double.isFinite(volume) || volume < 0.0d
+			|| !Double.isFinite(volume) || volume < 0.0d
 			|| dropPosition == null || !Double.isFinite(dropPosition.x) || !Double.isFinite(dropPosition.y)
 			|| !Double.isFinite(dropPosition.z) || !canPayInteractionCost(shovel, 1, player) || level == null)
 			return false;
-		ComponentGroup group = connectedGroup(subject, cubeId);
+
+		boolean trustedTopology = subject.initializeOrMatchTopology(observedCubeCount, observedSeams);
+		if (trustedTopology && !subject.validPresentCube(cubeId))
+			return false;
+		ComponentGroup group = trustedTopology ? connectedGroup(subject, cubeId)
+			: wholeSubjectGroup(subject);
 		if (group.components.isEmpty())
 			return false;
 
@@ -664,6 +677,29 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_BREAK,
 			SoundSource.BLOCKS, 0.8f, 1.0f);
 		return true;
+	}
+
+	/**
+	 * Everything still on the table that belongs to {@code subject}, closed over the connection
+	 * graph so anything glued or jointed to it comes along. Addressed purely from server-side
+	 * state: the subject's own present cubes seed the walk, never a client-supplied cube id.
+	 *
+	 * <p>The closure matters because {@link #jointsWithin} and {@link #limbsWithin} only collect a
+	 * joint when <em>both</em> of its endpoints are in the group. Removing one subject of a glued
+	 * pair on its own would leave the joint behind, dangling onto cubes that no longer exist.</p>
+	 */
+	private ComponentGroup wholeSubjectGroup(SurgicalSubject subject) {
+		Map<UUID, BitSet> members = new HashMap<>();
+		BitSet present = subject.presentCubes;
+		for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+			BitSet covered = members.get(subject.persistentId());
+			if (covered != null && covered.get(cube))
+				continue;
+			// One walk per disconnected component of the subject, not one per cube.
+			for (Map.Entry<UUID, BitSet> entry : connectedGroup(subject, cube).components.entrySet())
+				members.computeIfAbsent(entry.getKey(), key -> new BitSet()).or(entry.getValue());
+		}
+		return new ComponentGroup(members);
 	}
 
 	private void finishSubjectPlacement(ItemStack box, @Nullable TemporaryMoveSource move) {

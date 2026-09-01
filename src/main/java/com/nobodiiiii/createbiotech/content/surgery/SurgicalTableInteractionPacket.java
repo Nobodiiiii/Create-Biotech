@@ -104,9 +104,15 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 		if (placement)
 			return;
 		SurgicalSubject subject = table.getSubject(subjectId);
-		if (targetId < 0 || !SurgicalAssembly.validTopology(observedCubeCount, seams)
-			|| subject == null || !subject.matchesObservedTopology(observedCubeCount, seams))
+		if (targetId < 0 || !SurgicalAssembly.validTopology(observedCubeCount, seams) || subject == null)
 			return;
+		// The client is rendering a different model than the body was saved with, so every cube id it
+		// reports may name a different part. Refuse rather than apply an edit to the wrong cubes; a
+		// shovel or breaking the table still frees the body.
+		if (!subject.matchesObservedTopology(observedCubeCount, seams)) {
+			modelChanged(player);
+			return;
+		}
 		switch (action) {
 		case CUT -> {
 			if (targetId < seams.size() && SurgicalKitItem.isShears(held)) {
@@ -158,6 +164,12 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 
 	private static void noSpace(ServerPlayer player) {
 		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.no_space"), true);
+	}
+
+	/** Shared refusal for a body whose live model no longer matches its saved topology. */
+	static void modelChanged(ServerPlayer player) {
+		player.displayClientMessage(
+			Component.translatable("message.create_biotech.surgical_table.model_changed"), true);
 	}
 
 	private static List<SurgicalAssembly.Seam> readSeams(FriendlyByteBuf buffer) {

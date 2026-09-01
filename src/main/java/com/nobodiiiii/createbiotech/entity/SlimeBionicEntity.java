@@ -275,7 +275,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	protected EntityDimensions getDefaultDimensions(Pose pose) {
-		SurgicalAssembly.BodyBounds bounds = activeBodyBounds();
+		SurgicalAssembly.BodyBounds bounds = authoritativeBodyBounds();
 		if (bounds == null)
 			return super.getDefaultDimensions(pose);
 		// Vanilla mobs use one centred, yaw-independent square footprint whose side is the body's
@@ -285,11 +285,24 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return EntityDimensions.fixed(width, height).withEyeHeight(bounds.eyeHeight());
 	}
 
+	/**
+	 * Collision, hit parts and picking must agree between the server and every client, so they read
+	 * the bounds frozen in the assembly rather than whatever this client's model measures. A client
+	 * running a replaced entity model therefore sees visuals and hitbox disagree, which is preferred
+	 * over each client simulating its own physics for the same mob.
+	 */
 	@Nullable
-	SurgicalAssembly.BodyBounds activeBodyBounds() {
+	SurgicalAssembly.BodyBounds authoritativeBodyBounds() {
 		SurgicalAssembly assembly = getAssembly();
-		return level().isClientSide && clientBoundsAssembly == assembly
-			? clientBodyBounds : assembly == null ? null : assembly.bodyBounds();
+		return assembly == null ? null : assembly.bodyBounds();
+	}
+
+	/** Render-only envelope: this client's own measurement when it has one, else the shared bounds. */
+	@Nullable
+	SurgicalAssembly.BodyBounds renderBodyBounds() {
+		SurgicalAssembly assembly = getAssembly();
+		return level().isClientSide && clientBoundsAssembly == assembly && clientBodyBounds != null
+			? clientBodyBounds : authoritativeBodyBounds();
 	}
 
 	@Override
@@ -419,11 +432,19 @@ public class SlimeBionicEntity extends PathfinderMob {
 		CBPackets.sendToTrackingEntity(SlimeBionicAttackActionPacket.aim(this), this);
 	}
 
+	/** Shared across server and clients; see {@link #authoritativeBodyBounds()}. */
 	@Nullable
-	private SurgicalAssembly.HitboxGeometry activeHitboxGeometry() {
+	private SurgicalAssembly.HitboxGeometry authoritativeHitboxGeometry() {
 		SurgicalAssembly assembly = getAssembly();
-		return level().isClientSide && clientBoundsAssembly == assembly
-			? clientHitboxGeometry : assembly == null ? null : assembly.hitboxGeometry();
+		return assembly == null ? null : assembly.hitboxGeometry();
+	}
+
+	/** Render-only envelope: this client's own measurement when it has one. */
+	@Nullable
+	private SurgicalAssembly.HitboxGeometry renderHitboxGeometry() {
+		SurgicalAssembly assembly = getAssembly();
+		return level().isClientSide && clientBoundsAssembly == assembly && clientHitboxGeometry != null
+			? clientHitboxGeometry : authoritativeHitboxGeometry();
 	}
 
 	@Override
@@ -435,7 +456,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private void updateHitParts() {
 		if (hitParts == null || registeredHitParts.length == 0)
 			return;
-		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
 		List<SurgicalAssembly.VisualBounds> bounds = geometry == null ? List.of()
 			: geometry.partBounds(MULTIPART_THRESHOLD);
 		if (bounds.size() > registeredHitParts.length)
@@ -479,7 +500,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public AABB getBoundingBoxForCulling() {
-		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = renderHitboxGeometry();
 		return geometry == null ? super.getBoundingBoxForCulling()
 			: getBoundingBox().minmax(worldBounds(geometry.overall()));
 	}
@@ -488,7 +509,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public boolean shouldRenderAtSqrDistance(double distance) {
 		if (super.shouldRenderAtSqrDistance(distance))
 			return true;
-		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = renderHitboxGeometry();
 		if (geometry == null)
 			return false;
 		double physicalSize = Math.max(getBoundingBox().getSize(), 1.0e-6d);
@@ -499,7 +520,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public boolean isPickable() {
-		SurgicalAssembly.HitboxGeometry geometry = activeHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
 		boolean multipartActive = registeredHitParts.length > 0 && geometry != null
 			&& geometry.requiresMultipart(MULTIPART_THRESHOLD);
 		return !multipartActive && super.isPickable();

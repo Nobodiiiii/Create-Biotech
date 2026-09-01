@@ -454,7 +454,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	@Override
 	protected float getShadowRadius(SlimeBionicEntity entity) {
-		SurgicalAssembly.BodyBounds bounds = entity.activeBodyBounds();
+		SurgicalAssembly.BodyBounds bounds = entity.renderBodyBounds();
 		if (bounds == null)
 			return super.getShadowRadius(entity);
 		float horizontalRadius = Math.max(bounds.width(), bounds.depth()) * 0.5f;

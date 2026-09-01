@@ -108,6 +108,7 @@
   "item.create_biotech.surgical_table.tooltip.condition5": "使用蜂蜜瓶时",
   "item.create_biotech.surgical_table.tooltip.behaviour5": "将命中的整个_连通部分_固化为一个组合",
   "message.create_biotech.surgical_table.no_space": "手术台没有足够位置放置",
+  "message.create_biotech.surgical_table.model_changed": "该躯体的模型与保存时不一致，只能铲除或破坏手术台取回",
   "message.create_biotech.surgical_table.invalid_capture": "纸箱内容已失效",
   "message.create_biotech.surgical_table.unsupported_subject": "手术台只能放置拟态生物",
   "message.create_biotech.surgical_table.invalid_assembly": "纸箱中的拟态生物没有有效的组装数据",

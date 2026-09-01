@@ -40,11 +40,24 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 			|| player.distanceToSqr(bionic) > MAX_REPORT_DISTANCE_SQR)
 			return;
 		SurgicalAssembly assembly = bionic.getAssembly();
-		if (assembly == null || !reasonableCorrection(assembly.bodyBounds(), bounds)
-			|| !validMobilityMeasurements(assembly, bounds)
-			|| !reasonableCorrection(assembly.hitboxGeometry(), hitboxGeometry))
+		if (assembly == null)
 			return;
-		bionic.setAssembly(assembly.withBodyGeometry(bounds, hitboxGeometry));
+		SurgicalAssembly.BodyBounds existingBounds = assembly.bodyBounds();
+		SurgicalAssembly.HitboxGeometry existingGeometry = assembly.hitboxGeometry();
+		// A body packed by a current build already carries its measurement, taken once by the packing
+		// client. Only fill in what a save from before that geometry existed is missing; never
+		// re-measure. Accepting corrections lets two clients running different entity models overwrite
+		// each other indefinitely, re-encoding and re-broadcasting the whole assembly every round.
+		if (existingBounds != null && existingGeometry != null)
+			return;
+		if (existingBounds == null && !validMobilityMeasurements(assembly, bounds))
+			return;
+		SurgicalAssembly.BodyBounds resolvedBounds = existingBounds != null ? existingBounds : bounds;
+		SurgicalAssembly.HitboxGeometry resolvedGeometry =
+			existingGeometry != null ? existingGeometry : hitboxGeometry;
+		if (resolvedBounds == null || resolvedGeometry == null)
+			return;
+		bionic.setAssembly(assembly.withBodyGeometry(resolvedBounds, resolvedGeometry));
 	}
 
 	private static SurgicalAssembly.BodyBounds readBounds(FriendlyByteBuf buffer) {
@@ -57,38 +70,6 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 		return bounds;
 	}
 
-	private static boolean reasonableCorrection(SurgicalAssembly.BodyBounds existing,
-		SurgicalAssembly.BodyBounds measured) {
-		return existing == null || close(existing.width(), measured.width())
-			&& close(existing.height(), measured.height()) && close(existing.depth(), measured.depth())
-			&& closeOffset(existing.centerX(), measured.centerX())
-			&& closeOffset(existing.minY(), measured.minY())
-			&& closeOffset(existing.centerZ(), measured.centerZ())
-			&& (existing.groundedLegCount() == 0
-				|| reasonableLegLength(existing.legLength(), measured.legLength()))
-			&& reasonableMobility(existing, measured);
-	}
-
-	private static boolean close(float expected, float measured) {
-		return Math.abs(expected - measured) <= Math.max(0.5f, expected * 0.25f);
-	}
-
-	private static boolean closeOffset(float expected, float measured) {
-		return Math.abs(expected - measured) <= 0.5f;
-	}
-
-	private static boolean reasonableLegLength(float expected, float measured) {
-		return expected == 0.0f || measured > 0.0f && close(expected, measured);
-	}
-
-	private static boolean reasonableMobility(SurgicalAssembly.BodyBounds expected,
-		SurgicalAssembly.BodyBounds measured) {
-		return expected.groundedLegCount() == 0
-			|| expected.groundedLegCount() == measured.groundedLegCount()
-				&& expected.groundedKneeCount() == measured.groundedKneeCount()
-				&& Math.abs(expected.legVolumeRatio() - measured.legVolumeRatio()) <= 0.1f;
-	}
-
 	private static boolean validMobilityMeasurements(SurgicalAssembly assembly,
 		SurgicalAssembly.BodyBounds measured) {
 		long installedHips = assembly.effectiveLimbs().stream()
@@ -97,35 +78,5 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 			.filter(limb -> limb.type() == SurgicalLimbType.KNEE).count();
 		return measured.groundedLegCount() <= installedHips
 			&& measured.groundedKneeCount() <= installedKnees;
-	}
-
-	private static boolean reasonableCorrection(SurgicalAssembly.HitboxGeometry existing,
-		SurgicalAssembly.HitboxGeometry measured) {
-		if (measured == null)
-			return false;
-		if (existing == null)
-			return true;
-		if (existing.limbs().size() != measured.limbs().size()
-			|| !close(existing.overall(), measured.overall())
-			|| !close(existing.body(), measured.body()))
-			return false;
-		for (int index = 0; index < existing.limbs().size(); index++)
-			if (!close(existing.limbs().get(index), measured.limbs().get(index)))
-				return false;
-		return true;
-	}
-
-	private static boolean close(SurgicalAssembly.VisualBounds expected,
-		SurgicalAssembly.VisualBounds measured) {
-		return closeCoordinate(expected.minX(), measured.minX())
-			&& closeCoordinate(expected.minY(), measured.minY())
-			&& closeCoordinate(expected.minZ(), measured.minZ())
-			&& closeCoordinate(expected.maxX(), measured.maxX())
-			&& closeCoordinate(expected.maxY(), measured.maxY())
-			&& closeCoordinate(expected.maxZ(), measured.maxZ());
-	}
-
-	private static boolean closeCoordinate(float expected, float measured) {
-		return Math.abs(expected - measured) <= 0.75f;
 	}
 }
