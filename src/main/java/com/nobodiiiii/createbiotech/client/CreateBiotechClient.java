@@ -68,6 +68,8 @@ import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeRenderer;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestScreen;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftRenderer;
+import com.simibubi.create.content.logistics.tableCloth.TableClothModel;
+import com.simibubi.create.content.logistics.tableCloth.TableClothRenderer;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortMenu;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortScreen;
 import com.nobodiiiii.createbiotech.content.allay.client.gui.hud.AllayCourierHudOverlay;
@@ -184,6 +186,7 @@ public class CreateBiotechClient {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BUTTER_CAT_ENGINE.get(), ButterCatEngineRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.ALLAY_PORT.get(), AllayPortRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.GIANT_FROG.get(), GiantFrogRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.TABLE_CLOTH.get(), TableClothRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get(),
 			GhastHotAirBalloonEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON_SEAT.get(),
@@ -413,6 +416,8 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FROG_DIGESTIVE_TRACT.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.CUTE_CAT_ON_SHAFT.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_TABLE_CLOTH.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BIOTECH_TABLE_CLOTH.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
@@ -475,6 +480,8 @@ public class CreateBiotechClient {
 			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE)));
 		customBlockModels.register(CreateBiotech.asResource("blast_proof_framed_glass"),
 			model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
+		customBlockModels.register(CreateBiotech.asResource("asurine_table_cloth"), TableClothModel::new);
+		customBlockModels.register(CreateBiotech.asResource("biotech_table_cloth"), TableClothModel::new);
 		customBlockModelsRegistered = true;
 	}
 
@@ -485,6 +492,8 @@ public class CreateBiotechClient {
 		ItemDescription.useKey(CBItems.LARGE_EXPERIENCE_BUD.get(), "block.create_biotech.experience_bud");
 		CBItems.BUFFER_PADS.values()
 			.forEach(entry -> ItemDescription.useKey(entry.get(), "block.create_biotech.buffer_pad"));
+		ItemDescription.useKey(CBItems.ASURINE_TABLE_CLOTH.get(), "block.create.table_cloth");
+		ItemDescription.useKey(CBItems.BIOTECH_TABLE_CLOTH.get(), "block.create.table_cloth");
 
 		registerCreateStyleTooltip(CBFluids.TELEPORTATION_BUCKET.get());
 		registerCreateStyleTooltip(CBItems.BUDDING_EXPERIENCE.get());
@@ -509,6 +518,8 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_COURIER.get());
 		registerCreateStyleTooltip(CBItems.CUTE_CAT_ON_SHAFT.get());
+		registerCreateStyleTooltip(CBItems.ASURINE_TABLE_CLOTH.get());
+		registerCreateStyleTooltip(CBItems.BIOTECH_TABLE_CLOTH.get());
 		TooltipModifier.REGISTRY.register(CBItems.SONIC_DOG_CANNON.get(),
 			new SonicDogCannonTooltipModifier()::modify);
 		registerKineticCreateStyleTooltip(CBItems.BUTTER_CAT_ENGINE.get());

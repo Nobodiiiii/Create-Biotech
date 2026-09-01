@@ -38,6 +38,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlock;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlock;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
+import com.nobodiiiii.createbiotech.content.tablecloth.CBTableClothBlock;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlock;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerBlock;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterBlock;
@@ -243,6 +244,18 @@ public class CBBlocks {
 			() -> new CasingBlock(CBSharedProperties.createStone()
 				.sound(SoundType.WOOD)
 				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
+
+	public static final DeferredHolder<Block, CBTableClothBlock> ASURINE_TABLE_CLOTH =
+		BLOCKS.register("asurine_table_cloth",
+			() -> new CBTableClothBlock(CBSharedProperties.createStone()
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)
+				.requiresCorrectToolForDrops(), "asurine"));
+
+	public static final DeferredHolder<Block, CBTableClothBlock> BIOTECH_TABLE_CLOTH =
+		BLOCKS.register("biotech_table_cloth",
+			() -> new CBTableClothBlock(CBSharedProperties.createStone()
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)
+				.requiresCorrectToolForDrops(), "biotech"));
 
 	public static final DeferredHolder<Block, ExplosionProofCasingBlock> EXPLOSION_PROOF_CASING =
 		BLOCKS.register("explosion_proof_casing",

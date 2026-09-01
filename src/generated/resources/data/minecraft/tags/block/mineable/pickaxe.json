@@ -26,6 +26,8 @@
     "create_biotech:spider_assembly_table_cog",
     "create_biotech:asurine_casing",
     "create_biotech:biotech_casing",
+    "create_biotech:asurine_table_cloth",
+    "create_biotech:biotech_table_cloth",
     "create_biotech:bio_packager",
     "create_biotech:shulker_packager",
     "create_biotech:shulker_teleporter",

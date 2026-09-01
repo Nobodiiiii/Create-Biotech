@@ -84,6 +84,8 @@ public class CBCreativeModeTabs {
 				output.accept(CBItems.BLAST_PROOF_FRAMED_GLASS.get());
 				output.accept(CBItems.ASURINE_CASING.get());
 				output.accept(CBItems.BIOTECH_CASING.get());
+				output.accept(CBItems.ASURINE_TABLE_CLOTH.get());
+				output.accept(CBItems.BIOTECH_TABLE_CLOTH.get());
 				output.accept(CBItems.PETRI_DISH.get());
 				output.accept(CBItems.SURGICAL_TABLE.get());
 				output.accept(CBItems.PROJECTION_SURGICAL_TABLE.get());

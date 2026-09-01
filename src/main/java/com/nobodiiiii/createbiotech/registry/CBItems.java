@@ -41,6 +41,7 @@ import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineItem;
+import com.simibubi.create.content.logistics.tableCloth.TableClothBlockItem;
 import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortItem;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierItem;
@@ -291,6 +292,12 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> BIOTECH_CASING = ITEMS.register("biotech_casing",
 		() -> new BlockItem(CBBlocks.BIOTECH_CASING.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> ASURINE_TABLE_CLOTH = ITEMS.register("asurine_table_cloth",
+		() -> new TableClothBlockItem(CBBlocks.ASURINE_TABLE_CLOTH.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> BIOTECH_TABLE_CLOTH = ITEMS.register("biotech_table_cloth",
+		() -> new TableClothBlockItem(CBBlocks.BIOTECH_TABLE_CLOTH.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, Item> EXPLOSION_PROOF_CASING = ITEMS.register("explosion_proof_casing",
 		() -> new BlockItem(CBBlocks.EXPLOSION_PROOF_CASING.get(), new Item.Properties()));

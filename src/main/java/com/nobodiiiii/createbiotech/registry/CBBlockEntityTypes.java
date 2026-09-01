@@ -34,6 +34,7 @@ import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointBlockEn
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlockEntity;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlockEntity;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortBlockEntity;
+import com.simibubi.create.content.logistics.tableCloth.TableClothBlockEntity;
 
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -126,6 +127,13 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("petri_dish",
 			() -> BlockEntityType.Builder
 				.of(PetriDishBlockEntity::new, CBBlocks.PETRI_DISH.get())
+				.build(null));
+
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<TableClothBlockEntity>> TABLE_CLOTH =
+		BLOCK_ENTITY_TYPES.register("table_cloth",
+			() -> BlockEntityType.Builder
+				.of((pos, state) -> new TableClothBlockEntity(CBBlockEntityTypes.TABLE_CLOTH.get(), pos, state),
+					CBBlocks.ASURINE_TABLE_CLOTH.get(), CBBlocks.BIOTECH_TABLE_CLOTH.get())
 				.build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SurgicalTableBlockEntity>> SURGICAL_TABLE =
