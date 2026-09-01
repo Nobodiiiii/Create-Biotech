@@ -252,8 +252,8 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		}
 		// This is used only before exact source-model bounds exist. Keep the vertical range deliberately
 		// conservative so a tall modded entity cannot disappear during its cold-plan build.
-		double tableY = table.getBlockPos().getY();
-		return new AABB(minX, tableY - 16.0d, minZ, maxX, tableY + 32.0d, maxZ).inflate(0.5d);
+		double surfaceY = SurgicalTablePlane.surfaceY(table.getBlockPos().getY());
+		return new AABB(minX, surfaceY - 16.0d, minZ, maxX, surfaceY + 32.0d, maxZ).inflate(0.5d);
 	}
 
 	private static double distanceToSqr(AABB bounds, Vec3 point) {

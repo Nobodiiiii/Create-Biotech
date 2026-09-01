@@ -915,7 +915,7 @@ public final class SurgicalClientTopology {
 		}
 
 		if (groundComponents) {
-			double surfaceY = workArea.y() + 1.0d + SurgicalTablePoseResolver.TABLE_CLEARANCE;
+			double surfaceY = workArea.surfaceY() + SurgicalTablePoseResolver.TABLE_CLEARANCE;
 			for (BitSet component : components) {
 				double lowestY = Double.POSITIVE_INFINITY;
 				for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1)) {

@@ -40,6 +40,7 @@ import com.nobodiiiii.createbiotech.content.petridish.PetriDishRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHandler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteractionOverlay;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableModel;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
@@ -304,6 +305,7 @@ public class CreateBiotechClient {
 			public void onResourceManagerReload(ResourceManager resourceManager) {
 				CapturedEntityRenderManager.clearForResourceReload();
 				SurgicalTableClientHandler.clear();
+				SurgicalTableModel.reload();
 				SurgicalSourceModelRenderer.clear();
 				SlimeBionicRenderer.clearCache();
 			}
@@ -418,6 +420,8 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_TABLE_CLOTH.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BIOTECH_TABLE_CLOTH.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SURGICAL_TABLE.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.PROJECTION_SURGICAL_TABLE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
@@ -482,6 +486,8 @@ public class CreateBiotechClient {
 			model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
 		customBlockModels.register(CreateBiotech.asResource("asurine_table_cloth"), TableClothModel::new);
 		customBlockModels.register(CreateBiotech.asResource("biotech_table_cloth"), TableClothModel::new);
+		customBlockModels.register(CreateBiotech.asResource("surgical_table"), SurgicalTableModel::new);
+		customBlockModels.register(CreateBiotech.asResource("projection_surgical_table"), SurgicalTableModel::new);
 		customBlockModelsRegistered = true;
 	}
 

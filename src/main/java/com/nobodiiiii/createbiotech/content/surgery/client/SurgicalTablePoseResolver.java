@@ -8,6 +8,7 @@ import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose.RotationAxis;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.core.Direction;
@@ -68,7 +69,7 @@ public final class SurgicalTablePoseResolver {
 		Matrix4f rotation = rotation(axis, yaw);
 		EntityGeometry.Bounds bounds = geometry.transformBounds(rotation);
 		return new SurgicalPose(new SurgicalLayPose(axis, yaw, new net.minecraft.world.phys.Vec3(
-			0.5f - bounds.centerX(), 1.0f + TABLE_CLEARANCE - bounds.minY(),
+			0.5f - bounds.centerX(), SurgicalTablePlane.SURFACE_HEIGHT + TABLE_CLEARANCE - bounds.minY(),
 			0.5f - bounds.centerZ())), bounds.sizeY());
 	}
 

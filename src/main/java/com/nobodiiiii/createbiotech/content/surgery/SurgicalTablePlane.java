@@ -17,11 +17,17 @@ import net.minecraft.world.level.Level;
 /** Resolves one horizontal connected surgical-table work surface, independent of block orientation. */
 public final class SurgicalTablePlane {
 	public static final int MAX_TILES = 1024;
+	/** The table-cloth model's upper face, one model pixel above its block position. */
+	public static final double SURFACE_HEIGHT = 1.0d / 16.0d;
 	private static final Direction[] HORIZONTAL = {
 		Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
 	};
 
 	private SurgicalTablePlane() {}
+
+	public static double surfaceY(int tableY) {
+		return tableY + SURFACE_HEIGHT;
+	}
 
 	public static Plane scan(Level level, BlockPos start) {
 		return scan(level, start, null);
@@ -64,24 +70,6 @@ public final class SurgicalTablePlane {
 			.min(Comparator.comparingInt((BlockPos pos) -> pos.getZ()).thenComparingInt(pos -> pos.getX()))
 			.orElse(null) : null;
 		return new Plane(frozenTiles, source, complete, workArea);
-	}
-
-	/** Keeps a newly joined surface within the same bounded scan used by normal interactions. */
-	public static boolean canExtendAt(Level level, BlockPos destination) {
-		Set<BlockPos> scanned = new HashSet<>();
-		for (Direction direction : HORIZONTAL) {
-			BlockPos neighbor = destination.relative(direction);
-			if (!level.isLoaded(neighbor) || scanned.contains(neighbor)
-				|| !matches(level, neighbor, destination.getY(), null))
-				continue;
-			Plane plane = scan(level, neighbor);
-			if (!plane.complete())
-				return false;
-			scanned.addAll(plane.tiles());
-			if (scanned.size() >= MAX_TILES)
-				return false;
-		}
-		return true;
 	}
 
 	/** Returns all persisted footprints, or null if legacy data makes collision checks uncertain. */
@@ -187,6 +175,10 @@ public final class SurgicalTablePlane {
 
 		public int y() {
 			return y;
+		}
+
+		public double surfaceY() {
+			return SurgicalTablePlane.surfaceY(y);
 		}
 
 		public boolean isEmpty() {

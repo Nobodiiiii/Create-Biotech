@@ -55,9 +55,10 @@ public record SurgicalTableShovelPacket(BlockPos pos, InteractionHand hand, int 
 			.noneMatch(tile -> player.distanceToSqr(Vec3.atCenterOf(tile)) <= range * range))
 			return;
 		SurgicalTablePlane.WorkArea area = plane.workArea();
+		double surfaceY = area.surfaceY();
 		if (!area.contains(dropPosition.x, dropPosition.z, dropPosition.x, dropPosition.z, 1.0e-6d)
-			|| dropPosition.y < area.y() - SurgicalAssembly.MAX_BODY_SIZE
-			|| dropPosition.y > area.y() + 1.0d + SurgicalAssembly.MAX_BODY_SIZE)
+			|| dropPosition.y < surfaceY - SurgicalAssembly.MAX_BODY_SIZE
+			|| dropPosition.y > surfaceY + SurgicalAssembly.MAX_BODY_SIZE)
 			return;
 		SurgicalTableBlockEntity table = SurgicalTableBlockEntity.controller(player.level(), plane);
 		if (table == null)

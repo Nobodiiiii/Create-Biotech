@@ -3115,7 +3115,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			.orElse(envelopeMinX + 1.0d);
 		double envelopeMaxZ = footprints.stream().mapToDouble(SurgicalTableLayout.Footprint::maxZ).max()
 			.orElse(envelopeMinZ + 1.0d);
-		double minY = worldPosition.getY() + 1.0d;
+		double minY = SurgicalTablePlane.surfaceY(worldPosition.getY());
 		List<SurgicalTableSupportManager.ReleasedCube> released = new ArrayList<>(cubes.cardinality());
 		int cubeCount = Math.max(1, cubes.cardinality());
 		boolean perCubeFootprints = footprints.size() == cubeCount;
@@ -3318,10 +3318,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		if (clientRenderBounds != null)
 			return bounds.minmax(clientRenderBounds).inflate(0.25d);
+		double surfaceY = SurgicalTablePlane.surfaceY(worldPosition.getY());
 		for (SurgicalSubject subject : subjects) {
-			AABB placedCenter = new AABB(worldPosition.getX() + subject.originOffsetX(), worldPosition.getY(),
+			AABB placedCenter = new AABB(worldPosition.getX() + subject.originOffsetX(), surfaceY,
 				worldPosition.getZ() + subject.originOffsetZ(),
-				worldPosition.getX() + subject.originOffsetX() + 1.0d, worldPosition.getY() + 1.0d,
+				worldPosition.getX() + subject.originOffsetX() + 1.0d, surfaceY + 1.0d,
 				worldPosition.getZ() + subject.originOffsetZ() + 1.0d);
 			bounds = bounds.minmax(placedCenter);
 		}

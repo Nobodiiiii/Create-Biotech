@@ -6,10 +6,13 @@ import java.util.function.Predicate;
 import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
+import com.nobodiiiii.createbiotech.content.tablecloth.CBTableClothBlock;
 import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.AllShapes;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.foundation.block.IBE;
+import com.simibubi.create.foundation.block.IHaveBigOutline;
 
 import net.createmod.catnip.placement.IPlacementHelper;
 import net.createmod.catnip.placement.PlacementHelpers;
@@ -29,19 +32,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
-import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public class SurgicalTableBlock extends Block
-	implements IBE<SurgicalTableBlockEntity>, IWrenchable {
+	implements IBE<SurgicalTableBlockEntity>, IWrenchable, IHaveBigOutline {
 	public static final MapCodec<SurgicalTableBlock> CODEC = simpleCodec(SurgicalTableBlock::new);
 	private static final int PLACEMENT_HELPER_ID = PlacementHelpers.register(new PlacementHelper());
-	private static final VoxelShape SHAPE = Shapes.or(
-		box(0, 12, 0, 16, 16, 16),
-		box(1, 0, 1, 4, 12, 4),
-		box(12, 0, 1, 15, 12, 4),
-		box(1, 0, 12, 4, 12, 15),
-		box(12, 0, 12, 15, 12, 15));
 
 	public SurgicalTableBlock(Properties properties) {
 		super(properties);
@@ -54,7 +50,36 @@ public class SurgicalTableBlock extends Block
 
 	@Override
 	public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-		return SHAPE;
+		return AllShapes.TABLE_CLOTH;
+	}
+
+	@Override
+	public VoxelShape getInteractionShape(BlockState state, BlockGetter level, BlockPos pos) {
+		return AllShapes.TABLE_CLOTH;
+	}
+
+	@Override
+	public VoxelShape getOcclusionShape(BlockState state, BlockGetter level, BlockPos pos) {
+		return AllShapes.TABLE_CLOTH_OCCLUSION;
+	}
+
+	@Override
+	public VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+		CollisionContext context) {
+		return AllShapes.TABLE_CLOTH_OCCLUSION;
+	}
+
+	public static boolean connectsVisuallyTo(BlockState adjacentState) {
+		Block adjacentBlock = adjacentState.getBlock();
+		return adjacentBlock instanceof SurgicalTableBlock
+			|| adjacentBlock instanceof CBTableClothBlock tableCloth && tableCloth.isBiotechSurface();
+	}
+
+	@Override
+	public boolean skipRendering(BlockState state, BlockState adjacentState, Direction side) {
+		if (side.getAxis().isHorizontal() && connectsVisuallyTo(adjacentState))
+			return true;
+		return super.skipRendering(state, adjacentState, side);
 	}
 
 	@Override
@@ -132,8 +157,7 @@ public class SurgicalTableBlock extends Block
 			List<Direction> directions = IPlacementHelper.orderedByDistanceExceptAxis(pos, hit.getLocation(),
 				Direction.Axis.Y, direction -> {
 					BlockPos destination = pos.relative(direction);
-					return level.getBlockState(destination).canBeReplaced()
-						&& SurgicalTablePlane.canExtendAt(level, destination);
+					return level.getBlockState(destination).canBeReplaced();
 				});
 			if (directions.isEmpty())
 				return PlacementOffset.fail();

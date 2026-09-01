@@ -742,7 +742,7 @@ public final class SurgicalTableClientHandler {
 			rejectPlacementPreview(SurgicalTablePlacementResult.INVALID_TABLE);
 			return;
 		}
-		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().y() + 1.01d);
+		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().surfaceY() + 0.01d);
 		BlockPos ownerPos = plane.source();
 		Direction placementFacing = player.getDirection();
 		SurgicalTableBlockEntity controller = level.getBlockEntity(ownerPos) instanceof SurgicalTableBlockEntity table
@@ -824,8 +824,8 @@ public final class SurgicalTableClientHandler {
 			plane.workArea(), target.x, target.z, tableRevision);
 		SurgicalTableLayout.Footprint footprint = plan.proposal().footprints().getFirst();
 		Outliner.getInstance().showAABB(PLACEMENT_OUTLINE_SLOT,
-			new AABB(footprint.minX(), plane.workArea().y() + 1.002d, footprint.minZ(),
-				footprint.maxX(), plane.workArea().y() + 1.012d, footprint.maxZ()))
+			new AABB(footprint.minX(), plane.workArea().surfaceY() + 0.002d, footprint.minZ(),
+				footprint.maxX(), plane.workArea().surfaceY() + 0.012d, footprint.maxZ()))
 			.colored(PonderPalette.GREEN.getColor())
 			.disableLineNormals()
 			.lineWidth(HIGHLIGHT_LINE_WIDTH);
@@ -985,7 +985,7 @@ public final class SurgicalTableClientHandler {
 			placement.ownerPos.getZ() - camera.z);
 		poseStack.translate(placement.plan.originOffsetX(), 0.0d, placement.plan.originOffsetZ());
 		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
-		int light = LevelRenderer.getLightColor(minecraft.level, placement.ownerPos.above());
+		int light = LevelRenderer.getLightColor(minecraft.level, placement.ownerPos);
 		float partialTicks = AnimationTickHolder.getPartialTicks();
 		if (placement.source.isComposite()) {
 			for (int sourceIndex = 0; sourceIndex < placement.sourceGeometries.size(); sourceIndex++) {
@@ -1033,7 +1033,7 @@ public final class SurgicalTableClientHandler {
 		Vec3 camera = event.getCamera().getPosition();
 		PoseStack poseStack = event.getPoseStack();
 		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
-		int light = LevelRenderer.getLightColor(level, preview.ownerPos.above());
+		int light = LevelRenderer.getLightColor(level, preview.ownerPos);
 		float partialTicks = AnimationTickHolder.getPartialTicks();
 		boolean projectSourceGeometry = SurgicalTableRenderer.projectsSourceGeometry(table);
 		for (GlueSubjectPreview moved : preview.subjects) {
@@ -2568,7 +2568,7 @@ public final class SurgicalTableClientHandler {
 				combinedLowestY = Math.min(combinedLowestY, lowestY(current));
 			}
 		}
-		double surfaceY = plane.workArea().y() + 1.0d + SurgicalTablePoseResolver.TABLE_CLEARANCE;
+		double surfaceY = plane.workArea().surfaceY() + SurgicalTablePoseResolver.TABLE_CLEARANCE;
 		double groundLiftY = Math.max(0.0d, surfaceY - combinedLowestY);
 		if (!Double.isFinite(groundLiftY) || groundLiftY > SurgicalTablePlane.MAX_TILES + 2.0d)
 			return null;
@@ -2677,7 +2677,7 @@ public final class SurgicalTableClientHandler {
 			}
 			List<SurgicalModelRenderContext.CubeGeometry> rotatedBase = transformCubes(
 				preview.baseCubes, rotations, Map.of());
-			if (!validEditedVertical(preview.cubes, rotatedBase, offsets, current.workArea.y() + 1.0d
+			if (!validEditedVertical(preview.cubes, rotatedBase, offsets, current.workArea.surfaceY()
 				+ SurgicalTablePoseResolver.TABLE_CLEARANCE))
 				return null;
 			SurgicalClientTopology.PlannedLayout planned = SurgicalClientTopology.preserveCompositeLayout(
@@ -2753,7 +2753,7 @@ public final class SurgicalTableClientHandler {
 
 			List<SurgicalModelRenderContext.CubeGeometry> rotatedBase = transformCubes(
 				preview.baseCubes, rotations, Map.of());
-			if (!validEditedVertical(preview.cubes, rotatedBase, offsets, current.workArea.y() + 1.0d
+			if (!validEditedVertical(preview.cubes, rotatedBase, offsets, current.workArea.surfaceY()
 				+ SurgicalTablePoseResolver.TABLE_CLEARANCE))
 				return null;
 			SurgicalClientTopology.PlannedLayout planned = SurgicalClientTopology.preserveCompositeLayout(
@@ -3381,7 +3381,7 @@ public final class SurgicalTableClientHandler {
 			abortPendingGlueCut();
 			return;
 		}
-		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().y() + 1.01d);
+		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().surfaceY() + 0.01d);
 		if (pending.planned != null && componentSelection != null
 			&& pending.plannedTableRevision == table.clientDataRevision()
 			&& sameHorizontalTarget(target, pending.lastTargetX, pending.lastTargetZ)) {
@@ -3771,7 +3771,7 @@ public final class SurgicalTableClientHandler {
 			abortPendingCut();
 			return;
 		}
-		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().y() + 1.01d);
+		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().surfaceY() + 0.01d);
 		// This early-out has to come before the cut plan is re-derived. The plan is a function of the
 		// synced table data, which `plannedTableRevision` already pins, so re-deriving it while the
 		// crosshair sits still only rebuilds the connection graph once per frame for no answer change.
@@ -5624,7 +5624,8 @@ public final class SurgicalTableClientHandler {
 			pendingGroundingRotations = Map.copyOf(appliedRotations);
 			pendingGroundingCutSeams = (BitSet) appliedCutSeams.clone();
 			pendingGroundingExcludedJoint = excludedJoint;
-			double surfaceY = table.getBlockPos().getY() + 1.0d + SurgicalTablePoseResolver.TABLE_CLEARANCE;
+			double surfaceY = SurgicalTablePlane.surfaceY(table.getBlockPos().getY())
+				+ SurgicalTablePoseResolver.TABLE_CLEARANCE;
 			SurgicalSubject subject = table.getSubject(subjectId);
 			layoutCubes = SurgicalTableClientHandler.transformCubes(baseCubes, appliedRotations, Map.of());
 			// A subject with no glue joint and no combination is its own grounding component, so walking
@@ -6284,7 +6285,7 @@ public final class SurgicalTableClientHandler {
 						member.source(), member.cube()));
 			}
 			Map<Integer, Map<Integer, Vec3>> grounded = SurgicalClientTopology.groundConnectedBodies(
-				bodies, links, 1.0d + SurgicalTablePoseResolver.TABLE_CLEARANCE);
+				bodies, links, SurgicalTablePlane.SURFACE_HEIGHT + SurgicalTablePoseResolver.TABLE_CLEARANCE);
 			if (grounded == null || grounded.size() != geometries.size())
 				return null;
 			List<SourcePlacementGeometry> previewGeometries = new ArrayList<>(geometries.size());
@@ -6341,7 +6342,7 @@ public final class SurgicalTableClientHandler {
 			// not share the complete renderer's minimum Y (notably slimes) do not jump after placement.
 			return SurgicalClientTopology.groundAllComponents(groundedCubeCount, groundedCubes,
 				groundedSeams, groundedCuts, snapshot.cubes(), Map.of(),
-				1.0d + SurgicalTablePoseResolver.TABLE_CLEARANCE);
+				SurgicalTablePlane.SURFACE_HEIGHT + SurgicalTablePoseResolver.TABLE_CLEARANCE);
 		}
 
 		private int cubeCount() {
