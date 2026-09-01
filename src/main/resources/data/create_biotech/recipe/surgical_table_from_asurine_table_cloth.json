@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "item": "create_biotech:asurine_table_cloth"
+    },
+    "B": {
+      "item": "create_biotech:zinc_sheet"
+    }
+  },
+  "result": {
+    "count": 2,
+    "id": "create_biotech:surgical_table"
+  },
+  "show_notification": true
+}
