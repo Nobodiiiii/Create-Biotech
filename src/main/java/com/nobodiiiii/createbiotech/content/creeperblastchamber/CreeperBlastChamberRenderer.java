@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -23,6 +26,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -49,9 +53,16 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	private static final float VANILLA_SWELL_SPREAD = .4f;
 	private static final float VANILLA_SWELL_RISE = .1f;
 
-	private static final float IDLE_WALK_SPEED = .3f;
-	private static final float IDLE_WALK_AMPLITUDE = .28f;
-	private static final float IDLE_HEAD_SWAY_DEGREES = 11f;
+	private static final double PLAYER_ATTENTION_DISTANCE = 12d;
+	private static final float MAX_LOOK_HEAD_YAW = 65f;
+	private static final int NO_PLAYER_RECHECK_MIN_TICKS = 30;
+	private static final int NO_PLAYER_RECHECK_MAX_TICKS = 70;
+	private static final int ATTENTION_DELAY_MIN_TICKS = 70;
+	private static final int ATTENTION_DELAY_MAX_TICKS = 180;
+	private static final int LOOK_DURATION_MIN_TICKS = 30;
+	private static final int LOOK_DURATION_MAX_TICKS = 55;
+	private static final int TURN_DURATION_MIN_TICKS = 45;
+	private static final int TURN_DURATION_MAX_TICKS = 75;
 
 	/**
 	 * Charged creepers get their energy swirl UV from {@code tickCount}, and every distinct value
@@ -78,6 +89,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			creeper.setPos(key.packagerPos.getX() + .5d, key.packagerPos.getY() + 1d, key.packagerPos.getZ() + .5d);
 			return creeper;
 		});
+	/** Render proxies own the only strong references; attention state disappears when their cache entry does. */
+	private static final Map<Creeper, CreeperAttentionState> ATTENTION_STATES = new WeakHashMap<>();
 
 	public CreeperBlastChamberRenderer(BlockEntityRendererProvider.Context context) {}
 
@@ -202,18 +215,48 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		var animations = be.getRenderAnimations();
 		if (working.isEmpty() && animations.isEmpty())
 			return;
+		Level level = be.getLevel();
+		if (level == null)
+			return;
+		float renderTime = AnimationTickHolder.getRenderTime(level);
+		Player nearbyPlayer = findNearbyPlayer(level, be);
 
 		// One fancy-graphics scope and one lambda for the whole chamber rather than one per creeper.
 		EntityRenderHelper.batch(() -> {
 			for (CreeperBlastChamberBlockEntity.RenderManagedCreeper subject : working)
-				renderProxy(be, subject.packagerPos(), subject.payload(), subject.renderSeed(), partialTicks,
+				renderProxy(be, subject.packagerPos(), subject.payload(), subject.renderSeed(), subject.defaultYaw(), partialTicks,
 					0, 1, false, be.getWorkingCreeperCompression(subject.packagerPos(), partialTicks), poseStack,
-					buffer);
+					buffer, renderTime, nearbyPlayer);
 
 			for (CreeperBlastChamberBlockEntity.RenderCreeperAnimation animation : animations)
-				renderProxy(be, animation.packagerPos(), animation.payload(), animation.renderSeed(), partialTicks,
-					animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0, poseStack, buffer);
+				renderProxy(be, animation.packagerPos(), animation.payload(), animation.renderSeed(), animation.defaultYaw(),
+					partialTicks, animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0, poseStack,
+					buffer, renderTime, nearbyPlayer);
 		});
+	}
+
+	private Player findNearbyPlayer(Level level, CreeperBlastChamberBlockEntity be) {
+		BlockPos origin = be.getStructureOrigin();
+		if (origin == null)
+			return null;
+		double centerX = origin.getX() + be.getStructureSize() / 2d;
+		double centerY = origin.getY() + 1.5d;
+		double centerZ = origin.getZ() + be.getStructureSize() / 2d;
+		double nearestDistanceSqr = PLAYER_ATTENTION_DISTANCE * PLAYER_ATTENTION_DISTANCE;
+		Player nearest = null;
+		for (Player player : level.players()) {
+			if (!player.isAlive() || player.isSpectator())
+				continue;
+			double dx = player.getX() - centerX;
+			double dy = player.getY() - centerY;
+			double dz = player.getZ() - centerZ;
+			double distanceSqr = dx * dx + dy * dy + dz * dz;
+			if (distanceSqr > nearestDistanceSqr)
+				continue;
+			nearest = player;
+			nearestDistanceSqr = distanceSqr;
+		}
+		return nearest;
 	}
 
 	/**
@@ -230,8 +273,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	}
 
 	private void renderProxy(CreeperBlastChamberBlockEntity be, BlockPos packagerPos, ItemStack payload,
-		long renderSeed, float partialTicks, int ticksRemaining, int totalTicks, boolean exiting, float compression,
-		PoseStack poseStack, MultiBufferSource buffer) {
+		long renderSeed, float defaultYaw, float partialTicks, int ticksRemaining, int totalTicks, boolean exiting,
+		float compression, PoseStack poseStack, MultiBufferSource buffer, float renderTime, Player nearbyPlayer) {
 		Level level = be.getLevel();
 		if (level == null || payload.isEmpty())
 			return;
@@ -251,7 +294,6 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 				: Mth.lerp(progress, -CREEPER_ANIMATION_Y_OFFSET, 0);
 		}
 
-		float renderTime = AnimationTickHolder.getRenderTime(level);
 		float pulse = .5f + .5f * Mth.sin(renderTime * .9f + (renderSeed & 31) * .07f);
 		float swellValue = Mth.clamp(compression * Mth.lerp(pulse, .55f, 1f), 0, 1) * MAX_RENDER_SWELL;
 		int swellFloor = Mth.floor(swellValue);
@@ -274,10 +316,9 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float horizontal = (1 + CREEPER_MAX_SPREAD * compression) / (1 + VANILLA_SWELL_SPREAD * swellBulge);
 		float vertical = (1 + (CREEPER_FINAL_HEIGHT_SCALE - 1) * compression) / (1 + VANILLA_SWELL_RISE * swellBulge);
 
-		float yaw = Math.floorMod(renderSeed, 360L);
-		float idlePhase = renderTime * IDLE_WALK_SPEED + (renderSeed & 63) * .1f;
-		float settled = 1 - compression;
-		float headSway = Mth.sin(idlePhase * .5f) * IDLE_HEAD_SWAY_DEGREES * settled;
+		CreeperAttentionPose attention = ATTENTION_STATES
+			.computeIfAbsent(creeper, ignored -> new CreeperAttentionState(renderSeed))
+			.update(renderTime, defaultYaw, compression, creeper, nearbyPlayer);
 
 		poseStack.pushPose();
 		poseStack.translate(packagerPos.getX() - be.getBlockPos().getX() + .5d,
@@ -289,11 +330,10 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		EntityRenderHelper.RenderSettings<Creeper> settings = EntityRenderHelper.settings(creeper)
 			.packedLight(LevelRenderer.getLightColor(level, packagerPos.above()))
 			.partialTicks(renderPartialTicks)
-			.yaw(yaw)
-			.bodyYaw(yaw)
-			.headYaw(yaw + headSway)
-			.pitch(0)
-			.walkAnimation(idlePhase, IDLE_WALK_AMPLITUDE * settled)
+			.yaw(attention.bodyYaw())
+			.bodyYaw(attention.bodyYaw())
+			.headYaw(attention.headYaw())
+			.pitch(attention.pitch())
 			.flushBuffers(false);
 		if (charged)
 			settings.ticks(Mth.floor(renderTime)
@@ -303,6 +343,113 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 
 		accessor.createBiotech$setOldSwell(oldSwell);
 		accessor.createBiotech$setSwell(swell);
+	}
+
+	private enum AttentionMode {
+		IDLE,
+		LOOK,
+		TURN
+	}
+
+	private record CreeperAttentionPose(float bodyYaw, float headYaw, float pitch) {}
+
+	private static final class CreeperAttentionState {
+		private static final long MIX_INCREMENT = 0x9E3779B97F4A7C15L;
+
+		private final long renderSeed;
+		private long sequence;
+		private boolean initialized;
+		private float lastRenderTime;
+		private float nextDecisionTime;
+		private float actionEndTime;
+		private float bodyYaw;
+		private float headYaw;
+		private float pitch;
+		private AttentionMode mode = AttentionMode.IDLE;
+
+		private CreeperAttentionState(long renderSeed) {
+			this.renderSeed = renderSeed;
+		}
+
+		private CreeperAttentionPose update(float renderTime, float defaultYaw, float compression, Creeper creeper,
+			Player nearbyPlayer) {
+			defaultYaw = Mth.wrapDegrees(defaultYaw);
+			if (!initialized || renderTime < lastRenderTime) {
+				initialized = true;
+				lastRenderTime = renderTime;
+				bodyYaw = defaultYaw;
+				headYaw = defaultYaw;
+				pitch = 0;
+				mode = AttentionMode.IDLE;
+				nextDecisionTime = renderTime + nextDelay(ATTENTION_DELAY_MIN_TICKS, ATTENTION_DELAY_MAX_TICKS);
+			}
+
+			if (mode != AttentionMode.IDLE && renderTime >= actionEndTime) {
+				mode = AttentionMode.IDLE;
+				nextDecisionTime = renderTime + nextDelay(ATTENTION_DELAY_MIN_TICKS, ATTENTION_DELAY_MAX_TICKS);
+			}
+			if (mode == AttentionMode.IDLE && renderTime >= nextDecisionTime) {
+				if (nearbyPlayer == null) {
+					nextDecisionTime = renderTime
+						+ nextDelay(NO_PLAYER_RECHECK_MIN_TICKS, NO_PLAYER_RECHECK_MAX_TICKS);
+				} else if (nextInt(3) == 0) {
+					mode = AttentionMode.TURN;
+					actionEndTime = renderTime + nextDelay(TURN_DURATION_MIN_TICKS, TURN_DURATION_MAX_TICKS);
+				} else {
+					mode = AttentionMode.LOOK;
+					actionEndTime = renderTime + nextDelay(LOOK_DURATION_MIN_TICKS, LOOK_DURATION_MAX_TICKS);
+				}
+			}
+
+			float desiredBodyYaw = defaultYaw;
+			float desiredHeadYaw = defaultYaw;
+			float desiredPitch = 0;
+			if (mode != AttentionMode.IDLE && nearbyPlayer != null) {
+				double dx = nearbyPlayer.getX() - creeper.getX();
+				double dy = nearbyPlayer.getEyeY() - creeper.getEyeY();
+				double dz = nearbyPlayer.getZ() - creeper.getZ();
+				float targetYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90f;
+				float targetPitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * Mth.RAD_TO_DEG);
+				float attentionStrength = 1f - Mth.clamp(compression, 0f, 1f);
+				if (mode == AttentionMode.TURN) {
+					desiredBodyYaw = lerpAngle(attentionStrength, defaultYaw, targetYaw);
+					desiredHeadYaw = desiredBodyYaw;
+				} else {
+					float headDelta = Mth.clamp(Mth.wrapDegrees(targetYaw - defaultYaw), -MAX_LOOK_HEAD_YAW,
+						MAX_LOOK_HEAD_YAW);
+					desiredHeadYaw = defaultYaw + headDelta * attentionStrength;
+				}
+				desiredPitch = Mth.clamp(targetPitch, -35f, 35f) * attentionStrength;
+			}
+
+			float elapsed = Mth.clamp(renderTime - lastRenderTime, 0f, 5f);
+			lastRenderTime = renderTime;
+			float bodyBlend = 1f - (float) Math.pow(.78f, elapsed);
+			float headBlend = 1f - (float) Math.pow(.6f, elapsed);
+			bodyYaw = lerpAngle(bodyBlend, bodyYaw, desiredBodyYaw);
+			headYaw = lerpAngle(headBlend, headYaw, desiredHeadYaw);
+			pitch = Mth.lerp(headBlend, pitch, desiredPitch);
+			return new CreeperAttentionPose(bodyYaw, headYaw, pitch);
+		}
+
+		private int nextDelay(int minInclusive, int maxInclusive) {
+			return minInclusive + nextInt(maxInclusive - minInclusive + 1);
+		}
+
+		private int nextInt(int bound) {
+			long mixed = mix64(renderSeed + sequence++ * MIX_INCREMENT);
+			return (int) Math.floorMod(mixed, (long) bound);
+		}
+
+		private static long mix64(long value) {
+			value = (value ^ value >>> 30) * 0xBF58476D1CE4E5B9L;
+			value = (value ^ value >>> 27) * 0x94D049BB133111EBL;
+			return value ^ value >>> 31;
+		}
+
+		private static float lerpAngle(float progress, float from, float to) {
+			return Mth.wrapDegrees(from + Mth.wrapDegrees(to - from) * progress);
+		}
 	}
 
 	@Override

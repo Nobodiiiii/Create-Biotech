@@ -125,6 +125,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	 * cycle that drives the outward animation: this one only has to sell the appearance.
 	 */
 	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 8;
+	/** Equal window counts use this stable order; facing never depends on a random render seed. */
+	private static final Direction[] CREEPER_WINDOW_FACING_PRIORITY = {
+		Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
+	};
 	private static final int APPEARANCE_PUFF_COUNT = 6;
 	private static final double APPEARANCE_PUFF_RADIUS = .32d;
 	private static final int PRESSING_TRIGGER_TICKS = PressingBehaviour.CYCLE / 2;
@@ -2250,7 +2254,47 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return null;
 		long renderSeed = creeper.getUUID().getMostSignificantBits() ^ creeper.getUUID().getLeastSignificantBits()
 			^ packagerPos.asLong();
-		return new StoredCreeper(packagerPos.immutable(), normalized, creeper.isPowered(), renderSeed);
+		return new StoredCreeper(packagerPos.immutable(), normalized, creeper.isPowered(), renderSeed,
+			getPreferredCreeperYaw());
+	}
+
+	private float getPreferredCreeperYaw() {
+		Level level = getLevel();
+		if (level == null || !structureValid || structureOrigin == null || structureSize <= 2)
+			return Direction.NORTH.toYRot();
+
+		Direction preferred = CREEPER_WINDOW_FACING_PRIORITY[0];
+		int greatestWindowCount = -1;
+		for (Direction side : CREEPER_WINDOW_FACING_PRIORITY) {
+			int windowCount = countBlastProofWindows(level, side);
+			if (windowCount <= greatestWindowCount)
+				continue;
+			preferred = side;
+			greatestWindowCount = windowCount;
+		}
+		return preferred.toYRot();
+	}
+
+	private int countBlastProofWindows(Level level, Direction side) {
+		if (structureOrigin == null)
+			return 0;
+		int count = 0;
+		for (int y = 1; y <= 2; y++) {
+			for (int lateral = 1; lateral < structureSize - 1; lateral++) {
+				BlockPos pos = switch (side) {
+					case NORTH -> structureOrigin.offset(lateral, y, 0);
+					case SOUTH -> structureOrigin.offset(lateral, y, structureSize - 1);
+					case WEST -> structureOrigin.offset(0, y, lateral);
+					case EAST -> structureOrigin.offset(structureSize - 1, y, lateral);
+					default -> throw new IllegalArgumentException("Expected a horizontal side, got " + side);
+				};
+				BlockState state = level.getBlockState(pos);
+				if (state.is(CBBlocks.BLAST_PROOF_GLASS.get())
+					|| state.is(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get()))
+					count++;
+			}
+		}
+		return count;
 	}
 
 	private boolean completePendingUnpack(PendingUnpack pending) {
@@ -2354,7 +2398,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 				if (stored != null && !storedCreepers.containsKey(packagerPos)) {
 					storedCreepers.put(packagerPos, new StoredCreeper(packagerPos, stored.normalizedPayloadBox(),
 						creeper.isPowered(), uuid.getMostSignificantBits() ^ uuid.getLeastSignificantBits()
-							^ packagerPos.asLong()));
+							^ packagerPos.asLong(), stored.defaultYaw()));
 					creeper.discard();
 					migrated.add(uuid);
 					continue;
@@ -2840,7 +2884,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			if (isPackagerAppearing(packagerPos) || isPackagerPackaging(packagerPos))
 				continue;
 			workingRenderCreepers
-				.add(new RenderManagedCreeper(packagerPos, stored.normalizedPayloadBox(), stored.renderSeed()));
+				.add(new RenderManagedCreeper(packagerPos, stored.normalizedPayloadBox(), stored.renderSeed(),
+					stored.defaultYaw()));
 		}
 		return workingRenderCreepers;
 	}
@@ -2854,7 +2899,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			StoredCreeper stored = storedCreepers.get(pending.packagerPos);
 			if (stored != null)
 				renderAnimations.add(new RenderCreeperAnimation(pending.packagerPos, stored.normalizedPayloadBox(),
-					stored.renderSeed(), pending.ticksRemaining, pending.totalTicks, false));
+					stored.renderSeed(), stored.defaultYaw(), pending.ticksRemaining, pending.totalTicks, false));
 		}
 		for (PendingPackaging pending : pendingPackagings) {
 			if (pending.ticksRemaining <= BioPackagerBlockEntity.getCycleTicks())
@@ -2863,7 +2908,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			StoredCreeper stored = storedCreepers.get(pending.packagerPos);
 			ItemStack payload = stored == null ? pending.boxStack : stored.normalizedPayloadBox();
 			long renderSeed = stored == null ? pending.packagerPos.asLong() : stored.renderSeed();
-			renderAnimations.add(new RenderCreeperAnimation(pending.packagerPos, payload, renderSeed,
+			float defaultYaw = stored == null ? Direction.NORTH.toYRot() : stored.defaultYaw();
+			renderAnimations.add(new RenderCreeperAnimation(pending.packagerPos, payload, renderSeed, defaultYaw,
 				outwardTicksRemaining, BioPackagerBlockEntity.getCycleTicks(), true));
 		}
 		return renderAnimations;
@@ -3204,10 +3250,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		}
 	}
 
-	record RenderCreeperAnimation(BlockPos packagerPos, ItemStack payload, long renderSeed,
+	record RenderCreeperAnimation(BlockPos packagerPos, ItemStack payload, long renderSeed, float defaultYaw,
 		int ticksRemaining, int totalTicks, boolean exiting) {}
 
-	record RenderManagedCreeper(BlockPos packagerPos, ItemStack payload, long renderSeed) {}
+	record RenderManagedCreeper(BlockPos packagerPos, ItemStack payload, long renderSeed, float defaultYaw) {}
 
 	private record TrackedMarkedCreeper(UUID creeperUuid, BlockPos packagerPos) {
 		private CompoundTag write() {
@@ -3224,20 +3270,23 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 
 	private record StoredCreeper(BlockPos packagerPos, ItemStack normalizedPayloadBox, boolean charged,
-		long renderSeed) {
+		long renderSeed, float defaultYaw) {
 		private CompoundTag write(HolderLookup.Provider registries) {
 			CompoundTag tag = new CompoundTag();
 			tag.putLong("PackagerPos", packagerPos.asLong());
 			tag.put("Payload", normalizedPayloadBox.save(registries));
 			tag.putBoolean("Charged", charged);
 			tag.putLong("RenderSeed", renderSeed);
+			tag.putFloat("DefaultYaw", defaultYaw);
 			return tag;
 		}
 
 		private static StoredCreeper read(CompoundTag tag, HolderLookup.Provider registries) {
+			float defaultYaw = tag.contains("DefaultYaw", Tag.TAG_FLOAT)
+				? tag.getFloat("DefaultYaw") : Direction.NORTH.toYRot();
 			return new StoredCreeper(BlockPos.of(tag.getLong("PackagerPos")),
 				ItemStack.parseOptional(registries, tag.getCompound("Payload")), tag.getBoolean("Charged"),
-				tag.getLong("RenderSeed"));
+				tag.getLong("RenderSeed"), Mth.wrapDegrees(defaultYaw));
 		}
 	}
 
