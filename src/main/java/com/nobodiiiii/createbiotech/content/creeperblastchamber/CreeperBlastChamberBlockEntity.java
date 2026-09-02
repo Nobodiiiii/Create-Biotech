@@ -113,6 +113,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private static final String CONTAINED_DATA_VERSION_TAG = "ContainedCreeperDataVersion";
 	private static final String STORED_CREEPERS_TAG = "StoredCreepers";
 	private static final int CONTAINED_DATA_VERSION = 2;
+	private static final int STRUCTURE_RECHECK_INTERVAL_TICKS = 20;
 	private static final String INPUT_VAULT_CONTROLLER_TAG = "InputVaultController";
 	private static final String OUTPUT_VAULT_CONTROLLER_TAG = "OutputVaultController";
 	private static final String CONFIGURED_INPUT_VAULT_CONTROLLER_TAG = "ConfiguredInputVaultController";
@@ -166,6 +167,12 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private final List<ReadyOutput> readyOutputs = new ArrayList<>();
 	private final Map<BlockPos, StoredCreeper> storedCreepers = new LinkedHashMap<>();
 	private final Map<UUID, BlockPos> legacyMarkedCreepers = new LinkedHashMap<>();
+	/** Stable geometry derived from the formed structure; rebuilt only when its origin or size changes. */
+	private final List<BlockPos> cachedPackagerPositions = new ArrayList<>();
+	private final List<BlockPos> cachedPressPositions = new ArrayList<>();
+	private final Map<Long, BlockPos> cachedPressByPackager = new HashMap<>();
+	/** Reused view of the currently loaded press block entities at {@link #cachedPressPositions}. */
+	private final List<MechanicalPressBlockEntity> resolvedMechanicalPresses = new ArrayList<>();
 	private int containedDataVersion = CONTAINED_DATA_VERSION;
 	private boolean controllerOutputRequested;
 	private int controllerOutputRequestTicks;
@@ -191,6 +198,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private final Set<Long> clientActivePackagers = new HashSet<>();
 	private final Set<Long> clientActivePressPositions = new HashSet<>();
 	private final Set<Long> clientAppearanceEffectsSpawned = new HashSet<>();
+	private boolean clientPressLayoutDirty;
 	private final ChamberInputHandler inputHandler = new ChamberInputHandler();
 
 	public CreeperBlastChamberBlockEntity(BlockPos pos, BlockState state) {
@@ -229,7 +237,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			be.recheckTimer--;
 			return;
 		}
-		be.recheckTimer = 20;
+		be.recheckTimer = STRUCTURE_RECHECK_INTERVAL_TICKS;
 
 		be.tryDetectStructure();
 	}
@@ -283,21 +291,18 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (level == null)
 			return;
 		BlockPos pos = getBlockPos();
+		if (structureValid && structureOrigin != null) {
+			StructureScanResult current = scanStructure(level, structureOrigin, structureSize);
+			if (current != null) {
+				applyDetectedStructure(level, current);
+				return;
+			}
+		}
 
 		for (int s = getMinSize(); s <= getMaxSize(); s++) {
 			StructureScanResult result = findStructure(level, pos, s);
 			if (result != null) {
-				boolean wasValid = structureValid;
-				int oldSize = structureSize;
-				BlockPos oldOrigin = structureOrigin;
-				BlockPos oldInputVault = inputVaultController;
-				BlockPos oldOutputVault = outputVaultController;
-				setStructure(level, true, result.size, result.origin, result.inputVaultController,
-					result.outputVaultController);
-				if (!wasValid || oldSize != result.size || !Objects.equals(result.origin, oldOrigin)
-					|| !Objects.equals(inputVaultController, oldInputVault)
-					|| !Objects.equals(outputVaultController, oldOutputVault))
-					onStructureFormed(level, result.size, result.origin);
+				applyDetectedStructure(level, result);
 				return;
 			}
 		}
@@ -308,6 +313,21 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		setStructure(level, false, 0, null, null, null);
 		if (wasValid)
 			onStructureBroken(level, oldSize, oldOrigin, oldPressAxis);
+	}
+
+	private void applyDetectedStructure(Level level, StructureScanResult result) {
+		boolean wasValid = structureValid;
+		int oldSize = structureSize;
+		BlockPos oldOrigin = structureOrigin;
+		BlockPos oldInputVault = inputVaultController;
+		BlockPos oldOutputVault = outputVaultController;
+		Axis oldPressAxis = structurePressAxis;
+		setStructure(level, true, result.size, result.origin, result.inputVaultController,
+			result.outputVaultController);
+		if (!wasValid || oldSize != result.size || !Objects.equals(result.origin, oldOrigin)
+			|| !Objects.equals(inputVaultController, oldInputVault)
+			|| !Objects.equals(outputVaultController, oldOutputVault) || structurePressAxis != oldPressAxis)
+			onStructureFormed(level, result.size, result.origin);
 	}
 
 	@Nullable
@@ -495,8 +515,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 	private void setStructure(Level level, boolean valid, int size, @Nullable BlockPos origin,
 		@Nullable BlockPos firstVaultController, @Nullable BlockPos secondVaultController) {
+		boolean previousValid = structureValid;
+		int previousSize = structureSize;
+		BlockPos previousOrigin = structureOrigin;
 		BlockPos previousInput = inputVaultController;
 		BlockPos previousOutput = outputVaultController;
+		BlockPos previousConfiguredInput = configuredInputVaultController;
+		Axis previousPressAxis = structurePressAxis;
+		int previousOverloadPoints = overloadPoints;
 		structureValid = valid;
 		structureSize = size;
 		structureOrigin = origin;
@@ -519,9 +545,44 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		pausedByUnloadedChunks = valid && isStructureAreaPartiallyUnloaded(level, origin, size);
 		if (!valid)
 			pressCycleProcessed = false;
+		boolean geometryChanged = previousValid != structureValid || previousSize != structureSize
+			|| !Objects.equals(previousOrigin, structureOrigin);
+		if (geometryChanged)
+			rebuildStructurePositionCache();
 		syncFormedBlockState();
-		syncVaultRoleBindings(level, previousInput, previousOutput);
-		notifyUpdate();
+		boolean vaultBindingsChanged = previousValid != structureValid
+			|| !Objects.equals(previousInput, inputVaultController)
+			|| !Objects.equals(previousOutput, outputVaultController);
+		if (vaultBindingsChanged)
+			syncVaultRoleBindings(level, previousInput, previousOutput);
+		boolean stateChanged = geometryChanged || vaultBindingsChanged
+			|| !Objects.equals(previousConfiguredInput, configuredInputVaultController)
+			|| previousPressAxis != structurePressAxis || previousOverloadPoints != overloadPoints;
+		if (stateChanged)
+			notifyUpdate();
+	}
+
+	private void rebuildStructurePositionCache() {
+		cachedPackagerPositions.clear();
+		cachedPressPositions.clear();
+		cachedPressByPackager.clear();
+		resolvedMechanicalPresses.clear();
+		renderPressStateTick = Integer.MIN_VALUE;
+		renderMasterPress = null;
+		renderPressesUnworkable = false;
+		clientPressLayoutDirty = true;
+		if (!structureValid || structureOrigin == null || structureSize <= 2)
+			return;
+
+		for (int x = 1; x < structureSize - 1; x++) {
+			for (int z = 1; z < structureSize - 1; z++) {
+				BlockPos packagerPos = structureOrigin.offset(x, 0, z);
+				BlockPos pressPos = structureOrigin.offset(x, 3, z);
+				cachedPackagerPositions.add(packagerPos);
+				cachedPressPositions.add(pressPos);
+				cachedPressByPackager.put(packagerPos.asLong(), pressPos);
+			}
+		}
 	}
 
 	private boolean updatePausedByUnloadedChunks() {
@@ -878,6 +939,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+		boolean previousStructureValid = structureValid;
+		int previousStructureSize = structureSize;
+		BlockPos previousStructureOrigin = structureOrigin;
 		super.loadAdditional(tag, registries);
 		structureValid = tag.getBoolean("StructureValid");
 		structureSize = tag.getInt("StructureSize");
@@ -934,11 +998,14 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		overloadPoints = Mth.clamp(tag.getInt(OVERLOAD_POINTS_TAG), 0, getOverloadPointsCap());
 		structurePressAxis = structureValid ? getStoredPressAxis() : null;
 		pressCycleProcessed = false;
+		if (previousStructureValid != structureValid || previousStructureSize != structureSize
+			|| !Objects.equals(previousStructureOrigin, structureOrigin))
+			rebuildStructurePositionCache();
 	}
 
 	public void forceStructureCheck() {
-		recheckTimer = 0;
 		tryDetectStructure();
+		recheckTimer = STRUCTURE_RECHECK_INTERVAL_TICKS;
 	}
 
 	public boolean isStructureValid() {
@@ -1365,22 +1432,21 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private List<MechanicalPressBlockEntity> getMechanicalPresses() {
-		List<MechanicalPressBlockEntity> presses = new ArrayList<>();
-		if (!structureValid || structureOrigin == null)
-			return presses;
+		resolvedMechanicalPresses.clear();
+		if (!structureValid)
+			return resolvedMechanicalPresses;
 
-		for (int x = 1; x < structureSize - 1; x++) {
-			for (int z = 1; z < structureSize - 1; z++) {
-				MechanicalPressBlockEntity press = getMechanicalPress(structureOrigin.offset(x, 3, z));
-				if (press != null)
-					presses.add(press);
-			}
+		for (BlockPos pressPos : cachedPressPositions) {
+			MechanicalPressBlockEntity press = getMechanicalPress(pressPos);
+			if (press != null)
+				resolvedMechanicalPresses.add(press);
 		}
-		return presses;
+		return resolvedMechanicalPresses;
 	}
 
 	float getRenderedPressHeadOffset(BlockPos packagerPos, float partialTicks) {
-		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
+		BlockPos pressPos = cachedPressByPackager.get(packagerPos.asLong());
+		MechanicalPressBlockEntity press = pressPos == null ? null : getMechanicalPress(pressPos);
 		return getSynchronizedPressHeadOffset(press, partialTicks);
 	}
 
@@ -1407,20 +1473,22 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	float getRenderedCreeperEffectPressOffset(BlockPos packagerPos, float partialTicks) {
-		MechanicalPressBlockEntity press = getMechanicalPress(packagerPos.above(3));
+		resolveRenderPressState();
+		if (renderMasterPress == null || renderMasterPress.getSpeed() == 0)
+			return 0f;
+		if (!renderPressesUnworkable)
+			return getLocalPressHeadProgress(renderMasterPress.getPressingBehaviour(), partialTicks)
+				* PressingBehaviour.Mode.WORLD.headOffset;
+
+		// Only the uncommon mixed-speed fallback needs to resolve the press above this particular slot.
+		BlockPos pressPos = cachedPressByPackager.get(packagerPos.asLong());
+		MechanicalPressBlockEntity press = pressPos == null ? null : getMechanicalPress(pressPos);
 		if (press == null)
 			return 0f;
 		PressingBehaviour ownBehaviour = press.getPressingBehaviour();
 		if (ownBehaviour.mode == null)
 			return 0f;
-
-		resolveRenderPressState();
-		if (renderMasterPress == null || renderMasterPress.getSpeed() == 0)
-			return 0f;
-		// A structure whose presses cannot run together drives each head from its own cycle, which is
-		// what the shared head-progress path below falls back to as well.
-		PressingBehaviour source = renderPressesUnworkable ? ownBehaviour : renderMasterPress.getPressingBehaviour();
-		return getLocalPressHeadProgress(source, partialTicks) * ownBehaviour.mode.headOffset;
+		return getLocalPressHeadProgress(ownBehaviour, partialTicks) * ownBehaviour.mode.headOffset;
 	}
 
 	float getWorkingCreeperCompression(BlockPos packagerPos, float partialTicks) {
@@ -1450,18 +1518,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (level == null || pendingUnpacks.isEmpty())
 			return;
 
-		if (!structureValid || structureOrigin == null || scanStructure(level, structureOrigin, structureSize) == null) {
-			if (structureValid && structureOrigin != null) {
-				int oldSize = structureSize;
-				BlockPos oldOrigin = structureOrigin;
-				Axis oldPressAxis = structurePressAxis;
-				setStructure(level, false, 0, null, null, null);
-				onStructureBroken(level, oldSize, oldOrigin, oldPressAxis);
-			}
+		if (!structureValid || structureOrigin == null)
 			return;
-		}
 
 		boolean changed = false;
+		boolean transitionStructureValidated = false;
 		Iterator<PendingUnpack> iterator = pendingUnpacks.iterator();
 		while (iterator.hasNext()) {
 			PendingUnpack pending = iterator.next();
@@ -1477,6 +1538,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 				pending.ticksRemaining--;
 
 			if (!pending.transitioned && pending.ticksRemaining <= BioPackagerBlockEntity.getCycleTicks()) {
+				if (!transitionStructureValidated) {
+					transitionStructureValidated = true;
+					if (!validateStructureForUnpackTransition(level))
+						return;
+				}
 				if (!completePendingUnpack(pending)) {
 					dropBox(pending);
 					clearPackagerAnimationState(pending.packagerPos);
@@ -1506,6 +1572,22 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 
 		if (changed)
 			setChanged();
+	}
+
+	private boolean validateStructureForUnpackTransition(Level level) {
+		if (!structureValid || structureOrigin == null)
+			return false;
+		if (scanStructure(level, structureOrigin, structureSize) != null) {
+			recheckTimer = STRUCTURE_RECHECK_INTERVAL_TICKS;
+			return true;
+		}
+
+		int oldSize = structureSize;
+		BlockPos oldOrigin = structureOrigin;
+		Axis oldPressAxis = structurePressAxis;
+		setStructure(level, false, 0, null, null, null);
+		onStructureBroken(level, oldSize, oldOrigin, oldPressAxis);
+		return false;
 	}
 
 	private void tickPendingAppearances() {
@@ -1678,12 +1760,15 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		Level level = getLevel();
 		if (level == null || !level.isClientSide || !structureValid || structureOrigin == null) {
 			clearClientTrackedPresses();
+			clientPressLayoutDirty = false;
 			return;
 		}
+		if (!clientPressLayoutDirty)
+			return;
 
 		clientActivePressPositions.clear();
-		for (MechanicalPressBlockEntity press : getMechanicalPresses()) {
-			long key = clientPressKey(level, press.getBlockPos());
+		for (BlockPos pressPos : cachedPressPositions) {
+			long key = clientPressKey(level, pressPos);
 			clientActivePressPositions.add(key);
 			CLIENT_PRESS_CONTROLLERS.put(key, getBlockPos());
 			clientTrackedPressPositions.add(key);
@@ -1696,6 +1781,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 				CLIENT_PRESS_CONTROLLERS.remove(key);
 			return true;
 		});
+		clientPressLayoutDirty = false;
 	}
 
 	/**
@@ -1978,7 +2064,10 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (level == null || level.isClientSide)
 			return new InsertResult(false, stack);
 
-		tryDetectStructure();
+		if (!structureValid || recheckTimer <= 0) {
+			tryDetectStructure();
+			recheckTimer = STRUCTURE_RECHECK_INTERVAL_TICKS;
+		}
 		if (!structureValid)
 			return new InsertResult(false, stack);
 		if (isPausedForPartialChunkUnload())
@@ -2375,19 +2464,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private List<BlockPos> getPackagerPositions() {
-		List<BlockPos> packagers = new ArrayList<>();
-		Level level = getLevel();
-		if (level == null || !structureValid || structureOrigin == null)
-			return packagers;
-
-		for (int x = 1; x < structureSize - 1; x++) {
-			for (int z = 1; z < structureSize - 1; z++) {
-				BlockPos packagerPos = structureOrigin.offset(x, 0, z);
-				if (level.getBlockState(packagerPos).is(CBBlocks.BIO_PACKAGER.get()))
-					packagers.add(packagerPos);
-			}
-		}
-		return packagers;
+		return cachedPackagerPositions;
 	}
 
 	private boolean isPackagerPartOfStructure(BlockPos packagerPos) {
