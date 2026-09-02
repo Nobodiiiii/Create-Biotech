@@ -1,14 +1,17 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
 import java.util.List;
+import java.util.Objects;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
@@ -26,6 +29,7 @@ import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -103,18 +107,39 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		if (level == null)
 			return List.of();
 
-		List<ItemStack> inputs = CBCreativeModeTabs.LARGE_CARDBOARD_BOXES.get()
+		List<ItemStack> largeInputs = CBCreativeModeTabs.LARGE_CARDBOARD_BOXES.get()
 			.getDisplayItems()
 			.stream()
 			.filter(CapturedEntityBoxHelper::hasCapturedEntity)
 			.map(stack -> stack.copyWithCount(1))
 			.toList();
-		if (inputs.isEmpty())
-			return List.of();
+		List<ItemStack> smallInputs = CBConfigs.SERVER.cardboardBox.smallBoxEntityAllowlist.get()
+			.stream()
+			.map(ResourceLocation::tryParse)
+			.filter(Objects::nonNull)
+			.distinct()
+			.map(BuiltInRegistries.ENTITY_TYPE::getOptional)
+			.flatMap(optional -> optional.stream())
+			.map(entityType -> CapturedEntityBoxHelper.createFilledBox(CBItems.CARDBOARD_BOX.get(), entityType))
+			.toList();
 
 		Component exampleName = Component.translatable("create_biotech.jei.cardboard_box.naming.name");
 		ItemStack nameTag = new ItemStack(Items.NAME_TAG);
 		nameTag.set(DataComponents.CUSTOM_NAME, exampleName);
+
+		IJeiAnvilRecipe smallRecipe = createCardboardBoxNamingRecipe(registration, level,
+			smallInputs, nameTag, exampleName, "small_cardboard_box_naming");
+		IJeiAnvilRecipe largeRecipe = createCardboardBoxNamingRecipe(registration, level,
+			largeInputs, nameTag, exampleName, "cardboard_box_naming");
+		if (smallRecipe == null)
+			return largeRecipe == null ? List.of() : List.of(largeRecipe);
+		return largeRecipe == null ? List.of(smallRecipe) : List.of(smallRecipe, largeRecipe);
+	}
+
+	private static IJeiAnvilRecipe createCardboardBoxNamingRecipe(IRecipeRegistration registration, Level level,
+		List<ItemStack> inputs, ItemStack nameTag, Component exampleName, String recipeId) {
+		if (inputs.isEmpty())
+			return null;
 
 		List<ItemStack> outputs = inputs.stream()
 			.map(input -> {
@@ -124,9 +149,8 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 			})
 			.toList();
 
-		IJeiAnvilRecipe recipe = registration.getVanillaRecipeFactory()
+		return registration.getVanillaRecipeFactory()
 			.createAnvilRecipe(inputs, List.of(nameTag), outputs,
-				CreateBiotech.asResource("cardboard_box_naming"));
-		return List.of(recipe);
+				CreateBiotech.asResource(recipeId));
 	}
 }

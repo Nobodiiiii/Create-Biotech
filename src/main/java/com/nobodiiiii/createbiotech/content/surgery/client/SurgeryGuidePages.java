@@ -185,7 +185,6 @@ public final class SurgeryGuidePages {
 			"wrench", "temporary_box", "empty_box");
 		out.add(new Block(Kind.BODY, "tools.cost"));
 
-		out.add(new Block(Kind.HEADING, "joints"));
 		out.add(new Block(Kind.BODY, "joints.intro"));
 		entries(out, "joints", "neck", "shoulder", "elbow", "hip", "knee");
 		out.add(new Block(Kind.BODY, "joints.rules"));

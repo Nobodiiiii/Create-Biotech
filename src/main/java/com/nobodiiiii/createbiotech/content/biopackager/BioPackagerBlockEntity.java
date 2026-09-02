@@ -5,6 +5,7 @@ import net.minecraft.core.HolderLookup;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -16,6 +17,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.Entity;
@@ -152,6 +154,9 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 
 		if (!level.addFreshEntity(entity))
 			return;
+		if (level instanceof ServerLevel serverLevel)
+			CBPackets.sendToTrackingChunk(new BioPackagerReleaseAnimationPacket(entity.getId()), serverLevel,
+				releasePos);
 
 		ItemStack emptyBox = heldBox.copy();
 		emptyBox.setCount(1);

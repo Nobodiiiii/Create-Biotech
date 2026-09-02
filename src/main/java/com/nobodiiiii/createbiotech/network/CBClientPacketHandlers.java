@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.network;
 
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
+import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
@@ -51,6 +52,8 @@ final class CBClientPacketHandlers {
 			bionicAttack.handle(player);
 		} else if (packet instanceof SurgicalTableReleaseGeometryPacket.ClientBoundRequest releaseGeometry) {
 			releaseGeometry.handle(player);
+		} else if (packet instanceof BioPackagerReleaseAnimationPacket bioPackagerRelease) {
+			bioPackagerRelease.handle(player);
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());
