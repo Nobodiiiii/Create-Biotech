@@ -17,6 +17,7 @@ import com.simibubi.create.content.logistics.box.PackageItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -103,9 +104,10 @@ public class CapturedEntityBoxHelper {
 			.getBoolean(AI_DISABLED_BY_MOD_TAG);
 	}
 
-	public static void appendHoverText(ItemStack stack, List<Component> tooltipComponents) {
+	public static void appendHoverText(ItemStack stack, HolderLookup.Provider registries,
+		List<Component> tooltipComponents) {
 		appendAddressTooltip(stack, tooltipComponents);
-		appendContentsTooltip(stack, tooltipComponents);
+		appendContentsTooltip(stack, registries, tooltipComponents);
 	}
 
 	public static boolean captureEntity(ItemStack stack, LivingEntity target) {
@@ -376,24 +378,22 @@ public class CapturedEntityBoxHelper {
 
 	/**
 	 * Applies a name-tag name to the creature held by the box, writing it into the
-	 * captured entity's NBT so the beast is released already named. Accepts either a
-	 * plain-text name (e.g. from a name tag) or the anvil rename field's component.
+	 * captured entity's NBT so the beast is released already named.
 	 * The box must already hold a creature; otherwise {@code false} is returned and the
 	 * stack is left unchanged.
 	 *
 	 * <p>Only {@code CustomName} is updated. {@code CustomNameVisible} is left unchanged,
 	 * matching an ordinary name tag applied directly to the creature.</p>
 	 */
-	public static boolean applyNameToCapturedEntity(ItemStack stack, RegistryAccess registryAccess, String name) {
-		String trimmed = name == null ? "" : name.strip();
-		if (trimmed.isEmpty())
+	public static boolean applyNameToCapturedEntity(ItemStack stack, RegistryAccess registryAccess, Component name) {
+		if (name == null || name.getString().isBlank())
 			return false;
 		if (!hasCapturedEntity(stack))
 			return false;
 
 		CBItemData.edit(stack, root -> {
 			CompoundTag entityData = root.getCompound(CAPTURED_ENTITY_TAG);
-			String json = Component.Serializer.toJson(Component.literal(trimmed), registryAccess);
+			String json = Component.Serializer.toJson(name, registryAccess);
 			entityData.putString("CustomName", json);
 			root.put(CAPTURED_ENTITY_TAG, entityData);
 		});
@@ -537,10 +537,11 @@ public class CapturedEntityBoxHelper {
 			.withStyle(ChatFormatting.GOLD));
 	}
 
-	private static void appendContentsTooltip(ItemStack stack, List<Component> tooltipComponents) {
+	private static void appendContentsTooltip(ItemStack stack, HolderLookup.Provider registries,
+		List<Component> tooltipComponents) {
 		List<TooltipEntry> entries = new ArrayList<>();
 		collectPackageEntries(stack, entries);
-		collectCapturedEntityEntry(stack, entries);
+		collectCapturedEntityEntry(stack, registries, entries);
 
 		int visibleNames = 0;
 		int skippedNames = 0;
@@ -572,10 +573,25 @@ public class CapturedEntityBoxHelper {
 		}
 	}
 
-	private static void collectCapturedEntityEntry(ItemStack stack, List<TooltipEntry> entries) {
+	private static void collectCapturedEntityEntry(ItemStack stack, HolderLookup.Provider registries,
+		List<TooltipEntry> entries) {
 		CompoundTag tag = CBItemData.getReadOnly(stack);
 		if (tag == null)
 			return;
+
+		CompoundTag entityData = tag.getCompound(CAPTURED_ENTITY_TAG);
+		if (entityData.contains("CustomName", Tag.TAG_STRING)) {
+			try {
+				Component customName = Component.Serializer.fromJson(entityData.getString("CustomName"), registries);
+				if (customName != null) {
+					entries.add(new TooltipEntry(customName, 1));
+					return;
+				}
+			} catch (RuntimeException ignored) {
+				// Damaged or legacy custom-name data falls back to the entity type below.
+			}
+		}
+
 		if (!tag.contains(CAPTURED_ENTITY_DESC_ID_TAG, Tag.TAG_STRING))
 			return;
 

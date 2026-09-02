@@ -85,6 +85,7 @@
   "fluid.create_biotech.teleportation": "传送液",
   "fluid.create_biotech.teleportation.tooltip.summary": "使用动力泵从_下界传送门方块_抽取传送液",
   "create_biotech.jei.teleportation.info": "使用动力泵从下界传送门方块抽取传送液。",
+  "create_biotech.jei.cardboard_box.naming.name": "命名",
   "fluid.create_biotech.flowing_teleportation": "流动的传送液",
   "block.create_biotech.teleportation": "传送液",
   "item.create_biotech.teleportation_bucket": "传送液桶",

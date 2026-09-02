@@ -114,6 +114,8 @@ public final class SurgeryGuidePages {
 		 * count allows, so the tail never ends up alone on a page of its own.
 		 */
 		void flow(List<Component> lines) {
+			if (page.size() >= PAGE_LINES)
+				breakPage();
 			int taken = Math.min(lines.size(), PAGE_LINES - page.size());
 			page.addAll(lines.subList(0, taken));
 			List<Component> rest = lines.subList(taken, lines.size());

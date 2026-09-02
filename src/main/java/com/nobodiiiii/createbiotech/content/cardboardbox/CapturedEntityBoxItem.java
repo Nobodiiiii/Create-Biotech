@@ -44,7 +44,7 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 	@Override
 	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltipComponents,
 		TooltipFlag isAdvanced) {
-		CapturedEntityBoxHelper.appendHoverText(stack, tooltipComponents);
+		CapturedEntityBoxHelper.appendHoverText(stack, context.registries(), tooltipComponents);
 	}
 
 	@Override

@@ -85,6 +85,7 @@
   "fluid.create_biotech.teleportation": "Teleportation Fluid",
   "fluid.create_biotech.teleportation.tooltip.summary": "Use a Mechanical Pump to extract Teleportation Fluid from _Nether Portal blocks_.",
   "create_biotech.jei.teleportation.info": "Use a Mechanical Pump to extract Teleportation Fluid from Nether Portal blocks.",
+  "create_biotech.jei.cardboard_box.naming.name": "name",
   "fluid.create_biotech.flowing_teleportation": "Flowing Teleportation Fluid",
   "block.create_biotech.teleportation": "Teleportation Fluid",
   "item.create_biotech.teleportation_bucket": "Teleportation Fluid Bucket",

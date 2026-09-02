@@ -3,9 +3,11 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.Create;
@@ -13,18 +15,23 @@ import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
+import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
 
@@ -68,6 +75,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 			creeperBlastChamberHighPressureRecipes());
 		registration.addRecipes(SquidPrinterJeiCategory.TYPE, SquidPrinterJeiRecipes.create());
 		registration.addRecipes(EvokerEnchantingChamberJeiCategory.TYPE, EvokerEnchantingChamberJeiRecipes.create());
+		registration.addRecipes(RecipeTypes.ANVIL, cardboardBoxNamingRecipes(registration));
 	}
 
 	@Override
@@ -88,5 +96,37 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 		return connection.getRecipeManager()
 			.getAllRecipesFor(CBRecipeTypes.CREEPER_BLAST_CHAMBER_HIGH_PRESSURE_TYPE.get());
+	}
+
+	private static List<IJeiAnvilRecipe> cardboardBoxNamingRecipes(IRecipeRegistration registration) {
+		Level level = Minecraft.getInstance().level;
+		if (level == null)
+			return List.of();
+
+		List<ItemStack> inputs = CBCreativeModeTabs.LARGE_CARDBOARD_BOXES.get()
+			.getDisplayItems()
+			.stream()
+			.filter(CapturedEntityBoxHelper::hasCapturedEntity)
+			.map(stack -> stack.copyWithCount(1))
+			.toList();
+		if (inputs.isEmpty())
+			return List.of();
+
+		Component exampleName = Component.translatable("create_biotech.jei.cardboard_box.naming.name");
+		ItemStack nameTag = new ItemStack(Items.NAME_TAG);
+		nameTag.set(DataComponents.CUSTOM_NAME, exampleName);
+
+		List<ItemStack> outputs = inputs.stream()
+			.map(input -> {
+				ItemStack output = input.copy();
+				CapturedEntityBoxHelper.applyNameToCapturedEntity(output, level.registryAccess(), exampleName);
+				return output;
+			})
+			.toList();
+
+		IJeiAnvilRecipe recipe = registration.getVanillaRecipeFactory()
+			.createAnvilRecipe(inputs, List.of(nameTag), outputs,
+				CreateBiotech.asResource("cardboard_box_naming"));
+		return List.of(recipe);
 	}
 }

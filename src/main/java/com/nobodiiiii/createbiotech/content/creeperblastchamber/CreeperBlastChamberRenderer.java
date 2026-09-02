@@ -39,7 +39,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	/** Scale a creeper pops in from, and shrinks back to on the way out. */
 	private static final float CREEPER_ENTRY_START_SCALE = .35f;
 	private static final float CREEPER_EXIT_END_SCALE = .35f;
-	private static final float CREEPER_FINAL_HEIGHT_SCALE = 1f / 1.8f;
+	/** The vanilla model spans 26 pixels vertically; 16 / 26 leaves it exactly one block tall. */
+	private static final float CREEPER_FINAL_HEIGHT_SCALE = 16f / 26f;
 	private static final float CREEPER_MAX_SPREAD = .2f;
 
 	/** Highest swell value fed to the model; {@code Creeper.maxSwell - 2} is what vanilla divides by. */

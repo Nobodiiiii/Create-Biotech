@@ -34,7 +34,7 @@ public class CreeperBlastChamberHighPressureJeiCategory
 	public static final RecipeType<RecipeHolder<CreeperBlastChamberHighPressureRecipe>> TYPE =
 		createRecipeHolderType(CreateBiotech.asResource("creeper_blast_chamber_high_pressure"));
 	private static final HighPressureCreeperDrawable HIGH_PRESSURE_CREEPER =
-		new HighPressureCreeperDrawable(46, 42, 1.2f, 1f / 1.8f, 24);
+		new HighPressureCreeperDrawable(46, 42, 1.2f, 16f / 26f, 24);
 
 	public CreeperBlastChamberHighPressureJeiCategory() {
 		super(new CreateRecipeCategory.Info<>(TYPE,

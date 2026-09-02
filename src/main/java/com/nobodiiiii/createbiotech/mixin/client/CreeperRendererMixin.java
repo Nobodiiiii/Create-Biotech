@@ -30,7 +30,7 @@ import net.minecraft.world.entity.monster.Creeper;
 public abstract class CreeperRendererMixin {
 
 	@Unique
-	private static final float CREATE_BIOTECH_CREEPER_FINAL_HEIGHT_SCALE = 1f / 1.8f;
+	private static final float CREATE_BIOTECH_CREEPER_FINAL_HEIGHT_SCALE = 16f / 26f;
 	@Unique
 	private static final float CREATE_BIOTECH_CREEPER_MAX_SPREAD = 0.2f;
 	@Unique
