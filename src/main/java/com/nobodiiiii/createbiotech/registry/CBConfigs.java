@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.List;
 import java.util.EnumMap;
+import java.util.stream.Stream;
 
 import com.nobodiiiii.createbiotech.foundation.feature.CBFeature;
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -27,6 +28,25 @@ public class CBConfigs {
 	private static final int SHULKER_PACKAGER_OLD_DEFAULT_RANGE = 5;
 	private static final int SHULKER_PACKAGER_DEFAULT_RANGE = 8;
 	private static final int SHULKER_PACKAGER_CONFIG_VERSION = 1;
+	private static final String DING_DONG_CHICKEN_ID = "create_biotech:ding_dong_chicken";
+	private static final int CARDBOARD_BOX_CONFIG_VERSION = 1;
+	private static final List<String> CARDBOARD_BOX_OLD_DEFAULT_SMALL_ENTITY_ALLOWLIST = List.of(
+		"minecraft:slime",
+		"minecraft:cat",
+		"minecraft:bat",
+		"minecraft:chicken",
+		"minecraft:rabbit",
+		"minecraft:silverfish",
+		"minecraft:endermite",
+		"minecraft:bee",
+		"minecraft:parrot",
+		"minecraft:allay",
+		"minecraft:frog",
+		"minecraft:ocelot",
+		"minecraft:vex",
+		"minecraft:magma_cube");
+	private static final List<String> CARDBOARD_BOX_DEFAULT_SMALL_ENTITY_ALLOWLIST = Stream.concat(
+		Stream.of(DING_DONG_CHICKEN_ID), CARDBOARD_BOX_OLD_DEFAULT_SMALL_ENTITY_ALLOWLIST.stream()).toList();
 
 	public static final Client CLIENT;
 	public static final ModConfigSpec CLIENT_SPEC;
@@ -63,11 +83,13 @@ public class CBConfigs {
 	@SubscribeEvent
 	public static void onConfigLoad(ModConfigEvent.Loading event) {
 		migrateShulkerPackagerConfig(event.getConfig());
+		migrateCardboardBoxConfig(event.getConfig());
 	}
 
 	@SubscribeEvent
 	public static void onConfigReload(ModConfigEvent.Reloading event) {
 		migrateShulkerPackagerConfig(event.getConfig());
+		migrateCardboardBoxConfig(event.getConfig());
 	}
 
 	private static void migrateShulkerPackagerConfig(ModConfig config) {
@@ -83,6 +105,22 @@ public class CBConfigs {
 			shulkerPackager.connectionRange.set(SHULKER_PACKAGER_DEFAULT_RANGE);
 
 		shulkerPackager.configVersion.set(SHULKER_PACKAGER_CONFIG_VERSION);
+		SERVER_SPEC.save();
+	}
+
+	private static void migrateCardboardBoxConfig(ModConfig config) {
+		if (config.getSpec() != SERVER_SPEC)
+			return;
+
+		CardboardBox cardboardBox = SERVER.cardboardBox;
+		if (cardboardBox.configVersion.get() >= CARDBOARD_BOX_CONFIG_VERSION)
+			return;
+
+		// Only migrate servers that still have the old default. Preserve explicit custom values.
+		if (cardboardBox.smallBoxEntityAllowlist.get().equals(CARDBOARD_BOX_OLD_DEFAULT_SMALL_ENTITY_ALLOWLIST))
+			cardboardBox.smallBoxEntityAllowlist.set(CARDBOARD_BOX_DEFAULT_SMALL_ENTITY_ALLOWLIST);
+
+		cardboardBox.configVersion.set(CARDBOARD_BOX_CONFIG_VERSION);
 		SERVER_SPEC.save();
 	}
 
@@ -483,6 +521,7 @@ public class CBConfigs {
 	}
 
 	public static class CardboardBox {
+		public final ModConfigSpec.IntValue configVersion;
 		public final ModConfigSpec.ConfigValue<List<? extends String>> smallBoxEntityAllowlist;
 		public final ModConfigSpec.BooleanValue largeBoxCreativeOnly;
 		public final ModConfigSpec.BooleanValue lethalCaptureEnabled;
@@ -492,21 +531,11 @@ public class CBConfigs {
 
 		CardboardBox(ModConfigSpec.Builder builder) {
 			builder.push("cardboardBox");
-			smallBoxEntityAllowlist = defineResourceLocationList(builder, "smallBoxEntityAllowlist", List.of(
-				"minecraft:slime",
-				"minecraft:cat",
-				"minecraft:bat",
-				"minecraft:chicken",
-				"minecraft:rabbit",
-				"minecraft:silverfish",
-				"minecraft:endermite",
-				"minecraft:bee",
-				"minecraft:parrot",
-				"minecraft:allay",
-				"minecraft:frog",
-				"minecraft:ocelot",
-				"minecraft:vex",
-				"minecraft:magma_cube"));
+			configVersion = builder
+				.comment("Internal migration marker. Do not edit.")
+				.defineInRange("configVersion", 0, 0, CARDBOARD_BOX_CONFIG_VERSION);
+			smallBoxEntityAllowlist = defineResourceLocationList(builder, "smallBoxEntityAllowlist",
+				CARDBOARD_BOX_DEFAULT_SMALL_ENTITY_ALLOWLIST);
 			largeBoxCreativeOnly = builder.define("largeBoxCreativeOnly", true);
 			lethalCaptureEnabled = builder.define("lethalCaptureEnabled", true);
 			largeBoxEntityListMode = builder.defineEnum("largeBoxEntityListMode", EntityListMode.ALLOW_ALL);
