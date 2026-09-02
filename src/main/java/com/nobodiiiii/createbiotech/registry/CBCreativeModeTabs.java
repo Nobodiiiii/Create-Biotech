@@ -103,14 +103,14 @@ public class CBCreativeModeTabs {
 	private static List<SectionContents> createSectionContents() {
 		List<SectionContents> sections = new ArrayList<>();
 
-		sections.add(section(CBCreativeTabSection.BIOLOGICAL_CAPTURE,
+		sections.add(section(CBCreativeTabSection.BIOTECHNOLOGY,
 			visible(CBItems.CARDBOARD_BOX.get()),
 			visible(CBItems.LARGE_CARDBOARD_BOX.get()),
 			visible(CBItems.CAPTURED_SMALL_SLIME.get()),
 			visible(CBItems.BIO_PACKAGER.get()),
 			visible(CBItems.AUTOMATIC_FISH_RELEASE_MACHINE.get())));
 
-		sections.add(section(CBCreativeTabSection.POWER_TRANSMISSION,
+		sections.add(section(CBCreativeTabSection.TRANSMISSION_AND_LOGISTICS,
 			visible(CBItems.HALF_SHAFT.get()),
 			visible(CBItems.UNIVERSAL_JOINT.get()),
 			visible(CBItems.SLIME_CLUTCH.get()),
@@ -120,18 +120,15 @@ public class CBCreativeModeTabs {
 			visible(CBItems.FIXED_CARROT_FISHING_ROD.get()),
 			visible(CBItems.POWER_BELT_CONNECTOR.get()),
 			visible(CBItems.SLIME_BELT_CONNECTOR.get()),
-			visible(CBItems.MAGMA_BELT_CONNECTOR.get())));
-
-		sections.add(section(CBCreativeTabSection.LOGISTICS,
+			visible(CBItems.MAGMA_BELT_CONNECTOR.get()),
 			visible(CBItems.WIRELESS_TERMINAL.get()),
 			visible(CBItems.SHULKER_PACKAGER.get()),
 			visible(CBItems.SHULKER_TELEPORTER.get()),
 			visible(CBItems.ALLAY_PORT.get()),
 			visible(CBItems.ALLAY_COURIER.get()),
-			visible(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get()),
-			visible(CBItems.ASURINE_TABLE_CLOTH.get())));
+			visible(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get())));
 
-		List<TabEntry> functionalDevices = new ArrayList<>(List.of(
+		List<TabEntry> devicesAndEquipment = new ArrayList<>(List.of(
 			visible(CBItems.SONIC_DOG_CANNON.get()),
 			visible(CBItems.DING_DONG_CHICKEN.get()),
 			visible(CBItems.SPIDER_ASSEMBLY_TABLE.get()),
@@ -142,21 +139,14 @@ public class CBCreativeModeTabs {
 			visible(CBItems.SLIME_CHESTPLATE.get()),
 			visible(CBItems.SLIME_LEGGINGS.get()),
 			visible(CBItems.SLIME_BOOTS.get()),
-			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get())));
-		addBufferPads(functionalDevices);
-		sections.add(new SectionContents(CBCreativeTabSection.FUNCTIONAL_DEVICES, functionalDevices));
-
-		sections.add(section(CBCreativeTabSection.STRUCTURES,
+			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get()),
 			visible(CBItems.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get()),
-			visible(CBItems.GHAST_HELM.get()),
-			visible(CBItems.CREEPER_BLAST_CHAMBER.get()),
-			visible(CBItems.EXPLOSION_PROOF_CASING.get()),
-			visible(CBItems.BLAST_PROOF_GLASS.get()),
-			visible(CBItems.BLAST_PROOF_FRAMED_GLASS.get()),
-			visible(CBItems.ASURINE_CASING.get()),
-			visible(CBItems.BIOTECH_CASING.get())));
+			visible(CBItems.GHAST_HELM.get())));
+		addBufferPads(devicesAndEquipment);
+		devicesAndEquipment.add(visible(CBItems.CREEPER_BLAST_CHAMBER.get()));
+		sections.add(new SectionContents(CBCreativeTabSection.DEVICES_AND_EQUIPMENT, devicesAndEquipment));
 
-		sections.add(section(CBCreativeTabSection.ENCHANTMENT,
+		sections.add(section(CBCreativeTabSection.ENCHANTMENT_AND_EXPERIENCE,
 			visible(CBItems.EVOKER_ENCHANTING_CHAMBER.get()),
 			visible(CBItems.SQUID_PRINTER.get()),
 			visible(CBItems.EXPERIENCE_PUMP.get()),
@@ -167,7 +157,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.EXPERIENCE_CLUSTER.get()),
 			visible(CBItems.ENCHANTMENT_BOOK_COPY.get())));
 
-		sections.add(section(CBCreativeTabSection.MATERIALS,
+		sections.add(section(CBCreativeTabSection.MATERIALS_AND_DECORATION,
 			visible(CBItems.ASURINE_ALLOY.get()),
 			visible(CBItems.CARBON_POWDER.get()),
 			visible(CBItems.GRAPHITE.get()),
@@ -179,7 +169,13 @@ public class CBCreativeModeTabs {
 			visible(CBFluids.TELEPORTATION_BUCKET.get()),
 			visible(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get()),
 			visible(CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get()),
-			visible(CBFluids.CREAM_BUCKET.get())));
+			visible(CBFluids.CREAM_BUCKET.get()),
+			visible(CBItems.ASURINE_CASING.get()),
+			visible(CBItems.BIOTECH_CASING.get()),
+			visible(CBItems.EXPLOSION_PROOF_CASING.get()),
+			visible(CBItems.BLAST_PROOF_GLASS.get()),
+			visible(CBItems.BLAST_PROOF_FRAMED_GLASS.get()),
+			visible(CBItems.ASURINE_TABLE_CLOTH.get())));
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
 			visible(CBItems.SURGICAL_KIT.get()),
