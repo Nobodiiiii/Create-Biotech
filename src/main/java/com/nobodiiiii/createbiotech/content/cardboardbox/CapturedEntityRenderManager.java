@@ -253,6 +253,11 @@ public final class CapturedEntityRenderManager {
 	private static void stabilize(LivingEntity entity) {
 		if (entity instanceof Mob mob)
 			mob.setNoAi(true);
+		// The cached entity is only a model source for box/item icons. Captured
+		// commands or legacy data may still have CustomNameVisible set, but baking
+		// that state would also capture the floating name plate as part of the icon
+		// mesh.
+		entity.setCustomNameVisible(false);
 		entity.setSilent(true);
 		entity.setOnGround(true);
 		entity.setDeltaMovement(Vec3.ZERO);

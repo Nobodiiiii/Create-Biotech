@@ -11,6 +11,7 @@
     "AssemblyOperatorBlockItemMixin",
     "BasinBlockEntityMixin",
     "BasinBlockBeltOutputMixin",
+    "BasinOperatingBlockEntityMixin",
     "BasinRecipeMixin",
     "BlockEntityConfigurationPacketMixin",
     "BlockEntityPersistentDataAccessor",

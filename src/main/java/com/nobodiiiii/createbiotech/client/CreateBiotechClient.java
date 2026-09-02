@@ -517,6 +517,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.GIANT_FROG.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_KIT.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_TABLE.get());
+		registerCreateStyleTooltip(CBItems.SURGERY_GUIDE.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_COURIER.get());
 		registerCreateStyleTooltip(CBItems.CUTE_CAT_ON_SHAFT.get());

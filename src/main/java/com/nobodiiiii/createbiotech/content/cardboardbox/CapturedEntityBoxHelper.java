@@ -381,8 +381,8 @@ public class CapturedEntityBoxHelper {
 	 * The box must already hold a creature; otherwise {@code false} is returned and the
 	 * stack is left unchanged.
 	 *
-	 * <p>The name is stored as {@code CustomName} (JSON) plus {@code CustomNameVisible},
-	 * the exact keys and shape {@code Entity.load} reads back.</p>
+	 * <p>Only {@code CustomName} is updated. {@code CustomNameVisible} is left unchanged,
+	 * matching an ordinary name tag applied directly to the creature.</p>
 	 */
 	public static boolean applyNameToCapturedEntity(ItemStack stack, RegistryAccess registryAccess, String name) {
 		String trimmed = name == null ? "" : name.strip();
@@ -395,7 +395,6 @@ public class CapturedEntityBoxHelper {
 			CompoundTag entityData = root.getCompound(CAPTURED_ENTITY_TAG);
 			String json = Component.Serializer.toJson(Component.literal(trimmed), registryAccess);
 			entityData.putString("CustomName", json);
-			entityData.putBoolean("CustomNameVisible", true);
 			root.put(CAPTURED_ENTITY_TAG, entityData);
 		});
 		return true;
