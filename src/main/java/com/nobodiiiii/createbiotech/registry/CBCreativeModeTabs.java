@@ -106,9 +106,11 @@ public class CBCreativeModeTabs {
 		sections.add(section(CBCreativeTabSection.BIOTECHNOLOGY,
 			visible(CBItems.CARDBOARD_BOX.get()),
 			visible(CBItems.LARGE_CARDBOARD_BOX.get()),
-			visible(CBItems.CAPTURED_SMALL_SLIME.get()),
 			visible(CBItems.BIO_PACKAGER.get()),
-			visible(CBItems.AUTOMATIC_FISH_RELEASE_MACHINE.get())));
+			visible(CBItems.PETRI_DISH.get()),
+			visible(CBItems.CAPTURED_SMALL_SLIME.get()),
+			visible(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get()),
+			visible(CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get())));
 
 		sections.add(section(CBCreativeTabSection.TRANSMISSION_AND_LOGISTICS,
 			visible(CBItems.HALF_SHAFT.get()),
@@ -121,29 +123,34 @@ public class CBCreativeModeTabs {
 			visible(CBItems.POWER_BELT_CONNECTOR.get()),
 			visible(CBItems.SLIME_BELT_CONNECTOR.get()),
 			visible(CBItems.MAGMA_BELT_CONNECTOR.get()),
-			visible(CBItems.WIRELESS_TERMINAL.get()),
 			visible(CBItems.SHULKER_PACKAGER.get()),
 			visible(CBItems.SHULKER_TELEPORTER.get()),
 			visible(CBItems.ALLAY_PORT.get()),
 			visible(CBItems.ALLAY_COURIER.get()),
-			visible(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get())));
+			visible(CBItems.WIRELESS_TERMINAL.get()),
+			visible(CBFluids.TELEPORTATION_BUCKET.get())));
 
 		List<TabEntry> devicesAndEquipment = new ArrayList<>(List.of(
-			visible(CBItems.SONIC_DOG_CANNON.get()),
-			visible(CBItems.DING_DONG_CHICKEN.get()),
 			visible(CBItems.SPIDER_ASSEMBLY_TABLE.get()),
 			visible(CBItems.EMPTY_MAGMA_CUBE_BURNER.get()),
 			visible(CBItems.MAGMA_CUBE_BURNER.get()),
+			visible(CBItems.AUTOMATIC_FISH_RELEASE_MACHINE.get()),
 			visible(CBItems.SCHRODINGERS_CAT.get()),
-			visible(CBItems.SLIME_HELMET.get()),
-			visible(CBItems.SLIME_CHESTPLATE.get()),
-			visible(CBItems.SLIME_LEGGINGS.get()),
-			visible(CBItems.SLIME_BOOTS.get()),
-			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get()),
 			visible(CBItems.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get()),
 			visible(CBItems.GHAST_HELM.get())));
 		addBufferPads(devicesAndEquipment);
-		devicesAndEquipment.add(visible(CBItems.CREEPER_BLAST_CHAMBER.get()));
+		devicesAndEquipment.addAll(List.of(
+				visible(CBItems.CREEPER_BLAST_CHAMBER.get()),
+				visible(CBItems.EXPLOSION_PROOF_CASING.get()),
+				visible(CBItems.EXPLOSION_PROOF_ITEM_VAULT.get()),
+				visible(CBItems.BLAST_PROOF_GLASS.get()),
+				visible(CBItems.BLAST_PROOF_FRAMED_GLASS.get()),
+				visible(CBItems.SONIC_DOG_CANNON.get()),
+				visible(CBItems.DING_DONG_CHICKEN.get()),
+				visible(CBItems.SLIME_HELMET.get()),
+				visible(CBItems.SLIME_CHESTPLATE.get()),
+				visible(CBItems.SLIME_LEGGINGS.get()),
+				visible(CBItems.SLIME_BOOTS.get())));
 		sections.add(new SectionContents(CBCreativeTabSection.DEVICES_AND_EQUIPMENT, devicesAndEquipment));
 
 		sections.add(section(CBCreativeTabSection.ENCHANTMENT_AND_EXPERIENCE,
@@ -158,6 +165,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.ENCHANTMENT_BOOK_COPY.get())));
 
 		sections.add(section(CBCreativeTabSection.MATERIALS_AND_DECORATION,
+			visible(CBItems.BIONIC_MECHANISM.get()),
 			visible(CBItems.ASURINE_ALLOY.get()),
 			visible(CBItems.CARBON_POWDER.get()),
 			visible(CBItems.GRAPHITE.get()),
@@ -166,28 +174,20 @@ public class CBCreativeModeTabs {
 			visible(CBItems.SUPER_BUTTER.get()),
 			visible(CBItems.BUTTER_BLOCK.get()),
 			visible(CBItems.SUPER_BUTTER_BLOCK.get()),
-			visible(CBFluids.TELEPORTATION_BUCKET.get()),
-			visible(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get()),
-			visible(CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get()),
-			visible(CBFluids.CREAM_BUCKET.get()),
 			visible(CBItems.ASURINE_CASING.get()),
 			visible(CBItems.BIOTECH_CASING.get()),
-			visible(CBItems.EXPLOSION_PROOF_CASING.get()),
-			visible(CBItems.BLAST_PROOF_GLASS.get()),
-			visible(CBItems.BLAST_PROOF_FRAMED_GLASS.get()),
-			visible(CBItems.ASURINE_TABLE_CLOTH.get())));
+			visible(CBItems.ASURINE_TABLE_CLOTH.get()),
+			visible(CBFluids.CREAM_BUCKET.get()),
+			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get())));
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
 			visible(CBItems.SURGICAL_KIT.get()),
-			visible(CBItems.SMART_SUPER_GLUE.get()),
 			visible(CBItems.NECK_JOINT.get()),
 			visible(CBItems.SHOULDER_JOINT.get()),
 			visible(CBItems.ELBOW_JOINT.get()),
 			visible(CBItems.HIP_JOINT.get()),
 			visible(CBItems.KNEE_JOINT.get()),
-			visible(CBItems.PETRI_DISH.get()),
 			visible(CBItems.SURGICAL_TABLE.get()),
-			visible(CBItems.BIONIC_MECHANISM.get()),
 			visible(CBItems.GIANT_FROG.get()),
 			searchOnly(CBItems.FROG_STOMACH_WALL.get()),
 			visible(CBItems.FROG_STOMACH_MUCOSA.get()),
