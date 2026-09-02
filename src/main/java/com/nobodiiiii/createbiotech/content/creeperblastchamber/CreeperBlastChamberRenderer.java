@@ -316,9 +316,9 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float horizontal = (1 + CREEPER_MAX_SPREAD * compression) / (1 + VANILLA_SWELL_SPREAD * swellBulge);
 		float vertical = (1 + (CREEPER_FINAL_HEIGHT_SCALE - 1) * compression) / (1 + VANILLA_SWELL_RISE * swellBulge);
 
-		CreeperAttentionPose attention = ATTENTION_STATES
-			.computeIfAbsent(creeper, ignored -> new CreeperAttentionState(renderSeed))
-			.update(renderTime, defaultYaw, compression, creeper, nearbyPlayer);
+		CreeperAttentionState attention = ATTENTION_STATES
+			.computeIfAbsent(creeper, ignored -> new CreeperAttentionState(renderSeed));
+		attention.update(renderTime, defaultYaw, compression, creeper, nearbyPlayer);
 
 		poseStack.pushPose();
 		poseStack.translate(packagerPos.getX() - be.getBlockPos().getX() + .5d,
@@ -351,8 +351,6 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		TURN
 	}
 
-	private record CreeperAttentionPose(float bodyYaw, float headYaw, float pitch) {}
-
 	private static final class CreeperAttentionState {
 		private static final long MIX_INCREMENT = 0x9E3779B97F4A7C15L;
 
@@ -362,6 +360,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		private float lastRenderTime;
 		private float nextDecisionTime;
 		private float actionEndTime;
+		/** Last body direction reached by a TURN action; compression must never reset it. */
+		private float restingYaw;
 		private float bodyYaw;
 		private float headYaw;
 		private float pitch;
@@ -371,12 +371,13 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			this.renderSeed = renderSeed;
 		}
 
-		private CreeperAttentionPose update(float renderTime, float defaultYaw, float compression, Creeper creeper,
+		private void update(float renderTime, float defaultYaw, float compression, Creeper creeper,
 			Player nearbyPlayer) {
 			defaultYaw = Mth.wrapDegrees(defaultYaw);
 			if (!initialized || renderTime < lastRenderTime) {
 				initialized = true;
 				lastRenderTime = renderTime;
+				restingYaw = defaultYaw;
 				bodyYaw = defaultYaw;
 				headYaw = defaultYaw;
 				pitch = 0;
@@ -385,6 +386,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			}
 
 			if (mode != AttentionMode.IDLE && renderTime >= actionEndTime) {
+				if (mode == AttentionMode.TURN)
+					restingYaw = bodyYaw;
 				mode = AttentionMode.IDLE;
 				nextDecisionTime = renderTime + nextDelay(ATTENTION_DELAY_MIN_TICKS, ATTENTION_DELAY_MAX_TICKS);
 			}
@@ -401,8 +404,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 				}
 			}
 
-			float desiredBodyYaw = defaultYaw;
-			float desiredHeadYaw = defaultYaw;
+			float desiredBodyYaw = restingYaw;
+			float desiredHeadYaw = restingYaw;
 			float desiredPitch = 0;
 			if (mode != AttentionMode.IDLE && nearbyPlayer != null) {
 				double dx = nearbyPlayer.getX() - creeper.getX();
@@ -412,12 +415,12 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 				float targetPitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * Mth.RAD_TO_DEG);
 				float attentionStrength = 1f - Mth.clamp(compression, 0f, 1f);
 				if (mode == AttentionMode.TURN) {
-					desiredBodyYaw = lerpAngle(attentionStrength, defaultYaw, targetYaw);
+					desiredBodyYaw = lerpAngle(attentionStrength, restingYaw, targetYaw);
 					desiredHeadYaw = desiredBodyYaw;
 				} else {
-					float headDelta = Mth.clamp(Mth.wrapDegrees(targetYaw - defaultYaw), -MAX_LOOK_HEAD_YAW,
+					float headDelta = Mth.clamp(Mth.wrapDegrees(targetYaw - restingYaw), -MAX_LOOK_HEAD_YAW,
 						MAX_LOOK_HEAD_YAW);
-					desiredHeadYaw = defaultYaw + headDelta * attentionStrength;
+					desiredHeadYaw = restingYaw + headDelta * attentionStrength;
 				}
 				desiredPitch = Mth.clamp(targetPitch, -35f, 35f) * attentionStrength;
 			}
@@ -429,7 +432,18 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			bodyYaw = lerpAngle(bodyBlend, bodyYaw, desiredBodyYaw);
 			headYaw = lerpAngle(headBlend, headYaw, desiredHeadYaw);
 			pitch = Mth.lerp(headBlend, pitch, desiredPitch);
-			return new CreeperAttentionPose(bodyYaw, headYaw, pitch);
+		}
+
+		private float bodyYaw() {
+			return bodyYaw;
+		}
+
+		private float headYaw() {
+			return headYaw;
+		}
+
+		private float pitch() {
+			return pitch;
 		}
 
 		private int nextDelay(int minInclusive, int maxInclusive) {

@@ -10,7 +10,6 @@
     "AbstractHorizontalFunnelBlockMixin",
     "AssemblyOperatorBlockItemMixin",
     "BasinBlockEntityMixin",
-    "BasinInventoryMixin",
     "BasinBlockMixin",
     "BasinBlockBeltOutputMixin",
     "BasinRecipeMixin",

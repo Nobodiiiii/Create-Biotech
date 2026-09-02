@@ -3284,6 +3284,8 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		private static StoredCreeper read(CompoundTag tag, HolderLookup.Provider registries) {
 			float defaultYaw = tag.contains("DefaultYaw", Tag.TAG_FLOAT)
 				? tag.getFloat("DefaultYaw") : Direction.NORTH.toYRot();
+			if (!Float.isFinite(defaultYaw))
+				defaultYaw = Direction.NORTH.toYRot();
 			return new StoredCreeper(BlockPos.of(tag.getLong("PackagerPos")),
 				ItemStack.parseOptional(registries, tag.getCompound("Payload")), tag.getBoolean("Charged"),
 				tag.getLong("RenderSeed"), Mth.wrapDegrees(defaultYaw));

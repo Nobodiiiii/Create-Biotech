@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -8,19 +9,34 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinInternalItemAccess;
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinItemHandlerView;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.simibubi.create.content.processing.basin.BasinBlock;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.IItemHandlerModifiable;
 
 @Mixin(value = BasinBlockEntity.class, priority = 1001)
-public abstract class BasinBlockEntityMixin {
+public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
+	@Shadow(remap = false)
+	protected IItemHandlerModifiable itemCapability;
+
+	@Unique
+	private IItemHandlerModifiable createBiotech$internalItemCapability;
+
+	@Unique
+	private IItemHandlerModifiable createBiotech$funnelItemCapability;
+
 	@Unique
 	private boolean createBiotech$spoutputTargetReserved;
 
@@ -30,7 +46,35 @@ public abstract class BasinBlockEntityMixin {
 	 * costs a single null check on basins that were never touched by the old entity mirror.
 	 */
 	@Unique
-	private int createBiotech$legacySlimeMigrationDelay = 20;
+	private int createBiotech$legacySlimeMigrationDelay = -1;
+
+	@Inject(method = "<init>", at = @At("RETURN"))
+	private void createBiotech$separateItemCapability(BlockEntityType<?> type, net.minecraft.core.BlockPos pos,
+		BlockState state, CallbackInfo ci) {
+		createBiotech$internalItemCapability = itemCapability;
+		createBiotech$funnelItemCapability = new BasinItemHandlerView(itemCapability, true);
+		itemCapability = new BasinItemHandlerView(itemCapability, false);
+	}
+
+	@Override
+	public IItemHandlerModifiable createBiotech$getInternalItemHandler() {
+		return createBiotech$internalItemCapability;
+	}
+
+	@Override
+	public IItemHandlerModifiable createBiotech$getFunnelItemHandler() {
+		return createBiotech$funnelItemCapability;
+	}
+
+	@Inject(
+		method = "read(Lnet/minecraft/nbt/CompoundTag;Lnet/minecraft/core/HolderLookup$Provider;Z)V",
+		at = @At("TAIL"))
+	private void createBiotech$scheduleLegacySlimeMigration(CompoundTag compound,
+		HolderLookup.Provider registries, boolean clientPacket, CallbackInfo ci) {
+		if (!clientPacket && BasinEntityProcessing.hasLegacyContainedSlimeData(
+			(BasinBlockEntity) (Object) this))
+			createBiotech$legacySlimeMigrationDelay = 20;
+	}
 
 	@Inject(method = "tick()V", at = @At("TAIL"), remap = false)
 	private void createBiotech$migrateLegacyCapturedSmallSlimes(CallbackInfo ci) {
@@ -39,18 +83,6 @@ public abstract class BasinBlockEntityMixin {
 		if (createBiotech$legacySlimeMigrationDelay-- > 0)
 			return;
 		BasinEntityProcessing.migrateLegacyContainedSlimes((BasinBlockEntity) (Object) this);
-	}
-
-	// Create moves finished output items back out of the basin here when the spoutput facing
-	// changes, and re-accepts them through acceptOutputs. Both ends touch the item capability.
-	@Inject(method = "updateSpoutput()V", at = @At("HEAD"), remap = false)
-	private void createBiotech$beginSpoutputSlimeItemMovement(CallbackInfo ci) {
-		BasinEntityProcessing.beginCapturedSlimeItemMovement();
-	}
-
-	@Inject(method = "updateSpoutput()V", at = @At("RETURN"), remap = false)
-	private void createBiotech$endSpoutputSlimeItemMovement(CallbackInfo ci) {
-		BasinEntityProcessing.endCapturedSlimeItemMovement();
 	}
 
 	@Inject(method = "tryClearingSpoutputOverflow()V", at = @At("HEAD"), remap = false)

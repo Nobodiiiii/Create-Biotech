@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.content.processing.basin;
 
 import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltFunnelStateExtensions;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
@@ -53,8 +55,6 @@ public final class BasinEntityProcessing {
 	private static final double LEGACY_SCAN_INNER_MAX = 14 / 16d;
 	private static final double LEGACY_SCAN_HEIGHT = 1.25d;
 
-	private static final ThreadLocal<int[]> MOVEMENT_SCOPE_DEPTH = ThreadLocal.withInitial(() -> new int[1]);
-
 	private BasinEntityProcessing() {}
 
 	public static boolean isCapturedSmallSlimeItem(ItemStack stack) {
@@ -71,25 +71,18 @@ public final class BasinEntityProcessing {
 			+ countCapturedSmallSlimeItems(basin.getOutputInventory());
 	}
 
-	/**
-	 * Opens the window in which control items may cross a basin inventory boundary.
-	 * <p>
-	 * Recipes, spoutput and funnels all reach the basin through its item capability, which is the
-	 * same door hoppers and pipes use, so the caller has to declare itself. Every scope must be
-	 * closed in a {@code finally} block or by a matching {@code RETURN} injection.
-	 */
-	public static void beginCapturedSlimeItemMovement() {
-		MOVEMENT_SCOPE_DEPTH.get()[0]++;
+	/** Internal recipes and basin-owned operations see an ordinary, unfiltered inventory. */
+	public static IItemHandlerModifiable getInternalItemHandler(BasinBlockEntity basin) {
+		return ((BasinInternalItemAccess) (Object) basin).createBiotech$getInternalItemHandler();
 	}
 
-	public static void endCapturedSlimeItemMovement() {
-		int[] depth = MOVEMENT_SCOPE_DEPTH.get();
-		if (depth[0] > 0)
-			depth[0]--;
+	/** Funnels may extract the control stack, but cannot insert one from item transport. */
+	public static IItemHandlerModifiable getFunnelItemHandler(BasinBlockEntity basin) {
+		return ((BasinInternalItemAccess) (Object) basin).createBiotech$getFunnelItemHandler();
 	}
 
-	public static boolean canMoveCapturedSmallSlimeItems() {
-		return MOVEMENT_SCOPE_DEPTH.get()[0] > 0;
+	public static boolean hasLegacyContainedSlimeData(BasinBlockEntity basin) {
+		return getLegacyData(basin) != null;
 	}
 
 	/**
@@ -104,13 +97,11 @@ public final class BasinEntityProcessing {
 		Level level = basin.getLevel();
 		if (level == null || level.isClientSide)
 			return;
+		CompoundTag data = getLegacyData(basin);
+		if (data == null)
+			return;
 		CompoundTag persistentData =
 			((BlockEntityPersistentDataAccessor) basin).createBiotech$getExistingPersistentData();
-		if (persistentData == null || !persistentData.contains(DATA_ROOT, Tag.TAG_COMPOUND))
-			return;
-		CompoundTag data = persistentData.getCompound(DATA_ROOT);
-		if (!data.contains(LEGACY_SYNCED_ITEM_COUNT_TAG) && !data.contains(LEGACY_DATA_VERSION_TAG))
-			return;
 
 		int authoritativeItems = getCapturedSmallSlimeItemCount(basin);
 		BlockPos basinPos = basin.getBlockPos();
@@ -193,14 +184,9 @@ public final class BasinEntityProcessing {
 	}
 
 	private static boolean insertCapturedSmallSlimeItem(BasinBlockEntity basin, boolean simulate) {
-		beginCapturedSlimeItemMovement();
-		try {
-			ItemStack stack = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
-			return ItemHandlerHelper.insertItemStacked(basin.getInputInventory(), stack, simulate)
-				.isEmpty();
-		} finally {
-			endCapturedSlimeItemMovement();
-		}
+		ItemStack stack = new ItemStack(CBItems.CAPTURED_SMALL_SLIME.get());
+		return ItemHandlerHelper.insertItemStacked(basin.getInputInventory(), stack, simulate)
+			.isEmpty();
 	}
 
 	private static int countCapturedSmallSlimeItems(IItemHandlerModifiable inventory) {
@@ -265,6 +251,17 @@ public final class BasinEntityProcessing {
 		CompoundTag data = persistentData.getCompound(DATA_ROOT);
 		return data.getBoolean(LEGACY_CAPTURED_TAG) && data.contains(LEGACY_BASIN_POS_TAG, Tag.TAG_LONG)
 			&& data.getLong(LEGACY_BASIN_POS_TAG) == basinPos.asLong();
+	}
+
+	@Nullable
+	private static CompoundTag getLegacyData(BasinBlockEntity basin) {
+		CompoundTag persistentData =
+			((BlockEntityPersistentDataAccessor) basin).createBiotech$getExistingPersistentData();
+		if (persistentData == null || !persistentData.contains(DATA_ROOT, Tag.TAG_COMPOUND))
+			return null;
+		CompoundTag data = persistentData.getCompound(DATA_ROOT);
+		return data.contains(LEGACY_SYNCED_ITEM_COUNT_TAG) || data.contains(LEGACY_DATA_VERSION_TAG)
+			? data : null;
 	}
 
 	private static void clearLegacyCaptureData(Slime slime, boolean restoreState) {

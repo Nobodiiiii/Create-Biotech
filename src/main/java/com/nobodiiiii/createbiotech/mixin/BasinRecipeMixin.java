@@ -2,14 +2,17 @@ package com.nobodiiiii.createbiotech.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinRecipe;
 
 import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.capabilities.BlockCapability;
 
 /**
  * Marks Create's basin recipe pass as an authorised captured-slime item mover.
@@ -22,19 +25,15 @@ import net.minecraft.world.item.crafting.Recipe;
 @Mixin(BasinRecipe.class)
 public abstract class BasinRecipeMixin {
 
-	@Inject(
+	@WrapOperation(
 		method = "apply(Lcom/simibubi/create/content/processing/basin/BasinBlockEntity;Lnet/minecraft/world/item/crafting/Recipe;Z)Z",
-		at = @At("HEAD"))
-	private static void createBiotech$beginCapturedSlimeItemMovement(BasinBlockEntity basin, Recipe<?> recipe,
-		boolean test, CallbackInfoReturnable<Boolean> cir) {
-		BasinEntityProcessing.beginCapturedSlimeItemMovement();
-	}
-
-	@Inject(
-		method = "apply(Lcom/simibubi/create/content/processing/basin/BasinBlockEntity;Lnet/minecraft/world/item/crafting/Recipe;Z)Z",
-		at = @At("RETURN"))
-	private static void createBiotech$endCapturedSlimeItemMovement(BasinBlockEntity basin, Recipe<?> recipe,
-		boolean test, CallbackInfoReturnable<Boolean> cir) {
-		BasinEntityProcessing.endCapturedSlimeItemMovement();
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/level/Level;getCapability(Lnet/neoforged/neoforge/capabilities/BlockCapability;Lnet/minecraft/core/BlockPos;Ljava/lang/Object;)Ljava/lang/Object;",
+			ordinal = 0))
+	private static Object createBiotech$useInternalItemInventory(Level level,
+		BlockCapability<?, ?> capability, BlockPos pos, Object context, Operation<Object> original,
+		BasinBlockEntity basin, Recipe<?> recipe, boolean test) {
+		return BasinEntityProcessing.getInternalItemHandler(basin);
 	}
 }

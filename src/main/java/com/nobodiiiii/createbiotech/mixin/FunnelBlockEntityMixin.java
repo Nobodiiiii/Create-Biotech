@@ -17,6 +17,7 @@ import com.nobodiiiii.createbiotech.content.beltsurface.BeltFunnelStateExtension
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinAwareFunnelInventoryBehaviour;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.SlimeCaptureFunnelAccess;
@@ -60,35 +61,6 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 
 	@Unique
 	private long createBiotech$nextSmallSlimeCaptureTime;
-
-	// Funnels reach a basin through its item capability, the same handler hoppers and pipes use,
-	// so the basin inventory cannot tell them apart. tick() covers both extracting variants and
-	// handleDirectBeltInput() covers a belt pushing control items in through this funnel.
-	@Inject(method = "tick()V", at = @At("HEAD"), remap = false)
-	private void createBiotech$beginCapturedSlimeItemMovement(CallbackInfo ci) {
-		BasinEntityProcessing.beginCapturedSlimeItemMovement();
-	}
-
-	@Inject(method = "tick()V", at = @At("RETURN"), remap = false)
-	private void createBiotech$endCapturedSlimeItemMovement(CallbackInfo ci) {
-		BasinEntityProcessing.endCapturedSlimeItemMovement();
-	}
-
-	@Inject(
-		method = "handleDirectBeltInput(Lcom/simibubi/create/content/kinetics/belt/transport/TransportedItemStack;Lnet/minecraft/core/Direction;Z)Lnet/minecraft/world/item/ItemStack;",
-		at = @At("HEAD"))
-	private void createBiotech$beginDirectBeltSlimeItemMovement(TransportedItemStack stack, Direction side,
-		boolean simulate, CallbackInfoReturnable<ItemStack> cir) {
-		BasinEntityProcessing.beginCapturedSlimeItemMovement();
-	}
-
-	@Inject(
-		method = "handleDirectBeltInput(Lcom/simibubi/create/content/kinetics/belt/transport/TransportedItemStack;Lnet/minecraft/core/Direction;Z)Lnet/minecraft/world/item/ItemStack;",
-		at = @At("RETURN"))
-	private void createBiotech$endDirectBeltSlimeItemMovement(TransportedItemStack stack, Direction side,
-		boolean simulate, CallbackInfoReturnable<ItemStack> cir) {
-		BasinEntityProcessing.endCapturedSlimeItemMovement();
-	}
 
 	@Override
 	public boolean createBiotech$tryCaptureSmallSlime(Slime slime) {
@@ -171,7 +143,8 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 		int index = behaviours.indexOf(invManipulation);
 		if (index == -1)
 			return;
-		InvManipulationBehaviour remapped = new InvManipulationBehaviour((FunnelBlockEntity) (Object) this,
+		InvManipulationBehaviour remapped = new BasinAwareFunnelInventoryBehaviour(
+			(FunnelBlockEntity) (Object) this,
 			FunnelBlockEntityMixin::createBiotech$getInventoryTarget);
 		behaviours.set(index, remapped);
 		invManipulation = remapped;
