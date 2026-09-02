@@ -31,6 +31,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalGlueJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGlueTransform;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalSlimeDrops;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBatchCutPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLayout;
@@ -1752,7 +1753,8 @@ public final class SurgicalTableClientHandler {
 			BlockPos target = targetedTableTile(minecraft, level);
 			if (target == null)
 				return;
-			CBPackets.sendToServer(new SurgicalTableTileShovelPacket(target, hand));
+			double volume = tileShovelVolume(level, target);
+			CBPackets.sendToServer(new SurgicalTableTileShovelPacket(target, hand, volume));
 			clearSelections();
 			consumeInteraction(event, hand);
 			return;
@@ -4737,6 +4739,121 @@ public final class SurgicalTableClientHandler {
 			}
 		}
 		return cuboids.isEmpty() ? Double.NaN : SurgicalVolumeSampler.unionVolume(cuboids);
+	}
+
+	/**
+	 * Measures every server-addressable group intersecting one tile without using ray hits. Exact
+	 * cached cuboids are preferred; topology-mismatch markers contribute their measured replacement
+	 * volume proportionally, and occupancy-only subjects fall back to saved projected area.
+	 */
+	private static double tileShovelVolume(ClientLevel level, BlockPos tilePos) {
+		SurgicalTablePlane.Plane plane = clientPlane(level, tilePos);
+		if (!plane.valid() || plane.source() == null
+			|| !(level.getBlockEntity(plane.source()) instanceof SurgicalTableBlockEntity table))
+			return 0.0d;
+
+		Map<Integer, BitSet> selected = new HashMap<>();
+		Set<Integer> purePlaceholders = new HashSet<>();
+		for (SurgicalSubject subject : table.getSubjects()) {
+			BitSet present = subject.presentCubesForRender(subject.cubeCount());
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
+				if (!footprintIntersectsTile(footprint, tilePos))
+					continue;
+				int root = footprint.componentRoot();
+				if (root >= 0 && present.get(root)) {
+					mergeComponents(selected, table.connectedComponents(subject.id(), root));
+					continue;
+				}
+				if (present.isEmpty()) {
+					purePlaceholders.add(subject.id());
+					continue;
+				}
+				// Envelope/invalid-root fallback mirrors wholeSubjectGroup() on the server.
+				for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+					BitSet alreadySelected = selected.get(subject.id());
+					if (alreadySelected != null && alreadySelected.get(cube))
+						continue;
+					mergeComponents(selected, table.connectedComponents(subject.id(), cube));
+				}
+			}
+		}
+
+		List<List<Vec3>> measuredCuboids = new ArrayList<>();
+		double fallbackVolume = 0.0d;
+		boolean usedProjectionFallback = false;
+		for (Map.Entry<Integer, BitSet> entry : selected.entrySet()) {
+			SurgicalSubject subject = table.getSubject(entry.getKey());
+			if (subject == null)
+				continue;
+			ReservedSubject reserved = RESERVED_SUBJECTS.get(subject.persistentId());
+			if (reserved != null && reserved.storedCubeCount() == subject.cubeCount()) {
+				int presentCount = subject.presentCubesForRender(subject.cubeCount()).cardinality();
+				if (presentCount > 0)
+					fallbackVolume += reservedVolume(subject, reserved)
+						* Math.min(1.0d, (double) entry.getValue().cardinality() / presentCount);
+				continue;
+			}
+
+			TableGeometry geometry = TABLES.get(new SubjectKey(table.getBlockPos(), subject.id()));
+			List<List<Vec3>> subjectCuboids = new ArrayList<>(entry.getValue().cardinality());
+			boolean complete = geometryReadyForUse(table, subject, geometry)
+				&& subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams);
+			if (complete) {
+				for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
+					cube = entry.getValue().nextSetBit(cube + 1)) {
+					SurgicalModelRenderContext.CubeGeometry cubeGeometry = geometry.cubesById.get(cube);
+					if (cubeGeometry == null) {
+						complete = false;
+						break;
+					}
+					subjectCuboids.add(cubeGeometry.corners());
+				}
+			}
+			if (complete) {
+				measuredCuboids.addAll(subjectCuboids);
+			} else {
+				fallbackVolume += projectedArea(subject, entry.getValue());
+				usedProjectionFallback = true;
+			}
+		}
+		for (int subjectId : purePlaceholders) {
+			SurgicalSubject subject = table.getSubject(subjectId);
+			if (subject == null)
+				continue;
+			fallbackVolume += projectedArea(subject, new BitSet());
+			usedProjectionFallback = true;
+		}
+
+		double measuredVolume = measuredCuboids.isEmpty() ? 0.0d
+			: SurgicalVolumeSampler.unionVolume(measuredCuboids);
+		if (!Double.isFinite(measuredVolume) || !Double.isFinite(fallbackVolume))
+			return 0.0d;
+		if (usedProjectionFallback)
+			fallbackVolume = Math.max(fallbackVolume, SurgicalSlimeDrops.ONE_BALL_VOLUME);
+		return Math.max(0.0d, measuredVolume + fallbackVolume);
+	}
+
+	private static void mergeComponents(Map<Integer, BitSet> selected,
+		Map<Integer, BitSet> added) {
+		for (Map.Entry<Integer, BitSet> entry : added.entrySet())
+			selected.computeIfAbsent(entry.getKey(), ignored -> new BitSet()).or(entry.getValue());
+	}
+
+	private static boolean footprintIntersectsTile(SurgicalTableLayout.Footprint footprint,
+		BlockPos tilePos) {
+		return footprint.minX() < tilePos.getX() + 1.0d - 1.0e-6d
+			&& footprint.maxX() > tilePos.getX() + 1.0e-6d
+			&& footprint.minZ() < tilePos.getZ() + 1.0d - 1.0e-6d
+			&& footprint.maxZ() > tilePos.getZ() + 1.0e-6d;
+	}
+
+	private static double projectedArea(SurgicalSubject subject, BitSet selected) {
+		double area = 0.0d;
+		for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+			if (subject.containsFootprint(selected, footprint))
+				area += Math.max(0.0d, footprint.maxX() - footprint.minX())
+					* Math.max(0.0d, footprint.maxZ() - footprint.minZ());
+		return area;
 	}
 
 	/** Selects one model cube without expanding through seams, glue joints, or combinations. */

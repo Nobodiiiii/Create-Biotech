@@ -701,10 +701,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	 * ids, or whose not-yet-observed placement is represented only by an envelope footprint.
 	 */
 	public boolean shovelIntersectingTile(Player player, ItemStack shovel, InteractionHand hand,
-		BlockPos tilePos, SurgicalTablePlane.Plane plane) {
+		BlockPos tilePos, SurgicalTablePlane.Plane plane, double volume) {
 		if (level == null || level.isClientSide || tilePos == null || plane == null || !plane.valid()
 			|| !worldPosition.equals(plane.source()) || !plane.workArea().containsTile(tilePos)
-			|| !SurgicalKitItem.isShovel(shovel))
+			|| !SurgicalKitItem.isShovel(shovel) || !Double.isFinite(volume) || volume < 0.0d)
 			return false;
 
 		Map<UUID, BitSet> selected = new HashMap<>();
@@ -728,12 +728,44 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !canPayInteractionCost(shovel, interactionCost, player))
 			return false;
 
+		double fallbackVolume = selectedProjectionArea(selected);
+		List<SurgicalSubject> purePlaceholders = selected.entrySet().stream()
+			.filter(entry -> entry.getValue().isEmpty())
+			.map(entry -> getSubjectByPersistentId(entry.getKey()))
+			.filter(java.util.Objects::nonNull)
+			.filter(subject -> subject.cubeCount() == 0)
+			.toList();
 		damageInteractionTool(shovel, interactionCost, player, hand);
 		removeTemporaryGroup(new ComponentGroup(selected));
+		// cubeCount == 0 deliberately is not considered an empty initialized subject by isEmpty();
+		// these entries are occupancy-only placements, so this recovery path retires them explicitly.
+		for (SurgicalSubject placeholder : purePlaceholders)
+			removeSubject(placeholder);
 		setChangedAndSync();
+		double dropVolume = volume > 0.0d ? volume
+			: Math.max(fallbackVolume, SurgicalSlimeDrops.ONE_BALL_VOLUME);
+		int drops = SurgicalSlimeDrops.roll(dropVolume, level.getRandom());
+		if (drops > 0)
+			Containers.dropItemStack(level, tilePos.getX() + 0.5d, plane.workArea().surfaceY(),
+				tilePos.getZ() + 0.5d, new ItemStack(Items.SLIME_BALL, drops));
 		level.playSound(null, tilePos, SoundEvents.SLIME_BLOCK_BREAK,
 			SoundSource.BLOCKS, 0.8f, 1.0f);
 		return true;
+	}
+
+	/** Conservative volume fallback for clients that cannot measure any model geometry at all. */
+	private double selectedProjectionArea(Map<UUID, BitSet> selected) {
+		double area = 0.0d;
+		for (SurgicalSubject subject : subjects) {
+			BitSet cubes = selected.get(subject.persistentId());
+			if (cubes == null)
+				continue;
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
+				if (subject.containsFootprint(cubes, footprint))
+					area += Math.max(0.0d, footprint.maxX() - footprint.minX())
+						* Math.max(0.0d, footprint.maxZ() - footprint.minZ());
+		}
+		return Double.isFinite(area) ? area : 0.0d;
 	}
 
 	private static boolean footprintIntersectsTile(SurgicalTableLayout.Footprint footprint,
