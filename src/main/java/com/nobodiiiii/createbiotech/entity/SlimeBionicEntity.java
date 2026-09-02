@@ -223,10 +223,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private void refreshMovementSpeed(SurgicalAssembly assembly) {
 		if (level().isClientSide)
 			return;
-		SurgicalAssembly.BodyBounds bounds = assembly.bodyBounds();
-		double speed = bounds == null ? SurgicalGait.ZOMBIE_WALK_SPEED
-			: SurgicalGait.movementSpeed(bounds.legLength(), bounds.groundedLegCount(),
-				bounds.groundedKneeCount(), bounds.legVolumeRatio());
+		double speed = SurgicalGait.movementSpeed(assembly.bodyBounds());
 		var movement = getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)
 			movement.setBaseValue(speed);
@@ -341,7 +338,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(selected.arm());
 		int baseInterval = stats.attackInterval();
 		int readyArms = geometry == null ? 1 : readyArmCount(geometry, rightRecovery, leftRecovery);
-		float cadenceScale = Math.max(0.7f, 1.0f - Math.max(0, readyArms - 1) * 0.1f);
+		float cadenceScale = SurgicalCombatCalibration.cadenceScale(readyArms);
 		int globalInterval = Math.max(1, Math.round(baseInterval * cadenceScale));
 		int duration = SlimeBionicCombat.duration(globalInterval);
 		startAttackPresentation(selected, duration);

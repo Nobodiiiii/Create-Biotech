@@ -18,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderManager;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
@@ -503,8 +504,8 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.MEDIUM_EXPERIENCE_BUD.get());
 		registerCreateStyleTooltip(CBItems.LARGE_EXPERIENCE_BUD.get());
 		registerCreateStyleTooltip(CBItems.EXPERIENCE_CLUSTER.get());
-		registerCreateStyleTooltip(CBItems.CARDBOARD_BOX.get(), CapturedEntityBoxHelper::hasCapturedEntity);
-		registerCreateStyleTooltip(CBItems.LARGE_CARDBOARD_BOX.get(), CapturedEntityBoxHelper::hasCapturedEntity);
+		registerCapturedBoxTooltip(CBItems.CARDBOARD_BOX.get());
+		registerCapturedBoxTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.CAPTURED_SMALL_SLIME.get());
 		registerCreateStyleTooltip(CBItems.DING_DONG_CHICKEN.get());
 		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());
@@ -541,6 +542,16 @@ public class CreateBiotechClient {
 			if (skipCondition.test(context.getItemStack()))
 				return;
 			description.modify(context);
+		});
+	}
+
+	private static void registerCapturedBoxTooltip(Item item) {
+		TooltipModifier description = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE);
+		TooltipModifier stats = new CapturedEntityBoxStatsTooltip();
+		TooltipModifier.REGISTRY.register(item, context -> {
+			if (!CapturedEntityBoxHelper.hasCapturedEntity(context.getItemStack()))
+				description.modify(context);
+			stats.modify(context);
 		});
 	}
 

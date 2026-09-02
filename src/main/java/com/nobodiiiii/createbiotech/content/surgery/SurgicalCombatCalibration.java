@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.util.Mth;
 
 /** Shared anatomical calibration for a stitched body's per-arm melee output and cadence. */
@@ -43,6 +45,35 @@ public final class SurgicalCombatCalibration {
 			MIN_ATTACK_INTERVAL, MAX_ATTACK_INTERVAL);
 		double damageMultiplier = dpsScale * attackInterval / ZOMBIE_ATTACK_INTERVAL;
 		return new ArmCombatStats(damageMultiplier, attackInterval);
+	}
+
+	/** The runtime's multi-arm global attack interval multiplier for the currently ready arms. */
+	public static float cadenceScale(int readyArmCount) {
+		return Math.max(0.7f, 1.0f - Math.max(0, readyArmCount - 1) * 0.1f);
+	}
+
+	/**
+	 * Stable, equipment-free DPS estimate for the boxed bionic creature tooltip.
+	 *
+	 * <p>Each arm contributes its geometry-normalized DPS, the contributions are averaged because
+	 * attacks are selected one at a time, and the full-ready multi-arm cadence is then applied. Target
+	 * reach, per-arm recovery state, held weapons and enchantments are intentionally situational and
+	 * therefore excluded from this base value.</p>
+	 */
+	public static double nominalDamagePerSecond(double baseAttackDamage,
+		@Nullable SurgicalAssembly.AttackGeometry geometry) {
+		if (!Double.isFinite(baseAttackDamage) || baseAttackDamage < 0.0d)
+			return 0.0d;
+		if (geometry == null || geometry.arms().isEmpty())
+			return baseAttackDamage;
+
+		double totalDps = 0.0d;
+		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms()) {
+			ArmCombatStats armStats = stats(arm);
+			totalDps += baseAttackDamage * armStats.damageMultiplier()
+				* ZOMBIE_ATTACK_INTERVAL / armStats.attackInterval();
+		}
+		return totalDps / geometry.armCount() / cadenceScale(geometry.armCount());
 	}
 
 	public record ArmCombatStats(double damageMultiplier, int attackInterval) {

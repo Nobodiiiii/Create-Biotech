@@ -30,6 +30,13 @@ public final class SurgicalGait {
 
 	private SurgicalGait() {}
 
+	/** Calculates the authoritative base speed stored on a completed surgical body. */
+	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds) {
+		return bounds == null ? ZOMBIE_WALK_SPEED
+			: movementSpeed(bounds.legLength(), bounds.groundedLegCount(),
+				bounds.groundedKneeCount(), bounds.legVolumeRatio());
+	}
+
 	/**
 	 * Calibrates two standard zombie-length grounded legs to ordinary zombie speed, then applies the
 	 * additive-inside-each-factor bonuses for extra grounded legs, grounded-leg volume and knees.
