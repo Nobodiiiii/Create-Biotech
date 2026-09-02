@@ -35,6 +35,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableShovelPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableTileShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicBodyBoundsPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicAttackActionPacket;
@@ -60,7 +61,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "40";
+	private static final String NETWORK_VERSION = "41";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -117,6 +118,8 @@ public final class CBPackets {
 			SurgicalTableReleaseGeometryPacket::write, SurgicalTableReleaseGeometryPacket::handle);
 		registerServer(SurgicalTableShovelPacket.class, SurgicalTableShovelPacket::new,
 			SurgicalTableShovelPacket::write, SurgicalTableShovelPacket::handle);
+		registerServer(SurgicalTableTileShovelPacket.class, SurgicalTableTileShovelPacket::new,
+			SurgicalTableTileShovelPacket::write, SurgicalTableTileShovelPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);

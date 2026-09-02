@@ -172,6 +172,7 @@
   "create_biotech.gui.surgical_table.action.select_second_slime_seam": "Select the second physically connected cube",
   "create_biotech.gui.surgical_table.action.remove_joint": "Dismantle and recover the joint",
   "create_biotech.gui.surgical_table.action.shovel_component": "Shovel off the targeted connected component",
+  "create_biotech.gui.surgical_table.action.shovel_tile": "Shovel off every component intersecting the targeted tabletop",
   "create_biotech.gui.surgical_table.action.cancel": "Cancel the current action",
   "message.create_biotech.surgical_table.limb_detached_neck": "The neck joint has been dismantled",
   "message.create_biotech.surgical_table.limb_detached_shoulder": "The shoulder joint has been dismantled",

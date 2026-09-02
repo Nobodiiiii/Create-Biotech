@@ -695,6 +695,73 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	/**
+	 * Removes every complete connectivity group whose saved horizontal projection has positive-area
+	 * overlap with {@code tilePos}. Selection uses only server-owned footprints and topology, so it
+	 * also reaches subjects whose model is unavailable, whose model no longer matches its saved cube
+	 * ids, or whose not-yet-observed placement is represented only by an envelope footprint.
+	 */
+	public boolean shovelIntersectingTile(Player player, ItemStack shovel, InteractionHand hand,
+		BlockPos tilePos, SurgicalTablePlane.Plane plane) {
+		if (level == null || level.isClientSide || tilePos == null || plane == null || !plane.valid()
+			|| !worldPosition.equals(plane.source()) || !plane.workArea().containsTile(tilePos)
+			|| !SurgicalKitItem.isShovel(shovel))
+			return false;
+
+		Map<UUID, BitSet> selected = new HashMap<>();
+		int interactionCost = 0;
+		for (SurgicalSubject subject : List.copyOf(subjects)) {
+			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
+				if (!footprintIntersectsTile(footprint, tilePos))
+					continue;
+				int root = footprint.componentRoot();
+				ComponentGroup group = root >= 0 && subject.validPresentCube(root)
+					? connectedGroup(subject, root) : wholeSubjectGroup(subject);
+				// A zero-cube subject has no graph vertex yet. Keeping an explicit empty member lets
+				// removeTemporaryGroup() retire that pure occupancy placeholder all the same.
+				if (group.components.isEmpty())
+					group = new ComponentGroup(Map.of(subject.persistentId(), new BitSet()));
+				if (mergeNewComponents(selected, group))
+					interactionCost++;
+			}
+		}
+		if (selected.isEmpty() || interactionCost == 0
+			|| !canPayInteractionCost(shovel, interactionCost, player))
+			return false;
+
+		damageInteractionTool(shovel, interactionCost, player, hand);
+		removeTemporaryGroup(new ComponentGroup(selected));
+		setChangedAndSync();
+		level.playSound(null, tilePos, SoundEvents.SLIME_BLOCK_BREAK,
+			SoundSource.BLOCKS, 0.8f, 1.0f);
+		return true;
+	}
+
+	private static boolean footprintIntersectsTile(SurgicalTableLayout.Footprint footprint,
+		BlockPos tilePos) {
+		return footprint.minX() < tilePos.getX() + 1.0d - 1.0e-6d
+			&& footprint.maxX() > tilePos.getX() + 1.0e-6d
+			&& footprint.minZ() < tilePos.getZ() + 1.0d - 1.0e-6d
+			&& footprint.maxZ() > tilePos.getZ() + 1.0e-6d;
+	}
+
+	/** Adds only previously unselected members and reports whether this is a new removal group. */
+	private static boolean mergeNewComponents(Map<UUID, BitSet> selected, ComponentGroup group) {
+		boolean added = false;
+		for (Map.Entry<UUID, BitSet> entry : group.components.entrySet()) {
+			BitSet existing = selected.get(entry.getKey());
+			if (existing == null) {
+				selected.put(entry.getKey(), (BitSet) entry.getValue().clone());
+				added = true;
+				continue;
+			}
+			int previousSize = existing.cardinality();
+			existing.or(entry.getValue());
+			added |= existing.cardinality() != previousSize;
+		}
+		return added;
+	}
+
+	/**
 	 * Everything still on the table that belongs to {@code subject}, closed over the connection
 	 * graph so anything glued or jointed to it comes along. Addressed purely from server-side
 	 * state: the subject's own present cubes seed the walk, never a client-supplied cube id.

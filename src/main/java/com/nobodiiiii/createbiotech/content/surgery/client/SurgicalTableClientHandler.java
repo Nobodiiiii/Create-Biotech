@@ -48,6 +48,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableShovelPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableTileShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
@@ -142,6 +143,7 @@ public final class SurgicalTableClientHandler {
 	private static final OutlineState RESERVED_OUTLINE = new OutlineState();
 	private static final OutlineState RESERVED_SELECTION_OUTLINE = new OutlineState();
 	private static final Object PLACEMENT_OUTLINE_SLOT = new Object();
+	private static final Object SHOVEL_TILE_OUTLINE_SLOT = new Object();
 	/** Current interaction/render address. This changes whenever the north-west controller moves. */
 	private static final Map<SubjectKey, TableGeometry> TABLES = new HashMap<>();
 	/** Stable geometry ownership. A controller move must not invalidate immutable model geometry. */
@@ -165,6 +167,9 @@ public final class SurgicalTableClientHandler {
 	private static final Set<UUID> SAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static final Set<UUID> UNSAFE_OWNER_HANDOFFS = new java.util.HashSet<>();
 	private static long lastPlacementOutlineTick = Long.MIN_VALUE;
+	private static long lastShovelTileOutlineTick = Long.MIN_VALUE;
+	@Nullable
+	private static BlockPos shovelTileOutlinePos;
 	private static long geometryGeneration;
 	private static long lastSelectionTick = Long.MIN_VALUE;
 	private static long lastSelectionGeneration = Long.MIN_VALUE;
@@ -838,6 +843,7 @@ public final class SurgicalTableClientHandler {
 		RESERVED_SUBJECTS.clear();
 		RESERVED_OUTLINE.clear();
 		RESERVED_SELECTION_OUTLINE.clear();
+		clearShovelTileOutline();
 		validatedOwnerHandoff = null;
 		SAFE_OWNER_HANDOFFS.clear();
 		UNSAFE_OWNER_HANDOFFS.clear();
@@ -967,7 +973,60 @@ public final class SurgicalTableClientHandler {
 		}
 		updatePlacementPreview();
 		updateSelections();
+		updateShovelTileOutline();
 		updateReservedOutline();
+	}
+
+	/** Draws the Ctrl-shovel target with the same thin tabletop box used by placement previews. */
+	private static void updateShovelTileOutline() {
+		Minecraft minecraft = Minecraft.getInstance();
+		LocalPlayer player = minecraft.player;
+		ClientLevel level = minecraft.level;
+		boolean holdingShovel = player != null && (SurgicalKitItem.isShovel(player.getMainHandItem())
+			|| SurgicalKitItem.isShovel(player.getOffhandItem()));
+		BlockPos target = holdingShovel && Screen.hasControlDown() && level != null
+			? targetedTableTile(minecraft, level) : null;
+		if (target == null) {
+			clearShovelTileOutline();
+			return;
+		}
+		long tick = level.getGameTime();
+		if (target.equals(shovelTileOutlinePos)) {
+			if (tick != lastShovelTileOutlineTick) {
+				Outliner.getInstance().keep(SHOVEL_TILE_OUTLINE_SLOT);
+				lastShovelTileOutlineTick = tick;
+			}
+			return;
+		}
+
+		double surfaceY = SurgicalTablePlane.surfaceY(target.getY());
+		Outliner.getInstance().showAABB(SHOVEL_TILE_OUTLINE_SLOT,
+			new AABB(target.getX(), surfaceY + 0.002d, target.getZ(),
+				target.getX() + 1.0d, surfaceY + 0.012d, target.getZ() + 1.0d))
+			.colored(PonderPalette.RED.getColor())
+			.disableLineNormals()
+			.lineWidth(HIGHLIGHT_LINE_WIDTH);
+		shovelTileOutlinePos = target.immutable();
+		lastShovelTileOutlineTick = tick;
+	}
+
+	private static void clearShovelTileOutline() {
+		if (shovelTileOutlinePos != null)
+			Outliner.getInstance().remove(SHOVEL_TILE_OUTLINE_SLOT);
+		shovelTileOutlinePos = null;
+		lastShovelTileOutlineTick = Long.MIN_VALUE;
+	}
+
+	/** The actual vanilla-targeted table tile; independent of renderable surgical model geometry. */
+	@Nullable
+	private static BlockPos targetedTableTile(Minecraft minecraft, ClientLevel level) {
+		if (minecraft.screen != null || !(minecraft.hitResult instanceof BlockHitResult hit))
+			return null;
+		BlockPos target = hit.getBlockPos();
+		if (!(level.getBlockState(target).getBlock() instanceof SurgicalTableBlock))
+			return null;
+		SurgicalTablePlane.Plane plane = clientPlane(level, target);
+		return plane.valid() && plane.workArea().containsTile(target) ? target : null;
 	}
 
 	private static void updatePlacementPreview() {
@@ -1405,6 +1464,7 @@ public final class SurgicalTableClientHandler {
 		if (!holdingSlimeBall && pendingSlimeSeam != null)
 			clearPendingSlimeSeam();
 		boolean highlightingDirectConnections = holdingShears && Screen.hasControlDown();
+		boolean shovelingTile = holdingShovel && Screen.hasControlDown();
 		if (!holdingShears && !holdingEmptyBox && !holdingEmptyLargeBox && !holdingGlue && !holdingSymmetry
 			&& !holdingHoney && !holdingSlimeBall
 			&& !holdingJoint && !holdingWrench && !holdingShovel) {
@@ -1431,7 +1491,8 @@ public final class SurgicalTableClientHandler {
 			| (holdingJoint ? 64 : 0) | (holdingWrench ? 128 : 0)
 			| (holdingSymmetry ? 256 : 0)
 			| (pendingSymmetryReference != null && Screen.hasControlDown() ? 512 : 0)
-			| (holdingSlimeBall ? 1024 : 0) | (holdingShovel ? 2048 : 0);
+			| (holdingSlimeBall ? 1024 : 0) | (holdingShovel ? 2048 : 0)
+			| (shovelingTile ? 4096 : 0);
 		if (lastSelectionTick == level.getGameTime() && lastSelectionGeneration == geometryGeneration
 			&& lastSelectionMode == selectionMode && ray.equals(lastSelectionRay)
 			&& pendingGlue == lastSelectionPendingGlue && pendingSymmetry == lastSelectionPendingSymmetry
@@ -1454,7 +1515,7 @@ public final class SurgicalTableClientHandler {
 		boolean selectingSlimeSeam = promptHand != null
 			&& SurgicalKitItem.isSlimeBall(player.getItemInHand(promptHand));
 		CubeHit cubeHit = holdingShears || holdingEmptyBox || holdingGlue || holdingSymmetry || holdingHoney || holdingJoint
-			|| holdingWrench || holdingSlimeBall || holdingShovel
+			|| holdingWrench || holdingSlimeBall || holdingShovel && !shovelingTile
 			? selectingSlimeSeam
 				? findNearestSlimeSeamHit(player, level, ray, pendingSlimeSeam)
 				: findNearestCubeHit(player, level, ray)
@@ -1490,7 +1551,7 @@ public final class SurgicalTableClientHandler {
 		limbSelection = holdingJoint ? findLimbTargetSelection(cubeHit) : null;
 		slimeSeamSelection = holdingSlimeBall ? findSlimeSeamTargetSelection(level, cubeHit) : null;
 		wrenchSelection = holdingWrench ? findLimbJointSelection(player, level, ray, cubeHit) : null;
-		componentSelection = holdingShovel
+		componentSelection = holdingShovel && !shovelingTile
 			? findConnectedComponentSelection(cubeHit)
 			: holdingHoney
 			? findConnectedComponentSelection(cubeHit)
@@ -1503,7 +1564,7 @@ public final class SurgicalTableClientHandler {
 			: !holdingShears && holdingEmptyLargeBox ? findConnectedComponentSelection(cubeHit) : null;
 		// Only reached when nothing pickable is under the ray, so an ordinary component always wins
 		// over a reserved column standing in the same place.
-		reservedSelection = holdingShovel && componentSelection == null
+		reservedSelection = holdingShovel && !shovelingTile && componentSelection == null
 			? findReservedHit(player, level, ray) : null;
 		refreshCurrentSelectionHighlight();
 	}
@@ -1684,6 +1745,15 @@ public final class SurgicalTableClientHandler {
 			return;
 		if (CapturedEntityBoxHelper.hasCapturedEntity(held)
 			&& tryPlaceSubject(minecraft.player, level, hand, held)) {
+			consumeInteraction(event, hand);
+			return;
+		}
+		if (SurgicalKitItem.isShovel(held) && Screen.hasControlDown()) {
+			BlockPos target = targetedTableTile(minecraft, level);
+			if (target == null)
+				return;
+			CBPackets.sendToServer(new SurgicalTableTileShovelPacket(target, hand));
+			clearSelections();
 			consumeInteraction(event, hand);
 			return;
 		}
@@ -3381,7 +3451,9 @@ public final class SurgicalTableClientHandler {
 		// A reserved column exposes no cube to hit, but a shovel can still act on it.
 		if (!hitsCube && SurgicalKitItem.isShovel(stack))
 			hitsCube = findReservedHit(player, level, ray) != null;
-		if (!hitsCube) {
+		boolean hitsShovelTile = SurgicalKitItem.isShovel(stack)
+			&& targetedTableTile(minecraft, level) != null;
+		if (!hitsCube && !hitsShovelTile) {
 			hand = capturedSubjectPlacementPromptHand(player, level);
 			if (hand == null)
 				return null;
@@ -3445,7 +3517,10 @@ public final class SurgicalTableClientHandler {
 			addCancelControl(tooltip, pendingSlimeSeam != null);
 		} else if (SurgicalKitItem.isShovel(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.shovel_component");
+				"create_biotech.gui.surgical_table.action.shovel_component", hitsCube);
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
+				"create_biotech.gui.surgical_table.action.shovel_tile", hitsShovelTile);
 		} else if (SurgicalKitItem.isShears(stack)) {
 			boolean placingCut = pendingCut != null || pendingGlueCut != null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
@@ -4314,7 +4389,8 @@ public final class SurgicalTableClientHandler {
 			|| belongsToSelectionPlane(level, target, symmetrySelection)
 			|| belongsToSelectionPlane(level, target, limbSelection)
 			|| belongsToSelectionPlane(level, target,
-				wrenchSelection == null ? null : wrenchSelection.selection)))
+				wrenchSelection == null ? null : wrenchSelection.selection)
+			|| target.equals(shovelTileOutlinePos)))
 			event.setCanceled(true);
 	}
 
