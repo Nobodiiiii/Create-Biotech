@@ -10,6 +10,8 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
+import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.simibubi.create.foundation.item.TooltipModifier;
 
@@ -36,7 +38,7 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	private static ItemStack cachedStack = ItemStack.EMPTY;
 	@Nullable
-	private static List<BaseStat> cachedStats;
+	private static BoxDetails cachedDetails;
 
 	@Override
 	public void modify(ItemTooltipEvent context) {
@@ -47,8 +49,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	/** Appends the same expandable section to inventory and surgical-table HUD tooltips. */
 	public static void append(ItemStack stack, Level level, List<Component> tooltip) {
-		List<BaseStat> stats = stats(stack, level);
-		if (stats == null || stats.isEmpty())
+		BoxDetails details = details(stack, level);
+		if (details == null || details.stats().isEmpty())
 			return;
 
 		boolean expanded = Screen.hasAltDown();
@@ -61,22 +63,41 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.base_stats")
 			.withStyle(ChatFormatting.GOLD));
-		for (BaseStat stat : stats)
+		for (BaseStat stat : details.stats())
 			tooltip.add(stat.line());
+
+		BionicMind mind = BionicMind.resolve(details.assembly(), level);
+		if (mind.hasRecognizedHead())
+			appendDispositionSection(tooltip, mind.disposition());
+	}
+
+	/** Adds the shared Create-style property heading and its disposition value. */
+	public static void appendDispositionSection(List<Component> tooltip, BionicDisposition disposition) {
+		tooltip.add(CommonComponents.EMPTY);
+		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
+			.withStyle(ChatFormatting.GOLD));
+		ChatFormatting color = switch (disposition) {
+		case FRIENDLY -> ChatFormatting.GREEN;
+		case NEUTRAL -> ChatFormatting.YELLOW;
+		case HOSTILE -> ChatFormatting.RED;
+		};
+		tooltip.add(Component.literal(" ")
+			.append(Component.translatable("create_biotech.disposition."
+				+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
 	}
 
 	@Nullable
-	private static List<BaseStat> stats(ItemStack stack, Level level) {
+	private static BoxDetails details(ItemStack stack, Level level) {
 		if (ItemStack.isSameItemSameComponents(cachedStack, stack))
-			return cachedStats;
+			return cachedDetails;
 
 		cachedStack = stack.copyWithCount(1);
-		cachedStats = captureStats(stack, level);
-		return cachedStats;
+		cachedDetails = captureDetails(stack, level);
+		return cachedDetails;
 	}
 
 	@Nullable
-	private static List<BaseStat> captureStats(ItemStack stack, Level level) {
+	private static BoxDetails captureDetails(ItemStack stack, Level level) {
 		// Ordinary slime mimics deliberately have no numerical expansion. Checking the saved type
 		// before constructing the entity keeps their hover path free of attribute/model work.
 		if (!CapturedEntityBoxHelper.containsEntityType(stack, CBEntityTypes.SLIME_BIONIC.get()))
@@ -97,7 +118,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return List.copyOf(stats);
+		return new BoxDetails(List.copyOf(stats), assembly);
 	}
 
 	private static void add(List<BaseStat> stats, LivingEntity living, Holder<Attribute> attribute,
@@ -145,6 +166,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		PERCENTAGE,
 		INTEGER
 	}
+
+	private record BoxDetails(List<BaseStat> stats, SurgicalAssembly assembly) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
 		private Component line() {

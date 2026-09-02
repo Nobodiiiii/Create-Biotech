@@ -55,6 +55,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -3449,7 +3450,8 @@ public final class SurgicalTableClientHandler {
 			return null;
 		ItemStack stack = player.getItemInHand(hand);
 		Ray ray = playerRay(player);
-		boolean hitsCube = findNearestCubeHit(player, level, ray) != null;
+		CubeHit cubeHit = findNearestCubeHit(player, level, ray);
+		boolean hitsCube = cubeHit != null;
 		if (!hitsCube && glueEditor != null && glueEditor.hand == hand)
 			hitsCube = findNearestGluePreviewHit(player, level, glueEditor) != null;
 		// A reserved column exposes no cube to hit, but a shovel can still act on it.
@@ -3544,6 +3546,8 @@ public final class SurgicalTableClientHandler {
 		} else if (isEmptyBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
+			if (stack.getItem() instanceof LargeCardboardBoxItem)
+				appendPackedDisposition(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.remove_joint");
@@ -3555,6 +3559,18 @@ public final class SurgicalTableClientHandler {
 			return null;
 		}
 		return new InteractionPrompt(stack, tooltip);
+	}
+
+	private static void appendPackedDisposition(List<Component> tooltip, ClientLevel level,
+		@Nullable CubeHit hit) {
+		if (hit == null
+			|| !(level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity table))
+			return;
+		SurgicalAssembly preview = table.previewPackedAssembly(hit.geometry.subjectId,
+			hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
+		BionicMind mind = BionicMind.resolve(preview, level);
+		if (mind.hasRecognizedHead())
+			CapturedEntityBoxStatsTooltip.appendDispositionSection(tooltip, mind.disposition());
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
