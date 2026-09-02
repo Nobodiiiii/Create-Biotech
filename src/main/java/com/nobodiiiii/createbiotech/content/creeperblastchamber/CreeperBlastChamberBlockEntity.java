@@ -120,11 +120,9 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	private static final String CREEPER_FACE_VISIBLE_TAG = "CreeperFaceVisible";
 	private static final String OVERLOAD_POINTS_TAG = "OverloadPoints";
 	private static final int OUTPUT_REQUEST_KEEPALIVE_TICKS = 2;
-	/**
-	 * Length of the pop-in a creeper plays on arrival. Deliberately independent of the packager
-	 * cycle that drives the outward animation: this one only has to sell the appearance.
-	 */
-	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 8;
+	/** Visual transition lengths stay independent of the configurable bio-packager cycle. */
+	private static final int CREEPER_ENTRY_ANIMATION_TICKS = 10;
+	private static final int CREEPER_EXIT_ANIMATION_TICKS = 10;
 	/** Equal window counts use this stable order; facing never depends on a random render seed. */
 	private static final Direction[] CREEPER_WINDOW_FACING_PRIORITY = {
 		Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST
@@ -2902,15 +2900,16 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 					stored.renderSeed(), stored.defaultYaw(), pending.ticksRemaining, pending.totalTicks, false));
 		}
 		for (PendingPackaging pending : pendingPackagings) {
-			if (pending.ticksRemaining <= BioPackagerBlockEntity.getCycleTicks())
+			int packagingTicksElapsed = pending.totalTicks - pending.ticksRemaining;
+			int exitTicksRemaining = CREEPER_EXIT_ANIMATION_TICKS - packagingTicksElapsed;
+			if (exitTicksRemaining <= 0)
 				continue;
-			int outwardTicksRemaining = pending.ticksRemaining - BioPackagerBlockEntity.getCycleTicks();
 			StoredCreeper stored = storedCreepers.get(pending.packagerPos);
 			ItemStack payload = stored == null ? pending.boxStack : stored.normalizedPayloadBox();
 			long renderSeed = stored == null ? pending.packagerPos.asLong() : stored.renderSeed();
 			float defaultYaw = stored == null ? Direction.NORTH.toYRot() : stored.defaultYaw();
 			renderAnimations.add(new RenderCreeperAnimation(pending.packagerPos, payload, renderSeed, defaultYaw,
-				outwardTicksRemaining, BioPackagerBlockEntity.getCycleTicks(), true));
+				exitTicksRemaining, CREEPER_EXIT_ANIMATION_TICKS, true));
 		}
 		return renderAnimations;
 	}

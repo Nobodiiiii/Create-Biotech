@@ -1,9 +1,6 @@
 package com.nobodiiiii.createbiotech.content.petridish;
 
 import net.minecraft.core.HolderLookup;
-
-import net.minecraft.core.registries.Registries;
-
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.List;
@@ -12,6 +9,9 @@ import java.util.UUID;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+
+import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
@@ -43,7 +43,9 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -59,6 +61,9 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 
 public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, Clearable {
 
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int[] FALLBACK_SLIME_SIZES = { 1, 2, 4 };
+
 	public static final int GROWTH_ANIMATION_DURATION = 8;
 	public static final int EMERGENCE_ANIMATION_DURATION = 20;
 	public static final double EMERGENCE_SPAWN_Y_OFFSET = 2.0d / 16.0d;
@@ -67,6 +72,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private static final String TANK_TAG = "Tank";
 	private static final String RECORDED_ENTITY_ID_TAG = "RecordedEntityId";
 	private static final String RECORDED_MAX_HEALTH_TAG = "RecordedMaxHealth";
+	private static final String RECORDED_WIDTH_TAG = "RecordedWidth";
+	private static final String RECORDED_HEIGHT_TAG = "RecordedHeight";
 	private static final String RECORDED_MIMIC_PROFILE_TAG = "RecordedMimicProfile";
 	private static final String SCAN_COOLDOWN_TAG = "ScanCooldown";
 	private static final String EMERGENCE_IN_PROGRESS_TAG = "EmergenceInProgress";
@@ -113,6 +120,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	@Nullable
 	private MimicProfile recordedMimicProfile;
 	private float recordedMaxHealth;
+	private float recordedWidth;
+	private float recordedHeight;
 	private int scanCooldown;
 	@Nullable
 	private UUID advancementOwner;
@@ -395,12 +404,13 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			&& clientPreviewEntity.level() == level)
 			return clientPreviewEntity;
 
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(recordedEntityId);
+		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
+			.orElse(null);
 		if (entityType == null)
 			return null;
 
 		Entity preview = entityType.create(level);
-		if (!(preview instanceof LivingEntity livingPreview))
+		if (!(preview instanceof Mob livingPreview))
 			return null;
 
 		if (recordedMimicProfile != null)
@@ -471,7 +481,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (required <= 0 || fluidTank.getFluidAmount() < required)
 			return;
 
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(recordedEntityId);
+		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
+			.orElse(null);
 		if (entityType == null)
 			return;
 
@@ -507,7 +518,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			cancelEmergence();
 			return;
 		}
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.get(recordedEntityId);
+		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
+			.orElse(null);
 		if (entityType == null) {
 			cancelEmergence();
 			return;
@@ -529,30 +541,14 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 
 		float spawnYaw = getSpawnYaw();
-		Entity spawned = entityType.spawn(serverLevel, entity -> {
-			entity.moveTo(spawnX, spawnY, spawnZ, spawnYaw, entity.getXRot());
-			prepareSpawnedMimic(entity);
-		}, spawnPos, MobSpawnType.DISPENSER, true, false);
-		if (spawned == null) {
-			spawned = entityType.create(serverLevel);
-			if (spawned != null) {
-				prepareSpawnedMimic(spawned);
-				spawned.moveTo(spawnX, spawnY, spawnZ, serverLevel.random.nextFloat() * 360.0f, 0.0f);
-				serverLevel.addFreshEntity(spawned);
-			}
-		}
-		if (!(spawned instanceof LivingEntity livingEntity)) {
+		Mob livingEntity = trySpawnRecordedMob(serverLevel, entityType, spawnPos, spawnX, spawnY, spawnZ, spawnYaw);
+		if (livingEntity == null)
+			livingEntity = trySpawnFallbackSlime(serverLevel, entityType, spawnPos, spawnX, spawnY, spawnZ, spawnYaw);
+		if (livingEntity == null) {
 			cancelEmergence();
 			return;
 		}
 
-		livingEntity.moveTo(spawnX, spawnY, spawnZ, spawnYaw, livingEntity.getXRot());
-		livingEntity.setYRot(spawnYaw);
-		livingEntity.yRotO = spawnYaw;
-		livingEntity.setYBodyRot(spawnYaw);
-		livingEntity.yBodyRotO = spawnYaw;
-		livingEntity.setYHeadRot(spawnYaw);
-		livingEntity.yHeadRotO = spawnYaw;
 		emergenceInProgress = false;
 		emergenceTicksRemaining = 0;
 		fluidTank.drain(required, FluidAction.EXECUTE);
@@ -561,6 +557,106 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		clearRecordedEntity();
 		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE, SoundSource.BLOCKS, 0.7f, 0.9f);
 		sendData();
+	}
+
+	@Nullable
+	private Mob trySpawnRecordedMob(ServerLevel serverLevel, EntityType<?> entityType, BlockPos spawnPos,
+		double spawnX, double spawnY, double spawnZ, float spawnYaw) {
+		Entity created = null;
+		try {
+			// EntityType.spawn() adds the entity before returning it. Keep creation and insertion separate so
+			// unsupported types and failed spawn packets can be discarded before falling back safely.
+			created = entityType.create(serverLevel, null, spawnPos, MobSpawnType.DISPENSER, true, false);
+			if (!(created instanceof Mob mob)) {
+				if (created != null)
+					created.discard();
+				LOGGER.warn("Petri dish at {} recorded non-mob entity type {}; using slime fallback",
+					worldPosition, recordedEntityId);
+				return null;
+			}
+
+			prepareSpawnedMimic(mob);
+			positionSpawnedMob(mob, spawnX, spawnY, spawnZ, spawnYaw);
+			if (!serverLevel.addFreshEntity(mob)) {
+				mob.discard();
+				LOGGER.warn("Petri dish at {} could not add cultivated {}; using slime fallback",
+					worldPosition, recordedEntityId);
+				return null;
+			}
+			return mob;
+		} catch (RuntimeException exception) {
+			if (created != null)
+				created.discard();
+			LOGGER.error("Petri dish at {} failed to cultivate {}; using slime fallback",
+				worldPosition, recordedEntityId, exception);
+			return null;
+		}
+	}
+
+	@Nullable
+	private Slime trySpawnFallbackSlime(ServerLevel serverLevel, EntityType<?> recordedType, BlockPos spawnPos,
+		double spawnX, double spawnY, double spawnZ, float spawnYaw) {
+		Slime slime = null;
+		try {
+			slime = EntityType.SLIME.create(serverLevel, null, spawnPos, MobSpawnType.DISPENSER, true, false);
+			if (slime == null) {
+				LOGGER.error("Petri dish at {} could not create its slime fallback for {}",
+					worldPosition, recordedEntityId);
+				return null;
+			}
+
+			int slimeSize = selectFallbackSlimeSize(slime, recordedType);
+			slime.setSize(slimeSize, true);
+			SlimeMimicHandler.markSpawnedEntity(slime);
+			positionSpawnedMob(slime, spawnX, spawnY, spawnZ, spawnYaw);
+			if (!serverLevel.addFreshEntity(slime)) {
+				slime.discard();
+				LOGGER.error("Petri dish at {} could not add its size-{} slime fallback for {}",
+					worldPosition, slimeSize, recordedEntityId);
+				return null;
+			}
+			LOGGER.warn("Petri dish at {} replaced failed cultivation of {} with a size-{} slime",
+				worldPosition, recordedEntityId, slimeSize);
+			return slime;
+		} catch (RuntimeException exception) {
+			if (slime != null)
+				slime.discard();
+			LOGGER.error("Petri dish at {} failed to spawn its slime fallback for {}",
+				worldPosition, recordedEntityId, exception);
+			return null;
+		}
+	}
+
+	private int selectFallbackSlimeSize(Slime slime, EntityType<?> recordedType) {
+		float targetWidth = sanitizeRecordedDimension(recordedWidth, recordedType.getWidth());
+		float targetHeight = sanitizeRecordedDimension(recordedHeight, recordedType.getHeight());
+		double targetVolume = targetWidth * targetWidth * targetHeight;
+		int closestSize = FALLBACK_SLIME_SIZES[0];
+		double closestDistance = Double.POSITIVE_INFINITY;
+		for (int candidate : FALLBACK_SLIME_SIZES) {
+			slime.setSize(candidate, false);
+			double candidateVolume = slime.getBbWidth() * slime.getBbWidth() * slime.getBbHeight();
+			double distance = Math.abs(Math.log(candidateVolume / targetVolume));
+			if (distance < closestDistance) {
+				closestDistance = distance;
+				closestSize = candidate;
+			}
+		}
+		return closestSize;
+	}
+
+	private static float sanitizeRecordedDimension(float recorded, float fallback) {
+		return Float.isFinite(recorded) && recorded > 0.0f ? recorded : Math.max(fallback, 0.01f);
+	}
+
+	private static void positionSpawnedMob(Mob mob, double spawnX, double spawnY, double spawnZ, float spawnYaw) {
+		mob.moveTo(spawnX, spawnY, spawnZ, spawnYaw, mob.getXRot());
+		mob.setYRot(spawnYaw);
+		mob.yRotO = spawnYaw;
+		mob.setYBodyRot(spawnYaw);
+		mob.yBodyRotO = spawnYaw;
+		mob.setYHeadRot(spawnYaw);
+		mob.yHeadRotO = spawnYaw;
 	}
 
 	private void prepareSpawnedMimic(@Nullable Entity entity) {
@@ -604,8 +700,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		}
 
-		List<LivingEntity> entities = getNearbyLivingEntities();
-		for (LivingEntity entity : entities) {
+		List<Mob> entities = getNearbyMobs();
+		for (Mob entity : entities) {
 			if (!isRecordableEntity(entity))
 				continue;
 			recordEntity(entity);
@@ -616,19 +712,21 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private boolean hasMatchingEntityNearby() {
 		if (recordedEntityId == null)
 			return false;
-		for (LivingEntity entity : getNearbyLivingEntities()) {
-			ResourceLocation entityId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+		for (Mob entity : getNearbyMobs()) {
+			ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 			if (Objects.equals(recordedEntityId, entityId))
 				return true;
 		}
 		return false;
 	}
 
-	private List<LivingEntity> getNearbyLivingEntities() {
+	private List<Mob> getNearbyMobs() {
 		if (level == null)
 			return List.of();
 		AABB bounds = new AABB(worldPosition).inflate(getScanRadius());
-		return level.getEntitiesOfClass(LivingEntity.class, bounds, this::isRecordableEntity);
+		// LivingEntity is deliberately too broad: Create packages are LivingEntity instances as an
+		// implementation detail. Mob is the gameplay boundary for creatures the dish may imitate.
+		return level.getEntitiesOfClass(Mob.class, bounds, this::isRecordableEntity);
 	}
 
 	private static int getScanInterval() {
@@ -651,29 +749,26 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		return CBConfigs.SERVER.petriDish.requireNearbyMatchingEntity.get();
 	}
 
-	private boolean isRecordableEntity(LivingEntity entity) {
+	private boolean isRecordableEntity(Mob entity) {
 		if (!entity.isAlive())
 			return false;
 		if (entity.isSpectator())
 			return false;
 		if (entity.blockPosition().equals(worldPosition))
 			return false;
-		if (entity instanceof Player)
-			return false;
-		EntityType<?> type = entity.getType();
-		if (type == EntityType.ARMOR_STAND)
-			return false;
-		ResourceLocation entityId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(type);
+		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 		return entityId != null;
 	}
 
-	private void recordEntity(LivingEntity entity) {
-		ResourceLocation entityId = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+	private void recordEntity(Mob entity) {
+		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 		if (entityId == null)
 			return;
 		recordedEntityId = entityId;
 		recordedMimicProfile = MimicProfile.capture(entity);
 		recordedMaxHealth = entity.getMaxHealth();
+		recordedWidth = entity.getBbWidth();
+		recordedHeight = entity.getBbHeight();
 		int required = getRequiredFluidAmount();
 		if (fluidTank.getFluidAmount() > required) {
 			fluidTank.drain(fluidTank.getFluidAmount() - required, FluidAction.EXECUTE);
@@ -686,6 +781,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		recordedEntityId = null;
 		recordedMimicProfile = null;
 		recordedMaxHealth = 0;
+		recordedWidth = 0;
+		recordedHeight = 0;
 		scanCooldown = 0;
 		emergenceInProgress = false;
 		emergenceTicksRemaining = 0;
@@ -724,6 +821,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (recordedMimicProfile != null)
 			tag.put(RECORDED_MIMIC_PROFILE_TAG, recordedMimicProfile.save());
 		tag.putFloat(RECORDED_MAX_HEALTH_TAG, recordedMaxHealth);
+		tag.putFloat(RECORDED_WIDTH_TAG, recordedWidth);
+		tag.putFloat(RECORDED_HEIGHT_TAG, recordedHeight);
 		tag.putInt(SCAN_COOLDOWN_TAG, scanCooldown);
 		tag.putBoolean(EMERGENCE_IN_PROGRESS_TAG, emergenceInProgress);
 		tag.putInt(EMERGENCE_TICKS_REMAINING_TAG, emergenceTicksRemaining);
@@ -742,6 +841,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (recordedMimicProfile != null && !recordedMimicProfile.matches(recordedEntityId))
 			recordedMimicProfile = null;
 		recordedMaxHealth = tag.getFloat(RECORDED_MAX_HEALTH_TAG);
+		recordedWidth = tag.getFloat(RECORDED_WIDTH_TAG);
+		recordedHeight = tag.getFloat(RECORDED_HEIGHT_TAG);
 		scanCooldown = tag.getInt(SCAN_COOLDOWN_TAG);
 		emergenceInProgress = tag.getBoolean(EMERGENCE_IN_PROGRESS_TAG);
 		emergenceTicksRemaining = tag.getInt(EMERGENCE_TICKS_REMAINING_TAG);

@@ -35,7 +35,8 @@ import net.minecraft.world.phys.Vec3;
 
 public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperBlastChamberBlockEntity> {
 
-	private static final float CREEPER_ANIMATION_Y_OFFSET = .12f;
+	/** Enter from one block below and exit one block downward while scaling. */
+	private static final float CREEPER_ANIMATION_Y_OFFSET = 1f;
 	/** Scale a creeper pops in from, and shrinks back to on the way out. */
 	private static final float CREEPER_ENTRY_START_SCALE = .35f;
 	private static final float CREEPER_EXIT_END_SCALE = .35f;
