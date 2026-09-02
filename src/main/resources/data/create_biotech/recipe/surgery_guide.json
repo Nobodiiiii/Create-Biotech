@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "minecraft:book"
+    },
+    {
+      "item": "create_biotech:asurine_alloy"
+    }
+  ],
+  "result": {
+    "id": "create_biotech:surgery_guide"
+  },
+  "show_notification": true
+}
