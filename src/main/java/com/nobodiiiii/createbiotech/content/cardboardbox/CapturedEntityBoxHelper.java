@@ -17,6 +17,7 @@ import com.simibubi.create.content.logistics.box.PackageItem;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -371,6 +372,33 @@ public class CapturedEntityBoxHelper {
 	public static boolean hasCapturedEntity(ItemStack stack) {
 		CompoundTag tag = CBItemData.getReadOnly(stack);
 		return tag != null && tag.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND);
+	}
+
+	/**
+	 * Applies a name-tag name to the creature held by the box, writing it into the
+	 * captured entity's NBT so the beast is released already named. Accepts either a
+	 * plain-text name (e.g. from a name tag) or the anvil rename field's component.
+	 * The box must already hold a creature; otherwise {@code false} is returned and the
+	 * stack is left unchanged.
+	 *
+	 * <p>The name is stored as {@code CustomName} (JSON) plus {@code CustomNameVisible},
+	 * the exact keys and shape {@code Entity.load} reads back.</p>
+	 */
+	public static boolean applyNameToCapturedEntity(ItemStack stack, RegistryAccess registryAccess, String name) {
+		String trimmed = name == null ? "" : name.strip();
+		if (trimmed.isEmpty())
+			return false;
+		if (!hasCapturedEntity(stack))
+			return false;
+
+		CBItemData.edit(stack, root -> {
+			CompoundTag entityData = root.getCompound(CAPTURED_ENTITY_TAG);
+			String json = Component.Serializer.toJson(Component.literal(trimmed), registryAccess);
+			entityData.putString("CustomName", json);
+			entityData.putBoolean("CustomNameVisible", true);
+			root.put(CAPTURED_ENTITY_TAG, entityData);
+		});
+		return true;
 	}
 
 	/**

@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 
@@ -9,18 +10,17 @@ import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessi
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 import com.simibubi.create.content.processing.basin.BasinRecipe;
 
-import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.capabilities.BlockCapability;
 
 /**
- * Marks Create's basin recipe pass as an authorised captured-slime item mover.
+ * Routes Create's own recipe pass to the basin's unfiltered internal inventory.
  *
- * <p>{@code BasinRecipe} reads and extracts ingredients through the basin's item capability - the
- * same handler hoppers and pipes see - so {@code BasinInventoryMixin} cannot tell the two apart on
- * its own. Both {@code match} and {@code apply} funnel through this private overload, so scoping it
- * covers ingredient extraction and, transitively, {@code acceptOutputs}.</p>
+ * <p>{@code BasinRecipe} normally obtains the same public capability as hoppers and pipes. That
+ * boundary deliberately hides captured-slime control items, while recipes must treat them as
+ * ordinary ingredients. Both matching and application pass through this private overload.</p>
  */
 @Mixin(BasinRecipe.class)
 public abstract class BasinRecipeMixin {

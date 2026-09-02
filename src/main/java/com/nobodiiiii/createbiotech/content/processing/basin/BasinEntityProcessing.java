@@ -61,11 +61,6 @@ public final class BasinEntityProcessing {
 		return stack.getItem() == CBItems.CAPTURED_SMALL_SLIME.get();
 	}
 
-	/** The basin inventories are the sole authoritative contained-slime state. */
-	public static boolean hasCapturedSmallSlimes(BasinBlockEntity basin) {
-		return getCapturedSmallSlimeItemCount(basin) > 0;
-	}
-
 	public static int getCapturedSmallSlimeItemCount(BasinBlockEntity basin) {
 		return countCapturedSmallSlimeItems(basin.getInputInventory())
 			+ countCapturedSmallSlimeItems(basin.getOutputInventory());
@@ -90,8 +85,7 @@ public final class BasinEntityProcessing {
 	 * slimes are absorbed; a surplus slime becomes an extra control item when the basin still has
 	 * room and is otherwise released with its pre-capture movement flags restored.
 	 * <p>
-	 * Callers must invoke this at most a handful of times per block entity: a basin that never saw
-	 * the old mirror carries no persistent data at all and returns on the first null check.
+	 * This is scheduled only when legacy persistent data is found while loading the basin.
 	 */
 	public static void migrateLegacyContainedSlimes(BasinBlockEntity basin) {
 		Level level = basin.getLevel();

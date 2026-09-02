@@ -29,6 +29,7 @@ import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeI
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
+import com.nobodiiiii.createbiotech.content.surgery.SurgeryGuideItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
@@ -124,6 +125,9 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, SurgicalJointItem> KNEE_JOINT = ITEMS.register("knee_joint",
 		() -> new SurgicalJointItem(SurgicalLimbType.KNEE, new Item.Properties()));
+
+	public static final DeferredHolder<Item, SurgeryGuideItem> SURGERY_GUIDE = ITEMS.register("surgery_guide",
+		() -> new SurgeryGuideItem(new Item.Properties()));
 
 	public static final DeferredHolder<Item, EnchantmentBookCopyItem> ENCHANTMENT_BOOK_COPY =
 		ITEMS.register("enchantment_book_copy", () -> new EnchantmentBookCopyItem(new Item.Properties()));

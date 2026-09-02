@@ -42,8 +42,8 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 
 	/**
 	 * Ticks remaining before the one-time 1.3.0.1 reconciliation runs, then latched to -1. The
-	 * short delay lets the surrounding chunk finish loading its entities; the migration itself
-	 * costs a single null check on basins that were never touched by the old entity mirror.
+	 * short delay lets the surrounding chunk finish loading its entities. Basins without legacy
+	 * data remain latched at -1 and never enter the migration path.
 	 */
 	@Unique
 	private int createBiotech$legacySlimeMigrationDelay = -1;

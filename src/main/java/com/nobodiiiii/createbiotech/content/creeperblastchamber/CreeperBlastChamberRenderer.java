@@ -413,16 +413,18 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 				double dz = nearbyPlayer.getZ() - creeper.getZ();
 				float targetYaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90f;
 				float targetPitch = (float) -(Mth.atan2(dy, Math.sqrt(dx * dx + dz * dz)) * Mth.RAD_TO_DEG);
-				float attentionStrength = 1f - Mth.clamp(compression, 0f, 1f);
+				float lookStrength = 1f - Mth.clamp(compression, 0f, 1f);
 				if (mode == AttentionMode.TURN) {
-					desiredBodyYaw = lerpAngle(attentionStrength, restingYaw, targetYaw);
+					// Compression only changes the model shape; it must not pull the body
+					// back toward the direction it faced before this turn.
+					desiredBodyYaw = targetYaw;
 					desiredHeadYaw = desiredBodyYaw;
 				} else {
 					float headDelta = Mth.clamp(Mth.wrapDegrees(targetYaw - restingYaw), -MAX_LOOK_HEAD_YAW,
 						MAX_LOOK_HEAD_YAW);
-					desiredHeadYaw = restingYaw + headDelta * attentionStrength;
+					desiredHeadYaw = restingYaw + headDelta * lookStrength;
 				}
-				desiredPitch = Mth.clamp(targetPitch, -35f, 35f) * attentionStrength;
+				desiredPitch = Mth.clamp(targetPitch, -35f, 35f) * lookStrength;
 			}
 
 			float elapsed = Mth.clamp(renderTime - lastRenderTime, 0f, 5f);
