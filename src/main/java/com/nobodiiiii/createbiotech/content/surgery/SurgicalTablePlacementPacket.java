@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
@@ -20,6 +21,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 	 double originOffsetX, double originOffsetZ, SurgicalLayPose layPose,
 	 SurgicalTableLayout.Proposal envelope,
 	 int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+	 BitSet headCubes,
 	 List<SurgicalTableLayout.Footprint> componentFootprints,
 	 List<SurgicalTableLayout.Proposal> sourceLayouts) {
 
@@ -28,21 +30,28 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		layPose = layPose == null ? SurgicalLayPose.IDENTITY : layPose;
 		envelope = envelope == null ? SurgicalTableLayout.Proposal.EMPTY : envelope;
 		observedSeams = observedSeams == null ? List.of() : List.copyOf(observedSeams);
+		headCubes = headCubes == null ? new BitSet() : (BitSet) headCubes.clone();
 		componentFootprints = componentFootprints == null ? List.of() : List.copyOf(componentFootprints);
 		sourceLayouts = sourceLayouts == null ? List.of() : List.copyOf(sourceLayouts);
 		if (observedCubeCount < 0 || observedCubeCount > SurgicalAssembly.MAX_CUBES
 			|| observedSeams.size() > SurgicalAssembly.MAX_SEAMS
-			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES)
+			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES
+			|| headCubes.length() > observedCubeCount)
 			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
+	}
+
+	@Override
+	public BitSet headCubes() {
+		return (BitSet) headCubes.clone();
 	}
 
 	public SurgicalTablePlacementPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readEnum(Direction.class),
 			buffer.readDouble(),
 			buffer.readDouble(), SurgicalLayPose.read(buffer), readLayout(buffer), buffer.readVarInt(),
-			readSeams(buffer), readFootprints(buffer), readSourceLayouts(buffer));
+			readSeams(buffer), readHeadCubes(buffer), readFootprints(buffer), readSourceLayouts(buffer));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -59,6 +68,9 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			buffer.writeVarInt(seam.first());
 			buffer.writeVarInt(seam.second());
 		}
+		buffer.writeVarInt(headCubes.cardinality());
+		for (int cube = headCubes.nextSetBit(0); cube >= 0; cube = headCubes.nextSetBit(cube + 1))
+			buffer.writeVarInt(cube);
 		writeFootprints(buffer, componentFootprints);
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
@@ -81,7 +93,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			return;
 		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,
 			originOffsetX, originOffsetZ, envelope, observedCubeCount, observedSeams,
-			componentFootprints, sourceLayouts);
+			headCubes, componentFootprints, sourceLayouts);
 		result.display(player);
 	}
 
@@ -112,6 +124,20 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		for (int index = 0; index < count; index++)
 			seams.add(SurgicalAssembly.Seam.of(buffer.readVarInt(), buffer.readVarInt()));
 		return List.copyOf(seams);
+	}
+
+	private static BitSet readHeadCubes(FriendlyByteBuf buffer) {
+		int count = buffer.readVarInt();
+		if (count < 0 || count > SurgicalAssembly.MAX_CUBES)
+			throw new IllegalArgumentException("Invalid surgical head cube count " + count);
+		BitSet heads = new BitSet();
+		for (int index = 0; index < count; index++) {
+			int cube = buffer.readVarInt();
+			if (cube < 0 || cube >= SurgicalAssembly.MAX_CUBES || heads.get(cube))
+				throw new IllegalArgumentException("Invalid surgical head cube " + cube);
+			heads.set(cube);
+		}
+		return heads;
 	}
 
 	private static void writeFootprints(FriendlyByteBuf buffer,

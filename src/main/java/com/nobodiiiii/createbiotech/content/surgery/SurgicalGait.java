@@ -14,8 +14,12 @@ public final class SurgicalGait {
 	public static final double ZOMBIE_WALK_SPEED = 0.23d;
 	/** An enderman's 0.30 base movement plus its 0.15 attacking modifier. */
 	public static final double ANGRY_ENDERMAN_SPEED = 0.45d;
+	/** Asymptote of the single diminishing-return leg-length curve before other body factors. */
+	public static final double LENGTH_SPEED_ASYMPTOTE = 621.0d / 1075.0d;
+	/** Half-saturation length chosen to pass through 12 px / 0.23 and 30 px / 0.36. */
+	public static final double LENGTH_SPEED_HALF_SATURATION = 195.0d / 172.0d;
 	/** Keeps extreme long-leg and multiplier combinations within the intended survival range. */
-	public static final double MAX_MOVEMENT_SPEED = 0.48d;
+	public static final double MAX_MOVEMENT_SPEED = 0.60d;
 	/** HumanoidModel's normal walking-angle multiplier. */
 	public static final float HUMANOID_LEG_SWING_FACTOR = 1.4f;
 	/** Villager legs reach 1.4 * 0.5 = 0.7 radians. */
@@ -39,18 +43,26 @@ public final class SurgicalGait {
 
 	/**
 	 * Calibrates two standard zombie-length grounded legs to ordinary zombie speed, then applies the
-	 * additive-inside-each-factor bonuses for extra grounded legs, grounded-leg volume and knees.
+	 * diminishing leg-length curve and the bonuses for extra grounded legs, grounded-leg volume and knees.
 	 * Bodies with at most one grounded leg use a fixed hopping speed instead.
 	 */
 	public static double movementSpeed(double averageLegLength, int groundedLegCount,
 		int groundedKneeCount, double legVolumeRatio) {
 		if (groundedLegCount <= 1)
 			return ZOMBIE_WALK_SPEED;
-		double lengthSpeed = ZOMBIE_WALK_SPEED
-			* Math.max(0.0d, averageLegLength) / ZOMBIE_LEG_LENGTH;
-		double speed = lengthSpeed * legCountFactor(groundedLegCount)
+		double speed = lengthSpeed(averageLegLength) * legCountFactor(groundedLegCount)
 			* legVolumeFactor(legVolumeRatio) * kneeFactor(groundedKneeCount);
 		return Mth.clamp(speed, 0.0d, MAX_MOVEMENT_SPEED);
+	}
+
+	/**
+	 * Applies one saturating curve across the whole non-negative length range. Twelve pixels produce
+	 * 0.23; thirty pixels produce 0.36; infinite length approaches about 0.578 before other factors.
+	 */
+	public static double lengthSpeed(double averageLegLength) {
+		double length = Math.max(0.0d, averageLegLength);
+		return LENGTH_SPEED_ASYMPTOTE * length
+			/ (length + LENGTH_SPEED_HALF_SATURATION);
 	}
 
 	/** Legs three and four add 0.1 each; legs five through eight add 0.05 each. */

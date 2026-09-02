@@ -12,6 +12,9 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
+import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
+import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
@@ -237,6 +240,19 @@ public class SlimeBionicEntity extends PathfinderMob {
 			cachedAssembly = SurgicalAssembly.load(encoded);
 		}
 		return cachedAssembly;
+	}
+
+	/** Current head-derived classification; it intentionally does not modify any Goal yet. */
+	public BionicMind getMind() {
+		return BionicMind.resolve(getAssembly(), level());
+	}
+
+	public BionicDisposition getDisposition() {
+		return getMind().disposition();
+	}
+
+	public BionicIntelligence getIntelligence() {
+		return getMind().intelligence();
 	}
 
 	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */

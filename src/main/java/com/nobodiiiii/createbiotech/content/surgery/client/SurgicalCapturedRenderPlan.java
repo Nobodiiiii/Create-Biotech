@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
@@ -13,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
@@ -33,15 +35,23 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderStateAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderTypeAccessor;
+import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.TextureStateShardAccessor;
+import com.simibubi.create.content.trains.schedule.hat.TrainHatInfo;
+import com.simibubi.create.content.trains.schedule.hat.TrainHatInfoReloadListener;
+import com.simibubi.create.foundation.mixin.accessor.AgeableListModelAccessor;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.AgeableListModel;
+import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -92,6 +102,8 @@ public final class SurgicalCapturedRenderPlan {
 	private static volatile int resourceGeneration;
 	private static final ThreadLocal<Deque<List<ObservedCube>>> MODEL_CUBE_CAPTURES =
 		ThreadLocal.withInitial(ArrayDeque::new);
+	private static final ThreadLocal<Deque<Set<ModelPart.Cube>>> HEAD_MODEL_CUBES =
+		ThreadLocal.withInitial(ArrayDeque::new);
 	private static volatile int activeModelCubeCaptureCount;
 	private static ModelPart innerCube;
 	private static ModelPart outerCube;
@@ -127,9 +139,12 @@ public final class SurgicalCapturedRenderPlan {
 		// Leaving the counter alone keeps observeModelCube - which the mixin runs for every cube of
 		// every entity model in the game - on its single-field-read rejection for this capture.
 		Deque<List<ObservedCube>> captures = null;
+		Deque<Set<ModelPart.Cube>> headCaptures = null;
 		if (topology) {
 			captures = MODEL_CUBE_CAPTURES.get();
 			captures.push(observedCubes);
+			headCaptures = HEAD_MODEL_CUBES.get();
+			headCaptures.push(headModelCubes(renderer, preview));
 			activeModelCubeCaptureCount++;
 		}
 		try {
@@ -138,9 +153,12 @@ public final class SurgicalCapturedRenderPlan {
 			recording.finish();
 			if (captures != null) {
 				captures.pop();
+				headCaptures.pop();
 				activeModelCubeCaptureCount = Math.max(0, activeModelCubeCaptureCount - 1);
 				if (captures.isEmpty())
 					MODEL_CUBE_CAPTURES.remove();
+				if (headCaptures.isEmpty())
+					HEAD_MODEL_CUBES.remove();
 			}
 		}
 		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology);
@@ -171,7 +189,64 @@ public final class SurgicalCapturedRenderPlan {
 				}
 			}
 		}
-		captures.peek().add(new ObservedCube(transformed, model));
+		Deque<Set<ModelPart.Cube>> headCaptures = HEAD_MODEL_CUBES.get();
+		boolean head = !headCaptures.isEmpty() && headCaptures.peek().contains(cube);
+		captures.peek().add(new ObservedCube(transformed, model, head));
+	}
+
+	/** Uses the same model-part selection as Create's logistics/stock-keeper hat layer. */
+	private static Set<ModelPart.Cube> headModelCubes(EntityRenderer<LivingEntity> renderer,
+		LivingEntity preview) {
+		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
+			return Set.of();
+		EntityModel<?> model = livingRenderer.getModel();
+		TrainHatInfo info = TrainHatInfoReloadListener.getHatInfoFor(preview);
+		ModelPart headPart;
+		if (model instanceof AgeableListModel<?> ageable) {
+			ModelPart head = firstPart(((AgeableListModelAccessor) ageable).create$callHeadParts());
+			if (head == null)
+				head = firstPart(((AgeableListModelAccessor) ageable).create$callBodyParts());
+			if (head == null)
+				return Set.of();
+			headPart = resolvedHatPart(info, head, "");
+		} else if (model instanceof HierarchicalModel<?> hierarchical) {
+			headPart = resolvedHatPart(info, hierarchical.root(), "head");
+		} else {
+			return Set.of();
+		}
+		if (headPart == null)
+			return Set.of();
+		Set<ModelPart.Cube> cubes = Collections.newSetFromMap(new IdentityHashMap<>());
+		collectModelCubes(headPart, cubes);
+		return cubes;
+	}
+
+	@Nullable
+	private static ModelPart resolvedHatPart(TrainHatInfo info, ModelPart root, String defaultPart) {
+		List<ModelPart> parts = TrainHatInfo.getAdjustedPart(info, root, defaultPart);
+		if (parts.isEmpty())
+			return null;
+		String requested = !info.part().isEmpty() && !info.part().equals(defaultPart)
+			? info.part() : defaultPart;
+		// Create keeps the nearest resolved parent when a configured child is absent. For surgical
+		// classification that is an unknown head, not permission to classify the whole model as one.
+		if (!requested.isEmpty() && parts.size() != requested.split("/").length + 1)
+			return null;
+		return parts.getLast();
+	}
+
+	@Nullable
+	private static ModelPart firstPart(Iterable<ModelPart> parts) {
+		for (ModelPart part : parts)
+			return part;
+		return null;
+	}
+
+	private static void collectModelCubes(ModelPart part, Set<ModelPart.Cube> cubes) {
+		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
+		cubes.addAll(accessor.createBiotech$getCubes());
+		for (ModelPart child : accessor.createBiotech$getChildren().values())
+			collectModelCubes(child, cubes);
 	}
 
 	/**
@@ -364,7 +439,7 @@ public final class SurgicalCapturedRenderPlan {
 					.orElse(null);
 				if (builder == null) {
 					builder = new ComponentBuilder(order++, cuboid,
-						topology ? matchingModelCorners(cuboid, key, observedCubes) : List.of(), topology);
+						topology ? matchingModelCube(cuboid, key, observedCubes) : ModelCubeMatch.NONE, topology);
 					matches.add(builder);
 				}
 				builder.captureStreams.set(stream.id);
@@ -402,7 +477,7 @@ public final class SurgicalCapturedRenderPlan {
 				.orElse(null);
 			if (builder == null) {
 				builder = new ComponentBuilder(mesh.order, bounds,
-					topology ? matchingModelCorners(bounds, key, observedCubes) : List.of(), topology);
+					topology ? matchingModelCube(bounds, key, observedCubes) : ModelCubeMatch.NONE, topology);
 				matches.add(builder);
 				recoveredBuilders = recovered.values().stream().flatMap(List::stream).toList();
 			}
@@ -1209,7 +1284,7 @@ public final class SurgicalCapturedRenderPlan {
 	 * @param targetKey the caller's already-computed key for {@code cuboid}; recomputing it here, and
 	 *   recomputing every observed cube's key on every call, made this quadratic in stream pipelines.
 	 */
-	private static List<Vec3> matchingModelCorners(RecoveredCuboid cuboid, GeometryKey targetKey,
+	private static ModelCubeMatch matchingModelCube(RecoveredCuboid cuboid, GeometryKey targetKey,
 		List<ObservedCube> observedCubes) {
 		for (ObservedCube observed : observedCubes) {
 			if (!targetKey.equals(observed.key))
@@ -1224,9 +1299,17 @@ public final class SurgicalCapturedRenderPlan {
 				ordered.add(observed.modelCorners.get(match));
 			}
 			if (ordered.size() == 8)
-				return List.copyOf(ordered);
+				return new ModelCubeMatch(ordered, observed.head);
 		}
-		return List.of();
+		return ModelCubeMatch.NONE;
+	}
+
+	private record ModelCubeMatch(List<Vec3> corners, boolean head) {
+		private static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false);
+
+		private ModelCubeMatch {
+			corners = List.copyOf(corners);
+		}
 	}
 
 	private static int matchingCorner(List<Vector3f> corners, Vector3f target) {
@@ -1317,6 +1400,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final int order;
 		private final RecoveredCuboid cuboid;
 		private final List<Vec3> modelCorners;
+		private final boolean head;
 		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
 		private final List<SourceBatch> surfaceOverlays = new ArrayList<>();
@@ -1325,11 +1409,12 @@ public final class SurgicalCapturedRenderPlan {
 		private RenderType primaryRenderType;
 		private List<SurgicalModelRenderContext.FaceGrid> faceGrids = List.of();
 
-		private ComponentBuilder(int order, RecoveredCuboid cuboid, List<Vec3> modelCorners,
+		private ComponentBuilder(int order, RecoveredCuboid cuboid, ModelCubeMatch modelCube,
 			boolean topology) {
 			this.order = order;
 			this.cuboid = cuboid;
-			this.modelCorners = List.copyOf(modelCorners);
+			this.modelCorners = modelCube.corners();
+			this.head = modelCube.head();
 			this.topology = topology;
 		}
 
@@ -1356,7 +1441,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private Component build(int id, boolean preserveSource) {
 			return new Component(id, cuboid.corners, cuboid.a, cuboid.b, cuboid.c,
-				modelCorners, faceGrids, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
+				modelCorners, faceGrids, head, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
 		}
 	}
 
@@ -1365,14 +1450,16 @@ public final class SurgicalCapturedRenderPlan {
 	private static final class ObservedCube {
 		private final List<Vector3f> transformedCorners;
 		private final List<Vec3> modelCorners;
-		/** Computed once here rather than per comparison in {@link #matchingModelCorners}. */
+		private final boolean head;
+		/** Computed once here rather than per comparison in {@link #matchingModelCube}. */
 		private final GeometryKey key;
 
-		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners) {
+		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners, boolean head) {
 			// Both lists are built fresh per cube at the single call site and handed straight over, so
 			// they only need freezing, not the deep Vector3f copy this used to make.
 			this.transformedCorners = List.copyOf(transformedCorners);
 			this.modelCorners = List.copyOf(modelCorners);
+			this.head = head;
 			this.key = GeometryKey.of(this.transformedCorners);
 		}
 	}
@@ -1412,12 +1499,14 @@ public final class SurgicalCapturedRenderPlan {
 		private final Vector3f c;
 		private final List<Vec3> modelCorners;
 		private final List<SurgicalModelRenderContext.FaceGrid> faceGrids;
+		private final boolean head;
 		private final boolean preserveSource;
 		private final List<SourceBatch> batches;
 		private final List<SourceBatch> surfaceOverlays;
 
 		private Component(int id, List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c,
-			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean preserveSource,
+			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean head,
+			boolean preserveSource,
 			List<SourceBatch> batches, List<SourceBatch> surfaceOverlays) {
 			this.id = id;
 			this.corners = corners.stream().map(Vector3f::new).toList();
@@ -1426,6 +1515,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.c = new Vector3f(c);
 			this.modelCorners = List.copyOf(modelCorners);
 			this.faceGrids = List.copyOf(faceGrids);
+			this.head = head;
 			this.preserveSource = preserveSource;
 			this.batches = batches;
 			this.surfaceOverlays = surfaceOverlays;
@@ -1517,7 +1607,7 @@ public final class SurgicalCapturedRenderPlan {
 					worldPoint = worldCenter.add(rotation.rotate(worldPoint.subtract(worldCenter)));
 				transformed.add(worldPoint.add(offsetX + cameraX, offsetY + cameraY, offsetZ + cameraZ));
 			}
-			return new SurgicalModelRenderContext.CubeGeometry(id, transformed, modelCorners, faceGrids);
+			return new SurgicalModelRenderContext.CubeGeometry(id, transformed, modelCorners, faceGrids, head);
 		}
 
 		private Vector3f center() {

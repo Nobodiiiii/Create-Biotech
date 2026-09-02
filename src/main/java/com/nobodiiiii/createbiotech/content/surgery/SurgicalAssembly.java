@@ -29,11 +29,12 @@ public final class SurgicalAssembly {
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 20;
+	private static final int CURRENT_VERSION = 21;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
+	private static final String HEAD_CUBES_TAG = "HeadCubes";
 	private static final String SEAMS_TAG = "Seams";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
@@ -149,7 +150,13 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly create(MimicProfile profile, int cubeCount, BitSet presentCubes,
 		List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder) {
-		Source source = Source.create(profile, cubeCount, presentCubes, seams, cutSeams, cutOrder,
+		return create(profile, cubeCount, presentCubes, new BitSet(), seams, cutSeams, cutOrder);
+	}
+
+	@Nullable
+	public static SurgicalAssembly create(MimicProfile profile, int cubeCount, BitSet presentCubes,
+		BitSet headCubes, List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder) {
+		Source source = Source.create(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder,
 			Direction.NORTH, SurgicalLayPose.IDENTITY, Vec3.ZERO, Map.of());
 		return source == null ? null
 			: new SurgicalAssembly(List.of(source), List.of(), List.of(), List.of(), false, Direction.NORTH,
@@ -807,6 +814,7 @@ public final class SurgicalAssembly {
 	public boolean containsCube(int cubeId) { return sources.getFirst().containsCube(cubeId); }
 	public boolean isSeamCut(int seamId) { return sources.getFirst().isSeamCut(seamId); }
 	public BitSet presentCubes() { return sources.getFirst().presentCubes(); }
+	public BitSet headCubes() { return sources.getFirst().headCubes(); }
 	public List<Seam> seams() { return sources.getFirst().seams; }
 	public BitSet cutSeams() { return sources.getFirst().cutSeams(); }
 	public List<Integer> cutOrder() { return sources.getFirst().cutOrder; }
@@ -1492,6 +1500,7 @@ public final class SurgicalAssembly {
 		private final MimicProfile profile;
 		private final int cubeCount;
 		private final BitSet presentCubes;
+		private final BitSet headCubes;
 		private final List<Seam> seams;
 		private final BitSet cutSeams;
 		private final List<Integer> cutOrder;
@@ -1501,13 +1510,16 @@ public final class SurgicalAssembly {
 		private final Map<Integer, Vec3> cubeOffsets;
 		private final Map<Integer, SurgicalCubeRotation> cubeRotations;
 
-		private Source(MimicProfile profile, int cubeCount, BitSet presentCubes, List<Seam> seams,
+		private Source(MimicProfile profile, int cubeCount, BitSet presentCubes, BitSet headCubes,
+			List<Seam> seams,
 			BitSet cutSeams, List<Integer> cutOrder, Direction facing, SurgicalLayPose layPose,
 			Vec3 originOffset,
 			Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			this.profile = profile;
 			this.cubeCount = cubeCount;
 			this.presentCubes = normalize(presentCubes, cubeCount);
+			this.headCubes = normalize(headCubes, cubeCount);
+			this.headCubes.and(this.presentCubes);
 			this.seams = List.copyOf(seams);
 			this.cutSeams = normalize(cutSeams, seams.size());
 			this.cutOrder = normalizeCutOrder(cutOrder, this.cutSeams, seams.size());
@@ -1522,7 +1534,7 @@ public final class SurgicalAssembly {
 		public static Source create(MimicProfile profile, int cubeCount, BitSet presentCubes,
 			List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
 			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets) {
-			return create(profile, cubeCount, presentCubes, seams, cutSeams, cutOrder, facing, layPose,
+			return create(profile, cubeCount, presentCubes, new BitSet(), seams, cutSeams, cutOrder, facing, layPose,
 				originOffset, cubeOffsets, Map.of());
 		}
 
@@ -1531,9 +1543,30 @@ public final class SurgicalAssembly {
 			List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
 			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
 			Map<Integer, SurgicalCubeRotation> cubeRotations) {
+			return create(profile, cubeCount, presentCubes, new BitSet(), seams, cutSeams, cutOrder,
+				facing, layPose, originOffset, cubeOffsets, cubeRotations);
+		}
+
+		@Nullable
+		public static Source create(MimicProfile profile, int cubeCount, BitSet presentCubes,
+			BitSet headCubes, List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
+			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets) {
+			return create(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder,
+				facing, layPose, originOffset, cubeOffsets, Map.of());
+		}
+
+		@Nullable
+		public static Source create(MimicProfile profile, int cubeCount, BitSet presentCubes,
+			BitSet headCubes, List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
+			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
+			Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			if (profile == null || presentCubes == null || seams == null || cutSeams == null
-				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
+				|| headCubes == null || cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
 				|| cubeRotations.size() > cubeCount)
+				return null;
+			BitSet invalidHeads = (BitSet) headCubes.clone();
+			invalidHeads.andNot(presentCubes);
+			if (headCubes.length() > cubeCount || !invalidHeads.isEmpty())
 				return null;
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet()) {
 				Integer cube = entry.getKey();
@@ -1550,7 +1583,7 @@ public final class SurgicalAssembly {
 			Map<Integer, Vec3> sanitized = sanitizeOffsets(cubeOffsets, cubeCount, presentCubes);
 			Map<Integer, SurgicalCubeRotation> sanitizedRotations = sanitizeRotations(cubeRotations,
 				cubeCount, presentCubes);
-			Source source = new Source(profile, cubeCount, presentCubes, seams, cutSeams, cutOrder, facing,
+			Source source = new Source(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder, facing,
 				layPose,
 				originOffset == null ? Vec3.ZERO : originOffset, sanitized, sanitizedRotations);
 			return source.valid() ? source : null;
@@ -1559,6 +1592,10 @@ public final class SurgicalAssembly {
 		private boolean valid() {
 			if (profile == null || !validTopology(cubeCount, seams) || presentCubes.isEmpty()
 				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
+				return false;
+			BitSet invalidHeads = (BitSet) headCubes.clone();
+			invalidHeads.andNot(presentCubes);
+			if (!invalidHeads.isEmpty())
 				return false;
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet())
 				if (entry.getKey() == null || !containsCube(entry.getKey()) || !finiteVector(entry.getValue()))
@@ -1570,13 +1607,14 @@ public final class SurgicalAssembly {
 		}
 
 		private Source copy() {
-			return new Source(profile, cubeCount, presentCubes, seams, cutSeams, cutOrder, facing, layPose,
+			return new Source(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder, facing, layPose,
 				originOffset, cubeOffsets, cubeRotations);
 		}
 
 		public MimicProfile profile() { return profile; }
 		public int cubeCount() { return cubeCount; }
 		public BitSet presentCubes() { return (BitSet) presentCubes.clone(); }
+		public BitSet headCubes() { return (BitSet) headCubes.clone(); }
 		public List<Seam> seams() { return seams; }
 		public BitSet cutSeams() { return (BitSet) cutSeams.clone(); }
 		public List<Integer> cutOrder() { return cutOrder; }
@@ -1596,6 +1634,8 @@ public final class SurgicalAssembly {
 			tag.put(PROFILE_TAG, profile.save());
 			tag.putInt(CUBE_COUNT_TAG, cubeCount);
 			tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
+			if (!headCubes.isEmpty())
+				tag.putLongArray(HEAD_CUBES_TAG, headCubes.toLongArray());
 			tag.putIntArray(SEAMS_TAG, encodeSeams(seams));
 			if (!cutSeams.isEmpty())
 				tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
@@ -1628,6 +1668,8 @@ public final class SurgicalAssembly {
 			BitSet present = BitSet.valueOf(tag.getLongArray(PRESENT_CUBES_TAG));
 			BitSet cuts = tag.contains(CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
+			BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+				? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
 				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : List.of();
 			Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
@@ -1635,7 +1677,7 @@ public final class SurgicalAssembly {
 				? readLayPose(tag.getCompound(LAY_POSE_TAG)) : SurgicalLayPose.IDENTITY;
 			Vec3 origin = new Vec3(tag.getDouble(ORIGIN_X_TAG), tag.getDouble(ORIGIN_Y_TAG),
 				tag.getDouble(ORIGIN_Z_TAG));
-			return create(profile, cubeCount, present, seams, cuts, order, facing, layPose, origin,
+			return create(profile, cubeCount, present, heads, seams, cuts, order, facing, layPose, origin,
 				readOffsets(tag, cubeCount, present), readRotations(tag, cubeCount, present));
 		}
 	}

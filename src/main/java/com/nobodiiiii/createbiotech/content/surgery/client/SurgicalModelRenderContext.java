@@ -23,13 +23,18 @@ public final class SurgicalModelRenderContext {
 	}
 
 	public record CubeGeometry(int cubeId, List<Vec3> corners, List<Vec3> modelCorners,
-		List<FaceGrid> faceGrids) {
+		List<FaceGrid> faceGrids, boolean head) {
 		public CubeGeometry(int cubeId, List<Vec3> corners) {
-			this(cubeId, corners, List.of(), List.of());
+			this(cubeId, corners, List.of(), List.of(), false);
 		}
 
 		public CubeGeometry(int cubeId, List<Vec3> corners, List<FaceGrid> faceGrids) {
-			this(cubeId, corners, List.of(), faceGrids);
+			this(cubeId, corners, List.of(), faceGrids, false);
+		}
+
+		public CubeGeometry(int cubeId, List<Vec3> corners, List<Vec3> modelCorners,
+			List<FaceGrid> faceGrids) {
+			this(cubeId, corners, modelCorners, faceGrids, false);
 		}
 
 		public CubeGeometry {
@@ -45,7 +50,7 @@ public final class SurgicalModelRenderContext {
 		}
 
 		public CubeGeometry withCorners(List<Vec3> transformedCorners) {
-			return new CubeGeometry(cubeId, transformedCorners, modelCorners, faceGrids);
+			return new CubeGeometry(cubeId, transformedCorners, modelCorners, faceGrids, head);
 		}
 	}
 

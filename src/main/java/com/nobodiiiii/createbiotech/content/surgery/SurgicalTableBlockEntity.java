@@ -390,6 +390,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalLayPose layPose, double placedOriginOffsetX, double placedOriginOffsetZ,
 		SurgicalTableLayout.Proposal proposal,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		BitSet headCubes,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
 		TemporaryMoveSource temporaryMove = SurgicalKitItem.hasTemporaryCapture(box)
@@ -403,7 +404,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.INVALID_TABLE;
 		if (!(box.getItem() instanceof CapturedEntityBoxItem) && temporaryMove == null
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
-			|| componentFootprints == null || sourceLayouts == null
+			|| headCubes == null || componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
 			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 
@@ -414,6 +415,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		MimicProfile profile;
 		int cubeCount;
 		BitSet present;
+		BitSet heads;
 		List<SurgicalAssembly.Seam> seams;
 		BitSet cuts;
 		List<Integer> cutOrder;
@@ -436,6 +438,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			profile = assembly.profile();
 			cubeCount = assembly.cubeCount();
 			present = assembly.presentCubes();
+			heads = assembly.headCubes();
 			seams = assembly.seams();
 			cuts = assembly.cutSeams();
 			cutOrder = assembly.cutOrder();
@@ -452,6 +455,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			present = new BitSet(cubeCount);
 			if (cubeCount > 0)
 				present.set(0, cubeCount);
+			if (headCubes.length() > cubeCount)
+				return SurgicalTablePlacementResult.INVALID_CAPTURE;
+			heads = (BitSet) headCubes.clone();
 			seams = List.copyOf(observedSeams);
 			cuts = new BitSet();
 			cutOrder = List.of();
@@ -468,7 +474,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.NO_SPACE;
 
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), profile, placementFacing, layPose, cubeCount,
-			present, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ, placementOffsets(proposal),
+			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ, placementOffsets(proposal),
 			storedFootprints);
 		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
@@ -496,7 +502,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			SurgicalAssembly.Source source = placed.source();
 			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), source.profile(), placed.facing(),
 				placed.layPose(),
-				source.cubeCount(), source.presentCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
+				source.cubeCount(), source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
 				placedOriginOffsetX + placed.originOffset().x,
 				placedOriginOffsetZ + placed.originOffset().z, restoredOffsets(placed), placed.cubeRotations(),
 				sourceLayouts.get(sourceId).footprints());
@@ -2004,8 +2010,15 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<SurgicalCombination> groupCombinations, Set<SurgicalLimbJoint> groupLimbs) {
 		return groupJoints.isEmpty() && groupCombinations.isEmpty() && groupLimbs.isEmpty()
 			? SurgicalAssembly.create(subject.profile(), subject.cubeCount, component,
+				headCubesWithin(subject, component),
 				subject.seams, subject.cutSeams, subject.cutOrder)
 			: compositeAssembly(group, groupJoints, groupCombinations, groupLimbs, subject);
+	}
+
+	private static BitSet headCubesWithin(SurgicalSubject subject, BitSet cubes) {
+		BitSet heads = subject.headCubes();
+		heads.and(cubes);
+		return heads;
 	}
 
 	public boolean canApplyGlueCut(int subjectId, int glueJointId, double moveX, double moveZ,
@@ -2907,7 +2920,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					rotations.put(cube, rotation);
 			}
 			SurgicalAssembly.Source source = SurgicalAssembly.Source.create(grouped.profile(), grouped.cubeCount,
-				included, grouped.seams, grouped.cutSeams, grouped.cutOrder, grouped.placementFacing(),
+				included, headCubesWithin(grouped, included), grouped.seams, grouped.cutSeams,
+				grouped.cutOrder, grouped.placementFacing(),
 				grouped.layPose(),
 				new Vec3(grouped.originOffsetX() - anchor.originOffsetX(), 0.0d,
 					grouped.originOffsetZ() - anchor.originOffsetZ()), offsets, rotations);

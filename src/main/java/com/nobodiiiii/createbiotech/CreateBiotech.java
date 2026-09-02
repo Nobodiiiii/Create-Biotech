@@ -13,6 +13,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovingIn
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovementBehaviour;
 import com.nobodiiiii.createbiotech.data.CBDataGenerators;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
+import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataReloadListeners;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBArmInteractionPointTypes;
 import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
@@ -49,6 +50,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.DyeColor;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.AddReloadListenerEvent;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
@@ -85,8 +87,14 @@ public class CreateBiotech {
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();
 		registerAllayEvents();
+		NeoForge.EVENT_BUS.addListener(CreateBiotech::registerReloadListeners);
 		FrogStomachSlimeSpawning.register();
 		FrogStomachSecretionSpreading.register();
+	}
+
+	private static void registerReloadListeners(AddReloadListenerEvent event) {
+		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
+		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 	}
 
 	private static void registerAllayEvents() {

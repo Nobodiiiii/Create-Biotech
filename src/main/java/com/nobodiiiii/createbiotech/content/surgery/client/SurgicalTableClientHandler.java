@@ -1144,7 +1144,8 @@ public final class SurgicalTableClientHandler {
 			}
 			plan = discoveredPlan.placement();
 			discovered = new DiscoveredPlacement(placementGeometry.discoveredCubeCount(),
-				placementGeometry.discoveredSeams(), discoveredPlan.componentFootprints());
+				placementGeometry.discoveredSeams(), discoveredHeadCubes(placementGeometry.discoveredCubes()),
+				discoveredPlan.componentFootprints());
 		} else {
 			plan = SurgicalClientTopology.planInitialPlacement(List.of(renderedBounds),
 				plane.workArea(), target.x, target.z, occupied);
@@ -3693,7 +3694,7 @@ public final class SurgicalTableClientHandler {
 		CBPackets.sendToServer(new SurgicalTablePlacementPacket(placement.ownerPos, hand, placement.facing,
 			placement.plan.originOffsetX(), placement.plan.originOffsetZ(), placement.layPose,
 			placement.plan.proposal(), placement.discovered.cubeCount(), placement.discovered.seams(),
-			placement.discovered.footprints(),
+			placement.discovered.headCubes(), placement.discovered.footprints(),
 			placement.sourceLayouts));
 		beginVisualCommit(level, placement.ownerPos, placement.tableRevision, List.of(), true, false);
 		return true;
@@ -6980,12 +6981,22 @@ public final class SurgicalTableClientHandler {
 		}
 	}
 
-	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams,
+	private static BitSet discoveredHeadCubes(List<SurgicalModelRenderContext.CubeGeometry> cubes) {
+		BitSet heads = new BitSet();
+		for (SurgicalModelRenderContext.CubeGeometry cube : cubes)
+			if (cube.head())
+				heads.set(cube.cubeId());
+		return heads;
+	}
+
+	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams, BitSet headCubes,
 		List<SurgicalTableLayout.Footprint> footprints) {
-		private static final DiscoveredPlacement EMPTY = new DiscoveredPlacement(0, List.of(), List.of());
+		private static final DiscoveredPlacement EMPTY =
+			new DiscoveredPlacement(0, List.of(), new BitSet(), List.of());
 
 		private DiscoveredPlacement {
 			seams = List.copyOf(seams);
+			headCubes = (BitSet) headCubes.clone();
 			footprints = List.copyOf(footprints);
 		}
 	}
