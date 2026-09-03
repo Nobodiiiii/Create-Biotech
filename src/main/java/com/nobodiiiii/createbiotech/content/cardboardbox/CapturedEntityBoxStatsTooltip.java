@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
@@ -110,7 +111,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return null;
 
 		List<BaseStat> stats = new ArrayList<>();
-		add(stats, bionic, Attributes.MAX_HEALTH, ValueFormat.DECIMAL, true);
+		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);
 		addMovementSpeed(stats, assembly);
 		add(stats, bionic, Attributes.ARMOR, ValueFormat.DECIMAL, true);
@@ -119,6 +120,19 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
 		return new BoxDetails(List.copyOf(stats), assembly);
+	}
+
+	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
+		SurgicalAssembly assembly) {
+		// Client-side preview entities keep their registered attribute default. Use the measured,
+		// non-overlapping body volume saved in the assembly so Alt shows the actual result.
+		if (!assembly.hasBodyVolume()) {
+			add(stats, bionic, Attributes.MAX_HEALTH, ValueFormat.DECIMAL, true);
+			return;
+		}
+		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume());
+		stats.add(new BaseStat(Attributes.MAX_HEALTH.value().getDescriptionId(),
+			maximumHealth, ValueFormat.DECIMAL));
 	}
 
 	private static void add(List<BaseStat> stats, LivingEntity living, Holder<Attribute> attribute,
