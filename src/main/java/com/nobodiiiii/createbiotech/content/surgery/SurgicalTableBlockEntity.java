@@ -1189,13 +1189,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean packComponent(Player player, ItemStack boxes, int subjectId, int cubeId,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
+		double bodyVolume,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !(boxes.getItem() instanceof LargeCardboardBoxItem)
 			|| CapturedEntityBoxItem.hasCapturedEntity(boxes) || bodyBounds == null
-			|| hitboxGeometry == null)
+			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return false;
 
 		ComponentGroup group = connectedGroup(subject, cubeId);
@@ -1212,7 +1213,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
 			|| !validMobilityMeasurements(assembly, bodyBounds))
 			return false;
-		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry);
+		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
 		// Invalid or stale client combat geometry must not make an otherwise valid body unpackable.
 		// Keep it only when it still describes exactly the effective shoulder joints in this assembly.
 		int installedArms = (int) assembly.effectiveLimbs().stream()
@@ -1314,12 +1315,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public boolean captureTemporaryComponent(Player player, ItemStack kit, int subjectId, int cubeId,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
+		double bodyVolume,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !SurgicalKitItem.isEmptyTemporaryBox(kit)
-			|| bodyBounds == null || hitboxGeometry == null || level == null)
+			|| bodyBounds == null || level == null
+			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return false;
 
 		ComponentGroup group = connectedGroup(subject, cubeId);
@@ -1332,7 +1335,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !validMobilityMeasurements(sourceAssembly, bodyBounds))
 			return false;
 
-		SurgicalAssembly capturedAssembly = sourceAssembly.withBodyGeometry(bodyBounds, hitboxGeometry);
+		SurgicalAssembly capturedAssembly = sourceAssembly.withBodyGeometry(bodyBounds, hitboxGeometry,
+			bodyVolume);
 		int installedArms = (int) capturedAssembly.effectiveLimbs().stream()
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
 		if (attackGeometry != null && attackGeometry.armCount() == installedArms)

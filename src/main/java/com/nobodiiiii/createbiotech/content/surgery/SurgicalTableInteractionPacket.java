@@ -17,6 +17,7 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 	int subjectId, int targetId, int observedCubeCount, List<SurgicalAssembly.Seam> seams,
 	double originOffsetX, double originOffsetZ, SurgicalTableLayout.Proposal layout,
 	@Nullable SurgicalAssembly.BodyBounds bodyBounds,
+	double bodyVolume,
 	@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 	@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 
@@ -28,7 +29,8 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 	public SurgicalTableInteractionPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readEnum(Action.class),
 			buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), readSeams(buffer), buffer.readDouble(),
-			buffer.readDouble(), readLayout(buffer), readBodyBounds(buffer), readHitboxGeometry(buffer),
+			buffer.readDouble(), readLayout(buffer), readBodyBounds(buffer), buffer.readDouble(),
+			readHitboxGeometry(buffer),
 			readAttackGeometry(buffer));
 	}
 
@@ -77,6 +79,7 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			buffer.writeVarInt(bodyBounds.groundedKneeCount());
 			buffer.writeFloat(bodyBounds.legVolumeRatio());
 		}
+		buffer.writeDouble(bodyVolume);
 		buffer.writeBoolean(hitboxGeometry != null);
 		if (hitboxGeometry != null)
 			hitboxGeometry.write(buffer);
@@ -132,12 +135,12 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 				break;
 			if (SurgicalKitItem.isEmptyTemporaryBox(held))
 				table.captureTemporaryComponent(player, held, subjectId, targetId, observedCubeCount, seams,
-					bodyBounds, hitboxGeometry, attackGeometry);
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry);
 			else if (held.getItem()
 				instanceof com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem
 				&& !com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem.hasCapturedEntity(held))
 				table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
-					hitboxGeometry, attackGeometry);
+					bodyVolume, hitboxGeometry, attackGeometry);
 		}
 		case CUT_CUBE_CONNECTIONS -> {
 			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)) {

@@ -61,7 +61,7 @@ Joints adjust their animation to the shape you actually built.
 
 ## How the Finished Stats Are Decided
 
-Stats are generated from the final shape and the working joints when the body is boxed. The same parts arranged differently can change movement speed, attack reach and hitbox size. The donor's own health, attack damage, equipment and AI are not inherited by the result.
+Maximum health follows the final model's non-overlapping volume, with diminishing gains as the body grows. Movement and attacks follow the final shape and working joints; donor stats are not inherited.
 
 This part is still unfinished; suggestions are welcome in the comments on the mod and the videos.
 

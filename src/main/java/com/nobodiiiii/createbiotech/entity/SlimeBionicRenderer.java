@@ -27,6 +27,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalClientTopology;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
@@ -294,8 +295,9 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				.toList();
 			SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(assembly,
 				hitboxCubes, visible, bodyBounds);
+			double bodyVolume = SurgicalVolumeSampler.unionVolume(allCubes);
 			if (hitboxGeometry != null)
-				entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry);
+				entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry, bodyVolume);
 		}
 		return bodyBounds;
 	}

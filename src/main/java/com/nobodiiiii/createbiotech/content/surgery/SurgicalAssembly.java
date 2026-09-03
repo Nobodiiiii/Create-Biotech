@@ -29,7 +29,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
-	private static final int CURRENT_VERSION = 21;
+	private static final int CURRENT_VERSION = 22;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
 	private static final String CUBE_COUNT_TAG = "CubeCount";
@@ -65,6 +65,7 @@ public final class SurgicalAssembly {
 	private static final String BODY_GROUNDED_LEGS_TAG = "BodyGroundedLegCount";
 	private static final String BODY_GROUNDED_KNEES_TAG = "BodyGroundedKneeCount";
 	private static final String BODY_LEG_VOLUME_RATIO_TAG = "BodyLegVolumeRatio";
+	private static final String BODY_VOLUME_TAG = "BodyVolume";
 	private static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
 	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
 	private static final String RIGHT_ARMS_TAG = "RightArms";
@@ -120,6 +121,7 @@ public final class SurgicalAssembly {
 	private final SurgicalLayPose layoutLayPose;
 	@Nullable
 	private final BodyBounds bodyBounds;
+	private final double bodyVolume;
 	@Nullable
 	private final HitboxGeometry hitboxGeometry;
 	@Nullable
@@ -128,7 +130,8 @@ public final class SurgicalAssembly {
 	private SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
 		List<Limb> limbs, boolean preserveLayout,
 		Direction layoutFacing, SurgicalLayPose layoutLayPose, @Nullable BodyBounds bodyBounds,
-		@Nullable HitboxGeometry hitboxGeometry, @Nullable AttackGeometry attackGeometry) {
+		double bodyVolume, @Nullable HitboxGeometry hitboxGeometry,
+		@Nullable AttackGeometry attackGeometry) {
 		this.sources = List.copyOf(sources);
 		this.joints = List.copyOf(joints);
 		this.combinations = List.copyOf(combinations);
@@ -137,6 +140,7 @@ public final class SurgicalAssembly {
 		this.layoutFacing = horizontal(layoutFacing);
 		this.layoutLayPose = layoutLayPose == null ? SurgicalLayPose.IDENTITY : layoutLayPose;
 		this.bodyBounds = bodyBounds;
+		this.bodyVolume = bodyVolume;
 		this.hitboxGeometry = hitboxGeometry;
 		this.attackGeometry = attackGeometry;
 	}
@@ -160,7 +164,7 @@ public final class SurgicalAssembly {
 			Direction.NORTH, SurgicalLayPose.IDENTITY, Vec3.ZERO, Map.of());
 		return source == null ? null
 			: new SurgicalAssembly(List.of(source), List.of(), List.of(), List.of(), false, Direction.NORTH,
-				SurgicalLayPose.IDENTITY, null, null, null);
+				SurgicalLayPose.IDENTITY, null, Double.NaN, null, null);
 	}
 
 	@Nullable
@@ -231,7 +235,7 @@ public final class SurgicalAssembly {
 		if (frozenLimbs == null)
 			return null;
 		return new SurgicalAssembly(frozenSources, frozenJoints, frozenCombinations, frozenLimbs, true,
-			layoutFacing, layoutLayPose, null, null, null);
+			layoutFacing, layoutLayPose, null, Double.NaN, null, null);
 	}
 
 	/**
@@ -357,7 +361,7 @@ public final class SurgicalAssembly {
 		assembly = tag.getBoolean(PRESERVE_LAYOUT_TAG) ? assembly
 			: new SurgicalAssembly(assembly.sources, assembly.joints, assembly.combinations,
 				assembly.limbs, false, assembly.layoutFacing,
-				assembly.layoutLayPose, null, null, null);
+				assembly.layoutLayPose, null, Double.NaN, null, null);
 		// Versions 9 and 10 used older bounds. Discard them so those bodies are measured again with
 		// the horizontal-only weighting introduced in version 11. Older usable bounds keep loading;
 		// missing leg length and grounded mobility measurements default to zero until a rendering
@@ -385,6 +389,12 @@ public final class SurgicalAssembly {
 				return null;
 			assembly = assembly.withBodyBounds(bounds);
 		}
+		if (version >= 22 && tag.contains(BODY_VOLUME_TAG, Tag.TAG_ANY_NUMERIC)) {
+			double volume = tag.getDouble(BODY_VOLUME_TAG);
+			if (!SurgicalHealthCalibration.validVolume(volume))
+				return null;
+			assembly = assembly.withBodyVolume(volume);
+		}
 		if (version >= 13 && tag.contains(ATTACK_GEOMETRY_TAG, Tag.TAG_COMPOUND)) {
 			AttackGeometry geometry = AttackGeometry.load(tag.getCompound(ATTACK_GEOMETRY_TAG));
 			if (geometry == null)
@@ -397,6 +407,9 @@ public final class SurgicalAssembly {
 				return null;
 			assembly = assembly.withHitboxGeometry(geometry);
 		}
+		if (assembly.hasBodyVolume() && assembly.hitboxGeometry != null
+			&& !SurgicalHealthCalibration.validMeasuredVolume(assembly.bodyVolume, assembly.hitboxGeometry))
+			return null;
 		return assembly;
 	}
 
@@ -494,6 +507,8 @@ public final class SurgicalAssembly {
 			tag.putInt(BODY_GROUNDED_KNEES_TAG, bodyBounds.groundedKneeCount());
 			tag.putFloat(BODY_LEG_VOLUME_RATIO_TAG, bodyBounds.legVolumeRatio());
 		}
+		if (hasBodyVolume())
+			tag.putDouble(BODY_VOLUME_TAG, bodyVolume);
 		if (attackGeometry != null)
 			tag.put(ATTACK_GEOMETRY_TAG, attackGeometry.save());
 		if (hitboxGeometry != null)
@@ -512,6 +527,8 @@ public final class SurgicalAssembly {
 	public SurgicalLayPose layoutLayPose() { return layoutLayPose; }
 	@Nullable
 	public BodyBounds bodyBounds() { return bodyBounds; }
+	public double bodyVolume() { return bodyVolume; }
+	public boolean hasBodyVolume() { return SurgicalHealthCalibration.validVolume(bodyVolume); }
 	@Nullable
 	public HitboxGeometry hitboxGeometry() { return hitboxGeometry; }
 	@Nullable
@@ -521,28 +538,42 @@ public final class SurgicalAssembly {
 		if (bounds == null)
 			throw new IllegalArgumentException("A surgical body requires valid bounds");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, hitboxGeometry, attackGeometry);
+			layoutLayPose, bounds, bodyVolume, hitboxGeometry, attackGeometry);
 	}
 
 	public SurgicalAssembly withHitboxGeometry(HitboxGeometry geometry) {
 		if (geometry == null)
 			throw new IllegalArgumentException("A surgical hitbox geometry cannot be null");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, geometry, attackGeometry);
+			layoutLayPose, bodyBounds, bodyVolume, geometry, attackGeometry);
 	}
 
 	public SurgicalAssembly withBodyGeometry(BodyBounds bounds, HitboxGeometry geometry) {
 		if (bounds == null || geometry == null)
 			throw new IllegalArgumentException("A surgical body requires complete physical geometry");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, geometry, attackGeometry);
+			layoutLayPose, bounds, bodyVolume, geometry, attackGeometry);
+	}
+
+	public SurgicalAssembly withBodyGeometry(BodyBounds bounds, HitboxGeometry geometry, double volume) {
+		if (bounds == null || geometry == null || !SurgicalHealthCalibration.validMeasuredVolume(volume, geometry))
+			throw new IllegalArgumentException("A surgical body requires complete physical geometry");
+		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bounds, volume, geometry, attackGeometry);
+	}
+
+	public SurgicalAssembly withBodyVolume(double volume) {
+		if (!SurgicalHealthCalibration.validVolume(volume))
+			throw new IllegalArgumentException("A surgical body requires a valid volume");
+		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bodyBounds, volume, hitboxGeometry, attackGeometry);
 	}
 
 	public SurgicalAssembly withAttackGeometry(AttackGeometry geometry) {
 		if (geometry == null)
 			throw new IllegalArgumentException("A surgical attack geometry cannot be null");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, hitboxGeometry, geometry);
+			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, geometry);
 	}
 
 	/**

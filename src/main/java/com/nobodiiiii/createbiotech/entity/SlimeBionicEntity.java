@@ -11,6 +11,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
@@ -86,12 +87,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private SurgicalAssembly.BodyBounds clientBodyBounds;
 	@Nullable
 	private SurgicalAssembly.HitboxGeometry clientHitboxGeometry;
+	private double clientBodyVolume = Double.NaN;
 	@Nullable
 	private SurgicalAssembly reportedBoundsAssembly;
 	@Nullable
 	private SurgicalAssembly.BodyBounds reportedBodyBounds;
 	@Nullable
 	private SurgicalAssembly.HitboxGeometry reportedHitboxGeometry;
+	private double reportedBodyVolume = Double.NaN;
 	private final SlimeBionicHitPart[] hitParts;
 	private SlimeBionicHitPart[] registeredHitParts;
 	private int attackAnimationTick;
@@ -156,7 +159,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public static AttributeSupplier.Builder createAttributes() {
 		return createMobAttributes()
-			.add(Attributes.MAX_HEALTH, 400.0d)
+			.add(Attributes.MAX_HEALTH, SurgicalHealthCalibration.MAX_HEALTH)
 			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.ATTACK_DAMAGE, 3.0d)
 			.add(Attributes.ARMOR, 2.0d)
@@ -214,12 +217,31 @@ public class SlimeBionicEntity extends PathfinderMob {
 		clientBoundsAssembly = null;
 		clientBodyBounds = null;
 		clientHitboxGeometry = null;
+		clientBodyVolume = Double.NaN;
 		reportedBoundsAssembly = null;
 		reportedBodyBounds = null;
 		reportedHitboxGeometry = null;
+		reportedBodyVolume = Double.NaN;
+		refreshMaximumHealth(assembly);
 		refreshMovementSpeed(assembly);
 		refreshDimensions();
 		updateHitParts();
+	}
+
+	/** Applies the packed union-volume calibration without healing an already damaged body. */
+	private void refreshMaximumHealth(SurgicalAssembly assembly) {
+		if (level().isClientSide)
+			return;
+		var maximumHealth = getAttribute(Attributes.MAX_HEALTH);
+		if (maximumHealth == null)
+			return;
+		double calibrated = assembly.hasBodyVolume()
+			? SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume())
+			: Math.min(maximumHealth.getBaseValue(), SurgicalHealthCalibration.MAX_HEALTH);
+		if (maximumHealth.getBaseValue() != calibrated)
+			maximumHealth.setBaseValue(calibrated);
+		if (getHealth() > calibrated)
+			setHealth((float) calibrated);
 	}
 
 	/** Applies the grounded anatomical gait calibration to the authoritative movement attribute. */
@@ -264,25 +286,32 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */
 	public void setClientBodyGeometry(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bounds,
-		SurgicalAssembly.HitboxGeometry hitboxGeometry) {
+		SurgicalAssembly.HitboxGeometry hitboxGeometry, double bodyVolume) {
 		if (!level().isClientSide || assembly == null || bounds == null || hitboxGeometry == null
-			|| getAssembly() != assembly)
+			|| getAssembly() != assembly
+			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return;
 		if (clientBoundsAssembly == assembly && bounds.equals(clientBodyBounds)
-			&& hitboxGeometry.equals(clientHitboxGeometry))
+			&& hitboxGeometry.equals(clientHitboxGeometry)
+			&& Double.compare(bodyVolume, clientBodyVolume) == 0)
 			return;
 		clientBoundsAssembly = assembly;
 		clientBodyBounds = bounds;
 		clientHitboxGeometry = hitboxGeometry;
+		clientBodyVolume = bodyVolume;
 		refreshDimensions();
 		updateHitParts();
-		if ((!bounds.equals(assembly.bodyBounds()) || !hitboxGeometry.equals(assembly.hitboxGeometry()))
+		if ((!bounds.equals(assembly.bodyBounds()) || !hitboxGeometry.equals(assembly.hitboxGeometry())
+			|| !assembly.hasBodyVolume())
 			&& (reportedBoundsAssembly != assembly || !bounds.equals(reportedBodyBounds)
-				|| !hitboxGeometry.equals(reportedHitboxGeometry))) {
+				|| !hitboxGeometry.equals(reportedHitboxGeometry)
+				|| Double.compare(bodyVolume, reportedBodyVolume) != 0)) {
 			reportedBoundsAssembly = assembly;
 			reportedBodyBounds = bounds;
 			reportedHitboxGeometry = hitboxGeometry;
-			CBPackets.sendToServer(new SlimeBionicBodyBoundsPacket(getId(), bounds, hitboxGeometry));
+			reportedBodyVolume = bodyVolume;
+			CBPackets.sendToServer(new SlimeBionicBodyBoundsPacket(getId(), bounds, hitboxGeometry,
+				bodyVolume));
 		}
 	}
 
@@ -719,9 +748,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 			clientBoundsAssembly = null;
 			clientBodyBounds = null;
 			clientHitboxGeometry = null;
+			clientBodyVolume = Double.NaN;
 			reportedBoundsAssembly = null;
 			reportedBodyBounds = null;
 			reportedHitboxGeometry = null;
+			reportedBodyVolume = Double.NaN;
 			refreshDimensions();
 			updateHitParts();
 		}

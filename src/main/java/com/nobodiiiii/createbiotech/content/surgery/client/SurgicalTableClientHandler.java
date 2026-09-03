@@ -25,6 +25,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombination;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGlueContact;
@@ -1872,7 +1873,7 @@ public final class SurgicalTableClientHandler {
 			}
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.PACK,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
-				metrics.attackGeometry());
+				metrics.bodyVolume(), metrics.attackGeometry());
 		} else {
 			return;
 		}
@@ -3657,32 +3658,36 @@ public final class SurgicalTableClientHandler {
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal) {
-		sendInteraction(selected, hand, action, proposal, 0.0d, 0.0d, null, null, null);
+		sendInteraction(selected, hand, action, proposal, 0.0d, 0.0d, null, null,
+			Double.NaN, null);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		double bodyVolume,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		sendInteraction(selected, hand, action, proposal, 0.0d, 0.0d, bodyBounds,
-			hitboxGeometry, attackGeometry);
+			hitboxGeometry, bodyVolume, attackGeometry);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal,
 		double originOffsetX, double originOffsetZ) {
-		sendInteraction(selected, hand, action, proposal, originOffsetX, originOffsetZ, null, null, null);
+		sendInteraction(selected, hand, action, proposal, originOffsetX, originOffsetZ, null, null,
+			Double.NaN, null);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal,
 		double originOffsetX, double originOffsetZ, @Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		double bodyVolume,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		CBPackets.sendToServer(new SurgicalTableInteractionPacket(selected.tablePos, hand, action,
 			selected.subjectId, selected.targetId, selected.observedCubeCount, selected.seams,
-			originOffsetX, originOffsetZ, proposal, bodyBounds, hitboxGeometry, attackGeometry));
+			originOffsetX, originOffsetZ, proposal, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry));
 	}
 
 	private static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
@@ -4953,9 +4958,11 @@ public final class SurgicalTableClientHandler {
 			.toList();
 		SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(preview,
 			hitboxCubes, visible, bodyBounds);
-		if (hitboxGeometry == null)
+		double bodyVolume = SurgicalVolumeSampler.unionVolume(allCubes);
+		if (hitboxGeometry == null
+			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return null;
-		return new PackedBodyMetrics(bodyBounds, hitboxGeometry, attackGeometry);
+		return new PackedBodyMetrics(bodyBounds, hitboxGeometry, bodyVolume, attackGeometry);
 	}
 
 	/** Runs the same rest-pose render used by the packed entity, once, while generating it. */
@@ -6518,6 +6525,7 @@ public final class SurgicalTableClientHandler {
 	}
 	private record PackedBodyMetrics(SurgicalAssembly.BodyBounds bodyBounds,
 		SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		double bodyVolume,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
 	private record PackedBodyMeasurement(List<SlimeBionicAnimator.SourceState> sources,
 		SurgicalBodyBounds.Envelope visible) {}

@@ -194,7 +194,7 @@
   "create_biotech.surgery_guide.joints.rules": "一级关节（颈、肩、髋）不能串接在另一个一级关节下面；一个活动部件也不能同时由多个关节驱动。关节只能安装在直接相连、但未被蜂蜜固化为同一组合的两部分之间。",
   "create_biotech.surgery_guide.joints.animation": "关节会根据实际形态自动调整动画。",
   "create_biotech.surgery_guide.stats": "成品属性怎样决定",
-  "create_biotech.surgery_guide.stats.1": "装箱时会根据最终形状和有效关节生成属性。相同素材换一种摆法，移动速度、攻击距离和碰撞范围都可能变化。供体原本的血量、攻击力、装备和 AI 不会继承给成品。",
+  "create_biotech.surgery_guide.stats.1": "生命上限按最终模型的非重叠体积计算，体型越大，额外体积的收益越低。移动与攻击由最终形状和有效关节决定；供体属性不会继承。",
   "create_biotech.surgery_guide.stats.2": "这一部分还未完成，欢迎在模组和视频的评论区提出建议。",
   "create_biotech.surgery_guide.stats.inspect": "查看属性",
   "create_biotech.surgery_guide.stats.inspect.1": "把仿生生物装进纸箱后，按住 Alt 展开“基础数值”。其中会显示生命上限、伤害（DPS）、移动速度、护甲、击退相关属性，以及有效的头、手臂和腿数量。这里的 DPS 是不计武器、附魔、状态效果和具体目标位置的基础参考值。",

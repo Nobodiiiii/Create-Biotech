@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 
 import net.minecraft.network.FriendlyByteBuf;
@@ -9,11 +10,12 @@ import net.minecraft.world.entity.Entity;
 
 /** Lets the measuring client finalize the authoritative bounds of legacy and newly packed bodies. */
 public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBounds bounds,
-	SurgicalAssembly.HitboxGeometry hitboxGeometry) {
+	SurgicalAssembly.HitboxGeometry hitboxGeometry, double bodyVolume) {
 	private static final double MAX_REPORT_DISTANCE_SQR = 128.0d * 128.0d;
 
 	public SlimeBionicBodyBoundsPacket(FriendlyByteBuf buffer) {
-		this(buffer.readVarInt(), readBounds(buffer), SurgicalAssembly.HitboxGeometry.read(buffer));
+		this(buffer.readVarInt(), readBounds(buffer), SurgicalAssembly.HitboxGeometry.read(buffer),
+			buffer.readDouble());
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -30,6 +32,7 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 		buffer.writeVarInt(bounds.groundedKneeCount());
 		buffer.writeFloat(bounds.legVolumeRatio());
 		hitboxGeometry.write(buffer);
+		buffer.writeDouble(bodyVolume);
 	}
 
 	public void handle(ServerPlayer player) {
@@ -48,16 +51,18 @@ public record SlimeBionicBodyBoundsPacket(int entityId, SurgicalAssembly.BodyBou
 		// client. Only fill in what a save from before that geometry existed is missing; never
 		// re-measure. Accepting corrections lets two clients running different entity models overwrite
 		// each other indefinitely, re-encoding and re-broadcasting the whole assembly every round.
-		if (existingBounds != null && existingGeometry != null)
+		if (existingBounds != null && existingGeometry != null && assembly.hasBodyVolume())
 			return;
 		if (existingBounds == null && !validMobilityMeasurements(assembly, bounds))
 			return;
 		SurgicalAssembly.BodyBounds resolvedBounds = existingBounds != null ? existingBounds : bounds;
 		SurgicalAssembly.HitboxGeometry resolvedGeometry =
 			existingGeometry != null ? existingGeometry : hitboxGeometry;
-		if (resolvedBounds == null || resolvedGeometry == null)
+		double resolvedVolume = assembly.hasBodyVolume() ? assembly.bodyVolume() : bodyVolume;
+		if (resolvedBounds == null || resolvedGeometry == null
+			|| !SurgicalHealthCalibration.validMeasuredVolume(resolvedVolume, resolvedGeometry))
 			return;
-		bionic.setAssembly(assembly.withBodyGeometry(resolvedBounds, resolvedGeometry));
+		bionic.setAssembly(assembly.withBodyGeometry(resolvedBounds, resolvedGeometry, resolvedVolume));
 	}
 
 	private static SurgicalAssembly.BodyBounds readBounds(FriendlyByteBuf buffer) {
