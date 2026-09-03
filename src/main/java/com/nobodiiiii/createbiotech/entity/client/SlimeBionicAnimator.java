@@ -314,7 +314,7 @@ public final class SlimeBionicAnimator {
 		return frames;
 	}
 
-	/** Ender Golem's torso twists above planted legs, so hip and knee groups stay outside this set. */
+	/** Torso attack rotation excludes hip and knee groups so planted legs remain stable. */
 	private static Set<Member> legMembers(List<ResolvedLimb> limbs) {
 		Set<Member> members = new HashSet<>();
 		for (ResolvedLimb limb : limbs)
@@ -984,10 +984,10 @@ public final class SlimeBionicAnimator {
 	/**
 	 * Uses the centre of the installed hip hinges as the torso rotation point.
 	 *
-	 * <p>Both Deepling Brute and Ender Golem place their torso root at the midpoint between the leg
-	 * roots. The complete model-bounds centre is higher on an ordinary humanoid because it includes
-	 * the head and legs; rotating around that point pulls the torso away from the planted hip groups.
-	 * Bodies without hips retain the bounds-centre fallback because they have no anatomical waist.</p>
+	 * <p>The midpoint between the installed hip roots is the anatomical waist. The complete
+	 * model-bounds centre is higher on an ordinary humanoid because it includes the head and legs;
+	 * rotating around that point pulls the torso away from the planted hip groups. Bodies without
+	 * hips retain the bounds-centre fallback because they have no anatomical waist.</p>
 	 */
 	private static Vec3 bodyPivot(List<ResolvedLimb> limbs, List<SourceState> sources) {
 		Vec3 hipSum = Vec3.ZERO;

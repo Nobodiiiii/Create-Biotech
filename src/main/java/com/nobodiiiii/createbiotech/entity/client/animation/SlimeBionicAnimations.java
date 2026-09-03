@@ -22,15 +22,10 @@ import net.minecraft.world.entity.LivingEntity;
  * solver can therefore keep using these poses if the animation catalogue later grows into state
  * machines or authored keyframes.</p>
  *
- * <p>The two-level arm and leg layout follows Maledictus's exact 1.21.1 model and walk-animation
- * structure in
- * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/model/entity/Maledictus_Model.java}
- * and
- * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/animation/Maledictus_Animation.java}:
- * front arms are children of upper arms, and front legs are children of upper legs. The lightweight
- * bend curves below preserve that hierarchy without copying Cataclysm's boss-specific animation
- * catalogue. Authored attacks live beside this sampler in their own catalogue class so adding more
- * of them does not grow the geometry solver or its integration contract.</p>
+	 * <p>The two-level arm and leg layout models each lower limb as a child of its corresponding upper
+	 * limb. The lightweight bend curves below preserve that hierarchy. Authored attacks live beside
+	 * this sampler in their own catalogue class so adding more of them does not grow the geometry
+	 * solver or its integration contract.</p>
  */
 public final class SlimeBionicAnimations {
 	private static final float WALK_PHASE_SCALE = 0.6662f;
@@ -82,7 +77,7 @@ public final class SlimeBionicAnimations {
 		return new Pose(rotations);
 	}
 
-	/** Maledictus-inspired arm flexion, expressed locally beneath each upper arm. */
+	/** Alternating arm flexion, expressed locally beneath each upper arm. */
 	private static void addElbowPose(EnumMap<Bone, Rotation> rotations, Context context) {
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
 		if (weight <= 0.0f) {
@@ -298,10 +293,10 @@ public final class SlimeBionicAnimations {
 	private static SlimeBionicAttackAnimations.AttackPose attackPose(float progress,
 		AttackStyle style, boolean attackArmHasElbow) {
 		if (!attackArmHasElbow)
-			return SlimeBionicAttackAnimations.elbowlessBruteSwing(progress);
+			return SlimeBionicAttackAnimations.rigidArmSwing(progress);
 		return style == AttackStyle.WEAPON
 			? SlimeBionicAttackAnimations.weaponSwing(progress)
-			: SlimeBionicAttackAnimations.emptyHandGolemSwing(progress);
+			: SlimeBionicAttackAnimations.articulatedEmptyHandSwing(progress);
 	}
 
 	@Nullable

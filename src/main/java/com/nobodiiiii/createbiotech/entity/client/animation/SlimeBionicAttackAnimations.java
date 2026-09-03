@@ -7,42 +7,34 @@ import net.minecraft.util.Mth;
 
 /** Authored attack catalogue for the bionic slime's articulated limbs. */
 final class SlimeBionicAttackAnimations {
-	private static final float MALEDICTUS_SWING_DURATION_SECONDS = 1.125f;
-	private static final float ENDER_GOLEM_ATTACK_TICKS =
-		SlimeBionicAttackTiming.ENDER_GOLEM_SOURCE_TICKS;
-	private static final float DEEPLING_BRUTE_ATTACK_TICKS =
-		SlimeBionicAttackTiming.DEEPLING_BRUTE_SOURCE_TICKS;
-	private static final AttackPose DEEPLING_BRUTE_WINDUP = new AttackPose(
+	private static final float WEAPON_SWING_CURVE_SECONDS = 1.125f;
+	private static final float ARTICULATED_EMPTY_HAND_CURVE_TICKS =
+		SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_CURVE_TICKS;
+	private static final float RIGID_ARM_CURVE_TICKS =
+		SlimeBionicAttackTiming.RIGID_ARM_CURVE_TICKS;
+	private static final AttackPose RIGID_ARM_WINDUP = new AttackPose(
 		Rotation.degrees(-12.5f, 10.0f, -12.5f),
 		Rotation.degrees(0.0f, 0.0f, 75.0f), Rotation.IDENTITY,
 		Rotation.degrees(12.5f, 0.0f, -10.0f), Rotation.IDENTITY);
-	private static final AttackPose DEEPLING_BRUTE_STRIKE = new AttackPose(
+	private static final AttackPose RIGID_ARM_STRIKE = new AttackPose(
 		Rotation.degrees(30.0f, -30.0f, -7.5f),
 		Rotation.degrees(-107.5f, -12.5f, 77.5f), Rotation.IDENTITY,
 		Rotation.degrees(15.0f, 0.0f, -10.0f), Rotation.IDENTITY);
-	private static final Rotation ENDER_GOLEM_WINDUP_BODY = Rotation.degrees(0.0f, 50.0f, 0.0f);
-	private static final Rotation ENDER_GOLEM_WINDUP_SHOULDER = Rotation.degrees(40.0f, 20.0f, 0.0f);
-	private static final Rotation ENDER_GOLEM_WINDUP_ELBOW = Rotation.degrees(-80.0f, 0.0f, 0.0f);
-	private static final Rotation ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER =
+	private static final Rotation EMPTY_HAND_WINDUP_BODY = Rotation.degrees(0.0f, 50.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_WINDUP_SHOULDER = Rotation.degrees(40.0f, 20.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_WINDUP_ELBOW = Rotation.degrees(-80.0f, 0.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER =
 		Rotation.degrees(35.0f, 0.0f, -10.0f);
-	private static final Rotation ENDER_GOLEM_WINDUP_OPPOSITE_ELBOW =
+	private static final Rotation EMPTY_HAND_WINDUP_OPPOSITE_ELBOW =
 		Rotation.degrees(-30.0f, 0.0f, 0.0f);
-	// lowerbody -20 degrees + its child upperbody -40 degrees in the source hierarchy.
-	private static final Rotation ENDER_GOLEM_STRIKE_BODY = Rotation.degrees(0.0f, -60.0f, 0.0f);
-	private static final Rotation ENDER_GOLEM_STRIKE_SHOULDER = Rotation.degrees(-20.0f, 20.0f, 20.0f);
-	private static final Rotation ENDER_GOLEM_STRIKE_ELBOW = Rotation.degrees(-20.0f, 0.0f, 0.0f);
-	private static final Rotation ENDER_GOLEM_STRIKE_OPPOSITE_ELBOW =
+	// Two nested torso rotations combine into one effective body-space channel.
+	private static final Rotation EMPTY_HAND_STRIKE_BODY = Rotation.degrees(0.0f, -60.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_STRIKE_SHOULDER = Rotation.degrees(-20.0f, 20.0f, 20.0f);
+	private static final Rotation EMPTY_HAND_STRIKE_ELBOW = Rotation.degrees(-20.0f, 0.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_STRIKE_OPPOSITE_ELBOW =
 		Rotation.degrees(-40.0f, 0.0f, 0.0f);
 
-	/**
-	 * The attacking-arm subset of Maledictus's {@code swing_attack_right} animation.
-	 *
-	 * <p>Source:
-	 * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/animation/Maledictus_Animation.java}.
-	 * The body, right attacking arm and left balancing arm rotations are retained. The source's
-	 * baked weapon, root and translation tracks remain omitted so an equipped item can follow the
-	 * entity's own attacking forearm without importing Maledictus-specific geometry.</p>
-	 */
+	/** One-handed weapon curve for the torso, attacking arm and balancing arm. */
 	private static final RotationTrack WEAPON_SWING_BODY = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(30.92f, -18.9477f, 2.2213f)),
@@ -71,70 +63,52 @@ final class SlimeBionicAttackAnimations {
 
 	private SlimeBionicAttackAnimations() {}
 
-	/**
-	 * Deepling Brute's complete right-handed melee curve for a rigid, elbowless pair of arms.
-	 *
-	 * <p>Source:
-	 * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/model/entity/Deepling_Brute_Model.java}.
-	 * The attacking hand, balancing hand and body channels retain the source's 4-tick wind-up,
-	 * 2-tick strike and 14-tick reset. Left-handed attacks are mirrored by the caller.</p>
-	 */
-	static AttackPose elbowlessBruteSwing(float progress) {
-		float tick = Mth.clamp(progress, 0.0f, 1.0f) * DEEPLING_BRUTE_ATTACK_TICKS;
+	/** Right-handed melee curve for a rigid pair of arms; the caller mirrors left-handed attacks. */
+	static AttackPose rigidArmSwing(float progress) {
+		float tick = Mth.clamp(progress, 0.0f, 1.0f) * RIGID_ARM_CURVE_TICKS;
 		if (tick < 4.0f)
-			return interpolate(AttackPose.IDENTITY, DEEPLING_BRUTE_WINDUP, tick / 4.0f);
+			return interpolate(AttackPose.IDENTITY, RIGID_ARM_WINDUP, tick / 4.0f);
 		if (tick < 6.0f)
-			return interpolate(DEEPLING_BRUTE_WINDUP, DEEPLING_BRUTE_STRIKE,
+			return interpolate(RIGID_ARM_WINDUP, RIGID_ARM_STRIKE,
 				(tick - 4.0f) / 2.0f);
-		return interpolate(DEEPLING_BRUTE_STRIKE, AttackPose.IDENTITY,
+		return interpolate(RIGID_ARM_STRIKE, AttackPose.IDENTITY,
 			(tick - 6.0f) / 14.0f);
 	}
 
 	static AttackPose weaponSwing(float progress) {
-		float sourceTime = Mth.clamp(progress, 0.0f, 1.0f)
-			* MALEDICTUS_SWING_DURATION_SECONDS;
-		return new AttackPose(WEAPON_SWING_BODY.sample(sourceTime),
-			WEAPON_SWING_SHOULDER.sample(sourceTime),
-			WEAPON_SWING_ELBOW.sample(sourceTime),
-			WEAPON_SWING_OPPOSITE_SHOULDER.sample(sourceTime),
-			WEAPON_SWING_OPPOSITE_ELBOW.sample(sourceTime));
+		float curveTime = Mth.clamp(progress, 0.0f, 1.0f)
+			* WEAPON_SWING_CURVE_SECONDS;
+		return new AttackPose(WEAPON_SWING_BODY.sample(curveTime),
+			WEAPON_SWING_SHOULDER.sample(curveTime),
+			WEAPON_SWING_ELBOW.sample(curveTime),
+			WEAPON_SWING_OPPOSITE_SHOULDER.sample(curveTime),
+			WEAPON_SWING_OPPOSITE_ELBOW.sample(curveTime));
 	}
 
-	/**
-	 * Ender Golem's Attack 1 curve, reduced to its torso and both articulated arms, then retimed
-	 * externally. Attack 2 is the exact left/right mirror and is produced by the caller.
-	 *
-	 * <p>Pose source:
-	 * {@code ref/1.21.1/Cataclysm/src/main/java/com/github/L_Ender/cataclysm/client/model/entity/Ender_Golem_Model.java}.
-	 * The torso channel uses the source hierarchy's effective upper-body yaw: {@code +50} degrees
-	 * during wind-up and {@code -60} during the strike ({@code -20} lower plus {@code -40} upper).
-	 * The complete source curve remains intact: 10 ticks into wind-up, 5 into strike, 5 held, then
-	 * 5 back to rest. The common timing contract maps it into the normal 15-tick playback window and
-	 * compresses that window further only when the real attack interval is faster.</p>
-	 */
-	static AttackPose emptyHandGolemSwing(float progress) {
-		float tick = Mth.clamp(progress, 0.0f, 1.0f) * ENDER_GOLEM_ATTACK_TICKS;
+	/** Articulated empty-hand curve, retimed externally and mirrored by the caller when needed. */
+	static AttackPose articulatedEmptyHandSwing(float progress) {
+		float tick = Mth.clamp(progress, 0.0f, 1.0f) * ARTICULATED_EMPTY_HAND_CURVE_TICKS;
 		AttackPose pose;
 		if (tick < 10.0f)
 			pose = interpolate(AttackPose.IDENTITY,
-				new AttackPose(ENDER_GOLEM_WINDUP_BODY, ENDER_GOLEM_WINDUP_SHOULDER,
-					ENDER_GOLEM_WINDUP_ELBOW, ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER,
-					ENDER_GOLEM_WINDUP_OPPOSITE_ELBOW), tick / 10.0f);
+				new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
+					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
+					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW), tick / 10.0f);
 		else if (tick < 15.0f)
-			pose = interpolate(new AttackPose(ENDER_GOLEM_WINDUP_BODY, ENDER_GOLEM_WINDUP_SHOULDER,
-					ENDER_GOLEM_WINDUP_ELBOW, ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER,
-					ENDER_GOLEM_WINDUP_OPPOSITE_ELBOW),
-				new AttackPose(ENDER_GOLEM_STRIKE_BODY, ENDER_GOLEM_STRIKE_SHOULDER,
-					ENDER_GOLEM_STRIKE_ELBOW, Rotation.IDENTITY,
-					ENDER_GOLEM_STRIKE_OPPOSITE_ELBOW),
+			pose = interpolate(new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
+					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
+					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW),
+				new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
+					EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
+					EMPTY_HAND_STRIKE_OPPOSITE_ELBOW),
 				(tick - 10.0f) / 5.0f);
 		else if (tick < 20.0f)
-			pose = new AttackPose(ENDER_GOLEM_STRIKE_BODY, ENDER_GOLEM_STRIKE_SHOULDER,
-				ENDER_GOLEM_STRIKE_ELBOW, Rotation.IDENTITY,
-				ENDER_GOLEM_STRIKE_OPPOSITE_ELBOW);
+			pose = new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
+				EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
+				EMPTY_HAND_STRIKE_OPPOSITE_ELBOW);
 		else
-			pose = interpolate(new AttackPose(ENDER_GOLEM_STRIKE_BODY, ENDER_GOLEM_STRIKE_SHOULDER,
-				ENDER_GOLEM_STRIKE_ELBOW, Rotation.IDENTITY, ENDER_GOLEM_STRIKE_OPPOSITE_ELBOW),
+			pose = interpolate(new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
+				EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY, EMPTY_HAND_STRIKE_OPPOSITE_ELBOW),
 				AttackPose.IDENTITY, (tick - 20.0f) / 5.0f);
 		return pose.withOppositeShoulder(emptyHandOppositeShoulder(tick));
 	}
@@ -142,11 +116,11 @@ final class SlimeBionicAttackAnimations {
 	/** Moves the balancing upper arm back early, holds it through impact, then joins recovery. */
 	private static Rotation emptyHandOppositeShoulder(float tick) {
 		if (tick < 6.0f)
-			return interpolateEased(Rotation.IDENTITY, ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER,
+			return interpolateEased(Rotation.IDENTITY, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
 				tick / 6.0f);
 		if (tick < 20.0f)
-			return ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER;
-		return interpolateEased(ENDER_GOLEM_WINDUP_OPPOSITE_SHOULDER, Rotation.IDENTITY,
+			return EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER;
+		return interpolateEased(EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER, Rotation.IDENTITY,
 			(tick - 20.0f) / 5.0f);
 	}
 
@@ -182,7 +156,7 @@ final class SlimeBionicAttackAnimations {
 
 	private record RotationKeyframe(float time, Rotation rotation) {}
 
-	/** Catmull-Rom rotation track matching the interpolation used by the source animation. */
+	/** Catmull-Rom rotation track for authored keyframes. */
 	private static final class RotationTrack {
 		private final RotationKeyframe[] keyframes;
 

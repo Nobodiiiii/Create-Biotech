@@ -34,6 +34,43 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+## L_Ender's Cataclysm
+
+Some bionic-slime animation parameters and timing curves are adapted from the
+source code of L_Ender's Cataclysm:
+
+- Repository: [`lender544/new1.20.1`](https://github.com/lender544/new1.20.1)
+- Reference branch and revision: [`1.21` at
+  `fe6d06e79d98fcbf22fbd8aee153c65a1d9eb3cd`](https://github.com/lender544/new1.20.1/tree/fe6d06e79d98fcbf22fbd8aee153c65a1d9eb3cd)
+- Upstream source files consulted:
+  - `Maledictus_Animation.java`
+  - `Maledictus_Model.java`
+  - `Deepling_Brute_Model.java`
+  - `Ender_Golem_Model.java`
+- Adapted Create: Biotech code:
+  - `SlimeBionicAnimations.java`
+  - `SlimeBionicAttackAnimations.java`
+  - `SlimeBionicAttackTiming.java`
+
+The adapted data has been reduced to the relevant body and limb rotation
+channels, retimed for Create: Biotech's combat cadence, mirrored where needed,
+and renamed around its role in the local animation system. No Cataclysm models,
+textures, sounds, localization, or other assets are redistributed.
+These adaptations and modifications were made for Create: Biotech and were
+last materially revised on 2026-09-04.
+
+The Cataclysm `1.21` branch [declares its source code under the GNU Lesser
+General Public License version 3.0 and reserves all rights to its
+assets](https://github.com/lender544/new1.20.1/blob/fe6d06e79d98fcbf22fbd8aee153c65a1d9eb3cd/gradle.properties#L42).
+The Cataclysm-derived animation parameters described above are therefore
+provided under the GNU LGPL version 3.0 only. Copies of the
+[GNU LGPL version 3.0](LICENSES/LGPL-3.0-only.txt) and the
+[GNU GPL version 3.0](LICENSES/GPL-3.0-only.txt) incorporated by that license
+are included in this repository and its distributable jar. Copyright in those
+adapted portions remains with L_Ender and the Cataclysm contributors. The rest
+of Create: Biotech remains under the licenses described in
+[LICENSE.md](LICENSE.md).
+
 ## yision1/CreatePhantom
 
 The Allay logistics implementation in this repository references source code from:

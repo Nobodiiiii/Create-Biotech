@@ -251,4 +251,7 @@ jar {
         rename { "${mod_name}_${it}" }
     }
     from('THIRD_PARTY_NOTICES.md')
+    from('LICENSES') {
+        into 'LICENSES'
+    }
 }

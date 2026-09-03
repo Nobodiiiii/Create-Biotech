@@ -20,6 +20,12 @@ Those portions, including later modifications or derivative adaptations of those
 
 To avoid doubt: moving, renaming, editing, or further integrating those adapted portions into other parts of this repository does not remove the upstream MIT notice requirement for those portions.
 
+Some bionic-slime animation parameters are adapted from the source code of
+[`L_Ender's Cataclysm`](https://github.com/lender544/new1.20.1/tree/1.21). Those
+adapted portions remain available under the upstream GNU Lesser General Public
+License version 3.0 only. Their scope, provenance, modifications, and license
+copies are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## Repository Code License (MIT)
 
 Unless a file or adapted portion is covered by the section above, the remaining code and documentation in this repository are licensed under the MIT License:
