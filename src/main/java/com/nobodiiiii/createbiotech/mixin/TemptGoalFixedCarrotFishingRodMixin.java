@@ -78,6 +78,9 @@ public abstract class TemptGoalFixedCarrotFishingRodMixin {
 	@Unique
 	private boolean createBiotech$wasCoolingDown;
 
+	@Unique
+	private int createBiotech$fixedRodSearchCooldown;
+
 	@Inject(method = "canUse", at = @At("HEAD"))
 	private void createBiotech$rememberCooldown(CallbackInfoReturnable<Boolean> cir) {
 		createBiotech$wasCoolingDown = calmDown > 0;
@@ -87,14 +90,23 @@ public abstract class TemptGoalFixedCarrotFishingRodMixin {
 	private void createBiotech$useFixedRodWhenNoPlayer(CallbackInfoReturnable<Boolean> cir) {
 		if (cir.getReturnValue()) {
 			createBiotech$fixedRodTarget = null;
+			createBiotech$fixedRodSearchCooldown = 0;
 			return;
 		}
 		if (createBiotech$wasCoolingDown)
 			return;
+		if (createBiotech$fixedRodSearchCooldown > 0) {
+			createBiotech$fixedRodSearchCooldown--;
+			return;
+		}
 
 		createBiotech$fixedRodTarget = FixedCarrotFishingRodTargeting.findNearest(mob, items);
-		if (createBiotech$fixedRodTarget != null)
+		if (createBiotech$fixedRodTarget != null) {
 			cir.setReturnValue(true);
+		} else {
+			createBiotech$fixedRodSearchCooldown =
+				FixedCarrotFishingRodTargeting.getSearchCooldownTicks();
+		}
 	}
 
 	@Inject(method = "canContinueToUse", at = @At("HEAD"), cancellable = true)
@@ -112,6 +124,12 @@ public abstract class TemptGoalFixedCarrotFishingRodMixin {
 			pRotX = nearestPlayer.getXRot();
 			pRotY = nearestPlayer.getYRot();
 			createBiotech$fixedRodTarget = null;
+			cir.setReturnValue(true);
+			return;
+		}
+
+		if (FixedCarrotFishingRodTargeting.getValidBaitPosition(mob,
+			createBiotech$fixedRodTarget) != null) {
 			cir.setReturnValue(true);
 			return;
 		}

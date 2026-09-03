@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -14,8 +16,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
 
 /**
- * Holds one lazily created entity used purely as a render subject, never ticked
- * and never added to a level.
+ * Holds lazily created entities used purely as render subjects, never ticked
+ * and never added to a level. The cache holds one entry by default; callers
+ * that draw several keys in the same frame can raise the capacity.
  *
  * <p>Display code needs a live entity instance to hand to the entity renderer,
  * but constructing one per frame is wasteful and constructing one eagerly is
@@ -35,13 +38,11 @@ public final class CachedRenderEntity<T extends LivingEntity, K> {
 	private UnaryOperator<K> keyCopier = UnaryOperator.identity();
 	@Nullable
 	private Consumer<T> configurer;
+	private int cacheCapacity = 1;
 
-	@Nullable
-	private T cachedEntity;
+	private final List<CacheEntry<T, K>> cachedEntities = new ArrayList<>();
 	@Nullable
 	private Level cachedLevel;
-	@Nullable
-	private K cachedKey;
 
 	private CachedRenderEntity(BiFunction<Level, K, T> factory) {
 		this.factory = factory;
@@ -88,6 +89,20 @@ public final class CachedRenderEntity<T extends LivingEntity, K> {
 	}
 
 	/**
+	 * Retains up to {@code capacity} independently keyed entities. This is useful
+	 * for GUI layouts that draw several variants through one renderer during the
+	 * same frame.
+	 */
+	public CachedRenderEntity<T, K> cacheCapacity(int capacity) {
+		if (capacity < 1)
+			throw new IllegalArgumentException("Render entity cache capacity must be positive");
+		cacheCapacity = capacity;
+		while (cachedEntities.size() > cacheCapacity)
+			cachedEntities.remove(0);
+		return this;
+	}
+
+	/**
 	 * Extra setup applied once, when the entity is created.
 	 */
 	public CachedRenderEntity<T, K> configure(Consumer<T> configurer) {
@@ -105,9 +120,18 @@ public final class CachedRenderEntity<T extends LivingEntity, K> {
 		if (level == null)
 			return null;
 
-		if (cachedEntity != null && cachedLevel == level && keysMatch(cachedKey, key)) {
-			resetAnimationState(cachedEntity);
-			return cachedEntity;
+		if (cachedLevel != level)
+			clear();
+
+		for (int i = cachedEntities.size() - 1; i >= 0; i--) {
+			CacheEntry<T, K> entry = cachedEntities.get(i);
+			if (!keysMatch(entry.key, key))
+				continue;
+
+			cachedEntities.remove(i);
+			cachedEntities.add(entry);
+			resetAnimationState(entry.entity);
+			return entry.entity;
 		}
 
 		T entity = factory.apply(level, key);
@@ -119,15 +143,16 @@ public final class CachedRenderEntity<T extends LivingEntity, K> {
 		applyDisplayState(entity);
 
 		cachedLevel = level;
-		cachedKey = key == null ? null : keyCopier.apply(key);
-		cachedEntity = entity;
+		K storedKey = key == null ? null : keyCopier.apply(key);
+		cachedEntities.add(new CacheEntry<>(entity, storedKey));
+		if (cachedEntities.size() > cacheCapacity)
+			cachedEntities.remove(0);
 		return entity;
 	}
 
 	public void clear() {
-		cachedEntity = null;
+		cachedEntities.clear();
 		cachedLevel = null;
-		cachedKey = null;
 	}
 
 	private boolean keysMatch(@Nullable K cached, @Nullable K key) {
@@ -167,5 +192,16 @@ public final class CachedRenderEntity<T extends LivingEntity, K> {
 		entity.hurtTime = 0;
 		entity.deathTime = 0;
 		entity.hurtMarked = false;
+	}
+
+	private static final class CacheEntry<T extends LivingEntity, K> {
+		private final T entity;
+		@Nullable
+		private final K key;
+
+		private CacheEntry(T entity, @Nullable K key) {
+			this.entity = entity;
+			this.key = key;
+		}
 	}
 }

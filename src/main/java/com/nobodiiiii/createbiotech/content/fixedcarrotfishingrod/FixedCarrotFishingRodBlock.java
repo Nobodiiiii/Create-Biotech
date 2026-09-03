@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod;
 
 import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
+import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
@@ -33,6 +34,7 @@ import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -193,7 +195,8 @@ public class FixedCarrotFishingRodBlock extends HorizontalDirectionalBlock imple
 			return InteractionResult.PASS;
 		}
 
-		level.playSound(null, pos, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
+		BlockPos soundPos = BlockPos.containing(SubLevelCompat.toWorld(level, pos, Vec3.atCenterOf(pos)));
+		level.playSound(null, soundPos, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
 		return InteractionResult.SUCCESS;
 	}
 

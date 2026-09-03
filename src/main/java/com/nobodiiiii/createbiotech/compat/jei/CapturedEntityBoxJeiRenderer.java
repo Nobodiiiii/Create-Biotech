@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderTime;
 import com.nobodiiiii.createbiotech.foundation.render.CachedRenderEntity;
 import com.nobodiiiii.createbiotech.foundation.render.GuiEntityItemElement;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
@@ -24,11 +25,13 @@ public final class CapturedEntityBoxJeiRenderer {
 	private static final ItemStack LARGE_BOX_BADGE = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
 	private static final float BADGE_SCALE = 0.55f;
 	private static final int BADGE_Z = 200;
+	private static final int ENTITY_CACHE_CAPACITY = 16;
 
 	private static final CachedRenderEntity<LivingEntity, ItemStack> CAPTURED_ENTITY =
 		CachedRenderEntity.<LivingEntity, ItemStack>keyed(CapturedEntityBoxJeiRenderer::createCapturedEntity)
 			.keyEquality(ItemStack::isSameItemSameComponents)
-			.keyCopier(ItemStack::copy);
+			.keyCopier(ItemStack::copy)
+			.cacheCapacity(ENTITY_CACHE_CAPACITY);
 
 	private CapturedEntityBoxJeiRenderer() {}
 
@@ -65,10 +68,11 @@ public final class CapturedEntityBoxJeiRenderer {
 	}
 
 	private static void renderEntity(GuiGraphics graphics, LivingEntity entity, int x, int y) {
-		GuiEntityItemElement.of(entity)
-			.blockCentered()
-			.autoScale(1.0f)
-			.renderInGuiSlot(graphics, ENTITY_ITEM_TRANSFORM, x, y);
+		CapturedEntityRenderTime.runWithFixedPartialTick(() ->
+			GuiEntityItemElement.of(entity)
+				.blockCentered()
+				.autoScale(1.0f)
+				.renderInGuiSlot(graphics, ENTITY_ITEM_TRANSFORM, x, y));
 	}
 
 	private static void renderBadge(GuiGraphics graphics, int x, int y) {
