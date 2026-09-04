@@ -141,11 +141,8 @@ public final class CapturedEntityBoxIconRenderer {
 
 	static GeometryProfile prepareGeometry(LivingEntity entity) {
 		GEOMETRY_COLLECTOR.reset();
-		CapturedEntityRenderTime.push();
-		try {
+		try (CapturedEntityRenderTime.Scope ignored = CapturedEntityRenderTime.open()) {
 			EntityGeometry.measureInto(entity, GEOMETRY_COLLECTOR);
-		} finally {
-			CapturedEntityRenderTime.pop();
 		}
 
 		if (!GEOMETRY_COLLECTOR.hasVertices())
@@ -175,16 +172,13 @@ public final class CapturedEntityBoxIconRenderer {
 
 		PoseStack poseStack = new PoseStack();
 		applyEntityItemTransform(poseStack, face);
-		CapturedEntityRenderTime.push();
-		try {
+		try (CapturedEntityRenderTime.Scope ignored = CapturedEntityRenderTime.open()) {
 			GuiEntityItemElement.of(entity)
 				.blockCentered()
 				.geometryCenter(geometry.geometryCenter())
 				.fixedScale(projection.renderScale())
 				.packedLight(BakedCapturedEntityIcon.LIGHT_SENTINEL)
 				.render(poseStack, clippingSource);
-		} finally {
-			CapturedEntityRenderTime.pop();
 		}
 		return builder.build(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType())
 			.toString());

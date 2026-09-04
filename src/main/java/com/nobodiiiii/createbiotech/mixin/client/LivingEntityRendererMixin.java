@@ -49,7 +49,9 @@ public abstract class LivingEntityRendererMixin {
 		at = @At(value = "INVOKE",
 			target = "Lcom/mojang/blaze3d/vertex/PoseStack;scale(FFF)V",
 			ordinal = 0,
-			shift = At.Shift.AFTER))
+			shift = At.Shift.AFTER),
+		require = 1,
+		expect = 1)
 	private void createBiotech$applyButterRotation(LivingEntity entity, float entityYaw, float partialTick,
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight, CallbackInfo ci) {
 		float rotation = ButterRotation.getVisualRotationDegrees(entity, partialTick);
@@ -60,7 +62,9 @@ public abstract class LivingEntityRendererMixin {
 	@WrapOperation(
 		method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
 		at = @At(value = "INVOKE",
-			target = "Lnet/minecraft/client/renderer/entity/layers/RenderLayer;render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/entity/Entity;FFFFFF)V"))
+			target = "Lnet/minecraft/client/renderer/entity/layers/RenderLayer;render(Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;ILnet/minecraft/world/entity/Entity;FFFFFF)V"),
+		require = 1,
+		expect = 1)
 	private void createBiotech$bindIndependentLayerModel(RenderLayer<?, ?> layer, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, Entity entity, float limbSwing, float limbSwingAmount,
 		float partialTick, float ageInTicks, float netHeadYaw, float headPitch, Operation<Void> original) {

@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -22,7 +24,8 @@ import net.minecraft.world.entity.LivingEntity;
  * geometry at all.
  */
 public final class EntityGeometry {
-	private static final ThreadLocal<Integer> BASE_MODEL_MEASUREMENT_DEPTH = new ThreadLocal<>();
+	private static final AtomicInteger ACTIVE_BASE_MODEL_MEASUREMENTS = new AtomicInteger();
+	private static final ThreadLocal<BaseModelMeasurementScope> CURRENT_BASE_MODEL_MEASUREMENT = new ThreadLocal<>();
 
 	/**
 	 * Lower bound applied to auto-scaling divisors, so a very flat or very small
@@ -95,11 +98,8 @@ public final class EntityGeometry {
 	public static Collector measureBaseModelWithFallback(LivingEntity entity, Collector collector,
 		Runnable renderPass) {
 		collector.reset();
-		beginBaseModelMeasurement();
-		try {
+		try (BaseModelMeasurementScope ignored = openBaseModelMeasurement()) {
 			renderPass.run();
-		} finally {
-			endBaseModelMeasurement();
 		}
 		if (!collector.hasVertices())
 			collector.includeEntityDimensions(entity.getDimensions(entity.getPose()));
@@ -108,21 +108,48 @@ public final class EntityGeometry {
 
 	/** Used by the living-entity renderer mixin to suppress optional render layers in this scope. */
 	public static boolean isBaseModelMeasurement() {
-		Integer depth = BASE_MODEL_MEASUREMENT_DEPTH.get();
-		return depth != null && depth > 0;
+		if (ACTIVE_BASE_MODEL_MEASUREMENTS.get() == 0)
+			return false;
+		return CURRENT_BASE_MODEL_MEASUREMENT.get() != null;
 	}
 
-	private static void beginBaseModelMeasurement() {
-		Integer depth = BASE_MODEL_MEASUREMENT_DEPTH.get();
-		BASE_MODEL_MEASUREMENT_DEPTH.set(depth == null ? 1 : depth + 1);
+	private static BaseModelMeasurementScope openBaseModelMeasurement() {
+		BaseModelMeasurementScope scope =
+			new BaseModelMeasurementScope(Thread.currentThread(), CURRENT_BASE_MODEL_MEASUREMENT.get());
+		CURRENT_BASE_MODEL_MEASUREMENT.set(scope);
+		ACTIVE_BASE_MODEL_MEASUREMENTS.incrementAndGet();
+		return scope;
 	}
 
-	private static void endBaseModelMeasurement() {
-		Integer currentDepth = BASE_MODEL_MEASUREMENT_DEPTH.get();
-		if (currentDepth == null || currentDepth <= 1)
-			BASE_MODEL_MEASUREMENT_DEPTH.remove();
-		else
-			BASE_MODEL_MEASUREMENT_DEPTH.set(currentDepth - 1);
+	private static final class BaseModelMeasurementScope implements AutoCloseable {
+		private final Thread owner;
+		private final BaseModelMeasurementScope parent;
+		private boolean closed;
+
+		private BaseModelMeasurementScope(Thread owner, BaseModelMeasurementScope parent) {
+			this.owner = owner;
+			this.parent = parent;
+		}
+
+		@Override
+		public void close() {
+			if (closed)
+				throw new IllegalStateException("Base-model measurement scope was already closed");
+			if (Thread.currentThread() != owner)
+				throw new IllegalStateException("Base-model measurement scope closed on a different thread");
+			if (CURRENT_BASE_MODEL_MEASUREMENT.get() != this)
+				throw new IllegalStateException("Base-model measurement scopes must close in LIFO order");
+
+			closed = true;
+			if (parent == null)
+				CURRENT_BASE_MODEL_MEASUREMENT.remove();
+			else
+				CURRENT_BASE_MODEL_MEASUREMENT.set(parent);
+			if (ACTIVE_BASE_MODEL_MEASUREMENTS.decrementAndGet() < 0) {
+				ACTIVE_BASE_MODEL_MEASUREMENTS.set(0);
+				throw new IllegalStateException("Base-model measurement scope count underflow");
+			}
+		}
 	}
 
 	/**

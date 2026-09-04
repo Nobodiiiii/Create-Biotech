@@ -19,7 +19,9 @@ public abstract class EntityRenderDispatcherSlimeMimicMixin {
 	@WrapOperation(
 		method = "render(Lnet/minecraft/world/entity/Entity;DDDFFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
 		at = @At(value = "INVOKE",
-			target = "Lnet/minecraft/client/renderer/entity/EntityRenderer;render(Lnet/minecraft/world/entity/Entity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"))
+			target = "Lnet/minecraft/client/renderer/entity/EntityRenderer;render(Lnet/minecraft/world/entity/Entity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V"),
+		require = 1,
+		expect = 1)
 	private <E extends Entity> void createBiotech$renderCompleteSlimeMimic(EntityRenderer<? super E> renderer,
 		E entity, float yaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		Operation<Void> original) {

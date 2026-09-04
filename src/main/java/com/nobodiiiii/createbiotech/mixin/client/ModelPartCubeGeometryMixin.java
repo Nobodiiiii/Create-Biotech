@@ -13,7 +13,11 @@ import net.minecraft.client.model.geom.ModelPart;
 
 @Mixin(ModelPart.Cube.class)
 public abstract class ModelPartCubeGeometryMixin {
-	@Inject(method = "compile", at = @At("HEAD"))
+	@Inject(
+		method = "compile(Lcom/mojang/blaze3d/vertex/PoseStack$Pose;Lcom/mojang/blaze3d/vertex/VertexConsumer;III)V",
+		at = @At("HEAD"),
+		require = 1,
+		expect = 1)
 	private void createBiotech$captureUnscaledPixelBounds(PoseStack.Pose pose, VertexConsumer consumer,
 		int packedLight, int packedOverlay, int color, CallbackInfo ci) {
 		SurgicalCapturedRenderPlan.observeModelCube((ModelPart.Cube) (Object) this, pose);

@@ -79,10 +79,13 @@ public final class FluidTankExperienceOrbRenderer {
 			int icon = (int) (seedA * 0.37f + i) & 0x0F;
 
 			poseStack.pushPose();
-			poseStack.translate(x, y, z);
-			ExperienceOrbModelRenderer.render(poseStack, buffer, packedLight, ageTicks * ORB_TURN_RATE * 25f + seedA,
-				icon, 1.0f, billboardRotation);
-			poseStack.popPose();
+			try {
+				poseStack.translate(x, y, z);
+				ExperienceOrbModelRenderer.render(poseStack, buffer, packedLight,
+					ageTicks * ORB_TURN_RATE * 25f + seedA, icon, 1.0f, billboardRotation);
+			} finally {
+				poseStack.popPose();
+			}
 		}
 
 		return true;

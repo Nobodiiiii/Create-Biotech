@@ -2,12 +2,10 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -16,6 +14,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
@@ -100,11 +99,8 @@ public final class SurgicalCapturedRenderPlan {
 
 	private static final Map<ResourceLocation, CachedAlphaMask> ALPHA_MASKS = new ConcurrentHashMap<>();
 	private static volatile int resourceGeneration;
-	private static final ThreadLocal<Deque<List<ObservedCube>>> MODEL_CUBE_CAPTURES =
-		ThreadLocal.withInitial(ArrayDeque::new);
-	private static final ThreadLocal<Deque<Set<ModelPart.Cube>>> HEAD_MODEL_CUBES =
-		ThreadLocal.withInitial(ArrayDeque::new);
-	private static volatile int activeModelCubeCaptureCount;
+	private static final AtomicInteger ACTIVE_MODEL_CUBE_CAPTURES = new AtomicInteger();
+	private static final ThreadLocal<ModelCubeCaptureScope> CURRENT_MODEL_CUBE_CAPTURE = new ThreadLocal<>();
 	private static ModelPart innerCube;
 	private static ModelPart outerCube;
 	private static final BitSet ALL_COMPONENTS = new BitSet();
@@ -136,29 +132,18 @@ public final class SurgicalCapturedRenderPlan {
 		RecordingBuffer recording = new RecordingBuffer();
 		PoseStack neutralPose = new PoseStack();
 		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
-		// Leaving the counter alone keeps observeModelCube - which the mixin runs for every cube of
-		// every entity model in the game - on its single-field-read rejection for this capture.
-		Deque<List<ObservedCube>> captures = null;
-		Deque<Set<ModelPart.Cube>> headCaptures = null;
-		if (topology) {
-			captures = MODEL_CUBE_CAPTURES.get();
-			captures.push(observedCubes);
-			headCaptures = HEAD_MODEL_CUBES.get();
-			headCaptures.push(headModelCubes(renderer, preview));
-			activeModelCubeCaptureCount++;
-		}
+		// Leaving the scope closed keeps observeModelCube - which the mixin runs for every cube of
+		// every entity model in the game - on its single atomic-read rejection for this capture.
+		ModelCubeCaptureScope captureScope = topology
+			? openModelCubeCapture(observedCubes, headModelCubes(renderer, preview)) : null;
 		try {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
-			recording.finish();
-			if (captures != null) {
-				captures.pop();
-				headCaptures.pop();
-				activeModelCubeCaptureCount = Math.max(0, activeModelCubeCaptureCount - 1);
-				if (captures.isEmpty())
-					MODEL_CUBE_CAPTURES.remove();
-				if (headCaptures.isEmpty())
-					HEAD_MODEL_CUBES.remove();
+			try {
+				recording.finish();
+			} finally {
+				if (captureScope != null)
+					captureScope.close();
 			}
 		}
 		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology);
@@ -170,10 +155,10 @@ public final class SurgicalCapturedRenderPlan {
 
 	/** Records unscaled ModelPart pixel bounds while the renderer emits the matching transformed vertices. */
 	public static void observeModelCube(ModelPart.Cube cube, PoseStack.Pose pose) {
-		if (activeModelCubeCaptureCount == 0)
+		if (ACTIVE_MODEL_CUBE_CAPTURES.get() == 0)
 			return;
-		Deque<List<ObservedCube>> captures = MODEL_CUBE_CAPTURES.get();
-		if (captures.isEmpty())
+		ModelCubeCaptureScope capture = CURRENT_MODEL_CUBE_CAPTURE.get();
+		if (capture == null)
 			return;
 		List<Vector3f> transformed = new ArrayList<>(8);
 		List<Vec3> model = new ArrayList<>(8);
@@ -189,9 +174,53 @@ public final class SurgicalCapturedRenderPlan {
 				}
 			}
 		}
-		Deque<Set<ModelPart.Cube>> headCaptures = HEAD_MODEL_CUBES.get();
-		boolean head = !headCaptures.isEmpty() && headCaptures.peek().contains(cube);
-		captures.peek().add(new ObservedCube(transformed, model, head));
+		boolean head = capture.headCubes.contains(cube);
+		capture.observedCubes.add(new ObservedCube(transformed, model, head));
+	}
+
+	private static ModelCubeCaptureScope openModelCubeCapture(List<ObservedCube> observedCubes,
+		Set<ModelPart.Cube> headCubes) {
+		ModelCubeCaptureScope scope = new ModelCubeCaptureScope(Thread.currentThread(),
+			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes);
+		CURRENT_MODEL_CUBE_CAPTURE.set(scope);
+		ACTIVE_MODEL_CUBE_CAPTURES.incrementAndGet();
+		return scope;
+	}
+
+	private static final class ModelCubeCaptureScope implements AutoCloseable {
+		private final Thread owner;
+		private final ModelCubeCaptureScope parent;
+		private final List<ObservedCube> observedCubes;
+		private final Set<ModelPart.Cube> headCubes;
+		private boolean closed;
+
+		private ModelCubeCaptureScope(Thread owner, ModelCubeCaptureScope parent,
+			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes) {
+			this.owner = owner;
+			this.parent = parent;
+			this.observedCubes = observedCubes;
+			this.headCubes = headCubes;
+		}
+
+		@Override
+		public void close() {
+			if (closed)
+				throw new IllegalStateException("Model-cube capture scope was already closed");
+			if (Thread.currentThread() != owner)
+				throw new IllegalStateException("Model-cube capture scope closed on a different thread");
+			if (CURRENT_MODEL_CUBE_CAPTURE.get() != this)
+				throw new IllegalStateException("Model-cube capture scopes must close in LIFO order");
+
+			closed = true;
+			if (parent == null)
+				CURRENT_MODEL_CUBE_CAPTURE.remove();
+			else
+				CURRENT_MODEL_CUBE_CAPTURE.set(parent);
+			if (ACTIVE_MODEL_CUBE_CAPTURES.decrementAndGet() < 0) {
+				ACTIVE_MODEL_CUBE_CAPTURES.set(0);
+				throw new IllegalStateException("Model-cube capture scope count underflow");
+			}
+		}
 	}
 
 	/** Uses the same model-part selection as Create's logistics/stock-keeper hat layer. */

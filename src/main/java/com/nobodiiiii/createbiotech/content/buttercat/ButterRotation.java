@@ -50,22 +50,16 @@ public final class ButterRotation {
 		if (previousAmplifier == amplifier)
 			return;
 
-		if (entity instanceof Player) {
-			access.createBiotech$setButterRotationAmplifier(amplifier);
+		if (entity instanceof Player)
 			return;
-		}
 
 		float phase = previousAmplifier < 0 ? 0.0F : getVisualRotationDegrees(entity, 0.0F);
-		access.createBiotech$setButterRotationPhase(phase);
-		access.createBiotech$setButterRotationPhaseStartTick(entity.level().getGameTime());
-		access.createBiotech$setButterRotationAmplifier(amplifier);
+		access.createBiotech$setButterRotationState(amplifier, phase, entity.level().getGameTime());
 	}
 
 	public static void clearRotationState(LivingEntity entity) {
 		ButterRotationAccess access = (ButterRotationAccess) entity;
-		access.createBiotech$setButterRotationAmplifier(-1);
-		access.createBiotech$setButterRotationPhase(0.0F);
-		access.createBiotech$setButterRotationPhaseStartTick(-1L);
+		access.createBiotech$setButterRotationState(-1, 0.0F, -1L);
 	}
 
 	public static float getTickAngleSpeed(int amplifier) {

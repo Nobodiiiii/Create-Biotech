@@ -1,21 +1,21 @@
 # Create: Biotech Mixin 全量审阅报告
 
-状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—2 的实现与冒烟验证（2026-09-04）
+状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—3 的实现与冒烟验证（2026-09-04）
 
 ## 1. 结论摘要
 
-当前三个配置共声明 **95 个 Mixin**，与源码中 95 个带 `@Mixin` 的 Java 文件一一对应：
+当前三个配置共声明 **94 个 Mixin**，与源码中 94 个带 `@Mixin` 的 Java 文件一一对应：
 
 | 配置 | common | client | 合计 |
 | --- | ---: | ---: | ---: |
-| `create_biotech.mixins.json` | 57 | 33 | 90 |
+| `create_biotech.mixins.json` | 56 | 33 | 89 |
 | `create_biotech_alternate_current.mixins.json` | 2 | 0 | 2 |
 | `create_biotech_sable.mixins.json` | 3 | 0 | 3 |
-| 总计 | 62 | 33 | 95 |
+| 总计 | 61 | 33 | 94 |
 
 本轮确认的 1 个 P0 发布阻断问题已在批次 0 修复：`BlockBreakingMovementBehaviourMixin` 不再依赖正常 `RETURN` 弹栈，伤害上下文现在由可校验的作用域在 `finally` 语义下关闭。
 
-最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1、Surface Funnel 坐标与抽取状态机已在批次 2 完成代码收敛，剩余的是游戏内行为矩阵；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
+最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1、Surface Funnel 坐标与抽取状态机已在批次 2、实体同步与渲染 scope 已在批次 3 完成代码收敛，剩余的是各批次的游戏内行为矩阵；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
 
 本报告的 P 级表示**整改优先级**，不是“Mixin 是否应删除”的判断：
 
@@ -72,11 +72,11 @@ newLocalFacing = localizeCanonical(newWorldFacing, newAttachment.opposite())
 
 编译和 `quickPlaySmoke` 已通过；仍需重点覆盖六个 attachment、四种 Y 轴 rotation、两种 mirror，以及结构方块、Schematic 和 Contraption 组合变换，确认漏斗口世界方向、shape、碰撞与目标 Belt 同步变化。
 
-### P1-02 收窄 `FluidTankRendererMixin` 的异常边界
+### P1-02 收窄 `FluidTankRendererMixin` 的异常边界（批次 3 已完成）
 
-[FluidTankRendererMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/FluidTankRendererMixin.java) 不仅捕获自定义经验球渲染的 `Throwable`，还捕获并吞掉 `original.call(...)` 的所有非 `ThreadDeath`/`VirtualMachineError` 异常。后者是 Create/Catnip 的正常 fallback；吞掉它会隐藏资源、渲染状态、链接或第三方兼容错误，并可能让损坏的图形状态继续影响本帧。
+[FluidTankRendererMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/FluidTankRendererMixin.java) 旧实现不仅捕获自定义经验球渲染的 `Throwable`，还捕获并吞掉 `original.call(...)` 的所有非 `ThreadDeath`/`VirtualMachineError` 异常。后者是 Create/Catnip 的正常 fallback；吞掉它会隐藏资源、渲染状态、链接或第三方兼容错误，并可能让损坏的图形状态继续影响本帧。
 
-优化为：只围住本模组的经验球渲染，失败后恢复本模组自己修改的状态；`original.call` 放在 catch 外并正常传播。若确需降级，只捕获能够明确恢复的预期异常，不能把 `LinkageError`、普通 `Error` 和未知运行时错误都视为可恢复。
+批次 3 已删除两层 `catch (Throwable)` 和一次性 logger 状态：经验球 renderer 成功时仍替换流体盒，返回 `false` 时调用 Create 原 renderer；两条路径发生的异常都正常传播。经验球逐个修改 `PoseStack` 的代码改为 `pushPose` + `try/finally`，异常时只恢复本模组拥有的栈帧。注入目标补全 descriptor，并增加 `require/expect = 1`；descriptor 含 Minecraft 渲染类型，因此保持默认 remap。
 
 ### P1-03 缩小 `FunnelBlockEntityMixin` 的整方法接管（批次 2 已完成代码收敛）
 
@@ -105,17 +105,24 @@ newLocalFacing = localizeCanonical(newWorldFacing, newAttachment.opposite())
 
 Create 6.0.10 使用本地精确源码核对；本机缓存的 Create 6.0.11-295 工件字节码也确认 `BasinRecipe.apply` 的 item/fluid 查询顺序、`RecipeTrie.getVariants` 唯一调用点，以及 spoutput 的模拟/提交双调用点未漂移。代码风险已收敛，但部分接收、数量大于 1、实体生成失败、模拟后目标变化、停止 Belt、六个方向、区块卸载，以及旧存档重复/缺失镜像和满 Basin，仍需专项游戏内测试。
 
-### P1-05 避免给所有 `LivingEntity` 注册四个独立同步字段
+### P1-05 避免给所有 `LivingEntity` 注册四个独立同步字段（批次 3 已完成）
 
-[LivingEntitySlimeMimicMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/LivingEntitySlimeMimicMixin.java) 向每个 `LivingEntity` 增加 1 个 `SynchedEntityData` 字段；[LivingEntityButterRotationMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/LivingEntityButterRotationMixin.java) 再增加 3 个。即使世界里没有目标效果，所有生物都会承担 data item 和同步协议开销；在基类上调用 `defineId(LivingEntity.class, ...)` 还扩大了与其他模组数据注册顺序的兼容面。
+旧版 `LivingEntitySlimeMimicMixin` 向每个 `LivingEntity` 增加 1 个 `SynchedEntityData` 字段，`LivingEntityButterRotationMixin` 再增加 3 个。即使世界里没有目标效果，所有生物都会承担四个 data item 和同步协议开销；在基类上调用四次 `defineId(LivingEntity.class, ...)` 也扩大了与其他模组数据注册顺序的兼容面。
 
-建议把状态合并为一个版本化的 NeoForge attachment/自有同步 payload，或从已经同步的效果、实体时间和确定性种子推导黄油旋转阶段。至少应把 3 个旋转字段压成一个紧凑状态，并在大型生物群、加入/重连、跨维度和多模组实体数据注册下验证。
+批次 3 已删除上述两个 Mixin，改用 [LivingEntityBiotechDataMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/LivingEntityBiotechDataMixin.java) 的单个 `EntityDataSerializers.LONG`。其 payload 带 2-bit 版本，合并拟态 flag、12-bit amplifier、14-bit phase 和 35-bit phase-start tick；phase 最大量化误差约 0.011 度，tick 以可回卷方式覆盖 50 年以上连续游戏时间。拟态和旋转更新都会保留另一半状态，旋转的 amplifier/phase/start 由一次原子 data item 更新提交；玩家无需视觉旋转，不再产生无用旋转同步。`CreateBiotechSlimeMimic` NBT 协议保持不变。
 
-### P1-06 收敛全局实体渲染链路
+### P1-06 收敛全局实体渲染链路（批次 3 已完成代码收敛）
 
-[EntityRenderDispatcherSlimeMimicMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/EntityRenderDispatcherSlimeMimicMixin.java) 包装完整 `EntityRenderer.render`，[LivingEntityRendererMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/LivingEntityRendererMixin.java) 又包装/修改同一渲染链并抑制 layer，[ModelPartCubeGeometryMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/ModelPartCubeGeometryMixin.java) 进入每个 `ModelPart.Cube.compile`。快速门卫已经存在，异常清理也比旧实现完整，但覆盖面仍是所有实体和每个模型 cube。
+[EntityRenderDispatcherSlimeMimicMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/EntityRenderDispatcherSlimeMimicMixin.java) 包装完整 `EntityRenderer.render`，[LivingEntityRendererMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/LivingEntityRendererMixin.java) 又包装/修改同一渲染链并抑制 layer，[ModelPartCubeGeometryMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/ModelPartCubeGeometryMixin.java) 进入每个 `ModelPart.Cube.compile`。这些全局注入仍是支持第三方 renderer 与独立 layer 几何所需的观察边界，批次 3 没有用特定模型白名单牺牲兼容性。
 
-优化方向：将 `CapturedEntityRenderTime` 的全局 depth 改成可嵌套的线程局部 token，或至少断言只在 render thread 使用；缓存同一实体/帧的捕获计划；对普通实体确保只执行常数级门卫。测试 Iris/Oculus、透明/发光/outline、隐身、盔甲层、第三方 renderer、资源重载、递归/嵌套渲染和异常退出。
+批次 3 已完成以下收敛：
+
+1. `CapturedEntityRenderTime` 从全局静态 depth 改成线程局部链式 token；token 校验 owner thread、LIFO 和重复关闭，另保留一个原子活动数作为普通 timer 读取的单分支快速门卫。
+2. `EntityGeometry` 的基础模型测量和 `SurgicalCapturedRenderPlan` 的 cube 捕获使用相同的可嵌套 scope 契约；cube capture 将原来的两个 ThreadLocal deque 合并为一个 frame，`recording.finish()` 异常也会在内层 `finally` 关闭 scope。
+3. 普通 layer/cube 路径先做一次原子活动数读取，只有捕获活动期间才访问 ThreadLocal。现有 `(entity, renderer, yaw, partialTick)` 帧缓存继续复用 Iris/Oculus 同帧重复 pass，不跨帧复用动态姿态。
+4. Dispatcher、Living renderer、layer 和 ModelPart cube 的核心调用点补上完整 descriptor 或 `require/expect = 1`，依赖升级时不再静默偏移。
+
+代码边界已收敛，仍需测试 Iris/Oculus、透明/发光/outline、隐身、盔甲层、第三方 renderer、资源重载、递归/嵌套渲染和异常退出。
 
 ### P1-07 不再向创造栏核心内容插入 `ItemStack.EMPTY`
 
@@ -181,7 +188,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 - `CreativeModeInventoryScreenMixin` 调用的 `CreativeTabSectionRenderer` 修改深度测试并 push pose，但当前没有用 `try/finally` 恢复；应把状态恢复放进 finally，并在标签切换/init 时清除静态 `currentRow`。
 - `CreeperRendererMixin` 当前已使用 `@WrapMethod` + `try/finally`，旧版 P1 已降为 P2；仍需测试它和另一个 `LivingEntityRenderer` 包装的嵌套顺序。
-- `DeltaTrackerTimerMixin` 的捕获深度应改为线程局部或显式 render-thread 断言。
+- `DeltaTrackerTimerMixin` 的捕获深度已在批次 3 改为线程局部 token；普通 timer 读取只做一次原子活动数判断。
 - `SpoutCategoryMixin` 可只包装 `AnimatedSpout.draw`，保留 Create 分类布局；`ItemApplicationCategoryMixin` 已有失败回退，不再是阻断项。
 - `LevelRendererAccessor`、Creative screen/menu accessor 和简单纹理 invoker 属于 P3；有公开 API 时迁移即可。
 
@@ -191,11 +198,11 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `BlockEntityConfigurationPacketMixin`、`ServerGamePacketListenerAccessor` 涉及客户端预测与跨空间方块实体定位，测试重复序列、过期序列、子层级卸载和权限校验。
 - `UniversalJointEndpointBlockSableMixin` 的 before/after move 应在移动失败、异常和部分端点加载时恢复 listener/lift 状态。
 
-## 6. 95 项全量清单
+## 6. 94 项全量清单
 
 下表给每个 Mixin 一个单一最高优先级。P1/P2/P3 代表该类最需要处理的风险，不表示整类所有代码都同级。
 
-### 6.1 主配置 common（57）
+### 6.1 主配置 common（56）
 
 | Mixin | 作用摘要 | P级 | 审阅结论/下一步 |
 | --- | --- | --- | --- |
@@ -232,8 +239,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `ItemHelperMixin` | 捕获物品延迟抽取预览 | P2 | 批次 1 已锁定调用点；仍测 EXACTLY 和非幂等 handler |
 | `MagmaBeltFunnelBlockMixin` | Magma Belt Funnel shape/扳手 | P2 | 与 `BeltFunnelBlockMixin` 统一分派 |
 | `LivingEntitySlimeMimicHurtSoundMixin` | 拟态受伤声 | P2 | 普通实体快速回退；服务端/客户端各测 |
-| `LivingEntitySlimeMimicMixin` | 全 LivingEntity 拟态同步状态 | P1 | 合并基类同步字段 |
-| `LivingEntityButterRotationMixin` | 全 LivingEntity 黄油旋转状态 | P1 | 三字段压缩或由已同步状态推导 |
+| `LivingEntityBiotechDataMixin` | 全 LivingEntity 拟态/旋转同步状态 | P1 | 批次 3 已把 4 个 data item 合并为 1 个版本化 long；补重连/跨维度矩阵 |
 | `HauntingTypeSlimeMimicMixin` | Haunting 对拟态实体分流 | P2 | 取消路径需保留原副作用/失败返回 |
 | `NozzleBlockMixin` | Nozzle 与 Belt/子空间适配 | P2 | 普通 Nozzle 和无 host 路径对照 |
 | `NetherPortalBlockMixin` | Portal 状态/流体扩展 | P2 | 测试原版传送门形状、更新和流体查询 |
@@ -270,10 +276,10 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.CreeperRendererMixin` | Ponder Creeper 脉动 | P2 | 当前 `WrapMethod`/finally 正确；测嵌套顺序 |
 | `client.CreativeModeInventoryScreenAccessor` | 读取创造栏 UI 字段 | P3 | 低风险映射耦合 |
 | `client.CreativeModeInventoryScreenMixin` | 绘制标题/行布局 | P2 | finally 恢复 render state；重置静态行 |
-| `client.DeltaTrackerTimerMixin` | 捕获渲染固定 partial tick | P2 | 改线程局部 depth 或断言 render thread |
-| `client.EntityRenderDispatcherSlimeMimicMixin` | 包装完整实体 renderer | P1 | 缩窄捕获面、缓存并做第三方 renderer 矩阵 |
+| `client.DeltaTrackerTimerMixin` | 捕获渲染固定 partial tick | P2 | 批次 3 已改线程局部 token + 常数级活动门卫 |
+| `client.EntityRenderDispatcherSlimeMimicMixin` | 包装完整实体 renderer | P1 | 批次 3 已锁定调用点并确认同帧缓存；补第三方 renderer 矩阵 |
 | `client.FlapStuffsMixin` | Funnel flap 坐标变换 | P2 | 可嵌套 token + finally |
-| `client.FluidTankRendererMixin` | 经验流体球渲染 | P1 | 不得吞掉 original renderer 异常 |
+| `client.FluidTankRendererMixin` | 经验流体球渲染 | P1 | 批次 3 已移除 Throwable 吞噬并用 finally 恢复自有 pose |
 | `client.FunnelRendererMixin` | Funnel BER 坐标变换 | P2 | scope/pose 异常恢复 |
 | `client.FunnelVisualMixin` | Flywheel Funnel visual 适配 | P2 | Flywheel 开关、重建、卸载测试 |
 | `client.GoggleOverlayRendererMixin` | Chamber/拟态 Goggle 信息 | P2 | 缓存目标查找；可用 proxy API 的分支迁移 |
@@ -283,7 +289,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.JeiItemStackListFactoryMixin` | 压制主标签空栈日志 | P1 | 修复上游列表后删除 |
 | `client.JeiRecipeLayoutMixin` | JEI hover/slot context | P1 | finally 已正确；修正 mapped descriptor 的 remap |
 | `client.JeiRecipeSlotMixin` | 全局捕获箱槽位 renderer | P1 | JEI 内部高频路径；版本门控和快速门卫 |
-| `client.LivingEntityRendererMixin` | 包装全 LivingEntity renderer/layer | P1 | 与 dispatcher/Creeper 顺序和异常矩阵 |
+| `client.LivingEntityRendererMixin` | 包装全 LivingEntity renderer/layer | P1 | 批次 3 已加快速 scope 门卫和调用点约束；补嵌套顺序矩阵 |
 | `client.LogisticalStockResponsePacketMixin` | 无线库存响应重路由 | P1 | 增加会话、维度和 holder 生命周期校验 |
 | `client.PressingBehaviourMixin` | Chamber Press 动画相位 | P2 | 单点覆盖；升级核对签名 |
 | `client.SpoutCategoryMixin` | 自定义 JEI Spout 场景 | P2 | 只包装动画调用，保留原分类布局 |
@@ -292,7 +298,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.LevelRendererAccessor` | 读取 renderer ticks | P3 | 优先公开动画时间 API |
 | `client.MixinSuperGlueSelectionHandler` | 客户端 Smart Glue 选择 | P2 | 与服务端判定保持一致 |
 | `client.ModelPartAccessor` | 遍历 cubes/children | P2 | 模型内部字段；资源重载和自定义模型测试 |
-| `client.ModelPartCubeGeometryMixin` | 捕获每个 cube 几何 | P2 | 全局高频点；普通路径必须常数级 |
+| `client.ModelPartCubeGeometryMixin` | 捕获每个 cube 几何 | P2 | 批次 3 已用原子门卫 + 线程局部 frame；补模型库矩阵 |
 | `client.WorldSectionElementImplMixin` | Ponder 透明 late buffer | P2 | Ponder 内部类；渲染阶段/版本检查 |
 
 ### 6.3 可选兼容配置（5）
@@ -313,6 +319,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `BeltMovementHandlerMixin` 已删除；运输适配不再通过该旧全局入口。
 - `client.ModelPartRenderMixin` 已删除；旧版“fallback 仍处在跳过 ModelPart 上下文导致零顶点”的问题由 `EntityRenderDispatcherSlimeMimicMixin` + surgical capture 方案替代。
 - 独立 `create_biotech_allay.mixins.json` 已删除；`PackagerBlockEntityMixin` 已进入主配置。
+- `LivingEntitySlimeMimicMixin`、`LivingEntityButterRotationMixin` 已删除；拟态和黄油旋转改由一个版本化同步字段承载。
 
 ### 已解决但仍需回归
 
@@ -321,6 +328,9 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - Surface Funnel 已改为 worldize—transform—localize 的 rotation/mirror 变换；抽取流程恢复执行 Create 原状态机，只包装 surface 坐标、插入侧和实体化提交点，私有 `Mode` 反射及注册后的 behaviour 替换均已删除。
 - Surface Funnel 放置在多候选面时优先采用玩家实际点击面；自动更新或点击面无效时仍使用稳定的邻面扫描。
 - Surface Funnel 的过滤槽会把世界点击面转入 surface 局部帧，并将槽位位置/姿态转回世界帧；倒置与侧挂黄铜漏斗现在可按实际可见槽位交互。
+- 全体 `LivingEntity` 的 Biotech 同步开销已从四个 data item 合并为一个版本化 long；拟态 NBT 兼容不变，黄油旋转三元组改为原子更新。
+- 捕获实体计时、基础模型测量和 cube 观察已使用线程局部嵌套 token；普通渲染先走单次活动数门卫，异常退出由 finally 恢复。
+- `FluidTankRendererMixin` 不再吞掉自定义或 Create fallback 的渲染异常，经验球 renderer 自己拥有的 PoseStack 层会在 finally 中恢复。
 - `CreeperRendererMixin` 已改为 `@WrapMethod` 并在 `finally` 恢复 pose/context/swell。
 - `JeiRecipeLayoutMixin` 已用 `@WrapOperation` 和 `finally` 结束 hover/slot context。
 - `ItemApplicationCategoryMixin` 仅在自定义 renderer 成功时取消，失败可回到 Create 原渲染。
@@ -332,7 +342,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - Basin handler-view/recipe 路由 3 项及无分配持久数据 accessor。
 - 创造栏/JEI 空栈布局链路 5 项。
 - 实体完整渲染捕获与模型 cube 几何链路。
-- 黄油旋转的 LivingEntity 同步字段。
+- 拟态/黄油旋转共用的 LivingEntity 紧凑同步字段。
 - 固定胡萝卜钓竿的 Goal/Brain/Sensor 三条 AI 路径。
 - 实体红石索引、SignalGetter 和红石线/Alternate Current 求值。
 
@@ -341,7 +351,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 1. **批次 0（已完成，P0-01）**：Contraption 伤害上下文改为校验式 scope 和 `try/finally`；专项异常/嵌套行为测试仍待补。
 2. **批次 1（已完成代码收敛，P1-04）**：聚合 Basin handler、配方索引/应用、Belt 输出、延迟抽取和旧数据迁移；专项游戏内矩阵仍待补。
 3. **批次 2（已完成代码收敛，P1-01、P1-03）**：聚合 Surface Funnel 坐标、放置和抽取状态机；专项方向/传输/结构矩阵仍待补。
-4. **批次 3（P1-02、P1-05、P1-06）**：聚合实体同步与渲染热路径，收紧异常边界并减少全局状态/字段。
+4. **批次 3（已完成代码收敛，P1-02、P1-05、P1-06）**：聚合实体同步与渲染热路径，收紧异常边界并减少全局状态/字段；专项网络、shader、第三方 renderer 和异常矩阵仍待补。
 5. **批次 4（P1-07、P1-08）**：聚合创造栏和 JEI，移除空栈及 logger workaround，再收窄 JEI 兼容范围。
 6. **批次 5（P1-09、P1-10、P1-11、P1-12）**：按 AI、红石、Sable、无线库存四个边界分别施工并完成版本矩阵。
 7. 再处理 P2 的异常恢复、版本 drift 和性能基准；P3 accessor 随依赖升级清理。
@@ -350,7 +360,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 | 层级 | 必测内容 | 通过标准 |
 | --- | --- | --- |
-| 配置/编译 | `./gradlew compileJava --rerun-tasks`；检查生产 remap/refmap 产物 | 95 项配置与源码一致；mapped descriptor 有可检查的映射结果；无 Mixin AP 错误 |
+| 配置/编译 | `./gradlew compileJava --rerun-tasks`；检查生产 remap/refmap 产物 | 94 项配置与源码一致；mapped descriptor 有可检查的映射结果；无 Mixin AP 错误 |
 | Create 版本 | 6.0.10 与声明支持的 6.0.11 | 所有 ordinal、private method/field 和复制状态机均有明确结果 |
 | 原版/Create 回归 | 普通 Basin/Funnel/Belt/Tunnel/Fluid Tank/Contraption/实体/创造栏 | 非目标路径完整执行原行为，输出、冷却、事件、声音和 UI 不变 |
 | Surface | 六个 attachment、四种 rotation、mirror、结构/Schematic/Contraption | 世界朝向、shape、碰撞、目标 handler 和回退 Funnel 一致 |
@@ -371,6 +381,15 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 6. **视觉与持久化**：六面检查 outline/碰撞、掉落物接触、flap 动画和 Flywheel 渲染；保存退出再进入及区块卸载重载后，方向与传输模式不变。
 7. **版本矩阵**：至少在 Create 6.0.10 和 6.0.11 各执行第 1—3 项的代表用例，特别观察启动日志是否出现调用点数量或 descriptor 漂移。
 
-本轮已完成的机械验证：配置清单为 57 common + 33 client + 2 Alternate Current + 3 Sable，95 个配置项与 95 个 Mixin 源文件数量一致；默认 Create 6.0.10 的 `./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 27 个 deprecated API 警告；Create 6.0.11-295 覆盖参数下的 `compileJava` 也成功；`./gradlew quickPlaySmoke --no-daemon` 成功，在时限内进入世界并正常清理，日志未发现本批 Mixin 的 apply/injection 失败；构建 jar 已包含新增契约类和修改后的 Mixin。Markdown 表格分别包含 57、33、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+### 9.2 批次 3 重点游戏内用例
 
-冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支、Basin 或 Surface Funnel 行为矩阵全部正确。后续仍需执行上文列出的异常/嵌套伤害、Basin 模拟—提交，以及 Surface Funnel 六面方向/传输/变换测试。客户端日志中仍可复现 P1-07 所述的 JEI 空 `ItemStack` 错误，该问题不属于批次 0—2，留待批次 4 处理。
+1. **同步协议与拟态持久化**：在大型普通生物群中加入、退出、重连和跨维度，确认没有 entity data id 冲突或解码异常；对普通生物、村民和 Slime Bionic 切换拟态，保存重载后拟态、交易、掉落和受伤声保持正确。
+2. **黄油旋转连续性**：给多种生物施加、升级、降级、移除和自然到期黄油旋转效果，客户端视觉方向应与服务端近战/弹射物修正一致；重连、跨维度和效果同步时不得跳回零角度或长期停转。玩家不应发生模型旋转或发送无用旋转状态。
+3. **经验流体罐**：分别启用普通流体显示和经验球显示，测试空罐、少量/满罐、多方块罐、轻于空气流体、Ponder 以及资源重载；普通水/熔岩和非经验流体必须完整走 Create 原 renderer。调试构建中人为令经验球 renderer 抛错时，PoseStack 必须恢复且异常不能被吞掉。
+4. **捕获实体渲染**：覆盖纸箱图标、JEI、手术台预览、活体拟态及死亡拆解；组合隐身、发光、outline、半透明、盔甲/手持物、村民 layer、第三方 renderer 和递归渲染，确认 scope 不串实体、不漏 layer、不在下一帧残留固定 partial tick。
+5. **Shader 与同帧复用**：分别在原版渲染、Iris/Oculus 开关状态下观察同一拟态实体的主 pass、阴影 pass 和 outline pass；同帧重复 pass 应复用捕获计划，下一帧动画仍更新，资源重载后旧纹理/模型缓存失效。
+6. **普通路径基准**：在无拟态、无纸箱预览的大型生物群中比较批次前后的实体渲染时间与分配；`ModelPart.Cube.compile` 和 layer 包装应停留在单次活动数门卫，不应创建 ThreadLocal deque、列表或捕获计划。
+
+本轮已完成的机械验证：配置清单为 56 common + 33 client + 2 Alternate Current + 3 Sable，94 个配置项与 94 个 Mixin 源文件数量一致；默认 Create 6.0.10 的 `./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 26 个 deprecated API 警告；Create 6.0.11-295 覆盖参数下的 `compileJava` 也成功；紧凑同步 payload 已执行版本、flag 保留、amplifier/phase、tick 回卷及清理的独立检查，线程局部 render-time scope 已执行嵌套和跨线程隔离检查；`./gradlew quickPlaySmoke --no-daemon` 成功，在时限内进入世界并正常清理，日志未发现本批 Mixin 的 apply/injection 失败；构建 jar 已包含新增支撑类和修改后的 Mixin。Markdown 表格分别包含 56、33、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+
+冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支、Basin、Surface Funnel 或实体同步/渲染行为矩阵全部正确。后续仍需执行上文列出的异常/嵌套伤害、Basin 模拟—提交、Surface Funnel 六面方向/传输/变换，以及批次 3 的网络、shader、第三方 renderer 和异常测试。客户端日志中仍可复现 P1-07 所述的 JEI 空 `ItemStack` 错误，该问题不属于批次 0—3，留待批次 4 处理。
