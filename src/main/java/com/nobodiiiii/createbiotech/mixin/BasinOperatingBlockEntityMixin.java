@@ -28,7 +28,9 @@ public abstract class BasinOperatingBlockEntityMixin {
 		method = "getMatchingRecipes()Ljava/util/List;",
 		at = @At(
 			value = "INVOKE",
-			target = "Lcom/simibubi/create/foundation/recipe/trie/RecipeTrie;getVariants(Lnet/neoforged/neoforge/items/IItemHandler;Lnet/neoforged/neoforge/fluids/capability/IFluidHandler;)Ljava/util/Set;"))
+			target = "Lcom/simibubi/create/foundation/recipe/trie/RecipeTrie;getVariants(Lnet/neoforged/neoforge/items/IItemHandler;Lnet/neoforged/neoforge/fluids/capability/IFluidHandler;)Ljava/util/Set;"),
+		require = 1,
+		expect = 1)
 	private Set<AbstractVariant> createBiotech$indexInternalBasinItems(IItemHandler publicItems,
 		IFluidHandler fluids, Operation<Set<AbstractVariant>> original) {
 		IItemHandler items = getBasin()

@@ -7,7 +7,5 @@ import net.neoforged.neoforge.items.IItemHandlerModifiable;
  */
 public interface BasinInternalItemAccess {
 
-	IItemHandlerModifiable createBiotech$getInternalItemHandler();
-
-	IItemHandlerModifiable createBiotech$getFunnelItemHandler();
+	IItemHandlerModifiable createBiotech$getItemHandler(BasinItemHandlerAccess access);
 }

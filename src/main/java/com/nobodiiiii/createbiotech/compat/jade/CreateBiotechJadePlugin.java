@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.compat.jade;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
-import com.simibubi.create.content.processing.basin.BasinBlock;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.network.chat.Component;
@@ -31,13 +30,12 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 
 	@Override
 	public void register(IWailaCommonRegistration registration) {
-		registration.registerBlockDataProvider(BasinContainedSlimeComponentProvider.INSTANCE,
+		registration.registerItemStorage(BasinItemStorageProvider.INSTANCE,
 			BasinBlockEntity.class);
 	}
 
 	@Override
 	public void registerClient(IWailaClientRegistration registration) {
-		registration.registerBlockComponent(BasinContainedSlimeComponentProvider.INSTANCE, BasinBlock.class);
 		registration.registerEntityComponent(BionicNameComponent.INSTANCE, LivingEntity.class);
 	}
 

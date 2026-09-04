@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.processing.basin;
 
+import java.util.Objects;
+
 import org.jetbrains.annotations.NotNull;
 
 import net.minecraft.world.item.ItemStack;
@@ -14,11 +16,13 @@ import net.neoforged.neoforge.items.IItemHandlerModifiable;
  */
 public final class BasinItemHandlerView implements IItemHandlerModifiable {
 	private final IItemHandlerModifiable delegate;
-	private final boolean allowCapturedSlimeExtraction;
+	private final BasinItemHandlerAccess access;
 
-	public BasinItemHandlerView(IItemHandlerModifiable delegate, boolean allowCapturedSlimeExtraction) {
-		this.delegate = delegate;
-		this.allowCapturedSlimeExtraction = allowCapturedSlimeExtraction;
+	public BasinItemHandlerView(IItemHandlerModifiable delegate, BasinItemHandlerAccess access) {
+		this.delegate = Objects.requireNonNull(delegate, "delegate");
+		this.access = Objects.requireNonNull(access, "access");
+		if (access == BasinItemHandlerAccess.INTERNAL)
+			throw new IllegalArgumentException("The internal basin handler must not be wrapped as a boundary view");
 	}
 
 	@Override
@@ -68,6 +72,7 @@ public final class BasinItemHandlerView implements IItemHandlerModifiable {
 	}
 
 	private boolean hides(ItemStack stack) {
-		return !allowCapturedSlimeExtraction && BasinEntityProcessing.isCapturedSmallSlimeItem(stack);
+		return access == BasinItemHandlerAccess.EXTERNAL
+			&& BasinEntityProcessing.isCapturedSmallSlimeItem(stack);
 	}
 }

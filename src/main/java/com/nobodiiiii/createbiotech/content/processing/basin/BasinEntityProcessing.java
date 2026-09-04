@@ -24,10 +24,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -68,12 +70,22 @@ public final class BasinEntityProcessing {
 
 	/** Internal recipes and basin-owned operations see an ordinary, unfiltered inventory. */
 	public static IItemHandlerModifiable getInternalItemHandler(BasinBlockEntity basin) {
-		return ((BasinInternalItemAccess) (Object) basin).createBiotech$getInternalItemHandler();
+		return getItemHandler(basin, BasinItemHandlerAccess.INTERNAL);
+	}
+
+	/** General capabilities hide control items and reject attempts to replace their slots. */
+	public static IItemHandlerModifiable getExternalItemHandler(BasinBlockEntity basin) {
+		return getItemHandler(basin, BasinItemHandlerAccess.EXTERNAL);
 	}
 
 	/** Funnels may extract the control stack, but cannot insert one from item transport. */
 	public static IItemHandlerModifiable getFunnelItemHandler(BasinBlockEntity basin) {
-		return ((BasinInternalItemAccess) (Object) basin).createBiotech$getFunnelItemHandler();
+		return getItemHandler(basin, BasinItemHandlerAccess.FUNNEL);
+	}
+
+	private static IItemHandlerModifiable getItemHandler(BasinBlockEntity basin,
+		BasinItemHandlerAccess access) {
+		return ((BasinInternalItemAccess) (Object) basin).createBiotech$getItemHandler(access);
 	}
 
 	public static boolean hasLegacyContainedSlimeData(BasinBlockEntity basin) {
@@ -86,20 +98,26 @@ public final class BasinEntityProcessing {
 	 * room and is otherwise released with its pre-capture movement flags restored.
 	 * <p>
 	 * This is scheduled only when legacy persistent data is found while loading the basin.
+	 *
+	 * @return {@code true} once reconciliation is complete (or no longer needed), or {@code false}
+	 *         when the server-side entity area is not ready and the caller should retry later
 	 */
-	public static void migrateLegacyContainedSlimes(BasinBlockEntity basin) {
+	public static boolean migrateLegacyContainedSlimes(BasinBlockEntity basin) {
 		Level level = basin.getLevel();
-		if (level == null || level.isClientSide)
-			return;
+		if (!(level instanceof ServerLevel serverLevel))
+			return false;
 		CompoundTag data = getLegacyData(basin);
 		if (data == null)
-			return;
+			return true;
+		AABB scanBounds = getLegacyScanBounds(basin.getBlockPos());
+		if (!areEntitiesLoaded(serverLevel, scanBounds))
+			return false;
 		CompoundTag persistentData =
 			((BlockEntityPersistentDataAccessor) basin).createBiotech$getExistingPersistentData();
 
 		int authoritativeItems = getCapturedSmallSlimeItemCount(basin);
 		BlockPos basinPos = basin.getBlockPos();
-		List<Slime> legacySlimes = level.getEntitiesOfClass(Slime.class, getLegacyScanBounds(basinPos),
+		List<Slime> legacySlimes = level.getEntitiesOfClass(Slime.class, scanBounds,
 			slime -> slime.getSize() == 1 && isLegacyMirrorOf(slime, basinPos));
 		int absorbed = 0;
 		for (Slime slime : legacySlimes) {
@@ -122,6 +140,24 @@ public final class BasinEntityProcessing {
 		if (data.isEmpty())
 			persistentData.remove(DATA_ROOT);
 		notifyBasinContentsChanged(basin);
+		return true;
+	}
+
+	/**
+	 * Validates the simulation contract before a captured control stack is materialized instead of inserted.
+	 * A broken third-party handler must not make the basin consume more items than it offered or change identity.
+	 */
+	public static int getValidatedAcceptedCount(ItemStack offered, ItemStack remainder) {
+		if (offered.isEmpty())
+			return 0;
+		if (remainder.isEmpty())
+			return offered.getCount();
+		if (!ItemStack.isSameItemSameComponents(offered, remainder))
+			return 0;
+		int remainderCount = remainder.getCount();
+		if (remainderCount < 0 || remainderCount > offered.getCount())
+			return 0;
+		return offered.getCount() - remainderCount;
 	}
 
 	public static void handleFunnelEntityInside(Level level, BlockPos funnelPos, Entity entity) {
@@ -245,6 +281,18 @@ public final class BasinEntityProcessing {
 		CompoundTag data = persistentData.getCompound(DATA_ROOT);
 		return data.getBoolean(LEGACY_CAPTURED_TAG) && data.contains(LEGACY_BASIN_POS_TAG, Tag.TAG_LONG)
 			&& data.getLong(LEGACY_BASIN_POS_TAG) == basinPos.asLong();
+	}
+
+	private static boolean areEntitiesLoaded(ServerLevel level, AABB bounds) {
+		int minChunkX = ((int) Math.floor(bounds.minX)) >> 4;
+		int maxChunkX = ((int) Math.floor(Math.nextDown(bounds.maxX))) >> 4;
+		int minChunkZ = ((int) Math.floor(bounds.minZ)) >> 4;
+		int maxChunkZ = ((int) Math.floor(Math.nextDown(bounds.maxZ))) >> 4;
+		for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++)
+			for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++)
+				if (!level.areEntitiesLoaded(ChunkPos.asLong(chunkX, chunkZ)))
+					return false;
+		return true;
 	}
 
 	@Nullable

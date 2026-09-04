@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.neoforged.neoforge.capabilities.Capabilities;
 
 /**
  * Routes Create's own recipe pass to the basin's unfiltered internal inventory.
@@ -30,10 +31,17 @@ public abstract class BasinRecipeMixin {
 		at = @At(
 			value = "INVOKE",
 			target = "Lnet/minecraft/world/level/Level;getCapability(Lnet/neoforged/neoforge/capabilities/BlockCapability;Lnet/minecraft/core/BlockPos;Ljava/lang/Object;)Ljava/lang/Object;",
-			ordinal = 0))
+			ordinal = 0),
+		require = 1,
+		expect = 1)
 	private static Object createBiotech$useInternalItemInventory(Level level,
 		BlockCapability<?, ?> capability, BlockPos pos, Object context, Operation<Object> original,
 		BasinBlockEntity basin, Recipe<?> recipe, boolean test) {
+		if (level != basin.getLevel()
+			|| capability != Capabilities.ItemHandler.BLOCK
+			|| !basin.getBlockPos().equals(pos)
+			|| context != null)
+			return original.call(level, capability, pos, context);
 		return BasinEntityProcessing.getInternalItemHandler(basin);
 	}
 }

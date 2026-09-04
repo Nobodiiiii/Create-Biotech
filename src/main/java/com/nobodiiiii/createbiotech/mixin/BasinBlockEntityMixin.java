@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinInternalItemAccess;
+import com.nobodiiiii.createbiotech.content.processing.basin.BasinItemHandlerAccess;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinItemHandlerView;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinEntityProcessing;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
@@ -41,9 +42,9 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 	private boolean createBiotech$spoutputTargetReserved;
 
 	/**
-	 * Ticks remaining before the one-time 1.3.0.1 reconciliation runs, then latched to -1. The
-	 * short delay lets the surrounding chunk finish loading its entities. Basins without legacy
-	 * data remain latched at -1 and never enter the migration path.
+	 * Ticks remaining before the one-time 1.3.0.1 reconciliation runs. Successful reconciliation
+	 * latches this to -1; an unloaded entity section schedules another bounded retry. Basins without
+	 * legacy data remain latched at -1 and never enter the migration path.
 	 */
 	@Unique
 	private int createBiotech$legacySlimeMigrationDelay = -1;
@@ -52,18 +53,18 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 	private void createBiotech$separateItemCapability(BlockEntityType<?> type, net.minecraft.core.BlockPos pos,
 		BlockState state, CallbackInfo ci) {
 		createBiotech$internalItemCapability = itemCapability;
-		createBiotech$funnelItemCapability = new BasinItemHandlerView(itemCapability, true);
-		itemCapability = new BasinItemHandlerView(itemCapability, false);
+		createBiotech$funnelItemCapability =
+			new BasinItemHandlerView(itemCapability, BasinItemHandlerAccess.FUNNEL);
+		itemCapability = new BasinItemHandlerView(itemCapability, BasinItemHandlerAccess.EXTERNAL);
 	}
 
 	@Override
-	public IItemHandlerModifiable createBiotech$getInternalItemHandler() {
-		return createBiotech$internalItemCapability;
-	}
-
-	@Override
-	public IItemHandlerModifiable createBiotech$getFunnelItemHandler() {
-		return createBiotech$funnelItemCapability;
+	public IItemHandlerModifiable createBiotech$getItemHandler(BasinItemHandlerAccess access) {
+		return switch (access) {
+			case INTERNAL -> createBiotech$internalItemCapability;
+			case EXTERNAL -> itemCapability;
+			case FUNNEL -> createBiotech$funnelItemCapability;
+		};
 	}
 
 	@Inject(
@@ -82,7 +83,10 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 			return;
 		if (createBiotech$legacySlimeMigrationDelay-- > 0)
 			return;
-		BasinEntityProcessing.migrateLegacyContainedSlimes((BasinBlockEntity) (Object) this);
+		if (BasinEntityProcessing.migrateLegacyContainedSlimes((BasinBlockEntity) (Object) this))
+			createBiotech$legacySlimeMigrationDelay = -1;
+		else
+			createBiotech$legacySlimeMigrationDelay = 20;
 	}
 
 	@Inject(method = "tryClearingSpoutputOverflow()V", at = @At("HEAD"), remap = false)
@@ -94,7 +98,9 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 		method = "tryClearingSpoutputOverflow()V",
 		at = @At(
 			value = "INVOKE",
-			target = "Lnet/neoforged/neoforge/items/ItemHandlerHelper;insertItemStacked(Lnet/neoforged/neoforge/items/IItemHandler;Lnet/minecraft/world/item/ItemStack;Z)Lnet/minecraft/world/item/ItemStack;"))
+			target = "Lnet/neoforged/neoforge/items/ItemHandlerHelper;insertItemStacked(Lnet/neoforged/neoforge/items/IItemHandler;Lnet/minecraft/world/item/ItemStack;Z)Lnet/minecraft/world/item/ItemStack;"),
+		require = 2,
+		expect = 2)
 	private ItemStack createBiotech$materializeAcceptedSmallSlimeSpoutput(IItemHandler target, ItemStack stack,
 		boolean simulate, Operation<ItemStack> original) {
 		// A direct-belt target accepts one transported stack at a time. A materialized
@@ -105,8 +111,8 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 		if (!BasinEntityProcessing.isCapturedSmallSlimeItem(stack) || simulate)
 			return original.call(target, stack, simulate);
 
-		ItemStack remainder = original.call(target, stack, true);
-		int accepted = stack.getCount() - remainder.getCount();
+		ItemStack remainder = original.call(target, stack.copy(), true);
+		int accepted = BasinEntityProcessing.getValidatedAcceptedCount(stack, remainder);
 		if (accepted <= 0)
 			return stack;
 
@@ -130,6 +136,8 @@ public abstract class BasinBlockEntityMixin implements BasinInternalItemAccess {
 			return stack;
 
 		createBiotech$spoutputTargetReserved = true;
-		return remainder;
+		return accepted == stack.getCount()
+			? ItemStack.EMPTY
+			: stack.copyWithCount(stack.getCount() - accepted);
 	}
 }

@@ -22,7 +22,9 @@ public abstract class ItemHelperMixin {
 		at = @At(
 			value = "INVOKE",
 			target = "Lnet/neoforged/neoforge/items/IItemHandler;getStackInSlot(I)Lnet/minecraft/world/item/ItemStack;"
-		)
+		),
+		require = 1,
+		expect = 1
 	)
 	private static ItemStack createBiotech$previewDeferredExtraction(IItemHandler handler, int slot,
 		Operation<ItemStack> original, @Local(argsOnly = true) Predicate<ItemStack> test) {
