@@ -96,23 +96,26 @@ public record SurgicalGlueJoint(Endpoint first, Endpoint second, @Nullable Repla
 		if (first.equals(second))
 			return null;
 		Replay replay = null;
-		if (tag.contains(REPLAY_TAG, Tag.TAG_COMPOUND)) {
+		if (tag.contains(REPLAY_TAG)) {
+			if (!tag.contains(REPLAY_TAG, Tag.TAG_COMPOUND))
+				return null;
 			CompoundTag encodedReplay = tag.getCompound(REPLAY_TAG);
 			SurgicalGlueTransform transform = encodedReplay.contains(TRANSFORM_TAG, Tag.TAG_COMPOUND)
 				? SurgicalGlueTransform.load(encodedReplay.getCompound(TRANSFORM_TAG)) : null;
 			SurgicalGlueContact anchorContact = encodedReplay.contains(ANCHOR_CONTACT_TAG, Tag.TAG_COMPOUND)
 				? SurgicalGlueContact.load(encodedReplay.getCompound(ANCHOR_CONTACT_TAG)) : null;
-			if (encodedReplay.hasUUID(MOVING_SUBJECT_TAG)
-				&& encodedReplay.contains(MOVING_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
-				&& transform != null && anchorContact != null) {
-				try {
-					Replay candidate = new Replay(new Endpoint(encodedReplay.getUUID(MOVING_SUBJECT_TAG),
-						encodedReplay.getInt(MOVING_CUBE_TAG)), transform, anchorContact);
-					if (candidate.moving.equals(first) || candidate.moving.equals(second))
-						replay = candidate;
-				} catch (IllegalArgumentException ignored) {
-					// The connection remains usable through the legacy symmetry fallback.
-				}
+			if (!encodedReplay.hasUUID(MOVING_SUBJECT_TAG)
+				|| !encodedReplay.contains(MOVING_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
+				|| transform == null || anchorContact == null)
+				return null;
+			try {
+				Replay candidate = new Replay(new Endpoint(encodedReplay.getUUID(MOVING_SUBJECT_TAG),
+					encodedReplay.getInt(MOVING_CUBE_TAG)), transform, anchorContact);
+				if (!candidate.moving.equals(first) && !candidate.moving.equals(second))
+					return null;
+				replay = candidate;
+			} catch (IllegalArgumentException ignored) {
+				return null;
 			}
 		}
 		try {

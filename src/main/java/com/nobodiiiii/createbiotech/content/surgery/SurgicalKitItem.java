@@ -50,6 +50,8 @@ public class SurgicalKitItem extends Item {
 	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
 	private static final String SELECTED_TOOL_TAG = "SurgicalKitTool";
 	private static final String TEMPORARY_MOVE_TAG = "SurgicalKitTemporaryMove";
+	private static final String MOVE_FORMAT_VERSION_TAG = "Version";
+	private static final int MOVE_FORMAT_VERSION = 1;
 	private static final String MOVE_DIMENSION_TAG = "Dimension";
 	private static final String MOVE_TABLE_POS_TAG = "TablePos";
 	private static final String MOVE_ANCHOR_SUBJECT_TAG = "AnchorSubject";
@@ -220,13 +222,17 @@ public class SurgicalKitItem extends Item {
 			return null;
 		CompoundTag encoded = root.getCompound(TEMPORARY_MOVE_TAG);
 		ResourceLocation dimension = ResourceLocation.tryParse(encoded.getString(MOVE_DIMENSION_TAG));
-		if (dimension == null || !encoded.contains(MOVE_TABLE_POS_TAG, Tag.TAG_LONG)
+		if (!encoded.contains(MOVE_FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
+			|| encoded.getInt(MOVE_FORMAT_VERSION_TAG) != MOVE_FORMAT_VERSION || dimension == null
+			|| !encoded.contains(MOVE_TABLE_POS_TAG, Tag.TAG_LONG)
 			|| !encoded.hasUUID(MOVE_ANCHOR_SUBJECT_TAG)
 			|| !encoded.contains(MOVE_ANCHOR_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !encoded.contains(MOVE_COMPONENTS_TAG, Tag.TAG_LIST)
 			|| !encoded.contains(MOVE_ASSEMBLY_TAG, Tag.TAG_COMPOUND))
 			return null;
-		ListTag encodedComponents = encoded.getList(MOVE_COMPONENTS_TAG, Tag.TAG_COMPOUND);
+		ListTag encodedComponents = (ListTag) encoded.get(MOVE_COMPONENTS_TAG);
+		if (!encodedComponents.isEmpty() && encodedComponents.getElementType() != Tag.TAG_COMPOUND)
+			return null;
 		if (encodedComponents.isEmpty() || encodedComponents.size() > SurgicalAssembly.MAX_SOURCES)
 			return null;
 		Map<UUID, BitSet> components = new HashMap<>();
@@ -263,6 +269,7 @@ public class SurgicalKitItem extends Item {
 			|| sourceAssembly == null || sourceAssembly.isEmpty())
 			return;
 		CompoundTag encoded = new CompoundTag();
+		encoded.putInt(MOVE_FORMAT_VERSION_TAG, MOVE_FORMAT_VERSION);
 		encoded.putString(MOVE_DIMENSION_TAG, dimension.toString());
 		encoded.putLong(MOVE_TABLE_POS_TAG, tablePos.asLong());
 		encoded.putUUID(MOVE_ANCHOR_SUBJECT_TAG, anchorSubject);
@@ -335,9 +342,6 @@ public class SurgicalKitItem extends Item {
 			if (id == null || id.isBlank())
 				return null;
 			String normalized = id.toLowerCase(Locale.ROOT);
-			// Migrate kits that had the replaced ordinary-super-glue wheel slot selected.
-			if ("super_glue".equals(normalized))
-				return SHOVEL;
 			for (Tool tool : values())
 				if (tool.id.equals(normalized))
 					return tool;

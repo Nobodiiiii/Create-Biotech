@@ -38,7 +38,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableTileShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
-import com.nobodiiiii.createbiotech.entity.SlimeBionicBodyBoundsPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicAttackActionPacket;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicDeathGeometryPacket;
 
@@ -62,7 +61,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "43";
+	private static final String NETWORK_VERSION = "22";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -92,7 +91,7 @@ public final class CBPackets {
 			AllayCourierConfirmPacket::write, AllayCourierConfirmPacket::handle);
 		registerServer(AllayPortConfigurationPacket.class, AllayPortConfigurationPacket::new,
 			AllayPortConfigurationPacket::write, AllayPortConfigurationPacket::handle);
-		// Keep every existing packet id stable; new packets are appended.
+		// Published packet ids stay at the front; unreleased surgery packets follow.
 		registerServer(SurgicalTableInteractionPacket.class, SurgicalTableInteractionPacket::new,
 			SurgicalTableInteractionPacket::write, SurgicalTableInteractionPacket::handle);
 		registerServer(SurgicalTableGluePacket.class, SurgicalTableGluePacket::new,
@@ -101,8 +100,6 @@ public final class CBPackets {
 			SurgicalTablePlacementPacket::write, SurgicalTablePlacementPacket::handle);
 		registerServer(SurgicalTableLimbPacket.class, SurgicalTableLimbPacket::new,
 			SurgicalTableLimbPacket::write, SurgicalTableLimbPacket::handle);
-		registerServer(SlimeBionicBodyBoundsPacket.class, SlimeBionicBodyBoundsPacket::new,
-			SlimeBionicBodyBoundsPacket::write, SlimeBionicBodyBoundsPacket::handle);
 		registerServer(SlimeMimicDeathGeometryPacket.class, SlimeMimicDeathGeometryPacket::new,
 			SlimeMimicDeathGeometryPacket::write, SlimeMimicDeathGeometryPacket::handle);
 		registerServer(SurgicalTableBatchCutPacket.class, SurgicalTableBatchCutPacket::new,
@@ -135,7 +132,7 @@ public final class CBPackets {
 			AllayCourierHudPacket::write);
 		registerClient(GiantFrogEatPacket.class, GiantFrogEatPacket::new,
 			GiantFrogEatPacket::write);
-		// Keep every existing packet id stable; new packets are appended.
+		// Published client packet ids stay at the front; unreleased packets follow.
 		registerClient(ShulkerPackagerPlacementPacket.ClientBoundResult.class,
 			ShulkerPackagerPlacementPacket.ClientBoundResult::new,
 			ShulkerPackagerPlacementPacket.ClientBoundResult::write);

@@ -321,7 +321,7 @@ public final class SurgicalTableClientHandler {
 		if (table.getLevel() == null || snapshot.observedCubeCount() <= 0)
 			return;
 		int cubeCount = snapshot.observedCubeCount();
-		if (subject.cubeCount() != 0 && subject.cubeCount() != cubeCount) {
+		if (subject.cubeCount() != cubeCount) {
 			// matchesModel() will reject this pairing for as long as the model stays replaced, so a
 			// geometry built here is discarded by the very next geometryFor() and rebuilt on the next
 			// frame - contact topology, grounding and all. Record the reserved column instead. The
@@ -336,51 +336,26 @@ public final class SurgicalTableClientHandler {
 			// re-observe properly rather than seeding the geometry with cubes the subject no longer has.
 			return;
 		}
-		List<SurgicalAssembly.Seam> seams;
+		List<SurgicalAssembly.Seam> seams = subject.seams();
 		List<SurgicalClientTopology.Contact> contacts;
 		Supplier<SurgicalClientTopology.ContactTopology> topologyBuild = null;
 		CompletableFuture<SurgicalClientTopology.ContactTopology> pendingTopology = null;
-		if (subject.cubeCount() == cubeCount) {
-			seams = subject.seams();
-			if (cubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
-				List<SurgicalAssembly.Seam> frozenSeams = List.copyOf(seams);
-				List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(snapshot.cubes());
-				contacts = List.of();
-				topologyBuild = () -> {
-					long started = SurgicalProfiler.begin();
-					try {
-						return new SurgicalClientTopology.ContactTopology(frozenSeams,
-							SurgicalClientTopology.contactsFor(frozenSeams, frozenCubes));
-					} finally {
-						SurgicalProfiler.end("contactsFor(async)", started);
-					}
-				};
-				pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
-			} else {
-				contacts = SurgicalClientTopology.contactsFor(seams, snapshot.cubes());
-			}
-		} else {
-			if (cubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
-				List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(snapshot.cubes());
-				seams = List.of();
-				contacts = List.of();
-				topologyBuild = () -> {
-					long started = SurgicalProfiler.begin();
-					try {
-						return SurgicalClientTopology.buildContactTopology(cubeCount, frozenCubes);
-					} finally {
-						SurgicalProfiler.end("buildContactTopology(async)", started);
-					}
-				};
-				pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
-			} else {
+		if (cubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
+			List<SurgicalAssembly.Seam> frozenSeams = List.copyOf(seams);
+			List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(snapshot.cubes());
+			contacts = List.of();
+			topologyBuild = () -> {
 				long started = SurgicalProfiler.begin();
-				SurgicalClientTopology.ContactTopology topology =
-					SurgicalClientTopology.buildContactTopology(cubeCount, snapshot.cubes());
-				SurgicalProfiler.end("buildContactTopology(sync)", started);
-				seams = topology.seams();
-				contacts = topology.contacts();
-			}
+				try {
+					return new SurgicalClientTopology.ContactTopology(frozenSeams,
+						SurgicalClientTopology.contactsFor(frozenSeams, frozenCubes));
+				} finally {
+					SurgicalProfiler.end("contactsFor(async)", started);
+				}
+			};
+			pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
+		} else {
+			contacts = SurgicalClientTopology.contactsFor(seams, snapshot.cubes());
 		}
 		TableGeometry geometry = new TableGeometry(subject.persistentId(), subject.id(), profile,
 			subject.layPose(), worldOriginX(table, subject), worldOriginZ(table, subject), cubeCount,
@@ -412,28 +387,18 @@ public final class SurgicalTableClientHandler {
 	 */
 	private static void markReserved(SurgicalTableBlockEntity table, SurgicalSubject subject,
 		SurgicalModelRenderContext.Snapshot snapshot) {
-		double modelMinX = Double.POSITIVE_INFINITY;
 		double modelMinY = Double.POSITIVE_INFINITY;
-		double modelMinZ = Double.POSITIVE_INFINITY;
-		double modelMaxX = Double.NEGATIVE_INFINITY;
 		double modelMaxY = Double.NEGATIVE_INFINITY;
-		double modelMaxZ = Double.NEGATIVE_INFINITY;
 		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
 			for (Vec3 corner : cube.corners()) {
-				modelMinX = Math.min(modelMinX, corner.x);
 				modelMinY = Math.min(modelMinY, corner.y);
-				modelMinZ = Math.min(modelMinZ, corner.z);
-				modelMaxX = Math.max(modelMaxX, corner.x);
 				modelMaxY = Math.max(modelMaxY, corner.y);
-				modelMaxZ = Math.max(modelMaxZ, corner.z);
 			}
 		if (!Double.isFinite(modelMinY)) {
 			RESERVED_SUBJECTS.remove(subject.persistentId());
 			return;
 		}
 
-		// Subjects saved before footprints existed carry none; the observed model is then the only
-		// horizontal extent available, and it is already in world space.
 		double minX = Double.POSITIVE_INFINITY;
 		double minZ = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY;
@@ -444,13 +409,6 @@ public final class SurgicalTableClientHandler {
 			maxX = Math.max(maxX, footprint.maxX());
 			maxZ = Math.max(maxZ, footprint.maxZ());
 		}
-		if (!Double.isFinite(minX)) {
-			minX = modelMinX;
-			minZ = modelMinZ;
-			maxX = modelMaxX;
-			maxZ = modelMaxZ;
-		}
-
 		double surfaceY = SurgicalTablePlane.surfaceY(table.getBlockPos().getY());
 		// The observed model's world corners carry the camera-relative render transform's float
 		// rounding, so quantise the height: an unquantised box jitters in its last bits as the player
@@ -509,9 +467,8 @@ public final class SurgicalTableClientHandler {
 		if (!Double.isFinite(volume) || volume <= 0.0d)
 			return 0.0d;
 		int storedCubeCount = subject.cubeCount();
-		int presentCubeCount = subject.presentCubesForRender(storedCubeCount).cardinality();
-		return storedCubeCount <= 0 ? volume
-			: volume * Math.min(1.0d, (double) presentCubeCount / storedCubeCount);
+		int presentCubeCount = subject.presentCubes().cardinality();
+		return volume * Math.min(1.0d, (double) presentCubeCount / storedCubeCount);
 	}
 
 	/**
@@ -657,7 +614,7 @@ public final class SurgicalTableClientHandler {
 		TableGeometry geometry = geometryFor(table, subject);
 		BitSet present = geometry != null && geometry.observedCubeCount == observedCubeCount
 			&& geometry.matchesModel(table, subject)
-			? geometry.presentCubes : subject.presentCubesForRender(observedCubeCount);
+			? geometry.presentCubes : subject.presentCubes();
 		BitSet visible = temporaryMoveVisibleCubes(subject, present);
 		if (gluePreview == null || !gluePreview.ownerPos.equals(table.getBlockPos()))
 			return visible;
@@ -1256,7 +1213,7 @@ public final class SurgicalTableClientHandler {
 		Map<UUID, BitSet> components = move.components();
 		for (SurgicalSubject subject : table.getSubjects()) {
 			BitSet moved = components.get(subject.persistentId());
-			if (moved != null && moved.equals(subject.presentCubesForRender(subject.cubeCount())))
+			if (moved != null && moved.equals(subject.presentCubes()))
 				freed++;
 		}
 		return table.getSubjects().size() - freed;
@@ -2636,8 +2593,8 @@ public final class SurgicalTableClientHandler {
 			if (anchorSubject == null)
 				continue;
 			SurgicalGlueTransform recordedReplay = joint.replayFrom(referenceEndpoint);
-			// New joints remember which side was originally moved. Selecting their anchor cannot
-			// reproduce the forward A -> B operation; legacy joints retain the old identity fallback.
+			// Recorded joints remember which side was originally moved. Selecting their anchor cannot
+			// reproduce the forward A -> B operation; unrecorded slime seams use the identity fallback.
 			if (joint.replay() != null && recordedReplay == null)
 				continue;
 			GlueJointSelection jointSelection = glueJointSelection(hit.tablePos, table, referenceSubject,
@@ -4338,8 +4295,7 @@ public final class SurgicalTableClientHandler {
 		if (!(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table))
 			return false;
 		SurgicalSubject subject = table.getSubject(subjectId);
-		return subject != null && (subject.cubeCount() == 0
-			|| table.canApplyComponentLayout(subjectId, cutSeams, proposal, plane));
+		return subject != null && table.canApplyComponentLayout(subjectId, cutSeams, proposal, plane);
 	}
 
 	@Nullable
@@ -4768,7 +4724,7 @@ public final class SurgicalTableClientHandler {
 	/**
 	 * Measures every server-addressable group intersecting one tile without using ray hits. Exact
 	 * cached cuboids are preferred; topology-mismatch markers contribute their measured replacement
-	 * volume proportionally, and occupancy-only subjects fall back to saved projected area.
+	 * volume proportionally, and unavailable geometry falls back to saved projected area.
 	 */
 	private static double tileShovelVolume(ClientLevel level, BlockPos tilePos) {
 		SurgicalTablePlane.Plane plane = clientPlane(level, tilePos);
@@ -4777,9 +4733,8 @@ public final class SurgicalTableClientHandler {
 			return 0.0d;
 
 		Map<Integer, BitSet> selected = new HashMap<>();
-		Set<Integer> purePlaceholders = new HashSet<>();
 		for (SurgicalSubject subject : table.getSubjects()) {
-			BitSet present = subject.presentCubesForRender(subject.cubeCount());
+			BitSet present = subject.presentCubes();
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
 				if (!footprintIntersectsTile(footprint, tilePos))
 					continue;
@@ -4788,11 +4743,7 @@ public final class SurgicalTableClientHandler {
 					mergeComponents(selected, table.connectedComponents(subject.id(), root));
 					continue;
 				}
-				if (present.isEmpty()) {
-					purePlaceholders.add(subject.id());
-					continue;
-				}
-				// Envelope/invalid-root fallback mirrors wholeSubjectGroup() on the server.
+				// A whole-model envelope mirrors wholeSubjectGroup() on the server.
 				for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
 					BitSet alreadySelected = selected.get(subject.id());
 					if (alreadySelected != null && alreadySelected.get(cube))
@@ -4811,7 +4762,7 @@ public final class SurgicalTableClientHandler {
 				continue;
 			ReservedSubject reserved = RESERVED_SUBJECTS.get(subject.persistentId());
 			if (reserved != null && reserved.storedCubeCount() == subject.cubeCount()) {
-				int presentCount = subject.presentCubesForRender(subject.cubeCount()).cardinality();
+				int presentCount = subject.presentCubes().cardinality();
 				if (presentCount > 0)
 					fallbackVolume += reservedVolume(subject, reserved)
 						* Math.min(1.0d, (double) entry.getValue().cardinality() / presentCount);
@@ -4840,14 +4791,6 @@ public final class SurgicalTableClientHandler {
 				usedProjectionFallback = true;
 			}
 		}
-		for (int subjectId : purePlaceholders) {
-			SurgicalSubject subject = table.getSubject(subjectId);
-			if (subject == null)
-				continue;
-			fallbackVolume += projectedArea(subject, new BitSet());
-			usedProjectionFallback = true;
-		}
-
 		double measuredVolume = measuredCuboids.isEmpty() ? 0.0d
 			: SurgicalVolumeSampler.unionVolume(measuredCuboids);
 		if (!Double.isFinite(measuredVolume) || !Double.isFinite(fallbackVolume))
@@ -6034,7 +5977,7 @@ public final class SurgicalTableClientHandler {
 				&& subject.layPose().equals(layPose)
 				&& Double.doubleToLongBits(worldOriginX(table, subject)) == Double.doubleToLongBits(worldOriginX)
 				&& Double.doubleToLongBits(worldOriginZ(table, subject)) == Double.doubleToLongBits(worldOriginZ)
-				&& (subject.cubeCount() == 0 || subject.cubeCount() == observedCubeCount);
+				&& subject.cubeCount() == observedCubeCount;
 		}
 
 		private boolean refresh(SurgicalTableBlockEntity table, SurgicalSubject subject) {
@@ -6086,7 +6029,7 @@ public final class SurgicalTableClientHandler {
 				}
 				cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
 			}
-			presentCubes = subject.presentCubesForRender(observedCubeCount);
+			presentCubes = subject.presentCubes();
 			cutSeams = subject.cutSeamsForRender();
 			serverOffsets = Map.copyOf(subject.componentOffsetsForRender());
 			serverRotations = Map.copyOf(subject.componentRotationsForRender());
@@ -6504,7 +6447,7 @@ public final class SurgicalTableClientHandler {
 				if (members == null || !members.equals(combination.members()))
 					return false;
 			}
-			return presentCubes.equals(subject.presentCubesForRender(observedCubeCount))
+			return presentCubes.equals(subject.presentCubes())
 				&& cutSeams.equals(subject.cutSeamsForRender());
 		}
 
@@ -6512,7 +6455,7 @@ public final class SurgicalTableClientHandler {
 			Map<UUID, List<SurgicalCombination.Member>> combinations = new HashMap<>();
 			for (SurgicalCombination combination : subject.combinations())
 				combinations.put(combination.id(), List.copyOf(combination.members()));
-			return new SubjectGeometryState(subject.presentCubesForRender(observedCubeCount), subject.seams(),
+			return new SubjectGeometryState(subject.presentCubes(), subject.seams(),
 				subject.cutSeamsForRender(), subject.componentOffsetsForRender(),
 				subject.componentRotationsForRender(), Set.copyOf(subject.glueJoints()), combinations);
 		}

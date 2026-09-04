@@ -88,13 +88,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Nullable
 	private SurgicalAssembly.HitboxGeometry clientHitboxGeometry;
 	private double clientBodyVolume = Double.NaN;
-	@Nullable
-	private SurgicalAssembly reportedBoundsAssembly;
-	@Nullable
-	private SurgicalAssembly.BodyBounds reportedBodyBounds;
-	@Nullable
-	private SurgicalAssembly.HitboxGeometry reportedHitboxGeometry;
-	private double reportedBodyVolume = Double.NaN;
 	private final SlimeBionicHitPart[] hitParts;
 	private SlimeBionicHitPart[] registeredHitParts;
 	private int attackAnimationTick;
@@ -116,7 +109,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		hitParts = new SlimeBionicHitPart[MAX_HIT_PARTS];
 		for (int index = 0; index < hitParts.length; index++)
 			hitParts[index] = new SlimeBionicHitPart(this);
-		// Unknown/legacy assemblies keep the full reserve so a later client measurement can activate it.
+		// Reserve stable multipart ids before synchronized assembly data arrives.
 		registeredHitParts = hitParts;
 		// Match the Ender Dragon: reserve one consecutive id block and keep every cached part stable.
 		setId(ENTITY_COUNTER.getAndAdd(hitParts.length + 1) + 1);
@@ -209,6 +202,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	public void setAssembly(SurgicalAssembly assembly) {
+		if (assembly == null || !assembly.isReadyForEntity())
+			throw new IllegalArgumentException("A bionic entity requires complete body geometry");
 		CompoundTag encoded = assembly.save();
 		entityData.set(ASSEMBLY, encoded);
 		cachedAssemblyData = encoded;
@@ -218,10 +213,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		clientBodyBounds = null;
 		clientHitboxGeometry = null;
 		clientBodyVolume = Double.NaN;
-		reportedBoundsAssembly = null;
-		reportedBodyBounds = null;
-		reportedHitboxGeometry = null;
-		reportedBodyVolume = Double.NaN;
 		refreshMaximumHealth(assembly);
 		refreshMovementSpeed(assembly);
 		refreshDimensions();
@@ -235,9 +226,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		var maximumHealth = getAttribute(Attributes.MAX_HEALTH);
 		if (maximumHealth == null)
 			return;
-		double calibrated = assembly.hasBodyVolume()
-			? SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume())
-			: Math.min(maximumHealth.getBaseValue(), SurgicalHealthCalibration.MAX_HEALTH);
+		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume());
 		if (maximumHealth.getBaseValue() != calibrated)
 			maximumHealth.setBaseValue(calibrated);
 		if (getHealth() > calibrated)
@@ -259,7 +248,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		CompoundTag encoded = entityData.get(ASSEMBLY);
 		if (encoded != cachedAssemblyData) {
 			cachedAssemblyData = encoded;
-			cachedAssembly = SurgicalAssembly.load(encoded);
+			SurgicalAssembly loaded = SurgicalAssembly.load(encoded);
+			cachedAssembly = loaded != null && loaded.isReadyForEntity() ? loaded : null;
 		}
 		return cachedAssembly;
 	}
@@ -301,18 +291,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		clientBodyVolume = bodyVolume;
 		refreshDimensions();
 		updateHitParts();
-		if ((!bounds.equals(assembly.bodyBounds()) || !hitboxGeometry.equals(assembly.hitboxGeometry())
-			|| !assembly.hasBodyVolume())
-			&& (reportedBoundsAssembly != assembly || !bounds.equals(reportedBodyBounds)
-				|| !hitboxGeometry.equals(reportedHitboxGeometry)
-				|| Double.compare(bodyVolume, reportedBodyVolume) != 0)) {
-			reportedBoundsAssembly = assembly;
-			reportedBodyBounds = bounds;
-			reportedHitboxGeometry = hitboxGeometry;
-			reportedBodyVolume = bodyVolume;
-			CBPackets.sendToServer(new SlimeBionicBodyBoundsPacket(getId(), bounds, hitboxGeometry,
-				bodyVolume));
-		}
 	}
 
 	@Override
@@ -749,10 +727,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 			clientBodyBounds = null;
 			clientHitboxGeometry = null;
 			clientBodyVolume = Double.NaN;
-			reportedBoundsAssembly = null;
-			reportedBodyBounds = null;
-			reportedHitboxGeometry = null;
-			reportedBodyVolume = Double.NaN;
 			refreshDimensions();
 			updateHitParts();
 		}
@@ -771,16 +745,15 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void readAdditionalSaveData(CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
-		// Saves predating this flag always represented the original bionic slime form.
-		boolean sourceForm = tag.contains(SOURCE_FORM_TAG, Tag.TAG_BYTE) && tag.getBoolean(SOURCE_FORM_TAG);
+		if (!tag.contains(SOURCE_FORM_TAG, Tag.TAG_BYTE)
+			|| !tag.contains(ASSEMBLY_TAG, Tag.TAG_COMPOUND))
+			return;
+		SurgicalAssembly assembly = SurgicalAssembly.load(tag.getCompound(ASSEMBLY_TAG));
+		if (assembly == null || !assembly.isReadyForEntity())
+			return;
+		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(!sourceForm);
-		// Bodies packed before the AI existed were saved with NoAI set; wake those up on load.
-		setNoAi(false);
-		if (tag.contains(ASSEMBLY_TAG, Tag.TAG_COMPOUND)) {
-			SurgicalAssembly assembly = SurgicalAssembly.load(tag.getCompound(ASSEMBLY_TAG));
-			if (assembly != null)
-				setAssembly(assembly);
-		}
+		setAssembly(assembly);
 	}
 
 	/** {@code ZombieAttackGoal} verbatim; the vanilla class is bound to {@code Zombie}. */

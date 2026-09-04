@@ -73,9 +73,9 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 		SurgicalSubject referenceSubject = table.getSubject(reference.subjectId());
 		if (firstSubject == null || anchorSubject == null || referenceSubject == null
 			|| !targetPose.equals(anchorSubject.layPose())
-			|| !firstSubject.initializeOrMatchTopology(first.observedCubeCount(), first.seams())
-			|| !anchorSubject.initializeOrMatchTopology(mirroredAnchor.observedCubeCount(), mirroredAnchor.seams())
-			|| !referenceSubject.initializeOrMatchTopology(reference.observedCubeCount(), reference.seams()))
+			|| !firstSubject.matchesObservedTopology(first.observedCubeCount(), first.seams())
+			|| !anchorSubject.matchesObservedTopology(mirroredAnchor.observedCubeCount(), mirroredAnchor.seams())
+			|| !referenceSubject.matchesObservedTopology(reference.observedCubeCount(), reference.seams()))
 			return;
 
 		if (table.symmetryGlueComponents(player, held, hand, first.subjectId(), first.cubeId(),

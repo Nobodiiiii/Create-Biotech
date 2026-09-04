@@ -66,8 +66,8 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		SurgicalSubject firstSubject = table.getSubject(first.subjectId);
 		SurgicalSubject secondSubject = table.getSubject(second.subjectId);
 		if (firstSubject == null || secondSubject == null || !targetPose.equals(secondSubject.layPose())
-			|| !firstSubject.initializeOrMatchTopology(first.observedCubeCount, first.seams)
-			|| !secondSubject.initializeOrMatchTopology(second.observedCubeCount, second.seams))
+			|| !firstSubject.matchesObservedTopology(first.observedCubeCount, first.seams)
+			|| !secondSubject.matchesObservedTopology(second.observedCubeCount, second.seams))
 			return;
 		if (table.glueComponents(player, held, hand, first.subjectId, first.cubeId,
 			second.subjectId, second.cubeId, targetPose, moves, anchorMoves, replayTransform,

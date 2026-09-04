@@ -56,7 +56,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public static final int MAX_SUBJECTS = SurgicalTablePlane.MAX_TILES * SurgicalTableLayout.SLOTS_PER_TILE;
 	private static final String SUBJECTS_TAG = "SurgicalSubjects";
 	private static final String NEXT_SUBJECT_ID_TAG = "NextSubjectId";
-	private static final String LEGACY_PROFILE_TAG = "MimicProfile";
+	private static final String FORMAT_VERSION_TAG = "SurgicalFormatVersion";
+	private static final int FORMAT_VERSION = 1;
 	private static final int CLIENT_PLANE_CACHE_TICKS = 5;
 
 	private final List<SurgicalSubject> subjects = new ArrayList<>();
@@ -614,8 +615,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private List<SurgicalTableLayout.Footprint> occupiedOutside(ComponentGroup group) {
 		List<SurgicalTableLayout.Footprint> occupied = new ArrayList<>();
 		for (SurgicalSubject subject : subjects) {
-			if (subject.occupiedFootprints().isEmpty())
-				return null;
 			BitSet moved = group.components.get(subject.persistentId());
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints())
 				if (!subject.containsFootprint(moved, footprint))
@@ -680,7 +679,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !Double.isFinite(dropPosition.z) || !canPayInteractionCost(shovel, 1, player) || level == null)
 			return false;
 
-		boolean trustedTopology = subject.initializeOrMatchTopology(observedCubeCount, observedSeams);
+		boolean trustedTopology = subject.matchesObservedTopology(observedCubeCount, observedSeams);
 		if (trustedTopology && !subject.validPresentCube(cubeId))
 			return false;
 		ComponentGroup group = trustedTopology ? connectedGroup(subject, cubeId)
@@ -704,7 +703,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	 * Removes every complete connectivity group whose saved horizontal projection has positive-area
 	 * overlap with {@code tilePos}. Selection uses only server-owned footprints and topology, so it
 	 * also reaches subjects whose model is unavailable, whose model no longer matches its saved cube
-	 * ids, or whose not-yet-observed placement is represented only by an envelope footprint.
+	 * ids, including subjects whose placement is represented by one whole-model envelope footprint.
 	 */
 	public boolean shovelIntersectingTile(Player player, ItemStack shovel, InteractionHand hand,
 		BlockPos tilePos, SurgicalTablePlane.Plane plane, double volume) {
@@ -719,14 +718,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
 				if (!footprintIntersectsTile(footprint, tilePos))
 					continue;
-				int root = footprint.componentRoot();
-				ComponentGroup group = root >= 0 && subject.validPresentCube(root)
-					? connectedGroup(subject, root) : wholeSubjectGroup(subject);
-				// A zero-cube subject has no graph vertex yet. Keeping an explicit empty member lets
-				// removeTemporaryGroup() retire that pure occupancy placeholder all the same.
-				if (group.components.isEmpty())
-					group = new ComponentGroup(Map.of(subject.persistentId(), new BitSet()));
-				if (mergeNewComponents(selected, group))
+			int root = footprint.componentRoot();
+			ComponentGroup group = root >= 0 && subject.validPresentCube(root)
+				? connectedGroup(subject, root) : wholeSubjectGroup(subject);
+			if (mergeNewComponents(selected, group))
 					interactionCost++;
 			}
 		}
@@ -735,18 +730,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 
 		double fallbackVolume = selectedProjectionArea(selected);
-		List<SurgicalSubject> purePlaceholders = selected.entrySet().stream()
-			.filter(entry -> entry.getValue().isEmpty())
-			.map(entry -> getSubjectByPersistentId(entry.getKey()))
-			.filter(java.util.Objects::nonNull)
-			.filter(subject -> subject.cubeCount() == 0)
-			.toList();
 		damageInteractionTool(shovel, interactionCost, player, hand);
 		removeTemporaryGroup(new ComponentGroup(selected));
-		// cubeCount == 0 deliberately is not considered an empty initialized subject by isEmpty();
-		// these entries are occupancy-only placements, so this recovery path retires them explicitly.
-		for (SurgicalSubject placeholder : purePlaceholders)
-			removeSubject(placeholder);
 		setChangedAndSync();
 		double dropVolume = volume > 0.0d ? volume
 			: Math.max(fallbackVolume, SurgicalSlimeDrops.ONE_BALL_VOLUME);
@@ -860,7 +845,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams, SurgicalTablePlane.Plane plane,
 		SurgicalTableLayout.Proposal proposal, double moveX, double moveZ) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| seamId < 0 || seamId >= subject.seams.size() || subject.cutSeams.get(seamId))
 			return false;
 		SurgicalAssembly.Seam seam = subject.seams.get(seamId);
@@ -895,7 +880,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int glueJointId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		SurgicalTablePlane.Plane plane, double moveX, double moveZ) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !canApplyGlueCut(subjectId, glueJointId, moveX, moveZ, plane)
 			|| !canPayInteractionCost(shears, 1, player))
 			return false;
@@ -923,7 +908,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal proposal) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId))
 			return false;
 		if (subject.combinationContaining(cubeId) != null)
@@ -977,7 +962,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal proposal, List<Vec3> groupDeltas) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
 			return false;
 		BatchCutState cut = batchCutState(subject, cubeId);
@@ -1018,7 +1003,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		List<SurgicalAssembly.Seam> observedSeams, SurgicalTablePlane.Plane plane,
 		SurgicalTableLayout.Proposal proposal, List<Vec3> groupDeltas) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
 			return false;
 		BatchCutState cut = batchCutState(subject, cubeId);
@@ -1062,8 +1047,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalSubject other : subjects) {
 			if (other == edited)
 				continue;
-			if (other.occupiedFootprints().isEmpty())
-				return false;
 			// A footprint with no component root stands for the whole subject, which is a per-subject
 			// question rather than a per-footprint one; resolve it once instead of inside the loop.
 			int wholeSubjectGroup = groupIndex.wholeSubjectGroupOf(cut.groups, other);
@@ -1193,7 +1176,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !(boxes.getItem() instanceof LargeCardboardBoxItem)
 			|| CapturedEntityBoxItem.hasCapturedEntity(boxes) || bodyBounds == null
 			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
@@ -1256,8 +1239,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalSubject parentSubject = getSubject(parentSubjectId);
 		if (type == null || SurgicalKitItem.limbType(jointItem) != type
 			|| childSubject == null || parentSubject == null
-			|| !childSubject.initializeOrMatchTopology(childCubeCount, childSeams)
-			|| !parentSubject.initializeOrMatchTopology(parentCubeCount, parentSeams)
+			|| !childSubject.matchesObservedTopology(childCubeCount, childSeams)
+			|| !parentSubject.matchesObservedTopology(parentCubeCount, parentSeams)
 			|| !childSubject.validPresentCube(childCubeId)
 			|| !parentSubject.validPresentCube(parentCubeId)
 			|| childSubject == parentSubject && childCubeId == parentCubeId)
@@ -1319,7 +1302,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !SurgicalKitItem.isEmptyTemporaryBox(kit)
 			|| bodyBounds == null || level == null
 			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
@@ -1644,7 +1627,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !SurgicalKitItem.isHoneyBottle(honeyBottle)
-			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+			|| !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId))
 			return false;
 		ComponentGroup connected = connectedGroup(subject, cubeId);
@@ -1692,7 +1675,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !SurgicalKitItem.isShears(shears)
-			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams))
+			|| !subject.matchesObservedTopology(observedCubeCount, observedSeams))
 			return false;
 		SurgicalCombination combination = subject.combinationContaining(cubeId);
 		if (combination == null || !externalCombinationJoints(combination).isEmpty()
@@ -1714,7 +1697,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int subjectId, int cubeId, int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !SurgicalKitItem.isShears(shears)
-			|| !subject.initializeOrMatchTopology(observedCubeCount, observedSeams))
+			|| !subject.matchesObservedTopology(observedCubeCount, observedSeams))
 			return false;
 		SurgicalCombination combination = subject.combinationContaining(cubeId);
 		if (combination == null || !canPayInteractionCost(shears, 1, player))
@@ -1764,8 +1747,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalSubject first = getSubject(firstSubjectId);
 		SurgicalSubject second = getSubject(secondSubjectId);
 		if (!SurgicalKitItem.isSlimeBall(slimeBall) || first == null || second == null
-			|| !first.initializeOrMatchTopology(firstObservedCubeCount, firstObservedSeams)
-			|| !second.initializeOrMatchTopology(secondObservedCubeCount, secondObservedSeams)
+			|| !first.matchesObservedTopology(firstObservedCubeCount, firstObservedSeams)
+			|| !second.matchesObservedTopology(secondObservedCubeCount, secondObservedSeams)
 			|| !canAddSlimeSeamTargets(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId)
 			|| !canPayInteractionCost(slimeBall, 1, player))
 			return false;
@@ -2073,8 +2056,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			if (other == subject)
 				continue;
 			BitSet moved = cut.moving.components.get(other.persistentId());
-			if (moved != null && !moved.isEmpty() && other.occupiedFootprints().isEmpty())
-				return false;
 			for (SurgicalTableLayout.Footprint footprint : other.occupiedFootprints()) {
 				if (!other.containsFootprint(moved, footprint)) {
 					fixed.add(footprint);
@@ -2450,11 +2431,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return Map.copyOf(result);
 	}
 
-	/** Client-side topology-aware variant for untouched subjects that are still lazily initialized. */
+	/** Client-side topology-aware variant that rejects a model differing from the stored cube ids. */
 	public Map<Integer, BitSet> connectedComponents(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject start = getSubject(subjectId);
-		if (start == null || !start.initializeOrMatchTopology(observedCubeCount, observedSeams))
+		if (start == null || !start.matchesObservedTopology(observedCubeCount, observedSeams))
 			return Map.of();
 		return connectedComponents(subjectId, cubeId);
 	}
@@ -2463,7 +2444,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public Map<Integer, BitSet> directConnections(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject start = getSubject(subjectId);
-		if (start == null || !start.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (start == null || !start.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !start.validPresentCube(cubeId))
 			return Map.of();
 		SurgicalConnectionGraph<UUID> graph = connectionGraph(null);
@@ -2476,7 +2457,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public Map<Integer, BitSet> connectedComponentsAfterCuttingCube(int subjectId, int startCube, int cutCube,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(startCube) || !subject.validPresentCube(cutCube))
 			return Map.of();
 		BitSet proposedCuts = (BitSet) subject.cutSeams.clone();
@@ -2501,7 +2482,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public BatchCutPlan batchCutPlan(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
-		if (subject == null || !subject.initializeOrMatchTopology(observedCubeCount, observedSeams)
+		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || subject.combinationContaining(cubeId) != null)
 			return null;
 		BatchCutState state = batchCutState(subject, cubeId);
@@ -2644,8 +2625,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		List<SurgicalTableLayout.Footprint> obstacles = new ArrayList<>();
 		List<SurgicalTableLayout.Footprint> translated = new ArrayList<>();
 		for (SurgicalSubject subject : subjects) {
-			if (subject.occupiedFootprints().isEmpty())
-				return false;
 			BitSet moved = moving.components.get(subject.persistentId());
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
 				if (!subject.containsFootprint(moved, footprint)) {
@@ -3306,6 +3285,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	@Override
 	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
 		long started = SurgicalProfiler.begin();
+		tag.putInt(FORMAT_VERSION_TAG, FORMAT_VERSION);
 		if (!subjects.isEmpty()) {
 			ListTag encoded = new ListTag();
 			for (SurgicalSubject subject : subjects)
@@ -3324,35 +3304,24 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Map<UUID, SurgicalSubject> previousSubjects = clientPacket
 			? new HashMap<>(subjectsByPersistentId) : Map.of();
 		super.read(tag, registries, clientPacket);
+		boolean currentFormat = tag.contains(FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
+			&& tag.getInt(FORMAT_VERSION_TAG) == FORMAT_VERSION
+			&& tag.contains(NEXT_SUBJECT_ID_TAG, Tag.TAG_ANY_NUMERIC);
 		List<SurgicalSubject> loaded = new ArrayList<>();
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> persistentIds = new HashSet<>();
-		if (tag.contains(SUBJECTS_TAG, Tag.TAG_LIST)) {
+		if (currentFormat && tag.contains(SUBJECTS_TAG, Tag.TAG_LIST)) {
 			ListTag encoded = tag.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
 			for (int index = 0; index < encoded.size() && loaded.size() < MAX_SUBJECTS; index++) {
-				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index), index, Direction.NORTH);
-				if (subject == null || !persistentIds.add(subject.persistentId()))
+				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index));
+				if (subject == null || !ids.add(subject.id()) || !persistentIds.add(subject.persistentId()))
 					continue;
-				if (subject.id() < 0 || !ids.add(subject.id())) {
-					int replacement = 0;
-					while (ids.contains(replacement))
-						replacement++;
-					subject.setId(replacement);
-					ids.add(replacement);
-				}
 				loaded.add(subject);
-			}
-		} else if (tag.contains(LEGACY_PROFILE_TAG, Tag.TAG_COMPOUND)) {
-			SurgicalSubject legacy = SurgicalSubject.load(tag, 0, Direction.NORTH);
-			if (legacy != null) {
-				loaded.add(legacy);
-				ids.add(legacy.id());
-				persistentIds.add(legacy.persistentId());
 			}
 		}
 		clearSubjects();
 		addSubjects(loaded);
-		nextSubjectId = Math.max(tag.getInt(NEXT_SUBJECT_ID_TAG),
+		nextSubjectId = Math.max(currentFormat ? tag.getInt(NEXT_SUBJECT_ID_TAG) : 0,
 			ids.stream().mapToInt(Integer::intValue).max().orElse(-1) + 1);
 		if (clientPacket) {
 			clientPlane = null;

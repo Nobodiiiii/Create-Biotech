@@ -72,7 +72,7 @@ public final class SurgicalTablePlane {
 		return new Plane(frozenTiles, source, complete, workArea);
 	}
 
-	/** Returns all persisted footprints, or null if legacy data makes collision checks uncertain. */
+	/** Returns all persisted footprints for the current table controller. */
 	@Nullable
 	public static List<SurgicalTableLayout.Footprint> occupiedFootprints(Level level, Plane plane,
 		int excludedSubjectId) {
@@ -92,8 +92,6 @@ public final class SurgicalTablePlane {
 		for (SurgicalSubject subject : controller.getSubjects()) {
 			if (excludedSubjectIds.contains(subject.id()))
 				continue;
-			if (subject.occupiedFootprints().isEmpty())
-				return null;
 			footprints.addAll(subject.occupiedFootprints());
 		}
 		return List.copyOf(footprints);
