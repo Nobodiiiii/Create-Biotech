@@ -238,7 +238,7 @@ public class SlimeBeltBlockEntity extends KineticBlockEntity
 		}
 
 		if (isController())
-			getInventory().read(compound.getCompound("Inventory"), registries);
+			getInventory().read(compound.getCompound("Inventory"), registries, clientPacket);
 	}
 
 	@Override

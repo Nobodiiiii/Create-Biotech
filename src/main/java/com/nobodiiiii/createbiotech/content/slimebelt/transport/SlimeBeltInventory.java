@@ -8,6 +8,7 @@ import java.util.function.Function;
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.content.beltsurface.FunnelInteractionCore;
+import com.nobodiiiii.createbiotech.content.beltsurface.TransportedItemStackSync;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
@@ -32,8 +33,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -60,6 +59,7 @@ public class SlimeBeltInventory {
 	private static final float SPACING = 1;
 
 	TransportedItemStack lazyClientItem;
+	private final TransportedItemStackSync itemSync;
 
 	/**
 	 * {@code insertSide} is the side handed to the target's input behaviour (from
@@ -75,6 +75,7 @@ public class SlimeBeltInventory {
 		items = new LinkedList<>();
 		toInsert = new LinkedList<>();
 		toRemove = new LinkedList<>();
+		itemSync = new TransportedItemStackSync();
 	}
 
 	public void tick() {
@@ -840,12 +841,13 @@ public class SlimeBeltInventory {
 		return null;
 	}
 
-	public void read(CompoundTag nbt, HolderLookup.Provider registries) {
-		items.clear();
-		nbt.getList("Items", Tag.TAG_COMPOUND)
-			.forEach(inbt -> items.add(TransportedItemStack.read((CompoundTag) inbt, registries)));
-		if (nbt.contains("LazyItem"))
-			lazyClientItem = TransportedItemStack.read(nbt.getCompound("LazyItem"), registries);
+	public void read(CompoundTag nbt, HolderLookup.Provider registries, boolean clientPacket) {
+		toInsert.clear();
+		toRemove.clear();
+		float predictionTolerance = Math.max(.125f, Math.abs(belt.getDirectionAwareBeltMovementSpeed()) * 1.5f);
+		lazyClientItem = itemSync.read(nbt, registries, items, lazyClientItem, clientPacket,
+			(first, second) -> (float) belt.getLoop().worldPos(first).distanceTo(belt.getLoop().worldPos(second)),
+			predictionTolerance);
 		beltMovementPositive = nbt.getBoolean("PositiveOrder");
 	}
 
@@ -856,11 +858,7 @@ public class SlimeBeltInventory {
 		refreshMovementDirection();
 		flushPendingChanges();
 		CompoundTag nbt = new CompoundTag();
-		ListTag itemsNBT = new ListTag();
-		items.forEach(stack -> itemsNBT.add(stack.serializeNBT(registries)));
-		nbt.put("Items", itemsNBT);
-		if (lazyClientItem != null)
-			nbt.put("LazyItem", lazyClientItem.serializeNBT(registries));
+		itemSync.write(nbt, registries, items, lazyClientItem);
 		nbt.putBoolean("PositiveOrder", beltMovementPositive);
 		return nbt;
 	}

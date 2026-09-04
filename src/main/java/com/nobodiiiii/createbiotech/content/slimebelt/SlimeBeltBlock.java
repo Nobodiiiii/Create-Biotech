@@ -359,8 +359,6 @@ public class SlimeBeltBlock extends HorizontalKineticBlock
 		}
 
 		if (isHand) {
-			if (clickedTrack != Track.FRONT)
-				return InteractionResult.PASS;
 			if (world.isClientSide)
 				return InteractionResult.SUCCESS;
 

@@ -10,6 +10,7 @@ import java.util.function.Function;
 
 import javax.annotation.Nullable;
 
+import com.nobodiiiii.createbiotech.content.beltsurface.TransportedItemStackSync;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
@@ -30,8 +31,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
@@ -48,12 +47,14 @@ public class MagmaBeltInventory {
 	final float SEGMENT_WINDOW = .75f;
 
 	TransportedItemStack lazyClientItem;
+	private final TransportedItemStackSync itemSync;
 
 	public MagmaBeltInventory(MagmaBeltBlockEntity be) {
 		this.belt = be;
 		items = new LinkedList<>();
 		toInsert = new LinkedList<>();
 		toRemove = new LinkedList<>();
+		itemSync = new TransportedItemStackSync();
 	}
 
 	public void tick() {
@@ -522,12 +523,12 @@ public class MagmaBeltInventory {
 		return null;
 	}
 
-	public void read(CompoundTag nbt, HolderLookup.Provider registries) {
-		items.clear();
-		nbt.getList("Items", Tag.TAG_COMPOUND)
-			.forEach(inbt -> items.add(TransportedItemStack.read((CompoundTag) inbt, registries)));
-		if (nbt.contains("LazyItem"))
-			lazyClientItem = TransportedItemStack.read(nbt.getCompound("LazyItem"), registries);
+	public void read(CompoundTag nbt, HolderLookup.Provider registries, boolean clientPacket) {
+		toInsert.clear();
+		toRemove.clear();
+		float predictionTolerance = Math.max(.125f, Math.abs(belt.getDirectionAwareBeltMovementSpeed()) * 1.5f);
+		lazyClientItem = itemSync.read(nbt, registries, items, lazyClientItem, clientPacket,
+			(first, second) -> Math.abs(first - second), predictionTolerance);
 		beltMovementPositive = nbt.getBoolean("PositiveOrder");
 	}
 
@@ -537,11 +538,7 @@ public class MagmaBeltInventory {
 		refreshMovementDirection();
 		flushPendingChanges();
 		CompoundTag nbt = new CompoundTag();
-		ListTag itemsNBT = new ListTag();
-		items.forEach(stack -> itemsNBT.add(stack.serializeNBT(registries)));
-		nbt.put("Items", itemsNBT);
-		if (lazyClientItem != null)
-			nbt.put("LazyItem", lazyClientItem.serializeNBT(registries));
+		itemSync.write(nbt, registries, items, lazyClientItem);
 		nbt.putBoolean("PositiveOrder", beltMovementPositive);
 		return nbt;
 	}
