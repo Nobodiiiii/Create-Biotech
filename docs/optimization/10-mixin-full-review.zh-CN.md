@@ -1,6 +1,6 @@
 # Create: Biotech Mixin 全量审阅报告
 
-状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0、批次 1 的实现与冒烟验证（2026-09-04）
+状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—2 的实现与冒烟验证（2026-09-04）
 
 ## 1. 结论摘要
 
@@ -15,7 +15,7 @@
 
 本轮确认的 1 个 P0 发布阻断问题已在批次 0 修复：`BlockBreakingMovementBehaviourMixin` 不再依赖正常 `RETURN` 弹栈，伤害上下文现在由可校验的作用域在 `finally` 语义下关闭。
 
-最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1 完成代码收敛，剩余的是游戏内行为矩阵；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
+最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1、Surface Funnel 坐标与抽取状态机已在批次 2 完成代码收敛，剩余的是游戏内行为矩阵；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
 
 本报告的 P 级表示**整改优先级**，不是“Mixin 是否应删除”的判断：
 
@@ -55,11 +55,11 @@
 
 ## 4. P1：高优先级优化建议
 
-### P1-01 修正 Surface Funnel 的局部/世界坐标旋转
+### P1-01 修正 Surface Funnel 的局部/世界坐标旋转（批次 2 已完成）
 
-[AbstractHorizontalFunnelBlockMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/AbstractHorizontalFunnelBlockMixin.java) 在 Create 已旋转 `HORIZONTAL_FACING` 后，又直接旋转 `ATTACHMENT_SURFACE`。这只在 `ATTACHMENT_SURFACE == DOWN`、局部坐标等同世界坐标时成立；侧面附着时，`HORIZONTAL_FACING` 是 Surface 局部方向，不能直接用世界 `Rotation` 处理。
+[AbstractHorizontalFunnelBlockMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/AbstractHorizontalFunnelBlockMixin.java) 的旧实现曾在 Create 已旋转 `HORIZONTAL_FACING` 后直接旋转 `ATTACHMENT_SURFACE`。这只在 `ATTACHMENT_SURFACE == DOWN`、局部坐标等同世界坐标时成立；侧面附着时会混用两个坐标系。
 
-应按以下顺序变换：
+批次 2 已把 rotation 改为完整的世界空间变换：
 
 ```text
 oldWorldFacing = worldizeCanonical(oldLocalFacing, oldAttachment.opposite())
@@ -68,7 +68,9 @@ newAttachment  = rotation.rotate(oldAttachment)
 newLocalFacing = localizeCanonical(newWorldFacing, newAttachment.opposite())
 ```
 
-一个可复现反例是侧面 Surface：当前实现会把应保持水平的漏斗口转换成竖直世界方向。需覆盖四种 Y 轴 rotation、mirror、结构方块、Schematic 和 Contraption 变换。
+同时新增独立 mirror 路径：先对旧 local facing 做 worldize，再分别用 `Mirror.mirror` 变换世界朝向和 attachment，最后在新 surface frame 下 localize。这样不再依赖 Create 用局部 `HORIZONTAL_FACING` 推导世界 mirror rotation。两个注入均增加 `require/expect = 1`，普通 `ATTACHMENT_SURFACE == DOWN` 状态仍退化为 Create 原有水平语义。
+
+编译和 `quickPlaySmoke` 已通过；仍需重点覆盖六个 attachment、四种 Y 轴 rotation、两种 mirror，以及结构方块、Schematic 和 Contraption 组合变换，确认漏斗口世界方向、shape、碰撞与目标 Belt 同步变化。
 
 ### P1-02 收窄 `FluidTankRendererMixin` 的异常边界
 
@@ -76,18 +78,20 @@ newLocalFacing = localizeCanonical(newWorldFacing, newAttachment.opposite())
 
 优化为：只围住本模组的经验球渲染，失败后恢复本模组自己修改的状态；`original.call` 放在 catch 外并正常传播。若确需降级，只捕获能够明确恢复的预期异常，不能把 `LinkageError`、普通 `Error` 和未知运行时错误都视为可恢复。
 
-### P1-03 缩小 `FunnelBlockEntityMixin` 的整方法接管
+### P1-03 缩小 `FunnelBlockEntityMixin` 的整方法接管（批次 2 已完成代码收敛）
 
-[FunnelBlockEntityMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/FunnelBlockEntityMixin.java) 当前在 `activateExtractingBeltFunnel()` 的 `HEAD` 取消并重写完整 Create 状态机，而且对普通 Create Belt 也生效。实现目前复制了等待、模拟、占用、flap、transfer callback 和 cooldown 等 6.0.10 逻辑，但 Create 6.0.11 的任何新增副作用都可能被静默漏掉。
+[FunnelBlockEntityMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/FunnelBlockEntityMixin.java) 的旧实现曾在 `activateExtractingBeltFunnel()` 的 `HEAD` 取消并复制完整 Create 状态机，且使用字符串反射取得私有 `Mode`，在 `addBehaviours` 尾部创建第二个 `InvManipulationBehaviour` 替换已注册对象。
 
-同一类还依赖：第二个 `WeakReference` 构造的 ordinal、字符串反射私有 `Mode`、在 `addBehaviours` 尾部替换行为对象。这些点组合后是当前 Create 升级最脆弱的单类之一。
+批次 2 已改为以下窄注入：
 
-建议：
+1. `activateExtractingBeltFunnel()` 完整执行 Create 原方法；只把 surface funnel 读取到的局部 facing 映射为 Belt 插入侧，并把 `BlockEntityBehaviour.get` 的目标位置改成实际 surface belt 坐标。
+2. 只包装最终非模拟 `handleInsertion` 提交点；捕获史莱姆成功实体化时跳过物品插入，失败则回到 Create 原提交。
+3. 模式判断不再取消原方法或访问私有枚举。Mixin 仅把 RETRACTED/EXTENDED surface 的临时 `Shape` 映射为等价 PUSHING/PULLING，由 Create 原分支返回自己的私有 `Mode`；字符串反射与缓存已删除。
+4. `InvManipulationBehaviour` 在 Create 原构造点通过可链式 `@WrapOperation(NEW)` 直接创建 surface/Basin-aware 实例，不再在 `TAIL` 替换列表和字段中的旧对象。
+5. Funnel filter slot 在原构造点替换为 surface-aware 定位器：点击面先从世界空间转到局部空间，Create 算出的槽位位置和姿态再整体转回世界空间，修复倒置/侧挂黄铜漏斗无法命中过滤槽的问题；普通漏斗及正立 Belt Funnel 完整回退原逻辑。
+6. `WeakReference` ordinal、三个 `BlockState.getValue`、Belt 位置、最终提交和两个构造点都增加了匹配数量约束。
 
-1. 把整方法替换改成只包装最终 `DirectBeltInputBehaviour.handleInsertion(..., false)` 或捕获物品 materialize 的提交点；普通 Belt 继续完整执行 Create 原方法。
-2. 用编译期 `@Invoker`/窄 accessor 或包装原返回值替代 `Class.forName` + `Enum.valueOf`。
-3. 对 ordinal 注入增加 `expect = 1` 或 slice，并用 6.0.10/6.0.11 字节码或源码差异测试锁定调用点。
-4. 避免替换已经注册的整个 `InvManipulationBehaviour`；优先包装其目标解析调用，减少未来旧引用悬挂的可能。
+因此等待版本、模拟抽取、过滤数量、拒绝插入、占用检查、flap、`onTransfer` 和 `startCooldown` 均回到 Create 原实现。Create 6.0.10 用本地精确源码核对；本机缓存的 6.0.11-295 字节码确认上述调用点和构造器描述符未漂移。编译和 `quickPlaySmoke` 已通过，仍需用普通 Create Belt、Magma Belt 与六面 Slime Belt 对照测试实际传输语义。
 
 ### P1-04 保证 Basin 三种库存视图和实体化输出的一致性（批次 1 已完成代码收敛）
 
@@ -198,7 +202,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `AbstractContraptionEntityBufferPadMixin` | Contraption 缓冲垫 tick 补偿 | P2 | 缓存是否含缓冲垫；验证卸载/拆分后失效 |
 | `AbstractVillagerAccessor` | 读写交易报价字段 | P3 | 窄 accessor，可保留 |
 | `AbstractVillagerSlimeMimicTradesMixin` | 拟态交易载入/恢复 | P2 | 测试职业变化、旧 NBT 和普通报价 |
-| `AbstractHorizontalFunnelBlockMixin` | Surface Funnel 旋转 | P1 | 修复局部/世界坐标变换 |
+| `AbstractHorizontalFunnelBlockMixin` | Surface Funnel 旋转 | P1 | 批次 2 已修复 rotation/mirror 坐标变换；补结构/Contraption 实测 |
 | `AssemblyOperatorBlockItemMixin` | 识别 Biotech Belt | P3 | 普通方块完整回退；Create 升级核对 predicate |
 | `BasinBlockEntityMixin` | Basin handler 视图、迁移、实体化输出 | P1 | 批次 1 已收敛契约/迁移/提交校验；补游戏内失败矩阵 |
 | `BasinBlockBeltOutputMixin` | 允许向 Biotech Belt 输出 | P2 | 批次 1 已复核，无需改动；仍测方向、满载和无 host |
@@ -217,12 +221,12 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `BeltTunnelInteractionHandlerMixin` | Tunnel 插入/抽取桥接 | P2 | 测试模拟、阻塞和 flap |
 | `LaunchedItemForBeltMixin` | 持久化链/偏移数据 | P2 | 校验 NBT 长度、旧数据和 place 失败 |
 | `SchematicannonBlockEntityMixin` | Schematicannon 链数据发射 | P1 | HEAD 取消路径逐项保留消耗/失败语义 |
-| `BeltFunnelBlockMixin` | Surface Funnel 状态/几何/有效性 | P1 | 与旋转修复共同验证；减少同目标多 Mixin |
-| `BeltFunnelBlockStateMixin` | 增加 attachment surface 属性 | P1 | 固定存档协议，补旧世界/结构测试 |
+| `BeltFunnelBlockMixin` | Surface Funnel 状态/几何/有效性 | P1 | 批次 2 已联动复核；补六面 shape/revert/wrench 矩阵 |
+| `BeltFunnelBlockStateMixin` | 增加 attachment surface 属性 | P1 | 批次 2 已联动复核；固定存档协议并补旧世界/结构测试 |
 | `BeltFunnelShapeMixin` | Surface shape/碰撞 | P2 | 六向 shape 与 ItemEntity 碰撞矩阵 |
-| `FunnelBlockMixin` | 放置、revert、实体进入扩展 | P2 | 非 Surface 和普通物品必须完整回退 |
-| `FunnelBlockEntityMixin` | Funnel 模式、能力、抽取状态机 | P1 | 缩小整方法接管并移除字符串反射 |
-| `FunnelItemMixin` | Surface Funnel 放置解析 | P2 | 测试相邻多个 surface 的确定性 |
+| `FunnelBlockMixin` | 放置、revert、实体进入扩展 | P2 | 批次 2 已增加点击面优先；测试非 Surface 回退和重连 |
+| `FunnelBlockEntityMixin` | Funnel 模式、能力、抽取状态机 | P1 | 批次 2 已删除整方法接管/Mode 反射/事后 behaviour 替换，并修复六面 filter slot 交互 |
+| `FunnelItemMixin` | Surface Funnel 放置解析 | P2 | 批次 2 已使多 Surface 场景优先使用玩家点击面 |
 | `FluidTankBlockEntityMixin` | 特殊流体读取兼容 | P2 | 保护 controller/非 controller 和旧 NBT |
 | `FollowTemptationFixedCarrotFishingRodMixin` | Brain 诱惑行为固定目标 | P1 | 迁移独立 behavior，避免取消原 tick |
 | `ItemHelperMixin` | 捕获物品延迟抽取预览 | P2 | 批次 1 已锁定调用点；仍测 EXACTLY 和非幂等 handler |
@@ -314,6 +318,9 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 - `BlockBreakingMovementBehaviourMixin` 已用作用域式 `@WrapMethod` 保证异常退出也关闭伤害上下文，并增加 token/LIFO 校验。
 - Basin 相关 Mixin 已统一三种 handler 权限、守卫配方 capability 调用、校验 spoutput 模拟结果，并让旧数据迁移在实体区域就绪后才提交。
+- Surface Funnel 已改为 worldize—transform—localize 的 rotation/mirror 变换；抽取流程恢复执行 Create 原状态机，只包装 surface 坐标、插入侧和实体化提交点，私有 `Mode` 反射及注册后的 behaviour 替换均已删除。
+- Surface Funnel 放置在多候选面时优先采用玩家实际点击面；自动更新或点击面无效时仍使用稳定的邻面扫描。
+- Surface Funnel 的过滤槽会把世界点击面转入 surface 局部帧，并将槽位位置/姿态转回世界帧；倒置与侧挂黄铜漏斗现在可按实际可见槽位交互。
 - `CreeperRendererMixin` 已改为 `@WrapMethod` 并在 `finally` 恢复 pose/context/swell。
 - `JeiRecipeLayoutMixin` 已用 `@WrapOperation` 和 `finally` 结束 hover/slot context。
 - `ItemApplicationCategoryMixin` 仅在自定义 renderer 成功时取消，失败可回到 Create 原渲染。
@@ -333,7 +340,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 1. **批次 0（已完成，P0-01）**：Contraption 伤害上下文改为校验式 scope 和 `try/finally`；专项异常/嵌套行为测试仍待补。
 2. **批次 1（已完成代码收敛，P1-04）**：聚合 Basin handler、配方索引/应用、Belt 输出、延迟抽取和旧数据迁移；专项游戏内矩阵仍待补。
-3. **批次 2（P1-01、P1-03）**：聚合 Surface Funnel 坐标、放置和抽取状态机，修正旋转并缩小整方法接管。
+3. **批次 2（已完成代码收敛，P1-01、P1-03）**：聚合 Surface Funnel 坐标、放置和抽取状态机；专项方向/传输/结构矩阵仍待补。
 4. **批次 3（P1-02、P1-05、P1-06）**：聚合实体同步与渲染热路径，收紧异常边界并减少全局状态/字段。
 5. **批次 4（P1-07、P1-08）**：聚合创造栏和 JEI，移除空栈及 logger workaround，再收窄 JEI 兼容范围。
 6. **批次 5（P1-09、P1-10、P1-11、P1-12）**：按 AI、红石、Sable、无线库存四个边界分别施工并完成版本矩阵。
@@ -354,6 +361,16 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | 可选依赖 | 无 Sable/Simulated/AC、单独安装、兼容版、不兼容版 | 只禁用对应能力；日志给出明确原因；不在 apply/首 tick 崩溃 |
 | 网络/存档 | 旧 NBT、跨维度、菜单换目标、延迟/重复包、断线重连 | 迁移幂等；过期响应不写入新会话 |
 
-本轮已完成的机械验证：配置清单为 57 common + 33 client + 2 Alternate Current + 3 Sable，95 个配置项与 95 个 Mixin 源文件数量一致；`./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 27 个 deprecated API 警告；`./gradlew quickPlaySmoke --no-daemon` 成功，在时限内进入世界并正常清理，日志未发现本批 Mixin 的 apply/injection 失败；构建 jar 已包含新增契约类和修改后的 Mixin。Markdown 表格分别包含 57、33、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+### 9.1 批次 2 重点游戏内用例
 
-冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支或 Basin 行为矩阵全部正确。后续仍需执行上文列出的异常/嵌套伤害及 Basin 模拟—提交、实体生成失败、方向/卸载和旧存档迁移测试。客户端日志中仍可复现 P1-07 所述的 JEI 空 `ItemStack` 错误，该问题不属于批次 0/1，留待批次 4 处理。
+1. **六面放置、模式与过滤**：组合出 `UP/DOWN/NORTH/SOUTH/EAST/WEST` 六种 attachment，分别放置安山/黄铜漏斗；正反转 Belt 后确认抽取/接收模式、漏斗口、过滤槽和 flap 都对应同一世界方向。黄铜漏斗逐面测试手持普通物品/属性过滤器设定、空手取下以及滚轮配置“精确/至多”数量，槽位高亮、点击面和实际过滤结果必须一致。
+2. **状态机回归**：在普通 Create Belt、Magma Belt、水平/竖直/侧向 Slime Belt 上测试空库存、过滤拒绝、精确数量/至多数量、Belt 已占用、Belt 停转、红石暂停和运行中反转；不得丢物、复制、跳过冷却或重复触发 transfer。
+3. **结构变换**：对每种侧面 funnel 执行 0/90/180/270 度旋转和 `LEFT_RIGHT`/`FRONT_BACK` mirror，再经结构方块、Schematicannon、Contraption 装配/拆解；attachment、世界漏斗口、shape、碰撞和实际目标必须一起变化。
+4. **放置与失效恢复**：让一个空位同时邻接两个可用 Slime Belt surface，逐面点击确认选择点击面；拆除、转向、停转或重载宿主 Belt 时，Belt Funnel 应按预期保留或退回普通 Funnel，且世界 facing、POWERED、EXTRACTING、waterlogged 不错乱。
+5. **实体化边界**：从 Basin 经 Funnel 输出 1 个和多个 captured small slime，确认只生成对应数量实体、不把控制物品插入 Belt；阻塞/拒绝模拟时不得先抽取或生成实体，失败回退不得丢物。
+6. **视觉与持久化**：六面检查 outline/碰撞、掉落物接触、flap 动画和 Flywheel 渲染；保存退出再进入及区块卸载重载后，方向与传输模式不变。
+7. **版本矩阵**：至少在 Create 6.0.10 和 6.0.11 各执行第 1—3 项的代表用例，特别观察启动日志是否出现调用点数量或 descriptor 漂移。
+
+本轮已完成的机械验证：配置清单为 57 common + 33 client + 2 Alternate Current + 3 Sable，95 个配置项与 95 个 Mixin 源文件数量一致；默认 Create 6.0.10 的 `./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 27 个 deprecated API 警告；Create 6.0.11-295 覆盖参数下的 `compileJava` 也成功；`./gradlew quickPlaySmoke --no-daemon` 成功，在时限内进入世界并正常清理，日志未发现本批 Mixin 的 apply/injection 失败；构建 jar 已包含新增契约类和修改后的 Mixin。Markdown 表格分别包含 57、33、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+
+冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支、Basin 或 Surface Funnel 行为矩阵全部正确。后续仍需执行上文列出的异常/嵌套伤害、Basin 模拟—提交，以及 Surface Funnel 六面方向/传输/变换测试。客户端日志中仍可复现 P1-07 所述的 JEI 空 `ItemStack` 错误，该问题不属于批次 0—2，留待批次 4 处理。

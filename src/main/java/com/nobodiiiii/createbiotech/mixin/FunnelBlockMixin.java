@@ -46,7 +46,8 @@ public abstract class FunnelBlockMixin {
 		if (worldFacing == null)
 			return;
 
-		BeltSurface surface = BeltSurfaceResolver.resolveForPlacement(context.getLevel(), context.getClickedPos());
+		BeltSurface surface = BeltSurfaceResolver.resolveForPlacement(context.getLevel(), context.getClickedPos(),
+			context.getClickedFace());
 		if (surface == null)
 			return;
 		Direction localFacing = surface.localize(worldFacing);

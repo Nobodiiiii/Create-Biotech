@@ -106,7 +106,7 @@ public abstract class BeltFunnelBlockMixin extends AbstractHorizontalFunnelBlock
 	 * with the matching outward normal. When either condition fails (belt destroyed, replaced with a different
 	 * orientation, casing change that drops the track, etc.), this returns {@code false} and vanilla's
 	 * {@code updateShape} reverts the BeltFunnel to its parent {@link FunnelBlock} — at which point the
-	 * {@link #createBiotech$worldizeRevertFacing} {@code @WrapOperation} above feeds the original world facing back
+	 * {@link #createBiotech$worldizeRevertFacing} {@code @Inject} above feeds the original world facing back
 	 * into {@link FunnelBlock#FACING} using {@code worldizeCanonical(HORIZONTAL_FACING, outward)}.
 	 * <p>
 	 * This validity hook performs the provider check directly so a missing provider is rejected immediately and

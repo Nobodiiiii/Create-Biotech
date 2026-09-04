@@ -63,22 +63,48 @@ public final class BeltSurfaceResolver {
 	 */
 	@Nullable
 	public static BeltSurface resolveForPlacement(BlockGetter world, BlockPos funnelPos) {
+		return resolveForPlacement(world, funnelPos, null);
+	}
+
+	/**
+	 * Placement lookup with a player-selected surface hint. The clicked outward face wins when it exposes a live
+	 * surface; otherwise the stable six-neighbour scan preserves placement from replaceable blocks and automation.
+	 */
+	@Nullable
+	public static BeltSurface resolveForPlacement(BlockGetter world, BlockPos funnelPos,
+		@Nullable Direction preferredOutwardNormal) {
 		if (world == null || funnelPos == null)
 			return null;
+		Direction preferredAttachment = preferredOutwardNormal == null
+			? null
+			: preferredOutwardNormal.getOpposite();
+		if (preferredAttachment != null) {
+			BeltSurface preferred = resolvePlacementCandidate(world, funnelPos, preferredAttachment);
+			if (preferred != null)
+				return preferred;
+		}
 		for (Direction d : Direction.values()) {
-			BlockPos neighbourPos = funnelPos.relative(d);
-			if (world instanceof Level level && !level.isLoaded(neighbourPos))
+			if (d == preferredAttachment)
 				continue;
-			if (!(world.getBlockState(neighbourPos).getBlock() instanceof BeltSurfaceProviderBlock))
-				continue;
-			BlockEntity be = world.getBlockEntity(neighbourPos);
-			if (!(be instanceof BeltSurfaceHost host))
-				continue;
-			BeltSurface s = host.surfaceFor(d.getOpposite());
-			if (s != null)
-				return s;
+			BeltSurface surface = resolvePlacementCandidate(world, funnelPos, d);
+			if (surface != null)
+				return surface;
 		}
 		return null;
+	}
+
+	@Nullable
+	private static BeltSurface resolvePlacementCandidate(BlockGetter world, BlockPos funnelPos,
+		Direction attachment) {
+		BlockPos neighbourPos = funnelPos.relative(attachment);
+		if (world instanceof Level level && !level.isLoaded(neighbourPos))
+			return null;
+		if (!(world.getBlockState(neighbourPos).getBlock() instanceof BeltSurfaceProviderBlock))
+			return null;
+		BlockEntity be = world.getBlockEntity(neighbourPos);
+		if (!(be instanceof BeltSurfaceHost host))
+			return null;
+		return host.surfaceFor(attachment.getOpposite());
 	}
 
 	@Nullable

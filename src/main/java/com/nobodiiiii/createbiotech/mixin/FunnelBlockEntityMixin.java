@@ -1,20 +1,18 @@
 package com.nobodiiiii.createbiotech.mixin;
 
-import java.util.List;
-
-import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltFunnelStateExtensions;
+import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurface;
 import com.nobodiiiii.createbiotech.content.beltsurface.BeltSurfaceResolver;
+import com.nobodiiiii.createbiotech.content.beltsurface.SurfaceFunnelFilterSlotPositioning;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.processing.basin.BasinAwareFunnelInventoryBehaviour;
@@ -26,10 +24,9 @@ import com.simibubi.create.content.logistics.funnel.AbstractFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock;
 import com.simibubi.create.content.logistics.funnel.BeltFunnelBlock.Shape;
 import com.simibubi.create.content.logistics.funnel.FunnelBlockEntity;
-import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.simibubi.create.content.logistics.funnel.FunnelFilterSlotPositioning;
+import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.inventory.InvManipulationBehaviour;
-import com.simibubi.create.foundation.blockEntity.behaviour.inventory.VersionedInventoryTrackerBehaviour;
-import com.simibubi.create.foundation.item.ItemHelper.ExtractionCountMode;
 import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.createmod.catnip.math.BlockFace;
@@ -41,22 +38,11 @@ import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.Vec3;
 
 @Mixin(value = FunnelBlockEntity.class, priority = 1001)
 public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess {
-
-	private static final String FUNNEL_MODE_CLASS = "com.simibubi.create.content.logistics.funnel.FunnelBlockEntity$Mode";
-
-	@Shadow(remap = false)
-	private InvManipulationBehaviour invManipulation;
-
-	@Shadow(remap = false)
-	private VersionedInventoryTrackerBehaviour invVersionTracker;
-
-	@Shadow(remap = false)
-	private int extractionCooldown;
 
 	@Unique
 	private long createBiotech$nextSmallSlimeCaptureTime;
@@ -87,6 +73,8 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 			target = "Ljava/lang/ref/WeakReference;<init>(Ljava/lang/Object;)V",
 			ordinal = 1),
 		index = 0,
+		require = 1,
+		expect = 1,
 		remap = false)
 	private Object createBiotech$observeMaterializedSlimeInsteadOfTemporaryItem(Object observed) {
 		if (!(observed instanceof ItemEntity itemEntity)
@@ -96,27 +84,25 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 		return replacement == null ? observed : replacement;
 	}
 
-	@Inject(method = "determineCurrentMode()Lcom/simibubi/create/content/logistics/funnel/FunnelBlockEntity$Mode;",
-		at = @At("HEAD"), cancellable = true, remap = false)
-	private void createBiotech$determineCurrentMode(CallbackInfoReturnable<Object> cir) {
+	@WrapOperation(
+		method = "determineCurrentMode()Lcom/simibubi/create/content/logistics/funnel/FunnelBlockEntity$Mode;",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/level/block/state/BlockState;getValue(Lnet/minecraft/world/level/block/state/properties/Property;)Ljava/lang/Comparable;"),
+		require = 3,
+		expect = 3)
+	private Comparable<?> createBiotech$resolveSurfaceMode(BlockState blockState, Property<?> property,
+		Operation<Comparable<?>> original) {
+		Comparable<?> originalValue = original.call(blockState, property);
+		if (property != BeltFunnelBlock.SHAPE || !(originalValue instanceof Shape shape)
+			|| shape == Shape.PULLING || shape == Shape.PUSHING)
+			return originalValue;
+
 		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
-		BlockState blockState = funnel.getBlockState();
-		if (!(blockState.getBlock() instanceof BeltFunnelBlock))
-			return;
-
-		// Create checks POWERED before it ever looks at the belt below. Cancelling ahead of that check would
-		// report a live push/take mode for a redstone-disabled funnel; returning here lets the original method
-		// produce Mode.PAUSED as it does for every other funnel.
-		if (blockState.getOptionalValue(BlockStateProperties.POWERED)
-			.orElse(false))
-			return;
-
-		Shape shape = blockState.getValue(BeltFunnelBlock.SHAPE);
-		if (shape == Shape.PULLING || shape == Shape.PUSHING || funnel.getLevel() == null)
-			return;
-
-		BeltSurface surface =
-			BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos(), blockState);
+		Level level = funnel.getLevel();
+		if (level == null)
+			return originalValue;
+		BeltSurface surface = BeltSurfaceResolver.resolve(level, funnel.getBlockPos(), blockState);
 		Direction facing;
 		Direction movementFacing;
 		if (surface != null) {
@@ -124,29 +110,46 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 			movementFacing = surface.movementFacing();
 		} else {
 			Direction attachment =
-				blockState.getValue(BeltFunnelStateExtensions.ATTACHMENT_SURFACE);
+				blockState.getOptionalValue(BeltFunnelStateExtensions.ATTACHMENT_SURFACE).orElse(Direction.DOWN);
 			if (attachment != Direction.DOWN)
-				return;
+				return originalValue;
 			MagmaBeltBlockEntity magmaBelt =
-				MagmaBeltHelper.getSegmentBE(funnel.getLevel(), funnel.getBlockPos().below());
+				MagmaBeltHelper.getSegmentBE(level, funnel.getBlockPos().below());
 			if (magmaBelt == null)
-				return;
+				return originalValue;
 			facing = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
 			movementFacing = magmaBelt.getMovementFacing();
 		}
-		cir.setReturnValue(getMode(movementFacing == facing ? "PUSHING_TO_BELT" : "TAKING_FROM_BELT"));
+		// Feed an equivalent public Shape into Create's original branch so it returns its own private Mode.
+		return movementFacing == facing ? Shape.PUSHING : Shape.PULLING;
 	}
 
-	@Inject(method = "addBehaviours(Ljava/util/List;)V", at = @At("TAIL"), remap = false)
-	private void createBiotech$replaceInventoryTarget(List<BlockEntityBehaviour> behaviours, CallbackInfo ci) {
-		int index = behaviours.indexOf(invManipulation);
-		if (index == -1)
-			return;
-		InvManipulationBehaviour remapped = new BasinAwareFunnelInventoryBehaviour(
-			(FunnelBlockEntity) (Object) this,
+	@WrapOperation(
+		method = "addBehaviours(Ljava/util/List;)V",
+		at = @At(value = "NEW",
+			target = "Lcom/simibubi/create/foundation/blockEntity/behaviour/inventory/InvManipulationBehaviour;"),
+		require = 1,
+		expect = 1,
+		remap = false)
+	private InvManipulationBehaviour createBiotech$createSurfaceAwareInventoryBehaviour(
+		SmartBlockEntity blockEntity, InvManipulationBehaviour.InterfaceProvider originalTarget,
+		Operation<InvManipulationBehaviour> original) {
+		if (!(blockEntity instanceof FunnelBlockEntity funnel))
+			return original.call(blockEntity, originalTarget);
+		return new BasinAwareFunnelInventoryBehaviour(funnel,
 			FunnelBlockEntityMixin::createBiotech$getInventoryTarget);
-		behaviours.set(index, remapped);
-		invManipulation = remapped;
+	}
+
+	@WrapOperation(
+		method = "addBehaviours(Ljava/util/List;)V",
+		at = @At(value = "NEW",
+			target = "Lcom/simibubi/create/content/logistics/funnel/FunnelFilterSlotPositioning;"),
+		require = 1,
+		expect = 1,
+		remap = false)
+	private FunnelFilterSlotPositioning createBiotech$createSurfaceAwareFilterSlot(
+		Operation<FunnelFilterSlotPositioning> original) {
+		return new SurfaceFunnelFilterSlotPositioning();
 	}
 
 	@Inject(method = "supportsAmountOnFilter()Z", at = @At("HEAD"), cancellable = true, remap = false)
@@ -167,59 +170,48 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 			cir.setReturnValue(true);
 	}
 
-	@Inject(method = "activateExtractingBeltFunnel()V", at = @At("HEAD"), cancellable = true, remap = false)
-	private void createBiotech$activateExtractingBeltFunnel(CallbackInfo ci) {
+	@WrapOperation(
+		method = "activateExtractingBeltFunnel()V",
+		at = @At(
+			value = "INVOKE",
+			target = "Lnet/minecraft/world/level/block/state/BlockState;getValue(Lnet/minecraft/world/level/block/state/properties/Property;)Ljava/lang/Comparable;"),
+		require = 1,
+		expect = 1)
+	private Comparable<?> createBiotech$useSurfaceInsertionSide(BlockState blockState, Property<?> property,
+		Operation<Comparable<?>> original) {
+		Comparable<?> originalValue = original.call(blockState, property);
+		if (property != BeltFunnelBlock.HORIZONTAL_FACING || !(originalValue instanceof Direction))
+			return originalValue;
+		BeltSurface surface = createBiotech$resolveSurface(blockState);
+		return surface == null ? originalValue : surface.outwardNormal();
+	}
+
+	@ModifyArg(
+		method = "activateExtractingBeltFunnel()V",
+		at = @At(
+			value = "INVOKE",
+			target = "Lcom/simibubi/create/foundation/blockEntity/behaviour/BlockEntityBehaviour;get(Lnet/minecraft/world/level/BlockGetter;Lnet/minecraft/core/BlockPos;Lcom/simibubi/create/foundation/blockEntity/behaviour/BehaviourType;)Lcom/simibubi/create/foundation/blockEntity/behaviour/BlockEntityBehaviour;"),
+		index = 1,
+		require = 1,
+		expect = 1)
+	private BlockPos createBiotech$useSurfaceBeltPosition(BlockPos originalPosition) {
 		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
-		if (funnel.getLevel() == null)
-			return;
+		BeltSurface surface = createBiotech$resolveSurface(funnel.getBlockState());
+		return surface == null ? originalPosition : surface.beltPos();
+	}
 
-		BlockState blockState = funnel.getBlockState();
-		BeltSurface surface =
-			BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos(), blockState);
-		Direction insertSide;
-		BlockPos beltPos;
-		if (surface != null) {
-			insertSide = surface.outwardNormal();
-			beltPos = surface.beltPos();
-		} else {
-			insertSide = blockState.getValue(BeltFunnelBlock.HORIZONTAL_FACING);
-			beltPos = funnel.getBlockPos().below();
-		}
-		ci.cancel();
-		if (invVersionTracker.stillWaiting(invManipulation))
-			return;
-
-		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(funnel.getLevel(), beltPos, DirectBeltInputBehaviour.TYPE);
-		if (inputBehaviour == null)
-			return;
-		if (!inputBehaviour.canInsertFromSide(insertSide))
-			return;
-		if (inputBehaviour.isOccupied(insertSide))
-			return;
-
-		int amountToExtract = funnel.getAmountToExtract();
-		ExtractionCountMode modeToExtract = funnel.getModeToExtract();
-		MutableBoolean deniedByInsertion = new MutableBoolean(false);
-		ItemStack stack = invManipulation.extract(modeToExtract, amountToExtract, extracted -> {
-			ItemStack remainder = inputBehaviour.handleInsertion(extracted, insertSide, true);
-			if (remainder.isEmpty())
-				return true;
-			deniedByInsertion.setTrue();
-			return false;
-		});
-		if (stack.isEmpty()) {
-			if (deniedByInsertion.isFalse())
-				invVersionTracker.awaitNewVersion(invManipulation.getInventory());
-			return;
-		}
-
-		funnel.flap(false);
-		funnel.onTransfer(stack);
-		if (!createBiotech$materializeCapturedSmallSlimes(stack))
-			inputBehaviour.handleInsertion(stack, insertSide, false);
-		extractionCooldown = AllConfigs.server()
-			.logistics.defaultExtractionTimer.get();
+	@WrapOperation(
+		method = "activateExtractingBeltFunnel()V",
+		at = @At(
+			value = "INVOKE",
+			target = "Lcom/simibubi/create/content/kinetics/belt/behaviour/DirectBeltInputBehaviour;handleInsertion(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/core/Direction;Z)Lnet/minecraft/world/item/ItemStack;"),
+		require = 1,
+		expect = 1)
+	private ItemStack createBiotech$materializeCommittedSmallSlimes(DirectBeltInputBehaviour inputBehaviour,
+		ItemStack stack, Direction side, boolean simulate, Operation<ItemStack> original) {
+		if (!simulate && createBiotech$materializeCapturedSmallSlimes(stack))
+			return ItemStack.EMPTY;
+		return original.call(inputBehaviour, stack, side, simulate);
 	}
 
 	@Unique
@@ -240,23 +232,10 @@ public abstract class FunnelBlockEntityMixin implements SlimeCaptureFunnelAccess
 		return CapturedSmallSlimeItem.materializeTransportedStack(level, surfacePosition, Vec3.ZERO, stack);
 	}
 
-	private static volatile Class cachedModeClass;
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private static Object getMode(String name) {
-		try {
-			Class modeClass = cachedModeClass;
-			if (modeClass == null) {
-				synchronized (FunnelBlockEntityMixin.class) {
-					modeClass = cachedModeClass;
-					if (modeClass == null)
-						cachedModeClass = modeClass = Class.forName(FUNNEL_MODE_CLASS);
-				}
-			}
-			return Enum.valueOf(modeClass, name);
-		} catch (ReflectiveOperationException exception) {
-			throw new IllegalStateException("Failed to resolve FunnelBlockEntity mode " + name, exception);
-		}
+	@Unique
+	private BeltSurface createBiotech$resolveSurface(BlockState blockState) {
+		FunnelBlockEntity funnel = (FunnelBlockEntity) (Object) this;
+		return BeltSurfaceResolver.resolve(funnel.getLevel(), funnel.getBlockPos(), blockState);
 	}
 
 	private static BlockFace createBiotech$getInventoryTarget(Level world, net.minecraft.core.BlockPos pos,
