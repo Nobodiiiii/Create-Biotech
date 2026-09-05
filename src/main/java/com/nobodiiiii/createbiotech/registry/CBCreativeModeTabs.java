@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTab.ItemDisplayParameters;
 import net.minecraft.world.item.CreativeModeTab.Output;
+import net.minecraft.world.item.CreativeModeTab.TabVisibility;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
@@ -36,8 +38,6 @@ public class CBCreativeModeTabs {
 
 	private static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
 		DeferredRegister.create(Registries.CREATIVE_MODE_TAB, CreateBiotech.MOD_ID);
-	private static final Map<CBCreativeTabSection, Integer> SECTION_ROWS =
-		new EnumMap<>(CBCreativeTabSection.class);
 
 	public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN = CREATIVE_MODE_TABS.register("main",
 		() -> CreativeModeTab.builder()
@@ -45,6 +45,7 @@ public class CBCreativeModeTabs {
 			.withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
 			.icon(() -> CBItems.SPIDER_ASSEMBLY_TABLE.get()
 				.getDefaultInstance())
+			.displayItems(CBCreativeModeTabs::acceptMainTabContents)
 			.build());
 
 	public static final DeferredHolder<CreativeModeTab, CreativeModeTab> LARGE_CARDBOARD_BOXES =
@@ -63,41 +64,66 @@ public class CBCreativeModeTabs {
 		return tab == MAIN.get();
 	}
 
-	public static int getSectionRow(CBCreativeTabSection section) {
-		return SECTION_ROWS.getOrDefault(section, -1);
+	/**
+	 * Populates the actual creative-tab display and search collections. These collections are also
+	 * consumed by ingredient viewers, so they must never contain layout-only empty stacks.
+	 */
+	private static void acceptMainTabContents(ItemDisplayParameters parameters, Output output) {
+		for (SectionContents section : createSectionContents()) {
+			for (TabEntry entry : section.entries()) {
+				ItemStack stack = entry.stack();
+				if (!stack.getItem().isEnabled(parameters.enabledFeatures()))
+					continue;
+				output.accept(stack, entry.searchOnly()
+					? TabVisibility.SEARCH_TAB_ONLY
+					: TabVisibility.PARENT_AND_SEARCH_TABS);
+			}
+		}
 	}
 
 	/**
-	 * Populates the main tab directly so complete empty rows can be reserved for section banners.
-	 * Vanilla's creative-tab output deliberately rejects empty stacks, hence the small mixin bridge.
+	 * Builds the client menu's sectioned view from the already validated display collection.
+	 * Empty stacks exist only in this transient screen list and never enter CreativeModeTab or JEI.
 	 */
-	public static void buildMainTabContents(Collection<ItemStack> displayItems, Set<ItemStack> searchItems) {
-		displayItems.clear();
-		searchItems.clear();
-		SECTION_ROWS.clear();
+	public static CreativeTabScreenLayout createMainTabScreenLayout(Collection<ItemStack> displayItems) {
+		List<ItemStack> unmatchedItems = new ArrayList<>(displayItems);
+		List<ItemStack> screenItems = new ArrayList<>();
+		Map<CBCreativeTabSection, Integer> sectionRows = new EnumMap<>(CBCreativeTabSection.class);
 
 		int row = 0;
 		for (SectionContents section : createSectionContents()) {
-			SECTION_ROWS.put(section.section(), row);
-			addEmptyRow(displayItems);
+			sectionRows.put(section.section(), row);
+			addEmptyRow(screenItems);
 
 			int visibleItemCount = 0;
 			for (TabEntry entry : section.entries()) {
-				ItemStack stack = entry.stack();
-				searchItems.add(stack);
 				if (entry.searchOnly())
 					continue;
-
-				displayItems.add(stack);
+				int matchingIndex = findMatchingStack(unmatchedItems, entry.stack());
+				if (matchingIndex < 0)
+					continue;
+				screenItems.add(unmatchedItems.remove(matchingIndex));
 				visibleItemCount++;
 			}
 
 			int itemRows = (visibleItemCount + 8) / 9;
 			int padding = itemRows * 9 - visibleItemCount;
 			for (int i = 0; i < padding; i++)
-				displayItems.add(ItemStack.EMPTY);
+				screenItems.add(ItemStack.EMPTY);
 			row += itemRows + 1;
 		}
+
+		// Preserve any future display entry that has not yet been assigned to a section.
+		screenItems.addAll(unmatchedItems);
+		return new CreativeTabScreenLayout(List.copyOf(screenItems), Map.copyOf(sectionRows));
+	}
+
+	private static int findMatchingStack(List<ItemStack> candidates, ItemStack expected) {
+		for (int i = 0; i < candidates.size(); i++) {
+			if (ItemStack.isSameItemSameComponents(candidates.get(i), expected))
+				return i;
+		}
+		return -1;
 	}
 
 	private static List<SectionContents> createSectionContents() {
@@ -220,8 +246,7 @@ public class CBCreativeModeTabs {
 	}
 
 	private static void addEmptyRow(Collection<ItemStack> displayItems) {
-		for (int i = 0; i < 9; i++)
-			displayItems.add(ItemStack.EMPTY);
+		displayItems.addAll(Collections.nCopies(9, ItemStack.EMPTY));
 	}
 
 	private static void acceptLargeCardboardBoxes(ItemDisplayParameters parameters, Output output) {
@@ -246,4 +271,7 @@ public class CBCreativeModeTabs {
 	private record SectionContents(CBCreativeTabSection section, List<TabEntry> entries) {}
 
 	private record TabEntry(ItemStack stack, boolean searchOnly) {}
+
+	public record CreativeTabScreenLayout(List<ItemStack> items,
+		Map<CBCreativeTabSection, Integer> sectionRows) {}
 }

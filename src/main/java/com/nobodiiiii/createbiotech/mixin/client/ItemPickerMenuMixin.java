@@ -15,7 +15,7 @@ public abstract class ItemPickerMenuMixin {
 	@Shadow
 	protected abstract int getRowIndexForScroll(float scrollPosition);
 
-	@Inject(method = "scrollTo", at = @At("HEAD"))
+	@Inject(method = "scrollTo(F)V", at = @At("HEAD"), require = 1, expect = 1)
 	private void createBiotech$trackCreativeTabRow(float scrollPosition, CallbackInfo ci) {
 		CreativeTabSectionRenderer.setCurrentRow(getRowIndexForScroll(scrollPosition));
 	}

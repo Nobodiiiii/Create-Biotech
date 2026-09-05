@@ -1,21 +1,21 @@
 # Create: Biotech Mixin 全量审阅报告
 
-状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—3 的实现与冒烟验证（2026-09-04）
+状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—4 的实现与冒烟验证（2026-09-04）
 
 ## 1. 结论摘要
 
-当前三个配置共声明 **94 个 Mixin**，与源码中 94 个带 `@Mixin` 的 Java 文件一一对应：
+当前三个配置共声明 **92 个 Mixin**，与源码中 92 个带 `@Mixin` 的 Java 文件一一对应：
 
 | 配置 | common | client | 合计 |
 | --- | ---: | ---: | ---: |
-| `create_biotech.mixins.json` | 56 | 33 | 89 |
+| `create_biotech.mixins.json` | 55 | 32 | 87 |
 | `create_biotech_alternate_current.mixins.json` | 2 | 0 | 2 |
 | `create_biotech_sable.mixins.json` | 3 | 0 | 3 |
-| 总计 | 61 | 33 | 94 |
+| 总计 | 60 | 32 | 92 |
 
 本轮确认的 1 个 P0 发布阻断问题已在批次 0 修复：`BlockBreakingMovementBehaviourMixin` 不再依赖正常 `RETURN` 弹栈，伤害上下文现在由可校验的作用域在 `finally` 语义下关闭。
 
-最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1、Surface Funnel 坐标与抽取状态机已在批次 2、实体同步与渲染 scope 已在批次 3 完成代码收敛，剩余的是各批次的游戏内行为矩阵；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
+最高优先级的 P1 集中在六类边界：Surface Funnel 的坐标变换和整方法接管、Basin 的多视图一致性、全局实体同步/渲染注入、创造栏与 JEI 内部类耦合、实体红石与 Alternate Current 语义、Sable 物理兼容。其中 Basin 边界已在批次 1、Surface Funnel 坐标与抽取状态机已在批次 2、实体同步与渲染 scope 已在批次 3、创造栏与 JEI 边界已在批次 4 完成代码收敛，剩余的是各批次的游戏内行为矩阵和批次 5 的四个 P1 边界；旧报告中的 Creeper 状态恢复、`ModelPartRenderMixin` fallback、Basin 递归输出和 JEI layout 上下文清理已经由当前实现解决或替代，不再列为现存缺陷。
 
 本报告的 P 级表示**整改优先级**，不是“Mixin 是否应删除”的判断：
 
@@ -26,16 +26,16 @@
 
 ## 2. 版本与参考基线
 
-当前工程声明：Minecraft 1.21.1、NeoForge 21.1.234、Parchment 2024.11.17、Create `6.0.10-281`（运行范围 `[6.0.10,6.0.12)`）、Ponder 1.0.82、Flywheel 1.0.6、JEI 19.39.0.368（运行范围 `[19.21.0.247,)`）、MixinExtras 0.5.0、Sable companion 1.6.0、Sable 范围 `[1.1.3,3.0.0)`。
+当前工程声明：Minecraft 1.21.1、NeoForge 21.1.234、Parchment 2024.11.17、Create `6.0.10-281`（运行范围 `[6.0.10,6.0.12)`）、Ponder 1.0.82、Flywheel 1.0.6、JEI 19.39.0.368（运行范围 `[19.39.0.368,19.40)`）、MixinExtras 0.5.0、Sable companion 1.6.0、Sable 范围 `[1.1.3,3.0.0)`。
 
 依据 [ref/SOURCES.md](../../ref/SOURCES.md)：
 
 - [ref/1.21.1/Create](../../ref/1.21.1/Create) 是 Create 官方 `mc1.21.1-6.0.10` 的精确提交，可作为当前编译版本的权威基线；它不能证明 6.0.11 兼容。
-- [ref/1.21.1/JustEnoughItems](../../ref/1.21.1/JustEnoughItems) 当前源码线的 specification version 为 19.39.0，与编译用 JEI 19.39.0.368 同线；项目声明的 19.21 下限和无上限范围仍远宽于实际核对面。
+- [ref/1.21.1/JustEnoughItems](../../ref/1.21.1/JustEnoughItems) 当前源码线的 specification version 为 19.39.0，与编译用 JEI 19.39.0.368 同线；批次 4 已把运行范围收窄到 `[19.39.0.368,19.40)`。
 - [ref/1.21.1/Sable](../../ref/1.21.1/Sable) 是 Sable 2.0.3 的精确源码，而项目宣称支持 1.1.3 到 3.0.0 之前；旧版 API 不能由此推定。
 - [ref/1.21.1/Simulated-Project](../../ref/1.21.1/Simulated-Project) 是最近可得的 `main`/1.3.0 源码，不是已证明与实际运行工件完全一致的发行快照。
 
-因此，本报告对 Create 6.0.10 和 JEI 19.39.0 的源码结论是精确的；Create 6.0.11、JEI 19.21—19.38/未来版本和整个 Sable 声明范围必须靠版本矩阵补足。
+因此，本报告对 Create 6.0.10 和 JEI 19.39.0 的源码结论是精确的；Create 6.0.11、JEI 19.39.x 的其他构建和整个 Sable 声明范围仍需靠版本矩阵补足。JEI 19.21—19.38 及 19.40 以后版本已不再声明兼容。
 
 ## 3. P0：发布阻断项
 
@@ -124,24 +124,19 @@ Create 6.0.10 使用本地精确源码核对；本机缓存的 Create 6.0.11-295
 
 代码边界已收敛，仍需测试 Iris/Oculus、透明/发光/outline、隐身、盔甲层、第三方 renderer、资源重载、递归/嵌套渲染和异常退出。
 
-### P1-07 不再向创造栏核心内容插入 `ItemStack.EMPTY`
+### P1-07 不再向创造栏核心内容插入 `ItemStack.EMPTY`（批次 4 已完成）
 
-[CreativeModeTabMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/CreativeModeTabMixin.java) 对主标签完整替换 `buildContents`，并用空栈填充布局。空栈破坏了 `CreativeModeTab` 输出通常只含有效展示物的约定，[JeiItemStackListFactoryMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/JeiItemStackListFactoryMixin.java) 因此必须再挂到 JEI 内部日志调用上压制错误。这是一条由上游无效数据制造、下游内部 Mixin 掩盖的耦合链。
+旧 `CreativeModeTabMixin` 曾对主标签完整替换 `buildContents`，并用空栈填充布局。空栈破坏了 `CreativeModeTab` 输出通常只含有效展示物的约定，旧 `JeiItemStackListFactoryMixin` 因此还要挂到 JEI 内部日志调用上压制错误，形成上游无效数据、下游内部补丁掩盖的耦合链。
 
-建议保持标签 display/search 集合只含有效物品，把标题、分隔和补位作为 Creative Screen 的独立布局元数据绘制；同时保留 `ItemDisplayParameters.enabledFeatures()` 等原生成条件。完成后删除 JEI logger Mixin。若短期无法移除，应至少对 JEI 注入失败输出一次明确诊断，不能靠 `require = 0` 静默失效。
+批次 4 已把主标签迁回 [CBCreativeModeTabs.java](../../src/main/java/com/nobodiiiii/createbiotech/registry/CBCreativeModeTabs.java) 的公开 `displayItems` 回调：display/search 集合只接收有效栈，并显式遵守 `ItemDisplayParameters.enabledFeatures()` 与 `TabVisibility`。标题行和末行补位由 [CreativeModeInventoryScreenMixin.java](../../src/main/java/com/nobodiiiii/createbiotech/mixin/client/CreativeModeInventoryScreenMixin.java) 在 `selectTab` 时转换为只属于 `ItemPickerMenu` 的临时 screen layout，分区行元数据和滚动位置由 [CreativeTabSectionRenderer.java](../../src/main/java/com/nobodiiiii/createbiotech/client/CreativeTabSectionRenderer.java) 管理。旧 `CreativeModeTabMixin` 与 JEI logger Mixin 均已删除；标签切换会清空布局状态，banner 的 pose、shader color 和深度状态在 `finally` 中收束。
 
-### P1-08 让 JEI 版本声明与内部类注入匹配
+### P1-08 让 JEI 版本声明与内部类注入匹配（批次 4 已完成代码收敛）
 
-项目直接注入 `RecipeLayout`、`RecipeSlot` 和 `ItemStackListFactory` 等 JEI implementation class，却声明 `[19.21.0.247,)` 且没有上限。`@Pseudo` 只能处理类缺失，不能保证类存在但字段/方法 descriptor 改变时兼容；`require = 0` 也只会静默丢功能。
+项目仍需注入 `RecipeLayout` 和 `RecipeSlot` 两个 JEI implementation class 来支持任意分类中的捕获箱实体预览；批次 4 已删除对 `ItemStackListFactory` logger 的注入，并把 JEI 范围从 `[19.21.0.247,)` 收窄为本地源码与运行工件均已核对的 `[19.39.0.368,19.40)`。
 
-另有一个明确的映射整改项：`JeiRecipeLayoutMixin` 的类级 `@Mixin(..., remap = false)` 会关闭默认 remap，但两个 `@WrapOperation` 的 `@At` 目标 descriptor 都包含映射类型 `net.minecraft.client.gui.GuiGraphics`。应在 injector 和嵌套 `@At` 上显式启用 `remap = true`，再检查生产映射结果。不能因为目标 owner 属于 JEI 就关闭 descriptor 中 Minecraft 类型的映射。当前 Gradle 配置强制重跑 `compileJava` 后没有产出任何 `*refmap*.json`，所以还需先确认 ModDevGradle 的等价生产 remap 产物，或补齐可检查的 refmap 生成配置。
+`JeiRecipeLayoutMixin` 现在只保留 19.39 的 `IRecipeSlotDrawable.draw(GuiGraphics, boolean)` 调用，不再用两个 `require = 0` 分支猜测新旧 API；injector 与嵌套 `@At` 均显式 `remap = true`，并使用完整 descriptor、`require = 1`、`expect = 1`。`JeiRecipeSlotMixin` 同样锁定完整 `drawIngredient` descriptor 和单一调用点，且先以实际 `ItemStack` 类型快速门卫，再读取渲染配置。依赖升级造成签名漂移时会在启动时明确失败，而不是静默丢失捕获箱渲染。
 
-建议二选一：
-
-1. 把 JEI 运行范围收窄到已经验证的 19.39.x；或
-2. 新增 JEI mixin plugin，按每个目标的字段和完整方法 descriptor 门控，并对被关闭的功能记录一次版本化警告。
-
-`JeiRecipeLayoutMixin` 已改为 `@WrapOperation` + `try/finally`，`ItemApplicationCategoryMixin` 也只在自定义 renderer 成功时取消；这两个旧问题已解决。剩余重点是内部类版本面和 `JeiRecipeSlotMixin` 的全局高频注入。
+当前 ModDevGradle/NeoForge 构建仍不生成 `*refmap*.json`；默认编译和 19.39.0.368 实际启动已验证显式 remap 与运行时调用点，但缺少独立 refmap 产物的问题仍作为工具链核查项保留。`ItemApplicationCategoryMixin` 继续只在自定义 renderer 成功时取消，失败会回到 Create 原渲染。
 
 ### P1-09 降低固定胡萝卜钓竿 AI 的侵入和扫描成本
 
@@ -174,8 +169,8 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 ### 配置与映射
 
 - 主配置 `required: true`、`defaultRequire: 1` 适合核心行为；可降级的 JEI/纯视觉 Mixin 应拆到带插件诊断的可选配置，而不是把全局 `defaultRequire` 改为 0。
-- `JeiRecipeLayoutMixin` 是本轮发现的明确 remap 整改项：类级 `remap = false` 向下影响了包含 `GuiGraphics` 的两个调用目标。`BlockEntityPersistentDataAccessor`、`AlternateCurrentNodeMixin` 等其他映射成员保持默认 remap；纯第三方成员才应局部使用 `remap = false`。以后每次改 descriptor 都仍需检查生成 refmap。
-- `CameraMixin.setup`、JEI 兼容点等 `require = 0` 需要一次性诊断；否则升级后功能消失但日志没有因果线索。
+- `JeiRecipeLayoutMixin` 已在第三方类级 `remap = false` 下，对包含 `GuiGraphics` 的 injector 和调用目标局部启用 remap；以后每次改 descriptor 仍需检查生产映射或实际运行时注入。
+- `CameraMixin.setup` 等剩余 `require = 0` 需要一次性诊断；批次 4 涉及的 JEI 调用点已改为 `require/expect = 1`。
 
 ### Funnel、Tunnel 与运输
 
@@ -186,7 +181,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 ### 渲染与 UI
 
-- `CreativeModeInventoryScreenMixin` 调用的 `CreativeTabSectionRenderer` 修改深度测试并 push pose，但当前没有用 `try/finally` 恢复；应把状态恢复放进 finally，并在标签切换/init 时清除静态 `currentRow`。
+- `CreativeModeInventoryScreenMixin` 的分区布局已与核心 tab 内容分离；`CreativeTabSectionRenderer` 用 `try/finally` 恢复 pose/shader/depth，并在标签切换时重置行与布局元数据。
 - `CreeperRendererMixin` 当前已使用 `@WrapMethod` + `try/finally`，旧版 P1 已降为 P2；仍需测试它和另一个 `LivingEntityRenderer` 包装的嵌套顺序。
 - `DeltaTrackerTimerMixin` 的捕获深度已在批次 3 改为线程局部 token；普通 timer 读取只做一次原子活动数判断。
 - `SpoutCategoryMixin` 可只包装 `AnimatedSpout.draw`，保留 Create 分类布局；`ItemApplicationCategoryMixin` 已有失败回退，不再是阻断项。
@@ -198,11 +193,11 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `BlockEntityConfigurationPacketMixin`、`ServerGamePacketListenerAccessor` 涉及客户端预测与跨空间方块实体定位，测试重复序列、过期序列、子层级卸载和权限校验。
 - `UniversalJointEndpointBlockSableMixin` 的 before/after move 应在移动失败、异常和部分端点加载时恢复 listener/lift 状态。
 
-## 6. 94 项全量清单
+## 6. 92 项全量清单
 
 下表给每个 Mixin 一个单一最高优先级。P1/P2/P3 代表该类最需要处理的风险，不表示整类所有代码都同级。
 
-### 6.1 主配置 common（56）
+### 6.1 主配置 common（55）
 
 | Mixin | 作用摘要 | P级 | 审阅结论/下一步 |
 | --- | --- | --- | --- |
@@ -218,7 +213,6 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `BlockEntityConfigurationPacketMixin` | 跨空间配置包 BE 解析 | P1 | 补维度、权限、卸载和预测序列测试 |
 | `BlockEntityPersistentDataAccessor` | 无分配读取持久数据字段 | P3 | 批次 1 已复核；默认 remap 正确，保持只读 |
 | `BlockBreakingMovementBehaviourMixin` | Contraption 伤害上下文 | P0 | 批次 0 已改为校验式 scope + `@WrapMethod`；补异常行为测试 |
-| `CreativeModeTabMixin` | 自定义主创造栏布局 | P1 | 移除核心列表中的空栈 |
 | `BrassTunnelBlockEntityMixin` | 非标准 Belt 的 Tunnel 路由 | P1 | Create 版本逐分支 diff；模拟/提交一致性 |
 | `ContraptionMixin` | 自有 Belt 的 Contraption 搬运 | P1 | 测试装配、拆解、跨区块和异常回滚 |
 | `DeployerMovementBehaviourMixin` | Deployer 捕获实体/蓝图路径 | P1 | 取消原方法分支需覆盖失败和掉落 |
@@ -263,7 +257,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `VillagerSlimeMimicTradesMixin` | 拟态村民交易更新 | P2 | 测试升级、补货、职业切换和普通交易 |
 | `RedStoneWireEntityRedstoneMixin` | 红石线求值叠加实体源 | P1 | 与 vanilla/Alternate Current/其他优化模组对照 |
 
-### 6.2 主配置 client（33）
+### 6.2 主配置 client（32）
 
 | Mixin | 作用摘要 | P级 | 审阅结论/下一步 |
 | --- | --- | --- | --- |
@@ -275,7 +269,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.CreeperAccessor` | 临时读写 swell | P3 | 窄 accessor；调用方已 finally 恢复 |
 | `client.CreeperRendererMixin` | Ponder Creeper 脉动 | P2 | 当前 `WrapMethod`/finally 正确；测嵌套顺序 |
 | `client.CreativeModeInventoryScreenAccessor` | 读取创造栏 UI 字段 | P3 | 低风险映射耦合 |
-| `client.CreativeModeInventoryScreenMixin` | 绘制标题/行布局 | P2 | finally 恢复 render state；重置静态行 |
+| `client.CreativeModeInventoryScreenMixin` | 创建 screen-only 分区布局并绘制标题 | P2 | 批次 4 已隔离核心内容并在标签切换时重置状态；补 UI 矩阵 |
 | `client.DeltaTrackerTimerMixin` | 捕获渲染固定 partial tick | P2 | 批次 3 已改线程局部 token + 常数级活动门卫 |
 | `client.EntityRenderDispatcherSlimeMimicMixin` | 包装完整实体 renderer | P1 | 批次 3 已锁定调用点并确认同帧缓存；补第三方 renderer 矩阵 |
 | `client.FlapStuffsMixin` | Funnel flap 坐标变换 | P2 | 可嵌套 token + finally |
@@ -284,11 +278,10 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.FunnelVisualMixin` | Flywheel Funnel visual 适配 | P2 | Flywheel 开关、重建、卸载测试 |
 | `client.GoggleOverlayRendererMixin` | Chamber/拟态 Goggle 信息 | P2 | 缓存目标查找；可用 proxy API 的分支迁移 |
 | `client.HumanoidArmorLayerMixin` | 特定纹理 render type 替换 | P3 | 纹理身份门卫充分，升级核对调用点 |
-| `client.ItemApplicationCategoryMixin` | 自定义 JEI application 预览 | P2 | 成功才取消已正确；收窄 JEI 版本 |
-| `client.ItemPickerMenuMixin` | 记录创造栏滚动行 | P3 | 避免全局静态状态跨 screen 泄漏 |
-| `client.JeiItemStackListFactoryMixin` | 压制主标签空栈日志 | P1 | 修复上游列表后删除 |
-| `client.JeiRecipeLayoutMixin` | JEI hover/slot context | P1 | finally 已正确；修正 mapped descriptor 的 remap |
-| `client.JeiRecipeSlotMixin` | 全局捕获箱槽位 renderer | P1 | JEI 内部高频路径；版本门控和快速门卫 |
+| `client.ItemApplicationCategoryMixin` | 自定义 JEI application 预览 | P2 | 成功才取消已正确；JEI 已收窄到 19.39.x |
+| `client.ItemPickerMenuMixin` | 记录创造栏滚动行 | P3 | 批次 4 已锁定 descriptor；由标签切换重置全局状态 |
+| `client.JeiRecipeLayoutMixin` | JEI hover/slot context | P1 | 批次 4 已锁定 19.39 调用点、显式 remap 并禁止静默失效 |
+| `client.JeiRecipeSlotMixin` | 全局捕获箱槽位 renderer | P1 | 批次 4 已锁定 descriptor 和版本范围，并提前做 ItemStack 快速门卫 |
 | `client.LivingEntityRendererMixin` | 包装全 LivingEntity renderer/layer | P1 | 批次 3 已加快速 scope 门卫和调用点约束；补嵌套顺序矩阵 |
 | `client.LogisticalStockResponsePacketMixin` | 无线库存响应重路由 | P1 | 增加会话、维度和 holder 生命周期校验 |
 | `client.PressingBehaviourMixin` | Chamber Press 动画相位 | P2 | 单点覆盖；升级核对签名 |
@@ -320,6 +313,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `client.ModelPartRenderMixin` 已删除；旧版“fallback 仍处在跳过 ModelPart 上下文导致零顶点”的问题由 `EntityRenderDispatcherSlimeMimicMixin` + surgical capture 方案替代。
 - 独立 `create_biotech_allay.mixins.json` 已删除；`PackagerBlockEntityMixin` 已进入主配置。
 - `LivingEntitySlimeMimicMixin`、`LivingEntityButterRotationMixin` 已删除；拟态和黄油旋转改由一个版本化同步字段承载。
+- `CreativeModeTabMixin`、`client.JeiItemStackListFactoryMixin` 已删除；有效 tab 内容通过公开回调生成，空行只存在于客户端菜单布局。
 
 ### 已解决但仍需回归
 
@@ -333,6 +327,8 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `FluidTankRendererMixin` 不再吞掉自定义或 Create fallback 的渲染异常，经验球 renderer 自己拥有的 PoseStack 层会在 finally 中恢复。
 - `CreeperRendererMixin` 已改为 `@WrapMethod` 并在 `finally` 恢复 pose/context/swell。
 - `JeiRecipeLayoutMixin` 已用 `@WrapOperation` 和 `finally` 结束 hover/slot context。
+- 主创造栏 display/search 集合不再含空栈；screen-only 布局保留分区空行，JEI logger workaround 已删除。
+- JEI 运行范围已收窄到 19.39.x，两个内部类 Mixin 均使用完整 descriptor、显式 remap 和强制调用点计数。
 - `ItemApplicationCategoryMixin` 仅在自定义 renderer 成功时取消，失败可回到 Create 原渲染。
 - Sable 兼容已移除主要反射调用，并把 Simulated/Sable 的类存在性门控分开；剩余问题是签名/版本范围和物理前置条件。
 
@@ -340,7 +336,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 - Alternate Current 2 项。
 - Basin handler-view/recipe 路由 3 项及无分配持久数据 accessor。
-- 创造栏/JEI 空栈布局链路 5 项。
+- 创造栏/JEI 空栈布局链路已在批次 4 从 5 个 Mixin 收敛到 3 个 UI/渲染边界。
 - 实体完整渲染捕获与模型 cube 几何链路。
 - 拟态/黄油旋转共用的 LivingEntity 紧凑同步字段。
 - 固定胡萝卜钓竿的 Goal/Brain/Sensor 三条 AI 路径。
@@ -352,7 +348,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 2. **批次 1（已完成代码收敛，P1-04）**：聚合 Basin handler、配方索引/应用、Belt 输出、延迟抽取和旧数据迁移；专项游戏内矩阵仍待补。
 3. **批次 2（已完成代码收敛，P1-01、P1-03）**：聚合 Surface Funnel 坐标、放置和抽取状态机；专项方向/传输/结构矩阵仍待补。
 4. **批次 3（已完成代码收敛，P1-02、P1-05、P1-06）**：聚合实体同步与渲染热路径，收紧异常边界并减少全局状态/字段；专项网络、shader、第三方 renderer 和异常矩阵仍待补。
-5. **批次 4（P1-07、P1-08）**：聚合创造栏和 JEI，移除空栈及 logger workaround，再收窄 JEI 兼容范围。
+5. **批次 4（已完成代码收敛，P1-07、P1-08）**：创造栏核心集合只保留有效物品，空行迁入 screen-only 布局；删除 logger workaround，并把 JEI 兼容与内部调用点锁定到 19.39.x。专项 UI/hover/版本拒绝矩阵仍待补。
 6. **批次 5（P1-09、P1-10、P1-11、P1-12）**：按 AI、红石、Sable、无线库存四个边界分别施工并完成版本矩阵。
 7. 再处理 P2 的异常恢复、版本 drift 和性能基准；P3 accessor 随依赖升级清理。
 
@@ -360,7 +356,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 
 | 层级 | 必测内容 | 通过标准 |
 | --- | --- | --- |
-| 配置/编译 | `./gradlew compileJava --rerun-tasks`；检查生产 remap/refmap 产物 | 94 项配置与源码一致；mapped descriptor 有可检查的映射结果；无 Mixin AP 错误 |
+| 配置/编译 | `./gradlew compileJava --rerun-tasks`；检查生产 remap/refmap 产物 | 92 项配置与源码一致；mapped descriptor 有可检查的映射结果；无 Mixin AP 错误 |
 | Create 版本 | 6.0.10 与声明支持的 6.0.11 | 所有 ordinal、private method/field 和复制状态机均有明确结果 |
 | 原版/Create 回归 | 普通 Basin/Funnel/Belt/Tunnel/Fluid Tank/Contraption/实体/创造栏 | 非目标路径完整执行原行为，输出、冷却、事件、声音和 UI 不变 |
 | Surface | 六个 attachment、四种 rotation、mirror、结构/Schematic/Contraption | 世界朝向、shape、碰撞、目标 handler 和回退 Funnel 一致 |
@@ -390,6 +386,15 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 5. **Shader 与同帧复用**：分别在原版渲染、Iris/Oculus 开关状态下观察同一拟态实体的主 pass、阴影 pass 和 outline pass；同帧重复 pass 应复用捕获计划，下一帧动画仍更新，资源重载后旧纹理/模型缓存失效。
 6. **普通路径基准**：在无拟态、无纸箱预览的大型生物群中比较批次前后的实体渲染时间与分配；`ModelPart.Cube.compile` 和 layer 包装应停留在单次活动数门卫，不应创建 ThreadLocal deque、列表或捕获计划。
 
-本轮已完成的机械验证：配置清单为 56 common + 33 client + 2 Alternate Current + 3 Sable，94 个配置项与 94 个 Mixin 源文件数量一致；默认 Create 6.0.10 的 `./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 26 个 deprecated API 警告；Create 6.0.11-295 覆盖参数下的 `compileJava` 也成功；紧凑同步 payload 已执行版本、flag 保留、amplifier/phase、tick 回卷及清理的独立检查，线程局部 render-time scope 已执行嵌套和跨线程隔离检查；`./gradlew quickPlaySmoke --no-daemon` 成功，在时限内进入世界并正常清理，日志未发现本批 Mixin 的 apply/injection 失败；构建 jar 已包含新增支撑类和修改后的 Mixin。Markdown 表格分别包含 56、33、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+### 9.3 批次 4 重点游戏内用例
 
-冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支、Basin、Surface Funnel 或实体同步/渲染行为矩阵全部正确。后续仍需执行上文列出的异常/嵌套伤害、Basin 模拟—提交、Surface Funnel 六面方向/传输/变换，以及批次 3 的网络、shader、第三方 renderer 和异常测试。客户端日志中仍可复现 P1-07 所述的 JEI 空 `ItemStack` 错误，该问题不属于批次 0—3，留待批次 4 处理。
+1. **主标签内容协议**：进入主创造栏并滚动到底，确认六个 banner、物品顺序、完整行补位和滚动条范围不变；display/search 集合不得出现空气或空栈，复制物品、快捷栏保存及鼠标交互只命中真实物品。
+2. **搜索与生成条件**：在全局搜索中确认所有可见项和 `searchOnly` 项都能找到，而 `searchOnly` 项不进入主标签；切换 feature flag、权限和资源重载后，禁用物品不应进入 display/search，分区行应按实际可见物品重新排布。
+3. **标签与界面生命周期**：主标签、搜索、背包、其他模组标签之间反复切换，关闭并重开创造栏，再改变 GUI scale；banner 不能残留、错行或覆盖其他标签，`currentRow` 必须从顶部重新建立。
+4. **JEI 捕获箱槽位**：在普通配方、铁砧命名配方和 Biotech 自有分类中检查小/大捕获箱；非 hover 显示实体与徽标，hover 恢复箱体，循环配方切换时显示的实体必须与当前栈一致，禁用配置后完整回到 JEI 默认物品 renderer。
+5. **JEI 异常与状态恢复**：让捕获实体构建失败、资源重载或 renderer 抛错，确认 slot hover context、PoseStack 和后续配方槽位不串联；普通 ItemStack/FluidStack 槽位不得改变。
+6. **版本边界**：无 JEI 时客户端可正常启动；JEI 19.39.0.368 必须正常应用两个内部 Mixin；安装 19.39.x 的其他候选构建需重新跑本节 4—5，19.21—19.38 或 19.40+ 应由模组依赖范围明确拒绝，而不是运行后静默缺功能。
+
+本轮已完成的机械验证：配置清单为 55 common + 32 client + 2 Alternate Current + 3 Sable，92 个配置项与 92 个 Mixin 源文件数量一致；默认 Create 6.0.10 的 `./gradlew compileJava --rerun-tasks --no-daemon` 成功，只有现存的 26 个 deprecated API 警告；Create 6.0.11-295 覆盖参数下的 `compileJava` 也成功；紧凑同步 payload 已执行版本、flag 保留、amplifier/phase、tick 回卷及清理的独立检查，线程局部 render-time scope 已执行嵌套和跨线程隔离检查；阶段 4 的 JEI 19.39.0.368 `./gradlew quickPlaySmoke --no-daemon` 成功并在时限内进入世界，Creative Screen 的新增选择、热刷新和关闭注入均已实际应用。JEI 配方内部类为打开配方界面后才加载的惰性路径，其 draw 调用点仍需本节第 4 项手工触发。构建 jar 已移除 `CreativeModeTabMixin` 和 `JeiItemStackListFactoryMixin`，生成的 `neoforge.mods.toml` 含 `[19.39.0.368,19.40)`。Markdown 表格分别包含 55、32、5 行，文档内相对链接均存在，`git diff --check` 通过。当前构建仍没有生成 `*refmap*.json`，因此不能用 refmap 关闭映射验证项。
+
+冒烟验证证明当前组合能够完成运行时注入、启动和进世界，但不等同于 P0 异常分支、Basin、Surface Funnel、实体同步/渲染或创造栏/JEI 行为矩阵全部正确。最新日志仍有 9 条第三方创造栏空栈错误；与修改前日志数量相同，且本地运行工件中的 Simulated `processItems` 会无条件插入一整行 9 个空栈，因此这些剩余错误不再来自 Create: Biotech 的 tab 内容。后续仍需执行上文各批次的专项游戏内矩阵。

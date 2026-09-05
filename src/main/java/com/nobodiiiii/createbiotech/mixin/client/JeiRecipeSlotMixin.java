@@ -16,12 +16,18 @@ import net.minecraft.world.item.ItemStack;
 @Pseudo
 @Mixin(targets = "mezz.jei.library.gui.ingredients.RecipeSlot", remap = false)
 public abstract class JeiRecipeSlotMixin {
-	@Inject(method = "drawIngredient", at = @At("HEAD"), cancellable = true, remap = true)
+	@Inject(
+		method = "drawIngredient(Lnet/minecraft/client/gui/GuiGraphics;Lmezz/jei/api/ingredients/ITypedIngredient;II)V",
+		at = @At("HEAD"),
+		cancellable = true,
+		remap = true,
+		require = 1,
+		expect = 1)
 	private <T> void createBiotech$drawCapturedEntityBox(GuiGraphics graphics, ITypedIngredient<T> typedIngredient,
 		int x, int y, CallbackInfo ci) {
 		ItemStack stack = typedIngredient.getIngredient(VanillaTypes.ITEM_STACK)
-			.orElse(ItemStack.EMPTY);
-		if (CapturedEntityBoxJeiRenderer.renderCapturedEntityBox(graphics, stack, x, y))
+			.orElse(null);
+		if (stack != null && CapturedEntityBoxJeiRenderer.renderCapturedEntityBox(graphics, stack, x, y))
 			ci.cancel();
 	}
 }

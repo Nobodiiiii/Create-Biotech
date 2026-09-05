@@ -46,12 +46,12 @@ public final class CapturedEntityBoxJeiRenderer {
 	}
 
 	public static boolean renderCapturedEntityBox(GuiGraphics graphics, ItemStack stack, int x, int y) {
+		if (!(stack.getItem() instanceof CapturedEntityBoxItem) || !CapturedEntityBoxHelper.hasCapturedEntity(stack))
+			return false;
 		if (!CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get()) {
 			CAPTURED_ENTITY.clear();
 			return false;
 		}
-		if (!(stack.getItem() instanceof CapturedEntityBoxItem) || !CapturedEntityBoxHelper.hasCapturedEntity(stack))
-			return false;
 		if (CURRENT_SLOT_HOVERED.get()) {
 			ItemStack displayedBox = getHoveredBoxStack(stack);
 			graphics.renderItem(displayedBox, x, y);
