@@ -4,14 +4,15 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.Entity;
 
-/** Starts one client attack presentation or updates its direction when the server locks the aim. */
+/** Starts one presentation or synchronizes the logical preview's direction and remaining time. */
 public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean restart,
-	boolean left, int slot, boolean weapon, int duration, float aimYaw, float aimPitch) {
+	boolean left, int slot, boolean weapon, int interval, int remainingTicks,
+	float aimYaw, float aimPitch, float bodyYaw) {
 
 	public SlimeBionicAttackActionPacket(RegistryFriendlyByteBuf buffer) {
 		this(buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean(), buffer.readBoolean(),
-			buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt(), buffer.readFloat(),
-			buffer.readFloat());
+			buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat(),
+			buffer.readFloat(), buffer.readFloat());
 	}
 
 	public static SlimeBionicAttackActionPacket start(SlimeBionicEntity entity) {
@@ -25,7 +26,8 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 	private static SlimeBionicAttackActionPacket snapshot(SlimeBionicEntity entity, boolean restart) {
 		return new SlimeBionicAttackActionPacket(entity.getId(), entity.getAttackActionSequence(), restart,
 			entity.isAttackActionLeft(), entity.getAttackActionArmSlot(), entity.isAttackActionWeapon(),
-			entity.getAttackActionDuration(), entity.getAttackAimYaw(), entity.getAttackAimPitch());
+			entity.getAttackActionInterval(), entity.getAttackActionTick(),
+			entity.getAttackAimYaw(), entity.getAttackAimPitch(), entity.getAttackBodyYaw());
 	}
 
 	public void write(RegistryFriendlyByteBuf buffer) {
@@ -35,9 +37,11 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 		buffer.writeBoolean(left);
 		buffer.writeVarInt(slot);
 		buffer.writeBoolean(weapon);
-		buffer.writeVarInt(duration);
+		buffer.writeVarInt(interval);
+		buffer.writeVarInt(remainingTicks);
 		buffer.writeFloat(aimYaw);
 		buffer.writeFloat(aimPitch);
+		buffer.writeFloat(bodyYaw);
 	}
 
 	public void handle(LocalPlayer player) {
@@ -45,6 +49,7 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 			return;
 		Entity found = player.level().getEntity(entityId);
 		if (found instanceof SlimeBionicEntity bionic)
-			bionic.applyAttackAction(sequence, restart, left, slot, weapon, duration, aimYaw, aimPitch);
+			bionic.applyAttackAction(sequence, restart, left, slot, weapon, interval, remainingTicks,
+				aimYaw, aimPitch, bodyYaw);
 	}
 }

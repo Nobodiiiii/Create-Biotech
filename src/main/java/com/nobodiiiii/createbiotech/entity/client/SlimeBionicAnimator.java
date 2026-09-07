@@ -138,8 +138,13 @@ public final class SlimeBionicAnimator {
 		float maximumY = (float) Math.max(attackOrigin.y,
 			Math.max(distal.pivot().y, tip.center().y)) + tip.radius();
 		float volume = armVolume(limbs, sources, shoulderIndex, elbowIndex);
+		// The shoulder's mounted direction is stable even when a forearm folds back toward it.
+		Vec3 restDirection = (elbowIndex >= 0 ? distal.pivot() : tip.center()).subtract(attackOrigin);
+		if (restDirection.lengthSqr() <= GEOMETRY_EPSILON)
+			restDirection = tip.center().subtract(attackOrigin);
 		return SurgicalAssembly.ArmAttackGeometry.create(attackOrigin.subtract(bodyOrigin), reach,
-			minimumY - (float) bodyOrigin.y, maximumY - (float) bodyOrigin.y, tip.radius(), volume);
+			minimumY - (float) bodyOrigin.y, maximumY - (float) bodyOrigin.y, tip.radius(), volume,
+			restDirection.lengthSqr() <= GEOMETRY_EPSILON ? null : restDirection);
 	}
 
 	/** Coverage-weighted union of the distinct cuboids driven by this arm's joints. */

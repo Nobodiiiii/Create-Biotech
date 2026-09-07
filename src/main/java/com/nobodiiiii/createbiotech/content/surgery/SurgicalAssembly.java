@@ -78,6 +78,7 @@ public final class SurgicalAssembly {
 	private static final String ATTACK_REACH_TAG = "Reach";
 	private static final String ATTACK_MINIMUM_Y_TAG = "MinimumY";
 	private static final String ATTACK_MAXIMUM_Y_TAG = "MaximumY";
+	private static final String ATTACK_REST_DIRECTION_TAG = "RestDirection";
 	private static final String FACING_TAG = "Facing";
 	private static final String LAY_POSE_TAG = "LayPose";
 	private static final String POSE_AXIS_TAG = "Axis";
@@ -1074,10 +1075,17 @@ public final class SurgicalAssembly {
 	}
 
 	public record ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
-		float radius, float volume) {
+		float radius, float volume, @Nullable Vec3 restDirection) {
 		private static final float MIN_RADIUS = 0.05f;
 		private static final float MAX_RADIUS = 8.0f;
 		private static final float MAX_VOLUME = (float) (MAX_BODY_SIZE * MAX_BODY_SIZE * MAX_BODY_SIZE);
+
+		/** Old assemblies and body strikes keep the generic range when no rest direction was saved. */
+		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
+			float radius, float volume) {
+			this(origin, reach, minimumY, maximumY, radius, volume, null);
+		}
+
 		public ArmAttackGeometry {
 			if (!AttackGeometry.validPoint(origin) || !Float.isFinite(reach)
 				|| reach < MIN_RADIUS || reach > AttackGeometry.MAX_COORDINATE
@@ -1087,19 +1095,31 @@ public final class SurgicalAssembly {
 				|| !Float.isFinite(radius) || radius < MIN_RADIUS || radius > MAX_RADIUS
 				|| !Float.isFinite(volume) || volume < 0.0f || volume > MAX_VOLUME)
 				throw new IllegalArgumentException("Invalid arm attack geometry");
+			if (restDirection != null) {
+				double lengthSqr = restDirection.lengthSqr();
+				if (!Double.isFinite(lengthSqr) || lengthSqr <= 1.0e-10d)
+					throw new IllegalArgumentException("Invalid arm rest direction");
+				restDirection = restDirection.scale(1.0d / Math.sqrt(lengthSqr));
+			}
 		}
 
 		@Nullable
 		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
 			float maximumY, float radius, float volume) {
+			return create(origin, reach, minimumY, maximumY, radius, volume, null);
+		}
+
+		@Nullable
+		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
+			float maximumY, float radius, float volume, @Nullable Vec3 restDirection) {
 			try {
-				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume);
+				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume, restDirection);
 			} catch (IllegalArgumentException ignored) {
 				return null;
 			}
 		}
 
-		private CompoundTag save() {
+		CompoundTag save() {
 			CompoundTag tag = new CompoundTag();
 			tag.putFloat(ATTACK_ORIGIN_X_TAG, (float) origin.x);
 			tag.putFloat(ATTACK_ORIGIN_Y_TAG, (float) origin.y);
@@ -1109,6 +1129,13 @@ public final class SurgicalAssembly {
 			tag.putFloat(ATTACK_MAXIMUM_Y_TAG, maximumY);
 			tag.putFloat(ATTACK_RADIUS_TAG, radius);
 			tag.putFloat(ATTACK_VOLUME_TAG, volume);
+			if (restDirection != null) {
+				CompoundTag direction = new CompoundTag();
+				direction.putFloat("X", (float) restDirection.x);
+				direction.putFloat("Y", (float) restDirection.y);
+				direction.putFloat("Z", (float) restDirection.z);
+				tag.put(ATTACK_REST_DIRECTION_TAG, direction);
+			}
 			return tag;
 		}
 
@@ -1121,17 +1148,29 @@ public final class SurgicalAssembly {
 			buffer.writeFloat(maximumY);
 			buffer.writeFloat(radius);
 			buffer.writeFloat(volume);
+			buffer.writeBoolean(restDirection != null);
+			if (restDirection != null) {
+				buffer.writeFloat((float) restDirection.x);
+				buffer.writeFloat((float) restDirection.y);
+				buffer.writeFloat((float) restDirection.z);
+			}
 		}
 
 		@Nullable
 		private static ArmAttackGeometry read(FriendlyByteBuf buffer) {
 			Vec3 origin = new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
-			return create(origin, buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),
-				buffer.readFloat(), buffer.readFloat());
+			float reach = buffer.readFloat();
+			float minimumY = buffer.readFloat();
+			float maximumY = buffer.readFloat();
+			float radius = buffer.readFloat();
+			float volume = buffer.readFloat();
+			Vec3 restDirection = buffer.readBoolean()
+				? new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat()) : null;
+			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection);
 		}
 
 		@Nullable
-		private static ArmAttackGeometry load(CompoundTag tag) {
+		static ArmAttackGeometry load(CompoundTag tag) {
 			if (!tag.contains(ATTACK_ORIGIN_X_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_ORIGIN_Y_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_ORIGIN_Z_TAG, Tag.TAG_ANY_NUMERIC)
@@ -1141,11 +1180,21 @@ public final class SurgicalAssembly {
 				|| !tag.contains(ATTACK_RADIUS_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_VOLUME_TAG, Tag.TAG_ANY_NUMERIC))
 				return null;
+			Vec3 restDirection = null;
+			if (tag.contains(ATTACK_REST_DIRECTION_TAG)) {
+				if (!tag.contains(ATTACK_REST_DIRECTION_TAG, Tag.TAG_COMPOUND))
+					return null;
+				CompoundTag direction = tag.getCompound(ATTACK_REST_DIRECTION_TAG);
+				if (!direction.contains("X", Tag.TAG_ANY_NUMERIC) || !direction.contains("Y", Tag.TAG_ANY_NUMERIC)
+					|| !direction.contains("Z", Tag.TAG_ANY_NUMERIC))
+					return null;
+				restDirection = new Vec3(direction.getFloat("X"), direction.getFloat("Y"), direction.getFloat("Z"));
+			}
 			return create(new Vec3(tag.getFloat(ATTACK_ORIGIN_X_TAG),
 				tag.getFloat(ATTACK_ORIGIN_Y_TAG), tag.getFloat(ATTACK_ORIGIN_Z_TAG)),
 				tag.getFloat(ATTACK_REACH_TAG), tag.getFloat(ATTACK_MINIMUM_Y_TAG),
 				tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG),
-				tag.getFloat(ATTACK_VOLUME_TAG));
+				tag.getFloat(ATTACK_VOLUME_TAG), restDirection);
 		}
 	}
 

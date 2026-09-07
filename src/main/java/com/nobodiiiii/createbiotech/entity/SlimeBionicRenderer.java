@@ -33,11 +33,11 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderCo
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTablePoseResolver;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
+import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAttackRangeRenderer;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
@@ -48,8 +48,6 @@ import net.minecraft.world.phys.Vec3;
 
 public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static final boolean RENDER_ATTACK_RANGE = true;
-	private static final int ATTACK_CONE_STEPS = 12;
-	private static final int ATTACK_CONE_RING_POINTS = 8;
 	private static final float MIN_SHADOW_RADIUS = 0.15f;
 	private static final float MAX_SHADOW_RADIUS = 1.0f;
 	private static final ResourceLocation SLIME_TEXTURE =
@@ -72,6 +70,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		UPRIGHT_OFFSETS.clear();
 		UPRIGHT_ROTATIONS.clear();
 		SlimeBionicAnimator.clearCache();
+		SlimeBionicAttackRangeRenderer.clearCache();
 	}
 
 	@Override
@@ -89,7 +88,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				renderComposite(entity, assembly, bodyFrame, partialTick, poseStack, sourceBuffer, packedLight);
 				if (hideOriginal)
 					return;
-				renderAttackRange(entity, assembly, bodyFrame, poseStack, buffer);
+				if (RENDER_ATTACK_RANGE)
+					SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
 				super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
 				return;
 			}
@@ -139,7 +139,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			poseStack.popPose();
 			if (hideOriginal)
 				return;
-			renderAttackRange(entity, assembly, bodyFrame, poseStack, buffer);
+			if (RENDER_ATTACK_RANGE)
+				SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
 		} else {
 			GEOMETRY.remove(entity);
 			COMPOSITE_GEOMETRY.remove(entity);
@@ -151,57 +152,6 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static MultiBufferSource hiddenBuffer() {
 		EntityGeometry.Collector hidden = EntityGeometry.Collector.boundsOnly();
 		return renderType -> hidden;
-	}
-
-	/** Optional combat debug view: samples the server-authoritative three-dimensional cone in blue. */
-	private static void renderAttackRange(SlimeBionicEntity entity, SurgicalAssembly assembly,
-		BodyFrame bodyFrame, PoseStack poseStack, MultiBufferSource buffer) {
-		int duration = entity.getAttackActionDuration();
-		int elapsed = duration - entity.getAttackActionTick();
-		if (!RENDER_ATTACK_RANGE || entity.getAttackActionTick() <= 0
-			|| assembly.attackGeometry() == null)
-			return;
-		boolean active = SlimeBionicCombat.isActiveTick(elapsed, duration);
-		float alpha = active ? 0.32f : 0.14f;
-		SurgicalAssembly.ArmAttackGeometry arm = assembly.attackGeometry()
-			.arm(entity.isAttackActionLeft(), entity.getAttackActionArmSlot());
-		if (arm == null)
-			return;
-		VertexConsumer vertices = buffer.getBuffer(RenderType.debugFilledBox());
-		poseStack.pushPose();
-		bodyFrame.apply(poseStack);
-		double step = arm.reach() / ATTACK_CONE_STEPS;
-		double halfMarker = Math.max(0.025d, step * 0.16d);
-		Vec3 origin = arm.origin();
-		float localYaw = Mth.wrapDegrees(entity.getAttackAimYaw() - bodyFrame.yaw());
-		Vec3 aim = SlimeBionicCombat.direction(localYaw, entity.getAttackAimPitch());
-		Vec3 right = aim.cross(new Vec3(0.0d, 1.0d, 0.0d));
-		if (right.lengthSqr() < 1.0e-8d)
-			right = new Vec3(1.0d, 0.0d, 0.0d);
-		right = right.normalize();
-		Vec3 up = right.cross(aim).normalize();
-		double slope = Math.tan(SlimeBionicCombat.CONE_HALF_ANGLE_DEGREES * Mth.DEG_TO_RAD);
-		for (int sample = 0; sample <= ATTACK_CONE_STEPS; sample++) {
-			double distance = sample * step;
-			Vec3 center = origin.add(aim.scale(distance));
-			double radius = arm.radius() + distance * slope;
-			renderAttackMarker(poseStack, vertices, center, halfMarker, alpha);
-			for (int ring = 0; ring < ATTACK_CONE_RING_POINTS; ring++) {
-				double angle = Mth.TWO_PI * ring / ATTACK_CONE_RING_POINTS;
-				Vec3 point = center.add(right.scale(Math.cos(angle) * radius))
-					.add(up.scale(Math.sin(angle) * radius));
-				renderAttackMarker(poseStack, vertices, point, halfMarker, alpha);
-			}
-		}
-		poseStack.popPose();
-	}
-
-	private static void renderAttackMarker(PoseStack poseStack, VertexConsumer vertices,
-		Vec3 point, double halfSize, float alpha) {
-		LevelRenderer.addChainedFilledBoxVertices(poseStack, vertices,
-			point.x - halfSize, point.y - halfSize, point.z - halfSize,
-			point.x + halfSize, point.y + halfSize, point.z + halfSize,
-			0.08f, 0.42f, 1.0f, alpha);
 	}
 
 	private static void renderComposite(SlimeBionicEntity entity, SurgicalAssembly assembly,

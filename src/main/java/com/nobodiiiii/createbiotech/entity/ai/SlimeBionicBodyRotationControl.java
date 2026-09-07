@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.ai;
 
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
@@ -23,6 +25,12 @@ public class SlimeBionicBodyRotationControl extends BodyRotationControl {
 
 	@Override
 	public void clientTick() {
+		if (mob instanceof SlimeBionicEntity bionic && bionic.applyCombatFacing()) {
+			rotateHeadIfNecessary();
+			headStableTime = 0;
+			lastStableYHeadRot = mob.yHeadRot;
+			return;
+		}
 		if (isMoving()) {
 			mob.yBodyRot = approach(mob.yBodyRot, mob.getYRot(), BODY_ROTATE_LIMIT);
 			rotateHeadIfNecessary();

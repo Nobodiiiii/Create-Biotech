@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.content.surgery;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
+
 import net.minecraft.util.Mth;
 
 /** Shared anatomical calibration for a stitched body's per-arm melee output and cadence. */
@@ -13,6 +15,9 @@ public final class SurgicalCombatCalibration {
 		* ZOMBIE_ARM_THICKNESS * ZOMBIE_ARM_THICKNESS;
 	/** Zombies use the inherited melee goal's twenty-tick attack interval. */
 	public static final int ZOMBIE_ATTACK_INTERVAL = 20;
+	/** Leaves room for distinct hits within Minecraft's hurt immunity and caps multi-arm bursts. */
+	public static final int MIN_GLOBAL_ATTACK_INTERVAL = 12;
+	public static final int MAX_GLOBAL_ATTACK_INTERVAL = 44;
 
 	private static final double MAX_DPS_SCALE = 4.0d;
 	private static final int MIN_ATTACK_INTERVAL = 10;
@@ -28,7 +33,8 @@ public final class SurgicalCombatCalibration {
 	 * arm and approaches four zombie DPS as volume grows without bound. At a fixed volume, equivalent
 	 * thickness moves that output between larger, slower hits and smaller, faster hits; deriving the
 	 * hit multiplier from the final integer interval keeps theoretical DPS unchanged apart from game
-	 * timing and damage rounding.</p>
+	 * timing and damage rounding. Runtime coordination and the global minimum interval are applied
+	 * separately after this anatomical calibration.</p>
 	 */
 	public static ArmCombatStats stats(SurgicalAssembly.ArmAttackGeometry arm) {
 		if (arm == null)
@@ -49,7 +55,18 @@ public final class SurgicalCombatCalibration {
 
 	/** The runtime's multi-arm global attack interval multiplier for the currently ready arms. */
 	public static float cadenceScale(int readyArmCount) {
-		return Math.max(0.7f, 1.0f - Math.max(0, readyArmCount - 1) * 0.1f);
+		return Math.max(0.8f, 1.0f - Math.max(0, readyArmCount - 1) * 0.1f);
+	}
+
+	public static int armRecovery(ArmCombatStats stats, BionicIntelligence intelligence) {
+		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL,
+			Math.round(stats.attackInterval() * intelligence.meleeIntervalScale()));
+	}
+
+	/** The caller counts coordination in the generic range before filtering by mounted posture. */
+	public static int attackInterval(ArmCombatStats stats, int eligibleArms, BionicIntelligence intelligence) {
+		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL,
+			Math.round(armRecovery(stats, intelligence) * cadenceScale(eligibleArms)));
 	}
 
 	/**
@@ -57,8 +74,8 @@ public final class SurgicalCombatCalibration {
 	 *
 	 * <p>Each arm contributes its geometry-normalized DPS, the contributions are averaged because
 	 * attacks are selected one at a time, and the full-ready multi-arm cadence is then applied. Target
-	 * reach, per-arm recovery state, held weapons and enchantments are intentionally situational and
-	 * therefore excluded from this base value.</p>
+	 * reach, per-arm recovery state, head intelligence, held weapons and enchantments are intentionally
+	 * situational and therefore excluded. Normal intelligence is the reference for this base value.</p>
 	 */
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		@Nullable SurgicalAssembly.AttackGeometry geometry) {
@@ -70,10 +87,10 @@ public final class SurgicalCombatCalibration {
 		double totalDps = 0.0d;
 		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms()) {
 			ArmCombatStats armStats = stats(arm);
-			totalDps += baseAttackDamage * armStats.damageMultiplier()
-				* ZOMBIE_ATTACK_INTERVAL / armStats.attackInterval();
+			totalDps += baseAttackDamage * armStats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL
+				/ attackInterval(armStats, geometry.armCount(), BionicIntelligence.NORMAL);
 		}
-		return totalDps / geometry.armCount() / cadenceScale(geometry.armCount());
+		return totalDps / geometry.armCount();
 	}
 
 	public record ArmCombatStats(double damageMultiplier, int attackInterval) {

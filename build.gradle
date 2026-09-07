@@ -19,6 +19,8 @@ java {
 neoForge {
     version = neo_version
 
+    addModdingDependenciesTo(sourceSets.test)
+
     parchment {
         minecraftVersion = parchment_minecraft_version
         mappingsVersion = parchment_version
@@ -78,6 +80,9 @@ configurations {
 }
 
 dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
+
     implementation("com.simibubi.create:create-${minecraft_version}:${create_version}") {
         transitive = false
     }
@@ -254,4 +259,8 @@ jar {
     from('LICENSES') {
         into 'LICENSES'
     }
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
 }

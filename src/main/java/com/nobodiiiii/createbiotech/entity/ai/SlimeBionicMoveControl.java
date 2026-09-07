@@ -22,11 +22,17 @@ public final class SlimeBionicMoveControl extends MoveControl {
 
 	@Override
 	public void tick() {
-		if (bionic.getLocomotionLegCount() >= 2) {
-			super.tick();
+		if (bionic.getAttackActionTick() > 0) {
+			stopOnGround();
+			bionic.applyCombatFacing();
 			return;
 		}
-		tickHopping();
+		if (bionic.getLocomotionLegCount() >= 2) {
+			super.tick();
+		} else {
+			tickHopping();
+		}
+		bionic.applyCombatFacing();
 	}
 
 	private void tickHopping() {

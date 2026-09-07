@@ -8,7 +8,7 @@
   "type": "create:item_application",
   "ingredients": [
     {
-      "tag": "c:stripped_wood"
+      "tag": "c:stripped_woods"
     },
     {
       "item": "create_biotech:asurine_alloy"

@@ -67,6 +67,18 @@ This part is still unfinished; suggestions are welcome in the comments on the mo
 
 ### Reading the Stats
 
-With the bionic creature packed into a box, hold `Alt` to expand "Base Values". It lists maximum health, damage (DPS), movement speed, armour, knockback-related values, and how many heads, arms and legs are working. The DPS shown is a baseline that ignores weapons, enchantments, status effects and where exactly a target is hit.
+With the bionic creature packed into a box, hold `Alt` to expand "Base Values". It lists maximum health, damage (DPS), movement speed, armour, knockback-related values, and how many heads, arms and legs are working. DPS assumes normal intelligence and all arms available, excluding weapons, enchantments, status effects and the target's position.
 
-Movement speed is affected by whether the legs reach the ground, how long they are, whether they have knees, and how much of the whole body they make up. Likewise, arm length, arm count and elbow joints affect attack reach, speed and swing area.
+Movement speed is affected by whether the legs reach the ground, how long they are, whether they have knees, and how much of the whole body they make up. Melee reach follows the arm's static shoulder-to-tip length. Arm volume and thickness determine base damage and cadence; additional arms that can engage the current target provide a limited cadence benefit.
+
+### Melee Direction and Cadence
+
+A creature turns toward its target before choosing a ready arm. Its attack covers 35° to either side and 45° above or below its aim, intersected with the arm's actual reach and mounted activity range, and clamped to the body's forward 180°. Tall targets do not widen the attack. Aim locks after preparation, allowing targets to evade to the side, behind the attacker, or out of reach. Bodies without arm geometry use a short body strike capped at 1.5 blocks.
+
+Mounted posture specializes coverage: hanging arms allow 70° down and 35° up, level arms allow 50° each way, and raised arms allow 35° down and 80° up. Sideways arms favor their own side; diagonal mounts interpolate continuously. Arm selection considers these preferences, while attack intervals and recovery receive no posture modifier and coordination keeps its previous eligibility rules. Newly packed creatures save their mounted directions; older creatures without that data retain the generic range.
+
+Each swing prepares for 3–6 ticks, then checks contact for 2 ticks and attempts damage at most once. Arms recover separately, while the whole body waits at least 12 ticks (0.6 seconds) between swings. Extra eligible arms shorten the global interval by at most 20%. Misses and blocked hits still consume recovery; switching targets does not reset it.
+
+Simple, normal and advanced intelligence apply interval factors of 1.1, 1.0 and 0.9, with small differences in turning and preparation-time aim correction. A single standard zombie arm therefore attacks every 22, 20 or 18 ticks. Intelligence grants no extra reach or damage. Multiple recognized heads use their highest tier; no recognized head defaults to simple intelligence.
+
+The server controls contact and recovery independently of animation. Animation curves, playback duration and the visible hand path cannot change reach or damage timing.

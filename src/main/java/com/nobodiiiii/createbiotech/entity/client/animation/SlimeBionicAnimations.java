@@ -5,8 +5,6 @@ import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -154,9 +152,9 @@ public final class SlimeBionicAnimations {
 		float duration = Math.max(1.0f, context.attackAnimationDuration());
 		float remaining = Mth.clamp(context.attackAnimationTick() - context.partialTick(), 0.0f, duration);
 		float elapsed = duration - remaining;
-		int integerDuration = Math.max(1, context.attackAnimationDuration());
-		float activeStart = SlimeBionicCombat.activeStartTick(integerDuration);
-		float activeEnd = SlimeBionicCombat.activeEndTick(integerDuration);
+		// Presentation-only blending; changing this envelope cannot move the server's contact window.
+		float activeStart = duration / 3.0f;
+		float activeEnd = duration * 0.6f;
 		float weight;
 		if (elapsed < activeStart) {
 			weight = smoothStep(activeStart <= 0.0f ? 1.0f : elapsed / activeStart);
