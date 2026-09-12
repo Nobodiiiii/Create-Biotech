@@ -81,4 +81,4 @@ Each swing prepares for 3–6 ticks, then checks contact for 2 ticks and attempt
 
 Simple, normal and advanced intelligence apply interval factors of 1.1, 1.0 and 0.9, with small differences in turning and preparation-time aim correction. A single standard zombie arm therefore attacks every 22, 20 or 18 ticks. Intelligence grants no extra reach or damage. Multiple recognized heads use their highest tier; no recognized head defaults to simple intelligence.
 
-The server controls contact and recovery independently of animation. The attacking hand is procedurally aimed from the synchronized target direction and distance; playback duration and the visible hand path cannot change reach or damage timing.
+The server controls contact and recovery independently of animation. Animation curves, playback duration and the visible hand path cannot change reach or damage timing.

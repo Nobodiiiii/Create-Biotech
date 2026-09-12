@@ -7,7 +7,6 @@ import java.util.WeakHashMap;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBMobEffects;
 
-import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.bus.api.EventPriority;
@@ -19,8 +18,8 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 /** Keeps the bouncing crouch's visual and logical proportions in sync. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class BouncingCrouch {
-	public static final float LOGICAL_HEIGHT = 1.0F;
-	public static final float HEIGHT_SCALE = LOGICAL_HEIGHT / Player.STANDING_DIMENSIONS.height();
+	public static final float HEIGHT_SCALE = 0.5F;
+	public static final float LOGICAL_HEIGHT = Player.STANDING_DIMENSIONS.height() * HEIGHT_SCALE;
 
 	private static final Map<Player, Boolean> COMPRESSED_PLAYERS =
 		Collections.synchronizedMap(new WeakHashMap<>());
@@ -44,10 +43,9 @@ public final class BouncingCrouch {
 			return;
 		}
 
-		EntityDimensions compressedDimensions = Player.STANDING_DIMENSIONS
-			.scale(1.0F, HEIGHT_SCALE)
-			.scale(player.getScale());
-		event.setNewSize(compressedDimensions);
+		// PlayerBouncingDimensionsMixin already supplies a half-height standing base size.
+		// Do not replace event.getNewSize() here: leaving the event result intact lets scale
+		// attributes and other mods' multiplicative size changes compose with ours.
 		COMPRESSED_PLAYERS.put(player, Boolean.TRUE);
 	}
 

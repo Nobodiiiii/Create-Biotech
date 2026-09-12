@@ -138,11 +138,43 @@ public final class SlimeBionicAnimations {
 		// plus one balancing arm on the opposite side.
 		result = result.minus(attack);
 		boolean attackingSide = (context.attackArm() == Arm.LEFT) == left;
-		// The selected chain is solved geometrically by SlimeBionicAnimator. Authored curves remain
-		// only on the torso and balancing arm, so no fixed shoulder/elbow keyframe decides the hit point.
-		if (attackingSide && slot == context.attackArmSlot())
+		if (attackingSide && slot == context.attackArmSlot()) {
+			result = result.plus(attack);
+			if (!elbow)
+				result = result.plus(attackDirectionBias(context));
 			return result;
+		}
 		return !attackingSide && slot == 0 ? result.plus(attack) : result;
+	}
+
+	/** Coarsely turns the authored shoulder swing toward the selected attack sector's midpoint. */
+	private static Rotation attackDirectionBias(Context context) {
+		float duration = Math.max(1.0f, context.attackAnimationDuration());
+		float remaining = Mth.clamp(context.attackAnimationTick() - context.partialTick(), 0.0f, duration);
+		float elapsed = duration - remaining;
+		// Presentation-only blending; changing this envelope cannot move the server's contact window.
+		float activeStart = duration / 3.0f;
+		float activeEnd = duration * 0.6f;
+		float weight;
+		if (elapsed < activeStart) {
+			weight = smoothStep(activeStart <= 0.0f ? 1.0f : elapsed / activeStart);
+		} else if (elapsed < activeEnd) {
+			weight = 1.0f;
+		} else {
+			float recovery = duration - activeEnd;
+			weight = 1.0f - smoothStep(recovery <= 0.0f ? 1.0f : (elapsed - activeEnd) / recovery);
+		}
+		float relativeYaw = Mth.clamp(Mth.wrapDegrees(context.attackRangeCenterYaw() - context.bodyYaw()),
+			-80.0f, 80.0f);
+		float pitch = Mth.clamp(context.attackRangeCenterPitch() - context.attackReferencePitch(),
+			-75.0f, 60.0f);
+		return new Rotation(pitch * 0.75f * Mth.DEG_TO_RAD * weight,
+			relativeYaw * 0.6f * Mth.DEG_TO_RAD * weight, 0.0f);
+	}
+
+	private static float smoothStep(float value) {
+		float clamped = Mth.clamp(value, 0.0f, 1.0f);
+		return clamped * clamped * (3.0f - 2.0f * clamped);
 	}
 
 	private static float elbowDegrees(float phase) {
@@ -309,6 +341,7 @@ public final class SlimeBionicAnimations {
 		float walkWeight, float vanillaLimbSwing, float vanillaLimbSwingAmount, float ageInTicks,
 		float netHeadYaw, float headPitch, float attackTime, boolean riding, float swimAmount,
 		int attackAnimationTick, int attackAnimationDuration, float partialTick, float bodyYaw,
+		float attackRangeCenterYaw, float attackRangeCenterPitch, float attackReferencePitch,
 		Arm attackArm, int attackArmSlot,
 		boolean attackArmHasElbow, AttackStyle attackStyle) {
 		public Context {

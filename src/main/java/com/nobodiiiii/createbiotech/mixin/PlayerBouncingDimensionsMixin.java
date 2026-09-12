@@ -23,8 +23,9 @@ public abstract class PlayerBouncingDimensionsMixin {
 			|| !player.hasEffect(CBMobEffects.BOUNCING))
 			return original;
 
-		// Return the unscaled base size. LivingEntity#getDimensions applies the player's
-		// current entity scale after this virtual method returns.
+		// Return a half-height standing base size rather than an absolute 0.9-block size.
+		// LivingEntity#getDimensions applies the player's current scale afterwards, so
+		// other mods' player scaling also scales the height, eye height and attachments.
 		return Player.STANDING_DIMENSIONS.scale(1.0F, BouncingCrouch.HEIGHT_SCALE);
 	}
 }

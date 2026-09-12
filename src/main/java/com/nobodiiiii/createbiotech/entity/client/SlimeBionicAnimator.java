@@ -58,6 +58,12 @@ public final class SlimeBionicAnimator {
 		java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 	private static final double PRINCIPAL_AXIS_SHARE = 0.55d;
 	private static final Basis BODY_SPACE = Basis.bodySpace();
+	/**
+	 * The present authored strike already looks centred for a hanging arm aimed level and forward.
+	 * That posture's final vertical sector is -35..45 degrees, whose midpoint is five degrees down.
+	 */
+	private static final float HANGING_ARM_REFERENCE_CENTER_PITCH = 5.0f;
+
 	private SlimeBionicAnimator() {}
 
 	public static void clearCache() {
@@ -268,12 +274,11 @@ public final class SlimeBionicAnimator {
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
 		Arm attackArm = attackArm(limbs, preferredAttackArm);
-		AttackAnimationTarget attackTarget = attackAnimationTarget(entity);
+		AttackAnimationTarget attackTarget = attackAnimationTarget(entity, assembly);
 		Context context = animationContext(entity, partialTick, resolved.legLength,
 			attackArm, attackArmHasElbow(limbs, attackArm, entity.getAttackAnimationArmSlot()),
-			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND);
+			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND, attackTarget);
 		Pose pose = SlimeBionicAnimations.sample(context);
-		AttackTargeting attackTargeting = attackTargeting(entity, context, attackTarget, limbs, sources);
 
 		Map<Integer, Map<Integer, Vec3>> offsets = new HashMap<>();
 		Map<Integer, Map<Integer, SurgicalCubeRotation>> rotations = new HashMap<>();
@@ -298,7 +303,7 @@ public final class SlimeBionicAnimator {
 			if (limb.bone() == null && limb.gait() == null)
 				continue;
 			Transform transform = resolveTransform(limbIndex, limbs, pose, context, bodyTransform,
-				attackTargeting, transforms, resolving);
+				transforms, resolving);
 			if (transform.isIdentity())
 				continue;
 			int depth = hierarchyDepth(limbIndex, limbs);
@@ -707,96 +712,29 @@ public final class SlimeBionicAnimator {
 		return right ? Arm.RIGHT : left ? Arm.LEFT : Arm.NONE;
 	}
 
-	/** The synchronized direction and depth of the target point chosen by the server. */
-	private static AttackAnimationTarget attackAnimationTarget(SlimeBionicEntity entity) {
-		return new AttackAnimationTarget(entity.getAttackAimYaw(), entity.getAttackAimPitch(),
-			entity.getAttackTargetDistance());
-	}
-
 	/**
-	 * Resolves the selected shoulder chain and converts the world-space aim into the rig's yaw-zero
-	 * body frame. Target distance addresses the hand centre: the distal radius remains between the
-	 * hand centre and the target's collision surface.
+	 * Converts the server-selected logical sector into a presentation target for the hand path. The
+	 * gameplay query never observes this value, so damage timing and collision stay animation-free.
 	 */
-	@Nullable
-	private static AttackTargeting attackTargeting(SlimeBionicEntity entity, Context context,
-		AttackAnimationTarget target, List<ResolvedLimb> limbs, List<SourceState> sources) {
-		if (context.attackAnimationTick() <= 0 || context.attackArm() == Arm.NONE)
-			return null;
-		boolean left = context.attackArm() == Arm.LEFT;
-		int shoulderIndex = -1;
-		for (int index = 0; index < limbs.size(); index++) {
-			ResolvedLimb limb = limbs.get(index);
-			if (limb.type() == SurgicalLimbType.SHOULDER && limb.arm() != null
-				&& limb.arm().left() == left && limb.arm().slot() == context.attackArmSlot()) {
-				shoulderIndex = index;
-				break;
-			}
-		}
-		if (shoulderIndex < 0)
-			return null;
+	private static AttackAnimationTarget attackAnimationTarget(SlimeBionicEntity entity,
+		SurgicalAssembly assembly) {
+		float aimYaw = entity.getAttackAimYaw();
+		float aimPitch = entity.getAttackAimPitch();
+		SurgicalAssembly.AttackGeometry geometry = assembly.attackGeometry();
+		SurgicalAssembly.ArmAttackGeometry arm = geometry == null ? null
+			: geometry.arm(entity.isAttackAnimationLeft(), entity.getAttackAnimationArmSlot());
+		if (arm == null)
+			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
 
-		int elbowIndex = -1;
-		for (int index = 0; index < limbs.size(); index++)
-			if (limbs.get(index).type() == SurgicalLimbType.ELBOW
-				&& limbs.get(index).parentIndex() == shoulderIndex) {
-				elbowIndex = index;
-				break;
-			}
-		ResolvedLimb shoulder = limbs.get(shoulderIndex);
-		ResolvedLimb distal = limbs.get(elbowIndex >= 0 ? elbowIndex : shoulderIndex);
-		TipGeometry tip = distalTip(distal, sources);
-		if (tip == null)
-			return null;
-		if (elbowIndex >= 0) {
-			double upperLength = shoulder.pivot().distanceTo(limbs.get(elbowIndex).pivot());
-			double lowerLength = limbs.get(elbowIndex).pivot().distanceTo(tip.center());
-			// Coincident hinges cannot form a stable triangle. Treat the complete chain as one rigid
-			// direction in that rare malformed/legacy assembly instead of producing NaN rotations.
-			if (upperLength * upperLength < GEOMETRY_EPSILON
-				|| lowerLength * lowerLength < GEOMETRY_EPSILON)
-				elbowIndex = -1;
-		}
-
-		Vec3 direction = SlimeBionicCombat.direction(target.yaw(), target.pitch())
-			.yRot(context.bodyYaw() * Mth.DEG_TO_RAD);
-		if (direction.lengthSqr() < GEOMETRY_EPSILON)
-			return null;
-		direction = direction.normalize();
-		double handDistance = Math.max(0.0d, target.distance() - tip.radius());
-		if (elbowIndex >= 0) {
-			double upperLength = shoulder.pivot().distanceTo(limbs.get(elbowIndex).pivot());
-			double lowerLength = limbs.get(elbowIndex).pivot().distanceTo(tip.center());
-			double minimum = Math.abs(upperLength - lowerLength) + 1.0e-4d;
-			double maximum = Math.max(minimum, upperLength + lowerLength - 1.0e-4d);
-			handDistance = Mth.clamp(handDistance, minimum, maximum);
-		} else {
-			handDistance = Math.max(handDistance, 1.0e-4d);
-		}
-		Vec3 handTarget = shoulder.pivot().add(direction.scale(handDistance));
-		float weight = attackTargetWeight(entity, context);
-		return weight <= 0.0f ? null : new AttackTargeting(shoulderIndex, elbowIndex,
-			tip.center(), handTarget, weight, left);
-	}
-
-	/** Smoothly reaches the target before contact, holds through the strike, then recovers. */
-	private static float attackTargetWeight(SlimeBionicEntity entity, Context context) {
-		float duration = Math.max(1.0f, context.attackAnimationDuration());
-		float remaining = Mth.clamp(context.attackAnimationTick() - context.partialTick(), 0.0f, duration);
-		float elapsed = duration - remaining;
-		float contactStart = Math.min(duration,
-			SlimeBionicCombat.activeStartTick(entity.getAttackActionDuration()));
-		float contactEnd = Math.min(duration, entity.getAttackActionDuration());
-		if (elapsed < contactStart)
-			return smoothStep(contactStart <= 0.0f ? 1.0f : elapsed / contactStart);
-		if (elapsed < contactEnd)
-			return 1.0f;
-		return 1.0f - smoothStep((elapsed - contactEnd) / Math.max(1.0f, duration - contactEnd));
-	}
-
-	private static float smoothStep(float value) {
-		float clamped = Mth.clamp(value, 0.0f, 1.0f);
-		return clamped * clamped * (3.0f - 2.0f * clamped);
+		float attackBodyYaw = entity.getAttackBodyYaw();
+		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(
+			arm, attackBodyYaw, aimYaw, aimPitch);
+		if (range.isEmpty())
+			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
+		float referencePitch = arm.restDirection() == null
+			? 0.0f : HANGING_ARM_REFERENCE_CENTER_PITCH;
+		return new AttackAnimationTarget(attackBodyYaw + range.centerYaw(),
+			range.centerPitch(), referencePitch);
 	}
 
 	/** Reports whether the exact server-selected upper arm owns a linked elbow joint. */
@@ -819,8 +757,7 @@ public final class SlimeBionicAnimator {
 	}
 
 	private static Transform resolveTransform(int index, List<ResolvedLimb> limbs, Pose pose,
-		Context context, Transform bodyTransform, @Nullable AttackTargeting attackTargeting,
-		Transform[] cache, boolean[] resolving) {
+		Context context, Transform bodyTransform, Transform[] cache, boolean[] resolving) {
 		if (cache[index] != null)
 			return cache[index];
 		if (resolving[index])
@@ -829,8 +766,7 @@ public final class SlimeBionicAnimator {
 		ResolvedLimb limb = limbs.get(index);
 		Transform parent = limb.parentIndex() < 0
 			? inheritsBodyRotation(limb) ? bodyTransform : Transform.IDENTITY
-			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform,
-				attackTargeting, cache, resolving);
+			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform, cache, resolving);
 		Rotation sampled = limb.gait() != null ? SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
 				limb.gait().left(), limb.gait().phase())
@@ -845,75 +781,10 @@ public final class SlimeBionicAnimator {
 				: BODY_SPACE.reframe(limb.restAlignment(),
 					sampled.z(), sampled.y(), sampled.x());
 		SurgicalCubeRotation inheritedLocal = conjugate(parent.rotation(), local);
-		Vec3 pivot = parent.apply(limb.pivot());
-		Transform resolved = parent.rotateAround(pivot, inheritedLocal);
-		if (attackTargeting != null && index == attackTargeting.shoulderIndex())
-			resolved = targetShoulder(resolved, pivot, limbs, attackTargeting);
-		else if (attackTargeting != null && index == attackTargeting.elbowIndex())
-			resolved = targetElbow(resolved, pivot, attackTargeting);
+		Transform resolved = parent.rotateAround(parent.apply(limb.pivot()), inheritedLocal);
 		resolving[index] = false;
 		cache[index] = resolved;
 		return resolved;
-	}
-
-	/** Points a rigid arm directly, or places an articulated elbow with a two-bone IK solve. */
-	private static Transform targetShoulder(Transform base, Vec3 shoulderPivot,
-		List<ResolvedLimb> limbs, AttackTargeting targeting) {
-		Vec3 currentEnd;
-		Vec3 desiredDirection;
-		if (targeting.elbowIndex() < 0) {
-			currentEnd = base.apply(targeting.tip());
-			desiredDirection = targeting.target().subtract(shoulderPivot);
-		} else {
-			Vec3 elbowPivot = limbs.get(targeting.elbowIndex()).pivot();
-			currentEnd = base.apply(elbowPivot);
-			Vec3 targetVector = targeting.target().subtract(shoulderPivot);
-			double targetDistance = targetVector.length();
-			if (targetDistance < GEOMETRY_EPSILON)
-				return base;
-			Vec3 direction = targetVector.scale(1.0d / targetDistance);
-			double upperLength = limbs.get(targeting.shoulderIndex()).pivot().distanceTo(elbowPivot);
-			double lowerLength = elbowPivot.distanceTo(targeting.tip());
-			double cosine = Mth.clamp((upperLength * upperLength + targetDistance * targetDistance
-				- lowerLength * lowerLength) / (2.0d * upperLength * targetDistance), -1.0d, 1.0d);
-			double sine = Math.sqrt(Math.max(0.0d, 1.0d - cosine * cosine));
-			Vec3 pole = currentEnd.subtract(shoulderPivot);
-			pole = pole.subtract(direction.scale(pole.dot(direction)));
-			if (pole.lengthSqr() < GEOMETRY_EPSILON) {
-				pole = new Vec3(targeting.left() ? 1.0d : -1.0d, 0.0d, 0.0d);
-				pole = pole.subtract(direction.scale(pole.dot(direction)));
-			}
-			if (pole.lengthSqr() < GEOMETRY_EPSILON) {
-				pole = new Vec3(0.0d, 1.0d, 0.0d);
-				pole = pole.subtract(direction.scale(pole.dot(direction)));
-			}
-			if (pole.lengthSqr() < GEOMETRY_EPSILON)
-				return base;
-			pole = pole.normalize();
-			desiredDirection = direction.scale(cosine * upperLength)
-				.add(pole.scale(sine * upperLength));
-		}
-		SurgicalCubeRotation delta = weightedRotation(currentEnd.subtract(shoulderPivot),
-			desiredDirection, targeting.weight());
-		return base.rotateAround(shoulderPivot, delta);
-	}
-
-	/** Completes the two-bone solve by pointing the forearm from its moved elbow to the target. */
-	private static Transform targetElbow(Transform base, Vec3 elbowPivot, AttackTargeting targeting) {
-		Vec3 currentTip = base.apply(targeting.tip());
-		SurgicalCubeRotation delta = weightedRotation(currentTip.subtract(elbowPivot),
-			targeting.target().subtract(elbowPivot), targeting.weight());
-		return base.rotateAround(elbowPivot, delta);
-	}
-
-	private static SurgicalCubeRotation weightedRotation(Vec3 from, Vec3 to, float weight) {
-		if (from.lengthSqr() < GEOMETRY_EPSILON || to.lengthSqr() < GEOMETRY_EPSILON || weight <= 0.0f)
-			return SurgicalCubeRotation.IDENTITY;
-		Vector3f source = new Vector3f((float) from.x, (float) from.y, (float) from.z).normalize();
-		Vector3f target = new Vector3f((float) to.x, (float) to.y, (float) to.z).normalize();
-		Quaternionf full = new Quaternionf().rotationTo(source, target);
-		Quaternionf weighted = new Quaternionf().slerp(full, Mth.clamp(weight, 0.0f, 1.0f));
-		return new SurgicalCubeRotation(weighted.x(), weighted.y(), weighted.z(), weighted.w());
 	}
 
 	private static boolean inheritsBodyRotation(ResolvedLimb limb) {
@@ -1267,7 +1138,8 @@ public final class SlimeBionicAnimator {
 
 	/** Adapts entity state to the animation-only module's narrow, immutable input contract. */
 	private static Context animationContext(SlimeBionicEntity entity, float partialTick,
-		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle) {
+		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle,
+		AttackAnimationTarget attackTarget) {
 		float bodyRot = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 		float headRot = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot);
 		float netHeadYaw = Mth.wrapDegrees(headRot - bodyRot);
@@ -1292,7 +1164,7 @@ public final class SlimeBionicAnimator {
 			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
 			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
-			bodyRot, attackArm,
+			bodyRot, attackTarget.yaw(), attackTarget.pitch(), attackTarget.referencePitch(), attackArm,
 			entity.getAttackAnimationArmSlot(), attackArmHasElbow, attackStyle);
 	}
 
@@ -1304,9 +1176,7 @@ public final class SlimeBionicAnimator {
 	private record ArmChannel(boolean left, int slot, float phase) {}
 	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
 	private record LegMeasurement(double soleHeight, double effectiveLength) {}
-	private record AttackAnimationTarget(float yaw, float pitch, float distance) {}
-	private record AttackTargeting(int shoulderIndex, int elbowIndex, Vec3 tip, Vec3 target,
-		float weight, boolean left) {}
+	private record AttackAnimationTarget(float yaw, float pitch, float referencePitch) {}
 
 	/** Immutable rest-pose measurements used by authoritative movement-speed calibration. */
 	public record MobilityMetrics(float averageLegLength, int groundedLegCount,
