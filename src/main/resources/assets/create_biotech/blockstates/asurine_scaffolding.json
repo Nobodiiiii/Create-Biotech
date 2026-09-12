@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "bottom=false": {
+      "model": "create_biotech:block/asurine_scaffolding"
+    },
+    "bottom=true": {
+      "model": "create_biotech:block/asurine_scaffolding_horizontal"
+    }
+  }
+}

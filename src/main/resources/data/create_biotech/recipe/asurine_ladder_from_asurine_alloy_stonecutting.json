@@ -1,0 +1,16 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "create_biotech:feature_enabled",
+      "feature": "biotechMaterials"
+    }
+  ],
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "create_biotech:asurine_alloy"
+  },
+  "result": {
+    "count": 2,
+    "id": "create_biotech:asurine_ladder"
+  }
+}

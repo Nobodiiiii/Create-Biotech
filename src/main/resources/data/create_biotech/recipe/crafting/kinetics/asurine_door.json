@@ -1,0 +1,22 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "create_biotech:feature_enabled",
+      "feature": "biotechMaterials"
+    }
+  ],
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "tag": "minecraft:wooden_doors"
+    },
+    {
+      "item": "create_biotech:asurine_casing"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "create_biotech:asurine_door"
+  }
+}

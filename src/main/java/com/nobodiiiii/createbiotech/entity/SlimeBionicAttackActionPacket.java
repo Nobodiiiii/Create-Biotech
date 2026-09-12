@@ -4,15 +4,15 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.entity.Entity;
 
-/** Starts one presentation or synchronizes the logical preview's direction and remaining time. */
+/** Starts one presentation or synchronizes its target point and logical remaining time. */
 public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean restart,
 	boolean left, int slot, boolean weapon, int interval, int remainingTicks,
-	float aimYaw, float aimPitch, float bodyYaw) {
+	float aimYaw, float aimPitch, float targetDistance, float bodyYaw) {
 
 	public SlimeBionicAttackActionPacket(RegistryFriendlyByteBuf buffer) {
 		this(buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean(), buffer.readBoolean(),
 			buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat(),
-			buffer.readFloat(), buffer.readFloat());
+			buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
 	}
 
 	public static SlimeBionicAttackActionPacket start(SlimeBionicEntity entity) {
@@ -27,7 +27,8 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 		return new SlimeBionicAttackActionPacket(entity.getId(), entity.getAttackActionSequence(), restart,
 			entity.isAttackActionLeft(), entity.getAttackActionArmSlot(), entity.isAttackActionWeapon(),
 			entity.getAttackActionInterval(), entity.getAttackActionTick(),
-			entity.getAttackAimYaw(), entity.getAttackAimPitch(), entity.getAttackBodyYaw());
+			entity.getAttackAimYaw(), entity.getAttackAimPitch(), entity.getAttackTargetDistance(),
+			entity.getAttackBodyYaw());
 	}
 
 	public void write(RegistryFriendlyByteBuf buffer) {
@@ -41,6 +42,7 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 		buffer.writeVarInt(remainingTicks);
 		buffer.writeFloat(aimYaw);
 		buffer.writeFloat(aimPitch);
+		buffer.writeFloat(targetDistance);
 		buffer.writeFloat(bodyYaw);
 	}
 
@@ -50,6 +52,6 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 		Entity found = player.level().getEntity(entityId);
 		if (found instanceof SlimeBionicEntity bionic)
 			bionic.applyAttackAction(sequence, restart, left, slot, weapon, interval, remainingTicks,
-				aimYaw, aimPitch, bodyYaw);
+				aimYaw, aimPitch, targetDistance, bodyYaw);
 	}
 }

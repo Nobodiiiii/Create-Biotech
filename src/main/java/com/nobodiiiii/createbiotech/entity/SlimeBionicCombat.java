@@ -171,9 +171,13 @@ public final class SlimeBionicCombat {
 
 	/** Aim at the nearest part of the collision box, so a tall target's centre need not be reachable. */
 	public static Vec3 aimAt(AABB target, Vec3 origin, float fallbackYaw) {
-		Vec3 point = new Vec3(Mth.clamp(origin.x, target.minX, target.maxX),
+		return normalizedOrForward(targetPoint(target, origin).subtract(origin), fallbackYaw);
+	}
+
+	/** Exact closest point used by the procedural hand target as well as directional aiming. */
+	public static Vec3 targetPoint(AABB target, Vec3 origin) {
+		return new Vec3(Mth.clamp(origin.x, target.minX, target.maxX),
 			Mth.clamp(origin.y, target.minY, target.maxY), Mth.clamp(origin.z, target.minZ, target.maxZ));
-		return normalizedOrForward(point.subtract(origin), fallbackYaw);
 	}
 
 	public static Vec3 constrainAim(Vec3 desired, float bodyYaw) {

@@ -43,6 +43,7 @@ import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessTerminalItem;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineItem;
 import com.simibubi.create.content.logistics.tableCloth.TableClothBlockItem;
+import com.simibubi.create.content.decoration.MetalScaffoldingBlockItem;
 import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortItem;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierItem;
@@ -289,6 +290,18 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> ASURINE_CASING = ITEMS.register("asurine_casing",
 		() -> new BlockItem(CBBlocks.ASURINE_CASING.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> ASURINE_SCAFFOLDING = ITEMS.register("asurine_scaffolding",
+		() -> new MetalScaffoldingBlockItem(CBBlocks.ASURINE_SCAFFOLDING.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> ASURINE_LADDER = ITEMS.register("asurine_ladder",
+		() -> new BlockItem(CBBlocks.ASURINE_LADDER.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> ASURINE_BARS = ITEMS.register("asurine_bars",
+		() -> new BlockItem(CBBlocks.ASURINE_BARS.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> ASURINE_DOOR = ITEMS.register("asurine_door",
+		() -> new BlockItem(CBBlocks.ASURINE_DOOR.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, Item> BIOTECH_CASING = ITEMS.register("biotech_casing",
 		() -> new BlockItem(CBBlocks.BIOTECH_CASING.get(), new Item.Properties()));

@@ -22,14 +22,20 @@ public final class BouncingAnimation {
 	private static final long ACTIVE_Z_NOISE_SALT = 0x9E3779B97F4A7C15L;
 	private static final long IDLE_STRETCH_A_SALT = 0xC6BC279692B5CC83L;
 	private static final long IDLE_STRETCH_B_SALT = 0xDB4F0B9175AE2165L;
+	private static final long CROUCH_X_IMPULSE_SALT = 0x8CB92BA72F3D8DD7L;
+	private static final long CROUCH_Z_IMPULSE_SALT = 0x58F38DED84B3A73BL;
 
 	private static final float STRETCH_STIFFNESS = 0.32F;
 	private static final float STRETCH_DAMPING = 0.38F;
 	private static final float SWAY_STIFFNESS = 0.22F;
 	private static final float SWAY_DAMPING = 0.34F;
+	private static final float HEIGHT_STIFFNESS = 0.48F;
+	private static final float HEIGHT_DAMPING = 0.68F;
 	private static final float MAX_SIMULATION_STEP = 0.25F;
 	private static final float MAX_STRETCH = 0.38F;
 	private static final float MAX_SHEAR = 0.14F;
+	private static final float MIN_HEIGHT_SCALE = BouncingCrouch.HEIGHT_SCALE - 0.06F;
+	private static final float MAX_HEIGHT_SCALE = 1.10F;
 
 	private static final Map<Player, JellyState> STATES = new WeakHashMap<>();
 
@@ -45,8 +51,9 @@ public final class BouncingAnimation {
 		JellyState state = STATES.computeIfAbsent(player, ignored -> new JellyState());
 		state.update(player, partialTick, renderTime);
 
-		float verticalScale = Mth.clamp(1.0F + state.stretch, 1.0F - MAX_STRETCH, 1.0F + MAX_STRETCH);
-		float horizontalScale = Mth.clamp(1.0F / Mth.sqrt(verticalScale), 0.82F, 1.28F);
+		float jellyScale = Mth.clamp(1.0F + state.stretch, 1.0F - MAX_STRETCH, 1.0F + MAX_STRETCH);
+		float verticalScale = state.heightScale * jellyScale;
+		float horizontalScale = Mth.clamp(1.0F / Mth.sqrt(jellyScale), 0.82F, 1.28F);
 
 		// The entity render origin is at its feet. This affine transform has no Y
 		// translation, and its shear terms are proportional to height, so the bottom
@@ -101,7 +108,8 @@ public final class BouncingAnimation {
 			-MAX_SHEAR, MAX_SHEAR);
 		float targetShearZ = Mth.clamp(randomZ * randomSway - (float) movement.z * 0.10F,
 			-MAX_SHEAR, MAX_SHEAR);
-		return new Targets(targetStretch, targetShearX, targetShearZ);
+		float targetHeightScale = BouncingCrouch.isActive(player) ? BouncingCrouch.HEIGHT_SCALE : 1.0F;
+		return new Targets(targetStretch, targetShearX, targetShearZ, targetHeightScale);
 	}
 
 	private static float smoothstep(float value) {
@@ -126,12 +134,13 @@ public final class BouncingAnimation {
 		return ((value >>> 40) / 8388607.5F) - 1.0F;
 	}
 
-	private record Targets(float stretch, float shearX, float shearZ) {}
+	private record Targets(float stretch, float shearX, float shearZ, float heightScale) {}
 
 	private static final class JellyState {
 		private boolean initialized;
 		private int lastTick;
 		private boolean lastOnGround;
+		private boolean lastCrouching;
 		private double lastRenderTime;
 		private Vec3 lastMovement = Vec3.ZERO;
 
@@ -141,6 +150,8 @@ public final class BouncingAnimation {
 		private float shearVelocityX;
 		private float shearZ;
 		private float shearVelocityZ;
+		private float heightScale;
+		private float heightVelocity;
 
 		private void update(Player player, float partialTick, double renderTime) {
 			Vec3 movement = player.getDeltaMovement();
@@ -150,6 +161,12 @@ public final class BouncingAnimation {
 			if (!initialized || renderTime < lastRenderTime || renderTime - lastRenderTime > 5.0D) {
 				initialize(player, movement, onGround, renderTime, targets);
 				return;
+			}
+
+			boolean crouching = BouncingCrouch.isActive(player);
+			if (crouching != lastCrouching) {
+				applyCrouchImpulse(player, crouching);
+				lastCrouching = crouching;
 			}
 
 			if (player.tickCount != lastTick) {
@@ -170,6 +187,7 @@ public final class BouncingAnimation {
 			stretch = Mth.clamp(stretch, -MAX_STRETCH, MAX_STRETCH);
 			shearX = Mth.clamp(shearX, -MAX_SHEAR, MAX_SHEAR);
 			shearZ = Mth.clamp(shearZ, -MAX_SHEAR, MAX_SHEAR);
+			heightScale = Mth.clamp(heightScale, MIN_HEIGHT_SCALE, MAX_HEIGHT_SCALE);
 		}
 
 		private void initialize(Player player, Vec3 movement, boolean onGround, double renderTime,
@@ -177,14 +195,33 @@ public final class BouncingAnimation {
 			initialized = true;
 			lastTick = player.tickCount;
 			lastOnGround = onGround;
+			lastCrouching = BouncingCrouch.isActive(player);
 			lastRenderTime = renderTime;
 			lastMovement = movement;
 			stretch = targets.stretch;
 			shearX = targets.shearX;
 			shearZ = targets.shearZ;
+			heightScale = targets.heightScale;
 			stretchVelocity = 0.0F;
 			shearVelocityX = 0.0F;
 			shearVelocityZ = 0.0F;
+			heightVelocity = 0.0F;
+		}
+
+		private void applyCrouchImpulse(Player player, boolean crouching) {
+			float direction = crouching ? -1.0F : 1.0F;
+			heightVelocity = Mth.clamp(heightVelocity + direction * 0.045F, -0.16F, 0.16F);
+			stretchVelocity = Mth.clamp(stretchVelocity + direction * 0.14F, -0.28F, 0.28F);
+
+			long playerSeed = player.getUUID().getMostSignificantBits()
+				^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
+			float randomX = randomSigned(playerSeed, player.tickCount, CROUCH_X_IMPULSE_SALT);
+			float randomZ = randomSigned(playerSeed, player.tickCount, CROUCH_Z_IMPULSE_SALT);
+			float inverseLength = Mth.invSqrt(Math.max(randomX * randomX + randomZ * randomZ, 0.001F));
+			shearVelocityX = Mth.clamp(shearVelocityX + randomX * inverseLength * 0.045F,
+				-0.12F, 0.12F);
+			shearVelocityZ = Mth.clamp(shearVelocityZ + randomZ * inverseLength * 0.045F,
+				-0.12F, 0.12F);
 		}
 
 		private void applyMotionImpulse(Vec3 movement, boolean onGround) {
@@ -215,6 +252,10 @@ public final class BouncingAnimation {
 			shearVelocityZ += ((targets.shearZ - shearZ) * SWAY_STIFFNESS
 				- shearVelocityZ * SWAY_DAMPING) * step;
 			shearZ += shearVelocityZ * step;
+
+			heightVelocity += ((targets.heightScale - heightScale) * HEIGHT_STIFFNESS
+				- heightVelocity * HEIGHT_DAMPING) * step;
+			heightScale += heightVelocity * step;
 		}
 	}
 }

@@ -62,6 +62,14 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:block/scaffold/asurine_scaffold_connected"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:block/scaffold/asurine_scaffold_inside_connected"
+    },
+    {
+      "type": "single",
       "resource": "create_biotech:block/biotech_casing_connected"
     },
     {

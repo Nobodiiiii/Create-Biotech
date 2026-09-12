@@ -97,9 +97,12 @@ import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
+import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.render.ContraptionEntityRenderer;
 import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.content.decoration.encasing.EncasedCTBehaviour;
+import com.simibubi.create.content.decoration.MetalScaffoldingCTBehaviour;
+import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorRenderer;
 import com.simibubi.create.content.equipment.armor.CardboardArmorStealthOverlay;
 import com.simibubi.create.content.fluids.PipeAttachmentModel;
 import com.simibubi.create.content.kinetics.base.SingleAxisRotatingVisual;
@@ -114,10 +117,12 @@ import com.simibubi.create.foundation.item.KineticStats;
 import com.simibubi.create.foundation.item.TooltipModifier;
 
 import dev.engine_room.flywheel.lib.model.Models;
+import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 
 import net.createmod.catnip.lang.FontHelper;
+import net.createmod.catnip.data.Couple;
 import net.createmod.ponder.foundation.PonderIndex;
 
 import net.minecraft.client.Minecraft;
@@ -189,6 +194,7 @@ public class CreateBiotechClient {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.ALLAY_PORT.get(), AllayPortRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.GIANT_FROG.get(), GiantFrogRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.TABLE_CLOTH.get(), TableClothRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.ASURINE_DOOR.get(), SlidingDoorRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get(),
 			GhastHotAirBalloonEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON_SEAT.get(),
@@ -206,6 +212,14 @@ public class CreateBiotechClient {
 		java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register = location ->
 			event.register(new ModelResourceLocation(location, ModelResourceLocation.STANDALONE_VARIANT));
 		register.accept(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
+		PartialModel asurineDoorFoldLeft = PartialModel.of(
+			CreateBiotech.asResource("block/asurine_door/fold_left"));
+		PartialModel asurineDoorFoldRight = PartialModel.of(
+			CreateBiotech.asResource("block/asurine_door/fold_right"));
+		AllPartialModels.FOLDING_DOORS.put(CreateBiotech.asResource("asurine_door"),
+			Couple.create(asurineDoorFoldLeft, asurineDoorFoldRight));
+		register.accept(asurineDoorFoldLeft.modelLocation());
+		register.accept(asurineDoorFoldRight.modelLocation());
 		register.accept(DingDongChickenRenderer.BELL_BASE_MODEL.modelLocation());
 		register.accept(DingDongChickenRenderer.BELL_MODEL.modelLocation());
 		register.accept(DingDongChickenRenderer.BELL_PLUNGER_MODEL.modelLocation());
@@ -421,6 +435,10 @@ public class CreateBiotechClient {
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_TABLE_CLOTH.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SURGICAL_TABLE.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_SCAFFOLDING.get(), RenderType.cutout());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_LADDER.get(), RenderType.cutout());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_BARS.get(), RenderType.cutoutMipped());
+			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_DOOR.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
@@ -469,6 +487,9 @@ public class CreateBiotechClient {
 			com.simibubi.create.content.kinetics.belt.BeltModel::new);
 		customBlockModels.register(CreateBiotech.asResource("asurine_casing"),
 			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.ASURINE_CASING)));
+		customBlockModels.register(CreateBiotech.asResource("asurine_scaffolding"),
+			model -> new CTModel(model, new MetalScaffoldingCTBehaviour(CBSpriteShifts.ASURINE_SCAFFOLD,
+				CBSpriteShifts.ASURINE_SCAFFOLD_INSIDE, CBSpriteShifts.ASURINE_CASING)));
 		customBlockModels.register(CreateBiotech.asResource("biotech_casing"),
 			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.BIOTECH_CASING)));
 		customBlockModels.register(CreateBiotech.asResource("explosion_proof_casing"),

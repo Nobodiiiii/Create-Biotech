@@ -37,6 +37,10 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.BIOTECH_CASING.get());
 
 		add(BlockTags.MINEABLE_WITH_PICKAXE,
+			CBBlocks.ASURINE_SCAFFOLDING.get(),
+			CBBlocks.ASURINE_LADDER.get(),
+			CBBlocks.ASURINE_BARS.get(),
+			CBBlocks.ASURINE_DOOR.get(),
 			CBBlocks.SLIME_BELT.get(),
 			CBBlocks.MAGMA_BELT.get(),
 			CBBlocks.POWER_BELT.get(),
@@ -78,6 +82,13 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 
 		add(BlockTags.INSIDE_STEP_SOUND_BLOCKS,
 			CBBlocks.ASURINE_TABLE_CLOTH.get());
+
+		add(BlockTags.CLIMBABLE,
+			CBBlocks.ASURINE_SCAFFOLDING.get(),
+			CBBlocks.ASURINE_LADDER.get());
+
+		add(BlockTags.DOORS, CBBlocks.ASURINE_DOOR.get());
+		add(BlockTags.WOODEN_DOORS, CBBlocks.ASURINE_DOOR.get());
 
 		add(BlockTags.NEEDS_DIAMOND_TOOL,
 			CBBlocks.CREEPER_BLAST_CHAMBER.get(),

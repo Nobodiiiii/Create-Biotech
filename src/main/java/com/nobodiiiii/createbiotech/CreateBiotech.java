@@ -43,6 +43,8 @@ import com.simibubi.create.api.behaviour.movement.MovementBehaviour;
 import com.simibubi.create.api.behaviour.interaction.MovingInteractionBehaviour;
 import com.simibubi.create.api.boiler.BoilerHeater;
 import com.simibubi.create.api.stress.BlockStressValues;
+import com.simibubi.create.content.contraptions.behaviour.DoorMovingInteraction;
+import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorMovementBehaviour;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortTargetRegistry;
 import com.nobodiiiii.createbiotech.content.allay.logistics.courier.AllayCourierTaskManager;
 
@@ -126,6 +128,8 @@ public class CreateBiotech {
 			for (DyeColor color : DyeColor.values())
 				MovementBehaviour.REGISTRY.register(CBBlocks.BUFFER_PADS.get(color).get(), bufferPadMovementBehaviour);
 			MovingInteractionBehaviour.REGISTRY.register(CBBlocks.GHAST_HELM.get(), new GhastHelmMovingInteraction());
+			MovementBehaviour.REGISTRY.register(CBBlocks.ASURINE_DOOR.get(), new SlidingDoorMovementBehaviour());
+			MovingInteractionBehaviour.REGISTRY.register(CBBlocks.ASURINE_DOOR.get(), new DoorMovingInteraction());
 			GhastBalloonRopeShearsInteraction ghastBalloonRopeShears = new GhastBalloonRopeShearsInteraction();
 			MovingInteractionBehaviour.REGISTRY.register(AllBlocks.ROPE.get(), ghastBalloonRopeShears);
 			MovingInteractionBehaviour.REGISTRY.register(AllBlocks.PULLEY_MAGNET.get(), ghastBalloonRopeShears);

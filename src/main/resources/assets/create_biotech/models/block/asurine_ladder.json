@@ -1,0 +1,8 @@
+{
+  "parent": "create:block/ladder",
+  "textures": {
+    "0": "create_biotech:block/ladder_asurine_hoop",
+    "1": "create_biotech:block/ladder_asurine",
+    "particle": "create_biotech:block/ladder_asurine"
+  }
+}

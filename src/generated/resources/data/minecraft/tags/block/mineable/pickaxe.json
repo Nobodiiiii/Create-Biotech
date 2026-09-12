@@ -1,5 +1,9 @@
 {
   "values": [
+    "create_biotech:asurine_scaffolding",
+    "create_biotech:asurine_ladder",
+    "create_biotech:asurine_bars",
+    "create_biotech:asurine_door",
     "create_biotech:slime_belt",
     "create_biotech:magma_belt",
     "create_biotech:power_belt",

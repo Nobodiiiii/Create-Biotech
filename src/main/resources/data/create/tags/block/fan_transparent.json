@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "create_biotech:magma_cube_burner"
+    "create_biotech:magma_cube_burner",
+    "create_biotech:asurine_bars"
   ]
 }

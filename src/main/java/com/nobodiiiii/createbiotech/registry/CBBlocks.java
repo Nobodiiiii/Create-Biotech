@@ -50,7 +50,11 @@ import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortBlock
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.ExplosionProofCasingBlock;
+import com.nobodiiiii.createbiotech.content.decoration.AsurineSlidingDoorBlock;
 import com.simibubi.create.content.decoration.encasing.CasingBlock;
+import com.simibubi.create.content.decoration.MetalLadderBlock;
+import com.simibubi.create.content.decoration.MetalScaffoldingBlock;
+import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorBlock;
 import com.simibubi.create.content.decoration.palettes.ConnectedGlassBlock;
 import com.simibubi.create.api.stress.BlockStressValues;
 
@@ -58,6 +62,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.IronBarsBlock;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.TransparentBlock;
@@ -231,6 +236,32 @@ public class CBBlocks {
 			() -> new CasingBlock(CBSharedProperties.createStone()
 				.sound(SoundType.WOOD)
 				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
+
+	public static final DeferredHolder<Block, MetalScaffoldingBlock> ASURINE_SCAFFOLDING =
+		BLOCKS.register("asurine_scaffolding",
+			() -> new MetalScaffoldingBlock(Block.Properties.ofFullCopy(Blocks.SCAFFOLDING)
+				.sound(SoundType.COPPER)
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
+
+	public static final DeferredHolder<Block, MetalLadderBlock> ASURINE_LADDER =
+		BLOCKS.register("asurine_ladder",
+			() -> new MetalLadderBlock(Block.Properties.ofFullCopy(Blocks.LADDER)
+				.sound(SoundType.COPPER)
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
+
+	public static final DeferredHolder<Block, IronBarsBlock> ASURINE_BARS =
+		BLOCKS.register("asurine_bars",
+			() -> new IronBarsBlock(Block.Properties.ofFullCopy(Blocks.IRON_BARS)
+				.sound(SoundType.COPPER)
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)));
+
+	public static final DeferredHolder<Block, AsurineSlidingDoorBlock> ASURINE_DOOR =
+		BLOCKS.register("asurine_door",
+			() -> new AsurineSlidingDoorBlock(Block.Properties.ofFullCopy(Blocks.IRON_DOOR)
+				.requiresCorrectToolForDrops()
+				.strength(3.0f, 6.0f)
+				.mapColor(MapColor.COLOR_LIGHT_BLUE)
+				.noOcclusion(), SlidingDoorBlock.STONE_SET_TYPE.get()));
 
 	public static final DeferredHolder<Block, CasingBlock> BIOTECH_CASING =
 		BLOCKS.register("biotech_casing",
