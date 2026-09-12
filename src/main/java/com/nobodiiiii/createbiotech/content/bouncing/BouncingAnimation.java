@@ -14,10 +14,14 @@ import net.minecraft.world.phys.Vec3;
 
 /** Client-side, ground-anchored jelly deformation for the bouncing mob effect. */
 public final class BouncingAnimation {
-	private static final float IDLE_CYCLE_TICKS = 24.0F;
-	private static final float SWAY_KEYFRAME_TICKS = 6.0F;
-	private static final long X_NOISE_SALT = 0x632BE59BD9B4E019L;
-	private static final long Z_NOISE_SALT = 0x9E3779B97F4A7C15L;
+	private static final float IDLE_SWAY_KEYFRAME_TICKS = 18.0F;
+	private static final float ACTIVE_SWAY_KEYFRAME_TICKS = 6.0F;
+	private static final long IDLE_X_NOISE_SALT = 0xA24BAED4963EE407L;
+	private static final long IDLE_Z_NOISE_SALT = 0x9FB21C651E98DF25L;
+	private static final long ACTIVE_X_NOISE_SALT = 0x632BE59BD9B4E019L;
+	private static final long ACTIVE_Z_NOISE_SALT = 0x9E3779B97F4A7C15L;
+	private static final long IDLE_STRETCH_A_SALT = 0xC6BC279692B5CC83L;
+	private static final long IDLE_STRETCH_B_SALT = 0xDB4F0B9175AE2165L;
 
 	private static final float STRETCH_STIFFNESS = 0.32F;
 	private static final float STRETCH_DAMPING = 0.38F;
@@ -61,21 +65,30 @@ public final class BouncingAnimation {
 		float smoothedWalkAmount = smoothstep(walkAmount);
 		Vec3 movement = player.getDeltaMovement();
 		float verticalMovement = player.onGround() || player.isPassenger() ? 0.0F : (float) movement.y;
+		float airborneEnergy = Mth.clamp(Math.abs(verticalMovement) * 2.5F, 0.0F, 1.0F);
+		float activeBlend = smoothstep(Mth.clamp(Math.max(smoothedWalkAmount, airborneEnergy), 0.0F, 1.0F));
+		long playerSeed = player.getUUID().getMostSignificantBits()
+			^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
 
-		double idlePhase = (renderTime % IDLE_CYCLE_TICKS) * Mth.TWO_PI / IDLE_CYCLE_TICKS;
-		float idleWave = (float) (0.82D * Math.sin(idlePhase)
-			+ 0.18D * Math.sin(idlePhase * 2.0D + 0.6D));
+		double idlePhaseA = renderTime * Mth.TWO_PI / 46.0D
+			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_A_SALT) * Math.PI;
+		double idlePhaseB = renderTime * Mth.TWO_PI / 73.0D
+			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_B_SALT) * Math.PI;
+		float idleWave = (float) (0.68D * Math.sin(idlePhaseA) + 0.32D * Math.sin(idlePhaseB));
 		float walkWave = (float) Math.sin(player.walkAnimation.position(partialTick) * 0.6662F);
 		float velocityLag = Mth.clamp(-verticalMovement * 0.38F, -0.16F, 0.22F);
 		float targetStretch = Mth.clamp(
-			0.055F * idleWave + 0.11F * smoothedWalkAmount * walkWave + velocityLag,
+			0.05F * idleWave + 0.11F * smoothedWalkAmount * walkWave + velocityLag,
 			-MAX_STRETCH, MAX_STRETCH);
 
-		double swayTime = renderTime / SWAY_KEYFRAME_TICKS;
-		long playerSeed = player.getUUID().getMostSignificantBits()
-			^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
-		float randomX = smoothRandom(playerSeed, swayTime, X_NOISE_SALT);
-		float randomZ = smoothRandom(playerSeed, swayTime, Z_NOISE_SALT);
+		double idleSwayTime = renderTime / IDLE_SWAY_KEYFRAME_TICKS;
+		double activeSwayTime = renderTime / ACTIVE_SWAY_KEYFRAME_TICKS;
+		float randomX = Mth.lerp(activeBlend,
+			smoothRandom(playerSeed, idleSwayTime, IDLE_X_NOISE_SALT),
+			smoothRandom(playerSeed, activeSwayTime, ACTIVE_X_NOISE_SALT));
+		float randomZ = Mth.lerp(activeBlend,
+			smoothRandom(playerSeed, idleSwayTime, IDLE_Z_NOISE_SALT),
+			smoothRandom(playerSeed, activeSwayTime, ACTIVE_Z_NOISE_SALT));
 		float randomLengthSqr = randomX * randomX + randomZ * randomZ;
 		if (randomLengthSqr > 1.0F) {
 			float inverseLength = Mth.invSqrt(randomLengthSqr);
@@ -83,7 +96,6 @@ public final class BouncingAnimation {
 			randomZ *= inverseLength;
 		}
 
-		float airborneEnergy = Mth.clamp(Math.abs(verticalMovement) * 2.5F, 0.0F, 1.0F);
 		float randomSway = 0.018F + 0.05F * smoothedWalkAmount + 0.04F * airborneEnergy;
 		float targetShearX = Mth.clamp(randomX * randomSway - (float) movement.x * 0.10F,
 			-MAX_SHEAR, MAX_SHEAR);
