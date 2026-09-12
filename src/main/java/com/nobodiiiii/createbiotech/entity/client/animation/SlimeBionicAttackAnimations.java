@@ -7,9 +7,14 @@ import net.minecraft.util.Mth;
 
 /** Authored attack catalogue for the bionic slime's articulated limbs. */
 final class SlimeBionicAttackAnimations {
-	private static final float WEAPON_SWING_CURVE_SECONDS = 1.125f;
+	private static final float WEAPON_SWING_CURVE_SECONDS =
+		SlimeBionicAttackTiming.ARTICULATED_WEAPON_CURVE_SECONDS;
 	private static final float ARTICULATED_EMPTY_HAND_CURVE_TICKS =
 		SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_CURVE_TICKS;
+	private static final float ARTICULATED_EMPTY_HAND_IMPACT_TICK =
+		SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_IMPACT_TICK;
+	private static final float WEAPON_SWING_IMPACT_SECONDS =
+		SlimeBionicAttackTiming.ARTICULATED_WEAPON_IMPACT_SECONDS;
 	private static final float RIGID_ARM_CURVE_TICKS =
 		SlimeBionicAttackTiming.RIGID_ARM_CURVE_TICKS;
 	private static final AttackPose RIGID_ARM_WINDUP = new AttackPose(
@@ -38,27 +43,27 @@ final class SlimeBionicAttackAnimations {
 	private static final RotationTrack WEAPON_SWING_BODY = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(30.92f, -18.9477f, 2.2213f)),
-		new RotationKeyframe(0.5833f, Rotation.degrees(-18.0307f, 17.6929f, -7.484f)),
+		new RotationKeyframe(WEAPON_SWING_IMPACT_SECONDS, Rotation.degrees(-18.0307f, 17.6929f, -7.484f)),
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 	private static final RotationTrack WEAPON_SWING_SHOULDER = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(-84.9218f, -21.8243f, 44.1778f)),
-		new RotationKeyframe(0.5833f, Rotation.degrees(26.4907f, -18.339f, 42.6343f)),
+		new RotationKeyframe(WEAPON_SWING_IMPACT_SECONDS, Rotation.degrees(26.4907f, -18.339f, 42.6343f)),
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 	private static final RotationTrack WEAPON_SWING_ELBOW = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(-40.3483f, -20.4366f, 29.0527f)),
-		new RotationKeyframe(0.5833f, Rotation.degrees(-7.14f, 0.0f, 0.0f)),
+		new RotationKeyframe(WEAPON_SWING_IMPACT_SECONDS, Rotation.degrees(-7.14f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 	private static final RotationTrack WEAPON_SWING_OPPOSITE_SHOULDER = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(33.5119f, 6.743f, -27.941f)),
-		new RotationKeyframe(0.5833f, Rotation.degrees(4.2643f, -9.2743f, -26.4761f)),
+		new RotationKeyframe(WEAPON_SWING_IMPACT_SECONDS, Rotation.degrees(4.2643f, -9.2743f, -26.4761f)),
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 	private static final RotationTrack WEAPON_SWING_OPPOSITE_ELBOW = new RotationTrack(
 		new RotationKeyframe(0.0f, Rotation.degrees(0.0f, 0.0f, 0.0f)),
 		new RotationKeyframe(0.3333f, Rotation.degrees(-22.1665f, 13.4716f, -18.1914f)),
-		new RotationKeyframe(0.5833f, Rotation.degrees(2.1921f, 9.3762f, -12.6612f)),
+		new RotationKeyframe(WEAPON_SWING_IMPACT_SECONDS, Rotation.degrees(2.1921f, 9.3762f, -12.6612f)),
 		new RotationKeyframe(0.9583f, Rotation.degrees(0.0f, 0.0f, 0.0f)));
 
 	private SlimeBionicAttackAnimations() {}
@@ -94,14 +99,14 @@ final class SlimeBionicAttackAnimations {
 				new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
 					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
 					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW), tick / 10.0f);
-		else if (tick < 15.0f)
+		else if (tick < ARTICULATED_EMPTY_HAND_IMPACT_TICK)
 			pose = interpolate(new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
 					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
 					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW),
 				new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
 					EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
 					EMPTY_HAND_STRIKE_OPPOSITE_ELBOW),
-				(tick - 10.0f) / 5.0f);
+				(tick - 10.0f) / (ARTICULATED_EMPTY_HAND_IMPACT_TICK - 10.0f));
 		else if (tick < 20.0f)
 			pose = new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
 				EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,

@@ -6,13 +6,13 @@ import net.minecraft.world.entity.Entity;
 
 /** Starts one presentation or synchronizes the logical preview's direction and remaining time. */
 public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean restart,
-	boolean left, int slot, boolean weapon, int interval, int remainingTicks,
+	boolean left, int slot, boolean weapon, boolean hasElbow, int interval, int remainingTicks,
 	float aimYaw, float aimPitch, float bodyYaw) {
 
 	public SlimeBionicAttackActionPacket(RegistryFriendlyByteBuf buffer) {
 		this(buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean(), buffer.readBoolean(),
-			buffer.readVarInt(), buffer.readBoolean(), buffer.readVarInt(), buffer.readVarInt(), buffer.readFloat(),
-			buffer.readFloat(), buffer.readFloat());
+			buffer.readVarInt(), buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt(),
+			buffer.readVarInt(), buffer.readFloat(), buffer.readFloat(), buffer.readFloat());
 	}
 
 	public static SlimeBionicAttackActionPacket start(SlimeBionicEntity entity) {
@@ -26,7 +26,7 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 	private static SlimeBionicAttackActionPacket snapshot(SlimeBionicEntity entity, boolean restart) {
 		return new SlimeBionicAttackActionPacket(entity.getId(), entity.getAttackActionSequence(), restart,
 			entity.isAttackActionLeft(), entity.getAttackActionArmSlot(), entity.isAttackActionWeapon(),
-			entity.getAttackActionInterval(), entity.getAttackActionTick(),
+			entity.hasAttackActionElbow(), entity.getAttackActionInterval(), entity.getAttackActionTick(),
 			entity.getAttackAimYaw(), entity.getAttackAimPitch(), entity.getAttackBodyYaw());
 	}
 
@@ -37,6 +37,7 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 		buffer.writeBoolean(left);
 		buffer.writeVarInt(slot);
 		buffer.writeBoolean(weapon);
+		buffer.writeBoolean(hasElbow);
 		buffer.writeVarInt(interval);
 		buffer.writeVarInt(remainingTicks);
 		buffer.writeFloat(aimYaw);
@@ -49,7 +50,7 @@ public record SlimeBionicAttackActionPacket(int entityId, int sequence, boolean 
 			return;
 		Entity found = player.level().getEntity(entityId);
 		if (found instanceof SlimeBionicEntity bionic)
-			bionic.applyAttackAction(sequence, restart, left, slot, weapon, interval, remainingTicks,
+			bionic.applyAttackAction(sequence, restart, left, slot, weapon, hasElbow, interval, remainingTicks,
 				aimYaw, aimPitch, bodyYaw);
 	}
 }

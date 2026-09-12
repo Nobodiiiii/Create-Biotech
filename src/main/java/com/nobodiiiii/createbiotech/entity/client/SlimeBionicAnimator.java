@@ -150,7 +150,7 @@ public final class SlimeBionicAnimator {
 			restDirection = tip.center().subtract(attackOrigin);
 		return SurgicalAssembly.ArmAttackGeometry.create(attackOrigin.subtract(bodyOrigin), reach,
 			minimumY - (float) bodyOrigin.y, maximumY - (float) bodyOrigin.y, tip.radius(), volume,
-			restDirection.lengthSqr() <= GEOMETRY_EPSILON ? null : restDirection);
+			restDirection.lengthSqr() <= GEOMETRY_EPSILON ? null : restDirection, elbowIndex >= 0);
 	}
 
 	/** Coverage-weighted union of the distinct cuboids driven by this arm's joints. */

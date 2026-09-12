@@ -5,38 +5,42 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
+import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
-/** Server melee rules. No timing or geometry is sampled from the rendered attack animation. */
+/** Server melee rules. Geometry is static; articulated contact timing uses authored curve markers. */
 public final class SlimeBionicCombat {
-	public static final int MAX_ACTION_TICKS = 8;
+	public static final int MAX_ACTION_TICKS = SlimeBionicAttackTiming.PLAYBACK_TICKS;
 	public static final float HORIZONTAL_HALF_ANGLE_DEGREES = 35.0f;
 	public static final float VERTICAL_HALF_ANGLE_DEGREES = 45.0f;
 	public static final float MAX_AIM_YAW_DEGREES = 55.0f;
 	public static final float MIN_AIM_PITCH_DEGREES = -60.0f;
 	public static final float MAX_AIM_PITCH_DEGREES = 60.0f;
 	public static final float FRONT_HALF_ANGLE_DEGREES = 90.0f;
-	private static final int ACTIVE_TICKS = 2;
+	private static final int ACTIVE_TICKS = 5;
 	private static final double EPSILON = 1.0e-8d;
 	private static final AngularRange BODY_RANGE = new AngularRange(-FRONT_HALF_ANGLE_DEGREES,
 		FRONT_HALF_ANGLE_DEGREES, -90.0f, 90.0f);
 
 	private SlimeBionicCombat() {}
 
-	/** Three to six preparation ticks followed by two contact ticks; recovery uses its own clock. */
+	/** Logical contact tracking lasts for the same retimed playback duration for every arm type. */
 	public static int duration(int attackInterval) {
-		return Mth.clamp(Math.round(attackInterval * 0.2f), 3, 6) + ACTIVE_TICKS;
+		return SlimeBionicAttackTiming.playbackTicks(attackInterval);
 	}
 
-	public static int activeStartTick(int duration) {
-		return Math.max(1, duration - ACTIVE_TICKS);
+	/** Rigid arms retain their early contact position; articulated arms follow their authored impact. */
+	public static int contactStartTick(int attackInterval, boolean hasElbow, boolean weapon) {
+		return hasElbow
+			? SlimeBionicAttackTiming.articulatedImpactTick(attackInterval, weapon)
+			: Mth.clamp(Math.round(attackInterval * 0.2f), 3, 6);
 	}
 
-	public static boolean isActiveTick(int elapsed, int duration) {
-		return elapsed >= activeStartTick(duration) && elapsed < duration;
+	public static boolean isContactTick(int elapsed, int contactStart) {
+		return elapsed >= contactStart && elapsed < contactStart + ACTIVE_TICKS;
 	}
 
 	/** Missing arm geometry gets a short body strike, including old assemblies and armless bodies. */

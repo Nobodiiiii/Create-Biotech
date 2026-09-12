@@ -79,6 +79,7 @@ public final class SurgicalAssembly {
 	private static final String ATTACK_MINIMUM_Y_TAG = "MinimumY";
 	private static final String ATTACK_MAXIMUM_Y_TAG = "MaximumY";
 	private static final String ATTACK_REST_DIRECTION_TAG = "RestDirection";
+	private static final String ATTACK_HAS_ELBOW_TAG = "HasElbow";
 	private static final String FACING_TAG = "Facing";
 	private static final String LAY_POSE_TAG = "LayPose";
 	private static final String POSE_AXIS_TAG = "Axis";
@@ -924,7 +925,7 @@ public final class SurgicalAssembly {
 		return List.copyOf(decoded);
 	}
 
-	/** Immutable physical dimensions for every installed arm, baked from the rest geometry. */
+	/** Immutable physical dimensions and articulation for every installed arm, baked from the rest geometry. */
 	public record AttackGeometry(List<ArmAttackGeometry> right,
 		List<ArmAttackGeometry> left) {
 		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
@@ -1075,7 +1076,7 @@ public final class SurgicalAssembly {
 	}
 
 	public record ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
-		float radius, float volume, @Nullable Vec3 restDirection) {
+		float radius, float volume, @Nullable Vec3 restDirection, boolean hasElbow) {
 		private static final float MIN_RADIUS = 0.05f;
 		private static final float MAX_RADIUS = 8.0f;
 		private static final float MAX_VOLUME = (float) (MAX_BODY_SIZE * MAX_BODY_SIZE * MAX_BODY_SIZE);
@@ -1083,7 +1084,12 @@ public final class SurgicalAssembly {
 		/** Old assemblies and body strikes keep the generic range when no rest direction was saved. */
 		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
 			float radius, float volume) {
-			this(origin, reach, minimumY, maximumY, radius, volume, null);
+			this(origin, reach, minimumY, maximumY, radius, volume, null, false);
+		}
+
+		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
+			float radius, float volume, @Nullable Vec3 restDirection) {
+			this(origin, reach, minimumY, maximumY, radius, volume, restDirection, false);
 		}
 
 		public ArmAttackGeometry {
@@ -1106,14 +1112,22 @@ public final class SurgicalAssembly {
 		@Nullable
 		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
 			float maximumY, float radius, float volume) {
-			return create(origin, reach, minimumY, maximumY, radius, volume, null);
+			return create(origin, reach, minimumY, maximumY, radius, volume, null, false);
 		}
 
 		@Nullable
 		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
 			float maximumY, float radius, float volume, @Nullable Vec3 restDirection) {
+			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection, false);
+		}
+
+		@Nullable
+		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
+			float maximumY, float radius, float volume, @Nullable Vec3 restDirection,
+			boolean hasElbow) {
 			try {
-				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume, restDirection);
+				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume,
+					restDirection, hasElbow);
 			} catch (IllegalArgumentException ignored) {
 				return null;
 			}
@@ -1136,6 +1150,7 @@ public final class SurgicalAssembly {
 				direction.putFloat("Z", (float) restDirection.z);
 				tag.put(ATTACK_REST_DIRECTION_TAG, direction);
 			}
+			tag.putBoolean(ATTACK_HAS_ELBOW_TAG, hasElbow);
 			return tag;
 		}
 
@@ -1154,6 +1169,7 @@ public final class SurgicalAssembly {
 				buffer.writeFloat((float) restDirection.y);
 				buffer.writeFloat((float) restDirection.z);
 			}
+			buffer.writeBoolean(hasElbow);
 		}
 
 		@Nullable
@@ -1166,11 +1182,14 @@ public final class SurgicalAssembly {
 			float volume = buffer.readFloat();
 			Vec3 restDirection = buffer.readBoolean()
 				? new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat()) : null;
-			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection);
+			boolean hasElbow = buffer.readBoolean();
+			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection, hasElbow);
 		}
 
 		@Nullable
 		static ArmAttackGeometry load(CompoundTag tag) {
+			if (hasWrongType(tag, ATTACK_HAS_ELBOW_TAG, Tag.TAG_BYTE))
+				return null;
 			if (!tag.contains(ATTACK_ORIGIN_X_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_ORIGIN_Y_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_ORIGIN_Z_TAG, Tag.TAG_ANY_NUMERIC)
@@ -1194,7 +1213,7 @@ public final class SurgicalAssembly {
 				tag.getFloat(ATTACK_ORIGIN_Y_TAG), tag.getFloat(ATTACK_ORIGIN_Z_TAG)),
 				tag.getFloat(ATTACK_REACH_TAG), tag.getFloat(ATTACK_MINIMUM_Y_TAG),
 				tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG),
-				tag.getFloat(ATTACK_VOLUME_TAG), restDirection);
+				tag.getFloat(ATTACK_VOLUME_TAG), restDirection, tag.getBoolean(ATTACK_HAS_ELBOW_TAG));
 		}
 	}
 

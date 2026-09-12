@@ -104,6 +104,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private boolean attackActionLeft;
 	private int attackActionArmSlot;
 	private boolean attackActionWeapon;
+	private boolean attackActionHasElbow;
 	private int attackActionSequence;
 	private float attackAimYaw;
 	private float attackAimPitch;
@@ -387,8 +388,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 			geometry == null ? null : selected.arm());
 		int recovery = SurgicalCombatCalibration.armRecovery(stats, intelligence);
 		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms(), intelligence);
-		startAttackAction(selected, interval);
-		return new AttackStart(SlimeBionicCombat.duration(interval), interval, recovery, stats.damageMultiplier(),
+		int actionDuration = startAttackAction(selected, interval);
+		return new AttackStart(actionDuration,
+			SlimeBionicCombat.contactStartTick(interval, selected.arm().hasElbow(), selected.weapon()),
+			interval, recovery, stats.damageMultiplier(),
 			selected.arm(), selected.aim(), selected.left(), selected.slot());
 	}
 
@@ -450,17 +453,19 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return new ArmSelection(new ArmCandidate(false, 0, false, arm, aim, 0.0d), 1);
 	}
 
-	private void startAttackAction(ArmCandidate selected, int interval) {
+	private int startAttackAction(ArmCandidate selected, int interval) {
 		attackActionInterval = interval;
-		attackActionDuration = SlimeBionicCombat.duration(interval);
-		attackActionTick = attackActionDuration;
 		attackActionLeft = selected.left();
 		attackActionArmSlot = selected.slot();
 		attackActionWeapon = selected.weapon();
+		attackActionHasElbow = selected.arm().hasElbow();
+		attackActionDuration = SlimeBionicCombat.duration(interval);
+		attackActionTick = attackActionDuration;
 		attackBodyYaw = combatBodyYaw();
 		attackActionSequence++;
 		setAttackAim(selected.aim());
 		CBPackets.sendToTrackingEntity(SlimeBionicAttackActionPacket.start(this), this);
+		return attackActionDuration;
 	}
 
 	private void setAttackAim(Vec3 aim) {
@@ -644,7 +649,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			ClipContext.Fluid.NONE, this)).getType() == HitResult.Type.MISS;
 	}
 
-	private record AttackStart(int actionDuration, int globalAttackInterval, int armRecovery,
+	private record AttackStart(int actionDuration, int contactStartTick,
+		int globalAttackInterval, int armRecovery,
 		double damageMultiplier, SurgicalAssembly.ArmAttackGeometry arm, Vec3 aim,
 		boolean left, int slot) {}
 
@@ -665,8 +671,16 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	/** Client ticks must not colour a still-tracking aim as contact before the server locks it. */
 	public boolean isAttackPreviewContact() {
-		return attackActionTick > 0 && SlimeBionicCombat.isActiveTick(
-			attackActionDuration - attackActionSnapshotTick, attackActionDuration);
+		int contactStart = getAttackActionContactStartTick();
+		int synchronizedElapsed = attackActionDuration - attackActionSnapshotTick;
+		int localElapsed = attackActionDuration - attackActionTick;
+		return attackActionTick > 0 && synchronizedElapsed >= contactStart
+			&& SlimeBionicCombat.isContactTick(localElapsed, contactStart);
+	}
+
+	public int getAttackActionContactStartTick() {
+		return SlimeBionicCombat.contactStartTick(attackActionInterval,
+			attackActionHasElbow, attackActionWeapon);
 	}
 
 	public int getAttackActionInterval() {
@@ -687,6 +701,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public boolean isAttackActionWeapon() {
 		return attackActionWeapon;
+	}
+
+	public boolean hasAttackActionElbow() {
+		return attackActionHasElbow;
 	}
 
 	public int getAttackActionSequence() {
@@ -723,7 +741,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	/** Applies a clientbound snapshot; tracking, aim-lock and cancellation never restart the animation. */
 	public void applyAttackAction(int sequence, boolean restart, boolean left, int slot,
-		boolean weapon, int interval, int remainingTicks, float aimYaw, float aimPitch, float bodyYaw) {
+		boolean weapon, boolean hasElbow, int interval, int remainingTicks,
+		float aimYaw, float aimPitch, float bodyYaw) {
 		if (!level().isClientSide || !Float.isFinite(aimYaw) || !Float.isFinite(aimPitch)
 			|| !Float.isFinite(bodyYaw))
 			return;
@@ -741,12 +760,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 		attackActionSequence = sequence;
 		attackActionInterval = Mth.clamp(interval, SurgicalCombatCalibration.MIN_GLOBAL_ATTACK_INTERVAL,
 			SurgicalCombatCalibration.MAX_GLOBAL_ATTACK_INTERVAL);
-		attackActionDuration = SlimeBionicCombat.duration(attackActionInterval);
-		attackActionTick = Mth.clamp(remainingTicks, 0, attackActionDuration);
-		attackActionSnapshotTick = attackActionTick;
 		attackActionLeft = left;
 		attackActionArmSlot = Mth.clamp(slot, 0, SurgicalLimbType.SHOULDER.maxPerBody() - 1);
 		attackActionWeapon = weapon;
+		attackActionHasElbow = hasElbow;
+		attackActionDuration = SlimeBionicCombat.duration(attackActionInterval);
+		attackActionTick = Mth.clamp(remainingTicks, 0, attackActionDuration);
+		attackActionSnapshotTick = attackActionTick;
 		attackAnimationDuration = SlimeBionicAttackTiming.playbackTicks(attackActionInterval);
 		attackAnimationTick = attackAnimationDuration;
 		attackAnimationLeft = attackActionLeft;
@@ -817,6 +837,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		private LivingEntity pendingAttackTarget;
 		private long pendingAttackStartedAt;
 		private int pendingAttackDuration;
+		private int pendingContactStartTick;
 		private boolean pendingImpactApplied;
 		private double pendingDamageMultiplier = 1.0d;
 		@Nullable
@@ -876,6 +897,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			currentAttackInterval = attack.globalAttackInterval();
 			bionic.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
 			pendingAttackDuration = attack.actionDuration();
+			pendingContactStartTick = attack.contactStartTick();
 			pendingArmGeometry = attack.arm();
 			pendingAim = attack.aim();
 			pendingBodyYaw = bionic.combatBodyYaw();
@@ -903,7 +925,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 				return;
 			}
 			int pendingAttackElapsed = (int) elapsed;
-			int activeStart = SlimeBionicCombat.activeStartTick(pendingAttackDuration);
+			int activeStart = pendingContactStartTick;
 			// The final preparation tick commits both the aim and shoulder orientation. Neither
 			// navigation nor model/body smoothing can sweep the strike around after this point.
 			if (pendingAttackElapsed < activeStart) {
@@ -916,7 +938,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 				pendingAimSynchronized = true;
 				bionic.synchronizeAttackAim(pendingAim, pendingBodyYaw, pendingAttackDuration - pendingAttackElapsed);
 			}
-			if (!pendingImpactApplied && SlimeBionicCombat.isActiveTick(pendingAttackElapsed, pendingAttackDuration)
+			if (!pendingImpactApplied && SlimeBionicCombat.isContactTick(pendingAttackElapsed,
+				pendingContactStartTick)
 				&& SlimeBionicCombat.intersects(target.getBoundingBox(), bionic.position(), pendingBodyYaw,
 					pendingAim, pendingArmGeometry)
 				&& bionic.hasAttackLineOfSight(target, pendingArmGeometry, pendingBodyYaw)) {
@@ -948,6 +971,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			pendingAttackTarget = null;
 			pendingAttackStartedAt = 0L;
 			pendingAttackDuration = 0;
+			pendingContactStartTick = 0;
 			pendingImpactApplied = false;
 			pendingArmGeometry = null;
 			pendingAim = null;

@@ -63,7 +63,8 @@ public final class SlimeBionicAttackRangeRenderer {
 		int duration = entity.getAttackActionDuration();
 		int elapsed = duration - entity.getAttackActionTick();
 		boolean active = entity.isAttackPreviewContact();
-		float preparation = Mth.clamp((elapsed + partialTick) / SlimeBionicCombat.activeStartTick(duration), 0.0f, 1.0f);
+		float preparation = Mth.clamp((elapsed + partialTick)
+			/ entity.getAttackActionContactStartTick(), 0.0f, 1.0f);
 		float red = active ? 1.0f : 0.12f;
 		float green = active ? 0.48f : 0.82f;
 		float blue = active ? 0.08f : 1.0f;

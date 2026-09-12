@@ -14,7 +14,7 @@
 
 ## 装配姿态特化
 
-打包时保存每只手臂在身体坐标中的单位方向 `restDirection`：有肘时优先取肩到肘的方向，单段手臂取肩到手端的方向；肩肘重合时再用肩到手端。这个数据与肩部位置、臂长一起保存和同步，不取样待机、行走或攻击动画。
+打包时保存每只手臂在身体坐标中的单位方向 `restDirection` 和 `hasElbow`：有肘时优先取肩到肘的方向，单段手臂取肩到手端的方向；肩肘重合时再用肩到手端。这个数据与肩部位置、臂长一起保存和同步，不取样待机、行走或攻击动画几何。
 
 | 装配姿态 | 垂直活动范围（相对肩部水平线） | 水平活动范围 |
 | --- | --- | --- |
@@ -47,19 +47,19 @@
 
 1. 全局冷却结束、目标有效且可见时，选择符合条件的手臂。
 2. 立即记录全局及该手臂的下次可用游戏时间。即使落空、被格挡、目标离开或 AI 中断，这些时间也不清零。
-3. 准备时长为 `clamp(round(全局间隔 × 0.2), 3, 6)` tick；期间有限追踪，暂停主动追赶。
-4. 接触窗口持续 2 tick，使用锁定方向判定。首次接触只调用一次伤害流程，即使伤害被盾牌、无敌帧或事件拒绝也不会重复调用。
+3. 无肘手臂的准备时长仍为 `clamp(round(全局间隔 × 0.2), 3, 6)` tick；有肘手臂按实际播放长度，将空手动画的第 15/25 曲线 tick 或武器动画的 0.5833/1.125 秒关键帧换算并四舍五入为整数 tick。准备期间有限追踪，暂停主动追赶。
+4. 接触窗口持续 5 tick，使用锁定方向判定。首次接触只调用一次伤害流程，即使伤害被盾牌、无敌帧或事件拒绝也不会重复调用。
 5. 接触窗口结束后恢复追赶，等待全局与手臂冷却。换目标会取消旧动作，但不会把旧动作转移到新目标或刷新冷却。
 
 攻击阶段按服务端游戏时间推进；AI 暂停后恢复不会补发已经过期的攻击。攻击过程中每 tick 重新检查目标存活、世界、当前目标身份、队伍及创造/旁观状态。站在攻击范围内时，寻路完成不会导致近战 Goal 不断退出重启。
 
-客户端接收攻击开始、准备期间的追踪、方向锁定和取消事件；方向更新同时校正逻辑动作的剩余时间，不重启动画。逻辑动作时长为 5–8 tick，通常动画播放 15 tick，播放速度由全局间隔选择。手部轨迹以近竖直手臂攻击正前方等高目标的现有动作作为零偏移基准，末端轻度偏向所选手臂最终攻击扇区的角度中心；服务端命中仍不取样动画，二者只共享已选手臂和瞄准快照。
+客户端接收攻击开始、准备期间的追踪、方向锁定和取消事件；方向更新同时校正逻辑动作的剩余时间，不重启动画。无肘和有肘逻辑动作统一使用动画播放时长：快速攻击为 12–19 tick，标准及更慢攻击从起手到完全复位为 20 tick。三种动作的接触窗口均为 5 tick，仅位置不同；标准间隔下无肘位于第 4–8 tick、有肘空手位于第 12–16 tick、有肘持武器位于第 10–14 tick。手部轨迹以近竖直手臂攻击正前方等高目标的现有动作作为零偏移基准，末端轻度偏向所选手臂最终攻击扇区的角度中心；服务端命中不取样每帧手部位置，但有肘动作与动画共享上述命中关键帧。
 
 ## 攻击范围预览
 
 预览与命中共用 `SlimeBionicCombat.attackRange`，使用静态肩部位置、真实臂长、装配活动范围和服务端同步的朝向，以连续的半透明球面扇区显示最终交集。曲面、侧面和轮廓一起裁切到身体前方，并补齐裁切面；不会用小方块把边界撑大。轮廓加深色衬边，两条稀疏截线帮助辨认立体范围，中心箭头也限制在可达区域内。
 
-准备阶段为逐渐变亮的青蓝色，服务端确认进入 2 tick 接触阶段后变为更醒目的橙色；攻击结束或取消即撤掉范围。预览随准备期间的实际瞄准更新，接触阶段保持锁定方向，始终不取样手臂动画。曲面使用细分网格近似，方块遮挡仍由命中时的视线检查处理，范围面不代表穿墙攻击。
+准备阶段为逐渐变亮的青蓝色，服务端确认进入 5 tick 接触阶段后变为更醒目的橙色；攻击结束或取消即撤掉范围。预览随准备期间的实际瞄准更新，接触阶段保持锁定方向，始终不取样手臂动画。曲面使用细分网格近似，方块遮挡仍由命中时的视线检查处理，范围面不代表穿墙攻击。
 
 ## 代码与验证
 
@@ -68,7 +68,7 @@
 - 体积与频率校准：`src/main/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalCombatCalibration.java`
 - 智力系数：`src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicIntelligence.java`
 - 预览几何与绘制：`src/main/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAttackRangeGeometry.java`、`SlimeBionicAttackRangeRenderer.java`
-- 自动测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalCombatCalibrationTest.java`
+- 自动测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombatTimingTest.java`、`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalCombatCalibrationTest.java`
 - 预览测试：`src/test/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAttackRangeGeometryTest.java`
 - 姿态及兼容测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicPostureCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalArmPosturePersistenceTest.java`
 
