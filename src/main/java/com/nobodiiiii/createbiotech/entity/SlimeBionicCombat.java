@@ -21,6 +21,8 @@ public final class SlimeBionicCombat {
 	public static final float MAX_AIM_PITCH_DEGREES = 60.0f;
 	public static final float FRONT_HALF_ANGLE_DEGREES = 90.0f;
 	private static final int ACTIVE_TICKS = 5;
+	private static final int RIGID_CONTACT_OFFSET = 2;
+	private static final int ARTICULATED_CONTACT_OFFSET = -4;
 	private static final double EPSILON = 1.0e-8d;
 	private static final AngularRange BODY_RANGE = new AngularRange(-FRONT_HALF_ANGLE_DEGREES,
 		FRONT_HALF_ANGLE_DEGREES, -90.0f, 90.0f);
@@ -32,11 +34,13 @@ public final class SlimeBionicCombat {
 		return SlimeBionicAttackTiming.playbackTicks(attackInterval);
 	}
 
-	/** Rigid arms retain their early contact position; articulated arms follow their authored impact. */
+	/** Places each equal-length window relative to its rigid timing or authored articulated impact. */
 	public static int contactStartTick(int attackInterval, boolean hasElbow, boolean weapon) {
-		return hasElbow
+		int contactStart = hasElbow
 			? SlimeBionicAttackTiming.articulatedImpactTick(attackInterval, weapon)
 			: Mth.clamp(Math.round(attackInterval * 0.2f), 3, 6);
+		contactStart += hasElbow ? ARTICULATED_CONTACT_OFFSET : RIGID_CONTACT_OFFSET;
+		return Mth.clamp(contactStart, 0, duration(attackInterval) - ACTIVE_TICKS);
 	}
 
 	public static boolean isContactTick(int elapsed, int contactStart) {

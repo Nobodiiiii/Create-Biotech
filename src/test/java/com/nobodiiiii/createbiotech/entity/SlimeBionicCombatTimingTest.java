@@ -25,9 +25,9 @@ class SlimeBionicCombatTimingTest {
 	@Test
 	void armTypesShareDurationButUseSeparateContactStarts() {
 		assertEquals(20, SlimeBionicCombat.duration(20));
-		assertEquals(4, SlimeBionicCombat.contactStartTick(20, false, false));
-		assertEquals(12, SlimeBionicCombat.contactStartTick(20, true, false));
-		assertEquals(10, SlimeBionicCombat.contactStartTick(20, true, true));
+		assertEquals(6, SlimeBionicCombat.contactStartTick(20, false, false));
+		assertEquals(8, SlimeBionicCombat.contactStartTick(20, true, false));
+		assertEquals(6, SlimeBionicCombat.contactStartTick(20, true, true));
 		for (int interval = SurgicalCombatCalibration.MIN_GLOBAL_ATTACK_INTERVAL;
 			interval <= SurgicalCombatCalibration.MAX_GLOBAL_ATTACK_INTERVAL; interval++) {
 			assertEquals(Math.min(20, interval), SlimeBionicCombat.duration(interval));
