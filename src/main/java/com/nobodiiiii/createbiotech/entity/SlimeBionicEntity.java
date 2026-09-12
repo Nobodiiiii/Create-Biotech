@@ -640,10 +640,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (!hasLineOfSight(target))
 			return false;
 		Vec3 origin = SlimeBionicCombat.worldOrigin(position(), bodyYaw, arm);
-		AABB bounds = target.getBoundingBox();
-		Vec3 contact = new Vec3(Mth.clamp(origin.x, bounds.minX, bounds.maxX),
-			Mth.clamp(origin.y, bounds.minY, bounds.maxY), Mth.clamp(origin.z, bounds.minZ, bounds.maxZ));
-		return level().clip(new ClipContext(origin, contact, ClipContext.Block.COLLIDER,
+		return level().clip(new ClipContext(origin, target.getEyePosition(), ClipContext.Block.COLLIDER,
 			ClipContext.Fluid.NONE, this)).getType() == HitResult.Type.MISS;
 	}
 

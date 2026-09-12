@@ -38,6 +38,7 @@ public final class BouncingAnimation {
 	private static final float MAX_HEIGHT_SCALE = 1.10F;
 
 	private static final Map<Player, JellyState> STATES = new WeakHashMap<>();
+	private static final Map<Player, JellyState> CAMERA_STATES = new WeakHashMap<>();
 
 	private BouncingAnimation() {}
 
@@ -47,24 +48,45 @@ public final class BouncingAnimation {
 			return;
 		}
 
-		double renderTime = player.tickCount + partialTick;
-		JellyState state = STATES.computeIfAbsent(player, ignored -> new JellyState());
-		state.update(player, partialTick, renderTime);
-
-		float jellyScale = Mth.clamp(1.0F + state.stretch, 1.0F - MAX_STRETCH, 1.0F + MAX_STRETCH);
-		float verticalScale = state.heightScale * jellyScale;
-		float horizontalScale = Mth.clamp(1.0F / Mth.sqrt(jellyScale), 0.82F, 1.28F);
+		VisualDeformation visual = sample(player, partialTick, STATES, false);
+		float horizontalScale = Mth.clamp(1.0F / Mth.sqrt(visual.jellyScale()), 0.82F, 1.28F);
 
 		// The entity render origin is at its feet. This affine transform has no Y
 		// translation, and its shear terms are proportional to height, so the bottom
 		// stays planted while the body stretches, squashes, widens and sways above it.
-		Matrix4f deformation = new Matrix4f()
+		Matrix4f deformationMatrix = new Matrix4f()
 			.m00(horizontalScale)
-			.m10(state.shearX)
-			.m11(verticalScale)
-			.m12(state.shearZ)
+			.m10(visual.shearX())
+			.m11(visual.verticalScale())
+			.m12(visual.shearZ())
 			.m22(horizontalScale);
-		poseStack.mulPose(deformation);
+		poseStack.mulPose(deformationMatrix);
+	}
+
+	/**
+	 * Samples the same jelly simulation used by the third-person model, excluding walk and
+	 * horizontal-motion inputs so ordinary first-person walking does not add camera movement.
+	 */
+	public static VisualDeformation getCameraDeformation(Player player, float partialTick) {
+		if (!player.isAlive() || player.isSleeping() || !player.hasEffect(CBMobEffects.BOUNCING)) {
+			resetCamera(player);
+			return VisualDeformation.IDENTITY;
+		}
+		return sample(player, partialTick, CAMERA_STATES, true);
+	}
+
+	public static void resetCamera(Player player) {
+		CAMERA_STATES.remove(player);
+	}
+
+	private static VisualDeformation sample(Player player, float partialTick,
+		Map<Player, JellyState> states, boolean cameraOnly) {
+		double renderTime = player.tickCount + partialTick;
+		JellyState state = states.computeIfAbsent(player, ignored -> new JellyState());
+		state.update(player, partialTick, renderTime, cameraOnly);
+		float jellyScale = Mth.clamp(1.0F + state.stretch, 1.0F - MAX_STRETCH, 1.0F + MAX_STRETCH);
+		return new VisualDeformation(state.heightScale * jellyScale, jellyScale,
+			state.shearX, state.shearZ);
 	}
 
 	private static Targets getTargets(Player player, float partialTick, double renderTime) {
@@ -112,6 +134,46 @@ public final class BouncingAnimation {
 		return new Targets(targetStretch, targetShearX, targetShearZ, targetHeightScale);
 	}
 
+	private static Targets getCameraTargets(Player player, double renderTime) {
+		Vec3 movement = player.getDeltaMovement();
+		float verticalMovement = player.onGround() || player.isPassenger() ? 0.0F : (float) movement.y;
+		float airborneEnergy = Mth.clamp(Math.abs(verticalMovement) * 2.5F, 0.0F, 1.0F);
+		long playerSeed = player.getUUID().getMostSignificantBits()
+			^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
+
+		double idlePhaseA = renderTime * Mth.TWO_PI / 46.0D
+			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_A_SALT) * Math.PI;
+		double idlePhaseB = renderTime * Mth.TWO_PI / 73.0D
+			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_B_SALT) * Math.PI;
+		float idleWave = (float) (0.68D * Math.sin(idlePhaseA) + 0.32D * Math.sin(idlePhaseB));
+		float velocityLag = Mth.clamp(-verticalMovement * 0.38F, -0.16F, 0.22F);
+		float targetStretch = Mth.clamp(0.05F * idleWave + velocityLag, -MAX_STRETCH, MAX_STRETCH);
+
+		float activeBlend = smoothstep(airborneEnergy);
+		double idleSwayTime = renderTime / IDLE_SWAY_KEYFRAME_TICKS;
+		double activeSwayTime = renderTime / ACTIVE_SWAY_KEYFRAME_TICKS;
+		float randomX = Mth.lerp(activeBlend,
+			smoothRandom(playerSeed, idleSwayTime, IDLE_X_NOISE_SALT),
+			smoothRandom(playerSeed, activeSwayTime, ACTIVE_X_NOISE_SALT));
+		float randomZ = Mth.lerp(activeBlend,
+			smoothRandom(playerSeed, idleSwayTime, IDLE_Z_NOISE_SALT),
+			smoothRandom(playerSeed, activeSwayTime, ACTIVE_Z_NOISE_SALT));
+		float randomLengthSqr = randomX * randomX + randomZ * randomZ;
+		if (randomLengthSqr > 1.0F) {
+			float inverseLength = Mth.invSqrt(randomLengthSqr);
+			randomX *= inverseLength;
+			randomZ *= inverseLength;
+		}
+
+		// Match the model's idle and airborne deformation, but omit walk-cycle,
+		// horizontal-speed and horizontal-acceleration inputs from the camera copy.
+		float randomSway = 0.018F + 0.04F * airborneEnergy;
+		float targetShearX = Mth.clamp(randomX * randomSway, -MAX_SHEAR, MAX_SHEAR);
+		float targetShearZ = Mth.clamp(randomZ * randomSway, -MAX_SHEAR, MAX_SHEAR);
+		float targetHeightScale = BouncingCrouch.isActive(player) ? BouncingCrouch.HEIGHT_SCALE : 1.0F;
+		return new Targets(targetStretch, targetShearX, targetShearZ, targetHeightScale);
+	}
+
 	private static float smoothstep(float value) {
 		return value * value * (3.0F - 2.0F * value);
 	}
@@ -134,6 +196,10 @@ public final class BouncingAnimation {
 		return ((value >>> 40) / 8388607.5F) - 1.0F;
 	}
 
+	public record VisualDeformation(float verticalScale, float jellyScale, float shearX, float shearZ) {
+		private static final VisualDeformation IDENTITY = new VisualDeformation(1.0F, 1.0F, 0.0F, 0.0F);
+	}
+
 	private record Targets(float stretch, float shearX, float shearZ, float heightScale) {}
 
 	private static final class JellyState {
@@ -153,10 +219,12 @@ public final class BouncingAnimation {
 		private float heightScale;
 		private float heightVelocity;
 
-		private void update(Player player, float partialTick, double renderTime) {
+		private void update(Player player, float partialTick, double renderTime, boolean cameraOnly) {
 			Vec3 movement = player.getDeltaMovement();
 			boolean onGround = player.onGround();
-			Targets targets = getTargets(player, partialTick, renderTime);
+			Targets targets = cameraOnly
+				? getCameraTargets(player, renderTime)
+				: getTargets(player, partialTick, renderTime);
 
 			if (!initialized || renderTime < lastRenderTime || renderTime - lastRenderTime > 5.0D) {
 				initialize(player, movement, onGround, renderTime, targets);
@@ -170,7 +238,7 @@ public final class BouncingAnimation {
 			}
 
 			if (player.tickCount != lastTick) {
-				applyMotionImpulse(movement, onGround);
+				applyMotionImpulse(movement, onGround, !cameraOnly);
 				lastTick = player.tickCount;
 				lastMovement = movement;
 				lastOnGround = onGround;
@@ -224,11 +292,13 @@ public final class BouncingAnimation {
 				-0.12F, 0.12F);
 		}
 
-		private void applyMotionImpulse(Vec3 movement, boolean onGround) {
-			float accelerationX = (float) (movement.x - lastMovement.x);
-			float accelerationZ = (float) (movement.z - lastMovement.z);
-			shearVelocityX = Mth.clamp(shearVelocityX - accelerationX * 0.42F, -0.12F, 0.12F);
-			shearVelocityZ = Mth.clamp(shearVelocityZ - accelerationZ * 0.42F, -0.12F, 0.12F);
+		private void applyMotionImpulse(Vec3 movement, boolean onGround, boolean includeHorizontalMotion) {
+			if (includeHorizontalMotion) {
+				float accelerationX = (float) (movement.x - lastMovement.x);
+				float accelerationZ = (float) (movement.z - lastMovement.z);
+				shearVelocityX = Mth.clamp(shearVelocityX - accelerationX * 0.42F, -0.12F, 0.12F);
+				shearVelocityZ = Mth.clamp(shearVelocityZ - accelerationZ * 0.42F, -0.12F, 0.12F);
+			}
 
 			if (lastOnGround && !onGround) {
 				float takeoffSpeed = Mth.clamp((float) movement.y, 0.0F, 0.7F);
