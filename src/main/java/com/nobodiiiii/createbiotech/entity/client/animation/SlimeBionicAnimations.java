@@ -110,7 +110,7 @@ public final class SlimeBionicAnimations {
 
 	/** Samples one of as many as eight independently phased shoulder/elbow chains. */
 	public static Rotation sampleArm(Context context, Rotation sampled, boolean elbow, boolean left,
-		int slot, float phaseOffset) {
+		int slot, float phaseOffset, boolean mirrorAttackAcrossHorizontal) {
 		if (context == null)
 			return Rotation.IDENTITY;
 		Rotation result = sampled == null ? Rotation.IDENTITY : sampled;
@@ -141,14 +141,14 @@ public final class SlimeBionicAnimations {
 		if (attackingSide && slot == context.attackArmSlot()) {
 			result = result.plus(attack);
 			if (!elbow)
-				result = result.plus(attackDirectionBias(context));
+				result = result.plus(attackDirectionBias(context, mirrorAttackAcrossHorizontal));
 			return result;
 		}
 		return !attackingSide && slot == 0 ? result.plus(attack) : result;
 	}
 
 	/** Coarsely turns the authored shoulder swing toward the selected attack sector's midpoint. */
-	private static Rotation attackDirectionBias(Context context) {
+	private static Rotation attackDirectionBias(Context context, boolean mirrorAcrossHorizontal) {
 		float duration = Math.max(1.0f, context.attackAnimationDuration());
 		float remaining = Mth.clamp(context.attackAnimationTick() - context.partialTick(), 0.0f, duration);
 		float elapsed = duration - remaining;
@@ -166,7 +166,11 @@ public final class SlimeBionicAnimations {
 		}
 		float relativeYaw = Mth.clamp(Mth.wrapDegrees(context.attackRangeCenterYaw() - context.bodyYaw()),
 			-80.0f, 80.0f);
-		float pitch = Mth.clamp(context.attackRangeCenterPitch() - context.attackReferencePitch(),
+		// An upward arm is animated as the horizontal reflection of a hanging reference arm. Feed
+		// that reference the reflected target pitch before its complete motion is mirrored by the rig.
+		float targetPitch = mirrorAcrossHorizontal
+			? -context.attackRangeCenterPitch() : context.attackRangeCenterPitch();
+		float pitch = Mth.clamp(targetPitch - context.attackReferencePitch(),
 			-75.0f, 60.0f);
 		return new Rotation(pitch * 0.75f * Mth.DEG_TO_RAD * weight,
 			relativeYaw * 0.6f * Mth.DEG_TO_RAD * weight, 0.0f);

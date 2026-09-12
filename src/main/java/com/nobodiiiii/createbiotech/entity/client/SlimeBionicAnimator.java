@@ -767,27 +767,34 @@ public final class SlimeBionicAnimator {
 		Transform parent = limb.parentIndex() < 0
 			? inheritsBodyRotation(limb) ? bodyTransform : Transform.IDENTITY
 			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform, cache, resolving);
+		boolean mirrorAttackAcrossHorizontal = mirrorsUpwardArmAttack(index, limbs, context);
 		Rotation sampled = limb.gait() != null ? SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
 				limb.gait().left(), limb.gait().phase())
 			: limb.arm() != null ? SlimeBionicAnimations.sampleArm(context,
 				pose.rotation(limb.bone()), limb.type() == SurgicalLimbType.ELBOW,
-				limb.arm().left(), limb.arm().slot(), limb.arm().phase())
+				limb.arm().left(), limb.arm().slot(), limb.arm().phase(),
+				mirrorAttackAcrossHorizontal)
 			: pose.rotation(limb.bone());
 		SurgicalCubeRotation local = limb.gait() != null
 			&& limb.gait().style() == LegStyle.SPIDER && limb.type() == SurgicalLimbType.HIP
 				? BODY_SPACE.spiderReframe(limb.restDirection(), limb.gait().left(),
 					sampled.z(), sampled.y())
+				: mirrorAttackAcrossHorizontal
+					? BODY_SPACE.mirroredArmReframe(limb.type(), limb.restDirection(),
+						sampled.z(), sampled.y(), sampled.x())
 				: BODY_SPACE.reframe(limb.restAlignment(),
 					sampled.z(), sampled.y(), sampled.x());
 		SurgicalCubeRotation inheritedLocal;
 		if (carriesAuthoredAttack(limb, context)) {
-			// The torso and shoulder tracks were authored as one canonical humanoid motion. Applying
-			// the torso outside the installed arm's rest alignment makes those two rotations cancel on
-			// a hanging arm but add together on an upward arm, nearly doubling its apparent sweep.
-			// Retarget their composite as one rotation, then express it after the already applied torso.
-			SurgicalCubeRotation retargeted = BODY_SPACE.reframeComposite(limb.restAlignment(),
-				pose.rotation(Bone.BODY), sampled);
+			// The torso and shoulder tracks were authored as one canonical humanoid motion. Retarget
+			// their composite together, then express it after the already applied torso. An upward arm
+			// uses the exact horizontal reflection of the equivalent hanging-arm transform.
+			SurgicalCubeRotation retargeted = mirrorAttackAcrossHorizontal
+				? BODY_SPACE.mirroredArmReframeComposite(limb.type(), limb.restDirection(),
+					pose.rotation(Bone.BODY), sampled)
+				: BODY_SPACE.reframeComposite(limb.restAlignment(),
+					pose.rotation(Bone.BODY), sampled);
 			inheritedLocal = deltaAfter(parent.rotation(), retargeted);
 		} else {
 			inheritedLocal = conjugate(parent.rotation(), local);
@@ -800,13 +807,35 @@ public final class SlimeBionicAnimator {
 
 	/** True for the attacking shoulder and the one opposite shoulder carrying its balance track. */
 	private static boolean carriesAuthoredAttack(ResolvedLimb limb, Context context) {
-		if (limb.type() != SurgicalLimbType.SHOULDER || limb.arm() == null
+		return limb.type() == SurgicalLimbType.SHOULDER
+			&& carriesAuthoredArmChannel(limb, context);
+	}
+
+	/** True for either joint in the selected attack chain or its authored balancing chain. */
+	private static boolean carriesAuthoredArmChannel(ResolvedLimb limb, Context context) {
+		if ((limb.type() != SurgicalLimbType.SHOULDER
+			&& limb.type() != SurgicalLimbType.ELBOW) || limb.arm() == null
 			|| context.attackArm() == Arm.NONE || context.attackAnimationTick() <= 0)
 			return false;
 		boolean attackingSide = (context.attackArm() == Arm.LEFT) == limb.arm().left();
 		return attackingSide
 			? limb.arm().slot() == context.attackArmSlot()
 			: limb.arm().slot() == 0;
+	}
+
+	/**
+	 * Upward attack chains copy the corresponding hanging chain across the shoulder's horizontal
+	 * attachment plane. The shoulder decides the mode for its elbow as well, so the two bones cannot
+	 * choose incompatible frames when the forearm happens to fold back across the plane at rest.
+	 */
+	private static boolean mirrorsUpwardArmAttack(int index, List<ResolvedLimb> limbs,
+		Context context) {
+		ResolvedLimb limb = limbs.get(index);
+		if (!carriesAuthoredArmChannel(limb, context))
+			return false;
+		int shoulderIndex = limb.type() == SurgicalLimbType.SHOULDER ? index : limb.parentIndex();
+		return shoulderIndex >= 0 && shoulderIndex < limbs.size()
+			&& BODY_SPACE.pointsUp(limbs.get(shoulderIndex).restDirection());
 	}
 
 	/** Rotation which, when applied after {@code parent}, leaves {@code target} as the result. */
@@ -1315,6 +1344,11 @@ public final class SlimeBionicAnimator {
 			return vector.dot(axis(index));
 		}
 
+		/** Physical upward is negative model Y in the captured body frame. */
+		private boolean pointsUp(Vec3 vector) {
+			return project(vector, AXIS_Y) < -GEOMETRY_EPSILON;
+		}
+
 		private Vec3 point(double x, double y, double z) {
 			return modelX.scale(x).add(modelY.scale(y)).add(modelZ.scale(z));
 		}
@@ -1378,6 +1412,42 @@ public final class SlimeBionicAnimator {
 				.mul(modelRotation)
 				.mul(new Quaternionf(modelToWorld).conjugate());
 			return new SurgicalCubeRotation(world.x(), world.y(), world.z(), world.w());
+		}
+
+		/**
+		 * Retargets a hanging-arm rotation to the vertical reflection of that arm. Reflections are not
+		 * rotations, so a 180-degree rest alignment cannot reproduce this path: both the reference rest
+		 * direction and the resulting rotation must be reflected across the attachment's horizontal plane.
+		 */
+		private SurgicalCubeRotation mirroredArmReframe(SurgicalLimbType type, Vec3 restDirection,
+			float zRot, float yRot, float xRot) {
+			SurgicalCubeRotation hanging = reframe(restAlignment(type,
+				mirrorAcrossHorizontal(restDirection)), zRot, yRot, xRot);
+			return mirrorAcrossHorizontal(hanging);
+		}
+
+		/** Horizontal-reflection counterpart of {@link #reframeComposite}. */
+		private SurgicalCubeRotation mirroredArmReframeComposite(SurgicalLimbType type,
+			Vec3 restDirection, Rotation parent, Rotation local) {
+			SurgicalCubeRotation hanging = reframeComposite(restAlignment(type,
+				mirrorAcrossHorizontal(restDirection)), parent, local);
+			return mirrorAcrossHorizontal(hanging);
+		}
+
+		/** Reflects a vector across the plane normal to the body's vertical axis. */
+		private Vec3 mirrorAcrossHorizontal(Vec3 vector) {
+			return vector.subtract(modelY.scale(2.0d * vector.dot(modelY)));
+		}
+
+		/**
+		 * Conjugates a proper rotation by the horizontal reflection. A quaternion's vector part is an
+		 * axial vector, so reflection applies {@code -H} to it while leaving the scalar part unchanged.
+		 */
+		private SurgicalCubeRotation mirrorAcrossHorizontal(SurgicalCubeRotation rotation) {
+			Vec3 axis = new Vec3(rotation.x(), rotation.y(), rotation.z());
+			Vec3 reflectedAxis = modelY.scale(2.0d * axis.dot(modelY)).subtract(axis);
+			return new SurgicalCubeRotation(reflectedAxis.x, reflectedAxis.y, reflectedAxis.z,
+				rotation.w());
 		}
 
 		/**
