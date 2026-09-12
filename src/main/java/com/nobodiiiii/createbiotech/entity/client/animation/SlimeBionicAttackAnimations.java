@@ -34,8 +34,11 @@ final class SlimeBionicAttackAnimations {
 		Rotation.degrees(-30.0f, 0.0f, 0.0f);
 	// Two nested torso rotations combine into one effective body-space channel.
 	private static final Rotation EMPTY_HAND_STRIKE_BODY = Rotation.degrees(0.0f, -60.0f, 0.0f);
-	private static final Rotation EMPTY_HAND_STRIKE_SHOULDER = Rotation.degrees(-20.0f, 20.0f, 20.0f);
-	private static final Rotation EMPTY_HAND_STRIKE_ELBOW = Rotation.degrees(-20.0f, 0.0f, 0.0f);
+	// Drive an unarmed punch almost level and straighten its forearm at contact. The old -20/-20
+	// pair left a normally hanging articulated arm reaching only about half as far forward as the
+	// rigid-arm strike, even though both arms have the same physical shoulder-to-tip reach.
+	private static final Rotation EMPTY_HAND_STRIKE_SHOULDER = Rotation.degrees(-75.0f, 20.0f, 20.0f);
+	private static final Rotation EMPTY_HAND_STRIKE_ELBOW = Rotation.IDENTITY;
 	private static final Rotation EMPTY_HAND_STRIKE_OPPOSITE_ELBOW =
 		Rotation.degrees(-40.0f, 0.0f, 0.0f);
 
