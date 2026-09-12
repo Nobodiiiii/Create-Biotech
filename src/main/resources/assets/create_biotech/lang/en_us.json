@@ -25,6 +25,7 @@
   "item.create_biotech.sonic_dog_cannon.tooltip.condition2": "When Sneak-R-Clicked with a Wrench in the Off Hand",
   "item.create_biotech.sonic_dog_cannon.tooltip.behaviour2": "_Removes_ the most recently installed _upgrade_",
   "effect.create_biotech.stun": "Stun",
+  "effect.create_biotech.bouncing": "Bouncing",
   "enchantment.create_biotech.sonic_boom": "Sonic Boom",
   "enchantment.create_biotech.sonic_boom.desc": "Increases the damage dealt by the Big Dog Sonic Cannon's Shriek Sonic Boom upgrade.",
   "block.create_biotech.automatic_fish_release_machine": "Boundless Merit Fully Automatic Fish Release Machine",

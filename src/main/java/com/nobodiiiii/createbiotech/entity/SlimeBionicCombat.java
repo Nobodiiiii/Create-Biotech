@@ -280,6 +280,14 @@ public final class SlimeBionicCombat {
 
 	/** Yaw is relative to the committed body facing; pitch uses Minecraft's down-positive convention. */
 	public record AngularRange(float minimumYaw, float maximumYaw, float minimumPitch, float maximumPitch) {
+		public float centerYaw() {
+			return (minimumYaw + maximumYaw) * 0.5f;
+		}
+
+		public float centerPitch() {
+			return (minimumPitch + maximumPitch) * 0.5f;
+		}
+
 		public boolean isEmpty() {
 			return minimumYaw > maximumYaw || minimumPitch > maximumPitch;
 		}

@@ -11,6 +11,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.client.BioPackagerReleaseAnimationHandler;
+import com.nobodiiiii.createbiotech.content.bouncing.BouncingAnimation;
 import com.nobodiiiii.createbiotech.content.buttercat.ButterRotation;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
@@ -20,9 +21,25 @@ import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin {
+	@Inject(
+		method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V",
+		at = @At(value = "INVOKE",
+			target = "Lcom/mojang/blaze3d/vertex/PoseStack;pushPose()V",
+			shift = At.Shift.AFTER),
+		require = 1,
+		expect = 1)
+	private void createBiotech$applyBouncingEffect(LivingEntity entity, float entityYaw, float partialTick,
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, CallbackInfo ci) {
+		if (!(entity instanceof Player player))
+			return;
+
+		BouncingAnimation.applyVisualTransform(player, partialTick, poseStack);
+	}
+
 	@WrapMethod(
 		method = "render(Lnet/minecraft/world/entity/LivingEntity;FFLcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/MultiBufferSource;I)V")
 	private void createBiotech$applyBioPackagerReleaseAnimation(LivingEntity entity, float entityYaw,

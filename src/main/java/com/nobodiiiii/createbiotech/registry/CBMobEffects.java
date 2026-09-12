@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.bouncing.BouncingEffect;
 import com.nobodiiiii.createbiotech.content.buttercat.mob_effect.ButterRotationEffect;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonStunEffect;
 
@@ -27,6 +28,8 @@ public final class CBMobEffects {
 		MOB_EFFECTS.register("rotation", ButterRotationEffect::new);
 	public static final DeferredHolder<MobEffect, MobEffect> STUN =
 		MOB_EFFECTS.register("stun", SonicDogCannonStunEffect::new);
+	public static final DeferredHolder<MobEffect, MobEffect> BOUNCING =
+		MOB_EFFECTS.register("bouncing", BouncingEffect::new);
 
 	private CBMobEffects() {}
 

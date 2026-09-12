@@ -19,6 +19,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Arm;
@@ -57,6 +58,11 @@ public final class SlimeBionicAnimator {
 		java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 	private static final double PRINCIPAL_AXIS_SHARE = 0.55d;
 	private static final Basis BODY_SPACE = Basis.bodySpace();
+	/**
+	 * The present authored strike already looks centred for a hanging arm aimed level and forward.
+	 * That posture's final vertical sector is -35..45 degrees, whose midpoint is five degrees down.
+	 */
+	private static final float HANGING_ARM_REFERENCE_CENTER_PITCH = 5.0f;
 
 	private SlimeBionicAnimator() {}
 
@@ -268,9 +274,10 @@ public final class SlimeBionicAnimator {
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
 		Arm attackArm = attackArm(limbs, preferredAttackArm);
+		AttackAnimationTarget attackTarget = attackAnimationTarget(entity, assembly);
 		Context context = animationContext(entity, partialTick, resolved.legLength,
 			attackArm, attackArmHasElbow(limbs, attackArm, entity.getAttackAnimationArmSlot()),
-			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND);
+			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND, attackTarget);
 		Pose pose = SlimeBionicAnimations.sample(context);
 
 		Map<Integer, Map<Integer, Vec3>> offsets = new HashMap<>();
@@ -705,6 +712,31 @@ public final class SlimeBionicAnimator {
 		return right ? Arm.RIGHT : left ? Arm.LEFT : Arm.NONE;
 	}
 
+	/**
+	 * Converts the server-selected logical sector into a presentation target for the hand path. The
+	 * gameplay query never observes this value, so damage timing and collision stay animation-free.
+	 */
+	private static AttackAnimationTarget attackAnimationTarget(SlimeBionicEntity entity,
+		SurgicalAssembly assembly) {
+		float aimYaw = entity.getAttackAimYaw();
+		float aimPitch = entity.getAttackAimPitch();
+		SurgicalAssembly.AttackGeometry geometry = assembly.attackGeometry();
+		SurgicalAssembly.ArmAttackGeometry arm = geometry == null ? null
+			: geometry.arm(entity.isAttackAnimationLeft(), entity.getAttackAnimationArmSlot());
+		if (arm == null)
+			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
+
+		float attackBodyYaw = entity.getAttackBodyYaw();
+		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(
+			arm, attackBodyYaw, aimYaw, aimPitch);
+		if (range.isEmpty())
+			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
+		float referencePitch = arm.restDirection() == null
+			? 0.0f : HANGING_ARM_REFERENCE_CENTER_PITCH;
+		return new AttackAnimationTarget(attackBodyYaw + range.centerYaw(),
+			range.centerPitch(), referencePitch);
+	}
+
 	/** Reports whether the exact server-selected upper arm owns a linked elbow joint. */
 	private static boolean attackArmHasElbow(List<ResolvedLimb> limbs, Arm arm, int slot) {
 		if (arm == Arm.NONE)
@@ -1106,7 +1138,8 @@ public final class SlimeBionicAnimator {
 
 	/** Adapts entity state to the animation-only module's narrow, immutable input contract. */
 	private static Context animationContext(SlimeBionicEntity entity, float partialTick,
-		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle) {
+		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle,
+		AttackAnimationTarget attackTarget) {
 		float bodyRot = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 		float headRot = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot);
 		float netHeadYaw = Mth.wrapDegrees(headRot - bodyRot);
@@ -1131,7 +1164,7 @@ public final class SlimeBionicAnimator {
 			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
 			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
-			bodyRot, entity.getAttackAimYaw(), entity.getAttackAimPitch(), attackArm,
+			bodyRot, attackTarget.yaw(), attackTarget.pitch(), attackTarget.referencePitch(), attackArm,
 			entity.getAttackAnimationArmSlot(), attackArmHasElbow, attackStyle);
 	}
 
@@ -1143,6 +1176,7 @@ public final class SlimeBionicAnimator {
 	private record ArmChannel(boolean left, int slot, float phase) {}
 	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
 	private record LegMeasurement(double soleHeight, double effectiveLength) {}
+	private record AttackAnimationTarget(float yaw, float pitch, float referencePitch) {}
 
 	/** Immutable rest-pose measurements used by authoritative movement-speed calibration. */
 	public record MobilityMetrics(float averageLegLength, int groundedLegCount,

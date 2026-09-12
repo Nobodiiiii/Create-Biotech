@@ -25,6 +25,7 @@
   "item.create_biotech.sonic_dog_cannon.tooltip.condition2": "副手手持扳手潜行右击时",
   "item.create_biotech.sonic_dog_cannon.tooltip.behaviour2": "_卸下_最后一个加装的_改装_",
   "effect.create_biotech.stun": "眩晕",
+  "effect.create_biotech.bouncing": "Q弹",
   "enchantment.create_biotech.sonic_boom": "音爆",
   "enchantment.create_biotech.sonic_boom.desc": "增加大狗音波炮尖啸音爆改装所造成的伤害",
   "block.create_biotech.automatic_fish_release_machine": "功德无量全自动放生机",
