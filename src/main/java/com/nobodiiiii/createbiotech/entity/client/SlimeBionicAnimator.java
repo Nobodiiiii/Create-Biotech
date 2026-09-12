@@ -780,11 +780,43 @@ public final class SlimeBionicAnimator {
 					sampled.z(), sampled.y())
 				: BODY_SPACE.reframe(limb.restAlignment(),
 					sampled.z(), sampled.y(), sampled.x());
-		SurgicalCubeRotation inheritedLocal = conjugate(parent.rotation(), local);
+		SurgicalCubeRotation inheritedLocal;
+		if (carriesAuthoredAttack(limb, context)) {
+			// The torso and shoulder tracks were authored as one canonical humanoid motion. Applying
+			// the torso outside the installed arm's rest alignment makes those two rotations cancel on
+			// a hanging arm but add together on an upward arm, nearly doubling its apparent sweep.
+			// Retarget their composite as one rotation, then express it after the already applied torso.
+			SurgicalCubeRotation retargeted = BODY_SPACE.reframeComposite(limb.restAlignment(),
+				pose.rotation(Bone.BODY), sampled);
+			inheritedLocal = deltaAfter(parent.rotation(), retargeted);
+		} else {
+			inheritedLocal = conjugate(parent.rotation(), local);
+		}
 		Transform resolved = parent.rotateAround(parent.apply(limb.pivot()), inheritedLocal);
 		resolving[index] = false;
 		cache[index] = resolved;
 		return resolved;
+	}
+
+	/** True for the attacking shoulder and the one opposite shoulder carrying its balance track. */
+	private static boolean carriesAuthoredAttack(ResolvedLimb limb, Context context) {
+		if (limb.type() != SurgicalLimbType.SHOULDER || limb.arm() == null
+			|| context.attackArm() == Arm.NONE || context.attackAnimationTick() <= 0)
+			return false;
+		boolean attackingSide = (context.attackArm() == Arm.LEFT) == limb.arm().left();
+		return attackingSide
+			? limb.arm().slot() == context.attackArmSlot()
+			: limb.arm().slot() == 0;
+	}
+
+	/** Rotation which, when applied after {@code parent}, leaves {@code target} as the result. */
+	private static SurgicalCubeRotation deltaAfter(SurgicalCubeRotation parent,
+		SurgicalCubeRotation target) {
+		if (parent.isIdentity())
+			return target;
+		SurgicalCubeRotation inverse = new SurgicalCubeRotation(
+			-parent.x(), -parent.y(), -parent.z(), parent.w());
+		return inverse.then(target);
 	}
 
 	private static boolean inheritsBodyRotation(ResolvedLimb limb) {
@@ -1326,6 +1358,21 @@ public final class SlimeBionicAnimator {
 				(float) restAlignment.y(), (float) restAlignment.z(), (float) restAlignment.w());
 			Quaternionf modelRotation = new Quaternionf(alignment)
 				.mul(new Quaternionf().rotationZYX(zRot, yRot, xRot))
+				.mul(new Quaternionf(alignment).conjugate());
+			Quaternionf world = new Quaternionf(modelToWorld)
+				.mul(modelRotation)
+				.mul(new Quaternionf(modelToWorld).conjugate());
+			return new SurgicalCubeRotation(world.x(), world.y(), world.z(), world.w());
+		}
+
+		/** Retargets an authored torso-then-limb rotation through one installed rest frame. */
+		private SurgicalCubeRotation reframeComposite(SurgicalCubeRotation restAlignment,
+			Rotation parent, Rotation local) {
+			Quaternionf alignment = new Quaternionf((float) restAlignment.x(),
+				(float) restAlignment.y(), (float) restAlignment.z(), (float) restAlignment.w());
+			Quaternionf modelRotation = new Quaternionf(alignment)
+				.mul(new Quaternionf().rotationZYX(parent.z(), parent.y(), parent.x()))
+				.mul(new Quaternionf().rotationZYX(local.z(), local.y(), local.x()))
 				.mul(new Quaternionf(alignment).conjugate());
 			Quaternionf world = new Quaternionf(modelToWorld)
 				.mul(modelRotation)

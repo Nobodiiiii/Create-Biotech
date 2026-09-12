@@ -141,23 +141,12 @@ public final class BouncingAnimation {
 		long playerSeed = player.getUUID().getMostSignificantBits()
 			^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
 
-		double idlePhaseA = renderTime * Mth.TWO_PI / 46.0D
-			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_A_SALT) * Math.PI;
-		double idlePhaseB = renderTime * Mth.TWO_PI / 73.0D
-			+ randomSigned(playerSeed, 0L, IDLE_STRETCH_B_SALT) * Math.PI;
-		float idleWave = (float) (0.68D * Math.sin(idlePhaseA) + 0.32D * Math.sin(idlePhaseB));
 		float velocityLag = Mth.clamp(-verticalMovement * 0.38F, -0.16F, 0.22F);
-		float targetStretch = Mth.clamp(0.05F * idleWave + velocityLag, -MAX_STRETCH, MAX_STRETCH);
+		float targetStretch = Mth.clamp(velocityLag, -MAX_STRETCH, MAX_STRETCH);
 
-		float activeBlend = smoothstep(airborneEnergy);
-		double idleSwayTime = renderTime / IDLE_SWAY_KEYFRAME_TICKS;
 		double activeSwayTime = renderTime / ACTIVE_SWAY_KEYFRAME_TICKS;
-		float randomX = Mth.lerp(activeBlend,
-			smoothRandom(playerSeed, idleSwayTime, IDLE_X_NOISE_SALT),
-			smoothRandom(playerSeed, activeSwayTime, ACTIVE_X_NOISE_SALT));
-		float randomZ = Mth.lerp(activeBlend,
-			smoothRandom(playerSeed, idleSwayTime, IDLE_Z_NOISE_SALT),
-			smoothRandom(playerSeed, activeSwayTime, ACTIVE_Z_NOISE_SALT));
+		float randomX = smoothRandom(playerSeed, activeSwayTime, ACTIVE_X_NOISE_SALT);
+		float randomZ = smoothRandom(playerSeed, activeSwayTime, ACTIVE_Z_NOISE_SALT);
 		float randomLengthSqr = randomX * randomX + randomZ * randomZ;
 		if (randomLengthSqr > 1.0F) {
 			float inverseLength = Mth.invSqrt(randomLengthSqr);
@@ -165,9 +154,9 @@ public final class BouncingAnimation {
 			randomZ *= inverseLength;
 		}
 
-		// Match the model's idle and airborne deformation, but omit walk-cycle,
-		// horizontal-speed and horizontal-acceleration inputs from the camera copy.
-		float randomSway = 0.018F + 0.04F * airborneEnergy;
+		// Only vertical movement contributes continuous first-person sway. Crouching and
+		// standing transitions add their matching one-shot impulses in JellyState.
+		float randomSway = 0.04F * airborneEnergy;
 		float targetShearX = Mth.clamp(randomX * randomSway, -MAX_SHEAR, MAX_SHEAR);
 		float targetShearZ = Mth.clamp(randomZ * randomSway, -MAX_SHEAR, MAX_SHEAR);
 		float targetHeightScale = BouncingCrouch.isActive(player) ? BouncingCrouch.HEIGHT_SCALE : 1.0F;
