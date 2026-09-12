@@ -19,7 +19,7 @@ public final class SlimeBionicAttackRangeGeometry {
 
 	public static Mesh build(SurgicalAssembly.ArmAttackGeometry arm, float bodyYaw,
 		float aimYaw, float aimPitch) {
-		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(arm, bodyYaw, aimYaw, aimPitch);
+		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(arm);
 		if (range.isEmpty())
 			return new Mesh(List.of(), List.of(), List.of());
 		Vec3 origin = SlimeBionicCombat.worldOrigin(Vec3.ZERO, bodyYaw, arm);

@@ -68,7 +68,7 @@ public final class SlimeBionicCombat {
 		if (!withinStartEnvelope(target, bodyPosition, bodyYaw, arm))
 			return false;
 		Vec3 desired = aimAt(target, worldOrigin(bodyPosition, bodyYaw, arm), bodyYaw);
-		if (Math.abs(Mth.wrapDegrees(yaw(desired) - bodyYaw)) > MAX_AIM_YAW_DEGREES)
+		if (Math.abs(Mth.wrapDegrees(yawOrFallback(desired, bodyYaw) - bodyYaw)) > MAX_AIM_YAW_DEGREES)
 			return false;
 		if (arm.restDirection() == null
 			&& (pitch(desired) < MIN_AIM_PITCH_DEGREES || pitch(desired) > MAX_AIM_PITCH_DEGREES))
@@ -84,10 +84,10 @@ public final class SlimeBionicCombat {
 		if (!withinStartEnvelope(target, bodyPosition, bodyYaw, arm))
 			return false;
 		Vec3 desired = aimAt(target, worldOrigin(bodyPosition, bodyYaw, arm), bodyYaw);
-		return Math.abs(Mth.wrapDegrees(yaw(desired) - bodyYaw)) <= MAX_AIM_YAW_DEGREES
+		return Math.abs(Mth.wrapDegrees(yawOrFallback(desired, bodyYaw) - bodyYaw)) <= MAX_AIM_YAW_DEGREES
 			&& pitch(desired) >= MIN_AIM_PITCH_DEGREES && pitch(desired) <= MAX_AIM_PITCH_DEGREES
 			&& intersects(target, bodyPosition, bodyYaw, arm,
-				attackRange(BODY_RANGE, bodyYaw, yaw(desired), pitch(desired)));
+				attackRange(BODY_RANGE, null));
 	}
 
 	/** Body-relative angular limits baked from a mounted arm; negative Minecraft pitch points up. */
@@ -97,24 +97,60 @@ public final class SlimeBionicCombat {
 			return BODY_RANGE;
 		float up = (float) Mth.clamp(rest.y, -1.0d, 1.0d);
 		float sideBias = (float) (-rest.x * 20.0d);
+		float restPitch = pitch(rest);
+		float sectorCenterYaw = horizontalSectorCenter(rest);
+		float sectorCenterPitch = interpolatedSectorCenter(restPitch,
+			VERTICAL_HALF_ANGLE_DEGREES, 90.0f);
+		float minimumYaw = Math.max(-FRONT_HALF_ANGLE_DEGREES,
+			sideBias - FRONT_HALF_ANGLE_DEGREES);
+		float maximumYaw = Math.min(FRONT_HALF_ANGLE_DEGREES,
+			sideBias + FRONT_HALF_ANGLE_DEGREES);
 		float minimumPitch = -50.0f - Math.max(up, 0.0f) * 30.0f + Math.max(-up, 0.0f) * 15.0f;
 		float maximumPitch = 50.0f - Math.max(up, 0.0f) * 15.0f + Math.max(-up, 0.0f) * 20.0f;
-		return new AngularRange(Math.max(-FRONT_HALF_ANGLE_DEGREES, sideBias - FRONT_HALF_ANGLE_DEGREES),
-			Math.min(FRONT_HALF_ANGLE_DEGREES, sideBias + FRONT_HALF_ANGLE_DEGREES), minimumPitch, maximumPitch);
+		// The mounted upper arm is a physical radius of the swept sector, not merely a bias.
+		// Expand the coarse activity envelope when necessary so the final swept range can retain
+		// that radius even for a vertical or unusually mounted arm.
+		minimumYaw = Math.min(minimumYaw, sectorCenterYaw - HORIZONTAL_HALF_ANGLE_DEGREES);
+		maximumYaw = Math.max(maximumYaw, sectorCenterYaw + HORIZONTAL_HALF_ANGLE_DEGREES);
+		minimumPitch = Math.min(minimumPitch, sectorCenterPitch - VERTICAL_HALF_ANGLE_DEGREES);
+		maximumPitch = Math.max(maximumPitch, sectorCenterPitch + VERTICAL_HALF_ANGLE_DEGREES);
+		return new AngularRange(minimumYaw, maximumYaw, minimumPitch, maximumPitch);
 	}
 
-	/** The exact angular intersection consumed by both target collision and the range preview. */
+	/** The posture-fixed angular intersection consumed by both target collision and the range preview. */
+	public static AngularRange attackRange(SurgicalAssembly.ArmAttackGeometry arm) {
+		return attackRange(activityRange(arm), arm.restDirection());
+	}
+
+	/** Compatibility overload: target aim intentionally does not influence the posture-fixed sector. */
 	public static AngularRange attackRange(SurgicalAssembly.ArmAttackGeometry arm, float bodyYaw,
 		float aimYaw, float aimPitch) {
-		return attackRange(activityRange(arm), bodyYaw, aimYaw, aimPitch);
+		return attackRange(arm);
 	}
 
-	private static AngularRange attackRange(AngularRange activity, float bodyYaw, float aimYaw, float aimPitch) {
-		float relativeYaw = Mth.wrapDegrees(aimYaw - bodyYaw);
-		return new AngularRange(Math.max(activity.minimumYaw(), relativeYaw - HORIZONTAL_HALF_ANGLE_DEGREES),
-			Math.min(activity.maximumYaw(), relativeYaw + HORIZONTAL_HALF_ANGLE_DEGREES),
-			Math.max(activity.minimumPitch(), aimPitch - VERTICAL_HALF_ANGLE_DEGREES),
-			Math.min(activity.maximumPitch(), aimPitch + VERTICAL_HALF_ANGLE_DEGREES));
+	private static AngularRange attackRange(AngularRange activity,
+		@org.jetbrains.annotations.Nullable Vec3 restDirection) {
+		float mountedPitch = restDirection == null ? 0.0f : pitch(restDirection);
+		float centerYaw = restDirection == null ? 0.0f : horizontalSectorCenter(restDirection);
+		float centerPitch = interpolatedSectorCenter(mountedPitch,
+			VERTICAL_HALF_ANGLE_DEGREES, 90.0f);
+		return new AngularRange(
+			Math.max(activity.minimumYaw(), centerYaw - HORIZONTAL_HALF_ANGLE_DEGREES),
+			Math.min(activity.maximumYaw(), centerYaw + HORIZONTAL_HALF_ANGLE_DEGREES),
+			Math.max(activity.minimumPitch(), centerPitch - VERTICAL_HALF_ANGLE_DEGREES),
+			Math.min(activity.maximumPitch(), centerPitch + VERTICAL_HALF_ANGLE_DEGREES));
+	}
+
+	/** Linearly moves a fixed-width sector from the neutral center to either anatomical limit. */
+	private static float interpolatedSectorCenter(float mountedAngle, float halfAngle, float limit) {
+		return Mth.clamp(mountedAngle, -limit, limit) * (limit - halfAngle) / limit;
+	}
+
+	/** A nearly vertical arm has no meaningful yaw; its small horizontal lean gets only small bias. */
+	private static float horizontalSectorCenter(Vec3 mountedDirection) {
+		float horizontalWeight = (float) Mth.clamp(mountedDirection.horizontalDistance(), 0.0d, 1.0d);
+		return interpolatedSectorCenter(yaw(mountedDirection),
+			HORIZONTAL_HALF_ANGLE_DEGREES, FRONT_HALF_ANGLE_DEGREES) * horizontalWeight;
 	}
 
 	/** Used only for choosing an arm, never as a damage, reach or recovery multiplier. */
@@ -138,8 +174,7 @@ public final class SlimeBionicCombat {
 	 */
 	public static boolean intersects(AABB target, Vec3 bodyPosition, float bodyYaw,
 		Vec3 aimDirection, SurgicalAssembly.ArmAttackGeometry arm) {
-		Vec3 aim = normalizedOrForward(aimDirection, bodyYaw);
-		return intersects(target, bodyPosition, bodyYaw, arm, attackRange(arm, bodyYaw, yaw(aim), pitch(aim)));
+		return intersects(target, bodyPosition, bodyYaw, arm, attackRange(arm));
 	}
 
 	private static boolean intersects(AABB target, Vec3 bodyPosition, float bodyYaw,
@@ -179,9 +214,17 @@ public final class SlimeBionicCombat {
 
 	/** Aim at the nearest part of the collision box, so a tall target's centre need not be reachable. */
 	public static Vec3 aimAt(AABB target, Vec3 origin, float fallbackYaw) {
-		Vec3 point = new Vec3(Mth.clamp(origin.x, target.minX, target.maxX),
-			Mth.clamp(origin.y, target.minY, target.maxY), Mth.clamp(origin.z, target.minZ, target.maxZ));
-		return normalizedOrForward(point.subtract(origin), fallbackYaw);
+		Vec3 offset = aimPoint(target, origin).subtract(origin);
+		if (offset.lengthSqr() < EPSILON)
+			return direction(fallbackYaw, 0.0f);
+		return offset.normalize();
+	}
+
+	/** Nearest point on or inside the complete target box; visibility and aiming share this point. */
+	public static Vec3 aimPoint(AABB target, Vec3 origin) {
+		return new Vec3(Mth.clamp(origin.x, target.minX, target.maxX),
+			Mth.clamp(origin.y, target.minY, target.maxY),
+			Mth.clamp(origin.z, target.minZ, target.maxZ));
 	}
 
 	public static Vec3 constrainAim(Vec3 desired, float bodyYaw) {
@@ -193,11 +236,11 @@ public final class SlimeBionicCombat {
 	}
 
 	private static Vec3 constrainAim(Vec3 desired, float bodyYaw, AngularRange activity) {
-		float relativeYaw = Mth.clamp(Mth.wrapDegrees(yaw(desired) - bodyYaw),
+		float relativeYaw = Mth.clamp(Mth.wrapDegrees(yawOrFallback(desired, bodyYaw) - bodyYaw),
 			Math.max(-MAX_AIM_YAW_DEGREES, activity.minimumYaw()), Math.min(MAX_AIM_YAW_DEGREES, activity.maximumYaw()));
-		float pitch = Mth.clamp(pitch(desired), Math.max(MIN_AIM_PITCH_DEGREES, activity.minimumPitch()),
+		float constrainedPitch = Mth.clamp(pitch(desired), Math.max(MIN_AIM_PITCH_DEGREES, activity.minimumPitch()),
 			Math.min(MAX_AIM_PITCH_DEGREES, activity.maximumPitch()));
-		return direction(bodyYaw + relativeYaw, pitch);
+		return direction(bodyYaw + relativeYaw, constrainedPitch);
 	}
 
 	public static Vec3 approachAim(Vec3 current, Vec3 desired, float maximumDegrees) {
@@ -217,6 +260,10 @@ public final class SlimeBionicCombat {
 	public static float yaw(Vec3 direction) {
 		return direction == null || direction.horizontalDistanceSqr() < EPSILON ? 0.0f
 			: (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+	}
+
+	private static float yawOrFallback(Vec3 direction, float fallbackYaw) {
+		return direction == null || direction.horizontalDistanceSqr() < EPSILON ? fallbackYaw : yaw(direction);
 	}
 
 	public static float pitch(Vec3 direction) {

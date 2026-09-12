@@ -642,10 +642,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	private boolean hasAttackLineOfSight(LivingEntity target, SurgicalAssembly.ArmAttackGeometry arm,
 		float bodyYaw) {
-		if (!hasLineOfSight(target))
-			return false;
 		Vec3 origin = SlimeBionicCombat.worldOrigin(position(), bodyYaw, arm);
-		return level().clip(new ClipContext(origin, target.getEyePosition(), ClipContext.Block.COLLIDER,
+		Vec3 targetPoint = SlimeBionicCombat.aimPoint(target.getBoundingBox(), origin);
+		if (origin.distanceToSqr(targetPoint) < 1.0e-8d)
+			return true;
+		return level().clip(new ClipContext(origin, targetPoint, ClipContext.Block.COLLIDER,
 			ClipContext.Fluid.NONE, this)).getType() == HitResult.Type.MISS;
 	}
 
@@ -887,7 +888,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 		@Override
 		protected void checkAndPerformAttack(LivingEntity target) {
-			if (pendingAttackTarget != null || !validTarget(target) || !canPerformAttack(target))
+			// Vanilla canPerformAttack() requires eye-to-eye sensing before our complete-AABB arm
+			// checks run. Use only its timing/range portions; per-arm block visibility is checked from
+			// the shoulder to the nearest target-box point in beginAttack() and again on contact.
+			if (pendingAttackTarget != null || !validTarget(target) || !isTimeToAttack()
+				|| !bionic.isWithinMeleeAttackRange(target))
 				return;
 			AttackStart attack = bionic.beginAttack(target, rightArmRecovery, leftArmRecovery, lastArm, intelligence);
 			if (attack == null)

@@ -727,8 +727,7 @@ public final class SlimeBionicAnimator {
 			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
 
 		float attackBodyYaw = entity.getAttackBodyYaw();
-		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(
-			arm, attackBodyYaw, aimYaw, aimPitch);
+		SlimeBionicCombat.AngularRange range = SlimeBionicCombat.attackRange(arm);
 		if (range.isEmpty())
 			return new AttackAnimationTarget(aimYaw, aimPitch, 0.0f);
 		float referencePitch = arm.restDirection() == null
