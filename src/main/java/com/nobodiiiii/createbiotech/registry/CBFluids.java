@@ -10,6 +10,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.fluid.CreamBucketDispenseBehavior;
 import com.nobodiiiii.createbiotech.content.buttercat.fluid.CreamFluidType;
 import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeBlock;
+import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeBottleItem;
 import com.nobodiiiii.createbiotech.content.fluid.LiquidLivingSlimeFluidType;
 import com.nobodiiiii.createbiotech.content.fluid.TeleportationFluid;
 import com.nobodiiiii.createbiotech.content.fluid.TeleportationLiquidBlock;
@@ -18,6 +19,9 @@ import com.simibubi.create.content.fluids.VirtualFluid;
 import org.joml.Vector3f;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
@@ -160,10 +164,17 @@ public class CBFluids {
 				.craftRemainder(Items.BUCKET)
 				.stacksTo(1)));
 
-	public static final DeferredHolder<Item, Item> LIQUID_LIVING_SLIME_BOTTLE =
+	public static final DeferredHolder<Item, LiquidLivingSlimeBottleItem> LIQUID_LIVING_SLIME_BOTTLE =
 		FLUID_ITEMS.register("liquid_living_slime_bottle",
-			() -> new Item(new Item.Properties()
+			() -> new LiquidLivingSlimeBottleItem(new Item.Properties()
 				.craftRemainder(Items.GLASS_BOTTLE)
+				.food(new FoodProperties.Builder()
+					.nutrition(6)
+					.saturationModifier(0.1F)
+					.effect(new MobEffectInstance(MobEffects.OOZING, 5 * 20), 1.0F)
+					.effect(new MobEffectInstance(CBMobEffects.BOUNCING, 30 * 20), 1.0F)
+					.usingConvertsTo(Items.GLASS_BOTTLE)
+					.build())
 				.stacksTo(1)));
 
 	public static final DeferredHolder<FluidType, CreamFluidType> CREAM_TYPE = FLUID_TYPES.register("cream",
