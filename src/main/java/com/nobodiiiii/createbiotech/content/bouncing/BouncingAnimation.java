@@ -63,10 +63,7 @@ public final class BouncingAnimation {
 		poseStack.mulPose(deformationMatrix);
 	}
 
-	/**
-	 * Samples the same jelly simulation used by the third-person model, excluding walk and
-	 * horizontal-motion inputs so ordinary first-person walking does not add camera movement.
-	 */
+	/** Samples the first-person jelly simulation driven only by crouch transitions. */
 	public static VisualDeformation getCameraDeformation(Player player, float partialTick) {
 		if (!player.isAlive() || player.isSleeping() || !player.hasEffect(CBMobEffects.BOUNCING)) {
 			resetCamera(player);
@@ -134,33 +131,9 @@ public final class BouncingAnimation {
 		return new Targets(targetStretch, targetShearX, targetShearZ, targetHeightScale);
 	}
 
-	private static Targets getCameraTargets(Player player, double renderTime) {
-		Vec3 movement = player.getDeltaMovement();
-		float verticalMovement = player.onGround() || player.isPassenger() ? 0.0F : (float) movement.y;
-		float airborneEnergy = Mth.clamp(Math.abs(verticalMovement) * 2.5F, 0.0F, 1.0F);
-		long playerSeed = player.getUUID().getMostSignificantBits()
-			^ Long.rotateLeft(player.getUUID().getLeastSignificantBits(), 23);
-
-		float velocityLag = Mth.clamp(-verticalMovement * 0.38F, -0.16F, 0.22F);
-		float targetStretch = Mth.clamp(velocityLag, -MAX_STRETCH, MAX_STRETCH);
-
-		double activeSwayTime = renderTime / ACTIVE_SWAY_KEYFRAME_TICKS;
-		float randomX = smoothRandom(playerSeed, activeSwayTime, ACTIVE_X_NOISE_SALT);
-		float randomZ = smoothRandom(playerSeed, activeSwayTime, ACTIVE_Z_NOISE_SALT);
-		float randomLengthSqr = randomX * randomX + randomZ * randomZ;
-		if (randomLengthSqr > 1.0F) {
-			float inverseLength = Mth.invSqrt(randomLengthSqr);
-			randomX *= inverseLength;
-			randomZ *= inverseLength;
-		}
-
-		// Only vertical movement contributes continuous first-person sway. Crouching and
-		// standing transitions add their matching one-shot impulses in JellyState.
-		float randomSway = 0.04F * airborneEnergy;
-		float targetShearX = Mth.clamp(randomX * randomSway, -MAX_SHEAR, MAX_SHEAR);
-		float targetShearZ = Mth.clamp(randomZ * randomSway, -MAX_SHEAR, MAX_SHEAR);
+	private static Targets getCameraTargets(Player player) {
 		float targetHeightScale = BouncingCrouch.isActive(player) ? BouncingCrouch.HEIGHT_SCALE : 1.0F;
-		return new Targets(targetStretch, targetShearX, targetShearZ, targetHeightScale);
+		return new Targets(0.0F, 0.0F, 0.0F, targetHeightScale);
 	}
 
 	private static float smoothstep(float value) {
@@ -212,7 +185,7 @@ public final class BouncingAnimation {
 			Vec3 movement = player.getDeltaMovement();
 			boolean onGround = player.onGround();
 			Targets targets = cameraOnly
-				? getCameraTargets(player, renderTime)
+				? getCameraTargets(player)
 				: getTargets(player, partialTick, renderTime);
 
 			if (!initialized || renderTime < lastRenderTime || renderTime - lastRenderTime > 5.0D) {
@@ -227,7 +200,8 @@ public final class BouncingAnimation {
 			}
 
 			if (player.tickCount != lastTick) {
-				applyMotionImpulse(movement, onGround, !cameraOnly);
+				if (!cameraOnly)
+					applyMotionImpulse(movement, onGround);
 				lastTick = player.tickCount;
 				lastMovement = movement;
 				lastOnGround = onGround;
@@ -281,13 +255,11 @@ public final class BouncingAnimation {
 				-0.12F, 0.12F);
 		}
 
-		private void applyMotionImpulse(Vec3 movement, boolean onGround, boolean includeHorizontalMotion) {
-			if (includeHorizontalMotion) {
-				float accelerationX = (float) (movement.x - lastMovement.x);
-				float accelerationZ = (float) (movement.z - lastMovement.z);
-				shearVelocityX = Mth.clamp(shearVelocityX - accelerationX * 0.42F, -0.12F, 0.12F);
-				shearVelocityZ = Mth.clamp(shearVelocityZ - accelerationZ * 0.42F, -0.12F, 0.12F);
-			}
+		private void applyMotionImpulse(Vec3 movement, boolean onGround) {
+			float accelerationX = (float) (movement.x - lastMovement.x);
+			float accelerationZ = (float) (movement.z - lastMovement.z);
+			shearVelocityX = Mth.clamp(shearVelocityX - accelerationX * 0.42F, -0.12F, 0.12F);
+			shearVelocityZ = Mth.clamp(shearVelocityZ - accelerationZ * 0.42F, -0.12F, 0.12F);
 
 			if (lastOnGround && !onGround) {
 				float takeoffSpeed = Mth.clamp((float) movement.y, 0.0F, 0.7F);

@@ -33,10 +33,22 @@ public final class BouncingFallHandler {
 
 		// SlimeBlock prevents fall damage unless the entity is suppressing its bounce.
 		event.setDamageMultiplier(0.0F);
+	}
+
+	@SubscribeEvent
+	public static void onLivingTick(EntityTickEvent.Pre event) {
+		if (!(event.getEntity() instanceof LivingEntity entity))
+			return;
 
 		double fallingSpeed = entity.getDeltaMovement().y;
-		if (fallingSpeed < 0.0D)
+		if (entity.isAlive()
+			&& entity.hasEffect(CBMobEffects.BOUNCING)
+			&& !entity.isSuppressingBounce()
+			&& fallingSpeed <= -LivingEntity.MIN_MOVEMENT_DISTANCE) {
 			PENDING_BOUNCES.put(entity, fallingSpeed);
+		} else {
+			PENDING_BOUNCES.remove(entity);
+		}
 	}
 
 	@SubscribeEvent
@@ -47,6 +59,7 @@ public final class BouncingFallHandler {
 		Double fallingSpeed = PENDING_BOUNCES.remove(entity);
 		if (fallingSpeed == null
 			|| !entity.isAlive()
+			|| !entity.onGround()
 			|| entity.isSuppressingBounce()
 			|| !entity.hasEffect(CBMobEffects.BOUNCING))
 			return;
