@@ -7,7 +7,10 @@ import java.util.WeakHashMap;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBMobEffects;
 
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -16,6 +19,7 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class BouncingFallHandler {
+	private static final double BOUNCE_MULTIPLIER = 1.0D;
 	private static final Map<LivingEntity, Double> PENDING_BOUNCES =
 		Collections.synchronizedMap(new WeakHashMap<>());
 
@@ -47,14 +51,39 @@ public final class BouncingFallHandler {
 			|| !entity.hasEffect(CBMobEffects.BOUNCING))
 			return;
 
-		// Block#updateEntityAfterFallOn has now run. Apply the same full-strength vertical
-		// reversal that SlimeBlock uses for living entities, unless the landing block has
-		// already supplied an upward bounce of its own.
+		// Block#updateEntityAfterFallOn has now run. Recreate SlimeBlock's bounce and the
+		// remainder of LivingEntity#travel, which normally runs after the block callback.
 		Vec3 movement = entity.getDeltaMovement();
 		if (movement.y > 0.0D)
 			return;
 
-		entity.setDeltaMovement(movement.x, -fallingSpeed, movement.z);
+		double bounceSpeed = getPostTravelBounceSpeed(entity, fallingSpeed);
+		entity.setDeltaMovement(movement.x, bounceSpeed, movement.z);
 		entity.hasImpulse = true;
+	}
+
+	private static double getPostTravelBounceSpeed(LivingEntity entity, double fallingSpeed) {
+		// SlimeBlock fully reverses the collision speed for living entities.
+		double bounceSpeed = -fallingSpeed * BOUNCE_MULTIPLIER;
+
+		// This is the vertical part of vanilla LivingEntity#travel that executes after
+		// SlimeBlock#updateEntityAfterFallOn during an ordinary airborne landing.
+		MobEffectInstance levitation = entity.getEffect(MobEffects.LEVITATION);
+		if (levitation != null) {
+			bounceSpeed += (0.05D * (levitation.getAmplifier() + 1) - bounceSpeed) * 0.2D;
+		} else {
+			double gravity = entity.getGravity();
+			if (entity.hasEffect(MobEffects.SLOW_FALLING))
+				gravity = Math.min(gravity, 0.01D);
+			bounceSpeed -= gravity;
+		}
+
+		if (!entity.shouldDiscardFriction())
+			bounceSpeed *= entity instanceof FlyingAnimal ? 0.91F : 0.98F;
+
+		// LivingEntity#aiStep removes motion below this exact vanilla threshold at the
+		// beginning of the next tick. Applying it here is behaviorally equivalent and
+		// prevents the last imperceptible rebound from being sent to the client.
+		return Math.abs(bounceSpeed) < LivingEntity.MIN_MOVEMENT_DISTANCE ? 0.0D : bounceSpeed;
 	}
 }
