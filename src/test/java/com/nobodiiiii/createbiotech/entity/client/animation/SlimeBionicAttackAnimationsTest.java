@@ -10,6 +10,16 @@ class SlimeBionicAttackAnimationsTest {
 	private static final float EPSILON = 1.0e-5f;
 
 	@Test
+	void articulatedEmptyHandFoldsAttackingElbowDeeplyAtFullWindup() {
+		float windupProgress = 10.0f
+			/ SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_CURVE_TICKS;
+		SlimeBionicAttackAnimations.AttackPose pose =
+			SlimeBionicAttackAnimations.articulatedEmptyHandSwing(windupProgress);
+
+		assertEquals((float) Math.toRadians(-110.0d), pose.attackingElbow().x(), EPSILON);
+	}
+
+	@Test
 	void articulatedEmptyHandStraightensAndReachesForwardAtImpact() {
 		float impactProgress = SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_IMPACT_TICK
 			/ SlimeBionicAttackTiming.ARTICULATED_EMPTY_HAND_CURVE_TICKS;

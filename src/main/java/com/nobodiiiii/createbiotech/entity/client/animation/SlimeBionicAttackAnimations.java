@@ -27,7 +27,7 @@ final class SlimeBionicAttackAnimations {
 		Rotation.degrees(15.0f, 0.0f, -10.0f), Rotation.IDENTITY);
 	private static final Rotation EMPTY_HAND_WINDUP_BODY = Rotation.degrees(0.0f, 50.0f, 0.0f);
 	private static final Rotation EMPTY_HAND_WINDUP_SHOULDER = Rotation.degrees(40.0f, 20.0f, 0.0f);
-	private static final Rotation EMPTY_HAND_WINDUP_ELBOW = Rotation.degrees(-80.0f, 0.0f, 0.0f);
+	private static final Rotation EMPTY_HAND_WINDUP_ELBOW = Rotation.degrees(-110.0f, 0.0f, 0.0f);
 	private static final Rotation EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER =
 		Rotation.degrees(35.0f, 0.0f, -10.0f);
 	private static final Rotation EMPTY_HAND_WINDUP_OPPOSITE_ELBOW =
