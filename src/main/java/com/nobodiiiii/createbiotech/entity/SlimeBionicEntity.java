@@ -400,6 +400,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		long[] rightRecovery, long[] leftRecovery, @Nullable ArmUse lastArm) {
 		ArmCandidate best = null;
 		int cadenceArms = 0;
+		int fixedArmIndex = getIntelligence() == BionicIntelligence.SIMPLE
+			? SurgicalCombatCalibration.highestDpsArmIndex(geometry) : -1;
 		long now = level().getGameTime();
 		float bodyYaw = combatBodyYaw();
 		for (int side = 0; side < 2; side++) {
@@ -407,6 +409,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 			List<SurgicalAssembly.ArmAttackGeometry> arms = left ? geometry.left() : geometry.right();
 			long[] recovery = left ? leftRecovery : rightRecovery;
 			for (int slot = 0; slot < arms.size(); slot++) {
+				// A simple mind waits for its favourite, even when another arm could hit now.
+				int armIndex = left ? geometry.right().size() + slot : slot;
+				if (fixedArmIndex >= 0 && armIndex != fixedArmIndex)
+					continue;
 				if (slot >= recovery.length || recovery[slot] > now)
 					continue;
 				SurgicalAssembly.ArmAttackGeometry arm = arms.get(slot);
@@ -1019,7 +1025,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 				bionic.combatFacingControlled = false;
 			}
 			super.tick();
-			if (pendingAttackTarget != null)
+			if (pendingAttackTarget != null && !bionic.getIntelligence().pursuesDuringAttack())
 				bionic.getNavigation().stop();
 			raiseArmTicks++;
 			bionic.setAggressive(pendingAttackTarget != null

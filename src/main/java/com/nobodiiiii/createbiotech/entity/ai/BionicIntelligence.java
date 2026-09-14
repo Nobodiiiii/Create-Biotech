@@ -1,10 +1,14 @@
 package com.nobodiiiii.createbiotech.entity.ai;
 
-/** Head-derived classification retained for data packs and future non-numerical behaviour. */
+/** Head-derived attack strategy; anatomical combat values remain independent of intelligence. */
 public enum BionicIntelligence {
 	SIMPLE,
 	NORMAL,
 	ADVANCED;
+
+	public boolean pursuesDuringAttack() {
+		return this == ADVANCED;
+	}
 
 	/** @deprecated Every intelligence tier now uses the same anatomy-driven melee interval. */
 	@Deprecated(forRemoval = false)

@@ -62,7 +62,26 @@ public final class SurgicalCombatCalibration {
 		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL, stats.attackInterval());
 	}
 
-	/** Compatibility overload; intelligence is classification-only and deliberately ignored. */
+	/**
+	 * Fixed favourite for simple minds, ranked by equipment-free, single-arm DPS before
+	 * checking reach or recovery. Ties keep the first arm (right slots, then left slots).
+	 */
+	public static int highestDpsArmIndex(SurgicalAssembly.AttackGeometry geometry) {
+		int bestIndex = 0;
+		double bestDps = -1.0d;
+		var arms = geometry.arms();
+		for (int index = 0; index < arms.size(); index++) {
+			ArmCombatStats stats = stats(arms.get(index));
+			double dps = stats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL / armRecovery(stats);
+			if (dps > bestDps + 1.0e-8d) {
+				bestDps = dps;
+				bestIndex = index;
+			}
+		}
+		return bestIndex;
+	}
+
+	/** Compatibility overload; intelligence changes strategy, not anatomical recovery. */
 	@Deprecated(forRemoval = false)
 	public static int armRecovery(ArmCombatStats stats, BionicIntelligence ignored) {
 		return armRecovery(stats);
@@ -74,7 +93,7 @@ public final class SurgicalCombatCalibration {
 			Math.round(armRecovery(stats) * cadenceScale(eligibleArms)));
 	}
 
-	/** Compatibility overload; intelligence is classification-only and deliberately ignored. */
+	/** Compatibility overload; strategy supplies eligible arms without an intelligence multiplier. */
 	@Deprecated(forRemoval = false)
 	public static int attackInterval(ArmCombatStats stats, int eligibleArms,
 		BionicIntelligence ignored) {
@@ -87,7 +106,7 @@ public final class SurgicalCombatCalibration {
 	 * <p>Each arm contributes its geometry-normalized DPS, the contributions are averaged because
 	 * attacks are selected one at a time, and the full-ready multi-arm cadence is then applied. Target
 	 * reach, per-arm recovery state, held weapons and enchantments are intentionally situational and
-	 * therefore excluded. Head intelligence is classification-only and does not enter the value.</p>
+	 * therefore excluded. Intelligence-dependent strategy does not enter this baseline value.</p>
 	 */
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		@Nullable SurgicalAssembly.AttackGeometry geometry) {
