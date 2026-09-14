@@ -2,6 +2,8 @@
 
 状态：已按当前 `1.21.1` 工作树完成静态复核，并完成批次 0—4 的实现与冒烟验证（2026-09-04）
 
+后续清理（2026-09-14）：已删除 `SpoutCategoryMixin` 及其配置项。当前自带的鱿鱼打印机制作配方为 `create:item_application`，没有触发该补丁的灌注配方；打印动画由独立的 `SquidPrinterJeiCategory` 直接调用 `AnimatedSquidSpout` 绘制。本报告的数量和验证记录保留 2026-09-04 审计基线。
+
 ## 1. 结论摘要
 
 当前三个配置共声明 **92 个 Mixin**，与源码中 92 个带 `@Mixin` 的 Java 文件一一对应：
@@ -184,7 +186,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 - `CreativeModeInventoryScreenMixin` 的分区布局已与核心 tab 内容分离；`CreativeTabSectionRenderer` 用 `try/finally` 恢复 pose/shader/depth，并在标签切换时重置行与布局元数据。
 - `CreeperRendererMixin` 当前已使用 `@WrapMethod` + `try/finally`，旧版 P1 已降为 P2；仍需测试它和另一个 `LivingEntityRenderer` 包装的嵌套顺序。
 - `DeltaTrackerTimerMixin` 的捕获深度已在批次 3 改为线程局部 token；普通 timer 读取只做一次原子活动数判断。
-- `SpoutCategoryMixin` 可只包装 `AnimatedSpout.draw`，保留 Create 分类布局；`ItemApplicationCategoryMixin` 已有失败回退，不再是阻断项。
+- `SpoutCategoryMixin` 已在后续清理中移除；`ItemApplicationCategoryMixin` 已有失败回退，不再是阻断项。
 - `LevelRendererAccessor`、Creative screen/menu accessor 和简单纹理 invoker 属于 P3；有公开 API 时迁移即可。
 
 ### 存档、网络与可选兼容
@@ -285,7 +287,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.LivingEntityRendererMixin` | 包装全 LivingEntity renderer/layer | P1 | 批次 3 已加快速 scope 门卫和调用点约束；补嵌套顺序矩阵 |
 | `client.LogisticalStockResponsePacketMixin` | 无线库存响应重路由 | P1 | 增加会话、维度和 holder 生命周期校验 |
 | `client.PressingBehaviourMixin` | Chamber Press 动画相位 | P2 | 单点覆盖；升级核对签名 |
-| `client.SpoutCategoryMixin` | 自定义 JEI Spout 场景 | P2 | 只包装动画调用，保留原分类布局 |
+| `client.SpoutCategoryMixin` | 旧 JEI Spout 场景补丁 | 已移除 | 2026-09-14 删除；当前自带配方没有触发场景，打印动画由独立分类绘制 |
 | `client.StockKeeperRequestScreenMixin` | 无线库存 Screen 生命周期 | P1 | 远程失效、换目标、断线和重开测试 |
 | `client.TextureStateShardAccessor` | 调用 cutout texture invoker | P2 | MC 渲染内部 API；资源包矩阵 |
 | `client.LevelRendererAccessor` | 读取 renderer ticks | P3 | 优先公开动画时间 API |

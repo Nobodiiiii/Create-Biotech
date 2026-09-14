@@ -17,7 +17,7 @@ public final class SurgicalCombatCalibration {
 	public static final int ZOMBIE_ATTACK_INTERVAL = 20;
 	/** Leaves room for distinct hits within Minecraft's hurt immunity and caps multi-arm bursts. */
 	public static final int MIN_GLOBAL_ATTACK_INTERVAL = 12;
-	public static final int MAX_GLOBAL_ATTACK_INTERVAL = 44;
+	public static final int MAX_GLOBAL_ATTACK_INTERVAL = 40;
 
 	private static final double MAX_DPS_SCALE = 4.0d;
 	private static final int MIN_ATTACK_INTERVAL = 10;
@@ -58,15 +58,27 @@ public final class SurgicalCombatCalibration {
 		return Math.max(0.8f, 1.0f - Math.max(0, readyArmCount - 1) * 0.1f);
 	}
 
-	public static int armRecovery(ArmCombatStats stats, BionicIntelligence intelligence) {
-		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL,
-			Math.round(stats.attackInterval() * intelligence.meleeIntervalScale()));
+	public static int armRecovery(ArmCombatStats stats) {
+		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL, stats.attackInterval());
+	}
+
+	/** Compatibility overload; intelligence is classification-only and deliberately ignored. */
+	@Deprecated(forRemoval = false)
+	public static int armRecovery(ArmCombatStats stats, BionicIntelligence ignored) {
+		return armRecovery(stats);
 	}
 
 	/** The caller counts coordination in the generic range before filtering by mounted posture. */
-	public static int attackInterval(ArmCombatStats stats, int eligibleArms, BionicIntelligence intelligence) {
+	public static int attackInterval(ArmCombatStats stats, int eligibleArms) {
 		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL,
-			Math.round(armRecovery(stats, intelligence) * cadenceScale(eligibleArms)));
+			Math.round(armRecovery(stats) * cadenceScale(eligibleArms)));
+	}
+
+	/** Compatibility overload; intelligence is classification-only and deliberately ignored. */
+	@Deprecated(forRemoval = false)
+	public static int attackInterval(ArmCombatStats stats, int eligibleArms,
+		BionicIntelligence ignored) {
+		return attackInterval(stats, eligibleArms);
 	}
 
 	/**
@@ -74,8 +86,8 @@ public final class SurgicalCombatCalibration {
 	 *
 	 * <p>Each arm contributes its geometry-normalized DPS, the contributions are averaged because
 	 * attacks are selected one at a time, and the full-ready multi-arm cadence is then applied. Target
-	 * reach, per-arm recovery state, head intelligence, held weapons and enchantments are intentionally
-	 * situational and therefore excluded. Normal intelligence is the reference for this base value.</p>
+	 * reach, per-arm recovery state, held weapons and enchantments are intentionally situational and
+	 * therefore excluded. Head intelligence is classification-only and does not enter the value.</p>
 	 */
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		@Nullable SurgicalAssembly.AttackGeometry geometry) {
@@ -88,7 +100,7 @@ public final class SurgicalCombatCalibration {
 		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms()) {
 			ArmCombatStats armStats = stats(arm);
 			totalDps += baseAttackDamage * armStats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL
-				/ attackInterval(armStats, geometry.armCount(), BionicIntelligence.NORMAL);
+				/ attackInterval(armStats, geometry.armCount());
 		}
 		return totalDps / geometry.armCount();
 	}

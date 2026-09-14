@@ -20,6 +20,9 @@ public final class SlimeBionicCombat {
 	public static final float MIN_AIM_PITCH_DEGREES = -60.0f;
 	public static final float MAX_AIM_PITCH_DEGREES = 60.0f;
 	public static final float FRONT_HALF_ANGLE_DEGREES = 90.0f;
+	/** Fixed coordination rates; head intelligence is classification, not a numerical modifier. */
+	public static final float BODY_TURN_DEGREES = 10.0f;
+	public static final float AIM_TRACKING_DEGREES = 12.0f;
 	private static final int ACTIVE_TICKS = 5;
 	private static final int RIGID_CONTACT_OFFSET = 2;
 	private static final int ARTICULATED_CONTACT_OFFSET = -4;

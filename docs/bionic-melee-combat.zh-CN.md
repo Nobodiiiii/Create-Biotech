@@ -25,23 +25,25 @@
 
 参数按装配单位方向连续插值，斜向装配没有分类跳变。纵向中心从水平大臂的 0° 线性过渡到垂直大臂的 ±45°；水平方向从前伸大臂的中心 0° 连续过渡到侧伸大臂的中心 ±55°，并乘以大臂单位方向的水平分量。这样越接近竖直的大臂越不受其微小侧倾的投影方位影响，真正水平侧伸时才取得完整侧向偏置。横向总张角保持 70° 并钳制在身体正前方。随后直接检查目标完整 AABB，因此目标仅部分进入固定扇区仍可命中。有效臂长和伤害不因姿态改变。
 
-选臂会优先考虑装配方向与目标方向的匹配程度，低处优先下垂手臂、高处优先上举手臂，同侧目标优先侧伸手臂；恢复状态、武器与轮换仍参与选择。简单、普通、高级智力对姿态匹配的选择权重分别为 0.8、1.0、1.2，不改变手臂活动范围。
+选臂会优先考虑装配方向与目标方向的匹配程度，低处优先下垂手臂、高处优先上举手臂，同侧目标优先侧伸手臂；恢复状态、武器与轮换仍参与选择。姿态匹配权重固定为 1.0，不受头部智力分类影响。
 
 旧存档没有 `RestDirection` 时继续使用原有通用范围，身体攻击也保持通用规则。新打包的生物会保存装配朝向；姿态特化本身不增加攻速修正、恢复惩罚或动作时长。
 
-## 频率与智力
+## 频率与固定协调参数
 
 原有手臂体积、粗细校准保留：体积决定基础输出，粗细使攻击在较快的小伤害与较慢的大伤害之间变化，解剖基础间隔为 10–40 tick。
 
-| 智力 | 恢复间隔系数 | 转身上限 | 准备期间瞄准修正上限 | 单只标准僵尸手臂间隔 |
-| --- | --- | --- | --- | --- |
-| 简单 | 1.1 | 8°/tick | 10°/tick | 22 tick |
-| 普通 | 1.0 | 10°/tick | 12°/tick | 20 tick |
-| 高级 | 0.9 | 12°/tick | 14°/tick | 18 tick |
+| 参数 | 固定值 |
+| --- | --- |
+| 手臂恢复间隔系数 | 1.0 |
+| 转身上限 | 10°/tick |
+| 准备期间瞄准修正上限 | 12°/tick |
+| 姿态匹配权重 | 1.0 |
+| 单只标准僵尸手臂间隔 | 20 tick |
 
-手臂恢复间隔是基础间隔乘以上表系数并取整，至少 12 tick。全局间隔再乘以可用手臂协调系数：1 只为 1.0，2 只为 0.9，3–8 只为 0.8，最终仍至少 12 tick。协调计数保留特化前的条件：手臂已恢复、通用范围的方向和距离合适、路径没有方块遮挡；计数发生在装配姿态筛选之前，避免单纯改变姿态就改变频率系数。每次只选一只能够实际命中的手臂出手。若新装配范围允许攻击原先通用发起条件以外的高低位目标，协调计数至少按一只手臂处理。
+手臂恢复间隔是解剖基础间隔，至少 12 tick。全局间隔再乘以可用手臂协调系数：1 只为 1.0，2 只为 0.9，3–8 只为 0.8，最终仍至少 12 tick。协调计数保留特化前的条件：手臂已恢复、通用范围的方向和距离合适、路径没有方块遮挡；计数发生在装配姿态筛选之前，避免单纯改变姿态就改变频率系数。每次只选一只能够实际命中的手臂出手。若新装配范围允许攻击原先通用发起条件以外的高低位目标，协调计数至少按一只手臂处理。
 
-智力通过现有的 `bionic_head/intelligence` 数据包分类读取，多头取最高级，无头或未分类时为简单级。每次攻击在发起时固定自己的恢复间隔和瞄准修正级别；智力不修改伤害或范围。
+智力仍通过 `bionic_head/intelligence` 数据包分类读取，多头取最高级，无头或未分类时为简单级，但当前只保留为分类信息：不修改伤害、范围、间隔、转身、瞄准或选臂权重。
 
 ## 攻击生命周期
 
@@ -66,13 +68,13 @@
 - 范围及阶段：`src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombat.java`
 - 选臂、追踪、命中、冷却：`src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicEntity.java`
 - 体积与频率校准：`src/main/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalCombatCalibration.java`
-- 智力系数：`src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicIntelligence.java`
+- 智力分类：`src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicIntelligence.java`
 - 预览几何与绘制：`src/main/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAttackRangeGeometry.java`、`SlimeBionicAttackRangeRenderer.java`
 - 自动测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombatTimingTest.java`、`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalCombatCalibrationTest.java`
 - 预览测试：`src/test/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAttackRangeGeometryTest.java`
 - 姿态及兼容测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicPostureCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalArmPosturePersistenceTest.java`
 
-运行 `gradlew test` 可检查方向、距离、部分相交、高大目标、肩部偏移、转向角度环绕、保底攻击、阶段边界、智力影响与多臂频率上限；姿态测试还核对各姿态的高低位边界、前方 180° 限制、连续插值、频率不受姿态修正、旧存档与网络传输兼容，预览测试核对裁切面封闭性与真实命中区域的吻合，不启动游戏客户端。纸箱中的 DPS 保持普通智力、全部手臂可用的基础参考口径，不受装配朝向影响。
+运行 `gradlew test` 可检查方向、距离、部分相交、高大目标、肩部偏移、转向角度环绕、保底攻击、阶段边界、智力数值独立性与多臂频率上限；姿态测试还核对各姿态的高低位边界、前方 180° 限制、连续插值、频率不受姿态修正、旧存档与网络传输兼容，预览测试核对裁切面封闭性与真实命中区域的吻合，不启动游戏客户端。纸箱中的 DPS 使用全部手臂可用的固定协调参数，不受智力或装配朝向影响。
 
 实现以项目自身的几何和 AI 为基础。核对原版近战 Goal、移动及转身调用顺序时，先检索了 `ref/`；其中缺少原版类，故使用当前构建生成的 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 内的 `net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java`、`net/minecraft/world/entity/Mob.java` 和 `net/minecraft/world/entity/ai/control/MoveControl.java`。
 

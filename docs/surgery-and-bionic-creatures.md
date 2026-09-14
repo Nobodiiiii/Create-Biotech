@@ -67,7 +67,7 @@ This part is still unfinished; suggestions are welcome in the comments on the mo
 
 ### Reading the Stats
 
-With the bionic creature packed into a box, hold `Alt` to expand "Base Values". It lists maximum health, damage (DPS), movement speed, armour, knockback-related values, and how many heads, arms and legs are working. DPS assumes normal intelligence and all arms available, excluding weapons, enchantments, status effects and the target's position.
+With the bionic creature packed into a box, hold `Alt` to expand "Base Values". It lists maximum health, damage (DPS), movement speed, armour, knockback-related values, and how many heads, arms and legs are working. DPS assumes all arms are available under the fixed coordination parameters, excluding intelligence, weapons, enchantments, status effects and the target's position.
 
 Movement speed is affected by whether the legs reach the ground, how long they are, whether they have knees, and how much of the whole body they make up. Melee reach follows the arm's static shoulder-to-tip length. Arm volume and thickness determine base damage and cadence; additional arms that can engage the current target provide a limited cadence benefit.
 
@@ -79,6 +79,6 @@ Mounted posture specializes fixed coverage: hanging, level, and raised upper arm
 
 Rigid and articulated arms use the same total action duration, normally 20 ticks from wind-up through complete animation recovery. Rigid contact uses its independent short preparation position plus 2 ticks; articulated contact starts from the rounded impact keyframe of its empty-hand or weapon animation, then shifts 4 ticks earlier. Every contact window lasts 5 ticks and attempts damage at most once. Arms recover separately, while the whole body waits at least 12 ticks (0.6 seconds) between swings. Extra eligible arms shorten the global interval by at most 20%. Misses and blocked hits still consume recovery; switching targets does not reset it.
 
-Simple, normal and advanced intelligence apply interval factors of 1.1, 1.0 and 0.9, with small differences in turning and preparation-time aim correction. A single standard zombie arm therefore attacks every 22, 20 or 18 ticks. Intelligence grants no extra reach or damage. Multiple recognized heads use their highest tier; no recognized head defaults to simple intelligence.
+Intelligence remains classified as simple, normal or advanced; multiple recognized heads use their highest tier and no recognized head defaults to simple. The classification currently changes no combat value. Every tier uses a 1.0 recovery factor, a 10-degree-per-tick body turn, a 12-degree-per-tick preparation aim correction and a 1.0 posture preference weight, so one standard zombie arm always attacks every 20 ticks.
 
 The server controls contact and recovery. Articulated attacks derive their server damage-window position from the authored animation keyframe and apply the configured timing offset, while rigid attacks retain an independent position. The visible hand path never changes attack reach.

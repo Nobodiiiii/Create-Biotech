@@ -262,7 +262,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return cachedAssembly;
 	}
 
-	/** Current head-derived disposition and modest combat coordination tier. */
+	/** Current head-derived disposition and intelligence classification. */
 	public BionicMind getMind() {
 		return BionicMind.resolve(getAssembly(), level());
 	}
@@ -375,19 +375,19 @@ public class SlimeBionicEntity extends PathfinderMob {
 	/** Selects the best ready arm and snapshots gameplay and presentation state for one attack. */
 	@Nullable
 	private AttackStart beginAttack(LivingEntity target, long[] rightRecovery, long[] leftRecovery,
-		@Nullable ArmUse lastArm, BionicIntelligence intelligence) {
+		@Nullable ArmUse lastArm) {
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
 		ArmSelection selection = geometry == null ? fallbackArm(target, rightRecovery[0])
-			: selectArm(target, geometry, rightRecovery, leftRecovery, lastArm, intelligence);
+			: selectArm(target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
 
 		ArmCandidate selected = selection.arm();
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(
 			geometry == null ? null : selected.arm());
-		int recovery = SurgicalCombatCalibration.armRecovery(stats, intelligence);
-		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms(), intelligence);
+		int recovery = SurgicalCombatCalibration.armRecovery(stats);
+		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms());
 		int actionDuration = startAttackAction(selected, interval);
 		return new AttackStart(actionDuration,
 			SlimeBionicCombat.contactStartTick(interval, selected.arm().hasElbow(), selected.weapon()),
@@ -397,7 +397,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Nullable
 	private ArmSelection selectArm(LivingEntity target, SurgicalAssembly.AttackGeometry geometry,
-		long[] rightRecovery, long[] leftRecovery, @Nullable ArmUse lastArm, BionicIntelligence intelligence) {
+		long[] rightRecovery, long[] leftRecovery, @Nullable ArmUse lastArm) {
 		ArmCandidate best = null;
 		int cadenceArms = 0;
 		long now = level().getGameTime();
@@ -428,7 +428,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 				boolean crossesBody = left ? localTarget.x < -0.05d : localTarget.x > 0.05d;
 				double score = Math.abs(relativeYaw)
 					+ Math.abs(SlimeBionicCombat.pitch(aim)) * 0.35d
-					+ SlimeBionicCombat.posturePreferencePenalty(aim, bodyYaw, arm) * intelligence.posturePreferenceWeight()
+					+ SlimeBionicCombat.posturePreferencePenalty(aim, bodyYaw, arm)
 					+ (crossesBody ? 30.0d : 0.0d)
 					+ (lastArm != null && lastArm.left() == left && lastArm.slot() == slot ? 18.0d : 0.0d)
 					- (weapon ? 12.0d : 0.0d) + slot * 1.0e-3d;
@@ -832,8 +832,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		private int raiseArmTicks;
 		private long nextAttackTick;
 		private int currentAttackInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
-		private BionicIntelligence intelligence = BionicIntelligence.SIMPLE;
-		private BionicIntelligence pendingIntelligence = BionicIntelligence.SIMPLE;
 		@Nullable
 		private LivingEntity pendingAttackTarget;
 		private long pendingAttackStartedAt;
@@ -894,7 +892,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			if (pendingAttackTarget != null || !validTarget(target) || !isTimeToAttack()
 				|| !bionic.isWithinMeleeAttackRange(target))
 				return;
-			AttackStart attack = bionic.beginAttack(target, rightArmRecovery, leftArmRecovery, lastArm, intelligence);
+			AttackStart attack = bionic.beginAttack(target, rightArmRecovery, leftArmRecovery, lastArm);
 			if (attack == null)
 				return;
 			long now = bionic.level().getGameTime();
@@ -906,7 +904,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 			pendingArmGeometry = attack.arm();
 			pendingAim = attack.aim();
 			pendingBodyYaw = bionic.combatBodyYaw();
-			pendingIntelligence = intelligence;
 			pendingDamageMultiplier = attack.damageMultiplier();
 			pendingAttackTarget = target;
 			pendingAttackStartedAt = now;
@@ -934,7 +931,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			// The final preparation tick commits both the aim and shoulder orientation. Neither
 			// navigation nor model/body smoothing can sweep the strike around after this point.
 			if (pendingAttackElapsed < activeStart) {
-				turnBodyToward(target, pendingIntelligence);
+				turnBodyToward(target);
 				pendingBodyYaw = bionic.combatBodyYaw();
 				trackAim(target);
 				bionic.synchronizeAttackAim(pendingAim, pendingBodyYaw, pendingAttackDuration - pendingAttackElapsed);
@@ -954,11 +951,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 			}
 		}
 
-		private void turnBodyToward(LivingEntity target, BionicIntelligence coordination) {
+		private void turnBodyToward(LivingEntity target) {
 			float current = bionic.combatBodyYaw();
 			Vec3 direction = target.getBoundingBox().getCenter().subtract(bionic.position());
 			float desired = direction.horizontalDistanceSqr() < 1.0e-8d ? current : SlimeBionicCombat.yaw(direction);
-			bionic.combatFacingYaw = Mth.approachDegrees(current, desired, coordination.bodyTurnDegrees());
+			bionic.combatFacingYaw = Mth.approachDegrees(current, desired,
+				SlimeBionicCombat.BODY_TURN_DEGREES);
 			bionic.combatFacingControlled = true;
 			bionic.applyCombatFacing();
 		}
@@ -968,7 +966,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			Vec3 desired = SlimeBionicCombat.constrainAim(
 				SlimeBionicCombat.aimAt(target.getBoundingBox(), origin, pendingBodyYaw), pendingBodyYaw, pendingArmGeometry);
 			pendingAim = SlimeBionicCombat.constrainAim(SlimeBionicCombat.approachAim(
-				pendingAim, desired, pendingIntelligence.aimTrackingDegrees()), pendingBodyYaw, pendingArmGeometry);
+				pendingAim, desired, SlimeBionicCombat.AIM_TRACKING_DEGREES), pendingBodyYaw, pendingArmGeometry);
 		}
 
 		private void clearPendingAttack() {
@@ -1011,13 +1009,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 				bionic.getNavigation().stop();
 				return;
 			}
-			intelligence = bionic.getIntelligence();
 			if (pendingAttackTarget != null && pendingAttackTarget != target)
 				clearPendingAttack();
 			if (pendingAttackTarget != null) {
 				advancePendingAttack();
 			} else if (bionic.withinCombatEnvelope(target.getBoundingBox().inflate(0.5d))) {
-				turnBodyToward(target, intelligence);
+				turnBodyToward(target);
 			} else {
 				bionic.combatFacingControlled = false;
 			}

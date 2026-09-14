@@ -121,7 +121,7 @@
 
 - 优先级：P1/P2
 
-四个 JEI/Create-JEI Mixin 均使用 `@Pseudo`：
+审计时的四个 JEI/Create-JEI Mixin 均使用 `@Pseudo`（其中 `SpoutCategoryMixin` 已于 2026-09-14 移除；打印动画由独立的 `SquidPrinterJeiCategory` 绘制）：
 
 - `ItemApplicationCategoryMixin`
 - `SpoutCategoryMixin`

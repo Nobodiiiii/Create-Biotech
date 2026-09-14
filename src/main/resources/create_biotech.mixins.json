@@ -89,7 +89,6 @@
 	"client.PlayerModelBouncingMixin",
 	"client.PlayerRendererBouncingMixin",
     "client.PressingBehaviourMixin",
-    "client.SpoutCategoryMixin",
     "client.StockKeeperRequestScreenMixin",
     "client.TextureStateShardAccessor",
     "client.LevelRendererAccessor",

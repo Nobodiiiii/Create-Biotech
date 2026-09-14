@@ -44,6 +44,7 @@ public final class BouncingFallHandler {
 		if (entity.isAlive()
 			&& entity.hasEffect(CBMobEffects.BOUNCING)
 			&& !entity.isSuppressingBounce()
+			&& !entity.onGround()
 			&& fallingSpeed <= -LivingEntity.MIN_MOVEMENT_DISTANCE) {
 			PENDING_BOUNCES.put(entity, fallingSpeed);
 		} else {
@@ -71,6 +72,9 @@ public final class BouncingFallHandler {
 			return;
 
 		double bounceSpeed = getPostTravelBounceSpeed(entity, fallingSpeed);
+		if (bounceSpeed <= 0.0D)
+			return;
+
 		entity.setDeltaMovement(movement.x, bounceSpeed, movement.z);
 		entity.hasImpulse = true;
 	}
