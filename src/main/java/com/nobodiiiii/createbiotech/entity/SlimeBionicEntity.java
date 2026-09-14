@@ -168,7 +168,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			.add(Attributes.KNOCKBACK_RESISTANCE, 0.15d);
 	}
 
-	/** Mirrors {@code Zombie}'s goal set so a stitched body already behaves like something alive. */
+	/** Target acquisition and retaliation both respect the head-derived disposition in canAttack. */
 	@Override
 	protected void registerGoals() {
 		goalSelector.addGoal(0, new FloatGoal(this));
@@ -269,6 +269,19 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public BionicDisposition getDisposition() {
 		return getMind().disposition();
+	}
+
+	@Override
+	public boolean canAttack(LivingEntity target) {
+		if (!super.canAttack(target))
+			return false;
+		// Shared by target goals and the pending arm strike's contact checks, so a changed head or
+		// data-pack classification also stops an attack that was already in progress.
+		return switch (getDisposition()) {
+			case FRIENDLY -> false;
+			case NEUTRAL -> target == getLastHurtByMob();
+			case HOSTILE -> true;
+		};
 	}
 
 	public BionicIntelligence getIntelligence() {
@@ -857,6 +870,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		private BionicAttackGoal(SlimeBionicEntity bionic, double speedModifier, boolean followingTargetEvenIfNotSeen) {
 			super(bionic, speedModifier, followingTargetEvenIfNotSeen);
 			this.bionic = bionic;
+		}
+
+		@Override
+		public boolean canUse() {
+			return validTarget(bionic.getTarget()) && super.canUse();
 		}
 
 		@Override

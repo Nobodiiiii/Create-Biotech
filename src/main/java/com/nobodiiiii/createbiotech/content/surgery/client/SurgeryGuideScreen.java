@@ -27,6 +27,10 @@ public class SurgeryGuideScreen extends AbstractSimiScreen {
 	private static final int FIELD_Y = 18;
 	private static final int FIELD_WIDTH = 216;
 	private static final int FIELD_HEIGHT = 169;
+	/** Shared by guide openings for this client session; the first opening starts at the top. */
+	private static double rememberedScrollAmount;
+
+	private GuideTextField textField;
 
 	private SurgeryGuideScreen() {
 		super(Component.translatable("create_biotech.surgery_guide.title"));
@@ -34,20 +38,35 @@ public class SurgeryGuideScreen extends AbstractSimiScreen {
 
 	@Override
 	protected void init() {
+		// Resizing rebuilds widgets on the same screen without necessarily removing it first.
+		rememberScrollPosition();
 		setWindowSize(BACKGROUND.getWidth(), BACKGROUND.getHeight());
 		super.init();
 		clearWidgets();
 
-		GuideTextField textField = new GuideTextField(font, guiLeft + FIELD_X, guiTop + FIELD_Y,
+		textField = new GuideTextField(font, guiLeft + FIELD_X, guiTop + FIELD_Y,
 			FIELD_WIDTH, FIELD_HEIGHT, title);
 		textField.setValue(SurgeryGuideText.build());
 		textField.setFocused(false);
+		// setValue scrolls to the end of the text, so restore only after it has been populated.
+		textField.restoreScrollPosition(rememberedScrollAmount);
 		addRenderableWidget(textField);
 
 		IconButton closeButton = new IconButton(guiLeft + BACKGROUND.getWidth() - 42,
 			guiTop + BACKGROUND.getHeight() - 30, AllIcons.I_CONFIRM);
 		closeButton.withCallback(this::onClose);
 		addRenderableWidget(closeButton);
+	}
+
+	@Override
+	public void removed() {
+		rememberScrollPosition();
+		super.removed();
+	}
+
+	private void rememberScrollPosition() {
+		if (textField != null)
+			rememberedScrollAmount = textField.scrollPosition();
 	}
 
 	@Override
@@ -79,6 +98,14 @@ public class SurgeryGuideScreen extends AbstractSimiScreen {
 	private static class GuideTextField extends MultiLineEditBox {
 		GuideTextField(Font font, int x, int y, int width, int height, Component message) {
 			super(font, x, y, width, height, CommonComponents.EMPTY, message);
+		}
+
+		double scrollPosition() {
+			return scrollAmount();
+		}
+
+		void restoreScrollPosition(double amount) {
+			setScrollAmount(amount);
 		}
 
 		@Override
