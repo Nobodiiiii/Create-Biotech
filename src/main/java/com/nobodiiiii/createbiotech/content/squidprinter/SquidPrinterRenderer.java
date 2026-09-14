@@ -2,27 +2,26 @@ package com.nobodiiiii.createbiotech.content.squidprinter;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.foundation.blockEntity.behaviour.filtering.FilteringRenderer;
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour.TankSegment;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 
 import net.createmod.catnip.platform.NeoForgeCatnipServices;
-import net.minecraft.client.model.SquidModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.animal.Squid;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 public class SquidPrinterRenderer extends SafeBlockEntityRenderer<SquidPrinterBlockEntity> {
 
-	private final SquidModel<Squid> squidModel;
+	private final MachineCreatureModel squidModel;
 
 	public SquidPrinterRenderer(BlockEntityRendererProvider.Context context) {
-		squidModel = new SquidModel<>(context.bakeLayer(ModelLayers.SQUID));
+		squidModel = MachineCreatureModels.squid();
 	}
 
 	@Override

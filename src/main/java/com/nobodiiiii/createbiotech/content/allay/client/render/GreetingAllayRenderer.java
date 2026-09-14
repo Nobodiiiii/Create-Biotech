@@ -2,7 +2,9 @@ package com.nobodiiiii.createbiotech.content.allay.client.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
-import net.minecraft.client.model.AllayModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
+
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -19,11 +21,7 @@ final class GreetingAllayRenderer {
 	private static final float LIVING_ENTITY_MODEL_Y_OFFSET = -1.501f;
 	private static final float ALLAY_SCALE = 1.0f;
 
-	private final AllayModel allayModel;
-
-	GreetingAllayRenderer(ModelPart bakedLayerRoot) {
-		allayModel = new AllayModel(bakedLayerRoot);
-	}
+	private final MachineCreatureModel allayModel = MachineCreatureModels.allay();
 
 	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Direction facing,
 		float animationTime, float waveStrength) {
@@ -48,12 +46,12 @@ final class GreetingAllayRenderer {
 	}
 
 	private void renderLogisticsHat(PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		AllayLogisticsHatRenderer.render(allayModel, poseStack, buffer, packedLight);
+		AllayLogisticsHatRenderer.render(allayModel.root(), poseStack, buffer, packedLight);
 	}
 
 	private void prepareGreetingPose(float animationTime, float waveStrength) {
 		ModelPart root = allayModel.root();
-		root.getAllParts().forEach(ModelPart::resetPose);
+		allayModel.resetPose();
 
 		ModelPart head = root.getChild("head");
 		ModelPart body = root.getChild("body");

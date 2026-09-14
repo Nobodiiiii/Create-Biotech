@@ -1,20 +1,17 @@
 package com.nobodiiiii.createbiotech.content.giantfrog;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.mojang.math.Axis;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.foundation.render.ShadowRenderHelper;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.FrogModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -24,8 +21,6 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.frog.Frog;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -49,14 +44,10 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 		BELT_HANDOFF_DISTANCE_BLOCKS + BELT_TONGUE_TRANSFER_DISTANCE_BLOCKS;
 	private static final float BELT_TRANSFER_ITEM_SCALE = 0.5f;
 
-	private final FrogModel<Frog> frogModel;
-	@Nullable
-	private Frog cachedFrog;
-	@Nullable
-	private ClientLevel cachedLevel;
+	private final MachineCreatureModel frogModel;
 
 	public GiantFrogRenderer(BlockEntityRendererProvider.Context context) {
-		frogModel = new FrogModel<>(context.bakeLayer(ModelLayers.FROG));
+		frogModel = MachineCreatureModels.frog();
 	}
 
 	@Override
@@ -65,16 +56,11 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 		if (!GiantFrogBlock.isMain(blockEntity.getBlockState()))
 			return;
 
-		Frog frog = getOrCreateFrog(blockEntity.getLevel());
-		if (frog == null)
-			return;
-
 		Direction facing = getFacing(blockEntity.getBlockState());
 		boolean beltConnected = blockEntity.isMouthHeldOpenByBelt();
 		boolean tongue = blockEntity.isTongueAnimating() && !beltConnected;
-		updateAnimationState(frog, tongue);
 		float animationAge = tongue ? blockEntity.getTongueAnimationAge(partialTick) : 0.0f;
-		prepareFrogModel(frog, animationAge, beltConnected);
+		prepareFrogModel(tongue, animationAge, beltConnected);
 
 		BlockEntityModelElement.builder()
 			.atLocal(0.5d, 0.0d, 0.5d)
@@ -83,40 +69,22 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 			.packedLight(packedLight)
 			.render(poseStack, buffer, (modelPose, modelBuffer, light) -> {
 				modelPose.translate(0.0f, LIVING_ENTITY_MODEL_Y_OFFSET, 0.0f);
-				renderFrogModel(frog, modelPose, modelBuffer, light);
+				renderFrogModel(modelPose, modelBuffer, light);
 			});
 
 		renderBeltTransferItem(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
 	}
 
-	private void updateAnimationState(Frog frog, boolean tongue) {
-		frog.jumpAnimationState.stop();
-		frog.swimIdleAnimationState.stop();
-		frog.croakAnimationState.stop();
-
-		if (!tongue) {
-			frog.tongueAnimationState.stop();
-			return;
-		}
-
-		frog.tongueAnimationState.start(0);
-	}
-
-	private void prepareFrogModel(Frog frog, float ageInTicks, boolean beltConnected) {
-		frog.tickCount = (int) ageInTicks;
-		frogModel.attackTime = 0.0f;
-		frogModel.riding = false;
-		frogModel.young = false;
-		frogModel.prepareMobModel(frog, 0.0f, 0.0f, 0.0f);
-		frogModel.setupAnim(frog, 0.0f, 0.0f, ageInTicks, 0.0f, 0.0f);
+	private void prepareFrogModel(boolean tongue, float ageInTicks, boolean beltConnected) {
+		GiantFrogVisual.prepareModel(frogModel, tongue, ageInTicks);
 		if (beltConnected) {
 			frogHead().xRot += BELT_OPEN_HEAD_X_ROT;
 			applyBeltTongueBridge();
 		}
 	}
 
-	private void renderFrogModel(Frog frog, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		VertexConsumer consumer = buffer.getBuffer(frogModel.renderType(frog.getVariant().value().texture()));
+	private void renderFrogModel(PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+		VertexConsumer consumer = buffer.getBuffer(frogModel.renderType(GiantFrogVisual.TEXTURE));
 		frogModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 	}
 
@@ -193,27 +161,5 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 
 	private Direction getFacing(BlockState state) {
 		return state.hasProperty(GiantFrogBlock.FACING) ? state.getValue(GiantFrogBlock.FACING) : Direction.SOUTH;
-	}
-
-	@Nullable
-	private Frog getOrCreateFrog(@Nullable Level level) {
-		ClientLevel clientLevel = level instanceof ClientLevel cl ? cl : Minecraft.getInstance().level;
-		if (clientLevel == null)
-			return null;
-
-		if (cachedFrog == null || cachedLevel != clientLevel) {
-			cachedLevel = clientLevel;
-			cachedFrog = EntityType.FROG.create(clientLevel);
-			if (cachedFrog == null)
-				return null;
-			cachedFrog.setNoAi(true);
-			cachedFrog.setSilent(true);
-			cachedFrog.setOnGround(true);
-		}
-
-		cachedFrog.tickCount = 0;
-		cachedFrog.hurtTime = 0;
-		cachedFrog.deathTime = 0;
-		return cachedFrog;
 	}
 }

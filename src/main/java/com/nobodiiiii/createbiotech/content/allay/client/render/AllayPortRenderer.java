@@ -18,7 +18,6 @@ import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.math.VecHelper;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -45,7 +44,7 @@ public class AllayPortRenderer extends SmartBlockEntityRenderer<AllayPortBlockEn
 
 	public AllayPortRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
-		greetingAllayRenderer = new GreetingAllayRenderer(context.bakeLayer(ModelLayers.ALLAY));
+		greetingAllayRenderer = new GreetingAllayRenderer();
 	}
 
 	@Override

@@ -2,16 +2,12 @@ package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 
-import net.minecraft.client.model.IllagerModel;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Evoker;
-import net.minecraft.world.entity.monster.SpellcasterIllager;
 
 public final class EvokerEnchantingVisual {
 
@@ -32,15 +28,12 @@ public final class EvokerEnchantingVisual {
 	private EvokerEnchantingVisual() {
 	}
 
-	public static <T extends Evoker> void prepareModel(IllagerModel<T> evokerModel, T evoker, float ageInTicks,
-		boolean casting) {
-		if (evoker instanceof RenderEvoker renderEvoker)
-			renderEvoker.setCasting(casting);
-
+	public static void prepareModel(MachineCreatureModel evokerModel, boolean casting) {
 		ModelPart root = evokerModel.root();
-		root.getAllParts()
-			.forEach(ModelPart::resetPose);
-		evokerModel.setupAnim(evoker, 0.0f, 0.0f, ageInTicks, 0.0f, 0.0f);
+		evokerModel.resetPose();
+		root.getChild("arms").visible = !casting;
+		root.getChild("right_arm").visible = casting;
+		root.getChild("left_arm").visible = casting;
 
 		ModelPart head = root.getChild("head");
 		ModelPart rightLeg = root.getChild("right_leg");
@@ -57,7 +50,7 @@ public final class EvokerEnchantingVisual {
 		applyArmPose(root, casting);
 	}
 
-	public static <T extends Evoker> void renderModel(IllagerModel<T> evokerModel, PoseStack poseStack,
+	public static void renderModel(MachineCreatureModel evokerModel, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
 		VertexConsumer consumer = buffer.getBuffer(evokerModel.renderType(EVOKER_TEXTURE));
 		evokerModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
@@ -76,16 +69,5 @@ public final class EvokerEnchantingVisual {
 		leftArm.yRot = -ARM_CAST_Y_ROT;
 		rightArm.zRot = ARM_RAISED_Z_ROT;
 		leftArm.zRot = -ARM_RAISED_Z_ROT;
-	}
-
-	public static class RenderEvoker extends Evoker {
-
-		public RenderEvoker(ClientLevel level) {
-			super(EntityType.EVOKER, level);
-		}
-
-		public void setCasting(boolean casting) {
-			setIsCastingSpell(casting ? SpellcasterIllager.IllagerSpell.FANGS : SpellcasterIllager.IllagerSpell.NONE);
-		}
 	}
 }

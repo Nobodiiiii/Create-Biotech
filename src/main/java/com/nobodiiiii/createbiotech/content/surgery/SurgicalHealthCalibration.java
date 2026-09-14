@@ -31,8 +31,9 @@ public final class SurgicalHealthCalibration {
 		return Math.max(MIN_HEALTH, Math.min(MAX_HEALTH, health));
 	}
 
+	/** Zero is a valid measurement for planar parts; NaN denotes an unmeasured body. */
 	public static boolean validVolume(double volume) {
-		return Double.isFinite(volume) && volume > 0.0d && volume <= MAX_MEASURED_VOLUME;
+		return Double.isFinite(volume) && volume >= 0.0d && volume <= MAX_MEASURED_VOLUME;
 	}
 
 	/** Rejects a client-reported union volume that cannot fit inside its reported visual envelope. */

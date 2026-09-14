@@ -7,6 +7,7 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureRenderer;
 import com.nobodiiiii.createbiotech.foundation.render.RenderProxyEntities;
 import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
 import com.nobodiiiii.createbiotech.network.ContainedEntityHandoffPacket;
@@ -19,9 +20,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.MagmaCube;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -139,16 +142,28 @@ public final class ContainedEntityHandoffManager {
 			Vec3 position = handoff.packet.position();
 			poseStack.pushPose();
 			poseStack.translate(position.x - camera.x, position.y - camera.y, position.z - camera.z);
-			if (ghost instanceof Creeper creeper)
-				applyCreeperPhase(creeper, handoff.packet.animationPhase());
-			EntityRenderHelper.render(EntityRenderHelper.settings(ghost)
-				.packedLight(LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(position)))
-				.partialTicks(partialTicks)
-				.yaw(handoff.packet.yaw())
-				.bodyYaw(handoff.packet.yaw())
-				.headYaw(handoff.packet.yaw())
-				.pitch(handoff.packet.pitch())
-				.flushBuffers(false), poseStack, buffer);
+			int packedLight = LevelRenderer.getLightColor(minecraft.level, BlockPos.containing(position));
+			float yaw = handoff.packet.yaw();
+			float phase = handoff.packet.animationPhase();
+			if (ghost instanceof Creeper) {
+				float swelling = Mth.clamp(Math.round(phase * 24), 0, 24) / 28f;
+				MachineCreatureRenderer.renderCreeper(poseStack, buffer, packedLight, yaw, 0,
+					handoff.packet.pitch(), swelling, AnimationTickHolder.getRenderTime(minecraft.level),
+					handoff.packet.charged());
+			} else if (ghost instanceof MagmaCube) {
+				MachineCreatureRenderer.renderMagmaCube(poseStack, buffer, packedLight, yaw, 1, Mth.sin(phase) * .22f);
+			} else if (ghost instanceof Slime) {
+				MachineCreatureRenderer.renderSlime(poseStack, buffer, packedLight, yaw, 1, Mth.sin(phase) * .22f);
+			} else {
+				EntityRenderHelper.render(EntityRenderHelper.settings(ghost)
+					.packedLight(packedLight)
+					.partialTicks(partialTicks)
+					.yaw(yaw)
+					.bodyYaw(yaw)
+					.headYaw(yaw)
+					.pitch(handoff.packet.pitch())
+					.flushBuffers(false), poseStack, buffer);
+			}
 			poseStack.popPose();
 		}
 		buffer.endBatch();

@@ -1,9 +1,7 @@
 package com.nobodiiiii.createbiotech.content.magmacubeburner;
 
-import javax.annotation.Nullable;
-
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureRenderer;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock.HeatLevel;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
@@ -14,9 +12,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.MagmaCube;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
 
 public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeBurnerBlockEntity> {
@@ -32,11 +27,6 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 	private static final float FLUID_MAX_XZ = 13f / 16f - 1f / 512f;
 	private static final float FLUID_MIN_Y = 2f / 16f + 1f / 512f;
 
-	@Nullable
-	private MagmaCube renderedMagmaCube;
-	@Nullable
-	private Level renderedLevel;
-
 	public MagmaCubeBurnerRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
 	}
@@ -44,25 +34,16 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 	@Override
 	protected void renderSafe(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, int packedOverlay) {
-		Level level = blockEntity.getLevel();
-		if (level == null)
+		if (blockEntity.getLevel() == null)
 			return;
 
 		renderLava(blockEntity, poseStack, buffer, packedLight);
 
-		MagmaCube magmaCube = getOrCreateMagmaCube(level);
-		if (magmaCube == null)
-			return;
-		magmaCube.setSize(MAGMA_CUBE_SIZE, false);
-		updateJumpAnimation(magmaCube, blockEntity, partialTicks);
-
 		Direction facing = blockEntity.getBlockState().getValue(MagmaCubeBurnerBlock.FACING);
 		poseStack.pushPose();
 		poseStack.translate(.5, getMagmaCubeY(blockEntity, partialTicks), .5);
-		EntityRenderHelper.render(EntityRenderHelper.settings(magmaCube)
-			.packedLight(LightTexture.FULL_BRIGHT)
-			.partialTicks(partialTicks)
-			.face(facing), poseStack, buffer);
+		MachineCreatureRenderer.renderMagmaCube(poseStack, buffer, LightTexture.FULL_BRIGHT,
+			facing.toYRot(), MAGMA_CUBE_SIZE, getSquish(blockEntity, partialTicks));
 		poseStack.popPose();
 	}
 
@@ -80,28 +61,18 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 		return MAGMA_CUBE_BASE_Y + MAGMA_CUBE_JUMP_HEIGHT * ballisticHeight;
 	}
 
-	private static void updateJumpAnimation(MagmaCube magmaCube, MagmaCubeBurnerBlockEntity blockEntity,
-		float partialTicks) {
+	private static float getSquish(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks) {
 		HeatLevel heat = blockEntity.getBlockState().getValue(BlazeBurnerBlock.HEAT_LEVEL);
-		if (!MagmaCubeBurnerBlock.isBurning(heat)) {
-			setSquish(magmaCube, 0);
-			return;
-		}
+		if (!MagmaCubeBurnerBlock.isBurning(heat))
+			return 0;
 
 		float time = blockEntity.getLevel().getGameTime() + partialTicks;
 		float phase = time % JUMP_ANIMATION_PERIOD / JUMP_ANIMATION_PERIOD;
-		float squish = 0;
 		if (phase < .2f)
-			squish = Mth.sin(phase / .2f * Mth.PI) * .5f;
-		else if (phase >= BURNING_LANDING_PHASE)
-			squish = -Mth.sin((phase - BURNING_LANDING_PHASE) / (1 - BURNING_LANDING_PHASE) * Mth.PI) * .25f;
-		setSquish(magmaCube, squish);
-	}
-
-	private static void setSquish(MagmaCube magmaCube, float squish) {
-		magmaCube.oSquish = squish;
-		magmaCube.squish = squish;
-		magmaCube.targetSquish = squish;
+			return Mth.sin(phase / .2f * Mth.PI) * .5f;
+		if (phase >= BURNING_LANDING_PHASE)
+			return -Mth.sin((phase - BURNING_LANDING_PHASE) / (1 - BURNING_LANDING_PHASE) * Mth.PI) * .25f;
+		return 0;
 	}
 
 	private static void renderLava(MagmaCubeBurnerBlockEntity blockEntity, PoseStack poseStack,
@@ -114,21 +85,5 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 		float maxY = (2 + heightPixels) / 16f;
 		NeoForgeCatnipServices.FLUID_RENDERER.renderFluidBox(lava, FLUID_MIN_XZ, FLUID_MIN_Y, FLUID_MIN_XZ,
 			FLUID_MAX_XZ, maxY, FLUID_MAX_XZ, buffer, poseStack, packedLight, false, true);
-	}
-
-	@Nullable
-	private MagmaCube getOrCreateMagmaCube(Level level) {
-		if (renderedMagmaCube != null && renderedLevel == level)
-			return renderedMagmaCube;
-
-		MagmaCube magmaCube = EntityType.MAGMA_CUBE.create(level);
-		if (magmaCube == null)
-			return null;
-		magmaCube.setNoAi(true);
-		magmaCube.setSilent(true);
-		magmaCube.setOnGround(true);
-		renderedLevel = level;
-		renderedMagmaCube = magmaCube;
-		return magmaCube;
 	}
 }

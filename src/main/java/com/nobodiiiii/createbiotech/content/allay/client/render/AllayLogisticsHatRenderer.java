@@ -46,8 +46,13 @@ final class AllayLogisticsHatRenderer extends RenderLayer<Allay, AllayModel> {
 
 	static void render(AllayModel allayModel, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
+		render(allayModel.root(), poseStack, buffer, packedLight);
+	}
+
+	static void render(ModelPart root, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
 		List<ModelPart> partsToHead =
-			TrainHatInfo.getAdjustedPart(ALLAY_HAT_INFO, allayModel.root(), "head");
+			TrainHatInfo.getAdjustedPart(ALLAY_HAT_INFO, root, "head");
 		if (partsToHead.isEmpty()) {
 			return;
 		}

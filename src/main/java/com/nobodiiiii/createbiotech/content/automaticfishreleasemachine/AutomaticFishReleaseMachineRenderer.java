@@ -12,6 +12,8 @@ import org.joml.Vector3f;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.waterwheel.LargeWaterWheelBlock;
 import com.simibubi.create.content.kinetics.waterwheel.WaterWheelBlockEntity;
@@ -22,8 +24,6 @@ import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.createmod.catnip.render.CachedBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.model.SalmonModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -35,7 +35,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.material.FluidState;
 
@@ -67,13 +66,13 @@ public class AutomaticFishReleaseMachineRenderer
 	private static final float MERIT_TEXT_LIFETIME = 24.0f;
 	private static final Component MERIT_TEXT = Component.literal("功德+1");
 
-	private final SalmonModel<Entity> fishModel;
+	private final MachineCreatureModel fishModel;
 	private final ModelPart fishBodyBack;
 	private final Map<AutomaticFishReleaseMachineBlockEntity, FishRenderState> fishRenderStates = new WeakHashMap<>();
 
 	public AutomaticFishReleaseMachineRenderer(BlockEntityRendererProvider.Context context) {
 		super(context, true);
-		fishModel = new SalmonModel<>(context.bakeLayer(ModelLayers.SALMON));
+		fishModel = MachineCreatureModels.salmon();
 		fishBodyBack = fishModel.root()
 			.getChild("body_back");
 	}

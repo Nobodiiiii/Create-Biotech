@@ -1,15 +1,11 @@
 package com.nobodiiiii.createbiotech.content.allay.client.render;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -20,8 +16,7 @@ public class AllayPortItemRenderer extends CustomRenderedItemModelRenderer {
 	private static final float ITEM_SCALE = 0.9f;
 	private static final float GUI_Y_OFFSET = -1.0f / 16.0f;
 
-	@Nullable
-	private GreetingAllayRenderer greetingAllayRenderer;
+	private final GreetingAllayRenderer greetingAllayRenderer = new GreetingAllayRenderer();
 
 	@Override
 	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
@@ -41,29 +36,17 @@ public class AllayPortItemRenderer extends CustomRenderedItemModelRenderer {
 
 	private void renderGreetingAllay(ItemDisplayContext transformType, PoseStack poseStack,
 		MultiBufferSource buffer, int light) {
-		GreetingAllayRenderer allayRenderer = getGreetingAllayRenderer();
-		if (allayRenderer == null) {
-			return;
-		}
 		boolean guiLighting = transformType == ItemDisplayContext.GUI;
 		if (guiLighting) {
 			Lighting.setupForEntityInInventory();
 		}
 		try {
 			poseStack.translate(-0.5f, -0.5f, -0.5f);
-			allayRenderer.render(poseStack, buffer, light, Direction.NORTH, 0.0f, 0.0f);
+			greetingAllayRenderer.render(poseStack, buffer, light, Direction.NORTH, 0.0f, 0.0f);
 		} finally {
 			if (guiLighting) {
 				Lighting.setupFor3DItems();
 			}
 		}
-	}
-
-	private @Nullable GreetingAllayRenderer getGreetingAllayRenderer() {
-		if (greetingAllayRenderer == null && Minecraft.getInstance().getEntityModels() != null) {
-			greetingAllayRenderer = new GreetingAllayRenderer(
-				Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.ALLAY));
-		}
-		return greetingAllayRenderer;
 	}
 }

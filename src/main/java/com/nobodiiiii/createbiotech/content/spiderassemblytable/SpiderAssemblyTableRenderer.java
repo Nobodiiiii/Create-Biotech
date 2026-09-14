@@ -6,6 +6,8 @@ import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlockEntity.MachineKind;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
@@ -18,10 +20,7 @@ import net.createmod.catnip.platform.NeoForgeCatnipServices;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.SpiderModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -31,12 +30,9 @@ import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.monster.Spider;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -74,13 +70,11 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float JOINT_GEAR_Y_OFFSET = 0f;
 	private static final float JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES = 90f;
 
-	private final SpiderModel<RenderSpider> spiderModel;
-	private RenderSpider cachedSpider;
-	private ClientLevel cachedLevel;
+	private final MachineCreatureModel spiderModel;
 
 	public SpiderAssemblyTableRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
-		spiderModel = new SpiderModel<>(context.bakeLayer(ModelLayers.SPIDER));
+		spiderModel = MachineCreatureModels.spider();
 	}
 
 	@Override
@@ -99,11 +93,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private void renderSpider(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
 		MultiBufferSource buffer, int light, Direction facing, ResourceLocation spiderTexture) {
-		RenderSpider spider = getOrCreateSpider(be.getLevel());
-		if (spider == null)
-			return;
-
-		prepareSpiderModel(spider, be, partialTicks);
+		prepareSpiderModel(be, partialTicks);
 
 		BlockEntityModelElement.builder()
 			.atLocal(0.5d, SPIDER_Y_OFFSET, 0.5d)
@@ -489,11 +479,9 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		return buffer;
 	}
 
-	private void prepareSpiderModel(RenderSpider spider, SpiderAssemblyTableBlockEntity be, float partialTicks) {
+	private void prepareSpiderModel(SpiderAssemblyTableBlockEntity be, float partialTicks) {
 		ModelPart root = spiderModel.root();
-		root.getAllParts().forEach(ModelPart::resetPose);
-
-		spiderModel.setupAnim(spider, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+		spiderModel.resetPose();
 
 		int activeSlot = be.getActiveSlot();
 		ModelPart activeLeg = getAnimatedLeg(root, activeSlot);
@@ -520,21 +508,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		};
 	}
 
-	private RenderSpider getOrCreateSpider(Level level) {
-		ClientLevel hostLevel = level instanceof ClientLevel cl ? cl : Minecraft.getInstance().level;
-		if (hostLevel == null)
-			return null;
-
-		if (cachedSpider == null || cachedLevel != hostLevel) {
-			cachedLevel = hostLevel;
-			cachedSpider = new RenderSpider(hostLevel);
-			cachedSpider.setNoAi(true);
-			cachedSpider.setSilent(true);
-		}
-
-		return cachedSpider;
-	}
-
 	private static float yRotation(Direction facing) {
 		return switch (facing) {
 		case EAST -> 270;
@@ -542,12 +515,5 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		case WEST -> 90;
 		default -> 0;
 		};
-	}
-
-	private static class RenderSpider extends Spider {
-
-		private RenderSpider(ClientLevel level) {
-			super(EntityType.SPIDER, level);
-		}
 	}
 }

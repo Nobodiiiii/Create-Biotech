@@ -1,27 +1,22 @@
 package com.nobodiiiii.createbiotech.content.automaticfishreleasemachine;
 
-import javax.annotation.Nullable;
-
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModel;
 import com.simibubi.create.foundation.item.render.CustomRenderedItemModelRenderer;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.SalmonModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 
 public class AutomaticFishReleaseMachineItemRenderer extends CustomRenderedItemModelRenderer {
 
-	@Nullable
-	private SalmonModel<Entity> fishModel;
+	private final MachineCreatureModel fishModel = MachineCreatureModels.salmon();
 
 	@Override
 	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
@@ -57,9 +52,8 @@ public class AutomaticFishReleaseMachineItemRenderer extends CustomRenderedItemM
 	}
 
 	private void renderFishRing(PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
-		SalmonModel<Entity> model = getFishModel();
-		if (model == null)
-			return;
+		MachineCreatureModel model = fishModel;
+		model.resetPose();
 
 		for (int fishIndex = 0; fishIndex < AutomaticFishReleaseMachineRenderer.BLADE_COUNT; fishIndex++) {
 			float gapAngle = AutomaticFishReleaseMachineRenderer.FIRST_GAP_ANGLE
@@ -83,11 +77,5 @@ public class AutomaticFishReleaseMachineItemRenderer extends CustomRenderedItemM
 				light, overlay, -1);
 			poseStack.popPose();
 		}
-	}
-
-	private @Nullable SalmonModel<Entity> getFishModel() {
-		if (fishModel == null && Minecraft.getInstance().getEntityModels() != null)
-			fishModel = new SalmonModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.SALMON));
-		return fishModel;
 	}
 }

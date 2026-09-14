@@ -4,13 +4,12 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.BookModel;
-import net.minecraft.client.model.IllagerModel;
-import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -55,16 +54,14 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 	private static final float ITEM_SCALE = 0.7f;
 
 	private final BlockRenderDispatcher blockRenderer;
-	private final net.minecraft.client.model.IllagerModel<EvokerEnchantingVisual.RenderEvoker> evokerModel;
-	private final BookModel bookModel;
+	private final MachineCreatureModel evokerModel;
+	private final MachineCreatureModel bookModel;
 	private final BlockState enchantingTableState;
-	private EvokerEnchantingVisual.RenderEvoker cachedEvoker;
-	private ClientLevel cachedLevel;
 
 	public EvokerEnchantingChamberRenderer(BlockEntityRendererProvider.Context context) {
 		blockRenderer = context.getBlockRenderDispatcher();
-		evokerModel = new IllagerModel<>(context.bakeLayer(ModelLayers.EVOKER));
-		bookModel = new BookModel(context.bakeLayer(ModelLayers.BOOK));
+		evokerModel = MachineCreatureModels.evoker();
+		bookModel = MachineCreatureModels.book();
 		enchantingTableState = Blocks.ENCHANTING_TABLE.defaultBlockState();
 	}
 
@@ -92,11 +89,7 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 
 	private void renderEvoker(EvokerEnchantingChamberBlockEntity blockEntity, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, Direction facing) {
-		EvokerEnchantingVisual.RenderEvoker evoker = getOrCreateEvoker(blockEntity.getLevel());
-		if (evoker == null)
-			return;
-
-		prepareEvokerModel(evoker, blockEntity, partialTick);
+		EvokerEnchantingVisual.prepareModel(evokerModel, blockEntity.isCastingSpell());
 
 		double rootX = 0.5d - facing.getStepX() * EVOKER_BACK_OFFSET_FROM_CENTER;
 		double rootZ = 0.5d - facing.getStepZ() * EVOKER_BACK_OFFSET_FROM_CENTER;
@@ -127,7 +120,7 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		poseStack.mulPose(Axis.YP.rotationDegrees(bookYRot));
 		poseStack.mulPose(Axis.ZP.rotationDegrees(BOOK_Z_ROTATION));
 
-		bookModel.setupAnim(time, pageFlutter, pageFlutter, 1.0f);
+		prepareBookModel(time, pageFlutter);
 		VertexConsumer bookConsumer = buffer.getBuffer(bookModel.renderType(BOOK_TEXTURE));
 		bookModel.renderToBuffer(poseStack, bookConsumer, packedLight, packedOverlay, 0xFFFFFFFF);
 		poseStack.popPose();
@@ -166,32 +159,21 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		poseStack.popPose();
 	}
 
-	private void prepareEvokerModel(EvokerEnchantingVisual.RenderEvoker evoker,
-		EvokerEnchantingChamberBlockEntity blockEntity,
-		float partialTick) {
-		boolean casting = blockEntity.isCastingSpell();
-		float ageInTicks = AnimationTickHolder.getRenderTime(blockEntity.getLevel());
-		EvokerEnchantingVisual.prepareModel(evokerModel, evoker, ageInTicks, casting);
-	}
-
-	private EvokerEnchantingVisual.RenderEvoker getOrCreateEvoker(Level level) {
-		ClientLevel hostLevel = level instanceof ClientLevel cl ? cl : Minecraft.getInstance().level;
-		if (hostLevel == null)
-			return null;
-
-		if (cachedEvoker == null || cachedLevel != hostLevel) {
-			cachedLevel = hostLevel;
-			cachedEvoker = new EvokerEnchantingVisual.RenderEvoker(hostLevel);
-			cachedEvoker.setNoAi(true);
-			cachedEvoker.setSilent(true);
-		}
-
-		cachedEvoker.setYRot(0.0f);
-		cachedEvoker.setYBodyRot(0.0f);
-		cachedEvoker.yBodyRotO = 0.0f;
-		cachedEvoker.yHeadRot = 0.0f;
-		cachedEvoker.yHeadRotO = 0.0f;
-
-		return cachedEvoker;
+	private void prepareBookModel(float time, float pageFlutter) {
+		bookModel.resetPose();
+		ModelPart root = bookModel.root();
+		float opening = Mth.sin(time * 0.02f) * 0.1f + 1.25f;
+		root.getChild("left_lid").yRot = Mth.PI + opening;
+		root.getChild("right_lid").yRot = -opening;
+		root.getChild("left_pages").yRot = opening;
+		root.getChild("right_pages").yRot = -opening;
+		float pageRotation = opening * (1.0f - 2.0f * pageFlutter);
+		root.getChild("flip_page1").yRot = pageRotation;
+		root.getChild("flip_page2").yRot = pageRotation;
+		float pageOffset = Mth.sin(opening);
+		root.getChild("left_pages").x = pageOffset;
+		root.getChild("right_pages").x = pageOffset;
+		root.getChild("flip_page1").x = pageOffset;
+		root.getChild("flip_page2").x = pageOffset;
 	}
 }

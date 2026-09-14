@@ -2,21 +2,19 @@ package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.ShulkerModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
-import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.level.block.state.BlockState;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
@@ -27,11 +25,11 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 	private static final float MIXER_IDLE_HEAD_OFFSET = 7 / 16f;
 	private static final float FULL_SPIN_DEGREES = 720.0f;
 
-	private final ShulkerModel<Shulker> model;
+	private final MachineCreatureModel model;
 
 	public ShulkerTeleporterRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
-		model = new ShulkerModel<>(context.bakeLayer(ModelLayers.SHULKER));
+		model = MachineCreatureModels.shulker();
 	}
 
 	@Override
@@ -79,22 +77,18 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 	}
 
 	private void renderBase(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay) {
-		ModelPart lid = model.getLid();
 		resetModel();
 
 		poseStack.pushPose();
 		poseStack.translate(0.0d, LOWER_SHELL_Y, 0.0d);
 		applyShulkerBoxPose(poseStack);
-		for (ModelPart part : model.parts()) {
-			if (part != lid)
-				part.render(poseStack, vertexConsumer, packedLight, packedOverlay);
-		}
+		model.root().getChild("base").render(poseStack, vertexConsumer, packedLight, packedOverlay);
 		poseStack.popPose();
 	}
 
 	private void renderLid(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay,
 		float yOffset, float spinDegrees) {
-		ModelPart lid = model.getLid();
+		ModelPart lid = model.root().getChild("lid");
 		resetModel();
 		lid.setPos(0.0f, 24.0f, 0.0f);
 		lid.yRot = (float) Math.toRadians(spinDegrees);
@@ -107,9 +101,7 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 	}
 
 	private void resetModel() {
-		for (ModelPart part : model.parts())
-			part.resetPose();
-		model.getHead().resetPose();
+		model.resetPose();
 	}
 
 	private static void applyShulkerBoxPose(PoseStack poseStack) {

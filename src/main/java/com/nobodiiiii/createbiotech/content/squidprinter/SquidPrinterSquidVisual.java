@@ -3,14 +3,12 @@ package com.nobodiiiii.createbiotech.content.squidprinter;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 
-import net.minecraft.client.model.SquidModel;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.animal.Squid;
 
 public final class SquidPrinterSquidVisual {
 	public static final ResourceLocation SQUID_TEXTURE =
@@ -26,29 +24,24 @@ public final class SquidPrinterSquidVisual {
 	private SquidPrinterSquidVisual() {
 	}
 
-	public static void prepareIdleModel(SquidModel<Squid> squidModel) {
+	public static void prepareIdleModel(MachineCreatureModel squidModel) {
 		prepareModel(squidModel, 0.0f);
 	}
 
-	public static void prepareOpenModel(SquidModel<Squid> squidModel) {
+	public static void prepareOpenModel(MachineCreatureModel squidModel) {
 		prepareModel(squidModel, 1.0f);
 	}
 
-	public static void prepareModel(SquidModel<Squid> squidModel, float openness) {
-		resetModelPose(squidModel);
+	public static void prepareModel(MachineCreatureModel squidModel, float openness) {
+		squidModel.resetPose();
 		float easedOpenness = (float) Mth.smoothstep(Mth.clamp(openness, 0.0f, 1.0f));
 		float tentacleAngle = Mth.lerp(easedOpenness, CLOSED_TENTACLE_ANGLE, OPEN_TENTACLE_ANGLE);
-		squidModel.setupAnim(null, 0.0f, 0.0f, tentacleAngle, 0.0f, 0.0f);
+		for (int index = 0; index < 8; index++)
+			squidModel.root().getChild("tentacle" + index).xRot = tentacleAngle;
 	}
 
-	public static void renderModel(SquidModel<Squid> squidModel, PoseStack ms, MultiBufferSource buffer, int packedLight) {
+	public static void renderModel(MachineCreatureModel squidModel, PoseStack ms, MultiBufferSource buffer, int packedLight) {
 		VertexConsumer consumer = buffer.getBuffer(squidModel.renderType(SQUID_TEXTURE));
 		squidModel.renderToBuffer(ms, consumer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-	}
-
-	private static void resetModelPose(SquidModel<Squid> squidModel) {
-		ModelPart root = squidModel.root();
-		root.getAllParts()
-			.forEach(ModelPart::resetPose);
 	}
 }

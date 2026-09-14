@@ -8,8 +8,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.render.BoundedRenderEntityCache;
-import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
-import com.nobodiiiii.createbiotech.mixin.client.CreeperAccessor;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureRenderer;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -48,9 +47,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	private static final float MAX_RENDER_SWELL = 24f;
 	private static final float SWELL_DIVISOR = 28f;
 	/**
-	 * {@code CreeperRenderer.scale} multiplies in its own swell-driven bulge on top of whatever the
-	 * caller already applied. These mirror its coefficients so the compression below can divide them
-	 * back out and land on the width and height actually asked for.
+	 * The fixed creature renderer retains the vanilla swell-driven bulge. Divide it back out here
+	 * so the final model still reaches the width and height requested by the machine.
 	 */
 	private static final float VANILLA_SWELL_SPREAD = .4f;
 	private static final float VANILLA_SWELL_RISE = .1f;
@@ -67,7 +65,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	private static final int TURN_DURATION_MAX_TICKS = 75;
 
 	/**
-	 * Charged creepers get their energy swirl UV from {@code tickCount}, and every distinct value
+	 * Charged creepers get their energy swirl UV from the animation time, and every distinct value
 	 * builds its own {@code RenderType}. Bucketing the offsets keeps a full chamber down to a handful
 	 * of extra batches instead of one per creeper.
 	 */
@@ -82,6 +80,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/dial"));
 	private static final PartialModel CREEPER_FACE =
 		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
+	/** Retains payload flags and attention inputs only; drawing always uses the fixed machine model. */
 	private static final BoundedRenderEntityCache<CreeperCacheKey, Creeper> CREEPER_CACHE =
 		new BoundedRenderEntityCache<>(MAX_CACHED_CREEPERS, (level, key) -> {
 			Entity entity = CapturedEntityBoxHelper.createCapturedEntity(key.payload, level);
@@ -223,18 +222,15 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float renderTime = AnimationTickHolder.getRenderTime(level);
 		Player nearbyPlayer = findNearbyPlayer(level, be);
 
-		// One fancy-graphics scope and one lambda for the whole chamber rather than one per creeper.
-		EntityRenderHelper.batch(() -> {
-			for (CreeperBlastChamberBlockEntity.RenderManagedCreeper subject : working)
-				renderProxy(be, subject.packagerPos(), subject.payload(), subject.renderSeed(), subject.defaultYaw(), partialTicks,
-					0, 1, false, be.getWorkingCreeperCompression(subject.packagerPos(), partialTicks), poseStack,
-					buffer, renderTime, nearbyPlayer);
+		for (CreeperBlastChamberBlockEntity.RenderManagedCreeper subject : working)
+			renderContainedCreeper(be, subject.packagerPos(), subject.payload(), subject.renderSeed(), subject.defaultYaw(),
+				partialTicks, 0, 1, false, be.getWorkingCreeperCompression(subject.packagerPos(), partialTicks), poseStack,
+				buffer, renderTime, nearbyPlayer);
 
-			for (CreeperBlastChamberBlockEntity.RenderCreeperAnimation animation : animations)
-				renderProxy(be, animation.packagerPos(), animation.payload(), animation.renderSeed(), animation.defaultYaw(),
-					partialTicks, animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0, poseStack,
-					buffer, renderTime, nearbyPlayer);
-		});
+		for (CreeperBlastChamberBlockEntity.RenderCreeperAnimation animation : animations)
+			renderContainedCreeper(be, animation.packagerPos(), animation.payload(), animation.renderSeed(), animation.defaultYaw(),
+				partialTicks, animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0, poseStack,
+				buffer, renderTime, nearbyPlayer);
 	}
 
 	private Player findNearbyPlayer(Level level, CreeperBlastChamberBlockEntity be) {
@@ -274,7 +270,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			> CREEPER_RENDER_DISTANCE * CREEPER_RENDER_DISTANCE;
 	}
 
-	private void renderProxy(CreeperBlastChamberBlockEntity be, BlockPos packagerPos, ItemStack payload,
+	private void renderContainedCreeper(CreeperBlastChamberBlockEntity be, BlockPos packagerPos, ItemStack payload,
 		long renderSeed, float defaultYaw, float partialTicks, int ticksRemaining, int totalTicks, boolean exiting,
 		float compression, PoseStack poseStack, MultiBufferSource buffer, float renderTime, Player nearbyPlayer) {
 		Level level = be.getLevel();
@@ -299,19 +295,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float pulse = .5f + .5f * Mth.sin(renderTime * .9f + (renderSeed & 31) * .07f);
 		float swellValue = Mth.clamp(compression * Mth.lerp(pulse, .55f, 1f), 0, 1) * MAX_RENDER_SWELL;
 		int swellFloor = Mth.floor(swellValue);
-		float swellFraction = swellValue - swellFloor;
-
-		CreeperAccessor accessor = (CreeperAccessor) creeper;
-		int oldSwell = accessor.createBiotech$getOldSwell();
-		int swell = accessor.createBiotech$getSwell();
 		boolean charged = creeper.isPowered();
-
-		// Straddling two swell values lets Mth.lerp inside Creeper.getSwelling recover the fraction,
-		// which turns the strobe in getWhiteOverlayProgress from 25 steps into a continuous ramp.
-		// Charged creepers keep real partial ticks instead, because their swirl layer reads them too.
-		float renderPartialTicks = charged ? partialTicks : swellFraction;
-		accessor.createBiotech$setOldSwell(swellFloor);
-		accessor.createBiotech$setSwell(charged ? swellFloor : swellFloor + 1);
 
 		float appliedSwell = Mth.clamp((charged ? swellFloor : swellValue) / SWELL_DIVISOR, 0f, 1f);
 		float swellBulge = appliedSwell * appliedSwell * appliedSwell * appliedSwell;
@@ -329,22 +313,12 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		poseStack.scale(scale, scale, scale);
 		poseStack.scale(horizontal, vertical, horizontal);
 
-		EntityRenderHelper.RenderSettings<Creeper> settings = EntityRenderHelper.settings(creeper)
-			.packedLight(LevelRenderer.getLightColor(level, packagerPos.above()))
-			.partialTicks(renderPartialTicks)
-			.yaw(attention.bodyYaw())
-			.bodyYaw(attention.bodyYaw())
-			.headYaw(attention.headYaw())
-			.pitch(attention.pitch())
-			.flushBuffers(false);
-		if (charged)
-			settings.ticks(Mth.floor(renderTime)
-				+ (int) Math.floorMod(renderSeed, SWIRL_PHASE_BUCKETS) * SWIRL_PHASE_SPACING);
-		EntityRenderHelper.render(settings, poseStack, buffer);
+		float animationTime = Mth.floor(renderTime)
+			+ (int) Math.floorMod(renderSeed, SWIRL_PHASE_BUCKETS) * SWIRL_PHASE_SPACING + partialTicks;
+		MachineCreatureRenderer.renderCreeper(poseStack, buffer, LevelRenderer.getLightColor(level, packagerPos.above()),
+			attention.bodyYaw(), attention.headYaw() - attention.bodyYaw(), attention.pitch(), appliedSwell,
+			animationTime, charged);
 		poseStack.popPose();
-
-		accessor.createBiotech$setOldSwell(oldSwell);
-		accessor.createBiotech$setSwell(swell);
 	}
 
 	private enum AttentionMode {

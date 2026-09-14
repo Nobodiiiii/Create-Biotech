@@ -4,6 +4,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.mixin.client.LevelRendererAccessor;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
@@ -17,8 +19,6 @@ import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.SlimeModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
@@ -27,7 +27,6 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -46,13 +45,13 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	private static final float SLIME_MODEL_Y_OFFSET = 1.501f;
 	private static final int SLIME_CLUTCH_OVERLOAD_RGB = 0xF48522;
 
-	private final SlimeModel<Entity> innerSlime;
-	private final SlimeModel<Entity> outerSlime;
+	private final MachineCreatureModel innerSlime;
+	private final MachineCreatureModel outerSlime;
 
 	public UniversalJointRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
-		innerSlime = new SlimeModel<>(context.bakeLayer(ModelLayers.SLIME));
-		outerSlime = new SlimeModel<>(context.bakeLayer(ModelLayers.SLIME_OUTER));
+		innerSlime = MachineCreatureModels.slimeInner();
+		outerSlime = MachineCreatureModels.slimeOuter();
 	}
 
 	@Override

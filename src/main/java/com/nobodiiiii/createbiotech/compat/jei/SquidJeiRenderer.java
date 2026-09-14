@@ -1,27 +1,23 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterSquidVisual;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.compat.jei.category.animations.AnimatedKinetics;
 
 import net.createmod.catnip.gui.UIRenderHelper;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.model.SquidModel;
-import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.world.entity.animal.Squid;
 
 /**
  * Draws the printer's squid into a JEI scene.
  *
- * <p>The squid is a bare {@link SquidModel} rather than an entity, so it cannot
+ * <p>The squid is a machine-owned model rather than an entity, so it cannot
  * go through {@link com.nobodiiiii.createbiotech.foundation.gui.GuiEntityElement}.
  * The placement is kept in step with
  * {@code SquidPrinterRenderer#renderSquid} instead: same local attachment point,
@@ -32,8 +28,7 @@ public final class SquidJeiRenderer {
 	private static final double SQUID_LOCAL_X = 0.5d;
 	private static final double SQUID_LOCAL_Z = 0.5d;
 
-	@Nullable
-	private static SquidModel<Squid> squidModel;
+	private static final MachineCreatureModel SQUID_MODEL = MachineCreatureModels.squid();
 
 	private SquidJeiRenderer() {
 	}
@@ -45,9 +40,7 @@ public final class SquidJeiRenderer {
 	 * way the block points means the preview shows what a placed printer shows.
 	 */
 	public static void renderOpenInScene(GuiGraphics graphics, Direction facing, float sceneScale) {
-		SquidModel<Squid> model = getSquidModel();
-		if (model == null)
-			return;
+		MachineCreatureModel model = SQUID_MODEL;
 
 		PoseStack poseStack = graphics.pose();
 		poseStack.pushPose();
@@ -73,11 +66,5 @@ public final class SquidJeiRenderer {
 			poseStack.popPose();
 			Lighting.setupFor3DItems();
 		}
-	}
-
-	private static @Nullable SquidModel<Squid> getSquidModel() {
-		if (squidModel == null && Minecraft.getInstance().getEntityModels() != null)
-			squidModel = new SquidModel<>(Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.SQUID));
-		return squidModel;
 	}
 }
