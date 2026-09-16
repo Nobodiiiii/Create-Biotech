@@ -1,12 +1,17 @@
-# 装壳蜘蛛装配台 · 安山机壳材质
+# 装壳蜘蛛装配台 · 通用机壳材质
 
-材质采用灰绿色安山金属包边、木质嵌板、腹部贯通箍带、整像素铆钉与琥珀色八眼。
-包框直接使用安山机壳的金属色阶：外圈深灰、内圈浅灰，交叉箍带不会覆盖这两层边缘。
+运行时接受 `create:casing` 方块标签中的任意机壳，并直接采样该机壳在 Create
+`CasingConnectivity` 中注册的 128 × 128 连接材质。各面的 UV、翻转和旋转来自
+`art/spider_assembly_table_andesite - Converted.bbmodel`；特殊的头部正脸按机壳从统一图集取样。
 
-- 游戏贴图：`src/main/resources/assets/create_biotech/textures/entity/spider_assembly_table/spider_andesite_encased.png`
-- Blockbench 工程：`art/spider_assembly_table_andesite.bbmodel`，内嵌贴图，含完整八腿静止姿态。
-- 分辨率：64 × 32 RGBA；已使用的 1,328 个纹理像素完全不透明，未使用区域透明。
-- 密度：1 个纹理像素 = 1 个模型单位 = 1/16 方块；每个面的 UV 边界均为整数。
+- 正脸图集：`src/main/resources/assets/create_biotech/textures/block/spider_assembly_table_face.png`（32 × 32，每格 8 × 8）
+- Blockbench UV 工程：`art/spider_assembly_table_andesite - Converted.bbmodel`
+- 旧版安山机壳合成贴图：`src/main/resources/assets/create_biotech/textures/entity/spider_assembly_table/spider_andesite_encased.png`（仅作美术参考，运行时不再使用）
+
+图集槽位从左到右、从上到下依次为：安山、黄铜、铜、暗影钢、璀璨玫瑰石、铁路、
+蓝辉石、生物科技、防爆机壳。当前 9 个槽位均为原正脸的逐像素副本，可以在同一文件中分别重绘。
+其他模组的机壳若没有专用槽位，正脸回退到该机壳连接材质中从 `(12, 8)` 开始的 8 × 8 区域；
+若机壳没有注册连接材质，则最后回退到普通方块粒子贴图。
 
 | 部件 | 体块尺寸 X × Y × Z | Box UV 原点 | 数量 |
 | --- | --- | --- | --- |
@@ -19,21 +24,25 @@
 编辑器坐标采用 `(x, y, z) = (-MinecraftX, 24 - MinecraftY, MinecraftZ)`，左腿启用镜像 UV。
 腿部骨骼旋转保留原版姿态；旋转不会改变纹理像素密度。
 
-本次已校验全部 66 个面的尺寸与整数 UV 边界，以及 264 个顶点的坐标/UV 对应关系。
-校验直接对照 Minecraft 1.21.1 的 `SpiderModel`、`ModelPart.Cube` 与
-`SpiderAssemblyTableRenderer` 的缩放和姿态。运行时替换独立装壳贴图即可生效。
+运行时模型包含 bbmodel 中 81 个有材质的面，其中一个为按机壳选择的特殊正脸；腹部分成四块，
+以保留逐面 UV 旋转，头顶的三个根级薄片（含 22.5° 斜片）也按原始枢轴烘焙。
+资源重载时会清除按机壳烘焙的四边形缓存。
 
 参考：`ref/1.21.1/Create/src/main/resources/assets/create/textures/block/andesite_casing.png`
 及同目录的 `andesite_casing_short.png`、`andesite_block.png`。
 版本依据 `ref/SOURCES.md`：Create 6.0.10 官方标签，与当前 `6.0.10-281` 依赖对应。
 `ref/` 缺少 1.21.1 原版蜘蛛源码，尺寸/UV 从本机 NeoForm 已生成的 1.21.1 源码缓存核对。
 
-需要重绘脚本版本时，在仓库根目录运行（需要 Python 和 Pillow）：
+需要重绘旧版安山机壳参考贴图时，在仓库根目录运行（需要 Python 和 Pillow）：
 
 ```powershell
 python art/spider_assembly_table/generate_texture.py
 ```
 
 脚本按整数坐标重绘 PNG，不缩放、不插值；放大预览使用最近邻采样。
-运行脚本会覆盖游戏 PNG。手工修改 Blockbench 贴图后，应将贴图导出到上述游戏资源路径并保存工程。
-脚本重绘后，可在 Blockbench 中重新载入游戏 PNG，更新工程内嵌贴图。
+它只更新旧版参考 PNG，不会改变当前的通用机壳运行时渲染。要从 `art/texture.png`
+中 `(12, 0)` 的现有正脸重新生成 9 个专用槽位，运行：
+
+```powershell
+python art/spider_assembly_table/generate_face_atlas.py
+```

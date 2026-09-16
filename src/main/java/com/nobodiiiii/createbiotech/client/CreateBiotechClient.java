@@ -56,6 +56,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltVisual;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCasingModel;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableScreen;
@@ -317,6 +318,7 @@ public class CreateBiotechClient {
 				SurgicalTableModel.reload();
 				SurgicalSourceModelRenderer.clear();
 				SlimeBionicRenderer.clearCache();
+				SpiderAssemblyTableCasingModel.clearTextureCache();
 			}
 		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);

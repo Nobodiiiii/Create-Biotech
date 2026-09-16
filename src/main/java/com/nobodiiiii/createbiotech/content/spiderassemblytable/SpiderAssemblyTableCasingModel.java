@@ -1,0 +1,315 @@
+package com.nobodiiiii.createbiotech.content.spiderassemblytable;
+
+import java.util.ArrayList;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.simibubi.create.CreateClient;
+import com.simibubi.create.content.decoration.encasing.CasingConnectivity;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.Sheets;
+import net.minecraft.client.renderer.block.model.BakedQuad;
+import net.minecraft.client.renderer.block.model.BlockElementFace;
+import net.minecraft.client.renderer.block.model.BlockElementRotation;
+import net.minecraft.client.renderer.block.model.BlockFaceUV;
+import net.minecraft.client.renderer.block.model.FaceBakery;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.BlockModelRotation;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.InventoryMenu;
+import net.minecraft.world.level.block.Block;
+import net.neoforged.neoforge.client.model.data.ModelData;
+
+import org.joml.Vector3f;
+
+/**
+ * Renders an encased spider directly from a casing's connected-texture sheet.
+ *
+ * <p>The element geometry and per-face UV values below are a direct transcription of
+ * {@code art/spider_assembly_table_andesite - Converted.bbmodel}. Using baked block quads lets
+ * Minecraft apply the bbmodel's reversed UV bounds and 90-degree face rotations exactly while
+ * still allowing every {@code create:casing} block to supply its own connected texture.</p>
+ */
+public final class SpiderAssemblyTableCasingModel {
+
+	private static final ResourceLocation FACE_TEXTURE =
+		CreateBiotech.asResource("block/spider_assembly_table_face");
+	private static final float CASING_TEXTURE_SIZE = 128f;
+	private static final float FACE_TEXTURE_SIZE = 32f;
+	private static final float[] FULL_TEXTURE_UV = { 0, 0, 16, 16 };
+	private static final float[] FALLBACK_FACE_UV = { 12, 8, 20, 16 };
+	private static final Map<ResourceLocation, FaceRegion> FACE_REGIONS = Map.ofEntries(
+		faceRegion("create", "andesite_casing", 0, 0),
+		faceRegion("create", "brass_casing", 8, 0),
+		faceRegion("create", "copper_casing", 16, 0),
+		faceRegion("create", "shadow_steel_casing", 0, 8),
+		faceRegion("create", "refined_radiance_casing", 8, 8),
+		faceRegion("create", "railway_casing", 16, 8),
+		faceRegion(CreateBiotech.MOD_ID, "asurine_casing", 0, 16),
+		faceRegion(CreateBiotech.MOD_ID, "biotech_casing", 8, 16),
+		faceRegion(CreateBiotech.MOD_ID, "explosion_proof_casing", 16, 16));
+	private static final FaceBakery FACE_BAKERY = new FaceBakery();
+	private static final Map<Block, BakedParts> CACHE = new IdentityHashMap<>();
+	private static final List<CubeSpec> CUBES = createCubes();
+
+	public void render(Block casing, ModelPart root, PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, int packedOverlay) {
+		BakedParts baked = getOrCreate(casing);
+		VertexConsumer consumer = buffer.getBuffer(Sheets.cutoutBlockSheet());
+		for (Map.Entry<String, List<BakedQuad>> entry : baked.byPart().entrySet()) {
+			ModelPart part = root.getChild(entry.getKey());
+			poseStack.pushPose();
+			part.translateAndRotate(poseStack);
+			for (BakedQuad quad : entry.getValue())
+				consumer.putBulkData(poseStack.last(), quad, 1, 1, 1, 1, packedLight, packedOverlay);
+			poseStack.popPose();
+		}
+	}
+
+	public static synchronized void clearTextureCache() {
+		CACHE.clear();
+	}
+
+	private static synchronized BakedParts getOrCreate(Block casing) {
+		return CACHE.computeIfAbsent(casing, SpiderAssemblyTableCasingModel::bake);
+	}
+
+	private static BakedParts bake(Block casing) {
+		Minecraft minecraft = Minecraft.getInstance();
+		CasingConnectivity.Entry entry = CreateClient.CASING_CONNECTIVITY.get(casing.defaultBlockState());
+		TextureAtlasSprite casingSprite;
+		float casingTextureSize;
+		if (entry != null) {
+			casingSprite = entry.getCasing().getTarget();
+			casingTextureSize = CASING_TEXTURE_SIZE;
+		} else {
+			// A data pack can add a plain block to create:casing without registering a CT
+			// sheet. It still encases successfully; its particle sprite is the safe visual
+			// fallback and uses ordinary 16x16 UV space.
+			casingSprite = minecraft.getBlockRenderer()
+				.getBlockModel(casing.defaultBlockState())
+				.getParticleIcon(ModelData.EMPTY);
+			casingTextureSize = 16f;
+		}
+		TextureAtlasSprite faceSprite = minecraft.getTextureAtlas(InventoryMenu.BLOCK_ATLAS)
+			.apply(FACE_TEXTURE);
+		FaceRegion faceRegion = FACE_REGIONS.get(BuiltInRegistries.BLOCK.getKey(casing));
+
+		Map<String, List<BakedQuad>> parts = new LinkedHashMap<>();
+		for (CubeSpec cube : CUBES) {
+			List<BakedQuad> quads = parts.computeIfAbsent(cube.part(), ignored -> new ArrayList<>());
+			for (FaceSpec face : cube.faces()) {
+				TextureAtlasSprite sprite = casingSprite;
+				float textureSize = casingTextureSize;
+				float[] uv = casingTextureSize == 16f ? FULL_TEXTURE_UV : face.uv();
+				if (face.special()) {
+					if (faceRegion != null) {
+						sprite = faceSprite;
+						textureSize = FACE_TEXTURE_SIZE;
+						uv = faceRegion.uv();
+					} else if (entry != null) {
+						// Add-on casings without a dedicated face use the requested 8x8
+						// region starting at (12, 8) in their connected texture.
+						uv = FALLBACK_FACE_UV;
+					}
+				}
+				quads.add(bakeFace(cube, face, sprite, textureSize, uv));
+			}
+		}
+		parts.replaceAll((part, quads) -> List.copyOf(quads));
+		return new BakedParts(Map.copyOf(parts));
+	}
+
+	private static BakedQuad bakeFace(CubeSpec cube, FaceSpec face, TextureAtlasSprite sprite,
+		float textureSize, float[] uv) {
+		float scale = 16f / textureSize;
+		// The surrounding entity transform flips model X and Y to Blockbench's editor
+		// coordinates. That is a 180-degree turn around Z, so the face's UV corner order
+		// must turn with it as well.
+		BlockFaceUV blockUv = new BlockFaceUV(new float[] {
+			uv[0] * scale, uv[1] * scale, uv[2] * scale, uv[3] * scale
+		}, (face.rotation() + 180) % 360);
+		BlockElementFace elementFace = new BlockElementFace(null, -1, "#spider", blockUv);
+		return FACE_BAKERY.bakeQuad(cube.modelFrom(), cube.modelTo(), elementFace, sprite,
+			face.direction().modelDirection, BlockModelRotation.X0_Y0, cube.rotation(), true);
+	}
+
+	private static List<CubeSpec> createCubes() {
+		List<CubeSpec> cubes = new ArrayList<>();
+		cubes.add(cube("head", 0, 9, -3, -4, 5, -11, 4, 13, -3,
+			face(EditorFace.NORTH, 12, 0, 20, 8, 0, true),
+			face(EditorFace.EAST, 16, 16, 24, 24, 90),
+			face(EditorFace.SOUTH, 4, 4, 12, 12),
+			face(EditorFace.WEST, 24, 32, 32, 40, 270),
+			face(EditorFace.UP, 12, 12, 4, 4),
+			face(EditorFace.DOWN, 12, 4, 4, 12)));
+
+		cubes.add(cube("body0", 0, 9, 0, -3, 6, -3, 3, 12, 3,
+			face(EditorFace.NORTH, 5, 5, 11, 11),
+			face(EditorFace.EAST, 5, 5, 11, 11, 90),
+			face(EditorFace.SOUTH, 5, 5, 11, 11),
+			face(EditorFace.WEST, 5, 5, 11, 11, 90),
+			face(EditorFace.UP, 11, 11, 5, 5),
+			face(EditorFace.DOWN, 11, 5, 5, 11)));
+
+		// The abdomen is split into four quarters in the bbmodel so every outer face can
+		// retain its authored per-face UV orientation.
+		cubes.add(cube("body1", 0, 9, 9, -5, 5, 3, 0, 9, 15,
+			face(EditorFace.NORTH, 16, 16, 21, 20, 180),
+			face(EditorFace.SOUTH, 0, 12, 5, 16),
+			face(EditorFace.WEST, 4, 12, 16, 16),
+			face(EditorFace.DOWN, 16, 0, 11, 12)));
+		cubes.add(cube("body1", 0, 9, 9, -5, 9, 3, 0, 13, 15,
+			face(EditorFace.NORTH, 6, 5, 10, 10, 90),
+			face(EditorFace.SOUTH, 0, 0, 5, 4),
+			face(EditorFace.WEST, 4, 4, 16, 8),
+			face(EditorFace.UP, 12, 9, 0, 4, 90)));
+		cubes.add(cube("body1", 0, 9, 9, 0, 5, 3, 5, 9, 15,
+			face(EditorFace.NORTH, 16, 16, 20, 21, 270),
+			face(EditorFace.EAST, 0, 12, 12, 16),
+			face(EditorFace.SOUTH, 11, 12, 16, 16),
+			face(EditorFace.DOWN, 5, 0, 0, 12)));
+		cubes.add(cube("body1", 0, 9, 9, 0, 9, 3, 5, 13, 15,
+			face(EditorFace.NORTH, 6, 5, 10, 10, 270),
+			face(EditorFace.EAST, 0, 5, 12, 9),
+			face(EditorFace.SOUTH, 11, 0, 16, 4),
+			face(EditorFace.UP, 16, 9, 4, 4, 270)));
+
+		// These three root-level elements form the thin cap above the spider's head.
+		// They are attached to the non-animated head part so their absolute position
+		// remains identical to the bbmodel while still sharing its model transform.
+		cubes.add(cube("head", 0, 9, -3, -4.2f, 11, -11.2f, 4.2f, 13.1f, -6.2f,
+			face(EditorFace.NORTH, 5, 0, 13, 2),
+			face(EditorFace.EAST, 2, 0, 7, 2),
+			face(EditorFace.WEST, 2, 2, 7, 0, 180)));
+		cubes.add(rotatedCube("head", 0, 9, -3, -4, 12.5f, -12, 4, 13.5f, -10,
+			0, 11, -4.5f, Direction.Axis.X, 22.5f,
+			face(EditorFace.UP, 4, 0, 13, 2)));
+		cubes.add(cube("head", 0, 9, -3, -4.2f, 13.1f, -11.2f, 4.2f, 13.1f, -9.2f,
+			face(EditorFace.UP, 4, 14, 12, 16, 180)));
+
+		addRightLeg(cubes, "right_hind_leg", 4, 9, 2, 3, 8, 1, 19, 10, 3);
+		addLeftLeg(cubes, "left_hind_leg", -4, 9, 2, -19, 8, 1, -3, 10, 3, false);
+		addRightLeg(cubes, "right_middle_hind_leg", 4, 9, 1, 3, 8, 0, 19, 10, 2);
+		addLeftLeg(cubes, "left_middle_hind_leg", -4, 9, 1, -19, 8, 0, -3, 10, 2, false);
+		addRightLeg(cubes, "right_middle_front_leg", 4, 9, 0, 3, 8, -1, 19, 10, 1);
+		addLeftLeg(cubes, "left_middle_front_leg", -4, 9, 0, -19, 8, -1, -3, 10, 1, false);
+		addRightLeg(cubes, "right_front_leg", 4, 9, -1, 3, 8, -2, 19, 10, 0);
+		addLeftLeg(cubes, "left_front_leg", -4, 9, -1, -19, 8, -2, -3, 10, 0, true);
+		return List.copyOf(cubes);
+	}
+
+	private static void addRightLeg(List<CubeSpec> cubes, String part, float originX, float originY,
+		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ) {
+		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
+			face(EditorFace.NORTH, 32, 2, 16, 4),
+			face(EditorFace.EAST, 4, 15, 2, 17),
+			face(EditorFace.SOUTH, 32, 2, 16, 4),
+			face(EditorFace.WEST, 32, 2, 16, 4),
+			face(EditorFace.UP, 32, 2, 16, 4),
+			face(EditorFace.DOWN, 32, 2, 16, 4)));
+	}
+
+	private static void addLeftLeg(List<CubeSpec> cubes, String part, float originX, float originY,
+		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ,
+		boolean frontMost) {
+		FaceSpec east = frontMost
+			? face(EditorFace.EAST, 32, 2, 16, 4)
+			: face(EditorFace.EAST, 4, 15, 2, 17);
+		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
+			face(EditorFace.NORTH, 32, 2, 16, 4),
+			east,
+			face(EditorFace.SOUTH, 32, 2, 16, 4),
+			face(EditorFace.WEST, 4, 15, 2, 17),
+			face(EditorFace.UP, 16, 4, 32, 2),
+			face(EditorFace.DOWN, 16, 2, 32, 4)));
+	}
+
+	private static CubeSpec cube(String part, float originX, float originY, float originZ,
+		float fromX, float fromY, float fromZ, float toX, float toY, float toZ, FaceSpec... faces) {
+		return cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ, null, faces);
+	}
+
+	private static CubeSpec rotatedCube(String part, float originX, float originY, float originZ,
+		float fromX, float fromY, float fromZ, float toX, float toY, float toZ,
+		float rotationOriginX, float rotationOriginY, float rotationOriginZ,
+		Direction.Axis rotationAxis, float rotationAngle, FaceSpec... faces) {
+		float pivotX = -originX;
+		float pivotY = 24 - originY;
+		float pivotZ = originZ;
+		Vector3f rotationOrigin = new Vector3f(
+			(-rotationOriginX - pivotX) / 16f,
+			(24 - rotationOriginY - pivotY) / 16f,
+			(rotationOriginZ - pivotZ) / 16f);
+		BlockElementRotation rotation =
+			new BlockElementRotation(rotationOrigin, rotationAxis, rotationAngle, false);
+		return cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
+			rotation, faces);
+	}
+
+	private static CubeSpec cube(String part, float originX, float originY, float originZ,
+		float fromX, float fromY, float fromZ, float toX, float toY, float toZ,
+		BlockElementRotation rotation, FaceSpec... faces) {
+		// Blockbench editor coordinates are (-model X, 24 - model Y, model Z).
+		float pivotX = -originX;
+		float pivotY = 24 - originY;
+		float pivotZ = originZ;
+		Vector3f modelFrom = new Vector3f(-toX - pivotX, 24 - toY - pivotY, fromZ - pivotZ);
+		Vector3f modelTo = new Vector3f(-fromX - pivotX, 24 - fromY - pivotY, toZ - pivotZ);
+		return new CubeSpec(part, modelFrom, modelTo, rotation, List.of(faces));
+	}
+
+	private static Map.Entry<ResourceLocation, FaceRegion> faceRegion(String namespace, String path,
+		float u, float v) {
+		return Map.entry(ResourceLocation.fromNamespaceAndPath(namespace, path),
+			new FaceRegion(new float[] { u, v, u + 8, v + 8 }));
+	}
+
+	private static FaceSpec face(EditorFace direction, float u1, float v1, float u2, float v2) {
+		return face(direction, u1, v1, u2, v2, 0, false);
+	}
+
+	private static FaceSpec face(EditorFace direction, float u1, float v1, float u2, float v2,
+		int rotation) {
+		return face(direction, u1, v1, u2, v2, rotation, false);
+	}
+
+	private static FaceSpec face(EditorFace direction, float u1, float v1, float u2, float v2,
+		int rotation, boolean special) {
+		return new FaceSpec(direction, new float[] { u1, v1, u2, v2 }, rotation, special);
+	}
+
+	private enum EditorFace {
+		NORTH(Direction.NORTH),
+		EAST(Direction.WEST),
+		SOUTH(Direction.SOUTH),
+		WEST(Direction.EAST),
+		UP(Direction.DOWN),
+		DOWN(Direction.UP);
+
+		private final Direction modelDirection;
+
+		EditorFace(Direction modelDirection) {
+			this.modelDirection = modelDirection;
+		}
+	}
+
+	private record FaceSpec(EditorFace direction, float[] uv, int rotation, boolean special) {}
+
+	private record CubeSpec(String part, Vector3f modelFrom, Vector3f modelTo,
+		BlockElementRotation rotation, List<FaceSpec> faces) {}
+
+	private record FaceRegion(float[] uv) {}
+
+	private record BakedParts(Map<String, List<BakedQuad>> byPart) {}
+}

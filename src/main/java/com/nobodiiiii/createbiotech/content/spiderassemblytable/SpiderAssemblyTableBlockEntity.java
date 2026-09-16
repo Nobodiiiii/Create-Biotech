@@ -42,6 +42,7 @@ import com.simibubi.create.foundation.recipe.RecipeApplier;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.particles.ItemParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -49,6 +50,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
@@ -79,6 +81,7 @@ import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 
 public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implements MenuProvider {
 
+	private static final String CASING_TAG = "SpiderCasing";
 	public static final int LEG_COUNT = 8;
 	public static final int MACHINE_SLOT_START = 0;
 	public static final int HYBRID_SLOT_START = MACHINE_SLOT_START + LEG_COUNT;
@@ -101,6 +104,8 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	private boolean impactPending;
 	private ItemStack impactDisplayItem = ItemStack.EMPTY;
 	private ItemStack cachedInput = ItemStack.EMPTY;
+	@Nullable
+	private Block casing;
 	@Nullable
 	private UUID advancementOwner;
 
@@ -145,6 +150,8 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	@Override
 	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		if (casing != null)
+			tag.putString(CASING_TAG, BuiltInRegistries.BLOCK.getKey(casing).toString());
 		tag.put("Inventory", inventory.serializeNBT(registries));
 		ListTag fluids = new ListTag();
 		for (FluidTank tank : fluidTanks)
@@ -183,6 +190,10 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	@Override
 	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		casing = null;
+		ResourceLocation casingId = ResourceLocation.tryParse(tag.getString(CASING_TAG));
+		if (casingId != null)
+			casing = BuiltInRegistries.BLOCK.getOptional(casingId).orElse(null);
 		inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
 		ListTag fluids = tag.getList("Fluids", Tag.TAG_COMPOUND);
 		for (int i = 0; i < fluidTanks.length && i < fluids.size(); i++)
@@ -237,6 +248,28 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	public ItemStackHandler getInventory() {
 		return inventory;
+	}
+
+	/**
+	 * The exact casing applied to this table. Old saves only had the boolean block-state property,
+	 * so an encased table without this field remains an andesite-encased table.
+	 */
+	@Nullable
+	public Block getCasing() {
+		if (casing != null)
+			return casing;
+		return getBlockState().hasProperty(SpiderAssemblyTableBlock.CASING)
+			&& getBlockState().getValue(SpiderAssemblyTableBlock.CASING)
+			? AllBlocks.ANDESITE_CASING.get()
+			: null;
+	}
+
+	public void setCasing(@Nullable Block casing) {
+		if (this.casing == casing)
+			return;
+		this.casing = casing;
+		setChanged();
+		sendData();
 	}
 
 	public FluidTank getFluidTank(int index) {

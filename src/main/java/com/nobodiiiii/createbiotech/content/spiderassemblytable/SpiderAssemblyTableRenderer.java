@@ -33,6 +33,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.neoforge.client.model.data.ModelData;
@@ -47,8 +48,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private static final ResourceLocation SPIDER_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
-	private static final ResourceLocation ANDESITE_ENCASED_SPIDER_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_andesite_encased.png");
 	private static final ResourceLocation SPIDER_EYES_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_eyes.png");
 	private static final int EYES_LIGHT = 15728640;
@@ -71,10 +70,12 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES = 90f;
 
 	private final MachineCreatureModel spiderModel;
+	private final SpiderAssemblyTableCasingModel casingModel;
 
 	public SpiderAssemblyTableRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
 		spiderModel = MachineCreatureModels.spider();
+		casingModel = new SpiderAssemblyTableCasingModel();
 	}
 
 	@Override
@@ -85,14 +86,12 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			return;
 
 		Direction facing = state.getValue(SpiderAssemblyTableBlock.FACING);
-		ResourceLocation spiderTexture = state.getValue(SpiderAssemblyTableBlock.CASING)
-			? ANDESITE_ENCASED_SPIDER_TEXTURE
-			: SPIDER_TEXTURE;
-		renderSpider(be, partialTicks, ms, buffer, light, facing, spiderTexture);
+		Block casing = state.getValue(SpiderAssemblyTableBlock.CASING) ? be.getCasing() : null;
+		renderSpider(be, partialTicks, ms, buffer, light, facing, casing);
 	}
 
 	private void renderSpider(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, Direction facing, ResourceLocation spiderTexture) {
+		MultiBufferSource buffer, int light, Direction facing, Block casing) {
 		prepareSpiderModel(be, partialTicks);
 
 		BlockEntityModelElement.builder()
@@ -101,8 +100,14 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(spiderTexture));
-				spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+				if (casing == null) {
+					VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
+					spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY,
+						0xFFFFFFFF);
+				} else {
+					casingModel.render(casing, spiderModel.root(), poseStack, buf, lightArg,
+						OverlayTexture.NO_OVERLAY);
+				}
 				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
 				spiderModel.renderToBuffer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,
 					0xFFFFFFFF);

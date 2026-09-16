@@ -126,6 +126,10 @@
     },
     {
       "type": "single",
+      "resource": "create_biotech:block/spider_assembly_table_face"
+    },
+    {
+      "type": "single",
       "resource": "minecraft:entity/shulker/shulker"
     },
     {

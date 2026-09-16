@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.AllTags;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.block.IBE;
@@ -22,6 +23,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
@@ -103,10 +105,12 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 		if (CBWrenchHelper.isWrench(stack))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 		if (!player.isShiftKeyDown() && player.mayBuild() && !state.getValue(CASING)
-			&& AllBlocks.ANDESITE_CASING.isIn(stack)) {
+			&& AllTags.AllBlockTags.CASING.matches(stack) && stack.getItem() instanceof BlockItem casingItem) {
 			if (!level.isClientSide) {
 				KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, true));
-				SoundType soundType = AllBlocks.ANDESITE_CASING.getDefaultState()
+				Block casing = casingItem.getBlock();
+				withBlockEntityDo(level, pos, be -> be.setCasing(casing));
+				SoundType soundType = casing.defaultBlockState()
 					.getSoundType(level, pos, player);
 				level.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
 					(soundType.getVolume() + 1.0f) / 2.0f, soundType.getPitch() * 0.8f);
@@ -137,9 +141,17 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 			return InteractionResult.SUCCESS;
 
 		BlockPos pos = context.getClickedPos();
+		BlockEntity blockEntity = level.getBlockEntity(pos);
+		Block casing = AllBlocks.ANDESITE_CASING.get();
+		if (blockEntity instanceof SpiderAssemblyTableBlockEntity be) {
+			Block storedCasing = be.getCasing();
+			if (storedCasing != null)
+				casing = storedCasing;
+		}
 		level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, pos,
-			Block.getId(AllBlocks.ANDESITE_CASING.getDefaultState()));
+			Block.getId(casing.defaultBlockState()));
 		KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, false));
+		withBlockEntityDo(level, pos, be -> be.setCasing(null));
 		return InteractionResult.SUCCESS;
 	}
 
