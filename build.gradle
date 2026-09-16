@@ -30,6 +30,11 @@ neoForge {
         }
     }
 
+    unitTest {
+        enable()
+        testedMod = mods.create_biotech
+    }
+
     runs {
         configureEach {
             systemProperty 'forge.logging.markers', 'REGISTRIES'
@@ -78,6 +83,10 @@ configurations {
 }
 
 dependencies {
+    testImplementation platform('org.junit:junit-bom:5.10.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
     implementation("com.simibubi.create:create-${minecraft_version}:${create_version}") {
         transitive = false
     }
@@ -118,6 +127,100 @@ dependencies {
         transitive = false
     }
 }
+
+sourceSets.test.compileClasspath += sourceSets.main.compileClasspath
+sourceSets.test.runtimeClasspath += sourceSets.main.runtimeClasspath
+
+sourceSets.test.resources.srcDir 'tools/test-resources'
+
+test {
+    useJUnitPlatform()
+    systemProperty 'castedMaterials.projectDir', projectDir.toString()
+}
+
+def verifyMaterialRenderingModule = tasks.register('verifyMaterialRenderingModule') {
+    group = 'verification'
+    description = 'Verifies the native Biotech material module, legacy data resources, MIT notice, and unchanged Sable embedding.'
+    dependsOn tasks.named('jar')
+    inputs.file(tasks.named('jar').flatMap { it.archiveFile })
+    doLast {
+        new java.util.zip.ZipFile(tasks.named('jar').get().archiveFile.get().asFile).withCloseable { zip ->
+            def entries = zip.entries().collect { it.name }
+            def modulePath = 'com/nobodiiiii/createbiotech/foundation/render/material/'
+            def previousModulePath = 'com/nobodiiiii/createbiotech/foundation/' + 'material/'
+            if (entries.any { it.startsWith(previousModulePath) && it.endsWith('.class') }) {
+                throw new GradleException('Material classes must belong to foundation.render.material, not the old sibling package')
+            }
+            ['MaterialRenderingModule.class', 'CastedMaterialsApi.class', 'CastedMaterialState.class',
+             'palette/MaterialDiscovery.class', 'palette/MaterialPaletteSync.class',
+             'mapping/DefinitionParser.class', 'mapping/UvPlanCompiler.class', 'mapping/UvMapping.class',
+             'client/CastedResources.class', 'client/MaterialTextures.class'].each { name ->
+                if (zip.getEntry(modulePath + name) == null) {
+                    throw new GradleException("Missing native material module class: ${name}")
+                }
+            }
+            def materialClasses = entries.findAll { it.startsWith(modulePath) && it.endsWith('.class') }
+            if (materialClasses.any { name ->
+                def relative = name.substring(modulePath.length())
+                def folder = relative.contains('/') ? relative.substring(0, relative.lastIndexOf('/')) : ''
+                !(folder in ['', 'palette', 'mapping', 'client'])
+            }) {
+                throw new GradleException('Material classes must use root/palette/mapping/flat client packages only')
+            }
+            ['mapping/MappingComposer.class', 'mapping/CompositionResult.class', 'mapping/SourceSlotImage.class',
+             'mapping/PixelReference.class', 'client/ClientRuntime.class', 'client/DefaultClientRuntime.class',
+             'client/definition/ResolvedSources.class', 'client/render/CastedTextureHandle.class',
+             'client/render/UvTransform.class', 'client/render/UvTransformingVertexConsumer.class',
+             'definition/RenderPolicy$Mode.class', 'definition/MaterialRenderSettings$Backend.class',
+             'client/uv/UvPlanCompiler$Affine.class', 'CastedIds.class',
+             'mapping/RenderPolicy$Mode.class', 'mapping/MaterialRenderSettings$Backend.class',
+             'mapping/UvPlanCompiler$Affine.class'].each { name ->
+                if (zip.getEntry(modulePath + name) != null) {
+                    throw new GradleException("Retired material implementation must not be packaged: ${name}")
+                }
+            }
+            if (entries.any { it.startsWith('com/fluorineuck/') && it.endsWith('.class') }) {
+                throw new GradleException('Biotech must not contain classes from the former standalone library package')
+            }
+            def metadataEntry = zip.getEntry('META-INF/jarjar/metadata.json')
+            if (metadataEntry == null) throw new GradleException('Missing JarJar metadata for Sable companion')
+            def metadata = zip.getInputStream(metadataEntry).withCloseable {
+                new groovy.json.JsonSlurper().parse(it)
+            }
+            if (metadata.jars.any { it.identifier.group == 'com.fluorineuck'
+                    || it.identifier.artifact.startsWith('casted-materials') }
+                    || entries.any { it.startsWith('META-INF/jarjar/casted-materials') }) {
+                throw new GradleException('The native module must not embed a standalone Casted Materials JAR')
+            }
+            def sable = metadata.jars.find { it.identifier.group == 'dev.ryanhcode.sable-companion' }
+            if (sable == null || zip.getEntry(sable.path) == null
+                    || sable.identifier.artifact != 'sable-companion-common-1.21.1'
+                    || sable.version.artifactVersion != sable_companion_version
+                    || sable.version.range != sable_companion_version_range) {
+                throw new GradleException('Sable companion embedding and version range must remain unchanged')
+            }
+            def descriptor = zip.getInputStream(zip.getEntry('META-INF/neoforge.mods.toml')).withCloseable {
+                it.getText('UTF-8')
+            }
+            if (descriptor =~ /(?m)^\s*modId\s*=\s*["']casted_materials["']/) {
+                throw new GradleException('The native module must not declare or require a casted_materials mod')
+            }
+            if (!(descriptor =~ /(?m)^\s*modId\s*=\s*["']create_biotech["']/)) {
+                throw new GradleException('Missing Biotech mod ownership')
+            }
+            ['assets/create_biotech/casted_materials/targets/spider_assembly_table/spider.json',
+             'META-INF/licenses/casted-materials-MIT.txt', 'THIRD_PARTY_NOTICES.md',
+             "${mod_name}_LICENSE.md"].each { name ->
+                if (zip.getEntry(name) == null) throw new GradleException("Missing module resource or license: ${name}")
+            }
+            println 'Verified native Biotech material module; no external Casted Materials mod; Sable embedding retained.'
+        }
+    }
+}
+// Compatibility aliases for existing local verification commands, not packaging modes.
+tasks.register('verifyCastedMaterialsPackaging') { dependsOn verifyMaterialRenderingModule }
+tasks.register('verifyCastedMaterialsJarJar') { dependsOn verifyMaterialRenderingModule }
+tasks.named('check') { dependsOn verifyMaterialRenderingModule }
 
 sourceSets.main.resources {
     srcDir 'src/generated/resources'

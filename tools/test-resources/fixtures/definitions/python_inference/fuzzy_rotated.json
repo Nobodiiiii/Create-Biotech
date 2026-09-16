@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "size": [6, 8],
+  "source_grids": {"all": [16, 12]},
+  "regions": [{"source_slot": "all", "source": [3, 4, 8, 6], "destination": [0, 0, 6, 8], "transform": "rotate_90"}],
+  "pixels": [],
+  "computed_cost": {"max_pieces_per_source_quad": 1, "additional_quads": 0}
+}

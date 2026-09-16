@@ -30,6 +30,53 @@
 ./gradlew quickPlaySmoke -Pinstance=<name>    # 进入世界、确认日志标记后自动结束客户端
 ```
 
+## 内部 UV 材质渲染
+
+材质渲染属于 `foundation/render/material`，不需要独立 Casted Materials Mod、外部库 JAR 或路径参数。
+根层负责注册、API 与 NBT 状态，`palette` 负责机壳发现/校验和同步，`mapping` 负责定义/UV 解释与几何计划，
+`client` 负责重载、源图绑定与渲染。机壳必须在物品和方块的 `#create:casing` 中同名配对，且 BlockItem 指向对应方块。
+
+蜘蛛方块与物品共用 `CastedMaterialsClient.resolveModel(...)`。直接使用原有源图的 UV，
+不为不同机壳生成蜘蛛贴图；拆面超预算、缺少资源或不支持的 UV 会回退基础模型/材质。
+固定覆盖图只支持完全透明/不透明像素；半透明不做运行时混合。眼睛附加 pass 使用 `handle.renderLayer(...)`
+共享分片几何。复用活动模型 root，每次渲染取得 handle，不跨资源重载长期持有。
+
+- 目标定义：`assets/<namespace>/casted_materials/targets/<path>.json`，ID 为 `<namespace>:<path>`。
+- 材质 slot 配置：`assets/<namespace>/casted_materials/materials/<material-path>.json`。
+- [正式蜘蛛定义](src/main/resources/assets/create_biotech/casted_materials/targets/spider_assembly_table/spider.json)可作为格式示例。
+- 目标宽、高为 1～256；源网格不受该上限限制，源图需为逻辑网格的整数等比缩放。
+- 显式源配置优先；默认模型贴图不满足网格时，尝试同名 `_connected`。
+
+预算只由目标 JSON 的 `render_policy` 控制，不再提供材质渲染客户端配置组。缺省值为：
+
+```json
+"render_policy": {
+  "max_pieces_per_face": 64,
+  "max_additional_quads": 2048,
+  "max_texture_batches": 4
+}
+```
+
+直接使用目标预算，不叠加客户端全局上限。Java 根据实际模型计算成本，不依赖 `computed_cost` 声明。
+F3+T 重载定义并清除缓存。旧 JSON 的 `mode` 仅保留语法兼容，不再选择合成后端。
+
+装壳只设置外观，生存和创造模式均不消耗手持机壳；已有机壳不会直接替换。
+潜行使用扳手先清除外观，不返还机壳，也不拆除工作台。
+
+为兼容存档，保留 `casted_materials:material` 组件、`casted_materials:material_palette` payload 和
+`CastedMaterial` NBT 字段。这不是独立 Mod；迁移旧实例时应移除旧 Casted Materials JAR。
+Sable Companion 嵌入不变，原模块 [MIT 声明](src/main/resources/META-INF/licenses/casted-materials-MIT.txt)保留。
+
+[制作工具](tools/README.md)支持图片推断、RGB 容差、模型面 UV 读取、最小源外接框与限时选区优化。
+制作期源路径不等于运行时资源 ID，诊断预览不必打包。不再提供 Blockbench 配对编辑/导出入口，
+仅保留可选 `.bbmodel` 读取器。更多运行时接口说明见[英文对应章节](README.md#internal-uv-material-rendering-1211)。
+
+```powershell
+./gradlew.bat --offline test build verifyMaterialRenderingModule
+python -B -m pytest -q -p no:cacheprovider tools
+python -B -m unittest discover -s tests -p 'test_*.py'
+```
+
 ## 仓库结构
 
 ```

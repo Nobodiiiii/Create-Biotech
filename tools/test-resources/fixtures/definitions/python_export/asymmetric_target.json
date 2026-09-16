@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "size": [256, 256],
+  "source_grids": {"all": [512, 512]},
+  "regions": [
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [1, 1, 3, 2], "transform": "identity"},
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [7, 1, 2, 3], "transform": "rotate_90"},
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [13, 1, 3, 2], "transform": "rotate_180"},
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [19, 1, 2, 3], "transform": "rotate_270"},
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [25, 1, 3, 2], "transform": "mirror_x"},
+    {"source_slot": "all", "source": [300, 400, 3, 2], "destination": [31, 1, 3, 2], "transform": "mirror_y"}
+  ],
+  "pixels": [{"source_slot": "all", "source": [511, 511], "destination": [255, 255]}],
+  "computed_cost": {"max_pieces_per_source_quad": 1, "additional_quads": 0}
+}
