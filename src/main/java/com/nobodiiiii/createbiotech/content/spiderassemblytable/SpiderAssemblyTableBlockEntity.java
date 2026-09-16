@@ -17,6 +17,8 @@ import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.nobodiiiii.createbiotech.foundation.render.material.CastedMaterialsApi.CastedMaterialHolder;
+import com.nobodiiiii.createbiotech.foundation.render.material.CastedMaterialState;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllDataComponents;
@@ -77,7 +79,7 @@ import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 
-public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implements MenuProvider {
+public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implements MenuProvider, CastedMaterialHolder {
 
 	public static final int LEG_COUNT = 8;
 	public static final int MACHINE_SLOT_START = 0;
@@ -85,6 +87,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	public static final int SLOT_COUNT = HYBRID_SLOT_START + LEG_COUNT;
 
 	private final SpiderAssemblyInventory inventory = new SpiderAssemblyInventory();
+	private final CastedMaterialState castedMaterialState = new CastedMaterialState();
 	private final FluidTank[] fluidTanks = new FluidTank[LEG_COUNT];
 	private final ItemStack[] itemLocks = new ItemStack[LEG_COUNT];
 	private final FluidStack[] fluidLocks = new FluidStack[LEG_COUNT];
@@ -145,6 +148,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	@Override
 	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		castedMaterialState.save(tag);
 		tag.put("Inventory", inventory.serializeNBT(registries));
 		ListTag fluids = new ListTag();
 		for (FluidTank tank : fluidTanks)
@@ -183,6 +187,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	@Override
 	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		castedMaterialState.load(tag);
 		inventory.deserializeNBT(registries, tag.getCompound("Inventory"));
 		ListTag fluids = tag.getList("Fluids", Tag.TAG_COMPOUND);
 		for (int i = 0; i < fluidTanks.length && i < fluids.size(); i++)
@@ -221,6 +226,11 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 				: ItemStack.EMPTY;
 			spawnImpactParticles(activeMachine, item);
 		}
+	}
+
+	@Override
+	public CastedMaterialState castedMaterialState() {
+		return castedMaterialState;
 	}
 
 	@Override

@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech;
 
 import net.minecraft.core.registries.Registries;
+import com.nobodiiiii.createbiotech.foundation.render.material.MaterialRenderingModule;
 
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerArmInteractions;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadMovementBehaviour;
@@ -64,6 +65,7 @@ public class CreateBiotech {
 	public static final String MOD_ID = "create_biotech";
 
 	public CreateBiotech(IEventBus modEventBus, ModContainer modContainer) {
+		MaterialRenderingModule.register(modEventBus);
 		CBConfigs.register(modContainer);
 		CBAttachmentTypes.register(modEventBus);
 		CBBlocks.register(modEventBus);

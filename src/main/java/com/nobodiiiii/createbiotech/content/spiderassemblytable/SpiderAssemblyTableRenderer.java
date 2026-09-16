@@ -101,10 +101,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(spiderTexture));
-				spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
-				spiderModel.renderToBuffer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,
+				var materialHandle = SpiderAssemblyMaterialRenderer.resolveModel(spiderModel.root(), be, SPIDER_TEXTURE);
+				materialHandle.render(poseStack, buf, spiderModel::renderType, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SpiderAssemblyMaterialRenderer.eyes(materialHandle.backend(), SPIDER_EYES_TEXTURE)));
+				materialHandle.renderLayer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,
 					0xFFFFFFFF);
 				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
 			});

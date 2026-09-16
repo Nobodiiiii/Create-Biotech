@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "size": [64, 32],
+  "source_grids": {"all": [128, 128]},
+  "render_policy": {
+    "mode": "direct",
+    "max_pieces_per_face": 8,
+    "max_additional_quads": 256,
+    "max_texture_batches": 4
+  },
+  "regions": [
+    {
+      "source_slot": "all",
+      "source": [0, 0, 64, 32],
+      "destination": [0, 0, 64, 32],
+      "transform": "identity"
+    }
+  ]
+}
