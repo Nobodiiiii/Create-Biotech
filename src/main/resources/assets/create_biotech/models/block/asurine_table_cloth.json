@@ -1,4 +1,5 @@
 {
+  "render_type": "minecraft:cutout_mipped",
   "parent": "create:block/table_cloth/block",
   "textures": {
     "0": "create_biotech:block/table_cloth/asurine"

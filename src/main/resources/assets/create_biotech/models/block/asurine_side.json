@@ -1,4 +1,5 @@
 {
+  "render_type": "minecraft:cutout_mipped",
   "parent": "create:block/bars/side",
   "textures": {
     "bars": "create_biotech:block/bars/asurine_bars",

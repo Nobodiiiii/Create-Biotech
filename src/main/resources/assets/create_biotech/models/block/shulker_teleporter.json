@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:block/shulker_box",
+  "render_type": "minecraft:cutout_mipped"
+}

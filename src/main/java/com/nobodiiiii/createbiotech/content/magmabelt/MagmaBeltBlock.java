@@ -1,11 +1,8 @@
 package com.nobodiiiii.createbiotech.content.magmabelt;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import org.apache.commons.lang3.mutable.MutableBoolean;
 
@@ -35,8 +32,6 @@ import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.funnel.FunnelBlock;
 import com.simibubi.create.content.logistics.tunnel.BeltTunnelBlock;
-import com.simibubi.create.content.schematics.requirement.ItemRequirement;
-import com.simibubi.create.content.schematics.requirement.ItemRequirement.ItemUseType;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import com.simibubi.create.foundation.block.render.MultiPosDestructionHandler;
@@ -49,7 +44,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -96,9 +90,6 @@ import net.minecraft.world.phys.shapes.EntityCollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 import net.neoforged.neoforge.items.IItemHandler;
 
 public class MagmaBeltBlock extends HorizontalKineticBlock
@@ -145,11 +136,6 @@ public class MagmaBeltBlock extends HorizontalKineticBlock
 	@Override
 	public void createBiotech$createChain(Level level, BlockPos start, BlockPos end) {
 		MagmaBeltConnectorItem.createBelts(level, start, end);
-	}
-
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientBlockExtensions> consumer) {
-		consumer.accept(new RenderProperties());
 	}
 
 	@Override

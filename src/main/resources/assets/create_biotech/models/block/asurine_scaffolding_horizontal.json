@@ -1,4 +1,5 @@
 {
+  "render_type": "minecraft:cutout",
   "parent": "create:block/scaffold/block_horizontal",
   "textures": {
     "casing": "create_biotech:block/asurine_casing",

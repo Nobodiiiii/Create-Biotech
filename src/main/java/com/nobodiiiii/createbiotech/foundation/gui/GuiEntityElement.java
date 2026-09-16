@@ -14,7 +14,7 @@ import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.gui.ILightingSettings;
 import net.createmod.catnip.gui.UIRenderHelper;
-import net.createmod.catnip.gui.element.AbstractRenderElement;
+import net.createmod.catnip.gui.element.FadableScreenElement;
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.BlockPos;
@@ -44,7 +44,11 @@ public final class GuiEntityElement {
 		void restore();
 	}
 
-	public static class GuiEntityRenderBuilder<T extends Entity> extends AbstractRenderElement {
+	public static class GuiEntityRenderBuilder<T extends Entity> implements FadableScreenElement {
+		private int width = 16, height = 16;
+		private float x, y, z;
+		private float alpha = 1f;
+
 		private final T entity;
 		private final EntityRenderHelper.RenderSettings<T> renderSettings;
 
@@ -74,27 +78,27 @@ public final class GuiEntityElement {
 			this.renderSettings = EntityRenderHelper.settings(entity);
 		}
 
-		@Override
 		public GuiEntityRenderBuilder<T> at(float x, float y) {
-			super.at(x, y);
+			this.x = x;
+			this.y = y;
 			return this;
 		}
 
-		@Override
 		public GuiEntityRenderBuilder<T> at(float x, float y, float z) {
-			super.at(x, y, z);
+			this.x = x;
+			this.y = y;
+			this.z = z;
 			return this;
 		}
 
-		@Override
 		public GuiEntityRenderBuilder<T> withBounds(int width, int height) {
-			super.withBounds(width, height);
+			this.width = width;
+			this.height = height;
 			return this;
 		}
 
-		@Override
 		public GuiEntityRenderBuilder<T> withAlpha(float alpha) {
-			super.withAlpha(alpha);
+			this.alpha = alpha;
 			return this;
 		}
 
@@ -204,7 +208,31 @@ public final class GuiEntityElement {
 			return this;
 		}
 
+		public float getX() {
+			return x;
+		}
+
+		public float getY() {
+			return y;
+		}
+
+		public float getZ() {
+			return z;
+		}
+
+		public int getWidth() {
+			return width;
+		}
+
+		public int getHeight() {
+			return height;
+		}
+
 		@Override
+		public void render(GuiGraphics graphics, int x, int y, float alpha) {
+			at(x, y).withAlpha(alpha).render(graphics);
+		}
+
 		public void render(GuiGraphics graphics) {
 			PoseStack poseStack = graphics.pose();
 			prepareMatrix(poseStack);

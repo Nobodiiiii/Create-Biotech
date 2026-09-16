@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 
+import net.neoforged.neoforge.client.model.data.ModelData;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
@@ -15,7 +17,6 @@ import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
@@ -83,7 +84,8 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 	private void renderEnchantingTable(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		int packedOverlay) {
 		poseStack.pushPose();
-		blockRenderer.renderSingleBlock(enchantingTableState, poseStack, buffer, packedLight, packedOverlay);
+		blockRenderer.renderSingleBlock(enchantingTableState, poseStack, buffer, packedLight, packedOverlay,
+			ModelData.EMPTY, null);
 		poseStack.popPose();
 	}
 

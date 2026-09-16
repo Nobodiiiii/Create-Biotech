@@ -41,7 +41,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.entity.PartEntity;
 
-
 public class CapturedEntityBoxHelper {
 	private static final String CAPTURED_ENTITY_TAG = "CapturedEntity";
 	private static final String CAPTURED_ENTITY_DESC_ID_TAG = "CapturedEntityDescId";
@@ -401,15 +400,15 @@ public class CapturedEntityBoxHelper {
 	}
 
 	/**
-	 * Builds the small immutable descriptor used by the client render caches without
-	 * copying NBT. The component and nested tag exposed by this record are read-only.
+	 * Builds the small immutable descriptor used by the client render caches. Component
+	 * snapshots are shared read-only through the bounded cache in {@link CBItemData}.
 	 */
 	static CapturedEntityRenderData getCapturedEntityRenderData(ItemStack stack) {
 		CustomData component = CBItemData.getReadOnlyComponent(stack);
 		if (component == null)
 			return null;
 
-		CompoundTag root = component.getUnsafe();
+		CompoundTag root = CBItemData.readOnlySnapshot(component);
 		if (!root.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND))
 			return null;
 

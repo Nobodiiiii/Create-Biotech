@@ -1,4 +1,5 @@
 {
+	"render_type": "minecraft:cutout_mipped",
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {

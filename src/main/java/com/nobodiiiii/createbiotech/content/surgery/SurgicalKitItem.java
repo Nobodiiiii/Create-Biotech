@@ -6,13 +6,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.AllItems;
@@ -37,9 +35,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 /**
  * A durable, surgical-table-only proxy for every tool or consumable used while editing a subject.
@@ -65,19 +60,6 @@ public class SurgicalKitItem extends Item {
 
 	public SurgicalKitItem(Properties properties) {
 		super(properties);
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(new IClientItemExtensions() {
-			private final SurgicalKitItemRenderer renderer = new SurgicalKitItemRenderer();
-
-			@Override
-			public SurgicalKitItemRenderer getCustomRenderer() {
-				return renderer;
-			}
-		});
 	}
 
 	@Override

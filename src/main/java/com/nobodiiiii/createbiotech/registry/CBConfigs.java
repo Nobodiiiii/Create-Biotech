@@ -1,7 +1,5 @@
 package com.nobodiiiii.createbiotech.registry;
 
-import net.minecraft.core.registries.Registries;
-
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.List;
@@ -21,7 +19,6 @@ import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.config.ModConfigEvent;
-
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class CBConfigs {
@@ -907,7 +904,7 @@ public class CBConfigs {
 
 	private static ModConfigSpec.ConfigValue<List<? extends String>> defineResourceLocationList(
 		ModConfigSpec.Builder builder, String path, List<? extends String> defaults) {
-		return builder.defineListAllowEmpty(path, defaults, value -> value instanceof String string
+		return builder.defineListAllowEmpty(path, defaults, null, value -> value instanceof String string
 			&& ResourceLocation.tryParse(string) != null);
 	}
 

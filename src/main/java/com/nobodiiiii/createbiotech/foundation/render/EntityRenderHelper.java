@@ -3,12 +3,12 @@ package com.nobodiiiii.createbiotech.foundation.render;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalCapturedRenderPlan;
 import com.nobodiiiii.createbiotech.mixin.WalkAnimationStateAccessor;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
+import net.minecraft.client.GraphicsStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -34,7 +34,7 @@ public final class EntityRenderHelper {
 
 	/**
 	 * Runs several {@link #render} calls under a single fancy-graphics scope. Without this every
-	 * entity pays its own {@link RenderSystem#runAsFancy} swap and lambda.
+	 * entity pays its own graphics-mode swap and lambda.
 	 */
 	public static void batch(Runnable batch) {
 		if (inFancyBatch) {
@@ -43,9 +43,24 @@ public final class EntityRenderHelper {
 		}
 		inFancyBatch = true;
 		try {
-			RenderSystem.runAsFancy(batch);
+			runWithFancyGraphics(batch);
 		} finally {
 			inFancyBatch = false;
+		}
+	}
+
+	private static void runWithFancyGraphics(Runnable render) {
+		if (!Minecraft.useShaderTransparency()) {
+			render.run();
+			return;
+		}
+		var graphicsMode = Minecraft.getInstance().options.graphicsMode();
+		GraphicsStatus previous = graphicsMode.get();
+		try {
+			graphicsMode.set(GraphicsStatus.FANCY);
+			render.run();
+		} finally {
+			graphicsMode.set(previous);
 		}
 	}
 
@@ -84,7 +99,7 @@ public final class EntityRenderHelper {
 			if (inFancyBatch)
 				renderWithAssignedRenderer(dispatcher, settings, poseStack, buffer);
 			else
-				RenderSystem.runAsFancy(
+				runWithFancyGraphics(
 					() -> renderWithAssignedRenderer(dispatcher, settings, poseStack, buffer));
 			if (settings.flushBuffers && buffer instanceof MultiBufferSource.BufferSource bufferSource)
 				bufferSource.endBatch();

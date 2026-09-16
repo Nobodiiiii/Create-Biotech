@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.shulkerteleporter;
 
+import net.neoforged.neoforge.client.model.data.ModelData;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
@@ -55,7 +57,7 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 		Minecraft.getInstance()
 			.getBlockRenderer()
 			.renderSingleBlock(AllBlocks.MECHANICAL_MIXER.getDefaultState(), poseStack, bufferSource, packedLight,
-				packedOverlay);
+				packedOverlay, ModelData.EMPTY, null);
 		poseStack.popPose();
 	}
 

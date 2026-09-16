@@ -1,17 +1,14 @@
 package com.nobodiiiii.createbiotech.content.powerbelt;
 
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.client.PowerBeltClientReporter;
 import com.nobodiiiii.createbiotech.foundation.block.CBBeltTransform;
 import com.nobodiiiii.createbiotech.foundation.block.CBBeltChain;
-import com.nobodiiiii.createbiotech.foundation.block.CBBeltChainBlock;
 import com.nobodiiiii.createbiotech.foundation.block.CBBeltPlacementBlock;
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -42,7 +39,6 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Direction.Axis;
-import net.minecraft.core.Direction.AxisDirection;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
@@ -85,9 +81,6 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientBlockExtensions;
 
 public class PowerBeltBlock extends HorizontalKineticBlock
 	implements IBE<PowerBeltBlockEntity>, ProperWaterloggedBlock, TransformableBlock, CBBeltPlacementBlock {
@@ -123,11 +116,6 @@ public class PowerBeltBlock extends HorizontalKineticBlock
 	@Override
 	public void createBiotech$createChain(Level level, BlockPos start, BlockPos end) {
 		PowerBeltConnectorItem.createBelts(level, start, end);
-	}
-
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientBlockExtensions> consumer) {
-		consumer.accept(new RenderProperties());
 	}
 
 	@Override

@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.processing.basin;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -18,9 +17,6 @@ import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 public class CapturedSmallSlimeItem extends BlockCenteredSpawnableRenderedLivingEntityItem<Slime> {
 	private static final float ITEM_RENDER_SCALE = 1.5f;
@@ -28,12 +24,6 @@ public class CapturedSmallSlimeItem extends BlockCenteredSpawnableRenderedLiving
 
 	public CapturedSmallSlimeItem(Properties properties) {
 		super(properties, EntityType.SLIME, CapturedSmallSlimeItem::configureSlime, ITEM_RENDER_SCALE);
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(CapturedSmallSlimeItemRenderer.create(ITEM_RENDER_SCALE));
 	}
 
 	@Override

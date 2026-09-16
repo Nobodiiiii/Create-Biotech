@@ -1,16 +1,10 @@
 package com.nobodiiiii.createbiotech.content.magmacubeburner;
 
 import java.util.Map;
-import java.util.function.Consumer;
-
-import com.simibubi.create.foundation.item.render.SimpleCustomRenderer;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 public class MagmaCubeBurnerItem extends BlockItem {
 
@@ -39,14 +33,6 @@ public class MagmaCubeBurnerItem extends BlockItem {
 	@Override
 	public String getDescriptionId() {
 		return capturedMagmaCube ? super.getDescriptionId() : "item.create_biotech.empty_magma_cube_burner";
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		if (!capturedMagmaCube)
-			return;
-		consumer.accept(SimpleCustomRenderer.create(this, new MagmaCubeBurnerItemRenderer()));
 	}
 
 	public boolean hasCapturedMagmaCube() {

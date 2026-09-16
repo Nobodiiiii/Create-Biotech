@@ -1,10 +1,5 @@
 package com.nobodiiiii.createbiotech.content.sonicdogcannon;
 
-import java.util.function.Consumer;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.client.SonicDogCannonArmPose;
-import com.nobodiiiii.createbiotech.client.SonicDogCannonItemRenderer;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonChargeSoundPacket.Action;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBDataComponents;
@@ -13,11 +8,7 @@ import com.nobodiiiii.createbiotech.registry.CBSoundEvents;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.equipment.armor.BacktankUtil;
-import com.simibubi.create.foundation.item.render.CustomRenderedItems;
 
-import net.minecraft.client.model.HumanoidModel;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.core.Holder;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvent;
@@ -27,7 +18,6 @@ import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -38,11 +28,6 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
-
-import org.jetbrains.annotations.Nullable;
 
 public class SonicDogCannonItem extends Item {
 
@@ -261,43 +246,4 @@ public class SonicDogCannonItem extends Item {
 		return BacktankUtil.getBarColor(stack, MAX_DURABILITY);
 	}
 
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		CustomRenderedItems.register(this);
-		consumer.accept(new IClientItemExtensions() {
-			private final SonicDogCannonItemRenderer renderer = new SonicDogCannonItemRenderer();
-
-			@Override
-			public boolean applyForgeHandTransform(PoseStack poseStack, LocalPlayer player, HumanoidArm arm,
-				ItemStack itemInHand, float partialTick, float equipProcess, float swingProcess) {
-				if (!player.isUsingItem() || !player.getUseItem().is(SonicDogCannonItem.this))
-					return false;
-
-				HumanoidArm usedArm = player.getUsedItemHand() == InteractionHand.MAIN_HAND
-					? player.getMainArm()
-					: player.getMainArm().getOpposite();
-				if (arm != usedArm)
-					return false;
-
-				// Vanilla resets the hand's equip height after every successful use(), which normally
-				// lowers the item by 0.6 blocks before raising it again. Keep the neutral held transform
-				// throughout charging while the internal equip height catches up in the background.
-				float side = arm == HumanoidArm.RIGHT ? 1.0f : -1.0f;
-				poseStack.translate(side * 0.56f, -0.52f, -0.72f);
-				return true;
-			}
-
-			@Override
-			@Nullable
-			public HumanoidModel.ArmPose getArmPose(LivingEntity entity, InteractionHand hand, ItemStack stack) {
-				return SonicDogCannonArmPose.ARM_POSE.getValue();
-			}
-
-			@Override
-			public BlockEntityWithoutLevelRenderer getCustomRenderer() {
-				return renderer;
-			}
-		});
-	}
 }

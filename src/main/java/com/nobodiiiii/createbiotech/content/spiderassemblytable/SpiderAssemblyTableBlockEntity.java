@@ -58,7 +58,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -75,7 +74,6 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
-import net.neoforged.neoforge.items.ItemHandlerHelper;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 
@@ -350,7 +348,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		if (!itemLocks[hybridIndex].isEmpty())
 			return false;
 		FluidStack lock = fluidLocks[hybridIndex];
-		if (!lock.isEmpty() && !lock.isFluidEqual(stack))
+		if (!lock.isEmpty() && !FluidStack.isSameFluidSameComponents(lock, stack))
 			return false;
 		return fluidTanks[hybridIndex].isFluidValid(stack);
 	}
@@ -368,7 +366,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 				if (!inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex).isEmpty())
 					return;
 				FluidStack currentFluid = fluidTanks[hybridIndex].getFluid();
-				if (!currentFluid.isEmpty() && !currentFluid.isFluidEqual(containerFluid))
+				if (!currentFluid.isEmpty() && !FluidStack.isSameFluidSameComponents(currentFluid, containerFluid))
 					return;
 				FluidStack lock = containerFluid.copy();
 				lock.setAmount(1);
@@ -1287,7 +1285,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 					if (passMatching[pass] != isMatching)
 						continue;
 					FluidTank tank = fluidTanks[i];
-					if (!tank.getFluid().isFluidEqual(resource))
+					if (!FluidStack.isSameFluidSameComponents(tank.getFluid(), resource))
 						continue;
 					FluidStack part = tank.drain(remaining, action);
 					if (part.isEmpty())

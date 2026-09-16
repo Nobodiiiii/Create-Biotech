@@ -29,7 +29,6 @@ import com.simibubi.create.foundation.advancement.AllAdvancements;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import com.simibubi.create.foundation.blockEntity.behaviour.CenteredSideValueBoxTransform;
 import com.simibubi.create.foundation.blockEntity.behaviour.scrollValue.ScrollOptionBehaviour;
-import com.simibubi.create.foundation.item.ItemHelper;
 import com.simibubi.create.foundation.utility.CreateLang;
 
 import net.createmod.catnip.data.Iterate;
@@ -181,8 +180,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 					if (requestQueue && !ItemStack.isSameItemSameComponents(extracted, nextRequest.item()))
 						continue;
 
-					boolean bulky = !extracted.getItem()
-						.canFitInsideContainerItems();
+					boolean bulky = !extracted.canFitInsideContainerItems();
 					if (bulky && anyItemPresent)
 						continue;
 

@@ -11,13 +11,11 @@ import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -149,8 +147,8 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 		ItemStack tool = builder.getOptionalParameter(LootContextParams.TOOL);
 		Entity entity = builder.getOptionalParameter(LootContextParams.THIS_ENTITY);
 		boolean silkTouch = tool != null
-			&& EnchantmentHelper.getItemEnchantmentLevel(
-				builder.getLevel().registryAccess().holderOrThrow(Enchantments.SILK_TOUCH), tool) > 0;
+			&& tool.getEnchantmentLevel(
+				builder.getLevel().registryAccess().holderOrThrow(Enchantments.SILK_TOUCH)) > 0;
 		if (silkTouch)
 			return super.getDrops(state, builder);
 		if (!(entity instanceof Player)) {
@@ -166,8 +164,7 @@ public class ExperienceClusterBlock extends Block implements ProperWaterloggedBl
 	@Override
 	public int getExpDrop(BlockState state, LevelAccessor level, BlockPos pos, BlockEntity blockEntity,
 		Entity breaker, ItemStack tool) {
-		if (EnchantmentHelper.getItemEnchantmentLevel(
-			level.registryAccess().holderOrThrow(Enchantments.SILK_TOUCH), tool) > 0)
+		if (tool.getEnchantmentLevel(level.registryAccess().holderOrThrow(Enchantments.SILK_TOUCH)) > 0)
 			return 0;
 		return getXpValue();
 	}

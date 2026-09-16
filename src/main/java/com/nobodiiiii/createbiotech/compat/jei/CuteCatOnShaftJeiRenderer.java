@@ -98,7 +98,6 @@ public final class CuteCatOnShaftJeiRenderer {
 		}
 
 		cachedBlockEntity.setLevel(clientLevel);
-		cachedBlockEntity.setBlockState(createRenderState());
 		return cachedBlockEntity;
 	}
 

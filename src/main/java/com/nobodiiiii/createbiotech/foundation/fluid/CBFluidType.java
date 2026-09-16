@@ -1,7 +1,5 @@
 package com.nobodiiiii.createbiotech.foundation.fluid;
 
-import java.util.function.Consumer;
-
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
@@ -16,6 +14,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.material.FluidState;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidType;
@@ -51,9 +51,9 @@ public class CBFluidType extends FluidType {
 		this.flowingTexture = flowingTexture;
 	}
 
-	@Override
-	public void initializeClient(Consumer<IClientFluidTypeExtensions> consumer) {
-		consumer.accept(new IClientFluidTypeExtensions() {
+	@OnlyIn(Dist.CLIENT)
+	public IClientFluidTypeExtensions createClientExtensions() {
+		return new IClientFluidTypeExtensions() {
 
 			@Override
 			public ResourceLocation getStillTexture() {
@@ -109,7 +109,7 @@ public class CBFluidType extends FluidType {
 				RenderSystem.setShaderFogStart(FOG_START);
 				RenderSystem.setShaderFogEnd(BASE_FOG_DISTANCE * modifier);
 			}
-		});
+		};
 	}
 
 	/** Tint every unqualified lookup falls back to, in ARGB. */

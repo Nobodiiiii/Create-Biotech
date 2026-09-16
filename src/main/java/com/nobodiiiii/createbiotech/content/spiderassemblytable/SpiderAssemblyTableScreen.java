@@ -180,7 +180,7 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 				continue;
 
 			List<Component> lines = new ArrayList<>();
-			lines.add(fluid.getDisplayName());
+			lines.add(fluid.getHoverName());
 			lines.add(Component.literal(tank.getFluidAmount() + " / " + tank.getCapacity() + " mB"));
 			graphics.renderComponentTooltip(font, lines, mouseX, mouseY);
 			return;

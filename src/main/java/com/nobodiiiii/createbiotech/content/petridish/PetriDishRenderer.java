@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.petridish;
 
+import net.neoforged.neoforge.client.model.data.ModelData;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
@@ -150,7 +152,8 @@ public class PetriDishRenderer extends SmartBlockEntityRenderer<PetriDishBlockEn
 		poseStack.pushPose();
 		poseStack.translate(minX, baseY, minZ);
 		poseStack.scale(actualScaleX, actualScaleY, actualScaleZ);
-		blockRenderer.renderSingleBlock(SLIME_BLOCK, poseStack, buffer, packedLight, packedOverlay);
+		blockRenderer.renderSingleBlock(SLIME_BLOCK, poseStack, buffer, packedLight, packedOverlay,
+			ModelData.EMPTY, null);
 		poseStack.popPose();
 	}
 

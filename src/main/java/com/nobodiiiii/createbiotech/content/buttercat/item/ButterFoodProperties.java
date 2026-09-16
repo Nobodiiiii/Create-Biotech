@@ -63,7 +63,7 @@ public final class ButterFoodProperties {
 
 		private Builder withEffect(Holder<MobEffect> effect, int duration, int amplifier) {
 			if (duration > 0)
-				effect(new MobEffectInstance(effect, duration, amplifier), 1.0f);
+				effect(() -> new MobEffectInstance(effect, duration, amplifier), 1.0f);
 			return this;
 		}
 	}

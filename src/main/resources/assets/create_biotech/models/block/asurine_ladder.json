@@ -1,4 +1,5 @@
 {
+  "render_type": "minecraft:cutout",
   "parent": "create:block/ladder",
   "textures": {
     "0": "create_biotech:block/ladder_asurine_hoop",

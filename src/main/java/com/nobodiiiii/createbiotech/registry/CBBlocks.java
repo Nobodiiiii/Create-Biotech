@@ -404,17 +404,15 @@ public class CBBlocks {
 
 	public static final DeferredHolder<Block, ButterCatEngineBlock> CUTE_CAT_ON_SHAFT =
 		BLOCKS.register("cute_cat_on_shaft",
-			() -> new ButterCatEngineBlock(CBSharedProperties.createStone()
+			() -> new ButterCatEngineBlock(CBSharedProperties.withLegacyNonSolid(CBSharedProperties.createStone()
 				.noOcclusion()
-				.mapColor(MapColor.METAL)
-				.forceSolidOff()));
+				.mapColor(MapColor.METAL))));
 
 	public static final DeferredHolder<Block, ButterCatEngineBlock> BUTTER_CAT_ENGINE =
 		BLOCKS.register("butter_cat_engine",
-			() -> new ButterCatEngineBlock(CBSharedProperties.createStone()
+			() -> new ButterCatEngineBlock(CBSharedProperties.withLegacyNonSolid(CBSharedProperties.createStone()
 				.noOcclusion()
-				.mapColor(MapColor.METAL)
-				.forceSolidOff()));
+				.mapColor(MapColor.METAL))));
 
 	public static final DeferredHolder<Block, ButterBlock> BUTTER_BLOCK =
 		BLOCKS.register("butter_block",

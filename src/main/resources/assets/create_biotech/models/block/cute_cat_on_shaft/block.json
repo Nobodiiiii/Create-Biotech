@@ -1,3 +1,4 @@
 {
+  "render_type": "minecraft:cutout_mipped",
   "parent": "create_biotech:block/butter_cat_engine/block"
 }

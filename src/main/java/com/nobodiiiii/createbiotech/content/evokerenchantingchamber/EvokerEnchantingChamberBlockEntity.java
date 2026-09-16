@@ -384,7 +384,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 
 	private boolean canFillWith(FluidStack resource) {
 		return ExperienceFluidHelper.isExperience(resource)
-			&& (storedFluid.isEmpty() || storedFluid.isFluidEqual(resource))
+			&& (storedFluid.isEmpty() || FluidStack.isSameFluidSameComponents(storedFluid, resource))
 			&& getFluidSpace() > 0;
 	}
 
@@ -400,7 +400,7 @@ public class EvokerEnchantingChamberBlockEntity extends BlockEntity
 		EvokerEnchantingChamberBlockEntity controller = getController();
 		if (controller != null && controller != this)
 			return controller.drainFluid(resource, simulate);
-		if (resource.isEmpty() || storedFluid.isEmpty() || !storedFluid.isFluidEqual(resource))
+		if (resource.isEmpty() || storedFluid.isEmpty() || !FluidStack.isSameFluidSameComponents(storedFluid, resource))
 			return FluidStack.EMPTY;
 		return drainFluid(resource.getAmount(), simulate);
 	}

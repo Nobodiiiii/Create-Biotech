@@ -20,7 +20,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
@@ -31,7 +30,6 @@ import net.minecraft.world.entity.animal.CatVariant;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -250,8 +248,7 @@ public class ButterCatEngineBlock extends HorizontalKineticBlock implements  IBE
 
     private boolean preservesWholeBlock(ItemStack tool, ServerLevel level) {
         return tool != null && (CBWrenchHelper.isWrench(tool)
-            || EnchantmentHelper.getItemEnchantmentLevel(
-                level.registryAccess().holderOrThrow(Enchantments.SILK_TOUCH), tool) > 0);
+            || tool.getEnchantmentLevel(level.registryAccess().holderOrThrow(Enchantments.SILK_TOUCH)) > 0);
     }
 
     private boolean hasBread(BlockState state) {

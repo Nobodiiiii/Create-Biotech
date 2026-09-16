@@ -10,7 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import snownee.jade.api.Accessor;
 import snownee.jade.api.JadeIds;
 import snownee.jade.api.view.IServerExtensionProvider;
-import snownee.jade.api.view.ItemView;
+import snownee.jade.api.view.ItemViewUtils;
 import snownee.jade.api.view.ViewGroup;
 
 /** Exposes the basin's complete internal inventory through Jade's standard item-storage renderer. */
@@ -21,7 +21,7 @@ public enum BasinItemStorageProvider implements IServerExtensionProvider<ItemSta
 	public List<ViewGroup<ItemStack>> getGroups(Accessor<?> accessor) {
 		if (!(accessor.getTarget() instanceof BasinBlockEntity basin))
 			return null;
-		return ItemView.groupOf(BasinEntityProcessing.getInternalItemHandler(basin), accessor);
+		return ItemViewUtils.groupOf(BasinEntityProcessing.getInternalItemHandler(basin), accessor);
 	}
 
 	@Override

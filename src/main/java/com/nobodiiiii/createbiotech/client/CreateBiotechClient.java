@@ -47,11 +47,9 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecora
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
-import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerConnectionHandler;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagePartials;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
-import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterScreen;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
@@ -72,13 +70,11 @@ import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeper
 import com.simibubi.create.content.kinetics.transmission.SplitShaftRenderer;
 import com.simibubi.create.content.logistics.tableCloth.TableClothModel;
 import com.simibubi.create.content.logistics.tableCloth.TableClothRenderer;
-import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortMenu;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortScreen;
 import com.nobodiiiii.createbiotech.content.allay.client.gui.hud.AllayCourierHudOverlay;
 import com.nobodiiiii.createbiotech.content.allay.client.render.AllayCourierEntityRenderer;
 import com.nobodiiiii.createbiotech.content.allay.client.render.AllayPortRenderer;
 import com.nobodiiiii.createbiotech.content.allay.client.render.AllayPortVisual;
-import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierMenu;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierScreen;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreatePonderCompatPlugin;
@@ -98,7 +94,6 @@ import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.AllPartialModels;
-import com.simibubi.create.content.contraptions.render.ContraptionEntityRenderer;
 import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.content.decoration.encasing.EncasedCTBehaviour;
 import com.simibubi.create.content.decoration.MetalScaffoldingCTBehaviour;
@@ -125,7 +120,6 @@ import net.createmod.catnip.lang.FontHelper;
 import net.createmod.catnip.data.Couple;
 import net.createmod.ponder.foundation.PonderIndex;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.item.ItemProperties;
@@ -348,6 +342,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
+		CBClientExtensions.register(event);
 		// Slime armour shares Create's cardboard stealth blur overlay on the helmet slot; the overlay's
 		// opacity is driven by Create's testForStealth, which a full slime set satisfies.
 		event.registerItem(new CardboardArmorStealthOverlay(), CBItems.SLIME_HELMET.get());
@@ -410,44 +405,12 @@ public class CreateBiotechClient {
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.HALF_SHAFT.get())
 				.factory(HalfShaftVisual::new)
 				.apply();
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BIO_PACKAGER.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SHULKER_PACKAGER.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SHULKER_TELEPORTER.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ALLAY_PORT.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_PUMP.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.MAGMA_BELT.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.POWER_BELT.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SMALL_EXPERIENCE_BUD.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.MEDIUM_EXPERIENCE_BUD.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.LARGE_EXPERIENCE_BUD.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.EXPERIENCE_CLUSTER.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SQUID_PRINTER.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.PETRI_DISH.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SLIME_CLUTCH.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BONE_RATCHET.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FIXED_CARROT_FISHING_ROD.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_GLASS.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BLAST_PROOF_FRAMED_GLASS.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FROG_STOMACH_SECRETION.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FROG_STOMACH_FUNGUS.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.FROG_DIGESTIVE_TRACT.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.CUTE_CAT_ON_SHAFT.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.BUTTER_CAT_ENGINE.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_TABLE_CLOTH.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.SURGICAL_TABLE.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_SCAFFOLDING.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_LADDER.get(), RenderType.cutout());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_BARS.get(), RenderType.cutoutMipped());
-			ItemBlockRenderTypes.setRenderLayer(CBBlocks.ASURINE_DOOR.get(), RenderType.cutoutMipped());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_BLOCK.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.TELEPORTATION.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.TELEPORTATION_FLOWING.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBFluids.TELEPORTATION_BLOCK.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.CREAM.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.CREAM_FLOWING.get(), RenderType.translucent());
-			ItemBlockRenderTypes.setRenderLayer(CBFluids.CREAM_BLOCK.get(), RenderType.translucent());
 			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.ASURINE_CASING.get(),
 				CBSpriteShifts.ASURINE_CASING);
 			CreateClient.CASING_CONNECTIVITY.makeCasing(CBBlocks.BIOTECH_CASING.get(),

@@ -2,13 +2,8 @@ package com.nobodiiiii.createbiotech.foundation.item;
 
 import java.util.function.Consumer;
 
-import com.nobodiiiii.createbiotech.foundation.render.BlockCenteredRenderedLivingEntityItemRenderer;
-
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 /**
  * An entity-rendered item whose geometry is centered in a unit block before
@@ -36,9 +31,4 @@ public class BlockCenteredRenderedLivingEntityItem<T extends LivingEntity> exten
 		super(properties, entityType, entityConfigurer, scaleMultiplier);
 	}
 
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(BlockCenteredRenderedLivingEntityItemRenderer.create(this));
-	}
 }

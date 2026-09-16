@@ -23,6 +23,16 @@ public final class CBSharedProperties {
 		return Block.Properties.ofFullCopy(SharedProperties.stone());
 	}
 
+	/**
+	 * Keeps the 1.21.1 legacy solid flag off without changing collision or occlusion.
+	 * The cat shaft's 1 x 0.6 x 0.6 bounds otherwise pass vanilla's solid threshold;
+	 * noOcclusion is not an equivalent replacement for this compatibility flag.
+	 */
+	@SuppressWarnings("deprecation")
+	public static Block.Properties withLegacyNonSolid(Block.Properties properties) {
+		return properties.forceSolidOff();
+	}
+
 	public static Block.Properties createSoftMetal() {
 		return Block.Properties.ofFullCopy(SharedProperties.softMetal());
 	}

@@ -2,16 +2,11 @@ package com.nobodiiiii.createbiotech.foundation.item;
 
 import java.util.function.Consumer;
 
-import com.nobodiiiii.createbiotech.foundation.render.RenderedLivingEntityItemRenderer;
-
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
-import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 public class RenderedLivingEntityItem<T extends LivingEntity> extends Item {
 	private final EntityType<T> entityType;
@@ -33,12 +28,6 @@ public class RenderedLivingEntityItem<T extends LivingEntity> extends Item {
 		this.entityType = entityType;
 		this.entityConfigurer = entityConfigurer;
 		this.scaleMultiplier = scaleMultiplier;
-	}
-
-	@Override
-	@OnlyIn(Dist.CLIENT)
-	public void initializeClient(Consumer<IClientItemExtensions> consumer) {
-		consumer.accept(RenderedLivingEntityItemRenderer.create(this));
 	}
 
 	public EntityType<T> getRenderedEntityType() {

@@ -4,12 +4,24 @@ import java.util.function.Consumer;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 
 public final class CBItemData {
+	// Weak keys compare immutable components by identity, without hashing their full NBT.
+	// Snapshots own their tags and never retain the component used as the cache key.
+	private static final LoadingCache<CustomData, CompoundTag> READ_SNAPSHOTS = CacheBuilder.newBuilder()
+		.weakKeys()
+		.maximumWeight(8 * 1024 * 1024)
+		.weigher((CustomData component, CompoundTag snapshot) -> snapshot.sizeInBytes())
+		.build(CacheLoader.from(CustomData::copyTag));
+
 	private CBItemData() {
 	}
 
@@ -20,8 +32,7 @@ public final class CBItemData {
 	}
 
 	/**
-	 * Returns the immutable component instance stored on the stack. Callers must not
-	 * mutate {@link CustomData#getUnsafe()} or any tag reachable through it.
+	 * Returns the immutable component instance stored on the stack, suitable as a cache key.
 	 */
 	@Nullable
 	public static CustomData getReadOnlyComponent(ItemStack stack) {
@@ -29,13 +40,18 @@ public final class CBItemData {
 	}
 
 	/**
-	 * Returns a zero-copy view of the stack's custom data. This is intentionally
-	 * read-only; use {@link #edit(ItemStack, Consumer)} for writes.
+	 * Returns a cached snapshot of the stack's custom data. Callers must treat the
+	 * snapshot and all nested tags as read-only; use {@link #edit(ItemStack, Consumer)} for writes.
 	 */
 	@Nullable
 	public static CompoundTag getReadOnly(ItemStack stack) {
 		CustomData data = getReadOnlyComponent(stack);
-		return data == null ? null : data.getUnsafe();
+		return data == null ? null : readOnlySnapshot(data);
+	}
+
+	/** Returns a shared read-only snapshot without exposing the component's backing tag. */
+	public static CompoundTag readOnlySnapshot(CustomData component) {
+		return READ_SNAPSHOTS.getUnchecked(component);
 	}
 
 	public static CompoundTag getOrEmpty(ItemStack stack) {

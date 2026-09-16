@@ -33,6 +33,10 @@ import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
+// Create 6.0.10's ItemVaultBlockEntity returns ItemVaultBlockEntity from the generic
+// IMultiBlockEntityContainer#getControllerBE contract. Javac checks that inherited
+// mismatch on this class; a method-level suppression cannot cover it.
+@SuppressWarnings("unchecked")
 public class ExplosionProofItemVaultBlockEntity extends ItemVaultBlockEntity {
 
 	private static final String BLAST_CHAMBER_CONTROLLER_TAG = "BlastChamberController";

@@ -171,8 +171,8 @@ public class CBFluids {
 				.food(new FoodProperties.Builder()
 					.nutrition(6)
 					.saturationModifier(0.1F)
-					.effect(new MobEffectInstance(MobEffects.OOZING, 5 * 20), 1.0F)
-					.effect(new MobEffectInstance(CBMobEffects.BOUNCING, 30 * 20), 1.0F)
+					.effect(() -> new MobEffectInstance(MobEffects.OOZING, 5 * 20), 1.0F)
+					.effect(() -> new MobEffectInstance(CBMobEffects.BOUNCING, 30 * 20), 1.0F)
 					.usingConvertsTo(Items.GLASS_BOTTLE)
 					.build())
 				.stacksTo(1)));

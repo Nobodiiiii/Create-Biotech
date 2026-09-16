@@ -163,7 +163,7 @@ neoForge.ideSyncTask(generateModMetadata)
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
-    options.compilerArgs.addAll(['-Xmaxerrs', '1000'])
+    options.compilerArgs.addAll(['-Xmaxerrs', '1000', '-Xlint:deprecation', '-Xlint:removal', '-Xlint:unchecked'])
 }
 
 tasks.register('syncQuickPlayMods', Sync) {

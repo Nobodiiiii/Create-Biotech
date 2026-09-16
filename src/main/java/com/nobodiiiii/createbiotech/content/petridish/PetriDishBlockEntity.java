@@ -48,7 +48,6 @@ import net.minecraft.world.entity.MobSpawnType;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -462,7 +461,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (required <= 0)
 			return false;
 		FluidStack stored = fluidTank.getFluid();
-		if (!stored.isEmpty() && !stored.isFluidEqual(stack))
+		if (!stored.isEmpty() && !FluidStack.isSameFluidSameComponents(stored, stack))
 			return false;
 		return stored.getAmount() < required;
 	}
