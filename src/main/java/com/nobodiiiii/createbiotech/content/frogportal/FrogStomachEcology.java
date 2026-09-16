@@ -24,7 +24,7 @@ import net.minecraft.world.level.material.Fluids;
 /**
  * Deterministic ecology generation for a newly allocated Frog Stomach room. The hard stomach-wall
  * shell stays as the room boundary while a softer mucosa layer forms rolling ground, an irregular
- * ceiling and walls, water, shelves, and hanging glow-berry vines inside it.
+ * ceiling and walls, water, tissue folds, and hanging glow-berry vines inside it.
  */
 final class FrogStomachEcology {
 
@@ -35,7 +35,6 @@ final class FrogStomachEcology {
 	private static final int MIN_LINING_THICKNESS = 1;
 	private static final int MAX_LINING_THICKNESS = 3;
 	private static final int MIN_POOL_ROOM_SIZE = 12;
-	private static final int MIN_PLATFORM_ROOM_SIZE = 18;
 	private static final int MIN_SECRETION_ROOM_SIZE = 18;
 	private static final int POOL_WATER_LEVEL_OFFSET = 4;
 	private static final double POOL_DEEPENING_DISTANCE = 0.65d;
@@ -43,10 +42,6 @@ final class FrogStomachEcology {
 	private static final int SECRETION_GROWTH_VARIATION = 5;
 	private static final int MAX_SECRETION_RADIUS = 6;
 	private static final int EMBEDDED_CONTENT_CHANCE = 40;
-	private static final int MIN_PLATFORM_WIDTH = 5;
-	private static final int MAX_PLATFORM_WIDTH = 9;
-	private static final int MIN_PLATFORM_DEPTH = MAX_LINING_THICKNESS + 2;
-	private static final int MAX_PLATFORM_DEPTH = 7;
 	private static final int MIN_UNGROWN_FUNGI = 10;
 	private static final int UNGROWN_FUNGUS_VARIATION = 7;
 	private static final int FUNGUS_PLACEMENT_ATTEMPTS = 32;
@@ -64,7 +59,7 @@ final class FrogStomachEcology {
 		Direction.EAST,
 		Direction.WEST
 	};
-	private static final Direction[] PLATFORM_WALLS = {
+	private static final Direction[] FOLD_WALLS = {
 		Direction.NORTH,
 		Direction.SOUTH,
 		Direction.WEST,
@@ -88,10 +83,14 @@ final class FrogStomachEcology {
 		generateCeilingAndWallLining(level, origin, width, height, liningNoise);
 		Pool pool = generateFloorAndPool(level, origin, width, height, random, terrainNoise, terrainDetailNoise,
 			poolShoreNoise, poolDepthNoise);
-		generateSecretionGrowths(level, origin, width, height, random);
-		generateWallPlatforms(level, index, origin, width, height, random);
+		List<BlockPos> foldVineAnchors = generateWallFolds(level, index, origin, width, height, random);
 		if (pool != null)
-			generatePoolWaterfallPlatform(level, index, origin, width, height, pool, random);
+			generatePoolWaterfallFold(level, index, origin, width, height, pool, random);
+		generateSecretionGrowths(level, origin, width, height, random);
+		int foldVineCount = Math.min(12, foldVineAnchors.size());
+		for (int i = 0; i < foldVineCount; i++)
+			generateGlowBerryVine(level, foldVineAnchors.remove(random.nextInt(foldVineAnchors.size())),
+				origin.getY(), random);
 		generateCeilingVines(level, origin, width, height, random);
 		generateStomachFungi(level, index, origin, width, height, random);
 	}
@@ -379,9 +378,9 @@ final class FrogStomachEcology {
 			case EAST -> new BlockPos(minX + 1, second, first);
 			case WEST -> new BlockPos(maxX - 1, second, first);
 		};
-		if (!level.getBlockState(surface).is(CBBlocks.FROG_STOMACH_MUCOSA.get()))
+		if (!isLivingLining(level.getBlockState(surface)))
 			return null;
-		while (level.getBlockState(surface.relative(normal)).is(CBBlocks.FROG_STOMACH_MUCOSA.get()))
+		while (isLivingLining(level.getBlockState(surface.relative(normal))))
 			surface = surface.relative(normal);
 		return level.getBlockState(surface.relative(normal)).isAir() ? surface : null;
 	}
@@ -414,27 +413,39 @@ final class FrogStomachEcology {
 		for (Direction direction : Direction.values()) {
 			BlockState neighbour = level.getBlockState(pos.relative(direction));
 			if (neighbour.is(CBBlocks.FROG_STOMACH_SECRETION.get())
-				|| neighbour.is(CBBlocks.FROG_STOMACH_MUCOSA.get())
+				|| isLivingLining(neighbour)
 				|| neighbour.is(CBBlocks.FROG_STOMACH_WALL.get()))
 				count++;
 		}
 		return count;
 	}
 
-	private static void generateWallPlatforms(ServerLevel level, long index, BlockPos origin, int width,
+	private static List<BlockPos> generateWallFolds(ServerLevel level, long index, BlockPos origin, int width,
 		int height, RandomSource random) {
-		if (width < MIN_PLATFORM_ROOM_SIZE)
-			return;
-		int platformCount = Math.max(2, width / 12) + random.nextInt(4);
-		int attempts = platformCount * 4;
-		int generated = 0;
-		while (generated < platformCount && attempts-- > 0)
-			if (generateWallPlatform(level, index, origin, width, height, random,
-				PLATFORM_WALLS[random.nextInt(PLATFORM_WALLS.length)]))
-				generated++;
+		BlockState fold = CBBlocks.FROG_STOMACH_FOLD.get().defaultBlockState();
+		List<BlockPos> vineAnchors = new ArrayList<>();
+		for (Direction wall : FOLD_WALLS) {
+			int[][] depths = FrogStomachFoldGeometry.wallDepths(width, height, random.nextLong());
+			for (int along = 1; along < width - 1; along++)
+				for (int y = 1; y < height - 1; y++)
+					for (int depth = 1; depth <= depths[along][y]; depth++) {
+						BlockPos pos = switch (wall) {
+							case NORTH -> origin.offset(along, y, depth);
+							case SOUTH -> origin.offset(along, y, width - 1 - depth);
+							case WEST -> origin.offset(depth, y, along);
+							case EAST -> origin.offset(width - 1 - depth, y, along);
+							default -> throw new IllegalArgumentException("Fold wall must be horizontal");
+						};
+						if (!placeFold(level, index, pos, fold))
+							continue;
+						if (depth == depths[along][y] && level.getBlockState(pos.below()).isAir())
+							vineAnchors.add(pos);
+					}
+		}
+		return vineAnchors;
 	}
 
-	private static void generatePoolWaterfallPlatform(ServerLevel level, long index, BlockPos origin, int width,
+	private static void generatePoolWaterfallFold(ServerLevel level, long index, BlockPos origin, int width,
 		int height, Pool pool, RandomSource random) {
 		PoolEdge edge = findNearestPoolEdge(pool, origin, width, random);
 		if (edge == null)
@@ -448,11 +459,10 @@ final class FrogStomachEcology {
 		int topY = maximumTopY >= minimumTopY
 			? Mth.clamp(desiredTopY, minimumTopY, maximumTopY)
 			: Math.max(pool.waterY() + 2, maximumTopY);
-		BlockState mucosa = CBBlocks.FROG_STOMACH_MUCOSA.get().defaultBlockState();
+		BlockState fold = CBBlocks.FROG_STOMACH_FOLD.get().defaultBlockState();
 		int halfWidth = 2 + random.nextInt(2);
 		double outlinePhase = random.nextDouble() * Math.PI * 2.0d;
-		double undersidePhase = random.nextDouble() * Math.PI * 2.0d;
-		List<BlockPos> platformBlocks = new ArrayList<>();
+		List<BlockPos> foldBlocks = new ArrayList<>();
 		for (int offset = -halfWidth; offset <= halfWidth; offset++) {
 			int edgeInset = offset == 0 ? 0 : Mth.clamp(
 				Mth.floor(Math.abs(offset) / (double) halfWidth * 1.4d
@@ -460,29 +470,33 @@ final class FrogStomachEcology {
 				0, Math.max(0, edge.wallDistance() - 1));
 			int localDepth = Math.max(1, edge.wallDistance() - edgeInset);
 			for (int inwardStep = 1; inwardStep <= localDepth; inwardStep++) {
-				int x = waterfallPlatformX(origin, width, edge, offset, inwardStep);
-				int z = waterfallPlatformZ(origin, width, edge, offset, inwardStep);
-				double undersideNoise = Math.sin(offset * 1.41d + inwardStep * 0.83d + undersidePhase);
-				int thickness = inwardStep <= Math.max(2, localDepth / 2) || undersideNoise > 0.4d ? 2 : 1;
-				for (int layer = 0; layer < thickness; layer++)
-					platformBlocks.add(new BlockPos(x, topY - layer, z));
+				int x = waterfallFoldX(origin, width, edge, offset, inwardStep);
+				int z = waterfallFoldZ(origin, width, edge, offset, inwardStep);
+				if (x <= origin.getX() || x >= origin.getX() + width - 1
+					|| z <= origin.getZ() || z >= origin.getZ() + width - 1)
+					continue;
+				// A floor-rooted ridge with sloped shoulders replaces the thin suspended shelf.
+				int shoulderDrop = Math.abs(offset) * 2;
+				int ridgeTop = topY - shoulderDrop;
+				for (int y = origin.getY() + 1; y <= ridgeTop; y++)
+					foldBlocks.add(new BlockPos(x, y, z));
 			}
 		}
 
 		BlockPos sourcePos = new BlockPos(edge.x(), topY, edge.z());
-		platformBlocks.add(sourcePos.below());
+		foldBlocks.add(sourcePos.below());
 		for (Direction blockedSide : new Direction[] {
 			edge.inward().getOpposite(),
 			edge.inward().getClockWise(),
 			edge.inward().getCounterClockWise()
 		})
-			platformBlocks.add(sourcePos.relative(blockedSide));
+			foldBlocks.add(sourcePos.relative(blockedSide));
 		if (FrogStomachSpace.isPortalApproachProtected(index, sourcePos)
-			|| platformBlocks.stream().anyMatch(posToPlace ->
+			|| foldBlocks.stream().anyMatch(posToPlace ->
 				FrogStomachSpace.isPortalApproachProtected(index, posToPlace)))
 			return;
-		for (BlockPos platformBlock : platformBlocks)
-			setMucosa(level, platformBlock, mucosa);
+		for (BlockPos foldBlock : foldBlocks)
+			placeFold(level, index, foldBlock, fold);
 		level.setBlock(sourcePos, Blocks.WATER.defaultBlockState(), Block.UPDATE_ALL);
 		level.scheduleTick(sourcePos, Fluids.WATER, 1);
 	}
@@ -519,7 +533,7 @@ final class FrogStomachEcology {
 		return nearestEdges.get(random.nextInt(nearestEdges.size()));
 	}
 
-	private static int waterfallPlatformX(BlockPos origin, int size, PoolEdge edge, int offset,
+	private static int waterfallFoldX(BlockPos origin, int size, PoolEdge edge, int offset,
 		int inwardStep) {
 		int minX = origin.getX();
 		int maxX = minX + size - 1;
@@ -531,7 +545,7 @@ final class FrogStomachEcology {
 		};
 	}
 
-	private static int waterfallPlatformZ(BlockPos origin, int size, PoolEdge edge, int offset,
+	private static int waterfallFoldZ(BlockPos origin, int size, PoolEdge edge, int offset,
 		int inwardStep) {
 		int minZ = origin.getZ();
 		int maxZ = minZ + size - 1;
@@ -574,7 +588,7 @@ final class FrogStomachEcology {
 		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos(
 			x, origin.getY() + height - 2, z);
 		while (cursor.getY() > origin.getY() + 2
-			&& level.getBlockState(cursor).is(CBBlocks.FROG_STOMACH_MUCOSA.get())) {
+			&& isLivingLining(level.getBlockState(cursor))) {
 			anchor = cursor.immutable();
 			cursor.move(Direction.DOWN);
 		}
@@ -636,91 +650,9 @@ final class FrogStomachEcology {
 			: null;
 	}
 
-	private static boolean generateWallPlatform(ServerLevel level, long index, BlockPos origin, int width,
-		int height, RandomSource random, Direction wall) {
-		int minX = origin.getX();
-		int minY = origin.getY();
-		int minZ = origin.getZ();
-		int maxX = minX + width - 1;
-		int maxY = minY + height - 1;
-		int maxZ = minZ + width - 1;
-		int alongMin = (wall.getAxis() == Direction.Axis.Z ? minX : minZ) + 4;
-		int alongMax = (wall.getAxis() == Direction.Axis.Z ? maxX : maxZ) - 4;
-		int availableWidth = alongMax - alongMin + 1;
-		if (availableWidth < MIN_PLATFORM_WIDTH)
-			return false;
-
-		int widthLimit = Math.min(MAX_PLATFORM_WIDTH, availableWidth);
-		int platformWidth = MIN_PLATFORM_WIDTH + random.nextInt(widthLimit - MIN_PLATFORM_WIDTH + 1);
-		int halfWidth = platformWidth / 2;
-		int centerMin = alongMin + halfWidth;
-		int centerMax = alongMax - (platformWidth - halfWidth - 1);
-		int center = centerMin + random.nextInt(centerMax - centerMin + 1);
-		int depthLimit = Math.min(MAX_PLATFORM_DEPTH, Math.max(MIN_PLATFORM_DEPTH, (width - 4) / 3));
-		int depth = MIN_PLATFORM_DEPTH + random.nextInt(depthLimit - MIN_PLATFORM_DEPTH + 1);
-		int lowestY = minY + Math.max(8, height / 5);
-		int highestY = maxY - Math.max(8, height / 6);
-		if (highestY < lowestY)
-			return false;
-		int topY = lowestY + random.nextInt(highestY - lowestY + 1);
-
-		BlockState mucosa = CBBlocks.FROG_STOMACH_MUCOSA.get().defaultBlockState();
-		List<BlockPos> platformBlocks = new ArrayList<>();
-		List<BlockPos> vineAnchors = new ArrayList<>();
-		int firstOffset = -halfWidth;
-		int lastOffset = platformWidth - halfWidth - 1;
-		for (int offset = firstOffset; offset <= lastOffset; offset++) {
-			double edgeDistance = Math.abs(offset) / (double) Math.max(1, halfWidth);
-			int localDepth = Math.max(2, depth - (int) Math.floor(edgeDistance * 2.0d));
-			for (int inward = 0; inward < localDepth; inward++) {
-				int x = platformX(wall, minX, maxX, center, offset, inward);
-				int z = platformZ(wall, minZ, maxZ, center, offset, inward);
-				int thickness = inward <= 1 ? 2 : 1;
-				for (int layer = 0; layer < thickness; layer++) {
-					BlockPos platformBlock = new BlockPos(x, topY - layer, z);
-					if (FrogStomachSpace.isPortalApproachProtected(index, platformBlock))
-						return false;
-					platformBlocks.add(platformBlock);
-				}
-
-				if (inward >= MAX_LINING_THICKNESS && inward >= localDepth - 2)
-					vineAnchors.add(new BlockPos(x, topY - thickness + 1, z));
-			}
-		}
-
-		for (BlockPos platformBlock : platformBlocks)
-			setMucosa(level, platformBlock, mucosa);
-		int vineCount = Math.min(vineAnchors.size(), Math.max(2, platformWidth / 3));
-		for (int i = 0; i < vineCount && !vineAnchors.isEmpty(); i++) {
-			BlockPos anchor = vineAnchors.remove(random.nextInt(vineAnchors.size()));
-			generateGlowBerryVine(level, anchor, minY, random);
-		}
-		return true;
-	}
-
-	private static int platformX(Direction wall, int minX, int maxX, int center, int offset, int inward) {
-		return switch (wall) {
-			case NORTH -> center + offset;
-			case SOUTH -> center + offset;
-			case WEST -> minX + 1 + inward;
-			case EAST -> maxX - 1 - inward;
-			default -> throw new IllegalArgumentException("Wall must be horizontal");
-		};
-	}
-
-	private static int platformZ(Direction wall, int minZ, int maxZ, int center, int offset, int inward) {
-		return switch (wall) {
-			case NORTH -> minZ + 1 + inward;
-			case SOUTH -> maxZ - 1 - inward;
-			case WEST -> center + offset;
-			case EAST -> center + offset;
-			default -> throw new IllegalArgumentException("Wall must be horizontal");
-		};
-	}
-
 	private static boolean generateGlowBerryVine(ServerLevel level, BlockPos anchor, int floorY,
 		RandomSource random) {
-		if (!level.getBlockState(anchor).is(CBBlocks.FROG_STOMACH_MUCOSA.get()))
+		if (!isLivingLining(level.getBlockState(anchor)))
 			return false;
 		int requestedLength = 3 + random.nextInt(6);
 		boolean attachFroglight = random.nextFloat() < VINE_FROGLIGHT_CHANCE;
@@ -750,6 +682,20 @@ final class FrogStomachEcology {
 		if (attachFroglight)
 			level.setBlock(anchor.below(vineLength + 1), FROGLIGHTS[random.nextInt(FROGLIGHTS.length)],
 				Block.UPDATE_CLIENTS);
+		return true;
+	}
+
+	private static boolean isLivingLining(BlockState state) {
+		return state.is(CBBlocks.FROG_STOMACH_MUCOSA.get()) || state.is(CBBlocks.FROG_STOMACH_FOLD.get());
+	}
+
+	private static boolean placeFold(ServerLevel level, long index, BlockPos pos, BlockState fold) {
+		if (FrogStomachSpace.isPortalApproachProtected(index, pos))
+			return false;
+		BlockState current = level.getBlockState(pos);
+		if (!current.isAir() && !isLivingLining(current))
+			return false;
+		level.setBlock(pos, fold, Block.UPDATE_CLIENTS);
 		return true;
 	}
 

@@ -1553,9 +1553,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 					continue;
 				}
 				pending.transitioned = true;
-				ItemStack emptyBox = pending.boxStack.copy();
-				emptyBox.setCount(1);
-				CapturedEntityBoxHelper.clearCapturedEntity(emptyBox);
+				ItemStack emptyBox = CapturedEntityBoxHelper.createEmptyBox(pending.boxStack).copyWithCount(1);
 				packager.heldBox = emptyBox;
 				packager.previouslyUnwrapped = ItemStack.EMPTY;
 				packager.animationInward = true;
@@ -2201,7 +2199,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	}
 
 	private ItemStack createEmptyPackageVisual() {
-		return new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
+		return new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
 	}
 
 	@Nullable

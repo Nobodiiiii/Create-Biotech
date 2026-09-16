@@ -158,9 +158,7 @@ public class BioPackagerBlockEntity extends SmartBlockEntity {
 			CBPackets.sendToTrackingChunk(new BioPackagerReleaseAnimationPacket(entity.getId()), serverLevel,
 				releasePos);
 
-		ItemStack emptyBox = heldBox.copy();
-		emptyBox.setCount(1);
-		CapturedEntityBoxHelper.clearCapturedEntity(emptyBox);
+		ItemStack emptyBox = CapturedEntityBoxHelper.createEmptyBox(heldBox).copyWithCount(1);
 
 		heldBox = emptyBox;
 		previouslyUnwrapped = ItemStack.EMPTY;

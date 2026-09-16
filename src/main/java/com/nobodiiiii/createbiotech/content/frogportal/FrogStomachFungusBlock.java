@@ -89,7 +89,8 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 	private static boolean isStomachSurface(LevelReader level, BlockPos pos, Direction face) {
 		BlockState support = level.getBlockState(pos);
 		return (support.is(CBBlocks.FROG_STOMACH_WALL.get())
-			|| support.is(CBBlocks.FROG_STOMACH_MUCOSA.get()))
+			|| support.is(CBBlocks.FROG_STOMACH_MUCOSA.get())
+			|| support.is(CBBlocks.FROG_STOMACH_FOLD.get()))
 			&& support.isFaceSturdy(level, pos, face);
 	}
 

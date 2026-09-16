@@ -133,7 +133,8 @@ public final class UniversalJointTransactions {
 			return false;
 		}
 
-		CapturedEntityBoxHelper.clearCapturedEntity(repairBox);
+		CapturedEntityBoxHelper.replacePlayerStack(player, repairBox,
+			CapturedEntityBoxHelper.createEmptyBox(repairBox));
 		player.getInventory().setChanged();
 		return true;
 	}

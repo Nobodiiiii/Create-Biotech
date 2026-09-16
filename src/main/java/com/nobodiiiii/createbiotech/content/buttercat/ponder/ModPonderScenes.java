@@ -53,7 +53,7 @@ public class ModPonderScenes {
                 .pointAt(util.vector().topOf(catPos));
         scene.idle(60);
 
-        ItemStack emptyBox = CBItems.CARDBOARD_BOX.get().getDefaultInstance();
+        ItemStack emptyBox = CBItems.EMPTY_CARDBOARD_BOX.get().getDefaultInstance();
         ItemStack boxedCat = createCapturedCatBox();
         scene.overlay().showControls(util.vector().topOf(catPos), Pointing.LEFT, 40).rightClick().withItem(emptyBox);
         scene.idle(40);

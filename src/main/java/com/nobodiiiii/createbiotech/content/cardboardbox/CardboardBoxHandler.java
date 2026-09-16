@@ -1,13 +1,10 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
-import net.minecraft.core.registries.Registries;
-
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
@@ -34,13 +31,10 @@ public class CardboardBoxHandler {
 		InteractionHand hand = event.getHand();
 		ItemStack stack = player.getItemInHand(hand);
 
-		if (!stack.is(CBItems.CARDBOARD_BOX.get()))
+		if (!CapturedEntityBoxHelper.isEmptySmallBox(stack))
 			return;
 		if (player.isShiftKeyDown())
 			return;
-		if (CardboardBoxItem.hasCapturedEntity(stack))
-			return;
-
 		LivingEntity livingTarget = CapturedEntityBoxHelper.resolveLivingTarget(event.getTarget());
 		if (livingTarget == null)
 			return;

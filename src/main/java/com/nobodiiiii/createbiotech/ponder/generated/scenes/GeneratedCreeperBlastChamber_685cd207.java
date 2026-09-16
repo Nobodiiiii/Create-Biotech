@@ -124,7 +124,7 @@ public final class GeneratedCreeperBlastChamber_685cd207 {
         scene.addKeyframe();
         GeneratedPonderSupport.showText(scene, "爆炸室核心可以通过纸箱输入和输出苦力怕", new Vec3(6.5, 1.0, 1.5), 150, null, true);
         scene.idle(40);
-        GeneratedPonderSupport.createItemEntity(scene, "create_biotech:large_cardboard_box", 1, new Vec3(6.5, 1.5, 1.5), new Vec3(0.0, 0.0, 0.0), null);
+        GeneratedPonderSupport.createItemEntity(scene, "create_biotech:empty_large_cardboard_box", 1, new Vec3(6.5, 1.5, 1.5), new Vec3(0.0, 0.0, 0.0), null);
         scene.idle(20);
         GeneratedPonderSupport.clearItemEntities(scene, true, null, null, null);
         scene.addKeyframe();

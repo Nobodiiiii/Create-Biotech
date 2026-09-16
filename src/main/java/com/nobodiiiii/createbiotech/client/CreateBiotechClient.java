@@ -490,6 +490,8 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.EXPERIENCE_CLUSTER.get());
 		registerCapturedBoxTooltip(CBItems.CARDBOARD_BOX.get());
 		registerCapturedBoxTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
+		registerCreateStyleTooltip(CBItems.EMPTY_CARDBOARD_BOX.get());
+		registerCreateStyleTooltip(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.CAPTURED_SMALL_SLIME.get());
 		registerCreateStyleTooltip(CBItems.DING_DONG_CHICKEN.get());
 		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());

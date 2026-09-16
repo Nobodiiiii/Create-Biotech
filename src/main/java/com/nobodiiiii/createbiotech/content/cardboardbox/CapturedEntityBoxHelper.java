@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
+import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.content.logistics.box.PackageItem;
 
 import net.minecraft.ChatFormatting;
@@ -34,6 +35,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.ItemContainerContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.item.context.UseOnContext;
@@ -110,7 +112,7 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean captureEntity(ItemStack stack, LivingEntity target) {
-		if (hasCapturedEntity(stack))
+		if (stack.isEmpty() || stack.getItem() instanceof EmptyCardboardBoxItem || hasCapturedEntity(stack))
 			return false;
 
 		CompoundTag entityData = new CompoundTag();
@@ -132,6 +134,8 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static ItemStack createFilledBox(Item boxItem, EntityType<?> entityType) {
+		if (boxItem instanceof EmptyCardboardBoxItem emptyBox)
+			boxItem = emptyBox.filledBox();
 		if (!(boxItem instanceof CapturedEntityBoxItem))
 			throw new IllegalArgumentException("Item " + BuiltInRegistries.ITEM.getKey(boxItem)
 				+ " is not a captured entity box item");
@@ -215,17 +219,76 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean captureEntityFromPlayerStack(ItemStack stack, Player player, LivingEntity target) {
-		if (stack.getCount() <= 1)
-			return captureEntity(stack, target);
-
-		ItemStack filledBox = stack.copyWithCount(1);
+		ItemStack filledBox = createCaptureBox(stack);
+		if (filledBox.isEmpty())
+			return false;
 		if (!captureEntity(filledBox, target))
 			return false;
+
+		if (stack.getCount() == 1)
+			return replacePlayerStack(player, stack, filledBox);
 
 		stack.shrink(1);
 		if (!player.getInventory().add(filledBox))
 			player.drop(filledBox, false);
 		return true;
+	}
+
+	/** Builds one package without consuming the empty input; commit only after capture succeeds. */
+	public static ItemStack createCaptureBox(ItemStack emptyBox) {
+		if (!isEmptyBox(emptyBox))
+			return ItemStack.EMPTY;
+		Item item = emptyBox.getItem() instanceof EmptyCardboardBoxItem empty
+			? empty.filledBox() : emptyBox.getItem();
+		ItemStack result = emptyBox.transmuteCopy(item, 1);
+		clearPackageRouting(result);
+		return result;
+	}
+
+	/** Returns the ordinary empty item, preserving names and unrelated custom data. */
+	public static ItemStack createEmptyBox(ItemStack source) {
+		if (!(source.getItem() instanceof CapturedEntityBoxItem filled))
+			return source.copy();
+		ItemStack result = source.transmuteCopy(filled.emptyBox());
+		clearCapturedEntity(result);
+		clearPackageRouting(result);
+		return result;
+	}
+
+	private static void clearPackageRouting(ItemStack stack) {
+		stack.remove(AllDataComponents.PACKAGE_ADDRESS);
+		stack.remove(AllDataComponents.PACKAGE_ORDER_DATA);
+		stack.remove(AllDataComponents.PACKAGE_ORDER_CONTEXT);
+		stack.remove(AllDataComponents.PACKAGE_CONTENTS);
+	}
+
+	public static boolean isEmptyBox(ItemStack stack) {
+		return !stack.isEmpty() && !hasCapturedEntity(stack)
+			&& (stack.getItem() instanceof EmptyCardboardBoxItem
+				|| stack.getItem() instanceof CapturedEntityBoxItem
+					&& stack.getOrDefault(AllDataComponents.PACKAGE_CONTENTS, ItemContainerContents.EMPTY)
+						.stream().allMatch(ItemStack::isEmpty));
+	}
+
+	public static boolean isEmptySmallBox(ItemStack stack) {
+		return isEmptyBox(stack) && (stack.getItem() instanceof CardboardBoxItem
+			|| stack.getItem() instanceof EmptyCardboardBoxItem empty && !empty.isLarge());
+	}
+
+	public static boolean isEmptyLargeBox(ItemStack stack) {
+		return isEmptyBox(stack) && (stack.getItem() instanceof LargeCardboardBoxItem
+			|| stack.getItem() instanceof EmptyCardboardBoxItem empty && empty.isLarge());
+	}
+
+	public static boolean replacePlayerStack(Player player, ItemStack source, ItemStack replacement) {
+		for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
+			if (player.getInventory().getItem(slot) != source)
+				continue;
+			player.getInventory().setItem(slot, replacement);
+			player.getInventory().setChanged();
+			return true;
+		}
+		return false;
 	}
 
 	private static void restoreAiInSavedEntityData(CompoundTag entityData) {
@@ -275,6 +338,8 @@ public class CapturedEntityBoxHelper {
 			return false;
 
 		clearCapturedEntity(stack);
+		if (context.getPlayer() != null)
+			context.getPlayer().setItemInHand(context.getHand(), createEmptyBox(stack));
 		return true;
 	}
 
@@ -476,7 +541,7 @@ public class CapturedEntityBoxHelper {
 		if (!CapturedEntityBoxItem.isBox(box) || hasAnyPackageContents(contents))
 			return contents;
 
-		contents.setStackInSlot(0, box.copyWithCount(1));
+		contents.setStackInSlot(0, (isEmptyBox(box) ? createEmptyBox(box) : box).copyWithCount(1));
 		return contents;
 	}
 

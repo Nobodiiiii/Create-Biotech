@@ -175,11 +175,11 @@ public final class BioPackagerContraptionTracker {
 	}
 
 	private static boolean isSmallBox(ItemStack stack) {
-		return stack.is(com.nobodiiiii.createbiotech.registry.CBItems.CARDBOARD_BOX.get());
+		return CapturedEntityBoxHelper.isEmptySmallBox(stack);
 	}
 
 	private static boolean isLargeBox(ItemStack stack) {
-		return stack.is(com.nobodiiiii.createbiotech.registry.CBItems.LARGE_CARDBOARD_BOX.get());
+		return CapturedEntityBoxHelper.isEmptyLargeBox(stack);
 	}
 
 	private static void depositIntoContraption(AbstractContraptionEntity contraptionEntity, BlockPos packagerLocal,

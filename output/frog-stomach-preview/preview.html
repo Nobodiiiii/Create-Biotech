@@ -1,0 +1,36 @@
+<div id="frog-room-preview">
+  <div class="viz-row"><span>48 × 48 × 32 格</span><span class="text-muted">16 × 16 材质 · 生态布局草案</span></div>
+  <div class="viz-controls">
+    <label class="form-label">视角<select class="form-select" id="frog-view"><option value="cut">剖视</option><option value="top">俯视</option><option value="inside">室内尺度</option><option value="full">完整外壳</option></select></label>
+    <label class="form-label">材质<select class="form-select" id="frog-palette"><option value="concept">优化配色 · 16×16</option><option value="original">项目现有贴图 · 16×16</option></select></label>
+  </div>
+  <div class="frog-stage" role="group" aria-label="青蛙胃室三维预览">
+    <div class="frog-status text-muted" role="status">正在构建胃室…</div>
+    <div class="frog-dim frog-width text-small" aria-hidden="true">48 格</div>
+    <div class="frog-dim frog-depth text-small" aria-hidden="true">48 格</div>
+    <div class="frog-dim frog-height text-small" aria-hidden="true">32 格</div>
+  </div>
+  <div class="viz-controls">
+    <div class="viz-row"><button type="button" class="btn" id="frog-left" aria-label="向左旋转视角">左转</button><button type="button" class="btn" id="frog-right" aria-label="向右旋转视角">右转</button></div>
+    <label class="form-label">缩放<input class="form-range" id="frog-zoom" type="range" min="24" max="170" value="103" aria-label="观察距离"></label>
+  </div>
+  <div class="frog-detail text-small" aria-live="polite">拖动旋转 · 滚轮缩放 · 右键拖动平移</div>
+  <div class="frog-legend viz-row text-small"><span>黏膜褶皱</span><span>胃菇菌落</span><span>琥珀浅池</span><span>建设平台</span><span>1.8 格人形参照</span></div>
+</div>
+<style>
+  #frog-room-preview { width:100%; color:var(--foreground); }
+  #frog-room-preview .frog-stage { position:relative; width:100%; height:clamp(360px,76vw,610px); overflow:hidden; touch-action:none; }
+  #frog-room-preview canvas { display:block; width:100%; height:100%; cursor:grab; }
+  #frog-room-preview canvas:active { cursor:grabbing; }
+  #frog-room-preview .frog-status { position:absolute; left:0; right:0; top:45%; text-align:center; pointer-events:none; }
+  #frog-room-preview .frog-dim { position:absolute; pointer-events:none; color:var(--muted-foreground); background:var(--background); padding:2px 5px; transform:translate(-50%,-50%); white-space:nowrap; }
+  #frog-room-preview .frog-detail { min-height:1.5em; color:var(--muted-foreground); }
+  #frog-room-preview .frog-legend { color:var(--muted-foreground); margin-top:8px; }
+</style>
+<!--THREE_LIBRARY-->
+<script>
+/*TEXTURE_DATA*/
+</script>
+<script>
+/*PREVIEW_SCRIPT*/
+</script>

@@ -16,7 +16,7 @@ final class AllayPortAutomationInventoryWrapper extends ItemHandlerWrapper {
 
 	@Override
 	public ItemStack extractItem(int slot, int amount, boolean simulate) {
-		ItemStack preview = super.extractItem(slot, 64, true);
+		ItemStack preview = super.extractItem(slot, amount, true);
 		if (!PackageItem.isPackage(preview)) {
 			return ItemStack.EMPTY;
 		}

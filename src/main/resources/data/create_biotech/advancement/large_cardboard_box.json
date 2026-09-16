@@ -14,7 +14,7 @@
     "frame": "task",
     "hidden": false,
     "icon": {
-      "id": "create_biotech:large_cardboard_box"
+      "id": "create_biotech:empty_large_cardboard_box"
     },
     "show_toast": true,
     "title": {

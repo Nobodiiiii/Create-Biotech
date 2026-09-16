@@ -18,7 +18,6 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
-import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
@@ -3504,7 +3503,7 @@ public final class SurgicalTableClientHandler {
 		} else if (isEmptyBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
-			if (stack.getItem() instanceof LargeCardboardBoxItem)
+			if (CapturedEntityBoxHelper.isEmptyLargeBox(stack))
 				appendPackedDisposition(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
@@ -3572,7 +3571,8 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isSurgicalInteractionItem(ItemStack stack) {
-		return CapturedEntityBoxItem.isBox(stack) || SurgicalKitItem.isShears(stack)
+		return CapturedEntityBoxItem.isBox(stack) || CapturedEntityBoxHelper.isEmptyLargeBox(stack)
+			|| SurgicalKitItem.isShears(stack)
 			|| isSurgicalGlue(stack) || isSymmetryWand(stack) || SurgicalKitItem.isHoneyBottle(stack)
 			|| SurgicalKitItem.isSlimeBall(stack) || heldLimbType(stack) != null
 			|| SurgicalKitItem.isWrench(stack) || SurgicalKitItem.isShovel(stack)
@@ -5666,8 +5666,7 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static boolean isEmptyLargeBox(ItemStack stack) {
-		return stack.getItem() instanceof LargeCardboardBoxItem
-			&& !CapturedEntityBoxItem.hasCapturedEntity(stack);
+		return CapturedEntityBoxHelper.isEmptyLargeBox(stack);
 	}
 
 	private static boolean isStandardGlue(ItemStack stack) {

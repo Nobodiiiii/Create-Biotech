@@ -295,7 +295,7 @@ public class SurgicalKitItem extends Item {
 		SLIME_BALL("slime_ball", () -> new ItemStack(Items.SLIME_BALL)),
 		SYMMETRY_WAND("symmetry_wand", () -> AllItems.WAND_OF_SYMMETRY.asStack()),
 		WRENCH("wrench", () -> AllItems.WRENCH.asStack()),
-		TEMPORARY_BOX("temporary_box", () -> new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get()));
+		TEMPORARY_BOX("temporary_box", () -> new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()));
 
 		private final String id;
 		private final Supplier<ItemStack> displayStack;

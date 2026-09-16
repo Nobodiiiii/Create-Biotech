@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.simibubi.create.content.logistics.box.PackageItem;
@@ -14,21 +15,37 @@ import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 
 public abstract class CapturedEntityBoxItem extends PackageItem {
-	private static final int EMPTY_BOX_MAX_STACK_SIZE = 16;
-
 	private final String descriptionId;
+	private final Supplier<? extends Item> emptyBox;
 
-	protected CapturedEntityBoxItem(Properties properties, String descriptionId, PackageStyle style) {
-		super(properties, style);
+	protected CapturedEntityBoxItem(Properties properties, String descriptionId, PackageStyle style,
+		Supplier<? extends Item> emptyBox) {
+		super(properties.stacksTo(1), style);
 		this.descriptionId = descriptionId;
+		this.emptyBox = emptyBox;
 		PackageStyles.ALL_BOXES.remove(this);
 		PackageStyles.STANDARD_BOXES.remove(this);
 		PackageStyles.RARE_BOXES.remove(this);
+	}
+
+	public Item emptyBox() {
+		return emptyBox.get();
+	}
+
+	@Override
+	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
+		// Keep old filled-box IDs so saved creatures remain intact. Old empty variants
+		// become ordinary boxes when carried, including legacy offhand stacks.
+		if (!level.isClientSide && entity instanceof Player player
+			&& CapturedEntityBoxHelper.isEmptyBox(stack))
+			CapturedEntityBoxHelper.replacePlayerStack(player, stack,
+				CapturedEntityBoxHelper.createEmptyBox(stack));
 	}
 
 	@Override
@@ -92,15 +109,12 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 		if (!hasCapturedEntity(stack))
 			return ItemStack.EMPTY;
 
-		ItemStack remainder = stack.copy();
-		remainder.setCount(1);
-		CapturedEntityBoxHelper.clearCapturedEntity(remainder);
-		return remainder;
+		return CapturedEntityBoxHelper.createEmptyBox(stack).copyWithCount(1);
 	}
 
 	@Override
 	public int getMaxStackSize(ItemStack stack) {
-		return hasCapturedEntity(stack) ? 1 : EMPTY_BOX_MAX_STACK_SIZE;
+		return 1;
 	}
 
 	public static boolean hasCapturedEntity(ItemStack stack) {

@@ -1,0 +1,154 @@
+{
+  "size": [
+    16,
+    16
+  ],
+  "filter": "NearestFilter",
+  "mipmaps": false,
+  "textures": [
+    {
+      "name": "wall",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_wall.png"
+    },
+    {
+      "name": "mucosa",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_mucosa.png"
+    },
+    {
+      "name": "fold",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fold.png"
+    },
+    {
+      "name": "fold_top",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fold_top.png"
+    },
+    {
+      "name": "stem",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fungus_stem.png"
+    },
+    {
+      "name": "stem_top",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fungus_stem_top.png"
+    },
+    {
+      "name": "cap",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fungus_cap.png"
+    },
+    {
+      "name": "gill",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fungus_stem_top.png"
+    },
+    {
+      "name": "light",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_fungus_light.png"
+    },
+    {
+      "name": "secretion",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_stomach_secretion.png"
+    },
+    {
+      "name": "water",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "frame",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "src\\main\\resources\\assets\\create_biotech\\textures\\block\\frog_digestive_tract_wall_side.png"
+    },
+    {
+      "name": "portal",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "slime",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "eye",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "shirt",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "pants",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    },
+    {
+      "name": "skin",
+      "size": [
+        16,
+        16
+      ],
+      "original_source": "Preview-only procedural texture; same in both palettes"
+    }
+  ]
+}

@@ -246,7 +246,7 @@ public final class FrogStomachSpace {
 				}
 	}
 
-	/** Prevents generated platforms from intruding into either portal's framed approach. */
+	/** Prevents generated folds and fungi from intruding into either portal's framed approach. */
 	static boolean isPortalApproachProtected(long index, BlockPos pos) {
 		for (PortalType type : PortalType.values()) {
 			BlockPos portal = portalPos(index, type);

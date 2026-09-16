@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.buttercat.item.ButterFoodProperties;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterFoodItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterSequencedAssemblyItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxItem;
+import com.nobodiiiii.createbiotech.content.cardboardbox.EmptyCardboardBoxItem;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlockItem;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceConstants;
@@ -199,11 +200,19 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> BONE_RATCHET = ITEMS.register("bone_ratchet",
 		() -> new BlockItem(CBBlocks.BONE_RATCHET.get(), new Item.Properties()));
 
-	public static final DeferredHolder<Item, Item> CARDBOARD_BOX = ITEMS.register("cardboard_box",
-		() -> new CardboardBoxItem(new Item.Properties().stacksTo(16)));
+	public static final DeferredHolder<Item, CardboardBoxItem> CARDBOARD_BOX = ITEMS.register("cardboard_box",
+		() -> new CardboardBoxItem(new Item.Properties()));
 
-	public static final DeferredHolder<Item, Item> LARGE_CARDBOARD_BOX = ITEMS.register("large_cardboard_box",
-		() -> new LargeCardboardBoxItem(new Item.Properties().stacksTo(16)));
+	public static final DeferredHolder<Item, LargeCardboardBoxItem> LARGE_CARDBOARD_BOX = ITEMS.register("large_cardboard_box",
+		() -> new LargeCardboardBoxItem(new Item.Properties()));
+
+	public static final DeferredHolder<Item, EmptyCardboardBoxItem> EMPTY_CARDBOARD_BOX =
+		ITEMS.register("empty_cardboard_box",
+			() -> new EmptyCardboardBoxItem(new Item.Properties(), false, CARDBOARD_BOX));
+
+	public static final DeferredHolder<Item, EmptyCardboardBoxItem> EMPTY_LARGE_CARDBOARD_BOX =
+		ITEMS.register("empty_large_cardboard_box",
+			() -> new EmptyCardboardBoxItem(new Item.Properties(), true, LARGE_CARDBOARD_BOX));
 
 	public static final DeferredHolder<Item, Item> SCHRODINGERS_CAT = ITEMS.register("schrodingers_cat",
 		() -> new BlockItem(CBBlocks.SCHRODINGERS_CAT.get(), new Item.Properties()));
@@ -247,6 +256,9 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> FROG_STOMACH_FUNGUS = ITEMS.register("frog_stomach_fungus",
 		() -> new BlockItem(CBBlocks.FROG_STOMACH_FUNGUS.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> FROG_STOMACH_FOLD = ITEMS.register("frog_stomach_fold",
+		() -> new BlockItem(CBBlocks.FROG_STOMACH_FOLD.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, Item> FROG_STOMACH_SECRETION =
 		ITEMS.register("frog_stomach_secretion",

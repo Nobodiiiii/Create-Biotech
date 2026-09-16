@@ -1,0 +1,27 @@
+{
+  "passed": true,
+  "room": [
+    48,
+    32,
+    48
+  ],
+  "textureCount": 36,
+  "textureSize": "16x16",
+  "nearestFiltering": true,
+  "mipmaps": false,
+  "initialStats": {
+    "mode": "cut",
+    "palette": "concept",
+    "voxels": 21149,
+    "faces": 14115,
+    "drawCalls": 102
+  },
+  "portals": "matched",
+  "views": 4,
+  "paletteSwitch": true,
+  "orbit": true,
+  "zoom": true,
+  "mobileWidth": 360,
+  "offline": true,
+  "errors": []
+}

@@ -94,6 +94,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,
 			originOffsetX, originOffsetZ, envelope, observedCubeCount, observedSeams,
 			headCubes, componentFootprints, sourceLayouts);
+		if (result.succeeded() && held.getItem() instanceof CapturedEntityBoxItem)
+			player.setItemInHand(hand, CapturedEntityBoxHelper.createEmptyBox(held));
 		result.display(player);
 	}
 

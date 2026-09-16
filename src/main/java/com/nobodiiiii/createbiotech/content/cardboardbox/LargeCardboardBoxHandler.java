@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -29,15 +28,12 @@ public class LargeCardboardBoxHandler {
 
 		InteractionHand hand = event.getHand();
 		ItemStack stack = player.getItemInHand(hand);
-		if (!stack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
+		if (!CapturedEntityBoxHelper.isEmptyLargeBox(stack))
 			return;
 		if (CBConfigs.SERVER.cardboardBox.largeBoxCreativeOnly.get() && !player.isCreative())
 			return;
 		if (player.isShiftKeyDown())
 			return;
-		if (CapturedEntityBoxItem.hasCapturedEntity(stack))
-			return;
-
 		LivingEntity livingTarget = CapturedEntityBoxHelper.resolveLivingTarget(event.getTarget());
 		if (!(livingTarget instanceof Mob mobTarget))
 			return;
@@ -75,9 +71,7 @@ public class LargeCardboardBoxHandler {
 			return;
 
 		ItemStack offhandStack = player.getOffhandItem();
-		if (!offhandStack.is(CBItems.LARGE_CARDBOARD_BOX.get()))
-			return;
-		if (CapturedEntityBoxItem.hasCapturedEntity(offhandStack))
+		if (!CapturedEntityBoxHelper.isEmptyLargeBox(offhandStack))
 			return;
 		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(offhandStack, player, target))
 			return;

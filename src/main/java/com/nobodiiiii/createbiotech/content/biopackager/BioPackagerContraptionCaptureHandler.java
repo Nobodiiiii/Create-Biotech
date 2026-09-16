@@ -68,7 +68,7 @@ public class BioPackagerContraptionCaptureHandler {
 		if (emptyBox.isEmpty())
 			return;
 
-		ItemStack filledBox = emptyBox.copy();
+		ItemStack filledBox = CapturedEntityBoxHelper.createCaptureBox(emptyBox);
 		if (!CapturedEntityBoxHelper.captureEntity(filledBox, target)) {
 			// can't capture — refund box
 			BioPackagerContraptionTracker.startServerCapture(contraptionEntity, freePackagerLocal, emptyBox);

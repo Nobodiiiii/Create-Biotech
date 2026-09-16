@@ -40,6 +40,7 @@
   "block.create_biotech.giant_frog.tooltip.summary": "A _four-times-sized_ frog block. It eats nearby _small slimes_ and players crouching in a full _Slime Armor_ set, sending them into its _Frog Stomach_. Unfinished item.",
   "block.create_biotech.frog_stomach_wall": "Frog Stomach Wall",
   "block.create_biotech.frog_stomach_mucosa": "Frog Stomach Mucosa",
+  "block.create_biotech.frog_stomach_fold": "Frog Stomach Fold",
   "block.create_biotech.frog_stomach_fungus": "Frog Stomach Fungus",
   "block.create_biotech.frog_stomach_secretion": "Frog Stomach Secretion",
   "block.create_biotech.frog_digestive_tract": "Frog Digestive Tract",

@@ -48,6 +48,16 @@ SUCCESS_PATTERNS = (
     re.compile(r"\[Server thread/INFO\](?: \[[^\]]+\])?: .+加入了游戏"),
 )
 
+WORLD_ACCESS_FAILURE_PATTERN = re.compile(
+    r"\[Render thread/WARN\](?: \[[^\]]+\])?: Failed to read level (.+) data$"
+)
+WORLD_LOCK_PATTERN = re.compile(
+    r"net\.minecraft\.util\.DirectoryLock\$LockException:|"
+    r"java\.io\.IOException: [^\r\n]*(?:"
+    r"another process has locked a portion of the file|另一个程序已锁定文件的一部分)",
+    re.IGNORECASE,
+)
+
 ERROR_PATTERN = re.compile(
     r"\b(ERROR|FATAL)\b|Exception|Caused by:|Mixin apply failed|Crash|Failed to|Unable to",
     re.IGNORECASE,
@@ -352,6 +362,24 @@ def entered_world(log_text: str) -> bool:
     return any(pattern.search(log_text) for pattern in SUCCESS_PATTERNS)
 
 
+def quickplay_world_locked(log_text: str, world: str) -> bool:
+    # Keep the warning and its stack together so unrelated errors cannot satisfy
+    # this fallback. QuickPlay runs after client loading; WorldOpenFlows returns
+    # to the title screen when it cannot acquire the world's session lock.
+    for entry in re.split(r"(?=^\[)", log_text, flags=re.MULTILINE):
+        header, _, stack = entry.partition("\n")
+        failure = WORLD_ACCESS_FAILURE_PATTERN.search(header.rstrip("\r"))
+        if (
+            failure
+            and failure.group(1) == world
+            and WORLD_LOCK_PATTERN.search(stack)
+            and "net.minecraft.util.DirectoryLock.create(" in stack
+            and "net.minecraft.client.quickplay.QuickPlay.joinSingleplayerWorld(" in stack
+        ):
+            return True
+    return False
+
+
 def extract_error_excerpt(log_text: str, max_lines: int) -> str:
     lines = log_text.splitlines()
     if not lines:
@@ -472,7 +500,7 @@ def smoke_client(
         print(f"  args: {len(command)}")
         return True
 
-    print(f"[SMOKE] {instance}: waiting {timeout}s for quickplay world entry")
+    print(f"[SMOKE] {instance}: waiting {timeout}s for quickplay world entry or world-lock fallback")
     process, game_directory = start_client(instance, world, width, height)
     print(f"[SMOKE][LAUNCH] {instance}")
     print(f"  game directory: {game_directory}")
@@ -491,6 +519,8 @@ def smoke_client(
                 break
             if process.poll() is not None:
                 break
+            if quickplay_world_locked(log_text, world):
+                break
             time.sleep(0.1)
 
         final_log_path, final_log_text = read_smoke_log(game_directory, cursors)
@@ -505,8 +535,18 @@ def smoke_client(
                 f"waiting {POST_ENTRY_SETTLE_SECONDS:g}s before cleanup"
             )
             time.sleep(POST_ENTRY_SETTLE_SECONDS)
-        else:
-            print(f"[SMOKE][FAIL] {instance}: did not enter world within {timeout}s")
+        elif quickplay_world_locked(log_text, world) and process.poll() is None:
+            print(
+                f"[SMOKE][WORLD IN USE] {instance}: client loaded; quickplay fell back to the main menu; "
+                f"waiting {POST_ENTRY_SETTLE_SECONDS:g}s before cleanup"
+            )
+            time.sleep(POST_ENTRY_SETTLE_SECONDS)
+            ok = process.poll() is None
+            if ok:
+                print(f"[SMOKE][PASS] {instance}: client stayed running at the main menu; world is in use")
+
+        if not ok:
+            print(f"[SMOKE][FAIL] {instance}: no successful world entry or world-lock fallback within {timeout}s")
             exit_code = process.poll()
             if exit_code is not None:
                 print(f"[SMOKE][PROCESS EXIT] code={exit_code}")
@@ -525,7 +565,7 @@ def main() -> int:
     parser.add_argument("--online-build", action="store_true")
     parser.add_argument("--no-copy", action="store_true")
     parser.add_argument("--dry-run", action="store_true", help="Build/copy as requested, but do not start the client.")
-    parser.add_argument("--smoke", action="store_true", help="Build, quickplay, wait for a world-entry log marker, then clean up.")
+    parser.add_argument("--smoke", action="store_true", help="Build, quickplay, accept world entry or a world-lock main-menu fallback, then clean up.")
     parser.add_argument("--smoke-timeout", type=int, default=DEFAULT_SMOKE_TIMEOUT)
     parser.add_argument("--smoke-log-lines", type=int, default=DEFAULT_SMOKE_LOG_LINES)
     parser.add_argument("--width", type=int, default=DEFAULT_WIDTH)

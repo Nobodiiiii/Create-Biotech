@@ -40,6 +40,7 @@
   "block.create_biotech.giant_frog.tooltip.summary": "_四倍体型_的青蛙方块。它会吃掉附近的_小型史莱姆_，也会吞下穿着全套_史莱姆套装_蹲下的玩家，并送入它的_青蛙胃袋_。未完成物品。",
   "block.create_biotech.frog_stomach_wall": "青蛙胃袋壁",
   "block.create_biotech.frog_stomach_mucosa": "青蛙胃黏膜",
+  "block.create_biotech.frog_stomach_fold": "青蛙胃褶皱",
   "block.create_biotech.frog_stomach_fungus": "青蛙胃菇",
   "block.create_biotech.frog_stomach_secretion": "青蛙胃袋分泌物",
   "block.create_biotech.frog_digestive_tract": "青蛙消化道",

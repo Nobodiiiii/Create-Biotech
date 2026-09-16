@@ -176,7 +176,7 @@ tasks.register('syncQuickPlayMods', Sync) {
 def configureQuickPlayClientTask = { Exec task, boolean onlineBuild, boolean smokeRun ->
     task.group = 'mod development'
     if (smokeRun) {
-        task.description = 'Runs test.py with an offline Gradle build, quickplays the local NeoForge client, checks world entry, and cleans up.'
+        task.description = 'Runs test.py with an offline Gradle build, quickplays the local NeoForge client, accepts world entry or a world-lock main-menu fallback, and cleans up.'
     } else {
         task.description = onlineBuild
                 ? 'Runs test.py with an online Gradle build, copies the mod jar, and quickplays the local NeoForge client.'

@@ -130,8 +130,8 @@ public class CBCreativeModeTabs {
 		List<SectionContents> sections = new ArrayList<>();
 
 		sections.add(section(CBCreativeTabSection.BIOTECHNOLOGY,
-			visible(CBItems.CARDBOARD_BOX.get()),
-			visible(CBItems.LARGE_CARDBOARD_BOX.get()),
+			visible(CBItems.EMPTY_CARDBOARD_BOX.get()),
+			visible(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()),
 			visible(CBItems.BIO_PACKAGER.get()),
 			visible(CBItems.PETRI_DISH.get()),
 			visible(CBItems.CAPTURED_SMALL_SLIME.get()),
@@ -222,6 +222,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.GIANT_FROG.get()),
 			searchOnly(CBItems.FROG_STOMACH_WALL.get()),
 			visible(CBItems.FROG_STOMACH_MUCOSA.get()),
+			visible(CBItems.FROG_STOMACH_FOLD.get()),
 			visible(CBItems.FROG_STOMACH_FUNGUS.get()),
 			visible(CBItems.FROG_STOMACH_SECRETION.get()),
 			searchOnly(CBItems.FROG_DIGESTIVE_TRACT.get()),
@@ -254,8 +255,8 @@ public class CBCreativeModeTabs {
 	}
 
 	private static void acceptLargeCardboardBoxes(ItemDisplayParameters parameters, Output output) {
-		output.accept(CBItems.CARDBOARD_BOX.get());
-		output.accept(CBItems.LARGE_CARDBOARD_BOX.get());
+		output.accept(CBItems.EMPTY_CARDBOARD_BOX.get());
+		output.accept(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
 
 		Set<EntityType<?>> addedEntityTypes = new HashSet<>();
 		for (Item item : BuiltInRegistries.ITEM) {
