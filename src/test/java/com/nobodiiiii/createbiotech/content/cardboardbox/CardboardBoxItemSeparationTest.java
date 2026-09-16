@@ -189,6 +189,38 @@ class CardboardBoxItemSeparationTest {
 		assertEquals(3, contents.getStackInSlot(0).getCount());
 	}
 
+	@ParameterizedTest
+	@MethodSource("sizes")
+	void legacyEmptyConversionIsNeverExposedAsRemovableCourierCargo(int size) {
+		ItemStack legacy = new ItemStack(filledBoxes[size]);
+		PackageItem.addAddress(legacy, "destination");
+		for (int reopen = 0; reopen < 3; reopen++) {
+			ItemStackHandler unpacked = CapturedEntityBoxHelper.applyVirtualSelfFallbackContents(
+				legacy, PackageItem.getContents(legacy));
+			assertTrue(unpacked.getStackInSlot(0).is(emptyBoxes[size]));
+			assertTrue(CapturedEntityBoxHelper.getVisiblePackageContents(legacy).getStackInSlot(0).isEmpty());
+			// The courier menu saves an empty contents component when closed with no cargo.
+			legacy.set(AllDataComponents.PACKAGE_CONTENTS, ItemContainerContents.EMPTY);
+		}
+		assertEquals("destination", PackageItem.getAddress(legacy));
+		assertEquals(1, legacy.getCount());
+	}
+
+	@ParameterizedTest
+	@MethodSource("sizes")
+	void courierShowsOnlyStoredCargoWithoutExposingTheCapturedCreature(int size) {
+		ItemStack filled = CapturedEntityBoxHelper.createFilledBox(filledBoxes[size], EntityType.PIG);
+		assertTrue(CapturedEntityBoxHelper.getVisiblePackageContents(filled).getStackInSlot(0).isEmpty());
+		filled.set(AllDataComponents.PACKAGE_CONTENTS,
+			ItemContainerContents.fromItems(List.of(new ItemStack(emptyBoxes[size], 2))));
+		ItemStackHandler visible = CapturedEntityBoxHelper.getVisiblePackageContents(filled);
+		assertTrue(visible.getStackInSlot(0).is(emptyBoxes[size]));
+		assertEquals(2, visible.getStackInSlot(0).getCount());
+		visible.extractItem(0, 1, false);
+		assertEquals(2, CapturedEntityBoxHelper.getVisiblePackageContents(filled).getStackInSlot(0).getCount());
+		assertTrue(CapturedEntityBoxHelper.containsEntityType(filled, EntityType.PIG));
+	}
+
 	private static MemoryPackager deliverRepeatedly(ItemStack parcel) {
 		ItemStackHandler inventory = new ItemStackHandler(1);
 		inventory.setStackInSlot(0, parcel.copy());

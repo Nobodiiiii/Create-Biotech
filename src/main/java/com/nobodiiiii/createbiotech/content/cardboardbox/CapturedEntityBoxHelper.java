@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.content.logistics.box.PackageItem;
+import com.simibubi.create.foundation.item.ItemHelper;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -546,16 +547,15 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static ItemStackHandler getVisiblePackageContents(ItemStack box) {
-		if (!PackageItem.isPackage(box))
-			return new ItemStackHandler(PackageItem.SLOTS);
-		ItemStackHandler contents = readPackageContentsWithoutMutation(box);
-		if (!hasOnlyVirtualSelfFallback(box, contents))
-			return contents;
-		return new ItemStackHandler(PackageItem.SLOTS);
-	}
-
-	private static ItemStackHandler readPackageContentsWithoutMutation(ItemStack box) {
-		return applyVirtualSelfFallbackContents(box, PackageItem.getContents(box));
+		ItemStackHandler contents = new ItemStackHandler(PackageItem.SLOTS);
+		if (PackageItem.isPackage(box)) {
+			// Only stored cargo may be removed through the courier UI. The virtual
+			// fallback also returns a new empty item for legacy boxes, but consuming
+			// that output is safe only when unpacking consumes the outer box too.
+			ItemHelper.fillItemStackHandler(
+				box.getOrDefault(AllDataComponents.PACKAGE_CONTENTS, ItemContainerContents.EMPTY), contents);
+		}
+		return contents;
 	}
 
 	private static CompoundTag getCapturedEntityData(ItemStack stack) {
@@ -572,24 +572,6 @@ public class CapturedEntityBoxHelper {
 			if (!contents.getStackInSlot(slot).isEmpty())
 				return true;
 		return false;
-	}
-
-	private static boolean hasOnlyVirtualSelfFallback(ItemStack box, ItemStackHandler contents) {
-		if (!CapturedEntityBoxItem.isBox(box))
-			return false;
-
-		ItemStack normalizedBox = box.copyWithCount(1);
-		int nonEmptyStacks = 0;
-		for (int slot = 0; slot < contents.getSlots(); slot++) {
-			ItemStack stack = contents.getStackInSlot(slot);
-			if (stack.isEmpty())
-				continue;
-			if (!ItemStack.isSameItemSameComponents(normalizedBox, stack.copyWithCount(1)))
-				return false;
-			nonEmptyStacks++;
-		}
-
-		return nonEmptyStacks == 1;
 	}
 
 	private static void appendAddressTooltip(ItemStack stack, List<Component> tooltipComponents) {
