@@ -551,6 +551,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		}
 
+		snapshotPlayerProfileAtSpawn();
 		float spawnYaw = getSpawnYaw();
 		Mob livingEntity = trySpawnRecordedMob(serverLevel, entityType, spawnPos, spawnX, spawnY, spawnZ, spawnYaw);
 		if (livingEntity == null)
@@ -817,8 +818,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private void recordPlayer(Player player) {
 		recordedEntityId = CBEntityTypes.PLAYER_MIMIC.getId();
 		recordedMimicProfile = null;
-		recordedPlayerProfile = PlayerMimicEntity.decodePlayerProfile(
-			PlayerMimicEntity.encodePlayerProfile(player.getGameProfile()));
+		recordedPlayerProfile = copyPlayerProfile(player);
 		if (recordedPlayerProfile == null) {
 			clearRecordedEntity();
 			return;
@@ -831,6 +831,26 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		clientPreviewEntity = null;
 		setChanged();
 		sendData();
+	}
+
+	private void snapshotPlayerProfileAtSpawn() {
+		if (recordedPlayerProfile == null)
+			return;
+		UUID playerId = recordedPlayerProfile.getId();
+		for (Player player : getNearbyPlayers()) {
+			if (!playerId.equals(player.getGameProfile().getId()))
+				continue;
+			GameProfile currentProfile = copyPlayerProfile(player);
+			if (currentProfile != null)
+				recordedPlayerProfile = currentProfile;
+			return;
+		}
+	}
+
+	@Nullable
+	private static GameProfile copyPlayerProfile(Player player) {
+		return PlayerMimicEntity.decodePlayerProfile(
+			PlayerMimicEntity.encodePlayerProfile(player.getGameProfile()));
 	}
 
 	private void recordEntity(Mob entity) {

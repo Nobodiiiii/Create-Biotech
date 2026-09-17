@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.PlayerModel;
 import net.minecraft.client.model.geom.ModelLayers;
-import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
@@ -43,12 +42,6 @@ public class PlayerMimicRenderer extends MobRenderer<PlayerMimicEntity, PlayerMo
 		GameProfile profile = entity.getImitatedPlayer();
 		if (profile == null)
 			return DefaultPlayerSkin.get(entity.getUUID());
-
-		if (minecraft.getConnection() != null) {
-			PlayerInfo playerInfo = minecraft.getConnection().getPlayerInfo(profile.getId());
-			if (playerInfo != null)
-				return playerInfo.getSkin();
-		}
 		return minecraft.getSkinManager().getInsecureSkin(profile);
 	}
 }
