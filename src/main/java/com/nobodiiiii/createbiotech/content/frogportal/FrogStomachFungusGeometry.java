@@ -28,10 +28,10 @@ final class FrogStomachFungusGeometry {
 		int stemHeight = 5 + random.nextInt(8);
 		int firstRadius = 3 + random.nextInt(4);
 		int secondRadius = Math.clamp(firstRadius - 1 + random.nextInt(3), 3, 6);
-		int crownHeight = firstRadius >= 5 && random.nextBoolean() ? 2 : 1;
+		int crownHeight = firstRadius >= 5 && random.nextBoolean() ? 1 : 0;
 		Map<LocalPos, Part> parts = new LinkedHashMap<>();
 
-		// The stem rises into the hollow under the cap instead of stopping at a flat underside.
+		// The stem rises into the hollow under the cap instead of stopping at its lower rim.
 		for (int forward = 0; forward < stemHeight + 2; forward++)
 			put(parts, 0, forward, 0, Part.STEM);
 		if (firstRadius >= 5) {
@@ -53,24 +53,31 @@ final class FrogStomachFungusGeometry {
 				if (!insideUmbrella(first, second, firstRadius, secondRadius))
 					continue;
 				double radius = normalizedRadius(first, second, firstRadius, secondRadius);
-				int inwardRise = radius > 0.72d ? 0 : radius > 0.38d ? 1 : 2;
-				int underside = stemHeight + inwardRise;
-				put(parts, first, underside, second, Part.GILLS);
-				put(parts, first, underside + 1, second, Part.CAP);
-				if ((first != 0 || second != 0)
-					&& radius <= 0.72d)
-					lightCandidates.add(new LocalPos(first, underside, second));
+				boolean centralCavity = Math.abs(first) + Math.abs(second) <= 1;
+				if (radius > 0.72d) {
+					// The low outer lip hides the gills when the cap is viewed from the side.
+					put(parts, first, stemHeight, second, Part.CAP);
+				} else if (radius > 0.30d) {
+					put(parts, first, stemHeight, second, Part.GILLS);
+					lightCandidates.add(new LocalPos(first, stemHeight, second));
+				} else if (!centralCavity) {
+					put(parts, first, stemHeight + 1, second, Part.GILLS);
+					lightCandidates.add(new LocalPos(first, stemHeight + 1, second));
+				}
+
+				if (radius > 0.30d)
+					put(parts, first, stemHeight + 1, second, Part.CAP);
+				if (radius <= 0.72d)
+					put(parts, first, stemHeight + 2, second, Part.CAP);
 			}
 
-		int innerFirstRadius = Math.max(1, firstRadius - 2);
-		int innerSecondRadius = Math.max(1, secondRadius - 2);
-		for (int layer = 0; layer < crownHeight; layer++) {
-			int layerFirstRadius = Math.max(1, innerFirstRadius - layer);
-			int layerSecondRadius = Math.max(1, innerSecondRadius - layer);
-			for (int first = -layerFirstRadius; first <= layerFirstRadius; first++)
-				for (int second = -layerSecondRadius; second <= layerSecondRadius; second++)
-					if (insideUmbrella(first, second, layerFirstRadius, layerSecondRadius))
-						put(parts, first, stemHeight + 4 + layer, second, Part.CAP);
+		if (crownHeight > 0) {
+			int crownFirstRadius = Math.max(1, firstRadius - 2);
+			int crownSecondRadius = Math.max(1, secondRadius - 2);
+			for (int first = -crownFirstRadius; first <= crownFirstRadius; first++)
+				for (int second = -crownSecondRadius; second <= crownSecondRadius; second++)
+					if (insideUmbrella(first, second, crownFirstRadius, crownSecondRadius))
+						put(parts, first, stemHeight + 3, second, Part.CAP);
 		}
 
 		int lightCount = Math.min(3, Math.max(1, (firstRadius + secondRadius) / 4));

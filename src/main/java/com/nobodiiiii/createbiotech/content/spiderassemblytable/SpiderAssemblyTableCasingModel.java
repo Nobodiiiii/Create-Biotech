@@ -322,9 +322,9 @@ public final class SpiderAssemblyTableCasingModel {
 		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ) {
 		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
 			face(EditorFace.NORTH, 32, 2, 16, 4),
-			face(EditorFace.EAST, 32, 2, 16, 4),
+			face(EditorFace.EAST, 4, 15, 2, 17),
 			face(EditorFace.SOUTH, 32, 2, 16, 4),
-			face(EditorFace.WEST, 32, 2, 16, 4),
+			face(EditorFace.WEST, 4, 15, 2, 17),
 			face(EditorFace.UP, 32, 2, 16, 4),
 			face(EditorFace.DOWN, 32, 2, 16, 4)));
 	}
