@@ -104,7 +104,7 @@ final class CBClientExtensions {
 			return SimpleCustomRenderer.create(item, new SquidPrinterItemRenderer());
 		if (item instanceof MagmaCubeBurnerItem burner && burner.hasCapturedMagmaCube())
 			return SimpleCustomRenderer.create(item, new MagmaCubeBurnerItemRenderer());
-		if (item instanceof GiantFrogItem)
+		if (item instanceof GiantFrogItem || item == CBItems.INCOMPLETE_GIANT_FROG_FACTORY.get())
 			return itemRenderer(new GiantFrogItemRenderer());
 		if (item instanceof SurgicalKitItem)
 			return itemRenderer(new SurgicalKitItemRenderer());

@@ -6,7 +6,6 @@ import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBDataComponents;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -394,14 +393,14 @@ public class GiantFrogBlock extends BaseEntityBlock implements CBMultiBlockLifec
 	}
 
 	private static ItemStack createDropStack(BlockGetter level, BlockPos mainPos) {
-		ItemStack stack = new ItemStack(CBItems.GIANT_FROG.get());
+		ItemStack stack = new ItemStack(level.getBlockState(mainPos).getBlock());
 		if (level.getBlockEntity(mainPos) instanceof GiantFrogBlockEntity frog)
 			addSpaceIndex(stack, frog);
 		return stack;
 	}
 
 	private static void addSpaceIndex(ItemStack stack, GiantFrogBlockEntity frog) {
-		if (frog.hasSpace() && stack.is(CBItems.GIANT_FROG.get()))
+		if (frog.hasSpace() && stack.getItem() instanceof GiantFrogItem)
 			stack.set(CBDataComponents.FROG_STOMACH_SPACE.get(), frog.getSpaceIndex());
 	}
 

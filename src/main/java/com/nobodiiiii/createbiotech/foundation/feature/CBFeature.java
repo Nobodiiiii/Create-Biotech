@@ -34,7 +34,7 @@ public enum CBFeature {
 	EXPERIENCE("experience", "experience_pump", "budding_experience", "small_experience_bud",
 		"medium_experience_bud", "large_experience_bud", "experience_cluster"),
 	FIXED_CARROT_FISHING_ROD("fixedCarrotFishingRod", "fixed_carrot_fishing_rod"),
-	FROG_STOMACH("frogStomach", "giant_frog", "frog_stomach_wall", "frog_stomach_mucosa",
+	FROG_STOMACH("frogStomach", "giant_frog", "giant_frog_factory", "frog_stomach_wall", "frog_stomach_mucosa",
 		"frog_stomach_fungus", "frog_stomach_fungus_stem", "frog_stomach_fungus_cap",
 		"frog_stomach_fungus_gills", "frog_stomach_secretion", "frog_digestive_tract",
 		"frog_digestive_tract_wall"),

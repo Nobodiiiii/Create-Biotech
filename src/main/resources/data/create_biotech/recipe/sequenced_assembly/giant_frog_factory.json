@@ -1,0 +1,106 @@
+{
+  "neoforge:conditions": [
+    {
+      "type": "create_biotech:feature_enabled",
+      "feature": "frogStomach"
+    }
+  ],
+  "type": "create:sequenced_assembly",
+  "ingredient": {
+    "item": "create_biotech:giant_frog"
+  },
+  "loops": 1,
+  "results": [
+    {
+      "id": "create_biotech:giant_frog_factory"
+    }
+  ],
+  "sequence": [
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "item": "minecraft:shears"
+        }
+      ],
+      "results": [
+        {
+          "id": "create_biotech:incomplete_giant_frog_factory"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "item": "create:cardboard"
+        }
+      ],
+      "results": [
+        {
+          "id": "create_biotech:incomplete_giant_frog_factory"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "item": "create:cardboard"
+        }
+      ],
+      "results": [
+        {
+          "id": "create_biotech:incomplete_giant_frog_factory"
+        }
+      ]
+    },
+    {
+      "type": "create_biotech:frog_contents_packaging",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "item": "create:cardboard"
+        }
+      ],
+      "results": [
+        {
+          "id": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "id": "create:cardboard_package_12x12"
+        }
+      ]
+    },
+    {
+      "type": "create:deploying",
+      "ingredients": [
+        {
+          "item": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "item": "minecraft:string"
+        }
+      ],
+      "results": [
+        {
+          "id": "create_biotech:incomplete_giant_frog_factory"
+        }
+      ]
+    }
+  ],
+  "transitional_item": {
+    "id": "create_biotech:incomplete_giant_frog_factory"
+  }
+}

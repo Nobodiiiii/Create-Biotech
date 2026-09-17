@@ -339,6 +339,14 @@ public class CBBlocks {
 				.mapColor(MapColor.COLOR_GREEN)
 				.noOcclusion()));
 
+	public static final DeferredHolder<Block, GiantFrogBlock> GIANT_FROG_FACTORY =
+		BLOCKS.register("giant_frog_factory",
+			() -> new GiantFrogBlock(Block.Properties.of()
+				.sound(SoundType.SLIME_BLOCK)
+				.strength(1.0f)
+				.mapColor(MapColor.COLOR_GREEN)
+				.noOcclusion()));
+
 	// Indestructible shell of every Frog Stomach room; placed by FrogStomachSpace, never obtainable.
 	public static final DeferredHolder<Block, FrogStomachWallBlock> FROG_STOMACH_WALL =
 		BLOCKS.register("frog_stomach_wall",

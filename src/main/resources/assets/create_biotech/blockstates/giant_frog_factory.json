@@ -1,0 +1,5 @@
+{
+  "multipart": [
+    { "apply": { "model": "create_biotech:block/giant_frog" } }
+  ]
+}

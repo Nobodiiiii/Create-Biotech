@@ -13,6 +13,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimearmor.SlimeArmorHandler;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
@@ -305,7 +306,8 @@ public class GiantFrogBlockEntity extends SmartBlockEntity {
 		if (!hasSpace) {
 			spaceIndex = FrogStomachSavedData.get(server).allocateSpace();
 			hasSpace = true;
-			FrogStomachSpace.buildRoom(frogLevel, spaceIndex, true);
+			FrogStomachSpace.buildRoom(frogLevel, spaceIndex,
+				!getBlockState().is(CBBlocks.GIANT_FROG_FACTORY.get()));
 			setChanged();
 		} else if (!FrogStomachSpace.isBuilt(frogLevel, spaceIndex)) {
 			FrogStomachSpace.buildRoom(frogLevel, spaceIndex, false);

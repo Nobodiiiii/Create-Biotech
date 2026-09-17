@@ -227,7 +227,7 @@ public class CBBlockEntityTypes {
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GiantFrogBlockEntity>> GIANT_FROG =
 		BLOCK_ENTITY_TYPES.register("giant_frog",
 			() -> BlockEntityType.Builder
-				.of(GiantFrogBlockEntity::new, CBBlocks.GIANT_FROG.get())
+				.of(GiantFrogBlockEntity::new, CBBlocks.GIANT_FROG.get(), CBBlocks.GIANT_FROG_FACTORY.get())
 				.build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FrogDigestiveTractBlockEntity>>

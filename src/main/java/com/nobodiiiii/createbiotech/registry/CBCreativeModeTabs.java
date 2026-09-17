@@ -220,6 +220,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.KNEE_JOINT.get()),
 			visible(CBItems.SURGICAL_TABLE.get()),
 			visible(CBItems.GIANT_FROG.get()),
+			visible(CBItems.GIANT_FROG_FACTORY.get()),
 			searchOnly(CBItems.FROG_STOMACH_WALL.get()),
 			visible(CBItems.FROG_STOMACH_MUCOSA.get()),
 			visible(CBItems.FROG_STOMACH_FOLD.get()),

@@ -1,0 +1,28 @@
+{
+  "type": "minecraft:block",
+  "pools": [
+    {
+      "rolls": 1,
+      "entries": [
+        {
+          "type": "minecraft:item",
+          "name": "create_biotech:giant_frog_factory"
+        }
+      ],
+      "conditions": [
+        {
+          "condition": "minecraft:survives_explosion"
+        },
+        {
+          "condition": "minecraft:block_state_property",
+          "block": "create_biotech:giant_frog_factory",
+          "properties": {
+            "x": "1",
+            "y": "0",
+            "z": "1"
+          }
+        }
+      ]
+    }
+  ]
+}
