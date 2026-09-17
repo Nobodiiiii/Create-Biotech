@@ -11,7 +11,6 @@ import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
@@ -127,7 +126,7 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 		grow(level, random, pos, state.getValue(FACING));
 	}
 
-	/** Grows a huge stomach fungus rotated to face away from its supporting surface. */
+	/** Grows a broad umbrella-shaped stomach fungus away from its supporting surface. */
 	public static boolean grow(ServerLevel level, RandomSource random, BlockPos origin,
 		Direction growthDirection) {
 		if (!isStomachSurface(level, origin.relative(growthDirection.getOpposite()), growthDirection))
@@ -156,60 +155,23 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 		Map<BlockPos, BlockState> structure = new LinkedHashMap<>();
 		Direction firstAxis = firstPerpendicularAxis(growthDirection);
 		Direction secondAxis = secondPerpendicularAxis(growthDirection);
-		int stemHeight = Mth.nextInt(random, 4, 13);
-		if (random.nextInt(12) == 0)
-			stemHeight *= 2;
-
+		FrogStomachFungusGeometry.Structure geometry = FrogStomachFungusGeometry.create(random.nextLong());
 		BlockState stem = CBBlocks.FROG_STOMACH_FUNGUS_STEM.get().defaultBlockState()
 			.setValue(BlockStateProperties.AXIS, growthDirection.getAxis());
-		for (int step = 0; step < stemHeight; step++)
-			structure.put(localPos(origin, growthDirection, firstAxis, secondAxis, 0, step, 0), stem);
-
-		int hatDepth = Math.min(random.nextInt(1 + stemHeight / 3) + 5, stemHeight);
-		int hatStart = stemHeight - hatDepth;
-		for (int step = hatStart; step <= stemHeight; step++) {
-			int radius = step < stemHeight - random.nextInt(3) ? 2 : 1;
-			for (int first = -radius; first <= radius; first++)
-				for (int second = -radius; second <= radius; second++) {
-					boolean firstEdge = first == -radius || first == radius;
-					boolean secondEdge = second == -radius || second == radius;
-					boolean interior = !firstEdge && !secondEdge && step != stemHeight;
-					boolean corner = firstEdge && secondEdge;
-					boolean lowerHat = step < hatStart + 3;
-					BlockPos target = localPos(origin, growthDirection, firstAxis, secondAxis,
-						first, step, second);
-					if (structure.containsKey(target))
-						continue;
-
-					if (lowerHat) {
-						if (!interior)
-							placeHatDropBlock(structure, target, growthDirection, random);
-					} else if (interior) {
-						placeHatBlock(structure, target, random, 0.1f, 0.2f);
-					} else if (corner) {
-						placeHatBlock(structure, target, random, 0.01f, 0.7f);
-					} else {
-						placeHatBlock(structure, target, random, 0.0005f, 0.98f);
-					}
-				}
+		BlockState gills = CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get().defaultBlockState();
+		BlockState cap = CBBlocks.FROG_STOMACH_FUNGUS_CAP.get().defaultBlockState();
+		BlockState light = CBBlocks.FROG_STOMACH_FUNGUS_LIGHT.get().defaultBlockState();
+		for (FrogStomachFungusGeometry.Cell cell : geometry.cells()) {
+			BlockState state = switch (cell.part()) {
+				case STEM -> stem;
+				case GILLS -> gills;
+				case CAP -> cap;
+				case LIGHT -> light;
+			};
+			structure.put(localPos(origin, growthDirection, firstAxis, secondAxis,
+				cell.first(), cell.forward(), cell.second()), state);
 		}
 		return structure;
-	}
-
-	private static void placeHatBlock(Map<BlockPos, BlockState> structure, BlockPos pos,
-		RandomSource random, float shroomlightChance, float hatChance) {
-		if (random.nextFloat() < shroomlightChance)
-			structure.put(pos, CBBlocks.FROG_STOMACH_FUNGUS_LIGHT.get().defaultBlockState());
-		else if (random.nextFloat() < hatChance)
-			structure.put(pos, CBBlocks.FROG_STOMACH_FUNGUS_CAP.get().defaultBlockState());
-	}
-
-	private static void placeHatDropBlock(Map<BlockPos, BlockState> structure, BlockPos pos,
-		Direction growthDirection, RandomSource random) {
-		BlockState previous = structure.get(pos.relative(growthDirection.getOpposite()));
-		if ((previous != null && previous.is(CBBlocks.FROG_STOMACH_FUNGUS_CAP.get()))
-			|| random.nextFloat() < 0.15f)
-			structure.put(pos, CBBlocks.FROG_STOMACH_FUNGUS_CAP.get().defaultBlockState());
 	}
 
 	private static BlockPos localPos(BlockPos origin, Direction growthDirection, Direction firstAxis,

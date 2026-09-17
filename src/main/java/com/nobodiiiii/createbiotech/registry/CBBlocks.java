@@ -376,6 +376,11 @@ public class CBBlocks {
 			() -> new Block(Block.Properties.ofFullCopy(Blocks.NETHER_WART_BLOCK)
 				.noLootTable()));
 
+	public static final DeferredHolder<Block, Block> FROG_STOMACH_FUNGUS_GILLS =
+		BLOCKS.register("frog_stomach_fungus_gills",
+			() -> new Block(Block.Properties.ofFullCopy(Blocks.MUSHROOM_STEM)
+				.noLootTable()));
+
 	public static final DeferredHolder<Block, Block> FROG_STOMACH_FUNGUS_LIGHT =
 		BLOCKS.register("frog_stomach_fungus_light",
 			() -> new Block(Block.Properties.ofFullCopy(Blocks.SHROOMLIGHT)

@@ -9,6 +9,8 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.simibubi.create.AllBlocks;
+import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.content.decoration.encasing.CasingConnectivity;
 
@@ -33,7 +35,7 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import org.joml.Vector3f;
 
 /**
- * Renders an encased spider directly from a casing's connected-texture sheet.
+ * Renders an encased spider directly from its casing or item-vault connected-texture sheets.
  *
  * <p>The element geometry and per-face UV values below are a direct transcription of
  * {@code art/spider_assembly_table_andesite - Converted.bbmodel}. Using baked block quads lets
@@ -45,6 +47,7 @@ public final class SpiderAssemblyTableCasingModel {
 	private static final ResourceLocation FACE_TEXTURE =
 		CreateBiotech.asResource("block/spider_assembly_table_face");
 	private static final float CASING_TEXTURE_SIZE = 128f;
+	private static final float VAULT_TEXTURE_SIZE = 64f;
 	private static final float FACE_TEXTURE_SIZE = 32f;
 	private static final float[] FULL_TEXTURE_UV = { 0, 0, 16, 16 };
 	private static final float[] FALLBACK_FACE_UV = { 12, 8, 20, 16 };
@@ -88,11 +91,16 @@ public final class SpiderAssemblyTableCasingModel {
 	private static BakedParts bake(Block casing) {
 		Minecraft minecraft = Minecraft.getInstance();
 		CasingConnectivity.Entry entry = CreateClient.CASING_CONNECTIVITY.get(casing.defaultBlockState());
+		boolean itemVault = casing == AllBlocks.ITEM_VAULT.get();
 		TextureAtlasSprite casingSprite;
 		float casingTextureSize;
 		if (entry != null) {
 			casingSprite = entry.getCasing().getTarget();
 			casingTextureSize = CASING_TEXTURE_SIZE;
+		} else if (itemVault) {
+			// The vault has direction-specific connected textures, selected per face below.
+			casingSprite = null;
+			casingTextureSize = VAULT_TEXTURE_SIZE;
 		} else {
 			// A data pack can add a plain block to create:casing without registering a CT
 			// sheet. It still encases successfully; its particle sprite is the safe visual
@@ -110,9 +118,9 @@ public final class SpiderAssemblyTableCasingModel {
 		for (CubeSpec cube : CUBES) {
 			List<BakedQuad> quads = parts.computeIfAbsent(cube.part(), ignored -> new ArrayList<>());
 			for (FaceSpec face : cube.faces()) {
-				TextureAtlasSprite sprite = casingSprite;
+				TextureAtlasSprite sprite = itemVault ? vaultSprite(face.direction()) : casingSprite;
 				float textureSize = casingTextureSize;
-				float[] uv = casingTextureSize == 16f ? FULL_TEXTURE_UV : face.uv();
+				float[] uv = entry == null && !itemVault ? FULL_TEXTURE_UV : face.uv();
 				if (face.special()) {
 					if (faceRegion != null) {
 						sprite = faceSprite;
@@ -129,6 +137,17 @@ public final class SpiderAssemblyTableCasingModel {
 		}
 		parts.replaceAll((part, quads) -> List.copyOf(quads));
 		return new BakedParts(Map.copyOf(parts));
+	}
+
+	private static TextureAtlasSprite vaultSprite(EditorFace face) {
+		// ItemVaultCTBehaviour uses the medium target for a single/small vault. Keep
+		// the same front/side/top/bottom split while applying the bbmodel UV crop.
+		return switch (face) {
+			case NORTH, SOUTH -> AllSpriteShifts.VAULT_FRONT.get(true).getTarget();
+			case EAST, WEST -> AllSpriteShifts.VAULT_SIDE.get(true).getTarget();
+			case UP -> AllSpriteShifts.VAULT_TOP.get(true).getTarget();
+			case DOWN -> AllSpriteShifts.VAULT_BOTTOM.get(true).getTarget();
+		};
 	}
 
 	private static BakedQuad bakeFace(CubeSpec cube, FaceSpec face, TextureAtlasSprite sprite,

@@ -1,7 +1,8 @@
 # 装壳蜘蛛装配台 · 通用机壳材质
 
-运行时接受 `create:casing` 方块标签中的任意机壳，并直接采样该机壳在 Create
-`CasingConnectivity` 中注册的 128 × 128 连接材质。各面的 UV、翻转和旋转来自
+运行时接受 `create:casing` 方块标签中的任意机壳以及物品保险库，并直接采样连接材质：
+普通机壳使用 Create `CasingConnectivity` 中注册的 128 × 128 材质；保险库按面使用
+`vault_front/side/top/bottom_medium` 四张 64 × 64 材质。各面的 UV、翻转和旋转来自
 `art/spider_assembly_table_andesite - Converted.bbmodel`；特殊的头部正脸按机壳从统一图集取样。
 
 - 正脸图集：`src/main/resources/assets/create_biotech/textures/block/spider_assembly_table_face.png`（32 × 32，每格 8 × 8）
