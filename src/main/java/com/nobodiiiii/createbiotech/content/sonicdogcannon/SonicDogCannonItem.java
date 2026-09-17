@@ -222,11 +222,7 @@ public class SonicDogCannonItem extends Item {
 
 	@Override
 	public boolean supportsEnchantment(ItemStack stack, Holder<Enchantment> enchantment) {
-		if (enchantment.is(Enchantments.UNBREAKING)
-			|| enchantment.is(Enchantments.MENDING)
-			|| enchantment.is(Enchantments.VANISHING_CURSE)
-			|| enchantment.is(Enchantments.LOOTING)
-			|| enchantment.is(Enchantments.PUNCH))
+		if (enchantment.is(Enchantments.LOOTING) || enchantment.is(Enchantments.PUNCH))
 			return true;
 		return super.supportsEnchantment(stack, enchantment);
 	}
