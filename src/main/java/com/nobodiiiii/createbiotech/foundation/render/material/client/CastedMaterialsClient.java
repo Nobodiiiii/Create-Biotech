@@ -7,7 +7,11 @@ import net.minecraft.client.model.geom.ModelPart;
 public final class CastedMaterialsClient {
     private static volatile DefaultModelRuntime modelRuntime;
     private CastedMaterialsClient() {}
-    /** Host rendering entry: UV source bindings or the original base model. */
+    static void onResourceReload() {
+        DefaultModelRuntime current = modelRuntime;
+        if (current != null) current.clear();
+    }
+    /** Host rendering entry: Cached skins, direct UV source bindings, or the original base model. */
     public static CastedModelHandle resolveModel(ModelPart root, ResourceLocation targetId,
                                                   ResourceLocation materialId, ResourceLocation fallbackTexture) {
         if (materialId == null) return CastedModelHandle.fallback(root, fallbackTexture);

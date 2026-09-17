@@ -30,8 +30,9 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
-/** Client texture discovery, validation and direct binding without generated textures. */
+/** Client source texture discovery and validation. */
 @OnlyIn(Dist.CLIENT)
 public final class MaterialTextures {
     private MaterialTextures() {
@@ -110,7 +111,7 @@ public final class MaterialTextures {
         return findDirect(id, grid, minecraft.getTextureAtlas(TextureAtlas.LOCATION_BLOCKS),
                 png -> minecraft.getResourceManager().getResource(png).isPresent(),
                 (sprite, logicalGrid) -> loadImage(minecraft.getResourceManager(), sprite, logicalGrid)
-                        .map(source -> new SourceSprite(textureId(sprite), logicalGrid, 0, 0, 1, 1)));
+                        .map(source -> new SourceSprite(textureId(sprite), logicalGrid, 0, 0, 1, 1, sprite, hasAnimation(minecraft.getResourceManager(), sprite))));
     }
 
     public static ResourceLocation textureId(ResourceLocation sprite) {
@@ -136,7 +137,8 @@ public final class MaterialTextures {
             return Optional.empty();
         }
         return Optional.of(new SourceSprite(sprite.atlasLocation(), grid,
-                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1()));
+                sprite.getU0(), sprite.getV0(), sprite.getU1(), sprite.getV1(), id, sprite.contents().getUniqueFrames().limit(2).count() > 1,
+                () -> toPixelImage(sprite.contents().getOriginalImage())));
     }
 
     public static Optional<PixelImage> loadImage(ResourceManager resources, ResourceLocation spriteId,
@@ -173,8 +175,32 @@ public final class MaterialTextures {
         return alpha << 24 | red << 16 | green << 8 | blue;
     }
 
+    static boolean hasAnimation(ResourceManager resources, ResourceLocation sprite) {
+        try {
+            var resource = resources.getResource(textureId(sprite));
+            return resource.isPresent() && resource.get().metadata().getSection(
+                    net.minecraft.client.resources.metadata.animation.AnimationMetadataSection.SERIALIZER).isPresent();
+        } catch (IOException error) {
+            return true; // Unknown metadata must not freeze an animated source into a static skin.
+        }
+    }
+
+    private static ResourceLocation sourceId(ResourceLocation texture) {
+        String path = texture.getPath();
+        return path.startsWith("textures/") && path.endsWith(".png") && !path.startsWith("textures/atlas/")
+                ? texture.withPath(path.substring(9, path.length() - 4)) : null;
+    }
+
     /** An existing texture binding; owns no pixels, GPU texture, or animation ticker. */
-    public record SourceSprite(ResourceLocation texture, IntSize grid, float u0, float v0, float u1, float v1) {
+    public record SourceSprite(ResourceLocation texture, IntSize grid, float u0, float v0, float u1, float v1,
+                               ResourceLocation source, boolean animated, Supplier<PixelImage> pixels) {
+        public SourceSprite(ResourceLocation texture, IntSize grid, float u0, float v0, float u1, float v1,
+                            ResourceLocation source, boolean animated) {
+            this(texture, grid, u0, v0, u1, v1, source, animated, null);
+        }
+        public SourceSprite(ResourceLocation texture, IntSize grid, float u0, float v0, float u1, float v1) {
+            this(texture, grid, u0, v0, u1, v1, sourceId(texture), false);
+        }
         public SourceSprite {
             Objects.requireNonNull(texture);
             Objects.requireNonNull(grid);

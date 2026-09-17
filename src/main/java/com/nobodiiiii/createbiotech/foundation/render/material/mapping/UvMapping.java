@@ -188,6 +188,31 @@ public final class UvMapping {
         return cells[y * size().width() + x];
     }
 
+    /** Samples the already interpreted mapping; omitted slots remain transparent. */
+    public PixelImage rasterize(Map<String, PixelImage> images, Set<String> included) {
+        PixelImage result = new PixelImage(size.width(), size.height());
+        for (String slot : included) {
+            IntSize grid = sourceGrids.get(slot);
+            PixelImage image = images.get(slot);
+            if (grid == null || image == null || image.width() != grid.width() || image.height() != grid.height())
+                throw new IllegalArgumentException("composition requires native logical resolution: " + slot);
+        }
+        for (int y = 0; y < size.height(); y++) for (int x = 0; x < size.width(); x++) {
+            Affine cell = at(x, y);
+            if (cell == null || !included.contains(cell.slot())) continue;
+            // Preserve direct UV sampling exactly. Resampling/high-resolution sources stay direct.
+            if (Math.abs(cell.a()) + Math.abs(cell.b()) != 1
+                    || Math.abs(cell.c()) + Math.abs(cell.d()) != 1
+                    || cell.a() != Math.rint(cell.a()) || cell.b() != Math.rint(cell.b())
+                    || cell.c() != Math.rint(cell.c()) || cell.d() != Math.rint(cell.d())
+                    || cell.tx() != Math.rint(cell.tx()) || cell.ty() != Math.rint(cell.ty()))
+                throw new IllegalArgumentException("composition would resample source texels");
+            result.set(x, y, images.get(cell.slot()).get((int) Math.floor(cell.mapU(x + .5, y + .5)),
+                    (int) Math.floor(cell.mapV(x + .5, y + .5))));
+        }
+        return result;
+    }
+
     private static void write(Affine[] cells, int index, Affine affine) {
         if (cells[index] != null) throw new IllegalArgumentException("mapping destinations overlap");
         cells[index] = affine;

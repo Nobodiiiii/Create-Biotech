@@ -72,6 +72,7 @@ public final class CastedResources
 
     @Override
     protected void apply(Prepared prepared, ResourceManager manager, ProfilerFiller profiler) {
+        CastedMaterialsClient.onResourceReload();
         current.updateAndGet(previous -> new Snapshot(
                 previous.generation() + 1, prepared.targets(), prepared.materials(), prepared.numberedEyes()));
     }

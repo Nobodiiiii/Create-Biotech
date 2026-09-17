@@ -37,7 +37,7 @@ final class SpiderAssemblyMaterialRenderer {
     static void renderEyes(CastedModelHandle handle, com.mojang.blaze3d.vertex.PoseStack pose,
                            net.minecraft.client.renderer.MultiBufferSource buffers, ResourceLocation fallback,
                            int light, int overlay, int color) {
-        if (handle.backend() == CastedModelHandle.Backend.DIRECT_UV)
+        if (handle.backend() != CastedModelHandle.Backend.FALLBACK)
             handle.renderEmissive(pose, buffers, light, overlay, color);
         else
             handle.renderLayer(pose, buffers.getBuffer(net.minecraft.client.renderer.RenderType.eyes(fallback)),

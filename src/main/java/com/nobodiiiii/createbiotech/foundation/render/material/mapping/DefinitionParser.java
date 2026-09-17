@@ -107,7 +107,7 @@ public final class DefinitionParser {
         String path = "$.render_policy";
         JsonObject policy = object(root.get("render_policy"), path);
         ParserSupport.fields(policy, POLICY_FIELDS, path);
-        // Schema-1 backend hints remain readable; UV-only rendering ignores them.
+        // Schema-1 backend hints remain readable; automatic backend selection ignores them.
         if (policy.has("mode")) {
             JsonElement value = policy.get("mode");
             if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
