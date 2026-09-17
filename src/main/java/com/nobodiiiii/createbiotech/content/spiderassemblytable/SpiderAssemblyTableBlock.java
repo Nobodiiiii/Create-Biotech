@@ -5,14 +5,17 @@ import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBItems;
-import com.simibubi.create.AllBlocks;
+import com.nobodiiiii.createbiotech.foundation.render.material.CastedMaterialsApi;
+import com.nobodiiiii.createbiotech.foundation.render.material.CastedMaterialsApi.MaterialSetResult;
+import com.nobodiiiii.createbiotech.foundation.render.material.MaterialRenderingModule;
+import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.kinetics.base.HorizontalKineticBlock;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.item.ItemHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -23,6 +26,7 @@ import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
@@ -101,20 +105,23 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
 		Player player, InteractionHand hand, BlockHitResult hit) {
 		if (CBWrenchHelper.isWrench(stack))
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-		if (!player.isShiftKeyDown() && player.mayBuild() && !state.getValue(CASING)
-			&& AllBlocks.ANDESITE_CASING.isIn(stack)) {
-			if (!level.isClientSide) {
-				KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, true));
-				SoundType soundType = AllBlocks.ANDESITE_CASING.getDefaultState()
-					.getSoundType(level, pos, player);
-				level.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
-					(soundType.getVolume() + 1.0f) / 2.0f, soundType.getPitch() * 0.8f);
+			return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
+		if (!player.isShiftKeyDown() && player.mayBuild() && stack.is(MaterialRenderingModule.CASING_ITEMS)) {
+			if (level.isClientSide)
+				return ItemInteractionResult.SUCCESS;
+			if (level.getBlockEntity(pos) instanceof SpiderAssemblyTableBlockEntity be) {
+				MaterialSetResult installed = SpiderAssemblyCasing.install(be, stack);
+				if (installed == MaterialSetResult.CHANGED && stack.getItem() instanceof BlockItem blockItem) {
+					SoundType soundType = blockItem.getBlock().defaultBlockState().getSoundType(level, pos, player);
+					level.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
+						(soundType.getVolume() + 1.0f) / 2.0f, soundType.getPitch() * 0.8f);
+				}
+				if (installed == MaterialSetResult.CHANGED || installed == MaterialSetResult.UNCHANGED)
+					return ItemInteractionResult.SUCCESS;
 			}
-			return ItemInteractionResult.SUCCESS;
 		}
 		if (!player.isShiftKeyDown() && player.mayBuild() && stack.is(CBItems.SPIDER_ASSEMBLY_TABLE.get()))
-			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+			return ItemInteractionResult.SKIP_DEFAULT_BLOCK_INTERACTION;
 		InteractionResult result = openMenu(level, pos, player);
 		return result.consumesAction()
 			? ItemInteractionResult.sidedSuccess(level.isClientSide)
@@ -129,17 +136,31 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 
 	@Override
 	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-		if (!state.getValue(CASING))
-			return super.onWrenched(state, context);
+		InteractionResult removed = removeCasing(context);
+		return removed.consumesAction() ? removed : super.onWrenched(state, context);
+	}
 
+	@Override
+	public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
+		InteractionResult removed = removeCasing(context);
+		return removed.consumesAction() ? removed : super.onSneakWrenched(state, context);
+	}
+
+	private InteractionResult removeCasing(UseOnContext context) {
 		Level level = context.getLevel();
+		BlockPos pos = context.getClickedPos();
+		if (!(level.getBlockEntity(pos) instanceof SpiderAssemblyTableBlockEntity be))
+			return InteractionResult.PASS;
+		var material = CastedMaterialsApi.getMaterial(be);
+		if (material.isEmpty())
+			return InteractionResult.PASS;
 		if (level.isClientSide)
 			return InteractionResult.SUCCESS;
 
-		BlockPos pos = context.getClickedPos();
+		SpiderAssemblyCasing.remove(be);
 		level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, pos,
-			Block.getId(AllBlocks.ANDESITE_CASING.getDefaultState()));
-		KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, false));
+			Block.getId(BuiltInRegistries.BLOCK.get(material.orElseThrow()).defaultBlockState()));
+		IWrenchable.playRemoveSound(level, pos);
 		return InteractionResult.SUCCESS;
 	}
 

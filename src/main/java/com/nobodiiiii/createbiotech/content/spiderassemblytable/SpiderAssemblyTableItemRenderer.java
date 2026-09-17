@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
@@ -26,11 +25,13 @@ public class SpiderAssemblyTableItemRenderer extends CustomRenderedItemModelRend
 	private static final ResourceLocation SPIDER_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
 	private static final ResourceLocation SPIDER_EYES_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_eyes.png");
+		CreateBiotech.asResource("textures/entity/spider_assembly_table/eye_00.png");
 	private static final int EYES_LIGHT = 15728640;
 	private static final float HALF_BLOCK_OFFSET = 0.5f;
 	private static final float SPIDER_Y_OFFSET = 15f / 16f;
 	private static final float SPIDER_SCALE = 1f;
+	// Separate the centered cog's top/bottom faces from the coplanar spider body.
+	private static final float COG_VERTICAL_SCALE = 1f - 1f / 1024f;
 	private static final BlockState COG_STATE = CBBlocks.SPIDER_ASSEMBLY_TABLE_COG.get()
 		.defaultBlockState()
 		.setValue(SpiderAssemblyTableCogBlock.FACING, Direction.NORTH);
@@ -46,13 +47,18 @@ public class SpiderAssemblyTableItemRenderer extends CustomRenderedItemModelRend
 
 		ms.pushPose();
 		ms.translate(0, 0, HALF_BLOCK_OFFSET);
+		applyCogVerticalScale(ms);
 		renderer.renderSolid(cogModel, light);
 		ms.popPose();
 
-		renderSpiderAssembly(ms, buffer, light, transformType == ItemDisplayContext.GUI);
+		renderSpiderAssembly(stack, ms, buffer, light, transformType == ItemDisplayContext.GUI);
 	}
 
-	private void renderSpiderAssembly(PoseStack ms, MultiBufferSource buffer, int packedLight,
+	static void applyCogVerticalScale(PoseStack pose) {
+		pose.scale(1f, COG_VERTICAL_SCALE, 1f);
+	}
+
+	private void renderSpiderAssembly(ItemStack stack, PoseStack ms, MultiBufferSource buffer, int packedLight,
 		boolean guiLighting) {
 		ms.pushPose();
 		if (guiLighting)
@@ -60,7 +66,7 @@ public class SpiderAssemblyTableItemRenderer extends CustomRenderedItemModelRend
 		try {
 			ms.translate(0, SPIDER_Y_OFFSET, -HALF_BLOCK_OFFSET);
 			ms.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE);
-			renderSpiderModel(ms, buffer, packedLight);
+			renderSpiderModel(stack, ms, buffer, packedLight);
 		} finally {
 			ms.popPose();
 			if (guiLighting)
@@ -68,11 +74,11 @@ public class SpiderAssemblyTableItemRenderer extends CustomRenderedItemModelRend
 		}
 	}
 
-	private void renderSpiderModel(PoseStack ms, MultiBufferSource buffer, int packedLight) {
+	private void renderSpiderModel(ItemStack stack, PoseStack ms, MultiBufferSource buffer, int packedLight) {
 		spiderModel.resetPose();
-		VertexConsumer spiderBuffer = buffer.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
-		spiderModel.renderToBuffer(ms, spiderBuffer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-		VertexConsumer spiderEyesBuffer = buffer.getBuffer(net.minecraft.client.renderer.RenderType.eyes(SPIDER_EYES_TEXTURE));
-		spiderModel.renderToBuffer(ms, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+		var materialHandle = SpiderAssemblyMaterialRenderer.resolveModel(spiderModel.root(), stack, SPIDER_TEXTURE);
+		materialHandle.render(ms, buffer, spiderModel::renderType, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+		SpiderAssemblyMaterialRenderer.renderEyes(materialHandle, ms, buffer, SPIDER_EYES_TEXTURE,
+			EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 	}
 }

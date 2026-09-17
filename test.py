@@ -265,10 +265,14 @@ def copy_runtime_mods(mods_dir: Path, props: dict[str, str]) -> None:
         f"create-{minecraft_version}-",
         f"vanillin-neoforge-{minecraft_version}-",
         f"jei-{minecraft_version}-neoforge-",
+        f"casted-materials-{minecraft_version}-",
     )
     staged = list(QUICKPLAY_MODS_DIR.glob("*.jar"))
     if not staged:
         raise FileNotFoundError(f"Quick-play runtime mods not found under {QUICKPLAY_MODS_DIR}")
+
+    if any(source.name.startswith("casted-materials-") for source in staged):
+        raise ValueError("Native Biotech must not stage a standalone Casted Materials JAR")
 
     for existing in mods_dir.glob("*.jar"):
         if existing.name.startswith(managed_prefixes):

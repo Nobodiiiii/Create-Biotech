@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.foundation.render.material.mapping;
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.IntRect;
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.PixelMapping;
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.RegionMapping;
+import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.TextureLayer;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,39 +89,97 @@ public final class UvMapping {
         return requiredSlots;
     }
 
-    /** Replaces opaque overlay cells in this interpretation, without adding a second geometry pass. */
-    public UvMapping withCutoutOverlay(PixelImage overlay, String sourceSlot) {
-        Objects.requireNonNull(overlay, "overlay");
+    /** A dedicated body replaces the generated base, including its transparent holes. */
+    public UvMapping withCutoutBody(PixelImage image, TextureLayer layer, String sourceSlot) {
+        return new UvMapping(size, sourceGrids, new Affine[cells.length], Set.of())
+                .withCutoutLayer(image, layer, sourceSlot);
+    }
+
+    /** Applies a binary-alpha texture layer directly to this UV interpretation. */
+    public UvMapping withCutoutLayer(PixelImage image, TextureLayer layer, String sourceSlot) {
+        Objects.requireNonNull(image, "image");
+        Objects.requireNonNull(layer, "layer");
         Objects.requireNonNull(sourceSlot, "sourceSlot");
-        if (overlay.width() != size.width() || overlay.height() != size.height()) {
-            throw new IllegalArgumentException("overlay dimensions " + overlay.width() + "x" + overlay.height()
-                    + " must match target " + size.width() + "x" + size.height());
-        }
         if (sourceGrids.containsKey(sourceSlot)) {
-            throw new IllegalArgumentException("overlay source slot already exists: " + sourceSlot);
+            throw new IllegalArgumentException("layer source slot already exists: " + sourceSlot);
         }
-        Affine[] replaced = cells.clone();
-        Affine overlayAffine = new Affine(sourceSlot, 1, 0, 0, 1, 0, 0);
-        Set<String> visibleSlots = new LinkedHashSet<>();
-        for (int y = 0; y < size.height(); y++) {
-            for (int x = 0; x < size.width(); x++) {
-                int alpha = overlay.get(x, y) >>> 24;
-                if (alpha != 0 && alpha != 255) {
-                    throw new IllegalArgumentException("cutout overlay alpha at [" + x + "," + y + "] is " + alpha
-                            + "; only alpha 0 or 255 is supported");
+        IntSize grid = layer.grid();
+        IntRect source = layer.source(), destination = layer.destination();
+        if (grid == null || source == null || destination == null || !source.fits(grid) || !destination.fits(size)) {
+            throw new IllegalArgumentException("layer has invalid grid, source or destination");
+        }
+        if (image.width() % grid.width() != 0 || image.height() % grid.height() != 0) {
+            throw new IllegalArgumentException("layer image dimensions must be integer-scaled from declared grid");
+        }
+        int scaleX = image.width() / grid.width(), scaleY = image.height() / grid.height();
+        if (scaleX != scaleY) {
+            throw new IllegalArgumentException("layer image dimensions must be a uniform integer scale of declared grid");
+        }
+        boolean[][] opaque = new boolean[grid.height()][grid.width()];
+        for (int logicalY = 0; logicalY < grid.height(); logicalY++) {
+            for (int logicalX = 0; logicalX < grid.width(); logicalX++) {
+                int expected = -1;
+                for (int py = logicalY * scaleY; py < (logicalY + 1) * scaleY; py++) {
+                    for (int px = logicalX * scaleX; px < (logicalX + 1) * scaleX; px++) {
+                        int alpha = image.get(px, py) >>> 24;
+                        if (alpha != 0 && alpha != 255) {
+                            throw new IllegalArgumentException("cutout layer alpha at [" + px + "," + py + "] is " + alpha
+                                    + "; only alpha 0 or 255 is supported");
+                        }
+                        if (expected < 0) expected = alpha;
+                        else if (expected != alpha) {
+                            throw new IllegalArgumentException("all actual alpha samples in each logical source texel must agree");
+                        }
+                    }
                 }
-                int index = y * size.width() + x;
-                if (alpha == 255) replaced[index] = overlayAffine;
-                if (replaced[index] != null) visibleSlots.add(replaced[index].slot());
+                opaque[logicalY][logicalX] = expected == 255;
             }
         }
-        // Keep the original validation order for surviving sources, then validate the new overlay source.
+        double a = (double) source.width() / destination.width();
+        double d = (double) source.height() / destination.height();
+        Affine affine = new Affine(sourceSlot, a, 0, 0, d,
+                source.x() - a * destination.x(), source.y() - d * destination.y());
+        Affine[] replaced = cells.clone();
+        Set<String> visibleSlots = new LinkedHashSet<>();
+        for (int dy = 0; dy < destination.height(); dy++) {
+            for (int dx = 0; dx < destination.width(); dx++) {
+                int firstX = (int) Math.floor((double) dx * source.width() / destination.width());
+                int lastX = (int) Math.ceil((double) (dx + 1) * source.width() / destination.width()) - 1;
+                int firstY = (int) Math.floor((double) dy * source.height() / destination.height());
+                int lastY = (int) Math.ceil((double) (dy + 1) * source.height() / destination.height()) - 1;
+                boolean alpha = opaque[source.y() + firstY][source.x() + firstX];
+                for (int sy = firstY; sy <= lastY; sy++) for (int sx = firstX; sx <= lastX; sx++) {
+                    if (opaque[source.y() + sy][source.x() + sx] != alpha) {
+                        throw new IllegalArgumentException("source alpha must agree where multiple texels map to one destination texel");
+                    }
+                }
+                if (alpha) {
+                    int x = destination.x() + dx, y = destination.y() + dy;
+                    replaced[y * size.width() + x] = affine;
+                }
+            }
+        }
+        for (Affine cell : replaced) if (cell != null) visibleSlots.add(cell.slot());
         Set<String> required = new LinkedHashSet<>(requiredSlots);
         required.add(sourceSlot);
         required.retainAll(visibleSlots);
         Map<String, IntSize> grids = new HashMap<>(sourceGrids);
-        grids.put(sourceSlot, size);
+        grids.put(sourceSlot, grid);
         return new UvMapping(size, grids, replaced, required);
+    }
+
+    /** Replaces opaque overlay cells in this interpretation, without adding a second geometry pass. */
+    public UvMapping withCutoutOverlay(PixelImage overlay, String sourceSlot) {
+        Objects.requireNonNull(overlay, "overlay");
+        if (overlay.width() != size.width() || overlay.height() != size.height()) {
+            throw new IllegalArgumentException("overlay dimensions " + overlay.width() + "x" + overlay.height()
+                    + " must match target " + size.width() + "x" + size.height());
+        }
+        TextureLayer layer = new TextureLayer(0,
+                Objects.requireNonNull(ResourceLocation.tryParse("minecraft:cutout_overlay")), size,
+                new IntRect(0, 0, size.width(), size.height()),
+                new IntRect(0, 0, size.width(), size.height()), false);
+        return withCutoutLayer(overlay, layer, sourceSlot);
     }
 
     public Affine at(int x, int y) {
@@ -133,8 +193,8 @@ public final class UvMapping {
         cells[index] = affine;
     }
 
-    /** Inverse edge transform; long translations avoid overflow for large logical source grids. */
-    public record Affine(String slot, int a, int b, int c, int d, long tx, long ty) {
+    /** Inverse edge transform, including fractional coefficients for scaled layers. */
+    public record Affine(String slot, double a, double b, double c, double d, double tx, double ty) {
         public double mapU(double u, double v) {
             return a * u + b * v + tx;
         }

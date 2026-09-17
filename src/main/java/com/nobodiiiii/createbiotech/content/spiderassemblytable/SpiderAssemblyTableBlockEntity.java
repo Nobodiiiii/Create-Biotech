@@ -234,6 +234,19 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	@Override
+	public void onCastedMaterialChanged() {
+		BlockState state = getBlockState();
+		boolean encased = castedMaterialState.get().isPresent();
+		if (state.getValue(SpiderAssemblyTableBlock.CASING) == encased)
+			return;
+		BlockState updated = state.setValue(SpiderAssemblyTableBlock.CASING, encased);
+		if (level == null)
+			setBlockState(updated);
+		else if (!level.isClientSide)
+			KineticBlockEntity.switchToBlockState(level, worldPosition, updated);
+	}
+
+	@Override
 	public float calculateStressApplied() {
 		float stress = 0;
 		for (int i = 0; i < LEG_COUNT; i++) {

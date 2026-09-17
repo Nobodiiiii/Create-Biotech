@@ -9,10 +9,11 @@
 - 定义：`assets/create_biotech/casted_materials/targets/spider_assembly_table/spider.json`。
 - 目标尺寸 64×32、源逻辑网格 128×128，使用明确的源坐标选区。
 - 对安山、黄铜、铜、暗影钢、光辉、铁路机壳配置 `_connected` 源图；铁路使用顶面连接纹理。
-- `casted_fixed_eyes.png` 保留 14 个固定眼睛像素；目标轮廓对应[手绘样例](../../test-resources/fixtures/connected_spider/README.md)。
+- `textures/entity/spider_assembly_table/spider_eyes_encased.png` 保留 14 个固定眼睛像素；目标轮廓对应[手绘样例](../../test-resources/fixtures/connected_spider/README.md)。
 
 该映射是受样例外观约束的适配，不声称恢复作者的原始源坐标。
-它与 Biotech 内置蜘蛛定义相同，正常使用无需额外启用；主要用于隔离测试和资源包覆盖实验。
+它仅保留基础 UV 与固定眼睛作为隔离测试基线，不包含正式定义的专用眼睛和头饰。
+启用会覆盖内置蜘蛛定义；正常使用无需启用，测试专用表情时应禁用。
 
 ## 使用
 

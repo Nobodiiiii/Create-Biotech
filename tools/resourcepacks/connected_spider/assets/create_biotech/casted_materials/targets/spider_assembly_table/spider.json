@@ -256,7 +256,7 @@
     {"source_slot":"all","source":[0,0],"destination":[10,31]},
     {"source_slot":"all","source":[0,0],"destination":[42,31]}
   ],
-  "overlay": "create_biotech:block/spider_assembly_table/casted_fixed_eyes",
+  "overlay": "create_biotech:entity/spider_assembly_table/spider_eyes_encased",
   "material_overrides": {
     "create:andesite_casing": {"slots":{"all":"create:block/andesite_casing_connected"}},
     "create:brass_casing": {"slots":{"all":"create:block/brass_casing_connected"}},

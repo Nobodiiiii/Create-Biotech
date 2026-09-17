@@ -256,7 +256,10 @@
     {"source_slot":"all","source":[0,0],"destination":[10,31]},
     {"source_slot":"all","source":[0,0],"destination":[42,31]}
   ],
-  "overlay": "create_biotech:block/spider_assembly_table/casted_fixed_eyes",
+  "body_textures": "create_biotech:entity/spider_assembly_table",
+  "layers": [
+    {"index":0,"texture":"create_biotech:entity/spider_assembly_table/eye_default","grid":[64,32],"source":[0,0,64,32],"destination":[0,0,64,32],"emissive":true,"material_variants":true}
+  ],
   "material_overrides": {
     "create:andesite_casing": {"slots":{"all":"create:block/andesite_casing_connected"}},
     "create:brass_casing": {"slots":{"all":"create:block/brass_casing_connected"}},

@@ -1,7 +1,7 @@
 {
   "parent": "create_biotech:block/spider_assembly_table/inventory",
   "textures": {
-    "particle": "create_biotech:entity/spider_assembly_table/spider_andesite_encased",
-    "spider": "create_biotech:entity/spider_assembly_table/spider_andesite_encased"
+    "particle": "create_biotech:entity/spider_assembly_table/body_andesite_casing",
+    "spider": "create_biotech:entity/spider_assembly_table/body_andesite_casing"
   }
 }

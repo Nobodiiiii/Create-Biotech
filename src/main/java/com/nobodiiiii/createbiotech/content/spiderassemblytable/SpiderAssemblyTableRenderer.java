@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTa
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
+import com.nobodiiiii.createbiotech.foundation.render.material.CastedMaterialsApi;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
@@ -48,9 +49,9 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final ResourceLocation SPIDER_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
 	private static final ResourceLocation ANDESITE_ENCASED_SPIDER_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_andesite_encased.png");
+		CreateBiotech.asResource("textures/entity/spider_assembly_table/body_andesite_casing.png");
 	private static final ResourceLocation SPIDER_EYES_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_eyes.png");
+		CreateBiotech.asResource("textures/entity/spider_assembly_table/eye_00.png");
 	private static final int EYES_LIGHT = 15728640;
 	private static final float SPIDER_SCALE = 1.0f;
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
@@ -85,7 +86,8 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			return;
 
 		Direction facing = state.getValue(SpiderAssemblyTableBlock.FACING);
-		ResourceLocation spiderTexture = state.getValue(SpiderAssemblyTableBlock.CASING)
+		ResourceLocation spiderTexture = CastedMaterialsApi.getMaterial(be)
+			.filter(AllBlocks.ANDESITE_CASING.getId()::equals).isPresent()
 			? ANDESITE_ENCASED_SPIDER_TEXTURE
 			: SPIDER_TEXTURE;
 		renderSpider(be, partialTicks, ms, buffer, light, facing, spiderTexture);
@@ -101,11 +103,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				var materialHandle = SpiderAssemblyMaterialRenderer.resolveModel(spiderModel.root(), be, SPIDER_TEXTURE);
+				var materialHandle = SpiderAssemblyMaterialRenderer.resolveModel(spiderModel.root(), be, spiderTexture);
 				materialHandle.render(poseStack, buf, spiderModel::renderType, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SpiderAssemblyMaterialRenderer.eyes(materialHandle.backend(), SPIDER_EYES_TEXTURE)));
-				materialHandle.renderLayer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,
-					0xFFFFFFFF);
+				SpiderAssemblyMaterialRenderer.renderEyes(materialHandle, poseStack, buf, SPIDER_EYES_TEXTURE,
+					EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
 			});
 	}

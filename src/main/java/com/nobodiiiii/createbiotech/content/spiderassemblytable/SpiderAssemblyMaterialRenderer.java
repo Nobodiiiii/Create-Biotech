@@ -12,8 +12,6 @@ import java.util.Optional;
 /** Host model bridge; material discovery and caching belong to the internal rendering module. */
 final class SpiderAssemblyMaterialRenderer {
     static final ResourceLocation TARGET = ResourceLocation.parse("create_biotech:spider_assembly_table/spider");
-    static final ResourceLocation FIXED_EYES =
-            ResourceLocation.parse("create_biotech:textures/block/spider_assembly_table/casted_fixed_eyes.png");
 
     private SpiderAssemblyMaterialRenderer() { }
 
@@ -36,8 +34,13 @@ final class SpiderAssemblyMaterialRenderer {
         CastedModelHandle resolve(ModelPart root, ResourceLocation target, ResourceLocation material, ResourceLocation fallback);
     }
 
-    static ResourceLocation eyes(CastedModelHandle.Backend backend, ResourceLocation fallback) {
-        return backend == CastedModelHandle.Backend.DIRECT_UV
-                ? FIXED_EYES : fallback;
+    static void renderEyes(CastedModelHandle handle, com.mojang.blaze3d.vertex.PoseStack pose,
+                           net.minecraft.client.renderer.MultiBufferSource buffers, ResourceLocation fallback,
+                           int light, int overlay, int color) {
+        if (handle.backend() == CastedModelHandle.Backend.DIRECT_UV)
+            handle.renderEmissive(pose, buffers, light, overlay, color);
+        else
+            handle.renderLayer(pose, buffers.getBuffer(net.minecraft.client.renderer.RenderType.eyes(fallback)),
+                    light, overlay, color);
     }
 }

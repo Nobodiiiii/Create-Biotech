@@ -60,9 +60,23 @@ Explicit target/material slot bindings precede default model sprites; incompatib
 fall back to a same-name `_connected` sheet. Source dimensions must be a uniform positive integer
 multiple of their logical grid. An invalid authoritative PNG does not silently become another material.
 
-An `overlay` uses the target dimensions: alpha 0 keeps the original mapping, alpha 255 replaces it.
-Partial alpha, unavailable resources, unsupported UVs or exceeded budgets use the base model/material;
-there is no runtime compositor. Offline preview PNGs do not need to be shipped.
+`layers` are applied by ascending `index` with stable declaration order for ties. Texture layers use cutout
+alpha and can crop/scale into target UVs; model layers attach existing baked models to a named live part. A
+material override's present `layers` replaces the target list (including an empty list), while an absent list
+inherits it. Legacy `overlay` remains authoring-compatible below explicit layers; there is no runtime PNG
+compositor. Missing resources, unsupported UVs or exceeded budgets use the base model/material.
+
+- Each layer requires an integer `index` and exactly one of `texture` or `model`; there is no style cycling state.
+- Texture layers use logical `grid`, `source: [x,y,w,h]`, and `destination: [x,y,w,h]`. Defaults are target size, the full source grid, and the full target. `emissive` defaults to `false` and only surviving, unoccluded fragments glow.
+- Model layers default to `part: "head"`, `offset: [0,0,0]` in model pixels, `rotation: [0,0,0]` in degrees, and `scale: [1,1,1]`. Optional `source_slot` plus `source` remaps the model UVs into a casing source rectangle; otherwise its original textures remain. Model `emissive` uses full brightness.
+- A material selects one eye PNG, replacing rather than stacking with the default eyes. Transparent pixels expose the casing; the built-in spider no longer adds hat models. All spider eyes share the 64×32 canvas/UVs (head front `[40,12,8,8]`) in `assets/create_biotech/textures/entity/spider_assembly_table/`: default `eye_00.png`, generic alternative `eye_01.png`, and `eye_copper_casing.png` / `eye_railway_casing.png` containing only extracted Create package eye strokes, never cardboard backgrounds.
+- `material_variants: true` derives the role from the default filename: `eye_00` only searches `eye_` variants; `body_` only searches casing-specific `body_` variants. Unknown prefixes use only the explicit default. Beside that default, try `<material-namespace>/<role>_<casing-name>.png`, then `<role>_<casing-name>.png`. Eyes then try numbered candidates before `texture`; bodies have no numbered pool. Thus `create/eye_copper_casing.png` outranks `eye_copper_casing.png`; neither `body_copper_casing.png` nor bare `copper_casing.png` can replace eyes. Nested `addon:machines/casing` uses `addon/machines/eye_casing.png`.
+- Generic candidates are **eye-only**: discover `eye_<non-negative integer>.png` in the same namespace and immediate folder, sort numerically (gaps allowed; filename breaks numeric ties), and select `synchronized material index % valid candidate count`. The palette sorts by namespace/path; materials with dedicated textures still occupy indices. Selection is stable for a material, never time-based; changing the palette or candidate set can change assignments. Discovery happens on resource reload, with cached size/cutout validation; invalid candidates are skipped and fully transparent candidates remain valid.
+- Dedicated bodies take precedence over generated UVs. Target `body_textures` specifies the editing directory (the spider uses `create_biotech:entity/spider_assembly_table`): try `<material-namespace>/body_<casing-name>.png`, then `body_<casing-name>.png`, preserving nested material paths. Only absent/invalid dedicated bodies use casing-source UV mapping. There is no `body_<number>` pool. `body_andesite_casing.png` now applies in the normal rendering path, not only on fallback.
+- A dedicated body uses the target canvas (64×32 for spiders; uniform integer HD scaling supported) and replaces the base, including transparent holes. Explicit `overlay` and ordered layers apply afterward and take precedence; eyes remain independently selected. Bodies are non-emissive and reuse the UV interpreter without generating composite PNGs. Missing, incompatible-size or unsupported-alpha candidates are skipped.
+- This rule applies to replaceable PNGs, not the normal casing-source / `_connected` lookup. Incompatible dimensions are skipped; a fully transparent replacement hides the eyes. Other texture layers opt out by default.
+- Explicit material `layers` still replace the root list. Pin a texture by omitting/disabling `material_variants`. Built-in material overrides only select casing sources and inherit the single eye layer; the logistics/train hat examples have been removed. Resource packs can override these files; F3+T invalidates cached selections. Unsupported translucent layers use the base appearance.
+
 
 Budgets belong to the target JSON's `render_policy`; there is no material-rendering client config group.
 Omitted fields use these defaults:
@@ -80,9 +94,8 @@ The target's values are used directly, with no second client-global limit. Java 
 Legacy JSON `mode` values `auto/direct/composite` remain readable but do not select another backend.
 
 Installing a casing on an unencased spider table sets its appearance without consuming the held item,
-in both survival and creative. An existing casing is not replaced. Sneak-wrench once to clear its appearance
-without returning a casing item; the table remains in place.
-
+in both survival and creative. An existing casing is not replaced. Wrench or sneak-wrench once to clear its appearance
+without returning a casing item; the table remains in place. With no casing, normal wrench behavior applies.
 The `casted_materials:material` component, `casted_materials:material_palette` payload and `CastedMaterial`
 NBT key retain their IDs for save compatibility; they are not a separate mod registration. Remove any
 old standalone Casted Materials Mod from a migrated test instance. Sable Companion embedding is unchanged.

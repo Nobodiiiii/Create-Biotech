@@ -22,6 +22,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = parser.parse_args(list(argv) if argv is not None else None)
         if args.command == "infer":
             return _infer(args)
+        if args.command == "preview":
+            return _preview(args)
         parser.error("missing command")
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
@@ -53,8 +55,63 @@ def _parser() -> argparse.ArgumentParser:
                        help="RMS gap defining the ambiguous candidate set (default: 1)")
     infer.add_argument("--optimize-seconds", type=float, default=2.0,
                        help="selection-count search budget in seconds (default: 2; 0 skips search)")
+    preview = commands.add_parser("preview", help="render a flat PNG preview of UV and texture layers")
+    preview.add_argument("--target-json", required=True, type=Path)
+    preview.add_argument("--material", help="material override id; omitted uses target defaults")
+    preview.add_argument("--material-index", type=int, help="zero-based synchronized palette index for numbered eye candidates")
+    preview.add_argument("--source", action="append", default=[], metavar="RESOURCE=PNG")
+    preview.add_argument("--texture", action="append", default=[], metavar="RESOURCE=PNG")
+    preview.add_argument("--output", required=True, type=Path)
     return parser
 
+
+
+def _preview(args: argparse.Namespace) -> int:
+    from PIL import Image
+    from tools.material_mapping.sampling import apply_texture_layers, render_dedicated_body, validate_target_size
+
+    definition = json.loads(args.target_json.read_text(encoding="utf-8"))
+    override = definition.get("material_overrides", {}).get(args.material, {}) if args.material else {}
+    slot_resources = dict(definition.get("slots", {}))
+    slot_resources.update(override.get("slots", {}))
+    source_paths = _parse_sources(args.source)
+    texture_paths = _parse_sources(args.texture)
+    if any(_same_path(args.output, path) for path in [args.target_json, *source_paths.values(), *texture_paths.values()]):
+        raise ValueError("preview output must not overwrite an input file")
+    validate_target_size(tuple(definition["size"]))
+    textures = {}
+    for resource, path in texture_paths.items():
+        try:
+            with Image.open(path) as image:
+                textures[resource] = image.convert("RGBA")
+        except OSError as error:
+            # Runtime image lookup treats an unreadable PNG as unavailable, allowing named fallbacks.
+            print(f"skipping unreadable texture {resource}: {error}", file=sys.stderr)
+
+    if "body_textures" in definition and definition["body_textures"] is None:
+        raise ValueError("body_textures must be a resource directory id")
+    preview = render_dedicated_body(tuple(definition["size"]), definition.get("body_textures"), textures, args.material)
+    if preview is None:
+        source_images = {}
+        for slot in definition["source_grids"]:
+            resource = slot_resources.get(slot, slot)
+            path = source_paths.get(resource)
+            if path is None:
+                raise ValueError(f"missing preview source for slot {slot}: {resource}")
+            with Image.open(path) as image:
+                source_images[slot] = image.convert("RGBA")
+        preview = render_definition(definition, source_images)
+    overlay = override.get("overlay")
+    if overlay not in textures:
+        overlay = definition.get("overlay", overlay)
+    if overlay is not None:
+        preview = apply_texture_layers(preview, [{"index": 0, "texture": overlay}], textures)
+    layers = override["layers"] if "layers" in override else definition.get("layers", [])
+    preview = apply_texture_layers(preview, layers, textures, material=args.material, material_index=args.material_index)
+    _publish_outputs([(args.output, _png_bytes(preview))])
+    model_count = sum(1 for layer in layers if "model" in layer)
+    print(f"preview written: {args.output}; {model_count} model layer(s) require in-game preview")
+    return 0
 
 def _infer(args: argparse.Namespace) -> int:
     from PIL import Image

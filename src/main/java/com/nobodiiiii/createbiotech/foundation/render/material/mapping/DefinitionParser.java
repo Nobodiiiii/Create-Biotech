@@ -11,7 +11,11 @@ import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDef
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.MaterialOverride;
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.PixelMapping;
 import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.RegionMapping;
+import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.Layer;
+import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.TextureLayer;
+import com.nobodiiiii.createbiotech.foundation.render.material.mapping.TargetDefinition.ModelLayer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -23,10 +27,12 @@ import java.util.Set;
 
 public final class DefinitionParser {
     private static final Set<String> TARGET_ROOT_FIELDS = Set.of("schema", "size", "source_grids", "regions", "pixels",
-            "overlay", "material_overrides", "computed_cost", "render_policy");
+            "overlay", "material_overrides", "computed_cost", "render_policy", "layers", "body_textures");
     private static final Set<String> REGION_FIELDS = Set.of("source_slot", "source", "destination", "transform");
     private static final Set<String> PIXEL_FIELDS = Set.of("source_slot", "source", "destination");
-    private static final Set<String> OVERRIDE_FIELDS = Set.of("slots", "overlay");
+    private static final Set<String> OVERRIDE_FIELDS = Set.of("slots", "overlay", "layers");
+    private static final Set<String> TEXTURE_LAYER_FIELDS = Set.of("index", "texture", "grid", "source", "destination", "emissive", "material_variants");
+    private static final Set<String> MODEL_LAYER_FIELDS = Set.of("index", "model", "part", "offset", "rotation", "scale", "source_slot", "source", "emissive");
     private static final Set<String> COST_FIELDS = Set.of("max_pieces_per_source_quad", "additional_quads");
     private static final Set<String> POLICY_FIELDS = Set.of("mode", "max_pieces_per_face",
             "max_additional_quads", "max_texture_batches");
@@ -78,9 +84,20 @@ public final class DefinitionParser {
             throw new IllegalArgumentException("$: mapping cannot be empty");
         }
         Optional<ResourceLocation> overlay = optionalId(root, "overlay", "$.overlay");
-        Map<ResourceLocation, MaterialOverride> overrides = parseOverrides(root);
+        List<Layer> layers = parseLayers(root, size, grids, "$.layers");
+        Map<ResourceLocation, MaterialOverride> overrides = parseOverrides(root, size, grids);
+        Optional<ResourceLocation> bodyTextures = Optional.empty();
+        if (root.has("body_textures")) {
+            JsonElement directory = root.get("body_textures");
+            if (!directory.isJsonPrimitive() || !directory.getAsJsonPrimitive().isString())
+                throw new IllegalArgumentException("$.body_textures: expected resource directory string");
+            bodyTextures = optionalId(root, "body_textures", "$.body_textures");
+            if (bodyTextures.orElseThrow().getPath().replaceAll("/+$", "").isEmpty())
+                throw new IllegalArgumentException("$.body_textures: directory path must not be empty");
+        }
         Optional<ComputedCost> cost = parseCost(root);
-        return new TargetDefinition(id, size, grids, regions, pixels, overlay, overrides, cost, parsePolicy(root));
+        return new TargetDefinition(id, size, grids, regions, pixels, overlay, overrides, cost, parsePolicy(root), layers,
+                bodyTextures);
     }
 
     private static RenderPolicy parsePolicy(JsonObject root) {
@@ -198,7 +215,7 @@ public final class DefinitionParser {
         return result;
     }
 
-    private static Map<ResourceLocation, MaterialOverride> parseOverrides(JsonObject root) {
+    private static Map<ResourceLocation, MaterialOverride> parseOverrides(JsonObject root, IntSize target, Map<String, IntSize> grids) {
         if (!root.has("material_overrides")) {
             return Map.of();
         }
@@ -216,9 +233,95 @@ public final class DefinitionParser {
                         slots.put(slot.getKey(), ParserSupport.id(slot.getValue().getAsString(),
                                 path + ".slots." + slot.getKey())));
             }
-            result.put(materialId, new MaterialOverride(slots, optionalId(value, "overlay", path + ".overlay")));
+            Optional<List<Layer>> layers = value.has("layers")
+                    ? Optional.of(parseLayers(value, target, grids, path + ".layers")) : Optional.empty();
+            result.put(materialId, new MaterialOverride(slots, optionalId(value, "overlay", path + ".overlay"), layers));
         });
         return result;
+    }
+
+    private static List<Layer> parseLayers(JsonObject owner, IntSize target, Map<String, IntSize> grids,
+                                           String path) {
+        JsonArray array = optionalArray(owner, "layers", path);
+        List<Layer> layers = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            String itemPath = path + "[" + i + "]";
+            JsonObject value = object(array.get(i), itemPath);
+            boolean texture = value.has("texture"), model = value.has("model");
+            if (texture == model) {
+                throw new IllegalArgumentException(itemPath + ": exactly one of texture or model is required");
+            }
+            int index = ParserSupport.integer(value, "index", itemPath);
+            if (texture) {
+                ParserSupport.fields(value, TEXTURE_LAYER_FIELDS, itemPath);
+                ResourceLocation textureId = ParserSupport.id(ParserSupport.string(value, "texture", itemPath), itemPath + ".texture");
+                IntSize grid = value.has("grid") ? ParserSupport.size(value.get("grid"), itemPath + ".grid") : target;
+                IntRect source = value.has("source") ? ParserSupport.rect(value.get("source"), itemPath + ".source")
+                        : new IntRect(0, 0, grid.width(), grid.height());
+                IntRect destination = value.has("destination") ? ParserSupport.rect(value.get("destination"), itemPath + ".destination")
+                        : new IntRect(0, 0, target.width(), target.height());
+                if (!source.fits(grid)) throw new IllegalArgumentException(itemPath + ".source: outside layer grid");
+                if (!destination.fits(target)) throw new IllegalArgumentException(itemPath + ".destination: outside target");
+                layers.add(new TextureLayer(index, textureId, grid, source, destination,
+                        booleanValue(value, "emissive", itemPath, false),
+                        booleanValue(value, "material_variants", itemPath, false)));
+            } else {
+                ParserSupport.fields(value, MODEL_LAYER_FIELDS, itemPath);
+                ResourceLocation modelId = ParserSupport.id(ParserSupport.string(value, "model", itemPath), itemPath + ".model");
+                String part = value.has("part") ? ParserSupport.string(value, "part", itemPath) : "head";
+                Vec3 offset = vector(value, "offset", itemPath, Vec3.ZERO);
+                Vec3 rotation = vector(value, "rotation", itemPath, Vec3.ZERO);
+                Vec3 scale = vector(value, "scale", itemPath, new Vec3(1, 1, 1));
+                if (scale.x == 0 || scale.y == 0 || scale.z == 0) {
+                    throw new IllegalArgumentException(itemPath + ".scale: components cannot be zero");
+                }
+                Optional<String> sourceSlot = value.has("source_slot")
+                        ? Optional.of(ParserSupport.string(value, "source_slot", itemPath)) : Optional.empty();
+                if (value.has("source") && sourceSlot.isEmpty()) {
+                    throw new IllegalArgumentException(itemPath + ".source: requires source_slot");
+                }
+                Optional<IntRect> source = Optional.empty();
+                if (sourceSlot.isPresent()) {
+                    IntSize grid = requireGrid(grids, sourceSlot.get(), itemPath + ".source_slot");
+                    IntRect rect = value.has("source") ? ParserSupport.rect(value.get("source"), itemPath + ".source")
+                            : new IntRect(0, 0, grid.width(), grid.height());
+                    if (!rect.fits(grid)) throw new IllegalArgumentException(itemPath + ".source: outside source grid");
+                    source = Optional.of(rect);
+                }
+                layers.add(new ModelLayer(index, modelId, part, offset, rotation, scale, sourceSlot, source,
+                        booleanValue(value, "emissive", itemPath, false)));
+            }
+        }
+        return layers;
+    }
+
+    private static boolean booleanValue(JsonObject object, String name, String path, boolean fallback) {
+        if (!object.has(name)) return fallback;
+        JsonElement value = object.get(name);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isBoolean()) {
+            throw new IllegalArgumentException(path + "." + name + ": expected boolean");
+        }
+        return value.getAsBoolean();
+    }
+
+    private static Vec3 vector(JsonObject object, String name, String path, Vec3 fallback) {
+        if (!object.has(name)) return fallback;
+        JsonElement element = object.get(name);
+        if (!element.isJsonArray() || element.getAsJsonArray().size() != 3) {
+            throw new IllegalArgumentException(path + "." + name + ": expected array of length 3");
+        }
+        double[] components = new double[3];
+        for (int i = 0; i < 3; i++) {
+            try {
+                JsonElement component = element.getAsJsonArray().get(i);
+                if (!component.isJsonPrimitive() || !component.getAsJsonPrimitive().isNumber()) throw new IllegalArgumentException();
+                components[i] = component.getAsDouble();
+                if (!Double.isFinite(components[i])) throw new IllegalArgumentException();
+            } catch (RuntimeException error) {
+                throw new IllegalArgumentException(path + "." + name + "[" + i + "]: expected finite number", error);
+            }
+        }
+        return new Vec3(components[0], components[1], components[2]);
     }
 
     private static Optional<ComputedCost> parseCost(JsonObject root) {
@@ -319,7 +422,11 @@ public final class DefinitionParser {
 
     static String string(JsonObject object, String name, String path) {
         try {
-            return object.get(name).getAsString();
+            JsonElement value = object.get(name);
+            if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+                throw new IllegalArgumentException();
+            }
+            return value.getAsString();
         } catch (RuntimeException error) {
             throw new IllegalArgumentException(path + "." + name + ": expected string", error);
         }

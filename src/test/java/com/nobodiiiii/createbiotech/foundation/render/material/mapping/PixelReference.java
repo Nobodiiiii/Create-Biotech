@@ -1,7 +1,12 @@
 package com.nobodiiiii.createbiotech.foundation.render.material.mapping;
 
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+
+import net.minecraft.resources.ResourceLocation;
 
 /** Small offline pixel oracle for checking UV mappings against authored fixtures. */
 public final class PixelReference {
@@ -32,6 +37,44 @@ public final class PixelReference {
         }
         if (overlay != null) alphaOver(output, overlay);
         return output;
+    }
+
+    public static PixelImage render(UvMapping mapping, Map<String, SourceSlotImage> slots, PixelImage legacyOverlay,
+                                    List<TargetDefinition.Layer> layers,
+                                    Function<ResourceLocation, PixelImage> textures) {
+        PixelImage output = render(mapping, slots, legacyOverlay);
+        layers.stream().sorted(Comparator.comparingInt(TargetDefinition.Layer::index)).forEach(layer -> {
+            if (layer instanceof TargetDefinition.TextureLayer textureLayer) {
+                applyTextureLayer(output, textureLayer, textures.apply(textureLayer.texture()));
+            }
+            // Model attachments need baked geometry and a live part pose; a flat PNG cannot represent them.
+        });
+        return output;
+    }
+
+    private static void applyTextureLayer(PixelImage output, TargetDefinition.TextureLayer layer, PixelImage texture) {
+        if (texture == null) throw new IllegalArgumentException("missing layer texture: " + layer.texture());
+        int scaleX = texture.width() / layer.grid().width();
+        int scaleY = texture.height() / layer.grid().height();
+        if (scaleX <= 0 || scaleX != scaleY
+                || texture.width() % layer.grid().width() != 0
+                || texture.height() % layer.grid().height() != 0) {
+            throw new IllegalArgumentException("layer texture dimensions must be a uniform integer grid scale");
+        }
+        for (int y = 0; y < layer.destination().height(); y++) {
+            for (int x = 0; x < layer.destination().width(); x++) {
+                double logicalX = layer.source().x() + (x + .5) * layer.source().width() / layer.destination().width();
+                double logicalY = layer.source().y() + (y + .5) * layer.source().height() / layer.destination().height();
+                int sample = texture.get((int) Math.floor(logicalX * scaleX), (int) Math.floor(logicalY * scaleX));
+                int alpha = sample >>> 24;
+                if (alpha != 0 && alpha != 255) {
+                    throw new IllegalArgumentException("layer texture requires cutout alpha");
+                }
+                int destinationX = layer.destination().x() + x;
+                int destinationY = layer.destination().y() + y;
+                if (alpha == 255) output.set(destinationX, destinationY, sample);
+            }
+        }
     }
 
     public static void alphaOver(PixelImage destination, PixelImage overlay) {

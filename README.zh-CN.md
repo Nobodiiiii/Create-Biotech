@@ -32,14 +32,28 @@
 
 ## 内部 UV 材质渲染
 
-材质渲染属于 `foundation/render/material`，不需要独立 Casted Materials Mod、外部库 JAR 或路径参数。
+材质渲染属于 `foundation/render/material`。
 根层负责注册、API 与 NBT 状态，`palette` 负责机壳发现/校验和同步，`mapping` 负责定义/UV 解释与几何计划，
 `client` 负责重载、源图绑定与渲染。机壳必须在物品和方块的 `#create:casing` 中同名配对，且 BlockItem 指向对应方块。
 
 蜘蛛方块与物品共用 `CastedMaterialsClient.resolveModel(...)`。直接使用原有源图的 UV，
 不为不同机壳生成蜘蛛贴图；拆面超预算、缺少资源或不支持的 UV 会回退基础模型/材质。
-固定覆盖图只支持完全透明/不透明像素；半透明不做运行时混合。眼睛附加 pass 使用 `handle.renderLayer(...)`
-共享分片几何。复用活动模型 root，每次渲染取得 handle，不跨资源重载长期持有。
+`layers` 按 `index` 升序应用，同索引保持声明顺序。贴图层以 cutout alpha 裁剪/缩放到目标 UV；模型层把
+现有 baked model 挂到实时命名部件。材质覆盖中出现 `layers` 就替换目标列表（空数组也有效），缺省则继承。
+旧 `overlay` 仅作兼容并位于显式层下方，不启用运行时 PNG 合成。复用活动模型 root，每次渲染取得
+handle，不跨资源重载长期持有。
+
+- 每层必须给出整数 `index`，以及 `texture` 或 `model` 二选一；没有样式轮播或切换状态。
+- 贴图层：`grid` 是源逻辑尺寸，`source` / `destination` 为 `[x,y,w,h]`；省略时分别使用目标尺寸、整个源网格、整个目标。`emissive` 默认 `false`，只让最终未被覆盖的片段发光。
+- 模型层：`part` 默认 `head`，`offset` 为模型像素，`rotation` 为角度，`scale` 为倍率，默认分别 `[0,0,0]`、`[0,0,0]`、`[1,1,1]`。可用 `source_slot` 和 `source` 将帽子 UV 映射到当前机壳的指定源矩形；省略则保留模型原贴图。模型层 `emissive` 使用满亮度。
+- 蜘蛛每种材质只选一张眼睛 PNG，替换而非叠加默认眼睛；透明处露出机壳，内置蜘蛛不再添加帽子模型。所有眼睛统一在 `assets/create_biotech/textures/entity/spider_assembly_table/`，共用 64×32 画布和 UV（头部正面 `[40,12,8,8]`）：`eye_00.png` 是默认眼睛，`eye_01.png` 是另一张通用候选，`eye_copper_casing.png` / `eye_railway_casing.png` 只包含从 Create 包裹抽取的眼睛像素，不带纸箱底色。
+- 眼睛层已开启 `material_variants: true` 命名糖，角色由默认文件名确定：`eye_00` 只查 `eye_`，`body_` 只查机壳专用 `body_`；其他默认名不猜角色，只使用显式贴图。在默认贴图同目录内，优先 `<命名空间>/<角色>_<机壳名>.png`，其次 `<角色>_<机壳名>.png`。眼睛再尝试编号候选，最后默认 `texture`；身体没有编号候选。例如 `create/eye_copper_casing.png` 优先于 `eye_copper_casing.png`，绝不读取 `body_copper_casing.png` 或无前缀的 `copper_casing.png`。嵌套材质 `addon:machines/casing` 对应 `addon/machines/eye_casing.png`。
+- 通用候选**仅眼睛**：同命名空间、同一直接目录的 `eye_<非负整数>.png` 按数字递增排序（允许编号缺口；同编号按文件名排序）。按同步材质表的零起始索引 `%` 有效候选数量循环分配；材质表按命名空间、路径排序，专用图对应的材质也占索引。同机壳固定一种，不随时间切换；材质表或候选集变化后分配可能变化。扫描仅在资源重载时进行，候选尺寸和 cutout 校验结果缓存；无效候选不占位置，全透明候选有效。
+- 身体优先使用专用素材：目标的 `body_textures` 指定编辑目录（蜘蛛为 `create_biotech:entity/spider_assembly_table`），先查 `<命名空间>/body_<机壳名>.png`，再查 `body_<机壳名>.png`；嵌套材质路径规则与眼睛相同。无有效专用图才使用机壳源纹理的自动 UV 映射，绝不扫描或分配 `body_编号`。因此 `body_andesite_casing.png` 在正常渲染中直接生效，不只是回退素材。
+- 专用身体使用目标尺寸的 UV 画布（蜘蛛 64×32，允许等比整数倍高清）；透明区域保持透明，不透出生成材质。它先替换身体底图，再应用显式 `overlay` 和按 `index` 排序的图层；显式图层优先，眼睛独立替换。身体不自动发光，复用现有 UV 解释器，不生成合成 PNG；不存在、尺寸不符或不支持的透明度会跳过专用候选。
+- 角色前缀只用于这些可替换 PNG，不改变机壳来源的普通 / `_connected` 纹理查找。候选尺寸不兼容时跳过；全透明专用图仍有效（隐藏眼睛）。普通贴图层默认不启用命名糖。
+- 显式 `material_overrides.<机壳ID>.layers` 仍优先；直接指定 `texture` 且省略 / 关闭 `material_variants` 即可固定眼睛。内置材质覆盖只选择机壳源图并继承单一眼睛层；铜 / 铁路的物流帽和列车帽示例已移除。资源包可覆盖，F3+T 清除缓存重载；半透明层不受支持，会回退基础外观。
+
 
 - 目标定义：`assets/<namespace>/casted_materials/targets/<path>.json`，ID 为 `<namespace>:<path>`。
 - 材质 slot 配置：`assets/<namespace>/casted_materials/materials/<material-path>.json`。
@@ -61,8 +75,7 @@
 F3+T 重载定义并清除缓存。旧 JSON 的 `mode` 仅保留语法兼容，不再选择合成后端。
 
 装壳只设置外观，生存和创造模式均不消耗手持机壳；已有机壳不会直接替换。
-潜行使用扳手先清除外观，不返还机壳，也不拆除工作台。
-
+普通或潜行使用扳手都先清除外观，不返还机壳，也不拆除工作台；无壳时沿用正常扳手行为。
 为兼容存档，保留 `casted_materials:material` 组件、`casted_materials:material_palette` payload 和
 `CastedMaterial` NBT 字段。这不是独立 Mod；迁移旧实例时应移除旧 Casted Materials JAR。
 Sable Companion 嵌入不变，原模块 [MIT 声明](src/main/resources/META-INF/licenses/casted-materials-MIT.txt)保留。

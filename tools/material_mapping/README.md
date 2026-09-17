@@ -140,6 +140,27 @@ python -B -m tools.material_mapping infer `
 RGB 容差不会放宽往返一致性检查。校验失败时旧输出不变；成功后通过临时文件逐个替换，
 不承诺多文件发布是单一事务。四个输出彼此不同，且不能覆盖任何输入，包括模型和硬链接别名。
 
+## 有序层平面预览
+
+`preview` 读取现有目标定义、材质覆盖和本地资源映射，先渲染基础 UV，再把旧 `overlay` 放在显式层下方，最后按 `index` 升序（同索引保持声明顺序）应用 cutout 贴图层：
+
+```powershell
+python -B -m tools.material_mapping preview `
+  --target-json src/main/resources/assets/create_biotech/casted_materials/targets/spider_assembly_table/spider.json `
+  --material create:copper_casing `
+  --source create:block/copper_casing_connected=build/assets/copper_casing_connected.png `
+  --texture create_biotech:entity/spider_assembly_table/eye_copper_casing=src/main/resources/assets/create_biotech/textures/entity/spider_assembly_table/eye_copper_casing.png `
+  --output build/preview/copper.png
+```
+
+`material_variants: true` 从默认文件名识别 `eye_` / `body_` 角色，与运行时采用相同顺序：默认贴图同目录中的 `<命名空间>/<角色>_<机壳名>`、`<角色>_<机壳名>`，眼睛再选编号候选，最后默认 `texture`。前缀加在材质路径最后的文件名上（如 `addon/machines/eye_casing`），不跨角色、不查无前缀名称；未知默认角色仅使用显式图。用 `--material` 指定机壳，并用 `--texture` 提供本地可用候选；预览工具不会扫描游戏资源包。每层仅选择一张图，透明处不保留默认眼睛。
+
+只有 `eye_<非负整数>` 参与通用候选，按数字排序（缺号允许，同号按文件名排序），限同命名空间和同一直接目录。提供多张通用眼睛且未命中专用图时，须传 `--material-index N`：这是游戏同步材质表中从 0 起始的位置，材质表按命名空间、路径排序，专用图材质也占位；选择 `N % 有效候选数`。预览只知道通过 `--texture` 提供的候选，须提供与游戏一致的完整候选集以复现分配。尺寸或 cutout alpha 不合要求的候选会跳过，全透明图有效。工具无法从单个机壳 ID 推断完整游戏材质表，故不猜测该索引。
+
+Body 不参与编号循环。目标可用 `"body_textures": "create_biotech:entity/spider_assembly_table"` 指定专用身体目录；按 `<命名空间>/body_<机壳名>`、`body_<机壳名>` 查找。通过 `--texture` 传入匹配图片后，先以专用身体代替整个 UV 底图（透明处保持透明），再应用显式 `overlay` 和有序图层；没有有效专用图才使用 `--source` 自动映射。选中专用 body 时无需提供或解码机壳源图片。身体画布等于目标尺寸，允许等比整数倍高清；无法读取或解码的 PNG、半透明等无法表达的候选跳过，与运行时一致；必需的显式贴图若最终缺失仍报错且不覆盖输出。显式图层关闭 / 省略 `material_variants` 可固定贴图，优先于自动选择。
+
+`--source` 左侧是材质资源 ID，`--texture` 左侧是层资源 ID；右侧均为本地 PNG。贴图层支持 `grid`、`source`、`destination` 的逻辑像素裁剪和最近邻缩放，并拒绝半透明或 HD 逻辑像素内部 alpha 不一致或缩放后无法表达的 alpha 边界的输入。模型层依赖 baked geometry 与实时部件姿态，明确不显示在平面 PNG 中，须进游戏验证。工具不会合成或发布新的运行时贴图。
+
 ## 接入游戏
 
 把目标定义放到 `assets/<namespace>/casted_materials/targets/<path>.json`，目标 ID 即 `<namespace>:<path>`。

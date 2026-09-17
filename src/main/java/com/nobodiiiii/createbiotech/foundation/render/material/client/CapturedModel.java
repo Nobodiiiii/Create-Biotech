@@ -54,16 +54,20 @@ public final class CapturedModel {
     }
 
     public Bound bind(UvPlan plan, Map<String, SourceSprite> sources) {
+        return bind(plan, sources, Set.of());
+    }
+
+    public Bound bind(UvPlan plan, Map<String, SourceSprite> sources, Set<String> emissiveSlots) {
         if (!plan.eligible() || plan.faces().size() != normalizedQuads.size()) {
             throw new IllegalArgumentException("UV plan does not match captured model");
         }
         List<ResourceLocation> textures = sources.values().stream().map(SourceSprite::texture).distinct()
                 .sorted(Comparator.comparing(ResourceLocation::toString)).toList();
-        return new Bound(bindNode(root, plan, sources, textures), textures);
+        return new Bound(bindNode(root, plan, sources, textures, emissiveSlots), textures);
     }
 
     private static Bound.Node bindNode(Node node, UvPlan plan, Map<String, SourceSprite> sources,
-                                             List<ResourceLocation> textures) {
+                                             List<ResourceLocation> textures, Set<String> emissiveSlots) {
         List<Bound.Quad> quads = new ArrayList<>();
         for (int face : node.faces) {
             for (UvFragment fragment : plan.faces().get(face)) {
@@ -71,11 +75,11 @@ public final class CapturedModel {
                 UvQuad quad = fragment.quad();
                 quads.add(new Bound.Quad(textures.indexOf(sprite.texture()), new UvQuad(quad.vertices().stream()
                         .map(v -> new UvVertex(v.x(), v.y(), v.z(), sprite.u(v.u()), sprite.v(v.v()))).toList(),
-                        quad.nx(), quad.ny(), quad.nz()), fragment.targetQuad()));
+                        quad.nx(), quad.ny(), quad.nz()), fragment.targetQuad(), emissiveSlots.contains(fragment.sourceSlot())));
             }
         }
         return new Bound.Node(node.part, List.copyOf(quads), node.children.values().stream()
-                .map(child -> bindNode(child, plan, sources, textures)).toList());
+                .map(child -> bindNode(child, plan, sources, textures, emissiveSlots)).toList());
     }
 
     private static final class Node {
@@ -116,9 +120,12 @@ public final class CapturedModel {
     public static final class Bound {
     private final Node root;
     private final List<ResourceLocation> textures;
+    private final List<Integer> emissiveTextures;
 
     Bound(Node root, List<ResourceLocation> textures) {
         this.root = root; this.textures = List.copyOf(textures);
+        emissiveTextures = java.util.stream.IntStream.range(0, textures.size())
+                .filter(texture -> hasEmission(root, texture)).boxed().toList();
     }
 
     public void render(PoseStack pose, Function<ResourceLocation, VertexConsumer> buffers,
@@ -128,18 +135,34 @@ public final class CapturedModel {
         // submitting one texture before asking for another; never retain stale consumers.
         for (int texture = 0; texture < textures.size(); texture++) {
             VertexConsumer consumer = buffers.apply(textures.get(texture));
-            renderNode(root, pose, texture, false, consumer, light, overlay, color, position, normal);
+            renderNode(root, pose, texture, false, false, consumer, light, overlay, color, position, normal);
         }
     }
 
     public int textureBatches() { return textures.size(); }
+    public List<ResourceLocation> textures() { return textures; }
+
+    /** Only surviving emissive fragments: covered eyes never reappear in an additive pass. */
+    public void renderEmissive(PoseStack pose, Function<ResourceLocation, VertexConsumer> buffers,
+                               int light, int overlay, int color) {
+        Vector3f position = new Vector3f(), normal = new Vector3f();
+        for (int texture : emissiveTextures) {
+            renderNode(root, pose, texture, false, true, buffers.apply(textures.get(texture)),
+                    light, overlay, color, position, normal);
+        }
+    }
+
+    private static boolean hasEmission(Node node, int texture) {
+        return node.quads.stream().anyMatch(q -> q.textureIndex == texture && q.emissive)
+                || node.children.stream().anyMatch(child -> hasEmission(child, texture));
+    }
 
     /** Renders an additional target-texture layer on exactly the direct mesh's fragmented geometry. */
     public void renderLayer(PoseStack pose, VertexConsumer buffer, int light, int overlay, int color) {
-        renderNode(root, pose, -1, true, buffer, light, overlay, color, new Vector3f(), new Vector3f());
+        renderNode(root, pose, -1, true, false, buffer, light, overlay, color, new Vector3f(), new Vector3f());
     }
 
-    private static void renderNode(Node node, PoseStack pose, int texture, boolean targetUv, VertexConsumer buffer, int light, int overlay,
+    private static void renderNode(Node node, PoseStack pose, int texture, boolean targetUv, boolean emissiveOnly, VertexConsumer buffer, int light, int overlay,
                                     int color, Vector3f position, Vector3f normal) {
         if (!node.part.visible) return;
         pose.pushPose();
@@ -148,7 +171,7 @@ public final class CapturedModel {
             if (!node.part.skipDraw) {
                 var transform = pose.last();
                 for (Quad bound : node.quads) {
-                    if (!targetUv && bound.textureIndex != texture) continue;
+                    if ((!targetUv && bound.textureIndex != texture) || (emissiveOnly && !bound.emissive)) continue;
                     UvQuad quad = targetUv ? bound.targetQuad : bound.quad;
                     transform.transformNormal(quad.nx(), quad.ny(), quad.nz(), normal);
                     for (var vertex : quad.vertices()) {
@@ -158,13 +181,13 @@ public final class CapturedModel {
                     }
                 }
             }
-            for (Node child : node.children) renderNode(child, pose, texture, targetUv, buffer, light, overlay, color, position, normal);
+            for (Node child : node.children) renderNode(child, pose, texture, targetUv, emissiveOnly, buffer, light, overlay, color, position, normal);
         } finally {
             pose.popPose();
         }
     }
 
     record Node(ModelPart part, List<Quad> quads, List<Node> children) { }
-    record Quad(int textureIndex, UvQuad quad, UvQuad targetQuad) { }
+    record Quad(int textureIndex, UvQuad quad, UvQuad targetQuad, boolean emissive) { }
     }
 }

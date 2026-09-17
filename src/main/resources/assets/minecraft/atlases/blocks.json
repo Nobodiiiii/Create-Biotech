@@ -122,7 +122,7 @@
     },
     {
       "type": "single",
-      "resource": "create_biotech:entity/spider_assembly_table/spider_andesite_encased"
+      "resource": "create_biotech:entity/spider_assembly_table/body_andesite_casing"
     },
     {
       "type": "single",
