@@ -11,14 +11,17 @@ import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 
+import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
@@ -74,6 +77,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private static final String RECORDED_WIDTH_TAG = "RecordedWidth";
 	private static final String RECORDED_HEIGHT_TAG = "RecordedHeight";
 	private static final String RECORDED_MIMIC_PROFILE_TAG = "RecordedMimicProfile";
+	private static final String RECORDED_PLAYER_PROFILE_TAG = "RecordedPlayerProfile";
 	private static final String SCAN_COOLDOWN_TAG = "ScanCooldown";
 	private static final String EMERGENCE_IN_PROGRESS_TAG = "EmergenceInProgress";
 	private static final String EMERGENCE_TICKS_REMAINING_TAG = "EmergenceTicksRemaining";
@@ -118,6 +122,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private ResourceLocation recordedEntityId;
 	@Nullable
 	private MimicProfile recordedMimicProfile;
+	@Nullable
+	private GameProfile recordedPlayerProfile;
 	private float recordedMaxHealth;
 	private float recordedWidth;
 	private float recordedHeight;
@@ -161,6 +167,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			tickClientAnimation();
 			return;
 		}
+
+		refreshTargetMode();
 
 		if (emergenceInProgress) {
 			tickEmergence();
@@ -412,6 +420,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		if (!(preview instanceof Mob livingPreview))
 			return null;
 
+		if (livingPreview instanceof PlayerMimicEntity playerMimic && recordedPlayerProfile != null)
+			playerMimic.setImitatedPlayer(recordedPlayerProfile);
 		if (recordedMimicProfile != null)
 			recordedMimicProfile.apply(livingPreview);
 		SlimeMimicHandler.setSlimeMimic(livingPreview, true);
@@ -439,6 +449,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public boolean canAcceptFluidNow() {
 		if (!hasBionicMechanism())
 			return false;
+		if (level != null && !level.isClientSide)
+			refreshTargetMode();
 		if (recordedEntityId == null) {
 			updateRecordedEntityFromNearby();
 			return recordedEntityId != null;
@@ -659,6 +671,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	private void prepareSpawnedMimic(@Nullable Entity entity) {
+		if (entity instanceof PlayerMimicEntity playerMimic && recordedPlayerProfile != null)
+			playerMimic.setImitatedPlayer(recordedPlayerProfile);
 		if (entity instanceof LivingEntity livingEntity && recordedMimicProfile != null)
 			recordedMimicProfile.apply(livingEntity);
 		SlimeMimicHandler.markSpawnedEntity(entity);
@@ -688,6 +702,17 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		sendData();
 	}
 
+	private void refreshTargetMode() {
+		if (recordedEntityId == null)
+			return;
+		if (isPlayerTargetMode() != (recordedPlayerProfile != null))
+			clearRecordedEntity();
+	}
+
+	private boolean isPlayerTargetMode() {
+		return level != null && level.hasNeighborSignal(worldPosition);
+	}
+
 	private void updateRecordedEntityFromNearby() {
 		if (level == null || !hasBionicMechanism())
 			return;
@@ -695,6 +720,16 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			if (requiresNearbyMatchingEntity() && !hasMatchingEntityNearby()) {
 				// Keep the record, but reject further filling until the type comes back nearby.
 				sendData();
+			}
+			return;
+		}
+
+		if (isPlayerTargetMode()) {
+			for (Player player : getNearbyPlayers()) {
+				if (!isRecordablePlayer(player))
+					continue;
+				recordPlayer(player);
+				return;
 			}
 			return;
 		}
@@ -711,12 +746,26 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private boolean hasMatchingEntityNearby() {
 		if (recordedEntityId == null)
 			return false;
+		if (recordedPlayerProfile != null) {
+			for (Player player : getNearbyPlayers()) {
+				if (recordedPlayerProfile.getId().equals(player.getGameProfile().getId()))
+					return true;
+			}
+			return false;
+		}
 		for (Mob entity : getNearbyMobs()) {
 			ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 			if (Objects.equals(recordedEntityId, entityId))
 				return true;
 		}
 		return false;
+	}
+
+	private List<Player> getNearbyPlayers() {
+		if (level == null)
+			return List.of();
+		AABB bounds = new AABB(worldPosition).inflate(getScanRadius());
+		return level.getEntitiesOfClass(Player.class, bounds, this::isRecordablePlayer);
 	}
 
 	private List<Mob> getNearbyMobs() {
@@ -755,8 +804,33 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return false;
 		if (entity.blockPosition().equals(worldPosition))
 			return false;
+		if (entity.getType() == CBEntityTypes.PLAYER_MIMIC.get())
+			return false;
 		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
 		return entityId != null;
+	}
+
+	private boolean isRecordablePlayer(Player player) {
+		return player.isAlive() && !player.isSpectator();
+	}
+
+	private void recordPlayer(Player player) {
+		recordedEntityId = CBEntityTypes.PLAYER_MIMIC.getId();
+		recordedMimicProfile = null;
+		recordedPlayerProfile = PlayerMimicEntity.decodePlayerProfile(
+			PlayerMimicEntity.encodePlayerProfile(player.getGameProfile()));
+		if (recordedPlayerProfile == null) {
+			clearRecordedEntity();
+			return;
+		}
+		recordedMaxHealth = player.getMaxHealth();
+		recordedWidth = PlayerMimicEntity.WIDTH;
+		recordedHeight = PlayerMimicEntity.HEIGHT;
+		clampFluidToRequiredAmount();
+		clientPreviewEntityId = null;
+		clientPreviewEntity = null;
+		setChanged();
+		sendData();
 	}
 
 	private void recordEntity(Mob entity) {
@@ -765,20 +839,28 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 		recordedEntityId = entityId;
 		recordedMimicProfile = MimicProfile.capture(entity);
+		recordedPlayerProfile = null;
 		recordedMaxHealth = entity.getMaxHealth();
 		recordedWidth = entity.getBbWidth();
 		recordedHeight = entity.getBbHeight();
+		clampFluidToRequiredAmount();
+		clientPreviewEntityId = null;
+		clientPreviewEntity = null;
+		setChanged();
+		sendData();
+	}
+
+	private void clampFluidToRequiredAmount() {
 		int required = getRequiredFluidAmount();
 		if (fluidTank.getFluidAmount() > required) {
 			fluidTank.drain(fluidTank.getFluidAmount() - required, FluidAction.EXECUTE);
 		}
-		setChanged();
-		sendData();
 	}
 
 	private void clearRecordedEntity() {
 		recordedEntityId = null;
 		recordedMimicProfile = null;
+		recordedPlayerProfile = null;
 		recordedMaxHealth = 0;
 		recordedWidth = 0;
 		recordedHeight = 0;
@@ -819,6 +901,8 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			tag.putString(RECORDED_ENTITY_ID_TAG, recordedEntityId.toString());
 		if (recordedMimicProfile != null)
 			tag.put(RECORDED_MIMIC_PROFILE_TAG, recordedMimicProfile.save());
+		if (recordedPlayerProfile != null)
+			tag.put(RECORDED_PLAYER_PROFILE_TAG, PlayerMimicEntity.encodePlayerProfile(recordedPlayerProfile));
 		tag.putFloat(RECORDED_MAX_HEALTH_TAG, recordedMaxHealth);
 		tag.putFloat(RECORDED_WIDTH_TAG, recordedWidth);
 		tag.putFloat(RECORDED_HEIGHT_TAG, recordedHeight);
@@ -839,12 +923,26 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			? MimicProfile.load(tag.getCompound(RECORDED_MIMIC_PROFILE_TAG)) : null;
 		if (recordedMimicProfile != null && !recordedMimicProfile.matches(recordedEntityId))
 			recordedMimicProfile = null;
+		recordedPlayerProfile = tag.contains(RECORDED_PLAYER_PROFILE_TAG, Tag.TAG_COMPOUND)
+			? PlayerMimicEntity.decodePlayerProfile(tag.getCompound(RECORDED_PLAYER_PROFILE_TAG)) : null;
+		boolean recordedPlayerType = Objects.equals(recordedEntityId, CBEntityTypes.PLAYER_MIMIC.getId());
+		boolean invalidRecordedTarget = recordedPlayerType != (recordedPlayerProfile != null);
 		recordedMaxHealth = tag.getFloat(RECORDED_MAX_HEALTH_TAG);
 		recordedWidth = tag.getFloat(RECORDED_WIDTH_TAG);
 		recordedHeight = tag.getFloat(RECORDED_HEIGHT_TAG);
 		scanCooldown = tag.getInt(SCAN_COOLDOWN_TAG);
 		emergenceInProgress = tag.getBoolean(EMERGENCE_IN_PROGRESS_TAG);
 		emergenceTicksRemaining = tag.getInt(EMERGENCE_TICKS_REMAINING_TAG);
+		if (invalidRecordedTarget) {
+			recordedEntityId = null;
+			recordedMimicProfile = null;
+			recordedPlayerProfile = null;
+			recordedMaxHealth = 0;
+			recordedWidth = 0;
+			recordedHeight = 0;
+			emergenceInProgress = false;
+			emergenceTicksRemaining = 0;
+		}
 		if (!emergenceInProgress)
 			stopClientEmergenceAnimation();
 		clientPreviewEntityId = null;
@@ -878,13 +976,19 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 
 		if (recordedEntityId != null) {
+			Component recordedName = recordedPlayerProfile != null
+				? Component.literal(recordedPlayerProfile.getName())
+				: Component.translatable(entityTranslationKey(recordedEntityId));
 			tooltip.add(Component.translatable("create_biotech.petri_dish.goggles.recorded",
-				Component.translatable(entityTranslationKey(recordedEntityId)))
+				recordedName)
 				.withStyle(ChatFormatting.GRAY));
 			tooltip.add(Component.translatable("create_biotech.petri_dish.goggles.required_fluid", getRequiredFluidAmount())
 				.withStyle(ChatFormatting.AQUA));
 		} else {
-			tooltip.add(Component.translatable("create_biotech.petri_dish.goggles.unrecorded")
+			String unrecordedKey = isPlayerTargetMode()
+				? "create_biotech.petri_dish.goggles.unrecorded_player"
+				: "create_biotech.petri_dish.goggles.unrecorded";
+			tooltip.add(Component.translatable(unrecordedKey)
 				.withStyle(ChatFormatting.YELLOW));
 		}
 

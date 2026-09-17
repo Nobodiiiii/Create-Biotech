@@ -32,6 +32,19 @@ class FrogStomachFungusGeometryTest {
 	}
 
 	@Test
+	void floorGenerationCanRequestDistinctSmallAndLargeFungi() {
+		for (long seed = 0; seed < 256; seed++) {
+			FrogStomachFungusGeometry.Structure small = FrogStomachFungusGeometry.createSmall(seed);
+			assertTrue(small.firstRadius() >= 3 && small.firstRadius() <= 4);
+			assertTrue(small.secondRadius() >= 3 && small.secondRadius() <= 4);
+
+			FrogStomachFungusGeometry.Structure large = FrogStomachFungusGeometry.createLarge(seed);
+			assertTrue(large.firstRadius() >= 5 && large.firstRadius() <= 6);
+			assertTrue(large.secondRadius() >= 5 && large.secondRadius() <= 6);
+		}
+	}
+
+	@Test
 	void largerCapsFavorLongerStems() {
 		long[] totalStemHeight = new long[7];
 		int[] samples = new int[7];

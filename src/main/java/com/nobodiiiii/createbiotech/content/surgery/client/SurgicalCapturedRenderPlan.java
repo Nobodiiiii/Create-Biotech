@@ -28,6 +28,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
 import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathClient;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
@@ -298,8 +299,9 @@ public final class SurgicalCapturedRenderPlan {
 			SlimeMimicDeathClient.report(entity, frame.deathGeometry(0, entity.position()));
 			return true;
 		}
+		boolean preservePlayerSkin = entity instanceof PlayerMimicEntity;
 		frame.render(poseStack, buffer, packedLight, 0, ALL_COMPONENTS, NO_OFFSETS, NO_ROTATIONS,
-			false, null, false);
+			false, null, preservePlayerSkin);
 		return true;
 	}
 

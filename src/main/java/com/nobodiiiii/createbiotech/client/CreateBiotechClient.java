@@ -64,6 +64,7 @@ import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgrade;
 import com.nobodiiiii.createbiotech.content.universaljoint.HalfShaftVisual;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
+import com.nobodiiiii.createbiotech.entity.PlayerMimicRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeRenderer;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
@@ -199,6 +200,7 @@ public class CreateBiotechClient {
 			context -> new AllayCourierEntityRenderer(context));
 		event.registerEntityRenderer(CBEntityTypes.DING_DONG_CHICKEN.get(), DingDongChickenRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.SLIME_BIONIC.get(), SlimeBionicRenderer::new);
+		event.registerEntityRenderer(CBEntityTypes.PLAYER_MIMIC.get(), PlayerMimicRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.SLIME_MIMIC_CUBE.get(), SlimeMimicCubeRenderer::new);
 	}
 

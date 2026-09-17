@@ -2,7 +2,9 @@ package com.nobodiiiii.createbiotech.content.frogportal;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -45,6 +47,9 @@ final class FrogStomachEcology {
 	private static final int MIN_UNGROWN_FUNGI = 10;
 	private static final int UNGROWN_FUNGUS_VARIATION = 7;
 	private static final int FUNGUS_PLACEMENT_ATTEMPTS = 32;
+	private static final int MATURE_FUNGUS_MARGIN = 7;
+	private static final int SHELF_FUNGUS_GROUP_ATTEMPTS = 32;
+	private static final int SHELF_FUNGUS_MEMBER_ATTEMPTS = 16;
 	private static final float VINE_FROGLIGHT_CHANCE = 0.25f;
 	private static final BlockState[] FROGLIGHTS = {
 		Blocks.OCHRE_FROGLIGHT.defaultBlockState(),
@@ -86,13 +91,13 @@ final class FrogStomachEcology {
 		List<BlockPos> foldVineAnchors = generateWallFolds(level, index, origin, width, height, random);
 		if (pool != null)
 			generatePoolWaterfallFold(level, index, origin, width, height, pool, random);
+		generateStomachFungi(level, index, origin, width, height, random);
 		generateSecretionGrowths(level, origin, width, height, random);
 		int foldVineCount = Math.min(12, foldVineAnchors.size());
 		for (int i = 0; i < foldVineCount; i++)
 			generateGlowBerryVine(level, foldVineAnchors.remove(random.nextInt(foldVineAnchors.size())),
 				origin.getY(), random);
 		generateCeilingVines(level, origin, width, height, random);
-		generateStomachFungi(level, index, origin, width, height, random);
 	}
 
 	private static void generateCeilingAndWallLining(ServerLevel level, BlockPos origin, int width,
@@ -597,12 +602,14 @@ final class FrogStomachEcology {
 
 	private static void generateStomachFungi(ServerLevel level, long index, BlockPos origin, int width,
 		int height, RandomSource random) {
-		int firstSurface = random.nextInt(FUNGUS_SURFACES.length);
-		for (int offset = 0; offset < FUNGUS_SURFACES.length; offset++) {
-			Direction growthDirection = FUNGUS_SURFACES[(firstSurface + offset) % FUNGUS_SURFACES.length];
-			if (placeMatureFungus(level, index, origin, width, height, growthDirection, random))
-				break;
-		}
+		placeMatureFloorFungus(level, index, origin, width, height,
+			FrogStomachFungusBlock.GrowthSize.LARGE, random);
+		int smallFungusCount = random.nextInt(3);
+		for (int i = 0; i < smallFungusCount; i++)
+			placeMatureFloorFungus(level, index, origin, width, height,
+				FrogStomachFungusBlock.GrowthSize.SMALL, random);
+		Set<Long> matureFloorFungusProjection = collectMatureFungusProjection(level, origin, width, height);
+		generateShelfFungusGroups(level, index, origin, width, height, matureFloorFungusProjection, random);
 
 		BlockState fungus = CBBlocks.FROG_STOMACH_FUNGUS.get().defaultBlockState();
 		int targetCount = MIN_UNGROWN_FUNGI + random.nextInt(UNGROWN_FUNGUS_VARIATION);
@@ -621,24 +628,148 @@ final class FrogStomachEcology {
 		}
 	}
 
-	private static boolean placeMatureFungus(ServerLevel level, long index, BlockPos origin, int width,
-		int height, Direction growthDirection, RandomSource random) {
+	private static boolean placeMatureFloorFungus(ServerLevel level, long index, BlockPos origin, int width,
+		int height, FrogStomachFungusBlock.GrowthSize growthSize, RandomSource random) {
 		for (int attempt = 0; attempt < FUNGUS_PLACEMENT_ATTEMPTS * 3; attempt++) {
-			BlockPos fungusPos = findFungusPosition(level, index, origin, width, height, growthDirection, random);
+			BlockPos fungusPos = findFungusPosition(level, index, origin, width, height, Direction.UP, random,
+				MATURE_FUNGUS_MARGIN);
 			if (fungusPos != null
-				&& FrogStomachFungusBlock.grow(level, random, fungusPos, growthDirection))
+				&& FrogStomachFungusBlock.grow(level, random, fungusPos, Direction.UP, growthSize))
+				return true;
+		}
+
+		int minimum = MATURE_FUNGUS_MARGIN;
+		int maximum = width - 1 - MATURE_FUNGUS_MARGIN;
+		for (int localX = minimum; localX <= maximum; localX++)
+			for (int localZ = minimum; localZ <= maximum; localZ++) {
+				BlockPos fungusPos = findFungusPosition(level, index, origin, width, height, Direction.UP,
+					new SurfaceCoordinates(origin.getX() + localX, origin.getZ() + localZ));
+				if (fungusPos != null
+					&& FrogStomachFungusBlock.grow(level, random, fungusPos, Direction.UP, growthSize))
+					return true;
+			}
+		return false;
+	}
+
+	private static Set<Long> collectMatureFungusProjection(ServerLevel level, BlockPos origin, int width,
+		int height) {
+		Set<Long> projection = new HashSet<>();
+		BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+		for (int x = origin.getX() + 1; x < origin.getX() + width - 1; x++)
+			for (int y = origin.getY() + 1; y < origin.getY() + height - 1; y++)
+				for (int z = origin.getZ() + 1; z < origin.getZ() + width - 1; z++) {
+					BlockState state = level.getBlockState(cursor.set(x, y, z));
+					if (state.is(CBBlocks.FROG_STOMACH_FUNGUS_STEM.get())
+						|| state.is(CBBlocks.FROG_STOMACH_FUNGUS_CAP.get())
+						|| state.is(CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get()))
+						projection.add(BlockPos.asLong(x, 0, z));
+				}
+		return projection;
+	}
+
+	private static void generateShelfFungusGroups(ServerLevel level, long index, BlockPos origin, int width,
+		int height, Set<Long> matureFloorFungusProjection, RandomSource random) {
+		List<Direction> availableWalls = new ArrayList<>(List.of(FOLD_WALLS));
+		int targetGroupCount = 1 + random.nextInt(2);
+		int generatedGroups = 0;
+		while (generatedGroups < targetGroupCount && !availableWalls.isEmpty()) {
+			Direction wallNormal = availableWalls.remove(random.nextInt(availableWalls.size()));
+			if (generateShelfFungusGroup(level, index, origin, width, height, wallNormal,
+				matureFloorFungusProjection, random))
+				generatedGroups++;
+		}
+	}
+
+	private static boolean generateShelfFungusGroup(ServerLevel level, long index, BlockPos origin, int width,
+		int height, Direction wallNormal, Set<Long> matureFloorFungusProjection, RandomSource random) {
+		int targetFungusCount = 1 + random.nextInt(3);
+		for (int groupAttempt = 0; groupAttempt < SHELF_FUNGUS_GROUP_ATTEMPTS; groupAttempt++) {
+			SurfaceCoordinates center = randomSurfaceCoordinates(random, origin, width, height, wallNormal,
+				MATURE_FUNGUS_MARGIN);
+			if (center == null)
+				return false;
+			int verticalDirection = random.nextBoolean() ? 1 : -1;
+			int generated = 0;
+			for (int member = 0; member < targetFungusCount; member++) {
+				int verticalOffset = member == 0 ? 0 : (member == 1 ? verticalDirection * 3 : -verticalDirection * 3);
+				if (placeNearbyShelfFungus(level, index, origin, width, height, wallNormal, center,
+					verticalOffset, matureFloorFungusProjection, random))
+					generated++;
+			}
+			if (generated > 0)
 				return true;
 		}
 		return false;
 	}
 
+	private static boolean placeNearbyShelfFungus(ServerLevel level, long index, BlockPos origin, int width,
+		int height, Direction wallNormal, SurfaceCoordinates center, int verticalOffset,
+		Set<Long> matureFloorFungusProjection, RandomSource random) {
+		for (int attempt = 0; attempt < SHELF_FUNGUS_MEMBER_ATTEMPTS; attempt++) {
+			int alongJitter = attempt == 0 ? 0 : random.nextInt(3) - 1;
+			int verticalJitter = attempt == 0 ? 0 : random.nextInt(3) - 1;
+			SurfaceCoordinates candidate = new SurfaceCoordinates(center.first() + alongJitter,
+				center.second() + verticalOffset + verticalJitter);
+			if (placeShelfFungus(level, index, origin, width, height, candidate, wallNormal,
+				matureFloorFungusProjection, random))
+				return true;
+		}
+		return false;
+	}
+
+	private static boolean placeShelfFungus(ServerLevel level, long index, BlockPos origin, int width,
+		int height, SurfaceCoordinates center, Direction wallNormal, Set<Long> matureFloorFungusProjection,
+		RandomSource random) {
+		FrogStomachShelfFungusGeometry.Structure geometry =
+			FrogStomachShelfFungusGeometry.create(random.nextLong());
+		Map<BlockPos, FrogStomachShelfFungusGeometry.Part> structure = new LinkedHashMap<>();
+		for (FrogStomachShelfFungusGeometry.Cell cell : geometry.cells()) {
+			BlockPos target = shelfFungusPos(level, origin, width, height, center, wallNormal, cell);
+			if (target == null || structure.putIfAbsent(target, cell.part()) != null
+				|| !level.getBlockState(target).isAir()
+				|| FrogStomachSpace.isPortalApproachProtected(index, target))
+				return false;
+		}
+		for (BlockPos shelfBlock : structure.keySet())
+			if (matureFloorFungusProjection.contains(BlockPos.asLong(shelfBlock.getX(), 0, shelfBlock.getZ())))
+				return false;
+
+		BlockState cap = CBBlocks.FROG_STOMACH_FUNGUS_CAP.get().defaultBlockState();
+		BlockState gills = CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get().defaultBlockState();
+		structure.forEach((pos, part) -> level.setBlock(pos,
+			part == FrogStomachShelfFungusGeometry.Part.CAP ? cap : gills, Block.UPDATE_CLIENTS));
+		return true;
+	}
+
+	@Nullable
+	private static BlockPos shelfFungusPos(ServerLevel level, BlockPos origin, int width, int height,
+		SurfaceCoordinates center, Direction wallNormal,
+		FrogStomachShelfFungusGeometry.Cell cell) {
+		BlockPos surface = findLiningSurface(level, origin, width, height, wallNormal,
+			center.first() + cell.alongWall(), center.second() + cell.vertical());
+		return surface == null ? null : surface.relative(wallNormal, cell.outward() + 1);
+	}
+
 	@Nullable
 	private static BlockPos findFungusPosition(ServerLevel level, long index, BlockPos origin, int width,
 		int height, Direction growthDirection, RandomSource random) {
+		return findFungusPosition(level, index, origin, width, height, growthDirection, random,
+			MAX_LINING_THICKNESS + 2);
+	}
+
+	@Nullable
+	private static BlockPos findFungusPosition(ServerLevel level, long index, BlockPos origin, int width,
+		int height, Direction growthDirection, RandomSource random, int margin) {
 		SurfaceCoordinates coordinates = randomSurfaceCoordinates(random, origin, width, height,
-			growthDirection, MAX_LINING_THICKNESS + 2);
+			growthDirection, margin);
 		if (coordinates == null)
 			return null;
+		return findFungusPosition(level, index, origin, width, height, growthDirection, coordinates);
+	}
+
+	@Nullable
+	private static BlockPos findFungusPosition(ServerLevel level, long index, BlockPos origin, int width,
+		int height, Direction growthDirection, SurfaceCoordinates coordinates) {
 		BlockPos surface = findLiningSurface(level, origin, width, height, growthDirection,
 			coordinates.first(), coordinates.second());
 		if (surface == null)

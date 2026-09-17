@@ -24,9 +24,21 @@ final class FrogStomachFungusGeometry {
 	private FrogStomachFungusGeometry() {}
 
 	static Structure create(long seed) {
+		return create(seed, 3, 6);
+	}
+
+	static Structure createSmall(long seed) {
+		return create(seed, 3, 4);
+	}
+
+	static Structure createLarge(long seed) {
+		return create(seed, 5, 6);
+	}
+
+	private static Structure create(long seed, int minimumRadius, int maximumRadius) {
 		Random random = new Random(mixSeed(seed));
-		int firstRadius = 3 + random.nextInt(4);
-		int secondRadius = Math.clamp(firstRadius - 1 + random.nextInt(3), 3, 6);
+		int firstRadius = minimumRadius + random.nextInt(maximumRadius - minimumRadius + 1);
+		int secondRadius = Math.clamp(firstRadius - 1 + random.nextInt(3), minimumRadius, maximumRadius);
 		int capRadius = Math.max(firstRadius, secondRadius);
 		int stemHeight = 5 + random.nextInt(capRadius * 2 - 4);
 		int crownHeight = firstRadius >= 5 && random.nextBoolean() ? 1 : 0;

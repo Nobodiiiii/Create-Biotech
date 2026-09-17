@@ -31,6 +31,11 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 /** A crimson-fungus-like stomach plant that grows away from any stomach surface. */
 public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
+	enum GrowthSize {
+		RANDOM,
+		SMALL,
+		LARGE
+	}
 
 	public static final MapCodec<FrogStomachFungusBlock> CODEC = simpleCodec(FrogStomachFungusBlock::new);
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
@@ -134,10 +139,15 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 	/** Grows a broad umbrella-shaped stomach fungus away from its supporting surface. */
 	public static boolean grow(ServerLevel level, RandomSource random, BlockPos origin,
 		Direction growthDirection) {
+		return grow(level, random, origin, growthDirection, GrowthSize.RANDOM);
+	}
+
+	static boolean grow(ServerLevel level, RandomSource random, BlockPos origin,
+		Direction growthDirection, GrowthSize growthSize) {
 		if (!isStomachSurface(level, origin.relative(growthDirection.getOpposite()), growthDirection))
 			return false;
 
-		Map<BlockPos, BlockState> structure = createGrowthStructure(origin, growthDirection, random);
+		Map<BlockPos, BlockState> structure = createGrowthStructure(origin, growthDirection, random, growthSize);
 		long spaceIndex = level.dimension().equals(FrogStomachDimensions.FROG_STOMACH)
 			? FrogStomachSpace.spaceIndexAt(origin)
 			: -1L;
@@ -156,11 +166,16 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 	}
 
 	private static Map<BlockPos, BlockState> createGrowthStructure(BlockPos origin, Direction growthDirection,
-		RandomSource random) {
+		RandomSource random, GrowthSize growthSize) {
 		Map<BlockPos, BlockState> structure = new LinkedHashMap<>();
 		Direction firstAxis = firstPerpendicularAxis(growthDirection);
 		Direction secondAxis = secondPerpendicularAxis(growthDirection);
-		FrogStomachFungusGeometry.Structure geometry = FrogStomachFungusGeometry.create(random.nextLong());
+		long geometrySeed = random.nextLong();
+		FrogStomachFungusGeometry.Structure geometry = switch (growthSize) {
+			case RANDOM -> FrogStomachFungusGeometry.create(geometrySeed);
+			case SMALL -> FrogStomachFungusGeometry.createSmall(geometrySeed);
+			case LARGE -> FrogStomachFungusGeometry.createLarge(geometrySeed);
+		};
 		BlockState stem = CBBlocks.FROG_STOMACH_FUNGUS_STEM.get().defaultBlockState()
 			.setValue(BlockStateProperties.AXIS, growthDirection.getAxis());
 		BlockState gills = CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get().defaultBlockState();

@@ -11,6 +11,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.nobodiiiii.createbiotech.content.allay.entity.courier.AllayCourierEntity;
+import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeEntity;
 
@@ -88,6 +89,15 @@ public class CBEntityTypes {
 			.setTrackingRange(10)
 			.build("slime_bionic"));
 
+	public static final DeferredHolder<EntityType<?>, EntityType<PlayerMimicEntity>> PLAYER_MIMIC =
+		ENTITY_TYPES.register("player_mimic", () -> EntityType.Builder
+			.<PlayerMimicEntity>of(PlayerMimicEntity::new, MobCategory.CREATURE)
+			.sized(PlayerMimicEntity.WIDTH, PlayerMimicEntity.HEIGHT)
+			.setTrackingRange(10)
+			.setUpdateInterval(3)
+			.setShouldReceiveVelocityUpdates(true)
+			.build("player_mimic"));
+
 	public static final DeferredHolder<EntityType<?>, EntityType<SlimeMimicCubeEntity>> SLIME_MIMIC_CUBE =
 		ENTITY_TYPES.register("slime_mimic_cube", () -> EntityType.Builder
 			.<SlimeMimicCubeEntity>of(SlimeMimicCubeEntity::new, MobCategory.MISC)
@@ -110,5 +120,6 @@ public class CBEntityTypes {
 		event.put(ALLAY_COURIER.get(), Allay.createAttributes().build());
 		event.put(DING_DONG_CHICKEN.get(), DingDongChickenEntity.createAttributes().build());
 		event.put(SLIME_BIONIC.get(), SlimeBionicEntity.createAttributes().build());
+		event.put(PLAYER_MIMIC.get(), PlayerMimicEntity.createAttributes().build());
 	}
 }
