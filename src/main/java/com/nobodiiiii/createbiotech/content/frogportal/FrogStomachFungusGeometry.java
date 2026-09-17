@@ -31,7 +31,8 @@ final class FrogStomachFungusGeometry {
 		int crownHeight = firstRadius >= 5 && random.nextBoolean() ? 2 : 1;
 		Map<LocalPos, Part> parts = new LinkedHashMap<>();
 
-		for (int forward = 0; forward < stemHeight; forward++)
+		// The stem rises into the hollow under the cap instead of stopping at a flat underside.
+		for (int forward = 0; forward < stemHeight + 2; forward++)
 			put(parts, 0, forward, 0, Part.STEM);
 		if (firstRadius >= 5) {
 			put(parts, -1, 0, 0, Part.STEM);
@@ -51,11 +52,14 @@ final class FrogStomachFungusGeometry {
 			for (int second = -secondRadius; second <= secondRadius; second++) {
 				if (!insideUmbrella(first, second, firstRadius, secondRadius))
 					continue;
-				put(parts, first, stemHeight, second, Part.GILLS);
-				put(parts, first, stemHeight + 1, second, Part.CAP);
+				double radius = normalizedRadius(first, second, firstRadius, secondRadius);
+				int inwardRise = radius > 0.72d ? 0 : radius > 0.38d ? 1 : 2;
+				int underside = stemHeight + inwardRise;
+				put(parts, first, underside, second, Part.GILLS);
+				put(parts, first, underside + 1, second, Part.CAP);
 				if ((first != 0 || second != 0)
-					&& insideUmbrella(first, second, firstRadius - 1, secondRadius - 1))
-					lightCandidates.add(new LocalPos(first, stemHeight, second));
+					&& radius <= 0.72d)
+					lightCandidates.add(new LocalPos(first, underside, second));
 			}
 
 		int innerFirstRadius = Math.max(1, firstRadius - 2);
@@ -66,7 +70,7 @@ final class FrogStomachFungusGeometry {
 			for (int first = -layerFirstRadius; first <= layerFirstRadius; first++)
 				for (int second = -layerSecondRadius; second <= layerSecondRadius; second++)
 					if (insideUmbrella(first, second, layerFirstRadius, layerSecondRadius))
-						put(parts, first, stemHeight + 2 + layer, second, Part.CAP);
+						put(parts, first, stemHeight + 4 + layer, second, Part.CAP);
 		}
 
 		int lightCount = Math.min(3, Math.max(1, (firstRadius + secondRadius) / 4));
@@ -90,9 +94,13 @@ final class FrogStomachFungusGeometry {
 	private static boolean insideUmbrella(int first, int second, int firstRadius, int secondRadius) {
 		if (firstRadius < 1 || secondRadius < 1)
 			return false;
+		return normalizedRadius(first, second, firstRadius, secondRadius) <= 1.08d;
+	}
+
+	private static double normalizedRadius(int first, int second, int firstRadius, int secondRadius) {
 		double normalizedFirst = first / (double) firstRadius;
 		double normalizedSecond = second / (double) secondRadius;
-		return normalizedFirst * normalizedFirst + normalizedSecond * normalizedSecond <= 1.08d;
+		return normalizedFirst * normalizedFirst + normalizedSecond * normalizedSecond;
 	}
 
 	private static void put(Map<LocalPos, Part> parts, int first, int forward, int second, Part part) {

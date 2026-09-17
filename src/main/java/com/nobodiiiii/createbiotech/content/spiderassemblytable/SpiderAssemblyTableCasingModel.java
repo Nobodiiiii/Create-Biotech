@@ -37,17 +37,16 @@ import org.joml.Vector3f;
 /**
  * Renders an encased spider directly from its casing or item-vault connected-texture sheets.
  *
- * <p>The element geometry and per-face UV values below are a direct transcription of
- * {@code art/spider_assembly_table_andesite - Converted.bbmodel}. Using baked block quads lets
- * Minecraft apply the bbmodel's reversed UV bounds and 90-degree face rotations exactly while
- * still allowing every {@code create:casing} block to supply its own connected texture.</p>
+ * <p>The element geometry and per-face UV values below are direct transcriptions of the converted
+ * andesite and vault bbmodels in {@code art/}. Using baked block quads lets Minecraft apply the
+ * bbmodels' reversed UV bounds and 90-degree face rotations exactly while still allowing every
+ * {@code create:casing} block to supply its own connected texture.</p>
  */
 public final class SpiderAssemblyTableCasingModel {
 
 	private static final ResourceLocation FACE_TEXTURE =
 		CreateBiotech.asResource("block/spider_assembly_table_face");
 	private static final float CASING_TEXTURE_SIZE = 128f;
-	private static final float VAULT_TEXTURE_SIZE = 64f;
 	private static final float FACE_TEXTURE_SIZE = 32f;
 	private static final float[] FULL_TEXTURE_UV = { 0, 0, 16, 16 };
 	private static final float[] FALLBACK_FACE_UV = { 12, 8, 20, 16 };
@@ -65,6 +64,7 @@ public final class SpiderAssemblyTableCasingModel {
 	private static final FaceBakery FACE_BAKERY = new FaceBakery();
 	private static final Map<Block, BakedParts> CACHE = new IdentityHashMap<>();
 	private static final List<CubeSpec> CUBES = createCubes();
+	private static final List<CubeSpec> VAULT_CUBES = createVaultCubes();
 
 	public void render(Block casing, ModelPart root, PoseStack poseStack, MultiBufferSource buffer,
 		int packedLight, int packedOverlay) {
@@ -98,9 +98,9 @@ public final class SpiderAssemblyTableCasingModel {
 			casingSprite = entry.getCasing().getTarget();
 			casingTextureSize = CASING_TEXTURE_SIZE;
 		} else if (itemVault) {
-			// The vault has direction-specific connected textures, selected per face below.
+			// The vault bbmodel selects its own source or connected target for every face.
 			casingSprite = null;
-			casingTextureSize = VAULT_TEXTURE_SIZE;
+			casingTextureSize = 0;
 		} else {
 			// A data pack can add a plain block to create:casing without registering a CT
 			// sheet. It still encases successfully; its particle sprite is the safe visual
@@ -115,11 +115,11 @@ public final class SpiderAssemblyTableCasingModel {
 		FaceRegion faceRegion = FACE_REGIONS.get(BuiltInRegistries.BLOCK.getKey(casing));
 
 		Map<String, List<BakedQuad>> parts = new LinkedHashMap<>();
-		for (CubeSpec cube : CUBES) {
+		for (CubeSpec cube : itemVault ? VAULT_CUBES : CUBES) {
 			List<BakedQuad> quads = parts.computeIfAbsent(cube.part(), ignored -> new ArrayList<>());
 			for (FaceSpec face : cube.faces()) {
-				TextureAtlasSprite sprite = itemVault ? vaultSprite(face.direction()) : casingSprite;
-				float textureSize = casingTextureSize;
+				TextureAtlasSprite sprite = itemVault ? vaultSprite(face.vaultTexture()) : casingSprite;
+				float textureSize = itemVault ? face.vaultTexture().textureSize : casingTextureSize;
 				float[] uv = entry == null && !itemVault ? FULL_TEXTURE_UV : face.uv();
 				if (face.special()) {
 					if (faceRegion != null) {
@@ -139,14 +139,11 @@ public final class SpiderAssemblyTableCasingModel {
 		return new BakedParts(Map.copyOf(parts));
 	}
 
-	private static TextureAtlasSprite vaultSprite(EditorFace face) {
-		// ItemVaultCTBehaviour uses the medium target for a single/small vault. Keep
-		// the same front/side/top/bottom split while applying the bbmodel UV crop.
-		return switch (face) {
-			case NORTH, SOUTH -> AllSpriteShifts.VAULT_FRONT.get(true).getTarget();
-			case EAST, WEST -> AllSpriteShifts.VAULT_SIDE.get(true).getTarget();
-			case UP -> AllSpriteShifts.VAULT_TOP.get(true).getTarget();
-			case DOWN -> AllSpriteShifts.VAULT_BOTTOM.get(true).getTarget();
+	private static TextureAtlasSprite vaultSprite(VaultTexture texture) {
+		return switch (texture) {
+			case FRONT_LARGE -> AllSpriteShifts.VAULT_FRONT.get(false).getTarget();
+			case FRONT_SMALL -> AllSpriteShifts.VAULT_FRONT.get(true).getOriginal();
+			case SIDE_LARGE -> AllSpriteShifts.VAULT_SIDE.get(false).getTarget();
 		};
 	}
 
@@ -219,21 +216,113 @@ public final class SpiderAssemblyTableCasingModel {
 			face(EditorFace.UP, 4, 14, 12, 16, 180)));
 
 		addRightLeg(cubes, "right_hind_leg", 4, 9, 2, 3, 8, 1, 19, 10, 3);
-		addLeftLeg(cubes, "left_hind_leg", -4, 9, 2, -19, 8, 1, -3, 10, 3, false);
+		addLeftLeg(cubes, "left_hind_leg", -4, 9, 2, -19, 8, 1, -3, 10, 3);
 		addRightLeg(cubes, "right_middle_hind_leg", 4, 9, 1, 3, 8, 0, 19, 10, 2);
-		addLeftLeg(cubes, "left_middle_hind_leg", -4, 9, 1, -19, 8, 0, -3, 10, 2, false);
+		addLeftLeg(cubes, "left_middle_hind_leg", -4, 9, 1, -19, 8, 0, -3, 10, 2);
 		addRightLeg(cubes, "right_middle_front_leg", 4, 9, 0, 3, 8, -1, 19, 10, 1);
-		addLeftLeg(cubes, "left_middle_front_leg", -4, 9, 0, -19, 8, -1, -3, 10, 1, false);
+		addLeftLeg(cubes, "left_middle_front_leg", -4, 9, 0, -19, 8, -1, -3, 10, 1);
 		addRightLeg(cubes, "right_front_leg", 4, 9, -1, 3, 8, -2, 19, 10, 0);
-		addLeftLeg(cubes, "left_front_leg", -4, 9, -1, -19, 8, -2, -3, 10, 0, true);
+		addLeftLeg(cubes, "left_front_leg", -4, 9, -1, -19, 8, -2, -3, 10, 0);
 		return List.copyOf(cubes);
+	}
+
+	private static List<CubeSpec> createVaultCubes() {
+		List<CubeSpec> cubes = new ArrayList<>();
+		cubes.add(cube("head", 0, 9, -3, -4, 5, -11, 4, 13, -3,
+			vaultFace(EditorFace.NORTH, 12, 0, 20, 8, 0, true, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.EAST, 28, 12, 36, 20, 90, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.SOUTH, 36, 12, 44, 20, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.WEST, 28, 12, 36, 20, 270, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.UP, 48, 21, 40, 13, 90, VaultTexture.SIDE_LARGE),
+			vaultFace(EditorFace.DOWN, 44, 12, 36, 20, VaultTexture.FRONT_LARGE)));
+
+		cubes.add(cube("body0", 0, 9, 0, -3, 6, -3, 3, 12, 3,
+			vaultFace(EditorFace.NORTH, 29, 13, 35, 19, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.EAST, 29, 13, 35, 19, 90, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.SOUTH, 29, 13, 35, 19, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.WEST, 29, 13, 35, 19, 90, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.UP, 35, 19, 29, 13, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.DOWN, 35, 13, 29, 19, VaultTexture.FRONT_LARGE)));
+
+		cubes.add(cube("body1", 0, 9, 9, -5, 5, 3, 0, 9, 15,
+			vaultFace(EditorFace.NORTH, 28, 13, 33, 17, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.SOUTH, 0, 12, 5, 16, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.WEST, 4, 12, 16, 16, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.DOWN, 16, 0, 11, 12, VaultTexture.FRONT_SMALL)));
+		cubes.add(cube("body1", 0, 9, 9, -5, 9, 3, 0, 13, 15,
+			vaultFace(EditorFace.NORTH, 6, 5, 10, 10, 90, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.SOUTH, 0, 0, 5, 4, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.WEST, 4, 7, 16, 11, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.UP, 12, 11, 0, 6, 90, VaultTexture.FRONT_SMALL)));
+		cubes.add(cube("body1", 0, 9, 9, 0, 5, 3, 5, 9, 15,
+			vaultFace(EditorFace.NORTH, 29, 12, 33, 17, 90, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.EAST, 0, 12, 12, 16, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.SOUTH, 11, 12, 16, 16, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.DOWN, 5, 0, 0, 12, VaultTexture.FRONT_SMALL)));
+		cubes.add(cube("body1", 0, 9, 9, 0, 9, 3, 5, 13, 15,
+			vaultFace(EditorFace.NORTH, 6, 5, 10, 10, 270, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.EAST, 0, 7, 12, 11, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.SOUTH, 11, 0, 16, 4, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.UP, 12, 6, 0, 11, 90, VaultTexture.FRONT_SMALL)));
+
+		cubes.add(cube("head", 0, 9, -3, -4.2f, 11, -11.2f, 4.2f, 13.1f, -6.2f,
+			vaultFace(EditorFace.NORTH, 23, 0, 31, 2, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.EAST, 16, 0, 21, 2, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.WEST, 16, 2, 21, 0, 180, VaultTexture.FRONT_LARGE)));
+		cubes.add(rotatedCube("head", 0, 9, -3, -4, 12.5f, -12, 4, 13.5f, -10,
+			0, 11, -4.5f, Direction.Axis.X, 22.5f,
+			vaultFace(EditorFace.UP, 32, 46, 41, 48, VaultTexture.FRONT_LARGE)));
+		cubes.add(cube("head", 0, 9, -3, -4.2f, 13.1f, -11.2f, 4.2f, 13.1f, -9.2f,
+			vaultFace(EditorFace.UP, 23, 2, 31, 0, 180, VaultTexture.FRONT_LARGE)));
+
+		addVaultRightLeg(cubes, "right_hind_leg", 4, 9, 2, 3, 8, 1, 19, 10, 3);
+		addVaultLeftLeg(cubes, "left_hind_leg", -4, 9, 2, -19, 8, 1, -3, 10, 3, true, false);
+		addVaultRightLeg(cubes, "right_middle_hind_leg", 4, 9, 1, 3, 8, 0, 19, 10, 2);
+		addVaultLeftLeg(cubes, "left_middle_hind_leg", -4, 9, 1, -19, 8, 0, -3, 10, 2, false, false);
+		addVaultRightLeg(cubes, "right_middle_front_leg", 4, 9, 0, 3, 8, -1, 19, 10, 1);
+		addVaultLeftLeg(cubes, "left_middle_front_leg", -4, 9, 0, -19, 8, -1, -3, 10, 1, false, false);
+		addVaultRightLeg(cubes, "right_front_leg", 4, 9, -1, 3, 8, -2, 19, 10, 0);
+		addVaultLeftLeg(cubes, "left_front_leg", -4, 9, -1, -19, 8, -2, -3, 10, 0, false, true);
+		return List.copyOf(cubes);
+	}
+
+	private static void addVaultRightLeg(List<CubeSpec> cubes, String part, float originX, float originY,
+		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ) {
+		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
+			vaultFace(EditorFace.NORTH, 16, 7, 0, 9, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.EAST, 33, 15, 31, 17, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.SOUTH, 16, 7, 0, 9, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.WEST, 33, 15, 31, 17, VaultTexture.FRONT_LARGE),
+			vaultFace(EditorFace.UP, 16, 7, 0, 9, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.DOWN, 16, 7, 0, 9, VaultTexture.FRONT_SMALL)));
+	}
+
+	private static void addVaultLeftLeg(List<CubeSpec> cubes, String part, float originX, float originY,
+		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ,
+		boolean hindMost, boolean frontMost) {
+		FaceSpec east = hindMost
+			? vaultFace(EditorFace.EAST, 4, 15, 2, 17, VaultTexture.FRONT_LARGE)
+			: vaultFace(EditorFace.EAST, 33, 15, 31, 17, VaultTexture.FRONT_LARGE);
+		FaceSpec up = frontMost
+			? vaultFace(EditorFace.UP, 16, 7, 0, 9, VaultTexture.FRONT_SMALL)
+			: vaultFace(EditorFace.UP, 0, 9, 16, 7, VaultTexture.FRONT_SMALL);
+		FaceSpec down = frontMost
+			? vaultFace(EditorFace.DOWN, 16, 7, 0, 9, VaultTexture.FRONT_SMALL)
+			: vaultFace(EditorFace.DOWN, 0, 7, 16, 9, VaultTexture.FRONT_SMALL);
+		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
+			vaultFace(EditorFace.NORTH, 16, 7, 0, 9, VaultTexture.FRONT_SMALL),
+			east,
+			vaultFace(EditorFace.SOUTH, 16, 7, 0, 9, VaultTexture.FRONT_SMALL),
+			vaultFace(EditorFace.WEST, 31, 15, 33, 17, VaultTexture.FRONT_LARGE),
+			up,
+			down));
 	}
 
 	private static void addRightLeg(List<CubeSpec> cubes, String part, float originX, float originY,
 		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ) {
 		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
 			face(EditorFace.NORTH, 32, 2, 16, 4),
-			face(EditorFace.EAST, 4, 15, 2, 17),
+			face(EditorFace.EAST, 32, 2, 16, 4),
 			face(EditorFace.SOUTH, 32, 2, 16, 4),
 			face(EditorFace.WEST, 32, 2, 16, 4),
 			face(EditorFace.UP, 32, 2, 16, 4),
@@ -241,14 +330,10 @@ public final class SpiderAssemblyTableCasingModel {
 	}
 
 	private static void addLeftLeg(List<CubeSpec> cubes, String part, float originX, float originY,
-		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ,
-		boolean frontMost) {
-		FaceSpec east = frontMost
-			? face(EditorFace.EAST, 32, 2, 16, 4)
-			: face(EditorFace.EAST, 4, 15, 2, 17);
+		float originZ, float fromX, float fromY, float fromZ, float toX, float toY, float toZ) {
 		cubes.add(cube(part, originX, originY, originZ, fromX, fromY, fromZ, toX, toY, toZ,
 			face(EditorFace.NORTH, 32, 2, 16, 4),
-			east,
+			face(EditorFace.EAST, 4, 15, 2, 17),
 			face(EditorFace.SOUTH, 32, 2, 16, 4),
 			face(EditorFace.WEST, 4, 15, 2, 17),
 			face(EditorFace.UP, 16, 4, 32, 2),
@@ -306,7 +391,22 @@ public final class SpiderAssemblyTableCasingModel {
 
 	private static FaceSpec face(EditorFace direction, float u1, float v1, float u2, float v2,
 		int rotation, boolean special) {
-		return new FaceSpec(direction, new float[] { u1, v1, u2, v2 }, rotation, special);
+		return new FaceSpec(direction, new float[] { u1, v1, u2, v2 }, rotation, special, null);
+	}
+
+	private static FaceSpec vaultFace(EditorFace direction, float u1, float v1, float u2, float v2,
+		VaultTexture texture) {
+		return vaultFace(direction, u1, v1, u2, v2, 0, false, texture);
+	}
+
+	private static FaceSpec vaultFace(EditorFace direction, float u1, float v1, float u2, float v2,
+		int rotation, VaultTexture texture) {
+		return vaultFace(direction, u1, v1, u2, v2, rotation, false, texture);
+	}
+
+	private static FaceSpec vaultFace(EditorFace direction, float u1, float v1, float u2, float v2,
+		int rotation, boolean special, VaultTexture texture) {
+		return new FaceSpec(direction, new float[] { u1, v1, u2, v2 }, rotation, special, texture);
 	}
 
 	private enum EditorFace {
@@ -324,7 +424,20 @@ public final class SpiderAssemblyTableCasingModel {
 		}
 	}
 
-	private record FaceSpec(EditorFace direction, float[] uv, int rotation, boolean special) {}
+	private enum VaultTexture {
+		FRONT_LARGE(64),
+		FRONT_SMALL(16),
+		SIDE_LARGE(64);
+
+		private final float textureSize;
+
+		VaultTexture(float textureSize) {
+			this.textureSize = textureSize;
+		}
+	}
+
+	private record FaceSpec(EditorFace direction, float[] uv, int rotation, boolean special,
+		VaultTexture vaultTexture) {}
 
 	private record CubeSpec(String part, Vector3f modelFrom, Vector3f modelTo,
 		BlockElementRotation rotation, List<FaceSpec> faces) {}

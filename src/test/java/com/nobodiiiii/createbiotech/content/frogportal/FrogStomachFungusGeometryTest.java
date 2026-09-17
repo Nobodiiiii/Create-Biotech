@@ -28,20 +28,27 @@ class FrogStomachFungusGeometryTest {
 	}
 
 	@Test
-	void everyFungusIsAConnectedUmbrellaWithGillsBelowItsCap() {
+	void everyFungusIsAConnectedUmbrellaWithAHollowSteppedUnderside() {
 		for (long seed = 0; seed < 64; seed++) {
 			FrogStomachFungusGeometry.Structure fungus = FrogStomachFungusGeometry.create(seed);
 			Set<Position> remaining = new HashSet<>();
-			boolean hasGills = false, hasLight = false, hasCapAboveGills = false;
+			Set<Integer> gillLevels = new HashSet<>();
+			boolean hasLight = false;
 			for (FrogStomachFungusGeometry.Cell cell : fungus.cells()) {
 				remaining.add(new Position(cell.first(), cell.forward(), cell.second()));
-				hasGills |= cell.part() == FrogStomachFungusGeometry.Part.GILLS;
+				if (cell.part() == FrogStomachFungusGeometry.Part.GILLS)
+					gillLevels.add(cell.forward());
 				hasLight |= cell.part() == FrogStomachFungusGeometry.Part.LIGHT;
-				hasCapAboveGills |= cell.part() == FrogStomachFungusGeometry.Part.CAP
-					&& cell.forward() == fungus.stemHeight() + 1;
 			}
-			assertTrue(hasGills && hasLight && hasCapAboveGills);
+			assertEquals(Set.of(fungus.stemHeight(), fungus.stemHeight() + 1,
+				fungus.stemHeight() + 2), gillLevels,
+				"The underside should rise inward instead of forming a flat plate");
+			assertTrue(hasLight);
 			assertTrue(remaining.contains(new Position(0, 0, 0)));
+			assertTrue(remaining.contains(new Position(0, fungus.stemHeight() + 1, 0)),
+				"The stem must extend into the central hollow");
+			assertFalse(remaining.contains(new Position(fungus.firstRadius(), fungus.stemHeight() + 2, 0)),
+				"The space above the low rim must remain hollow");
 
 			ArrayDeque<Position> queue = new ArrayDeque<>();
 			queue.add(new Position(0, 0, 0));
