@@ -52,6 +52,7 @@ public final class SpiderAssemblyTableCasingModel {
 		faceRegion("create", "andesite_casing", 0, 0),
 		faceRegion("create", "brass_casing", 8, 0),
 		faceRegion("create", "copper_casing", 16, 0),
+		faceRegion("create", "item_vault", 24, 0),
 		faceRegion("create", "shadow_steel_casing", 0, 8),
 		faceRegion("create", "refined_radiance_casing", 8, 8),
 		faceRegion("create", "railway_casing", 16, 8),

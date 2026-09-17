@@ -23,6 +23,7 @@ SLOTS = (
     ("create:andesite_casing", (0, 0)),
     ("create:brass_casing", (8, 0)),
     ("create:copper_casing", (16, 0)),
+    ("create:item_vault", (24, 0)),
     ("create:shadow_steel_casing", (0, 8)),
     ("create:refined_radiance_casing", (8, 8)),
     ("create:railway_casing", (16, 8)),

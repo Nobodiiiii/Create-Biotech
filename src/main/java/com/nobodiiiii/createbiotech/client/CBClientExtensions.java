@@ -25,6 +25,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItemRenderer;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderProperties;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItemRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
@@ -68,6 +69,7 @@ final class CBClientExtensions {
 		event.registerBlock(new MagmaBeltBlock.RenderProperties(), CBBlocks.MAGMA_BELT.get());
 		event.registerBlock(new PowerBeltBlock.RenderProperties(), CBBlocks.POWER_BELT.get());
 		event.registerBlock(new SlimeBeltBlock.RenderProperties(), CBBlocks.SLIME_BELT.get());
+		event.registerBlock(new SpiderAssemblyTableRenderProperties(), CBBlocks.SPIDER_ASSEMBLY_TABLE.get());
 		for (var entry : CBFluids.FLUID_TYPES.getEntries()) {
 			if (entry.get() instanceof CBFluidType type)
 				event.registerFluidType(type.createClientExtensions(), type);

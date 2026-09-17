@@ -14,6 +14,8 @@ import com.simibubi.create.foundation.item.ItemHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundSource;
@@ -105,15 +107,21 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 		if (CBWrenchHelper.isWrench(stack))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 		if (!player.isShiftKeyDown() && player.mayBuild() && !state.getValue(CASING)
-			&& AllTags.AllBlockTags.CASING.matches(stack) && stack.getItem() instanceof BlockItem casingItem) {
+			&& (AllTags.AllBlockTags.CASING.matches(stack) || AllBlocks.ITEM_VAULT.isIn(stack))
+			&& stack.getItem() instanceof BlockItem casingItem) {
 			if (!level.isClientSide) {
 				KineticBlockEntity.switchToBlockState(level, pos, state.setValue(CASING, true));
 				Block casing = casingItem.getBlock();
 				withBlockEntityDo(level, pos, be -> be.setCasing(casing));
-				SoundType soundType = casing.defaultBlockState()
+				BlockState casingState = casing.defaultBlockState();
+				SoundType soundType = casingState
 					.getSoundType(level, pos, player);
 				level.playSound(null, pos, soundType.getPlaceSound(), SoundSource.BLOCKS,
 					(soundType.getVolume() + 1.0f) / 2.0f, soundType.getPitch() * 0.8f);
+				if (level instanceof ServerLevel serverLevel)
+					serverLevel.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, casingState),
+						pos.getX() + .5, pos.getY() + .35, pos.getZ() + .5,
+						16, .35, .2, .35, .08);
 			}
 			return ItemInteractionResult.SUCCESS;
 		}
@@ -132,9 +140,9 @@ public class SpiderAssemblyTableBlock extends HorizontalKineticBlock
 	}
 
 	@Override
-	public InteractionResult onWrenched(BlockState state, UseOnContext context) {
+	public InteractionResult onSneakWrenched(BlockState state, UseOnContext context) {
 		if (!state.getValue(CASING))
-			return super.onWrenched(state, context);
+			return super.onSneakWrenched(state, context);
 
 		Level level = context.getLevel();
 		if (level.isClientSide)

@@ -6,10 +6,9 @@
 
 - 正脸图集：`src/main/resources/assets/create_biotech/textures/block/spider_assembly_table_face.png`（32 × 32，每格 8 × 8）
 - Blockbench UV 工程：`art/spider_assembly_table_andesite - Converted.bbmodel`
-- 旧版安山机壳合成贴图：`src/main/resources/assets/create_biotech/textures/entity/spider_assembly_table/spider_andesite_encased.png`（仅作美术参考，运行时不再使用）
 
-图集槽位从左到右、从上到下依次为：安山、黄铜、铜、暗影钢、璀璨玫瑰石、铁路、
-蓝辉石、生物科技、防爆机壳。当前 9 个槽位均为原正脸的逐像素副本，可以在同一文件中分别重绘。
+图集前三列依次放置安山、黄铜、铜、暗影钢、璀璨玫瑰石、铁路、蓝辉石、生物科技、
+防爆机壳；第四列首格 `(24, 0)` 为物品保险库。10 个槽位可以在同一文件中分别重绘。
 其他模组的机壳若没有专用槽位，正脸回退到该机壳连接材质中从 `(12, 8)` 开始的 8 × 8 区域；
 若机壳没有注册连接材质，则最后回退到普通方块粒子贴图。
 
@@ -33,15 +32,7 @@
 版本依据 `ref/SOURCES.md`：Create 6.0.10 官方标签，与当前 `6.0.10-281` 依赖对应。
 `ref/` 缺少 1.21.1 原版蜘蛛源码，尺寸/UV 从本机 NeoForm 已生成的 1.21.1 源码缓存核对。
 
-需要重绘旧版安山机壳参考贴图时，在仓库根目录运行（需要 Python 和 Pillow）：
-
-```powershell
-python art/spider_assembly_table/generate_texture.py
-```
-
-脚本按整数坐标重绘 PNG，不缩放、不插值；放大预览使用最近邻采样。
-它只更新旧版参考 PNG，不会改变当前的通用机壳运行时渲染。要从 `art/texture.png`
-中 `(12, 0)` 的现有正脸重新生成 9 个专用槽位，运行：
+要从 `art/texture.png` 中 `(12, 0)` 的现有正脸重新生成 9 个专用槽位，运行：
 
 ```powershell
 python art/spider_assembly_table/generate_face_atlas.py
