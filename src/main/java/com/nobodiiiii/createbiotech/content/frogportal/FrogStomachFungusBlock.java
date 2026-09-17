@@ -36,6 +36,11 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 	public static final DirectionProperty FACING = BlockStateProperties.FACING;
 
 	private static final float BONEMEAL_SUCCESS_CHANCE = 0.4f;
+	private static final Block[] FROGLIGHTS = {
+		Blocks.OCHRE_FROGLIGHT,
+		Blocks.PEARLESCENT_FROGLIGHT,
+		Blocks.VERDANT_FROGLIGHT
+	};
 
 	private static final VoxelShape UP_SHAPE = box(4, 0, 4, 12, 9, 12);
 	private static final VoxelShape DOWN_SHAPE = box(4, 7, 4, 12, 16, 12);
@@ -160,18 +165,22 @@ public class FrogStomachFungusBlock extends Block implements BonemealableBlock {
 			.setValue(BlockStateProperties.AXIS, growthDirection.getAxis());
 		BlockState gills = CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get().defaultBlockState();
 		BlockState cap = CBBlocks.FROG_STOMACH_FUNGUS_CAP.get().defaultBlockState();
-		BlockState light = CBBlocks.FROG_STOMACH_FUNGUS_LIGHT.get().defaultBlockState();
 		for (FrogStomachFungusGeometry.Cell cell : geometry.cells()) {
 			BlockState state = switch (cell.part()) {
 				case STEM -> stem;
 				case GILLS -> gills;
 				case CAP -> cap;
-				case LIGHT -> light;
+				case FROGLIGHT -> randomFroglight(random, growthDirection);
 			};
 			structure.put(localPos(origin, growthDirection, firstAxis, secondAxis,
 				cell.first(), cell.forward(), cell.second()), state);
 		}
 		return structure;
+	}
+
+	private static BlockState randomFroglight(RandomSource random, Direction growthDirection) {
+		return FROGLIGHTS[random.nextInt(FROGLIGHTS.length)].defaultBlockState()
+			.setValue(BlockStateProperties.AXIS, growthDirection.getAxis());
 	}
 
 	private static BlockPos localPos(BlockPos origin, Direction growthDirection, Direction firstAxis,

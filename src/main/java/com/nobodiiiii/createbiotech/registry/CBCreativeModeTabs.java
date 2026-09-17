@@ -224,6 +224,9 @@ public class CBCreativeModeTabs {
 			visible(CBItems.FROG_STOMACH_MUCOSA.get()),
 			visible(CBItems.FROG_STOMACH_FOLD.get()),
 			visible(CBItems.FROG_STOMACH_FUNGUS.get()),
+			visible(CBItems.FROG_STOMACH_FUNGUS_STEM.get()),
+			visible(CBItems.FROG_STOMACH_FUNGUS_CAP.get()),
+			visible(CBItems.FROG_STOMACH_FUNGUS_GILLS.get()),
 			visible(CBItems.FROG_STOMACH_SECRETION.get()),
 			searchOnly(CBItems.FROG_DIGESTIVE_TRACT.get()),
 			searchOnly(CBItems.FROG_DIGESTIVE_TRACT_WALL.get())));

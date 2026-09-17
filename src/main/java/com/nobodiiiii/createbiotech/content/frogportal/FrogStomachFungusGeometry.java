@@ -13,7 +13,7 @@ final class FrogStomachFungusGeometry {
 		STEM,
 		GILLS,
 		CAP,
-		LIGHT
+		FROGLIGHT
 	}
 
 	record Cell(int first, int forward, int second, Part part) {}
@@ -47,24 +47,31 @@ final class FrogStomachFungusGeometry {
 			}
 		}
 
-		List<LocalPos> lightCandidates = new ArrayList<>();
+		generateUmbrellaCap(parts, stemHeight, firstRadius, secondRadius, crownHeight);
+		List<LocalPos> lightCandidates = firstRadius >= 4 && secondRadius >= 4
+			? lineCapInteriorWithGills(parts, stemHeight)
+			: new ArrayList<>();
+
+		int lightCount = Math.min(3, Math.max(1, (firstRadius + secondRadius) / 4));
+		for (int i = 0; i < lightCount && !lightCandidates.isEmpty(); i++) {
+			LocalPos light = lightCandidates.remove(random.nextInt(lightCandidates.size()));
+			parts.put(light, Part.FROGLIGHT);
+		}
+
+		List<Cell> cells = new ArrayList<>(parts.size());
+		parts.forEach((pos, part) -> cells.add(new Cell(pos.first(), pos.forward(), pos.second(), part)));
+		return new Structure(List.copyOf(cells), stemHeight, firstRadius, secondRadius, crownHeight);
+	}
+
+	private static void generateUmbrellaCap(Map<LocalPos, Part> parts, int stemHeight, int firstRadius,
+		int secondRadius, int crownHeight) {
 		for (int first = -firstRadius; first <= firstRadius; first++)
 			for (int second = -secondRadius; second <= secondRadius; second++) {
 				if (!insideUmbrella(first, second, firstRadius, secondRadius))
 					continue;
 				double radius = normalizedRadius(first, second, firstRadius, secondRadius);
-				boolean centralCavity = Math.abs(first) + Math.abs(second) <= 1;
-				if (radius > 0.72d) {
-					// The low outer lip hides the gills when the cap is viewed from the side.
+				if (radius > 0.72d)
 					put(parts, first, stemHeight, second, Part.CAP);
-				} else if (radius > 0.30d) {
-					put(parts, first, stemHeight, second, Part.GILLS);
-					lightCandidates.add(new LocalPos(first, stemHeight, second));
-				} else if (!centralCavity) {
-					put(parts, first, stemHeight + 1, second, Part.GILLS);
-					lightCandidates.add(new LocalPos(first, stemHeight + 1, second));
-				}
-
 				if (radius > 0.30d)
 					put(parts, first, stemHeight + 1, second, Part.CAP);
 				if (radius <= 0.72d)
@@ -79,16 +86,26 @@ final class FrogStomachFungusGeometry {
 					if (insideUmbrella(first, second, crownFirstRadius, crownSecondRadius))
 						put(parts, first, stemHeight + 3, second, Part.CAP);
 		}
+	}
 
-		int lightCount = Math.min(3, Math.max(1, (firstRadius + secondRadius) / 4));
-		for (int i = 0; i < lightCount && !lightCandidates.isEmpty(); i++) {
-			LocalPos light = lightCandidates.remove(random.nextInt(lightCandidates.size()));
-			parts.put(light, Part.LIGHT);
+	private static List<LocalPos> lineCapInteriorWithGills(Map<LocalPos, Part> parts, int stemHeight) {
+		List<LocalPos> exposedInnerFaces = new ArrayList<>();
+		List<LocalPos> capBlocks = parts.entrySet()
+			.stream()
+			.filter(entry -> entry.getValue() == Part.CAP)
+			.map(Map.Entry::getKey)
+			.toList();
+		for (LocalPos cap : capBlocks) {
+			if (cap.forward() <= stemHeight)
+				continue;
+			LocalPos inner = new LocalPos(cap.first(), cap.forward() - 1, cap.second());
+			boolean centralCavity = Math.abs(inner.first()) + Math.abs(inner.second()) <= 1;
+			if (centralCavity || parts.containsKey(inner))
+				continue;
+			parts.put(inner, Part.GILLS);
+			exposedInnerFaces.add(inner);
 		}
-
-		List<Cell> cells = new ArrayList<>(parts.size());
-		parts.forEach((pos, part) -> cells.add(new Cell(pos.first(), pos.forward(), pos.second(), part)));
-		return new Structure(List.copyOf(cells), stemHeight, firstRadius, secondRadius, crownHeight);
+		return exposedInnerFaces;
 	}
 
 	private static long mixSeed(long seed) {

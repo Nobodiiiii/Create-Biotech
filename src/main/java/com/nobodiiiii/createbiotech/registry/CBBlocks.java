@@ -381,11 +381,6 @@ public class CBBlocks {
 			() -> new Block(Block.Properties.ofFullCopy(Blocks.MUSHROOM_STEM)
 				.noLootTable()));
 
-	public static final DeferredHolder<Block, Block> FROG_STOMACH_FUNGUS_LIGHT =
-		BLOCKS.register("frog_stomach_fungus_light",
-			() -> new Block(Block.Properties.ofFullCopy(Blocks.SHROOMLIGHT)
-				.noLootTable()));
-
 	// Slime-like secretion that absorbs slime experience and spreads across supported surfaces.
 	// Honey's inset collision shape is not a valid ON_GROUND spawn surface, so permit slimes explicitly.
 	public static final DeferredHolder<Block, FrogStomachSecretionBlock> FROG_STOMACH_SECRETION =

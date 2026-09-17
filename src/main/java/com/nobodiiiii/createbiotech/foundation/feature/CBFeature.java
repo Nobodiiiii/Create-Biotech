@@ -36,7 +36,7 @@ public enum CBFeature {
 	FIXED_CARROT_FISHING_ROD("fixedCarrotFishingRod", "fixed_carrot_fishing_rod"),
 	FROG_STOMACH("frogStomach", "giant_frog", "frog_stomach_wall", "frog_stomach_mucosa",
 		"frog_stomach_fungus", "frog_stomach_fungus_stem", "frog_stomach_fungus_cap",
-		"frog_stomach_fungus_light", "frog_stomach_secretion", "frog_digestive_tract",
+		"frog_stomach_fungus_gills", "frog_stomach_secretion", "frog_digestive_tract",
 		"frog_digestive_tract_wall"),
 	GHAST_HOT_AIR_BALLOON("ghastHotAirBalloon", "ghast_hot_air_balloon_assembly_station", "ghast_helm"),
 	LIQUID_LIVING_SLIME("liquidLivingSlime", "liquid_living_slime"),

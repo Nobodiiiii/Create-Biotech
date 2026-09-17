@@ -30,9 +30,12 @@ class FrogStomachFungusGeometryTest {
 	}
 
 	@Test
-	void everyFungusIsAConnectedUmbrellaWithAHollowSteppedUnderside() {
+	void everyFungusBuildsAnUmbrellaBeforeLiningItsExposedInteriorWithGills() {
+		boolean foundLargeGilledFungus = false;
 		for (long seed = 0; seed < 64; seed++) {
 			FrogStomachFungusGeometry.Structure fungus = FrogStomachFungusGeometry.create(seed);
+			boolean shouldHaveGills = fungus.firstRadius() >= 4 && fungus.secondRadius() >= 4;
+			foundLargeGilledFungus |= shouldHaveGills;
 			Set<Position> remaining = new HashSet<>();
 			Map<Position, FrogStomachFungusGeometry.Part> parts = new HashMap<>();
 			Set<Integer> gillLevels = new HashSet<>();
@@ -44,13 +47,16 @@ class FrogStomachFungusGeometryTest {
 				parts.put(position, cell.part());
 				if (cell.part() == FrogStomachFungusGeometry.Part.GILLS)
 					gillLevels.add(cell.forward());
-				hasLight |= cell.part() == FrogStomachFungusGeometry.Part.LIGHT;
+				hasLight |= cell.part() == FrogStomachFungusGeometry.Part.FROGLIGHT;
 				if (cell.part() == FrogStomachFungusGeometry.Part.CAP)
 					highestCap = Math.max(highestCap, cell.forward());
 			}
-			assertEquals(Set.of(fungus.stemHeight(), fungus.stemHeight() + 1), gillLevels,
-				"The shallow underside should rise once toward its hollow center");
-			assertTrue(hasLight);
+			assertEquals(shouldHaveGills
+				? Set.of(fungus.stemHeight(), fungus.stemHeight() + 1)
+				: Set.of(), gillLevels,
+				"Only caps whose two radii are at least four should have a stepped gill lining");
+			assertEquals(shouldHaveGills, hasLight,
+				"Froglights should only replace gills inside the largest caps");
 			assertTrue(remaining.contains(new Position(0, 0, 0)));
 			assertTrue(remaining.contains(new Position(0, fungus.stemHeight() + 1, 0)),
 				"The stem must extend into the central hollow");
@@ -64,7 +70,7 @@ class FrogStomachFungusGeometryTest {
 				"The cap should stay close to its earlier shallow profile");
 			parts.forEach((position, part) -> {
 				if (part == FrogStomachFungusGeometry.Part.GILLS
-					|| part == FrogStomachFungusGeometry.Part.LIGHT)
+					|| part == FrogStomachFungusGeometry.Part.FROGLIGHT)
 					assertEquals(FrogStomachFungusGeometry.Part.CAP,
 						parts.get(new Position(position.first, position.forward + 1, position.second)),
 						"Every visible gill must be covered by the cap above it");
@@ -85,6 +91,7 @@ class FrogStomachFungusGeometryTest {
 			assertEquals(Set.of(), remaining, "Every cap block must stay attached to the stem");
 			assertFalse(fungus.cells().isEmpty());
 		}
+		assertTrue(foundLargeGilledFungus, "The sampled structures must cover the gilled size variant");
 	}
 
 	private static final int[][] DELTAS = {

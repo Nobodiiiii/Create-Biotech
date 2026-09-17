@@ -257,6 +257,18 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> FROG_STOMACH_FUNGUS = ITEMS.register("frog_stomach_fungus",
 		() -> new BlockItem(CBBlocks.FROG_STOMACH_FUNGUS.get(), new Item.Properties()));
 
+	public static final DeferredHolder<Item, Item> FROG_STOMACH_FUNGUS_STEM =
+		ITEMS.register("frog_stomach_fungus_stem",
+			() -> new BlockItem(CBBlocks.FROG_STOMACH_FUNGUS_STEM.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> FROG_STOMACH_FUNGUS_CAP =
+		ITEMS.register("frog_stomach_fungus_cap",
+			() -> new BlockItem(CBBlocks.FROG_STOMACH_FUNGUS_CAP.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> FROG_STOMACH_FUNGUS_GILLS =
+		ITEMS.register("frog_stomach_fungus_gills",
+			() -> new BlockItem(CBBlocks.FROG_STOMACH_FUNGUS_GILLS.get(), new Item.Properties()));
+
 	public static final DeferredHolder<Item, Item> FROG_STOMACH_FOLD = ITEMS.register("frog_stomach_fold",
 		() -> new BlockItem(CBBlocks.FROG_STOMACH_FOLD.get(), new Item.Properties()));
 
