@@ -25,27 +25,25 @@ final class FrogStomachFungusGeometry {
 
 	static Structure create(long seed) {
 		Random random = new Random(mixSeed(seed));
-		int stemHeight = 5 + random.nextInt(8);
 		int firstRadius = 3 + random.nextInt(4);
 		int secondRadius = Math.clamp(firstRadius - 1 + random.nextInt(3), 3, 6);
+		int capRadius = Math.max(firstRadius, secondRadius);
+		int stemHeight = 5 + random.nextInt(capRadius * 2 - 4);
 		int crownHeight = firstRadius >= 5 && random.nextBoolean() ? 1 : 0;
 		Map<LocalPos, Part> parts = new LinkedHashMap<>();
 
 		// The stem rises into the hollow under the cap instead of stopping at its lower rim.
 		for (int forward = 0; forward < stemHeight + 2; forward++)
 			put(parts, 0, forward, 0, Part.STEM);
-		if (firstRadius >= 5) {
-			put(parts, -1, 0, 0, Part.STEM);
-			put(parts, 1, 0, 0, Part.STEM);
-			put(parts, 0, 0, -1, Part.STEM);
-			put(parts, 0, 0, 1, Part.STEM);
-			if (stemHeight >= 9) {
-				put(parts, -1, 1, 0, Part.STEM);
-				put(parts, 1, 1, 0, Part.STEM);
-				put(parts, 0, 1, -1, Part.STEM);
-				put(parts, 0, 1, 1, Part.STEM);
-			}
-		}
+		int minimumTallerBaseHeight = Math.max(2, capRadius - 2);
+		int tallerBaseHeight = minimumTallerBaseHeight
+			+ random.nextInt(capRadius - minimumTallerBaseHeight + 1);
+		int shorterBaseHeight = tallerBaseHeight - 1;
+		boolean firstPairIsTaller = random.nextBoolean();
+		addOppositeBasePair(parts, true,
+			firstPairIsTaller ? tallerBaseHeight : shorterBaseHeight);
+		addOppositeBasePair(parts, false,
+			firstPairIsTaller ? shorterBaseHeight : tallerBaseHeight);
 
 		generateUmbrellaCap(parts, stemHeight, firstRadius, secondRadius, crownHeight);
 		List<LocalPos> lightCandidates = firstRadius >= 4 && secondRadius >= 4
@@ -61,6 +59,13 @@ final class FrogStomachFungusGeometry {
 		List<Cell> cells = new ArrayList<>(parts.size());
 		parts.forEach((pos, part) -> cells.add(new Cell(pos.first(), pos.forward(), pos.second(), part)));
 		return new Structure(List.copyOf(cells), stemHeight, firstRadius, secondRadius, crownHeight);
+	}
+
+	private static void addOppositeBasePair(Map<LocalPos, Part> parts, boolean firstAxis, int height) {
+		for (int forward = 0; forward < height; forward++) {
+			put(parts, firstAxis ? -1 : 0, forward, firstAxis ? 0 : -1, Part.STEM);
+			put(parts, firstAxis ? 1 : 0, forward, firstAxis ? 0 : 1, Part.STEM);
+		}
 	}
 
 	private static void generateUmbrellaCap(Map<LocalPos, Part> parts, int stemHeight, int firstRadius,

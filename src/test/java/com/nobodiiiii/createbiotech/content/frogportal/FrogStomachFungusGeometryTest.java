@@ -22,11 +22,59 @@ class FrogStomachFungusGeometryTest {
 			assertTrue(fungus.stemHeight() >= 5 && fungus.stemHeight() <= 12);
 			assertTrue(fungus.firstRadius() >= 3 && fungus.firstRadius() <= 6);
 			assertTrue(fungus.secondRadius() >= 3 && fungus.secondRadius() <= 6);
+			assertTrue(fungus.stemHeight() <= Math.max(fungus.firstRadius(), fungus.secondRadius()) * 2,
+				"The stem must not exceed twice the larger cap radius");
 			assertTrue(fungus.crownHeight() >= 0 && fungus.crownHeight() <= 1);
 			sizes.add(fungus.stemHeight() + ":" + fungus.firstRadius() + ":" + fungus.secondRadius()
 				+ ":" + fungus.crownHeight());
 		}
 		assertTrue(sizes.size() >= 24, "Mature fungi should not collapse to a few repeated sizes");
+	}
+
+	@Test
+	void largerCapsFavorLongerStems() {
+		long[] totalStemHeight = new long[7];
+		int[] samples = new int[7];
+		for (long seed = 0; seed < 4096; seed++) {
+			FrogStomachFungusGeometry.Structure fungus = FrogStomachFungusGeometry.create(seed);
+			int capRadius = Math.max(fungus.firstRadius(), fungus.secondRadius());
+			assertTrue(fungus.stemHeight() <= capRadius * 2);
+			totalStemHeight[capRadius] += fungus.stemHeight();
+			samples[capRadius]++;
+		}
+		for (int radius = 4; radius <= 6; radius++) {
+			assertTrue(samples[radius - 1] > 0 && samples[radius] > 0);
+			assertTrue(totalStemHeight[radius] * samples[radius - 1]
+				> totalStemHeight[radius - 1] * samples[radius],
+				"Average stem height should increase with the cap radius");
+		}
+	}
+
+	@Test
+	void everyFungusBaseFormsTwoOppositePairsWithOneBlockOfHeightDifference() {
+		for (long seed = 0; seed < 512; seed++) {
+			FrogStomachFungusGeometry.Structure fungus = FrogStomachFungusGeometry.create(seed);
+			Map<Position, FrogStomachFungusGeometry.Part> parts = new HashMap<>();
+			for (FrogStomachFungusGeometry.Cell cell : fungus.cells())
+				parts.put(new Position(cell.first(), cell.forward(), cell.second()), cell.part());
+
+			int negativeFirstHeight = baseHeight(parts, -1, 0);
+			int positiveFirstHeight = baseHeight(parts, 1, 0);
+			int negativeSecondHeight = baseHeight(parts, 0, -1);
+			int positiveSecondHeight = baseHeight(parts, 0, 1);
+			assertEquals(negativeFirstHeight, positiveFirstHeight,
+				"Opposite bases on the first axis must be equally tall");
+			assertEquals(negativeSecondHeight, positiveSecondHeight,
+				"Opposite bases on the second axis must be equally tall");
+
+			int capRadius = Math.max(fungus.firstRadius(), fungus.secondRadius());
+			int tallerHeight = Math.max(negativeFirstHeight, negativeSecondHeight);
+			assertTrue(negativeFirstHeight >= 1 && negativeSecondHeight >= 1,
+				"Every fungus must have both base pairs");
+			assertEquals(1, Math.abs(negativeFirstHeight - negativeSecondHeight));
+			assertTrue(tallerHeight >= Math.max(2, capRadius - 2) && tallerHeight <= capRadius,
+				"The taller base pair must be between radius minus two and the radius");
+		}
 	}
 
 	@Test
@@ -97,6 +145,14 @@ class FrogStomachFungusGeometryTest {
 	private static final int[][] DELTAS = {
 		{-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}
 	};
+
+	private static int baseHeight(Map<Position, FrogStomachFungusGeometry.Part> parts,
+		int first, int second) {
+		int height = 0;
+		while (parts.get(new Position(first, height, second)) == FrogStomachFungusGeometry.Part.STEM)
+			height++;
+		return height;
+	}
 
 	private record Position(int first, int forward, int second) {}
 }
