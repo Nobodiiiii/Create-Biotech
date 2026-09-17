@@ -132,6 +132,7 @@ public final class SurgicalCapturedRenderPlan {
 		float yaw, float partialTick, boolean topology) {
 		RecordingBuffer recording = new RecordingBuffer();
 		PoseStack neutralPose = new PoseStack();
+		boolean bindPlayerSkinLayers = topology && preview instanceof PlayerMimicEntity;
 		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
 		// Leaving the scope closed keeps observeModelCube - which the mixin runs for every cube of
 		// every entity model in the game - on its single atomic-read rejection for this capture.
@@ -147,11 +148,13 @@ public final class SurgicalCapturedRenderPlan {
 					captureScope.close();
 			}
 		}
-		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology);
+		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology,
+			bindPlayerSkinLayers);
 	}
 
 	static SurgicalCapturedRenderPlan build(CapturedInput captured) {
-		return build(captured.streams, captured.observedCubes, captured.topology);
+		return build(captured.streams, captured.observedCubes, captured.topology,
+			captured.bindPlayerSkinLayers);
 	}
 
 	/** Records unscaled ModelPart pixel bounds while the renderer emits the matching transformed vertices. */
@@ -434,7 +437,7 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static SurgicalCapturedRenderPlan build(List<CaptureStream> streams,
-		List<ObservedCube> observedCubes, boolean topology) {
+		List<ObservedCube> observedCubes, boolean topology, boolean bindPlayerSkinLayers) {
 		Map<GeometryKey, List<ComponentBuilder>> recovered = new LinkedHashMap<>();
 		List<SourceBatch> extras = new ArrayList<>();
 		List<PendingQuad> pendingQuads = new ArrayList<>();
@@ -522,12 +525,55 @@ public final class SurgicalCapturedRenderPlan {
 			.filter(builder -> !builder.batches.isEmpty())
 			.sorted(Comparator.comparingInt(builder -> builder.order))
 			.toList();
+		if (bindPlayerSkinLayers)
+			visible = bindPlayerSkinLayers(visible);
 		List<Component> components = new ArrayList<>(visible.size());
 		for (int id = 0; id < visible.size(); id++) {
 			ComponentBuilder builder = visible.get(id);
 			components.add(builder.build(id, shouldPreserveSource(builder, visible)));
 		}
 		return new SurgicalCapturedRenderPlan(components, extras);
+	}
+
+	/**
+	 * Player hats, jackets, sleeves and trouser legs are inflated copies of the six body cubes.
+	 * Attach their captured vertices to the underlying cube so surgery moves and rotates both as one
+	 * component, while the skin pixels remain visible over that component's slime replacement.
+	 */
+	private static List<ComponentBuilder> bindPlayerSkinLayers(List<ComponentBuilder> visible) {
+		Set<ComponentBuilder> boundLayers = Collections.newSetFromMap(new IdentityHashMap<>());
+		List<ComponentBuilder> byVolume = visible.stream()
+			.sorted(Comparator.comparingDouble(builder -> cuboidVolume(builder.cuboid)))
+			.toList();
+
+		for (ComponentBuilder layer : byVolume) {
+			if (boundLayers.contains(layer))
+				continue;
+			ComponentBuilder owner = null;
+			float closestVolume = Float.NEGATIVE_INFINITY;
+			for (ComponentBuilder candidate : byVolume) {
+				if (candidate == layer || boundLayers.contains(candidate)
+					|| !isCloseFittingOverlay(layer.cuboid, candidate.cuboid))
+					continue;
+				float volume = cuboidVolume(candidate.cuboid);
+				if (volume > closestVolume) {
+					owner = candidate;
+					closestVolume = volume;
+				}
+			}
+			if (owner == null)
+				continue;
+			owner.bindSkinLayer(layer);
+			boundLayers.add(layer);
+		}
+
+		return visible.stream()
+			.filter(builder -> !boundLayers.contains(builder))
+			.toList();
+	}
+
+	private static float cuboidVolume(RecoveredCuboid cuboid) {
+		return cuboid.a.length() * cuboid.b.length() * cuboid.c.length();
 	}
 
 	/**
@@ -1307,7 +1353,7 @@ public final class SurgicalCapturedRenderPlan {
 		int order) {}
 
 	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes,
-		boolean topology) {}
+		boolean topology, boolean bindPlayerSkinLayers) {}
 
 	private record CachedAlphaMask(int generation, AlphaMask mask) {}
 
@@ -1468,6 +1514,13 @@ public final class SurgicalCapturedRenderPlan {
 			SourceBatch batch = new SourceBatch(renderType, List.copyOf(vertices), true);
 			batches.add(batch);
 			surfaceOverlays.add(batch);
+		}
+
+		private void bindSkinLayer(ComponentBuilder layer) {
+			batches.addAll(layer.batches);
+			// These vertices are already inflated away from the body surface. Rendering them as an
+			// overlay preserves the player's second skin layer when the body cube becomes slime.
+			surfaceOverlays.addAll(layer.batches);
 		}
 
 		private Component build(int id, boolean preserveSource) {

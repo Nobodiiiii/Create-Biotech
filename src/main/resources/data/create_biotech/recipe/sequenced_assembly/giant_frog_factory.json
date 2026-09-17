@@ -33,7 +33,7 @@
       ]
     },
     {
-      "type": "create:deploying",
+      "type": "create_biotech:frog_contents_packaging",
       "ingredients": [
         {
           "item": "create_biotech:incomplete_giant_frog_factory"
@@ -45,11 +45,14 @@
       "results": [
         {
           "id": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "id": "create:cardboard_package_12x12"
         }
       ]
     },
     {
-      "type": "create:deploying",
+      "type": "create_biotech:frog_contents_packaging",
       "ingredients": [
         {
           "item": "create_biotech:incomplete_giant_frog_factory"
@@ -61,6 +64,9 @@
       "results": [
         {
           "id": "create_biotech:incomplete_giant_frog_factory"
+        },
+        {
+          "id": "create:cardboard_package_12x12"
         }
       ]
     },

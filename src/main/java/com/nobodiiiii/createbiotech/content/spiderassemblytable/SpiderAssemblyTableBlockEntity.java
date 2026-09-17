@@ -1043,13 +1043,10 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	private boolean containsCompletedSequencedAssembly(List<ItemStack> outputs) {
-		for (ItemStack output : outputs) {
-			if (output.isEmpty())
-				continue;
-			if (!output.has(AllDataComponents.SEQUENCED_ASSEMBLY))
-				return true;
-		}
-		return false;
+		if (outputs.isEmpty())
+			return false;
+		ItemStack workpiece = outputs.getFirst();
+		return !workpiece.isEmpty() && !workpiece.has(AllDataComponents.SEQUENCED_ASSEMBLY);
 	}
 
 	private int getPressDuration() {

@@ -18,9 +18,9 @@ import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 /**
- * The third cardboard step of the Giant Frog Factory assembly. The declared empty package output
- * keeps the byproduct visible in recipe viewers; at processing time it is replaced by a package
- * containing randomized blocks drawn from the current Frog Stomach ecology.
+ * A cardboard step of the Giant Frog Factory assembly. The declared empty package output keeps the
+ * byproduct visible in recipe viewers; at processing time it is replaced by a package containing
+ * randomized blocks drawn from the current Frog Stomach ecology.
  */
 public class FrogContentsPackagingRecipe extends DeployerApplicationRecipe {
 
