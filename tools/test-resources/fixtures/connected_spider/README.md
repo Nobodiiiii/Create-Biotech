@@ -11,8 +11,9 @@
 | `{andesite,brass,copper,shadow_steel,refined_radiance,railway}_casing_connected.png` | Create 1.21.1 / 6.0.10 中 `assets/create/textures/block/` 的原样文件；128×128 |
 | `biotech_casing`、`explosion_proof_casing`、`explosion_proof_casing_side` 的普通/连接 PNG | Biotech 1.2.6 基线包中 `assets/create_biotech/textures/block/` 的原样文件；16×16 /128×128 |
 
-铁路夹具使用顶面连接纹理而非侧面。Biotech 的三组图片用于验证普通纹理不满足源网格时，
-自动尝试同名 `_connected` 纹理，不需要为每个新机壳准备蜘蛛贴图。
+铁路夹具使用顶面连接纹理而非侧面。Biotech 的三组图片用于验证直接使用 Create
+`CasingConnectivity` 注册的目标纹理及其网格尺寸，不再猜测同名 `_connected` 文件；
+不需要为每个新机壳准备蜘蛛贴图。
 
 源素材保留各自的授权与归属；测试用途不改变其许可证。项目说明见
 [许可证](../../../../LICENSE.md)和[第三方声明](../../../../THIRD_PARTY_NOTICES.md)。

@@ -52,7 +52,7 @@ handle，不跨资源重载长期持有。
 - 通用候选**仅眼睛**：同命名空间、同一直接目录的 `eye_<非负整数>.png` 按数字递增排序（允许编号缺口；同编号按文件名排序）。按同步材质表的零起始索引 `%` 有效候选数量循环分配；材质表按命名空间、路径排序，专用图对应的材质也占索引。同机壳固定一种，不随时间切换；材质表或候选集变化后分配可能变化。扫描仅在资源重载时进行，候选尺寸和 cutout 校验结果缓存；无效候选不占位置，全透明候选有效。
 - 身体优先使用专用素材：目标的 `body_textures` 指定编辑目录（蜘蛛为 `create_biotech:entity/spider_assembly_table`），先查 `<命名空间>/body_<机壳名>.png`，再查 `body_<机壳名>.png`；嵌套材质路径规则与眼睛相同。无有效专用图才使用机壳源纹理的自动 UV 映射，绝不扫描或分配 `body_编号`。因此 `body_andesite_casing.png` 在正常渲染中直接生效，不只是回退素材。
 - 专用身体使用目标尺寸的 UV 画布（蜘蛛 64×32，允许等比整数倍高清）；透明区域保持透明，不透出生成材质。它先替换身体底图，再应用显式 `overlay` 和按 `index` 排序的图层；显式图层优先，眼睛独立替换。身体不自动发光，复用现有 UV 解释器；无碎片的专用 body 不生成额外副本；不存在、尺寸不符或不支持的透明度会跳过专用候选。
-- 角色前缀只用于这些可替换 PNG，不改变机壳来源的普通 / `_connected` 纹理查找。候选尺寸不兼容时跳过；全透明专用图仍有效（隐藏眼睛）。普通贴图层默认不启用命名糖。
+- 角色前缀只用于这些可替换 PNG，不改变机壳来源的 Create CT 注册表查询。候选尺寸不兼容时跳过；全透明专用图仍有效（隐藏眼睛）。普通贴图层默认不启用命名糖。
 - 显式 `material_overrides.<机壳ID>.layers` 仍优先；直接指定 `texture` 且省略 / 关闭 `material_variants` 即可固定眼睛。内置材质覆盖只选择机壳源图并继承单一眼睛层；铜 / 铁路的物流帽和列车帽示例已移除。资源包可覆盖，F3+T 清除缓存重载；半透明层不受支持，会回退基础外观。
 
 
@@ -60,7 +60,7 @@ handle，不跨资源重载长期持有。
 - 材质 slot 配置：`assets/<namespace>/casted_materials/materials/<material-path>.json`。
 - [正式蜘蛛定义](src/main/resources/assets/create_biotech/casted_materials/targets/spider_assembly_table/spider.json)可作为格式示例。
 - 目标宽、高为 1～256；源网格不受该上限限制，源图需为逻辑网格的整数等比缩放。
-- 显式源配置优先；默认模型贴图不满足网格时，尝试同名 `_connected`。
+- 显式源配置优先；自动来源直接查询 Create `CasingConnectivity` 注册表中的连接纹理目标 sprite，未注册的方块使用模型粒子贴图。不再猜测 `_connected` 文件名，也不扫描模型面面积；查询仅在来源缓存未命中时进行。来源尺寸仍须满足逻辑网格，不能把 16×16 粒子图强行拉伸成 128×128 CT 图；不兼容时沿用基础外观回退。
 
 预算只由目标 JSON 的 `render_policy` 控制，不再提供材质渲染客户端配置组。缺省值为：
 
@@ -81,7 +81,9 @@ handle，不跨资源重载长期持有。
 清除模型、来源与候选缓存，即使之后没有装壳蜘蛛参与渲染也会释放。
 
 装壳只设置外观，生存和创造模式均不消耗手持机壳；已有机壳不会直接替换。
-普通或潜行使用扳手都先清除外观，不返还机壳，也不拆除工作台；无壳时沿用正常扳手行为。
+只有潜行扳手清除已装机壳，不返还机壳，也不拆除工作台；无壳时交给 Create 默认拆机行为。
+普通扳手回调不再拆壳，沿用 Create 默认处理。扳手及持工作台物品的交互分发完全遵循上游
+`PASS_TO_DEFAULT_BLOCK_INTERACTION`：普通主手右键可能先打开工作台菜单，再决定是否执行物品 `useOn`；不保留自定义菜单绕过。
 为兼容存档，保留 `casted_materials:material` 组件、`casted_materials:material_palette` payload 和
 `CastedMaterial` NBT 字段。这不是独立 Mod；迁移旧实例时应移除旧 Casted Materials JAR。
 Sable Companion 嵌入不变，原模块 [MIT 声明](src/main/resources/META-INF/licenses/casted-materials-MIT.txt)保留。

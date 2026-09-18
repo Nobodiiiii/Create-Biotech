@@ -59,9 +59,13 @@ Fragmented static skins are sampled once from the existing UV interpretation int
 textures, then rendered with the original model faces. Unfragmented dedicated bodies stay direct.
 Animated, high-resolution, resampled or unavailable bake sources retain direct UV rendering without
 silently freezing frames or reducing detail. Both paths preserve body/eye priority and independent glow.
-Explicit target/material slot bindings precede default model sprites; incompatible default tiles can
-fall back to a same-name `_connected` sheet. Source dimensions must be a uniform positive integer
-multiple of their logical grid. An invalid authoritative PNG does not silently become another material.
+Explicit target/material slot bindings take precedence. Automatic discovery queries Create's
+`CasingConnectivity` registry for the casing's connected target sprite; only unregistered blocks use
+the baked model's particle sprite. No `_connected` filename guessing or model-face scanning is performed.
+Discovery runs on binding-cache misses, not each frame. Source dimensions must be a uniform positive
+integer multiple of their logical grid. Incompatible sources use the existing base-appearance fallback;
+a 16x16 particle tile is not stretched into a 128x128 CT sheet. An invalid authoritative PNG does not
+silently become another material.
 
 `layers` are applied by ascending `index` with stable declaration order for ties. Texture layers use cutout
 alpha and can crop/scale into target UVs; model layers attach existing baked models to a named live part. A
@@ -78,7 +82,7 @@ paths uses the base model/material.
 - Generic candidates are **eye-only**: discover `eye_<non-negative integer>.png` in the same namespace and immediate folder, sort numerically (gaps allowed; filename breaks numeric ties), and select `synchronized material index % valid candidate count`. The palette sorts by namespace/path; materials with dedicated textures still occupy indices. Selection is stable for a material, never time-based; changing the palette or candidate set can change assignments. Discovery happens on resource reload, with cached size/cutout validation; invalid candidates are skipped and fully transparent candidates remain valid.
 - Dedicated bodies take precedence over generated UVs. Target `body_textures` specifies the editing directory (the spider uses `create_biotech:entity/spider_assembly_table`): try `<material-namespace>/body_<casing-name>.png`, then `body_<casing-name>.png`, preserving nested material paths. Only absent/invalid dedicated bodies use casing-source UV mapping. There is no `body_<number>` pool. `body_andesite_casing.png` now applies in the normal rendering path, not only on fallback.
 - A dedicated body uses the target canvas (64×32 for spiders; uniform integer HD scaling supported) and replaces the base, including transparent holes. Explicit `overlay` and ordered layers apply afterward and take precedence; eyes remain independently selected. Bodies are non-emissive and reuse the same UV interpreter. An unfragmented dedicated body needs no generated copy. Missing, incompatible-size or unsupported-alpha candidates are skipped.
-- This rule applies to replaceable PNGs, not the normal casing-source / `_connected` lookup. Incompatible dimensions are skipped; a fully transparent replacement hides the eyes. Other texture layers opt out by default.
+- This rule applies to replaceable PNGs, not Create's casing-source registry lookup. Incompatible dimensions are skipped; a fully transparent replacement hides the eyes. Other texture layers opt out by default.
 - Explicit material `layers` still replace the root list. Pin a texture by omitting/disabling `material_variants`. Built-in material overrides only select casing sources and inherit the single eye layer; the logistics/train hat examples have been removed. Resource packs can override these files; F3+T invalidates cached selections. Unsupported translucent layers use the base appearance.
 
 
@@ -104,8 +108,11 @@ retains direct UV, without evicting textures referenced by pending draw batches.
 textures and invalidates source/model caches, even if no encased spider is subsequently rendered.
 
 Installing a casing on an unencased spider table sets its appearance without consuming the held item,
-in both survival and creative. An existing casing is not replaced. Wrench or sneak-wrench once to clear its appearance
-without returning a casing item; the table remains in place. With no casing, normal wrench behavior applies.
+in both survival and creative. An existing casing is not replaced. Only sneak-wrench clears an installed casing without returning an
+item or removing the table; without a casing it delegates to Create's default dismantling behavior.
+The normal-wrench callback uses Create's default behavior, not casing removal. Wrench and table-item
+interactions follow upstream `PASS_TO_DEFAULT_BLOCK_INTERACTION`: ordinary main-hand use may open the
+table menu before item `useOn`. No custom menu-bypass interception is retained.
 The `casted_materials:material` component, `casted_materials:material_palette` payload and `CastedMaterial`
 NBT key retain their IDs for save compatibility; they are not a separate mod registration. Remove any
 old standalone Casted Materials Mod from a migrated test instance. Sable Companion embedding is unchanged.

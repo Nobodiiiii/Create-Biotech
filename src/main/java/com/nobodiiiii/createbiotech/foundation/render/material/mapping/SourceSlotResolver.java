@@ -82,15 +82,7 @@ public final class SourceSlotResolver {
                 return globalFallback;
             }
         }
-        return defaultSpriteLookup.apply(materialId).flatMap(sprite -> {
-            Optional<T> base = load(sprite, logicalGrid, imageLookup);
-            if (base.isPresent() || sprite.getPath().endsWith("_connected")) {
-                return base;
-            }
-            // A selected CT-sheet grid can be larger than the baked model's ordinary tile.
-            // Keep explicit declarations and compatible base tiles ahead of this naming fallback.
-            return load(sprite.withSuffix("_connected"), logicalGrid, imageLookup);
-        });
+        return defaultSpriteLookup.apply(materialId).flatMap(sprite -> load(sprite, logicalGrid, imageLookup));
     }
 
     private static <T> Optional<T> load(

@@ -172,7 +172,7 @@ Body 不参与编号循环。目标可用 `"body_textures": "create_biotech:enti
 ```
 
 `example:block/casing` 是 sprite 标识，对应 `assets/example/textures/block/casing.png`，不是本地文件路径。
-也可使用目标的 `material_overrides`，或默认模型贴图及同名 `_connected` 查找。
+也可使用目标的 `material_overrides`。未显式配置时，客户端查询 Create `CasingConnectivity` 的目标 sprite；未注册的方块使用模型粒子贴图，仍需满足源网格尺寸。不再自动拼接 `_connected` 文件名。该查询属于运行时客户端，不由制作工具解析。
 预览 PNG 不必打包。无法匹配的手绘区域不会自动变成固定覆盖层；需要另外制作透明底的覆盖 PNG 并配置 `overlay`。
 
 ```powershell
