@@ -2,7 +2,7 @@
   "credit": "Create: Biotech — standard Java block-model part",
   "ambientocclusion": false,
   "gui_light": "front",
-  "render_type": "minecraft:cutout",
+  "render_type": "minecraft:translucent",
   "texture_size": [
     64,
     64

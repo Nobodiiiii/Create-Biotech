@@ -173,6 +173,7 @@ public class CBCreativeModeTabs {
 				visible(CBItems.BLAST_PROOF_FRAMED_GLASS.get()),
 				visible(CBItems.SONIC_DOG_CANNON.get()),
 				visible(CBItems.DING_DONG_CHICKEN.get()),
+				visible(CBItems.SMART_SUPER_GLUE.get()),
 				visible(CBItems.SLIME_HELMET.get()),
 				visible(CBItems.SLIME_CHESTPLATE.get()),
 				visible(CBItems.SLIME_LEGGINGS.get()),

@@ -7,37 +7,8 @@ import net.minecraft.world.item.ItemStack;
 
 public class ShulkerPackagerItemHandler extends PackagerItemHandler {
 
-	private final ShulkerPackagerBlockEntity blockEntity;
-
 	public ShulkerPackagerItemHandler(ShulkerPackagerBlockEntity blockEntity) {
 		super(blockEntity);
-		this.blockEntity = blockEntity;
-	}
-
-	@Override
-	public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-		ItemStack remainder = super.insertItem(slot, stack, simulate);
-		if (remainder.getCount() < stack.getCount())
-			return remainder;
-		if (slot != 0 || stack.isEmpty() || !isItemValid(slot, stack))
-			return stack;
-		if (!blockEntity.heldBox.isEmpty() || !blockEntity.queuedExitingPackages.isEmpty()
-			|| blockEntity.animationTicks != 0)
-			return stack;
-
-		ItemStack accepted = stack.copy();
-		accepted.setCount(1);
-		if (!simulate) {
-			blockEntity.heldBox = accepted;
-			blockEntity.previouslyUnwrapped = ItemStack.EMPTY;
-			blockEntity.animationInward = false;
-			blockEntity.animationTicks = 0;
-			blockEntity.heldBoxIdleTicks = 0;
-			blockEntity.triggerStockCheck();
-			blockEntity.notifyUpdate();
-			blockEntity.setChanged();
-		}
-		return stack.copyWithCount(stack.getCount() - 1);
 	}
 
 	@Override

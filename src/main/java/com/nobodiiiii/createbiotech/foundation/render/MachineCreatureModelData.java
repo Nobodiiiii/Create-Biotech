@@ -135,7 +135,9 @@ final class MachineCreatureModelData {
 	}
 
 	static MachineCreatureModels.ModelSpec shulker() {
-		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("shulker"), MachineCreatureModels.Layer.CUTOUT, List.of(
+		// The player can stand inside the closed shell. Translucent is opaque for this texture,
+		// but uses a no-cull render state so the inner shell remains visible.
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("shulker"), MachineCreatureModels.Layer.TRANSLUCENT, List.of(
 			new MachineCreatureModels.PartSpec("$root", null, "root", 				0f, 0f, 0f, 0f, 0f, 0f, true, false, false, null),
 			new MachineCreatureModels.PartSpec("lid", "$root", "lid", 				0f, 24f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-8f, -16f, -8f, 8f, -4f, 8f)),
 			new MachineCreatureModels.PartSpec("base", "$root", "base", 				0f, 24f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-8f, -8f, -8f, 8f, 0f, 8f))
