@@ -1,3 +1,240 @@
 {
-  "parent": "create_biotech:block/magma_cube_burner"
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "create_biotech:block/magma_cube_burner",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "particle": "minecraft:block/blackstone"
+  },
+  "children": {
+    "base": {
+      "parent": "create_biotech:block/magma_cube_burner"
+    },
+    "magma_cube0": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube0",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube1": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube1",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube2": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube2",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube3": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube3",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube4": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube4",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube5": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube5",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube6": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube6",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_cube7": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/cube7",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    },
+    "magma_inside_cube": {
+      "parent": "create_biotech:block/machine_creature/magma_cube/inside_cube",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.626
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5
+          ]
+        ]
+      }
+    }
+  }
 }

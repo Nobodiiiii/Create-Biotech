@@ -3,31 +3,17 @@ package com.nobodiiiii.createbiotech.client;
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortItem;
-import com.nobodiiiii.createbiotech.content.allay.client.render.AllayPortItemRenderer;
-import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineItem;
-import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineItemRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatItemRenderer;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItemRenderer;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberItem;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberItemRenderer;
-import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogItem;
-import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogItemRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
-import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerItem;
-import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerItemRenderer;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItemRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonItem;
-import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
-import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItemRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderProperties;
-import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItem;
-import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterItemRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.fluid.CBFluidType;
@@ -88,24 +74,10 @@ final class CBClientExtensions {
 		if (item instanceof RenderedLivingEntityItem<?> entityItem)
 			return RenderedLivingEntityItemRenderer.create(entityItem);
 
-		if (item instanceof AutomaticFishReleaseMachineItem)
-			return SimpleCustomRenderer.create(item, new AutomaticFishReleaseMachineItemRenderer());
-		if (item instanceof EvokerEnchantingChamberItem)
-			return SimpleCustomRenderer.create(item, new EvokerEnchantingChamberItemRenderer());
-		if (item instanceof AllayPortItem)
-			return SimpleCustomRenderer.create(item, new AllayPortItemRenderer());
 		if (item instanceof ButterCatBlockItem)
 			return SimpleCustomRenderer.create(item, new ButterCatItemRenderer());
 		if (item instanceof CapturedEntityBoxItem)
 			return SimpleCustomRenderer.create(item, new CapturedEntityBoxItemRenderer());
-		if (item instanceof SpiderAssemblyTableItem)
-			return SimpleCustomRenderer.create(item, new SpiderAssemblyTableItemRenderer());
-		if (item instanceof SquidPrinterItem)
-			return SimpleCustomRenderer.create(item, new SquidPrinterItemRenderer());
-		if (item instanceof MagmaCubeBurnerItem burner && burner.hasCapturedMagmaCube())
-			return SimpleCustomRenderer.create(item, new MagmaCubeBurnerItemRenderer());
-		if (item instanceof GiantFrogItem || item == CBItems.INCOMPLETE_GIANT_FROG_FACTORY.get())
-			return itemRenderer(new GiantFrogItemRenderer());
 		if (item instanceof SurgicalKitItem)
 			return itemRenderer(new SurgicalKitItemRenderer());
 		if (item instanceof SonicDogCannonItem)

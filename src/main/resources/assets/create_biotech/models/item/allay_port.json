@@ -1,3 +1,212 @@
 {
-  "parent": "create_biotech:block/allay_port/item"
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "create_biotech:block/allay_port/item",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "particle": "create:block/andesite_block"
+  },
+  "children": {
+    "port": {
+      "parent": "create_biotech:block/allay_port/item",
+      "transform": {
+        "matrix": [
+          [
+            0.9,
+            0,
+            0,
+            0.05
+          ],
+          [
+            0,
+            0.9,
+            0,
+            0.05
+          ],
+          [
+            0,
+            0,
+            0.9,
+            0.05
+          ]
+        ]
+      }
+    },
+    "allay_head": {
+      "parent": "create_biotech:block/machine_creature/allay/head",
+      "transform": {
+        "matrix": [
+          [
+            -0.87698291,
+            0.18712052,
+            0.07672606,
+            0.430645
+          ],
+          [
+            -0.18640847,
+            -0.88033284,
+            0.01630863,
+            1.07997775
+          ],
+          [
+            0.07844017,
+            0,
+            0.89657523,
+            0.5
+          ]
+        ]
+      }
+    },
+    "allay_body": {
+      "parent": "create_biotech:block/machine_creature/allay/body",
+      "transform": {
+        "matrix": [
+          [
+            -0.82845437,
+            0.35165802,
+            0,
+            0.43047118
+          ],
+          [
+            -0.35165802,
+            -0.82845437,
+            0,
+            1.08051272
+          ],
+          [
+            0,
+            0,
+            0.9,
+            0.5
+          ]
+        ]
+      }
+    },
+    "allay_body_right_arm": {
+      "parent": "create_biotech:block/machine_creature/allay/body_right_arm",
+      "transform": {
+        "matrix": [
+          [
+            0.77458159,
+            0.45493614,
+            -0.0552853,
+            0.53207269
+          ],
+          [
+            -0.39466903,
+            0.71737597,
+            0.37364163,
+            1.09308611
+          ],
+          [
+            0.23293714,
+            -0.29732948,
+            0.81690603,
+            0.5
+          ]
+        ]
+      }
+    },
+    "allay_body_left_arm": {
+      "parent": "create_biotech:block/machine_creature/allay/body_left_arm",
+      "transform": {
+        "matrix": [
+          [
+            -0.89945174,
+            -0.03129002,
+            -0.00273752,
+            0.35084829
+          ],
+          [
+            0.03140955,
+            -0.89602906,
+            -0.07839238,
+            1.01616092
+          ],
+          [
+            0,
+            -0.07844017,
+            0.89657523,
+            0.5
+          ]
+        ]
+      }
+    },
+    "allay_body_right_wing": {
+      "parent": "create_biotech:block/machine_creature/allay/body_right_wing",
+      "transform": {
+        "matrix": [
+          [
+            -0.5858057,
+            0.56628259,
+            0.38230317,
+            0.45636038
+          ],
+          [
+            -0.24865977,
+            -0.64574649,
+            0.57548223,
+            1.09150203
+          ],
+          [
+            0.6363961,
+            0.26895261,
+            0.57677074,
+            0.53375
+          ]
+        ]
+      }
+    },
+    "allay_body_left_wing": {
+      "parent": "create_biotech:block/machine_creature/allay/body_left_wing",
+      "transform": {
+        "matrix": [
+          [
+            -0.5858057,
+            0.07113821,
+            -0.67953737,
+            0.40458198
+          ],
+          [
+            -0.24865977,
+            -0.8559228,
+            0.12475766,
+            1.0695234
+          ],
+          [
+            -0.6363961,
+            0.26895261,
+            0.57677074,
+            0.53375
+          ]
+        ]
+      }
+    },
+    "logistics_hat": {
+      "parent": "create:entity/logistics_hat",
+      "transform": {
+        "matrix": [
+          [
+            -0.54811432,
+            -0.10857771,
+            -0.06471342,
+            0.38861597
+          ],
+          [
+            -0.11650529,
+            0.54567107,
+            0.07124499,
+            1.27770876
+          ],
+          [
+            0.04902511,
+            0.08282641,
+            -0.55420445,
+            0.5
+          ]
+        ]
+      }
+    }
+  }
 }

@@ -1,3 +1,387 @@
 {
-  "parent": "create:item/fluid_tank"
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "create:item/fluid_tank",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "particle": "minecraft:block/enchanting_table_top"
+  },
+  "children": {
+    "table": {
+      "parent": "minecraft:block/enchanting_table",
+      "transform": {
+        "matrix": [
+          [
+            0.67,
+            0,
+            0,
+            0.165
+          ],
+          [
+            0,
+            0.67,
+            0,
+            -0.085
+          ],
+          [
+            0,
+            0,
+            0.67,
+            0.165
+          ]
+        ]
+      }
+    },
+    "evoker_head": {
+      "parent": "create_biotech:block/machine_creature/evoker/head",
+      "transform": {
+        "matrix": [
+          [
+            -0.52381818,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.5218249,
+            0.04565376,
+            0.89411364
+          ],
+          [
+            0,
+            0.04565376,
+            0.5218249,
+            0.69490909
+          ]
+        ]
+      }
+    },
+    "evoker_head_nose": {
+      "parent": "create_biotech:block/machine_creature/evoker/head_nose",
+      "transform": {
+        "matrix": [
+          [
+            -0.52381818,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.5218249,
+            0.04565376,
+            0.95934175
+          ],
+          [
+            0,
+            0.04565376,
+            0.5218249,
+            0.68920237
+          ]
+        ]
+      }
+    },
+    "evoker_body": {
+      "parent": "create_biotech:block/machine_creature/evoker/body",
+      "transform": {
+        "matrix": [
+          [
+            -0.52381818,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.52381818,
+            0,
+            0.89411364
+          ],
+          [
+            0,
+            0,
+            0.52381818,
+            0.69490909
+          ]
+        ]
+      }
+    },
+    "evoker_arms": {
+      "parent": "create_biotech:block/machine_creature/evoker/arms",
+      "transform": {
+        "matrix": [
+          [
+            -0.52381818,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.38327193,
+            -0.35705478,
+            0.79589773
+          ],
+          [
+            0,
+            -0.35705478,
+            0.38327193,
+            0.66217045
+          ]
+        ]
+      }
+    },
+    "evoker_arms_left_shoulder": {
+      "parent": "create_biotech:block/machine_creature/evoker/arms_left_shoulder",
+      "transform": {
+        "matrix": [
+          [
+            -0.52381818,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.38327193,
+            -0.35705478,
+            0.79589773
+          ],
+          [
+            0,
+            -0.35705478,
+            0.38327193,
+            0.66217045
+          ]
+        ]
+      }
+    },
+    "evoker_right_leg": {
+      "parent": "create_biotech:block/machine_creature/evoker/right_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.49664497,
+            0.1658122,
+            0.01534853,
+            0.56547727
+          ],
+          [
+            -0.03908681,
+            -0.0691469,
+            -0.51776096,
+            0.50125
+          ],
+          [
+            -0.16186872,
+            -0.49204726,
+            0.07793263,
+            0.69490909
+          ]
+        ]
+      }
+    },
+    "evoker_left_leg": {
+      "parent": "create_biotech:block/machine_creature/evoker/left_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.49664497,
+            -0.1658122,
+            -0.01534853,
+            0.43452273
+          ],
+          [
+            0.03908681,
+            -0.0691469,
+            -0.51776096,
+            0.50125
+          ],
+          [
+            0.16186872,
+            -0.49204726,
+            0.07793263,
+            0.69490909
+          ]
+        ]
+      }
+    },
+    "book_left_lid": {
+      "parent": "create_biotech:block/machine_creature/book/left_lid",
+      "transform": {
+        "matrix": [
+          [
+            -0.63581969,
+            0,
+            0.21126598,
+            0.541875
+          ],
+          [
+            -0.20805638,
+            0.11634428,
+            -0.62616017,
+            0.66875
+          ],
+          [
+            -0.03668595,
+            -0.65982119,
+            -0.11040893,
+            0.3325
+          ]
+        ]
+      }
+    },
+    "book_right_lid": {
+      "parent": "create_biotech:block/machine_creature/book/right_lid",
+      "transform": {
+        "matrix": [
+          [
+            -0.63581969,
+            0,
+            -0.21126598,
+            0.458125
+          ],
+          [
+            0.20805638,
+            0.11634428,
+            -0.62616017,
+            0.66875
+          ],
+          [
+            0.03668595,
+            -0.65982119,
+            -0.11040893,
+            0.3325
+          ]
+        ]
+      }
+    },
+    "book_seam": {
+      "parent": "create_biotech:block/machine_creature/book/seam",
+      "transform": {
+        "matrix": [
+          [
+            0.67,
+            0,
+            -2.2e-07,
+            0.5
+          ],
+          [
+            2.2e-07,
+            0.11634428,
+            0.65982119,
+            0.66875
+          ],
+          [
+            4e-08,
+            -0.65982119,
+            0.11634428,
+            0.3325
+          ]
+        ]
+      }
+    },
+    "book_left_pages": {
+      "parent": "create_biotech:block/machine_creature/book/left_pages",
+      "transform": {
+        "matrix": [
+          [
+            0.63581969,
+            0,
+            -0.21126598,
+            0.5
+          ],
+          [
+            0.20805638,
+            0.11634428,
+            0.62616017,
+            0.70788501
+          ],
+          [
+            0.03668595,
+            -0.65982119,
+            0.11040893,
+            0.33940056
+          ]
+        ]
+      }
+    },
+    "book_right_pages": {
+      "parent": "create_biotech:block/machine_creature/book/right_pages",
+      "transform": {
+        "matrix": [
+          [
+            -0.63581969,
+            0,
+            -0.21126598,
+            0.5
+          ],
+          [
+            0.20805638,
+            0.11634428,
+            -0.62616017,
+            0.70788501
+          ],
+          [
+            0.03668595,
+            -0.65982119,
+            -0.11040893,
+            0.33940056
+          ]
+        ]
+      }
+    },
+    "book_flip_page1": {
+      "parent": "create_biotech:block/machine_creature/book/flip_page1",
+      "transform": {
+        "matrix": [
+          [
+            0.63581969,
+            0,
+            -0.21126598,
+            0.5
+          ],
+          [
+            0.20805638,
+            0.11634428,
+            0.62616017,
+            0.70788501
+          ],
+          [
+            0.03668595,
+            -0.65982119,
+            0.11040893,
+            0.33940056
+          ]
+        ]
+      }
+    },
+    "book_flip_page2": {
+      "parent": "create_biotech:block/machine_creature/book/flip_page2",
+      "transform": {
+        "matrix": [
+          [
+            0.63581969,
+            0,
+            -0.21126598,
+            0.5
+          ],
+          [
+            0.20805638,
+            0.11634428,
+            0.62616017,
+            0.70788501
+          ],
+          [
+            0.03668595,
+            -0.65982119,
+            0.11040893,
+            0.33940056
+          ]
+        ]
+      }
+    }
+  }
 }

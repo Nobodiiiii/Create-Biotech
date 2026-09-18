@@ -1,3 +1,262 @@
 {
-  "parent": "create_biotech:block/squid_printer/item"
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "create_biotech:block/squid_printer/item",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "particle": "create_biotech:entity/squid_printer/squid"
+  },
+  "children": {
+    "base": {
+      "parent": "create_biotech:block/squid_printer/item",
+      "transform": {
+        "matrix": [
+          [
+            0.67,
+            0,
+            0,
+            0.165
+          ],
+          [
+            0,
+            0.67,
+            0,
+            0.430625
+          ],
+          [
+            0,
+            0,
+            0.67,
+            0.165
+          ]
+        ]
+      }
+    },
+    "squid_body": {
+      "parent": "create_biotech:block/machine_creature/squid/body",
+      "transform": {
+        "matrix": [
+          [
+            -0.67,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.67,
+            0,
+            0.765625
+          ],
+          [
+            0,
+            0,
+            0.67,
+            0.5
+          ]
+        ]
+      }
+    },
+    "squid_tentacle0": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle0",
+      "transform": {
+        "matrix": [
+          [
+            -2.2e-07,
+            -0.09349389,
+            -0.66344472,
+            0.290625
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            -0.67,
+            3e-08,
+            2.2e-07,
+            0.5
+          ]
+        ]
+      }
+    },
+    "squid_tentacle1": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle1",
+      "transform": {
+        "matrix": [
+          [
+            -0.47376162,
+            -0.06611015,
+            -0.46912618,
+            0.35194951
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            -0.47376147,
+            0.06611017,
+            0.46912634,
+            0.64805049
+          ]
+        ]
+      }
+    },
+    "squid_tentacle2": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle2",
+      "transform": {
+        "matrix": [
+          [
+            -0.67,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            0,
+            0.09349389,
+            0.66344472,
+            0.709375
+          ]
+        ]
+      }
+    },
+    "squid_tentacle3": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle3",
+      "transform": {
+        "matrix": [
+          [
+            -0.47376162,
+            0.06611015,
+            0.46912618,
+            0.64805049
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            0.47376147,
+            0.06611017,
+            0.46912634,
+            0.64805049
+          ]
+        ]
+      }
+    },
+    "squid_tentacle4": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle4",
+      "transform": {
+        "matrix": [
+          [
+            -2.2e-07,
+            0.09349389,
+            0.66344472,
+            0.709375
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            0.67,
+            3e-08,
+            2.2e-07,
+            0.5
+          ]
+        ]
+      }
+    },
+    "squid_tentacle5": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle5",
+      "transform": {
+        "matrix": [
+          [
+            0.47376131,
+            0.06611019,
+            0.46912649,
+            0.64805049
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            0.47376178,
+            -0.06611013,
+            -0.46912603,
+            0.35194951
+          ]
+        ]
+      }
+    },
+    "squid_tentacle6": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle6",
+      "transform": {
+        "matrix": [
+          [
+            0.67,
+            -3e-08,
+            -2.3e-07,
+            0.5
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            -2.3e-07,
+            -0.09349389,
+            -0.66344472,
+            0.290625
+          ]
+        ]
+      }
+    },
+    "squid_tentacle7": {
+      "parent": "create_biotech:block/machine_creature/squid/tentacle7",
+      "transform": {
+        "matrix": [
+          [
+            0.47376146,
+            -0.06611017,
+            -0.46912634,
+            0.35194951
+          ],
+          [
+            0,
+            -0.66344472,
+            0.09349389,
+            0.4725
+          ],
+          [
+            -0.47376163,
+            -0.06611015,
+            -0.46912617,
+            0.35194951
+          ]
+        ]
+      }
+    }
+  }
 }

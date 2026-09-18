@@ -1,35 +1,691 @@
 {
-  "parent": "create_biotech:block/spider_assembly_table/inventory",
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "minecraft:block/block",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "textures": {
+    "particle": "create_biotech:entity/spider_assembly_table/spider"
+  },
+  "children": {
+    "cog": {
+      "parent": "create:block/cogwheel",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            1
+          ],
+          [
+            0,
+            0,
+            -1,
+            1
+          ],
+          [
+            0,
+            -1,
+            0,
+            1.5
+          ]
+        ]
+      }
+    },
+    "spider_head": {
+      "parent": "create_biotech:block/machine_creature/spider/head",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            -0.1875
+          ]
+        ]
+      }
+    },
+    "spider_body0": {
+      "parent": "create_biotech:block/machine_creature/spider/body0",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    "spider_body1": {
+      "parent": "create_biotech:block/machine_creature/spider/body1",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5625
+          ]
+        ]
+      }
+    },
+    "spider_right_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/right_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            -0.70710667,
+            -0.5,
+            0.75
+          ],
+          [
+            0.5,
+            -0.7071069,
+            0.49999984,
+            0.5
+          ],
+          [
+            -0.70710667,
+            0,
+            0.7071069,
+            0.125
+          ]
+        ]
+      }
+    },
+    "spider_left_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/left_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            0.70710667,
+            0.5,
+            0.25
+          ],
+          [
+            -0.5,
+            -0.7071069,
+            0.49999984,
+            0.5
+          ],
+          [
+            0.70710667,
+            0,
+            0.7071069,
+            0.125
+          ]
+        ]
+      }
+    },
+    "spider_right_middle_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/right_middle_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            -0.54902312,
+            -0.31984949,
+            0.75
+          ],
+          [
+            0.50723124,
+            -0.83580716,
+            0.21010201,
+            0.5
+          ],
+          [
+            -0.38268336,
+            0,
+            0.92387956,
+            0.0625
+          ]
+        ]
+      }
+    },
+    "spider_left_middle_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/left_middle_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            0.54902312,
+            0.31984949,
+            0.25
+          ],
+          [
+            -0.50723124,
+            -0.83580716,
+            0.21010201,
+            0.5
+          ],
+          [
+            0.38268336,
+            0,
+            0.92387956,
+            0.0625
+          ]
+        ]
+      }
+    },
+    "spider_right_middle_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/right_middle_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            -0.54902312,
+            0.31984949,
+            0.75
+          ],
+          [
+            0.50723124,
+            -0.83580716,
+            -0.21010201,
+            0.5
+          ],
+          [
+            0.38268336,
+            0,
+            0.92387956,
+            0
+          ]
+        ]
+      }
+    },
+    "spider_left_middle_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/left_middle_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            0.54902312,
+            -0.31984949,
+            0.25
+          ],
+          [
+            -0.50723124,
+            -0.83580716,
+            -0.21010201,
+            0.5
+          ],
+          [
+            -0.38268336,
+            0,
+            0.92387956,
+            0
+          ]
+        ]
+      }
+    },
+    "spider_right_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/right_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            -0.70710667,
+            0.5,
+            0.75
+          ],
+          [
+            0.5,
+            -0.7071069,
+            -0.49999984,
+            0.5
+          ],
+          [
+            0.70710667,
+            0,
+            0.7071069,
+            -0.0625
+          ]
+        ]
+      }
+    },
+    "spider_left_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider/left_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            0.70710667,
+            -0.5,
+            0.25
+          ],
+          [
+            -0.5,
+            -0.7071069,
+            -0.49999984,
+            0.5
+          ],
+          [
+            -0.70710667,
+            0,
+            0.7071069,
+            -0.0625
+          ]
+        ]
+      }
+    },
+    "eyes_head": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/head",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            -0.1875
+          ]
+        ]
+      }
+    },
+    "eyes_body0": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/body0",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    },
+    "eyes_body1": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/body1",
+      "transform": {
+        "matrix": [
+          [
+            -1,
+            0,
+            0,
+            0.5
+          ],
+          [
+            0,
+            -1,
+            0,
+            0.5
+          ],
+          [
+            0,
+            0,
+            1,
+            0.5625
+          ]
+        ]
+      }
+    },
+    "eyes_right_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/right_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            -0.70710667,
+            -0.5,
+            0.75
+          ],
+          [
+            0.5,
+            -0.7071069,
+            0.49999984,
+            0.5
+          ],
+          [
+            -0.70710667,
+            0,
+            0.7071069,
+            0.125
+          ]
+        ]
+      }
+    },
+    "eyes_left_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/left_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            0.70710667,
+            0.5,
+            0.25
+          ],
+          [
+            -0.5,
+            -0.7071069,
+            0.49999984,
+            0.5
+          ],
+          [
+            0.70710667,
+            0,
+            0.7071069,
+            0.125
+          ]
+        ]
+      }
+    },
+    "eyes_right_middle_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/right_middle_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            -0.54902312,
+            -0.31984949,
+            0.75
+          ],
+          [
+            0.50723124,
+            -0.83580716,
+            0.21010201,
+            0.5
+          ],
+          [
+            -0.38268336,
+            0,
+            0.92387956,
+            0.0625
+          ]
+        ]
+      }
+    },
+    "eyes_left_middle_hind_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/left_middle_hind_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            0.54902312,
+            0.31984949,
+            0.25
+          ],
+          [
+            -0.50723124,
+            -0.83580716,
+            0.21010201,
+            0.5
+          ],
+          [
+            0.38268336,
+            0,
+            0.92387956,
+            0.0625
+          ]
+        ]
+      }
+    },
+    "eyes_right_middle_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/right_middle_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            -0.54902312,
+            0.31984949,
+            0.75
+          ],
+          [
+            0.50723124,
+            -0.83580716,
+            -0.21010201,
+            0.5
+          ],
+          [
+            0.38268336,
+            0,
+            0.92387956,
+            0
+          ]
+        ]
+      }
+    },
+    "eyes_left_middle_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/left_middle_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.77218516,
+            0.54902312,
+            -0.31984949,
+            0.25
+          ],
+          [
+            -0.50723124,
+            -0.83580716,
+            -0.21010201,
+            0.5
+          ],
+          [
+            -0.38268336,
+            0,
+            0.92387956,
+            0
+          ]
+        ]
+      }
+    },
+    "eyes_right_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/right_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            -0.70710667,
+            0.5,
+            0.75
+          ],
+          [
+            0.5,
+            -0.7071069,
+            -0.49999984,
+            0.5
+          ],
+          [
+            0.70710667,
+            0,
+            0.7071069,
+            -0.0625
+          ]
+        ]
+      }
+    },
+    "eyes_left_front_leg": {
+      "parent": "create_biotech:block/machine_creature/spider_eyes/left_front_leg",
+      "transform": {
+        "matrix": [
+          [
+            -0.50000016,
+            0.70710667,
+            -0.5,
+            0.25
+          ],
+          [
+            -0.5,
+            -0.7071069,
+            -0.49999984,
+            0.5
+          ],
+          [
+            -0.70710667,
+            0,
+            0.7071069,
+            -0.0625
+          ]
+        ]
+      }
+    }
+  },
   "display": {
     "thirdperson_righthand": {
-      "rotation": [75, 45, 0],
-      "translation": [0, 3, -2],
-      "scale": [0.23, 0.23, 0.23]
+      "rotation": [
+        75,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        3,
+        -2
+      ],
+      "scale": [
+        0.23,
+        0.23,
+        0.23
+      ]
     },
     "firstperson_righthand": {
-      "rotation": [0, 45, 0],
-      "translation": [0, 3, 1],
-      "scale": [0.375, 0.375, 0.375]
+      "rotation": [
+        0,
+        45,
+        0
+      ],
+      "translation": [
+        0,
+        3,
+        1
+      ],
+      "scale": [
+        0.375,
+        0.375,
+        0.375
+      ]
     },
     "gui": {
-      "rotation": [30, 135, 0],
-      "translation": [2, 2, 0],
-      "scale": [0.45, 0.45, 0.45]
+      "rotation": [
+        30,
+        135,
+        0
+      ],
+      "translation": [
+        2,
+        2,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ]
     },
     "ground": {
-      "rotation": [0, 0, 0],
-      "translation": [0, 1, 2],
-      "scale": [0.25, 0.25, 0.25]
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        1,
+        2
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
     },
     "head": {
-      "rotation": [0, 180, 0],
-      "translation": [0, 10, -8],
-      "scale": [1, 1, 1]
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "translation": [
+        0,
+        10,
+        -8
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
     },
     "fixed": {
-      "rotation": [270, 0, 0],
-      "translation": [0, 4, -2],
-      "scale": [0.5, 0.5, 0.5]
+      "rotation": [
+        270,
+        0,
+        0
+      ],
+      "translation": [
+        0,
+        4,
+        -2
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
     }
   }
 }

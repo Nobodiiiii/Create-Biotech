@@ -1,7 +1,475 @@
 {
-  "parent": "create_biotech:item/rendered_living_entity_item",
+  "credit": "Create: Biotech — static baked item model",
+  "parent": "minecraft:block/block",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "gui_light": "front",
   "textures": {
-    "particle": "create_biotech:block/frog_stomach_wall",
-    "layer0": "minecraft:item/slime_ball"
+    "particle": "minecraft:entity/frog/temperate_frog"
+  },
+  "children": {
+    "frog_body": {
+      "parent": "create_biotech:block/machine_creature/frog/body",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.29460526
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.46052632
+          ]
+        ]
+      }
+    },
+    "frog_body_head": {
+      "parent": "create_biotech:block/machine_creature/frog/body_head",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.52486842
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.34539474
+          ]
+        ]
+      }
+    },
+    "frog_body_head_eyes_right_eye": {
+      "parent": "create_biotech:block/machine_creature/frog/body_head_eyes_right_eye",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            -0.23026316
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.87026316
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.17269737
+          ]
+        ]
+      }
+    },
+    "frog_body_head_eyes_left_eye": {
+      "parent": "create_biotech:block/machine_creature/frog/body_head_eyes_left_eye",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0.23026316
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.87026316
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.17269737
+          ]
+        ]
+      }
+    },
+    "frog_body_tongue": {
+      "parent": "create_biotech:block/machine_creature/frog/body_tongue",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.41088816
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.57565789
+          ]
+        ]
+      }
+    },
+    "frog_body_left_arm": {
+      "parent": "create_biotech:block/machine_creature/frog/body_left_arm",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0.46052632
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.40973684
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.28782895
+          ]
+        ]
+      }
+    },
+    "frog_body_left_arm_left_hand": {
+      "parent": "create_biotech:block/machine_creature/frog/body_left_arm_left_hand",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0.46052632
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.06434211
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.40296053
+          ]
+        ]
+      }
+    },
+    "frog_body_right_arm": {
+      "parent": "create_biotech:block/machine_creature/frog/body_right_arm",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            -0.46052632
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.40973684
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.28782895
+          ]
+        ]
+      }
+    },
+    "frog_body_right_arm_right_hand": {
+      "parent": "create_biotech:block/machine_creature/frog/body_right_arm_right_hand",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            -0.46052632
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.06434211
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            0.28782895
+          ]
+        ]
+      }
+    },
+    "frog_left_leg": {
+      "parent": "create_biotech:block/machine_creature/frog/left_leg",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0.40296053
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.40973684
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.46052632
+          ]
+        ]
+      }
+    },
+    "frog_left_leg_left_foot": {
+      "parent": "create_biotech:block/machine_creature/frog/left_leg_left_foot",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            0.63322368
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.06434211
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.46052632
+          ]
+        ]
+      }
+    },
+    "frog_right_leg": {
+      "parent": "create_biotech:block/machine_creature/frog/right_leg",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            -0.40296053
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.40973684
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.46052632
+          ]
+        ]
+      }
+    },
+    "frog_right_leg_right_foot": {
+      "parent": "create_biotech:block/machine_creature/frog/right_leg_right_foot",
+      "transform": {
+        "matrix": [
+          [
+            1.84210526,
+            0,
+            0,
+            -0.63322368
+          ],
+          [
+            0,
+            -1.84210526,
+            0,
+            0.06434211
+          ],
+          [
+            0,
+            0,
+            -1.84210526,
+            -0.46052632
+          ]
+        ]
+      }
+    }
+  },
+  "display": {
+    "gui": {
+      "rotation": [
+        0,
+        330,
+        0
+      ],
+      "translation": [
+        2,
+        -4,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "ground": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        2,
+        4,
+        2
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    "head": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "translation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    "fixed": {
+      "rotation": [
+        0,
+        180,
+        0
+      ],
+      "translation": [
+        -4,
+        -4,
+        -4
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "thirdperson_righthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        2,
+        2,
+        3
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    "thirdperson_lefthand": {
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "translation": [
+        -2,
+        2,
+        3
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    "firstperson_righthand": {
+      "rotation": [
+        350,
+        330,
+        10
+      ],
+      "translation": [
+        5,
+        -4,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    },
+    "firstperson_lefthand": {
+      "rotation": [
+        350,
+        330,
+        10
+      ],
+      "translation": [
+        2,
+        -4,
+        0
+      ],
+      "scale": [
+        0.4,
+        0.4,
+        0.4
+      ]
+    }
   }
 }
