@@ -59,6 +59,10 @@ Fragmented static skins are sampled once from the existing UV interpretation int
 textures, then rendered with the original model faces. Unfragmented dedicated bodies stay direct.
 Animated, high-resolution, resampled or unavailable bake sources retain direct UV rendering without
 silently freezing frames or reducing detail. Both paths preserve body/eye priority and independent glow.
+`FALLBACK` uniformly means there is no usable material rendering result, whether material data is absent
+or material preparation fails. Both block and item rendering then use only the base PNG, without generic
+eyes or an extra glow pass. Only `DIRECT_UV` and `COMPOSITE` render the material pipeline's selected eyes;
+no separate unencased-eye texture is required.
 Explicit target/material slot bindings take precedence. Automatic discovery queries Create's
 `CasingConnectivity` registry for the casing's connected target sprite; only unregistered blocks use
 the baked model's particle sprite. No `_connected` filename guessing or model-face scanning is performed.

@@ -50,8 +50,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
 	private static final ResourceLocation ANDESITE_ENCASED_SPIDER_TEXTURE =
 		CreateBiotech.asResource("textures/entity/spider_assembly_table/body_andesite_casing.png");
-	private static final ResourceLocation SPIDER_EYES_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/eye_00.png");
 	private static final int EYES_LIGHT = 15728640;
 	private static final float SPIDER_SCALE = 1.0f;
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
@@ -105,7 +103,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
 				var materialHandle = SpiderAssemblyMaterialRenderer.resolveModel(spiderModel.root(), be, spiderTexture);
 				materialHandle.render(poseStack, buf, spiderModel::renderType, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				SpiderAssemblyMaterialRenderer.renderEyes(materialHandle, poseStack, buf, SPIDER_EYES_TEXTURE,
+				SpiderAssemblyMaterialRenderer.renderEyes(materialHandle, poseStack, buf,
 					EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
 			});

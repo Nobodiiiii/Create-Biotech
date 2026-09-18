@@ -35,12 +35,10 @@ final class SpiderAssemblyMaterialRenderer {
     }
 
     static void renderEyes(CastedModelHandle handle, com.mojang.blaze3d.vertex.PoseStack pose,
-                           net.minecraft.client.renderer.MultiBufferSource buffers, ResourceLocation fallback,
+                           net.minecraft.client.renderer.MultiBufferSource buffers,
                            int light, int overlay, int color) {
+        // FALLBACK has no usable material rendering result; its base skin owns the entire appearance.
         if (handle.backend() != CastedModelHandle.Backend.FALLBACK)
             handle.renderEmissive(pose, buffers, light, overlay, color);
-        else
-            handle.renderLayer(pose, buffers.getBuffer(net.minecraft.client.renderer.RenderType.eyes(fallback)),
-                    light, overlay, color);
     }
 }
