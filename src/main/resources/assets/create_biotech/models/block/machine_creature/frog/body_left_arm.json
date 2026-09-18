@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    48,
+    48
+  ],
+  "textures": {
+    "particle": "minecraft:entity/frog/temperate_frog",
+    "creature": "minecraft:entity/frog/temperate_frog"
+  },
+  "elements": [
+    {
+      "name": "left_arm_0",
+      "from": [
+        -1,
+        0,
+        -1
+      ],
+      "to": [
+        1,
+        3,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            1,
+            10.666667,
+            1.666667,
+            11.666667
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            1.666667,
+            10.666667,
+            2.333333,
+            11.666667
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            11.666667,
+            1,
+            12.666667
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            1,
+            11.666667,
+            1.666667,
+            12.666667
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            1.666667,
+            11.666667,
+            2.666667,
+            12.666667
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            2.666667,
+            11.666667,
+            3.333333,
+            12.666667
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "left_arm",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

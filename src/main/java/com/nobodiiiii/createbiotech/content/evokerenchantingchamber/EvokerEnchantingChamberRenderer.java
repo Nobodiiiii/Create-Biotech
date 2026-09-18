@@ -3,22 +3,21 @@ package com.nobodiiiii.createbiotech.content.evokerenchantingchamber;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.block.BlockRenderDispatcher;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
@@ -28,25 +27,22 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<EvokerEnchantingChamberBlockEntity> {
 
-	private static final ResourceLocation BOOK_TEXTURE =
-		ResourceLocation.fromNamespaceAndPath("minecraft", "textures/entity/enchanting_table_book.png");
-
 	private static final float ENCHANTING_TABLE_TOP_Y = 14f / 16f;
 	private static final float UPPER_BLOCK_TOP_Y = 1.95f;
 	private static final float EVOKER_BODY_HEIGHT_UNITS = 22f;
-	private static final float EVOKER_SCALE =
+	static final float EVOKER_SCALE =
 		(UPPER_BLOCK_TOP_Y - ENCHANTING_TABLE_TOP_Y) * 16f / EVOKER_BODY_HEIGHT_UNITS;
-	private static final float EVOKER_ROOT_Y = ENCHANTING_TABLE_TOP_Y + 12f / 16f * EVOKER_SCALE;
+	static final float EVOKER_ROOT_Y = ENCHANTING_TABLE_TOP_Y + 12f / 16f * EVOKER_SCALE;
 	private static final float EVOKER_BACK_GAP = 1f / 16f;
 	private static final float EVOKER_BACK_HALF_DEPTH = 3f / 16f * EVOKER_SCALE;
-	private static final float EVOKER_BACK_OFFSET_FROM_CENTER =
+	static final float EVOKER_BACK_OFFSET_FROM_CENTER =
 		0.5f - (EVOKER_BACK_HALF_DEPTH + EVOKER_BACK_GAP);
 
-	private static final float BOOK_FRONT_OFFSET = 4f / 16f;
-	private static final float BOOK_BASE_Y = ENCHANTING_TABLE_TOP_Y + 4f / 16f;
-	private static final float BOOK_BOB_AMPLITUDE = 0.04f;
-	private static final float BOOK_BOB_SPEED = 0.08f;
-	private static final float BOOK_Z_ROTATION = 80f;
+	static final float BOOK_FRONT_OFFSET = 4f / 16f;
+	static final float BOOK_BASE_Y = ENCHANTING_TABLE_TOP_Y + 4f / 16f;
+	static final float BOOK_BOB_AMPLITUDE = 0.04f;
+	static final float BOOK_BOB_SPEED = 0.08f;
+	static final float BOOK_Z_ROTATION = 80f;
 
 	private static final float ITEM_BASE_Y = BOOK_BASE_Y + 6f / 16f;
 	private static final float ITEM_BOB_AMPLITUDE = 0.06f;
@@ -76,8 +72,10 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		Direction facing = blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.FACING);
 
 		renderEnchantingTable(poseStack, buffer, packedLight, packedOverlay);
-		renderEvoker(blockEntity, partialTick, poseStack, buffer, packedLight, facing);
-		renderBook(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
+		if (!VisualizationManager.supportsVisualization(blockEntity.getLevel())) {
+			renderEvoker(blockEntity, partialTick, poseStack, buffer, packedLight, facing);
+			renderBook(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
+		}
 		renderEnchantingItem(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
 	}
 
@@ -122,9 +120,8 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		poseStack.mulPose(Axis.YP.rotationDegrees(bookYRot));
 		poseStack.mulPose(Axis.ZP.rotationDegrees(BOOK_Z_ROTATION));
 
-		prepareBookModel(time, pageFlutter);
-		VertexConsumer bookConsumer = buffer.getBuffer(bookModel.renderType(BOOK_TEXTURE));
-		bookModel.renderToBuffer(poseStack, bookConsumer, packedLight, packedOverlay, 0xFFFFFFFF);
+		prepareBookModel(bookModel, time, pageFlutter);
+		bookModel.render(poseStack, buffer, packedLight, packedOverlay, 0xFFFFFFFF);
 		poseStack.popPose();
 	}
 
@@ -161,9 +158,9 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		poseStack.popPose();
 	}
 
-	private void prepareBookModel(float time, float pageFlutter) {
-		bookModel.resetPose();
-		ModelPart root = bookModel.root();
+	static void prepareBookModel(MachineCreatureModel model, float time, float pageFlutter) {
+		model.resetPose();
+		MachineCreatureModel.Part root = model.root();
 		float opening = Mth.sin(time * 0.02f) * 0.1f + 1.25f;
 		root.getChild("left_lid").yRot = Mth.PI + opening;
 		root.getChild("right_lid").yRot = -opening;

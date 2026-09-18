@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "create_biotech:entity/spider_assembly_table/spider",
+    "creature": "create_biotech:entity/spider_assembly_table/spider"
+  },
+  "elements": [
+    {
+      "name": "body1_0",
+      "from": [
+        -5,
+        -4,
+        -6
+      ],
+      "to": [
+        5,
+        4,
+        6
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            3,
+            6,
+            5.5,
+            12
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            5.5,
+            6,
+            8,
+            12
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            12,
+            3,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            3,
+            12,
+            5.5,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            5.5,
+            12,
+            8.5,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            8.5,
+            12,
+            11,
+            16
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "body1",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

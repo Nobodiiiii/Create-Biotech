@@ -6,6 +6,7 @@ import com.simibubi.create.content.processing.burner.BlazeBurnerBlock;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlock.HeatLevel;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import net.createmod.catnip.platform.NeoForgeCatnipServices;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -16,8 +17,8 @@ import net.neoforged.neoforge.fluids.FluidStack;
 
 public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeBurnerBlockEntity> {
 
-	private static final int MAGMA_CUBE_SIZE = 1;
-	private static final float MAGMA_CUBE_BASE_Y = 2f / 16f;
+	static final int MAGMA_CUBE_SIZE = 1;
+	static final float MAGMA_CUBE_BASE_Y = 2f / 16f;
 	private static final float MAGMA_CUBE_JUMP_HEIGHT = 2f / 16f;
 	private static final float JUMP_ANIMATION_PERIOD = MagmaCubeBurnerBlockEntity.BURNING_ANIMATION_PERIOD;
 	private static final float JUMP_AIR_TIME = 16f;
@@ -38,6 +39,8 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 			return;
 
 		renderLava(blockEntity, poseStack, buffer, packedLight);
+		if (VisualizationManager.supportsVisualization(blockEntity.getLevel()))
+			return;
 
 		Direction facing = blockEntity.getBlockState().getValue(MagmaCubeBurnerBlock.FACING);
 		poseStack.pushPose();
@@ -47,7 +50,7 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 		poseStack.popPose();
 	}
 
-	private static float getMagmaCubeY(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks) {
+	static float getMagmaCubeY(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks) {
 		HeatLevel heat = blockEntity.getBlockState().getValue(BlazeBurnerBlock.HEAT_LEVEL);
 		if (MagmaCubeBurnerBlock.isBurning(heat))
 			return MAGMA_CUBE_BASE_Y;
@@ -61,7 +64,7 @@ public class MagmaCubeBurnerRenderer extends SmartBlockEntityRenderer<MagmaCubeB
 		return MAGMA_CUBE_BASE_Y + MAGMA_CUBE_JUMP_HEIGHT * ballisticHeight;
 	}
 
-	private static float getSquish(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks) {
+	static float getSquish(MagmaCubeBurnerBlockEntity blockEntity, float partialTicks) {
 		HeatLevel heat = blockEntity.getBlockState().getValue(BlazeBurnerBlock.HEAT_LEVEL);
 		if (!MagmaCubeBurnerBlock.isBurning(heat))
 			return 0;

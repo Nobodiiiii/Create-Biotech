@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    48,
+    48
+  ],
+  "textures": {
+    "particle": "minecraft:entity/frog/temperate_frog",
+    "creature": "minecraft:entity/frog/temperate_frog"
+  },
+  "elements": [
+    {
+      "name": "croaking_body_0",
+      "from": [
+        -3.4,
+        0,
+        -2.8
+      ],
+      "to": [
+        3.4,
+        1.8,
+        0
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            9.666667,
+            1.666667,
+            12,
+            2.666667
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            12,
+            1.666667,
+            14.333333,
+            2.666667
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            8.666667,
+            2.666667,
+            9.666667,
+            3.333333
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            9.666667,
+            2.666667,
+            12,
+            3.333333
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            12,
+            2.666667,
+            13,
+            3.333333
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            13,
+            2.666667,
+            15.333333,
+            3.333333
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "croaking_body",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

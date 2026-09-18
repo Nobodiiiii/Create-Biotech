@@ -71,10 +71,7 @@ public class AutomaticFishReleaseMachineItemRenderer extends CustomRenderedItemM
 				-AutomaticFishReleaseMachineRenderer.FISH_SCALE,
 				AutomaticFishReleaseMachineRenderer.FISH_SCALE);
 			poseStack.translate(0, -1.501f, 0);
-			model.renderToBuffer(poseStack,
-				buffer.getBuffer(RenderType.entityCutoutNoCull(
-					AutomaticFishReleaseMachineRenderer.SALMON_TEXTURE)),
-				light, overlay, -1);
+			model.render(poseStack, buffer, light, overlay, -1);
 			poseStack.popPose();
 		}
 	}

@@ -1,59 +1,57 @@
-# 生物机器模型 JSON
+# 生物机器方块模型
 
-生物机器采用两层模型：不动的机器结构仍使用普通方块模型，需要动画的生物结构从
-`assets/create_biotech/models/machine_creature/` 加载。客户端资源重载时，JSON 会重新解析并烘焙为
-`ModelPart`；动画、材质选择、发光层和透明层仍由 Java Renderer/Visual 控制。
+生物机器现在使用与 Create 动画零件相同的结构：几何体是标准 Java 方块模型，Java 只保存层级、枢轴和动画，Flywheel 为每个可动零件创建 `TransformedInstance`。
 
-## 格式
+## 资源位置
 
-```json
-{
-  "format_version": "1.0.0",
-  "description": {
-    "identifier": "create_biotech:example",
-    "texture_width": 64,
-    "texture_height": 32,
-    "root_bone": "root"
-  },
-  "bones": [
-    {
-      "name": "root",
-      "pivot": [0, 24, 0]
-    },
-    {
-      "name": "body",
-      "parent": "root",
-      "pivot": [0, -4, 0],
-      "rotation": [0, 0, 0],
-      "cubes": [
-        {
-          "origin": [-4, -4, -4],
-          "size": [8, 8, 8],
-          "uv": [0, 0],
-          "inflate": 0,
-          "mirror": false
-        }
-      ]
-    }
-  ],
-  "anchors": {
-    "tool_socket": {
-      "bone": "body",
-      "position": [0, 0, -4]
-    }
-  }
-}
+每个能够独立运动的刚性零件各占一个普通方块模型：
+
+```text
+assets/create_biotech/models/block/machine_creature/<模型>/<零件>.json
 ```
 
-格式借鉴基岩版的骨骼、枢轴和方块表达，但坐标直接对应 Java 版 `ModelPart`：
+例如蜘蛛头是：
 
-- `pivot` 是相对于父骨骼的平移，单位为模型像素。
-- `rotation` 使用角度，旋转顺序与 `ModelPart` 一致。
-- `cube.origin` 是相对于所属骨骼枢轴的坐标。
-- `cube.size` 允许某一轴为 `0`，用于鳍、翅膀等平面。
-- `inflate`、`mirror`、`visible` 和 `skip_draw` 均可省略。
-- `root_bone` 可省略；指定后，该骨骼会成为 Renderer 取得的模型根。
-- `anchors` 表示机器安装点。`bone` 使用骨骼名，也可使用 `$root`；`position` 位于该骨骼的局部坐标系。
+```text
+assets/create_biotech/models/block/machine_creature/spider/head.json
+```
 
-Java 端会校验每台机器动画所需的骨骼和锚点。资源包删除这些结构、制造重复骨骼、循环父子关系，
-或提供非有限数值时，资源重载会拒绝该组模型；已有的有效模型会继续使用。
+这些文件使用 Java Block/Item 模型格式，包含 `textures`、`elements` 和逐面的 `uv`，可以直接用 Blockbench 的 Java Block/Item 模式打开。一个文件只显示一个可动零件是预期行为；完整生物由运行时按 Java 层级组合。
+
+实体材质被模型引用后必须进入方块纹理图集。对应的 `single` 来源登记在：
+
+```text
+assets/minecraft/atlases/blocks.json
+```
+
+## Java 层级与动画
+
+`MachineCreatureModelData` 定义各零件的父子关系、枢轴、初始旋转、可见性和安装点。这里的坐标保持原 Java `ModelPart` 的模型像素语义，运行时由 `MachineCreatureModel.Part` 依次应用父子变换。
+
+新增或重命名零件时，需要同步修改两处：
+
+1. 在 `models/block/machine_creature/<模型>/` 中添加或重命名标准方块模型。
+2. 在 `MachineCreatureModelData` 中更新对应的 `PartSpec`。`modelName` 对应文件名，`path` 和 `parentPath` 对应 Java 动画访问的层级路径。
+
+`MachineCreatureModels.allPartials()` 会把所有有几何体的零件登记进 Minecraft 模型烘焙流程。这里不再使用自定义 JSON 加载器，也不再在资源重载阶段自行烘焙 `ModelPart`。
+
+## 两条渲染路径
+
+普通渲染回退使用 `CachedBuffers.partial(...)` 绘制相同的 `PartialModel`。物品、JEI 预览、盆地内容以及不支持 Flywheel 的环境都走这条路径。
+
+世界中的机器优先使用 `MachineCreatureVisualModel`。它为每个有几何体的零件持有一个 `TransformedInstance`，每帧只更新 Java 动画产生的变换、光照、覆层和颜色。机器的流体、物品、动态贴图等不适合固定实例的内容仍由方块实体渲染器绘制。
+
+目前已接入 Flywheel 的生物零件包括：
+
+- 自动放鱼机的鲑鱼和夹具
+- 鱿鱼打印机的鱿鱼
+- 巨蛙及舌头
+- 唤魔者附魔室的唤魔者和书
+- 悦灵端口的悦灵
+- 潜影传送器的壳体
+- 蜘蛛装配台的蜘蛛和发光眼睛
+- 岩浆怪燃烧器的岩浆怪
+- 苦力怕爆炸室中动态增减的苦力怕
+- 万向节的软泥轴
+
+蜘蛛装配台的可换肤外壳仍由普通渲染路径绘制，因为它的纹理由方块实体状态在运行时选择；蜘蛛本体与眼睛继续使用固定的 Flywheel 零件实例。

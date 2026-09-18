@@ -10,8 +10,9 @@ import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.Sheets;
@@ -37,8 +38,7 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 	@Override
 	protected void renderSafe(ShulkerTeleporterBlockEntity be, float partialTick, PoseStack poseStack,
 		MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
-		VertexConsumer vertexConsumer = Sheets.DEFAULT_SHULKER_TEXTURE_LOCATION.buffer(bufferSource,
-			RenderType::entityCutoutNoCull);
+		VertexConsumer vertexConsumer = bufferSource.getBuffer(model.renderType());
 		float progress = be.getClosingProgress(partialTick);
 		float topY = be.getTopShellYOffset(partialTick);
 		float spin = progress * FULL_SPIN_DEGREES;
@@ -46,8 +46,10 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 		renderMixerBody(be, poseStack, bufferSource, packedLight, packedOverlay);
 		renderDriveCog(be, poseStack, bufferSource, packedLight);
 		renderMixerPole(be, poseStack, bufferSource, packedLight, topY);
-		renderBase(poseStack, vertexConsumer, packedLight, packedOverlay);
-		renderLid(poseStack, vertexConsumer, packedLight, packedOverlay, topY, spin);
+		if (!VisualizationManager.supportsVisualization(be.getLevel())) {
+			renderBase(poseStack, vertexConsumer, packedLight, packedOverlay);
+			renderLid(poseStack, vertexConsumer, packedLight, packedOverlay, topY, spin);
+		}
 	}
 
 	private void renderMixerBody(ShulkerTeleporterBlockEntity be, PoseStack poseStack, MultiBufferSource bufferSource,
@@ -90,7 +92,7 @@ public class ShulkerTeleporterRenderer extends KineticBlockEntityRenderer<Shulke
 
 	private void renderLid(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay,
 		float yOffset, float spinDegrees) {
-		ModelPart lid = model.root().getChild("lid");
+		MachineCreatureModel.Part lid = model.root().getChild("lid");
 		resetModel();
 		lid.setPos(0.0f, 24.0f, 0.0f);
 		lid.yRot = (float) Math.toRadians(spinDegrees);

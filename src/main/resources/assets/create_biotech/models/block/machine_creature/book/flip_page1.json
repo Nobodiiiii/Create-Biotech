@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/enchanting_table_book",
+    "creature": "minecraft:entity/enchanting_table_book"
+  },
+  "elements": [
+    {
+      "name": "flip_page1_0",
+      "from": [
+        0,
+        -4,
+        0
+      ],
+      "to": [
+        5,
+        4,
+        0.005
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            6.00125,
+            5,
+            7.25125,
+            5.0025
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            7.25125,
+            5,
+            8.50125,
+            5.0025
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            6,
+            5.0025,
+            6.00125,
+            9.0025
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            6.00125,
+            5.0025,
+            7.25125,
+            9.0025
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            7.25125,
+            5.0025,
+            7.2525,
+            9.0025
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            7.2525,
+            5.0025,
+            8.5025,
+            9.0025
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "flip_page1",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

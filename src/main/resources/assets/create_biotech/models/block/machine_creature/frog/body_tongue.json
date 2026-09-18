@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    48,
+    48
+  ],
+  "textures": {
+    "particle": "minecraft:entity/frog/temperate_frog",
+    "creature": "minecraft:entity/frog/temperate_frog"
+  },
+  "elements": [
+    {
+      "name": "tongue_0",
+      "from": [
+        -2,
+        0,
+        -7.1
+      ],
+      "to": [
+        2,
+        0,
+        -0.1
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            8,
+            4.333333,
+            9.333333,
+            6.666667
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            9.333333,
+            4.333333,
+            10.666667,
+            6.666667
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            5.666667,
+            6.666667,
+            8,
+            6.666667
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            8,
+            6.666667,
+            9.333333,
+            6.666667
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            9.333333,
+            6.666667,
+            11.666667,
+            6.666667
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            11.666667,
+            6.666667,
+            13,
+            6.666667
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "tongue",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

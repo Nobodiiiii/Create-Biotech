@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    64
+  ],
+  "textures": {
+    "particle": "minecraft:entity/illager/evoker",
+    "creature": "minecraft:entity/illager/evoker"
+  },
+  "elements": [
+    {
+      "name": "left_shoulder_0",
+      "from": [
+        4,
+        -2,
+        -2
+      ],
+      "to": [
+        8,
+        6,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            13,
+            5.5,
+            12,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            14,
+            5.5,
+            13,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            14,
+            6.5,
+            13,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            13,
+            6.5,
+            12,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            12,
+            6.5,
+            11,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            15,
+            6.5,
+            14,
+            8.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "left_shoulder",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

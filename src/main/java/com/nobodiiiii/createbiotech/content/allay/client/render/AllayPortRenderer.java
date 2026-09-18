@@ -65,9 +65,10 @@ public class AllayPortRenderer extends SmartBlockEntityRenderer<AllayPortBlockEn
 				? partialTicks
 				: be.getLevel().getGameTime() % 24_000L + partialTicks;
 		}
-		greetingAllayRenderer.render(ms, buffer, light, facing, animationTime, waveStrength);
+		boolean visualized = VisualizationManager.supportsVisualization(be.getLevel());
+		greetingAllayRenderer.render(ms, buffer, light, facing, animationTime, waveStrength, !visualized);
 
-		if (VisualizationManager.supportsVisualization(be.getLevel())) {
+		if (visualized) {
 			return;
 		}
 

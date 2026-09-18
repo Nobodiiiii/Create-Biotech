@@ -4,6 +4,8 @@ import java.util.List;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.trains.schedule.hat.TrainHatInfo;
 import com.nobodiiiii.createbiotech.content.allay.entity.courier.AllayCourierEntity;
@@ -75,6 +77,28 @@ final class AllayLogisticsHatRenderer extends RenderLayer<Allay, AllayModel> {
 			poseStack.scale(scale, scale, scale);
 		}
 
+		poseStack.scale(1.0f, -1.0f, -1.0f);
+		poseStack.translate(0.0f, -2.25f / 16.0f, 0.0f);
+		TransformStack.of(poseStack).rotateXDegrees(-8.5f);
+		CachedBuffers.partial(AllPartialModels.LOGISTICS_HAT, Blocks.AIR.defaultBlockState())
+			.disableDiffuse()
+			.light(packedLight)
+			.renderInto(poseStack, buffer.getBuffer(Sheets.cutoutBlockSheet()));
+		poseStack.popPose();
+	}
+
+	static void render(MachineCreatureModel model, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
+		MachineCreatureModel.Part head = model.part("head");
+		MachineCreatureModels.Bounds cube = head.firstCubeBounds();
+		if (cube == null)
+			return;
+
+		poseStack.pushPose();
+		model.applyTransformTo("head", poseStack);
+		poseStack.translate(0, (cube.minY() - cube.maxY()) / 16.0f, 0);
+		float scale = Math.max(cube.maxX() - cube.minX(), cube.maxZ() - cube.minZ()) / 8.0f;
+		poseStack.scale(scale, scale, scale);
 		poseStack.scale(1.0f, -1.0f, -1.0f);
 		poseStack.translate(0.0f, -2.25f / 16.0f, 0.0f);
 		TransformStack.of(poseStack).rotateXDegrees(-8.5f);

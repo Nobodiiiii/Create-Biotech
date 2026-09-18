@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    32,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/fish/salmon",
+    "creature": "minecraft:entity/fish/salmon"
+  },
+  "elements": [
+    {
+      "name": "body_front_0",
+      "from": [
+        -1.5,
+        -2.5,
+        0
+      ],
+      "to": [
+        1.5,
+        2.5,
+        8
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            4,
+            0,
+            5.5,
+            4
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            5.5,
+            0,
+            7,
+            4
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            4,
+            4,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            4,
+            4,
+            5.5,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            5.5,
+            4,
+            9.5,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            9.5,
+            4,
+            11,
+            6.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "body_front",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

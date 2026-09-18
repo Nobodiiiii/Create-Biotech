@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/enchanting_table_book",
+    "creature": "minecraft:entity/enchanting_table_book"
+  },
+  "elements": [
+    {
+      "name": "seam_0",
+      "from": [
+        -1,
+        -5,
+        0
+      ],
+      "to": [
+        1,
+        5,
+        0.005
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            3.00125,
+            0,
+            3.50125,
+            0.0025
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            3.50125,
+            0,
+            4.00125,
+            0.0025
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            3,
+            0.0025,
+            3.00125,
+            5.0025
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            3.00125,
+            0.0025,
+            3.50125,
+            5.0025
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            3.50125,
+            0.0025,
+            3.5025,
+            5.0025
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            3.5025,
+            0.0025,
+            4.0025,
+            5.0025
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "seam",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

@@ -9,13 +9,13 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllSpriteShifts;
 import com.simibubi.create.CreateClient;
 import com.simibubi.create.content.decoration.encasing.CasingConnectivity;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -66,12 +66,12 @@ public final class SpiderAssemblyTableCasingModel {
 	private static final List<CubeSpec> CUBES = createCubes();
 	private static final List<CubeSpec> VAULT_CUBES = createVaultCubes();
 
-	public void render(Block casing, ModelPart root, PoseStack poseStack, MultiBufferSource buffer,
+	public void render(Block casing, MachineCreatureModel.Part root, PoseStack poseStack, MultiBufferSource buffer,
 		int packedLight, int packedOverlay) {
 		BakedParts baked = getOrCreate(casing);
 		VertexConsumer consumer = buffer.getBuffer(Sheets.cutoutBlockSheet());
 		for (Map.Entry<String, List<BakedQuad>> entry : baked.byPart().entrySet()) {
-			ModelPart part = root.getChild(entry.getKey());
+			MachineCreatureModel.Part part = root.getChild(entry.getKey());
 			poseStack.pushPose();
 			part.translateAndRotate(poseStack);
 			for (BakedQuad quad : entry.getValue())

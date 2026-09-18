@@ -1,0 +1,169 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    48,
+    48
+  ],
+  "textures": {
+    "particle": "minecraft:entity/frog/temperate_frog",
+    "creature": "minecraft:entity/frog/temperate_frog"
+  },
+  "elements": [
+    {
+      "name": "head_0",
+      "from": [
+        -3.5,
+        -1,
+        -7
+      ],
+      "to": [
+        3.5,
+        -1,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            10.666667,
+            4.333333,
+            13,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            13,
+            4.333333,
+            15.333333,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            7.666667,
+            7.333333,
+            10.666667,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            10.666667,
+            7.333333,
+            13,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            13,
+            7.333333,
+            16,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            16,
+            7.333333,
+            18.333333,
+            7.333333
+          ],
+          "texture": "#creature"
+        }
+      }
+    },
+    {
+      "name": "head_1",
+      "from": [
+        -3.5,
+        -2,
+        -7
+      ],
+      "to": [
+        3.5,
+        1,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            3,
+            4.333333,
+            5.333333,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            5.333333,
+            4.333333,
+            7.666667,
+            7.333333
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            7.333333,
+            3,
+            8.333333
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            3,
+            7.333333,
+            5.333333,
+            8.333333
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            5.333333,
+            7.333333,
+            8.333333,
+            8.333333
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            8.333333,
+            7.333333,
+            10.666667,
+            8.333333
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "head",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0,
+        1
+      ]
+    }
+  ]
+}

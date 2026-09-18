@@ -29,8 +29,7 @@ public class GiantFrogItemRenderer extends BlockEntityWithoutLevelRenderer {
 		try {
 			poseStack.translate(0, 1.0f / 16.0f, 0);
 			poseStack.scale(ITEM_ENTITY_SCALE, ITEM_ENTITY_SCALE, ITEM_ENTITY_SCALE);
-			MachineCreatureRenderer.renderAtFeet(frogModel, GiantFrogVisual.TEXTURE,
-				poseStack, buffer, packedLight, 0);
+			MachineCreatureRenderer.renderAtFeet(frogModel, poseStack, buffer, packedLight, 0);
 		} finally {
 			poseStack.popPose();
 		}

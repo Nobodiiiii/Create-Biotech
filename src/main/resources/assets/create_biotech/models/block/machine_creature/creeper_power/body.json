@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:translucent",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/creeper/creeper_armor",
+    "creature": "minecraft:entity/creeper/creeper_armor"
+  },
+  "elements": [
+    {
+      "name": "body_0",
+      "from": [
+        -6,
+        -2,
+        -4
+      ],
+      "to": [
+        6,
+        14,
+        4
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            5,
+            8,
+            7,
+            10
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            7,
+            8,
+            9,
+            10
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            4,
+            10,
+            5,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            5,
+            10,
+            7,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            7,
+            10,
+            8,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            8,
+            10,
+            10,
+            16
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "body",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

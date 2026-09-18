@@ -9,6 +9,8 @@ import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTank
 import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTankBehaviour.TankSegment;
 import com.simibubi.create.foundation.blockEntity.renderer.SafeBlockEntityRenderer;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+
 import net.createmod.catnip.platform.NeoForgeCatnipServices;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -53,7 +55,8 @@ public class SquidPrinterRenderer extends SafeBlockEntityRenderer<SquidPrinterBl
 
 		Direction facing = be.getBlockState()
 			.getValue(SquidPrinterBlock.FACING);
-		renderSquid(be, partialTicks, ms, buffer, light, facing);
+		if (!VisualizationManager.supportsVisualization(be.getLevel()))
+			renderSquid(be, partialTicks, ms, buffer, light, facing);
 		FilteringRenderer.renderOnBlockEntity(be, partialTicks, ms, buffer, light, overlay);
 	}
 

@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    48,
+    48
+  ],
+  "textures": {
+    "particle": "minecraft:entity/frog/temperate_frog",
+    "creature": "minecraft:entity/frog/temperate_frog"
+  },
+  "elements": [
+    {
+      "name": "right_hand_0",
+      "from": [
+        -4,
+        0.01,
+        -5
+      ],
+      "to": [
+        4,
+        0.01,
+        3
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            3.333333,
+            13.333333,
+            6,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            6,
+            13.333333,
+            8.666667,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0.666667,
+            16,
+            3.333333,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            3.333333,
+            16,
+            6,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            6,
+            16,
+            8.666667,
+            16
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            8.666667,
+            16,
+            11.333333,
+            16
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "right_hand",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

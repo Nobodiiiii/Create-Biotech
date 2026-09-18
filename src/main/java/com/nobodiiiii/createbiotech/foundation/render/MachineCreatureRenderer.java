@@ -3,11 +3,8 @@ package com.nobodiiiii.createbiotech.foundation.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /** Draws contained creatures from explicit machine state, without entering entity-renderer hooks. */
@@ -17,26 +14,16 @@ public final class MachineCreatureRenderer {
 	private static final float SLIME_RENDER_SCALE = 0.999f;
 	private static final float SLIME_RENDER_Y_OFFSET = 0.001f;
 
-	private static final ResourceLocation SLIME_TEXTURE =
-		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
-	private static final ResourceLocation MAGMA_TEXTURE =
-		ResourceLocation.withDefaultNamespace("textures/entity/slime/magmacube.png");
-	private static final ResourceLocation CREEPER_TEXTURE =
-		ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper.png");
-	private static final ResourceLocation CREEPER_POWER_TEXTURE =
-		ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
-
 	private MachineCreatureRenderer() {}
 
 	/** The caller supplies the model pose; the origin and yaw use the existing entity-space convention. */
-	public static void renderAtFeet(MachineCreatureModel model, ResourceLocation texture,
-		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float yaw) {
+	public static void renderAtFeet(MachineCreatureModel model, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight, float yaw) {
 		poseStack.pushPose();
 		try {
 			orient(poseStack, yaw);
 			poseStack.translate(0, -MODEL_FOOT_OFFSET, 0);
-			model.renderToBuffer(poseStack, buffer.getBuffer(model.renderType(texture)), packedLight,
-				OverlayTexture.NO_OVERLAY, -1);
+			model.render(poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, -1);
 		} finally {
 			poseStack.popPose();
 		}
@@ -53,10 +40,8 @@ public final class MachineCreatureRenderer {
 			poseStack.translate(0, -MODEL_FOOT_OFFSET, 0);
 			Models.SLIME_INNER.resetPose();
 			Models.SLIME_OUTER.resetPose();
-			Models.SLIME_INNER.renderToBuffer(poseStack, buffer.getBuffer(RenderType.entityCutoutNoCull(SLIME_TEXTURE)),
-				packedLight, OverlayTexture.NO_OVERLAY, -1);
-			Models.SLIME_OUTER.renderToBuffer(poseStack, buffer.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE)),
-				packedLight, OverlayTexture.NO_OVERLAY, -1);
+			Models.SLIME_INNER.render(poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, -1);
+			Models.SLIME_OUTER.render(poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, -1);
 		} finally {
 			poseStack.popPose();
 		}
@@ -74,8 +59,7 @@ public final class MachineCreatureRenderer {
 			orient(poseStack, yaw);
 			squash(poseStack, size, squish);
 			poseStack.translate(0, -MODEL_FOOT_OFFSET, 0);
-			model.renderToBuffer(poseStack, buffer.getBuffer(model.renderType(MAGMA_TEXTURE)),
-				packedLight, OverlayTexture.NO_OVERLAY, -1);
+			model.render(poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, -1);
 		} finally {
 			poseStack.popPose();
 		}
@@ -111,38 +95,44 @@ public final class MachineCreatureRenderer {
 	/** Head yaw is relative to body yaw; swelling is the normalized 0..1 render value. */
 	public static void renderCreeper(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float bodyYaw, float headYaw, float headPitch, float swelling, float animationTime, boolean charged) {
-		float swell = Mth.clamp(swelling, 0, 1);
-		float pulse = 1.0f + Mth.sin(swell * 100.0f) * swell * 0.01f;
-		float bulge = swell * swell * swell * swell;
-		float width = (1.0f + bulge * 0.4f) * pulse;
-		float height = (1.0f + bulge * 0.1f) / pulse;
-		float flash = (int) (swell * 10.0f) % 2 == 0 ? 0 : Mth.clamp(swell, 0.5f, 1.0f);
-		int overlay = OverlayTexture.pack(OverlayTexture.u(flash), OverlayTexture.v(false));
-		poseCreeper(Models.CREEPER, headYaw, headPitch);
+		int overlay = creeperOverlay(swelling);
+		prepareCreeperPose(Models.CREEPER, headYaw, headPitch);
 		poseStack.pushPose();
 		try {
-			orient(poseStack, bodyYaw);
-			poseStack.scale(width, height, width);
-			poseStack.translate(0, -MODEL_FOOT_OFFSET, 0);
-			Models.CREEPER.renderToBuffer(poseStack, buffer.getBuffer(RenderType.entityCutoutNoCull(CREEPER_TEXTURE)),
-				packedLight, overlay, -1);
+			applyCreeperTransform(poseStack, bodyYaw, swelling);
+			Models.CREEPER.render(poseStack, buffer, packedLight, overlay, -1);
 			if (charged) {
-				poseCreeper(Models.CREEPER_POWER, headYaw, headPitch);
-				float offset = animationTime * 0.01f % 1.0f;
-				Models.CREEPER_POWER.renderToBuffer(poseStack,
-					buffer.getBuffer(RenderType.energySwirl(CREEPER_POWER_TEXTURE, offset, offset)),
-					packedLight, OverlayTexture.NO_OVERLAY, 0xFF808080);
+				prepareCreeperPose(Models.CREEPER_POWER, headYaw, headPitch);
+				Models.CREEPER_POWER.render(poseStack, buffer, packedLight,
+					OverlayTexture.NO_OVERLAY, 0xFF808080);
 			}
 		} finally {
 			poseStack.popPose();
 		}
 	}
 
-	private static void poseCreeper(MachineCreatureModel model, float headYaw, float headPitch) {
+	public static void prepareCreeperPose(MachineCreatureModel model, float headYaw, float headPitch) {
 		model.resetPose();
-		ModelPart head = model.root().getChild("head");
+		MachineCreatureModel.Part head = model.root().getChild("head");
 		head.yRot = Mth.wrapDegrees(headYaw) * Mth.DEG_TO_RAD;
 		head.xRot = headPitch * Mth.DEG_TO_RAD;
+	}
+
+	public static void applyCreeperTransform(PoseStack poseStack, float bodyYaw, float swelling) {
+		float swell = Mth.clamp(swelling, 0, 1);
+		float pulse = 1 + Mth.sin(swell * 100) * swell * .01f;
+		float bulge = swell * swell * swell * swell;
+		float width = (1 + bulge * .4f) * pulse;
+		float height = (1 + bulge * .1f) / pulse;
+		orient(poseStack, bodyYaw);
+		poseStack.scale(width, height, width);
+		poseStack.translate(0, -MODEL_FOOT_OFFSET, 0);
+	}
+
+	public static int creeperOverlay(float swelling) {
+		float swell = Mth.clamp(swelling, 0, 1);
+		float flash = (int) (swell * 10) % 2 == 0 ? 0 : Mth.clamp(swell, .5f, 1);
+		return OverlayTexture.pack(OverlayTexture.u(flash), OverlayTexture.v(false));
 	}
 
 	private static void orient(PoseStack poseStack, float yaw) {

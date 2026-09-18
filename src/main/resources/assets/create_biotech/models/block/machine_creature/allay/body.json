@@ -1,0 +1,169 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:translucent",
+  "texture_size": [
+    32,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/allay/allay",
+    "creature": "minecraft:entity/allay/allay"
+  },
+  "elements": [
+    {
+      "name": "body_0",
+      "from": [
+        -1.5,
+        0,
+        -1
+      ],
+      "to": [
+        1.5,
+        4,
+        1
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            1,
+            5,
+            2.5,
+            6
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            2.5,
+            5,
+            4,
+            6
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            6,
+            1,
+            8
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            1,
+            6,
+            2.5,
+            8
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            2.5,
+            6,
+            3.5,
+            8
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            3.5,
+            6,
+            5,
+            8
+          ],
+          "texture": "#creature"
+        }
+      }
+    },
+    {
+      "name": "body_1",
+      "from": [
+        -1.3,
+        0.2,
+        -0.8
+      ],
+      "to": [
+        1.3,
+        4.8,
+        0.8
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            1,
+            8,
+            2.5,
+            9
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            2.5,
+            8,
+            4,
+            9
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            9,
+            1,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            1,
+            9,
+            2.5,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            2.5,
+            9,
+            3.5,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            3.5,
+            9,
+            5,
+            11.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "body",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0,
+        1
+      ]
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/enchanting_table_book",
+    "creature": "minecraft:entity/enchanting_table_book"
+  },
+  "elements": [
+    {
+      "name": "left_pages_0",
+      "from": [
+        0,
+        -4,
+        -0.99
+      ],
+      "to": [
+        5,
+        4,
+        0.01
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            0.25,
+            5,
+            1.5,
+            5.5
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            1.5,
+            5,
+            2.75,
+            5.5
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            5.5,
+            0.25,
+            9.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            0.25,
+            5.5,
+            1.5,
+            9.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            1.5,
+            5.5,
+            1.75,
+            9.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            1.75,
+            5.5,
+            3,
+            9.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "left_pages",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

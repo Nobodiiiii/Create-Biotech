@@ -131,6 +131,50 @@
     {
       "type": "single",
       "resource": "minecraft:entity/experience_orb"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:entity/squid_printer/squid"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/frog/temperate_frog"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/illager/evoker"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/allay/allay"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/fish/salmon"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/slime/slime"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/slime/magmacube"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/creeper/creeper"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/creeper/creeper_armor"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/enchanting_table_book"
+    },
+    {
+      "type": "single",
+      "resource": "create_biotech:entity/spider_assembly_table/spider_eyes"
     }
   ]
 }

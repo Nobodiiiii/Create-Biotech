@@ -25,7 +25,6 @@ import net.minecraft.core.Direction.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FastColor;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -35,7 +34,6 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 
 	private static final double MIN_SHAFT_LENGTH = 1.0E-4d;
 	private static final double PERPENDICULAR_EPSILON = 1.0E-7d;
-	private static final ResourceLocation SLIME_TEXTURE = ResourceLocation.parse("textures/entity/slime/slime.png");
 	private static final PartialModel ENDPOINT_SLIME_OVERLAY =
 		PartialModel.of(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
 	private static final float SLIME_MODEL_DIAMETER = 8 / 16f;
@@ -61,7 +59,8 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		VertexConsumer solidBuffer = buffer.getBuffer(RenderType.solid());
 		renderSyncedRotatingBuffer(be, getRotatedModel(be, state), ms, solidBuffer, light, partialTicks);
 		renderEndpointSlimeOverlay(be, state, ms, buffer, light, partialTicks);
-		renderDriveShaft(be, state, ms, buffer, light, overlay, partialTicks);
+		if (!VisualizationManager.supportsVisualization(be.getLevel()))
+			renderDriveShaft(be, state, ms, buffer, light, overlay, partialTicks);
 	}
 
 	@Override
@@ -126,18 +125,30 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 
 	private void renderDriveShaft(UniversalJointBlockEntity be, BlockState state, PoseStack ms, MultiBufferSource buffer,
 		int light, int overlay, float partialTicks) {
+		ShaftRenderState shaft = getDriveShaftState(be, state, partialTicks);
+		if (shaft == null)
+			return;
+
+		ms.pushPose();
+		TransformStack.of(ms)
+			.transform(shaft.transform());
+		renderSlimeShaft(ms, buffer, light, overlay, shaft.overstretchColor());
+		ms.popPose();
+	}
+
+	static ShaftRenderState getDriveShaftState(UniversalJointBlockEntity be, BlockState state, float partialTicks) {
 		UniversalJointBlockEntity linkedJoint = be.getLoadedLinkedJoint();
 		if (linkedJoint == null || !linkedJoint.references(be)
 			|| !UniversalJointBlockEntity.isPrimaryEndpoint(be, linkedJoint))
-			return;
+			return null;
 
 		Level level = be.getLevel();
 		if (level == null)
-			return;
+			return null;
 
 		BlockState linkedState = linkedJoint.getBlockState();
 		if (!state.hasProperty(UniversalJointBlock.FACING) || !linkedState.hasProperty(UniversalJointBlock.FACING))
-			return;
+			return null;
 
 		SubLevelAccess ownSpace = SubLevelCompat.getContaining(level, be.getBlockPos());
 		SubLevelAccess linkedSpace = SubLevelCompat.getContaining(level, linkedJoint.getBlockPos());
@@ -156,7 +167,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		Vec3 shaft = end.subtract(start);
 		double length = shaft.length();
 		if (length < MIN_SHAFT_LENGTH)
-			return;
+			return null;
 
 		Vec3 direction = shaft.scale(1 / length);
 		Vec3 worldDirection = endWorld.subtract(startWorld).normalize();
@@ -170,14 +181,11 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 			.rotateX(getShaftAngle(be, shaftRotationModifier, partialTicks))
 			.translate(length / 2, -SHAFT_RADIUS, 0)
 			.scale((float) (length / SLIME_MODEL_DIAMETER), SHAFT_CROSS_SECTION_SCALE, SHAFT_CROSS_SECTION_SCALE);
-
-		ms.pushPose();
-		TransformStack.of(ms)
-			.transform(shaftTransforms);
-		renderSlimeShaft(ms, buffer, light, overlay,
+		return new ShaftRenderState(shaftTransforms,
 			getOverstretchOverlayColor(ownCenterWorld.distanceTo(linkedCenterWorld)));
-		ms.popPose();
 	}
+
+	record ShaftRenderState(PoseStack transform, int overstretchColor) {}
 
 	private void renderSlimeShaft(PoseStack ms, MultiBufferSource buffer, int light, int overlay,
 		int overstretchColor) {
@@ -186,18 +194,12 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 			.scale(-1, -1, 1)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				innerSlime.renderToBuffer(poseStack, buf.getBuffer(innerSlime.renderType(SLIME_TEXTURE)), lightArg,
-					overlay, 0xFFFFFFFF);
-				outerSlime.renderToBuffer(poseStack, buf.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE)), lightArg,
-					overlay, 0xFFFFFFFF);
+				innerSlime.render(poseStack, buf, lightArg, overlay, 0xFFFFFFFF);
+				outerSlime.render(poseStack, buf, lightArg, overlay, 0xFFFFFFFF);
 				if (FastColor.ARGB32.alpha(overstretchColor) == 0)
 					return;
-				VertexConsumer overstretchBuffer =
-					buf.getBuffer(RenderType.entityTranslucent(SLIME_TEXTURE));
-				innerSlime.renderToBuffer(poseStack, overstretchBuffer, lightArg, overlay,
-					overstretchColor);
-				outerSlime.renderToBuffer(poseStack, overstretchBuffer, lightArg, overlay,
-					overstretchColor);
+				innerSlime.render(poseStack, buf, lightArg, overlay, overstretchColor);
+				outerSlime.render(poseStack, buf, lightArg, overlay, overstretchColor);
 			});
 	}
 

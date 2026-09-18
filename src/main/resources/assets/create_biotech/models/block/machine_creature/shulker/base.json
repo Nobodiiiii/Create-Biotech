@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    64
+  ],
+  "textures": {
+    "particle": "minecraft:entity/shulker/shulker",
+    "creature": "minecraft:entity/shulker/shulker"
+  },
+  "elements": [
+    {
+      "name": "base_0",
+      "from": [
+        -8,
+        -8,
+        -8
+      ],
+      "to": [
+        8,
+        0,
+        8
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            4,
+            7,
+            8,
+            11
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            8,
+            7,
+            12,
+            11
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            11,
+            4,
+            13
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            4,
+            11,
+            8,
+            13
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            8,
+            11,
+            12,
+            13
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            12,
+            11,
+            16,
+            13
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "base",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

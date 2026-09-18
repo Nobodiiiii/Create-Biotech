@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlockEntity.MachineKind;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
@@ -14,13 +13,13 @@ import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.AngleHelper;
 import net.createmod.catnip.platform.NeoForgeCatnipServices;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
@@ -28,7 +27,6 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -46,10 +44,6 @@ import org.joml.Vector3f;
 
 public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<SpiderAssemblyTableBlockEntity> {
 
-	private static final ResourceLocation SPIDER_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider.png");
-	private static final ResourceLocation SPIDER_EYES_TEXTURE =
-		CreateBiotech.asResource("textures/entity/spider_assembly_table/spider_eyes.png");
 	private static final int EYES_LIGHT = 15728640;
 	private static final float SPIDER_SCALE = 1.0f;
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
@@ -73,11 +67,13 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES = 90f;
 
 	private final MachineCreatureModel spiderModel;
+	private final MachineCreatureModel spiderEyesModel;
 	private final SpiderAssemblyTableCasingModel casingModel;
 
 	public SpiderAssemblyTableRenderer(BlockEntityRendererProvider.Context context) {
 		super(context);
 		spiderModel = MachineCreatureModels.spider();
+		spiderEyesModel = MachineCreatureModels.spiderEyes();
 		casingModel = new SpiderAssemblyTableCasingModel();
 	}
 
@@ -95,7 +91,8 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private void renderSpider(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
 		MultiBufferSource buffer, int light, Direction facing, Block casing) {
-		prepareSpiderModel(be, partialTicks);
+		prepareSpiderModel(spiderModel, be, partialTicks);
+		boolean visualized = VisualizationManager.supportsVisualization(be.getLevel());
 
 		BlockEntityModelElement.builder()
 			.atLocal(0.5d, SPIDER_Y_OFFSET, 0.5d)
@@ -103,17 +100,16 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.scale(-SPIDER_SCALE, -SPIDER_SCALE, SPIDER_SCALE)
 			.packedLight(light)
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
-				if (casing == null) {
-					VertexConsumer spiderBuffer = buf.getBuffer(spiderModel.renderType(SPIDER_TEXTURE));
-					spiderModel.renderToBuffer(poseStack, spiderBuffer, lightArg, OverlayTexture.NO_OVERLAY,
-						0xFFFFFFFF);
-				} else {
+				if (!visualized && casing == null) {
+					spiderModel.render(poseStack, buf, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+				} else if (casing != null) {
 					casingModel.render(casing, spiderModel.root(), poseStack, buf, lightArg,
 						OverlayTexture.NO_OVERLAY);
 				}
-				VertexConsumer spiderEyesBuffer = buf.getBuffer(RenderType.eyes(SPIDER_EYES_TEXTURE));
-				spiderModel.renderToBuffer(poseStack, spiderEyesBuffer, EYES_LIGHT, OverlayTexture.NO_OVERLAY,
-					0xFFFFFFFF);
+				if (!visualized) {
+					spiderEyesModel.copyPoseFrom(spiderModel);
+					spiderEyesModel.render(poseStack, buf, EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+				}
 				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
 			});
 	}
@@ -133,7 +129,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			MachineCreatureModel.Anchor legSocket = getLegSocket(slot);
 			if (legSocket == null)
 				continue;
-			ModelPart leg = legSocket.part();
+			MachineCreatureModel.Part leg = legSocket.part();
 
 			BlockState machineState = machineStateFor(kind);
 			boolean leftSide = (slot % 2) == 0;
@@ -484,14 +480,17 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		return buffer;
 	}
 
-	private void prepareSpiderModel(SpiderAssemblyTableBlockEntity be, float partialTicks) {
-		spiderModel.resetPose();
+	static void prepareSpiderModel(MachineCreatureModel model, SpiderAssemblyTableBlockEntity be,
+		float partialTicks) {
+		model.resetPose();
 
 		int activeSlot = be.getActiveSlot();
-		MachineCreatureModel.Anchor activeLegSocket = getLegSocket(activeSlot);
+		MachineCreatureModel.Anchor activeLegSocket = activeSlot >= 0 && activeSlot < LEG_SOCKET_ANCHORS.length
+			? model.anchor(LEG_SOCKET_ANCHORS[activeSlot])
+			: null;
 		if (activeLegSocket == null)
 			return;
-		ModelPart activeLeg = activeLegSocket.part();
+		MachineCreatureModel.Part activeLeg = activeLegSocket.part();
 
 		float progress = be.getProcessingProgress(partialTicks);
 		float bend = Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND;

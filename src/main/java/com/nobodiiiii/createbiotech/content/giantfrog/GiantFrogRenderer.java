@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.giantfrog;
 
 import com.mojang.math.Axis;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
@@ -10,8 +9,9 @@ import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.foundation.render.ShadowRenderHelper;
 
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
+
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
@@ -29,8 +29,6 @@ import net.minecraft.world.phys.Vec3;
 
 public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEntity> {
 	private static final float LIVING_ENTITY_MODEL_Y_OFFSET = -1.501f;
-	private static final float BELT_OPEN_HEAD_X_ROT = (float) Math.toRadians(-10.0d);
-	private static final float MODEL_UNITS_PER_BLOCK = 16.0f;
 	private static final float BELT_CONNECTION_FORWARD_BLOCKS = 1.5f;
 	private static final double BELT_ITEM_Y = 15.0d / 16.0d;
 	private static final double BELT_HANDOFF_DISTANCE_BLOCKS = 0.26d;
@@ -55,32 +53,24 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 		boolean beltConnected = blockEntity.isMouthHeldOpenByBelt();
 		boolean tongue = blockEntity.isTongueAnimating() && !beltConnected;
 		float animationAge = tongue ? blockEntity.getTongueAnimationAge(partialTick) : 0.0f;
-		prepareFrogModel(tongue, animationAge, beltConnected);
+		GiantFrogVisual.prepareBlockModel(frogModel, tongue, animationAge, beltConnected);
 
-		BlockEntityModelElement.builder()
-			.atLocal(0.5d, 0.0d, 0.5d)
-			.rotateY(180.0f - facing.toYRot())
-			.scale(-GiantFrogBlock.FROG_SCALE, -GiantFrogBlock.FROG_SCALE, GiantFrogBlock.FROG_SCALE)
-			.packedLight(packedLight)
-			.render(poseStack, buffer, (modelPose, modelBuffer, light) -> {
-				modelPose.translate(0.0f, LIVING_ENTITY_MODEL_Y_OFFSET, 0.0f);
-				renderFrogModel(modelPose, modelBuffer, light);
-			});
+		if (!VisualizationManager.supportsVisualization(blockEntity.getLevel()))
+			BlockEntityModelElement.builder()
+				.atLocal(0.5d, 0.0d, 0.5d)
+				.rotateY(180.0f - facing.toYRot())
+				.scale(-GiantFrogBlock.FROG_SCALE, -GiantFrogBlock.FROG_SCALE, GiantFrogBlock.FROG_SCALE)
+				.packedLight(packedLight)
+				.render(poseStack, buffer, (modelPose, modelBuffer, light) -> {
+					modelPose.translate(0.0f, LIVING_ENTITY_MODEL_Y_OFFSET, 0.0f);
+					renderFrogModel(modelPose, modelBuffer, light);
+				});
 
 		renderBeltTransferItem(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
 	}
 
-	private void prepareFrogModel(boolean tongue, float ageInTicks, boolean beltConnected) {
-		GiantFrogVisual.prepareModel(frogModel, tongue, ageInTicks);
-		if (beltConnected) {
-			frogHead().xRot += BELT_OPEN_HEAD_X_ROT;
-			applyBeltTongueBridge();
-		}
-	}
-
 	private void renderFrogModel(PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		VertexConsumer consumer = buffer.getBuffer(frogModel.renderType(GiantFrogVisual.TEXTURE));
-		frogModel.renderToBuffer(poseStack, consumer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+		frogModel.render(poseStack, buffer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 	}
 
 	private void renderBeltTransferItem(GiantFrogBlockEntity blockEntity, float partialTick, PoseStack poseStack,
@@ -130,35 +120,6 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 		itemRenderer.render(stack, ItemDisplayContext.FIXED, false, poseStack, buffer, itemLight, packedOverlay,
 			bakedModel);
 		poseStack.popPose();
-	}
-
-	private ModelPart frogHead() {
-		return frogModel.root()
-			.getChild("body")
-			.getChild("head");
-	}
-
-	private void applyBeltTongueBridge() {
-		ModelPart tongue = frogTongue();
-		tongue.xRot = 0.0f;
-		tongue.yRot = 0.0f;
-		tongue.zRot = 0.0f;
-		tongue.xScale = 1.0f;
-		tongue.yScale = 1.0f;
-		MachineCreatureModel.Anchor pivot = frogModel.anchor("tongue_pivot");
-		MachineCreatureModel.Anchor front = frogModel.anchor("tongue_front");
-		float restLength = pivot.z() - front.z();
-		if (Math.abs(restLength) < 1.0e-5f)
-			return;
-		float targetLength = pivot.z()
-			+ BELT_CONNECTION_FORWARD_BLOCKS * MODEL_UNITS_PER_BLOCK / GiantFrogBlock.FROG_SCALE;
-		tongue.zScale = targetLength / restLength;
-	}
-
-	private ModelPart frogTongue() {
-		return frogModel.root()
-			.getChild("body")
-			.getChild("tongue");
 	}
 
 	private Direction getFacing(BlockState state) {

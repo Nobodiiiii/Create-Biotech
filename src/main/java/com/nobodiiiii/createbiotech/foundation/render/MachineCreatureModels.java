@@ -1,70 +1,52 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 
+import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 
 /**
- * Resource-backed geometry for creatures incorporated into machines.
+ * Standard Java block-model parts used by the biological machines.
  *
- * <p>The JSON files own geometry, UVs, hierarchy, rest poses and mechanical anchors. Java renderers
- * continue to own animation, materials and machine state. Each returned model has independent pose
- * state and transparently rebakes itself after a client resource reload.</p>
+ * <p>Each rigid part is an ordinary {@code models/block} JSON and is baked through the same
+ * {@link PartialModel} path Create uses for funnel flaps, press heads and mechanical-arm pieces.
+ * Java owns the hierarchy, pivots and animation state.</p>
  */
 public final class MachineCreatureModels {
 
-	private static final ModelSpec SPIDER = spec("spider",
-		parts("head", "body0", "body1", "right_hind_leg", "left_hind_leg",
-			"right_middle_hind_leg", "left_middle_hind_leg", "right_middle_front_leg",
-			"left_middle_front_leg", "right_front_leg", "left_front_leg"),
-		anchors("left_front_leg_socket", "right_front_leg_socket", "left_middle_front_leg_socket",
-			"right_middle_front_leg_socket", "left_middle_hind_leg_socket", "right_middle_hind_leg_socket",
-			"left_hind_leg_socket", "right_hind_leg_socket"));
-	private static final ModelSpec SQUID = spec("squid",
-		parts("body", "tentacle0", "tentacle1", "tentacle2", "tentacle3", "tentacle4", "tentacle5",
-			"tentacle6", "tentacle7"));
-	private static final ModelSpec FROG = spec("frog",
-		parts("body", "body/head", "body/head/eyes", "body/head/eyes/right_eye",
-			"body/head/eyes/left_eye", "body/croaking_body", "body/tongue", "body/left_arm",
-			"body/left_arm/left_hand", "body/right_arm", "body/right_arm/right_hand", "left_leg",
-			"left_leg/left_foot", "right_leg", "right_leg/right_foot"),
-		anchors("tongue_pivot", "tongue_front"));
-	private static final ModelSpec EVOKER = spec("evoker",
-		parts("head", "head/nose", "body", "arms", "arms/left_shoulder", "right_leg", "left_leg",
-			"right_arm", "left_arm"));
-	private static final ModelSpec ALLAY = spec("allay",
-		parts("head", "body", "body/right_arm", "body/left_arm", "body/right_wing", "body/left_wing"));
-	private static final ModelSpec SALMON = spec("salmon",
-		parts("body_front", "body_front/top_front_fin", "body_back", "body_back/back_fin",
-			"body_back/top_back_fin", "head", "right_fin", "left_fin"));
-	private static final ModelSpec SHULKER = spec("shulker", parts("lid", "base"));
-	private static final ModelSpec SLIME_INNER = spec("slime_inner",
-		parts("cube", "right_eye", "left_eye", "mouth"));
-	private static final ModelSpec SLIME_OUTER = spec("slime_outer", parts("cube"));
-	private static final ModelSpec MAGMA_CUBE = spec("magma_cube",
-		parts("cube0", "cube1", "cube2", "cube3", "cube4", "cube5", "cube6", "cube7", "inside_cube"));
-	private static final ModelSpec CREEPER = spec("creeper",
-		parts("head", "body", "right_hind_leg", "left_hind_leg", "right_front_leg", "left_front_leg"));
-	private static final ModelSpec CREEPER_POWER = spec("creeper_power",
-		parts("head", "body", "right_hind_leg", "left_hind_leg", "right_front_leg", "left_front_leg"));
-	private static final ModelSpec BOOK = spec("book",
-		parts("left_lid", "right_lid", "seam", "left_pages", "right_pages", "flip_page1", "flip_page2"));
+	private static final ModelSpec SPIDER = MachineCreatureModelData.spider();
+	private static final ModelSpec SPIDER_EYES = SPIDER.withModelId(CreateBiotech.asResource("spider_eyes"));
+	private static final ModelSpec SQUID = MachineCreatureModelData.squid();
+	private static final ModelSpec FROG = MachineCreatureModelData.frog();
+	private static final ModelSpec EVOKER = MachineCreatureModelData.evoker();
+	private static final ModelSpec ALLAY = MachineCreatureModelData.allay();
+	private static final ModelSpec SALMON = MachineCreatureModelData.salmon();
+	private static final ModelSpec SHULKER = MachineCreatureModelData.shulker();
+	private static final ModelSpec SLIME_INNER = MachineCreatureModelData.slimeInner();
+	private static final ModelSpec SLIME_OUTER = MachineCreatureModelData.slimeOuter();
+	private static final ModelSpec MAGMA_CUBE = MachineCreatureModelData.magmaCube();
+	private static final ModelSpec CREEPER = MachineCreatureModelData.creeper();
+	private static final ModelSpec CREEPER_POWER = MachineCreatureModelData.creeperPower();
+	private static final ModelSpec BOOK = MachineCreatureModelData.book();
 
-	private static final List<ModelSpec> ALL = List.of(SPIDER, SQUID, FROG, EVOKER, ALLAY, SALMON,
-		SHULKER, SLIME_INNER, SLIME_OUTER, MAGMA_CUBE, CREEPER, CREEPER_POWER, BOOK);
-
-	public static final ResourceManagerReloadListener RELOAD_LISTENER =
-		resourceManager -> MachineCreatureModelLoader.reload(resourceManager, ALL);
+	private static final List<ModelSpec> ALL = List.of(SPIDER, SPIDER_EYES, SQUID, FROG, EVOKER,
+		ALLAY, SALMON, SHULKER, SLIME_INNER, SLIME_OUTER, MAGMA_CUBE, CREEPER,
+		CREEPER_POWER, BOOK);
 
 	private MachineCreatureModels() {}
 
 	public static MachineCreatureModel spider() {
 		return new MachineCreatureModel(SPIDER);
+	}
+
+	public static MachineCreatureModel spiderEyes() {
+		return new MachineCreatureModel(SPIDER_EYES);
 	}
 
 	public static MachineCreatureModel squid() {
@@ -80,7 +62,7 @@ public final class MachineCreatureModels {
 	}
 
 	public static MachineCreatureModel allay() {
-		return new MachineCreatureModel(ALLAY, RenderType::entityTranslucent);
+		return new MachineCreatureModel(ALLAY);
 	}
 
 	public static MachineCreatureModel salmon() {
@@ -112,24 +94,50 @@ public final class MachineCreatureModels {
 	}
 
 	public static MachineCreatureModel book() {
-		return new MachineCreatureModel(BOOK, RenderType::entitySolid);
+		return new MachineCreatureModel(BOOK);
 	}
 
-	private static ModelSpec spec(String path, Set<String> requiredParts) {
-		return spec(path, requiredParts, Set.of());
+	/** All standalone models that must be included in Minecraft's model-baking pass. */
+	public static Set<PartialModel> allPartials() {
+		Set<PartialModel> result = new LinkedHashSet<>();
+		for (ModelSpec model : ALL)
+			for (PartSpec part : model.parts())
+				if (part.hasGeometry())
+					result.add(PartialModel.of(partLocation(model.id(), part.modelName())));
+		return Set.copyOf(result);
 	}
 
-	private static ModelSpec spec(String path, Set<String> requiredParts, Set<String> requiredAnchors) {
-		return new ModelSpec(CreateBiotech.asResource(path), requiredParts, requiredAnchors);
+	static ResourceLocation partLocation(ResourceLocation modelId, String modelName) {
+		return ResourceLocation.fromNamespaceAndPath(modelId.getNamespace(),
+			"block/machine_creature/" + modelId.getPath() + "/" + modelName);
 	}
 
-	private static Set<String> parts(String... names) {
-		return Set.of(names);
+	public enum Layer {
+		CUTOUT,
+		TRANSLUCENT;
+
+		RenderType renderType() {
+			return this == TRANSLUCENT ? RenderType.translucent() : RenderType.cutout();
+		}
 	}
 
-	private static Set<String> anchors(String... names) {
-		return Set.of(names);
+	record ModelSpec(ResourceLocation id, Layer layer, List<PartSpec> parts,
+		Map<String, AnchorSpec> anchors) {
+		ModelSpec {
+			parts = List.copyOf(parts);
+			anchors = Map.copyOf(anchors);
+		}
+
+		ModelSpec withModelId(ResourceLocation replacement) {
+			return new ModelSpec(replacement, layer, parts, anchors);
+		}
 	}
 
-	record ModelSpec(ResourceLocation id, Set<String> requiredParts, Set<String> requiredAnchors) {}
+	record PartSpec(String path, String parentPath, String modelName,
+		float x, float y, float z, float xRot, float yRot, float zRot,
+		boolean visible, boolean skipDraw, boolean hasGeometry, Bounds firstCube) {}
+
+	record AnchorSpec(String partPath, float x, float y, float z) {}
+
+	public record Bounds(float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {}
 }

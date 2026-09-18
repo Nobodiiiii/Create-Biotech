@@ -1,0 +1,169 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    64
+  ],
+  "textures": {
+    "particle": "minecraft:entity/illager/evoker",
+    "creature": "minecraft:entity/illager/evoker"
+  },
+  "elements": [
+    {
+      "name": "arms_0",
+      "from": [
+        -8,
+        -2,
+        -2
+      ],
+      "to": [
+        -4,
+        6,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            12,
+            5.5,
+            13,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            13,
+            5.5,
+            14,
+            6.5
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            11,
+            6.5,
+            12,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            12,
+            6.5,
+            13,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            13,
+            6.5,
+            14,
+            8.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            14,
+            6.5,
+            15,
+            8.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    },
+    {
+      "name": "arms_1",
+      "from": [
+        -4,
+        2,
+        -2
+      ],
+      "to": [
+        4,
+        6,
+        2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            11,
+            9.5,
+            13,
+            10.5
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            13,
+            9.5,
+            15,
+            10.5
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            10,
+            10.5,
+            11,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            11,
+            10.5,
+            13,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            13,
+            10.5,
+            14,
+            11.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            14,
+            10.5,
+            16,
+            11.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "arms",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0,
+        1
+      ]
+    }
+  ]
+}

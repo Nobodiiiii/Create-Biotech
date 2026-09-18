@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech \u2014 emissive spider eye part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "create_biotech:entity/spider_assembly_table/spider_eyes",
+    "creature": "create_biotech:entity/spider_assembly_table/spider_eyes"
+  },
+  "elements": [
+    {
+      "name": "left_middle_front_leg_0",
+      "from": [
+        -1,
+        -1,
+        -1
+      ],
+      "to": [
+        15,
+        1,
+        1
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            9,
+            0,
+            5,
+            1
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            13,
+            0,
+            9,
+            1
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            9.5,
+            1,
+            9,
+            2
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            9,
+            1,
+            5,
+            2
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            5,
+            1,
+            4.5,
+            2
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            13.5,
+            1,
+            9.5,
+            2
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "left_middle_front_leg",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

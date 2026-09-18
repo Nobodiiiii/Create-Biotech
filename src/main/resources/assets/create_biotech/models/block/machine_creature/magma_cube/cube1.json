@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/slime/magmacube",
+    "creature": "minecraft:entity/slime/magmacube"
+  },
+  "elements": [
+    {
+      "name": "cube1_0",
+      "from": [
+        -4,
+        17,
+        -4
+      ],
+      "to": [
+        4,
+        18,
+        4
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            2,
+            0.5,
+            4,
+            4.5
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            4,
+            0.5,
+            6,
+            4.5
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            4.5,
+            2,
+            5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            2,
+            4.5,
+            4,
+            5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            4,
+            4.5,
+            6,
+            5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            6,
+            4.5,
+            8,
+            5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "cube1",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

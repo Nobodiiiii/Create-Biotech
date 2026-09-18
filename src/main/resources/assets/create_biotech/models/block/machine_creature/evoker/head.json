@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    64
+  ],
+  "textures": {
+    "particle": "minecraft:entity/illager/evoker",
+    "creature": "minecraft:entity/illager/evoker"
+  },
+  "elements": [
+    {
+      "name": "head_0",
+      "from": [
+        -4,
+        -10,
+        -4
+      ],
+      "to": [
+        4,
+        0,
+        4
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            2,
+            0,
+            4,
+            2
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            4,
+            0,
+            6,
+            2
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            0,
+            2,
+            2,
+            4.5
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            2,
+            2,
+            4,
+            4.5
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            4,
+            2,
+            6,
+            4.5
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            6,
+            2,
+            8,
+            4.5
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "head",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

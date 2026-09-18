@@ -5,27 +5,28 @@ import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 final class GreetingAllayRenderer {
 
-	private static final ResourceLocation ALLAY_TEXTURE =
-		ResourceLocation.parse("textures/entity/allay/allay.png");
-	private static final double ALLAY_POSITION_Y = 1.0d - 2.0d / 16.0d;
-	private static final float LIVING_ENTITY_MODEL_Y_OFFSET = -1.501f;
-	private static final float ALLAY_SCALE = 1.0f;
+	static final double ALLAY_POSITION_Y = 1.0d - 2.0d / 16.0d;
+	static final float LIVING_ENTITY_MODEL_Y_OFFSET = -1.501f;
+	static final float ALLAY_SCALE = 1.0f;
 
 	private final MachineCreatureModel allayModel = MachineCreatureModels.allay();
 
 	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Direction facing,
 		float animationTime, float waveStrength) {
-		prepareGreetingPose(animationTime, waveStrength);
+		render(poseStack, buffer, packedLight, facing, animationTime, waveStrength, true);
+	}
+
+	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Direction facing,
+		float animationTime, float waveStrength, boolean renderBody) {
+		prepareGreetingPose(allayModel, animationTime, waveStrength);
 		int allayLight = LightTexture.pack(15, LightTexture.sky(packedLight));
 
 		BlockEntityModelElement.builder()
@@ -35,30 +36,27 @@ final class GreetingAllayRenderer {
 			.packedLight(allayLight)
 			.render(poseStack, buffer, (modelPose, modelBuffer, modelLight) -> {
 				modelPose.translate(0.0f, LIVING_ENTITY_MODEL_Y_OFFSET, 0.0f);
-				allayModel.renderToBuffer(
-					modelPose,
-					modelBuffer.getBuffer(allayModel.renderType(ALLAY_TEXTURE)),
-					modelLight,
-					OverlayTexture.NO_OVERLAY,
-					-1);
+				if (renderBody)
+					allayModel.render(modelPose, modelBuffer, modelLight,
+						OverlayTexture.NO_OVERLAY, -1);
 				renderLogisticsHat(modelPose, modelBuffer, modelLight);
 			});
 	}
 
 	private void renderLogisticsHat(PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		AllayLogisticsHatRenderer.render(allayModel.root(), poseStack, buffer, packedLight);
+		AllayLogisticsHatRenderer.render(allayModel, poseStack, buffer, packedLight);
 	}
 
-	private void prepareGreetingPose(float animationTime, float waveStrength) {
-		ModelPart root = allayModel.root();
-		allayModel.resetPose();
+	static void prepareGreetingPose(MachineCreatureModel model, float animationTime, float waveStrength) {
+		MachineCreatureModel.Part root = model.root();
+		model.resetPose();
 
-		ModelPart head = root.getChild("head");
-		ModelPart body = root.getChild("body");
-		ModelPart rightArm = body.getChild("right_arm");
-		ModelPart leftArm = body.getChild("left_arm");
-		ModelPart rightWing = body.getChild("right_wing");
-		ModelPart leftWing = body.getChild("left_wing");
+		MachineCreatureModel.Part head = root.getChild("head");
+		MachineCreatureModel.Part body = root.getChild("body");
+		MachineCreatureModel.Part rightArm = body.getChild("right_arm");
+		MachineCreatureModel.Part leftArm = body.getChild("left_arm");
+		MachineCreatureModel.Part rightWing = body.getChild("right_wing");
+		MachineCreatureModel.Part leftWing = body.getChild("left_wing");
 
 		root.zRot = degrees(18.0f);
 		body.zRot = degrees(5.0f);

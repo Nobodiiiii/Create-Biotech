@@ -1,0 +1,99 @@
+{
+  "credit": "Create: Biotech — standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:translucent",
+  "texture_size": [
+    32,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/allay/allay",
+    "creature": "minecraft:entity/allay/allay"
+  },
+  "elements": [
+    {
+      "name": "right_arm_0",
+      "from": [
+        -0.74,
+        -0.49,
+        -0.99
+      ],
+      "to": [
+        0.24,
+        3.49,
+        0.99
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            12.5,
+            0,
+            13,
+            1
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            13,
+            0,
+            13.5,
+            1
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            11.5,
+            1,
+            12.5,
+            3
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            12.5,
+            1,
+            13,
+            3
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            13,
+            1,
+            14,
+            3
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            14,
+            1,
+            14.5,
+            3
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "right_arm",
+      "origin": [
+        0,
+        0,
+        0
+      ],
+      "color": 0,
+      "children": [
+        0
+      ]
+    }
+  ]
+}

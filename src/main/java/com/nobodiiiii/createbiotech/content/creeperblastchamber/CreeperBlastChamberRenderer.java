@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -11,6 +13,7 @@ import com.nobodiiiii.createbiotech.foundation.render.BoundedRenderEntityCache;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureRenderer;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.data.Iterate;
 import net.createmod.catnip.render.CachedBuffers;
@@ -114,7 +117,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			renderFormedPanels(be, poseStack, vertices, blockState, level, progress);
 			if (be.shouldRenderCreeperFace())
 				renderCreeperFace(be, poseStack, vertices, blockState, level);
-			renderContainedCreepers(be, partialTicks, poseStack, buffer);
+			if (!VisualizationManager.supportsVisualization(level))
+				renderContainedCreepers(be, partialTicks, poseStack, buffer);
 			return;
 		}
 		renderStandalonePanels(be, poseStack, vertices, blockState, level, progress);
@@ -209,6 +213,23 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 
 	private void renderContainedCreepers(CreeperBlastChamberBlockEntity be, float partialTicks,
 		PoseStack poseStack, MultiBufferSource buffer) {
+		List<CreeperRenderState> states = new ArrayList<>();
+		collectCreeperRenderStates(be, partialTicks, states);
+		for (CreeperRenderState state : states) {
+			poseStack.pushPose();
+			poseStack.translate(state.x(), state.y(), state.z());
+			poseStack.scale(state.scale(), state.scale(), state.scale());
+			poseStack.scale(state.horizontalScale(), state.verticalScale(), state.horizontalScale());
+			MachineCreatureRenderer.renderCreeper(poseStack, buffer, state.packedLight(),
+				state.bodyYaw(), state.headYaw(), state.headPitch(), state.swelling(),
+				state.animationTime(), state.charged());
+			poseStack.popPose();
+		}
+	}
+
+	static void collectCreeperRenderStates(CreeperBlastChamberBlockEntity be, float partialTicks,
+		List<CreeperRenderState> states) {
+		states.clear();
 		if (isBeyondCreeperRenderDistance(be))
 			return;
 
@@ -222,18 +243,26 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		float renderTime = AnimationTickHolder.getRenderTime(level);
 		Player nearbyPlayer = findNearbyPlayer(level, be);
 
-		for (CreeperBlastChamberBlockEntity.RenderManagedCreeper subject : working)
-			renderContainedCreeper(be, subject.packagerPos(), subject.payload(), subject.renderSeed(), subject.defaultYaw(),
-				partialTicks, 0, 1, false, be.getWorkingCreeperCompression(subject.packagerPos(), partialTicks), poseStack,
-				buffer, renderTime, nearbyPlayer);
+		for (CreeperBlastChamberBlockEntity.RenderManagedCreeper subject : working) {
+			CreeperRenderState state = prepareContainedCreeper(be, subject.packagerPos(), subject.payload(),
+				subject.renderSeed(), subject.defaultYaw(),
+				partialTicks, 0, 1, false, be.getWorkingCreeperCompression(subject.packagerPos(), partialTicks),
+				renderTime, nearbyPlayer);
+			if (state != null)
+				states.add(state);
+		}
 
-		for (CreeperBlastChamberBlockEntity.RenderCreeperAnimation animation : animations)
-			renderContainedCreeper(be, animation.packagerPos(), animation.payload(), animation.renderSeed(), animation.defaultYaw(),
-				partialTicks, animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0, poseStack,
-				buffer, renderTime, nearbyPlayer);
+		for (CreeperBlastChamberBlockEntity.RenderCreeperAnimation animation : animations) {
+			CreeperRenderState state = prepareContainedCreeper(be, animation.packagerPos(), animation.payload(),
+				animation.renderSeed(), animation.defaultYaw(),
+				partialTicks, animation.ticksRemaining(), animation.totalTicks(), animation.exiting(), 0,
+				renderTime, nearbyPlayer);
+			if (state != null)
+				states.add(state);
+		}
 	}
 
-	private Player findNearbyPlayer(Level level, CreeperBlastChamberBlockEntity be) {
+	private static Player findNearbyPlayer(Level level, CreeperBlastChamberBlockEntity be) {
 		BlockPos origin = be.getStructureOrigin();
 		if (origin == null)
 			return null;
@@ -261,7 +290,7 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	 * The chamber is a sealed box, so the creepers inside it are barely legible from far away while
 	 * still costing a full model plus, for charged ones, an extra swirl pass.
 	 */
-	private boolean isBeyondCreeperRenderDistance(CreeperBlastChamberBlockEntity be) {
+	private static boolean isBeyondCreeperRenderDistance(CreeperBlastChamberBlockEntity be) {
 		Vec3 camera = Minecraft.getInstance()
 			.gameRenderer.getMainCamera()
 			.getPosition();
@@ -270,16 +299,17 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			> CREEPER_RENDER_DISTANCE * CREEPER_RENDER_DISTANCE;
 	}
 
-	private void renderContainedCreeper(CreeperBlastChamberBlockEntity be, BlockPos packagerPos, ItemStack payload,
+	private static CreeperRenderState prepareContainedCreeper(CreeperBlastChamberBlockEntity be,
+		BlockPos packagerPos, ItemStack payload,
 		long renderSeed, float defaultYaw, float partialTicks, int ticksRemaining, int totalTicks, boolean exiting,
-		float compression, PoseStack poseStack, MultiBufferSource buffer, float renderTime, Player nearbyPlayer) {
+		float compression, float renderTime, Player nearbyPlayer) {
 		Level level = be.getLevel();
 		if (level == null || payload.isEmpty())
-			return;
+			return null;
 		Creeper creeper = CREEPER_CACHE.get(level,
 			new CreeperCacheKey(be.getBlockPos(), packagerPos, renderSeed, payload));
 		if (creeper == null)
-			return;
+			return null;
 
 		float scale = 1;
 		float yOffset = 0;
@@ -306,20 +336,20 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			.computeIfAbsent(creeper, ignored -> new CreeperAttentionState(renderSeed));
 		attention.update(renderTime, defaultYaw, compression, creeper, nearbyPlayer);
 
-		poseStack.pushPose();
-		poseStack.translate(packagerPos.getX() - be.getBlockPos().getX() + .5d,
-			packagerPos.getY() - be.getBlockPos().getY() + 1d + yOffset,
-			packagerPos.getZ() - be.getBlockPos().getZ() + .5d);
-		poseStack.scale(scale, scale, scale);
-		poseStack.scale(horizontal, vertical, horizontal);
-
 		float animationTime = Mth.floor(renderTime)
 			+ (int) Math.floorMod(renderSeed, SWIRL_PHASE_BUCKETS) * SWIRL_PHASE_SPACING + partialTicks;
-		MachineCreatureRenderer.renderCreeper(poseStack, buffer, LevelRenderer.getLightColor(level, packagerPos.above()),
-			attention.bodyYaw(), attention.headYaw() - attention.bodyYaw(), attention.pitch(), appliedSwell,
-			animationTime, charged);
-		poseStack.popPose();
+		return new CreeperRenderState(
+			packagerPos.getX() - be.getBlockPos().getX() + .5d,
+			packagerPos.getY() - be.getBlockPos().getY() + 1d + yOffset,
+			packagerPos.getZ() - be.getBlockPos().getZ() + .5d,
+			scale, horizontal, vertical, attention.bodyYaw(), attention.headYaw() - attention.bodyYaw(),
+			attention.pitch(), appliedSwell, animationTime, charged,
+			LevelRenderer.getLightColor(level, packagerPos.above()));
 	}
+
+	record CreeperRenderState(double x, double y, double z, float scale, float horizontalScale,
+		float verticalScale, float bodyYaw, float headYaw, float headPitch, float swelling,
+		float animationTime, boolean charged, int packedLight) {}
 
 	private enum AttentionMode {
 		IDLE,

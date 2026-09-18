@@ -21,10 +21,10 @@ import com.simibubi.create.content.kinetics.waterwheel.WaterWheelRenderer;
 import com.simibubi.create.foundation.fluid.FluidHelper;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import net.createmod.catnip.render.CachedBuffers;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -44,19 +44,17 @@ public class AutomaticFishReleaseMachineRenderer
 	public static final ResourceLocation BLADE_CLAMP_MODEL_LOCATION =
 		CreateBiotech.asResource("block/automatic_fish_release_machine/blade_clamp");
 	static final PartialModel BLADE_CLAMP = PartialModel.of(BLADE_CLAMP_MODEL_LOCATION);
-	static final ResourceLocation SALMON_TEXTURE =
-		ResourceLocation.withDefaultNamespace("textures/entity/fish/salmon.png");
 	static final int BLADE_COUNT = 16;
 	static final float FISH_RING_RADIUS = 2.47f;
 	static final float FISH_SCALE = 0.8f;
 	static final float FISH_IN_PLANE_ROTATION = -12.25f;
 	static final float FISH_TAIL_OFFSET = 1.0f / 16.0f;
-	private static final float FISH_LENGTH_CENTRE = 6.5f / 16.0f;
-	private static final float FISH_MODEL_Y_OFFSET = -1.501f;
+	static final float FISH_LENGTH_CENTRE = 6.5f / 16.0f;
+	static final float FISH_MODEL_Y_OFFSET = -1.501f;
 	private static final float FISH_HEAD_Y = 20.0f / 16.0f;
 	private static final float FISH_HEAD_Z = -1.5f / 16.0f;
-	private static final float SWIM_TAIL_AMPLITUDE = 0.4f;
-	private static final float SWIM_TAIL_SPEED = 0.8f;
+	static final float SWIM_TAIL_AMPLITUDE = 0.4f;
+	static final float SWIM_TAIL_SPEED = 0.8f;
 	static final float CARDINAL_BLADE_CLAMP_RADIUS = 2.125f;
 	static final float INTERMEDIATE_BLADE_CLAMP_RADIUS = 2.1875f;
 	static final float BLADE_CLAMP_OUTWARD_OFFSET = 6.0f / 16.0f;
@@ -88,6 +86,7 @@ public class AutomaticFishReleaseMachineRenderer
 		float animationTime = (float) (renderTime % 10000.0);
 		FishRenderState renderState = fishRenderStates.computeIfAbsent(blockEntity, ignored -> new FishRenderState());
 		float speed = blockEntity.getSpeed();
+		boolean visualized = VisualizationManager.supportsVisualization(level);
 		if (speed != 0)
 			renderState.rotationDirection = Math.signum(speed);
 
@@ -106,12 +105,14 @@ public class AutomaticFishReleaseMachineRenderer
 				renderState.meritTexts.add(new FloatingMeritText(
 					getFishHeadOffset(rotationAxis, wheelAngle, gapAngle, reverseDirection), renderTime));
 			renderState.swimming[fishIndex] = inWater;
-			renderFishInGap(poseStack, buffer, light, overlay, gapAngle, reverseDirection, inWater,
-				animationTime + fishIndex * 1.5f);
+			if (!visualized)
+				renderFishInGap(poseStack, buffer, light, overlay, gapAngle, reverseDirection, inWater,
+					animationTime + fishIndex * 1.5f);
 		}
 		renderState.initialized = true;
-		for (int bladeIndex = 0; bladeIndex < BLADE_COUNT; bladeIndex++)
-			renderBladeClamp(blockEntity, poseStack, buffer, light, bladeIndex);
+		if (!visualized)
+			for (int bladeIndex = 0; bladeIndex < BLADE_COUNT; bladeIndex++)
+				renderBladeClamp(blockEntity, poseStack, buffer, light, bladeIndex);
 
 		poseStack.popPose();
 		renderMeritTexts(renderState, poseStack, buffer, renderTime);
@@ -138,11 +139,10 @@ public class AutomaticFishReleaseMachineRenderer
 		}
 		poseStack.translate(0, FISH_MODEL_Y_OFFSET, 0);
 
-		ModelPart fishBodyBack = fishModel.root().getChild("body_back");
+		MachineCreatureModel.Part fishBodyBack = fishModel.root().getChild("body_back");
 		fishBodyBack.yRot =
 			inWater ? -SWIM_TAIL_AMPLITUDE * Mth.sin(SWIM_TAIL_SPEED * animationTime) : 0;
-		fishModel.renderToBuffer(poseStack, buffer.getBuffer(RenderType.entityCutoutNoCull(SALMON_TEXTURE)),
-			light, overlay, -1);
+		fishModel.render(poseStack, buffer, light, overlay, -1);
 		poseStack.popPose();
 	}
 
@@ -183,7 +183,7 @@ public class AutomaticFishReleaseMachineRenderer
 		return headOffset;
 	}
 
-	private static boolean isFishInWater(AutomaticFishReleaseMachineBlockEntity blockEntity,
+	static boolean isFishInWater(AutomaticFishReleaseMachineBlockEntity blockEntity,
 		Direction.Axis rotationAxis, Vector3f fishOffset) {
 		Level level = blockEntity.getLevel();
 		if (level == null)
@@ -286,7 +286,7 @@ public class AutomaticFishReleaseMachineRenderer
 		poseStack.popPose();
 	}
 
-	private static void alignVerticalModelToAxis(PoseStack poseStack, Direction.Axis axis) {
+	static void alignVerticalModelToAxis(PoseStack poseStack, Direction.Axis axis) {
 		switch (axis) {
 		case X -> poseStack.mulPose(Axis.ZP.rotationDegrees(-90));
 		case Z -> poseStack.mulPose(Axis.XP.rotationDegrees(90));

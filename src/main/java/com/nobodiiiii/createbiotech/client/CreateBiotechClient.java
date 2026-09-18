@@ -3,7 +3,9 @@ package com.nobodiiiii.createbiotech.client;
 import java.util.function.Predicate;
 
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineRenderer;
+import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineVisual;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingMachineVisual;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineVisual;
@@ -15,6 +17,7 @@ import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenRende
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
+import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberVisual;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
@@ -29,11 +32,13 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntityRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogRenderer;
+import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogMachineVisual;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltVisual;
 import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerRenderer;
+import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerVisual;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltRenderer;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltVisual;
@@ -52,6 +57,7 @@ import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRende
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterScreen;
+import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterVisual;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltVisual;
@@ -60,9 +66,12 @@ import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTa
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableScreen;
+import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableVisual;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterVisual;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgrade;
 import com.nobodiiiii.createbiotech.content.universaljoint.HalfShaftVisual;
+import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointVisual;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicRenderer;
@@ -107,7 +116,6 @@ import com.simibubi.create.content.kinetics.base.SingleAxisRotatingVisual;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.simpleRelays.encased.EncasedCogVisual;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftVisual;
-import com.simibubi.create.content.kinetics.waterwheel.WaterWheelVisual;
 import com.simibubi.create.foundation.block.connected.CTModel;
 import com.simibubi.create.foundation.block.connected.SimpleCTBehaviour;
 import com.simibubi.create.foundation.item.ItemDescription;
@@ -209,6 +217,8 @@ public class CreateBiotechClient {
 	public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
 		java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register = location ->
 			event.register(new ModelResourceLocation(location, ModelResourceLocation.STANDALONE_VARIANT));
+		MachineCreatureModels.allPartials()
+			.forEach(partial -> register.accept(partial.modelLocation()));
 		register.accept(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
 		PartialModel asurineDoorFoldLeft = PartialModel.of(
 			CreateBiotech.asResource("block/asurine_door/fold_left"));
@@ -326,7 +336,6 @@ public class CreateBiotechClient {
 		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
-		event.registerReloadListener(MachineCreatureModels.RELOAD_LISTENER);
 	}
 
 	@SubscribeEvent
@@ -368,7 +377,35 @@ public class CreateBiotechClient {
 				.factory(SingleAxisRotatingVisual.ofZ(ExperiencePumpRenderer.COG))
 				.apply();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.AUTOMATIC_FISH_RELEASE_MACHINE.get())
-				.factory(WaterWheelVisual::large)
+				.factory(AutomaticFishReleaseMachineVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.SQUID_PRINTER.get())
+				.factory(SquidPrinterVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get())
+				.factory(EvokerEnchantingMachineVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get())
+				.factory(CreeperBlastChamberVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.GIANT_FROG.get())
+				.factory(GiantFrogMachineVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.MAGMA_CUBE_BURNER.get())
+				.factory(MagmaCubeBurnerVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.SHULKER_TELEPORTER.get())
+				.factory(ShulkerTeleporterVisual::new)
+				.neverSkipVanillaRender()
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.SPIDER_ASSEMBLY_TABLE.get())
+				.factory(SpiderAssemblyTableVisual::new)
 				.neverSkipVanillaRender()
 				.apply();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.MAGMA_BELT.get())
@@ -410,6 +447,10 @@ public class CreateBiotechClient {
 				.apply();
 			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.HALF_SHAFT.get())
 				.factory(HalfShaftVisual::new)
+				.apply();
+			SimpleBlockEntityVisualizer.builder(CBBlockEntityTypes.UNIVERSAL_JOINT.get())
+				.factory(UniversalJointVisual::new)
+				.neverSkipVanillaRender()
 				.apply();
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME.get(), RenderType.translucent());
 			ItemBlockRenderTypes.setRenderLayer(CBFluids.LIQUID_LIVING_SLIME_FLOWING.get(), RenderType.translucent());
