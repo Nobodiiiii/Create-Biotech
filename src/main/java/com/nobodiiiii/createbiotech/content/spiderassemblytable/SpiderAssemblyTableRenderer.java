@@ -55,9 +55,12 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
 	private static final float ACTIVE_LEG_BEND = (float) Math.toRadians(45);
 	private static final float MACHINE_SCALE = 0.4f;
-	private static final float LEG_LENGTH_MODEL = 15.0f;
-	private static final float LEG_PIVOT_X_MODEL = 4.0f;
-	private static final int[] LEG_PIVOT_Z_MODEL = { -1, -1, 0, 0, 1, 1, 2, 2 };
+	private static final String[] LEG_SOCKET_ANCHORS = {
+		"left_front_leg_socket", "right_front_leg_socket",
+		"left_middle_front_leg_socket", "right_middle_front_leg_socket",
+		"left_middle_hind_leg_socket", "right_middle_hind_leg_socket",
+		"left_hind_leg_socket", "right_hind_leg_socket"
+	};
 	private static final float DEPOT_X_MODEL = 0f;
 	private static final float DEPOT_Y_MODEL = 39f;
 	private static final float DEPOT_Z_MODEL = 0f;
@@ -117,7 +120,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private void renderLegMachines(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
 		MultiBufferSource buffer, int light) {
-		ModelPart root = spiderModel.root();
 		ItemStackHandler inventory = be.getInventory();
 		int activeSlot = be.getActiveSlot();
 		float progress = be.getProcessingProgress(partialTicks);
@@ -128,40 +130,38 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			if (kind == null)
 				continue;
 
-			ModelPart leg = getAnimatedLeg(root, slot);
-			if (leg == null)
+			MachineCreatureModel.Anchor legSocket = getLegSocket(slot);
+			if (legSocket == null)
 				continue;
+			ModelPart leg = legSocket.part();
 
 			BlockState machineState = machineStateFor(kind);
 			boolean leftSide = (slot % 2) == 0;
 			boolean isActive = (slot == activeSlot);
-			float sign = leftSide ? 1f : -1f;
-
-			float cz = Mth.cos(leg.zRot);
-			float sz = Mth.sin(leg.zRot);
-			float cy = Mth.cos(leg.yRot);
-			float sy = Mth.sin(leg.yRot);
-
 			float restBend = isActive ? Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND : 0f;
 			float restZRot = leg.zRot - (leftSide ? restBend : -restBend);
-			float restCz = Mth.cos(restZRot);
-			float restSz = Mth.sin(restZRot);
+			Vector3f socketOffset = rotateModelVector(legSocket.x(), legSocket.y(), legSocket.z(),
+				leg.xRot, leg.yRot, leg.zRot);
+			if (socketOffset.lengthSquared() < VECTOR_EPSILON * VECTOR_EPSILON)
+				continue;
+			Vector3f axis = new Vector3f(socketOffset).normalize();
+			Vector3f restAxis = rotateModelVector(legSocket.x(), legSocket.y(), legSocket.z(),
+				leg.xRot, leg.yRot, restZRot).normalize();
+			float axisX = axis.x;
+			float axisY = axis.y;
+			float axisZ = axis.z;
+			float restAxisX = restAxis.x;
+			float restAxisY = restAxis.y;
+			float restAxisZ = restAxis.z;
 
-			float axisX = sign * cz * cy;
-			float axisY = sign * sz * cy;
-			float axisZ = -sign * sy;
-			float restAxisX = sign * restCz * cy;
-			float restAxisY = sign * restSz * cy;
-			float restAxisZ = -sign * sy;
+			float tipMx = leg.x + socketOffset.x;
+			float tipMy = leg.y + socketOffset.y;
+			float tipMz = leg.z + socketOffset.z;
 
-			float anchorLength = LEG_LENGTH_MODEL - 1f;
-			float tipMx = sign * LEG_PIVOT_X_MODEL + anchorLength * axisX;
-			float tipMy = 15f + anchorLength * axisY;
-			float tipMz = LEG_PIVOT_Z_MODEL[slot] + anchorLength * axisZ;
-
-			float perpX = -sz;
-			float perpY = cz;
-			float perpZ = 0f;
+			Vector3f perpendicular = rotateModelVector(0f, 1f, 0f, leg.xRot, leg.yRot, leg.zRot);
+			float perpX = perpendicular.x;
+			float perpY = perpendicular.y;
+			float perpZ = perpendicular.z;
 			float outwardRotationDegrees = isOuterLeg(slot)
 				? OUTER_LEG_OUTWARD_ROTATION_DEGREES
 				: INNER_LEG_OUTWARD_ROTATION_DEGREES;
@@ -485,13 +485,13 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	}
 
 	private void prepareSpiderModel(SpiderAssemblyTableBlockEntity be, float partialTicks) {
-		ModelPart root = spiderModel.root();
 		spiderModel.resetPose();
 
 		int activeSlot = be.getActiveSlot();
-		ModelPart activeLeg = getAnimatedLeg(root, activeSlot);
-		if (activeLeg == null)
+		MachineCreatureModel.Anchor activeLegSocket = getLegSocket(activeSlot);
+		if (activeLegSocket == null)
 			return;
+		ModelPart activeLeg = activeLegSocket.part();
 
 		float progress = be.getProcessingProgress(partialTicks);
 		float bend = Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND;
@@ -499,18 +499,28 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		activeLeg.zRot += leftSide ? bend : -bend;
 	}
 
-	private static ModelPart getAnimatedLeg(ModelPart root, int slot) {
-		return switch (slot) {
-		case 0 -> root.getChild("left_front_leg");
-		case 1 -> root.getChild("right_front_leg");
-		case 2 -> root.getChild("left_middle_front_leg");
-		case 3 -> root.getChild("right_middle_front_leg");
-		case 4 -> root.getChild("left_middle_hind_leg");
-		case 5 -> root.getChild("right_middle_hind_leg");
-		case 6 -> root.getChild("left_hind_leg");
-		case 7 -> root.getChild("right_hind_leg");
-		default -> null;
-		};
+	private MachineCreatureModel.Anchor getLegSocket(int slot) {
+		return slot >= 0 && slot < LEG_SOCKET_ANCHORS.length
+			? spiderModel.anchor(LEG_SOCKET_ANCHORS[slot])
+			: null;
+	}
+
+	private static Vector3f rotateModelVector(float x, float y, float z,
+		float xRotation, float yRotation, float zRotation) {
+		float cosX = Mth.cos(xRotation);
+		float sinX = Mth.sin(xRotation);
+		float yAfterX = y * cosX - z * sinX;
+		float zAfterX = y * sinX + z * cosX;
+
+		float cosY = Mth.cos(yRotation);
+		float sinY = Mth.sin(yRotation);
+		float xAfterY = x * cosY + zAfterX * sinY;
+		float zAfterY = -x * sinY + zAfterX * cosY;
+
+		float cosZ = Mth.cos(zRotation);
+		float sinZ = Mth.sin(zRotation);
+		return new Vector3f(xAfterY * cosZ - yAfterX * sinZ,
+			xAfterY * sinZ + yAfterX * cosZ, zAfterY);
 	}
 
 	private static float yRotation(Direction facing) {

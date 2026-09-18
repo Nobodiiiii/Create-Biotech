@@ -31,12 +31,7 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 	private static final float LIVING_ENTITY_MODEL_Y_OFFSET = -1.501f;
 	private static final float BELT_OPEN_HEAD_X_ROT = (float) Math.toRadians(-10.0d);
 	private static final float MODEL_UNITS_PER_BLOCK = 16.0f;
-	private static final float TONGUE_PIVOT_Z_UNITS = 5.0f;
-	private static final float TONGUE_FRONT_Z_UNITS = -7.1f;
 	private static final float BELT_CONNECTION_FORWARD_BLOCKS = 1.5f;
-	private static final float BELT_TONGUE_Z_SCALE =
-		(TONGUE_PIVOT_Z_UNITS + BELT_CONNECTION_FORWARD_BLOCKS * MODEL_UNITS_PER_BLOCK / GiantFrogBlock.FROG_SCALE)
-			/ -TONGUE_FRONT_Z_UNITS;
 	private static final double BELT_ITEM_Y = 15.0d / 16.0d;
 	private static final double BELT_HANDOFF_DISTANCE_BLOCKS = 0.26d;
 	private static final double BELT_TONGUE_TRANSFER_DISTANCE_BLOCKS = 0.5d;
@@ -150,7 +145,14 @@ public class GiantFrogRenderer implements BlockEntityRenderer<GiantFrogBlockEnti
 		tongue.zRot = 0.0f;
 		tongue.xScale = 1.0f;
 		tongue.yScale = 1.0f;
-		tongue.zScale = BELT_TONGUE_Z_SCALE;
+		MachineCreatureModel.Anchor pivot = frogModel.anchor("tongue_pivot");
+		MachineCreatureModel.Anchor front = frogModel.anchor("tongue_front");
+		float restLength = pivot.z() - front.z();
+		if (Math.abs(restLength) < 1.0e-5f)
+			return;
+		float targetLength = pivot.z()
+			+ BELT_CONNECTION_FORWARD_BLOCKS * MODEL_UNITS_PER_BLOCK / GiantFrogBlock.FROG_SCALE;
+		tongue.zScale = targetLength / restLength;
 	}
 
 	private ModelPart frogTongue() {

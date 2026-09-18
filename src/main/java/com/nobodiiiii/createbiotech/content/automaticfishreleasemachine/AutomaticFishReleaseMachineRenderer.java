@@ -67,14 +67,11 @@ public class AutomaticFishReleaseMachineRenderer
 	private static final Component MERIT_TEXT = Component.literal("功德+1");
 
 	private final MachineCreatureModel fishModel;
-	private final ModelPart fishBodyBack;
 	private final Map<AutomaticFishReleaseMachineBlockEntity, FishRenderState> fishRenderStates = new WeakHashMap<>();
 
 	public AutomaticFishReleaseMachineRenderer(BlockEntityRendererProvider.Context context) {
 		super(context, true);
 		fishModel = MachineCreatureModels.salmon();
-		fishBodyBack = fishModel.root()
-			.getChild("body_back");
 	}
 
 	@Override
@@ -141,6 +138,7 @@ public class AutomaticFishReleaseMachineRenderer
 		}
 		poseStack.translate(0, FISH_MODEL_Y_OFFSET, 0);
 
+		ModelPart fishBodyBack = fishModel.root().getChild("body_back");
 		fishBodyBack.yRot =
 			inWater ? -SWIM_TAIL_AMPLITUDE * Mth.sin(SWIM_TAIL_SPEED * animationTime) : 0;
 		fishModel.renderToBuffer(poseStack, buffer.getBuffer(RenderType.entityCutoutNoCull(SALMON_TEXTURE)),

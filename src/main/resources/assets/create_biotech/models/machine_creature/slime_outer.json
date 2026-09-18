@@ -1,0 +1,31 @@
+{
+  "format_version": "1.0.0",
+  "description": {
+    "identifier": "create_biotech:slime_outer",
+    "texture_width": 64,
+    "texture_height": 32
+  },
+  "bones": [
+    {
+      "name": "cube",
+      "cubes": [
+        {
+          "origin": [
+            -4,
+            16,
+            -4
+          ],
+          "size": [
+            8,
+            8,
+            8
+          ],
+          "uv": [
+            0,
+            0
+          ]
+        }
+      ]
+    }
+  ]
+}

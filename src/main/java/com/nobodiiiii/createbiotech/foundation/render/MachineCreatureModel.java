@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -10,35 +11,41 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
 
-/**
- * A machine-owned model, with no entity renderer, global model layer or entity animation state.
- * Geometry is baked from our fixed definitions; each renderer owns its mutable pose. Texture
- * locations are resolved by the normal render types, so resource reloads do not invalidate this
- * geometry or leave references to a departed client level.
- */
+/** A resource-backed machine model with independent mutable pose state. */
 public final class MachineCreatureModel {
 
-	private final ModelPart root;
-	private final List<RestPart> restParts;
+	private final MachineCreatureModels.ModelSpec spec;
 	private final Function<ResourceLocation, RenderType> renderType;
+	private ModelPart root;
+	private List<RestPart> restParts = List.of();
+	private Map<String, Anchor> anchors = Map.of();
+	private int loadedGeneration = -1;
 
-	MachineCreatureModel(ModelPart root) {
-		this(root, RenderType::entityCutoutNoCull);
+	MachineCreatureModel(MachineCreatureModels.ModelSpec spec) {
+		this(spec, RenderType::entityCutoutNoCull);
 	}
 
-	MachineCreatureModel(ModelPart root, Function<ResourceLocation, RenderType> renderType) {
-		this.root = root;
+	MachineCreatureModel(MachineCreatureModels.ModelSpec spec,
+		Function<ResourceLocation, RenderType> renderType) {
+		this.spec = spec;
 		this.renderType = renderType;
-		this.restParts = root.getAllParts()
-			.map(part -> new RestPart(part, part.visible, part.skipDraw))
-			.toList();
 	}
 
 	public ModelPart root() {
+		ensureLoaded();
 		return root;
 	}
 
+	public Anchor anchor(String name) {
+		ensureLoaded();
+		Anchor anchor = anchors.get(name);
+		if (anchor == null)
+			throw new IllegalArgumentException("Unknown anchor '" + name + "' in machine model " + spec.id());
+		return anchor;
+	}
+
 	public void resetPose() {
+		ensureLoaded();
 		for (RestPart rest : restParts) {
 			rest.part.resetPose();
 			rest.part.visible = rest.visible;
@@ -52,8 +59,30 @@ public final class MachineCreatureModel {
 
 	public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight,
 		int packedOverlay, int color) {
+		ensureLoaded();
 		root.render(poseStack, buffer, packedLight, packedOverlay, color);
 	}
+
+	private void ensureLoaded() {
+		int generation = MachineCreatureModelLoader.generation();
+		if (root != null && loadedGeneration == generation)
+			return;
+		synchronized (this) {
+			generation = MachineCreatureModelLoader.generation();
+			if (root != null && loadedGeneration == generation)
+				return;
+			MachineCreatureModelLoader.BakedModel baked = MachineCreatureModelLoader.bake(spec);
+			root = baked.root();
+			anchors = baked.anchors();
+			restParts = root.getAllParts()
+				.map(part -> new RestPart(part, part.visible, part.skipDraw))
+				.toList();
+			loadedGeneration = generation;
+		}
+	}
+
+	/** A point in the local coordinate system of a named model part. */
+	public record Anchor(ModelPart part, float x, float y, float z) {}
 
 	private record RestPart(ModelPart part, boolean visible, boolean skipDraw) {}
 }

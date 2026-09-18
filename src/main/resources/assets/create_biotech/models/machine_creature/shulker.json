@@ -1,0 +1,62 @@
+{
+  "format_version": "1.0.0",
+  "description": {
+    "identifier": "create_biotech:shulker",
+    "texture_width": 64,
+    "texture_height": 64
+  },
+  "bones": [
+    {
+      "name": "lid",
+      "pivot": [
+        0,
+        24,
+        0
+      ],
+      "cubes": [
+        {
+          "origin": [
+            -8,
+            -16,
+            -8
+          ],
+          "size": [
+            16,
+            12,
+            16
+          ],
+          "uv": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "base",
+      "pivot": [
+        0,
+        24,
+        0
+      ],
+      "cubes": [
+        {
+          "origin": [
+            -8,
+            -8,
+            -8
+          ],
+          "size": [
+            16,
+            8,
+            16
+          ],
+          "uv": [
+            0,
+            28
+          ]
+        }
+      ]
+    }
+  ]
+}

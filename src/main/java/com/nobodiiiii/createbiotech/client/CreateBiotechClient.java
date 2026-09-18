@@ -63,6 +63,7 @@ import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTa
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgrade;
 import com.nobodiiiii.createbiotech.content.universaljoint.HalfShaftVisual;
+import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicRenderer;
@@ -325,6 +326,7 @@ public class CreateBiotechClient {
 		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
+		event.registerReloadListener(MachineCreatureModels.RELOAD_LISTENER);
 	}
 
 	@SubscribeEvent
