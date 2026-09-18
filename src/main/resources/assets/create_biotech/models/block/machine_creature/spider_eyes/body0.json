@@ -1,5 +1,5 @@
 {
-  "credit": "Create: Biotech \u2014 emissive spider eye part",
+  "credit": "Create: Biotech — emissive spider eye part",
   "ambientocclusion": false,
   "gui_light": "front",
   "render_type": "minecraft:cutout",
@@ -37,45 +37,45 @@
         "up": {
           "uv": [
             3,
-            0,
+            3,
             4.5,
-            3
+            0
           ],
           "texture": "#creature"
         },
         "west": {
           "uv": [
-            0,
-            3,
             1.5,
-            6
+            6,
+            0,
+            3
           ],
           "texture": "#creature"
         },
         "north": {
           "uv": [
+            3,
+            6,
             1.5,
-            3,
-            3,
-            6
+            3
           ],
           "texture": "#creature"
         },
         "east": {
           "uv": [
-            3,
-            3,
             4.5,
-            6
+            6,
+            3,
+            3
           ],
           "texture": "#creature"
         },
         "south": {
           "uv": [
-            4.5,
-            3,
             6,
-            6
+            6,
+            4.5,
+            3
           ],
           "texture": "#creature"
         }

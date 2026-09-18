@@ -37,45 +37,45 @@
         "up": {
           "uv": [
             2,
-            8,
+            10,
             3,
-            10
+            8
           ],
           "texture": "#creature"
         },
         "west": {
           "uv": [
-            0,
-            10,
             1,
-            12
+            12,
+            0,
+            10
           ],
           "texture": "#creature"
         },
         "north": {
           "uv": [
-            1,
-            10,
             2,
-            12
+            12,
+            1,
+            10
           ],
           "texture": "#creature"
         },
         "east": {
           "uv": [
-            2,
-            10,
             3,
-            12
+            12,
+            2,
+            10
           ],
           "texture": "#creature"
         },
         "south": {
           "uv": [
-            3,
-            10,
             4,
-            12
+            12,
+            3,
+            10
           ],
           "texture": "#creature"
         }

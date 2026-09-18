@@ -37,45 +37,45 @@
         "up": {
           "uv": [
             2.5,
-            5,
+            6,
             4,
-            6
+            5
           ],
           "texture": "#creature"
         },
         "west": {
           "uv": [
-            0,
-            6,
             1,
-            8
+            8,
+            0,
+            6
           ],
           "texture": "#creature"
         },
         "north": {
           "uv": [
-            1,
-            6,
             2.5,
-            8
+            8,
+            1,
+            6
           ],
           "texture": "#creature"
         },
         "east": {
           "uv": [
-            2.5,
-            6,
             3.5,
-            8
+            8,
+            2.5,
+            6
           ],
           "texture": "#creature"
         },
         "south": {
           "uv": [
-            3.5,
-            6,
             5,
-            8
+            8,
+            3.5,
+            6
           ],
           "texture": "#creature"
         }
@@ -106,45 +106,45 @@
         "up": {
           "uv": [
             2.5,
-            8,
+            9,
             4,
-            9
+            8
           ],
           "texture": "#creature"
         },
         "west": {
           "uv": [
-            0,
-            9,
             1,
-            11.5
+            11.5,
+            0,
+            9
           ],
           "texture": "#creature"
         },
         "north": {
           "uv": [
-            1,
-            9,
             2.5,
-            11.5
+            11.5,
+            1,
+            9
           ],
           "texture": "#creature"
         },
         "east": {
           "uv": [
-            2.5,
-            9,
             3.5,
-            11.5
+            11.5,
+            2.5,
+            9
           ],
           "texture": "#creature"
         },
         "south": {
           "uv": [
-            3.5,
-            9,
             5,
-            11.5
+            11.5,
+            3.5,
+            9
           ],
           "texture": "#creature"
         }
