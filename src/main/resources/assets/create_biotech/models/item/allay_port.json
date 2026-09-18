@@ -3,7 +3,7 @@
   "parent": "create_biotech:block/allay_port/item",
   "loader": "neoforge:composite",
   "ambientocclusion": false,
-  "gui_light": "front",
+  "gui_light": "side",
   "textures": {
     "particle": "create:block/andesite_block"
   },

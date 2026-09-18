@@ -3,7 +3,7 @@
   "parent": "create:block/large_water_wheel/item",
   "loader": "neoforge:composite",
   "ambientocclusion": false,
-  "gui_light": "front",
+  "gui_light": "side",
   "textures": {
     "particle": "minecraft:entity/fish/salmon"
   },

@@ -2,6 +2,7 @@
   "credit": "Adapted from Create's mechanical mixer item model",
   "parent": "create:block/large_wheels",
   "ambientocclusion": false,
+  "gui_light": "side",
   "render_type": "minecraft:cutout",
   "textures": {
     "2": "block/spruce_log_top",

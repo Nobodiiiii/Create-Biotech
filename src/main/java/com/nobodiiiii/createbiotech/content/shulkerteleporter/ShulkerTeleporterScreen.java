@@ -12,10 +12,8 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.content.trains.station.NoShadowFontWrapper;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
-import com.simibubi.create.foundation.gui.CustomLightingSettings;
 import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 
-import net.createmod.catnip.gui.ILightingSettings;
 import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.ChatFormatting;
@@ -83,10 +81,6 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 	private static final int PREVIEW_BOTTOM_OFFSET = 6;
 	private static final int PREVIEW_Y_OFFSET_UP = 18;
 	private static final float PREVIEW_MODEL_SCALE = 44.0f;
-	private static final ILightingSettings PREVIEW_LIGHTING = CustomLightingSettings.builder()
-		.firstLightRotation(12.5f, 45.0f)
-		.secondLightRotation(-20.0f, 50.0f)
-		.build();
 
 	private static final int SEARCH_TEXT_COLOR = 0xC8BFCE;
 	private static final int SEARCH_HINT_COLOR = 0x8A8290;
@@ -436,7 +430,6 @@ public class ShulkerTeleporterScreen extends AbstractSimiContainerScreen<Shulker
 		graphics.pose()
 			.mulPose(Axis.YP.rotationDegrees(-45.0f));
 		GuiGameElement.of(menu.getBlockEntity())
-			.lighting(PREVIEW_LIGHTING)
 			.atLocal(0.0d, -ShulkerTeleporterBlock.TOP, 0.0d)
 			.scale(PREVIEW_MODEL_SCALE)
 			.render(graphics);

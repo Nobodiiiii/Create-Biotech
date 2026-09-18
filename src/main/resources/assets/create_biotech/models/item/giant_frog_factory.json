@@ -3,7 +3,7 @@
   "parent": "minecraft:block/block",
   "loader": "neoforge:composite",
   "ambientocclusion": false,
-  "gui_light": "front",
+  "gui_light": "side",
   "textures": {
     "particle": "minecraft:entity/frog/temperate_frog"
   },
