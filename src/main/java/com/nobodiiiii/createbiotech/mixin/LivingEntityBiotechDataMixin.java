@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.nobodiiiii.createbiotech.content.buttercat.ButterRotationAccess;
+import com.nobodiiiii.createbiotech.content.possession.PossessionAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
@@ -47,6 +48,12 @@ public abstract class LivingEntityBiotechDataMixin implements SlimeMimicAccess, 
 	private void createBiotech$readSlimeMimicData(CompoundTag tag, CallbackInfo ci) {
 		createBiotech$setSlimeMimic(tag.contains(SlimeMimicHandler.SLIME_MIMIC_TAG, Tag.TAG_BYTE)
 			&& tag.getBoolean(SlimeMimicHandler.SLIME_MIMIC_TAG));
+	}
+
+	@Inject(method = "onSyncedDataUpdated", at = @At("TAIL"))
+	private void createBiotech$refreshPossessedPlayerDimensions(EntityDataAccessor<?> key, CallbackInfo ci) {
+		if ((Object) this instanceof PossessionAccess access && access.createBiotech$isPossessionData(key))
+			((LivingEntity) (Object) this).refreshDimensions();
 	}
 
 	@Override

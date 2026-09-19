@@ -5,6 +5,8 @@ import org.spongepowered.asm.mixin.injection.At;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.nobodiiiii.createbiotech.content.bouncing.BouncingCrouch;
+import com.nobodiiiii.createbiotech.content.possession.EchoShardPossession;
+import com.nobodiiiii.createbiotech.content.possession.PossessionAccess;
 import com.nobodiiiii.createbiotech.registry.CBMobEffects;
 
 import net.minecraft.world.entity.EntityDimensions;
@@ -19,6 +21,9 @@ public abstract class PlayerBouncingDimensionsMixin {
 	private EntityDimensions createBiotech$useOneBlockCrouchingDimensions(EntityDimensions original,
 		Pose pose) {
 		Player player = (Player) (Object) this;
+		if (player instanceof PossessionAccess access
+			&& EchoShardPossession.isActive(access.createBiotech$getPossessionState()))
+			return original;
 		if (!player.isAddedToLevel() || pose != Pose.CROUCHING
 			|| !player.hasEffect(CBMobEffects.BOUNCING))
 			return original;

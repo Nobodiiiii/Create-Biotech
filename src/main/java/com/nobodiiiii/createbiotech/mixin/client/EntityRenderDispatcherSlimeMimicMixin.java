@@ -7,12 +7,14 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalCapturedRenderPlan;
+import com.nobodiiiii.createbiotech.content.possession.client.PossessionClientRenderer;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 
 @Mixin(EntityRenderDispatcher.class)
 public abstract class EntityRenderDispatcherSlimeMimicMixin {
@@ -25,6 +27,9 @@ public abstract class EntityRenderDispatcherSlimeMimicMixin {
 	private <E extends Entity> void createBiotech$renderCompleteSlimeMimic(EntityRenderer<? super E> renderer,
 		E entity, float yaw, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		Operation<Void> original) {
+		if (entity instanceof Player player
+			&& PossessionClientRenderer.tryRender(player, yaw, partialTick, poseStack, buffer, packedLight))
+			return;
 		if (!(entity instanceof LivingEntity living)
 			|| !SurgicalCapturedRenderPlan.tryRenderSlimeMimic(renderer, living, yaw, partialTick,
 				poseStack, buffer, packedLight)) {

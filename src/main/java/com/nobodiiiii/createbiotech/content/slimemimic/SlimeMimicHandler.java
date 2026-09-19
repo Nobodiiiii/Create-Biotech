@@ -39,6 +39,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 public final class SlimeMimicHandler {
 	public static final String SLIME_MIMIC_TAG = "CreateBiotechSlimeMimic";
 	public static final String HAUNT_PROGRESS_TAG = "CreateBiotechHaunting";
+	public static final String HAUNTED_MIMIC_TAG = "CreateBiotechHauntedMimic";
 	private static final ResourceKey<LootTable> VANILLA_SLIME_LOOT_TABLE = ResourceKey.create(Registries.LOOT_TABLE,
 		ResourceLocation.fromNamespaceAndPath("minecraft", "entities/slime"));
 
@@ -54,6 +55,7 @@ public final class SlimeMimicHandler {
 	}
 
 	public static void setSlimeMimic(LivingEntity entity, boolean slimeMimic) {
+		boolean wasSlimeMimic = isSlimeMimic(entity);
 		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && !slimeMimic)
 			SlimeMimicVillagerTrades.restoreOriginalOffers(villager);
 		if (slimeMimic && !canBecomeSlimeMimic(entity)) {
@@ -61,9 +63,26 @@ public final class SlimeMimicHandler {
 		}
 		if (entity instanceof SlimeMimicAccess access)
 			access.createBiotech$setSlimeMimic(slimeMimic);
+		if (slimeMimic)
+			entity.getPersistentData().remove(HAUNTED_MIMIC_TAG);
+		else if (wasSlimeMimic)
+			entity.getPersistentData().putBoolean(HAUNTED_MIMIC_TAG, true);
 		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && slimeMimic
 			&& CBConfigs.SERVER.slimeMimic.rewriteVillagerTrades.get())
 			SlimeMimicVillagerTrades.rewriteSellItems(villager);
+	}
+
+	public static boolean isHauntedMimic(Entity entity) {
+		return entity instanceof LivingEntity livingEntity && isHauntedMimic(livingEntity);
+	}
+
+	public static boolean isHauntedMimic(LivingEntity entity) {
+		return !isSlimeMimic(entity) && entity.getPersistentData().getBoolean(HAUNTED_MIMIC_TAG);
+	}
+
+	public static void markHauntedMimic(LivingEntity entity) {
+		setSlimeMimic(entity, false);
+		entity.getPersistentData().putBoolean(HAUNTED_MIMIC_TAG, true);
 	}
 
 	public static void markSpawnedEntity(@Nullable Entity entity) {
