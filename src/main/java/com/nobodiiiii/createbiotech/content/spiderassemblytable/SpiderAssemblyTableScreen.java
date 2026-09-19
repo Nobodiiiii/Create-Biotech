@@ -5,27 +5,31 @@ import java.util.Collections;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
+import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 import com.simibubi.create.foundation.gui.AllIcons;
 import com.simibubi.create.foundation.gui.menu.AbstractSimiContainerScreen;
 import com.simibubi.create.foundation.gui.widget.IconButton;
 
-import net.createmod.catnip.gui.element.GuiGameElement;
+import net.createmod.catnip.gui.UIRenderHelper;
 import net.createmod.catnip.gui.element.ScreenElement;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
@@ -44,6 +48,12 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 	private static final int BG_WIDTH = 216;
 	private static final int BG_HEIGHT = 113;
 	private static final int BOTTOM_BUTTON_Y = BG_HEIGHT - 24;
+	private static final int PREVIEW_ANCHOR_X_OFFSET = 32;
+	private static final int PREVIEW_ANCHOR_BOTTOM_OFFSET = 4;
+	private static final int PREVIEW_AREA_WIDTH = 70;
+	private static final int PREVIEW_AREA_HEIGHT = 60;
+	private static final int PREVIEW_AREA_BOTTOM_OFFSET = 50;
+	private static final float PREVIEW_SCALE = 24.0f;
 
 	private List<Rect2i> extraAreas = Collections.emptyList();
 
@@ -82,7 +92,8 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 		});
 		addRenderableWidget(confirmButton);
 
-		extraAreas = ImmutableList.of(new Rect2i(leftPos + BG_WIDTH, topPos + BG_HEIGHT - 56, 64, 56));
+		extraAreas = ImmutableList.of(new Rect2i(leftPos + BG_WIDTH, topPos + BG_HEIGHT - PREVIEW_AREA_BOTTOM_OFFSET,
+			PREVIEW_AREA_WIDTH, PREVIEW_AREA_HEIGHT));
 	}
 
 	@Override
@@ -97,14 +108,68 @@ public class SpiderAssemblyTableScreen extends AbstractSimiContainerScreen<Spide
 
 		drawHybridContents(graphics, leftPos, topPos);
 
-		renderTableModel(graphics);
+		renderTableModel(graphics, partialTick);
 	}
 
-	private void renderTableModel(GuiGraphics graphics) {
-		GuiGameElement.of(new ItemStack(CBItems.SPIDER_ASSEMBLY_TABLE.get()))
-			.<GuiGameElement.GuiRenderBuilder>at(leftPos + BG_WIDTH + 12, topPos + BG_HEIGHT - 40, -200)
-			.scale(4)
-			.render(graphics);
+	private void renderTableModel(GuiGraphics graphics, float partialTick) {
+		SpiderAssemblyTableBlockEntity table = menu.getBlockEntity();
+		if (table.getLevel() == null || !table.getBlockState().hasProperty(SpiderAssemblyTableBlock.FACING))
+			return;
+
+		var dispatcher = Minecraft.getInstance().getBlockEntityRenderDispatcher();
+		var tableRenderer = dispatcher.getRenderer(table);
+		if (!(tableRenderer instanceof SpiderAssemblyTableRenderer spiderRenderer))
+			return;
+
+		BlockPos tailPos = SpiderAssemblyTableBlock.getTailPos(table.getBlockPos(), table.getBlockState());
+		BlockPos tailOffset = tailPos.subtract(table.getBlockPos());
+		SpiderAssemblyTableCogBlockEntity cog = table.getLevel().getBlockEntity(tailPos)
+			instanceof SpiderAssemblyTableCogBlockEntity foundCog ? foundCog : null;
+
+		graphics.flush();
+		RenderSystem.enableDepthTest();
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		Lighting.setupFor3DItems();
+
+		var poseStack = graphics.pose();
+		poseStack.pushPose();
+		try {
+			poseStack.translate(getPreviewAnchorX(), getPreviewAnchorY(), 100.0f);
+			poseStack.mulPose(Axis.XP.rotationDegrees(-22.5f));
+			poseStack.mulPose(Axis.YP.rotationDegrees(-135.0f));
+			poseStack.scale(PREVIEW_SCALE, PREVIEW_SCALE, PREVIEW_SCALE);
+			poseStack.translate(-0.5f - tailOffset.getX() * 0.5f, 0.0f,
+				-0.5f - tailOffset.getZ() * 0.5f);
+			UIRenderHelper.flipForGuiRender(poseStack);
+
+			spiderRenderer.renderGuiPreview(table, partialTick, poseStack, graphics.bufferSource(),
+				LightTexture.FULL_BRIGHT);
+
+			if (cog != null) {
+				var cogRenderer = dispatcher.getRenderer(cog);
+				if (cogRenderer != null) {
+					poseStack.pushPose();
+					poseStack.translate(tailOffset.getX(), tailOffset.getY(), tailOffset.getZ());
+					cogRenderer.render(cog, partialTick, poseStack, graphics.bufferSource(),
+						LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
+					poseStack.popPose();
+				}
+			}
+
+			graphics.flush();
+		} finally {
+			poseStack.popPose();
+			Lighting.setupFor3DItems();
+		}
+	}
+
+	private int getPreviewAnchorX() {
+		return leftPos + BG_WIDTH + PREVIEW_ANCHOR_X_OFFSET;
+	}
+
+	private int getPreviewAnchorY() {
+		return topPos + BG_HEIGHT - PREVIEW_ANCHOR_BOTTOM_OFFSET;
 	}
 
 	@Override

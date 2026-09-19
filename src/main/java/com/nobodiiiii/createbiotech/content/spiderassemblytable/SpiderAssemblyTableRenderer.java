@@ -80,19 +80,38 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	@Override
 	protected void renderSafe(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
 		MultiBufferSource buffer, int light, int overlay) {
+		renderTable(be, partialTicks, ms, buffer, light);
+	}
+
+	/**
+	 * Renders the live table state for GUI previews, where Flywheel's world visual
+	 * is not part of the render pass.
+	 */
+	public void renderGuiPreview(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
+		MultiBufferSource buffer, int light) {
+		renderTable(be, partialTicks, ms, buffer, light, false);
+	}
+
+	private void renderTable(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
+		MultiBufferSource buffer, int light) {
+		renderTable(be, partialTicks, ms, buffer, light,
+			VisualizationManager.supportsVisualization(be.getLevel()));
+	}
+
+	private void renderTable(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
+		MultiBufferSource buffer, int light, boolean visualized) {
 		BlockState state = be.getBlockState();
 		if (!state.hasProperty(SpiderAssemblyTableBlock.FACING))
 			return;
 
 		Direction facing = state.getValue(SpiderAssemblyTableBlock.FACING);
 		Block casing = state.getValue(SpiderAssemblyTableBlock.CASING) ? be.getCasing() : null;
-		renderSpider(be, partialTicks, ms, buffer, light, facing, casing);
+		renderSpider(be, partialTicks, ms, buffer, light, facing, casing, visualized);
 	}
 
 	private void renderSpider(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light, Direction facing, Block casing) {
+		MultiBufferSource buffer, int light, Direction facing, Block casing, boolean visualized) {
 		prepareSpiderModel(spiderModel, be, partialTicks);
-		boolean visualized = VisualizationManager.supportsVisualization(be.getLevel());
 
 		BlockEntityModelElement.builder()
 			.atLocal(0.5d, SPIDER_Y_OFFSET, 0.5d)
