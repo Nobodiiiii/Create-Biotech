@@ -15,13 +15,13 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.ArmorOverrides;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.DataOverrides;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.EffectOverrides;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.TaggedArmorOverride;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.TaggedBooleanOverride;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.TaggedEffectOverride;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.TaggedNumericOverride;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.TraitOverrides;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry.NumericOverrides;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -39,6 +39,8 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 	private static final String IMMUNE_EFFECTS = "immune_effects";
 	private static final String NATURAL_ARMOR = "natural_armor";
+	private static final String KNOCKBACK_RESISTANCE = "knockback_resistance";
+	private static final String PASSIVE_REGENERATION = "passive_regeneration";
 	public static final BionicBodyTraitDataReloadListener INSTANCE =
 		new BionicBodyTraitDataReloadListener();
 
@@ -52,8 +54,10 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 		EnumMap<BionicBodyTrait, TraitOverrides> traits = new EnumMap<>(BionicBodyTrait.class);
 		for (BionicBodyTrait trait : BionicBodyTrait.values())
 			traits.put(trait, loadTrait(resources, trait));
-		BionicBodyTraitRegistry.replaceData(new DataOverrides(traits,
-			loadEffects(resources), loadArmor(resources)));
+		BionicBodyTraitRegistry.replaceData(new DataOverrides(traits, loadEffects(resources),
+			loadNumber(resources, NATURAL_ARMOR),
+			loadNumber(resources, KNOCKBACK_RESISTANCE),
+			loadNumber(resources, PASSIVE_REGENERATION)));
 	}
 
 	private TraitOverrides loadTrait(Map<ResourceLocation, JsonElement> resources,
@@ -85,18 +89,18 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 		return new EffectOverrides(automaticDetection, entityTypes, tagged);
 	}
 
-	private ArmorOverrides loadArmor(Map<ResourceLocation, JsonElement> resources) {
-		ResourceLocation primaryId = CreateBiotech.asResource(NATURAL_ARMOR);
+	private NumericOverrides loadNumber(Map<ResourceLocation, JsonElement> resources, String path) {
+		ResourceLocation primaryId = CreateBiotech.asResource(path);
 		boolean automaticDetection = readAutomaticDetection(resources.get(primaryId), primaryId);
 		Map<ResourceLocation, Double> entityTypes = new HashMap<>();
 		Map<ResourceLocation, Double> tags = new HashMap<>();
 		forEachFile(resources, primaryId,
-			(fileId, element) -> readArmorValues(fileId, element, entityTypes, tags));
-		List<TaggedArmorOverride> tagged = tags.entrySet().stream()
+			(fileId, element) -> readNumberValues(fileId, element, entityTypes, tags));
+		List<TaggedNumericOverride> tagged = tags.entrySet().stream()
 			.sorted(Map.Entry.comparingByKey())
-			.map(entry -> new TaggedArmorOverride(entityTag(entry.getKey()), entry.getValue()))
+			.map(entry -> new TaggedNumericOverride(entityTag(entry.getKey()), entry.getValue()))
 			.toList();
-		return new ArmorOverrides(automaticDetection, entityTypes, tagged);
+		return new NumericOverrides(automaticDetection, entityTypes, tagged);
 	}
 
 	private void forEachFile(Map<ResourceLocation, JsonElement> resources, ResourceLocation primaryId,
@@ -181,7 +185,7 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 		}
 	}
 
-	private void readArmorValues(ResourceLocation fileId, JsonElement element,
+	private void readNumberValues(ResourceLocation fileId, JsonElement element,
 		Map<ResourceLocation, Double> entityTypes, Map<ResourceLocation, Double> tags) {
 		try {
 			JsonObject values = GsonHelper.getAsJsonObject(element.getAsJsonObject(), "values");
@@ -191,14 +195,14 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 					continue;
 				double value = GsonHelper.convertToDouble(entry.getValue(), entry.getKey());
 				if (!Double.isFinite(value) || value < 0.0d) {
-					LOGGER.warn("Ignoring invalid natural armor {} for '{}' in {}",
+					LOGGER.warn("Ignoring invalid numeric body trait value {} for '{}' in {}",
 						value, entry.getKey(), fileId);
 					continue;
 				}
 				(selector.tag() ? tags : entityTypes).put(selector.id(), value);
 			}
 		} catch (RuntimeException exception) {
-			LOGGER.warn("Could not read bionic natural armor data {}", fileId, exception);
+			LOGGER.warn("Could not read numeric bionic body trait data {}", fileId, exception);
 		}
 	}
 

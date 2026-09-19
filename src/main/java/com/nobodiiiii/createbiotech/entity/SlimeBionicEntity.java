@@ -38,6 +38,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -49,6 +50,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
+import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -61,6 +63,7 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
@@ -74,7 +77,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.projectile.Projectile;
+import net.minecraft.world.entity.projectile.ProjectileDeflection;
 import net.neoforged.neoforge.common.Tags;
+import net.neoforged.neoforge.fluids.FluidType;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob {
@@ -86,6 +92,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
 	private static final String MOISTURE_TAG = "BionicMoisture";
 	private static final int MAX_MOISTURE = 2400;
+	private static final double BASE_KNOCKBACK_RESISTANCE = 0.15d;
 	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
 		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
@@ -98,6 +105,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private SurgicalAssembly bodyTraitAssembly;
 	private long bodyTraitGeneration = -1L;
 	private BionicBodyTraits bodyTraits = BionicBodyTraits.EMPTY;
+	private boolean bodyFlightEnabled;
 	private int moisture = -1;
 	@Nullable
 	private SurgicalAssembly clientBoundsAssembly;
@@ -180,8 +188,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.ATTACK_DAMAGE, 3.0d)
 			.add(Attributes.ARMOR, 0.0d)
+			.add(Attributes.FLYING_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.FOLLOW_RANGE, 35.0d)
-			.add(Attributes.KNOCKBACK_RESISTANCE, 0.15d);
+			.add(Attributes.KNOCKBACK_RESISTANCE, BASE_KNOCKBACK_RESISTANCE);
 	}
 
 	/** Target acquisition and retaliation both respect the head-derived disposition in canAttack. */
@@ -316,6 +325,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			bodyTraitGeneration = generation;
 			bodyTraits = BionicBodyTraitRegistry.resolve(assembly, level());
 			refreshNaturalArmor(bodyTraits);
+			refreshKnockbackResistance(bodyTraits);
+			refreshBodyFlight(bodyTraits);
 			if (!bodyTraits.has(BionicBodyTrait.MOISTURE_DEPENDENT))
 				moisture = -1;
 		}
@@ -332,6 +343,35 @@ public class SlimeBionicEntity extends PathfinderMob {
 		var armor = getAttribute(Attributes.ARMOR);
 		if (armor != null && armor.getBaseValue() != traits.naturalArmor())
 			armor.setBaseValue(traits.naturalArmor());
+	}
+
+	private void refreshKnockbackResistance(BionicBodyTraits traits) {
+		var resistance = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+		double value = Mth.clamp(BASE_KNOCKBACK_RESISTANCE + traits.knockbackResistance(), 0.0d, 1.0d);
+		if (resistance != null && resistance.getBaseValue() != value)
+			resistance.setBaseValue(value);
+	}
+
+	private void refreshBodyFlight(BionicBodyTraits traits) {
+		boolean enabled = traits.coverage(BionicBodyTrait.WINGLESS_FLIGHT) >= 0.5d;
+		if (bodyFlightEnabled == enabled)
+			return;
+		bodyFlightEnabled = enabled;
+		if (navigation != null)
+			navigation.stop();
+		if (enabled) {
+			moveControl = new FlyingMoveControl(this, 10, true);
+			FlyingPathNavigation flying = new FlyingPathNavigation(this, level());
+			flying.setCanFloat(true);
+			flying.setCanOpenDoors(false);
+			flying.setCanPassDoors(true);
+			navigation = flying;
+			setNoGravity(true);
+		} else {
+			moveControl = new SlimeBionicMoveControl(this);
+			navigation = new SlimeBionicGroundNavigation(this, level());
+			setNoGravity(false);
+		}
 	}
 
 	@Override
@@ -355,6 +395,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	@Override
+	public boolean canDrownInFluidType(FluidType type) {
+		return getBodyTraits().coverage(BionicBodyTrait.NO_BREATHING) < 0.5d
+			&& super.canDrownInFluidType(type);
+	}
+
+	@Override
 	@SuppressWarnings("deprecation")
 	public boolean canBeAffected(MobEffectInstance effect) {
 		ResourceLocation effectId = effect.getEffect().unwrapKey()
@@ -365,7 +411,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public boolean causeFallDamage(float fallDistance, float multiplier,
 		net.minecraft.world.damagesource.DamageSource source) {
-		if (getBodyTraits().coverage(BionicBodyTrait.FALL_DAMAGE_IMMUNE) >= 0.5d)
+		BionicBodyTraits traits = getBodyTraits();
+		if (traits.coverage(BionicBodyTrait.FALL_DAMAGE_IMMUNE) >= 0.5d
+			|| traits.coverage(BionicBodyTrait.WINGLESS_FLIGHT) >= 0.5d)
 			return false;
 		return super.causeFallDamage(fallDistance, multiplier, source);
 	}
@@ -394,7 +442,32 @@ public class SlimeBionicEntity extends PathfinderMob {
 			amount *= (float) ((1.0d - immunity)
 				* (1.0d + 4.0d * traits.coverage(BionicBodyTrait.FREEZE_VULNERABLE)));
 		}
-		return super.hurt(source, amount);
+		boolean hurt = super.hurt(source, amount);
+		double retaliation = traits.coverage(BionicBodyTrait.CONTACT_RETALIATION);
+		if (hurt && retaliation > 0.0d && !level().isClientSide
+			&& !source.is(DamageTypeTags.AVOIDS_GUARDIAN_THORNS)
+			&& !source.is(DamageTypes.THORNS)
+			&& source.getDirectEntity() instanceof LivingEntity attacker
+			&& attacker != this)
+			attacker.hurt(damageSources().thorns(this), (float) (2.0d * retaliation));
+		return hurt;
+	}
+
+	@Override
+	public ProjectileDeflection deflection(Projectile projectile) {
+		if (getBodyTraits().coverage(BionicBodyTrait.PROJECTILE_DEFLECTION) >= 0.5d
+			&& projectile.getType() != EntityType.BREEZE_WIND_CHARGE
+			&& projectile.getType() != EntityType.WIND_CHARGE)
+			return ProjectileDeflection.REVERSE;
+		return super.deflection(projectile);
+	}
+
+	@Override
+	public void jumpFromGround() {
+		super.jumpFromGround();
+		double bounce = getBodyTraits().coverage(BionicBodyTrait.BODY_BOUNCE);
+		if (bounce > 0.0d)
+			setDeltaMovement(getDeltaMovement().add(0.0d, 0.1d * bounce, 0.0d));
 	}
 
 	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */
@@ -488,6 +561,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void aiStep() {
 		super.aiStep();
+		double slowFall = getBodyTraits().coverage(BionicBodyTrait.BODY_SLOW_FALL);
+		if (!onGround() && getDeltaMovement().y < 0.0d && slowFall > 0.0d) {
+			double verticalMultiplier = Mth.lerp(slowFall, 1.0d, 0.6d);
+			setDeltaMovement(getDeltaMovement().multiply(1.0d, verticalMultiplier, 1.0d));
+		}
+		if (bodyFlightEnabled)
+			applyCombatFacing();
 		if (attackAnimationTick > 0)
 			attackAnimationTick--;
 		if (attackActionTick > 0)
@@ -634,6 +714,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (level().isClientSide || !isAlive())
 			return;
 		BionicBodyTraits traits = getBodyTraits();
+		if (tickCount % 20 == 0 && traits.passiveRegeneration() > 0.0d
+			&& getHealth() < getMaxHealth())
+			heal((float) traits.passiveRegeneration());
 		double waterSensitivity = traits.coverage(BionicBodyTrait.WATER_SENSITIVE);
 		if (waterSensitivity > 0.0d && waterSensitivity < 1.0d - 1.0e-8d
 			&& isInWaterRainOrBubble())

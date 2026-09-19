@@ -1,0 +1,7 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:ghast": true,
+    "minecraft:wither": true
+  }
+}

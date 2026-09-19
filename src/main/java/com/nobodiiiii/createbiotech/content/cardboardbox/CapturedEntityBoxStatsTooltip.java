@@ -124,6 +124,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (traits.naturalArmor() > 1.0e-8d)
 			appendProperty(tooltip, Component.translatable("create_biotech.trait.natural_armor",
 				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(traits.naturalArmor())));
+		if (traits.knockbackResistance() > 1.0e-8d)
+			appendProperty(tooltip, Component.translatable("create_biotech.trait.knockback_resistance",
+				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
+					traits.knockbackResistance() * 100.0d)));
+		if (traits.passiveRegeneration() > 1.0e-8d)
+			appendProperty(tooltip, Component.translatable("create_biotech.trait.passive_regeneration",
+				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
+					traits.passiveRegeneration())));
 	}
 
 	private static void appendEffectImmunities(List<Component> tooltip, BionicBodyTraits traits) {

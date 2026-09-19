@@ -10,15 +10,18 @@ import net.minecraft.util.Mth;
 
 /** Immutable, already-aggregated whole-body traits for a donor or surgical assembly. */
 public final class BionicBodyTraits {
-	public static final BionicBodyTraits EMPTY = new BionicBodyTraits(Map.of(), Set.of(), 0.0d);
+	public static final BionicBodyTraits EMPTY =
+		new BionicBodyTraits(Map.of(), Set.of(), 0.0d, 0.0d, 0.0d);
 	private static final double COMPLETE_EPSILON = 1.0e-8d;
 
 	private final Map<BionicBodyTrait, Double> coverage;
 	private final Set<ResourceLocation> immuneEffects;
 	private final double naturalArmor;
+	private final double knockbackResistance;
+	private final double passiveRegeneration;
 
 	BionicBodyTraits(Map<BionicBodyTrait, Double> coverage, Set<ResourceLocation> immuneEffects,
-		double naturalArmor) {
+		double naturalArmor, double knockbackResistance, double passiveRegeneration) {
 		EnumMap<BionicBodyTrait, Double> normalized = new EnumMap<>(BionicBodyTrait.class);
 		for (Map.Entry<BionicBodyTrait, Double> entry : coverage.entrySet()) {
 			double value = entry.getValue() == null ? 0.0d : entry.getValue();
@@ -28,6 +31,10 @@ public final class BionicBodyTraits {
 		this.coverage = Collections.unmodifiableMap(normalized);
 		this.immuneEffects = Set.copyOf(immuneEffects);
 		this.naturalArmor = Double.isFinite(naturalArmor) ? Math.max(0.0d, naturalArmor) : 0.0d;
+		this.knockbackResistance = Double.isFinite(knockbackResistance)
+			? Mth.clamp(knockbackResistance, 0.0d, 1.0d) : 0.0d;
+		this.passiveRegeneration = Double.isFinite(passiveRegeneration)
+			? Math.max(0.0d, passiveRegeneration) : 0.0d;
 	}
 
 	public double coverage(BionicBodyTrait trait) {
@@ -54,7 +61,19 @@ public final class BionicBodyTraits {
 		return naturalArmor;
 	}
 
+	public double knockbackResistance() {
+		return knockbackResistance;
+	}
+
+	/** Health points restored per second. */
+	public double passiveRegeneration() {
+		return passiveRegeneration;
+	}
+
 	public boolean isEmpty() {
-		return coverage.isEmpty() && immuneEffects.isEmpty() && naturalArmor <= COMPLETE_EPSILON;
+		return coverage.isEmpty() && immuneEffects.isEmpty()
+			&& naturalArmor <= COMPLETE_EPSILON
+			&& knockbackResistance <= COMPLETE_EPSILON
+			&& passiveRegeneration <= COMPLETE_EPSILON;
 	}
 }

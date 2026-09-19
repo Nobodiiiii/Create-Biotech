@@ -132,7 +132,7 @@ public final class SurgicalCapturedRenderPlan {
 		float yaw, float partialTick, boolean topology) {
 		RecordingBuffer recording = new RecordingBuffer();
 		PoseStack neutralPose = new PoseStack();
-		boolean bindPlayerSkinLayers = topology && preview instanceof PlayerMimicEntity;
+		boolean bindPlayerSkinLayers = preview instanceof PlayerMimicEntity;
 		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
 		// Leaving the scope closed keeps observeModelCube - which the mixin runs for every cube of
 		// every entity model in the game - on its single atomic-read rejection for this capture.
@@ -302,9 +302,8 @@ public final class SurgicalCapturedRenderPlan {
 			SlimeMimicDeathClient.report(entity, frame.deathGeometry(0, entity.position()));
 			return true;
 		}
-		boolean preservePlayerSkin = entity instanceof PlayerMimicEntity;
 		frame.render(poseStack, buffer, packedLight, 0, ALL_COMPONENTS, NO_OFFSETS, NO_ROTATIONS,
-			false, null, preservePlayerSkin);
+			false, null, false);
 		return true;
 	}
 
@@ -538,7 +537,8 @@ public final class SurgicalCapturedRenderPlan {
 	/**
 	 * Player hats, jackets, sleeves and trouser legs are inflated copies of the six body cubes.
 	 * Attach their captured vertices to the underlying cube so surgery moves and rotates both as one
-	 * component, while the skin pixels remain visible over that component's slime replacement.
+	 * component. The original skin layers remain part of source-form projection, while slime form
+	 * renders only the bound body's slime geometry.
 	 */
 	private static List<ComponentBuilder> bindPlayerSkinLayers(List<ComponentBuilder> visible) {
 		Set<ComponentBuilder> boundLayers = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -1518,9 +1518,6 @@ public final class SurgicalCapturedRenderPlan {
 
 		private void bindSkinLayer(ComponentBuilder layer) {
 			batches.addAll(layer.batches);
-			// These vertices are already inflated away from the body surface. Rendering them as an
-			// overlay preserves the player's second skin layer when the body cube becomes slime.
-			surfaceOverlays.addAll(layer.batches);
 		}
 
 		private Component build(int id, boolean preserveSource) {

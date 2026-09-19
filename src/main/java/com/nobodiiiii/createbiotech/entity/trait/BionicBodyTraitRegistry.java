@@ -87,6 +87,8 @@ public final class BionicBodyTraitRegistry {
 		int totalWeight = 0;
 		EnumMap<BionicBodyTrait, Double> weightedCoverage = new EnumMap<>(BionicBodyTrait.class);
 		double weightedArmor = 0.0d;
+		double weightedKnockbackResistance = 0.0d;
+		double weightedPassiveRegeneration = 0.0d;
 		Set<ResourceLocation> commonImmunities = null;
 		for (SurgicalAssembly.Source source : assembly.sources()) {
 			int weight = source.presentCubes().cardinality();
@@ -95,6 +97,8 @@ public final class BionicBodyTraitRegistry {
 			BionicBodyTraits donor = get(source.profile(), level);
 			totalWeight += weight;
 			weightedArmor += donor.naturalArmor() * weight;
+			weightedKnockbackResistance += donor.knockbackResistance() * weight;
+			weightedPassiveRegeneration += donor.passiveRegeneration() * weight;
 			for (BionicBodyTrait trait : BionicBodyTrait.values())
 				weightedCoverage.merge(trait, donor.coverage(trait) * weight, Double::sum);
 			if (commonImmunities == null)
@@ -107,7 +111,10 @@ public final class BionicBodyTraitRegistry {
 		for (Map.Entry<BionicBodyTrait, Double> entry : weightedCoverage.entrySet())
 			entry.setValue(entry.getValue() / totalWeight);
 		return new BionicBodyTraits(weightedCoverage,
-			commonImmunities == null ? Set.of() : commonImmunities, weightedArmor / totalWeight);
+			commonImmunities == null ? Set.of() : commonImmunities,
+			weightedArmor / totalWeight,
+			weightedKnockbackResistance / totalWeight,
+			weightedPassiveRegeneration / totalWeight);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -129,6 +136,9 @@ public final class BionicBodyTraitRegistry {
 				type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES));
 		if (data.trait(BionicBodyTrait.INVERTED_HEALING).automaticDetection())
 			put(traits, BionicBodyTrait.INVERTED_HEALING, donor.isInvertedHealAndHarm());
+		if (data.trait(BionicBodyTrait.PROJECTILE_DEFLECTION).automaticDetection())
+			put(traits, BionicBodyTrait.PROJECTILE_DEFLECTION,
+				type.is(EntityTypeTags.DEFLECTS_PROJECTILES));
 
 		Set<ResourceLocation> immuneEffects = new HashSet<>();
 		if (data.immuneEffects().automaticDetection())
@@ -147,12 +157,21 @@ public final class BionicBodyTraitRegistry {
 			AttributeInstance armor = donor.getAttribute(Attributes.ARMOR);
 			naturalArmor = armor == null ? 0.0d : armor.getBaseValue();
 		}
+		double knockbackResistance = 0.0d;
+		if (data.knockbackResistance().automaticDetection()) {
+			AttributeInstance resistance = donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+			knockbackResistance = resistance == null ? 0.0d : resistance.getBaseValue();
+		}
+		double passiveRegeneration = 0.0d;
 
 		for (BionicBodyTrait trait : BionicBodyTrait.values())
 			applyTrait(data.trait(trait), type, traits, trait);
 		applyEffects(data.immuneEffects(), type, immuneEffects);
-		naturalArmor = applyArmor(data.naturalArmor(), type, naturalArmor);
-		return new BionicBodyTraits(traits, immuneEffects, naturalArmor);
+		naturalArmor = applyNumber(data.naturalArmor(), type, naturalArmor);
+		knockbackResistance = applyNumber(data.knockbackResistance(), type, knockbackResistance);
+		passiveRegeneration = applyNumber(data.passiveRegeneration(), type, passiveRegeneration);
+		return new BionicBodyTraits(traits, immuneEffects, naturalArmor,
+			knockbackResistance, passiveRegeneration);
 	}
 
 	private static void applyTrait(TraitOverrides overrides, EntityType<?> type,
@@ -186,13 +205,13 @@ public final class BionicBodyTraitRegistry {
 		});
 	}
 
-	private static double applyArmor(ArmorOverrides overrides, EntityType<?> type,
-		double naturalArmor) {
-		for (TaggedArmorOverride tagged : overrides.tags())
+	private static double applyNumber(NumericOverrides overrides, EntityType<?> type,
+		double automaticValue) {
+		for (TaggedNumericOverride tagged : overrides.tags())
 			if (type.is(tagged.tag()))
-				naturalArmor = tagged.value();
+				automaticValue = tagged.value();
 		Double exact = overrides.entityTypes().get(BuiltInRegistries.ENTITY_TYPE.getKey(type));
-		return exact == null ? naturalArmor : exact;
+		return exact == null ? automaticValue : exact;
 	}
 
 	private static void put(EnumMap<BionicBodyTrait, Double> traits, BionicBodyTrait trait,
@@ -242,22 +261,24 @@ public final class BionicBodyTraitRegistry {
 		}
 	}
 
-	record ArmorOverrides(boolean automaticDetection,
-		Map<ResourceLocation, Double> entityTypes, List<TaggedArmorOverride> tags) {
-		private static final ArmorOverrides AUTO = new ArmorOverrides(true, Map.of(), List.of());
+	record NumericOverrides(boolean automaticDetection,
+		Map<ResourceLocation, Double> entityTypes, List<TaggedNumericOverride> tags) {
+		private static final NumericOverrides AUTO = new NumericOverrides(true, Map.of(), List.of());
 
-		ArmorOverrides {
+		NumericOverrides {
 			entityTypes = Map.copyOf(entityTypes);
 			tags = List.copyOf(tags);
 		}
 	}
 
-	record TaggedArmorOverride(TagKey<EntityType<?>> tag, double value) {}
+	record TaggedNumericOverride(TagKey<EntityType<?>> tag, double value) {}
 
 	record DataOverrides(Map<BionicBodyTrait, TraitOverrides> traits,
-		EffectOverrides immuneEffects, ArmorOverrides naturalArmor) {
+		EffectOverrides immuneEffects, NumericOverrides naturalArmor,
+		NumericOverrides knockbackResistance, NumericOverrides passiveRegeneration) {
 		private static final DataOverrides EMPTY =
-			new DataOverrides(Map.of(), EffectOverrides.AUTO, ArmorOverrides.AUTO);
+			new DataOverrides(Map.of(), EffectOverrides.AUTO, NumericOverrides.AUTO,
+				NumericOverrides.AUTO, NumericOverrides.AUTO);
 
 		DataOverrides {
 			traits = Map.copyOf(traits);

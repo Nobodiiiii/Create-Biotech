@@ -1,0 +1,7 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:guardian": true,
+    "minecraft:elder_guardian": true
+  }
+}

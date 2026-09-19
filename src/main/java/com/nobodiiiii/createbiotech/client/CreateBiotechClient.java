@@ -239,6 +239,7 @@ public class CreateBiotechClient {
 		register.accept(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
 		register.accept(ExperiencePumpRenderer.COG_MODEL_LOCATION);
 		register.accept(BionicMechanismItemRenderer.HALF_OPEN_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.HALF_OPEN_LEFT_MODEL_LOCATION);
 		register.accept(BionicMechanismItemRenderer.LOOK_RIGHT_MODEL_LOCATION);
 		register.accept(BionicMechanismItemRenderer.LOOK_CENTER_MODEL_LOCATION);
 		register.accept(BionicMechanismItemRenderer.LOOK_LEFT_MODEL_LOCATION);

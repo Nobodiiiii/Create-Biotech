@@ -1,0 +1,7 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:slime": true,
+    "minecraft:magma_cube": true
+  }
+}

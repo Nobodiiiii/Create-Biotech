@@ -20,11 +20,13 @@ import net.minecraft.world.item.ItemStack;
 /** Gives every rendered living mechanism the same randomly-timed eye animation. */
 public class BionicMechanismItemRenderer extends CustomRenderedItemModelRenderer {
 	private static final long NANOS_PER_MILLISECOND = 1_000_000L;
-	private static final int CLOSED_MIN_MILLISECONDS = 3_000;
-	private static final int CLOSED_MAX_MILLISECONDS = 10_001;
+	private static final int CLOSED_MIN_MILLISECONDS = 6_000;
+	private static final int CLOSED_MAX_MILLISECONDS = 12_001;
 
 	public static final ResourceLocation HALF_OPEN_MODEL_LOCATION =
 		CreateBiotech.asResource("item/bionic_mechanism_half_open");
+	public static final ResourceLocation HALF_OPEN_LEFT_MODEL_LOCATION =
+		CreateBiotech.asResource("item/bionic_mechanism_half_open_left");
 	public static final ResourceLocation LOOK_RIGHT_MODEL_LOCATION =
 		CreateBiotech.asResource("item/bionic_mechanism_look_right");
 	public static final ResourceLocation LOOK_CENTER_MODEL_LOCATION =
@@ -98,6 +100,7 @@ public class BionicMechanismItemRenderer extends CustomRenderedItemModelRenderer
 	private enum EyePose {
 		CLOSED(null),
 		HALF_OPEN(HALF_OPEN_MODEL_LOCATION),
+		HALF_OPEN_LEFT(HALF_OPEN_LEFT_MODEL_LOCATION),
 		RIGHT(LOOK_RIGHT_MODEL_LOCATION),
 		CENTER(LOOK_CENTER_MODEL_LOCATION),
 		LEFT(LOOK_LEFT_MODEL_LOCATION);
@@ -115,9 +118,9 @@ public class BionicMechanismItemRenderer extends CustomRenderedItemModelRenderer
 		LOOK_RIGHT(EyePose.RIGHT),
 		TURNING_LEFT(EyePose.CENTER),
 		LOOK_LEFT(EyePose.LEFT),
-		BLINK_CLOSING(EyePose.HALF_OPEN),
+		BLINK_CLOSING(EyePose.HALF_OPEN_LEFT),
 		BLINK_CLOSED(EyePose.CLOSED),
-		BLINK_OPENING(EyePose.HALF_OPEN),
+		BLINK_OPENING(EyePose.HALF_OPEN_LEFT),
 		LOOK_LEFT_AFTER_BLINK(EyePose.LEFT),
 		TURNING_RIGHT(EyePose.CENTER),
 		LOOK_RIGHT_AGAIN(EyePose.RIGHT),

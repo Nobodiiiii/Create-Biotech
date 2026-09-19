@@ -11,7 +11,13 @@ public enum BionicBodyTrait {
 	HEAT_SENSITIVE("heat_sensitive"),
 	INVERTED_HEALING("inverted_healing"),
 	FALL_DAMAGE_IMMUNE("fall_damage_immune"),
-	WEB_ADAPTED("web_adapted");
+	WEB_ADAPTED("web_adapted"),
+	NO_BREATHING("no_breathing"),
+	WINGLESS_FLIGHT("wingless_flight"),
+	BODY_BOUNCE("body_bounce"),
+	BODY_SLOW_FALL("body_slow_fall"),
+	PROJECTILE_DEFLECTION("projectile_deflection"),
+	CONTACT_RETALIATION("contact_retaliation");
 
 	private final String serializedName;
 
