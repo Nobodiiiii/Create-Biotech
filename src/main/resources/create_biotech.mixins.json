@@ -84,6 +84,7 @@
     "client.HumanoidArmorLayerMixin",
     "client.ItemApplicationCategoryMixin",
 	"client.ItemPickerMenuMixin",
+	"client.ItemInHandRendererPossessionMixin",
     "client.JeiRecipeLayoutMixin",
     "client.JeiRecipeSlotMixin",
     "client.LivingEntityRendererMixin",
@@ -97,6 +98,7 @@
     "client.MixinSuperGlueSelectionHandler",
     "client.ModelPartAccessor",
     "client.ModelPartCubeGeometryMixin",
+	"client.QuadrupedModelAccessor",
     "client.WorldSectionElementImplMixin"
   ],
   "injectors": {

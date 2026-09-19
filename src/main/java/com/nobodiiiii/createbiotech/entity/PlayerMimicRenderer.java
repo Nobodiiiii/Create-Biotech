@@ -28,8 +28,13 @@ public class PlayerMimicRenderer extends MobRenderer<PlayerMimicEntity, PlayerMo
 	@Override
 	public void render(PlayerMimicEntity entity, float entityYaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
-		model = getSkin(entity).model() == PlayerSkin.Model.SLIM ? slimModel : wideModel;
+		selectModel(entity);
 		super.render(entity, entityYaw, partialTick, poseStack, buffer, packedLight);
+	}
+
+	/** Keeps first-person possession arms on the same wide/slim model as the entity render. */
+	public void selectModel(PlayerMimicEntity entity) {
+		model = getSkin(entity).model() == PlayerSkin.Model.SLIM ? slimModel : wideModel;
 	}
 
 	@Override

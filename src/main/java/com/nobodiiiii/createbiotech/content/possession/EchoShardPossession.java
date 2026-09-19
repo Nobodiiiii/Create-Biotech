@@ -155,6 +155,16 @@ public final class EchoShardPossession {
 			if (bodyAttribute != null) {
 				double bodyBase = attribute == Attributes.MAX_HEALTH
 					? body.getMaxHealth() : bodyAttribute.getBaseValue();
+				if (attribute == Attributes.MOVEMENT_SPEED) {
+					/*
+					 * A Mob's MoveControl feeds movement speed into both LivingEntity.speed and
+					 * the forward input, while Player movement uses it only once. Squaring the
+					 * mob base therefore preserves its ordinary ground pace when that body is
+					 * driven through a Player instead of a MoveControl.
+					 */
+					double nonNegativeSpeed = Math.max(0.0d, bodyBase);
+					bodyBase = nonNegativeSpeed * nonNegativeSpeed;
+				}
 				playerAttribute.setBaseValue(bodyBase);
 				continue;
 			}
