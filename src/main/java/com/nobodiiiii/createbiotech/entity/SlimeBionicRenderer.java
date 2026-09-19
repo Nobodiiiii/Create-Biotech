@@ -43,6 +43,7 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
@@ -54,6 +55,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
 	private static final Map<SlimeBionicEntity, CachedGeometry> GEOMETRY = new WeakHashMap<>();
 	private static final Map<SlimeBionicEntity, CompositeCachedGeometry> COMPOSITE_GEOMETRY = new WeakHashMap<>();
+	private static final Map<SlimeBionicEntity, FirstPersonArms> FIRST_PERSON_ARMS = new WeakHashMap<>();
 	private static final Map<SurgicalAssembly, Map<SurgicalAssembly.Source, Map<Integer, Vec3>>>
 		UPRIGHT_OFFSETS = new WeakHashMap<>();
 	private static final Map<SurgicalAssembly, Map<SurgicalAssembly.Source, Map<Integer, SurgicalCubeRotation>>>
@@ -67,10 +69,128 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	public static void clearCache() {
 		GEOMETRY.clear();
 		COMPOSITE_GEOMETRY.clear();
+		FIRST_PERSON_ARMS.clear();
 		UPRIGHT_OFFSETS.clear();
 		UPRIGHT_ROTATIONS.clear();
 		SlimeBionicAnimator.clearCache();
 		SlimeBionicAttackRangeRenderer.clearCache();
+	}
+
+	/** Renders only a genuine arm chain; an elbow narrows the selection to its forearm group. */
+	public boolean renderFirstPersonArm(SlimeBionicEntity entity, HumanoidArm side,
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
+		SurgicalAssembly assembly = entity.getAssembly();
+		if (assembly == null)
+			return false;
+		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
+		FirstPersonSourceState sourceState = firstPersonSourceState(entity, assembly, partialTick,
+			packedLight);
+		if (sourceState == null)
+			return false;
+
+		FirstPersonArms arms = FIRST_PERSON_ARMS.get(entity);
+		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceState.sourceStates) {
+			arms = new FirstPersonArms(assembly, sourceState.sourceStates,
+				measureFirstPersonArm(assembly, sourceState, false, packedLight, partialTick),
+				measureFirstPersonArm(assembly, sourceState, true, packedLight, partialTick));
+			FIRST_PERSON_ARMS.put(entity, arms);
+		}
+
+		FirstPersonArm arm = side == HumanoidArm.LEFT ? arms.left : arms.right;
+		if (arm == null)
+			return false;
+		EntityGeometry.Bounds bounds = arm.bounds;
+		float anchorX = side == HumanoidArm.RIGHT ? -6.0f / 16.0f : 6.0f / 16.0f;
+		poseStack.pushPose();
+		// Re-anchor the distal end at a normal 12-pixel player hand. Any extra proximal length
+		// continues toward negative local Y, which keeps it outside the first-person viewport.
+		poseStack.translate(anchorX - bounds.centerX(), 12.0f / 16.0f + bounds.minY(),
+			bounds.centerZ());
+		poseStack.scale(1.0f, -1.0f, -1.0f);
+		renderFirstPersonSources(assembly, sourceState, arm.cubes, poseStack, buffer,
+			packedLight, partialTick);
+		poseStack.popPose();
+		return true;
+	}
+
+	@Nullable
+	private static FirstPersonSourceState firstPersonSourceState(SlimeBionicEntity entity,
+		SurgicalAssembly assembly, float partialTick, int packedLight) {
+		boolean composite = assembly.preservesLayout() || assembly.sources().size() > 1;
+		boolean slimeForm = SlimeMimicHandler.isSlimeMimic(entity);
+		if (composite) {
+			CompositeCachedGeometry cached = COMPOSITE_GEOMETRY.get(entity);
+			if (cached == null || cached.assembly != assembly || cached.slimeForm != slimeForm) {
+				cached = measureComposite(entity, assembly, partialTick, packedLight, slimeForm);
+				if (cached == null)
+					return null;
+				COMPOSITE_GEOMETRY.put(entity, cached);
+			}
+			List<Map<Integer, Vec3>> offsets = assembly.sources().stream()
+				.map(source -> uprightOffsets(assembly, source)).toList();
+			List<Map<Integer, SurgicalCubeRotation>> rotations = assembly.sources().stream()
+				.map(source -> uprightRotations(assembly, source)).toList();
+			return new FirstPersonSourceState(cached.sources, offsets, rotations, true);
+		}
+
+		LivingEntity preview = SurgicalSourceModelRenderer.preview(assembly.profile());
+		if (preview == null)
+			return null;
+		CachedGeometry cached = GEOMETRY.get(entity);
+		if (cached == null || cached.assembly != assembly || cached.slimeForm != slimeForm) {
+			cached = rebuildGeometry(entity, preview, assembly, partialTick, packedLight, slimeForm);
+			if (cached == null)
+				return null;
+			GEOMETRY.put(entity, cached);
+		}
+		return new FirstPersonSourceState(cached.sourceStates, List.of(cached.offsets),
+			List.of(assembly.cubeRotations()), false);
+	}
+
+	@Nullable
+	private static FirstPersonArm measureFirstPersonArm(SurgicalAssembly assembly,
+		FirstPersonSourceState sourceState, boolean left, int packedLight, float partialTick) {
+		List<SurgicalAssembly.CombinationMember> members = SlimeBionicAnimator
+			.firstPersonArmMembers(assembly, sourceState.sourceStates, left);
+		if (members.isEmpty())
+			return null;
+		Map<Integer, BitSet> cubes = new java.util.HashMap<>();
+		for (SurgicalAssembly.CombinationMember member : members)
+			cubes.computeIfAbsent(member.source(), ignored -> new BitSet()).set(member.cube());
+		EntityGeometry.Collector geometry = EntityGeometry.Collector.boundsOnly();
+		MultiBufferSource measuringBuffer = renderType -> geometry;
+		renderFirstPersonSources(assembly, sourceState, cubes, new PoseStack(), measuringBuffer,
+			packedLight, partialTick);
+		return geometry.hasVertices() ? new FirstPersonArm(cubes, geometry.bounds()) : null;
+	}
+
+	private static void renderFirstPersonSources(SurgicalAssembly assembly,
+		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight, float partialTick) {
+		poseStack.pushPose();
+		if (sourceState.composite)
+			SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
+		for (int sourceIndex = 0; sourceIndex < assembly.sources().size(); sourceIndex++) {
+			BitSet selected = cubes.get(sourceIndex);
+			if (selected == null || selected.isEmpty())
+				continue;
+			SurgicalAssembly.Source source = assembly.sources().get(sourceIndex);
+			LivingEntity preview = SurgicalSourceModelRenderer.preview(source.profile());
+			if (preview == null)
+				continue;
+			poseStack.pushPose();
+			if (sourceState.composite) {
+				poseStack.translate(source.originOffset().x, source.originOffset().y,
+					source.originOffset().z);
+				if (assembly.preservesLayout())
+					SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
+			}
+			SurgicalSourceModelRenderer.render(preview, source.cubeCount(), selected,
+				sourceState.offsets.get(sourceIndex), sourceState.rotations.get(sourceIndex),
+				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true);
+			poseStack.popPose();
+		}
+		poseStack.popPose();
 	}
 
 	@Override
@@ -425,6 +545,22 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	private record CompositeCachedGeometry(SurgicalAssembly assembly, boolean slimeForm,
 		Vec3 modelOffset, List<SlimeBionicAnimator.SourceState> sources, SlimeBionicAnimator.Rig rig) {}
+
+	private record FirstPersonSourceState(List<SlimeBionicAnimator.SourceState> sourceStates,
+		List<Map<Integer, Vec3>> offsets,
+		List<Map<Integer, SurgicalCubeRotation>> rotations, boolean composite) {}
+
+	private record FirstPersonArms(SurgicalAssembly assembly,
+		List<SlimeBionicAnimator.SourceState> sourceStates,
+		@Nullable FirstPersonArm right, @Nullable FirstPersonArm left) {}
+
+	private record FirstPersonArm(Map<Integer, BitSet> cubes, EntityGeometry.Bounds bounds) {
+		private FirstPersonArm {
+			Map<Integer, BitSet> frozen = new java.util.HashMap<>();
+			cubes.forEach((source, selected) -> frozen.put(source, (BitSet) selected.clone()));
+			cubes = Map.copyOf(frozen);
+		}
+	}
 
 	/**
 	 * Converts cached yaw-zero component transforms into the final render-pass axes. Base geometry

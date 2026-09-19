@@ -1,23 +1,19 @@
 package com.nobodiiiii.createbiotech.content.possession.client;
 
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.WeakHashMap;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.content.possession.EchoShardPossession;
 import com.nobodiiiii.createbiotech.content.possession.PossessionAccess;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicRenderer;
+import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
-import com.nobodiiiii.createbiotech.mixin.client.QuadrupedModelAccessor;
 import com.nobodiiiii.createbiotech.mixin.WalkAnimationStateAccessor;
 
 import net.minecraft.client.Minecraft;
@@ -25,8 +21,8 @@ import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.PlayerModel;
-import net.minecraft.client.model.QuadrupedModel;
 import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -36,17 +32,18 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.Vec3;
 
 /** Draws a player through the renderer of the currently possessed body. */
 public final class PossessionClientRenderer {
+	private static final float NORMAL_ARM_LENGTH = 12.0f / 16.0f;
+	private static final float NORMAL_ARM_CENTER_X = 6.0f / 16.0f;
 	private static final Map<Player, CachedBody> BODY_CACHE = new WeakHashMap<>();
-	private static final List<String> RIGHT_LIMB_NAMES = List.of(
-		"right_arm", "right_front_leg", "right_front_foot", "right_wing", "right_fin",
-		"right_tentacle", "right_hind_leg", "leg0");
-	private static final List<String> LEFT_LIMB_NAMES = List.of(
-		"left_arm", "left_front_leg", "left_front_foot", "left_wing", "left_fin",
-		"left_tentacle", "left_hind_leg", "leg1");
+	private static final List<String> RIGHT_LOWER_ARM_NAMES = List.of(
+		"right_forearm", "right_lower_arm", "right_arm_lower");
+	private static final List<String> LEFT_LOWER_ARM_NAMES = List.of(
+		"left_forearm", "left_lower_arm", "left_arm_lower");
+	private static final List<String> GENERIC_LOWER_ARM_NAMES = List.of(
+		"forearm", "lower_arm", "arm_lower");
 
 	private PossessionClientRenderer() {}
 
@@ -72,11 +69,14 @@ public final class PossessionClientRenderer {
 		copyAnimationState(player, body);
 
 		EntityRenderer renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(body);
+		if (renderer instanceof SlimeBionicRenderer bionicRenderer
+			&& body instanceof SlimeBionicEntity bionic) {
+			bionicRenderer.renderFirstPersonArm(bionic, side, poseStack, buffer, packedLight);
+			return true;
+		}
 		if (renderLivingBodyArm(body, renderer, side, poseStack, buffer, packedLight))
 			return true;
-		if (body instanceof SlimeBionicEntity bionic)
-			renderBionicSourceArm(bionic, side, poseStack, buffer, packedLight);
-		// Never leak the player's original skin into a body without a conventional arm model.
+		// A body without an actual arm deliberately leaves this first-person side empty.
 		return true;
 	}
 
@@ -107,51 +107,6 @@ public final class PossessionClientRenderer {
 		return true;
 	}
 
-	private static boolean renderBionicSourceArm(SlimeBionicEntity bionic, HumanoidArm side,
-		PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		SurgicalAssembly assembly = bionic.getAssembly();
-		if (assembly == null)
-			return false;
-
-		Set<Integer> sourceOrder = new LinkedHashSet<>();
-		int preferred = preferredArmSource(assembly, side);
-		if (preferred >= 0)
-			sourceOrder.add(preferred);
-		for (int source = 0; source < assembly.sources().size(); source++)
-			sourceOrder.add(source);
-
-		for (int sourceIndex : sourceOrder) {
-			LivingEntity preview = SurgicalSourceModelRenderer.preview(
-				assembly.sources().get(sourceIndex).profile());
-			if (preview == null)
-				continue;
-			preview.tickCount = bionic.tickCount;
-			EntityRenderer<?> renderer = Minecraft.getInstance().getEntityRenderDispatcher()
-				.getRenderer(preview);
-			if (renderLivingBodyArm(preview, renderer, side, poseStack, buffer, packedLight))
-				return true;
-		}
-		return false;
-	}
-
-	private static int preferredArmSource(SurgicalAssembly assembly, HumanoidArm side) {
-		int preferred = -1;
-		double preferredScore = Double.NEGATIVE_INFINITY;
-		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs()) {
-			if (limb.type() != SurgicalLimbType.SHOULDER)
-				continue;
-			SurgicalAssembly.Source source = assembly.sources().get(limb.childSource());
-			Vec3 childOffset = source.cubeOffsets().getOrDefault(limb.childCube(), Vec3.ZERO);
-			double x = source.originOffset().x + childOffset.x;
-			double sideScore = side == HumanoidArm.RIGHT ? -x : x;
-			if (sideScore > preferredScore) {
-				preferredScore = sideScore;
-				preferred = limb.childSource();
-			}
-		}
-		return preferred;
-	}
-
 	private static LivingEntity body(Player player) {
 		if (!(player instanceof PossessionAccess access))
 			return null;
@@ -178,42 +133,57 @@ public final class PossessionClientRenderer {
 			ModelPart sleeve = side == HumanoidArm.RIGHT ? playerModel.rightSleeve : playerModel.leftSleeve;
 			return List.of(arm, sleeve);
 		}
-		if (model instanceof HumanoidModel<?> humanoid)
-			return List.of(side == HumanoidArm.RIGHT ? humanoid.rightArm : humanoid.leftArm);
-		if (model instanceof QuadrupedModel<?>) {
-			QuadrupedModelAccessor quadruped = (QuadrupedModelAccessor) model;
-			return List.of(side == HumanoidArm.RIGHT
-				? quadruped.createBiotech$getRightFrontLeg()
-				: quadruped.createBiotech$getLeftFrontLeg());
+		if (model instanceof HumanoidModel<?> humanoid) {
+			ModelPart arm = side == HumanoidArm.RIGHT ? humanoid.rightArm : humanoid.leftArm;
+			return List.of(distalArmPart(arm, side));
 		}
 		if (!(model instanceof HierarchicalModel<?> hierarchical))
 			return List.of();
 
-		for (String name : side == HumanoidArm.RIGHT ? RIGHT_LIMB_NAMES : LEFT_LIMB_NAMES) {
-			ModelPart candidate = hierarchical.getAnyDescendantWithName(name).orElse(null);
-			if (candidate != null)
-				return List.of(candidate);
-		}
-		ModelPart fallback = firstRenderablePart(hierarchical.root());
-		return fallback == null ? List.of() : List.of(fallback);
+		ModelPart lowerArm = namedDescendant(hierarchical.root(),
+			side == HumanoidArm.RIGHT ? RIGHT_LOWER_ARM_NAMES : LEFT_LOWER_ARM_NAMES);
+		if (lowerArm != null)
+			return List.of(lowerArm);
+		ModelPart arm = hierarchical.getAnyDescendantWithName(
+			side == HumanoidArm.RIGHT ? "right_arm" : "left_arm").orElse(null);
+		return arm == null ? List.of() : List.of(distalArmPart(arm, side));
 	}
 
-	private static ModelPart firstRenderablePart(ModelPart root) {
-		ModelPartAccessor accessor = (ModelPartAccessor) (Object) root;
-		for (ModelPart child : accessor.createBiotech$getChildren().values()) {
-			ModelPart found = firstRenderablePart(child);
+	private static ModelPart distalArmPart(ModelPart arm, HumanoidArm side) {
+		List<String> sidedNames = side == HumanoidArm.RIGHT
+			? RIGHT_LOWER_ARM_NAMES : LEFT_LOWER_ARM_NAMES;
+		ModelPart lowerArm = namedDescendant(arm, sidedNames);
+		if (lowerArm == null)
+			lowerArm = namedDescendant(arm, GENERIC_LOWER_ARM_NAMES);
+		return lowerArm == null ? arm : lowerArm;
+	}
+
+	private static ModelPart namedDescendant(ModelPart root, List<String> names) {
+		Map<String, ModelPart> children = ((ModelPartAccessor) (Object) root)
+			.createBiotech$getChildren();
+		for (String name : names) {
+			ModelPart direct = children.get(name);
+			if (direct != null)
+				return direct;
+		}
+		for (ModelPart child : children.values()) {
+			ModelPart found = namedDescendant(child, names);
 			if (found != null)
 				return found;
 		}
-		return accessor.createBiotech$getCubes().isEmpty() ? null : root;
+		return null;
 	}
 
 	private static void renderAtPlayerArmAnchor(ModelPart part, HumanoidArm side, PoseStack poseStack,
 		VertexConsumer vertices, int packedLight) {
 		PartState saved = PartState.capture(part);
-		part.x = side == HumanoidArm.RIGHT ? -5.0f : 5.0f;
-		part.y = 2.0f;
-		part.z = 0.0f;
+		EntityGeometry.Bounds bounds = measureAtOrigin(part);
+		if (bounds == null)
+			return;
+		float centerX = side == HumanoidArm.RIGHT ? -NORMAL_ARM_CENTER_X : NORMAL_ARM_CENTER_X;
+		part.x = (centerX - bounds.centerX()) * 16.0f;
+		part.y = (NORMAL_ARM_LENGTH - bounds.maxY()) * 16.0f;
+		part.z = -bounds.centerZ() * 16.0f;
 		part.xRot = 0.0f;
 		part.yRot = 0.0f;
 		part.zRot = 0.0f;
@@ -224,6 +194,26 @@ public final class PossessionClientRenderer {
 		} finally {
 			saved.restore(part);
 		}
+	}
+
+	private static EntityGeometry.Bounds measureAtOrigin(ModelPart part) {
+		PartState saved = PartState.capture(part);
+		part.x = 0.0f;
+		part.y = 0.0f;
+		part.z = 0.0f;
+		part.xRot = 0.0f;
+		part.yRot = 0.0f;
+		part.zRot = 0.0f;
+		part.visible = true;
+		part.skipDraw = false;
+		EntityGeometry.Collector geometry = EntityGeometry.Collector.boundsOnly();
+		try {
+			part.render(new PoseStack(), geometry, LightTexture.FULL_BRIGHT,
+				OverlayTexture.NO_OVERLAY);
+		} finally {
+			saved.restore(part);
+		}
+		return geometry.hasVertices() ? geometry.bounds() : null;
 	}
 
 	private static void copyAnimationState(Player player, LivingEntity body) {

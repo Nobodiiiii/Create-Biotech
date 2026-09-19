@@ -98,7 +98,6 @@
     "client.MixinSuperGlueSelectionHandler",
     "client.ModelPartAccessor",
     "client.ModelPartCubeGeometryMixin",
-	"client.QuadrupedModelAccessor",
     "client.WorldSectionElementImplMixin"
   ],
   "injectors": {

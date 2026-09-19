@@ -259,6 +259,38 @@ public final class SlimeBionicAnimator {
 		return new Rig(assembly, sources, limbs, averageEffectiveLegLength(limbs, sources));
 	}
 
+	/**
+	 * Selects one real arm on the requested side for first-person rendering. When that shoulder owns
+	 * an elbow, only the elbow's driven group is returned so the upper arm stays outside the view.
+	 */
+	public static List<SurgicalAssembly.CombinationMember> firstPersonArmMembers(
+		SurgicalAssembly assembly, List<SourceState> sources, boolean left) {
+		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
+		int shoulderIndex = -1;
+		int lowestSlot = Integer.MAX_VALUE;
+		for (int index = 0; index < limbs.size(); index++) {
+			ResolvedLimb limb = limbs.get(index);
+			if (limb.type() != SurgicalLimbType.SHOULDER || limb.arm() == null
+				|| limb.arm().left() != left || limb.arm().slot() >= lowestSlot)
+				continue;
+			shoulderIndex = index;
+			lowestSlot = limb.arm().slot();
+		}
+		if (shoulderIndex < 0)
+			return List.of();
+
+		ResolvedLimb selected = limbs.get(shoulderIndex);
+		for (ResolvedLimb candidate : limbs)
+			if (candidate.type() == SurgicalLimbType.ELBOW
+				&& candidate.parentIndex() == shoulderIndex) {
+				selected = candidate;
+				break;
+			}
+		return selected.members().stream()
+			.map(member -> new SurgicalAssembly.CombinationMember(member.source(), member.cube()))
+			.toList();
+	}
+
 	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
 		List<SourceState> sources, @Nullable Rig rig, float partialTick) {
 		int sourceCount = assembly.sources().size();
