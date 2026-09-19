@@ -237,7 +237,7 @@
   "create_biotech.trait.water_sensitive": "Hurt by Water",
   "create_biotech.trait.freeze_immune": "Freeze Immune",
   "create_biotech.trait.freeze_vulnerable": "Vulnerable to Freezing",
-  "create_biotech.trait.sun_sensitive": "Burns in Sunlight",
+  "create_biotech.trait.sun_sensitive": "Sunlight Vulnerability",
   "create_biotech.trait.moisture_dependent": "Needs Moisture",
   "create_biotech.trait.heat_sensitive": "Heat Sensitive",
   "create_biotech.trait.inverted_healing": "Inverted Healing",

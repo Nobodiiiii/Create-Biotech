@@ -26,11 +26,11 @@
 | --- | --- | --- | --- |
 | **抗火／火焰免疫** | 烈焰人、恶魂、岩浆怪、潜影贝、炽足兽、恼鬼、监守者、凋灵、凋灵骷髅、僵尸疣猪兽、僵尸猪灵、末影龙 | **全体块** | **A+B**：先读 `EntityType.fireImmune()`，可补充干净供体的 `Entity.fireImmune()` 覆盖。不要把抗火药水视为先天抗火。不是所有下界生物都抗火，猪灵和疣猪兽不能整族推断。 |
 | **遇水受伤** | 末影人、烈焰人、炽足兽、雪傀儡 | **全体块** | **B**：`LivingEntity.isSensitiveToWater()` 是直接入口。成品需处理水、雨和气泡柱，以及水瓶相关行为。必须与普通溺水分开。 |
-| **抗冻** | 流浪者、北极熊、雪傀儡、凋灵 | **全体块** | **A**：`minecraft:freeze_immune_entity_types`。不建议直接用一次 `!canFreeze()` 推断先天抗冻：皮革装备与骷髅的转化逻辑会影响结果。 |
+| **冻结抗性** | 流浪者、北极熊、雪傀儡、凋灵 | **全体块** | **A**：`minecraft:freeze_immune_entity_types`。不建议直接用一次 `!canFreeze()` 推断先天冻结抗性：皮革装备与骷髅的转化逻辑会影响结果。 |
 | **畏寒／冻结易伤** | 烈焰人、岩浆怪、炽足兽 | **全体块** | **A**：`minecraft:freeze_hurts_extra_types`。原版是冻结伤害额外倍率，不是所有寒冷环境持续扣血；数值可由本模组再平衡。 |
-| **阳光灼烧** | 僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | **全体块**；遮阳判定另定 | **C**：有实际阳光判定，却没有统一的物种能力标签。建立 `sun_sensitive` 生物族；尸壳排除。不能从 `undead` 推断，亡灵马也不应加入。凋灵骷髅虽经过骷髅类的日照逻辑，但抗火使其不表现为普通日晒灼伤。 |
+| **阳光灼伤** | 僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | **全体块**；遮阳判定另定 | **C**：有实际阳光判定，却没有统一的物种能力标签。建立 `sun_sensitive` 生物族；尸壳排除。不能从 `undead` 推断，亡灵马也不应加入。凋灵骷髅虽经过骷髅类的日照逻辑，但抗火使其不表现为普通日晒灼伤。 |
 | **离水窒息／保湿依赖** | 鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪；美西螈；海豚 | 鱼类可定位头/鳃；保湿依赖定位**全体块** | **C**：至少拆成“离水呼吸失败”和“身体干燥”两项。`WaterAnimal` 只能提示候选：海豚覆盖其空气逻辑且另有湿润度；美西螈有自己的空气计时。海龟、青蛙、守卫者不应只因水生就获得离水伤害。 |
-| **高温环境脆弱** | 雪傀儡 | **全体块** | **C**：读取环境时可用原版 `BiomeTags.SNOW_GOLEM_MELTS`，但谁具有这项特性需自行配置。与普通火焰易伤分开。 |
+| **高温灼伤** | 雪傀儡 | **全体块** | **C**：读取环境时可用原版 `BiomeTags.SNOW_GOLEM_MELTS`，但谁具有这项特性需自行配置。与普通火焰易伤分开。 |
 | **治疗／伤害反转** | 所有 `minecraft:undead` 亡灵，详见下方名单 | **全体块** | **A**：`minecraft:inverted_healing_and_harm`；查询入口为 `isInvertedHealAndHarm()`。建议显式设置体质比例门槛，避免一小块僵尸组织反转整只生物。 |
 | **免疫中毒** | 亡灵；蜘蛛、洞穴蜘蛛 | **全体块** | **A+C**：亡灵来自 `minecraft:ignores_poison_and_regen`；蜘蛛族是 `canBeAffected` 的专用覆盖。不要把所有节肢生物都当成免毒。 |
 | **不接受再生效果** | 亡灵 | **全体块** | **A**：同上标签。必须与免毒分别表示，蜘蛛免毒但不因此拒绝再生。也不等于禁止所有 `heal()` 或食物回血。 |
@@ -235,7 +235,7 @@ Minecraft/NeoForge 行为取自当前工程已经生成的源码包 `build/modde
 | 原版标签及具体生物名单 | `data/minecraft/tags/entity_type/*.json` |
 | NeoForge 流体接口 | `net/neoforged/neoforge/common/extensions/ILivingEntityExtension.java` |
 | 水敏感与特殊环境逻辑 | `net/minecraft/world/entity/monster/{EnderMan,Blaze,Strider}.java`、`animal/SnowGolem.java` |
-| 阳光灼烧与例外 | `net/minecraft/world/entity/monster/{Zombie,Husk,AbstractSkeleton,Phantom}.java` |
+| 日光易伤与例外 | `net/minecraft/world/entity/monster/{Zombie,Husk,AbstractSkeleton,Phantom}.java` |
 | 离水与呼吸例外 | `net/minecraft/world/entity/animal/{WaterAnimal,Dolphin}.java`、`animal/axolotl/Axolotl.java` |
 | 驯服继承关系 | `net/minecraft/world/entity/TamableAnimal.java`、`animal/horse/{AbstractHorse,SkeletonHorse,ZombieHorse}.java`、`animal/camel/Camel.java` |
 | 攀爬、免毒、毒性与附效攻击 | `net/minecraft/world/entity/monster/{Spider,CaveSpider,WitherSkeleton,Husk,Stray,Bogged}.java`、`animal/{Bee,Pufferfish}.java` |

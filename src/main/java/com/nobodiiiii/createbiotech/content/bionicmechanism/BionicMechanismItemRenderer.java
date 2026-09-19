@@ -29,16 +29,30 @@ public class BionicMechanismItemRenderer extends CustomRenderedItemModelRenderer
 	}
 
 	private static boolean shouldAnimate(ItemStack stack, ItemDisplayContext transformType) {
-		return isHeld(transformType)
+		return isHeld(stack, transformType)
 			|| transformType == ItemDisplayContext.GUI && BionicMechanismHoverTracker.isHovered(stack);
 	}
 
-	private static boolean isHeld(ItemDisplayContext transformType) {
-		return switch (transformType) {
+	private static boolean isHeld(ItemStack stack, ItemDisplayContext transformType) {
+		boolean handContext = switch (transformType) {
 			case FIRST_PERSON_LEFT_HAND, FIRST_PERSON_RIGHT_HAND,
 				THIRD_PERSON_LEFT_HAND, THIRD_PERSON_RIGHT_HAND -> true;
 			default -> false;
 		};
+		if (handContext || BionicMechanismHoverTracker.isRenderingFirstPersonHand(stack))
+			return true;
+		if (transformType == ItemDisplayContext.GUI || Minecraft.getInstance().player == null)
+			return false;
+
+		ItemStack mainHand = Minecraft.getInstance().player.getMainHandItem();
+		ItemStack offHand = Minecraft.getInstance().player.getOffhandItem();
+		if (stack == mainHand || stack == offHand)
+			return true;
+
+		// Some render bridges redraw an equipped stack with NONE instead of preserving the hand context.
+		return transformType == ItemDisplayContext.NONE
+			&& (ItemStack.isSameItemSameComponents(stack, mainHand)
+				|| ItemStack.isSameItemSameComponents(stack, offHand));
 	}
 
 	private static BakedModel getAnimatedModel(BakedModel fallback) {
