@@ -145,9 +145,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		registeredHitParts = hitParts;
 		// Match the Ender Dragon: reserve one consecutive id block and keep every cached part stable.
 		setId(ENTITY_COUNTER.getAndAdd(hitParts.length + 1) + 1);
-		// The bionic body begins in the same synced slime state used by ordinary mimics.
-		// Loading a cured entity can still restore this value to false from its saved data.
-		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(true);
 		moveControl = new SlimeBionicMoveControl(this);
 		setPersistenceRequired();
 		updateHitParts();

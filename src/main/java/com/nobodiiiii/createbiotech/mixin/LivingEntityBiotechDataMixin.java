@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import com.nobodiiiii.createbiotech.content.buttercat.ButterRotationAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.foundation.entity.LivingEntitySyncedState;
 
 import net.minecraft.nbt.CompoundTag;
@@ -28,7 +29,12 @@ public abstract class LivingEntityBiotechDataMixin implements SlimeMimicAccess, 
 
 	@Inject(method = "defineSynchedData", at = @At("TAIL"))
 	private void createBiotech$defineData(SynchedEntityData.Builder builder, CallbackInfo ci) {
-		builder.define(CREATE_BIOTECH$SYNCED_STATE, LivingEntitySyncedState.empty());
+		long initialState = LivingEntitySyncedState.empty();
+		// Pairing data omits values equal to this per-entity default. Bionic bodies begin as
+		// mimics, so a cured body must differ here and be sent as false on its very first packet.
+		if ((Object) this instanceof SlimeBionicEntity)
+			initialState = LivingEntitySyncedState.withSlimeMimic(initialState, true);
+		builder.define(CREATE_BIOTECH$SYNCED_STATE, initialState);
 	}
 
 	@Inject(method = "addAdditionalSaveData", at = @At("TAIL"))
