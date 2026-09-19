@@ -56,6 +56,8 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -3504,7 +3506,7 @@ public final class SurgicalTableClientHandler {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
 			if (CapturedEntityBoxHelper.isEmptyLargeBox(stack))
-				appendPackedDisposition(tooltip, level, cubeHit);
+				appendPackedProperties(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.remove_joint");
@@ -3518,7 +3520,7 @@ public final class SurgicalTableClientHandler {
 		return new InteractionPrompt(stack, tooltip);
 	}
 
-	private static void appendPackedDisposition(List<Component> tooltip, ClientLevel level,
+	private static void appendPackedProperties(List<Component> tooltip, ClientLevel level,
 		@Nullable CubeHit hit) {
 		if (hit == null
 			|| !(level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity table))
@@ -3526,8 +3528,9 @@ public final class SurgicalTableClientHandler {
 		SurgicalAssembly preview = table.previewPackedAssembly(hit.geometry.subjectId,
 			hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
 		BionicMind mind = BionicMind.resolve(preview, level);
-		if (mind.hasRecognizedHead())
-			CapturedEntityBoxStatsTooltip.appendDispositionSection(tooltip, mind.disposition());
+		BionicBodyTraits traits = BionicBodyTraitRegistry.resolve(preview, level);
+		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip,
+			mind.hasRecognizedHead() ? mind.disposition() : null, traits);
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */

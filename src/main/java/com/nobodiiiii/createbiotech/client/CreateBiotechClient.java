@@ -4,6 +4,7 @@ import java.util.function.Predicate;
 
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineRenderer;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineVisual;
+import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingMachineVisual;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
@@ -237,6 +238,7 @@ public class CreateBiotechClient {
 		register.accept(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
 		register.accept(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
 		register.accept(ExperiencePumpRenderer.COG_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.HELD_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.GEAR_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.SCOPE_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.LEFT_SCOPE_MODEL_LOCATION);

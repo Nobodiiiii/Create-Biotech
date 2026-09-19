@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.client;
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatItemRenderer;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
@@ -78,6 +79,8 @@ final class CBClientExtensions {
 			return SimpleCustomRenderer.create(item, new ButterCatItemRenderer());
 		if (item instanceof CapturedEntityBoxItem)
 			return SimpleCustomRenderer.create(item, new CapturedEntityBoxItemRenderer());
+		if (item == CBItems.BIONIC_MECHANISM.get())
+			return SimpleCustomRenderer.create(item, new BionicMechanismItemRenderer());
 		if (item instanceof SurgicalKitItem)
 			return itemRenderer(new SurgicalKitItemRenderer());
 		if (item instanceof SonicDogCannonItem)

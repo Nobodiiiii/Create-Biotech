@@ -81,6 +81,7 @@ public final class MimicProfile {
 	private final CompoundTag previewData;
 	@Nullable
 	private final Boolean baby;
+	private final BiologicalKey biologicalKey;
 	/**
 	 * Profiles are immutable and are used as render-cache keys several times per subject per frame,
 	 * so the recursive tag hash is paid once here instead of on every lookup.
@@ -96,6 +97,7 @@ public final class MimicProfile {
 		this.stableData = stableData;
 		this.previewData = previewData;
 		this.baby = baby;
+		this.biologicalKey = new BiologicalKey(entityTypeId, stableData, baby);
 		this.hash = Objects.hash(entityTypeId, this.stableData, this.previewData, baby);
 	}
 
@@ -162,6 +164,11 @@ public final class MimicProfile {
 		return entityTypeId;
 	}
 
+	/** Cache key containing only stable biological state, never the potentially large preview NBT. */
+	public BiologicalKey biologicalKey() {
+		return biologicalKey;
+	}
+
 	@Override
 	public boolean equals(Object other) {
 		if (this == other)
@@ -212,6 +219,23 @@ public final class MimicProfile {
 		living.yHeadRot = 0.0f;
 		living.yHeadRotO = 0.0f;
 		living.tickCount = 0;
+		return living;
+	}
+
+	/**
+	 * Creates a clean, unspawned donor used by biological feature probes. Unlike a preview entity,
+	 * this deliberately ignores render-only NBT, equipment, effects and other transient state.
+	 */
+	@Nullable
+	public LivingEntity createBiologicalEntity(Level level) {
+		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(entityTypeId)
+			.orElse(null);
+		if (entityType == null)
+			return null;
+		net.minecraft.world.entity.Entity created = entityType.create(level);
+		if (!(created instanceof LivingEntity living))
+			return null;
+		apply(living);
 		return living;
 	}
 
@@ -289,5 +313,37 @@ public final class MimicProfile {
 			"ArmorItems", "ArmorDropChances", "body_armor_item", "body_armor_drop_chance"))
 			preview.remove(field);
 		return preview;
+	}
+
+	/** Immutable equality key for cached donor facts. */
+	public static final class BiologicalKey {
+		private final ResourceLocation entityTypeId;
+		private final CompoundTag stableData;
+		@Nullable
+		private final Boolean baby;
+		private final int hash;
+
+		private BiologicalKey(ResourceLocation entityTypeId, CompoundTag stableData,
+			@Nullable Boolean baby) {
+			this.entityTypeId = entityTypeId;
+			this.stableData = stableData.copy();
+			this.baby = baby;
+			this.hash = Objects.hash(entityTypeId, this.stableData, baby);
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			if (this == other)
+				return true;
+			if (!(other instanceof BiologicalKey key))
+				return false;
+			return hash == key.hash && entityTypeId.equals(key.entityTypeId)
+				&& stableData.equals(key.stableData) && Objects.equals(baby, key.baby);
+		}
+
+		@Override
+		public int hashCode() {
+			return hash;
+		}
 	}
 }

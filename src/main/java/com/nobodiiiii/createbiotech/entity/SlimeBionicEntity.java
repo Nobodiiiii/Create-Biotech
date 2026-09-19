@@ -20,6 +20,9 @@ import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
 import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.Holder;
@@ -33,6 +36,8 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerEntity;
+import net.minecraft.tags.BiomeTags;
+import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
@@ -56,12 +61,16 @@ import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -75,6 +84,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private static final int MAX_HIT_PARTS = SurgicalAssembly.MAX_HITBOX_LIMBS + 1;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
+	private static final String MOISTURE_TAG = "BionicMoisture";
+	private static final int MAX_MOISTURE = 2400;
 	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
 		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
@@ -83,6 +94,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private CompoundTag cachedAssemblyData;
 	@Nullable
 	private SurgicalAssembly cachedAssembly;
+	@Nullable
+	private SurgicalAssembly bodyTraitAssembly;
+	private long bodyTraitGeneration = -1L;
+	private BionicBodyTraits bodyTraits = BionicBodyTraits.EMPTY;
+	private int moisture = -1;
 	@Nullable
 	private SurgicalAssembly clientBoundsAssembly;
 	@Nullable
@@ -163,7 +179,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			.add(Attributes.MAX_HEALTH, SurgicalHealthCalibration.MAX_HEALTH)
 			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.ATTACK_DAMAGE, 3.0d)
-			.add(Attributes.ARMOR, 2.0d)
+			.add(Attributes.ARMOR, 0.0d)
 			.add(Attributes.FOLLOW_RANGE, 35.0d)
 			.add(Attributes.KNOCKBACK_RESISTANCE, 0.15d);
 	}
@@ -216,6 +232,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		entityData.set(ASSEMBLY, encoded);
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
+		invalidateBodyTraits();
 		configureHitPartRegistration(assembly);
 		clientBoundsAssembly = null;
 		clientBodyBounds = null;
@@ -223,6 +240,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		clientBodyVolume = Double.NaN;
 		refreshMaximumHealth(assembly);
 		refreshMovementSpeed(assembly);
+		getBodyTraits();
 		refreshDimensions();
 		updateHitParts();
 	}
@@ -258,6 +276,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			cachedAssemblyData = encoded;
 			SurgicalAssembly loaded = SurgicalAssembly.load(encoded);
 			cachedAssembly = loaded != null && loaded.isReadyForEntity() ? loaded : null;
+			invalidateBodyTraits();
 		}
 		return cachedAssembly;
 	}
@@ -286,6 +305,96 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	public BionicIntelligence getIntelligence() {
 		return getMind().intelligence();
+	}
+
+	/** Whole-tissue donor facts, refreshed after assembly or entity-tag reloads. */
+	public BionicBodyTraits getBodyTraits() {
+		SurgicalAssembly assembly = getAssembly();
+		long generation = BionicBodyTraitRegistry.generation();
+		if (assembly != bodyTraitAssembly || generation != bodyTraitGeneration) {
+			bodyTraitAssembly = assembly;
+			bodyTraitGeneration = generation;
+			bodyTraits = BionicBodyTraitRegistry.resolve(assembly, level());
+			refreshNaturalArmor(bodyTraits);
+			if (!bodyTraits.has(BionicBodyTrait.MOISTURE_DEPENDENT))
+				moisture = -1;
+		}
+		return bodyTraits;
+	}
+
+	private void invalidateBodyTraits() {
+		bodyTraitAssembly = null;
+		bodyTraitGeneration = -1L;
+		bodyTraits = BionicBodyTraits.EMPTY;
+	}
+
+	private void refreshNaturalArmor(BionicBodyTraits traits) {
+		var armor = getAttribute(Attributes.ARMOR);
+		if (armor != null && armor.getBaseValue() != traits.naturalArmor())
+			armor.setBaseValue(traits.naturalArmor());
+	}
+
+	@Override
+	public boolean fireImmune() {
+		return getBodyTraits().fullyHas(BionicBodyTrait.FIRE_IMMUNE) || super.fireImmune();
+	}
+
+	@Override
+	public boolean isSensitiveToWater() {
+		return getBodyTraits().fullyHas(BionicBodyTrait.WATER_SENSITIVE);
+	}
+
+	@Override
+	public boolean canFreeze() {
+		return !getBodyTraits().fullyHas(BionicBodyTrait.FREEZE_IMMUNE) && super.canFreeze();
+	}
+
+	@Override
+	public boolean isInvertedHealAndHarm() {
+		return getBodyTraits().coverage(BionicBodyTrait.INVERTED_HEALING) >= 0.5d;
+	}
+
+	@Override
+	@SuppressWarnings("deprecation")
+	public boolean canBeAffected(MobEffectInstance effect) {
+		ResourceLocation effectId = effect.getEffect().unwrapKey()
+			.map(key -> key.location()).orElse(null);
+		return !getBodyTraits().isImmuneTo(effectId) && super.canBeAffected(effect);
+	}
+
+	@Override
+	public boolean causeFallDamage(float fallDistance, float multiplier,
+		net.minecraft.world.damagesource.DamageSource source) {
+		if (getBodyTraits().coverage(BionicBodyTrait.FALL_DAMAGE_IMMUNE) >= 0.5d)
+			return false;
+		return super.causeFallDamage(fallDistance, multiplier, source);
+	}
+
+	@Override
+	public void makeStuckInBlock(BlockState state, Vec3 motionMultiplier) {
+		if (state.is(Blocks.COBWEB)
+			&& getBodyTraits().coverage(BionicBodyTrait.WEB_ADAPTED) >= 0.5d)
+			return;
+		super.makeStuckInBlock(state, motionMultiplier);
+	}
+
+	@Override
+	public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
+		BionicBodyTraits traits = getBodyTraits();
+		if (source.is(DamageTypeTags.IS_FIRE)) {
+			double resistance = traits.coverage(BionicBodyTrait.FIRE_IMMUNE);
+			if (resistance >= 1.0d - 1.0e-8d)
+				return false;
+			amount *= (float) (1.0d - resistance);
+		}
+		if (source.is(DamageTypeTags.IS_FREEZING)) {
+			double immunity = traits.coverage(BionicBodyTrait.FREEZE_IMMUNE);
+			if (immunity >= 1.0d - 1.0e-8d)
+				return false;
+			amount *= (float) ((1.0d - immunity)
+				* (1.0d + 4.0d * traits.coverage(BionicBodyTrait.FREEZE_VULNERABLE)));
+		}
+		return super.hurt(source, amount);
 	}
 
 	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */
@@ -517,7 +626,57 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void tick() {
 		super.tick();
+		tickBodyEnvironment();
 		updateHitParts();
+	}
+
+	private void tickBodyEnvironment() {
+		if (level().isClientSide || !isAlive())
+			return;
+		BionicBodyTraits traits = getBodyTraits();
+		double waterSensitivity = traits.coverage(BionicBodyTrait.WATER_SENSITIVE);
+		if (waterSensitivity > 0.0d && waterSensitivity < 1.0d - 1.0e-8d
+			&& isInWaterRainOrBubble())
+			hurt(damageSources().drown(), (float) waterSensitivity);
+		double sunSensitivity = traits.coverage(BionicBodyTrait.SUN_SENSITIVE);
+		if (sunSensitivity > 0.0d && random.nextDouble() < sunSensitivity && isSunBurnTick()) {
+			boolean burns = true;
+			ItemStack headwear = getItemBySlot(EquipmentSlot.HEAD);
+			if (!headwear.isEmpty()) {
+				if (headwear.isDamageableItem()) {
+					Item item = headwear.getItem();
+					headwear.setDamageValue(headwear.getDamageValue() + random.nextInt(2));
+					if (headwear.getDamageValue() >= headwear.getMaxDamage()) {
+						onEquippedItemBroken(item, EquipmentSlot.HEAD);
+						setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
+					}
+				}
+				burns = false;
+			}
+			if (burns)
+				igniteForSeconds(8.0f);
+		}
+
+		double heatSensitivity = traits.coverage(BionicBodyTrait.HEAT_SENSITIVE);
+		if (heatSensitivity > 0.0d
+			&& level().getBiome(blockPosition()).is(BiomeTags.SNOW_GOLEM_MELTS))
+			hurt(damageSources().onFire(), (float) heatSensitivity);
+
+		double moistureDependence = traits.coverage(BionicBodyTrait.MOISTURE_DEPENDENT);
+		if (moistureDependence <= 0.0d) {
+			moisture = -1;
+			return;
+		}
+		if (isInWaterRainOrBubble()) {
+			moisture = MAX_MOISTURE;
+			return;
+		}
+		if (moisture < 0)
+			moisture = MAX_MOISTURE;
+		else if (moisture > 0)
+			moisture--;
+		else if (tickCount % 20 == 0)
+			hurt(damageSources().dryOut(), (float) moistureDependence);
 	}
 
 	private void updateHitParts() {
@@ -810,6 +969,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
 		super.onSyncedDataUpdated(key);
 		if (ASSEMBLY.equals(key)) {
+			invalidateBodyTraits();
 			clientBoundsAssembly = null;
 			clientBodyBounds = null;
 			clientHitboxGeometry = null;
@@ -827,6 +987,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		CompoundTag assembly = entityData.get(ASSEMBLY);
 		if (!assembly.isEmpty())
 			tag.put(ASSEMBLY_TAG, assembly.copy());
+		if (moisture >= 0)
+			tag.putInt(MOISTURE_TAG, moisture);
 	}
 
 	@Override
@@ -841,6 +1003,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(!sourceForm);
 		setAssembly(assembly);
+		if (tag.contains(MOISTURE_TAG, Tag.TAG_ANY_NUMERIC))
+			moisture = Mth.clamp(tag.getInt(MOISTURE_TAG), 0, MAX_MOISTURE);
 	}
 
 	/** Vanilla pursuit with independent, directional melee actions and persistent recovery deadlines. */

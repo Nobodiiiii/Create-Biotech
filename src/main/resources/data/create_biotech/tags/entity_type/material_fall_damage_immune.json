@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:magma_cube",
+    "minecraft:iron_golem",
+    "minecraft:snow_golem",
+    "minecraft:shulker",
+    "minecraft:breeze"
+  ]
+}

@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovement
 import com.nobodiiiii.createbiotech.data.CBDataGenerators;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataReloadListeners;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBArmInteractionPointTypes;
 import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
@@ -88,6 +89,7 @@ public class CreateBiotech {
 		modEventBus.addListener(CreateBiotech::onCommonSetup);
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();
+		BionicBodyTraitRegistry.register();
 		registerAllayEvents();
 		NeoForge.EVENT_BUS.addListener(CreateBiotech::registerReloadListeners);
 		FrogStomachSlimeSpawning.register();

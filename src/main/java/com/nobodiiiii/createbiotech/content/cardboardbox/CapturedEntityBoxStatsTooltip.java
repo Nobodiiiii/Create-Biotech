@@ -10,10 +10,14 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
+import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
-import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
 import com.simibubi.create.foundation.item.TooltipModifier;
 
 import net.minecraft.ChatFormatting;
@@ -22,6 +26,8 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -40,6 +46,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	private static ItemStack cachedStack = ItemStack.EMPTY;
 	@Nullable
 	private static BoxDetails cachedDetails;
+	private static long cachedTraitGeneration = -1L;
 
 	@Override
 	public void modify(ItemTooltipEvent context) {
@@ -51,7 +58,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	/** Appends the same expandable section to inventory and surgical-table HUD tooltips. */
 	public static void append(ItemStack stack, Level level, List<Component> tooltip) {
 		BoxDetails details = details(stack, level);
-		if (details == null || details.stats().isEmpty())
+		if (details == null)
+			return;
+		BionicDisposition disposition = details.disposition();
+		if (details.assembly() != null) {
+			BionicMind mind = BionicMind.resolve(details.assembly(), level);
+			disposition = mind.hasRecognizedHead() ? mind.disposition() : null;
+		}
+		if (details.stats().isEmpty() && details.traits().isEmpty() && disposition == null)
 			return;
 
 		boolean expanded = Screen.hasAltDown();
@@ -61,51 +75,105 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (!expanded)
 			return;
 
-		tooltip.add(CommonComponents.EMPTY);
-		tooltip.add(Component.translatable("create_biotech.tooltip.base_stats")
-			.withStyle(ChatFormatting.GOLD));
-		for (BaseStat stat : details.stats())
-			tooltip.add(stat.line());
-
-		BionicMind mind = BionicMind.resolve(details.assembly(), level);
-		if (mind.hasRecognizedHead())
-			appendDispositionSection(tooltip, mind.disposition());
+		if (!details.stats().isEmpty()) {
+			tooltip.add(CommonComponents.EMPTY);
+			tooltip.add(Component.translatable("create_biotech.tooltip.base_stats")
+				.withStyle(ChatFormatting.GOLD));
+			for (BaseStat stat : details.stats())
+				tooltip.add(stat.line());
+		}
+		appendPropertiesSection(tooltip, disposition, details.traits());
 	}
 
 	/** Adds the shared Create-style property heading and its disposition value. */
 	public static void appendDispositionSection(List<Component> tooltip, BionicDisposition disposition) {
+		appendPropertiesSection(tooltip, disposition, BionicBodyTraits.EMPTY);
+	}
+
+	/** Adds one shared property section for head disposition and whole-tissue donor traits. */
+	public static void appendPropertiesSection(List<Component> tooltip,
+		@Nullable BionicDisposition disposition, BionicBodyTraits traits) {
+		if (disposition == null && (traits == null || traits.isEmpty()))
+			return;
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
 			.withStyle(ChatFormatting.GOLD));
-		ChatFormatting color = switch (disposition) {
-		case FRIENDLY -> ChatFormatting.GREEN;
-		case NEUTRAL -> ChatFormatting.YELLOW;
-		case HOSTILE -> ChatFormatting.RED;
-		};
-		tooltip.add(Component.literal(" ")
-			.append(Component.translatable("create_biotech.disposition."
-				+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
+		if (disposition != null) {
+			ChatFormatting color = switch (disposition) {
+			case FRIENDLY -> ChatFormatting.GREEN;
+			case NEUTRAL -> ChatFormatting.YELLOW;
+			case HOSTILE -> ChatFormatting.RED;
+			};
+			tooltip.add(Component.literal(" ")
+				.append(Component.translatable("create_biotech.disposition."
+					+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
+		}
+		if (traits == null)
+			return;
+		for (BionicBodyTrait trait : BionicBodyTrait.values()) {
+			double coverage = traits.coverage(trait);
+			if (coverage <= 0.0d)
+				continue;
+			Component name = Component.translatable(trait.descriptionId());
+			if (coverage < 1.0d - 1.0e-8d)
+				name = Component.translatable("create_biotech.trait.partial", name,
+					Long.toString(Math.round(coverage * 100.0d)));
+			appendProperty(tooltip, name);
+		}
+		appendEffectImmunities(tooltip, traits);
+		if (traits.naturalArmor() > 1.0e-8d)
+			appendProperty(tooltip, Component.translatable("create_biotech.trait.natural_armor",
+				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(traits.naturalArmor())));
+	}
+
+	private static void appendEffectImmunities(List<Component> tooltip, BionicBodyTraits traits) {
+		List<ResourceLocation> effects = traits.immuneEffects().stream().sorted().toList();
+		if (effects.isEmpty())
+			return;
+		MutableComponent names = Component.empty();
+		int shown = Math.min(3, effects.size());
+		for (int index = 0; index < shown; index++) {
+			if (index > 0)
+				names.append(Component.translatable("create_biotech.trait.list_separator"));
+			var effect = net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT
+				.getOptional(effects.get(index)).orElse(null);
+			names.append(effect == null ? Component.literal(effects.get(index).toString())
+				: effect.getDisplayName());
+		}
+		if (effects.size() > shown) {
+			names.append(Component.translatable("create_biotech.trait.list_separator"));
+			names.append(Component.literal("…"));
+		}
+		appendProperty(tooltip, Component.translatable("create_biotech.trait.effect_immunity", names));
+	}
+
+	private static void appendProperty(List<Component> tooltip, Component property) {
+		tooltip.add(Component.literal(" ").append(property.copy().withStyle(ChatFormatting.GRAY)));
 	}
 
 	@Nullable
 	private static BoxDetails details(ItemStack stack, Level level) {
-		if (ItemStack.isSameItemSameComponents(cachedStack, stack))
+		long generation = BionicBodyTraitRegistry.generation();
+		if (cachedTraitGeneration == generation && ItemStack.isSameItemSameComponents(cachedStack, stack))
 			return cachedDetails;
 
 		cachedStack = stack.copyWithCount(1);
+		cachedTraitGeneration = generation;
 		cachedDetails = captureDetails(stack, level);
 		return cachedDetails;
 	}
 
 	@Nullable
 	private static BoxDetails captureDetails(ItemStack stack, Level level) {
-		// Ordinary slime mimics deliberately have no numerical expansion. Checking the saved type
-		// before constructing the entity keeps their hover path free of attribute/model work.
-		if (!CapturedEntityBoxHelper.containsEntityType(stack, CBEntityTypes.SLIME_BIONIC.get()))
-			return null;
 		Entity entity = CapturedEntityBoxHelper.createCapturedEntity(stack, level);
-		if (!(entity instanceof SlimeBionicEntity bionic))
+		if (!(entity instanceof LivingEntity living))
 			return null;
+		if (!(living instanceof SlimeBionicEntity bionic)) {
+			MimicProfile profile = MimicProfile.capture(living);
+			return new BoxDetails(List.of(), null, BionicDispositionRegistry.get(living),
+				profile == null ? BionicBodyTraitRegistry.detect(living)
+					: BionicBodyTraitRegistry.get(profile, level));
+		}
 		SurgicalAssembly assembly = bionic.getAssembly();
 		if (assembly == null)
 			return null;
@@ -119,7 +187,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return new BoxDetails(List.copyOf(stats), assembly);
+		return new BoxDetails(List.copyOf(stats), assembly, null,
+			BionicBodyTraitRegistry.resolve(assembly, level));
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
@@ -181,7 +250,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		INTEGER
 	}
 
-	private record BoxDetails(List<BaseStat> stats, SurgicalAssembly assembly) {}
+	private record BoxDetails(List<BaseStat> stats, @Nullable SurgicalAssembly assembly,
+		@Nullable BionicDisposition disposition, BionicBodyTraits traits) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
 		private Component line() {
