@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Objects;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismHoverTracker;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
@@ -19,7 +18,6 @@ import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
-import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
@@ -28,7 +26,6 @@ import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
-import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.component.DataComponents;
@@ -50,30 +47,6 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	@Override
 	public ResourceLocation getPluginUid() {
 		return CreateBiotech.asResource("jei_plugin");
-	}
-
-	@Override
-	public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
-		BionicMechanismHoverTracker.setRecipeViewerHoveredStack(() -> {
-			ItemStack hoveredStack = jeiRuntime.getIngredientListOverlay()
-				.getIngredientUnderMouse(VanillaTypes.ITEM_STACK);
-			if (hoveredStack != null)
-				return hoveredStack;
-
-			hoveredStack = jeiRuntime.getBookmarkOverlay()
-				.getItemStackUnderMouse();
-			if (hoveredStack != null)
-				return hoveredStack;
-
-			return jeiRuntime.getRecipesGui()
-				.getIngredientUnderMouse(VanillaTypes.ITEM_STACK)
-				.orElse(ItemStack.EMPTY);
-		});
-	}
-
-	@Override
-	public void onRuntimeUnavailable() {
-		BionicMechanismHoverTracker.clearRecipeViewerHoveredStack();
 	}
 
 	@Override

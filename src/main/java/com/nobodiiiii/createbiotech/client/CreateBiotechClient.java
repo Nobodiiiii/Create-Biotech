@@ -238,7 +238,10 @@ public class CreateBiotechClient {
 		register.accept(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
 		register.accept(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
 		register.accept(ExperiencePumpRenderer.COG_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.HELD_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.HALF_OPEN_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.LOOK_RIGHT_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.LOOK_CENTER_MODEL_LOCATION);
+		register.accept(BionicMechanismItemRenderer.LOOK_LEFT_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.GEAR_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.SCOPE_MODEL_LOCATION);
 		register.accept(SonicDogCannonItemRenderer.LEFT_SCOPE_MODEL_LOCATION);

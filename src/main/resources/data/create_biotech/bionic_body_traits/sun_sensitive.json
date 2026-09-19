@@ -1,0 +1,12 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:zombie": true,
+    "minecraft:zombie_villager": true,
+    "minecraft:drowned": true,
+    "minecraft:skeleton": true,
+    "minecraft:stray": true,
+    "minecraft:bogged": true,
+    "minecraft:phantom": true
+  }
+}

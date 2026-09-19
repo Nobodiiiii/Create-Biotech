@@ -19,6 +19,10 @@ public enum BionicBodyTrait {
 		this.serializedName = serializedName;
 	}
 
+	public String serializedName() {
+		return serializedName;
+	}
+
 	public String descriptionId() {
 		return "create_biotech.trait." + serializedName;
 	}

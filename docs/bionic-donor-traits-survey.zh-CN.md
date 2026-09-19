@@ -122,37 +122,53 @@
 
 ### 3. 覆盖优先级必须明确
 
-推荐逐个特性执行以下优先级，而不是按整个供体覆盖：
+泛部件特性按逐项覆盖执行以下优先级，而不是按整个供体覆盖：
 
-`自动探测 < 内置/模组适配器 < 生物族规则 < 单个生物规则 < 显式禁用规则`
+`该特性的自动探测 < 该特性的实体标签规则 < 该特性的单个生物规则`
 
-上述是建议的解析策略，需由本模组实现；不同数据包仍尊重资源包优先级。同级多个族规则通过明确 `priority` 解决，冲突应可诊断，不能依赖 JSON 键顺序。强制移除应保留为禁用记录，不能删除记录后让自动探测重新加回来。
+每种特性都有独立 JSON 和独立的 `automatic_detection` 开关。`false` 只关闭该文件所对应特性的自动读取，不影响其他特性。布尔特性的值用 `true` 添加、用 `false` 删除自动检测或较低优先级规则给出的结果；天然护甲用数值覆盖，设为 `0` 即删除自动护甲。
 
 NeoForge 1.21.1 的 **Data Maps** 适合把可重载配置关联到 `EntityType`：支持 ID、标签、重载和可选客户端同步。集合型特性可以采用 `AdvancedDataMapType` 的自定义合并；但“单体总比族高”等语义仍要明确设计，不能假定框架自动符合上述规则。[NeoForge 1.21.1 官方文档](https://docs.neoforged.net/docs/1.21.1/resources/server/datamaps/)
 
-项目也可以继续沿用现有 JSON 重载器，增加独立的族匹配和逐项覆盖阶段。不要仅为这次功能强制迁移现有头部性情配置。
-
-以下只是**拟议业务字段**，不是当前已支持的配置格式：
+当前读取 `data/<命名空间>/bionic_body_traits/` 下的同名特性文件。自动探测型文件默认只保留开关和空规则，例如 `fire_immune.json`：
 
 ```json
 {
-  "match": { "entity_type_tag": "create_biotech:spider_like" },
-  "priority": 100,
-  "traits": {
-    "create_biotech:poison_immunity": {
-      "mode": "enable",
-      "parts": "all"
-    },
-    "create_biotech:climbing": {
-      "mode": "enable",
-      "parts": "source_legs",
-      "requires": "functional_support_limbs"
-    }
+  "automatic_detection": true,
+  "values": {}
+}
+```
+
+原版需要手写的阳光灼伤、保湿依赖、高温灼伤、材料免摔和蛛网适应仍直接保存在各自文件中，不改成 Java 硬编码。当前文件如下：
+
+| 文件 | 自动读取 | 默认手写内容 |
+| --- | --- | --- |
+| `fire_immune.json` | 实体类型/实体的火焰免疫 | 空 |
+| `water_sensitive.json` | `isSensitiveToWater()` | 空 |
+| `freeze_immune.json` | 原版冻结免疫标签 | 空 |
+| `freeze_vulnerable.json` | 原版冻结易伤标签 | 空 |
+| `sun_sensitive.json` | 无，默认关闭 | 僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 |
+| `moisture_dependent.json` | 无，默认关闭 | 美西螈、海豚 |
+| `heat_sensitive.json` | 无，默认关闭 | 雪傀儡 |
+| `inverted_healing.json` | `isInvertedHealAndHarm()` | 空 |
+| `fall_damage_immune.json` | 无，默认关闭 | 岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 |
+| `web_adapted.json` | 无，默认关闭 | 蜘蛛、洞穴蜘蛛 |
+| `immune_effects.json` | `canBeAffected()` | 空 |
+| `natural_armor.json` | 基础护甲属性 | 空 |
+
+布尔特性文件的 `values` 键支持实体 ID 和以 `#` 开头的实体类型标签：
+
+```json
+{
+  "automatic_detection": true,
+  "values": {
+    "#minecraft:undead": true,
+    "minecraft:zombie": false
   }
 }
 ```
 
-洞穴蜘蛛再通过单体规则为 `source_head` 添加毒性咬击；某个模组的机械蜘蛛可以单独禁用免毒。这样可以适配族，同时保留个体差异。
+`immune_effects.json` 的每个生物值是“效果 ID → 是否免疫”的对象；`natural_armor.json` 的每个生物值是非负护甲数值。这两份文件也各有自己的 `automatic_detection`。数据包要切换内置开关时应覆盖 `create_biotech` 命名空间下对应的同名文件；其他命名空间的同名文件可追加实体或标签规则。
 
 ### 4. “获得特性”与“成品真正生效”是两套工作
 
@@ -198,6 +214,7 @@ NeoForge 1.21.1 的 **Data Maps** 适合把可重载配置关联到 `EntityType`
 - `content/surgery/client/SurgicalCapturedRenderPlan.java`：通过模型及 Create 帽子定位数据识别头部体块。
 - `entity/ai/BionicDispositionRegistry.java`：通用接口探测、缓存、数据覆盖的既有范例。
 - `entity/ai/BionicHeadDataReloadListeners.java`、`BionicMind.java`：数据重载与多头性情/智力汇总。
+- `entity/trait/BionicBodyTraitRegistry.java`、`BionicBodyTraitDataReloadListener.java`：泛部件特性的自动探测、逐项数据覆盖、缓存失效与混合组织汇总。
 
 推荐增量顺序：
 

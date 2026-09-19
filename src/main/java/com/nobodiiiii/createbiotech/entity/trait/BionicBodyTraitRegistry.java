@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,12 +13,10 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
-import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.tags.TagKey;
@@ -29,19 +29,13 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
-/** Detects stable donor facts and aggregates them by retained source-cube weight. */
+/** Detects stable donor facts, applies per-trait data rules, and aggregates source weights. */
 public final class BionicBodyTraitRegistry {
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final TagKey<EntityType<?>> SUN_SENSITIVE = tag("sun_sensitive");
-	public static final TagKey<EntityType<?>> MOISTURE_DEPENDENT = tag("moisture_dependent");
-	public static final TagKey<EntityType<?>> HEAT_SENSITIVE = tag("heat_sensitive");
-	public static final TagKey<EntityType<?>> MATERIAL_FALL_DAMAGE_IMMUNE =
-		tag("material_fall_damage_immune");
-	public static final TagKey<EntityType<?>> WEB_ADAPTED = tag("web_adapted");
-
 	private static final Map<MimicProfile.BiologicalKey, BionicBodyTraits> DETECTED =
 		new ConcurrentHashMap<>();
 	private static final AtomicLong GENERATION = new AtomicLong();
+	private static volatile DataOverrides DATA = DataOverrides.EMPTY;
 	private static boolean registered;
 
 	private BionicBodyTraitRegistry() {}
@@ -54,6 +48,15 @@ public final class BionicBodyTraitRegistry {
 	}
 
 	private static void onTagsUpdated(TagsUpdatedEvent event) {
+		invalidateCache();
+	}
+
+	static void replaceData(DataOverrides data) {
+		DATA = data;
+		invalidateCache();
+	}
+
+	private static void invalidateCache() {
 		DETECTED.clear();
 		GENERATION.incrementAndGet();
 	}
@@ -112,34 +115,84 @@ public final class BionicBodyTraitRegistry {
 		if (donor == null)
 			return BionicBodyTraits.EMPTY;
 		EntityType<?> type = donor.getType();
+		DataOverrides data = DATA;
 		EnumMap<BionicBodyTrait, Double> traits = new EnumMap<>(BionicBodyTrait.class);
-		put(traits, BionicBodyTrait.FIRE_IMMUNE, type.fireImmune() || donor.fireImmune());
-		put(traits, BionicBodyTrait.WATER_SENSITIVE, donor.isSensitiveToWater());
-		put(traits, BionicBodyTrait.FREEZE_IMMUNE,
-			type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES));
-		put(traits, BionicBodyTrait.FREEZE_VULNERABLE,
-			type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES));
-		put(traits, BionicBodyTrait.SUN_SENSITIVE, type.is(SUN_SENSITIVE));
-		put(traits, BionicBodyTrait.MOISTURE_DEPENDENT, type.is(MOISTURE_DEPENDENT));
-		put(traits, BionicBodyTrait.HEAT_SENSITIVE, type.is(HEAT_SENSITIVE));
-		put(traits, BionicBodyTrait.INVERTED_HEALING, donor.isInvertedHealAndHarm());
-		put(traits, BionicBodyTrait.FALL_DAMAGE_IMMUNE,
-			type.is(MATERIAL_FALL_DAMAGE_IMMUNE));
-		put(traits, BionicBodyTrait.WEB_ADAPTED, type.is(WEB_ADAPTED));
+		if (data.trait(BionicBodyTrait.FIRE_IMMUNE).automaticDetection())
+			put(traits, BionicBodyTrait.FIRE_IMMUNE, type.fireImmune() || donor.fireImmune());
+		if (data.trait(BionicBodyTrait.WATER_SENSITIVE).automaticDetection())
+			put(traits, BionicBodyTrait.WATER_SENSITIVE, donor.isSensitiveToWater());
+		if (data.trait(BionicBodyTrait.FREEZE_IMMUNE).automaticDetection())
+			put(traits, BionicBodyTrait.FREEZE_IMMUNE,
+				type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES));
+		if (data.trait(BionicBodyTrait.FREEZE_VULNERABLE).automaticDetection())
+			put(traits, BionicBodyTrait.FREEZE_VULNERABLE,
+				type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES));
+		if (data.trait(BionicBodyTrait.INVERTED_HEALING).automaticDetection())
+			put(traits, BionicBodyTrait.INVERTED_HEALING, donor.isInvertedHealAndHarm());
 
 		Set<ResourceLocation> immuneEffects = new HashSet<>();
-		BuiltInRegistries.MOB_EFFECT.holders().forEach(effect -> {
-			try {
-				if (!donor.canBeAffected(new MobEffectInstance(effect, 20)))
-					immuneEffects.add(effect.key().location());
-			} catch (RuntimeException exception) {
-				LOGGER.debug("Could not probe {} effect immunity for {}", effect.key().location(),
-					BuiltInRegistries.ENTITY_TYPE.getKey(type), exception);
-			}
-		});
-		AttributeInstance armor = donor.getAttribute(Attributes.ARMOR);
-		double naturalArmor = armor == null ? 0.0d : armor.getBaseValue();
+		if (data.immuneEffects().automaticDetection())
+			BuiltInRegistries.MOB_EFFECT.holders().forEach(effect -> {
+				try {
+					if (!donor.canBeAffected(new MobEffectInstance(effect, 20)))
+						immuneEffects.add(effect.key().location());
+				} catch (RuntimeException exception) {
+					LOGGER.debug("Could not probe {} effect immunity for {}", effect.key().location(),
+						BuiltInRegistries.ENTITY_TYPE.getKey(type), exception);
+				}
+			});
+
+		double naturalArmor = 0.0d;
+		if (data.naturalArmor().automaticDetection()) {
+			AttributeInstance armor = donor.getAttribute(Attributes.ARMOR);
+			naturalArmor = armor == null ? 0.0d : armor.getBaseValue();
+		}
+
+		for (BionicBodyTrait trait : BionicBodyTrait.values())
+			applyTrait(data.trait(trait), type, traits, trait);
+		applyEffects(data.immuneEffects(), type, immuneEffects);
+		naturalArmor = applyArmor(data.naturalArmor(), type, naturalArmor);
 		return new BionicBodyTraits(traits, immuneEffects, naturalArmor);
+	}
+
+	private static void applyTrait(TraitOverrides overrides, EntityType<?> type,
+		EnumMap<BionicBodyTrait, Double> traits, BionicBodyTrait trait) {
+		for (TaggedBooleanOverride tagged : overrides.tags())
+			if (type.is(tagged.tag()))
+				setTrait(traits, trait, tagged.value());
+		Boolean exact = overrides.entityTypes().get(BuiltInRegistries.ENTITY_TYPE.getKey(type));
+		if (exact != null)
+			setTrait(traits, trait, exact);
+	}
+
+	private static void applyEffects(EffectOverrides overrides, EntityType<?> type,
+		Set<ResourceLocation> immuneEffects) {
+		for (TaggedEffectOverride tagged : overrides.tags())
+			if (type.is(tagged.tag()))
+				applyEffects(tagged.values(), immuneEffects);
+		Map<ResourceLocation, Boolean> exact =
+			overrides.entityTypes().get(BuiltInRegistries.ENTITY_TYPE.getKey(type));
+		if (exact != null)
+			applyEffects(exact, immuneEffects);
+	}
+
+	private static void applyEffects(Map<ResourceLocation, Boolean> values,
+		Set<ResourceLocation> immuneEffects) {
+		values.forEach((effect, enabled) -> {
+			if (enabled)
+				immuneEffects.add(effect);
+			else
+				immuneEffects.remove(effect);
+		});
+	}
+
+	private static double applyArmor(ArmorOverrides overrides, EntityType<?> type,
+		double naturalArmor) {
+		for (TaggedArmorOverride tagged : overrides.tags())
+			if (type.is(tagged.tag()))
+				naturalArmor = tagged.value();
+		Double exact = overrides.entityTypes().get(BuiltInRegistries.ENTITY_TYPE.getKey(type));
+		return exact == null ? naturalArmor : exact;
 	}
 
 	private static void put(EnumMap<BionicBodyTrait, Double> traits, BionicBodyTrait trait,
@@ -148,7 +201,70 @@ public final class BionicBodyTraitRegistry {
 			traits.put(trait, 1.0d);
 	}
 
-	private static TagKey<EntityType<?>> tag(String path) {
-		return TagKey.create(Registries.ENTITY_TYPE, CreateBiotech.asResource(path));
+	private static void setTrait(EnumMap<BionicBodyTrait, Double> traits, BionicBodyTrait trait,
+		boolean enabled) {
+		if (enabled)
+			traits.put(trait, 1.0d);
+		else
+			traits.remove(trait);
+	}
+
+	record TraitOverrides(boolean automaticDetection,
+		Map<ResourceLocation, Boolean> entityTypes, List<TaggedBooleanOverride> tags) {
+		private static final TraitOverrides AUTO = new TraitOverrides(true, Map.of(), List.of());
+
+		TraitOverrides {
+			entityTypes = Map.copyOf(entityTypes);
+			tags = List.copyOf(tags);
+		}
+	}
+
+	record TaggedBooleanOverride(TagKey<EntityType<?>> tag, boolean value) {}
+
+	record EffectOverrides(boolean automaticDetection,
+		Map<ResourceLocation, Map<ResourceLocation, Boolean>> entityTypes,
+		List<TaggedEffectOverride> tags) {
+		private static final EffectOverrides AUTO = new EffectOverrides(true, Map.of(), List.of());
+
+		EffectOverrides {
+			Map<ResourceLocation, Map<ResourceLocation, Boolean>> immutable = new HashMap<>();
+			entityTypes.forEach((entityType, effects) ->
+				immutable.put(entityType, Map.copyOf(effects)));
+			entityTypes = Map.copyOf(immutable);
+			tags = List.copyOf(tags);
+		}
+	}
+
+	record TaggedEffectOverride(TagKey<EntityType<?>> tag,
+		Map<ResourceLocation, Boolean> values) {
+		TaggedEffectOverride {
+			values = Map.copyOf(values);
+		}
+	}
+
+	record ArmorOverrides(boolean automaticDetection,
+		Map<ResourceLocation, Double> entityTypes, List<TaggedArmorOverride> tags) {
+		private static final ArmorOverrides AUTO = new ArmorOverrides(true, Map.of(), List.of());
+
+		ArmorOverrides {
+			entityTypes = Map.copyOf(entityTypes);
+			tags = List.copyOf(tags);
+		}
+	}
+
+	record TaggedArmorOverride(TagKey<EntityType<?>> tag, double value) {}
+
+	record DataOverrides(Map<BionicBodyTrait, TraitOverrides> traits,
+		EffectOverrides immuneEffects, ArmorOverrides naturalArmor) {
+		private static final DataOverrides EMPTY =
+			new DataOverrides(Map.of(), EffectOverrides.AUTO, ArmorOverrides.AUTO);
+
+		DataOverrides {
+			traits = Map.copyOf(traits);
+		}
+
+		TraitOverrides trait(BionicBodyTrait trait) {
+			return traits.getOrDefault(trait, TraitOverrides.AUTO);
+		}
 	}
 }

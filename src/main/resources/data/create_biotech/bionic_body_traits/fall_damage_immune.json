@@ -1,0 +1,10 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:magma_cube": true,
+    "minecraft:iron_golem": true,
+    "minecraft:snow_golem": true,
+    "minecraft:shulker": true,
+    "minecraft:breeze": true
+  }
+}

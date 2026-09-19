@@ -1,0 +1,7 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:axolotl": true,
+    "minecraft:dolphin": true
+  }
+}
