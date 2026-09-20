@@ -305,13 +305,22 @@ def copy_mod_jar(mods_dir: Path) -> Path:
                 existing.unlink()
             except PermissionError:
                 print(f"[WARN] Could not remove locked mod jar: {existing}")
+
+    # Never expose a partially copied archive to a concurrently starting game. Each launcher uses
+    # its own staging name, and os.replace publishes the complete jar in one filesystem operation.
+    staged_destination = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+    )
     try:
-        shutil.copy2(jar_path, destination)
+        shutil.copy2(jar_path, staged_destination)
+        os.replace(staged_destination, destination)
     except PermissionError:
         if destination.exists():
             print(f"[WARN] Reusing locked mod jar: {destination}")
         else:
             raise
+    finally:
+        staged_destination.unlink(missing_ok=True)
     return destination
 
 

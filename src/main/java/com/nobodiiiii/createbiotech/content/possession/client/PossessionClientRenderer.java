@@ -36,6 +36,7 @@ import net.minecraft.world.entity.player.Player;
 /** Draws a player through the renderer of the currently possessed body. */
 public final class PossessionClientRenderer {
 	private static final float NORMAL_ARM_LENGTH = 12.0f / 16.0f;
+	private static final float MAX_ARM_LENGTH = 16.0f / 16.0f;
 	private static final float NORMAL_ARM_CENTER_X = 6.0f / 16.0f;
 	private static final Map<Player, CachedBody> BODY_CACHE = new WeakHashMap<>();
 	private static final List<String> RIGHT_LOWER_ARM_NAMES = List.of(
@@ -181,8 +182,10 @@ public final class PossessionClientRenderer {
 		if (bounds == null)
 			return;
 		float centerX = side == HumanoidArm.RIGHT ? -NORMAL_ARM_CENTER_X : NORMAL_ARM_CENTER_X;
+		float visibleLength = Math.max(NORMAL_ARM_LENGTH,
+			Math.min(MAX_ARM_LENGTH, bounds.sizeY()));
 		part.x = (centerX - bounds.centerX()) * 16.0f;
-		part.y = (NORMAL_ARM_LENGTH - bounds.maxY()) * 16.0f;
+		part.y = (visibleLength - bounds.maxY()) * 16.0f;
 		part.z = -bounds.centerZ() * 16.0f;
 		part.xRot = 0.0f;
 		part.yRot = 0.0f;

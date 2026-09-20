@@ -91,8 +91,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		FirstPersonArms arms = FIRST_PERSON_ARMS.get(entity);
 		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceState.sourceStates) {
 			arms = new FirstPersonArms(assembly, sourceState.sourceStates,
-				measureFirstPersonArm(assembly, sourceState, false, packedLight, partialTick),
-				measureFirstPersonArm(assembly, sourceState, true, packedLight, partialTick));
+				measureFirstPersonArm(assembly, sourceState, false),
+				measureFirstPersonArm(assembly, sourceState, true));
 			FIRST_PERSON_ARMS.put(entity, arms);
 		}
 
@@ -101,13 +101,16 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			return false;
 		EntityGeometry.Bounds bounds = arm.bounds;
 		float anchorX = side == HumanoidArm.RIGHT ? -6.0f / 16.0f : 6.0f / 16.0f;
+		float visibleLength = Mth.clamp(bounds.sizeY(), 12.0f / 16.0f, 16.0f / 16.0f);
 		poseStack.pushPose();
-		// Re-anchor the distal end at a normal 12-pixel player hand. Any extra proximal length
-		// continues toward negative local Y, which keeps it outside the first-person viewport.
-		poseStack.translate(anchorX - bounds.centerX(), 12.0f / 16.0f + bounds.minY(),
+		// Keep 12-16 pixels visible and move any extra proximal length outside the viewport.
+		poseStack.translate(anchorX - bounds.centerX(), visibleLength + bounds.minY(),
 			bounds.centerZ());
 		poseStack.scale(1.0f, -1.0f, -1.0f);
-		renderFirstPersonSources(assembly, sourceState, arm.cubes, poseStack, buffer,
+		// The selected forearm replaces the whole first-person arm at this anchor. It keeps its
+		// captured rest pose and does not inherit the shoulder/elbow animation chain.
+		BodyFrame componentFrame = BodyFrame.of(0.0f, poseStack.last().pose());
+		renderFirstPersonSources(assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
 			packedLight, partialTick);
 		poseStack.popPose();
 		return true;
@@ -149,24 +152,30 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	@Nullable
 	private static FirstPersonArm measureFirstPersonArm(SurgicalAssembly assembly,
-		FirstPersonSourceState sourceState, boolean left, int packedLight, float partialTick) {
-		List<SurgicalAssembly.CombinationMember> members = SlimeBionicAnimator
-			.firstPersonArmMembers(assembly, sourceState.sourceStates, left);
-		if (members.isEmpty())
+		FirstPersonSourceState sourceState, boolean left) {
+		SlimeBionicAnimator.FirstPersonArmSelection selection = SlimeBionicAnimator
+			.firstPersonArm(assembly, sourceState.sourceStates, left);
+		if (selection == null)
 			return null;
 		Map<Integer, BitSet> cubes = new java.util.HashMap<>();
-		for (SurgicalAssembly.CombinationMember member : members)
+		for (SurgicalAssembly.CombinationMember member : selection.members())
 			cubes.computeIfAbsent(member.source(), ignored -> new BitSet()).set(member.cube());
-		EntityGeometry.Collector geometry = EntityGeometry.Collector.boundsOnly();
-		MultiBufferSource measuringBuffer = renderType -> geometry;
-		renderFirstPersonSources(assembly, sourceState, cubes, new PoseStack(), measuringBuffer,
-			packedLight, partialTick);
-		return geometry.hasVertices() ? new FirstPersonArm(cubes, geometry.bounds()) : null;
+		SurgicalAssembly.CombinationMember anchor = selection.anchor();
+		if (anchor.source() < 0 || anchor.source() >= sourceState.sourceStates.size())
+			return null;
+		SlimeBionicAnimator.CubeBox anchorBox = sourceState.sourceStates.get(anchor.source())
+			.boxes().get(anchor.cube());
+		if (anchorBox == null)
+			return null;
+		EntityGeometry.Bounds anchorBounds = new EntityGeometry.Bounds();
+		for (Vec3 point : anchorBox.points())
+			anchorBounds.include((float) point.x, (float) point.y, (float) point.z);
+		return anchorBounds.hasVertices() ? new FirstPersonArm(cubes, anchorBounds) : null;
 	}
 
 	private static void renderFirstPersonSources(SurgicalAssembly assembly,
-		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, PoseStack poseStack,
-		MultiBufferSource buffer, int packedLight, float partialTick) {
+		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, BodyFrame componentFrame,
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick) {
 		poseStack.pushPose();
 		if (sourceState.composite)
 			SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
@@ -186,7 +195,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			}
 			SurgicalSourceModelRenderer.render(preview, source.cubeCount(), selected,
-				sourceState.offsets.get(sourceIndex), sourceState.rotations.get(sourceIndex),
+				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
+				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
 				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true);
 			poseStack.popPose();
 		}

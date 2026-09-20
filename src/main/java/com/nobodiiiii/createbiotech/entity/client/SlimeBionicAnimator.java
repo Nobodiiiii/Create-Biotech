@@ -263,7 +263,8 @@ public final class SlimeBionicAnimator {
 	 * Selects one real arm on the requested side for first-person rendering. When that shoulder owns
 	 * an elbow, only the elbow's driven group is returned so the upper arm stays outside the view.
 	 */
-	public static List<SurgicalAssembly.CombinationMember> firstPersonArmMembers(
+	@Nullable
+	public static FirstPersonArmSelection firstPersonArm(
 		SurgicalAssembly assembly, List<SourceState> sources, boolean left) {
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
 		int shoulderIndex = -1;
@@ -277,7 +278,7 @@ public final class SlimeBionicAnimator {
 			lowestSlot = limb.arm().slot();
 		}
 		if (shoulderIndex < 0)
-			return List.of();
+			return null;
 
 		ResolvedLimb selected = limbs.get(shoulderIndex);
 		for (ResolvedLimb candidate : limbs)
@@ -286,9 +287,11 @@ public final class SlimeBionicAnimator {
 				selected = candidate;
 				break;
 			}
-		return selected.members().stream()
+		List<SurgicalAssembly.CombinationMember> members = selected.members().stream()
 			.map(member -> new SurgicalAssembly.CombinationMember(member.source(), member.cube()))
 			.toList();
+		return new FirstPersonArmSelection(members,
+			new SurgicalAssembly.CombinationMember(selected.anchor().source(), selected.anchor().cube()));
 	}
 
 	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
@@ -414,7 +417,8 @@ public final class SlimeBionicAnimator {
 			CubeBox parent = box(sources, connection.parent());
 			if (child == null || parent == null)
 				continue;
-			geometries.add(new LimbGeometry(limb.type(), childMembers, connection.parent(), child, parent));
+			geometries.add(new LimbGeometry(limb.type(), childMembers, selectedChild,
+				connection.parent(), child, parent));
 		}
 
 		List<ResolvedLimb> resolved = new ArrayList<>(geometries.size());
@@ -431,8 +435,8 @@ public final class SlimeBionicAnimator {
 			// heads as well; aligning it to an off-centre head's rest direction would tilt horizontal yaw.
 			SurgicalCubeRotation restAlignment = geometry.type() == SurgicalLimbType.NECK
 				? SurgicalCubeRotation.IDENTITY : BODY_SPACE.restAlignment(geometry.type(), restDirection);
-			resolved.add(new ResolvedLimb(geometry.type(), geometry.members(), geometry.parent(), pivot,
-				restDirection,
+			resolved.add(new ResolvedLimb(geometry.type(), geometry.members(), geometry.anchor(),
+				geometry.parent(), pivot, restDirection,
 				BODY_SPACE.project(geometry.child().center(), AXIS_X) - bodyCenterX,
 				BODY_SPACE.project(geometry.child().center(), AXIS_Z),
 				restAlignment, null, -1, null, null));
@@ -1262,8 +1266,8 @@ public final class SlimeBionicAnimator {
 
 	private record Member(int source, int cube) {}
 	private record Connection(Member child, Member parent) {}
-	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member parent,
-		CubeBox child, CubeBox parentBox) {}
+	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member anchor,
+		Member parent, CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
 	private record ArmChannel(boolean left, int slot, float phase) {}
 	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
@@ -1276,28 +1280,28 @@ public final class SlimeBionicAnimator {
 		public static final MobilityMetrics EMPTY = new MobilityMetrics(0.0f, 0, 0, 0.0f);
 	}
 
-	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member parent,
+	private record ResolvedLimb(SurgicalLimbType type, List<Member> members, Member anchor, Member parent,
 		Vec3 pivot, Vec3 restDirection, double side, double longitudinal,
 		SurgicalCubeRotation restAlignment,
 		@Nullable Bone bone, int parentIndex, @Nullable ArmChannel arm,
 		@Nullable GaitChannel gait) {
 		private ResolvedLimb withBone(@Nullable Bone bone) {
-			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+			return new ResolvedLimb(type, members, anchor, parent, pivot, restDirection, side, longitudinal,
 				restAlignment, bone, parentIndex, arm, gait);
 		}
 
 		private ResolvedLimb withParent(int parentIndex) {
-			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+			return new ResolvedLimb(type, members, anchor, parent, pivot, restDirection, side, longitudinal,
 				restAlignment, bone, parentIndex, arm, gait);
 		}
 
 		private ResolvedLimb withArm(@Nullable ArmChannel arm) {
-			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+			return new ResolvedLimb(type, members, anchor, parent, pivot, restDirection, side, longitudinal,
 				restAlignment, bone, parentIndex, arm, gait);
 		}
 
 		private ResolvedLimb withGait(GaitChannel gait) {
-			return new ResolvedLimb(type, members, parent, pivot, restDirection, side, longitudinal,
+			return new ResolvedLimb(type, members, anchor, parent, pivot, restDirection, side, longitudinal,
 				restAlignment, bone, parentIndex, arm, gait);
 		}
 	}
@@ -1326,6 +1330,14 @@ public final class SlimeBionicAnimator {
 	/** The rest state of one source, exactly as the visible render receives it. */
 	public record SourceState(Map<Integer, CubeBox> boxes, Map<Integer, Vec3> offsets,
 		Map<Integer, SurgicalCubeRotation> rotations) {}
+
+	/** One articulated arm group plus the anatomical cube that occupies the first-person arm slot. */
+	public record FirstPersonArmSelection(List<SurgicalAssembly.CombinationMember> members,
+		SurgicalAssembly.CombinationMember anchor) {
+		public FirstPersonArmSelection {
+			members = List.copyOf(members);
+		}
+	}
 
 	/** One source's cube transforms for the current frame, in the yaw-zero body frame. */
 	public record Frame(Map<Integer, Vec3> offsets, Map<Integer, SurgicalCubeRotation> rotations) {
