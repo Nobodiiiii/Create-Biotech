@@ -36,6 +36,6 @@ public final class SurgicalKitClientHandler {
 			? InteractionHand.MAIN_HAND
 			: SurgicalKitItem.isKit(player.getOffhandItem()) ? InteractionHand.OFF_HAND : null;
 		if (hand != null)
-			ScreenOpener.open(new SurgicalKitRadialScreen(hand));
+			ScreenOpener.open(new SurgicalKitRadialScreen(hand, player.getItemInHand(hand)));
 	}
 }

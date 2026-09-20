@@ -7,7 +7,6 @@ import com.nobodiiiii.createbiotech.client.CBKeyMappings;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitSelectionPacket;
 import com.nobodiiiii.createbiotech.network.CBPackets;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.simibubi.create.foundation.gui.AllGuiTextures;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -19,22 +18,27 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 
-/** A toolbox-styled twelve-slot wheel containing every existing surgical-table tool. */
+/** A toolbox-styled wheel containing the tools supplied by the held surgical kit. */
 public class SurgicalKitRadialScreen extends AbstractSimiScreen {
-	private static final SurgicalKitItem.Tool[] TOOLS = SurgicalKitItem.Tool.values();
-	private static final double SLOT_ANGLE = 360.0d / TOOLS.length;
 	private static final double INNER_RADIUS_SQR = 24.0d * 24.0d;
 	private static final double OUTER_RADIUS_SQR = 82.0d * 82.0d;
 
 	private final InteractionHand hand;
+	private final Item kitItem;
+	private final SurgicalKitItem.Tool[] tools;
+	private final double slotAngle;
 	private int ticksOpen;
 	private int hoveredSlot = -1;
 	private boolean committed;
 
-	public SurgicalKitRadialScreen(InteractionHand hand) {
+	public SurgicalKitRadialScreen(InteractionHand hand, ItemStack stack) {
 		this.hand = hand;
+		kitItem = stack.getItem();
+		tools = SurgicalKitItem.availableTools(stack).toArray(SurgicalKitItem.Tool[]::new);
+		slotAngle = 360.0d / tools.length;
 	}
 
 	@Override
@@ -51,22 +55,22 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 		poseStack.pushPose();
 		poseStack.translate(width / 2.0f, height / 2.0f, 0.0f);
 		double radius = 54.0d - 10.0d * (1.0d - fade) * (1.0d - fade);
-		for (int slot = 0; slot < TOOLS.length; slot++) {
-			double angle = Math.toRadians(slot * SLOT_ANGLE - 90.0d);
+		for (int slot = 0; slot < tools.length; slot++) {
+			double angle = Math.toRadians(slot * slotAngle - 90.0d);
 			int x = Mth.floor(Math.cos(angle) * radius) - 12;
 			int y = Mth.floor(Math.sin(angle) * radius) - 12;
 			AllGuiTextures.TOOLBELT_SLOT.render(graphics, x, y);
-			GuiGameElement.of(TOOLS[slot].displayStack()).at(x + 3, y + 3).render(graphics);
+			GuiGameElement.of(tools[slot].displayStack()).at(x + 3, y + 3).render(graphics);
 			if (slot == hoveredSlot)
 				AllGuiTextures.TOOLBELT_SLOT_HIGHLIGHT.render(graphics, x - 1, y - 1);
 		}
 
 		AllGuiTextures.TOOLBELT_SLOT.render(graphics, -12, -12);
-		GuiGameElement.of(new ItemStack(CBItems.SURGICAL_KIT.get())).at(-9, -9).render(graphics);
+		GuiGameElement.of(new ItemStack(kitItem)).at(-9, -9).render(graphics);
 		poseStack.popPose();
 
 		Component tip = hoveredSlot >= 0
-			? TOOLS[hoveredSlot].displayName().copy().withStyle(ChatFormatting.GOLD)
+			? tools[hoveredSlot].displayName().copy().withStyle(ChatFormatting.GOLD)
 			: Component.translatable("item.create_biotech.surgical_kit.radial_hint",
 				Component.keybind(SurgicalKitItem.OPEN_KEY_TRANSLATION))
 				.withStyle(ChatFormatting.GRAY);
@@ -91,7 +95,7 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	@Override
 	public void tick() {
 		ticksOpen++;
-		if (minecraft.player == null || !SurgicalKitItem.isKit(minecraft.player.getItemInHand(hand))) {
+		if (minecraft.player == null || !minecraft.player.getItemInHand(hand).is(kitItem)) {
 			onClose();
 			return;
 		}
@@ -125,14 +129,14 @@ public class SurgicalKitRadialScreen extends AbstractSimiScreen {
 	private int hoveredSlot(double x, double y) {
 		double fromTop = Math.toDegrees(Math.atan2(y, x)) + 90.0d;
 		fromTop = (fromTop % 360.0d + 360.0d) % 360.0d;
-		return Mth.floor((fromTop + SLOT_ANGLE / 2.0d) / SLOT_ANGLE) % TOOLS.length;
+		return Mth.floor((fromTop + slotAngle / 2.0d) / slotAngle) % tools.length;
 	}
 
 	private void commitAndClose() {
 		if (!committed && hoveredSlot >= 0 && minecraft.player != null) {
 			ItemStack kit = minecraft.player.getItemInHand(hand);
 			if (SurgicalKitItem.isKit(kit)) {
-				SurgicalKitItem.Tool selected = TOOLS[hoveredSlot];
+				SurgicalKitItem.Tool selected = tools[hoveredSlot];
 				SurgicalKitItem.setSelectedTool(kit, selected);
 				CBPackets.sendToServer(new SurgicalKitSelectionPacket(hand, selected));
 			}

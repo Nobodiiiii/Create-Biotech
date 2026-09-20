@@ -1,17 +1,13 @@
 package com.nobodiiiii.createbiotech.content.slimemimic;
 
-import java.util.List;
-
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -19,19 +15,14 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.LootTable;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
@@ -40,8 +31,6 @@ public final class SlimeMimicHandler {
 	public static final String SLIME_MIMIC_TAG = "CreateBiotechSlimeMimic";
 	public static final String HAUNT_PROGRESS_TAG = "CreateBiotechHaunting";
 	public static final String HAUNTED_MIMIC_TAG = "CreateBiotechHauntedMimic";
-	private static final ResourceKey<LootTable> VANILLA_SLIME_LOOT_TABLE = ResourceKey.create(Registries.LOOT_TABLE,
-		ResourceLocation.fromNamespaceAndPath("minecraft", "entities/slime"));
 
 	private SlimeMimicHandler() {
 	}
@@ -55,10 +44,19 @@ public final class SlimeMimicHandler {
 	}
 
 	public static void setSlimeMimic(LivingEntity entity, boolean slimeMimic) {
+		setSlimeMimic(entity, slimeMimic, true);
+	}
+
+	/** Used by explicit creative tools which must not be limited by the survival entity lists. */
+	public static void forceSetSlimeMimic(LivingEntity entity, boolean slimeMimic) {
+		setSlimeMimic(entity, slimeMimic, false);
+	}
+
+	private static void setSlimeMimic(LivingEntity entity, boolean slimeMimic, boolean respectEntityList) {
 		boolean wasSlimeMimic = isSlimeMimic(entity);
 		if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager villager && !slimeMimic)
 			SlimeMimicVillagerTrades.restoreOriginalOffers(villager);
-		if (slimeMimic && !canBecomeSlimeMimic(entity)) {
+		if (slimeMimic && respectEntityList && !canBecomeSlimeMimic(entity)) {
 			slimeMimic = false;
 		}
 		if (entity instanceof SlimeMimicAccess access)
@@ -153,55 +151,10 @@ public final class SlimeMimicHandler {
 		setSlimeMimic(mimic, false);
 	}
 
-	@SubscribeEvent
+	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDrops(LivingDropsEvent event) {
-		if (!isSlimeMimic(event.getEntity()))
-			return;
-		if (!CBConfigs.SERVER.slimeMimic.replaceDropsWithSlime.get())
-			return;
-
-		LivingEntity entity = event.getEntity();
-		if (!(entity.level() instanceof net.minecraft.server.level.ServerLevel serverLevel))
-			return;
-
-		Vec3 origin = entity.position();
-		if (!event.getDrops().isEmpty()) {
-			ItemEntity firstDrop = event.getDrops().iterator().next();
-			origin = new Vec3(firstDrop.getX(), firstDrop.getY(), firstDrop.getZ());
-		}
-		Vec3 dropVelocity = event.getDrops().isEmpty() ? Vec3.ZERO : event.getDrops().iterator().next().getDeltaMovement();
-
-		LootParams.Builder lootParams = new LootParams.Builder(serverLevel)
-			.withParameter(LootContextParams.THIS_ENTITY, entity)
-			.withParameter(LootContextParams.ORIGIN, origin)
-			.withParameter(LootContextParams.DAMAGE_SOURCE, event.getSource());
-
-		Entity attacker = event.getSource().getEntity();
-		if (attacker != null)
-			lootParams.withOptionalParameter(LootContextParams.ATTACKING_ENTITY, attacker);
-
-		Entity directAttacker = event.getSource().getDirectEntity();
-		if (directAttacker != null)
-			lootParams.withOptionalParameter(LootContextParams.DIRECT_ATTACKING_ENTITY, directAttacker);
-
-		Player player = entity.getKillCredit() instanceof Player killCreditPlayer ? killCreditPlayer : null;
-		if (player != null)
-			lootParams.withOptionalParameter(LootContextParams.LAST_DAMAGE_PLAYER, player);
-
-		List<ItemStack> slimeDrops = serverLevel.getServer()
-			.reloadableRegistries()
-			.getLootTable(VANILLA_SLIME_LOOT_TABLE)
-			.getRandomItems(lootParams.create(LootContextParamSets.ENTITY));
-
-		event.getDrops().clear();
-		for (ItemStack stack : slimeDrops) {
-			if (stack.isEmpty())
-				continue;
-			ItemEntity slimeDrop =
-				new ItemEntity(entity.level(), origin.x(), origin.y(), origin.z(), stack.copy());
-			slimeDrop.setDeltaMovement(dropVelocity);
-			event.getDrops().add(slimeDrop);
-		}
+		if (isSlimeMimic(event.getEntity()) || event.getEntity() instanceof SlimeBionicEntity)
+			event.getDrops().clear();
 	}
 
 	private static int getHauntCycleTicks() {

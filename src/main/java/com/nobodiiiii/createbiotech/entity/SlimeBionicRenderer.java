@@ -76,7 +76,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		SlimeBionicAttackRangeRenderer.clearCache();
 	}
 
-	/** Renders only a genuine arm chain; an elbow narrows the selection to its forearm group. */
+	/** Renders one genuine arm chain, including both upper arm and forearm when an elbow is present. */
 	public boolean renderFirstPersonArm(SlimeBionicEntity entity, HumanoidArm side,
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
 		SurgicalAssembly assembly = entity.getAssembly();
@@ -103,12 +103,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		float anchorX = side == HumanoidArm.RIGHT ? -6.0f / 16.0f : 6.0f / 16.0f;
 		float visibleLength = Mth.clamp(bounds.sizeY(), 12.0f / 16.0f, 16.0f / 16.0f);
 		poseStack.pushPose();
-		// Keep 12-16 pixels visible and move any extra proximal length outside the viewport.
+		// Position the complete arm chain as one unit and move any length beyond 16 pixels outside
+		// the viewport.
 		poseStack.translate(anchorX - bounds.centerX(), visibleLength + bounds.minY(),
 			bounds.centerZ());
 		poseStack.scale(1.0f, -1.0f, -1.0f);
-		// The selected forearm replaces the whole first-person arm at this anchor. It keeps its
-		// captured rest pose and does not inherit the shoulder/elbow animation chain.
+		// The selected chain keeps its captured rest pose and does not inherit the world-view
+		// shoulder/elbow animation.
 		BodyFrame componentFrame = BodyFrame.of(0.0f, poseStack.last().pose());
 		renderFirstPersonSources(assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
 			packedLight, partialTick);
@@ -160,17 +161,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		Map<Integer, BitSet> cubes = new java.util.HashMap<>();
 		for (SurgicalAssembly.CombinationMember member : selection.members())
 			cubes.computeIfAbsent(member.source(), ignored -> new BitSet()).set(member.cube());
-		SurgicalAssembly.CombinationMember anchor = selection.anchor();
-		if (anchor.source() < 0 || anchor.source() >= sourceState.sourceStates.size())
-			return null;
-		SlimeBionicAnimator.CubeBox anchorBox = sourceState.sourceStates.get(anchor.source())
-			.boxes().get(anchor.cube());
-		if (anchorBox == null)
-			return null;
-		EntityGeometry.Bounds anchorBounds = new EntityGeometry.Bounds();
-		for (Vec3 point : anchorBox.points())
-			anchorBounds.include((float) point.x, (float) point.y, (float) point.z);
-		return anchorBounds.hasVertices() ? new FirstPersonArm(cubes, anchorBounds) : null;
+		EntityGeometry.Bounds bounds = new EntityGeometry.Bounds();
+		for (SurgicalAssembly.CombinationMember member : selection.members()) {
+			if (member.source() < 0 || member.source() >= sourceState.sourceStates.size())
+				continue;
+			SlimeBionicAnimator.CubeBox box = sourceState.sourceStates.get(member.source())
+				.boxes().get(member.cube());
+			if (box == null)
+				continue;
+			for (Vec3 point : box.points())
+				bounds.include((float) point.x, (float) point.y, (float) point.z);
+		}
+		return bounds.hasVertices() ? new FirstPersonArm(cubes, bounds) : null;
 	}
 
 	private static void renderFirstPersonSources(SurgicalAssembly assembly,

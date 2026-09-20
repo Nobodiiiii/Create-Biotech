@@ -1,0 +1,13 @@
+{
+  "parent": "create_biotech:item/surgical_kit_base",
+  "overrides": [
+    {
+      "predicate": { "create_biotech:surgical_tool": 1.0 },
+      "model": "create_biotech:item/bionic_mechanism"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 2.0 },
+      "model": "minecraft:item/potion"
+    }
+  ]
+}

@@ -43,8 +43,6 @@ public final class PossessionClientRenderer {
 		"right_forearm", "right_lower_arm", "right_arm_lower");
 	private static final List<String> LEFT_LOWER_ARM_NAMES = List.of(
 		"left_forearm", "left_lower_arm", "left_arm_lower");
-	private static final List<String> GENERIC_LOWER_ARM_NAMES = List.of(
-		"forearm", "lower_arm", "arm_lower");
 
 	private PossessionClientRenderer() {}
 
@@ -103,8 +101,7 @@ public final class PossessionClientRenderer {
 
 		ResourceLocation texture = renderer.getTextureLocation(body);
 		VertexConsumer vertices = buffer.getBuffer(model.renderType(texture));
-		for (ModelPart part : parts)
-			renderAtPlayerArmAnchor(part, side, poseStack, vertices, packedLight);
+		renderAtPlayerArmAnchor(parts, side, poseStack, vertices, packedLight);
 		return true;
 	}
 
@@ -136,27 +133,32 @@ public final class PossessionClientRenderer {
 		}
 		if (model instanceof HumanoidModel<?> humanoid) {
 			ModelPart arm = side == HumanoidArm.RIGHT ? humanoid.rightArm : humanoid.leftArm;
-			return List.of(distalArmPart(arm, side));
+			return List.of(arm);
 		}
 		if (!(model instanceof HierarchicalModel<?> hierarchical))
 			return List.of();
 
-		ModelPart lowerArm = namedDescendant(hierarchical.root(),
-			side == HumanoidArm.RIGHT ? RIGHT_LOWER_ARM_NAMES : LEFT_LOWER_ARM_NAMES);
-		if (lowerArm != null)
-			return List.of(lowerArm);
 		ModelPart arm = hierarchical.getAnyDescendantWithName(
 			side == HumanoidArm.RIGHT ? "right_arm" : "left_arm").orElse(null);
-		return arm == null ? List.of() : List.of(distalArmPart(arm, side));
+		ModelPart lowerArm = namedDescendant(hierarchical.root(),
+			side == HumanoidArm.RIGHT ? RIGHT_LOWER_ARM_NAMES : LEFT_LOWER_ARM_NAMES);
+		if (arm != null) {
+			if (lowerArm == null || containsPart(arm, lowerArm))
+				return List.of(arm);
+			return List.of(arm, lowerArm);
+		}
+		if (lowerArm != null)
+			return List.of(lowerArm);
+		return List.of();
 	}
 
-	private static ModelPart distalArmPart(ModelPart arm, HumanoidArm side) {
-		List<String> sidedNames = side == HumanoidArm.RIGHT
-			? RIGHT_LOWER_ARM_NAMES : LEFT_LOWER_ARM_NAMES;
-		ModelPart lowerArm = namedDescendant(arm, sidedNames);
-		if (lowerArm == null)
-			lowerArm = namedDescendant(arm, GENERIC_LOWER_ARM_NAMES);
-		return lowerArm == null ? arm : lowerArm;
+	private static boolean containsPart(ModelPart root, ModelPart target) {
+		if (root == target)
+			return true;
+		for (ModelPart child : ((ModelPartAccessor) (Object) root).createBiotech$getChildren().values())
+			if (containsPart(child, target))
+				return true;
+		return false;
 	}
 
 	private static ModelPart namedDescendant(ModelPart root, List<String> names) {
@@ -175,47 +177,43 @@ public final class PossessionClientRenderer {
 		return null;
 	}
 
-	private static void renderAtPlayerArmAnchor(ModelPart part, HumanoidArm side, PoseStack poseStack,
+	private static void renderAtPlayerArmAnchor(List<ModelPart> parts, HumanoidArm side, PoseStack poseStack,
 		VertexConsumer vertices, int packedLight) {
-		PartState saved = PartState.capture(part);
-		EntityGeometry.Bounds bounds = measureAtOrigin(part);
-		if (bounds == null)
-			return;
-		float centerX = side == HumanoidArm.RIGHT ? -NORMAL_ARM_CENTER_X : NORMAL_ARM_CENTER_X;
-		float visibleLength = Math.max(NORMAL_ARM_LENGTH,
-			Math.min(MAX_ARM_LENGTH, bounds.sizeY()));
-		part.x = (centerX - bounds.centerX()) * 16.0f;
-		part.y = (visibleLength - bounds.maxY()) * 16.0f;
-		part.z = -bounds.centerZ() * 16.0f;
-		part.xRot = 0.0f;
-		part.yRot = 0.0f;
-		part.zRot = 0.0f;
-		part.visible = true;
-		part.skipDraw = false;
+		List<PartState> saved = parts.stream().map(PartState::capture).toList();
+		for (ModelPart part : parts) {
+			part.xRot = 0.0f;
+			part.yRot = 0.0f;
+			part.zRot = 0.0f;
+			part.visible = true;
+			part.skipDraw = false;
+		}
 		try {
-			part.render(poseStack, vertices, packedLight, OverlayTexture.NO_OVERLAY);
+			EntityGeometry.Bounds bounds = measure(parts);
+			if (bounds == null)
+				return;
+			float centerX = side == HumanoidArm.RIGHT ? -NORMAL_ARM_CENTER_X : NORMAL_ARM_CENTER_X;
+			float visibleLength = Math.max(NORMAL_ARM_LENGTH,
+				Math.min(MAX_ARM_LENGTH, bounds.sizeY()));
+			poseStack.pushPose();
+			try {
+				poseStack.translate(centerX - bounds.centerX(), visibleLength - bounds.maxY(),
+					-bounds.centerZ());
+				for (ModelPart part : parts)
+					part.render(poseStack, vertices, packedLight, OverlayTexture.NO_OVERLAY);
+			} finally {
+				poseStack.popPose();
+			}
 		} finally {
-			saved.restore(part);
+			for (int index = 0; index < parts.size(); index++)
+				saved.get(index).restore(parts.get(index));
 		}
 	}
 
-	private static EntityGeometry.Bounds measureAtOrigin(ModelPart part) {
-		PartState saved = PartState.capture(part);
-		part.x = 0.0f;
-		part.y = 0.0f;
-		part.z = 0.0f;
-		part.xRot = 0.0f;
-		part.yRot = 0.0f;
-		part.zRot = 0.0f;
-		part.visible = true;
-		part.skipDraw = false;
+	private static EntityGeometry.Bounds measure(List<ModelPart> parts) {
 		EntityGeometry.Collector geometry = EntityGeometry.Collector.boundsOnly();
-		try {
+		for (ModelPart part : parts)
 			part.render(new PoseStack(), geometry, LightTexture.FULL_BRIGHT,
 				OverlayTexture.NO_OVERLAY);
-		} finally {
-			saved.restore(part);
-		}
 		return geometry.hasVertices() ? geometry.bounds() : null;
 	}
 

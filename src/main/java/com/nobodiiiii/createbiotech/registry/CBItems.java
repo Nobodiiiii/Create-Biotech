@@ -30,6 +30,7 @@ import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeI
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
+import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgeryGuideItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
@@ -113,6 +114,10 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, SurgicalKitItem> SURGICAL_KIT = ITEMS.register("surgical_kit",
 		() -> new SurgicalKitItem(new Item.Properties().durability(SurgicalKitItem.MAX_DURABILITY)));
+
+	public static final DeferredHolder<Item, CreativeSurgicalKitItem> CREATIVE_SURGICAL_KIT =
+		ITEMS.register("creative_surgical_kit",
+			() -> new CreativeSurgicalKitItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
 
 	public static final DeferredHolder<Item, SurgicalJointItem> NECK_JOINT = ITEMS.register("neck_joint",
 		() -> new SurgicalJointItem(SurgicalLimbType.NECK, new Item.Properties()));

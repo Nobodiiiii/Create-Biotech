@@ -33,16 +33,18 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
 
-/**
- * A durable, surgical-table-only proxy for every tool or consumable used while editing a subject.
- * The selected logical tool is stored on the stack; no actual tool stack is created or consumed.
- */
+/** Base item for kits which store a selected logical tool without creating or consuming its display stack. */
 public class SurgicalKitItem extends Item {
 	public static final int MAX_DURABILITY = 200;
 	public static final String OPEN_KEY_TRANSLATION = "key.create_biotech.surgical_kit";
+	private static final List<Tool> STANDARD_TOOLS = List.of(Tool.SHEARS, Tool.SHOVEL,
+		Tool.SMART_SUPER_GLUE, Tool.HONEY_BOTTLE, Tool.SLIME_BALL, Tool.SYMMETRY_WAND,
+		Tool.WRENCH, Tool.TEMPORARY_BOX);
 	private static final String SELECTED_TOOL_TAG = "SurgicalKitTool";
 	private static final String TEMPORARY_MOVE_TAG = "SurgicalKitTemporaryMove";
 	private static final String MOVE_FORMAT_VERSION_TAG = "Version";
@@ -57,9 +59,17 @@ public class SurgicalKitItem extends Item {
 	private static final String MOVE_SUBJECT_STATE_TAG = "SourceState";
 	private static final String MOVE_ASSEMBLY_TAG = "SourceAssembly";
 	private static final int TEMPORARY_MOVE_VALIDATION_INTERVAL = 20;
+	private final List<Tool> availableTools;
 
 	public SurgicalKitItem(Properties properties) {
+		this(properties, STANDARD_TOOLS);
+	}
+
+	protected SurgicalKitItem(Properties properties, List<Tool> availableTools) {
 		super(properties);
+		if (availableTools == null || availableTools.isEmpty())
+			throw new IllegalArgumentException("A surgical kit must contain at least one tool");
+		this.availableTools = List.copyOf(availableTools);
 	}
 
 	@Override
@@ -102,25 +112,31 @@ public class SurgicalKitItem extends Item {
 
 	@Nullable
 	public static Tool selectedTool(ItemStack stack) {
-		if (!(stack.getItem() instanceof SurgicalKitItem))
+		if (!(stack.getItem() instanceof SurgicalKitItem kit))
 			return null;
 		CompoundTag tag = CBItemData.getReadOnly(stack);
 		if (tag == null || !tag.contains(SELECTED_TOOL_TAG))
 			return null;
-		return Tool.byId(tag.getString(SELECTED_TOOL_TAG));
+		Tool tool = Tool.byId(tag.getString(SELECTED_TOOL_TAG));
+		return kit.availableTools.contains(tool) ? tool : null;
 	}
 
 	public static void setSelectedTool(ItemStack stack, Tool tool) {
-		if (!(stack.getItem() instanceof SurgicalKitItem) || tool == null)
+		if (!(stack.getItem() instanceof SurgicalKitItem kit) || tool == null
+			|| !kit.availableTools.contains(tool))
 			return;
 		CBItemData.edit(stack, tag -> tag.putString(SELECTED_TOOL_TAG, tool.id));
+	}
+
+	public static List<Tool> availableTools(ItemStack stack) {
+		return stack.getItem() instanceof SurgicalKitItem kit ? kit.availableTools : List.of();
 	}
 
 	public static float modelValue(ItemStack stack) {
 		Tool tool = selectedTool(stack);
 		if (tool == null)
 			return 0.0f;
-		float value = tool.ordinal() + 1.0f;
+		float value = availableTools(stack).indexOf(tool) + 1.0f;
 		return tool == Tool.TEMPORARY_BOX && CapturedEntityBoxHelper.hasCapturedEntity(stack)
 			? value + 0.5f : value;
 	}
@@ -295,14 +311,27 @@ public class SurgicalKitItem extends Item {
 		SLIME_BALL("slime_ball", () -> new ItemStack(Items.SLIME_BALL)),
 		SYMMETRY_WAND("symmetry_wand", () -> AllItems.WAND_OF_SYMMETRY.asStack()),
 		WRENCH("wrench", () -> AllItems.WRENCH.asStack()),
-		TEMPORARY_BOX("temporary_box", () -> new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()));
+		TEMPORARY_BOX("temporary_box", () -> new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()),
+			"item.create_biotech.surgical_kit.temporary_box"),
+		MIMIC_INDUCER("mimic_inducer", () -> new ItemStack(CBItems.BIONIC_MECHANISM.get()),
+			"item.create_biotech.creative_surgical_kit.mimic_inducer"),
+		MIMIC_RESTORATIVE("mimic_restorative",
+			() -> PotionContents.createItemStack(Items.POTION, Potions.REGENERATION),
+			"item.create_biotech.creative_surgical_kit.mimic_restorative");
 
 		private final String id;
 		private final Supplier<ItemStack> displayStack;
+		@Nullable
+		private final String displayNameKey;
 
 		Tool(String id, Supplier<ItemStack> displayStack) {
+			this(id, displayStack, null);
+		}
+
+		Tool(String id, Supplier<ItemStack> displayStack, @Nullable String displayNameKey) {
 			this.id = id;
 			this.displayStack = displayStack;
+			this.displayNameKey = displayNameKey;
 		}
 
 		public String id() {
@@ -314,9 +343,7 @@ public class SurgicalKitItem extends Item {
 		}
 
 		public Component displayName() {
-			return this == TEMPORARY_BOX
-				? Component.translatable("item.create_biotech.surgical_kit.temporary_box")
-				: displayStack().getHoverName();
+			return displayNameKey == null ? displayStack().getHoverName() : Component.translatable(displayNameKey);
 		}
 
 		@Nullable

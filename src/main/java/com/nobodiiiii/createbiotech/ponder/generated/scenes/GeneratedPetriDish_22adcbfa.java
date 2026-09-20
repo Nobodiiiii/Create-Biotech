@@ -106,12 +106,12 @@ public final class GeneratedPetriDish_22adcbfa {
         GeneratedPonderSupport.createEntity(scene, context, "minecraft:cow", new Vec3(3.5, 1.0, 3.5), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,CreateBiotechSlimeMimic:1b,FallFlying:0b,ForcedAge:0,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,InLove:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,attributes:[{base:0.20000000298023224d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", "cow", "simultaneous", null, "down");
         scene.idle(20);
         scene.addKeyframe();
-        GeneratedPonderSupport.showText(scene, "击杀拟态生物只会掉落黏液球", new Vec3(3.5, 1.0, 3.5), 100, null, true);
+        GeneratedPonderSupport.showText(scene, "击杀拟态或仿生生物不会掉落物品，而会分裂为活体史莱姆", new Vec3(3.5, 1.0, 3.5), 100, null, true);
         scene.idle(20);
-        GeneratedPonderSupport.createItemEntity(scene, context, "minecraft:slime_ball", 1, new Vec3(3.5, 1.5, 3.5), new Vec3(0.0, 0.0, 0.0), null, null);
         GeneratedPonderSupport.clearEntities(scene, context, true, null, null, null, null, null, null, null);
+        GeneratedPonderSupport.createEntity(scene, context, "minecraft:slime", new Vec3(3.5, 1.0, 3.5), null, 0.0f, 0.0f, "{Size:0}", null, "simultaneous", null, "down");
         scene.idle(90);
-        GeneratedPonderSupport.clearItemEntities(scene, context, true, null, null, null, null);
+        GeneratedPonderSupport.clearEntities(scene, context, true, null, null, null, null, null, null, null);
         GeneratedPonderSupport.createEntity(scene, context, "minecraft:villager", new Vec3(3.5, 1.0, 3.5), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, "simultaneous", null, "down");
         GeneratedPonderSupport.setBlock(scene, context, "minecraft:composter", Map.ofEntries(Map.entry("level", "0")), new BlockPos(3, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);

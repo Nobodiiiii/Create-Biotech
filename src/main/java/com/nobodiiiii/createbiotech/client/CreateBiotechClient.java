@@ -313,12 +313,14 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
-		ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
-			CreateBiotech.asResource("surgical_kit"));
 		var models = event.getModels();
-		var model = models.get(modelLocation);
-		if (model != null)
-			models.put(modelLocation, new SurgicalKitItemModel(model));
+		for (String path : java.util.List.of("surgical_kit", "creative_surgical_kit")) {
+			ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
+				CreateBiotech.asResource(path));
+			var model = models.get(modelLocation);
+			if (model != null)
+				models.put(modelLocation, new SurgicalKitItemModel(model));
+		}
 	}
 
 	@SubscribeEvent
@@ -358,6 +360,9 @@ public class CreateBiotechClient {
 			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
 			? SonicDogCannonUpgrade.getCollarColor(stack).getTextureDiffuseColor()
 			: -1, CBItems.SONIC_DOG_CANNON.get());
+		event.register((stack, tintIndex) -> tintIndex == 0
+			&& SurgicalKitItem.selectedTool(stack) == SurgicalKitItem.Tool.MIMIC_RESTORATIVE
+			? 0xCD5CAB : -1, CBItems.CREATIVE_SURGICAL_KIT.get());
 	}
 
 	@SubscribeEvent
@@ -478,6 +483,7 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
 		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
+		event.register(CBItems.CREATIVE_SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 	}
 
 	/**
@@ -551,6 +557,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.GIANT_FROG.get());
 		registerCreateStyleTooltip(CBItems.GIANT_FROG_FACTORY.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_KIT.get());
+		registerCreateStyleTooltip(CBItems.CREATIVE_SURGICAL_KIT.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_TABLE.get());
 		registerCreateStyleTooltip(CBItems.SURGERY_GUIDE.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());
@@ -606,6 +613,8 @@ public class CreateBiotechClient {
 
 	private static void registerSurgicalKitModelProperties() {
 		ItemProperties.register(CBItems.SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
+			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
+		ItemProperties.register(CBItems.CREATIVE_SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
 			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
 	}
 }

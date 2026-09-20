@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -260,8 +261,8 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Selects one real arm on the requested side for first-person rendering. When that shoulder owns
-	 * an elbow, only the elbow's driven group is returned so the upper arm stays outside the view.
+	 * Selects one real arm on the requested side for first-person rendering. An articulated arm is
+	 * returned as one combined upper-arm and forearm selection.
 	 */
 	@Nullable
 	public static FirstPersonArmSelection firstPersonArm(
@@ -280,18 +281,20 @@ public final class SlimeBionicAnimator {
 		if (shoulderIndex < 0)
 			return null;
 
-		ResolvedLimb selected = limbs.get(shoulderIndex);
+		Set<SurgicalAssembly.CombinationMember> members = new LinkedHashSet<>();
+		ResolvedLimb shoulder = limbs.get(shoulderIndex);
+		shoulder.members().stream()
+			.map(member -> new SurgicalAssembly.CombinationMember(member.source(), member.cube()))
+			.forEach(members::add);
 		for (ResolvedLimb candidate : limbs)
 			if (candidate.type() == SurgicalLimbType.ELBOW
 				&& candidate.parentIndex() == shoulderIndex) {
-				selected = candidate;
+				candidate.members().stream()
+					.map(member -> new SurgicalAssembly.CombinationMember(member.source(), member.cube()))
+					.forEach(members::add);
 				break;
 			}
-		List<SurgicalAssembly.CombinationMember> members = selected.members().stream()
-			.map(member -> new SurgicalAssembly.CombinationMember(member.source(), member.cube()))
-			.toList();
-		return new FirstPersonArmSelection(members,
-			new SurgicalAssembly.CombinationMember(selected.anchor().source(), selected.anchor().cube()));
+		return new FirstPersonArmSelection(List.copyOf(members));
 	}
 
 	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
@@ -1331,9 +1334,8 @@ public final class SlimeBionicAnimator {
 	public record SourceState(Map<Integer, CubeBox> boxes, Map<Integer, Vec3> offsets,
 		Map<Integer, SurgicalCubeRotation> rotations) {}
 
-	/** One articulated arm group plus the anatomical cube that occupies the first-person arm slot. */
-	public record FirstPersonArmSelection(List<SurgicalAssembly.CombinationMember> members,
-		SurgicalAssembly.CombinationMember anchor) {
+	/** All rigid groups belonging to one first-person arm, from upper arm through forearm. */
+	public record FirstPersonArmSelection(List<SurgicalAssembly.CombinationMember> members) {
 		public FirstPersonArmSelection {
 			members = List.copyOf(members);
 		}

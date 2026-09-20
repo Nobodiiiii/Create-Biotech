@@ -544,7 +544,6 @@ public class CBConfigs {
 
 	public static class SlimeMimic {
 		public final ModConfigSpec.IntValue hauntCycleTicks;
-		public final ModConfigSpec.BooleanValue replaceDropsWithSlime;
 		public final ModConfigSpec.BooleanValue rewriteVillagerTrades;
 		public final ModConfigSpec.IntValue villagerTradeMinSlimeBalls;
 		public final ModConfigSpec.IntValue villagerTradeMaxSlimeBalls;
@@ -556,7 +555,6 @@ public class CBConfigs {
 		SlimeMimic(ModConfigSpec.Builder builder) {
 			builder.push("slimeMimic");
 			hauntCycleTicks = builder.defineInRange("hauntCycleTicks", 100, 1, Integer.MAX_VALUE);
-			replaceDropsWithSlime = builder.define("replaceDropsWithSlime", true);
 			rewriteVillagerTrades = builder.define("rewriteVillagerTrades", true);
 			villagerTradeMinSlimeBalls = builder.defineInRange("villagerTradeMinSlimeBalls", 1, 1, 64);
 			villagerTradeMaxSlimeBalls = builder.defineInRange("villagerTradeMaxSlimeBalls", 3, 1, 64);

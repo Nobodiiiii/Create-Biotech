@@ -306,11 +306,16 @@ public final class MimicProfile {
 		CompoundTag preview = source.copy();
 		// Equipment is an external render attachment, not part of the biological source model.
 		// Keeping it here would replay the same held/armor model for every separately packed part.
+		// Names belong to the donor entity rather than its anatomy. In particular, retaining
+		// CustomNameVisible lets the full source renderer bake a floating name plate into the
+		// surgical render plan, which can then reappear on a table or assembled creature from
+		// camera angles where the cached text quad faces the viewer.
 		for (String field : List.of("UUID", "Pos", "Motion", "Rotation", "FallDistance", "Fire", "Air",
 			"OnGround", "Invulnerable", "PortalCooldown", "Passengers", "Leash", "Health",
 			"AbsorptionAmount", "HurtTime", "DeathTime", "HurtByTimestamp", "Brain", "attributes",
 			"Attributes", "SleepingX", "SleepingY", "SleepingZ", "HandItems", "HandDropChances",
-			"ArmorItems", "ArmorDropChances", "body_armor_item", "body_armor_drop_chance"))
+			"ArmorItems", "ArmorDropChances", "body_armor_item", "body_armor_drop_chance",
+			"CustomName", "CustomNameVisible"))
 			preview.remove(field);
 		return preview;
 	}
