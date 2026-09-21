@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "create_biotech:block/enderman_portal/enderman_portal" },
+    "facing=east": { "model": "create_biotech:block/enderman_portal/enderman_portal", "y": 90 },
+    "facing=south": { "model": "create_biotech:block/enderman_portal/enderman_portal", "y": 180 },
+    "facing=west": { "model": "create_biotech:block/enderman_portal/enderman_portal", "y": 270 }
+  }
+}

@@ -70,6 +70,7 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.BIO_PACKAGER.get(),
 			CBBlocks.SHULKER_PACKAGER.get(),
 			CBBlocks.SHULKER_TELEPORTER.get(),
+			CBBlocks.ENDERMAN_STOCK_KEEPER.get(),
 			CBBlocks.ALLAY_PORT.get(),
 			CBBlocks.CUTE_CAT_ON_SHAFT.get(),
 			CBBlocks.BUTTER_CAT_ENGINE.get(),

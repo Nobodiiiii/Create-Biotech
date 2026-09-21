@@ -33,6 +33,7 @@
     "create_biotech:bio_packager",
     "create_biotech:shulker_packager",
     "create_biotech:shulker_teleporter",
+    "create_biotech:enderman_stock_keeper",
     "create_biotech:allay_port",
     "create_biotech:cute_cat_on_shaft",
     "create_biotech:butter_cat_engine",

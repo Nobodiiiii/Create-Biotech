@@ -154,6 +154,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.ALLAY_PORT.get()),
 			visible(CBItems.ALLAY_COURIER.get()),
 			visible(CBItems.WIRELESS_TERMINAL.get()),
+			visible(CBItems.ENDERMAN_STOCK_KEEPER.get()),
 			visible(CBFluids.TELEPORTATION_BUCKET.get())));
 
 		List<TabEntry> devicesAndEquipment = new ArrayList<>(List.of(

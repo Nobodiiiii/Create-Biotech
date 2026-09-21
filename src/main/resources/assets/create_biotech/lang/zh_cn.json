@@ -726,6 +726,7 @@
   "create_biotech.ponder.butter_cat_engine.text_4": "如果换成超级黄油？那就是永动机了。",
   "create_biotech.ponder.butter_cat_engine.text_5": "它们现在是两个独立方块，可以分别搬运和重新放置。",
   "block.create_biotech.shulker_teleporter": "潜影传送站",
+  "block.create_biotech.enderman_stock_keeper": "末影人仓库管理员",
   "create_biotech.shulker_teleporter.own_address": "本机地址",
   "create_biotech.shulker_teleporter.own_address.tooltip": "其他传送站通过该地址识别你",
   "create_biotech.shulker_teleporter.target_address": "目标地址",

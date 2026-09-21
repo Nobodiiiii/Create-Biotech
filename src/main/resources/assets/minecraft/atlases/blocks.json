@@ -130,6 +130,10 @@
     },
     {
       "type": "single",
+      "resource": "minecraft:entity/enderman/enderman"
+    },
+    {
+      "type": "single",
       "resource": "minecraft:entity/experience_orb"
     },
     {

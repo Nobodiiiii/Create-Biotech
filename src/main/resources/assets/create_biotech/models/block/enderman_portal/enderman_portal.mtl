@@ -1,0 +1,14 @@
+newmtl enderman
+map_Kd #enderman
+
+newmtl clipboard
+map_Kd #clipboard
+
+newmtl andesite_casing
+map_Kd #andesite_casing
+
+newmtl detail
+map_Kd #detail
+
+newmtl nether_portal
+map_Kd #nether_portal

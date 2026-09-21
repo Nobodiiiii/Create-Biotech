@@ -726,6 +726,7 @@
   "create_biotech.ponder.butter_cat_engine.text_4": "And with super butter? Perpetual motion machine.",
   "create_biotech.ponder.butter_cat_engine.text_5": "They are now two separate blocks that can be moved and placed independently.",
   "block.create_biotech.shulker_teleporter": "Shulker Teleport Station",
+  "block.create_biotech.enderman_stock_keeper": "Enderman Stock Keeper",
   "create_biotech.shulker_teleporter.own_address": "Own Address",
   "create_biotech.shulker_teleporter.own_address.tooltip": "Other teleporters identify you by this address",
   "create_biotech.shulker_teleporter.target_address": "Target Address",

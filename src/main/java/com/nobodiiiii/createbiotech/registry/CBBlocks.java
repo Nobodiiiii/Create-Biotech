@@ -52,6 +52,7 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainD
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.ExplosionProofCasingBlock;
 import com.nobodiiiii.createbiotech.content.decoration.AsurineSlidingDoorBlock;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperBlock;
 import com.simibubi.create.content.decoration.encasing.CasingBlock;
 import com.simibubi.create.content.decoration.MetalLadderBlock;
 import com.simibubi.create.content.decoration.MetalScaffoldingBlock;
@@ -314,6 +315,12 @@ public class CBBlocks {
 	public static final DeferredHolder<Block, ShulkerTeleporterBlock> SHULKER_TELEPORTER =
 		BLOCKS.register("shulker_teleporter",
 			() -> new ShulkerTeleporterBlock(CBSharedProperties.createStone()
+				.mapColor(MapColor.COLOR_PURPLE)
+				.noOcclusion()));
+
+	public static final DeferredHolder<Block, EndermanStockKeeperBlock> ENDERMAN_STOCK_KEEPER =
+		BLOCKS.register("enderman_stock_keeper",
+			() -> new EndermanStockKeeperBlock(CBSharedProperties.createStone()
 				.mapColor(MapColor.COLOR_PURPLE)
 				.noOcclusion()));
 
