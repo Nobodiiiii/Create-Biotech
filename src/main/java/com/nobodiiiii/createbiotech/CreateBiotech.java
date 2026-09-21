@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.experience.ExperienceOpenPipeEffectH
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCompat;
 import com.nobodiiiii.createbiotech.content.frogportal.FrogStomachSecretionSpreading;
 import com.nobodiiiii.createbiotech.content.frogportal.FrogStomachSlimeSpawning;
+import com.nobodiiiii.createbiotech.content.giantfrog.FrogPackageContentsReloadListener;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonRopeShearsInteraction;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovingInteraction;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovementBehaviour;
@@ -101,6 +102,7 @@ public class CreateBiotech {
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 		event.addListener(BionicBodyTraitDataReloadListener.INSTANCE);
+		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}
 
 	private static void registerAllayEvents() {

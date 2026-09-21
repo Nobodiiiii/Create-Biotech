@@ -474,6 +474,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return bounds == null ? 0 : bounds.groundedLegCount();
 	}
 
+	/** Whether the currently installed movement controller makes this body travel by hopping. */
+	public boolean usesHopLocomotion() {
+		return moveControl instanceof SlimeBionicMoveControl && getLocomotionLegCount() < 2;
+	}
+
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */
 	public void setClientBodyGeometry(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bounds,
 		SurgicalAssembly.HitboxGeometry hitboxGeometry, double bodyVolume) {

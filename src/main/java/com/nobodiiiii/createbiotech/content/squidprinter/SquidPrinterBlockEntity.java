@@ -34,7 +34,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -55,7 +54,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	public FilteringBehaviour filtering;
 
 	private boolean running;
-	private ItemStack processingTemplate;
+	private ItemStack processingOutput;
 	private int idleTicksWhileRunning;
 	private float squidPose;
 	private float squidPoseOld;
@@ -66,7 +65,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		super(type, pos, state);
 		processingTicks = -1;
 		running = false;
-		processingTemplate = ItemStack.EMPTY;
+		processingOutput = ItemStack.EMPTY;
 	}
 
 	@Override
@@ -97,7 +96,6 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			return;
 
 		if (!level.isClientSide) {
-			consumeCycleWaterIfNeeded();
 			if (running && ++idleTicksWhileRunning >= 3) {
 				clearProcessingState();
 				notifyUpdate();
@@ -121,14 +119,14 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		TransportedItemStackHandlerBehaviour handler) {
 		if (handler.blockEntity.isVirtual())
 			return PASS;
-		if (!isApplicableInput(transported.stack))
+		if (!hasApplicableInputRecipe(transported.stack))
 			return PASS;
 		return HOLD;
 	}
 
 	protected ProcessingResult whenItemHeld(TransportedItemStack transported,
 		TransportedItemStackHandlerBehaviour handler) {
-		if (!isApplicableInput(transported.stack))
+		if (processingTicks == -1 && !hasApplicableInputRecipe(transported.stack))
 			return PASS;
 
 		idleTicksWhileRunning = 0;
@@ -174,8 +172,17 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		return HOLD;
 	}
 
-	private boolean isApplicableInput(ItemStack stack) {
-		return stack.is(Items.BOOK);
+	private boolean hasApplicableInputRecipe(ItemStack input) {
+		if (level == null || input.isEmpty())
+			return false;
+
+		ItemStackHandler recipeInventory = new ItemStackHandler(1);
+		recipeInventory.setStackInSlot(0, input.copy());
+		RecipeWrapper recipeWrapper = new RecipeWrapper(recipeInventory);
+		return !level.getRecipeManager()
+			.getRecipesFor(com.nobodiiiii.createbiotech.registry.CBRecipeTypes.SQUID_PRINTER_TYPE.get(),
+				recipeWrapper, level)
+			.isEmpty();
 	}
 
 	private Optional<PreparedRecipe> findMatchingRecipe(ItemStack input) {
@@ -205,37 +212,24 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		FluidStack stored = getFluid();
 		return recipe.recipe().getRequiredFluid()
 			.test(stored)
-			&& stored.getAmount() >= getCycleWaterCost();
+			&& stored.getAmount() >= recipe.recipe().getRequiredWater(recipe.template());
 	}
 
 	private void startProcessing(PreparedRecipe recipe) {
-		processingTemplate = recipe.template();
+		processingOutput = recipe.recipe().createResult(recipe.template());
 		processingTicks = recipe.recipe()
-			.getRequiredTicks(processingTemplate) + getFinishingTicks();
+			.getRequiredTicks(recipe.template()) + getFinishingTicks();
 		running = true;
 		idleTicksWhileRunning = 0;
-	}
-
-	private void consumeCycleWaterIfNeeded() {
-		if (level == null || level.getGameTime() % getCycleTicks() != 0)
-			return;
-		if (tank == null)
-			return;
-
-		FluidStack stored = getFluid();
-		int cycleWaterCost = getCycleWaterCost();
-		if (stored.isEmpty() || stored.getAmount() < cycleWaterCost)
-			return;
-
-		tank.getPrimaryHandler()
-			.drain(cycleWaterCost, FluidAction.EXECUTE);
-		notifyUpdate();
+		if (level != null && !level.isClientSide)
+			tank.getPrimaryHandler()
+				.drain(recipe.recipe().getRequiredWater(recipe.template()), FluidAction.EXECUTE);
 	}
 
 	private void clearProcessingState() {
 		processingTicks = -1;
 		running = false;
-		processingTemplate = ItemStack.EMPTY;
+		processingOutput = ItemStack.EMPTY;
 		idleTicksWhileRunning = 0;
 	}
 
@@ -244,7 +238,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	}
 
 	private ItemStack produceCopy() {
-		return EnchantmentBookCopyItem.fromTemplate(processingTemplate, com.nobodiiiii.createbiotech.registry.CBItems.ENCHANTMENT_BOOK_COPY.get());
+		return processingOutput.copy();
 	}
 
 	public FluidStack getFluid() {
@@ -278,14 +272,6 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	public int getComparatorOutput() {
 		FluidStack stored = getFluid();
 		return stored.isEmpty() ? 0 : Math.max(1, (int) Math.round(stored.getAmount() * 14.0 / getTankCapacity()) + 1);
-	}
-
-	private static int getCycleTicks() {
-		return CBConfigs.SERVER.squidPrinter.cycleTicks.get();
-	}
-
-	private static int getCycleWaterCost() {
-		return CBConfigs.SERVER.squidPrinter.cycleWaterCost.get();
 	}
 
 	private static int getTankCapacity() {
@@ -351,8 +337,8 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		super.write(compound, registries, clientPacket);
 		compound.putInt("ProcessingTicks", processingTicks);
 		compound.putBoolean("Running", running);
-		if (!processingTemplate.isEmpty())
-			compound.put("ProcessingTemplate", processingTemplate.saveOptional(registries));
+		if (!processingOutput.isEmpty())
+			compound.put("ProcessingOutput", processingOutput.saveOptional(registries));
 		PlacedByPlayerAdvancementTracker.writeOwner(compound, advancementOwner);
 		if (sendSplash && clientPacket) {
 			compound.putBoolean("Splash", true);
@@ -365,10 +351,14 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		super.read(compound, registries, clientPacket);
 		processingTicks = compound.getInt("ProcessingTicks");
 		running = compound.getBoolean("Running");
-		processingTemplate =
-			compound.contains("ProcessingTemplate")
-				? ItemStack.parseOptional(registries, compound.getCompound("ProcessingTemplate"))
+		processingOutput =
+			compound.contains("ProcessingOutput")
+				? ItemStack.parseOptional(registries, compound.getCompound("ProcessingOutput"))
 				: ItemStack.EMPTY;
+		if (running && processingOutput.isEmpty()) {
+			processingTicks = -1;
+			running = false;
+		}
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(compound);
 	}
 

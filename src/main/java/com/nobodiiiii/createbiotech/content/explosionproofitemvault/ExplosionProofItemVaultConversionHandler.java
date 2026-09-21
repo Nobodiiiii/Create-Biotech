@@ -1,17 +1,19 @@
 package com.nobodiiiii.createbiotech.content.explosionproofitemvault;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.content.itemapplication.RecipeBackedItemApplication;
 import com.nobodiiiii.createbiotech.foundation.feature.CBFeature;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllItems;
 import com.simibubi.create.api.connectivity.ConnectivityHandler;
+import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.content.logistics.vault.ItemVaultBlock;
 import com.simibubi.create.content.logistics.vault.ItemVaultBlockEntity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -26,6 +28,8 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class ExplosionProofItemVaultConversionHandler {
+	private static final ResourceLocation RECIPE_ID =
+		CreateBiotech.asResource("item_application/explosion_proof_item_vault");
 
 	private ExplosionProofItemVaultConversionHandler() {}
 
@@ -34,9 +38,6 @@ public class ExplosionProofItemVaultConversionHandler {
 		if (!CBFeature.CREEPER_BLAST_CHAMBER.isEnabled())
 			return;
 		Player player = event.getEntity();
-		if (player.isShiftKeyDown() || !player.mayBuild())
-			return;
-
 		Level level = event.getLevel();
 		BlockPos pos = event.getPos();
 		BlockState state = level.getBlockState(pos);
@@ -44,20 +45,33 @@ public class ExplosionProofItemVaultConversionHandler {
 			return;
 
 		ItemStack heldItem = player.getItemInHand(event.getHand());
-		if (!AllItems.STURDY_SHEET.isIn(heldItem))
+		ItemStack processedItem = state.getCloneItemStack(event.getHitVec(), level, pos, player);
+		var recipe = RecipeBackedItemApplication.find(level, RECIPE_ID, state, processedItem, heldItem);
+		if (recipe.isEmpty())
 			return;
 
 		event.setCanceled(true);
+		event.setCancellationResult(InteractionResult.FAIL);
+		if (player.isShiftKeyDown() || !player.mayBuild())
+			return;
+		var resultBlock = RecipeBackedItemApplication.resultBlock(recipe.get());
+		if (resultBlock.isEmpty()
+			|| !(resultBlock.get() instanceof ExplosionProofItemVaultBlock explosionProofVault))
+			return;
+
 		if (level.isClientSide) {
 			event.setCancellationResult(InteractionResult.SUCCESS);
 			return;
 		}
 
-		boolean converted = convert(level, pos, player, heldItem, state);
+		boolean converted = convert(level, pos, player, event.getHand(), heldItem, state, recipe.get(),
+			explosionProofVault);
 		event.setCancellationResult(converted ? InteractionResult.SUCCESS : InteractionResult.FAIL);
 	}
 
-	private static boolean convert(Level level, BlockPos pos, Player player, ItemStack heldItem, BlockState state) {
+	private static boolean convert(Level level, BlockPos pos, Player player,
+		InteractionHand hand, ItemStack heldItem, BlockState state,
+		ManualApplicationRecipe recipe, ExplosionProofItemVaultBlock explosionProofVault) {
 		if (!(level.getBlockEntity(pos) instanceof ItemVaultBlockEntity vault))
 			return false;
 
@@ -65,7 +79,7 @@ public class ExplosionProofItemVaultConversionHandler {
 		ConnectivityHandler.splitMulti(vault);
 
 		level.removeBlockEntity(pos);
-		BlockState newState = CBBlocks.EXPLOSION_PROOF_ITEM_VAULT.get()
+		BlockState newState = explosionProofVault
 			.defaultBlockState()
 			.setValue(ItemVaultBlock.HORIZONTAL_AXIS, state.getValue(ItemVaultBlock.HORIZONTAL_AXIS))
 			.setValue(ItemVaultBlock.LARGE, false);
@@ -78,8 +92,7 @@ public class ExplosionProofItemVaultConversionHandler {
 		newVault.applyInventoryToBlock(inventoryCopy);
 		newVault.setChanged();
 		level.playSound(null, pos, SoundEvents.NETHERITE_BLOCK_PLACE, SoundSource.BLOCKS, 0.6F, 1.0F);
-		if (!player.isCreative())
-			heldItem.shrink(1);
+		RecipeBackedItemApplication.consumeHeldItem(recipe, player, hand, heldItem);
 		return true;
 	}
 

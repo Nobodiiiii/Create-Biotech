@@ -3,22 +3,24 @@ package com.nobodiiiii.createbiotech.content.powerbelt;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.itemapplication.RecipeBackedItemApplication;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.foundation.feature.CBFeature;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllItems;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
 import com.simibubi.create.content.kinetics.belt.BeltHelper;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
+import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -33,6 +35,8 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class PowerBeltConversionHandler {
+	private static final ResourceLocation RECIPE_ID =
+		CreateBiotech.asResource("item_application/power_belt");
 
 	private PowerBeltConversionHandler() {}
 
@@ -41,9 +45,6 @@ public class PowerBeltConversionHandler {
 		if (!CBFeature.POWER_BELT.isEnabled())
 			return;
 		Player player = event.getEntity();
-		if (player.isShiftKeyDown() || !player.mayBuild())
-			return;
-
 		Level level = event.getLevel();
 		BlockPos pos = event.getPos();
 		BlockState state = level.getBlockState(pos);
@@ -51,22 +52,33 @@ public class PowerBeltConversionHandler {
 			return;
 
 		ItemStack heldItem = player.getItemInHand(event.getHand());
-		if (!AllItems.ANDESITE_ALLOY.isIn(heldItem))
+		ItemStack processedItem = state.getCloneItemStack(event.getHitVec(), level, pos, player);
+		var recipe = RecipeBackedItemApplication.find(level, RECIPE_ID, state, processedItem, heldItem);
+		if (recipe.isEmpty())
+			return;
+
+		event.setCanceled(true);
+		event.setCancellationResult(InteractionResult.FAIL);
+		if (player.isShiftKeyDown() || !player.mayBuild())
+			return;
+		var resultBlock = RecipeBackedItemApplication.resultBlock(recipe.get());
+		if (resultBlock.isEmpty() || !(resultBlock.get() instanceof PowerBeltBlock powerBeltBlock))
 			return;
 		if (state.getValue(BeltBlock.SLOPE) != BeltSlope.HORIZONTAL)
 			return;
 
-		event.setCanceled(true);
 		if (level.isClientSide) {
 			event.setCancellationResult(InteractionResult.SUCCESS);
 			return;
 		}
 
-		boolean converted = convert(level, pos, player, heldItem);
+		boolean converted = convert(level, pos, player, event.getHand(), heldItem, recipe.get(), powerBeltBlock);
 		event.setCancellationResult(converted ? InteractionResult.SUCCESS : InteractionResult.FAIL);
 	}
 
-	private static boolean convert(Level level, BlockPos clickedPos, Player player, ItemStack heldItem) {
+	private static boolean convert(Level level, BlockPos clickedPos, Player player,
+		InteractionHand hand, ItemStack heldItem, ManualApplicationRecipe recipe,
+		PowerBeltBlock powerBeltBlock) {
 		BlockPos controllerPos = findController(level, clickedPos);
 		if (controllerPos == null)
 			return false;
@@ -95,7 +107,7 @@ public class PowerBeltConversionHandler {
 
 		for (BlockPos beltPos : beltChain) {
 			BlockState oldState = level.getBlockState(beltPos);
-			BlockState newState = CBBlocks.POWER_BELT.get()
+			BlockState newState = powerBeltBlock
 				.defaultBlockState()
 				.setValue(PowerBeltBlock.SLOPE, oldState.getValue(BeltBlock.SLOPE))
 				.setValue(PowerBeltBlock.PART, oldState.getValue(BeltBlock.PART))
@@ -110,8 +122,7 @@ public class PowerBeltConversionHandler {
 		PowerBeltBlock.initBelt(level, controllerPos);
 		level.playSound(null, clickedPos, SoundEvents.WOOL_PLACE,
 			player == null ? SoundSource.BLOCKS : SoundSource.PLAYERS, 0.5F, 1F);
-		if (!player.isCreative())
-			heldItem.shrink(1);
+		RecipeBackedItemApplication.consumeHeldItem(recipe, player, hand, heldItem);
 		if (player instanceof ServerPlayer serverPlayer)
 			CBAdvancements.award(serverPlayer, CBAdvancements.POWER_BELT);
 		return true;

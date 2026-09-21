@@ -43,7 +43,7 @@ public class SquidPrinterJeiCategory extends AbstractRecipeCategory<SquidPrinter
 	public void setRecipe(IRecipeLayoutBuilder builder, SquidPrinterJeiRecipe recipe, IFocusGroup focuses) {
 		builder.addSlot(RecipeIngredientRole.INPUT, 27, 51)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStack(recipe.inputBook().copy());
+			.addItemStacks(recipe.inputBooks());
 
 		IRecipeSlotBuilder templateSlot = builder.addSlot(RecipeIngredientRole.INPUT, TEMPLATE_SLOT_X, TEMPLATE_SLOT_Y)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)

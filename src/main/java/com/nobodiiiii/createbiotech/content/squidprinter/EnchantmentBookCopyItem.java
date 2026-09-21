@@ -65,7 +65,13 @@ public class EnchantmentBookCopyItem extends Item {
 	}
 
 	public static ItemStack fromTemplate(ItemStack template, Item copyItem) {
-		ItemStack out = new ItemStack(copyItem);
+		return fromTemplate(template, new ItemStack(copyItem));
+	}
+
+	public static ItemStack fromTemplate(ItemStack template, ItemStack resultBase) {
+		if (resultBase.isEmpty())
+			return ItemStack.EMPTY;
+		ItemStack out = resultBase.copy();
 		ItemEnchantments enchantments = getCopySourceEnchantments(template);
 		if (!enchantments.isEmpty())
 			out.set(DataComponents.STORED_ENCHANTMENTS, enchantments);

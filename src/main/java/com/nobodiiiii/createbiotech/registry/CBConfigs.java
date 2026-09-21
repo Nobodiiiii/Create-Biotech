@@ -749,15 +749,11 @@ public class CBConfigs {
 	}
 
 	public static class SquidPrinter {
-		public final ModConfigSpec.IntValue cycleTicks;
-		public final ModConfigSpec.IntValue cycleWaterCost;
 		public final ModConfigSpec.IntValue tankCapacity;
 		public final ModConfigSpec.IntValue finishingTicks;
 
 		SquidPrinter(ModConfigSpec.Builder builder) {
 			builder.push("squidPrinter");
-			cycleTicks = builder.defineInRange("cycleTicks", 20, 1, Integer.MAX_VALUE);
-			cycleWaterCost = builder.defineInRange("cycleWaterCost", 50, 0, Integer.MAX_VALUE);
 			tankCapacity = builder.defineInRange("tankCapacity", 1000, 1, Integer.MAX_VALUE);
 			finishingTicks = builder.defineInRange("finishingTicks", 5, 0, Integer.MAX_VALUE);
 			builder.pop();

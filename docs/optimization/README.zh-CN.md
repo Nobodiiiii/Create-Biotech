@@ -32,6 +32,7 @@
 | 综合路线图 | 已完成 | [07-priority-roadmap.zh-CN.md](07-priority-roadmap.zh-CN.md) |
 | 史莱姆传送带 Create 兼容差异与修复方案 | 已完成 | [09-slime-belt-create-parity-audit-and-fix-plan.zh-CN.md](09-slime-belt-create-parity-audit-and-fix-plan.zh-CN.md) |
 | 新手术台系统性能审计与优化 | 已完成 | [11-surgical-table-performance.zh-CN.md](11-surgical-table-performance.zh-CN.md) |
+| 配方数据驱动审计与 P0 实施方案 | P0 已完成 | [12-recipe-data-driven-audit-and-p0-plan.zh-CN.md](12-recipe-data-driven-audit-and-p0-plan.zh-CN.md) |
 
 ## 审计基准
 

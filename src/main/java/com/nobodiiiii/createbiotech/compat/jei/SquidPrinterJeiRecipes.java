@@ -6,9 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRecipe;
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 
 import net.minecraft.client.Minecraft;
@@ -38,11 +36,18 @@ public final class SquidPrinterJeiRecipes {
 		List<SquidPrinterJeiRecipe> displays = new ArrayList<>(recipes.size() * entries.size());
 		for (RecipeHolder<SquidPrinterRecipe> holder : recipes) {
 			SquidPrinterRecipe recipe = holder.value();
+			List<ItemStack> inputs = List.of(recipe.getIngredients().getFirst().getItems())
+				.stream()
+				.map(ItemStack::copy)
+				.toList();
 			for (EnchantmentEntry entry : entries) {
 				ResourceLocation id = ResourceLocation.fromNamespaceAndPath(holder.id().getNamespace(),
 					holder.id().getPath() + "/" + entry.idSegment());
-				displays.add(new SquidPrinterJeiRecipe(id, new ItemStack(Items.BOOK), recipe.getRequiredFluid(),
-					entry.templateBooks(), entry.outputCopies()));
+				List<ItemStack> outputs = entry.templateBooks().stream()
+					.map(recipe::createResult)
+					.toList();
+				displays.add(new SquidPrinterJeiRecipe(id, inputs, recipe.getRequiredFluid(),
+					entry.templateBooks(), outputs));
 			}
 		}
 		return displays;
@@ -90,20 +95,16 @@ public final class SquidPrinterJeiRecipes {
 				template.set(net.minecraft.core.component.DataComponents.STORED_ENCHANTMENTS, mutable.toImmutable());
 				templates.add(template);
 			}
-			List<ItemStack> outputs = templates.stream()
-				.map(template -> EnchantmentBookCopyItem.fromTemplate(template, CBItems.ENCHANTMENT_BOOK_COPY.get()))
-				.toList();
 			entries.add(new EnchantmentEntry(
-				enchantmentId.getNamespace() + "_" + enchantmentId.getPath(), templates, outputs));
+				enchantmentId.getNamespace() + "_" + enchantmentId.getPath(), templates));
 		}
 		if (entries.isEmpty()) {
 			ItemStack book = new ItemStack(Items.ENCHANTED_BOOK);
-			ItemStack copy = new ItemStack(CBItems.ENCHANTMENT_BOOK_COPY.get());
-			entries.add(new EnchantmentEntry("empty", List.of(book), List.of(copy)));
+			entries.add(new EnchantmentEntry("empty", List.of(book)));
 		}
 		return entries;
 	}
 
-	private record EnchantmentEntry(String idSegment, List<ItemStack> templateBooks, List<ItemStack> outputCopies) {
+	private record EnchantmentEntry(String idSegment, List<ItemStack> templateBooks) {
 	}
 }

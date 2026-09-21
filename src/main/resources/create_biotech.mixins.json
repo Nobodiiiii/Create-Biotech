@@ -49,6 +49,7 @@
     "PlayerBouncingDimensionsMixin",
     "PlayerPossessionDataMixin",
     "PlayerPossessionDimensionsMixin",
+    "PlayerPossessionMovementMixin",
     "WalkAnimationStateAccessor",
     "MixinSuperGlueSelectionHelper",
     "SawBlockEntityMixin",

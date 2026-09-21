@@ -10,7 +10,6 @@ import com.simibubi.create.foundation.utility.BlockHelper;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
@@ -18,7 +17,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -45,8 +43,9 @@ import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class ManualItemApplicationOrientationHandler {
 	private static final Set<ResourceLocation> CUSTOM_CONVERSIONS = Set.of(
-		CreateBiotech.asResource("explosion_proof_item_vault"),
-		CreateBiotech.asResource("shulker_packager_manual_only")
+		CreateBiotech.asResource("item_application/power_belt"),
+		CreateBiotech.asResource("item_application/explosion_proof_item_vault"),
+		CreateBiotech.asResource("item_application/shulker_packager_manual_only")
 	);
 
 	private ManualItemApplicationOrientationHandler() {}
@@ -243,7 +242,7 @@ public class ManualItemApplicationOrientationHandler {
 			.setPlacedBy(level, pos, transformedBlock, player, heldItem);
 		recipe.rollResults(level.random)
 			.forEach(stack -> Block.popResource(level, pos, stack));
-		consumeHeldItem(recipe, player, hand, heldItem);
+		RecipeBackedItemApplication.consumeHeldItem(recipe, player, hand, heldItem);
 		return true;
 	}
 
@@ -276,28 +275,4 @@ public class ManualItemApplicationOrientationHandler {
 		return blockEntity.saveWithoutMetadata(level.registryAccess());
 	}
 
-	private static void consumeHeldItem(ManualApplicationRecipe recipe, Player player, InteractionHand hand,
-		ItemStack heldItem) {
-		boolean keepHeld = recipe.shouldKeepHeldItem() || player.isCreative();
-		if (heldItem.has(DataComponents.UNBREAKABLE) || keepHeld)
-			return;
-
-		if (heldItem.getMaxDamage() > 0) {
-			heldItem.hurtAndBreak(1, player, hand == InteractionHand.OFF_HAND ? EquipmentSlot.OFFHAND
-				: EquipmentSlot.MAINHAND);
-			return;
-		}
-
-		ItemStack leftover = heldItem.getCraftingRemainingItem();
-		heldItem.shrink(1);
-		if (leftover.isEmpty())
-			return;
-		if (heldItem.isEmpty()) {
-			player.setItemInHand(hand, leftover);
-			return;
-		}
-		if (!player.getInventory()
-			.add(leftover))
-			player.drop(leftover, false);
-	}
 }

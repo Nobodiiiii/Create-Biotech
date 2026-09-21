@@ -1,6 +1,5 @@
 package com.nobodiiiii.createbiotech.content.squidprinter;
 
-import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipeParams;
 import com.simibubi.create.content.processing.recipe.StandardProcessingRecipe;
@@ -96,6 +95,9 @@ public class SquidPrinterRecipe extends StandardProcessingRecipe<RecipeWrapper> 
 	}
 
 	public ItemStack createResult(ItemStack template) {
-		return EnchantmentBookCopyItem.fromTemplate(template, CBItems.ENCHANTMENT_BOOK_COPY.get());
+		if (getRollableResults().isEmpty())
+			return ItemStack.EMPTY;
+		return EnchantmentBookCopyItem.fromTemplate(template,
+			getRollableResults().getFirst().getStack());
 	}
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -34,6 +35,7 @@ public final class EchoShardPossession {
 	private static final String WIDTH_TAG = "Width";
 	private static final String HEIGHT_TAG = "Height";
 	private static final String EYE_HEIGHT_TAG = "EyeHeight";
+	private static final String HOP_LOCOMOTION_TAG = "HopLocomotion";
 	private static final String ORIGINAL_ATTRIBUTES_TAG = "OriginalAttributes";
 	private static final String ORIGINAL_HEALTH_TAG = "OriginalHealth";
 	private static final String ORIGINAL_ABSORPTION_TAG = "OriginalAbsorption";
@@ -86,6 +88,8 @@ public final class EchoShardPossession {
 		state.putFloat(HEIGHT_TAG, sanitizeDimension(dimensions.height(), target.getType().getHeight()));
 		state.putFloat(EYE_HEIGHT_TAG,
 			Mth.clamp(dimensions.eyeHeight(), 0.0f, state.getFloat(HEIGHT_TAG)));
+		state.putBoolean(HOP_LOCOMOTION_TAG,
+			target instanceof SlimeBionicEntity bionic && bionic.usesHopLocomotion());
 
 		if (isActive(previousState) && previousState.contains(ORIGINAL_ATTRIBUTES_TAG, Tag.TAG_COMPOUND)) {
 			state.put(ORIGINAL_ATTRIBUTES_TAG, previousState.getCompound(ORIGINAL_ATTRIBUTES_TAG).copy());
@@ -111,7 +115,13 @@ public final class EchoShardPossession {
 		synchronizedState.putFloat(WIDTH_TAG, state.getFloat(WIDTH_TAG));
 		synchronizedState.putFloat(HEIGHT_TAG, state.getFloat(HEIGHT_TAG));
 		synchronizedState.putFloat(EYE_HEIGHT_TAG, state.getFloat(EYE_HEIGHT_TAG));
+		synchronizedState.putBoolean(HOP_LOCOMOTION_TAG, usesHopLocomotion(state));
 		return synchronizedState;
+	}
+
+	/** Whether this possessed body used slime-like hops instead of continuous ground movement. */
+	public static boolean usesHopLocomotion(CompoundTag state) {
+		return isActive(state) && state.getBoolean(HOP_LOCOMOTION_TAG);
 	}
 
 	public static EntityDimensions dimensions(CompoundTag state) {

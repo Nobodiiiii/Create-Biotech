@@ -1,0 +1,49 @@
+{
+  "entries": [
+    {
+      "item": "create_biotech:frog_stomach_mucosa",
+      "min": 0,
+      "max": 40
+    },
+    {
+      "item": "create_biotech:frog_stomach_fold",
+      "min": 0,
+      "max": 16
+    },
+    {
+      "item": "create_biotech:frog_stomach_fungus",
+      "min": 0,
+      "max": 8
+    },
+    {
+      "item": "create_biotech:frog_stomach_fungus_stem",
+      "min": 0,
+      "max": 18
+    },
+    {
+      "item": "create_biotech:frog_stomach_fungus_cap",
+      "min": 0,
+      "max": 24
+    },
+    {
+      "item": "create_biotech:frog_stomach_fungus_gills",
+      "min": 0,
+      "max": 18
+    },
+    {
+      "item": "create_biotech:frog_stomach_secretion",
+      "min": 0,
+      "max": 16
+    },
+    {
+      "item": "minecraft:slime_block",
+      "min": 0,
+      "max": 10
+    },
+    {
+      "tag": "create_biotech:froglights",
+      "min": 0,
+      "max": 8
+    }
+  ]
+}

@@ -6,6 +6,6 @@ import net.neoforged.neoforge.fluids.crafting.SizedFluidIngredient;
 
 import java.util.List;
 
-public record SquidPrinterJeiRecipe(ResourceLocation id, ItemStack inputBook, SizedFluidIngredient requiredFluid,
+public record SquidPrinterJeiRecipe(ResourceLocation id, List<ItemStack> inputBooks, SizedFluidIngredient requiredFluid,
 	List<ItemStack> templateBooks, List<ItemStack> outputCopies) {
 }

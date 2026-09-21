@@ -1,19 +1,20 @@
 package com.nobodiiiii.createbiotech.content.shulkerpackager;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.registry.CBBlocks;
+import com.nobodiiiii.createbiotech.content.itemapplication.RecipeBackedItemApplication;
 import com.nobodiiiii.createbiotech.foundation.feature.CBFeature;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.content.logistics.packager.PackagerBlock;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -26,6 +27,8 @@ import net.neoforged.fml.common.EventBusSubscriber;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class ShulkerPackagerConversionHandler {
+	private static final ResourceLocation RECIPE_ID =
+		CreateBiotech.asResource("item_application/shulker_packager_manual_only");
 
 	private ShulkerPackagerConversionHandler() {}
 
@@ -34,9 +37,6 @@ public class ShulkerPackagerConversionHandler {
 		if (!CBFeature.SHULKER_PACKAGER.isEnabled())
 			return;
 		Player player = event.getEntity();
-		if (!player.mayBuild())
-			return;
-
 		Level level = event.getLevel();
 		BlockPos pos = event.getPos();
 		BlockState state = level.getBlockState(pos);
@@ -44,27 +44,39 @@ public class ShulkerPackagerConversionHandler {
 			return;
 
 		ItemStack heldItem = player.getItemInHand(event.getHand());
-		if (!CapturedEntityBoxHelper.containsEntityType(heldItem, EntityType.SHULKER))
+		ItemStack processedItem = state.getCloneItemStack(event.getHitVec(), level, pos, player);
+		var recipe = RecipeBackedItemApplication.find(level, RECIPE_ID, state, processedItem, heldItem);
+		if (recipe.isEmpty())
 			return;
 
 		event.setCanceled(true);
+		event.setCancellationResult(InteractionResult.FAIL);
+		if (!player.mayBuild())
+			return;
+		var resultBlock = RecipeBackedItemApplication.resultBlock(recipe.get());
+		if (resultBlock.isEmpty() || !(resultBlock.get() instanceof ShulkerPackagerBlock shulkerPackagerBlock))
+			return;
+
 		if (level.isClientSide) {
 			event.setCancellationResult(InteractionResult.SUCCESS);
 			return;
 		}
 
-		boolean converted = convert(level, pos, player, heldItem, state);
+		boolean converted = convert(level, pos, player, event.getHand(), heldItem, state, recipe.get(),
+			shulkerPackagerBlock);
 		event.setCancellationResult(converted ? InteractionResult.SUCCESS : InteractionResult.FAIL);
 	}
 
-	private static boolean convert(Level level, BlockPos pos, Player player, ItemStack heldItem, BlockState state) {
+	private static boolean convert(Level level, BlockPos pos, Player player,
+		InteractionHand hand, ItemStack heldItem, BlockState state,
+		ManualApplicationRecipe recipe, ShulkerPackagerBlock shulkerPackagerBlock) {
 		if (!(level.getBlockEntity(pos) instanceof PackagerBlockEntity packager))
 			return false;
 
 		CompoundTag packagerData = packager.saveWithoutMetadata(level.registryAccess());
 		level.removeBlockEntity(pos);
 
-		BlockState newState = CBBlocks.SHULKER_PACKAGER.get()
+		BlockState newState = shulkerPackagerBlock
 			.defaultBlockState()
 			.setValue(ShulkerPackagerBlock.FACING, state.getValue(PackagerBlock.FACING))
 			.setValue(ShulkerPackagerBlock.POWERED, state.getValue(PackagerBlock.POWERED))
@@ -78,12 +90,7 @@ public class ShulkerPackagerConversionHandler {
 		shulkerPackager.loadWithComponents(packagerData, level.registryAccess());
 		shulkerPackager.notifyUpdate();
 		level.playSound(null, pos, SoundEvents.SHULKER_OPEN, SoundSource.BLOCKS, 0.5F, 1.0F);
-		if (!player.isCreative()) {
-			ItemStack remainder = heldItem.hasCraftingRemainingItem() ? heldItem.getCraftingRemainingItem() : ItemStack.EMPTY;
-			heldItem.shrink(1);
-			if (!remainder.isEmpty())
-				player.getInventory().placeItemBackInInventory(remainder);
-		}
+		RecipeBackedItemApplication.consumeHeldItem(recipe, player, hand, heldItem);
 		return true;
 	}
 }
