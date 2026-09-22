@@ -9,6 +9,7 @@
 	"textures": {
 		"enderman": "minecraft:entity/enderman/enderman",
 		"clipboard": "create:block/clipboard_model_filled",
+		"clipboard_back": "create:block/belt/andesite_belt_casing",
 		"andesite_casing": "create:block/andesite_casing",
 		"detail": "create_biotech:block/enderman_portal",
 		"nether_portal": "minecraft:block/nether_portal",

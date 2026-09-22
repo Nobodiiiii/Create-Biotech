@@ -4,6 +4,9 @@ map_Kd #enderman
 newmtl clipboard
 map_Kd #clipboard
 
+newmtl clipboard_back
+map_Kd #clipboard_back
+
 newmtl andesite_casing
 map_Kd #andesite_casing
 
