@@ -21,7 +21,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public class EndermanStockKeeperBlock extends HorizontalDirectionalBlock {
 
 	public static final MapCodec<EndermanStockKeeperBlock> CODEC = simpleCodec(EndermanStockKeeperBlock::new);
-	private static final VoxelShape BASE = Block.box(0, 0, 0, 16, 2, 16);
+	private static final VoxelShape BASE = Block.box(0, 0, 0, 16, 16, 16);
 
 	public EndermanStockKeeperBlock(Properties properties) {
 		super(properties);
