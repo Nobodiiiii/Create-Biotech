@@ -2,8 +2,8 @@ package com.nobodiiiii.createbiotech.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Redirect;
 
+import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlockEntity;
 import com.simibubi.create.AllSoundEvents.SoundEntry;
 import com.simibubi.create.content.kinetics.press.MechanicalPressBlockEntity;
@@ -16,23 +16,19 @@ import net.minecraft.world.level.Level;
 @Mixin(PressingBehaviour.class)
 public abstract class PressingBehaviourSoundMixin {
 
-	@Redirect(method = "tick", at = @At(value = "INVOKE",
+	@WrapWithCondition(method = "tick", at = @At(value = "INVOKE",
 		target = "Lcom/simibubi/create/AllSoundEvents$SoundEntry;playOnServer(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/Vec3i;)V"),
-		remap = true)
-	private void createBiotech$muteChamberPressActivationOnBelt(SoundEntry sound, Level level, Vec3i pos) {
-		if (shouldMuteCurrentPressActivation())
-			return;
-		sound.playOnServer(level, pos);
+		remap = true, require = 0)
+	private boolean createBiotech$allowChamberPressActivationOnBelt(SoundEntry sound, Level level, Vec3i pos) {
+		return !shouldMuteCurrentPressActivation();
 	}
 
-	@Redirect(method = "tick", at = @At(value = "INVOKE",
+	@WrapWithCondition(method = "tick", at = @At(value = "INVOKE",
 		target = "Lcom/simibubi/create/AllSoundEvents$SoundEntry;playOnServer(Lnet/minecraft/world/level/Level;Lnet/minecraft/core/Vec3i;FF)V"),
-		remap = true)
-	private void createBiotech$muteChamberPressActivation(SoundEntry sound, Level level, Vec3i pos, float volume,
+		remap = true, require = 0)
+	private boolean createBiotech$allowChamberPressActivation(SoundEntry sound, Level level, Vec3i pos, float volume,
 		float pitch) {
-		if (shouldMuteCurrentPressActivation())
-			return;
-		sound.playOnServer(level, pos, volume, pitch);
+		return !shouldMuteCurrentPressActivation();
 	}
 
 	private boolean shouldMuteCurrentPressActivation() {

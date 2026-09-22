@@ -15,8 +15,6 @@ public final class ButterCatPartials {
 	public static final PartialModel BREAD = create("butter_cat_engine/butter/bread");
 	public static final PartialModel ROPE = create("butter_cat_engine/butter/rope");
 	public static final PartialModel BUTTER = create("butter_cat_engine/butter/butter");
-	public static final PartialModel BUTTER_SMALL = create("butter_cat_engine/butter/butter_small");
-	public static final PartialModel BUTTER_BIG = create("butter_cat_engine/butter/butter_big");
 	public static final PartialModel SUPER_BUTTER = create("butter_cat_engine/butter/super_butter");
 
 	public static final PartialModel CAT_ALL_BLACK = create("butter_cat_engine/cat/all_black");
@@ -33,7 +31,7 @@ public final class ButterCatPartials {
 
 	private static final Map<ResourceKey<CatVariant>, PartialModel> CAT_VARIANT_MODELS = new HashMap<>();
 	private static final List<PartialModel> ALL_MODELS = List.of(
-		EMPTY, BREAD, ROPE, BUTTER, BUTTER_SMALL, BUTTER_BIG, SUPER_BUTTER,
+		EMPTY, BREAD, ROPE, BUTTER, SUPER_BUTTER,
 		CAT_ALL_BLACK, CAT_BLACK, CAT_BRITISH_SHORTHAIR, CAT_CALICO, CAT_JELLIE,
 		CAT_PERSIAN, CAT_RAGDOLL, CAT_RED, CAT_SIAMESE, CAT_TABBY, CAT_WHITE);
 
@@ -60,12 +58,7 @@ public final class ButterCatPartials {
 	public static PartialModel getButterModel(boolean infinite, int butterLevel) {
 		if (infinite)
 			return SUPER_BUTTER;
-		return switch (butterLevel) {
-		case 0 -> EMPTY;
-		case 2 -> BUTTER;
-		case 3 -> BUTTER_BIG;
-		default -> BUTTER_SMALL;
-		};
+		return butterLevel == 0 ? EMPTY : BUTTER;
 	}
 
 	public static PartialModel getBreadModel(boolean hasBread) {

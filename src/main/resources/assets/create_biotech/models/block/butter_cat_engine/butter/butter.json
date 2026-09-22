@@ -1,10 +1,44 @@
 {
-	"parent": "block/block",
-	"loader": "neoforge:obj",
-	"flip_v": true,
-	"model": "create_biotech:models/block/butter_cat_engine/butter/butter.obj",
+	"format_version": "1.21.11",
+	"credit": "Rebuilt as two half-pixel-density butter sheets.",
+	"ambientocclusion": false,
+	"render_type": "solid",
 	"textures": {
-		"1": "create_biotech:block/butter/butter",
+		"butter": "create_biotech:block/butter/butter",
 		"particle": "create_biotech:block/butter/butter"
-	}
+	},
+	"elements": [
+		{
+			"name": "large_sheet",
+			"from": [5.5, 13.25, 9.75],
+			"to": [10.5, 13.75, 12.75],
+			"faces": {
+				"north": {"uv": [0, 0, 10, 1], "texture": "#butter"},
+				"east": {"uv": [0, 0, 6, 1], "texture": "#butter"},
+				"south": {"uv": [0, 0, 10, 1], "texture": "#butter"},
+				"west": {"uv": [0, 0, 6, 1], "texture": "#butter"},
+				"up": {"uv": [0, 0, 10, 6], "texture": "#butter"}
+			}
+		},
+		{
+			"name": "small_sheet",
+			"from": [6.5, 13.75, 10.25],
+			"to": [9.5, 14.25, 12.25],
+			"faces": {
+				"north": {"uv": [0, 0, 6, 1], "texture": "#butter"},
+				"east": {"uv": [0, 0, 4, 1], "texture": "#butter"},
+				"south": {"uv": [0, 0, 6, 1], "texture": "#butter"},
+				"west": {"uv": [0, 0, 4, 1], "texture": "#butter"},
+				"up": {"uv": [0, 0, 6, 4], "texture": "#butter"}
+			}
+		}
+	],
+	"groups": [
+		{
+			"name": "butter",
+			"origin": [8, 13.25, 11.25],
+			"color": 0,
+			"children": [0, 1]
+		}
+	]
 }
