@@ -1,6 +1,9 @@
 newmtl enderman
 map_Kd #enderman
 
+newmtl stockkeeper_hat
+map_Kd #stockkeeper_hat
+
 newmtl clipboard
 map_Kd #clipboard
 

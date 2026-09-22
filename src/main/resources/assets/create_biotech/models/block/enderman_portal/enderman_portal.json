@@ -2,19 +2,68 @@
 	"parent": "block/block",
 	"ambientocclusion": false,
 	"gui_light": "front",
-	"loader": "neoforge:obj",
-	"flip_v": true,
-	"model": "create_biotech:models/block/enderman_portal/enderman_portal.obj",
-	"render_type": "minecraft:translucent",
+	"loader": "neoforge:composite",
 	"textures": {
-		"enderman": "minecraft:entity/enderman/enderman",
-		"clipboard": "create:block/clipboard_model_filled",
-		"clipboard_back": "create:block/belt/andesite_belt_casing",
-		"andesite_casing": "create:block/andesite_casing",
-		"detail": "create_biotech:block/enderman_portal",
-		"nether_portal": "minecraft:block/nether_portal",
 		"particle": "create:block/andesite_casing"
 	},
+	"children": {
+		"body": {
+			"parent": "block/block",
+			"loader": "neoforge:obj",
+			"flip_v": true,
+			"model": "create_biotech:models/block/enderman_portal/enderman_portal.obj",
+			"render_type": "minecraft:translucent",
+			"textures": {
+				"enderman": "minecraft:entity/enderman/enderman",
+				"stockkeeper_hat": "create:entity/logistics_hat",
+				"clipboard": "create:block/clipboard_model_filled",
+				"clipboard_back": "create:block/belt/andesite_belt_casing",
+				"andesite_casing": "create:block/andesite_casing",
+				"detail": "create_biotech:block/enderman_portal",
+				"nether_portal": "minecraft:block/nether_portal",
+				"particle": "create:block/andesite_casing"
+			},
+			"visibility": {
+				"stockkeeper_hat": false
+			}
+		},
+		"stockkeeper_hat": {
+			"parent": "block/block",
+			"loader": "neoforge:obj",
+			"flip_v": true,
+			"model": "create_biotech:models/block/enderman_portal/enderman_portal.obj",
+			"render_type": "minecraft:cutout",
+			"textures": {
+				"enderman": "minecraft:entity/enderman/enderman",
+				"stockkeeper_hat": "create:entity/logistics_hat",
+				"clipboard": "create:block/clipboard_model_filled",
+				"clipboard_back": "create:block/belt/andesite_belt_casing",
+				"andesite_casing": "create:block/andesite_casing",
+				"detail": "create_biotech:block/enderman_portal",
+				"nether_portal": "minecraft:block/nether_portal",
+				"particle": "create:block/andesite_casing"
+			},
+			"visibility": {
+				"body": false,
+				"head": false,
+				"hat": false,
+				"rightArm_upper": false,
+				"rightArm_lower": false,
+				"leftArm_upper": false,
+				"leftArm_lower": false,
+				"frame_n": false,
+				"frame_s": false,
+				"frame_w": false,
+				"frame_e": false,
+				"portal": false,
+				"stand_post": false,
+				"clipboard": false,
+				"stand_post_2": false,
+				"stockkeeper_hat": true
+			}
+		}
+	},
+	"item_render_order": ["body", "stockkeeper_hat"],
 	"display": {
 		"thirdperson_righthand": {
 			"rotation": [75, 45, 0],
