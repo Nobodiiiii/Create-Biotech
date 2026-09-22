@@ -142,3 +142,96 @@
 - `./gradlew build`：通过，包含 `processResources` 与现有测试任务。
 - `src/main/resources/data` 下 282 个 JSON：语法检查全部通过。
 - 未运行 `quickPlaySmoke`：本轮没有 Mixin 改动，遵守项目对非 Mixin 变更的验证限制。
+
+## 鱿鱼打印机开放配方模型（2026-09-22）
+
+P0 完成后继续解除鱿鱼打印机对“书 + 水 + 附魔模板”的隐式绑定。当前
+`create_biotech:squid_printer` 语义如下：
+
+- `ingredients` 必须包含一个传送带物品 Ingredient；可再包含零或一个
+  SizedFluidIngredient。流体可以是水、其他流体或流体标签，省略流体即不消耗液体。
+- `results` 可声明零或一个任意物品结果，并沿用 Create 的 `id`、`count`、`components`
+  和 `chance`。概率未命中时仍会完成工序并消耗一个传送带输入。
+- 顶层 `template` 是可选的标准 Item Ingredient。普通配方省略它时，要求模板槽为空；
+  声明它时，模板槽必须匹配，但不会消耗模板。
+- `copy_enchantments` 默认为 `false`。设为 `true` 后，模板必须含有可复制附魔，结果会继承
+  模板的附魔；处理时间和流体用量才会按模板附魔等级总和倍增。
+- 附魔复制配方省略 `template` 时，允许任意带可复制附魔的模板；也可以同时声明
+  `template`，进一步限制模板物品或标签。
+
+模组自带的附魔复制配方显式声明普通书输入、`minecraft:enchanted_book` 模板、水和
+附魔书副本输出；这些都只是默认 JSON 值，不再是 Java 限制。
+
+普通无模板、无流体配方示例：
+
+```json
+{
+  "type": "create_biotech:squid_printer",
+  "ingredients": [
+    { "item": "minecraft:paper" }
+  ],
+  "results": [
+    { "id": "minecraft:map" }
+  ],
+  "processing_time": 20
+}
+```
+
+任意模板、任意流体配方示例：
+
+```json
+{
+  "type": "create_biotech:squid_printer",
+  "ingredients": [
+    { "item": "minecraft:paper" },
+    {
+      "type": "neoforge:single",
+      "fluid": "minecraft:lava",
+      "amount": 125
+    }
+  ],
+  "template": { "tag": "minecraft:axes" },
+  "results": [
+    { "id": "minecraft:written_book", "count": 1 }
+  ],
+  "processing_time": 40
+}
+```
+
+### 附魔复制开关
+
+附魔开关本身也是会同步给客户端的配方数据，类型为
+`create_biotech:squid_printer_enchantment_rule`。这样服务端数据包、客户端机器预测和 JEI
+使用同一份规则。
+
+全局开关的固定资源 ID 是
+`create_biotech:squid_printer_enchantment_rules/_all`。模组默认文件为：
+
+```json
+{
+  "type": "create_biotech:squid_printer_enchantment_rule",
+  "enabled": true
+}
+```
+
+数据包要禁用全部附魔复制，应在同一路径
+`data/create_biotech/recipe/squid_printer_enchantment_rules/_all.json` 覆盖为
+`"enabled": false`。
+
+单个附魔规则的资源 ID 必须与附魔 ID 同命名空间，并使用
+`squid_printer_enchantment_rules/` 路径前缀。例如禁用 `minecraft:mending`：
+
+`data/minecraft/recipe/squid_printer_enchantment_rules/mending.json`
+
+```json
+{
+  "type": "create_biotech:squid_printer_enchantment_rule",
+  "enabled": false
+}
+```
+
+没有对应规则文件的附魔默认启用。全局关闭优先于单项开启；模板同时含有多个附魔时，
+任意一个附魔被禁用都会拒绝整次复制。JEI 不显示已禁用的附魔复制条目。
+
+本轮验证：`./gradlew build` 通过；`src/main/resources/data` 下 284 个 JSON 语法检查通过。
+本轮仍未涉及 Mixin，因此未运行客户端烟雾测试。

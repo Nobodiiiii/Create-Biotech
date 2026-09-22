@@ -43,19 +43,25 @@ public class SquidPrinterJeiCategory extends AbstractRecipeCategory<SquidPrinter
 	public void setRecipe(IRecipeLayoutBuilder builder, SquidPrinterJeiRecipe recipe, IFocusGroup focuses) {
 		builder.addSlot(RecipeIngredientRole.INPUT, 27, 51)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStacks(recipe.inputBooks());
+			.addItemStacks(recipe.inputItems());
+		recipe.requiredFluid().ifPresent(requiredFluid ->
+			CreateRecipeCategory.addFluidSlot(builder, 27, 32, requiredFluid));
 
-		IRecipeSlotBuilder templateSlot = builder.addSlot(RecipeIngredientRole.INPUT, TEMPLATE_SLOT_X, TEMPLATE_SLOT_Y)
-			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
-			.addItemStacks(recipe.templateBooks());
-		templateSlot.addRichTooltipCallback((view, tooltip) -> tooltip.add(
-			NOT_CONSUMED.copy().withStyle(ChatFormatting.GOLD)));
+		IRecipeSlotBuilder templateSlot = null;
+		if (!recipe.templateBooks().isEmpty()) {
+			templateSlot = builder.addSlot(RecipeIngredientRole.INPUT, TEMPLATE_SLOT_X, TEMPLATE_SLOT_Y)
+				.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
+				.addItemStacks(recipe.templateBooks());
+			templateSlot.addRichTooltipCallback((view, tooltip) -> tooltip.add(
+				NOT_CONSUMED.copy().withStyle(ChatFormatting.GOLD)));
+		}
 
 		IRecipeSlotBuilder outputSlot = builder.addSlot(RecipeIngredientRole.OUTPUT, 132, 51)
 			.setBackground(CreateRecipeCategory.getRenderedSlot(), -1, -1)
 			.addItemStacks(recipe.outputCopies());
 
-		if (recipe.templateBooks().size() == recipe.outputCopies().size() && recipe.templateBooks().size() > 1)
+		if (templateSlot != null && recipe.templateBooks().size() == recipe.outputCopies().size()
+			&& recipe.templateBooks().size() > 1)
 			builder.createFocusLink(templateSlot, outputSlot);
 	}
 
@@ -64,9 +70,9 @@ public class SquidPrinterJeiCategory extends AbstractRecipeCategory<SquidPrinter
 		double mouseX, double mouseY) {
 		AllGuiTextures.JEI_SHADOW.render(graphics, 62, 57);
 		AllGuiTextures.JEI_DOWN_ARROW.render(graphics, 126, 29);
-		getOrCreateSpout().withFluids(recipe.requiredFluid()
-			.getFluids() == null ? java.util.List.of() : Arrays.asList(recipe.requiredFluid().getFluids()))
-			.draw(graphics, WIDTH / 2 - 13, 22);
+		recipe.requiredFluid().ifPresent(requiredFluid -> getOrCreateSpout().withFluids(requiredFluid
+			.getFluids() == null ? java.util.List.of() : Arrays.asList(requiredFluid.getFluids()))
+			.draw(graphics, WIDTH / 2 - 13, 22));
 	}
 
 	private AnimatedSquidSpout getOrCreateSpout() {

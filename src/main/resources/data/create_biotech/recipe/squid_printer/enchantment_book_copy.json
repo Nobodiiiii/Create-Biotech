@@ -6,6 +6,10 @@
     }
   ],
   "type": "create_biotech:squid_printer",
+  "copy_enchantments": true,
+  "template": {
+    "item": "minecraft:enchanted_book"
+  },
   "ingredients": [
     {
       "item": "minecraft:book"

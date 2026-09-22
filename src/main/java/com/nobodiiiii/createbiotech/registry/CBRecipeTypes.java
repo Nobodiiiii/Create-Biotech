@@ -7,8 +7,8 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.content.giantfrog.FrogContentsPackagingRecipe;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRecipe;
+import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterEnchantmentRuleRecipe;
 import com.simibubi.create.content.kinetics.deployer.ItemApplicationRecipe;
-import com.simibubi.create.content.processing.recipe.StandardProcessingRecipe;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.crafting.RecipeSerializer;
@@ -30,8 +30,11 @@ public class CBRecipeTypes {
 				CreeperBlastChamberHighPressureRecipe.Serializer::new);
 
 	public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SquidPrinterRecipe>> SQUID_PRINTER_SERIALIZER =
-		RECIPE_SERIALIZERS.register("squid_printer",
-			() -> new StandardProcessingRecipe.Serializer<>(SquidPrinterRecipe::new));
+		RECIPE_SERIALIZERS.register("squid_printer", SquidPrinterRecipe.Serializer::new);
+
+	public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SquidPrinterEnchantmentRuleRecipe>>
+		SQUID_PRINTER_ENCHANTMENT_RULE_SERIALIZER = RECIPE_SERIALIZERS.register(
+			"squid_printer_enchantment_rule", SquidPrinterEnchantmentRuleRecipe.Serializer::new);
 
 	public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SonicDogCannonUpgradeRecipe>>
 		SONIC_DOG_CANNON_UPGRADE_SERIALIZER =
@@ -50,6 +53,10 @@ public class CBRecipeTypes {
 	public static final DeferredHolder<RecipeType<?>, RecipeType<SquidPrinterRecipe>> SQUID_PRINTER_TYPE =
 		RECIPE_TYPES.register("squid_printer",
 			() -> RecipeType.simple(CreateBiotech.asResource("squid_printer")));
+
+	public static final DeferredHolder<RecipeType<?>, RecipeType<SquidPrinterEnchantmentRuleRecipe>>
+		SQUID_PRINTER_ENCHANTMENT_RULE_TYPE = RECIPE_TYPES.register("squid_printer_enchantment_rule",
+			() -> RecipeType.simple(CreateBiotech.asResource("squid_printer_enchantment_rule")));
 
 	private CBRecipeTypes() {}
 

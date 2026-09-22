@@ -78,7 +78,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		behaviours.add(beltProcessing);
 
 		filtering = new FilteringBehaviour(this, new SquidPrinterFilterSlot())
-			.withPredicate(stack -> stack.isEmpty() || EnchantmentBookCopyItem.hasCopyableEnchantments(stack))
+			.withPredicate(stack -> true)
 			.withCallback(stack -> notifyUpdate());
 		behaviours.add(filtering);
 	}
@@ -135,25 +135,21 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			if (processingTicks > getFinishingTicks())
 				return HOLD;
 
-			ItemStack out = produceCopy();
-			if (out.isEmpty()) {
-				clearProcessingState();
-				notifyUpdate();
-				return HOLD;
-			}
-
+			ItemStack out = produceResult();
 			transported.clearFanProcessingData();
 			List<TransportedItemStack> outList = new ArrayList<>();
 			TransportedItemStack held = null;
-			TransportedItemStack result = transported.copy();
-			result.stack = out;
+			if (!out.isEmpty()) {
+				TransportedItemStack result = transported.copy();
+				result.stack = out;
+				outList.add(result);
+			}
 			ItemStack remaining = transported.stack.copy();
 			remaining.shrink(1);
 			if (!remaining.isEmpty()) {
 				held = transported.copy();
 				held.stack = remaining;
 			}
-			outList.add(result);
 			handler.handleProcessingOnItem(transported, TransportedResult.convertToAndLeaveHeld(outList, held));
 			PlacedByPlayerAdvancementTracker.awardPlacedBy(level, advancementOwner, CBAdvancements.SQUID_PRINTER);
 
@@ -179,10 +175,21 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		ItemStackHandler recipeInventory = new ItemStackHandler(1);
 		recipeInventory.setStackInSlot(0, input.copy());
 		RecipeWrapper recipeWrapper = new RecipeWrapper(recipeInventory);
-		return !level.getRecipeManager()
+		ItemStack template = getTemplate();
+		return level.getRecipeManager()
 			.getRecipesFor(com.nobodiiiii.createbiotech.registry.CBRecipeTypes.SQUID_PRINTER_TYPE.get(),
 				recipeWrapper, level)
-			.isEmpty();
+			.stream()
+			.map(net.minecraft.world.item.crafting.RecipeHolder::value)
+			.anyMatch(recipe -> {
+				if (recipe.copiesEnchantments()
+					&& !SquidPrinterEnchantmentRuleRecipe.isCopyingEnabled(level.getRecipeManager()))
+					return false;
+				if (template.isEmpty())
+					return recipe.copiesEnchantments() || recipe.getTemplateIngredient().isPresent()
+						|| recipe.matchesTemplate(template, level);
+				return recipe.matchesTemplate(template, level);
+			});
 	}
 
 	private Optional<PreparedRecipe> findMatchingRecipe(ItemStack input) {
@@ -190,9 +197,6 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			return Optional.empty();
 
 		ItemStack template = getTemplate();
-		if (!EnchantmentBookCopyItem.hasCopyableEnchantments(template))
-			return Optional.empty();
-
 		ItemStackHandler recipeInventory = new ItemStackHandler(1);
 		recipeInventory.setStackInSlot(0, input.copy());
 		RecipeWrapper recipeWrapper = new RecipeWrapper(recipeInventory);
@@ -202,28 +206,30 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			.stream()
 			.map(net.minecraft.world.item.crafting.RecipeHolder::value)
 			.filter(recipe -> recipe.matches(recipeWrapper, level))
-			.filter(recipe -> recipe.matchesTemplate(template))
+			.filter(recipe -> recipe.matchesTemplate(template, level))
 			.map(recipe -> new PreparedRecipe(recipe, template.copyWithCount(1)))
 			.filter(this::hasRequiredFluid)
 			.findFirst();
 	}
 
 	private boolean hasRequiredFluid(PreparedRecipe recipe) {
-		FluidStack stored = getFluid();
-		return recipe.recipe().getRequiredFluid()
-			.test(stored)
-			&& stored.getAmount() >= recipe.recipe().getRequiredWater(recipe.template());
+		return recipe.recipe().getRequiredFluid().map(requiredFluid -> {
+			FluidStack stored = getFluid();
+			return requiredFluid.test(stored)
+				&& stored.getAmount() >= recipe.recipe().getRequiredFluidAmount(recipe.template());
+		}).orElse(true);
 	}
 
 	private void startProcessing(PreparedRecipe recipe) {
-		processingOutput = recipe.recipe().createResult(recipe.template());
+		processingOutput = recipe.recipe().rollResult(recipe.template(), level.random);
 		processingTicks = recipe.recipe()
 			.getRequiredTicks(recipe.template()) + getFinishingTicks();
 		running = true;
 		idleTicksWhileRunning = 0;
-		if (level != null && !level.isClientSide)
+		int requiredFluid = recipe.recipe().getRequiredFluidAmount(recipe.template());
+		if (level != null && !level.isClientSide && requiredFluid > 0)
 			tank.getPrimaryHandler()
-				.drain(recipe.recipe().getRequiredWater(recipe.template()), FluidAction.EXECUTE);
+				.drain(requiredFluid, FluidAction.EXECUTE);
 	}
 
 	private void clearProcessingState() {
@@ -237,7 +243,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		return filtering == null ? ItemStack.EMPTY : filtering.getFilter();
 	}
 
-	private ItemStack produceCopy() {
+	private ItemStack produceResult() {
 		return processingOutput.copy();
 	}
 
@@ -337,6 +343,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		super.write(compound, registries, clientPacket);
 		compound.putInt("ProcessingTicks", processingTicks);
 		compound.putBoolean("Running", running);
+		compound.putBoolean("HasProcessingResult", running);
 		if (!processingOutput.isEmpty())
 			compound.put("ProcessingOutput", processingOutput.saveOptional(registries));
 		PlacedByPlayerAdvancementTracker.writeOwner(compound, advancementOwner);
@@ -351,11 +358,13 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 		super.read(compound, registries, clientPacket);
 		processingTicks = compound.getInt("ProcessingTicks");
 		running = compound.getBoolean("Running");
+		boolean hasProcessingResult = compound.getBoolean("HasProcessingResult")
+			|| compound.contains("ProcessingOutput");
 		processingOutput =
 			compound.contains("ProcessingOutput")
 				? ItemStack.parseOptional(registries, compound.getCompound("ProcessingOutput"))
 				: ItemStack.EMPTY;
-		if (running && processingOutput.isEmpty()) {
+		if (running && !hasProcessingResult) {
 			processingTicks = -1;
 			running = false;
 		}
