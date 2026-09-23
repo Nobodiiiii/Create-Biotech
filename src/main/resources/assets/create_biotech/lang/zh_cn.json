@@ -730,7 +730,7 @@
   "block.create_biotech.honeycomb_gauge_cluster": "蜂巢仪表集群",
   "create_biotech.honeycomb_gauge_cluster.summary": "工作空间：%s 块蜜脾 / %s 个仪表",
   "create_biotech.honeycomb_gauge_cluster.gauges": "附着的工厂仪表",
-  "create_biotech.honeycomb_gauge_cluster.controls": "拖动平移 · 滚轮缩放 · R 重置视图",
+  "create_biotech.honeycomb_gauge_cluster.controls": "正对仪表的俯视图 · 拖动平移",
   "create_biotech.honeycomb_gauge_cluster.unfiltered": "未设置过滤物品",
   "create_biotech.honeycomb_gauge_cluster.empty": "未找到上方附着的工厂仪表",
   "create_biotech.honeycomb_gauge_cluster.limit": "已达到扫描上限",

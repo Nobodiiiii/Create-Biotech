@@ -38,14 +38,29 @@ public final class HoneycombGaugeClusterScanner {
 		List<Gauge> gauges = new ArrayList<>();
 		boolean limited = false;
 
-		// A controller placed on a honeycomb platform uses its supporting plane.
-		// Otherwise it joins the honeycomb tiles alongside it in the facing plane.
-		BlockPos support = origin.relative(facing.getOpposite());
-		if (hasLoadedChunk(level, support) && level.getBlockState(support).is(Blocks.HONEYCOMB_BLOCK))
-			pending.add(support);
-		else
-			for (Direction direction : plane)
-				pending.add(origin.relative(direction));
+		// Factory gauges are mounted above a horizontal honeycomb platform. The
+		// controller can sit on top of it or replace one tile along its edge.
+		BlockPos below = origin.below();
+		if (isLoadedHoneycomb(level, below)) {
+			plane = planeDirections(Direction.UP);
+			pending.add(below);
+		} else {
+			boolean adjacentFloor = false;
+			for (Direction direction : Direction.Plane.HORIZONTAL)
+				adjacentFloor |= isLoadedHoneycomb(level, origin.relative(direction));
+			if (adjacentFloor) {
+				plane = planeDirections(Direction.UP);
+				for (Direction direction : plane)
+					pending.add(origin.relative(direction));
+			} else {
+				BlockPos support = origin.relative(facing.getOpposite());
+				if (isLoadedHoneycomb(level, support))
+					pending.add(support);
+				else
+					for (Direction direction : plane)
+						pending.add(origin.relative(direction));
+			}
+		}
 
 		while (!pending.isEmpty()) {
 			BlockPos pos = pending.removeFirst();
@@ -86,6 +101,10 @@ public final class HoneycombGaugeClusterScanner {
 
 	private static boolean hasLoadedChunk(Level level, BlockPos pos) {
 		return level.getChunkSource().hasChunk(pos.getX() >> 4, pos.getZ() >> 4);
+	}
+
+	private static boolean isLoadedHoneycomb(Level level, BlockPos pos) {
+		return hasLoadedChunk(level, pos) && level.getBlockState(pos).is(Blocks.HONEYCOMB_BLOCK);
 	}
 
 	public static Direction[] planeDirections(Direction facing) {

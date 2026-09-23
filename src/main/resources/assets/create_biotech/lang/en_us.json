@@ -730,7 +730,7 @@
   "block.create_biotech.honeycomb_gauge_cluster": "Honeycomb Gauge Cluster",
   "create_biotech.honeycomb_gauge_cluster.summary": "Workspace: %s honeycomb blocks / %s gauges",
   "create_biotech.honeycomb_gauge_cluster.gauges": "Attached Factory Gauges",
-  "create_biotech.honeycomb_gauge_cluster.controls": "Drag to pan · Scroll to zoom · R to reset view",
+  "create_biotech.honeycomb_gauge_cluster.controls": "Orthographic gauge view · Drag to pan",
   "create_biotech.honeycomb_gauge_cluster.unfiltered": "No filter set",
   "create_biotech.honeycomb_gauge_cluster.empty": "No Factory Gauges attached above",
   "create_biotech.honeycomb_gauge_cluster.limit": "Scan limit reached",
