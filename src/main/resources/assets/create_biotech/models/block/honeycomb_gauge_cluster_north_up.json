@@ -1,0 +1,48 @@
+{
+  "textures": {
+    "particle": "minecraft:block/honeycomb_block",
+    "honeycomb": "minecraft:block/honeycomb_block",
+    "front": "minecraft:block/magenta_glazed_terracotta"
+  },
+  "elements": [
+    {
+      "from": [
+        0,
+        0,
+        0
+      ],
+      "to": [
+        16,
+        16,
+        16
+      ],
+      "faces": {
+        "down": {
+          "texture": "#honeycomb",
+          "cullface": "down"
+        },
+        "up": {
+          "texture": "#honeycomb",
+          "cullface": "up"
+        },
+        "north": {
+          "texture": "#front",
+          "cullface": "north",
+          "rotation": 0
+        },
+        "south": {
+          "texture": "#honeycomb",
+          "cullface": "south"
+        },
+        "west": {
+          "texture": "#honeycomb",
+          "cullface": "west"
+        },
+        "east": {
+          "texture": "#honeycomb",
+          "cullface": "east"
+        }
+      }
+    }
+  ]
+}

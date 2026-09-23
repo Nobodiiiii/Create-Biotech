@@ -1,10 +1,112 @@
 {
   "variants": {
-    "facing=up": { "model": "minecraft:block/honeycomb_block" },
-    "facing=down": { "model": "minecraft:block/honeycomb_block" },
-    "facing=north": { "model": "minecraft:block/honeycomb_block" },
-    "facing=south": { "model": "minecraft:block/honeycomb_block" },
-    "facing=east": { "model": "minecraft:block/honeycomb_block" },
-    "facing=west": { "model": "minecraft:block/honeycomb_block" }
+    "facing=down,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_north"
+    },
+    "facing=down,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_north"
+    },
+    "facing=down,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_north"
+    },
+    "facing=down,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_south"
+    },
+    "facing=down,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_west"
+    },
+    "facing=down,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_down_east"
+    },
+    "facing=up,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_north"
+    },
+    "facing=up,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_north"
+    },
+    "facing=up,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_north"
+    },
+    "facing=up,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_south"
+    },
+    "facing=up,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_west"
+    },
+    "facing=up,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_up_east"
+    },
+    "facing=north,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_down"
+    },
+    "facing=north,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_up"
+    },
+    "facing=north,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_up"
+    },
+    "facing=north,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_up"
+    },
+    "facing=north,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_west"
+    },
+    "facing=north,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_north_east"
+    },
+    "facing=south,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_down"
+    },
+    "facing=south,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_up"
+    },
+    "facing=south,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_up"
+    },
+    "facing=south,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_up"
+    },
+    "facing=south,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_west"
+    },
+    "facing=south,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_south_east"
+    },
+    "facing=west,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_down"
+    },
+    "facing=west,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_up"
+    },
+    "facing=west,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_north"
+    },
+    "facing=west,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_south"
+    },
+    "facing=west,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_up"
+    },
+    "facing=west,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_west_up"
+    },
+    "facing=east,workspace_up=down": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_down"
+    },
+    "facing=east,workspace_up=up": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_up"
+    },
+    "facing=east,workspace_up=north": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_north"
+    },
+    "facing=east,workspace_up=south": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_south"
+    },
+    "facing=east,workspace_up=west": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_up"
+    },
+    "facing=east,workspace_up=east": {
+      "model": "create_biotech:block/honeycomb_gauge_cluster_east_up"
+    }
   }
 }

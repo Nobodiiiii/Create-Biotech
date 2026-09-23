@@ -5,19 +5,33 @@ import java.util.List;
 import java.util.Set;
 
 import org.joml.Vector3f;
+import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Axis;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScanner.Gauge;
 import com.simibubi.create.content.logistics.factoryBoard.FactoryPanelBlock;
 
+import dev.engine_room.flywheel.lib.model.baked.SinglePosVirtualBlockGetter;
+import net.createmod.catnip.client.render.model.BakedModelBufferer;
 import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.catnip.gui.ILightingSettings;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.Sheets;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
@@ -39,7 +53,8 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 	private double sceneScale;
 	private double panX;
 	private double panY;
-	private final float viewYaw;
+	private Direction shownUp;
+	private Button rotateUpButton;
 	private double centerX;
 	private double centerY;
 	private double centerZ;
@@ -49,7 +64,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 
 	public HoneycombGaugeClusterScreen(HoneycombGaugeClusterMenu menu, Inventory inventory, Component title) {
 		super(menu, inventory, title);
-		viewYaw = menu.facing().toYRot();
+		shownUp = menu.workspaceUp();
 		for (Gauge gauge : menu.snapshot().gauges())
 			gaugeBlocks.add(gauge.pos());
 	}
@@ -59,6 +74,11 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		imageWidth = Math.min(430, width - 16);
 		imageHeight = Math.min(275, height - 16);
 		super.init();
+		rotateUpButton = addRenderableWidget(Button.builder(Component.empty(), button -> {
+			if (minecraft != null && minecraft.gameMode != null)
+				minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
+					HoneycombGaugeClusterMenu.ROTATE_UP_BUTTON);
+		}).bounds(sideX() - 3, topPos + 7, 112, 20).build());
 		fitScene();
 	}
 
@@ -86,18 +106,33 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		centerY = (minY + maxY + 1) / 2.0;
 		centerZ = (minZ + maxZ + 1) / 2.0;
 		double spanX = maxX - minX + 1;
+		double spanY = maxY - minY + 1;
 		double spanZ = maxZ - minZ + 1;
-		boolean quarterTurn = menu.facing().getAxis() == net.minecraft.core.Direction.Axis.X;
-		double viewWidth = quarterTurn ? spanZ : spanX;
-		double viewHeight = quarterTurn ? spanX : spanZ;
+		Direction right = HoneycombGaugeClusterBlock.nextWorkspaceUp(menu.facing(), shownUp);
+		double viewWidth = axisSpan(right.getAxis(), spanX, spanY, spanZ);
+		double viewHeight = axisSpan(shownUp.getAxis(), spanX, spanY, spanZ);
 		sceneScale = Mth.clamp(Math.min((viewportWidth() - 24.0) / viewWidth,
 			(viewportHeight() - 24.0) / viewHeight), 2.0, 64.0);
 		panX = 0;
 		panY = 0;
 	}
 
+	private static double axisSpan(Direction.Axis axis, double x, double y, double z) {
+		return switch (axis) {
+			case X -> x;
+			case Y -> y;
+			case Z -> z;
+		};
+	}
+
 	@Override
 	protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+		if (shownUp != menu.workspaceUp()) {
+			shownUp = menu.workspaceUp();
+			fitScene();
+		}
+		rotateUpButton.setMessage(Component.translatable("create_biotech.honeycomb_gauge_cluster.rotate_up",
+			Component.translatable("create_biotech.direction." + shownUp.getName())));
 		graphics.fill(leftPos, topPos, leftPos + imageWidth, topPos + imageHeight, PAPER);
 		border(graphics, leftPos, topPos, imageWidth, imageHeight, INK);
 		graphics.drawString(font, title, leftPos + 13, topPos + 10, INK, false);
@@ -126,8 +161,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		graphics.pose().pushPose();
 		graphics.pose().translate(viewportX() + viewportWidth() / 2.0 + panX,
 			viewportY() + viewportHeight() / 2.0 + panY, 150);
-		graphics.pose().mulPose(Axis.XP.rotationDegrees(-90));
-		graphics.pose().mulPose(Axis.YP.rotationDegrees(viewYaw));
+		graphics.pose().mulPose(new Quaternionf().setFromNormalized(viewMatrix(menu.facing(), shownUp)));
 		for (BlockPos pos : menu.snapshot().honeycombs()) {
 			if (!isLoaded(level, pos))
 				continue;
@@ -150,12 +184,88 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		graphics.disableScissor();
 	}
 
+	private static Matrix4f viewMatrix(Direction facing, Direction up) {
+		Direction right = HoneycombGaugeClusterBlock.nextWorkspaceUp(facing, up);
+		// GuiGameElement receives Y inverted in atLocal; these basis vectors restore
+		// world coordinates before placing the chosen face toward the viewer.
+		return new Matrix4f()
+			.m00(right.getStepX()).m10(-right.getStepY()).m20(right.getStepZ())
+			.m01(-up.getStepX()).m11(up.getStepY()).m21(-up.getStepZ())
+			.m02(facing.getStepX()).m12(-facing.getStepY()).m22(facing.getStepZ());
+	}
+
 	private void renderBlock(GuiGraphics graphics, BlockPos pos, BlockState state, BlockEntity blockEntity) {
-		GuiGameElement.of(state, blockEntity)
+		GuiGameElement.GuiRenderBuilder builder = state.getBlock() instanceof FactoryPanelBlock
+			? new BrightGaugeRenderBuilder(state, blockEntity)
+			: GuiGameElement.of(state, blockEntity);
+		builder
 			.lighting(FRONT_LIGHTING)
 			.atLocal(pos.getX() - centerX, centerY - pos.getY(), pos.getZ() - centerZ)
 			.scale(sceneScale)
 			.render(graphics);
+	}
+
+	private static class BrightGaugeRenderBuilder extends GuiGameElement.GuiBlockEntityRenderBuilder {
+		private BrightGaugeRenderBuilder(BlockState state, BlockEntity blockEntity) {
+			super(state, blockEntity);
+		}
+
+		@Override
+		protected void renderModel(BlockRenderDispatcher blockRenderer, MultiBufferSource.BufferSource buffer, PoseStack poseStack) {
+			if (blockEntity != null) {
+				BlockEntityRenderer<BlockEntity> renderer = Minecraft.getInstance().getBlockEntityRenderDispatcher().getRenderer(blockEntity);
+				if (renderer != null)
+					renderer.render(blockEntity, 0, poseStack, buffer, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
+			}
+
+			SinglePosVirtualBlockGetter level = SinglePosVirtualBlockGetter.createFullBright();
+			level.blockState(blockState).blockEntity(blockEntity);
+			BakedModelBufferer.bufferModel(blockModel, BlockPos.ZERO, level, blockState, poseStack, (layer, shade) -> {
+				RenderType sheet = layer == RenderType.translucent()
+					? Sheets.translucentCullBlockSheet() : Sheets.cutoutBlockSheet();
+				return new UnshadedVertexConsumer(buffer.getBuffer(sheet));
+			});
+			buffer.endBatch();
+		}
+	}
+
+	/** Keep the gauge's dynamic model at full brightness without changing its texture or its block entity items. */
+	private record UnshadedVertexConsumer(VertexConsumer delegate) implements VertexConsumer {
+		@Override
+		public VertexConsumer addVertex(float x, float y, float z) {
+			delegate.addVertex(x, y, z);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+			delegate.setColor(255, 255, 255, alpha);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv(float u, float v) {
+			delegate.setUv(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv1(int u, int v) {
+			delegate.setUv1(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv2(int u, int v) {
+			delegate.setUv2(LightTexture.FULL_BRIGHT & 0xffff, LightTexture.FULL_BRIGHT >>> 16);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setNormal(float x, float y, float z) {
+			delegate.setNormal(0, 0, 1);
+			return this;
+		}
 	}
 
 	private static boolean isLoaded(ClientLevel level, BlockPos pos) {
@@ -180,7 +290,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 				? Component.translatable("create_biotech.honeycomb_gauge_cluster.unfiltered")
 				: Component.literal(font.substrByWidth(gauge.filter().getHoverName(), 83).getString()),
 				x + 19, y + 2, INK, false);
-			graphics.drawString(font, Component.literal(relative(gauge.pos().below()) + "  "
+			graphics.drawString(font, Component.literal(relative(gauge.pos().relative(menu.facing().getOpposite())) + "  "
 				+ gauge.slot().getSerializedName()), x + 19, y + 12, 0xff7a7772, false);
 			if (mouseX >= x - 3 && mouseX < x + 108 && mouseY >= y - 2 && mouseY < y + 23)
 				hoveredGauge = gauge;
@@ -210,7 +320,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		super.render(graphics, mouseX, mouseY, partialTick);
 		if (hoveredGauge != null)
 			graphics.renderComponentTooltip(font, List.of(
-				Component.literal(relative(hoveredGauge.pos().below())),
+				Component.literal(relative(hoveredGauge.pos().relative(menu.facing().getOpposite()))),
 				hoveredGauge.filter().isEmpty()
 					? Component.translatable("create_biotech.honeycomb_gauge_cluster.unfiltered")
 					: hoveredGauge.filter().getHoverName()), mouseX, mouseY);

@@ -17,7 +17,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.AttachFace;
 
 /** A bounded, loaded-chunk-only snapshot of the connected honeycomb plane. */
 public final class HoneycombGaugeClusterScanner {
@@ -38,29 +37,13 @@ public final class HoneycombGaugeClusterScanner {
 		List<Gauge> gauges = new ArrayList<>();
 		boolean limited = false;
 
-		// Factory gauges are mounted above a horizontal honeycomb platform. The
-		// controller can sit on top of it or replace one tile along its edge.
-		BlockPos below = origin.below();
-		if (isLoadedHoneycomb(level, below)) {
-			plane = planeDirections(Direction.UP);
-			pending.add(below);
-		} else {
-			boolean adjacentFloor = false;
-			for (Direction direction : Direction.Plane.HORIZONTAL)
-				adjacentFloor |= isLoadedHoneycomb(level, origin.relative(direction));
-			if (adjacentFloor) {
-				plane = planeDirections(Direction.UP);
-				for (Direction direction : plane)
-					pending.add(origin.relative(direction));
-			} else {
-				BlockPos support = origin.relative(facing.getOpposite());
-				if (isLoadedHoneycomb(level, support))
-					pending.add(support);
-				else
-					for (Direction direction : plane)
-						pending.add(origin.relative(direction));
-			}
-		}
+		// The reading face selects both the honeycomb plane and the side carrying gauges.
+		BlockPos support = origin.relative(facing.getOpposite());
+		if (isLoadedHoneycomb(level, support))
+			pending.add(support);
+		else
+			for (Direction direction : plane)
+				pending.add(origin.relative(direction));
 
 		while (!pending.isEmpty()) {
 			BlockPos pos = pending.removeFirst();
@@ -73,11 +56,11 @@ public final class HoneycombGaugeClusterScanner {
 				break;
 			}
 			honeycombs.add(pos.immutable());
-			BlockPos gaugePos = pos.above();
+			BlockPos gaugePos = pos.relative(facing);
 			if (hasLoadedChunk(level, gaugePos)) {
 				BlockState gaugeState = level.getBlockState(gaugePos);
 				if (gaugeState.getBlock() instanceof FactoryPanelBlock
-					&& gaugeState.getValue(FactoryPanelBlock.FACE) == AttachFace.FLOOR
+					&& FactoryPanelBlock.connectedDirection(gaugeState) == facing
 					&& level.getBlockEntity(gaugePos) instanceof FactoryPanelBlockEntity panelEntity) {
 					for (PanelSlot slot : PanelSlot.values()) {
 						FactoryPanelBehaviour panel = panelEntity.panels.get(slot);

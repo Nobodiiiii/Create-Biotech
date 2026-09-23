@@ -24,14 +24,17 @@ import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
 public class HoneycombGaugeClusterBlock extends DirectionalBlock {
 	public static final MapCodec<HoneycombGaugeClusterBlock> CODEC = simpleCodec(HoneycombGaugeClusterBlock::new);
+	public static final DirectionProperty WORKSPACE_UP = DirectionProperty.create("workspace_up");
 
 	public HoneycombGaugeClusterBlock(Properties properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(FACING, Direction.UP));
+		registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH)
+			.setValue(WORKSPACE_UP, Direction.UP));
 	}
 
 	@Override
@@ -42,22 +45,48 @@ public class HoneycombGaugeClusterBlock extends DirectionalBlock {
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
 		super.createBlockStateDefinition(builder);
-		builder.add(FACING);
+		builder.add(FACING, WORKSPACE_UP);
 	}
 
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+		Direction facing = context.getNearestLookingDirection().getOpposite();
+		// The player's camera-up vector supplies the initial orientation in the plane.
+		Direction up = facing.getAxis() == Direction.Axis.Y
+			? (facing == Direction.UP ? context.getHorizontalDirection()
+				: context.getHorizontalDirection().getOpposite())
+			: Direction.UP;
+		return defaultBlockState().setValue(FACING, facing).setValue(WORKSPACE_UP, up);
 	}
 
 	@Override
 	public BlockState rotate(BlockState state, Rotation rotation) {
-		return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+		return state.setValue(FACING, rotation.rotate(state.getValue(FACING)))
+			.setValue(WORKSPACE_UP, rotation.rotate(state.getValue(WORKSPACE_UP)));
 	}
 
 	@Override
 	public BlockState mirror(BlockState state, Mirror mirror) {
-		return rotate(state, mirror.getRotation(state.getValue(FACING)));
+		Direction facing = state.getValue(FACING);
+		Direction up = state.getValue(WORKSPACE_UP);
+		return state.setValue(FACING, mirror.getRotation(facing).rotate(facing))
+			.setValue(WORKSPACE_UP, mirror.getRotation(up).rotate(up));
+	}
+
+	/** A clockwise quarter turn when looking at the instrument's reading face. */
+	public static Direction nextWorkspaceUp(Direction facing, Direction up) {
+		up = normalizedWorkspaceUp(facing, up);
+		var right = up.getNormal().cross(facing.getNormal());
+		for (Direction direction : Direction.values())
+			if (direction.getStepX() == right.getX() && direction.getStepY() == right.getY()
+				&& direction.getStepZ() == right.getZ())
+				return direction;
+		return up;
+	}
+
+	public static Direction normalizedWorkspaceUp(Direction facing, Direction up) {
+		return facing.getAxis() == up.getAxis()
+			? (facing.getAxis() == Direction.Axis.Y ? Direction.NORTH : Direction.UP) : up;
 	}
 
 	@Override
@@ -98,11 +127,12 @@ public class HoneycombGaugeClusterBlock extends DirectionalBlock {
 
 			@Override
 			public AbstractContainerMenu createMenu(int id, Inventory inventory, Player menuPlayer) {
-				return new HoneycombGaugeClusterMenu(id, inventory, pos, state.getValue(FACING), snapshot);
+				return new HoneycombGaugeClusterMenu(id, inventory, pos, state.getValue(FACING),
+					state.getValue(WORKSPACE_UP), snapshot);
 			}
 		};
 		serverPlayer.openMenu(provider, buffer -> HoneycombGaugeClusterMenu.writeSnapshot(buffer,
-			pos, state.getValue(FACING), snapshot));
+			pos, state.getValue(FACING), state.getValue(WORKSPACE_UP), snapshot));
 		return ItemInteractionResult.SUCCESS;
 	}
 }
