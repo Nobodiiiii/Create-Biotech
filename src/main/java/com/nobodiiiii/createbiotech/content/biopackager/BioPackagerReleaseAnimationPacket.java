@@ -1,8 +1,5 @@
 package com.nobodiiiii.createbiotech.content.biopackager;
 
-import com.nobodiiiii.createbiotech.client.BioPackagerReleaseAnimationHandler;
-
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
 
 /** Starts the visual emerge animation after a stationary bio-packager releases an entity. */
@@ -21,7 +18,7 @@ public final class BioPackagerReleaseAnimationPacket {
 		buffer.writeVarInt(entityId);
 	}
 
-	public void handle(LocalPlayer player) {
-		BioPackagerReleaseAnimationHandler.start(entityId, player.clientLevel);
+	public int entityId() {
+		return entityId;
 	}
 }

@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.network;
 
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
+import com.nobodiiiii.createbiotech.client.BioPackagerReleaseAnimationHandler;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPreviewPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
@@ -54,7 +55,7 @@ final class CBClientPacketHandlers {
 		} else if (packet instanceof SurgicalTableReleaseGeometryPacket.ClientBoundRequest releaseGeometry) {
 			releaseGeometry.handle(player);
 		} else if (packet instanceof BioPackagerReleaseAnimationPacket bioPackagerRelease) {
-			bioPackagerRelease.handle(player);
+			BioPackagerReleaseAnimationHandler.start(bioPackagerRelease.entityId(), player.clientLevel);
 		} else if (packet instanceof GaugeCraftPreviewPacket gaugeCraftPreview) {
 			gaugeCraftPreview.handle(player);
 		} else {
