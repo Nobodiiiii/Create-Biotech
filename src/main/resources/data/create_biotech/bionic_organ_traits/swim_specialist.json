@@ -1,0 +1,17 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "values": {
+    "minecraft:cod": true,
+    "minecraft:salmon": true,
+    "minecraft:tropical_fish": true,
+    "minecraft:pufferfish": true,
+    "minecraft:squid": true,
+    "minecraft:glow_squid": true,
+    "minecraft:dolphin": true,
+    "minecraft:turtle": true,
+    "minecraft:axolotl": true,
+    "minecraft:guardian": true,
+    "minecraft:elder_guardian": true
+  }
+}

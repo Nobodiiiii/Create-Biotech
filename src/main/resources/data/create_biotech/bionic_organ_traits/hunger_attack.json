@@ -1,0 +1,8 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "parameters": { "duration_ticks": 140 },
+  "values": {
+    "minecraft:husk": true
+  }
+}

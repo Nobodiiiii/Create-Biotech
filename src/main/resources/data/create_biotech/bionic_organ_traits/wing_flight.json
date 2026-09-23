@@ -1,0 +1,14 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "max_body_volume_per_cube": 16.0,
+  "values": {
+    "minecraft:bee": true,
+    "minecraft:parrot": true,
+    "minecraft:bat": true,
+    "minecraft:phantom": true,
+    "minecraft:allay": true,
+    "minecraft:vex": true,
+    "minecraft:ender_dragon": true
+  }
+}

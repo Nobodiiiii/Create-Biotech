@@ -1,0 +1,18 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "values": {
+    "minecraft:cow": true,
+    "minecraft:sheep": true,
+    "minecraft:pig": true,
+    "minecraft:chicken": true,
+    "minecraft:rabbit": true,
+    "minecraft:wolf": true,
+    "minecraft:cat": true,
+    "minecraft:horse": true,
+    "minecraft:donkey": true,
+    "minecraft:mule": true,
+    "minecraft:llama": true,
+    "minecraft:trader_llama": true
+  }
+}

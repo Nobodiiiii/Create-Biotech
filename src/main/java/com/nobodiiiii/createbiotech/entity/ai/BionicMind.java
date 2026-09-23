@@ -1,5 +1,10 @@
 package com.nobodiiiii.createbiotech.entity.ai;
 
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
@@ -30,8 +35,20 @@ public record BionicMind(BionicDisposition disposition, BionicIntelligence intel
 		BionicDisposition disposition = null;
 		BionicIntelligence intelligence = BionicIntelligence.SIMPLE;
 		int recognizedHeads = 0;
+		Map<UUID, SurgicalAssembly.Source> originals = new HashMap<>();
+		Map<UUID, BitSet> retained = new HashMap<>();
 		for (SurgicalAssembly.Source source : assembly.sources()) {
 			if (source.headCubes().isEmpty())
+				continue;
+			originals.putIfAbsent(source.donorId(), source);
+			retained.computeIfAbsent(source.donorId(), ignored -> new BitSet())
+				.or(source.headCubes());
+		}
+		for (Map.Entry<UUID, SurgicalAssembly.Source> entry : originals.entrySet()) {
+			SurgicalAssembly.Source source = entry.getValue();
+			if (source.originalHeadKnown() && !source.originalHeadCubes().isEmpty()
+				&& retained.get(entry.getKey()).cardinality() * 2
+					< source.originalHeadCubes().cardinality())
 				continue;
 			recognizedHeads++;
 			BionicDisposition candidateDisposition = BionicDispositionRegistry.get(source.profile(), level);

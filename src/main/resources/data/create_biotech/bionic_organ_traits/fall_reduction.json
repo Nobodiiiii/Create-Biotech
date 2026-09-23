@@ -1,0 +1,17 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "parameters": {
+    "safe_fall_distance": 3,
+    "damage_multiplier": 0.5,
+    "flat_reduction": 0
+  },
+  "values": {
+    "minecraft:horse": true,
+    "minecraft:donkey": true,
+    "minecraft:mule": true,
+    "minecraft:llama": true,
+    "minecraft:trader_llama": true,
+    "minecraft:goat": true
+  }
+}

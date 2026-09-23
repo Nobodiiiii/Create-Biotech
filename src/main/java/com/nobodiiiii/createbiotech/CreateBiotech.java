@@ -16,6 +16,9 @@ import com.nobodiiiii.createbiotech.data.CBDataGenerators;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataReloadListeners;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitDataReloadListener;
+import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBArmInteractionPointTypes;
@@ -92,6 +95,8 @@ public class CreateBiotech {
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();
 		BionicBodyTraitRegistry.register();
+		BionicHeadTraitRegistry.register();
+		BionicOrganTraitRegistry.register();
 		registerAllayEvents();
 		NeoForge.EVENT_BUS.addListener(CreateBiotech::registerReloadListeners);
 		FrogStomachSlimeSpawning.register();
@@ -102,6 +107,9 @@ public class CreateBiotech {
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 		event.addListener(BionicBodyTraitDataReloadListener.INSTANCE);
+		event.addListener(BionicHeadTraitRegistry.INSTANCE);
+		event.addListener(BionicAnatomyRegistry.INSTANCE);
+		event.addListener(BionicOrganTraitRegistry.INSTANCE);
 		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}
 

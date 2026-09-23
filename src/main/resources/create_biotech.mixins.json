@@ -42,6 +42,7 @@
     "NozzleBlockMixin",
     "NetherPortalBlockMixin",
     "PortalForcerMixin",
+	"PowderSnowBionicFootMixin",
     "MobAccessor",
     "PackagerBlockEntityMixin",
     "PackageItemCardboardBoxMixin",

@@ -22,6 +22,8 @@ import net.minecraft.world.phys.Vec3;
 public final class SurgicalSubject {
 	private static final String ID_TAG = "SubjectId";
 	private static final String PERSISTENT_ID_TAG = "PersistentId";
+	private static final String DONOR_ID_TAG = "DonorId";
+	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
 	private static final String FACING_TAG = "PlacementFacing";
 	private static final String LAY_AXIS_TAG = "LayAxis";
 	private static final String LAY_YAW_TAG = "LayYaw";
@@ -58,6 +60,9 @@ public final class SurgicalSubject {
 
 	private int id;
 	private final UUID persistentId;
+	private final UUID donorId;
+	private final BitSet originalHeadCubes;
+	private final boolean originalHeadKnown;
 	private final MimicProfile profile;
 	private Direction placementFacing;
 	private SurgicalLayPose layPose;
@@ -106,9 +111,27 @@ public final class SurgicalSubject {
 		Map<Integer, SurgicalCubeRotation> componentRotations,
 		List<SurgicalTableLayout.Footprint> occupiedFootprints, List<SurgicalGlueJoint> glueJoints,
 		List<SurgicalCombination> combinations, List<SurgicalLimbJoint> limbJoints) {
+		this(id, persistentId, persistentId, headCubes, presentCubes.cardinality() == cubeCount,
+			profile, placementFacing, layPose, cubeCount, presentCubes, headCubes, seams, cutSeams,
+			cutOrder, originOffsetX, originOffsetZ, componentOffsets, componentRotations,
+			occupiedFootprints, glueJoints, combinations, limbJoints);
+	}
+
+	SurgicalSubject(int id, UUID persistentId, UUID donorId, BitSet originalHeadCubes,
+		boolean originalHeadKnown, MimicProfile profile, Direction placementFacing,
+		SurgicalLayPose layPose, int cubeCount,
+		BitSet presentCubes, BitSet headCubes, List<SurgicalAssembly.Seam> seams, BitSet cutSeams,
+		List<Integer> cutOrder,
+		double originOffsetX, double originOffsetZ, Map<Integer, Vec3> componentOffsets,
+		Map<Integer, SurgicalCubeRotation> componentRotations,
+		List<SurgicalTableLayout.Footprint> occupiedFootprints, List<SurgicalGlueJoint> glueJoints,
+		List<SurgicalCombination> combinations, List<SurgicalLimbJoint> limbJoints) {
 		this.limbJoints = List.copyOf(limbJoints);
 		this.id = id;
 		this.persistentId = persistentId;
+		this.donorId = donorId;
+		this.originalHeadCubes = (BitSet) originalHeadCubes.clone();
+		this.originalHeadKnown = originalHeadKnown;
 		this.profile = profile;
 		this.placementFacing = horizontal(placementFacing);
 		this.layPose = layPose == null ? SurgicalLayPose.IDENTITY : layPose;
@@ -135,6 +158,10 @@ public final class SurgicalSubject {
 	public UUID persistentId() {
 		return persistentId;
 	}
+
+	public UUID donorId() { return donorId; }
+	public BitSet originalHeadCubes() { return (BitSet) originalHeadCubes.clone(); }
+	public boolean originalHeadKnown() { return originalHeadKnown; }
 
 	void setId(int id) {
 		this.id = id;
@@ -254,6 +281,9 @@ public final class SurgicalSubject {
 			&& Double.compare(originOffsetX, other.originOffsetX) == 0
 			&& Double.compare(originOffsetZ, other.originOffsetZ) == 0
 			&& persistentId.equals(other.persistentId)
+			&& donorId.equals(other.donorId)
+			&& originalHeadKnown == other.originalHeadKnown
+			&& originalHeadCubes.equals(other.originalHeadCubes)
 			&& layPose.equals(other.layPose)
 			&& presentCubes.equals(other.presentCubes)
 			&& headCubes.equals(other.headCubes)
@@ -486,9 +516,10 @@ public final class SurgicalSubject {
 			.filter(footprint -> containsFootprint(selected, footprint)).toList();
 		BitSet extractedHeads = (BitSet) headCubes.clone();
 		extractedHeads.and(selected);
-		SurgicalSubject result = new SurgicalSubject(extractedId, profile, placementFacing, layPose,
+		SurgicalSubject result = new SurgicalSubject(extractedId, UUID.randomUUID(), donorId,
+			originalHeadCubes, originalHeadKnown, profile, placementFacing, layPose,
 			cubeCount, selected, extractedHeads, seams, cutSeams, cutOrder, originOffsetX, originOffsetZ,
-			extractedOffsets, extractedRotations, extractedFootprints);
+			extractedOffsets, extractedRotations, extractedFootprints, List.of(), List.of(), List.of());
 		removeComponent(selected);
 		return result;
 	}
@@ -517,6 +548,9 @@ public final class SurgicalSubject {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt(ID_TAG, id);
 		tag.putUUID(PERSISTENT_ID_TAG, persistentId);
+		tag.putUUID(DONOR_ID_TAG, donorId);
+		if (originalHeadKnown)
+			tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
 		tag.putInt(FACING_TAG, placementFacing.get3DDataValue());
 		tag.putInt(LAY_AXIS_TAG, layPose.axis().ordinal());
 		tag.putInt(LAY_YAW_TAG, layPose.yaw());
@@ -572,12 +606,14 @@ public final class SurgicalSubject {
 			|| !tag.contains(FOOTPRINTS_TAG, Tag.TAG_LIST))
 			return null;
 		if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+			|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 			return null;
 		MimicProfile profile = MimicProfile.load(tag.getCompound(PROFILE_TAG));
 		int id = tag.getInt(ID_TAG);
 		UUID persistentId = tag.getUUID(PERSISTENT_ID_TAG);
+		UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : persistentId;
 		Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
 		SurgicalLayPose layPose = readLayPose(tag);
 		if (id < 0 || profile == null || !facing.getAxis().isHorizontal() || layPose == null)
@@ -600,8 +636,17 @@ public final class SurgicalSubject {
 			? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
 		BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
+		boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
+		BitSet originalHeads = originalHeadKnown
+			? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
 		BitSet invalidHeads = (BitSet) heads.clone();
 		invalidHeads.andNot(present);
+		if (originalHeadKnown) {
+			BitSet outsideOriginal = (BitSet) heads.clone();
+			outsideOriginal.andNot(originalHeads);
+			if (originalHeads.length() > cubeCount || !outsideOriginal.isEmpty())
+				return null;
+		}
 		if (seams == null || !SurgicalAssembly.validTopology(cubeCount, seams) || present.isEmpty()
 			|| present.length() > cubeCount || cuts.length() > seams.size() || heads.length() > cubeCount
 			|| !invalidHeads.isEmpty())
@@ -616,7 +661,8 @@ public final class SurgicalSubject {
 		if (cutOrder == null || offsets == null || rotations == null || footprints == null || footprints.isEmpty()
 			|| glueJoints == null || combinations == null || limbJoints == null)
 			return null;
-		return new SurgicalSubject(id, persistentId, profile, facing, layPose, cubeCount, present, heads,
+		return new SurgicalSubject(id, persistentId, donorId, originalHeads, originalHeadKnown,
+			profile, facing, layPose, cubeCount, present, heads,
 			seams, cuts, cutOrder,
 			originX, originZ, offsets, rotations, footprints, glueJoints, combinations, limbJoints);
 	}

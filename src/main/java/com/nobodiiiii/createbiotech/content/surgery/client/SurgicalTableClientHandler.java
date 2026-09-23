@@ -3530,7 +3530,14 @@ public final class SurgicalTableClientHandler {
 		BionicMind mind = BionicMind.resolve(preview, level);
 		BionicBodyTraits traits = BionicBodyTraitRegistry.resolve(preview, level);
 		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip,
-			mind.hasRecognizedHead() ? mind.disposition() : null, traits);
+			mind.hasRecognizedHead() ? mind.disposition() : null, traits,
+			com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry.resolve(preview, level),
+			com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry.resolve(preview));
+		CapturedEntityBoxStatsTooltip.appendInactiveHeadReasons(tooltip,
+			com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry.inactiveReasons(
+				preview, level));
+		CapturedEntityBoxStatsTooltip.appendInactiveOrganReasons(tooltip,
+			com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry.inactiveReasons(preview));
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */

@@ -1,0 +1,9 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "values": {
+    "minecraft:cat": true,
+    "minecraft:ocelot": true,
+    "minecraft:wolf": true
+  }
+}

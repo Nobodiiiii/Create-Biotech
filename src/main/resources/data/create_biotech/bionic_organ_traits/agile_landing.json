@@ -1,0 +1,6 @@
+{
+  "automatic_detection": true,
+  "min_completeness": 0.5,
+  "parameters": { "min_legs": 2, "max_body_volume_per_leg": 16 },
+  "values": {}
+}

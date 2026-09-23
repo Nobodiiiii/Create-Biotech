@@ -1,0 +1,8 @@
+{
+  "automatic_detection": false,
+  "min_completeness": 0.5,
+  "values": {
+    "minecraft:stray": true,
+    "minecraft:bogged": true
+  }
+}

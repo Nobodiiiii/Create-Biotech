@@ -35,6 +35,8 @@ public final class SurgicalAssembly {
 	private static final String CUBE_COUNT_TAG = "CubeCount";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
 	private static final String HEAD_CUBES_TAG = "HeadCubes";
+	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
+	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String SEAMS_TAG = "Seams";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
@@ -162,10 +164,23 @@ public final class SurgicalAssembly {
 			|| layoutLayPose == null || !layoutLayPose.valid())
 			return null;
 		List<Source> frozenSources = new ArrayList<>(sources.size());
+		Map<UUID, Source> donorOrigins = new HashMap<>();
+		Map<UUID, BitSet> donorCubes = new HashMap<>();
 		int totalCubes = 0;
 		for (Source source : sources) {
 			if (source == null || !source.valid())
 				return null;
+			Source origin = donorOrigins.putIfAbsent(source.donorId, source);
+			if (origin != null && (origin.cubeCount != source.cubeCount
+				|| !origin.profile.biologicalKey().equals(source.profile.biologicalKey())
+				|| !origin.seams.equals(source.seams)
+				|| origin.originalHeadKnown != source.originalHeadKnown
+				|| !origin.originalHeadCubes.equals(source.originalHeadCubes)))
+				return null;
+			BitSet seen = donorCubes.computeIfAbsent(source.donorId, ignored -> new BitSet());
+			if (seen.intersects(source.presentCubes))
+				return null;
+			seen.or(source.presentCubes);
 			totalCubes += source.presentCubes.cardinality();
 			if (totalCubes > MAX_CUBES)
 				return null;
@@ -493,6 +508,47 @@ public final class SurgicalAssembly {
 	public List<Joint> joints() { return joints; }
 	public List<Combination> combinations() { return combinations; }
 	public List<Limb> limbs() { return limbs; }
+	/** Cubes connected to the largest assembled body island through uncut seams and attachments. */
+	public Set<CombinationMember> connectedMembers() {
+		List<SurgicalConnectionGraph.Body<Integer>> bodies = new ArrayList<>(sources.size());
+		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+			Source source = sources.get(sourceId);
+			bodies.add(new SurgicalConnectionGraph.Body<>(sourceId, source.cubeCount,
+				source.presentCubes, source.seams, source.cutSeams));
+		}
+		List<SurgicalConnectionGraph.Link<Integer>> links = new ArrayList<>();
+		// A whole, never-cut donor is one biological source even if its rendered cubes do not touch.
+		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+			Source source = sources.get(sourceId);
+			if (source.presentCubes.cardinality() != source.cubeCount || !source.cutSeams.isEmpty())
+				continue;
+			int anchor = source.presentCubes.nextSetBit(0);
+			for (int cube = source.presentCubes.nextSetBit(anchor + 1); cube >= 0;
+				cube = source.presentCubes.nextSetBit(cube + 1))
+				links.add(new SurgicalConnectionGraph.Link<>(sourceId, anchor, sourceId, cube));
+		}
+		for (Joint joint : joints)
+			links.add(new SurgicalConnectionGraph.Link<>(joint.firstSource(), joint.firstCube(),
+				joint.secondSource(), joint.secondCube()));
+		for (Combination combination : combinations) {
+			CombinationMember anchor = combination.members().getFirst();
+			for (CombinationMember member : combination.members().subList(1, combination.members().size()))
+				links.add(new SurgicalConnectionGraph.Link<>(anchor.source(), anchor.cube(),
+					member.source(), member.cube()));
+		}
+		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
+		if (graph == null)
+			return Set.of();
+		List<SurgicalConnectionGraph.Component<Integer>> components = graph.components();
+		if (components.isEmpty())
+			return Set.of();
+		Set<CombinationMember> connected = new HashSet<>();
+		components.getFirst().members().forEach((sourceId, cubes) -> {
+			for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
+				connected.add(new CombinationMember(sourceId, cube));
+		});
+		return Set.copyOf(connected);
+	}
 	/** Installed joints that currently satisfy cube ownership and tier-matching rules. */
 	public List<Limb> effectiveLimbs() { return limbTopology().effective; }
 	public boolean preservesLayout() { return preserveLayout; }
@@ -1076,7 +1132,8 @@ public final class SurgicalAssembly {
 	}
 
 	public record ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
-		float radius, float volume, @Nullable Vec3 restDirection, boolean hasElbow) {
+		float radius, float volume, @Nullable Vec3 restDirection, boolean hasElbow,
+		int sourceId, int cubeId) {
 		private static final float MIN_RADIUS = 0.05f;
 		private static final float MAX_RADIUS = 8.0f;
 		private static final float MAX_VOLUME = (float) (MAX_BODY_SIZE * MAX_BODY_SIZE * MAX_BODY_SIZE);
@@ -1084,12 +1141,17 @@ public final class SurgicalAssembly {
 		/** Old assemblies and body strikes keep the generic range when no rest direction was saved. */
 		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
 			float radius, float volume) {
-			this(origin, reach, minimumY, maximumY, radius, volume, null, false);
+			this(origin, reach, minimumY, maximumY, radius, volume, null, false, -1, -1);
 		}
 
 		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
 			float radius, float volume, @Nullable Vec3 restDirection) {
-			this(origin, reach, minimumY, maximumY, radius, volume, restDirection, false);
+			this(origin, reach, minimumY, maximumY, radius, volume, restDirection, false, -1, -1);
+		}
+
+		public ArmAttackGeometry(Vec3 origin, float reach, float minimumY, float maximumY,
+			float radius, float volume, @Nullable Vec3 restDirection, boolean hasElbow) {
+			this(origin, reach, minimumY, maximumY, radius, volume, restDirection, hasElbow, -1, -1);
 		}
 
 		public ArmAttackGeometry {
@@ -1107,6 +1169,9 @@ public final class SurgicalAssembly {
 					throw new IllegalArgumentException("Invalid arm rest direction");
 				restDirection = restDirection.scale(1.0d / Math.sqrt(lengthSqr));
 			}
+			if ((sourceId != -1 || cubeId != -1)
+				&& (sourceId < 0 || sourceId >= MAX_SOURCES || cubeId < 0 || cubeId >= MAX_CUBES))
+				throw new IllegalArgumentException("Invalid arm donor cube");
 		}
 
 		@Nullable
@@ -1125,9 +1190,17 @@ public final class SurgicalAssembly {
 		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
 			float maximumY, float radius, float volume, @Nullable Vec3 restDirection,
 			boolean hasElbow) {
+			return create(origin, reach, minimumY, maximumY, radius, volume,
+				restDirection, hasElbow, -1, -1);
+		}
+
+		@Nullable
+		public static ArmAttackGeometry create(Vec3 origin, float reach, float minimumY,
+			float maximumY, float radius, float volume, @Nullable Vec3 restDirection,
+			boolean hasElbow, int sourceId, int cubeId) {
 			try {
 				return new ArmAttackGeometry(origin, reach, minimumY, maximumY, radius, volume,
-					restDirection, hasElbow);
+					restDirection, hasElbow, sourceId, cubeId);
 			} catch (IllegalArgumentException ignored) {
 				return null;
 			}
@@ -1151,6 +1224,10 @@ public final class SurgicalAssembly {
 				tag.put(ATTACK_REST_DIRECTION_TAG, direction);
 			}
 			tag.putBoolean(ATTACK_HAS_ELBOW_TAG, hasElbow);
+			if (sourceId >= 0) {
+				tag.putInt("AttackSourceId", sourceId);
+				tag.putInt("AttackCubeId", cubeId);
+			}
 			return tag;
 		}
 
@@ -1170,6 +1247,8 @@ public final class SurgicalAssembly {
 				buffer.writeFloat((float) restDirection.z);
 			}
 			buffer.writeBoolean(hasElbow);
+			buffer.writeVarInt(sourceId);
+			buffer.writeVarInt(cubeId);
 		}
 
 		@Nullable
@@ -1183,7 +1262,10 @@ public final class SurgicalAssembly {
 			Vec3 restDirection = buffer.readBoolean()
 				? new Vec3(buffer.readFloat(), buffer.readFloat(), buffer.readFloat()) : null;
 			boolean hasElbow = buffer.readBoolean();
-			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection, hasElbow);
+			int sourceId = buffer.readVarInt();
+			int cubeId = buffer.readVarInt();
+			return create(origin, reach, minimumY, maximumY, radius, volume, restDirection,
+				hasElbow, sourceId, cubeId);
 		}
 
 		@Nullable
@@ -1213,7 +1295,9 @@ public final class SurgicalAssembly {
 				tag.getFloat(ATTACK_ORIGIN_Y_TAG), tag.getFloat(ATTACK_ORIGIN_Z_TAG)),
 				tag.getFloat(ATTACK_REACH_TAG), tag.getFloat(ATTACK_MINIMUM_Y_TAG),
 				tag.getFloat(ATTACK_MAXIMUM_Y_TAG), tag.getFloat(ATTACK_RADIUS_TAG),
-				tag.getFloat(ATTACK_VOLUME_TAG), restDirection, tag.getBoolean(ATTACK_HAS_ELBOW_TAG));
+				tag.getFloat(ATTACK_VOLUME_TAG), restDirection, tag.getBoolean(ATTACK_HAS_ELBOW_TAG),
+				tag.contains("AttackSourceId", Tag.TAG_ANY_NUMERIC) ? tag.getInt("AttackSourceId") : -1,
+				tag.contains("AttackCubeId", Tag.TAG_ANY_NUMERIC) ? tag.getInt("AttackCubeId") : -1);
 		}
 	}
 
@@ -1522,9 +1606,12 @@ public final class SurgicalAssembly {
 
 	public static final class Source {
 		private final MimicProfile profile;
+		private final UUID donorId;
 		private final int cubeCount;
 		private final BitSet presentCubes;
 		private final BitSet headCubes;
+		private final BitSet originalHeadCubes;
+		private final boolean originalHeadKnown;
 		private final List<Seam> seams;
 		private final BitSet cutSeams;
 		private final List<Integer> cutOrder;
@@ -1534,16 +1621,20 @@ public final class SurgicalAssembly {
 		private final Map<Integer, Vec3> cubeOffsets;
 		private final Map<Integer, SurgicalCubeRotation> cubeRotations;
 
-		private Source(MimicProfile profile, int cubeCount, BitSet presentCubes, BitSet headCubes,
+		private Source(MimicProfile profile, UUID donorId, int cubeCount, BitSet presentCubes,
+			BitSet headCubes, BitSet originalHeadCubes, boolean originalHeadKnown,
 			List<Seam> seams,
 			BitSet cutSeams, List<Integer> cutOrder, Direction facing, SurgicalLayPose layPose,
 			Vec3 originOffset,
 			Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			this.profile = profile;
+			this.donorId = donorId;
 			this.cubeCount = cubeCount;
 			this.presentCubes = normalize(presentCubes, cubeCount);
 			this.headCubes = normalize(headCubes, cubeCount);
 			this.headCubes.and(this.presentCubes);
+			this.originalHeadCubes = normalize(originalHeadCubes, cubeCount);
+			this.originalHeadKnown = originalHeadKnown;
 			this.seams = List.copyOf(seams);
 			this.cutSeams = normalize(cutSeams, seams.size());
 			this.cutOrder = normalizeCutOrder(cutOrder, this.cutSeams, seams.size());
@@ -1559,8 +1650,20 @@ public final class SurgicalAssembly {
 			BitSet headCubes, List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
 			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
 			Map<Integer, SurgicalCubeRotation> cubeRotations) {
+			return create(profile, UUID.randomUUID(), cubeCount, presentCubes, headCubes,
+				headCubes, presentCubes != null && presentCubes.cardinality() == cubeCount,
+				seams, cutSeams, cutOrder, facing, layPose, originOffset, cubeOffsets, cubeRotations);
+		}
+
+		@Nullable
+		public static Source create(MimicProfile profile, UUID donorId, int cubeCount,
+			BitSet presentCubes, BitSet headCubes, BitSet originalHeadCubes, boolean originalHeadKnown,
+			List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
+			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
+			Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			if (profile == null || presentCubes == null || seams == null || cutSeams == null
-				|| headCubes == null || cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
+				|| donorId == null || headCubes == null || originalHeadCubes == null
+				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
 				|| cubeRotations.size() > cubeCount || facing == null || !facing.getAxis().isHorizontal()
 				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
 				return null;
@@ -1568,6 +1671,12 @@ public final class SurgicalAssembly {
 			invalidHeads.andNot(presentCubes);
 			if (headCubes.length() > cubeCount || !invalidHeads.isEmpty())
 				return null;
+			if (originalHeadKnown) {
+				BitSet outsideOriginal = (BitSet) headCubes.clone();
+				outsideOriginal.andNot(originalHeadCubes);
+				if (originalHeadCubes.length() > cubeCount || !outsideOriginal.isEmpty())
+					return null;
+			}
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet()) {
 				Integer cube = entry.getKey();
 				if (cube == null || cube < 0 || cube >= cubeCount || !presentCubes.get(cube)
@@ -1583,7 +1692,8 @@ public final class SurgicalAssembly {
 			Map<Integer, Vec3> sanitized = sanitizeOffsets(cubeOffsets, cubeCount, presentCubes);
 			Map<Integer, SurgicalCubeRotation> sanitizedRotations = sanitizeRotations(cubeRotations,
 				cubeCount, presentCubes);
-			Source source = new Source(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder, facing,
+			Source source = new Source(profile, donorId, cubeCount, presentCubes, headCubes,
+				originalHeadCubes, originalHeadKnown, seams, cutSeams, cutOrder, facing,
 				layPose,
 				originOffset, sanitized, sanitizedRotations);
 			return source.valid() ? source : null;
@@ -1607,14 +1717,18 @@ public final class SurgicalAssembly {
 		}
 
 		private Source copy() {
-			return new Source(profile, cubeCount, presentCubes, headCubes, seams, cutSeams, cutOrder, facing, layPose,
+			return new Source(profile, donorId, cubeCount, presentCubes, headCubes,
+				originalHeadCubes, originalHeadKnown, seams, cutSeams, cutOrder, facing, layPose,
 				originOffset, cubeOffsets, cubeRotations);
 		}
 
 		public MimicProfile profile() { return profile; }
+		public UUID donorId() { return donorId; }
 		public int cubeCount() { return cubeCount; }
 		public BitSet presentCubes() { return (BitSet) presentCubes.clone(); }
 		public BitSet headCubes() { return (BitSet) headCubes.clone(); }
+		public BitSet originalHeadCubes() { return (BitSet) originalHeadCubes.clone(); }
+		public boolean originalHeadKnown() { return originalHeadKnown; }
 		public List<Seam> seams() { return seams; }
 		public BitSet cutSeams() { return (BitSet) cutSeams.clone(); }
 		public List<Integer> cutOrder() { return cutOrder; }
@@ -1632,10 +1746,13 @@ public final class SurgicalAssembly {
 		private CompoundTag save() {
 			CompoundTag tag = new CompoundTag();
 			tag.put(PROFILE_TAG, profile.save());
+			tag.putUUID(DONOR_ID_TAG, donorId);
 			tag.putInt(CUBE_COUNT_TAG, cubeCount);
 			tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
 			if (!headCubes.isEmpty())
 				tag.putLongArray(HEAD_CUBES_TAG, headCubes.toLongArray());
+			if (originalHeadKnown)
+				tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
 			tag.putIntArray(SEAMS_TAG, encodeSeams(seams));
 			if (!cutSeams.isEmpty())
 				tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
@@ -1663,6 +1780,7 @@ public final class SurgicalAssembly {
 				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND))
 				return null;
 			if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+				|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 				return null;
@@ -1676,6 +1794,10 @@ public final class SurgicalAssembly {
 				? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
 			BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
+			boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
+			BitSet originalHeads = originalHeadKnown
+				? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
+			UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : UUID.randomUUID();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
 				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;
 			if (order == null || !normalizeCutOrder(order, cuts, seams.size()).equals(order)
@@ -1699,7 +1821,8 @@ public final class SurgicalAssembly {
 			Map<Integer, SurgicalCubeRotation> rotations = readRotations(tag, cubeCount, present);
 			if (offsets == null || rotations == null)
 				return null;
-			return create(profile, cubeCount, present, heads, seams, cuts, order, facing, layPose, origin,
+			return create(profile, donorId, cubeCount, present, heads, originalHeads, originalHeadKnown,
+				seams, cuts, order, facing, layPose, origin,
 				offsets, rotations);
 		}
 	}

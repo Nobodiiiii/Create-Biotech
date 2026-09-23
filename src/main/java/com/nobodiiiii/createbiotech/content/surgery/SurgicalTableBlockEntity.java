@@ -416,6 +416,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int cubeCount;
 		BitSet present;
 		BitSet heads;
+		UUID donorId;
+		BitSet originalHeads;
+		boolean originalHeadKnown;
 		List<SurgicalAssembly.Seam> seams;
 		BitSet cuts;
 		List<Integer> cutOrder;
@@ -439,6 +442,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			cubeCount = assembly.cubeCount();
 			present = assembly.presentCubes();
 			heads = assembly.headCubes();
+			SurgicalAssembly.Source originalSource = assembly.sources().getFirst();
+			donorId = originalSource.donorId();
+			originalHeads = originalSource.originalHeadCubes();
+			originalHeadKnown = originalSource.originalHeadKnown();
 			seams = assembly.seams();
 			cuts = assembly.cutSeams();
 			cutOrder = assembly.cutOrder();
@@ -458,6 +465,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			if (headCubes.length() > cubeCount)
 				return SurgicalTablePlacementResult.INVALID_CAPTURE;
 			heads = (BitSet) headCubes.clone();
+			donorId = UUID.randomUUID();
+			originalHeads = (BitSet) heads.clone();
+			originalHeadKnown = true;
 			seams = List.copyOf(observedSeams);
 			cuts = new BitSet();
 			cutOrder = List.of();
@@ -473,9 +483,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			componentFootprints, sourceLayouts, occupied))
 			return SurgicalTablePlacementResult.NO_SPACE;
 
-		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), profile, placementFacing, layPose, cubeCount,
-			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ, placementOffsets(proposal),
-			storedFootprints);
+		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(), donorId,
+			originalHeads, originalHeadKnown, profile, placementFacing, layPose, cubeCount,
+			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
+			placementOffsets(proposal), Map.of(), storedFootprints, List.of(), List.of(), List.of());
 		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
 		finishSubjectPlacement(box, temporaryMove);
@@ -500,12 +511,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (int sourceId = 0; sourceId < assemblySources.size(); sourceId++) {
 			SurgicalAssembly.PlacedSource placed = placedSources.get(sourceId);
 			SurgicalAssembly.Source source = placed.source();
-			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), source.profile(), placed.facing(),
-				placed.layPose(),
-				source.cubeCount(), source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
+			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(),
+				source.donorId(), source.originalHeadCubes(), source.originalHeadKnown(),
+				source.profile(), placed.facing(), placed.layPose(), source.cubeCount(),
+				source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
 				placedOriginOffsetX + placed.originOffset().x,
 				placedOriginOffsetZ + placed.originOffset().z, restoredOffsets(placed), placed.cubeRotations(),
-				sourceLayouts.get(sourceId).footprints());
+				sourceLayouts.get(sourceId).footprints(), List.of(), List.of(), List.of());
 			restored.add(subject);
 		}
 		for (SurgicalAssembly.Joint encoded : assembly.placedJoints(placementFacing)) {
@@ -2901,8 +2913,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				if (rotation != null)
 					rotations.put(cube, rotation);
 			}
-			SurgicalAssembly.Source source = SurgicalAssembly.Source.create(grouped.profile(), grouped.cubeCount,
-				included, headCubesWithin(grouped, included), grouped.seams, grouped.cutSeams,
+			SurgicalAssembly.Source source = SurgicalAssembly.Source.create(grouped.profile(),
+				grouped.donorId(), grouped.cubeCount, included, headCubesWithin(grouped, included),
+				grouped.originalHeadCubes(), grouped.originalHeadKnown(), grouped.seams, grouped.cutSeams,
 				grouped.cutOrder, grouped.placementFacing(),
 				grouped.layPose(),
 				new Vec3(grouped.originOffsetX() - anchor.originOffsetX(), 0.0d,

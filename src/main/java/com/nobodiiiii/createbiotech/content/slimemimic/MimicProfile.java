@@ -164,6 +164,11 @@ public final class MimicProfile {
 		return entityTypeId;
 	}
 
+	@Nullable
+	public Boolean baby() {
+		return baby;
+	}
+
 	/** Cache key containing only stable biological state, never the potentially large preview NBT. */
 	public BiologicalKey biologicalKey() {
 		return biologicalKey;
