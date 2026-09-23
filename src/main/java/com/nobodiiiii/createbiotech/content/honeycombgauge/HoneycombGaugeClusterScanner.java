@@ -30,6 +30,14 @@ public final class HoneycombGaugeClusterScanner {
 	public record Snapshot(List<BlockPos> honeycombs, List<Gauge> gauges, boolean limited) {}
 
 	public static Snapshot scan(Level level, BlockPos origin, Direction facing) {
+		return scan(level, origin, facing, true);
+	}
+
+	public static List<BlockPos> connectedHoneycombs(Level level, BlockPos origin, Direction facing) {
+		return scan(level, origin, facing, false).honeycombs();
+	}
+
+	private static Snapshot scan(Level level, BlockPos origin, Direction facing, boolean includeGauges) {
 		Direction[] plane = planeDirections(facing);
 		ArrayDeque<BlockPos> pending = new ArrayDeque<>();
 		Set<BlockPos> visited = new HashSet<>();
@@ -57,7 +65,7 @@ public final class HoneycombGaugeClusterScanner {
 			}
 			honeycombs.add(pos.immutable());
 			BlockPos gaugePos = pos.relative(facing);
-			if (hasLoadedChunk(level, gaugePos)) {
+			if (includeGauges && hasLoadedChunk(level, gaugePos)) {
 				BlockState gaugeState = level.getBlockState(gaugePos);
 				if (gaugeState.getBlock() instanceof FactoryPanelBlock
 					&& FactoryPanelBlock.connectedDirection(gaugeState) == facing

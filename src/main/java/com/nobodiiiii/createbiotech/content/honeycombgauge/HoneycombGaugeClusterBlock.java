@@ -20,14 +20,16 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.DirectionalBlock;
+import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 
-public class HoneycombGaugeClusterBlock extends DirectionalBlock {
+public class HoneycombGaugeClusterBlock extends DirectionalBlock implements EntityBlock {
 	public static final MapCodec<HoneycombGaugeClusterBlock> CODEC = simpleCodec(HoneycombGaugeClusterBlock::new);
 	public static final DirectionProperty WORKSPACE_UP = DirectionProperty.create("workspace_up");
 
@@ -40,6 +42,11 @@ public class HoneycombGaugeClusterBlock extends DirectionalBlock {
 	@Override
 	protected MapCodec<? extends HoneycombGaugeClusterBlock> codec() {
 		return CODEC;
+	}
+
+	@Override
+	public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+		return new HoneycombGaugeClusterBlockEntity(pos, state);
 	}
 
 	@Override

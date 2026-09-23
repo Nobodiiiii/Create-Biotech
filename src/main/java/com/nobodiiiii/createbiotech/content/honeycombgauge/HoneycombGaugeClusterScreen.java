@@ -39,7 +39,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-/** Orthographic view along the upward-facing surface of floor-mounted Factory Gauges. */
+/** Orthographic view of the honeycomb face selected by the cluster. */
 public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<HoneycombGaugeClusterMenu> {
 	private static final int PAPER = 0xfff7f0dd;
 	private static final int INK = 0xff454751;
@@ -178,7 +178,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 		}
 		BlockPos origin = menu.origin();
 		if (isLoaded(level, origin))
-			renderBlock(graphics, origin, level.getBlockState(origin), level.getBlockEntity(origin));
+			renderBlock(graphics, origin, level.getBlockState(origin), null);
 		graphics.pose().popPose();
 		graphics.flush();
 		graphics.disableScissor();
@@ -195,14 +195,33 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 	}
 
 	private void renderBlock(GuiGraphics graphics, BlockPos pos, BlockState state, BlockEntity blockEntity) {
-		GuiGameElement.GuiRenderBuilder builder = state.getBlock() instanceof FactoryPanelBlock
-			? new BrightGaugeRenderBuilder(state, blockEntity)
-			: GuiGameElement.of(state, blockEntity);
+		GuiGameElement.GuiRenderBuilder builder = state.is(Blocks.HONEYCOMB_BLOCK)
+			? new DimmedHoneycombFaceRenderBuilder(state, menu.facing())
+			: state.getBlock() instanceof FactoryPanelBlock
+				? new BrightGaugeRenderBuilder(state, blockEntity)
+				: GuiGameElement.of(state, blockEntity);
 		builder
 			.lighting(FRONT_LIGHTING)
 			.atLocal(pos.getX() - centerX, centerY - pos.getY(), pos.getZ() - centerZ)
 			.scale(sceneScale)
 			.render(graphics);
+	}
+
+	private static class DimmedHoneycombFaceRenderBuilder extends GuiGameElement.GuiBlockStateRenderBuilder {
+		private final Direction face;
+
+		private DimmedHoneycombFaceRenderBuilder(BlockState state, Direction face) {
+			super(state);
+			this.face = face;
+		}
+
+		@Override
+		protected void renderModel(BlockRenderDispatcher blockRenderer, MultiBufferSource.BufferSource buffer,
+			PoseStack poseStack) {
+			super.renderModel(blockRenderer, buffer, poseStack);
+			HoneycombGaugeFaceOverlay.render(poseStack, buffer, face, LightTexture.FULL_BRIGHT);
+			buffer.endBatch();
+		}
 	}
 
 	private static class BrightGaugeRenderBuilder extends GuiGameElement.GuiBlockEntityRenderBuilder {

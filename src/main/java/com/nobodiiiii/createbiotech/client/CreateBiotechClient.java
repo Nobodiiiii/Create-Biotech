@@ -34,6 +34,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntityRenderer;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScreen;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogRenderer;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogMachineVisual;
@@ -165,6 +166,8 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.HONEYCOMB_GAUGE_CLUSTER.get(),
+			HoneycombGaugeClusterRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.AUTOMATIC_FISH_RELEASE_MACHINE.get(),
 			AutomaticFishReleaseMachineRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get(),

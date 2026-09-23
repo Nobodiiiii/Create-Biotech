@@ -16,6 +16,7 @@ import com.nobodiiiii.createbiotech.content.frogportal.FrogDigestiveTractBlockEn
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogBlockEntity;
 import com.nobodiiiii.createbiotech.content.fluid.NetherPortalFluidBlockEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlockEntity;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterBlockEntity;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatBlockEntity;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerBlockEntity;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterBlockEntity;
@@ -48,6 +49,11 @@ public class CBBlockEntityTypes {
 
 	public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
 		DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, CreateBiotech.MOD_ID);
+
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<HoneycombGaugeClusterBlockEntity>>
+		HONEYCOMB_GAUGE_CLUSTER = BLOCK_ENTITY_TYPES.register("honeycomb_gauge_cluster",
+			() -> BlockEntityType.Builder.of(HoneycombGaugeClusterBlockEntity::new,
+				CBBlocks.HONEYCOMB_GAUGE_CLUSTER.get()).build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AutomaticFishReleaseMachineBlockEntity>>
 		AUTOMATIC_FISH_RELEASE_MACHINE = BLOCK_ENTITY_TYPES.register("automatic_fish_release_machine",
