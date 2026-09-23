@@ -727,6 +727,7 @@
   "create_biotech.ponder.butter_cat_engine.text_5": "它们现在是两个独立方块，可以分别搬运和重新放置。",
   "block.create_biotech.shulker_teleporter": "潜影传送站",
   "block.create_biotech.enderman_stock_keeper": "末影人仓库管理员",
+  "block.create_biotech.enderman_stock_keeper.missing_stock_ticker": "请将仓库管理员放在唯一一个仓库控制台旁",
   "create_biotech.shulker_teleporter.own_address": "本机地址",
   "create_biotech.shulker_teleporter.own_address.tooltip": "其他传送站通过该地址识别你",
   "create_biotech.shulker_teleporter.target_address": "目标地址",

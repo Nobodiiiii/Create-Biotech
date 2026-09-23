@@ -7,6 +7,8 @@ import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.Automati
 import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingMachineVisual;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestScreen;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineVisual;
@@ -292,6 +294,7 @@ public class CreateBiotechClient {
 		event.register(CBMenuTypes.ALLAY_COURIER.get(), AllayCourierScreen::new);
 		event.register(CBMenuTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterScreen::new);
 		registerWirelessStockKeeperScreen(event);
+		registerEndermanStockKeeperScreen(event);
 	}
 
 	@SuppressWarnings({"rawtypes", "unchecked"})
@@ -343,6 +346,13 @@ public class CreateBiotechClient {
 		});
 		event.registerReloadListener(SlimeBeltHelper.LISTENER);
 		event.registerReloadListener(MagmaBeltHelper.LISTENER);
+	}
+
+	@SuppressWarnings({"rawtypes", "unchecked"})
+	private static void registerEndermanStockKeeperScreen(RegisterMenuScreensEvent event) {
+		event.register((net.minecraft.world.inventory.MenuType) CBMenuTypes.ENDERMAN_STOCK_KEEPER_REQUEST.get(),
+			(net.minecraft.client.gui.screens.MenuScreens.ScreenConstructor) (menu, inventory, title) ->
+				new EndermanStockKeeperRequestScreen((EndermanStockKeeperRequestMenu) menu, inventory, title));
 	}
 
 	@SubscribeEvent
