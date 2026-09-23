@@ -99,6 +99,8 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
+		registration.addUniversalRecipeTransferHandler(new HoneycombGaugeRecipeTransferHandler(
+			registration.getTransferHelper()));
 		StockKeeperTransferHandler delegate = new StockKeeperTransferHandler(registration.getJeiHelpers());
 		registration.addUniversalRecipeTransferHandler(new StockKeeperTransferHandlerAdapter<>(
 			EndermanStockKeeperRequestMenu.class, CBMenuTypes.ENDERMAN_STOCK_KEEPER_REQUEST.get(), delegate));

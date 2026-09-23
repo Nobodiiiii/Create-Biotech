@@ -61,6 +61,7 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 	private int listScroll;
 	private boolean dragging;
 	private Gauge hoveredGauge;
+	private long lastSnapshotTick = Long.MIN_VALUE;
 
 	public HoneycombGaugeClusterScreen(HoneycombGaugeClusterMenu menu, Inventory inventory, Component title) {
 		super(menu, inventory, title);
@@ -87,6 +88,21 @@ public class HoneycombGaugeClusterScreen extends AbstractContainerScreen<Honeyco
 	private int viewportWidth() { return imageWidth - 139; }
 	private int viewportHeight() { return imageHeight - 59; }
 	private int sideX() { return leftPos + imageWidth - 119; }
+
+	@Override
+	protected void containerTick() {
+		super.containerTick();
+		if (minecraft == null || minecraft.level == null)
+			return;
+		long tick = minecraft.level.getGameTime();
+		if (tick == lastSnapshotTick || tick % 10 != 0)
+			return;
+		lastSnapshotTick = tick;
+		menu.refreshSnapshot();
+		gaugeBlocks.clear();
+		for (Gauge gauge : menu.snapshot().gauges())
+			gaugeBlocks.add(gauge.pos());
+	}
 
 	private void fitScene() {
 		int minX = menu.origin().getX(), maxX = minX;

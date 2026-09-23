@@ -16,6 +16,7 @@ import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPrevie
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftCancelPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeRecipePlacementPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSurfaceMovementPacket;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerPlacementPacket;
@@ -125,6 +126,8 @@ public final class CBPackets {
 			GaugeCraftRequestPacket::write, GaugeCraftRequestPacket::handle);
 		registerServer(GaugeCraftCancelPacket.class, GaugeCraftCancelPacket::new,
 			GaugeCraftCancelPacket::write, GaugeCraftCancelPacket::handle);
+		registerServer(HoneycombGaugeRecipePlacementPacket.class, HoneycombGaugeRecipePlacementPacket::new,
+			HoneycombGaugeRecipePlacementPacket::write, HoneycombGaugeRecipePlacementPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);

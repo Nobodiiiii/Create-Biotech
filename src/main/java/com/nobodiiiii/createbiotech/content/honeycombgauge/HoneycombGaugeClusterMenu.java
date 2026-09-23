@@ -24,7 +24,7 @@ public class HoneycombGaugeClusterMenu extends AbstractContainerMenu {
 	private final BlockPos origin;
 	private final Direction facing;
 	private final Direction initialUp;
-	private final Snapshot snapshot;
+	private Snapshot snapshot;
 
 	public HoneycombGaugeClusterMenu(int id, Inventory inventory, RegistryFriendlyByteBuf data) {
 		super(CBMenuTypes.HONEYCOMB_GAUGE_CLUSTER.get(), id);
@@ -89,6 +89,10 @@ public class HoneycombGaugeClusterMenu extends AbstractContainerMenu {
 		return HoneycombGaugeClusterBlock.normalizedWorkspaceUp(facing, up);
 	}
 	public Snapshot snapshot() { return snapshot; }
+	public void refreshSnapshot() {
+		if (player.level().isClientSide && player.level().isLoaded(origin))
+			snapshot = HoneycombGaugeClusterScanner.scan(player.level(), origin, facing);
+	}
 
 	@Override
 	public boolean clickMenuButton(Player player, int id) {
