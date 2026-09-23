@@ -4,6 +4,7 @@ import net.minecraft.core.registries.Registries;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterMenu;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
@@ -32,6 +33,10 @@ public class CBMenuTypes {
 	public static final DeferredHolder<MenuType<?>, MenuType<EndermanStockKeeperRequestMenu>> ENDERMAN_STOCK_KEEPER_REQUEST =
 		MENU_TYPES.register("enderman_stock_keeper_request",
 			() -> IMenuTypeExtension.create(EndermanStockKeeperRequestMenu::new));
+
+	public static final DeferredHolder<MenuType<?>, MenuType<HoneycombGaugeClusterMenu>> HONEYCOMB_GAUGE_CLUSTER =
+		MENU_TYPES.register("honeycomb_gauge_cluster",
+			() -> IMenuTypeExtension.create(HoneycombGaugeClusterMenu::new));
 
 	public static final DeferredHolder<MenuType<?>, MenuType<ShulkerTeleporterMenu>> SHULKER_TELEPORTER =
 		MENU_TYPES.register("shulker_teleporter", () -> IMenuTypeExtension.create(ShulkerTeleporterMenu::new));

@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "facing=up": { "model": "minecraft:block/honeycomb_block" },
+    "facing=down": { "model": "minecraft:block/honeycomb_block" },
+    "facing=north": { "model": "minecraft:block/honeycomb_block" },
+    "facing=south": { "model": "minecraft:block/honeycomb_block" },
+    "facing=east": { "model": "minecraft:block/honeycomb_block" },
+    "facing=west": { "model": "minecraft:block/honeycomb_block" }
+  }
+}

@@ -85,6 +85,7 @@ public final class FactoryGaugeCatalog {
 			&& !behaviour.blockEntity.isRemoved()
 			&& !behaviour.blockEntity.isChunkUnloaded()
 			&& !behaviour.getFilter().isEmpty()
+			&& !behaviour.recipeAddress.isBlank()
 			&& !behaviour.targetedBy.isEmpty();
 	}
 

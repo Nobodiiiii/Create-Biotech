@@ -64,7 +64,7 @@ public final class GaugeCraftJobs extends SavedData {
 	public boolean submit(ServerPlayer player, BlockPos tickerPos, UUID network, ItemStack output, int count,
 		String address, GaugeCraftPlan plan) {
 		Set<UUID> involved = networks(network, plan.steps());
-		if (address.isBlank() || !plan.ready() || jobs.stream().anyMatch(job ->
+		if (!plan.ready() || jobs.stream().anyMatch(job ->
 			job.networks().stream().anyMatch(involved::contains)))
 			return false;
 		jobs.add(new Job(UUID.randomUUID(), player.getUUID(), player.level().dimension(), tickerPos,
@@ -87,7 +87,7 @@ public final class GaugeCraftJobs extends SavedData {
 		if (job == null)
 			return "busy";
 		if (job.index >= job.steps.size())
-			return "delivering";
+			return job.address.isBlank() ? "waiting_storage" : "delivering";
 		ServerLevel level = server.getLevel(job.dimension);
 		GaugeCraftPlan.Step step = job.steps.get(job.index);
 		if (level == null || !loaded(level, step.gauge().pos())
@@ -147,13 +147,14 @@ public final class GaugeCraftJobs extends SavedData {
 		if (job.index >= job.steps.size()) {
 			if (LogisticsManager.getSummaryOfNetwork(job.network, true).getCountOf(job.output) < job.count)
 				return false;
-			if (!ticker.broadcastPackageRequest(RequestType.PLAYER,
+			if (!job.address.isBlank() && !ticker.broadcastPackageRequest(RequestType.PLAYER,
 				PackageOrderWithCrafts.simple(List.of(new BigItemStack(job.output, job.count))), null, job.address))
 				return false;
 			jobs.remove(job);
 			ServerPlayer owner = server.getPlayerList().getPlayer(job.owner);
 			if (owner != null)
-				owner.displayClientMessage(Component.translatable("create_biotech.gauge_craft.accepted")
+				owner.displayClientMessage(Component.translatable(job.address.isBlank()
+					? "create_biotech.gauge_craft.stored" : "create_biotech.gauge_craft.accepted")
 					.withStyle(ChatFormatting.GREEN), false);
 			return true;
 		}

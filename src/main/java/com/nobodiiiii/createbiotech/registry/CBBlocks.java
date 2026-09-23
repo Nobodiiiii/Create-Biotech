@@ -31,6 +31,7 @@ import com.nobodiiiii.createbiotech.content.frogportal.FrogStomachWallBlock;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogBlock;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationBlock;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmBlock;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterBlock;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerBlock;
 import com.nobodiiiii.createbiotech.content.petridish.PetriDishBlock;
@@ -323,6 +324,10 @@ public class CBBlocks {
 			() -> new EndermanStockKeeperBlock(CBSharedProperties.createStone()
 				.mapColor(MapColor.COLOR_PURPLE)
 				.noOcclusion()));
+
+	public static final DeferredHolder<Block, HoneycombGaugeClusterBlock> HONEYCOMB_GAUGE_CLUSTER =
+		BLOCKS.register("honeycomb_gauge_cluster",
+			() -> new HoneycombGaugeClusterBlock(Block.Properties.ofFullCopy(Blocks.HONEYCOMB_BLOCK)));
 
 	public static final DeferredHolder<Block, AllayPortBlock> ALLAY_PORT =
 		BLOCKS.register("allay_port",

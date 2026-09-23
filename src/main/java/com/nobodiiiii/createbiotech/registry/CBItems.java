@@ -254,6 +254,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> ENDERMAN_STOCK_KEEPER = ITEMS.register("enderman_stock_keeper",
 		() -> new BlockItem(CBBlocks.ENDERMAN_STOCK_KEEPER.get(), new Item.Properties()));
 
+	public static final DeferredHolder<Item, Item> HONEYCOMB_GAUGE_CLUSTER = ITEMS.register("honeycomb_gauge_cluster",
+		() -> new BlockItem(CBBlocks.HONEYCOMB_GAUGE_CLUSTER.get(), new Item.Properties()));
+
 	public static final DeferredHolder<Item, Item> GIANT_FROG = ITEMS.register("giant_frog",
 		() -> new GiantFrogItem(CBBlocks.GIANT_FROG.get(), new Item.Properties().stacksTo(1)));
 

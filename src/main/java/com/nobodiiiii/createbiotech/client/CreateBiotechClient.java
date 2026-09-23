@@ -33,6 +33,7 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagne
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntityRenderer;
+import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScreen;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogRenderer;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogMachineVisual;
@@ -293,6 +294,7 @@ public class CreateBiotechClient {
 		event.register(CBMenuTypes.ALLAY_PORT.get(), AllayPortScreen::new);
 		event.register(CBMenuTypes.ALLAY_COURIER.get(), AllayCourierScreen::new);
 		event.register(CBMenuTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterScreen::new);
+		event.register(CBMenuTypes.HONEYCOMB_GAUGE_CLUSTER.get(), HoneycombGaugeClusterScreen::new);
 		registerWirelessStockKeeperScreen(event);
 		registerEndermanStockKeeperScreen(event);
 	}

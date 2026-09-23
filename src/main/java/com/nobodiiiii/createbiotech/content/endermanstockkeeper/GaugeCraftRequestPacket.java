@@ -64,7 +64,7 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 			return;
 		}
 		if (count <= 0 || count > GaugeCraftPlan.MAX_REQUEST || stack.isEmpty()
-			|| address.isBlank() || address.length() > 25
+			|| address.length() > 25
 			|| menu.getGaugeOutputs().stream()
 				.noneMatch(output -> ItemStack.isSameItemSameComponents(output, stack)))
 			return;

@@ -91,7 +91,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 		} catch (NumberFormatException exception) {
 			quantity = 0;
 		}
-		if (quantity <= 0 || quantity > GaugeCraftPlan.MAX_REQUEST || addressBox.getValue().isBlank()) {
+		if (quantity <= 0 || quantity > GaugeCraftPlan.MAX_REQUEST) {
 			previewStatus = "input";
 			return;
 		}
@@ -141,7 +141,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 		confirmButton.active = "ready".equals(previewStatus);
 		cancelJobButton.visible = phase == Phase.PREVIEW && ("processing".equals(previewStatus)
 			|| "waiting_output".equals(previewStatus) || "paused_unloaded".equals(previewStatus)
-			|| "paused_changed".equals(previewStatus) || "delivering".equals(previewStatus));
+			|| "paused_changed".equals(previewStatus) || "delivering".equals(previewStatus)
+			|| "waiting_storage".equals(previewStatus));
 		backButton.visible = phase != Phase.NONE;
 	}
 
@@ -164,6 +165,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 				left + 16, top + 52, 0xDDDDDD, false);
 			graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.address",
 				addressBox.getValue()), left + 16, top + 89, 0xBBBBBB, false);
+			graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.address_hint"),
+				left + 16, top + 104, 0xBBBBBB, false);
 			if ("input".equals(previewStatus))
 				graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.invalid"),
 					left + 16, top + 114, 0xFF7777, false);
@@ -175,7 +178,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 				(previewStatus.equals("ready") || previewStatus.equals("missing") || previewStatus.equals("busy")
 					|| previewStatus.equals("processing") || previewStatus.equals("waiting_output")
 					|| previewStatus.equals("paused_unloaded") || previewStatus.equals("paused_changed")
-					|| previewStatus.equals("delivering")
+					|| previewStatus.equals("delivering") || previewStatus.equals("waiting_storage")
 					? previewStatus : "invalid")), left + 16, top + 70,
 				"ready".equals(previewStatus) ? 0x9FE99F : 0xFF9999, false);
 			if (!previewStatus.equals("ready") && !previewStatus.equals("missing") && !previewStatus.equals("busy")
