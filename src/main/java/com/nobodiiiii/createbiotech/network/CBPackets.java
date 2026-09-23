@@ -11,6 +11,9 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftRequestPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPreviewPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftCancelPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
@@ -61,7 +64,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "22";
+	private static final String NETWORK_VERSION = "23";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -118,6 +121,10 @@ public final class CBPackets {
 			SurgicalTableShovelPacket::write, SurgicalTableShovelPacket::handle);
 		registerServer(SurgicalTableTileShovelPacket.class, SurgicalTableTileShovelPacket::new,
 			SurgicalTableTileShovelPacket::write, SurgicalTableTileShovelPacket::handle);
+		registerServer(GaugeCraftRequestPacket.class, GaugeCraftRequestPacket::new,
+			GaugeCraftRequestPacket::write, GaugeCraftRequestPacket::handle);
+		registerServer(GaugeCraftCancelPacket.class, GaugeCraftCancelPacket::new,
+			GaugeCraftCancelPacket::write, GaugeCraftCancelPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -153,6 +160,8 @@ public final class CBPackets {
 			SurgicalTableReleaseGeometryPacket.ClientBoundRequest::write);
 		registerClient(BioPackagerReleaseAnimationPacket.class, BioPackagerReleaseAnimationPacket::new,
 			BioPackagerReleaseAnimationPacket::write);
+		registerClient(GaugeCraftPreviewPacket.class, GaugeCraftPreviewPacket::new,
+			GaugeCraftPreviewPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

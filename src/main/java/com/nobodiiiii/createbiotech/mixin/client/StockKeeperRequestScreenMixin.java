@@ -74,7 +74,7 @@ public abstract class StockKeeperRequestScreenMixin {
 	@Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
 	private void createBiotech$ignoreOrderingZeroGaugeEntries(double mouseX, double mouseY, int button,
 		CallbackInfoReturnable<Boolean> cir) {
-		if (!((Object) this instanceof EndermanStockKeeperRequestScreen) || button < 0 || button > 1)
+		if (!((Object) this instanceof EndermanStockKeeperRequestScreen screen) || button < 0 || button > 1)
 			return;
 
 		Couple<Integer> hovered = getHoveredSlot((int) mouseX, (int) mouseY);
@@ -83,7 +83,11 @@ public abstract class StockKeeperRequestScreenMixin {
 		if (category < 0 || category >= displayedItems.size() || slot < 0
 			|| slot >= displayedItems.get(category).size())
 			return;
-		if (displayedItems.get(category).get(slot) instanceof GaugeOutputBigItemStack)
+		BigItemStack entry = displayedItems.get(category).get(slot);
+		if (button == 0 && screen.isCraftable(entry.stack)) {
+			screen.beginCraft(entry.stack);
+			cir.setReturnValue(true);
+		} else if (entry instanceof GaugeOutputBigItemStack)
 			cir.setReturnValue(true);
 	}
 

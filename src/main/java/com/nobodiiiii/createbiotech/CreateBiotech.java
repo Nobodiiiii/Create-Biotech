@@ -107,6 +107,7 @@ public class CreateBiotech {
 
 	private static void registerAllayEvents() {
 		NeoForge.EVENT_BUS.addListener(AllayCourierTaskManager::onServerTick);
+		NeoForge.EVENT_BUS.addListener(com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftJobs::onTick);
 		NeoForge.EVENT_BUS.addListener(AllayPortTargetRegistry::onServerTick);
 		NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> {
 			AllayPortTargetRegistry.clear();

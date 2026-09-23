@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.network;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPreviewPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltEntityAnimationPacket;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerPlacementPacket;
@@ -54,6 +55,8 @@ final class CBClientPacketHandlers {
 			releaseGeometry.handle(player);
 		} else if (packet instanceof BioPackagerReleaseAnimationPacket bioPackagerRelease) {
 			bioPackagerRelease.handle(player);
+		} else if (packet instanceof GaugeCraftPreviewPacket gaugeCraftPreview) {
+			gaugeCraftPreview.handle(player);
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());

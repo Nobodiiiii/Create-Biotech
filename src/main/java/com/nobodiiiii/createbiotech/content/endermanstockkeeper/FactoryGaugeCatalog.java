@@ -63,6 +63,21 @@ public final class FactoryGaugeCatalog {
 		return List.copyOf(outputs);
 	}
 
+	/** Loaded, live output gauges on a network. Planning always re-reads their current configuration. */
+	public static List<FactoryPanelBehaviour> getOutputGauges(UUID network) {
+		Cache<GaugeKey, WeakReference<FactoryPanelBehaviour>> networkGauges = GAUGES.getIfPresent(network);
+		if (networkGauges == null)
+			return List.of();
+		List<FactoryPanelBehaviour> result = new ArrayList<>();
+		for (WeakReference<FactoryPanelBehaviour> reference : networkGauges.asMap().values()) {
+			FactoryPanelBehaviour behaviour = reference.get();
+			if (isCraftingOutput(behaviour) && network.equals(behaviour.network))
+				result.add(behaviour);
+		}
+		result.sort((a, b) -> a.getPanelPosition().toString().compareTo(b.getPanelPosition().toString()));
+		return result;
+	}
+
 	private static boolean isCraftingOutput(FactoryPanelBehaviour behaviour) {
 		return behaviour != null
 			&& behaviour.isActive()

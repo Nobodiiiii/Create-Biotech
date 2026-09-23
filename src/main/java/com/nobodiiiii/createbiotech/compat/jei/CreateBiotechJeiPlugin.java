@@ -6,14 +6,18 @@ import java.util.Objects;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
+import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.nobodiiiii.createbiotech.registry.CBRecipeTypes;
 import com.simibubi.create.Create;
+import com.simibubi.create.compat.jei.StockKeeperTransferHandler;
 import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 
 import mezz.jei.api.IModPlugin;
@@ -25,6 +29,7 @@ import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -90,6 +95,15 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		registration.addRecipeCatalyst(new ItemStack(CBBlocks.SQUID_PRINTER.get()), SquidPrinterJeiCategory.TYPE);
 		registration.addRecipeCatalyst(new ItemStack(CBBlocks.EVOKER_ENCHANTING_CHAMBER.get()),
 			EvokerEnchantingChamberJeiCategory.TYPE);
+	}
+
+	@Override
+	public void registerRecipeTransferHandlers(IRecipeTransferRegistration registration) {
+		StockKeeperTransferHandler delegate = new StockKeeperTransferHandler(registration.getJeiHelpers());
+		registration.addUniversalRecipeTransferHandler(new StockKeeperTransferHandlerAdapter<>(
+			EndermanStockKeeperRequestMenu.class, CBMenuTypes.ENDERMAN_STOCK_KEEPER_REQUEST.get(), delegate));
+		registration.addUniversalRecipeTransferHandler(new StockKeeperTransferHandlerAdapter<>(
+			WirelessStockKeeperRequestMenu.class, CBMenuTypes.WIRELESS_STOCK_KEEPER_REQUEST.get(), delegate));
 	}
 
 	private static List<RecipeHolder<CreeperBlastChamberHighPressureRecipe>> creeperBlastChamberHighPressureRecipes() {
