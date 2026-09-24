@@ -266,6 +266,7 @@
   "create_biotech.tooltip.inactive_organ_traits": "未生效的器官特性",
   "create_biotech.trait.inactive.unknown_anatomy": "器官映射未识别",
   "create_biotech.trait.inactive.incomplete_or_disconnected": "器官不完整或未连通",
+  "create_biotech.trait.inactive.body_measurement_unavailable": "身体测量结果暂不可用",
   "create_biotech.trait.inactive.purpose_mismatch": "装配用途或负载不符",
   "create_biotech.trait.inactive.no_ranged_attack": "成品没有远程攻击路径",
   "create_biotech.trait.inactive.air_breathing_head_present": "已有空气呼吸头部",

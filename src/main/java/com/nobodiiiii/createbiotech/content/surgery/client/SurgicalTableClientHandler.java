@@ -249,6 +249,8 @@ public final class SurgicalTableClientHandler {
 	private static CubeSelectionCache connectedSelectionCache;
 	@Nullable
 	private static CubeSelectionCache directSelectionCache;
+	@Nullable
+	private static PackedBodyPreviewCache packedBodyPreviewCache;
 
 	private SurgicalTableClientHandler() {}
 
@@ -795,6 +797,7 @@ public final class SurgicalTableClientHandler {
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
+		packedBodyPreviewCache = null;
 		suppressAttackUntilRelease = false;
 		clearPlacementPreview();
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
@@ -3530,6 +3533,12 @@ public final class SurgicalTableClientHandler {
 			return;
 		SurgicalAssembly preview = table.previewPackedAssembly(hit.geometry.subjectId,
 			hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
+		if (preview == null)
+			return;
+		PackedBodyMetrics metrics = packedBodyPreviewMetrics(level, table, hit, preview);
+		if (metrics != null)
+			preview = preview.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(),
+				metrics.bodyVolume());
 		BionicMind mind = BionicMind.resolve(preview, level);
 		BionicBodyTraits traits = BionicBodyTraitRegistry.resolve(preview, level);
 		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip,
@@ -3541,6 +3550,20 @@ public final class SurgicalTableClientHandler {
 				preview, level));
 		CapturedEntityBoxStatsTooltip.appendInactiveOrganReasons(tooltip,
 			com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry.inactiveReasons(preview));
+	}
+
+	@Nullable
+	private static PackedBodyMetrics packedBodyPreviewMetrics(ClientLevel level,
+		SurgicalTableBlockEntity table, CubeHit hit, SurgicalAssembly preview) {
+		int revision = table.clientDataRevision();
+		PackedBodyPreviewCache cached = packedBodyPreviewCache;
+		if (cached != null && cached.matches(level, table, hit, revision))
+			return cached.metrics();
+		PackedBodyMetrics metrics = measureBodyMetrics(preview);
+		if (metrics != null)
+			packedBodyPreviewCache = new PackedBodyPreviewCache(level, table, revision,
+				hit.geometry.subjectId, hit.cubeId, hit.geometry.renderRevision, metrics);
+		return metrics;
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
@@ -4879,7 +4902,11 @@ public final class SurgicalTableClientHandler {
 			selection.targetId(), selection.observedCubeCount(), selection.seams());
 		if (preview == null)
 			return null;
+		return measureBodyMetrics(preview);
+	}
 
+	@Nullable
+	private static PackedBodyMetrics measureBodyMetrics(SurgicalAssembly preview) {
 		PackedBodyMeasurement measured = measurePackedBody(preview);
 		if (measured == null)
 			return null;
@@ -6483,6 +6510,16 @@ public final class SurgicalTableClientHandler {
 		SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		double bodyVolume,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
+	private record PackedBodyPreviewCache(ClientLevel level, SurgicalTableBlockEntity table,
+		int tableRevision, int subjectId, int cubeId, int renderRevision,
+		PackedBodyMetrics metrics) {
+		private boolean matches(ClientLevel currentLevel, SurgicalTableBlockEntity currentTable,
+			CubeHit hit, int revision) {
+			return level == currentLevel && table == currentTable && tableRevision == revision
+				&& subjectId == hit.geometry.subjectId && cubeId == hit.cubeId
+				&& renderRevision == hit.geometry.renderRevision;
+		}
+	}
 	private record PackedBodyMeasurement(List<SlimeBionicAnimator.SourceState> sources,
 		SurgicalBodyBounds.Envelope visible) {}
 

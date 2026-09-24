@@ -189,7 +189,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 
 	public enum InactiveReason {
-		UNKNOWN_ANATOMY, INCOMPLETE_OR_DISCONNECTED, PURPOSE_MISMATCH, NO_RANGED_ATTACK
+		UNKNOWN_ANATOMY, INCOMPLETE_OR_DISCONNECTED, BODY_MEASUREMENT_UNAVAILABLE,
+		PURPOSE_MISMATCH, NO_RANGED_ATTACK
 	}
 
 	/** Explains why a known donor fact is absent from the effective assembly abilities. */
@@ -246,6 +247,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			if (fact)
 				reasons.put(trait, trait == BionicOrganTrait.RANGED_EFFECT
 					? InactiveReason.NO_RANGED_ATTACK
+					: sufficientlyRetained && requiresLeg(trait) && assembly.bodyBounds() == null
+						? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 					: sufficientlyRetained ? InactiveReason.PURPOSE_MISMATCH
 					: mapped ? InactiveReason.INCOMPLETE_OR_DISCONNECTED
 					: InactiveReason.UNKNOWN_ANATOMY);
