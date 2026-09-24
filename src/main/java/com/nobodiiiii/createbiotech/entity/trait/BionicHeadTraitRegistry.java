@@ -162,6 +162,14 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 			return Map.of();
 		BionicHeadTraits active = resolve(assembly, level);
 		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
+		Map<UUID, BitSet> presentByDonor = new HashMap<>();
+		Set<UUID> donorsWithHeads = new java.util.HashSet<>();
+		for (SurgicalAssembly.Source source : assembly.sources()) {
+			presentByDonor.computeIfAbsent(source.donorId(), ignored -> new BitSet())
+				.or(source.presentCubes());
+			if (!source.headCubes().isEmpty())
+				donorsWithHeads.add(source.donorId());
+		}
 		EnumMap<BionicHeadTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicHeadTrait.class);
 		for (BionicHeadTrait trait : BionicHeadTrait.values()) {
@@ -174,13 +182,17 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 			for (SurgicalAssembly.Source source : assembly.sources()) {
 				if (!seen.add(source.donorId()) || !get(source.profile(), level).contains(trait))
 					continue;
+				BitSet original = carrierCubes(trait, source);
+				if (original.isEmpty()) {
+					fact |= donorsWithHeads.contains(source.donorId());
+					continue;
+				}
+				if (!original.intersects(presentByDonor.get(source.donorId())))
+					continue;
 				fact = true;
 				BionicAnatomyRegistry.Template template =
 					BionicAnatomyRegistry.getForSource(source);
 				if (template == null)
-					continue;
-				BitSet original = carrierCubes(trait, source);
-				if (original.isEmpty())
 					continue;
 				mapped = true;
 				Rule rule = RULES.get(trait);

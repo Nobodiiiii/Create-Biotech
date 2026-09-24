@@ -200,6 +200,14 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			return Map.of();
 		BionicOrganTraits active = resolve(assembly);
 		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
+		Map<UUID, BitSet> presentByDonor = new HashMap<>();
+		Set<UUID> donorsWithHeads = new HashSet<>();
+		for (SurgicalAssembly.Source source : assembly.sources()) {
+			presentByDonor.computeIfAbsent(source.donorId(), ignored -> new BitSet())
+				.or(source.presentCubes());
+			if (!source.headCubes().isEmpty())
+				donorsWithHeads.add(source.donorId());
+		}
 		EnumMap<BionicOrganTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicOrganTrait.class);
 		for (BionicOrganTrait trait : BionicOrganTrait.values()) {
@@ -215,14 +223,20 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			for (SurgicalAssembly.Source source : assembly.sources()) {
 				if (!seen.add(source.donorId()) || !matchesDonor(trait, rule, source.profile()))
 					continue;
-				fact = true;
 				BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForSource(source);
-				if (template == null)
-					continue;
+				BitSet present = presentByDonor.get(source.donorId());
+				boolean carrierPresent = false;
+				boolean carrierKnown = false;
 				int qualifyingRoles = 0;
 				for (BionicAnatomyRole role : trait.roles()) {
 					BitSet original = carrierCubes(trait, source, role);
 					if (original.isEmpty())
+						continue;
+					carrierKnown = true;
+					if (!original.intersects(present))
+						continue;
+					carrierPresent = true;
+					if (template == null)
 						continue;
 					mapped = true;
 					double total = 0.0d;
@@ -243,6 +257,13 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				if (qualifyingRoles >= (trait == BionicOrganTrait.WING_FLIGHT
 					? trait.roles().length : 1))
 					sufficientlyRetained = true;
+				if (!carrierKnown && donorsWithHeads.contains(source.donorId()))
+					for (BionicAnatomyRole role : trait.roles())
+						if (role == BionicAnatomyRole.HEAD) {
+							carrierPresent = true;
+							break;
+						}
+				fact |= carrierPresent;
 			}
 			if (fact)
 				reasons.put(trait, trait == BionicOrganTrait.RANGED_EFFECT
