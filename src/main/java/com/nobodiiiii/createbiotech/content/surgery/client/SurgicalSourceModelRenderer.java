@@ -22,12 +22,15 @@ import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalSourceModelRenderer {
 	private static final int MAX_RENDER_PLANS = 512;
 	private static final int MAX_PENDING_RENDER_PLANS = 64;
+	private static final int CAPTURE_ENTITY_ID = 0;
+	private static final float CAPTURE_PARTIAL_TICK = 0.0f;
 	/**
 	 * One preview per distinct appearance. A preview entity is a pure function of its profile - it is
 	 * never added to the level, carries no owner state, and {@link MimicProfile#createPreviewEntity}
@@ -132,7 +135,7 @@ public final class SurgicalSourceModelRenderer {
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
 		boolean renderSourceGeometry, float alpha) {
 		preparePreview(preview, yaw);
-		SurgicalCapturedRenderPlan plan = plan(preview, yaw, partialTick);
+		SurgicalCapturedRenderPlan plan = plan(preview, yaw);
 		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
 		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
 			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
@@ -147,7 +150,7 @@ public final class SurgicalSourceModelRenderer {
 		if (preview == null)
 			return new SurgicalModelRenderContext.Snapshot(0, java.util.List.of());
 		preparePreview(preview, 0.0f);
-		return plan(preview, 0.0f, 0.0f).renderSingleCube(poseStack, buffer, packedLight, cube);
+		return plan(preview, 0.0f).renderSingleCube(poseStack, buffer, packedLight, cube);
 	}
 
 	/** Returns the neutral-pose source geometry used to align one released cuboid to its entity. */
@@ -158,10 +161,51 @@ public final class SurgicalSourceModelRenderer {
 		if (preview == null)
 			return null;
 		preparePreview(preview, 0.0f);
-		return plan(preview, 0.0f, 0.0f).singleCubeGeometry(cube);
+		return plan(preview, 0.0f).singleCubeGeometry(cube);
 	}
 
-	private static SurgicalCapturedRenderPlan plan(LivingEntity preview, float yaw, float partialTick) {
+	/**
+	 * Every source capture happens in this fixed animation state, so a captured creature keeps one pose
+	 * however often its plan is rebuilt - after LRU eviction, a level change, a resource reload or taking
+	 * the part off the table and putting it back.
+	 * <p>
+	 * Renderers commonly derive a per-creature animation phase from state a preview does not keep stable:
+	 * the phantom's wing flap reads {@code getId() * 3}, the jeb_ sheep's wool cycle reads {@code getId()},
+	 * and mods seed idle motion from the entity's own random. A preview's real id comes from the global
+	 * entity counter and differs every time the preview is rebuilt, so it is swapped for a fixed id only
+	 * for the duration of the capture. It cannot stay swapped: {@link net.minecraft.world.entity.Entity}
+	 * equality and hashing are by id, and the weak maps here are keyed by preview. 0 is never handed to a
+	 * real entity (the counter pre-increments), so the swap cannot alias a live entity either.
+	 * <p>
+	 * Only animation inputs are pinned; appearance NBT such as wool colour or variants is left untouched.
+	 */
+	private static SurgicalCapturedRenderPlan.CapturedInput captureInputInCanonicalPose(
+		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw) {
+		int id = preview.getId();
+		preview.setId(CAPTURE_ENTITY_ID);
+		preview.tickCount = 0;
+		preview.getRandom().setSeed(captureRandomSeed(preview));
+		try {
+			return SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, CAPTURE_PARTIAL_TICK, true);
+		} finally {
+			preview.setId(id);
+		}
+	}
+
+	private static SurgicalCapturedRenderPlan captureInCanonicalPose(EntityRenderer<LivingEntity> renderer,
+		LivingEntity preview, float yaw) {
+		return SurgicalCapturedRenderPlan.build(captureInputInCanonicalPose(renderer, preview, yaw));
+	}
+
+	private static long captureRandomSeed(LivingEntity preview) {
+		return BuiltInRegistries.ENTITY_TYPE.getKey(preview.getType()).toString().hashCode();
+	}
+
+	/**
+	 * Captured plans are a fixed pose, not a frame of a running animation, so callers' frame partial
+	 * ticks are deliberately not forwarded here - see {@link #captureInputInCanonicalPose}.
+	 */
+	private static SurgicalCapturedRenderPlan plan(LivingEntity preview, float yaw) {
 		EntityRenderer<LivingEntity> renderer = renderer(preview);
 		MimicProfile profile = PREVIEW_PROFILES.get(preview);
 		if (profile != null) {
@@ -174,7 +218,7 @@ public final class SurgicalSourceModelRenderer {
 				// stalling this frame either way. collectCompletedPlans() harvests the duplicate on a
 				// later frame and overwrites this entry with an equal, immutable plan.
 				long started = SurgicalProfiler.begin();
-				plan = SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick, true);
+				plan = captureInCanonicalPose(renderer, preview, yaw);
 				SurgicalProfiler.end("capture(plan)", started);
 				RENDER_PLANS.put(key, plan);
 			}
@@ -184,8 +228,7 @@ public final class SurgicalSourceModelRenderer {
 		CachedRenderPlan cached = FALLBACK_RENDER_PLANS.get(preview);
 		if (cached == null || cached.renderer != renderer
 			|| Float.floatToIntBits(cached.yaw) != Float.floatToIntBits(yaw)) {
-			SurgicalCapturedRenderPlan plan =
-				SurgicalCapturedRenderPlan.capture(renderer, preview, yaw, partialTick, true);
+			SurgicalCapturedRenderPlan plan = captureInCanonicalPose(renderer, preview, yaw);
 			cached = new CachedRenderPlan(renderer, yaw, plan);
 			FALLBACK_RENDER_PLANS.put(preview, cached);
 		}
@@ -232,7 +275,7 @@ public final class SurgicalSourceModelRenderer {
 					return null;
 				long started = SurgicalProfiler.begin();
 				SurgicalCapturedRenderPlan.CapturedInput captured =
-					SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, partialTick, true);
+					captureInputInCanonicalPose(renderer, preview, yaw);
 				SurgicalProfiler.end("capture(plan-input)", started);
 				int generation = resourceGeneration;
 				pending = new PendingRenderPlan(generation,
@@ -321,7 +364,7 @@ public final class SurgicalSourceModelRenderer {
 		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry) {
 		long started = SurgicalProfiler.begin();
 		preparePreview(preview, yaw);
-		SurgicalModelRenderContext.Snapshot snapshot = plan(preview, yaw, partialTick)
+		SurgicalModelRenderContext.Snapshot snapshot = plan(preview, yaw)
 			.snapshot(poseStack, cubeCount, presentCubes, Map.of(), Map.of(), cameraPosition);
 		SurgicalProfiler.end("captureGeometry", started);
 		return snapshot;
@@ -334,7 +377,6 @@ public final class SurgicalSourceModelRenderer {
 		preview.yBodyRotO = yaw;
 		preview.yHeadRot = yaw;
 		preview.yHeadRotO = yaw;
-		preview.tickCount = 0;
 	}
 
 	@SuppressWarnings("unchecked")

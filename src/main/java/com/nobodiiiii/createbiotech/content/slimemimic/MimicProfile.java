@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.slimemimic;
 
 import static java.util.Map.entry;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -208,11 +209,13 @@ public final class MimicProfile {
 		if (!(created instanceof LivingEntity living))
 			return null;
 
-		if (!previewData.isEmpty()) {
-			UUID previewUuid = living.getUUID();
+		if (!previewData.isEmpty())
 			living.load(previewData.copy());
-			living.setUUID(previewUuid);
-		}
+		// Never the source creature's UUID, but not a fresh random one either: renderers and texture
+		// mods seed per-entity animation or variants from the UUID, so a preview rebuilt after a reload
+		// or re-placement must present the same one. Keyed by type only, so it survives NBT drift.
+		living.setUUID(UUID.nameUUIDFromBytes(("create_biotech:mimic_preview/" + entityTypeId)
+			.getBytes(StandardCharsets.UTF_8)));
 		apply(living);
 		SlimeMimicHandler.setSlimeMimic(living, true);
 		living.setYRot(0.0f);
