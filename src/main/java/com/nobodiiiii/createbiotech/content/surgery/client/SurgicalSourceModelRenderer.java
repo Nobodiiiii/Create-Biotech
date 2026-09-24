@@ -25,20 +25,12 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalSourceModelRenderer {
 	private static final int MAX_RENDER_PLANS = 512;
 	private static final int MAX_PENDING_RENDER_PLANS = 64;
 	private static final int CAPTURE_ENTITY_ID = 0;
-	/**
-	 * Vanilla phantom wings and wing tips both roll by {@code cos(phase) * 16deg} and the tail pitches by
-	 * {@code -(5 + 5 cos(2 phase))deg}, so at a quarter flap every one of them lies flat along the body.
-	 * The pattern repeats every half flap.
-	 */
-	private static final float PHANTOM_FLAT_PHASE_TICKS = 90.0f / Phantom.FLAP_DEGREES_PER_TICK;
-	private static final float PHANTOM_HALF_FLAP_TICKS = 180.0f / Phantom.FLAP_DEGREES_PER_TICK;
 	/**
 	 * One preview per distinct appearance. A preview entity is a pure function of its profile - it is
 	 * never added to the level, carries no owner state, and {@link MimicProfile#createPreviewEntity}
@@ -194,7 +186,7 @@ public final class SurgicalSourceModelRenderer {
 		preview.setId(CAPTURE_ENTITY_ID);
 		preview.getRandom().setSeed(captureRandomSeed(preview));
 		// Renderers see the age as tickCount + partialTick, so a fractional age is split across both.
-		float ageInTicks = captureAgeInTicks(preview);
+		float ageInTicks = SurgicalCapturePoseOverrides.captureAgeInTicks(preview);
 		int wholeTicks = Mth.floor(ageInTicks);
 		preview.tickCount = wholeTicks;
 		try {
@@ -203,16 +195,6 @@ public final class SurgicalSourceModelRenderer {
 			preview.setId(id);
 			preview.tickCount = tickCount;
 		}
-	}
-
-	/** Animation age a capture is taken at: 0 for everything except types whose age-0 pose looks wrong. */
-	private static float captureAgeInTicks(LivingEntity preview) {
-		if (preview instanceof Phantom phantom) {
-			// Measured against the already-pinned id, and wrapped so a modded offset stays non-negative.
-			float age = (PHANTOM_FLAT_PHASE_TICKS - phantom.getUniqueFlapTickOffset()) % PHANTOM_HALF_FLAP_TICKS;
-			return age < 0.0f ? age + PHANTOM_HALF_FLAP_TICKS : age;
-		}
-		return 0.0f;
 	}
 
 	private static SurgicalCapturedRenderPlan captureInCanonicalPose(EntityRenderer<LivingEntity> renderer,
