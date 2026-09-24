@@ -22,7 +22,6 @@ import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -71,7 +70,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
 		for (int sourceId = 0; sourceId < assembly.sources().size(); sourceId++) {
 			SurgicalAssembly.Source source = assembly.sources().get(sourceId);
-			BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForIntactDonor(source);
+			BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForSource(source);
 			if (template == null)
 				continue;
 			Donor donor = donors.computeIfAbsent(source.donorId(), ignored ->
@@ -98,7 +97,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 					continue;
 				List<Set<SurgicalAssembly.CombinationMember>> byRole = new ArrayList<>();
 				for (BionicAnatomyRole role : trait.roles()) {
-					BitSet original = donor.template.cubes(role);
+					BitSet original = carrierCubes(trait, donor.source, role);
 					if (original.isEmpty())
 						continue;
 					double total = 0.0d;
@@ -136,23 +135,13 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				int requiredLegs = (int) parameter(trait, "min_legs",
 					trait == BionicOrganTrait.AGILE_LANDING
 						|| trait == BionicOrganTrait.WALL_CLIMB ? 2.0d : 1.0d);
-				if (assembly.bodyBounds() == null
-					|| assembly.bodyBounds().groundedLegCount()
-						< requiredLegs)
+				int groundedLegs = assembly.bodyBounds() == null ? 0
+					: assembly.bodyBounds().groundedLegCount();
+				int contributingLegs = Math.min(groundedLegs, eligible.size());
+				if (contributingLegs < requiredLegs
+					|| assembly.hasBodyVolume() && assembly.bodyVolume() > contributingLegs
+						* parameter(trait, "max_body_volume_per_leg", 16.0d))
 					continue;
-				eligible.retainAll(jointMembers(assembly, SurgicalLimbType.HIP));
-				int contributingLegs = 0;
-				for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
-					if (limb.type() == SurgicalLimbType.HIP
-						&& assembly.rotatingGroup(limb.childSource(), limb.childCube()).stream()
-							.anyMatch(eligible::contains))
-						contributingLegs++;
-				if (contributingLegs < requiredLegs || assembly.hasBodyVolume()
-					&& assembly.bodyVolume() > contributingLegs * parameter(trait,
-						"max_body_volume_per_leg", 16.0d))
-					continue;
-			} else if (requiresArm(trait)) {
-				eligible.retainAll(jointMembers(assembly, SurgicalLimbType.SHOULDER));
 			}
 			if (!eligible.isEmpty()) {
 				resolved.put(trait, eligible);
@@ -169,25 +158,22 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 		return new BionicOrganTraits(resolved, weights);
 	}
 
-	private static Set<SurgicalAssembly.CombinationMember> jointMembers(SurgicalAssembly assembly,
-		SurgicalLimbType type) {
-		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
-		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
-			if (limb.type() == type)
-				members.addAll(assembly.rotatingGroup(limb.childSource(), limb.childCube()));
-		return members;
+	private static BitSet carrierCubes(BionicOrganTrait trait, SurgicalAssembly.Source source,
+		BionicAnatomyRole role) {
+		BitSet named = BionicTraitCarrierRegistry.organCubes(trait,
+			source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role);
+		if (named != null)
+			return named;
+		BitSet legacy = source.anatomy().cubes(role);
+		if (!legacy.isEmpty())
+			return legacy;
+		BionicAnatomyRegistry.Template configured = BionicAnatomyRegistry.get(source);
+		return configured == null ? new BitSet() : configured.cubes(role);
 	}
 
 	private static boolean requiresLeg(BionicOrganTrait trait) {
 		return switch (trait) {
 		case AGILE_LANDING, FALL_REDUCTION, POWDER_SNOW_WALK, LAVA_WALK, WALL_CLIMB -> true;
-		default -> false;
-		};
-	}
-
-	private static boolean requiresArm(BionicOrganTrait trait) {
-		return switch (trait) {
-		case WITHER_ATTACK, HUNGER_ATTACK, RANGED_EFFECT -> true;
 		default -> false;
 		};
 	}
@@ -229,15 +215,15 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				if (!seen.add(source.donorId()) || !matchesDonor(trait, rule, source.profile()))
 					continue;
 				fact = true;
-				BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForIntactDonor(source);
+				BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForSource(source);
 				if (template == null)
 					continue;
-				mapped = true;
 				int qualifyingRoles = 0;
 				for (BionicAnatomyRole role : trait.roles()) {
-					BitSet original = template.cubes(role);
+					BitSet original = carrierCubes(trait, source, role);
 					if (original.isEmpty())
 						continue;
+					mapped = true;
 					double total = 0.0d;
 					double retained = 0.0d;
 					for (int cube = original.nextSetBit(0); cube >= 0;

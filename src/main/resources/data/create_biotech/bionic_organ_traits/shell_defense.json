@@ -1,9 +1,24 @@
 {
   "automatic_detection": false,
   "min_completeness": 0.5,
-  "parameters": { "duration_ticks": 80, "damage_multiplier": 0.5 },
+  "parameters": {
+    "duration_ticks": 80,
+    "damage_multiplier": 0.5
+  },
   "values": {
     "minecraft:shulker": true,
     "minecraft:armadillo": true
+  },
+  "carriers": {
+    "minecraft:shulker": {
+      "SHELL": [
+        "lid"
+      ]
+    },
+    "minecraft:armadillo": {
+      "SHELL": [
+        "body"
+      ]
+    }
   }
 }

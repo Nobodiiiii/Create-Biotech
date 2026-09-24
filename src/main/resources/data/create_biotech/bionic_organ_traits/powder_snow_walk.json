@@ -1,5 +1,53 @@
 {
   "automatic_detection": true,
   "min_completeness": 0.5,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:rabbit": {
+      "FOOT": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:fox": {
+      "FOOT": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:silverfish": {
+      "FOOT": [
+        "body",
+        "segment0",
+        "segment_0"
+      ]
+    },
+    "minecraft:endermite": {
+      "FOOT": [
+        "body",
+        "segment0",
+        "segment_0"
+      ]
+    }
+  }
 }

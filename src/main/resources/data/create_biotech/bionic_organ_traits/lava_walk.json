@@ -3,5 +3,15 @@
   "min_completeness": 0.5,
   "values": {
     "minecraft:strider": true
+  },
+  "carriers": {
+    "minecraft:strider": {
+      "FOOT": [
+        "leftLeg",
+        "rightLeg",
+        "left_leg",
+        "right_leg"
+      ]
+    }
   }
 }

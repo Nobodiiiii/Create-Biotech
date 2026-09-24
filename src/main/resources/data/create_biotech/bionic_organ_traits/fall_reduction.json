@@ -13,5 +13,103 @@
     "minecraft:llama": true,
     "minecraft:trader_llama": true,
     "minecraft:goat": true
+  },
+  "carriers": {
+    "minecraft:horse": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:donkey": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:mule": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:llama": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:trader_llama": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:goat": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    }
   }
 }

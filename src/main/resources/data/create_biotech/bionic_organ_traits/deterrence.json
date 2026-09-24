@@ -5,5 +5,25 @@
     "minecraft:cat": true,
     "minecraft:ocelot": true,
     "minecraft:wolf": true
+  },
+  "carriers": {
+    "minecraft:cat": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:ocelot": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:wolf": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    }
   }
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
@@ -1105,6 +1106,8 @@ public final class SurgicalTableClientHandler {
 			plan = discoveredPlan.placement();
 			discovered = new DiscoveredPlacement(placementGeometry.discoveredCubeCount(),
 				placementGeometry.discoveredSeams(), discoveredHeadCubes(placementGeometry.discoveredCubes()),
+				discoveredAnatomy(placementGeometry.discoveredCubes(),
+					placementGeometry.discoveredCubeCount()),
 				discoveredPlan.componentFootprints());
 		} else {
 			plan = SurgicalClientTopology.planInitialPlacement(List.of(renderedBounds),
@@ -3682,7 +3685,8 @@ public final class SurgicalTableClientHandler {
 		CBPackets.sendToServer(new SurgicalTablePlacementPacket(placement.ownerPos, hand, placement.facing,
 			placement.plan.originOffsetX(), placement.plan.originOffsetZ(), placement.layPose,
 			placement.plan.proposal(), placement.discovered.cubeCount(), placement.discovered.seams(),
-			placement.discovered.headCubes(), placement.discovered.footprints(),
+			placement.discovered.headCubes(), placement.discovered.anatomy(),
+			placement.discovered.footprints(),
 			placement.sourceLayouts));
 		beginVisualCommit(level, placement.ownerPos, placement.tableRevision, List.of(), true, false);
 		return true;
@@ -6965,10 +6969,21 @@ public final class SurgicalTableClientHandler {
 		return heads;
 	}
 
+	private static BionicAnatomySnapshot discoveredAnatomy(
+		List<SurgicalModelRenderContext.CubeGeometry> cubes, int cubeCount) {
+		Map<Integer, java.util.Set<String>> parts = new HashMap<>();
+		for (SurgicalModelRenderContext.CubeGeometry cube : cubes)
+			if (!cube.partNames().isEmpty())
+				parts.put(cube.cubeId(), cube.partNames());
+		BionicAnatomySnapshot snapshot = BionicAnatomySnapshot.ofParts(parts, cubeCount);
+		return snapshot == null ? BionicAnatomySnapshot.EMPTY : snapshot;
+	}
+
 	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams, BitSet headCubes,
+		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> footprints) {
 		private static final DiscoveredPlacement EMPTY =
-			new DiscoveredPlacement(0, List.of(), new BitSet(), List.of());
+			new DiscoveredPlacement(0, List.of(), new BitSet(), BionicAnatomySnapshot.EMPTY, List.of());
 
 		private DiscoveredPlacement {
 			seams = List.copyOf(seams);

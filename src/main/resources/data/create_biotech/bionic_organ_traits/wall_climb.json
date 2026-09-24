@@ -1,9 +1,38 @@
 {
   "automatic_detection": false,
   "min_completeness": 0.5,
-  "parameters": { "min_legs": 2, "max_body_volume_per_leg": 16 },
+  "parameters": {
+    "min_legs": 2,
+    "max_body_volume_per_leg": 16
+  },
   "values": {
     "minecraft:spider": true,
     "minecraft:cave_spider": true
+  },
+  "carriers": {
+    "minecraft:spider": {
+      "LEG": [
+        "rightHindLeg",
+        "leftHindLeg",
+        "rightMiddleHindLeg",
+        "leftMiddleHindLeg",
+        "rightMiddleFrontLeg",
+        "leftMiddleFrontLeg",
+        "rightFrontLeg",
+        "leftFrontLeg"
+      ]
+    },
+    "minecraft:cave_spider": {
+      "LEG": [
+        "rightHindLeg",
+        "leftHindLeg",
+        "rightMiddleHindLeg",
+        "leftMiddleHindLeg",
+        "rightMiddleFrontLeg",
+        "leftMiddleFrontLeg",
+        "rightFrontLeg",
+        "leftFrontLeg"
+      ]
+    }
   }
 }

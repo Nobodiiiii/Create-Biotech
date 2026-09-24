@@ -1,8 +1,20 @@
 {
   "automatic_detection": false,
   "min_completeness": 0.5,
-  "parameters": { "duration_ticks": 200 },
+  "parameters": {
+    "duration_ticks": 200
+  },
   "values": {
     "minecraft:wither_skeleton": true
+  },
+  "carriers": {
+    "minecraft:wither_skeleton": {
+      "ATTACK_HAND": [
+        "leftArm",
+        "rightArm",
+        "left_arm",
+        "right_arm"
+      ]
+    }
   }
 }

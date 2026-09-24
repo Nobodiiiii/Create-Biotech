@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -24,6 +25,7 @@ public final class SurgicalSubject {
 	private static final String PERSISTENT_ID_TAG = "PersistentId";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
+	private static final String ANATOMY_ROLES_TAG = "AnatomyRoles";
 	private static final String FACING_TAG = "PlacementFacing";
 	private static final String LAY_AXIS_TAG = "LayAxis";
 	private static final String LAY_YAW_TAG = "LayYaw";
@@ -63,6 +65,7 @@ public final class SurgicalSubject {
 	private final UUID donorId;
 	private final BitSet originalHeadCubes;
 	private final boolean originalHeadKnown;
+	private final BionicAnatomySnapshot anatomy;
 	private final MimicProfile profile;
 	private Direction placementFacing;
 	private SurgicalLayPose layPose;
@@ -112,13 +115,15 @@ public final class SurgicalSubject {
 		List<SurgicalTableLayout.Footprint> occupiedFootprints, List<SurgicalGlueJoint> glueJoints,
 		List<SurgicalCombination> combinations, List<SurgicalLimbJoint> limbJoints) {
 		this(id, persistentId, persistentId, headCubes, presentCubes.cardinality() == cubeCount,
+			BionicAnatomySnapshot.EMPTY,
 			profile, placementFacing, layPose, cubeCount, presentCubes, headCubes, seams, cutSeams,
 			cutOrder, originOffsetX, originOffsetZ, componentOffsets, componentRotations,
 			occupiedFootprints, glueJoints, combinations, limbJoints);
 	}
 
 	SurgicalSubject(int id, UUID persistentId, UUID donorId, BitSet originalHeadCubes,
-		boolean originalHeadKnown, MimicProfile profile, Direction placementFacing,
+		boolean originalHeadKnown, BionicAnatomySnapshot anatomy,
+		MimicProfile profile, Direction placementFacing,
 		SurgicalLayPose layPose, int cubeCount,
 		BitSet presentCubes, BitSet headCubes, List<SurgicalAssembly.Seam> seams, BitSet cutSeams,
 		List<Integer> cutOrder,
@@ -132,6 +137,7 @@ public final class SurgicalSubject {
 		this.donorId = donorId;
 		this.originalHeadCubes = (BitSet) originalHeadCubes.clone();
 		this.originalHeadKnown = originalHeadKnown;
+		this.anatomy = anatomy;
 		this.profile = profile;
 		this.placementFacing = horizontal(placementFacing);
 		this.layPose = layPose == null ? SurgicalLayPose.IDENTITY : layPose;
@@ -162,6 +168,7 @@ public final class SurgicalSubject {
 	public UUID donorId() { return donorId; }
 	public BitSet originalHeadCubes() { return (BitSet) originalHeadCubes.clone(); }
 	public boolean originalHeadKnown() { return originalHeadKnown; }
+	public BionicAnatomySnapshot anatomy() { return anatomy; }
 
 	void setId(int id) {
 		this.id = id;
@@ -284,6 +291,7 @@ public final class SurgicalSubject {
 			&& donorId.equals(other.donorId)
 			&& originalHeadKnown == other.originalHeadKnown
 			&& originalHeadCubes.equals(other.originalHeadCubes)
+			&& anatomy.equals(other.anatomy)
 			&& layPose.equals(other.layPose)
 			&& presentCubes.equals(other.presentCubes)
 			&& headCubes.equals(other.headCubes)
@@ -517,7 +525,7 @@ public final class SurgicalSubject {
 		BitSet extractedHeads = (BitSet) headCubes.clone();
 		extractedHeads.and(selected);
 		SurgicalSubject result = new SurgicalSubject(extractedId, UUID.randomUUID(), donorId,
-			originalHeadCubes, originalHeadKnown, profile, placementFacing, layPose,
+			originalHeadCubes, originalHeadKnown, anatomy, profile, placementFacing, layPose,
 			cubeCount, selected, extractedHeads, seams, cutSeams, cutOrder, originOffsetX, originOffsetZ,
 			extractedOffsets, extractedRotations, extractedFootprints, List.of(), List.of(), List.of());
 		removeComponent(selected);
@@ -551,6 +559,8 @@ public final class SurgicalSubject {
 		tag.putUUID(DONOR_ID_TAG, donorId);
 		if (originalHeadKnown)
 			tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
+		if (!anatomy.isEmpty())
+			tag.put(ANATOMY_ROLES_TAG, anatomy.save());
 		tag.putInt(FACING_TAG, placementFacing.get3DDataValue());
 		tag.putInt(LAY_AXIS_TAG, layPose.axis().ordinal());
 		tag.putInt(LAY_YAW_TAG, layPose.yaw());
@@ -607,6 +617,7 @@ public final class SurgicalSubject {
 			return null;
 		if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+			|| hasWrongType(tag, ANATOMY_ROLES_TAG, Tag.TAG_COMPOUND)
 			|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 			return null;
@@ -639,6 +650,11 @@ public final class SurgicalSubject {
 		boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
 		BitSet originalHeads = originalHeadKnown
 			? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
+		BionicAnatomySnapshot anatomy = tag.contains(ANATOMY_ROLES_TAG, Tag.TAG_COMPOUND)
+			? BionicAnatomySnapshot.load(tag.getCompound(ANATOMY_ROLES_TAG), cubeCount)
+			: BionicAnatomySnapshot.EMPTY;
+		if (anatomy == null)
+			return null;
 		BitSet invalidHeads = (BitSet) heads.clone();
 		invalidHeads.andNot(present);
 		if (originalHeadKnown) {
@@ -662,7 +678,7 @@ public final class SurgicalSubject {
 			|| glueJoints == null || combinations == null || limbJoints == null)
 			return null;
 		return new SurgicalSubject(id, persistentId, donorId, originalHeads, originalHeadKnown,
-			profile, facing, layPose, cubeCount, present, heads,
+			anatomy, profile, facing, layPose, cubeCount, present, heads,
 			seams, cuts, cutOrder,
 			originX, originZ, offsets, rotations, footprints, glueJoints, combinations, limbJoints);
 	}

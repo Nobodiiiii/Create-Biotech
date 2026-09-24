@@ -1,5 +1,55 @@
 {
   "automatic_detection": true,
   "min_completeness": 0.5,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:wolf": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:cat": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:parrot": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:horse": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:donkey": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:mule": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:llama": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:trader_llama": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    }
+  }
 }

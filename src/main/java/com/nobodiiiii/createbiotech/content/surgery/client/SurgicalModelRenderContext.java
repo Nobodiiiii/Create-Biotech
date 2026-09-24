@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.List;
+import java.util.Set;
 
 import net.minecraft.world.phys.Vec3;
 
@@ -23,7 +24,11 @@ public final class SurgicalModelRenderContext {
 	}
 
 	public record CubeGeometry(int cubeId, List<Vec3> corners, List<Vec3> modelCorners,
-		List<FaceGrid> faceGrids, boolean head) {
+		List<FaceGrid> faceGrids, boolean head, Set<String> partNames) {
+		public CubeGeometry(int cubeId, List<Vec3> corners, List<Vec3> modelCorners,
+			List<FaceGrid> faceGrids, boolean head) {
+			this(cubeId, corners, modelCorners, faceGrids, head, Set.of());
+		}
 		public CubeGeometry(int cubeId, List<Vec3> corners) {
 			this(cubeId, corners, List.of(), List.of(), false);
 		}
@@ -41,6 +46,7 @@ public final class SurgicalModelRenderContext {
 			corners = List.copyOf(corners);
 			modelCorners = List.copyOf(modelCorners);
 			faceGrids = List.copyOf(faceGrids);
+			partNames = Set.copyOf(partNames);
 			if (corners.size() != 8)
 				throw new IllegalArgumentException("A cube geometry requires exactly 8 corners");
 			if (!modelCorners.isEmpty() && modelCorners.size() != 8)
@@ -50,7 +56,8 @@ public final class SurgicalModelRenderContext {
 		}
 
 		public CubeGeometry withCorners(List<Vec3> transformedCorners) {
-			return new CubeGeometry(cubeId, transformedCorners, modelCorners, faceGrids, head);
+			return new CubeGeometry(cubeId, transformedCorners, modelCorners, faceGrids, head,
+				partNames);
 		}
 	}
 

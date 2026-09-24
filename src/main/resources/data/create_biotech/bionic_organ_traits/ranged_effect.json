@@ -4,5 +4,23 @@
   "values": {
     "minecraft:stray": true,
     "minecraft:bogged": true
+  },
+  "carriers": {
+    "minecraft:stray": {
+      "ATTACK_HAND": [
+        "leftArm",
+        "rightArm",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    "minecraft:bogged": {
+      "ATTACK_HAND": [
+        "leftArm",
+        "rightArm",
+        "left_arm",
+        "right_arm"
+      ]
+    }
   }
 }

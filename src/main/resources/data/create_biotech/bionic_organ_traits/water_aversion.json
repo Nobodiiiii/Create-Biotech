@@ -3,5 +3,13 @@
   "min_completeness": 0.5,
   "values": {
     "minecraft:enderman": true
+  },
+  "carriers": {
+    "minecraft:enderman": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    }
   }
 }

@@ -1,5 +1,77 @@
 {
   "automatic_detection": true,
   "min_completeness": 0.5,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:cod": {
+      "GILL": [
+        "head"
+      ]
+    },
+    "minecraft:salmon": {
+      "GILL": [
+        "head"
+      ]
+    },
+    "minecraft:tropical_fish": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:pufferfish": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:squid": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:glow_squid": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:tadpole": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:axolotl": {
+      "GILL": [
+        "topGills",
+        "leftGills",
+        "rightGills",
+        "head"
+      ],
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:guardian": {
+      "GILL": [
+        "head"
+      ],
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:elder_guardian": {
+      "GILL": [
+        "head"
+      ],
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:turtle": {
+      "GILL": [
+        "head"
+      ],
+      "HEAD": [
+        "head"
+      ]
+    }
+  }
 }

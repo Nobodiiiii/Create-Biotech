@@ -10,5 +10,133 @@
     "minecraft:allay": true,
     "minecraft:vex": true,
     "minecraft:ender_dragon": true
+  },
+  "carriers": {
+    "minecraft:bee": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:parrot": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:bat": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:phantom": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:allay": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:vex": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:ender_dragon": {
+      "LEFT_WING": [
+        "leftWing",
+        "left_wing",
+        "leftWingBase",
+        "leftWingTip",
+        "left_wing_base",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "rightWing",
+        "right_wing",
+        "rightWingBase",
+        "rightWingTip",
+        "right_wing_base",
+        "right_wing_tip"
+      ]
+    }
   }
 }

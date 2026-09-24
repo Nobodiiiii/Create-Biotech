@@ -19,6 +19,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitDataReloadListen
 import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitCarrierRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBArmInteractionPointTypes;
@@ -108,8 +109,10 @@ public class CreateBiotech {
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 		event.addListener(BionicBodyTraitDataReloadListener.INSTANCE);
 		event.addListener(BionicHeadTraitRegistry.INSTANCE);
+		event.addListener(BionicTraitCarrierRegistry.HEAD);
 		event.addListener(BionicAnatomyRegistry.INSTANCE);
 		event.addListener(BionicOrganTraitRegistry.INSTANCE);
+		event.addListener(BionicTraitCarrierRegistry.ORGAN);
 		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}
 

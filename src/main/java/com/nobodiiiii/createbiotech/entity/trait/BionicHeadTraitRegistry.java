@@ -65,75 +65,75 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		if (assembly == null || level == null)
 			return BionicHeadTraits.EMPTY;
 		EnumSet<BionicHeadTrait> result = EnumSet.noneOf(BionicHeadTrait.class);
-		Map<UUID, BitSet> retainedHeads = new HashMap<>();
-		Map<UUID, BitSet> retainedRespiration = new HashMap<>();
-		Map<UUID, BitSet> originalHeads = new HashMap<>();
-		Map<UUID, BitSet> originalRespiration = new HashMap<>();
-		Map<UUID, BionicAnatomyRegistry.Template> templates = new HashMap<>();
 		Map<UUID, SurgicalAssembly.Source> origins = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
-		for (int sourceId = 0; sourceId < assembly.sources().size(); sourceId++) {
-			SurgicalAssembly.Source source = assembly.sources().get(sourceId);
-			BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForIntactDonor(source);
-			BitSet originalHead = template == null ? new BitSet()
-				: template.cubes(BionicAnatomyRole.HEAD);
-			BitSet originalResp = template == null ? new BitSet()
-				: template.cubes(BionicAnatomyRole.GILL);
-			if (originalResp.isEmpty())
-				originalResp = (BitSet) originalHead.clone();
-			if (originalHead.isEmpty() && originalResp.isEmpty())
-				continue;
+		for (SurgicalAssembly.Source source : assembly.sources())
 			origins.putIfAbsent(source.donorId(), source);
-			templates.putIfAbsent(source.donorId(), template);
-			originalHeads.putIfAbsent(source.donorId(), originalHead);
-			originalRespiration.putIfAbsent(source.donorId(), originalResp);
-			BitSet presentHead = source.presentCubes();
-			presentHead.and(originalHead);
-			BitSet presentResp = source.presentCubes();
-			presentResp.and(originalResp);
-			for (int cube = presentHead.nextSetBit(0); cube >= 0; cube = presentHead.nextSetBit(cube + 1))
-				if (!connected.contains(new SurgicalAssembly.CombinationMember(sourceId, cube)))
-					presentHead.clear(cube);
-			for (int cube = presentResp.nextSetBit(0); cube >= 0; cube = presentResp.nextSetBit(cube + 1))
-				if (!connected.contains(new SurgicalAssembly.CombinationMember(sourceId, cube)))
-					presentResp.clear(cube);
-			retainedHeads.computeIfAbsent(source.donorId(), ignored -> new BitSet())
-				.or(presentHead);
-			retainedRespiration.computeIfAbsent(source.donorId(), ignored -> new BitSet())
-				.or(presentResp);
-		}
 		boolean hasAirBreathingHead = false;
 		boolean hasDryHead = false;
 		for (Map.Entry<UUID, SurgicalAssembly.Source> entry : origins.entrySet()) {
 			SurgicalAssembly.Source source = entry.getValue();
-			BitSet originalHead = originalHeads.get(entry.getKey());
-			BitSet originalResp = originalRespiration.get(entry.getKey());
-			BitSet head = retainedHeads.get(entry.getKey());
-			BitSet resp = retainedRespiration.get(entry.getKey());
-			BionicAnatomyRegistry.Template template = templates.get(entry.getKey());
-			double headCompleteness = completeness(originalHead, head, template);
-			double respCompleteness = completeness(originalResp, resp, template);
+			BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForSource(source);
+			if (template == null)
+				continue;
 			Set<BionicHeadTrait> facts = get(source.profile(), level);
 			for (BionicHeadTrait trait : facts) {
 				Rule rule = RULES.get(trait);
-				double completeness = trait == BionicHeadTrait.WATER_BREATHING
-					|| trait == BionicHeadTrait.DRY_SUFFOCATION
-					? respCompleteness : headCompleteness;
-				if (rule != null && completeness >= rule.minCompleteness())
+				BitSet original = carrierCubes(trait, source);
+				double retained = retainedCompleteness(assembly, connected,
+					source.donorId(), original, template);
+				if (rule != null && retained >= rule.minCompleteness())
 					result.add(trait);
 			}
-			if (headCompleteness >= 0.5d || respCompleteness >= 0.5d) {
-				if (facts.contains(BionicHeadTrait.DRY_SUFFOCATION))
-					hasDryHead = true;
-				else
-					hasAirBreathingHead = true;
-			}
+			if (facts.contains(BionicHeadTrait.DRY_SUFFOCATION))
+				hasDryHead |= retainedCompleteness(assembly, connected, source.donorId(),
+					carrierCubes(BionicHeadTrait.DRY_SUFFOCATION, source), template) >= 0.5d;
+			else
+				hasAirBreathingHead |= retainedCompleteness(assembly, connected, source.donorId(),
+					template.cubes(BionicAnatomyRole.HEAD), template) >= 0.5d;
 		}
 		if (!hasDryHead || hasAirBreathingHead)
 			result.remove(BionicHeadTrait.DRY_SUFFOCATION);
 		return new BionicHeadTraits(result,
 			result.contains(BionicHeadTrait.LONG_BREATH)
 				? RULES.get(BionicHeadTrait.LONG_BREATH).maxAirSupply() : 300);
+	}
+
+	private static BitSet carrierCubes(BionicHeadTrait trait, SurgicalAssembly.Source source) {
+		boolean respiratory = trait == BionicHeadTrait.WATER_BREATHING
+			|| trait == BionicHeadTrait.DRY_SUFFOCATION;
+		BionicAnatomyRole role = respiratory ? BionicAnatomyRole.GILL : BionicAnatomyRole.HEAD;
+		BitSet named = BionicTraitCarrierRegistry.headCubes(trait,
+			source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role);
+		if (named != null)
+			return named;
+		BionicAnatomyRegistry.Template configured = BionicAnatomyRegistry.get(source);
+		BitSet legacy = source.anatomy().cubes(role);
+		if (legacy.isEmpty() && configured != null)
+			legacy = configured.cubes(role);
+		if (respiratory && legacy.isEmpty()) {
+			BitSet head = source.anatomy().cubes(BionicAnatomyRole.HEAD);
+			return head.isEmpty() && configured != null
+				? configured.cubes(BionicAnatomyRole.HEAD) : head;
+		}
+		return legacy;
+	}
+
+	private static double retainedCompleteness(SurgicalAssembly assembly,
+		Set<SurgicalAssembly.CombinationMember> connected, UUID donorId,
+		BitSet original, BionicAnatomyRegistry.Template template) {
+		BitSet retained = new BitSet();
+		for (int sourceId = 0; sourceId < assembly.sources().size(); sourceId++) {
+			SurgicalAssembly.Source source = assembly.sources().get(sourceId);
+			if (!source.donorId().equals(donorId))
+				continue;
+			BitSet present = source.presentCubes();
+			present.and(original);
+			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
+				if (connected.contains(new SurgicalAssembly.CombinationMember(sourceId, cube)))
+					retained.set(cube);
+		}
+		return completeness(original, retained, template);
 	}
 
 	private static double completeness(BitSet original, BitSet retained,
@@ -176,29 +176,16 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 					continue;
 				fact = true;
 				BionicAnatomyRegistry.Template template =
-					BionicAnatomyRegistry.getForIntactDonor(source);
+					BionicAnatomyRegistry.getForSource(source);
 				if (template == null)
 					continue;
-				mapped = true;
-				BitSet original = trait == BionicHeadTrait.WATER_BREATHING
-					|| trait == BionicHeadTrait.DRY_SUFFOCATION
-					? template.cubes(BionicAnatomyRole.GILL) : new BitSet();
+				BitSet original = carrierCubes(trait, source);
 				if (original.isEmpty())
-					original = template.cubes(BionicAnatomyRole.HEAD);
-				BitSet retained = new BitSet();
-				for (int sourceId = 0; sourceId < assembly.sources().size(); sourceId++) {
-					SurgicalAssembly.Source fragment = assembly.sources().get(sourceId);
-					if (!fragment.donorId().equals(source.donorId()))
-						continue;
-					BitSet present = fragment.presentCubes();
-					present.and(original);
-					for (int cube = present.nextSetBit(0); cube >= 0;
-						cube = present.nextSetBit(cube + 1))
-						if (connected.contains(new SurgicalAssembly.CombinationMember(sourceId, cube)))
-							retained.set(cube);
-				}
+					continue;
+				mapped = true;
 				Rule rule = RULES.get(trait);
-				if (rule != null && completeness(original, retained, template)
+				if (rule != null && retainedCompleteness(assembly, connected, source.donorId(),
+					original, template)
 					>= rule.minCompleteness())
 					complete = true;
 			}

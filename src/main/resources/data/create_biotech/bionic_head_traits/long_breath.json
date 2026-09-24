@@ -2,5 +2,13 @@
   "automatic_detection": true,
   "min_completeness": 0.5,
   "max_air_supply": 4800,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:dolphin": {
+      "HEAD": [
+        "head",
+        "body"
+      ]
+    }
+  }
 }

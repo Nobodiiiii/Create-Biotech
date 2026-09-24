@@ -3,5 +3,13 @@
   "min_completeness": 0.5,
   "values": {
     "minecraft:warden": true
+  },
+  "carriers": {
+    "minecraft:warden": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    }
   }
 }

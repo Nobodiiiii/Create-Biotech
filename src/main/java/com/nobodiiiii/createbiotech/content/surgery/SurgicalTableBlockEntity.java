@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -391,6 +392,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalTableLayout.Proposal proposal,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		BitSet headCubes,
+		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
 		TemporaryMoveSource temporaryMove = SurgicalKitItem.hasTemporaryCapture(box)
@@ -404,7 +406,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.INVALID_TABLE;
 		if (!(box.getItem() instanceof CapturedEntityBoxItem) && temporaryMove == null
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
-			|| headCubes == null || componentFootprints == null || sourceLayouts == null
+			|| headCubes == null || anatomy == null || componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
 			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 
@@ -419,6 +421,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		UUID donorId;
 		BitSet originalHeads;
 		boolean originalHeadKnown;
+		BionicAnatomySnapshot originalAnatomy;
 		List<SurgicalAssembly.Seam> seams;
 		BitSet cuts;
 		List<Integer> cutOrder;
@@ -446,6 +449,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			donorId = originalSource.donorId();
 			originalHeads = originalSource.originalHeadCubes();
 			originalHeadKnown = originalSource.originalHeadKnown();
+			originalAnatomy = originalSource.anatomy();
 			seams = assembly.seams();
 			cuts = assembly.cutSeams();
 			cutOrder = assembly.cutOrder();
@@ -468,6 +472,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			donorId = UUID.randomUUID();
 			originalHeads = (BitSet) heads.clone();
 			originalHeadKnown = true;
+			originalAnatomy = anatomy;
 			seams = List.copyOf(observedSeams);
 			cuts = new BitSet();
 			cutOrder = List.of();
@@ -484,7 +489,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.NO_SPACE;
 
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(), donorId,
-			originalHeads, originalHeadKnown, profile, placementFacing, layPose, cubeCount,
+			originalHeads, originalHeadKnown, originalAnatomy, profile, placementFacing, layPose, cubeCount,
 			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
 			placementOffsets(proposal), Map.of(), storedFootprints, List.of(), List.of(), List.of());
 		commitTemporaryMove(temporaryMove);
@@ -513,6 +518,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			SurgicalAssembly.Source source = placed.source();
 			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(),
 				source.donorId(), source.originalHeadCubes(), source.originalHeadKnown(),
+				source.anatomy(),
 				source.profile(), placed.facing(), placed.layPose(), source.cubeCount(),
 				source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
 				placedOriginOffsetX + placed.originOffset().x,
@@ -2007,8 +2013,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		ComponentGroup group, Set<SurgicalGlueJoint> groupJoints,
 		Set<SurgicalCombination> groupCombinations, Set<SurgicalLimbJoint> groupLimbs) {
 		return groupJoints.isEmpty() && groupCombinations.isEmpty() && groupLimbs.isEmpty()
-			? SurgicalAssembly.create(subject.profile(), subject.cubeCount, component,
-				headCubesWithin(subject, component),
+			? SurgicalAssembly.create(subject.profile(), subject.donorId(), subject.cubeCount, component,
+				headCubesWithin(subject, component), subject.originalHeadCubes(),
+				subject.originalHeadKnown(), subject.anatomy(),
 				subject.seams, subject.cutSeams, subject.cutOrder)
 			: compositeAssembly(group, groupJoints, groupCombinations, groupLimbs, subject);
 	}
@@ -2915,7 +2922,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			}
 			SurgicalAssembly.Source source = SurgicalAssembly.Source.create(grouped.profile(),
 				grouped.donorId(), grouped.cubeCount, included, headCubesWithin(grouped, included),
-				grouped.originalHeadCubes(), grouped.originalHeadKnown(), grouped.seams, grouped.cutSeams,
+				grouped.originalHeadCubes(), grouped.originalHeadKnown(), grouped.anatomy(),
+				grouped.seams, grouped.cutSeams,
 				grouped.cutOrder, grouped.placementFacing(),
 				grouped.layPose(),
 				new Vec3(grouped.originOffsetX() - anchor.originOffsetX(), 0.0d,

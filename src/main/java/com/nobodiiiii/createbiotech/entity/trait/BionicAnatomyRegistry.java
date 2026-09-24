@@ -31,7 +31,9 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 	private static volatile Map<ResourceLocation, List<Template>> TEMPLATES = Map.of();
 
 	private BionicAnatomyRegistry() { super(new Gson(), "bionic_anatomy"); }
-	public static long generation() { return GENERATION.get(); }
+	public static long generation() {
+		return GENERATION.get() * 31L + BionicTraitCarrierRegistry.generation();
+	}
 
 	@Nullable
 	public static Template get(SurgicalAssembly.Source source) {
@@ -41,22 +43,29 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 		return null;
 	}
 
-	/** An intact donor necessarily retains its organs, even when its model lacks a cube template. */
+	/** Captured cube roles remain valid after cutting; only the donor's species grants abilities. */
 	@Nullable
-	public static Template getForIntactDonor(SurgicalAssembly.Source source) {
-		Template template = get(source);
-		if (template != null)
-			return template;
-		if (!source.originalHeadKnown()
-			|| source.presentCubes().cardinality() != source.cubeCount()
-			|| !source.cutSeams().isEmpty())
-			return null;
-		BitSet whole = source.presentCubes();
+	public static Template getForSource(SurgicalAssembly.Source source) {
+		Template configured = get(source);
+		BionicAnatomySnapshot anatomy = source.anatomy();
+		Map<BionicAnatomyRole, BitSet> declared = BionicTraitCarrierRegistry.rolesFor(
+			source.profile().entityTypeId(), anatomy.parts(), source.cubeCount());
+		if (anatomy.isEmpty() && declared.values().stream().allMatch(BitSet::isEmpty))
+			return configured;
 		EnumMap<BionicAnatomyRole, BitSet> roles = new EnumMap<>(BionicAnatomyRole.class);
-		for (BionicAnatomyRole role : BionicAnatomyRole.values())
-			roles.put(role, whole);
-		double[] weights = new double[source.cubeCount()];
-		java.util.Arrays.fill(weights, 1.0d);
+		if (configured != null)
+			configured.roles.forEach((role, cubes) -> roles.put(role, (BitSet) cubes.clone()));
+		roles.putAll(anatomy.roles());
+		declared.forEach((role, cubes) -> {
+			if (!cubes.isEmpty())
+				roles.put(role, cubes);
+		});
+		if (roles.values().stream().allMatch(BitSet::isEmpty))
+			return null;
+		double[] weights = configured == null ? new double[source.cubeCount()]
+			: configured.weights.clone();
+		if (configured == null)
+			java.util.Arrays.fill(weights, 1.0d);
 		return new Template(source.cubeCount(), roles, weights, source.seams(), null);
 	}
 

@@ -13,5 +13,149 @@
     "minecraft:axolotl": true,
     "minecraft:guardian": true,
     "minecraft:elder_guardian": true
+  },
+  "carriers": {
+    "minecraft:cod": {
+      "FIN": [
+        "leftFin",
+        "rightFin",
+        "topFin",
+        "left_fin",
+        "right_fin"
+      ],
+      "TAIL": [
+        "tailFin",
+        "tail_fin"
+      ]
+    },
+    "minecraft:salmon": {
+      "FIN": [
+        "leftFin",
+        "rightFin",
+        "topFin",
+        "left_fin",
+        "right_fin"
+      ],
+      "TAIL": [
+        "tailFin",
+        "tail_fin",
+        "bodyBack"
+      ]
+    },
+    "minecraft:tropical_fish": {
+      "FIN": [
+        "leftFin",
+        "rightFin",
+        "topFin",
+        "left_fin",
+        "right_fin"
+      ],
+      "TAIL": [
+        "tail"
+      ]
+    },
+    "minecraft:pufferfish": {
+      "FIN": [
+        "leftBlueFin",
+        "rightBlueFin",
+        "leftFin",
+        "rightFin"
+      ],
+      "TAIL": [
+        "tailFin",
+        "tail_fin",
+        "tail"
+      ]
+    },
+    "minecraft:squid": {
+      "TENTACLE": [
+        "tentacle0",
+        "tentacle1",
+        "tentacle2",
+        "tentacle3",
+        "tentacle4",
+        "tentacle5",
+        "tentacle6",
+        "tentacle7",
+        "tentacle_0",
+        "tentacle_1",
+        "tentacle_2",
+        "tentacle_3",
+        "tentacle_4",
+        "tentacle_5",
+        "tentacle_6",
+        "tentacle_7"
+      ]
+    },
+    "minecraft:glow_squid": {
+      "TENTACLE": [
+        "tentacle0",
+        "tentacle1",
+        "tentacle2",
+        "tentacle3",
+        "tentacle4",
+        "tentacle5",
+        "tentacle6",
+        "tentacle7",
+        "tentacle_0",
+        "tentacle_1",
+        "tentacle_2",
+        "tentacle_3",
+        "tentacle_4",
+        "tentacle_5",
+        "tentacle_6",
+        "tentacle_7"
+      ]
+    },
+    "minecraft:dolphin": {
+      "TAIL": [
+        "tail",
+        "tailFin",
+        "tail_fin"
+      ]
+    },
+    "minecraft:turtle": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:axolotl": {
+      "TAIL": [
+        "tail"
+      ]
+    },
+    "minecraft:guardian": {
+      "TAIL": [
+        "tail0",
+        "tail1",
+        "tail2",
+        "tail_0",
+        "tail_1",
+        "tail_2",
+        "tail"
+      ]
+    },
+    "minecraft:elder_guardian": {
+      "TAIL": [
+        "tail0",
+        "tail1",
+        "tail2",
+        "tail_0",
+        "tail_1",
+        "tail_2",
+        "tail"
+      ]
+    }
   }
 }

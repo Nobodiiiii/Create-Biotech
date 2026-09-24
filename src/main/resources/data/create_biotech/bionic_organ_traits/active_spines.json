@@ -1,8 +1,20 @@
 {
   "automatic_detection": false,
   "min_completeness": 0.5,
-  "parameters": { "duration_ticks": 100, "poison_duration_ticks": 60 },
+  "parameters": {
+    "duration_ticks": 100,
+    "poison_duration_ticks": 60
+  },
   "values": {
     "minecraft:pufferfish": true
+  },
+  "carriers": {
+    "minecraft:pufferfish": {
+      "SPINE": [
+        "body",
+        "spikes",
+        "spine"
+      ]
+    }
   }
 }

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -137,7 +139,8 @@ public final class SurgicalCapturedRenderPlan {
 		// Leaving the scope closed keeps observeModelCube - which the mixin runs for every cube of
 		// every entity model in the game - on its single atomic-read rejection for this capture.
 		ModelCubeCaptureScope captureScope = topology
-			? openModelCubeCapture(observedCubes, headModelCubes(renderer, preview)) : null;
+			? openModelCubeCapture(observedCubes, headModelCubes(renderer, preview),
+				namedModelCubes(renderer)) : null;
 		try {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
@@ -179,13 +182,15 @@ public final class SurgicalCapturedRenderPlan {
 			}
 		}
 		boolean head = capture.headCubes.contains(cube);
-		capture.observedCubes.add(new ObservedCube(transformed, model, head));
+		Set<String> partNames = capture.namedCubes.getOrDefault(cube, Set.of());
+		capture.observedCubes.add(new ObservedCube(transformed, model, head, partNames));
 	}
 
 	private static ModelCubeCaptureScope openModelCubeCapture(List<ObservedCube> observedCubes,
-		Set<ModelPart.Cube> headCubes) {
+		Set<ModelPart.Cube> headCubes,
+		Map<ModelPart.Cube, Set<String>> namedCubes) {
 		ModelCubeCaptureScope scope = new ModelCubeCaptureScope(Thread.currentThread(),
-			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes);
+			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes, namedCubes);
 		CURRENT_MODEL_CUBE_CAPTURE.set(scope);
 		ACTIVE_MODEL_CUBE_CAPTURES.incrementAndGet();
 		return scope;
@@ -196,14 +201,17 @@ public final class SurgicalCapturedRenderPlan {
 		private final ModelCubeCaptureScope parent;
 		private final List<ObservedCube> observedCubes;
 		private final Set<ModelPart.Cube> headCubes;
+		private final Map<ModelPart.Cube, Set<String>> namedCubes;
 		private boolean closed;
 
 		private ModelCubeCaptureScope(Thread owner, ModelCubeCaptureScope parent,
-			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes) {
+			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes,
+			Map<ModelPart.Cube, Set<String>> namedCubes) {
 			this.owner = owner;
 			this.parent = parent;
 			this.observedCubes = observedCubes;
 			this.headCubes = headCubes;
+			this.namedCubes = namedCubes;
 		}
 
 		@Override
@@ -280,6 +288,43 @@ public final class SurgicalCapturedRenderPlan {
 		cubes.addAll(accessor.createBiotech$getCubes());
 		for (ModelPart child : accessor.createBiotech$getChildren().values())
 			collectModelCubes(child, cubes);
+	}
+
+	/** Capture the model's own labels; trait JSON on the server assigns their meaning. */
+	private static Map<ModelPart.Cube, Set<String>> namedModelCubes(
+		EntityRenderer<LivingEntity> renderer) {
+		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
+			return Map.of();
+		EntityModel<?> model = livingRenderer.getModel();
+		Map<ModelPart.Cube, Set<String>> result = new IdentityHashMap<>();
+		if (model instanceof HierarchicalModel<?> hierarchical)
+			collectPartNames(hierarchical.root(), "root", result);
+		for (Class<?> type = model.getClass(); type != null && type != Object.class;
+			type = type.getSuperclass())
+			for (Field field : type.getDeclaredFields()) {
+				if (!ModelPart.class.isAssignableFrom(field.getType()) || !field.trySetAccessible())
+					continue;
+				try {
+					if (field.get(model) instanceof ModelPart part)
+						collectPartNames(part, field.getName(), result);
+				} catch (IllegalAccessException ignored) {
+					// Other model libraries can keep their fields inaccessible.
+				}
+			}
+		return result;
+	}
+
+	private static void collectPartNames(ModelPart part, String name,
+		Map<ModelPart.Cube, Set<String>> result) {
+		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
+		if (name.matches("[A-Za-z0-9_./-]{1,64}"))
+			for (ModelPart.Cube cube : accessor.createBiotech$getCubes()) {
+				Set<String> names = result.computeIfAbsent(cube, ignored -> new HashSet<>());
+				if (names.size() < 16)
+					names.add(name);
+			}
+		for (Map.Entry<String, ModelPart> child : accessor.createBiotech$getChildren().entrySet())
+			collectPartNames(child.getValue(), child.getKey(), result);
 	}
 
 	/**
@@ -1376,16 +1421,18 @@ public final class SurgicalCapturedRenderPlan {
 				ordered.add(observed.modelCorners.get(match));
 			}
 			if (ordered.size() == 8)
-				return new ModelCubeMatch(ordered, observed.head);
+				return new ModelCubeMatch(ordered, observed.head, observed.partNames);
 		}
 		return ModelCubeMatch.NONE;
 	}
 
-	private record ModelCubeMatch(List<Vec3> corners, boolean head) {
-		private static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false);
+	private record ModelCubeMatch(List<Vec3> corners, boolean head,
+		Set<String> partNames) {
+		private static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false, Set.of());
 
 		private ModelCubeMatch {
 			corners = List.copyOf(corners);
+			partNames = Set.copyOf(partNames);
 		}
 	}
 
@@ -1478,6 +1525,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final RecoveredCuboid cuboid;
 		private final List<Vec3> modelCorners;
 		private final boolean head;
+		private final Set<String> partNames;
 		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
 		private final List<SourceBatch> surfaceOverlays = new ArrayList<>();
@@ -1492,6 +1540,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.cuboid = cuboid;
 			this.modelCorners = modelCube.corners();
 			this.head = modelCube.head();
+			this.partNames = modelCube.partNames();
 			this.topology = topology;
 		}
 
@@ -1522,7 +1571,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private Component build(int id, boolean preserveSource) {
 			return new Component(id, cuboid.corners, cuboid.a, cuboid.b, cuboid.c,
-				modelCorners, faceGrids, head, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
+				modelCorners, faceGrids, head, partNames, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
 		}
 	}
 
@@ -1532,15 +1581,18 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<Vector3f> transformedCorners;
 		private final List<Vec3> modelCorners;
 		private final boolean head;
+		private final Set<String> partNames;
 		/** Computed once here rather than per comparison in {@link #matchingModelCube}. */
 		private final GeometryKey key;
 
-		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners, boolean head) {
+		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners,
+			boolean head, Set<String> partNames) {
 			// Both lists are built fresh per cube at the single call site and handed straight over, so
 			// they only need freezing, not the deep Vector3f copy this used to make.
 			this.transformedCorners = List.copyOf(transformedCorners);
 			this.modelCorners = List.copyOf(modelCorners);
 			this.head = head;
+			this.partNames = Set.copyOf(partNames);
 			this.key = GeometryKey.of(this.transformedCorners);
 		}
 	}
@@ -1581,12 +1633,14 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<Vec3> modelCorners;
 		private final List<SurgicalModelRenderContext.FaceGrid> faceGrids;
 		private final boolean head;
+		private final Set<String> partNames;
 		private final boolean preserveSource;
 		private final List<SourceBatch> batches;
 		private final List<SourceBatch> surfaceOverlays;
 
 		private Component(int id, List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c,
 			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean head,
+			Set<String> partNames,
 			boolean preserveSource,
 			List<SourceBatch> batches, List<SourceBatch> surfaceOverlays) {
 			this.id = id;
@@ -1597,6 +1651,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.modelCorners = List.copyOf(modelCorners);
 			this.faceGrids = List.copyOf(faceGrids);
 			this.head = head;
+			this.partNames = Set.copyOf(partNames);
 			this.preserveSource = preserveSource;
 			this.batches = batches;
 			this.surfaceOverlays = surfaceOverlays;
@@ -1688,7 +1743,8 @@ public final class SurgicalCapturedRenderPlan {
 					worldPoint = worldCenter.add(rotation.rotate(worldPoint.subtract(worldCenter)));
 				transformed.add(worldPoint.add(offsetX + cameraX, offsetY + cameraY, offsetZ + cameraZ));
 			}
-			return new SurgicalModelRenderContext.CubeGeometry(id, transformed, modelCorners, faceGrids, head);
+			return new SurgicalModelRenderContext.CubeGeometry(id, transformed, modelCorners, faceGrids,
+				head, partNames);
 		}
 
 		private Vector3f center() {

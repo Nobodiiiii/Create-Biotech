@@ -9,5 +9,42 @@
     "minecraft:squid": true,
     "minecraft:glow_squid": true,
     "minecraft:tadpole": true
+  },
+  "carriers": {
+    "minecraft:cod": {
+      "GILL": [
+        "head"
+      ]
+    },
+    "minecraft:salmon": {
+      "GILL": [
+        "head"
+      ]
+    },
+    "minecraft:tropical_fish": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:pufferfish": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:squid": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:glow_squid": {
+      "GILL": [
+        "body"
+      ]
+    },
+    "minecraft:tadpole": {
+      "GILL": [
+        "body"
+      ]
+    }
   }
 }
