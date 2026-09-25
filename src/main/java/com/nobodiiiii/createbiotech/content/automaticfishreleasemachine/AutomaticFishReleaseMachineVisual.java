@@ -14,6 +14,9 @@ import com.simibubi.create.content.kinetics.waterwheel.WaterWheelVisual;
 import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.visual.DynamicVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
+import dev.engine_room.flywheel.lib.instance.InstanceTypes;
+import dev.engine_room.flywheel.lib.instance.TransformedInstance;
+import dev.engine_room.flywheel.lib.model.Models;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -24,14 +27,20 @@ public class AutomaticFishReleaseMachineVisual
 	extends WaterWheelVisual<AutomaticFishReleaseMachineBlockEntity> implements SimpleDynamicVisual {
 
 	private final MachineCreatureVisualModel[] fish;
+	private final TransformedInstance[] clamps;
 	private float rotationDirection = 1;
 
 	public AutomaticFishReleaseMachineVisual(VisualizationContext context,
 		AutomaticFishReleaseMachineBlockEntity blockEntity, float partialTick) {
 		super(context, blockEntity, true, partialTick);
 		fish = new MachineCreatureVisualModel[AutomaticFishReleaseMachineRenderer.BLADE_COUNT];
+		clamps = new TransformedInstance[AutomaticFishReleaseMachineRenderer.BLADE_COUNT];
 		for (int i = 0; i < fish.length; i++) {
 			fish[i] = new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.salmon());
+			clamps[i] = instancerProvider()
+				.instancer(InstanceTypes.TRANSFORMED,
+					Models.partial(AutomaticFishReleaseMachineRenderer.BLADE_CLAMP))
+				.createInstance();
 		}
 		updateFish(partialTick);
 		updateLight(partialTick);
@@ -48,6 +57,8 @@ public class AutomaticFishReleaseMachineVisual
 		int light = computePackedLight();
 		for (MachineCreatureVisualModel model : fish)
 			model.light(light);
+		for (TransformedInstance clamp : clamps)
+			clamp.light(light).setChanged();
 	}
 
 	@Override
@@ -55,6 +66,8 @@ public class AutomaticFishReleaseMachineVisual
 		super._delete();
 		for (MachineCreatureVisualModel model : fish)
 			model.delete();
+		for (TransformedInstance clamp : clamps)
+			clamp.delete();
 	}
 
 	@Override
@@ -62,6 +75,8 @@ public class AutomaticFishReleaseMachineVisual
 		super.collectCrumblingInstances(consumer);
 		for (MachineCreatureVisualModel model : fish)
 			model.collectCrumblingInstances(consumer);
+		for (TransformedInstance clamp : clamps)
+			consumer.accept(clamp);
 	}
 
 	private void updateFish(float partialTick) {
@@ -108,6 +123,15 @@ public class AutomaticFishReleaseMachineVisual
 			}
 			pose.translate(0, AutomaticFishReleaseMachineRenderer.FISH_MODEL_Y_OFFSET, 0);
 			fish[index].setTransform(pose);
+
+			float radius = ((index & 1) == 0
+				? AutomaticFishReleaseMachineRenderer.CARDINAL_BLADE_CLAMP_RADIUS
+				: AutomaticFishReleaseMachineRenderer.INTERMEDIATE_BLADE_CLAMP_RADIUS)
+				+ AutomaticFishReleaseMachineRenderer.BLADE_CLAMP_OUTWARD_OFFSET;
+			PoseStack clampPose = wheelPose(axis, wheelAngle);
+			clampPose.mulPose(Axis.YP.rotationDegrees(index * AutomaticFishReleaseMachineRenderer.SLOT_ANGLE));
+			clampPose.translate(-0.5, -0.5, -radius - 0.5);
+			clamps[index].setTransform(clampPose).setChanged();
 		}
 	}
 

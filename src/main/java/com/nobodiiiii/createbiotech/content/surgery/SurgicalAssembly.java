@@ -30,6 +30,12 @@ public final class SurgicalAssembly {
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
+	/**
+	 * Rounding slack for spans padded to exactly {@link #MIN_BODY_SIZE}. Zero-thickness sheets are
+	 * widened around an arbitrary centre and then re-expressed relative to the body origin, so the
+	 * padded span can land a few ulps (or one float ulp) below the minimum.
+	 */
+	private static final double MIN_BODY_SIZE_TOLERANCE = 1.0e-4d;
 	private static final int CURRENT_VERSION = 1;
 	private static final String VERSION_TAG = "Version";
 	private static final String PROFILE_TAG = "MimicProfile";
@@ -1364,7 +1370,8 @@ public final class SurgicalAssembly {
 				|| !validEyeHeight(eyeHeight) || !validLegLength(legLength)
 				|| !validMobility(groundedLegCount, groundedKneeCount, legVolumeRatio))
 				return null;
-			return new BodyBounds((float) width, (float) height, (float) depth,
+			return new BodyBounds((float) Math.max(MIN_BODY_SIZE, width),
+				(float) Math.max(MIN_BODY_SIZE, height), (float) Math.max(MIN_BODY_SIZE, depth),
 				(float) centerX, (float) minY, (float) centerZ, (float) eyeHeight, (float) legLength,
 				groundedLegCount, groundedKneeCount, (float) legVolumeRatio);
 		}
@@ -1394,7 +1401,8 @@ public final class SurgicalAssembly {
 		}
 
 		private static boolean validSize(double value) {
-			return Double.isFinite(value) && value >= MIN_BODY_SIZE && value <= MAX_BODY_SIZE;
+			return Double.isFinite(value) && value >= MIN_BODY_SIZE - MIN_BODY_SIZE_TOLERANCE
+				&& value <= MAX_BODY_SIZE;
 		}
 
 		private static boolean validOffset(double value) {
@@ -1515,7 +1523,8 @@ public final class SurgicalAssembly {
 		}
 
 		private static boolean validSpan(double value) {
-			return Double.isFinite(value) && value >= MIN_BODY_SIZE && value <= MAX_SIZE;
+			return Double.isFinite(value) && value >= MIN_BODY_SIZE - MIN_BODY_SIZE_TOLERANCE
+				&& value <= MAX_SIZE;
 		}
 	}
 
