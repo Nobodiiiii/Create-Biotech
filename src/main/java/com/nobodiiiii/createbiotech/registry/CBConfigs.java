@@ -505,7 +505,6 @@ public class CBConfigs {
 
 	public static class SurgicalTable {
 		public final ModConfigSpec.BooleanValue consumeInteractionItems;
-		public final ModConfigSpec.BooleanValue enableBiologicalPartTraits;
 
 		SurgicalTable(ModConfigSpec.Builder builder) {
 			builder.push("surgicalTable");
@@ -514,15 +513,7 @@ public class CBConfigs {
 					+ "Anatomical joints are always consumed; cardboard boxes still change between their empty "
 					+ "and filled states.")
 				.define("consumeInteractionItems", false);
-			enableBiologicalPartTraits = builder
-				.comment("Enable inherited body, head, and organ traits for surgical-table assemblies and their trait tooltips.")
-				.define("enableBiologicalPartTraits", false);
 			builder.pop();
-		}
-
-		public boolean biologicalPartTraitsEnabled() {
-			return SERVER_SPEC.isLoaded() ? enableBiologicalPartTraits.get()
-				: enableBiologicalPartTraits.getDefault();
 		}
 	}
 

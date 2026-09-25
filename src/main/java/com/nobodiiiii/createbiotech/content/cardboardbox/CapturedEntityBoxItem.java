@@ -39,16 +39,6 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 	}
 
 	@Override
-	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-		// Keep old filled-box IDs so saved creatures remain intact. Old empty variants
-		// become ordinary boxes when carried, including legacy offhand stacks.
-		if (!level.isClientSide && entity instanceof Player player
-			&& CapturedEntityBoxHelper.isEmptyBox(stack))
-			CapturedEntityBoxHelper.replacePlayerStack(player, stack,
-				CapturedEntityBoxHelper.createEmptyBox(stack));
-	}
-
-	@Override
 	public String getDescriptionId() {
 		return descriptionId;
 	}

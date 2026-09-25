@@ -19,7 +19,6 @@ import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -60,11 +59,11 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 	private static void onTagsUpdated(TagsUpdatedEvent event) { invalidate(); }
 	private static void invalidate() { DETECTED.clear(); GENERATION.incrementAndGet(); }
 	public static long generation() {
-		return GENERATION.get() * 2L + (CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() ? 1L : 0L);
+		return GENERATION.get();
 	}
 
 	public static BionicHeadTraits resolve(@Nullable SurgicalAssembly assembly, Level level) {
-		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() || assembly == null || level == null)
+		if (!BionicTraits.ENABLED || assembly == null || level == null)
 			return BionicHeadTraits.EMPTY;
 		EnumSet<BionicHeadTrait> result = EnumSet.noneOf(BionicHeadTrait.class);
 		shares(assembly, level).forEach((trait, share) -> {
@@ -122,7 +121,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 	 */
 	public static Map<BionicHeadTrait, InactiveReason> inactiveReasons(
 		@Nullable SurgicalAssembly assembly, Level level) {
-		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() || assembly == null || level == null)
+		if (!BionicTraits.ENABLED || assembly == null || level == null)
 			return Map.of();
 		EnumMap<BionicHeadTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicHeadTrait.class);
@@ -168,7 +167,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 
 	/** Biological facts only; the donor's head must still form enough of the assembled head. */
 	public static Set<BionicHeadTrait> donorFacts(MimicProfile profile, Level level) {
-		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled())
+		if (!BionicTraits.ENABLED)
 			return Set.of();
 		return get(profile, level);
 	}
