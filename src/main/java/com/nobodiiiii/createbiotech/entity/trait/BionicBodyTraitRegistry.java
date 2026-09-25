@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -62,11 +63,12 @@ public final class BionicBodyTraitRegistry {
 	}
 
 	public static long generation() {
-		return GENERATION.get();
+		// Include the live switch so existing entities and tooltips discard cached traits.
+		return GENERATION.get() * 2L + (CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() ? 1L : 0L);
 	}
 
 	public static BionicBodyTraits get(MimicProfile profile, Level level) {
-		if (profile == null || level == null)
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() || profile == null || level == null)
 			return BionicBodyTraits.EMPTY;
 		return DETECTED.computeIfAbsent(profile.biologicalKey(), ignored -> {
 			try {
@@ -81,7 +83,8 @@ public final class BionicBodyTraitRegistry {
 	}
 
 	public static BionicBodyTraits resolve(@Nullable SurgicalAssembly assembly, Level level) {
-		if (assembly == null || level == null || assembly.sources().isEmpty())
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled()
+			|| assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicBodyTraits.EMPTY;
 
 		BionicTissue tissue = BionicTissue.of(assembly);
@@ -123,7 +126,7 @@ public final class BionicBodyTraitRegistry {
 
 	@SuppressWarnings("deprecation")
 	public static BionicBodyTraits detect(LivingEntity donor) {
-		if (donor == null)
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() || donor == null)
 			return BionicBodyTraits.EMPTY;
 		EntityType<?> type = donor.getType();
 		DataOverrides data = DATA;

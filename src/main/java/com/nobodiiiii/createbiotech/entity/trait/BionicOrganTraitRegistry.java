@@ -21,6 +21,7 @@ import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -50,12 +51,15 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 		NeoForge.EVENT_BUS.addListener(BionicOrganTraitRegistry::onTagsUpdated);
 	}
 	private static void onTagsUpdated(TagsUpdatedEvent event) { GENERATION.incrementAndGet(); }
-	public static long generation() { return GENERATION.get(); }
+	public static long generation() {
+		return GENERATION.get() * 2L + (CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() ? 1L : 0L);
+	}
 
 	/** Whether the wings' own tissue volume can lift the whole body. */
 	public static boolean liftsBody(@Nullable SurgicalAssembly assembly,
 		Set<SurgicalAssembly.CombinationMember> wings) {
-		return assembly != null && assembly.hasBodyVolume()
+		return CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled()
+			&& assembly != null && assembly.hasBodyVolume()
 			&& assembly.bodyVolume() <= RULES.get(BionicOrganTrait.WING_FLIGHT).maxLoadPerVolume
 				* BionicTissue.of(assembly).weight(wings);
 	}
@@ -68,7 +72,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 
 	public static BionicOrganTraits resolve(@Nullable SurgicalAssembly assembly) {
-		if (assembly == null || assembly.sources().isEmpty())
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled()
+			|| assembly == null || assembly.sources().isEmpty())
 			return BionicOrganTraits.EMPTY;
 		EnumMap<BionicOrganTrait, Set<SurgicalAssembly.CombinationMember>> resolved =
 			new EnumMap<>(BionicOrganTrait.class);
@@ -180,6 +185,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 
 	public static Set<BionicOrganTrait> donorFacts(MimicProfile profile) {
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled())
+			return Set.of();
 		EnumMap<BionicOrganTrait, Boolean> facts = new EnumMap<>(BionicOrganTrait.class);
 		for (BionicOrganTrait trait : BionicOrganTrait.values()) {
 			Rule rule = RULES.get(trait);
@@ -197,7 +204,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	/** Explains why a donor fact whose carrier organ is present is absent from the abilities. */
 	public static Map<BionicOrganTrait, InactiveReason> inactiveReasons(
 		@Nullable SurgicalAssembly assembly) {
-		if (assembly == null)
+		if (!CBConfigs.SERVER.surgicalTable.biologicalPartTraitsEnabled() || assembly == null)
 			return Map.of();
 		EnumMap<BionicOrganTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicOrganTrait.class);

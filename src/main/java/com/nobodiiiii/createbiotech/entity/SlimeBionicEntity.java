@@ -385,7 +385,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public boolean canAttack(LivingEntity target) {
 		if (!super.canAttack(target))
 			return false;
-		if (shellGuardTicks > 0 || ownerId != null && ownerId.equals(target.getUUID())
+		if (shellGuardTicks > 0 && getOrganTraits().has(BionicOrganTrait.SHELL_DEFENSE)
+			|| ownerId != null && ownerId.equals(target.getUUID())
 			|| trustedPlayerId != null && trustedPlayerId.equals(target.getUUID()) || orderedToSit)
 			return false;
 		if (ownerId != null)
@@ -698,7 +699,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public void travel(Vec3 movement) {
 		if (isInWater() && getOrganTraits().has(BionicOrganTrait.SWIM_SPECIALIST))
 			movement = movement.scale(1.35d);
-		if (shellGuardTicks > 0)
+		if (shellGuardTicks > 0 && getOrganTraits().has(BionicOrganTrait.SHELL_DEFENSE))
 			movement = movement.scale(0.25d);
 		super.travel(movement);
 	}
@@ -1583,8 +1584,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 		shellGuardTicks = Mth.clamp(tag.getInt(SHELL_GUARD_TAG), 0, 12000);
 		activeSpinesTicks = Mth.clamp(tag.getInt(ACTIVE_SPINES_TAG), 0, 12000);
 		setOrderedToSit(tag.getBoolean(ORDERED_TO_SIT_TAG));
-		if (!getHeadTraits().has(BionicHeadTrait.TAMEABLE))
+		if (!getHeadTraits().has(BionicHeadTrait.TAMEABLE)) {
 			setBionicOwner(null);
+			setOrderedToSit(false);
+		}
 		if (!getOrganTraits().has(BionicOrganTrait.TRUST))
 			setTrustedPlayer(null);
 	}
