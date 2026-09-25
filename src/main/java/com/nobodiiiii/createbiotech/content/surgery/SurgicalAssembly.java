@@ -573,6 +573,19 @@ public final class SurgicalAssembly {
 	}
 	/** Installed joints that currently satisfy cube ownership and tier-matching rules. */
 	public List<Limb> effectiveLimbs() { return limbTopology().effective; }
+
+	/**
+	 * The first-level joint through which a present cube is installed: {@code NECK},
+	 * {@code SHOULDER} or {@code HIP}. Cubes driven by an elbow or knee belong to its shoulder or
+	 * hip. Null means the cube is on the torso, including every cube of a body without joints.
+	 */
+	@Nullable
+	public SurgicalLimbType mountOf(int source, int cube) {
+		Limb limb = limbTopology().owners.get(new CombinationMember(source, cube));
+		if (limb == null)
+			return null;
+		return limb.type().secondary() ? limb.type().matchingPrimary() : limb.type();
+	}
 	public boolean preservesLayout() { return preserveLayout; }
 	public Direction layoutFacing() { return layoutFacing; }
 	public SurgicalLayPose layoutLayPose() { return layoutLayPose; }
@@ -748,15 +761,18 @@ public final class SurgicalAssembly {
 
 		SurgicalConnectionGraph<Integer> motionGraph = buildMotionGraph();
 		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
+		Map<CombinationMember, Limb> groupOwners = new HashMap<>();
 		for (Limb limb : effective) {
 			Integer ownershipChild = childComponents.get(limb);
 			List<CombinationMember> ownershipGroup = components.get(ownershipChild);
 			List<CombinationMember> group = drivenMotionGroup(motionGraph, limb, ownershipGroup,
 				limbs, childComponents, components);
-			for (CombinationMember member : group)
+			for (CombinationMember member : group) {
 				groups.put(member, group);
+				groupOwners.put(member, limb);
+			}
 		}
-		return new LimbTopology(List.copyOf(effective), Map.copyOf(groups));
+		return new LimbTopology(List.copyOf(effective), Map.copyOf(groups), Map.copyOf(groupOwners));
 	}
 
 	/**
@@ -852,8 +868,8 @@ public final class SurgicalAssembly {
 	}
 
 	private record LimbTopology(List<Limb> effective,
-		Map<CombinationMember, List<CombinationMember>> groups) {
-		private static final LimbTopology EMPTY = new LimbTopology(List.of(), Map.of());
+		Map<CombinationMember, List<CombinationMember>> groups, Map<CombinationMember, Limb> owners) {
+		private static final LimbTopology EMPTY = new LimbTopology(List.of(), Map.of(), Map.of());
 	}
 
 	private record LimbAttachment(Limb limb, boolean child) {}

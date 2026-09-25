@@ -33,4 +33,6 @@ public enum BionicOrganTrait {
 	public String id() { return id; }
 	public String descriptionId() { return "create_biotech.trait." + id; }
 	public BionicAnatomyRole[] roles() { return roles.clone(); }
+	/** Listed under the place of its first role; each role still works only in its own place. */
+	public BionicTraitSlot slot() { return BionicTraitSlot.of(roles[0]); }
 }

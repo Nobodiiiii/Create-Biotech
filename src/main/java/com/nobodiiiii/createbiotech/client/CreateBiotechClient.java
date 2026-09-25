@@ -109,6 +109,7 @@ import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
 import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.render.ContraptionVisual;
 import com.simibubi.create.content.decoration.encasing.EncasedCTBehaviour;
@@ -137,8 +138,14 @@ import net.createmod.ponder.foundation.PonderIndex;
 
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.renderer.item.ItemProperties;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.resources.model.Material;
 import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
@@ -153,6 +160,8 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.model.BakedModelWrapper;
+import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -322,6 +331,20 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
 		var models = event.getModels();
+		TextureAtlasSprite wheelParticle = event.getTextureGetter().apply(new Material(
+			InventoryMenu.BLOCK_ATLAS, ResourceLocation.withDefaultNamespace("block/oak_planks")));
+		// Create's invisible wheel structure uses the air model, whose particle is missing.
+		for (var state : AllBlocks.WATER_WHEEL_STRUCTURAL.get().getStateDefinition().getPossibleStates()) {
+			ModelResourceLocation location = BlockModelShaper.stateToModelLocation(state);
+			BakedModel model = models.get(location);
+			if (model != null)
+				models.put(location, new BakedModelWrapper<BakedModel>(model) {
+					@Override
+					public TextureAtlasSprite getParticleIcon(ModelData data) {
+						return wheelParticle;
+					}
+				});
+		}
 		for (String path : java.util.List.of("surgical_kit", "creative_surgical_kit")) {
 			ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
 				CreateBiotech.asResource(path));

@@ -13,4 +13,5 @@ public enum BionicHeadTrait {
 
 	public String id() { return id; }
 	public String descriptionId() { return "create_biotech.trait." + id; }
+	public BionicTraitSlot slot() { return BionicTraitSlot.HEAD; }
 }

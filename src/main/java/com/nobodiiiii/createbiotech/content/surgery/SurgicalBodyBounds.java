@@ -35,8 +35,13 @@ public final class SurgicalBodyBounds {
 		Envelope bodyEnvelope = Envelope.of(body);
 		if (rawEnvelope == null || bodyEnvelope == null)
 			return null;
-		Envelope visible = visibleEnvelope != null && visibleEnvelope.valid()
-			? visibleEnvelope.include(rawEnvelope) : rawEnvelope;
+		// Callers read the offsets back against their own visible envelope, and the baked hitbox only
+		// pads that envelope to the minimum span. Thin-sheet padding in rawEnvelope must therefore
+		// neither move the reference nor carry the collision box outside it.
+		Envelope corners = Envelope.ofCorners(all);
+		Envelope reference = visibleEnvelope != null && visibleEnvelope.finite()
+			? visibleEnvelope.include(corners) : corners;
+		Envelope visible = reference.withMinimumSpans();
 
 		double[] collisionMin = new double[3];
 		double[] collisionMax = new double[3];
@@ -61,27 +66,60 @@ public final class SurgicalBodyBounds {
 			double upperPadding = Math.max(0.0d, visible.max(axis) - rawEnvelope.max(axis));
 			collisionMin[axis] = Math.max(visible.min(axis), coreMin - lowerPadding);
 			collisionMax[axis] = Math.min(visible.max(axis), coreMax + upperPadding);
-			double collisionSize = collisionMax[axis] - collisionMin[axis];
-			if (collisionSize < SurgicalAssembly.MIN_BODY_SIZE) {
-				double missing = SurgicalAssembly.MIN_BODY_SIZE - collisionSize;
-				if (missing > GEOMETRY_EPSILON)
-					return null;
-				if (axis == 1) {
-					collisionMax[axis] += missing;
-				} else {
-					collisionMin[axis] -= missing * 0.5d;
-					collisionMax[axis] += missing * 0.5d;
-				}
-			}
+			ensureMinimumSpan(collisionMin, collisionMax, axis, visible);
 		}
 
 		return SurgicalAssembly.BodyBounds.create(
 			collisionMax[0] - collisionMin[0],
 			collisionMax[1] - collisionMin[1],
 			collisionMax[2] - collisionMin[2],
-			(collisionMin[0] + collisionMax[0]) * 0.5d - visible.center(0),
-			collisionMin[1] - visible.min(1),
-			(collisionMin[2] + collisionMax[2]) * 0.5d - visible.center(2));
+			(collisionMin[0] + collisionMax[0]) * 0.5d - reference.center(0),
+			collisionMin[1] - reference.min(1),
+			(collisionMin[2] + collisionMax[2]) * 0.5d - reference.center(2));
+	}
+
+	/**
+	 * Grows one collision span that is shorter than the minimum body size, then slides it back inside
+	 * {@code limits}, which always spans at least that size. Vertical growth goes upward so the box
+	 * keeps standing on the visible bottom.
+	 */
+	private static void ensureMinimumSpan(double[] min, double[] max, int axis, Envelope limits) {
+		double missing = SurgicalAssembly.MIN_BODY_SIZE - (max[axis] - min[axis]);
+		if (!(missing > 0.0d))
+			return;
+		if (axis == 1) {
+			max[axis] += missing;
+		} else {
+			min[axis] -= missing * 0.5d;
+			max[axis] += missing * 0.5d;
+		}
+		if (max[axis] > limits.max(axis)) {
+			min[axis] -= max[axis] - limits.max(axis);
+			max[axis] = limits.max(axis);
+		}
+		if (min[axis] < limits.min(axis)) {
+			max[axis] = Math.min(limits.max(axis), max[axis] + limits.min(axis) - min[axis]);
+			min[axis] = limits.min(axis);
+		}
+	}
+
+	/**
+	 * Gives zero or sub-minimum spans the smallest legal size. Horizontal spans stay centred on the
+	 * rendered geometry; vertical span grows upward so {@code minY} remains relative to the real
+	 * visible bottom rather than moving below it.
+	 */
+	private static void ensureMinimumSpans(double[] min, double[] max) {
+		for (int axis = 0; axis < 3; axis++) {
+			double missing = SurgicalAssembly.MIN_BODY_SIZE - (max[axis] - min[axis]);
+			if (!(missing > 0.0d))
+				continue;
+			if (axis == 1) {
+				max[axis] += missing;
+			} else {
+				min[axis] -= missing * 0.5d;
+				max[axis] += missing * 0.5d;
+			}
+		}
 	}
 
 	private static List<CubeMass> cubes(List<List<Vec3>> cubes) {
@@ -155,6 +193,28 @@ public final class SurgicalBodyBounds {
 			return envelope.valid() ? envelope : null;
 		}
 
+		/** Envelope of the captured corners themselves, before thin sheets were padded. */
+		private static Envelope ofCorners(List<CubeMass> cubes) {
+			Envelope envelope = cubes.getFirst().corners;
+			for (CubeMass cube : cubes)
+				envelope = envelope.include(cube.corners);
+			return envelope;
+		}
+
+		private boolean finite() {
+			return Double.isFinite(minX) && Double.isFinite(minY) && Double.isFinite(minZ)
+				&& Double.isFinite(maxX) && Double.isFinite(maxY) && Double.isFinite(maxZ)
+				&& maxX >= minX && maxY >= minY && maxZ >= minZ;
+		}
+
+		/** Pads a flat or sub-minimum axis exactly as the baked hitbox envelope does. */
+		private Envelope withMinimumSpans() {
+			double[] min = {minX, minY, minZ};
+			double[] max = {maxX, maxY, maxZ};
+			ensureMinimumSpans(min, max);
+			return new Envelope(min[0], min[1], min[2], max[0], max[1], max[2]);
+		}
+
 		private boolean valid() {
 			return Double.isFinite(minX) && Double.isFinite(minY) && Double.isFinite(minZ)
 				&& Double.isFinite(maxX) && Double.isFinite(maxY) && Double.isFinite(maxZ)
@@ -180,7 +240,11 @@ public final class SurgicalBodyBounds {
 		}
 	}
 
-	private record CubeMass(double[] min, double[] max, double volume) {
+	/**
+	 * One cube's volume weight and its axis spans, padded so no span is shorter than the minimum body
+	 * size, plus the unpadded bounds of its captured corners.
+	 */
+	private record CubeMass(double[] min, double[] max, double volume, Envelope corners) {
 		@Nullable
 		private static CubeMass of(List<Vec3> corners) {
 			if (corners == null || corners.size() != 8)
@@ -199,20 +263,23 @@ public final class SurgicalBodyBounds {
 				max[1] = Math.max(max[1], corner.y);
 				max[2] = Math.max(max[2], corner.z);
 			}
+			Envelope cornerBounds = new Envelope(min[0], min[1], min[2], max[0], max[1], max[2]);
+			// A sheet thinner than the minimum body size weighs and spans like one exactly that thick,
+			// whether it is flat or only nudged off zero by a CubeDeformation (axolotl gills and legs).
 			double volume = orientedVolume(corners);
-			if (!(volume > GEOMETRY_EPSILON)) {
-				double area = orientedArea(corners);
-				if (!(area > GEOMETRY_EPSILON))
+			double sheetVolume = orientedArea(corners) * SurgicalAssembly.MIN_BODY_SIZE;
+			if (!(volume >= sheetVolume)) {
+				if (!(sheetVolume > GEOMETRY_EPSILON))
 					return null;
-				ensureMinimumSpans(min, max);
-				volume = area * SurgicalAssembly.MIN_BODY_SIZE;
+				volume = sheetVolume;
 			}
+			ensureMinimumSpans(min, max);
 			double axisVolume = (max[0] - min[0]) * (max[1] - min[1]) * (max[2] - min[2]);
 			if (!Double.isFinite(axisVolume) || axisVolume <= GEOMETRY_EPSILON)
 				return null;
 			volume = Math.min(volume, axisVolume);
 			return Double.isFinite(volume) && volume > GEOMETRY_EPSILON
-				? new CubeMass(min, max, volume) : null;
+				? new CubeMass(min, max, volume, cornerBounds) : null;
 		}
 
 		/** Capture orders corners by x, then y, then z, so 1, 2 and 4 are the three box edges. */
@@ -237,25 +304,6 @@ public final class SurgicalBodyBounds {
 				for (int second = first + 1; second < edges.length; second++)
 					area = Math.max(area, edges[first].cross(edges[second]).length());
 			return area;
-		}
-
-		/**
-		 * Gives a planar cube the smallest legal axis-aligned collision span. Horizontal spans stay
-		 * centred on the rendered sheet; vertical span grows upward so {@code minY} remains relative
-		 * to the real visible bottom rather than moving below it.
-		 */
-		private static void ensureMinimumSpans(double[] min, double[] max) {
-			for (int axis = 0; axis < 3; axis++) {
-				double missing = SurgicalAssembly.MIN_BODY_SIZE - (max[axis] - min[axis]);
-				if (!(missing > 0.0d))
-					continue;
-				if (axis == 1) {
-					max[axis] += missing;
-				} else {
-					min[axis] -= missing * 0.5d;
-					max[axis] += missing * 0.5d;
-				}
-			}
 		}
 	}
 }

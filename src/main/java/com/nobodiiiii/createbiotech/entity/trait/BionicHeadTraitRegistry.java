@@ -110,10 +110,13 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 	}
 
 	public enum InactiveReason {
-		INSUFFICIENT_COVERAGE
+		INSUFFICIENT_COVERAGE, WRONG_SLOT
 	}
 
-	/** Head abilities whose carriers are present but make up too little of their region. */
+	/**
+	 * Head abilities whose carriers are present but make up too little of their region, or are not
+	 * installed behind a neck.
+	 */
 	public static Map<BionicHeadTrait, InactiveReason> inactiveReasons(
 		@Nullable SurgicalAssembly assembly, Level level) {
 		if (assembly == null || level == null)
@@ -121,8 +124,10 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		EnumMap<BionicHeadTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicHeadTrait.class);
 		shares(assembly, level).forEach((trait, share) -> {
-			if (!share.members().isEmpty() && !share.reaches(RULES.get(trait).minCoverage()))
-				reasons.put(trait, InactiveReason.INSUFFICIENT_COVERAGE);
+			if ((!share.members().isEmpty() || share.misplaced())
+				&& !share.reaches(RULES.get(trait).minCoverage()))
+				reasons.put(trait, share.misplaced()
+					? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE);
 		});
 		return Map.copyOf(reasons);
 	}

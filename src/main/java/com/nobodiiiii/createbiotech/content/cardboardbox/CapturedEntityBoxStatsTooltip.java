@@ -26,6 +26,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
 import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSlot;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
 import com.simibubi.create.foundation.item.TooltipModifier;
 
@@ -189,16 +190,32 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				.append(Component.translatable("create_biotech.disposition."
 					+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
 		}
+		// Body, head, arm and leg traits are parallel groups, each working only from its own place.
+		java.util.EnumMap<BionicTraitSlot, List<Component>> groups = new java.util.EnumMap<>(BionicTraitSlot.class);
+		for (BionicTraitSlot slot : BionicTraitSlot.values())
+			groups.put(slot, new java.util.ArrayList<>());
 		if (headTraits != null)
 			for (BionicHeadTrait trait : BionicHeadTrait.values())
 				if (headTraits.has(trait))
-					appendProperty(tooltip, Component.translatable(trait.descriptionId()));
+					appendProperty(groups.get(trait.slot()), Component.translatable(trait.descriptionId()));
 		if (organTraits != null)
 			for (BionicOrganTrait trait : BionicOrganTrait.values())
 				if (organTraits.has(trait))
-					appendProperty(tooltip, Component.translatable(trait.descriptionId()));
-		if (traits == null)
-			return;
+					appendProperty(groups.get(trait.slot()), Component.translatable(trait.descriptionId()));
+		if (traits != null)
+			appendBodyTraits(groups.get(BionicTraitSlot.BODY), traits);
+		for (BionicTraitSlot slot : BionicTraitSlot.values()) {
+			List<Component> lines = groups.get(slot);
+			if (lines.isEmpty())
+				continue;
+			tooltip.add(Component.literal(" ").append(Component.translatable(slot.descriptionId())
+				.withStyle(ChatFormatting.DARK_AQUA)));
+			for (Component line : lines)
+				tooltip.add(Component.literal(" ").append(line));
+		}
+	}
+
+	private static void appendBodyTraits(List<Component> tooltip, BionicBodyTraits traits) {
 		for (BionicBodyTrait trait : BionicBodyTrait.values()) {
 			double coverage = traits.coverage(trait);
 			if (coverage <= 0.0d)

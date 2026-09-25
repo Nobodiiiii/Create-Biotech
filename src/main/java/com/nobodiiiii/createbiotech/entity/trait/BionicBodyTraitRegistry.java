@@ -93,7 +93,8 @@ public final class BionicBodyTraitRegistry {
 		Set<ResourceLocation> commonImmunities = null;
 		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
 			SurgicalAssembly.Source source = tissue.source(sourceId);
-			double volume = tissue.weight(sourceId, source.presentCubes());
+			// Whole-body traits come from the torso; heads and limbs carry only their own traits.
+			double volume = tissue.weight(sourceId, tissue.installed(sourceId, BionicTraitSlot.BODY));
 			if (volume <= 0.0d)
 				continue;
 			BionicBodyTraits donor = get(source.profile(), level);

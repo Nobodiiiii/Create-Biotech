@@ -164,6 +164,10 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			return regions.stream().allMatch(region -> region.reaches(minimum));
 		}
 
+		private boolean misplaced() {
+			return regions.stream().anyMatch(BionicTissue.Share::misplaced);
+		}
+
 		private double carrierVolume() {
 			return regions.stream().mapToDouble(BionicTissue.Share::carrierVolume).sum();
 		}
@@ -186,7 +190,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 
 	public enum InactiveReason {
-		INSUFFICIENT_COVERAGE, BODY_MEASUREMENT_UNAVAILABLE, PURPOSE_MISMATCH, NO_RANGED_ATTACK
+		INSUFFICIENT_COVERAGE, WRONG_SLOT, BODY_MEASUREMENT_UNAVAILABLE, PURPOSE_MISMATCH,
+		NO_RANGED_ATTACK
 	}
 
 	/** Explains why a donor fact whose carrier organ is present is absent from the abilities. */
@@ -200,12 +205,13 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			BionicOrganTrait trait = entry.getKey();
 			Coverage coverage = entry.getValue();
 			Set<SurgicalAssembly.CombinationMember> members = coverage.members();
-			if (members.isEmpty())
+			if (members.isEmpty() && !coverage.misplaced())
 				continue;
-			if (trait == BionicOrganTrait.RANGED_EFFECT)
+			if (trait == BionicOrganTrait.RANGED_EFFECT && !members.isEmpty())
 				reasons.put(trait, InactiveReason.NO_RANGED_ATTACK);
 			else if (!coverage.reaches(RULES.get(trait).minCoverage))
-				reasons.put(trait, InactiveReason.INSUFFICIENT_COVERAGE);
+				reasons.put(trait, coverage.misplaced()
+					? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE);
 			else if (!carriesBody(trait, assembly, coverage.carrierVolume()))
 				reasons.put(trait, assembly.bodyBounds() == null
 					? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE : InactiveReason.PURPOSE_MISMATCH);
