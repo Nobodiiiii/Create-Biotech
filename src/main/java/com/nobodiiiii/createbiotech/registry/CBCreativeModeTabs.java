@@ -154,8 +154,6 @@ public class CBCreativeModeTabs {
 			visible(CBItems.ALLAY_PORT.get()),
 			visible(CBItems.ALLAY_COURIER.get()),
 			visible(CBItems.WIRELESS_TERMINAL.get()),
-			visible(CBItems.ENDERMAN_STOCK_KEEPER.get()),
-			visible(CBItems.HONEYCOMB_GAUGE_CLUSTER.get()),
 			visible(CBFluids.TELEPORTATION_BUCKET.get())));
 
 		List<TabEntry> devicesAndEquipment = new ArrayList<>(List.of(
@@ -214,6 +212,8 @@ public class CBCreativeModeTabs {
 			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get())));
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
+			visible(CBItems.ENDERMAN_STOCK_KEEPER.get()),
+			visible(CBItems.HONEYCOMB_GAUGE_CLUSTER.get()),
 			visible(CBItems.SURGERY_GUIDE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),

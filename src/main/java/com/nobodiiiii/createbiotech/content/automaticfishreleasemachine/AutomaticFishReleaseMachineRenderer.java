@@ -110,9 +110,10 @@ public class AutomaticFishReleaseMachineRenderer
 					animationTime + fishIndex * 1.5f);
 		}
 		renderState.initialized = true;
-		if (!visualized)
-			for (int bladeIndex = 0; bladeIndex < BLADE_COUNT; bladeIndex++)
-				renderBladeClamp(blockEntity, poseStack, buffer, light, bladeIndex);
+		// The clamp OBJ is positioned by the legacy buffer path. Keep using it when
+		// Flywheel visualizes the wheel and fish; this renderer is never skipped.
+		for (int bladeIndex = 0; bladeIndex < BLADE_COUNT; bladeIndex++)
+			renderBladeClamp(blockEntity, poseStack, buffer, light, bladeIndex);
 
 		poseStack.popPose();
 		renderMeritTexts(renderState, poseStack, buffer, renderTime);
