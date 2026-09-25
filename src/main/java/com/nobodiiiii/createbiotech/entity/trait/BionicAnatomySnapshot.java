@@ -120,6 +120,15 @@ public final class BionicAnatomySnapshot {
 		return cube >= 0 && cube < volumes.length ? volumes[cube] : Double.NaN;
 	}
 
+	/** Captured volume of the cubes in blocks³; unmeasured cubes weigh nothing. */
+	public double volume(BitSet cubes) {
+		double volume = 0.0d;
+		for (int cube = cubes.nextSetBit(0); cube >= 0 && cube < volumes.length;
+			cube = cubes.nextSetBit(cube + 1))
+			volume += volumes[cube];
+		return volume;
+	}
+
 	public Map<BionicAnatomyRole, BitSet> roles() {
 		EnumMap<BionicAnatomyRole, BitSet> copy = new EnumMap<>(BionicAnatomyRole.class);
 		roles.forEach((role, cubes) -> copy.put(role, (BitSet) cubes.clone()));
@@ -189,8 +198,8 @@ public final class BionicAnatomySnapshot {
 				return null;
 			named = new BionicAnatomySnapshot(legacy.roles, labelled.parts, NO_VOLUMES);
 		}
-		// Volumes only weight trait coverage, so a damaged list falls back to per-cube weighting
-		// instead of rejecting the whole body.
+		// Volumes only weight trait coverage, so a damaged list leaves the body unmeasured instead of
+		// rejecting it.
 		ListTag encodedVolumes = tag.getList(CUBE_VOLUMES_TAG, Tag.TAG_FLOAT);
 		if (encodedVolumes.size() != cubeCount)
 			return named;

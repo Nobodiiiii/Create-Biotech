@@ -7022,7 +7022,7 @@ public final class SurgicalTableClientHandler {
 		BionicAnatomySnapshot snapshot = BionicAnatomySnapshot.ofParts(parts, cubeCount);
 		if (snapshot == null)
 			return BionicAnatomySnapshot.EMPTY;
-		// Trait coverage is volume weighted; a partial measurement keeps the per-cube fallback.
+		// Trait coverage is volume weighted; a partial measurement leaves the body unmeasured.
 		BionicAnatomySnapshot weighted = measured.cardinality() == cubeCount
 			? snapshot.withVolumes(volumes) : null;
 		return weighted == null ? snapshot : weighted;

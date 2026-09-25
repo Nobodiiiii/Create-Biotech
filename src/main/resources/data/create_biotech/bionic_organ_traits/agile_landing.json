@@ -3,7 +3,7 @@
   "min_coverage": 0.5,
   "parameters": {
     "min_legs": 2,
-    "max_body_volume_per_leg": 16
+    "max_body_volume_per_leg_volume": 32
   },
   "values": {},
   "carriers": {

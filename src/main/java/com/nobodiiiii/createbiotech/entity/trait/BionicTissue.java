@@ -21,14 +21,10 @@ final class BionicTissue {
 	private static final double COVERAGE_EPSILON = 1.0e-8d;
 	private final List<SurgicalAssembly.Source> sources;
 	private final List<Map<BionicAnatomyRole, BitSet>> roles;
-	private final boolean volumetric;
 
 	private BionicTissue(SurgicalAssembly assembly) {
 		sources = assembly.sources();
 		roles = new ArrayList<>(Collections.nCopies(sources.size(), null));
-		// Volumes and cube counts are different units, so one source captured before volumes were
-		// recorded returns the whole assembly to per-cube weighting.
-		volumetric = sources.stream().allMatch(source -> source.anatomy().hasVolumes());
 	}
 
 	static BionicTissue of(SurgicalAssembly assembly) {
@@ -66,14 +62,23 @@ final class BionicTissue {
 		return head;
 	}
 
-	/** Captured volume of the cubes, or their count when this assembly predates volume capture. */
+	/**
+	 * Captured volume of the cubes. A source captured before volumes were recorded weighs nothing,
+	 * because cube counts are not a unit of tissue.
+	 */
 	double weight(int sourceId, BitSet cubes) {
-		if (!volumetric)
-			return cubes.cardinality();
-		SurgicalAssembly.Source source = sources.get(sourceId);
+		return sources.get(sourceId).anatomy().volume(cubes);
+	}
+
+	/** Captured volume of assembly members. */
+	double weight(Set<SurgicalAssembly.CombinationMember> members) {
 		double weight = 0.0d;
-		for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
-			weight += source.anatomy().volume(cube);
+		for (SurgicalAssembly.CombinationMember member : members)
+			if (member.source() >= 0 && member.source() < sources.size()) {
+				double volume = sources.get(member.source()).anatomy().volume(member.cube());
+				if (volume > 0.0d)
+					weight += volume;
+			}
 		return weight;
 	}
 
@@ -100,17 +105,19 @@ final class BionicTissue {
 			for (int cube = carried.nextSetBit(0); cube >= 0; cube = carried.nextSetBit(cube + 1))
 				members.add(new SurgicalAssembly.CombinationMember(sourceId, cube));
 		}
-		return new Share(regionWeight > 0.0d ? carrierWeight / regionWeight : 0.0d, members);
+		return new Share(regionWeight > 0.0d ? carrierWeight / regionWeight : 0.0d, carrierWeight,
+			members);
 	}
 
-	/** Coverage of one region and the exact present cubes that carry the trait there. */
-	record Share(double coverage, Set<SurgicalAssembly.CombinationMember> members) {
+	/** Coverage of one region, and the volume and exact present cubes carrying the trait there. */
+	record Share(double coverage, double carrierVolume,
+		Set<SurgicalAssembly.CombinationMember> members) {
 		Share {
 			members = Set.copyOf(members);
 		}
 
 		boolean reaches(double minimum) {
-			return !members.isEmpty() && coverage + COVERAGE_EPSILON >= minimum;
+			return carrierVolume > 0.0d && coverage + COVERAGE_EPSILON >= minimum;
 		}
 	}
 }

@@ -1,7 +1,7 @@
 {
   "automatic_detection": false,
   "min_coverage": 0.5,
-  "max_body_volume_per_cube": 16.0,
+  "max_body_volume_per_wing_volume": 16.0,
   "values": {
     "minecraft:bee": true,
     "minecraft:parrot": true,

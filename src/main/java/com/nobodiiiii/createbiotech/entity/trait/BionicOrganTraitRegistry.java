@@ -51,8 +51,13 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 	private static void onTagsUpdated(TagsUpdatedEvent event) { GENERATION.incrementAndGet(); }
 	public static long generation() { return GENERATION.get(); }
-	public static double flightLoadPerCube() {
-		return RULES.get(BionicOrganTrait.WING_FLIGHT).maxLoadPerCube;
+
+	/** Whether the wings' own tissue volume can lift the whole body. */
+	public static boolean liftsBody(@Nullable SurgicalAssembly assembly,
+		Set<SurgicalAssembly.CombinationMember> wings) {
+		return assembly != null && assembly.hasBodyVolume()
+			&& assembly.bodyVolume() <= RULES.get(BionicOrganTrait.WING_FLIGHT).maxLoadPerVolume
+				* BionicTissue.of(assembly).weight(wings);
 	}
 	public static double parameter(BionicOrganTrait trait, String key, double fallback) {
 		Rule rule = RULES.get(trait);
@@ -71,7 +76,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			// This entity has no projectile firing path yet; an inherited arrow effect would be inert.
 			if (trait != BionicOrganTrait.RANGED_EFFECT
 				&& coverage.reaches(RULES.get(trait).minCoverage)
-				&& carriesBody(trait, assembly, coverage.members().size()))
+				&& carriesBody(trait, assembly, coverage.carrierVolume()))
 				resolved.put(trait, coverage.members());
 		});
 		return new BionicOrganTraits(resolved);
@@ -124,9 +129,12 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role));
 	}
 
-	/** Leg abilities also need enough grounded legs for the body's load. */
+	/**
+	 * Leg abilities also need enough grounded legs, and enough carrier leg volume for the body's
+	 * load.
+	 */
 	private static boolean carriesBody(BionicOrganTrait trait, SurgicalAssembly assembly,
-		int carrierCubes) {
+		double carrierVolume) {
 		if (!requiresLeg(trait))
 			return true;
 		int requiredLegs = (int) parameter(trait, "min_legs",
@@ -134,10 +142,9 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				|| trait == BionicOrganTrait.WALL_CLIMB ? 2.0d : 1.0d);
 		int groundedLegs = assembly.bodyBounds() == null ? 0
 			: assembly.bodyBounds().groundedLegCount();
-		int contributingLegs = Math.min(groundedLegs, carrierCubes);
-		return contributingLegs >= requiredLegs
-			&& !(assembly.hasBodyVolume() && assembly.bodyVolume() > contributingLegs
-				* parameter(trait, "max_body_volume_per_leg", 16.0d));
+		return groundedLegs >= requiredLegs && carrierVolume > 0.0d
+			&& !(assembly.hasBodyVolume() && assembly.bodyVolume() > carrierVolume
+				* parameter(trait, "max_body_volume_per_leg_volume", 32.0d));
 	}
 
 	private static boolean requiresLeg(BionicOrganTrait trait) {
@@ -155,6 +162,10 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 
 		private boolean reaches(double minimum) {
 			return regions.stream().allMatch(region -> region.reaches(minimum));
+		}
+
+		private double carrierVolume() {
+			return regions.stream().mapToDouble(BionicTissue.Share::carrierVolume).sum();
 		}
 
 		private Set<SurgicalAssembly.CombinationMember> members() {
@@ -195,7 +206,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				reasons.put(trait, InactiveReason.NO_RANGED_ATTACK);
 			else if (!coverage.reaches(RULES.get(trait).minCoverage))
 				reasons.put(trait, InactiveReason.INSUFFICIENT_COVERAGE);
-			else if (!carriesBody(trait, assembly, members.size()))
+			else if (!carriesBody(trait, assembly, coverage.carrierVolume()))
 				reasons.put(trait, assembly.bodyBounds() == null
 					? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE : InactiveReason.PURPOSE_MISMATCH);
 		}
@@ -236,7 +247,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			ResourceLocation primary = CreateBiotech.asResource(trait.id());
 			boolean automatic = base.automaticDetection;
 			double coverage = base.minCoverage;
-			double maxLoadPerCube = base.maxLoadPerCube;
+			double maxLoadPerVolume = base.maxLoadPerVolume;
 			Map<String, Double> parameters = new HashMap<>();
 			JsonElement primaryFile = resources.get(primary);
 			if (primaryFile != null && primaryFile.isJsonObject()) {
@@ -246,8 +257,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 						automatic = root.get("automatic_detection").getAsBoolean();
 					if (root.has("min_coverage"))
 						coverage = root.get("min_coverage").getAsDouble();
-					if (root.has("max_body_volume_per_cube"))
-						maxLoadPerCube = root.get("max_body_volume_per_cube").getAsDouble();
+					if (root.has("max_body_volume_per_wing_volume"))
+						maxLoadPerVolume = root.get("max_body_volume_per_wing_volume").getAsDouble();
 				} catch (RuntimeException exception) {
 					LOGGER.warn("Invalid organ trait settings in {}", primary);
 				}
@@ -263,8 +274,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			}
 			if (!Double.isFinite(coverage) || coverage < 0.0d || coverage > 1.0d)
 				coverage = base.minCoverage;
-			if (!Double.isFinite(maxLoadPerCube) || maxLoadPerCube <= 0.0d)
-				maxLoadPerCube = base.maxLoadPerCube;
+			if (!Double.isFinite(maxLoadPerVolume) || maxLoadPerVolume <= 0.0d)
+				maxLoadPerVolume = base.maxLoadPerVolume;
 			Map<ResourceLocation, Boolean> entities = new HashMap<>();
 			Map<TagKey<EntityType<?>>, Boolean> tags = new HashMap<>();
 			for (Map.Entry<ResourceLocation, JsonElement> file : resources.entrySet().stream()
@@ -292,7 +303,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 						entities.put(id, entry.getValue().getAsBoolean());
 				}
 			}
-			loaded.put(trait, new Rule(automatic, coverage, maxLoadPerCube,
+			loaded.put(trait, new Rule(automatic, coverage, maxLoadPerVolume,
 				Map.copyOf(entities), Map.copyOf(tags), Map.copyOf(parameters)));
 		}
 		RULES = Map.copyOf(loaded);
@@ -309,7 +320,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 	}
 
 	private record Rule(boolean automaticDetection, double minCoverage,
-		double maxLoadPerCube,
+		double maxLoadPerVolume,
 		Map<ResourceLocation, Boolean> entityTypes, Map<TagKey<EntityType<?>>, Boolean> tags,
 		Map<String, Double> parameters) {}
 }

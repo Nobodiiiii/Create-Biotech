@@ -47,8 +47,8 @@ public record BionicMind(BionicDisposition disposition, BionicIntelligence intel
 		for (Map.Entry<UUID, SurgicalAssembly.Source> entry : originals.entrySet()) {
 			SurgicalAssembly.Source source = entry.getValue();
 			if (source.originalHeadKnown() && !source.originalHeadCubes().isEmpty()
-				&& retained.get(entry.getKey()).cardinality() * 2
-					< source.originalHeadCubes().cardinality())
+				&& source.anatomy().volume(retained.get(entry.getKey())) * 2.0d
+					< source.anatomy().volume(source.originalHeadCubes()))
 				continue;
 			recognizedHeads++;
 			BionicDisposition candidateDisposition = BionicDispositionRegistry.get(source.profile(), level);

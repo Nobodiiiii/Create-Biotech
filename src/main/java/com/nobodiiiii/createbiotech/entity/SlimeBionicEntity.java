@@ -584,9 +584,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		BionicOrganTraits organs = getOrganTraits();
 		boolean enabled = traits.coverage(BionicBodyTrait.WINGLESS_FLIGHT) >= 0.5d
 			|| organs.has(BionicOrganTrait.WING_FLIGHT)
-				&& getAssembly() != null && getAssembly().hasBodyVolume()
-				&& getAssembly().bodyVolume() <= BionicOrganTraitRegistry.flightLoadPerCube()
-					* organs.members(BionicOrganTrait.WING_FLIGHT).size();
+				&& BionicOrganTraitRegistry.liftsBody(getAssembly(),
+					organs.members(BionicOrganTrait.WING_FLIGHT));
 		boolean swimming = !enabled && organs.has(BionicOrganTrait.SWIM_SPECIALIST);
 		if (bodyFlightEnabled == enabled && organSwimEnabled == swimming)
 			return;
