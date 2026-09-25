@@ -85,38 +85,39 @@ public final class BionicBodyTraitRegistry {
 			return BionicBodyTraits.EMPTY;
 
 		BionicTissue tissue = BionicTissue.of(assembly);
-		double totalWeight = 0.0d;
-		EnumMap<BionicBodyTrait, Double> weightedCoverage = new EnumMap<>(BionicBodyTrait.class);
+		double totalVolume = 0.0d;
+		EnumMap<BionicBodyTrait, Double> traitVolumes = new EnumMap<>(BionicBodyTrait.class);
 		double weightedArmor = 0.0d;
 		double weightedKnockbackResistance = 0.0d;
 		double weightedPassiveRegeneration = 0.0d;
 		Set<ResourceLocation> commonImmunities = null;
 		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
 			SurgicalAssembly.Source source = tissue.source(sourceId);
-			double weight = tissue.weight(sourceId, source.presentCubes());
-			if (weight <= 0.0d)
+			double volume = tissue.weight(sourceId, source.presentCubes());
+			if (volume <= 0.0d)
 				continue;
 			BionicBodyTraits donor = get(source.profile(), level);
-			totalWeight += weight;
-			weightedArmor += donor.naturalArmor() * weight;
-			weightedKnockbackResistance += donor.knockbackResistance() * weight;
-			weightedPassiveRegeneration += donor.passiveRegeneration() * weight;
+			totalVolume += volume;
+			weightedArmor += donor.naturalArmor() * volume;
+			weightedKnockbackResistance += donor.knockbackResistance() * volume;
+			weightedPassiveRegeneration += donor.passiveRegeneration() * volume;
 			for (BionicBodyTrait trait : BionicBodyTrait.values())
-				weightedCoverage.merge(trait, donor.coverage(trait) * weight, Double::sum);
+				if (donor.has(trait))
+					traitVolumes.merge(trait, volume, Double::sum);
 			if (commonImmunities == null)
 				commonImmunities = new HashSet<>(donor.immuneEffects());
 			else
 				commonImmunities.retainAll(donor.immuneEffects());
 		}
-		if (totalWeight <= 0.0d)
+		if (totalVolume <= 0.0d)
 			return BionicBodyTraits.EMPTY;
-		for (Map.Entry<BionicBodyTrait, Double> entry : weightedCoverage.entrySet())
-			entry.setValue(entry.getValue() / totalWeight);
-		return new BionicBodyTraits(weightedCoverage,
+		for (Map.Entry<BionicBodyTrait, Double> entry : traitVolumes.entrySet())
+			entry.setValue(entry.getValue() / totalVolume);
+		return new BionicBodyTraits(traitVolumes,
 			commonImmunities == null ? Set.of() : commonImmunities,
-			weightedArmor / totalWeight,
-			weightedKnockbackResistance / totalWeight,
-			weightedPassiveRegeneration / totalWeight);
+			weightedArmor / totalVolume,
+			weightedKnockbackResistance / totalVolume,
+			weightedPassiveRegeneration / totalVolume);
 	}
 
 	@SuppressWarnings("deprecation")

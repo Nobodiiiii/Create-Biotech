@@ -5,6 +5,7 @@ import java.util.BitSet;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -45,7 +46,9 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 
 	/**
 	 * Every original role known for this source: a matching template, saved legacy roles, the model
-	 * parts named by any trait's carriers, and the captured head. Roles survive cutting unchanged.
+	 * parts' ordinary anatomical names, parts named by any trait's carriers, and the captured head.
+	 * Roles survive cutting unchanged. Generic names are important for coverage denominators: an
+	 * ordinary leg still belongs to the leg region even when its species grants no leg trait.
 	 */
 	public static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source) {
 		EnumMap<BionicAnatomyRole, BitSet> roles = new EnumMap<>(BionicAnatomyRole.class);
@@ -53,11 +56,72 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 		if (configured != null)
 			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
 		source.anatomy().roles().forEach((role, cubes) -> merge(roles, role, cubes));
+		inferNamedRoles(source.anatomy().parts(), roles);
 		BionicTraitCarrierRegistry.rolesFor(source.profile().entityTypeId(),
 			source.anatomy().parts(), source.cubeCount())
 			.forEach((role, cubes) -> merge(roles, role, cubes));
 		merge(roles, BionicAnatomyRole.HEAD, BionicTissue.capturedHead(source));
 		return roles;
+	}
+
+	/**
+	 * Infer only names whose anatomical meaning is stable across ordinary entity models. Ambiguous
+	 * names such as {@code body} remain the responsibility of entity-specific carrier data or an
+	 * anatomy template.
+	 */
+	private static void inferNamedRoles(Map<Integer, java.util.Set<String>> parts,
+		EnumMap<BionicAnatomyRole, BitSet> roles) {
+		parts.forEach((cube, names) -> names.forEach(label -> {
+			String name = canonicalName(label);
+			boolean leg = containsAny(name, "leg", "foot", "feet", "paw", "hoof");
+			if (name.contains("head") || name.contains("skull"))
+				set(roles, BionicAnatomyRole.HEAD, cube);
+			if (name.contains("gill"))
+				set(roles, BionicAnatomyRole.GILL, cube);
+			if (containsAny(name, "torso", "chest"))
+				set(roles, BionicAnatomyRole.TORSO, cube);
+			if (leg) {
+				set(roles, BionicAnatomyRole.LEG, cube);
+				// Existing support-foot rules deliberately treat the whole named leg as the foot region.
+				set(roles, BionicAnatomyRole.FOOT, cube);
+			}
+			if (name.contains("wing")) {
+				if (name.contains("left"))
+					set(roles, BionicAnatomyRole.LEFT_WING, cube);
+				if (name.contains("right"))
+					set(roles, BionicAnatomyRole.RIGHT_WING, cube);
+			}
+			if (name.contains("fin"))
+				set(roles, BionicAnatomyRole.FIN, cube);
+			if (name.contains("tail"))
+				set(roles, BionicAnatomyRole.TAIL, cube);
+			if (name.contains("tentacle"))
+				set(roles, BionicAnatomyRole.TENTACLE, cube);
+			if (containsAny(name, "shell", "carapace"))
+				set(roles, BionicAnatomyRole.SHELL, cube);
+			if (containsAny(name, "spine", "spike", "stinger", "quill", "thorn"))
+				set(roles, BionicAnatomyRole.SPINE, cube);
+			if (containsAny(name, "mouth", "fang", "jaw", "beak", "snout", "muzzle"))
+				set(roles, BionicAnatomyRole.MOUTH, cube);
+			if (name.contains("arm") || name.contains("hand"))
+				set(roles, BionicAnatomyRole.ATTACK_HAND, cube);
+		}));
+	}
+
+	private static String canonicalName(String name) {
+		return name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+	}
+
+	private static boolean containsAny(String name, String... parts) {
+		for (String part : parts)
+			if (name.contains(part))
+				return true;
+		return false;
+	}
+
+	private static void set(EnumMap<BionicAnatomyRole, BitSet> roles,
+		BionicAnatomyRole role, int cube) {
+		roles.computeIfAbsent(role, ignored -> new BitSet()).set(cube);
 	}
 
 	private static void merge(EnumMap<BionicAnatomyRole, BitSet> roles, BionicAnatomyRole role,

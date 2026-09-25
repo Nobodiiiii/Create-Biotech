@@ -78,8 +78,10 @@ final class BionicTissue {
 	}
 
 	/**
-	 * Weighted share of one region, made of every present cube with any of the roles, that consists
-	 * of trait carriers. Which donor a cube came from and whether it is connected do not matter.
+	 * Weighted share of one region. Its denominator is every present cube with any requested role,
+	 * independently of whether that cube's donor has the trait; its numerator is the trait carriers
+	 * within that fixed region. Which donor a cube came from and whether it is connected do not
+	 * matter.
 	 */
 	Share share(BionicAnatomyRole[] region, IntFunction<BitSet> carriersBySource) {
 		double regionWeight = 0.0d;
@@ -87,12 +89,12 @@ final class BionicTissue {
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
 			BitSet present = sources.get(sourceId).presentCubes();
-			BitSet carried = (BitSet) carriersBySource.apply(sourceId).clone();
-			carried.and(present);
-			BitSet regionCubes = (BitSet) carried.clone();
+			BitSet regionCubes = new BitSet();
 			for (BionicAnatomyRole role : region)
 				regionCubes.or(roleCubes(sourceId, role));
 			regionCubes.and(present);
+			BitSet carried = (BitSet) carriersBySource.apply(sourceId).clone();
+			carried.and(regionCubes);
 			regionWeight += weight(sourceId, regionCubes);
 			carrierWeight += weight(sourceId, carried);
 			for (int cube = carried.nextSetBit(0); cube >= 0; cube = carried.nextSetBit(cube + 1))
