@@ -23,7 +23,7 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
-/** Server-owned cube-role templates. Unknown layouts grant no template-based organ ability. */
+/** Server-owned cube-role templates. Unknown layouts contribute no template roles. */
 public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListener {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final BionicAnatomyRegistry INSTANCE = new BionicAnatomyRegistry();
@@ -36,37 +36,34 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 	}
 
 	@Nullable
-	public static Template get(SurgicalAssembly.Source source) {
+	private static Template get(SurgicalAssembly.Source source) {
 		for (Template template : TEMPLATES.getOrDefault(source.profile().entityTypeId(), List.of()))
 			if (template.matches(source))
 				return template;
 		return null;
 	}
 
-	/** Captured cube roles remain valid after cutting; only the donor's species grants abilities. */
-	@Nullable
-	public static Template getForSource(SurgicalAssembly.Source source) {
-		Template configured = get(source);
-		BionicAnatomySnapshot anatomy = source.anatomy();
-		Map<BionicAnatomyRole, BitSet> declared = BionicTraitCarrierRegistry.rolesFor(
-			source.profile().entityTypeId(), anatomy.parts(), source.cubeCount());
-		if (anatomy.isEmpty() && declared.values().stream().allMatch(BitSet::isEmpty))
-			return configured;
+	/**
+	 * Every original role known for this source: a matching template, saved legacy roles, the model
+	 * parts named by any trait's carriers, and the captured head. Roles survive cutting unchanged.
+	 */
+	public static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source) {
 		EnumMap<BionicAnatomyRole, BitSet> roles = new EnumMap<>(BionicAnatomyRole.class);
+		Template configured = get(source);
 		if (configured != null)
-			configured.roles.forEach((role, cubes) -> roles.put(role, (BitSet) cubes.clone()));
-		roles.putAll(anatomy.roles());
-		declared.forEach((role, cubes) -> {
-			if (!cubes.isEmpty())
-				roles.put(role, cubes);
-		});
-		if (roles.values().stream().allMatch(BitSet::isEmpty))
-			return null;
-		double[] weights = configured == null ? new double[source.cubeCount()]
-			: configured.weights.clone();
-		if (configured == null)
-			java.util.Arrays.fill(weights, 1.0d);
-		return new Template(source.cubeCount(), roles, weights, source.seams(), null);
+			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
+		source.anatomy().roles().forEach((role, cubes) -> merge(roles, role, cubes));
+		BionicTraitCarrierRegistry.rolesFor(source.profile().entityTypeId(),
+			source.anatomy().parts(), source.cubeCount())
+			.forEach((role, cubes) -> merge(roles, role, cubes));
+		merge(roles, BionicAnatomyRole.HEAD, BionicTissue.capturedHead(source));
+		return roles;
+	}
+
+	private static void merge(EnumMap<BionicAnatomyRole, BitSet> roles, BionicAnatomyRole role,
+		BitSet cubes) {
+		if (!cubes.isEmpty())
+			roles.computeIfAbsent(role, ignored -> new BitSet()).or(cubes);
 	}
 
 	@Override
@@ -134,18 +131,6 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 				}
 				roles.put(role, cubes);
 			}
-			double[] weights = new double[count];
-			java.util.Arrays.fill(weights, 1.0d);
-			if (json.has("weights")) {
-				JsonArray values = json.getAsJsonArray("weights");
-				if (values.size() != count)
-					return null;
-				for (int cube = 0; cube < count; cube++) {
-					weights[cube] = values.get(cube).getAsDouble();
-					if (!Double.isFinite(weights[cube]) || weights[cube] <= 0.0d)
-						return null;
-				}
-			}
 			List<SurgicalAssembly.Seam> seams = null;
 			if (json.has("seams")) {
 				seams = new ArrayList<>();
@@ -165,27 +150,24 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 			if (seams == null)
 				return null;
 			Boolean baby = json.has("baby") ? json.get("baby").getAsBoolean() : null;
-			return new Template(count, roles, weights, seams, baby);
+			return new Template(count, roles, seams, baby);
 		} catch (RuntimeException exception) {
 			return null;
 		}
 	}
 
-	public static final class Template {
+	private static final class Template {
 		private final int cubeCount;
 		private final Map<BionicAnatomyRole, BitSet> roles;
-		private final double[] weights;
 		@Nullable private final List<SurgicalAssembly.Seam> seams;
 		@Nullable private final Boolean baby;
 
 		private Template(int cubeCount, Map<BionicAnatomyRole, BitSet> roles,
-			double[] weights, @Nullable List<SurgicalAssembly.Seam> seams,
-			@Nullable Boolean baby) {
+			@Nullable List<SurgicalAssembly.Seam> seams, @Nullable Boolean baby) {
 			this.cubeCount = cubeCount;
 			EnumMap<BionicAnatomyRole, BitSet> copy = new EnumMap<>(BionicAnatomyRole.class);
 			roles.forEach((role, cubes) -> copy.put(role, (BitSet) cubes.clone()));
 			this.roles = Map.copyOf(copy);
-			this.weights = weights.clone();
 			this.seams = seams == null ? null : List.copyOf(seams);
 			this.baby = baby;
 		}
@@ -195,12 +177,5 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 				&& (seams == null || seams.equals(source.seams()))
 				&& (baby == null || baby.equals(source.profile().baby()));
 		}
-
-		public BitSet cubes(BionicAnatomyRole role) {
-			BitSet cubes = roles.get(role);
-			return cubes == null ? new BitSet() : (BitSet) cubes.clone();
-		}
-
-		public double weight(int cube) { return weights[cube]; }
 	}
 }

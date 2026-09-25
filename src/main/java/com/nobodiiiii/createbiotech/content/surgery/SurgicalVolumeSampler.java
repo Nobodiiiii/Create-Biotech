@@ -14,8 +14,23 @@ public final class SurgicalVolumeSampler {
 	private static final int SAMPLES_PER_BOX = 64;
 	private static final int MAX_SAMPLE_POINTS = 32_768;
 	private static final long MAX_COVERAGE_TESTS = 8_000_000L;
+	/** One vanilla model pixel, so planar wings, fins and gills still weigh something. */
+	private static final double MIN_CUBE_EDGE = 1.0d / 16.0d;
 
 	private SurgicalVolumeSampler() {}
+
+	/**
+	 * Volume of one capture-ordered cuboid for weighting trait coverage. Edges shorter than one model
+	 * pixel count as one pixel, so a zero-thickness plane is treated as a one-pixel sheet.
+	 */
+	public static double cubeVolume(List<Vec3> corners) {
+		if (corners == null || corners.size() != 8 || corners.stream().anyMatch(java.util.Objects::isNull))
+			return Double.NaN;
+		Vec3 origin = corners.getFirst();
+		return Math.max(MIN_CUBE_EDGE, corners.get(1).distanceTo(origin))
+			* Math.max(MIN_CUBE_EDGE, corners.get(2).distanceTo(origin))
+			* Math.max(MIN_CUBE_EDGE, corners.get(4).distanceTo(origin));
+	}
 
 	/**
 	 * Measures the geometric union of capture-ordered oriented cuboids. Isolated cuboids are exact;

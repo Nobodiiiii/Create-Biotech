@@ -1695,8 +1695,7 @@ public final class SurgicalAssembly {
 			Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			if (profile == null || presentCubes == null || seams == null || cutSeams == null
 				|| donorId == null || headCubes == null || originalHeadCubes == null || anatomy == null
-				|| anatomy.roles().values().stream().anyMatch(cubes -> cubes.length() > cubeCount)
-				|| anatomy.parts().keySet().stream().anyMatch(cube -> cube >= cubeCount)
+				|| !anatomy.fits(cubeCount)
 				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
 				|| cubeRotations.size() > cubeCount || facing == null || !facing.getAxis().isHorizontal()
 				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))

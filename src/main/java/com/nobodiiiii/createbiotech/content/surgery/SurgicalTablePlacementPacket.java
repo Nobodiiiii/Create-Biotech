@@ -50,8 +50,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
-		if (anatomy.roles().values().stream().anyMatch(cubes -> cubes.length() > observedCubeCount)
-			|| anatomy.parts().keySet().stream().anyMatch(cube -> cube >= observedCubeCount))
+		if (!anatomy.fits(observedCubeCount))
 			throw new IllegalArgumentException("Anatomy cube outside discovered placement");
 	}
 
@@ -102,6 +101,10 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			for (String name : entry.getValue().stream().sorted().toList())
 				buffer.writeUtf(name, 64);
 		}
+		float[] volumes = anatomy.volumes();
+		buffer.writeVarInt(volumes.length);
+		for (float volume : volumes)
+			buffer.writeFloat(volume);
 		writeFootprints(buffer, componentFootprints);
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
@@ -208,8 +211,16 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			if (parts.putIfAbsent(cube, names) != null)
 				throw new IllegalArgumentException("Duplicate surgical model part cube");
 		}
+		int volumeCount = buffer.readVarInt();
+		if (volumeCount < 0 || volumeCount > SurgicalAssembly.MAX_CUBES)
+			throw new IllegalArgumentException("Invalid surgical cube volume count " + volumeCount);
+		float[] volumes = new float[volumeCount];
+		for (int cube = 0; cube < volumeCount; cube++)
+			volumes[cube] = buffer.readFloat();
 		BionicAnatomySnapshot result = BionicAnatomySnapshot.of(roles, parts,
 			SurgicalAssembly.MAX_CUBES);
+		if (result != null)
+			result = result.withVolumes(volumes);
 		if (result == null)
 			throw new IllegalArgumentException("Invalid surgical anatomy");
 		return result;

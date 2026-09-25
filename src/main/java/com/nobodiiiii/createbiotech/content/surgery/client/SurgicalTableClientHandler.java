@@ -7009,11 +7009,23 @@ public final class SurgicalTableClientHandler {
 	private static BionicAnatomySnapshot discoveredAnatomy(
 		List<SurgicalModelRenderContext.CubeGeometry> cubes, int cubeCount) {
 		Map<Integer, java.util.Set<String>> parts = new HashMap<>();
-		for (SurgicalModelRenderContext.CubeGeometry cube : cubes)
+		float[] volumes = new float[cubeCount];
+		BitSet measured = new BitSet(cubeCount);
+		for (SurgicalModelRenderContext.CubeGeometry cube : cubes) {
 			if (!cube.partNames().isEmpty())
 				parts.put(cube.cubeId(), cube.partNames());
+			if (cube.cubeId() >= 0 && cube.cubeId() < cubeCount) {
+				volumes[cube.cubeId()] = (float) SurgicalVolumeSampler.cubeVolume(cube.corners());
+				measured.set(cube.cubeId());
+			}
+		}
 		BionicAnatomySnapshot snapshot = BionicAnatomySnapshot.ofParts(parts, cubeCount);
-		return snapshot == null ? BionicAnatomySnapshot.EMPTY : snapshot;
+		if (snapshot == null)
+			return BionicAnatomySnapshot.EMPTY;
+		// Trait coverage is volume weighted; a partial measurement keeps the per-cube fallback.
+		BionicAnatomySnapshot weighted = measured.cardinality() == cubeCount
+			? snapshot.withVolumes(volumes) : null;
+		return weighted == null ? snapshot : weighted;
 	}
 
 	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams, BitSet headCubes,

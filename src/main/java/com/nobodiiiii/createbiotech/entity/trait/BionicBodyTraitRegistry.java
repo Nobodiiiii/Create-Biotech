@@ -29,7 +29,7 @@ import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
-/** Detects stable donor facts, applies per-trait data rules, and aggregates source weights. */
+/** Detects stable donor facts, applies per-trait data rules, and aggregates them by tissue volume. */
 public final class BionicBodyTraitRegistry {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Map<MimicProfile.BiologicalKey, BionicBodyTraits> DETECTED =
@@ -84,15 +84,17 @@ public final class BionicBodyTraitRegistry {
 		if (assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicBodyTraits.EMPTY;
 
-		int totalWeight = 0;
+		BionicTissue tissue = BionicTissue.of(assembly);
+		double totalWeight = 0.0d;
 		EnumMap<BionicBodyTrait, Double> weightedCoverage = new EnumMap<>(BionicBodyTrait.class);
 		double weightedArmor = 0.0d;
 		double weightedKnockbackResistance = 0.0d;
 		double weightedPassiveRegeneration = 0.0d;
 		Set<ResourceLocation> commonImmunities = null;
-		for (SurgicalAssembly.Source source : assembly.sources()) {
-			int weight = source.presentCubes().cardinality();
-			if (weight <= 0)
+		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
+			SurgicalAssembly.Source source = tissue.source(sourceId);
+			double weight = tissue.weight(sourceId, source.presentCubes());
+			if (weight <= 0.0d)
 				continue;
 			BionicBodyTraits donor = get(source.profile(), level);
 			totalWeight += weight;
@@ -106,7 +108,7 @@ public final class BionicBodyTraitRegistry {
 			else
 				commonImmunities.retainAll(donor.immuneEffects());
 		}
-		if (totalWeight <= 0)
+		if (totalWeight <= 0.0d)
 			return BionicBodyTraits.EMPTY;
 		for (Map.Entry<BionicBodyTrait, Double> entry : weightedCoverage.entrySet())
 			entry.setValue(entry.getValue() / totalWeight);

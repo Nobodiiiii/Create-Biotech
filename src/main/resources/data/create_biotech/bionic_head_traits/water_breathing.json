@@ -1,6 +1,6 @@
 {
   "automatic_detection": true,
-  "min_completeness": 0.5,
+  "min_coverage": 0.5,
   "values": {},
   "carriers": {
     "minecraft:cod": {

@@ -6,7 +6,6 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -38,7 +37,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.NeoForgeMod;
 import net.neoforged.neoforge.event.TagsUpdatedEvent;
 
-/** Per-trait donor facts and source-head completeness; no transient donor state is inherited. */
+/** Per-trait donor facts and head-region coverage; no transient donor state is inherited. */
 public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListener {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final BionicHeadTraitRegistry INSTANCE = new BionicHeadTraitRegistry();
@@ -65,148 +64,66 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		if (assembly == null || level == null)
 			return BionicHeadTraits.EMPTY;
 		EnumSet<BionicHeadTrait> result = EnumSet.noneOf(BionicHeadTrait.class);
-		Map<UUID, SurgicalAssembly.Source> origins = new HashMap<>();
-		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
-		for (SurgicalAssembly.Source source : assembly.sources())
-			origins.putIfAbsent(source.donorId(), source);
-		boolean hasAirBreathingHead = false;
-		boolean hasDryHead = false;
-		for (Map.Entry<UUID, SurgicalAssembly.Source> entry : origins.entrySet()) {
-			SurgicalAssembly.Source source = entry.getValue();
-			BionicAnatomyRegistry.Template template = BionicAnatomyRegistry.getForSource(source);
-			if (template == null)
-				continue;
-			Set<BionicHeadTrait> facts = get(source.profile(), level);
-			for (BionicHeadTrait trait : facts) {
-				Rule rule = RULES.get(trait);
-				BitSet original = carrierCubes(trait, source);
-				double retained = retainedCompleteness(assembly, connected,
-					source.donorId(), original, template);
-				if (rule != null && retained >= rule.minCompleteness())
-					result.add(trait);
-			}
-			if (facts.contains(BionicHeadTrait.DRY_SUFFOCATION))
-				hasDryHead |= retainedCompleteness(assembly, connected, source.donorId(),
-					carrierCubes(BionicHeadTrait.DRY_SUFFOCATION, source), template) >= 0.5d;
-			else
-				hasAirBreathingHead |= retainedCompleteness(assembly, connected, source.donorId(),
-					template.cubes(BionicAnatomyRole.HEAD), template) >= 0.5d;
-		}
-		if (!hasDryHead || hasAirBreathingHead)
-			result.remove(BionicHeadTrait.DRY_SUFFOCATION);
+		shares(assembly, level).forEach((trait, share) -> {
+			if (share.reaches(RULES.get(trait).minCoverage()))
+				result.add(trait);
+		});
 		return new BionicHeadTraits(result,
 			result.contains(BionicHeadTrait.LONG_BREATH)
 				? RULES.get(BionicHeadTrait.LONG_BREATH).maxAirSupply() : 300);
 	}
 
-	private static BitSet carrierCubes(BionicHeadTrait trait, SurgicalAssembly.Source source) {
-		boolean respiratory = trait == BionicHeadTrait.WATER_BREATHING
-			|| trait == BionicHeadTrait.DRY_SUFFOCATION;
-		BionicAnatomyRole role = respiratory ? BionicAnatomyRole.GILL : BionicAnatomyRole.HEAD;
-		BitSet named = BionicTraitCarrierRegistry.headCubes(trait,
-			source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role);
-		if (named != null)
-			return named;
-		BionicAnatomyRegistry.Template configured = BionicAnatomyRegistry.get(source);
-		BitSet legacy = source.anatomy().cubes(role);
-		if (legacy.isEmpty() && configured != null)
-			legacy = configured.cubes(role);
-		if (respiratory && legacy.isEmpty()) {
-			BitSet head = source.anatomy().cubes(BionicAnatomyRole.HEAD);
-			return head.isEmpty() && configured != null
-				? configured.cubes(BionicAnatomyRole.HEAD) : head;
-		}
-		return legacy;
+	/**
+	 * Local coverage of every head ability that at least one source's species has. Gills and
+	 * air-breathing heads form one respiratory region, so a head stitched from several donors
+	 * breathes the way most of its volume does.
+	 */
+	private static Map<BionicHeadTrait, BionicTissue.Share> shares(SurgicalAssembly assembly,
+		Level level) {
+		BionicTissue tissue = BionicTissue.of(assembly);
+		EnumMap<BionicHeadTrait, Map<Integer, BitSet>> carriers = new EnumMap<>(BionicHeadTrait.class);
+		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++)
+			for (BionicHeadTrait trait : get(tissue.source(sourceId).profile(), level))
+				carriers.computeIfAbsent(trait, ignored -> new HashMap<>())
+					.put(sourceId, carrierCubes(trait, tissue, sourceId));
+		EnumMap<BionicHeadTrait, BionicTissue.Share> shares = new EnumMap<>(BionicHeadTrait.class);
+		BitSet none = new BitSet();
+		carriers.forEach((trait, bySource) -> shares.put(trait, tissue.share(respiratory(trait)
+				? new BionicAnatomyRole[] { BionicAnatomyRole.GILL, BionicAnatomyRole.HEAD }
+				: new BionicAnatomyRole[] { BionicAnatomyRole.HEAD },
+			sourceId -> bySource.getOrDefault(sourceId, none))));
+		return shares;
 	}
 
-	private static double retainedCompleteness(SurgicalAssembly assembly,
-		Set<SurgicalAssembly.CombinationMember> connected, UUID donorId,
-		BitSet original, BionicAnatomyRegistry.Template template) {
-		BitSet retained = new BitSet();
-		for (int sourceId = 0; sourceId < assembly.sources().size(); sourceId++) {
-			SurgicalAssembly.Source source = assembly.sources().get(sourceId);
-			if (!source.donorId().equals(donorId))
-				continue;
-			BitSet present = source.presentCubes();
-			present.and(original);
-			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
-				if (connected.contains(new SurgicalAssembly.CombinationMember(sourceId, cube)))
-					retained.set(cube);
-		}
-		return completeness(original, retained, template);
+	private static boolean respiratory(BionicHeadTrait trait) {
+		return trait == BionicHeadTrait.WATER_BREATHING || trait == BionicHeadTrait.DRY_SUFFOCATION;
 	}
 
-	private static double completeness(BitSet original, BitSet retained,
-		BionicAnatomyRegistry.Template template) {
-		if (original.isEmpty() || retained == null || template == null)
-			return 0.0d;
-		double total = 0.0d;
-		double present = 0.0d;
-		for (int cube = original.nextSetBit(0); cube >= 0;
-			cube = original.nextSetBit(cube + 1)) {
-			double weight = template.weight(cube);
-			total += weight;
-			if (retained.get(cube))
-				present += weight;
-		}
-		return total <= 0.0d ? 0.0d : present / total;
+	private static BitSet carrierCubes(BionicHeadTrait trait, BionicTissue tissue, int sourceId) {
+		SurgicalAssembly.Source source = tissue.source(sourceId);
+		BionicAnatomyRole role = respiratory(trait) ? BionicAnatomyRole.GILL : BionicAnatomyRole.HEAD;
+		BitSet cubes = tissue.carriers(sourceId, role, BionicTraitCarrierRegistry.headCubes(trait,
+			source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role));
+		// A donor without mapped gills breathes through its whole head.
+		return cubes.isEmpty() && role == BionicAnatomyRole.GILL
+			? tissue.carriers(sourceId, BionicAnatomyRole.HEAD, null) : cubes;
 	}
 
 	public enum InactiveReason {
-		UNKNOWN_ANATOMY, INCOMPLETE_OR_DISCONNECTED, AIR_BREATHING_HEAD_PRESENT
+		INSUFFICIENT_COVERAGE
 	}
 
+	/** Head abilities whose carriers are present but make up too little of their region. */
 	public static Map<BionicHeadTrait, InactiveReason> inactiveReasons(
 		@Nullable SurgicalAssembly assembly, Level level) {
 		if (assembly == null || level == null)
 			return Map.of();
-		BionicHeadTraits active = resolve(assembly, level);
-		Set<SurgicalAssembly.CombinationMember> connected = assembly.connectedMembers();
-		Map<UUID, BitSet> presentByDonor = new HashMap<>();
-		Set<UUID> donorsWithHeads = new java.util.HashSet<>();
-		for (SurgicalAssembly.Source source : assembly.sources()) {
-			presentByDonor.computeIfAbsent(source.donorId(), ignored -> new BitSet())
-				.or(source.presentCubes());
-			if (!source.headCubes().isEmpty())
-				donorsWithHeads.add(source.donorId());
-		}
 		EnumMap<BionicHeadTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicHeadTrait.class);
-		for (BionicHeadTrait trait : BionicHeadTrait.values()) {
-			if (active.has(trait))
-				continue;
-			boolean fact = false;
-			boolean mapped = false;
-			boolean complete = false;
-			Set<UUID> seen = new java.util.HashSet<>();
-			for (SurgicalAssembly.Source source : assembly.sources()) {
-				if (!seen.add(source.donorId()) || !get(source.profile(), level).contains(trait))
-					continue;
-				BitSet original = carrierCubes(trait, source);
-				if (original.isEmpty()) {
-					fact |= donorsWithHeads.contains(source.donorId());
-					continue;
-				}
-				if (!original.intersects(presentByDonor.get(source.donorId())))
-					continue;
-				fact = true;
-				BionicAnatomyRegistry.Template template =
-					BionicAnatomyRegistry.getForSource(source);
-				if (template == null)
-					continue;
-				mapped = true;
-				Rule rule = RULES.get(trait);
-				if (rule != null && retainedCompleteness(assembly, connected, source.donorId(),
-					original, template)
-					>= rule.minCompleteness())
-					complete = true;
-			}
-			if (fact)
-				reasons.put(trait, complete && trait == BionicHeadTrait.DRY_SUFFOCATION
-					? InactiveReason.AIR_BREATHING_HEAD_PRESENT
-					: mapped ? InactiveReason.INCOMPLETE_OR_DISCONNECTED
-					: InactiveReason.UNKNOWN_ANATOMY);
-		}
+		shares(assembly, level).forEach((trait, share) -> {
+			if (!share.members().isEmpty() && !share.reaches(RULES.get(trait).minCoverage()))
+				reasons.put(trait, InactiveReason.INSUFFICIENT_COVERAGE);
+		});
 		return Map.copyOf(reasons);
 	}
 
@@ -241,7 +158,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		});
 	}
 
-	/** Biological facts only; a captured donor still needs a retained, connected head to use them. */
+	/** Biological facts only; the donor's head must still form enough of the assembled head. */
 	public static Set<BionicHeadTrait> donorFacts(MimicProfile profile, Level level) {
 		return get(profile, level);
 	}
@@ -270,7 +187,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 			ResourceLocation primary = CreateBiotech.asResource(trait.id());
 			Rule fallback = defaultRules().get(trait);
 			boolean automatic = fallback.automaticDetection();
-			double threshold = fallback.minCompleteness();
+			double threshold = fallback.minCoverage();
 			int maxAirSupply = fallback.maxAirSupply();
 			Map<ResourceLocation, Boolean> entities = new HashMap<>();
 			Map<TagKey<EntityType<?>>, Boolean> tags = new HashMap<>();
@@ -279,9 +196,9 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 				JsonObject root = primaryFile.getAsJsonObject();
 				if (root.has("automatic_detection") && root.get("automatic_detection").isJsonPrimitive())
 					automatic = root.get("automatic_detection").getAsBoolean();
-				if (root.has("min_completeness") && root.get("min_completeness").isJsonPrimitive()) {
-					try { threshold = Mth.clamp(root.get("min_completeness").getAsDouble(), 0.0d, 1.0d); }
-					catch (RuntimeException ignored) { LOGGER.warn("Invalid head trait completeness in {}", primary); }
+				if (root.has("min_coverage") && root.get("min_coverage").isJsonPrimitive()) {
+					try { threshold = Mth.clamp(root.get("min_coverage").getAsDouble(), 0.0d, 1.0d); }
+					catch (RuntimeException ignored) { LOGGER.warn("Invalid head trait coverage in {}", primary); }
 				}
 				if (root.has("max_air_supply") && root.get("max_air_supply").isJsonPrimitive())
 					try { maxAirSupply = Mth.clamp(root.get("max_air_supply").getAsInt(), 300, 12000); }
@@ -329,6 +246,6 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		return Map.copyOf(defaults);
 	}
 
-	private record Rule(boolean automaticDetection, double minCompleteness, int maxAirSupply,
+	private record Rule(boolean automaticDetection, double minCoverage, int maxAirSupply,
 		Map<ResourceLocation, Boolean> entityTypes, Map<TagKey<EntityType<?>>, Boolean> tags) {}
 }
