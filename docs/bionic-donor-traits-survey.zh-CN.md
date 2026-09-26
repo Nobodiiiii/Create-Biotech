@@ -131,7 +131,7 @@
 
 NeoForge 1.21.1 的 **Data Maps** 适合把可重载配置关联到 `EntityType`：支持 ID、标签、重载和可选客户端同步。集合型特性可以采用 `AdvancedDataMapType` 的自定义合并；但“单体总比族高”等语义仍要明确设计，不能假定框架自动符合上述规则。[NeoForge 1.21.1 官方文档](https://docs.neoforged.net/docs/1.21.1/resources/server/datamaps/)
 
-当前读取 `data/<命名空间>/bionic_body_traits/` 下的同名特性文件。自动探测型文件默认只保留开关和空规则，例如 `fire_immune.json`：
+当前读取 `data/<命名空间>/bionic_traits/` 下的同名特性文件。自动探测型文件默认只保留开关和空规则，例如 `fire_immune.json`：
 
 ```json
 {

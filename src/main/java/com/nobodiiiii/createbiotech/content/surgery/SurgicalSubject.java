@@ -25,7 +25,7 @@ public final class SurgicalSubject {
 	private static final String PERSISTENT_ID_TAG = "PersistentId";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
-	private static final String ANATOMY_ROLES_TAG = "AnatomyRoles";
+	private static final String ANATOMY_TAG = "Anatomy";
 	private static final String FACING_TAG = "PlacementFacing";
 	private static final String LAY_AXIS_TAG = "LayAxis";
 	private static final String LAY_YAW_TAG = "LayYaw";
@@ -84,42 +84,6 @@ public final class SurgicalSubject {
 	List<SurgicalCombination> combinations;
 	List<SurgicalLimbJoint> limbJoints;
 	private int clientRenderRevision;
-
-	SurgicalSubject(int id, MimicProfile profile, Direction placementFacing, SurgicalLayPose layPose, int cubeCount,
-		BitSet presentCubes, BitSet headCubes, List<SurgicalAssembly.Seam> seams, BitSet cutSeams, List<Integer> cutOrder,
-		double originOffsetX, double originOffsetZ, Map<Integer, Vec3> componentOffsets,
-		List<SurgicalTableLayout.Footprint> occupiedFootprints) {
-		this(id, UUID.randomUUID(), profile, placementFacing, layPose, cubeCount, presentCubes, headCubes,
-			seams, cutSeams, cutOrder,
-			originOffsetX, originOffsetZ, componentOffsets, Map.of(), occupiedFootprints, List.of(), List.of(),
-			List.of());
-	}
-
-	SurgicalSubject(int id, MimicProfile profile, Direction placementFacing, SurgicalLayPose layPose, int cubeCount,
-		BitSet presentCubes, BitSet headCubes, List<SurgicalAssembly.Seam> seams, BitSet cutSeams, List<Integer> cutOrder,
-		double originOffsetX, double originOffsetZ, Map<Integer, Vec3> componentOffsets,
-		Map<Integer, SurgicalCubeRotation> componentRotations,
-		List<SurgicalTableLayout.Footprint> occupiedFootprints) {
-		this(id, UUID.randomUUID(), profile, placementFacing, layPose, cubeCount, presentCubes, headCubes,
-			seams, cutSeams, cutOrder,
-			originOffsetX, originOffsetZ, componentOffsets, componentRotations, occupiedFootprints, List.of(),
-			List.of(), List.of());
-	}
-
-	SurgicalSubject(int id, UUID persistentId, MimicProfile profile, Direction placementFacing,
-		SurgicalLayPose layPose, int cubeCount,
-		BitSet presentCubes, BitSet headCubes, List<SurgicalAssembly.Seam> seams, BitSet cutSeams,
-		List<Integer> cutOrder,
-		double originOffsetX, double originOffsetZ, Map<Integer, Vec3> componentOffsets,
-		Map<Integer, SurgicalCubeRotation> componentRotations,
-		List<SurgicalTableLayout.Footprint> occupiedFootprints, List<SurgicalGlueJoint> glueJoints,
-		List<SurgicalCombination> combinations, List<SurgicalLimbJoint> limbJoints) {
-		this(id, persistentId, persistentId, headCubes, presentCubes.cardinality() == cubeCount,
-			BionicAnatomySnapshot.EMPTY,
-			profile, placementFacing, layPose, cubeCount, presentCubes, headCubes, seams, cutSeams,
-			cutOrder, originOffsetX, originOffsetZ, componentOffsets, componentRotations,
-			occupiedFootprints, glueJoints, combinations, limbJoints);
-	}
 
 	SurgicalSubject(int id, UUID persistentId, UUID donorId, BitSet originalHeadCubes,
 		boolean originalHeadKnown, BionicAnatomySnapshot anatomy,
@@ -560,7 +524,7 @@ public final class SurgicalSubject {
 		if (originalHeadKnown)
 			tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
 		if (!anatomy.isEmpty())
-			tag.put(ANATOMY_ROLES_TAG, anatomy.save());
+			tag.put(ANATOMY_TAG, anatomy.save());
 		tag.putInt(FACING_TAG, placementFacing.get3DDataValue());
 		tag.putInt(LAY_AXIS_TAG, layPose.axis().ordinal());
 		tag.putInt(LAY_YAW_TAG, layPose.yaw());
@@ -608,23 +572,26 @@ public final class SurgicalSubject {
 	@Nullable
 	static SurgicalSubject load(CompoundTag tag) {
 		if (!tag.contains(ID_TAG, Tag.TAG_ANY_NUMERIC) || !tag.hasUUID(PERSISTENT_ID_TAG)
+			|| !tag.hasUUID(DONOR_ID_TAG)
 			|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(PROFILE_TAG, Tag.TAG_COMPOUND)
 			|| !tag.contains(CUBE_COUNT_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			|| !tag.contains(SEAMS_TAG, Tag.TAG_INT_ARRAY)
+			|| !tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
+			|| !tag.contains(ANATOMY_TAG, Tag.TAG_COMPOUND)
 			|| !tag.contains(FOOTPRINTS_TAG, Tag.TAG_LIST))
 			return null;
 		if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-			|| hasWrongType(tag, ANATOMY_ROLES_TAG, Tag.TAG_COMPOUND)
+			|| hasWrongType(tag, ANATOMY_TAG, Tag.TAG_COMPOUND)
 			|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 			return null;
 		MimicProfile profile = MimicProfile.load(tag.getCompound(PROFILE_TAG));
 		int id = tag.getInt(ID_TAG);
 		UUID persistentId = tag.getUUID(PERSISTENT_ID_TAG);
-		UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : persistentId;
+		UUID donorId = tag.getUUID(DONOR_ID_TAG);
 		Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
 		SurgicalLayPose layPose = readLayPose(tag);
 		if (id < 0 || profile == null || !facing.getAxis().isHorizontal() || layPose == null)
@@ -647,12 +614,9 @@ public final class SurgicalSubject {
 			? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
 		BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 			? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
-		boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
-		BitSet originalHeads = originalHeadKnown
-			? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
-		BionicAnatomySnapshot anatomy = tag.contains(ANATOMY_ROLES_TAG, Tag.TAG_COMPOUND)
-			? BionicAnatomySnapshot.load(tag.getCompound(ANATOMY_ROLES_TAG), cubeCount)
-			: BionicAnatomySnapshot.EMPTY;
+		boolean originalHeadKnown = true;
+		BitSet originalHeads = BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG));
+		BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(ANATOMY_TAG), cubeCount);
 		if (anatomy == null)
 			return null;
 		BitSet invalidHeads = (BitSet) heads.clone();

@@ -102,7 +102,7 @@ public class CreateBiotech {
 	private static void registerReloadListeners(AddReloadListenerEvent event) {
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
-		BionicTraitDataLoader.LISTENERS.forEach(event::addListener);
+		event.addListener(BionicTraitDataLoader.INSTANCE);
 		event.addListener(BionicAnatomyRegistry.INSTANCE);
 		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}

@@ -45,10 +45,9 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 	}
 
 	/**
-	 * Every original role known for this source: a matching template, saved legacy roles, the model
-	 * parts' ordinary anatomical names, parts named by any trait's carriers, and the captured head.
-	 * Roles survive cutting unchanged and identify possible carrier tissue. Installation scopes and
-	 * coverage denominators are determined separately, without consulting these labels.
+	 * Every original role known for this source: a matching template, the model parts' ordinary
+	 * anatomical names, parts named by trait carriers, and the captured head. Installation scopes
+	 * and coverage denominators are determined separately, without consulting these labels.
 	 */
 	public static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source) {
 		return roles(source, BionicTraitRegistry.snapshot());
@@ -60,7 +59,6 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 		Template configured = get(source);
 		if (configured != null)
 			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
-		source.anatomy().roles().forEach((role, cubes) -> merge(roles, role, cubes));
 		inferNamedRoles(source.anatomy().parts(), roles);
 		BionicTraitCarriers.rolesFor(data, source.profile().entityTypeId(),
 			source.anatomy().parts(), source.cubeCount())

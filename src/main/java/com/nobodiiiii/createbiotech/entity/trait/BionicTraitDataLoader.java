@@ -1,6 +1,5 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,16 +24,13 @@ import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.profiling.ProfilerFiller;
 
-/** One parser for all traits. The three listeners only preserve existing resource directories. */
+/** Loads every bionic trait from the single canonical data directory. */
 public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListener {
 	private static final Logger LOGGER = LogUtils.getLogger();
-	public static final List<BionicTraitDataLoader> LISTENERS = Arrays.stream(BionicTrait.DataDirectory.values())
-		.map(BionicTraitDataLoader::new).toList();
-	private final BionicTrait.DataDirectory directory;
+	public static final BionicTraitDataLoader INSTANCE = new BionicTraitDataLoader();
 
-	private BionicTraitDataLoader(BionicTrait.DataDirectory directory) {
-		super(new Gson(), directory.path());
-		this.directory = directory;
+	private BionicTraitDataLoader() {
+		super(new Gson(), "bionic_traits");
 	}
 
 	@Override
@@ -42,9 +38,8 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		ProfilerFiller profiler) {
 		EnumMap<BionicTrait, BionicTraitData> loaded = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values())
-			if (trait.directory() == directory)
-				loaded.put(trait, read(trait, resources));
-		BionicTraitRegistry.replace(directory, loaded);
+			loaded.put(trait, read(trait, resources));
+		BionicTraitRegistry.replace(loaded);
 	}
 
 	private static BionicTraitData read(BionicTrait trait, Map<ResourceLocation, JsonElement> resources) {

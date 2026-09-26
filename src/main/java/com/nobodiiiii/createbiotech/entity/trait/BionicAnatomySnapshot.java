@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Set;
@@ -17,7 +16,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 
-/** Original model-part labels, cube volumes and legacy roles retained across every cut. */
+/** Current model-part labels and measured cube volumes retained across every cut. */
 public final class BionicAnatomySnapshot {
 	private static final String MODEL_PARTS_TAG = "ModelParts";
 	private static final String CUBE_VOLUMES_TAG = "CubeVolumes";
@@ -25,20 +24,11 @@ public final class BionicAnatomySnapshot {
 		* SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE;
 	private static final float[] NO_VOLUMES = new float[0];
 	public static final BionicAnatomySnapshot EMPTY =
-		new BionicAnatomySnapshot(Map.of(), Map.of(), NO_VOLUMES);
-	private final Map<BionicAnatomyRole, BitSet> roles;
+		new BionicAnatomySnapshot(Map.of(), NO_VOLUMES);
 	private final Map<Integer, Set<String>> parts;
-	/** Captured volume of every original cube in blocks³, or empty for bodies captured before them. */
 	private final float[] volumes;
 
-	private BionicAnatomySnapshot(Map<BionicAnatomyRole, BitSet> roles,
-		Map<Integer, Set<String>> parts, float[] volumes) {
-		EnumMap<BionicAnatomyRole, BitSet> copy = new EnumMap<>(BionicAnatomyRole.class);
-		roles.forEach((role, cubes) -> {
-			if (role != null && cubes != null && !cubes.isEmpty())
-				copy.put(role, (BitSet) cubes.clone());
-		});
-		this.roles = Map.copyOf(copy);
+	private BionicAnatomySnapshot(Map<Integer, Set<String>> parts, float[] volumes) {
 		Map<Integer, Set<String>> names = new HashMap<>();
 		parts.forEach((cube, labels) -> {
 			if (labels != null && !labels.isEmpty())
@@ -46,17 +36,6 @@ public final class BionicAnatomySnapshot {
 		});
 		this.parts = Map.copyOf(names);
 		this.volumes = volumes.length == 0 ? NO_VOLUMES : volumes.clone();
-	}
-
-	@Nullable
-	public static BionicAnatomySnapshot of(Map<BionicAnatomyRole, BitSet> roles, int cubeCount) {
-		if (roles == null || cubeCount < 0)
-			return null;
-		for (Map.Entry<BionicAnatomyRole, BitSet> entry : roles.entrySet())
-			if (entry.getKey() == null || entry.getValue() == null
-				|| entry.getValue().length() > cubeCount)
-				return null;
-		return roles.isEmpty() ? EMPTY : new BionicAnatomySnapshot(roles, Map.of(), NO_VOLUMES);
 	}
 
 	@Nullable
@@ -71,27 +50,18 @@ public final class BionicAnatomySnapshot {
 					|| !name.matches("[A-Za-z0-9_./-]{1,64}")))
 				return null;
 		}
-		return parts.isEmpty() ? EMPTY : new BionicAnatomySnapshot(Map.of(), parts, NO_VOLUMES);
-	}
-
-	@Nullable
-	public static BionicAnatomySnapshot of(Map<BionicAnatomyRole, BitSet> roles,
-		Map<Integer, Set<String>> parts, int cubeCount) {
-		BionicAnatomySnapshot old = of(roles, cubeCount);
-		BionicAnatomySnapshot named = ofParts(parts, cubeCount);
-		return old == null || named == null ? null
-			: new BionicAnatomySnapshot(old.roles, named.parts, NO_VOLUMES);
+		return parts.isEmpty() ? EMPTY : new BionicAnatomySnapshot(parts, NO_VOLUMES);
 	}
 
 	/** Adds one captured volume per original cube; {@link #fits} checks the count against a model. */
 	@Nullable
 	public BionicAnatomySnapshot withVolumes(float[] volumes) {
-		if (volumes == null || volumes.length > SurgicalAssembly.MAX_CUBES)
+		if (volumes == null || volumes.length == 0 || volumes.length > SurgicalAssembly.MAX_CUBES)
 			return null;
 		for (float volume : volumes)
 			if (!validVolume(volume))
 				return null;
-		return new BionicAnatomySnapshot(roles, parts, volumes);
+		return new BionicAnatomySnapshot(parts, volumes);
 	}
 
 	private static boolean validVolume(float volume) {
@@ -100,27 +70,21 @@ public final class BionicAnatomySnapshot {
 
 	/** Whether every saved cube index belongs to a model with this many cubes. */
 	public boolean fits(int cubeCount) {
-		return roles.values().stream().allMatch(cubes -> cubes.length() <= cubeCount)
-			&& parts.keySet().stream().allMatch(cube -> cube < cubeCount)
-			&& (volumes.length == 0 || volumes.length == cubeCount);
+		return parts.keySet().stream().allMatch(cube -> cube >= 0 && cube < cubeCount)
+			&& volumes.length == cubeCount;
 	}
 
-	public BitSet cubes(BionicAnatomyRole role) {
-		BitSet cubes = roles.get(role);
-		return cubes == null ? new BitSet() : (BitSet) cubes.clone();
-	}
-
-	public boolean isEmpty() { return roles.isEmpty() && parts.isEmpty() && volumes.length == 0; }
+	public boolean isEmpty() { return parts.isEmpty() && volumes.length == 0; }
 	public Map<Integer, Set<String>> parts() { return parts; }
 	public boolean hasVolumes() { return volumes.length > 0; }
 	public float[] volumes() { return volumes.clone(); }
 
-	/** Captured volume in blocks³, or NaN when this body predates volume capture. */
+	/** Captured volume in blocks³. */
 	public double volume(int cube) {
 		return cube >= 0 && cube < volumes.length ? volumes[cube] : Double.NaN;
 	}
 
-	/** Captured volume of the cubes in blocks³; unmeasured cubes weigh nothing. */
+	/** Captured volume of the selected cubes in blocks³. */
 	public double volume(BitSet cubes) {
 		double volume = 0.0d;
 		for (int cube = cubes.nextSetBit(0); cube >= 0 && cube < volumes.length;
@@ -129,15 +93,8 @@ public final class BionicAnatomySnapshot {
 		return volume;
 	}
 
-	public Map<BionicAnatomyRole, BitSet> roles() {
-		EnumMap<BionicAnatomyRole, BitSet> copy = new EnumMap<>(BionicAnatomyRole.class);
-		roles.forEach((role, cubes) -> copy.put(role, (BitSet) cubes.clone()));
-		return copy;
-	}
-
 	public CompoundTag save() {
 		CompoundTag tag = new CompoundTag();
-		roles.forEach((role, cubes) -> tag.putLongArray(role.name(), cubes.toLongArray()));
 		if (!parts.isEmpty()) {
 			ListTag encoded = new ListTag();
 			parts.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
@@ -161,26 +118,15 @@ public final class BionicAnatomySnapshot {
 
 	@Nullable
 	public static BionicAnatomySnapshot load(CompoundTag tag, int cubeCount) {
-		EnumMap<BionicAnatomyRole, BitSet> found = new EnumMap<>(BionicAnatomyRole.class);
-		for (String key : tag.getAllKeys()) {
-			if (key.equals(MODEL_PARTS_TAG) || key.equals(CUBE_VOLUMES_TAG))
-				continue;
-			BionicAnatomyRole role;
-			try { role = BionicAnatomyRole.valueOf(key); }
-			catch (IllegalArgumentException exception) { return null; }
-			if (!tag.contains(key, Tag.TAG_LONG_ARRAY))
-				return null;
-			found.put(role, BitSet.valueOf(tag.getLongArray(key)));
-		}
-		BionicAnatomySnapshot legacy = of(found, cubeCount);
-		if (legacy == null)
+		if (tag == null || cubeCount <= 0 || !tag.contains(CUBE_VOLUMES_TAG, Tag.TAG_LIST)
+			|| tag.contains(MODEL_PARTS_TAG) && !tag.contains(MODEL_PARTS_TAG, Tag.TAG_LIST))
 			return null;
-		BionicAnatomySnapshot named = legacy;
-		if (tag.contains(MODEL_PARTS_TAG)) {
-			if (!tag.contains(MODEL_PARTS_TAG, Tag.TAG_LIST))
+		for (String key : tag.getAllKeys())
+			if (!key.equals(MODEL_PARTS_TAG) && !key.equals(CUBE_VOLUMES_TAG))
 				return null;
+		Map<Integer, Set<String>> parts = new HashMap<>();
+		if (tag.contains(MODEL_PARTS_TAG)) {
 			ListTag encoded = tag.getList(MODEL_PARTS_TAG, Tag.TAG_COMPOUND);
-			Map<Integer, Set<String>> parts = new HashMap<>();
 			for (int index = 0; index < encoded.size(); index++) {
 				CompoundTag part = encoded.getCompound(index);
 				if (!part.contains("Cube", Tag.TAG_ANY_NUMERIC)
@@ -193,32 +139,29 @@ public final class BionicAnatomySnapshot {
 				if (parts.putIfAbsent(part.getInt("Cube"), names) != null)
 					return null;
 			}
-			BionicAnatomySnapshot labelled = ofParts(parts, cubeCount);
-			if (labelled == null)
-				return null;
-			named = new BionicAnatomySnapshot(legacy.roles, labelled.parts, NO_VOLUMES);
 		}
-		// Volumes only weight trait coverage, so a damaged list leaves the body unmeasured instead of
-		// rejecting it.
+		BionicAnatomySnapshot named = ofParts(parts, cubeCount);
+		if (named == null)
+			return null;
 		ListTag encodedVolumes = tag.getList(CUBE_VOLUMES_TAG, Tag.TAG_FLOAT);
 		if (encodedVolumes.size() != cubeCount)
-			return named;
+			return null;
 		float[] volumes = new float[cubeCount];
 		for (int cube = 0; cube < cubeCount; cube++)
 			volumes[cube] = encodedVolumes.getFloat(cube);
 		BionicAnatomySnapshot measured = named.withVolumes(volumes);
-		return measured == null ? named : measured;
+		return measured;
 	}
 
 	@Override
 	public boolean equals(Object other) {
 		return other instanceof BionicAnatomySnapshot snapshot
-			&& roles.equals(snapshot.roles) && parts.equals(snapshot.parts)
+			&& parts.equals(snapshot.parts)
 			&& Arrays.equals(volumes, snapshot.volumes);
 	}
 
 	@Override
 	public int hashCode() {
-		return (31 * roles.hashCode() + parts.hashCode()) * 31 + Arrays.hashCode(volumes);
+		return 31 * parts.hashCode() + Arrays.hashCode(volumes);
 	}
 }

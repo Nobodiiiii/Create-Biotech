@@ -24,12 +24,11 @@ public final class BionicTraitRegistry {
 		current = new Snapshot(current.generation() + 1, current.traits());
 	}
 
-	static synchronized void replace(BionicTrait.DataDirectory directory, Map<BionicTrait, BionicTraitData> data) {
-		EnumMap<BionicTrait, BionicTraitData> merged = new EnumMap<>(current.traits());
+	static synchronized void replace(Map<BionicTrait, BionicTraitData> data) {
+		EnumMap<BionicTrait, BionicTraitData> loaded = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values())
-			if (trait.directory() == directory)
-				merged.put(trait, data.getOrDefault(trait, BionicTraitData.defaults(trait)));
-		current = new Snapshot(current.generation() + 1, merged);
+			loaded.put(trait, data.getOrDefault(trait, BionicTraitData.defaults(trait)));
+		current = new Snapshot(current.generation() + 1, loaded);
 	}
 
 	public static long generation() { return current.generation(); }

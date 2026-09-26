@@ -3,13 +3,11 @@ package com.nobodiiiii.createbiotech.content.surgery;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
-import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
@@ -40,7 +38,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		envelope = envelope == null ? SurgicalTableLayout.Proposal.EMPTY : envelope;
 		observedSeams = observedSeams == null ? List.of() : List.copyOf(observedSeams);
 		headCubes = headCubes == null ? new BitSet() : (BitSet) headCubes.clone();
-		anatomy = anatomy == null ? BionicAnatomySnapshot.EMPTY : anatomy;
+		if (anatomy == null)
+			throw new IllegalArgumentException("Surgical placement requires measured anatomy");
 		componentFootprints = componentFootprints == null ? List.of() : List.copyOf(componentFootprints);
 		sourceLayouts = sourceLayouts == null ? List.of() : List.copyOf(sourceLayouts);
 		if (observedCubeCount < 0 || observedCubeCount > SurgicalAssembly.MAX_CUBES
@@ -84,15 +83,6 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		buffer.writeVarInt(headCubes.cardinality());
 		for (int cube = headCubes.nextSetBit(0); cube >= 0; cube = headCubes.nextSetBit(cube + 1))
 			buffer.writeVarInt(cube);
-		Map<BionicAnatomyRole, BitSet> roles = anatomy.roles();
-		buffer.writeVarInt(roles.size());
-		for (Map.Entry<BionicAnatomyRole, BitSet> entry : roles.entrySet()) {
-			buffer.writeEnum(entry.getKey());
-			buffer.writeVarInt(entry.getValue().cardinality());
-			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
-				cube = entry.getValue().nextSetBit(cube + 1))
-				buffer.writeVarInt(cube);
-		}
 		buffer.writeVarInt(anatomy.parts().size());
 		for (Map.Entry<Integer, Set<String>> entry : anatomy.parts().entrySet().stream()
 			.sorted(Map.Entry.comparingByKey()).toList()) {
@@ -177,24 +167,6 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 	}
 
 	private static BionicAnatomySnapshot readAnatomy(FriendlyByteBuf buffer) {
-		int count = buffer.readVarInt();
-		if (count < 0 || count > BionicAnatomyRole.values().length)
-			throw new IllegalArgumentException("Invalid surgical anatomy role count " + count);
-		EnumMap<BionicAnatomyRole, BitSet> roles = new EnumMap<>(BionicAnatomyRole.class);
-		for (int index = 0; index < count; index++) {
-			BionicAnatomyRole role = buffer.readEnum(BionicAnatomyRole.class);
-			int cubes = buffer.readVarInt();
-			if (cubes < 0 || cubes > SurgicalAssembly.MAX_CUBES || roles.containsKey(role))
-				throw new IllegalArgumentException("Invalid surgical anatomy role " + role);
-			BitSet selected = new BitSet();
-			for (int cubeIndex = 0; cubeIndex < cubes; cubeIndex++) {
-				int cube = buffer.readVarInt();
-				if (cube < 0 || cube >= SurgicalAssembly.MAX_CUBES || selected.get(cube))
-					throw new IllegalArgumentException("Invalid surgical anatomy cube " + cube);
-				selected.set(cube);
-			}
-			roles.put(role, selected);
-		}
 		int partCount = buffer.readVarInt();
 		if (partCount < 0 || partCount > SurgicalAssembly.MAX_CUBES)
 			throw new IllegalArgumentException("Invalid surgical model part count " + partCount);
@@ -217,7 +189,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		float[] volumes = new float[volumeCount];
 		for (int cube = 0; cube < volumeCount; cube++)
 			volumes[cube] = buffer.readFloat();
-		BionicAnatomySnapshot result = BionicAnatomySnapshot.of(roles, parts,
+		BionicAnatomySnapshot result = BionicAnatomySnapshot.ofParts(parts,
 			SurgicalAssembly.MAX_CUBES);
 		if (result != null)
 			result = result.withVolumes(volumes);

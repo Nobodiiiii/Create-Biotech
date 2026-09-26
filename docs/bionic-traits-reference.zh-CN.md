@@ -2,7 +2,7 @@
 
 本文按当前工作区代码与数据整理（Minecraft 1.21.1 / NeoForge），按生效规则分为三类；作用范围只分全身、躯干、头、臂、腿五种，后三种对应手术台实际提供的器官：
 
-所有 42 项特性统一定义在 [BionicTrait](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTrait.java)，统一由 [BionicTraitResolver](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 解析。原有三个 JSON 目录仅作为数据兼容入口，不再决定使用哪套解析器。
+所有 42 项特性统一定义在 [BionicTrait](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTrait.java)，统一由 [BionicTraitResolver](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 解析，数据统一位于 `bionic_traits/`。
 
 | 作用范围 | `BionicTraitScope` | 判定范围 | 本次归类 |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@
 
 **游泳专长允许臂或腿**，分子、分母各取所有臂和腿体块的并集，只结算一次。其他特性各声明一个范围。鳃、足、左右翅、鳍、尾、触手、壳、刺、口器和攻击手只是供体模型的载体标签，不是额外可安装器官，也不能自动指定安装位置。
 
-原有 `bionic_body_traits/`、`bionic_head_traits/`、`bionic_organ_traits/` 目录仅保留 JSON 路径兼容性，“呼吸”和“特殊器官”不再作为作用范围。
+“呼吸”和“特殊器官”不再作为作用范围。
 
 效果执行集中在 [SlimeBionicEntity.java](../src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicEntity.java)，细雪行走另见 [PowderSnowBionicFootMixin.java](../src/main/java/com/nobodiiiii/createbiotech/mixin/PowderSnowBionicFootMixin.java)。
 
@@ -49,7 +49,7 @@
 | 解析结果 | `BionicTraitSet` / `BionicTraitResult` | 同时保存占比、实际强度、数值、免疫集合、载体和未生效原因 |
 | 消费结果 | `SlimeBionicEntity.getBionicTraits()` / 手术台及纸箱 Tooltip | 实体执行效果，提示展示同一判定；不再为了原因额外解析 |
 
-新增同类特性时，在统一目录独立声明安装范围、载体、规则和返回值类型，并在对应兼容目录补 JSON。只有新的自动探测方法、附加条件或游戏效果才需要扩展相应层。三个旧的身体/头部/器官特性枚举、独立解析器、结果类型及重复载体加载器已经移除。
+新增同类特性时，在统一目录独立声明安装范围、载体、规则和返回值类型。只有新的自动探测方法、附加条件或游戏效果才需要扩展相应层。三个旧的身体/头部/器官特性枚举、独立解析器、结果类型及重复载体加载器已经移除。
 
 ## 一、通用规则
 
@@ -64,7 +64,7 @@
 ### 2. 体块体积
 
 - 所有覆盖率都按体块**体积**加权。体积取捕获时每个模型体块的实际尺寸（方块³）；不足 1 像素的边按 1 像素计，因此平面的翅、鳍也有体积。
-- 旧存档中未记录体积的来源计为 0 体积，不回退到按体块数加权。存在型仍能按保留载体判断；门槛型和比例型依赖有效体积。
+- 手术台存档必须包含每个原始体块的有效体积；缺少体积的旧格式会被拒绝，不再回退或迁移。
 
 ### 3. 躯干与全身覆盖率
 
@@ -79,7 +79,7 @@
 - 例如：普通躯干体积 6、烈焰人手臂体积 2、普通头部体积 2，全身火焰抗性覆盖率为 `2 / (6 + 2 + 2) = 20%`；烈焰人手臂不会提供躯干范围的身体缓降。
 - 数值项在各自范围内按体积加权平均：天然护甲和自然恢复按全身，抗击退按躯干。没有躯干体积时，躯干数值为 0，全身数值仍正常计算。
 - 效果免疫是全身范围的 100% 门槛：取**全身所有有体积贡献**的供体免疫集合的**交集**；任意器官混入不免疫的组织，便失去该项完整免疫。
-- 原有 JSON 路径和特性 ID 保持兼容；每项特性的范围由枚举中的 `scopes()` 明确声明。
+- 特性 ID 和统一 `bionic_traits/` JSON 路径构成当前格式；每项特性的范围由枚举中的 `scopes()` 明确声明。
 
 ### 4. 按装配范围计算覆盖率
 
@@ -121,7 +121,7 @@
 
 载体体块已全部切除，或该物种的载体无法识别时，不显示原因。
 
-## 二、全身与躯干体质特性（`bionic_body_traits`）
+## 二、全身与躯干体质特性（`bionic_traits`）
 
 “生效条件”中的 c 为该特性声明范围内的覆盖率（0–1，按体积加权）。
 
@@ -160,7 +160,7 @@
 | `knockback_resistance` | 抗击退（…%） | 躯干 | 自动：抗击退基础值，即铁傀儡 1.0、监守者 1.0、劫掠兽 0.75、疣猪兽 0.6、僵尸疣猪兽 0.6 | 按体积加权平均 | 成品抗击退 = 0.15 + 平均值（上限 1） |
 | `passive_regeneration` | 自然恢复（…/秒） | 全身 | 数据（不自动探测）：悦灵 2.0；凋灵 1.0；马、驴、骡、羊驼、行商羊驼、骷髅马、僵尸马、骆驼 0.0222 | 按体积加权平均 | 未满血时每秒回复对应生命值 |
 
-## 三、头部特性（兼容数据目录 `bionic_head_traits`）
+## 三、头部特性（`bionic_traits`）
 
 门槛型默认 `min_coverage = 0.5`，存在型不设门槛。所有这些特性的范围都是安装为头部的全部体块，包括没有头部或鳃标签的普通组织。载体读取 `GILL`（呼吸类）或 `HEAD`（其余）角色；呼吸类物种没有鳃的映射时，以整个头部为载体。
 
@@ -171,7 +171,7 @@
 | `long_breath` | 长时间屏息 | 头 `HEAD`：海豚为 `head` | 自动：会在水中溺水且原版最大氧气 > 300，即海豚 | 头部安装范围覆盖率 ≥ 0.5 | 最大氧气值改为 `max_air_supply`（4800，可配置 300–12000） |
 | `tameable` | 可驯服 | 头 `HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`（狼、猫、鹦鹉）或 `AbstractHorse`（马、驴、骡、羊驼、行商羊驼；排除骷髅马、僵尸马、骆驼） | 对应头部载体存在（不设占比门槛） | 无主人时喂史莱姆球即驯服；主人空手右键切换坐下；距离超过 10 格时跟随；协助主人攻击。失去该特性时清除主人 |
 
-## 四、其余特性（兼容数据目录 `bionic_organ_traits`）
+## 四、其余特性（`bionic_traits`）
 
 门槛型默认 `min_coverage = 0.5`，存在型不设门槛。安装范围按上方五种范围表逐项声明；该目录中的特性可以属于全身、躯干、头、臂或腿，不构成独立器官类型。
 
