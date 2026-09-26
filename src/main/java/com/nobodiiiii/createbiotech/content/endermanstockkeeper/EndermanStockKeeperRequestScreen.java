@@ -259,7 +259,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 			if (row >= 0) {
 				GaugeCraftJobs.Summary job = jobs.get(row);
 				graphics.renderComponentTooltip(font, List.of(job.output().getHoverName(),
-					Component.translatable("create_biotech.gauge_craft.status." + job.status()),
+					jobDetail(job),
 					Component.translatable("create_biotech.gauge_craft.progress", job.completed(), job.total()),
 					Component.translatable(job.address().isBlank() ? "create_biotech.gauge_craft.address_hint"
 						: "create_biotech.gauge_craft.address", job.address())), mouseX, mouseY);
@@ -283,12 +283,19 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 			graphics.renderItem(job.output(), left + 16, y + 6);
 			String label = job.output().getHoverName().getString() + " ×" + job.count();
 			graphics.drawString(font, font.plainSubstrByWidth(label, 197), left + 37, y + 4, 0xFFFFFF, false);
-			String status = Component.translatable("create_biotech.gauge_craft.status." + job.status()).getString();
+			String status = jobDetail(job).getString();
 			graphics.drawString(font, font.plainSubstrByWidth(status, 197), left + 37, y + 16, 0xBBBBBB, false);
 		}
 		if (jobs.size() > VISIBLE_JOBS)
 			graphics.drawString(font, (jobsScroll + 1) + "–" + Math.min(jobs.size(), jobsScroll + VISIBLE_JOBS)
 				+ " / " + jobs.size(), left + 175, top + 169, 0xBBBBBB, false);
+	}
+
+	private Component jobDetail(GaugeCraftJobs.Summary job) {
+		if (!job.currentOutput().isEmpty()
+			&& ("processing".equals(job.status()) || "waiting_output".equals(job.status())))
+			return Component.translatable("create_biotech.gauge_craft.current_step", job.currentOutput().getHoverName());
+		return Component.translatable("create_biotech.gauge_craft.status." + job.status());
 	}
 
 	private int jobRow(double mouseX, double mouseY) {

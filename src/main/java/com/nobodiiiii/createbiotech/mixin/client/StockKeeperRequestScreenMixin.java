@@ -84,7 +84,7 @@ public abstract class StockKeeperRequestScreenMixin {
 			|| slot >= displayedItems.get(category).size())
 			return;
 		BigItemStack entry = displayedItems.get(category).get(slot);
-		if (button == 0 && screen.isCraftable(entry.stack)) {
+		if (button == 0 && entry.count <= 0 && screen.isCraftable(entry.stack)) {
 			screen.beginCraft(entry.stack);
 			cir.setReturnValue(true);
 		} else if (entry instanceof GaugeOutputBigItemStack)

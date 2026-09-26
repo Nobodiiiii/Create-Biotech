@@ -49,7 +49,7 @@ Joints can be fitted to make parts move. Joints decide which parts count as a he
 
 | Joint | Effect and limits |
 | --- |--- |
-| Neck Joint | Turns the head to follow where the body looks; one body recognises at most three. |
+| Neck Joint | Turns the head to follow where the body looks; one body can fit at most one. |
 | Shoulder Joint | Marks the moving part as an arm so it joins in on attacks; at most eight. |
 | Elbow Joint | Bends the forearm along with the upper arm; it can attach to exactly one shoulder joint. |
 | Hip Joint | Marks the moving part as a leg so it joins the gait; at most eight. |

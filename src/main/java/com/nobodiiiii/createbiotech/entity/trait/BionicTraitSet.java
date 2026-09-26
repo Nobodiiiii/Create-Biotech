@@ -19,6 +19,7 @@ public final class BionicTraitSet {
 
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return result(trait).active(); }
+	/** Whole-body/torso ratio, or the highest individual chain ratio for limb abilities. */
 	public double coverage(BionicTrait trait) { return result(trait).coverage(); }
 	public double strength(BionicTrait trait) { return result(trait).strength(); }
 	public double value(BionicTrait trait) { return result(trait).value(); }

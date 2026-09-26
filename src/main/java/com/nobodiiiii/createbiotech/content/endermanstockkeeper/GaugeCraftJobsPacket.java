@@ -21,6 +21,7 @@ public record GaugeCraftJobsPacket(int menuId, List<GaugeCraftJobs.Summary> jobs
 			ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, job.output());
 			buffer.writeVarInt(job.count());
 			buffer.writeUtf(job.status(), 64);
+			ItemStack.OPTIONAL_STREAM_CODEC.encode(buffer, job.currentOutput());
 			buffer.writeVarInt(job.completed());
 			buffer.writeVarInt(job.total());
 			buffer.writeUtf(job.address(), 64);
@@ -35,7 +36,8 @@ public record GaugeCraftJobsPacket(int menuId, List<GaugeCraftJobs.Summary> jobs
 		List<GaugeCraftJobs.Summary> jobs = new ArrayList<>(size);
 		for (int i = 0; i < size; i++)
 			jobs.add(new GaugeCraftJobs.Summary(buffer.readUUID(), ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer),
-				buffer.readVarInt(), buffer.readUtf(64), buffer.readVarInt(), buffer.readVarInt(),
+				buffer.readVarInt(), buffer.readUtf(64), ItemStack.OPTIONAL_STREAM_CODEC.decode(buffer),
+				buffer.readVarInt(), buffer.readVarInt(),
 				buffer.readUtf(64), buffer.readBoolean()));
 		return List.copyOf(jobs);
 	}

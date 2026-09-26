@@ -2,8 +2,7 @@
   "automatic_detection": true,
   "min_coverage": 0.5,
   "parameters": {
-    "min_legs": 2,
-    "max_body_volume_per_leg_volume": 32
+    "min_legs": 2
   },
   "values": {},
   "carriers": {

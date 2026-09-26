@@ -44,7 +44,7 @@ public final class GaugeCraftJobs extends SavedData {
 	private static final String NAME = "create_biotech_gauge_craft_jobs";
 	private final List<Job> jobs = new ArrayList<>();
 
-	public record Summary(UUID id, ItemStack output, int count, String status, int completed, int total,
+	public record Summary(UUID id, ItemStack output, int count, String status, ItemStack currentOutput, int completed, int total,
 		String address, boolean canCancel) {}
 
 	public static GaugeCraftJobs get(MinecraftServer server) {
@@ -86,7 +86,9 @@ public final class GaugeCraftJobs extends SavedData {
 			int completed = job.steps.stream().limit(job.index).mapToInt(GaugeCraftPlan.Step::crafts).sum();
 			if (job.index < job.steps.size())
 				completed += job.steps.get(job.index).crafts() - job.remaining;
-			return new Summary(job.id, job.output.copy(), job.count, status(job, server), completed, total,
+			ItemStack currentOutput = job.index < job.steps.size()
+				? job.steps.get(job.index).output().copy() : ItemStack.EMPTY;
+			return new Summary(job.id, job.output.copy(), job.count, status(job, server), currentOutput, completed, total,
 				job.address, job.owner.equals(player));
 		}).toList();
 	}

@@ -81,25 +81,25 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	AGILE_LANDING("agile_landing", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LEG_SUPPORT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	FALL_REDUCTION("fall_reduction", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LEG_SUPPORT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	POWDER_SNOW_WALK("powder_snow_walk", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LEG_SUPPORT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.FOOT)),
 	LAVA_WALK("lava_walk", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LEG_SUPPORT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.FOOT)),
 	WALL_CLIMB("wall_climb", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LEG_SUPPORT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	WING_FLIGHT("wing_flight", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.WING_LIFT,
 		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
 	SWIM_SPECIALIST("swim_specialist", Set.of(BionicTraitScope.ARM, BionicTraitScope.LEG),
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.FIN, BionicAnatomyRole.TAIL,
 			BionicAnatomyRole.TENTACLE, BionicAnatomyRole.LEG)),
 	POISON_ATTACK("poison_attack", BionicTraitScope.ARM,
@@ -159,7 +159,7 @@ public enum BionicTrait {
 
 	public String id() { return id; }
 	public String descriptionId() { return "create_biotech.trait." + id; }
-	/** These scopes select both valid installations and the full coverage denominator. */
+	/** Allowed regions; head, arm and leg coverage is evaluated separately for each installed chain. */
 	public Set<BionicTraitScope> scopes() { return scopes; }
 	public Carrier carrier() { return carrier; }
 	public BionicTraitRule rule() { return rule; }
@@ -193,5 +193,5 @@ public enum BionicTrait {
 	}
 
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET }
-	public enum Condition { NONE, LEG_SUPPORT, WING_LIFT, BREATHING_REQUIRED, RANGED_ATTACK }
+	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, RANGED_ATTACK }
 }

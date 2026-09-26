@@ -26,7 +26,7 @@ public final class SurgicalAssembly {
 	public static final int MAX_CUBES = 1024;
 	public static final int MAX_SEAMS = 4096;
 	public static final int MAX_SOURCES = 256;
-	/** One body part plus at most three heads, eight arms and eight legs. */
+	/** Geometry capacity also accommodates existing bodies with up to three heads. */
 	public static final int MAX_HITBOX_LIMBS = 19;
 	public static final double MAX_BODY_SIZE = 64.0d;
 	public static final double MIN_BODY_SIZE = 1.0d / 64.0d;
@@ -571,10 +571,18 @@ public final class SurgicalAssembly {
 	 */
 	@Nullable
 	public SurgicalLimbType mountOf(int source, int cube) {
+		Limb limb = primaryLimbOf(source, cube);
+		return limb == null ? null : limb.type();
+	}
+
+	/** The individual head, arm or leg chain owning a cube, including its elbow/knee tissue. */
+	@Nullable
+	public Limb primaryLimbOf(int source, int cube) {
 		Limb limb = limbTopology().owners.get(new CombinationMember(source, cube));
-		if (limb == null)
-			return null;
-		return limb.type().secondary() ? limb.type().matchingPrimary() : limb.type();
+		if (limb == null || limb.type().primary())
+			return limb;
+		Limb primary = limbTopology().owners.get(new CombinationMember(limb.parentSource(), limb.parentCube()));
+		return primary != null && primary.type() == limb.type().matchingPrimary() ? primary : null;
 	}
 	public boolean preservesLayout() { return preserveLayout; }
 	public Direction layoutFacing() { return layoutFacing; }

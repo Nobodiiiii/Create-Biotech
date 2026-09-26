@@ -1,6 +1,9 @@
 {
   "automatic_detection": false,
   "min_coverage": 0.5,
+  "parameters": {
+    "min_limbs": 2
+  },
   "values": {
     "minecraft:cod": true,
     "minecraft:salmon": true,

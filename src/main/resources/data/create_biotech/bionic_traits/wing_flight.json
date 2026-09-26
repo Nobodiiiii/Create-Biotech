@@ -1,6 +1,9 @@
 {
   "automatic_detection": false,
   "min_coverage": 0.5,
+  "parameters": {
+    "min_wings": 2
+  },
   "max_body_volume_per_wing_volume": 16.0,
   "values": {
     "minecraft:bee": true,

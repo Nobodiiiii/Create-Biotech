@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,6 +18,7 @@ final class BionicTissue {
 	private final List<SurgicalAssembly.Source> sources;
 	private final List<Map<BionicAnatomyRole, BitSet>> roles;
 	private final List<Map<BionicTraitScope, BitSet>> installed;
+	private final Map<SurgicalAssembly.Limb, Set<SurgicalAssembly.CombinationMember>> limbs = new HashMap<>();
 	private final BionicTraitRegistry.Snapshot data;
 
 	private BionicTissue(SurgicalAssembly assembly, BionicTraitRegistry.Snapshot data) {
@@ -29,8 +32,13 @@ final class BionicTissue {
 				bySlot.put(slot, new BitSet());
 			BitSet present = sources.get(sourceId).presentCubes();
 			bySlot.put(BionicTraitScope.WHOLE_BODY, (BitSet) present.clone());
-			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
-				bySlot.get(BionicTraitScope.mountedAt(assembly.mountOf(sourceId, cube))).set(cube);
+			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+				SurgicalAssembly.Limb limb = assembly.primaryLimbOf(sourceId, cube);
+				bySlot.get(BionicTraitScope.mountedAt(limb == null ? null : limb.type())).set(cube);
+				if (limb != null)
+					limbs.computeIfAbsent(limb, ignored -> new HashSet<>())
+						.add(new SurgicalAssembly.CombinationMember(sourceId, cube));
+			}
 			installed.add(bySlot);
 		}
 	}
@@ -48,6 +56,22 @@ final class BionicTissue {
 		for (BionicTraitScope scope : scopes)
 			cubes.or(installed.get(sourceId).get(scope));
 		return cubes;
+	}
+
+	/** Separate complete chains; a knee or elbow never adds another leg or arm. */
+	List<Set<SurgicalAssembly.CombinationMember>> limbs(Set<BionicTraitScope> scopes) {
+		return limbs.entrySet().stream()
+			.filter(entry -> scopes.contains(BionicTraitScope.mountedAt(entry.getKey().type())))
+			.map(Map.Entry::getValue).toList();
+	}
+
+	/** Count only chains represented by carriers that passed their own coverage rule. */
+	int effectiveLimbCount(Set<BionicTraitScope> scopes, Set<SurgicalAssembly.CombinationMember> carriers) {
+		int count = 0;
+		for (Set<SurgicalAssembly.CombinationMember> limb : limbs(scopes))
+			if (limb.stream().anyMatch(carriers::contains))
+				count++;
+		return count;
 	}
 
 	/** Every original cube of this source with the role, whether or not it is still present. */

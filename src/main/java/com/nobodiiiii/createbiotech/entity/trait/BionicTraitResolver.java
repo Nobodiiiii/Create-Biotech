@@ -110,6 +110,9 @@ public final class BionicTraitResolver {
 		}
 		if (members.isEmpty() && !misplaced)
 			return BionicTraitResult.ABSENT;
+		if (!trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
+			&& !trait.scopes().contains(BionicTraitScope.TORSO))
+			return evaluateLimbs(trait, data.rule(), tissue, members, misplaced);
 		double coverage = total > 0 ? contributing / total : 0;
 		BionicTraitResult result = acquisition(data.rule(), coverage, members, misplaced);
 		if (!result.active())
@@ -130,6 +133,25 @@ public final class BionicTraitResolver {
 				: new BionicTraitResult(coverage, result.strength(), 0, effects, members, null);
 		}
 		return result;
+	}
+
+	/** Limb abilities use each chain's own denominator; only qualifying chains supply carriers. */
+	private static BionicTraitResult evaluateLimbs(BionicTrait trait, BionicTraitRule rule,
+		BionicTissue tissue, Set<SurgicalAssembly.CombinationMember> members, boolean misplaced) {
+		double coverage = 0;
+		Set<SurgicalAssembly.CombinationMember> effectiveMembers = new HashSet<>();
+		for (Set<SurgicalAssembly.CombinationMember> limb : tissue.limbs(trait.scopes())) {
+			Set<SurgicalAssembly.CombinationMember> carriers = new HashSet<>(limb);
+			carriers.retainAll(members);
+			double total = tissue.weight(limb);
+			double localCoverage = total > 0 ? tissue.weight(carriers) / total : 0;
+			coverage = Math.max(coverage, localCoverage);
+			if (rule.isActive(!carriers.isEmpty(), localCoverage))
+				effectiveMembers.addAll(carriers);
+		}
+		// Retain failed carriers as diagnostic evidence when no chain qualifies. For active traits,
+		// exclude failed chains from limb counts, lift and attack effects.
+		return acquisition(rule, coverage, effectiveMembers.isEmpty() ? members : effectiveMembers, misplaced);
 	}
 
 	private static BionicTraitResult acquisition(BionicTraitRule rule, double coverage,

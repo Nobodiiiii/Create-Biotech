@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
  * matching second-level joints, so each arm and leg chain is limited independently.</p>
  */
 public enum SurgicalLimbType {
-	NECK("neck", 3, 1, 0),
+	NECK("neck", 1, 1, 0),
 	SHOULDER("shoulder", 8, 1, 0),
 	HIP("hip", 8, 1, 0),
 	// Keep new values after the original three so their network ordinals remain stable.

@@ -36,25 +36,6 @@ final class BionicTraitCarriers {
 		return cubes;
 	}
 
-	/** Optional paired-wing condition over accepted carriers; labels impose no installation rule. */
-	static boolean hasEachRole(BionicTrait.Carrier carrier, BionicTraitData data, BionicTissue tissue,
-		Set<SurgicalAssembly.CombinationMember> members) {
-		for (BionicAnatomyRole role : carrier.roles()) {
-			boolean found = false;
-			for (int sourceId = 0; sourceId < tissue.sourceCount() && !found; sourceId++) {
-				BitSet cubes = selectRoles(List.of(role), data, tissue, sourceId);
-				for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
-					if (members.contains(new SurgicalAssembly.CombinationMember(sourceId, cube))) {
-						found = true;
-						break;
-					}
-			}
-			if (!found)
-				return false;
-		}
-		return true;
-	}
-
 	static Map<BionicAnatomyRole, BitSet> rolesFor(BionicTraitRegistry.Snapshot data,
 		ResourceLocation entity, Map<Integer, Set<String>> parts, int cubeCount) {
 		EnumMap<BionicAnatomyRole, BitSet> result = new EnumMap<>(BionicAnatomyRole.class);
