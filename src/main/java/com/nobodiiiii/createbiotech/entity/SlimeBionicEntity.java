@@ -23,16 +23,9 @@ import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
 import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
-import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.Holder;
@@ -141,17 +134,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Nullable
 	private SurgicalAssembly cachedAssembly;
 	@Nullable
-	private SurgicalAssembly bodyTraitAssembly;
-	private long bodyTraitGeneration = -1L;
-	private BionicBodyTraits bodyTraits = BionicBodyTraits.EMPTY;
+	private SurgicalAssembly traitAssembly;
 	@Nullable
-	private SurgicalAssembly headTraitAssembly;
-	private long headTraitGeneration = -1L;
-	private BionicHeadTraits headTraits = BionicHeadTraits.EMPTY;
-	@Nullable
-	private SurgicalAssembly organTraitAssembly;
-	private long organTraitGeneration = -1L;
-	private BionicOrganTraits organTraits = BionicOrganTraits.EMPTY;
+	private BionicTraitResolver.Revision traitRevision;
+	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	private boolean bodyFlightEnabled;
 	private boolean organSwimEnabled;
 	private float baseWaterPathMalus = Float.NaN;
@@ -323,7 +309,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		entityData.set(ASSEMBLY, encoded);
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
-		invalidateBodyTraits();
+		invalidateTraits();
 		configureHitPartRegistration(assembly);
 		clientBoundsAssembly = null;
 		clientBodyBounds = null;
@@ -331,7 +317,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		clientBodyVolume = Double.NaN;
 		refreshMaximumHealth(assembly);
 		refreshMovementSpeed(assembly);
-		getBodyTraits();
+		getBionicTraits();
 		refreshDimensions();
 		updateHitParts();
 	}
@@ -367,7 +353,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			cachedAssemblyData = encoded;
 			SurgicalAssembly loaded = SurgicalAssembly.load(encoded);
 			cachedAssembly = loaded != null && loaded.isReadyForEntity() ? loaded : null;
-			invalidateBodyTraits();
+			invalidateTraits();
 		}
 		return cachedAssembly;
 	}
@@ -385,7 +371,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public boolean canAttack(LivingEntity target) {
 		if (!super.canAttack(target))
 			return false;
-		if (shellGuardTicks > 0 && getOrganTraits().has(BionicOrganTrait.SHELL_DEFENSE)
+		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE)
 			|| ownerId != null && ownerId.equals(target.getUUID())
 			|| trustedPlayerId != null && trustedPlayerId.equals(target.getUUID()) || orderedToSit)
 			return false;
@@ -404,58 +390,39 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return getMind().intelligence();
 	}
 
-	/** Torso and whole-body donor facts, refreshed after assembly or entity-tag reloads. */
-	public BionicBodyTraits getBodyTraits() {
+	/** One decision shared by every effect; invalidated by assembly, trait or anatomy changes. */
+	public BionicTraitSet getBionicTraits() {
+		// LivingEntity construction can call overridden methods before subclass fields initialize.
+		if (bionicTraits == null)
+			return BionicTraitSet.EMPTY;
 		SurgicalAssembly assembly = getAssembly();
-		long generation = BionicBodyTraitRegistry.generation();
-		if (assembly != bodyTraitAssembly || generation != bodyTraitGeneration) {
-			bodyTraitAssembly = assembly;
-			bodyTraitGeneration = generation;
-			bodyTraits = BionicBodyTraitRegistry.resolve(assembly, level());
-			refreshNaturalArmor(bodyTraits);
-			refreshKnockbackResistance(bodyTraits);
-			refreshBodyFlight(bodyTraits);
-			if (!bodyTraits.has(BionicBodyTrait.MOISTURE_DEPENDENT))
+		BionicTraitResolver.Revision revision = BionicTraitResolver.revision();
+		if (assembly != traitAssembly || !revision.equals(traitRevision)) {
+			traitAssembly = assembly;
+			traitRevision = revision;
+			bionicTraits = BionicTraitResolver.resolve(assembly, level());
+			// Publish the result before refreshing effects that may query this entity again.
+			refreshNaturalArmor(bionicTraits);
+			refreshKnockbackResistance(bionicTraits);
+			refreshBodyFlight(bionicTraits);
+			if (!bionicTraits.has(BionicTrait.MOISTURE_DEPENDENT))
 				moisture = -1;
-		}
-		return bodyTraits;
-	}
-
-	/** Head abilities are derived from the donor's original head, not whole-body coverage. */
-	public BionicHeadTraits getHeadTraits() {
-		SurgicalAssembly assembly = getAssembly();
-		long generation = (BionicHeadTraitRegistry.generation() * 31L
-			+ BionicBodyTraitRegistry.generation()) * 31L + BionicAnatomyRegistry.generation();
-		if (assembly != headTraitAssembly || generation != headTraitGeneration) {
-			headTraitAssembly = assembly;
-			headTraitGeneration = generation;
-			headTraits = BionicHeadTraitRegistry.resolve(assembly, level());
-			if (!headTraits.has(BionicHeadTrait.DRY_SUFFOCATION))
+			if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
 				dryAir = -1;
-			if (!level().isClientSide && !headTraits.has(BionicHeadTrait.TAMEABLE)) {
-				setBionicOwner(null);
-				setOrderedToSit(false);
+			if (!level().isClientSide) {
+				if (!bionicTraits.has(BionicTrait.TAMEABLE)) {
+					setBionicOwner(null);
+					setOrderedToSit(false);
+				}
+				if (!bionicTraits.has(BionicTrait.TRUST))
+					setTrustedPlayer(null);
 			}
-		}
-		return headTraits;
-	}
-
-	public BionicOrganTraits getOrganTraits() {
-		SurgicalAssembly assembly = getAssembly();
-		long generation = BionicOrganTraitRegistry.generation() * 31L
-			+ BionicAnatomyRegistry.generation();
-		if (assembly != organTraitAssembly || generation != organTraitGeneration) {
-			organTraitAssembly = assembly;
-			organTraitGeneration = generation;
-			organTraits = BionicOrganTraitRegistry.resolve(assembly);
-			if (!level().isClientSide && !organTraits.has(BionicOrganTrait.TRUST))
-				setTrustedPlayer(null);
 			if (Float.isNaN(baseWaterPathMalus))
 				baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
 			setPathfindingMalus(PathType.WATER,
-				baseWaterPathMalus + (organTraits.has(BionicOrganTrait.WATER_AVERSION) ? 16.0f : 0.0f));
+				baseWaterPathMalus + (bionicTraits.has(BionicTrait.WATER_AVERSION) ? 16.0f : 0.0f));
 		}
-		return organTraits;
+		return bionicTraits;
 	}
 
 	@Nullable
@@ -482,7 +449,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
 		ItemStack held = player.getItemInHand(hand);
-		if (getOrganTraits().has(BionicOrganTrait.TRUST) && isTrustOffering(held)) {
+		if (getBionicTraits().has(BionicTrait.TRUST) && isTrustOffering(held)) {
 			if (!level().isClientSide) {
 				if (!player.getAbilities().instabuild)
 					held.shrink(1);
@@ -499,7 +466,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			}
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}
-		if (!getHeadTraits().has(BionicHeadTrait.TAMEABLE))
+		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
 			return super.mobInteract(player, hand);
 		if (ownerId == null && held.is(Items.SLIME_BALL)) {
 			if (!level().isClientSide) {
@@ -528,7 +495,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		SurgicalAssembly assembly = getAssembly();
 		if (stack.isEmpty() || assembly == null)
 			return false;
-		for (SurgicalAssembly.CombinationMember member : getOrganTraits().members(BionicOrganTrait.TRUST)) {
+		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.TRUST)) {
 			EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(
 				assembly.sources().get(member.source()).profile().entityTypeId()).orElse(null);
 			if (type == EntityType.FOX && stack.is(Items.SWEET_BERRIES)
@@ -540,13 +507,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	private boolean isRecognizedFood(ItemStack stack) {
-		if (stack.isEmpty() || !getOrganTraits().has(BionicOrganTrait.FOOD_RECOGNITION))
+		if (stack.isEmpty() || !getBionicTraits().has(BionicTrait.FOOD_RECOGNITION))
 			return false;
 		SurgicalAssembly assembly = getAssembly();
 		if (assembly == null)
 			return false;
 		java.util.Set<Integer> visitedSources = new java.util.HashSet<>();
-		for (SurgicalAssembly.CombinationMember member : getOrganTraits().members(BionicOrganTrait.FOOD_RECOGNITION)) {
+		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.FOOD_RECOGNITION)) {
 			if (!visitedSources.add(member.source()))
 				continue;
 			LivingEntity donor = assembly.sources().get(member.source()).profile().createBiologicalEntity(level());
@@ -556,36 +523,29 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return false;
 	}
 
-	private void invalidateBodyTraits() {
-		bodyTraitAssembly = null;
-		bodyTraitGeneration = -1L;
-		bodyTraits = BionicBodyTraits.EMPTY;
-		headTraitAssembly = null;
-		headTraitGeneration = -1L;
-		headTraits = BionicHeadTraits.EMPTY;
-		organTraitAssembly = null;
-		organTraitGeneration = -1L;
-		organTraits = BionicOrganTraits.EMPTY;
+	private void invalidateTraits() {
+		traitAssembly = null;
+		traitRevision = null;
+		bionicTraits = BionicTraitSet.EMPTY;
 	}
 
-	private void refreshNaturalArmor(BionicBodyTraits traits) {
+	private void refreshNaturalArmor(BionicTraitSet traits) {
 		var armor = getAttribute(Attributes.ARMOR);
-		if (armor != null && armor.getBaseValue() != traits.naturalArmor())
-			armor.setBaseValue(traits.naturalArmor());
+		if (armor != null && armor.getBaseValue() != traits.value(BionicTrait.NATURAL_ARMOR))
+			armor.setBaseValue(traits.value(BionicTrait.NATURAL_ARMOR));
 	}
 
-	private void refreshKnockbackResistance(BionicBodyTraits traits) {
+	private void refreshKnockbackResistance(BionicTraitSet traits) {
 		var resistance = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-		double value = Mth.clamp(BASE_KNOCKBACK_RESISTANCE + traits.knockbackResistance(), 0.0d, 1.0d);
+		double value = Mth.clamp(BASE_KNOCKBACK_RESISTANCE + traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
 		if (resistance != null && resistance.getBaseValue() != value)
 			resistance.setBaseValue(value);
 	}
 
-	private void refreshBodyFlight(BionicBodyTraits traits) {
-		BionicOrganTraits organs = getOrganTraits();
-		boolean enabled = traits.has(BionicBodyTrait.WINGLESS_FLIGHT)
-			|| organs.has(BionicOrganTrait.WING_FLIGHT);
-		boolean swimming = !enabled && organs.has(BionicOrganTrait.SWIM_SPECIALIST);
+	private void refreshBodyFlight(BionicTraitSet traits) {
+		boolean enabled = traits.has(BionicTrait.WINGLESS_FLIGHT)
+			|| traits.has(BionicTrait.WING_FLIGHT);
+		boolean swimming = !enabled && traits.has(BionicTrait.SWIM_SPECIALIST);
 		if (bodyFlightEnabled == enabled && organSwimEnabled == swimming)
 			return;
 		bodyFlightEnabled = enabled;
@@ -613,35 +573,35 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public boolean fireImmune() {
-		return getBodyTraits().hasFullEffect(BionicBodyTrait.FIRE_IMMUNE) || super.fireImmune();
+		return getBionicTraits().hasFullEffect(BionicTrait.FIRE_IMMUNE) || super.fireImmune();
 	}
 
 	@Override
 	public boolean isSensitiveToWater() {
-		return getBodyTraits().hasFullEffect(BionicBodyTrait.WATER_SENSITIVE);
+		return getBionicTraits().hasFullEffect(BionicTrait.WATER_SENSITIVE);
 	}
 
 	@Override
 	public boolean canFreeze() {
-		return !getBodyTraits().hasFullEffect(BionicBodyTrait.FREEZE_IMMUNE) && super.canFreeze();
+		return !getBionicTraits().hasFullEffect(BionicTrait.FREEZE_IMMUNE) && super.canFreeze();
 	}
 
 	@Override
 	public boolean isInvertedHealAndHarm() {
-		return getBodyTraits().has(BionicBodyTrait.INVERTED_HEALING);
+		return getBionicTraits().has(BionicTrait.INVERTED_HEALING);
 	}
 
 	@Override
 	public boolean canDrownInFluidType(FluidType type) {
 		return !(type == NeoForgeMod.WATER_TYPE.value()
-			&& getHeadTraits().has(BionicHeadTrait.WATER_BREATHING))
-			&& !getBodyTraits().has(BionicBodyTrait.NO_BREATHING)
+			&& getBionicTraits().has(BionicTrait.WATER_BREATHING))
+			&& !getBionicTraits().has(BionicTrait.NO_BREATHING)
 			&& super.canDrownInFluidType(type);
 	}
 
 	@Override
 	public int getMaxAirSupply() {
-		return headTraits == null ? 300 : getHeadTraits().maxAirSupply();
+		return bionicTraits == null ? 300 : getBionicTraits().maxAirSupply();
 	}
 
 	@Override
@@ -649,24 +609,24 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public boolean canBeAffected(MobEffectInstance effect) {
 		ResourceLocation effectId = effect.getEffect().unwrapKey()
 			.map(key -> key.location()).orElse(null);
-		return !getBodyTraits().isImmuneTo(effectId) && super.canBeAffected(effect);
+		return !getBionicTraits().isImmuneTo(effectId) && super.canBeAffected(effect);
 	}
 
 	@Override
 	public boolean causeFallDamage(float fallDistance, float multiplier,
 		net.minecraft.world.damagesource.DamageSource source) {
-		BionicBodyTraits traits = getBodyTraits();
-		if (traits.has(BionicBodyTrait.FALL_DAMAGE_IMMUNE)
-			|| traits.has(BionicBodyTrait.WINGLESS_FLIGHT)
-			|| getOrganTraits().has(BionicOrganTrait.AGILE_LANDING)
+		BionicTraitSet traits = getBionicTraits();
+		if (traits.has(BionicTrait.FALL_DAMAGE_IMMUNE)
+			|| traits.has(BionicTrait.WINGLESS_FLIGHT)
+			|| traits.has(BionicTrait.AGILE_LANDING)
 			|| bodyFlightEnabled)
 			return false;
-		if (getOrganTraits().has(BionicOrganTrait.FALL_REDUCTION)) {
+		if (traits.has(BionicTrait.FALL_REDUCTION)) {
 			fallDistance = Math.max(0.0f, fallDistance - (float)
-				BionicOrganTraitRegistry.parameter(BionicOrganTrait.FALL_REDUCTION,
+				traits.parameter(BionicTrait.FALL_REDUCTION,
 					"safe_fall_distance", 3.0d));
-			multiplier *= (float) BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.FALL_REDUCTION, "damage_multiplier", 0.5d);
+			multiplier *= (float) traits.parameter(
+				BionicTrait.FALL_REDUCTION, "damage_multiplier", 0.5d);
 		}
 		return super.causeFallDamage(fallDistance, multiplier, source);
 	}
@@ -674,30 +634,30 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	protected int calculateFallDamage(float fallDistance, float multiplier) {
 		int damage = super.calculateFallDamage(fallDistance, multiplier);
-		if (getOrganTraits().has(BionicOrganTrait.FALL_REDUCTION))
-			damage -= (int) BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.FALL_REDUCTION, "flat_reduction", 0.0d);
+		if (getBionicTraits().has(BionicTrait.FALL_REDUCTION))
+			damage -= (int) getBionicTraits().parameter(
+				BionicTrait.FALL_REDUCTION, "flat_reduction", 0.0d);
 		return Math.max(0, damage);
 	}
 
 	@Override
 	public boolean canStandOnFluid(FluidState state) {
 		return state.is(FluidTags.LAVA)
-			&& getOrganTraits().has(BionicOrganTrait.LAVA_WALK)
+			&& getBionicTraits().has(BionicTrait.LAVA_WALK)
 			|| super.canStandOnFluid(state);
 	}
 
 	@Override
 	public boolean onClimbable() {
-		return horizontalCollision && getOrganTraits().has(BionicOrganTrait.WALL_CLIMB)
+		return horizontalCollision && getBionicTraits().has(BionicTrait.WALL_CLIMB)
 			|| super.onClimbable();
 	}
 
 	@Override
 	public void travel(Vec3 movement) {
-		if (isInWater() && getOrganTraits().has(BionicOrganTrait.SWIM_SPECIALIST))
+		if (isInWater() && getBionicTraits().has(BionicTrait.SWIM_SPECIALIST))
 			movement = movement.scale(1.35d);
-		if (shellGuardTicks > 0 && getOrganTraits().has(BionicOrganTrait.SHELL_DEFENSE))
+		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
 			movement = movement.scale(0.25d);
 		super.travel(movement);
 	}
@@ -705,52 +665,51 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void makeStuckInBlock(BlockState state, Vec3 motionMultiplier) {
 		if (state.is(Blocks.COBWEB)
-			&& getBodyTraits().has(BionicBodyTrait.WEB_ADAPTED))
+			&& getBionicTraits().has(BionicTrait.WEB_ADAPTED))
 			return;
 		super.makeStuckInBlock(state, motionMultiplier);
 	}
 
 	@Override
 	public boolean hurt(net.minecraft.world.damagesource.DamageSource source, float amount) {
-		BionicBodyTraits traits = getBodyTraits();
-		BionicOrganTraits organs = getOrganTraits();
-		if (shellGuardTicks > 0 && organs.has(BionicOrganTrait.SHELL_DEFENSE)
+		BionicTraitSet traits = getBionicTraits();
+		if (shellGuardTicks > 0 && traits.has(BionicTrait.SHELL_DEFENSE)
 			&& !source.is(DamageTypeTags.BYPASSES_ARMOR))
-			amount *= (float) BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.SHELL_DEFENSE, "damage_multiplier", 0.5d);
+			amount *= (float) traits.parameter(
+				BionicTrait.SHELL_DEFENSE, "damage_multiplier", 0.5d);
 		if (source.is(DamageTypeTags.IS_FIRE)) {
-			double resistance = traits.strength(BionicBodyTrait.FIRE_IMMUNE);
-			if (traits.hasFullEffect(BionicBodyTrait.FIRE_IMMUNE))
+			double resistance = traits.strength(BionicTrait.FIRE_IMMUNE);
+			if (traits.hasFullEffect(BionicTrait.FIRE_IMMUNE))
 				return false;
 			amount *= (float) (1.0d - resistance);
 		}
 		if (source.is(DamageTypeTags.IS_FREEZING)) {
-			double immunity = traits.strength(BionicBodyTrait.FREEZE_IMMUNE);
-			if (traits.hasFullEffect(BionicBodyTrait.FREEZE_IMMUNE))
+			double immunity = traits.strength(BionicTrait.FREEZE_IMMUNE);
+			if (traits.hasFullEffect(BionicTrait.FREEZE_IMMUNE))
 				return false;
 			amount *= (float) ((1.0d - immunity)
-				* (1.0d + 4.0d * traits.strength(BionicBodyTrait.FREEZE_VULNERABLE)));
+				* (1.0d + 4.0d * traits.strength(BionicTrait.FREEZE_VULNERABLE)));
 		}
 		boolean hurt = super.hurt(source, amount);
-		if (hurt && organs.has(BionicOrganTrait.SHELL_DEFENSE))
-			shellGuardTicks = (int) BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.SHELL_DEFENSE, "duration_ticks", 80.0d);
-		double retaliation = traits.strength(BionicBodyTrait.CONTACT_RETALIATION);
+		if (hurt && traits.has(BionicTrait.SHELL_DEFENSE))
+			shellGuardTicks = (int) traits.parameter(
+				BionicTrait.SHELL_DEFENSE, "duration_ticks", 80.0d);
+		double retaliation = traits.strength(BionicTrait.CONTACT_RETALIATION);
 		if (hurt && retaliation > 0.0d && !level().isClientSide
 			&& !source.is(DamageTypeTags.AVOIDS_GUARDIAN_THORNS)
 			&& !source.is(DamageTypes.THORNS)
 			&& source.getDirectEntity() instanceof LivingEntity attacker
 			&& attacker != this)
 			attacker.hurt(damageSources().thorns(this), (float) (2.0d * retaliation));
-		if (hurt && organs.has(BionicOrganTrait.ACTIVE_SPINES))
-			activeSpinesTicks = (int) BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.ACTIVE_SPINES, "duration_ticks", 100.0d);
+		if (hurt && traits.has(BionicTrait.ACTIVE_SPINES))
+			activeSpinesTicks = (int) traits.parameter(
+				BionicTrait.ACTIVE_SPINES, "duration_ticks", 100.0d);
 		return hurt;
 	}
 
 	@Override
 	public ProjectileDeflection deflection(Projectile projectile) {
-		if (getBodyTraits().has(BionicBodyTrait.PROJECTILE_DEFLECTION)
+		if (getBionicTraits().has(BionicTrait.PROJECTILE_DEFLECTION)
 			&& projectile.getType() != EntityType.BREEZE_WIND_CHARGE
 			&& projectile.getType() != EntityType.WIND_CHARGE)
 			return ProjectileDeflection.REVERSE;
@@ -760,7 +719,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void jumpFromGround() {
 		super.jumpFromGround();
-		double bounce = getBodyTraits().strength(BionicBodyTrait.BODY_BOUNCE);
+		double bounce = getBionicTraits().strength(BionicTrait.BODY_BOUNCE);
 		if (bounce > 0.0d)
 			setDeltaMovement(getDeltaMovement().add(0.0d, 0.1d * bounce, 0.0d));
 	}
@@ -861,7 +820,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void aiStep() {
 		super.aiStep();
-		double slowFall = getBodyTraits().strength(BionicBodyTrait.BODY_SLOW_FALL);
+		double slowFall = getBionicTraits().strength(BionicTrait.BODY_SLOW_FALL);
 		if (!onGround() && getDeltaMovement().y < 0.0d && slowFall > 0.0d) {
 			double verticalMultiplier = Mth.lerp(slowFall, 1.0d, 0.6d);
 			setDeltaMovement(getDeltaMovement().multiply(1.0d, verticalMultiplier, 1.0d));
@@ -1012,20 +971,20 @@ public class SlimeBionicEntity extends PathfinderMob {
 			activeSpinesTicks--;
 		if (!level().isClientSide) {
 			boolean guarding = shellGuardTicks > 0
-				&& getOrganTraits().has(BionicOrganTrait.SHELL_DEFENSE);
+				&& getBionicTraits().has(BionicTrait.SHELL_DEFENSE);
 			setShiftKeyDown(guarding);
 			if (guarding)
 				getNavigation().stop();
-			if (tickCount % 10 == 0 && getOrganTraits().has(BionicOrganTrait.ACTIVE_SPINES)
+			if (tickCount % 10 == 0 && getBionicTraits().has(BionicTrait.ACTIVE_SPINES)
 				&& !level().getEntitiesOfClass(LivingEntity.class, getBoundingBox().inflate(1.0d),
 					entity -> entity != this && entity.isAlive() && !isAlliedTo(entity)).isEmpty())
-				activeSpinesTicks = (int) BionicOrganTraitRegistry.parameter(
-					BionicOrganTrait.ACTIVE_SPINES, "duration_ticks", 100.0d);
+				activeSpinesTicks = (int) getBionicTraits().parameter(
+					BionicTrait.ACTIVE_SPINES, "duration_ticks", 100.0d);
 			if (activeSpinesTicks > 0 && tickCount % 20 == 0)
 				tickActiveSpines();
 		}
 		if (!level().isClientSide)
-			refreshBodyFlight(getBodyTraits());
+			refreshBodyFlight(getBionicTraits());
 		updateOwnerTarget();
 		if (!level().isClientSide && tickCount % 10 == 0) {
 			tickVibrationSense();
@@ -1038,7 +997,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	private void updateOwnerTarget() {
 		if (level().isClientSide || ownerId == null || orderedToSit
-			|| !getHeadTraits().has(BionicHeadTrait.TAMEABLE))
+			|| !getBionicTraits().has(BionicTrait.TAMEABLE))
 			return;
 		Player owner = getBionicOwner();
 		if (owner == null)
@@ -1062,10 +1021,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	private void tickVibrationSense() {
 		if (getTarget() != null || getDisposition() != BionicDisposition.HOSTILE
-			|| !getOrganTraits().has(BionicOrganTrait.VIBRATION_SENSE))
+			|| !getBionicTraits().has(BionicTrait.VIBRATION_SENSE))
 			return;
 		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null || getOrganTraits().members(BionicOrganTrait.VIBRATION_SENSE).stream()
+		if (assembly == null || getBionicTraits().members(BionicTrait.VIBRATION_SENSE).stream()
 			.noneMatch(member -> assembly.sources().get(member.source()).profile()
 				.entityTypeId().equals(ResourceLocation.withDefaultNamespace("warden"))))
 			return;
@@ -1086,14 +1045,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	private void tickDeterrence() {
-		if (!getOrganTraits().has(BionicOrganTrait.DETERRENCE))
+		if (!getBionicTraits().has(BionicTrait.DETERRENCE))
 			return;
 		SurgicalAssembly assembly = getAssembly();
 		if (assembly == null)
 			return;
 		boolean cat = false;
 		boolean wolf = false;
-		for (SurgicalAssembly.CombinationMember member : getOrganTraits().members(BionicOrganTrait.DETERRENCE)) {
+		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.DETERRENCE)) {
 			EntityType<?> donor = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(
 				assembly.sources().get(member.source()).profile().entityTypeId()).orElse(null);
 			cat |= donor == EntityType.CAT || donor == EntityType.OCELOT;
@@ -1117,14 +1076,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	private void tickActiveSpines() {
-		if (!getOrganTraits().has(BionicOrganTrait.ACTIVE_SPINES))
+		if (!getBionicTraits().has(BionicTrait.ACTIVE_SPINES))
 			return;
 		for (LivingEntity touched : level().getEntitiesOfClass(LivingEntity.class,
 			getBoundingBox().inflate(0.2d), entity -> entity != this && entity.isAlive()
 				&& !isAlliedTo(entity))) {
 			if (touched.hurt(damageSources().thorns(this), 1.0f))
 				touched.addEffect(new MobEffectInstance(MobEffects.POISON,
-					(int) BionicOrganTraitRegistry.parameter(BionicOrganTrait.ACTIVE_SPINES,
+					(int) getBionicTraits().parameter(BionicTrait.ACTIVE_SPINES,
 						"poison_duration_ticks", 60.0d)), this);
 		}
 	}
@@ -1132,7 +1091,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private void tickHeadRespiration() {
 		if (level().isClientSide || !isAlive())
 			return;
-		if (!getHeadTraits().has(BionicHeadTrait.DRY_SUFFOCATION)) {
+		if (!getBionicTraits().has(BionicTrait.DRY_SUFFOCATION)) {
 			dryAir = -1;
 			return;
 		}
@@ -1151,15 +1110,15 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private void tickBodyEnvironment() {
 		if (level().isClientSide || !isAlive())
 			return;
-		BionicBodyTraits traits = getBodyTraits();
-		if (tickCount % 20 == 0 && traits.passiveRegeneration() > 0.0d
+		BionicTraitSet traits = getBionicTraits();
+		if (tickCount % 20 == 0 && traits.value(BionicTrait.PASSIVE_REGENERATION) > 0.0d
 			&& getHealth() < getMaxHealth())
-			heal((float) traits.passiveRegeneration());
-		double waterSensitivity = traits.strength(BionicBodyTrait.WATER_SENSITIVE);
-		if (waterSensitivity > 0.0d && !traits.hasFullEffect(BionicBodyTrait.WATER_SENSITIVE)
+			heal((float) traits.value(BionicTrait.PASSIVE_REGENERATION));
+		double waterSensitivity = traits.strength(BionicTrait.WATER_SENSITIVE);
+		if (waterSensitivity > 0.0d && !traits.hasFullEffect(BionicTrait.WATER_SENSITIVE)
 			&& isInWaterRainOrBubble())
 			hurt(damageSources().drown(), (float) waterSensitivity);
-		double sunSensitivity = traits.strength(BionicBodyTrait.SUN_SENSITIVE);
+		double sunSensitivity = traits.strength(BionicTrait.SUN_SENSITIVE);
 		if (sunSensitivity > 0.0d && random.nextDouble() < sunSensitivity && isSunBurnTick()) {
 			boolean burns = true;
 			ItemStack headwear = getItemBySlot(EquipmentSlot.HEAD);
@@ -1178,12 +1137,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 				igniteForSeconds(8.0f);
 		}
 
-		double heatSensitivity = traits.strength(BionicBodyTrait.HEAT_SENSITIVE);
+		double heatSensitivity = traits.strength(BionicTrait.HEAT_SENSITIVE);
 		if (heatSensitivity > 0.0d
 			&& level().getBiome(blockPosition()).is(BiomeTags.SNOW_GOLEM_MELTS))
 			hurt(damageSources().onFire(), (float) heatSensitivity);
 
-		double moistureDependence = traits.strength(BionicBodyTrait.MOISTURE_DEPENDENT);
+		double moistureDependence = traits.strength(BionicTrait.MOISTURE_DEPENDENT);
 		if (moistureDependence <= 0.0d) {
 			moisture = -1;
 			return;
@@ -1324,21 +1283,21 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return hit;
 		List<SurgicalAssembly.CombinationMember> attackingGroup =
 			assembly.rotatingGroup(arm.sourceId(), arm.cubeId());
-		BionicOrganTraits traits = getOrganTraits();
-		if (attackingGroup.stream().anyMatch(traits.members(BionicOrganTrait.POISON_ATTACK)::contains)
-			&& random.nextDouble() < BionicOrganTraitRegistry.parameter(
-				BionicOrganTrait.POISON_ATTACK, "chance", 1.0d))
+		BionicTraitSet traits = getBionicTraits();
+		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.POISON_ATTACK)::contains)
+			&& random.nextDouble() < traits.parameter(
+				BionicTrait.POISON_ATTACK, "chance", 1.0d))
 			victim.addEffect(new MobEffectInstance(MobEffects.POISON,
-				(int) BionicOrganTraitRegistry.parameter(BionicOrganTrait.POISON_ATTACK,
+				(int) traits.parameter(BionicTrait.POISON_ATTACK,
 					"duration_ticks", 100.0d), 0), this);
-		if (attackingGroup.stream().anyMatch(traits.members(BionicOrganTrait.WITHER_ATTACK)::contains))
+		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.WITHER_ATTACK)::contains))
 			victim.addEffect(new MobEffectInstance(MobEffects.WITHER,
-				(int) BionicOrganTraitRegistry.parameter(BionicOrganTrait.WITHER_ATTACK,
+				(int) traits.parameter(BionicTrait.WITHER_ATTACK,
 					"duration_ticks", 200.0d), 0), this);
 		if (!attackActionWeapon
-			&& attackingGroup.stream().anyMatch(traits.members(BionicOrganTrait.HUNGER_ATTACK)::contains))
+			&& attackingGroup.stream().anyMatch(traits.members(BionicTrait.HUNGER_ATTACK)::contains))
 			victim.addEffect(new MobEffectInstance(MobEffects.HUNGER,
-				(int) BionicOrganTraitRegistry.parameter(BionicOrganTrait.HUNGER_ATTACK,
+				(int) traits.parameter(BionicTrait.HUNGER_ATTACK,
 					"duration_ticks", 140.0d), 0), this);
 		return hit;
 	}
@@ -1527,7 +1486,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (SITTING_DATA.equals(key))
 			orderedToSit = entityData.get(SITTING_DATA);
 		if (ASSEMBLY.equals(key)) {
-			invalidateBodyTraits();
+			invalidateTraits();
 			clientBoundsAssembly = null;
 			clientBodyBounds = null;
 			clientHitboxGeometry = null;
@@ -1581,11 +1540,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		shellGuardTicks = Mth.clamp(tag.getInt(SHELL_GUARD_TAG), 0, 12000);
 		activeSpinesTicks = Mth.clamp(tag.getInt(ACTIVE_SPINES_TAG), 0, 12000);
 		setOrderedToSit(tag.getBoolean(ORDERED_TO_SIT_TAG));
-		if (!getHeadTraits().has(BionicHeadTrait.TAMEABLE)) {
+		if (!getBionicTraits().has(BionicTrait.TAMEABLE)) {
 			setBionicOwner(null);
 			setOrderedToSit(false);
 		}
-		if (!getOrganTraits().has(BionicOrganTrait.TRUST))
+		if (!getBionicTraits().has(BionicTrait.TRUST))
 			setTrustedPlayer(null);
 	}
 
@@ -1598,7 +1557,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 
 		@Override public boolean canUse() {
-			return bionic.orderedToSit && bionic.getHeadTraits().has(BionicHeadTrait.TAMEABLE)
+			return bionic.orderedToSit && bionic.getBionicTraits().has(BionicTrait.TAMEABLE)
 				&& bionic.onGround() && !bionic.isInWaterOrBubble();
 		}
 		@Override public boolean canContinueToUse() { return canUse(); }
@@ -1646,8 +1605,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 		@Override public boolean canContinueToUse() {
 			return owner != null && owner.isAlive() && !bionic.orderedToSit
-				&& (bionic.ownerId != null && bionic.getHeadTraits().has(BionicHeadTrait.TAMEABLE)
-					|| bionic.trustedPlayerId != null && bionic.getOrganTraits().has(BionicOrganTrait.TRUST))
+				&& (bionic.ownerId != null && bionic.getBionicTraits().has(BionicTrait.TAMEABLE)
+					|| bionic.trustedPlayerId != null && bionic.getBionicTraits().has(BionicTrait.TRUST))
 				&& bionic.distanceToSqr(owner) > 9.0d;
 		}
 		@Override public void stop() { owner = null; bionic.getNavigation().stop(); }

@@ -223,7 +223,7 @@ NeoForge 1.21.1 的 **Data Maps** 适合把可重载配置关联到 `EntityType`
 - `content/surgery/client/SurgicalCapturedRenderPlan.java`：通过模型及 Create 帽子定位数据识别头部体块。
 - `entity/ai/BionicDispositionRegistry.java`：通用接口探测、缓存、数据覆盖的既有范例。
 - `entity/ai/BionicHeadDataReloadListeners.java`、`BionicMind.java`：数据重载与多头性情/智力汇总。
-- `entity/trait/BionicBodyTraitRegistry.java`、`BionicBodyTraitDataReloadListener.java`：泛部件特性的自动探测、逐项数据覆盖、缓存失效与混合组织汇总。
+- `entity/trait/BionicTraitDonors.java`、`BionicTraitDataLoader.java`、`BionicTraitRegistry.java`、`BionicTraitResolver.java`：分别负责供体探测、统一数据加载、版本管理与装配汇总，现状见[特性总表](bionic-traits-reference.zh-CN.md)。
 
 推荐增量顺序：
 

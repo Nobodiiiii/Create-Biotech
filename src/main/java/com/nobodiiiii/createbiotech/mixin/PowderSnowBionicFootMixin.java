@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.PowderSnowBlock;
@@ -18,7 +18,7 @@ public abstract class PowderSnowBionicFootMixin {
 	private static void createBiotech$walkOnPowderSnow(Entity entity,
 		CallbackInfoReturnable<Boolean> callback) {
 		if (entity instanceof SlimeBionicEntity bionic
-			&& bionic.getOrganTraits().has(BionicOrganTrait.POWDER_SNOW_WALK))
+			&& bionic.getBionicTraits().has(BionicTrait.POWDER_SNOW_WALK))
 			callback.setReturnValue(true);
 	}
 }

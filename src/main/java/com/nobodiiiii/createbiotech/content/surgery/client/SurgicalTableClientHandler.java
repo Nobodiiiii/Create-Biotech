@@ -57,8 +57,8 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -3540,16 +3540,9 @@ public final class SurgicalTableClientHandler {
 			preview = preview.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume());
 		BionicMind mind = BionicMind.resolve(preview, level);
-		BionicBodyTraits traits = BionicBodyTraitRegistry.resolve(preview, level);
+		BionicTraitSet traits = BionicTraitResolver.resolve(preview, level);
 		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip,
-			mind.hasRecognizedHead() ? mind.disposition() : null, traits,
-			com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry.resolve(preview, level),
-			com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry.resolve(preview));
-		CapturedEntityBoxStatsTooltip.appendInactiveHeadReasons(tooltip,
-			com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry.inactiveReasons(
-				preview, level));
-		CapturedEntityBoxStatsTooltip.appendInactiveOrganReasons(tooltip,
-			com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry.inactiveReasons(preview));
+			mind.hasRecognizedHead() ? mind.disposition() : null, traits);
 	}
 
 	@Nullable

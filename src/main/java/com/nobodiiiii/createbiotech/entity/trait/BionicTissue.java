@@ -3,65 +3,58 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.IntFunction;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 
-/**
- * Per-cube tissue weights, original anatomical roles and installed places of one assembly. Every
- * trait rule measures coverage over it: whole-body traits over every retained cube, torso traits
- * over the body slot, and head and organ traits over one region. Organ regions additionally require
- * each role to be installed in that role's place.
- */
+/** Captured volumes, donor labels and actual installation scopes for one assembly evaluation. */
 final class BionicTissue {
 	private final List<SurgicalAssembly.Source> sources;
 	private final List<Map<BionicAnatomyRole, BitSet>> roles;
-	private final List<Map<BionicTraitSlot, BitSet>> installed;
+	private final List<Map<BionicTraitScope, BitSet>> installed;
+	private final BionicTraitRegistry.Snapshot data;
 
-	private BionicTissue(SurgicalAssembly assembly) {
+	private BionicTissue(SurgicalAssembly assembly, BionicTraitRegistry.Snapshot data) {
+		this.data = data;
 		sources = assembly.sources();
 		roles = new ArrayList<>(Collections.nCopies(sources.size(), null));
 		installed = new ArrayList<>(sources.size());
 		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
-			java.util.EnumMap<BionicTraitSlot, BitSet> bySlot = new java.util.EnumMap<>(BionicTraitSlot.class);
-			for (BionicTraitSlot slot : BionicTraitSlot.values())
+			java.util.EnumMap<BionicTraitScope, BitSet> bySlot = new java.util.EnumMap<>(BionicTraitScope.class);
+			for (BionicTraitScope slot : BionicTraitScope.values())
 				bySlot.put(slot, new BitSet());
 			BitSet present = sources.get(sourceId).presentCubes();
+			bySlot.put(BionicTraitScope.WHOLE_BODY, (BitSet) present.clone());
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
-				bySlot.get(BionicTraitSlot.mountedAt(assembly.mountOf(sourceId, cube))).set(cube);
+				bySlot.get(BionicTraitScope.mountedAt(assembly.mountOf(sourceId, cube))).set(cube);
 			installed.add(bySlot);
 		}
 	}
 
-	static BionicTissue of(SurgicalAssembly assembly) {
-		return new BionicTissue(assembly);
+	static BionicTissue of(SurgicalAssembly assembly, BionicTraitRegistry.Snapshot data) {
+		return new BionicTissue(assembly, data);
 	}
 
 	int sourceCount() { return sources.size(); }
 	SurgicalAssembly.Source source(int sourceId) { return sources.get(sourceId); }
 
-	/** Present cubes of this source installed in the place. */
-	BitSet installed(int sourceId, BionicTraitSlot slot) {
-		return (BitSet) installed.get(sourceId).get(slot).clone();
-	}
-
-	/** The same scope selection weights both contributing donor tissue and all denominator tissue. */
-	double weight(int sourceId, BionicBodyTraitScope scope) {
-		return weight(sourceId, scope.selectCubes(sources.get(sourceId).presentCubes(),
-			installed.get(sourceId).get(BionicTraitSlot.BODY)));
+	/** Union of real installation scopes, including ordinary tissue with no carrier label. */
+	BitSet selected(int sourceId, Set<BionicTraitScope> scopes) {
+		BitSet cubes = new BitSet();
+		for (BionicTraitScope scope : scopes)
+			cubes.or(installed.get(sourceId).get(scope));
+		return cubes;
 	}
 
 	/** Every original cube of this source with the role, whether or not it is still present. */
 	BitSet roleCubes(int sourceId, BionicAnatomyRole role) {
 		Map<BionicAnatomyRole, BitSet> known = roles.get(sourceId);
 		if (known == null) {
-			known = BionicAnatomyRegistry.roles(sources.get(sourceId));
+			known = BionicAnatomyRegistry.roles(sources.get(sourceId), data);
 			roles.set(sourceId, known);
 		}
 		BitSet cubes = known.get(role);
@@ -70,7 +63,7 @@ final class BionicTissue {
 
 	/**
 	 * A trait's own JSON carriers when it declares this species and role, else every cube with the
-	 * role. The captured head is always head tissue, even when a declared part name does not match.
+	 * role. The donor's captured head always matches the HEAD label, regardless of installation.
 	 */
 	BitSet carriers(int sourceId, BionicAnatomyRole role, @Nullable BitSet named) {
 		BitSet cubes = named != null ? (BitSet) named.clone() : roleCubes(sourceId, role);
@@ -105,57 +98,4 @@ final class BionicTissue {
 		return weight;
 	}
 
-	/**
-	 * Weighted share of one region. Its denominator is every present cube with any requested role
-	 * installed in that role's place, independently of whether that cube's donor has the trait; its
-	 * numerator is the trait carriers within that fixed region. Which donor a cube came from and
-	 * whether it is connected do not matter.
-	 */
-	Share share(BionicAnatomyRole[] region, IntFunction<BitSet> carriersBySource) {
-		double regionWeight = 0.0d;
-		double carrierWeight = 0.0d;
-		boolean misplaced = false;
-		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
-		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
-			BitSet present = sources.get(sourceId).presentCubes();
-			BitSet regionCubes = new BitSet();
-			BitSet anywhere = new BitSet();
-			for (BionicAnatomyRole role : region) {
-				BitSet cubes = roleCubes(sourceId, role);
-				anywhere.or(cubes);
-				cubes.and(installed.get(sourceId).get(BionicTraitSlot.of(role)));
-				regionCubes.or(cubes);
-			}
-			regionCubes.and(present);
-			anywhere.and(present);
-			BitSet carriers = carriersBySource.apply(sourceId);
-			BitSet carried = (BitSet) carriers.clone();
-			carried.and(regionCubes);
-			BitSet stray = (BitSet) carriers.clone();
-			stray.and(anywhere);
-			stray.andNot(regionCubes);
-			misplaced |= !stray.isEmpty();
-			regionWeight += weight(sourceId, regionCubes);
-			carrierWeight += weight(sourceId, carried);
-			for (int cube = carried.nextSetBit(0); cube >= 0; cube = carried.nextSetBit(cube + 1))
-				members.add(new SurgicalAssembly.CombinationMember(sourceId, cube));
-		}
-		return new Share(regionWeight > 0.0d ? carrierWeight / regionWeight : 0.0d, carrierWeight,
-			members, misplaced);
-	}
-
-	/**
-	 * Coverage of one region, and the volume and exact present cubes carrying the trait there.
-	 * {@code misplaced} reports carriers that are present but installed outside their place.
-	 */
-	record Share(double coverage, double carrierVolume,
-		Set<SurgicalAssembly.CombinationMember> members, boolean misplaced) {
-		Share {
-			members = Set.copyOf(members);
-		}
-
-		boolean satisfies(BionicTraitRule rule) {
-			return rule.isActive(!members.isEmpty(), coverage);
-		}
-	}
 }

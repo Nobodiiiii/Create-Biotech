@@ -15,12 +15,9 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovement
 import com.nobodiiiii.createbiotech.data.CBDataGenerators;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataReloadListeners;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitDataReloadListener;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicTraitCarrierRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDataLoader;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBArmInteractionPointTypes;
 import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
@@ -95,9 +92,7 @@ public class CreateBiotech {
 		modEventBus.addListener(CreateBiotech::onCommonSetup);
 		modEventBus.addListener(CreateBiotech::onRegister);
 		CBPackets.register();
-		BionicBodyTraitRegistry.register();
-		BionicHeadTraitRegistry.register();
-		BionicOrganTraitRegistry.register();
+		BionicTraitRegistry.register();
 		registerAllayEvents();
 		NeoForge.EVENT_BUS.addListener(CreateBiotech::registerReloadListeners);
 		FrogStomachSlimeSpawning.register();
@@ -107,12 +102,8 @@ public class CreateBiotech {
 	private static void registerReloadListeners(AddReloadListenerEvent event) {
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
-		event.addListener(BionicBodyTraitDataReloadListener.INSTANCE);
-		event.addListener(BionicHeadTraitRegistry.INSTANCE);
-		event.addListener(BionicTraitCarrierRegistry.HEAD);
+		BionicTraitDataLoader.LISTENERS.forEach(event::addListener);
 		event.addListener(BionicAnatomyRegistry.INSTANCE);
-		event.addListener(BionicOrganTraitRegistry.INSTANCE);
-		event.addListener(BionicTraitCarrierRegistry.ORGAN);
 		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}
 

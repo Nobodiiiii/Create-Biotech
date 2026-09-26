@@ -33,7 +33,7 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 
 	private BionicAnatomyRegistry() { super(new Gson(), "bionic_anatomy"); }
 	public static long generation() {
-		return GENERATION.get() * 31L + BionicTraitCarrierRegistry.generation();
+		return GENERATION.get() * 31L + BionicTraitRegistry.generation();
 	}
 
 	@Nullable
@@ -47,17 +47,22 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 	/**
 	 * Every original role known for this source: a matching template, saved legacy roles, the model
 	 * parts' ordinary anatomical names, parts named by any trait's carriers, and the captured head.
-	 * Roles survive cutting unchanged. Generic names are important for coverage denominators: an
-	 * ordinary leg still belongs to the leg region even when its species grants no leg trait.
+	 * Roles survive cutting unchanged and identify possible carrier tissue. Installation scopes and
+	 * coverage denominators are determined separately, without consulting these labels.
 	 */
 	public static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source) {
+		return roles(source, BionicTraitRegistry.snapshot());
+	}
+
+	static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source,
+		BionicTraitRegistry.Snapshot data) {
 		EnumMap<BionicAnatomyRole, BitSet> roles = new EnumMap<>(BionicAnatomyRole.class);
 		Template configured = get(source);
 		if (configured != null)
 			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
 		source.anatomy().roles().forEach((role, cubes) -> merge(roles, role, cubes));
 		inferNamedRoles(source.anatomy().parts(), roles);
-		BionicTraitCarrierRegistry.rolesFor(source.profile().entityTypeId(),
+		BionicTraitCarriers.rolesFor(data, source.profile().entityTypeId(),
 			source.anatomy().parts(), source.cubeCount())
 			.forEach((role, cubes) -> merge(roles, role, cubes));
 		merge(roles, BionicAnatomyRole.HEAD, BionicTissue.capturedHead(source));
@@ -82,7 +87,7 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 				set(roles, BionicAnatomyRole.TORSO, cube);
 			if (leg) {
 				set(roles, BionicAnatomyRole.LEG, cube);
-				// Existing support-foot rules deliberately treat the whole named leg as the foot region.
+				// Foot abilities may use the whole named leg as their carrier.
 				set(roles, BionicAnatomyRole.FOOT, cube);
 			}
 			if (name.contains("wing")) {

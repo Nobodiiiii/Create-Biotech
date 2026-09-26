@@ -17,20 +17,13 @@ import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyProperty;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitScope;
-import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonors;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitType;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTrait;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraitRegistry;
-import com.nobodiiiii.createbiotech.entity.trait.BionicOrganTraits;
-import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSlot;
-import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
 import com.simibubi.create.foundation.item.TooltipModifier;
 
 import net.minecraft.ChatFormatting;
@@ -59,7 +52,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	private static ItemStack cachedStack = ItemStack.EMPTY;
 	@Nullable
 	private static BoxDetails cachedDetails;
-	private static long cachedTraitGeneration = -1L;
+	private static BionicTraitResolver.Revision cachedTraitRevision;
+	@Nullable
+	private static Level cachedLevel;
 
 	@Override
 	public void modify(ItemTooltipEvent context) {
@@ -79,11 +74,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			disposition = mind.hasRecognizedHead() ? mind.disposition() : null;
 		}
 		if (details.stats().isEmpty() && details.traits().isEmpty()
-			&& details.headTraits().isEmpty() && details.organTraits().isEmpty()
-			&& details.donorHeadFacts().isEmpty() && details.donorOrganFacts().isEmpty()
-			&& details.inactiveHeadReasons().isEmpty()
-			&& details.inactiveOrganReasons().isEmpty()
-			&& disposition == null)
+			&& details.donorFacts().isEmpty() && disposition == null)
 			return;
 
 		boolean expanded = Screen.hasAltDown();
@@ -100,85 +91,30 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			for (BaseStat stat : details.stats())
 				tooltip.add(stat.line());
 		}
-		appendPropertiesSection(tooltip, disposition, details.traits(),
-			details.headTraits(), details.organTraits());
-		appendInactiveHeadReasons(tooltip, details.inactiveHeadReasons());
-		appendInactiveOrganReasons(tooltip, details.inactiveOrganReasons());
-		appendDonorFacts(tooltip, details.donorHeadFacts(), details.donorOrganFacts());
+		appendPropertiesSection(tooltip, disposition, details.traits());
+		appendDonorFacts(tooltip, details.donorFacts());
 	}
 
-	public static void appendInactiveOrganReasons(List<Component> tooltip,
-		Map<BionicOrganTrait, BionicOrganTraitRegistry.InactiveReason> reasons) {
-		if (reasons.isEmpty())
+	private static void appendDonorFacts(List<Component> tooltip, Set<BionicTrait> facts) {
+		if (facts.isEmpty())
 			return;
 		tooltip.add(CommonComponents.EMPTY);
-		tooltip.add(Component.translatable("create_biotech.tooltip.inactive_organ_traits")
+		tooltip.add(Component.translatable("create_biotech.tooltip.donor_carrier_traits")
 			.withStyle(ChatFormatting.GOLD));
-		for (BionicOrganTrait trait : BionicOrganTrait.values()) {
-			BionicOrganTraitRegistry.InactiveReason reason = reasons.get(trait);
-			if (reason != null)
-				appendProperty(tooltip, Component.translatable(trait.descriptionId())
-					.append(Component.literal(" — "))
-					.append(Component.translatable("create_biotech.trait.inactive."
-						+ reason.name().toLowerCase(java.util.Locale.ROOT))));
-		}
-	}
-
-	public static void appendInactiveHeadReasons(List<Component> tooltip,
-		Map<BionicHeadTrait, BionicHeadTraitRegistry.InactiveReason> reasons) {
-		if (reasons.isEmpty())
-			return;
-		tooltip.add(CommonComponents.EMPTY);
-		tooltip.add(Component.translatable("create_biotech.tooltip.inactive_head_traits")
-			.withStyle(ChatFormatting.GOLD));
-		for (BionicHeadTrait trait : BionicHeadTrait.values()) {
-			BionicHeadTraitRegistry.InactiveReason reason = reasons.get(trait);
-			if (reason != null)
-				appendProperty(tooltip, Component.translatable(trait.descriptionId())
-					.append(Component.literal(" — "))
-					.append(Component.translatable("create_biotech.trait.inactive."
-						+ reason.name().toLowerCase(java.util.Locale.ROOT))));
-		}
-	}
-
-	private static void appendDonorFacts(List<Component> tooltip,
-		Set<BionicHeadTrait> heads, Set<BionicOrganTrait> organs) {
-		if (heads.isEmpty() && organs.isEmpty())
-			return;
-		tooltip.add(CommonComponents.EMPTY);
-		tooltip.add(Component.translatable("create_biotech.tooltip.donor_special_traits")
-			.withStyle(ChatFormatting.GOLD));
-		for (BionicHeadTrait trait : BionicHeadTrait.values())
-			if (heads.contains(trait))
-				appendProperty(tooltip, Component.translatable(trait.descriptionId()));
-		for (BionicOrganTrait trait : BionicOrganTrait.values())
-			if (organs.contains(trait))
+		for (BionicTrait trait : BionicTrait.values())
+			if (facts.contains(trait))
 				appendProperty(tooltip, Component.translatable(trait.descriptionId()));
 	}
 
 	/** Adds the shared Create-style property heading and its disposition value. */
 	public static void appendDispositionSection(List<Component> tooltip, BionicDisposition disposition) {
-		appendPropertiesSection(tooltip, disposition, BionicBodyTraits.EMPTY);
+		appendPropertiesSection(tooltip, disposition, BionicTraitSet.EMPTY);
 	}
 
-	/** Adds one shared property section for head disposition and whole-tissue donor traits. */
+	/** Both active properties and their inactive reasons come from the entity's evaluation model. */
 	public static void appendPropertiesSection(List<Component> tooltip,
-		@Nullable BionicDisposition disposition, BionicBodyTraits traits) {
-		appendPropertiesSection(tooltip, disposition, traits, BionicHeadTraits.EMPTY);
-	}
-
-	public static void appendPropertiesSection(List<Component> tooltip,
-		@Nullable BionicDisposition disposition, BionicBodyTraits traits,
-		BionicHeadTraits headTraits) {
-		appendPropertiesSection(tooltip, disposition, traits, headTraits, BionicOrganTraits.EMPTY);
-	}
-
-	public static void appendPropertiesSection(List<Component> tooltip,
-		@Nullable BionicDisposition disposition, BionicBodyTraits traits,
-		BionicHeadTraits headTraits, BionicOrganTraits organTraits) {
-		if (disposition == null && (traits == null || traits.isEmpty())
-			&& (headTraits == null || headTraits.isEmpty())
-			&& (organTraits == null || organTraits.isEmpty()))
+		@Nullable BionicDisposition disposition, BionicTraitSet traits) {
+		if (disposition == null && traits.isEmpty())
 			return;
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
@@ -193,26 +129,44 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				.append(Component.translatable("create_biotech.disposition."
 					+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
 		}
-		// Whole-body traits are separate from traits requiring a specific anatomical place.
-		java.util.EnumMap<BionicTraitSlot, List<Component>> groups = new java.util.EnumMap<>(BionicTraitSlot.class);
-		for (BionicTraitSlot slot : BionicTraitSlot.values())
-			groups.put(slot, new java.util.ArrayList<>());
-		if (headTraits != null)
-			for (BionicHeadTrait trait : BionicHeadTrait.values())
-				if (headTraits.has(trait))
-					appendProperty(groups.get(trait.slot()), Component.translatable(trait.descriptionId()));
-		if (organTraits != null)
-			for (BionicOrganTrait trait : BionicOrganTrait.values())
-				if (organTraits.has(trait))
-					appendProperty(groups.get(trait.slot()), Component.translatable(trait.descriptionId()));
-		if (traits != null) {
-			List<Component> wholeBody = new ArrayList<>();
-			appendBodyTraits(wholeBody, traits, BionicBodyTraitScope.WHOLE_BODY);
-			appendTraitGroup(tooltip, BionicBodyTraitScope.WHOLE_BODY.descriptionId(), wholeBody);
-			appendBodyTraits(groups.get(BionicTraitSlot.BODY), traits, BionicBodyTraitScope.TORSO);
+		Map<BionicTraitScope, List<Component>> groups = new java.util.EnumMap<>(BionicTraitScope.class);
+		for (BionicTraitScope scope : BionicTraitScope.values())
+			groups.put(scope, new ArrayList<>());
+		for (BionicTrait trait : BionicTrait.values()) {
+			BionicTraitResult result = traits.result(trait);
+			if (!result.present())
+				continue;
+			List<BionicTraitScope> scopes = trait.scopes().stream().sorted().toList();
+			List<Component> lines = groups.get(scopes.getFirst());
+			Component name = Component.translatable(trait.descriptionId());
+			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+				name = Component.translatable(trait.descriptionId(),
+					ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(result.value()
+						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
+			if (scopes.size() > 1) {
+				MutableComponent names = Component.empty();
+				for (int index = 0; index < scopes.size(); index++) {
+					if (index > 0)
+						names.append(Component.translatable("create_biotech.trait.list_separator"));
+					names.append(Component.translatable(scopes.get(index).descriptionId()));
+				}
+				name = Component.translatable("create_biotech.trait.allowed_scopes", name, names);
+			}
+			if (!result.active()) {
+				lines.add(Component.literal(" ").append(name).append(Component.literal(" — "))
+					.append(Component.translatable(result.inactiveReason().descriptionId()))
+					.withStyle(ChatFormatting.DARK_GRAY));
+			} else if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
+				appendEffectImmunities(lines, traits);
+			} else {
+				if (trait.valueKind() == BionicTrait.ValueKind.ABILITY
+					&& trait.rule().type() == BionicTraitType.COVERAGE_SCALED && !traits.hasFullEffect(trait))
+					name = Component.translatable("create_biotech.trait.partial", name,
+						Long.toString(Math.round(result.strength() * 100.0d)));
+				appendProperty(lines, name);
+			}
 		}
-		for (BionicTraitSlot slot : BionicTraitSlot.values())
-			appendTraitGroup(tooltip, slot.descriptionId(), groups.get(slot));
+		groups.forEach((scope, lines) -> appendTraitGroup(tooltip, scope.descriptionId(), lines));
 	}
 
 	private static void appendTraitGroup(List<Component> tooltip, String descriptionId,
@@ -225,44 +179,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			tooltip.add(Component.literal(" ").append(line));
 	}
 
-	private static void appendBodyTraits(List<Component> tooltip, BionicBodyTraits traits,
-		BionicBodyTraitScope scope) {
-		for (BionicBodyTrait trait : BionicBodyTrait.values()) {
-			if (trait.scope() != scope)
-				continue;
-			double coverage = traits.coverage(trait);
-			if (coverage <= 0.0d)
-				continue;
-			Component name = Component.translatable(trait.descriptionId());
-			if (!traits.has(trait)) {
-				tooltip.add(Component.literal(" ").append(name)
-					.append(Component.literal(" — "))
-					.append(Component.translatable("create_biotech.trait.inactive.insufficient_coverage"))
-					.withStyle(ChatFormatting.DARK_GRAY));
-				continue;
-			}
-			if (trait.rule().type() == BionicTraitType.COVERAGE_SCALED
-				&& !traits.hasFullEffect(trait))
-				name = Component.translatable("create_biotech.trait.partial", name,
-					Long.toString(Math.round(coverage * 100.0d)));
-			appendProperty(tooltip, name);
-		}
-		if (BionicBodyProperty.IMMUNE_EFFECTS.scope() == scope)
-			appendEffectImmunities(tooltip, traits);
-		if (BionicBodyProperty.NATURAL_ARMOR.scope() == scope && traits.naturalArmor() > 0.0d)
-			appendProperty(tooltip, Component.translatable("create_biotech.trait.natural_armor",
-				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(traits.naturalArmor())));
-		if (BionicBodyProperty.KNOCKBACK_RESISTANCE.scope() == scope && traits.knockbackResistance() > 0.0d)
-			appendProperty(tooltip, Component.translatable("create_biotech.trait.knockback_resistance",
-				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
-					traits.knockbackResistance() * 100.0d)));
-		if (BionicBodyProperty.PASSIVE_REGENERATION.scope() == scope && traits.passiveRegeneration() > 0.0d)
-			appendProperty(tooltip, Component.translatable("create_biotech.trait.passive_regeneration",
-				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
-					traits.passiveRegeneration())));
-	}
-
-	private static void appendEffectImmunities(List<Component> tooltip, BionicBodyTraits traits) {
+	private static void appendEffectImmunities(List<Component> tooltip, BionicTraitSet traits) {
 		List<ResourceLocation> effects = traits.immuneEffects().stream().sorted().toList();
 		if (effects.isEmpty())
 			return;
@@ -289,15 +206,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	@Nullable
 	private static BoxDetails details(ItemStack stack, Level level) {
-		long generation = (BionicBodyTraitRegistry.generation() * 31L
-			+ BionicHeadTraitRegistry.generation()) * 31L
-			+ BionicOrganTraitRegistry.generation() * 31L
-			+ BionicAnatomyRegistry.generation();
-		if (cachedTraitGeneration == generation && ItemStack.isSameItemSameComponents(cachedStack, stack))
+		BionicTraitResolver.Revision revision = BionicTraitResolver.revision();
+		if (level == cachedLevel && revision.equals(cachedTraitRevision)
+			&& ItemStack.isSameItemSameComponents(cachedStack, stack))
 			return cachedDetails;
 
 		cachedStack = stack.copyWithCount(1);
-		cachedTraitGeneration = generation;
+		cachedLevel = level;
+		cachedTraitRevision = revision;
 		cachedDetails = captureDetails(stack, level);
 		return cachedDetails;
 	}
@@ -309,18 +225,17 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return null;
 		if (!(living instanceof SlimeBionicEntity bionic)) {
 			MimicProfile profile = MimicProfile.capture(living);
+			BionicTraitDonors.Facts facts = profile == null ? BionicTraitDonors.detect(living)
+				: BionicTraitDonors.get(profile, level);
 			return new BoxDetails(List.of(), null, BionicDispositionRegistry.get(living),
-				profile == null ? BionicBodyTraitRegistry.detect(living)
-					: BionicBodyTraitRegistry.get(profile, level), BionicHeadTraits.EMPTY,
-				BionicOrganTraits.EMPTY,
-				profile == null ? Set.of() : BionicHeadTraitRegistry.donorFacts(profile, level),
-				profile == null ? Set.of() : BionicOrganTraitRegistry.donorFacts(profile),
-				Map.of(), Map.of());
+				BionicTraitResolver.donorProperties(facts), facts.abilities().stream()
+					.filter(trait -> !trait.carrier().isAllTissue()).collect(java.util.stream.Collectors.toUnmodifiableSet()));
 		}
 		SurgicalAssembly assembly = bionic.getAssembly();
 		if (assembly == null)
 			return null;
 
+		BionicTraitSet traits = bionic.getBionicTraits();
 		List<BaseStat> stats = new ArrayList<>();
 		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);
@@ -330,12 +245,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return new BoxDetails(List.copyOf(stats), assembly, null,
-			BionicBodyTraitRegistry.resolve(assembly, level),
-			BionicHeadTraitRegistry.resolve(assembly, level),
-			BionicOrganTraitRegistry.resolve(assembly), Set.of(), Set.of(),
-			BionicHeadTraitRegistry.inactiveReasons(assembly, level),
-			BionicOrganTraitRegistry.inactiveReasons(assembly));
+		return new BoxDetails(List.copyOf(stats), assembly, null, traits, Set.of());
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
@@ -398,11 +308,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	}
 
 	private record BoxDetails(List<BaseStat> stats, @Nullable SurgicalAssembly assembly,
-		@Nullable BionicDisposition disposition, BionicBodyTraits traits,
-		BionicHeadTraits headTraits, BionicOrganTraits organTraits,
-		Set<BionicHeadTrait> donorHeadFacts, Set<BionicOrganTrait> donorOrganFacts,
-		Map<BionicHeadTrait, BionicHeadTraitRegistry.InactiveReason> inactiveHeadReasons,
-		Map<BionicOrganTrait, BionicOrganTraitRegistry.InactiveReason> inactiveOrganReasons) {}
+		@Nullable BionicDisposition disposition, BionicTraitSet traits, Set<BionicTrait> donorFacts) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
 		private Component line() {

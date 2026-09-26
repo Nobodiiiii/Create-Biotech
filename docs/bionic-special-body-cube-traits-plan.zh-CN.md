@@ -1,6 +1,8 @@
 # 仿生生物特殊体块特性表与施工方案
 
-依据：[手术台供体基础特性调研](bionic-donor-traits-survey.zh-CN.md)。适用版本为本分支的 Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。本方案中的“特殊体块”指需要原始解剖角色及装配用途共同决定的头、鳃、腿、足、翅、鳍、尾、刺、壳、口器和攻击手等；现有全体块体质继续由 `BionicBodyTraitRegistry` 负责。
+> 本文是历史设计草案，保留当时的方案背景。当前实现只使用全身、躯干、头、臂、腿五种装配范围，原始解剖角色只筛选载体；下文旧的角色范围、完整度与部位限制不再是实现规范，详见[当前特性总表](bionic-traits-reference.zh-CN.md)。
+
+依据：[手术台供体基础特性调研](bionic-donor-traits-survey.zh-CN.md)。适用版本为本分支的 Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。本方案中的“特殊体块”指需要原始解剖角色及装配用途共同决定的头、鳃、腿、足、翅、鳍、尾、刺、壳、口器和攻击手等；当前实现已统一至 `BionicTraitResolver`，通过独立的 `scope()` 区分全身、躯干和器官，详见[特性总表](bionic-traits-reference.zh-CN.md)。
 
 ## 一、特性表
 
@@ -36,7 +38,7 @@
 
 ## 二、当前工程的施工起点
 
-- [`BionicBodyTraitRegistry`](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicBodyTraitRegistry.java) 已做供体探测、逐项数据覆盖和按保留体块数量汇总；[`SlimeBionicEntity`](../src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicEntity.java) 已执行部分全体块能力。特殊器官不能直接加入该枚举后继续按全身占比汇总。
+- [`BionicTraitResolver`](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 已按特性声明的范围和体积汇总，供体探测、数据覆盖已抽到独立层；[`SlimeBionicEntity`](../src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicEntity.java) 已执行部分全体块能力。特殊器官在统一枚举中声明器官范围，不能按全身占比汇总。
 - [`SurgicalAssembly.Source`](../src/main/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalAssembly.java) 目前保存 `presentCubes` 和保留下来的 `headCubes`，但没有原始完整头部集合、其他解剖角色及单块权重。`SurgicalSubject.removeComponent` 会删去已切离的头部标记，故仅靠现有 `headCubes` 无法计算原头部完整度。
 - [`SurgicalCapturedRenderPlan`](../src/main/java/com/nobodiiiii/createbiotech/content/surgery/client/SurgicalCapturedRenderPlan.java) 在客户端借 Create 帽子定位识别头部；[`BionicMind`](../src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicMind.java) 已按保留头部汇总认知。现有 `NECK/SHOULDER/HIP/ELBOW/KNEE` 关节与 `effectiveLimbs()` 可以用于装配用途，但不能替代供体原始器官标记。
 - 服务端的 [`SurgicalTableBlockEntity`](../src/main/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalTableBlockEntity.java) 接收客户端发现的体块数量、接缝和模型部件名。按当前玩法约定，客户端可以提交或伪造体块对应的部件名；服务端用特性 JSON 判定这些部件是否为该物种的特性载体，并校验供体物种是否确有相应能力。

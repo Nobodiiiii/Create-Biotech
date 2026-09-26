@@ -50,7 +50,12 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 
 	/** Binary traits return 0 or 1; scaled traits return their clamped coverage. */
 	public double strength(double coverage) {
-		if (!isActive(coverage > 0.0d, coverage))
+		return strength(coverage > 0.0d, coverage);
+	}
+
+	/** Presence traits also have full strength when their retained carriers have no saved volume. */
+	public double strength(boolean carrierPresent, double coverage) {
+		if (!isActive(carrierPresent, coverage))
 			return 0.0d;
 		return type == BionicTraitType.COVERAGE_SCALED ? Math.min(1.0d, coverage) : 1.0d;
 	}
