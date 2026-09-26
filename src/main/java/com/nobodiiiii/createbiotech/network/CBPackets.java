@@ -14,6 +14,8 @@ import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoice
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftRequestPacket;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPreviewPacket;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftCancelPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftJobsRequestPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftJobsPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeRecipePlacementPacket;
@@ -65,7 +67,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "24";
+	private static final String NETWORK_VERSION = "25";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -128,6 +130,8 @@ public final class CBPackets {
 			GaugeCraftCancelPacket::write, GaugeCraftCancelPacket::handle);
 		registerServer(HoneycombGaugeRecipePlacementPacket.class, HoneycombGaugeRecipePlacementPacket::new,
 			HoneycombGaugeRecipePlacementPacket::write, HoneycombGaugeRecipePlacementPacket::handle);
+		registerServer(GaugeCraftJobsRequestPacket.class, GaugeCraftJobsRequestPacket::new,
+			GaugeCraftJobsRequestPacket::write, GaugeCraftJobsRequestPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -165,6 +169,7 @@ public final class CBPackets {
 			BioPackagerReleaseAnimationPacket::write);
 		registerClient(GaugeCraftPreviewPacket.class, GaugeCraftPreviewPacket::new,
 			GaugeCraftPreviewPacket::write);
+		registerClient(GaugeCraftJobsPacket.class, GaugeCraftJobsPacket::new, GaugeCraftJobsPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

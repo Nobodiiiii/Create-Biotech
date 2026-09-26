@@ -16,6 +16,7 @@ import com.simibubi.create.content.logistics.packagerLink.LogisticsManager;
 
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
 
 /** Server-side, bounded simulation of the player's connected factory gauges. */
 public final class GaugeCraftPlan {
@@ -27,24 +28,30 @@ public final class GaugeCraftPlan {
 	public record Step(FactoryPanelPosition gauge, UUID network, ItemStack output, int outputPerCraft,
 		int crafts, String address, List<ItemStack> arrangement, List<Input> inputs) {}
 	public record Line(int depth, ItemStack stack, int count, boolean missing, boolean stocked) {}
+	public record Stock(UUID network, ItemStack stack, int count) {}
 
 	private final List<Step> steps = new ArrayList<>();
 	private final List<Line> lines = new ArrayList<>();
 	private final Map<UUID, InventorySummary> simulated = new HashMap<>();
+	private final Map<UUID, InventorySummary> existing = new HashMap<>();
+	private final List<Stock> stock = new ArrayList<>();
+	private final GaugeCraftJobs jobs;
 	private final Set<FactoryPanelPosition> path = new HashSet<>();
 	private int missing;
 	private String error = "";
 
-	private GaugeCraftPlan() {}
+	private GaugeCraftPlan(GaugeCraftJobs jobs) { this.jobs = jobs; }
 
 	public static GaugeCraftPlan build(Level level, UUID network, ItemStack output, int count) {
+		GaugeCraftJobs jobs = GaugeCraftJobs.get(((ServerLevel) level).getServer());
+		jobs.collectOutputs(((ServerLevel) level).getServer());
 		GaugeCraftPlan best = null;
 		for (FactoryPanelBehaviour gauge : FactoryGaugeCatalog.getOutputGauges(network)) {
 			if (!ItemStack.isSameItemSameComponents(gauge.getFilter(), output))
 				continue;
 			if (gauge.getWorld() != level)
 				continue;
-			GaugeCraftPlan candidate = new GaugeCraftPlan();
+			GaugeCraftPlan candidate = new GaugeCraftPlan(jobs);
 			candidate.expand(level, gauge, count, 0);
 			if (best == null || candidate.rank() < best.rank()
 				|| candidate.rank() == best.rank() && candidate.missing < best.missing
@@ -54,7 +61,7 @@ public final class GaugeCraftPlan {
 		}
 		if (best != null)
 			return best;
-		GaugeCraftPlan unavailable = new GaugeCraftPlan();
+		GaugeCraftPlan unavailable = new GaugeCraftPlan(jobs);
 		unavailable.error = "No loaded factory gauge produces this item";
 		return unavailable;
 	}
@@ -70,7 +77,8 @@ public final class GaugeCraftPlan {
 			error = "A gauge has no output or network";
 			return;
 		}
-		int stock = take(gauge.network, output, count);
+		// A new order always produces its root output; only ingredients may use existing stock.
+		int stock = depth == 0 ? 0 : take(gauge.network, output, count);
 		if (stock > 0)
 			lines.add(new Line(depth, output.copyWithCount(1), stock, false, true));
 		int needed = count - stock;
@@ -124,22 +132,38 @@ public final class GaugeCraftPlan {
 	}
 
 	private int take(UUID network, ItemStack stack, int count) {
-		InventorySummary summary = simulated.computeIfAbsent(network,
-			key -> LogisticsManager.getSummaryOfNetwork(key, true).copy());
+		InventorySummary summary = inventory(network);
 		int taken = Math.min(Math.max(0, summary.getCountOf(stack)), count);
-		if (taken > 0)
+		if (taken > 0) {
 			summary.add(stack, -taken);
+			InventorySummary original = existing.get(network);
+			int reserved = Math.min(taken, Math.max(0, original.getCountOf(stack)));
+			if (reserved > 0) {
+				original.add(stack, -reserved);
+				stock.add(new Stock(network, stack.copyWithCount(1), reserved));
+			}
+		}
 		return taken;
+	}
+
+	private InventorySummary inventory(UUID network) {
+		return simulated.computeIfAbsent(network, key -> {
+			InventorySummary available = LogisticsManager.getSummaryOfNetwork(key, true).copy();
+			for (var entry : available.getStacks())
+				entry.count = Math.max(0, entry.count - jobs.reservedAmount(key, entry.stack, null));
+			existing.put(key, available.copy());
+			return available;
+		});
 	}
 
 	private void add(UUID network, ItemStack stack, int count) {
 		if (count > 0)
-			simulated.computeIfAbsent(network, key -> LogisticsManager.getSummaryOfNetwork(key, true).copy())
-				.add(stack, count);
+			inventory(network).add(stack, count);
 	}
 
 	public List<Step> steps() { return List.copyOf(steps); }
 	public List<Line> lines() { return List.copyOf(lines); }
+	public List<Stock> stock() { return List.copyOf(stock); }
 	public int missing() { return missing; }
 	public String error() { return error; }
 	public boolean ready() { return error.isEmpty() && missing == 0; }

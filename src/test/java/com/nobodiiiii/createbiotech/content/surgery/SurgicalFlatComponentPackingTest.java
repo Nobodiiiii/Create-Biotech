@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
 import net.minecraft.SharedConstants;
 import net.minecraft.nbt.CompoundTag;
@@ -102,8 +104,10 @@ class SurgicalFlatComponentPackingTest {
 		assertNotNull(profile);
 		BitSet present = new BitSet();
 		present.set(0);
-		SurgicalAssembly assembly = SurgicalAssembly.create(profile, 1, present,
-			new BitSet(), List.of(), new BitSet(), List.of());
+		SurgicalAssembly assembly = SurgicalAssembly.create(profile, new UUID(0L, 1L), 1, present,
+			new BitSet(), new BitSet(), true,
+			BionicAnatomySnapshot.EMPTY.withVolumes(new float[] {0.125f}),
+			List.of(), new BitSet(), List.of());
 		assertNotNull(assembly);
 		return assembly;
 	}

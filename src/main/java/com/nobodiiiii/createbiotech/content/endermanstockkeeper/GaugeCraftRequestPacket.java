@@ -42,6 +42,11 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 		UUID network = ticker.behaviour.freqId;
 		if (network == null)
 			return;
+		if (GaugeCraftJobs.get(player.server).isFull(network)) {
+			clearSession(player.getUUID());
+			CBPackets.sendToPlayer(new GaugeCraftPreviewPacket(token, "busy", java.util.List.of()), player);
+			return;
+		}
 		if (confirm) {
 			Session session = SESSIONS.remove(player.getUUID());
 			if (session == null || !session.token.equals(token)
@@ -78,16 +83,14 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 		SESSIONS.put(player.getUUID(), new Session(token, player.server, player.server.getTickCount(),
 			ticker.getBlockPos(), ticker.behaviour.freqId, stack, count, address, signature(plan)));
 		GaugeCraftJobs jobs = GaugeCraftJobs.get(player.server);
-		String status = jobs.hasActive(ticker.behaviour.freqId)
-			? jobs.ownedBy(ticker.behaviour.freqId, player.getUUID())
-				? jobs.status(ticker.behaviour.freqId, player.getUUID(), player.server) : "busy"
+		String status = jobs.isFull(ticker.behaviour.freqId) ? "busy"
 			: !plan.error().isEmpty() ? plan.error() : plan.missing() > 0 ? "missing" : "ready";
 		CBPackets.sendToPlayer(new GaugeCraftPreviewPacket(token, status,
 			plan.lines()), player);
 	}
 
 	private static String signature(GaugeCraftPlan plan) {
-		return plan.error() + ":" + plan.missing() + ":" + plan.lines() + ":" + plan.steps();
+		return plan.error() + ":" + plan.missing() + ":" + plan.lines() + ":" + plan.steps() + ":" + plan.stock();
 	}
 
 	private record Session(UUID token, MinecraftServer server, int createdTick, BlockPos tickerPos,
