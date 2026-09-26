@@ -77,10 +77,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 		EnumMap<BionicOrganTrait, Set<SurgicalAssembly.CombinationMember>> resolved =
 			new EnumMap<>(BionicOrganTrait.class);
 		evaluate(assembly).forEach((trait, coverage) -> {
-			// This entity has no projectile firing path yet; an inherited arrow effect would be inert.
-			if (trait != BionicOrganTrait.RANGED_EFFECT
-				&& coverage.reaches(RULES.get(trait).minCoverage)
-				&& carriesBody(trait, assembly, coverage.carrierVolume()))
+			if (inactiveReason(trait, assembly, coverage) == null)
 				resolved.put(trait, coverage.members());
 		});
 		return new BionicOrganTraits(resolved);
@@ -164,8 +161,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			regions = List.copyOf(regions);
 		}
 
-		private boolean reaches(double minimum) {
-			return regions.stream().allMatch(region -> region.reaches(minimum));
+		private boolean satisfies(BionicTraitRule rule) {
+			return !regions.isEmpty() && regions.stream().allMatch(region -> region.satisfies(rule));
 		}
 
 		private boolean misplaced() {
@@ -213,16 +210,35 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			Set<SurgicalAssembly.CombinationMember> members = coverage.members();
 			if (members.isEmpty() && !coverage.misplaced())
 				continue;
-			if (trait == BionicOrganTrait.RANGED_EFFECT && !members.isEmpty())
-				reasons.put(trait, InactiveReason.NO_RANGED_ATTACK);
-			else if (!coverage.reaches(RULES.get(trait).minCoverage))
-				reasons.put(trait, coverage.misplaced()
-					? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE);
-			else if (!carriesBody(trait, assembly, coverage.carrierVolume()))
-				reasons.put(trait, assembly.bodyBounds() == null
-					? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE : InactiveReason.PURPOSE_MISMATCH);
+			InactiveReason reason = inactiveReason(trait, assembly, coverage);
+			if (reason != null)
+				reasons.put(trait, reason);
 		}
 		return Map.copyOf(reasons);
+	}
+
+	/** The same acquisition decision serves the entity and the surgical-table preview. */
+	@Nullable
+	private static InactiveReason inactiveReason(BionicOrganTrait trait, SurgicalAssembly assembly,
+		Coverage coverage) {
+		if (!coverage.satisfies(RULES.get(trait).inheritance))
+			return coverage.misplaced()
+				? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE;
+		if (trait.rule().type() != BionicTraitType.COVERAGE_THRESHOLD)
+			return null;
+		// Optional acquisition conditions belong to threshold traits, not presence traits.
+		if (trait == BionicOrganTrait.RANGED_EFFECT)
+			return InactiveReason.NO_RANGED_ATTACK;
+		if (trait == BionicOrganTrait.WING_FLIGHT) {
+			if (!assembly.hasBodyVolume())
+				return InactiveReason.BODY_MEASUREMENT_UNAVAILABLE;
+			if (!liftsBody(assembly, coverage.members()))
+				return InactiveReason.PURPOSE_MISMATCH;
+		}
+		if (!carriesBody(trait, assembly, coverage.carrierVolume()))
+			return assembly.bodyBounds() == null
+				? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE : InactiveReason.PURPOSE_MISMATCH;
+		return null;
 	}
 
 	private static boolean matchesDonor(BionicOrganTrait trait, Rule rule,
@@ -258,7 +274,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 			Rule base = defaults().get(trait);
 			ResourceLocation primary = CreateBiotech.asResource(trait.id());
 			boolean automatic = base.automaticDetection;
-			double coverage = base.minCoverage;
+			double coverage = base.inheritance.minCoverage();
 			double maxLoadPerVolume = base.maxLoadPerVolume;
 			Map<String, Double> parameters = new HashMap<>();
 			JsonElement primaryFile = resources.get(primary);
@@ -267,7 +283,8 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 				try {
 					if (root.has("automatic_detection"))
 						automatic = root.get("automatic_detection").getAsBoolean();
-					if (root.has("min_coverage"))
+					if (trait.rule().type() == BionicTraitType.COVERAGE_THRESHOLD
+						&& root.has("min_coverage"))
 						coverage = root.get("min_coverage").getAsDouble();
 					if (root.has("max_body_volume_per_wing_volume"))
 						maxLoadPerVolume = root.get("max_body_volume_per_wing_volume").getAsDouble();
@@ -285,7 +302,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 						}
 			}
 			if (!Double.isFinite(coverage) || coverage < 0.0d || coverage > 1.0d)
-				coverage = base.minCoverage;
+				coverage = base.inheritance.minCoverage();
 			if (!Double.isFinite(maxLoadPerVolume) || maxLoadPerVolume <= 0.0d)
 				maxLoadPerVolume = base.maxLoadPerVolume;
 			Map<ResourceLocation, Boolean> entities = new HashMap<>();
@@ -315,7 +332,7 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 						entities.put(id, entry.getValue().getAsBoolean());
 				}
 			}
-			loaded.put(trait, new Rule(automatic, coverage, maxLoadPerVolume,
+			loaded.put(trait, new Rule(automatic, trait.rule().withMinCoverage(coverage), maxLoadPerVolume,
 				Map.copyOf(entities), Map.copyOf(tags), Map.copyOf(parameters)));
 		}
 		RULES = Map.copyOf(loaded);
@@ -326,12 +343,12 @@ public final class BionicOrganTraitRegistry extends SimpleJsonResourceReloadList
 		EnumMap<BionicOrganTrait, Rule> rules = new EnumMap<>(BionicOrganTrait.class);
 		for (BionicOrganTrait trait : BionicOrganTrait.values())
 			rules.put(trait, new Rule(trait == BionicOrganTrait.AGILE_LANDING
-				|| trait == BionicOrganTrait.POWDER_SNOW_WALK, 0.5d, 16.0d,
+				|| trait == BionicOrganTrait.POWDER_SNOW_WALK, trait.rule(), 16.0d,
 				Map.of(), Map.of(), Map.of()));
 		return Map.copyOf(rules);
 	}
 
-	private record Rule(boolean automaticDetection, double minCoverage,
+	private record Rule(boolean automaticDetection, BionicTraitRule inheritance,
 		double maxLoadPerVolume,
 		Map<ResourceLocation, Boolean> entityTypes, Map<TagKey<EntityType<?>>, Boolean> tags,
 		Map<String, Double> parameters) {}

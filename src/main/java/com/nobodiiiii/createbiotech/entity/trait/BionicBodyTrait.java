@@ -1,29 +1,36 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
-/** Whole-tissue donor facts that every retained source cube can contribute. */
+/** Tissue-based donor facts, with an explicit torso or whole-body scope for each trait. */
 public enum BionicBodyTrait {
-	FIRE_IMMUNE("fire_immune"),
-	WATER_SENSITIVE("water_sensitive"),
-	FREEZE_IMMUNE("freeze_immune"),
-	FREEZE_VULNERABLE("freeze_vulnerable"),
-	SUN_SENSITIVE("sun_sensitive"),
-	MOISTURE_DEPENDENT("moisture_dependent"),
-	HEAT_SENSITIVE("heat_sensitive"),
-	INVERTED_HEALING("inverted_healing"),
-	FALL_DAMAGE_IMMUNE("fall_damage_immune"),
-	WEB_ADAPTED("web_adapted"),
-	NO_BREATHING("no_breathing"),
-	WINGLESS_FLIGHT("wingless_flight"),
-	BODY_BOUNCE("body_bounce"),
-	BODY_SLOW_FALL("body_slow_fall"),
-	PROJECTILE_DEFLECTION("projectile_deflection"),
-	CONTACT_RETALIATION("contact_retaliation");
+	FIRE_IMMUNE("fire_immune", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	WATER_SENSITIVE("water_sensitive", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	FREEZE_IMMUNE("freeze_immune", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	FREEZE_VULNERABLE("freeze_vulnerable", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	SUN_SENSITIVE("sun_sensitive", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	MOISTURE_DEPENDENT("moisture_dependent", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	HEAT_SENSITIVE("heat_sensitive", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled()),
+	INVERTED_HEALING("inverted_healing", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.threshold(0.5d)),
+	FALL_DAMAGE_IMMUNE("fall_damage_immune", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.threshold(0.5d)),
+	WEB_ADAPTED("web_adapted", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.threshold(0.5d)),
+	NO_BREATHING("no_breathing", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.threshold(0.5d)),
+	WINGLESS_FLIGHT("wingless_flight", BionicBodyTraitScope.TORSO, BionicTraitRule.threshold(0.5d)),
+	BODY_BOUNCE("body_bounce", BionicBodyTraitScope.TORSO, BionicTraitRule.scaled()),
+	BODY_SLOW_FALL("body_slow_fall", BionicBodyTraitScope.TORSO, BionicTraitRule.scaled()),
+	PROJECTILE_DEFLECTION("projectile_deflection", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.threshold(0.5d)),
+	CONTACT_RETALIATION("contact_retaliation", BionicBodyTraitScope.WHOLE_BODY, BionicTraitRule.scaled());
 
 	private final String serializedName;
+	private final BionicBodyTraitScope scope;
+	private final BionicTraitRule rule;
 
-	BionicBodyTrait(String serializedName) {
+	BionicBodyTrait(String serializedName, BionicBodyTraitScope scope, BionicTraitRule rule) {
 		this.serializedName = serializedName;
+		this.scope = scope;
+		this.rule = rule;
 	}
+
+	public BionicBodyTraitScope scope() { return scope; }
+	public BionicTraitRule rule() { return rule; }
 
 	public String serializedName() {
 		return serializedName;

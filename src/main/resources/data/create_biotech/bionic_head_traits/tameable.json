@@ -1,6 +1,5 @@
 {
   "automatic_detection": true,
-  "min_coverage": 0.5,
   "values": {},
   "carriers": {
     "minecraft:wolf": {

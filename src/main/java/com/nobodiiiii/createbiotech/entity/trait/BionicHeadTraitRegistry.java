@@ -66,8 +66,10 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		if (!BionicTraits.ENABLED || assembly == null || level == null)
 			return BionicHeadTraits.EMPTY;
 		EnumSet<BionicHeadTrait> result = EnumSet.noneOf(BionicHeadTrait.class);
+		boolean noBreathing = BionicBodyTraitRegistry.resolve(assembly, level)
+			.has(BionicBodyTrait.NO_BREATHING);
 		shares(assembly, level).forEach((trait, share) -> {
-			if (share.reaches(RULES.get(trait).minCoverage()))
+			if (inactiveReason(trait, share, noBreathing) == null)
 				result.add(trait);
 		});
 		return new BionicHeadTraits(result,
@@ -112,7 +114,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 	}
 
 	public enum InactiveReason {
-		INSUFFICIENT_COVERAGE, WRONG_SLOT
+		INSUFFICIENT_COVERAGE, WRONG_SLOT, BREATHING_NOT_REQUIRED
 	}
 
 	/**
@@ -125,13 +127,26 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 			return Map.of();
 		EnumMap<BionicHeadTrait, InactiveReason> reasons =
 			new EnumMap<>(BionicHeadTrait.class);
+		boolean noBreathing = BionicBodyTraitRegistry.resolve(assembly, level)
+			.has(BionicBodyTrait.NO_BREATHING);
 		shares(assembly, level).forEach((trait, share) -> {
-			if ((!share.members().isEmpty() || share.misplaced())
-				&& !share.reaches(RULES.get(trait).minCoverage()))
-				reasons.put(trait, share.misplaced()
-					? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE);
+			if (share.members().isEmpty() && !share.misplaced())
+				return;
+			InactiveReason reason = inactiveReason(trait, share, noBreathing);
+			if (reason != null)
+				reasons.put(trait, reason);
 		});
 		return Map.copyOf(reasons);
+	}
+
+	@Nullable
+	private static InactiveReason inactiveReason(BionicHeadTrait trait, BionicTissue.Share share,
+		boolean noBreathing) {
+		if (!share.satisfies(RULES.get(trait).inheritance()))
+			return share.misplaced() ? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE;
+		if (trait == BionicHeadTrait.DRY_SUFFOCATION && noBreathing)
+			return InactiveReason.BREATHING_NOT_REQUIRED;
+		return null;
 	}
 
 	private static Set<BionicHeadTrait> get(MimicProfile profile, Level level) {
@@ -196,7 +211,7 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 			ResourceLocation primary = CreateBiotech.asResource(trait.id());
 			Rule fallback = defaultRules().get(trait);
 			boolean automatic = fallback.automaticDetection();
-			double threshold = fallback.minCoverage();
+			double threshold = fallback.inheritance().minCoverage();
 			int maxAirSupply = fallback.maxAirSupply();
 			Map<ResourceLocation, Boolean> entities = new HashMap<>();
 			Map<TagKey<EntityType<?>>, Boolean> tags = new HashMap<>();
@@ -205,7 +220,8 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 				JsonObject root = primaryFile.getAsJsonObject();
 				if (root.has("automatic_detection") && root.get("automatic_detection").isJsonPrimitive())
 					automatic = root.get("automatic_detection").getAsBoolean();
-				if (root.has("min_coverage") && root.get("min_coverage").isJsonPrimitive()) {
+				if (trait.rule().type() == BionicTraitType.COVERAGE_THRESHOLD
+					&& root.has("min_coverage") && root.get("min_coverage").isJsonPrimitive()) {
 					try { threshold = Mth.clamp(root.get("min_coverage").getAsDouble(), 0.0d, 1.0d); }
 					catch (RuntimeException ignored) { LOGGER.warn("Invalid head trait coverage in {}", primary); }
 				}
@@ -239,7 +255,9 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 						entities.put(id, enabled);
 				}
 			}
-			parsed.put(trait, new Rule(automatic, threshold, maxAirSupply,
+			if (!Double.isFinite(threshold))
+				threshold = fallback.inheritance().minCoverage();
+			parsed.put(trait, new Rule(automatic, trait.rule().withMinCoverage(threshold), maxAirSupply,
 				Map.copyOf(entities), Map.copyOf(tags)));
 		}
 		RULES = Map.copyOf(parsed);
@@ -250,11 +268,11 @@ public final class BionicHeadTraitRegistry extends SimpleJsonResourceReloadListe
 		EnumMap<BionicHeadTrait, Rule> defaults = new EnumMap<>(BionicHeadTrait.class);
 		for (BionicHeadTrait trait : BionicHeadTrait.values())
 			defaults.put(trait, new Rule(trait != BionicHeadTrait.DRY_SUFFOCATION,
-				0.5d, trait == BionicHeadTrait.LONG_BREATH ? 4800 : 300,
+				trait.rule(), trait == BionicHeadTrait.LONG_BREATH ? 4800 : 300,
 				Map.of(), Map.of()));
 		return Map.copyOf(defaults);
 	}
 
-	private record Rule(boolean automaticDetection, double minCoverage, int maxAirSupply,
+	private record Rule(boolean automaticDetection, BionicTraitRule inheritance, int maxAirSupply,
 		Map<ResourceLocation, Boolean> entityTypes, Map<TagKey<EntityType<?>>, Boolean> tags) {}
 }

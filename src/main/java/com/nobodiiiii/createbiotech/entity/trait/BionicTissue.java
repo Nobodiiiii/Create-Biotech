@@ -15,11 +15,11 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 
 /**
  * Per-cube tissue weights, original anatomical roles and installed places of one assembly. Every
- * trait rule measures coverage over it: whole-body traits over the torso, head and organ traits over
- * one region. A cube belongs to a region only while its role is installed in that role's place.
+ * trait rule measures coverage over it: whole-body traits over every retained cube, torso traits
+ * over the body slot, and head and organ traits over one region. Organ regions additionally require
+ * each role to be installed in that role's place.
  */
 final class BionicTissue {
-	private static final double COVERAGE_EPSILON = 1.0e-8d;
 	private final List<SurgicalAssembly.Source> sources;
 	private final List<Map<BionicAnatomyRole, BitSet>> roles;
 	private final List<Map<BionicTraitSlot, BitSet>> installed;
@@ -49,6 +49,12 @@ final class BionicTissue {
 	/** Present cubes of this source installed in the place. */
 	BitSet installed(int sourceId, BionicTraitSlot slot) {
 		return (BitSet) installed.get(sourceId).get(slot).clone();
+	}
+
+	/** The same scope selection weights both contributing donor tissue and all denominator tissue. */
+	double weight(int sourceId, BionicBodyTraitScope scope) {
+		return weight(sourceId, scope.selectCubes(sources.get(sourceId).presentCubes(),
+			installed.get(sourceId).get(BionicTraitSlot.BODY)));
 	}
 
 	/** Every original cube of this source with the role, whether or not it is still present. */
@@ -148,8 +154,8 @@ final class BionicTissue {
 			members = Set.copyOf(members);
 		}
 
-		boolean reaches(double minimum) {
-			return carrierVolume > 0.0d && coverage + COVERAGE_EPSILON >= minimum;
+		boolean satisfies(BionicTraitRule rule) {
+			return rule.isActive(!members.isEmpty(), coverage);
 		}
 	}
 }

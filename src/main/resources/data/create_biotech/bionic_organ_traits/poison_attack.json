@@ -1,6 +1,5 @@
 {
   "automatic_detection": false,
-  "min_coverage": 0.5,
   "parameters": {
     "chance": 1.0,
     "duration_ticks": 100

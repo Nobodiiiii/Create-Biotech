@@ -8,11 +8,10 @@ import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
-/** Immutable, already-aggregated whole-body traits for a donor or surgical assembly. */
+/** Immutable torso and whole-body traits, each aggregated over its declared tissue scope. */
 public final class BionicBodyTraits {
 	public static final BionicBodyTraits EMPTY =
 		new BionicBodyTraits(Map.of(), Set.of(), 0.0d, 0.0d, 0.0d);
-	private static final double COMPLETE_EPSILON = 1.0e-8d;
 
 	private final Map<BionicBodyTrait, Double> coverage;
 	private final Set<ResourceLocation> immuneEffects;
@@ -25,7 +24,7 @@ public final class BionicBodyTraits {
 		EnumMap<BionicBodyTrait, Double> normalized = new EnumMap<>(BionicBodyTrait.class);
 		for (Map.Entry<BionicBodyTrait, Double> entry : coverage.entrySet()) {
 			double value = entry.getValue() == null ? 0.0d : entry.getValue();
-			if (Double.isFinite(value) && value > COMPLETE_EPSILON)
+			if (Double.isFinite(value) && value > 0.0d)
 				normalized.put(entry.getKey(), Mth.clamp(value, 0.0d, 1.0d));
 		}
 		this.coverage = Collections.unmodifiableMap(normalized);
@@ -42,11 +41,16 @@ public final class BionicBodyTraits {
 	}
 
 	public boolean has(BionicBodyTrait trait) {
-		return coverage(trait) > COMPLETE_EPSILON;
+		return trait.rule().isActive(coverage.containsKey(trait), coverage(trait));
 	}
 
-	public boolean fullyHas(BionicBodyTrait trait) {
-		return coverage(trait) >= 1.0d - COMPLETE_EPSILON;
+	/** Effective multiplier, distinct from the raw coverage of a threshold trait. */
+	public double strength(BionicBodyTrait trait) {
+		return trait.rule().strength(coverage(trait));
+	}
+
+	public boolean hasFullEffect(BionicBodyTrait trait) {
+		return strength(trait) >= 1.0d - BionicTraitRule.COVERAGE_EPSILON;
 	}
 
 	public Set<ResourceLocation> immuneEffects() {
@@ -72,8 +76,8 @@ public final class BionicBodyTraits {
 
 	public boolean isEmpty() {
 		return coverage.isEmpty() && immuneEffects.isEmpty()
-			&& naturalArmor <= COMPLETE_EPSILON
-			&& knockbackResistance <= COMPLETE_EPSILON
-			&& passiveRegeneration <= COMPLETE_EPSILON;
+			&& naturalArmor <= 0.0d
+			&& knockbackResistance <= 0.0d
+			&& passiveRegeneration <= 0.0d;
 	}
 }

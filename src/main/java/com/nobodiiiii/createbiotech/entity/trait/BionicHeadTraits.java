@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
 
-/** Effective head abilities of one assembly, after original-organ completeness is checked. */
+/** Effective head abilities after each trait's presence or coverage rule and conditions pass. */
 public record BionicHeadTraits(Set<BionicHeadTrait> enabled, int maxAirSupply) {
 	public static final BionicHeadTraits EMPTY = new BionicHeadTraits(Set.of(), 300);
 

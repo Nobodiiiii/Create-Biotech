@@ -17,9 +17,12 @@ import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyProperty;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraitScope;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBodyTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitType;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
@@ -190,7 +193,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				.append(Component.translatable("create_biotech.disposition."
 					+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
 		}
-		// Body, head, arm and leg traits are parallel groups, each working only from its own place.
+		// Whole-body traits are separate from traits requiring a specific anatomical place.
 		java.util.EnumMap<BionicTraitSlot, List<Component>> groups = new java.util.EnumMap<>(BionicTraitSlot.class);
 		for (BionicTraitSlot slot : BionicTraitSlot.values())
 			groups.put(slot, new java.util.ArrayList<>());
@@ -202,39 +205,58 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			for (BionicOrganTrait trait : BionicOrganTrait.values())
 				if (organTraits.has(trait))
 					appendProperty(groups.get(trait.slot()), Component.translatable(trait.descriptionId()));
-		if (traits != null)
-			appendBodyTraits(groups.get(BionicTraitSlot.BODY), traits);
-		for (BionicTraitSlot slot : BionicTraitSlot.values()) {
-			List<Component> lines = groups.get(slot);
-			if (lines.isEmpty())
-				continue;
-			tooltip.add(Component.literal(" ").append(Component.translatable(slot.descriptionId())
-				.withStyle(ChatFormatting.DARK_AQUA)));
-			for (Component line : lines)
-				tooltip.add(Component.literal(" ").append(line));
+		if (traits != null) {
+			List<Component> wholeBody = new ArrayList<>();
+			appendBodyTraits(wholeBody, traits, BionicBodyTraitScope.WHOLE_BODY);
+			appendTraitGroup(tooltip, BionicBodyTraitScope.WHOLE_BODY.descriptionId(), wholeBody);
+			appendBodyTraits(groups.get(BionicTraitSlot.BODY), traits, BionicBodyTraitScope.TORSO);
 		}
+		for (BionicTraitSlot slot : BionicTraitSlot.values())
+			appendTraitGroup(tooltip, slot.descriptionId(), groups.get(slot));
 	}
 
-	private static void appendBodyTraits(List<Component> tooltip, BionicBodyTraits traits) {
+	private static void appendTraitGroup(List<Component> tooltip, String descriptionId,
+		List<Component> lines) {
+		if (lines.isEmpty())
+			return;
+		tooltip.add(Component.literal(" ").append(Component.translatable(descriptionId)
+			.withStyle(ChatFormatting.DARK_AQUA)));
+		for (Component line : lines)
+			tooltip.add(Component.literal(" ").append(line));
+	}
+
+	private static void appendBodyTraits(List<Component> tooltip, BionicBodyTraits traits,
+		BionicBodyTraitScope scope) {
 		for (BionicBodyTrait trait : BionicBodyTrait.values()) {
+			if (trait.scope() != scope)
+				continue;
 			double coverage = traits.coverage(trait);
 			if (coverage <= 0.0d)
 				continue;
 			Component name = Component.translatable(trait.descriptionId());
-			if (coverage < 1.0d - 1.0e-8d)
+			if (!traits.has(trait)) {
+				tooltip.add(Component.literal(" ").append(name)
+					.append(Component.literal(" — "))
+					.append(Component.translatable("create_biotech.trait.inactive.insufficient_coverage"))
+					.withStyle(ChatFormatting.DARK_GRAY));
+				continue;
+			}
+			if (trait.rule().type() == BionicTraitType.COVERAGE_SCALED
+				&& !traits.hasFullEffect(trait))
 				name = Component.translatable("create_biotech.trait.partial", name,
 					Long.toString(Math.round(coverage * 100.0d)));
 			appendProperty(tooltip, name);
 		}
-		appendEffectImmunities(tooltip, traits);
-		if (traits.naturalArmor() > 1.0e-8d)
+		if (BionicBodyProperty.IMMUNE_EFFECTS.scope() == scope)
+			appendEffectImmunities(tooltip, traits);
+		if (BionicBodyProperty.NATURAL_ARMOR.scope() == scope && traits.naturalArmor() > 0.0d)
 			appendProperty(tooltip, Component.translatable("create_biotech.trait.natural_armor",
 				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(traits.naturalArmor())));
-		if (traits.knockbackResistance() > 1.0e-8d)
+		if (BionicBodyProperty.KNOCKBACK_RESISTANCE.scope() == scope && traits.knockbackResistance() > 0.0d)
 			appendProperty(tooltip, Component.translatable("create_biotech.trait.knockback_resistance",
 				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
 					traits.knockbackResistance() * 100.0d)));
-		if (traits.passiveRegeneration() > 1.0e-8d)
+		if (BionicBodyProperty.PASSIVE_REGENERATION.scope() == scope && traits.passiveRegeneration() > 0.0d)
 			appendProperty(tooltip, Component.translatable("create_biotech.trait.passive_regeneration",
 				ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(
 					traits.passiveRegeneration())));

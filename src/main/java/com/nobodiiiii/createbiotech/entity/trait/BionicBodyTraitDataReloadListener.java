@@ -33,14 +33,10 @@ import net.minecraft.util.GsonHelper;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.entity.EntityType;
 
-/** Reloads one independent data file per whole-body trait. */
+/** Reloads donor data for torso and whole-body traits; each trait declares its scope in code. */
 public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceReloadListener {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-	private static final String IMMUNE_EFFECTS = "immune_effects";
-	private static final String NATURAL_ARMOR = "natural_armor";
-	private static final String KNOCKBACK_RESISTANCE = "knockback_resistance";
-	private static final String PASSIVE_REGENERATION = "passive_regeneration";
 	public static final BionicBodyTraitDataReloadListener INSTANCE =
 		new BionicBodyTraitDataReloadListener();
 
@@ -55,9 +51,9 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 		for (BionicBodyTrait trait : BionicBodyTrait.values())
 			traits.put(trait, loadTrait(resources, trait));
 		BionicBodyTraitRegistry.replaceData(new DataOverrides(traits, loadEffects(resources),
-			loadNumber(resources, NATURAL_ARMOR),
-			loadNumber(resources, KNOCKBACK_RESISTANCE),
-			loadNumber(resources, PASSIVE_REGENERATION)));
+			loadNumber(resources, BionicBodyProperty.NATURAL_ARMOR.id()),
+			loadNumber(resources, BionicBodyProperty.KNOCKBACK_RESISTANCE.id()),
+			loadNumber(resources, BionicBodyProperty.PASSIVE_REGENERATION.id())));
 	}
 
 	private TraitOverrides loadTrait(Map<ResourceLocation, JsonElement> resources,
@@ -76,7 +72,7 @@ public final class BionicBodyTraitDataReloadListener extends SimpleJsonResourceR
 	}
 
 	private EffectOverrides loadEffects(Map<ResourceLocation, JsonElement> resources) {
-		ResourceLocation primaryId = CreateBiotech.asResource(IMMUNE_EFFECTS);
+		ResourceLocation primaryId = CreateBiotech.asResource(BionicBodyProperty.IMMUNE_EFFECTS.id());
 		boolean automaticDetection = readAutomaticDetection(resources.get(primaryId), primaryId);
 		Map<ResourceLocation, Map<ResourceLocation, Boolean>> entityTypes = new HashMap<>();
 		Map<ResourceLocation, Map<ResourceLocation, Boolean>> tags = new HashMap<>();

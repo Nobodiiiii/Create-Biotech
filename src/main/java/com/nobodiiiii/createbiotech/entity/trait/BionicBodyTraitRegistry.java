@@ -86,7 +86,7 @@ public final class BionicBodyTraitRegistry {
 			return BionicBodyTraits.EMPTY;
 
 		BionicTissue tissue = BionicTissue.of(assembly);
-		double totalVolume = 0.0d;
+		EnumMap<BionicBodyTraitScope, Double> totalVolumes = new EnumMap<>(BionicBodyTraitScope.class);
 		EnumMap<BionicBodyTrait, Double> traitVolumes = new EnumMap<>(BionicBodyTrait.class);
 		double weightedArmor = 0.0d;
 		double weightedKnockbackResistance = 0.0d;
@@ -94,32 +94,48 @@ public final class BionicBodyTraitRegistry {
 		Set<ResourceLocation> commonImmunities = null;
 		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
 			SurgicalAssembly.Source source = tissue.source(sourceId);
-			// Whole-body traits come from the torso; heads and limbs carry only their own traits.
-			double volume = tissue.weight(sourceId, tissue.installed(sourceId, BionicTraitSlot.BODY));
-			if (volume <= 0.0d)
+			EnumMap<BionicBodyTraitScope, Double> volumes = new EnumMap<>(BionicBodyTraitScope.class);
+			for (BionicBodyTraitScope scope : BionicBodyTraitScope.values()) {
+				double volume = tissue.weight(sourceId, scope);
+				volumes.put(scope, volume);
+				totalVolumes.merge(scope, volume, Double::sum);
+			}
+			// A donor retained only as a head or limb still supplies whole-body tissue traits.
+			if (volumes.get(BionicBodyTraitScope.WHOLE_BODY) <= 0.0d)
 				continue;
 			BionicBodyTraits donor = get(source.profile(), level);
-			totalVolume += volume;
-			weightedArmor += donor.naturalArmor() * volume;
-			weightedKnockbackResistance += donor.knockbackResistance() * volume;
-			weightedPassiveRegeneration += donor.passiveRegeneration() * volume;
+			weightedArmor += donor.naturalArmor() * volumes.get(BionicBodyProperty.NATURAL_ARMOR.scope());
+			weightedKnockbackResistance += donor.knockbackResistance()
+				* volumes.get(BionicBodyProperty.KNOCKBACK_RESISTANCE.scope());
+			weightedPassiveRegeneration += donor.passiveRegeneration()
+				* volumes.get(BionicBodyProperty.PASSIVE_REGENERATION.scope());
 			for (BionicBodyTrait trait : BionicBodyTrait.values())
 				if (donor.has(trait))
-					traitVolumes.merge(trait, volume, Double::sum);
-			if (commonImmunities == null)
-				commonImmunities = new HashSet<>(donor.immuneEffects());
-			else
-				commonImmunities.retainAll(donor.immuneEffects());
+					traitVolumes.merge(trait, volumes.get(trait.scope()), Double::sum);
+			if (volumes.get(BionicBodyProperty.IMMUNE_EFFECTS.scope()) > 0.0d) {
+				// At 100%, every donor in the property's scope must be immune, including limb donors.
+				if (commonImmunities == null)
+					commonImmunities = new HashSet<>(donor.immuneEffects());
+				else
+					commonImmunities.retainAll(donor.immuneEffects());
+			}
 		}
-		if (totalVolume <= 0.0d)
+		if (totalVolumes.getOrDefault(BionicBodyTraitScope.WHOLE_BODY, 0.0d) <= 0.0d)
 			return BionicBodyTraits.EMPTY;
 		for (Map.Entry<BionicBodyTrait, Double> entry : traitVolumes.entrySet())
-			entry.setValue(entry.getValue() / totalVolume);
+			entry.setValue(average(entry.getValue(), totalVolumes.get(entry.getKey().scope())));
+		// The three numeric BionicBodyProperty entries are COVERAGE_SCALED: sum donor value × share.
 		return new BionicBodyTraits(traitVolumes,
 			commonImmunities == null ? Set.of() : commonImmunities,
-			weightedArmor / totalVolume,
-			weightedKnockbackResistance / totalVolume,
-			weightedPassiveRegeneration / totalVolume);
+			average(weightedArmor, totalVolumes.get(BionicBodyProperty.NATURAL_ARMOR.scope())),
+			average(weightedKnockbackResistance,
+				totalVolumes.get(BionicBodyProperty.KNOCKBACK_RESISTANCE.scope())),
+			average(weightedPassiveRegeneration,
+				totalVolumes.get(BionicBodyProperty.PASSIVE_REGENERATION.scope())));
+	}
+
+	private static double average(double weightedValue, double totalVolume) {
+		return totalVolume > 0.0d ? weightedValue / totalVolume : 0.0d;
 	}
 
 	@SuppressWarnings("deprecation")

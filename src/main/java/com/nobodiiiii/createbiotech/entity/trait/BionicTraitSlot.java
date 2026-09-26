@@ -5,8 +5,8 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 
 /**
- * The four parallel places a trait works from. Tissue contributes to a trait only while installed in
- * the trait's place: on the torso, or behind a neck, shoulder or hip joint.
+ * The four anatomical places for torso, head and organ traits. Whole-body traits use
+ * {@link BionicBodyTraitScope#WHOLE_BODY} and accept retained tissue in every place.
  */
 public enum BionicTraitSlot {
 	BODY, HEAD, ARM, LEG;

@@ -404,7 +404,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		return getMind().intelligence();
 	}
 
-	/** Whole-tissue donor facts, refreshed after assembly or entity-tag reloads. */
+	/** Torso and whole-body donor facts, refreshed after assembly or entity-tag reloads. */
 	public BionicBodyTraits getBodyTraits() {
 		SurgicalAssembly assembly = getAssembly();
 		long generation = BionicBodyTraitRegistry.generation();
@@ -424,8 +424,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	/** Head abilities are derived from the donor's original head, not whole-body coverage. */
 	public BionicHeadTraits getHeadTraits() {
 		SurgicalAssembly assembly = getAssembly();
-		long generation = BionicHeadTraitRegistry.generation() * 31L
-			+ BionicAnatomyRegistry.generation();
+		long generation = (BionicHeadTraitRegistry.generation() * 31L
+			+ BionicBodyTraitRegistry.generation()) * 31L + BionicAnatomyRegistry.generation();
 		if (assembly != headTraitAssembly || generation != headTraitGeneration) {
 			headTraitAssembly = assembly;
 			headTraitGeneration = generation;
@@ -583,10 +583,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	private void refreshBodyFlight(BionicBodyTraits traits) {
 		BionicOrganTraits organs = getOrganTraits();
-		boolean enabled = traits.coverage(BionicBodyTrait.WINGLESS_FLIGHT) >= 0.5d
-			|| organs.has(BionicOrganTrait.WING_FLIGHT)
-				&& BionicOrganTraitRegistry.liftsBody(getAssembly(),
-					organs.members(BionicOrganTrait.WING_FLIGHT));
+		boolean enabled = traits.has(BionicBodyTrait.WINGLESS_FLIGHT)
+			|| organs.has(BionicOrganTrait.WING_FLIGHT);
 		boolean swimming = !enabled && organs.has(BionicOrganTrait.SWIM_SPECIALIST);
 		if (bodyFlightEnabled == enabled && organSwimEnabled == swimming)
 			return;
@@ -615,29 +613,29 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public boolean fireImmune() {
-		return getBodyTraits().fullyHas(BionicBodyTrait.FIRE_IMMUNE) || super.fireImmune();
+		return getBodyTraits().hasFullEffect(BionicBodyTrait.FIRE_IMMUNE) || super.fireImmune();
 	}
 
 	@Override
 	public boolean isSensitiveToWater() {
-		return getBodyTraits().fullyHas(BionicBodyTrait.WATER_SENSITIVE);
+		return getBodyTraits().hasFullEffect(BionicBodyTrait.WATER_SENSITIVE);
 	}
 
 	@Override
 	public boolean canFreeze() {
-		return !getBodyTraits().fullyHas(BionicBodyTrait.FREEZE_IMMUNE) && super.canFreeze();
+		return !getBodyTraits().hasFullEffect(BionicBodyTrait.FREEZE_IMMUNE) && super.canFreeze();
 	}
 
 	@Override
 	public boolean isInvertedHealAndHarm() {
-		return getBodyTraits().coverage(BionicBodyTrait.INVERTED_HEALING) >= 0.5d;
+		return getBodyTraits().has(BionicBodyTrait.INVERTED_HEALING);
 	}
 
 	@Override
 	public boolean canDrownInFluidType(FluidType type) {
 		return !(type == NeoForgeMod.WATER_TYPE.value()
 			&& getHeadTraits().has(BionicHeadTrait.WATER_BREATHING))
-			&& getBodyTraits().coverage(BionicBodyTrait.NO_BREATHING) < 0.5d
+			&& !getBodyTraits().has(BionicBodyTrait.NO_BREATHING)
 			&& super.canDrownInFluidType(type);
 	}
 
@@ -658,8 +656,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public boolean causeFallDamage(float fallDistance, float multiplier,
 		net.minecraft.world.damagesource.DamageSource source) {
 		BionicBodyTraits traits = getBodyTraits();
-		if (traits.coverage(BionicBodyTrait.FALL_DAMAGE_IMMUNE) >= 0.5d
-			|| traits.coverage(BionicBodyTrait.WINGLESS_FLIGHT) >= 0.5d
+		if (traits.has(BionicBodyTrait.FALL_DAMAGE_IMMUNE)
+			|| traits.has(BionicBodyTrait.WINGLESS_FLIGHT)
 			|| getOrganTraits().has(BionicOrganTrait.AGILE_LANDING)
 			|| bodyFlightEnabled)
 			return false;
@@ -707,7 +705,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void makeStuckInBlock(BlockState state, Vec3 motionMultiplier) {
 		if (state.is(Blocks.COBWEB)
-			&& getBodyTraits().coverage(BionicBodyTrait.WEB_ADAPTED) >= 0.5d)
+			&& getBodyTraits().has(BionicBodyTrait.WEB_ADAPTED))
 			return;
 		super.makeStuckInBlock(state, motionMultiplier);
 	}
@@ -721,23 +719,23 @@ public class SlimeBionicEntity extends PathfinderMob {
 			amount *= (float) BionicOrganTraitRegistry.parameter(
 				BionicOrganTrait.SHELL_DEFENSE, "damage_multiplier", 0.5d);
 		if (source.is(DamageTypeTags.IS_FIRE)) {
-			double resistance = traits.coverage(BionicBodyTrait.FIRE_IMMUNE);
-			if (resistance >= 1.0d - 1.0e-8d)
+			double resistance = traits.strength(BionicBodyTrait.FIRE_IMMUNE);
+			if (traits.hasFullEffect(BionicBodyTrait.FIRE_IMMUNE))
 				return false;
 			amount *= (float) (1.0d - resistance);
 		}
 		if (source.is(DamageTypeTags.IS_FREEZING)) {
-			double immunity = traits.coverage(BionicBodyTrait.FREEZE_IMMUNE);
-			if (immunity >= 1.0d - 1.0e-8d)
+			double immunity = traits.strength(BionicBodyTrait.FREEZE_IMMUNE);
+			if (traits.hasFullEffect(BionicBodyTrait.FREEZE_IMMUNE))
 				return false;
 			amount *= (float) ((1.0d - immunity)
-				* (1.0d + 4.0d * traits.coverage(BionicBodyTrait.FREEZE_VULNERABLE)));
+				* (1.0d + 4.0d * traits.strength(BionicBodyTrait.FREEZE_VULNERABLE)));
 		}
 		boolean hurt = super.hurt(source, amount);
 		if (hurt && organs.has(BionicOrganTrait.SHELL_DEFENSE))
 			shellGuardTicks = (int) BionicOrganTraitRegistry.parameter(
 				BionicOrganTrait.SHELL_DEFENSE, "duration_ticks", 80.0d);
-		double retaliation = traits.coverage(BionicBodyTrait.CONTACT_RETALIATION);
+		double retaliation = traits.strength(BionicBodyTrait.CONTACT_RETALIATION);
 		if (hurt && retaliation > 0.0d && !level().isClientSide
 			&& !source.is(DamageTypeTags.AVOIDS_GUARDIAN_THORNS)
 			&& !source.is(DamageTypes.THORNS)
@@ -752,7 +750,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public ProjectileDeflection deflection(Projectile projectile) {
-		if (getBodyTraits().coverage(BionicBodyTrait.PROJECTILE_DEFLECTION) >= 0.5d
+		if (getBodyTraits().has(BionicBodyTrait.PROJECTILE_DEFLECTION)
 			&& projectile.getType() != EntityType.BREEZE_WIND_CHARGE
 			&& projectile.getType() != EntityType.WIND_CHARGE)
 			return ProjectileDeflection.REVERSE;
@@ -762,7 +760,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void jumpFromGround() {
 		super.jumpFromGround();
-		double bounce = getBodyTraits().coverage(BionicBodyTrait.BODY_BOUNCE);
+		double bounce = getBodyTraits().strength(BionicBodyTrait.BODY_BOUNCE);
 		if (bounce > 0.0d)
 			setDeltaMovement(getDeltaMovement().add(0.0d, 0.1d * bounce, 0.0d));
 	}
@@ -863,7 +861,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void aiStep() {
 		super.aiStep();
-		double slowFall = getBodyTraits().coverage(BionicBodyTrait.BODY_SLOW_FALL);
+		double slowFall = getBodyTraits().strength(BionicBodyTrait.BODY_SLOW_FALL);
 		if (!onGround() && getDeltaMovement().y < 0.0d && slowFall > 0.0d) {
 			double verticalMultiplier = Mth.lerp(slowFall, 1.0d, 0.6d);
 			setDeltaMovement(getDeltaMovement().multiply(1.0d, verticalMultiplier, 1.0d));
@@ -1134,8 +1132,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private void tickHeadRespiration() {
 		if (level().isClientSide || !isAlive())
 			return;
-		if (!getHeadTraits().has(BionicHeadTrait.DRY_SUFFOCATION)
-			|| getBodyTraits().coverage(BionicBodyTrait.NO_BREATHING) >= 0.5d) {
+		if (!getHeadTraits().has(BionicHeadTrait.DRY_SUFFOCATION)) {
 			dryAir = -1;
 			return;
 		}
@@ -1158,11 +1155,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (tickCount % 20 == 0 && traits.passiveRegeneration() > 0.0d
 			&& getHealth() < getMaxHealth())
 			heal((float) traits.passiveRegeneration());
-		double waterSensitivity = traits.coverage(BionicBodyTrait.WATER_SENSITIVE);
-		if (waterSensitivity > 0.0d && waterSensitivity < 1.0d - 1.0e-8d
+		double waterSensitivity = traits.strength(BionicBodyTrait.WATER_SENSITIVE);
+		if (waterSensitivity > 0.0d && !traits.hasFullEffect(BionicBodyTrait.WATER_SENSITIVE)
 			&& isInWaterRainOrBubble())
 			hurt(damageSources().drown(), (float) waterSensitivity);
-		double sunSensitivity = traits.coverage(BionicBodyTrait.SUN_SENSITIVE);
+		double sunSensitivity = traits.strength(BionicBodyTrait.SUN_SENSITIVE);
 		if (sunSensitivity > 0.0d && random.nextDouble() < sunSensitivity && isSunBurnTick()) {
 			boolean burns = true;
 			ItemStack headwear = getItemBySlot(EquipmentSlot.HEAD);
@@ -1181,12 +1178,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 				igniteForSeconds(8.0f);
 		}
 
-		double heatSensitivity = traits.coverage(BionicBodyTrait.HEAT_SENSITIVE);
+		double heatSensitivity = traits.strength(BionicBodyTrait.HEAT_SENSITIVE);
 		if (heatSensitivity > 0.0d
 			&& level().getBiome(blockPosition()).is(BiomeTags.SNOW_GOLEM_MELTS))
 			hurt(damageSources().onFire(), (float) heatSensitivity);
 
-		double moistureDependence = traits.coverage(BionicBodyTrait.MOISTURE_DEPENDENT);
+		double moistureDependence = traits.strength(BionicBodyTrait.MOISTURE_DEPENDENT);
 		if (moistureDependence <= 0.0d) {
 			moisture = -1;
 			return;
