@@ -365,7 +365,6 @@ public class CreateBiotechClient {
 			@Override
 			public void onResourceManagerReload(ResourceManager resourceManager) {
 				CapturedEntityRenderManager.clearForResourceReload();
-				BionicDonorPreviewCache.clear();
 				SurgicalTableClientHandler.clear();
 				SurgicalTableModel.reload();
 				SurgicalSourceModelRenderer.clear();

@@ -185,9 +185,12 @@ public final class GuiEntityItemElement {
 	 */
 	public void render(PoseStack poseStack, MultiBufferSource buffer) {
 		poseStack.pushPose();
-		applyTransform(poseStack);
-		EntityRenderHelper.renderUnoriented(entity, poseStack, buffer, packedLight);
-		poseStack.popPose();
+		try {
+			applyTransform(poseStack);
+			EntityRenderHelper.renderUnoriented(entity, poseStack, buffer, packedLight);
+		} finally {
+			poseStack.popPose();
+		}
 	}
 
 	/**
@@ -213,15 +216,18 @@ public final class GuiEntityItemElement {
 
 		PoseStack poseStack = graphics.pose();
 		poseStack.pushPose();
-		poseStack.translate(x + width / 2.0f, y + height / 2.0f, GUI_RENDER_Z);
-		poseStack.mulPose(new Matrix4f().scaling(1.0f, -1.0f, 1.0f));
-		float boxScale = Math.min(width, height);
-		poseStack.scale(boxScale, boxScale, boxScale);
-		ClientHooks.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
-		poseStack.translate(-0.5f, -0.5f, -0.5f);
-		render(poseStack, graphics.bufferSource());
-		graphics.flush();
-		poseStack.popPose();
+		try {
+			poseStack.translate(x + width / 2.0f, y + height / 2.0f, GUI_RENDER_Z);
+			poseStack.mulPose(new Matrix4f().scaling(1.0f, -1.0f, 1.0f));
+			float boxScale = Math.min(width, height);
+			poseStack.scale(boxScale, boxScale, boxScale);
+			ClientHooks.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
+			poseStack.translate(-0.5f, -0.5f, -0.5f);
+			render(poseStack, graphics.bufferSource());
+			graphics.flush();
+		} finally {
+			poseStack.popPose();
+		}
 	}
 
 	/**

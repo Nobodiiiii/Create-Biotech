@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
+import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
@@ -23,6 +24,8 @@ import com.simibubi.create.content.kinetics.crusher.AbstractCrushingRecipe;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
+import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter;
+import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
@@ -32,6 +35,7 @@ import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
+import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -54,6 +58,22 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	@Override
 	public ResourceLocation getPluginUid() {
 		return CreateBiotech.asResource("jei_plugin");
+	}
+
+	@Override
+	public void registerItemSubtypes(ISubtypeRegistration registration) {
+		registration.registerSubtypeInterpreter(CBItems.BIONIC_DONOR_PREVIEW.get(), new ISubtypeInterpreter<ItemStack>() {
+			@Override
+			public Object getSubtypeData(ItemStack stack, UidContext context) {
+				return BionicDonorPreviewItem.entityId(stack);
+			}
+
+			@Override
+			public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
+				ResourceLocation id = BionicDonorPreviewItem.entityId(stack);
+				return id == null ? "" : id.toString();
+			}
+		});
 	}
 
 	@Override

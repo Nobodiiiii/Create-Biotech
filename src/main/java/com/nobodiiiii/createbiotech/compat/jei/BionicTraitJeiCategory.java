@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.recipe.IFocusGroup;
@@ -24,11 +25,13 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	private static final int HEIGHT = 125;
 	private static final int TEXT_Y = 22;
 	private static final int DONORS_Y = HEIGHT - BionicTraitDonorWidget.HEIGHT;
+	private final IDrawable slotBackground;
 
 	public BionicTraitJeiCategory(IGuiHelper guiHelper) {
 		super(TYPE, Component.translatable("create_biotech.jei.traits"),
 			guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(CBItems.SURGERY_GUIDE.get())),
 			WIDTH, HEIGHT);
+		slotBackground = guiHelper.getSlotDrawable();
 	}
 
 	@Override
@@ -41,14 +44,18 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 			.addIngredient(BionicTraitJeiIngredient.TYPE, trait);
 		builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
 			.addItemStack(new ItemStack(CBItems.SURGERY_GUIDE.get()));
+		// The server fills these display-only slots as its donor scan progresses.
+		for (int slot = 0; slot < BionicTraitDonorWidget.PAGE_SIZE; slot++)
+			builder.addSlot(RecipeIngredientRole.RENDER_ONLY).setStandardSlotBackground();
 	}
 
 	@Override
 	public void createRecipeExtras(IRecipeExtrasBuilder builder, BionicTrait trait, IFocusGroup focuses) {
 		builder.addScrollBoxWidget(WIDTH, DONORS_Y - TEXT_Y - 6, 0, TEXT_Y)
 			.setContents(BionicTraitJeiText.description(trait));
-		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y);
-		builder.addWidget(donors);
+		var slots = builder.getRecipeSlots().getSlots(RecipeIngredientRole.RENDER_ONLY);
+		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y, slots, slotBackground);
+		builder.addSlottedWidget(donors, slots);
 		builder.addInputHandler(donors);
 	}
 

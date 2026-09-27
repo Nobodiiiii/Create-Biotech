@@ -64,8 +64,7 @@ public final class EntityGeometry {
 	 * own coordinate space.
 	 */
 	public static void measureInto(LivingEntity entity, Collector collector) {
-		MultiBufferSource measuringBuffer = renderType -> collector;
-		EntityRenderHelper.renderUnoriented(entity, new PoseStack(), measuringBuffer, LightTexture.FULL_BRIGHT);
+		EntityRenderHelper.renderUnoriented(entity, new PoseStack(), collector.asBufferSource(), LightTexture.FULL_BRIGHT);
 	}
 
 	/**
@@ -283,6 +282,15 @@ public final class EntityGeometry {
 			return new Collector(maxVertices);
 		}
 
+		/**
+		 * Each buffer request needs its own consumer identity: foil item renderers combine
+		 * their material and glint consumers with VertexMultiConsumer, which rejects
+		 * duplicate delegates. All layers still contribute to this collector's bounds.
+		 */
+		public MultiBufferSource asBufferSource() {
+			return renderType -> new LayerConsumer(this);
+		}
+
 		public Bounds bounds() {
 			return bounds;
 		}
@@ -358,6 +366,45 @@ public final class EntityGeometry {
 		@Override
 		public VertexConsumer addVertex(float x, float y, float z) {
 			store(x, y, z);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv(float u, float v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv1(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv2(int u, int v) {
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setNormal(float x, float y, float z) {
+			return this;
+		}
+	}
+
+	private static final class LayerConsumer implements VertexConsumer {
+		private final Collector collector;
+
+		private LayerConsumer(Collector collector) {
+			this.collector = collector;
+		}
+
+		@Override
+		public VertexConsumer addVertex(float x, float y, float z) {
+			collector.addVertex(x, y, z);
 			return this;
 		}
 

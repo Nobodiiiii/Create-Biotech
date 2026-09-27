@@ -31,6 +31,7 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgeryGuideItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
@@ -136,6 +137,10 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, SurgeryGuideItem> SURGERY_GUIDE = ITEMS.register("surgery_guide",
 		() -> new SurgeryGuideItem(new Item.Properties()));
+
+	// Display-only carrier: intentionally omitted from all creative tabs.
+	public static final DeferredHolder<Item, BionicDonorPreviewItem> BIONIC_DONOR_PREVIEW =
+		ITEMS.register("bionic_donor_preview", () -> new BionicDonorPreviewItem(new Item.Properties().stacksTo(1)));
 
 	public static final DeferredHolder<Item, EnchantmentBookCopyItem> ENCHANTMENT_BOOK_COPY =
 		ITEMS.register("enchantment_book_copy", () -> new EnchantmentBookCopyItem(new Item.Properties()));

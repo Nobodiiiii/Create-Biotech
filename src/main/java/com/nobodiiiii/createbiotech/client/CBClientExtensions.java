@@ -16,6 +16,8 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderProperties;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
+import com.nobodiiiii.createbiotech.content.surgery.client.BionicDonorPreviewItemRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.fluid.CBFluidType;
 import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
@@ -65,6 +67,8 @@ final class CBClientExtensions {
 
 	@Nullable
 	private static IClientItemExtensions createItemExtensions(Item item) {
+		if (item instanceof BionicDonorPreviewItem)
+			return itemRenderer(new BionicDonorPreviewItemRenderer());
 		// Specific entity renderers must precede their shared base class.
 		if (item instanceof CapturedSmallSlimeItem slime)
 			return CapturedSmallSlimeItemRenderer.create(slime.getRenderedEntityScaleMultiplier());
