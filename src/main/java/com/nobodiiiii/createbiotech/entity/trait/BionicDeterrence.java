@@ -25,7 +25,7 @@ public final class BionicDeterrence {
 		EntityType.VINDICATOR, EntityType.ZOGLIN, EntityType.ZOMBIE, EntityType.ZOMBIE_VILLAGER,
 		EntityType.ZOMBIFIED_PIGLIN);
 
-	public static Set<EntityType<?>> targets(EntityType<?> donor, boolean monster) {
+	public static Set<EntityType<?>> targets(EntityType<?> donor) {
 		Set<EntityType<?>> result = new HashSet<>();
 		if (donor == EntityType.CAT || donor == EntityType.OCELOT) result.add(EntityType.CREEPER);
 		if (donor == EntityType.CAT || donor == EntityType.OCELOT) result.add(EntityType.PHANTOM);
@@ -38,7 +38,6 @@ public final class BionicDeterrence {
 		if (donor == EntityType.ZOMBIFIED_PIGLIN || donor == EntityType.ZOGLIN) result.add(EntityType.PIGLIN);
 		if (VILLAGER_THREATS.contains(donor)) result.add(EntityType.VILLAGER);
 		if (TRADER_THREATS.contains(donor)) result.add(EntityType.WANDERING_TRADER);
-		if (monster) result.add(EntityType.RABBIT);
 		return Set.copyOf(result);
 	}
 	public static boolean canFlee(Mob mob) {

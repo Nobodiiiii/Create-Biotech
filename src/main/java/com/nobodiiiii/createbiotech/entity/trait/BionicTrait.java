@@ -92,10 +92,9 @@ public enum BionicTrait {
 	WING_FLIGHT("wing_flight", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.WING_LIFT,
 		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
-	SWIM_SPECIALIST("swim_specialist", Set.of(BionicTraitScope.ARM, BionicTraitScope.LEG),
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
-		Carrier.of(BionicAnatomyRole.FIN, BionicAnatomyRole.TAIL,
-			BionicAnatomyRole.TENTACLE, BionicAnatomyRole.LEG)),
+	SWIM_SPECIALIST("swim_specialist", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
+		Carrier.allTissue()),
 	EFFECT_ATTACK("effect_attack", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ATTACK_EFFECT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.MOUTH, BionicAnatomyRole.SPINE, BionicAnatomyRole.ATTACK_HAND)),
@@ -157,7 +156,7 @@ public enum BionicTrait {
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
 			BODY_BOUNCE, PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
-			WATER_BREATHING, TAMEABLE, DETERRENCE, AGILE_LANDING, POWDER_SNOW_WALK,
+			WATER_BREATHING, TAMEABLE, DETERRENCE, AGILE_LANDING, POWDER_SNOW_WALK, SWIM_SPECIALIST,
 			IMMUNE_EFFECTS, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION -> true;
 		default -> false;
 		};

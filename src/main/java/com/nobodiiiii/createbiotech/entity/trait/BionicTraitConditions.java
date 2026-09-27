@@ -29,9 +29,9 @@ final class BionicTraitConditions {
 					? InactiveReason.PURPOSE_MISMATCH : null;
 		}
 		case LIMB_COUNT -> {
-			int minimum = (int) data.parameter(trait == BionicTrait.SWIM_SPECIALIST ? "min_limbs" : "min_legs",
+			int minimum = (int) data.parameter("min_legs",
 				switch (trait) {
-				case AGILE_LANDING, WALL_CLIMB, SWIM_SPECIALIST -> 2;
+				case AGILE_LANDING, WALL_CLIMB -> 2;
 				default -> 1;
 				});
 			boolean supported = tissue.effectiveLimbCount(trait.scopes(), covered.members(trait)) >= minimum;

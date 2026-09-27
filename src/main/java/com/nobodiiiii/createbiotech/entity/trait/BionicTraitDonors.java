@@ -19,9 +19,15 @@ import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.control.SmoothSwimmingMoveControl;
+import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
+import net.minecraft.world.entity.ai.navigation.WaterBoundPathNavigation;
+import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.monster.Drowned;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.NeoForgeMod;
 
@@ -113,8 +119,7 @@ public final class BionicTraitDonors {
 			if (enabled && attackData.attackEffects().containsKey(effect)) attacks.add(effect);
 			else attacks.remove(effect);
 		}));
-		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type,
-			donor instanceof net.minecraft.world.entity.monster.Monster).stream()
+		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type).stream()
 			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()));
 	}
 
@@ -126,7 +131,7 @@ public final class BionicTraitDonors {
 		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
 		case FREEZE_VULNERABLE -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
 		case INVERTED_HEALING -> donor != null && donor.isInvertedHealAndHarm();
-		case DETERRENCE -> !BionicDeterrence.targets(type, donor instanceof net.minecraft.world.entity.monster.Monster).isEmpty();
+		case DETERRENCE -> !BionicDeterrence.targets(type).isEmpty();
 		case PROJECTILE_DEFLECTION -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);
 		case WATER_BREATHING -> donor != null && (type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
 			&& !type.is(EntityTypeTags.UNDEAD) && type != EntityType.ARMOR_STAND
@@ -137,6 +142,12 @@ public final class BionicTraitDonors {
 		case AGILE_LANDING -> (type == EntityType.CAT || type == EntityType.OCELOT)
 			&& type.is(EntityTypeTags.FALL_DAMAGE_IMMUNE);
 		case POWDER_SNOW_WALK -> type.is(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS);
+		// Squid swim without water navigation; drowned start with their land navigation.
+		// Generic floating and underwater breathing alone do not establish swimming expertise.
+		case SWIM_SPECIALIST -> donor instanceof WaterAnimal || donor instanceof Drowned
+			|| donor instanceof Mob mob && (mob.getNavigation() instanceof WaterBoundPathNavigation
+				|| mob.getNavigation() instanceof AmphibiousPathNavigation
+				|| mob.getMoveControl() instanceof SmoothSwimmingMoveControl);
 		default -> false;
 		};
 	}
