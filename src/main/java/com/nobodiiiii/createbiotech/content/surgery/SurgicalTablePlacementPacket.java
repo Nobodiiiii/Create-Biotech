@@ -49,7 +49,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
-		// Only saved legacy bodies may be unmeasured; newly captured cubes still need measurements.
+		// Reusing a saved assembly sends no discovered cubes; fresh captures must be fully measured.
 		if (!anatomy.fits(observedCubeCount) || observedCubeCount > 0 && !anatomy.hasVolumes())
 			throw new IllegalArgumentException("Anatomy cube outside discovered placement");
 	}
@@ -192,7 +192,9 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			volumes[cube] = buffer.readFloat();
 		BionicAnatomySnapshot result = BionicAnatomySnapshot.ofParts(parts,
 			SurgicalAssembly.MAX_CUBES);
-		if (result != null)
+		// An existing assembly uses EMPTY instead of sending new measurements. The packet constructor
+		// still requires volumes whenever observedCubeCount is positive.
+		if (result != null && volumeCount > 0)
 			result = result.withVolumes(volumes);
 		if (result == null)
 			throw new IllegalArgumentException("Invalid surgical anatomy");
