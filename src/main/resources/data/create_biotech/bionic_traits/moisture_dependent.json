@@ -3,5 +3,6 @@
   "values": {
     "minecraft:axolotl": true,
     "minecraft:dolphin": true
-  }
+  },
+  "min_coverage": 0.5
 }

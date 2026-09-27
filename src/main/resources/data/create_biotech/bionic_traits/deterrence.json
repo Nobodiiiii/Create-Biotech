@@ -1,5 +1,5 @@
 {
-  "automatic_detection": false,
+  "automatic_detection": true,
   "values": {
     "minecraft:cat": true,
     "minecraft:ocelot": true,

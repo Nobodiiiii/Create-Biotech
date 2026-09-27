@@ -7,7 +7,9 @@
     "minecraft:warden": {
       "HEAD": [
         "head",
-        "head_cube"
+        "head_cube",
+        "left_tendril",
+        "right_tendril"
       ]
     }
   }

@@ -42,7 +42,7 @@ public final class SlimeMimicDeathHandler {
 		if (profiles.isEmpty())
 			return;
 		PENDING.putIfAbsent(entity.getUUID(), new PendingDeath(level, entity.getBoundingBox(), profiles,
-			fallbackCube(entity), level.getGameTime()));
+			fallbackCube(entity), level.getGameTime(), SlimeCompanionHandler.ownerOf(entity)));
 	}
 
 	@SubscribeEvent
@@ -115,7 +115,7 @@ public final class SlimeMimicDeathHandler {
 			if (geometry.source() < 0 || geometry.source() >= pending.profiles.size())
 				continue;
 			SlimeMimicFragmentSpawner.spawn(pending.level, pending.profiles.get(geometry.source()),
-				geometry.cube(), geometry.corners());
+				geometry.cube(), geometry.corners(), pending.owner);
 		}
 	}
 
@@ -152,7 +152,7 @@ public final class SlimeMimicDeathHandler {
 	}
 
 	private record PendingDeath(ServerLevel level, AABB bounds,
-		List<MimicProfile> profiles, SlimeMimicCubeGeometry fallback, long createdTick) {
+		List<MimicProfile> profiles, SlimeMimicCubeGeometry fallback, long createdTick, UUID owner) {
 		private PendingDeath {
 			profiles = List.copyOf(profiles);
 		}

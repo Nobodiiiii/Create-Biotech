@@ -18,7 +18,6 @@ final class BionicTraitConditions {
 		case NONE -> null;
 		case BREATHING_REQUIRED -> covered.has(BionicTrait.NO_BREATHING)
 			? InactiveReason.BREATHING_NOT_REQUIRED : null;
-		case RANGED_ATTACK -> InactiveReason.NO_RANGED_ATTACK;
 		case WING_LIFT -> {
 			var members = covered.members(trait);
 			if (tissue.effectiveLimbCount(trait.scopes(), members) < (int) data.parameter("min_wings", 2))

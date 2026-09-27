@@ -107,23 +107,31 @@ public final class BionicTraitDonors {
 			if (enabled) effects.add(effect);
 			else effects.remove(effect);
 		}));
-		return new Facts(abilities, numbers, effects);
+		Set<ResourceLocation> attacks = new HashSet<>();
+		BionicTraitData attackData = snapshot.get(BionicTrait.EFFECT_ATTACK);
+		attackData.effects().forEach(type, id, overrides -> overrides.forEach((effect, enabled) -> {
+			if (enabled && attackData.attackEffects().containsKey(effect)) attacks.add(effect);
+			else attacks.remove(effect);
+		}));
+		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type,
+			donor instanceof net.minecraft.world.entity.monster.Monster).stream()
+			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()));
 	}
 
 	@SuppressWarnings("deprecation")
 	private static boolean automatic(BionicTrait trait, EntityType<?> type, @Nullable LivingEntity donor) {
 		return switch (trait) {
-		case FIRE_IMMUNE -> type.fireImmune() || donor != null && donor.fireImmune();
+		case FIRE_IMMUNE, FIRE_RESISTANCE -> type.fireImmune() || donor != null && donor.fireImmune();
 		case WATER_SENSITIVE -> donor != null && donor.isSensitiveToWater();
-		case FREEZE_IMMUNE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
+		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
 		case FREEZE_VULNERABLE -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
 		case INVERTED_HEALING -> donor != null && donor.isInvertedHealAndHarm();
+		case DETERRENCE -> !BionicDeterrence.targets(type, donor instanceof net.minecraft.world.entity.monster.Monster).isEmpty();
 		case PROJECTILE_DEFLECTION -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);
-		case WATER_BREATHING -> donor != null && type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
+		case WATER_BREATHING -> donor != null && (type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
 			&& !type.is(EntityTypeTags.UNDEAD) && type != EntityType.ARMOR_STAND
-			&& !donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value());
-		case LONG_BREATH -> donor != null && donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value())
-			&& donor.getMaxAirSupply() > 300;
+			&& !donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value())
+			|| donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value()) && donor.getMaxAirSupply() > 300);
 		case TAMEABLE -> donor instanceof TamableAnimal || donor instanceof AbstractHorse
 			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE && type != EntityType.CAMEL;
 		case AGILE_LANDING -> (type == EntityType.CAT || type == EntityType.OCELOT)
@@ -136,12 +144,14 @@ public final class BionicTraitDonors {
 	private record Cache(long generation, Map<MimicProfile.BiologicalKey, Facts> facts) {}
 
 	public record Facts(Set<BionicTrait> abilities, Map<BionicTrait, Double> numbers,
-		Set<ResourceLocation> immuneEffects) {
-		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of());
+		Set<ResourceLocation> immuneEffects, Set<ResourceLocation> attackEffects, Set<ResourceLocation> deterrenceTargets) {
+		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of());
 		public Facts {
 			abilities = Set.copyOf(abilities);
 			numbers = Map.copyOf(numbers);
 			immuneEffects = Set.copyOf(immuneEffects);
+			attackEffects = Set.copyOf(attackEffects);
+			deterrenceTargets = Set.copyOf(deterrenceTargets);
 		}
 		public boolean has(BionicTrait trait) { return abilities.contains(trait); }
 		public double value(BionicTrait trait) { return numbers.getOrDefault(trait, 0.0d); }

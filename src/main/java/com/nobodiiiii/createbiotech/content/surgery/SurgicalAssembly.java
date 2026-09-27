@@ -44,6 +44,7 @@ public final class SurgicalAssembly {
 	private static final String HEAD_CUBES_TAG = "HeadCubes";
 	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
 	private static final String ANATOMY_TAG = "Anatomy";
+	private static final String LEGACY_ANATOMY_TAG = "AnatomyRoles";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String SEAMS_TAG = "Seams";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
@@ -239,7 +240,8 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
 		int version = tag.getInt(VERSION_TAG);
-		if (version != CURRENT_VERSION || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
+		// Version 2 changed trait metadata, not the saved geometry or assembly topology.
+		if ((version != 1 && version != CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
 			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(LAYOUT_LAY_POSE_TAG, Tag.TAG_COMPOUND))
 			return null;
@@ -1695,7 +1697,7 @@ public final class SurgicalAssembly {
 			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
 			Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			if (profile == null || presentCubes == null || seams == null || cutSeams == null
-				|| donorId == null || headCubes == null || originalHeadCubes == null || !originalHeadKnown
+				|| donorId == null || headCubes == null || originalHeadCubes == null
 				|| anatomy == null
 				|| !anatomy.fits(cubeCount)
 				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
@@ -1815,14 +1817,10 @@ public final class SurgicalAssembly {
 				|| !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				|| !tag.contains(SEAMS_TAG, Tag.TAG_INT_ARRAY)
 				|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND)
-				|| !tag.hasUUID(DONOR_ID_TAG)
-				|| !tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				|| !tag.contains(ANATOMY_TAG, Tag.TAG_COMPOUND))
+				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND))
 				return null;
 			if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				|| hasWrongType(tag, ANATOMY_TAG, Tag.TAG_COMPOUND)
 				|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 				return null;
@@ -1836,12 +1834,14 @@ public final class SurgicalAssembly {
 				? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
 			BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
-			boolean originalHeadKnown = true;
-			BitSet originalHeads = BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG));
-			BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(ANATOMY_TAG), cubeCount);
+			boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
+			BitSet originalHeads = originalHeadKnown
+				? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
+			BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(
+				tag.contains(ANATOMY_TAG, Tag.TAG_COMPOUND) ? ANATOMY_TAG : LEGACY_ANATOMY_TAG), cubeCount);
 			if (anatomy == null)
 				return null;
-			UUID donorId = tag.getUUID(DONOR_ID_TAG);
+			UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : UUID.randomUUID();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
 				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;
 			if (order == null || !normalizeCutOrder(order, cuts, seams.size()).equals(order)

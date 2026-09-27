@@ -37,7 +37,4 @@ public final class BionicTraitSet {
 		BionicTraitData definition = data.get(trait);
 		return (definition == null ? BionicTraitData.defaults(trait) : definition).parameter(key, fallback);
 	}
-	public int maxAirSupply() {
-		return has(BionicTrait.LONG_BREATH) ? (int) parameter(BionicTrait.LONG_BREATH, "max_air_supply", 4800) : 300;
-	}
 }

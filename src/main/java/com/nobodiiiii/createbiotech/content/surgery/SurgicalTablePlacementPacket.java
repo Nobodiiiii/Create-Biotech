@@ -49,7 +49,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
-		if (!anatomy.fits(observedCubeCount))
+		// Only saved legacy bodies may be unmeasured; newly captured cubes still need measurements.
+		if (!anatomy.fits(observedCubeCount) || observedCubeCount > 0 && !anatomy.hasVolumes())
 			throw new IllegalArgumentException("Anatomy cube outside discovered placement");
 	}
 

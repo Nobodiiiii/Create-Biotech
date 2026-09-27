@@ -1,0 +1,87 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:cave_spider": {
+      "minecraft:poison": true
+    },
+    "minecraft:bee": {
+      "minecraft:poison": true
+    },
+    "minecraft:pufferfish": {
+      "minecraft:poison": true
+    },
+    "minecraft:wither_skeleton": {
+      "minecraft:wither": true
+    },
+    "minecraft:husk": {
+      "minecraft:hunger": true
+    }
+  },
+  "effects": {
+    "minecraft:poison": {
+      "roles": [
+        "MOUTH",
+        "SPINE"
+      ],
+      "duration_ticks": 100,
+      "amplifier": 0,
+      "chance": 1.0,
+      "unarmed_only": false
+    },
+    "minecraft:wither": {
+      "roles": [
+        "ATTACK_HAND"
+      ],
+      "duration_ticks": 200,
+      "amplifier": 0,
+      "chance": 1.0,
+      "unarmed_only": false
+    },
+    "minecraft:hunger": {
+      "roles": [
+        "ATTACK_HAND"
+      ],
+      "duration_ticks": 140,
+      "amplifier": 0,
+      "chance": 1.0,
+      "unarmed_only": true
+    }
+  },
+  "carriers": {
+    "minecraft:cave_spider": {
+      "MOUTH": [
+        "head",
+        "mouth",
+        "fang"
+      ]
+    },
+    "minecraft:bee": {
+      "SPINE": [
+        "stinger"
+      ]
+    },
+    "minecraft:pufferfish": {
+      "SPINE": [
+        "body",
+        "spikes",
+        "spine"
+      ]
+    },
+    "minecraft:wither_skeleton": {
+      "ATTACK_HAND": [
+        "leftArm",
+        "rightArm",
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    "minecraft:husk": {
+      "ATTACK_HAND": [
+        "leftArm",
+        "rightArm",
+        "left_arm",
+        "right_arm"
+      ]
+    }
+  }
+}

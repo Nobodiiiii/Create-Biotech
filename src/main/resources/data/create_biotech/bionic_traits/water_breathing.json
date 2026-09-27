@@ -1,7 +1,8 @@
 {
   "automatic_detection": true,
-  "min_coverage": 0.5,
-  "values": {},
+  "values": {
+    "minecraft:dolphin": true
+  },
   "carriers": {
     "minecraft:cod": {
       "GILL": [
@@ -69,6 +70,11 @@
       "GILL": [
         "head"
       ],
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:dolphin": {
       "HEAD": [
         "head"
       ]

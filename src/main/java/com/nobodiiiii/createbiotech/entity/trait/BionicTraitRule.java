@@ -15,8 +15,8 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 		Objects.requireNonNull(type);
 		if (!Double.isFinite(minCoverage) || minCoverage < 0.0d || minCoverage > 1.0d)
 			throw new IllegalArgumentException("Trait coverage threshold must be between 0 and 1");
-		if (type != BionicTraitType.COVERAGE_THRESHOLD && minCoverage != 0.0d)
-			throw new IllegalArgumentException("Only threshold traits have a minimum coverage");
+		if (type == BionicTraitType.PRESENCE && minCoverage != 0.0d)
+			throw new IllegalArgumentException("Presence traits do not use coverage");
 	}
 
 	public static BionicTraitRule presence() {
@@ -31,9 +31,9 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 		return new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.0d);
 	}
 
-	/** Data-pack min_coverage applies only to threshold traits. */
+	/** Threshold acquisition or the full-value volume budget of a numeric trait. */
 	public BionicTraitRule withMinCoverage(double minimum) {
-		return type == BionicTraitType.COVERAGE_THRESHOLD ? threshold(minimum) : this;
+		return type == BionicTraitType.PRESENCE ? this : new BionicTraitRule(type, minimum);
 	}
 
 	public boolean isActive(boolean carrierPresent, double coverage) {
@@ -48,7 +48,7 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 			|| coverage + COVERAGE_EPSILON >= minCoverage;
 	}
 
-	/** Binary traits return 0 or 1; scaled traits return their clamped coverage. */
+	/** Binary traits return 0 or 1; numeric traits scale toward their configured volume budget. */
 	public double strength(double coverage) {
 		return strength(coverage > 0.0d, coverage);
 	}
@@ -57,6 +57,6 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 	public double strength(boolean carrierPresent, double coverage) {
 		if (!isActive(carrierPresent, coverage))
 			return 0.0d;
-		return type == BionicTraitType.COVERAGE_SCALED ? Math.min(1.0d, coverage) : 1.0d;
+		return type == BionicTraitType.COVERAGE_SCALED ? Math.min(1.0d, coverage / (minCoverage > 0 ? minCoverage : 1.0d)) : 1.0d;
 	}
 }

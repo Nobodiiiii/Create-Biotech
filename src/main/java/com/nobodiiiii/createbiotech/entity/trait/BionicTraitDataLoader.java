@@ -54,10 +54,12 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid automatic_detection in {}", primary);
 		}
-		if (rule.type() == BionicTraitType.COVERAGE_THRESHOLD && root.has("min_coverage")) {
+		if ((rule.type() == BionicTraitType.COVERAGE_THRESHOLD || trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+			&& root.has("min_coverage")) {
 			Double value = numberValue(root.get("min_coverage"));
-			if (value != null && value <= 1.0d)
-				rule = rule.withMinCoverage(value);
+			if (value != null && value <= 1.0d
+				&& (trait.valueKind() != BionicTrait.ValueKind.NUMBER || value > 0.0d))
+				rule = new BionicTraitRule(rule.type(), value);
 			else
 				LOGGER.warn("Invalid min_coverage in {}; using {}", primary, rule.minCoverage());
 		}
@@ -69,11 +71,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid trait parameter {} in {}", entry.getKey(), primary);
 		});
-		for (String key : List.of("max_air_supply", "max_body_volume_per_wing_volume")) {
+		for (String key : List.of("max_body_volume_per_wing_volume")) {
 			if (!root.has(key))
 				continue;
 			Double number = numberValue(root.get(key));
-			if (number != null && (key.equals("max_air_supply") || number > 0.0d))
+			if (number != null && number > 0.0d)
 				parameters.put(key, number);
 			else
 				LOGGER.warn("Invalid {} in {}", key, primary);
@@ -88,10 +90,39 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			? overrides(files, BionicTraitDataLoader::booleanValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Double> numbers = trait.valueKind() == BionicTrait.ValueKind.NUMBER
 			? overrides(files, BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
-		BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects = trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET
+		BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects = (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET
+			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET)
 			? effectOverrides(files) : BionicDonorOverrides.empty();
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
-			readCarriers(root, primary), parameters);
+			readCarriers(root, primary), parameters, readAttackEffects(root, primary));
+	}
+
+	private static Map<ResourceLocation, BionicAttackEffect> readAttackEffects(JsonObject root, ResourceLocation file) {
+		Map<ResourceLocation, BionicAttackEffect> result = new HashMap<>();
+		object(root.get("effects")).entrySet().forEach(entry -> {
+			try {
+				ResourceLocation id = ResourceLocation.parse(entry.getKey());
+				JsonObject settings = entry.getValue().getAsJsonObject();
+				Double duration = numberValue(settings.get("duration_ticks"));
+				Double amplifier = settings.has("amplifier") ? numberValue(settings.get("amplifier")) : 0.0d;
+				Double chance = settings.has("chance") ? numberValue(settings.get("chance")) : 1.0d;
+				Boolean unarmed = settings.has("unarmed_only") ? booleanValue(settings.get("unarmed_only")) : false;
+				if (duration == null || duration < 1 || duration > 12000 || duration != Math.floor(duration)
+					|| amplifier == null || amplifier > 255 || amplifier != Math.floor(amplifier)
+					|| chance == null || chance > 1 || unarmed == null)
+					throw new IllegalArgumentException("Invalid attack parameters");
+				java.util.List<BionicAnatomyRole> roles = new java.util.ArrayList<>();
+				for (JsonElement role : settings.getAsJsonArray("roles"))
+					roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
+				if (roles.isEmpty())
+					throw new IllegalArgumentException("Missing attack carriers");
+				result.put(id, new BionicAttackEffect(id, duration.intValue(), amplifier.intValue(), chance,
+					unarmed, new BionicTrait.Carrier(roles, List.of())));
+			} catch (RuntimeException exception) {
+				LOGGER.warn("Invalid attack effect {} in {}", entry.getKey(), file);
+			}
+		});
+		return Map.copyOf(result);
 	}
 
 	private static <T> BionicDonorOverrides<T> overrides(List<Map.Entry<ResourceLocation, JsonElement>> files,

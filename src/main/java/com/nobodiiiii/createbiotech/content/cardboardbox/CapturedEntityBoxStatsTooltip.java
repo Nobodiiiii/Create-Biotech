@@ -92,18 +92,21 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				tooltip.add(stat.line());
 		}
 		appendPropertiesSection(tooltip, disposition, details.traits());
-		appendDonorFacts(tooltip, details.donorFacts());
+		appendDonorFacts(tooltip, details.donorFacts(), details.donorAttacks(), details.deterrenceTargets());
 	}
 
-	private static void appendDonorFacts(List<Component> tooltip, Set<BionicTrait> facts) {
-		if (facts.isEmpty())
+	private static void appendDonorFacts(List<Component> tooltip, Set<BionicTrait> facts,
+		Set<ResourceLocation> attacks, Set<ResourceLocation> targets) {
+		if (facts.isEmpty() && attacks.isEmpty())
 			return;
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.donor_carrier_traits")
 			.withStyle(ChatFormatting.GOLD));
 		for (BionicTrait trait : BionicTrait.values())
 			if (facts.contains(trait))
-				appendProperty(tooltip, Component.translatable(trait.descriptionId()));
+				appendProperty(tooltip, trait == BionicTrait.DETERRENCE ? deterrenceName(targets)
+					: Component.translatable(trait.descriptionId()));
+		if (!attacks.isEmpty()) appendProperty(tooltip, effectList("create_biotech.trait.effect_attack", attacks));
 	}
 
 	/** Adds the shared Create-style property heading and its disposition value. */
@@ -134,11 +137,16 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			groups.put(scope, new ArrayList<>());
 		for (BionicTrait trait : BionicTrait.values()) {
 			BionicTraitResult result = traits.result(trait);
-			if (!result.present())
+			if (!result.present() || hiddenByStrongerTrait(trait, traits))
 				continue;
 			List<BionicTraitScope> scopes = trait.scopes().stream().sorted().toList();
 			List<Component> lines = groups.get(scopes.getFirst());
-			Component name = Component.translatable(trait.descriptionId());
+			Component name = trait == BionicTrait.DETERRENCE ? deterrenceName(result.deterrenceTargets())
+				: Component.translatable(trait.descriptionId());
+			if (trait == BionicTrait.EFFECT_ATTACK)
+				name = effectList(trait.descriptionId(), result.attackEffects().keySet().stream()
+					.map(com.nobodiiiii.createbiotech.entity.trait.BionicAttackEffect::effect)
+					.collect(java.util.stream.Collectors.toSet()));
 			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
 				name = Component.translatable(trait.descriptionId(),
 					ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(result.value()
@@ -156,6 +164,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				lines.add(Component.literal(" ").append(name).append(Component.literal(" — "))
 					.append(Component.translatable(result.inactiveReason().descriptionId()))
 					.withStyle(ChatFormatting.DARK_GRAY));
+			} else if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
+				appendProperty(lines, name);
 			} else if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
 				appendEffectImmunities(lines, traits);
 			} else {
@@ -167,6 +177,35 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			}
 		}
 		groups.forEach((scope, lines) -> appendTraitGroup(tooltip, scope.descriptionId(), lines));
+	}
+
+	private static boolean hiddenByStrongerTrait(BionicTrait trait, BionicTraitSet traits) {
+		return switch (trait) {
+		case FIRE_RESISTANCE -> traits.has(BionicTrait.FIRE_IMMUNE);
+		case FREEZE_RESISTANCE -> traits.has(BionicTrait.FREEZE_IMMUNE);
+		case AGILE_LANDING -> traits.has(BionicTrait.FALL_DAMAGE_IMMUNE);
+		default -> false;
+		};
+	}
+
+	private static Component deterrenceName(Set<ResourceLocation> targets) {
+		MutableComponent names = Component.empty();
+		for (ResourceLocation id : targets.stream().sorted().toList()) {
+			if (!names.getSiblings().isEmpty()) names.append(Component.translatable("create_biotech.trait.list_separator"));
+			names.append(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(id)
+				.map(type -> Component.translatable(type.getDescriptionId())).orElseGet(() -> Component.literal(id.toString())));
+		}
+		return Component.translatable("create_biotech.trait.deterrence", names);
+	}
+
+	private static Component effectList(String key, Set<ResourceLocation> effects) {
+		MutableComponent names = Component.empty();
+		for (ResourceLocation id : effects.stream().sorted().toList()) {
+			if (!names.getSiblings().isEmpty()) names.append(Component.translatable("create_biotech.trait.list_separator"));
+			names.append(net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getOptional(id)
+				.map(effect -> effect.getDisplayName()).orElseGet(() -> Component.literal(id.toString())));
+		}
+		return Component.translatable(key, names);
 	}
 
 	private static void appendTraitGroup(List<Component> tooltip, String descriptionId,
@@ -229,7 +268,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				: BionicTraitDonors.get(profile, level);
 			return new BoxDetails(List.of(), null, BionicDispositionRegistry.get(living),
 				BionicTraitResolver.donorProperties(facts), facts.abilities().stream()
-					.filter(trait -> !trait.carrier().isAllTissue()).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+					.filter(trait -> !trait.carrier().isAllTissue()).collect(java.util.stream.Collectors.toUnmodifiableSet()),
+				facts.attackEffects(), facts.deterrenceTargets());
 		}
 		SurgicalAssembly assembly = bionic.getAssembly();
 		if (assembly == null)
@@ -245,7 +285,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return new BoxDetails(List.copyOf(stats), assembly, null, traits, Set.of());
+		return new BoxDetails(List.copyOf(stats), assembly, null, traits, Set.of(), Set.of(), Set.of());
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
@@ -308,7 +348,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	}
 
 	private record BoxDetails(List<BaseStat> stats, @Nullable SurgicalAssembly assembly,
-		@Nullable BionicDisposition disposition, BionicTraitSet traits, Set<BionicTrait> donorFacts) {}
+		@Nullable BionicDisposition disposition, BionicTraitSet traits, Set<BionicTrait> donorFacts,
+		Set<ResourceLocation> donorAttacks, Set<ResourceLocation> deterrenceTargets) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
 		private Component line() {

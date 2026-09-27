@@ -9,6 +9,9 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.HashMultimap;
+import com.nobodiiiii.createbiotech.entity.trait.BionicVibrationSense;
+import com.nobodiiiii.createbiotech.entity.trait.BionicDeterrence;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
@@ -78,10 +81,6 @@ import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.npc.Villager;
-import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.entity.monster.AbstractSkeleton;
-import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -125,8 +124,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Optional<UUID>> OWNER_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
-	private static final EntityDataAccessor<Optional<UUID>> TRUSTED_DATA = SynchedEntityData.defineId(
-		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 	private static final EntityDataAccessor<Boolean> SITTING_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
 	@Nullable
@@ -137,6 +134,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private SurgicalAssembly traitAssembly;
 	@Nullable
 	private BionicTraitResolver.Revision traitRevision;
+	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	private boolean bodyFlightEnabled;
 	private boolean organSwimEnabled;
@@ -147,8 +145,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private int activeSpinesTicks;
 	@Nullable
 	private UUID ownerId;
-	@Nullable
-	private UUID trustedPlayerId;
 	private boolean orderedToSit;
 	@Nullable
 	private LivingEntity ownerAssignedTarget;
@@ -280,20 +276,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 		super.defineSynchedData(builder);
 		builder.define(ASSEMBLY, new CompoundTag());
 		builder.define(OWNER_DATA, Optional.empty());
-		builder.define(TRUSTED_DATA, Optional.empty());
 		builder.define(SITTING_DATA, false);
 	}
 
 	private void setBionicOwner(@Nullable UUID value) {
 		ownerId = value;
+		if (value != null) setPersistenceRequired();
 		if (!level().isClientSide)
 			entityData.set(OWNER_DATA, Optional.ofNullable(value));
-	}
-
-	private void setTrustedPlayer(@Nullable UUID value) {
-		trustedPlayerId = value;
-		if (!level().isClientSide)
-			entityData.set(TRUSTED_DATA, Optional.ofNullable(value));
 	}
 
 	private void setOrderedToSit(boolean value) {
@@ -373,7 +363,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return false;
 		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE)
 			|| ownerId != null && ownerId.equals(target.getUUID())
-			|| trustedPlayerId != null && trustedPlayerId.equals(target.getUUID()) || orderedToSit)
+			|| orderedToSit)
 			return false;
 		if (ownerId != null)
 			return target == ownerAssignedTarget || target == getLastHurtByMob();
@@ -414,8 +404,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 					setBionicOwner(null);
 					setOrderedToSit(false);
 				}
-				if (!bionicTraits.has(BionicTrait.TRUST))
-					setTrustedPlayer(null);
 			}
 			if (Float.isNaN(baseWaterPathMalus))
 				baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
@@ -432,40 +420,22 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Nullable
 	private Player getCompanionPlayer() {
-		Player owner = getBionicOwner();
-		return owner != null ? owner : trustedPlayerId == null ? null
-			: level().getPlayerByUUID(trustedPlayerId);
+		return getBionicOwner();
 	}
 
 	public boolean isOrderedToSit() { return orderedToSit; }
+	@Nullable public UUID getBionicOwnerId() { return ownerId; }
 
 	@Override
 	public boolean isAlliedTo(Entity other) {
 		return ownerId != null && ownerId.equals(other.getUUID())
-			|| trustedPlayerId != null && trustedPlayerId.equals(other.getUUID())
+			|| ownerId != null && ownerId.equals(SlimeCompanionHandler.ownerOf(other))
 			|| super.isAlliedTo(other);
 	}
 
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
 		ItemStack held = player.getItemInHand(hand);
-		if (getBionicTraits().has(BionicTrait.TRUST) && isTrustOffering(held)) {
-			if (!level().isClientSide) {
-				if (!player.getAbilities().instabuild)
-					held.shrink(1);
-				setTrustedPlayer(player.getUUID());
-				setTarget(null);
-			}
-			return InteractionResult.sidedSuccess(level().isClientSide);
-		}
-		if (isRecognizedFood(held) && getHealth() < getMaxHealth()) {
-			if (!level().isClientSide) {
-				if (!player.getAbilities().instabuild)
-					held.shrink(1);
-				heal(2.0f);
-			}
-			return InteractionResult.sidedSuccess(level().isClientSide);
-		}
 		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
 			return super.mobInteract(player, hand);
 		if (ownerId == null && held.is(Items.SLIME_BALL)) {
@@ -489,38 +459,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}
 		return super.mobInteract(player, hand);
-	}
-
-	private boolean isTrustOffering(ItemStack stack) {
-		SurgicalAssembly assembly = getAssembly();
-		if (stack.isEmpty() || assembly == null)
-			return false;
-		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.TRUST)) {
-			EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(
-				assembly.sources().get(member.source()).profile().entityTypeId()).orElse(null);
-			if (type == EntityType.FOX && stack.is(Items.SWEET_BERRIES)
-				|| type == EntityType.OCELOT && (stack.is(Items.COD) || stack.is(Items.SALMON))
-				|| type == EntityType.ALLAY && stack.is(Items.AMETHYST_SHARD))
-				return true;
-		}
-		return false;
-	}
-
-	private boolean isRecognizedFood(ItemStack stack) {
-		if (stack.isEmpty() || !getBionicTraits().has(BionicTrait.FOOD_RECOGNITION))
-			return false;
-		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null)
-			return false;
-		java.util.Set<Integer> visitedSources = new java.util.HashSet<>();
-		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.FOOD_RECOGNITION)) {
-			if (!visitedSources.add(member.source()))
-				continue;
-			LivingEntity donor = assembly.sources().get(member.source()).profile().createBiologicalEntity(level());
-			if (donor instanceof Animal animal && animal.isFood(stack))
-				return true;
-		}
-		return false;
 	}
 
 	private void invalidateTraits() {
@@ -600,11 +538,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 	}
 
 	@Override
-	public int getMaxAirSupply() {
-		return bionicTraits == null ? 300 : getBionicTraits().maxAirSupply();
-	}
-
-	@Override
 	@SuppressWarnings("deprecation")
 	public boolean canBeAffected(MobEffectInstance effect) {
 		ResourceLocation effectId = effect.getEffect().unwrapKey()
@@ -678,13 +611,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 			amount *= (float) traits.parameter(
 				BionicTrait.SHELL_DEFENSE, "damage_multiplier", 0.5d);
 		if (source.is(DamageTypeTags.IS_FIRE)) {
-			double resistance = traits.strength(BionicTrait.FIRE_IMMUNE);
+			double resistance = traits.strength(BionicTrait.FIRE_RESISTANCE);
 			if (traits.hasFullEffect(BionicTrait.FIRE_IMMUNE))
 				return false;
 			amount *= (float) (1.0d - resistance);
 		}
 		if (source.is(DamageTypeTags.IS_FREEZING)) {
-			double immunity = traits.strength(BionicTrait.FREEZE_IMMUNE);
+			double immunity = traits.strength(BionicTrait.FREEZE_RESISTANCE);
 			if (traits.hasFullEffect(BionicTrait.FREEZE_IMMUNE))
 				return false;
 			amount *= (float) ((1.0d - immunity)
@@ -820,11 +753,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void aiStep() {
 		super.aiStep();
-		double slowFall = getBionicTraits().strength(BionicTrait.BODY_SLOW_FALL);
-		if (!onGround() && getDeltaMovement().y < 0.0d && slowFall > 0.0d) {
-			double verticalMultiplier = Mth.lerp(slowFall, 1.0d, 0.6d);
-			setDeltaMovement(getDeltaMovement().multiply(1.0d, verticalMultiplier, 1.0d));
-		}
 		if (bodyFlightEnabled)
 			applyCombatFacing();
 		if (attackAnimationTick > 0)
@@ -985,9 +913,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 		if (!level().isClientSide)
 			refreshBodyFlight(getBionicTraits());
+		vibrationSense.tick();
 		updateOwnerTarget();
 		if (!level().isClientSide && tickCount % 10 == 0) {
-			tickVibrationSense();
 			tickDeterrence();
 		}
 		tickHeadRespiration();
@@ -1019,59 +947,24 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 	}
 
-	private void tickVibrationSense() {
-		if (getTarget() != null || getDisposition() != BionicDisposition.HOSTILE
-			|| !getBionicTraits().has(BionicTrait.VIBRATION_SENSE))
-			return;
-		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null || getBionicTraits().members(BionicTrait.VIBRATION_SENSE).stream()
-			.noneMatch(member -> assembly.sources().get(member.source()).profile()
-				.entityTypeId().equals(ResourceLocation.withDefaultNamespace("warden"))))
-			return;
-		LivingEntity nearest = null;
-		double distance = 12.0d * 12.0d;
-		for (LivingEntity candidate : level().getEntitiesOfClass(LivingEntity.class,
-			getBoundingBox().inflate(12.0d), entity -> entity != this && entity.isAlive()
-				&& !entity.isSilent() && !entity.isCrouching()
-				&& entity.getDeltaMovement().horizontalDistanceSqr() > 0.0025d)) {
-			double current = distanceToSqr(candidate);
-			if (current < distance && canAttack(candidate)) {
-				nearest = candidate;
-				distance = current;
-			}
-		}
-		if (nearest != null)
-			setTarget(nearest);
+	@Override
+	public void updateDynamicGameEventListener(java.util.function.BiConsumer<net.minecraft.world.level.gameevent.DynamicGameEventListener<?>,
+		net.minecraft.server.level.ServerLevel> consumer) {
+		if (level() instanceof net.minecraft.server.level.ServerLevel server && vibrationSense != null)
+			consumer.accept(vibrationSense.listener(), server);
 	}
 
 	private void tickDeterrence() {
-		if (!getBionicTraits().has(BionicTrait.DETERRENCE))
-			return;
-		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null)
-			return;
-		boolean cat = false;
-		boolean wolf = false;
-		for (SurgicalAssembly.CombinationMember member : getBionicTraits().members(BionicTrait.DETERRENCE)) {
-			EntityType<?> donor = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(
-				assembly.sources().get(member.source()).profile().entityTypeId()).orElse(null);
-			cat |= donor == EntityType.CAT || donor == EntityType.OCELOT;
-			wolf |= donor == EntityType.WOLF;
-		}
-		if (!cat && !wolf)
-			return;
+		if (!getBionicTraits().has(BionicTrait.DETERRENCE)) return;
+		var targets = getBionicTraits().result(BionicTrait.DETERRENCE).deterrenceTargets();
 		for (Mob mob : level().getEntitiesOfClass(Mob.class, getBoundingBox().inflate(8.0d),
-			candidate -> candidate != this && candidate.isAlive())) {
-			if (!(cat && (mob instanceof Creeper || mob instanceof Phantom)
-				|| wolf && mob instanceof AbstractSkeleton))
-				continue;
+			candidate -> candidate != this && candidate.isAlive() && !isAlliedTo(candidate))) {
+			if (!targets.contains(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(mob.getType())) || !BionicDeterrence.canFlee(mob)) continue;
 			Vec3 away = mob.position().subtract(position());
-			if (away.horizontalDistanceSqr() < 1.0e-6d)
-				away = new Vec3(1.0d, 0.0d, 0.0d);
-			Vec3 destination = mob.position().add(away.normalize().scale(8.0d));
-			if (mob.getTarget() == this)
-				mob.setTarget(null);
-			mob.getNavigation().moveTo(destination.x, destination.y, destination.z, 1.2d);
+			if (away.horizontalDistanceSqr() < 1.0e-6d) away = new Vec3(1, 0, 0);
+			Vec3 destination = mob.position().add(away.normalize().scale(8));
+			if (mob.getTarget() == this) mob.setTarget(null);
+			BionicDeterrence.flee(mob, this, destination);
 		}
 	}
 
@@ -1114,10 +1007,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (tickCount % 20 == 0 && traits.value(BionicTrait.PASSIVE_REGENERATION) > 0.0d
 			&& getHealth() < getMaxHealth())
 			heal((float) traits.value(BionicTrait.PASSIVE_REGENERATION));
-		double waterSensitivity = traits.strength(BionicTrait.WATER_SENSITIVE);
-		if (waterSensitivity > 0.0d && !traits.hasFullEffect(BionicTrait.WATER_SENSITIVE)
-			&& isInWaterRainOrBubble())
-			hurt(damageSources().drown(), (float) waterSensitivity);
 		double sunSensitivity = traits.strength(BionicTrait.SUN_SENSITIVE);
 		if (sunSensitivity > 0.0d && random.nextDouble() < sunSensitivity && isSunBurnTick()) {
 			boolean burns = true;
@@ -1284,21 +1173,16 @@ public class SlimeBionicEntity extends PathfinderMob {
 		List<SurgicalAssembly.CombinationMember> attackingGroup =
 			assembly.rotatingGroup(arm.sourceId(), arm.cubeId());
 		BionicTraitSet traits = getBionicTraits();
-		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.POISON_ATTACK)::contains)
-			&& random.nextDouble() < traits.parameter(
-				BionicTrait.POISON_ATTACK, "chance", 1.0d))
-			victim.addEffect(new MobEffectInstance(MobEffects.POISON,
-				(int) traits.parameter(BionicTrait.POISON_ATTACK,
-					"duration_ticks", 100.0d), 0), this);
-		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.WITHER_ATTACK)::contains))
-			victim.addEffect(new MobEffectInstance(MobEffects.WITHER,
-				(int) traits.parameter(BionicTrait.WITHER_ATTACK,
-					"duration_ticks", 200.0d), 0), this);
-		if (!attackActionWeapon
-			&& attackingGroup.stream().anyMatch(traits.members(BionicTrait.HUNGER_ATTACK)::contains))
-			victim.addEffect(new MobEffectInstance(MobEffects.HUNGER,
-				(int) traits.parameter(BionicTrait.HUNGER_ATTACK,
-					"duration_ticks", 140.0d), 0), this);
+		for (var entry : traits.result(BionicTrait.EFFECT_ATTACK).attackEffects().entrySet()) {
+			var effect = entry.getKey();
+			if (effect.unarmedOnly() && attackActionWeapon
+				|| attackingGroup.stream().noneMatch(entry.getValue()::contains)
+				|| random.nextDouble() >= effect.chance())
+				continue;
+			net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getHolder(effect.effect())
+				.ifPresent(holder -> victim.addEffect(new MobEffectInstance(holder,
+					effect.durationTicks(), effect.amplifier()), this));
+		}
 		return hit;
 	}
 
@@ -1481,8 +1365,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 		super.onSyncedDataUpdated(key);
 		if (OWNER_DATA.equals(key))
 			ownerId = entityData.get(OWNER_DATA).orElse(null);
-		if (TRUSTED_DATA.equals(key))
-			trustedPlayerId = entityData.get(TRUSTED_DATA).orElse(null);
 		if (SITTING_DATA.equals(key))
 			orderedToSit = entityData.get(SITTING_DATA);
 		if (ASSEMBLY.equals(key)) {
@@ -1510,8 +1392,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 			tag.putInt(DRY_AIR_TAG, dryAir);
 		if (ownerId != null)
 			tag.putUUID(OWNER_TAG, ownerId);
-		if (trustedPlayerId != null)
-			tag.putUUID(TRUSTED_TAG, trustedPlayerId);
 		if (shellGuardTicks > 0)
 			tag.putInt(SHELL_GUARD_TAG, shellGuardTicks);
 		if (activeSpinesTicks > 0)
@@ -1535,8 +1415,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			moisture = Mth.clamp(tag.getInt(MOISTURE_TAG), 0, MAX_MOISTURE);
 		if (tag.contains(DRY_AIR_TAG, Tag.TAG_ANY_NUMERIC))
 			dryAir = Mth.clamp(tag.getInt(DRY_AIR_TAG), 0, 300);
-		setBionicOwner(tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG) : null);
-		setTrustedPlayer(tag.hasUUID(TRUSTED_TAG) ? tag.getUUID(TRUSTED_TAG) : null);
+		setBionicOwner(tag.hasUUID(OWNER_TAG) ? tag.getUUID(OWNER_TAG)
+			: tag.hasUUID(TRUSTED_TAG) ? tag.getUUID(TRUSTED_TAG) : null);
 		shellGuardTicks = Mth.clamp(tag.getInt(SHELL_GUARD_TAG), 0, 12000);
 		activeSpinesTicks = Mth.clamp(tag.getInt(ACTIVE_SPINES_TAG), 0, 12000);
 		setOrderedToSit(tag.getBoolean(ORDERED_TO_SIT_TAG));
@@ -1544,8 +1424,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 			setBionicOwner(null);
 			setOrderedToSit(false);
 		}
-		if (!getBionicTraits().has(BionicTrait.TRUST))
-			setTrustedPlayer(null);
 	}
 
 	private static final class BionicSitGoal extends Goal {
@@ -1598,15 +1476,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 
 		@Override public boolean canUse() {
-			if (bionic.orderedToSit || bionic.ownerId == null && bionic.trustedPlayerId == null)
+			if (bionic.orderedToSit || bionic.ownerId == null)
 				return false;
 			owner = bionic.getCompanionPlayer();
 			return owner != null && !owner.isSpectator() && bionic.distanceToSqr(owner) > 100.0d;
 		}
 		@Override public boolean canContinueToUse() {
 			return owner != null && owner.isAlive() && !bionic.orderedToSit
-				&& (bionic.ownerId != null && bionic.getBionicTraits().has(BionicTrait.TAMEABLE)
-					|| bionic.trustedPlayerId != null && bionic.getBionicTraits().has(BionicTrait.TRUST))
+				&& (bionic.ownerId != null && bionic.getBionicTraits().has(BionicTrait.TAMEABLE))
 				&& bionic.distanceToSqr(owner) > 9.0d;
 		}
 		@Override public void stop() { owner = null; bionic.getNavigation().stop(); }
@@ -1652,7 +1529,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 		@Override
 		public boolean canUse() {
-			return validTarget(bionic.getTarget()) && super.canUse();
+			return validTarget(bionic.getTarget()) && (bionic.vibrationSense.lastHeardPosition(bionic.getTarget()) != null
+				|| super.canUse());
 		}
 
 		@Override
@@ -1683,7 +1561,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			LivingEntity target = bionic.getTarget();
 			return validTarget(target) && bionic.isWithinRestriction(target.blockPosition())
 				&& (pendingAttackTarget == target || bionic.isWithinMeleeAttackRange(target)
-					|| super.canContinueToUse());
+					|| bionic.vibrationSense.lastHeardPosition(target) != null || super.canContinueToUse());
 		}
 
 		@Override
@@ -1809,6 +1687,16 @@ public class SlimeBionicEntity extends PathfinderMob {
 				clearPendingAttack();
 				bionic.combatFacingControlled = false;
 				bionic.getNavigation().stop();
+				return;
+			}
+			if (bionic.getBionicTraits().has(BionicTrait.VIBRATION_SENSE) && !bionic.hasLineOfSight(target)) {
+				clearPendingAttack();
+				bionic.combatFacingControlled = false;
+				Vec3 heard = bionic.vibrationSense.lastHeardPosition(target);
+				if (heard != null) {
+					bionic.getLookControl().setLookAt(heard.x, heard.y, heard.z);
+					bionic.getNavigation().moveTo(heard.x, heard.y, heard.z, 1.0d);
+				} else bionic.getNavigation().stop();
 				return;
 			}
 			if (pendingAttackTarget != null && pendingAttackTarget != target)

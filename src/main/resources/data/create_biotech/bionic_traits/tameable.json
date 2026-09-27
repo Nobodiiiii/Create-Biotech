@@ -1,6 +1,10 @@
 {
   "automatic_detection": true,
-  "values": {},
+  "values": {
+    "minecraft:fox": true,
+    "minecraft:ocelot": true,
+    "minecraft:allay": true
+  },
   "carriers": {
     "minecraft:wolf": {
       "HEAD": [
@@ -45,6 +49,24 @@
       ]
     },
     "minecraft:trader_llama": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:fox": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:ocelot": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:allay": {
       "HEAD": [
         "head",
         "head_cube"

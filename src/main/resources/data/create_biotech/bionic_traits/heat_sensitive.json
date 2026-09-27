@@ -2,5 +2,6 @@
   "automatic_detection": false,
   "values": {
     "minecraft:snow_golem": true
-  }
+  },
+  "min_coverage": 0.5
 }

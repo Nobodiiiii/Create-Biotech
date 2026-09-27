@@ -11,5 +11,6 @@
     "minecraft:skeleton_horse": 0.0222222222,
     "minecraft:zombie_horse": 0.0222222222,
     "minecraft:camel": 0.0222222222
-  }
+  },
+  "min_coverage": 0.5
 }

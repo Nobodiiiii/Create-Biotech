@@ -68,10 +68,10 @@ public final class BionicAnatomySnapshot {
 		return Float.isFinite(volume) && volume > 0.0f && volume <= MAX_CUBE_VOLUME;
 	}
 
-	/** Whether every saved cube index belongs to a model with this many cubes. */
+	/** Whether saved indices fit the model; legacy bodies may have no measured volumes. */
 	public boolean fits(int cubeCount) {
 		return parts.keySet().stream().allMatch(cube -> cube >= 0 && cube < cubeCount)
-			&& volumes.length == cubeCount;
+			&& (volumes.length == 0 || volumes.length == cubeCount);
 	}
 
 	public boolean isEmpty() { return parts.isEmpty() && volumes.length == 0; }
@@ -116,14 +116,31 @@ public final class BionicAnatomySnapshot {
 		return tag;
 	}
 
+	/**
+	 * Anatomy only affects traits. Ignore retired role keys and degrade missing or damaged metadata
+	 * to unknown, so a body captured before model labels or volumes existed can still be restored.
+	 */
 	@Nullable
 	public static BionicAnatomySnapshot load(CompoundTag tag, int cubeCount) {
-		if (tag == null || cubeCount <= 0 || !tag.contains(CUBE_VOLUMES_TAG, Tag.TAG_LIST)
-			|| tag.contains(MODEL_PARTS_TAG) && !tag.contains(MODEL_PARTS_TAG, Tag.TAG_LIST))
+		if (tag == null || cubeCount <= 0 || cubeCount > SurgicalAssembly.MAX_CUBES)
 			return null;
-		for (String key : tag.getAllKeys())
-			if (!key.equals(MODEL_PARTS_TAG) && !key.equals(CUBE_VOLUMES_TAG))
-				return null;
+		BionicAnatomySnapshot named = loadParts(tag, cubeCount);
+		if (named == null)
+			named = EMPTY;
+		ListTag encodedVolumes = tag.getList(CUBE_VOLUMES_TAG, Tag.TAG_FLOAT);
+		if (encodedVolumes.size() != cubeCount)
+			return named;
+		float[] volumes = new float[cubeCount];
+		for (int cube = 0; cube < cubeCount; cube++)
+			volumes[cube] = encodedVolumes.getFloat(cube);
+		BionicAnatomySnapshot measured = named.withVolumes(volumes);
+		return measured == null ? named : measured;
+	}
+
+	@Nullable
+	private static BionicAnatomySnapshot loadParts(CompoundTag tag, int cubeCount) {
+		if (tag.contains(MODEL_PARTS_TAG) && !tag.contains(MODEL_PARTS_TAG, Tag.TAG_LIST))
+			return null;
 		Map<Integer, Set<String>> parts = new HashMap<>();
 		if (tag.contains(MODEL_PARTS_TAG)) {
 			ListTag encoded = tag.getList(MODEL_PARTS_TAG, Tag.TAG_COMPOUND);
@@ -140,17 +157,7 @@ public final class BionicAnatomySnapshot {
 					return null;
 			}
 		}
-		BionicAnatomySnapshot named = ofParts(parts, cubeCount);
-		if (named == null)
-			return null;
-		ListTag encodedVolumes = tag.getList(CUBE_VOLUMES_TAG, Tag.TAG_FLOAT);
-		if (encodedVolumes.size() != cubeCount)
-			return null;
-		float[] volumes = new float[cubeCount];
-		for (int cube = 0; cube < cubeCount; cube++)
-			volumes[cube] = encodedVolumes.getFloat(cube);
-		BionicAnatomySnapshot measured = named.withVolumes(volumes);
-		return measured;
+		return ofParts(parts, cubeCount);
 	}
 
 	@Override
