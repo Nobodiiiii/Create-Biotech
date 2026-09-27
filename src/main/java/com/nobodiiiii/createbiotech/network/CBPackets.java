@@ -8,6 +8,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
@@ -67,7 +69,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "26";
+	private static final String NETWORK_VERSION = "27";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -132,6 +134,8 @@ public final class CBPackets {
 			HoneycombGaugeRecipePlacementPacket::write, HoneycombGaugeRecipePlacementPacket::handle);
 		registerServer(GaugeCraftJobsRequestPacket.class, GaugeCraftJobsRequestPacket::new,
 			GaugeCraftJobsRequestPacket::write, GaugeCraftJobsRequestPacket::handle);
+		registerServer(BionicTraitDonorsRequestPacket.class, BionicTraitDonorsRequestPacket::new,
+			BionicTraitDonorsRequestPacket::write, BionicTraitDonorsRequestPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -170,6 +174,7 @@ public final class CBPackets {
 		registerClient(GaugeCraftPreviewPacket.class, GaugeCraftPreviewPacket::new,
 			GaugeCraftPreviewPacket::write);
 		registerClient(GaugeCraftJobsPacket.class, GaugeCraftJobsPacket::new, GaugeCraftJobsPacket::write);
+		registerClient(BionicTraitDonorsPacket.class, BionicTraitDonorsPacket::new, BionicTraitDonorsPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

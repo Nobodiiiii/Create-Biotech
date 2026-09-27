@@ -43,8 +43,6 @@ final class BionicTraitJeiText {
 			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB ? 2 : 1));
 		}
 		text.add(Component.empty());
-		text.add(tr("donors", tr(trait.id() + ".donors")));
-		text.add(Component.empty());
 		text.add(tr("defaults"));
 		return List.copyOf(text);
 	}

@@ -23,6 +23,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	private static final int WIDTH = 170;
 	private static final int HEIGHT = 125;
 	private static final int TEXT_Y = 22;
+	private static final int DONORS_Y = HEIGHT - BionicTraitDonorWidget.HEIGHT;
 
 	public BionicTraitJeiCategory(IGuiHelper guiHelper) {
 		super(TYPE, Component.translatable("create_biotech.jei.traits"),
@@ -44,8 +45,11 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 
 	@Override
 	public void createRecipeExtras(IRecipeExtrasBuilder builder, BionicTrait trait, IFocusGroup focuses) {
-		builder.addScrollBoxWidget(WIDTH, HEIGHT - TEXT_Y, 0, TEXT_Y)
+		builder.addScrollBoxWidget(WIDTH, DONORS_Y - TEXT_Y - 6, 0, TEXT_Y)
 			.setContents(BionicTraitJeiText.description(trait));
+		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y);
+		builder.addWidget(donors);
+		builder.addInputHandler(donors);
 	}
 
 	@Override
