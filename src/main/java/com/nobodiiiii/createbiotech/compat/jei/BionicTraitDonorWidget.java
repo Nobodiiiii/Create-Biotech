@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import java.util.List;
 import java.util.Optional;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -12,7 +11,6 @@ import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.gui.inputs.IJeiInputHandler;
-import mezz.jei.api.gui.inputs.IJeiUserInput;
 import mezz.jei.api.gui.inputs.RecipeSlotUnderMouse;
 import mezz.jei.api.gui.widgets.ISlottedRecipeWidget;
 import net.minecraft.client.Minecraft;
@@ -27,13 +25,11 @@ import net.minecraft.world.item.ItemStack;
 final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHandler {
 	private static final int WIDTH = 170;
 	private static final int COLUMNS = 9;
-	private static final int ROWS = 2;
 	private static final int CELL = 18;
 	private static final int GRID_X = (WIDTH - COLUMNS * CELL) / 2;
 	private static final int GRID_Y = 13;
-	private static final int FOOTER_Y = GRID_Y + ROWS * CELL + 2;
-	static final int HEIGHT = FOOTER_Y + 10;
-	static final int PAGE_SIZE = COLUMNS * ROWS;
+	static final int HEIGHT = GRID_Y + CELL;
+	static final int PAGE_SIZE = COLUMNS;
 	private final BionicTrait trait;
 	private final int y;
 	private final List<IRecipeSlotDrawable> slots;
@@ -50,8 +46,7 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 		this.slotBackground = slotBackground;
 		for (int cell = 0; cell < PAGE_SIZE; cell++) {
 			displayedItems[cell] = ItemStack.EMPTY;
-			this.slots.get(cell).setPosition(GRID_X + cell % COLUMNS * CELL + 1,
-				GRID_Y + cell / COLUMNS * CELL + 1);
+			this.slots.get(cell).setPosition(GRID_X + cell * CELL + 1, GRID_Y + 1);
 		}
 	}
 
@@ -66,15 +61,22 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 		List<EntityType<?>> donors = BionicTraitDonorIndex.donors(trait);
 		updateSlots(donors);
 		var font = Minecraft.getInstance().font;
-		graphics.drawString(font, tr("title", donors.size()), 2, 1, 0x303030, false);
-		graphics.drawString(font, "<", 144, 1, page > 0 ? 0x303030 : 0xAAAAAA, false);
-		graphics.drawString(font, ">", 159, 1, page < lastPage(donors) ? 0x303030 : 0xAAAAAA, false);
+		graphics.drawString(font, tr("title"), 2, 1, 0x303030, false);
 		int start = page * PAGE_SIZE;
 		int end = Math.min(start + PAGE_SIZE, donors.size());
-		int visibleRows = visibleCount > COLUMNS ? ROWS : 1;
-		for (int cell = 0; cell < visibleRows * COLUMNS; cell++) {
-			int x = GRID_X + cell % COLUMNS * CELL;
-			int top = GRID_Y + cell / COLUMNS * CELL;
+		Component counter = tr("page", donors.isEmpty() ? 0 : start + 1, end, donors.size());
+		int counterRight = BionicTraitDonorIndex.failures() > 0 ? WIDTH - 12 : WIDTH - 2;
+		graphics.drawString(font, counter, counterRight - font.width(counter), 1, 0x606060, false);
+		if (BionicTraitDonorIndex.failures() > 0)
+			graphics.drawString(font, "!", WIDTH - 9, 1, 0xA06020, false);
+		if (donors.isEmpty()) {
+			graphics.drawString(font, tr(BionicTraitDonorIndex.complete() ? "empty" : "waiting"),
+				GRID_X, GRID_Y + (CELL - font.lineHeight) / 2, 0x606060, false);
+			return;
+		}
+		for (int cell = 0; cell < COLUMNS; cell++) {
+			int x = GRID_X + cell * CELL;
+			int top = GRID_Y;
 			slotBackground.draw(graphics, x, top);
 			if (cell >= visibleCount)
 				continue;
@@ -82,22 +84,16 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 			if (slots.get(cell).isMouseOver(mouseX, mouseY))
 				slots.get(cell).drawHighlight(graphics, 0x80FFFFFF);
 		}
-		if (donors.isEmpty())
-			graphics.drawString(font, tr(BionicTraitDonorIndex.complete() ? "empty" : "waiting"), GRID_X, GRID_Y + CELL + 4, 0x606060, false);
-		Component footer = BionicTraitDonorIndex.complete()
-			? tr("page", donors.isEmpty() ? 0 : start + 1, end, donors.size())
-			: tr("loading", BionicTraitDonorIndex.checked(), BionicTraitDonorIndex.total());
-		graphics.drawString(font, footer, 2, FOOTER_Y, 0x606060, false);
-		if (BionicTraitDonorIndex.failures() > 0)
-			graphics.drawString(font, "!", 161, FOOTER_Y, 0xA06020, false);
 	}
 
 	@Override
 	public void getTooltip(ITooltipBuilder tooltip, double mouseX, double mouseY) {
 		if (mouseX < 0 || mouseX >= WIDTH || mouseY < 0 || mouseY >= HEIGHT)
 			return;
-		if (mouseY >= FOOTER_Y - 1) {
+		if (mouseY < GRID_Y) {
 			tooltip.add(tr("scroll"));
+			if (!BionicTraitDonorIndex.complete())
+				tooltip.add(tr("loading", BionicTraitDonorIndex.checked(), BionicTraitDonorIndex.total()));
 			if (BionicTraitDonorIndex.failures() > 0)
 				tooltip.add(tr("incomplete", BionicTraitDonorIndex.failures()));
 		}
@@ -133,20 +129,6 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 					slot.createDisplayOverrides().addItemStack(stack);
 			}
 		}
-	}
-
-	@Override
-	public boolean handleInput(double mouseX, double mouseY, IJeiUserInput input) {
-		if (input.getKey().getType() != InputConstants.Type.MOUSE || input.getKey().getValue() != 0
-			|| mouseY < 0 || mouseY >= 12 || mouseX < 139 || mouseX >= WIDTH)
-			return false;
-		int delta = mouseX < 154 ? -1 : 1;
-		int target = Math.max(0, Math.min(lastPage(BionicTraitDonorIndex.donors(trait)), page + delta));
-		if (target == page)
-			return false;
-		if (!input.isSimulate())
-			page = target;
-		return true;
 	}
 
 	@Override
