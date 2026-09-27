@@ -31,6 +31,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -62,7 +63,10 @@ import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
 import net.minecraft.world.entity.ai.control.FlyingMoveControl;
+import net.minecraft.world.entity.ai.control.LookControl;
+import net.minecraft.world.entity.ai.control.SmoothSwimmingLookControl;
 import net.minecraft.world.entity.ai.control.SmoothSwimmingMoveControl;
+import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
@@ -72,7 +76,7 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.RandomSwimmingGoal;
+import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
@@ -119,6 +123,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private static final String ORDERED_TO_SIT_TAG = "BionicOrderedToSit";
 	private static final int MAX_MOISTURE = 2400;
 	private static final double BASE_KNOCKBACK_RESISTANCE = 0.15d;
+	private static final double SWIMMING_MOVEMENT_SPEED = 1.0d;
+	private static final double SWIMMING_IDLE_SPEED = 0.5d;
+	private static final double SWIMMING_PURSUIT_SPEED = 0.6d;
 	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
 		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
@@ -262,7 +269,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	protected void updateWalkAnimation(float movement) {
-		if (getLocomotionLegCount() < 2) {
+		if (!isSwimming() && getLocomotionLegCount() < 2) {
 			walkAnimation.update(0.0f, 0.4f);
 			return;
 		}
@@ -327,11 +334,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 			setHealth((float) calibrated);
 	}
 
-	/** Applies the grounded anatomical gait calibration to the authoritative movement attribute. */
+	/** Aquatic speed has its own baseline; land movement retains the anatomical gait calibration. */
 	private void refreshMovementSpeed(SurgicalAssembly assembly) {
 		if (level().isClientSide)
 			return;
-		double speed = SurgicalGait.movementSpeed(assembly.bodyBounds());
+		double speed = organSwimEnabled ? SWIMMING_MOVEMENT_SPEED
+			: SurgicalGait.movementSpeed(assembly.bodyBounds());
 		var movement = getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)
 			movement.setBaseValue(speed);
@@ -395,7 +403,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			// Publish the result before refreshing effects that may query this entity again.
 			refreshNaturalArmor(bionicTraits);
 			refreshKnockbackResistance(bionicTraits);
-			refreshBodyFlight(bionicTraits);
+			refreshLocomotion(bionicTraits);
 			if (!bionicTraits.has(BionicTrait.MOISTURE_DEPENDENT))
 				moisture = -1;
 			if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
@@ -406,10 +414,6 @@ public class SlimeBionicEntity extends PathfinderMob {
 					setOrderedToSit(false);
 				}
 			}
-			if (Float.isNaN(baseWaterPathMalus))
-				baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
-			setPathfindingMalus(PathType.WATER,
-				baseWaterPathMalus + (bionicTraits.has(BionicTrait.WATER_AVERSION) ? 16.0f : 0.0f));
 		}
 		return bionicTraits;
 	}
@@ -481,34 +485,82 @@ public class SlimeBionicEntity extends PathfinderMob {
 			resistance.setBaseValue(value);
 	}
 
-	private void refreshBodyFlight(BionicTraitSet traits) {
-		boolean enabled = traits.has(BionicTrait.WINGLESS_FLIGHT)
-			|| traits.has(BionicTrait.WING_FLIGHT);
-		boolean swimming = !enabled && traits.has(BionicTrait.SWIM_SPECIALIST);
-		if (bodyFlightEnabled == enabled && organSwimEnabled == swimming)
+	private void refreshLocomotion(BionicTraitSet traits) {
+		if (level().isClientSide)
 			return;
+		boolean aquatic = traits.has(BionicTrait.SWIM_SPECIALIST);
+		boolean swimming = aquatic && isInWaterOrBubble() && isAlive() && !isPassenger();
+		boolean enabled = !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
+			|| traits.has(BionicTrait.WING_FLIGHT));
+		if (Float.isNaN(baseWaterPathMalus))
+			baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
+		// Random swim targets are chosen before path creation: amphibious navigation alone
+		// sets this too late, leaving DefaultRandomPos to reject every water candidate.
+		setPathfindingMalus(PathType.WATER, (aquatic ? 0.0f : baseWaterPathMalus)
+			+ (traits.has(BionicTrait.WATER_AVERSION) ? 16.0f : 0.0f));
+		boolean changed = bodyFlightEnabled != enabled || organSwimEnabled != swimming;
 		bodyFlightEnabled = enabled;
 		organSwimEnabled = swimming;
-		if (navigation != null)
-			navigation.stop();
-		if (enabled) {
-			moveControl = new FlyingMoveControl(this, 10, true);
+		setSwimming(swimming);
+		// Keep a land/water route across shoreline transitions; replace navigation only
+		// when the capability changes, not whenever the body touches/leaves the water.
+		PathNavigation nextNavigation = navigation;
+		if (enabled && !(navigation instanceof FlyingPathNavigation)) {
 			FlyingPathNavigation flying = new FlyingPathNavigation(this, level());
 			flying.setCanFloat(true);
 			flying.setCanOpenDoors(false);
 			flying.setCanPassDoors(true);
-			navigation = flying;
-			setNoGravity(true);
+			nextNavigation = flying;
+		} else if (!enabled && aquatic && !(navigation instanceof AmphibiousPathNavigation)) {
+			nextNavigation = new AmphibiousPathNavigation(this, level());
+		} else if (!enabled && !aquatic && !(navigation instanceof SlimeBionicGroundNavigation)) {
+			nextNavigation = new SlimeBionicGroundNavigation(this, level());
+			nextNavigation.setCanFloat(true);
+		}
+		if (nextNavigation != navigation) {
+			navigation.stop();
+			navigation = nextNavigation;
+		}
+		if (!changed)
+			return;
+		setSpeed(0.0f);
+		setXxa(0.0f);
+		setYya(0.0f);
+		setZza(0.0f);
+		setJumping(false);
+		navigation.setSpeedModifier(swimming
+			? getTarget() != null ? SWIMMING_PURSUIT_SPEED : SWIMMING_IDLE_SPEED : 1.0d);
+		if (enabled) {
+			moveControl = new FlyingMoveControl(this, 10, true);
+			lookControl = new LookControl(this);
 		} else if (swimming) {
-			// Match the neutral-buoyancy travel below, as in vanilla AxolotlMoveControl.
 			moveControl = new SmoothSwimmingMoveControl(this, 85, 10, 0.1f, 0.5f, false);
-			navigation = new AmphibiousPathNavigation(this, level());
-			setNoGravity(false);
+			lookControl = new SmoothSwimmingLookControl(this, 20);
 		} else {
 			moveControl = new SlimeBionicMoveControl(this);
-			navigation = new SlimeBionicGroundNavigation(this, level());
-			setNoGravity(false);
+			lookControl = new LookControl(this);
 		}
+		if (!swimming)
+			setXRot(0.0f);
+		setNoGravity(enabled);
+		SurgicalAssembly assembly = getAssembly();
+		if (assembly != null)
+			refreshMovementSpeed(assembly);
+	}
+
+	@Override
+	public void updateSwimming() {
+		// Axolotl activity is water-based, not dependent on sprinting or submerged eyes.
+		// Entity.baseTick calls this after updating fluids and before ticking the AI.
+		if (!level().isClientSide)
+			refreshLocomotion(getBionicTraits());
+	}
+
+	@Override
+	public boolean isVisuallySwimming() {
+		// Reuse the synchronized swimming flag and vanilla pose blending without changing
+		// the assembled body's collision dimensions to a player-sized swimming box.
+		return isSwimming();
 	}
 
 	@Override
@@ -590,17 +642,17 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public void travel(Vec3 movement) {
-		if (isInWater() && getBionicTraits().has(BionicTrait.SWIM_SPECIALIST))
+		if (isSwimming())
 			movement = movement.scale(1.35d);
 		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
 			movement = movement.scale(0.25d);
-		if (organSwimEnabled && isInWater() && isControlledByLocalInstance()) {
+		if (isSwimming() && isInWaterOrBubble() && isControlledByLocalInstance()) {
 			// Pair swimming steering with aquatic travel (vanilla Axolotl.travel): land-mob
 			// water gravity and collision jumps fight the controller's vertical input.
 			moveRelative(getSpeed(), movement);
 			move(MoverType.SELF, getDeltaMovement());
 			setDeltaMovement(getDeltaMovement().scale(0.9d));
-			calculateEntityAnimation(false);
+			calculateEntityAnimation(true);
 			return;
 		}
 		super.travel(movement);
@@ -923,7 +975,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 				tickActiveSpines();
 		}
 		if (!level().isClientSide)
-			refreshBodyFlight(getBionicTraits());
+			refreshLocomotion(getBionicTraits());
 		vibrationSense.tick();
 		updateOwnerTarget();
 		if (!level().isClientSide && tickCount % 10 == 0) {
@@ -1476,18 +1528,43 @@ public class SlimeBionicEntity extends PathfinderMob {
 			this.bionic = bionic;
 		}
 		@Override public boolean canUse() {
-			return !bionic.organSwimEnabled && super.canUse();
+			return !bionic.isSwimming() && super.canUse();
+		}
+		@Override public boolean canContinueToUse() {
+			return !bionic.isSwimming() && super.canContinueToUse();
 		}
 	}
 
-	private static final class BionicSwimStrollGoal extends RandomSwimmingGoal {
+	private static final class BionicSwimStrollGoal extends RandomStrollGoal {
+		private static final int[][] DISTANCES = {{1, 1}, {3, 3}, {5, 5}, {6, 5}, {7, 7}, {10, 7}};
 		private final SlimeBionicEntity bionic;
 		private BionicSwimStrollGoal(SlimeBionicEntity bionic) {
-			super(bionic, 1.0d, 80);
+			// Unlike land wandering, water activity must not stop after noActionTime >= 100.
+			super(bionic, SWIMMING_IDLE_SPEED, 20, false);
 			this.bionic = bionic;
 		}
 		@Override public boolean canUse() {
-			return bionic.organSwimEnabled && bionic.isInWater() && super.canUse();
+			return bionic.isSwimming() && super.canUse();
+		}
+		@Override public boolean canContinueToUse() {
+			return bionic.isSwimming() && super.canContinueToUse();
+		}
+		@Nullable
+		@Override protected Vec3 getPosition() {
+			// AxolotlAi uses RandomStroll.swim: choose nearby water, then extend that
+			// direction in tiers and retain the last water point before reaching shore.
+			Vec3 target = null;
+			for (int[] distance : DISTANCES) {
+				Vec3 candidate = target == null
+					? BehaviorUtils.getRandomSwimmablePos(bionic, distance[0], distance[1])
+					: bionic.position().add(target.subtract(bionic.position()).normalize()
+						.multiply(distance[0], distance[1], distance[0]));
+				if (candidate == null || !bionic.level().getFluidState(BlockPos.containing(candidate))
+					.is(FluidTags.WATER))
+					break;
+				target = candidate;
+			}
+			return target;
 		}
 	}
 
@@ -1519,7 +1596,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			bionic.getLookControl().setLookAt(owner, 10.0f, bionic.getMaxHeadXRot());
 			if (--recalculate <= 0) {
 				recalculate = adjustedTickDelay(10);
-				bionic.getNavigation().moveTo(owner, 1.2d);
+				bionic.getNavigation().moveTo(owner, bionic.isSwimming() ? SWIMMING_PURSUIT_SPEED : 1.2d);
 			}
 		}
 	}
@@ -1721,7 +1798,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 				Vec3 heard = bionic.vibrationSense.lastHeardPosition(target);
 				if (heard != null) {
 					bionic.getLookControl().setLookAt(heard.x, heard.y, heard.z);
-					bionic.getNavigation().moveTo(heard.x, heard.y, heard.z, 1.0d);
+					bionic.getNavigation().moveTo(heard.x, heard.y, heard.z,
+						bionic.isSwimming() ? SWIMMING_PURSUIT_SPEED : 1.0d);
 				} else bionic.getNavigation().stop();
 				return;
 			}
@@ -1735,6 +1813,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 				bionic.combatFacingControlled = false;
 			}
 			super.tick();
+			if (bionic.isSwimming())
+				bionic.getNavigation().setSpeedModifier(SWIMMING_PURSUIT_SPEED);
 			if (pendingAttackTarget != null && !bionic.getIntelligence().pursuesDuringAttack())
 				bionic.getNavigation().stop();
 			raiseArmTicks++;

@@ -304,12 +304,10 @@ public final class SlimeBionicAnimator {
 		List<Frame> frames = new ArrayList<>(sourceCount);
 		for (int source = 0; source < sourceCount; source++)
 			frames.add(Frame.EMPTY);
-		if (assembly.effectiveLimbs().isEmpty() || sources.size() != sourceCount)
+		if (sources.size() != sourceCount)
 			return frames;
 		Rig resolved = rig != null && rig.matches(assembly, sources) ? rig : rig(assembly, sources);
 		List<ResolvedLimb> limbs = resolved.limbs;
-		if (limbs.isEmpty())
-			return frames;
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
 		Arm attackArm = attackArm(limbs, preferredAttackArm);
@@ -324,14 +322,18 @@ public final class SlimeBionicAnimator {
 		Rotation bodyPose = pose.rotation(Bone.BODY);
 		SurgicalCubeRotation bodyRotation = BODY_SPACE.reframe(SurgicalCubeRotation.IDENTITY,
 			bodyPose.z(), bodyPose.y(), bodyPose.x());
-		Transform bodyTransform = Transform.IDENTITY.rotateAround(bodyPivot(limbs, sources), bodyRotation);
-		if (!bodyTransform.isIdentity()) {
+		float restSwimPitch = restSwimPitch(limbs, sources);
+		Transform swimTransform = swimmingTransform(context, limbs, sources, restSwimPitch);
+		Vec3 pivot = bodyPivot(limbs, sources);
+		Transform bodyTransform = swimTransform.rotateAround(swimTransform.apply(pivot),
+			conjugate(swimTransform.rotation(), bodyRotation));
+		if (!bodyTransform.isIdentity() || !swimTransform.isIdentity()) {
 			Set<Member> legMembers = legMembers(limbs);
 			for (int source = 0; source < sources.size(); source++)
 				for (int cube : sources.get(source).boxes().keySet()) {
 					Member member = new Member(source, cube);
-					if (!legMembers.contains(member))
-						applyTransform(member, bodyTransform, sources, offsets, rotations);
+					applyTransform(member, legMembers.contains(member) ? swimTransform : bodyTransform,
+						sources, offsets, rotations);
 				}
 		}
 		Transform[] transforms = new Transform[limbs.size()];
@@ -339,10 +341,11 @@ public final class SlimeBionicAnimator {
 		Map<Member, Integer> appliedDepths = new HashMap<>();
 		for (int limbIndex = 0; limbIndex < limbs.size(); limbIndex++) {
 			ResolvedLimb limb = limbs.get(limbIndex);
-			if (limb.bone() == null && limb.gait() == null)
+			if (limb.bone() == null && limb.gait() == null && !(context.swimAmount() > 0.0f
+				&& (limb.type() == SurgicalLimbType.HIP || limb.type() == SurgicalLimbType.KNEE)))
 				continue;
 			Transform transform = resolveTransform(limbIndex, limbs, pose, context, bodyTransform,
-				transforms, resolving);
+				swimTransform, transforms, resolving);
 			if (transform.isIdentity())
 				continue;
 			int depth = hierarchyDepth(limbIndex, limbs);
@@ -363,6 +366,37 @@ public final class SlimeBionicAnimator {
 					sourceRotations == null ? Map.of() : Map.copyOf(sourceRotations)));
 		}
 		return frames;
+	}
+
+	/** Lay an upright head/torso axis forward; already horizontal aquatic bodies keep their rest axis. */
+	private static float restSwimPitch(List<ResolvedLimb> limbs, List<SourceState> sources) {
+		Vec3 pivot = bodyPivot(limbs, sources);
+		for (ResolvedLimb limb : limbs) {
+			if (limb.type() != SurgicalLimbType.NECK)
+				continue;
+			Vec3 head = groupCenter(limb.members(), sources);
+			if (head == null)
+				continue;
+			Vec3 direction = head.subtract(pivot);
+			return Mth.clamp((float) Mth.atan2(-BODY_SPACE.project(direction, AXIS_Y),
+				-BODY_SPACE.project(direction, AXIS_Z)), -Mth.HALF_PI, Mth.HALF_PI);
+		}
+		return 0.0f;
+	}
+
+	private static Transform swimmingTransform(Context context, List<ResolvedLimb> limbs,
+		List<SourceState> sources, float restPitch) {
+		float amount = context.swimAmount();
+		if (amount <= 0.0f)
+			return Transform.IDENTITY;
+		float moving = context.swimMotion();
+		float hoveringPitch = -0.15f + 0.075f * Mth.cos(context.ageInTicks() * 0.075f);
+		float movingPitch = Mth.lerp(context.partialTick(), context.entity().xRotO,
+			context.entity().getXRot()) * Mth.DEG_TO_RAD
+			+ 0.13f * Mth.sin(context.ageInTicks() * 0.33f);
+		float pitch = (restPitch + Mth.lerp(moving, hoveringPitch, movingPitch)) * amount;
+		SurgicalCubeRotation rotation = BODY_SPACE.reframe(SurgicalCubeRotation.IDENTITY, 0, 0, pitch);
+		return Transform.IDENTITY.rotateAround(bodyPivot(limbs, sources), rotation);
 	}
 
 	/** Torso attack rotation excludes hip and knee groups so planted legs remain stable. */
@@ -796,7 +830,8 @@ public final class SlimeBionicAnimator {
 	}
 
 	private static Transform resolveTransform(int index, List<ResolvedLimb> limbs, Pose pose,
-		Context context, Transform bodyTransform, Transform[] cache, boolean[] resolving) {
+		Context context, Transform bodyTransform, Transform swimTransform,
+		Transform[] cache, boolean[] resolving) {
 		if (cache[index] != null)
 			return cache[index];
 		if (resolving[index])
@@ -804,8 +839,9 @@ public final class SlimeBionicAnimator {
 		resolving[index] = true;
 		ResolvedLimb limb = limbs.get(index);
 		Transform parent = limb.parentIndex() < 0
-			? inheritsBodyRotation(limb) ? bodyTransform : Transform.IDENTITY
-			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform, cache, resolving);
+			? inheritsBodyRotation(limb) ? bodyTransform : swimTransform
+			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform,
+				swimTransform, cache, resolving);
 		boolean mirrorAttackAcrossHorizontal = mirrorsUpwardArmAttack(index, limbs, context);
 		Rotation sampled = limb.gait() != null ? SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
@@ -814,9 +850,14 @@ public final class SlimeBionicAnimator {
 				pose.rotation(limb.bone()), limb.type() == SurgicalLimbType.ELBOW,
 				limb.arm().left(), limb.arm().slot(), limb.arm().phase(),
 				mirrorAttackAcrossHorizontal)
-			: pose.rotation(limb.bone());
+			: context.swimAmount() > 0.0f && (limb.type() == SurgicalLimbType.HIP
+				|| limb.type() == SurgicalLimbType.KNEE)
+				? SlimeBionicAnimations.swimmingLimb(context, limb.type() == SurgicalLimbType.KNEE,
+					false, limb.side() > 0, (float) limb.longitudinal()).scale(context.swimAmount())
+				: pose.rotation(limb.bone());
 		SurgicalCubeRotation local = limb.gait() != null
 			&& limb.gait().style() == LegStyle.SPIDER && limb.type() == SurgicalLimbType.HIP
+			&& context.swimAmount() <= 0.0f
 				? BODY_SPACE.spiderReframe(limb.restDirection(), limb.gait().left(),
 					sampled.z(), sampled.y())
 				: mirrorAttackAcrossHorizontal
@@ -834,7 +875,7 @@ public final class SlimeBionicAnimator {
 					pose.rotation(Bone.BODY), sampled)
 				: BODY_SPACE.reframeComposite(limb.restAlignment(),
 					pose.rotation(Bone.BODY), sampled);
-			inheritedLocal = deltaAfter(parent.rotation(), retargeted);
+			inheritedLocal = deltaAfter(parent.rotation(), retargeted.then(swimTransform.rotation()));
 		} else {
 			inheritedLocal = conjugate(parent.rotation(), local);
 		}
@@ -1244,6 +1285,8 @@ public final class SlimeBionicAnimator {
 		float headRot = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot);
 		float netHeadYaw = Mth.wrapDegrees(headRot - bodyRot);
 		float headPitch = Mth.lerp(partialTick, entity.xRotO, entity.getXRot());
+		float swimAmount = entity.getSwimAmount(partialTick);
+		headPitch *= 1.0f - swimAmount;
 		float ageInTicks = entity.tickCount + partialTick;
 		float limbSwing = 0.0f;
 		float limbSwingAmount = 0.0f;
@@ -1260,9 +1303,11 @@ public final class SlimeBionicAnimator {
 			walkWeight = maximumAmount <= 0.0f ? 0.0f : limbSwingAmount / maximumAmount;
 			limbSwing = vanillaLimbSwing * SurgicalGait.animationFrequencyScale(legLength);
 		}
+		limbSwingAmount *= 1.0f - swimAmount;
+		walkWeight *= 1.0f - swimAmount;
 		return new Context(entity, limbSwing, limbSwingAmount, walkWeight, vanillaLimbSwing,
 			vanillaLimbSwingAmount, ageInTicks, netHeadYaw, headPitch,
-			entity.getAttackAnim(partialTick), entity.isPassenger(), entity.getSwimAmount(partialTick),
+			entity.getAttackAnim(partialTick), entity.isPassenger(), swimAmount,
 			entity.getAttackAnimationTick(), entity.getAttackAnimationDuration(), partialTick,
 			bodyRot, attackTarget.yaw(), attackTarget.pitch(), attackTarget.referencePitch(), attackArm,
 			entity.getAttackAnimationArmSlot(), attackArmHasElbow, attackStyle);

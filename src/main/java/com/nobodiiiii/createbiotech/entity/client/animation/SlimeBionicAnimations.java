@@ -58,7 +58,9 @@ public final class SlimeBionicAnimations {
 		model.riding = context.riding();
 		model.young = false;
 		model.crouching = false;
-		model.swimAmount = context.swimAmount();
+		// The assembled body uses its own paddling/hovering channels below, not the
+		// humanoid crawl cycle (whose phase is tied to walking distance).
+		model.swimAmount = 0.0f;
 		model.leftArmPose = HumanoidModel.ArmPose.EMPTY;
 		model.rightArmPose = HumanoidModel.ArmPose.EMPTY;
 		// Stop at the shared humanoid pass: AbstractZombieModel's raised-arm layer would erase the
@@ -100,12 +102,10 @@ public final class SlimeBionicAnimations {
 		float phaseOffset) {
 		if (context == null)
 			return Rotation.IDENTITY;
-		if (style == LegStyle.SPIDER)
-			return sampleSpiderLeg(context, knee, left, phaseOffset);
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
-		if (weight <= 0.0f)
-			return Rotation.IDENTITY;
-		return sampleHumanoidLeg(context, knee, phaseOffset, weight);
+		Rotation walking = style == LegStyle.SPIDER ? sampleSpiderLeg(context, knee, left, phaseOffset)
+			: weight <= 0.0f ? Rotation.IDENTITY : sampleHumanoidLeg(context, knee, phaseOffset, weight);
+		return blend(walking, swimmingLimb(context, knee, false, left, phaseOffset), context.swimAmount());
 	}
 
 	/** Samples one of as many as eight independently phased shoulder/elbow chains. */
@@ -132,6 +132,11 @@ public final class SlimeBionicAnimations {
 		}
 
 		Rotation attack = armAttackRotation(context, elbow, left);
+		// Keep authored attacks at full strength while the locomotion pose blends.
+		Rotation locomotion = attack == null ? result : result.minus(attack);
+		locomotion = blend(locomotion, swimmingLimb(context, elbow, true, left, phaseOffset),
+			context.swimAmount());
+		result = attack == null ? locomotion : locomotion.plus(attack);
 		if (attack == null)
 			return result;
 		// The shared pose initially contains the attack channel. Retain it only on the selected arm,
@@ -145,6 +150,27 @@ public final class SlimeBionicAnimations {
 			return result;
 		}
 		return !attackingSide && slot == 0 ? result.plus(attack) : result;
+	}
+
+	/** Retargeted aquatic strokes: slow, open hovering limbs and faster swimming strokes. */
+	public static Rotation swimmingLimb(Context context, boolean lower, boolean front, boolean left,
+		float phaseOffset) {
+		float moving = context.swimMotion();
+		float hover = Mth.cos(context.ageInTicks() * 0.075f + phaseOffset);
+		float stroke = Mth.sin(context.ageInTicks() * 0.33f + phaseOffset);
+		float side = left ? -1.0f : 1.0f;
+		if (lower)
+			return Rotation.x((front ? -1.0f : 1.0f) * (0.35f + 0.15f
+				* Mth.lerp(moving, hover, stroke)));
+		return new Rotation(Mth.lerp(moving, 0.2f + 0.08f * hover, 0.35f * stroke),
+			side * moving * 0.2f * stroke,
+			side * Mth.lerp(moving, front ? 1.0f : 0.55f, front ? 0.45f : 0.2f));
+	}
+
+	private static Rotation blend(Rotation from, Rotation to, float amount) {
+		float weight = Mth.clamp(amount, 0.0f, 1.0f);
+		return new Rotation(Mth.lerp(weight, from.x(), to.x()), Mth.lerp(weight, from.y(), to.y()),
+			Mth.lerp(weight, from.z(), to.z()));
 	}
 
 	/** Coarsely turns the authored shoulder swing toward the selected attack sector's midpoint. */
@@ -353,6 +379,15 @@ public final class SlimeBionicAnimations {
 			attackArmSlot = Mth.clamp(attackArmSlot, 0, 7);
 			attackStyle = attackStyle == null ? AttackStyle.EMPTY_HAND : attackStyle;
 		}
+
+		/** Axolotl-style water activity: translation or turning distinguishes swimming from hovering. */
+		public float swimMotion() {
+			double distance = Mth.length(entity.getX() - entity.xo, entity.getY() - entity.yo,
+				entity.getZ() - entity.zo);
+			float turning = Math.abs(Mth.wrapDegrees(entity.getYRot() - entity.yRotO))
+				+ Math.abs(entity.getXRot() - entity.xRotO);
+			return Mth.clamp(Math.max((float) distance * 8.0f, turning / 10.0f), 0.0f, 1.0f);
+		}
 	}
 
 	/** Euler rotation in the same Z-Y-X order used by vanilla model parts. */
@@ -381,6 +416,10 @@ public final class SlimeBionicAnimations {
 
 		private Rotation minus(Rotation other) {
 			return new Rotation(x - other.x, y - other.y, z - other.z);
+		}
+
+		public Rotation scale(float weight) {
+			return new Rotation(x * weight, y * weight, z * weight);
 		}
 
 		/** Mirrors a right-arm rotation across the body's sagittal plane. */
