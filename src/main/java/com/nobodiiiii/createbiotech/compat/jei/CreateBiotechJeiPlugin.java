@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgradeRecipe;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
@@ -27,6 +28,7 @@ import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
+import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
@@ -55,7 +57,14 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	}
 
 	@Override
+	public void registerIngredients(IModIngredientRegistration registration) {
+		registration.register(BionicTraitJeiIngredient.TYPE, List.of(BionicTrait.values()),
+			new BionicTraitJeiIngredient(), new BionicTraitJeiIngredient.Renderer(), BionicTraitJeiIngredient.CODEC);
+	}
+
+	@Override
 	public void registerCategories(IRecipeCategoryRegistration registration) {
+		registration.addRecipeCategories(new BionicTraitJeiCategory(registration.getJeiHelpers().getGuiHelper()));
 		registration.addRecipeCategories(new SlimeTransformationJeiCategory());
 		registration.addRecipeCategories(new BiologicalItemApplicationJeiCategory());
 		registration.addRecipeCategories(new CreeperBlastChamberHighPressureJeiCategory());
@@ -71,6 +80,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerRecipes(IRecipeRegistration registration) {
+		registration.addRecipes(BionicTraitJeiCategory.TYPE, List.of(BionicTrait.values()));
 		registration.addIngredientInfo(
 			new FluidStack(CBFluids.TELEPORTATION.get(), FluidType.BUCKET_VOLUME),
 			NeoForgeTypes.FLUID_STACK,
@@ -89,6 +99,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
+		registration.addRecipeCatalyst(CBBlocks.SURGICAL_TABLE.get(), BionicTraitJeiCategory.TYPE);
 		registration.addRecipeCatalyst(CBBlocks.CREEPER_BLAST_CHAMBER.get(), CREATE_CRUSHING);
 		registration.addRecipeCatalyst(CBBlocks.CREEPER_BLAST_CHAMBER.get(),
 			CreeperBlastChamberHighPressureJeiCategory.TYPE);

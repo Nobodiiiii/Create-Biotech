@@ -57,6 +57,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.control.BodyRotationControl;
@@ -236,7 +237,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	/** Target acquisition and retaliation both respect the head-derived disposition in canAttack. */
 	@Override
 	protected void registerGoals() {
-		goalSelector.addGoal(0, new FloatGoal(this));
+		goalSelector.addGoal(0, new BionicFloatGoal(this));
 		goalSelector.addGoal(1, new BionicSitGoal(this));
 		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
 		goalSelector.addGoal(5, new BionicFollowOwnerGoal(this));
@@ -499,7 +500,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 			navigation = flying;
 			setNoGravity(true);
 		} else if (swimming) {
-			moveControl = new SmoothSwimmingMoveControl(this, 85, 10, 1.2f, 0.5f, true);
+			// Match the neutral-buoyancy travel below, as in vanilla AxolotlMoveControl.
+			moveControl = new SmoothSwimmingMoveControl(this, 85, 10, 0.1f, 0.5f, false);
 			navigation = new AmphibiousPathNavigation(this, level());
 			setNoGravity(false);
 		} else {
@@ -592,6 +594,15 @@ public class SlimeBionicEntity extends PathfinderMob {
 			movement = movement.scale(1.35d);
 		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
 			movement = movement.scale(0.25d);
+		if (organSwimEnabled && isInWater() && isControlledByLocalInstance()) {
+			// Pair swimming steering with aquatic travel (vanilla Axolotl.travel): land-mob
+			// water gravity and collision jumps fight the controller's vertical input.
+			moveRelative(getSpeed(), movement);
+			move(MoverType.SELF, getDeltaMovement());
+			setDeltaMovement(getDeltaMovement().scale(0.9d));
+			calculateEntityAnimation(false);
+			return;
+		}
 		super.travel(movement);
 	}
 
@@ -1423,6 +1434,21 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (!getBionicTraits().has(BionicTrait.TAMEABLE)) {
 			setBionicOwner(null);
 			setOrderedToSit(false);
+		}
+	}
+
+	private static final class BionicFloatGoal extends FloatGoal {
+		private final SlimeBionicEntity bionic;
+
+		private BionicFloatGoal(SlimeBionicEntity bionic) {
+			super(bionic);
+			this.bionic = bionic;
+		}
+
+		@Override public boolean canUse() {
+			// Swimming already steers vertically; FloatGoal would keep requesting jumps
+			// and repeatedly launch the body through the surface. Keep the lava escape.
+			return (!bionic.organSwimEnabled || bionic.isInLava()) && super.canUse();
 		}
 	}
 
