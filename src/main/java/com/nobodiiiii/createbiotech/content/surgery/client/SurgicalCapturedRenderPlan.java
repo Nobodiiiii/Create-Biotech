@@ -348,7 +348,7 @@ public final class SurgicalCapturedRenderPlan {
 			return true;
 		}
 		frame.render(poseStack, buffer, packedLight, 0, ALL_COMPONENTS, NO_OFFSETS, NO_ROTATIONS,
-			false, null, false);
+			false, null, false, entity.hurtTime > 0 || entity.deathTime > 0);
 		return true;
 	}
 
@@ -386,18 +386,27 @@ public final class SurgicalCapturedRenderPlan {
 		Map<Integer, SurgicalCubeRotation> cubeRotations,
 		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry) {
 		return render(poseStack, buffer, packedLight, expectedCubeCount, presentCubes, cubeOffsets,
-			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, true);
+			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, true, null);
+	}
+
+	SurgicalModelRenderContext.Snapshot render(PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, int expectedCubeCount, BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
+		Map<Integer, SurgicalCubeRotation> cubeRotations, boolean collectGeometry,
+		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry, @Nullable Boolean hurtOverlay) {
+		return render(poseStack, buffer, packedLight, expectedCubeCount, presentCubes, cubeOffsets,
+			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, true, hurtOverlay);
 	}
 
 	private SurgicalModelRenderContext.Snapshot render(PoseStack poseStack, MultiBufferSource buffer,
 		int packedLight, int expectedCubeCount, BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
 		Map<Integer, SurgicalCubeRotation> cubeRotations, boolean collectGeometry,
-		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry, boolean renderExtras) {
+		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry, boolean renderExtras,
+		@Nullable Boolean hurtOverlay) {
 		if (renderSourceGeometry) {
 			for (Component component : components)
 				if (isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), true);
+						cubeRotations.get(component.id), true, hurtOverlay);
 		} else {
 			float outerShellShrink = outerShellShrink(poseStack.last().pose());
 			for (Component component : components) {
@@ -405,29 +414,29 @@ public final class SurgicalCapturedRenderPlan {
 					continue;
 				if (component.preserveSource)
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), false);
+						cubeRotations.get(component.id), false, hurtOverlay);
 				else
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), false, outerShellShrink);
+						cubeRotations.get(component.id), false, outerShellShrink, hurtOverlay);
 			}
 			for (Component component : components)
 				if (!component.preserveSource && isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
-						cubeRotations.get(component.id), true, outerShellShrink);
+						cubeRotations.get(component.id), true, outerShellShrink, hurtOverlay);
 			// Villager professions, emissive eyes and similar layers intentionally redraw the
 			// same model cube with another material. Keep those pixels attached to the one
 			// surgical component instead of admitting duplicate topology or discarding them.
 			for (Component component : components)
 				if (!component.preserveSource && isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSurfaceOverlays(poseStack, buffer, packedLight,
-						cubeOffsets.get(component.id), cubeRotations.get(component.id));
+						cubeOffsets.get(component.id), cubeRotations.get(component.id), hurtOverlay);
 		}
 
 		// Lines, text, beams and genuinely non-cuboid meshes are visual effects rather than
 		// surgical topology. Preserve them exactly and keep them out of cube numbering.
 		if (renderExtras)
 			for (SourceBatch extra : extras)
-				extra.render(poseStack, buffer, packedLight, null);
+				extra.render(poseStack, buffer, packedLight, null, null);
 
 		if (!collectGeometry)
 			return new SurgicalModelRenderContext.Snapshot(components.size(), List.of());
@@ -441,7 +450,7 @@ public final class SurgicalCapturedRenderPlan {
 		BitSet present = new BitSet(components.size());
 		present.set(cube);
 		return render(poseStack, buffer, packedLight, components.size(), present, NO_OFFSETS,
-			NO_ROTATIONS, false, null, false, false);
+			NO_ROTATIONS, false, null, false, false, null);
 	}
 
 	@Nullable
@@ -1659,21 +1668,23 @@ public final class SurgicalCapturedRenderPlan {
 
 		private void renderSource(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation,
-			boolean offsetSurfaceOverlays) {
+			boolean offsetSurfaceOverlays, @Nullable Boolean hurtOverlay) {
 			for (SourceBatch batch : batches)
 				batch.renderSource(poseStack, buffer, packedLight, offset, rotation, center(),
-					offsetSurfaceOverlays);
+					offsetSurfaceOverlays, hurtOverlay);
 		}
 
 		private void renderSurfaceOverlays(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation) {
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation,
+			@Nullable Boolean hurtOverlay) {
 			for (SourceBatch batch : surfaceOverlays)
-				batch.renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center());
+				batch.renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center(),
+					hurtOverlay);
 		}
 
 		private void renderSlime(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, boolean outer,
-			float outerShellShrink) {
+			float outerShellShrink, @Nullable Boolean hurtOverlay) {
 			PoseStack cubePose = new PoseStack();
 			Matrix4f basePose = new Matrix4f(poseStack.last().pose());
 			Vector3f center = center();
@@ -1704,7 +1715,7 @@ public final class SurgicalCapturedRenderPlan {
 			int overlay = batches.isEmpty() || batches.getFirst().vertices.isEmpty()
 				? OverlayTexture.NO_OVERLAY
 				: packed(batches.getFirst().vertices.getFirst().overlayU,
-					batches.getFirst().vertices.getFirst().overlayV);
+					overlayV(batches.getFirst().vertices.getFirst(), hurtOverlay));
 			VertexConsumer consumer = buffer.getBuffer(outer ? OUTER_RENDER_TYPE : INNER_RENDER_TYPE);
 			(outer ? outerCube() : innerCube()).render(cubePose, consumer, packedLight, overlay, 0xFFFFFFFF);
 		}
@@ -1756,29 +1767,31 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private record SourceBatch(RenderType renderType, List<CapturedVertex> vertices, boolean surfaceOverlay) {
-		private void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, @Nullable Vec3 offset) {
+		private void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+			@Nullable Vec3 offset, @Nullable Boolean hurtOverlay) {
 			render(poseStack, buffer, packedLight, offset, SurgicalCubeRotation.IDENTITY,
-				new Vector3f(), renderType);
+				new Vector3f(), renderType, hurtOverlay);
 		}
 
 		private void renderSource(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center,
-			boolean offsetSurfaceOverlay) {
+			boolean offsetSurfaceOverlay, @Nullable Boolean hurtOverlay) {
 			if (surfaceOverlay)
 				renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center,
-					offsetSurfaceOverlay);
+					offsetSurfaceOverlay, hurtOverlay);
 			else
-				render(poseStack, buffer, packedLight, offset, rotation, center, renderType);
-		}
-
-		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center) {
-			renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center, false);
+				render(poseStack, buffer, packedLight, offset, rotation, center, renderType, hurtOverlay);
 		}
 
 		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center,
-			boolean depthOffset) {
+			@Nullable Boolean hurtOverlay) {
+			renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center, false, hurtOverlay);
+		}
+
+		private void renderSurfaceOverlay(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation, Vector3f center,
+			boolean depthOffset, @Nullable Boolean hurtOverlay) {
 			RenderType effectiveRenderType = renderType;
 			ResourceLocation texture = renderTypeTexture(renderType);
 			// Villager type, profession and level layers redraw the exact source-model vertices.
@@ -1786,11 +1799,13 @@ public final class SurgicalCapturedRenderPlan {
 			// so retain the original material but use vanilla's view-space Z offset for cutout layers.
 			if (depthOffset && texture != null && renderType == RenderType.entityCutoutNoCull(texture))
 				effectiveRenderType = RenderType.entityCutoutNoCullZOffset(texture);
-			render(poseStack, buffer, packedLight, offset, rotation, center, effectiveRenderType);
+			render(poseStack, buffer, packedLight, offset, rotation, center, effectiveRenderType,
+				hurtOverlay);
 		}
 
 		private void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, @Nullable Vec3 offset,
-			@Nullable SurgicalCubeRotation rotation, Vector3f center, RenderType effectiveRenderType) {
+			@Nullable SurgicalCubeRotation rotation, Vector3f center, RenderType effectiveRenderType,
+			@Nullable Boolean hurtOverlay) {
 			VertexConsumer consumer = buffer.getBuffer(effectiveRenderType);
 			Matrix4f pose = poseStack.last().pose();
 			Matrix3f normal = poseStack.last().normal();
@@ -1823,11 +1838,17 @@ public final class SurgicalCapturedRenderPlan {
 				consumer.addVertex(position.x + offsetX, position.y + offsetY, position.z + offsetZ)
 					.setColor(vertex.red, vertex.green, vertex.blue, vertex.alpha)
 					.setUv(vertex.u, vertex.v)
-					.setUv1(vertex.overlayU, vertex.overlayV)
+					.setUv1(vertex.overlayU, overlayV(vertex, hurtOverlay))
 					.setUv2(light & 0xffff, light >>> 16 & 0xffff)
 					.setNormal(transformedNormal.x, transformedNormal.y, transformedNormal.z);
 			}
 		}
+	}
+
+	private static int overlayV(CapturedVertex vertex, @Nullable Boolean hurtOverlay) {
+		// Live bodies supply their own damage state; previews keep the captured overlay.
+		// Preserve U so renderer-specific white flashes still work.
+		return hurtOverlay == null ? vertex.overlayV : OverlayTexture.v(hurtOverlay);
 	}
 
 	private record AlphaMask(int width, int height, BitSet pixels, boolean opaque) {

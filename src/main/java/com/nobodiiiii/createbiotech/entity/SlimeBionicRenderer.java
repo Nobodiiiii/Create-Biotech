@@ -196,10 +196,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				if (assembly.preservesLayout())
 					SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			}
+			// First-person arms do not display the body's hurt overlay.
 			SurgicalSourceModelRenderer.render(preview, source.cubeCount(), selected,
 				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
 				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
-				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true);
+				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true, 1.0f, false);
 			poseStack.popPose();
 		}
 		poseStack.popPose();
@@ -262,7 +263,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					assembly.cubeCount(), presentCubes,
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
 					poseStack, sourceBuffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
-					!slimeForm);
+					!slimeForm, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0);
 				if (reportDeath)
 					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
 						.map(cube -> new SlimeMimicCubeGeometry(0, cube.cubeId(), cube.corners()))
@@ -435,7 +436,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				source.cubeCount(), source.presentCubes(), renderOffsets, renderRotations,
 				poseStack, buffer, packedLight, 0.0f, partialTick,
 				restStates != null || deathGeometry != null, cameraPosition,
-				renderSourceGeometry);
+				renderSourceGeometry, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0);
 			if (deathGeometry != null) {
 				int sourceIndex = index;
 				snapshot.cubes().forEach(cube -> deathGeometry.add(new SlimeMimicCubeGeometry(

@@ -134,13 +134,23 @@ public final class SurgicalSourceModelRenderer {
 		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
 		boolean renderSourceGeometry, float alpha) {
+		return render(preview, cubeCount, presentCubes, cubeOffsets, cubeRotations, poseStack, buffer,
+			packedLight, yaw, partialTick, collectGeometry, cameraPosition, renderSourceGeometry, alpha,
+			null);
+	}
+
+	public static SurgicalModelRenderContext.Snapshot render(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
+		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
+		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay) {
 		preparePreview(preview, yaw);
 		SurgicalCapturedRenderPlan plan = plan(preview, yaw);
 		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
 		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
 			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
 		return plan.render(poseStack, renderBuffer, packedLight, cubeCount, presentCubes, cubeOffsets, cubeRotations,
-			collectGeometry, cameraPosition, renderSourceGeometry);
+			collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
 	}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
