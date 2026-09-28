@@ -166,7 +166,7 @@
 | 腿 | `agile_landing` | 灵巧落地 | 腿`LEG`：四肢部件名（`leftHindLeg` / `rightFrontLeg` 等） | 自动：猫、豹猫（且属于`fall_damage_immune`） | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 免疫摔落伤害；已有全身摔落免疫时隐藏此项 |
 | 腿 | `fall_reduction` | 摔落抵抗 | 腿`LEG`：四肢部件名 | 马、驴、骡、羊驼、行商羊驼、山羊 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 摔落距离 −3，伤害倍率 ×0.5，固定减伤 0（`safe_fall_distance` / `damage_multiplier` / `flat_reduction` 可配置） |
 | 腿 | `powder_snow_walk` | 细雪行者 | 足`FOOT`：兔、狐狸为四肢部件名；蠹虫、末影螨为 `body` / `segment0` / `segment_0` | 自动：标签`powder_snow_walkable_mobs`，即兔、狐狸、蠹虫、末影螨 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 可在细雪上行走 |
-| 腿 | `lava_walk` | 熔岩行者 | 足`FOOT`：`leftLeg` / `rightLeg` / `left_leg` / `right_leg` | 炽足兽 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 可站在熔岩表面（其余身体仍按火焰免疫覆盖率受伤） |
+| 腿 | `lava_walk` | 熔岩行者 | 足`FOOT`：`leftLeg` / `rightLeg` / `left_leg` / `right_leg` | 炽足兽 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 对齐炽足兽的熔岩寻路、半格支撑高度、浸没上浮和熔岩内跌落距离重置；不再反复跳跃脱困（其余身体仍按火焰免疫覆盖率受伤） |
 | 腿 | `wall_climb` | 攀墙 | 腿`LEG`：蜘蛛的 8 条腿部件 | 蜘蛛、洞穴蜘蛛 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 水平碰撞时可攀爬 |
 
 ## 三、特性补充

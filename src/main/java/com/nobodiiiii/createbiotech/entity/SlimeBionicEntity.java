@@ -94,6 +94,7 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.pathfinder.Path;
@@ -101,6 +102,7 @@ import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileDeflection;
 import net.neoforged.neoforge.common.Tags;
@@ -147,6 +149,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	private boolean bodyFlightEnabled;
 	private boolean organSwimEnabled;
+	private boolean lavaWalkEnabled;
 	private float baseWaterPathMalus = Float.NaN;
 	private int moisture = -1;
 	private int dryAir = -1;
@@ -490,6 +493,12 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (level().isClientSide)
 			return;
 		boolean aquatic = traits.has(BionicTrait.SWIM_SPECIALIST);
+		boolean lavaWalk = traits.has(BionicTrait.LAVA_WALK);
+		if (lavaWalkEnabled != lavaWalk) {
+			lavaWalkEnabled = lavaWalk;
+			// Do not keep a route computed with the old lava/fire traversal costs.
+			navigation.stop();
+		}
 		boolean swimming = shouldUseSwimmingLocomotion(aquatic);
 		boolean enabled = !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
 			|| traits.has(BionicTrait.WING_FLIGHT));
@@ -657,6 +666,29 @@ public class SlimeBionicEntity extends PathfinderMob {
 			damage -= (int) getBionicTraits().parameter(
 				BionicTrait.FALL_REDUCTION, "flat_reduction", 0.0d);
 		return Math.max(0, damage);
+	}
+
+	@Override
+	public float getPathfindingMalus(PathType type) {
+		// Strider's traversal costs apply only while the leg trait is present. Keeping
+		// them out of the malus map also preserves the original costs after surgery/reload.
+		if ((type == PathType.LAVA || type == PathType.DANGER_FIRE || type == PathType.DAMAGE_FIRE)
+			&& getBionicTraits().has(BionicTrait.LAVA_WALK))
+			return 0.0f;
+		return super.getPathfindingMalus(type);
+	}
+
+	@Override
+	protected void checkFallDamage(double movementY, boolean onGround, BlockState state, BlockPos pos) {
+		if (getBionicTraits().has(BionicTrait.LAVA_WALK)) {
+			// Match Strider.checkFallDamage, including fluid contact before the landing check.
+			checkInsideBlocks();
+			if (isInLava()) {
+				resetFallDistance();
+				return;
+			}
+		}
+		super.checkFallDamage(movementY, onGround, state, pos);
 	}
 
 	@Override
@@ -988,6 +1020,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public void tick() {
 		super.tick();
+		tickLavaWalking();
 		if (shellGuardTicks > 0)
 			shellGuardTicks--;
 		if (activeSpinesTicks > 0)
@@ -1016,6 +1049,22 @@ public class SlimeBionicEntity extends PathfinderMob {
 		tickHeadRespiration();
 		tickBodyEnvironment();
 		updateHitParts();
+	}
+
+	private void tickLavaWalking() {
+		if (!getBionicTraits().has(BionicTrait.LAVA_WALK))
+			return;
+		// Vanilla Strider.floatStrider runs after super.tick on both sides. Use the
+		// same half-block support shape as LiquidBlock, not the rendered fluid height.
+		if (isInLava()) {
+			if (CollisionContext.of(this).isAbove(LiquidBlock.STABLE_SHAPE, blockPosition(), true)
+				&& !level().getFluidState(blockPosition().above()).is(FluidTags.LAVA)) {
+				setOnGround(true);
+			} else {
+				setDeltaMovement(getDeltaMovement().scale(0.5d).add(0.0d, 0.05d, 0.0d));
+			}
+		}
+		checkInsideBlocks();
 	}
 
 	private void updateOwnerTarget() {
@@ -1530,8 +1579,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 
 		@Override public boolean canUse() {
-			// Swimming already steers vertically; FloatGoal would keep requesting jumps
-			// and repeatedly launch the body through the surface. Keep the lava escape.
+			// Strider buoyancy handles lava without FloatGoal's repeated jump requests.
+			if (bionic.isInLava() && bionic.getBionicTraits().has(BionicTrait.LAVA_WALK))
+				return false;
+			// Swimming already steers vertically; keep fluid escape for other bodies.
 			return (!bionic.organSwimEnabled || bionic.isInLava()) && super.canUse();
 		}
 	}

@@ -5,7 +5,10 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.pathfinder.Path;
+import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -15,6 +18,21 @@ public class SlimeBionicGroundNavigation extends GroundPathNavigation {
 
 	public SlimeBionicGroundNavigation(Mob mob, Level level) {
 		super(mob, level);
+	}
+
+	@Override
+	protected boolean hasValidPathType(PathType type) {
+		// StriderPathNavigation permits lava and its surrounding fire nodes.
+		if (mob.canStandOnFluid(Fluids.LAVA.defaultFluidState())
+			&& (type == PathType.LAVA || type == PathType.DAMAGE_FIRE || type == PathType.DANGER_FIRE))
+			return true;
+		return super.hasValidPathType(type);
+	}
+
+	@Override
+	public boolean isStableDestination(BlockPos pos) {
+		return mob.canStandOnFluid(Fluids.LAVA.defaultFluidState()) && level.getBlockState(pos).is(Blocks.LAVA)
+			|| super.isStableDestination(pos);
 	}
 
 	@Override
