@@ -96,6 +96,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.HitResult;
@@ -489,7 +490,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 		if (level().isClientSide)
 			return;
 		boolean aquatic = traits.has(BionicTrait.SWIM_SPECIALIST);
-		boolean swimming = aquatic && isInWaterOrBubble() && isAlive() && !isPassenger();
+		boolean swimming = shouldUseSwimmingLocomotion(aquatic);
 		boolean enabled = !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
 			|| traits.has(BionicTrait.WING_FLIGHT));
 		if (Float.isNaN(baseWaterPathMalus))
@@ -546,6 +547,37 @@ public class SlimeBionicEntity extends PathfinderMob {
 		SurgicalAssembly assembly = getAssembly();
 		if (assembly != null)
 			refreshMovementSpeed(assembly);
+	}
+
+	/**
+	 * Water touching the outer hitbox is not a stable medium for a large assembled body. Keep the
+	 * controller selected by the path's next node while crossing the shoreline, and require a
+	 * meaningful water depth before returning to land locomotion.
+	 */
+	private boolean shouldUseSwimmingLocomotion(boolean aquatic) {
+		if (!aquatic || !isAlive() || isPassenger())
+			return false;
+		if (!isInWaterOrBubble())
+			return false;
+		return isInStableWater() || pathLeadsThroughWater();
+	}
+
+	@SuppressWarnings("deprecation")
+	private boolean isInStableWater() {
+		double minimumDepth = organSwimEnabled ? 0.05d : 0.25d;
+		return getFluidHeight(FluidTags.WATER) >= minimumDepth
+			|| level().getBlockState(blockPosition()).is(Blocks.BUBBLE_COLUMN);
+	}
+
+	private boolean pathLeadsThroughWater() {
+		Path currentPath = navigation == null ? null : navigation.getPath();
+		if (currentPath == null || currentPath.isDone())
+			return false;
+		PathType nextType = currentPath.getNextNode().type;
+		if (nextType == PathType.WATER || nextType == PathType.WATER_BORDER)
+			return true;
+		BlockPos target = currentPath.getTarget();
+		return target != null && level().getFluidState(target).is(FluidTags.WATER);
 	}
 
 	@Override
