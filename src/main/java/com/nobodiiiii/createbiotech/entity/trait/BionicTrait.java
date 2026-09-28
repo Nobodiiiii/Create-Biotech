@@ -115,7 +115,40 @@ public enum BionicTrait {
 		Carrier.allTissue()),
 	PASSIVE_REGENERATION("passive_regeneration", BionicTraitScope.WHOLE_BODY,
 		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
-		Carrier.allTissue());
+		Carrier.allTissue()),
+	ENCHANT_VULNERABILITY("enchant_vulnerability", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		Carrier.allTissue()),
+	HUNTING_INSTINCT("hunting_instinct", BionicTraitScope.HEAD,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.HEAD)),
+	PACK_ALERT("pack_alert", BionicTraitScope.HEAD,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.HEAD)),
+	ATTACK_KNOCKBACK("attack_knockback", BionicTraitScope.ARM,
+		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
+		Carrier.allTissue()),
+	DOOR_HANDLING("door_handling", BionicTraitScope.ARM,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
+	WING_SLOW_FALL("wing_slow_fall", BionicTraitScope.ARM,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
+	STRONG_JUMP("strong_jump", BionicTraitScope.LEG,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		Carrier.of(BionicAnatomyRole.LEG)),
+	ENDER_TELEPORT("ender_teleport", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		Carrier.allTissue()),
+	MAGIC_RESISTANCE("magic_resistance", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.allTissue()),
+	WITHER_SHIELD("wither_shield", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
+		Carrier.allTissue()),
+	LAUNCH_STRIKE("launch_strike", BionicTraitScope.ARM,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.ATTACK_HAND, BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING, BionicAnatomyRole.HORN));
 
 	private final String id;
 	private final Set<BionicTraitScope> scopes;
@@ -152,7 +185,7 @@ public enum BionicTrait {
 
 	boolean automaticDetection() {
 		return switch (this) {
-		case FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
+		case ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
 			BODY_BOUNCE, PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
@@ -176,6 +209,6 @@ public enum BionicTrait {
 		}
 	}
 
-	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET }
+	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
 	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED }
 }

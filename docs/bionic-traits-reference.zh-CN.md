@@ -4,7 +4,7 @@
 
 原“修正”列及已合并、删除项已归档至[特性修正历史](bionic-traits-history.zh-CN.md)。本文只列当前规则。
 
-所有 37 项特性统一定义在 [BionicTrait](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTrait.java)，统一由 [BionicTraitResolver](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 解析，数据统一位于 `bionic_traits/`。
+所有 48 项特性统一定义在 [BionicTrait](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTrait.java)，统一由 [BionicTraitResolver](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 解析，数据统一位于 `bionic_traits/`。
 
 | 作用范围 | `BionicTraitScope` | 判定范围                       | 本次归类                                                                                 |
 | -------- | -------------------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
@@ -125,7 +125,7 @@
 
 ## 二、按作用部位排列的特性总表（`bionic_traits`）
 
-下表按**全身、躯干、头、臂、腿**排列，收录全部 37 项特性。作用部位指装配后的生效范围；供体载体标签只筛选贡献体块，不代表安装位置。数值与效果免疫项一并归入各自的作用部位。
+下表按**全身、躯干、头、臂、腿**排列，收录全部 48 项特性。作用部位指装配后的生效范围；供体载体标签只筛选贡献体块，不代表安装位置。数值与效果免疫项一并归入各自的作用部位。
 
 “生效条件 / 汇总方式”中的 c 为该特性声明范围内的覆盖率（0–1，按体积加权）。全身、躯干按整体计算，头、臂、腿按每条独立肢体计算。门槛型默认 `min_coverage = 0.5`，存在型不设门槛；腿部特性另需满足第一节第 5 条，扑翼飞行另需满足有效翼数量与承重条件。
 
@@ -150,6 +150,10 @@
 | 全身 | `immune_effects` | 免疫效果（…） | 供体所有体块，不筛选载体标签 | 自动：逐个效果调用`canBeAffected` 探测。`#undead` 免疫中毒和生命恢复；蜘蛛、洞穴蜘蛛免疫中毒；凋灵、凋灵骷髅免疫凋零；蠹虫免疫寄生；史莱姆免疫渗浆 | 每个效果的免疫组织覆盖率分别 ≥ 0.5 | 拒绝分别达标的药水效果，可以同时获得多个免疫 |
 | 全身 | `natural_armor` | 天然护甲（…） | 供体所有体块，不筛选载体标签 | 自动：护甲基础值，即僵尸、尸壳、溺尸、僵尸村民、僵尸猪灵 2，凋灵 4 | 数值最高的前 50% 全身体积加权平均 | 设为成品护甲基础值 |
 | 全身 | `passive_regeneration` | 自然恢复（…/秒） | 供体所有体块，不筛选载体标签 | 数据（不自动探测）：悦灵 2.0；凋灵 1.0；马、驴、骡、羊驼、行商羊驼、骷髅马、僵尸马、骆驼 0.0222 | 数值最高的前 50% 全身体积加权平均 | 未满血时每秒回复对应生命值 |
+| 全身 | `enchant_vulnerability` | 附魔易伤（亡灵杀手／节肢杀手／穿刺） | 所有体块 | 自动：对应 `sensitive_to_*` 实体标签 | 每个子项全身覆盖率分别 ≥ 0.5 | 对应武器、箭或三叉戟附魔每级 +2.5 伤害；节肢杀手直接命中附加缓慢 IV 30–30+10×(等级−1) tick |
+| 全身 | `ender_teleport` | 末影瞬移（末影人／潜影贝） | 所有体块 | 末影人、潜影贝 | 两种供体全身覆盖率分别 ≥ 0.5 | 末影人：弹射物最多 64 次 ±32 格闪避、非活体伤害后 90% 瞬移、每 30 tick 追赶 16 格外目标；潜影贝：受伤后低于半血时 25% 在 ±8 格瞬移，最多尝试 5 次。坐下、被拴、骑乘时禁用；遵守 NeoForge 瞬移事件 |
+| 全身 | `magic_resistance` | 魔法抗性 | 所有体块 | 女巫 | c > 0 | `witch_resistant_to` 伤害 ×(1−0.85c) |
+| 全身 | `wither_shield` | 凋灵护甲 | 所有体块 | 凋灵 | c ≥ 0.5 | 生命 ≤ 50% 时免疫箭、三叉戟和风弹的直接伤害 |
 | 躯干 | `wingless_flight` | 悬浮飞行 | 供体所有体块，不筛选载体标签 | 数据：恶魂、凋灵、烈焰人 | c ≥ 0.5 | 切换为飞行移动与寻路、无重力；免疫摔落（烈焰人的身体缓降合并至此） |
 | 躯干 | `body_bounce` | 身体弹跳 | 供体所有体块，不筛选载体标签 | 数据：史莱姆、岩浆怪 | c > 0 | 起跳时额外 +0.1c 纵向速度 |
 | 躯干 | `swim_specialist` | 游泳专长 | **供体所有体块**，不筛选载体标签 | 自动识别具备专门游泳能力的生物：原版包括鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、海豚、海龟、美西螈、守卫者、远古守卫者、青蛙、蝌蚪、溺尸；兼容满足相同条件的模组生物 | **安装在躯干**；对应供体体块占全部躯干体积 ≥ 0.5；无肢体数量要求 | 在水中移动输入 ×1.35；未处于飞行状态时切换为平滑游泳控制、两栖寻路和水中漫游 |
@@ -161,13 +165,20 @@
 | 头 | `vibration_sense` | 振动感知 | 头 `HEAD`：`head`、`head_cube`、`left_tendril`、`right_tendril` | 监守者 | 对应头部载体存在；已经在追踪目标 | 监听 12 格内已有目标的游戏振动事件；不可见时追踪最近声源位置，记忆 40 tick。遵守潜行与羊毛隔振规则，不根据移动速度扫描、不主动选敌 |
 | 头 | `water_aversion` | 避水偏好 | 头`HEAD`：`head`、`head_cube` | 末影人 | 对应头部载体存在（不设占比门槛） | 水域寻路代价 +16 |
 | 头 | `deterrence` | 生物威慑 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 对应头部载体存在（不设占比门槛） | 每 10 tick 驱赶 8 格内对应生物，清除其对成品的仇恨，向远离方向移动；Tooltip 使用“生物威慑（目标生物…）”。不驱赶同主生物、驯服的狼或杀手兔；仅狼供体保留对普通兔子的威慑 |
+| 头 | `hunting_instinct` | 捕猎本能（目标生物…） | 头 `HEAD`，包括捕获头部 | [v2 子表 2](bionic-traits-v2-plan.zh-CN.md#子表-2捕猎本能的关系) | 对应载体存在 | 主动捕猎非玩家目标，保留驯服、环境、距离和狩猎冷却限制；跳过主人、盟友；取代原敌对性情的固定村民索敌 |
+| 头 | `pack_alert` | 呼唤同伴 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 对应载体存在 | 被活体攻击时，通知追随范围（默认 35 格）、纵向 ±10 格内同主人或同样有本特性的无主仿生生物；坐下者不响应，不攻击盟友 |
 | 臂 | `wing_flight` | 扑翼飞行 | 左翅`LEFT_WING` 或右翅 `RIGHT_WING`：`leftWing` / `left_wing` / `leftWingBase` / `leftWingTip` 等及其右侧对应部件 | 蜜蜂、鹦鹉、蝙蝠、幻翼、悦灵、恼鬼、末影龙 | **安装为臂**；每条臂覆盖率 ≥ 0.5 才计为有效翼，有效翼 ≥ 2（不分左右）；成品已有体积数据；体积 ≤ 16 × 有效翼载体体积（`max_body_volume_per_wing_volume`） | 切换为飞行移动与寻路、无重力；免疫摔落 |
 | 臂 | `effect_attack` | 附效攻击（中毒／凋零／饥饿） | 中毒：口器 `MOUTH` 或刺 `SPINE`；凋零、饥饿：攻击手 `ATTACK_HAND` | 洞穴蜘蛛、蜜蜂、河豚：中毒；凋灵骷髅：凋零；尸壳：饥饿 | 装成臂的对应载体存在；必须由包含该载体的攻击臂命中；饥饿限空手 | 中毒 I 100 tick、凋零 I 200 tick、饥饿 I 140 tick；每效果独立配置概率、时间、等级、空手限制和载体 |
+| 臂 | `attack_knockback` | 击退强化（数值） | 所有体块 | 自动：基础 `ATTACK_KNOCKBACK` 属性 | 每条臂按数值最高的前 50% 体积加权平均 | 仅使用出手臂的值，原版近战额外击退强度为值 ×0.5；Tooltip 显示最高臂值 |
+| 臂 | `door_handling` | 破门 | 攻击手 `ATTACK_HAND` | 僵尸、尸壳、僵尸村民、僵尸猪灵 | 对应载体存在 | 困难难度贴门 240 tick 后破坏木门／铜门，持续遵守生物破坏规则和方块保护；不提供开关门 |
+| 臂 | `wing_slow_fall` | 振翅缓降 | 左右翅 `LEFT_WING` / `RIGHT_WING` | 鸡、鹦鹉 | 每臂覆盖率 ≥ 0.5；至少 2 条有效翼，不检查承重 | 下落速度每 tick ×0.6，免疫摔落；获得任一种飞行后隐藏 |
+| 臂 | `launch_strike` | 近战击飞 | 铁傀儡攻击手、末影龙翼、山羊／成年疣猪兽／成年僵尸疣猪兽的角 `HORN` | 铁傀儡、末影龙、山羊、成年疣猪兽、成年僵尸疣猪兽 | 对应载体装为臂且由该臂命中 | 统一使目标纵向速度增加 0.4×(1−抗击退)，不按供体叠加 |
 | 腿 | `agile_landing` | 灵巧落地 | 腿`LEG`：四肢部件名（`leftHindLeg` / `rightFrontLeg` 等） | 自动：猫、豹猫（且属于`fall_damage_immune`） | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 免疫摔落伤害；已有全身摔落免疫时隐藏此项 |
 | 腿 | `fall_reduction` | 摔落抵抗 | 腿`LEG`：四肢部件名 | 马、驴、骡、羊驼、行商羊驼、山羊 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 摔落距离 −3，伤害倍率 ×0.5，固定减伤 0（`safe_fall_distance` / `damage_multiplier` / `flat_reduction` 可配置） |
 | 腿 | `powder_snow_walk` | 细雪行者 | 足`FOOT`：兔、狐狸为四肢部件名；蠹虫、末影螨为 `body` / `segment0` / `segment_0` | 自动：标签`powder_snow_walkable_mobs`，即兔、狐狸、蠹虫、末影螨 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 可在细雪上行走 |
 | 腿 | `lava_walk` | 熔岩行者 | 足`FOOT`：`leftLeg` / `rightLeg` / `left_leg` / `right_leg` | 炽足兽 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 对齐炽足兽的熔岩寻路、半格支撑高度、浸没上浮和熔岩内跌落距离重置；不再反复跳跃脱困（其余身体仍按火焰免疫覆盖率受伤） |
 | 腿 | `wall_climb` | 攀墙 | 腿`LEG`：蜘蛛的 8 条腿部件 | 蜘蛛、洞穴蜘蛛 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 水平碰撞时可攀爬 |
+| 腿 | `strong_jump` | 强健跳跃 | 腿 `LEG`；兔后腿和后足 | 马、骷髅马、僵尸马、兔、山羊、青蛙 | 每腿覆盖率 ≥ 0.5；至少 2 条有效腿 | 起跳速度 +0.2；地面与两栖寻路允许跳上 2 格高台，不提高实际迈步高度 |
 
 ## 三、特性补充
 
@@ -202,6 +213,16 @@
 | 僵尸猪灵、僵尸疣猪兽 | 猪灵 | `PiglinAi` 僵尸化生物避让 |
 
 源码核对：`ref/SOURCES.md` 未提供 1.21.1 原版 Minecraft 源码，旧 `ref/_legacy_pre_reorg_20260720_001540/Minecraft-1.20.1/` 版本不匹配，因此使用本机构建缓存 `sourcesAndCompiledWithNeoForge_037f1fc886d6c66add1e4b30755384600c2db400_output.jar` 内已有的 Java 源码；其来源记录关联当前 NeoForge 21.1.234。上述类均位于 `net/minecraft/world/entity/`；振动监听核对 `world/level/gameevent/vibrations/VibrationSystem.java`，监守者双角部件名核对 `client/model/WardenModel.java`。
+
+### 4. v2 批次 A
+
+批次 A 新增 11 项，删除项和合并决策详见 [v2 实施状态](bionic-traits-v2-plan.zh-CN.md#批次-a-实施状态2026-09-28)。下节物种反查保留原有 37 项速查；新增特性的供体以本节总表与游戏内 JEI 为准。
+
+通用子项通过 `variants` 声明 `roles`（空列表为所有组织）和 `parameters`，`values` 使用“供体 → 子项 ID → 布尔值”。子项独立累计覆盖率，只返回达标子项的载体成员。旧 `effect_attack.effects` 数据格式继续兼容。
+
+击退数值逐臂计算；命中时用臂成员映射查询，不使用整身最大值。统一击飞的 `vertical_boost` 默认为 0.4，仅执行一次。`strong_jump` 的寻路高度只在节点评估期间生效，不把两格台阶变成直接迈步。
+
+本地依据：`ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/{BreakDoorGoal,DoorInteractGoal}.java`、`world/level/pathfinder/WalkNodeEvaluator.java`、`world/entity/monster/EnderMan.java`、`world/entity/projectile/{AbstractArrow,ThrownTrident}.java`；供体捕猎关系对应源码见 v2 第七节。NeoForge 的破门和瞬移权限按 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 中的 `BreakDoorGoal`、`CommonHooks`、`EntityTeleportEvent` 核对。
 
 ## 四、按生物反查
 

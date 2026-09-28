@@ -2,9 +2,24 @@
 
 整理日期：2026-09-28。依据本分支的 Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。
 
-本文在[特性总表](bionic-traits-reference.zh-CN.md)现有 37 项之外，列出 v2 建议新增的 39 项：公共特性 14 项、专属特性 21 项、生产特性 4 项。表格沿用总表的列和“全身、躯干、头、臂、腿”的顺序，另加“批次”列和留空的“修正”列，批注确认后再并入总表。本文只是建议，没有改动代码或数据。
+本文在[特性总表](bionic-traits-reference.zh-CN.md)现有 37 项之外，列出 v2 建议新增的 39 项：公共特性 14 项、专属特性 21 项、生产特性 4 项。表格沿用总表的列和“全身、躯干、头、臂、腿”的顺序，另加“批次”列和留空的“修正”列，批注确认后再并入总表。批次 A 已按“修正”列实现，范围和实施决定见下节；其余批次仍为建议。
 
 表中 c 与总表相同，指该特性声明范围内的覆盖率（0–1，按体积加权）；门槛型默认 `min_coverage = 0.5`。原版数值取自本地参考源码，逐项出处见第七节。
+
+## 批次 A 实施状态（2026-09-28）
+
+已实现 11 项：`enchant_vulnerability`、`hunting_instinct`、`pack_alert`、`attack_knockback`、`door_handling`、`wing_slow_fall`、`strong_jump`、`ender_teleport`、`magic_resistance`、`wither_shield`、`launch_strike`。下方建议表保留原始描述和修正批注，已实施行为以[特性总表](bionic-traits-reference.zh-CN.md)为准。
+
+- 标记“删了”的 A 项不实现；`door_handling` 仅保留困难难度的 240 tick 破门，持续检查 `canEntityGrief` / `canEntityDestroy`。
+- `head_strike` 的山羊角、成年疣猪兽／成年僵尸疣猪兽獠牙并入臂部 `launch_strike`。所有供体统一为命中后纵向速度增加 `0.4 × (1 − 目标抗击退)`，不叠加供体专属冲刺、拍飞或盾牌格挡触发。供体载体装为臂才生效。
+- 捕猎关系按子表 2 实现，原来“敌对性情固定攻击村民”的 Goal 迁移到关系表；玩家索敌仍遵守性情。美西螈与猪灵狩猎冷却随实体保存。
+- 呼唤同伴只通知仿生生物，未采用可选的“唤起原版供体同类”。坐下的同伴不响应。
+- `strong_jump` 实现起跳加成与地面／两栖寻路的两格高台跳跃；骑乘蓄力仍属于 B，空闲远跳候补不实现。
+- `ender_teleport` 两种子项分别计算全身覆盖率；落点遵守世界边界、已加载区块、地面支撑、碰撞与液体检查，触发 `EntityTeleportEvent.EnderEntity`。成品使用自己的身体碰撞体，不继承潜影贝吸附墙面的姿态。
+- I6 新增通用 `SUBTRAIT_SET` / JSON `variants`（独立载体、参数和成员）；已有 `effect_attack` 的 `effects` 格式继续兼容。I8 数值保存到对应臂成员，命中走原版 `getKnockback`，提示显示各臂最大值。
+- 增补 `HORN` 标签及 horn/tusk 名称推断，服务于合并后的击飞；中英文 Tooltip、JEI 说明和供体索引同步支持新特性。
+
+本批未修改 Mixin，未新增测试文件，也未启动游戏客户端。验证使用离线编译、完整构建和资源一致性检查；游戏内行为尚未实测。
 
 ## 设计约束
 

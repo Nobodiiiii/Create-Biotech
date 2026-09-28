@@ -9,17 +9,18 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	BionicDonorOverrides<Boolean> abilities, BionicDonorOverrides<Double> numbers,
 	BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects,
 	Map<ResourceLocation, Map<BionicAnatomyRole, Set<String>>> carriers,
-	Map<String, Double> parameters, Map<ResourceLocation, BionicAttackEffect> attackEffects) {
+	Map<String, Double> parameters, Map<ResourceLocation, BionicAttackEffect> attackEffects, Map<ResourceLocation, BionicSubtrait> subtraits) {
 	BionicTraitData {
 		carriers = Map.copyOf(carriers);
 		parameters = Map.copyOf(parameters);
 		attackEffects = Map.copyOf(attackEffects);
+		subtraits = Map.copyOf(subtraits);
 	}
 
 	static BionicTraitData defaults(BionicTrait trait) {
 		return new BionicTraitData(trait.automaticDetection(), trait.rule(),
 			BionicDonorOverrides.empty(), BionicDonorOverrides.empty(), BionicDonorOverrides.empty(),
-			Map.of(), Map.of(), Map.of());
+			Map.of(), Map.of(), Map.of(), Map.of());
 	}
 
 	double parameter(String key, double fallback) {

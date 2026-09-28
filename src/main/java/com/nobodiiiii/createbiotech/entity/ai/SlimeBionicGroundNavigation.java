@@ -21,6 +21,22 @@ public class SlimeBionicGroundNavigation extends GroundPathNavigation {
 	}
 
 	@Override
+	protected net.minecraft.world.level.pathfinder.PathFinder createPathFinder(int visitedNodes) {
+		nodeEvaluator = new net.minecraft.world.level.pathfinder.WalkNodeEvaluator() {
+			@Override public int getNeighbors(net.minecraft.world.level.pathfinder.Node[] neighbors,
+				net.minecraft.world.level.pathfinder.Node node) {
+				if (!(mob instanceof com.nobodiiiii.createbiotech.entity.SlimeBionicEntity bionic))
+					return super.getNeighbors(neighbors, node);
+				bionic.setEvaluatingJumpPath(true);
+				try { return super.getNeighbors(neighbors, node); }
+				finally { bionic.setEvaluatingJumpPath(false); }
+			}
+		};
+		nodeEvaluator.setCanPassDoors(true);
+		return new net.minecraft.world.level.pathfinder.PathFinder(nodeEvaluator, visitedNodes);
+	}
+
+	@Override
 	protected boolean hasValidPathType(PathType type) {
 		// StriderPathNavigation permits lava and its surrounding fire nodes.
 		if (mob.canStandOnFluid(Fluids.LAVA.defaultFluidState())

@@ -87,6 +87,7 @@ public final class BionicTraitDonors {
 				double automatic = 0.0d;
 				if (data.automaticDetection() && donor != null) {
 					var attribute = switch (trait) {
+					case ATTACK_KNOCKBACK -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
 					case NATURAL_ARMOR -> donor.getAttribute(Attributes.ARMOR);
 					case KNOCKBACK_RESISTANCE -> donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
 					default -> null;
@@ -119,8 +120,27 @@ public final class BionicTraitDonors {
 			if (enabled && attackData.attackEffects().containsKey(effect)) attacks.add(effect);
 			else attacks.remove(effect);
 		}));
+		Map<BionicTrait, Set<ResourceLocation>> variants = new EnumMap<>(BionicTrait.class);
+		for (BionicTrait trait : BionicTrait.values()) {
+			if (trait.valueKind() != BionicTrait.ValueKind.SUBTRAIT_SET) continue;
+			BionicTraitData definition = snapshot.get(trait);
+			Set<ResourceLocation> supplied = new HashSet<>();
+			if (trait == BionicTrait.ENCHANT_VULNERABILITY && definition.automaticDetection()) {
+				for (String enchantment : java.util.List.of("smite", "bane_of_arthropods", "impaling"))
+					if (type.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
+						ResourceLocation.withDefaultNamespace("sensitive_to_" + enchantment))))
+						supplied.add(ResourceLocation.withDefaultNamespace(enchantment));
+			}
+			definition.effects().forEach(type, id, overrides -> overrides.forEach((variant, enabled) -> {
+				if (enabled) supplied.add(variant); else supplied.remove(variant);
+			}));
+			supplied.retainAll(definition.subtraits().keySet());
+			variants.put(trait, Set.copyOf(supplied));
+		}
+		if (donor != null && donor.isBaby() && (type == EntityType.HOGLIN || type == EntityType.ZOGLIN))
+			abilities.remove(BionicTrait.LAUNCH_STRIKE);
 		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type).stream()
-			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()));
+			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()), variants);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -131,6 +151,7 @@ public final class BionicTraitDonors {
 		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
 		case FREEZE_VULNERABLE -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
 		case INVERTED_HEALING -> donor != null && donor.isInvertedHealAndHarm();
+		case HUNTING_INSTINCT -> BionicHunting.hasRelations(type);
 		case DETERRENCE -> !BionicDeterrence.targets(type).isEmpty();
 		case PROJECTILE_DEFLECTION -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);
 		case WATER_BREATHING -> donor != null && (type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
@@ -155,15 +176,18 @@ public final class BionicTraitDonors {
 	private record Cache(long generation, Map<MimicProfile.BiologicalKey, Facts> facts) {}
 
 	public record Facts(Set<BionicTrait> abilities, Map<BionicTrait, Double> numbers,
-		Set<ResourceLocation> immuneEffects, Set<ResourceLocation> attackEffects, Set<ResourceLocation> deterrenceTargets) {
-		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of());
+		Set<ResourceLocation> immuneEffects, Set<ResourceLocation> attackEffects, Set<ResourceLocation> deterrenceTargets,
+		Map<BionicTrait, Set<ResourceLocation>> variants) {
+		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of(), Map.of());
 		public Facts {
 			abilities = Set.copyOf(abilities);
 			numbers = Map.copyOf(numbers);
 			immuneEffects = Set.copyOf(immuneEffects);
 			attackEffects = Set.copyOf(attackEffects);
 			deterrenceTargets = Set.copyOf(deterrenceTargets);
+			variants = Map.copyOf(variants);
 		}
+		public Set<ResourceLocation> variants(BionicTrait trait) { return variants.getOrDefault(trait, Set.of()); }
 		public boolean has(BionicTrait trait) { return abilities.contains(trait); }
 		public double value(BionicTrait trait) { return numbers.getOrDefault(trait, 0.0d); }
 	}

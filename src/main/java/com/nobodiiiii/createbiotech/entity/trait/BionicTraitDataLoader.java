@@ -91,10 +91,35 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		BionicDonorOverrides<Double> numbers = trait.valueKind() == BionicTrait.ValueKind.NUMBER
 			? overrides(files, BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects = (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET
-			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET)
+			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET
+			|| trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
 			? effectOverrides(files) : BionicDonorOverrides.empty();
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
-			readCarriers(root, primary), parameters, readAttackEffects(root, primary));
+			readCarriers(root, primary), parameters, readAttackEffects(root, primary), readSubtraits(root, primary));
+	}
+
+	private static Map<ResourceLocation, BionicSubtrait> readSubtraits(JsonObject root, ResourceLocation file) {
+		Map<ResourceLocation, BionicSubtrait> result = new HashMap<>();
+		object(root.get("variants")).entrySet().forEach(entry -> {
+			try {
+				ResourceLocation id = ResourceLocation.parse(entry.getKey());
+				JsonObject settings = entry.getValue().getAsJsonObject();
+				java.util.List<BionicAnatomyRole> roles = new java.util.ArrayList<>();
+				if (settings.has("roles"))
+					for (JsonElement role : settings.getAsJsonArray("roles"))
+						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
+				Map<String, Double> parameters = new HashMap<>();
+				object(settings.get("parameters")).entrySet().forEach(parameter -> {
+					Double value = numberValue(parameter.getValue());
+					if (value == null) throw new IllegalArgumentException("Invalid variant parameter");
+					parameters.put(parameter.getKey(), value);
+				});
+				result.put(id, new BionicSubtrait(id, new BionicTrait.Carrier(roles, List.of()), parameters));
+			} catch (RuntimeException exception) {
+				LOGGER.warn("Invalid trait variant {} in {}", entry.getKey(), file);
+			}
+		});
+		return Map.copyOf(result);
 	}
 
 	private static Map<ResourceLocation, BionicAttackEffect> readAttackEffects(JsonObject root, ResourceLocation file) {

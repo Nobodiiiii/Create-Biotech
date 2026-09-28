@@ -23,6 +23,13 @@ public final class BionicTraitSet {
 	public double coverage(BionicTrait trait) { return result(trait).coverage(); }
 	public double strength(BionicTrait trait) { return result(trait).strength(); }
 	public double value(BionicTrait trait) { return result(trait).value(); }
+	public boolean hasVariant(BionicTrait trait, String id) {
+		return has(trait) && result(trait).subtraits().keySet().stream().anyMatch(v -> v.id().getPath().equals(id));
+	}
+	public double armValue(BionicTrait trait, java.util.Collection<SurgicalAssembly.CombinationMember> arm) {
+		return has(trait) ? arm.stream().mapToDouble(member -> result(trait).memberValues().getOrDefault(member, 0.0d))
+			.max().orElse(0) : 0;
+	}
 	public boolean isEmpty() { return results.isEmpty(); }
 	public boolean hasFullEffect(BionicTrait trait) {
 		return has(trait) && strength(trait) >= 1.0d - BionicTraitRule.COVERAGE_EPSILON;

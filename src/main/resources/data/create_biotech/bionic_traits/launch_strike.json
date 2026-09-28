@@ -1,0 +1,49 @@
+{
+  "automatic_detection": false,
+  "parameters": {
+    "vertical_boost": 0.4
+  },
+  "carriers": {
+    "minecraft:iron_golem": {
+      "ATTACK_HAND": [
+        "left_arm",
+        "right_arm"
+      ]
+    },
+    "minecraft:ender_dragon": {
+      "LEFT_WING": [
+        "left_wing",
+        "left_wing_tip"
+      ],
+      "RIGHT_WING": [
+        "right_wing",
+        "right_wing_tip"
+      ]
+    },
+    "minecraft:goat": {
+      "HORN": [
+        "left_horn",
+        "right_horn"
+      ]
+    },
+    "minecraft:hoglin": {
+      "HORN": [
+        "left_horn",
+        "right_horn"
+      ]
+    },
+    "minecraft:zoglin": {
+      "HORN": [
+        "left_horn",
+        "right_horn"
+      ]
+    }
+  },
+  "values": {
+    "minecraft:iron_golem": true,
+    "minecraft:ender_dragon": true,
+    "minecraft:goat": true,
+    "minecraft:hoglin": true,
+    "minecraft:zoglin": true
+  }
+}

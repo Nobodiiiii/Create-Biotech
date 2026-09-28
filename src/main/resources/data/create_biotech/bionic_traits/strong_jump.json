@@ -1,0 +1,76 @@
+{
+  "automatic_detection": false,
+  "min_coverage": 0.5,
+  "parameters": {
+    "min_legs": 2,
+    "jump_bonus": 0.2
+  },
+  "carriers": {
+    "minecraft:horse": {
+      "LEG": [
+        "left_hind_leg",
+        "right_hind_leg",
+        "left_front_leg",
+        "right_front_leg",
+        "left_leg",
+        "right_leg"
+      ]
+    },
+    "minecraft:skeleton_horse": {
+      "LEG": [
+        "left_hind_leg",
+        "right_hind_leg",
+        "left_front_leg",
+        "right_front_leg",
+        "left_leg",
+        "right_leg"
+      ]
+    },
+    "minecraft:zombie_horse": {
+      "LEG": [
+        "left_hind_leg",
+        "right_hind_leg",
+        "left_front_leg",
+        "right_front_leg",
+        "left_leg",
+        "right_leg"
+      ]
+    },
+    "minecraft:goat": {
+      "LEG": [
+        "left_hind_leg",
+        "right_hind_leg",
+        "left_front_leg",
+        "right_front_leg",
+        "left_leg",
+        "right_leg"
+      ]
+    },
+    "minecraft:frog": {
+      "LEG": [
+        "left_hind_leg",
+        "right_hind_leg",
+        "left_front_leg",
+        "right_front_leg",
+        "left_leg",
+        "right_leg"
+      ]
+    },
+    "minecraft:rabbit": {
+      "LEG": [
+        "left_haunch",
+        "right_haunch",
+        "left_hind_foot",
+        "right_hind_foot"
+      ]
+    }
+  },
+  "values": {
+    "minecraft:horse": true,
+    "minecraft:skeleton_horse": true,
+    "minecraft:zombie_horse": true,
+    "minecraft:rabbit": true,
+    "minecraft:goat": true,
+    "minecraft:frog": true
+  }
+}

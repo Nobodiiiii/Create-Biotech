@@ -1,0 +1,147 @@
+{
+  "automatic_detection": false,
+  "carriers": {
+    "minecraft:wolf": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:bee": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:dolphin": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:blaze": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:endermite": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:silverfish": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:zombie": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:husk": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:zombie_villager": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:drowned": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:zombified_piglin": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:shulker": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:evoker": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:illusioner": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:pillager": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:ravager": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:vex": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:vindicator": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:piglin": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
+    "minecraft:hoglin": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    }
+  },
+  "values": {
+    "minecraft:wolf": true,
+    "minecraft:bee": true,
+    "minecraft:dolphin": true,
+    "minecraft:blaze": true,
+    "minecraft:endermite": true,
+    "minecraft:silverfish": true,
+    "minecraft:zombie": true,
+    "minecraft:husk": true,
+    "minecraft:zombie_villager": true,
+    "minecraft:drowned": true,
+    "minecraft:zombified_piglin": true,
+    "minecraft:shulker": true,
+    "minecraft:evoker": true,
+    "minecraft:illusioner": true,
+    "minecraft:pillager": true,
+    "minecraft:ravager": true,
+    "minecraft:vex": true,
+    "minecraft:vindicator": true,
+    "minecraft:piglin": true,
+    "minecraft:hoglin": true
+  }
+}

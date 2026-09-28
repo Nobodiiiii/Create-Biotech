@@ -1,0 +1,30 @@
+{
+  "automatic_detection": false,
+  "min_coverage": 0.5,
+  "parameters": {
+    "min_wings": 2,
+    "fall_multiplier": 0.6
+  },
+  "carriers": {
+    "minecraft:chicken": {
+      "LEFT_WING": [
+        "left_wing"
+      ],
+      "RIGHT_WING": [
+        "right_wing"
+      ]
+    },
+    "minecraft:parrot": {
+      "LEFT_WING": [
+        "left_wing"
+      ],
+      "RIGHT_WING": [
+        "right_wing"
+      ]
+    }
+  },
+  "values": {
+    "minecraft:chicken": true,
+    "minecraft:parrot": true
+  }
+}

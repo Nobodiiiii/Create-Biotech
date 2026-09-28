@@ -1,0 +1,43 @@
+{
+  "automatic_detection": false,
+  "carriers": {
+    "minecraft:zombie": {
+      "ATTACK_HAND": [
+        "left_arm",
+        "right_arm",
+        "leftArm",
+        "rightArm"
+      ]
+    },
+    "minecraft:husk": {
+      "ATTACK_HAND": [
+        "left_arm",
+        "right_arm",
+        "leftArm",
+        "rightArm"
+      ]
+    },
+    "minecraft:zombie_villager": {
+      "ATTACK_HAND": [
+        "left_arm",
+        "right_arm",
+        "leftArm",
+        "rightArm"
+      ]
+    },
+    "minecraft:zombified_piglin": {
+      "ATTACK_HAND": [
+        "left_arm",
+        "right_arm",
+        "leftArm",
+        "rightArm"
+      ]
+    }
+  },
+  "values": {
+    "minecraft:zombie": true,
+    "minecraft:husk": true,
+    "minecraft:zombie_villager": true,
+    "minecraft:zombified_piglin": true
+  }
+}

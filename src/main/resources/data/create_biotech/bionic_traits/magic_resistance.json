@@ -1,0 +1,9 @@
+{
+  "automatic_detection": false,
+  "parameters": {
+    "reduction_multiplier": 0.85
+  },
+  "values": {
+    "minecraft:witch": true
+  }
+}

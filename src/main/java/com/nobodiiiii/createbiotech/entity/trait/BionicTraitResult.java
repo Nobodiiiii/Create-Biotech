@@ -12,7 +12,17 @@ public record BionicTraitResult(double coverage, double strength, double value,
 	Set<ResourceLocation> immuneEffects, Set<SurgicalAssembly.CombinationMember> members,
 	@Nullable InactiveReason inactiveReason,
 	Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attackEffects,
-	Set<ResourceLocation> deterrenceTargets) {
+	Set<ResourceLocation> deterrenceTargets,
+	Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> subtraits,
+	Map<SurgicalAssembly.CombinationMember, Double> memberValues, Set<ResourceLocation> sourceTypes) {
+	public BionicTraitResult(double coverage, double strength, double value,
+		Set<ResourceLocation> immuneEffects, Set<SurgicalAssembly.CombinationMember> members,
+		@Nullable InactiveReason inactiveReason,
+		Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attackEffects,
+		Set<ResourceLocation> deterrenceTargets) {
+		this(coverage, strength, value, immuneEffects, members, inactiveReason, attackEffects, deterrenceTargets,
+			Map.of(), Map.of(), Set.of());
+	}
 	public static final BionicTraitResult ABSENT = new BionicTraitResult(0, 0, 0,
 		Set.of(), Set.of(), InactiveReason.NO_CARRIER);
 
@@ -29,6 +39,10 @@ public record BionicTraitResult(double coverage, double strength, double value,
 		immuneEffects = Set.copyOf(immuneEffects);
 		members = Set.copyOf(members);
 		deterrenceTargets = Set.copyOf(deterrenceTargets);
+		memberValues = Map.copyOf(memberValues);
+		sourceTypes = Set.copyOf(sourceTypes);
+		subtraits = subtraits.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
+			Map.Entry::getKey, entry -> Set.copyOf(entry.getValue())));
 		attackEffects = attackEffects.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
 			Map.Entry::getKey, entry -> Set.copyOf(entry.getValue())));
 	}

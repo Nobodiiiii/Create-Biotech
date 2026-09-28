@@ -77,8 +77,9 @@ final class BionicTraitJeiText {
 		case NONE -> null;
 		case BREATHING_REQUIRED -> tr("condition.breathing");
 		case WING_LIFT -> tr("condition.wings");
-		case LIMB_COUNT -> tr("condition.legs",
-			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB ? 2 : 1);
+		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",
+			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB
+				|| trait == BionicTrait.STRONG_JUMP || trait == BionicTrait.WING_SLOW_FALL ? 2 : 1);
 		};
 	}
 
