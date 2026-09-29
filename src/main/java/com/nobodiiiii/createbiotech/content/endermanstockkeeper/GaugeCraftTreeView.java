@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.endermanstockkeeper;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,11 +51,15 @@ final class GaugeCraftTreeView {
 	private static final int PADDING = 8;
 	private static final int GREEN = 0xFF9EFF7F;
 	private final Font font;
+	private GaugeCraftTree snapshot;
 	private GaugeCraftTree tree;
+	private GaugeCraftTreeExpansion expansion;
+	private boolean fullView;
 	private Rect2i bounds = new Rect2i(0, 0, 1, 1);
 	private Rect2i viewport = new Rect2i(0, 0, 1, 1);
 	private int[] nodeX = new int[0], nodeY = new int[0];
 	private final List<List<Cell>> paths = new ArrayList<>();
+	private final List<Wire> wires = new ArrayList<>();
 	private int minColumn, minRow;
 	private int graphWidth, graphHeight;
 	private int screenWidth, screenHeight;
@@ -64,6 +69,15 @@ final class GaugeCraftTreeView {
 	private record Cell(int column, int row) {
 		Cell offset(int x, int y) { return new Cell(column + x, row + y); }
 	}
+	private record Wire(Cell from, Cell to, boolean active, boolean arrow) {}
+	private record Lane(boolean horizontal, int fixed, int direction, boolean active) {
+		Wire wire(int low, int high) {
+			Cell from = horizontal ? new Cell(low, fixed) : new Cell(fixed, low);
+			Cell to = horizontal ? new Cell(high, fixed) : new Cell(fixed, high);
+			return direction > 0 ? new Wire(from, to, active, false) : new Wire(to, from, active, false);
+		}
+	}
+	private record Interval(int low, int high) {}
 
 	GaugeCraftTreeView(Font font) {
 		this.font = font;
@@ -81,24 +95,53 @@ final class GaugeCraftTreeView {
 
 	Rect2i bounds() { return bounds; }
 	boolean terminal() { return tree != null && tree.terminal(); }
+	boolean fullView() { return fullView; }
+	boolean canExpand() { return expansion != null && tree != null && !tree.nodes().isEmpty(); }
+	boolean expansionTooLarge() { return snapshot != null && !snapshot.nodes().isEmpty() && expansion == null; }
+
+	void toggleFullView() {
+		if (!canExpand())
+			return;
+		fullView = !fullView;
+		tree = fullView ? expansion.apply(snapshot) : snapshot;
+		dragging = false;
+		layout();
+		resize(screenWidth, screenHeight);
+	}
 
 	void reset() {
+		snapshot = null;
 		tree = null;
+		expansion = null;
+		fullView = false;
 		dragging = false;
 		nodeX = nodeY = new int[0];
 		paths.clear();
+		wires.clear();
 		graphWidth = graphHeight = 0;
 		resize(screenWidth, screenHeight);
 	}
 
-	void accept(GaugeCraftTree snapshot) {
-		boolean layoutChanged = tree == null || tree.nodes().size() != snapshot.nodes().size()
-			|| !tree.edges().equals(snapshot.edges());
-		tree = snapshot;
+	void accept(GaugeCraftTree next) {
+		boolean layoutChanged = snapshot == null || snapshot.nodes().size() != next.nodes().size()
+			|| !snapshot.edges().equals(next.edges());
+		if (!layoutChanged)
+			for (int i = 0; i < next.nodes().size(); i++)
+				if (snapshot.nodes().get(i).count() != next.nodes().get(i).count()) {
+					layoutChanged = true;
+					break;
+				}
+		snapshot = next;
+		if (layoutChanged)
+			expansion = GaugeCraftTreeExpansion.create(snapshot);
+		if (expansion == null)
+			fullView = false;
+		tree = fullView ? expansion.apply(snapshot) : snapshot;
 		if (layoutChanged) {
 			layout();
 			resize(screenWidth, screenHeight);
-		}
+		} else
+			rebuildWires();
 	}
 
 	private void layout() {
@@ -106,12 +149,28 @@ final class GaugeCraftTreeView {
 		nodeX = new int[size];
 		nodeY = new int[size];
 		int[] layers = new int[size];
-		// Packet edges are topologically ordered: every source precedes its consumer.
+		List<List<Integer>> inputs = new ArrayList<>(size);
+		for (int i = 0; i < size; i++)
+			inputs.add(new ArrayList<>());
 		for (GaugeCraftTree.Edge edge : tree.edges())
-			layers[edge.to()] = Math.max(layers[edge.to()], layers[edge.from()] + 1);
+			inputs.get(edge.to()).add(edge.from());
+		// Each occurrence in the full tree has one consumer. Count backwards from
+		// the output so every dependency is exactly one production column away.
+		if (fullView) {
+			for (int i = size - 1; i >= 0; i--)
+				for (int input : inputs.get(i))
+					layers[input] = Math.max(layers[input], layers[i] + 1);
+		} else {
+			for (int i = 0; i < size; i++)
+				for (int input : inputs.get(i))
+					layers[i] = Math.max(layers[i], layers[input] + 1);
+		}
 		int maxLayer = 0;
 		for (int layer : layers)
 			maxLayer = Math.max(maxLayer, layer);
+		if (fullView)
+			for (int i = 0; i < size; i++)
+				layers[i] = maxLayer - layers[i];
 		int[] rows = new int[maxLayer + 1];
 		for (int layer : layers)
 			rows[layer]++;
@@ -130,7 +189,7 @@ final class GaugeCraftTreeView {
 		int lastGaugeColumn = maxLayer * COLUMN_STEP;
 		int maxColumn = lastGaugeColumn, maxRow = maxRows - 1;
 		for (GaugeCraftTree.Edge edge : tree.edges()) {
-			List<Cell> path = route(cells.get(edge.from()), cells.get(edge.to()), occupied, lastGaugeColumn, maxRows);
+			List<Cell> path = route(cells.get(edge.from()), cells.get(edge.to()), occupied, maxRows);
 			paths.add(path);
 			for (Cell cell : path) {
 				minColumn = Math.min(minColumn, cell.column());
@@ -145,14 +204,64 @@ final class GaugeCraftTreeView {
 		}
 		graphWidth = (maxColumn - minColumn + 1) * CELL + PADDING * 2;
 		graphHeight = (maxRow - minRow + 1) * CELL + PADDING * 2;
+		rebuildWires();
+	}
+
+	private void rebuildWires() {
+		Map<Lane, List<Interval>> lanes = new HashMap<>();
+		Set<Wire> arrows = new HashSet<>();
+		for (int edge = 0; edge < paths.size(); edge++) {
+			boolean active = tree.nodes().get(tree.edges().get(edge).to()).state() == GaugeCraftTree.State.CRAFTING;
+			List<Cell> path = paths.get(edge);
+			for (int i = 1; i < path.size(); i++) {
+				Cell from = path.get(i - 1), to = path.get(i);
+				int dx = Integer.signum(to.column() - from.column()), dy = Integer.signum(to.row() - from.row());
+				if (i == path.size() - 1) {
+					Cell tip = to.offset(-dx, -dy);
+					arrows.add(new Wire(tip, to, active, true));
+					to = tip;
+				}
+				if (from.equals(to))
+					continue;
+				Lane lane = new Lane(dx != 0, dx != 0 ? from.row() : from.column(), dx != 0 ? dx : dy, active);
+				int a = dx != 0 ? from.column() : from.row(), b = dx != 0 ? to.column() : to.row();
+				lanes.computeIfAbsent(lane, ignored -> new ArrayList<>()).add(new Interval(Math.min(a, b), Math.max(a, b)));
+			}
+		}
+		wires.clear();
+		// Unfolded branches share portions of their gap-column runs. Merge those
+		// intervals once per snapshot rather than drawing the same line thousands of times.
+		for (Map.Entry<Lane, List<Interval>> entry : lanes.entrySet()) {
+			List<Interval> intervals = entry.getValue();
+			intervals.sort(Comparator.comparingInt(Interval::low));
+			int low = intervals.getFirst().low(), high = intervals.getFirst().high();
+			for (int i = 1; i < intervals.size(); i++) {
+				Interval next = intervals.get(i);
+				if (next.low() > high) {
+					wires.add(entry.getKey().wire(low, high));
+					low = next.low();
+					high = next.high();
+				} else
+					high = Math.max(high, next.high());
+			}
+			wires.add(entry.getKey().wire(low, high));
+		}
+		wires.addAll(arrows);
+		// Keep active green runs visible where other branches share or cross the lane.
+		wires.sort(Comparator.comparing(Wire::active).thenComparing(Wire::arrow)
+			.thenComparingInt(wire -> wire.from().column()).thenComparingInt(wire -> wire.from().row())
+			.thenComparingInt(wire -> wire.to().column()).thenComparingInt(wire -> wire.to().row()));
 	}
 
 	private int cellX(Cell cell) { return PADDING + (cell.column() - minColumn) * CELL; }
 	private int cellY(Cell cell) { return PADDING + (cell.row() - minRow) * CELL; }
 
-	private static List<Cell> route(Cell from, Cell to, Set<Cell> occupied, int columns, int rows) {
-		// Native connection-sized steps through empty cells. Prefer rightward travel;
-		// the one-cell perimeter leaves room to route around densely packed branches.
+	private static List<Cell> route(Cell from, Cell to, Set<Cell> occupied, int rows) {
+		// Enter and leave every gauge horizontally. Vertical runs (and therefore
+		// every bend) belong exclusively to the empty column between gauges.
+		if (to.column() - from.column() == COLUMN_STEP)
+			return from.row() == to.row() ? List.of(from, to)
+				: List.of(from, from.offset(1, 0), to.offset(-1, 0), to);
 		ArrayDeque<Cell> queue = new ArrayDeque<>();
 		Map<Cell, Cell> previous = new HashMap<>();
 		queue.add(from);
@@ -165,32 +274,32 @@ final class GaugeCraftTreeView {
 					path.add(cell);
 				path.add(from);
 				Collections.reverse(path);
-				return List.copyOf(path);
+				List<Cell> bends = new ArrayList<>();
+				bends.add(from);
+				for (int i = 1; i < path.size() - 1; i++) {
+					Cell before = path.get(i - 1), cell = path.get(i), after = path.get(i + 1);
+					if (cell.column() - before.column() != after.column() - cell.column()
+						|| cell.row() - before.row() != after.row() - cell.row())
+						bends.add(cell);
+				}
+				bends.add(to);
+				return List.copyOf(bends);
 			}
 			int vertical = to.row() >= current.row() ? 1 : -1;
-			for (Cell next : List.of(current.offset(1, 0), current.offset(0, vertical),
-				current.offset(0, -vertical), current.offset(-1, 0))) {
-				if (next.column() < -1 || next.column() > columns + 1 || next.row() < -1 || next.row() > rows
+			List<Cell> neighbors = current.column() % COLUMN_STEP == 0
+				? List.of(current.offset(1, 0))
+				: List.of(current.offset(0, vertical), current.offset(1, 0), current.offset(0, -vertical));
+			for (Cell next : neighbors) {
+				if (next.column() > to.column() || next.row() < -1 || next.row() > rows
 					|| previous.containsKey(next) || occupied.contains(next) && !next.equals(to))
 					continue;
 				previous.put(next, current);
 				queue.addLast(next);
 			}
 		}
-		// Like FactoryPanelConnection's last bend mode, retain the connection even
-		// when a gauge is enclosed on all four sides by other gauges.
-		List<Cell> fallback = new ArrayList<>();
-		Cell cell = from;
-		fallback.add(cell);
-		while (cell.column() != to.column()) {
-			cell = cell.offset(Integer.signum(to.column() - cell.column()), 0);
-			fallback.add(cell);
-		}
-		while (cell.row() != to.row()) {
-			cell = cell.offset(0, Integer.signum(to.row() - cell.row()));
-			fallback.add(cell);
-		}
-		return List.copyOf(fallback);
+		// Even fully occupied intermediate columns have a clear row above/below;
+		// the gap columns always connect both endpoints to that perimeter.
+		throw new IllegalStateException("No route between crafting gauge columns");
 	}
 
 	void fit() {
@@ -210,7 +319,8 @@ final class GaugeCraftTreeView {
 	void render(GuiGraphics graphics, int mouseX, int mouseY, ItemStack output, int requested) {
 		int x = bounds.getX(), y = bounds.getY(), w = bounds.getWidth(), h = bounds.getHeight();
 		renderBackground(graphics, x, y, w, h);
-		graphics.drawCenteredString(font, Component.translatable("create_biotech.gauge_craft.tree.title"),
+		graphics.drawCenteredString(font, Component.translatable(fullView
+			? "create_biotech.gauge_craft.tree.full_title" : "create_biotech.gauge_craft.tree.title"),
 			x + w / 2, y + 4, 0x4D3E30);
 		graphics.renderItem(output, x + 13, y + 22);
 		graphics.drawString(font, font.plainSubstrByWidth(output.getHoverName().getString() + " ×" + requested, w - 58),
@@ -235,8 +345,8 @@ final class GaugeCraftTreeView {
 			RenderSystem.enableBlend();
 			RenderSystem.defaultBlendFunc();
 			Lighting.setupFor3DItems();
-			for (int i = 0; i < tree.edges().size(); i++)
-				renderEdge(graphics, tree.edges().get(i), paths.get(i));
+			for (Wire wire : wires)
+				renderWire(graphics, wire);
 			for (int i = 0; i < tree.nodes().size(); i++) {
 				if (!visible(nodeX[i], nodeY[i], CELL, CELL))
 					continue;
@@ -258,8 +368,6 @@ final class GaugeCraftTreeView {
 		int lampX = x + 43 + font.width(Component.translatable("create_biotech.gauge_craft.tree.crafting"));
 		bulb(graphics, lampX, y + h - 41, GaugeCraftTree.State.COMPLETE);
 		graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.tree.complete"), lampX + 11, y + h - 42, 0xF4E4CB, false);
-		graphics.drawString(font, font.plainSubstrByWidth(Component.translatable("create_biotech.gauge_craft.tree.controls").getString(), w - 153),
-			x + 13, y + h - 24, 0xD6C2A8, false);
 		if (hovered >= 0) {
 			GaugeCraftTree.Node node = tree.nodes().get(hovered);
 			List<Component> tooltip = new ArrayList<>();
@@ -267,9 +375,16 @@ final class GaugeCraftTreeView {
 			tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.required", node.count()));
 			tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.state."
 				+ node.state().name().toLowerCase(Locale.ROOT)));
-			if (node.state() != GaugeCraftTree.State.STOCKED)
-				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.received", node.completed(), node.count()));
-			graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
+			boolean shared = fullView && expansion.shared(hovered);
+			if (shared)
+				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.shared_material"));
+			if (node.state() != GaugeCraftTree.State.STOCKED) {
+				GaugeCraftTree.Node progress = shared ? expansion.source(snapshot, hovered) : node;
+				tooltip.add(Component.translatable(shared ? "create_biotech.gauge_craft.tree.shared_received"
+					: "create_biotech.gauge_craft.tree.received", progress.completed(), progress.count()));
+			}
+			graphics.renderTooltip(font, tooltip.stream().flatMap(line -> font.split(line,
+				Math.max(80, Math.min(260, screenWidth - 24))).stream()).toList(), mouseX, mouseY);
 		}
 	}
 
@@ -330,20 +445,31 @@ final class GaugeCraftTreeView {
 		graphics.pose().popPose();
 	}
 
-	private void renderEdge(GuiGraphics graphics, GaugeCraftTree.Edge edge, List<Cell> path) {
-		boolean active = tree.nodes().get(edge.to()).state() == GaugeCraftTree.State.CRAFTING;
-		for (int i = 1; i < path.size(); i++) {
-			Cell from = path.get(i - 1), to = path.get(i);
-			int x = cellX(from) + CELL / 2, y = cellY(from) + CELL / 2;
-			if (!visible(Math.min(cellX(from), cellX(to)), Math.min(cellY(from), cellY(to)),
-				CELL * 2, CELL * 2))
-				continue;
-			Direction direction = to.column() > from.column() ? Direction.EAST
-				: to.column() < from.column() ? Direction.WEST : to.row() > from.row() ? Direction.SOUTH : Direction.NORTH;
-			PartialModel segment = (i == path.size() - 1 ? AllPartialModels.FACTORY_PANEL_ARROWS
-				: AllPartialModels.FACTORY_PANEL_LINES).get(direction);
-			renderModel(graphics, segment, x, y, active ? GREEN & 0xFFFFFF : 0x888898, active, RenderType.cutoutMipped());
-		}
+	private void renderWire(GuiGraphics graphics, Wire wire) {
+		Cell from = wire.from(), to = wire.to();
+		int x = cellX(from) + CELL / 2, y = cellY(from) + CELL / 2;
+		int dx = to.column() - from.column(), dy = to.row() - from.row();
+		if (!visible(Math.min(cellX(from), cellX(to)), Math.min(cellY(from), cellY(to)),
+			(Math.abs(dx) + 1) * CELL, (Math.abs(dy) + 1) * CELL))
+			return;
+		Direction direction = dx > 0 ? Direction.EAST : dx < 0 ? Direction.WEST
+			: dy > 0 ? Direction.SOUTH : Direction.NORTH;
+		int length = Math.abs(dx) + Math.abs(dy);
+		// Store only bends, and submit native line segments only inside the viewport.
+		// A fully unfolded tree can have very long vertical runs.
+		double start = dx != 0 ? x : y, pan = dx != 0 ? panX : panY;
+		int extent = dx != 0 ? viewport.getWidth() : viewport.getHeight();
+		int step = Integer.signum(dx != 0 ? dx : dy) * CELL;
+		double a = (-pan / zoom - CELL - start) / step;
+		double b = ((extent - pan) / zoom + CELL - start) / step;
+		int first = Math.max(0, (int) Math.floor(Math.min(a, b)));
+		int last = Math.min(length - 1, (int) Math.ceil(Math.max(a, b)));
+		PartialModel segment = (wire.arrow() ? AllPartialModels.FACTORY_PANEL_ARROWS : AllPartialModels.FACTORY_PANEL_LINES)
+			.get(direction);
+		for (int offset = first; offset <= last; offset++)
+			renderModel(graphics, segment, x + direction.getStepX() * offset * CELL,
+				y + direction.getStepZ() * offset * CELL, wire.active() ? GREEN & 0xFFFFFF : 0x888898,
+				wire.active(), RenderType.cutoutMipped());
 	}
 
 	private static void renderModel(GuiGraphics graphics, PartialModel model, int x, int y, int color,
