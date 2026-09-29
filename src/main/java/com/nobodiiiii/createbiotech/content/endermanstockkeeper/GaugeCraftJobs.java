@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import com.google.common.collect.Multimap;
 import com.simibubi.create.Create;
@@ -43,9 +44,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
-/** Concurrent persisted orders, each executing its recipe tree from leaves to root. */
+/** Concurrent persisted orders with a bounded set of independent production branches. */
 public final class GaugeCraftJobs extends SavedData {
 	public static final int MAX_ACTIVE_JOBS = 16;
+	public static final int MAX_PARALLEL_STEPS = 8;
 	private static final int TICK_INTERVAL = 10;
 	private static final String NAME = "create_biotech_gauge_craft_jobs";
 	private final List<Job> jobs = new ArrayList<>();
@@ -66,7 +68,7 @@ public final class GaugeCraftJobs extends SavedData {
 		GaugeCraftJobs data = get(server);
 		if (server.getTickCount() % TICK_INTERVAL != 0)
 			return;
-		data.collectOutputs(server);
+		data.collectOutputs();
 		for (Job job : new ArrayList<>(data.jobs)) {
 			if (data.tick(server, job))
 				data.setDirty();
@@ -92,11 +94,9 @@ public final class GaugeCraftJobs extends SavedData {
 	public List<Summary> summaries(UUID network, UUID player, MinecraftServer server) {
 		return jobs.stream().filter(job -> job.network.equals(network)).map(job -> {
 			int total = job.steps.stream().mapToInt(GaugeCraftPlan.Step::crafts).sum();
-			int completed = job.steps.stream().limit(job.index).mapToInt(GaugeCraftPlan.Step::crafts).sum();
-			if (job.index < job.steps.size())
-				completed += job.steps.get(job.index).crafts() - job.remaining;
-			ItemStack currentOutput = job.index < job.steps.size()
-				? job.steps.get(job.index).output().copy() : ItemStack.EMPTY;
+			int completed = job.executions.stream().mapToInt(state -> state.step.crafts() - state.remaining).sum();
+			ItemStack currentOutput = job.executions.stream().filter(Execution::active)
+				.findFirst().map(state -> state.step.output().copy()).orElse(ItemStack.EMPTY);
 			return new Summary(job.id, job.output.copy(), job.count, status(job, server), currentOutput, completed, total,
 				job.address, job.owner.equals(player));
 		}).toList();
@@ -105,18 +105,32 @@ public final class GaugeCraftJobs extends SavedData {
 	public GaugeCraftTree tree(UUID network, UUID id, MinecraftServer server) {
 		for (Job job : jobs)
 			if (job.network.equals(network) && job.id.equals(id))
-				return tree(job, status(job, server), false);
+				return tree(job, status(job, server), false, server);
 		FinishedTree finished = finishedTrees.get(id);
 		return finished != null && finished.network().equals(network) ? finished.tree() : GaugeCraftTree.unavailable();
 	}
 
-	private static GaugeCraftTree tree(Job job, String status, boolean terminal) {
-		return GaugeCraftTree.snapshot(job.steps, job.count, job.index, job.remaining, job.received,
-			job.inFlight, status, terminal);
+	private static GaugeCraftTree tree(Job job, String status, boolean terminal, MinecraftServer server) {
+		ServerLevel level = server == null ? null : server.getLevel(job.dimension);
+		List<GaugeCraftTree.Progress> progress = new ArrayList<>();
+		for (int index = 0; index < job.executions.size(); index++) {
+			Execution execution = job.executions.get(index);
+			GaugeCraftTree.State state = GaugeCraftTree.State.WAITING;
+			if (execution.remaining == 0)
+				state = GaugeCraftTree.State.COMPLETE;
+			else if (terminal || level == null || !loaded(level, job.tickerPos)
+				|| (execution.active() || job.dependenciesReady(index)) && !pauseReason(level, execution.step).isEmpty())
+				state = GaugeCraftTree.State.PAUSED;
+			else if (execution.active())
+				state = GaugeCraftTree.State.CRAFTING;
+			progress.add(new GaugeCraftTree.Progress(
+				(execution.step.crafts() - execution.remaining) * execution.step.outputPerCraft() + execution.received, state));
+		}
+		return GaugeCraftTree.snapshot(job.steps, job.flow, job.count, progress, status, terminal);
 	}
 
 	private void finish(Job job, String status) {
-		finishedTrees.put(job.id, new FinishedTree(job.network, tree(job, status, true)));
+		finishedTrees.put(job.id, new FinishedTree(job.network, tree(job, status, true, null)));
 		while (finishedTrees.size() > MAX_ACTIVE_JOBS * 4)
 			finishedTrees.remove(finishedTrees.keySet().iterator().next());
 	}
@@ -125,15 +139,37 @@ public final class GaugeCraftJobs extends SavedData {
 		ServerLevel level = server.getLevel(job.dimension);
 		if (level == null || !loaded(level, job.tickerPos))
 			return "paused_unloaded";
-		if (job.index >= job.steps.size())
+		if (job.complete())
 			return job.address.isBlank() ? "waiting_storage" : "delivering";
-		GaugeCraftPlan.Step step = job.steps.get(job.index);
+		String paused = "";
+		boolean waiting = false;
+		for (int index = 0; index < job.executions.size(); index++) {
+			Execution state = job.executions.get(index);
+			if (state.remaining == 0 || !job.dependenciesReady(index))
+				continue;
+			String reason = pauseReason(level, state.step);
+			if (!reason.isEmpty()) {
+				if (paused.isEmpty())
+					paused = reason;
+			} else if (state.remaining > state.inFlight) {
+				return "processing";
+			} else {
+				waiting = true;
+			}
+		}
+		return waiting ? "waiting_output" : paused.isEmpty() ? "processing" : paused;
+	}
+
+	private static String pauseReason(ServerLevel level, GaugeCraftPlan.Step step) {
 		if (!loaded(level, step.gauge().pos())
-			|| step.inputs().stream().anyMatch(input -> !loaded(level, input.source().pos())))
+			|| Create.LOGISTICS.getUnloadedLinkCount(step.network()) > 0
+			|| step.inputs().stream().anyMatch(input -> !loaded(level, input.source().pos())
+				|| Create.LOGISTICS.getUnloadedLinkCount(input.network()) > 0))
 			return "paused_unloaded";
-		if (!matches(level, FactoryPanelBehaviour.at(level, step.gauge()), step))
+		FactoryPanelBehaviour gauge = FactoryPanelBehaviour.at(level, step.gauge());
+		if (!matches(level, gauge, step))
 			return "paused_changed";
-		return job.remaining <= job.inFlight ? "waiting_output" : "processing";
+		return gauge.redstonePowered ? "paused_redstone" : "";
 	}
 
 	public boolean cancel(UUID network, UUID player, UUID id) {
@@ -190,48 +226,54 @@ public final class GaugeCraftJobs extends SavedData {
 	}
 
 	/** Allocate actual arrivals to jobs; Create separately fulfils the native promises at each packager. */
-	public void collectOutputs(MinecraftServer server) {
-		List<Job> pending = new ArrayList<>(jobs.stream().filter(job -> job.inFlight > 0
-			&& job.index < job.steps.size()).toList());
+	public void collectOutputs() {
+		List<PendingOutput> pending = new ArrayList<>();
+		for (Job job : jobs)
+			for (Execution state : job.executions)
+				if (state.inFlight > 0)
+					pending.add(new PendingOutput(job, state));
 		while (!pending.isEmpty()) {
-			Job first = pending.removeFirst();
-			GaugeCraftPlan.Step step = first.steps.get(first.index);
-			List<Job> group = new ArrayList<>();
+			PendingOutput first = pending.removeFirst();
+			GaugeCraftPlan.Step step = first.state.step;
+			List<PendingOutput> group = new ArrayList<>();
 			group.add(first);
-			pending.removeIf(job -> {
-				GaugeCraftPlan.Step other = job.steps.get(job.index);
+			pending.removeIf(output -> {
+				GaugeCraftPlan.Step other = output.state.step;
 				if (!step.network().equals(other.network())
 					|| !ItemStack.isSameItemSameComponents(step.output(), other.output()))
 					return false;
-				group.add(job);
+				group.add(output);
 				return true;
 			});
-			if (group.stream().anyMatch(job -> server.getLevel(job.dimension) == null
-				|| !loaded(server.getLevel(job.dimension), job.steps.get(job.index).gauge().pos())))
+			// Monitor the receiving network, not the producer chunks: a paused branch
+			// can still receive packages and must not block its siblings' accounting.
+			if (Create.LOGISTICS.getQueuedPromises(step.network()) == null
+				|| Create.LOGISTICS.getUnloadedLinkCount(step.network()) > 0)
 				continue;
 			int current = LogisticsManager.getSummaryOfNetwork(step.network(), true).getCountOf(step.output());
-			int arrived = Math.max(0, current - first.baseline);
-			for (Job job : group) {
-				int allocated = Math.min(arrived, job.outstandingOutput());
-				if (job.baseline != current || allocated > 0)
+			int arrived = Math.max(0, current - first.state.baseline);
+			for (PendingOutput output : group) {
+				Execution state = output.state;
+				int allocated = Math.min(arrived, state.outstandingOutput());
+				if (state.baseline != current || allocated > 0)
 					setDirty();
-				job.baseline = current;
-				job.received += allocated;
+				state.baseline = current;
+				state.received += allocated;
 				arrived -= allocated;
-				reserve(job, step.network(), step.output(), allocated);
+				reserve(output.job, step.network(), step.output(), allocated);
 			}
 		}
 	}
 
+	private record PendingOutput(Job job, Execution state) {}
+
 	/** Internal withdrawals must not hide the next arrival from another order on the same network. */
 	private void rebaseOutputs(UUID network, ItemStack stack) {
-		for (Job pending : jobs) {
-			if (pending.inFlight == 0 || pending.index >= pending.steps.size())
-				continue;
-			GaugeCraftPlan.Step step = pending.steps.get(pending.index);
-			if (step.network().equals(network) && ItemStack.isSameItemSameComponents(step.output(), stack))
-				pending.baseline = LogisticsManager.getSummaryOfNetwork(network, true).getCountOf(stack);
-		}
+		for (Job job : jobs)
+			for (Execution state : job.executions)
+				if (state.inFlight > 0 && state.step.network().equals(network)
+					&& ItemStack.isSameItemSameComponents(state.step.output(), stack))
+					state.baseline = LogisticsManager.getSummaryOfNetwork(network, true).getCountOf(stack);
 	}
 
 	private boolean tick(MinecraftServer server, Job job) {
@@ -248,7 +290,7 @@ public final class GaugeCraftJobs extends SavedData {
 					.withStyle(ChatFormatting.RED), false);
 			return true;
 		}
-		if (job.index >= job.steps.size()) {
+		if (job.complete()) {
 			if (available(job.network, job.output, job) < job.count)
 				return false;
 			if (!job.address.isBlank() && !deliver(job))
@@ -262,59 +304,47 @@ public final class GaugeCraftJobs extends SavedData {
 					.withStyle(ChatFormatting.GREEN), false);
 			return true;
 		}
-		GaugeCraftPlan.Step step = job.steps.get(job.index);
-		if (!loaded(level, step.gauge().pos()))
-			return false;
-		FactoryPanelBehaviour gauge = FactoryPanelBehaviour.at(level, step.gauge());
-		if (!matches(level, gauge, step))
-			return false;
-		// Old saves only exposed an artificial hold through getPromised(). Transfer the
-		// unreceived part once, after collectOutputs has accounted for any arrivals.
-		if (job.migratePromise) {
-			RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(step.network());
-			if (promises == null)
-				return false;
-			if (job.outstandingOutput() > 0)
-				promises.add(new RequestPromise(new BigItemStack(step.output(), job.outstandingOutput())));
-			job.migratePromise = false;
-			setDirty();
-		}
 		boolean changed = false;
-		if (job.requestCooldown > 0) {
-			job.requestCooldown = Math.max(0,
-				Math.min(job.requestCooldown, AllConfigs.server().logistics.factoryGaugeTimer.get()) - TICK_INTERVAL);
-			changed = true;
-		}
-		if (job.received >= step.outputPerCraft()) {
-			int completed = job.received / step.outputPerCraft();
-			job.received %= step.outputPerCraft();
-			job.inFlight -= completed;
-			job.remaining -= completed;
-			changed = true;
-			if (job.remaining == 0) {
-				job.index++;
-				job.requestCooldown = 0;
-				if (job.index < job.steps.size())
-					job.remaining = job.steps.get(job.index).crafts();
-				return true;
+		// Settle every branch before counting occupied slots or unlocking consumers.
+		for (Execution state : job.executions) {
+			if (state.migratePromise) {
+				RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(state.step.network());
+				if (promises != null) {
+					if (state.outstandingOutput() > 0)
+						promises.add(new RequestPromise(new BigItemStack(state.step.output(), state.outstandingOutput())));
+					state.migratePromise = false;
+					changed = true;
+				}
+			}
+			if (state.received >= state.step.outputPerCraft()) {
+				int completed = state.received / state.step.outputPerCraft();
+				state.received %= state.step.outputPerCraft();
+				state.inFlight -= completed;
+				state.remaining -= completed;
+				changed = true;
 			}
 		}
-		// In-flight rounds already cover this portion of the finite order. They do
-		// not prevent dispatching the remaining rounds while production is running.
-		if (job.remaining <= job.inFlight || job.requestCooldown > 0)
-			return changed;
-		job.requestCooldown = AllConfigs.server().logistics.factoryGaugeTimer.get();
-		RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(step.network());
-		if (promises == null)
+		changed |= job.schedule(state -> tickExecution(level, job, state));
+		return changed;
+	}
+
+	private boolean tickExecution(ServerLevel level, Job job, Execution state) {
+		if (!pauseReason(level, state.step).isEmpty())
+			return false;
+		if (state.requestCooldown > 0) {
+			state.requestCooldown = Math.max(0,
+				Math.min(state.requestCooldown, AllConfigs.server().logistics.factoryGaugeTimer.get()) - TICK_INTERVAL);
+			if (state.requestCooldown > 0)
+				return true;
+		}
+		state.requestCooldown = AllConfigs.server().logistics.factoryGaugeTimer.get();
+		RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(state.step.network());
+		if (promises == null || !dispatch(job, state.step))
 			return true;
-		if (!dispatch(job, step))
-			return true;
-		// Do not reset an existing arrival baseline when adding another round.
-		if (job.inFlight == 0)
-			job.baseline = LogisticsManager.getSummaryOfNetwork(step.network(), true).getCountOf(step.output());
-		job.inFlight++;
-		// Same promise queue and per-recipe output as FactoryPanelBehaviour.tickRequests().
-		promises.add(new RequestPromise(new BigItemStack(step.output(), step.outputPerCraft())));
+		if (state.inFlight == 0)
+			state.baseline = LogisticsManager.getSummaryOfNetwork(state.step.network(), true).getCountOf(state.step.output());
+		state.inFlight++;
+		promises.add(new RequestPromise(new BigItemStack(state.step.output(), state.step.outputPerCraft())));
 		return true;
 	}
 
@@ -427,6 +457,55 @@ public final class GaugeCraftJobs extends SavedData {
 		return new FactoryPanelPosition(BlockPos.of(tag.getLong("Pos")), PanelSlot.valueOf(tag.getString("Slot")));
 	}
 
+	private static final class Execution {
+		final GaugeCraftPlan.Step step;
+		// remaining includes inFlight; received has not yet been settled into full rounds.
+		int remaining, baseline, received, inFlight, requestCooldown;
+		boolean migratePromise;
+
+		Execution(GaugeCraftPlan.Step step) {
+			this.step = step;
+			remaining = step.crafts();
+		}
+
+		boolean active() {
+			return remaining > 0 && (inFlight > 0 || remaining < step.crafts());
+		}
+
+		int outstandingOutput() {
+			return inFlight * step.outputPerCraft() - received;
+		}
+
+		void save(CompoundTag tag) {
+			tag.putInt("Remaining", remaining);
+			tag.putInt("Baseline", baseline);
+			tag.putInt("Received", received);
+			tag.putInt("InFlight", inFlight);
+			tag.putInt("RequestCooldown", requestCooldown);
+			tag.putBoolean("MigratePromise", migratePromise);
+		}
+
+		void load(CompoundTag tag) {
+			remaining = tag.getInt("Remaining");
+			baseline = tag.getInt("Baseline");
+			received = tag.getInt("Received");
+			if (tag.contains("InFlight", Tag.TAG_INT)) {
+				inFlight = tag.getInt("InFlight");
+				requestCooldown = tag.getInt("RequestCooldown");
+				migratePromise = tag.getBoolean("MigratePromise");
+			} else if (tag.getBoolean("Waiting")) {
+				inFlight = 1;
+				migratePromise = true;
+			} else {
+				// The oldest saves retained the previous round's received count.
+				received = 0;
+			}
+			if (remaining < 0 || remaining > step.crafts() || inFlight < 0 || inFlight > remaining
+				|| received < 0 || received > inFlight * step.outputPerCraft() || requestCooldown < 0)
+				throw new IllegalArgumentException("Invalid gauge crafting step progress");
+		}
+	}
+
 	private static final class Job {
 		final UUID id, owner, network;
 		final ResourceKey<Level> dimension;
@@ -435,10 +514,9 @@ public final class GaugeCraftJobs extends SavedData {
 		final int count;
 		final String address;
 		final List<GaugeCraftPlan.Step> steps;
+		final List<Execution> executions;
+		final GaugeCraftFlow flow;
 		final List<GaugeCraftPlan.Stock> reserved = new ArrayList<>();
-		// remaining includes inFlight; received is the not-yet-accounted-for arrival count.
-		int index, remaining, baseline, received, inFlight, requestCooldown;
-		boolean migratePromise;
 
 		Job(UUID id, UUID owner, ResourceKey<Level> dimension, BlockPos tickerPos, UUID network,
 			ItemStack output, int count, String address, List<GaugeCraftPlan.Step> steps) {
@@ -451,11 +529,38 @@ public final class GaugeCraftJobs extends SavedData {
 			this.count = count;
 			this.address = address;
 			this.steps = List.copyOf(steps);
-			this.remaining = steps.isEmpty() ? 0 : steps.getFirst().crafts();
+			this.executions = steps.stream().map(Execution::new).toList();
+			this.flow = new GaugeCraftFlow(steps);
 		}
 
-		int outstandingOutput() {
-			return inFlight * steps.get(index).outputPerCraft() - received;
+		boolean complete() {
+			return executions.stream().allMatch(state -> state.remaining == 0);
+		}
+
+		boolean dependenciesReady(int index) {
+			for (GaugeCraftFlow.Supply supply : flow.inputs(index))
+				if (supply.source() >= 0 && executions.get(supply.source()).remaining > 0)
+					return false;
+			return true;
+		}
+
+		boolean schedule(Predicate<Execution> tick) {
+			int active = (int) executions.stream().filter(Execution::active).count();
+			boolean changed = false;
+			for (int index = 0; index < executions.size(); index++) {
+				Execution state = executions.get(index);
+				// Completed output + in-flight output covers this finite target.
+				// Permanent gauge stock targets must not cancel a player's new order.
+				if (state.remaining <= state.inFlight || state.migratePromise || !dependenciesReady(index))
+					continue;
+				boolean wasActive = state.active();
+				if (!wasActive && active >= MAX_PARALLEL_STEPS)
+					continue;
+				changed |= tick.test(state);
+				if (!wasActive && state.active())
+					active++;
+			}
+			return changed;
 		}
 
 		CompoundTag save(HolderLookup.Provider registries) {
@@ -468,13 +573,7 @@ public final class GaugeCraftJobs extends SavedData {
 			tag.put("Output", output.saveOptional(registries));
 			tag.putInt("Count", count);
 			tag.putString("Address", address);
-			tag.putInt("Index", index);
-			tag.putInt("Remaining", remaining);
-			tag.putInt("Baseline", baseline);
-			tag.putInt("Received", received);
-			tag.putInt("InFlight", inFlight);
-			tag.putInt("RequestCooldown", requestCooldown);
-			tag.putBoolean("MigratePromise", migratePromise);
+			tag.putInt("ProgressVersion", 1);
 			ListTag reservations = new ListTag();
 			for (GaugeCraftPlan.Stock stock : reserved) {
 				CompoundTag entry = new CompoundTag();
@@ -485,8 +584,10 @@ public final class GaugeCraftJobs extends SavedData {
 			}
 			tag.put("Reserved", reservations);
 			ListTag stepList = new ListTag();
-			for (GaugeCraftPlan.Step step : steps) {
+			for (Execution state : executions) {
+				GaugeCraftPlan.Step step = state.step;
 				CompoundTag s = new CompoundTag();
+				state.save(s);
 				s.put("Gauge", position(step.gauge()));
 				s.putUUID("Network", step.network());
 				s.put("Output", step.output().saveOptional(registries));
@@ -534,20 +635,23 @@ public final class GaugeCraftJobs extends SavedData {
 				BlockPos.of(tag.getLong("Ticker")), tag.getUUID("Network"),
 				ItemStack.parseOptional(registries, tag.getCompound("Output")), tag.getInt("Count"),
 				tag.getString("Address"), steps);
-			job.index = tag.getInt("Index");
-			job.remaining = tag.getInt("Remaining");
-			job.baseline = tag.getInt("Baseline");
-			job.received = tag.getInt("Received");
-			if (tag.contains("InFlight", Tag.TAG_INT)) {
-				job.inFlight = tag.getInt("InFlight");
-				job.requestCooldown = tag.getInt("RequestCooldown");
-				job.migratePromise = tag.getBoolean("MigratePromise");
-			} else if (tag.getBoolean("Waiting")) {
-				job.inFlight = 1;
-				job.migratePromise = true;
+			if (tag.getInt("ProgressVersion") >= 1) {
+				ListTag savedSteps = tag.getList("Steps", Tag.TAG_COMPOUND);
+				for (int index = 0; index < job.executions.size(); index++)
+					job.executions.get(index).load(savedSteps.getCompound(index));
 			} else {
-				// Legacy saves kept the previous round's received count until the next dispatch.
-				job.received = 0;
+				// Serial saves contain exactly one current step. Preserve every already
+				// dispatched round; only untouched branches become eligible for parallel work.
+				int current = tag.getInt("Index");
+				if (current < 0 || current > job.executions.size())
+					throw new IllegalArgumentException("Invalid legacy gauge crafting index");
+				for (int index = 0; index < job.executions.size(); index++) {
+					Execution state = job.executions.get(index);
+					if (index < current)
+						state.remaining = 0;
+					else if (index == current)
+						state.load(tag);
+				}
 			}
 			for (Tag raw : tag.getList("Reserved", Tag.TAG_COMPOUND)) {
 				CompoundTag entry = (CompoundTag) raw;

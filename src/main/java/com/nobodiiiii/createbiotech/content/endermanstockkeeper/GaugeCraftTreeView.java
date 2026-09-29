@@ -53,6 +53,7 @@ final class GaugeCraftTreeView {
 	private final Font font;
 	private GaugeCraftTree snapshot;
 	private GaugeCraftTree tree;
+	private GaugeCraftTreeCompaction compaction;
 	private GaugeCraftTreeExpansion expansion;
 	private boolean fullView;
 	private Rect2i bounds = new Rect2i(0, 0, 1, 1);
@@ -99,11 +100,11 @@ final class GaugeCraftTreeView {
 	boolean canExpand() { return expansion != null && tree != null && !tree.nodes().isEmpty(); }
 	boolean expansionTooLarge() { return snapshot != null && !snapshot.nodes().isEmpty() && expansion == null; }
 
-	void toggleFullView() {
-		if (!canExpand())
+	void setFullView(boolean full) {
+		if (fullView == full || snapshot == null || full && !canExpand())
 			return;
-		fullView = !fullView;
-		tree = fullView ? expansion.apply(snapshot) : snapshot;
+		fullView = full;
+		tree = fullView ? expansion.apply(snapshot) : compaction.apply(snapshot);
 		dragging = false;
 		layout();
 		resize(screenWidth, screenHeight);
@@ -112,6 +113,7 @@ final class GaugeCraftTreeView {
 	void reset() {
 		snapshot = null;
 		tree = null;
+		compaction = null;
 		expansion = null;
 		fullView = false;
 		dragging = false;
@@ -127,16 +129,21 @@ final class GaugeCraftTreeView {
 			|| !snapshot.edges().equals(next.edges());
 		if (!layoutChanged)
 			for (int i = 0; i < next.nodes().size(); i++)
-				if (snapshot.nodes().get(i).count() != next.nodes().get(i).count()) {
+				if (snapshot.nodes().get(i).count() != next.nodes().get(i).count()
+					|| !ItemStack.isSameItemSameComponents(snapshot.nodes().get(i).stack(), next.nodes().get(i).stack())
+					|| (snapshot.nodes().get(i).state() == GaugeCraftTree.State.STOCKED)
+						!= (next.nodes().get(i).state() == GaugeCraftTree.State.STOCKED)) {
 					layoutChanged = true;
 					break;
 				}
 		snapshot = next;
-		if (layoutChanged)
+		if (layoutChanged) {
+			compaction = GaugeCraftTreeCompaction.create(snapshot);
 			expansion = GaugeCraftTreeExpansion.create(snapshot);
+		}
 		if (expansion == null)
 			fullView = false;
-		tree = fullView ? expansion.apply(snapshot) : snapshot;
+		tree = fullView ? expansion.apply(snapshot) : compaction.apply(snapshot);
 		if (layoutChanged) {
 			layout();
 			resize(screenWidth, screenHeight);
@@ -394,16 +401,22 @@ final class GaugeCraftTreeView {
 	}
 
 	private void renderNode(GuiGraphics graphics, GaugeCraftTree.Node node, int x, int y, boolean hovered) {
-		renderModel(graphics, AllPartialModels.FACTORY_PANEL_WITH_BULB, x, y, 0xFFFFFF, false, RenderType.cutoutMipped());
+		// Rotate the housing and its bulb together: the native lower-left lamp
+		// belongs in the upper-right here. Items and counts keep their orientation.
+		graphics.pose().pushPose();
+		graphics.pose().translate(x + CELL, y + CELL, 0);
+		graphics.pose().mulPose(Axis.ZP.rotationDegrees(180));
+		renderModel(graphics, AllPartialModels.FACTORY_PANEL_WITH_BULB, 0, 0, 0xFFFFFF, false, RenderType.cutoutMipped());
 		boolean lit = node.state() == GaugeCraftTree.State.COMPLETE || node.state() == GaugeCraftTree.State.STOCKED;
 		PartialModel light = node.state() == GaugeCraftTree.State.PAUSED
 			? AllPartialModels.FACTORY_PANEL_RED_LIGHT : AllPartialModels.FACTORY_PANEL_LIGHT;
 		// The bulb texture is opaque; keep its base in the main GUI target even in Fabulous mode.
-		renderModel(graphics, light, x, y, lit || node.state() == GaugeCraftTree.State.PAUSED ? 0xFFFFFF : 0x484848,
+		renderModel(graphics, light, 0, 0, lit || node.state() == GaugeCraftTree.State.PAUSED ? 0xFFFFFF : 0x484848,
 			false, RenderType.cutoutMipped());
 		if (lit)
-			renderModel(graphics, light, x, y, 0xC8C8C8, false, RenderTypes.additive());
+			renderModel(graphics, light, 0, 0, 0xC8C8C8, false, RenderTypes.additive());
 		graphics.bufferSource().endBatch();
+		graphics.pose().popPose();
 
 		// FilteringRenderer + ValueBoxTransform: the slot is at the centre and has scale .5.
 		// Reuse FIXED rendering, including Create's distinct block/flat/filter item scales.

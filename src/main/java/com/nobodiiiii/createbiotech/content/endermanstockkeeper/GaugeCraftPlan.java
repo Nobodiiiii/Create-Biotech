@@ -44,7 +44,7 @@ public final class GaugeCraftPlan {
 
 	public static GaugeCraftPlan build(Level level, UUID network, ItemStack output, int count) {
 		GaugeCraftJobs jobs = GaugeCraftJobs.get(((ServerLevel) level).getServer());
-		jobs.collectOutputs(((ServerLevel) level).getServer());
+		jobs.collectOutputs();
 		GaugeCraftPlan best = null;
 		for (FactoryPanelBehaviour gauge : FactoryGaugeCatalog.getOutputGauges(network)) {
 			if (!ItemStack.isSameItemSameComponents(gauge.getFilter(), output))

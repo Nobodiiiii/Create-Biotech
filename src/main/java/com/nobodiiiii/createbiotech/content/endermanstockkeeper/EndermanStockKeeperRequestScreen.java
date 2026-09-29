@@ -38,6 +38,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	private int inspectedCount;
 	private int treeRefreshTicks;
 	private Button fitTreeButton;
+	private Button compactTreeButton;
 	private Button fullTreeButton;
 	private List<GaugeCraftJobs.Summary> jobs = List.of();
 	private UUID selectedJob;
@@ -75,11 +76,17 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 				.tooltip(Tooltip.create(Component.translatable("create_biotech.gauge_craft.view_tree"))).build()));
 		}
 		Rect2i treeBounds = jobTree.bounds();
+		compactTreeButton = addRenderableWidget(Button.builder(
+			Component.translatable("create_biotech.gauge_craft.tree.compact_view"), button -> {
+				jobTree.setFullView(false);
+				updateOverlayWidgets();
+			}).bounds(treeBounds.getX() + 13, treeBounds.getY() + treeBounds.getHeight() - 29, 75, 20)
+			.tooltip(Tooltip.create(Component.translatable("create_biotech.gauge_craft.tree.compact_hint"))).build());
 		fullTreeButton = addRenderableWidget(Button.builder(
 			Component.translatable("create_biotech.gauge_craft.tree.full_view"), button -> {
-				jobTree.toggleFullView();
+				jobTree.setFullView(true);
 				updateOverlayWidgets();
-			}).bounds(treeBounds.getX() + 13, treeBounds.getY() + treeBounds.getHeight() - 29, 110, 20).build());
+			}).bounds(treeBounds.getX() + 92, treeBounds.getY() + treeBounds.getHeight() - 29, 75, 20).build());
 		fitTreeButton = addRenderableWidget(Button.builder(
 			Component.translatable("create_biotech.gauge_craft.tree.fit"), button -> jobTree.fit())
 			.bounds(treeBounds.getX() + treeBounds.getWidth() - 134, treeBounds.getY() + treeBounds.getHeight() - 29,
@@ -251,10 +258,10 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 			return;
 		jobsButton.visible = phase == Phase.NONE;
 		fitTreeButton.visible = phase == Phase.TREE;
+		compactTreeButton.visible = phase == Phase.TREE;
+		compactTreeButton.active = jobTree.fullView();
 		fullTreeButton.visible = phase == Phase.TREE;
-		fullTreeButton.active = jobTree.canExpand();
-		fullTreeButton.setMessage(Component.translatable(jobTree.fullView()
-			? "create_biotech.gauge_craft.tree.compact_view" : "create_biotech.gauge_craft.tree.full_view"));
+		fullTreeButton.active = !jobTree.fullView() && jobTree.canExpand();
 		fullTreeButton.setTooltip(Tooltip.create(fullTreeTooltip()));
 		for (int row = 0; row < jobTreeButtons.size(); row++)
 			jobTreeButtons.get(row).visible = phase == Phase.JOBS && jobsScroll + row < jobs.size();
@@ -267,19 +274,23 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 		backButton.visible = phase != Phase.NONE;
 		backButton.setMessage(Component.translatable(phase == Phase.JOBS || phase == Phase.TREE ? "gui.back" : "gui.cancel"));
 		Rect2i treeBounds = jobTree.bounds();
-		fullTreeButton.setX(treeBounds.getX() + 13);
+		int treeModeWidth = Math.min(84, (treeBounds.getWidth() - 150) / 2);
+		compactTreeButton.setX(treeBounds.getX() + 13);
+		compactTreeButton.setY(treeBounds.getY() + treeBounds.getHeight() - 29);
+		compactTreeButton.setWidth(treeModeWidth);
+		fullTreeButton.setX(treeBounds.getX() + 17 + treeModeWidth);
 		fullTreeButton.setY(treeBounds.getY() + treeBounds.getHeight() - 29);
-		fullTreeButton.setWidth(Math.min(110, treeBounds.getWidth() - 160));
-		fitTreeButton.setX(treeBounds.getX() + treeBounds.getWidth() - 134);
+		fullTreeButton.setWidth(treeModeWidth);
+		fitTreeButton.setX(treeBounds.getX() + treeBounds.getWidth() - 124);
 		fitTreeButton.setY(treeBounds.getY() + treeBounds.getHeight() - 29);
-		backButton.setX(phase == Phase.TREE ? treeBounds.getX() + treeBounds.getWidth() - 83 : (width - 252) / 2 + 135);
+		backButton.setX(phase == Phase.TREE ? treeBounds.getX() + treeBounds.getWidth() - 73 : (width - 252) / 2 + 135);
 		backButton.setY(phase == Phase.TREE ? treeBounds.getY() + treeBounds.getHeight() - 29 : (height - 220) / 2 + 181);
-		backButton.setWidth(phase == Phase.TREE ? 70 : 100);
+		backButton.setWidth(phase == Phase.TREE ? 60 : 100);
 	}
 
 	private Component fullTreeTooltip() {
 		return Component.translatable(jobTree.expansionTooLarge() ? "create_biotech.gauge_craft.tree.too_large"
-			: jobTree.fullView() ? "create_biotech.gauge_craft.tree.compact_hint" : "create_biotech.gauge_craft.tree.full_hint");
+			: "create_biotech.gauge_craft.tree.full_hint");
 	}
 
 	@Override
@@ -292,10 +303,14 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 			graphics.pose().translate(0, 0, 400);
 			graphics.fill(0, 0, width, height, 0xA0000000);
 			jobTree.render(graphics, mouseX, mouseY, selected, inspectedCount);
+			compactTreeButton.render(graphics, mouseX, mouseY, partialTick);
 			fullTreeButton.render(graphics, mouseX, mouseY, partialTick);
 			fitTreeButton.render(graphics, mouseX, mouseY, partialTick);
 			backButton.render(graphics, mouseX, mouseY, partialTick);
-			if (fullTreeButton.isMouseOver(mouseX, mouseY))
+			if (compactTreeButton.isMouseOver(mouseX, mouseY))
+				graphics.renderTooltip(font, font.split(Component.translatable("create_biotech.gauge_craft.tree.compact_hint"), 240),
+					mouseX, mouseY);
+			else if (fullTreeButton.isMouseOver(mouseX, mouseY))
 				graphics.renderTooltip(font, font.split(fullTreeTooltip(), 240), mouseX, mouseY);
 			else if (fitTreeButton.isMouseOver(mouseX, mouseY))
 				graphics.renderTooltip(font, Component.translatable("create_biotech.gauge_craft.tree.controls"), mouseX, mouseY);
@@ -437,7 +452,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 		}
 		if (phase == Phase.TREE) {
 			if (backButton.mouseClicked(mouseX, mouseY, button) || fitTreeButton.mouseClicked(mouseX, mouseY, button)
-				|| fullTreeButton.mouseClicked(mouseX, mouseY, button))
+				|| compactTreeButton.mouseClicked(mouseX, mouseY, button) || fullTreeButton.mouseClicked(mouseX, mouseY, button))
 				return true;
 			jobTree.mouseClicked(mouseX, mouseY, button);
 			return true;
@@ -513,7 +528,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 			List<AbstractWidget> controls = new ArrayList<>();
 			controls.add(quantityBox);
 			controls.addAll(jobTreeButtons);
-			controls.addAll(List.of(nextButton, confirmButton, cancelJobButton, fullTreeButton, fitTreeButton, backButton));
+			controls.addAll(List.of(nextButton, confirmButton, cancelJobButton, compactTreeButton, fullTreeButton, fitTreeButton, backButton));
 			controls.removeIf(widget -> !widget.visible || !widget.active);
 			int index = controls.indexOf(getFocused());
 			int direction = hasShiftDown() ? -1 : 1;
