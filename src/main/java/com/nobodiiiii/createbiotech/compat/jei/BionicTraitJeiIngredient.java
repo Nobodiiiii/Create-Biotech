@@ -47,7 +47,7 @@ public final class BionicTraitJeiIngredient implements IIngredientHelper<BionicT
 	public static Component name(BionicTrait trait) {
 		// The entity tooltip names for these traits require a value or a target list.
 		return Component.translatable(switch (trait) {
-		case HEAD_PROJECTILE, GUARDIAN_BEAM, SPELLCASTING, ENCHANT_VULNERABILITY, ENDER_TELEPORT, HUNTING_INSTINCT, ATTACK_KNOCKBACK, DETERRENCE, EFFECT_ATTACK, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION ->
+		case DISPOSITION, INTELLIGENCE, HEAD_PROJECTILE, GUARDIAN_BEAM, SPELLCASTING, ENCHANT_VULNERABILITY, ENDER_TELEPORT, HUNTING_INSTINCT, ATTACK_KNOCKBACK, DETERRENCE, EFFECT_ATTACK, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION ->
 			"create_biotech.jei.trait.name." + trait.id();
 		default -> trait.descriptionId();
 		});

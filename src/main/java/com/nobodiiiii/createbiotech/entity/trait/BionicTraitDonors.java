@@ -12,6 +12,8 @@ import org.jetbrains.annotations.Nullable;
 
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
+import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligenceRegistry;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -125,6 +127,10 @@ public final class BionicTraitDonors {
 			if (trait.valueKind() != BionicTrait.ValueKind.SUBTRAIT_SET) continue;
 			BionicTraitData definition = snapshot.get(trait);
 			Set<ResourceLocation> supplied = new HashSet<>();
+			if (trait.isHeadClassification() && definition.automaticDetection() && donor != null)
+				supplied.add(trait == BionicTrait.DISPOSITION
+					? BionicHeadTraits.id(BionicDispositionRegistry.get(donor))
+					: BionicHeadTraits.id(BionicIntelligenceRegistry.get(donor)));
 			if (trait == BionicTrait.ENCHANT_VULNERABILITY && definition.automaticDetection()) {
 				for (String enchantment : java.util.List.of("smite", "bane_of_arthropods", "impaling"))
 					if (type.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
@@ -135,6 +141,8 @@ public final class BionicTraitDonors {
 				if (enabled) supplied.add(variant); else supplied.remove(variant);
 			}));
 			supplied.retainAll(definition.subtraits().keySet());
+			if (trait.isHeadClassification())
+				supplied.retainAll(BionicHeadTraits.variants(trait).keySet());
 			variants.put(trait, Set.copyOf(supplied));
 		}
 		if (donor != null && donor.isBaby() && (type == EntityType.HOGLIN || type == EntityType.ZOGLIN))

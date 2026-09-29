@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -26,8 +27,12 @@ public final class BionicDispositionRegistry {
 	private BionicDispositionRegistry() {}
 
 	static void replaceData(Map<ResourceLocation, BionicDisposition> data) {
+		if (DATA.equals(data)) return;
 		DATA = Map.copyOf(data);
+		BionicTraitRegistry.invalidate();
 	}
+
+	static Map<ResourceLocation, BionicDisposition> data() { return DATA; }
 
 	public static BionicDisposition get(MimicProfile profile, Level level) {
 		return profile == null ? BionicDisposition.NEUTRAL : get(profile.entityTypeId(), level);

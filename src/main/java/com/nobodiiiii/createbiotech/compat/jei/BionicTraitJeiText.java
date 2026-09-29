@@ -42,6 +42,8 @@ final class BionicTraitJeiText {
 	}
 
 	private static Component rule(BionicTrait trait) {
+		if (trait.isHeadClassification())
+			return tr("rule.head_retention", String.format(Locale.ROOT, "%.0f", trait.rule().minCoverage() * 100.0d));
 		Component type = tr("rule." + switch (trait.rule().type()) {
 		case PRESENCE -> "presence";
 		case COVERAGE_THRESHOLD -> "threshold";

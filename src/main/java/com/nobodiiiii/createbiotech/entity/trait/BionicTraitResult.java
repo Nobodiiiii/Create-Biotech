@@ -55,7 +55,7 @@ public record BionicTraitResult(double coverage, double strength, double value,
 	}
 
 	public enum InactiveReason {
-		NO_CARRIER, INSUFFICIENT_COVERAGE, WRONG_SLOT, BODY_MEASUREMENT_UNAVAILABLE,
+		NO_CARRIER, INSUFFICIENT_COVERAGE, INCOMPLETE_HEAD, WRONG_SLOT, BODY_MEASUREMENT_UNAVAILABLE,
 		PURPOSE_MISMATCH, BREATHING_NOT_REQUIRED, MISSING_PAIRED_WINGS;
 
 		public String descriptionId() {

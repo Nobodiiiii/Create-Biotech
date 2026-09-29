@@ -20,7 +20,7 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	static BionicTraitData defaults(BionicTrait trait) {
 		return new BionicTraitData(trait.automaticDetection(), trait.rule(),
 			BionicDonorOverrides.empty(), BionicDonorOverrides.empty(), BionicDonorOverrides.empty(),
-			Map.of(), Map.of(), Map.of(), Map.of());
+			Map.of(), Map.of(), Map.of(), BionicHeadTraits.variants(trait));
 	}
 
 	double parameter(String key, double fallback) {

@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +70,7 @@ public final class BionicTraitDonorCatalog {
 				Entity prototype = type.create(server.overworld());
 				if (prototype instanceof LivingEntity living) {
 					BionicTraitDonors.Facts facts = BionicTraitDonors.detect(living);
-					long mask = 0;
+					EnumSet<BionicTrait> provided = EnumSet.noneOf(BionicTrait.class);
 					for (BionicTrait trait : BionicTrait.values()) {
 						boolean provides = switch (trait.valueKind()) {
 						case ABILITY -> facts.has(trait);
@@ -79,10 +80,10 @@ public final class BionicTraitDonorCatalog {
 						case ATTACK_EFFECT_SET -> !facts.attackEffects().isEmpty();
 						};
 						if (provides)
-							mask |= 1L << trait.ordinal();
+							provided.add(trait);
 					}
-					if (mask != 0)
-						scan.entries.add(new BionicTraitDonorsPacket.Entry(BuiltInRegistries.ENTITY_TYPE.getKey(type), mask));
+					if (!provided.isEmpty())
+						scan.entries.add(new BionicTraitDonorsPacket.Entry(BuiltInRegistries.ENTITY_TYPE.getKey(type), provided));
 				}
 			} catch (RuntimeException | StackOverflowError exception) {
 				scan.failures++;

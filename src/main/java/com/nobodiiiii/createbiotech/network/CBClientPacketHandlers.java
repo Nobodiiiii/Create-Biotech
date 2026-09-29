@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.network;
 
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
+import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
@@ -65,6 +66,8 @@ final class CBClientPacketHandlers {
 			gaugeCraftJobs.handle(player);
 		} else if (packet instanceof BionicTraitDonorsPacket donors) {
 			BionicTraitDonorIndex.accept(donors);
+		} else if (packet instanceof BionicHeadDataPacket headData) {
+			headData.handle();
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());

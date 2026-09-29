@@ -1,14 +1,18 @@
 package com.nobodiiiii.createbiotech.entity.ai;
 
-import java.util.BitSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
 
 /**
@@ -18,7 +22,7 @@ import net.minecraft.world.level.Level;
 public record BionicMind(BionicDisposition disposition, BionicIntelligence intelligence,
 	int recognizedHeadCount) {
 	public static final BionicMind FALLBACK =
-		new BionicMind(BionicDisposition.NEUTRAL, BionicIntelligence.SIMPLE, 0);
+		new BionicMind(BionicDisposition.NEUTRAL, BionicIntelligence.NORMAL, 0);
 
 	public BionicMind {
 		if (disposition == null || intelligence == null || recognizedHeadCount < 0)
@@ -30,36 +34,22 @@ public record BionicMind(BionicDisposition disposition, BionicIntelligence intel
 	}
 
 	public static BionicMind resolve(@Nullable SurgicalAssembly assembly, @Nullable Level level) {
-		if (assembly == null || level == null)
+		return fromTraits(assembly, BionicTraitResolver.resolve(assembly, level));
+	}
+
+	public static BionicMind fromTraits(@Nullable SurgicalAssembly assembly, BionicTraitSet traits) {
+		if (assembly == null)
 			return FALLBACK;
-		BionicDisposition disposition = null;
-		BionicIntelligence intelligence = BionicIntelligence.SIMPLE;
-		int recognizedHeads = 0;
-		Map<UUID, SurgicalAssembly.Source> originals = new HashMap<>();
-		Map<UUID, BitSet> retained = new HashMap<>();
-		for (SurgicalAssembly.Source source : assembly.sources()) {
-			if (source.headCubes().isEmpty())
-				continue;
-			originals.putIfAbsent(source.donorId(), source);
-			retained.computeIfAbsent(source.donorId(), ignored -> new BitSet())
-				.or(source.headCubes());
-		}
-		for (Map.Entry<UUID, SurgicalAssembly.Source> entry : originals.entrySet()) {
-			SurgicalAssembly.Source source = entry.getValue();
-			if (source.originalHeadKnown() && !source.originalHeadCubes().isEmpty()
-				&& source.anatomy().volume(retained.get(entry.getKey())) * 2.0d
-					< source.anatomy().volume(source.originalHeadCubes()))
-				continue;
-			recognizedHeads++;
-			BionicDisposition candidateDisposition = BionicDispositionRegistry.get(source.profile(), level);
-			if (disposition == null)
-				disposition = candidateDisposition;
-			else if (disposition != candidateDisposition)
-				disposition = BionicDisposition.NEUTRAL;
-			intelligence = BionicIntelligence.highest(intelligence,
-				BionicIntelligenceRegistry.get(source.profile()));
-		}
+		int recognizedHeads = (int) Stream.concat(traits.members(BionicTrait.DISPOSITION).stream(),
+			traits.members(BionicTrait.INTELLIGENCE).stream())
+			.map(member -> assembly.sources().get(member.source()).donorId()).distinct().count();
 		return recognizedHeads == 0 ? FALLBACK
-			: new BionicMind(disposition, intelligence, recognizedHeads);
+			: new BionicMind(BionicHeadTraits.disposition(values(traits, BionicTrait.DISPOSITION)),
+				BionicHeadTraits.intelligence(values(traits, BionicTrait.INTELLIGENCE)), recognizedHeads);
+	}
+
+	private static Set<ResourceLocation> values(BionicTraitSet traits, BionicTrait trait) {
+		return !traits.has(trait) ? Set.of() : traits.result(trait).subtraits().keySet().stream()
+			.map(value -> value.id()).collect(Collectors.toUnmodifiableSet());
 	}
 }

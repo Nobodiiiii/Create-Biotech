@@ -94,8 +94,10 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET
 			|| trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
 			? effectOverrides(files) : BionicDonorOverrides.empty();
+		Map<ResourceLocation, BionicSubtrait> subtraits = new HashMap<>(BionicHeadTraits.variants(trait));
+		subtraits.putAll(readSubtraits(root, primary));
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
-			readCarriers(root, primary), parameters, readAttackEffects(root, primary), readSubtraits(root, primary));
+			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits);
 	}
 
 	private static Map<ResourceLocation, BionicSubtrait> readSubtraits(JsonObject root, ResourceLocation file) {

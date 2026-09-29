@@ -8,6 +8,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
@@ -69,7 +70,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "28";
+	private static final String NETWORK_VERSION = "29";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -175,6 +176,7 @@ public final class CBPackets {
 			GaugeCraftPreviewPacket::write);
 		registerClient(GaugeCraftJobsPacket.class, GaugeCraftJobsPacket::new, GaugeCraftJobsPacket::write);
 		registerClient(BionicTraitDonorsPacket.class, BionicTraitDonorsPacket::new, BionicTraitDonorsPacket::write);
+		registerClient(BionicHeadDataPacket.class, BionicHeadDataPacket::new, BionicHeadDataPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

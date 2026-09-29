@@ -56,7 +56,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
-import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
@@ -3539,10 +3538,8 @@ public final class SurgicalTableClientHandler {
 		if (metrics != null)
 			preview = preview.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume());
-		BionicMind mind = BionicMind.resolve(preview, level);
 		BionicTraitSet traits = BionicTraitResolver.resolve(preview, level);
-		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip,
-			mind.hasRecognizedHead() ? mind.disposition() : null, traits);
+		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
 	}
 
 	@Nullable

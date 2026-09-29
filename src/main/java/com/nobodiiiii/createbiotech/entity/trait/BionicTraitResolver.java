@@ -56,7 +56,7 @@ public final class BionicTraitResolver {
 			return BionicTraitSet.EMPTY;
 		EnumMap<BionicTrait, BionicTraitResult> results = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values()) {
-			if (!trait.carrier().isAllTissue())
+			if (!trait.carrier().isAllTissue() && !trait.isHeadClassification())
 				continue;
 			boolean present = switch (trait.valueKind()) {
 			case ABILITY -> donor.has(trait);
@@ -68,7 +68,9 @@ public final class BionicTraitResolver {
 			if (present && trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET) {
 				Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> variants = new HashMap<>();
 				var definition = BionicTraitRegistry.snapshot().get(trait);
-				for (ResourceLocation id : donor.variants(trait))
+				Set<ResourceLocation> ids = trait.isHeadClassification()
+					? Set.of(BionicHeadTraits.combined(trait, donor.variants(trait))) : donor.variants(trait);
+				for (ResourceLocation id : ids)
 					variants.put(definition.subtraits().get(id), Set.of());
 				results.put(trait, new BionicTraitResult(1, 1, 0, Set.of(), Set.of(), null,
 					Map.of(), Set.of(), variants, Map.of(), Set.of()));
@@ -82,6 +84,8 @@ public final class BionicTraitResolver {
 
 	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,
 		BionicTissue tissue, List<BionicTraitDonors.Facts> donors) {
+		if (trait.isHeadClassification())
+			return BionicHeadTraits.evaluate(trait, data, tissue, donors);
 		if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
 			return evaluateSubtraits(trait, data, tissue, donors);
 		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET)

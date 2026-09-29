@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -33,7 +35,9 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		buffer.writeVarInt(entries.size());
 		for (Entry entry : entries) {
 			buffer.writeResourceLocation(entry.entity());
-			buffer.writeLong(entry.traits());
+			EnumSet<BionicTrait> traits = EnumSet.noneOf(BionicTrait.class);
+			traits.addAll(entry.traits());
+			buffer.writeEnumSet(traits, BionicTrait.class);
 		}
 	}
 
@@ -43,13 +47,14 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 			throw new IllegalArgumentException("Too many bionic donor entries");
 		List<Entry> entries = new ArrayList<>(count);
 		for (int i = 0; i < count; i++)
-			entries.add(new Entry(buffer.readResourceLocation(), buffer.readLong()));
+			entries.add(new Entry(buffer.readResourceLocation(), buffer.readEnumSet(BionicTrait.class)));
 		return entries;
 	}
 
-	public record Entry(ResourceLocation entity, long traits) {
+	public record Entry(ResourceLocation entity, Set<BionicTrait> traits) {
+		public Entry { traits = Set.copyOf(traits); }
 		public boolean provides(BionicTrait trait) {
-			return (traits & (1L << trait.ordinal())) != 0;
+			return traits.contains(trait);
 		}
 	}
 }

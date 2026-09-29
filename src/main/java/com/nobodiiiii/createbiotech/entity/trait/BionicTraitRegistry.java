@@ -21,6 +21,11 @@ public final class BionicTraitRegistry {
 	}
 
 	private static synchronized void onTagsUpdated(TagsUpdatedEvent event) {
+		invalidate();
+	}
+
+	/** Classification overrides also feed donor facts and cached assembly evaluations. */
+	public static synchronized void invalidate() {
 		current = new Snapshot(current.generation() + 1, current.traits());
 	}
 

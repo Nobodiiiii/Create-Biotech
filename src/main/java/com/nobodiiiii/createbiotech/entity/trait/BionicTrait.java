@@ -5,6 +5,12 @@ import java.util.Set;
 
 /** Single trait catalog. Scope, inheritance and conditions are independent. */
 public enum BionicTrait {
+	DISPOSITION("disposition", BionicTraitScope.HEAD,
+		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.HEAD)),
+	INTELLIGENCE("intelligence", BionicTraitScope.HEAD,
+		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.HEAD)),
 	FIRE_IMMUNE("fire_immune", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
@@ -212,9 +218,11 @@ public enum BionicTrait {
 	public BionicTraitRule rule() { return rule; }
 	public ValueKind valueKind() { return valueKind; }
 	public Condition condition() { return condition; }
+	public boolean isHeadClassification() { return this == DISPOSITION || this == INTELLIGENCE; }
 
 	boolean automaticDetection() {
 		return switch (this) {
+		case DISPOSITION, INTELLIGENCE -> true;
 		case RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,

@@ -452,7 +452,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Current head-derived disposition and intelligence classification. */
 	public BionicMind getMind() {
-		return BionicMind.resolve(getAssembly(), level());
+		return BionicMind.fromTraits(getAssembly(), getBionicTraits());
 	}
 
 	public BionicDisposition getDisposition() {

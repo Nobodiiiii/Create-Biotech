@@ -14,9 +14,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
-import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
-import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
-import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonors;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
@@ -68,13 +65,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		BoxDetails details = details(stack, level);
 		if (details == null)
 			return;
-		BionicDisposition disposition = details.disposition();
-		if (details.assembly() != null) {
-			BionicMind mind = BionicMind.resolve(details.assembly(), level);
-			disposition = mind.hasRecognizedHead() ? mind.disposition() : null;
-		}
 		if (details.stats().isEmpty() && details.traits().isEmpty()
-			&& details.donorFacts().isEmpty() && disposition == null)
+			&& details.donorFacts().isEmpty())
 			return;
 
 		boolean expanded = Screen.hasAltDown();
@@ -91,7 +83,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			for (BaseStat stat : details.stats())
 				tooltip.add(stat.line());
 		}
-		appendPropertiesSection(tooltip, disposition, details.traits());
+		appendPropertiesSection(tooltip, details.traits());
 		appendDonorFacts(tooltip, details.donorFacts(), details.donorAttacks(), details.deterrenceTargets(), details.huntingTargets());
 	}
 
@@ -110,29 +102,13 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (!attacks.isEmpty()) appendProperty(tooltip, effectList("create_biotech.trait.effect_attack", attacks));
 	}
 
-	/** Adds the shared Create-style property heading and its disposition value. */
-	public static void appendDispositionSection(List<Component> tooltip, BionicDisposition disposition) {
-		appendPropertiesSection(tooltip, disposition, BionicTraitSet.EMPTY);
-	}
-
 	/** Both active properties and their inactive reasons come from the entity's evaluation model. */
-	public static void appendPropertiesSection(List<Component> tooltip,
-		@Nullable BionicDisposition disposition, BionicTraitSet traits) {
-		if (disposition == null && traits.isEmpty())
+	public static void appendPropertiesSection(List<Component> tooltip, BionicTraitSet traits) {
+		if (traits.isEmpty())
 			return;
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
 			.withStyle(ChatFormatting.GOLD));
-		if (disposition != null) {
-			ChatFormatting color = switch (disposition) {
-			case FRIENDLY -> ChatFormatting.GREEN;
-			case NEUTRAL -> ChatFormatting.YELLOW;
-			case HOSTILE -> ChatFormatting.RED;
-			};
-			tooltip.add(Component.literal(" ")
-				.append(Component.translatable("create_biotech.disposition."
-					+ disposition.name().toLowerCase(java.util.Locale.ROOT)).withStyle(color)));
-		}
 		Map<BionicTraitScope, List<Component>> groups = new java.util.EnumMap<>(BionicTraitScope.class);
 		for (BionicTraitScope scope : BionicTraitScope.values())
 			groups.put(scope, new ArrayList<>());
@@ -149,7 +125,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				for (var variant : result.subtraits().keySet().stream().sorted(java.util.Comparator.comparing(
 					com.nobodiiiii.createbiotech.entity.trait.BionicSubtrait::id)).toList()) {
 					if (!variants.getSiblings().isEmpty()) variants.append(Component.translatable("create_biotech.trait.list_separator"));
-					variants.append(Component.translatable(variant.descriptionId()));
+					MutableComponent value = Component.translatable(variant.descriptionId());
+					if (trait == BionicTrait.DISPOSITION && result.active())
+						value.withStyle(switch (variant.id().getPath()) {
+						case "friendly" -> ChatFormatting.GREEN;
+						case "hostile" -> ChatFormatting.RED;
+						default -> ChatFormatting.YELLOW;
+						});
+					variants.append(value);
 				}
 				name = Component.translatable(trait.descriptionId(), variants);
 			}
@@ -188,6 +171,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				appendProperty(lines, name);
 			}
 		}
+		appendTraitGroup(tooltip, BionicTraitScope.HEAD.descriptionId(), groups.remove(BionicTraitScope.HEAD));
 		groups.forEach((scope, lines) -> appendTraitGroup(tooltip, scope.descriptionId(), lines));
 	}
 
@@ -283,7 +267,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			MimicProfile profile = MimicProfile.capture(living);
 			BionicTraitDonors.Facts facts = profile == null ? BionicTraitDonors.detect(living)
 				: BionicTraitDonors.get(profile, level);
-			return new BoxDetails(List.of(), null, BionicDispositionRegistry.get(living),
+			return new BoxDetails(List.of(),
 				BionicTraitResolver.donorProperties(facts), facts.abilities().stream()
 					.filter(trait -> !trait.carrier().isAllTissue()).collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),
@@ -304,7 +288,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return new BoxDetails(List.copyOf(stats), assembly, null, traits, Set.of(), Set.of(), Set.of(), Set.of());
+		return new BoxDetails(List.copyOf(stats), traits, Set.of(), Set.of(), Set.of(), Set.of());
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
@@ -366,8 +350,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		INTEGER
 	}
 
-	private record BoxDetails(List<BaseStat> stats, @Nullable SurgicalAssembly assembly,
-		@Nullable BionicDisposition disposition, BionicTraitSet traits, Set<BionicTrait> donorFacts,
+	private record BoxDetails(List<BaseStat> stats, BionicTraitSet traits, Set<BionicTrait> donorFacts,
 		Set<ResourceLocation> donorAttacks, Set<ResourceLocation> deterrenceTargets, Set<ResourceLocation> huntingTargets) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
