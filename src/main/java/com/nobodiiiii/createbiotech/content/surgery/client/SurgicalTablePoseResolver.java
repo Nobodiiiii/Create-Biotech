@@ -33,9 +33,14 @@ public final class SurgicalTablePoseResolver {
 
 	public static SurgicalPose resolve(Object owner, MimicProfile profile, LivingEntity preview, Direction facing,
 		boolean groundDown) {
+		return resolve(owner, profile, preview, facing, groundDown ? RotationAxis.NONE : null);
+	}
+
+	public static SurgicalPose resolve(Object owner, MimicProfile profile, LivingEntity preview, Direction facing,
+		@org.jetbrains.annotations.Nullable RotationAxis groundAxis) {
 		Map<PoseKey, SurgicalPose> ownerPoses = CACHE.computeIfAbsent(owner,
 			ignored -> new java.util.HashMap<>());
-		PoseKey key = new PoseKey(profile, facing, groundDown);
+		PoseKey key = new PoseKey(profile, facing, groundAxis);
 		SurgicalPose cached = ownerPoses.get(key);
 		if (cached != null)
 			return cached;
@@ -45,16 +50,18 @@ public final class SurgicalTablePoseResolver {
 		SurgicalPose selected = createPose(bodyGeometry, RotationAxis.NONE, facing);
 		SurgicalPose xPose = createPose(bodyGeometry, RotationAxis.X, facing);
 		SurgicalPose zPose = createPose(bodyGeometry, RotationAxis.Z, facing);
-		if (!groundDown && xPose.height + HEIGHT_EPSILON < selected.height)
+		if (groundAxis == null && xPose.height + HEIGHT_EPSILON < selected.height)
 			selected = xPose;
-		if (!groundDown && zPose.height + HEIGHT_EPSILON < selected.height)
+		if (groundAxis == null && zPose.height + HEIGHT_EPSILON < selected.height)
 			selected = zPose;
 
 		// Attachments do not choose the orientation, but the final placement still contains and
 		// centers everything that will actually be drawn in that already-selected orientation.
 		EntityGeometry.Collector renderedGeometry = EntityGeometry.Collector.caching(MAX_MEASURED_VERTICES);
 		EntityGeometry.measureWithFallback(preview, renderedGeometry);
-		selected = createPose(renderedGeometry, selected.layPose.axis(), facing);
+		selected = groundAxis == null ? createPose(renderedGeometry, selected.layPose.axis(), facing)
+			: createPose(renderedGeometry, groundAxis,
+				Math.floorMod(facingYaw(RotationAxis.NONE, facing) + 180, 360));
 		ownerPoses.put(key, selected);
 		return selected;
 	}
@@ -71,6 +78,10 @@ public final class SurgicalTablePoseResolver {
 	private static SurgicalPose createPose(EntityGeometry.Collector geometry, RotationAxis axis,
 		Direction facing) {
 		int yaw = Math.floorMod(facingYaw(axis, facing) + 180, 360);
+		return createPose(geometry, axis, yaw);
+	}
+
+	private static SurgicalPose createPose(EntityGeometry.Collector geometry, RotationAxis axis, int yaw) {
 		Matrix4f rotation = rotation(axis, yaw);
 		EntityGeometry.Bounds bounds = geometry.transformBounds(rotation);
 		return new SurgicalPose(new SurgicalLayPose(axis, yaw, new net.minecraft.world.phys.Vec3(
@@ -139,5 +150,5 @@ public final class SurgicalTablePoseResolver {
 			.rotationDegrees(inverse ? -angle : angle));
 	}
 
-	private record PoseKey(MimicProfile profile, Direction facing, boolean groundDown) {}
+	private record PoseKey(MimicProfile profile, Direction facing, RotationAxis groundAxis) {}
 }

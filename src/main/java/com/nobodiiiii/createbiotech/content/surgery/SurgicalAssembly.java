@@ -887,7 +887,11 @@ public final class SurgicalAssembly {
 	}
 
 	public SurgicalLayPose groundDownLayPose(Direction placementFacing) {
-		return new SurgicalLayPose(SurgicalLayPose.RotationAxis.NONE,
+		return groundPlacementPose(placementFacing, SurgicalLayPose.RotationAxis.NONE);
+	}
+
+	public SurgicalLayPose groundPlacementPose(Direction placementFacing, SurgicalLayPose.RotationAxis axis) {
+		return new SurgicalLayPose(axis,
 			placedLayPose(placementFacing).yaw(), Vec3.ZERO);
 	}
 

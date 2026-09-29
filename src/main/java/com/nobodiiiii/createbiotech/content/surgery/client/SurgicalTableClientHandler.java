@@ -1084,7 +1084,8 @@ public final class SurgicalTableClientHandler {
 		}
 		boolean projectSourceGeometry = controller.clientProjectsSourceGeometry();
 		int tableRevision = controller.clientDataRevision();
-		PlacementGeometry placementGeometry = source.measure(placementFacing, projectSourceGeometry, Screen.hasControlDown());
+		PlacementGeometry placementGeometry = source.measure(placementFacing, projectSourceGeometry,
+			Screen.hasControlDown() ? SurgicalLayPose.RotationAxis.values()[source.groundOrientation] : null);
 		if (placementGeometry == null) {
 			rejectPlacementPreview(SurgicalTablePlacementResult.MODEL_UNAVAILABLE);
 			return;
@@ -1317,18 +1318,11 @@ public final class SurgicalTableClientHandler {
 		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
 		int light = LevelRenderer.getLightColor(minecraft.level, placement.ownerPos);
 		if (Screen.hasControlDown() && placement.source.measuredGeometry != null) {
-			AABB bounds = placement.source.measuredGeometry.bounds();
 			com.mojang.blaze3d.vertex.VertexConsumer plane =
 				buffer.getBuffer(net.minecraft.client.renderer.RenderType.debugQuads());
-			float y = (float) (SurgicalTablePlane.SURFACE_HEIGHT + 0.002d);
-			plane.addVertex(poseStack.last().pose(), (float) bounds.minX, y, (float) bounds.minZ)
-				.setColor(48, 144, 255, 85);
-			plane.addVertex(poseStack.last().pose(), (float) bounds.maxX, y, (float) bounds.minZ)
-				.setColor(48, 144, 255, 85);
-			plane.addVertex(poseStack.last().pose(), (float) bounds.maxX, y, (float) bounds.maxZ)
-				.setColor(48, 144, 255, 85);
-			plane.addVertex(poseStack.last().pose(), (float) bounds.minX, y, (float) bounds.maxZ)
-				.setColor(48, 144, 255, 85);
+			for (Vec3 point : placement.source.measuredGeometry.groundPlane())
+				plane.addVertex(poseStack.last().pose(), (float) point.x, (float) point.y, (float) point.z)
+					.setColor(48, 144, 255, 85);
 		}
 		float partialTicks = AnimationTickHolder.getPartialTicks();
 		if (placement.source.isComposite()) {
@@ -1403,24 +1397,40 @@ public final class SurgicalTableClientHandler {
 		}
 		if (upright == null)
 			return;
-		// Keep the plane just outside the lowest cube faces to avoid z-fighting.
-		double y = upright.minY - 0.003d;
-		double padding = 0.08d;
-		List<Vec3> corners = List.of(new Vec3(upright.minX - padding, y, upright.minZ - padding),
-			new Vec3(upright.maxX + padding, y, upright.minZ - padding),
-			new Vec3(upright.maxX + padding, y, upright.maxZ + padding),
-			new Vec3(upright.minX - padding, y, upright.maxZ + padding));
+		List<Vec3> corners = groundPlaneCorners(upright, pose);
 		PoseStack stack = event.getPoseStack();
 		Vec3 camera = event.getCamera().getPosition();
 		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
 		com.mojang.blaze3d.vertex.VertexConsumer vertices =
 			buffer.getBuffer(net.minecraft.client.renderer.RenderType.debugQuads());
 		for (Vec3 corner : corners) {
-			Vec3 point = pose.rotate(corner).add(origin).subtract(camera);
+			Vec3 point = corner.add(origin).subtract(camera);
 			vertices.addVertex(stack.last().pose(), (float) point.x, (float) point.y, (float) point.z)
 				.setColor(48, 144, 255, 85);
 		}
 		buffer.endBatch(net.minecraft.client.renderer.RenderType.debugQuads());
+	}
+
+	private static List<Vec3> groundPlaneCorners(AABB upright, SurgicalLayPose pose) {
+		// Less than the model/table gap: the downward preview must stay above the tabletop.
+		double y = upright.minY - SurgicalTablePoseResolver.TABLE_CLEARANCE * 0.25d;
+		double padding = 0.08d;
+		return List.of(new Vec3(upright.minX - padding, y, upright.minZ - padding),
+			new Vec3(upright.maxX + padding, y, upright.minZ - padding),
+			new Vec3(upright.maxX + padding, y, upright.maxZ + padding),
+			new Vec3(upright.minX - padding, y, upright.maxZ + padding)).stream().map(pose::rotate).toList();
+	}
+
+	@Nullable
+	private static AABB groundPlaneBounds(@Nullable AABB bounds,
+		List<SurgicalModelRenderContext.CubeGeometry> cubes, Map<Integer, Vec3> offsets, SurgicalLayPose pose) {
+		for (SurgicalModelRenderContext.CubeGeometry cube : cubes)
+			for (Vec3 corner : cube.corners()) {
+				Vec3 point = pose.inverseRotate(corner.add(offsets.getOrDefault(cube.cubeId(), Vec3.ZERO)));
+				AABB pointBounds = new AABB(point, point);
+				bounds = bounds == null ? pointBounds : bounds.minmax(pointBounds);
+			}
+		return bounds;
 	}
 
 	@SubscribeEvent
@@ -2307,6 +2317,21 @@ public final class SurgicalTableClientHandler {
 		ClientLevel level = minecraft.level;
 		if (player == null || level == null || minecraft.screen != null)
 			return;
+		if (Screen.hasControlDown() && wrenchEditor == null && glueEditor == null
+			&& !retainsPlacementPreview() && Math.abs(event.getScrollDeltaY()) > 1.0e-9d) {
+			InteractionHand hand = capturedSubjectPlacementPromptHand(player, level);
+			if (hand != null) {
+				PlacementCandidate candidate = placementCandidateFor(player.getItemInHand(hand), level);
+				if (candidate.source() != null) {
+					PlacementSource source = candidate.source();
+					source.groundOrientation = Math.floorMod(source.groundOrientation
+						+ (event.getScrollDeltaY() > 0 ? 1 : -1), SurgicalLayPose.RotationAxis.values().length);
+					updatePlacementPreview();
+					event.setCanceled(true);
+					return;
+				}
+			}
+		}
 		if (wrenchEditor != null && SurgicalKitItem.isWrench(player.getItemInHand(wrenchEditor.hand))) {
 			double scroll = event.getScrollDeltaY();
 			int face = wrenchPreviewFace(player, level, wrenchEditor);
@@ -3911,6 +3936,10 @@ public final class SurgicalTableClientHandler {
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
 				"create_biotech.gui.surgical_table.action.place_ground_down");
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"), Component.translatable(
+				"create_biotech.gui.surgical_table.control.scroll")),
+				"create_biotech.gui.surgical_table.action.rotate_ground");
 			CapturedEntityBoxStatsTooltip.append(stack, level, tooltip);
 		} else {
 			return null;
@@ -7048,12 +7077,13 @@ public final class SurgicalTableClientHandler {
 	private record PlacementGeometry(AABB bounds, SurgicalLayPose layPose,
 		Map<Integer, Vec3> cubeOffsets, List<SourcePlacementGeometry> sources,
 		int discoveredCubeCount, List<SurgicalAssembly.Seam> discoveredSeams,
-		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes) {
+		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes, List<Vec3> groundPlane) {
 		private PlacementGeometry {
 			cubeOffsets = Map.copyOf(cubeOffsets);
 			sources = List.copyOf(sources);
 			discoveredSeams = List.copyOf(discoveredSeams);
 			discoveredCubes = List.copyOf(discoveredCubes);
+			groundPlane = List.copyOf(groundPlane);
 		}
 	}
 
@@ -7079,7 +7109,8 @@ public final class SurgicalTableClientHandler {
 		@Nullable
 		private Direction measuredFacing;
 		private boolean measuredSourceGeometry;
-		private boolean measuredGroundDown;
+		private SurgicalLayPose.RotationAxis measuredGroundAxis;
+		private int groundOrientation;
 		@Nullable
 		private PlacementGeometry measuredGeometry;
 
@@ -7110,15 +7141,15 @@ public final class SurgicalTableClientHandler {
 		}
 
 		@Nullable
-		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry, boolean groundDown) {
+		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry, @Nullable SurgicalLayPose.RotationAxis groundAxis) {
 			if (measuredGeometry != null && measuredFacing == facing
-				&& measuredSourceGeometry == projectSourceGeometry && measuredGroundDown == groundDown)
+				&& measuredSourceGeometry == projectSourceGeometry && measuredGroundAxis == groundAxis)
 				return measuredGeometry;
 			if (isComposite()) {
-				measuredGeometry = measureComposite(facing, projectSourceGeometry, groundDown);
+				measuredGeometry = measureComposite(facing, projectSourceGeometry, groundAxis);
 				measuredFacing = facing;
 				measuredSourceGeometry = projectSourceGeometry;
-				measuredGroundDown = groundDown;
+				measuredGroundAxis = groundAxis;
 				return measuredGeometry;
 			}
 			LivingEntity entity = preview();
@@ -7127,7 +7158,7 @@ public final class SurgicalTableClientHandler {
 
 			PoseStack poseStack = new PoseStack();
 			SurgicalTablePoseResolver.SurgicalPose resolved =
-				SurgicalTablePoseResolver.resolve(this, profile, entity, facing, groundDown);
+				SurgicalTablePoseResolver.resolve(this, profile, entity, facing, groundAxis);
 			resolved.apply(poseStack);
 			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
 			MultiBufferSource discardedBuffer = renderType -> discarded;
@@ -7156,20 +7187,21 @@ public final class SurgicalTableClientHandler {
 				return null;
 			measuredFacing = facing;
 			measuredSourceGeometry = projectSourceGeometry;
-			measuredGroundDown = groundDown;
+			measuredGroundAxis = groundAxis;
 			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of(),
-				discoveredCubeCount, discoveredSeams, discoveredCubes);
+				discoveredCubeCount, discoveredSeams, discoveredCubes, groundPlaneCorners(
+					groundPlaneBounds(null, snapshot.cubes(), cubeOffsets, resolved.layPose()), resolved.layPose()));
 			return measuredGeometry;
 		}
 
 		@Nullable
-		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry, boolean groundDown) {
+		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry, @Nullable SurgicalLayPose.RotationAxis groundAxis) {
 			if (assembly == null)
 				return null;
 			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
 			MultiBufferSource discardedBuffer = renderType -> discarded;
 			List<SourcePlacementGeometry> geometries = new ArrayList<>(assembly.sources().size());
-			SurgicalLayPose targetPose = groundDown ? assembly.groundDownLayPose(facing) : assembly.placedLayPose(facing);
+			SurgicalLayPose targetPose = groundAxis != null ? assembly.groundPlacementPose(facing, groundAxis) : assembly.placedLayPose(facing);
 			for (SurgicalAssembly.PlacedSource placedSource : assembly.placedSources(facing, targetPose)) {
 				SurgicalAssembly.Source source = placedSource.source();
 				LivingEntity entity = preview(source.profile());
@@ -7232,8 +7264,11 @@ public final class SurgicalTableClientHandler {
 			}
 			if (bounds == null)
 				return null;
+			AABB uprightBounds = null;
+			for (SourcePlacementGeometry geometry : previewGeometries)
+				uprightBounds = groundPlaneBounds(uprightBounds, geometry.baseCubes(), geometry.previewOffsets(), targetPose);
 			return new PlacementGeometry(bounds, targetPose, Map.of(),
-				previewGeometries, 0, List.of(), List.of());
+				previewGeometries, 0, List.of(), List.of(), groundPlaneCorners(uprightBounds, targetPose));
 		}
 
 		private PoseStack sourcePose(SurgicalAssembly.PlacedSource placedSource, LivingEntity entity) {

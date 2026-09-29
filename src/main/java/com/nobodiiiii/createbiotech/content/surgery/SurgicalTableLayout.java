@@ -80,7 +80,7 @@ public final class SurgicalTableLayout {
 				&& validateInitialOffsets(assembly, envelope.offsets());
 		if (!envelope.offsets().isEmpty() || sourceLayouts.size() != assembly.sources().size()
 			|| !(layPose.equals(assembly.placedLayPose(placementFacing))
-				|| layPose.equals(assembly.groundDownLayPose(placementFacing))))
+				|| layPose.equals(assembly.groundPlacementPose(placementFacing, layPose.axis()))))
 			return false;
 
 		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing, layPose);
