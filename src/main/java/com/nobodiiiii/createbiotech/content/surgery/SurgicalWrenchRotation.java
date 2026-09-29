@@ -104,7 +104,7 @@ public final class SurgicalWrenchRotation {
 		return SurgicalCubeRotation.nearestAxisAlignment(x, y);
 	}
 
-	public enum Failure { NONE, INVALID, NO_SPACE, DISCONNECTED }
+	public enum Failure { NONE, INVALID, NO_SPACE, DISCONNECTED, JOINT_DISCONNECTED }
 	public record Endpoint(int body, int cube) {}
 	public record Plan(List<Body> bodies, Failure failure, Endpoint selected, List<Endpoint> disconnected) {
 		public Plan(List<Body> bodies, Failure failure) { this(bodies, failure, null, List.of()); }

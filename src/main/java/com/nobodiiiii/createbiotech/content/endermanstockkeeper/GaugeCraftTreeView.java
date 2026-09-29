@@ -268,7 +268,9 @@ final class GaugeCraftTreeView {
 		Map<Lane, List<Interval>> lanes = new HashMap<>();
 		Set<Wire> arrows = new HashSet<>();
 		for (int edge = 0; edge < paths.size(); edge++) {
-			boolean active = tree.nodes().get(tree.edges().get(edge).to()).state() == GaugeCraftTree.State.CRAFTING;
+			boolean active = fullView
+				? tree.nodes().get(tree.edges().get(edge).to()).state() == GaugeCraftTree.State.CRAFTING
+				: compaction.isCrafting(edge);
 			List<Cell> path = paths.get(edge);
 			for (int i = 1; i < path.size(); i++) {
 				Cell from = path.get(i - 1), to = path.get(i);
@@ -396,7 +398,8 @@ final class GaugeCraftTreeView {
 			if (nodeHasOutputs[hovered])
 				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.sent", node.sent(), node.count()));
 			if (nodeHasInputs[hovered])
-				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.crafted", node.completed(), node.count()));
+				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.crafted", node.completed(),
+					fullView ? node.count() : compaction.productionCount(hovered)));
 			graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
 		}
 	}

@@ -31,6 +31,11 @@ public record SurgicalGlueTransform(Vec3 translation, SurgicalCubeRotation rotat
 			throw new IllegalArgumentException("Invalid surgical glue edit translation");
 	}
 
+	/** Maximum third-stage displacement from the automatically aligned glue position. */
+	public static boolean withinEditRange(Vec3 translation) {
+		return finite(translation) && translation.lengthSqr() <= 16.0d;
+	}
+
 	public boolean isIdentity() {
 		return translation.lengthSqr() <= 1.0e-24d && rotation.isIdentity();
 	}

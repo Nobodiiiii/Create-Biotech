@@ -1810,6 +1810,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalTableLayout.Proposal secondLayout) {
 		boolean smartGlue = SurgicalKitItem.isSmartGlue(glue);
 		if (replayTransform == null || anchorContact == null
+			|| !SurgicalGlueTransform.withinEditRange(replayTransform.translation())
 			|| !smartGlue && !replayTransform.isIdentity()
 			|| !canPayInteractionCost(glue, 1, player))
 			return false;
@@ -2111,7 +2112,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalGlueTransform replayTransform,
 		SurgicalTablePlane.Plane plane, SurgicalTableLayout.Proposal firstLayout,
 		SurgicalTableLayout.Proposal secondLayout) {
-		if (replayTransform == null)
+		if (replayTransform == null || !SurgicalGlueTransform.withinEditRange(replayTransform.translation()))
 			return false;
 		return validateGluePlan(firstSubjectId, firstCubeId, secondSubjectId, secondCubeId,
 			targetPose, moves, anchorMoves, plane, firstLayout, secondLayout,
@@ -2425,11 +2426,23 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				if (owner != null)
 					neighbors.computeIfAbsent(owner.id(), ignored -> new BitSet()).set(member.cubeId());
 			}
+		for (SurgicalLimbJoint joint : allLimbJoints()) {
+			SurgicalGlueJoint.Endpoint endpoint = joint.child().matches(selected.persistentId(), cubeId)
+				? joint.parent() : joint.parent().matches(selected.persistentId(), cubeId) ? joint.child() : null;
+			if (endpoint != null) {
+				SurgicalSubject owner = getSubjectByPersistentId(endpoint.subjectKey());
+				if (owner == null)
+					return invalid;
+				neighbors.computeIfAbsent(owner.id(), ignored -> new BitSet()).set(endpoint.cubeId());
+			}
+		}
 		SurgicalWrenchRotation.Plan plan = SurgicalWrenchRotation.plan(bodies, group, neighbors, selected.id(), cubeId,
 			groupRotation, selectedRotation, plane.workArea(), occupiedForValidation(plane, seen));
 		if (!plan.valid())
 			return plan;
 		WrenchDisconnections cuts = wrenchDisconnections(plan);
+		if (!cuts.limbs().isEmpty())
+			return SurgicalWrenchRotation.Plan.fail(SurgicalWrenchRotation.Failure.JOINT_DISCONNECTED);
 		if (allGlueJoints().size() - cuts.glue().size() + cuts.addedGlue().size() > SurgicalAssembly.MAX_SEAMS)
 			return invalid;
 		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
@@ -2443,10 +2456,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	/** Commits every subject together, only after the complete plan has passed validation. */
-	void applyWrenchRotation(SurgicalWrenchRotation.Plan plan, Player player) {
+	void applyWrenchRotation(SurgicalWrenchRotation.Plan plan) {
 		if (!plan.valid())
 			return;
 		WrenchDisconnections cuts = wrenchDisconnections(plan);
+		if (!cuts.limbs().isEmpty())
+			return;
 		for (SurgicalSubject subject : subjects) {
 			BitSet cutSeams = cuts.cuts().get(subject.id());
 			if (cutSeams != null) {
@@ -2454,7 +2469,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				subject.cutOrder = SurgicalAssembly.normalizeCutOrder(subject.cutOrder, cutSeams, subject.seams.size());
 			}
 			subject.removeGlueJoints(cuts.glue());
-			subject.removeLimbJoints(cuts.limbs());
 			subject.removeCombinations(cuts.combinations());
 		}
 		for (SurgicalCombination combination : cuts.remainingCombinations())
@@ -2463,8 +2477,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			getSubjectByPersistentId(joint.first().subjectKey()).addGlueJoint(joint);
 			getSubjectByPersistentId(joint.second().subjectKey()).addGlueJoint(joint);
 		}
-		for (SurgicalLimbJoint joint : cuts.limbs())
-			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
 		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
 			SurgicalSubject subject = getSubject(body.id());
 			Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
