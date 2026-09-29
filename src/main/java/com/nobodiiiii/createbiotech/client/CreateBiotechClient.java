@@ -150,6 +150,8 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -396,6 +398,8 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
+		event.register((stack, tintIndex) -> ((SpawnEggItem) Items.SLIME_SPAWN_EGG).getColor(tintIndex),
+			CBItems.SLIME_DATA.get());
 		event.register((stack, tintIndex) -> tintIndex == 0
 			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
 			? SonicDogCannonUpgrade.getCollarColor(stack).getTextureDiffuseColor()

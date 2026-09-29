@@ -135,6 +135,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.BIO_PACKAGER.get()),
 			visible(CBItems.PETRI_DISH.get()),
 			visible(CBItems.CAPTURED_SMALL_SLIME.get()),
+			visible(CBItems.SLIME_DATA.get()),
 			visible(CBFluids.LIQUID_LIVING_SLIME_BUCKET.get()),
 			visible(CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get())));
 

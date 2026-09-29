@@ -116,7 +116,7 @@ public final class SurgicalWrenchRotation {
 	/** Pure preview: O(cubes), with no table scan, footprint checks or connectivity traversal. */
 	public static List<Body> preview(List<Body> before, Map<Integer, BitSet> group,
 		int selectedBody, int selectedCube, SurgicalCubeRotation groupRotation,
-		SurgicalCubeRotation selectedRotation, double surfaceY) {
+		SurgicalCubeRotation selectedRotation, double surfaceY, Vec3 groupTranslation, Vec3 selectedTranslation) {
 		Cube anchor = find(before, selectedBody, selectedCube);
 		Vec3 pivot = anchor.center();
 		List<Body> rotated = new ArrayList<>(before.size());
@@ -129,7 +129,12 @@ public final class SurgicalWrenchRotation {
 				if (moving.get(cube.id)) {
 					SurgicalCubeRotation rotation = body.id == selectedBody && cube.id == selectedCube
 						? selectedRotation : groupRotation;
-					next = rotation.isIdentity() ? cube : cube.transform(pivot, rotation, 0);
+					Vec3 translation = body.id == selectedBody && cube.id == selectedCube
+						? selectedTranslation : groupTranslation;
+					SurgicalGlueTransform transform = new SurgicalGlueTransform(translation, rotation);
+					Vec3 nextCenter = transform.apply(cube.center(), pivot);
+					next = new Cube(cube.id, cube.corners.stream().map(point -> transform.apply(point, pivot)).toList(),
+						cube.offset.add(nextCenter.subtract(cube.center())), cube.rotation.then(rotation));
 					for (Vec3 corner : next.corners)
 						lowest = Math.min(lowest, corner.y);
 				}
@@ -150,11 +155,14 @@ public final class SurgicalWrenchRotation {
 	/** Checks only the final pose at commit; intermediate preview poses may overlap or leave the table. */
 	public static Plan plan(List<Body> before, Map<Integer, BitSet> group, Map<Integer, BitSet> neighbors,
 		int selectedBody, int selectedCube, SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
-		SurgicalTablePlane.WorkArea area, List<SurgicalTableLayout.Footprint> obstacles) {
-		if (find(before, selectedBody, selectedCube) == null || group.isEmpty() || area.isEmpty() || obstacles == null)
+		SurgicalTablePlane.WorkArea area, List<SurgicalTableLayout.Footprint> obstacles,
+		Vec3 groupTranslation, Vec3 selectedTranslation) {
+		if (!SurgicalGlueTransform.withinEditRange(groupTranslation)
+			|| !SurgicalGlueTransform.withinEditRange(selectedTranslation)
+			|| find(before, selectedBody, selectedCube) == null || group.isEmpty() || area.isEmpty() || obstacles == null)
 			return Plan.fail(Failure.INVALID);
 		List<Body> grounded = preview(before, group, selectedBody, selectedCube, groupRotation, selectedRotation,
-			area.surfaceY());
+			area.surfaceY(), groupTranslation, selectedTranslation);
 		List<SurgicalTableLayout.Footprint> stationary = new ArrayList<>(obstacles);
 		List<SurgicalTableLayout.Footprint> movingFootprints = new ArrayList<>();
 		for (Body body : grounded) {
@@ -175,7 +183,8 @@ public final class SurgicalWrenchRotation {
 				if (moved.conflictsWith(obstacle))
 					return Plan.fail(Failure.NO_SPACE);
 		List<Endpoint> disconnected = new ArrayList<>();
-		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)) {
+		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)
+			|| groupTranslation.distanceToSqr(selectedTranslation) > 1.0e-20d) {
 			Cube rotated = find(grounded, selectedBody, selectedCube);
 			int neighborCount = 0;
 			for (Map.Entry<Integer, BitSet> entry : neighbors.entrySet())

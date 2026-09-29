@@ -66,6 +66,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private final Map<UUID, SurgicalSubject> subjectsByPersistentId = new HashMap<>();
 	private int nextSubjectId;
 	private int clientDataRevision;
+	private boolean pendingSavedSubjectNormalization;
 	@Nullable
 	private AABB clientRenderBounds;
 	@Nullable
@@ -116,6 +117,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	@Override
 	public void initialize() {
 		invalidateTableLayout();
+		if (pendingSavedSubjectNormalization)
+			normalizeSavedSubjects();
 		super.initialize();
 		SurgicalTableSupportManager.track(this);
 	}
@@ -263,15 +266,59 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalTableSupportManager.track(this);
 	}
 
-	private void normalizeCombinations() {
+	private void normalizeSavedSubjects() {
+		// Initial NBT decoding may precede setLevel; only the server assigns replacement IDs.
+		if (level == null)
+			return;
+		pendingSavedSubjectNormalization = false;
+		boolean repaired = normalizeCombinations(!level.isClientSide);
+		normalizeLimbJoints();
+		if (repaired) {
+			setChanged();
+			sendData();
+		}
+	}
+
+	private boolean normalizeCombinations(boolean repairConflicts) {
 		Map<UUID, SurgicalCombination> byId = new HashMap<>();
 		Set<UUID> conflicting = new HashSet<>();
+		Map<UUID, Map<List<SurgicalCombination.Member>, SurgicalCombination>> variants = new HashMap<>();
 		for (SurgicalSubject subject : subjects)
 			for (SurgicalCombination combination : subject.combinations()) {
 				SurgicalCombination previous = byId.putIfAbsent(combination.id(), combination);
-				if (previous != null && !previous.members().equals(combination.members()))
+				if (previous != null && !previous.members().equals(combination.members())) {
 					conflicting.add(combination.id());
+					if (repairConflicts) {
+						Map<List<SurgicalCombination.Member>, SurgicalCombination> copies =
+							variants.computeIfAbsent(combination.id(), ignored -> new HashMap<>());
+						copies.putIfAbsent(previous.members(), previous);
+						copies.putIfAbsent(combination.members(), combination);
+					}
+				}
 			}
+		boolean repaired = false;
+		// Only saved, disjoint copies can be recovered. Repeated storage of the same group
+		// on several subjects is one variant; overlapping or dangling variants remain invalid.
+		for (Map<List<SurgicalCombination.Member>, SurgicalCombination> copies : variants.values()) {
+			Set<SurgicalCombination.Member> members = new HashSet<>();
+			boolean complete = true;
+			for (SurgicalCombination copy : copies.values())
+				for (SurgicalCombination.Member member : copy.members()) {
+					SurgicalSubject owner = getSubjectByPersistentId(member.subjectKey());
+					if (owner == null || !owner.validPresentCube(member.cubeId()) || !members.add(member))
+						complete = false;
+				}
+			if (!complete)
+				continue;
+			for (SurgicalCombination copy : copies.values()) {
+				UUID id;
+				do {
+					id = UUID.randomUUID();
+				} while (byId.containsKey(id));
+				byId.put(id, SurgicalCombination.create(id, copy.members()));
+			}
+			repaired = true;
+		}
 		List<SurgicalCombination> valid = new ArrayList<>();
 		Set<SurgicalCombination.Member> occupied = new HashSet<>();
 		for (SurgicalCombination combination : byId.values()) {
@@ -294,6 +341,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			subject.replaceCombinations(List.of());
 		for (SurgicalCombination combination : valid)
 			attachCombination(combination);
+		return repaired;
 	}
 
 	public void includeClientRenderBounds(AABB bounds) {
@@ -488,6 +536,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			componentFootprints, sourceLayouts, occupied))
 			return SurgicalTablePlacementResult.NO_SPACE;
 
+		if (placementAssembly != null)
+			donorId = placementDonorIds(placementAssembly, temporaryMove).get(donorId);
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(), donorId,
 			originalHeads, originalHeadKnown, originalAnatomy, profile, placementFacing, layPose, cubeCount,
 			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
@@ -513,11 +563,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		// Restore sources as normal table subjects so each source keeps its own model topology and
 		// automatically participates in the existing ray selection and shears workflow.
 		List<SurgicalSubject> restored = new ArrayList<>(assemblySources.size());
+		Map<UUID, UUID> donorIds = placementDonorIds(assembly, temporaryMove);
 		for (int sourceId = 0; sourceId < assemblySources.size(); sourceId++) {
 			SurgicalAssembly.PlacedSource placed = placedSources.get(sourceId);
 			SurgicalAssembly.Source source = placed.source();
 			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(),
-				source.donorId(), source.originalHeadCubes(), source.originalHeadKnown(),
+				donorIds.get(source.donorId()), source.originalHeadCubes(), source.originalHeadKnown(),
 				source.anatomy(),
 				source.profile(), placed.facing(), placed.layPose(), source.cubeCount(),
 				source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
@@ -551,7 +602,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				SurgicalSubject restoredSubject = restored.get(member.source());
 				members.add(new SurgicalCombination.Member(restoredSubject.persistentId(), member.cube()));
 			}
-			SurgicalCombination combination = SurgicalCombination.create(encoded.id(), members);
+			SurgicalCombination combination = SurgicalCombination.create(members);
 			if (combination == null)
 				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
 			for (int source : encoded.members().stream()
@@ -572,6 +623,38 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		addSubjects(restored);
 		finishSubjectPlacement(box, temporaryMove);
 		return SurgicalTablePlacementResult.SUCCESS;
+	}
+
+	/** Keep complementary donor fragments related, but give overlapping imported copies a new origin. */
+	private Map<UUID, UUID> placementDonorIds(SurgicalAssembly assembly,
+		@Nullable TemporaryMoveSource move) {
+		Map<UUID, BitSet> occupied = new HashMap<>();
+		for (SurgicalSubject subject : subjects) {
+			BitSet cubes = subject.presentCubes();
+			if (move != null && move.sourceTable == this) {
+				BitSet removed = move.group.components.get(subject.persistentId());
+				if (removed != null)
+					cubes.andNot(removed);
+			}
+			occupied.computeIfAbsent(subject.donorId(), ignored -> new BitSet()).or(cubes);
+		}
+		Map<UUID, BitSet> incoming = new HashMap<>();
+		for (SurgicalAssembly.Source source : assembly.sources())
+			incoming.computeIfAbsent(source.donorId(), ignored -> new BitSet()).or(source.presentCubes());
+		Set<UUID> used = new HashSet<>(occupied.keySet());
+		used.addAll(incoming.keySet());
+		Map<UUID, UUID> result = new HashMap<>();
+		for (Map.Entry<UUID, BitSet> entry : incoming.entrySet()) {
+			UUID id = entry.getKey();
+			BitSet existing = occupied.get(id);
+			if (existing != null && existing.intersects(entry.getValue())) {
+				do {
+					id = UUID.randomUUID();
+				} while (!used.add(id));
+			}
+			result.put(entry.getKey(), id);
+		}
+		return result;
 	}
 
 	@Nullable
@@ -2383,7 +2466,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	/** Validates the complete snapshot before calculating any wrench mutation. */
 	public SurgicalWrenchRotation.Plan planWrenchRotation(UUID subjectId, int cubeId,
 		SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
-		Map<Integer, BitSet> expectedGroup, List<SurgicalWrenchRotation.Body> bodies, SurgicalTablePlane.Plane plane) {
+		Map<Integer, BitSet> expectedGroup, List<SurgicalWrenchRotation.Body> bodies, SurgicalTablePlane.Plane plane,
+		Vec3 groupTranslation, Vec3 selectedTranslation) {
 		SurgicalWrenchRotation.Plan invalid = SurgicalWrenchRotation.Plan.fail(SurgicalWrenchRotation.Failure.INVALID);
 		SurgicalSubject selected = getSubjectByPersistentId(subjectId);
 		if (selected == null || !selected.validPresentCube(cubeId) || !plane.valid()
@@ -2437,7 +2521,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			}
 		}
 		SurgicalWrenchRotation.Plan plan = SurgicalWrenchRotation.plan(bodies, group, neighbors, selected.id(), cubeId,
-			groupRotation, selectedRotation, plane.workArea(), occupiedForValidation(plane, seen));
+			groupRotation, selectedRotation, plane.workArea(), occupiedForValidation(plane, seen),
+			groupTranslation, selectedTranslation);
 		if (!plan.valid())
 			return plan;
 		WrenchDisconnections cuts = wrenchDisconnections(plan);
@@ -3511,6 +3596,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		nextSubjectId = Math.max(currentFormat ? tag.getInt(NEXT_SUBJECT_ID_TAG) : 0,
 			ids.stream().mapToInt(Integer::intValue).max().orElse(-1) + 1);
 		if (clientPacket) {
+			pendingSavedSubjectNormalization = false;
 			clientPlane = null;
 			clientPlaneBounds = null;
 			clientPlaneCacheUntil = Long.MIN_VALUE;
@@ -3519,7 +3605,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			// Normalizing before the adopt would rewrite the freshly decoded subjects that the adopt is
 			// about to throw away, and both normalizers walk every subject on the table.
 			if (structureChanged || !changed.isEmpty()) {
-				normalizeCombinations();
+				normalizeCombinations(false);
 				normalizeLimbJoints();
 				// Dropping the measured bounds is safe now that each geometry re-reports its cached
 				// bounds without a transform pass; a subject leaving or arriving must not force every
@@ -3534,8 +3620,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			if (previouslyHadSubjects != hasSubjects() && level != null)
 				level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 16);
 		} else {
-			normalizeCombinations();
-			normalizeLimbJoints();
+			pendingSavedSubjectNormalization = true;
+			normalizeSavedSubjects();
 		}
 		SurgicalProfiler.end(clientPacket ? "read(sync)" : "read(load)", started);
 	}

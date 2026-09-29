@@ -21,11 +21,11 @@ import net.minecraft.world.phys.Vec3;
 public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, InteractionHand hand, UUID subjectId,
 	int cubeId, SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
 	Map<Integer, BitSet> group,
-	List<SurgicalWrenchRotation.Body> bodies) {
+	List<SurgicalWrenchRotation.Body> bodies, Vec3 groupTranslation, Vec3 selectedTranslation) {
 	public SurgicalTableCubeRotationPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readUUID(), buffer.readEnum(InteractionHand.class), buffer.readUUID(),
 			buffer.readVarInt(), SurgicalCubeRotation.read(buffer), SurgicalCubeRotation.read(buffer),
-			readGroup(buffer), readBodies(buffer));
+			readGroup(buffer), readBodies(buffer), readVector(buffer), readVector(buffer));
 	}
 
 	private static Vec3 readVector(FriendlyByteBuf buffer) {
@@ -127,6 +127,8 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, Inte
 					writeVector(buffer, corner);
 			}
 		}
+		writeVector(buffer, groupTranslation);
+		writeVector(buffer, selectedTranslation);
 	}
 
 	public void handle(ServerPlayer player) {
@@ -147,7 +149,7 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, Inte
 		if (table == null)
 			return false;
 		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(subjectId, cubeId, groupRotation,
-			selectedRotation, group, bodies, plane);
+			selectedRotation, group, bodies, plane, groupTranslation, selectedTranslation);
 		if (plan.valid())
 			table.applyWrenchRotation(plan);
 		else

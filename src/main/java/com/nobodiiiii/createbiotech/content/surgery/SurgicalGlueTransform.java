@@ -36,6 +36,11 @@ public record SurgicalGlueTransform(Vec3 translation, SurgicalCubeRotation rotat
 		return finite(translation) && translation.lengthSqr() <= 16.0d;
 	}
 
+	/** Shared rigid adjustment for wrench and glue editors, in table-space axes. */
+	public Vec3 apply(Vec3 point, Vec3 pivot) {
+		return pivot.add(rotation.rotate(point.subtract(pivot))).add(translation);
+	}
+
 	public boolean isIdentity() {
 		return translation.lengthSqr() <= 1.0e-24d && rotation.isIdentity();
 	}

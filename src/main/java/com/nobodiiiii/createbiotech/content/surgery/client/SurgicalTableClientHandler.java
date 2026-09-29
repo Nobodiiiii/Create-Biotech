@@ -2360,8 +2360,7 @@ public final class SurgicalTableClientHandler {
 			if (!wrenchEditor.committing && Math.abs(scroll) > 1.0e-9d && face >= 0) {
 				Vec3 axis = cubeFaceAxis(wrenchEditor.selectedCube(), face);
 				if (axis != null)
-					adjustWrenchPreview(level, wrenchEditor, axis,
-						Math.copySign(Screen.hasControlDown() ? 90.0d : GLUE_EDIT_ROTATION_STEP, scroll), false);
+					adjustWrenchPreview(level, wrenchEditor, scrollAdjustment(axis, scroll), false);
 			}
 			event.setCanceled(true);
 			return;
@@ -2380,13 +2379,9 @@ public final class SurgicalTableClientHandler {
 			event.setCanceled(true);
 			return;
 		}
-		Vec3 editDirection = scroll < 0.0d ? glueEditor.axis.scale(-1.0d) : glueEditor.axis;
-		Vec3 translation = Vec3.ZERO;
-		SurgicalCubeRotation rotation = SurgicalCubeRotation.IDENTITY;
-		if (Screen.hasControlDown())
-			rotation = SurgicalCubeRotation.around(editDirection, GLUE_EDIT_ROTATION_STEP);
-		else
-			translation = editDirection.scale(GLUE_EDIT_TRANSLATION_STEP);
+		SurgicalGlueTransform adjustment = scrollAdjustment(glueEditor.axis, scroll);
+		Vec3 translation = adjustment.translation();
+		SurgicalCubeRotation rotation = adjustment.rotation();
 		GluePreview adjusted = adjustGluePreview(level, glueEditor, translation, rotation);
 		if (adjusted != null) {
 			glueEditor.replayTransform = glueEditor.replayTransform.then(translation, rotation);
@@ -2430,23 +2425,43 @@ public final class SurgicalTableClientHandler {
 			table.clientDataRevision(), group, List.copyOf(bodies));
 	}
 
-	private static void adjustWrenchPreview(ClientLevel level, WrenchEditor editor, Vec3 axis,
-		double degrees, boolean straighten) {
+	/** Both editors use the same face axis, step sizes, and modifier interpretation. */
+	private static SurgicalGlueTransform scrollAdjustment(Vec3 axis, double scroll) {
+		Vec3 direction = axis.scale(Math.copySign(1.0d, scroll));
+		return Screen.hasControlDown()
+			? new SurgicalGlueTransform(Vec3.ZERO, SurgicalCubeRotation.around(direction, GLUE_EDIT_ROTATION_STEP))
+			: new SurgicalGlueTransform(direction.scale(GLUE_EDIT_TRANSLATION_STEP), SurgicalCubeRotation.IDENTITY);
+	}
+
+	private static void adjustWrenchPreview(ClientLevel level, WrenchEditor editor,
+		SurgicalGlueTransform adjustment, boolean straighten) {
 		SurgicalWrenchRotation.Cube anchor = editor.preview.get(editor.subjectId).body.cube(editor.cubeId);
-		SurgicalCubeRotation delta = SurgicalWrenchRotation.delta(anchor, axis, degrees, straighten);
+		if (straighten)
+			adjustment = new SurgicalGlueTransform(Vec3.ZERO,
+				SurgicalWrenchRotation.delta(anchor, Vec3.ZERO, 0.0d, true));
+		Vec3 selectedTranslation = editor.selectedTranslation.add(adjustment.translation());
+		Vec3 groupTranslation = editor.groupTranslation;
 		if (!editor.single || straighten)
-			editor.groupRotation = editor.groupRotation.then(delta);
-		editor.selectedRotation = editor.selectedRotation.then(delta);
+			groupTranslation = adjustment.apply(groupTranslation, editor.selectedTranslation);
+		if (!SurgicalGlueTransform.withinEditRange(selectedTranslation)
+			|| !SurgicalGlueTransform.withinEditRange(groupTranslation))
+			return;
+		if (!editor.single || straighten)
+			editor.groupRotation = editor.groupRotation.then(adjustment.rotation());
+		editor.selectedRotation = editor.selectedRotation.then(adjustment.rotation());
+		editor.groupTranslation = groupTranslation;
+		editor.selectedTranslation = selectedTranslation;
 		editor.rebuildPreview(SurgicalWrenchRotation.preview(editor.original, editor.group,
 			editor.subjectId, editor.cubeId, editor.groupRotation, editor.selectedRotation,
-			SurgicalTablePlane.surfaceY(editor.pos.getY())));
-		AllSoundEvents.SCROLL_VALUE.playAt(level, editor.pos, 0.35f, 0.85f, false);
+			SurgicalTablePlane.surfaceY(editor.pos.getY()), groupTranslation, selectedTranslation));
+		AllSoundEvents.SCROLL_VALUE.playAt(level, editor.pos, 0.35f,
+			adjustment.rotation().isIdentity() ? 1.0f : 0.85f, false);
 	}
 
 	/** Shift-use is a complete action; only keep its preview while awaiting the server reply. */
 	private static void alignAndConfirmWrench(LocalPlayer player, ClientLevel level, WrenchEditor editor) {
 		editor.immediate = true;
-		adjustWrenchPreview(level, editor, Vec3.ZERO, 0.0d, true);
+		adjustWrenchPreview(level, editor, SurgicalGlueTransform.IDENTITY, true);
 		confirmWrench(player, level, editor);
 		if (!editor.committing)
 			clearSelections();
@@ -2458,12 +2473,14 @@ public final class SurgicalTableClientHandler {
 			clearSelections();
 			return;
 		}
-		if (editor.groupRotation.isIdentity() && editor.selectedRotation.isIdentity()) {
+		if (editor.groupRotation.isIdentity() && editor.selectedRotation.isIdentity()
+			&& editor.groupTranslation.lengthSqr() < 1.0e-20d && editor.selectedTranslation.lengthSqr() < 1.0e-20d) {
 			clearSelections();
 			return;
 		}
 		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(editor.subjectKey, editor.cubeId,
-			editor.groupRotation, editor.selectedRotation, editor.group, editor.original, clientPlane(level, editor.pos));
+			editor.groupRotation, editor.selectedRotation, editor.group, editor.original, clientPlane(level, editor.pos),
+			editor.groupTranslation, editor.selectedTranslation);
 		if (!plan.valid()) {
 			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.JOINT_DISCONNECTED
 				? "message.create_biotech.surgical_table.rotation_breaks_joint"
@@ -2475,7 +2492,8 @@ public final class SurgicalTableClientHandler {
 		editor.committing = true;
 		editor.sentTick = level.getGameTime();
 		CBPackets.sendToServer(new SurgicalTableCubeRotationPacket(editor.pos, editor.requestId, editor.hand, editor.subjectKey,
-			editor.cubeId, editor.groupRotation, editor.selectedRotation, editor.group, editor.original));
+			editor.cubeId, editor.groupRotation, editor.selectedRotation, editor.group, editor.original,
+			editor.groupTranslation, editor.selectedTranslation));
 	}
 
 	public static void acceptWrenchCommit(SurgicalTableCubeRotationPacket.Result result) {
@@ -2592,6 +2610,8 @@ public final class SurgicalTableClientHandler {
 		private Map<Integer, WrenchSubjectPreview> preview;
 		private SurgicalCubeRotation groupRotation = SurgicalCubeRotation.IDENTITY;
 		private SurgicalCubeRotation selectedRotation = SurgicalCubeRotation.IDENTITY;
+		private Vec3 groupTranslation = Vec3.ZERO;
+		private Vec3 selectedTranslation = Vec3.ZERO;
 		private Selection selection;
 		private int guideFace = -1;
 		private List<SurgicalClientTopology.Edge> guideEdges = List.of();
@@ -3503,16 +3523,10 @@ public final class SurgicalTableClientHandler {
 				Vec3 oldOffset = preview.offsets.getOrDefault(cube, Vec3.ZERO);
 				SurgicalCubeRotation oldRotation = preview.rotations
 					.getOrDefault(cube, SurgicalCubeRotation.IDENTITY);
-				Vec3 newOffset = oldOffset.add(translation);
-				SurgicalCubeRotation newRotation = oldRotation;
-				if (!deltaRotation.isIdentity()) {
-					Vec3 baseCenter = cubeCenter(base);
-					Vec3 currentCenter = baseCenter.add(oldOffset);
-					Vec3 rotatedCenter = editor.axisCenter.add(
-						deltaRotation.rotate(currentCenter.subtract(editor.axisCenter)));
-					newOffset = rotatedCenter.subtract(baseCenter);
-					newRotation = oldRotation.then(deltaRotation);
-				}
+				Vec3 baseCenter = cubeCenter(base);
+				SurgicalGlueTransform adjustment = new SurgicalGlueTransform(translation, deltaRotation);
+				Vec3 newOffset = adjustment.apply(baseCenter.add(oldOffset), editor.axisCenter).subtract(baseCenter);
+				SurgicalCubeRotation newRotation = oldRotation.then(deltaRotation);
 				offsets.put(cube, newOffset);
 				rotations.put(cube, newRotation);
 			}
