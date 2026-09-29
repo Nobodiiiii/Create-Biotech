@@ -35,10 +35,11 @@ public final class SurgicalWrenchRotation {
 		}
 
 		Cube transform(Vec3 pivot, SurgicalCubeRotation delta, double lift) {
-			Vec3 nextCenter = pivot.add(delta.rotate(center().subtract(pivot))).add(0, lift, 0);
+			Vec3 center = center();
+			Vec3 nextCenter = pivot.add(delta.rotate(center.subtract(pivot))).add(0, lift, 0);
 			List<Vec3> transformed = corners.stream()
 				.map(corner -> pivot.add(delta.rotate(corner.subtract(pivot))).add(0, lift, 0)).toList();
-			return new Cube(id, transformed, offset.add(nextCenter.subtract(center())), rotation.then(delta));
+			return new Cube(id, transformed, offset.add(nextCenter.subtract(center)), rotation.then(delta));
 		}
 
 		public SurgicalTableLayout.Footprint footprint(int root) {
@@ -47,11 +48,19 @@ public final class SurgicalWrenchRotation {
 				SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED);
 		}
 
+		Cube lift(double lift) {
+			return Math.abs(lift) < 1.0e-12d ? this : new Cube(id,
+				corners.stream().map(corner -> corner.add(0, lift, 0)).toList(), offset.add(0, lift, 0), rotation);
+		}
+
 		AABB bounds() {
-			AABB result = new AABB(corners.getFirst(), corners.getFirst());
-			for (Vec3 corner : corners)
-				result = result.minmax(new AABB(corner, corner));
-			return result;
+			double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
+			double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;
+			for (Vec3 corner : corners) {
+				minX = Math.min(minX, corner.x); minY = Math.min(minY, corner.y); minZ = Math.min(minZ, corner.z);
+				maxX = Math.max(maxX, corner.x); maxY = Math.max(maxY, corner.y); maxZ = Math.max(maxZ, corner.z);
+			}
+			return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
 		}
 	}
 
@@ -101,62 +110,71 @@ public final class SurgicalWrenchRotation {
 		public boolean valid() { return failure == Failure.NONE; }
 	}
 
-	/** Rotates the requested group around the selected cube, then grounds the entire connected group once. */
-	public static Plan plan(List<Body> before, Map<Integer, BitSet> group, Map<Integer, BitSet> neighbors,
-		int selectedBody, int selectedCube, SurgicalCubeRotation delta, boolean single,
-		SurgicalTablePlane.WorkArea area, List<SurgicalTableLayout.Footprint> obstacles) {
-		Body selected = before.stream().filter(body -> body.id == selectedBody).findFirst().orElse(null);
-		Cube anchor = selected == null ? null : selected.cube(selectedCube);
-		if (anchor == null || group.isEmpty() || area.isEmpty() || obstacles == null)
-			return Plan.fail(Failure.INVALID);
+	/** Pure preview: O(cubes), with no table scan, footprint checks or connectivity traversal. */
+	public static List<Body> preview(List<Body> before, Map<Integer, BitSet> group,
+		int selectedBody, int selectedCube, SurgicalCubeRotation groupRotation,
+		SurgicalCubeRotation selectedRotation, double surfaceY) {
+		Cube anchor = find(before, selectedBody, selectedCube);
 		Vec3 pivot = anchor.center();
-		List<Body> rotated = new ArrayList<>();
+		List<Body> rotated = new ArrayList<>(before.size());
 		double lowest = Double.POSITIVE_INFINITY;
 		for (Body body : before) {
 			BitSet moving = group.get(body.id);
-			if (moving == null)
-				return Plan.fail(Failure.INVALID);
-			List<Cube> cubes = new ArrayList<>();
+			List<Cube> cubes = new ArrayList<>(body.cubes.size());
 			for (Cube cube : body.cubes) {
-				if (!cube.valid())
-					return Plan.fail(Failure.INVALID);
-				boolean rotate = moving.get(cube.id) && (!single || body.id == selectedBody && cube.id == selectedCube);
-				Cube next = rotate ? cube.transform(pivot, delta, 0) : cube;
+				Cube next = cube;
+				if (moving.get(cube.id)) {
+					SurgicalCubeRotation rotation = body.id == selectedBody && cube.id == selectedCube
+						? selectedRotation : groupRotation;
+					next = rotation.isIdentity() ? cube : cube.transform(pivot, rotation, 0);
+					for (Vec3 corner : next.corners)
+						lowest = Math.min(lowest, corner.y);
+				}
 				cubes.add(next);
-				if (moving.get(cube.id))
-					lowest = Math.min(lowest, next.bounds().minY);
 			}
 			rotated.add(new Body(body.id, body.key, body.cubeCount, body.seams, cubes));
 		}
-		if (!Double.isFinite(lowest))
+		double lift = surfaceY + TABLE_CLEARANCE - lowest;
+		List<Body> grounded = new ArrayList<>(rotated.size());
+		for (Body body : rotated) {
+			BitSet moving = group.get(body.id);
+			grounded.add(new Body(body.id, body.key, body.cubeCount, body.seams,
+				body.cubes.stream().map(cube -> moving.get(cube.id) ? cube.lift(lift) : cube).toList()));
+		}
+		return List.copyOf(grounded);
+	}
+
+	/** Checks only the final pose at commit; intermediate preview poses may overlap or leave the table. */
+	public static Plan plan(List<Body> before, Map<Integer, BitSet> group, Map<Integer, BitSet> neighbors,
+		int selectedBody, int selectedCube, SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
+		SurgicalTablePlane.WorkArea area, List<SurgicalTableLayout.Footprint> obstacles) {
+		if (find(before, selectedBody, selectedCube) == null || group.isEmpty() || area.isEmpty() || obstacles == null)
 			return Plan.fail(Failure.INVALID);
-		double lift = area.surfaceY() + TABLE_CLEARANCE - lowest;
-		List<Body> grounded = new ArrayList<>();
+		List<Body> grounded = preview(before, group, selectedBody, selectedCube, groupRotation, selectedRotation,
+			area.surfaceY());
 		List<SurgicalTableLayout.Footprint> stationary = new ArrayList<>(obstacles);
 		List<SurgicalTableLayout.Footprint> movingFootprints = new ArrayList<>();
-		for (Body body : rotated) {
-			List<Cube> cubes = new ArrayList<>();
+		for (Body body : grounded) {
 			for (Cube cube : body.cubes) {
-				boolean moving = group.get(body.id).get(cube.id);
-				Cube next = moving ? cube.transform(pivot, SurgicalCubeRotation.IDENTITY, lift) : cube;
-				cubes.add(next);
-				SurgicalTableLayout.Footprint footprint = next.footprint(cube.id);
-				if (moving) {
+				if (!cube.valid())
+					return Plan.fail(Failure.INVALID);
+				SurgicalTableLayout.Footprint footprint = cube.footprint(cube.id);
+				if (group.get(body.id).get(cube.id)) {
 					if (!area.contains(footprint.minX(), footprint.minZ(), footprint.maxX(), footprint.maxZ(), 1.0e-6d))
 						return Plan.fail(Failure.NO_SPACE);
 					movingFootprints.add(footprint);
 				} else
 					stationary.add(footprint);
 			}
-			grounded.add(new Body(body.id, body.key, body.cubeCount, body.seams, cubes));
 		}
 		for (SurgicalTableLayout.Footprint moved : movingFootprints)
 			for (SurgicalTableLayout.Footprint obstacle : stationary)
 				if (moved.conflictsWith(obstacle))
 					return Plan.fail(Failure.NO_SPACE);
-		if (single && !preservesConnections(before, grounded, neighbors, selectedBody, selectedCube))
+		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)
+			&& !preservesConnections(before, grounded, neighbors, selectedBody, selectedCube))
 			return Plan.fail(Failure.DISCONNECTED);
-		return new Plan(List.copyOf(grounded), Failure.NONE);
+		return new Plan(grounded, Failure.NONE);
 	}
 
 	private static boolean preservesConnections(List<Body> before, List<Body> after,

@@ -66,6 +66,8 @@ final class CBClientPacketHandlers {
 			gaugeCraftJobs.handle(player);
 		} else if (packet instanceof BionicTraitDonorsPacket donors) {
 			BionicTraitDonorIndex.accept(donors);
+		} else if (packet instanceof com.nobodiiiii.createbiotech.content.surgery.SurgicalTableCubeRotationPacket.Result rotation) {
+			com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHandler.acceptWrenchCommit(rotation);
 		} else if (packet instanceof BionicHeadDataPacket headData) {
 			headData.handle();
 		} else {

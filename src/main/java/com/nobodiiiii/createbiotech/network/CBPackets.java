@@ -180,6 +180,8 @@ public final class CBPackets {
 		registerClient(GaugeCraftJobsPacket.class, GaugeCraftJobsPacket::new, GaugeCraftJobsPacket::write);
 		registerClient(BionicTraitDonorsPacket.class, BionicTraitDonorsPacket::new, BionicTraitDonorsPacket::write);
 		registerClient(BionicHeadDataPacket.class, BionicHeadDataPacket::new, BionicHeadDataPacket::write);
+		registerClient(SurgicalTableCubeRotationPacket.Result.class, SurgicalTableCubeRotationPacket.Result::new,
+			SurgicalTableCubeRotationPacket.Result::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

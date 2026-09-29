@@ -2382,16 +2382,17 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private record ExtractedSubject(BitSet cubes, SurgicalSubject subject) {}
 
 	/** Validates the complete snapshot before calculating any wrench mutation. */
-	public SurgicalWrenchRotation.Plan planWrenchRotation(UUID subjectId, int cubeId, Vec3 axis, double degrees,
-		boolean straighten, boolean single, List<SurgicalWrenchRotation.Body> bodies, SurgicalTablePlane.Plane plane) {
+	public SurgicalWrenchRotation.Plan planWrenchRotation(UUID subjectId, int cubeId,
+		SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
+		Map<Integer, BitSet> expectedGroup, List<SurgicalWrenchRotation.Body> bodies, SurgicalTablePlane.Plane plane) {
 		SurgicalWrenchRotation.Plan invalid = SurgicalWrenchRotation.Plan.fail(SurgicalWrenchRotation.Failure.INVALID);
 		SurgicalSubject selected = getSubjectByPersistentId(subjectId);
 		if (selected == null || !selected.validPresentCube(cubeId) || !plane.valid()
-			|| !worldPosition.equals(plane.source()) || bodies.isEmpty() || bodies.size() > SurgicalAssembly.MAX_SOURCES
-			|| !Double.isFinite(degrees) || !Double.isFinite(axis.lengthSqr())
-			|| !straighten && (axis.lengthSqr() < 1.0e-12d || Math.abs(degrees) != 5.0d && Math.abs(degrees) != 90.0d))
+			|| !worldPosition.equals(plane.source()) || bodies.isEmpty() || bodies.size() > SurgicalAssembly.MAX_SOURCES)
 			return invalid;
 		Map<Integer, BitSet> group = connectedComponents(selected.id(), cubeId);
+		if (!group.equals(expectedGroup))
+			return invalid;
 		Set<Integer> seen = new HashSet<>();
 		int total = 0;
 		for (SurgicalWrenchRotation.Body body : bodies) {
@@ -2414,12 +2415,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		if (!seen.equals(group.keySet()))
 			return invalid;
-		SurgicalWrenchRotation.Cube anchor = bodies.stream().filter(body -> body.id() == selected.id())
-			.findFirst().orElseThrow().cube(cubeId);
-		SurgicalCubeRotation delta = SurgicalWrenchRotation.delta(anchor, axis, degrees, straighten);
 		Map<Integer, BitSet> neighbors = directConnections(selected.id(), cubeId, selected.cubeCount, selected.seams);
 		SurgicalWrenchRotation.Plan plan = SurgicalWrenchRotation.plan(bodies, group, neighbors, selected.id(), cubeId,
-			delta, single && !straighten, plane.workArea(), occupiedForValidation(plane, seen));
+			groupRotation, selectedRotation, plane.workArea(), occupiedForValidation(plane, seen));
 		if (!plan.valid())
 			return plan;
 		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
@@ -2448,15 +2446,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		setChangedAndSync();
 	}
 
+	/** Validates an existing endpoint snapshot; destination clearance is checked by validateGlueMoves. */
 	public boolean validateGlueLayout(SurgicalSubject subject, SurgicalTablePlane.Plane plane,
 		SurgicalTableLayout.Proposal proposal) {
-		List<SurgicalTableLayout.Footprint> occupied = occupiedForValidation(plane,
-			connectedSubjectIds(subject.id()));
-		if (occupied == null || !layoutMatchesStoredOffsets(subject, proposal)
-			|| !SurgicalTableLayout.validateEditedGlueComponents(plane, subject.cubeCount,
-				subject.presentCubes, subject.seams, subject.cutSeams, proposal, occupied))
-			return false;
-		return true;
+		// Existing overlaps must not prevent moving a component out to a clear destination.
+		return layoutMatchesStoredOffsets(subject, proposal)
+			&& SurgicalTableLayout.validateEditedGlueComponents(plane, subject.cubeCount,
+				subject.presentCubes, subject.seams, subject.cutSeams, proposal, List.of());
 	}
 
 	/** The endpoint layout is a refreshed footprint for current server state, not another move. */

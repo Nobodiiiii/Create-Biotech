@@ -1,8 +1,13 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
+
+import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,13 +18,14 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.phys.Vec3;
 
 /** Model geometry is captured by the client; membership, transforms, fit and contact are checked by the server. */
-public record SurgicalTableCubeRotationPacket(BlockPos pos, InteractionHand hand, UUID subjectId,
-	int cubeId, Vec3 axis, double degrees, boolean straighten, boolean single,
+public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, InteractionHand hand, UUID subjectId,
+	int cubeId, SurgicalCubeRotation groupRotation, SurgicalCubeRotation selectedRotation,
+	Map<Integer, BitSet> group,
 	List<SurgicalWrenchRotation.Body> bodies) {
 	public SurgicalTableCubeRotationPacket(FriendlyByteBuf buffer) {
-		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readUUID(),
-			buffer.readVarInt(), readVector(buffer), buffer.readDouble(), buffer.readBoolean(), buffer.readBoolean(),
-			readBodies(buffer));
+		this(buffer.readBlockPos(), buffer.readUUID(), buffer.readEnum(InteractionHand.class), buffer.readUUID(),
+			buffer.readVarInt(), SurgicalCubeRotation.read(buffer), SurgicalCubeRotation.read(buffer),
+			readGroup(buffer), readBodies(buffer));
 	}
 
 	private static Vec3 readVector(FriendlyByteBuf buffer) {
@@ -37,6 +43,25 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, InteractionHand hand
 		if (count < 0 || count > maximum)
 			throw new IllegalArgumentException("Invalid surgical rotation payload size");
 		return count;
+	}
+
+	private static Map<Integer, BitSet> readGroup(FriendlyByteBuf buffer) {
+		int count = count(buffer, SurgicalAssembly.MAX_SOURCES);
+		Map<Integer, BitSet> group = new HashMap<>();
+		for (int i = 0; i < count; i++) {
+			int id = buffer.readVarInt();
+			int size = count(buffer, SurgicalAssembly.MAX_CUBES);
+			BitSet cubes = new BitSet();
+			for (int j = 0; j < size; j++) {
+				int cube = buffer.readVarInt();
+				if (cube < 0 || cube >= SurgicalAssembly.MAX_CUBES || cubes.get(cube))
+					throw new IllegalArgumentException("Invalid surgical rotation group");
+				cubes.set(cube);
+			}
+			if (group.putIfAbsent(id, cubes) != null)
+				throw new IllegalArgumentException("Duplicate surgical rotation body");
+		}
+		return Map.copyOf(group);
 	}
 
 	private static List<SurgicalWrenchRotation.Body> readBodies(FriendlyByteBuf buffer) {
@@ -70,13 +95,19 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, InteractionHand hand
 
 	public void write(FriendlyByteBuf buffer) {
 		buffer.writeBlockPos(pos);
+		buffer.writeUUID(requestId);
 		buffer.writeEnum(hand);
 		buffer.writeUUID(subjectId);
 		buffer.writeVarInt(cubeId);
-		writeVector(buffer, axis);
-		buffer.writeDouble(degrees);
-		buffer.writeBoolean(straighten);
-		buffer.writeBoolean(single);
+		groupRotation.write(buffer);
+		selectedRotation.write(buffer);
+		buffer.writeVarInt(group.size());
+		for (Map.Entry<Integer, BitSet> entry : group.entrySet()) {
+			buffer.writeVarInt(entry.getKey());
+			buffer.writeVarInt(entry.getValue().cardinality());
+			for (int cube = entry.getValue().nextSetBit(0); cube >= 0; cube = entry.getValue().nextSetBit(cube + 1))
+				buffer.writeVarInt(cube);
+		}
 		buffer.writeVarInt(bodies.size());
 		for (SurgicalWrenchRotation.Body body : bodies) {
 			buffer.writeVarInt(body.id());
@@ -99,24 +130,39 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, InteractionHand hand
 	}
 
 	public void handle(ServerPlayer player) {
+		if (player != null)
+			CBPackets.sendToPlayer(new Result(requestId, apply(player)), player);
+	}
+
+	private boolean apply(ServerPlayer player) {
 		if (player == null || player.isSpectator() || !player.mayBuild()
 			|| !player.level().isLoaded(pos) || !SurgicalKitItem.isWrench(player.getItemInHand(hand)))
-			return;
+			return false;
 		SurgicalTablePlane.Plane plane = SurgicalTablePlane.scan(player.level(), pos);
 		double range = player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d;
 		if (!plane.valid() || !pos.equals(plane.source()) || plane.tiles().stream()
 			.noneMatch(tile -> player.distanceToSqr(Vec3.atCenterOf(tile)) <= range * range))
-			return;
+			return false;
 		SurgicalTableBlockEntity table = SurgicalTableBlockEntity.controller(player.level(), plane);
 		if (table == null)
-			return;
-		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(subjectId, cubeId, axis, degrees,
-			straighten, single, bodies, plane);
+			return false;
+		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(subjectId, cubeId, groupRotation,
+			selectedRotation, group, bodies, plane);
 		if (plan.valid())
 			table.applyWrenchRotation(plan);
 		else
 			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.DISCONNECTED
 				? "message.create_biotech.surgical_table.rotation_disconnects"
 				: "message.create_biotech.surgical_table.no_space"), true);
+		return plan.valid();
 	}
+
+	public record Result(UUID requestId, boolean accepted) {
+		public Result(FriendlyByteBuf buffer) { this(buffer.readUUID(), buffer.readBoolean()); }
+		public void write(FriendlyByteBuf buffer) {
+			buffer.writeUUID(requestId);
+			buffer.writeBoolean(accepted);
+		}
+	}
+
 }
