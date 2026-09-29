@@ -1021,14 +1021,22 @@ public final class SurgicalAssembly {
 
 	/** Immutable physical dimensions and articulation for every installed arm, baked from the rest geometry. */
 	public record AttackGeometry(List<ArmAttackGeometry> right,
-		List<ArmAttackGeometry> left) {
+		List<ArmAttackGeometry> left, Map<CombinationMember, Vec3> carrierOrigins) {
+		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left) {
+			this(right, left, Map.of());
+		}
 		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
 
 		public AttackGeometry {
 			right = freezeArms(right);
 			left = freezeArms(left);
-			if (right.isEmpty() && left.isEmpty())
-				throw new IllegalArgumentException("Attack geometry requires at least one arm");
+			carrierOrigins = Map.copyOf(carrierOrigins);
+			if (carrierOrigins.size() > MAX_CUBES || carrierOrigins.entrySet().stream().anyMatch(entry ->
+				entry.getKey().source() < 0 || entry.getKey().source() >= MAX_SOURCES
+				|| entry.getKey().cube() < 0 || entry.getKey().cube() >= MAX_CUBES || !validPoint(entry.getValue())))
+				throw new IllegalArgumentException("Invalid carrier geometry");
+			if (right.isEmpty() && left.isEmpty() && carrierOrigins.isEmpty())
+				throw new IllegalArgumentException("Attack geometry requires an arm or carrier");
 			if (right.size() + left.size() > SurgicalLimbType.SHOULDER.maxPerBody())
 				throw new IllegalArgumentException("Attack geometry exceeds the shoulder limit");
 		}
@@ -1041,6 +1049,42 @@ public final class SurgicalAssembly {
 			} catch (IllegalArgumentException ignored) {
 				return null;
 			}
+		}
+
+		@Nullable
+		public static AttackGeometry create(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins) {
+			try { return new AttackGeometry(right, left, origins); }
+			catch (IllegalArgumentException ignored) { return null; }
+		}
+
+		private ListTag saveOrigins() {
+			ListTag list = new ListTag();
+			carrierOrigins.entrySet().stream().sorted(java.util.Comparator
+				.comparingInt((Map.Entry<CombinationMember, Vec3> e) -> e.getKey().source())
+				.thenComparingInt(e -> e.getKey().cube())).forEach(entry -> {
+				CompoundTag point = new CompoundTag();
+				point.putInt("Source", entry.getKey().source());
+				point.putInt("Cube", entry.getKey().cube());
+				point.putDouble("X", entry.getValue().x);
+				point.putDouble("Y", entry.getValue().y);
+				point.putDouble("Z", entry.getValue().z);
+				list.add(point);
+			});
+			return list;
+		}
+
+		private static Map<CombinationMember, Vec3> loadOrigins(CompoundTag tag) {
+			ListTag list = tag.getList("CarrierOrigins", Tag.TAG_COMPOUND);
+			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many carrier origins");
+			Map<CombinationMember, Vec3> points = new HashMap<>();
+			for (int i = 0; i < list.size(); i++) {
+				CompoundTag point = list.getCompound(i);
+				CombinationMember member = new CombinationMember(point.getInt("Source"), point.getInt("Cube"));
+				if (points.put(member, new Vec3(point.getDouble("X"), point.getDouble("Y"), point.getDouble("Z"))) != null)
+					throw new IllegalArgumentException("Duplicate carrier origin");
+			}
+			return points;
 		}
 
 		@Nullable
@@ -1080,28 +1124,34 @@ public final class SurgicalAssembly {
 			CompoundTag tag = new CompoundTag();
 			putArms(tag, RIGHT_ARMS_TAG, right);
 			putArms(tag, LEFT_ARMS_TAG, left);
+			tag.put("CarrierOrigins", saveOrigins());
 			return tag;
 		}
 
 		public void write(FriendlyByteBuf buffer) {
 			writeArms(buffer, right);
 			writeArms(buffer, left);
+			CompoundTag origins = new CompoundTag();
+			origins.put("CarrierOrigins", saveOrigins());
+			buffer.writeNbt(origins);
 		}
 
 		@Nullable
 		public static AttackGeometry read(FriendlyByteBuf buffer) {
 			List<ArmAttackGeometry> right = readArms(buffer);
 			List<ArmAttackGeometry> left = readArms(buffer);
-			if (right == null || left == null)
-				return null;
-			return create(right, left);
+			CompoundTag origins = buffer.readNbt();
+			if (right == null || left == null || origins == null) return null;
+			try { return create(right, left, loadOrigins(origins)); }
+			catch (IllegalArgumentException ignored) { return null; }
 		}
 
 		@Nullable
 		private static AttackGeometry load(CompoundTag tag) {
 			List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
 			List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
-			return right == null || left == null ? null : create(right, left);
+			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag)); }
+			catch (IllegalArgumentException ignored) { return null; }
 		}
 
 		private static List<ArmAttackGeometry> freezeArms(List<ArmAttackGeometry> arms) {

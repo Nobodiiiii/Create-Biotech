@@ -1,0 +1,11 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:creeper": true
+  },
+  "parameters": {
+    "fuse_ticks": 30,
+    "power": 3,
+    "charged_power": 6
+  }
+}

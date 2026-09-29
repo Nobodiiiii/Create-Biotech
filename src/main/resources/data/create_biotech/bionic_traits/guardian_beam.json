@@ -1,0 +1,48 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:guardian": {
+      "minecraft:guardian": true
+    },
+    "minecraft:elder_guardian": {
+      "minecraft:elder_guardian": true
+    }
+  },
+  "variants": {
+    "minecraft:guardian": {
+      "roles": [
+        "EYE"
+      ],
+      "parameters": {
+        "range": 16,
+        "min_range": 3,
+        "warmup_ticks": 90,
+        "damage": 6,
+        "magic_damage": 1
+      }
+    },
+    "minecraft:elder_guardian": {
+      "roles": [
+        "EYE"
+      ],
+      "parameters": {
+        "range": 16,
+        "warmup_ticks": 70,
+        "damage": 8,
+        "magic_damage": 3
+      }
+    }
+  },
+  "carriers": {
+    "minecraft:guardian": {
+      "EYE": [
+        "eye"
+      ]
+    },
+    "minecraft:elder_guardian": {
+      "EYE": [
+        "eye"
+      ]
+    }
+  }
+}

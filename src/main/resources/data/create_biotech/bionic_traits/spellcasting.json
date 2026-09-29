@@ -1,0 +1,49 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:evoker": {
+      "minecraft:fangs": true
+    },
+    "minecraft:witch": {
+      "minecraft:potion": true
+    }
+  },
+  "variants": {
+    "minecraft:fangs": {
+      "roles": [
+        "ATTACK_HAND"
+      ],
+      "parameters": {
+        "range": 20,
+        "warmup_ticks": 40,
+        "cooldown_ticks": 60
+      }
+    },
+    "minecraft:potion": {
+      "roles": [
+        "ATTACK_HAND"
+      ],
+      "parameters": {
+        "range": 10,
+        "warmup_ticks": 10,
+        "cooldown_ticks": 50
+      }
+    }
+  },
+  "carriers": {
+    "minecraft:evoker": {
+      "ATTACK_HAND": [
+        "arms",
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:witch": {
+      "ATTACK_HAND": [
+        "arms"
+      ]
+    }
+  }
+}

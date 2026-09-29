@@ -1,0 +1,25 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:cow": true,
+    "minecraft:mooshroom": true,
+    "minecraft:goat": true
+  },
+  "carriers": {
+    "minecraft:cow": {
+      "TORSO": [
+        "body"
+      ]
+    },
+    "minecraft:mooshroom": {
+      "TORSO": [
+        "body"
+      ]
+    },
+    "minecraft:goat": {
+      "TORSO": [
+        "body"
+      ]
+    }
+  }
+}

@@ -209,6 +209,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	@Override
 	public void render(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
+		poseStack.pushPose();
+		float fuse = (entity.getProductionFlags() >> 2) / (float) Math.max(1,
+			entity.getBionicTraits().parameter(com.nobodiiiii.createbiotech.entity.trait.BionicTrait.SELF_DESTRUCT, "fuse_ticks", 30));
+		float swell = 1 + Math.min(1, fuse) * 0.2f;
+		poseStack.scale(swell, swell, swell);
+		renderBody(entity, yaw, partialTick, poseStack, buffer, packedLight);
+		if (!entity.isDeadOrDying()) com.nobodiiiii.createbiotech.entity.client.BionicTraitClient.render(entity, partialTick, poseStack, buffer, packedLight);
+		poseStack.popPose();
+	}
+
+	private void renderBody(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
 		boolean hideOriginal = entity.isDeadOrDying() && SlimeMimicHandler.isSlimeMimic(entity);
 		if (hideOriginal && SlimeMimicDeathClient.hasReported(entity))
 			return;

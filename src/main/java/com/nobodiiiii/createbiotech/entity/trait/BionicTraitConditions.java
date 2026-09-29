@@ -16,6 +16,8 @@ final class BionicTraitConditions {
 			return null;
 		return switch (trait.condition()) {
 		case NONE -> null;
+		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
+			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
 		case BREATHING_REQUIRED -> covered.has(BionicTrait.NO_BREATHING)
 			? InactiveReason.BREATHING_NOT_REQUIRED : null;
 		case WING_LIFT -> {

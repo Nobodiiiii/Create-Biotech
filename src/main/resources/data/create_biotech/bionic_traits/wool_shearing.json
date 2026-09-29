@@ -1,0 +1,16 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:sheep": true
+  },
+  "carriers": {
+    "minecraft:sheep": {
+      "TORSO": [
+        "body"
+      ]
+    }
+  },
+  "parameters": {
+    "regrow_ticks": 6000
+  }
+}

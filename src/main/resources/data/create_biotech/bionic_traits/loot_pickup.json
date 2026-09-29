@@ -1,0 +1,97 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:zombie": true,
+    "minecraft:husk": true,
+    "minecraft:zombie_villager": true,
+    "minecraft:drowned": true,
+    "minecraft:zombified_piglin": true,
+    "minecraft:skeleton": true,
+    "minecraft:stray": true,
+    "minecraft:bogged": true,
+    "minecraft:wither_skeleton": true,
+    "minecraft:piglin": true
+  },
+  "carriers": {
+    "minecraft:zombie": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:husk": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:zombie_villager": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:drowned": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:zombified_piglin": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:skeleton": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:stray": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:bogged": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:wither_skeleton": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    },
+    "minecraft:piglin": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    }
+  }
+}

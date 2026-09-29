@@ -112,7 +112,8 @@ import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.common.NeoForgeMod;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
-public class SlimeBionicEntity extends PathfinderMob {
+public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.world.entity.Saddleable,
+	net.minecraft.world.entity.PlayerRideableJumping, net.neoforged.neoforge.common.IShearable {
 	private static final float MAX_COLLISION_WIDTH = 2.0f;
 	private static final float MAX_COLLISION_HEIGHT = 8.0f;
 	private static final float MULTIPART_THRESHOLD = 8.0f;
@@ -150,6 +151,44 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	private final BionicHunting hunting = new BionicHunting(this);
+	private final com.nobodiiiii.createbiotech.entity.trait.BionicEquipment equipment = new com.nobodiiiii.createbiotech.entity.trait.BionicEquipment(this);
+	private final com.nobodiiiii.createbiotech.entity.trait.BionicProduction production = new com.nobodiiiii.createbiotech.entity.trait.BionicProduction(this);
+	private final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
+	private static final EntityDataAccessor<Integer> EQUIPMENT_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> PRODUCTION_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> SPECIAL_ACTION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<org.joml.Vector3f> SPECIAL_ORIGIN = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.VECTOR3);
+	private static final EntityDataAccessor<Integer> SPECIAL_TARGET = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private float riderJump;
+	private int riderJumpCooldown;
+	private boolean riderAscending;
+	public com.nobodiiiii.createbiotech.entity.trait.BionicEquipment getBionicEquipment() { return equipment; }
+	public com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks getSpecialAttacks() { return specialAttacks; }
+	public int getEquipmentFlags() { return entityData.get(EQUIPMENT_DATA); }
+	public void setEquipmentFlags(int value) { entityData.set(EQUIPMENT_DATA, value); }
+	public void setBionicSitting(boolean value) { setOrderedToSit(value); }
+	public int getProductionFlags() { return entityData.get(PRODUCTION_DATA); }
+	public void setProductionFlags(int flags) { entityData.set(PRODUCTION_DATA, flags); }
+	public void markSelfDestructing() { dead = true; }
+	public void finishSelfDestruct() { dropPreservedEquipment(); dropEquipment(); triggerOnDeathMobEffects(RemovalReason.KILLED); discard(); }
+	public int getSpecialAction() { return entityData.get(SPECIAL_ACTION); }
+	public void syncSpecialOrigin(Vec3 worldOrigin) {
+		entityData.set(SPECIAL_ORIGIN, worldOrigin.subtract(position()).yRot(yBodyRot * Mth.DEG_TO_RAD).toVector3f());
+	}
+	public Vec3 getSpecialOrigin() { return position().add(new Vec3(entityData.get(SPECIAL_ORIGIN)).yRot(-yBodyRot * Mth.DEG_TO_RAD)); }
+	public int getSpecialTarget() { return entityData.get(SPECIAL_TARGET); }
+	public void syncSpecialAction(int action, int target) { entityData.set(SPECIAL_ACTION, action); entityData.set(SPECIAL_TARGET, target); }
+	@Nullable public Vec3 lastHeardPosition(Entity target) { return vibrationSense.lastHeardPosition(target); }
+	public void setRiderAscending(boolean value) { riderAscending = value; }
+	public boolean isSelfDestructing() { return production != null && production.exploding(); }
+	@Override protected void blockedByShield(LivingEntity victim) {
+		if (attackActionTick > 0 && getBionicTraits().has(BionicTrait.ROAR)) specialAttacks.blockedByShield(victim);
+		else super.blockedByShield(victim);
+	}
+	private boolean hasRiddenFlight() {
+		return !isSwimming() && (getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || getBionicTraits().has(BionicTrait.WING_FLIGHT));
+	}
+	public boolean canReplaceBionicWeapon(ItemStack incoming, ItemStack current) { return canReplaceCurrentItem(incoming, current); }
 	@Nullable private LivingEntity packAlertTarget;
 	private boolean evaluatingJumpPath;
 	private boolean strongJumpEnabled;
@@ -257,9 +296,29 @@ public class SlimeBionicEntity extends PathfinderMob {
 	protected void registerGoals() {
 		goalSelector.addGoal(0, new BionicFloatGoal(this));
 		goalSelector.addGoal(1, new BionicSitGoal(this));
+		goalSelector.addGoal(1, new Goal() {
+			{ setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP)); }
+			@Override public boolean canUse() { return isVehicle() || specialAttacks != null && specialAttacks.busy(); }
+			@Override public boolean canContinueToUse() { return canUse(); }
+			@Override public void start() { getNavigation().stop(); }
+			@Override public void tick() { getNavigation().stop(); }
+		});
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
 		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
 		goalSelector.addGoal(5, new BionicFollowOwnerGoal(this));
+		goalSelector.addGoal(6, new Goal() {
+			private Goal delegate;
+			{ setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK)); }
+			@Override public boolean canUse() {
+				if (production == null) return false;
+				if (delegate == null) delegate = production.pollinationGoal();
+				return delegate.canUse();
+			}
+			@Override public boolean canContinueToUse() { return delegate.canContinueToUse(); }
+			@Override public boolean requiresUpdateEveryTick() { return true; }
+			@Override public void tick() { delegate.tick(); }
+			@Override public void stop() { delegate.stop(); }
+		});
 		goalSelector.addGoal(7, new BionicLandStrollGoal(this));
 		goalSelector.addGoal(7, new BionicSwimStrollGoal(this));
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
@@ -314,6 +373,11 @@ public class SlimeBionicEntity extends PathfinderMob {
 		builder.define(ASSEMBLY, new CompoundTag());
 		builder.define(OWNER_DATA, Optional.empty());
 		builder.define(SITTING_DATA, false);
+		builder.define(EQUIPMENT_DATA, 0);
+		builder.define(PRODUCTION_DATA, 0);
+		builder.define(SPECIAL_ACTION, 0);
+		builder.define(SPECIAL_TARGET, 0);
+		builder.define(SPECIAL_ORIGIN, new org.joml.Vector3f());
 	}
 
 	private void setBionicOwner(@Nullable UUID value) {
@@ -435,6 +499,13 @@ public class SlimeBionicEntity extends PathfinderMob {
 			refreshNaturalArmor(bionicTraits);
 			refreshKnockbackResistance(bionicTraits);
 			refreshLocomotion(bionicTraits);
+			if (!level().isClientSide) {
+				double range = 35;
+				for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
+					if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
+						range = Math.max(range, variant.parameter("range", 16));
+				getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(range);
+			}
 			if (!bionicTraits.has(BionicTrait.MOISTURE_DEPENDENT))
 				moisture = -1;
 			if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
@@ -474,6 +545,10 @@ public class SlimeBionicEntity extends PathfinderMob {
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
 		ItemStack held = player.getItemInHand(hand);
+		InteractionResult productionResult = production.interact(player, hand);
+		if (productionResult.consumesAction()) return productionResult;
+		InteractionResult equipmentResult = equipment.interact(player, hand);
+		if (equipmentResult.consumesAction()) return equipmentResult;
 		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
 			return super.mobInteract(player, hand);
 		if (ownerId == null && held.is(Items.SLIME_BALL)) {
@@ -747,7 +822,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 			movement = movement.scale(1.35d);
 		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
 			movement = movement.scale(0.25d);
-		if (isSwimming() && isInWaterOrBubble() && isControlledByLocalInstance()) {
+		if ((isSwimming() && isInWaterOrBubble() || hasRiddenFlight() && isVehicle()) && isControlledByLocalInstance()) {
 			// Pair swimming steering with aquatic travel (vanilla Axolotl.travel): land-mob
 			// water gravity and collision jumps fight the controller's vertical input.
 			moveRelative(getSpeed(), movement);
@@ -916,7 +991,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	private boolean withinCombatEnvelope(AABB targetBounds) {
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		if (geometry == null)
+		if (geometry == null || geometry.armCount() == 0)
 			return SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), combatBodyYaw(),
 				SlimeBionicCombat.fallbackArm(getBbWidth(), getBbHeight()));
 		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms())
@@ -955,14 +1030,14 @@ public class SlimeBionicEntity extends PathfinderMob {
 		@Nullable ArmUse lastArm) {
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		ArmSelection selection = geometry == null ? fallbackArm(target, rightRecovery[0])
+		ArmSelection selection = geometry == null || geometry.armCount() == 0 ? fallbackArm(target, rightRecovery[0])
 			: selectArm(target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
 
 		ArmCandidate selected = selection.arm();
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(
-			geometry == null ? null : selected.arm());
+			geometry == null || geometry.armCount() == 0 ? null : selected.arm());
 		int recovery = SurgicalCombatCalibration.armRecovery(stats);
 		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms());
 		int actionDuration = startAttackAction(selected, interval);
@@ -1080,7 +1155,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	@Override
 	public void tick() {
-		if (!level().isClientSide) hunting.tick();
+		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
+		if (riderJumpCooldown > 0) riderJumpCooldown--;
+		if (!isVehicle()) { riderJump = 0; riderAscending = false; }
 		super.tick();
 		tickLavaWalking();
 		if (getBionicTraits().has(BionicTrait.WING_SLOW_FALL) && !onGround() && !isInWaterOrBubble()
@@ -1092,6 +1169,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		}
 		if (!level().isClientSide) {
 			BionicDefenses.tick(this);
+			equipment.tick();
+			production.tick();
 			if (packAlertTarget != null && (getTarget() != packAlertTarget || !packAlertTarget.isAlive()))
 				packAlertTarget = null;
 			if (navigation instanceof net.minecraft.world.entity.ai.navigation.GroundPathNavigation ground)
@@ -1406,6 +1485,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 	private boolean doSelectedAttack(Entity target) {
 		boolean hit = super.doHurtTarget(target);
+		specialAttacks.afterMelee();
 		if (!hit || level().isClientSide || !(target instanceof LivingEntity victim))
 			return hit;
 		SurgicalAssembly assembly = getAssembly();
@@ -1632,6 +1712,9 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public void addAdditionalSaveData(CompoundTag tag) {
 		super.addAdditionalSaveData(tag);
 		hunting.save(tag);
+		equipment.save(tag);
+		production.save(tag);
+		specialAttacks.save(tag);
 		SlimeMimicAccess slimeState = (SlimeMimicAccess) (Object) this;
 		tag.putBoolean(SOURCE_FORM_TAG, !slimeState.createBiotech$isSlimeMimic());
 		CompoundTag assembly = entityData.get(ASSEMBLY);
@@ -1654,6 +1737,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 	public void readAdditionalSaveData(CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
 		hunting.load(tag);
+		specialAttacks.load(tag);
 		packAlertTarget = null;
 		if (!tag.contains(SOURCE_FORM_TAG, Tag.TAG_BYTE)
 			|| !tag.contains(ASSEMBLY_TAG, Tag.TAG_COMPOUND))
@@ -1664,6 +1748,8 @@ public class SlimeBionicEntity extends PathfinderMob {
 		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(!sourceForm);
 		setAssembly(assembly);
+		equipment.load(tag);
+		production.load(tag);
 		if (tag.contains(MOISTURE_TAG, Tag.TAG_ANY_NUMERIC))
 			moisture = Mth.clamp(tag.getInt(MOISTURE_TAG), 0, MAX_MOISTURE);
 		if (tag.contains(DRY_AIR_TAG, Tag.TAG_ANY_NUMERIC))
@@ -1677,6 +1763,84 @@ public class SlimeBionicEntity extends PathfinderMob {
 			setBionicOwner(null);
 			setOrderedToSit(false);
 		}
+	}
+
+	@Override public boolean isSaddleable() { return isAlive() && getBionicTraits().has(BionicTrait.RIDEABLE); }
+	@Override public boolean isSaddled() { return equipment != null && equipment.saddled(); }
+	@Override public void equipSaddle(ItemStack stack, @Nullable net.minecraft.sounds.SoundSource source) {
+		if (!isSaddleable() || isSaddled()) return;
+		equipment.equipSaddle(stack);
+		if (source != null) level().playSound(null, this, net.minecraft.sounds.SoundEvents.HORSE_SADDLE, source, 1, 1);
+	}
+	@Override protected boolean canAddPassenger(Entity passenger) {
+		return passenger instanceof Player player && !isOrderedToSit() && isSaddled() && isSaddleable()
+			&& equipment.mayUse(player) && getPassengers().size() < equipment.seats();
+	}
+	@Override @Nullable public LivingEntity getControllingPassenger() {
+		return isSaddled() && isSaddleable() && getFirstPassenger() instanceof Player player && equipment.mayUse(player) ? player : null;
+	}
+	@Override protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
+		SurgicalAssembly assembly = getAssembly();
+		if (assembly == null || assembly.hitboxGeometry() == null) return super.getPassengerAttachmentPoint(passenger, dimensions, scale);
+		var body = assembly.hitboxGeometry().body();
+		double offset = equipment.seats() == 2 ? (getPassengers().indexOf(passenger) == 0 ? 0.25 : -0.25)
+			* (body.maxZ() - body.minZ()) : 0;
+		return new Vec3((body.minX() + body.maxX()) / 2, body.maxY(), (body.minZ() + body.maxZ()) / 2 + offset)
+			.yRot(-yBodyRot * Mth.DEG_TO_RAD);
+	}
+	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
+		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)
+			for (int[] offset : net.minecraft.world.entity.vehicle.DismountHelper.offsetsForDirection(getDirection())) {
+				BlockPos pos = blockPosition().offset(offset[0] * radius, y, offset[1] * radius);
+				if (!level().hasChunkAt(pos) || !level().getFluidState(pos).isEmpty()) continue;
+				Vec3 safe = net.minecraft.world.entity.vehicle.DismountHelper.findSafeDismountLocation(passenger.getType(), level(), pos, true);
+				if (safe != null && !getBoundingBox().intersects(passenger.getBoundingBox().move(safe.subtract(passenger.position())))) return safe;
+			}
+		return super.getDismountLocationForPassenger(passenger);
+	}
+	@Override protected Vec3 getRiddenInput(Player player, Vec3 movement) {
+		double forward = player.zza > 0 ? player.zza : player.zza * 0.25;
+		double vertical = hasRiddenFlight() || isSwimming() ? -Math.sin(player.getXRot() * Mth.DEG_TO_RAD) * forward
+			+ (riderAscending ? 0.8 : 0) : 0;
+		return new Vec3(player.xxa * 0.5, vertical,
+			hasRiddenFlight() || isSwimming() ? forward * Math.cos(player.getXRot() * Mth.DEG_TO_RAD) : forward);
+	}
+	@Override protected float getRiddenSpeed(Player player) {
+		return (float) getAttributeValue(hasRiddenFlight() ? Attributes.FLYING_SPEED : Attributes.MOVEMENT_SPEED)
+			+ (equipment.camel() && player.isSprinting() ? 0.1f : 0);
+	}
+	@Override protected void tickRidden(Player player, Vec3 input) {
+		super.tickRidden(player, input);
+		setRot(player.getYRot(), player.getXRot() * 0.5f);
+		yRotO = yBodyRot = yHeadRot = getYRot();
+		if (!isControlledByLocalInstance()) return;
+		if (riderJump > 0 && onGround()) {
+			if (equipment.camel() && !getBionicTraits().has(BionicTrait.STRONG_JUMP)) {
+				Vec3 look = player.getLookAngle();
+				setDeltaMovement(getDeltaMovement().add(look.x * 1.5 * riderJump, 0.4 * riderJump, look.z * 1.5 * riderJump));
+			} else setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
+			hasImpulse = true; riderJump = 0;
+		} else if (onGround() && input.horizontalDistanceSqr() > 0 && getLocomotionLegCount() < 2) jumpFromGround();
+	}
+	@Override public boolean canJump() { return isSaddled() && isSaddleable() && !hasRiddenFlight() && !isSwimming()
+		&& (equipment.jumpingDonor() || getBionicTraits().has(BionicTrait.STRONG_JUMP)); }
+	@Override public int getJumpCooldown() { return riderJumpCooldown; }
+	@Override public void onPlayerJump(int strength) {
+		if (!canJump() || riderJumpCooldown > 0) return;
+		riderJump = strength >= 90 ? 1 : 0.4f + 0.4f * Mth.clamp(strength, 0, 90) / 90;
+		if (equipment.camel() && !getBionicTraits().has(BionicTrait.STRONG_JUMP)) riderJumpCooldown = 55;
+	}
+	@Override public void handleStartJump(int strength) { onPlayerJump(strength); }
+	@Override public void handleStopJump() {}
+	@Override protected void dropEquipment() { super.dropEquipment(); equipment.drop(); }
+	@Override public boolean isShearable(@Nullable Player player, ItemStack item, Level level, BlockPos pos) {
+		return production.shearable();
+	}
+	@Override public List<ItemStack> onSheared(@Nullable Player player, ItemStack item, Level level, BlockPos pos) {
+		return production.shear();
+	}
+	@Override public void thunderHit(net.minecraft.server.level.ServerLevel level, net.minecraft.world.entity.LightningBolt lightning) {
+		super.thunderHit(level, lightning); production.charge();
 	}
 
 	private static final class BionicFloatGoal extends FloatGoal {
@@ -1847,6 +2011,7 @@ public class SlimeBionicEntity extends PathfinderMob {
 
 		private boolean validTarget(@Nullable LivingEntity target) {
 			return target != null && bionic.isAlive() && !bionic.isNoAi() && target.isAlive()
+				&& !bionic.isVehicle() && !bionic.specialAttacks.busy()
 				&& target.level() == bionic.level() && bionic.canAttack(target)
 				&& !bionic.isAlliedTo(target) && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(target);
 		}

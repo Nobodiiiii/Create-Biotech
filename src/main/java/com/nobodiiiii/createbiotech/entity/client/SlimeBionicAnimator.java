@@ -96,8 +96,6 @@ public final class SlimeBionicAnimator {
 			|| sources.size() != assembly.sources().size())
 			return null;
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
-		if (limbs.isEmpty())
-			return null;
 		List<SurgicalAssembly.ArmAttackGeometry> right = new ArrayList<>();
 		List<SurgicalAssembly.ArmAttackGeometry> left = new ArrayList<>();
 		List<Integer> shoulders = new ArrayList<>();
@@ -123,7 +121,16 @@ public final class SlimeBionicAnimator {
 				continue;
 			(shoulder.arm().left() ? left : right).add(arm);
 		}
-		return SurgicalAssembly.AttackGeometry.create(right, left);
+		Map<SurgicalAssembly.CombinationMember, Vec3> origins = new HashMap<>();
+		for (int source = 0; source < sources.size(); source++) {
+			var present = assembly.sources().get(source).presentCubes();
+			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+				CubeBox box = box(sources, new Member(source, cube));
+				if (box != null) origins.put(new SurgicalAssembly.CombinationMember(source, cube),
+					box.center().subtract(bodyOrigin));
+			}
+		}
+		return SurgicalAssembly.AttackGeometry.create(right, left, origins);
 	}
 
 	@Nullable

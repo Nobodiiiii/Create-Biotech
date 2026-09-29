@@ -1,0 +1,165 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:llama": {
+      "minecraft:spit": true
+    },
+    "minecraft:trader_llama": {
+      "minecraft:spit": true
+    },
+    "minecraft:snow_golem": {
+      "minecraft:snowball": true
+    },
+    "minecraft:blaze": {
+      "minecraft:small_fireball": true
+    },
+    "minecraft:ghast": {
+      "minecraft:fireball": true
+    },
+    "minecraft:shulker": {
+      "minecraft:shulker_bullet": true
+    },
+    "minecraft:wither": {
+      "minecraft:wither_skull": true
+    },
+    "minecraft:ender_dragon": {
+      "minecraft:dragon_breath": true
+    },
+    "minecraft:breeze": {
+      "minecraft:wind_charge": true
+    }
+  },
+  "variants": {
+    "minecraft:spit": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 20,
+        "warmup_ticks": 0,
+        "cooldown_ticks": 40
+      }
+    },
+    "minecraft:snowball": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 10,
+        "warmup_ticks": 0,
+        "cooldown_ticks": 20
+      }
+    },
+    "minecraft:small_fireball": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 48,
+        "warmup_ticks": 60,
+        "cooldown_ticks": 100
+      }
+    },
+    "minecraft:fireball": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 64,
+        "warmup_ticks": 20,
+        "cooldown_ticks": 40
+      }
+    },
+    "minecraft:shulker_bullet": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 20,
+        "warmup_ticks": 0,
+        "cooldown_ticks": 20
+      }
+    },
+    "minecraft:wither_skull": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 20,
+        "warmup_ticks": 0,
+        "cooldown_ticks": 40
+      }
+    },
+    "minecraft:dragon_breath": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 64,
+        "warmup_ticks": 20,
+        "cooldown_ticks": 80
+      }
+    },
+    "minecraft:wind_charge": {
+      "roles": [
+        "HEAD"
+      ],
+      "parameters": {
+        "range": 16,
+        "warmup_ticks": 15,
+        "cooldown_ticks": 5
+      }
+    }
+  },
+  "carriers": {
+    "minecraft:llama": {
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:trader_llama": {
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:snow_golem": {
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:blaze": {
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:ghast": {
+      "HEAD": [
+        "body"
+      ]
+    },
+    "minecraft:shulker": {
+      "HEAD": [
+        "head"
+      ]
+    },
+    "minecraft:wither": {
+      "HEAD": [
+        "center_head",
+        "left_head",
+        "right_head"
+      ]
+    },
+    "minecraft:ender_dragon": {
+      "HEAD": [
+        "head",
+        "jaw"
+      ]
+    },
+    "minecraft:breeze": {
+      "HEAD": [
+        "head",
+        "eyes"
+      ]
+    }
+  }
+}

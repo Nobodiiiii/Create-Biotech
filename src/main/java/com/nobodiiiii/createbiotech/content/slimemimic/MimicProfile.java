@@ -48,6 +48,7 @@ public final class MimicProfile {
 		entry(EntityType.GOAT, List.of("IsScreamingGoat", "HasLeftHorn", "HasRightHorn")),
 		entry(EntityType.HORSE, List.of("Variant")),
 		entry(EntityType.LLAMA, List.of("Variant", "Strength")),
+		entry(EntityType.TRADER_LLAMA, List.of("Variant", "Strength")),
 		entry(EntityType.MAGMA_CUBE, List.of("Size")),
 		entry(EntityType.MOOSHROOM, List.of("Type")),
 		entry(EntityType.PANDA, List.of("MainGene", "HiddenGene")),
@@ -146,6 +147,10 @@ public final class MimicProfile {
 			? sanitizePreviewData(tag.getCompound(PREVIEW_DATA_TAG)) : new CompoundTag();
 		Boolean baby = tag.contains(BABY_TAG, Tag.TAG_BYTE) ? tag.getBoolean(BABY_TAG) : null;
 		return POOL.intern(new MimicProfile(entityTypeId, stableData, previewData, baby));
+	}
+
+	public int stableInt(String field) {
+		return stableData.getInt(field);
 	}
 
 	public CompoundTag save() {

@@ -75,6 +75,7 @@ final class BionicTraitJeiText {
 	private static Component condition(BionicTrait trait) {
 		return switch (trait.condition()) {
 		case NONE -> null;
+		case BODY_VOLUME -> tr("condition.body_volume");
 		case BREATHING_REQUIRED -> tr("condition.breathing");
 		case WING_LIFT -> tr("condition.wings");
 		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",

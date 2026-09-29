@@ -1,0 +1,7 @@
+{
+  "automatic_detection": true,
+  "values": {},
+  "parameters": {
+    "min_body_volume": 0.5
+  }
+}

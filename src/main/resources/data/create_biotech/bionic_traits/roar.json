@@ -1,0 +1,22 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:ravager": true
+  },
+  "carriers": {
+    "minecraft:ravager": {
+      "HEAD": [
+        "head",
+        "mouth",
+        "left_horn",
+        "right_horn"
+      ]
+    }
+  },
+  "parameters": {
+    "stun_ticks": 40,
+    "warmup_ticks": 10,
+    "range": 4,
+    "damage": 6
+  }
+}

@@ -139,6 +139,9 @@ public final class BionicTraitDonors {
 		}
 		if (donor != null && donor.isBaby() && (type == EntityType.HOGLIN || type == EntityType.ZOGLIN))
 			abilities.remove(BionicTrait.LAUNCH_STRIKE);
+		if (donor != null && donor.isBaby())
+			abilities.removeAll(Set.of(BionicTrait.MILKABLE, BionicTrait.WOOL_SHEARING,
+				BionicTrait.EGG_LAYING, BionicTrait.SCUTE_SHEDDING));
 		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type).stream()
 			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()), variants);
 	}
@@ -146,6 +149,8 @@ public final class BionicTraitDonors {
 	@SuppressWarnings("deprecation")
 	private static boolean automatic(BionicTrait trait, EntityType<?> type, @Nullable LivingEntity donor) {
 		return switch (trait) {
+		case RIDEABLE -> donor instanceof net.minecraft.world.entity.Saddleable;
+		case CARGO_CHEST -> donor instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
 		case FIRE_IMMUNE, FIRE_RESISTANCE -> type.fireImmune() || donor != null && donor.fireImmune();
 		case WATER_SENSITIVE -> donor != null && donor.isSensitiveToWater();
 		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);

@@ -79,6 +79,8 @@ public final class BionicAnatomyRegistry extends SimpleJsonResourceReloadListene
 			boolean leg = containsAny(name, "leg", "foot", "feet", "paw", "hoof");
 			if (name.contains("head") || name.contains("skull"))
 				set(roles, BionicAnatomyRole.HEAD, cube);
+			if (containsAny(name, "eye"))
+				set(roles, BionicAnatomyRole.EYE, cube);
 			if (containsAny(name, "horn", "tusk"))
 				set(roles, BionicAnatomyRole.HORN, cube);
 			if (name.contains("gill"))

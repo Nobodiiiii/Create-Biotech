@@ -107,6 +107,11 @@ public class CBEntityTypes {
 			.setShouldReceiveVelocityUpdates(true)
 			.build("slime_mimic_cube"));
 
+	public static final DeferredHolder<EntityType<?>, EntityType<com.nobodiiiii.createbiotech.entity.trait.BionicAreaEffectCloud>> BIONIC_EFFECT_CLOUD =
+		ENTITY_TYPES.register("bionic_effect_cloud", () -> EntityType.Builder
+			.<com.nobodiiiii.createbiotech.entity.trait.BionicAreaEffectCloud>of(com.nobodiiiii.createbiotech.entity.trait.BionicAreaEffectCloud::new, MobCategory.MISC)
+			.fireImmune().sized(6, 0.5f).setTrackingRange(10).setUpdateInterval(10).build("bionic_effect_cloud"));
+
 	private CBEntityTypes() {}
 
 	public static void register(IEventBus modEventBus) {

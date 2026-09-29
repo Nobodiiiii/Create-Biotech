@@ -148,7 +148,37 @@ public enum BionicTrait {
 		Carrier.allTissue()),
 	LAUNCH_STRIKE("launch_strike", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.ATTACK_HAND, BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING, BionicAnatomyRole.HORN));
+		Carrier.of(BionicAnatomyRole.ATTACK_HAND, BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING, BionicAnatomyRole.HORN)),
+	RIDEABLE("rideable", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.BODY_VOLUME, Carrier.allTissue()),
+	CARGO_CHEST("cargo_chest", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
+	LOOT_PICKUP("loot_pickup", BionicTraitScope.ARM,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
+	SONIC_BOOM("sonic_boom", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+	ROAR("roar", BionicTraitScope.HEAD,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.HEAD, BionicAnatomyRole.HORN)),
+	HEAD_PROJECTILE("head_projectile", BionicTraitScope.HEAD,
+		BionicTraitRule.presence(), ValueKind.SUBTRAIT_SET, Condition.NONE, Carrier.of(BionicAnatomyRole.HEAD)),
+	GUARDIAN_BEAM("guardian_beam", BionicTraitScope.HEAD,
+		BionicTraitRule.presence(), ValueKind.SUBTRAIT_SET, Condition.NONE, Carrier.of(BionicAnatomyRole.EYE)),
+	SPELLCASTING("spellcasting", BionicTraitScope.ARM,
+		BionicTraitRule.presence(), ValueKind.SUBTRAIT_SET, Condition.NONE, Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
+	SELF_DESTRUCT("self_destruct", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
+	SNOW_TRAIL("snow_trail", BionicTraitScope.LEG,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.FOOT)),
+	POLLINATION("pollination", BionicTraitScope.LEG,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.LEG)),
+	MILKABLE("milkable", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+	WOOL_SHEARING("wool_shearing", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+	EGG_LAYING("egg_laying", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+	SCUTE_SHEDDING("scute_shedding", BionicTraitScope.TORSO,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.SHELL));
 
 	private final String id;
 	private final Set<BionicTraitScope> scopes;
@@ -185,7 +215,7 @@ public enum BionicTrait {
 
 	boolean automaticDetection() {
 		return switch (this) {
-		case ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
+		case RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
 			BODY_BOUNCE, PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
@@ -210,5 +240,5 @@ public enum BionicTrait {
 	}
 
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
-	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED }
+	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME }
 }

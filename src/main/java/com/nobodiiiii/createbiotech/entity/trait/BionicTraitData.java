@@ -29,6 +29,6 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 			return value;
 		if (key.equals("chance") || key.endsWith("multiplier"))
 			return Math.min(1.0d, value);
-		return Math.min(key.endsWith("duration_ticks") ? 12000.0d : 100.0d, value);
+		return Math.min(key.endsWith("_ticks") ? 24000.0d : 100.0d, value);
 	}
 }

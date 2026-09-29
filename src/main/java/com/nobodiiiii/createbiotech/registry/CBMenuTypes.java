@@ -47,6 +47,9 @@ public class CBMenuTypes {
 	public static final DeferredHolder<MenuType<?>, MenuType<AllayCourierMenu>> ALLAY_COURIER =
 		MENU_TYPES.register("allay_courier", () -> IMenuTypeExtension.create(AllayCourierMenu::new));
 
+	public static final DeferredHolder<MenuType<?>, MenuType<com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu>> BIONIC_CARGO =
+		MENU_TYPES.register("bionic_cargo", () -> IMenuTypeExtension.create(com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu::new));
+
 	private CBMenuTypes() {}
 
 	public static void register(IEventBus modEventBus) {

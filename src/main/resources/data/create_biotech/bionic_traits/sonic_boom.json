@@ -1,0 +1,22 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:warden": true
+  },
+  "carriers": {
+    "minecraft:warden": {
+      "TORSO": [
+        "body",
+        "right_ribcage",
+        "left_ribcage"
+      ]
+    }
+  },
+  "parameters": {
+    "range": 15,
+    "vertical_range": 20,
+    "warmup_ticks": 34,
+    "action_ticks": 60,
+    "cooldown_ticks": 40
+  }
+}

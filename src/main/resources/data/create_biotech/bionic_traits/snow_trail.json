@@ -1,0 +1,16 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:snow_golem": true
+  },
+  "carriers": {
+    "minecraft:snow_golem": {
+      "FOOT": [
+        "lower_body"
+      ]
+    }
+  },
+  "parameters": {
+    "min_legs": 1
+  }
+}

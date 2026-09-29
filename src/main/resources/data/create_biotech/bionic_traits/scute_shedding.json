@@ -1,0 +1,17 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:armadillo": true
+  },
+  "carriers": {
+    "minecraft:armadillo": {
+      "SHELL": [
+        "body"
+      ]
+    }
+  },
+  "parameters": {
+    "min_interval_ticks": 6000,
+    "max_interval_ticks": 11999
+  }
+}

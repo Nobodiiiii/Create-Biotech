@@ -224,6 +224,7 @@ public class CreateBiotechClient {
 			context -> new AllayCourierEntityRenderer(context));
 		event.registerEntityRenderer(CBEntityTypes.DING_DONG_CHICKEN.get(), DingDongChickenRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.SLIME_BIONIC.get(), SlimeBionicRenderer::new);
+		event.registerEntityRenderer(CBEntityTypes.BIONIC_EFFECT_CLOUD.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.PLAYER_MIMIC.get(), PlayerMimicRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.SLIME_MIMIC_CUBE.get(), SlimeMimicCubeRenderer::new);
 	}
@@ -303,6 +304,7 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerMenuScreens(RegisterMenuScreensEvent event) {
 		event.register(CBMenuTypes.SPIDER_ASSEMBLY_TABLE.get(), SpiderAssemblyTableScreen::new);
+		event.register(CBMenuTypes.BIONIC_CARGO.get(), com.nobodiiiii.createbiotech.entity.inventory.BionicCargoScreen::new);
 		event.register(CBMenuTypes.ALLAY_PORT.get(), AllayPortScreen::new);
 		event.register(CBMenuTypes.ALLAY_COURIER.get(), AllayCourierScreen::new);
 		event.register(CBMenuTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterScreen::new);
