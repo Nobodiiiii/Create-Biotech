@@ -69,7 +69,8 @@ final class GaugeCraftTreeCompaction {
 			int target = targets[i];
 			GaugeCraftTree.Node current = nodes[target];
 			nodes[target] = current == null ? node : new GaugeCraftTree.Node(current.stack(),
-				current.count() + node.count(), current.completed() + node.completed(), current.state());
+				current.count() + node.count(), current.sent() + node.sent(),
+				current.completed() + node.completed(), current.state());
 		}
 		return new GaugeCraftTree(snapshot.status(), snapshot.terminal(), List.of(nodes), edges);
 	}

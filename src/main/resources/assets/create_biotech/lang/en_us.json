@@ -841,6 +841,8 @@
   "create_biotech.gauge_craft.tree.crafting": "Crafting",
   "create_biotech.gauge_craft.tree.complete": "Complete / Stocked",
   "create_biotech.gauge_craft.tree.required": "Required: %s",
+  "create_biotech.gauge_craft.tree.sent": "Sent: %s/%s",
+  "create_biotech.gauge_craft.tree.crafted": "Crafted: %s/%s",
   "create_biotech.gauge_craft.tree.received": "Output received: %s / %s",
   "create_biotech.gauge_craft.tree.state.waiting": "Waiting for dependencies or material dispatch",
   "create_biotech.gauge_craft.tree.state.crafting": "Crafting; waiting for output to enter storage",

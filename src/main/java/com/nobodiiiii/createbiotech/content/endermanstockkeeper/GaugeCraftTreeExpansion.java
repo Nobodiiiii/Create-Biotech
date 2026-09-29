@@ -15,12 +15,10 @@ final class GaugeCraftTreeExpansion {
 	private record Pending(int source, int parent, int count) {}
 	private final List<Occurrence> occurrences;
 	private final List<GaugeCraftTree.Edge> edges;
-	private final int[] copies;
 
-	private GaugeCraftTreeExpansion(List<Occurrence> occurrences, List<GaugeCraftTree.Edge> edges, int[] copies) {
+	private GaugeCraftTreeExpansion(List<Occurrence> occurrences, List<GaugeCraftTree.Edge> edges) {
 		this.occurrences = occurrences;
 		this.edges = edges;
-		this.copies = copies;
 	}
 
 	static GaugeCraftTreeExpansion create(GaugeCraftTree tree) {
@@ -48,7 +46,6 @@ final class GaugeCraftTreeExpansion {
 
 		List<Occurrence> occurrences = new ArrayList<>(total);
 		List<GaugeCraftTree.Edge> edges = new ArrayList<>();
-		int[] copies = new int[size];
 		ArrayDeque<Pending> pending = new ArrayDeque<>();
 		for (int i = 0; i < size; i++)
 			if (!consumed[i])
@@ -57,7 +54,6 @@ final class GaugeCraftTreeExpansion {
 			Pending next = pending.pop();
 			int index = occurrences.size();
 			occurrences.add(new Occurrence(next.source(), next.count()));
-			copies[next.source()]++;
 			if (next.parent() >= 0)
 				edges.add(new GaugeCraftTree.Edge(index, next.parent(), next.count()));
 			int originalCount = tree.nodes().get(next.source()).count();
@@ -72,25 +68,18 @@ final class GaugeCraftTreeExpansion {
 			GaugeCraftTree.Edge edge = edges.get(i);
 			orderedEdges.add(new GaugeCraftTree.Edge(total - 1 - edge.from(), total - 1 - edge.to(), edge.count()));
 		}
-		return new GaugeCraftTreeExpansion(List.copyOf(occurrences), List.copyOf(orderedEdges), copies);
+		return new GaugeCraftTreeExpansion(List.copyOf(occurrences), List.copyOf(orderedEdges));
 	}
 
 	GaugeCraftTree apply(GaugeCraftTree snapshot) {
 		List<GaugeCraftTree.Node> nodes = new ArrayList<>(occurrences.size());
 		for (Occurrence occurrence : occurrences) {
 			GaugeCraftTree.Node original = snapshot.nodes().get(occurrence.source());
+			int sent = (int) ((long) original.sent() * occurrence.count() / original.count());
 			int completed = (int) ((long) original.completed() * occurrence.count() / original.count());
-			nodes.add(new GaugeCraftTree.Node(original.stack(), occurrence.count(), completed, original.state()));
+			nodes.add(new GaugeCraftTree.Node(original.stack(), occurrence.count(), sent, completed, original.state()));
 		}
 		return new GaugeCraftTree(snapshot.status(), snapshot.terminal(), List.copyOf(nodes), edges);
-	}
-
-	GaugeCraftTree.Node source(GaugeCraftTree snapshot, int index) {
-		return snapshot.nodes().get(occurrences.get(index).source());
-	}
-
-	boolean shared(int index) {
-		return copies[occurrences.get(index).source()] > 1;
 	}
 
 	private static int scaleUp(int count, int portion, int total) {

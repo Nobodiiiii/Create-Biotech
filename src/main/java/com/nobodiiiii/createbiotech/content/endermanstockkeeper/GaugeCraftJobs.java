@@ -124,6 +124,7 @@ public final class GaugeCraftJobs extends SavedData {
 			else if (execution.active())
 				state = GaugeCraftTree.State.CRAFTING;
 			progress.add(new GaugeCraftTree.Progress(
+				execution.step.crafts() - execution.remaining + execution.inFlight,
 				(execution.step.crafts() - execution.remaining) * execution.step.outputPerCraft() + execution.received, state));
 		}
 		return GaugeCraftTree.snapshot(job.steps, job.flow, job.count, progress, status, terminal);

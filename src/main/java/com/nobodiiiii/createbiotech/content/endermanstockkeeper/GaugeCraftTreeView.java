@@ -1,13 +1,10 @@
 package com.nobodiiiii.createbiotech.content.endermanstockkeeper;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -178,25 +175,19 @@ final class GaugeCraftTreeView {
 		if (fullView)
 			for (int i = 0; i < size; i++)
 				layers[i] = maxLayer - layers[i];
-		int[] rows = new int[maxLayer + 1];
-		for (int layer : layers)
-			rows[layer]++;
-		int maxRows = 1;
-		for (int row : rows)
-			maxRows = Math.max(maxRows, row);
-		int[] next = new int[rows.length];
+		int[] nodeRows = fullView ? fullTreeRows(inputs) : compactRows(layers, maxLayer);
 		List<Cell> cells = new ArrayList<>(size);
+		int maxRow = 0;
 		for (int i = 0; i < size; i++) {
 			// Never half-offset a column: native gauges and wires share the same half-block grid.
-			cells.add(new Cell(layers[i] * COLUMN_STEP, (maxRows - rows[layers[i]]) / 2 + next[layers[i]]++));
+			cells.add(new Cell(layers[i] * COLUMN_STEP, nodeRows[i]));
+			maxRow = Math.max(maxRow, nodeRows[i]);
 		}
-		Set<Cell> occupied = new HashSet<>(cells);
 		paths.clear();
 		minColumn = minRow = 0;
-		int lastGaugeColumn = maxLayer * COLUMN_STEP;
-		int maxColumn = lastGaugeColumn, maxRow = maxRows - 1;
+		int maxColumn = maxLayer * COLUMN_STEP;
 		for (GaugeCraftTree.Edge edge : tree.edges()) {
-			List<Cell> path = route(cells.get(edge.from()), cells.get(edge.to()), occupied, maxRows);
+			List<Cell> path = route(cells.get(edge.from()), cells.get(edge.to()));
 			paths.add(path);
 			for (Cell cell : path) {
 				minColumn = Math.min(minColumn, cell.column());
@@ -212,6 +203,52 @@ final class GaugeCraftTreeView {
 		graphWidth = (maxColumn - minColumn + 1) * CELL + PADDING * 2;
 		graphHeight = (maxRow - minRow + 1) * CELL + PADDING * 2;
 		rebuildWires();
+	}
+
+	private static int[] compactRows(int[] layers, int maxLayer) {
+		int[] rows = new int[maxLayer + 1];
+		for (int layer : layers)
+			rows[layer]++;
+		int maxRows = 1;
+		for (int row : rows)
+			maxRows = Math.max(maxRows, row);
+		int[] next = new int[rows.length];
+		int[] result = new int[layers.length];
+		for (int i = 0; i < layers.length; i++)
+			result[i] = (maxRows - rows[layers[i]]) / 2 + next[layers[i]]++;
+		return result;
+	}
+
+	private static int[] fullTreeRows(List<List<Integer>> inputs) {
+		int size = inputs.size();
+		int[] heights = new int[size];
+		boolean[] consumed = new boolean[size];
+		// Every expanded node has at most one consumer. Reserve the complete
+		// height of each child subtree before placing its next sibling.
+		for (int i = 0; i < size; i++) {
+			for (int input : inputs.get(i)) {
+				heights[i] += heights[input];
+				consumed[input] = true;
+			}
+			heights[i] = Math.max(1, heights[i]);
+		}
+		int[] rows = new int[size];
+		int nextRoot = 0;
+		for (int i = 0; i < size; i++)
+			if (!consumed[i]) {
+				rows[i] = nextRoot;
+				nextRoot += heights[i];
+			}
+		// Align each parent with its first child, then stack the remaining
+		// child subtrees below it. Reverse topological order avoids recursion.
+		for (int i = size - 1; i >= 0; i--) {
+			int nextChild = rows[i];
+			for (int input : inputs.get(i)) {
+				rows[input] = nextChild;
+				nextChild += heights[input];
+			}
+		}
+		return rows;
 	}
 
 	private void rebuildWires() {
@@ -263,50 +300,14 @@ final class GaugeCraftTreeView {
 	private int cellX(Cell cell) { return PADDING + (cell.column() - minColumn) * CELL; }
 	private int cellY(Cell cell) { return PADDING + (cell.row() - minRow) * CELL; }
 
-	private static List<Cell> route(Cell from, Cell to, Set<Cell> occupied, int rows) {
-		// Enter and leave every gauge horizontally. Vertical runs (and therefore
-		// every bend) belong exclusively to the empty column between gauges.
-		if (to.column() - from.column() == COLUMN_STEP)
-			return from.row() == to.row() ? List.of(from, to)
-				: List.of(from, from.offset(1, 0), to.offset(-1, 0), to);
-		ArrayDeque<Cell> queue = new ArrayDeque<>();
-		Map<Cell, Cell> previous = new HashMap<>();
-		queue.add(from);
-		previous.put(from, from);
-		while (!queue.isEmpty()) {
-			Cell current = queue.removeFirst();
-			if (current.equals(to)) {
-				List<Cell> path = new ArrayList<>();
-				for (Cell cell = to; !cell.equals(from); cell = previous.get(cell))
-					path.add(cell);
-				path.add(from);
-				Collections.reverse(path);
-				List<Cell> bends = new ArrayList<>();
-				bends.add(from);
-				for (int i = 1; i < path.size() - 1; i++) {
-					Cell before = path.get(i - 1), cell = path.get(i), after = path.get(i + 1);
-					if (cell.column() - before.column() != after.column() - cell.column()
-						|| cell.row() - before.row() != after.row() - cell.row())
-						bends.add(cell);
-				}
-				bends.add(to);
-				return List.copyOf(bends);
-			}
-			int vertical = to.row() >= current.row() ? 1 : -1;
-			List<Cell> neighbors = current.column() % COLUMN_STEP == 0
-				? List.of(current.offset(1, 0))
-				: List.of(current.offset(0, vertical), current.offset(1, 0), current.offset(0, -vertical));
-			for (Cell next : neighbors) {
-				if (next.column() > to.column() || next.row() < -1 || next.row() > rows
-					|| previous.containsKey(next) || occupied.contains(next) && !next.equals(to))
-					continue;
-				previous.put(next, current);
-				queue.addLast(next);
-			}
-		}
-		// Even fully occupied intermediate columns have a clear row above/below;
-		// the gap columns always connect both endpoints to that perimeter.
-		throw new IllegalStateException("No route between crafting gauge columns");
+	private static List<Cell> route(Cell from, Cell to) {
+		// Overlap is allowed: never detour around gauges or other wires. A single
+		// vertical run in the gap before the consumer gives the Manhattan minimum.
+		// Full-tree dependencies are adjacent columns, so this is their middle gap.
+		if (from.row() == to.row())
+			return List.of(from, to);
+		int gapColumn = to.column() - 1;
+		return List.of(from, new Cell(gapColumn, from.row()), new Cell(gapColumn, to.row()), to);
 	}
 
 	void fit() {
@@ -377,21 +378,9 @@ final class GaugeCraftTreeView {
 		graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.tree.complete"), lampX + 11, y + h - 42, 0xF4E4CB, false);
 		if (hovered >= 0) {
 			GaugeCraftTree.Node node = tree.nodes().get(hovered);
-			List<Component> tooltip = new ArrayList<>();
-			tooltip.add(node.stack().getHoverName());
-			tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.required", node.count()));
-			tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.state."
-				+ node.state().name().toLowerCase(Locale.ROOT)));
-			boolean shared = fullView && expansion.shared(hovered);
-			if (shared)
-				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.shared_material"));
-			if (node.state() != GaugeCraftTree.State.STOCKED) {
-				GaugeCraftTree.Node progress = shared ? expansion.source(snapshot, hovered) : node;
-				tooltip.add(Component.translatable(shared ? "create_biotech.gauge_craft.tree.shared_received"
-					: "create_biotech.gauge_craft.tree.received", progress.completed(), progress.count()));
-			}
-			graphics.renderTooltip(font, tooltip.stream().flatMap(line -> font.split(line,
-				Math.max(80, Math.min(260, screenWidth - 24))).stream()).toList(), mouseX, mouseY);
+			graphics.renderComponentTooltip(font, List.of(node.stack().getHoverName(),
+				Component.translatable("create_biotech.gauge_craft.tree.sent", node.sent(), node.count()),
+				Component.translatable("create_biotech.gauge_craft.tree.crafted", node.completed(), node.count())), mouseX, mouseY);
 		}
 	}
 

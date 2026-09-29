@@ -23,6 +23,7 @@ public record GaugeCraftTreePacket(int menuId, UUID jobId, GaugeCraftTree tree) 
 		for (GaugeCraftTree.Node node : tree.nodes()) {
 			ItemStack.STREAM_CODEC.encode(buffer, node.stack());
 			buffer.writeVarInt(node.count());
+			buffer.writeVarInt(node.sent());
 			buffer.writeVarInt(node.completed());
 			buffer.writeEnum(node.state());
 		}
@@ -42,8 +43,9 @@ public record GaugeCraftTreePacket(int menuId, UUID jobId, GaugeCraftTree tree) 
 		for (int i = 0; i < size; i++) {
 			ItemStack stack = ItemStack.STREAM_CODEC.decode(buffer);
 			int count = bounded(buffer, 1, GaugeCraftPlan.MAX_REQUEST);
+			int sent = bounded(buffer, 0, count);
 			int completed = bounded(buffer, 0, count);
-			nodes.add(new GaugeCraftTree.Node(stack, count, completed, buffer.readEnum(GaugeCraftTree.State.class)));
+			nodes.add(new GaugeCraftTree.Node(stack, count, sent, completed, buffer.readEnum(GaugeCraftTree.State.class)));
 		}
 		int edgeCount = bounded(buffer, 0, GaugeCraftTree.MAX_EDGES);
 		List<GaugeCraftTree.Edge> edges = new ArrayList<>(edgeCount);

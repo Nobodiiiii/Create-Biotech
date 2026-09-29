@@ -841,6 +841,8 @@
   "create_biotech.gauge_craft.tree.crafting": "合成中",
   "create_biotech.gauge_craft.tree.complete": "已完成 / 已备料",
   "create_biotech.gauge_craft.tree.required": "所需数量：%s",
+  "create_biotech.gauge_craft.tree.sent": "已发送：%s/%s",
+  "create_biotech.gauge_craft.tree.crafted": "已合成：%s/%s",
   "create_biotech.gauge_craft.tree.received": "已收到产物：%s / %s",
   "create_biotech.gauge_craft.tree.state.waiting": "等待前置步骤或派发材料",
   "create_biotech.gauge_craft.tree.state.crafting": "正在合成，等待产物入库",
