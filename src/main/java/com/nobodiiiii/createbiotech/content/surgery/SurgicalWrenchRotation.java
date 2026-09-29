@@ -105,7 +105,10 @@ public final class SurgicalWrenchRotation {
 	}
 
 	public enum Failure { NONE, INVALID, NO_SPACE, DISCONNECTED }
-	public record Plan(List<Body> bodies, Failure failure) {
+	public record Endpoint(int body, int cube) {}
+	public record Plan(List<Body> bodies, Failure failure, Endpoint selected, List<Endpoint> disconnected) {
+		public Plan(List<Body> bodies, Failure failure) { this(bodies, failure, null, List.of()); }
+		public Plan { bodies = List.copyOf(bodies); disconnected = List.copyOf(disconnected); }
 		static Plan fail(Failure failure) { return new Plan(List.of(), failure); }
 		public boolean valid() { return failure == Failure.NONE; }
 	}
@@ -171,36 +174,26 @@ public final class SurgicalWrenchRotation {
 			for (SurgicalTableLayout.Footprint obstacle : stationary)
 				if (moved.conflictsWith(obstacle))
 					return Plan.fail(Failure.NO_SPACE);
-		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)
-			&& !preservesConnections(before, grounded, neighbors, selectedBody, selectedCube))
-			return Plan.fail(Failure.DISCONNECTED);
-		return new Plan(grounded, Failure.NONE);
-	}
-
-	private static boolean preservesConnections(List<Body> before, List<Body> after,
-		Map<Integer, BitSet> neighbors, int selectedBody, int selectedCube) {
-		Cube original = find(before, selectedBody, selectedCube);
-		Cube rotated = find(after, selectedBody, selectedCube);
-		boolean hasNeighbor = false;
-		boolean connected = false;
-		for (Map.Entry<Integer, BitSet> entry : neighbors.entrySet()) {
-			for (int cube = entry.getValue().nextSetBit(0); cube >= 0; cube = entry.getValue().nextSetBit(cube + 1)) {
-				if (entry.getKey() == selectedBody && cube == selectedCube)
-					continue;
-				hasNeighbor = true;
-				Cube oldNeighbor = find(before, entry.getKey(), cube);
-				Cube newNeighbor = find(after, entry.getKey(), cube);
-				if (oldNeighbor == null || newNeighbor == null)
-					return false;
-				boolean touching = touches(rotated, newNeighbor);
-				// Honey membership can include remote cubes. Preserve every actual old contact,
-				// while requiring at least one surviving connection to the logical neighbors.
-				if (touches(original, oldNeighbor) && !touching)
-					return false;
-				connected |= touching;
-			}
+		List<Endpoint> disconnected = new ArrayList<>();
+		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)) {
+			Cube rotated = find(grounded, selectedBody, selectedCube);
+			int neighborCount = 0;
+			for (Map.Entry<Integer, BitSet> entry : neighbors.entrySet())
+				for (int cube = entry.getValue().nextSetBit(0); cube >= 0; cube = entry.getValue().nextSetBit(cube + 1)) {
+					if (entry.getKey() == selectedBody && cube == selectedCube)
+						continue;
+					Cube neighbor = find(grounded, entry.getKey(), cube);
+					if (neighbor == null)
+						return Plan.fail(Failure.INVALID);
+					neighborCount++;
+					if (!touches(rotated, neighbor))
+						disconnected.add(new Endpoint(entry.getKey(), cube));
+				}
+			// An isolated cube may rotate freely; an attached one must retain an original neighbor.
+			if (neighborCount > 0 && disconnected.size() == neighborCount)
+				return Plan.fail(Failure.DISCONNECTED);
 		}
-		return !hasNeighbor || connected;
+		return new Plan(grounded, Failure.NONE, new Endpoint(selectedBody, selectedCube), disconnected);
 	}
 
 	private static Cube find(List<Body> bodies, int bodyId, int cubeId) {

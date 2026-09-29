@@ -1810,7 +1810,7 @@ public final class SurgicalTableClientHandler {
 		if (wrenchEditor != null && wrenchEditor.hand == hand && SurgicalKitItem.isWrench(held)) {
 			if (!wrenchEditor.committing) {
 				if (Screen.hasShiftDown())
-					adjustWrenchPreview(level, wrenchEditor, Vec3.ZERO, 0.0d, true);
+					alignAndConfirmWrench(minecraft.player, level, wrenchEditor);
 				else
 					confirmWrench(minecraft.player, level, wrenchEditor);
 			}
@@ -1876,7 +1876,7 @@ public final class SurgicalTableClientHandler {
 			wrenchEditor = beginWrenchEditor(level, cubeHit, subject, hand, single);
 			if (wrenchEditor != null) {
 				if (Screen.hasShiftDown())
-					adjustWrenchPreview(level, wrenchEditor, Vec3.ZERO, 0.0d, true);
+					alignAndConfirmWrench(minecraft.player, level, wrenchEditor);
 				refreshWrenchEditor(minecraft.player, level);
 			}
 			suppressWrenchUseUntilRelease = true;
@@ -2421,6 +2421,15 @@ public final class SurgicalTableClientHandler {
 		AllSoundEvents.SCROLL_VALUE.playAt(level, editor.pos, 0.35f, 0.85f, false);
 	}
 
+	/** Shift-use is a complete action; only keep its preview while awaiting the server reply. */
+	private static void alignAndConfirmWrench(LocalPlayer player, ClientLevel level, WrenchEditor editor) {
+		editor.immediate = true;
+		adjustWrenchPreview(level, editor, Vec3.ZERO, 0.0d, true);
+		confirmWrench(player, level, editor);
+		if (!editor.committing)
+			clearSelections();
+	}
+
 	private static void confirmWrench(LocalPlayer player, ClientLevel level, WrenchEditor editor) {
 		if (!(level.getBlockEntity(editor.pos) instanceof SurgicalTableBlockEntity table)
 			|| table.clientDataRevision() != editor.tableRevision) {
@@ -2448,7 +2457,7 @@ public final class SurgicalTableClientHandler {
 	public static void acceptWrenchCommit(SurgicalTableCubeRotationPacket.Result result) {
 		if (wrenchEditor == null || !wrenchEditor.requestId.equals(result.requestId()))
 			return;
-		if (result.accepted())
+		if (result.accepted() || wrenchEditor.immediate)
 			clearSelections();
 		else
 			wrenchEditor.committing = false;
@@ -2466,6 +2475,10 @@ public final class SurgicalTableClientHandler {
 			|| editor.committing && level.getGameTime() - editor.sentTick > 40) {
 			clearSelections();
 			return false;
+		}
+		if (editor.immediate) {
+			GLUE_EDIT_OUTLINE.clear();
+			return true;
 		}
 		cubeSelection = editor.selection;
 		highlightSelection(cubeSelection);
@@ -2559,6 +2572,7 @@ public final class SurgicalTableClientHandler {
 		private int guideFace = -1;
 		private List<SurgicalClientTopology.Edge> guideEdges = List.of();
 		private boolean committing;
+		private boolean immediate;
 		private long sentTick;
 
 		private WrenchEditor(BlockPos pos, UUID subjectKey, int subjectId, int cubeId, InteractionHand hand,

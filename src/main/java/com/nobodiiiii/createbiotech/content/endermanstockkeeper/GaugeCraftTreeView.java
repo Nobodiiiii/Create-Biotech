@@ -56,6 +56,7 @@ final class GaugeCraftTreeView {
 	private Rect2i bounds = new Rect2i(0, 0, 1, 1);
 	private Rect2i viewport = new Rect2i(0, 0, 1, 1);
 	private int[] nodeX = new int[0], nodeY = new int[0];
+	private boolean[] nodeHasInputs = new boolean[0], nodeHasOutputs = new boolean[0];
 	private final List<List<Cell>> paths = new ArrayList<>();
 	private final List<Wire> wires = new ArrayList<>();
 	private int minColumn, minRow;
@@ -115,6 +116,7 @@ final class GaugeCraftTreeView {
 		fullView = false;
 		dragging = false;
 		nodeX = nodeY = new int[0];
+		nodeHasInputs = nodeHasOutputs = new boolean[0];
 		paths.clear();
 		wires.clear();
 		graphWidth = graphHeight = 0;
@@ -123,7 +125,13 @@ final class GaugeCraftTreeView {
 
 	void accept(GaugeCraftTree next) {
 		boolean layoutChanged = snapshot == null || snapshot.nodes().size() != next.nodes().size()
-			|| !snapshot.edges().equals(next.edges());
+			|| snapshot.edges().size() != next.edges().size();
+		if (!layoutChanged)
+			for (int i = 0; i < next.edges().size(); i++)
+				if (!snapshot.edges().get(i).sameConnection(next.edges().get(i))) {
+					layoutChanged = true;
+					break;
+				}
 		if (!layoutChanged)
 			for (int i = 0; i < next.nodes().size(); i++)
 				if (snapshot.nodes().get(i).count() != next.nodes().get(i).count()
@@ -152,12 +160,17 @@ final class GaugeCraftTreeView {
 		int size = tree.nodes().size();
 		nodeX = new int[size];
 		nodeY = new int[size];
+		nodeHasInputs = new boolean[size];
+		nodeHasOutputs = new boolean[size];
 		int[] layers = new int[size];
 		List<List<Integer>> inputs = new ArrayList<>(size);
 		for (int i = 0; i < size; i++)
 			inputs.add(new ArrayList<>());
-		for (GaugeCraftTree.Edge edge : tree.edges())
+		for (GaugeCraftTree.Edge edge : tree.edges()) {
 			inputs.get(edge.to()).add(edge.from());
+			nodeHasInputs[edge.to()] = true;
+			nodeHasOutputs[edge.from()] = true;
+		}
 		// Each occurrence in the full tree has one consumer. Count backwards from
 		// the output so every dependency is exactly one production column away.
 		if (fullView) {
@@ -378,9 +391,13 @@ final class GaugeCraftTreeView {
 		graphics.drawString(font, Component.translatable("create_biotech.gauge_craft.tree.complete"), lampX + 11, y + h - 42, 0xF4E4CB, false);
 		if (hovered >= 0) {
 			GaugeCraftTree.Node node = tree.nodes().get(hovered);
-			graphics.renderComponentTooltip(font, List.of(node.stack().getHoverName(),
-				Component.translatable("create_biotech.gauge_craft.tree.sent", node.sent(), node.count()),
-				Component.translatable("create_biotech.gauge_craft.tree.crafted", node.completed(), node.count())), mouseX, mouseY);
+			List<Component> tooltip = new ArrayList<>();
+			tooltip.add(node.stack().getHoverName());
+			if (nodeHasOutputs[hovered])
+				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.sent", node.sent(), node.count()));
+			if (nodeHasInputs[hovered])
+				tooltip.add(Component.translatable("create_biotech.gauge_craft.tree.crafted", node.completed(), node.count()));
+			graphics.renderComponentTooltip(font, tooltip, mouseX, mouseY);
 		}
 	}
 

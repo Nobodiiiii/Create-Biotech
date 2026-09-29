@@ -2413,24 +2413,58 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		if (!seen.equals(group.keySet()))
 			return invalid;
-		Map<Integer, BitSet> neighbors = directConnections(selected.id(), cubeId, selected.cubeCount, selected.seams);
+		Map<Integer, BitSet> neighbors = new HashMap<>();
+		directConnections(selected.id(), cubeId, selected.cubeCount, selected.seams)
+			.forEach((id, cubes) -> neighbors.put(id, (BitSet) cubes.clone()));
+		// The connectivity graph encodes honey groups as a star; all members are logical neighbors,
+		// regardless of which member happens to be the graph's anchor.
+		SurgicalCombination combination = selected.combinationContaining(cubeId);
+		if (combination != null)
+			for (SurgicalCombination.Member member : combination.members()) {
+				SurgicalSubject owner = getSubjectByPersistentId(member.subjectKey());
+				if (owner != null)
+					neighbors.computeIfAbsent(owner.id(), ignored -> new BitSet()).set(member.cubeId());
+			}
 		SurgicalWrenchRotation.Plan plan = SurgicalWrenchRotation.plan(bodies, group, neighbors, selected.id(), cubeId,
 			groupRotation, selectedRotation, plane.workArea(), occupiedForValidation(plane, seen));
 		if (!plan.valid())
 			return plan;
+		WrenchDisconnections cuts = wrenchDisconnections(plan);
+		if (allGlueJoints().size() - cuts.glue().size() + cuts.addedGlue().size() > SurgicalAssembly.MAX_SEAMS)
+			return invalid;
 		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
 			SurgicalSubject subject = getSubject(body.id());
+			BitSet cutSeams = cuts.cuts().getOrDefault(body.id(), subject.cutSeams);
 			if (!SurgicalTableLayout.validateEditedGlueComponents(plane, subject.cubeCount, subject.presentCubes,
-				subject.seams, subject.cutSeams, body.layout(subject.presentCubes, subject.cutSeams), List.of()))
+				subject.seams, cutSeams, body.layout(subject.presentCubes, cutSeams), List.of()))
 				return invalid;
 		}
 		return plan;
 	}
 
 	/** Commits every subject together, only after the complete plan has passed validation. */
-	void applyWrenchRotation(SurgicalWrenchRotation.Plan plan) {
+	void applyWrenchRotation(SurgicalWrenchRotation.Plan plan, Player player) {
 		if (!plan.valid())
 			return;
+		WrenchDisconnections cuts = wrenchDisconnections(plan);
+		for (SurgicalSubject subject : subjects) {
+			BitSet cutSeams = cuts.cuts().get(subject.id());
+			if (cutSeams != null) {
+				subject.cutSeams = cutSeams;
+				subject.cutOrder = SurgicalAssembly.normalizeCutOrder(subject.cutOrder, cutSeams, subject.seams.size());
+			}
+			subject.removeGlueJoints(cuts.glue());
+			subject.removeLimbJoints(cuts.limbs());
+			subject.removeCombinations(cuts.combinations());
+		}
+		for (SurgicalCombination combination : cuts.remainingCombinations())
+			attachCombination(combination);
+		for (SurgicalGlueJoint joint : cuts.addedGlue()) {
+			getSubjectByPersistentId(joint.first().subjectKey()).addGlueJoint(joint);
+			getSubjectByPersistentId(joint.second().subjectKey()).addGlueJoint(joint);
+		}
+		for (SurgicalLimbJoint joint : cuts.limbs())
+			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
 		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
 			SurgicalSubject subject = getSubject(body.id());
 			Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
@@ -2442,6 +2476,66 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		}
 		clientRenderBounds = null;
 		setChangedAndSync();
+	}
+
+	private record WrenchDisconnections(Map<Integer, BitSet> cuts, Set<SurgicalGlueJoint> glue,
+		Set<SurgicalLimbJoint> limbs, Set<SurgicalCombination> combinations,
+		List<SurgicalCombination> remainingCombinations, Set<SurgicalGlueJoint> addedGlue) {}
+
+	/** Stage topology edits before validation so rejected rotations never sever connections. */
+	private WrenchDisconnections wrenchDisconnections(SurgicalWrenchRotation.Plan plan) {
+		Map<Integer, BitSet> cuts = new HashMap<>();
+		Set<SurgicalGlueJoint> glue = new HashSet<>();
+		Set<SurgicalLimbJoint> limbs = new HashSet<>();
+		Set<SurgicalCombination> combinations = new HashSet<>();
+		List<SurgicalCombination> remaining = new ArrayList<>();
+		Set<SurgicalGlueJoint> added = new HashSet<>();
+		WrenchDisconnections result = new WrenchDisconnections(cuts, glue, limbs, combinations, remaining, added);
+		if (plan.disconnected().isEmpty())
+			return result;
+		SurgicalSubject selected = getSubject(plan.selected().body());
+		int cube = plan.selected().cube();
+		SurgicalGlueJoint.Endpoint anchor = new SurgicalGlueJoint.Endpoint(selected.persistentId(), cube);
+		Set<SurgicalGlueJoint.Endpoint> detached = new HashSet<>();
+		for (SurgicalWrenchRotation.Endpoint endpoint : plan.disconnected())
+			detached.add(new SurgicalGlueJoint.Endpoint(getSubject(endpoint.body()).persistentId(), endpoint.cube()));
+		BitSet cutSeams = (BitSet) selected.cutSeams.clone();
+		for (int seamId = 0; seamId < selected.seams.size(); seamId++) {
+			SurgicalAssembly.Seam seam = selected.seams.get(seamId);
+			int other = seam.first() == cube ? seam.second() : seam.second() == cube ? seam.first() : -1;
+			if (other >= 0 && detached.contains(new SurgicalGlueJoint.Endpoint(selected.persistentId(), other)))
+				cutSeams.set(seamId);
+		}
+		cuts.put(selected.id(), cutSeams);
+		for (SurgicalGlueJoint joint : allGlueJoints())
+			if (detached.contains(joint.other(anchor)))
+				glue.add(joint);
+		for (SurgicalLimbJoint joint : allLimbJoints())
+			if (joint.child().equals(anchor) && detached.contains(joint.parent())
+				|| joint.parent().equals(anchor) && detached.contains(joint.child()))
+				limbs.add(joint);
+		SurgicalCombination combination = selected.combinationContaining(cube);
+		if (combination != null && combination.members().stream().anyMatch(member ->
+			detached.contains(new SurgicalGlueJoint.Endpoint(member.subjectKey(), member.cubeId())))) {
+			// Honey has no removable pairwise edges. Extract the rotated cube, preserve the rest,
+			// and represent its surviving honey contacts as ordinary explicit connections.
+			combinations.add(combination);
+			List<SurgicalCombination.Member> members = combination.members().stream()
+				.filter(member -> !member.subjectKey().equals(anchor.subjectKey()) || member.cubeId() != cube).toList();
+			if (members.size() >= 2)
+				remaining.add(SurgicalCombination.create(combination.id(), members));
+			for (SurgicalCombination.Member member : members) {
+				SurgicalGlueJoint.Endpoint other = new SurgicalGlueJoint.Endpoint(member.subjectKey(), member.cubeId());
+				if (detached.contains(other))
+					continue;
+				boolean nativeSeam = other.subjectKey().equals(anchor.subjectKey())
+					&& java.util.stream.IntStream.range(0, selected.seams.size()).anyMatch(id ->
+						!cutSeams.get(id) && selected.seams.get(id).equals(SurgicalAssembly.Seam.of(cube, other.cubeId())));
+				if (!nativeSeam && allGlueJoints().stream().noneMatch(joint -> other.equals(joint.other(anchor))))
+					added.add(SurgicalGlueJoint.of(anchor, other));
+			}
+		}
+		return result;
 	}
 
 	/** Validates an existing endpoint snapshot; destination clearance is checked by validateGlueMoves. */

@@ -32,6 +32,7 @@ public record GaugeCraftTreePacket(int menuId, UUID jobId, GaugeCraftTree tree) 
 			buffer.writeVarInt(edge.from());
 			buffer.writeVarInt(edge.to());
 			buffer.writeVarInt(edge.count());
+			buffer.writeVarInt(edge.sent());
 		}
 	}
 
@@ -52,7 +53,8 @@ public record GaugeCraftTreePacket(int menuId, UUID jobId, GaugeCraftTree tree) 
 		for (int i = 0; i < edgeCount; i++) {
 			int from = bounded(buffer, 0, size - 1);
 			int to = bounded(buffer, from + 1, size - 1);
-			edges.add(new GaugeCraftTree.Edge(from, to, bounded(buffer, 1, GaugeCraftPlan.MAX_REQUEST)));
+			int count = bounded(buffer, 1, GaugeCraftPlan.MAX_REQUEST);
+			edges.add(new GaugeCraftTree.Edge(from, to, count, bounded(buffer, 0, count)));
 		}
 		return new GaugeCraftTree(status, terminal, List.copyOf(nodes), List.copyOf(edges));
 	}

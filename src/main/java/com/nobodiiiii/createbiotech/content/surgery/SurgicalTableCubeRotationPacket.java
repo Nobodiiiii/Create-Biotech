@@ -149,7 +149,7 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, Inte
 		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(subjectId, cubeId, groupRotation,
 			selectedRotation, group, bodies, plane);
 		if (plan.valid())
-			table.applyWrenchRotation(plan);
+			table.applyWrenchRotation(plan, player);
 		else
 			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.DISCONNECTED
 				? "message.create_biotech.surgical_table.rotation_disconnects"

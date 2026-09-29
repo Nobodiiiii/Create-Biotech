@@ -15,7 +15,11 @@ public record GaugeCraftTree(String status, boolean terminal, List<Node> nodes, 
 
 	public enum State { WAITING, CRAFTING, COMPLETE, STOCKED, PAUSED }
 	public record Node(ItemStack stack, int count, int sent, int completed, State state) {}
-	public record Edge(int from, int to, int count) {}
+	public record Edge(int from, int to, int count, int sent) {
+		boolean sameConnection(Edge other) {
+			return from == other.from && to == other.to && count == other.count;
+		}
+	}
 	record Progress(int dispatchedCrafts, int completed, State state) {}
 
 	public static GaugeCraftTree unavailable() {
@@ -41,32 +45,35 @@ public record GaugeCraftTree(String status, boolean terminal, List<Node> nodes, 
 				int sent = Math.min(supply.count(), available);
 				sentInputs.put(supply.input(), available - sent);
 				if (supply.source() >= 0) {
-					inputs.add(new Edge(outputs[supply.source()], -1, supply.count()));
+					inputs.add(new Edge(outputs[supply.source()], -1, supply.count(), sent));
 				} else {
-					inputs.add(new Edge(nodes.size(), -1, supply.count()));
-					nodes.add(new Node(supply.input().stack().copyWithCount(1), supply.count(), sent, 0, State.STOCKED));
+					inputs.add(new Edge(nodes.size(), -1, supply.count(), sent));
+					nodes.add(new Node(supply.input().stack().copyWithCount(1), supply.count(), 0, 0, State.STOCKED));
 				}
 			}
 			int produced = step.crafts() * step.outputPerCraft();
 			int count = index == steps.size() - 1 ? requested : produced;
 			int output = nodes.size();
 			outputs[index] = output;
-			nodes.add(new Node(step.output().copyWithCount(1), count,
-				Math.min(count, current.dispatchedCrafts() * step.outputPerCraft()),
-				Math.min(count, current.completed()), current.state()));
+			nodes.add(new Node(step.output().copyWithCount(1), count, 0, Math.min(count, current.completed()), current.state()));
 			for (Edge input : inputs)
-				edges.add(new Edge(input.from(), output, input.count()));
+				edges.add(new Edge(input.from(), output, input.count(), input.sent()));
 			if (nodes.size() > MAX_NODES || edges.size() > MAX_EDGES)
 				return unavailable();
 		}
 		// Show the number actually needed by consumers, not unused recipe-rounding surplus.
 		int[] demanded = new int[nodes.size()];
-		for (Edge edge : edges)
+		int[] sent = new int[nodes.size()];
+		for (Edge edge : edges) {
 			demanded[edge.from()] += edge.count();
-		for (int i = 0; i < nodes.size() - 1; i++) {
+			// Sending belongs to the material source, not the output of the
+			// step whose ingredient request caused that dispatch.
+			sent[edge.from()] += edge.sent();
+		}
+		for (int i = 0; i < nodes.size(); i++) {
 			Node node = nodes.get(i);
 			if (demanded[i] > 0)
-				nodes.set(i, new Node(node.stack(), demanded[i], Math.min(demanded[i], node.sent()),
+				nodes.set(i, new Node(node.stack(), demanded[i], sent[i],
 					Math.min(demanded[i], node.completed()), node.state()));
 		}
 		return new GaugeCraftTree(status, terminal, List.copyOf(nodes), List.copyOf(edges));
