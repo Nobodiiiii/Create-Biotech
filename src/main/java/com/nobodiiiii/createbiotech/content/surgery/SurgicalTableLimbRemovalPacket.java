@@ -53,7 +53,7 @@ public record SurgicalTableLimbRemovalPacket(BlockPos pos, InteractionHand hand,
 			return;
 
 		ItemStack held = player.getItemInHand(hand);
-		if (!SurgicalKitItem.isWrench(held))
+		if (!SurgicalKitItem.isShears(held))
 			return;
 		SurgicalLimbJoint joint = new SurgicalLimbJoint(type,
 			new SurgicalGlueJoint.Endpoint(childSubject, childCube),

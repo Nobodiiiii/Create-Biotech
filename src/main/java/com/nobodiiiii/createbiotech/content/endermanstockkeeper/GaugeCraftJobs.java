@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.google.common.collect.Multimap;
+import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.BigItemStack;
 import com.simibubi.create.content.logistics.factoryBoard.FactoryPanelBehaviour;
 import com.simibubi.create.content.logistics.factoryBoard.FactoryPanelConnection;
@@ -16,9 +17,12 @@ import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
 import com.simibubi.create.content.logistics.packager.PackagingRequest;
 import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBehaviour.RequestType;
 import com.simibubi.create.content.logistics.packagerLink.LogisticsManager;
+import com.simibubi.create.content.logistics.packagerLink.RequestPromise;
+import com.simibubi.create.content.logistics.packagerLink.RequestPromiseQueue;
 import com.simibubi.create.content.logistics.stockTicker.PackageOrder;
 import com.simibubi.create.content.logistics.stockTicker.PackageOrderWithCrafts;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
+import com.simibubi.create.infrastructure.config.AllConfigs;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -41,6 +45,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /** Concurrent persisted orders, each executing its recipe tree from leaves to root. */
 public final class GaugeCraftJobs extends SavedData {
 	public static final int MAX_ACTIVE_JOBS = 16;
+	private static final int TICK_INTERVAL = 10;
 	private static final String NAME = "create_biotech_gauge_craft_jobs";
 	private final List<Job> jobs = new ArrayList<>();
 
@@ -55,7 +60,7 @@ public final class GaugeCraftJobs extends SavedData {
 	public static void onTick(ServerTickEvent.Post event) {
 		MinecraftServer server = event.getServer();
 		GaugeCraftJobs data = get(server);
-		if (server.getTickCount() % 10 != 0)
+		if (server.getTickCount() % TICK_INTERVAL != 0)
 			return;
 		data.collectOutputs(server);
 		for (Job job : new ArrayList<>(data.jobs)) {
@@ -105,27 +110,17 @@ public final class GaugeCraftJobs extends SavedData {
 			return "paused_unloaded";
 		if (!matches(level, FactoryPanelBehaviour.at(level, step.gauge()), step))
 			return "paused_changed";
-		return job.waiting ? "waiting_output" : "processing";
+		return job.remaining <= job.inFlight ? "waiting_output" : "processing";
 	}
 
 	public boolean cancel(UUID network, UUID player, UUID id) {
+		// Dispatched materials keep travelling, so their native promises must remain
+		// until Create fulfils or expires them. Never clear another order's promises.
 		boolean removed = jobs.removeIf(job -> job.id.equals(id) && job.network.equals(network)
 			&& job.owner.equals(player));
 		if (removed)
 			setDirty();
 		return removed;
-	}
-
-	public int heldAmount(UUID network, ItemStack stack) {
-		int amount = 0;
-		for (Job job : jobs) {
-			if (!job.waiting || job.index >= job.steps.size())
-				continue;
-			GaugeCraftPlan.Step step = job.steps.get(job.index);
-			if (network.equals(step.network()) && ItemStack.isSameItemSameComponents(stack, step.output()))
-				amount = Math.min(GaugeCraftPlan.MAX_REQUEST, amount + step.outputPerCraft() - job.received);
-		}
-		return amount;
 	}
 
 	private static boolean loaded(Level level, BlockPos pos) {
@@ -167,9 +162,9 @@ public final class GaugeCraftJobs extends SavedData {
 			job.reserved.add(new GaugeCraftPlan.Stock(network, stack.copyWithCount(1), amount));
 	}
 
-	/** Each positive inventory delta can satisfy only one pending batch, including partial arrivals. */
+	/** Allocate actual arrivals to jobs; Create separately fulfils the native promises at each packager. */
 	public void collectOutputs(MinecraftServer server) {
-		List<Job> pending = new ArrayList<>(jobs.stream().filter(job -> job.waiting
+		List<Job> pending = new ArrayList<>(jobs.stream().filter(job -> job.inFlight > 0
 			&& job.index < job.steps.size()).toList());
 		while (!pending.isEmpty()) {
 			Job first = pending.removeFirst();
@@ -190,7 +185,7 @@ public final class GaugeCraftJobs extends SavedData {
 			int current = LogisticsManager.getSummaryOfNetwork(step.network(), true).getCountOf(step.output());
 			int arrived = Math.max(0, current - first.baseline);
 			for (Job job : group) {
-				int allocated = Math.min(arrived, job.steps.get(job.index).outputPerCraft() - job.received);
+				int allocated = Math.min(arrived, job.outstandingOutput());
 				if (job.baseline != current || allocated > 0)
 					setDirty();
 				job.baseline = current;
@@ -204,7 +199,7 @@ public final class GaugeCraftJobs extends SavedData {
 	/** Internal withdrawals must not hide the next arrival from another order on the same network. */
 	private void rebaseOutputs(UUID network, ItemStack stack) {
 		for (Job pending : jobs) {
-			if (!pending.waiting || pending.index >= pending.steps.size())
+			if (pending.inFlight == 0 || pending.index >= pending.steps.size())
 				continue;
 			GaugeCraftPlan.Step step = pending.steps.get(pending.index);
 			if (step.network().equals(network) && ItemStack.isSameItemSameComponents(step.output(), stack))
@@ -244,25 +239,53 @@ public final class GaugeCraftJobs extends SavedData {
 		FactoryPanelBehaviour gauge = FactoryPanelBehaviour.at(level, step.gauge());
 		if (!matches(level, gauge, step))
 			return false;
-		if (job.waiting) {
-			if (job.received < step.outputPerCraft())
+		// Old saves only exposed an artificial hold through getPromised(). Transfer the
+		// unreceived part once, after collectOutputs has accounted for any arrivals.
+		if (job.migratePromise) {
+			RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(step.network());
+			if (promises == null)
 				return false;
-			job.waiting = false;
-			job.remaining--;
+			if (job.outstandingOutput() > 0)
+				promises.add(new RequestPromise(new BigItemStack(step.output(), job.outstandingOutput())));
+			job.migratePromise = false;
+			setDirty();
+		}
+		boolean changed = false;
+		if (job.requestCooldown > 0) {
+			job.requestCooldown = Math.max(0,
+				Math.min(job.requestCooldown, AllConfigs.server().logistics.factoryGaugeTimer.get()) - TICK_INTERVAL);
+			changed = true;
+		}
+		if (job.received >= step.outputPerCraft()) {
+			int completed = job.received / step.outputPerCraft();
+			job.received %= step.outputPerCraft();
+			job.inFlight -= completed;
+			job.remaining -= completed;
+			changed = true;
 			if (job.remaining == 0) {
 				job.index++;
+				job.requestCooldown = 0;
 				if (job.index < job.steps.size())
 					job.remaining = job.steps.get(job.index).crafts();
+				return true;
 			}
-			return true;
 		}
-		if (job.remaining <= 0)
-			return false;
+		// In-flight rounds already cover this portion of the finite order. They do
+		// not prevent dispatching the remaining rounds while production is running.
+		if (job.remaining <= job.inFlight || job.requestCooldown > 0)
+			return changed;
+		job.requestCooldown = AllConfigs.server().logistics.factoryGaugeTimer.get();
+		RequestPromiseQueue promises = Create.LOGISTICS.getQueuedPromises(step.network());
+		if (promises == null)
+			return true;
 		if (!dispatch(job, step))
-			return false;
-		job.baseline = LogisticsManager.getSummaryOfNetwork(step.network(), true).getCountOf(step.output());
-		job.received = 0;
-		job.waiting = true;
+			return true;
+		// Do not reset an existing arrival baseline when adding another round.
+		if (job.inFlight == 0)
+			job.baseline = LogisticsManager.getSummaryOfNetwork(step.network(), true).getCountOf(step.output());
+		job.inFlight++;
+		// Same promise queue and per-recipe output as FactoryPanelBehaviour.tickRequests().
+		promises.add(new RequestPromise(new BigItemStack(step.output(), step.outputPerCraft())));
 		return true;
 	}
 
@@ -384,8 +407,9 @@ public final class GaugeCraftJobs extends SavedData {
 		final String address;
 		final List<GaugeCraftPlan.Step> steps;
 		final List<GaugeCraftPlan.Stock> reserved = new ArrayList<>();
-		int index, remaining, baseline, received;
-		boolean waiting;
+		// remaining includes inFlight; received is the not-yet-accounted-for arrival count.
+		int index, remaining, baseline, received, inFlight, requestCooldown;
+		boolean migratePromise;
 
 		Job(UUID id, UUID owner, ResourceKey<Level> dimension, BlockPos tickerPos, UUID network,
 			ItemStack output, int count, String address, List<GaugeCraftPlan.Step> steps) {
@@ -399,6 +423,10 @@ public final class GaugeCraftJobs extends SavedData {
 			this.address = address;
 			this.steps = List.copyOf(steps);
 			this.remaining = steps.isEmpty() ? 0 : steps.getFirst().crafts();
+		}
+
+		int outstandingOutput() {
+			return inFlight * steps.get(index).outputPerCraft() - received;
 		}
 
 		CompoundTag save(HolderLookup.Provider registries) {
@@ -415,7 +443,9 @@ public final class GaugeCraftJobs extends SavedData {
 			tag.putInt("Remaining", remaining);
 			tag.putInt("Baseline", baseline);
 			tag.putInt("Received", received);
-			tag.putBoolean("Waiting", waiting);
+			tag.putInt("InFlight", inFlight);
+			tag.putInt("RequestCooldown", requestCooldown);
+			tag.putBoolean("MigratePromise", migratePromise);
 			ListTag reservations = new ListTag();
 			for (GaugeCraftPlan.Stock stock : reserved) {
 				CompoundTag entry = new CompoundTag();
@@ -479,7 +509,17 @@ public final class GaugeCraftJobs extends SavedData {
 			job.remaining = tag.getInt("Remaining");
 			job.baseline = tag.getInt("Baseline");
 			job.received = tag.getInt("Received");
-			job.waiting = tag.getBoolean("Waiting");
+			if (tag.contains("InFlight", Tag.TAG_INT)) {
+				job.inFlight = tag.getInt("InFlight");
+				job.requestCooldown = tag.getInt("RequestCooldown");
+				job.migratePromise = tag.getBoolean("MigratePromise");
+			} else if (tag.getBoolean("Waiting")) {
+				job.inFlight = 1;
+				job.migratePromise = true;
+			} else {
+				// Legacy saves kept the previous round's received count until the next dispatch.
+				job.received = 0;
+			}
 			for (Tag raw : tag.getList("Reserved", Tag.TAG_COMPOUND)) {
 				CompoundTag entry = (CompoundTag) raw;
 				reserve(job, entry.getUUID("Network"), ItemStack.parseOptional(registries, entry.getCompound("Stack")),

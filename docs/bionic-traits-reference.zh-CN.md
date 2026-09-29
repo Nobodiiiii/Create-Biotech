@@ -207,6 +207,8 @@
 
 离水窒息默认 `min_coverage = 0.5`；水下呼吸和可驯服为存在型，不设门槛。所有这些特性的范围都是安装为头部的全部体块，包括没有头部或鳃标签的普通组织。载体读取 `GILL`（呼吸类）或 `HEAD`（其余）角色；呼吸类物种没有鳃的映射时，以整个头部为载体。
 
+熔岩行者采用原版炽足兽的地面导航流程：保留普通节点高度和移动目标高度，放行熔岩／火焰节点及熔岩落点，并使用原版路径跟随，不进入仿生体的等高路径直连。该选择按熔岩行走能力判断，跨越岸边或终点位于陆地时也不因接触熔岩、上浮或落地而切换。半格支撑属于碰撞与浮力逻辑，不额外改写寻路高度。强跳的节点扩展和开门能力仍保留；同时具有游泳或飞行特性时，沿用这些特性的导航优先级。依据为 `ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Strider.java` 的 `StriderPathNavigation`，以及 `ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java`、`PathNavigation.java`。此处不包含第三方碰撞兼容修复。
+
 ### 2. 游泳供体与自动判定
 
 游泳供体自动判定使用 `WaterAnimal`、`Drowned`、`WaterBoundPathNavigation`、`AmphibiousPathNavigation` 或 `SmoothSwimmingMoveControl`。仅会水面浮游的牛羊等陆生生物不计入，水下呼吸或无需呼吸也不会自动赋予游泳专长。可通过 `swim_specialist.json` 的 `values` 按实体 ID／标签覆盖判定。

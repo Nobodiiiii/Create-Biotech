@@ -11,17 +11,22 @@
 
 ## 1. 结论
 
-推荐实现“持久合成任务 + 临时仪表请求保持”，但不要临时修改仪表的 `count`、过滤器、地址或连接。
+当前执行采用“持久合成任务 + Create 原生承诺”，不临时修改仪表的 `count`、过滤器、地址或连接。
 
 原因如下：
 
 1. 仪表配置属于玩家的永久配置，临时改写会与红石、原生补货和其他玩家的请求互相覆盖。
-2. Create 的 `RequestPromiseQueue` 只按物品汇总，没有任务 ID；直接塞入后无法只取消某个任务的承诺。
+2. Create 的 `RequestPromiseQueue` 只按物品汇总，没有任务 ID；取消任务只停止后续发料，已发配料的承诺继续由原版兑现或过期。
 3. Create 的仪表请求只会处理一层配方，不会递归展开前驱仪表。
 4. Create 的物理产物没有任务标签，完成判断必须采用“同种物品可互换 + 中央保留账本”。
 
-因此临时请求保持由本模组持有所有权，并在仪表显示层叠加为承诺数量；实际配料仍调用 Create
+任务所有权和现货保留仍由本模组管理。每轮实际发料成功后向 Create 的网络承诺队列登记
+`recipeOutput`，不再通过 `getPromised()` Mixin 叠加数量。实际配料调用 Create
 的 `LogisticsManager.findPackagersForRequest()` 和 `performPackageRequests()`。
+
+同一配方的多个轮次按 `factoryGaugeTimer` 间隔继续发送，不等待上一轮产物回库；任务每 10 tick
+调度一次，因此间隔向上取整到调度周期。所有轮次已派发后才统一等待本步骤产物齐备，随后进入依赖步骤。
+例如 `1 原木 → 4 木板`、缺口 `40 木板` 时派发 10 轮，可以同时存在多个在途批次。
 
 总体流程：
 
@@ -226,27 +231,31 @@ VirtualStack = 网络 + 物品 + 数量 + producerTaskId（现货为 null）
 
 ---
 
-## 6. 临时仪表请求保持
+## 6. 原生仪表承诺
 
 ### 6.1 所有权模型
 
-建立持久化的 `GaugeRequestHoldLedger`：
+`GaugeCraftJobs` 保存每个当前步骤的执行状态：
 
 ```text
-HoldId      = jobId + taskId
-HoldKey     = outputNetwork + 精确 ItemStack 组件
-amount      = 已派发但尚未被任务账本接收的预期产物
-gaugeId     = 负责生产的仪表
-createdTick = 创建时间
+remaining       = 尚未完成的轮数，包含 inFlight
+inFlight        = 已派发但尚未结算完成的轮数
+received        = 已分配给任务、尚未结算为完整轮次的产物数量
+requestCooldown = 距离下一次发料尝试的 tick 数
 ```
 
-它只表示已经真实派发配料、正在等待产物的数量。尚未就绪的计划任务不能显示为“已承诺”。
+只有真实派发成功才增加 `inFlight`，并往 `Create.LOGISTICS.getQueuedPromises(network)` 添加
+`RequestPromise(new BigItemStack(output, outputPerCraft))`。未派发的计划数量不算承诺。
 
-扩展现有 `FactoryPanelBehaviourMixin`，在 `getPromised()` 返回时叠加同网络、同物品的临时保持数量。
-这让原版仪表灯色和满足判断认识树形任务，同时避免往 Create 无所有权信息的
-`RequestPromiseQueue` 中写入不可撤销的条目。
+兑现、过期、手动清理和原版仪表的满足判断均复用 Create 的 `RequestPromiseQueue`。
+`FactoryPanelBehaviourMixin` 只刷新仪表索引，不再修改 `getPromised()` 返回值。
+准确参考路径为 `ref/1.21.1/Create/src/main/java/com/simibubi/create/content/logistics/` 下的
+`factoryBoard/FactoryPanelBehaviour.java`、`packagerLink/RequestPromiseQueue.java` 和
+`packager/PackagerBlockEntity.java`。
 
-取消或完成任务时可以按 `HoldId` 精确删除，不影响原版仪表承诺和其他合成任务。
+承诺只用于记录已派发的生产，不能当作已经到手的原料。任务账本仍按实际到货分配库存，
+每份产物只分配一次。取消任务释放本任务的保留并停止后续发料，不撤回已发包裹，也不清除网络承诺。
+有限合成计划不会因为承诺被清除或过期而自动多派发一轮；缺货仍等待实际产物或由玩家取消后重新规划。
 
 ### 6.2 不修改永久仪表配置
 
@@ -290,10 +299,11 @@ PLANNED
 4. 为每个输入网络调用 `LogisticsManager.findPackagersForRequest()`；
 5. 检查所有相关打包器均未 `isTooBusyFor(RequestType.RESTOCK)`；
 6. 全部可用后调用 `LogisticsManager.performPackageRequests()`；
-7. 建立任务自己的临时输出保持，进入 `WAITING_OUTPUT`。
+7. 登记原生 `RequestPromise`，增加本任务的在途轮数。
 
 每次只派发一次仪表配方。多个 `crafts` 分多轮发送，行为最接近 Create 原版仪表，也避免错误地把
-多次排列合成编码为一次包裹上下文。
+多次排列合成编码为一次包裹上下文。只要还有未派发轮次，冷却结束且原料、打包器可用，就继续发料，
+即使前面的轮次尚未产出。已派发轮次覆盖当前步骤全部需求后进入 `WAITING_OUTPUT`，不重复派发。
 
 需要把上述逻辑封装为 `FactoryGaugeRequestDispatcher`，不要直接调用或反射私有的
 `tickRequests()`，也不要复制整个 `FactoryPanelBehaviour`。
@@ -303,8 +313,8 @@ PLANNED
 Create 的工厂产物不带任务 ID，因此不能判断“这一件是否由本任务的机器生产”。本方案采用可互换库存：
 
 1. 中央账本周期性读取各物流网络的准确库存；
-2. 按任务公平顺序，将未被其他任务保留的匹配物品分配给 `WAITING_OUTPUT`；
-3. 分配成功后减少临时保持，并把数量保留给依赖它的父任务；
+2. 按任务顺序，将新增匹配物品分配给有在途轮次的任务，单个任务最多领取 `inFlight * outputPerCraft - received`；
+3. 分配成功后增加 `received` 并保留现货；按完整配方产量同时扣减 `remaining` 和 `inFlight`，保留零头；
 4. 父任务派发输入包裹前释放自己即将消费的保留，并立即复核真实库存。
 
 玩家手动放入同种物品可以让任务提前完成，这是物品可互换模型的正常行为。外部系统也可能在极短窗口内
@@ -347,18 +357,21 @@ stockTicker.broadcastPackageRequest(
 - 根物品、请求数量和剩余数量；
 - 每个任务的仪表身份、配方 fingerprint、次数和状态；
 - 依赖关系；
-- 已保留现货与临时请求保持；
+- 已保留现货、在途轮数、部分到货和发料冷却；
 - 创建时间、最后进展时间和错误原因。
 
 服务器恢复后：
 
 1. 不重复发送 `DISPATCHED` 任务；
-2. 重建保留账本和临时保持；
+2. 恢复保留账本和在途轮数；原生承诺由 Create 自己恢复，不能重复登记；
 3. 用真实库存重新满足 `WAITING_OUTPUT`；
 4. 仪表未加载则暂停；
 5. fingerprint 不同则要求重新规划。
 
 不能只依赖当前的弱引用 `FactoryGaugeCatalog` 保存任务状态；弱引用索引只用于发现已加载仪表。
+
+旧存档的 `Waiting=true` 迁移为一个在途轮次，只将尚未收到的产量登记一次原生承诺，
+不重复发送原料。旧存档 `Waiting=false` 时残留的上一轮 `Received` 必须清零。
 
 ---
 
@@ -413,7 +426,7 @@ stockTicker.broadcastPackageRequest(
 - 未派发任务立即释放全部保留；
 - 已发送的物理包裹无法召回；
 - 取消后停止派发后续节点，已经产出的物品成为普通网络库存；
-- 精确删除本任务的临时保持，不清理 Create 的其他承诺。
+- 保留已经登记的原生承诺，等待实际到货兑现或按仪表配置过期，不调用 `forceClear`。
 
 ### 超时
 
@@ -437,7 +450,6 @@ content/endermanstockkeeper/crafting/
   GaugeCraftTask.java
   GaugeCraftJob.java
   GaugeCraftJobManager.java
-  GaugeRequestHoldLedger.java
   FactoryGaugeRequestDispatcher.java
   GaugeCraftSavedData.java
   packet/
@@ -453,7 +465,7 @@ content/endermanstockkeeper/crafting/
 - `FactoryGaugeCatalog`：从“输出物品列表”扩展为可生成不可变 `GaugeRecipeSnapshot`；
 - `EndermanStockKeeperRequestMenu`：同步可合成集合和计划会话 ID；
 - `EndermanStockKeeperRequestScreen`：中键入口、数量和计划摘要；
-- `FactoryPanelBehaviourMixin`：保留现有索引，并在服务端 `getPromised()` 结果上叠加临时保持；
+- `FactoryPanelBehaviourMixin`：保留现有仪表索引，不再叠加承诺数量；
 - `StockKeeperRequestScreenMixin`：只负责识别中键和阻止零库存左右键，不承担规划逻辑。
 
 预计不需要修改 Create 的 `StockTickerBlockEntity`、`LogisticsManager` 或保存格式。
@@ -467,7 +479,7 @@ content/endermanstockkeeper/crafting/
 - 服务端读取唯一根仪表；
 - 支持单一配方链和现货优先；
 - 中键数量请求；
-- 持久任务、临时保持和叶到根派发；
+- 持久任务、原生承诺和叶到根派发；
 - 缺料拒绝、取消和重启恢复；
 - 根产物普通下单。
 
@@ -500,14 +512,14 @@ content/endermanstockkeeper/crafting/
 | 风险 | 处理 |
 | --- | --- |
 | 产物没有任务标签 | 中央可互换库存保留账本 |
-| Create 承诺没有任务所有权 | 自有 `HoldId`，只在显示/满足判断中叠加 |
+| Create 承诺没有任务所有权 | 已发料承诺归原版管理，取消只释放任务保留并停止后续发料 |
 | 多网络输入无法真正事务提交 | 先收集和检查全部请求，再按 Create 原路径连续提交；失败重试 |
 | 玩家中途修改仪表 | fingerprint 校验并暂停 |
 | 区块卸载 | 不强加载，持久暂停 |
 | 外部系统抢走保留物品 | 发包前复核，失败回到等待 |
 | 取消后包裹仍在路上 | 明确不可召回，产物回归普通库存 |
 
-Mixin 侵入性保持较低：复用现有两个相关 Mixin，只增加中键入口和 `getPromised()` 的返回值叠加。
+Mixin 侵入性保持较低：复用现有中键入口和仪表索引刷新，不修改 `getPromised()` 返回值。
 规划、持久化和物流分发都放在本模组普通类中，不覆盖 Create 方法。
 
 ---
@@ -524,4 +536,5 @@ Mixin 侵入性保持较低：复用现有两个相关 Mixin，只增加中键�
 8. 修改配方仪表后旧任务暂停，不按错误配方消耗材料。
 9. 两名玩家同时请求时，本模组内部不会重复使用同一批现货。
 10. 最终产物通过仓库控制台的普通 Create 订单送往玩家填写的地址。
-
+11. 同一配方可以同时有多轮在途；40 木板任务按 1 原木产 4 木板派发 10 轮，无需逐轮等待回库。
+12. 部分到货、多个同物品任务和旧存档迁移不会重复分配产物或重复派发原料。

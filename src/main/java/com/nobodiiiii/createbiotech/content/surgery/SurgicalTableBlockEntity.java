@@ -1383,7 +1383,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			&& bodyBounds.groundedKneeCount() <= installedKnees;
 	}
 
-	/** Removes one server-authoritative joint and returns its item, following Create's wrench pickup rules. */
+	/** Removes one server-authoritative joint with shears and returns its item. */
 	public boolean detachLimb(Player player, SurgicalLimbJoint joint) {
 		if (joint == null || !allLimbJoints().contains(joint))
 			return false;
@@ -2380,6 +2380,73 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Map<UUID, ValidatedGlueMove> moves, Map<UUID, Map<Integer, Vec3>> anchorMoves) {}
 
 	private record ExtractedSubject(BitSet cubes, SurgicalSubject subject) {}
+
+	/** Validates the complete snapshot before calculating any wrench mutation. */
+	public SurgicalWrenchRotation.Plan planWrenchRotation(UUID subjectId, int cubeId, Vec3 axis, double degrees,
+		boolean straighten, boolean single, List<SurgicalWrenchRotation.Body> bodies, SurgicalTablePlane.Plane plane) {
+		SurgicalWrenchRotation.Plan invalid = SurgicalWrenchRotation.Plan.fail(SurgicalWrenchRotation.Failure.INVALID);
+		SurgicalSubject selected = getSubjectByPersistentId(subjectId);
+		if (selected == null || !selected.validPresentCube(cubeId) || !plane.valid()
+			|| !worldPosition.equals(plane.source()) || bodies.isEmpty() || bodies.size() > SurgicalAssembly.MAX_SOURCES
+			|| !Double.isFinite(degrees) || !Double.isFinite(axis.lengthSqr())
+			|| !straighten && (axis.lengthSqr() < 1.0e-12d || Math.abs(degrees) != 5.0d && Math.abs(degrees) != 90.0d))
+			return invalid;
+		Map<Integer, BitSet> group = connectedComponents(selected.id(), cubeId);
+		Set<Integer> seen = new HashSet<>();
+		int total = 0;
+		for (SurgicalWrenchRotation.Body body : bodies) {
+			SurgicalSubject subject = getSubject(body.id());
+			if (subject == null || !subject.persistentId().equals(body.key()) || !seen.add(body.id())
+				|| !group.containsKey(body.id()) || !subject.matchesObservedTopology(body.cubeCount(), body.seams()))
+				return invalid;
+			BitSet cubes = new BitSet();
+			for (SurgicalWrenchRotation.Cube cube : body.cubes()) {
+				if (!cube.valid() || !subject.validPresentCube(cube.id()) || cubes.get(cube.id())
+					|| !subject.componentRotations.getOrDefault(cube.id(), SurgicalCubeRotation.IDENTITY)
+						.approximatelyEquals(cube.rotation(), 1.0e-8d))
+					return invalid;
+				cubes.set(cube.id());
+			}
+			total += cubes.cardinality();
+			if (total > SurgicalAssembly.MAX_CUBES || !cubes.equals(subject.presentCubes)
+				|| !layoutMatchesStoredOffsets(subject, body.layout(subject.presentCubes, subject.cutSeams)))
+				return invalid;
+		}
+		if (!seen.equals(group.keySet()))
+			return invalid;
+		SurgicalWrenchRotation.Cube anchor = bodies.stream().filter(body -> body.id() == selected.id())
+			.findFirst().orElseThrow().cube(cubeId);
+		SurgicalCubeRotation delta = SurgicalWrenchRotation.delta(anchor, axis, degrees, straighten);
+		Map<Integer, BitSet> neighbors = directConnections(selected.id(), cubeId, selected.cubeCount, selected.seams);
+		SurgicalWrenchRotation.Plan plan = SurgicalWrenchRotation.plan(bodies, group, neighbors, selected.id(), cubeId,
+			delta, single && !straighten, plane.workArea(), occupiedForValidation(plane, seen));
+		if (!plan.valid())
+			return plan;
+		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
+			SurgicalSubject subject = getSubject(body.id());
+			if (!SurgicalTableLayout.validateEditedGlueComponents(plane, subject.cubeCount, subject.presentCubes,
+				subject.seams, subject.cutSeams, body.layout(subject.presentCubes, subject.cutSeams), List.of()))
+				return invalid;
+		}
+		return plan;
+	}
+
+	/** Commits every subject together, only after the complete plan has passed validation. */
+	void applyWrenchRotation(SurgicalWrenchRotation.Plan plan) {
+		if (!plan.valid())
+			return;
+		for (SurgicalWrenchRotation.Body body : plan.bodies()) {
+			SurgicalSubject subject = getSubject(body.id());
+			Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
+			for (SurgicalWrenchRotation.Cube cube : body.cubes())
+				if (!cube.rotation().isIdentity())
+					rotations.put(cube.id(), cube.rotation());
+			subject.applyLayout(body.layout(subject.presentCubes, subject.cutSeams));
+			subject.componentRotations = Map.copyOf(rotations);
+		}
+		clientRenderBounds = null;
+		setChangedAndSync();
+	}
 
 	public boolean validateGlueLayout(SurgicalSubject subject, SurgicalTablePlane.Plane plane,
 		SurgicalTableLayout.Proposal proposal) {

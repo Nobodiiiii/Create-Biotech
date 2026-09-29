@@ -53,6 +53,15 @@ public class SlimeBionicGroundNavigation extends GroundPathNavigation {
 
 	@Override
 	protected void followThePath() {
+		// Strider uses the ordinary ground navigator's waypoint advancement and
+		// corner handling. Its lava nodes need not share getTempMobPos's rounded Y;
+		// do not feed them through our equal-elevation shortcut logic, even when
+		// the destination is on land. Keep this choice stable across the shoreline.
+		if (mob.canStandOnFluid(Fluids.LAVA.defaultFluidState())) {
+			super.followThePath();
+			return;
+		}
+
 		Path currentPath = path;
 		if (currentPath == null)
 			return;

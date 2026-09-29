@@ -63,6 +63,36 @@ public record SurgicalCubeRotation(double x, double y, double z, double w) {
 			next.w * w - next.x * x - next.y * y - next.z * z);
 	}
 
+	/** Smallest physical rotation taking an orthogonal cube frame to any of the 24 axial frames. */
+	public static SurgicalCubeRotation nearestAxisAlignment(Vec3 first, Vec3 second) {
+		Vec3 xAxis = first.normalize();
+		Vec3 yAxis = second.subtract(xAxis.scale(second.dot(xAxis))).normalize();
+		if (xAxis.lengthSqr() < 0.5d || yAxis.lengthSqr() < 0.5d)
+			return IDENTITY;
+		SurgicalCubeRotation best = null;
+		for (Direction xDirection : Direction.values()) {
+			Vec3 targetX = Vec3.atLowerCornerOf(xDirection.getNormal());
+			double dot = Math.clamp(xAxis.dot(targetX), -1.0d, 1.0d);
+			Vec3 cross = xAxis.cross(targetX);
+			SurgicalCubeRotation alignX = dot < -1.0d + 1.0e-12d
+				? around(yAxis, 180.0d)
+				: new SurgicalCubeRotation(cross.x, cross.y, cross.z, 1.0d + dot);
+			Vec3 movedY = alignX.rotate(yAxis);
+			for (Direction yDirection : Direction.values()) {
+				if (xDirection.getAxis() == yDirection.getAxis())
+					continue;
+				Vec3 targetY = Vec3.atLowerCornerOf(yDirection.getNormal());
+				double angle = Math.toDegrees(Math.atan2(targetX.dot(movedY.cross(targetY)),
+					movedY.dot(targetY)));
+				SurgicalCubeRotation candidate = alignX.then(around(targetX, angle));
+				// abs(dot(q, identity)) = abs(w); maximizing it minimizes angular distance.
+				if (best == null || Math.abs(candidate.w) > Math.abs(best.w) + 1.0e-12d)
+					best = candidate;
+			}
+		}
+		return best == null ? IDENTITY : best;
+	}
+
 	public Vec3 rotate(Vec3 vector) {
 		if (vector == null || isIdentity())
 			return vector == null ? Vec3.ZERO : vector;

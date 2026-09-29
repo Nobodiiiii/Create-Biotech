@@ -41,6 +41,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBatchCutPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableGluePacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbRemovalPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableCubeRotationPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSlimeSeamPacket;
@@ -137,6 +138,8 @@ public final class CBPackets {
 			GaugeCraftJobsRequestPacket::write, GaugeCraftJobsRequestPacket::handle);
 		registerServer(BionicTraitDonorsRequestPacket.class, BionicTraitDonorsRequestPacket::new,
 			BionicTraitDonorsRequestPacket::write, BionicTraitDonorsRequestPacket::handle);
+		registerServer(SurgicalTableCubeRotationPacket.class, SurgicalTableCubeRotationPacket::new,
+			SurgicalTableCubeRotationPacket::write, SurgicalTableCubeRotationPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);

@@ -46,6 +46,8 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbJoint;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbRemovalPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableCubeRotationPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalWrenchRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlacementResult;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableReleaseGeometryPacket;
@@ -205,7 +207,8 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static Selection slimeSeamSelection;
 	@Nullable
-	private static LimbJointSelection wrenchSelection;
+	private static LimbJointSelection jointRemovalSelection;
+	private static WrenchEditor wrenchEditor;
 	private static PendingLimb pendingLimb;
 	@Nullable
 	private static PendingSlimeSeam pendingSlimeSeam;
@@ -1379,6 +1382,8 @@ public final class SurgicalTableClientHandler {
 			clearSelections();
 			return;
 		}
+		if (refreshWrenchEditor(player, level))
+			return;
 		if (retainsGluePreview()) {
 			hoveredGluePoint = null;
 			GLUE_POINT_OUTLINE.clear();
@@ -1403,7 +1408,7 @@ public final class SurgicalTableClientHandler {
 			seamSelection = null;
 			cubeSelection = null;
 			componentSelection = null;
-			wrenchSelection = null;
+			jointRemovalSelection = null;
 			clearSeamHighlight();
 			refreshGlueEditGuide(player, level, glueEditor);
 			return;
@@ -1446,7 +1451,7 @@ public final class SurgicalTableClientHandler {
 			symmetrySelection = null;
 			limbSelection = null;
 			slimeSeamSelection = null;
-			wrenchSelection = null;
+			jointRemovalSelection = null;
 			lastSelectionMode = Integer.MIN_VALUE;
 			lastSelectionRay = null;
 			clearSeamHighlight();
@@ -1515,10 +1520,11 @@ public final class SurgicalTableClientHandler {
 		}
 		seamSelection = holdingShears && !highlightingDirectConnections
 			? findSeamSelection(player, level, ray, cubeHit) : null;
-		cubeSelection = holdingEmptyBox ? findConnectedComponentSelection(cubeHit, true) : null;
+		cubeSelection = holdingWrench ? findCubeSelection(cubeHit)
+			: holdingEmptyBox ? findConnectedComponentSelection(cubeHit, true) : null;
 		limbSelection = holdingJoint ? findLimbTargetSelection(cubeHit) : null;
 		slimeSeamSelection = holdingSlimeBall ? findSlimeSeamTargetSelection(level, cubeHit) : null;
-		wrenchSelection = holdingWrench ? findLimbJointSelection(player, level, ray, cubeHit) : null;
+		jointRemovalSelection = holdingShears ? findLimbJointSelection(player, level, ray, cubeHit) : null;
 		componentSelection = holdingShovel && !shovelingTile
 			? findConnectedComponentSelection(cubeHit)
 			: holdingHoney
@@ -1569,8 +1575,8 @@ public final class SurgicalTableClientHandler {
 		boolean highlightingBox = (lastSelectionMode & 2) != 0;
 		if (symmetrySelection != null)
 			highlightSelection(symmetrySelection);
-		else if (wrenchSelection != null)
-			highlightSelection(wrenchSelection.selection);
+		else if (jointRemovalSelection != null)
+			highlightSelection(jointRemovalSelection.selection);
 		else if (limbSelection != null)
 			highlightSelection(limbSelection);
 		else if (slimeSeamSelection != null)
@@ -1699,6 +1705,19 @@ public final class SurgicalTableClientHandler {
 		ClientLevel level = minecraft.level;
 		if (level == null)
 			return;
+		if (SurgicalKitItem.isShears(held)) {
+			Ray jointRay = playerRay(minecraft.player);
+			LimbJointSelection joint = findLimbJointSelection(minecraft.player, level, jointRay,
+				findNearestCubeHit(minecraft.player, level, jointRay));
+			if (joint != null) {
+				abortPendingCut();
+				abortPendingGlueCut();
+				CBPackets.sendToServer(new SurgicalTableLimbRemovalPacket(joint.selection.tablePos, hand, joint.joint));
+				clearSelections();
+				consumeInteraction(event, hand);
+				return;
+			}
+		}
 		if (pendingCut != null) {
 			confirmPendingCut(minecraft.player);
 			consumeInteraction(event, hand);
@@ -1731,13 +1750,23 @@ public final class SurgicalTableClientHandler {
 		Ray ray = playerRay(minecraft.player);
 		CubeHit cubeHit = findNearestCubeHit(minecraft.player, level, ray);
 		if (SurgicalKitItem.isWrench(held)) {
-			LimbJointSelection selectedJoint = findLimbJointSelection(minecraft.player, level, ray, cubeHit);
-			wrenchSelection = selectedJoint;
-			if (selectedJoint == null)
+			if (cubeHit == null) {
+				wrenchEditor = null;
+				GLUE_EDIT_OUTLINE.clear();
 				return;
-			CBPackets.sendToServer(new SurgicalTableLimbRemovalPacket(selectedJoint.selection.tablePos,
-				hand, selectedJoint.joint));
-			clearSelections();
+			}
+			SurgicalSubject subject = level.getBlockEntity(cubeHit.tablePos)
+				instanceof SurgicalTableBlockEntity table ? table.getSubject(cubeHit.geometry.subjectId) : null;
+			if (subject == null)
+				return;
+			boolean single = Screen.hasControlDown() && !Screen.hasShiftDown();
+			if (wrenchEditor == null || wrenchEditor.hand != hand || !wrenchEditor.matches(cubeHit)
+				|| wrenchEditor.single != single)
+				wrenchEditor = new WrenchEditor(cubeHit.tablePos, subject.persistentId(),
+					cubeHit.geometry.subjectId, cubeHit.cubeId, hand, single);
+			if (Screen.hasShiftDown())
+				wrenchEditor.operations.addLast(new WrenchOperation(Vec3.ZERO, 0.0d, true));
+			refreshWrenchEditor(minecraft.player, level);
 			consumeInteraction(event, hand);
 			return;
 		}
@@ -1846,7 +1875,7 @@ public final class SurgicalTableClientHandler {
 	/** Cancels every staged table interaction without letting the attack reach the world. */
 	private static boolean cancelPendingInteraction() {
 		if (pendingCut == null && pendingGlueCut == null && pendingGlue == null
-			&& pendingSymmetry == null && pendingLimb == null && pendingSlimeSeam == null)
+			&& pendingSymmetry == null && pendingLimb == null && pendingSlimeSeam == null && wrenchEditor == null)
 			return false;
 		abortPendingCut();
 		abortPendingGlueCut();
@@ -2171,7 +2200,23 @@ public final class SurgicalTableClientHandler {
 		Minecraft minecraft = Minecraft.getInstance();
 		LocalPlayer player = minecraft.player;
 		ClientLevel level = minecraft.level;
-		if (glueEditor == null || player == null || level == null || minecraft.screen != null)
+		if (player == null || level == null || minecraft.screen != null)
+			return;
+		if (wrenchEditor != null && SurgicalKitItem.isWrench(player.getItemInHand(wrenchEditor.hand))) {
+			double scroll = event.getScrollDeltaY();
+			CubeHit hit = findNearestCubeHit(player, level, playerRay(player));
+			if (Math.abs(scroll) > 1.0e-9d && wrenchEditor.matches(hit)) {
+				Vec3 axis = cubeFaceAxis(hit.geometry.cubesById.get(hit.cubeId), hit.faceIndex);
+				if (axis != null) {
+					wrenchEditor.operations.addLast(new WrenchOperation(axis,
+						Math.copySign(Screen.hasControlDown() ? 90.0d : GLUE_EDIT_ROTATION_STEP, scroll), false));
+					refreshWrenchEditor(player, level);
+				}
+			}
+			event.setCanceled(true);
+			return;
+		}
+		if (glueEditor == null)
 			return;
 		if (!isSmartGlue(player.getItemInHand(glueEditor.hand))) {
 			clearPendingGlue();
@@ -2202,6 +2247,126 @@ public final class SurgicalTableClientHandler {
 		}
 		refreshGlueEditGuide(player, level, glueEditor);
 		event.setCanceled(true);
+	}
+
+	private static boolean refreshWrenchEditor(LocalPlayer player, ClientLevel level) {
+		WrenchEditor editor = wrenchEditor;
+		if (editor == null)
+			return false;
+		SurgicalTableBlockEntity table = level.getBlockEntity(editor.pos)
+			instanceof SurgicalTableBlockEntity found ? found : null;
+		SurgicalSubject subject = table == null ? null : table.getSubject(editor.subjectId);
+		TableGeometry geometry = TABLES.get(new SubjectKey(editor.pos, editor.subjectId));
+		if (!SurgicalKitItem.isWrench(player.getItemInHand(editor.hand)) || subject == null
+			|| !subject.persistentId().equals(editor.subjectKey)
+			|| !subject.presentCubes().get(editor.cubeId)) {
+			wrenchEditor = null;
+			GLUE_EDIT_OUTLINE.clear();
+			return false;
+		}
+		if (!geometryReadyForUse(table, subject, geometry))
+			return true;
+		SurgicalModelRenderContext.CubeGeometry cube = geometry.cubesById.get(editor.cubeId);
+		if (cube == null || player.getEyePosition().distanceTo(cubeCenter(cube))
+			> player.getAttributeValue(Attributes.BLOCK_INTERACTION_RANGE) + 1.0d) {
+			wrenchEditor = null;
+			GLUE_EDIT_OUTLINE.clear();
+			return false;
+		}
+		CubeHit hit = findNearestCubeHit(player, level, playerRay(player));
+		CubeHit selectedHit = new CubeHit(editor.pos, geometry, editor.cubeId, 0, cubeCenter(cube), null);
+		cubeSelection = editor.single ? findCubeSelection(selectedHit) : findConnectedComponentSelection(selectedHit);
+		if (cubeSelection != null)
+			highlightSelection(cubeSelection);
+		Vec3 axis = editor.matches(hit) ? cubeFaceAxis(cube, hit.faceIndex) : null;
+		if (axis == null)
+			GLUE_EDIT_OUTLINE.clear();
+		else {
+			Vec3 center = cubeCenter(cube);
+			GLUE_EDIT_OUTLINE.show(cubeEditGuideEdges(axis, center, center,
+				glueEditGuideRadius(cube, center, axis), true), CUBE_HIGHLIGHT_COLOR);
+		}
+		SurgicalCubeRotation current = subject.componentRotationsForRender()
+			.getOrDefault(editor.cubeId, SurgicalCubeRotation.IDENTITY);
+		if (editor.awaiting != null) {
+			if (table.clientDataRevision() != editor.sentRevision
+				&& current.approximatelyEquals(editor.awaiting, 1.0e-8d))
+				editor.awaiting = null;
+			else if (level.getGameTime() - editor.sentTick > 40) {
+				editor.awaiting = null;
+				editor.operations.clear();
+			} else
+				return true;
+		}
+		if (editor.operations.isEmpty())
+			return true;
+		Map<Integer, BitSet> group = table.connectedComponents(editor.subjectId, editor.cubeId,
+			geometry.observedCubeCount, geometry.seams);
+		List<SurgicalWrenchRotation.Body> bodies = new ArrayList<>();
+		for (int bodyId : group.keySet().stream().sorted().toList()) {
+			SurgicalSubject body = table.getSubject(bodyId);
+			TableGeometry captured = TABLES.get(new SubjectKey(editor.pos, bodyId));
+			if (body == null || !geometryReadyForUse(table, body, captured))
+				return true;
+			List<SurgicalWrenchRotation.Cube> cubes = new ArrayList<>();
+			for (int id = captured.presentCubes.nextSetBit(0); id >= 0; id = captured.presentCubes.nextSetBit(id + 1)) {
+				SurgicalModelRenderContext.CubeGeometry capturedCube = captured.cubesById.get(id);
+				if (capturedCube == null)
+					return true;
+				cubes.add(new SurgicalWrenchRotation.Cube(id, capturedCube.corners(),
+					captured.offsets.getOrDefault(id, Vec3.ZERO),
+					captured.rotations.getOrDefault(id, SurgicalCubeRotation.IDENTITY)));
+			}
+			bodies.add(new SurgicalWrenchRotation.Body(bodyId, body.persistentId(), captured.observedCubeCount,
+				captured.seams, cubes));
+		}
+		WrenchOperation operation = editor.operations.removeFirst();
+		SurgicalTablePlane.Plane plane = clientPlane(level, editor.pos);
+		SurgicalWrenchRotation.Plan plan = table.planWrenchRotation(editor.subjectKey, editor.cubeId,
+			operation.axis, operation.degrees, operation.snap, editor.single, bodies, plane);
+		if (!plan.valid()) {
+			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.DISCONNECTED
+				? "message.create_biotech.surgical_table.rotation_disconnects"
+				: "message.create_biotech.surgical_table.no_space"), true);
+			return true;
+		}
+		SurgicalCubeRotation rotation = plan.bodies().stream().filter(body -> body.id() == editor.subjectId)
+			.findFirst().orElseThrow().cube(editor.cubeId).rotation();
+		CBPackets.sendToServer(new SurgicalTableCubeRotationPacket(editor.pos, editor.hand, editor.subjectKey,
+			editor.cubeId, operation.axis, operation.degrees, operation.snap, editor.single, bodies));
+		editor.awaiting = rotation;
+		editor.sentTick = level.getGameTime();
+		editor.sentRevision = table.clientDataRevision();
+		AllSoundEvents.SCROLL_VALUE.playAt(level, editor.pos, 0.35f, 0.85f, false);
+		return true;
+	}
+
+	private record WrenchOperation(Vec3 axis, double degrees, boolean snap) {}
+
+	private static final class WrenchEditor {
+		private final BlockPos pos;
+		private final UUID subjectKey;
+		private final int subjectId;
+		private final int cubeId;
+		private final InteractionHand hand;
+		private final boolean single;
+		private final java.util.ArrayDeque<WrenchOperation> operations = new java.util.ArrayDeque<>();
+		private SurgicalCubeRotation awaiting;
+		private long sentTick;
+		private int sentRevision;
+
+		private WrenchEditor(BlockPos pos, UUID subjectKey, int subjectId, int cubeId, InteractionHand hand, boolean single) {
+			this.pos = pos;
+			this.subjectKey = subjectKey;
+			this.subjectId = subjectId;
+			this.cubeId = cubeId;
+			this.hand = hand;
+			this.single = single;
+		}
+
+		private boolean matches(@Nullable CubeHit hit) {
+			return hit != null && pos.equals(hit.tablePos) && subjectId == hit.geometry.subjectId && cubeId == hit.cubeId;
+		}
 	}
 
 	private static void clearPendingGlue() {
@@ -2310,14 +2475,16 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static List<SurgicalClientTopology.Edge> glueEditGuideEdges(GlueEditor editor, boolean rotating) {
+		return cubeEditGuideEdges(editor.axis, editor.axisCenter, editor.faceCenter, editor.guideRadius, rotating);
+	}
+
+	private static List<SurgicalClientTopology.Edge> cubeEditGuideEdges(Vec3 axis, Vec3 center,
+		Vec3 faceCenter, double radius, boolean rotating) {
 		List<SurgicalClientTopology.Edge> edges = new ArrayList<>();
-		Vec3 axis = editor.axis;
-		Vec3 center = editor.axisCenter;
 		Vec3 axisU = perpendicularAxis(axis);
 		Vec3 axisV = axis.cross(axisU).normalize();
-		double radius = editor.guideRadius;
 		if (!rotating) {
-			double faceDistance = Math.max(0.0d, editor.faceCenter.subtract(center).dot(axis));
+			double faceDistance = Math.max(0.0d, faceCenter.subtract(center).dot(axis));
 			double length = Math.max(faceDistance + 0.25d, radius * 1.25d);
 			double headLength = Math.min(0.25d, length * 0.3d);
 			double headRadius = headLength * 0.55d;
@@ -3492,12 +3659,14 @@ public final class SurgicalTableClientHandler {
 				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
 				"create_biotech.gui.surgical_table.action.shovel_tile", hitsShovelTile);
 		} else if (SurgicalKitItem.isShears(stack)) {
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.remove_joint", jointRemovalSelection != null);
 			boolean placingCut = pendingCut != null || pendingGlueCut != null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.cut", !placingCut);
+				"create_biotech.gui.surgical_table.action.cut", !placingCut && jointRemovalSelection == null);
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.ctrl"),
-				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut", !placingCut);
+				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut", !placingCut && jointRemovalSelection == null);
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.confirm_cut", placingCut);
 			addCancelControl(tooltip, placingCut);
@@ -3514,7 +3683,21 @@ public final class SurgicalTableClientHandler {
 				appendPackedProperties(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.remove_joint");
+				"create_biotech.gui.surgical_table.action.select_rotation_cube");
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
+				"create_biotech.gui.surgical_table.action.select_single_rotation_cube");
+			addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.scroll"),
+				wrenchEditor != null && wrenchEditor.single ? "create_biotech.gui.surgical_table.action.rotate_single_cube"
+					: "create_biotech.gui.surgical_table.action.rotate_cube", wrenchEditor != null);
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"), Component.translatable(
+				"create_biotech.gui.surgical_table.control.scroll")),
+				"create_biotech.gui.surgical_table.action.rotate_cube_quarter", wrenchEditor != null);
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.shift"), Component.keybind("key.use")),
+				"create_biotech.gui.surgical_table.action.align_cube");
+			addCancelControl(tooltip, wrenchEditor != null);
 		} else if (CapturedEntityBoxHelper.hasCapturedEntity(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.place_subject");
@@ -3576,6 +3759,8 @@ public final class SurgicalTableClientHandler {
 
 	@Nullable
 	private static InteractionHand interactionPromptHand(LocalPlayer player) {
+		if (wrenchEditor != null)
+			return wrenchEditor.hand;
 		if (pendingCut != null)
 			return pendingCut.hand;
 		if (pendingGlueCut != null)
@@ -4398,7 +4583,7 @@ public final class SurgicalTableClientHandler {
 			|| belongsToSelectionPlane(level, target, symmetrySelection)
 			|| belongsToSelectionPlane(level, target, limbSelection)
 			|| belongsToSelectionPlane(level, target,
-				wrenchSelection == null ? null : wrenchSelection.selection)
+				jointRemovalSelection == null ? null : jointRemovalSelection.selection)
 			|| target.equals(shovelTileOutlinePos)))
 			event.setCanceled(true);
 	}
@@ -5882,6 +6067,8 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private static void clearSelections() {
+		wrenchEditor = null;
+		GLUE_EDIT_OUTLINE.clear();
 		seamSelection = null;
 		cubeSelection = null;
 		componentSelection = null;
@@ -5889,7 +6076,7 @@ public final class SurgicalTableClientHandler {
 		symmetrySelection = null;
 		limbSelection = null;
 		slimeSeamSelection = null;
-		wrenchSelection = null;
+		jointRemovalSelection = null;
 		hoveredGluePoint = null;
 		connectedSelectionCache = null;
 		directSelectionCache = null;

@@ -91,6 +91,7 @@ public final class GuiEntityItemElement {
 	private Anchor anchor = Anchor.BLOCK_CENTERED;
 	private float scaleMultiplier = 1.0f;
 	private boolean autoScale;
+	private boolean centerProjected;
 	private double footYOffset;
 	private int packedLight = LightTexture.FULL_BRIGHT;
 	private boolean measured;
@@ -162,6 +163,7 @@ public final class GuiEntityItemElement {
 	 * Picks the vertical rotation that reads best for a given item display context.
 	 */
 	public GuiEntityItemElement yRotationFor(ItemDisplayContext displayContext) {
+		centerProjected = displayContext == ItemDisplayContext.GUI;
 		return yRotation(baseYRotation(displayContext));
 	}
 
@@ -223,6 +225,7 @@ public final class GuiEntityItemElement {
 			poseStack.scale(boxScale, boxScale, boxScale);
 			ClientHooks.handleCameraTransforms(poseStack, model, ItemDisplayContext.GUI, false);
 			poseStack.translate(-0.5f, -0.5f, -0.5f);
+			centerProjected = true;
 			render(poseStack, graphics.bufferSource());
 			graphics.flush();
 		} finally {
@@ -245,7 +248,31 @@ public final class GuiEntityItemElement {
 
 		Vector3f center = resolveGeometryCenter();
 		float scale = autoScale ? blockCenteredProjectedScale(poseStack, center) : scaleMultiplier;
+		if (centerProjected)
+			centerProjection(poseStack, center, scale);
 		applyBlockCenteredTransform(poseStack, center, scale, resolveYRotation());
+	}
+
+	/** A rotated asymmetric model's projected center need not match its 3D bounds center. */
+	private void centerProjection(PoseStack poseStack, Vector3f center, float scale) {
+		Matrix4f itemToScreen = new Matrix4f(poseStack.last().pose());
+		if (Math.abs(itemToScreen.determinant()) <= MIN_POSE_SCALE)
+			return;
+		poseStack.pushPose();
+		EntityGeometry.Bounds bounds;
+		try {
+			applyBlockCenteredTransform(poseStack, center, scale, resolveYRotation());
+			bounds = rawGeometry().transformBounds(poseStack.last().pose());
+		} finally {
+			poseStack.popPose();
+		}
+		if (!bounds.hasVertices())
+			return;
+		Vector3f target = itemToScreen.transformPosition(new Vector3f(BLOCK_CENTER));
+		// Correct only screen X/Y; retain the model's depth and all item display transforms.
+		Vector3f offset = itemToScreen.invert().transformDirection(
+			target.x - bounds.centerX(), target.y - bounds.centerY(), 0.0f, new Vector3f());
+		poseStack.translate(offset.x, offset.y, offset.z);
 	}
 
 	/**
