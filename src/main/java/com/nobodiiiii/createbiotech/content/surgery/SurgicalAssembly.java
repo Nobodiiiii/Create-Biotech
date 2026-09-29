@@ -886,6 +886,38 @@ public final class SurgicalAssembly {
 		return layoutLayPose.rotateClockwise(clockwiseTurns(layoutFacing, horizontal(placementFacing)));
 	}
 
+	public SurgicalLayPose groundDownLayPose(Direction placementFacing) {
+		return new SurgicalLayPose(SurgicalLayPose.RotationAxis.NONE,
+			placedLayPose(placementFacing).yaw(), Vec3.ZERO);
+	}
+
+	public List<PlacedSource> placedSources(Direction facing, SurgicalLayPose target) {
+		SurgicalLayPose original = placedLayPose(facing);
+		List<PlacedSource> placed = placedSources(facing);
+		if (original.equals(target))
+			return placed;
+		return placed.stream().map(source -> {
+			Map<Integer, Vec3> offsets = new HashMap<>();
+			source.cubeOffsets.forEach((cube, offset) -> offsets.put(cube, original.rotateInto(target, offset)));
+			Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
+			source.cubeRotations.forEach((cube, rotation) -> rotations.put(cube, rotation.reframe(original, target)));
+			return new PlacedSource(source.source, source.facing, source.layPose.reframe(original, target),
+				original.rotateInto(target, source.originOffset), offsets, rotations);
+		}).toList();
+	}
+
+	public List<Joint> placedJoints(Direction facing, SurgicalLayPose target) {
+		SurgicalLayPose original = placedLayPose(facing);
+		if (original.equals(target))
+			return placedJoints(facing);
+		return placedJoints(facing).stream().map(joint -> joint.replay == null ? joint
+			: new Joint(joint.firstSource, joint.firstCube, joint.secondSource, joint.secondCube,
+				new JointReplay(joint.replay.movingSource, joint.replay.movingCube,
+					new SurgicalGlueTransform(original.rotateInto(target, joint.replay.transform.translation()),
+						joint.replay.transform.rotation().reframe(original, target)), joint.replay.anchorContact)))
+			.toList();
+	}
+
 	/** Rotates every stored source from the packed layout frame into a new table-facing frame. */
 	public List<PlacedSource> placedSources(Direction placementFacing) {
 		int turns = clockwiseTurns(layoutFacing, horizontal(placementFacing));

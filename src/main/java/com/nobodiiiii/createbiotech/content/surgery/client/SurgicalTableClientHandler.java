@@ -1084,7 +1084,7 @@ public final class SurgicalTableClientHandler {
 		}
 		boolean projectSourceGeometry = controller.clientProjectsSourceGeometry();
 		int tableRevision = controller.clientDataRevision();
-		PlacementGeometry placementGeometry = source.measure(placementFacing, projectSourceGeometry);
+		PlacementGeometry placementGeometry = source.measure(placementFacing, projectSourceGeometry, Screen.hasControlDown());
 		if (placementGeometry == null) {
 			rejectPlacementPreview(SurgicalTablePlacementResult.MODEL_UNAVAILABLE);
 			return;
@@ -1092,6 +1092,7 @@ public final class SurgicalTableClientHandler {
 		PlacementPreview previous = placementPreview;
 		if (previous != null && previous.ownerPos.equals(ownerPos) && previous.hand == hand
 			&& previous.source == source && previous.facing == placementFacing
+			&& previous.layPose.equals(placementGeometry.layPose())
 			&& previous.projectSourceGeometry == projectSourceGeometry
 			&& previous.tableRevision == tableRevision && previous.workArea == plane.workArea()
 			&& sameHorizontalTarget(target, previous.targetX, previous.targetZ)) {
@@ -1315,6 +1316,20 @@ public final class SurgicalTableClientHandler {
 		poseStack.translate(placement.plan.originOffsetX(), 0.0d, placement.plan.originOffsetZ());
 		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
 		int light = LevelRenderer.getLightColor(minecraft.level, placement.ownerPos);
+		if (Screen.hasControlDown() && placement.source.measuredGeometry != null) {
+			AABB bounds = placement.source.measuredGeometry.bounds();
+			com.mojang.blaze3d.vertex.VertexConsumer plane =
+				buffer.getBuffer(net.minecraft.client.renderer.RenderType.debugQuads());
+			float y = (float) (SurgicalTablePlane.SURFACE_HEIGHT + 0.002d);
+			plane.addVertex(poseStack.last().pose(), (float) bounds.minX, y, (float) bounds.minZ)
+				.setColor(48, 144, 255, 85);
+			plane.addVertex(poseStack.last().pose(), (float) bounds.maxX, y, (float) bounds.minZ)
+				.setColor(48, 144, 255, 85);
+			plane.addVertex(poseStack.last().pose(), (float) bounds.maxX, y, (float) bounds.maxZ)
+				.setColor(48, 144, 255, 85);
+			plane.addVertex(poseStack.last().pose(), (float) bounds.minX, y, (float) bounds.maxZ)
+				.setColor(48, 144, 255, 85);
+		}
 		float partialTicks = AnimationTickHolder.getPartialTicks();
 		if (placement.source.isComposite()) {
 			for (int sourceIndex = 0; sourceIndex < placement.sourceGeometries.size(); sourceIndex++) {
@@ -1346,6 +1361,66 @@ public final class SurgicalTableClientHandler {
 		}
 		poseStack.popPose();
 		buffer.endBatch();
+	}
+
+	@SubscribeEvent
+	public static void renderPickupGroundPlane(RenderLevelStageEvent event) {
+		if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_PARTICLES || !Screen.hasControlDown())
+			return;
+		Minecraft minecraft = Minecraft.getInstance();
+		if (minecraft.player == null || minecraft.level == null || minecraft.screen != null
+			|| placementPreview != null || cubeSelection == null)
+			return;
+		InteractionHand hand = interactionPromptHand(minecraft.player);
+		if (hand == null || !isEmptyBox(minecraft.player.getItemInHand(hand)))
+			return;
+		Selection selected = cubeSelection;
+		if (!(minecraft.level.getBlockEntity(selected.tablePos) instanceof SurgicalTableBlockEntity table))
+			return;
+		SurgicalSubject anchor = table.getSubject(selected.subjectId);
+		if (anchor == null)
+			return;
+		SurgicalLayPose pose = anchor.layPose();
+		Vec3 origin = Vec3.atLowerCornerOf(selected.tablePos);
+		AABB upright = null;
+		Map<Integer, BitSet> components = table.connectedComponents(selected.subjectId, selected.targetId,
+			selected.observedCubeCount, selected.seams);
+		for (Map.Entry<Integer, BitSet> entry : components.entrySet()) {
+			SurgicalSubject subject = table.getSubject(entry.getKey());
+			TableGeometry geometry = TABLES.get(new SubjectKey(selected.tablePos, entry.getKey()));
+			if (subject == null || !geometryReadyForUse(table, subject, geometry))
+				return;
+			for (int cube = entry.getValue().nextSetBit(0); cube >= 0; cube = entry.getValue().nextSetBit(cube + 1)) {
+				SurgicalModelRenderContext.CubeGeometry shape = geometry.cubesById.get(cube);
+				if (shape == null)
+					return;
+				for (Vec3 corner : shape.corners()) {
+					Vec3 point = pose.inverseRotate(corner.subtract(origin));
+					AABB pointBounds = new AABB(point, point);
+					upright = upright == null ? pointBounds : upright.minmax(pointBounds);
+				}
+			}
+		}
+		if (upright == null)
+			return;
+		// Keep the plane just outside the lowest cube faces to avoid z-fighting.
+		double y = upright.minY - 0.003d;
+		double padding = 0.08d;
+		List<Vec3> corners = List.of(new Vec3(upright.minX - padding, y, upright.minZ - padding),
+			new Vec3(upright.maxX + padding, y, upright.minZ - padding),
+			new Vec3(upright.maxX + padding, y, upright.maxZ + padding),
+			new Vec3(upright.minX - padding, y, upright.maxZ + padding));
+		PoseStack stack = event.getPoseStack();
+		Vec3 camera = event.getCamera().getPosition();
+		MultiBufferSource.BufferSource buffer = minecraft.renderBuffers().bufferSource();
+		com.mojang.blaze3d.vertex.VertexConsumer vertices =
+			buffer.getBuffer(net.minecraft.client.renderer.RenderType.debugQuads());
+		for (Vec3 corner : corners) {
+			Vec3 point = pose.rotate(corner).add(origin).subtract(camera);
+			vertices.addVertex(stack.last().pose(), (float) point.x, (float) point.y, (float) point.z)
+				.setColor(48, 144, 255, 85);
+		}
+		buffer.endBatch(net.minecraft.client.renderer.RenderType.debugQuads());
 	}
 
 	@SubscribeEvent
@@ -3802,9 +3877,13 @@ public final class SurgicalTableClientHandler {
 		} else if (SurgicalKitItem.isEmptyTemporaryBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.move_subject");
+			addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
+				"create_biotech.gui.surgical_table.action.preview_ground");
 		} else if (isEmptyBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.pack");
+			addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
+				"create_biotech.gui.surgical_table.action.preview_ground");
 			if (CapturedEntityBoxHelper.isEmptyLargeBox(stack))
 				appendPackedProperties(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
@@ -3829,6 +3908,9 @@ public final class SurgicalTableClientHandler {
 		} else if (CapturedEntityBoxHelper.hasCapturedEntity(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.place_subject");
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
+				"create_biotech.gui.surgical_table.action.place_ground_down");
 			CapturedEntityBoxStatsTooltip.append(stack, level, tooltip);
 		} else {
 			return null;
@@ -6997,6 +7079,7 @@ public final class SurgicalTableClientHandler {
 		@Nullable
 		private Direction measuredFacing;
 		private boolean measuredSourceGeometry;
+		private boolean measuredGroundDown;
 		@Nullable
 		private PlacementGeometry measuredGeometry;
 
@@ -7027,14 +7110,15 @@ public final class SurgicalTableClientHandler {
 		}
 
 		@Nullable
-		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry) {
+		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry, boolean groundDown) {
 			if (measuredGeometry != null && measuredFacing == facing
-				&& measuredSourceGeometry == projectSourceGeometry)
+				&& measuredSourceGeometry == projectSourceGeometry && measuredGroundDown == groundDown)
 				return measuredGeometry;
 			if (isComposite()) {
-				measuredGeometry = measureComposite(facing, projectSourceGeometry);
+				measuredGeometry = measureComposite(facing, projectSourceGeometry, groundDown);
 				measuredFacing = facing;
 				measuredSourceGeometry = projectSourceGeometry;
+				measuredGroundDown = groundDown;
 				return measuredGeometry;
 			}
 			LivingEntity entity = preview();
@@ -7043,7 +7127,7 @@ public final class SurgicalTableClientHandler {
 
 			PoseStack poseStack = new PoseStack();
 			SurgicalTablePoseResolver.SurgicalPose resolved =
-				SurgicalTablePoseResolver.resolve(this, profile, entity, facing);
+				SurgicalTablePoseResolver.resolve(this, profile, entity, facing, groundDown);
 			resolved.apply(poseStack);
 			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
 			MultiBufferSource discardedBuffer = renderType -> discarded;
@@ -7072,19 +7156,21 @@ public final class SurgicalTableClientHandler {
 				return null;
 			measuredFacing = facing;
 			measuredSourceGeometry = projectSourceGeometry;
+			measuredGroundDown = groundDown;
 			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of(),
 				discoveredCubeCount, discoveredSeams, discoveredCubes);
 			return measuredGeometry;
 		}
 
 		@Nullable
-		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry) {
+		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry, boolean groundDown) {
 			if (assembly == null)
 				return null;
 			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
 			MultiBufferSource discardedBuffer = renderType -> discarded;
 			List<SourcePlacementGeometry> geometries = new ArrayList<>(assembly.sources().size());
-			for (SurgicalAssembly.PlacedSource placedSource : assembly.placedSources(facing)) {
+			SurgicalLayPose targetPose = groundDown ? assembly.groundDownLayPose(facing) : assembly.placedLayPose(facing);
+			for (SurgicalAssembly.PlacedSource placedSource : assembly.placedSources(facing, targetPose)) {
 				SurgicalAssembly.Source source = placedSource.source();
 				LivingEntity entity = preview(source.profile());
 				if (entity == null)
@@ -7146,7 +7232,7 @@ public final class SurgicalTableClientHandler {
 			}
 			if (bounds == null)
 				return null;
-			return new PlacementGeometry(bounds, assembly.placedLayPose(facing), Map.of(),
+			return new PlacementGeometry(bounds, targetPose, Map.of(),
 				previewGeometries, 0, List.of(), List.of());
 		}
 

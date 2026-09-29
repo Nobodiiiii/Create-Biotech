@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.endermanstockkeeper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +49,9 @@ public final class GaugeCraftJobs extends SavedData {
 	private static final int TICK_INTERVAL = 10;
 	private static final String NAME = "create_biotech_gauge_craft_jobs";
 	private final List<Job> jobs = new ArrayList<>();
+	// Keep a bounded final snapshot so an open tree can show completion after the active job is removed.
+	private final Map<UUID, FinishedTree> finishedTrees = new LinkedHashMap<>();
+	private record FinishedTree(UUID network, GaugeCraftTree tree) {}
 
 	public record Summary(UUID id, ItemStack output, int count, String status, ItemStack currentOutput, int completed, int total,
 		String address, boolean canCancel) {}
@@ -98,6 +102,25 @@ public final class GaugeCraftJobs extends SavedData {
 		}).toList();
 	}
 
+	public GaugeCraftTree tree(UUID network, UUID id, MinecraftServer server) {
+		for (Job job : jobs)
+			if (job.network.equals(network) && job.id.equals(id))
+				return tree(job, status(job, server), false);
+		FinishedTree finished = finishedTrees.get(id);
+		return finished != null && finished.network().equals(network) ? finished.tree() : GaugeCraftTree.unavailable();
+	}
+
+	private static GaugeCraftTree tree(Job job, String status, boolean terminal) {
+		return GaugeCraftTree.snapshot(job.steps, job.count, job.index, job.remaining, job.received,
+			job.inFlight, status, terminal);
+	}
+
+	private void finish(Job job, String status) {
+		finishedTrees.put(job.id, new FinishedTree(job.network, tree(job, status, true)));
+		while (finishedTrees.size() > MAX_ACTIVE_JOBS * 4)
+			finishedTrees.remove(finishedTrees.keySet().iterator().next());
+	}
+
 	private String status(Job job, MinecraftServer server) {
 		ServerLevel level = server.getLevel(job.dimension);
 		if (level == null || !loaded(level, job.tickerPos))
@@ -116,8 +139,12 @@ public final class GaugeCraftJobs extends SavedData {
 	public boolean cancel(UUID network, UUID player, UUID id) {
 		// Dispatched materials keep travelling, so their native promises must remain
 		// until Create fulfils or expires them. Never clear another order's promises.
-		boolean removed = jobs.removeIf(job -> job.id.equals(id) && job.network.equals(network)
-			&& job.owner.equals(player));
+		boolean removed = jobs.removeIf(job -> {
+			if (!job.id.equals(id) || !job.network.equals(network) || !job.owner.equals(player))
+				return false;
+			finish(job, "cancelled");
+			return true;
+		});
 		if (removed)
 			setDirty();
 		return removed;
@@ -213,6 +240,7 @@ public final class GaugeCraftJobs extends SavedData {
 			return false;
 		if (!(level.getBlockEntity(job.tickerPos) instanceof StockTickerBlockEntity ticker)
 			|| !job.network.equals(ticker.behaviour.freqId)) {
+			finish(job, "failed");
 			jobs.remove(job);
 			ServerPlayer owner = server.getPlayerList().getPlayer(job.owner);
 			if (owner != null)
@@ -225,6 +253,7 @@ public final class GaugeCraftJobs extends SavedData {
 				return false;
 			if (!job.address.isBlank() && !deliver(job))
 				return false;
+			finish(job, "complete");
 			jobs.remove(job);
 			ServerPlayer owner = server.getPlayerList().getPlayer(job.owner);
 			if (owner != null)

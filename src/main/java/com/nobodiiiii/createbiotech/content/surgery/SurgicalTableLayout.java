@@ -79,10 +79,11 @@ public final class SurgicalTableLayout {
 			return sourceLayouts.isEmpty() && assembly.cubeRotations().isEmpty()
 				&& validateInitialOffsets(assembly, envelope.offsets());
 		if (!envelope.offsets().isEmpty() || sourceLayouts.size() != assembly.sources().size()
-			|| !layPose.equals(assembly.placedLayPose(placementFacing)))
+			|| !(layPose.equals(assembly.placedLayPose(placementFacing))
+				|| layPose.equals(assembly.groundDownLayPose(placementFacing))))
 			return false;
 
-		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing);
+		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing, layPose);
 		if (placedSources.size() != sourceLayouts.size())
 			return false;
 		Footprint assemblyEnvelope = envelope.footprints().getFirst();

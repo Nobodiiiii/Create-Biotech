@@ -28,9 +28,14 @@ public final class SurgicalTablePoseResolver {
 	private SurgicalTablePoseResolver() {}
 
 	public static SurgicalPose resolve(Object owner, MimicProfile profile, LivingEntity preview, Direction facing) {
+		return resolve(owner, profile, preview, facing, false);
+	}
+
+	public static SurgicalPose resolve(Object owner, MimicProfile profile, LivingEntity preview, Direction facing,
+		boolean groundDown) {
 		Map<PoseKey, SurgicalPose> ownerPoses = CACHE.computeIfAbsent(owner,
 			ignored -> new java.util.HashMap<>());
-		PoseKey key = new PoseKey(profile, facing);
+		PoseKey key = new PoseKey(profile, facing, groundDown);
 		SurgicalPose cached = ownerPoses.get(key);
 		if (cached != null)
 			return cached;
@@ -40,9 +45,9 @@ public final class SurgicalTablePoseResolver {
 		SurgicalPose selected = createPose(bodyGeometry, RotationAxis.NONE, facing);
 		SurgicalPose xPose = createPose(bodyGeometry, RotationAxis.X, facing);
 		SurgicalPose zPose = createPose(bodyGeometry, RotationAxis.Z, facing);
-		if (xPose.height + HEIGHT_EPSILON < selected.height)
+		if (!groundDown && xPose.height + HEIGHT_EPSILON < selected.height)
 			selected = xPose;
-		if (zPose.height + HEIGHT_EPSILON < selected.height)
+		if (!groundDown && zPose.height + HEIGHT_EPSILON < selected.height)
 			selected = zPose;
 
 		// Attachments do not choose the orientation, but the final placement still contains and
@@ -96,6 +101,9 @@ public final class SurgicalTablePoseResolver {
 		case NONE -> transform;
 		case X -> transform.rotateX((float) (-Math.PI / 2.0d));
 		case Z -> transform.rotateZ((float) (-Math.PI / 2.0d));
+		case X_POSITIVE -> transform.rotateX((float) (Math.PI / 2.0d));
+		case Z_POSITIVE -> transform.rotateZ((float) (Math.PI / 2.0d));
+		case INVERTED -> transform.rotateX((float) Math.PI);
 		};
 	}
 
@@ -112,15 +120,24 @@ public final class SurgicalTablePoseResolver {
 
 	public static void applyRotation(PoseStack poseStack, SurgicalLayPose pose) {
 		poseStack.mulPose(Axis.YP.rotationDegrees(pose.yaw()));
-		if (pose.axis() != RotationAxis.NONE)
-			poseStack.mulPose((pose.axis() == RotationAxis.X ? Axis.XP : Axis.ZP).rotationDegrees(-90.0f));
+		applyTilt(poseStack, pose.axis(), false);
 	}
 
 	public static void applyInverseRotation(PoseStack poseStack, SurgicalLayPose pose) {
-		if (pose.axis() != RotationAxis.NONE)
-			poseStack.mulPose((pose.axis() == RotationAxis.X ? Axis.XP : Axis.ZP).rotationDegrees(90.0f));
+		applyTilt(poseStack, pose.axis(), true);
 		poseStack.mulPose(Axis.YP.rotationDegrees(-pose.yaw()));
 	}
 
-	private record PoseKey(MimicProfile profile, Direction facing) {}
+	private static void applyTilt(PoseStack stack, RotationAxis axis, boolean inverse) {
+		float angle = switch (axis) {
+			case NONE -> 0;
+			case X, Z -> -90;
+			case X_POSITIVE, Z_POSITIVE -> 90;
+			case INVERTED -> 180;
+		};
+		stack.mulPose((axis == RotationAxis.Z || axis == RotationAxis.Z_POSITIVE ? Axis.ZP : Axis.XP)
+			.rotationDegrees(inverse ? -angle : angle));
+	}
+
+	private record PoseKey(MimicProfile profile, Direction facing, boolean groundDown) {}
 }

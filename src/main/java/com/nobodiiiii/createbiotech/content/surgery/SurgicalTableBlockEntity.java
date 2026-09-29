@@ -436,7 +436,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
 					componentFootprints, sourceLayouts, occupied))
 					return SurgicalTablePlacementResult.NO_SPACE;
-				return tryPlaceComposite(box, placementFacing, placedOriginOffsetX, placedOriginOffsetZ,
+				return tryPlaceComposite(box, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ,
 					sourceLayouts, assembly, temporaryMove);
 			}
 			if (!sourceLayouts.isEmpty())
@@ -498,12 +498,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
-	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing,
+	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing, SurgicalLayPose layPose,
 		double placedOriginOffsetX, double placedOriginOffsetZ,
 		List<SurgicalTableLayout.Proposal> sourceLayouts, SurgicalAssembly assembly,
 		@Nullable TemporaryMoveSource temporaryMove) {
 		List<SurgicalAssembly.Source> assemblySources = assembly.sources();
-		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing);
+		List<SurgicalAssembly.PlacedSource> placedSources = assembly.placedSources(placementFacing, layPose);
 		if (sourceLayouts.size() != assemblySources.size()
 			|| placedSources.size() != assemblySources.size())
 			return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
@@ -526,7 +526,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				sourceLayouts.get(sourceId).footprints(), List.of(), List.of(), List.of());
 			restored.add(subject);
 		}
-		for (SurgicalAssembly.Joint encoded : assembly.placedJoints(placementFacing)) {
+		for (SurgicalAssembly.Joint encoded : assembly.placedJoints(placementFacing, layPose)) {
 			SurgicalSubject first = restored.get(encoded.firstSource());
 			SurgicalSubject second = restored.get(encoded.secondSource());
 			SurgicalGlueJoint.Endpoint firstEndpoint =
@@ -2012,12 +2012,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private SurgicalAssembly packedAssembly(SurgicalSubject subject, BitSet component,
 		ComponentGroup group, Set<SurgicalGlueJoint> groupJoints,
 		Set<SurgicalCombination> groupCombinations, Set<SurgicalLimbJoint> groupLimbs) {
-		return groupJoints.isEmpty() && groupCombinations.isEmpty() && groupLimbs.isEmpty()
-			? SurgicalAssembly.create(subject.profile(), subject.donorId(), subject.cubeCount, component,
-				headCubesWithin(subject, component), subject.originalHeadCubes(),
-				subject.originalHeadKnown(), subject.anatomy(),
-				subject.seams, subject.cutSeams, subject.cutOrder)
-			: compositeAssembly(group, groupJoints, groupCombinations, groupLimbs, subject);
+		// A single disconnected component still has an edited pose: wrench rotations and former
+		// glue transforms survive after its last joint is cut. Pack the complete source layout even
+		// without joints so both the entity renderer and table placement restore those transforms.
+		return compositeAssembly(group, groupJoints, groupCombinations, groupLimbs, subject);
 	}
 
 	private static BitSet headCubesWithin(SurgicalSubject subject, BitSet cubes) {

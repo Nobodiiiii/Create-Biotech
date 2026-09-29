@@ -19,6 +19,8 @@ import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftPrevie
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftCancelPacket;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftJobsRequestPacket;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftJobsPacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftTreePacket;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeCraftTreeRequestPacket;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogEatPacket;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetTargetPacket;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeRecipePlacementPacket;
@@ -140,6 +142,8 @@ public final class CBPackets {
 			BionicTraitDonorsRequestPacket::write, BionicTraitDonorsRequestPacket::handle);
 		registerServer(SurgicalTableCubeRotationPacket.class, SurgicalTableCubeRotationPacket::new,
 			SurgicalTableCubeRotationPacket::write, SurgicalTableCubeRotationPacket::handle);
+		registerServer(GaugeCraftTreeRequestPacket.class, GaugeCraftTreeRequestPacket::new,
+			GaugeCraftTreeRequestPacket::write, GaugeCraftTreeRequestPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -182,6 +186,7 @@ public final class CBPackets {
 		registerClient(BionicHeadDataPacket.class, BionicHeadDataPacket::new, BionicHeadDataPacket::write);
 		registerClient(SurgicalTableCubeRotationPacket.Result.class, SurgicalTableCubeRotationPacket.Result::new,
 			SurgicalTableCubeRotationPacket.Result::write);
+		registerClient(GaugeCraftTreePacket.class, GaugeCraftTreePacket::new, GaugeCraftTreePacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

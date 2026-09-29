@@ -32,6 +32,9 @@ public record SurgicalLayPose(RotationAxis axis, int yaw, Vec3 translation) {
 		case NONE -> vector;
 		case X -> new Vec3(vector.x, vector.z, -vector.y);
 		case Z -> new Vec3(vector.y, -vector.x, vector.z);
+		case X_POSITIVE -> new Vec3(vector.x, -vector.z, vector.y);
+		case Z_POSITIVE -> new Vec3(-vector.y, vector.x, vector.z);
+		case INVERTED -> new Vec3(vector.x, -vector.y, -vector.z);
 		};
 		return rotateYaw(tilted, yaw / 90);
 	}
@@ -43,12 +46,30 @@ public record SurgicalLayPose(RotationAxis axis, int yaw, Vec3 translation) {
 		case NONE -> unyawed;
 		case X -> new Vec3(unyawed.x, -unyawed.z, unyawed.y);
 		case Z -> new Vec3(-unyawed.y, unyawed.x, unyawed.z);
+		case X_POSITIVE -> new Vec3(unyawed.x, unyawed.z, -unyawed.y);
+		case Z_POSITIVE -> new Vec3(unyawed.y, -unyawed.x, unyawed.z);
+		case INVERTED -> new Vec3(unyawed.x, -unyawed.y, -unyawed.z);
 		};
 	}
 
 	/** Converts a vector expressed in this pose's table frame into {@code target}'s table frame. */
 	public Vec3 rotateInto(SurgicalLayPose target, Vec3 vector) {
 		return target.rotate(inverseRotate(vector));
+	}
+
+	/** Reframes a complete rigid source pose without changing its geometry. */
+	public SurgicalLayPose reframe(SurgicalLayPose source, SurgicalLayPose target) {
+		Vec3 x = source.rotateInto(target, rotate(new Vec3(1, 0, 0)));
+		Vec3 y = source.rotateInto(target, rotate(new Vec3(0, 1, 0)));
+		for (RotationAxis candidateAxis : RotationAxis.values())
+			for (int candidateYaw = 0; candidateYaw < 360; candidateYaw += 90) {
+				SurgicalLayPose candidate = new SurgicalLayPose(candidateAxis, candidateYaw,
+					source.rotateInto(target, translation));
+				if (candidate.rotate(new Vec3(1, 0, 0)).distanceToSqr(x) < 1.0e-24d
+					&& candidate.rotate(new Vec3(0, 1, 0)).distanceToSqr(y) < 1.0e-24d)
+					return candidate;
+			}
+		throw new IllegalStateException("Non-cardinal surgical pose");
 	}
 
 	/** Rotates the complete stored table pose clockwise around the table's Y axis. */
@@ -95,6 +116,9 @@ public record SurgicalLayPose(RotationAxis axis, int yaw, Vec3 translation) {
 	public enum RotationAxis {
 		NONE,
 		X,
-		Z
+		Z,
+		X_POSITIVE,
+		Z_POSITIVE,
+		INVERTED
 	}
 }
