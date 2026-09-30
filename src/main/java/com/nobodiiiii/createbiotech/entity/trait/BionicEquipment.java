@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.List;
 import java.util.Set;
+import java.util.Comparator;
+import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu;
@@ -14,10 +16,12 @@ import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
 /** Equipment is owned by the assembled creature and survives packing, reloads and death. */
@@ -53,17 +57,58 @@ public final class BionicEquipment {
 			? 3 * net.minecraft.util.Mth.clamp(source.profile().stableInt("Strength"), 1, 5) : 15;
 	}
 	public int seats() {
-		var source = BionicTraitRuntime.dominant(entity, BionicTrait.RIDEABLE);
+		var source = ridingSource();
 		return source != null && source.profile().entityTypeId().getPath().equals("camel") ? 2 : 1;
 	}
 	public boolean camel() { return seats() == 2; }
 
 	public boolean jumpingDonor() {
-		var source = BionicTraitRuntime.dominant(entity, BionicTrait.RIDEABLE);
+		var source = ridingSource();
 		return source != null && switch (source.profile().entityTypeId().getPath()) {
 			case "horse", "donkey", "mule", "skeleton_horse", "zombie_horse", "camel" -> true;
 			default -> false;
 		};
+	}
+
+	/** One retained saddle-bearing cube, with stable tie-breaking for bodies made of several mounts. */
+	@Nullable
+	private SurgicalAssembly.CombinationMember saddleCarrier() {
+		var assembly = entity.getAssembly();
+		if (assembly == null) return null;
+		var dominant = BionicTraitRuntime.dominant(entity, BionicTrait.RIDEABLE);
+		var geometry = assembly.attackGeometry();
+		return entity.getBionicTraits().members(BionicTrait.RIDEABLE).stream().min(Comparator
+			.comparing((SurgicalAssembly.CombinationMember member) -> geometry == null
+				|| !geometry.ridingSeats().containsKey(member))
+			.thenComparing(member -> assembly.sources().get(member.source()) != dominant)
+			.thenComparing(Comparator.comparingDouble((SurgicalAssembly.CombinationMember member) ->
+				assembly.sources().get(member.source()).anatomy().volume(member.cube())).reversed())
+			.thenComparingInt(SurgicalAssembly.CombinationMember::source)
+			.thenComparingInt(SurgicalAssembly.CombinationMember::cube)).orElse(null);
+	}
+
+	@Nullable
+	private SurgicalAssembly.Source ridingSource() {
+		var carrier = saddleCarrier();
+		return carrier == null ? null : entity.getAssembly().sources().get(carrier.source());
+	}
+
+	/** Shared by client and server: seats were transformed with this cube when the body was packed. */
+	@Nullable
+	public Vec3 passengerAttachment(Entity passenger) {
+		var assembly = entity.getAssembly();
+		var carrier = saddleCarrier();
+		if (assembly == null || assembly.attackGeometry() == null || carrier == null) return null;
+		var seat = assembly.attackGeometry().ridingSeats().get(carrier);
+		boolean rear = seats() == 2 && entity.getPassengers().indexOf(passenger) > 0;
+		if (seat != null) return rear ? seat.second() : seat.first();
+		// Older saved bodies have cube centers but no native passenger anchors. Keep their seat
+		// on the selected donor cube until repacking bakes its exact dimensions and orientation.
+		Vec3 center = assembly.attackGeometry().carrierOrigins().get(carrier);
+		if (center == null) return null;
+		double volume = assembly.sources().get(carrier.source()).anatomy().volume(carrier.cube());
+		double size = Double.isFinite(volume) && volume > 0 ? Math.cbrt(volume) : 0.5d;
+		return center.add(0, size * 0.5d, seats() == 2 ? size * (rear ? -0.25d : 0.25d) : 0);
 	}
 
 	public Set<SurgicalAssembly.CombinationMember> armMembers(InteractionHand hand) {

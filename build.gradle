@@ -18,6 +18,7 @@ java {
 
 neoForge {
     version = neo_version
+    accessTransformers = files('src/main/resources/META-INF/accesstransformer.cfg')
 
     addModdingDependenciesTo(sourceSets.test)
 

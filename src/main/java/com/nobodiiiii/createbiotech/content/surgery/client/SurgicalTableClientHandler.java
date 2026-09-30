@@ -1632,7 +1632,7 @@ public final class SurgicalTableClientHandler {
 			: holdingSymmetry && pendingSymmetry == null
 			? findConnectedComponentSelection(glueHit)
 			: highlightingDirectConnections
-			? findDirectConnectionSelection(cubeHit)
+			? findDirectConnectionCutSelection(cubeHit)
 			: !holdingShears && holdingEmptyLargeBox ? findConnectedComponentSelection(cubeHit) : null;
 		// Only reached when nothing pickable is under the ray, so an ordinary component always wins
 		// over a reserved column standing in the same place.
@@ -3934,14 +3934,26 @@ public final class SurgicalTableClientHandler {
 				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
 				"create_biotech.gui.surgical_table.action.shovel_tile", hitsShovelTile);
 		} else if (SurgicalKitItem.isShears(stack)) {
+			boolean placingCut = pendingCut != null || pendingGlueCut != null;
+			boolean batchCut = Screen.hasControlDown();
+			Selection cutSelection = batchCut ? componentSelection : seamSelection;
+			boolean selectingCut = !placingCut && jointRemovalSelection == null && cutSelection != null;
+			boolean cuttingConnection = selectingCut && !cutSelection.combination;
+			boolean cuttingCombination = selectingCut && cutSelection.combination;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.remove_joint", jointRemovalSelection != null);
-			boolean placingCut = pendingCut != null || pendingGlueCut != null;
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.cut", !placingCut && jointRemovalSelection == null);
+				"create_biotech.gui.surgical_table.action.cut", cuttingConnection && !batchCut);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.break_combination", cuttingCombination && !batchCut);
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.ctrl"),
-				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut", !placingCut && jointRemovalSelection == null);
+				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.batch_cut",
+				cuttingConnection && batchCut);
+			addInteractionControl(tooltip, combinedControl(Component.translatable(
+				"create_biotech.gui.surgical_table.control.ctrl"),
+				Component.keybind("key.use")), "create_biotech.gui.surgical_table.action.detach_combination",
+				cuttingCombination && batchCut);
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.confirm_cut", placingCut);
 			addCancelControl(tooltip, placingCut);

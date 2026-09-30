@@ -23,8 +23,15 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Saddleable;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.animal.camel.Camel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalSourceModelRenderer {
@@ -48,6 +55,14 @@ public final class SurgicalSourceModelRenderer {
 		};
 	private static final Map<RenderPlanKey, PendingRenderPlan> PENDING_RENDER_PLANS = new HashMap<>();
 	private static final Map<LivingEntity, CachedRenderPlan> FALLBACK_RENDER_PLANS = new WeakHashMap<>();
+	private static final Map<MimicProfile, SourceRidingSeat> RIDING_SEATS = new WeakHashMap<>();
+	private static final Map<SaddlePlanKey, SurgicalCapturedRenderPlan> SADDLE_RENDER_PLANS =
+		new LinkedHashMap<>(64, 0.75f, true) {
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<SaddlePlanKey, SurgicalCapturedRenderPlan> eldest) {
+				return size() > MAX_RENDER_PLANS;
+			}
+		};
 	private static int resourceGeneration;
 
 	private SurgicalSourceModelRenderer() {}
@@ -144,14 +159,103 @@ public final class SurgicalSourceModelRenderer {
 		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
 		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay) {
+		return render(preview, cubeCount, presentCubes, cubeOffsets, cubeRotations, poseStack, buffer,
+			packedLight, yaw, partialTick, collectGeometry, cameraPosition, renderSourceGeometry, alpha,
+			hurtOverlay, null);
+	}
+
+	/** Live equipment changes appearance only; the saved surgical topology remains the reference. */
+	public static SurgicalModelRenderContext.Snapshot render(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
+		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
+		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay, @Nullable Boolean saddled) {
 		preparePreview(preview, yaw);
 		SurgicalCapturedRenderPlan plan = plan(preview, yaw);
+		if (saddled != null)
+			plan = saddlePlan(preview, yaw, saddled, plan);
 		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
 		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
 			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
 		return plan.render(poseStack, renderBuffer, packedLight, cubeCount, presentCubes, cubeOffsets, cubeRotations,
 			collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
 	}
+
+	private static SurgicalCapturedRenderPlan saddlePlan(LivingEntity preview, float yaw,
+		boolean saddled, SurgicalCapturedRenderPlan base) {
+		if (!(preview instanceof Saddleable saddleable) || saddleable.isSaddled() == saddled)
+			return base;
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		if (profile == null)
+			return base;
+		EntityRenderer<LivingEntity> renderer = renderer(preview);
+		SaddlePlanKey key = new SaddlePlanKey(new RenderPlanKey(profile, renderer,
+			Float.floatToIntBits(yaw)), saddled);
+		SurgicalCapturedRenderPlan cached = SADDLE_RENDER_PLANS.get(key);
+		if (cached != null)
+			return cached;
+
+		// The ordinary preview is shared with tables, fragments and other bodies. Capture equipment
+		// on a separate entity so one saddled creature cannot change any of their cached appearances.
+		LivingEntity equipped = profile.createPreviewEntity(preview.level());
+		if (!(equipped instanceof Saddleable equippedSaddle))
+			return base;
+		if (saddled) {
+			equippedSaddle.equipSaddle(new ItemStack(Items.SADDLE), null);
+		} else {
+			CompoundTag data = equipped.saveWithoutId(new CompoundTag());
+			data.putBoolean("Saddle", false);
+			data.remove("SaddleItem");
+			equipped.load(data);
+		}
+		// AbstractHorse only synchronizes inventory -> saddle flags on the server. These unspawned
+		// client previews need the same flag explicitly (also covers camels, donkeys and mules).
+		if (equipped instanceof AbstractHorse horse)
+			horse.setFlag(4, saddled);
+		preparePreview(equipped, yaw);
+		SurgicalCapturedRenderPlan appearance = captureInCanonicalPose(renderer, equipped, yaw);
+		cached = base.withAppearance(appearance);
+		SADDLE_RENDER_PLANS.put(key, cached);
+		return cached;
+	}
+
+	/** Native passenger anchors, attached to the very same cube that owns the saddle appearance. */
+	@Nullable
+	public static SourceRidingSeat ridingSeat(MimicProfile profile) {
+		SourceRidingSeat cached = RIDING_SEATS.get(profile);
+		if (cached != null)
+			return cached;
+		LivingEntity preview = preview(profile);
+		if (!(preview instanceof Saddleable))
+			return null;
+		preparePreview(preview, 0.0f);
+		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
+		int cube = saddlePlan(preview, 0.0f, true, base).saddleCube();
+		if (cube < 0)
+			return null;
+		LivingEntity mount = profile.createPreviewEntity(preview.level());
+		var first = EntityType.ARMOR_STAND.create(preview.level());
+		var second = EntityType.ARMOR_STAND.create(preview.level());
+		if (mount == null || first == null || second == null)
+			return null;
+		// These marker passengers and their mount are never added to the world. Mounting two is
+		// needed for the camel's native front/back offsets; their non-animal type matches players.
+		try {
+			first.startRiding(mount, true);
+			if (mount instanceof Camel)
+				second.startRiding(mount, true);
+			Vec3 front = mount.getPassengerRidingPosition(first).subtract(mount.position());
+			Vec3 rear = mount instanceof Camel
+				? mount.getPassengerRidingPosition(second).subtract(mount.position()) : front;
+			cached = new SourceRidingSeat(cube, front, rear);
+			RIDING_SEATS.put(profile, cached);
+			return cached;
+		} finally {
+			mount.ejectPassengers();
+		}
+	}
+
+	public record SourceRidingSeat(int cube, Vec3 first, Vec3 second) {}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
 	public static SurgicalModelRenderContext.Snapshot renderSingleCube(MimicProfile profile,
@@ -409,6 +513,8 @@ public final class SurgicalSourceModelRenderer {
 		PENDING_RENDER_PLANS.values().forEach(pending -> pending.future.cancel(false));
 		PENDING_RENDER_PLANS.clear();
 		FALLBACK_RENDER_PLANS.clear();
+		SADDLE_RENDER_PLANS.clear();
+		RIDING_SEATS.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}
 
@@ -419,6 +525,8 @@ public final class SurgicalSourceModelRenderer {
 	private record CachedPreview(ClientLevel level, LivingEntity entity) {}
 
 	private record RenderPlanKey(MimicProfile profile, EntityRenderer<LivingEntity> renderer, int yawBits) {}
+
+	private record SaddlePlanKey(RenderPlanKey source, boolean saddled) {}
 
 	private record CachedRenderPlan(EntityRenderer<LivingEntity> renderer, float yaw,
 		SurgicalCapturedRenderPlan plan) {}

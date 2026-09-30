@@ -112,7 +112,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		// shoulder/elbow animation.
 		BodyFrame componentFrame = BodyFrame.of(0.0f, poseStack.last().pose());
 		renderFirstPersonSources(assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
-			packedLight, partialTick);
+			packedLight, partialTick, entity.isSaddled());
 		poseStack.popPose();
 		return true;
 	}
@@ -177,7 +177,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	private static void renderFirstPersonSources(SurgicalAssembly assembly,
 		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, BodyFrame componentFrame,
-		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick) {
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick, boolean saddled) {
 		poseStack.pushPose();
 		if (sourceState.composite)
 			SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
@@ -200,7 +200,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			SurgicalSourceModelRenderer.render(preview, source.cubeCount(), selected,
 				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
 				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
-				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true, 1.0f, false);
+				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true, 1.0f, false, saddled);
 			poseStack.popPose();
 		}
 		poseStack.popPose();
@@ -275,7 +275,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					assembly.cubeCount(), presentCubes,
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
 					poseStack, sourceBuffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
-					!slimeForm, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0);
+					!slimeForm, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0, entity.isSaddled());
 				if (reportDeath)
 					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
 						.map(cube -> new SlimeMimicCubeGeometry(0, cube.cubeId(), cube.corners()))
@@ -448,7 +448,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				source.cubeCount(), source.presentCubes(), renderOffsets, renderRotations,
 				poseStack, buffer, packedLight, 0.0f, partialTick,
 				restStates != null || deathGeometry != null, cameraPosition,
-				renderSourceGeometry, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0);
+				renderSourceGeometry, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0,
+				restStates == null ? entity.isSaddled() : null);
 			if (deathGeometry != null) {
 				int sourceIndex = index;
 				snapshot.cubes().forEach(cube -> deathGeometry.add(new SlimeMimicCubeGeometry(

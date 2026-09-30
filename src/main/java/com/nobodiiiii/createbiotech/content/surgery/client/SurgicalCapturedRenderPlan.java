@@ -113,11 +113,99 @@ public final class SurgicalCapturedRenderPlan {
 	private static final Map<LivingEntity, LiveFrame> LIVE_FRAMES = new IdentityHashMap<>();
 
 	private final List<Component> components;
+	private final List<Component> appearanceComponents;
 	private final List<SourceBatch> extras;
+	private final int saddleCube;
 
 	private SurgicalCapturedRenderPlan(List<Component> components, List<SourceBatch> extras) {
+		this(components, components, extras, -1);
+	}
+
+	private SurgicalCapturedRenderPlan(List<Component> components, List<Component> appearanceComponents,
+		List<SourceBatch> extras, int saddleCube) {
 		this.components = List.copyOf(components);
+		this.appearanceComponents = List.copyOf(appearanceComponents);
 		this.extras = List.copyOf(extras);
+		this.saddleCube = saddleCube;
+	}
+
+	/**
+	 * Keep surgery's original ids and geometry while drawing an equipped source model. Saddle layers
+	 * and newly visible tack belong to an existing body cube, so removing or rotating that cube also
+	 * removes or rotates its equipment. Never use the equipped renderer's shifted cube indices.
+	 */
+	SurgicalCapturedRenderPlan withAppearance(SurgicalCapturedRenderPlan appearance) {
+		if (components.isEmpty())
+			return this;
+		Map<GeometryKey, List<Component>> originalCubes = new HashMap<>();
+		for (Component component : components)
+			originalCubes.computeIfAbsent(GeometryKey.of(component.corners), ignored -> new ArrayList<>())
+				.add(component);
+		Set<Component> matched = new HashSet<>();
+		List<Component> bound = new ArrayList<>(appearance.components.size());
+		int seatOwner = -1;
+		float saddleVolume = -1.0f;
+		for (Component visual : appearance.components) {
+			Component owner = originalCubes.getOrDefault(GeometryKey.of(visual.corners), List.of()).stream()
+				.filter(candidate -> !matched.contains(candidate)).findFirst().orElse(null);
+			if (owner != null)
+				matched.add(owner);
+			else {
+				owner = appearanceOwner(visual);
+				float volume = visual.a.length() * visual.b.length() * visual.c.length();
+				if (!visual.head && volume > saddleVolume) {
+					seatOwner = owner.id;
+					saddleVolume = volume;
+				}
+			}
+			bound.add(new Component(visual, owner));
+		}
+		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras, seatOwner);
+	}
+
+	int saddleCube() {
+		if (saddleCube >= 0)
+			return saddleCube;
+		// A profile may already contain its saddle, or its renderer may reuse base geometry.
+		return components.stream().filter(component -> !component.head && !component.preserveSource)
+			.max(Comparator.comparingDouble(component -> component.a.length()
+				* component.b.length() * component.c.length())).map(component -> component.id).orElse(-1);
+	}
+
+	private Component appearanceOwner(Component visual) {
+		// Expanded pig/strider saddle shells fit their underlying cuboid. Horse/camel tack can
+		// cover only part of a body or head, so compare distance to the whole oriented box rather
+		// than its center (which could incorrectly pick a nearby leg or ear).
+		boolean hasHead = visual.head && components.stream().anyMatch(component -> component.head);
+		Component closest = components.getFirst();
+		float closestScore = Float.POSITIVE_INFINITY;
+		for (Component candidate : components) {
+			if (hasHead && !candidate.head)
+				continue;
+			float score = 0.0f;
+			for (Vector3f corner : visual.corners)
+				score += distanceToBoxSquared(corner, candidate);
+			// Prefer the most centered fit when several boxes contain the entire accessory.
+			score += visual.center().distanceSquared(candidate.center()) * 0.0001f;
+			if (score < closestScore) {
+				closest = candidate;
+				closestScore = score;
+			}
+		}
+		return closest;
+	}
+
+	private static float distanceToBoxSquared(Vector3f point, Component box) {
+		Vector3f relative = new Vector3f(point).sub(box.corners.getFirst());
+		Vector3f closest = new Vector3f(box.corners.getFirst());
+		for (Vector3f edge : List.of(box.a, box.b, box.c)) {
+			float lengthSquared = edge.lengthSquared();
+			if (lengthSquared <= POSITION_EPSILON * POSITION_EPSILON)
+				continue;
+			float amount = Math.max(0.0f, Math.min(1.0f, relative.dot(edge) / lengthSquared));
+			closest.fma(amount, edge);
+		}
+		return point.distanceSquared(closest);
 	}
 
 	/**
@@ -403,13 +491,13 @@ public final class SurgicalCapturedRenderPlan {
 		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry, boolean renderExtras,
 		@Nullable Boolean hurtOverlay) {
 		if (renderSourceGeometry) {
-			for (Component component : components)
+			for (Component component : appearanceComponents)
 				if (isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSource(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
 						cubeRotations.get(component.id), true, hurtOverlay);
 		} else {
 			float outerShellShrink = outerShellShrink(poseStack.last().pose());
-			for (Component component : components) {
+			for (Component component : appearanceComponents) {
 				if (!isPresent(component.id, expectedCubeCount, presentCubes))
 					continue;
 				if (component.preserveSource)
@@ -419,14 +507,14 @@ public final class SurgicalCapturedRenderPlan {
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
 						cubeRotations.get(component.id), false, outerShellShrink, hurtOverlay);
 			}
-			for (Component component : components)
+			for (Component component : appearanceComponents)
 				if (!component.preserveSource && isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSlime(poseStack, buffer, packedLight, cubeOffsets.get(component.id),
 						cubeRotations.get(component.id), true, outerShellShrink, hurtOverlay);
 			// Villager professions, emissive eyes and similar layers intentionally redraw the
 			// same model cube with another material. Keep those pixels attached to the one
 			// surgical component instead of admitting duplicate topology or discarding them.
-			for (Component component : components)
+			for (Component component : appearanceComponents)
 				if (!component.preserveSource && isPresent(component.id, expectedCubeCount, presentCubes))
 					component.renderSurfaceOverlays(poseStack, buffer, packedLight,
 						cubeOffsets.get(component.id), cubeRotations.get(component.id), hurtOverlay);
@@ -1646,6 +1734,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final boolean preserveSource;
 		private final List<SourceBatch> batches;
 		private final List<SourceBatch> surfaceOverlays;
+		private final Vector3f rotationCenter;
 
 		private Component(int id, List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c,
 			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean head,
@@ -1664,13 +1753,30 @@ public final class SurgicalCapturedRenderPlan {
 			this.preserveSource = preserveSource;
 			this.batches = batches;
 			this.surfaceOverlays = surfaceOverlays;
+			this.rotationCenter = center();
+		}
+
+		private Component(Component appearance, Component owner) {
+			this.id = owner.id;
+			this.corners = appearance.corners;
+			this.a = appearance.a;
+			this.b = appearance.b;
+			this.c = appearance.c;
+			this.modelCorners = appearance.modelCorners;
+			this.faceGrids = appearance.faceGrids;
+			this.head = appearance.head;
+			this.partNames = appearance.partNames;
+			this.preserveSource = appearance.preserveSource;
+			this.batches = appearance.batches;
+			this.surfaceOverlays = appearance.surfaceOverlays;
+			this.rotationCenter = owner.center();
 		}
 
 		private void renderSource(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation,
 			boolean offsetSurfaceOverlays, @Nullable Boolean hurtOverlay) {
 			for (SourceBatch batch : batches)
-				batch.renderSource(poseStack, buffer, packedLight, offset, rotation, center(),
+				batch.renderSource(poseStack, buffer, packedLight, offset, rotation, rotationCenter,
 					offsetSurfaceOverlays, hurtOverlay);
 		}
 
@@ -1678,7 +1784,7 @@ public final class SurgicalCapturedRenderPlan {
 			@Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation,
 			@Nullable Boolean hurtOverlay) {
 			for (SourceBatch batch : surfaceOverlays)
-				batch.renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, center(),
+				batch.renderSurfaceOverlay(poseStack, buffer, packedLight, offset, rotation, rotationCenter,
 					hurtOverlay);
 		}
 
@@ -1688,7 +1794,7 @@ public final class SurgicalCapturedRenderPlan {
 			PoseStack cubePose = new PoseStack();
 			Matrix4f basePose = new Matrix4f(poseStack.last().pose());
 			Vector3f center = center();
-			Vector3f worldCenter = basePose.transformPosition(center, new Vector3f());
+			Vector3f worldCenter = basePose.transformPosition(rotationCenter, new Vector3f());
 			Matrix4f transformedPose = new Matrix4f().translation(
 				offset == null ? 0.0f : (float) offset.x,
 				offset == null ? 0.0f : (float) offset.y,

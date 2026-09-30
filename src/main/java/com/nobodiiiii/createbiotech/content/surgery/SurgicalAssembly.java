@@ -1057,9 +1057,14 @@ public final class SurgicalAssembly {
 
 	/** Immutable physical dimensions and articulation for every installed arm, baked from the rest geometry. */
 	public record AttackGeometry(List<ArmAttackGeometry> right,
-		List<ArmAttackGeometry> left, Map<CombinationMember, Vec3> carrierOrigins) {
+		List<ArmAttackGeometry> left, Map<CombinationMember, Vec3> carrierOrigins,
+		Map<CombinationMember, RidingSeat> ridingSeats) {
 		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left) {
 			this(right, left, Map.of());
+		}
+		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> carrierOrigins) {
+			this(right, left, carrierOrigins, Map.of());
 		}
 		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
 
@@ -1067,10 +1072,13 @@ public final class SurgicalAssembly {
 			right = freezeArms(right);
 			left = freezeArms(left);
 			carrierOrigins = Map.copyOf(carrierOrigins);
+			ridingSeats = Map.copyOf(ridingSeats);
 			if (carrierOrigins.size() > MAX_CUBES || carrierOrigins.entrySet().stream().anyMatch(entry ->
 				entry.getKey().source() < 0 || entry.getKey().source() >= MAX_SOURCES
 				|| entry.getKey().cube() < 0 || entry.getKey().cube() >= MAX_CUBES || !validPoint(entry.getValue())))
 				throw new IllegalArgumentException("Invalid carrier geometry");
+			if (!carrierOrigins.keySet().containsAll(ridingSeats.keySet()))
+				throw new IllegalArgumentException("Riding seats require a carrier cube");
 			if (right.isEmpty() && left.isEmpty() && carrierOrigins.isEmpty())
 				throw new IllegalArgumentException("Attack geometry requires an arm or carrier");
 			if (right.size() + left.size() > SurgicalLimbType.SHOULDER.maxPerBody())
@@ -1094,6 +1102,13 @@ public final class SurgicalAssembly {
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
+		@Nullable
+		public static AttackGeometry create(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats) {
+			try { return new AttackGeometry(right, left, origins, seats); }
+			catch (IllegalArgumentException ignored) { return null; }
+		}
+
 		private ListTag saveOrigins() {
 			ListTag list = new ListTag();
 			carrierOrigins.entrySet().stream().sorted(java.util.Comparator
@@ -1105,9 +1120,42 @@ public final class SurgicalAssembly {
 				point.putDouble("X", entry.getValue().x);
 				point.putDouble("Y", entry.getValue().y);
 				point.putDouble("Z", entry.getValue().z);
+				RidingSeat seat = ridingSeats.get(entry.getKey());
+				if (seat != null) {
+					point.put("Seat", savePoint(seat.first()));
+					point.put("RearSeat", savePoint(seat.second()));
+				}
 				list.add(point);
 			});
 			return list;
+		}
+
+		private static CompoundTag savePoint(Vec3 point) {
+			CompoundTag tag = new CompoundTag();
+			tag.putDouble("X", point.x);
+			tag.putDouble("Y", point.y);
+			tag.putDouble("Z", point.z);
+			return tag;
+		}
+
+		private static Vec3 loadPoint(CompoundTag tag) {
+			return new Vec3(tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"));
+		}
+
+		private static Map<CombinationMember, RidingSeat> loadSeats(CompoundTag tag) {
+			Map<CombinationMember, RidingSeat> seats = new HashMap<>();
+			ListTag list = tag.getList("CarrierOrigins", Tag.TAG_COMPOUND);
+			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many riding seats");
+			for (int i = 0; i < list.size(); i++) {
+				CompoundTag point = list.getCompound(i);
+				if (!point.contains("Seat", Tag.TAG_COMPOUND)) continue;
+				Vec3 first = loadPoint(point.getCompound("Seat"));
+				Vec3 second = point.contains("RearSeat", Tag.TAG_COMPOUND)
+					? loadPoint(point.getCompound("RearSeat")) : first;
+				seats.put(new CombinationMember(point.getInt("Source"), point.getInt("Cube")),
+					new RidingSeat(first, second));
+			}
+			return seats;
 		}
 
 		private static Map<CombinationMember, Vec3> loadOrigins(CompoundTag tag) {
@@ -1178,7 +1226,7 @@ public final class SurgicalAssembly {
 			List<ArmAttackGeometry> left = readArms(buffer);
 			CompoundTag origins = buffer.readNbt();
 			if (right == null || left == null || origins == null) return null;
-			try { return create(right, left, loadOrigins(origins)); }
+			try { return create(right, left, loadOrigins(origins), loadSeats(origins)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
@@ -1186,7 +1234,7 @@ public final class SurgicalAssembly {
 		private static AttackGeometry load(CompoundTag tag) {
 			List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
 			List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
-			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag)); }
+			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag), loadSeats(tag)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
@@ -1252,6 +1300,14 @@ public final class SurgicalAssembly {
 			return point != null && Double.isFinite(point.x) && Double.isFinite(point.y)
 				&& Double.isFinite(point.z) && Math.abs(point.x) <= MAX_COORDINATE
 				&& Math.abs(point.y) <= MAX_COORDINATE && Math.abs(point.z) <= MAX_COORDINATE;
+		}
+	}
+
+	/** Native seat points transformed with their carrier cube into the assembled body's rest frame. */
+	public record RidingSeat(Vec3 first, Vec3 second) {
+		public RidingSeat {
+			if (!AttackGeometry.validPoint(first) || !AttackGeometry.validPoint(second))
+				throw new IllegalArgumentException("Invalid riding seat");
 		}
 	}
 

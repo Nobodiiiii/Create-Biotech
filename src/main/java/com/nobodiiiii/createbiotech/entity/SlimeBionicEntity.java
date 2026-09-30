@@ -1780,13 +1780,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return isSaddled() && isSaddleable() && getFirstPassenger() instanceof Player player && equipment.mayUse(player) ? player : null;
 	}
 	@Override protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
-		SurgicalAssembly assembly = getAssembly();
-		if (assembly == null || assembly.hitboxGeometry() == null) return super.getPassengerAttachmentPoint(passenger, dimensions, scale);
-		var body = assembly.hitboxGeometry().body();
-		double offset = equipment.seats() == 2 ? (getPassengers().indexOf(passenger) == 0 ? 0.25 : -0.25)
-			* (body.maxZ() - body.minZ()) : 0;
-		return new Vec3((body.minX() + body.maxX()) / 2, body.maxY(), (body.minZ() + body.maxZ()) / 2 + offset)
-			.yRot(-yBodyRot * Mth.DEG_TO_RAD);
+		Vec3 attachment = equipment.passengerAttachment(passenger);
+		return attachment == null ? super.getPassengerAttachmentPoint(passenger, dimensions, scale)
+			: attachment.yRot(-yBodyRot * Mth.DEG_TO_RAD);
 	}
 	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
 		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)

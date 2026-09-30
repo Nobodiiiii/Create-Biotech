@@ -20,6 +20,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations;
@@ -122,6 +123,7 @@ public final class SlimeBionicAnimator {
 			(shoulder.arm().left() ? left : right).add(arm);
 		}
 		Map<SurgicalAssembly.CombinationMember, Vec3> origins = new HashMap<>();
+		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.RidingSeat> seats = new HashMap<>();
 		for (int source = 0; source < sources.size(); source++) {
 			var present = assembly.sources().get(source).presentCubes();
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
@@ -129,8 +131,31 @@ public final class SlimeBionicAnimator {
 				if (box != null) origins.put(new SurgicalAssembly.CombinationMember(source, cube),
 					box.center().subtract(bodyOrigin));
 			}
+			var seat = SurgicalSourceModelRenderer.ridingSeat(assembly.sources().get(source).profile());
+			if (seat == null || !present.get(seat.cube())) continue;
+			CubeBox carrier = box(sources, new Member(source, seat.cube()));
+			var original = SurgicalSourceModelRenderer.singleCubeGeometry(
+				assembly.sources().get(source).profile(), seat.cube());
+			if (carrier == null || original == null) continue;
+			seats.put(new SurgicalAssembly.CombinationMember(source, seat.cube()),
+				new SurgicalAssembly.RidingSeat(
+					transformCubePoint(seat.first(), original.corners(), carrier.points()).subtract(bodyOrigin),
+					transformCubePoint(seat.second(), original.corners(), carrier.points()).subtract(bodyOrigin)));
 		}
-		return SurgicalAssembly.AttackGeometry.create(right, left, origins);
+		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats);
+	}
+
+	/** The corner ordering survives table layout, per-cube rotations and the final upright transform. */
+	private static Vec3 transformCubePoint(Vec3 point, List<Vec3> original, List<Vec3> transformed) {
+		Vec3 relative = point.subtract(original.getFirst());
+		Vec3 result = transformed.getFirst();
+		for (int corner : new int[] { 1, 2, 4 }) {
+			Vec3 edge = original.get(corner).subtract(original.getFirst());
+			if (edge.lengthSqr() > GEOMETRY_EPSILON)
+				result = result.add(transformed.get(corner).subtract(transformed.getFirst())
+					.scale(relative.dot(edge) / edge.lengthSqr()));
+		}
+		return result;
 	}
 
 	@Nullable

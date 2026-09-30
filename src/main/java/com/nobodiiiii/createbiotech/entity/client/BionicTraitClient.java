@@ -35,14 +35,6 @@ public final class BionicTraitClient {
 		var body = assembly.hitboxGeometry().body();
 		poses.pushPose();
 		poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-net.minecraft.util.Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)));
-		if (entity.isSaddled()) {
-			poses.pushPose();
-			poses.translate((body.minX() + body.maxX()) / 2, body.maxY() + 0.015, (body.minZ() + body.maxZ()) / 2);
-			poses.mulPose(com.mojang.math.Axis.XP.rotationDegrees(90));
-			poses.scale(0.7f, 0.7f, 0.7f);
-			item(entity, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SADDLE), poses, buffers, light);
-			poses.popPose();
-		}
 		if (entity.getBionicEquipment().hasChest()) {
 			poses.pushPose();
 			poses.translate(body.maxX() + 0.15, (body.minY() + body.maxY()) / 2, (body.minZ() + body.maxZ()) / 2);
