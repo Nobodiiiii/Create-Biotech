@@ -1872,7 +1872,7 @@ public final class SurgicalTableClientHandler {
 				instanceof SurgicalTableBlockEntity table ? table.getSubject(cubeHit.geometry.subjectId) : null;
 			if (subject == null)
 				return;
-			boolean single = Screen.hasControlDown() && !Screen.hasShiftDown();
+			boolean single = !Screen.hasControlDown() && !Screen.hasShiftDown();
 			wrenchEditor = beginWrenchEditor(level, cubeHit, subject, hand, single);
 			if (wrenchEditor != null) {
 				if (Screen.hasShiftDown())
@@ -2529,13 +2529,16 @@ public final class SurgicalTableClientHandler {
 			GLUE_EDIT_OUTLINE.clear();
 			return true;
 		}
-		if (editor.guideFace != face) {
+		boolean rotating = Screen.hasControlDown();
+		if (editor.guideFace != face || editor.guideRotating != rotating) {
 			SurgicalModelRenderContext.CubeGeometry cube = editor.selectedCube();
 			Vec3 axis = cubeFaceAxis(cube, face);
 			Vec3 center = cubeCenter(cube);
-			editor.guideEdges = axis == null ? List.of() : cubeEditGuideEdges(axis, center, center,
-				glueEditGuideRadius(cube, center, axis), true);
+			Vec3 faceCenter = cubeFaceCenter(cube, face);
+			editor.guideEdges = axis == null || faceCenter == null ? List.of()
+				: cubeEditGuideEdges(axis, center, faceCenter, glueEditGuideRadius(cube, center, axis), rotating);
 			editor.guideFace = face;
+			editor.guideRotating = rotating;
 		}
 		GLUE_EDIT_OUTLINE.show(editor.guideEdges, CUBE_HIGHLIGHT_COLOR);
 		return true;
@@ -2614,6 +2617,7 @@ public final class SurgicalTableClientHandler {
 		private Vec3 selectedTranslation = Vec3.ZERO;
 		private Selection selection;
 		private int guideFace = -1;
+		private boolean guideRotating;
 		private List<SurgicalClientTopology.Edge> guideEdges = List.of();
 		private boolean committing;
 		private boolean immediate;
@@ -3958,12 +3962,10 @@ public final class SurgicalTableClientHandler {
 				appendPackedProperties(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.select_rotation_cube", wrenchEditor == null);
+				"create_biotech.gui.surgical_table.action.select_single_rotation_cube", wrenchEditor == null);
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.ctrl"), Component.keybind("key.use")),
-				"create_biotech.gui.surgical_table.action.select_single_rotation_cube", wrenchEditor == null);
-			addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.confirm_rotation", wrenchEditor != null && !wrenchEditor.committing);
+				"create_biotech.gui.surgical_table.action.select_rotation_cube", wrenchEditor == null);
 			addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.scroll"),
 				wrenchEditor != null && wrenchEditor.single ? "create_biotech.gui.surgical_table.action.rotate_single_cube"
 					: "create_biotech.gui.surgical_table.action.rotate_cube", wrenchEditor != null);
@@ -3971,6 +3973,8 @@ public final class SurgicalTableClientHandler {
 				"create_biotech.gui.surgical_table.control.ctrl"), Component.translatable(
 				"create_biotech.gui.surgical_table.control.scroll")),
 				"create_biotech.gui.surgical_table.action.rotate_cube_quarter", wrenchEditor != null);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.confirm_rotation", wrenchEditor != null && !wrenchEditor.committing);
 			addInteractionControl(tooltip, combinedControl(Component.translatable(
 				"create_biotech.gui.surgical_table.control.shift"), Component.keybind("key.use")),
 				"create_biotech.gui.surgical_table.action.align_cube");
