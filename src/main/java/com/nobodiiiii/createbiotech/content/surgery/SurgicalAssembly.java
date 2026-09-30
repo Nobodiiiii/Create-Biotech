@@ -1124,6 +1124,8 @@ public final class SurgicalAssembly {
 				if (seat != null) {
 					point.put("Seat", savePoint(seat.first()));
 					point.put("RearSeat", savePoint(seat.second()));
+					if (seat.rotation() != null)
+						point.put("SeatRotation", seat.rotation().save());
 				}
 				list.add(point);
 			});
@@ -1152,8 +1154,10 @@ public final class SurgicalAssembly {
 				Vec3 first = loadPoint(point.getCompound("Seat"));
 				Vec3 second = point.contains("RearSeat", Tag.TAG_COMPOUND)
 					? loadPoint(point.getCompound("RearSeat")) : first;
+				SurgicalCubeRotation rotation = point.contains("SeatRotation", Tag.TAG_COMPOUND)
+					? SurgicalCubeRotation.load(point.getCompound("SeatRotation")) : null;
 				seats.put(new CombinationMember(point.getInt("Source"), point.getInt("Cube")),
-					new RidingSeat(first, second));
+					new RidingSeat(first, second, rotation));
 			}
 			return seats;
 		}
@@ -1304,7 +1308,10 @@ public final class SurgicalAssembly {
 	}
 
 	/** Native seat points transformed with their carrier cube into the assembled body's rest frame. */
-	public record RidingSeat(Vec3 first, Vec3 second) {
+	public record RidingSeat(Vec3 first, Vec3 second, @Nullable SurgicalCubeRotation rotation) {
+		public RidingSeat(Vec3 first, Vec3 second) {
+			this(first, second, null);
+		}
 		public RidingSeat {
 			if (!AttackGeometry.validPoint(first) || !AttackGeometry.validPoint(second))
 				throw new IllegalArgumentException("Invalid riding seat");

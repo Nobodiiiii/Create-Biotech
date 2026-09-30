@@ -4,6 +4,7 @@
   "package": "com.nobodiiiii.createbiotech.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "EntityBionicRidingMixin",
     "AbstractContraptionEntityBufferPadMixin",
     "AbstractVillagerAccessor",
     "AbstractVillagerSlimeMimicTradesMixin",

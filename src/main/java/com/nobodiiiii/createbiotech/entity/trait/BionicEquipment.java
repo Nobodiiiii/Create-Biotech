@@ -6,6 +6,7 @@ import java.util.Comparator;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.BionicRiding;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -72,7 +73,7 @@ public final class BionicEquipment {
 
 	/** One retained saddle-bearing cube, with stable tie-breaking for bodies made of several mounts. */
 	@Nullable
-	private SurgicalAssembly.CombinationMember saddleCarrier() {
+	public SurgicalAssembly.CombinationMember saddleCarrier() {
 		var assembly = entity.getAssembly();
 		if (assembly == null) return null;
 		var dominant = BionicTraitRuntime.dominant(entity, BionicTrait.RIDEABLE);
@@ -95,20 +96,26 @@ public final class BionicEquipment {
 
 	/** Shared by client and server: seats were transformed with this cube when the body was packed. */
 	@Nullable
-	public Vec3 passengerAttachment(Entity passenger) {
+	public SurgicalAssembly.RidingSeat ridingSeat() {
 		var assembly = entity.getAssembly();
 		var carrier = saddleCarrier();
 		if (assembly == null || assembly.attackGeometry() == null || carrier == null) return null;
 		var seat = assembly.attackGeometry().ridingSeats().get(carrier);
-		boolean rear = seats() == 2 && entity.getPassengers().indexOf(passenger) > 0;
-		if (seat != null) return rear ? seat.second() : seat.first();
-		// Older saved bodies have cube centers but no native passenger anchors. Keep their seat
-		// on the selected donor cube until repacking bakes its exact dimensions and orientation.
+		var rotation = seat != null && seat.rotation() != null ? seat.rotation()
+			: BionicRiding.restRotation(assembly, carrier);
+		if (seat != null) return new SurgicalAssembly.RidingSeat(seat.first(), seat.second(), rotation);
+		// Legacy bodies have a real carrier center, but no measured saddle surface. Do not invent
+		// a top vertex by treating the cube's volume as the side length of an axis-aligned cube.
 		Vec3 center = assembly.attackGeometry().carrierOrigins().get(carrier);
 		if (center == null) return null;
-		double volume = assembly.sources().get(carrier.source()).anatomy().volume(carrier.cube());
-		double size = Double.isFinite(volume) && volume > 0 ? Math.cbrt(volume) : 0.5d;
-		return center.add(0, size * 0.5d, seats() == 2 ? size * (rear ? -0.25d : 0.25d) : 0);
+		return new SurgicalAssembly.RidingSeat(center, center, rotation);
+	}
+
+	public Vec3 carrierOrigin() {
+		var assembly = entity.getAssembly();
+		var carrier = saddleCarrier();
+		return assembly == null || assembly.attackGeometry() == null || carrier == null ? Vec3.ZERO
+			: assembly.attackGeometry().carrierOrigins().getOrDefault(carrier, Vec3.ZERO);
 	}
 
 	public Set<SurgicalAssembly.CombinationMember> armMembers(InteractionHand hand) {

@@ -1774,15 +1774,27 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected boolean canAddPassenger(Entity passenger) {
 		return passenger instanceof Player player && !isOrderedToSit() && isSaddled() && isSaddleable()
-			&& equipment.mayUse(player) && getPassengers().size() < equipment.seats();
+			&& equipment.mayUse(player) && getPassengers().size() < equipment.seats()
+			&& (BionicRiding.pose(this, passenger, 1, yBodyRot) == null
+				|| BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger)));
 	}
 	@Override @Nullable public LivingEntity getControllingPassenger() {
 		return isSaddled() && isSaddleable() && getFirstPassenger() instanceof Player player && equipment.mayUse(player) ? player : null;
 	}
 	@Override protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
-		Vec3 attachment = equipment.passengerAttachment(passenger);
-		return attachment == null ? super.getPassengerAttachmentPoint(passenger, dimensions, scale)
-			: attachment.yRot(-yBodyRot * Mth.DEG_TO_RAD);
+		var pose = BionicRiding.pose(this, passenger, 1, yBodyRot);
+		return pose == null ? super.getPassengerAttachmentPoint(passenger, dimensions, scale)
+			: pose.anchor().subtract(position());
+	}
+	@Override protected void positionRider(Entity passenger, Entity.MoveFunction move) {
+		var pose = BionicRiding.pose(this, passenger, 1, yBodyRot);
+		if (pose == null) { super.positionRider(passenger, move); return; }
+		Vec3 feet = pose.feet(passenger);
+		move.accept(passenger, feet.x, feet.y, feet.z);
+		passenger.setBoundingBox(pose.bounds(passenger));
+	}
+	@Override public void move(net.minecraft.world.entity.MoverType type, Vec3 movement) {
+		super.move(type, isVehicle() ? BionicRiding.clipMovement(this, movement) : movement);
 	}
 	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
 		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)
@@ -1790,7 +1802,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				BlockPos pos = blockPosition().offset(offset[0] * radius, y, offset[1] * radius);
 				if (!level().hasChunkAt(pos) || !level().getFluidState(pos).isEmpty()) continue;
 				Vec3 safe = net.minecraft.world.entity.vehicle.DismountHelper.findSafeDismountLocation(passenger.getType(), level(), pos, true);
-				if (safe != null && !getBoundingBox().intersects(passenger.getBoundingBox().move(safe.subtract(passenger.position())))) return safe;
+				if (safe != null && !getBoundingBox().intersects(passenger.getDimensions(Pose.STANDING).makeBoundingBox(safe))) return safe;
 			}
 		return super.getDismountLocationForPassenger(passenger);
 	}
@@ -1807,7 +1819,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected void tickRidden(Player player, Vec3 input) {
 		super.tickRidden(player, input);
-		setRot(player.getYRot(), player.getXRot() * 0.5f);
+		setYRot(BionicRiding.safeYaw(this, player.getYRot()));
+		yBodyRot = getYRot();
+		setXRot(BionicRiding.safePitch(this, player.getXRot() * 0.5f));
 		yRotO = yBodyRot = yHeadRot = getYRot();
 		if (!isControlledByLocalInstance()) return;
 		if (riderJump > 0 && onGround()) {

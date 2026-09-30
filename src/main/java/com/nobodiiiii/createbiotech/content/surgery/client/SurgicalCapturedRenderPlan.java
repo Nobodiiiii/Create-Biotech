@@ -58,6 +58,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Saddleable;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -77,6 +78,9 @@ public final class SurgicalCapturedRenderPlan {
 		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
 	private static final RenderType INNER_RENDER_TYPE = RenderType.entityCutoutNoCull(SLIME_TEXTURE);
 	private static final RenderType OUTER_RENDER_TYPE = RenderType.entityTranslucent(SLIME_TEXTURE);
+	private static final Set<ResourceLocation> SADDLE_TEXTURES = Set.of(
+		ResourceLocation.withDefaultNamespace("textures/entity/pig/pig_saddle.png"),
+		ResourceLocation.withDefaultNamespace("textures/entity/strider/strider_saddle.png"));
 	// Record with a recognizable non-full-bright value so ambient lighting cannot be mistaken for
 	// an emissive layer. Vanilla supplies full block light for burning entities; capturing that
 	// value directly would otherwise make every recorded vertex permanently glow.
@@ -172,6 +176,36 @@ public final class SurgicalCapturedRenderPlan {
 				* component.b.length() * component.c.length())).map(component -> component.id).orElse(-1);
 	}
 
+	/** Place the pelvis on the captured saddle surface at the donor's front/back seat coordinates. */
+	Vec3 saddleSurface(Vec3 nativeSeat) {
+		int carrier = saddleCube();
+		double top = Double.NEGATIVE_INFINITY;
+		for (Component component : appearanceComponents) {
+			if (component.id != carrier) continue;
+			Vector3f origin = component.corners.getFirst();
+			Vector3f horizontal = new Vector3f((float) nativeSeat.x, 0, (float) nativeSeat.z).sub(origin);
+			double lower = Double.NEGATIVE_INFINITY;
+			double upper = Double.POSITIVE_INFINITY;
+			for (Vector3f edge : List.of(component.a, component.b, component.c)) {
+				double length = edge.lengthSquared();
+				if (length < POSITION_EPSILON * POSITION_EPSILON) { upper = Double.NEGATIVE_INFINITY; break; }
+				double offset = horizontal.dot(edge) / length;
+				double slope = edge.y / length;
+				if (Math.abs(slope) < POSITION_EPSILON) {
+					if (offset < -POSITION_EPSILON || offset > 1 + POSITION_EPSILON)
+						upper = Double.NEGATIVE_INFINITY;
+				} else {
+					double first = -offset / slope;
+					double second = (1 - offset) / slope;
+					lower = Math.max(lower, Math.min(first, second));
+					upper = Math.min(upper, Math.max(first, second));
+				}
+			}
+			if (lower <= upper && Double.isFinite(upper)) top = Math.max(top, upper);
+		}
+		return Double.isFinite(top) ? new Vec3(nativeSeat.x, top, nativeSeat.z) : nativeSeat;
+	}
+
 	private Component appearanceOwner(Component visual) {
 		// Expanded pig/strider saddle shells fit their underlying cuboid. Horse/camel tack can
 		// cover only part of a body or head, so compare distance to the whole oriented box rather
@@ -211,7 +245,8 @@ public final class SurgicalCapturedRenderPlan {
 	/**
 	 * @param topology whether the caller will read {@code modelCorners} and {@code faceGrids} off the
 	 *   resulting components. Only {@link #snapshot} exposes them, so the live and death paths pass
-	 *   {@code false} and skip both the per-cube model observation and the recovery work behind it.
+	 *   {@code false} and skip topology recovery. Saddled models still identify their tack so it
+	 *   retains its source appearance even when it shares the body's texture.
 	 */
 	static SurgicalCapturedRenderPlan capture(EntityRenderer<LivingEntity> renderer, LivingEntity preview,
 		float yaw, float partialTick, boolean topology) {
@@ -224,11 +259,13 @@ public final class SurgicalCapturedRenderPlan {
 		PoseStack neutralPose = new PoseStack();
 		boolean bindPlayerSkinLayers = preview instanceof PlayerMimicEntity;
 		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
-		// Leaving the scope closed keeps observeModelCube - which the mixin runs for every cube of
-		// every entity model in the game - on its single atomic-read rejection for this capture.
-		ModelCubeCaptureScope captureScope = topology
-			? openModelCubeCapture(observedCubes, headModelCubes(renderer, preview),
-				namedModelCubes(renderer)) : null;
+		Set<GeometryKey> saddleCubes = new HashSet<>();
+		boolean observeSaddle = preview instanceof Saddleable saddleable && saddleable.isSaddled();
+		// Ordinary live captures keep the fast rejection in observeModelCube. Only saddled models
+		// need the small extra observation for equipment embedded in their main model.
+		ModelCubeCaptureScope captureScope = topology || observeSaddle
+			? openModelCubeCapture(observedCubes, topology ? headModelCubes(renderer, preview) : Set.of(),
+				namedModelCubes(renderer), topology, saddleCubes) : null;
 		try {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
@@ -240,12 +277,12 @@ public final class SurgicalCapturedRenderPlan {
 			}
 		}
 		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology,
-			bindPlayerSkinLayers);
+			bindPlayerSkinLayers, Set.copyOf(saddleCubes));
 	}
 
 	static SurgicalCapturedRenderPlan build(CapturedInput captured) {
 		return build(captured.streams, captured.observedCubes, captured.topology,
-			captured.bindPlayerSkinLayers);
+			captured.bindPlayerSkinLayers, captured.saddleCubes);
 	}
 
 	/** Records unscaled ModelPart pixel bounds while the renderer emits the matching transformed vertices. */
@@ -253,7 +290,12 @@ public final class SurgicalCapturedRenderPlan {
 		if (ACTIVE_MODEL_CUBE_CAPTURES.get() == 0)
 			return;
 		ModelCubeCaptureScope capture = CURRENT_MODEL_CUBE_CAPTURE.get();
-		if (capture == null)
+		if (capture == null || capture.recordingSaddle)
+			return;
+		Set<String> partNames = capture.namedCubes.getOrDefault(cube, Set.of());
+		if (partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart))
+			capture.recordSaddle(cube, pose);
+		if (!capture.topology)
 			return;
 		List<Vector3f> transformed = new ArrayList<>(8);
 		List<Vec3> model = new ArrayList<>(8);
@@ -270,15 +312,19 @@ public final class SurgicalCapturedRenderPlan {
 			}
 		}
 		boolean head = capture.headCubes.contains(cube);
-		Set<String> partNames = capture.namedCubes.getOrDefault(cube, Set.of());
 		capture.observedCubes.add(new ObservedCube(transformed, model, head, partNames));
+	}
+
+	private static boolean isSaddlePart(String name) {
+		return name.equals("saddle") || name.startsWith("saddle_") || name.endsWith("_saddle")
+			|| name.contains("_saddle_") || name.equals("bridle") || name.equals("reins");
 	}
 
 	private static ModelCubeCaptureScope openModelCubeCapture(List<ObservedCube> observedCubes,
 		Set<ModelPart.Cube> headCubes,
-		Map<ModelPart.Cube, Set<String>> namedCubes) {
+		Map<ModelPart.Cube, Set<String>> namedCubes, boolean topology, Set<GeometryKey> saddleCubes) {
 		ModelCubeCaptureScope scope = new ModelCubeCaptureScope(Thread.currentThread(),
-			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes, namedCubes);
+			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes, namedCubes, topology, saddleCubes);
 		CURRENT_MODEL_CUBE_CAPTURE.set(scope);
 		ACTIVE_MODEL_CUBE_CAPTURES.incrementAndGet();
 		return scope;
@@ -290,16 +336,38 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<ObservedCube> observedCubes;
 		private final Set<ModelPart.Cube> headCubes;
 		private final Map<ModelPart.Cube, Set<String>> namedCubes;
+		private final boolean topology;
+		private final Set<GeometryKey> saddleCubes;
+		private boolean recordingSaddle;
 		private boolean closed;
 
 		private ModelCubeCaptureScope(Thread owner, ModelCubeCaptureScope parent,
 			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes,
-			Map<ModelPart.Cube, Set<String>> namedCubes) {
+			Map<ModelPart.Cube, Set<String>> namedCubes, boolean topology, Set<GeometryKey> saddleCubes) {
 			this.owner = owner;
 			this.parent = parent;
 			this.observedCubes = observedCubes;
 			this.headCubes = headCubes;
 			this.namedCubes = namedCubes;
+			this.topology = topology;
+			this.saddleCubes = saddleCubes;
+		}
+
+		private void recordSaddle(ModelPart.Cube cube, PoseStack.Pose pose) {
+			// Cube.min/max omit CubeDeformation. Observe the actual vertices of just this tack cube
+			// so inflated horse/camel saddles cannot be confused with their underlying body cubes.
+			List<CapturedVertex> vertices = new ArrayList<>();
+			RecordingConsumer consumer = new RecordingConsumer(vertices);
+			recordingSaddle = true;
+			try {
+				cube.compile(pose, consumer, CAPTURE_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+				consumer.finish();
+			} finally {
+				recordingSaddle = false;
+			}
+			RecoveredCandidate candidate = recoverCandidate(vertices, 0);
+			if (candidate != null)
+				saddleCubes.add(GeometryKey.of(candidate.cuboid.corners));
 		}
 
 		@Override
@@ -578,7 +646,8 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static SurgicalCapturedRenderPlan build(List<CaptureStream> streams,
-		List<ObservedCube> observedCubes, boolean topology, boolean bindPlayerSkinLayers) {
+		List<ObservedCube> observedCubes, boolean topology, boolean bindPlayerSkinLayers,
+		Set<GeometryKey> saddleCubes) {
 		Map<GeometryKey, List<ComponentBuilder>> recovered = new LinkedHashMap<>();
 		List<SourceBatch> extras = new ArrayList<>();
 		List<PendingQuad> pendingQuads = new ArrayList<>();
@@ -671,7 +740,9 @@ public final class SurgicalCapturedRenderPlan {
 		List<Component> components = new ArrayList<>(visible.size());
 		for (int id = 0; id < visible.size(); id++) {
 			ComponentBuilder builder = visible.get(id);
-			components.add(builder.build(id, shouldPreserveSource(builder, visible)));
+			components.add(builder.build(id, !saddleCubes.isEmpty()
+				&& saddleCubes.contains(GeometryKey.of(builder.cuboid.corners))
+				|| shouldPreserveSource(builder, visible)));
 		}
 		return new SurgicalCapturedRenderPlan(components, extras);
 	}
@@ -942,6 +1013,10 @@ public final class SurgicalCapturedRenderPlan {
 	 * the shortest edge would incorrectly turn it into a second solid slime body.
 	 */
 	private static boolean shouldPreserveSource(ComponentBuilder candidate, List<ComponentBuilder> components) {
+		ResourceLocation texture = candidate.primaryRenderType == null
+			? null : renderTypeTexture(candidate.primaryRenderType);
+		if (texture != null && SADDLE_TEXTURES.contains(texture))
+			return true;
 		RecoveredCuboid cuboid = candidate.cuboid;
 		float shortestEdge = Math.min(cuboid.a.length(), Math.min(cuboid.b.length(), cuboid.c.length()));
 		if (shortestEdge <= THIN_EDGE)
@@ -1495,7 +1570,7 @@ public final class SurgicalCapturedRenderPlan {
 		int order) {}
 
 	static record CapturedInput(List<CaptureStream> streams, List<ObservedCube> observedCubes,
-		boolean topology, boolean bindPlayerSkinLayers) {}
+		boolean topology, boolean bindPlayerSkinLayers, Set<GeometryKey> saddleCubes) {}
 
 	private record CachedAlphaMask(int generation, AlphaMask mask) {}
 

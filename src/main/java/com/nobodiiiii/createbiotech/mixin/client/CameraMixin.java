@@ -50,6 +50,34 @@ public abstract class CameraMixin {
 	@Shadow
 	protected abstract void setRotation(float yRot, float xRot, float roll);
 
+	@Shadow
+	protected abstract void move(float distance, float vertical, float horizontal);
+
+	@Shadow
+	private float getMaxZoom(float distance) { throw new AssertionError(); }
+
+	@Inject(method = "setup", at = @At("RETURN"))
+	private void createBiotech$followBionicSeat(BlockGetter level, Entity entity,
+		boolean detached, boolean reverse, float partialTick, CallbackInfo ci) {
+		var pose = com.nobodiiiii.createbiotech.entity.BionicRiding.pose(entity, partialTick);
+		if (pose == null) return;
+		float yaw = getYRot();
+		float pitch = getXRot();
+		var rotation = com.nobodiiiii.createbiotech.entity.BionicRiding.quaternion(pose.rotation())
+			.mul(new org.joml.Quaternionf().rotationYXZ(Mth.PI - yaw * Mth.DEG_TO_RAD,
+				-pitch * Mth.DEG_TO_RAD, -getRoll() * Mth.DEG_TO_RAD));
+		var angles = rotation.getEulerAnglesYXZ(new org.joml.Vector3f());
+		setRotation(180 - angles.y * Mth.RAD_TO_DEG, -angles.x * Mth.RAD_TO_DEG,
+			-angles.z * Mth.RAD_TO_DEG);
+		setPosition(pose.eyes(entity));
+		if (detached) {
+			float scale = ((Player) entity).getScale();
+			float distance = net.neoforged.neoforge.client.ClientHooks.getDetachedCameraDistance(
+				(Camera) (Object) this, reverse, scale, 4);
+			move(-getMaxZoom(distance * scale), 0, 0);
+		}
+	}
+
 	@Inject(method = "setup", at = @At("RETURN"), require = 0)
 	private void createBiotech$lowerFirstPersonViewInShulkerTeleporter(BlockGetter level, Entity entity,
 		boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {

@@ -37,6 +37,12 @@ public abstract class LivingEntityRendererMixin {
 		if (!(entity instanceof Player player))
 			return;
 
+		var riding = com.nobodiiiii.createbiotech.entity.BionicRiding.pose(player, partialTick);
+		if (riding != null) {
+			var offset = riding.feet(player).subtract(player.getPosition(partialTick));
+			poseStack.translate(offset.x, offset.y, offset.z);
+			poseStack.mulPose(com.nobodiiiii.createbiotech.entity.BionicRiding.quaternion(riding.rotation()));
+		}
 		BouncingAnimation.applyVisualTransform(player, partialTick, poseStack);
 	}
 

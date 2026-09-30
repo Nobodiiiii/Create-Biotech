@@ -11,6 +11,7 @@ import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Quaternionf;
+import org.joml.Matrix3f;
 import org.joml.Vector3f;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
@@ -140,7 +141,8 @@ public final class SlimeBionicAnimator {
 			seats.put(new SurgicalAssembly.CombinationMember(source, seat.cube()),
 				new SurgicalAssembly.RidingSeat(
 					transformCubePoint(seat.first(), original.corners(), carrier.points()).subtract(bodyOrigin),
-					transformCubePoint(seat.second(), original.corners(), carrier.points()).subtract(bodyOrigin)));
+					transformCubePoint(seat.second(), original.corners(), carrier.points()).subtract(bodyOrigin),
+					cubeRotation(original.corners(), carrier.points())));
 		}
 		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats);
 	}
@@ -156,6 +158,18 @@ public final class SlimeBionicAnimator {
 					.scale(relative.dot(edge) / edge.lengthSqr()));
 		}
 		return result;
+	}
+
+	private static SurgicalCubeRotation cubeRotation(List<Vec3> original, List<Vec3> transformed) {
+		Vec3 origin = transformCubePoint(Vec3.ZERO, original, transformed);
+		Vec3 x = transformCubePoint(new Vec3(1, 0, 0), original, transformed).subtract(origin).normalize();
+		Vec3 y = transformCubePoint(new Vec3(0, 1, 0), original, transformed).subtract(origin).normalize();
+		Vec3 z = x.cross(y).normalize();
+		y = z.cross(x).normalize();
+		Quaternionf rotation = new Quaternionf().setFromNormalized(new Matrix3f(
+			(float) x.x, (float) x.y, (float) x.z, (float) y.x, (float) y.y, (float) y.z,
+			(float) z.x, (float) z.y, (float) z.z));
+		return new SurgicalCubeRotation(rotation.x, rotation.y, rotation.z, rotation.w);
 	}
 
 	@Nullable
@@ -359,6 +373,16 @@ public final class SlimeBionicAnimator {
 		Vec3 pivot = bodyPivot(limbs, sources);
 		Transform bodyTransform = swimTransform.rotateAround(swimTransform.apply(pivot),
 			conjugate(swimTransform.rotation(), bodyRotation));
+		if (entity.isVehicle()) {
+			var carrier = entity.getBionicEquipment().saddleCarrier();
+			CubeBox seatBox = carrier == null ? null : box(sources, new Member(carrier.source(), carrier.cube()));
+			if (seatBox != null) {
+				// Mounted torso motion must be reproducible by server-side passenger physics.
+				swimTransform = Transform.IDENTITY.rotateAround(seatBox.center(),
+					com.nobodiiiii.createbiotech.entity.BionicRiding.bodyRotation(entity, partialTick));
+				bodyTransform = swimTransform;
+			}
+		}
 		if (!bodyTransform.isIdentity() || !swimTransform.isIdentity()) {
 			Set<Member> legMembers = legMembers(limbs);
 			for (int source = 0; source < sources.size(); source++)
