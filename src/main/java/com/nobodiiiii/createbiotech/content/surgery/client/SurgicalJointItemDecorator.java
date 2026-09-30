@@ -6,7 +6,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 
 import net.neoforged.neoforge.client.IItemDecorator;
 
-/** The chain remains the main icon; the selected close-up occupies its lower-right quarter. */
+/** The mechanical joint is the main icon; the selected close-up occupies its lower-right quarter. */
 public final class SurgicalJointItemDecorator {
 	public static final float BADGE_SCALE = 0.5f;
 	public static final float BADGE_OFFSET = 8.0f;

@@ -1,6 +1,6 @@
 # 关节轮盘与五种特写
 
-玩家使用统一的 `create_biotech:surgical_joint` 物品：主图标为原版锁链，右下角以 8×8 GUI 像素显示当前关节的特写。创造栏与初次制作的关节默认未选择类型，右下角留空，不能安装。按住手术盒快捷键（默认左 Alt）打开共用轮盘，移向类型后松开或左键选择；Esc、移向中心或轮盘之外后松开则取消。轮盘的五个选项只显示正常 16×16 物品尺寸的特写。
+玩家使用统一的 `create_biotech:surgical_joint` 物品：主图标为原创的黄铜轴承与金属连杆，右下角以 8×8 GUI 像素显示当前关节的特写。创造栏与初次制作的关节默认未选择类型，右下角留空，不能安装。按住手术盒快捷键（默认左 Alt）打开共用轮盘，移向类型后松开或左键选择；Esc、移向中心或轮盘之外后松开则取消。轮盘的五个选项只显示正常 16×16 物品尺寸的特写。
 
 选择的类型存储于 `minecraft:custom_data` 的 `SurgicalJointType` 字段，颈关节也显式保存为 `neck`；字段缺失或无效均视为未选择类型。旧版未写字段的统一关节需要重新选择一次，五种旧独立物品仍按其固定类型工作。
 
@@ -20,7 +20,7 @@
 
 `src/main/java/com/nobodiiiii/createbiotech/content/surgery/client/SurgicalJointIconModel.java` 保存裁切范围与姿态，从原版 `PlayerModel.createMesh` 获取真实顶点。
 
-`SurgicalJointItemRenderer` 经 `CBClientExtensions` 注册，五个内部特写模型继承 `block_centered_rendered_living_entity_item`。`SurgicalJointItemDecorator` 在统一锁链物品上绘制选中类型的角标，物品栏、快捷栏和 JEI 使用同一机制。角标深度处于主物品和数量数字之间，保持计数可读。`GuiEntityItemElement.ofModel` 复用现有的投影居中、缩放、光照参数及物品显示变换，不需要创建世界实体。
+`SurgicalJointItemRenderer` 经 `CBClientExtensions` 注册，五个内部特写模型继承 `block_centered_rendered_living_entity_item`。`SurgicalJointItemDecorator` 在统一机械关节物品上绘制选中类型的角标，物品栏、快捷栏和 JEI 使用同一机制。角标深度处于主物品和数量数字之间，保持计数可读。`GuiEntityItemElement.ofModel` 复用现有的投影居中、缩放、光照参数及物品显示变换，不需要创建世界实体。
 
 `SurgicalKitRadialScreen` 同时服务手术盒与关节，槽位和命中区域由 `SurgicalRadialLayout` 提供。关节选项通过 `GuiGraphics.renderItem` 直接绘制，没有额外放大。切换包验证手持物品与快捷栏槽位，切换到其他槽位会关闭轮盘。
 
@@ -30,6 +30,7 @@
 
 ```powershell
 ./gradlew.bat compileJava processResources --offline
+python art/surgical_joint_icons/draw_item.py
 python art/surgical_joint_icons/preview.py
 ```
 
@@ -54,3 +55,9 @@ python art/surgical_joint_icons/preview.py
 - `ref/1.21.1/Create/src/main/resources/assets/create/textures/gui/widgets.png`
 
 实际导出使用项目编译产物及 NeoForge 21.1.234 的已修补 Minecraft 类，而非单独编译原版参考快照。
+
+## 机械关节主图标
+
+`draw_item.py` 逐像素绘制原创 16×16 RGBA 贴图，保存到 `src/main/resources/assets/create_biotech/textures/item/surgical_joint.png`。黄铜轴承、凹入的灰色轴心、略微弯折的两端金属连杆共同表现可转动关节；右下区域为类型角标留白。配色与光照方向参考本地 Create 6.0.10 的 `textures/item/precision_mechanism.png` 和 `textures/item/brass_hand.png`，未拼接或复制参考贴图。
+
+`item-preview.png` 展示深浅背景、像素放大与 GUI ×1/2/3/4 实际尺寸。`wheel-preview.png` 已使用新贴图重绘五种选中状态。游戏外检查采用实际 PNG 和已有运行时网格、角标参数；没有启动游戏。最终预览保留在本目录，导出中间文件位于 build/joint-icon-preview/。

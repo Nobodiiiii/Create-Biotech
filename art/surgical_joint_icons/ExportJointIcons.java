@@ -68,7 +68,7 @@ public class ExportJointIcons {
             if (stream == null) throw new IllegalStateException("Steve texture missing from runtime resources");
             Files.write(output.resolveSibling("steve.png"), stream.readAllBytes());
         }
-        for (String path : List.of("textures/item/chain.png", "textures/font/ascii.png")) {
+        for (String path : List.of("textures/font/ascii.png")) {
             try (var stream = ExportJointIcons.class.getClassLoader().getResourceAsStream("assets/minecraft/" + path)) {
                 if (stream != null) Files.write(output.resolveSibling(Path.of(path).getFileName()), stream.readAllBytes());
             }

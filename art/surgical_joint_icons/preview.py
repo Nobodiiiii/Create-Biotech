@@ -114,13 +114,13 @@ def compose():
 
 
 def compose_wheel(data, texture, lights, font):
-    chain = Image.open(OUT / "chain.png").convert("RGBA")
+    joint = Image.open(ROOT / "src/main/resources/assets/create_biotech/textures/item/surgical_joint.png").convert("RGBA")
     widgets = Image.open(ROOT / "ref/1.21.1/Create/src/main/resources/assets/create/textures/gui/widgets.png").convert("RGBA")
     slot = widgets.crop((0, 68, 22, 90))
     highlight = widgets.crop((27, 67, 51, 91))
 
     def item(name, size):
-        icon = chain.resize((size, size), Image.Resampling.NEAREST)
+        icon = joint.resize((size, size), Image.Resampling.NEAREST)
         mesh = np.array(data[name], dtype=float)
         mesh[:, :3] *= data["badge"]["scale"]
         mesh[:, :2] += data["badge"]["offset"]
@@ -149,8 +149,8 @@ def compose_wheel(data, texture, lights, font):
 
     sheet = Image.new("RGB", (1140, 710), "#20252b")
     draw = ImageDraw.Draw(sheet)
-    draw.text((28, 22), "关节轮盘 · 锁链与选中角标", font=font(26), fill="#f0ece1")
-    draw.text((28, 66), "离线预览 · 运行时几何、轮盘布局与角标参数 · 原版锁链和 Create 槽位纹理", font=font(16), fill="#aab8bc")
+    draw.text((28, 22), "关节轮盘 · 机械关节与选中角标", font=font(26), fill="#f0ece1")
+    draw.text((28, 66), "离线预览 · 运行时几何、轮盘布局与角标参数 · 新关节贴图和 Create 槽位纹理", font=font(16), fill="#aab8bc")
     draw.text((28, 109), "轮盘中的特写：16×16 GUI 像素（GUI ×3）", font=font(18), fill="#d2dbdd")
     sheet.paste(wheel, (24, 154), wheel)
     draw.text((655, 109), "选择后的物品栏 / JEI 图标", font=font(18), fill="#d2dbdd")
