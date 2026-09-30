@@ -1,6 +1,6 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "create_biotech:item/block_centered_rendered_living_entity_item",
   "textures": {
-    "layer0": "minecraft:item/chain"
+    "layer0": "minecraft:item/leather"
   }
 }

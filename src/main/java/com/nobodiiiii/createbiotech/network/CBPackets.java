@@ -39,6 +39,7 @@ import com.nobodiiiii.createbiotech.content.allay.logistics.courier.hud.AllayCou
 import com.nobodiiiii.createbiotech.content.allay.network.allay.AllayCourierConfirmPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableInteractionPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitSelectionPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointSelectionPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBatchCutPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableGluePacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLimbPacket;
@@ -73,7 +74,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "31";
+	private static final String NETWORK_VERSION = "32";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -144,6 +145,8 @@ public final class CBPackets {
 			SurgicalTableCubeRotationPacket::write, SurgicalTableCubeRotationPacket::handle);
 		registerServer(GaugeCraftTreeRequestPacket.class, GaugeCraftTreeRequestPacket::new,
 			GaugeCraftTreeRequestPacket::write, GaugeCraftTreeRequestPacket::handle);
+		registerServer(SurgicalJointSelectionPacket.class, SurgicalJointSelectionPacket::new,
+			SurgicalJointSelectionPacket::write, SurgicalJointSelectionPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);

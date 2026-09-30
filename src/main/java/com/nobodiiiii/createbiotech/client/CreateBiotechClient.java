@@ -54,6 +54,7 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteract
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableModel;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalJointItemDecorator;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
@@ -526,6 +527,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
+		event.register(CBItems.SURGICAL_JOINT.get(), SurgicalJointItemDecorator.INSTANCE);
 		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 		event.register(CBItems.CREATIVE_SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 	}
@@ -601,6 +603,7 @@ public class CreateBiotechClient {
 		registerCreateStyleTooltip(CBItems.GIANT_FROG.get());
 		registerCreateStyleTooltip(CBItems.GIANT_FROG_FACTORY.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_KIT.get());
+		registerCreateStyleTooltip(CBItems.SURGICAL_JOINT.get());
 		registerCreateStyleTooltip(CBItems.CREATIVE_SURGICAL_KIT.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_TABLE.get());
 		registerCreateStyleTooltip(CBItems.SURGERY_GUIDE.get());

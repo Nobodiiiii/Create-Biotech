@@ -121,6 +121,10 @@ public class CBItems {
 		ITEMS.register("creative_surgical_kit",
 			() -> new CreativeSurgicalKitItem(new Item.Properties().stacksTo(1).rarity(Rarity.EPIC)));
 
+	public static final DeferredHolder<Item, SurgicalJointItem> SURGICAL_JOINT = ITEMS.register("surgical_joint",
+		() -> new SurgicalJointItem(new Item.Properties()));
+
+	// Legacy ids double as internal close-up models; only SURGICAL_JOINT is offered to players.
 	public static final DeferredHolder<Item, SurgicalJointItem> NECK_JOINT = ITEMS.register("neck_joint",
 		() -> new SurgicalJointItem(SurgicalLimbType.NECK, new Item.Properties()));
 

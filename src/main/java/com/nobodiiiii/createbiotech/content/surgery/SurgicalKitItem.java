@@ -192,9 +192,7 @@ public class SurgicalKitItem extends Item {
 
 	@Nullable
 	public static SurgicalLimbType limbType(ItemStack stack) {
-		if (stack.getItem() instanceof SurgicalJointItem joint)
-			return joint.limbType();
-		return null;
+		return SurgicalJointItem.selectedType(stack);
 	}
 
 	public static boolean isTemporaryBox(ItemStack stack) {

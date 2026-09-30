@@ -16,9 +16,11 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderProperties;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
 import com.nobodiiiii.createbiotech.content.surgery.client.BionicDonorPreviewItemRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemRenderer;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalJointItemRenderer;
 import com.nobodiiiii.createbiotech.foundation.fluid.CBFluidType;
 import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredRenderedLivingEntityItem;
 import com.nobodiiiii.createbiotech.foundation.item.BlockCenteredSpawnableRenderedLivingEntityItem;
@@ -67,6 +69,8 @@ final class CBClientExtensions {
 
 	@Nullable
 	private static IClientItemExtensions createItemExtensions(Item item) {
+		if (item instanceof SurgicalJointItem joint && !joint.selectable())
+			return itemRenderer(new SurgicalJointItemRenderer());
 		if (item instanceof BionicDonorPreviewItem)
 			return itemRenderer(new BionicDonorPreviewItemRenderer());
 		// Specific entity renderers must precede their shared base class.

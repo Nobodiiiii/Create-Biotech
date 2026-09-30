@@ -1490,13 +1490,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	private static ItemStack limbItem(SurgicalLimbType type) {
-		return switch (type) {
-		case NECK -> new ItemStack(CBItems.NECK_JOINT.get());
-		case SHOULDER -> new ItemStack(CBItems.SHOULDER_JOINT.get());
-		case ELBOW -> new ItemStack(CBItems.ELBOW_JOINT.get());
-		case HIP -> new ItemStack(CBItems.HIP_JOINT.get());
-		case KNEE -> new ItemStack(CBItems.KNEE_JOINT.get());
-		};
+		return SurgicalJointItem.createStack(type);
 	}
 
 	private boolean refuse(Player player, String message) {

@@ -4,12 +4,14 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.CBKeyMappings;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.simibubi.create.content.equipment.toolbox.RadialToolboxMenu;
 
 import net.createmod.catnip.gui.ScreenOpener;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -32,10 +34,14 @@ public final class SurgicalKitClientHandler {
 		LocalPlayer player = minecraft.player;
 		if (player == null || player.isSpectator())
 			return;
-		InteractionHand hand = SurgicalKitItem.isKit(player.getMainHandItem())
+		InteractionHand hand = hasWheel(player.getMainHandItem())
 			? InteractionHand.MAIN_HAND
-			: SurgicalKitItem.isKit(player.getOffhandItem()) ? InteractionHand.OFF_HAND : null;
+			: hasWheel(player.getOffhandItem()) ? InteractionHand.OFF_HAND : null;
 		if (hand != null)
 			ScreenOpener.open(new SurgicalKitRadialScreen(hand, player.getItemInHand(hand)));
+	}
+
+	private static boolean hasWheel(ItemStack stack) {
+		return SurgicalKitItem.isKit(stack) || SurgicalJointItem.canSelect(stack);
 	}
 }

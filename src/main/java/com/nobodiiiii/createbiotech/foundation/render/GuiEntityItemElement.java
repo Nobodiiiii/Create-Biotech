@@ -5,12 +5,15 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -87,10 +90,11 @@ public final class GuiEntityItemElement {
 	private static final EntityGeometry.Collector MEASUREMENT_SCRATCH =
 		EntityGeometry.Collector.caching(MAX_MEASURED_VERTICES);
 
-	private final LivingEntity entity;
+	private final GeometrySource geometry;
 	private Anchor anchor = Anchor.BLOCK_CENTERED;
 	private float scaleMultiplier = 1.0f;
 	private boolean autoScale;
+	private float maxAutoScale = BLOCK_CENTERED_MAX_SCALE;
 	private boolean centerProjected;
 	private double footYOffset;
 	private int packedLight = LightTexture.FULL_BRIGHT;
@@ -101,7 +105,47 @@ public final class GuiEntityItemElement {
 	private Vector3f geometryCenter;
 
 	private GuiEntityItemElement(LivingEntity entity) {
-		this.entity = entity;
+		this.geometry = new GeometrySource() {
+			@Override
+			public void render(PoseStack pose, MultiBufferSource buffer, int light) {
+				EntityRenderHelper.renderUnoriented(entity, pose, buffer, light);
+			}
+
+			@Override
+			public void measure(EntityGeometry.Collector collector) {
+				EntityGeometry.measureWithFallback(entity, collector);
+			}
+		};
+	}
+
+	private GuiEntityItemElement(ResourceLocation texture, ModelGeometry model) {
+		this.geometry = new GeometrySource() {
+			@Override
+			public void render(PoseStack pose, MultiBufferSource buffer, int light) {
+				model.render(pose, buffer.getBuffer(RenderType.entityCutoutNoCull(texture)), light);
+			}
+
+			@Override
+			public void measure(EntityGeometry.Collector collector) {
+				collector.reset();
+				model.render(new PoseStack(), collector, LightTexture.FULL_BRIGHT);
+			}
+		};
+	}
+
+	/** A fixed creature model can share the entity item framing without creating a world entity. */
+	public static GuiEntityItemElement ofModel(ResourceLocation texture, ModelGeometry model) {
+		return new GuiEntityItemElement(texture, model);
+	}
+
+	@FunctionalInterface
+	public interface ModelGeometry {
+		void render(PoseStack pose, VertexConsumer buffer, int packedLight);
+	}
+
+	private interface GeometrySource {
+		void render(PoseStack pose, MultiBufferSource buffer, int packedLight);
+		void measure(EntityGeometry.Collector collector);
 	}
 
 	public static GuiEntityItemElement of(LivingEntity entity) {
@@ -137,6 +181,13 @@ public final class GuiEntityItemElement {
 	public GuiEntityItemElement autoScale(float multiplier) {
 		this.scaleMultiplier = multiplier;
 		this.autoScale = true;
+		return this;
+	}
+
+	/** Allows small model close-ups to fill the slot beyond the normal whole-entity scale limit. */
+	public GuiEntityItemElement autoScale(float multiplier, float maxScale) {
+		autoScale(multiplier);
+		this.maxAutoScale = maxScale;
 		return this;
 	}
 
@@ -189,7 +240,7 @@ public final class GuiEntityItemElement {
 		poseStack.pushPose();
 		try {
 			applyTransform(poseStack);
-			EntityRenderHelper.renderUnoriented(entity, poseStack, buffer, packedLight);
+			geometry.render(poseStack, buffer, packedLight);
 		} finally {
 			poseStack.popPose();
 		}
@@ -300,7 +351,7 @@ public final class GuiEntityItemElement {
 	 */
 	private EntityGeometry.Collector rawGeometry() {
 		if (!measured) {
-			EntityGeometry.measureWithFallback(entity, MEASUREMENT_SCRATCH);
+			geometry.measure(MEASUREMENT_SCRATCH);
 			measured = true;
 		}
 		return MEASUREMENT_SCRATCH;
@@ -354,7 +405,7 @@ public final class GuiEntityItemElement {
 		float projectedDimension = Math.max(bounds.sizeX(), bounds.sizeY()) / poseScale;
 		if (projectedDimension <= MIN_PROJECTED_DIMENSION)
 			return scaleMultiplier;
-		return Math.min(BLOCK_CENTERED_TARGET_SIZE / projectedDimension, BLOCK_CENTERED_MAX_SCALE) * scaleMultiplier;
+		return Math.min(BLOCK_CENTERED_TARGET_SIZE / projectedDimension, maxAutoScale) * scaleMultiplier;
 	}
 
 	/**
