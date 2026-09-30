@@ -399,7 +399,8 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
-		event.register((stack, tintIndex) -> ((SpawnEggItem) Items.SLIME_SPAWN_EGG).getColor(tintIndex),
+		event.register((stack, tintIndex) -> net.minecraft.util.FastColor.ARGB32.opaque(
+			((SpawnEggItem) Items.SLIME_SPAWN_EGG).getColor(tintIndex)),
 			CBItems.SLIME_DATA.get());
 		event.register((stack, tintIndex) -> tintIndex == 0
 			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
