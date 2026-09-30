@@ -132,17 +132,19 @@ public final class SlimeBionicAnimator {
 				if (box != null) origins.put(new SurgicalAssembly.CombinationMember(source, cube),
 					box.center().subtract(bodyOrigin));
 			}
-			var seat = SurgicalSourceModelRenderer.ridingSeat(assembly.sources().get(source).profile());
-			if (seat == null || !present.get(seat.cube())) continue;
-			CubeBox carrier = box(sources, new Member(source, seat.cube()));
-			var original = SurgicalSourceModelRenderer.singleCubeGeometry(
-				assembly.sources().get(source).profile(), seat.cube());
-			if (carrier == null || original == null) continue;
-			seats.put(new SurgicalAssembly.CombinationMember(source, seat.cube()),
-				new SurgicalAssembly.RidingSeat(
-					transformCubePoint(seat.first(), original.corners(), carrier.points()).subtract(bodyOrigin),
-					transformCubePoint(seat.second(), original.corners(), carrier.points()).subtract(bodyOrigin),
-					cubeRotation(original.corners(), carrier.points())));
+			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+				var seat = SurgicalSourceModelRenderer.ridingSeat(assembly.sources().get(source).profile(), cube);
+				if (seat == null) continue;
+				CubeBox carrier = box(sources, new Member(source, cube));
+				var original = SurgicalSourceModelRenderer.singleCubeGeometry(
+					assembly.sources().get(source).profile(), cube);
+				if (carrier == null || original == null) continue;
+				seats.put(new SurgicalAssembly.CombinationMember(source, cube),
+					new SurgicalAssembly.RidingSeat(
+						transformCubePoint(seat.first(), original.corners(), carrier.points()).subtract(bodyOrigin),
+						transformCubePoint(seat.second(), original.corners(), carrier.points()).subtract(bodyOrigin),
+						cubeRotation(original.corners(), carrier.points())));
+			}
 		}
 		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats);
 	}

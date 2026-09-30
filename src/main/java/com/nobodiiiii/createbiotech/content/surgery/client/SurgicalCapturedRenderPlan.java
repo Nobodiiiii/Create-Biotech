@@ -156,11 +156,17 @@ public final class SurgicalCapturedRenderPlan {
 				matched.add(owner);
 			else {
 				owner = appearanceOwner(visual);
-				float volume = visual.a.length() * visual.b.length() * visual.c.length();
-				if (!visual.head && volume > saddleVolume) {
-					seatOwner = owner.id;
-					saddleVolume = volume;
-				}
+			}
+			// Animation differences also produce unmatched legs and ears. Only actual saddle
+			// geometry identifies the carrier, including overlays that exactly match the body.
+			boolean saddle = visual.partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart)
+				|| java.util.stream.Stream.concat(visual.batches.stream(), visual.surfaceOverlays.stream())
+					.map(batch -> renderTypeTexture(batch.renderType)).filter(Objects::nonNull)
+					.anyMatch(SADDLE_TEXTURES::contains);
+			float volume = visual.a.length() * visual.b.length() * visual.c.length();
+			if (saddle && !visual.head && volume > saddleVolume) {
+				seatOwner = owner.id;
+				saddleVolume = volume;
 			}
 			bound.add(new Component(visual, owner));
 		}
@@ -178,9 +184,16 @@ public final class SurgicalCapturedRenderPlan {
 
 	/** Place the pelvis on the captured saddle surface at the donor's front/back seat coordinates. */
 	Vec3 saddleSurface(Vec3 nativeSeat) {
-		int carrier = saddleCube();
+		return saddleSurface(saddleCube(), nativeSeat, appearanceComponents);
+	}
+
+	Vec3 carrierSurface(int carrier, Vec3 nativeSeat) {
+		return saddleSurface(carrier, nativeSeat, components);
+	}
+
+	private Vec3 saddleSurface(int carrier, Vec3 nativeSeat, List<Component> geometry) {
 		double top = Double.NEGATIVE_INFINITY;
-		for (Component component : appearanceComponents) {
+		for (Component component : geometry) {
 			if (component.id != carrier) continue;
 			Vector3f origin = component.corners.getFirst();
 			Vector3f horizontal = new Vector3f((float) nativeSeat.x, 0, (float) nativeSeat.z).sub(origin);
@@ -203,7 +216,19 @@ public final class SurgicalCapturedRenderPlan {
 			}
 			if (lower <= upper && Double.isFinite(upper)) top = Math.max(top, upper);
 		}
-		return Double.isFinite(top) ? new Vec3(nativeSeat.x, top, nativeSeat.z) : nativeSeat;
+		if (Double.isFinite(top)) return new Vec3(nativeSeat.x, top, nativeSeat.z);
+		// A donor's native seat can lie outside the retained carrier's footprint. Use an
+		// actual face point instead of returning an unrelated native attachment height.
+		for (Component component : components) {
+			if (component.id != carrier) continue;
+			Vector3f center = component.center();
+			double rise = Double.POSITIVE_INFINITY;
+			for (Vector3f edge : List.of(component.a, component.b, component.c))
+				if (Math.abs(edge.y) > POSITION_EPSILON)
+					rise = Math.min(rise, edge.lengthSquared() / (2.0 * Math.abs(edge.y)));
+			if (Double.isFinite(rise)) return new Vec3(center.x, center.y + rise, center.z);
+		}
+		return nativeSeat;
 	}
 
 	private Component appearanceOwner(Component visual) {

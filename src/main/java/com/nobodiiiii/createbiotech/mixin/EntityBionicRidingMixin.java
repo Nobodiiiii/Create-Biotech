@@ -28,10 +28,4 @@ public abstract class EntityBionicRidingMixin {
 		var pose = BionicRiding.pose((Entity) (Object) this, partialTick);
 		return pose == null ? original : pose.eyes((Entity) (Object) this);
 	}
-
-	@ModifyReturnValue(method = "calculateViewVector", at = @At("RETURN"))
-	private Vec3 createBiotech$riderAim(Vec3 original) {
-		var pose = BionicRiding.pose((Entity) (Object) this, 1);
-		return pose == null ? original : pose.rotation().rotate(original);
-	}
 }

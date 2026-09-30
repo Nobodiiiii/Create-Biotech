@@ -104,11 +104,9 @@ public final class BionicEquipment {
 		var rotation = seat != null && seat.rotation() != null ? seat.rotation()
 			: BionicRiding.restRotation(assembly, carrier);
 		if (seat != null) return new SurgicalAssembly.RidingSeat(seat.first(), seat.second(), rotation);
-		// Legacy bodies have a real carrier center, but no measured saddle surface. Do not invent
-		// a top vertex by treating the cube's volume as the side length of an axis-aligned cube.
-		Vec3 center = assembly.attackGeometry().carrierOrigins().get(carrier);
-		if (center == null) return null;
-		return new SurgicalAssembly.RidingSeat(center, center, rotation);
+		// Whole-body bounds cannot recover an individual cube's support surface. Repacking
+		// supplies exact per-carrier seats; do not silently substitute a center or head height.
+		return null;
 	}
 
 	public Vec3 carrierOrigin() {

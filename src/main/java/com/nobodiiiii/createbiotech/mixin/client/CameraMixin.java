@@ -61,14 +61,14 @@ public abstract class CameraMixin {
 		boolean detached, boolean reverse, float partialTick, CallbackInfo ci) {
 		var pose = com.nobodiiiii.createbiotech.entity.BionicRiding.pose(entity, partialTick);
 		if (pose == null) return;
-		float yaw = getYRot();
-		float pitch = getXRot();
-		var rotation = com.nobodiiiii.createbiotech.entity.BionicRiding.quaternion(pose.rotation())
-			.mul(new org.joml.Quaternionf().rotationYXZ(Mth.PI - yaw * Mth.DEG_TO_RAD,
-				-pitch * Mth.DEG_TO_RAD, -getRoll() * Mth.DEG_TO_RAD));
-		var angles = rotation.getEulerAnglesYXZ(new org.joml.Vector3f());
-		setRotation(180 - angles.y * Mth.RAD_TO_DEG, -angles.x * Mth.RAD_TO_DEG,
-			-angles.z * Mth.RAD_TO_DEG);
+		if (!detached) {
+			var rotation = com.nobodiiiii.createbiotech.entity.BionicRiding.quaternion(pose.rotation())
+				.mul(new org.joml.Quaternionf().rotationYXZ(Mth.PI - getYRot() * Mth.DEG_TO_RAD,
+					-getXRot() * Mth.DEG_TO_RAD, -getRoll() * Mth.DEG_TO_RAD));
+			var angles = rotation.getEulerAnglesYXZ(new org.joml.Vector3f());
+			setRotation(180 - angles.y * Mth.RAD_TO_DEG, -angles.x * Mth.RAD_TO_DEG,
+				-angles.z * Mth.RAD_TO_DEG);
+		}
 		setPosition(pose.eyes(entity));
 		if (detached) {
 			float scale = ((Player) entity).getScale();

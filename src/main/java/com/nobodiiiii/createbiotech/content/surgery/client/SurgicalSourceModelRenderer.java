@@ -230,8 +230,7 @@ public final class SurgicalSourceModelRenderer {
 			return null;
 		preparePreview(preview, 0.0f);
 		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
-		SurgicalCapturedRenderPlan saddled = saddlePlan(preview, 0.0f, true, base);
-		int cube = saddled.saddleCube();
+		int cube = base.saddleCube();
 		if (cube < 0)
 			return null;
 		LivingEntity mount = profile.createPreviewEntity(preview.level());
@@ -248,7 +247,7 @@ public final class SurgicalSourceModelRenderer {
 			Vec3 front = mount.getPassengerRidingPosition(first).subtract(mount.position());
 			Vec3 rear = mount instanceof Camel
 				? mount.getPassengerRidingPosition(second).subtract(mount.position()) : front;
-			cached = new SourceRidingSeat(cube, saddled.saddleSurface(front), saddled.saddleSurface(rear));
+			cached = new SourceRidingSeat(cube, front, rear);
 			RIDING_SEATS.put(profile, cached);
 			return cached;
 		} finally {
@@ -257,6 +256,18 @@ public final class SurgicalSourceModelRenderer {
 	}
 
 	public record SourceRidingSeat(int cube, Vec3 first, Vec3 second) {}
+
+	/** Bake against a retained body cube, independently of optional saddle-layer cube ids. */
+	@Nullable
+	public static SourceRidingSeat ridingSeat(MimicProfile profile, int carrier) {
+		SourceRidingSeat nativeSeat = ridingSeat(profile);
+		if (nativeSeat == null) return null;
+		LivingEntity preview = preview(profile);
+		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
+		if (base.singleCubeGeometry(carrier) == null) return null;
+		return new SourceRidingSeat(carrier, base.carrierSurface(carrier, nativeSeat.first()),
+			base.carrierSurface(carrier, nativeSeat.second()));
+	}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
 	public static SurgicalModelRenderContext.Snapshot renderSingleCube(MimicProfile profile,

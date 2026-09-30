@@ -1775,8 +1775,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override protected boolean canAddPassenger(Entity passenger) {
 		return passenger instanceof Player player && !isOrderedToSit() && isSaddled() && isSaddleable()
 			&& equipment.mayUse(player) && getPassengers().size() < equipment.seats()
-			&& (BionicRiding.pose(this, passenger, 1, yBodyRot) == null
-				|| BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger)));
+			&& BionicRiding.pose(this, passenger, 1, yBodyRot) != null
+			&& BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger));
 	}
 	@Override @Nullable public LivingEntity getControllingPassenger() {
 		return isSaddled() && isSaddleable() && getFirstPassenger() instanceof Player player && equipment.mayUse(player) ? player : null;
