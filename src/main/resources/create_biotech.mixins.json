@@ -69,6 +69,7 @@
     "RedStoneWireEntityRedstoneMixin"
   ],
   "client": [
+    "client.EntityBionicRidingViewMixin",
     "client.BasinRendererMixin",
     "client.CameraMixin",
 	"client.CapeLayerBouncingMixin",
