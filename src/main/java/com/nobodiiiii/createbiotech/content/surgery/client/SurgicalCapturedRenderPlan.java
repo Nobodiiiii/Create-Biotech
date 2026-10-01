@@ -119,18 +119,16 @@ public final class SurgicalCapturedRenderPlan {
 	private final List<Component> components;
 	private final List<Component> appearanceComponents;
 	private final List<SourceBatch> extras;
-	private final int saddleCube;
 
 	private SurgicalCapturedRenderPlan(List<Component> components, List<SourceBatch> extras) {
-		this(components, components, extras, -1);
+		this(components, components, extras);
 	}
 
 	private SurgicalCapturedRenderPlan(List<Component> components, List<Component> appearanceComponents,
-		List<SourceBatch> extras, int saddleCube) {
+		List<SourceBatch> extras) {
 		this.components = List.copyOf(components);
 		this.appearanceComponents = List.copyOf(appearanceComponents);
 		this.extras = List.copyOf(extras);
-		this.saddleCube = saddleCube;
 	}
 
 	/**
@@ -147,53 +145,22 @@ public final class SurgicalCapturedRenderPlan {
 				.add(component);
 		Set<Component> matched = new HashSet<>();
 		List<Component> bound = new ArrayList<>(appearance.components.size());
-		int seatOwner = -1;
-		float saddleVolume = -1.0f;
 		for (Component visual : appearance.components) {
 			Component owner = originalCubes.getOrDefault(GeometryKey.of(visual.corners), List.of()).stream()
 				.filter(candidate -> !matched.contains(candidate)).findFirst().orElse(null);
 			if (owner != null)
 				matched.add(owner);
-			else {
+			else
 				owner = appearanceOwner(visual);
-			}
-			// Animation differences also produce unmatched legs and ears. Only actual saddle
-			// geometry identifies the carrier, including overlays that exactly match the body.
-			boolean saddle = visual.partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart)
-				|| java.util.stream.Stream.concat(visual.batches.stream(), visual.surfaceOverlays.stream())
-					.map(batch -> renderTypeTexture(batch.renderType)).filter(Objects::nonNull)
-					.anyMatch(SADDLE_TEXTURES::contains);
-			float volume = visual.a.length() * visual.b.length() * visual.c.length();
-			if (saddle && !visual.head && volume > saddleVolume) {
-				seatOwner = owner.id;
-				saddleVolume = volume;
-			}
 			bound.add(new Component(visual, owner));
 		}
-		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras, seatOwner);
+		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras);
 	}
 
-	int saddleCube() {
-		if (saddleCube >= 0)
-			return saddleCube;
-		// A profile may already contain its saddle, or its renderer may reuse base geometry.
-		return components.stream().filter(component -> !component.head && !component.preserveSource)
-			.max(Comparator.comparingDouble(component -> component.a.length()
-				* component.b.length() * component.c.length())).map(component -> component.id).orElse(-1);
-	}
-
-	/** Place the pelvis on the captured saddle surface at the donor's front/back seat coordinates. */
-	Vec3 saddleSurface(Vec3 nativeSeat) {
-		return saddleSurface(saddleCube(), nativeSeat, appearanceComponents);
-	}
-
+	/** Project the donor's front/back seat coordinates onto this retained cube's surface. */
 	Vec3 carrierSurface(int carrier, Vec3 nativeSeat) {
-		return saddleSurface(carrier, nativeSeat, components);
-	}
-
-	private Vec3 saddleSurface(int carrier, Vec3 nativeSeat, List<Component> geometry) {
 		double top = Double.NEGATIVE_INFINITY;
-		for (Component component : geometry) {
+		for (Component component : components) {
 			if (component.id != carrier) continue;
 			Vector3f origin = component.corners.getFirst();
 			Vector3f horizontal = new Vector3f((float) nativeSeat.x, 0, (float) nativeSeat.z).sub(origin);

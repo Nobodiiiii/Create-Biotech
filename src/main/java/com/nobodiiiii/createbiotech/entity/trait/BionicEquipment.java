@@ -101,12 +101,11 @@ public final class BionicEquipment {
 		var carrier = saddleCarrier();
 		if (assembly == null || assembly.attackGeometry() == null || carrier == null) return null;
 		var seat = assembly.attackGeometry().ridingSeats().get(carrier);
-		var rotation = seat != null && seat.rotation() != null ? seat.rotation()
-			: BionicRiding.restRotation(assembly, carrier);
-		if (seat != null) return new SurgicalAssembly.RidingSeat(seat.first(), seat.second(), rotation);
 		// Whole-body bounds cannot recover an individual cube's support surface. Repacking
 		// supplies exact per-carrier seats; do not silently substitute a center or head height.
-		return null;
+		if (seat == null) return null;
+		return seat.rotation() != null ? seat : new SurgicalAssembly.RidingSeat(seat.first(), seat.second(),
+			BionicRiding.restRotation(assembly, carrier));
 	}
 
 	public Vec3 carrierOrigin() {

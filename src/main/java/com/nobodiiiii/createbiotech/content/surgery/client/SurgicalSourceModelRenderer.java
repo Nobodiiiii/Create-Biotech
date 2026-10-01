@@ -219,9 +219,9 @@ public final class SurgicalSourceModelRenderer {
 		return cached;
 	}
 
-	/** Native passenger anchors, attached to the very same cube that owns the saddle appearance. */
+	/** Native front/back passenger anchors, before projection onto a retained carrier cube. */
 	@Nullable
-	public static SourceRidingSeat ridingSeat(MimicProfile profile) {
+	private static SourceRidingSeat nativeRidingSeat(MimicProfile profile) {
 		SourceRidingSeat cached = RIDING_SEATS.get(profile);
 		if (cached != null)
 			return cached;
@@ -229,10 +229,6 @@ public final class SurgicalSourceModelRenderer {
 		if (!(preview instanceof Saddleable))
 			return null;
 		preparePreview(preview, 0.0f);
-		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
-		int cube = base.saddleCube();
-		if (cube < 0)
-			return null;
 		LivingEntity mount = profile.createPreviewEntity(preview.level());
 		var first = EntityType.ARMOR_STAND.create(preview.level());
 		var second = EntityType.ARMOR_STAND.create(preview.level());
@@ -247,7 +243,7 @@ public final class SurgicalSourceModelRenderer {
 			Vec3 front = mount.getPassengerRidingPosition(first).subtract(mount.position());
 			Vec3 rear = mount instanceof Camel
 				? mount.getPassengerRidingPosition(second).subtract(mount.position()) : front;
-			cached = new SourceRidingSeat(cube, front, rear);
+			cached = new SourceRidingSeat(front, rear);
 			RIDING_SEATS.put(profile, cached);
 			return cached;
 		} finally {
@@ -255,17 +251,17 @@ public final class SurgicalSourceModelRenderer {
 		}
 	}
 
-	public record SourceRidingSeat(int cube, Vec3 first, Vec3 second) {}
+	public record SourceRidingSeat(Vec3 first, Vec3 second) {}
 
 	/** Bake against a retained body cube, independently of optional saddle-layer cube ids. */
 	@Nullable
 	public static SourceRidingSeat ridingSeat(MimicProfile profile, int carrier) {
-		SourceRidingSeat nativeSeat = ridingSeat(profile);
+		SourceRidingSeat nativeSeat = nativeRidingSeat(profile);
 		if (nativeSeat == null) return null;
 		LivingEntity preview = preview(profile);
 		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
 		if (base.singleCubeGeometry(carrier) == null) return null;
-		return new SourceRidingSeat(carrier, base.carrierSurface(carrier, nativeSeat.first()),
+		return new SourceRidingSeat(base.carrierSurface(carrier, nativeSeat.first()),
 			base.carrierSurface(carrier, nativeSeat.second()));
 	}
 
