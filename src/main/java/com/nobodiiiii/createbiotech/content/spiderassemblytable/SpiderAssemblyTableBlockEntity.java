@@ -581,9 +581,9 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			return PASS;
 		if (promotePreferredWorkpiece(transported, handler))
 			return HOLD;
-		if (!startProcessFor(transported.stack))
-			return PASS;
-		return HOLD;
+		if (startProcessFor(transported.stack))
+			return HOLD;
+		return noPlanResultFor(transported.stack);
 	}
 
 	protected ProcessingResult whileItemHeld(TransportedItemStack transported,
@@ -596,9 +596,9 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 				return PASS;
 			if (promotePreferredWorkpiece(transported, handler))
 				return HOLD;
-			if (!startProcessFor(transported.stack))
-				return PASS;
-			return HOLD;
+			if (startProcessFor(transported.stack))
+				return HOLD;
+			return noPlanResultFor(transported.stack);
 		}
 
 		if (processAppliedThisCycle)
@@ -808,6 +808,60 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			return true;
 		}
 		return false;
+	}
+
+	/**
+	 * Returns HOLD when the next sequenced-assembly step needs a machine that is
+	 * currently empty but can still be supplied. This mirrors Create's deployer
+	 * (an empty hand holds the belt item) and spout (an empty tank holds a fillable
+	 * item). Pressing/cutting have no such waiting state and keep passing the item.
+	 */
+	private ProcessingResult noPlanResultFor(ItemStack input) {
+		if (input.isEmpty())
+			return PASS;
+
+		boolean waitingDeployer = hasWaitingDeployerLeg();
+		if (waitingDeployer && nextStepNeedsDeployer(input))
+			return HOLD;
+		if (hasWaitingSpoutLeg() && nextStepNeedsFilling(input))
+			return HOLD;
+		return PASS;
+	}
+
+	private boolean hasWaitingDeployerLeg() {
+		for (int i = 0; i < LEG_COUNT; i++) {
+			if (getMachineKind(i) != MachineKind.DEPLOYER || slotBlocked[i])
+				continue;
+			if (!fluidTanks[i].getFluid().isEmpty() || !fluidLocks[i].isEmpty())
+				continue;
+			if (inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty())
+				return true;
+		}
+		return false;
+	}
+
+	private boolean hasWaitingSpoutLeg() {
+		for (int i = 0; i < LEG_COUNT; i++) {
+			if (getMachineKind(i) != MachineKind.SPOUT || slotBlocked[i])
+				continue;
+			if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty() || !itemLocks[i].isEmpty())
+				continue;
+			if (fluidTanks[i].getFluid().isEmpty())
+				return true;
+		}
+		return false;
+	}
+
+	private boolean nextStepNeedsDeployer(ItemStack input) {
+		return level != null && SequencedAssemblyRecipe
+			.getRecipe(level, input, AllRecipeTypes.DEPLOYING.getType(), DeployerApplicationRecipe.class)
+			.isPresent();
+	}
+
+	private boolean nextStepNeedsFilling(ItemStack input) {
+		return level != null && SequencedAssemblyRecipe
+			.getRecipe(level, input, AllRecipeTypes.FILLING.getType(), FillingRecipe.class)
+			.isPresent();
 	}
 
 	private boolean promotePreferredWorkpiece(TransportedItemStack transported,
