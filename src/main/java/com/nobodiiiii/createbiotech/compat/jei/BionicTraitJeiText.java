@@ -37,6 +37,12 @@ final class BionicTraitJeiText {
 		return List.copyOf(text);
 	}
 
+	@Nullable
+	static Component donorTooltip(BionicTrait trait) {
+		Component carrier = carrier(trait.carrier());
+		return carrier == null ? null : tr("donors.carrier", carrier).withStyle(ChatFormatting.GRAY);
+	}
+
 	private static Component field(String label, Component value) {
 		return tr(label, value.copy().withStyle(ChatFormatting.BLACK)).withStyle(ChatFormatting.DARK_GRAY);
 	}

@@ -18,6 +18,7 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -89,13 +90,31 @@ def read_gradle_properties() -> dict[str, str]:
     return props
 
 
+@cache
 def find_java() -> str:
-    java_home = os.environ.get("JAVA_HOME")
-    if java_home:
-        candidate = Path(java_home) / "bin" / "java.exe"
-        if candidate.exists():
-            return str(candidate)
-    return "java"
+    # Gradle quick-play tasks pass their resolved toolchain directly, avoiding a
+    # nested Gradle invocation while the parent task waits for this script.
+    java_path = os.environ.get("CREATE_BIOTECH_JAVA")
+    if not java_path:
+        result = subprocess.run(
+            [str(PROJECT_ROOT / "gradlew.bat"), "--offline", "--quiet", "printProjectJava"],
+            cwd=PROJECT_ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        prefix = "CREATE_BIOTECH_JAVA="
+        java_path = next(
+            (line[len(prefix):].strip() for line in result.stdout.splitlines() if line.startswith(prefix)),
+            None,
+        )
+        if not java_path:
+            raise RuntimeError("Gradle did not report the project Java executable")
+
+    candidate = Path(java_path)
+    if not candidate.is_file():
+        raise FileNotFoundError(f"Project Java executable not found: {candidate}")
+    return str(candidate)
 
 
 def maven_to_path(coords: str) -> Path | None:
@@ -262,6 +281,7 @@ def newest_world(saves_dir: Path) -> str:
 
 def run_build(offline: bool = True) -> None:
     env = os.environ.copy()
+    env["JAVA_HOME"] = str(Path(find_java()).parent.parent)
     command = [str(PROJECT_ROOT / "gradlew.bat")]
     if offline:
         command.append("--offline")
@@ -600,6 +620,8 @@ def main() -> int:
     world = args.world or newest_world(saves_dir)
     if not (saves_dir / world / "level.dat").exists():
         raise FileNotFoundError(f"World not found: {saves_dir / world}")
+
+    print(f"[JAVA] {find_java()}")
 
     if not args.skip_build:
         print("[BUILD] gradlew build" if args.online_build else "[BUILD] gradlew --offline build")

@@ -57,8 +57,12 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 		builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
 			.addItemStack(new ItemStack(CBItems.SURGERY_GUIDE.get()));
 		// The server fills these display-only slots as its donor scan progresses.
-		for (int slot = 0; slot < BionicTraitDonorWidget.PAGE_SIZE; slot++)
-			builder.addSlot(RecipeIngredientRole.RENDER_ONLY).setStandardSlotBackground();
+		Component donorTooltip = BionicTraitJeiText.donorTooltip(trait);
+		for (int slot = 0; slot < BionicTraitDonorWidget.PAGE_SIZE; slot++) {
+			var donorSlot = builder.addSlot(RecipeIngredientRole.RENDER_ONLY).setStandardSlotBackground();
+			if (donorTooltip != null)
+				donorSlot.addRichTooltipCallback((view, tooltip) -> tooltip.add(donorTooltip));
+		}
 	}
 
 	@Override
