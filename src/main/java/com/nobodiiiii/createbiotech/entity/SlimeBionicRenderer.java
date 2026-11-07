@@ -73,6 +73,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		UPRIGHT_OFFSETS.clear();
 		UPRIGHT_ROTATIONS.clear();
 		SlimeBionicAnimator.clearCache();
+		com.nobodiiiii.createbiotech.entity.client.BionicWingAnimation.clear();
 		SlimeBionicAttackRangeRenderer.clearCache();
 	}
 
@@ -89,10 +90,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			return false;
 
 		FirstPersonArms arms = FIRST_PERSON_ARMS.get(entity);
-		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceState.sourceStates) {
-			arms = new FirstPersonArms(assembly, sourceState.sourceStates,
-				measureFirstPersonArm(assembly, sourceState, false),
-				measureFirstPersonArm(assembly, sourceState, true));
+		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceState.sourceStates
+			|| !arms.wings.equals(entity.getBionicTraits().wingMembers())) {
+			arms = new FirstPersonArms(assembly, sourceState.sourceStates, entity.getBionicTraits().wingMembers(),
+				measureFirstPersonArm(entity, assembly, sourceState, false),
+				measureFirstPersonArm(entity, assembly, sourceState, true));
 			FIRST_PERSON_ARMS.put(entity, arms);
 		}
 
@@ -111,8 +113,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		// The selected chain keeps its captured rest pose and does not inherit the world-view
 		// shoulder/elbow animation.
 		BodyFrame componentFrame = BodyFrame.of(0.0f, poseStack.last().pose());
-		renderFirstPersonSources(assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
-			packedLight, partialTick, entity.isSaddled());
+		renderFirstPersonSources(entity, assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
+			packedLight, partialTick);
 		poseStack.popPose();
 		return true;
 	}
@@ -152,10 +154,10 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	}
 
 	@Nullable
-	private static FirstPersonArm measureFirstPersonArm(SurgicalAssembly assembly,
+	private static FirstPersonArm measureFirstPersonArm(SlimeBionicEntity entity, SurgicalAssembly assembly,
 		FirstPersonSourceState sourceState, boolean left) {
 		SlimeBionicAnimator.FirstPersonArmSelection selection = SlimeBionicAnimator
-			.firstPersonArm(assembly, sourceState.sourceStates, left);
+			.firstPersonArm(entity, assembly, sourceState.sourceStates, left);
 		if (selection == null)
 			return null;
 		Map<Integer, BitSet> cubes = new java.util.HashMap<>();
@@ -175,9 +177,9 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		return bounds.hasVertices() ? new FirstPersonArm(cubes, bounds) : null;
 	}
 
-	private static void renderFirstPersonSources(SurgicalAssembly assembly,
+	private static void renderFirstPersonSources(SlimeBionicEntity entity, SurgicalAssembly assembly,
 		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, BodyFrame componentFrame,
-		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick, boolean saddled) {
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick) {
 		poseStack.pushPose();
 		if (sourceState.composite)
 			SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
@@ -197,10 +199,12 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			}
 			// First-person arms do not display the body's hurt overlay.
-			SurgicalSourceModelRenderer.render(preview, source.cubeCount(), selected,
+			SurgicalSourceModelRenderer.renderEquipped(preview, source.cubeCount(),
+				SurgicalSourceModelRenderer.visibleCubes(preview, selected, entity.isSheared()),
 				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
 				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
-				poseStack, buffer, packedLight, 0.0f, partialTick, false, null, true, 1.0f, false, saddled);
+				poseStack, buffer, packedLight, partialTick, false, null, true, false,
+				entity.getBionicEquipment().saddleCubes(sourceIndex), entity.getBionicEquipment().chestCubes(sourceIndex));
 			poseStack.popPose();
 		}
 		poseStack.popPose();
@@ -271,11 +275,12 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				boolean reportDeath = hideOriginal;
 				Vec3 cameraPosition = reportDeath
 					? Minecraft.getInstance().gameRenderer.getMainCamera().getPosition() : null;
-				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(preview,
-					assembly.cubeCount(), presentCubes,
+				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.renderEquipped(preview,
+					assembly.cubeCount(), SurgicalSourceModelRenderer.visibleCubes(preview, presentCubes, entity.isSheared()),
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
-					poseStack, sourceBuffer, packedLight, 0.0f, partialTick, reportDeath, cameraPosition,
-					!slimeForm, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0, entity.isSaddled());
+					poseStack, sourceBuffer, packedLight, partialTick, reportDeath, cameraPosition,
+					!slimeForm, entity.hurtTime > 0 || entity.deathTime > 0,
+					entity.getBionicEquipment().saddleCubes(0), entity.getBionicEquipment().chestCubes(0));
 				if (reportDeath)
 					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
 						.map(cube -> new SlimeMimicCubeGeometry(0, cube.cubeId(), cube.corners()))
@@ -444,12 +449,15 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			poseStack.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
 			if (assembly.preservesLayout())
 				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
-			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(preview,
-				source.cubeCount(), source.presentCubes(), renderOffsets, renderRotations,
-				poseStack, buffer, packedLight, 0.0f, partialTick,
-				restStates != null || deathGeometry != null, cameraPosition,
-				renderSourceGeometry, 1.0f, entity.hurtTime > 0 || entity.deathTime > 0,
-				restStates == null ? entity.isSaddled() : null);
+			SurgicalModelRenderContext.Snapshot snapshot = restStates != null
+				? SurgicalSourceModelRenderer.render(preview, source.cubeCount(), source.presentCubes(),
+					renderOffsets, renderRotations, poseStack, buffer, packedLight, 0, partialTick, true, cameraPosition,
+					renderSourceGeometry)
+				: SurgicalSourceModelRenderer.renderEquipped(preview, source.cubeCount(),
+					SurgicalSourceModelRenderer.visibleCubes(preview, source.presentCubes(), entity.isSheared()),
+					renderOffsets, renderRotations, poseStack, buffer, packedLight, partialTick, deathGeometry != null,
+					cameraPosition, renderSourceGeometry, entity.hurtTime > 0 || entity.deathTime > 0,
+					entity.getBionicEquipment().saddleCubes(index), entity.getBionicEquipment().chestCubes(index));
 			if (deathGeometry != null) {
 				int sourceIndex = index;
 				snapshot.cubes().forEach(cube -> deathGeometry.add(new SlimeMimicCubeGeometry(
@@ -578,6 +586,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	private record FirstPersonArms(SurgicalAssembly assembly,
 		List<SlimeBionicAnimator.SourceState> sourceStates,
+		Set<SurgicalAssembly.CombinationMember> wings,
 		@Nullable FirstPersonArm right, @Nullable FirstPersonArm left) {}
 
 	private record FirstPersonArm(Map<Integer, BitSet> cubes, EntityGeometry.Bounds bounds) {

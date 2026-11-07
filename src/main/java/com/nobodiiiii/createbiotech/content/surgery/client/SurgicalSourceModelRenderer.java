@@ -170,15 +170,101 @@ public final class SurgicalSourceModelRenderer {
 		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
 		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay, @Nullable Boolean saddled) {
+		return render(preview, cubeCount, presentCubes, cubeOffsets, cubeRotations, poseStack, buffer,
+			packedLight, yaw, partialTick, collectGeometry, cameraPosition, renderSourceGeometry, alpha,
+			hurtOverlay, saddled, null);
+	}
+
+	public static SurgicalModelRenderContext.Snapshot render(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
+		Map<Integer, SurgicalCubeRotation> cubeRotations, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+		float yaw, float partialTick, boolean collectGeometry, @Nullable Vec3 cameraPosition,
+		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay, @Nullable Boolean saddled,
+		@Nullable Boolean chested) {
 		preparePreview(preview, yaw);
 		SurgicalCapturedRenderPlan plan = plan(preview, yaw);
 		if (saddled != null)
 			plan = saddlePlan(preview, yaw, saddled, plan);
+		if (chested != null)
+			plan = chestPlan(preview, yaw, saddled, chested, plan);
 		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
 		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
 			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
 		return plan.render(poseStack, renderBuffer, packedLight, cubeCount, presentCubes, cubeOffsets, cubeRotations,
 			collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
+	}
+
+	/** A per-body mask; shared donor previews and cached plans retain their original appearance. */
+	public static BitSet visibleCubes(LivingEntity preview, BitSet presentCubes, boolean sheared) {
+		if (!sheared)
+			return presentCubes;
+		preparePreview(preview, 0);
+		return plan(preview, 0).withoutWool(presentCubes);
+	}
+
+	/** Render the naked donor once, then attach one native accessory set to each equipped cube. */
+	public static SurgicalModelRenderContext.Snapshot renderEquipped(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations,
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick,
+		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry,
+		@Nullable Boolean hurtOverlay, java.util.Set<Integer> saddles, java.util.Set<Integer> chests) {
+		preparePreview(preview, 0);
+		SurgicalCapturedRenderPlan base = plan(preview, 0);
+		SurgicalCapturedRenderPlan naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
+		var snapshot = naked.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,
+			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		SourceRidingSeat seat = profile == null ? null : nativeRidingSeat(profile);
+		if (seat == null) return snapshot;
+		SurgicalCapturedRenderPlan withSaddle = saddles.isEmpty() ? naked
+			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
+		SurgicalCapturedRenderPlan withChest = chests.isEmpty() ? naked : chestPlan(preview, 0, false, true, base);
+		for (int carrier : saddles) if (presentCubes.get(carrier))
+			naked.renderEquipment(withSaddle, carrier, seat.first(), poseStack, buffer, packedLight,
+				cubeOffsets.get(carrier), cubeRotations.get(carrier), hurtOverlay);
+		for (int carrier : chests) if (presentCubes.get(carrier))
+			naked.renderEquipment(withChest, carrier, seat.first(), poseStack, buffer, packedLight,
+				cubeOffsets.get(carrier), cubeRotations.get(carrier), hurtOverlay);
+		return snapshot;
+	}
+
+	/** Accessory envelopes use exactly the same native capture and rebase as live rendering. */
+	public static java.util.List<Vec3> equipmentCorners(MimicProfile profile, int carrier, boolean chest) {
+		LivingEntity preview = preview(profile);
+		SourceRidingSeat seat = nativeRidingSeat(profile);
+		if (preview == null || seat == null) return java.util.List.of();
+		var base = plan(preview, 0);
+		var naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
+		var equipped = chest ? chestPlan(preview, 0, false, true, base)
+			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
+		return naked.equipmentCorners(equipped, carrier, seat.first());
+	}
+
+	private static final Map<EquipmentPlanKey, SurgicalCapturedRenderPlan> CHEST_RENDER_PLANS =
+		new LinkedHashMap<>(64, 0.75f, true) {
+			@Override protected boolean removeEldestEntry(Map.Entry<EquipmentPlanKey, SurgicalCapturedRenderPlan> entry) {
+				return size() > MAX_RENDER_PLANS;
+			}
+		};
+	private record EquipmentPlanKey(RenderPlanKey source, boolean saddled, boolean chested) {}
+
+	/** Capture the donor's native boxes on the same retained geometry used for live saddles. */
+	private static SurgicalCapturedRenderPlan chestPlan(LivingEntity preview, float yaw,
+		@Nullable Boolean saddled, boolean chested, SurgicalCapturedRenderPlan base) {
+		if (!(preview instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse horse)) return base;
+		boolean saddle = saddled == null ? horse.isSaddled() : saddled;
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		if (profile == null) return base;
+		var renderer = renderer(preview);
+		var key = new EquipmentPlanKey(new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw)), saddle, chested);
+		return CHEST_RENDER_PLANS.computeIfAbsent(key, ignored -> {
+			var equipped = profile.createPreviewEntity(preview.level());
+			if (!(equipped instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse mount)) return base;
+			mount.setChest(chested);
+			mount.setFlag(4, saddle);
+			preparePreview(mount, yaw);
+			return base.withAppearance(captureInCanonicalPose(renderer, mount, yaw));
+		});
 	}
 
 	private static SurgicalCapturedRenderPlan saddlePlan(LivingEntity preview, float yaw,
@@ -261,8 +347,8 @@ public final class SurgicalSourceModelRenderer {
 		LivingEntity preview = preview(profile);
 		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
 		if (base.singleCubeGeometry(carrier) == null) return null;
-		return new SourceRidingSeat(base.carrierSurface(carrier, nativeSeat.first()),
-			base.carrierSurface(carrier, nativeSeat.second()));
+		Vec3 first = base.equipmentSeat(carrier, nativeSeat.first());
+		return new SourceRidingSeat(first, first.add(nativeSeat.second().subtract(nativeSeat.first())));
 	}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
@@ -322,6 +408,10 @@ public final class SurgicalSourceModelRenderer {
 	private static SurgicalCapturedRenderPlan captureInCanonicalPose(EntityRenderer<LivingEntity> renderer,
 		LivingEntity preview, float yaw) {
 		return SurgicalCapturedRenderPlan.build(captureInputInCanonicalPose(renderer, preview, yaw));
+	}
+
+	public static float captureAnimationAge(LivingEntity preview) {
+		return SurgicalCapturePoseOverrides.captureAgeInTicks(preview);
 	}
 
 	private static long captureRandomSeed(LivingEntity preview) {
@@ -522,6 +612,7 @@ public final class SurgicalSourceModelRenderer {
 		PENDING_RENDER_PLANS.clear();
 		FALLBACK_RENDER_PLANS.clear();
 		SADDLE_RENDER_PLANS.clear();
+		CHEST_RENDER_PLANS.clear();
 		RIDING_SEATS.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}

@@ -104,9 +104,6 @@ public enum BionicTrait {
 	EFFECT_ATTACK("effect_attack", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ATTACK_EFFECT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.MOUTH, BionicAnatomyRole.SPINE, BionicAnatomyRole.ATTACK_HAND)),
-	ACTIVE_SPINES("active_spines", BionicTraitScope.WHOLE_BODY,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.SPINE)),
 	SHELL_DEFENSE("shell_defense", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.SHELL)),
@@ -136,7 +133,7 @@ public enum BionicTrait {
 		Carrier.allTissue()),
 	DOOR_HANDLING("door_handling", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
+		Carrier.allTissue()),
 	WING_SLOW_FALL("wing_slow_fall", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
@@ -144,7 +141,7 @@ public enum BionicTrait {
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	ENDER_TELEPORT("ender_teleport", BionicTraitScope.WHOLE_BODY,
-		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
 	MAGIC_RESISTANCE("magic_resistance", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.NONE,
@@ -176,11 +173,12 @@ public enum BionicTrait {
 	SNOW_TRAIL("snow_trail", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.FOOT)),
 	POLLINATION("pollination", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.LEG)),
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.allTissue()),
 	MILKABLE("milkable", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	WOOL_SHEARING("wool_shearing", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.WOOL_AND_BODY,
+		Carrier.of(BionicAnatomyRole.TORSO, BionicAnatomyRole.WOOL)),
 	EGG_LAYING("egg_laying", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	SCUTE_SHEDDING("scute_shedding", BionicTraitScope.TORSO,
@@ -220,6 +218,19 @@ public enum BionicTrait {
 	public Condition condition() { return condition; }
 	public boolean isHeadClassification() { return this == DISPOSITION || this == INTELLIGENCE; }
 
+	/** Behavior labels shared by inventory, surgical previews and JEI. */
+	public boolean isSkill() {
+		return switch (this) {
+		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, WINGLESS_FLIGHT, BODY_BOUNCE,
+			SWIM_SPECIALIST, SHELL_DEFENSE, RIDEABLE, SONIC_BOOM, SELF_DESTRUCT,
+			WOOL_SHEARING, TAMEABLE, VIBRATION_SENSE, WATER_AVERSION, DETERRENCE,
+			HUNTING_INSTINCT, PACK_ALERT, ROAR, HEAD_PROJECTILE, GUARDIAN_BEAM,
+			WING_FLIGHT, DOOR_HANDLING, WING_SLOW_FALL, LOOT_PICKUP, SPELLCASTING,
+			LAVA_WALK, WALL_CLIMB, STRONG_JUMP, POLLINATION -> true;
+		default -> false;
+		};
+	}
+
 	boolean automaticDetection() {
 		return switch (this) {
 		case DISPOSITION, INTELLIGENCE -> true;
@@ -248,5 +259,5 @@ public enum BionicTrait {
 	}
 
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
-	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME }
+	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME, WOOL_AND_BODY }
 }

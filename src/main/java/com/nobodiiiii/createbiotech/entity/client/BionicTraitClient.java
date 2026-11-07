@@ -32,17 +32,6 @@ public final class BionicTraitClient {
 		net.minecraft.client.renderer.MultiBufferSource buffers, int light) {
 		var assembly = entity.getAssembly();
 		if (assembly == null || assembly.hitboxGeometry() == null) return;
-		var body = assembly.hitboxGeometry().body();
-		poses.pushPose();
-		poses.mulPose(com.mojang.math.Axis.YP.rotationDegrees(-net.minecraft.util.Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot)));
-		if (entity.getBionicEquipment().hasChest()) {
-			poses.pushPose();
-			poses.translate(body.maxX() + 0.15, (body.minY() + body.maxY()) / 2, (body.minZ() + body.maxZ()) / 2);
-			poses.scale(0.5f, 0.5f, 0.5f);
-			item(entity, new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.CHEST), poses, buffers, light);
-			poses.popPose();
-		}
-		poses.popPose();
 		if (entity.getSpecialAction() == 2 && entity.level().getEntity(entity.getSpecialTarget()) instanceof net.minecraft.world.entity.LivingEntity target) {
 			var start = entity.getSpecialOrigin().subtract(entity.position());
 			var end = target.getBoundingBox().getCenter().subtract(entity.position());

@@ -74,7 +74,7 @@ public final class BionicTraitDonorCatalog {
 					for (BionicTrait trait : BionicTrait.values()) {
 						boolean provides = switch (trait.valueKind()) {
 						case ABILITY -> facts.has(trait);
-						case NUMBER -> facts.value(trait) > 0;
+						case NUMBER -> BionicTraitResolver.numericValue(facts.value(trait)) > 0;
 						case SUBTRAIT_SET -> !facts.variants(trait).isEmpty();
 						case EFFECT_SET -> !facts.immuneEffects().isEmpty();
 						case ATTACK_EFFECT_SET -> !facts.attackEffects().isEmpty();

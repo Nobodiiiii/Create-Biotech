@@ -12,10 +12,14 @@ final class BionicTraitConditions {
 	@Nullable
 	static InactiveReason check(BionicTrait trait, BionicTraitData data, SurgicalAssembly assembly,
 		BionicTissue tissue, BionicTraitSet covered) {
-		if (data.rule().type() != BionicTraitType.COVERAGE_THRESHOLD)
+		if (data.rule().type() != BionicTraitType.COVERAGE_THRESHOLD
+			&& trait.condition() != BionicTrait.Condition.WOOL_AND_BODY)
 			return null;
 		return switch (trait.condition()) {
 		case NONE -> null;
+		case WOOL_AND_BODY -> hasCarrierRole(BionicAnatomyRole.TORSO, trait, data, tissue, covered)
+			&& hasCarrierRole(BionicAnatomyRole.WOOL, trait, data, tissue, covered)
+				? null : InactiveReason.MISSING_WOOL_OR_BODY;
 		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
 		case BREATHING_REQUIRED -> covered.has(BionicTrait.NO_BREATHING)
@@ -40,5 +44,14 @@ final class BionicTraitConditions {
 			yield supported ? null : InactiveReason.PURPOSE_MISMATCH;
 		}
 		};
+	}
+
+	private static boolean hasCarrierRole(BionicAnatomyRole role, BionicTrait trait, BionicTraitData data,
+		BionicTissue tissue, BionicTraitSet covered) {
+		for (var member : covered.members(trait))
+			if (BionicTraitCarriers.select(BionicTrait.Carrier.of(role), data, tissue, member.source())
+				.get(member.cube()))
+				return true;
+		return false;
 	}
 }

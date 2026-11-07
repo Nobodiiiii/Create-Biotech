@@ -37,6 +37,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgeryGuideItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.surgery.MimicDebugStickItem;
 import com.nobodiiiii.createbiotech.content.squidprinter.EnchantmentBookCopyItem;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerItem;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackageItem;
@@ -123,6 +124,10 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, SurgicalJointItem> SURGICAL_JOINT = ITEMS.register("surgical_joint",
 		() -> new SurgicalJointItem(new Item.Properties()));
+
+	// Command-only diagnostic tool: deliberately absent from creative tabs and recipes.
+	public static final DeferredHolder<Item, MimicDebugStickItem> MIMIC_DEBUG_STICK =
+		ITEMS.register("mimic_debug_stick", () -> new MimicDebugStickItem(new Item.Properties().stacksTo(1)));
 
 	// Legacy ids double as internal close-up models; only SURGICAL_JOINT is offered to players.
 	public static final DeferredHolder<Item, SurgicalJointItem> NECK_JOINT = ITEMS.register("neck_joint",

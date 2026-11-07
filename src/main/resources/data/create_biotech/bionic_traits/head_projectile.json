@@ -76,8 +76,9 @@
       ],
       "parameters": {
         "range": 20,
-        "warmup_ticks": 0,
-        "cooldown_ticks": 20
+        "warmup_ticks": 20,
+        "cooldown_ticks": 0,
+        "action_ticks": 20
       }
     },
     "minecraft:wither_skull": {
@@ -96,8 +97,9 @@
       ],
       "parameters": {
         "range": 64,
-        "warmup_ticks": 20,
-        "cooldown_ticks": 80
+        "warmup_ticks": 5,
+        "cooldown_ticks": 80,
+        "action_ticks": 5
       }
     },
     "minecraft:wind_charge": {
@@ -107,7 +109,8 @@
       "parameters": {
         "range": 16,
         "warmup_ticks": 15,
-        "cooldown_ticks": 5
+        "cooldown_ticks": 10,
+        "action_ticks": 20
       }
     }
   },

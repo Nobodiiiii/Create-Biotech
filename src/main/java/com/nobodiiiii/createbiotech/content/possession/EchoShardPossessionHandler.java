@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.possession;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
@@ -15,7 +16,6 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -23,7 +23,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.entity.PartEntity;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 
-/** Echo-shard interactions which exchange the player's current body with a haunted mimic body. */
+/** Selected creative-kit tool interactions which exchange the player's body with a haunted mimic body. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class EchoShardPossessionHandler {
 
@@ -42,7 +42,8 @@ public final class EchoShardPossessionHandler {
 	}
 
 	private static boolean handleEntityInteraction(Player eventPlayer, ItemStack heldItem, Entity interactedTarget) {
-		if (!heldItem.is(Items.ECHO_SHARD) || eventPlayer.isSpectator())
+		if (SurgicalKitItem.selectedTool(heldItem) != SurgicalKitItem.Tool.MIMIC_POSSESSOR
+			|| eventPlayer.isSpectator())
 			return false;
 		if (!(eventPlayer instanceof ServerPlayer player)) {
 			if (!eventPlayer.level().isClientSide())
@@ -67,7 +68,8 @@ public final class EchoShardPossessionHandler {
 
 	@SubscribeEvent(priority = EventPriority.HIGHEST)
 	public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-		if (!event.getItemStack().is(Items.ECHO_SHARD) || !event.getEntity().isShiftKeyDown())
+		if (SurgicalKitItem.selectedTool(event.getItemStack()) != SurgicalKitItem.Tool.MIMIC_POSSESSOR
+			|| !event.getEntity().isShiftKeyDown())
 			return;
 		CompoundTag state = possessionState(event.getEntity());
 		if (!EchoShardPossession.isActive(state))

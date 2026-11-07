@@ -28,10 +28,12 @@ public final class BionicSpecialAttacks {
 	private final Map<String, Integer> cooldowns = new HashMap<>();
 	@Nullable private Choice action;
 	@Nullable private LivingEntity target;
-	private int elapsed, warmup, duration, recovery, roarTicks;
+	private int elapsed, warmup, duration, roarTicks, blazeShots, nextBlazeShot;
+	@Nullable private net.minecraft.world.entity.ai.goal.RangedAttackGoal rangedGoal;
 	private boolean fired;
 	public BionicSpecialAttacks(SlimeBionicEntity entity) { this.entity = entity; }
 	public boolean busy() { return action != null || roarTicks > 0; }
+	public boolean locksMovement() { return roarTicks > 0 || action != null && rangedGoal == null && !action.kind().equals("small_fireball"); }
 	private record Choice(BionicTrait trait, BionicSubtrait variant,
 		Set<SurgicalAssembly.CombinationMember> members) {
 		String key() { return trait.id() + "/" + variant.id(); }
@@ -42,41 +44,80 @@ public final class BionicSpecialAttacks {
 
 	public void tick() {
 		cooldowns.replaceAll((key, value) -> Math.max(0, value - 1));
-		if (recovery > 0) recovery--;
+
 		if (!entity.isAlive() || entity.isNoAi() || entity.isOrderedToSit() || entity.isVehicle()) { cancel(); roarTicks = 0; return; }
 		if (roarTicks > 0) {
 			if (!entity.getBionicTraits().has(BionicTrait.ROAR)) { roarTicks = 0; cancel(); return; }
 			entity.getNavigation().stop(); entity.setDeltaMovement(entity.getDeltaMovement().multiply(0, 1, 0));
 			entity.syncSpecialAction(4, 0);
 			entity.syncSpecialOrigin(BionicTraitRuntime.origin(entity, entity.getBionicTraits().members(BionicTrait.ROAR)));
-			if (--roarTicks == 0) { roar(); entity.syncSpecialAction(0, 0); }
+			roarTicks--;
+			if (roarTicks == 20) entity.playSound(SoundEvents.RAVAGER_ROAR);
+			if (roarTicks == 10) roar();
+			if (roarTicks == 0) entity.syncSpecialAction(0, 0);
 			return;
 		}
 		if (action != null) {
-			if (target != entity.getTarget() || !valid(action, target) || !stillAvailable(action)) { cancel(); return; }
-			entity.getNavigation().stop();
+			if (target == null || !target.isAlive() || target != entity.getTarget() || !stillAvailable(action)) { cancel(); return; }
+			if (rangedGoal != null) {
+				if (!rangedGoal.canContinueToUse()) { cancel(); return; }
+				rangedGoal.tick();
+				if (fired) {
+					fired = false;
+					List<Choice> ready = choices().stream().filter(c -> cooldowns.getOrDefault(c.key(), 0) == 0 && valid(c, target)).toList();
+					if (ready.isEmpty() || !choose(ready, target).key().equals(action.key())) finish();
+				}
+				return;
+			}
 			entity.getLookControl().setLookAt(target, 30, 30);
+			if (action.kind().equals("small_fireball")) {
+				if (entity.distanceToSqr(target) < 4) { cancel(); return; }
+				elapsed++;
+				if (entity.hasLineOfSight(target) && entity.distanceToSqr(target) < action.range() * action.range()) {
+					entity.getNavigation().stop();
+					if (blazeShots < 3 && elapsed >= nextBlazeShot) {
+						fire(action, target); blazeShots++; nextBlazeShot = elapsed + 6;
+						if (blazeShots == 3) duration = elapsed + 6;
+					}
+					if (blazeShots == 3 && elapsed >= duration) finish();
+				} else if (entity.tickCount % 5 == 0) entity.getNavigation().moveTo(target, 1);
+				return;
+			}
+			if (action.kind().equals("fireball") || action.kind().equals("dragon_breath")) {
+				if (!valid(action, target)) { if (elapsed > 0) elapsed--; return; }
+			} else if (action.trait != BionicTrait.SONIC_BOOM && !valid(action, target)) {
+				if (action.trait == BionicTrait.GUARDIAN_BEAM) entity.setTarget(null);
+				cancel(); return;
+			}
+			entity.getNavigation().stop();
 			elapsed++;
+			if (action.kind().equals("fireball") && elapsed == 10) entity.level().levelEvent(null, 1015, entity.blockPosition(), 0);
 			if (action.trait == BionicTrait.GUARDIAN_BEAM && elapsed == 10) entity.syncSpecialAction(2, target.getId());
 			if (action.trait == BionicTrait.GUARDIAN_BEAM && elapsed > 10 && elapsed % 2 == 0)
 				beam(BionicTraitRuntime.origin(entity, action.members), target.getBoundingBox().getCenter(), false);
-			if (elapsed >= warmup && !fired || action.kind().equals("small_fireball") && (elapsed == warmup + 6 || elapsed == warmup + 12)) {
-				fire(action, target); fired = true;
+			boolean launch = elapsed >= warmup && !fired;
+			if (launch && (!action.kind().equals("dragon_breath") || facing(target, Math.cos(Math.toRadians(10))))) {
+				if (action.trait != BionicTrait.SONIC_BOOM || valid(action, target)) {
+					if (!action.kind().equals("wind_charge") || facing(target, 0.5)) fire(action, target);
+				}
+				fired = true;
 			}
-			if (elapsed >= duration) finish();
+			if (elapsed >= duration && (!action.kind().equals("dragon_breath") || fired)) finish();
 			return;
 		}
-		if (recovery > 0 || entity.getAttackActionTick() > 0) return;
+		if (entity.getAttackActionTick() > 0) return;
 		LivingEntity victim = entity.getTarget();
 		if (victim == null || !victim.isAlive() || !entity.canAttack(victim)) return;
 		List<Choice> ready = choices().stream().filter(c -> cooldowns.getOrDefault(c.key(), 0) == 0 && valid(c, victim)).toList();
 		if (ready.isEmpty()) return;
-		Choice chosen = switch (entity.getIntelligence()) {
+		start(choose(ready, victim), victim);
+	}
+	private Choice choose(List<Choice> ready, LivingEntity victim) {
+		return switch (entity.getIntelligence()) {
 		case SIMPLE -> ready.stream().max(Comparator.comparingDouble(this::volume).thenComparing(Choice::key)).orElseThrow();
 		case NORMAL -> ready.get(entity.getRandom().nextInt(ready.size()));
 		case ADVANCED -> ready.stream().max(Comparator.comparingDouble(c -> score(c, victim))).orElseThrow();
 		};
-		start(chosen, victim);
 	}
 	private double volume(Choice choice) {
 		return choice.members.stream().mapToDouble(m -> entity.getAssembly().sources().get(m.source()).anatomy().volume(m.cube())).sum();
@@ -120,40 +161,53 @@ public final class BionicSpecialAttacks {
 		Vec3 offset = victim.getBoundingBox().getCenter().subtract(BionicTraitRuntime.origin(entity, choice.members));
 		double distance = offset.length();
 		if (choice.trait == BionicTrait.SONIC_BOOM)
-			return offset.horizontalDistance() <= choice.range() && Math.abs(offset.y) <= choice.variant.parameter("vertical_range", 20)
-				&& (entity.hasLineOfSight(victim) || entity.lastHeardPosition(victim) != null);
-		return distance <= choice.range() && distance >= choice.variant.parameter("min_range", choice.kind().equals("wind_charge") ? 2 : 0)
-			&& entity.hasLineOfSight(victim) && clearShot(choice, victim);
+			return offset.horizontalDistance() <= choice.range() && Math.abs(offset.y) <= choice.variant.parameter("vertical_range", 20);
+		if (usesRangedGoal(choice)) return distance <= Math.max(choice.range(), entity.getAttributeValue(Attributes.FOLLOW_RANGE));
+		return distance < choice.range() && distance > choice.variant.parameter("min_range",
+			choice.kind().equals("wind_charge") || choice.kind().equals("small_fireball") ? 2 : 0)
+			&& entity.hasLineOfSight(victim);
 	}
-	private boolean clearShot(Choice choice, LivingEntity victim) {
-		Vec3 start = BionicTraitRuntime.origin(entity, choice.members);
-		return entity.level().clip(new net.minecraft.world.level.ClipContext(start, victim.getBoundingBox().getCenter(),
-			net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, entity))
-			.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+	private static boolean usesRangedGoal(Choice choice) {
+		return Set.of("spit", "snowball", "wither_skull", "potion").contains(choice.kind());
 	}
+	private boolean facing(LivingEntity victim, double minimumDot) {
+		return entity.getViewVector(1).dot(victim.position().subtract(entity.position()).normalize()) > minimumDot;
+	}
+	public void performRangedAttack(LivingEntity victim) {
+		if (action == null || rangedGoal == null) return;
+		fire(action, victim); fired = true;
+	}
+
 	private void start(Choice choice, LivingEntity victim) {
 		action = choice; target = victim; elapsed = 0; fired = false;
 		entity.syncSpecialOrigin(BionicTraitRuntime.origin(entity, choice.members));
+		if (usesRangedGoal(choice)) {
+			rangedGoal = new net.minecraft.world.entity.ai.goal.RangedAttackGoal(entity, 1.0,
+				choice.ticks("cooldown_ticks", 40), (float) choice.range());
+			rangedGoal.start();
+		}
 		warmup = choice.ticks("warmup_ticks", 0);
+		blazeShots = 0; nextBlazeShot = warmup;
 		duration = Math.max(1, choice.ticks("action_ticks", warmup + (choice.kind().equals("small_fireball") ? 18 : 0)));
 		entity.syncSpecialAction(choice.trait == BionicTrait.GUARDIAN_BEAM ? 7 : choice.trait == BionicTrait.SONIC_BOOM ? 1
 			: choice.trait == BionicTrait.SPELLCASTING ? 5 : 3, victim.getId());
 		if (choice.trait == BionicTrait.SONIC_BOOM) entity.playSound(SoundEvents.WARDEN_SONIC_CHARGE, 3, 1);
 		if (choice.trait == BionicTrait.GUARDIAN_BEAM) entity.playSound(SoundEvents.GUARDIAN_ATTACK, 1, 1);
 		if (choice.kind().equals("fangs")) entity.playSound(SoundEvents.EVOKER_PREPARE_ATTACK);
+		if (rangedGoal != null) rangedGoal.tick();
 	}
 	private void finish() {
 		if (action == null) return;
-		int cooldown = action.ticks("cooldown_ticks", 20);
-		if (action.kind().equals("shulker_bullet")) cooldown += entity.getRandom().nextInt(10) * 10;
-
-		String key = action.key();
+		Choice completed = action;
+		int cooldown = rangedGoal != null ? 0 : action.ticks("cooldown_ticks", 0);
+		if (action.kind().equals("shulker_bullet")) cooldown = entity.getRandom().nextInt(10) * 10;
 		cancel();
-		cooldowns.put(key, cooldown);
-		recovery = 5;
+		cooldowns.put(completed.key(), cooldown);
+		if (completed.trait == BionicTrait.GUARDIAN_BEAM) entity.setTarget(null);
 	}
 	private void cancel() {
-		if (action != null) { cooldowns.merge(action.key(), 10, Math::max); }
+		if (action != null && action.trait == BionicTrait.SONIC_BOOM) cooldowns.put(action.key(), action.ticks("cooldown_ticks", 40));
+		if (rangedGoal != null) { rangedGoal.stop(); rangedGoal = null; }
 		action = null; target = null; entity.syncSpecialAction(0, 0);
 	}
 	private void fire(Choice choice, LivingEntity victim) {
@@ -162,9 +216,10 @@ public final class BionicSpecialAttacks {
 		ServerLevel level = (ServerLevel) entity.level();
 		if (choice.trait == BionicTrait.SONIC_BOOM) {
 			beam(origin, victim.getBoundingBox().getCenter(), true); entity.playSound(SoundEvents.WARDEN_SONIC_BOOM, 3, 1);
-			victim.hurt(entity.damageSources().sonicBoom(entity), 10);
-			double resistance = 1 - victim.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
-			Vec3 direction = aim.normalize(); victim.push(direction.x * 2.5 * resistance, 0.5 * resistance, direction.z * 2.5 * resistance); victim.hurtMarked = true;
+			if (victim.hurt(entity.damageSources().sonicBoom(entity), 10)) {
+				double resistance = 1 - victim.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
+				Vec3 direction = aim.normalize(); victim.push(direction.x * 2.5 * resistance, direction.y * 0.5 * resistance, direction.z * 2.5 * resistance); victim.hurtMarked = true;
+			}
 			return;
 		}
 		if (choice.trait == BionicTrait.GUARDIAN_BEAM) {
@@ -175,36 +230,57 @@ public final class BionicSpecialAttacks {
 		if (choice.kind().equals("fangs")) { fangs(origin, victim); return; }
 		Projectile projectile;
 		switch (choice.kind()) {
-		case "spit" -> { projectile = new LlamaSpit(EntityType.LLAMA_SPIT, level); entity.playSound(SoundEvents.LLAMA_SPIT); }
-		case "snowball" -> { projectile = new Snowball(level, entity); entity.playSound(SoundEvents.SNOW_GOLEM_SHOOT); }
-		case "small_fireball" -> projectile = new SmallFireball(level, entity, aim.normalize());
+		case "spit" -> {
+			projectile = new LlamaSpit(EntityType.LLAMA_SPIT, level);
+			Vec3 delta = new Vec3(victim.getX() - origin.x, victim.getY(1.0 / 3.0) - origin.y, victim.getZ() - origin.z);
+			projectile.shoot(delta.x, delta.y + delta.horizontalDistance() * 0.2, delta.z, 1.5f, 10);
+			entity.playSound(SoundEvents.LLAMA_SPIT);
+		}
+		case "snowball" -> {
+			projectile = new Snowball(level, entity);
+			Vec3 delta = new Vec3(victim.getX() - origin.x, victim.getEyeY() - 1.1 - origin.y, victim.getZ() - origin.z);
+			projectile.shoot(delta.x, delta.y + delta.horizontalDistance() * 0.2, delta.z, 1.6f, 12);
+			entity.playSound(SoundEvents.SNOW_GOLEM_SHOOT);
+		}
+		case "small_fireball" -> {
+			double spread = Math.sqrt(Math.sqrt(entity.distanceToSqr(victim))) * 0.5;
+			Vec3 delta = new Vec3(entity.getRandom().triangle(victim.getX() - origin.x, 2.297 * spread),
+				victim.getY(0.5) - origin.y, entity.getRandom().triangle(victim.getZ() - origin.z, 2.297 * spread));
+			projectile = new SmallFireball(level, entity, delta.normalize());
+			level.levelEvent(null, 1018, entity.blockPosition(), 0);
+		}
 		case "fireball" -> { projectile = new LargeFireball(level, entity, aim.normalize(), 1); entity.playSound(SoundEvents.GHAST_SHOOT); }
 		case "shulker_bullet" -> { projectile = new ShulkerBullet(level, entity, victim, Direction.Axis.Y); entity.playSound(SoundEvents.SHULKER_SHOOT); }
 		case "wither_skull" -> { WitherSkull skull = new WitherSkull(level, entity, aim.normalize()); skull.setDangerous(entity.getRandom().nextFloat() < 0.001f); projectile = skull; entity.playSound(SoundEvents.WITHER_SHOOT); }
 		case "dragon_breath" -> projectile = new DragonFireball(level, entity, aim.normalize());
-		case "wind_charge" -> projectile = new BreezeWindCharge(EntityType.BREEZE_WIND_CHARGE, level);
+		case "wind_charge" -> {
+			projectile = new BreezeWindCharge(EntityType.BREEZE_WIND_CHARGE, level);
+			projectile.shoot(victim.getX() - origin.x, victim.getY(victim.isPassenger() ? 0.8 : 0.3) - origin.y,
+				victim.getZ() - origin.z, 0.7f, 5 - level.getDifficulty().getId() * 4);
+			entity.playSound(SoundEvents.BREEZE_SHOOT, 1.5f, 1);
+		}
 		case "potion" -> {
-			var potion = aim.length() >= 8 && !victim.hasEffect(MobEffects.MOVEMENT_SLOWDOWN) ? Potions.SLOWNESS
+			Vec3 velocity = victim.getDeltaMovement();
+			Vec3 delta = new Vec3(victim.getX() + velocity.x - origin.x, victim.getEyeY() - 1.1 - origin.y,
+				victim.getZ() + velocity.z - origin.z);
+			double horizontal = delta.horizontalDistance();
+			var potion = horizontal >= 8 && !victim.hasEffect(MobEffects.MOVEMENT_SLOWDOWN) ? Potions.SLOWNESS
 				: victim.getHealth() >= 8 && !victim.hasEffect(MobEffects.POISON) ? Potions.POISON
-				: aim.length() <= 3 && entity.getRandom().nextFloat() < 0.25 && !victim.hasEffect(MobEffects.WEAKNESS) ? Potions.WEAKNESS : Potions.HARMING;
-			ThrownPotion thrown = new ThrownPotion(level, entity); thrown.setItem(PotionContents.createItemStack(Items.SPLASH_POTION, potion)); projectile = thrown;
+				: horizontal <= 3 && !victim.hasEffect(MobEffects.WEAKNESS) && entity.getRandom().nextFloat() < 0.25 ? Potions.WEAKNESS : Potions.HARMING;
+			ThrownPotion thrown = new ThrownPotion(level, entity);
+			thrown.setItem(PotionContents.createItemStack(Items.SPLASH_POTION, potion)); thrown.setXRot(thrown.getXRot() + 20);
+			thrown.shoot(delta.x, delta.y + horizontal * 0.2, delta.z, 0.75f, 8); projectile = thrown;
 			entity.playSound(SoundEvents.WITCH_THROW);
 		}
-
 		default -> { return; }
 		}
 		projectile.setOwner(entity); projectile.setPos(origin);
-		if (!(projectile instanceof ShulkerBullet)) {
-			float speed = choice.kind().equals("potion") ? 0.75f : projectile instanceof AbstractHurtingProjectile ? 0.5f : 1.6f;
-			double arc = projectile instanceof AbstractHurtingProjectile ? 0 : aim.horizontalDistance() * 0.2;
-			projectile.shoot(aim.x, aim.y + arc, aim.z, speed, 14 - level.getDifficulty().getId() * 4);
-		}
 		BionicCombatEvents.mark(projectile, entity); level.addFreshEntity(projectile);
 	}
 	private void beam(Vec3 from, Vec3 to, boolean sonic) {
-		Vec3 direction = to.subtract(from); int steps = Math.min(128, (int) direction.length() + 1);
+		Vec3 direction = to.subtract(from); int steps = Math.min(128, (int) direction.length() + (sonic ? 7 : 1));
 		for (int i = 0; i <= steps; i++) {
-			Vec3 point = from.add(direction.scale(i / (double) Math.max(1, steps)));
+			Vec3 point = from.add(sonic ? direction.normalize().scale(i) : direction.scale(i / (double) Math.max(1, steps)));
 			((ServerLevel) entity.level()).sendParticles(sonic ? ParticleTypes.SONIC_BOOM : ParticleTypes.BUBBLE,
 				point.x, point.y, point.z, 1, 0, 0, 0, 0);
 		}
@@ -233,16 +309,18 @@ public final class BionicSpecialAttacks {
 	}
 	public void afterMelee() { cooldowns.put("sonic_boom/minecraft:sonic_boom", 40); }
 	public void blockedByShield(LivingEntity living) {
+		if (roarTicks > 0 && roarTicks <= 20) return;
 		if (entity.getRandom().nextBoolean()) {
-			cancel(); roarTicks = (int) entity.getBionicTraits().parameter(BionicTrait.ROAR, "stun_ticks", 40)
-				+ (int) entity.getBionicTraits().parameter(BionicTrait.ROAR, "warmup_ticks", 10);
+			cancel(); roarTicks = (int) entity.getBionicTraits().parameter(BionicTrait.ROAR, "stun_ticks", 40) + 20;
+			entity.playSound(SoundEvents.RAVAGER_STUNNED); living.push(entity);
 		} else push(living);
 	}
 	private void roar() {
-		entity.playSound(SoundEvents.RAVAGER_ROAR);
 		for (LivingEntity victim : entity.level().getEntitiesOfClass(LivingEntity.class, entity.getBoundingBox().inflate(
-			entity.getBionicTraits().parameter(BionicTrait.ROAR, "range", 4)), e -> e != entity && e.isAlive() && !entity.isAlliedTo(e))) {
-			victim.hurt(entity.damageSources().mobAttack(entity), (float) entity.getBionicTraits().parameter(BionicTrait.ROAR, "damage", 6)); push(victim);
+			entity.getBionicTraits().parameter(BionicTrait.ROAR, "range", 4)), e -> e != entity && e.isAlive() && e.getType() != EntityType.RAVAGER && !entity.isAlliedTo(e))) {
+			if (!(victim instanceof net.minecraft.world.entity.monster.AbstractIllager))
+				victim.hurt(entity.damageSources().mobAttack(entity), (float) entity.getBionicTraits().parameter(BionicTrait.ROAR, "damage", 6));
+			push(victim);
 		}
 		((ServerLevel) entity.level()).sendParticles(ParticleTypes.POOF, entity.getX(), entity.getEyeY(), entity.getZ(), 40, 1, 1, 1, 0.1);
 	}

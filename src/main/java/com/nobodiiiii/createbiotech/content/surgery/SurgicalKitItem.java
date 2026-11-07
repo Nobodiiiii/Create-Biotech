@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.contraptions.glue.SuperGlueItem;
 import com.simibubi.create.content.equipment.symmetryWand.SymmetryWandItem;
@@ -74,7 +75,7 @@ public class SurgicalKitItem extends Item {
 
 	@Override
 	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
-		if (!(level instanceof ServerLevel currentLevel)
+		if (!availableTools.contains(Tool.TEMPORARY_BOX) || !(level instanceof ServerLevel currentLevel)
 			|| Math.floorMod(level.getGameTime() + entity.getId() + slotId,
 				TEMPORARY_MOVE_VALIDATION_INTERVAL) != 0)
 			return;
@@ -137,7 +138,8 @@ public class SurgicalKitItem extends Item {
 		if (tool == null)
 			return 0.0f;
 		float value = availableTools(stack).indexOf(tool) + 1.0f;
-		return tool == Tool.TEMPORARY_BOX && CapturedEntityBoxHelper.hasCapturedEntity(stack)
+		return (tool == Tool.TEMPORARY_BOX || tool == Tool.CUBE_COPIER)
+			&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
 			? value + 0.5f : value;
 	}
 
@@ -207,6 +209,20 @@ public class SurgicalKitItem extends Item {
 	public static boolean isEmptyTemporaryBox(ItemStack stack) {
 		return isTemporaryBox(stack) && !CapturedEntityBoxHelper.hasCapturedEntity(stack)
 			&& temporaryMove(stack) == null;
+	}
+
+	public static boolean isCubeCopier(ItemStack stack) {
+		return selectedTool(stack) == Tool.CUBE_COPIER;
+	}
+
+	public static boolean isEmptyCubeCopier(ItemStack stack) {
+		return isCubeCopier(stack) && !CapturedEntityBoxHelper.hasCapturedEntity(stack);
+	}
+
+	/** Only the selected tool can offer its stored body to table placement. */
+	public static boolean hasPlacementCapture(ItemStack stack) {
+		return hasTemporaryCapture(stack)
+			|| isCubeCopier(stack) && CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
 
 	@Nullable
@@ -315,7 +331,11 @@ public class SurgicalKitItem extends Item {
 			"item.create_biotech.creative_surgical_kit.mimic_inducer"),
 		MIMIC_RESTORATIVE("mimic_restorative",
 			() -> PotionContents.createItemStack(Items.POTION, Potions.REGENERATION),
-			"item.create_biotech.creative_surgical_kit.mimic_restorative");
+			"item.create_biotech.creative_surgical_kit.mimic_restorative"),
+		MIMIC_POSSESSOR("mimic_possessor", () -> new ItemStack(Items.ECHO_SHARD),
+			"item.create_biotech.creative_surgical_kit.mimic_possessor"),
+		CUBE_COPIER("cube_copier", () -> AllBlocks.CLIPBOARD.asStack(),
+			"item.create_biotech.creative_surgical_kit.cube_copier");
 
 		private final String id;
 		private final Supplier<ItemStack> displayStack;

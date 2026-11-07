@@ -2,19 +2,7 @@
   "automatic_detection": false,
   "min_coverage": 0.5,
   "values": {
-    "minecraft:enderman": {
-      "minecraft:enderman": true
-    },
-    "minecraft:shulker": {
-      "minecraft:shulker": true
-    }
-  },
-  "variants": {
-    "minecraft:enderman": {
-      "roles": []
-    },
-    "minecraft:shulker": {
-      "roles": []
-    }
+    "minecraft:enderman": true,
+    "minecraft:shulker": true
   }
 }

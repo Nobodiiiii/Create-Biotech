@@ -18,8 +18,11 @@ final class BionicTraitCarriers {
 
 	/** Select original carrier tissue before considering how it has been installed or cut. */
 	static BitSet select(BionicTrait.Carrier carrier, BionicTraitData data, BionicTissue tissue, int sourceId) {
-		if (carrier.isAllTissue())
-			return tissue.source(sourceId).presentCubes();
+		if (carrier.isAllTissue()) {
+			var declared = data.carriers().get(tissue.source(sourceId).profile().entityTypeId());
+			return declared == null || declared.isEmpty() ? tissue.source(sourceId).presentCubes()
+				: selectRoles(List.copyOf(declared.keySet()), data, tissue, sourceId);
+		}
 		BitSet cubes = selectRoles(carrier.roles(), data, tissue, sourceId);
 		// A cut-off mapped gill must not fall back to an ordinary head. Fallback concerns the
 		// donor's original anatomy, so intersect with retained/installed tissue only afterwards.

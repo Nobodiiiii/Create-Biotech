@@ -140,6 +140,11 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 				table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
 					bodyVolume, hitboxGeometry, attackGeometry);
 		}
+		case COPY_COMPONENT -> {
+			if (targetId < observedCubeCount && SurgicalKitItem.isEmptyCubeCopier(held))
+				table.captureCopiedComponent(player, held, subjectId, targetId, observedCubeCount, seams,
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry);
+		}
 		case CUT_CUBE_CONNECTIONS -> {
 			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)) {
 				if (!table.cutCubeConnections(player, held, hand, subjectId, targetId, observedCubeCount, seams,
@@ -233,6 +238,7 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 		CUT_GLUE,
 		COMBINE,
 		BREAK_COMBINATION,
-		DETACH_COMBINATION
+		DETACH_COMBINATION,
+		COPY_COMPONENT
 	}
 }

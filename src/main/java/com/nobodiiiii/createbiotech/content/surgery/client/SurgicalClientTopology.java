@@ -109,6 +109,32 @@ public final class SurgicalClientTopology {
 		return contactBetween(seam, preparedById(cubes));
 	}
 
+	/** Exact boundary lines, including edge-only contact of zero-thickness model wings. */
+	public static List<Edge> intersectionEdges(SurgicalModelRenderContext.CubeGeometry first,
+		SurgicalModelRenderContext.CubeGeometry second) {
+		List<Plane> planes = new ArrayList<>(clipPlanes(first));
+		planes.addAll(clipPlanes(second));
+		List<Vec3> vertices = convexIntersectionVertices(planes);
+		List<Edge> edges = new ArrayList<>();
+		for (int start = 0; start < vertices.size(); start++)
+			for (int end = start + 1; end < vertices.size(); end++) {
+				Vec3 firstNormal = null;
+				for (Plane plane : planes) {
+					if (Math.abs(plane.signedDistance(vertices.get(start))) > POLYHEDRON_EPSILON
+						|| Math.abs(plane.signedDistance(vertices.get(end))) > POLYHEDRON_EPSILON)
+						continue;
+					if (firstNormal == null) {
+						firstNormal = plane.normal;
+					} else if (firstNormal.cross(plane.normal).lengthSqr() > INTERSECTION_EPSILON) {
+						// Two independent boundary planes define a line; a face diagonal has only one.
+						edges.add(new Edge(vertices.get(start), vertices.get(end)));
+						break;
+					}
+				}
+			}
+		return List.copyOf(edges);
+	}
+
 	/** True only for a real shared convex solid or face, without the seam builder's adjacency tolerance. */
 	public static boolean cubesActuallyIntersect(SurgicalModelRenderContext.CubeGeometry firstGeometry,
 		SurgicalModelRenderContext.CubeGeometry secondGeometry) {
@@ -196,17 +222,7 @@ public final class SurgicalClientTopology {
 
 	/** Builds every boundary face of the convex polyhedron shared by all half-spaces. */
 	private static List<List<Vec3>> convexIntersectionFaces(List<Plane> planes) {
-		List<Vec3> vertices = new ArrayList<>();
-		for (int first = 0; first < planes.size(); first++) {
-			for (int second = first + 1; second < planes.size(); second++) {
-				for (int third = second + 1; third < planes.size(); third++) {
-					Vec3 vertex = intersect(planes.get(first), planes.get(second), planes.get(third));
-					if (vertex == null || !insideAll(vertex, planes) || containsPoint(vertices, vertex))
-						continue;
-					vertices.add(vertex);
-				}
-			}
-		}
+		List<Vec3> vertices = convexIntersectionVertices(planes);
 		if (vertices.size() < 3)
 			return List.of();
 
@@ -236,6 +252,21 @@ public final class SurgicalClientTopology {
 				faces.add(List.copyOf(polygon));
 		}
 		return List.copyOf(faces);
+	}
+
+	private static List<Vec3> convexIntersectionVertices(List<Plane> planes) {
+		List<Vec3> vertices = new ArrayList<>();
+		for (int first = 0; first < planes.size(); first++) {
+			for (int second = first + 1; second < planes.size(); second++) {
+				for (int third = second + 1; third < planes.size(); third++) {
+					Vec3 vertex = intersect(planes.get(first), planes.get(second), planes.get(third));
+					if (vertex == null || !insideAll(vertex, planes) || containsPoint(vertices, vertex))
+						continue;
+					vertices.add(vertex);
+				}
+			}
+		}
+		return vertices;
 	}
 
 	@Nullable

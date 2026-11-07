@@ -210,6 +210,7 @@ public final class SurgicalTableClientHandler {
 	private static LimbJointSelection jointRemovalSelection;
 	private static WrenchEditor wrenchEditor;
 	private static boolean suppressWrenchUseUntilRelease;
+	private static boolean suppressCopyUseUntilRelease;
 	private static PendingLimb pendingLimb;
 	@Nullable
 	private static PendingSlimeSeam pendingSlimeSeam;
@@ -795,6 +796,7 @@ public final class SurgicalTableClientHandler {
 
 	public static void clear() {
 		suppressWrenchUseUntilRelease = false;
+		suppressCopyUseUntilRelease = false;
 		pendingCut = null;
 		pendingGlueCut = null;
 		pendingGlue = null;
@@ -845,6 +847,8 @@ public final class SurgicalTableClientHandler {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (suppressWrenchUseUntilRelease && !minecraft.options.keyUse.isDown())
 			suppressWrenchUseUntilRelease = false;
+		if (suppressCopyUseUntilRelease && !minecraft.options.keyUse.isDown())
+			suppressCopyUseUntilRelease = false;
 		if (suppressAttackUntilRelease && !minecraft.options.keyAttack.isDown())
 			suppressAttackUntilRelease = false;
 		LocalPlayer player = minecraft.player;
@@ -1047,7 +1051,7 @@ public final class SurgicalTableClientHandler {
 		for (InteractionHand candidateHand : HANDS) {
 			ItemStack held = player.getItemInHand(candidateHand);
 			if (!(held.getItem() instanceof CapturedEntityBoxItem)
-				&& !SurgicalKitItem.hasTemporaryCapture(held)
+				&& !SurgicalKitItem.hasPlacementCapture(held)
 				|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 				continue;
 			PlacementCandidate prepared = placementCandidateFor(held, level);
@@ -1528,6 +1532,8 @@ public final class SurgicalTableClientHandler {
 			|| heldLimbType(player.getOffhandItem()) != null;
 		boolean holdingWrench = SurgicalKitItem.isWrench(player.getMainHandItem())
 			|| SurgicalKitItem.isWrench(player.getOffhandItem());
+		boolean holdingEmptyCopier = SurgicalKitItem.isEmptyCubeCopier(player.getMainHandItem())
+			|| SurgicalKitItem.isEmptyCubeCopier(player.getOffhandItem());
 		boolean holdingShovel = SurgicalKitItem.isShovel(player.getMainHandItem())
 			|| SurgicalKitItem.isShovel(player.getOffhandItem());
 		if (!holdingJoint && pendingLimb != null)
@@ -1538,7 +1544,7 @@ public final class SurgicalTableClientHandler {
 		boolean shovelingTile = holdingShovel && Screen.hasControlDown();
 		if (!holdingShears && !holdingEmptyBox && !holdingEmptyLargeBox && !holdingGlue && !holdingSymmetry
 			&& !holdingHoney && !holdingSlimeBall
-			&& !holdingJoint && !holdingWrench && !holdingShovel) {
+			&& !holdingJoint && !holdingWrench && !holdingShovel && !holdingEmptyCopier) {
 			hoveredGluePoint = null;
 			GLUE_POINT_OUTLINE.clear();
 			gluePreview = null;
@@ -1563,7 +1569,7 @@ public final class SurgicalTableClientHandler {
 			| (holdingSymmetry ? 256 : 0)
 			| (pendingSymmetryReference != null && Screen.hasControlDown() ? 512 : 0)
 			| (holdingSlimeBall ? 1024 : 0) | (holdingShovel ? 2048 : 0)
-			| (shovelingTile ? 4096 : 0);
+			| (shovelingTile ? 4096 : 0) | (holdingEmptyCopier ? 8192 : 0);
 		if (lastSelectionTick == level.getGameTime() && lastSelectionGeneration == geometryGeneration
 			&& lastSelectionMode == selectionMode && ray.equals(lastSelectionRay)
 			&& pendingGlue == lastSelectionPendingGlue && pendingSymmetry == lastSelectionPendingSymmetry
@@ -1586,7 +1592,7 @@ public final class SurgicalTableClientHandler {
 		boolean selectingSlimeSeam = promptHand != null
 			&& SurgicalKitItem.isSlimeBall(player.getItemInHand(promptHand));
 		CubeHit cubeHit = holdingShears || holdingEmptyBox || holdingGlue || holdingSymmetry || holdingHoney || holdingJoint
-			|| holdingWrench || holdingSlimeBall || holdingShovel && !shovelingTile
+			|| holdingWrench || holdingSlimeBall || holdingEmptyCopier || holdingShovel && !shovelingTile
 			? selectingSlimeSeam
 				? findNearestSlimeSeamHit(player, level, ray, pendingSlimeSeam)
 				: findNearestCubeHit(player, level, ray)
@@ -1619,7 +1625,7 @@ public final class SurgicalTableClientHandler {
 		seamSelection = holdingShears && !highlightingDirectConnections
 			? findSeamSelection(player, level, ray, cubeHit) : null;
 		cubeSelection = holdingWrench ? findCubeSelection(cubeHit)
-			: holdingEmptyBox ? findConnectedComponentSelection(cubeHit, true) : null;
+			: holdingEmptyBox || holdingEmptyCopier ? findConnectedComponentSelection(cubeHit, true) : null;
 		limbSelection = holdingJoint ? findLimbTargetSelection(cubeHit) : null;
 		slimeSeamSelection = holdingSlimeBall ? findSlimeSeamTargetSelection(level, cubeHit) : null;
 		jointRemovalSelection = holdingShears ? findLimbJointSelection(player, level, ray, cubeHit) : null;
@@ -1670,7 +1676,7 @@ public final class SurgicalTableClientHandler {
 			CUBE_OUTLINE.show(edges, CUBE_HIGHLIGHT_COLOR);
 			return;
 		}
-		boolean highlightingBox = (lastSelectionMode & 2) != 0;
+		boolean highlightingCapture = (lastSelectionMode & (2 | 8192)) != 0;
 		if (symmetrySelection != null)
 			highlightSelection(symmetrySelection);
 		else if (jointRemovalSelection != null)
@@ -1679,14 +1685,14 @@ public final class SurgicalTableClientHandler {
 			highlightSelection(limbSelection);
 		else if (slimeSeamSelection != null)
 			highlightSelection(slimeSeamSelection);
-		else if (highlightingBox && cubeSelection != null)
+		else if (highlightingCapture && cubeSelection != null)
 			highlightSelection(cubeSelection, true);
 		else if (componentSelection != null)
-			highlightSelection(componentSelection, highlightingBox);
+			highlightSelection(componentSelection, highlightingCapture);
 		else if (seamSelection != null)
 			highlightSelection(seamSelection);
 		else if (cubeSelection != null)
-			highlightSelection(cubeSelection, highlightingBox);
+			highlightSelection(cubeSelection, highlightingCapture);
 		else
 			clearSeamHighlight();
 		refreshSymmetryPlaneHighlight();
@@ -1778,7 +1784,7 @@ public final class SurgicalTableClientHandler {
 		if (minecraft.screen != null || minecraft.player == null)
 			return;
 		KeyMapping key = event.getKeyMapping();
-		if (key == minecraft.options.keyUse && suppressWrenchUseUntilRelease) {
+		if (key == minecraft.options.keyUse && (suppressWrenchUseUntilRelease || suppressCopyUseUntilRelease)) {
 			consumeInteraction(event, event.getHand());
 			return;
 		}
@@ -1845,6 +1851,8 @@ public final class SurgicalTableClientHandler {
 			return;
 		if (CapturedEntityBoxHelper.hasCapturedEntity(held)
 			&& tryPlaceSubject(minecraft.player, level, hand, held)) {
+			if (SurgicalKitItem.isCubeCopier(held))
+				suppressCopyUseUntilRelease = true;
 			consumeInteraction(event, hand);
 			return;
 		}
@@ -1979,6 +1987,20 @@ public final class SurgicalTableClientHandler {
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.PACK,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume(), metrics.attackGeometry());
+		} else if (SurgicalKitItem.isEmptyCubeCopier(held)) {
+			selected = findConnectedComponentSelection(cubeHit, true);
+			if (selected == null)
+				return;
+			PackedBodyMetrics metrics = selectedBodyMetrics(selected);
+			if (metrics == null) {
+				showNoSpace(minecraft.player);
+				consumeInteraction(event, hand);
+				return;
+			}
+			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.COPY_COMPONENT,
+				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
+				metrics.bodyVolume(), metrics.attackGeometry());
+			suppressCopyUseUntilRelease = true;
 		} else {
 			return;
 		}
@@ -3960,6 +3982,12 @@ public final class SurgicalTableClientHandler {
 		} else if (SurgicalKitItem.isHoneyBottle(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.combine");
+		} else if (SurgicalKitItem.isCubeCopier(stack)) {
+			boolean copying = SurgicalKitItem.isEmptyCubeCopier(stack);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				copying ? "create_biotech.gui.surgical_table.action.copy_cube"
+					: "create_biotech.gui.surgical_table.action.place_copied_cube",
+				!copying || hitsCube);
 		} else if (SurgicalKitItem.isEmptyTemporaryBox(stack)) {
 			addInteractionControl(tooltip, Component.keybind("key.use"),
 				"create_biotech.gui.surgical_table.action.move_subject");
@@ -4049,7 +4077,7 @@ public final class SurgicalTableClientHandler {
 		for (InteractionHand hand : HANDS) {
 			ItemStack stack = player.getItemInHand(hand);
 			if ((stack.getItem() instanceof CapturedEntityBoxItem
-				|| SurgicalKitItem.hasTemporaryCapture(stack))
+				|| SurgicalKitItem.hasPlacementCapture(stack))
 				&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
 				&& placementCandidateFor(stack, level).result().succeeded())
 				return hand;
@@ -4087,7 +4115,7 @@ public final class SurgicalTableClientHandler {
 			|| isSurgicalGlue(stack) || isSymmetryWand(stack) || SurgicalKitItem.isHoneyBottle(stack)
 			|| SurgicalKitItem.isSlimeBall(stack) || heldLimbType(stack) != null
 			|| SurgicalKitItem.isWrench(stack) || SurgicalKitItem.isShovel(stack)
-			|| SurgicalKitItem.isTemporaryBox(stack);
+			|| SurgicalKitItem.isTemporaryBox(stack) || SurgicalKitItem.isCubeCopier(stack);
 	}
 
 	private static void addCancelControl(List<Component> tooltip, boolean enabled) {
@@ -4161,7 +4189,7 @@ public final class SurgicalTableClientHandler {
 	private static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
 		ItemStack held) {
 		if (!(held.getItem() instanceof CapturedEntityBoxItem)
-			&& !SurgicalKitItem.hasTemporaryCapture(held)
+			&& !SurgicalKitItem.hasPlacementCapture(held)
 			|| !(Minecraft.getInstance().hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))
 			return false;
@@ -5369,12 +5397,8 @@ public final class SurgicalTableClientHandler {
 		if (level == null
 			|| !(level.getBlockEntity(selection.tablePos()) instanceof SurgicalTableBlockEntity table))
 			return null;
-		Map<Integer, BitSet> components = table.connectedComponents(selection.subjectId(),
-			selection.targetId(), selection.observedCubeCount(), selection.seams());
-		if (components.isEmpty())
-			return null;
-		SurgicalAssembly preview = table.previewPackedAssembly(selection.subjectId(),
-			selection.targetId(), selection.observedCubeCount(), selection.seams());
+		SurgicalAssembly preview = table.previewPackedAssembly(selection.subjectId(), selection.targetId(),
+			selection.observedCubeCount(), selection.seams());
 		if (preview == null)
 			return null;
 		return measureBodyMetrics(preview);

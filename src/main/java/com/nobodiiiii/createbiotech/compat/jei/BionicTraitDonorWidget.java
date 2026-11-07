@@ -17,9 +17,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.navigation.ScreenPosition;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemLore;
 
 /** Inventory-sized creature previews with the captured slime item's GUI transform. */
 final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHandler {
@@ -120,6 +122,12 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 				displayedTypes[cell] = type;
 				displayedItems[cell] = type == null ? ItemStack.EMPTY
 					: CBItems.BIONIC_DONOR_PREVIEW.get().createStack(type);
+				Component donorTooltip = BionicTraitJeiText.donorTooltip(trait);
+				if (type != null && donorTooltip != null) {
+					// Native item tooltip content stays below the name and above JEI's mod name.
+					List<Component> lines = List.of(donorTooltip);
+					displayedItems[cell].set(DataComponents.LORE, new ItemLore(lines, lines));
+				}
 			}
 			IRecipeSlotDrawable slot = slots.get(cell);
 			ItemStack stack = displayedItems[cell];

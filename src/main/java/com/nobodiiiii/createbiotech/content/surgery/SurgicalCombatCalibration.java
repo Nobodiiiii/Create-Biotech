@@ -114,14 +114,21 @@ public final class SurgicalCombatCalibration {
 			return 0.0d;
 		if (geometry == null || geometry.arms().isEmpty())
 			return baseAttackDamage;
+		return nominalDamagePerSecond(baseAttackDamage, geometry.arms());
+	}
+
+	/** Entity evaluations can omit installed chains currently acting as wings. */
+	public static double nominalDamagePerSecond(double baseAttackDamage,
+		java.util.List<SurgicalAssembly.ArmAttackGeometry> arms) {
+		if (!Double.isFinite(baseAttackDamage) || baseAttackDamage < 0 || arms.isEmpty()) return 0;
 
 		double totalDps = 0.0d;
-		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms()) {
+		for (SurgicalAssembly.ArmAttackGeometry arm : arms) {
 			ArmCombatStats armStats = stats(arm);
 			totalDps += baseAttackDamage * armStats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL
-				/ attackInterval(armStats, geometry.armCount());
+				/ attackInterval(armStats, arms.size());
 		}
-		return totalDps / geometry.armCount();
+		return totalDps / arms.size();
 	}
 
 	public record ArmCombatStats(double damageMultiplier, int attackInterval) {

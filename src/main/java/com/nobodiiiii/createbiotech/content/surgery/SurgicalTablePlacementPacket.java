@@ -113,7 +113,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		SurgicalTableBlockEntity table = SurgicalTableBlockEntity.controller(player.level(), plane);
 		ItemStack held = player.getItemInHand(hand);
 		if (table == null || (!(held.getItem() instanceof CapturedEntityBoxItem)
-			&& !SurgicalKitItem.hasTemporaryCapture(held))
+			&& !SurgicalKitItem.hasPlacementCapture(held))
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 			return;
 		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,

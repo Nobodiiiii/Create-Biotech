@@ -60,7 +60,7 @@ public final class BionicTraitResolver {
 				continue;
 			boolean present = switch (trait.valueKind()) {
 			case ABILITY -> donor.has(trait);
-			case NUMBER -> donor.value(trait) > 0.0d;
+			case NUMBER -> numericValue(donor.value(trait)) > 0.0d;
 			case SUBTRAIT_SET -> !donor.variants(trait).isEmpty();
 			case EFFECT_SET -> !donor.immuneEffects().isEmpty();
 			case ATTACK_EFFECT_SET -> !donor.attackEffects().isEmpty();
@@ -75,7 +75,7 @@ public final class BionicTraitResolver {
 				results.put(trait, new BionicTraitResult(1, 1, 0, Set.of(), Set.of(), null,
 					Map.of(), Set.of(), variants, Map.of(), Set.of()));
 			} else if (present)
-				results.put(trait, new BionicTraitResult(1, 1, donor.value(trait),
+				results.put(trait, new BionicTraitResult(1, 1, numericValue(donor.value(trait)),
 					trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.immuneEffects() : Set.of(),
 					Set.of(), null));
 		}
@@ -167,8 +167,9 @@ public final class BionicTraitResolver {
 				remaining -= used;
 				if (remaining <= 0) break;
 			}
-			return new BionicTraitResult(coverage, result.strength(), budget > 0 ? weighted / budget : 0,
-				Set.of(), members, null);
+			double value = numericValue(budget > 0 ? weighted / budget : 0);
+			return value == 0 ? BionicTraitResult.ABSENT
+				: new BionicTraitResult(coverage, result.strength(), value, Set.of(), members, null);
 		}
 		if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
 			Set<ResourceLocation> effects = new HashSet<>();
@@ -200,12 +201,18 @@ public final class BionicTraitResolver {
 				remaining -= used;
 				if (remaining <= 0) break;
 			}
-			double value = budget > 0 ? weighted / budget : 0;
+			double value = numericValue(budget > 0 ? weighted / budget : 0);
 			maximum = Math.max(maximum, value);
 			for (var member : limb) values.put(member, value);
 		}
-		return new BionicTraitResult(result.coverage(), result.strength(), maximum, Set.of(), result.members(),
+		return maximum == 0 ? BionicTraitResult.ABSENT
+			: new BionicTraitResult(result.coverage(), result.strength(), maximum, Set.of(), result.members(),
 			null, Map.of(), Set.of(), Map.of(), values, Set.of());
+	}
+
+	/** Apply the threshold before rounding, once after tissue aggregation. */
+	public static double numericValue(double value) {
+		return value < 0.1d ? 0.0d : Math.round(value * 10.0d) / 10.0d;
 	}
 
 	private static BionicTraitResult evaluateSubtraits(BionicTrait trait, BionicTraitData data,

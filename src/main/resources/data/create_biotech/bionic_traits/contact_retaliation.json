@@ -2,6 +2,16 @@
   "automatic_detection": false,
   "values": {
     "minecraft:guardian": true,
-    "minecraft:elder_guardian": true
+    "minecraft:elder_guardian": true,
+    "minecraft:pufferfish": true
+  },
+  "carriers": {
+    "minecraft:pufferfish": {
+      "SPINE": [
+        "body",
+        "spikes",
+        "spine"
+      ]
+    }
   }
 }

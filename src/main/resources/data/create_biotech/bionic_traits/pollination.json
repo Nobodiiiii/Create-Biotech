@@ -3,15 +3,6 @@
   "values": {
     "minecraft:bee": true
   },
-  "carriers": {
-    "minecraft:bee": {
-      "LEG": [
-        "front_legs",
-        "middle_legs",
-        "back_legs"
-      ]
-    }
-  },
   "parameters": {
     "min_legs": 1,
     "collect_ticks": 400,

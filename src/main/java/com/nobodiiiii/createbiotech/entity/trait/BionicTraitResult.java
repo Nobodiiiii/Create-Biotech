@@ -56,7 +56,7 @@ public record BionicTraitResult(double coverage, double strength, double value,
 
 	public enum InactiveReason {
 		NO_CARRIER, INSUFFICIENT_COVERAGE, INCOMPLETE_HEAD, WRONG_SLOT, BODY_MEASUREMENT_UNAVAILABLE,
-		PURPOSE_MISMATCH, BREATHING_NOT_REQUIRED, MISSING_PAIRED_WINGS;
+		PURPOSE_MISMATCH, BREATHING_NOT_REQUIRED, MISSING_PAIRED_WINGS, MISSING_WOOL_OR_BODY;
 
 		public String descriptionId() {
 			return "create_biotech.trait.inactive." + name().toLowerCase(java.util.Locale.ROOT);

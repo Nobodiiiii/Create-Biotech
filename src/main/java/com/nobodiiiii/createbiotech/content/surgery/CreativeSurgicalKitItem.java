@@ -10,9 +10,10 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
-/** Creative-only tools for directly changing the mimic state of a living entity. */
+/** Creative tools for changing mimic states, possessing creatures and copying connected surgical parts. */
 public class CreativeSurgicalKitItem extends SurgicalKitItem {
-	private static final List<Tool> TOOLS = List.of(Tool.MIMIC_INDUCER, Tool.MIMIC_RESTORATIVE);
+	private static final List<Tool> TOOLS = List.of(Tool.MIMIC_INDUCER, Tool.MIMIC_RESTORATIVE,
+		Tool.MIMIC_POSSESSOR, Tool.CUBE_COPIER);
 
 	public CreativeSurgicalKitItem(Properties properties) {
 		super(properties, TOOLS);

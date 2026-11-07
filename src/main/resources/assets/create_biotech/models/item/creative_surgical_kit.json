@@ -8,6 +8,18 @@
     {
       "predicate": { "create_biotech:surgical_tool": 2.0 },
       "model": "minecraft:item/potion"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 3.0 },
+      "model": "minecraft:item/echo_shard"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 4.0 },
+      "model": "create:item/clipboard_0"
+    },
+    {
+      "predicate": { "create_biotech:surgical_tool": 4.5 },
+      "model": "create:item/clipboard_1"
     }
   ]
 }

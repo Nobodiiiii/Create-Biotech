@@ -1,337 +1,331 @@
-# 仿生生物特性总表
+# 仿生生物特性总表 v3
 
-本文按当前工作区代码与数据整理（Minecraft 1.21.1 / NeoForge），特性总表按全身、躯干、头、臂、腿五种作用部位排列；后三种对应手术台实际提供的器官。生效规则仍分为三类，详见下文。
+修订日期：2026-11-06。适用分支：Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。
 
-原“修正”列及已合并、删除项已归档至[特性修正历史](bionic-traits-history.zh-CN.md)。本文只列当前规则。
-
-所有 65 项特性统一定义在 [BionicTrait](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTrait.java)，统一由 [BionicTraitResolver](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicTraitResolver.java) 解析，特性定义位于 `bionic_traits/`；性情和智力的供体分类覆盖继续读取 `bionic_head/disposition/` 与 `bionic_head/intelligence/`。
-
-| 作用范围 | `BionicTraitScope` | 判定范围                       | 本次归类                                                                                 |
-| -------- | -------------------- | ------------------------------ | ---------------------------------------------------------------------------------------- |
-| 全身     | `WHOLE_BODY`       | 全部保留体块，安装位置不限     | 原有全身体质、效果免疫、天然护甲、自然恢复、体表刺击                                 |
-| 躯干     | `TORSO`            | 未归属头、臂、腿的保留体块     | 悬浮飞行、身体弹跳、抗击退、缩壳防御、游泳专长                                           |
-| 头       | `HEAD`             | 通过颈关节安装的全部体块       | 水下呼吸、离水窒息、可驯服、振动感知、避水偏好、生物威慑 |
-| 臂       | `ARM`              | 肩关节及所属肘关节链的全部体块 | 扑翼飞行、附效攻击                           |
-| 腿       | `LEG`              | 髋关节及所属膝关节链的全部体块 | 灵巧落地、摔落抵抗、细雪行者、熔岩行者、攀墙                                   |
-
-**一般头、臂、腿特性均按每条完整肢体链分别计算覆盖率**（性情和智力按供体原始头部保留比例判定，见下文），肘、膝归入所属的臂、腿，不单独计数。头部最多安装一个。**游泳专长按全部躯干体块的覆盖率判定**，不要求肢体数量。每项特性各声明一个范围。鳃、足、左右翅、鳍、尾、触手、壳、刺、口器和攻击手只是供体模型的载体标签，不是额外可安装器官，也不能自动指定安装位置。
-
-“呼吸”和“特殊器官”不再作为作用范围。
-
-效果执行集中在 [SlimeBionicEntity.java](../src/main/java/com/nobodiiiii/createbiotech/entity/SlimeBionicEntity.java)，细雪行者另见 [PowderSnowBionicFootMixin.java](../src/main/java/com/nobodiiiii/createbiotech/mixin/PowderSnowBionicFootMixin.java)。
-
-## 三类生效规则（代码中的明确分类）
-
-类别定义在 `BionicTraitType`，统一判定在 `BionicTraitRule`。`BionicTrait` 的每个枚举项独立声明 `scopes()`（允许安装位置及占比范围）、`carrier()`（供体载体标签与回退规则）、`rule()`（三类生效规则）、`valueKind()`（能力、数值或效果集合）和 `condition()`（可选附加条件）；效果免疫和数值属性也属于同一目录。`BionicAnatomyRole` 只描述供体体块的标签；安装部位直接由 `BionicTraitScope` 描述，已删除会按解剖标签推断安装位置的 `BionicTraitSlot`。
-
-| 类别      | 代码                                        | 获取与效果                                                                           | 当前归类                                                                                                                                                                                         |
-| --------- | ------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. 存在型 | `PRESENCE` / `presence()`               | 对应部位只要保留了载体就获得完整特性；不设占比下限，不随占比衰减，也不要求记录了体积 | 水下呼吸、可驯服、振动感知、避水偏好、生物威慑、附效攻击、体表刺击                                                                                             |
-| 2. 门槛型 | `COVERAGE_THRESHOLD` / `threshold(...)` | 占比达到门槛，并满足可选附加条件后，获得固定效果；未达标时不获得部分效果             | 火焰免疫、遇水受伤、冻结免疫、阳光灼伤、保湿依赖、高温灼伤、治疗反转、摔落免疫、无视蛛网、无需呼吸、悬浮飞行、弹射物偏转；离水窒息；灵巧落地、摔落抵抗、细雪行者、熔岩行者、攀墙、扑翼飞行、游泳专长、缩壳防御；效果免疫 |
-| 3. 比例型 | `COVERAGE_SCALED` / `scaled()`          | 正占比即贡献效果，强度、概率或数值随占比变化                                         | 火焰抗性、冻结抗性、冻结易伤、身体弹跳、接触反伤；天然护甲、抗击退、自然恢复                                                                   |
-
-- “存在”指**匹配供体、仍然保留、属于特性有效范围**的载体。安装位置只按每项特性的 `scopes()` 检查。全身范围不限制安装位置；需要特定载体的特性仍检查 `carrier()`，例如体表刺击需要刺体块。切掉载体就不再贡献。存在型不会被其他供体的同部位组织稀释。
-- 存在型的获取条件与使用时机不同。例如附效攻击仍需由对应载体所在的攻击臂命中，饥饿效果仍需空手；振动感知只追踪已有目标的振动，不主动选取攻击目标。
-- 门槛型默认 50%；效果免疫对每一种效果分别累计免疫组织体积，达到 50% 即免疫该效果。数值项的 `min_coverage` 表示取值体积比例（默认 0.5），按供体数值从高到低截取这部分体积做加权平均；存在型和普通比例能力不读取它。
-- 附加获取条件由解析器统一检查，预览和实体共用：腿类只检查对应特性的有效腿数；游泳检查有效臂、腿的合计数量；扑翼飞行检查有效翼数量和翅膀承重，不区分左右翼；离水窒息受“无需呼吸”抑制。
-- `BionicTraitSet.coverage()` 对全身、躯干返回整体占比，对头、臂、腿返回单条肢体覆盖率的最大值；附加数量条件仍独立检查。`has()` 表示是否获取特性，`strength()` 返回实际系数（门槛型为 0/1，普通比例能力为占比，数值项的贡献系数在取值体积比例处饱和）。实体效果不再自行硬编码 50% 判定。
-- 特性提示只使用“头部、全身、躯干、手臂、腿部”五组，头部优先显示，其中性情、智力固定排在前两项，游泳专长归入“躯干”，只对比例型显示部分占比；已获得火焰／冻结免疫时隐藏对应抗性，已有摔落免疫时隐藏灵巧落地；门槛型未达标时显示“所在部位占比不足”。
-- 当前版本已通过 `BionicTraits.ENABLED = true` 启用特性功能；这是代码中的发布开关，不是存档配置项。
-
-## 代码职责与扩展入口
-
-| 层       | 入口                                                                   | 职责                                                                 |
-| -------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| 特性定义 | `BionicTrait` / `BionicTraitScope` / `BionicTraitRule`           | 定义特性、贡献组织和获取规则                                         |
-| 数据加载 | `BionicTraitDataLoader`                                              | 统一校验 JSON、合并供体覆盖、读取载体和参数；一个文件只解析一次      |
-| 数据版本 | `BionicTraitRegistry`                                                | 保存不可变数据快照；数据或实体标签更新时提升版本                     |
-| 供体事实 | `BionicTraitDonors`                                                  | 对同一生物档案只重建一次供体，检测所有特性；缓存按世界和数据版本隔离 |
-| 组织测量 | `BionicTissue` / `BionicTraitCarriers` / `BionicAnatomyRegistry` | 按安装范围选择分母，再按供体标签筛选分子；角色不参与分母筛选         |
-| 装配解析 | `BionicTraitResolver` / `BionicTraitConditions`                    | 先统一计算覆盖率，再检查承重和特性依赖                               |
-| 解析结果 | `BionicTraitSet` / `BionicTraitResult`                             | 同时保存占比、实际强度、数值、免疫集合、载体和未生效原因             |
-| 消费结果 | `SlimeBionicEntity.getBionicTraits()` / 手术台及纸箱 Tooltip         | 实体执行效果，提示展示同一判定；不再为了原因额外解析                 |
-
-新增同类特性时，在统一目录独立声明安装范围、载体、规则和返回值类型。只有新的自动探测方法、附加条件或游戏效果才需要扩展相应层。三个旧的身体/头部/器官特性枚举、独立解析器、结果类型及重复载体加载器已经移除。
+本表按当前工作区代码与数据整理 v3 特性规则与方法选用。现有 65 项经体表刺击并入接触反伤后共 64 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
 
 ## 一、通用规则
 
-### 1. 供体判定优先级
+### 1. 方法选用与标签
 
-每项特性对供体物种的判定顺序为 **自动探测 < 实体标签（`#tag`）< 单个实体 ID**，`false` 可撤销低优先级结果。JSON 中 `automatic_detection: false` 时只看 `values`。
+优先直接复用现有方法、Goal、控制器、导航、物品容器与模型部件。绑定供体具体实体类的内部方法，按原方法的分支、计数器、触发时机和调用顺序复刻。相似行为合并后选一个较常见供体作为统一模板，供体共同贡献同一项覆盖率。具有不同效果种类的投射、药效与施法沿用各自子项。
 
-所有目录现在采用同一覆盖顺序：先读 `create_biotech` 的规范文件，再按资源 ID 排序合并其他命名空间的同名文件；匹配标签按资源 ID 排序应用，最后应用精确实体 ID。规范文件控制规则、参数和载体，其他命名空间的 `values` 扩充供体。旧头部/器官加载器曾把规范文件混在命名空间排序中，本次统一为扩展文件可以覆盖默认值。
+“技能”标记参与索敌、寻路、移动控制、行为动作或主动施放的特性；“被动”标记体质、数值、命中附效与交互产出。技能的使用时机沿用模板 Goal／Brain 的 `canUse`、`start`、`tick`、`stop`、记忆及冷却流程。
 
-非法布尔值、负数、非有限数值和越界门槛被忽略并记录警告，保留默认值；存在型和普通比例能力不读取 `min_coverage`；数值项接受 (0, 1] 内的取值体积比例。
+装配占比、有效肢体数量、翅膀承重、史莱姆球驯服、主人关系、智力选择、装配座位及明确写出的现有装配系数沿用本项目规则。供体的行为时序按表内原版模板执行。伤害、传送、物品交互和方块变更接入当前 NeoForge 事件流程。
 
-### 2. 体块体积
+| 合并行为 | 统一模板 | 采用的方法 |
+| --- | --- | --- |
+| 接触反伤、体表刺击 | 守卫者 | `Guardian.hurt` 的静止反伤分支，沿用 2c 伤害 |
+| 末影人、潜影贝瞬移 | 末影人 | `EnderMan.hurt`、`teleport`、`teleportTowards` 与目标 Goal |
+| 潜影贝、犰狳缩壳 | 犰狳 | `ArmadilloBallUp` 与卷缩状态、减伤方法 |
+| 保湿依赖 | 海豚 | `Dolphin.tick` 的 2400 tick 保湿与干涸伤害 |
+| 离水窒息 | 鱼类 | `WaterAnimal.handleAirSupply` 的计时与伤害 |
+| 摔落抵抗 | 马 | 安全距离 6、伤害倍率 0.5 |
+| 近战击飞 | 铁傀儡 | 成功命中后纵向增加 0.4×抗击退系数 |
+| 中毒附效攻击 | 蜜蜂 | 按难度施加中毒的分支 |
+| 呼唤同伴 | 狼 | `HurtByTargetGoal.setAlertOthers` 的受伤呼援流程 |
+| 振翅缓降 | 鸡 | 下落纵向速度 ×0.6 |
+| 游泳物理 | 美西螈 | 平滑游泳控制、中性浮力与水中阻尼 |
 
-- 所有覆盖率都按体块**体积**加权。体积取捕获时每个模型体块的实际尺寸（方块³）；不足 1 像素的边按 1 像素计，因此平面的翅、鳍也有体积。
-- 手术台存档必须包含每个原始体块的有效体积；缺少体积的旧格式会被拒绝，不再回退或迁移。
+### 2. 范围、载体与覆盖率
 
-### 3. 躯干与全身覆盖率
+| 作用范围 | 代码 | 判定体块 |
+| --- | --- | --- |
+| 全身 | `WHOLE_BODY` | 全部保留体块 |
+| 躯干 | `TORSO` | 装配中归入躯干的保留体块 |
+| 头 | `HEAD` | 颈关节安装的唯一头部及所属体块 |
+| 臂 | `ARM` | 每条肩关节及所属肘关节链 |
+| 腿 | `LEG` | 每条髋关节及所属膝关节链 |
 
-```
-躯干覆盖率(特性) = Σ(具备该特性的供体安装在躯干的保留载体体块体积) / Σ(安装在躯干的全部保留体块体积)
-全身覆盖率(特性) = Σ(具备该特性的供体在全身任何部位的保留载体体块体积) / Σ(全身全部保留体块体积)
-```
+供体载体标签用于筛选贡献体块，作用范围由装配位置确定。覆盖率 c = 匹配供体及载体的体积 / 对应范围全部保留体块体积。全身、躯干整体统计；头、臂、腿逐条完整肢体链统计。体积采用捕获模型体块实际尺寸，平面体块每条边至少按 1 像素计。手术台以各原始体块保存的有效体积测量。
 
-- **躯干范围**：悬浮飞行、身体弹跳、抗击退、缩壳防御、游泳专长。其中缩壳防御只由壳标签载体贡献分子。头、手臂、腿等部位不参与这些特性的分子或分母。
-- **全身范围**：其余体质特性，以及效果免疫、天然护甲、自然恢复、体表刺击。头、臂、腿以及躯干上的任意载体均可贡献，不要求保留躯干，也不要求原始器官角色与安装部位匹配；体表刺击另外筛选刺标签载体。
-- 两种范围分别累计总体积。没有该特性的组织仍计入对应分母；已切除的体块不计入任何范围；同一保留体块在一个范围中只计算一次。
-- 例如：普通躯干体积 6、烈焰人手臂体积 2、普通头部体积 2，全身火焰抗性覆盖率为 `2 / (6 + 2 + 2) = 20%`；烈焰人手臂不会提供躯干范围的悬浮飞行。
-- 数值项在各自范围内，按供体数值从高到低取前 `min_coverage`（默认 50%）体积加权平均：天然护甲和自然恢复按全身，抗击退按躯干。截断供体只取剩余所需体积，正值组织不足时以 0 补足分母。例如一半僵尸组织（护甲 2）加一半普通组织仍有 2 护甲；四分之一僵尸组织则有 1 护甲；四分之一凋灵（4）加四分之一僵尸（2）加一半普通组织则有 3 护甲。没有躯干体积时，躯干数值为 0。
-- 效果免疫按每种效果分别检查全身覆盖率（默认 50%），不再取交集。若一半组织免疫中毒、另一半免疫凋零，则同时获得这两种免疫；每种效果独立使用相同 `min_coverage`。
-- 特性 ID 和统一 `bionic_traits/` JSON 路径构成当前格式；每项特性的范围由枚举中的 `scopes()` 明确声明。
+性情、智力采用安装在头部的供体原始头部保留比例，同一来源碎片按体块去重合并。呼吸载体优先使用鳃映射，供体采用头部映射时使用完整头部。有效腿按达标髋关节链计数；有效翼按达标肩关节链计数。扑翼飞行还采用现有承重比 16。
 
-### 4. 按独立肢体计算覆盖率
+### 3. 三类生效与数值
 
-全身和躯干继续使用上面的整体占比。头、臂、腿逐条计算：
+| 类别 | 判定 | 效果 |
+| --- | --- | --- |
+| 存在型 `PRESENCE` | 对应范围内保留匹配载体 | 获得完整特性 |
+| 门槛型 `COVERAGE_THRESHOLD` | 覆盖率达到 `min_coverage`，默认 0.5，并满足表内附加条件 | 获得固定效果 |
+| 比例型 `COVERAGE_SCALED` | c > 0 | 按覆盖率或数值汇总系数执行 |
 
-```
-某条肢体覆盖率 = Σ(该肢体内供体有该特性且载体匹配的保留体块体积)
-               / Σ(该肢体内全部保留体块体积)
-```
+天然护甲、抗击退、自然恢复、击退强化按供体数值从高到低取前 `min_coverage`（默认 50%）体积加权平均，剩余取值体积以 0 补齐。**汇总原始值达到 0.1 时生效，并四舍五入保留一位小数；计算与提示共用该结果。** 例如单一马系自然恢复约 0.0222／秒，对应有效汇总值为 0.0；完整劫掠兽抗击退贡献 0.75，量化后为 0.8。
 
-- **分母只看该条肢体**：头部取唯一头部的全部体块，每条手臂取自己的肩关节及所属肘关节链体块，每条腿取自己的髋关节及所属膝关节链体块。其他臂、腿不会稀释这一条；该条中没有角色标签或不具备该特性的普通组织仍计入分母。缩壳继续取全部躯干体块。
-- **分子再看载体**：供体物种具备该特性，且体块符合该特性 JSON 的 `carriers`（模型部件名或 `#体块ID`）；缺少可用声明时可使用捕获头部、解剖快照、已知模型部件名或 `bionic_anatomy/` 模板。全组织体质不筛选载体标签。
-- 呼吸特性只允许装在头部。供体原本能识别到鳃时使用鳃；原本没有鳃映射时回退到头部。切掉已知鳃不会重新回退到普通头部。
-- 翅膀装成臂即可提供扑翼飞行；装在躯干或腿不计入。每条臂内的左、右翼载体均可贡献覆盖率，达标的臂计为一个有效翼，默认需要至少两个（`min_wings`），不区分左右翼。升力只按达标臂中的翅膀载体体积计算，仍须足够承载身体。
-- 具备专门游泳能力的供体，其所有体块均可提供游泳专长；装入躯干的对应体块占全部躯干体积达到 50% 即生效。安装在头、臂、腿的体块不参与此特性判定，也不要求任何肢体数量。
-- 口器或毒刺装成臂可提供附效攻击（中毒）；装在头部或躯干不会提供近战附毒。体表刺击则允许刺体块位于全身任意器官。
-- 同一标签不意味着同一种安装限制：毒刺的近战附毒需要装成臂，体表刺击没有安装位置限制。
-- 不额外要求几何相连；切除的体块既不进分子也不进分母。存在型只要求允许范围内有匹配载体；门槛型和比例型按上述体积占比判断。
-- 生效结果的 `members` 只保留达标肢体中的载体，未达标肢体不会补足有效数量或升力；全部未达标时仍保留载体用于诊断。攻击类效果只由包含相应载体的攻击臂命中时触发。
+效果免疫按每种效果分别累计体积并判定门槛。附效攻击按命中臂上的对应载体执行。腿部特性按有效腿数判定；扑翼飞行按有效翼数与承重判定；游泳专长按躯干覆盖率判定。持续呼吸模式优先采用“无需呼吸”，其次采用水生或空气呼吸模式。
 
-### 5. 需要腿的器官特性
-
-灵巧落地、摔落抵抗、细雪行者、熔岩行者、攀墙额外要求：
-
-- `对应特性的有效腿数 ≥ min_legs`（灵巧落地、攀墙默认 2，其余默认 1）。有效腿须通过髋关节形成有效腿链，且该条腿自身的覆盖率达到门槛；膝关节不额外增加腿数。
-- 不再要求落地腿测量结果，也不再检查身体体积与腿载体体积之比，`max_body_volume_per_leg_volume` 不再使用。
-- 例如两条覆盖率均为 100% 的蜘蛛腿加六条普通腿，攀墙的有效腿数仍为 2；一条蜘蛛腿加七条普通腿只有 1 条有效腿，不能攀墙。同一条腿内混入普通组织则会降低该条腿的覆盖率。
-
-### 6. 未生效原因（Tooltip）
-
-| 原因键                           | 显示文本                 | 触发情形                                             |
-| -------------------------------- | ------------------------ | ---------------------------------------------------- |
-| `insufficient_coverage`        | 所在部位占比不足         | 载体体块在场，但局部覆盖率低于门槛                   |
-| `missing_paired_wings`         | 有效翅膀数量不足         | 有臂的翅膀覆盖率已达标，但有效翼数量不足             |
-| `body_measurement_unavailable` | 身体测量结果暂不可用     | 扑翼飞行缺少身体体积数据                             |
-| `purpose_mismatch`             | 装配用途或负载不符       | 有肢体达标，但有效腿数、游泳肢体数或翅膀负载不满足   |
-| `wrong_slot`                   | 未装在对应部位           | 载体仍在，但没有装在该器官对应部位                   |
-| `breathing_not_required`       | 无需呼吸，离水窒息不生效 | 已获取“无需呼吸”，抑制离水窒息                     |
-
-载体体块已全部切除，或该物种的载体无法识别时，不显示原因。
+供体覆盖按自动探测、实体标签、精确实体 ID 的顺序应用。规范文件位于 `data/create_biotech/bionic_traits/`；扩展命名空间的同名文件提供 `values` 覆盖。性情和智力分类分别沿用 `bionic_head/disposition/`、`bionic_head/intelligence/`。数值项的 `min_coverage` 表示取值体积比例，门槛型表示获取比例，存在型和普通比例型按各自规则计算。
 
 ## 二、按作用部位排列的特性总表（`bionic_traits`）
 
-下表按**全身、躯干、头、臂、腿**排列，收录全部 65 项特性。作用部位指装配后的生效范围；供体载体标签只筛选贡献体块，不代表安装位置。数值与效果免疫项一并归入各自的作用部位。
+下表每项均列出供体、载体、生效规则、效果与方法依据。全身和腿部的“摔落免疫”保留各自 ID 与获取范围。
 
-“生效条件 / 汇总方式”中的 c 为该特性声明范围内的覆盖率（0–1，按体积加权）。全身、躯干按整体计算，头、臂、腿按每条独立肢体计算。门槛型默认 `min_coverage = 0.5`，存在型不设门槛；腿部特性另需满足第一节第 5 条，扑翼飞行另需满足有效翼数量与承重条件。
+| 作用部位 | 特性 ID | 中文名 | 标签 | 供体载体 | 对应生物（来源） | 生效条件／汇总方式 | 效果 | 方法选用与依据 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 全身 | `fire_immune` | 火焰免疫 | 被动 | 供体全部保留体块 | 自动：`EntityType.fireImmune()`，即烈焰人、末影龙、恶魂、岩浆怪、潜影贝、炽足兽、监守者、凋灵、凋灵骷髅、僵尸疣猪兽、僵尸猪灵 | c ≥ 0.5 | 获得火焰伤害免疫与灭火效果；提示显示火焰免疫 | 复用 [Entity.fireImmune](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 与火焰伤害标签 |
+| 全身 | `fire_resistance` | 火焰抗性 | 被动 | 供体全部保留体块 | 同火焰免疫的供体，独立数据文件 | c > 0 | 火焰类伤害 ×(1−c)；提示在 c < 0.5 时显示 | 复用 [Entity.fireImmune](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 判定供体；沿用现有覆盖率减伤 |
+| 全身 | `water_sensitive` | 遇水受伤 | 被动 | 供体全部保留体块 | 自动：`isSensitiveToWater()`，即烈焰人、末影人、炽足兽、雪傀儡 | c ≥ 0.5 | 在水、雨或气泡中每 tick 尝试受到 1 点溺水伤害，沿用原版伤害冷却 | 复用 [LivingEntity.isSensitiveToWater / aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
+| 全身 | `freeze_immune` | 冻结免疫 | 被动 | 供体全部保留体块 | 自动：标签`freeze_immune_entity_types`，即流浪者、北极熊、雪傀儡、凋灵 | c ≥ 0.5 | 获得冻结与冰冻伤害免疫；提示显示冻结免疫 | 复用 [Entity.canFreeze](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 与 `FREEZE_IMMUNE_ENTITY_TYPES` |
+| 全身 | `freeze_resistance` | 冻结抗性 | 被动 | 供体全部保留体块 | 同冻结免疫的供体，独立数据文件 | c > 0 | 冰冻伤害 ×(1−c)；提示在 c < 0.5 时显示 | 复用 `FREEZE_IMMUNE_ENTITY_TYPES`；沿用现有覆盖率减伤，入口见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
+| 全身 | `freeze_vulnerable` | 冻结易伤 | 被动 | 供体全部保留体块 | 自动：标签`freeze_hurts_extra_types`，即炽足兽、烈焰人、岩浆怪 | c > 0 | 冰冻伤害 ×(1+4c)，与冻结抗性系数相乘 | 复用 `FREEZE_HURTS_EXTRA_TYPES`；按覆盖率映射原版 5 倍冰冻伤害，见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
+| 全身 | `sun_sensitive` | 阳光灼伤 | 被动 | 供体全部保留体块 | 数据：僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | c ≥ 0.5；满足 `isSunBurnTick()` | 日晒时点燃 8 秒；佩戴头盔时先按原方法消耗耐久 | 复用 [Mob.isSunBurnTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；复刻 [Zombie.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java) 的头盔耐久与点燃顺序 |
+| 全身 | `moisture_dependent` | 保湿依赖 | 被动 | 供体全部保留体块 | 数据：美西螈、海豚 | c ≥ 0.5；统一采用海豚模板 | 保湿值 2400 tick；水、雨或气泡使其补满，干燥时逐 tick 减少，归零后每 tick 尝试受到 1 点干涸伤害 | 以海豚为模板，复刻 [Dolphin.tick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Dolphin.java) 的保湿计时与伤害触发 |
+| 全身 | `heat_sensitive` | 高温灼伤 | 被动 | 供体全部保留体块 | 数据：雪傀儡 | c ≥ 0.5；位于 `snow_golem_melts` 群系 | 每 tick 尝试受到 1 点火焰伤害，沿用原版伤害冷却 | 复刻 [SnowGolem.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/SnowGolem.java) 的群系标签判断与伤害调用 |
+| 全身 | `inverted_healing` | 治疗反转 | 被动 | 供体全部保留体块 | 自动：`isInvertedHealAndHarm()`，即 `#undead`（骷髅类、僵尸类、凋灵、幻翼） | c ≥ 0.5 | 瞬间治疗与瞬间伤害效果互换 | 复用 [LivingEntity.isInvertedHealAndHarm](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 与原版瞬时效果入口 |
+| 全身 | `fall_damage_immune` | 摔落免疫 | 被动 | 供体全部保留体块 | 数据：岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 | c ≥ 0.5 | 获得摔落伤害免疫 | 复用 [LivingEntity.causeFallDamage](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 的摔落免疫分支 |
+| 全身 | `web_adapted` | 无视蛛网 | 被动 | 供体全部保留体块 | 数据：蜘蛛、洞穴蜘蛛 | c ≥ 0.5 | 穿过蛛网时保持正常移动速度 | 复刻 [Spider.makeStuckInBlock](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Spider.java) 的蛛网分支 |
+| 全身 | `projectile_deflection` | 弹射物偏转 | 被动 | 供体全部保留体块 | 自动：标签`deflects_projectiles`，即旋风人 | c ≥ 0.5 | 采用原版偏转策略；普通弹射物反弹，风弹沿用原版独立命中规则 | 复用 [Projectile.hitTargetOrDeflectSelf](../ref/1.21.1/Minecraft/net/minecraft/world/entity/projectile/Projectile.java) 与原版偏转策略 |
+| 全身 | `contact_retaliation` | 接触反伤 | 被动 | 守卫者、远古守卫者：全部保留体块；河豚：刺 `SPINE`（`body`／`spikes`／`spine`） | 守卫者、远古守卫者、河豚 | c > 0；静止防御状态下受到活体直接攻击 | 向攻击者造成 2c 点荆棘伤害；按守卫者的荆棘伤害标签判定适用伤害源 | 统一采用守卫者模板，复刻 [Guardian.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Guardian.java) 的触发条件；伤害沿用现有比例系数 |
+| 全身 | `immune_effects` | 免疫效果（…） | 被动 | 供体全部保留体块 | 自动：逐个效果调用`canBeAffected` 探测。`#undead` 免疫中毒和生命恢复；蜘蛛、洞穴蜘蛛免疫中毒；凋灵、凋灵骷髅免疫凋零；蠹虫免疫寄生；史莱姆免疫渗浆 | 每种效果各自的全身覆盖率 ≥ 0.5 | 获得各自达标的药水效果免疫，可同时获得多种免疫 | 逐效果复用 [LivingEntity.canBeAffected](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 及供体覆盖方法 |
+| 全身 | `natural_armor` | 天然护甲（…） | 被动 | 供体全部保留体块 | 自动读取基础护甲：僵尸、尸壳、溺尸、僵尸村民、僵尸猪灵 2；凋灵 4；岩浆怪为 Size×3；杀手兔 8 | 按数值最高的前 50% 全身体积加权平均；执行数值精度规则 | 结果作为成品护甲基础值 | 复用 `Attributes.ARMOR`；数值见 [Zombie.createAttributes](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java)、[WitherBoss.createAttributes](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java)、[MagmaCube.setSize](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/MagmaCube.java)、[Rabbit.setVariant](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Rabbit.java) |
+| 全身 | `passive_regeneration` | 自然恢复（…/秒） | 被动 | 供体全部保留体块 | 悦灵原始值 2.0／秒；凋灵原始值 1.0／秒；马系原始值约 0.0222／秒，按数值精度规则汇总 | 按数值最高的前 50% 全身体积加权平均；执行数值精度规则 | 生命值低于上限时恢复；每 10 tick 回复汇总每秒数值的一半 | 复用 `LivingEntity.heal`；数值见 [Allay.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/allay/Allay.java)、[WitherBoss.customServerAiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java)；以悦灵的 10 tick 节奏统一执行 |
+| 全身 | `enchant_vulnerability` | 附魔易伤（亡灵杀手／节肢杀手／穿刺） | 被动 | 全部保留体块 | 自动：对应 `sensitive_to_*` 实体标签 | 亡灵杀手、节肢杀手、穿刺子项各自覆盖率 ≥ 0.5 | 对应武器、箭与三叉戟附魔每级增加 2.5 点伤害；节肢杀手直接命中附加缓慢 IV，时间为 30–[30+10×(等级−1)] tick，按附魔效果定义执行 | 复用附魔注册表、`sensitive_to_*` 标签与 [EnchantmentHelper.modifyDamage / doPostAttackEffects](../ref/1.21.1/Minecraft/net/minecraft/world/item/enchantment/EnchantmentHelper.java)；沿用装配子项映射 |
+| 全身 | `ender_teleport` | 末影瞬移 | 技能 | 全部保留体块 | 末影人、潜影贝 | 末影人与潜影贝组织合计 c ≥ 0.5；统一采用末影人模板 | 弹射物命中时最多尝试 64 次 ±32 格瞬移；受到环境等伤害后以 90% 概率瞬移；注视状态下 4 格内随机闪避，远于 16 格时按原 Goal 连续计数后追近；清水药水先结算原版伤害 | 统一采用末影人模板，复刻 [EnderMan.hurt / teleport / teleportTowards / EndermanLookForPlayerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/EnderMan.java)；复用 `LivingEntity.randomTeleport` 与 NeoForge 瞬移事件 |
+| 全身 | `magic_resistance` | 魔法抗性 | 被动 | 全部保留体块 | 女巫 | c > 0 | `witch_resistant_to` 伤害 ×(1−0.85c) | 复刻 [Witch.getDamageAfterMagicAbsorb](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Witch.java) 的伤害标签分支；沿用覆盖率系数 |
+| 全身 | `wither_shield` | 凋灵护甲 | 被动 | 全部保留体块 | 凋灵 | c ≥ 0.5；生命值 ≤ 50% | 获得凋灵半血护甲对箭、三叉戟和风弹直接伤害的免疫 | 复刻 [WitherBoss.hurt / isPowered](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java) |
+| 躯干 | `wingless_flight` | 悬浮飞行 | 技能 | 供体全部保留体块 | 数据：恶魂、凋灵、烈焰人 | c ≥ 0.5 | 采用飞行移动与寻路、悬浮和摔落免疫；保留烈焰人供体的现有完整飞行效果 | 复用 [FlyingMoveControl](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/control/FlyingMoveControl.java)、[FlyingPathNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java)；沿用现有悬浮飞行规则 |
+| 躯干 | `body_bounce` | 身体弹跳 | 技能 | 供体全部保留体块 | 数据：史莱姆、岩浆怪 | c > 0 | 沿用现有装配弹跳：起跳时额外增加 0.1c 纵向速度 | 复刻 [Slime.jumpFromGround](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Slime.java) 的起跳赋值流程；沿用现有 +0.1c 系数 |
+| 躯干 | `swim_specialist` | 游泳专长 | 技能 | 供体全部保留体块 | 自动：`WaterAnimal`、`Drowned`，或使用水中／两栖导航、平滑游泳控制的生物；原版供体见反查表 | 供体体块安装在躯干，c ≥ 0.5 | 水中输入 ×1.35；采用平滑游泳控制、两栖寻路与水中漫游，按美西螈中性浮力及 0.9 阻尼移动 | 复用 [SmoothSwimmingMoveControl](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/control/SmoothSwimmingMoveControl.java)、[AmphibiousPathNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/AmphibiousPathNavigation.java)；统一复刻 [Axolotl.travel](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/axolotl/Axolotl.java) 的游泳物理 |
+| 躯干 | `shell_defense` | 缩壳防御 | 技能 | 壳`SHELL`：潜影贝为 `lid`；犰狳为 `body` | 潜影贝、犰狳 | 壳载体安装在躯干，c ≥ 0.5；统一采用犰狳模板 | 由危险记忆触发卷缩，按原版 ROLLING／SCARED／UNROLLING 状态推进、停止移动和恢复；卷缩伤害按 (伤害−1)/2 结算 | 统一采用犰狳模板，复刻 [Armadillo.rollUp / rollOut / hurt / canStayRolledUp](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/armadillo/Armadillo.java) 与 [ArmadilloAi.ArmadilloBallUp](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/armadillo/ArmadilloAi.java) |
+| 躯干 | `knockback_resistance` | 抗击退（…%） | 被动 | 供体全部保留体块 | 自动：抗击退基础值，即铁傀儡 1.0、监守者 1.0、劫掠兽 0.75、疣猪兽 0.6、僵尸疣猪兽 0.6 | 按数值最高的前 50% 躯干体积加权平均；执行数值精度规则 | 成品抗击退 = min(1.0，0.15+汇总值)；供体汇总值保留一位小数，基础抗击退沿用 0.15 | 复用 `Attributes.KNOCKBACK_RESISTANCE` 与 [LivingEntity.knockback](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
+| 躯干 | `rideable` | 可骑乘 | 技能 | 供体全部保留体块 | 自动：`Saddleable`，即马、驴、骡、骷髅马、僵尸马、骆驼、羊驼、行商羊驼、猪、炽足兽 | c ≥ 0.5；身体体积 ≥ 0.5 方块³ | 每个体块独立装鞍，空手点击对应体块骑乘，沿用直接操控。骆驼体块保留前后双座和冲刺，强健跳跃支持蓄力跳；飞行、游泳按视线升降，跳跃键上升；驯服型由主人骑乘 | 复用 [Saddleable](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Saddleable.java)、[LivingEntity.tickRidden](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java)；复刻 [AbstractHorse.getRiddenInput / executeRidersJump](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java)、[Camel.executeRidersJump](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/camel/Camel.java)；复刻 [Camel.getPassengerAttachmentPoint](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/camel/Camel.java) 的前后座次，按所点体块记录座位 |
+| 躯干 | `cargo_chest` | 驮运箱 | 被动 | 供体全部保留体块 | 自动：`AbstractChestedHorse`，即驴、骡、羊驼、行商羊驼 | c ≥ 0.5 | 右击对应体块装箱，潜行空手点击该体块开箱；各箱容量相加，分别存物；驴、骡每箱 15 格，羊驼每箱 Strength×3 格；左右箱模型随该体块渲染；潜行持斧拆卸对应空箱，死亡掉落箱子与内容，驯服型由主人操作 | 复用 `SimpleContainer`；复刻 [AbstractChestedHorse.equipChest / setChest / 存档与掉落](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractChestedHorse.java)、[AbstractHorse.createInventory](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java) 与 [HorseInventoryMenu](../ref/1.21.1/Minecraft/net/minecraft/world/inventory/HorseInventoryMenu.java) 的槽位逻辑；模型见补充 |
+| 躯干 | `sonic_boom` | 音波冲击 | 技能 | 躯干`TORSO`：监守者 `body`、`right_ribcage`、`left_ribcage` | 数据：监守者 | 监守者胸腔载体安装在躯干，c ≥ 0.5；目标处于水平 15 格、垂直 20 格内 | 蓄力 34 tick，动作 60 tick，结束后冷却 40 tick；命中造成 10 点音波伤害；成功伤害后沿射线按水平 2.5、纵向 0.5 及抗击退系数推开目标；近战命中按原方法设置冷却 | 复刻 [SonicBoom.checkExtraStartConditions / start / tick / stop](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/behavior/warden/SonicBoom.java)；复用 `SonicBoom.setCooldown` 与音波伤害源 |
+| 躯干 | `self_destruct` | 自爆 | 技能 | 供体全部保留体块 | 数据：苦力怕 | c ≥ 0.5；自主索敌型或主人点燃 | 目标进入 3 格时停止寻路并膨胀；目标保持 7 格内且可见时继续，否则回缩；30 tick 后爆炸，威力 3，闪电充能后为 6；点燃后持续倒计时，爆炸后消亡并生成现有药效云 | 复刻 [SwellGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SwellGoal.java) 和 [Creeper.tick / explodeCreeper / spawnLingeringCloud](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Creeper.java)；沿用主人点燃规则 |
+| 躯干 | `milkable` | 可挤奶 | 被动 | 躯干 `TORSO`：`body` | 数据：成年牛、哞菇、山羊 | 成年供体 `body` 安装在躯干，c ≥ 0.5 | 空桶获得牛奶，哞菇供体另可用碗获得蘑菇煲；可连续交互并支持机械手 | 以牛为挤奶模板，复刻 [Cow.mobInteract](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Cow.java)；蘑菇煲复刻 [MushroomCow.mobInteract](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/MushroomCow.java)；复用 `ItemUtils.createFilledResult` |
+| 躯干 | `wool_shearing` | 可剪毛 | 技能 | 羊身子 `TORSO`：`body`；羊毛 `WOOL`：`wool` | 数据：成年绵羊 | 存在型：躯干内同时保留羊毛和羊身子，无覆盖率门槛 | 剪下 1–3 个供体颜色的羊毛；羊毛按拟态生物的被剪毛状态显隐；`EatBlockGoal` 吃草完成后由 `ate()` 恢复羊毛；支持机械手剪刀 | 复用 [EatBlockGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/EatBlockGoal.java)；复刻 [Sheep.shear / ate / readyForShearing](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Sheep.java)；羊毛材质来自 [SheepFurLayer](../ref/1.21.1/Minecraft/net/minecraft/client/renderer/entity/layers/SheepFurLayer.java) |
+| 躯干 | `egg_laying` | 产蛋 | 被动 | 躯干 `TORSO`：`body` | 数据：成年鸡 | 成年鸡 `body` 安装在躯干，c ≥ 0.5；供体满足原版产蛋状态 | 每 6000–11999 tick 产 1 个蛋；倒计时随实体保存 | 复刻 [Chicken.aiStep / 存档计时](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Chicken.java) |
+| 躯干 | `scute_shedding` | 脱落鳞甲 | 被动 | 壳 `SHELL`：`body` | 数据：成年犰狳 | 成年犰狳壳体 `body` 安装在躯干，c ≥ 0.5 | 每 6000–11999 tick 脱落 1 个鳞甲；刷子额外刷下 1 个并消耗 16 耐久；倒计时随实体保存 | 复刻 [Armadillo.customServerAiStep / pickNextScuteDropTime / brushOffScute / mobInteract](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/armadillo/Armadillo.java) |
+| 头 | `disposition` | 性情（友好／中立／敌对） | 技能 | 头 `HEAD`，包括捕获头部 | 自动：`NeutralMob` 优先为中立，`Enemy` 为敌对，其余友好；`bionic_head/disposition/` 可覆盖 | 保留供体原始头部体积 ≥ 50%，同源碎片合并 | 友好、中立、敌对按供体分类；混合性情取中立；提示与索敌共用结果 | 复用 `NeutralMob`、`Enemy` 分类与 [BionicDispositionRegistry](../src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicDispositionRegistry.java) 的现有规则 |
+| 头 | `intelligence` | 智力（简单／普通／高级） | 技能 | 头 `HEAD`，包括捕获头部 | 自动：`AbstractVillager`、`AbstractPiglin`、`Raider` 及其模组子类高级，其余普通；数据包可覆盖，简单只能由数据包指定 | 保留供体原始头部体积 ≥ 50%，同源碎片合并 | 简单、普通、高级取最高有效等级；默认普通；按等级使用现有攻击选择策略 | 复用 [BionicIntelligenceRegistry](../src/main/java/com/nobodiiiii/createbiotech/entity/ai/BionicIntelligenceRegistry.java) 的现有分类与智力策略 |
+| 头 | `no_breathing` | 无需呼吸 | 被动 | 头 `HEAD` | 数据：`#minecraft:undead` | 头部载体覆盖率 ≥ 0.5 | 获得水下与陆地持续呼吸；呼吸提示优先显示本项 | 复用 `UNDEAD` 供体标签与 [LivingEntity.baseTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 的呼吸流程 |
+| 头 | `water_breathing` | 水下呼吸 | 被动 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪为 `body`；美西螈为 `topGills` / `leftGills` / `rightGills` / `head`；守卫者、远古守卫者、海龟为 `head`；海豚使用头 `HEAD` | 自动读取水下呼吸标签、NeoForge 水中溺水判定和长氧气供体：美西螈、青蛙、守卫者、远古守卫者、海龟、鱿鱼、发光鱿鱼、鳕鱼、鲑鱼、河豚、热带鱼、蝌蚪、海豚 | 头部安装范围内有对应载体 | 获得完整水下呼吸；海豚供体沿用现有完整水下呼吸转换 | 复用 `CAN_BREATHE_UNDER_WATER`、NeoForge `canDrownInFluidType` 与 [LivingEntity.getMaxAirSupply](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java)；沿用现有头部能力转换 |
+| 头 | `dry_suffocation` | 离水窒息（负面） | 被动 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；其余为 `body` | 数据：鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪 | 头部载体覆盖率 ≥ 0.5；采用水生呼吸模式 | 离水时按鱼类氧气计数：初始 300 tick，计数至 -20 时受到 2 点溺水伤害并重置为 0；水或气泡使氧气补满 | 统一采用鱼类模板，复刻 [WaterAnimal.handleAirSupply](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/WaterAnimal.java) 的 300 tick 初始氧气与 -20 tick 伤害周期 |
+| 头 | `tameable` | 可驯服 | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`；马、驴、骡、羊驼、行商羊驼；数据补充：狐狸、豹猫、悦灵 | 头部安装范围内有对应载体 | 喂史莱姆球获得主人；主人空手切换坐下，超过 10 格开始跟随、近于 2 格停止，远距离按跟随 Goal 尝试回到主人身边；协助主人战斗；分裂史莱姆继承主人 | 沿用史莱姆球驯服与主人继承；复刻 [FollowOwnerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FollowOwnerGoal.java)、[SitWhenOrderedToGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SitWhenOrderedToGoal.java) 与 [TamableAnimal.tryToTeleportToOwner](../ref/1.21.1/Minecraft/net/minecraft/world/entity/TamableAnimal.java) 的行为流程 |
+| 头 | `vibration_sense` | 振动感知 | 技能 | 头 `HEAD`：`head`、`head_cube`、`left_tendril`、`right_tendril` | 监守者 | 头部安装范围内有对应载体；正在追踪目标 | 监听 12 格内已有目标的游戏振动，按潜行与羊毛隔振规则接收；追踪最近声源位置并保留 40 tick 记忆 | 复用 [VibrationSystem.Listener / Ticker / User](../ref/1.21.1/Minecraft/net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java) 与现有 [目标跟踪接入](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicVibrationSense.java) |
+| 头 | `water_aversion` | 避水偏好 | 技能 | 头 `HEAD`：`head`、`head_cube` | 末影人 | 头部安装范围内有对应载体 | 水域节点代价设为 -1.0，按末影人原版避水规则选择路线 | 复用 [Mob.setPathfindingMalus](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；水域代价取 [EnderMan 构造器](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/EnderMan.java) |
+| 头 | `deterrence` | 生物威慑 | 技能 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 头部安装范围内有对应载体 | 按现有威慑关系适配目标生物的避让 Goal／Brain；距离、速度、概率和记忆时长采用关系表模板 | 复用 [AvoidEntityGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/AvoidEntityGoal.java)；Brain 生物沿用 [VillagerHostilesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/VillagerHostilesSensor.java)、[PiglinAi.avoidZombified](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java)；按关系表适配威胁身份 |
+| 头 | `hunting_instinct` | 捕猎本能（目标生物…） | 技能 | 头 `HEAD`，包括捕获头部 | 见本表“捕猎关系” | 头部安装范围内有对应载体；目标满足捕猎关系表 | 按供体目标谓词、距离、亮度、驯服状态和冷却主动捕猎；沿用主人与盟友关系 | 复用原版目标 Goal、[AxolotlAttackablesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/AxolotlAttackablesSensor.java) 与 [PiglinAi](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java) 的目标谓词；复刻供体约束，见捕猎关系表 |
+| 头 | `pack_alert` | 呼唤同伴 | 技能 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 头部安装范围内有对应载体；进入原版受伤报复流程；统一采用狼模板 | 按原版伤害时间戳触发，通知跟随范围与纵向 ±10 格内符合关系的同伴，沿用原方法的目标与盟友判定；同伴身份映射到供体与主人关系 | 统一采用狼的受伤呼援模板，复用 `HurtByTargetGoal.setAlertOthers / alertOther`；供体入口见 [Wolf.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Wolf.java)；同伴身份沿用供体与主人关系 |
+| 头 | `roar` | 咆哮 | 技能 | 头`HEAD`／角 `HORN`：劫掠兽的 `head`、`mouth`、`left_horn`、`right_horn` | 数据：劫掠兽 | 头部安装范围内有对应载体；近战被盾牌格挡 | 50% 概率眩晕 40 tick，随后进入 20 tick 咆哮阶段，在剩余 10 tick 时结算；4 格范围内按劫掠兽的伤害与击退筛选造成 6 点伤害和强力击退，另一分支直接强力推开格挡者 | 复刻 [Ravager.blockedByShield / aiStep / roar / strongKnockback](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Ravager.java) |
+| 头 | `head_projectile` | 头部投射 | 技能 | 头`HEAD`：各供体的头部件，见子表 4 | 数据：羊驼、行商羊驼、雪傀儡、烈焰人、恶魂、潜影贝、凋灵、末影龙、旋风人 | 头部安装范围内有对应载体；按智力选择现有投射子项 | 从头部载体质心发射对应原版弹射物，目标选择、预热、射速、连发、散布和冷却采用投射子表；沿用主人、盟友、爆炸与引火规则；龙息云可装瓶 | 复用 [RangedAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/RangedAttackGoal.java) 与原版弹射物实体；按投射子表复刻供体发射方法 |
+| 头 | `guardian_beam` | 守卫者光束 | 技能 | 眼`EYE`：守卫者、远古守卫者的 `eye` | 数据：守卫者、远古守卫者 | 头部安装范围内有眼载体；目标可见，普通守卫者距离 >3 格 | 停止寻路并注视目标，预热 10 tick，普通照射 80 tick、远古 60 tick；失去视线时清除攻击目标；结算基础魔法伤害 1（困难 +2、远古 +2）及原版近战伤害 6／8 | 复刻 [Guardian.GuardianAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Guardian.java) 与 [ElderGuardian.getAttackDuration](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/ElderGuardian.java) |
+| 臂 | `wing_flight` | 扑翼飞行 | 技能 | 左翅`LEFT_WING` 或右翅 `RIGHT_WING`：`leftWing` / `left_wing` / `leftWingBase` / `leftWingTip` 等及其右侧对应部件 | 蜜蜂、鹦鹉、蝙蝠、幻翼、悦灵、恼鬼、末影龙 | 翅膀安装为臂；每臂 c ≥ 0.5；有效翼 ≥2；身体体积 ≤16×有效翼载体体积 | 单臂翼覆盖率达标后作为翅膀；飞行按有效翼数与承重判定，播放供体飞行动画并提供摔落免疫；臂腿行走由装配关节动作驱动，攻击臂集合由普通手臂组成 | 复用飞行控制器、导航与供体 `setupAnim`；模型依据见 [BeeModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/BeeModel.java)、[BatModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/BatModel.java)；装配动作见补充 |
+| 臂 | `effect_attack` | 附效攻击（中毒／凋零／饥饿） | 被动 | 中毒：口器 `MOUTH` 或刺 `SPINE`；凋零、饥饿：攻击手 `ATTACK_HAND` | 洞穴蜘蛛、蜜蜂、河豚：中毒；凋灵骷髅：凋零；尸壳：饥饿 | 对应口器、刺或攻击手装为臂，并由该臂命中；饥饿采用空手命中 | 中毒统一采用蜜蜂模板：普通 200 tick、困难 360 tick；凋零 I 200 tick；饥饿 I 140×局部有效难度整数 tick；每效果保留现有概率、等级与载体参数 | 复用 `LivingEntity.addEffect`；中毒统一取 [Bee.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Bee.java)，凋零取 [WitherSkeleton.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/WitherSkeleton.java)，饥饿取 [Husk.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Husk.java) |
+| 臂 | `attack_knockback` | 击退强化（数值） | 被动 | 全部保留体块 | 自动读取基础攻击击退：疣猪兽、僵尸疣猪兽 1.0；劫掠兽、监守者 1.5 | 每条臂按数值最高的前 50% 体积加权平均；执行数值精度规则 | 使用出手臂的值；原版近战额外击退强度为值×0.5；提示显示最高臂值 | 复用 `Attributes.ATTACK_KNOCKBACK` 与 [Mob.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java) 的额外击退流程 |
+| 臂 | `door_handling` | 破门 | 技能 | 对应供体全部保留体块，装配范围 `ARM` | 僵尸、尸壳、僵尸村民、僵尸猪灵 | 对应供体体块安装为臂，载体存在；困难难度且采用地面寻路 | 对路径中的关闭木门持续破坏 240 tick，采用原版破门进度与事件流程 | 直接复用 [BreakDoorGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/BreakDoorGoal.java) 与 [DoorInteractGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java)；载体取安装为手臂的供体体块 |
+| 臂 | `wing_slow_fall` | 振翅缓降 | 技能 | 左右翅 `LEFT_WING` / `RIGHT_WING` | 鸡、鹦鹉 | 翅膀安装为臂；每臂 c ≥ 0.5；有效翼 ≥2 | 下降速度每 tick ×0.6并获得摔落免疫；翼臂播放供体振翅动作；飞行提示优先于缓降提示 | 以鸡为模板，复刻 [Chicken.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Chicken.java) 的下降 ×0.6；复用供体翅膀动画 |
+| 臂 | `launch_strike` | 近战击飞 | 被动 | 铁傀儡攻击手、末影龙翼、山羊／成年疣猪兽／成年僵尸疣猪兽的角 `HORN` | 铁傀儡、末影龙、山羊、成年疣猪兽、成年僵尸疣猪兽 | 对应载体装为臂，并由该臂成功命中；统一采用铁傀儡模板 | 目标纵向速度增加 0.4×max(0，1−抗击退)，每次命中执行一次 | 统一采用铁傀儡模板，复刻 [IronGolem.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/IronGolem.java) 中命中成功后的纵向击飞段 |
+| 臂 | `loot_pickup` | 拾取装备 | 技能 | 攻击手`ATTACK_HAND`：`right_arm`、`left_arm` | 数据：僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、骷髅、流浪者、沼骸、凋灵骷髅、猪灵 | 对应攻击手载体装为臂；处于可拾取状态 | 按 `Mob.aiStep` 的拾取时机检查邻近掉落物，复用原版装备优劣判定，将更好的近战武器交给对应攻击臂；主人可潜行右击交接武器 | 复用 [Mob.aiStep / pickUpItem / equipItemIfPossible / canReplaceCurrentItem](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；沿用攻击臂接收武器与主人交接 |
+| 臂 | `spellcasting` | 施法 | 技能 | 攻击手`ATTACK_HAND`：唤魔者的 `arms`、`right_arm`、`left_arm`；女巫的 `arms` | 数据：唤魔者、女巫 | 对应攻击手载体装为臂；按智力选择现有施法子项 | 尖牙：预热 20 tick、施法姿态 40 tick、从施法开始计 100 tick 再次可用，近处双环、远处 16 个；药水：10 格射程、60 tick 间隔，按女巫方法选择药水与弹道 | 复用 `RangedAttackGoal`、`ThrownPotion`、`EvokerFangs`；复刻 [SpellcasterUseSpellGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/SpellcasterIllager.java)、[EvokerAttackSpellGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Evoker.java) 和 [Witch.performRangedAttack](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Witch.java) |
+| 腿 | `agile_landing` | 摔落免疫 | 被动 | 腿`LEG`：四肢部件名（`leftHindLeg` / `rightFrontLeg` 等） | 自动：猫、豹猫（且属于`fall_damage_immune`） | 每条腿 c ≥ 0.5；有效腿 ≥2 | 获得摔落伤害免疫；与全身摔落免疫共用中文名，提示按生效部位归组 | 复用 `FALL_DAMAGE_IMMUNE` 标签与 [LivingEntity.causeFallDamage](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java)；沿用有效腿数判定 |
+| 腿 | `fall_reduction` | 摔落抵抗 | 被动 | 腿`LEG`：四肢部件名 | 马、驴、骡、羊驼、行商羊驼、山羊 | 每条腿 c ≥ 0.5；有效腿 ≥1；统一采用马模板 | 安全摔落距离 6 格，摔落伤害倍率 0.5；保留现有参数配置入口 | 以马为模板，复用 [AbstractHorse.createBaseHorseAttributes / causeFallDamage](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java) 的 `SAFE_FALL_DISTANCE=6` 与倍率 0.5 |
+| 腿 | `powder_snow_walk` | 细雪行者 | 被动 | 足`FOOT`：兔、狐狸为四肢部件名；蠹虫、末影螨为 `body` / `segment0` / `segment_0` | 自动：标签`powder_snow_walkable_mobs`，即兔、狐狸、蠹虫、末影螨 | 每条腿 c ≥ 0.5；有效腿 ≥1 | 在细雪表面行走 | 复用 [PowderSnowBlock.canEntityWalkOnPowderSnow](../ref/1.21.1/Minecraft/net/minecraft/world/level/block/PowderSnowBlock.java) 与现有足部接入 |
+| 腿 | `lava_walk` | 熔岩行者 | 技能 | 足`FOOT`：`leftLeg` / `rightLeg` / `left_leg` / `right_leg` | 炽足兽 | 每条腿 c ≥ 0.5；有效腿 ≥1 | 采用炽足兽的熔岩节点、半格表面支撑、浸没上浮与熔岩内摔落距离重置 | 复用地面导航；复刻 [Strider.floatStrider / canStandOnFluid / StriderPathNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Strider.java) |
+| 腿 | `wall_climb` | 攀墙 | 技能 | 腿`LEG`：蜘蛛的 8 条腿部件 | 蜘蛛、洞穴蜘蛛 | 每条腿 c ≥ 0.5；有效腿 ≥2 | 水平碰撞时进入原版攀爬移动流程 | 复刻 [Spider.tick / onClimbable / setClimbing](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Spider.java)；复用原版攀爬移动流程 |
+| 腿 | `strong_jump` | 强健跳跃 | 技能 | 腿 `LEG`；兔后腿和后足 | 马、骷髅马、僵尸马、兔、山羊、青蛙 | 每条腿 c ≥ 0.5；有效腿 ≥2 | 沿用现有起跳速度 +0.2、两格高台寻路与普通迈步高度；骑乘时蓄力倍率 0.4–1.0 | 复用 [LivingEntity.jumpFromGround](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java)、[AbstractHorse.onPlayerJump / executeRidersJump](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java)；沿用现有 +0.2 与两格寻路参数 |
+| 腿 | `snow_trail` | 积雪足迹 | 被动 | 足`FOOT`：雪傀儡的 `lower_body` | 数据：雪傀儡 | 每条腿 c ≥ 0.5；有效腿 ≥1 | 在脚下四角可放置位置留下雪片；沿用现有全气候积雪规则与生物破坏事件 | 复刻 [SnowGolem.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/SnowGolem.java) 的四点放雪循环；沿用现有气候参数 |
+| 腿 | `pollination` | 授粉催熟 | 技能 | 蜜蜂全部保留体块 | 数据：蜜蜂 | 蜜蜂任意体块安装为腿；每条腿 c ≥ 0.5；有效腿 ≥1 | 按蜜蜂 Goal 寻找 5 格内有效花，成功采粉超过 400 tick 后携粉；按原版随机促生触发、作物标签与年龄推进规则处理脚下 1–2 格作物，每次采粉最多促生 10 次 | 复刻 [Bee.BeePollinateGoal / BeeGrowCropGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Bee.java)；供体载体取蜜蜂全部体块 |
 
-| 作用部位 | 特性 ID | 中文名 | 供体载体标签（不代表安装位置） | 对应生物（来源） | 生效条件 / 汇总方式 | 效果 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 全身 | `fire_immune` | 火焰免疫 | 供体所有体块，不筛选载体标签 | 自动：`EntityType.fireImmune()`，即烈焰人、末影龙、恶魂、岩浆怪、潜影贝、炽足兽、监守者、凋灵、凋灵骷髅、僵尸疣猪兽、僵尸猪灵 | c ≥ 0.5 | 不受火焰伤害，不会着火；获得后隐藏火焰抗性 |
-| 全身 | `fire_resistance` | 火焰抗性 | 供体所有体块，不筛选载体标签 | 同火焰免疫的供体，独立数据文件 | c > 0 | 对应伤害 ×(1 − c)；有火焰免疫时隐藏 |
-| 全身 | `water_sensitive` | 遇水受伤 | 供体所有体块，不筛选载体标签 | 自动：`isSensitiveToWater()`，即烈焰人、末影人、炽足兽、雪傀儡 | c ≥ 0.5 | 沿用原版遇水受伤：水、雨、气泡中受 1 点溺水伤害；未达标无部分效果 |
-| 全身 | `freeze_immune` | 冻结免疫 | 供体所有体块，不筛选载体标签 | 自动：标签`freeze_immune_entity_types`，即流浪者、北极熊、雪傀儡、凋灵 | c ≥ 0.5 | 不会被冻结，不受冰冻伤害；获得后隐藏冻结抗性 |
-| 全身 | `freeze_resistance` | 冻结抗性 | 供体所有体块，不筛选载体标签 | 同冻结免疫的供体，独立数据文件 | c > 0 | 对应伤害 ×(1 − c)；有冻结免疫时隐藏 |
-| 全身 | `freeze_vulnerable` | 冻结易伤 | 供体所有体块，不筛选载体标签 | 自动：标签`freeze_hurts_extra_types`，即炽足兽、烈焰人、岩浆怪 | c > 0 | 冰冻伤害 ×(1 + 4c)，与冻结抗性相乘 |
-| 全身 | `sun_sensitive` | 阳光灼伤 | 供体所有体块，不筛选载体标签 | 数据：僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | c ≥ 0.5，处于原版日晒燃烧条件 | 符合日晒条件时着火 8 秒；戴头盔时改为消耗头盔耐久 |
-| 全身 | `moisture_dependent` | 保湿依赖 | 供体所有体块，不筛选载体标签 | 数据：美西螈、海豚 | c ≥ 0.5 | 离开水、雨、气泡后 2400 tick 倒计时，归零后每秒受 1 点干涸伤害 |
-| 全身 | `heat_sensitive` | 高温灼伤 | 供体所有体块，不筛选载体标签 | 数据：雪傀儡 | c ≥ 0.5，位于 `snow_golem_melts` 群系 | 每 tick 尝试受到 1 点火焰伤害（仍受伤害冷却影响） |
-| 全身 | `inverted_healing` | 治疗反转 | 供体所有体块，不筛选载体标签 | 自动：`isInvertedHealAndHarm()`，即 `#undead`（骷髅类、僵尸类、凋灵、幻翼） | c ≥ 0.5 | 瞬间治疗 / 瞬间伤害效果反转 |
-| 全身 | `fall_damage_immune` | 摔落免疫 | 供体所有体块，不筛选载体标签 | 数据：岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 | c ≥ 0.5 | 不受摔落伤害 |
-| 全身 | `web_adapted` | 无视蛛网 | 供体所有体块，不筛选载体标签 | 数据：蜘蛛、洞穴蜘蛛 | c ≥ 0.5 | 蜘蛛网不减速 |
-| 全身 | `projectile_deflection` | 弹射物偏转 | 供体所有体块，不筛选载体标签 | 自动：标签`deflects_projectiles`，即旋风人 | c ≥ 0.5 | 反弹弹射物（风弹除外） |
-| 全身 | `contact_retaliation` | 接触反伤 | 供体所有体块，不筛选载体标签 | 数据：守卫者、远古守卫者 | c > 0，被活体直接攻击 | 攻击者受 2c 点荆棘伤害（荆棘类伤害和`avoids_guardian_thorns` 除外） |
-| 全身 | `active_spines` | 体表刺击 | 刺`SPINE`：`body` / `spikes` / `spine` | 河豚 | **全身任意位置**的刺载体存在（不设占比门槛）；被伤害后，或每 10 tick 检测到 1 格内有非友方活体时激活，持续 100 tick | 激活期间每秒对贴身（外扩 0.2 格）的非友方活体造成 1 点荆棘伤害，并施加中毒 60 tick |
-| 全身 | `immune_effects` | 免疫效果（…） | 供体所有体块，不筛选载体标签 | 自动：逐个效果调用`canBeAffected` 探测。`#undead` 免疫中毒和生命恢复；蜘蛛、洞穴蜘蛛免疫中毒；凋灵、凋灵骷髅免疫凋零；蠹虫免疫寄生；史莱姆免疫渗浆 | 每个效果的免疫组织覆盖率分别 ≥ 0.5 | 拒绝分别达标的药水效果，可以同时获得多个免疫 |
-| 全身 | `natural_armor` | 天然护甲（…） | 供体所有体块，不筛选载体标签 | 自动：护甲基础值，即僵尸、尸壳、溺尸、僵尸村民、僵尸猪灵 2，凋灵 4 | 数值最高的前 50% 全身体积加权平均 | 设为成品护甲基础值 |
-| 全身 | `passive_regeneration` | 自然恢复（…/秒） | 供体所有体块，不筛选载体标签 | 数据（不自动探测）：悦灵 2.0；凋灵 1.0；马、驴、骡、羊驼、行商羊驼、骷髅马、僵尸马、骆驼 0.0222 | 数值最高的前 50% 全身体积加权平均 | 未满血时每秒回复对应生命值 |
-| 全身 | `enchant_vulnerability` | 附魔易伤（亡灵杀手／节肢杀手／穿刺） | 所有体块 | 自动：对应 `sensitive_to_*` 实体标签 | 每个子项全身覆盖率分别 ≥ 0.5 | 对应武器、箭或三叉戟附魔每级 +2.5 伤害；节肢杀手直接命中附加缓慢 IV 30–30+10×(等级−1) tick |
-| 全身 | `ender_teleport` | 末影瞬移（末影人／潜影贝） | 所有体块 | 末影人、潜影贝 | 两种供体全身覆盖率分别 ≥ 0.5 | 末影人：弹射物最多 64 次 ±32 格闪避、非活体伤害后 90% 瞬移、每 30 tick 追赶 16 格外目标；潜影贝：受伤后低于半血时 25% 在 ±8 格瞬移，最多尝试 5 次。坐下、被拴、骑乘时禁用；遵守 NeoForge 瞬移事件 |
-| 全身 | `magic_resistance` | 魔法抗性 | 所有体块 | 女巫 | c > 0 | `witch_resistant_to` 伤害 ×(1−0.85c) |
-| 全身 | `wither_shield` | 凋灵护甲 | 所有体块 | 凋灵 | c ≥ 0.5 | 生命 ≤ 50% 时免疫箭、三叉戟和风弹的直接伤害 |
-| 躯干 | `wingless_flight` | 悬浮飞行 | 供体所有体块，不筛选载体标签 | 数据：恶魂、凋灵、烈焰人 | c ≥ 0.5 | 切换为飞行移动与寻路、无重力；免疫摔落（烈焰人的身体缓降合并至此） |
-| 躯干 | `body_bounce` | 身体弹跳 | 供体所有体块，不筛选载体标签 | 数据：史莱姆、岩浆怪 | c > 0 | 起跳时额外 +0.1c 纵向速度 |
-| 躯干 | `swim_specialist` | 游泳专长 | **供体所有体块**，不筛选载体标签 | 自动识别具备专门游泳能力的生物：原版包括鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、海豚、海龟、美西螈、守卫者、远古守卫者、青蛙、蝌蚪、溺尸；兼容满足相同条件的模组生物 | **安装在躯干**；对应供体体块占全部躯干体积 ≥ 0.5；无肢体数量要求 | 在水中移动输入 ×1.35；未处于飞行状态时切换为平滑游泳控制、两栖寻路和水中漫游 |
-| 躯干 | `shell_defense` | 缩壳防御 | 壳`SHELL`：潜影贝为 `lid`；犰狳为 `body` | 潜影贝、犰狳 | **安装在躯干**；壳载体占全部躯干体积 ≥ 0.5；受到伤害后进入 80 tick 缩壳状态 | 缩壳期间潜行姿态、停止寻路、移动 ×0.25；不穿透护甲的伤害 ×0.5 |
-| 躯干 | `knockback_resistance` | 抗击退（…%） | 供体所有体块，不筛选载体标签 | 自动：抗击退基础值，即铁傀儡 1.0、监守者 1.0、劫掠兽 0.75、疣猪兽 0.6、僵尸疣猪兽 0.6 | 数值最高的前 50% 躯干体积加权平均 | 成品抗击退 = 0.15 + 平均值（上限 1） |
-| 躯干 | `rideable` | 可骑乘 | 供体所有体块，不筛选载体标签 | 自动：`Saddleable`，即马、驴、骡、骷髅马、僵尸马、骆驼、羊驼、行商羊驼、猪、炽足兽 | c ≥ 0.5；新增条件：身体体积 ≥`min_body_volume`（建议约 0.5 方块³，接近猪） | 身体体积至少 0.5 方块³；装鞍后空手骑乘，所有供体均直接操控。骆驼供体双座并可冲刺；强健跳跃支持蓄力跳。飞行和游泳时按视线升降，跳跃键上升。具备可驯服时须先驯服，且仅主人可骑。 |
-| 躯干 | `cargo_chest` | 驮运箱 | 供体所有体块，不筛选载体标签 | 自动：`AbstractChestedHorse`，即驴、骡、羊驼、行商羊驼 | c ≥ 0.5 | 箱子右击安装，潜行空手打开。驴、骡 15 格；羊驼按供体 Strength × 3 格。潜行持斧可拆下空箱。死亡掉落箱子和内容；已驯服时仅主人可操作。 |
-| 躯干 | `sonic_boom` | 音波冲击 | 躯干`TORSO`：监守者 `body`、`right_ribcage`、`left_ribcage` | 数据：监守者 | 安装在躯干；监守者胸腔载体占全部躯干体积 ≥ 0.5 | 水平 15 格、垂直 20 格内的可见或振动追踪目标：蓄力 34 tick 后造成 10 点音波伤害并击退，动作 60 tick，之后冷却 40 tick。近战命中尝试也会设 40 tick 冷却。 |
-| 躯干 | `self_destruct` | 自爆 | 供体所有体块，不筛选载体标签 | 数据：苦力怕 | c ≥ 0.5 | 无主人时目标接近 3 格开始膨胀，超过 7 格或失去视线时回缩；30 tick 后爆炸，威力 3，闪电充能后为 6。有主人时只接受主人点燃。点燃后必爆，死亡不分裂；留下有效药效云。 |
-| 躯干 | `milkable` | 可挤奶 | 躯干 `TORSO`：`body` | 数据：成年牛、哞菇、山羊 | c ≥ 0.5 | 成年牛、哞菇或山羊的 body 安装在躯干且覆盖率至少 50%：空桶得到牛奶；具备哞菇载体时碗得到蘑菇煲，无冷却。支持机械手。 |
-| 躯干 | `wool_shearing` | 可剪毛 | 躯干 `TORSO`：`body` | 数据：成年绵羊 | c ≥ 0.5 | 成年绵羊 body 安装在躯干且覆盖率至少 50%：剪下 1–3 个供体颜色的羊毛。吃草或 6000 tick 后再生，支持机械手剪刀。 |
-| 躯干 | `egg_laying` | 产蛋 | 躯干 `TORSO`：`body` | 数据：成年鸡 | c ≥ 0.5 | 成年鸡 body 安装在躯干且覆盖率至少 50%：每 6000–11999 tick 产 1 个蛋，计时随实体保存。 |
-| 躯干 | `scute_shedding` | 脱落鳞甲 | 壳 `SHELL`：`body` | 数据：成年犰狳 | c ≥ 0.5 | 成年犰狳 body 壳体安装在躯干且覆盖率至少 50%：每 6000–11999 tick 脱落 1 个鳞甲；刷子可额外刷下 1 个并消耗 16 耐久。 |
-| 头 | `disposition` | 性情（友好／中立／敌对） | 头 `HEAD`，包括捕获头部 | 自动：`NeutralMob` 优先为中立，`Enemy` 为敌对，其余友好；`bionic_head/disposition/` 可覆盖 | 安装在头部且保留供体原始头部体积 ≥ 50%，同一供体碎片合并 | 多个有效供体性情不同时为中立；提示和索敌行为使用同一结果 |
-| 头 | `intelligence` | 智力（简单／普通／高级） | 头 `HEAD`，包括捕获头部 | 自动：`AbstractVillager`、`AbstractPiglin`、`Raider` 及其模组子类高级，其余普通；数据包可覆盖，简单只能由数据包指定 | 安装在头部且保留供体原始头部体积 ≥ 50%，同一供体碎片合并 | 多个有效供体取最高等级；无有效头部默认普通。原版劫掠兽和悦灵覆盖为普通；影响攻击策略，不改变基础战斗数值 |
-| 头 | `no_breathing` | 无需呼吸 | 头 `HEAD` | 数据：`#minecraft:undead` | 安装在头部；单条头部链内的载体覆盖率 ≥ 0.5 | 不会溺水；同时屏蔽“离水窒息” |
-| 头 | `water_breathing` | 水下呼吸 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪为 `body`；美西螈为 `topGills` / `leftGills` / `rightGills` / `head`；守卫者、远古守卫者、海龟为 `head`；海豚使用头 `HEAD` | 自动：属于`can_breathe_under_water`、非亡灵、非盔甲架、且不会在水中溺水，即美西螈、青蛙、守卫者、远古守卫者、海龟、鱿鱼、发光鱿鱼、鳕鱼、鲑鱼、河豚、热带鱼、蝌蚪（青蛙无鳃声明，以整个头部为载体）；原长时间屏息供体也并入（原版为海豚） | 安装在头部的对应载体存在，不设占比门槛 | 在水中不会溺水；海豚也直接获得该效果 |
-| 头 | `dry_suffocation` | 离水窒息（负面） | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；其余为 `body` | 数据：鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪 | 头部安装范围覆盖率 ≥ 0.5；**且**未获得“无需呼吸”。头部以空气呼吸头为主时覆盖率自然不足 | 离水 300 tick 后每秒受 1 点干涸伤害；回到水或气泡中重置 |
-| 头 | `tameable` | 可驯服 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`（狼、猫、鹦鹉）或 `AbstractHorse`（马、驴、骡、羊驼、行商羊驼；排除骷髅马、僵尸马、骆驼）；数据补充：狐狸、豹猫、悦灵 | 对应头部载体存在（不设占比门槛） | 无主人时喂史莱姆球驯服；主人空手右键切换坐下，超过 10 格跟随，协助主人攻击；失去特性清除主人。原受信玩家存档转为主人。死亡分裂产生的史莱姆继承主人，后续再次分裂仍继承 |
-| 头 | `vibration_sense` | 振动感知 | 头 `HEAD`：`head`、`head_cube`、`left_tendril`、`right_tendril` | 监守者 | 对应头部载体存在；已经在追踪目标 | 监听 12 格内已有目标的游戏振动事件；不可见时追踪最近声源位置，记忆 40 tick。遵守潜行与羊毛隔振规则，不根据移动速度扫描、不主动选敌 |
-| 头 | `water_aversion` | 避水偏好 | 头`HEAD`：`head`、`head_cube` | 末影人 | 对应头部载体存在（不设占比门槛） | 水域寻路代价 +16 |
-| 头 | `deterrence` | 生物威慑 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 对应头部载体存在（不设占比门槛） | 每 10 tick 驱赶 8 格内对应生物，清除其对成品的仇恨，向远离方向移动；Tooltip 使用“生物威慑（目标生物…）”。不驱赶同主生物、驯服的狼或杀手兔；仅狼供体保留对普通兔子的威慑 |
-| 头 | `hunting_instinct` | 捕猎本能（目标生物…） | 头 `HEAD`，包括捕获头部 | [v2 子表 2](bionic-traits-v2-plan.zh-CN.md#子表-2捕猎本能的关系) | 对应载体存在 | 主动捕猎非玩家目标，保留驯服、环境、距离和狩猎冷却限制；跳过主人、盟友；取代原敌对性情的固定村民索敌 |
-| 头 | `pack_alert` | 呼唤同伴 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 对应载体存在 | 被活体攻击时，通知追随范围（默认 35 格）、纵向 ±10 格内同主人或同样有本特性的无主仿生生物；坐下者不响应，不攻击盟友 |
-| 头 | `roar` | 咆哮 | 头`HEAD`／角 `HORN`：劫掠兽的 `head`、`mouth`、`left_horn`、`right_horn` | 数据：劫掠兽 | 对应头部载体存在（不设占比门槛） | 近战被盾牌挡住时有 50% 概率眩晕 40 tick，10 tick 后咆哮：4 格范围内非盟友受到 6 点伤害及强力击退。未眩晕时直接推开格挡者。 |
-| 头 | `head_projectile` | 头部投射 | 头`HEAD`：各供体的头部件，见子表 4 | 数据：羊驼、行商羊驼、雪傀儡、烈焰人、恶魂、潜影贝、凋灵、末影龙、旋风人 | 对应头部载体存在（不设占比门槛）；多个子项并存时按智力选择 | 从对应头部载体质心发射原版弹射物；多种子项按智力选用。保留各供体射程、蓄力、连发和冷却。投射物及范围效果跳过主人和盟友，爆炸、引火受 mobGriefing 约束；龙息云可装瓶。 |
-| 头 | `guardian_beam` | 守卫者光束 | 眼`EYE`：守卫者、远古守卫者的 `eye` | 数据：守卫者、远古守卫者 | 对应头部载体存在（不设占比门槛） | 16 格内有视线时预热 10 tick，再照射 80 tick（远古 60 tick），失去视线即中断。结算 1 点魔法伤害（困难 +2，远古 +2）和 6 点近战伤害（远古 8）；普通守卫者要求距离大于 3 格。 |
-| 臂 | `wing_flight` | 扑翼飞行 | 左翅`LEFT_WING` 或右翅 `RIGHT_WING`：`leftWing` / `left_wing` / `leftWingBase` / `leftWingTip` 等及其右侧对应部件 | 蜜蜂、鹦鹉、蝙蝠、幻翼、悦灵、恼鬼、末影龙 | **安装为臂**；每条臂覆盖率 ≥ 0.5 才计为有效翼，有效翼 ≥ 2（不分左右）；成品已有体积数据；体积 ≤ 16 × 有效翼载体体积（`max_body_volume_per_wing_volume`） | 切换为飞行移动与寻路、无重力；免疫摔落 |
-| 臂 | `effect_attack` | 附效攻击（中毒／凋零／饥饿） | 中毒：口器 `MOUTH` 或刺 `SPINE`；凋零、饥饿：攻击手 `ATTACK_HAND` | 洞穴蜘蛛、蜜蜂、河豚：中毒；凋灵骷髅：凋零；尸壳：饥饿 | 装成臂的对应载体存在；必须由包含该载体的攻击臂命中；饥饿限空手 | 中毒 I 100 tick、凋零 I 200 tick、饥饿 I 140 tick；每效果独立配置概率、时间、等级、空手限制和载体 |
-| 臂 | `attack_knockback` | 击退强化（数值） | 所有体块 | 自动：基础 `ATTACK_KNOCKBACK` 属性 | 每条臂按数值最高的前 50% 体积加权平均 | 仅使用出手臂的值，原版近战额外击退强度为值 ×0.5；Tooltip 显示最高臂值 |
-| 臂 | `door_handling` | 破门 | 攻击手 `ATTACK_HAND` | 僵尸、尸壳、僵尸村民、僵尸猪灵 | 对应载体存在 | 困难难度贴门 240 tick 后破坏木门／铜门，持续遵守生物破坏规则和方块保护；不提供开关门 |
-| 臂 | `wing_slow_fall` | 振翅缓降 | 左右翅 `LEFT_WING` / `RIGHT_WING` | 鸡、鹦鹉 | 每臂覆盖率 ≥ 0.5；至少 2 条有效翼，不检查承重 | 下落速度每 tick ×0.6，免疫摔落；获得任一种飞行后隐藏 |
-| 臂 | `launch_strike` | 近战击飞 | 铁傀儡攻击手、末影龙翼、山羊／成年疣猪兽／成年僵尸疣猪兽的角 `HORN` | 铁傀儡、末影龙、山羊、成年疣猪兽、成年僵尸疣猪兽 | 对应载体装为臂且由该臂命中 | 统一使目标纵向速度增加 0.4×(1−抗击退)，不按供体叠加 |
-| 臂 | `loot_pickup` | 拾取装备 | 攻击手`ATTACK_HAND`：`right_arm`、`left_arm` | 数据：僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、骷髅、流浪者、沼骸、凋灵骷髅、猪灵 | 装成臂的对应载体存在 | 每 10 tick 检查 1 格内掉落的近战武器，只交给具备载体的手臂；更好的武器会替换旧装备。受 mobGriefing 及领地事件约束。主人也可潜行右击交接武器。 |
-| 臂 | `spellcasting` | 施法 | 攻击手`ATTACK_HAND`：唤魔者的 `arms`、`right_arm`、`left_arm`；女巫的 `arms` | 数据：唤魔者、女巫 | 装成臂的对应载体存在 | 唤魔尖牙：施法 40 tick，之后冷却 60 tick，近处双环、远处 16 个尖牙。喷溅药水：10 格内每 60 tick 投掷，按目标状态选择缓慢、中毒、虚弱或伤害。效果跳过主人和盟友。 |
-| 腿 | `agile_landing` | 灵巧落地 | 腿`LEG`：四肢部件名（`leftHindLeg` / `rightFrontLeg` 等） | 自动：猫、豹猫（且属于`fall_damage_immune`） | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 免疫摔落伤害；已有全身摔落免疫时隐藏此项 |
-| 腿 | `fall_reduction` | 摔落抵抗 | 腿`LEG`：四肢部件名 | 马、驴、骡、羊驼、行商羊驼、山羊 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 摔落距离 −3，伤害倍率 ×0.5，固定减伤 0（`safe_fall_distance` / `damage_multiplier` / `flat_reduction` 可配置） |
-| 腿 | `powder_snow_walk` | 细雪行者 | 足`FOOT`：兔、狐狸为四肢部件名；蠹虫、末影螨为 `body` / `segment0` / `segment_0` | 自动：标签`powder_snow_walkable_mobs`，即兔、狐狸、蠹虫、末影螨 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 可在细雪上行走 |
-| 腿 | `lava_walk` | 熔岩行者 | 足`FOOT`：`leftLeg` / `rightLeg` / `left_leg` / `right_leg` | 炽足兽 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 对齐炽足兽的熔岩寻路、半格支撑高度、浸没上浮和熔岩内跌落距离重置；不再反复跳跃脱困（其余身体仍按火焰免疫覆盖率受伤） |
-| 腿 | `wall_climb` | 攀墙 | 腿`LEG`：蜘蛛的 8 条腿部件 | 蜘蛛、洞穴蜘蛛 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 2 | 水平碰撞时可攀爬 |
-| 腿 | `strong_jump` | 强健跳跃 | 腿 `LEG`；兔后腿和后足 | 马、骷髅马、僵尸马、兔、山羊、青蛙 | 每腿覆盖率 ≥ 0.5；至少 2 条有效腿 | 起跳速度 +0.2；地面与两栖寻路允许跳上 2 格高台，不提高实际迈步高度；骑乘时跳跃键蓄力倍率 0.4–1.0 |
-| 腿 | `snow_trail` | 积雪足迹 | 足`FOOT`：雪傀儡的 `lower_body` | 数据：雪傀儡 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 在脚下四角的可放置位置留下雪片，无温度限制；受 mobGriefing 及方块保护事件约束。 |
-| 腿 | `pollination` | 授粉催熟 | 腿`LEG`：蜜蜂的 `front_legs`、`middle_legs`、`back_legs` | 数据：蜜蜂 | 每条腿覆盖率 ≥ 0.5 才有效；有效腿 ≥ 1 | 在 5 格内花旁停留超过 400 tick 采集花粉，下雨、战斗、坐下或骑乘时不采集。携粉后每 30 tick 催熟脚下 1–2 格作物，每次携粉最多促生 10 次；受 mobGriefing 约束。 |
+## 三、技能与交互补充
 
-## 三、特性补充
+### 1. 瞬移、缩壳与动作
 
-### 1. 头部与呼吸
+末影瞬移统一采用末影人流程：随机落点先检查实体支撑与水域条件，复用 `LivingEntity.randomTeleport`，通过 NeoForge `EventHooks.onEnderTeleport` 处理目标位置。追近使用目标 Goal 内持续累计的计数器；注视状态、骑乘状态及目标距离沿用该 Goal。原潜影贝供体与末影人供体共同贡献本项覆盖率。
 
-性情、智力是自动读取的头部特性，纸箱、手术台预览和实体行为共用判定。它们的 `min_coverage`（默认 0.5）专门表示供体原始头部的保留比例，不是头部安装区域内的供体占比；只统计安装在头部的载体，同一供体的碎片按体块去重合并。安装位置错误或原始头部保留不足时显示原因。
+缩壳防御统一采用犰狳流程：危险感知写入 `DANGER_DETECTED_RECENTLY`，`ArmadilloBallUp` 驱动卷缩、探头与展开。卷缩维持条件使用 `canStayRolledUp`；原有主人坐下、乘骑等装配状态接入该条件。伤害使用犰狳的 `(amount−1)/2` 分支，后续由原版伤害流程结算。
 
-智力自动判断仅检查 Java 继承关系：`AbstractVillager`、`AbstractPiglin`、`Raider` 为高级，其余普通，不检查 AI 名称、行为数量或 Brain 记忆模块。`data/<命名空间>/bionic_head/intelligence/*.json` 的 `values` 以实体 ID 覆盖分类，支持 `simple`、`normal`、`advanced`；原版默认文件只保留普通／简单覆盖。性情覆盖使用对应的 `bionic_head/disposition/`，支持 `friendly`、`neutral`、`hostile`。 这两张分类覆盖表会在玩家登录和 `/reload` 后同步给客户端，同时使供体与属性提示缓存失效。
+扑翼飞行与振翅缓降中单臂翼覆盖率达标的翼臂由翅膀集合管理，飞行能力另按数量与承重判定；普通手臂构成攻击臂集合。臂腿行走使用装配关节动作，翅膀播放供体飞行动画。动画优先复用捕获供体的模型 `setupAnim` 结果，按原模型层级传递到保留翅膀部件，关节变换继续使用装配坐标。
 
-无需呼吸和离水窒息默认 `min_coverage = 0.5`，按每条头部链分别计算覆盖率；水下呼吸和可驯服为存在型，不设门槛。所有这些特性的分母都是对应头部链的全部体块，包括没有头部或鳃标签的普通组织。无需呼吸和可驯服以 `HEAD` 为载体；水下呼吸、离水窒息优先读取 `GILL`，物种没有鳃映射时以整个头部为载体。任意头部链获得无需呼吸后，都会抑制离水窒息。
+### 2. 驮运箱与骑乘
 
-熔岩行者采用原版炽足兽的地面导航流程：保留普通节点高度和移动目标高度，放行熔岩／火焰节点及熔岩落点，并使用原版路径跟随，不进入仿生体的等高路径直连。该选择按熔岩行走能力判断，跨越岸边或终点位于陆地时也不因接触熔岩、上浮或落地而切换。半格支撑属于碰撞与浮力逻辑，不额外改写寻路高度。强跳的节点扩展和开门能力仍保留；同时具有游泳或飞行特性时，沿用这些特性的导航优先级。依据为 `ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Strider.java` 的 `StriderPathNavigation`，以及 `ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java`、`PathNavigation.java`。此处不包含第三方碰撞兼容修复。
+驮运箱复用原版左右箱模型部件。驴、骡取 [ChestedHorseModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/ChestedHorseModel.java) 的 `left_chest`、`right_chest`；羊驼取 [LlamaModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/LlamaModel.java) 的对应部件。每个装备箱子的体块各绑定一组原版左右箱模型，随该体块的装配位置和旋转同步显示；鞍同样逐体块绑定。
 
-### 2. 游泳供体与自动判定
+容器采用原版 `SimpleContainer`。装备箱子、调整容量、保留原物品、存档与死亡掉落复刻 `AbstractChestedHorse`／`AbstractHorse` 原方法；菜单按 `HorseInventoryMenu` 的槽位、距离、容器监听与快捷移动逻辑适配成品。每个驴、骡体块的背箱提供 15 格，每个羊驼体块的背箱按该供体 Strength 提供 3–15 格；已安装背箱的容量相加，各箱独立存物。右击对应体块装箱，潜行空手点击该体块开箱，潜行持斧点击该体块拆下空箱；权限沿用主人规则。
 
-游泳供体自动判定使用 `WaterAnimal`、`Drowned`、`WaterBoundPathNavigation`、`AmphibiousPathNavigation` 或 `SmoothSwimmingMoveControl`。仅会水面浮游的牛羊等陆生生物不计入，水下呼吸或无需呼吸也不会自动赋予游泳专长。可通过 `swim_specialist.json` 的 `values` 按实体 ID／标签覆盖判定。
+每个鞍物品装备到一个体块，空手点击已装鞍的体块即从该体块上座。普通坐骑体块各一座，骆驼体块沿用原版前后双座；各体块分别记录乘客，首位乘客操控身体。潜行持剪刀点击对应体块卸鞍，该鞍的乘客下座。骑乘沿用现有体积门槛和主人规则，所有供体保持直接操控。通用入口复用 `Saddleable` 与 `LivingEntity` 骑乘流程；马式蓄力跳和骆驼冲刺复刻各自原方法。飞行、游泳使用现有视线与跳跃键升降。
 
-游泳效果的控制器与水中物理配套采用美西螈式中性浮力：关闭游泳控制器的持续上浮推力，水中按游泳速度推进并施加 0.9 阻尼，不再叠加陆生生物的水中下沉／碰撞跃出逻辑。游泳模式下停用普通 `FloatGoal` 的反复跳浮，保留熔岩逃生；离水或由飞行特性接管时使用原有移动物理。水中移动输入仍为 ×1.35，呼吸能力仍独立判定。依据为 `ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/axolotl/Axolotl.java` 的 `AxolotlMoveControl` / `travel`，以及 `ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FloatGoal.java`。
+### 3. 头部投射子项
 
-源码依据为本地 Minecraft 1.21.1 原版参考（来源与 NeoForge 补丁范围见 `ref/SOURCES.md`）：`ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Squid.java` 的鱿鱼继承水生类但没有水中导航；`ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Drowned.java` 的溺尸在陆地／水中导航间切换；`ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/frog/Frog.java`、`ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/frog/Tadpole.java` 使用游泳控制器和两栖／水中导航；普通漂浮见 `ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FloatGoal.java`。
+各子项保留现有弹射物种类，具体发射流程按对应原方法选用。
 
-### 3. 驯服、喂食与威慑补充
-
-所有已驯服的仿生生物、继承主人的史莱姆，以及原版可驯服生物，都能用**瓶装活性史莱姆恢复 4 点生命、桶装活性史莱姆恢复 16 点生命**。未满血时消耗一份并返还玻璃瓶或桶；创造模式不消耗。该交互不依赖已删除的食物识别特性。分裂史莱姆保留主人并跟随主人，主人空手可切换停留；不会因原版接触伤害误伤玩家，存档和再次分裂都保留主人。
-
-威慑按供体物种提供以下关系，具体目标名也用于 Tooltip；保留本项目原有猫／豹猫对幻翼的威慑。普通威慑统一为 8 格范围，不复刻原版的物种专属距离或概率。
-
-| 供体 | 被驱散生物 | 依据 |
+| 供体／子项 | 行为模板与参数 | 方法依据 |
 | --- | --- | --- |
-| 猫、豹猫 | 苦力怕、幻翼 | 原有关系；原版 `Creeper`、`Phantom` 行为 |
-| 狼 | 骷髅、流浪者、凋灵骷髅、沼骸、普通兔（不含杀手兔）、狐狸 | `AbstractSkeleton`、`Rabbit`、`Fox` 避让目标 |
-| 北极熊 | 狐狸 | `Fox` 避让目标 |
-| 羊驼、行商羊驼 | 未驯服的狼 | `Wolf` 避让目标；本项目统一范围和固定触发 |
-| 守卫者、远古守卫者 | 海豚 | `Dolphin` 避让目标 |
-| 犰狳 | 蜘蛛、洞穴蜘蛛 | `Spider` 避让目标 |
-| 僵尸、尸壳、溺尸、僵尸村民、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、僵尸疣猪兽 | 村民 | `VillagerHostilesSensor` |
-| 上一行除劫掠兽，再加僵尸猪灵 | 行商 | `WanderingTrader` 避让目标 |
-| 僵尸猪灵、僵尸疣猪兽 | 猪灵 | `PiglinAi` 僵尸化生物避让 |
+| 羊驼、行商羊驼／唾沫 | `RangedAttackGoal`，20 格、40 tick 间隔；保留原版弹道、散布和吐击状态 | [Llama.registerGoals / performRangedAttack](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/Llama.java) |
+| 雪傀儡／雪球 | `RangedAttackGoal`，10 格、20 tick 间隔；初速 1.6、散布 12 | [SnowGolem.performRangedAttack](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/SnowGolem.java) |
+| 烈焰人／小火球 | 供体跟随范围内充能 60 tick，三连发间隔 6 tick，之后冷却 100 tick；近身分支沿用原 Goal | [BlazeAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Blaze.java) |
+| 恶魂／大火球 | 64 格内且可见时累积蓄力，10 tick 播放准备音，20 tick 发射后计数设为 -40；视线变化按原分支回退计数 | [GhastShootFireballGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Ghast.java) |
+| 潜影贝／潜影弹 | 首次等待 20 tick；20 格内发射，后续间隔 `20+random(0..9)×10` tick；弹道复用 `ShulkerBullet` | [ShulkerAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java) |
+| 凋灵／凋灵之首 | 统一采用中央头的 `RangedAttackGoal`：20 格、40 tick 间隔，保留原版危险弹概率 | [WitherBoss.customServerAiStep / performRangedAttack](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java) |
+| 末影龙／龙息火球 | 64 格内可见目标累积至少 5 tick，水平朝向夹角小于 10°时发射；每轮发射一枚，沿用现有 80 tick 轮次间隔 | [DragonStrafePlayerPhase.doServerTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/enderdragon/phases/DragonStrafePlayerPhase.java) |
+| 旋风人／风弹 | 距离大于 2 且小于 16 格，满足原 Brain 射击记忆与站姿；充能 15 tick、恢复 4 tick、结束后冷却 10 tick；按原方法检查朝向与散布 | [breeze.Shoot](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/breeze/Shoot.java) |
 
-源码核对：`ref/SOURCES.md` 未提供 1.21.1 原版 Minecraft 源码，旧 `ref/_legacy_pre_reorg_20260720_001540/Minecraft-1.20.1/` 版本不匹配，因此使用本机构建缓存 `sourcesAndCompiledWithNeoForge_037f1fc886d6c66add1e4b30755384600c2db400_output.jar` 内已有的 Java 源码；其来源记录关联当前 NeoForge 21.1.234。上述类均位于 `net/minecraft/world/entity/`；振动监听核对 `world/level/gameevent/vibrations/VibrationSystem.java`，监守者双角部件名核对 `client/model/WardenModel.java`。
+音波冲击使用 `SonicBoom` 的目标、距离与记忆条件，方向击退在伤害成功后执行。守卫者光束使用原 Goal 的停止寻路、视线中断、伤害结算及目标清理流程。
 
-### 4. v2 批次 A
+尖牙施法采用 `SpellcasterUseSpellGoal` 的预热、施法姿态与再次施法时间三套计数。女巫药水按 `performRangedAttack` 顺序选择：8 格外已有目标满足条件时缓慢，生命至少 8 点时中毒，3 格内以 25% 概率虚弱，其余伤害；已有药效判断沿用原方法。投射物、药水和药效云复用原版实体与效果应用入口，主人及盟友关系沿用现有过滤。
 
-批次 A 新增 11 项，删除项和合并决策详见 [v2 实施状态](bionic-traits-v2-plan.zh-CN.md#批次-a-实施状态2026-09-28)。下节物种反查保留原有 37 项速查；新增特性的供体以本节总表与游戏内 JEI 为准。
+### 4. 捕猎关系
 
-通用子项通过 `variants` 声明 `roles`（空列表为所有组织）和 `parameters`，`values` 使用“供体 → 子项 ID → 布尔值”。子项独立累计覆盖率，只返回达标子项的载体成员。旧 `effect_attack.effects` 数据格式继续兼容。
+捕猎关系保留现有供体与目标。通用目标 Goal 接收现有目标谓词；供体专属 Sensor／Brain 按原条件复刻，目标进入视线、有效攻击范围、环境与冷却后参与原版选取。
 
-击退数值逐臂计算；命中时用臂成员映射查询，不使用整身最大值。统一击飞的 `vertical_boost` 默认为 0.4，仅执行一次。`strong_jump` 的寻路高度只在节点评估期间生效，不把两格台阶变成直接迈步。
+| 供体头 | 目标与条件 | 驯服后的规则 | 本地依据 |
+| --- | --- | --- | --- |
+| 狼 | 羊、兔、狐狸、陆上幼年海龟；骷髅、流浪者、凋灵骷髅、沼骸 | 捕猎骷髅类 | `animal/Wolf.java` 的目标 Goal 与 `PREY_SELECTOR` |
+| 猫 | 兔、陆上幼年海龟 | 由主人战斗目标驱动 | `animal/Cat.java` 的目标 Goal |
+| 豹猫 | 鸡、陆上幼年海龟 | 保留 | `animal/Ocelot.java` 的目标 Goal |
+| 狐狸 | 鸡、兔、陆上幼年海龟、鳕鱼、鲑鱼、热带鱼 | 保留 | `animal/Fox.java` 的陆地／鱼类目标 Goal |
+| 北极熊 | 狐狸 | 保留 | `animal/PolarBear.java` 的目标 Goal |
+| 美西螈 | 水中 8 格内的溺尸、守卫者、远古守卫者及现有鱼类、鱿鱼、发光鱿鱼、蝌蚪；普通猎物战斗后冷却 2400 tick | 保留 | `ai/sensing/AxolotlAttackablesSensor.java`、`animal/axolotl/AxolotlAi.java` |
+| 铁傀儡 | `Enemy` 目标按铁傀儡原版目标谓词选取 | 保留 | `animal/IronGolem.java` |
+| 雪傀儡 | `Enemy` 目标 | 保留 | `animal/SnowGolem.java` |
+| 守卫者、远古守卫者 | 3 格外的鱿鱼、发光鱿鱼、美西螈 | 保留 | `monster/Guardian.java` 的 `GuardianAttackSelector` |
+| 末影人 | 末影螨 | 保留 | `monster/EnderMan.java` |
+| 蜘蛛、洞穴蜘蛛 | 亮度低于 0.5 时选择铁傀儡 | 保留 | `monster/Spider.java` 的 `SpiderTargetGoal` |
+| 史莱姆、岩浆怪 | 铁傀儡 | 保留 | `monster/Slime.java` |
+| 猪灵 | 凋灵骷髅、凋灵；成年疣猪兽；猎杀冷却 30–120 秒 | 保留 | `monster/piglin/PiglinAi.java`、`ai/sensing/PiglinSpecificSensor.java` |
+| 猪灵蛮兵 | 凋灵骷髅、凋灵 | 保留 | `monster/piglin/PiglinBruteAi.java`、`ai/sensing/PiglinBruteSpecificSensor.java` |
+| 僵尸、尸壳、僵尸村民 | 村民、行商、铁傀儡、陆上幼年海龟 | 保留 | `monster/Zombie.java` |
+| 溺尸 | 村民、行商、铁傀儡、美西螈、陆上幼年海龟 | 保留 | `monster/Drowned.java` |
+| 骷髅、流浪者、沼骸 | 铁傀儡、陆上幼年海龟 | 保留 | `monster/AbstractSkeleton.java` |
+| 凋灵骷髅 | 铁傀儡、陆上幼年海龟、猪灵、猪灵蛮兵 | 保留 | `monster/WitherSkeleton.java` |
+| 卫道士、掠夺者、唤魔者、幻术师 | 村民、行商、铁傀儡 | 保留 | `monster/{Vindicator,Pillager,Evoker,Illusioner}.java` |
+| 僵尸疣猪兽 | 按 `Zoglin` 原版目标谓词选择可攻击生物 | 保留 | `monster/Zoglin.java` |
+| 旋风人 | 铁傀儡 | 保留 | `ai/sensing/BreezeAttackEntitySensor.java` |
+| 凋灵 | 按 `WITHER_FRIENDS` 标签选择目标 | 保留 | `boss/wither/WitherBoss.java` |
+| 羊驼、行商羊驼 | 10 格内的野生狼 | 保留 | `animal/horse/Llama.java` 的 `LlamaAttackWolfGoal` |
 
-本地依据：`ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/{BreakDoorGoal,DoorInteractGoal}.java`、`world/level/pathfinder/WalkNodeEvaluator.java`、`world/entity/monster/EnderMan.java`、`world/entity/projectile/{AbstractArrow,ThrownTrident}.java`；供体捕猎关系对应源码见 v2 第七节。NeoForge 的破门和瞬移权限按 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 中的 `BreakDoorGoal`、`CommonHooks`、`EntityTeleportEvent` 核对。
+表内相对源码路径的根目录均为 `ref/1.21.1/Minecraft/net/minecraft/world/entity/`。
 
-### 5. v2 批次 B、C、D
+### 5. 生物威慑关系
 
-骑乘、驮箱与武器交接由 `BionicEquipment` 管理；特殊攻击由 `BionicSpecialAttacks` 调度，`BionicCombatEvents` / `BionicAreaEffectCloud` 处理弹射物及范围效果的盟友过滤；生产、积雪、授粉与自爆由 `BionicProduction` 执行。各类来源、默认参数、操控方法和兼容说明见 [v2 实施状态](bionic-traits-v2-plan.zh-CN.md)。中英文 Tooltip、JEI 说明和供体索引均已补齐。
+保留现有关系，避让行为采用目标生物原有模板。猫与豹猫对幻翼的既有共同关系统一使用猫模板。
 
-生产载体限定成年供体的指定 `body` 体块，腿和头不贡献生产覆盖率。供体颜色、羊驼 Strength、装备与物品栏、生产进度和冷却随存档及纸箱捕获保存。旧成品未记录发射点时使用眼部位置；重新打包可生成体块质心数据。未启用建议表中标记删除的特性与可选供体转化、自我用药、闲时远跳。
+| 供体 | 被驱散生物 | 原版行为模板 |
+| --- | --- | --- |
+| 猫、豹猫 | 苦力怕 | `Creeper` 的 `AvoidEntityGoal`：6 格，速度 1.0／1.2 |
+| 猫、豹猫 | 幻翼 | `PhantomSweepAttackGoal`：每 20 tick 检查 16 格内威胁并结束俯冲 |
+| 狼 | 骷髅、流浪者、凋灵骷髅、沼骸 | `AbstractSkeleton` 的 `AvoidEntityGoal`：6 格，速度 1.0／1.2 |
+| 狼 | 普通兔、狐狸 | 兔采用 `RabbitAvoidEntityGoal` 的 10 格与速度 2.2；狐狸采用 `Fox` 原避让距离和速度 |
+| 北极熊 | 狐狸 | `Fox` 的北极熊避让 Goal |
+| 羊驼、行商羊驼 | 野生狼 | `WolfAvoidEntityGoal`：24 格，速度 1.5；按 `Strength ≥ random(0..4)` 触发 |
+| 守卫者、远古守卫者 | 海豚 | `Dolphin` 的 `AvoidEntityGoal`：8 格，速度 1.0 |
+| 犰狳 | 蜘蛛、洞穴蜘蛛 | `Spider` 的犰狳避让 Goal，按原距离与速度执行 |
+| 僵尸、尸壳、溺尸、僵尸村民、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、僵尸疣猪兽 | 村民 | `VillagerHostilesSensor` 各物种距离 8–15 格与 `NEAREST_HOSTILE` 记忆 |
+| 现有行商威胁供体：僵尸类、僵尸猪灵、唤魔者、幻术师、掠夺者、恼鬼、卫道士、僵尸疣猪兽 | 行商 | 采用 `WanderingTrader` 对应威胁的原避让 Goal 参数；僵尸猪灵沿用僵尸模板 |
+| 僵尸猪灵、僵尸疣猪兽 | 猪灵 | `PiglinAi.avoidZombified` 与原版避让记忆、期望距离 |
+
+依据位于同一原版根目录下的 `monster/{Creeper,Phantom,AbstractSkeleton,Spider}.java`、`animal/{Rabbit,Fox,Wolf,Dolphin}.java`、`npc/WanderingTrader.java`、`ai/sensing/VillagerHostilesSensor.java` 与 `monster/piglin/PiglinAi.java`。
+
+### 6. 呼唤同伴与生产
+
+呼唤同伴统一采用狼的受伤呼援，直接复用 `HurtByTargetGoal.setAlertOthers`，按原方法的伤害时间戳、跟随范围、纵向 ±10 格、同伴当前目标与关系条件触发。混合装配的同伴身份按现有供体集合与主人关系映射；坐下状态沿用主人命令。
+
+授粉载体采用蜜蜂全部保留体块，装配生效范围继续为腿。采粉复刻 `BeePollinateGoal` 的有效花检查、5 格搜索、雨天与战斗状态、悬停累计、400 tick 成功时间、结束判定和再次寻花冷却。促生复刻 `BeeGrowCropGoal` 的随机启动、随机 tick 触发、`BEE_GROWABLES`、作物年龄推进与 10 次计数；启动条件使用现有携粉状态、采粉次数和生物破坏规则。
+
+可剪毛为存在型，要求躯干内同时保留羊毛与羊身子。采集时以原版 `sheep_fur.png` 材质为羊毛体块补充 `wool` 标签，与基础模型的 `body` 标签分别判断；羊毛隐藏不会删除载体或改变装配。羊毛显隐读取拟态生物同步的被剪毛状态，复用 `EatBlockGoal` 的吃草动作和 `ate()` 回调恢复羊毛。产蛋与自然脱鳞甲按各自原始随机区间计时，并随存档与纸箱捕获保存。供体颜色、羊驼 Strength、装备、物品栏与生产状态继续随供体档案保存。机械手沿用现有挤奶、蘑菇煲与剪毛交互入口。
+
+已驯服的仿生生物、继承主人的史莱姆及原版可驯服生物，沿用瓶装活性史莱姆恢复 4 点生命、桶装恢复 16 点生命。生命低于上限时消耗一份并返还玻璃瓶或桶，创造模式保留物品。分裂史莱姆保留主人、跟随、停留和后续分裂继承。
+
 
 ## 四、按生物反查
 
-只列原版有特性的生物，按实际允许安装的五种范围分列；游泳专长的供体所有体块均携带特性，但只在躯干生效。
+性情、智力按头部通用规则显示。下表汇总 v3 其余特性；具体载体、部位与门槛见总表。数值效果执行一位小数与 0.1 生效规则。
 
-| 生物                       | 全身                                                                                       | 躯干                 | 头                               | 臂                         | 腿               |
-| -------------------------- | ------------------------------------------------------------------------------------------ | -------------------- | -------------------------------- | -------------------------- | ---------------- |
-| 美西螈 | 保湿依赖 | 游泳专长 | 水下呼吸 | — | — |
+| 生物 | 全身 | 躯干 | 头 | 臂 | 腿 |
+| --- | --- | --- | --- | --- | --- |
+| 美西螈 | 保湿依赖、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、捕猎本能（目标生物…） | — | — |
 | 蝙蝠 | — | — | — | 扑翼飞行 | — |
-| 蜜蜂 | — | — | — | 扑翼飞行、附效攻击（中毒）（尾刺） | 授粉催熟 |
-| 烈焰人 | 火焰免疫／火焰抗性、遇水受伤、冻结易伤 | 悬浮飞行 | 头部投射 | — | — |
-| 沼骸 | 阳光灼伤、治疗反转、免疫中毒和生命恢复 | — | 无需呼吸 | 拾取装备 | — |
-| 旋风人 | 摔落免疫、弹射物偏转 | — | 头部投射 | — | — |
-| 骆驼 | 自然恢复 | 可骑乘 | — | — | — |
-| 猫 | — | — | 可驯服、生物威慑 | — | 灵巧落地 |
-| 洞穴蜘蛛 | 无视蛛网、免疫中毒 | — | — | 附效攻击（中毒）（口器） | 攀墙 |
-| 鳕鱼、鲑鱼、热带鱼 | — | 游泳专长 | 水下呼吸、离水窒息 | — | — |
-| 海豚 | 保湿依赖 | 游泳专长 | 水下呼吸 | — | — |
-| 驴 | 自然恢复 | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
-| 骡 | 自然恢复 | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
-| 马 | 自然恢复 | 可骑乘 | 可驯服 | — | 摔落抵抗 |
-| 溺尸 | 阳光灼伤（尸壳除外）、治疗反转、天然护甲 2、免疫中毒和生命恢复 | 溺尸：游泳专长 | 无需呼吸、生物威慑（村民、行商） | 尸壳：附效攻击（饥饿）、拾取装备 | — |
-| 尸壳 | 阳光灼伤（尸壳除外）、治疗反转、天然护甲 2、免疫中毒和生命恢复 | 溺尸：游泳专长 | 无需呼吸、生物威慑（村民、行商） | 尸壳：附效攻击（饥饿）、拾取装备 | — |
-| 僵尸 | 阳光灼伤（尸壳除外）、治疗反转、天然护甲 2、免疫中毒和生命恢复 | 溺尸：游泳专长 | 无需呼吸、生物威慑（村民、行商） | 尸壳：附效攻击（饥饿）、拾取装备 | — |
-| 僵尸村民 | 阳光灼伤（尸壳除外）、治疗反转、天然护甲 2、免疫中毒和生命恢复 | 溺尸：游泳专长 | 无需呼吸、生物威慑（村民、行商） | 尸壳：附效攻击（饥饿）、拾取装备 | — |
-| 远古守卫者 | 接触反伤 | 游泳专长 | 水下呼吸、生物威慑（海豚）、守卫者光束 | — | — |
-| 守卫者 | 接触反伤 | 游泳专长 | 水下呼吸、生物威慑（海豚）、守卫者光束 | — | — |
-| 末影龙 | 火焰免疫／火焰抗性 | — | 头部投射 | 扑翼飞行 | — |
-| 末影人 | 遇水受伤 | — | 避水偏好 | — | — |
-| 末影螨、蠹虫 | 蠹虫：免疫寄生 | — | — | — | 细雪行者 |
-| 狐狸 | — | — | 可驯服 | — | 细雪行者 |
-| 青蛙 | — | 游泳专长 | 水下呼吸（以整个头部为载体） | — | — |
+| 蜜蜂 | 附魔易伤（节肢杀手） | — | 呼唤同伴 | 扑翼飞行、附效攻击（中毒） | 授粉催熟 |
+| 烈焰人 | 火焰免疫／火焰抗性、遇水受伤、冻结易伤 | 悬浮飞行 | 呼唤同伴、头部投射 | — | — |
+| 沼骸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
+| 旋风人 | 摔落免疫、弹射物偏转 | — | 捕猎本能（目标生物…）、头部投射 | — | — |
+| 骆驼 | — | 可骑乘 | — | — | — |
+| 猫 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
+| 洞穴蜘蛛 | 无视蛛网、免疫效果（中毒）、附魔易伤（节肢杀手） | — | 捕猎本能（目标生物…） | 附效攻击（中毒） | 攀墙 |
+| 鳕鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 鲑鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 热带鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 海豚 | 保湿依赖、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、呼唤同伴 | — | — |
+| 驴 | — | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
+| 骡 | — | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
+| 马 | — | 可骑乘 | 可驯服 | — | 摔落抵抗、强健跳跃 |
+| 溺尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | 游泳专长 | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 拾取装备 | — |
+| 尸壳 | 治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 附效攻击（饥饿）、破门、拾取装备 | — |
+| 僵尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
+| 僵尸村民 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
+| 远古守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
+| 守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
+| 末影龙 | 火焰免疫／火焰抗性 | — | 头部投射 | 扑翼飞行、近战击飞 | — |
+| 末影人 | 遇水受伤、末影瞬移 | — | 避水偏好、捕猎本能（目标生物…） | — | — |
+| 末影螨 | 附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
+| 蠹虫 | 免疫效果（寄生）、附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
+| 狐狸 | — | — | 可驯服、捕猎本能（目标生物…） | — | 细雪行者 |
+| 青蛙 | — | 游泳专长 | 水下呼吸 | — | 强健跳跃 |
 | 恶魂 | 火焰免疫／火焰抗性 | 悬浮飞行 | 头部投射 | — | — |
-| 山羊 | — | 可挤奶 | — | — | 摔落抵抗 |
-| 河豚 | 体表刺击 | 游泳专长 | 水下呼吸、离水窒息 | 附效攻击（中毒）（体刺） | — |
-| 鱿鱼、发光鱿鱼 | — | 游泳专长 | 水下呼吸、离水窒息 | — | — |
-| 疣猪兽 | — | 抗击退 0.6 | — | — | — |
-| 铁傀儡 | 摔落免疫 | 抗击退 1.0 | — | — | — |
-| 羊驼 | 自然恢复 | 可骑乘、驮运箱 | 可驯服、生物威慑（未驯服的狼）、头部投射 | — | 摔落抵抗 |
-| 行商羊驼 | 自然恢复 | 可骑乘、驮运箱 | 可驯服、生物威慑（未驯服的狼）、头部投射 | — | 摔落抵抗 |
-| 岩浆怪 | 火焰免疫／火焰抗性、冻结易伤、摔落免疫 | 身体弹跳 | — | — | — |
-| 豹猫 | — | — | 可驯服、生物威慑 | — | 灵巧落地 |
-| 鹦鹉 | — | — | 可驯服 | 扑翼飞行 | — |
-| 幻翼 | 阳光灼伤、治疗反转、免疫中毒和生命恢复 | — | 无需呼吸 | 扑翼飞行 | — |
-| 北极熊 | 冻结免疫／冻结抗性 | — | 生物威慑（狐狸） | — | — |
-| 兔 | — | — | — | — | 细雪行者 |
-| 劫掠兽 | — | 抗击退 0.75 | 生物威慑（村民）、咆哮 | — | — |
-| 潜影贝 | 火焰免疫／火焰抗性、摔落免疫 | 缩壳防御（`lid`） | 头部投射 | — | — |
-| 犰狳 | — | 缩壳防御（`body`）、脱落鳞甲 | 生物威慑（蜘蛛、洞穴蜘蛛） | — | — |
-| 骷髅 | 阳光灼伤、治疗反转、免疫中毒和生命恢复 | — | 无需呼吸 | 拾取装备 | — |
-| 骷髅马 | 治疗反转、自然恢复、免疫中毒和生命恢复 | 可骑乘 | 无需呼吸 | — | — |
-| 僵尸马 | 治疗反转、自然恢复、免疫中毒和生命恢复 | 可骑乘 | 无需呼吸 | — | — |
-| 史莱姆 | 免疫渗浆 | 身体弹跳 | — | — | — |
-| 雪傀儡 | 遇水受伤、冻结免疫／冻结抗性、高温灼伤、摔落免疫 | — | 头部投射 | — | 积雪足迹 |
-| 蜘蛛 | 无视蛛网、免疫中毒 | — | — | — | 攀墙 |
-| 流浪者 | 冻结免疫／冻结抗性、阳光灼伤、治疗反转、免疫中毒和生命恢复 | — | 无需呼吸 | 拾取装备 | — |
+| 山羊 | — | 可挤奶 | — | 近战击飞 | 摔落抵抗、强健跳跃 |
+| 河豚 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | 附效攻击（中毒） | — |
+| 鱿鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 发光鱿鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 疣猪兽 | — | 抗击退（…%） | 呼唤同伴 | 击退强化（数值）、近战击飞 | — |
+| 铁傀儡 | 摔落免疫 | 抗击退（…%） | 捕猎本能（目标生物…） | 近战击飞 | — |
+| 羊驼 | — | 可骑乘、驮运箱 | 可驯服、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
+| 行商羊驼 | — | 可骑乘、驮运箱 | 可驯服、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
+| 岩浆怪 | 火焰免疫／火焰抗性、冻结易伤、摔落免疫、天然护甲（…） | 身体弹跳 | 捕猎本能（目标生物…） | — | — |
+| 豹猫 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
+| 鹦鹉 | — | — | 可驯服 | 扑翼飞行、振翅缓降 | — |
+| 幻翼 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸 | 扑翼飞行 | — |
+| 北极熊 | 冻结免疫／冻结抗性 | — | 生物威慑、捕猎本能（目标生物…） | — | — |
+| 兔 | 天然护甲（杀手兔） | — | — | — | 细雪行者、强健跳跃 |
+| 劫掠兽 | — | 抗击退（…%） | 生物威慑、呼唤同伴、咆哮 | 击退强化（数值） | — |
+| 潜影贝 | 火焰免疫／火焰抗性、摔落免疫、末影瞬移 | 缩壳防御 | 呼唤同伴、头部投射 | — | — |
+| 犰狳 | — | 缩壳防御、脱落鳞甲 | 生物威慑 | — | — |
+| 骷髅 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
+| 骷髅马 | 治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
+| 僵尸马 | 治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
+| 史莱姆 | 免疫效果（渗浆） | 身体弹跳 | 捕猎本能（目标生物…） | — | — |
+| 雪傀儡 | 遇水受伤、冻结免疫／冻结抗性、高温灼伤、摔落免疫 | — | 捕猎本能（目标生物…）、头部投射 | — | 积雪足迹 |
+| 蜘蛛 | 无视蛛网、免疫效果（中毒）、附魔易伤（节肢杀手） | — | 捕猎本能（目标生物…） | — | 攀墙 |
+| 流浪者 | 冻结免疫／冻结抗性、阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
 | 炽足兽 | 火焰免疫／火焰抗性、遇水受伤、冻结易伤 | 可骑乘 | — | — | 熔岩行者 |
-| 蝌蚪 | — | 游泳专长 | 水下呼吸、离水窒息 | — | — |
-| 海龟 | — | 游泳专长 | 水下呼吸 | — | — |
-| 恼鬼 | — | — | 生物威慑（村民、行商） | 扑翼飞行 | — |
-| 悦灵 | 自然恢复 2.0 | — | 可驯服 | 扑翼飞行 | — |
-| 监守者 | 火焰免疫／火焰抗性 | 抗击退 1.0、音波冲击 | 振动感知 | — | — |
-| 凋灵 | 火焰免疫／火焰抗性、冻结免疫／冻结抗性、治疗反转、自然恢复 1.0、天然护甲 4、免疫凋零、中毒和生命恢复 | 悬浮飞行 | 无需呼吸、头部投射 | — | — |
-| 凋灵骷髅 | 火焰免疫／火焰抗性、治疗反转、免疫凋零、中毒和生命恢复 | — | 无需呼吸 | 附效攻击（凋零）、拾取装备 | — |
-| 狼 | — | — | 可驯服、生物威慑 | — | — |
-| 僵尸疣猪兽 | 火焰免疫／火焰抗性、治疗反转、免疫中毒和生命恢复 | 抗击退 0.6 | 无需呼吸、生物威慑（村民、行商、猪灵） | — | — |
-| 僵尸猪灵 | 火焰免疫／火焰抗性、治疗反转、天然护甲 2、免疫中毒和生命恢复 | — | 无需呼吸、生物威慑（猪灵、行商） | 拾取装备 | — |
-| 唤魔者 | — | — | 生物威慑（村民、行商） | 施法 | — |
-| 幻术师 | — | — | 生物威慑（村民、行商） | — | — |
-| 掠夺者 | — | — | 生物威慑（村民、行商） | — | — |
-| 卫道士 | — | — | 生物威慑（村民、行商） | — | — |
-| 猪灵 | — | — | — | 拾取装备 | — |
-| 猪灵蛮兵 | — | — | — | — | — |
+| 蝌蚪 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
+| 海龟 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸 | — | — |
+| 恼鬼 | — | — | 生物威慑、呼唤同伴 | 扑翼飞行 | — |
+| 悦灵 | 自然恢复（…/秒） | — | 可驯服 | 扑翼飞行 | — |
+| 监守者 | 火焰免疫／火焰抗性 | 抗击退（…%）、音波冲击 | 振动感知 | 击退强化（数值） | — |
+| 凋灵 | 火焰免疫／火焰抗性、冻结免疫／冻结抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、天然护甲（…）、自然恢复（…/秒）、附魔易伤（亡灵杀手）、凋灵护甲 | 悬浮飞行 | 无需呼吸、捕猎本能（目标生物…）、头部投射 | — | — |
+| 凋灵骷髅 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 附效攻击（凋零）、拾取装备 | — |
+| 狼 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
+| 僵尸疣猪兽 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 抗击退（…%） | 无需呼吸、生物威慑、捕猎本能（目标生物…） | 击退强化（数值）、近战击飞 | — |
+| 僵尸猪灵 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、呼唤同伴 | 破门、拾取装备 | — |
+| 唤魔者 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 施法 | — |
+| 幻术师 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
+| 掠夺者 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
+| 卫道士 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
+| 猪灵 | — | — | 捕猎本能（目标生物…）、呼唤同伴 | 拾取装备 | — |
+| 猪灵蛮兵 | — | — | 捕猎本能（目标生物…） | — | — |
 | 巨人 | — | — | — | — | — |
-
 | 哞菇 | — | 可挤奶 | — | — | — |
-| 女巫 | — | — | — | 施法 | — |
+| 女巫 | 魔法抗性 | — | — | 施法 | — |
 | 牛 | — | 可挤奶 | — | — | — |
 | 猪 | — | 可骑乘 | — | — | — |
 | 绵羊 | — | 可剪毛 | — | — | — |
 | 苦力怕 | — | 自爆 | — | — | — |
-| 鸡 | — | 产蛋 | — | — | — |
-> 自动探测项（火焰免疫／抗性、冻结免疫／抗性／易伤、遇水受伤、治疗反转、弹射物偏转、免疫效果、天然护甲、抗击退，以及水下呼吸、可驯服、灵巧落地、细雪行者、游泳专长、生物威慑、可骑乘和驮运箱）来自原版实体类型、标签或属性。其他模组的生物如满足相同条件也会自动获得；上表只列原版生物。
+| 鸡 | — | 产蛋 | — | 振翅缓降 | — |
+
+## 五、代码入口与来源
+
+| 层 | 现有入口 | 职责 |
+| --- | --- | --- |
+| 特性定义 | `BionicTrait`、`BionicTraitScope`、`BionicTraitRule` | 范围、载体、获取类型、返回值与附加条件 |
+| 数据与供体 | `BionicTraitDataLoader`、`BionicTraitRegistry`、`BionicTraitDonors` | 数据覆盖、不可变快照、供体事实与按世界／数据版本缓存 |
+| 测量与解析 | `BionicTissue`、`BionicTraitCarriers`、`BionicAnatomyRegistry`、`BionicTraitResolver`、`BionicTraitConditions` | 体积、肢体链、覆盖率、数量、承重与依赖 |
+| 结果与提示 | `BionicTraitSet`、`BionicTraitResult`、手术台、纸箱与 JEI | 共用获取结果、强度、数值、集合、有效成员与提示 |
+| 行为执行 | `SlimeBionicEntity`、`BionicDefenses`、`BionicSpecialAttacks`、`BionicHunting`、`BionicVibrationSense` | 体质、技能、索敌、瞬移与振动 |
+| 装备与生产 | `BionicEquipment`、`BionicProduction`、`BionicCombatEvents`、`BionicAreaEffectCloud` | 交互、容器、生产、区域效果与主人关系 |
+| 细雪接入 | `PowderSnowBionicFootMixin` | 腿部细雪行走 |
+
+提示沿用头部、全身、躯干、手臂、腿部五组，头部的性情和智力排在前两项。技能显示“技能”标签。火焰／冻结免疫、全身摔落免疫、完整飞行分别取得对应抗性、腿部摔落免疫与缓降提示的显示优先级。比例型显示有效占比；数值型显示量化后的有效值。实体、手术台预览、纸箱与 JEI 使用同一解析结果。
+
+`BionicTraitSet.coverage()` 对全身和躯干返回整体占比，对独立肢体返回最高覆盖率；`has()` 表示获取结果，`strength()` 表示执行系数，数量与承重通过附加条件判定。特性功能沿用现有 `BionicTraits.ENABLED` 发布开关。数据与分类覆盖通过玩家登录和 `/reload` 同步并更新缓存。
+
+源码以 [ref/SOURCES.md](../ref/SOURCES.md) 和 [Minecraft/SOURCE.json](../ref/1.21.1/Minecraft/SOURCE.json) 记录的 Minecraft 1.21.1 原版快照为依据；NeoForge 扩展以本地 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 的 `EnderMan`、`Shulker`、`BreakDoorGoal`、`EventHooks` 与瞬移事件源码为依据。目标 Goal 的方法签名及呼援流程还核对了本地 NeoForm 已有 Java 源码归档 `sourcesAndCompiledWithNeoForge_5478701d24f4f19996755d682a4e8b1da115b3b8_output.jar`。附魔时长与原版标签使用 `build/moddev/artifacts/neoforge-21.1.234-client-extra-aka-minecraft-resources.jar` 中 Minecraft 1.21.1 的原版数据；生物反查表按嵌套实体标签展开。本次内容核对使用源码读取、文档结构检查、Gradle 编译与现有测试。

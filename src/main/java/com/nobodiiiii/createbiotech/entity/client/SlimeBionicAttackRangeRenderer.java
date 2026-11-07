@@ -48,7 +48,7 @@ public final class SlimeBionicAttackRangeRenderer {
 		SurgicalAssembly.ArmAttackGeometry arm = assembly.attackGeometry() == null
 			? SlimeBionicCombat.fallbackArm(entity.getBbWidth(), entity.getBbHeight())
 			: assembly.attackGeometry().arm(entity.isAttackActionLeft(), entity.getAttackActionArmSlot());
-		if (arm == null)
+		if (arm == null || entity.isBionicWing(arm))
 			return;
 		CachedMesh cached = CACHE.get(entity);
 		float bodyYaw = entity.getAttackBodyYaw();

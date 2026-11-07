@@ -116,6 +116,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			BionicTraitResult result = traits.result(trait);
 			if (!result.present() || hiddenByStrongerTrait(trait, traits))
 				continue;
+			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.value() == 0)
+				continue;
 			List<BionicTraitScope> scopes = trait.scopes().stream().sorted().toList();
 			List<Component> lines = groups.get(scopes.getFirst());
 			Component name = trait == BionicTrait.DETERRENCE ? deterrenceName(result.deterrenceTargets())
@@ -144,7 +146,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					.collect(java.util.stream.Collectors.toSet()));
 			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
 				name = Component.translatable(trait.descriptionId(),
-					ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(result.value()
+					String.format(java.util.Locale.ROOT, "%.1f", result.value()
 						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
 			if (scopes.size() > 1) {
 				MutableComponent names = Component.empty();
@@ -320,8 +322,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		AttributeInstance attackDamage = bionic.getAttribute(Attributes.ATTACK_DAMAGE);
 		if (attackDamage == null || !Double.isFinite(attackDamage.getBaseValue()))
 			return;
-		double dps = SurgicalCombatCalibration.nominalDamagePerSecond(
-			attackDamage.getBaseValue(), assembly.attackGeometry());
+		double dps = assembly.attackGeometry() == null
+			? attackDamage.getBaseValue() : SurgicalCombatCalibration.nominalDamagePerSecond(
+				attackDamage.getBaseValue(), assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList());
 		stats.add(new BaseStat("create_biotech.tooltip.stat.dps", dps, ValueFormat.DECIMAL));
 	}
 

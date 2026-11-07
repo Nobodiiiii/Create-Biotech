@@ -76,6 +76,8 @@ import net.minecraft.world.phys.Vec3;
 public final class SurgicalCapturedRenderPlan {
 	private static final ResourceLocation SLIME_TEXTURE =
 		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
+	private static final ResourceLocation SHEEP_WOOL_TEXTURE =
+		ResourceLocation.withDefaultNamespace("textures/entity/sheep/sheep_fur.png");
 	private static final RenderType INNER_RENDER_TYPE = RenderType.entityCutoutNoCull(SLIME_TEXTURE);
 	private static final RenderType OUTER_RENDER_TYPE = RenderType.entityTranslucent(SLIME_TEXTURE);
 	private static final Set<ResourceLocation> SADDLE_TEXTURES = Set.of(
@@ -119,6 +121,8 @@ public final class SurgicalCapturedRenderPlan {
 	private final List<Component> components;
 	private final List<Component> appearanceComponents;
 	private final List<SourceBatch> extras;
+	private final BitSet woolCubes = new BitSet();
+	private final Map<SurgicalCapturedRenderPlan, List<Component>> equipmentLayers = new IdentityHashMap<>();
 
 	private SurgicalCapturedRenderPlan(List<Component> components, List<SourceBatch> extras) {
 		this(components, components, extras);
@@ -129,6 +133,18 @@ public final class SurgicalCapturedRenderPlan {
 		this.components = List.copyOf(components);
 		this.appearanceComponents = List.copyOf(appearanceComponents);
 		this.extras = List.copyOf(extras);
+		for (Component component : components)
+			if (component.partNames.contains("wool"))
+				woolCubes.set(component.id);
+	}
+
+	/** Hide wool without changing the saved topology, cube ids or retained tissue. */
+	BitSet withoutWool(BitSet presentCubes) {
+		if (!presentCubes.intersects(woolCubes))
+			return presentCubes;
+		BitSet visible = (BitSet) presentCubes.clone();
+		visible.andNot(woolCubes);
+		return visible;
 	}
 
 	/**
@@ -155,6 +171,67 @@ public final class SurgicalCapturedRenderPlan {
 			bound.add(new Component(visual, owner));
 		}
 		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras);
+	}
+
+	/** Draw captured native accessories at one retained cube, using that cube's articulation. */
+	void renderEquipment(SurgicalCapturedRenderPlan equipped, int carrier, Vec3 nativeSeat,
+		PoseStack poseStack, MultiBufferSource buffer, int light, @Nullable Vec3 offset,
+		@Nullable SurgicalCubeRotation rotation, @Nullable Boolean hurt) {
+		if (carrier < 0 || carrier >= components.size()) return;
+		List<Component> layers = equipmentLayers(equipped);
+		Vec3 displacement = equipmentDisplacement(carrier, nativeSeat);
+		Component target = components.get(carrier);
+		Vector3f center = target.center().sub((float) displacement.x, (float) displacement.y, (float) displacement.z);
+		poseStack.pushPose();
+		poseStack.translate(displacement.x, displacement.y, displacement.z);
+		for (Component layer : layers)
+			for (SourceBatch batch : layer.batches)
+				batch.renderSource(poseStack, buffer, light, offset, rotation, center, true, hurt);
+		poseStack.popPose();
+	}
+
+	List<Vec3> equipmentCorners(SurgicalCapturedRenderPlan equipped, int carrier, Vec3 nativeSeat) {
+		if (carrier < 0 || carrier >= components.size()) return List.of();
+		var layers = equipmentLayers(equipped);
+		if (layers.isEmpty()) return List.of();
+		Vec3 displacement = equipmentDisplacement(carrier, nativeSeat);
+		double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
+		double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;
+		for (Component layer : layers) for (Vector3f corner : layer.corners) {
+			minX = Math.min(minX, corner.x); minY = Math.min(minY, corner.y); minZ = Math.min(minZ, corner.z);
+			maxX = Math.max(maxX, corner.x); maxY = Math.max(maxY, corner.y); maxZ = Math.max(maxZ, corner.z);
+		}
+		List<Vec3> corners = new ArrayList<>(8);
+		for (int corner = 0; corner < 8; corner++) corners.add(new Vec3(
+			(corner & 1) == 0 ? minX : maxX, (corner & 2) == 0 ? minY : maxY,
+			(corner & 4) == 0 ? minZ : maxZ).add(displacement));
+		return List.copyOf(corners);
+	}
+
+	private List<Component> equipmentLayers(SurgicalCapturedRenderPlan equipped) {
+		return equipmentLayers.computeIfAbsent(equipped, plan -> {
+			Set<GeometryKey> naked = new HashSet<>();
+			appearanceComponents.forEach(component -> naked.add(GeometryKey.of(component.corners)));
+			return plan.appearanceComponents.stream().filter(component ->
+				component.partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart)
+				|| !naked.contains(GeometryKey.of(component.corners))).toList();
+		});
+	}
+
+	private Vec3 equipmentDisplacement(int carrier, Vec3 nativeSeat) {
+		Vector3f attachment = new Vector3f((float) nativeSeat.x, (float) nativeSeat.y, (float) nativeSeat.z);
+		// Root part labels can be absent in runtime captures. Recover the native carrier from
+		// the attachment's nearest cuboid instead of making every equipped cube its own origin.
+		Component body = components.stream().min(Comparator
+			.comparing((Component component) -> !component.partNames.contains("body"))
+			.thenComparingDouble(component -> distanceToBoxSquared(attachment, component)))
+			.orElseThrow();
+		return carrierSurface(carrier, nativeSeat).subtract(carrierSurface(body.id, nativeSeat));
+	}
+
+	/** Keep the native passenger-to-saddle offset while rebasing both onto the same carrier. */
+	Vec3 equipmentSeat(int carrier, Vec3 nativeSeat) {
+		return nativeSeat.add(equipmentDisplacement(carrier, nativeSeat));
 	}
 
 	/** Project the donor's front/back seat coordinates onto this retained cube's surface. */
@@ -203,11 +280,14 @@ public final class SurgicalCapturedRenderPlan {
 		// cover only part of a body or head, so compare distance to the whole oriented box rather
 		// than its center (which could incorrectly pick a nearby leg or ear).
 		boolean hasHead = visual.head && components.stream().anyMatch(component -> component.head);
+		boolean chest = visual.partNames.stream().anyMatch(name -> name.toLowerCase(java.util.Locale.ROOT).contains("chest"));
+		boolean hasBody = chest && components.stream().anyMatch(component -> component.partNames.contains("body"));
 		Component closest = components.getFirst();
 		float closestScore = Float.POSITIVE_INFINITY;
 		for (Component candidate : components) {
 			if (hasHead && !candidate.head)
 				continue;
+			if (hasBody && !candidate.partNames.contains("body")) continue;
 			float score = 0.0f;
 			for (Vector3f corner : visual.corners)
 				score += distanceToBoxSquared(corner, candidate);
@@ -252,7 +332,8 @@ public final class SurgicalCapturedRenderPlan {
 		boolean bindPlayerSkinLayers = preview instanceof PlayerMimicEntity;
 		List<ObservedCube> observedCubes = topology ? new ArrayList<>() : List.of();
 		Set<GeometryKey> saddleCubes = new HashSet<>();
-		boolean observeSaddle = preview instanceof Saddleable saddleable && saddleable.isSaddled();
+		boolean observeSaddle = preview instanceof Saddleable saddleable && saddleable.isSaddled()
+			|| preview instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse horse && horse.hasChest();
 		// Ordinary live captures keep the fast rejection in observeModelCube. Only saddled models
 		// need the small extra observation for equipment embedded in their main model.
 		ModelCubeCaptureScope captureScope = topology || observeSaddle
@@ -309,7 +390,8 @@ public final class SurgicalCapturedRenderPlan {
 
 	private static boolean isSaddlePart(String name) {
 		return name.equals("saddle") || name.startsWith("saddle_") || name.endsWith("_saddle")
-			|| name.contains("_saddle_") || name.equals("bridle") || name.equals("reins");
+			|| name.contains("_saddle_") || name.equals("bridle") || name.equals("reins")
+			|| name.equals("left_chest") || name.equals("right_chest") || name.equals("leftChest") || name.equals("rightChest");
 	}
 
 	private static ModelCubeCaptureScope openModelCubeCapture(List<ObservedCube> observedCubes,
@@ -1704,13 +1786,17 @@ public final class SurgicalCapturedRenderPlan {
 			this.cuboid = cuboid;
 			this.modelCorners = modelCube.corners();
 			this.head = modelCube.head();
-			this.partNames = modelCube.partNames();
+			this.partNames = new HashSet<>(modelCube.partNames());
 			this.topology = topology;
 		}
 
 		private void observeMaterial(RenderType renderType) {
 			if (primaryRenderType == null)
 				primaryRenderType = renderType;
+			// SheepFurLayer owns a separate model, so the main model's "body" label cannot
+			// identify its wool. Its native material labels every wool cube independently.
+			if (SHEEP_WOOL_TEXTURE.equals(renderTypeTexture(renderType)))
+				partNames.add("wool");
 		}
 
 		private void addVisibleBatch(RenderType renderType, List<CapturedVertex> vertices) {

@@ -8,6 +8,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.TagKey;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.core.Direction;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -19,8 +21,7 @@ import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.entity.EntityTeleportEvent;
+import net.neoforged.neoforge.event.EventHooks;
 
 /** Damage and teleport hooks; all side effects execute on the logical server. */
 public final class BionicDefenses {
@@ -32,11 +33,11 @@ public final class BionicDefenses {
 		if (traits.has(BionicTrait.WITHER_SHIELD) && mob.getHealth() <= mob.getMaxHealth() * 0.5f
 			&& (direct instanceof AbstractArrow || direct != null && (direct.getType() == EntityType.WIND_CHARGE
 				|| direct.getType() == EntityType.BREEZE_WIND_CHARGE))) return true;
-		if (traits.hasVariant(BionicTrait.ENDER_TELEPORT, "enderman")
-			&& (source.is(DamageTypeTags.IS_PROJECTILE) || direct instanceof ThrownPotion)) {
-			for (int attempt = 0; attempt < 64; attempt++)
-				if (randomTeleport(mob, 32)) return true;
-		}
+		return false;
+	}
+
+	public static boolean projectileTeleport(SlimeBionicEntity mob) {
+		for (int attempt = 0; attempt < 64; attempt++) if (randomTeleport(mob, 32)) return true;
 		return false;
 	}
 
@@ -73,22 +74,31 @@ public final class BionicDefenses {
 				30 + mob.getRandom().nextInt(10 * (level - 1) + 1), 3), source.getEntity());
 		}
 		if (!mob.isAlive()) return;
-		if (traits.hasVariant(BionicTrait.ENDER_TELEPORT, "enderman")
+		if (traits.has(BionicTrait.ENDER_TELEPORT)
 			&& !(source.getEntity() instanceof LivingEntity) && mob.getRandom().nextFloat() < 0.9f)
 			randomTeleport(mob, 32);
-		if (traits.hasVariant(BionicTrait.ENDER_TELEPORT, "shulker")
-			&& mob.getHealth() < mob.getMaxHealth() * 0.5f && mob.getRandom().nextInt(4) == 0)
-			for (int attempt = 0; attempt < 5; attempt++) if (randomTeleport(mob, 8)) break;
 	}
 
 	public static void tick(SlimeBionicEntity mob) {
-		if (mob.tickCount % 30 != 0 || !mob.getBionicTraits().hasVariant(BionicTrait.ENDER_TELEPORT, "enderman")) return;
 		LivingEntity target = mob.getTarget();
-		if (target == null || !mob.canAttack(target) || mob.distanceToSqr(target) <= 256) return;
-		Vec3 direction = target.position().subtract(mob.position()).normalize().scale(16);
-		teleport(mob, mob.getX() + direction.x + (mob.getRandom().nextDouble() - 0.5) * 8,
-			mob.getY() + direction.y + mob.getRandom().nextInt(16) - 8,
-			mob.getZ() + direction.z + (mob.getRandom().nextDouble() - 0.5) * 8);
+		if (!mob.getBionicTraits().has(BionicTrait.ENDER_TELEPORT) || target == null || !target.isAlive()
+			|| mob.isPassenger() || mob.isOrderedToSit() || mob.isNoAi()) { mob.teleportPursuitTicks = 0; return; }
+		boolean watched = target instanceof net.minecraft.world.entity.player.Player player && lookingAt(mob, player);
+		if (watched) {
+			if (mob.distanceToSqr(target) < 16) randomTeleport(mob, 32);
+			mob.teleportPursuitTicks = 0;
+		} else if (mob.distanceToSqr(target) > 256 && mob.teleportPursuitTicks++ >= 30) {
+			Vec3 direction = new Vec3(mob.getX() - target.getX(), mob.getY(0.5) - target.getEyeY(), mob.getZ() - target.getZ()).normalize();
+			if (teleport(mob, mob.getX() + (mob.getRandom().nextDouble() - 0.5) * 8 - direction.x * 16,
+				mob.getY() + mob.getRandom().nextInt(16) - 8 - direction.y * 16,
+				mob.getZ() + (mob.getRandom().nextDouble() - 0.5) * 8 - direction.z * 16)) mob.teleportPursuitTicks = 0;
+		}
+	}
+
+	private static boolean lookingAt(SlimeBionicEntity mob, net.minecraft.world.entity.player.Player player) {
+		if (player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).is(net.minecraft.world.item.Items.CARVED_PUMPKIN)) return false;
+		Vec3 delta = mob.getEyePosition().subtract(player.getEyePosition());
+		return player.getViewVector(1).normalize().dot(delta.normalize()) > 1 - 0.025 / delta.length() && player.hasLineOfSight(mob);
 	}
 
 	private static boolean randomTeleport(SlimeBionicEntity mob, int radius) {
@@ -98,9 +108,12 @@ public final class BionicDefenses {
 	}
 
 	private static boolean teleport(SlimeBionicEntity mob, double x, double y, double z) {
-		if (mob.level().isClientSide || !mob.isAlive() || mob.isOrderedToSit() || mob.isLeashed()
-			|| mob.isPassenger() || mob.isVehicle()) return false;
-		var event = NeoForge.EVENT_BUS.post(new EntityTeleportEvent.EnderEntity(mob, x, y, z));
+		if (mob.level().isClientSide || !mob.isAlive()) return false;
+		BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos(x, y, z);
+		while (support.getY() > mob.level().getMinBuildHeight() && !mob.level().getBlockState(support).blocksMotion()) support.move(Direction.DOWN);
+		var state = mob.level().getBlockState(support);
+		if (!state.blocksMotion() || state.getFluidState().is(FluidTags.WATER)) return false;
+		var event = EventHooks.onEnderTeleport(mob, x, y, z);
 		if (event.isCanceled()) return false;
 		x = event.getTargetX(); y = event.getTargetY(); z = event.getTargetZ();
 		if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)

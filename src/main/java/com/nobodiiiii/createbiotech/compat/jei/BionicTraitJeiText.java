@@ -85,6 +85,7 @@ final class BionicTraitJeiText {
 		case NONE -> null;
 		case BODY_VOLUME -> tr("condition.body_volume");
 		case BREATHING_REQUIRED -> tr("condition.breathing");
+		case WOOL_AND_BODY -> tr("condition.wool_and_body");
 		case WING_LIFT -> tr("condition.wings");
 		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",
 			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB

@@ -15,8 +15,9 @@
       ],
       "parameters": {
         "range": 20,
-        "warmup_ticks": 40,
-        "cooldown_ticks": 60
+        "warmup_ticks": 20,
+        "cooldown_ticks": 60,
+        "action_ticks": 40
       }
     },
     "minecraft:potion": {
@@ -25,8 +26,8 @@
       ],
       "parameters": {
         "range": 10,
-        "warmup_ticks": 10,
-        "cooldown_ticks": 50
+        "warmup_ticks": 0,
+        "cooldown_ticks": 60
       }
     }
   },

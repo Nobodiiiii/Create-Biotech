@@ -1055,16 +1055,28 @@ public final class SurgicalAssembly {
 		return List.copyOf(decoded);
 	}
 
+	public record CarrierEquipmentBounds(@Nullable VisualBounds saddle, @Nullable VisualBounds chest) {}
+
 	/** Immutable physical dimensions and articulation for every installed arm, baked from the rest geometry. */
 	public record AttackGeometry(List<ArmAttackGeometry> right,
 		List<ArmAttackGeometry> left, Map<CombinationMember, Vec3> carrierOrigins,
-		Map<CombinationMember, RidingSeat> ridingSeats) {
+		Map<CombinationMember, RidingSeat> ridingSeats, Map<CombinationMember, List<Vec3>> carrierCubes,
+		Map<CombinationMember, CarrierEquipmentBounds> equipmentBounds) {
 		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left) {
 			this(right, left, Map.of());
 		}
 		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
 			Map<CombinationMember, Vec3> carrierOrigins) {
 			this(right, left, carrierOrigins, Map.of());
+		}
+		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats) {
+			this(right, left, origins, seats, Map.of());
+		}
+		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats,
+			Map<CombinationMember, List<Vec3>> cubes) {
+			this(right, left, origins, seats, cubes, Map.of());
 		}
 		private static final double MAX_COORDINATE = MAX_BODY_SIZE * 2.0d;
 
@@ -1073,6 +1085,14 @@ public final class SurgicalAssembly {
 			left = freezeArms(left);
 			carrierOrigins = Map.copyOf(carrierOrigins);
 			ridingSeats = Map.copyOf(ridingSeats);
+			equipmentBounds = Map.copyOf(equipmentBounds);
+			if (!carrierOrigins.keySet().containsAll(equipmentBounds.keySet()))
+				throw new IllegalArgumentException("Equipment bounds require a carrier cube");
+			carrierCubes = carrierCubes.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
+				Map.Entry::getKey, entry -> List.copyOf(entry.getValue())));
+			if (!carrierOrigins.keySet().containsAll(carrierCubes.keySet()) || carrierCubes.values().stream()
+				.anyMatch(corners -> corners.size() != 8 || corners.stream().anyMatch(point -> !validPoint(point))))
+				throw new IllegalArgumentException("Invalid carrier cuboids");
 			if (carrierOrigins.size() > MAX_CUBES || carrierOrigins.entrySet().stream().anyMatch(entry ->
 				entry.getKey().source() < 0 || entry.getKey().source() >= MAX_SOURCES
 				|| entry.getKey().cube() < 0 || entry.getKey().cube() >= MAX_CUBES || !validPoint(entry.getValue())))
@@ -1109,6 +1129,53 @@ public final class SurgicalAssembly {
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
+		@Nullable
+		public static AttackGeometry create(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats,
+			Map<CombinationMember, List<Vec3>> cubes) {
+			try { return new AttackGeometry(right, left, origins, seats, cubes); }
+			catch (IllegalArgumentException ignored) { return null; }
+		}
+
+		@Nullable
+		public static AttackGeometry create(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats,
+			Map<CombinationMember, List<Vec3>> cubes, Map<CombinationMember, CarrierEquipmentBounds> equipment) {
+			try { return new AttackGeometry(right, left, origins, seats, cubes, equipment); }
+			catch (IllegalArgumentException ignored) { return null; }
+		}
+
+		private static Map<CombinationMember, CarrierEquipmentBounds> loadEquipmentBounds(CompoundTag tag) {
+			Map<CombinationMember, CarrierEquipmentBounds> bounds = new HashMap<>();
+			ListTag list = tag.getList("CarrierOrigins", Tag.TAG_COMPOUND);
+			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many equipment bounds");
+			for (int i = 0; i < list.size(); i++) {
+				CompoundTag entry = list.getCompound(i);
+				VisualBounds saddle = entry.contains("SaddleBounds", Tag.TAG_COMPOUND)
+					? VisualBounds.load(entry.getCompound("SaddleBounds")) : null;
+				VisualBounds chest = entry.contains("ChestBounds", Tag.TAG_COMPOUND)
+					? VisualBounds.load(entry.getCompound("ChestBounds")) : null;
+				if (saddle != null || chest != null) bounds.put(new CombinationMember(entry.getInt("Source"), entry.getInt("Cube")),
+					new CarrierEquipmentBounds(saddle, chest));
+			}
+			return bounds;
+		}
+
+		private static Map<CombinationMember, List<Vec3>> loadCubes(CompoundTag tag) {
+			Map<CombinationMember, List<Vec3>> cubes = new HashMap<>();
+			ListTag list = tag.getList("CarrierOrigins", Tag.TAG_COMPOUND);
+			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many carrier cuboids");
+			for (int i = 0; i < list.size(); i++) {
+				CompoundTag entry = list.getCompound(i);
+				if (!entry.contains("Corners", Tag.TAG_LIST)) continue;
+				ListTag points = entry.getList("Corners", Tag.TAG_COMPOUND);
+				List<Vec3> corners = new ArrayList<>();
+				for (int j = 0; j < points.size(); j++) corners.add(loadPoint(points.getCompound(j)));
+				cubes.put(new CombinationMember(entry.getInt("Source"), entry.getInt("Cube")), corners);
+			}
+			return cubes;
+		}
+
 		private ListTag saveOrigins() {
 			ListTag list = new ListTag();
 			carrierOrigins.entrySet().stream().sorted(java.util.Comparator
@@ -1120,6 +1187,17 @@ public final class SurgicalAssembly {
 				point.putDouble("X", entry.getValue().x);
 				point.putDouble("Y", entry.getValue().y);
 				point.putDouble("Z", entry.getValue().z);
+				List<Vec3> corners = carrierCubes.get(entry.getKey());
+				if (corners != null) {
+					ListTag points = new ListTag();
+					corners.forEach(corner -> points.add(savePoint(corner)));
+					point.put("Corners", points);
+				}
+				CarrierEquipmentBounds bounds = equipmentBounds.get(entry.getKey());
+				if (bounds != null) {
+					if (bounds.saddle() != null) point.put("SaddleBounds", bounds.saddle().save());
+					if (bounds.chest() != null) point.put("ChestBounds", bounds.chest().save());
+				}
 				RidingSeat seat = ridingSeats.get(entry.getKey());
 				if (seat != null) {
 					point.put("Seat", savePoint(seat.first()));
@@ -1230,7 +1308,7 @@ public final class SurgicalAssembly {
 			List<ArmAttackGeometry> left = readArms(buffer);
 			CompoundTag origins = buffer.readNbt();
 			if (right == null || left == null || origins == null) return null;
-			try { return create(right, left, loadOrigins(origins), loadSeats(origins)); }
+			try { return create(right, left, loadOrigins(origins), loadSeats(origins), loadCubes(origins), loadEquipmentBounds(origins)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
@@ -1238,7 +1316,7 @@ public final class SurgicalAssembly {
 		private static AttackGeometry load(CompoundTag tag) {
 			List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
 			List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
-			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag), loadSeats(tag)); }
+			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag), loadSeats(tag), loadCubes(tag), loadEquipmentBounds(tag)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 

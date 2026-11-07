@@ -7,10 +7,10 @@
     "minecraft:sheep": {
       "TORSO": [
         "body"
+      ],
+      "WOOL": [
+        "wool"
       ]
     }
-  },
-  "parameters": {
-    "regrow_ticks": 6000
   }
 }

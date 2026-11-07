@@ -4,8 +4,8 @@ import java.util.Objects;
 
 /**
  * Shared inheritance rule used by resolution, effects and tooltips. A carrier must belong to the
- * trait's scope before this rule is evaluated; whole-body traits accept every organ. Threshold
- * traits may additionally require assembly conditions (for example enough effective legs or lift),
+ * trait's scope before this rule is evaluated; whole-body traits accept every organ. Traits
+ * may additionally require assembly conditions (for example paired carriers or enough lift),
  * checked by their resolver.
  */
 public record BionicTraitRule(BionicTraitType type, double minCoverage) {

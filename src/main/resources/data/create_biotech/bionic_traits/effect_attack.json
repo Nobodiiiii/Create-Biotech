@@ -23,7 +23,7 @@
         "MOUTH",
         "SPINE"
       ],
-      "duration_ticks": 100,
+      "duration_ticks": 200,
       "amplifier": 0,
       "chance": 1.0,
       "unarmed_only": false

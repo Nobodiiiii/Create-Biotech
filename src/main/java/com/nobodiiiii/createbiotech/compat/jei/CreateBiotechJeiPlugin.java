@@ -27,6 +27,7 @@ import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
@@ -37,6 +38,7 @@ import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.registration.IRecipeTransferRegistration;
 import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.component.DataComponents;
@@ -58,6 +60,16 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	@Override
 	public ResourceLocation getPluginUid() {
 		return CreateBiotech.asResource("jei_plugin");
+	}
+
+	@Override
+	public void onRuntimeAvailable(IJeiRuntime runtime) {
+		// Keep the command-only tool hidden even with JEI's showHiddenIngredients enabled.
+		var manager = runtime.getIngredientManager();
+		List<ItemStack> debugSticks = manager.getAllIngredients(VanillaTypes.ITEM_STACK).stream()
+			.filter(stack -> stack.is(CBItems.MIMIC_DEBUG_STICK.get())).toList();
+		if (!debugSticks.isEmpty())
+			manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, debugSticks);
 	}
 
 	@Override

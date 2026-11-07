@@ -30,10 +30,11 @@ public final class BionicRiding {
 	@Nullable
 	public static RiderPose pose(SlimeBionicEntity mount, Entity passenger, float partialTick, float yaw) {
 		var equipment = mount.getBionicEquipment();
-		var seat = equipment.ridingSeat();
+		var assigned = equipment.passengerSeat(passenger);
+		if (assigned == null) return null;
+		var seat = equipment.ridingSeat(assigned.carrier());
 		if (seat == null) return null;
-		boolean rear = equipment.seats() == 2 && (mount.getPassengers().indexOf(passenger) > 0
-			|| !mount.hasPassenger(passenger) && !mount.getPassengers().isEmpty());
+		boolean rear = assigned.slot() == 1;
 		Vec3 anchor = rear ? seat.second() : seat.first();
 		Vec3 pivot = equipment.carrierOrigin();
 		SurgicalCubeRotation body = bodyRotation(mount, partialTick);

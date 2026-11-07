@@ -452,7 +452,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			? occupiedOutside(temporaryMove.group) : occupiedForValidation(plane, -1);
 		if (level == null || level.isClientSide || !worldPosition.equals(plane.source()) || occupied == null)
 			return SurgicalTablePlacementResult.INVALID_TABLE;
-		if (!(box.getItem() instanceof CapturedEntityBoxItem) && temporaryMove == null
+		if (!(box.getItem() instanceof CapturedEntityBoxItem) && !SurgicalKitItem.hasPlacementCapture(box)
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
 			|| headCubes == null || anatomy == null || componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
@@ -537,7 +537,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.NO_SPACE;
 
 		if (placementAssembly != null)
-			donorId = placementDonorIds(placementAssembly, temporaryMove).get(donorId);
+			donorId = placementDonorIds(placementAssembly, temporaryMove, SurgicalKitItem.isCubeCopier(box))
+				.get(donorId);
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(), donorId,
 			originalHeads, originalHeadKnown, originalAnatomy, profile, placementFacing, layPose, cubeCount,
 			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
@@ -563,7 +564,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		// Restore sources as normal table subjects so each source keeps its own model topology and
 		// automatically participates in the existing ray selection and shears workflow.
 		List<SurgicalSubject> restored = new ArrayList<>(assemblySources.size());
-		Map<UUID, UUID> donorIds = placementDonorIds(assembly, temporaryMove);
+		Map<UUID, UUID> donorIds = placementDonorIds(assembly, temporaryMove, SurgicalKitItem.isCubeCopier(box));
 		for (int sourceId = 0; sourceId < assemblySources.size(); sourceId++) {
 			SurgicalAssembly.PlacedSource placed = placedSources.get(sourceId);
 			SurgicalAssembly.Source source = placed.source();
@@ -625,9 +626,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
-	/** Keep complementary donor fragments related, but give overlapping imported copies a new origin. */
+	/** Keep complementary fragments related; creative copies always receive an independent donor. */
 	private Map<UUID, UUID> placementDonorIds(SurgicalAssembly assembly,
-		@Nullable TemporaryMoveSource move) {
+		@Nullable TemporaryMoveSource move, boolean copied) {
 		Map<UUID, BitSet> occupied = new HashMap<>();
 		for (SurgicalSubject subject : subjects) {
 			BitSet cubes = subject.presentCubes();
@@ -647,7 +648,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (Map.Entry<UUID, BitSet> entry : incoming.entrySet()) {
 			UUID id = entry.getKey();
 			BitSet existing = occupied.get(id);
-			if (existing != null && existing.intersects(entry.getValue())) {
+			if (copied || existing != null && existing.intersects(entry.getValue())) {
 				do {
 					id = UUID.randomUUID();
 				} while (!used.add(id));
@@ -1439,6 +1440,35 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 		SurgicalKitItem.setTemporaryMove(kit, level.dimension().location(), worldPosition,
 			subject.persistentId(), cubeId, group.components, sourceSubjects, sourceAssembly.save());
+		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
+		return true;
+	}
+
+	/** Stores the connected component as an independent snapshot without changing its source. */
+	public boolean captureCopiedComponent(Player player, ItemStack kit, int subjectId, int cubeId,
+		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		@Nullable SurgicalAssembly.BodyBounds bodyBounds, double bodyVolume,
+		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		if (level == null || level.isClientSide || !SurgicalKitItem.isEmptyCubeCopier(kit)
+			|| bodyBounds == null || !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
+			return false;
+		SurgicalAssembly assembly = previewPackedAssembly(subjectId, cubeId, observedCubeCount, observedSeams);
+		if (assembly == null || !validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
+			|| !validMobilityMeasurements(assembly, bodyBounds))
+			return false;
+		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
+		int installedArms = (int) assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
+		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
+			assembly = assembly.withAttackGeometry(attackGeometry);
+		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
+		if (bionic == null)
+			return false;
+		bionic.setAssembly(assembly);
+		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
+			return false;
+		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.cube_copied"), true);
 		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
 	}

@@ -20,6 +20,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalClientTopology;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
@@ -124,13 +125,18 @@ public final class SlimeBionicAnimator {
 			(shoulder.arm().left() ? left : right).add(arm);
 		}
 		Map<SurgicalAssembly.CombinationMember, Vec3> origins = new HashMap<>();
+		Map<SurgicalAssembly.CombinationMember, List<Vec3>> cubes = new HashMap<>();
+		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.CarrierEquipmentBounds> equipment = new HashMap<>();
 		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.RidingSeat> seats = new HashMap<>();
 		for (int source = 0; source < sources.size(); source++) {
 			var present = assembly.sources().get(source).presentCubes();
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
 				CubeBox box = box(sources, new Member(source, cube));
-				if (box != null) origins.put(new SurgicalAssembly.CombinationMember(source, cube),
-					box.center().subtract(bodyOrigin));
+				if (box != null) {
+					var member = new SurgicalAssembly.CombinationMember(source, cube);
+					origins.put(member, box.center().subtract(bodyOrigin));
+					cubes.put(member, box.points().stream().map(point -> point.subtract(bodyOrigin)).toList());
+				}
 			}
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
 				var seat = SurgicalSourceModelRenderer.ridingSeat(assembly.sources().get(source).profile(), cube);
@@ -139,6 +145,12 @@ public final class SlimeBionicAnimator {
 				var original = SurgicalSourceModelRenderer.singleCubeGeometry(
 					assembly.sources().get(source).profile(), cube);
 				if (carrier == null || original == null) continue;
+				var saddle = equipmentBounds(assembly.sources().get(source).profile(), cube, false,
+					original.corners(), carrier.points(), bodyOrigin);
+				var chest = equipmentBounds(assembly.sources().get(source).profile(), cube, true,
+					original.corners(), carrier.points(), bodyOrigin);
+				if (saddle != null || chest != null) equipment.put(new SurgicalAssembly.CombinationMember(source, cube),
+					new SurgicalAssembly.CarrierEquipmentBounds(saddle, chest));
 				seats.put(new SurgicalAssembly.CombinationMember(source, cube),
 					new SurgicalAssembly.RidingSeat(
 						transformCubePoint(seat.first(), original.corners(), carrier.points()).subtract(bodyOrigin),
@@ -146,7 +158,23 @@ public final class SlimeBionicAnimator {
 						cubeRotation(original.corners(), carrier.points())));
 			}
 		}
-		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats);
+		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats, cubes, equipment);
+	}
+
+	@Nullable
+	private static SurgicalAssembly.VisualBounds equipmentBounds(
+		com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile profile, int cube, boolean chest,
+		List<Vec3> original, List<Vec3> transformed, Vec3 bodyOrigin) {
+		var corners = SurgicalSourceModelRenderer.equipmentCorners(profile, cube, chest);
+		if (corners.isEmpty()) return null;
+		double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
+		double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;
+		for (Vec3 corner : corners) {
+			Vec3 point = transformCubePoint(corner, original, transformed).subtract(bodyOrigin);
+			minX = Math.min(minX, point.x); minY = Math.min(minY, point.y); minZ = Math.min(minZ, point.z);
+			maxX = Math.max(maxX, point.x); maxY = Math.max(maxY, point.y); maxZ = Math.max(maxZ, point.z);
+		}
+		return SurgicalAssembly.VisualBounds.create(minX, minY, minZ, maxX, maxY, maxZ);
 	}
 
 	/** The corner ordering survives table layout, per-cube rotations and the final upright transform. */
@@ -286,6 +314,7 @@ public final class SlimeBionicAnimator {
 		private final List<SourceState> sources;
 		private final List<ResolvedLimb> limbs;
 		private final float legLength;
+		private final Map<Integer, WingHinge> wingHinges = new HashMap<>();
 
 		private Rig(SurgicalAssembly assembly, List<SourceState> sources, List<ResolvedLimb> limbs,
 			float legLength) {
@@ -315,7 +344,7 @@ public final class SlimeBionicAnimator {
 	 */
 	@Nullable
 	public static FirstPersonArmSelection firstPersonArm(
-		SurgicalAssembly assembly, List<SourceState> sources, boolean left) {
+		SlimeBionicEntity entity, SurgicalAssembly assembly, List<SourceState> sources, boolean left) {
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
 		int shoulderIndex = -1;
 		int lowestSlot = Integer.MAX_VALUE;
@@ -324,6 +353,9 @@ public final class SlimeBionicAnimator {
 			if (limb.type() != SurgicalLimbType.SHOULDER || limb.arm() == null
 				|| limb.arm().left() != left || limb.arm().slot() >= lowestSlot)
 				continue;
+			var geometry = assembly.attackGeometry();
+			var arm = geometry == null ? null : geometry.arm(limb.arm().left(), limb.arm().slot());
+			if (arm != null && entity.isBionicWing(arm)) continue;
 			shoulderIndex = index;
 			lowestSlot = limb.arm().slot();
 		}
@@ -397,12 +429,13 @@ public final class SlimeBionicAnimator {
 		Transform[] transforms = new Transform[limbs.size()];
 		boolean[] resolving = new boolean[limbs.size()];
 		Map<Member, Integer> appliedDepths = new HashMap<>();
+		Set<SurgicalAssembly.CombinationMember> wingMembers = entity.getBionicTraits().wingMembers();
 		for (int limbIndex = 0; limbIndex < limbs.size(); limbIndex++) {
 			ResolvedLimb limb = limbs.get(limbIndex);
 			if (limb.bone() == null && limb.gait() == null && !(context.swimAmount() > 0.0f
 				&& (limb.type() == SurgicalLimbType.HIP || limb.type() == SurgicalLimbType.KNEE)))
 				continue;
-			Transform transform = resolveTransform(limbIndex, limbs, pose, context, bodyTransform,
+			Transform transform = resolveTransform(limbIndex, resolved, pose, context, wingMembers, bodyTransform,
 				swimTransform, transforms, resolving);
 			if (transform.isIdentity())
 				continue;
@@ -887,19 +920,39 @@ public final class SlimeBionicAnimator {
 		return false;
 	}
 
-	private static Transform resolveTransform(int index, List<ResolvedLimb> limbs, Pose pose,
-		Context context, Transform bodyTransform, Transform swimTransform,
+	private static Transform resolveTransform(int index, Rig rig, Pose pose,
+		Context context, Set<SurgicalAssembly.CombinationMember> wingMembers,
+		Transform bodyTransform, Transform swimTransform,
 		Transform[] cache, boolean[] resolving) {
 		if (cache[index] != null)
 			return cache[index];
 		if (resolving[index])
 			return Transform.IDENTITY;
 		resolving[index] = true;
+		List<ResolvedLimb> limbs = rig.limbs;
 		ResolvedLimb limb = limbs.get(index);
 		Transform parent = limb.parentIndex() < 0
 			? inheritsBodyRotation(limb) ? bodyTransform : swimTransform
-			: resolveTransform(limb.parentIndex(), limbs, pose, context, bodyTransform,
+			: resolveTransform(limb.parentIndex(), rig, pose, context, wingMembers, bodyTransform,
 				swimTransform, cache, resolving);
+		Member wing = limb.arm() == null ? null : limb.members().stream()
+			.filter(member -> wingMembers.contains(
+				new SurgicalAssembly.CombinationMember(member.source(), member.cube())))
+			.findFirst().orElse(null);
+		if (wing != null) {
+			var source = rig.assembly.sources().get(wing.source());
+			WingHinge hinge = rig.wingHinges.computeIfAbsent(index, ignored -> wingHinge(rig, limb, wing));
+			Rotation flight = BionicWingAnimation.sample(source.profile(),
+				source.anatomy().parts().getOrDefault(wing.cube(), Set.of()), limb.arm().left(), context.ageInTicks());
+			Vec3 channel = BionicWingAnimation.flapAxis(source.profile());
+			double angle = flight.x() * channel.x + flight.y() * channel.y + flight.z() * channel.z;
+			SurgicalCubeRotation delta = SurgicalCubeRotation.around(hinge.end().subtract(hinge.start()),
+				Math.toDegrees(angle));
+			Transform resolved = parent.rotateAround(parent.apply(hinge.start()), conjugate(parent.rotation(), delta));
+			resolving[index] = false;
+			cache[index] = resolved;
+			return resolved;
+		}
 		boolean mirrorAttackAcrossHorizontal = mirrorsUpwardArmAttack(index, limbs, context);
 		Rotation sampled = limb.gait() != null ? SlimeBionicAnimations.sampleLeg(context,
 				limb.type() == SurgicalLimbType.KNEE, limb.gait().style(),
@@ -941,6 +994,73 @@ public final class SlimeBionicAnimator {
 		resolving[index] = false;
 		cache[index] = resolved;
 		return resolved;
+	}
+
+	/** Measures the actual seam endpoints once, retaining source-axis direction after surgical placement. */
+	private static WingHinge wingHinge(Rig rig, ResolvedLimb limb, Member wing) {
+		var profile = rig.assembly.sources().get(wing.source()).profile();
+		Vec3 channel = BionicWingAnimation.flapAxis(profile);
+		Vec3 axis = BODY_SPACE.point(channel.x, channel.y, channel.z);
+		CubeBox wingBox = box(rig.sources, wing);
+		var original = SurgicalSourceModelRenderer.singleCubeGeometry(profile, wing.cube());
+		if (original != null && wingBox != null) {
+			Vec3 origin = transformCubePoint(Vec3.ZERO, original.corners(), wingBox.points());
+			Vec3 installedAxis = transformCubePoint(axis, original.corners(), wingBox.points()).subtract(origin);
+			if (installedAxis.lengthSqr() > GEOMETRY_EPSILON)
+				axis = installedAxis.normalize();
+		}
+		SurgicalConnectionGraph<Integer> graph = connectionGraph(rig.assembly);
+		Connection connection = graph == null ? null : connection(graph, limb.anchor(), limb.parent(),
+			limb.members(), group(rig.assembly, limb.parent().source(), limb.parent().cube()));
+		CubeBox child = box(rig.sources, connection == null ? limb.anchor() : connection.child());
+		CubeBox parent = box(rig.sources, connection == null ? limb.parent() : connection.parent());
+		return child == null || parent == null ? new WingHinge(limb.pivot(), limb.pivot().add(axis))
+			: wingHinge(child, parent, axis, limb.pivot());
+	}
+
+	/**
+	 * Uses an edge of the clipped contact boundary as a fixed hinge line. Native-channel alignment
+	 * selects the span; proximity to the exposed wing selects the body's exit edge when cubes overlap.
+	 * Both endpoints then remain on the parent throughout the flap, including for tilted/flat wings.
+	 */
+	private static WingHinge wingHinge(CubeBox child, CubeBox parent, Vec3 nativeAxis, Vec3 restPivot) {
+		var edges = SurgicalClientTopology.intersectionEdges(
+			new SurgicalModelRenderContext.CubeGeometry(0, child.points()),
+			new SurgicalModelRenderContext.CubeGeometry(1, parent.points()));
+		WingHinge best = null;
+		double bestAlignment = -1.0d;
+		double bestWingDistance = Double.POSITIVE_INFINITY;
+		double bestPivotDistance = Double.POSITIVE_INFINITY;
+		for (var edge : edges) {
+			Vec3 span = edge.end().subtract(edge.start());
+			if (span.lengthSqr() <= GEOMETRY_EPSILON)
+				continue;
+			Vec3 axis = span.normalize();
+			double alignment = Math.abs(axis.dot(nativeAxis));
+			double wingDistance = distanceToLineSqr(child.center(), edge.start(), axis);
+			double pivotDistance = distanceToLineSqr(restPivot, edge.start(), axis);
+			if (alignment > bestAlignment + GEOMETRY_EPSILON
+				|| Math.abs(alignment - bestAlignment) <= GEOMETRY_EPSILON
+					&& (wingDistance < bestWingDistance - GEOMETRY_EPSILON
+						|| Math.abs(wingDistance - bestWingDistance) <= GEOMETRY_EPSILON
+							&& pivotDistance < bestPivotDistance - GEOMETRY_EPSILON)) {
+				best = axis.dot(nativeAxis) >= 0 ? new WingHinge(edge.start(), edge.end())
+					: new WingHinge(edge.end(), edge.start());
+				bestAlignment = alignment;
+				bestWingDistance = wingDistance;
+				bestPivotDistance = pivotDistance;
+			}
+		}
+		if (best != null)
+			return best;
+		// Legacy glue gaps have no shared boundary. Keep a line through the connecting region.
+		Vec3 center = child.contactCenter(parent, BODY_SPACE);
+		return new WingHinge(center, center.add(nativeAxis));
+	}
+
+	private static double distanceToLineSqr(Vec3 point, Vec3 origin, Vec3 unitAxis) {
+		Vec3 relative = point.subtract(origin);
+		return relative.subtract(unitAxis.scale(relative.dot(unitAxis))).lengthSqr();
 	}
 
 	/** True for the attacking shoulder and the one opposite shoulder carrying its balance track. */
@@ -1373,6 +1493,7 @@ public final class SlimeBionicAnimator {
 
 	private record Member(int source, int cube) {}
 	private record Connection(Member child, Member parent) {}
+	private record WingHinge(Vec3 start, Vec3 end) {}
 	private record LimbGeometry(SurgicalLimbType type, List<Member> members, Member anchor,
 		Member parent, CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
