@@ -6,9 +6,13 @@
   "carriers": {
     "minecraft:warden": {
       "TORSO": [
-        "body",
-        "right_ribcage",
+        "body"
+      ],
+      "LEFT_RIBCAGE": [
         "left_ribcage"
+      ],
+      "RIGHT_RIBCAGE": [
+        "right_ribcage"
       ]
     }
   },

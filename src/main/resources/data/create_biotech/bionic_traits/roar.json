@@ -5,11 +5,11 @@
   },
   "carriers": {
     "minecraft:ravager": {
-      "HEAD": [
-        "head",
-        "mouth",
-        "left_horn",
-        "right_horn"
+      "HEAD_CORE": [
+        "head_core"
+      ],
+      "MOUTH": [
+        "mouth"
       ]
     }
   },

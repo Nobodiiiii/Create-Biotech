@@ -104,7 +104,17 @@ public final class SurgicalWrenchRotation {
 		return SurgicalCubeRotation.nearestAxisAlignment(x, y);
 	}
 
-	public enum Failure { NONE, INVALID, NO_SPACE, DISCONNECTED, JOINT_DISCONNECTED }
+	public enum Failure {
+		NONE, INVALID, NO_SPACE, DISCONNECTED, JOINT_DISCONNECTED;
+
+		public String messageKey() {
+			return "message.create_biotech.surgical_table." + switch (this) {
+				case NO_SPACE -> "no_space";
+				case DISCONNECTED, JOINT_DISCONNECTED -> "edit_limit";
+				default -> "operation_failed";
+			};
+		}
+	}
 	public record Endpoint(int body, int cube) {}
 	public record Plan(List<Body> bodies, Failure failure, Endpoint selected, List<Endpoint> disconnected) {
 		public Plan(List<Body> bodies, Failure failure) { this(bodies, failure, null, List.of()); }
@@ -163,25 +173,11 @@ public final class SurgicalWrenchRotation {
 			return Plan.fail(Failure.INVALID);
 		List<Body> grounded = preview(before, group, selectedBody, selectedCube, groupRotation, selectedRotation,
 			area.surfaceY(), groupTranslation, selectedTranslation);
-		List<SurgicalTableLayout.Footprint> stationary = new ArrayList<>(obstacles);
-		List<SurgicalTableLayout.Footprint> movingFootprints = new ArrayList<>();
-		for (Body body : grounded) {
-			for (Cube cube : body.cubes) {
+		for (Body body : grounded)
+			for (Cube cube : body.cubes)
 				if (!cube.valid())
 					return Plan.fail(Failure.INVALID);
-				SurgicalTableLayout.Footprint footprint = cube.footprint(cube.id);
-				if (group.get(body.id).get(cube.id)) {
-					if (!area.contains(footprint.minX(), footprint.minZ(), footprint.maxX(), footprint.maxZ(), 1.0e-6d))
-						return Plan.fail(Failure.NO_SPACE);
-					movingFootprints.add(footprint);
-				} else
-					stationary.add(footprint);
-			}
-		}
-		for (SurgicalTableLayout.Footprint moved : movingFootprints)
-			for (SurgicalTableLayout.Footprint obstacle : stationary)
-				if (moved.conflictsWith(obstacle))
-					return Plan.fail(Failure.NO_SPACE);
+		// Report lost contact before space failures so the final-pose hint explains the broken connection.
 		List<Endpoint> disconnected = new ArrayList<>();
 		if (!groupRotation.approximatelyEquals(selectedRotation, 1.0e-10d)
 			|| groupTranslation.distanceToSqr(selectedTranslation) > 1.0e-20d) {
@@ -202,6 +198,23 @@ public final class SurgicalWrenchRotation {
 			if (neighborCount > 0 && disconnected.size() == neighborCount)
 				return Plan.fail(Failure.DISCONNECTED);
 		}
+		List<SurgicalTableLayout.Footprint> stationary = new ArrayList<>(obstacles);
+		List<SurgicalTableLayout.Footprint> movingFootprints = new ArrayList<>();
+		for (Body body : grounded) {
+			for (Cube cube : body.cubes) {
+				SurgicalTableLayout.Footprint footprint = cube.footprint(cube.id);
+				if (group.get(body.id).get(cube.id)) {
+					if (!area.contains(footprint.minX(), footprint.minZ(), footprint.maxX(), footprint.maxZ(), 1.0e-6d))
+						return Plan.fail(Failure.NO_SPACE);
+					movingFootprints.add(footprint);
+				} else
+					stationary.add(footprint);
+			}
+		}
+		for (SurgicalTableLayout.Footprint moved : movingFootprints)
+			for (SurgicalTableLayout.Footprint obstacle : stationary)
+				if (moved.conflictsWith(obstacle))
+					return Plan.fail(Failure.NO_SPACE);
 		return new Plan(grounded, Failure.NONE, new Endpoint(selectedBody, selectedCube), disconnected);
 	}
 

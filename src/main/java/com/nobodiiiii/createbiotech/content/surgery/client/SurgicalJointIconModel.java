@@ -11,6 +11,7 @@ import org.joml.Vector3f;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
 import com.nobodiiiii.createbiotech.foundation.render.GuiEntityItemElement;
 
 import net.minecraft.client.model.PlayerModel;
@@ -26,6 +27,7 @@ public final class SurgicalJointIconModel {
 	public static final ResourceLocation TEXTURE =
 		ResourceLocation.withDefaultNamespace("textures/entity/player/wide/steve.png");
 	private static final Map<SurgicalLimbType, SurgicalJointIconModel> MODELS = new EnumMap<>(SurgicalLimbType.class);
+	private static final Map<BionicTraitScope, SurgicalJointIconModel> SCOPE_MODELS = new EnumMap<>(BionicTraitScope.class);
 	private final List<Vertex> vertices;
 
 	private SurgicalJointIconModel(SurgicalLimbType type) {
@@ -62,8 +64,28 @@ public final class SurgicalJointIconModel {
 		vertices = List.copyOf(mesh);
 	}
 
+	/** Whole regions use the same mesh capture, skin and item framing as the joint badges. */
+	private SurgicalJointIconModel(BionicTraitScope scope) {
+		ModelPart player = LayerDefinition.create(PlayerModel.createMesh(CubeDeformation.NONE, false), 64, 64).bakeRoot();
+		List<Vertex> mesh = new ArrayList<>();
+		List<String> parts = switch (scope) {
+		case WHOLE_BODY -> List.of("head", "body", "right_arm", "left_arm", "right_leg", "left_leg");
+		case TORSO -> List.of("body");
+		case HEAD -> List.of("head");
+		case ARM -> List.of("right_arm");
+		case LEG -> List.of("right_leg");
+		};
+		for (String part : parts)
+			add(mesh, player, part, -8, 24, new Matrix4f());
+		vertices = List.copyOf(mesh);
+	}
+
 	public static SurgicalJointIconModel of(SurgicalLimbType type) {
 		return MODELS.computeIfAbsent(type, SurgicalJointIconModel::new);
+	}
+
+	public static SurgicalJointIconModel of(BionicTraitScope scope) {
+		return SCOPE_MODELS.computeIfAbsent(scope, SurgicalJointIconModel::new);
 	}
 
 	public GuiEntityItemElement element(ItemDisplayContext context, int light) {

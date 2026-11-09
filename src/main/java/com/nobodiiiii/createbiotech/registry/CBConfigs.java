@@ -137,6 +137,7 @@ public class CBConfigs {
 		public final ModConfigSpec.BooleanValue enableShulkerTeleporterPlayerClipping;
 		public final ModConfigSpec.BooleanValue renderExperienceAsFluid;
 		public final ModConfigSpec.BooleanValue renderCapturedEntitiesOnBoxes;
+		public final ModConfigSpec.BooleanValue showBionicTraitDonorsInJei;
 		public final ClientCreeperBlastChamber creeperBlastChamber;
 		public final ClientUniversalJoint universalJoint;
 		public final BeltParticles beltParticles;
@@ -150,6 +151,9 @@ public class CBConfigs {
 			renderCapturedEntitiesOnBoxes = builder
 				.comment("Render captured creatures on cardboard box fronts. Disable to use the packager-style face and skip entity icon caches.")
 				.define("renderCapturedEntitiesOnBoxes", true);
+			showBionicTraitDonorsInJei = builder
+				.comment("Show donor creatures on bionic trait JEI pages. Disable to stop requesting donor data from the server.")
+				.define("showBionicTraitDonorsInJei", true);
 			creeperBlastChamber = new ClientCreeperBlastChamber(builder);
 			universalJoint = new ClientUniversalJoint(builder);
 			beltParticles = new BeltParticles(builder);

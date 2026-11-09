@@ -5,9 +5,10 @@
   },
   "carriers": {
     "minecraft:warden": {
-      "HEAD": [
-        "head",
-        "head_cube",
+      "HEAD_CORE": [
+        "head"
+      ],
+      "TENDRIL": [
         "left_tendril",
         "right_tendril"
       ]

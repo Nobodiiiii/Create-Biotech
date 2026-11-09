@@ -26,6 +26,21 @@ public final class BionicTraitResolver {
 	}
 
 	public static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level) {
+		return resolve(assembly, level, null);
+	}
+
+	/** Boxed fragments show only traits owned by their retained parts, not supporting tissue. */
+	public static BionicTraitSet inspect(@Nullable SurgicalAssembly assembly, Level level) {
+		return resolve(assembly, level, Set.of());
+	}
+
+	/** Check conditions against the entire assembly, but display only the pointed-to part's traits. */
+	public static BionicTraitSet inspectPart(SurgicalAssembly assembly, Level level, int source, int cube) {
+		return resolve(assembly, level, Set.of(new SurgicalAssembly.CombinationMember(source, cube)));
+	}
+
+	private static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level,
+		@Nullable Set<SurgicalAssembly.CombinationMember> inspected) {
 		if (!BionicTraits.ENABLED || assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicTraitSet.EMPTY;
 		BionicTraitRegistry.Snapshot data = BionicTraitRegistry.snapshot();
@@ -43,19 +58,54 @@ public final class BionicTraitResolver {
 		results.replaceAll((trait, result) -> {
 			if (!result.active())
 				return result;
-			InactiveReason reason = BionicTraitConditions.check(trait, data.get(trait), assembly,
-				tissue, covered);
-			return reason == null ? result : result.disabled(reason);
+			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result);
 		});
+		if (inspected != null)
+			results.entrySet().removeIf(entry -> !hasInspectionCarrier(entry.getKey(), data.get(entry.getKey()),
+				tissue, donors, entry.getValue(), inspected));
 		return new BionicTraitSet(results, data.traits());
 	}
 
+	private static boolean hasInspectionCarrier(BionicTrait trait, BionicTraitData data, BionicTissue tissue,
+		List<BionicTraitDonors.Facts> donors, BionicTraitResult result,
+		Set<SurgicalAssembly.CombinationMember> inspected) {
+		for (int source = 0; source < tissue.sourceCount(); source++) {
+			if (!supplies(trait, donors.get(source))) continue;
+			// A functioning body must advertise the same interaction as its paired udder.
+			var inspectedCarrier = trait == BionicTrait.MILKABLE && result.active() ? trait.carrier()
+				: trait.inspectionCarrier(tissue.source(source).profile().entityTypeId());
+			BitSet carriers = trait == BionicTrait.RIDEABLE ? BionicSaddleCarriers.select(tissue.source(source))
+				: BionicTraitCarriers.select(inspectedCarrier, data, tissue, source);
+			carriers.and(tissue.source(source).presentCubes());
+			for (int cube = carriers.nextSetBit(0); cube >= 0; cube = carriers.nextSetBit(cube + 1)) {
+				var member = new SurgicalAssembly.CombinationMember(source, cube);
+				if ((inspected.isEmpty() || inspected.contains(member))
+					&& (!result.active() || result.members().contains(member))) return true;
+			}
+		}
+		return false;
+	}
+
+	private static boolean supplies(BionicTrait trait, BionicTraitDonors.Facts donor) {
+		return switch (trait.valueKind()) {
+		case ABILITY -> donor.has(trait);
+		case NUMBER -> donor.value(trait) > 0.0d;
+		case SUBTRAIT_SET -> !donor.variants(trait).isEmpty();
+		case EFFECT_SET -> !donor.immuneEffects().isEmpty();
+		case ATTACK_EFFECT_SET -> !donor.attackEffects().isEmpty();
+		};
+	}
+
 	/** Donor tissue properties for box inspection; this does not claim organs are installed. */
-	public static BionicTraitSet donorProperties(BionicTraitDonors.Facts donor) {
+	public static BionicTraitSet donorProperties(BionicTraitDonors.Facts donor, ResourceLocation donorType) {
 		if (!BionicTraits.ENABLED)
 			return BionicTraitSet.EMPTY;
 		EnumMap<BionicTrait, BionicTraitResult> results = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values()) {
+			if (trait == BionicTrait.MILKABLE && donor.has(trait)) {
+				results.put(trait, BionicMilking.donorProperties(donorType));
+				continue;
+			}
 			if (!trait.carrier().isAllTissue() && !trait.isHeadClassification())
 				continue;
 			boolean present = switch (trait.valueKind()) {
@@ -102,15 +152,9 @@ public final class BionicTraitResolver {
 			double volume = tissue.weight(sourceId, cubes);
 			total += volume;
 			BionicTraitDonors.Facts donor = donors.get(sourceId);
-			boolean supplies = switch (trait.valueKind()) {
-			case ABILITY -> donor.has(trait);
-			case NUMBER -> donor.value(trait) > 0.0d;
-			case SUBTRAIT_SET -> !donor.variants(trait).isEmpty();
-			case EFFECT_SET -> !donor.immuneEffects().isEmpty();
-			case ATTACK_EFFECT_SET -> !donor.attackEffects().isEmpty();
-			};
-			BitSet carriers = supplies ? BionicTraitCarriers.select(trait.carrier(), data, tissue, sourceId)
-				: new BitSet();
+			BitSet carriers = !supplies(trait, donor) ? new BitSet() : trait == BionicTrait.RIDEABLE
+				? BionicSaddleCarriers.select(tissue.source(sourceId))
+				: BionicTraitCarriers.select(trait.carrier(), data, tissue, sourceId);
 			carriers.and(tissue.source(sourceId).presentCubes());
 			if (trait == BionicTrait.DETERRENCE && !carriers.isEmpty())
 				carrierTargets.addAll(donor.deterrenceTargets());

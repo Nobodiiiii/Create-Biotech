@@ -10,6 +10,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
 import com.nobodiiiii.createbiotech.network.CBPackets;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -36,6 +37,10 @@ public final class BionicTraitDonorIndex {
 	private BionicTraitDonorIndex() {}
 
 	public static void requestIfNeeded() {
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
+			clear();
+			return;
+		}
 		ClientPacketListener current = Minecraft.getInstance().getConnection();
 		if (connection != current) {
 			clear();
@@ -49,6 +54,10 @@ public final class BionicTraitDonorIndex {
 	}
 
 	public static void accept(BionicTraitDonorsPacket packet) {
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
+			clear();
+			return;
+		}
 		if (connection == null || connection != Minecraft.getInstance().getConnection())
 			return;
 		if (generation != packet.generation()) {

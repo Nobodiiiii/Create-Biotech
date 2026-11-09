@@ -153,11 +153,7 @@ public record SurgicalTableCubeRotationPacket(BlockPos pos, UUID requestId, Inte
 		if (plan.valid())
 			table.applyWrenchRotation(plan);
 		else
-			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.JOINT_DISCONNECTED
-				? "message.create_biotech.surgical_table.rotation_breaks_joint"
-				: plan.failure() == SurgicalWrenchRotation.Failure.DISCONNECTED
-				? "message.create_biotech.surgical_table.rotation_disconnects"
-				: "message.create_biotech.surgical_table.no_space"), true);
+			player.displayClientMessage(Component.translatable(plan.failure().messageKey()), true);
 		return plan.valid();
 	}
 

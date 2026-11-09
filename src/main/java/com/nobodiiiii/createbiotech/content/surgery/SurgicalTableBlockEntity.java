@@ -483,7 +483,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				if (!SurgicalTableLayout.validateSubjectPlacement(plane, assembly, placementFacing, layPose,
 					placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
 					componentFootprints, sourceLayouts, occupied))
-					return SurgicalTablePlacementResult.NO_SPACE;
+					return SurgicalTablePlacementResult.invalidLayout(plane, proposal, componentFootprints, sourceLayouts, occupied);
 				return tryPlaceComposite(box, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ,
 					sourceLayouts, assembly, temporaryMove);
 			}
@@ -534,7 +534,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (!SurgicalTableLayout.validateSubjectPlacement(plane, placementAssembly, placementFacing, layPose,
 			placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
 			componentFootprints, sourceLayouts, occupied))
-			return SurgicalTablePlacementResult.NO_SPACE;
+			return SurgicalTablePlacementResult.invalidLayout(plane, proposal, componentFootprints, sourceLayouts, occupied);
 
 		if (placementAssembly != null)
 			donorId = placementDonorIds(placementAssembly, temporaryMove, SurgicalKitItem.isCubeCopier(box))

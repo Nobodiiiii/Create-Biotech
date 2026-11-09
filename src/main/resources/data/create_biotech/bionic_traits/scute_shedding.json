@@ -6,7 +6,10 @@
   "carriers": {
     "minecraft:armadillo": {
       "SHELL": [
-        "body"
+        "outer_shell"
+      ],
+      "TORSO": [
+        "inner_body"
       ]
     }
   },

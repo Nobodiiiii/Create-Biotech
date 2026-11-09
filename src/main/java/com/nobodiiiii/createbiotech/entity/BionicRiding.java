@@ -12,6 +12,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityAttachment;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -167,8 +168,18 @@ public final class BionicRiding {
 		}
 
 		public AABB bounds(Entity passenger) {
-			Vec3 feet = feet(passenger);
-			return rotateBounds(passenger.getDimensions(passenger.getPose()).makeBoundingBox(feet), feet, rotation);
+			return bounds(passenger.getDimensions(passenger.getPose()),
+				passenger.getAttachments().get(EntityAttachment.VEHICLE, 0, passenger.getYRot()));
+		}
+
+		public AABB bounds(EntityDimensions dimensions, Vec3 attachment) {
+			Vec3 feet = anchor.subtract(rotation.rotate(attachment));
+			AABB standing = dimensions.makeBoundingBox(Vec3.ZERO);
+			// HumanoidModel folds a rider's legs forward. A standing box below the seat invents
+			// straight legs: on a low body they intersect the floor and prevent mounting/landing.
+			AABB seated = new AABB(standing.minX, Mth.clamp(attachment.y, standing.minY, standing.maxY),
+				standing.minZ, standing.maxX, standing.maxY, standing.maxZ);
+			return rotateBounds(seated.move(feet), feet, rotation);
 		}
 	}
 }

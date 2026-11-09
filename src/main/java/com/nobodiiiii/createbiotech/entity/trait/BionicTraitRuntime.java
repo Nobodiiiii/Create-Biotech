@@ -3,17 +3,57 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.phys.Vec3;
 
 /** Shared donor selection and baked carrier positions; no preview entities are spawned at runtime. */
 public final class BionicTraitRuntime {
 	private BionicTraitRuntime() {}
+
+	/** Only output organs count; supporting tissue must not multiply their production. */
+	static Set<SurgicalAssembly.CombinationMember> membersWithRole(SlimeBionicEntity entity,
+		BionicTrait trait, BionicAnatomyRole role) {
+		return roleMembers(entity, trait, role, null, true);
+	}
+
+	/** Retained appendages may be installed outside the trait's interaction scope. */
+	public static boolean hasRetainedRole(SlimeBionicEntity entity, BionicTrait trait, BionicAnatomyRole role,
+		ResourceLocation species) {
+		return !retainedRoleMembers(entity, trait, role, species).isEmpty();
+	}
+
+	static Set<SurgicalAssembly.CombinationMember> retainedRoleMembers(SlimeBionicEntity entity,
+		BionicTrait trait, BionicAnatomyRole role, ResourceLocation species) {
+		return roleMembers(entity, trait, role, species, false);
+	}
+
+	private static Set<SurgicalAssembly.CombinationMember> roleMembers(SlimeBionicEntity entity,
+		BionicTrait trait, BionicAnatomyRole role, @Nullable ResourceLocation species, boolean activeOnly) {
+		SurgicalAssembly assembly = entity.getAssembly();
+		if (assembly == null) return Set.of();
+		var active = entity.getBionicTraits().members(trait);
+		if (activeOnly && active.isEmpty()) return Set.of();
+		var data = BionicTraitRegistry.snapshot();
+		var tissue = BionicTissue.of(assembly, data);
+		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
+		for (int source = 0; source < tissue.sourceCount(); source++) {
+			if (species != null && !tissue.source(source).profile().entityTypeId().equals(species)) continue;
+			var cubes = BionicTraitCarriers.select(BionicTrait.Carrier.of(role), data.get(trait), tissue, source);
+			cubes.and(tissue.source(source).presentCubes());
+			for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1)) {
+				var member = new SurgicalAssembly.CombinationMember(source, cube);
+				if (!activeOnly || active.contains(member)) members.add(member);
+			}
+		}
+		return Set.copyOf(members);
+	}
 
 	@Nullable
 	public static SurgicalAssembly.Source dominant(SlimeBionicEntity entity, BionicTrait trait) {

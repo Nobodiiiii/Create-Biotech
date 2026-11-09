@@ -153,6 +153,14 @@ public final class SurgicalCapturedRenderPlan {
 	 * removes or rotates its equipment. Never use the equipped renderer's shifted cube indices.
 	 */
 	SurgicalCapturedRenderPlan withAppearance(SurgicalCapturedRenderPlan appearance) {
+		return withAppearance(appearance, false);
+	}
+
+	SurgicalCapturedRenderPlan withTraitAppearance(SurgicalCapturedRenderPlan appearance) {
+		return withAppearance(appearance, true);
+	}
+
+	private SurgicalCapturedRenderPlan withAppearance(SurgicalCapturedRenderPlan appearance, boolean matchParts) {
 		if (components.isEmpty())
 			return this;
 		Map<GeometryKey, List<Component>> originalCubes = new HashMap<>();
@@ -164,6 +172,15 @@ public final class SurgicalCapturedRenderPlan {
 		for (Component visual : appearance.components) {
 			Component owner = originalCubes.getOrDefault(GeometryKey.of(visual.corners), List.of()).stream()
 				.filter(candidate -> !matched.contains(candidate)).findFirst().orElse(null);
+			if (owner == null && matchParts) {
+				owner = components.stream().filter(candidate -> !matched.contains(candidate))
+					.filter(candidate -> visual.partNames.contains("rolled_shell")
+						? candidate.partNames.contains("outer_shell")
+						: visual.partNames.stream().anyMatch(name -> !name.equals("root") && candidate.partNames.contains(name)))
+					.min(Comparator.comparingDouble(candidate -> visual.center().distanceSquared(candidate.center()))).orElse(null);
+				// A state must never introduce organs which were absent from the original capture.
+				if (owner == null) continue;
+			}
 			if (owner != null)
 				matched.add(owner);
 			else
@@ -363,24 +380,39 @@ public final class SurgicalCapturedRenderPlan {
 		if (ACTIVE_MODEL_CUBE_CAPTURES.get() == 0)
 			return;
 		ModelCubeCaptureScope capture = CURRENT_MODEL_CUBE_CAPTURE.get();
-		if (capture == null || capture.recordingSaddle)
+		if (capture == null || capture.recordingCube)
 			return;
 		Set<String> partNames = capture.namedCubes.getOrDefault(cube, Set.of());
-		if (partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart))
-			capture.recordSaddle(cube, pose);
+		boolean saddle = partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart);
+		if (!capture.topology && !saddle)
+			return;
+		RecoveredCandidate actual = capture.recordCube(cube, pose);
+		if (saddle && actual != null)
+			capture.saddleCubes.add(GeometryKey.of(actual.cuboid.corners));
 		if (!capture.topology)
 			return;
 		List<Vector3f> transformed = new ArrayList<>(8);
 		List<Vec3> model = new ArrayList<>(8);
 		Matrix4f matrix = pose.pose();
-		for (int z = 0; z < 2; z++) {
-			for (int y = 0; y < 2; y++) {
-				for (int x = 0; x < 2; x++) {
-					Vec3 source = new Vec3(x == 0 ? cube.minX : cube.maxX,
-						y == 0 ? cube.minY : cube.maxY, z == 0 ? cube.minZ : cube.maxZ);
-					model.add(source);
-					transformed.add(matrix.transformPosition(new Vector3f((float) (source.x / 16.0d),
-						(float) (source.y / 16.0d), (float) (source.z / 16.0d))));
+		if (actual != null && Math.abs(matrix.determinant()) > 1.0e-12f) {
+			// Cube.min/max exclude CubeDeformation. Match the emitted cuboid, including the
+			// inflated horse/donkey body, so its model-part label survives topology recovery.
+			Matrix4f inverse = new Matrix4f(matrix).invert();
+			for (Vector3f corner : actual.cuboid.corners) {
+				transformed.add(new Vector3f(corner));
+				Vector3f local = inverse.transformPosition(new Vector3f(corner)).mul(16.0f);
+				model.add(new Vec3(local.x, local.y, local.z));
+			}
+		} else {
+			for (int z = 0; z < 2; z++) {
+				for (int y = 0; y < 2; y++) {
+					for (int x = 0; x < 2; x++) {
+						Vec3 source = new Vec3(x == 0 ? cube.minX : cube.maxX,
+							y == 0 ? cube.minY : cube.maxY, z == 0 ? cube.minZ : cube.maxZ);
+						model.add(source);
+						transformed.add(matrix.transformPosition(new Vector3f((float) (source.x / 16.0d),
+							(float) (source.y / 16.0d), (float) (source.z / 16.0d))));
+					}
 				}
 			}
 		}
@@ -412,7 +444,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final Map<ModelPart.Cube, Set<String>> namedCubes;
 		private final boolean topology;
 		private final Set<GeometryKey> saddleCubes;
-		private boolean recordingSaddle;
+		private boolean recordingCube;
 		private boolean closed;
 
 		private ModelCubeCaptureScope(Thread owner, ModelCubeCaptureScope parent,
@@ -427,21 +459,18 @@ public final class SurgicalCapturedRenderPlan {
 			this.saddleCubes = saddleCubes;
 		}
 
-		private void recordSaddle(ModelPart.Cube cube, PoseStack.Pose pose) {
-			// Cube.min/max omit CubeDeformation. Observe the actual vertices of just this tack cube
-			// so inflated horse/camel saddles cannot be confused with their underlying body cubes.
+		@Nullable
+		private RecoveredCandidate recordCube(ModelPart.Cube cube, PoseStack.Pose pose) {
 			List<CapturedVertex> vertices = new ArrayList<>();
 			RecordingConsumer consumer = new RecordingConsumer(vertices);
-			recordingSaddle = true;
+			recordingCube = true;
 			try {
 				cube.compile(pose, consumer, CAPTURE_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 				consumer.finish();
 			} finally {
-				recordingSaddle = false;
+				recordingCube = false;
 			}
-			RecoveredCandidate candidate = recoverCandidate(vertices, 0);
-			if (candidate != null)
-				saddleCubes.add(GeometryKey.of(candidate.cuboid.corners));
+			return recoverCandidate(vertices, 0);
 		}
 
 		@Override
@@ -535,8 +564,10 @@ public final class SurgicalCapturedRenderPlan {
 				if (!ModelPart.class.isAssignableFrom(field.getType()) || !field.trySetAccessible())
 					continue;
 				try {
-					if (field.get(model) instanceof ModelPart part)
+					if (field.get(model) instanceof ModelPart part) {
 						collectPartNames(part, field.getName(), result);
+						SurgicalNativePartLabels.label(model, field.getName(), part, result);
+					}
 				} catch (IllegalAccessException ignored) {
 					// Other model libraries can keep their fields inaccessible.
 				}
@@ -782,7 +813,8 @@ public final class SurgicalCapturedRenderPlan {
 			}
 
 			RecoveredCuboid bounds = syntheticBounds(mesh.vertices);
-			if (bounds == null || isFlat(bounds) && !sharesCapturedTexture(mesh.renderType, recoveredBuilders)) {
+			if (bounds == null || isFlat(bounds) && !sharesCapturedTexture(mesh.renderType, recoveredBuilders)
+				&& !isMushroomMaterial(mesh.renderType, mesh.vertices)) {
 				extras.add(new SourceBatch(mesh.renderType, mesh.vertices, false));
 				continue;
 			}
@@ -1087,6 +1119,7 @@ public final class SurgicalCapturedRenderPlan {
 	 * the shortest edge would incorrectly turn it into a second solid slime body.
 	 */
 	private static boolean shouldPreserveSource(ComponentBuilder candidate, List<ComponentBuilder> components) {
+		if (candidate.partNames.contains("mushroom")) return true;
 		ResourceLocation texture = candidate.primaryRenderType == null
 			? null : renderTypeTexture(candidate.primaryRenderType);
 		if (texture != null && SADDLE_TEXTURES.contains(texture))
@@ -1194,6 +1227,20 @@ public final class SurgicalCapturedRenderPlan {
 		Object textureState = stateAccessor.createBiotech$getTextureState();
 		TextureStateShardAccessor textureAccessor = (TextureStateShardAccessor) textureState;
 		return textureAccessor.createBiotech$getTexture().orElse(null);
+	}
+
+	/** MushroomCowMushroomLayer emits block-atlas quads rather than named ModelPart cubes. */
+	private static boolean isMushroomMaterial(RenderType renderType, List<CapturedVertex> vertices) {
+		if (vertices.isEmpty() || !net.minecraft.world.inventory.InventoryMenu.BLOCK_ATLAS.equals(renderTypeTexture(renderType)))
+			return false;
+		var atlas = Minecraft.getInstance().getTextureAtlas(net.minecraft.world.inventory.InventoryMenu.BLOCK_ATLAS);
+		for (String name : List.of("red_mushroom", "brown_mushroom")) {
+			var sprite = atlas.apply(ResourceLocation.withDefaultNamespace("block/" + name));
+			if (vertices.stream().allMatch(vertex -> vertex.u >= sprite.getU0() - 1.0e-6f
+				&& vertex.u <= sprite.getU1() + 1.0e-6f && vertex.v >= sprite.getV0() - 1.0e-6f
+				&& vertex.v <= sprite.getV1() + 1.0e-6f)) return true;
+		}
+		return false;
 	}
 
 	static RenderType translucentPreviewType(RenderType renderType) {
@@ -1800,6 +1847,7 @@ public final class SurgicalCapturedRenderPlan {
 		}
 
 		private void addVisibleBatch(RenderType renderType, List<CapturedVertex> vertices) {
+			if (isMushroomMaterial(renderType, vertices)) partNames.add("mushroom");
 			boolean surfaceOverlay = primaryRenderType != renderType;
 			if (topology && faceGrids.isEmpty())
 				faceGrids = recoverFaceGrids(cuboid, renderType, vertices);

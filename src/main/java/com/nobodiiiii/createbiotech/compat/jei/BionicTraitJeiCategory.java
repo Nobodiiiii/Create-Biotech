@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -24,7 +25,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
-/** Trait entry with its name beside it, the standard field template below, then the donor grid. */
+/** Trait book and name beside right-aligned info icons, followed by the effect and donor grid. */
 public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicTrait> {
 	public static final RecipeType<BionicTrait> TYPE =
 		RecipeType.create(CreateBiotech.MOD_ID, "bionic_traits", BionicTrait.class);
@@ -57,23 +58,32 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 		builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
 			.addItemStack(new ItemStack(CBItems.SURGERY_GUIDE.get()));
 		// The server fills these display-only slots as its donor scan progresses.
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+			return;
 		for (int slot = 0; slot < BionicTraitDonorWidget.PAGE_SIZE; slot++)
 			builder.addSlot(RecipeIngredientRole.RENDER_ONLY).setStandardSlotBackground();
 	}
 
 	@Override
 	public void createRecipeExtras(IRecipeExtrasBuilder builder, BionicTrait trait, IFocusGroup focuses) {
+		int infoX = WIDTH - BionicTraitInfoWidget.width(trait) - 1;
+		builder.addWidget(new BionicTraitInfoWidget(trait, infoX, 1));
 		builder.addText(BionicTraitJeiIngredient.name(trait).copy().withStyle(ChatFormatting.BOLD),
-				WIDTH - NAME_X, SLOT_SIZE)
+				infoX - NAME_X - 4, SLOT_SIZE)
 			.setPosition(NAME_X, 0)
 			.setTextAlignment(VerticalAlignment.CENTER);
 		List<FormattedText> text = BionicTraitJeiText.description(trait);
-		// A permanent scrollbar is noise for the short template; keep it only for overflowing text.
-		if (fits(text))
-			builder.addText(text, WIDTH, TEXT_HEIGHT).setPosition(0, TEXT_Y);
-		else
-			builder.addScrollBoxWidget(WIDTH, TEXT_HEIGHT, 0, TEXT_Y).setContents(text);
 		var slots = builder.getRecipeSlots().getSlots(RecipeIngredientRole.RENDER_ONLY);
+		boolean showDonors = CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()
+			&& slots.size() == BionicTraitDonorWidget.PAGE_SIZE;
+		int textHeight = showDonors ? TEXT_HEIGHT : HEIGHT - TEXT_Y;
+		// Keep the scrollbar only for overflowing effects.
+		if (fits(text, textHeight))
+			builder.addText(text, WIDTH, textHeight).setPosition(0, TEXT_Y);
+		else
+			builder.addScrollBoxWidget(WIDTH, textHeight, 0, TEXT_Y).setContents(text);
+		if (!showDonors)
+			return;
 		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y, slots, slotBackground);
 		builder.addSlottedWidget(donors, slots);
 		builder.addInputHandler(donors);
@@ -85,9 +95,9 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	}
 
 	/** Wraps exactly like JEI's text widgets at the full category width. */
-	private static boolean fits(List<FormattedText> text) {
+	private static boolean fits(List<FormattedText> text, int height) {
 		var font = Minecraft.getInstance().font;
 		int lines = text.stream().mapToInt(line -> font.getSplitter().splitLines(line, WIDTH, Style.EMPTY).size()).sum();
-		return lines * (font.lineHeight + LINE_SPACING) - LINE_SPACING <= TEXT_HEIGHT;
+		return lines * (font.lineHeight + LINE_SPACING) - LINE_SPACING <= height;
 	}
 }

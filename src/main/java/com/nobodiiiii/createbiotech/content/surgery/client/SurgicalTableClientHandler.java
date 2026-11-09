@@ -36,6 +36,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalSlimeDrops;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBatchCutPacket;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableFailure;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableLayout;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlockEntity;
@@ -240,7 +241,7 @@ public final class SurgicalTableClientHandler {
 	private static SurgicalKitItem.TemporaryMove temporaryMoveCache;
 	@Nullable
 	private static PlacementPreview placementPreview;
-	private static SurgicalTablePlacementResult placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
+	private static SurgicalTablePlacementResult placementPreviewResult = SurgicalTablePlacementResult.OPERATION_FAILED;
 	@Nullable
 	private static PlacementSuppression placementSuppression;
 	@Nullable
@@ -808,7 +809,7 @@ public final class SurgicalTableClientHandler {
 		gluePreview = null;
 		glueEditor = null;
 		placementCandidate = null;
-		placementPreviewResult = SurgicalTablePlacementResult.NO_SPACE;
+		placementPreviewResult = SurgicalTablePlacementResult.OPERATION_FAILED;
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
@@ -1033,7 +1034,7 @@ public final class SurgicalTableClientHandler {
 			if (inventoryUpdated || level.getGameTime() >= suppression.expiresAtTick) {
 				placementSuppression = null;
 			} else {
-				rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
+				rejectPlacementPreview(SurgicalTablePlacementResult.OPERATION_FAILED);
 				return;
 			}
 		}
@@ -1114,11 +1115,25 @@ public final class SurgicalTableClientHandler {
 		SurgicalClientTopology.PlacementPlan plan;
 		DiscoveredPlacement discovered = DiscoveredPlacement.EMPTY;
 		AABB localBounds = placementGeometry.bounds();
+		if (!Double.isFinite(target.x) || !Double.isFinite(target.z)
+			|| occupied.stream().anyMatch(footprint -> !SurgicalTableLayout.validStoredFootprint(footprint))
+			|| !finiteCubeGeometry(boundsGeometry(localBounds, Vec3.ZERO))) {
+			rejectPlacementPreview(SurgicalTablePlacementResult.OPERATION_FAILED);
+			return;
+		}
 		SurgicalModelRenderContext.CubeGeometry renderedBounds = boundsGeometry(localBounds,
 			Vec3.atLowerCornerOf(ownerPos));
 		if (source.assembly == null) {
 			List<SurgicalModelRenderContext.CubeGeometry> worldCubes = translateCubes(
 				placementGeometry.discoveredCubes(), Vec3.atLowerCornerOf(ownerPos));
+			int count = placementGeometry.discoveredCubeCount();
+			if (count <= 0 || !SurgicalAssembly.validTopology(count, placementGeometry.discoveredSeams())
+				|| worldCubes.size() != count || worldCubes.stream().anyMatch(cube -> cube.cubeId() < 0
+					|| cube.cubeId() >= count || !finiteCubeGeometry(cube))
+				|| worldCubes.stream().map(SurgicalModelRenderContext.CubeGeometry::cubeId).distinct().count() != count) {
+				rejectPlacementPreview(SurgicalTablePlacementResult.MODEL_UNAVAILABLE);
+				return;
+			}
 			SurgicalClientTopology.DiscoveredPlacementPlan discoveredPlan =
 				SurgicalClientTopology.planDiscoveredPlacement(placementGeometry.discoveredCubeCount(),
 					placementGeometry.discoveredSeams(), renderedBounds, worldCubes, plane.workArea(), target.x,
@@ -1148,7 +1163,8 @@ public final class SurgicalTableClientHandler {
 			placementFacing, placementGeometry.layPose(), plan.originOffsetX(), plan.originOffsetZ(),
 			plan.proposal(), discovered.cubeCount(), discovered.seams(), discovered.footprints(),
 			sourceLayouts, occupied)) {
-			rejectPlacementPreview(SurgicalTablePlacementResult.NO_SPACE);
+			rejectPlacementPreview(SurgicalTablePlacementResult.invalidLayout(plane, plan.proposal(),
+				discovered.footprints(), sourceLayouts == null ? List.of() : sourceLayouts, occupied));
 			return;
 		}
 
@@ -1944,7 +1960,7 @@ public final class SurgicalTableClientHandler {
 				}
 				BatchCutLayout planned = planBatchCut(level, selected);
 				if (planned == null) {
-					showNoSpace(minecraft.player);
+					showFailure(minecraft.player);
 					consumeInteraction(event, hand);
 					return;
 				}
@@ -1980,7 +1996,7 @@ public final class SurgicalTableClientHandler {
 				return;
 			PackedBodyMetrics metrics = selectedBodyMetrics(selected);
 			if (metrics == null) {
-				showNoSpace(minecraft.player);
+				SurgicalTableFailure.MODEL_UNAVAILABLE.display(minecraft.player);
 				consumeInteraction(event, hand);
 				return;
 			}
@@ -1993,7 +2009,7 @@ public final class SurgicalTableClientHandler {
 				return;
 			PackedBodyMetrics metrics = selectedBodyMetrics(selected);
 			if (metrics == null) {
-				showNoSpace(minecraft.player);
+				SurgicalTableFailure.MODEL_UNAVAILABLE.display(minecraft.player);
 				consumeInteraction(event, hand);
 				return;
 			}
@@ -2133,7 +2149,7 @@ public final class SurgicalTableClientHandler {
 		}
 		if (!first.selection.tablePos.equals(selected.tablePos)) {
 			clearPendingGlue();
-			showNoSpace(player);
+			SurgicalTableFailure.DIFFERENT_TABLE.display(player);
 			return true;
 		}
 		GluePreview preview = planGluePreview(level, first, hit);
@@ -2152,7 +2168,7 @@ public final class SurgicalTableClientHandler {
 				&& secondSubject.cubeCount() != 0
 				&& !glueTable.validateGlueLayout(secondSubject, gluePlane, secondLayout)) {
 			clearPendingGlue();
-			showNoSpace(player);
+			showFailure(player);
 			return true;
 		}
 		SurgicalTableGluePacket.Endpoint firstEndpoint = glueEndpoint(first.selection, first.hit,
@@ -2161,7 +2177,7 @@ public final class SurgicalTableClientHandler {
 			secondLayout, hit.faceIndex);
 		if (firstEndpoint == null || secondEndpoint == null) {
 			clearPendingGlue();
-			showNoSpace(player);
+			showFailure(player);
 			return true;
 		}
 		if (glueTopologyKnown(firstSubject, secondSubject)
@@ -2170,7 +2186,7 @@ public final class SurgicalTableClientHandler {
 				preview.targetPose, preview.moves, preview.anchorMoves, SurgicalGlueTransform.IDENTITY,
 				gluePlane, firstLayout, secondLayout)) {
 			clearPendingGlue();
-			showNoSpace(player);
+			showFailure(player);
 			return true;
 		}
 		if (isSmartGlue(player.getItemInHand(hand))) {
@@ -2179,10 +2195,14 @@ public final class SurgicalTableClientHandler {
 			Vec3 editAxis = cubeFaceAxis(editCube, first.faceIndex);
 			Vec3 axisCenter = editCube == null ? null : cubeCenter(editCube);
 			Vec3 faceCenter = cubeFaceCenter(editCube, first.faceIndex);
-			if (editAxis == null || axisCenter == null || faceCenter == null
-				|| !glueEndpointsActuallyIntersect(preview.subjects, firstEndpoint, secondEndpoint)) {
+			if (editAxis == null || axisCenter == null || faceCenter == null) {
 				clearPendingGlue();
-				showNoSpace(player);
+				showFailure(player);
+				return true;
+			}
+			if (!glueEndpointsActuallyIntersect(preview.subjects, firstEndpoint, secondEndpoint)) {
+				clearPendingGlue();
+				SurgicalTableFailure.GLUE_CONTACT_REQUIRED.display(player);
 				return true;
 			}
 			gluePreview = preview;
@@ -2273,7 +2293,7 @@ public final class SurgicalTableClientHandler {
 		if (preview == null || firstLayout == null || anchorLayout == null || table == null
 			|| firstSubject == null || anchorSubject == null || anchorSelection == null) {
 			clearPendingSymmetry();
-			showNoSpace(player);
+			showFailure(player);
 			return true;
 		}
 		SurgicalTableGluePacket.Endpoint firstEndpoint = glueEndpoint(first.selection, first.hit,
@@ -2282,15 +2302,23 @@ public final class SurgicalTableClientHandler {
 			.subtract(Vec3.atLowerCornerOf(target.mirroredAnchorHit.tablePos));
 		SurgicalTableGluePacket.Endpoint secondEndpoint = glueEndpoint(anchorSelection, anchorHit,
 			anchorLayout, target.mirroredAnchorHit.faceIndex);
-		if (firstEndpoint == null || secondEndpoint == null
-			|| !glueEndpointsConnectWithinTolerance(preview.subjects, firstEndpoint, secondEndpoint)
-			|| glueTopologyKnown(firstSubject, anchorSubject)
+		if (firstEndpoint == null || secondEndpoint == null) {
+			clearPendingSymmetry();
+			showFailure(player);
+			return true;
+		}
+		if (!glueEndpointsConnectWithinTolerance(preview.subjects, firstEndpoint, secondEndpoint)) {
+			clearPendingSymmetry();
+			SurgicalTableFailure.GLUE_CONTACT_REQUIRED.display(player);
+			return true;
+		}
+		if (glueTopologyKnown(firstSubject, anchorSubject)
 				&& !table.canGlueComponents(player.getItemInHand(hand), firstEndpoint.subjectId(),
 					firstEndpoint.cubeId(), secondEndpoint.subjectId(), secondEndpoint.cubeId(),
 					preview.targetPose, preview.moves, preview.anchorMoves, target.replayTransform,
 					plane, firstLayout, anchorLayout)) {
 			clearPendingSymmetry();
-			showNoSpace(player);
+			showFailure(player);
 			return true;
 		}
 
@@ -2307,25 +2335,40 @@ public final class SurgicalTableClientHandler {
 		return true;
 	}
 
-	private static boolean validFinalGluePreview(@Nullable SurgicalTableBlockEntity table, GluePreview preview) {
+	@Nullable
+	private static SurgicalTableFailure finalGluePreviewFailure(@Nullable SurgicalTableBlockEntity table,
+		GluePreview preview) {
 		if (table == null || table.clientDataRevision() != preview.tableRevision)
-			return false;
+			return SurgicalTableFailure.PREVIEW_CHANGED;
 		for (GlueSubjectPreview subjectPreview : preview.subjects) {
 			if (!subjectPreview.editable)
 				continue;
 			SurgicalSubject subject = table.getSubject(subjectPreview.subjectId);
 			if (subject == null)
-				return false;
+				return SurgicalTableFailure.PREVIEW_CHANGED;
 			List<SurgicalModelRenderContext.CubeGeometry> rotated = transformCubes(
 				subjectPreview.baseCubes, subjectPreview.rotations, Map.of());
 			if (!validEditedVertical(subjectPreview.cubes, rotated, subjectPreview.offsets,
-				preview.workArea.surfaceY() + SurgicalTablePoseResolver.TABLE_CLEARANCE)
-				|| SurgicalClientTopology.preserveCompositeLayout(subject.cubeCount(), subjectPreview.cubes,
+				preview.workArea.surfaceY() + SurgicalTablePoseResolver.TABLE_CLEARANCE))
+				return SurgicalTableFailure.EDIT_LIMIT;
+			List<SurgicalTableLayout.Footprint> footprints = new ArrayList<>();
+			for (int cubeId = subjectPreview.cubes.nextSetBit(0); cubeId >= 0;
+				cubeId = subjectPreview.cubes.nextSetBit(cubeId + 1)) {
+				SurgicalModelRenderContext.CubeGeometry cube = previewCube(subjectPreview, cubeId);
+				if (cube == null)
+					return SurgicalTableFailure.OPERATION_FAILED;
+				AABB bounds = cubeBounds(cube);
+				footprints.add(new SurgicalTableLayout.Footprint(cubeId, bounds.minX, bounds.minZ,
+					bounds.maxX, bounds.maxZ, SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
+			}
+			if (SurgicalTableLayout.lacksSpace(preview.workArea, footprints, preview.obstacles))
+				return SurgicalTableFailure.NO_SPACE;
+			if (SurgicalClientTopology.preserveCompositeLayout(subject.cubeCount(), subjectPreview.cubes,
 					subject.seams(), subject.cutSeamsForRender(), rotated, subjectPreview.offsets,
 					preview.workArea, preview.obstacles) == null)
-				return false;
+				return SurgicalTableFailure.OPERATION_FAILED;
 		}
-		return true;
+		return null;
 	}
 
 	private static void confirmGlue(LocalPlayer player, ClientLevel level, GlueEditor editor) {
@@ -2335,16 +2378,30 @@ public final class SurgicalTableClientHandler {
 		SurgicalSubject firstSubject = table == null ? null : table.getSubject(editor.first.subjectId());
 		SurgicalSubject secondSubject = table == null ? null : table.getSubject(editor.second.subjectId());
 		SurgicalTablePlane.Plane plane = clientPlane(level, preview.ownerPos);
-		if (!validFinalGluePreview(table, preview)
-			|| !SurgicalGlueTransform.withinEditRange(editor.replayTransform.translation())
-			|| !glueEndpointsConnectWithinTolerance(preview.subjects, editor.first, editor.second)
-			|| table == null || firstSubject == null || secondSubject == null
-			|| glueTopologyKnown(firstSubject, secondSubject)
+		if (table == null || firstSubject == null || secondSubject == null
+			|| table.clientDataRevision() != preview.tableRevision) {
+			SurgicalTableFailure.PREVIEW_CHANGED.display(player);
+			return;
+		}
+		if (!SurgicalGlueTransform.withinEditRange(editor.replayTransform.translation())) {
+			SurgicalTableFailure.EDIT_LIMIT.display(player);
+			return;
+		}
+		if (!glueEndpointsConnectWithinTolerance(preview.subjects, editor.first, editor.second)) {
+			SurgicalTableFailure.EDIT_LIMIT.display(player);
+			return;
+		}
+		SurgicalTableFailure previewFailure = finalGluePreviewFailure(table, preview);
+		if (previewFailure != null) {
+			previewFailure.display(player);
+			return;
+		}
+		if (glueTopologyKnown(firstSubject, secondSubject)
 				&& !table.canGlueComponents(player.getItemInHand(editor.hand), editor.first.subjectId(),
 					editor.first.cubeId(), editor.second.subjectId(), editor.second.cubeId(),
 					preview.targetPose, preview.moves, preview.anchorMoves, editor.replayTransform,
 					plane, editor.first.layout(), editor.second.layout())) {
-			showNoSpace(player);
+			showFailure(player);
 			return;
 		}
 		CBPackets.sendToServer(new SurgicalTableGluePacket(preview.ownerPos, editor.hand,
@@ -2466,8 +2523,10 @@ public final class SurgicalTableClientHandler {
 		if (!editor.single || straighten)
 			groupTranslation = adjustment.apply(groupTranslation, editor.selectedTranslation);
 		if (!SurgicalGlueTransform.withinEditRange(selectedTranslation)
-			|| !SurgicalGlueTransform.withinEditRange(groupTranslation))
+			|| !SurgicalGlueTransform.withinEditRange(groupTranslation)) {
+			SurgicalTableFailure.EDIT_LIMIT.display(Minecraft.getInstance().player);
 			return;
+		}
 		if (!editor.single || straighten)
 			editor.groupRotation = editor.groupRotation.then(adjustment.rotation());
 		editor.selectedRotation = editor.selectedRotation.then(adjustment.rotation());
@@ -2492,6 +2551,7 @@ public final class SurgicalTableClientHandler {
 	private static void confirmWrench(LocalPlayer player, ClientLevel level, WrenchEditor editor) {
 		if (!(level.getBlockEntity(editor.pos) instanceof SurgicalTableBlockEntity table)
 			|| table.clientDataRevision() != editor.tableRevision) {
+			SurgicalTableFailure.PREVIEW_CHANGED.display(player);
 			clearSelections();
 			return;
 		}
@@ -2504,11 +2564,7 @@ public final class SurgicalTableClientHandler {
 			editor.groupRotation, editor.selectedRotation, editor.group, editor.original, clientPlane(level, editor.pos),
 			editor.groupTranslation, editor.selectedTranslation);
 		if (!plan.valid()) {
-			player.displayClientMessage(Component.translatable(plan.failure() == SurgicalWrenchRotation.Failure.JOINT_DISCONNECTED
-				? "message.create_biotech.surgical_table.rotation_breaks_joint"
-				: plan.failure() == SurgicalWrenchRotation.Failure.DISCONNECTED
-				? "message.create_biotech.surgical_table.rotation_disconnects"
-				: "message.create_biotech.surgical_table.no_space"), true);
+			player.displayClientMessage(Component.translatable(plan.failure().messageKey()), true);
 			return;
 		}
 		editor.committing = true;
@@ -3526,9 +3582,12 @@ public final class SurgicalTableClientHandler {
 		SurgicalCubeRotation deltaRotation) {
 		GluePreview current = editor.preview;
 		if (!(level.getBlockEntity(current.ownerPos) instanceof SurgicalTableBlockEntity table)
-			|| table.clientDataRevision() != current.tableRevision
-			|| !SurgicalGlueTransform.withinEditRange(editor.replayTransform.translation().add(translation)))
+			|| table.clientDataRevision() != current.tableRevision)
 			return null;
+		if (!SurgicalGlueTransform.withinEditRange(editor.replayTransform.translation().add(translation))) {
+			SurgicalTableFailure.EDIT_LIMIT.display(Minecraft.getInstance().player);
+			return null;
+		}
 		List<GlueSubjectPreview> previews = new ArrayList<>(current.subjects.size());
 		List<SurgicalTableGluePacket.Move> moves = new ArrayList<>(current.moves.size());
 		for (GlueSubjectPreview preview : current.subjects) {
@@ -4049,8 +4108,15 @@ public final class SurgicalTableClientHandler {
 		if (metrics != null)
 			preview = preview.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume());
-		BionicTraitSet traits = BionicTraitResolver.resolve(preview, level);
-		CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
+		SurgicalSubject subject = table.getSubject(hit.geometry.subjectId);
+		if (subject == null) return;
+		for (int source = 0; source < preview.sources().size(); source++) {
+			SurgicalAssembly.Source tissue = preview.sources().get(source);
+			if (!tissue.donorId().equals(subject.donorId()) || !tissue.containsCube(hit.cubeId)) continue;
+			BionicTraitSet traits = BionicTraitResolver.inspectPart(preview, level, source, hit.cubeId);
+			CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
+			return;
+		}
 	}
 
 	@Nullable
@@ -4203,7 +4269,7 @@ public final class SurgicalTableClientHandler {
 		if (placement == null || placement.hand != hand
 			|| !ItemStack.isSameItemSameComponents(placement.source.box, held)) {
 			SurgicalTablePlacementResult result = placementPreviewResult.succeeded()
-				? SurgicalTablePlacementResult.NO_SPACE : placementPreviewResult;
+				? SurgicalTablePlacementResult.OPERATION_FAILED : placementPreviewResult;
 			result.display(player);
 			return true;
 		}
@@ -4234,7 +4300,7 @@ public final class SurgicalTableClientHandler {
 				geometry.layoutCubes, geometry.serverOffsets, plane.workArea(), new BitSet(), Vec3.ZERO, List.of());
 			if (layout == null || !table.canApplySeamCut(selected.subjectId, selected.targetId,
 				layout.proposal(), 0.0d, 0.0d, plane))
-				showNoSpace(Minecraft.getInstance().player);
+				showFailure(Minecraft.getInstance().player);
 			else
 				sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.CUT,
 					layout.proposal());
@@ -4295,7 +4361,10 @@ public final class SurgicalTableClientHandler {
 			footprints.moving, plane.workArea(), target.x, target.z, footprints.occupied);
 		if (planned == null || !table.canApplyGlueCut(pending.subjectId, pending.targetId,
 			planned.delta().x, planned.delta().z, plane)) {
-			showNoSpace(player);
+			if (planned == null)
+				failedPlacementSearch(plane.workArea(), footprints.moving, footprints.occupied, target).display(player);
+			else
+				showFailure(player);
 			abortPendingGlueCut();
 			return;
 		}
@@ -4342,7 +4411,7 @@ public final class SurgicalTableClientHandler {
 		if (pending == null)
 			return;
 		if (!SurgicalKitItem.isShears(player.getItemInHand(pending.hand)) || pending.planned == null) {
-			showNoSpace(player);
+			showFailure(player);
 			abortPendingGlueCut();
 			return;
 		}
@@ -4440,6 +4509,7 @@ public final class SurgicalTableClientHandler {
 		SurgicalClientTopology.ConnectedGroupLayout groupLayout =
 			SurgicalClientTopology.autoSnapConnectedGroups(footprints.groups, plane.workArea(),
 				footprints.occupied);
+		// The bounded multi-group search can exhaust its budget; null does not prove a lack of space.
 		if (groupLayout == null)
 			return null;
 		SurgicalClientTopology.PlannedLayout planned = translateBatchProposal(base.proposal(),
@@ -4690,7 +4760,7 @@ public final class SurgicalTableClientHandler {
 		FootprintGroups footprints = editedGeometry == null || movedHere == null ? null
 			: seamCutFootprints(table, pending, editedGeometry, movedHere, plane);
 		if (footprints == null) {
-			showNoSpace(player);
+			showFailure(player);
 			abortPendingCut();
 			return;
 		}
@@ -4703,7 +4773,10 @@ public final class SurgicalTableClientHandler {
 				plane.workArea(), movedHere, planned.delta(), List.of());
 		if (planned == null || layout == null || !table.canApplySeamCut(pending.subjectId, pending.targetId,
 			layout.proposal(), planned.delta().x, planned.delta().z, plane)) {
-			showNoSpace(player);
+			if (planned == null)
+				failedPlacementSearch(plane.workArea(), footprints.moving, footprints.occupied, target).display(player);
+			else
+				showFailure(player);
 			abortPendingCut();
 			return;
 		}
@@ -4752,7 +4825,7 @@ public final class SurgicalTableClientHandler {
 			return;
 		if (!SurgicalKitItem.isShears(player.getItemInHand(pending.hand)) || pending.planned == null
 			|| pending.layout == null) {
-			showNoSpace(player);
+			showFailure(player);
 			abortPendingCut();
 			return;
 		}
@@ -4895,10 +4968,22 @@ public final class SurgicalTableClientHandler {
 		return bounds;
 	}
 
-	private static void showNoSpace(@Nullable LocalPlayer player) {
-		if (player != null)
-			player.displayClientMessage(Component.translatable(
-				"message.create_biotech.surgical_table.no_space"), true);
+	private static void showFailure(@Nullable LocalPlayer player) {
+		SurgicalTableFailure.OPERATION_FAILED.display(player);
+	}
+
+	private static boolean finiteCubeGeometry(SurgicalModelRenderContext.CubeGeometry cube) {
+		return cube != null && cube.corners().size() == 8 && cube.corners().stream().allMatch(corner ->
+			Double.isFinite(corner.x) && Double.isFinite(corner.y) && Double.isFinite(corner.z));
+	}
+
+	/** A failed search means no space only when its geometry and target were valid. */
+	private static SurgicalTableFailure failedPlacementSearch(SurgicalTablePlane.WorkArea area,
+		List<SurgicalTableLayout.Footprint> moving, List<SurgicalTableLayout.Footprint> occupied, Vec3 target) {
+		return !area.isEmpty() && !moving.isEmpty() && Double.isFinite(target.x) && Double.isFinite(target.z)
+			&& moving.stream().allMatch(SurgicalTableLayout::validStoredFootprint)
+			&& occupied.stream().allMatch(SurgicalTableLayout::validStoredFootprint)
+			? SurgicalTableFailure.NO_SPACE : SurgicalTableFailure.OPERATION_FAILED;
 	}
 
 	@SubscribeEvent

@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.List;
 import java.util.Set;
 
+import net.minecraft.resources.ResourceLocation;
+
 /** Single trait catalog. Scope, inheritance and conditions are independent. */
 public enum BionicTrait {
 	DISPOSITION("disposition", BionicTraitScope.HEAD,
@@ -72,8 +74,8 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	VIBRATION_SENSE("vibration_sense", BionicTraitScope.HEAD,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.HEAD)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.HEAD_AND_TENDRIL,
+		Carrier.of(BionicAnatomyRole.HEAD_CORE, BionicAnatomyRole.TENDRIL)),
 	WATER_AVERSION("water_aversion", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
@@ -105,8 +107,8 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ATTACK_EFFECT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.MOUTH, BionicAnatomyRole.SPINE, BionicAnatomyRole.ATTACK_HAND)),
 	SHELL_DEFENSE("shell_defense", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.SHELL)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.SHELL_AND_BODY,
+		Carrier.of(BionicAnatomyRole.SHELL, BionicAnatomyRole.TORSO)),
 	IMMUNE_EFFECTS("immune_effects", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.EFFECT_SET, Condition.NONE,
 		Carrier.allTissue()),
@@ -153,15 +155,17 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.ATTACK_HAND, BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING, BionicAnatomyRole.HORN)),
 	RIDEABLE("rideable", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.BODY_VOLUME, Carrier.allTissue()),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	CARGO_CHEST("cargo_chest", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
 	LOOT_PICKUP("loot_pickup", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
 	SONIC_BOOM("sonic_boom", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.COMPLETE_CHEST,
+		Carrier.of(BionicAnatomyRole.TORSO, BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE)),
 	ROAR("roar", BionicTraitScope.HEAD,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.HEAD, BionicAnatomyRole.HORN)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.HEAD_AND_MOUTH,
+		Carrier.of(BionicAnatomyRole.HEAD_CORE, BionicAnatomyRole.MOUTH)),
 	HEAD_PROJECTILE("head_projectile", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.SUBTRAIT_SET, Condition.NONE, Carrier.of(BionicAnatomyRole.HEAD)),
 	GUARDIAN_BEAM("guardian_beam", BionicTraitScope.HEAD,
@@ -173,16 +177,18 @@ public enum BionicTrait {
 	SNOW_TRAIL("snow_trail", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.FOOT)),
 	POLLINATION("pollination", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.allTissue()),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.BEE_BODY_AND_LEG, Carrier.of(BionicAnatomyRole.LEG)),
 	MILKABLE("milkable", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
-	WOOL_SHEARING("wool_shearing", BionicTraitScope.TORSO,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.UDDER_AND_BODY,
+		Carrier.of(BionicAnatomyRole.UDDER, BionicAnatomyRole.TORSO)),
+	WOOL_SHEARING("wool_shearing", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.WOOL_AND_BODY,
 		Carrier.of(BionicAnatomyRole.TORSO, BionicAnatomyRole.WOOL)),
 	EGG_LAYING("egg_laying", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	SCUTE_SHEDDING("scute_shedding", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.SHELL));
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.SHELL_AND_BODY,
+		Carrier.of(BionicAnatomyRole.SHELL, BionicAnatomyRole.TORSO));
 
 	private final String id;
 	private final Set<BionicTraitScope> scopes;
@@ -213,6 +219,19 @@ public enum BionicTrait {
 	/** Allowed regions; head, arm and leg coverage is evaluated separately for each installed chain. */
 	public Set<BionicTraitScope> scopes() { return scopes; }
 	public Carrier carrier() { return carrier; }
+	/** Parts that own the ability shown during inspection, excluding shared supporting organs. */
+	public Carrier inspectionCarrier(ResourceLocation donorType) {
+		return switch (condition) {
+		case WOOL_AND_BODY -> Carrier.of(BionicAnatomyRole.WOOL);
+		case UDDER_AND_BODY -> Carrier.of(donorType.equals(ResourceLocation.withDefaultNamespace("goat"))
+			? BionicAnatomyRole.TORSO : BionicAnatomyRole.UDDER);
+		case SHELL_AND_BODY -> Carrier.of(BionicAnatomyRole.SHELL);
+		case COMPLETE_CHEST -> Carrier.of(BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE);
+		case HEAD_AND_TENDRIL -> Carrier.of(BionicAnatomyRole.TENDRIL);
+		case HEAD_AND_MOUTH -> Carrier.of(BionicAnatomyRole.MOUTH);
+		default -> carrier;
+		};
+	}
 	public BionicTraitRule rule() { return rule; }
 	public ValueKind valueKind() { return valueKind; }
 	public Condition condition() { return condition; }
@@ -259,5 +278,8 @@ public enum BionicTrait {
 	}
 
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
-	public enum Condition { NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME, WOOL_AND_BODY }
+	public enum Condition {
+		NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
+		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH, BEE_BODY_AND_LEG
+	}
 }

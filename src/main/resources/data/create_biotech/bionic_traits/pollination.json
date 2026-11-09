@@ -4,9 +4,20 @@
     "minecraft:bee": true
   },
   "parameters": {
-    "min_legs": 1,
     "collect_ticks": 400,
     "growth_interval_ticks": 30,
     "max_crops": 10
+  },
+  "carriers": {
+    "minecraft:bee": {
+      "TORSO": [
+        "body"
+      ],
+      "LEG": [
+        "front_legs",
+        "middle_legs",
+        "back_legs"
+      ]
+    }
   }
 }

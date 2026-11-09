@@ -7,16 +7,23 @@
   },
   "carriers": {
     "minecraft:cow": {
+      "UDDER": [
+        "udder"
+      ],
       "TORSO": [
         "body"
       ]
     },
     "minecraft:mooshroom": {
+      "UDDER": [
+        "udder"
+      ],
       "TORSO": [
         "body"
       ]
     },
     "minecraft:goat": {
+      "UDDER": [],
       "TORSO": [
         "body"
       ]

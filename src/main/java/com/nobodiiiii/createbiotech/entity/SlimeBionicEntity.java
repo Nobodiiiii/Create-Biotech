@@ -156,6 +156,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
 	private static final EntityDataAccessor<CompoundTag> EQUIPMENT_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Integer> PRODUCTION_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Boolean> POLLEN_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Integer> SHELL_STATE_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Long> SHELL_STARTED = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.LONG);
+	private static final EntityDataAccessor<Long> SPECIAL_STARTED = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.LONG);
 	private static final EntityDataAccessor<Integer> SPECIAL_ACTION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<org.joml.Vector3f> SPECIAL_ORIGIN = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.VECTOR3);
 	private static final EntityDataAccessor<Integer> SPECIAL_TARGET = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
@@ -170,6 +174,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public void setBionicSitting(boolean value) { setOrderedToSit(value); }
 	public int getProductionFlags() { return entityData.get(PRODUCTION_DATA); }
 	public boolean isSheared() { return (getProductionFlags() & 1) != 0; }
+	public boolean hasBionicPollen() { return entityData.get(POLLEN_DATA); }
+	public void setBionicPollen(boolean value) { entityData.set(POLLEN_DATA, value); }
+	public net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState getShellState() {
+		return net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.values()[entityData.get(SHELL_STATE_DATA)];
+	}
+	public int getShellStateTicks() { return (int) Math.max(0, level().getGameTime() - entityData.get(SHELL_STARTED)); }
+	public int getSpecialActionTicks() { return (int) Math.max(0, level().getGameTime() - entityData.get(SPECIAL_STARTED)); }
 	public void setProductionFlags(int flags) { entityData.set(PRODUCTION_DATA, flags); }
 	public void markSelfDestructing() { dead = true; }
 	public void finishSelfDestruct() { dropPreservedEquipment(); dropEquipment(); triggerOnDeathMobEffects(RemovalReason.KILLED); discard(); }
@@ -179,7 +190,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	public Vec3 getSpecialOrigin() { return position().add(new Vec3(entityData.get(SPECIAL_ORIGIN)).yRot(-yBodyRot * Mth.DEG_TO_RAD)); }
 	public int getSpecialTarget() { return entityData.get(SPECIAL_TARGET); }
-	public void syncSpecialAction(int action, int target) { entityData.set(SPECIAL_ACTION, action); entityData.set(SPECIAL_TARGET, target); }
+	public void syncSpecialAction(int action, int target) {
+		if (action != getSpecialAction() || target != getSpecialTarget()) entityData.set(SPECIAL_STARTED, level().getGameTime());
+		entityData.set(SPECIAL_ACTION, action); entityData.set(SPECIAL_TARGET, target);
+	}
 	@Nullable public Vec3 lastHeardPosition(Entity target) { return vibrationSense.lastHeardPosition(target); }
 	public void setRiderAscending(boolean value) { riderAscending = value; }
 	public boolean isSelfDestructing() { return production != null && production.exploding(); }
@@ -420,6 +434,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		builder.define(SITTING_DATA, false);
 		builder.define(EQUIPMENT_DATA, new CompoundTag());
 		builder.define(PRODUCTION_DATA, 0);
+		builder.define(POLLEN_DATA, false);
+		builder.define(SHELL_STATE_DATA, 0);
+		builder.define(SHELL_STARTED, 0L);
+		builder.define(SPECIAL_STARTED, 0L);
 		builder.define(SPECIAL_ACTION, 0);
 		builder.define(SPECIAL_TARGET, 0);
 		builder.define(SPECIAL_ORIGIN, new org.joml.Vector3f());
@@ -1282,6 +1300,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			if (next == idle && shellState != idle) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_UNROLL_FINISH);
 			shellState = next; shellStateTicks = 0;
 		} else shellStateTicks++;
+		if (entityData.get(SHELL_STATE_DATA) != shellState.ordinal()) {
+			entityData.set(SHELL_STATE_DATA, shellState.ordinal());
+			entityData.set(SHELL_STARTED, level().getGameTime() - shellStateTicks);
+		}
 		setShiftKeyDown(shellState != idle);
 		if (isShiftKeyDown()) { getNavigation().stop(); setDeltaMovement(getDeltaMovement().multiply(0, 1, 0)); }
 	}
@@ -1858,7 +1880,34 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		passenger.setBoundingBox(pose.bounds(passenger));
 	}
 	@Override public void move(net.minecraft.world.entity.MoverType type, Vec3 movement) {
-		super.move(type, isVehicle() ? BionicRiding.clipMovement(this, movement) : movement);
+		if (!isVehicle() || noPhysics) {
+			super.move(type, movement);
+			return;
+		}
+		Vec3 initialPosition = position();
+		Vec3 clipped = BionicRiding.clipMovement(this, movement);
+		super.move(type, clipped);
+		boolean blockedX = !Mth.equal(movement.x, clipped.x);
+		boolean blockedY = movement.y != clipped.y;
+		boolean blockedZ = !Mth.equal(movement.z, clipped.z);
+		if (!blockedX && !blockedY && !blockedZ) return;
+		// Entity.move only sees the already clipped vector. Preserve rider collisions too,
+		// otherwise a rider touching the floor leaves the mount airborne and unable to hop.
+		if (blockedX || blockedZ) {
+			horizontalCollision = true;
+			minorHorizontalCollision = false;
+		}
+		if (blockedY) {
+			verticalCollision = true;
+			if (movement.y < 0 && !onGround()) {
+				verticalCollisionBelow = true;
+				setOnGroundWithMovement(true, position().subtract(initialPosition));
+				BlockPos support = getOnPosLegacy();
+				checkFallDamage(0, true, level().getBlockState(support), support);
+			}
+		}
+		Vec3 velocity = getDeltaMovement();
+		setDeltaMovement(blockedX ? 0 : velocity.x, blockedY ? 0 : velocity.y, blockedZ ? 0 : velocity.z);
 	}
 	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
 		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)

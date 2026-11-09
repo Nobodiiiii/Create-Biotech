@@ -332,6 +332,17 @@ public final class SurgicalTableLayout {
 			&& gridCenterZ >= area.minZ() && gridCenterZ < area.maxZExclusive();
 	}
 
+	/** Diagnostic only: malformed or missing geometry is not evidence of insufficient space. */
+	public static boolean lacksSpace(SurgicalTablePlane.WorkArea area, List<Footprint> proposed,
+		List<Footprint> occupied) {
+		if (area.isEmpty() || proposed == null || proposed.isEmpty() || occupied == null
+			|| proposed.stream().anyMatch(footprint -> !validStoredFootprint(footprint))
+			|| occupied.stream().anyMatch(footprint -> !validStoredFootprint(footprint)))
+			return false;
+		return proposed.stream().anyMatch(footprint -> !area.contains(footprint.minX(), footprint.minZ(),
+			footprint.maxX(), footprint.maxZ(), EPSILON)) || !doesNotOverlap(proposed, occupied);
+	}
+
 	private static boolean doesNotOverlap(List<Footprint> proposed, List<Footprint> occupied) {
 		for (Footprint footprint : proposed)
 			for (Footprint obstacle : occupied)

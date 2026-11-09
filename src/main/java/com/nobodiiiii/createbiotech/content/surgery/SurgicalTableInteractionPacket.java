@@ -121,55 +121,61 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			if (targetId < seams.size() && SurgicalKitItem.isShears(held)) {
 				if (!table.cutSeam(player, held, hand, subjectId, targetId, observedCubeCount, seams, plane,
 					layout, originOffsetX, originOffsetZ))
-					noSpace(player);
+					operationFailed(player);
 			}
 		}
 		case CUT_GLUE -> {
 			if (SurgicalKitItem.isShears(held)
 				&& !table.cutGlueJoint(player, held, hand, subjectId, targetId, observedCubeCount, seams,
 					plane, originOffsetX, originOffsetZ))
-				noSpace(player);
+				operationFailed(player);
 		}
 		case PACK -> {
 			if (targetId >= observedCubeCount)
 				break;
-			if (SurgicalKitItem.isEmptyTemporaryBox(held))
-				table.captureTemporaryComponent(player, held, subjectId, targetId, observedCubeCount, seams,
-					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry);
-			else if (com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper.isEmptyLargeBox(held))
-				table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
-					bodyVolume, hitboxGeometry, attackGeometry);
+			if (SurgicalKitItem.isEmptyTemporaryBox(held)) {
+				if (!table.captureTemporaryComponent(player, held, subjectId, targetId, observedCubeCount, seams,
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry))
+					operationFailed(player);
+			} else if (com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper.isEmptyLargeBox(held)
+				&& !table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
+					bodyVolume, hitboxGeometry, attackGeometry))
+				operationFailed(player);
 		}
 		case COPY_COMPONENT -> {
-			if (targetId < observedCubeCount && SurgicalKitItem.isEmptyCubeCopier(held))
-				table.captureCopiedComponent(player, held, subjectId, targetId, observedCubeCount, seams,
-					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry);
+			if (targetId < observedCubeCount && SurgicalKitItem.isEmptyCubeCopier(held)
+				&& !table.captureCopiedComponent(player, held, subjectId, targetId, observedCubeCount, seams,
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry))
+				operationFailed(player);
 		}
 		case CUT_CUBE_CONNECTIONS -> {
 			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)) {
 				if (!table.cutCubeConnections(player, held, hand, subjectId, targetId, observedCubeCount, seams,
 					plane, layout))
-					noSpace(player);
+					operationFailed(player);
 			}
 		}
 		case COMBINE -> {
-			if (targetId < observedCubeCount && SurgicalKitItem.isHoneyBottle(held))
-				table.combineConnected(player, held, hand, subjectId, targetId, observedCubeCount, seams);
+			if (targetId < observedCubeCount && SurgicalKitItem.isHoneyBottle(held)
+				&& !table.combineConnected(player, held, hand, subjectId, targetId, observedCubeCount, seams))
+				operationFailed(player);
 		}
 		case BREAK_COMBINATION -> {
-			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held))
-				table.breakCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams);
+			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)
+				&& !table.breakCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams))
+				operationFailed(player);
 		}
 		case DETACH_COMBINATION -> {
-			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held))
-				table.detachCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams);
+			if (targetId < observedCubeCount && SurgicalKitItem.isShears(held)
+				&& !table.detachCombination(player, held, hand, subjectId, targetId, observedCubeCount, seams))
+				operationFailed(player);
 		}
 		case PLACE -> {}
 		}
 	}
 
-	private static void noSpace(ServerPlayer player) {
-		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.no_space"), true);
+	private static void operationFailed(ServerPlayer player) {
+		SurgicalTableFailure.OPERATION_FAILED.display(player);
 	}
 
 	/** Shared refusal for a body whose live model no longer matches its saved topology. */

@@ -15,6 +15,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -208,8 +210,19 @@ public final class SurgicalSourceModelRenderer {
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick,
 		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry,
 		@Nullable Boolean hurtOverlay, java.util.Set<Integer> saddles, java.util.Set<Integer> chests) {
+		return renderEquipped(preview, cubeCount, presentCubes, cubeOffsets, cubeRotations, poseStack, buffer,
+			packedLight, partialTick, collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay, saddles, chests, null, -1);
+	}
+
+	public static SurgicalModelRenderContext.Snapshot renderEquipped(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations,
+		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick,
+		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry,
+		@Nullable Boolean hurtOverlay, java.util.Set<Integer> saddles, java.util.Set<Integer> chests,
+		@Nullable SlimeBionicEntity owner, int source) {
 		preparePreview(preview, 0);
 		SurgicalCapturedRenderPlan base = plan(preview, 0);
+		if (owner != null) base = traitPlan(preview, owner, source, base);
 		SurgicalCapturedRenderPlan naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
 		var snapshot = naked.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,
 			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
@@ -226,6 +239,77 @@ public final class SurgicalSourceModelRenderer {
 			naked.renderEquipment(withChest, carrier, seat.first(), poseStack, buffer, packedLight,
 				cubeOffsets.get(carrier), cubeRotations.get(carrier), hurtOverlay);
 		return snapshot;
+	}
+
+	private record TraitPlanKey(RenderPlanKey source, int state, int ticks) {}
+	private static final Map<TraitPlanKey, SurgicalCapturedRenderPlan> TRAIT_RENDER_PLANS =
+		new LinkedHashMap<>(64, 0.75f, true) {
+			@Override protected boolean removeEldestEntry(Map.Entry<TraitPlanKey, SurgicalCapturedRenderPlan> entry) {
+				return size() > MAX_RENDER_PLANS;
+			}
+		};
+
+	/** Sample native appearance on separate previews, preserving each body's surgical reference ids. */
+	private static SurgicalCapturedRenderPlan traitPlan(LivingEntity preview, SlimeBionicEntity owner,
+		int source, SurgicalCapturedRenderPlan base) {
+		MimicProfile profile = PREVIEW_PROFILES.get(preview);
+		if (profile == null) return base;
+		boolean shell = owner.getBionicTraits().members(BionicTrait.SHELL_DEFENSE).stream().anyMatch(member -> member.source() == source);
+		int state, ticks = 0;
+		if (preview instanceof net.minecraft.world.entity.animal.Bee) state = owner.hasBionicPollen() ? 2 : 1;
+		else if (shell && preview instanceof net.minecraft.world.entity.animal.armadillo.Armadillo) {
+			var phase = owner.getShellState();
+			if (phase == net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE) return base;
+			state = 10 + phase.ordinal();
+			ticks = phase == net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.SCARED
+				? 0 : Math.min(owner.getShellStateTicks(), phase.animationDuration());
+		} else if (shell && preview instanceof net.minecraft.world.entity.monster.Shulker) {
+			var phase = owner.getShellState();
+			float closure = switch (phase) {
+			case IDLE -> 0;
+			case SCARED -> 1;
+			case ROLLING -> Math.min(1, owner.getShellStateTicks() / (float) Math.max(1, phase.animationDuration()));
+			case UNROLLING -> 1 - Math.min(1, owner.getShellStateTicks() / (float) Math.max(1, phase.animationDuration()));
+			};
+			state = 20; ticks = Math.round(closure * 10);
+		} else if (preview instanceof net.minecraft.world.entity.monster.warden.Warden && owner.getSpecialAction() == 1
+			&& owner.getBionicTraits().members(BionicTrait.SONIC_BOOM).stream().anyMatch(member -> member.source() == source)) {
+			state = 30; ticks = Math.min(60, owner.getSpecialActionTicks());
+		} else return base;
+		var renderer = renderer(preview);
+		TraitPlanKey key = new TraitPlanKey(new RenderPlanKey(profile, renderer, 0), state, ticks);
+		SurgicalCapturedRenderPlan cached = TRAIT_RENDER_PLANS.get(key);
+		if (cached != null) return cached;
+		LivingEntity animated = profile.createPreviewEntity(preview.level());
+		if (animated == null) return base;
+		if (animated instanceof net.minecraft.world.entity.animal.Bee bee) {
+			CompoundTag data = bee.saveWithoutId(new CompoundTag());
+			data.putBoolean("HasNectar", state == 2);
+			bee.load(data);
+		}
+		if (state >= 10 && state < 20 && animated instanceof net.minecraft.world.entity.animal.armadillo.Armadillo armadillo) {
+			var phase = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.values()[state - 10];
+			armadillo.switchToState(phase.shouldHideInShell(ticks)
+				? net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.SCARED
+				: net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE);
+			armadillo.rollUpAnimationState.stop(); armadillo.rollOutAnimationState.stop(); armadillo.peekAnimationState.stop();
+			if (phase == net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.ROLLING) armadillo.rollUpAnimationState.start(0);
+			if (phase == net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.UNROLLING) armadillo.rollOutAnimationState.start(0);
+		}
+		if (state == 20) {
+			float peek = 1 - ticks / 10.0f;
+			var shulker = new net.minecraft.world.entity.monster.Shulker(EntityType.SHULKER, preview.level()) {
+				@Override public float getClientPeekAmount(float partialTick) { return peek; }
+			};
+			shulker.load(animated.saveWithoutId(new CompoundTag()));
+			animated = shulker;
+		}
+		if (state == 30 && animated instanceof net.minecraft.world.entity.monster.warden.Warden warden)
+			warden.sonicBoomAnimationState.start(0);
+		preparePreview(animated, 0);
+		cached = base.withTraitAppearance(SurgicalCapturedRenderPlan.build(captureInputAtAge(renderer, animated, 0, ticks)));
+		TRAIT_RENDER_PLANS.put(key, cached);
+		return cached;
 	}
 
 	/** Accessory envelopes use exactly the same native capture and rebase as live rendering. */
@@ -389,12 +473,16 @@ public final class SurgicalSourceModelRenderer {
 	 */
 	private static SurgicalCapturedRenderPlan.CapturedInput captureInputInCanonicalPose(
 		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw) {
+		return captureInputAtAge(renderer, preview, yaw, SurgicalCapturePoseOverrides.captureAgeInTicks(preview));
+	}
+
+	private static SurgicalCapturedRenderPlan.CapturedInput captureInputAtAge(
+		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw, float ageInTicks) {
 		int id = preview.getId();
 		int tickCount = preview.tickCount;
 		preview.setId(CAPTURE_ENTITY_ID);
 		preview.getRandom().setSeed(captureRandomSeed(preview));
 		// Renderers see the age as tickCount + partialTick, so a fractional age is split across both.
-		float ageInTicks = SurgicalCapturePoseOverrides.captureAgeInTicks(preview);
 		int wholeTicks = Mth.floor(ageInTicks);
 		preview.tickCount = wholeTicks;
 		try {
@@ -613,6 +701,7 @@ public final class SurgicalSourceModelRenderer {
 		FALLBACK_RENDER_PLANS.clear();
 		SADDLE_RENDER_PLANS.clear();
 		CHEST_RENDER_PLANS.clear();
+		TRAIT_RENDER_PLANS.clear();
 		RIDING_SEATS.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}

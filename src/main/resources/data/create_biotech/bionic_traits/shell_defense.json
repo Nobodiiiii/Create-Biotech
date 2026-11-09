@@ -1,6 +1,5 @@
 {
   "automatic_detection": false,
-  "min_coverage": 0.5,
   "parameters": {
     "duration_ticks": 80,
     "damage_multiplier": 0.5
@@ -13,11 +12,17 @@
     "minecraft:shulker": {
       "SHELL": [
         "lid"
+      ],
+      "TORSO": [
+        "base"
       ]
     },
     "minecraft:armadillo": {
       "SHELL": [
-        "body"
+        "outer_shell"
+      ],
+      "TORSO": [
+        "inner_body"
       ]
     }
   }

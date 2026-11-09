@@ -122,6 +122,16 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			List<Component> lines = groups.get(scopes.getFirst());
 			Component name = trait == BionicTrait.DETERRENCE ? deterrenceName(result.deterrenceTargets())
 				: Component.translatable(trait.descriptionId());
+			if (trait == BionicTrait.MILKABLE && !result.subtraits().isEmpty()) {
+				MutableComponent products = Component.empty();
+				for (var product : result.subtraits().keySet().stream()
+					.sorted(java.util.Comparator.comparing(com.nobodiiiii.createbiotech.entity.trait.BionicSubtrait::id)).toList()) {
+					if (!products.getSiblings().isEmpty())
+						products.append(Component.translatable("create_biotech.trait.list_separator"));
+					products.append(Component.translatable(product.descriptionId()));
+				}
+				name = Component.translatable("create_biotech.trait.milkable.products", products);
+			}
 			if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET) {
 				MutableComponent variants = Component.empty();
 				for (var variant : result.subtraits().keySet().stream().sorted(java.util.Comparator.comparing(
@@ -270,8 +280,10 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			BionicTraitDonors.Facts facts = profile == null ? BionicTraitDonors.detect(living)
 				: BionicTraitDonors.get(profile, level);
 			return new BoxDetails(List.of(),
-				BionicTraitResolver.donorProperties(facts), facts.abilities().stream()
-					.filter(trait -> !trait.carrier().isAllTissue()).collect(java.util.stream.Collectors.toUnmodifiableSet()),
+				BionicTraitResolver.donorProperties(facts,
+					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType())), facts.abilities().stream()
+					.filter(trait -> trait != BionicTrait.MILKABLE && !trait.carrier().isAllTissue())
+					.collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),
 				com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(Set.of(
 					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()))));
@@ -280,7 +292,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (assembly == null)
 			return null;
 
-		BionicTraitSet traits = bionic.getBionicTraits();
+		BionicTraitSet traits = BionicTraitResolver.inspect(assembly, level);
 		List<BaseStat> stats = new ArrayList<>();
 		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);

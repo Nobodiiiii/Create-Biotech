@@ -1,7 +1,11 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import org.jetbrains.annotations.Nullable;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -35,12 +39,62 @@ public final class BionicProduction {
 	@Nullable private net.minecraft.world.phys.Vec3 hoverPos;
 	@Nullable private BlockPos flower;
 	private boolean pollen, ignited, charged, exploding;
+	@Nullable private SurgicalAssembly carrierAssembly;
+	@Nullable private BionicTraitSet carrierTraits;
+	private ProductionCarriers productionCarriers = ProductionCarriers.EMPTY;
+
+	private record ProductionCarriers(Map<DyeColor, Integer> wool, int eggs, int scutes, int pollinators) {
+		private static final ProductionCarriers EMPTY = new ProductionCarriers(Map.of(), 0, 0, 0);
+	}
+
 	public BionicProduction(SlimeBionicEntity entity) { this.entity = entity; }
 	private boolean has(BionicTrait trait) { return entity.getBionicTraits().has(trait); }
+	/** Count physical output organs once per assembly/data revision, independently of donor count. */
+	private ProductionCarriers carriers() {
+		var assembly = entity.getAssembly();
+		var traits = entity.getBionicTraits();
+		if (assembly == carrierAssembly && traits == carrierTraits) return productionCarriers;
+		if (assembly == null) productionCarriers = ProductionCarriers.EMPTY;
+		else {
+			Map<DyeColor, Integer> wool = new EnumMap<>(DyeColor.class);
+			for (var member : BionicTraitRuntime.membersWithRole(entity, BionicTrait.WOOL_SHEARING, BionicAnatomyRole.WOOL)) {
+				var profile = assembly.sources().get(member.source()).profile();
+				wool.merge(DyeColor.byId(profile.stableInt("Color")), 1, Integer::sum);
+			}
+			productionCarriers = new ProductionCarriers(Map.copyOf(wool),
+				BionicTraitRuntime.membersWithRole(entity, BionicTrait.EGG_LAYING, BionicAnatomyRole.TORSO).size(),
+				BionicTraitRuntime.membersWithRole(entity, BionicTrait.SCUTE_SHEDDING, BionicAnatomyRole.SHELL).size(),
+				BionicTraitRuntime.membersWithRole(entity, BionicTrait.POLLINATION, BionicAnatomyRole.LEG).size());
+		}
+		carrierAssembly = assembly;
+		carrierTraits = traits;
+		return productionCarriers;
+	}
+
+	/** Normal stack limits also apply when hundreds of organs produce in one cycle. */
+	private static void addDrops(List<ItemStack> drops, Item item, int count) {
+		while (count > 0) {
+			ItemStack stack = new ItemStack(item);
+			int size = Math.min(count, stack.getMaxStackSize());
+			stack.setCount(size);
+			drops.add(stack);
+			count -= size;
+		}
+	}
+
+	private void drop(Item item, int count) {
+		List<ItemStack> drops = new ArrayList<>();
+		addDrops(drops, item, count);
+		drops.forEach(entity::spawnAtLocation);
+	}
+
 	private int parameter(BionicTrait trait, String name, int fallback) {
 		return Math.max(1, (int) entity.getBionicTraits().parameter(trait, name, fallback));
 	}
-	private void sync() { entity.setProductionFlags((woolTicks > 0 ? 1 : 0) | (charged ? 2 : 0) | fuse << 2); }
+	private void sync() {
+		entity.setProductionFlags((woolTicks > 0 ? 1 : 0) | (charged ? 2 : 0) | fuse << 2);
+		entity.setBionicPollen(pollen && has(BionicTrait.POLLINATION));
+	}
 	public boolean exploding() { return exploding; }
 	public void charge() { if (has(BionicTrait.SELF_DESTRUCT)) { charged = true; sync(); } }
 	public boolean shearable() {
@@ -48,15 +102,18 @@ public final class BionicProduction {
 	}
 	public List<ItemStack> shear() {
 		if (entity.level().isClientSide || !shearable()) return List.of();
-		var source = BionicTraitRuntime.dominant(entity, BionicTrait.WOOL_SHEARING);
-		if (source == null) return List.of();
-		DyeColor color = DyeColor.byId(source.profile().stableInt("Color"));
+		List<ItemStack> drops = new ArrayList<>();
+		carriers().wool().forEach((color, parts) -> {
+			int count = 0;
+			for (int part = 0; part < parts; part++) count += 1 + entity.getRandom().nextInt(3);
+			addDrops(drops, BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace(color.getName() + "_wool")), count);
+		});
+		if (drops.isEmpty()) return List.of();
 		woolTicks = 1;
 		sync();
 		entity.playSound(SoundEvents.SHEEP_SHEAR);
 		entity.gameEvent(GameEvent.SHEAR);
-		return List.of(new ItemStack(BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace(color.getName() + "_wool")),
-			1 + entity.getRandom().nextInt(3)));
+		return List.copyOf(drops);
 	}
 	public InteractionResult interact(Player player, InteractionHand hand) {
 		if (!entity.isAlive()) return InteractionResult.PASS;
@@ -73,20 +130,22 @@ public final class BionicProduction {
 			return InteractionResult.sidedSuccess(client);
 		}
 		if (has(BionicTrait.MILKABLE)) {
-			boolean stew = held.is(Items.BOWL) && entity.getBionicTraits().members(BionicTrait.MILKABLE).stream()
-				.anyMatch(member -> entity.getAssembly().sources().get(member.source()).profile().entityTypeId()
-					.equals(ResourceLocation.withDefaultNamespace("mooshroom")));
-			if (held.is(Items.BUCKET) || stew) {
+			var traits = entity.getBionicTraits();
+			boolean milk = held.is(Items.BUCKET) && traits.hasVariant(BionicTrait.MILKABLE, "milk_bucket");
+			boolean stew = held.is(Items.BOWL) && traits.hasVariant(BionicTrait.MILKABLE, "mushroom_stew");
+			if (milk || stew) {
 				if (!client) {
-					player.setItemInHand(hand, ItemUtils.createFilledResult(held, player, new ItemStack(stew ? Items.MUSHROOM_STEW : Items.MILK_BUCKET)));
-					entity.playSound(SoundEvents.COW_MILK); entity.gameEvent(GameEvent.ENTITY_INTERACT);
+					player.setItemInHand(hand, ItemUtils.createFilledResult(held, player,
+						new ItemStack(stew ? Items.MUSHROOM_STEW : Items.MILK_BUCKET)));
+					entity.playSound(stew ? SoundEvents.MOOSHROOM_MILK : SoundEvents.COW_MILK);
+					entity.gameEvent(GameEvent.ENTITY_INTERACT);
 				}
 				return InteractionResult.sidedSuccess(client);
 			}
 		}
 		if (has(BionicTrait.SCUTE_SHEDDING) && held.is(Items.BRUSH)) {
 			if (!client) {
-				entity.spawnAtLocation(Items.ARMADILLO_SCUTE);
+				drop(Items.ARMADILLO_SCUTE, carriers().scutes());
 				held.hurtAndBreak(16, player, LivingEntity.getSlotForHand(hand));
 				entity.playSound(SoundEvents.ARMADILLO_BRUSH); entity.gameEvent(GameEvent.ENTITY_INTERACT);
 			}
@@ -99,11 +158,11 @@ public final class BionicProduction {
 		if (!entity.isAlive()) return;
 		if (has(BionicTrait.EGG_LAYING)) {
 			if (eggTicks < 0) eggTicks = interval(BionicTrait.EGG_LAYING);
-			if (--eggTicks <= 0) { entity.spawnAtLocation(Items.EGG); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
+			if (--eggTicks <= 0) { drop(Items.EGG, carriers().eggs()); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
 		}
 		if (has(BionicTrait.SCUTE_SHEDDING)) {
 			if (scuteTicks < 0) scuteTicks = interval(BionicTrait.SCUTE_SHEDDING);
-			if (--scuteTicks <= 0) { entity.spawnAtLocation(Items.ARMADILLO_SCUTE); entity.playSound(SoundEvents.ARMADILLO_SCUTE_DROP); scuteTicks = interval(BionicTrait.SCUTE_SHEDDING); }
+			if (--scuteTicks <= 0) { drop(Items.ARMADILLO_SCUTE, carriers().scutes()); entity.playSound(SoundEvents.ARMADILLO_SCUTE_DROP); scuteTicks = interval(BionicTrait.SCUTE_SHEDDING); }
 		}
 		if (flowerCooldown > 0) flowerCooldown--;
 		if (has(BionicTrait.SNOW_TRAIL) && EventHooks.canEntityGrief(entity.level(), entity)) snow();
@@ -200,22 +259,30 @@ public final class BionicProduction {
 					}
 		return null;
 	}
-	/** BeeGrowCropGoal's random triggers and per-block growth dispatch. */
+	/** Each retained bee-leg part supplies its own growth attempt and pollen-use budget. */
 	private void growCrops() {
 		ServerLevel level = (ServerLevel) entity.level();
-		if (entity.getRandom().nextFloat() < 0.3f || entity.getRandom().nextInt(parameter(BionicTrait.POLLINATION, "growth_interval_ticks", 30)) != 0
-			|| !EventHooks.canEntityGrief(level, entity)) return;
-		int max = parameter(BionicTrait.POLLINATION, "max_crops", 10);
-		for (int depth = 1; depth <= 2 && crops < max; depth++) {
-			BlockPos pos = entity.blockPosition().below(depth);
-			BlockState state = level.getBlockState(pos), grown = null;
-			if (!state.is(BlockTags.BEE_GROWABLES) || !CommonHooks.canEntityDestroy(level, pos, entity)) continue;
-			if (state.getBlock() instanceof CropBlock crop && !crop.isMaxAge(state)) grown = crop.getStateForAge(crop.getAge(state) + 1);
-			else if (state.getBlock() instanceof StemBlock && state.getValue(StemBlock.AGE) < 7) grown = state.cycle(StemBlock.AGE);
-			else if (state.is(Blocks.SWEET_BERRY_BUSH) && state.getValue(SweetBerryBushBlock.AGE) < 3) grown = state.cycle(SweetBerryBushBlock.AGE);
-			else if ((state.is(Blocks.CAVE_VINES) || state.is(Blocks.CAVE_VINES_PLANT)) && state.getBlock() instanceof BonemealableBlock plant)
-				plant.performBonemeal(level, entity.getRandom(), pos, state);
-			if (grown != null && level.setBlockAndUpdate(pos, grown)) { crops++; level.levelEvent(2011, pos, 15); }
+		int organs = carriers().pollinators();
+		int max = parameter(BionicTrait.POLLINATION, "max_crops", 10) * organs;
+		int interval = parameter(BionicTrait.POLLINATION, "growth_interval_ticks", 30);
+		boolean griefingChecked = false;
+		for (int organ = 0; organ < organs && crops < max; organ++) {
+			if (entity.getRandom().nextFloat() < 0.3f || entity.getRandom().nextInt(interval) != 0) continue;
+			if (!griefingChecked && !EventHooks.canEntityGrief(level, entity)) return;
+			griefingChecked = true;
+			for (int depth = 1; depth <= 2 && crops < max; depth++) {
+				BlockPos pos = entity.blockPosition().below(depth);
+				BlockState state = level.getBlockState(pos), grown = null;
+				if (!state.is(BlockTags.BEE_GROWABLES) || !CommonHooks.canEntityDestroy(level, pos, entity)) continue;
+				if (state.getBlock() instanceof CropBlock crop && !crop.isMaxAge(state)) grown = crop.getStateForAge(crop.getAge(state) + 1);
+				else if (state.getBlock() instanceof StemBlock && state.getValue(StemBlock.AGE) < 7) grown = state.cycle(StemBlock.AGE);
+				else if (state.is(Blocks.SWEET_BERRY_BUSH) && state.getValue(SweetBerryBushBlock.AGE) < 3) grown = state.cycle(SweetBerryBushBlock.AGE);
+				else if ((state.is(Blocks.CAVE_VINES) || state.is(Blocks.CAVE_VINES_PLANT)) && state.getBlock() instanceof BonemealableBlock plant) {
+					plant.performBonemeal(level, entity.getRandom(), pos, state);
+					if (!level.getBlockState(pos).equals(state)) crops++;
+				}
+				if (grown != null && level.setBlockAndUpdate(pos, grown)) { crops++; level.levelEvent(2011, pos, 15); }
+			}
 		}
 		if (crops >= max) pollen = false;
 	}
@@ -258,7 +325,7 @@ public final class BionicProduction {
 		woolTicks = net.minecraft.util.Mth.clamp(tag.getInt("Wool"), 0, 24000);
 		flowerCooldown = net.minecraft.util.Mth.clamp(tag.getInt("FlowerCooldown"), 0, 200);
 		pollenTicks = net.minecraft.util.Mth.clamp(tag.getInt("PollenTicks"), 0, 24000);
-		crops = net.minecraft.util.Mth.clamp(tag.getInt("Crops"), 0, 100); pollen = tag.getBoolean("Pollen");
+		crops = net.minecraft.util.Mth.clamp(tag.getInt("Crops"), 0, SurgicalAssembly.MAX_CUBES * 100); pollen = tag.getBoolean("Pollen");
 		ignited = tag.getBoolean("Ignited"); charged = tag.getBoolean("Charged");
 		fuse = net.minecraft.util.Mth.clamp(tag.getInt("Fuse"), 0, 24000);
 		flower = tag.contains("Flower") ? BlockPos.of(tag.getLong("Flower")) : null; sync();

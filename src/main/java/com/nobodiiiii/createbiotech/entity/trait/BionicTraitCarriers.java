@@ -53,7 +53,7 @@ final class BionicTraitCarriers {
 	static BitSet cubesFor(BionicTraitData data, ResourceLocation entity,
 		Map<Integer, Set<String>> parts, int cubeCount, BionicAnatomyRole role) {
 		Set<String> names = data.carriers().getOrDefault(entity, Map.of()).get(role);
-		if (names == null || parts.isEmpty() && names.stream().noneMatch(name -> name.startsWith("#")))
+		if (names == null || !names.isEmpty() && parts.isEmpty() && names.stream().noneMatch(name -> name.startsWith("#")))
 			return null;
 		return selected(names, parts, cubeCount);
 	}

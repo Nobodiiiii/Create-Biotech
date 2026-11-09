@@ -32,6 +32,8 @@ public final class BionicEquipment {
 	private final Map<CombinationMember, SimpleContainer> chests = new HashMap<>();
 	private final Map<UUID, PassengerSeat> passengers = new HashMap<>();
 	@Nullable private CompoundTag lastSnapshot;
+	@Nullable private SurgicalAssembly saddleAssembly;
+	private Set<CombinationMember> saddleCarriers = Set.of();
 
 	public record PassengerSeat(CombinationMember carrier, int slot) {}
 	public BionicEquipment(SlimeBionicEntity entity) { this.entity = entity; }
@@ -101,13 +103,33 @@ public final class BionicEquipment {
 		if (assembly == null) return null;
 		var geometry = assembly.attackGeometry();
 		var dominant = BionicTraitRuntime.dominant(entity, trait);
-		return entity.getBionicTraits().members(trait).stream().filter(member -> !occupied.contains(member)).min(Comparator
+		return entity.getBionicTraits().members(trait).stream().filter(member -> !occupied.contains(member)
+			&& (trait != BionicTrait.RIDEABLE || allowedSaddleCarriers().contains(member))).min(Comparator
 			.comparing((CombinationMember member) -> trait == BionicTrait.RIDEABLE
 				&& (geometry == null || !geometry.ridingSeats().containsKey(member)))
 			.thenComparing(member -> assembly.sources().get(member.source()) != dominant)
 			.thenComparing(Comparator.comparingDouble((CombinationMember member) ->
 				assembly.sources().get(member.source()).anatomy().volume(member.cube())).reversed())
 			.thenComparing(ORDER)).orElse(null);
+	}
+	private Set<CombinationMember> allowedSaddleCarriers() {
+		var assembly = entity.getAssembly();
+		if (assembly == null) return Set.of();
+		if (saddleAssembly != assembly) {
+			Set<CombinationMember> carriers = new HashSet<>();
+			for (int source = 0; source < assembly.sources().size(); source++) {
+				var cubes = BionicSaddleCarriers.select(assembly.sources().get(source));
+				for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
+					carriers.add(new CombinationMember(source, cube));
+			}
+			saddleCarriers = Set.copyOf(carriers);
+			saddleAssembly = assembly;
+		}
+		return saddleCarriers;
+	}
+	private boolean canSaddle(@Nullable CombinationMember member) {
+		return member != null && allowedSaddleCarriers().contains(member)
+			&& entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member);
 	}
 	/** The first passenger controls the body, as in Camel and AbstractHorse. */
 	@Nullable public CombinationMember saddleCarrier() {
@@ -120,12 +142,14 @@ public final class BionicEquipment {
 	@Nullable public PassengerSeat passengerSeat(Entity passenger) {
 		receive();
 		var assigned = passengers.get(passenger.getUUID());
-		if (assigned != null && saddled(assigned.carrier()) && assigned.slot() >= 0 && assigned.slot() < seats(assigned.carrier()))
+		if (assigned != null && saddled(assigned.carrier()) && canSaddle(assigned.carrier())
+			&& assigned.slot() >= 0 && assigned.slot() < seats(assigned.carrier()))
 			return assigned;
 		return freeSeat(passenger, null);
 	}
 	@Nullable private PassengerSeat freeSeat(Entity passenger, @Nullable CombinationMember selected) {
-		return saddles.keySet().stream().filter(member -> selected == null || member.equals(selected)).sorted(ORDER)
+		return saddles.keySet().stream().filter(this::canSaddle)
+			.filter(member -> selected == null || member.equals(selected)).sorted(ORDER)
 			.flatMap(member -> java.util.stream.IntStream.range(0, seats(member)).mapToObj(slot -> new PassengerSeat(member, slot)))
 			.filter(seat -> passengers.entrySet().stream().noneMatch(entry -> !entry.getKey().equals(passenger.getUUID())
 				&& entry.getValue().equals(seat))).findFirst().orElse(null);
@@ -310,7 +334,7 @@ public final class BionicEquipment {
 			return InteractionResult.sidedSuccess(client);
 		}
 		if (held.is(Items.SADDLE) && member != null && entity.isSaddleable()
-			&& entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member) && !saddled(member)) {
+			&& canSaddle(member) && !saddled(member)) {
 			if (!client) {
 				equipSaddle(member, held); held.consume(1, player);
 				entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 1, 1);
@@ -331,7 +355,7 @@ public final class BionicEquipment {
 		if (entity.level().isClientSide) return;
 		boolean changed = false;
 		for (var member : Set.copyOf(saddles.keySet())) {
-			if (entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member)) continue;
+			if (canSaddle(member)) continue;
 			for (Entity rider : List.copyOf(entity.getPassengers())) {
 				var seat = passengers.get(rider.getUUID());
 				if (seat != null && seat.carrier().equals(member)) rider.stopRiding();

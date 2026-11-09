@@ -67,14 +67,18 @@ public record SurgicalTableGluePacket(BlockPos pos, InteractionHand hand, Endpoi
 		SurgicalSubject secondSubject = table.getSubject(second.subjectId);
 		if (firstSubject == null || secondSubject == null || !targetPose.equals(secondSubject.layPose())
 			|| !firstSubject.matchesObservedTopology(first.observedCubeCount, first.seams)
-			|| !secondSubject.matchesObservedTopology(second.observedCubeCount, second.seams))
+			|| !secondSubject.matchesObservedTopology(second.observedCubeCount, second.seams)) {
+			SurgicalTableFailure.PREVIEW_CHANGED.display(player);
 			return;
+		}
 		if (table.glueComponents(player, held, hand, first.subjectId, first.cubeId,
 			second.subjectId, second.cubeId, targetPose, moves, anchorMoves, replayTransform,
 			second.contact, plane,
 			first.layout, second.layout))
 			player.displayClientMessage(Component.translatable(
 				"message.create_biotech.surgical_table.glue_success"), true);
+		else
+			SurgicalTableFailure.OPERATION_FAILED.display(player);
 	}
 
 	static List<Move> readMoves(FriendlyByteBuf buffer) {

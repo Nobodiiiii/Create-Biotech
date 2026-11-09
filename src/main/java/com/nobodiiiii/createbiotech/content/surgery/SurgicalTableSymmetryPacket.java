@@ -75,8 +75,10 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 			|| !targetPose.equals(anchorSubject.layPose())
 			|| !firstSubject.matchesObservedTopology(first.observedCubeCount(), first.seams())
 			|| !anchorSubject.matchesObservedTopology(mirroredAnchor.observedCubeCount(), mirroredAnchor.seams())
-			|| !referenceSubject.matchesObservedTopology(reference.observedCubeCount(), reference.seams()))
+			|| !referenceSubject.matchesObservedTopology(reference.observedCubeCount(), reference.seams())) {
+			SurgicalTableFailure.PREVIEW_CHANGED.display(player);
 			return;
+		}
 
 		if (table.symmetryGlueComponents(player, held, hand, first.subjectId(), first.cubeId(),
 			mirroredAnchor.subjectId(), mirroredAnchor.cubeId(), reference.subjectId(), reference.cubeId(),
@@ -85,6 +87,8 @@ public record SurgicalTableSymmetryPacket(BlockPos pos, InteractionHand hand,
 			first.layout(), mirroredAnchor.layout()))
 			player.displayClientMessage(Component.translatable(
 				"message.create_biotech.surgical_table.symmetry_success"), true);
+		else
+			SurgicalTableFailure.OPERATION_FAILED.display(player);
 	}
 
 	public record Reference(int subjectId, int cubeId, int observedCubeCount,

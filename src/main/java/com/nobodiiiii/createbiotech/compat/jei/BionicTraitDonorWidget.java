@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import mezz.jei.api.gui.builder.ITooltipBuilder;
@@ -60,6 +61,10 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 	@Override
 	public void drawWidget(GuiGraphics graphics, double mouseX, double mouseY) {
 		BionicTraitDonorIndex.requestIfNeeded();
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
+			updateSlots(List.of());
+			return;
+		}
 		List<EntityType<?>> donors = BionicTraitDonorIndex.donors(trait);
 		updateSlots(donors);
 		var font = Minecraft.getInstance().font;
@@ -90,6 +95,8 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public void getTooltip(ITooltipBuilder tooltip, double mouseX, double mouseY) {
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+			return;
 		if (mouseX < 0 || mouseX >= WIDTH || mouseY < 0 || mouseY >= HEIGHT)
 			return;
 		if (mouseY < GRID_Y) {
@@ -103,6 +110,8 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public Optional<RecipeSlotUnderMouse> getSlotUnderMouse(double mouseX, double mouseY) {
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+			return Optional.empty();
 		updateSlots(BionicTraitDonorIndex.donors(trait));
 		for (int cell = 0; cell < visibleCount; cell++) {
 			IRecipeSlotDrawable slot = slots.get(cell);
@@ -141,7 +150,7 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public boolean handleMouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-		if (scrollY == 0)
+		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get() || scrollY == 0)
 			return false;
 		page = Math.max(0, Math.min(lastPage(BionicTraitDonorIndex.donors(trait)), page + (scrollY > 0 ? -1 : 1)));
 		return true;

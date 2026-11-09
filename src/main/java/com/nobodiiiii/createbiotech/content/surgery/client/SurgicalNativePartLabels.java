@@ -1,0 +1,39 @@
+package com.nobodiiiii.createbiotech.content.surgery.client;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
+
+import net.minecraft.client.model.ArmadilloModel;
+import net.minecraft.client.model.CowModel;
+import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.RavagerModel;
+import net.minecraft.client.model.geom.ModelPart;
+
+/** Separates native cuboids sharing one ModelPart name; see the matching 1.21.1 models in ref/. */
+final class SurgicalNativePartLabels {
+	private SurgicalNativePartLabels() {}
+
+	static void label(EntityModel<?> model, String field, ModelPart part, Map<ModelPart.Cube, Set<String>> names) {
+		var cubes = ((ModelPartAccessor) (Object) part).createBiotech$getCubes();
+		if (model instanceof CowModel<?> && field.equals("body"))
+			for (var cube : cubes)
+				if (cube.maxX - cube.minX == 4 && cube.maxY - cube.minY == 6 && cube.maxZ - cube.minZ == 1)
+					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("udder");
+		if (model instanceof RavagerModel && field.equals("head"))
+			for (var cube : cubes)
+				if (cube.maxX - cube.minX == 16 && cube.maxY - cube.minY == 20 && cube.maxZ - cube.minZ == 16)
+					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("head_core");
+		if (model instanceof ArmadilloModel) {
+			if (field.equals("body") && cubes.size() >= 2) {
+				names.computeIfAbsent(cubes.get(0), ignored -> new HashSet<>()).add("outer_shell");
+				names.computeIfAbsent(cubes.get(1), ignored -> new HashSet<>()).add("inner_body");
+			}
+			if (field.equals("cube"))
+				for (var cube : cubes)
+					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("rolled_shell");
+		}
+	}
+}

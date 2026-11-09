@@ -204,7 +204,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
 				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
 				poseStack, buffer, packedLight, partialTick, false, null, true, false,
-				entity.getBionicEquipment().saddleCubes(sourceIndex), entity.getBionicEquipment().chestCubes(sourceIndex));
+				entity.getBionicEquipment().saddleCubes(sourceIndex), entity.getBionicEquipment().chestCubes(sourceIndex), entity, sourceIndex);
 			poseStack.popPose();
 		}
 		poseStack.popPose();
@@ -280,7 +280,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
 					poseStack, sourceBuffer, packedLight, partialTick, reportDeath, cameraPosition,
 					!slimeForm, entity.hurtTime > 0 || entity.deathTime > 0,
-					entity.getBionicEquipment().saddleCubes(0), entity.getBionicEquipment().chestCubes(0));
+					entity.getBionicEquipment().saddleCubes(0), entity.getBionicEquipment().chestCubes(0), entity, 0);
 				if (reportDeath)
 					SlimeMimicDeathClient.report(entity, snapshot.cubes().stream()
 						.map(cube -> new SlimeMimicCubeGeometry(0, cube.cubeId(), cube.corners()))
@@ -457,7 +457,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					SurgicalSourceModelRenderer.visibleCubes(preview, source.presentCubes(), entity.isSheared()),
 					renderOffsets, renderRotations, poseStack, buffer, packedLight, partialTick, deathGeometry != null,
 					cameraPosition, renderSourceGeometry, entity.hurtTime > 0 || entity.deathTime > 0,
-					entity.getBionicEquipment().saddleCubes(index), entity.getBionicEquipment().chestCubes(index));
+					entity.getBionicEquipment().saddleCubes(index), entity.getBionicEquipment().chestCubes(index), entity, index);
 			if (deathGeometry != null) {
 				int sourceIndex = index;
 				snapshot.cubes().forEach(cube -> deathGeometry.add(new SlimeMimicCubeGeometry(

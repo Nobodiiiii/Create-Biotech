@@ -640,7 +640,29 @@ public final class SurgicalAssembly {
 	public SurgicalAssembly withAttackGeometry(AttackGeometry geometry) {
 		if (geometry == null)
 			throw new IllegalArgumentException("A surgical attack geometry cannot be null");
-		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+		List<Source> refreshedSources = sources;
+		if (!geometry.carrierParts().isEmpty()) {
+			refreshedSources = new ArrayList<>(sources);
+			for (int index = 0; index < sources.size(); index++) {
+				Source source = sources.get(index);
+				Map<Integer, Set<String>> parts = new HashMap<>(source.anatomy().parts());
+				for (var entry : geometry.carrierParts().entrySet())
+					if (entry.getKey().source() == index && source.validCubeId(entry.getKey().cube()))
+						parts.put(entry.getKey().cube(), entry.getValue());
+				BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.ofParts(parts, source.cubeCount());
+				if (anatomy == null) continue;
+				if (source.anatomy().hasVolumes()) anatomy = anatomy.withVolumes(source.anatomy().volumes());
+				if (anatomy == null) continue;
+				refreshedSources.set(index, new Source(source.profile, source.donorId, source.cubeCount,
+					source.presentCubes, source.headCubes, source.originalHeadCubes, source.originalHeadKnown,
+					anatomy, source.seams, source.cutSeams, source.cutOrder, source.facing, source.layPose,
+					source.originOffset, source.cubeOffsets, source.cubeRotations));
+			}
+			// Refreshed labels now live in Sources; the packet metadata need not be saved twice.
+			geometry = new AttackGeometry(geometry.right(), geometry.left(), geometry.carrierOrigins(),
+				geometry.ridingSeats(), geometry.carrierCubes(), geometry.equipmentBounds());
+		}
+		return new SurgicalAssembly(refreshedSources, joints, combinations, limbs, preserveLayout, layoutFacing,
 			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, geometry);
 	}
 
@@ -1061,7 +1083,13 @@ public final class SurgicalAssembly {
 	public record AttackGeometry(List<ArmAttackGeometry> right,
 		List<ArmAttackGeometry> left, Map<CombinationMember, Vec3> carrierOrigins,
 		Map<CombinationMember, RidingSeat> ridingSeats, Map<CombinationMember, List<Vec3>> carrierCubes,
-		Map<CombinationMember, CarrierEquipmentBounds> equipmentBounds) {
+		Map<CombinationMember, CarrierEquipmentBounds> equipmentBounds,
+		Map<CombinationMember, Set<String>> carrierParts) {
+		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left,
+			Map<CombinationMember, Vec3> origins, Map<CombinationMember, RidingSeat> seats,
+			Map<CombinationMember, List<Vec3>> cubes, Map<CombinationMember, CarrierEquipmentBounds> equipment) {
+			this(right, left, origins, seats, cubes, equipment, Map.of());
+		}
 		public AttackGeometry(List<ArmAttackGeometry> right, List<ArmAttackGeometry> left) {
 			this(right, left, Map.of());
 		}
@@ -1086,6 +1114,12 @@ public final class SurgicalAssembly {
 			carrierOrigins = Map.copyOf(carrierOrigins);
 			ridingSeats = Map.copyOf(ridingSeats);
 			equipmentBounds = Map.copyOf(equipmentBounds);
+			carrierParts = carrierParts.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
+				Map.Entry::getKey, entry -> Set.copyOf(entry.getValue())));
+			if (!carrierOrigins.keySet().containsAll(carrierParts.keySet()) || carrierParts.values().stream()
+				.anyMatch(names -> names.size() > 16 || names.stream()
+					.anyMatch(name -> !name.matches("[A-Za-z0-9_./-]{1,64}"))))
+				throw new IllegalArgumentException("Invalid carrier model-part labels");
 			if (!carrierOrigins.keySet().containsAll(equipmentBounds.keySet()))
 				throw new IllegalArgumentException("Equipment bounds require a carrier cube");
 			carrierCubes = carrierCubes.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
@@ -1103,6 +1137,9 @@ public final class SurgicalAssembly {
 				throw new IllegalArgumentException("Attack geometry requires an arm or carrier");
 			if (right.size() + left.size() > SurgicalLimbType.SHOULDER.maxPerBody())
 				throw new IllegalArgumentException("Attack geometry exceeds the shoulder limit");
+		}
+		public AttackGeometry withCarrierParts(Map<CombinationMember, Set<String>> parts) {
+			return new AttackGeometry(right, left, carrierOrigins, ridingSeats, carrierCubes, equipmentBounds, parts);
 		}
 
 		@Nullable
@@ -1187,6 +1224,12 @@ public final class SurgicalAssembly {
 				point.putDouble("X", entry.getValue().x);
 				point.putDouble("Y", entry.getValue().y);
 				point.putDouble("Z", entry.getValue().z);
+				Set<String> names = carrierParts.get(entry.getKey());
+				if (names != null) {
+					ListTag labels = new ListTag();
+					names.stream().sorted().forEach(name -> labels.add(net.minecraft.nbt.StringTag.valueOf(name)));
+					point.put("Parts", labels);
+				}
 				List<Vec3> corners = carrierCubes.get(entry.getKey());
 				if (corners != null) {
 					ListTag points = new ListTag();
@@ -1208,6 +1251,20 @@ public final class SurgicalAssembly {
 				list.add(point);
 			});
 			return list;
+		}
+		private static Map<CombinationMember, Set<String>> loadCarrierParts(CompoundTag tag) {
+			Map<CombinationMember, Set<String>> parts = new HashMap<>();
+			ListTag origins = tag.getList("CarrierOrigins", Tag.TAG_COMPOUND);
+			for (int index = 0; index < origins.size(); index++) {
+				CompoundTag entry = origins.getCompound(index);
+				if (!entry.contains("Parts", Tag.TAG_LIST)) continue;
+				ListTag labels = entry.getList("Parts", Tag.TAG_STRING);
+				if (labels.size() > 16) throw new IllegalArgumentException("Too many carrier model-part labels");
+				Set<String> names = new HashSet<>();
+				for (int label = 0; label < labels.size(); label++) names.add(labels.getString(label));
+				if (!names.isEmpty()) parts.put(new CombinationMember(entry.getInt("Source"), entry.getInt("Cube")), names);
+			}
+			return parts;
 		}
 
 		private static CompoundTag savePoint(Vec3 point) {
@@ -1308,7 +1365,8 @@ public final class SurgicalAssembly {
 			List<ArmAttackGeometry> left = readArms(buffer);
 			CompoundTag origins = buffer.readNbt();
 			if (right == null || left == null || origins == null) return null;
-			try { return create(right, left, loadOrigins(origins), loadSeats(origins), loadCubes(origins), loadEquipmentBounds(origins)); }
+			try { return new AttackGeometry(right, left, loadOrigins(origins), loadSeats(origins), loadCubes(origins),
+				loadEquipmentBounds(origins), loadCarrierParts(origins)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 

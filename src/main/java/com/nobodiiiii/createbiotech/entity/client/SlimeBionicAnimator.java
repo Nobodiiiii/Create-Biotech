@@ -128,6 +128,7 @@ public final class SlimeBionicAnimator {
 		Map<SurgicalAssembly.CombinationMember, List<Vec3>> cubes = new HashMap<>();
 		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.CarrierEquipmentBounds> equipment = new HashMap<>();
 		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.RidingSeat> seats = new HashMap<>();
+		Map<SurgicalAssembly.CombinationMember, Set<String>> parts = new HashMap<>();
 		for (int source = 0; source < sources.size(); source++) {
 			var present = assembly.sources().get(source).presentCubes();
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
@@ -136,6 +137,9 @@ public final class SlimeBionicAnimator {
 					var member = new SurgicalAssembly.CombinationMember(source, cube);
 					origins.put(member, box.center().subtract(bodyOrigin));
 					cubes.put(member, box.points().stream().map(point -> point.subtract(bodyOrigin)).toList());
+					var original = SurgicalSourceModelRenderer.singleCubeGeometry(
+						assembly.sources().get(source).profile(), cube);
+					if (original != null && !original.partNames().isEmpty()) parts.put(member, original.partNames());
 				}
 			}
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
@@ -158,7 +162,8 @@ public final class SlimeBionicAnimator {
 						cubeRotation(original.corners(), carrier.points())));
 			}
 		}
-		return SurgicalAssembly.AttackGeometry.create(right, left, origins, seats, cubes, equipment);
+		var geometry = SurgicalAssembly.AttackGeometry.create(right, left, origins, seats, cubes, equipment);
+		return geometry == null ? null : geometry.withCarrierParts(parts);
 	}
 
 	@Nullable

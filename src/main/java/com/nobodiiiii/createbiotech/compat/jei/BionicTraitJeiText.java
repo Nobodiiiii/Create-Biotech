@@ -8,6 +8,7 @@ import java.util.stream.Stream;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitType;
 
 import net.minecraft.ChatFormatting;
@@ -16,7 +17,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 
 /**
- * One fixed template per trait: scope, carrier rule, optional condition, then a short effect line.
+ * Effect-only body text, with scope, carrier rules and conditions in header icon tooltips.
  * Default reference values only; assembly tooltips remain the source of live, data-pack-dependent values.
  */
 final class BionicTraitJeiText {
@@ -25,15 +26,19 @@ final class BionicTraitJeiText {
 	private BionicTraitJeiText() {}
 
 	static List<FormattedText> description(BionicTrait trait) {
-		List<FormattedText> text = new ArrayList<>();
-		text.add(field("scope", join(trait.scopes().stream().sorted()
-			.map(scope -> Component.translatable(scope.descriptionId())).toList(),
-			Component.translatable("create_biotech.trait.list_separator"))));
+		return List.of(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
+	}
+
+	static Component scopeTooltip(BionicTraitScope scope) {
+		return field("scope", Component.translatable(scope.descriptionId()));
+	}
+
+	static List<Component> ruleTooltip(BionicTrait trait) {
+		List<Component> text = new ArrayList<>();
 		text.add(field("rule", rule(trait)));
 		Component condition = condition(trait);
 		if (condition != null)
 			text.add(field("condition", condition));
-		text.add(field("effect", tr(trait.id() + ".effect")));
 		return List.copyOf(text);
 	}
 
@@ -44,7 +49,7 @@ final class BionicTraitJeiText {
 	}
 
 	private static Component field(String label, Component value) {
-		return tr(label, value.copy().withStyle(ChatFormatting.BLACK)).withStyle(ChatFormatting.DARK_GRAY);
+		return tr(label, value.copy().withStyle(ChatFormatting.WHITE)).withStyle(ChatFormatting.GRAY);
 	}
 
 	private static Component rule(BionicTrait trait) {
@@ -86,6 +91,8 @@ final class BionicTraitJeiText {
 		case BODY_VOLUME -> tr("condition.body_volume");
 		case BREATHING_REQUIRED -> tr("condition.breathing");
 		case WOOL_AND_BODY -> tr("condition.wool_and_body");
+		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH, BEE_BODY_AND_LEG ->
+			tr("condition." + trait.condition().name().toLowerCase(Locale.ROOT));
 		case WING_LIFT -> tr("condition.wings");
 		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",
 			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB
