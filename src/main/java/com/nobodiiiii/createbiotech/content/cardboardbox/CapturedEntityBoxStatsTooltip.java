@@ -122,17 +122,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			List<Component> lines = groups.get(scopes.getFirst());
 			Component name = trait == BionicTrait.DETERRENCE ? deterrenceName(result.deterrenceTargets())
 				: Component.translatable(trait.descriptionId());
-			if (trait == BionicTrait.MILKABLE && !result.subtraits().isEmpty()) {
-				MutableComponent products = Component.empty();
-				for (var product : result.subtraits().keySet().stream()
-					.sorted(java.util.Comparator.comparing(com.nobodiiiii.createbiotech.entity.trait.BionicSubtrait::id)).toList()) {
-					if (!products.getSiblings().isEmpty())
-						products.append(Component.translatable("create_biotech.trait.list_separator"));
-					products.append(Component.translatable(product.descriptionId()));
-				}
-				name = Component.translatable("create_biotech.trait.milkable.products", products);
-			}
-			if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET) {
+			if (!result.subtraits().isEmpty()) {
 				MutableComponent variants = Component.empty();
 				for (var variant : result.subtraits().keySet().stream().sorted(java.util.Comparator.comparing(
 					com.nobodiiiii.createbiotech.entity.trait.BionicSubtrait::id)).toList()) {
@@ -146,7 +136,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 						});
 					variants.append(value);
 				}
-				name = Component.translatable(trait.descriptionId(), variants);
+				name = trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET
+					? Component.translatable(trait.descriptionId(), variants)
+					: Component.translatable("create_biotech.trait.with_variants", name, variants);
 			}
 			if (trait == BionicTrait.HUNTING_INSTINCT)
 				name = targetList(trait.descriptionId(), com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(result.sourceTypes()));
@@ -292,7 +284,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (assembly == null)
 			return null;
 
-		BionicTraitSet traits = BionicTraitResolver.inspect(assembly, level);
+		BionicTraitSet traits = BionicTraitResolver.resolve(assembly, level);
 		List<BaseStat> stats = new ArrayList<>();
 		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);

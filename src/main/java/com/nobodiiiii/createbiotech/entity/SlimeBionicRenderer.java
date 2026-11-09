@@ -33,12 +33,14 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderCo
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTablePoseResolver;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
+import com.nobodiiiii.createbiotech.entity.client.BionicGuardianBeamRenderer;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAttackRangeRenderer;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.resources.ResourceLocation;
@@ -211,6 +213,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	}
 
 	@Override
+	public boolean shouldRender(SlimeBionicEntity entity, Frustum frustum, double cameraX, double cameraY,
+		double cameraZ) {
+		return super.shouldRender(entity, frustum, cameraX, cameraY, cameraZ)
+			|| BionicGuardianBeamRenderer.isVisible(entity, frustum);
+	}
+
+	@Override
 	public void render(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
 		poseStack.pushPose();
@@ -219,8 +228,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		float swell = 1 + Math.min(1, fuse) * 0.2f;
 		poseStack.scale(swell, swell, swell);
 		renderBody(entity, yaw, partialTick, poseStack, buffer, packedLight);
-		if (!entity.isDeadOrDying()) com.nobodiiiii.createbiotech.entity.client.BionicTraitClient.render(entity, partialTick, poseStack, buffer, packedLight);
 		poseStack.popPose();
+		if (!entity.isDeadOrDying()) com.nobodiiiii.createbiotech.entity.client.BionicTraitClient.render(entity, partialTick, poseStack, buffer, packedLight);
 	}
 
 	private void renderBody(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,

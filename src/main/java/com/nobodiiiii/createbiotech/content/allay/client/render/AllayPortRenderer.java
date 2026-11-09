@@ -51,6 +51,8 @@ public class AllayPortRenderer extends SmartBlockEntityRenderer<AllayPortBlockEn
 	protected void renderSafe(AllayPortBlockEntity be, float partialTicks, PoseStack ms, MultiBufferSource buffer,
 		int light, int overlay) {
 		super.renderSafe(be, partialTicks, ms, buffer, light, overlay);
+		if (VisualizationManager.supportsVisualization(be.getLevel()))
+			return;
 
 		BlockState blockState = be.getBlockState();
 		Direction facing = blockState.getValue(AllayPortBlock.FACING);
@@ -65,12 +67,7 @@ public class AllayPortRenderer extends SmartBlockEntityRenderer<AllayPortBlockEn
 				? partialTicks
 				: be.getLevel().getGameTime() % 24_000L + partialTicks;
 		}
-		boolean visualized = VisualizationManager.supportsVisualization(be.getLevel());
-		greetingAllayRenderer.render(ms, buffer, light, facing, animationTime, waveStrength, !visualized);
-
-		if (visualized) {
-			return;
-		}
+		greetingAllayRenderer.render(ms, buffer, light, facing, animationTime, waveStrength);
 
 		renderCurtain(ms, buffer, blockState, facing, flapness, light, overlay);
 	}

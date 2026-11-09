@@ -1,0 +1,86 @@
+{
+  "credit": "Create: Biotech - fixed chicken bell assembly",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "create_biotech:block/chicken_bell"
+  },
+  "children": {
+    "base": {
+      "parent": "create_biotech:block/ding_dong_chicken/bell_base",
+      "transform": {
+        "matrix": [
+          [
+            1,
+            0,
+            0,
+            -0.5
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            -0.5
+          ]
+        ]
+      }
+    },
+    "bell": {
+      "parent": "create_biotech:block/ding_dong_chicken/bell_bell",
+      "transform": {
+        "matrix": [
+          [
+            0.995,
+            0.0,
+            0.0,
+            -0.4975
+          ],
+          [
+            0.0,
+            0.995,
+            0.0,
+            0.0025
+          ],
+          [
+            0.0,
+            0.0,
+            0.995,
+            -0.4975
+          ]
+        ]
+      }
+    },
+    "plunger": {
+      "parent": "create_biotech:block/ding_dong_chicken/bell_plunger",
+      "transform": {
+        "matrix": [
+          [
+            1,
+            0,
+            0,
+            -0.5
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            1,
+            -0.5
+          ]
+        ]
+      }
+    }
+  }
+}

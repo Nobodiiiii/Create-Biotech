@@ -1,0 +1,36 @@
+{
+  "credit": "Create: Biotech - fixed Allay head attachment",
+  "loader": "neoforge:composite",
+  "ambientocclusion": false,
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "create:entity/logistics_hat"
+  },
+  "children": {
+    "hat": {
+      "parent": "create:entity/logistics_hat",
+      "transform": {
+        "matrix": [
+          [
+            0.625,
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            -0.6181349146,
+            -0.092380882,
+            -0.224609375
+          ],
+          [
+            0.0,
+            0.092380882,
+            -0.6181349146,
+            0.0
+          ]
+        ]
+      }
+    }
+  }
+}

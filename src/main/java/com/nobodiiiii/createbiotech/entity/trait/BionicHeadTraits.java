@@ -55,15 +55,14 @@ public final class BionicHeadTraits {
 
 	/** Keep the original head-retention threshold, counting only carriers installed as a head. */
 	static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data, BionicTissue tissue,
-		List<BionicTraitDonors.Facts> donors) {
+		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<UUID, Head> heads = new HashMap<>();
 		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
 			Set<ResourceLocation> values = donors.get(sourceId).variants(trait);
 			if (values.isEmpty()) continue;
 			SurgicalAssembly.Source source = tissue.source(sourceId);
 			BitSet original = BionicTraitCarriers.select(trait.carrier(), data, tissue, sourceId);
-			BitSet retained = (BitSet) original.clone();
-			retained.and(source.presentCubes());
+			BitSet retained = (BitSet) bindings.get(sourceId).clone();
 			if (retained.isEmpty()) continue;
 			Head head = heads.computeIfAbsent(source.donorId(), ignored -> new Head(source));
 			head.original.or(original);

@@ -93,8 +93,6 @@ public final class BionicSpecialAttacks {
 			elapsed++;
 			if (action.kind().equals("fireball") && elapsed == 10) entity.level().levelEvent(null, 1015, entity.blockPosition(), 0);
 			if (action.trait == BionicTrait.GUARDIAN_BEAM && elapsed == 10) entity.syncSpecialAction(2, target.getId());
-			if (action.trait == BionicTrait.GUARDIAN_BEAM && elapsed > 10 && elapsed % 2 == 0)
-				beam(BionicTraitRuntime.origin(entity, action.members), target.getBoundingBox().getCenter(), false);
 			boolean launch = elapsed >= warmup && !fired;
 			if (launch && (!action.kind().equals("dragon_breath") || facing(target, Math.cos(Math.toRadians(10))))) {
 				if (action.trait != BionicTrait.SONIC_BOOM || valid(action, target)) {
@@ -187,6 +185,7 @@ public final class BionicSpecialAttacks {
 			rangedGoal.start();
 		}
 		warmup = choice.ticks("warmup_ticks", 0);
+		if (choice.trait == BionicTrait.GUARDIAN_BEAM) entity.syncGuardianAttackDuration(warmup - 10);
 		blazeShots = 0; nextBlazeShot = warmup;
 		duration = Math.max(1, choice.ticks("action_ticks", warmup + (choice.kind().equals("small_fireball") ? 18 : 0)));
 		entity.syncSpecialAction(choice.trait == BionicTrait.GUARDIAN_BEAM ? 7 : choice.trait == BionicTrait.SONIC_BOOM ? 1

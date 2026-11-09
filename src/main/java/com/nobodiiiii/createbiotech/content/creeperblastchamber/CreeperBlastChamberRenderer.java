@@ -117,8 +117,8 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 			renderFormedPanels(be, poseStack, vertices, blockState, level, progress);
 			if (be.shouldRenderCreeperFace())
 				renderCreeperFace(be, poseStack, vertices, blockState, level);
-			if (!VisualizationManager.supportsVisualization(level))
-				renderContainedCreepers(be, partialTicks, poseStack, buffer);
+			renderContainedCreepers(be, partialTicks, poseStack, buffer,
+				VisualizationManager.supportsVisualization(level));
 			return;
 		}
 		renderStandalonePanels(be, poseStack, vertices, blockState, level, progress);
@@ -212,17 +212,23 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	}
 
 	private void renderContainedCreepers(CreeperBlastChamberBlockEntity be, float partialTicks,
-		PoseStack poseStack, MultiBufferSource buffer) {
+		PoseStack poseStack, MultiBufferSource buffer, boolean visualized) {
 		List<CreeperRenderState> states = new ArrayList<>();
 		collectCreeperRenderStates(be, partialTicks, states);
 		for (CreeperRenderState state : states) {
+			if (visualized && !state.charged())
+				continue;
 			poseStack.pushPose();
 			poseStack.translate(state.x(), state.y(), state.z());
 			poseStack.scale(state.scale(), state.scale(), state.scale());
 			poseStack.scale(state.horizontalScale(), state.verticalScale(), state.horizontalScale());
-			MachineCreatureRenderer.renderCreeper(poseStack, buffer, state.packedLight(),
-				state.bodyYaw(), state.headYaw(), state.headPitch(), state.swelling(),
-				state.animationTime(), state.charged());
+			if (visualized)
+				MachineCreatureRenderer.renderCreeperPower(poseStack, buffer, state.packedLight(),
+					state.bodyYaw(), state.headYaw(), state.headPitch(), state.swelling(), state.animationTime());
+			else
+				MachineCreatureRenderer.renderCreeper(poseStack, buffer, state.packedLight(),
+					state.bodyYaw(), state.headYaw(), state.headPitch(), state.swelling(),
+					state.animationTime(), state.charged());
 			poseStack.popPose();
 		}
 	}

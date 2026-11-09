@@ -203,5 +203,14 @@ public final class BionicTraitDonors {
 		public Set<ResourceLocation> variants(BionicTrait trait) { return variants.getOrDefault(trait, Set.of()); }
 		public boolean has(BionicTrait trait) { return abilities.contains(trait); }
 		public double value(BionicTrait trait) { return numbers.getOrDefault(trait, 0.0d); }
+		public boolean supplies(BionicTrait trait) {
+			return switch (trait.valueKind()) {
+			case ABILITY -> has(trait);
+			case NUMBER -> value(trait) > 0;
+			case SUBTRAIT_SET -> !variants(trait).isEmpty();
+			case EFFECT_SET -> !immuneEffects.isEmpty();
+			case ATTACK_EFFECT_SET -> !attackEffects.isEmpty();
+			};
+		}
 	}
 }

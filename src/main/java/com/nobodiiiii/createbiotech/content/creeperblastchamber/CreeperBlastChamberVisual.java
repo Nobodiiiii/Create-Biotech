@@ -14,7 +14,6 @@ import dev.engine_room.flywheel.api.visual.DynamicVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 
 /** A reusable Flywheel instance pool for the chamber's variable number of creepers. */
 public class CreeperBlastChamberVisual extends AbstractBlockEntityVisual<CreeperBlastChamberBlockEntity>
@@ -65,13 +64,6 @@ public class CreeperBlastChamberVisual extends AbstractBlockEntityVisual<Creeper
 	private final class CreeperSlot {
 		private final MachineCreatureVisualModel body =
 			new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.creeper(0));
-		private final MachineCreatureVisualModel power =
-			new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.creeper(2));
-
-		private CreeperSlot() {
-			power.color(0xFF808080);
-			power.overlay(OverlayTexture.NO_OVERLAY);
-		}
 
 		private void update(CreeperBlastChamberRenderer.CreeperRenderState state) {
 			MachineCreatureRenderer.prepareCreeperPose(body.model(), state.headYaw(), state.headPitch());
@@ -85,29 +77,18 @@ public class CreeperBlastChamberVisual extends AbstractBlockEntityVisual<Creeper
 			pose.scale(state.horizontalScale(), state.verticalScale(), state.horizontalScale());
 			MachineCreatureRenderer.applyCreeperTransform(pose, state.bodyYaw(), state.swelling());
 			body.setTransform(pose);
-
-			if (!state.charged()) {
-				power.hide();
-				return;
-			}
-			MachineCreatureRenderer.prepareCreeperPose(power.model(), state.headYaw(), state.headPitch());
-			power.light(state.packedLight());
-			power.setTransform(pose);
 		}
 
 		private void hide() {
 			body.hide();
-			power.hide();
 		}
 
 		private void delete() {
 			body.delete();
-			power.delete();
 		}
 
 		private void collectCrumblingInstances(Consumer<Instance> consumer) {
 			body.collectCrumblingInstances(consumer);
-			power.collectCrumblingInstances(consumer);
 		}
 	}
 }

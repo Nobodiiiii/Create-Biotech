@@ -27,6 +27,7 @@ import net.minecraft.client.renderer.entity.ItemRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -45,6 +46,10 @@ import org.joml.Vector3f;
 public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<SpiderAssemblyTableBlockEntity> {
 
 	private static final int EYES_LIGHT = 15728640;
+	private static final ResourceLocation EYES_SPRITE =
+		ResourceLocation.fromNamespaceAndPath("create_biotech", "entity/spider_assembly_table/spider_eyes");
+	private static final RenderType EYES_RENDER_TYPE = RenderType.eyes(
+		ResourceLocation.fromNamespaceAndPath("create_biotech", "textures/entity/spider_assembly_table/spider_eyes.png"));
 	private static final float SPIDER_SCALE = 1.0f;
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f * SPIDER_SCALE;
 	private static final float ACTIVE_LEG_BEND = (float) Math.toRadians(45);
@@ -125,10 +130,10 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 					casingModel.render(casing, spiderModel.root(), poseStack, buf, lightArg,
 						OverlayTexture.NO_OVERLAY);
 				}
-				if (!visualized) {
-					spiderEyesModel.copyPoseFrom(spiderModel);
-					spiderEyesModel.render(poseStack, buf, EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				}
+				// Full-bright cutout instances do not reproduce the additive, unlit eyes shader.
+				spiderEyesModel.copyPoseFrom(spiderModel);
+				spiderEyesModel.renderTextured(poseStack, buf, EYES_RENDER_TYPE, EYES_SPRITE,
+					EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
 				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
 			});
 	}

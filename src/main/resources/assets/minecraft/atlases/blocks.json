@@ -179,6 +179,10 @@
     {
       "type": "single",
       "resource": "create_biotech:entity/spider_assembly_table/spider_eyes"
+    },
+    {
+      "type": "single",
+      "resource": "minecraft:entity/chicken"
     }
   ]
 }

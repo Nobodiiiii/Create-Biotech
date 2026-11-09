@@ -24,9 +24,8 @@ final class BionicMilking {
 		Map<ResourceLocation, Set<SurgicalAssembly.CombinationMember>> bodies = new HashMap<>();
 		for (int source = 0; source < tissue.sourceCount(); source++) {
 			var udder = BionicTraitCarriers.select(BionicTrait.Carrier.of(BionicAnatomyRole.UDDER), data, tissue, source);
-			var body = BionicTraitCarriers.select(BionicTrait.Carrier.of(BionicAnatomyRole.TORSO), data, tissue, source);
-			// CowModel names both cuboids "body". An udder cannot also satisfy the body prerequisite.
-			body.andNot(udder);
+			var body = BionicTraitCarriers.select(BionicTrait.Carrier.of(BionicAnatomyRole.TORSO)
+				.excluding(BionicAnatomyRole.UDDER), data, tissue, source);
 			var species = tissue.source(source).profile().entityTypeId();
 			for (var member : result.members()) {
 				if (member.source() != source) continue;

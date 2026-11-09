@@ -32,6 +32,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 	private final Matrix4f commonTransform;
 	private final TransformedInstance[] curtains;
 	private final MachineCreatureVisualModel allay;
+	private final MachineCreatureVisualModel hat;
 
 	public AllayPortVisual(VisualizationContext context, AllayPortBlockEntity blockEntity, float partialTick) {
 		super(context, blockEntity, partialTick);
@@ -55,6 +56,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 				.createInstance();
 		}
 		allay = new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.allay());
+		hat = new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.allayHat());
 		updateCurtain(blockEntity.getFlap(partialTick));
 		updateAllay(partialTick);
 		updateLight(partialTick);
@@ -74,6 +76,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 				.setChanged();
 		}
 		allay.light(LightTexture.pack(15, LightTexture.sky(light)));
+		hat.light(LightTexture.pack(15, LightTexture.sky(light)));
 	}
 
 	@Override
@@ -82,6 +85,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 			curtain.delete();
 		}
 		allay.delete();
+		hat.delete();
 	}
 
 	@Override
@@ -90,6 +94,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 			consumer.accept(curtain);
 		}
 		allay.collectCrumblingInstances(consumer);
+		hat.collectCrumblingInstances(consumer);
 	}
 
 	private void updateCurtain(float flapness) {
@@ -123,5 +128,7 @@ public class AllayPortVisual extends AbstractBlockEntityVisual<AllayPortBlockEnt
 		pose.scale(-scale, -scale, scale);
 		pose.translate(0, GreetingAllayRenderer.LIVING_ENTITY_MODEL_Y_OFFSET, 0);
 		allay.setTransform(pose);
+		allay.model().applyTransformTo("head", pose);
+		hat.setTransform(pose);
 	}
 }

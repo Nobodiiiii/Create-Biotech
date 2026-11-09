@@ -1,0 +1,85 @@
+{
+  "credit": "Create: Biotech - standard Java block-model part",
+  "ambientocclusion": false,
+  "gui_light": "front",
+  "render_type": "minecraft:cutout",
+  "texture_size": [
+    64,
+    32
+  ],
+  "textures": {
+    "particle": "minecraft:entity/chicken",
+    "creature": "minecraft:entity/chicken"
+  },
+  "elements": [
+    {
+      "name": "beak",
+      "from": [
+        -2,
+        -4,
+        -4
+      ],
+      "to": [
+        2,
+        -2,
+        -2
+      ],
+      "faces": {
+        "down": {
+          "uv": [
+            4.0,
+            0.0,
+            5.0,
+            1.0
+          ],
+          "texture": "#creature"
+        },
+        "up": {
+          "uv": [
+            5.0,
+            1.0,
+            6.0,
+            0.0
+          ],
+          "texture": "#creature"
+        },
+        "west": {
+          "uv": [
+            4.0,
+            2.0,
+            3.5,
+            1.0
+          ],
+          "texture": "#creature"
+        },
+        "north": {
+          "uv": [
+            5.0,
+            2.0,
+            4.0,
+            1.0
+          ],
+          "texture": "#creature"
+        },
+        "east": {
+          "uv": [
+            5.5,
+            2.0,
+            5.0,
+            1.0
+          ],
+          "texture": "#creature"
+        },
+        "south": {
+          "uv": [
+            6.5,
+            2.0,
+            5.5,
+            1.0
+          ],
+          "texture": "#creature"
+        }
+      }
+    }
+  ]
+}

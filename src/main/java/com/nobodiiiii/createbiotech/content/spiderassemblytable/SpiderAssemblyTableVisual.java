@@ -12,7 +12,6 @@ import dev.engine_room.flywheel.api.visual.DynamicVisual;
 import dev.engine_room.flywheel.api.visualization.VisualizationContext;
 import dev.engine_room.flywheel.lib.visual.AbstractBlockEntityVisual;
 import dev.engine_room.flywheel.lib.visual.SimpleDynamicVisual;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.core.Direction;
 
 public class SpiderAssemblyTableVisual extends AbstractBlockEntityVisual<SpiderAssemblyTableBlockEntity>
@@ -20,13 +19,11 @@ public class SpiderAssemblyTableVisual extends AbstractBlockEntityVisual<SpiderA
 
 	private static final float SPIDER_Y_OFFSET = 0.5f + 15f / 16f;
 	private final MachineCreatureVisualModel spider;
-	private final MachineCreatureVisualModel eyes;
 
 	public SpiderAssemblyTableVisual(VisualizationContext context,
 		SpiderAssemblyTableBlockEntity blockEntity, float partialTick) {
 		super(context, blockEntity, partialTick);
 		spider = new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.spider());
-		eyes = new MachineCreatureVisualModel(instancerProvider(), MachineCreatureModels.spiderEyes());
 		updatePose(partialTick);
 		updateLight(partialTick);
 	}
@@ -39,29 +36,24 @@ public class SpiderAssemblyTableVisual extends AbstractBlockEntityVisual<SpiderA
 	@Override
 	public void updateLight(float partialTick) {
 		spider.light(computePackedLight());
-		eyes.light(LightTexture.FULL_BRIGHT);
 	}
 
 	@Override
 	protected void _delete() {
 		spider.delete();
-		eyes.delete();
 	}
 
 	@Override
 	public void collectCrumblingInstances(Consumer<Instance> consumer) {
 		spider.collectCrumblingInstances(consumer);
-		eyes.collectCrumblingInstances(consumer);
 	}
 
 	private void updatePose(float partialTick) {
 		if (!blockEntity.getBlockState().hasProperty(SpiderAssemblyTableBlock.FACING)) {
 			spider.hide();
-			eyes.hide();
 			return;
 		}
 		SpiderAssemblyTableRenderer.prepareSpiderModel(spider.model(), blockEntity, partialTick);
-		eyes.model().copyPoseFrom(spider.model());
 		Direction facing = blockEntity.getBlockState().getValue(SpiderAssemblyTableBlock.FACING);
 		PoseStack pose = new PoseStack();
 		pose.translate(getVisualPosition().getX() + 0.5, getVisualPosition().getY() + SPIDER_Y_OFFSET,
@@ -74,7 +66,6 @@ public class SpiderAssemblyTableVisual extends AbstractBlockEntityVisual<SpiderA
 			spider.hide();
 		else
 			spider.setTransform(pose);
-		eyes.setTransform(pose);
 	}
 
 	private static float yRotation(Direction facing) {

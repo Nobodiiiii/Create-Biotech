@@ -138,6 +138,31 @@ public final class GuiEntityItemElement {
 		return new GuiEntityItemElement(texture, model);
 	}
 
+	/** Frames baked JSON parts, including models with several textures and render layers. */
+	public static GuiEntityItemElement ofModel(BufferedModelGeometry model) {
+		return new GuiEntityItemElement(new GeometrySource() {
+			@Override
+			public void render(PoseStack pose, MultiBufferSource buffer, int light) {
+				model.render(pose, buffer, light);
+			}
+
+			@Override
+			public void measure(EntityGeometry.Collector collector) {
+				collector.reset();
+				model.render(new PoseStack(), collector.asBufferSource(), LightTexture.FULL_BRIGHT);
+			}
+		});
+	}
+
+	private GuiEntityItemElement(GeometrySource geometry) {
+		this.geometry = geometry;
+	}
+
+	@FunctionalInterface
+	public interface BufferedModelGeometry {
+		void render(PoseStack pose, MultiBufferSource buffer, int packedLight);
+	}
+
 	@FunctionalInterface
 	public interface ModelGeometry {
 		void render(PoseStack pose, VertexConsumer buffer, int packedLight);

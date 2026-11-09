@@ -21,11 +21,6 @@ final class GreetingAllayRenderer {
 
 	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Direction facing,
 		float animationTime, float waveStrength) {
-		render(poseStack, buffer, packedLight, facing, animationTime, waveStrength, true);
-	}
-
-	void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight, Direction facing,
-		float animationTime, float waveStrength, boolean renderBody) {
 		prepareGreetingPose(allayModel, animationTime, waveStrength);
 		int allayLight = LightTexture.pack(15, LightTexture.sky(packedLight));
 
@@ -36,9 +31,7 @@ final class GreetingAllayRenderer {
 			.packedLight(allayLight)
 			.render(poseStack, buffer, (modelPose, modelBuffer, modelLight) -> {
 				modelPose.translate(0.0f, LIVING_ENTITY_MODEL_Y_OFFSET, 0.0f);
-				if (renderBody)
-					allayModel.render(modelPose, modelBuffer, modelLight,
-						OverlayTexture.NO_OVERLAY, -1);
+				allayModel.render(modelPose, modelBuffer, modelLight, OverlayTexture.NO_OVERLAY, -1);
 				renderLogisticsHat(modelPose, modelBuffer, modelLight);
 			});
 	}

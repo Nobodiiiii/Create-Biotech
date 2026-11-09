@@ -25,22 +25,8 @@ public final class BionicTraitResolver {
 		return new Revision(BionicTraitRegistry.generation(), BionicAnatomyRegistry.generation());
 	}
 
+	/** Runtime, boxes and table previews share the union of traits bound to retained assembly parts. */
 	public static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level) {
-		return resolve(assembly, level, null);
-	}
-
-	/** Boxed fragments show only traits owned by their retained parts, not supporting tissue. */
-	public static BionicTraitSet inspect(@Nullable SurgicalAssembly assembly, Level level) {
-		return resolve(assembly, level, Set.of());
-	}
-
-	/** Check conditions against the entire assembly, but display only the pointed-to part's traits. */
-	public static BionicTraitSet inspectPart(SurgicalAssembly assembly, Level level, int source, int cube) {
-		return resolve(assembly, level, Set.of(new SurgicalAssembly.CombinationMember(source, cube)));
-	}
-
-	private static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level,
-		@Nullable Set<SurgicalAssembly.CombinationMember> inspected) {
 		if (!BionicTraits.ENABLED || assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicTraitSet.EMPTY;
 		BionicTraitRegistry.Snapshot data = BionicTraitRegistry.snapshot();
@@ -49,7 +35,15 @@ public final class BionicTraitResolver {
 			.map(source -> BionicTraitDonors.get(source.profile(), level, data)).toList();
 		EnumMap<BionicTrait, BionicTraitResult> results = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values()) {
-			BionicTraitResult result = evaluate(trait, data.get(trait), tissue, donors);
+			List<BitSet> bindings = new java.util.ArrayList<>();
+			Set<SurgicalAssembly.CombinationMember> owners = new HashSet<>();
+			for (int source = 0; source < tissue.sourceCount(); source++) {
+				BitSet cubes = BionicTraitCarriers.bind(trait, data.get(trait), tissue, source, donors.get(source));
+				bindings.add(cubes);
+				addMembers(owners, source, cubes);
+			}
+			if (owners.isEmpty()) continue;
+			BionicTraitResult result = evaluate(trait, data.get(trait), tissue, donors, bindings).withBindings(owners);
 			if (result.present())
 				results.put(trait, result);
 		}
@@ -58,42 +52,10 @@ public final class BionicTraitResolver {
 		results.replaceAll((trait, result) -> {
 			if (!result.active())
 				return result;
-			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result);
+			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result)
+				.withBindings(result.bindings());
 		});
-		if (inspected != null)
-			results.entrySet().removeIf(entry -> !hasInspectionCarrier(entry.getKey(), data.get(entry.getKey()),
-				tissue, donors, entry.getValue(), inspected));
 		return new BionicTraitSet(results, data.traits());
-	}
-
-	private static boolean hasInspectionCarrier(BionicTrait trait, BionicTraitData data, BionicTissue tissue,
-		List<BionicTraitDonors.Facts> donors, BionicTraitResult result,
-		Set<SurgicalAssembly.CombinationMember> inspected) {
-		for (int source = 0; source < tissue.sourceCount(); source++) {
-			if (!supplies(trait, donors.get(source))) continue;
-			// A functioning body must advertise the same interaction as its paired udder.
-			var inspectedCarrier = trait == BionicTrait.MILKABLE && result.active() ? trait.carrier()
-				: trait.inspectionCarrier(tissue.source(source).profile().entityTypeId());
-			BitSet carriers = trait == BionicTrait.RIDEABLE ? BionicSaddleCarriers.select(tissue.source(source))
-				: BionicTraitCarriers.select(inspectedCarrier, data, tissue, source);
-			carriers.and(tissue.source(source).presentCubes());
-			for (int cube = carriers.nextSetBit(0); cube >= 0; cube = carriers.nextSetBit(cube + 1)) {
-				var member = new SurgicalAssembly.CombinationMember(source, cube);
-				if ((inspected.isEmpty() || inspected.contains(member))
-					&& (!result.active() || result.members().contains(member))) return true;
-			}
-		}
-		return false;
-	}
-
-	private static boolean supplies(BionicTrait trait, BionicTraitDonors.Facts donor) {
-		return switch (trait.valueKind()) {
-		case ABILITY -> donor.has(trait);
-		case NUMBER -> donor.value(trait) > 0.0d;
-		case SUBTRAIT_SET -> !donor.variants(trait).isEmpty();
-		case EFFECT_SET -> !donor.immuneEffects().isEmpty();
-		case ATTACK_EFFECT_SET -> !donor.attackEffects().isEmpty();
-		};
 	}
 
 	/** Donor tissue properties for box inspection; this does not claim organs are installed. */
@@ -133,13 +95,13 @@ public final class BionicTraitResolver {
 	}
 
 	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,
-		BionicTissue tissue, List<BionicTraitDonors.Facts> donors) {
+		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		if (trait.isHeadClassification())
-			return BionicHeadTraits.evaluate(trait, data, tissue, donors);
+			return BionicHeadTraits.evaluate(trait, data, tissue, donors, bindings);
 		if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
-			return evaluateSubtraits(trait, data, tissue, donors);
+			return evaluateSubtraits(trait, data, tissue, donors, bindings);
 		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET)
-			return evaluateAttacks(data, tissue, donors);
+			return evaluateAttacks(data, tissue, donors, bindings);
 		double total = 0, contributing = 0;
 		java.util.List<NumericContribution> numericVolumes = new java.util.ArrayList<>();
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
@@ -152,10 +114,7 @@ public final class BionicTraitResolver {
 			double volume = tissue.weight(sourceId, cubes);
 			total += volume;
 			BionicTraitDonors.Facts donor = donors.get(sourceId);
-			BitSet carriers = !supplies(trait, donor) ? new BitSet() : trait == BionicTrait.RIDEABLE
-				? BionicSaddleCarriers.select(tissue.source(sourceId))
-				: BionicTraitCarriers.select(trait.carrier(), data, tissue, sourceId);
-			carriers.and(tissue.source(sourceId).presentCubes());
+			BitSet carriers = (BitSet) bindings.get(sourceId).clone();
 			if (trait == BionicTrait.DETERRENCE && !carriers.isEmpty())
 				carrierTargets.addAll(donor.deterrenceTargets());
 			BitSet stray = (BitSet) carriers.clone();
@@ -260,7 +219,7 @@ public final class BionicTraitResolver {
 	}
 
 	private static BionicTraitResult evaluateSubtraits(BionicTrait trait, BionicTraitData data,
-		BionicTissue tissue, List<BionicTraitDonors.Facts> donors) {
+		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> active = new HashMap<>();
 		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> evidence = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> allMembers = new HashSet<>();
@@ -274,7 +233,7 @@ public final class BionicTraitResolver {
 				total += tissue.weight(source, installed);
 				if (!donors.get(source).variants(trait).contains(variant.id())) continue;
 				BitSet carriers = BionicTraitCarriers.select(variant.carrier(), data, tissue, source);
-				carriers.and(tissue.source(source).presentCubes());
+				carriers.and(bindings.get(source));
 				if (!carriers.isEmpty()) evidence.computeIfAbsent(variant, ignored -> new HashSet<>());
 				BitSet stray = (BitSet) carriers.clone();
 				stray.andNot(installed);
@@ -305,7 +264,7 @@ public final class BionicTraitResolver {
 	private record NumericContribution(double value, double volume) {}
 
 	private static BionicTraitResult evaluateAttacks(BionicTraitData data, BionicTissue tissue,
-		List<BionicTraitDonors.Facts> donors) {
+		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attacks = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		boolean misplaced = false;
@@ -314,7 +273,7 @@ public final class BionicTraitResolver {
 				BionicAttackEffect effect = data.attackEffects().get(id);
 				if (effect == null) continue;
 				BitSet carriers = BionicTraitCarriers.select(effect.carrier(), data, tissue, source);
-				carriers.and(tissue.source(source).presentCubes());
+				carriers.and(bindings.get(source));
 				BitSet installed = tissue.selected(source, BionicTrait.EFFECT_ATTACK.scopes());
 				BitSet stray = (BitSet) carriers.clone();
 				stray.andNot(installed);

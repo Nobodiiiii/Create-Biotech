@@ -14,7 +14,19 @@ public record BionicTraitResult(double coverage, double strength, double value,
 	Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attackEffects,
 	Set<ResourceLocation> deterrenceTargets,
 	Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> subtraits,
-	Map<SurgicalAssembly.CombinationMember, Double> memberValues, Set<ResourceLocation> sourceTypes) {
+	Map<SurgicalAssembly.CombinationMember, Double> memberValues, Set<ResourceLocation> sourceTypes,
+	Set<SurgicalAssembly.CombinationMember> bindings) {
+	public BionicTraitResult(double coverage, double strength, double value,
+		Set<ResourceLocation> immuneEffects, Set<SurgicalAssembly.CombinationMember> members,
+		@Nullable InactiveReason inactiveReason,
+		Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attackEffects,
+		Set<ResourceLocation> deterrenceTargets,
+		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> subtraits,
+		Map<SurgicalAssembly.CombinationMember, Double> memberValues, Set<ResourceLocation> sourceTypes) {
+		this(coverage, strength, value, immuneEffects, members, inactiveReason, attackEffects,
+			deterrenceTargets, subtraits, memberValues, sourceTypes, members);
+	}
+
 	public BionicTraitResult(double coverage, double strength, double value,
 		Set<ResourceLocation> immuneEffects, Set<SurgicalAssembly.CombinationMember> members,
 		@Nullable InactiveReason inactiveReason,
@@ -38,6 +50,7 @@ public record BionicTraitResult(double coverage, double strength, double value,
 		value = Double.isFinite(value) ? Math.max(0.0d, value) : 0.0d;
 		immuneEffects = Set.copyOf(immuneEffects);
 		members = Set.copyOf(members);
+		bindings = Set.copyOf(bindings);
 		deterrenceTargets = Set.copyOf(deterrenceTargets);
 		memberValues = Map.copyOf(memberValues);
 		sourceTypes = Set.copyOf(sourceTypes);
@@ -50,13 +63,19 @@ public record BionicTraitResult(double coverage, double strength, double value,
 	public boolean active() { return inactiveReason == null; }
 	public boolean present() { return inactiveReason != InactiveReason.NO_CARRIER; }
 
+	/** Physical ownership survives failed coverage/conditions; it never changes runtime members. */
+	public BionicTraitResult withBindings(Set<SurgicalAssembly.CombinationMember> bindings) {
+		return new BionicTraitResult(coverage, strength, value, immuneEffects, members, inactiveReason,
+			attackEffects, deterrenceTargets, subtraits, memberValues, sourceTypes, bindings);
+	}
+
 	public BionicTraitResult disabled(InactiveReason reason) {
-		return new BionicTraitResult(coverage, 0, 0, Set.of(), members, reason);
+		return new BionicTraitResult(coverage, 0, 0, Set.of(), members, reason).withBindings(bindings);
 	}
 
 	public enum InactiveReason {
 		NO_CARRIER, INSUFFICIENT_COVERAGE, INCOMPLETE_HEAD, WRONG_SLOT, BODY_MEASUREMENT_UNAVAILABLE,
-		PURPOSE_MISMATCH, BREATHING_NOT_REQUIRED, MISSING_PAIRED_WINGS, MISSING_WOOL_OR_BODY, MISSING_REQUIRED_PARTS;
+		PURPOSE_MISMATCH, BREATHING_NOT_REQUIRED, MISSING_PAIRED_WINGS, MISSING_REQUIRED_PARTS;
 
 		public String descriptionId() {
 			return "create_biotech.trait.inactive." + name().toLowerCase(java.util.Locale.ROOT);

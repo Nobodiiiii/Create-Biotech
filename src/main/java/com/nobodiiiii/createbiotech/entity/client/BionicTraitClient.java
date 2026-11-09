@@ -22,6 +22,8 @@ public final class BionicTraitClient {
 	}
 	public static void animate(SlimeBionicEntity entity) {
 		int action = entity.getSpecialAction();
+		if (action == 2) { BionicGuardianBeamRenderer.tick(entity); return; }
+		if (action == 7) return;
 		if (action == 0 || entity.tickCount % 3 != 0) return;
 		var origin = entity.getSpecialOrigin();
 		entity.level().addParticle(action == 5 ? ParticleTypes.ENCHANT : action == 4 ? ParticleTypes.ANGRY_VILLAGER
@@ -32,19 +34,7 @@ public final class BionicTraitClient {
 		net.minecraft.client.renderer.MultiBufferSource buffers, int light) {
 		var assembly = entity.getAssembly();
 		if (assembly == null || assembly.hitboxGeometry() == null) return;
-		if (entity.getSpecialAction() == 2 && entity.level().getEntity(entity.getSpecialTarget()) instanceof net.minecraft.world.entity.LivingEntity target) {
-			var start = entity.getSpecialOrigin().subtract(entity.position());
-			var end = target.getBoundingBox().getCenter().subtract(entity.position());
-			var direction = end.subtract(start).normalize();
-			var side = direction.cross(new net.minecraft.world.phys.Vec3(0, 1, 0));
-			if (side.lengthSqr() < 0.001) side = new net.minecraft.world.phys.Vec3(1, 0, 0);
-			side = side.normalize().scale(0.045);
-			var up = direction.cross(side).normalize().scale(0.045);
-			var vertices = buffers.getBuffer(net.minecraft.client.renderer.RenderType.lightning());
-			for (var axis : java.util.List.of(side, up))
-				for (var point : java.util.List.of(start.subtract(axis), end.subtract(axis), end.add(axis), start.add(axis)))
-					vertices.addVertex(poses.last().pose(), (float) point.x, (float) point.y, (float) point.z).setColor(80, 230, 210, 200);
-		}
+		BionicGuardianBeamRenderer.render(entity, partialTick, poses, buffers);
 	}
 	private static void item(SlimeBionicEntity entity, net.minecraft.world.item.ItemStack item, com.mojang.blaze3d.vertex.PoseStack poses,
 		net.minecraft.client.renderer.MultiBufferSource buffers, int light) {

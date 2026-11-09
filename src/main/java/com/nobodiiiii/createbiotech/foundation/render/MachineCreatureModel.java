@@ -12,8 +12,12 @@ import com.mojang.math.Axis;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.createmod.catnip.render.CachedBuffers;
 import net.createmod.catnip.render.SuperByteBuffer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.level.block.Blocks;
 
 /** Mutable pose for a hierarchy of standard Java block-model parts. */
@@ -92,6 +96,10 @@ public final class MachineCreatureModel {
 		return spec.layer().renderType();
 	}
 
+	boolean doubleSided() {
+		return spec.layer().doubleSided();
+	}
+
 	public void render(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
 		int packedOverlay, int color) {
 		renderToBuffer(poseStack, buffer.getBuffer(renderType()), packedLight, packedOverlay, color);
@@ -100,6 +108,55 @@ public final class MachineCreatureModel {
 	public void renderToBuffer(PoseStack poseStack, VertexConsumer buffer, int packedLight,
 		int packedOverlay, int color) {
 		root.render(poseStack, buffer, packedLight, packedOverlay, color);
+	}
+
+	/** Draws baked parts with an entity shader and a standalone texture instead of the block atlas. */
+	public void renderTextured(PoseStack poseStack, MultiBufferSource buffer, RenderType renderType,
+		ResourceLocation spriteId, int packedLight, int packedOverlay, int color) {
+		TextureAtlasSprite sprite = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(spriteId);
+		renderToBuffer(poseStack, new TextureConsumer(buffer.getBuffer(renderType), sprite, packedOverlay),
+			packedLight, packedOverlay, color);
+	}
+
+	private record TextureConsumer(VertexConsumer delegate, TextureAtlasSprite sprite, int overlay)
+		implements VertexConsumer {
+		@Override
+		public VertexConsumer addVertex(float x, float y, float z) {
+			// Catnip's block buffer does not emit the overlay attribute required by NEW_ENTITY.
+			delegate.addVertex(x, y, z).setOverlay(overlay);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+			delegate.setColor(red, green, blue, alpha);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv(float u, float v) {
+			// Scrolling atlas UVs would sample neighboring sprites; unwrap before the shader scrolls.
+			delegate.setUv(sprite.getUOffset(u), sprite.getVOffset(v));
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv1(int u, int v) {
+			delegate.setUv1(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv2(int u, int v) {
+			delegate.setUv2(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setNormal(float x, float y, float z) {
+			delegate.setNormal(x, y, z);
+			return this;
+		}
 	}
 
 	public void applyTransformTo(String path, PoseStack poseStack) {

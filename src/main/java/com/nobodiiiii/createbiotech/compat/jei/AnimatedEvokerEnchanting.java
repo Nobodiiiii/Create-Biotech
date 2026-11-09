@@ -2,9 +2,10 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import org.jetbrains.annotations.Nullable;
 
-
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
+import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 
@@ -14,6 +15,10 @@ import net.createmod.catnip.platform.CatnipClientServices;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.block.BlockRenderDispatcher;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
@@ -55,7 +60,7 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 		updatePreviewState(blockEntity);
 
 		scene(graphics, xOffset, yOffset, () -> {
-			GuiGameElement.of(blockEntity)
+			new EnchantingPreviewElement(blockEntity)
 				.lighting(DEFAULT_LIGHTING)
 				.atLocal(0.0d, RENDER_Y_OFFSET_BLOCKS, 0.0d)
 				.scale(RENDER_SCALE)
@@ -134,5 +139,24 @@ public class AnimatedEvokerEnchanting extends AnimatedKineticsWithEntities {
 			.defaultBlockState()
 			.setValue(EvokerEnchantingChamberBlock.FACING, Direction.SOUTH)
 			.setValue(EvokerEnchantingChamberBlock.HALF, DoubleBlockHalf.LOWER);
+	}
+
+	private static final class EnchantingPreviewElement extends GuiGameElement.GuiBlockStateRenderBuilder {
+		private final EvokerEnchantingChamberBlockEntity blockEntity;
+
+		private EnchantingPreviewElement(EvokerEnchantingChamberBlockEntity blockEntity) {
+			super(blockEntity.getBlockState());
+			this.blockEntity = blockEntity;
+		}
+
+		@Override
+		protected void renderModel(BlockRenderDispatcher blockRenderer, MultiBufferSource.BufferSource buffer,
+			PoseStack poseStack) {
+			var renderer = Minecraft.getInstance().getBlockEntityRenderDispatcher().getRenderer(blockEntity);
+			if (renderer instanceof EvokerEnchantingChamberRenderer chamberRenderer)
+				chamberRenderer.renderGuiPreview(blockEntity, AnimationTickHolder.getPartialTicks(), poseStack,
+					buffer, LightTexture.FULL_BRIGHT, OverlayTexture.NO_OVERLAY);
+			super.renderModel(blockRenderer, buffer, poseStack);
+		}
 	}
 }

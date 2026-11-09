@@ -1,4 +1,26 @@
 {
   "automatic_detection": true,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:donkey": {
+      "TORSO": [
+        "body"
+      ]
+    },
+    "minecraft:mule": {
+      "TORSO": [
+        "body"
+      ]
+    },
+    "minecraft:llama": {
+      "TORSO": [
+        "body"
+      ]
+    },
+    "minecraft:trader_llama": {
+      "TORSO": [
+        "body"
+      ]
+    }
+  }
 }

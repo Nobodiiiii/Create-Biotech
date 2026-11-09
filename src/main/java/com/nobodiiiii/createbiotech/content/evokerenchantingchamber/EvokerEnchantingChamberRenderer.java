@@ -65,6 +65,18 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 	@Override
 	public void render(EvokerEnchantingChamberBlockEntity blockEntity, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, int packedOverlay) {
+		renderChamber(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay,
+			VisualizationManager.supportsVisualization(blockEntity.getLevel()));
+	}
+
+	/** GUI previews have no Flywheel world visual, even when their level supports one. */
+	public void renderGuiPreview(EvokerEnchantingChamberBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight, int packedOverlay) {
+		renderChamber(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, false);
+	}
+
+	private void renderChamber(EvokerEnchantingChamberBlockEntity blockEntity, float partialTick, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight, int packedOverlay, boolean visualized) {
 		if (blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.HALF)
 			!= net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER)
 			return;
@@ -72,7 +84,7 @@ public class EvokerEnchantingChamberRenderer implements BlockEntityRenderer<Evok
 		Direction facing = blockEntity.getBlockState().getValue(EvokerEnchantingChamberBlock.FACING);
 
 		renderEnchantingTable(poseStack, buffer, packedLight, packedOverlay);
-		if (!VisualizationManager.supportsVisualization(blockEntity.getLevel())) {
+		if (!visualized) {
 			renderEvoker(blockEntity, partialTick, poseStack, buffer, packedLight, facing);
 			renderBook(blockEntity, partialTick, poseStack, buffer, packedLight, packedOverlay, facing);
 		}

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import java.util.function.Supplier;
 
@@ -254,8 +255,8 @@ public final class SurgicalTableClientHandler {
 	private static CubeSelectionCache connectedSelectionCache;
 	@Nullable
 	private static CubeSelectionCache directSelectionCache;
-	@Nullable
-	private static PackedBodyPreviewCache packedBodyPreviewCache;
+	/** Each retained cube indexes the same preview as every other member of its connected component. */
+	private static final Map<SurgicalTableBlockEntity, PackedBodyPreviewCache> PACKED_BODY_PREVIEWS = new WeakHashMap<>();
 
 	private SurgicalTableClientHandler() {}
 
@@ -813,7 +814,7 @@ public final class SurgicalTableClientHandler {
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
-		packedBodyPreviewCache = null;
+		PACKED_BODY_PREVIEWS.clear();
 		suppressAttackUntilRelease = false;
 		clearPlacementPreview();
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
@@ -4100,37 +4101,42 @@ public final class SurgicalTableClientHandler {
 		if (hit == null
 			|| !(level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity table))
 			return;
-		SurgicalAssembly preview = table.previewPackedAssembly(hit.geometry.subjectId,
-			hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
-		if (preview == null)
-			return;
-		PackedBodyMetrics metrics = packedBodyPreviewMetrics(level, table, hit, preview);
-		if (metrics != null)
-			preview = preview.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(),
-				metrics.bodyVolume());
-		SurgicalSubject subject = table.getSubject(hit.geometry.subjectId);
-		if (subject == null) return;
-		for (int source = 0; source < preview.sources().size(); source++) {
-			SurgicalAssembly.Source tissue = preview.sources().get(source);
-			if (!tissue.donorId().equals(subject.donorId()) || !tissue.containsCube(hit.cubeId)) continue;
-			BionicTraitSet traits = BionicTraitResolver.inspectPart(preview, level, source, hit.cubeId);
-			CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
-			return;
-		}
+		PackedBodyPreview preview = packedBodyPreview(level, table, hit);
+		if (preview != null)
+			CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, preview.traits());
 	}
 
 	@Nullable
-	private static PackedBodyMetrics packedBodyPreviewMetrics(ClientLevel level,
-		SurgicalTableBlockEntity table, CubeHit hit, SurgicalAssembly preview) {
-		int revision = table.clientDataRevision();
-		PackedBodyPreviewCache cached = packedBodyPreviewCache;
-		if (cached != null && cached.matches(level, table, hit, revision))
-			return cached.metrics();
-		PackedBodyMetrics metrics = measureBodyMetrics(preview);
-		if (metrics != null)
-			packedBodyPreviewCache = new PackedBodyPreviewCache(level, table, revision,
-				hit.geometry.subjectId, hit.cubeId, hit.geometry.renderRevision, metrics);
-		return metrics;
+	private static PackedBodyPreview packedBodyPreview(ClientLevel level,
+		SurgicalTableBlockEntity table, CubeHit hit) {
+		int tableRevision = table.clientDataRevision();
+		BionicTraitResolver.Revision traitRevision = BionicTraitResolver.revision();
+		PackedBodyPreviewCache cache = PACKED_BODY_PREVIEWS.get(table);
+		if (cache == null || !cache.matches(tableRevision, traitRevision)) {
+			cache = new PackedBodyPreviewCache(tableRevision, traitRevision, new HashMap<>());
+			PACKED_BODY_PREVIEWS.put(table, cache);
+		}
+		PackedBodyPreview cached = cache.get(hit.geometry.subjectId, hit.cubeId);
+		if (cached != null) {
+			SurgicalProfiler.count("packedPreview(cacheHit)");
+			return cached;
+		}
+		long started = SurgicalProfiler.begin();
+		try {
+			SurgicalTableBlockEntity.PackedAssemblyPreview component = table.previewPackedComponent(
+				hit.geometry.subjectId, hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
+			if (component == null)
+				return null;
+			SurgicalAssembly assembly = component.assembly();
+			PackedBodyMetrics metrics = measureBodyMetrics(assembly);
+			if (metrics != null)
+				assembly = assembly.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(), metrics.bodyVolume());
+			PackedBodyPreview preview = new PackedBodyPreview(assembly, metrics, BionicTraitResolver.resolve(assembly, level));
+			cache.put(component.components(), preview);
+			return preview;
+		} finally {
+			SurgicalProfiler.end("packedPreview(build)", started);
+		}
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
@@ -7096,14 +7102,26 @@ public final class SurgicalTableClientHandler {
 		SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		double bodyVolume,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
-	private record PackedBodyPreviewCache(ClientLevel level, SurgicalTableBlockEntity table,
-		int tableRevision, int subjectId, int cubeId, int renderRevision,
-		PackedBodyMetrics metrics) {
-		private boolean matches(ClientLevel currentLevel, SurgicalTableBlockEntity currentTable,
-			CubeHit hit, int revision) {
-			return level == currentLevel && table == currentTable && tableRevision == revision
-				&& subjectId == hit.geometry.subjectId && cubeId == hit.cubeId
-				&& renderRevision == hit.geometry.renderRevision;
+	private record PackedBodyMember(int subjectId, int cubeId) {}
+	private record PackedBodyPreview(SurgicalAssembly assembly, @Nullable PackedBodyMetrics metrics,
+		BionicTraitSet traits) {}
+	private record PackedBodyPreviewCache(int tableRevision, BionicTraitResolver.Revision traitRevision,
+		Map<PackedBodyMember, PackedBodyPreview> byMember) {
+		private boolean matches(int revision, BionicTraitResolver.Revision traits) {
+			return tableRevision == revision && traitRevision.equals(traits);
+		}
+
+		@Nullable
+		private PackedBodyPreview get(int subjectId, int cubeId) {
+			return byMember.get(new PackedBodyMember(subjectId, cubeId));
+		}
+
+		private void put(Map<Integer, BitSet> components, PackedBodyPreview preview) {
+			for (var entry : components.entrySet()) {
+				BitSet cubes = entry.getValue();
+				for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
+					byMember.put(new PackedBodyMember(entry.getKey(), cube), preview);
+			}
 		}
 	}
 	private record PackedBodyMeasurement(List<SlimeBionicAnimator.SourceState> sources,

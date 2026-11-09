@@ -32,7 +32,7 @@
 | `mod_versions` / `enabled_data_packs` | 模组版本与启用的数据包，用于复核能力规则来源。 |
 | `captured_at_utc` / `game_time` / `trait_registry_generation` | 采集时间、世界 tick 与能力规则版本计数，用于区分多次采样。 |
 
-建议先检查 `assembly_status` 和 `assembly_summary`，再结合 `traits` 中的 `inactive_reason`、`members` 与原始 `assembly` 分析。`source` 是 `assembly.Sources` 的零基索引，`cube` 是该供体模型中的立方体 ID；摘要中的 ID 数组已将原始位集解码。JSON 中 NBT 布尔值按字节数值保存；如需还原精确 NBT 类型，应使用 `entity_snbt`。
+建议先检查 `assembly_status` 和 `assembly_summary`，再结合 `traits` 中的 `inactive_reason`、`bindings`、`members` 与原始 `assembly` 分析。`bindings` 是实际保留、绑定该特性的体块，`members` 是装配判定后的贡献体块；未生效时保留判定证据。组合体提示取绑定特性的并集，命中其中任意体块均读取整个组合体的判定。`source` 是 `assembly.Sources` 的零基索引，`cube` 是该供体模型中的立方体 ID；摘要中的 ID 数组已将原始位集解码。JSON 中 NBT 布尔值按字节数值保存；如需还原精确 NBT 类型，应使用 `entity_snbt`。
 
 报告仅采集服务端已有数据，不包含客户端渲染截图或运行时渲染模型。诊断报告会持续保留，可在排查结束后手动清理。
 

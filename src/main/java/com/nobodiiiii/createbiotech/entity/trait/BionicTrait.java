@@ -3,8 +3,6 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.List;
 import java.util.Set;
 
-import net.minecraft.resources.ResourceLocation;
-
 /** Single trait catalog. Scope, inheritance and conditions are independent. */
 public enum BionicTrait {
 	DISPOSITION("disposition", BionicTraitScope.HEAD,
@@ -157,7 +155,7 @@ public enum BionicTrait {
 	RIDEABLE("rideable", BionicTraitScope.TORSO,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	CARGO_CHEST("cargo_chest", BionicTraitScope.TORSO,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	LOOT_PICKUP("loot_pickup", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.ATTACK_HAND)),
 	SONIC_BOOM("sonic_boom", BionicTraitScope.TORSO,
@@ -219,19 +217,6 @@ public enum BionicTrait {
 	/** Allowed regions; head, arm and leg coverage is evaluated separately for each installed chain. */
 	public Set<BionicTraitScope> scopes() { return scopes; }
 	public Carrier carrier() { return carrier; }
-	/** Parts that own the ability shown during inspection, excluding shared supporting organs. */
-	public Carrier inspectionCarrier(ResourceLocation donorType) {
-		return switch (condition) {
-		case WOOL_AND_BODY -> Carrier.of(BionicAnatomyRole.WOOL);
-		case UDDER_AND_BODY -> Carrier.of(donorType.equals(ResourceLocation.withDefaultNamespace("goat"))
-			? BionicAnatomyRole.TORSO : BionicAnatomyRole.UDDER);
-		case SHELL_AND_BODY -> Carrier.of(BionicAnatomyRole.SHELL);
-		case COMPLETE_CHEST -> Carrier.of(BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE);
-		case HEAD_AND_TENDRIL -> Carrier.of(BionicAnatomyRole.TENDRIL);
-		case HEAD_AND_MOUTH -> Carrier.of(BionicAnatomyRole.MOUTH);
-		default -> carrier;
-		};
-	}
 	public BionicTraitRule rule() { return rule; }
 	public ValueKind valueKind() { return valueKind; }
 	public Condition condition() { return condition; }
@@ -264,10 +249,21 @@ public enum BionicTrait {
 	}
 
 	/** Donor model labels select carriers only; they never imply an installation scope. */
-	public record Carrier(List<BionicAnatomyRole> roles, List<BionicAnatomyRole> fallback) {
+	public record Carrier(List<BionicAnatomyRole> roles, List<BionicAnatomyRole> fallback,
+		List<BionicAnatomyRole> excluded) {
+		public Carrier(List<BionicAnatomyRole> roles, List<BionicAnatomyRole> fallback) {
+			this(roles, fallback, List.of());
+		}
 		public Carrier {
 			roles = List.copyOf(roles);
 			fallback = List.copyOf(fallback);
+			excluded = List.copyOf(excluded);
+		}
+		/** Distinguish a supporting core from appendages sharing its model-part label. */
+		Carrier excluding(BionicAnatomyRole... roles) {
+			var exclusions = new java.util.ArrayList<>(excluded);
+			exclusions.addAll(List.of(roles));
+			return new Carrier(this.roles, fallback, exclusions);
 		}
 		public boolean isAllTissue() { return roles.isEmpty(); }
 		static Carrier allTissue() { return new Carrier(List.of(), List.of()); }

@@ -26,6 +26,8 @@ public final class MachineCreatureModels {
 	private static final ModelSpec FROG = MachineCreatureModelData.frog();
 	private static final ModelSpec EVOKER = MachineCreatureModelData.evoker();
 	private static final ModelSpec ALLAY = MachineCreatureModelData.allay();
+	private static final ModelSpec ALLAY_HAT = MachineCreatureModelData.allayHat();
+	private static final ModelSpec CHICKEN = MachineCreatureModelData.chicken();
 	private static final ModelSpec SALMON = MachineCreatureModelData.salmon();
 	private static final ModelSpec SHULKER = MachineCreatureModelData.shulker();
 	private static final ModelSpec SLIME_INNER = MachineCreatureModelData.slimeInner();
@@ -36,7 +38,7 @@ public final class MachineCreatureModels {
 	private static final ModelSpec BOOK = MachineCreatureModelData.book();
 
 	private static final List<ModelSpec> ALL = List.of(SPIDER, SPIDER_EYES, SQUID, FROG, EVOKER,
-		ALLAY, SALMON, SHULKER, SLIME_INNER, SLIME_OUTER, MAGMA_CUBE, CREEPER,
+		ALLAY, ALLAY_HAT, CHICKEN, SALMON, SHULKER, SLIME_INNER, SLIME_OUTER, MAGMA_CUBE, CREEPER,
 		CREEPER_POWER, BOOK);
 
 	private MachineCreatureModels() {}
@@ -63,6 +65,14 @@ public final class MachineCreatureModels {
 
 	public static MachineCreatureModel allay() {
 		return new MachineCreatureModel(ALLAY);
+	}
+
+	public static MachineCreatureModel allayHat() {
+		return new MachineCreatureModel(ALLAY_HAT);
+	}
+
+	public static MachineCreatureModel chicken() {
+		return new MachineCreatureModel(CHICKEN);
 	}
 
 	public static MachineCreatureModel salmon() {
@@ -114,10 +124,21 @@ public final class MachineCreatureModels {
 
 	public enum Layer {
 		CUTOUT,
-		TRANSLUCENT;
+		TRANSLUCENT,
+		CUTOUT_NO_CULL,
+		TRANSLUCENT_NO_CULL;
 
 		RenderType renderType() {
-			return this == TRANSLUCENT ? RenderType.translucent() : RenderType.cutout();
+			return switch (this) {
+			case CUTOUT -> RenderType.cutout();
+			case TRANSLUCENT -> RenderType.translucent();
+			case CUTOUT_NO_CULL -> MachineCreatureRenderTypes.CUTOUT_NO_CULL;
+			case TRANSLUCENT_NO_CULL -> MachineCreatureRenderTypes.TRANSLUCENT_NO_CULL;
+			};
+		}
+
+		boolean doubleSided() {
+			return this == CUTOUT_NO_CULL || this == TRANSLUCENT_NO_CULL;
 		}
 	}
 

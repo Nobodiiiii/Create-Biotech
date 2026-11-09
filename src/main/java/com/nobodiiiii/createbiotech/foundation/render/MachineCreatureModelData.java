@@ -9,8 +9,39 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 final class MachineCreatureModelData {
 	private MachineCreatureModelData() {}
 
+	static MachineCreatureModels.ModelSpec allayHat() {
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("allay_hat"), MachineCreatureModels.Layer.CUTOUT,
+			List.of(new MachineCreatureModels.PartSpec("$root", null, "hat",
+				0, 0, 0, 0, 0, 0, true, false, true, null)), Map.of());
+	}
+
+	/** Neutral adult chicken; geometry and UVs follow the local Minecraft 1.21.1 ChickenModel. */
+	static MachineCreatureModels.ModelSpec chicken() {
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("chicken"), MachineCreatureModels.Layer.CUTOUT_NO_CULL, List.of(
+			new MachineCreatureModels.PartSpec("$root", null, "root", 0, 0, 0, 0, 0, 0, true, false, false, null),
+			new MachineCreatureModels.PartSpec("head", "$root", "head", 0, 15, -4, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-2, -6, -2, 2, 0, 1)),
+			new MachineCreatureModels.PartSpec("beak", "$root", "beak", 0, 15, -4, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-2, -4, -4, 2, -2, -2)),
+			new MachineCreatureModels.PartSpec("red_thing", "$root", "red_thing", 0, 15, -4, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-1, -2, -3, 1, 0, -1)),
+			new MachineCreatureModels.PartSpec("body", "$root", "body", 0, 16, 0, (float) Math.PI / 2, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-3, -4, -3, 3, 4, 3)),
+			new MachineCreatureModels.PartSpec("right_leg", "$root", "right_leg", -2, 19, 1, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-1, 0, -3, 2, 5, 0)),
+			new MachineCreatureModels.PartSpec("left_leg", "$root", "left_leg", 1, 19, 1, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-1, 0, -3, 2, 5, 0)),
+			new MachineCreatureModels.PartSpec("right_wing", "$root", "right_wing", -4, 13, 0, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(0, 0, -3, 1, 4, 3)),
+			new MachineCreatureModels.PartSpec("left_wing", "$root", "left_wing", 4, 13, 0, 0, 0, 0, true, false, true,
+				new MachineCreatureModels.Bounds(-1, 0, -3, 0, 4, 3)),
+			new MachineCreatureModels.PartSpec("body/bell", "body", "bell", 0, 0, 3, (float) Math.PI / 2, 0, 0,
+				false, false, true, null)
+		), Map.of());
+	}
+
 	static MachineCreatureModels.ModelSpec allay() {
-		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("allay"), MachineCreatureModels.Layer.TRANSLUCENT, List.of(
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("allay"), MachineCreatureModels.Layer.TRANSLUCENT_NO_CULL, List.of(
 			new MachineCreatureModels.PartSpec("$root", null, "_root", 				0f, 23.5f, 0f, 0f, 0f, 0f, true, false, false, null),
 			new MachineCreatureModels.PartSpec("head", "$root", "head", 				0f, -3.99f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-2.5f, -5f, -2.5f, 2.5f, 0f, 2.5f)),
 			new MachineCreatureModels.PartSpec("body", "$root", "body", 				0f, -4f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-1.5f, 0f, -1f, 1.5f, 4f, 1f)),

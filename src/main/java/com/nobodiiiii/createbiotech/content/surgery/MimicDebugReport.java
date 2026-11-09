@@ -155,6 +155,7 @@ public final class MimicDebugReport {
 			entry.addProperty("coverage", result.coverage());
 			entry.addProperty("strength", result.strength());
 			entry.addProperty("value", result.value());
+			entry.add("bindings", members(result.bindings()));
 			entry.add("members", members(result.members()));
 			entry.add("source_types", strings(result.sourceTypes()));
 			entry.add("immune_effects", strings(result.immuneEffects()));

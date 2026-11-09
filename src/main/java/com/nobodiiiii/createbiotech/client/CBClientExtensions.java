@@ -3,6 +3,11 @@ package com.nobodiiiii.createbiotech.client;
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.nobodiiiii.createbiotech.content.allay.client.render.AllayCourierItemRenderer;
+import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierItem;
+import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.IncompleteAllayCourierItem;
+import com.nobodiiiii.createbiotech.content.dingdongchicken.ChickenItemRenderer;
+import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenItem;
 import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatItemRenderer;
@@ -73,7 +78,15 @@ final class CBClientExtensions {
 			return itemRenderer(new SurgicalJointItemRenderer());
 		if (item instanceof BionicDonorPreviewItem)
 			return itemRenderer(new BionicDonorPreviewItemRenderer());
-		// Specific entity renderers must precede their shared base class.
+		// Fixed JSON creature renderers must precede the generic entity-item fallback.
+		if (item instanceof AllayCourierItem courier)
+			return itemRenderer(new AllayCourierItemRenderer(true, courier.getRenderedEntityScaleMultiplier()));
+		if (item instanceof IncompleteAllayCourierItem courier)
+			return itemRenderer(new AllayCourierItemRenderer(false, courier.getRenderedEntityScaleMultiplier()));
+		if (item instanceof DingDongChickenItem chicken)
+			return itemRenderer(new ChickenItemRenderer(true, chicken.getRenderedEntityScaleMultiplier()));
+		if (item == CBItems.CHICKEN.get())
+			return itemRenderer(new ChickenItemRenderer(false, 1.5f));
 		if (item instanceof CapturedSmallSlimeItem slime)
 			return CapturedSmallSlimeItemRenderer.create(slime.getRenderedEntityScaleMultiplier());
 		if (item instanceof BlockCenteredRenderedLivingEntityItem<?> entityItem)

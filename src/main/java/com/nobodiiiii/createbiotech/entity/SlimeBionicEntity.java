@@ -163,6 +163,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final EntityDataAccessor<Integer> SPECIAL_ACTION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<org.joml.Vector3f> SPECIAL_ORIGIN = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.VECTOR3);
 	private static final EntityDataAccessor<Integer> SPECIAL_TARGET = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	private static final EntityDataAccessor<Integer> GUARDIAN_ATTACK_DURATION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private float riderJump;
 	private int riderJumpCooldown;
 	private boolean riderAscending;
@@ -189,6 +190,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		entityData.set(SPECIAL_ORIGIN, worldOrigin.subtract(position()).yRot(yBodyRot * Mth.DEG_TO_RAD).toVector3f());
 	}
 	public Vec3 getSpecialOrigin() { return position().add(new Vec3(entityData.get(SPECIAL_ORIGIN)).yRot(-yBodyRot * Mth.DEG_TO_RAD)); }
+	public Vec3 getSpecialOrigin(float partialTick) {
+		Vec3 interpolatedPosition = new Vec3(Mth.lerp((double) partialTick, xOld, getX()),
+			Mth.lerp((double) partialTick, yOld, getY()), Mth.lerp((double) partialTick, zOld, getZ()));
+		return interpolatedPosition.add(new Vec3(entityData.get(SPECIAL_ORIGIN))
+			.yRot(-Mth.rotLerp(partialTick, yBodyRotO, yBodyRot) * Mth.DEG_TO_RAD));
+	}
+	public int getGuardianAttackDuration() { return entityData.get(GUARDIAN_ATTACK_DURATION); }
+	public void syncGuardianAttackDuration(int ticks) { entityData.set(GUARDIAN_ATTACK_DURATION, Math.max(1, ticks)); }
 	public int getSpecialTarget() { return entityData.get(SPECIAL_TARGET); }
 	public void syncSpecialAction(int action, int target) {
 		if (action != getSpecialAction() || target != getSpecialTarget()) entityData.set(SPECIAL_STARTED, level().getGameTime());
@@ -209,7 +218,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override public ItemStack equipItemIfPossible(ItemStack stack) {
 		return equipment == null ? ItemStack.EMPTY : equipment.equipLoot(stack);
 	}
-	@Nullable private LivingEntity packAlertTarget;
 	private boolean evaluatingJumpPath;
 	private boolean strongJumpEnabled;
 	private boolean doorBreakingEnabled;
@@ -234,8 +242,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable
 	private UUID ownerId;
 	private boolean orderedToSit;
-	@Nullable
-	private LivingEntity ownerAssignedTarget;
 	private int lastOwnerHurtTimestamp;
 	private int lastOwnerAttackTimestamp;
 	@Nullable
@@ -321,7 +327,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			.add(Attributes.KNOCKBACK_RESISTANCE, BASE_KNOCKBACK_RESISTANCE);
 	}
 
-	/** Target acquisition and retaliation both respect the head-derived disposition in canAttack. */
+	/** Disposition selects natural targets; assigned targets use the ordinary combat goals. */
 	@Override
 	protected void registerGoals() {
 		goalSelector.addGoal(0, new BionicFloatGoal(this));
@@ -368,6 +374,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
 		goalSelector.addGoal(8, new RandomLookAroundGoal(this));
 		targetSelector.addGoal(1, new HurtByTargetGoal(this) {
+			@Override public boolean canUse() {
+				return getDisposition() != BionicDisposition.FRIENDLY && super.canUse();
+			}
 			@Override protected void alertOthers() {
 				if (getBionicTraits().has(BionicTrait.PACK_ALERT)) super.alertOthers();
 			}
@@ -376,30 +385,16 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				boolean related = ownerId != null ? ownerId.equals(companion.getBionicOwnerId())
 					: companion.getBionicOwnerId() == null && companion.getBionicTraits().has(BionicTrait.PACK_ALERT);
 				if (!related) return;
-				companion.packAlertTarget = attacker;
 				if (companion.canAttack(attacker)) super.alertOther(other, attacker);
-				else companion.packAlertTarget = null;
 			}
 		}.setAlertOthers());
-		targetSelector.addGoal(1, new Goal() {
-			{ setFlags(EnumSet.of(Goal.Flag.TARGET)); }
+		targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true) {
 			@Override public boolean canUse() {
-				return packAlertTarget != null && packAlertTarget.isAlive() && canAttack(packAlertTarget)
-					&& distanceToSqr(packAlertTarget) <= Math.pow(getAttributeValue(Attributes.FOLLOW_RANGE), 2);
-			}
-			@Override public void start() { setTarget(packAlertTarget); }
-			@Override public void stop() {
-				if (getTarget() == packAlertTarget) setTarget(null);
-				packAlertTarget = null;
+				return ownerId == null && getDisposition() == BionicDisposition.HOSTILE && super.canUse();
 			}
 		});
-		targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true));
 		targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-			target -> hunting != null && hunting.matches(target)) {
-			@Override public boolean canContinueToUse() {
-				return getTarget() != null && hunting.matches(getTarget()) && super.canContinueToUse();
-			}
-		});
+			target -> hunting != null && hunting.matches(target)));
 	}
 
 	@Override public void ate() { super.ate(); if (production != null) production.ate(); }
@@ -441,6 +436,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		builder.define(SPECIAL_ACTION, 0);
 		builder.define(SPECIAL_TARGET, 0);
 		builder.define(SPECIAL_ORIGIN, new org.joml.Vector3f());
+		builder.define(GUARDIAN_ATTACK_DURATION, 80);
 	}
 
 	private void setBionicOwner(@Nullable UUID value) {
@@ -527,20 +523,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (!super.canAttack(target) || isAlliedTo(target))
 			return false;
 		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE)
-			|| ownerId != null && ownerId.equals(target.getUUID())
 			|| orderedToSit)
 			return false;
-		if (target == packAlertTarget || hunting != null && hunting.matches(target))
-			return true;
-		if (ownerId != null)
-			return target == ownerAssignedTarget || target == getLastHurtByMob();
-		// Shared by target goals and the pending arm strike's contact checks, so a changed head or
-		// data-pack classification also stops an attack that was already in progress.
-		return switch (getDisposition()) {
-			case FRIENDLY -> false;
-			case NEUTRAL -> target == getLastHurtByMob();
-			case HOSTILE -> true;
-		};
+		// As in vanilla, natural target selection supplies disposition rules. Once a target has
+		// been assigned, combat does not require it to be prey or the last creature to hurt us.
+		return true;
 	}
 
 	public BionicIntelligence getIntelligence() {
@@ -1250,8 +1237,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			BionicDefenses.tick(this);
 			equipment.tick();
 			production.tick();
-			if (packAlertTarget != null && (getTarget() != packAlertTarget || !packAlertTarget.isAlive()))
-				packAlertTarget = null;
 			if (navigation instanceof net.minecraft.world.entity.ai.navigation.GroundPathNavigation ground)
 				ground.setCanOpenDoors(getBionicTraits().has(BionicTrait.DOOR_HANDLING));
 		}
@@ -1342,7 +1327,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		if (candidate != null && candidate.isAlive() && candidate != this
 			&& !isAlliedTo(candidate)) {
-			ownerAssignedTarget = candidate;
 			if (canAttack(candidate))
 				setTarget(candidate);
 		}
@@ -1814,7 +1798,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		super.readAdditionalSaveData(tag);
 		hunting.load(tag);
 		specialAttacks.load(tag);
-		packAlertTarget = null;
 		if (!tag.contains(SOURCE_FORM_TAG, Tag.TAG_BYTE)
 			|| !tag.contains(ASSEMBLY_TAG, Tag.TAG_COMPOUND))
 			return;

@@ -67,7 +67,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	@Override
 	public void createRecipeExtras(IRecipeExtrasBuilder builder, BionicTrait trait, IFocusGroup focuses) {
 		int infoX = WIDTH - BionicTraitInfoWidget.width(trait) - 1;
-		builder.addWidget(new BionicTraitInfoWidget(trait, infoX, 1));
+		builder.addWidget(new BionicTraitInfoWidget(trait, infoX, 0));
 		builder.addText(BionicTraitJeiIngredient.name(trait).copy().withStyle(ChatFormatting.BOLD),
 				infoX - NAME_X - 4, SLOT_SIZE)
 			.setPosition(NAME_X, 0)

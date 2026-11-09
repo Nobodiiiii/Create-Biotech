@@ -1,10 +1,15 @@
 package com.nobodiiiii.createbiotech.foundation.render;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 
 /** Draws contained creatures from explicit machine state, without entering entity-renderer hooks. */
@@ -13,6 +18,15 @@ public final class MachineCreatureRenderer {
 	private static final float MODEL_FOOT_OFFSET = 1.501f;
 	private static final float SLIME_RENDER_SCALE = 0.999f;
 	private static final float SLIME_RENDER_Y_OFFSET = 0.001f;
+	private static final ResourceLocation CREEPER_SPRITE = ResourceLocation.withDefaultNamespace("entity/creeper/creeper");
+	private static final RenderType CREEPER_RENDER_TYPE =
+		RenderType.entityCutoutNoCull(ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper.png"));
+	private static final ResourceLocation CREEPER_POWER_SPRITE =
+		ResourceLocation.withDefaultNamespace("entity/creeper/creeper_armor");
+	private static final ResourceLocation CREEPER_POWER_TEXTURE =
+		ResourceLocation.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
+	private static final int MAX_SWIRL_RENDER_TYPES = 8;
+	private static final Map<Float, RenderType> SWIRL_RENDER_TYPES = new LinkedHashMap<>();
 
 	private MachineCreatureRenderer() {}
 
@@ -100,15 +114,47 @@ public final class MachineCreatureRenderer {
 		poseStack.pushPose();
 		try {
 			applyCreeperTransform(poseStack, bodyYaw, swelling);
-			Models.CREEPER.render(poseStack, buffer, packedLight, overlay, -1);
-			if (charged) {
-				prepareCreeperPose(Models.CREEPER_POWER, headYaw, headPitch);
-				Models.CREEPER_POWER.render(poseStack, buffer, packedLight,
-					OverlayTexture.NO_OVERLAY, 0xFF808080);
-			}
+			// The block cutout format has no overlay attribute, so it loses the swelling flash.
+			Models.CREEPER.renderTextured(poseStack, buffer, CREEPER_RENDER_TYPE, CREEPER_SPRITE,
+				packedLight, overlay, -1);
+			if (charged)
+				renderCreeperPowerModel(poseStack, buffer, packedLight, headYaw, headPitch, animationTime);
 		} finally {
 			poseStack.popPose();
 		}
+	}
+
+	/** The animated additive layer stays in the BER pass when the body is instanced by Flywheel. */
+	public static void renderCreeperPower(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+		float bodyYaw, float headYaw, float headPitch, float swelling, float animationTime) {
+		poseStack.pushPose();
+		try {
+			applyCreeperTransform(poseStack, bodyYaw, swelling);
+			renderCreeperPowerModel(poseStack, buffer, packedLight, headYaw, headPitch, animationTime);
+		} finally {
+			poseStack.popPose();
+		}
+	}
+
+	private static void renderCreeperPowerModel(PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+		float headYaw, float headPitch, float animationTime) {
+		prepareCreeperPose(Models.CREEPER_POWER, headYaw, headPitch);
+		float scroll = animationTime * 0.01f % 1.0f;
+		Models.CREEPER_POWER.renderTextured(poseStack, buffer,
+			creeperPowerRenderType(scroll), CREEPER_POWER_SPRITE,
+			packedLight, OverlayTexture.NO_OVERLAY, 0xFF808080);
+	}
+
+	private static RenderType creeperPowerRenderType(float scroll) {
+		RenderType cached = SWIRL_RENDER_TYPES.get(scroll);
+		if (cached != null)
+			return cached;
+		// RenderType.energySwirl creates a new type on every call; share the chamber's phase buckets.
+		if (SWIRL_RENDER_TYPES.size() >= MAX_SWIRL_RENDER_TYPES)
+			SWIRL_RENDER_TYPES.remove(SWIRL_RENDER_TYPES.keySet().iterator().next());
+		RenderType renderType = RenderType.energySwirl(CREEPER_POWER_TEXTURE, scroll, scroll);
+		SWIRL_RENDER_TYPES.put(scroll, renderType);
+		return renderType;
 	}
 
 	public static void prepareCreeperPose(MachineCreatureModel model, float headYaw, float headPitch) {

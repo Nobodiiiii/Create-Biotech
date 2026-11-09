@@ -16,17 +16,41 @@ import net.minecraft.resources.ResourceLocation;
 final class BionicTraitCarriers {
 	private BionicTraitCarriers() {}
 
+	/** Bind the same retained anatomical parts for acquisition and inspection, before slot checks. */
+	static BitSet bind(BionicTrait trait, BionicTraitData data, BionicTissue tissue, int source,
+		BionicTraitDonors.Facts donor) {
+		BitSet cubes = new BitSet();
+		if (!donor.supplies(trait)) return cubes;
+		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
+			for (var id : donor.attackEffects()) {
+				var effect = data.attackEffects().get(id);
+				if (effect != null) cubes.or(select(effect.carrier(), data, tissue, source));
+			}
+		} else if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET && !trait.isHeadClassification()) {
+			for (var id : donor.variants(trait)) {
+				var variant = data.subtraits().get(id);
+				if (variant != null) cubes.or(select(variant.carrier(), data, tissue, source));
+			}
+		} else cubes = trait == BionicTrait.RIDEABLE ? BionicSaddleCarriers.select(tissue.source(source))
+			: select(trait.carrier(), data, tissue, source);
+		cubes.and(tissue.source(source).presentCubes());
+		return cubes;
+	}
+
 	/** Select original carrier tissue before considering how it has been installed or cut. */
 	static BitSet select(BionicTrait.Carrier carrier, BionicTraitData data, BionicTissue tissue, int sourceId) {
+		BitSet cubes;
 		if (carrier.isAllTissue()) {
 			var declared = data.carriers().get(tissue.source(sourceId).profile().entityTypeId());
-			return declared == null || declared.isEmpty() ? tissue.source(sourceId).presentCubes()
+			cubes = declared == null || declared.isEmpty() ? tissue.source(sourceId).presentCubes()
 				: selectRoles(List.copyOf(declared.keySet()), data, tissue, sourceId);
+		} else {
+			cubes = selectRoles(carrier.roles(), data, tissue, sourceId);
+			// Fallback concerns original anatomy, not whether a mapped organ is still retained.
+			if (cubes.isEmpty()) cubes = selectRoles(carrier.fallback(), data, tissue, sourceId);
 		}
-		BitSet cubes = selectRoles(carrier.roles(), data, tissue, sourceId);
-		// A cut-off mapped gill must not fall back to an ordinary head. Fallback concerns the
-		// donor's original anatomy, so intersect with retained/installed tissue only afterwards.
-		return cubes.isEmpty() ? selectRoles(carrier.fallback(), data, tissue, sourceId) : cubes;
+		cubes.andNot(selectRoles(carrier.excluded(), data, tissue, sourceId));
+		return cubes;
 	}
 
 	private static BitSet selectRoles(List<BionicAnatomyRole> roles, BionicTraitData data,

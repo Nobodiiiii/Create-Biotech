@@ -54,6 +54,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
@@ -554,8 +555,35 @@ public final class SurgicalCapturedRenderPlan {
 		EntityRenderer<LivingEntity> renderer) {
 		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
 			return Map.of();
-		EntityModel<?> model = livingRenderer.getModel();
 		Map<ModelPart.Cube, Set<String>> result = new IdentityHashMap<>();
+		collectModelPartNames(livingRenderer.getModel(), result);
+		collectLayerModelNames(livingRenderer, result);
+		return result;
+	}
+
+	/** Independent layer models have their own head/body/limb parts, not just a material. */
+	private static void collectLayerModelNames(Object owner, Map<ModelPart.Cube, Set<String>> result) {
+		for (Class<?> type = owner.getClass(); type != null && type != Object.class; type = type.getSuperclass())
+			for (Field field : type.getDeclaredFields()) {
+				if (java.lang.reflect.Modifier.isStatic(field.getModifiers())
+					|| !(EntityModel.class.isAssignableFrom(field.getType())
+						|| Iterable.class.isAssignableFrom(field.getType())) || !field.trySetAccessible())
+					continue;
+				try {
+					Object value = field.get(owner);
+					if (value instanceof EntityModel<?> model)
+						collectModelPartNames(model, result);
+					else if (value instanceof Iterable<?> layers)
+						for (Object layer : layers)
+							if (layer instanceof RenderLayer<?, ?>)
+								collectLayerModelNames(layer, result);
+				} catch (IllegalAccessException ignored) {
+					// Inaccessible third-party layer models retain their material labels only.
+				}
+			}
+	}
+
+	private static void collectModelPartNames(EntityModel<?> model, Map<ModelPart.Cube, Set<String>> result) {
 		if (model instanceof HierarchicalModel<?> hierarchical)
 			collectPartNames(hierarchical.root(), "root", result);
 		for (Class<?> type = model.getClass(); type != null && type != Object.class;
@@ -572,7 +600,6 @@ public final class SurgicalCapturedRenderPlan {
 					// Other model libraries can keep their fields inaccessible.
 				}
 			}
-		return result;
 	}
 
 	private static void collectPartNames(ModelPart part, String name,
@@ -1840,10 +1867,12 @@ public final class SurgicalCapturedRenderPlan {
 		private void observeMaterial(RenderType renderType) {
 			if (primaryRenderType == null)
 				primaryRenderType = renderType;
-			// SheepFurLayer owns a separate model, so the main model's "body" label cannot
-			// identify its wool. Its native material labels every wool cube independently.
-			if (SHEEP_WOOL_TEXTURE.equals(renderTypeTexture(renderType)))
+			// Material identifies the full coat for sheared rendering. Only its anatomical
+			// body part supplies shearable wool; the head and leg coat is not an output organ.
+			if (SHEEP_WOOL_TEXTURE.equals(renderTypeTexture(renderType))) {
 				partNames.add("wool");
+				if (partNames.contains("body")) partNames.add("body_wool");
+			}
 		}
 
 		private void addVisibleBatch(RenderType renderType, List<CapturedVertex> vertices) {

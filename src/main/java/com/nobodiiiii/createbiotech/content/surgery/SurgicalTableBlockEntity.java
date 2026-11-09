@@ -2104,16 +2104,42 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	@Nullable
 	public SurgicalAssembly previewPackedAssembly(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
+		ComponentGroup group = previewPackedGroup(subjectId, cubeId, observedCubeCount, observedSeams);
+		if (group == null)
+			return null;
+		SurgicalSubject subject = getSubject(subjectId);
+		return packedAssembly(subject, group.components.get(subject.persistentId()), group,
+			jointsWithin(group), combinationsWithin(group), limbsWithin(group));
+	}
+
+	/** Assembly and membership from one connectivity traversal, for indexing a whole component's preview. */
+	@Nullable
+	public PackedAssemblyPreview previewPackedComponent(int subjectId, int cubeId, int observedCubeCount,
+		List<SurgicalAssembly.Seam> observedSeams) {
+		ComponentGroup group = previewPackedGroup(subjectId, cubeId, observedCubeCount, observedSeams);
+		if (group == null)
+			return null;
+		Map<Integer, BitSet> components = componentsBySubjectId(group);
+		// A shared preview needs a stable coordinate frame, independent of the first hovered subject.
+		int anchorId = components.keySet().stream().mapToInt(Integer::intValue).min().orElseThrow();
+		SurgicalSubject anchor = getSubject(anchorId);
+		SurgicalAssembly assembly = packedAssembly(anchor, group.components.get(anchor.persistentId()), group,
+			jointsWithin(group), combinationsWithin(group), limbsWithin(group));
+		return assembly == null ? null : new PackedAssemblyPreview(assembly, components);
+	}
+
+	public record PackedAssemblyPreview(SurgicalAssembly assembly, Map<Integer, BitSet> components) {}
+
+	@Nullable
+	private ComponentGroup previewPackedGroup(int subjectId, int cubeId, int observedCubeCount,
+		List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId))
 			return null;
 		ComponentGroup group = connectedGroup(subject, cubeId);
 		BitSet component = group.components.get(subject.persistentId());
-		if (component == null || component.isEmpty())
-			return null;
-		return packedAssembly(subject, component, group, jointsWithin(group), combinationsWithin(group),
-			limbsWithin(group));
+		return component == null || component.isEmpty() ? null : group;
 	}
 
 	@Nullable

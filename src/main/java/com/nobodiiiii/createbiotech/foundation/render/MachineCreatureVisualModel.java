@@ -28,7 +28,8 @@ public final class MachineCreatureVisualModel {
 			if (part.partial() == null)
 				continue;
 			instances.put(part, instancerProvider
-				.instancer(InstanceTypes.TRANSFORMED, Models.partial(part.partial()))
+				.instancer(InstanceTypes.TRANSFORMED, model.doubleSided()
+					? MachineCreatureRenderTypes.doubleSidedPartial(part.partial()) : Models.partial(part.partial()))
 				.createInstance());
 		}
 	}
