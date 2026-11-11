@@ -110,7 +110,7 @@ final class MachineCreatureModelData {
 	}
 
 	static MachineCreatureModels.ModelSpec frog() {
-		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("frog"), MachineCreatureModels.Layer.CUTOUT, List.of(
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("frog"), MachineCreatureModels.Layer.CUTOUT_NO_CULL, List.of(
 			new MachineCreatureModels.PartSpec("$root", null, "_root", 				0f, 24f, 0f, 0f, 0f, 0f, true, false, false, null),
 			new MachineCreatureModels.PartSpec("body", "$root", "body", 				0f, -2f, 4f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-3.5f, -2f, -8f, 3.5f, 1f, 1f)),
 			new MachineCreatureModels.PartSpec("body/head", "body", "body_head", 				0f, -2f, -1f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-3.5f, -1f, -7f, 3.5f, -1f, 2f)),
@@ -151,7 +151,7 @@ final class MachineCreatureModelData {
 	}
 
 	static MachineCreatureModels.ModelSpec salmon() {
-		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("salmon"), MachineCreatureModels.Layer.CUTOUT, List.of(
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("salmon"), MachineCreatureModels.Layer.CUTOUT_NO_CULL, List.of(
 			new MachineCreatureModels.PartSpec("$root", null, "root", 				0f, 0f, 0f, 0f, 0f, 0f, true, false, false, null),
 			new MachineCreatureModels.PartSpec("body_front", "$root", "body_front", 				0f, 20f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-1.5f, -2.5f, 0f, 1.5f, 2.5f, 8f)),
 			new MachineCreatureModels.PartSpec("body_front/top_front_fin", "body_front", "body_front_top_front_fin", 				0f, -4.5f, 5f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(0f, 0f, 0f, 0f, 2f, 3f)),
@@ -166,9 +166,8 @@ final class MachineCreatureModelData {
 	}
 
 	static MachineCreatureModels.ModelSpec shulker() {
-		// The player can stand inside the closed shell. Translucent is opaque for this texture,
-		// but uses a no-cull render state so the inner shell remains visible.
-		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("shulker"), MachineCreatureModels.Layer.TRANSLUCENT, List.of(
+		// The player can stand inside the closed shell; both render paths must show its inner faces.
+		return new MachineCreatureModels.ModelSpec(CreateBiotech.asResource("shulker"), MachineCreatureModels.Layer.TRANSLUCENT_NO_CULL, List.of(
 			new MachineCreatureModels.PartSpec("$root", null, "root", 				0f, 0f, 0f, 0f, 0f, 0f, true, false, false, null),
 			new MachineCreatureModels.PartSpec("lid", "$root", "lid", 				0f, 24f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-8f, -16f, -8f, 8f, -4f, 8f)),
 			new MachineCreatureModels.PartSpec("base", "$root", "base", 				0f, 24f, 0f, 0f, 0f, 0f, true, false, true, new MachineCreatureModels.Bounds(-8f, -8f, -8f, 8f, 0f, 8f))

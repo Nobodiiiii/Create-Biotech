@@ -27,7 +27,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalClientTopology;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
@@ -397,26 +396,27 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			}
 		SurgicalBodyBounds.Envelope visible = new SurgicalBodyBounds.Envelope(
 			bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ());
-		SurgicalAssembly.BodyBounds bodyBounds = SurgicalBodyBounds.measure(bodyCubes, allCubes, visible);
-		if (bodyBounds != null) {
-			double headCenterY = SlimeBionicAnimator.primaryHeadCenterY(assembly, sources);
-			if (Double.isFinite(headCenterY))
-				bodyBounds = bodyBounds.withEyeHeight(Math.max(0.0d, headCenterY - bounds.minY()));
-			SlimeBionicAnimator.MobilityMetrics mobility =
-				SlimeBionicAnimator.measureMobility(assembly, sources);
-			bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
-				mobility.groundedLegCount(), mobility.groundedKneeCount(), mobility.legVolumeRatio());
-			List<Map<Integer, List<Vec3>>> hitboxCubes = sources.stream()
-				.map(source -> source.boxes().entrySet().stream().collect(
-					java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,
-						entry -> entry.getValue().points())))
-				.toList();
-			SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(assembly,
-				hitboxCubes, visible, bodyBounds);
-			double bodyVolume = SurgicalVolumeSampler.unionVolume(allCubes);
-			if (hitboxGeometry != null)
-				entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry, bodyVolume);
-		}
+		SurgicalBodyBounds.Measurement bodyMeasurement = SurgicalBodyBounds.measureWithVolume(bodyCubes, allCubes, visible);
+		if (bodyMeasurement == null)
+			return null;
+		SurgicalAssembly.BodyBounds bodyBounds = bodyMeasurement.bounds();
+		double headCenterY = SlimeBionicAnimator.primaryHeadCenterY(assembly, sources);
+		if (Double.isFinite(headCenterY))
+			bodyBounds = bodyBounds.withEyeHeight(Math.max(0.0d, headCenterY - bounds.minY()));
+		SlimeBionicAnimator.MobilityMetrics mobility =
+			SlimeBionicAnimator.measureMobility(assembly, sources);
+		bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
+			mobility.groundedLegCount(), mobility.groundedKneeCount(), mobility.legVolumeRatio());
+		List<Map<Integer, List<Vec3>>> hitboxCubes = sources.stream()
+			.map(source -> source.boxes().entrySet().stream().collect(
+				java.util.stream.Collectors.toUnmodifiableMap(Map.Entry::getKey,
+					entry -> entry.getValue().points())))
+			.toList();
+		SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(assembly,
+			hitboxCubes, visible, bodyBounds);
+		double bodyVolume = bodyMeasurement.volume();
+		if (hitboxGeometry != null)
+			entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry, bodyVolume);
 		return bodyBounds;
 	}
 

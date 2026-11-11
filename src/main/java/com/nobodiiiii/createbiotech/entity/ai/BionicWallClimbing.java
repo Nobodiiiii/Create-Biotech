@@ -16,6 +16,7 @@ public final class BionicWallClimbing {
 	private final PathNavigation navigation;
 	@Nullable
 	private BlockPos pathToPosition;
+	private boolean hasMovementCommand;
 
 	public BionicWallClimbing(Mob mob, PathNavigation navigation) {
 		this.mob = mob;
@@ -38,9 +39,10 @@ public final class BionicWallClimbing {
 	public void setPath(@Nullable Path path) {
 		// Path creation is also used to probe destinations. Only an actual move request
 		// may replace the active climbing target.
-		if (path != null && canUse())
+		if (path != null && canUse()) {
 			pathToPosition = path.getTarget();
-		else
+			hasMovementCommand = true;
+		} else
 			stop();
 	}
 
@@ -53,8 +55,12 @@ public final class BionicWallClimbing {
 	}
 
 	private boolean moveTo(BlockPos target, @Nullable Path path, double speed) {
-		navigation.moveTo(path, speed);
+		// WallClimberNavigation does not submit a null path: that would cancel
+		// the airborne movement command before direct pursuit gets a chance to run.
+		if (path != null)
+			navigation.moveTo(path, speed);
 		pathToPosition = target.immutable();
+		hasMovementCommand = true;
 		navigation.setSpeedModifier(speed);
 		// Like WallClimberNavigation.moveTo(Entity), a missing ground path still
 		// leaves a usable direct pursuit command.
@@ -62,7 +68,7 @@ public final class BionicWallClimbing {
 	}
 
 	public void stop() {
-		if (pathToPosition != null) {
+		if (hasMovementCommand) {
 			// MoveControl may stay in JUMPING until landing. Clear its speed as well
 			// so cancelling a pursuit also stops an airborne climber's old command.
 			mob.getMoveControl().setWantedPosition(mob.getX(), mob.getY(), mob.getZ(), 0.0d);
@@ -71,6 +77,7 @@ public final class BionicWallClimbing {
 			mob.setZza(0.0f);
 		}
 		pathToPosition = null;
+		hasMovementCommand = false;
 	}
 
 	public void tick(double speed) {
@@ -85,7 +92,10 @@ public final class BionicWallClimbing {
 			|| mob.getY() > pathToPosition.getY()
 				&& BlockPos.containing(pathToPosition.getX(), mob.getY(), pathToPosition.getZ())
 					.closerToCenterThan(mob.position(), mob.getBbWidth())) {
-			stop();
+			// Vanilla only forgets the destination here. In particular, JUMPING
+			// retains its speed until landing and can keep pressing into the wall.
+			// Explicit cancellation still clears that command through stop().
+			pathToPosition = null;
 			return;
 		}
 		mob.getMoveControl().setWantedPosition(pathToPosition.getX(), pathToPosition.getY(),

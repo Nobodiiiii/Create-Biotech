@@ -108,7 +108,7 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ATTACK_EFFECT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.MOUTH, BionicAnatomyRole.SPINE, BionicAnatomyRole.ATTACK_HAND)),
 	SHELL_DEFENSE("shell_defense", BionicTraitScope.TORSO,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.SHELL_AND_BODY,
+		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.SHELL_AND_BODY,
 		Carrier.of(BionicAnatomyRole.SHELL, BionicAnatomyRole.TORSO)),
 	IMMUNE_EFFECTS("immune_effects", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.EFFECT_SET, Condition.NONE,

@@ -5575,10 +5575,11 @@ public final class SurgicalTableClientHandler {
 				if (!armCubes.contains(new SurgicalAssembly.CombinationMember(source, entry.getKey())))
 					bodyCubes.add(entry.getValue().points());
 			}
-		SurgicalAssembly.BodyBounds bodyBounds = SurgicalBodyBounds.measure(bodyCubes, allCubes,
+		SurgicalBodyBounds.Measurement bodyMeasurement = SurgicalBodyBounds.measureWithVolume(bodyCubes, allCubes,
 			measured.visible());
-		if (bodyBounds == null)
+		if (bodyMeasurement == null)
 			return null;
+		SurgicalAssembly.BodyBounds bodyBounds = bodyMeasurement.bounds();
 		SlimeBionicAnimator.MobilityMetrics mobility =
 			SlimeBionicAnimator.measureMobility(preview, measured.sources());
 		bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
@@ -5594,7 +5595,7 @@ public final class SurgicalTableClientHandler {
 			.toList();
 		SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(preview,
 			hitboxCubes, visible, bodyBounds);
-		double bodyVolume = SurgicalVolumeSampler.unionVolume(allCubes);
+		double bodyVolume = bodyMeasurement.volume();
 		if (hitboxGeometry == null
 			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return null;

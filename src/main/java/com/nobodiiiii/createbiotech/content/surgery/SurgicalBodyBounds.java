@@ -1,14 +1,13 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.world.phys.Vec3;
 
-/** Measures a stable horizontal collision core without allowing low-volume protrusions to dominate it. */
+/** Measures a stable collision core from the non-overlapping spatial volume distribution. */
 public final class SurgicalBodyBounds {
 	private static final double TAIL_FRACTION = 0.05d;
 	private static final double CENTRAL_FRACTION = 1.0d - TAIL_FRACTION * 2.0d;
@@ -25,10 +24,27 @@ public final class SurgicalBodyBounds {
 	@Nullable
 	public static SurgicalAssembly.BodyBounds measure(List<List<Vec3>> bodyCubes,
 		List<List<Vec3>> allCubes, @Nullable Envelope visibleEnvelope) {
-		List<CubeMass> all = cubes(allCubes);
+		return measure(bodyCubes, SurgicalVolumeSampler.prepare(allCubes), visibleEnvelope);
+	}
+
+	/** Shares cuboid preparation, and union samples when possible, with the health measurement. */
+	@Nullable
+	public static Measurement measureWithVolume(List<List<Vec3>> bodyCubes,
+		List<List<Vec3>> allCubes, @Nullable Envelope visibleEnvelope) {
+		var geometry = SurgicalVolumeSampler.prepare(allCubes);
+		SurgicalAssembly.BodyBounds bounds = measure(bodyCubes, geometry, visibleEnvelope);
+		return bounds == null ? null : new Measurement(bounds, geometry.union(false).volume());
+	}
+
+	public record Measurement(SurgicalAssembly.BodyBounds bounds, double volume) {}
+
+	@Nullable
+	private static SurgicalAssembly.BodyBounds measure(List<List<Vec3>> bodyCubes,
+		SurgicalVolumeSampler.PreparedGeometry geometry, @Nullable Envelope visibleEnvelope) {
+		List<CubeMass> all = cubes(geometry.cubes());
 		if (all.isEmpty())
 			return null;
-		List<CubeMass> body = cubes(bodyCubes);
+		List<CubeMass> body = cubes(geometry.select(bodyCubes));
 		if (body.isEmpty())
 			body = all;
 		Envelope rawEnvelope = Envelope.of(all);
@@ -42,6 +58,7 @@ public final class SurgicalBodyBounds {
 		Envelope reference = visibleEnvelope != null && visibleEnvelope.finite()
 			? visibleEnvelope.include(corners) : corners;
 		Envelope visible = reference.withMinimumSpans();
+		var distribution = geometry.collisionUnion(body.stream().map(CubeMass::box).toList());
 
 		double[] collisionMin = new double[3];
 		double[] collisionMax = new double[3];
@@ -53,8 +70,9 @@ public final class SurgicalBodyBounds {
 				coreMin = bodyEnvelope.min(axis);
 				coreMax = bodyEnvelope.max(axis);
 			} else {
-				double lower = quantile(body, axis, TAIL_FRACTION);
-				double upper = quantile(body, axis, 1.0d - TAIL_FRACTION);
+				double[] quantiles = distribution.quantiles(axis, TAIL_FRACTION, 1.0d - TAIL_FRACTION);
+				double lower = quantiles[0];
+				double upper = quantiles[1];
 				if (!Double.isFinite(lower) || !Double.isFinite(upper) || upper <= lower)
 					return null;
 				double center = (lower + upper) * 0.5d;
@@ -122,50 +140,16 @@ public final class SurgicalBodyBounds {
 		}
 	}
 
-	private static List<CubeMass> cubes(List<List<Vec3>> cubes) {
+	private static List<CubeMass> cubes(List<SurgicalVolumeSampler.Cuboid> cubes) {
 		if (cubes == null || cubes.isEmpty())
 			return List.of();
 		List<CubeMass> measured = new ArrayList<>(cubes.size());
-		for (List<Vec3> corners : cubes) {
-			CubeMass cube = CubeMass.of(corners);
+		for (SurgicalVolumeSampler.Cuboid cuboid : cubes) {
+			CubeMass cube = CubeMass.of(cuboid);
 			if (cube != null)
 				measured.add(cube);
 		}
 		return List.copyOf(measured);
-	}
-
-	/** Volume-weighted percentile of a mixture of uniform cuboid projections. */
-	private static double quantile(List<CubeMass> cubes, int axis, double fraction) {
-		double totalVolume = 0.0d;
-		List<Double> boundaries = new ArrayList<>(cubes.size() * 2);
-		for (CubeMass cube : cubes) {
-			totalVolume += cube.volume;
-			boundaries.add(cube.min[axis]);
-			boundaries.add(cube.max[axis]);
-		}
-		if (!(totalVolume > GEOMETRY_EPSILON))
-			return Double.NaN;
-		boundaries.sort(Comparator.naturalOrder());
-		double target = totalVolume * fraction;
-		double accumulated = 0.0d;
-		for (int index = 1; index < boundaries.size(); index++) {
-			double start = boundaries.get(index - 1);
-			double end = boundaries.get(index);
-			if (end - start <= GEOMETRY_EPSILON)
-				continue;
-			double midpoint = (start + end) * 0.5d;
-			double density = 0.0d;
-			for (CubeMass cube : cubes)
-				if (midpoint > cube.min[axis] && midpoint < cube.max[axis])
-					density += cube.volume / (cube.max[axis] - cube.min[axis]);
-			if (!(density > 0.0d))
-				continue;
-			double segmentMass = density * (end - start);
-			if (accumulated + segmentMass >= target)
-				return start + (target - accumulated) / density;
-			accumulated += segmentMass;
-		}
-		return boundaries.getLast();
 	}
 
 	/** Complete visible envelope in the same upright model frame as the cube corners. */
@@ -241,69 +225,18 @@ public final class SurgicalBodyBounds {
 	}
 
 	/**
-	 * One cube's volume weight and its axis spans, padded so no span is shorter than the minimum body
-	 * size, plus the unpadded bounds of its captured corners.
+	 * One cube's collision sampling box and axis spans, plus its unpadded visible envelope.
 	 */
-	private record CubeMass(double[] min, double[] max, double volume, Envelope corners) {
+	private record CubeMass(double[] min, double[] max, Envelope corners, SurgicalVolumeSampler.VolumeBox box) {
 		@Nullable
-		private static CubeMass of(List<Vec3> corners) {
-			if (corners == null || corners.size() != 8)
+		private static CubeMass of(SurgicalVolumeSampler.Cuboid cube) {
+			if (cube.collision() == null || cube.collision().volume() <= GEOMETRY_EPSILON)
 				return null;
-			double[] min = {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY,
-				Double.POSITIVE_INFINITY};
-			double[] max = {Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
-				Double.NEGATIVE_INFINITY};
-			for (Vec3 corner : corners) {
-				if (corner == null)
-					return null;
-				min[0] = Math.min(min[0], corner.x);
-				min[1] = Math.min(min[1], corner.y);
-				min[2] = Math.min(min[2], corner.z);
-				max[0] = Math.max(max[0], corner.x);
-				max[1] = Math.max(max[1], corner.y);
-				max[2] = Math.max(max[2], corner.z);
-			}
+			double[] min = cube.minimum().clone();
+			double[] max = cube.maximum().clone();
 			Envelope cornerBounds = new Envelope(min[0], min[1], min[2], max[0], max[1], max[2]);
-			// A sheet thinner than the minimum body size weighs and spans like one exactly that thick,
-			// whether it is flat or only nudged off zero by a CubeDeformation (axolotl gills and legs).
-			double volume = orientedVolume(corners);
-			double sheetVolume = orientedArea(corners) * SurgicalAssembly.MIN_BODY_SIZE;
-			if (!(volume >= sheetVolume)) {
-				if (!(sheetVolume > GEOMETRY_EPSILON))
-					return null;
-				volume = sheetVolume;
-			}
 			ensureMinimumSpans(min, max);
-			double axisVolume = (max[0] - min[0]) * (max[1] - min[1]) * (max[2] - min[2]);
-			if (!Double.isFinite(axisVolume) || axisVolume <= GEOMETRY_EPSILON)
-				return null;
-			volume = Math.min(volume, axisVolume);
-			return Double.isFinite(volume) && volume > GEOMETRY_EPSILON
-				? new CubeMass(min, max, volume, cornerBounds) : null;
-		}
-
-		/** Capture orders corners by x, then y, then z, so 1, 2 and 4 are the three box edges. */
-		private static double orientedVolume(List<Vec3> corners) {
-			Vec3 origin = corners.getFirst();
-			Vec3 xEdge = corners.get(1).subtract(origin);
-			Vec3 yEdge = corners.get(2).subtract(origin);
-			Vec3 zEdge = corners.get(4).subtract(origin);
-			return Math.abs(xEdge.dot(yEdge.cross(zEdge)));
-		}
-
-		/** Largest real face area; a flat ModelPart has two non-zero edges and one zero edge. */
-		private static double orientedArea(List<Vec3> corners) {
-			Vec3 origin = corners.getFirst();
-			Vec3[] edges = {
-				corners.get(1).subtract(origin),
-				corners.get(2).subtract(origin),
-				corners.get(4).subtract(origin)
-			};
-			double area = 0.0d;
-			for (int first = 0; first < edges.length; first++)
-				for (int second = first + 1; second < edges.length; second++)
-					area = Math.max(area, edges[first].cross(edges[second]).length());
-			return area;
+			return new CubeMass(min, max, cornerBounds, cube.collision());
 		}
 	}
 }

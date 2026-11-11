@@ -131,7 +131,7 @@ public final class MachineCreatureModels {
 		RenderType renderType() {
 			return switch (this) {
 			case CUTOUT -> RenderType.cutout();
-			case TRANSLUCENT -> RenderType.translucent();
+			case TRANSLUCENT -> MachineCreatureRenderTypes.TRANSLUCENT;
 			case CUTOUT_NO_CULL -> MachineCreatureRenderTypes.CUTOUT_NO_CULL;
 			case TRANSLUCENT_NO_CULL -> MachineCreatureRenderTypes.TRANSLUCENT_NO_CULL;
 			};

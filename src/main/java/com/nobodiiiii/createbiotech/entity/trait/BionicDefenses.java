@@ -94,7 +94,7 @@ public final class BionicDefenses {
 		}
 	}
 
-	private static boolean randomTeleport(SlimeBionicEntity mob, int radius) {
+	static boolean randomTeleport(SlimeBionicEntity mob, int radius) {
 		return teleport(mob, mob.getX() + (mob.getRandom().nextDouble() - 0.5) * radius * 2,
 			mob.getY() + mob.getRandom().nextInt(radius * 2) - radius,
 			mob.getZ() + (mob.getRandom().nextDouble() - 0.5) * radius * 2);
@@ -102,7 +102,7 @@ public final class BionicDefenses {
 
 	private static boolean teleport(SlimeBionicEntity mob, double x, double y, double z) {
 		if (!(mob.level() instanceof ServerLevel level) || !mob.isAlive()) return false;
-		boolean attaching = mob.getBlockAttachment().locksMovement();
+		boolean attaching = mob.getBlockAttachment().canAttach();
 		if (!attaching) {
 			BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos(x, y, z);
 			while (support.getY() > mob.level().getMinBuildHeight() && !mob.level().getBlockState(support).blocksMotion()) support.move(Direction.DOWN);

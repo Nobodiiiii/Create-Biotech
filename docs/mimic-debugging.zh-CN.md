@@ -37,6 +37,35 @@
 
 报告仅采集服务端已有数据，不包含客户端渲染截图或运行时渲染模型。诊断报告会持续保留，可在排查结束后手动清理。
 
+## 蜘蛛攀墙攻击高处目标后掉落
+
+本次首份蜘蛛报告采集于 2026-11-11 23:39:23（北京时间，`captured_at_utc` 为
+`2026-11-11T15:39:23.371477200Z`），实体 UUID 为 `b2b7dbb7-f3dc-4593-b35a-9ea1b4bdbade`。
+报告紧接日志中 23:38–23:39 的攻击目标选择操作；目录里更早的报告属于其他装配体，不作为本次依据。
+该蜘蛛的 `wall_climb` 已生效，覆盖率为 1，两条有效腿均为蜘蛛腿，智力为 `normal`，没有飞行或游泳能力。
+采样时 `OnGround:1b`，报告不包含连续轨迹、攻击动作或导航历史，不能据此确定下落发生在哪个 tick。
+
+代码对照发现两个中断点：`BionicWallClimbing.tick` 原先在正常抵达时调用 `stop()`，将移动控制器速度及输入清零；
+`BionicAttackGoal` 与 `SlimeBionicMoveControl` 又会在普通智力攻击期间停止导航和移动。
+原版 [WallClimberNavigation.tick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java)
+正常抵达时只清除目标，保留 [MoveControl](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/control/MoveControl.java)
+尚未落地的 `JUMPING` 输入；[SpiderAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Spider.java)
+也不要求地面路径持续存在。贴墙移动被清零后，碰墙状态无法持续维持，攀爬上升随之中断，重力使身体下落。
+
+修正将正常抵达与主动取消分开，无地面路径时也不再提交空路径清零旧指令；
+追击可在路径结束后保持运行，空中贴墙攻击保留移动输入。
+主动取消或失去攀墙能力仍清除移动指令；落地或离墙后的攻击停步规则照常生效。
+
+## 吸附潜影贝受伤后不缩壳
+
+2026-11-11 23:32:56（北京时间，报告 UTC 时间为 `15:32:56.193892600Z`）的潜影贝装配体
+缩壳特性有效，受伤防御计时 `BionicShellGuard` 尚余 69 tick，却仍处于 `idle`。
+报告同时记录已向下吸附、`OnGround:0b`：吸附定位不经过普通落地碰撞，原先仅接受 `onGround()`
+的缩壳起始条件因此始终不成立。
+
+缩壳流程已移除 `onGround()` 判定，空中受伤同样可以进入缩壳，不要求地面或方块吸附支撑。
+修正位于 `SlimeBionicEntity.tickShellDefense`，不改变原版潜影贝开合动画。
+
 ## 倾斜潜影贝未旋转
 
 2026-11-11 18:57:55 和 18:58:04（北京时间，报告 UTC 时间分别为 `10:57:55.153622300Z` 和
@@ -51,9 +80,12 @@
 吸附时的眼部位置优先读取保留头部的三维中心，缺头时回退到身体眼高，再应用整体吸附旋转。
 F3+B 自行构造 `(0, eyeHeight, 0)`，不调用实体眼部坐标；因此单独修正蓝线起点与红色眼平面，
 并使实体眼部坐标、视线向量和窒息采样使用同一头部位置及旋转。
-支撑消失后参照 [Shulker.findNewAttachment / teleportSomewhere](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java)：
-先尝试当前吸附格的其他五个方向，均无支撑时每轮随机尝试八格范围内的五个落点；成功后重新对齐底座，
-未成功则下一 tick 继续。传送遵守 NeoForge 事件取消及目标重定向，并重新检查最终支撑，仍允许身体嵌入方块。
+依附面失效时，有末影瞬移特性则立即调用一次现有 ±32 格随机瞬移流程，不先尝试原地换面；
+传送遵守 NeoForge 事件取消及目标重定向，落点重新检查六面支撑，成功后播放两端粒子并对齐底座。
+无末影瞬移特性时，方块吸附不再自行传送，而是立即解除移动、重力、推挤、击退和整体朝向限制，
+逐 tick 检测底座接触点一格内最近的有效表面，找到后重新吸附。传送失败或取消也会解除限制，下一 tick 恢复附近检测，
+不会因同一次失去支撑而每 tick 重复传送。六面支撑仍参照
+[Shulker.canStayAt / findAttachableSurface](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java)，允许身体嵌入方块。
 
 ## 鞍座与玩家位置不一致
 

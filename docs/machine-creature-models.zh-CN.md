@@ -87,4 +87,8 @@ GUI 调用流程参考 `ref/1.21.1/Ponder/common/src/main/java/net/createmod/cat
 
 悦灵的物流帽统一使用 `machine_creature/allay_hat/hat.json`。帽子在 JSON 中固定偏移、缩放和倾角，挂在头部局部坐标系下；驿站、驿站物品、手持快递员及飞行快递员共用该零件，不再按头部包围盒或 `TrainHatInfo` 动态计算尺寸。驿站开启 Flywheel 时帽子也实例化，普通回退不会重复绘制。帽子引用本地 Create 6.0.10 的标准模型 `ref/1.21.1/Create/src/main/resources/assets/create/models/entity/logistics_hat.json`。
 
-悦灵翅膀是零厚度面，鸡脚依赖带透明区域的面从两侧显示。它们共用的 JSON 模型分别使用双面的半透明、裁切材质，避免普通方块材质的背面剔除导致部件随观察角度消失。物品与 JEI 通过 `MachineCreatureRenderTypes` 使用方块图集及方块顶点格式绘制；Flywheel 的对应零件也关闭材质背面剔除。几何体、UV 和物品摆放不变，不再调用实体渲染器。双面材质行为核对自本地 Minecraft 1.21.1 的 `AllayModel.java`、`LivingEntityRenderer.java` 和 `RenderType.java`；Flywheel 材质构建参考本地 Create 6.0.10 的 `foundation/render/SpecialModels.java`，并核对项目锁定的 Flywheel 1.0.6 源码包。
+悦灵翅膀、巨蛙的手脚和舌头等薄片、鲑鱼鱼鳍，以及带透明区域的鸡脚需要双面显示。它们在普通渲染和 Flywheel 中均关闭背面剔除；潜影传送器的壳体也显式使用双面材质，让站在内部的玩家能看到内壁。几何体、UV 和物品摆放保持不变。
+
+双面材质还必须正确丢弃透明像素。原版悦灵翅膀的东西两面使用不同 UV，其中一面的采样区域完全透明。普通方块半透明着色器不执行 alpha discard，透明面仍会写入深度，可能挡住另一面的翅膀，或让思索中稍后绘制的背景留下黑色空洞。`MachineCreatureRenderTypes` 的半透明回退因此使用裁切着色器配合半透明混合：alpha 小于 `0.1` 的像素不写颜色或深度，其余像素保留原本的透明度。该层继续使用方块图集、`BLOCK` 顶点格式和主渲染目标，适用于世界、物品、JEI 与思索。Flywheel 的所有半透明生物零件也设置 `CutoutShaders.ONE_TENTH` 并关闭 mipmap，不能只关闭背面剔除。
+
+双面和 alpha discard 行为核对自本地 Minecraft 1.21.1 的 `AllayModel.java`、`HierarchicalModel.java` 和 `RenderType.java`，以及缓存的官方 1.21.1 客户端中 `rendertype_translucent.fsh`、`rendertype_entity_translucent.fsh`、`rendertype_cutout.fsh` 和悦灵纹理。Flywheel 材质构建参考本地 Create 6.0.10 的 `foundation/render/SpecialModels.java`，并核对项目锁定的 Flywheel 1.0.6 源码包中的 `Materials`、`ModelUtil` 和 `BakedModelBuilder`。

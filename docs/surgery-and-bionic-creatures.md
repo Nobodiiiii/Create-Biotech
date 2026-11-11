@@ -63,6 +63,8 @@ Joints adjust their animation to the shape you actually built.
 
 Maximum health follows the final model's non-overlapping volume, with diminishing gains as the body grows. Movement and attacks follow the final shape and working joints; donor stats are not inherited.
 
+The collision core's horizontal position and width also follow the volume distribution after removing overlap. Duplicate or fully enclosed cubes do not add weight at their location. Arms are excluded from the core, height retains the complete span of non-arm cubes, and thin sheets retain a minimum thickness for collision weighting. Collision-core and health-volume measurements share cuboid preparation and reuse union samples when their selected cubes and thickness rules match.
+
 This part is still unfinished; suggestions are welcome in the comments on the mod and the videos.
 
 ### Reading the Stats

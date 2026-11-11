@@ -122,7 +122,8 @@ public final class SurgicalShellAnimations {
 				armadillo.inStateTicks++;
 			} else if (entity instanceof Shulker shulker) {
 				ArmadilloState state = owner.getShellState();
-				shulker.setRawPeekAmount(state == ArmadilloState.ROLLING || state == ArmadilloState.SCARED ? 0 : 100);
+				// Native idle peek: staying within 0..0.3 also keeps ShulkerModel's breathing branch inactive.
+				shulker.setRawPeekAmount(state == ArmadilloState.ROLLING || state == ArmadilloState.SCARED ? 0 : 30);
 				// Native tick endpoints; ShulkerModel reads getClientPeekAmount(partialTick) itself.
 				shulker.updatePeekAmount();
 			}

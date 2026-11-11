@@ -20,18 +20,13 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Mth;
-import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.event.EventHooks;
 
 /** Six-face support and fixed velocity, following ref/1.21.1/Minecraft/.../monster/Shulker.java.
  * The ordinary bionic collision contract is retained: this entity never becomes a solid block.
  */
 public final class BionicBlockAttachment {
-	private static final Vec3 DOWN = new Vec3(0, -1, 0);
 	private static final Comparator<SurgicalAssembly.CombinationMember> ORDER = Comparator
 		.comparingInt(SurgicalAssembly.CombinationMember::source)
 		.thenComparingInt(SurgicalAssembly.CombinationMember::cube);
@@ -44,8 +39,12 @@ public final class BionicBlockAttachment {
 
 	public BionicBlockAttachment(SlimeBionicEntity entity) { this.entity = entity; }
 
-	public boolean locksMovement() {
+	public boolean canAttach() {
 		return !entity.isPassenger() && entity.getBionicTraits().has(BionicTrait.BLOCK_ATTACHMENT);
+	}
+
+	public boolean locksMovement() {
+		return canAttach() && entity.getBlockAttachmentCell() != null;
 	}
 
 	@Nullable public SurgicalAssembly.CombinationMember carrier() {
@@ -143,71 +142,58 @@ public final class BionicBlockAttachment {
 			return;
 		}
 		Anchor selected = anchor();
-		if (!locksMovement() || selected == null) {
+		if (!canAttach() || selected == null) {
 			entity.setBlockAttachment(null, Direction.DOWN);
 			return;
 		}
 		BlockPos cell = entity.getBlockAttachmentCell();
+		Direction face = entity.getBlockAttachmentFace();
 		// Explicit teleports may move the creature; ordinary movement is suppressed separately.
 		// Compare even on the first tick: releasing a paper box relocates a saved entity.
-		if (cell != null && entity.position().distanceToSqr(position(cell, entity.getBlockAttachmentFace(),
-			selected, rotation(selected, entity.getBlockAttachmentFace()))) > 1.0e-6)
+		if (cell != null && entity.position().distanceToSqr(position(cell, face,
+			selected, rotation(selected, face))) > 1.0e-6) {
+			entity.setBlockAttachment(null, Direction.DOWN);
 			cell = null;
-		if (cell == null) {
-			Vec3 down = selected.rest().rotate(DOWN).yRot(-entity.yBodyRot * (float) Math.PI / 180);
-			Vec3 point = entity.position().add(selected.point().yRot(-entity.yBodyRot * (float) Math.PI / 180));
-			cell = BlockPos.containing(point.subtract(down.scale(1.0e-4)));
 		}
-		Direction face = findFace(cell, entity.getBlockAttachmentFace(), selected);
-		if (face != null) attach(cell, face, selected);
-		else if (!findNewAttachment(cell, selected)) {
-			// Like Shulker.tick, retry on the next tick if all nearby attempts fail.
-			if (entity.getBlockAttachmentCell() == null || !entity.getBlockAttachmentCell().equals(cell))
-				entity.setBlockAttachment(null, Direction.DOWN);
+		if (cell != null && canStay(cell, face, selected)) {
+			attach(cell, face, selected);
+		} else {
+			Vec3 point = entity.position().add(cell == null
+				? selected.point().yRot(-entity.yBodyRot * (float) Math.PI / 180)
+				: rotation(selected, face).rotate(selected.point()));
+			entity.setBlockAttachment(null, Direction.DOWN);
+			if (cell != null && entity.getBionicTraits().has(BionicTrait.ENDER_TELEPORT)) {
+				// One activation per lost support, sharing ender events, particles and landing rules.
+				// A failed/cancelled teleport leaves movement free and nearby detection resumes next tick.
+				BionicDefenses.randomTeleport(entity, 32);
+			} else {
+				findNearbyAttachment(point, selected);
+			}
 		}
+		if (!locksMovement()) return;
 		entity.setDeltaMovement(Vec3.ZERO);
 		entity.getNavigation().stop();
 		entity.resetFallDistance();
 		entity.lockBlockAttachmentRotation();
 	}
 
-	/** Shulker.findNewAttachment / teleportSomewhere: try another local face first (above),
-	 * then five nearby cells within eight blocks. Body/block overlap remains allowed. */
-	private boolean findNewAttachment(BlockPos origin, Anchor selected) {
-		if (entity.isNoAi() || !entity.isAlive()) return false;
-		var level = entity.level();
-		var random = entity.getRandom();
-		for (int attempt = 0; attempt < 5; attempt++) {
-			BlockPos cell = origin.offset(Mth.randomBetweenInclusive(random, -8, 8),
-				Mth.randomBetweenInclusive(random, -8, 8), Mth.randomBetweenInclusive(random, -8, 8));
-			if (!isTeleportCell(cell)) continue;
-			Direction face = findFace(cell, Direction.DOWN, selected);
-			if (face == null) continue;
-			var event = EventHooks.onEnderTeleport(entity, cell.getX(), cell.getY(), cell.getZ());
-			if (event.isCanceled() || !Double.isFinite(event.getTargetX())
-				|| !Double.isFinite(event.getTargetY()) || !Double.isFinite(event.getTargetZ())) continue;
-			cell = BlockPos.containing(event.getTargetX(), event.getTargetY(), event.getTargetZ());
-			// An event may move the destination; validate the actual support and orientation again.
-			if (!isTeleportCell(cell)) continue;
-			face = findFace(cell, face, selected);
-			if (face == null) continue;
-			Vec3 previous = entity.position();
-			entity.unRide();
-			attach(cell, face, selected);
-			entity.hasImpulse = true;
-			entity.setTarget(null);
-			entity.playSound(SoundEvents.SHULKER_TELEPORT, 1, 1);
-			level.gameEvent(GameEvent.TELEPORT, previous, GameEvent.Context.of(entity));
-			return true;
+	/** Reacquire the nearest six-face support within one block of the actual base contact point. */
+	private void findNearbyAttachment(Vec3 point, Anchor selected) {
+		BlockPos origin = BlockPos.containing(point);
+		BlockPos nearest = null;
+		Direction nearestFace = Direction.DOWN;
+		double nearestDistance = 1.0 + 1.0e-6;
+		for (BlockPos cell : BlockPos.betweenClosed(origin.offset(-1, -1, -1), origin.offset(1, 1, 1))) {
+			for (Direction face : Direction.values()) {
+				Vec3 contact = Vec3.atCenterOf(cell).add(Vec3.atLowerCornerOf(face.getNormal()).scale(0.5));
+				double distance = contact.distanceToSqr(point);
+				if (distance >= nearestDistance || !canStay(cell, face, selected)) continue;
+				nearest = cell.immutable();
+				nearestFace = face;
+				nearestDistance = distance;
+			}
 		}
-		return false;
-	}
-
-	private boolean isTeleportCell(BlockPos cell) {
-		var level = entity.level();
-		// Match the shulker's empty destination cell without rejecting the rotated body's overlap.
-		return level.isInWorldBounds(cell) && level.hasChunk(cell.getX() >> 4, cell.getZ() >> 4)
-			&& level.isEmptyBlock(cell);
+		if (nearest != null) attach(nearest, nearestFace, selected);
 	}
 
 	@Nullable private Direction findFace(BlockPos cell, Direction preferred, Anchor selected) {

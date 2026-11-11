@@ -575,8 +575,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public boolean canAttack(LivingEntity target) {
 		if (!super.canAttack(target) || isAlliedTo(target))
 			return false;
-		if (shellGuardTicks > 0 && getBionicTraits().has(BionicTrait.SHELL_DEFENSE)
-			|| orderedToSit)
+		if (orderedToSit)
 			return false;
 		// As in vanilla, natural target selection supplies disposition rules. Once a target has
 		// been assigned, combat does not require it to be prey or the last creature to hurt us.
@@ -950,6 +949,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return getBionicTraits().has(BionicTrait.WALL_CLIMB) && !isSwimming() && !hasFlightLocomotion();
 	}
 
+	/** Airborne climbers need wall pressure even while a melee action is playing. */
+	public boolean shouldPauseAttackMovement() {
+		if (canUseWallClimbing() && isClimbing() && !onGround())
+			return false;
+		return !getIntelligence().pursuesDuringAttack();
+	}
+
 	@Override
 	public void travel(Vec3 movement) {
 		if (blockAttachment.locksMovement()) {
@@ -959,8 +965,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		if (isSwimming())
 			movement = movement.scale(1.35d);
-		if (isShiftKeyDown() && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
+		if (isShiftKeyDown() && getBionicTraits().has(BionicTrait.SHELL_DEFENSE)) {
 			movement = Vec3.ZERO;
+			setJumping(false);
+			setDeltaMovement(0, Math.min(0, getDeltaMovement().y), 0);
+		}
 		if (hasFlightLocomotion()) {
 			if (isControlledByLocalInstance()) {
 				Vec3 input;
@@ -1019,7 +1028,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		amount = BionicDefenses.damage(this, source, amount);
 		if (isShiftKeyDown() && traits.has(BionicTrait.SHELL_DEFENSE))
-			amount = (amount - 1.0f) / 2.0f;
+			amount *= (float) (1.0d - traits.strength(BionicTrait.SHELL_DEFENSE));
 		if (source.is(DamageTypeTags.IS_FIRE)) {
 			double resistance = traits.strength(BionicTrait.FIRE_RESISTANCE);
 			if (traits.hasFullEffect(BionicTrait.FIRE_IMMUNE))
@@ -1039,10 +1048,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			attacker.hurt(damageSources().thorns(this), 2.0f);
 		boolean hurt = super.hurt(source, amount);
 		if (hurt) BionicDefenses.afterHurt(this, source);
-		if (hurt && traits.has(BionicTrait.SHELL_DEFENSE) && !isNoAi()) {
-			if (source.getEntity() instanceof LivingEntity) shellGuardTicks = 80;
-			else if (source.is(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)) shellGuardTicks = 0;
-		}
+		if (hurt && traits.has(BionicTrait.SHELL_DEFENSE) && !isNoAi())
+			shellGuardTicks = Math.clamp((int) traits.parameter(BionicTrait.SHELL_DEFENSE, "duration_ticks", 80), 0, 12000);
 
 		return hurt;
 	}
@@ -1351,7 +1358,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		updateHitParts();
 	}
 
-	/** Armadillo.isScaredBy and ArmadilloBallUp, adapted to an assembled body. */
+	/** Native armadillo roll states, triggered only by damage to the assembled body. */
 	private void tickShellDefense() {
 		var idle = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE;
 		var rolling = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.ROLLING;
@@ -1359,30 +1366,25 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		var unrolling = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.UNROLLING;
 		boolean enabled = getBionicTraits().has(BionicTrait.SHELL_DEFENSE) && !isNoAi() && isAlive();
 		boolean allowed = enabled && !isInLiquid() && !isLeashed() && !isPassenger() && !isVehicle();
-		if (allowed && tickCount % 5 == 0 && !level().getEntitiesOfClass(LivingEntity.class,
-			getBoundingBox().inflate(7, 2, 7), other -> other != this && other.isAlive() && !isAlliedTo(other)
-				&& hasLineOfSight(other) && (other.getType().is(net.minecraft.tags.EntityTypeTags.UNDEAD)
-					|| other == getLastHurtByMob() || other instanceof Player player && !player.isSpectator()
-					&& (player.isSprinting() || player.isPassenger()))).isEmpty()) shellGuardTicks = 80;
 		if (shellGuardTicks > 0) shellGuardTicks--;
 		if (shellPeekTicks > 0) shellPeekTicks--;
 		boolean dangerAround = shellGuardTicks > 75;
 		if (dangerAround != shellDangerWasAround) shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
 		shellDangerWasAround = dangerAround;
-		if (shellState == scared && shellPeekTicks == 0 && onGround() && dangerAround) {
+		if (shellState == scared && shellPeekTicks == 0 && dangerAround) {
 			level().broadcastEntityEvent(this, (byte) 64);
 			shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
 		}
 		var next = shellState;
 		if (!allowed || shellGuardTicks == 0) next = idle;
-		else if (shellState == idle && onGround()) next = rolling;
+		else if (shellState == idle) next = rolling;
 		else if (shellState == rolling && shellStateTicks > rolling.animationDuration()) next = scared;
 		else if (shellState == scared && shellGuardTicks < unrolling.animationDuration()) next = unrolling;
 		else if (shellState == unrolling && shellGuardTicks > unrolling.animationDuration()) next = scared;
 		if (next != shellState) {
 			if (next == rolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_ROLL);
 			if (next == unrolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_UNROLL_START);
-			if (next == scared && shellState == rolling && onGround()) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_LAND);
+			if (next == scared && shellState == rolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_LAND);
 			if (next == idle && shellState != idle) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_UNROLL_FINISH);
 			shellState = next; shellStateTicks = 0;
 		} else shellStateTicks++;
@@ -2330,7 +2332,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return validTarget(target) && bionic.isWithinRestriction(target.blockPosition())
 				&& (pendingAttackTarget == target || bionic.isWithinMeleeAttackRange(target)
 					|| bionic.vibrationSense.lastHeardPosition(target) != null
-					|| BionicWallClimbing.isInProgress(bionic.getNavigation()) || super.canContinueToUse());
+					// SpiderAttackGoal keeps pursuing a valid target after its ground path ends.
+					|| bionic.canUseWallClimbing() || super.canContinueToUse());
 		}
 
 		@Override
@@ -2481,7 +2484,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			super.tick();
 			if (bionic.isSwimming())
 				bionic.getNavigation().setSpeedModifier(SWIMMING_PURSUIT_SPEED);
-			if (pendingAttackTarget != null && !bionic.getIntelligence().pursuesDuringAttack())
+			if (pendingAttackTarget != null && bionic.shouldPauseAttackMovement())
 				bionic.getNavigation().stop();
 			raiseArmTicks++;
 			bionic.setAggressive(pendingAttackTarget != null

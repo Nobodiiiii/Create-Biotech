@@ -88,6 +88,17 @@ final class BionicTraitConditions {
 			return result.missingRequiredParts(missing.stream().distinct()
 				.sorted(java.util.Comparator.<List<MissingPart>>comparingInt(List::size)
 					.thenComparing(Object::toString)).toList());
+		if (trait == BionicTrait.SHELL_DEFENSE) {
+			// Incomplete shell/body pairs cannot inflate another donor's damage reduction.
+			double total = 0;
+			// Sum all retained cube volumes, including overlapping tissue, just like other trait ratios.
+			for (int source = 0; source < tissue.sourceCount(); source++)
+				total += tissue.weight(source, tissue.source(source).presentCubes());
+			double coverage = total > 0 ? tissue.weight(complete) / total : 0;
+			InactiveReason reason = data.rule().isActive(true, coverage) ? null : InactiveReason.INSUFFICIENT_COVERAGE;
+			return new BionicTraitResult(coverage, data.rule().strength(true, coverage), result.value(),
+				result.immuneEffects(), complete, reason).withDisplayEntries(result.displayEntries());
+		}
 		return new BionicTraitResult(result.coverage(), result.strength(), result.value(), result.immuneEffects(), complete, null)
 			.withDisplayEntries(result.displayEntries());
 	}

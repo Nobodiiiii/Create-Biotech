@@ -1,8 +1,7 @@
 {
   "automatic_detection": false,
   "parameters": {
-    "duration_ticks": 80,
-    "damage_multiplier": 0.5
+    "duration_ticks": 80
   },
   "values": {
     "minecraft:shulker": true,

@@ -10,7 +10,6 @@ import dev.engine_room.flywheel.api.instance.Instance;
 import dev.engine_room.flywheel.api.instance.InstancerProvider;
 import dev.engine_room.flywheel.lib.instance.InstanceTypes;
 import dev.engine_room.flywheel.lib.instance.TransformedInstance;
-import dev.engine_room.flywheel.lib.model.Models;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 
 /** Flywheel instances for every baked block-model part in one creature pose. */
@@ -28,8 +27,8 @@ public final class MachineCreatureVisualModel {
 			if (part.partial() == null)
 				continue;
 			instances.put(part, instancerProvider
-				.instancer(InstanceTypes.TRANSFORMED, model.doubleSided()
-					? MachineCreatureRenderTypes.doubleSidedPartial(part.partial()) : Models.partial(part.partial()))
+				.instancer(InstanceTypes.TRANSFORMED,
+					MachineCreatureRenderTypes.partial(part.partial(), model.doubleSided()))
 				.createInstance());
 		}
 	}
