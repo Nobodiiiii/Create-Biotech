@@ -172,13 +172,17 @@ public final class SurgicalCapturedRenderPlan {
 		List<Component> bound = new ArrayList<>(appearance.components.size());
 		for (Component visual : appearance.components) {
 			Component owner = originalCubes.getOrDefault(GeometryKey.of(visual.corners), List.of()).stream()
-				.filter(candidate -> !matched.contains(candidate)).findFirst().orElse(null);
+				.filter(candidate -> !matched.contains(candidate))
+				.filter(candidate -> !matchParts || candidate.partNames.equals(visual.partNames))
+				.findFirst().orElse(null);
 			if (owner == null && matchParts) {
 				owner = components.stream().filter(candidate -> !matched.contains(candidate))
 					.filter(candidate -> visual.partNames.contains("rolled_shell")
 						? candidate.partNames.contains("outer_shell")
 						: visual.partNames.stream().anyMatch(name -> !name.equals("root") && candidate.partNames.contains(name)))
-					.min(Comparator.comparingDouble(candidate -> visual.center().distanceSquared(candidate.center()))).orElse(null);
+					// Moving parts retain their anatomical ids even when another cube is now closer.
+					.min(Comparator.comparing((Component candidate) -> !candidate.partNames.equals(visual.partNames))
+						.thenComparingDouble(candidate -> visual.center().distanceSquared(candidate.center()))).orElse(null);
 				// A state must never introduce organs which were absent from the original capture.
 				if (owner == null) continue;
 			}

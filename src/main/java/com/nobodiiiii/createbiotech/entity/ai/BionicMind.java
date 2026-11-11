@@ -22,7 +22,7 @@ import net.minecraft.world.level.Level;
 public record BionicMind(BionicDisposition disposition, BionicIntelligence intelligence,
 	int recognizedHeadCount) {
 	public static final BionicMind FALLBACK =
-		new BionicMind(BionicDisposition.NEUTRAL, BionicIntelligence.NORMAL, 0);
+		new BionicMind(BionicDisposition.NEUTRAL, BionicIntelligence.SIMPLE, 0);
 
 	public BionicMind {
 		if (disposition == null || intelligence == null || recognizedHeadCount < 0)

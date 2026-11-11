@@ -13,9 +13,7 @@
       "SHELL": [
         "lid"
       ],
-      "TORSO": [
-        "base"
-      ]
+      "TORSO": []
     },
     "minecraft:armadillo": {
       "SHELL": [

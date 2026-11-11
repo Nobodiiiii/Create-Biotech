@@ -412,6 +412,8 @@ public final class SlimeBionicAnimator {
 		Vec3 pivot = bodyPivot(limbs, sources);
 		Transform bodyTransform = swimTransform.rotateAround(swimTransform.apply(pivot),
 			conjugate(swimTransform.rotation(), bodyRotation));
+		boolean anchored = entity.getBlockAttachment().locksMovement();
+		var anchorCarrier = anchored ? entity.getBlockAttachment().carrier() : null;
 		if (entity.isVehicle()) {
 			var carrier = entity.getBionicEquipment().saddleCarrier();
 			CubeBox seatBox = carrier == null ? null : box(sources, new Member(carrier.source(), carrier.cube()));
@@ -422,6 +424,7 @@ public final class SlimeBionicAnimator {
 				bodyTransform = swimTransform;
 			}
 		}
+		if (anchored) bodyTransform = swimTransform = Transform.IDENTITY;
 		if (!bodyTransform.isIdentity() || !swimTransform.isIdentity()) {
 			Set<Member> legMembers = legMembers(limbs);
 			for (int source = 0; source < sources.size(); source++)
@@ -437,6 +440,9 @@ public final class SlimeBionicAnimator {
 		Set<SurgicalAssembly.CombinationMember> wingMembers = entity.getBionicTraits().wingMembers();
 		for (int limbIndex = 0; limbIndex < limbs.size(); limbIndex++) {
 			ResolvedLimb limb = limbs.get(limbIndex);
+			// A base remains rigid even if it was installed in an animated arm, head or leg.
+			if (anchorCarrier != null && limb.members().contains(new Member(anchorCarrier.source(), anchorCarrier.cube())))
+				continue;
 			if (limb.bone() == null && limb.gait() == null && !(context.swimAmount() > 0.0f
 				&& (limb.type() == SurgicalLimbType.HIP || limb.type() == SurgicalLimbType.KNEE)))
 				continue;

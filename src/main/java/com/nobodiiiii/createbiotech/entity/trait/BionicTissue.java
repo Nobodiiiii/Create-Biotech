@@ -20,6 +20,7 @@ final class BionicTissue {
 	private final List<Map<BionicTraitScope, BitSet>> installed;
 	private final Map<SurgicalAssembly.Limb, Set<SurgicalAssembly.CombinationMember>> limbs = new HashMap<>();
 	private final BionicTraitRegistry.Snapshot data;
+	private final boolean headUsesTorso;
 
 	private BionicTissue(SurgicalAssembly assembly, BionicTraitRegistry.Snapshot data) {
 		this.data = data;
@@ -41,6 +42,8 @@ final class BionicTissue {
 			}
 			installed.add(bySlot);
 		}
+		headUsesTorso = limbs.keySet().stream()
+			.noneMatch(limb -> BionicTraitScope.mountedAt(limb.type()) == BionicTraitScope.HEAD);
 	}
 
 	static BionicTissue of(SurgicalAssembly assembly, BionicTraitRegistry.Snapshot data) {
@@ -49,20 +52,32 @@ final class BionicTissue {
 
 	int sourceCount() { return sources.size(); }
 	SurgicalAssembly.Source source(int sourceId) { return sources.get(sourceId); }
+	boolean headUsesTorso() { return headUsesTorso; }
 
-	/** Union of real installation scopes, including ordinary tissue with no carrier label. */
+	/** Union of installation scopes; without an installed head, HEAD uses the entire torso. */
 	BitSet selected(int sourceId, Set<BionicTraitScope> scopes) {
 		BitSet cubes = new BitSet();
 		for (BionicTraitScope scope : scopes)
-			cubes.or(installed.get(sourceId).get(scope));
+			cubes.or(installed.get(sourceId).get(headUsesTorso && scope == BionicTraitScope.HEAD
+				? BionicTraitScope.TORSO : scope));
 		return cubes;
 	}
 
-	/** Separate complete chains; a knee or elbow never adds another leg or arm. */
+	/** Separate complete chains, with one shared torso group replacing an absent head. */
 	List<Set<SurgicalAssembly.CombinationMember>> limbs(Set<BionicTraitScope> scopes) {
-		return limbs.entrySet().stream()
+		List<Set<SurgicalAssembly.CombinationMember>> groups = new ArrayList<>(limbs.entrySet().stream()
 			.filter(entry -> scopes.contains(BionicTraitScope.mountedAt(entry.getKey().type())))
-			.map(Map.Entry::getValue).toList();
+			.map(Map.Entry::getValue).toList());
+		if (headUsesTorso && scopes.contains(BionicTraitScope.HEAD)) {
+			Set<SurgicalAssembly.CombinationMember> torso = new HashSet<>();
+			for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
+				BitSet cubes = installed.get(sourceId).get(BionicTraitScope.TORSO);
+				for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
+					torso.add(new SurgicalAssembly.CombinationMember(sourceId, cube));
+			}
+			if (!torso.isEmpty()) groups.add(Set.copyOf(torso));
+		}
+		return groups;
 	}
 
 	/** Count only chains represented by carriers that passed their own coverage rule. */

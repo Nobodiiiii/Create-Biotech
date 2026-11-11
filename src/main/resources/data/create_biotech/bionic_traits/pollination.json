@@ -12,11 +12,6 @@
     "minecraft:bee": {
       "TORSO": [
         "body"
-      ],
-      "LEG": [
-        "front_legs",
-        "middle_legs",
-        "back_legs"
       ]
     }
   }

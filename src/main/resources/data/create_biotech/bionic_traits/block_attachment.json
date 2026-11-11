@@ -1,0 +1,11 @@
+{
+  "automatic_detection": false,
+  "values": {
+    "minecraft:shulker": true
+  },
+  "carriers": {
+    "minecraft:shulker": {
+      "BASE": ["base"]
+    }
+  }
+}

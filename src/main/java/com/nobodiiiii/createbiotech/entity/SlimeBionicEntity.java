@@ -13,6 +13,8 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicVibrationSense;
 import com.nobodiiiii.createbiotech.entity.trait.BionicDeterrence;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHunting;
 import com.nobodiiiii.createbiotech.entity.trait.BionicDefenses;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBlockAttachment;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.ai.BionicBreakDoorGoal;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler;
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -26,6 +28,7 @@ import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.ai.BionicFlightMovement;
+import com.nobodiiiii.createbiotech.entity.ai.BionicWallClimbing;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
@@ -36,6 +39,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -141,6 +145,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 	private static final EntityDataAccessor<Boolean> SITTING_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
+	private static final EntityDataAccessor<Boolean> CLIMBING_DATA = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
 	@Nullable
 	private CompoundTag cachedAssemblyData;
 	@Nullable
@@ -152,6 +158,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	private final BionicHunting hunting = new BionicHunting(this);
+	private final BionicBlockAttachment blockAttachment = new BionicBlockAttachment(this);
+	private static final EntityDataAccessor<Optional<BlockPos>> ATTACH_CELL_DATA = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
+	private static final EntityDataAccessor<Direction> ATTACH_FACE_DATA = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.DIRECTION);
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicEquipment equipment = new com.nobodiiiii.createbiotech.entity.trait.BionicEquipment(this);
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicProduction production = new com.nobodiiiii.createbiotech.entity.trait.BionicProduction(this);
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
@@ -159,7 +170,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final EntityDataAccessor<Integer> PRODUCTION_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Boolean> POLLEN_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
 	private static final EntityDataAccessor<Integer> SHELL_STATE_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
-	private static final EntityDataAccessor<Long> SHELL_STARTED = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.LONG);
 	private static final EntityDataAccessor<Long> SPECIAL_STARTED = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.LONG);
 	private static final EntityDataAccessor<Integer> SPECIAL_ACTION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<org.joml.Vector3f> SPECIAL_ORIGIN = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.VECTOR3);
@@ -169,6 +179,40 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private int riderJumpCooldown;
 	private boolean riderAscending;
 	public com.nobodiiiii.createbiotech.entity.trait.BionicEquipment getBionicEquipment() { return equipment; }
+	public BionicBlockAttachment getBlockAttachment() { return blockAttachment; }
+	@Nullable public BlockPos getBlockAttachmentCell() { return entityData.get(ATTACH_CELL_DATA).orElse(null); }
+	public Direction getBlockAttachmentFace() { return entityData.get(ATTACH_FACE_DATA); }
+	public void setBlockAttachment(@Nullable BlockPos cell, Direction face) {
+		entityData.set(ATTACH_FACE_DATA, face);
+		entityData.set(ATTACH_CELL_DATA, Optional.ofNullable(cell));
+	}
+	public boolean isBlockAttached() {
+		return blockAttachment != null && blockAttachment.locksMovement() && getBlockAttachmentCell() != null;
+	}
+	public SurgicalCubeRotation blockAttachmentRotation() {
+		return blockAttachment == null ? SurgicalCubeRotation.IDENTITY : blockAttachment.rotation();
+	}
+	/** The attachment quaternion owns the entire body orientation; AI and riders cannot turn it. */
+	public void lockBlockAttachmentRotation() {
+		if (!isBlockAttached()) return;
+		super.setYRot(0);
+		super.setXRot(0);
+		yRotO = xRotO = yBodyRotO = yBodyRot = yHeadRotO = yHeadRot = 0;
+	}
+	@Override public void setYRot(float yaw) { super.setYRot(isBlockAttached() ? 0 : yaw); }
+	@Override public void setXRot(float pitch) { super.setXRot(isBlockAttached() ? 0 : pitch); }
+	@Override public void setYBodyRot(float yaw) { super.setYBodyRot(isBlockAttached() ? 0 : yaw); }
+	@Override public void setYHeadRot(float yaw) { super.setYHeadRot(isBlockAttached() ? 0 : yaw); }
+	/** Shared rest-frame transform for carrier effects, hit parts and the visible body. */
+	public Vec3 bodyToWorld(Vec3 point) {
+		return position().add(isBlockAttached() ? blockAttachmentRotation().rotate(point)
+			: point.yRot(-yBodyRot * Mth.DEG_TO_RAD));
+	}
+	public Vec3 worldToBody(Vec3 point) {
+		Vec3 relative = point.subtract(position());
+		return isBlockAttached() ? BionicRiding.inverse(blockAttachmentRotation()).rotate(relative)
+			: relative.yRot(yBodyRot * Mth.DEG_TO_RAD);
+	}
 	public com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks getSpecialAttacks() { return specialAttacks; }
 	@Override public void performRangedAttack(LivingEntity target, float power) { specialAttacks.performRangedAttack(target); }
 	public CompoundTag getBionicEquipmentData() { return entityData.get(EQUIPMENT_DATA); }
@@ -181,21 +225,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState getShellState() {
 		return net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.values()[entityData.get(SHELL_STATE_DATA)];
 	}
-	public int getShellStateTicks() { return (int) Math.max(0, level().getGameTime() - entityData.get(SHELL_STARTED)); }
+	public int getShellPeekSequence() { return shellPeekSequence; }
 	public int getSpecialActionTicks() { return (int) Math.max(0, level().getGameTime() - entityData.get(SPECIAL_STARTED)); }
 	public void setProductionFlags(int flags) { entityData.set(PRODUCTION_DATA, flags); }
 	public void markSelfDestructing() { dead = true; }
 	public void finishSelfDestruct() { dropPreservedEquipment(); dropEquipment(); triggerOnDeathMobEffects(RemovalReason.KILLED); discard(); }
 	public int getSpecialAction() { return entityData.get(SPECIAL_ACTION); }
 	public void syncSpecialOrigin(Vec3 worldOrigin) {
-		entityData.set(SPECIAL_ORIGIN, worldOrigin.subtract(position()).yRot(yBodyRot * Mth.DEG_TO_RAD).toVector3f());
+		entityData.set(SPECIAL_ORIGIN, worldToBody(worldOrigin).toVector3f());
 	}
-	public Vec3 getSpecialOrigin() { return position().add(new Vec3(entityData.get(SPECIAL_ORIGIN)).yRot(-yBodyRot * Mth.DEG_TO_RAD)); }
+	public Vec3 getSpecialOrigin() { return bodyToWorld(new Vec3(entityData.get(SPECIAL_ORIGIN))); }
 	public Vec3 getSpecialOrigin(float partialTick) {
 		Vec3 interpolatedPosition = new Vec3(Mth.lerp((double) partialTick, xOld, getX()),
 			Mth.lerp((double) partialTick, yOld, getY()), Mth.lerp((double) partialTick, zOld, getZ()));
-		return interpolatedPosition.add(new Vec3(entityData.get(SPECIAL_ORIGIN))
-			.yRot(-Mth.rotLerp(partialTick, yBodyRotO, yBodyRot) * Mth.DEG_TO_RAD));
+		Vec3 origin = new Vec3(entityData.get(SPECIAL_ORIGIN));
+		return interpolatedPosition.add(isBlockAttached() ? blockAttachmentRotation().rotate(origin)
+			: origin.yRot(-Mth.rotLerp(partialTick, yBodyRotO, yBodyRot) * Mth.DEG_TO_RAD));
 	}
 	public int getGuardianAttackDuration() { return entityData.get(GUARDIAN_ATTACK_DURATION); }
 	public void syncGuardianAttackDuration(int ticks) { entityData.set(GUARDIAN_ATTACK_DURATION, Math.max(1, ticks)); }
@@ -222,6 +267,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private boolean evaluatingJumpPath;
 	private boolean strongJumpEnabled;
 	private boolean doorBreakingEnabled;
+	private boolean wallClimbEnabled;
 	private boolean bodyFlightEnabled;
 	private boolean organSwimEnabled;
 	private boolean lavaWalkEnabled;
@@ -230,6 +276,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private int dryAir = Integer.MIN_VALUE;
 	private int shellGuardTicks;
 	private int shellStateTicks;
+	private int shellPeekSequence;
 	private int shellPeekTicks;
 	private boolean shellDangerWasAround;
 	private net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState shellState = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE;
@@ -342,6 +389,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		});
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
 		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
+		goalSelector.addGoal(3, new com.nobodiiiii.createbiotech.entity.ai.BionicShoulderRidingGoal(this));
 		goalSelector.addGoal(5, new BionicFollowOwnerGoal(this));
 		goalSelector.addGoal(6, new Goal() {
 			private Goal delegate;
@@ -428,16 +476,18 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		builder.define(ASSEMBLY, new CompoundTag());
 		builder.define(OWNER_DATA, Optional.empty());
 		builder.define(SITTING_DATA, false);
+		builder.define(CLIMBING_DATA, false);
 		builder.define(EQUIPMENT_DATA, new CompoundTag());
 		builder.define(PRODUCTION_DATA, 0);
 		builder.define(POLLEN_DATA, false);
 		builder.define(SHELL_STATE_DATA, 0);
-		builder.define(SHELL_STARTED, 0L);
 		builder.define(SPECIAL_STARTED, 0L);
 		builder.define(SPECIAL_ACTION, 0);
 		builder.define(SPECIAL_TARGET, 0);
 		builder.define(SPECIAL_ORIGIN, new org.joml.Vector3f());
 		builder.define(GUARDIAN_ATTACK_DURATION, 80);
+		builder.define(ATTACH_CELL_DATA, Optional.empty());
+		builder.define(ATTACH_FACE_DATA, Direction.DOWN);
 	}
 
 	private void setBionicOwner(@Nullable UUID value) {
@@ -663,13 +713,17 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private void refreshLocomotion(BionicTraitSet traits) {
 		if (level().isClientSide)
 			return;
-		boolean jump = traits.has(BionicTrait.STRONG_JUMP);
+		boolean jump = traits.hasStrongJump();
 		boolean doors = traits.has(BionicTrait.DOOR_HANDLING);
-		if (strongJumpEnabled != jump || doorBreakingEnabled != doors) {
+		boolean climb = traits.has(BionicTrait.WALL_CLIMB);
+		if (strongJumpEnabled != jump || doorBreakingEnabled != doors || wallClimbEnabled != climb) {
 			strongJumpEnabled = jump;
 			doorBreakingEnabled = doors;
+			wallClimbEnabled = climb;
 			navigation.stop();
 		}
+		if (!climb)
+			entityData.set(CLIMBING_DATA, false);
 		boolean aquatic = traits.has(BionicTrait.SWIM_SPECIALIST);
 		boolean lavaWalk = traits.has(BionicTrait.LAVA_WALK);
 		if (lavaWalkEnabled != lavaWalk) {
@@ -879,12 +933,24 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public boolean onClimbable() {
-		return horizontalCollision && getBionicTraits().has(BionicTrait.WALL_CLIMB)
-			|| super.onClimbable();
+		return getBionicTraits().has(BionicTrait.WALL_CLIMB) ? isClimbing() : super.onClimbable();
+	}
+
+	public boolean isClimbing() {
+		return entityData.get(CLIMBING_DATA);
+	}
+
+	public boolean canUseWallClimbing() {
+		return getBionicTraits().has(BionicTrait.WALL_CLIMB) && !isSwimming() && !hasFlightLocomotion();
 	}
 
 	@Override
 	public void travel(Vec3 movement) {
+		if (blockAttachment.locksMovement()) {
+			setDeltaMovement(Vec3.ZERO);
+			calculateEntityAnimation(false);
+			return;
+		}
 		if (isSwimming())
 			movement = movement.scale(1.35d);
 		if (isShiftKeyDown() && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
@@ -961,11 +1027,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			amount *= (float) ((1.0d - immunity)
 				* (1.0d + 4.0d * traits.strength(BionicTrait.FREEZE_VULNERABLE)));
 		}
-		double retaliation = traits.strength(BionicTrait.CONTACT_RETALIATION);
-		if (retaliation > 0 && !(getMoveControl().hasWanted() && !getNavigation().isDone())
+		if (traits.has(BionicTrait.CONTACT_RETALIATION) && !(getMoveControl().hasWanted() && !getNavigation().isDone())
 			&& !source.is(DamageTypeTags.AVOIDS_GUARDIAN_THORNS) && !source.is(DamageTypes.THORNS)
 			&& source.getDirectEntity() instanceof LivingEntity attacker && attacker != this && !isAlliedTo(attacker))
-			attacker.hurt(damageSources().thorns(this), (float) (2.0d * retaliation));
+			attacker.hurt(damageSources().thorns(this), 2.0f);
 		boolean hurt = super.hurt(source, amount);
 		if (hurt) BionicDefenses.afterHurt(this, source);
 		if (hurt && traits.has(BionicTrait.SHELL_DEFENSE) && !isNoAi()) {
@@ -987,8 +1052,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	protected float getJumpPower() {
-		return super.getJumpPower() + (getBionicTraits().has(BionicTrait.STRONG_JUMP)
-			? (float) getBionicTraits().parameter(BionicTrait.STRONG_JUMP, "jump_bonus", 0.2d) : 0);
+		return super.getJumpPower() + (float) getBionicTraits().strongJumpBonus();
 	}
 
 	/** Only the path evaluator sees the two-block step budget; actual movement must jump. */
@@ -996,16 +1060,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public float maxUpStep() {
-		return evaluatingJumpPath && getBionicTraits().has(BionicTrait.STRONG_JUMP)
+		return evaluatingJumpPath && getBionicTraits().hasStrongJump()
 			? Math.max(2.0f, super.maxUpStep()) : super.maxUpStep();
-	}
-
-	@Override
-	public void jumpFromGround() {
-		super.jumpFromGround();
-		double bounce = getBionicTraits().strength(BionicTrait.BODY_BOUNCE);
-		if (bounce > 0.0d)
-			setDeltaMovement(getDeltaMovement().add(0.0d, 0.1d * bounce, 0.0d));
 	}
 
 	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */
@@ -1094,6 +1150,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Movement and visual body smoothing follow the server's combat facing, never the reverse. */
 	public boolean applyCombatFacing() {
+		if (isBlockAttached()) return false;
 		if (!combatFacingControlled || isNoAi() || !isAlive())
 			return false;
 		setYRot(combatFacingYaw);
@@ -1254,14 +1311,17 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void tick() {
+		blockAttachment.tick();
 		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
 		if (riderJumpCooldown > 0) riderJumpCooldown--;
 		if (!isVehicle()) { riderJump = 0; riderAscending = false; }
 		super.tick();
+		// Spider updates and synchronizes wall contact after movement, for the next tick.
+		if (!level().isClientSide)
+			entityData.set(CLIMBING_DATA, horizontalCollision && canUseWallClimbing());
 		tickLavaWalking();
 		if (getBionicTraits().has(BionicTrait.WING_SLOW_FALL) && !onGround() && !isInWaterOrBubble()
-			&& !isInLava() && !getBionicTraits().has(BionicTrait.WING_FLIGHT)
-			&& !getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) && getDeltaMovement().y < 0) {
+			&& !isInLava() && getDeltaMovement().y < 0) {
 			setDeltaMovement(getDeltaMovement().multiply(1, getBionicTraits().parameter(
 				BionicTrait.WING_SLOW_FALL, "fall_multiplier", 0.6d), 1));
 			resetFallDistance();
@@ -1280,6 +1340,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		updateOwnerTarget();
 		tickHeadRespiration();
 		tickBodyEnvironment();
+		lockBlockAttachmentRotation();
+		if (isBlockAttached()) setBoundingBox(makeBoundingBox());
 		updateHitParts();
 	}
 
@@ -1302,7 +1364,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (dangerAround != shellDangerWasAround) shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
 		shellDangerWasAround = dangerAround;
 		if (shellState == scared && shellPeekTicks == 0 && onGround() && dangerAround) {
-			playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_PEEK);
+			level().broadcastEntityEvent(this, (byte) 64);
 			shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
 		}
 		var next = shellState;
@@ -1320,7 +1382,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		} else shellStateTicks++;
 		if (entityData.get(SHELL_STATE_DATA) != shellState.ordinal()) {
 			entityData.set(SHELL_STATE_DATA, shellState.ordinal());
-			entityData.set(SHELL_STARTED, level().getGameTime() - shellStateTicks);
 		}
 		setShiftKeyDown(shellState != idle);
 		if (isShiftKeyDown()) { getNavigation().stop(); setDeltaMovement(getDeltaMovement().multiply(0, 1, 0)); }
@@ -1468,22 +1529,71 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	private AABB worldBounds(SurgicalAssembly.VisualBounds bounds) {
-		float angle = -yBodyRot * Mth.DEG_TO_RAD;
+		if (isBlockAttached()) {
+			AABB rotated = blockAttachment.bounds(bounds);
+			if (rotated != null) return rotated.move(position());
+		}
 		double minX = Double.POSITIVE_INFINITY;
+		double minY = Double.POSITIVE_INFINITY;
 		double minZ = Double.POSITIVE_INFINITY;
 		double maxX = Double.NEGATIVE_INFINITY;
+		double maxY = Double.NEGATIVE_INFINITY;
 		double maxZ = Double.NEGATIVE_INFINITY;
 		for (int xSide = 0; xSide < 2; xSide++)
+			for (int ySide = 0; ySide < 2; ySide++)
 			for (int zSide = 0; zSide < 2; zSide++) {
-				Vec3 rotated = new Vec3(xSide == 0 ? bounds.minX() : bounds.maxX(), 0.0d,
-					zSide == 0 ? bounds.minZ() : bounds.maxZ()).yRot(angle);
+				Vec3 rotated = bodyToWorld(new Vec3(xSide == 0 ? bounds.minX() : bounds.maxX(),
+					ySide == 0 ? bounds.minY() : bounds.maxY(), zSide == 0 ? bounds.minZ() : bounds.maxZ()));
 				minX = Math.min(minX, rotated.x);
+				minY = Math.min(minY, rotated.y);
 				minZ = Math.min(minZ, rotated.z);
 				maxX = Math.max(maxX, rotated.x);
+				maxY = Math.max(maxY, rotated.y);
 				maxZ = Math.max(maxZ, rotated.z);
 			}
-		return new AABB(getX() + minX, getY() + bounds.minY(), getZ() + minZ,
-			getX() + maxX, getY() + bounds.maxY(), getZ() + maxZ);
+		return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+	}
+
+	@Override protected AABB makeBoundingBox() {
+		if (isBlockAttached()) {
+			SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
+			// Use the measured envelope, including its depth and offsets, rather than rotating
+			// vanilla's upright square footprint. Hit parts use this same rest-to-world transform.
+			if (geometry != null)
+				return worldBounds(geometry.requiresMultipart(MULTIPART_THRESHOLD) ? geometry.body() : geometry.overall());
+			return BionicRiding.rotateBounds(super.makeBoundingBox(), position(), blockAttachmentRotation());
+		}
+		return super.makeBoundingBox();
+	}
+
+	@Override public boolean isInWall() {
+		if (!isBlockAttached()) return super.isInWall();
+		if (noPhysics || isSleeping()) return false;
+		// Entity.getEyePosition is final and assumes an upright body. Rotate its vanilla eye
+		// sampling box with the attachment, retaining the normal block predicate and damage tick.
+		double width = getBbWidth() * 0.8;
+		AABB eyes = BionicRiding.rotateBounds(AABB.ofSize(new Vec3(0, getEyeHeight(), 0),
+			width, 1.0e-6, width), Vec3.ZERO, blockAttachmentRotation()).move(position());
+		return BlockPos.betweenClosedStream(eyes).anyMatch(pos -> {
+			var state = level().getBlockState(pos);
+			return !state.isAir() && state.isSuffocating(level(), pos)
+				&& net.minecraft.world.phys.shapes.Shapes.joinIsNotEmpty(
+					state.getCollisionShape(level(), pos).move(pos.getX(), pos.getY(), pos.getZ()),
+					net.minecraft.world.phys.shapes.Shapes.create(eyes),
+					net.minecraft.world.phys.shapes.BooleanOp.AND);
+		});
+	}
+
+	@Override public boolean isPushable() {
+		return (blockAttachment == null || !blockAttachment.locksMovement()) && super.isPushable();
+	}
+
+	@Override public Vec3 getDeltaMovement() {
+		return blockAttachment != null && blockAttachment.locksMovement() ? Vec3.ZERO : super.getDeltaMovement();
+	}
+
+	@Override public void setDeltaMovement(Vec3 velocity) {
+		super.setDeltaMovement(blockAttachment != null && blockAttachment.locksMovement() ? Vec3.ZERO : velocity);
 	}
 
 	@Override
@@ -1785,8 +1895,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	@Override
+	public void handleEntityEvent(byte event) {
+		if (event == 64 && level().isClientSide) {
+			shellPeekSequence++;
+		} else {
+			super.handleEntityEvent(event);
+		}
+	}
+
+	@Override
 	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
 		super.onSyncedDataUpdated(key);
+		if (ATTACH_CELL_DATA.equals(key) || ATTACH_FACE_DATA.equals(key)) {
+			lockBlockAttachmentRotation();
+			setBoundingBox(makeBoundingBox());
+			updateHitParts();
+		}
 		if (OWNER_DATA.equals(key))
 			ownerId = entityData.get(OWNER_DATA).orElse(null);
 		if (SITTING_DATA.equals(key))
@@ -1809,6 +1933,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		equipment.save(tag);
 		production.save(tag);
 		specialAttacks.save(tag);
+		blockAttachment.save(tag);
 		SlimeMimicAccess slimeState = (SlimeMimicAccess) (Object) this;
 		tag.putBoolean(SOURCE_FORM_TAG, !slimeState.createBiotech$isSlimeMimic());
 		CompoundTag assembly = entityData.get(ASSEMBLY);
@@ -1840,6 +1965,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(!sourceForm);
 		setAssembly(assembly);
+		blockAttachment.load(tag);
 		equipment.load(tag);
 		production.load(tag);
 		if (tag.contains(MOISTURE_TAG, Tag.TAG_ANY_NUMERIC))
@@ -1896,6 +2022,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		passenger.setBoundingBox(pose.bounds(passenger));
 	}
 	@Override public void move(net.minecraft.world.entity.MoverType type, Vec3 movement) {
+		if (blockAttachment != null && blockAttachment.locksMovement()) {
+			setDeltaMovement(Vec3.ZERO);
+			return;
+		}
 		if (!isVehicle() || noPhysics) {
 			super.move(type, movement);
 			return;
@@ -1949,6 +2079,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			+ (equipment.camel() && player.isSprinting() ? 0.1f : 0);
 	}
 	@Override protected void tickRidden(Player player, Vec3 input) {
+		if (isBlockAttached()) {
+			lockBlockAttachmentRotation();
+			return;
+		}
 		super.tickRidden(player, input);
 		setYRot(BionicRiding.safeYaw(this, player.getYRot()));
 		yBodyRot = getYRot();
@@ -1956,7 +2090,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		yRotO = yBodyRot = yHeadRot = getYRot();
 		if (!isControlledByLocalInstance()) return;
 		if (riderJump > 0 && onGround()) {
-			if (equipment.camel() && !getBionicTraits().has(BionicTrait.STRONG_JUMP)) {
+			if (equipment.camel() && !getBionicTraits().hasStrongJump()) {
 				Vec3 look = player.getLookAngle();
 				setDeltaMovement(getDeltaMovement().add(look.x * 1.5 * riderJump, 0.4 * riderJump, look.z * 1.5 * riderJump));
 			} else setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
@@ -1965,12 +2099,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			&& getLocomotionLegCount() < 2) jumpFromGround();
 	}
 	@Override public boolean canJump() { return isSaddled() && isSaddleable() && !hasFlightLocomotion() && !isSwimming()
-		&& (equipment.jumpingDonor() || getBionicTraits().has(BionicTrait.STRONG_JUMP)); }
+		&& (equipment.jumpingDonor() || getBionicTraits().hasStrongJump()); }
 	@Override public int getJumpCooldown() { return riderJumpCooldown; }
 	@Override public void onPlayerJump(int strength) {
 		if (!canJump() || riderJumpCooldown > 0) return;
 		riderJump = strength >= 90 ? 1 : 0.4f + 0.4f * Mth.clamp(strength, 0, 90) / 90;
-		if (equipment.camel() && !getBionicTraits().has(BionicTrait.STRONG_JUMP)) riderJumpCooldown = 55;
+		if (equipment.camel() && !getBionicTraits().hasStrongJump()) riderJumpCooldown = 55;
 	}
 	@Override public void handleStartJump(int strength) { onPlayerJump(strength); }
 	@Override public void handleStopJump() {}
@@ -2085,7 +2219,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		@Override public boolean canContinueToUse() {
 			return owner != null && owner.isAlive() && !bionic.orderedToSit
 				&& (bionic.ownerId != null && bionic.getBionicTraits().has(BionicTrait.TAMEABLE))
-				&& bionic.distanceToSqr(owner) > 4.0d && !bionic.getNavigation().isDone();
+				&& bionic.distanceToSqr(owner) > 4.0d && (!bionic.getNavigation().isDone()
+					|| BionicWallClimbing.isInProgress(bionic.getNavigation()));
 		}
 		@Override public void stop() { owner = null; bionic.getNavigation().stop(); }
 		@Override public void tick() {
@@ -2114,6 +2249,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	/** Vanilla pursuit with independent, directional melee actions and persistent recovery deadlines. */
 	private static class BionicAttackGoal extends MeleeAttackGoal {
 		private final SlimeBionicEntity bionic;
+		private final double pursuitSpeed;
 		private final long[] rightArmRecovery = new long[SurgicalLimbType.SHOULDER.maxPerBody()];
 		private final long[] leftArmRecovery = new long[SurgicalLimbType.SHOULDER.maxPerBody()];
 		private int raiseArmTicks;
@@ -2138,17 +2274,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		private BionicAttackGoal(SlimeBionicEntity bionic, double speedModifier, boolean followingTargetEvenIfNotSeen) {
 			super(bionic, speedModifier, followingTargetEvenIfNotSeen);
 			this.bionic = bionic;
+			pursuitSpeed = speedModifier;
 		}
 
 		@Override
 		public boolean canUse() {
 			return validTarget(bionic.getTarget()) && (bionic.vibrationSense.lastHeardPosition(bionic.getTarget()) != null
-				|| super.canUse());
+				|| super.canUse() || bionic.canUseWallClimbing());
 		}
 
 		@Override
 		public void start() {
 			super.start();
+			// MeleeAttackGoal can have no cached path (or one from a previous attempt)
+			// when climbing is what allowed this goal to start.
+			if (bionic.canUseWallClimbing() && bionic.getTarget() != null)
+				bionic.getNavigation().moveTo(bionic.getTarget(), pursuitSpeed);
 			raiseArmTicks = 0;
 			clearPendingAttack();
 			// Deadlines deliberately survive Goal restarts and target changes.
@@ -2175,7 +2316,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			LivingEntity target = bionic.getTarget();
 			return validTarget(target) && bionic.isWithinRestriction(target.blockPosition())
 				&& (pendingAttackTarget == target || bionic.isWithinMeleeAttackRange(target)
-					|| bionic.vibrationSense.lastHeardPosition(target) != null || super.canContinueToUse());
+					|| bionic.vibrationSense.lastHeardPosition(target) != null
+					|| BionicWallClimbing.isInProgress(bionic.getNavigation()) || super.canContinueToUse());
 		}
 
 		@Override

@@ -233,6 +233,15 @@ public class CreateBiotechClient {
 	}
 
 	@SubscribeEvent
+	public static void addEntityLayers(EntityRenderersEvent.AddLayers event) {
+		for (var skin : event.getSkins()) {
+			net.minecraft.client.renderer.entity.player.PlayerRenderer renderer = event.getSkin(skin);
+			if (renderer != null)
+				renderer.addLayer(new com.nobodiiiii.createbiotech.entity.client.BionicOnShoulderLayer(renderer));
+		}
+	}
+
+	@SubscribeEvent
 	public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
 		java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register = location ->
 			event.register(new ModelResourceLocation(location, ModelResourceLocation.STANDALONE_VARIANT));

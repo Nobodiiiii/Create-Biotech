@@ -37,6 +37,10 @@ public final class BionicRiding {
 		if (seat == null) return null;
 		boolean rear = assigned.slot() == 1;
 		Vec3 anchor = rear ? seat.second() : seat.first();
+		if (mount.isBlockAttached()) {
+			var attachment = mount.blockAttachmentRotation();
+			return new RiderPose(mount.getPosition(partialTick).add(attachment.rotate(anchor)), seat.rotation().then(attachment));
+		}
 		Vec3 pivot = equipment.carrierOrigin();
 		SurgicalCubeRotation body = bodyRotation(mount, partialTick);
 		anchor = pivot.add(body.rotate(anchor.subtract(pivot)));

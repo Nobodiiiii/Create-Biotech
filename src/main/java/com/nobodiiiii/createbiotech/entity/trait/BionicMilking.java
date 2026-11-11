@@ -2,10 +2,15 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DetailKind;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DisplayEntry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.InactiveReason;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.MissingPart;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -42,12 +47,26 @@ final class BionicMilking {
 		}
 		// Vanilla goat models have no separate udder cuboid.
 		addProduct(products, MILK, Set.of(), bodies.getOrDefault(GOAT, Set.of()));
-		if (products.isEmpty())
-			return result.disabled(BionicTraitResult.InactiveReason.MISSING_REQUIRED_PARTS);
+		List<DisplayEntry> entries = new java.util.ArrayList<>();
+		products.keySet().forEach(product -> entries.add(new DisplayEntry(DetailKind.SUBTRAIT, product.id(), null)));
+		boolean milkBody = !bodies.getOrDefault(COW, Set.of()).isEmpty() || !bodies.getOrDefault(MOOSHROOM, Set.of()).isEmpty();
+		boolean stewBody = !bodies.getOrDefault(MOOSHROOM, Set.of()).isEmpty();
+		// A retained product-bearing body identifies a failed product even if another product works.
+		List<List<MissingPart>> missingUdder = List.of(List.of(new MissingPart(COW, BionicAnatomyRole.UDDER)),
+			List.of(new MissingPart(MOOSHROOM, BionicAnatomyRole.UDDER)));
+		if (milkBody && !products.containsKey(MILK))
+			entries.add(new DisplayEntry(DetailKind.SUBTRAIT, MILK.id(), InactiveReason.MISSING_REQUIRED_PARTS, missingUdder));
+		if (stewBody && !products.containsKey(STEW))
+			entries.add(new DisplayEntry(DetailKind.SUBTRAIT, STEW.id(), InactiveReason.MISSING_REQUIRED_PARTS, missingUdder));
+		if (products.isEmpty()) {
+			BionicAnatomyRole missing = udders.isEmpty() ? BionicAnatomyRole.UDDER : BionicAnatomyRole.TORSO;
+			return result.missingRequiredParts(List.of(List.of(new MissingPart(COW, missing)),
+				List.of(new MissingPart(MOOSHROOM, missing)))).withDisplayEntries(entries);
+		}
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		products.values().forEach(members::addAll);
 		return new BionicTraitResult(result.coverage(), result.strength(), 0, Set.of(), members, null,
-			Map.of(), Set.of(), products, Map.of(), Set.of());
+			Map.of(), Set.of(), products, Map.of(), Set.of()).withDisplayEntries(entries);
 	}
 
 	/** Whole captured animals retain their native interactions, without assembly prerequisites. */

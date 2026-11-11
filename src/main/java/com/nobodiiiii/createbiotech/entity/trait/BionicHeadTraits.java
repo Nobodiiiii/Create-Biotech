@@ -46,14 +46,19 @@ public final class BionicHeadTraits {
 	public static BionicIntelligence intelligence(Set<ResourceLocation> values) {
 		if (values.contains(id(BionicIntelligence.ADVANCED))) return BionicIntelligence.ADVANCED;
 		if (values.contains(id(BionicIntelligence.NORMAL))) return BionicIntelligence.NORMAL;
-		return values.contains(id(BionicIntelligence.SIMPLE)) ? BionicIntelligence.SIMPLE : BionicIntelligence.NORMAL;
+		return BionicIntelligence.SIMPLE;
+	}
+
+	/** The same fallback classification used by the runtime when no carrier qualifies. */
+	public static ResourceLocation defaultValue(BionicTrait trait) {
+		return combined(trait, Set.of());
 	}
 
 	static ResourceLocation combined(BionicTrait trait, Set<ResourceLocation> values) {
 		return trait == BionicTrait.DISPOSITION ? id(disposition(values)) : id(intelligence(values));
 	}
 
-	/** Keep the original head-retention threshold, counting only carriers installed as a head. */
+	/** Keep the original head-retention threshold within the installed head or fallback torso. */
 	static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data, BionicTissue tissue,
 		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<UUID, Head> heads = new HashMap<>();

@@ -22,19 +22,31 @@
 
 | 字段 | 内容及用途 |
 | --- | --- |
-| `entity` | 实体类型、UUID、名称、位置、生命值、拟态状态。 |
+| `entity` | 实体类型、UUID、名称、位置、生命值、拟态状态及运行时主碰撞箱 `bounding_box`。 |
+| `block_attachment` | 装配体当前是否吸附、支撑方向、吸附格坐标、选中的底座、整体旋转四元数和窒息检测结果。与静态 `assembly.HitboxGeometry` 区分，用于核对实际旋转状态。 |
 | `assembly_status` | `assembled` 为有效装配体；`invalid_or_missing` 表示装配数据无法加载；`unassembled_mimic` 为尚无手术装配信息的完整拟态生物。 |
 | `assembly` | 服务端保存的完整 `SurgicalAssembly`，以 JSON 展开，包含供体档案、解剖标记、模型立方体、切缝、偏移、旋转、胶水连接、组合、关节及身体/攻击/碰撞几何。 |
 | `assembly_summary` | 供体与部件数量、连通部件数量、有效肢体，以及每个供体的 UUID、类型、保留立方体 ID 和头部 ID，便于快速定位。 |
-| `traits` | 每项能力的存在/生效状态、未生效原因、覆盖率、强度、数值、来源部件、子能力与攻击效果。保留无效能力的证据，供诊断缺头、槽位、覆盖率或翅膀配对等问题。 |
+| `traits` | 每项能力的存在/生效状态、未生效原因、覆盖率、强度、数值、来源部件、子能力与攻击效果。`display_entries` 单独记录目标、效果、子项的展示证据及各自生效状态、唯一失效原因和缺件方案，用于核对同一特性拆分显示的多条提示，不参与运行时能力判定。保留无效能力的证据，供诊断缺头、槽位、覆盖率或翅膀配对等问题。 |
 | `entity_snbt` | 完整实体存档的原始 SNBT 字符串，保留 NBT 数值类型、位集数组、UUID 数组及第三方数据，供检查装备、属性与运行状态。实体类型由 `entity.type` 提供。 |
 | `mimic_profile` | 未装配拟态生物的生物档案；这类生物的 `assembly` 为 `null`，不伪造装配信息。 |
 | `mod_versions` / `enabled_data_packs` | 模组版本与启用的数据包，用于复核能力规则来源。 |
 | `captured_at_utc` / `game_time` / `trait_registry_generation` | 采集时间、世界 tick 与能力规则版本计数，用于区分多次采样。 |
 
-建议先检查 `assembly_status` 和 `assembly_summary`，再结合 `traits` 中的 `inactive_reason`、`bindings`、`members` 与原始 `assembly` 分析。`bindings` 是实际保留、绑定该特性的体块，`members` 是装配判定后的贡献体块；未生效时保留判定证据。组合体提示取绑定特性的并集，命中其中任意体块均读取整个组合体的判定。`source` 是 `assembly.Sources` 的零基索引，`cube` 是该供体模型中的立方体 ID；摘要中的 ID 数组已将原始位集解码。JSON 中 NBT 布尔值按字节数值保存；如需还原精确 NBT 类型，应使用 `entity_snbt`。
+建议先检查 `assembly_status` 和 `assembly_summary`，再结合 `traits` 中的 `inactive_reason`、`bindings`、`members` 与原始 `assembly` 分析。`missing_part_alternatives` 列出缺失部件的可选补齐方案，每个方案包含必须一起补齐的 `entity_type` 与 `role`。`bindings` 是实际保留、绑定该特性的体块，`members` 是装配判定后的贡献体块；未生效时保留判定证据。组合体提示取绑定特性的并集，命中其中任意体块均读取整个组合体的判定。`source` 是 `assembly.Sources` 的零基索引，`cube` 是该供体模型中的立方体 ID；摘要中的 ID 数组已将原始位集解码。JSON 中 NBT 布尔值按字节数值保存；如需还原精确 NBT 类型，应使用 `entity_snbt`。
 
 报告仅采集服务端已有数据，不包含客户端渲染截图或运行时渲染模型。诊断报告会持续保留，可在排查结束后手动清理。
+
+## 倾斜潜影贝未旋转
+
+2026-11-11 18:57:55 和 18:58:04（北京时间，报告 UTC 时间分别为 `10:57:55.153622300Z` 和
+`10:58:04.548587100Z`）的两个潜影贝装配体中，第一只已有吸附状态，第二只的底座单独倾斜约 55°，
+`block_attachment` 特性有效，但没有保存 `BionicAttachCell`。按第二份报告的真实角点重放旋转后，
+底座底面能正确贴地，上壳最低点却进入支撑面下方约 0.16 格，原先的全身方块碰撞检查因此拒绝吸附。
+
+吸附现在只要求有效支撑及世界范围，允许旋转后的身体嵌入方块。主碰撞箱和分部受击箱先旋转实际部件角点，
+再重算轴对齐包围盒，避免旋转旧包围盒中的空白区域而额外膨胀。窒息检测随整体旋转变换原版眼部采样区域，
+继续由正常的 `LivingEntity` 窒息伤害流程处理，不因吸附而免疫；非窒息方块和 `noPhysics` 等原版例外仍有效。
 
 ## 鞍座与玩家位置不一致
 

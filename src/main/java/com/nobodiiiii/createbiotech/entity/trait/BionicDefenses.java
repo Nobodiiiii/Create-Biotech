@@ -2,9 +2,11 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.TagKey;
@@ -20,6 +22,7 @@ import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.minecraft.world.entity.projectile.ThrownPotion;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.event.EventHooks;
 
@@ -83,22 +86,12 @@ public final class BionicDefenses {
 		LivingEntity target = mob.getTarget();
 		if (!mob.getBionicTraits().has(BionicTrait.ENDER_TELEPORT) || target == null || !target.isAlive()
 			|| mob.isPassenger() || mob.isOrderedToSit() || mob.isNoAi()) { mob.teleportPursuitTicks = 0; return; }
-		boolean watched = target instanceof net.minecraft.world.entity.player.Player player && lookingAt(mob, player);
-		if (watched) {
-			if (mob.distanceToSqr(target) < 16) randomTeleport(mob, 32);
-			mob.teleportPursuitTicks = 0;
-		} else if (mob.distanceToSqr(target) > 256 && mob.teleportPursuitTicks++ >= 30) {
+		if (mob.distanceToSqr(target) > 256 && mob.teleportPursuitTicks++ >= 30) {
 			Vec3 direction = new Vec3(mob.getX() - target.getX(), mob.getY(0.5) - target.getEyeY(), mob.getZ() - target.getZ()).normalize();
 			if (teleport(mob, mob.getX() + (mob.getRandom().nextDouble() - 0.5) * 8 - direction.x * 16,
 				mob.getY() + mob.getRandom().nextInt(16) - 8 - direction.y * 16,
 				mob.getZ() + (mob.getRandom().nextDouble() - 0.5) * 8 - direction.z * 16)) mob.teleportPursuitTicks = 0;
 		}
-	}
-
-	private static boolean lookingAt(SlimeBionicEntity mob, net.minecraft.world.entity.player.Player player) {
-		if (player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).is(net.minecraft.world.item.Items.CARVED_PUMPKIN)) return false;
-		Vec3 delta = mob.getEyePosition().subtract(player.getEyePosition());
-		return player.getViewVector(1).normalize().dot(delta.normalize()) > 1 - 0.025 / delta.length() && player.hasLineOfSight(mob);
 	}
 
 	private static boolean randomTeleport(SlimeBionicEntity mob, int radius) {
@@ -108,11 +101,14 @@ public final class BionicDefenses {
 	}
 
 	private static boolean teleport(SlimeBionicEntity mob, double x, double y, double z) {
-		if (mob.level().isClientSide || !mob.isAlive()) return false;
-		BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos(x, y, z);
-		while (support.getY() > mob.level().getMinBuildHeight() && !mob.level().getBlockState(support).blocksMotion()) support.move(Direction.DOWN);
-		var state = mob.level().getBlockState(support);
-		if (!state.blocksMotion() || state.getFluidState().is(FluidTags.WATER)) return false;
+		if (!(mob.level() instanceof ServerLevel level) || !mob.isAlive()) return false;
+		boolean attaching = mob.getBlockAttachment().locksMovement();
+		if (!attaching) {
+			BlockPos.MutableBlockPos support = new BlockPos.MutableBlockPos(x, y, z);
+			while (support.getY() > mob.level().getMinBuildHeight() && !mob.level().getBlockState(support).blocksMotion()) support.move(Direction.DOWN);
+			var state = mob.level().getBlockState(support);
+			if (!state.blocksMotion() || state.getFluidState().is(FluidTags.WATER)) return false;
+		}
 		var event = EventHooks.onEnderTeleport(mob, x, y, z);
 		if (event.isCanceled()) return false;
 		x = event.getTargetX(); y = event.getTargetY(); z = event.getTargetZ();
@@ -120,11 +116,21 @@ public final class BionicDefenses {
 			|| !mob.level().isInWorldBounds(BlockPos.containing(x, y, z))
 			|| !mob.level().getWorldBorder().isWithinBounds(mob.getBoundingBox().move(x - mob.getX(), y - mob.getY(), z - mob.getZ()))) return false;
 		Vec3 previous = mob.position();
-		if (!mob.randomTeleport(x, y, z, true)) return false;
+		AABB previousBounds = mob.getBoundingBox();
+		// Send particles at both endpoints instead of relying on client entity-position packet timing.
+		if (attaching ? !mob.getBlockAttachment().teleportTo(x, y, z) : !mob.randomTeleport(x, y, z, false)) return false;
 		mob.resetFallDistance();
+		teleportParticles(level, previousBounds);
+		teleportParticles(level, mob.getBoundingBox());
 		mob.level().gameEvent(GameEvent.TELEPORT, previous, GameEvent.Context.of(mob));
 		mob.level().playSound(null, previous.x, previous.y, previous.z, SoundEvents.ENDERMAN_TELEPORT, mob.getSoundSource(), 1, 1);
 		mob.playSound(SoundEvents.ENDERMAN_TELEPORT, 1, 1);
 		return true;
+	}
+
+	private static void teleportParticles(ServerLevel level, AABB bounds) {
+		Vec3 center = bounds.getCenter();
+		level.sendParticles(ParticleTypes.PORTAL, center.x, center.y, center.z, 32,
+			bounds.getXsize() * 0.25, bounds.getYsize() * 0.25, bounds.getZsize() * 0.25, 0.2);
 	}
 }

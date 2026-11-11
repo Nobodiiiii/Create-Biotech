@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait.Carrier;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.InactiveReason;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.MissingPart;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -36,7 +38,6 @@ final class BionicTraitConditions {
 			Carrier.of(BionicAnatomyRole.TENDRIL));
 		case HEAD_AND_MOUTH -> List.of(Carrier.of(BionicAnatomyRole.HEAD_CORE).excluding(BionicAnatomyRole.MOUTH),
 			Carrier.of(BionicAnatomyRole.MOUTH));
-		case BEE_BODY_AND_LEG -> List.of(Carrier.of(BionicAnatomyRole.LEG));
 		default -> List.of();
 		};
 		if (required.isEmpty()) {
@@ -62,20 +63,33 @@ final class BionicTraitConditions {
 		var groups = trait.scopes().contains(BionicTraitScope.TORSO) || trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
 			? List.of(participants) : tissue.limbs(trait.scopes());
 		Set<SurgicalAssembly.CombinationMember> complete = new HashSet<>();
+		List<List<MissingPart>> missing = new ArrayList<>();
 		for (var group : groups) {
 			Map<ResourceLocation, Set<SurgicalAssembly.CombinationMember>> species = new HashMap<>();
 			for (var member : group)
 				if (participants.contains(member))
 					species.computeIfAbsent(tissue.source(member.source()).profile().entityTypeId(), ignored -> new HashSet<>()).add(member);
-			for (var members : species.values()) {
-				if (required.stream().allMatch(carrier -> members.stream().anyMatch(parts.get(carrier)::contains))
-					&& (trait.condition() != BionicTrait.Condition.BEE_BODY_AND_LEG || hasBeeBody(data, tissue)))
+			for (var entry : species.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+				var members = entry.getValue();
+				// An explicitly empty body carrier permits this species' shell to work alone.
+				boolean shellOnly = trait == BionicTrait.SHELL_DEFENSE && Set.of().equals(
+					data.carriers().getOrDefault(entry.getKey(), Map.of()).get(BionicAnatomyRole.TORSO));
+				List<MissingPart> absent = required.stream()
+					.filter(carrier -> !shellOnly || !carrier.roles().contains(BionicAnatomyRole.TORSO))
+					.filter(carrier -> members.stream().noneMatch(parts.get(carrier)::contains))
+					.map(carrier -> new MissingPart(entry.getKey(), carrier.roles().getFirst())).toList();
+				if (absent.isEmpty())
 					members.stream().filter(result.members()::contains).forEach(complete::add);
+				else
+					missing.add(absent);
 			}
 		}
 		if (complete.isEmpty())
-			return result.disabled(InactiveReason.MISSING_REQUIRED_PARTS);
-		return new BionicTraitResult(result.coverage(), result.strength(), result.value(), result.immuneEffects(), complete, null);
+			return result.missingRequiredParts(missing.stream().distinct()
+				.sorted(java.util.Comparator.<List<MissingPart>>comparingInt(List::size)
+					.thenComparing(Object::toString)).toList());
+		return new BionicTraitResult(result.coverage(), result.strength(), result.value(), result.immuneEffects(), complete, null)
+			.withDisplayEntries(result.displayEntries());
 	}
 
 	@Nullable
@@ -84,7 +98,7 @@ final class BionicTraitConditions {
 		if (data.rule().type() != BionicTraitType.COVERAGE_THRESHOLD)
 			return null;
 		return switch (trait.condition()) {
-		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH, BEE_BODY_AND_LEG -> null;
+		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH -> null;
 		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
 		case BREATHING_REQUIRED -> covered.has(BionicTrait.NO_BREATHING)
@@ -109,15 +123,5 @@ final class BionicTraitConditions {
 			yield supported ? null : InactiveReason.PURPOSE_MISMATCH;
 		}
 		};
-	}
-
-	private static boolean hasBeeBody(BionicTraitData data, BionicTissue tissue) {
-		for (int source = 0; source < tissue.sourceCount(); source++) {
-			if (!tissue.source(source).profile().entityTypeId().equals(ResourceLocation.withDefaultNamespace("bee"))) continue;
-			var body = BionicTraitCarriers.select(BionicTrait.Carrier.of(BionicAnatomyRole.TORSO), data, tissue, source);
-			body.and(tissue.selected(source, Set.of(BionicTraitScope.TORSO)));
-			if (!body.isEmpty()) return true;
-		}
-		return false;
 	}
 }

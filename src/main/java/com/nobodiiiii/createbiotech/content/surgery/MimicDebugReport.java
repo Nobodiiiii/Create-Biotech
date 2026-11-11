@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -21,6 +22,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DisplayEntry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 
 import net.minecraft.SharedConstants;
@@ -92,12 +94,23 @@ public final class MimicDebugReport {
 		identity.addProperty("max_health", entity.getMaxHealth());
 		identity.addProperty("slime_mimic", SlimeMimicHandler.isSlimeMimic(entity));
 		identity.addProperty("haunted_mimic", SlimeMimicHandler.isHauntedMimic(entity));
+		identity.add("bounding_box", GSON.toJsonTree(entity.getBoundingBox()));
 		report.add("entity", identity);
 
 		CompoundTag saved = entity.saveWithoutId(new CompoundTag());
 		// SNBT preserves numeric types, bitsets and UUID arrays exactly, including third-party NBT.
 		report.addProperty("entity_snbt", saved.toString());
 		if (entity instanceof SlimeBionicEntity bionic) {
+			JsonObject attachment = new JsonObject();
+			attachment.addProperty("attached", bionic.isBlockAttached());
+			attachment.addProperty("face", bionic.getBlockAttachmentFace().getSerializedName());
+			var cell = bionic.getBlockAttachmentCell();
+			attachment.add("cell", cell == null ? JsonNull.INSTANCE : GSON.toJsonTree(new int[] {
+				cell.getX(), cell.getY(), cell.getZ() }));
+			attachment.add("carrier", GSON.toJsonTree(bionic.getBlockAttachment().carrier()));
+			attachment.add("rotation", GSON.toJsonTree(bionic.blockAttachmentRotation()));
+			attachment.addProperty("suffocating", bionic.isInWall());
+			report.add("block_attachment", attachment);
 			SurgicalAssembly assembly = bionic.getAssembly();
 			report.addProperty("assembly_status", assembly == null ? "invalid_or_missing" : "assembled");
 			report.add("assembly", saved.contains("SurgicalAssembly", Tag.TAG_COMPOUND)
@@ -152,6 +165,18 @@ public final class MimicDebugReport {
 			entry.addProperty("present", result.present());
 			entry.addProperty("active", result.active());
 			entry.addProperty("inactive_reason", result.inactiveReason() == null ? null : result.inactiveReason().name());
+			JsonArray missingParts = new JsonArray();
+			for (var alternative : result.missingParts()) {
+				JsonArray parts = new JsonArray();
+				for (var part : alternative) {
+					JsonObject missing = new JsonObject();
+					missing.addProperty("entity_type", part.species().toString());
+					missing.addProperty("role", part.role().name());
+					parts.add(missing);
+				}
+				missingParts.add(parts);
+			}
+			entry.add("missing_part_alternatives", missingParts);
 			entry.addProperty("coverage", result.coverage());
 			entry.addProperty("strength", result.strength());
 			entry.addProperty("value", result.value());
@@ -160,6 +185,21 @@ public final class MimicDebugReport {
 			entry.add("source_types", strings(result.sourceTypes()));
 			entry.add("immune_effects", strings(result.immuneEffects()));
 			entry.add("deterrence_targets", strings(result.deterrenceTargets()));
+			JsonArray displayEntries = new JsonArray();
+			result.displayEntries().stream().sorted(Comparator
+				.comparing(DisplayEntry::kind).thenComparing(DisplayEntry::id))
+				.forEach(detail -> {
+					JsonObject display = new JsonObject();
+					display.addProperty("kind", detail.kind().name());
+					display.addProperty("id", detail.id().toString());
+					display.addProperty("active", detail.active());
+					display.addProperty("inactive_reason", detail.inactiveReason() == null ? null : detail.inactiveReason().name());
+					display.add("missing_part_alternatives", GSON.toJsonTree(detail.missingParts().stream()
+						.map(parts -> parts.stream().map(part -> Map.of("entity_type", part.species().toString(), "role", part.role().name())).toList())
+						.toList()));
+					displayEntries.add(display);
+				});
+			entry.add("display_entries", displayEntries);
 			JsonArray memberValues = new JsonArray();
 			result.memberValues().entrySet().stream().sorted(java.util.Map.Entry.comparingByKey(MEMBER_ORDER))
 				.forEach(value -> {

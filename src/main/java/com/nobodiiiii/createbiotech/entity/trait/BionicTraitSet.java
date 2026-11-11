@@ -8,15 +8,23 @@ import net.minecraft.resources.ResourceLocation;
 
 /** One immutable assembly evaluation, including inactive reasons and the data used to resolve it. */
 public final class BionicTraitSet {
-	public static final BionicTraitSet EMPTY = new BionicTraitSet(Map.of(), Map.of());
+	public static final BionicTraitSet EMPTY = new BionicTraitSet(Map.of(), Map.of(), false);
 	private final Map<BionicTrait, BionicTraitResult> results;
 	private final Map<BionicTrait, BionicTraitData> data;
 	private final Set<SurgicalAssembly.CombinationMember> wings;
+	private final boolean headUsesTorso;
 
-	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data) {
+	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
+		boolean headUsesTorso) {
+		this(results, data, headUsesTorso, Set.of());
+	}
+
+	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
+		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings) {
 		this.results = Map.copyOf(results);
 		this.data = Map.copyOf(data);
-		var wingMembers = new java.util.HashSet<SurgicalAssembly.CombinationMember>();
+		this.headUsesTorso = headUsesTorso;
+		var wingMembers = new java.util.HashSet<>(qualifyingWings);
 		for (var trait : java.util.List.of(BionicTrait.WING_FLIGHT, BionicTrait.WING_SLOW_FALL)) {
 			var result = this.results.get(trait);
 			if (result != null && (result.active() || result.inactiveReason() == BionicTraitResult.InactiveReason.MISSING_PAIRED_WINGS
@@ -27,6 +35,8 @@ public final class BionicTraitSet {
 	}
 	/** A qualifying wing remains a wing when the assembled body exceeds its lift or wing-count limit. */
 	public Set<SurgicalAssembly.CombinationMember> wingMembers() { return wings; }
+	/** True only for assembly evaluations with no installed head; donor facts have no such scope. */
+	public boolean headUsesTorso() { return headUsesTorso; }
 
 	/** Active wings and levitating torso tissue, counted once against all retained captured tissue. */
 	public double flightVolumeRatio(SurgicalAssembly assembly) {
@@ -48,6 +58,10 @@ public final class BionicTraitSet {
 
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return result(trait).active(); }
+	public boolean hasStrongJump() { return has(BionicTrait.STRONG_JUMP); }
+	public double strongJumpBonus() {
+		return hasStrongJump() ? parameter(BionicTrait.STRONG_JUMP, "jump_bonus", 0.2d) : 0;
+	}
 	/** Whole-body/torso ratio, or the highest individual chain ratio for limb abilities. */
 	public double coverage(BionicTrait trait) { return result(trait).coverage(); }
 	public double strength(BionicTrait trait) { return result(trait).strength(); }

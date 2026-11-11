@@ -96,6 +96,6 @@ public final class BionicTraitRuntime {
 			weight += volume;
 		}
 		return weight == 0 ? entity.getEyePosition()
-			: entity.position().add(sum.scale(1 / weight).yRot(-entity.yBodyRot * (float) Math.PI / 180));
+			: entity.bodyToWorld(sum.scale(1 / weight));
 	}
 }

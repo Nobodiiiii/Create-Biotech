@@ -11,6 +11,8 @@ import java.util.Set;
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DetailKind;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DisplayEntry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.InactiveReason;
 
 import net.minecraft.resources.ResourceLocation;
@@ -48,14 +50,19 @@ public final class BionicTraitResolver {
 				results.put(trait, result);
 		}
 		// Conditions may depend on another trait, so evaluate them after all coverage decisions.
-		BionicTraitSet covered = new BionicTraitSet(results, data.traits());
+		BionicTraitSet covered = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso());
 		results.replaceAll((trait, result) -> {
 			if (!result.active())
 				return result;
 			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result)
 				.withBindings(result.bindings());
 		});
-		return new BionicTraitSet(results, data.traits());
+		// Flight must pass its own wing-count/lift checks before it replaces slow falling.
+		if (results.getOrDefault(BionicTrait.WING_FLIGHT, BionicTraitResult.ABSENT).active()
+			|| results.getOrDefault(BionicTrait.WINGLESS_FLIGHT, BionicTraitResult.ABSENT).active())
+			results.remove(BionicTrait.WING_SLOW_FALL);
+		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
+		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers());
 	}
 
 	/** Donor tissue properties for box inspection; this does not claim organs are installed. */
@@ -91,7 +98,7 @@ public final class BionicTraitResolver {
 					trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.immuneEffects() : Set.of(),
 					Set.of(), null));
 		}
-		return new BionicTraitSet(results, BionicTraitRegistry.snapshot().traits());
+		return new BionicTraitSet(results, BionicTraitRegistry.snapshot().traits(), false);
 	}
 
 	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,
@@ -107,7 +114,7 @@ public final class BionicTraitResolver {
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		Map<ResourceLocation, Double> effectVolumes = new HashMap<>();
 		Set<ResourceLocation> commonEffects = null;
-		Set<ResourceLocation> carrierTargets = new HashSet<>();
+		Map<ResourceLocation, Set<SurgicalAssembly.CombinationMember>> detailCarriers = new HashMap<>();
 		boolean misplaced = false;
 		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
 			BitSet cubes = tissue.selected(sourceId, trait.scopes());
@@ -115,8 +122,15 @@ public final class BionicTraitResolver {
 			total += volume;
 			BionicTraitDonors.Facts donor = donors.get(sourceId);
 			BitSet carriers = (BitSet) bindings.get(sourceId).clone();
-			if (trait == BionicTrait.DETERRENCE && !carriers.isEmpty())
-				carrierTargets.addAll(donor.deterrenceTargets());
+			Set<ResourceLocation> details = switch (trait) {
+			case DETERRENCE -> donor.deterrenceTargets();
+			case HUNTING_INSTINCT -> BionicHunting.targets(Set.of(tissue.source(sourceId).profile().entityTypeId()));
+			case IMMUNE_EFFECTS -> donor.immuneEffects();
+			default -> Set.of();
+			};
+			if (!carriers.isEmpty())
+				for (var id : details)
+					addMembers(detailCarriers.computeIfAbsent(id, ignored -> new HashSet<>()), sourceId, carriers);
 			BitSet stray = (BitSet) carriers.clone();
 			stray.andNot(cubes);
 			misplaced |= !stray.isEmpty();
@@ -147,18 +161,21 @@ public final class BionicTraitResolver {
 				for (var member : limbResult.members())
 					types.add(tissue.source(member.source()).profile().entityTypeId());
 				return new BionicTraitResult(limbResult.coverage(), limbResult.strength(), 0, Set.of(),
-					limbResult.members(), limbResult.inactiveReason(), Map.of(), Set.of(), Map.of(), Map.of(), types);
+					limbResult.members(), limbResult.inactiveReason(), Map.of(), Set.of(), Map.of(), Map.of(), types)
+					.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
 			}
 			if (trait != BionicTrait.DETERRENCE) return limbResult;
 			Set<ResourceLocation> targets = new HashSet<>();
 			for (var member : limbResult.members()) targets.addAll(donors.get(member.source()).deterrenceTargets());
 			return new BionicTraitResult(limbResult.coverage(), limbResult.strength(), 0, Set.of(),
-				limbResult.members(), limbResult.inactiveReason(), Map.of(), limbResult.active() ? targets : carrierTargets);
+				limbResult.members(), limbResult.inactiveReason(), Map.of(), limbResult.active() ? targets : Set.of())
+				.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
 		}
 		double coverage = total > 0 ? contributing / total : 0;
 		BionicTraitResult result = acquisition(data.rule(), coverage, members, misplaced);
 		if (!result.active())
-			return result;
+			return result.withDisplayEntries(detailCarriers.keySet().stream().sorted()
+				.map(id -> new DisplayEntry(DetailKind.EFFECT, id, result.inactiveReason())).toList());
 		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
 			// Pick the highest-valued tissue first; missing positive tissue leaves zero-valued space.
 			double budget = total * data.rule().minCoverage();
@@ -182,8 +199,11 @@ public final class BionicTraitResolver {
 				if (unanimous && data.rule().isActive(true, total > 0 ? effect.getValue() / total : 0))
 					effects.add(effect.getKey());
 			}
-			return effects.isEmpty() ? result.disabled(InactiveReason.INSUFFICIENT_COVERAGE)
+			BionicTraitResult evaluated = effects.isEmpty() ? result.disabled(InactiveReason.INSUFFICIENT_COVERAGE)
 				: new BionicTraitResult(coverage, result.strength(), 0, effects, members, null);
+			return evaluated.withDisplayEntries(detailCarriers.keySet().stream().sorted()
+				.map(id -> new DisplayEntry(DetailKind.EFFECT, id,
+					effects.contains(id) ? null : InactiveReason.INSUFFICIENT_COVERAGE)).toList());
 		}
 		return result;
 	}
@@ -222,12 +242,14 @@ public final class BionicTraitResolver {
 		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> active = new HashMap<>();
 		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> evidence = new HashMap<>();
+		List<DisplayEntry> entries = new java.util.ArrayList<>();
 		Set<SurgicalAssembly.CombinationMember> allMembers = new HashSet<>();
 		double maximumCoverage = 0;
 		boolean misplaced = false;
 		for (BionicSubtrait variant : data.subtraits().values()) {
 			Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 			double total = 0, contributing = 0;
+			boolean variantMisplaced = false;
 			for (int source = 0; source < tissue.sourceCount(); source++) {
 				BitSet installed = tissue.selected(source, trait.scopes());
 				total += tissue.weight(source, installed);
@@ -237,7 +259,7 @@ public final class BionicTraitResolver {
 				if (!carriers.isEmpty()) evidence.computeIfAbsent(variant, ignored -> new HashSet<>());
 				BitSet stray = (BitSet) carriers.clone();
 				stray.andNot(installed);
-				misplaced |= !stray.isEmpty();
+				variantMisplaced |= !stray.isEmpty();
 				carriers.and(installed);
 				contributing += tissue.weight(source, carriers);
 				addMembers(members, source, carriers);
@@ -245,12 +267,15 @@ public final class BionicTraitResolver {
 			double coverage = total > 0 ? contributing / total : 0;
 			BionicTraitResult evaluated = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
 				|| trait.scopes().contains(BionicTraitScope.TORSO)
-				? acquisition(data.rule(), coverage, members, misplaced)
-				: evaluateLimbs(trait, data.rule(), tissue, members, misplaced);
+				? acquisition(data.rule(), coverage, members, variantMisplaced)
+				: evaluateLimbs(trait, data.rule(), tissue, members, variantMisplaced);
+			misplaced |= variantMisplaced;
 			maximumCoverage = Math.max(maximumCoverage, evaluated.coverage());
 			allMembers.addAll(members);
 			if (!members.isEmpty()) evidence.put(variant, members);
 			if (evaluated.active()) active.put(variant, evaluated.members());
+			if (evidence.containsKey(variant))
+				entries.add(new DisplayEntry(DetailKind.SUBTRAIT, variant.id(), evaluated.inactiveReason()));
 		}
 		if (allMembers.isEmpty() && !misplaced) return BionicTraitResult.ABSENT;
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
@@ -258,7 +283,7 @@ public final class BionicTraitResolver {
 		return new BionicTraitResult(maximumCoverage, active.isEmpty() ? 0 : 1, 0, Set.of(),
 			active.isEmpty() ? allMembers : members, active.isEmpty()
 				? allMembers.isEmpty() ? InactiveReason.WRONG_SLOT : InactiveReason.INSUFFICIENT_COVERAGE : null,
-			Map.of(), Set.of(), active.isEmpty() ? evidence : active, Map.of(), Set.of());
+			Map.of(), Set.of(), active.isEmpty() ? evidence : active, Map.of(), Set.of()).withDisplayEntries(entries);
 	}
 
 	private record NumericContribution(double value, double volume) {}
@@ -266,6 +291,7 @@ public final class BionicTraitResolver {
 	private static BionicTraitResult evaluateAttacks(BionicTraitData data, BionicTissue tissue,
 		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<BionicAttackEffect, Set<SurgicalAssembly.CombinationMember>> attacks = new HashMap<>();
+		Map<ResourceLocation, Set<SurgicalAssembly.CombinationMember>> detailCarriers = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		boolean misplaced = false;
 		for (int source = 0; source < tissue.sourceCount(); source++) {
@@ -279,6 +305,7 @@ public final class BionicTraitResolver {
 				stray.andNot(installed);
 				misplaced |= !stray.isEmpty();
 				if (!carriers.isEmpty()) {
+					addMembers(detailCarriers.computeIfAbsent(effect.effect(), ignored -> new HashSet<>()), source, carriers);
 					carriers.and(installed);
 					addMembers(attacks.computeIfAbsent(effect, ignored -> new HashSet<>()), source, carriers);
 				}
@@ -289,7 +316,34 @@ public final class BionicTraitResolver {
 		BionicTraitResult result = evaluateLimbs(BionicTrait.EFFECT_ATTACK, data.rule(), tissue, members, misplaced);
 		if (result.active()) attacks.entrySet().removeIf(entry -> entry.getValue().isEmpty());
 		return new BionicTraitResult(result.coverage(), result.strength(), 0, Set.of(), result.members(),
-			result.inactiveReason(), attacks, Set.of());
+			result.inactiveReason(), attacks, Set.of())
+			.withDisplayEntries(carrierEntries(BionicTrait.EFFECT_ATTACK, data.rule(), tissue, detailCarriers, DetailKind.EFFECT));
+	}
+
+	/** Evaluate each item once across all its retained carriers, preserving the acquisition priority. */
+	private static List<DisplayEntry> carrierEntries(BionicTrait trait, BionicTraitRule rule, BionicTissue tissue,
+		Map<ResourceLocation, Set<SurgicalAssembly.CombinationMember>> carriers, DetailKind kind) {
+		List<DisplayEntry> entries = new java.util.ArrayList<>();
+		for (var entry : carriers.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
+			Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
+			boolean misplaced = false;
+			double total = 0;
+			for (int source = 0; source < tissue.sourceCount(); source++) {
+				BitSet installed = tissue.selected(source, trait.scopes());
+				total += tissue.weight(source, installed);
+				for (var member : entry.getValue()) {
+					if (member.source() != source) continue;
+					if (installed.get(member.cube())) members.add(member);
+					else misplaced = true;
+				}
+			}
+			BionicTraitResult evaluated = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
+				|| trait.scopes().contains(BionicTraitScope.TORSO)
+				? acquisition(rule, total > 0 ? tissue.weight(members) / total : 0, members, misplaced)
+				: evaluateLimbs(trait, rule, tissue, members, misplaced);
+			entries.add(new DisplayEntry(kind, entry.getKey(), evaluated.inactiveReason()));
+		}
+		return entries;
 	}
 
 	/** Limb abilities use each chain's own denominator; only qualifying chains supply carriers. */

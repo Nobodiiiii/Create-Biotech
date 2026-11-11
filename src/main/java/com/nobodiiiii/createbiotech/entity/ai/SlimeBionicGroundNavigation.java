@@ -1,7 +1,10 @@
 package com.nobodiiiii.createbiotech.entity.ai;
 
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.level.Level;
@@ -15,9 +18,52 @@ import net.minecraft.world.phys.Vec3;
 public class SlimeBionicGroundNavigation extends GroundPathNavigation {
 	private static final double COLLISION_STEP = 0.5d;
 	private static final double COLLISION_EPSILON = 1.0e-7d;
+	private final BionicWallClimbing wallClimbing;
 
 	public SlimeBionicGroundNavigation(Mob mob, Level level) {
 		super(mob, level);
+		wallClimbing = new BionicWallClimbing(mob, this);
+	}
+
+	public boolean hasWallClimbingTarget() {
+		return wallClimbing.hasTarget();
+	}
+
+	@Override
+	public boolean moveTo(Entity target, double speed) {
+		return wallClimbing.canUse() ? wallClimbing.moveTo(target, speed) : super.moveTo(target, speed);
+	}
+
+	@Override
+	public boolean moveTo(double x, double y, double z, double speed) {
+		return moveTo(x, y, z, 1, speed);
+	}
+
+	@Override
+	public boolean moveTo(double x, double y, double z, int accuracy, double speed) {
+		return wallClimbing.canUse()
+			? wallClimbing.moveTo(BlockPos.containing(x, y, z), accuracy, speed)
+			: super.moveTo(x, y, z, accuracy, speed);
+	}
+
+	@Override
+	public boolean moveTo(@Nullable Path path, double speed) {
+		wallClimbing.setPath(path);
+		return super.moveTo(path, speed);
+	}
+
+	@Override
+	public void tick() {
+		boolean wasDone = isDone();
+		super.tick();
+		if (wasDone && isDone())
+			wallClimbing.tick(speedModifier);
+	}
+
+	@Override
+	public void stop() {
+		super.stop();
+		wallClimbing.stop();
 	}
 
 	@Override

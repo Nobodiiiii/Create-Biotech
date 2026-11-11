@@ -14,10 +14,16 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonors;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DetailKind;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.DisplayEntry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.InactiveReason;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.MissingPart;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitType;
@@ -27,6 +33,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -65,9 +73,6 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		BoxDetails details = details(stack, level);
 		if (details == null)
 			return;
-		if (details.stats().isEmpty() && details.traits().isEmpty()
-			&& details.donorFacts().isEmpty())
-			return;
 
 		boolean expanded = Screen.hasAltDown();
 		tooltip.add(Component.translatable("create_biotech.tooltip.hold_for_base_stats",
@@ -97,86 +102,119 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		for (BionicTrait trait : BionicTrait.values())
 			if (facts.contains(trait))
 				appendProperty(tooltip, trait == BionicTrait.DETERRENCE ? deterrenceName(targets)
-					: trait == BionicTrait.HUNTING_INSTINCT ? targetList(trait.descriptionId(), huntingTargets)
+					: trait == BionicTrait.HUNTING_INSTINCT ? targetList(trait, huntingTargets)
 					: Component.translatable(trait.descriptionId()));
-		if (!attacks.isEmpty()) appendProperty(tooltip, effectList("create_biotech.trait.effect_attack", attacks));
+		if (!attacks.isEmpty()) appendProperty(tooltip, effectList(BionicTrait.EFFECT_ATTACK, attacks));
 	}
 
-	/** Both active properties and their inactive reasons come from the entity's evaluation model. */
+	/** Head classifications always show their runtime value; other inactive traits show reasons. */
 	public static void appendPropertiesSection(List<Component> tooltip, BionicTraitSet traits) {
-		if (traits.isEmpty())
-			return;
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
 			.withStyle(ChatFormatting.GOLD));
+		List<Component> classifications = new ArrayList<>();
 		Map<BionicTraitScope, List<Component>> groups = new java.util.EnumMap<>(BionicTraitScope.class);
 		for (BionicTraitScope scope : BionicTraitScope.values())
 			groups.put(scope, new ArrayList<>());
 		for (BionicTrait trait : BionicTrait.values()) {
 			BionicTraitResult result = traits.result(trait);
+			if (trait.isHeadClassification() && !result.active()) {
+				Component value = Component.translatable("create_biotech.trait.variant."
+					+ BionicHeadTraits.defaultValue(trait).getPath());
+				appendProperty(classifications, Component.translatable(trait.descriptionId(), value)
+					.append(Component.translatable("create_biotech.trait.default").withStyle(ChatFormatting.DARK_GRAY)));
+				continue;
+			}
 			if (!result.present() || hiddenByStrongerTrait(trait, traits))
 				continue;
-			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.value() == 0)
+			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active() && result.value() == 0)
 				continue;
 			List<BionicTraitScope> scopes = trait.scopes().stream().sorted().toList();
-			List<Component> lines = groups.get(scopes.getFirst());
-			Component name = trait == BionicTrait.DETERRENCE ? deterrenceName(result.deterrenceTargets())
-				: Component.translatable(trait.descriptionId());
-			if (!result.subtraits().isEmpty()) {
-				MutableComponent variants = Component.empty();
-				for (var variant : result.subtraits().keySet().stream().sorted(java.util.Comparator.comparing(
-					com.nobodiiiii.createbiotech.entity.trait.BionicSubtrait::id)).toList()) {
-					if (!variants.getSiblings().isEmpty()) variants.append(Component.translatable("create_biotech.trait.list_separator"));
-					MutableComponent value = Component.translatable(variant.descriptionId());
-					if (trait == BionicTrait.DISPOSITION && result.active())
-						value.withStyle(switch (variant.id().getPath()) {
-						case "friendly" -> ChatFormatting.GREEN;
-						case "hostile" -> ChatFormatting.RED;
-						default -> ChatFormatting.YELLOW;
-						});
-					variants.append(value);
-				}
-				name = trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET
-					? Component.translatable(trait.descriptionId(), variants)
-					: Component.translatable("create_biotech.trait.with_variants", name, variants);
+			List<Component> lines = trait.isHeadClassification() ? classifications : groups.get(scopes.getFirst());
+			if (!result.displayEntries().isEmpty()) {
+				Map<DetailGroup, Set<ResourceLocation>> details = new java.util.LinkedHashMap<>();
+				result.displayEntries().stream().sorted(java.util.Comparator
+					.comparing((DisplayEntry entry) -> !entry.active())
+					.thenComparing(DisplayEntry::kind).thenComparing(DisplayEntry::id))
+					.forEach(entry -> details.computeIfAbsent(new DetailGroup(entry.kind(), entry.inactiveReason(), entry.missingParts()),
+						ignored -> new java.util.HashSet<>()).add(entry.id()));
+				details.forEach((group, ids) -> appendTraitLine(lines, trait, scopes, result,
+					detailName(trait, group.kind(), ids, group.reason() == null), group.reason(), group.missingParts()));
+				continue;
 			}
-			if (trait == BionicTrait.HUNTING_INSTINCT)
-				name = targetList(trait.descriptionId(), com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(result.sourceTypes()));
-			if (trait == BionicTrait.EFFECT_ATTACK)
-				name = effectList(trait.descriptionId(), result.attackEffects().keySet().stream()
-					.map(com.nobodiiiii.createbiotech.entity.trait.BionicAttackEffect::effect)
-					.collect(java.util.stream.Collectors.toSet()));
-			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+			Component name = Component.translatable(trait.nameDescriptionId());
+			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
 				name = Component.translatable(trait.descriptionId(),
 					String.format(java.util.Locale.ROOT, "%.1f", result.value()
 						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
-			if (scopes.size() > 1) {
-				MutableComponent names = Component.empty();
-				for (int index = 0; index < scopes.size(); index++) {
-					if (index > 0)
-						names.append(Component.translatable("create_biotech.trait.list_separator"));
-					names.append(Component.translatable(scopes.get(index).descriptionId()));
-				}
-				name = Component.translatable("create_biotech.trait.allowed_scopes", name, names);
-			}
-			if (!result.active()) {
-				lines.add(Component.literal(" ").append(name).append(Component.literal(" — "))
-					.append(Component.translatable(result.inactiveReason().descriptionId()))
-					.withStyle(ChatFormatting.DARK_GRAY));
-			} else if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
-				appendProperty(lines, name);
-			} else if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
-				appendEffectImmunities(lines, traits);
-			} else {
-				if (trait.valueKind() == BionicTrait.ValueKind.ABILITY
-					&& trait.rule().type() == BionicTraitType.COVERAGE_SCALED && !traits.hasFullEffect(trait))
-					name = Component.translatable("create_biotech.trait.partial", name,
-						Long.toString(Math.round(result.strength() * 100.0d)));
-				appendProperty(lines, name);
-			}
+			appendTraitLine(lines, trait, scopes, result, name, result.inactiveReason(), result.missingParts());
 		}
-		appendTraitGroup(tooltip, BionicTraitScope.HEAD.descriptionId(), groups.remove(BionicTraitScope.HEAD));
-		groups.forEach((scope, lines) -> appendTraitGroup(tooltip, scope.descriptionId(), lines));
+		tooltip.addAll(classifications);
+		appendTraitGroup(tooltip, Component.translatable(BionicTraitScope.WHOLE_BODY.descriptionId()),
+			groups.remove(BionicTraitScope.WHOLE_BODY));
+		MutableComponent headName = Component.translatable(BionicTraitScope.HEAD.descriptionId());
+		if (traits.headUsesTorso())
+			headName.append(Component.translatable("create_biotech.trait.slot.head_uses_torso")
+				.withStyle(ChatFormatting.DARK_GRAY));
+		appendTraitGroup(tooltip, headName, groups.remove(BionicTraitScope.HEAD));
+		groups.forEach((scope, lines) -> appendTraitGroup(tooltip, Component.translatable(scope.descriptionId()), lines));
+	}
+
+	private record DetailGroup(DetailKind kind, @Nullable InactiveReason reason,
+		List<List<MissingPart>> missingParts) {}
+
+	/** Each row has one status; only distinct items with the same reason share parentheses. */
+	private static void appendTraitLine(List<Component> lines, BionicTrait trait, List<BionicTraitScope> scopes,
+		BionicTraitResult result, Component name, @Nullable InactiveReason reason,
+		List<List<MissingPart>> missingParts) {
+		if (scopes.size() > 1) {
+			MutableComponent names = Component.empty();
+			for (var scope : scopes) {
+				if (!names.getSiblings().isEmpty())
+					names.append(Component.translatable("create_biotech.trait.list_separator"));
+				names.append(Component.translatable(scope.descriptionId()));
+			}
+			name = Component.translatable("create_biotech.trait.allowed_scopes", name, names);
+		}
+		if (reason != null) {
+			lines.add(Component.literal(" ").append(name).append(Component.literal(" — "))
+				.append(inactiveReason(reason, missingParts)).withStyle(ChatFormatting.DARK_GRAY));
+			return;
+		}
+		if (trait.valueKind() == BionicTrait.ValueKind.ABILITY
+			&& trait.rule().type() == BionicTraitType.COVERAGE_SCALED
+			&& result.strength() < 1.0d - BionicTraitRule.COVERAGE_EPSILON)
+			name = Component.translatable("create_biotech.trait.partial", name,
+				Long.toString(Math.round(result.strength() * 100.0d)));
+		appendProperty(lines, name);
+	}
+
+	private static Component inactiveReason(InactiveReason reason, List<List<MissingPart>> missingParts) {
+		String key = reason.descriptionId();
+		if (reason != InactiveReason.MISSING_REQUIRED_PARTS)
+			return Component.translatable(key);
+		if (missingParts.isEmpty())
+			return Component.translatable(key + ".unknown");
+		MutableComponent alternatives = Component.empty();
+		for (var missing : missingParts) {
+			if (!alternatives.getSiblings().isEmpty())
+				alternatives.append(Component.translatable("create_biotech.trait.part.alternative_separator"));
+			MutableComponent parts = Component.empty();
+			for (var part : missing) {
+				if (!parts.getSiblings().isEmpty())
+					parts.append(Component.translatable("create_biotech.trait.list_separator"));
+				String role = part.role().name().toLowerCase(java.util.Locale.ROOT);
+				String specific = "create_biotech.trait.part." + part.species().getNamespace() + "."
+					+ part.species().getPath() + "." + role;
+				Component species = BuiltInRegistries.ENTITY_TYPE.getOptional(part.species())
+					.map(type -> Component.translatable(type.getDescriptionId()))
+					.orElseGet(() -> Component.literal(part.species().toString()));
+				parts.append(Language.getInstance().has(specific) ? Component.translatable(specific)
+					: Component.translatable("create_biotech.trait.part." + role, species));
+			}
+			alternatives.append(parts);
+		}
+		return Component.translatable(key, alternatives);
 	}
 
 	private static boolean hiddenByStrongerTrait(BionicTrait trait, BionicTraitSet traits) {
@@ -184,64 +222,67 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		case FIRE_RESISTANCE -> traits.has(BionicTrait.FIRE_IMMUNE);
 		case FREEZE_RESISTANCE -> traits.has(BionicTrait.FREEZE_IMMUNE);
 		case AGILE_LANDING -> traits.has(BionicTrait.FALL_DAMAGE_IMMUNE);
-		case WING_SLOW_FALL -> traits.has(BionicTrait.WING_FLIGHT) || traits.has(BionicTrait.WINGLESS_FLIGHT);
 		default -> false;
 		};
 	}
 
 	private static Component deterrenceName(Set<ResourceLocation> targets) {
-		return targetList("create_biotech.trait.deterrence", targets);
+		return targetList(BionicTrait.DETERRENCE, targets);
 	}
 
-	private static Component targetList(String key, Set<ResourceLocation> targets) {
+	private static Component targetList(BionicTrait trait, Set<ResourceLocation> targets) {
+		return detailName(trait, DetailKind.TARGET, targets, true);
+	}
+
+	private static Component effectList(BionicTrait trait, Set<ResourceLocation> effects) {
+		return detailName(trait, DetailKind.EFFECT, effects, true);
+	}
+
+	private static Component detailName(BionicTrait trait, DetailKind kind, Set<ResourceLocation> ids, boolean active) {
+		Component base = Component.translatable(trait.nameDescriptionId());
+		if (ids.isEmpty()) return base;
 		MutableComponent names = Component.empty();
-		for (ResourceLocation id : targets.stream().sorted().toList()) {
-			if (!names.getSiblings().isEmpty()) names.append(Component.translatable("create_biotech.trait.list_separator"));
-			names.append(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(id)
-				.map(type -> Component.translatable(type.getDescriptionId())).orElseGet(() -> Component.translatable("create_biotech.trait.hunt_target." + id.getPath())));
+		List<ResourceLocation> sorted = ids.stream().sorted().toList();
+		int shown = Math.min(3, sorted.size());
+		for (int index = 0; index < shown; index++) {
+			if (index > 0) names.append(Component.translatable("create_biotech.trait.list_separator"));
+			ResourceLocation id = sorted.get(index);
+			Component value = switch (kind) {
+			case TARGET -> BuiltInRegistries.ENTITY_TYPE.getOptional(id)
+				.map(type -> Component.translatable(type.getDescriptionId()))
+				.orElseGet(() -> {
+					String key = "create_biotech.trait.hunt_target." + id.getPath();
+					return Language.getInstance().has(key) ? Component.translatable(key) : Component.literal(id.toString());
+				});
+			case EFFECT -> BuiltInRegistries.MOB_EFFECT.getOptional(id)
+				.map(effect -> effect.getDisplayName()).orElseGet(() -> Component.literal(id.toString()));
+			case SUBTRAIT -> Component.translatable("create_biotech.trait.variant." + id.getPath());
+			};
+			if (trait == BionicTrait.DISPOSITION && active)
+				value = value.copy().withStyle(switch (id.getPath()) {
+				case "friendly" -> ChatFormatting.GREEN;
+				case "hostile" -> ChatFormatting.RED;
+				default -> ChatFormatting.YELLOW;
+				});
+			names.append(value);
 		}
-		return Component.translatable(key, names);
+		if (sorted.size() > shown)
+			names.append(Component.translatable("create_biotech.trait.list_separator")).append(Component.literal("…"));
+		if (trait == BionicTrait.IMMUNE_EFFECTS)
+			return Component.translatable("create_biotech.trait.effect_immunity", names);
+		if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET || kind != DetailKind.SUBTRAIT)
+			return Component.translatable(trait.descriptionId(), names);
+		return Component.translatable("create_biotech.trait.with_variants", base, names);
 	}
 
-	private static Component effectList(String key, Set<ResourceLocation> effects) {
-		MutableComponent names = Component.empty();
-		for (ResourceLocation id : effects.stream().sorted().toList()) {
-			if (!names.getSiblings().isEmpty()) names.append(Component.translatable("create_biotech.trait.list_separator"));
-			names.append(net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getOptional(id)
-				.map(effect -> effect.getDisplayName()).orElseGet(() -> Component.literal(id.toString())));
-		}
-		return Component.translatable(key, names);
-	}
-
-	private static void appendTraitGroup(List<Component> tooltip, String descriptionId,
+	private static void appendTraitGroup(List<Component> tooltip, Component name,
 		List<Component> lines) {
 		if (lines.isEmpty())
 			return;
-		tooltip.add(Component.literal(" ").append(Component.translatable(descriptionId)
+		tooltip.add(Component.literal(" ").append(name.copy()
 			.withStyle(ChatFormatting.DARK_AQUA)));
 		for (Component line : lines)
 			tooltip.add(Component.literal(" ").append(line));
-	}
-
-	private static void appendEffectImmunities(List<Component> tooltip, BionicTraitSet traits) {
-		List<ResourceLocation> effects = traits.immuneEffects().stream().sorted().toList();
-		if (effects.isEmpty())
-			return;
-		MutableComponent names = Component.empty();
-		int shown = Math.min(3, effects.size());
-		for (int index = 0; index < shown; index++) {
-			if (index > 0)
-				names.append(Component.translatable("create_biotech.trait.list_separator"));
-			var effect = net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT
-				.getOptional(effects.get(index)).orElse(null);
-			names.append(effect == null ? Component.literal(effects.get(index).toString())
-				: effect.getDisplayName());
-		}
-		if (effects.size() > shown) {
-			names.append(Component.translatable("create_biotech.trait.list_separator"));
-			names.append(Component.literal("…"));
-		}
-		appendProperty(tooltip, Component.translatable("create_biotech.trait.effect_immunity", names));
 	}
 
 	private static void appendProperty(List<Component> tooltip, Component property) {

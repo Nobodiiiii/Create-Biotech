@@ -53,14 +53,14 @@ public enum BionicTrait {
 	WINGLESS_FLIGHT("wingless_flight", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
-	BODY_BOUNCE("body_bounce", BionicTraitScope.TORSO,
-		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.NONE,
+	SHOULDER_RIDING("shoulder_riding", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
 	PROJECTILE_DEFLECTION("projectile_deflection", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
 	CONTACT_RETALIATION("contact_retaliation", BionicTraitScope.WHOLE_BODY,
-		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.NONE,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
 	WATER_BREATHING("water_breathing", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
@@ -137,12 +137,16 @@ public enum BionicTrait {
 	WING_SLOW_FALL("wing_slow_fall", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
 		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
+	// JSON restricts other donors to legs; Breeze contributes any tissue, installed in leg chains.
 	STRONG_JUMP("strong_jump", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
-		Carrier.of(BionicAnatomyRole.LEG)),
+		Carrier.allTissue()),
 	ENDER_TELEPORT("ender_teleport", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
+	BLOCK_ATTACHMENT("block_attachment", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.BASE)),
 	MAGIC_RESISTANCE("magic_resistance", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
@@ -174,9 +178,9 @@ public enum BionicTrait {
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
 	SNOW_TRAIL("snow_trail", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.FOOT)),
-	POLLINATION("pollination", BionicTraitScope.LEG,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.BEE_BODY_AND_LEG, Carrier.of(BionicAnatomyRole.LEG)),
-	MILKABLE("milkable", BionicTraitScope.TORSO,
+	POLLINATION("pollination", BionicTraitScope.TORSO,
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
+	MILKABLE("milkable", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.UDDER_AND_BODY,
 		Carrier.of(BionicAnatomyRole.UDDER, BionicAnatomyRole.TORSO)),
 	WOOL_SHEARING("wool_shearing", BionicTraitScope.WHOLE_BODY,
@@ -214,6 +218,12 @@ public enum BionicTrait {
 
 	public String id() { return id; }
 	public String descriptionId() { return "create_biotech.trait." + id; }
+	/** A value-free name is also used when an installed carrier cannot supply an effective value. */
+	public String nameDescriptionId() {
+		return valueKind == ValueKind.NUMBER || valueKind == ValueKind.SUBTRAIT_SET
+			|| valueKind == ValueKind.ATTACK_EFFECT_SET || this == DETERRENCE || this == HUNTING_INSTINCT
+			? "create_biotech.trait.name." + id : descriptionId();
+	}
 	/** Allowed regions; head, arm and leg coverage is evaluated separately for each installed chain. */
 	public Set<BionicTraitScope> scopes() { return scopes; }
 	public Carrier carrier() { return carrier; }
@@ -225,7 +235,7 @@ public enum BionicTrait {
 	/** Behavior labels shared by inventory, surgical previews and JEI. */
 	public boolean isSkill() {
 		return switch (this) {
-		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, WINGLESS_FLIGHT, BODY_BOUNCE,
+		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, BLOCK_ATTACHMENT, WINGLESS_FLIGHT, SHOULDER_RIDING,
 			SWIM_SPECIALIST, SHELL_DEFENSE, RIDEABLE, SONIC_BOOM, SELF_DESTRUCT,
 			WOOL_SHEARING, TAMEABLE, VIBRATION_SENSE, WATER_AVERSION, DETERRENCE,
 			HUNTING_INSTINCT, PACK_ALERT, ROAR, HEAD_PROJECTILE, GUARDIAN_BEAM,
@@ -241,7 +251,7 @@ public enum BionicTrait {
 		case RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
-			BODY_BOUNCE, PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
+			PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
 			WATER_BREATHING, TAMEABLE, DETERRENCE, AGILE_LANDING, POWDER_SNOW_WALK, SWIM_SPECIALIST,
 			IMMUNE_EFFECTS, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION -> true;
 		default -> false;
@@ -276,6 +286,6 @@ public enum BionicTrait {
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
 	public enum Condition {
 		NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
-		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH, BEE_BODY_AND_LEG
+		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH
 	}
 }

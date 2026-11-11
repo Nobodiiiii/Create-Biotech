@@ -30,7 +30,7 @@ public final class BionicIntelligenceRegistry {
 
 	public static BionicIntelligence get(LivingEntity entity) {
 		if (entity == null)
-			return BionicIntelligence.NORMAL;
+			return BionicIntelligence.SIMPLE;
 		BionicIntelligence override = DATA.get(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()));
 		if (override != null)
 			return override;

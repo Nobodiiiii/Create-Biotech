@@ -51,8 +51,7 @@ public final class BionicDeterrence {
 		return Set.copyOf(result);
 	}
 	public static boolean canFlee(Mob mob) {
-		return !(mob instanceof Wolf wolf && wolf.isTame())
-			&& !(mob instanceof Rabbit rabbit && rabbit.getVariant() == Rabbit.Variant.EVIL);
+		return !(mob instanceof Wolf wolf && wolf.isTame());
 	}
 	private static final Map<Mob, Boolean> INSTALLED = Collections.synchronizedMap(new WeakHashMap<>());
 	private static boolean threatens(SlimeBionicEntity donor, Mob target) {

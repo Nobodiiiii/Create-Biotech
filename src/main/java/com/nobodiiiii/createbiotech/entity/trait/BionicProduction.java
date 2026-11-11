@@ -64,7 +64,7 @@ public final class BionicProduction {
 			productionCarriers = new ProductionCarriers(Map.copyOf(wool),
 				BionicTraitRuntime.membersWithRole(entity, BionicTrait.EGG_LAYING, BionicAnatomyRole.TORSO).size(),
 				BionicTraitRuntime.membersWithRole(entity, BionicTrait.SCUTE_SHEDDING, BionicAnatomyRole.SHELL).size(),
-				BionicTraitRuntime.membersWithRole(entity, BionicTrait.POLLINATION, BionicAnatomyRole.LEG).size());
+				BionicTraitRuntime.membersWithRole(entity, BionicTrait.POLLINATION, BionicAnatomyRole.TORSO).size());
 		}
 		carrierAssembly = assembly;
 		carrierTraits = traits;
@@ -259,7 +259,7 @@ public final class BionicProduction {
 					}
 		return null;
 	}
-	/** Each retained bee-leg part supplies its own growth attempt and pollen-use budget. */
+	/** Each retained bee body supplies its own growth attempt and pollen-use budget. */
 	private void growCrops() {
 		ServerLevel level = (ServerLevel) entity.level();
 		int organs = carriers().pollinators();

@@ -192,10 +192,10 @@ public final class BionicEquipment {
 		if (assembly == null || assembly.attackGeometry() == null) return null;
 		var geometry = assembly.attackGeometry();
 		Vec3 pivot = carrierOrigin();
-		var rotation = BionicRiding.bodyRotation(entity, 1);
-		Vec3 start = player.getEyePosition().subtract(entity.position()).yRot(entity.yBodyRot * net.minecraft.util.Mth.DEG_TO_RAD);
-		Vec3 end = player.getEyePosition().add(player.getLookAngle().scale(player.entityInteractionRange() + 1))
-			.subtract(entity.position()).yRot(entity.yBodyRot * net.minecraft.util.Mth.DEG_TO_RAD);
+		var rotation = entity.isBlockAttached() ? com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation.IDENTITY
+			: BionicRiding.bodyRotation(entity, 1);
+		Vec3 start = entity.worldToBody(player.getEyePosition());
+		Vec3 end = entity.worldToBody(player.getEyePosition().add(player.getLookAngle().scale(player.entityInteractionRange() + 1)));
 		start = pivot.add(BionicRiding.inverse(rotation).rotate(start.subtract(pivot)));
 		end = pivot.add(BionicRiding.inverse(rotation).rotate(end.subtract(pivot)));
 		CombinationMember selected = null;
@@ -226,7 +226,7 @@ public final class BionicEquipment {
 		if (!geometry.carrierCubes().isEmpty()) return selected;
 		// Assemblies saved before cuboid picking retain their per-cube attachment origins.
 		Vec3 point = hit == null ? end : pivot.add(BionicRiding.inverse(rotation).rotate(
-			hit.yRot(entity.yBodyRot * net.minecraft.util.Mth.DEG_TO_RAD).subtract(pivot)));
+			entity.worldToBody(entity.position().add(hit)).subtract(pivot)));
 		return geometry.carrierOrigins().entrySet().stream().min(Comparator
 			.comparingDouble((Map.Entry<CombinationMember, Vec3> entry) -> entry.getValue().distanceToSqr(point))
 			.thenComparing(Map.Entry::getKey, ORDER)).map(Map.Entry::getKey).orElse(null);
@@ -248,9 +248,11 @@ public final class BionicEquipment {
 		AABB result = null;
 		for (var entry : assembly.attackGeometry().equipmentBounds().entrySet()) {
 			for (var bounds : activeBounds(entry.getKey(), entry.getValue())) {
-				AABB transformed = BionicRiding.rotateBounds(box(bounds), carrierOrigin(), BionicRiding.bodyRotation(entity, 1));
+				AABB transformed = entity.isBlockAttached()
+					? BionicRiding.rotateBounds(box(bounds), Vec3.ZERO, entity.blockAttachmentRotation())
+					: BionicRiding.rotateBounds(box(bounds), carrierOrigin(), BionicRiding.bodyRotation(entity, 1));
 				transformed = BionicRiding.rotateBounds(transformed, Vec3.ZERO,
-					com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation.around(new Vec3(0, 1, 0), -entity.yBodyRot))
+					com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation.around(new Vec3(0, 1, 0), entity.isBlockAttached() ? 0 : -entity.yBodyRot))
 					.move(entity.position());
 				result = result == null ? transformed : result.minmax(transformed);
 			}

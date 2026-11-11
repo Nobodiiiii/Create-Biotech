@@ -8,17 +8,21 @@
   "carriers": {
     "minecraft:chicken": {
       "LEFT_WING": [
+        "leftWing",
         "left_wing"
       ],
       "RIGHT_WING": [
+        "rightWing",
         "right_wing"
       ]
     },
     "minecraft:parrot": {
       "LEFT_WING": [
+        "leftWing",
         "left_wing"
       ],
       "RIGHT_WING": [
+        "rightWing",
         "right_wing"
       ]
     }

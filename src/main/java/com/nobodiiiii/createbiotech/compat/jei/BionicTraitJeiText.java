@@ -86,12 +86,14 @@ final class BionicTraitJeiText {
 
 	@Nullable
 	private static Component condition(BionicTrait trait) {
+		if (trait == BionicTrait.SHELL_DEFENSE)
+			return tr("condition.shell_defense");
 		return switch (trait.condition()) {
 		case NONE -> null;
 		case BODY_VOLUME -> tr("condition.body_volume");
 		case BREATHING_REQUIRED -> tr("condition.breathing");
 		case WOOL_AND_BODY -> tr("condition.wool_and_body");
-		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH, BEE_BODY_AND_LEG ->
+		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH ->
 			tr("condition." + trait.condition().name().toLowerCase(Locale.ROOT));
 		case WING_LIFT -> tr("condition.wings");
 		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",

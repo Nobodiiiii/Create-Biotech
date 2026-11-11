@@ -25,6 +25,10 @@ public class SlimeBionicBodyRotationControl extends BodyRotationControl {
 
 	@Override
 	public void clientTick() {
+		if (mob instanceof SlimeBionicEntity bionic && bionic.isBlockAttached()) {
+			bionic.lockBlockAttachmentRotation();
+			return;
+		}
 		if (mob instanceof SlimeBionicEntity bionic && bionic.applyCombatFacing()) {
 			rotateHeadIfNecessary();
 			headStableTime = 0;

@@ -241,7 +241,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		SurgicalAssembly assembly = entity.getAssembly();
 		if (assembly != null) {
 			float bodyYaw = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
-			BodyFrame bodyFrame = BodyFrame.of(bodyYaw, poseStack.last().pose());
+			BodyFrame bodyFrame = BodyFrame.of(entity, bodyYaw, poseStack.last().pose());
 			if (assembly.preservesLayout() || assembly.sources().size() > 1) {
 				renderComposite(entity, assembly, bodyFrame, partialTick, poseStack, sourceBuffer, packedLight);
 				if (hideOriginal)
@@ -306,6 +306,15 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		}
 		if (!hideOriginal)
 			super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
+	}
+
+	/** The player's shoulder layer draws the preserved body without world labels or combat overlays. */
+	public void renderOnShoulder(SlimeBionicEntity entity, float partialTick, PoseStack poseStack,
+		MultiBufferSource buffer, int packedLight) {
+		SurgicalAssembly assembly = entity.getAssembly();
+		if (assembly != null)
+			renderComposite(entity, assembly, BodyFrame.of(0, poseStack.last().pose()), partialTick,
+				poseStack, buffer, packedLight);
 	}
 
 	private static MultiBufferSource hiddenBuffer() {
@@ -618,8 +627,15 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	 * are in light-space axes. Capture the incoming linear transform and include it here so both passes
 	 * produce the same articulated silhouette.</p>
 	 */
-	private record BodyFrame(float yaw, Matrix4f axes, Quaternionf rotation) {
-		private static final BodyFrame IDENTITY = new BodyFrame(0.0f, new Matrix4f(), new Quaternionf());
+	private record BodyFrame(float yaw, Matrix4f axes, Quaternionf rotation, Quaternionf attachment) {
+		private static final BodyFrame IDENTITY = new BodyFrame(0.0f, new Matrix4f(), new Quaternionf(), new Quaternionf());
+
+		private static BodyFrame of(SlimeBionicEntity entity, float yaw, Matrix4f incomingPose) {
+			if (!entity.isBlockAttached()) return of(yaw, incomingPose);
+			Quaternionf attachment = BionicRiding.quaternion(entity.blockAttachmentRotation());
+			Matrix4f axes = new Matrix4f(incomingPose).rotate(attachment);
+			return new BodyFrame(0, axes, axes.getUnnormalizedRotation(new Quaternionf()), attachment);
+		}
 
 		private static BodyFrame of(float yaw, Matrix4f incomingPose) {
 			float wrapped = Mth.wrapDegrees(yaw);
@@ -627,10 +643,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			if (Math.abs(wrapped) > 1.0e-6f)
 				axes.rotateY((float) Math.toRadians(-wrapped));
 			return new BodyFrame(wrapped, axes,
-				axes.getUnnormalizedRotation(new Quaternionf()));
+				axes.getUnnormalizedRotation(new Quaternionf()), new Quaternionf());
 		}
 
 		private void apply(PoseStack poseStack) {
+			poseStack.mulPose(attachment);
 			if (Math.abs(yaw) > 1.0e-6f)
 				poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
 		}
