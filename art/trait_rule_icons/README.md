@@ -1,13 +1,15 @@
 # JEI trait rule icons
 
-Three transparent, 18×18, black-and-white pixel sprites. The JEI rule widget
-renders them at their native size; the existing rule and condition tooltips apply.
+Four transparent, 18×18, black-and-white pixel sprites. The JEI rule widget
+renders them at their native size. Hovering explains the inheritance type;
+additional acquisition conditions appear at the end of the effect description.
 
 | File | Meaning | Construction |
 | --- | --- | --- |
 | `presence.png` | A retained carrier is sufficient | Checked box |
 | `threshold.png` | Coverage must reach a threshold | Solid fill bar with a protruding threshold marker |
 | `scaled.png` | Effect strength grows with coverage | Filled pie with a missing upper-right quarter |
+| `special.png` | Disposition and intelligence use their own head-retention and classification rules | Three pixel sparkles |
 
 Output: `src/main/resources/assets/create_biotech/textures/gui/sprites/jei/trait_rule/`.
 
@@ -32,6 +34,7 @@ Nikoichu**, released under CC0 1.0 Universal:
 - Threshold construction reference: `Software_Battery_Power_Level_2.png`;
   redrawn horizontally with a solid fill, no battery cap and an extended threshold marker.
 - Scaled: a pie drawn directly at the native pixel resolution.
+- Special: an original pixel mask of three sparkles, matching the black-and-white palette.
 
 License information was also recorded by the local Ponderer project in
 `Common/src/main/resources/assets/ponderer/textures/gui/action_icons.LICENSE.txt`.

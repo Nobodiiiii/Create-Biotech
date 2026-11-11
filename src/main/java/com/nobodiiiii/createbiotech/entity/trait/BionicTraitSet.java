@@ -13,14 +13,15 @@ public final class BionicTraitSet {
 	private final Map<BionicTrait, BionicTraitData> data;
 	private final Set<SurgicalAssembly.CombinationMember> wings;
 	private final boolean headUsesTorso;
+	private final double tamingChance;
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso) {
-		this(results, data, headUsesTorso, Set.of());
+		this(results, data, headUsesTorso, Set.of(), 0.0d);
 	}
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
-		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings) {
+		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings, double tamingChance) {
 		var effective = new java.util.EnumMap<BionicTrait, BionicTraitResult>(BionicTrait.class);
 		effective.putAll(results);
 		// Pet taming replaces livestock taming for both behavior and every assembly preview.
@@ -29,6 +30,7 @@ public final class BionicTraitSet {
 		this.results = Map.copyOf(effective);
 		this.data = Map.copyOf(data);
 		this.headUsesTorso = headUsesTorso;
+		this.tamingChance = Double.isFinite(tamingChance) ? Math.clamp(tamingChance, 0.0d, 1.0d) : 0.0d;
 		var wingMembers = new java.util.HashSet<>(qualifyingWings);
 		for (var trait : java.util.List.of(BionicTrait.WING_FLIGHT, BionicTrait.WING_SLOW_FALL)) {
 			var result = this.results.get(trait);
@@ -64,6 +66,8 @@ public final class BionicTraitSet {
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return result(trait).active(); }
 	public boolean isTameable() { return has(BionicTrait.TAMEABLE) || has(BionicTrait.LIVESTOCK_TAMEABLE); }
+	/** Runtime roll only; kept separate from trait values and tooltip strength. */
+	public double tamingChance() { return tamingChance; }
 	public boolean hasStrongJump() { return has(BionicTrait.STRONG_JUMP); }
 	public double strongJumpBonus() {
 		return hasStrongJump() ? parameter(BionicTrait.STRONG_JUMP, "jump_bonus", 0.2d) : 0;

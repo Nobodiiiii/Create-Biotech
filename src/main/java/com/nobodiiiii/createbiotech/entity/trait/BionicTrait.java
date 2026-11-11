@@ -6,10 +6,10 @@ import java.util.Set;
 /** Single trait catalog. Scope, inheritance and conditions are independent. */
 public enum BionicTrait {
 	DISPOSITION("disposition", BionicTraitScope.HEAD,
-		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		BionicTraitRule.special(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	INTELLIGENCE("intelligence", BionicTraitScope.HEAD,
-		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
+		BionicTraitRule.special(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	FIRE_IMMUNE("fire_immune", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,

@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -7,9 +8,10 @@ import java.util.stream.Stream;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
-import com.nobodiiiii.createbiotech.entity.trait.BionicTraitType;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -17,8 +19,8 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
 
 /**
- * Effect-only body text, with scope, carrier rules and conditions in header icon tooltips.
- * Default reference values only; assembly tooltips remain the source of live, data-pack-dependent values.
+ * Header tooltips explain inheritance types; acquisition conditions follow the effect description.
+ * Coverage thresholds follow server data packs; effect descriptions use reference values.
  */
 final class BionicTraitJeiText {
 	private static final String PREFIX = "create_biotech.jei.trait.";
@@ -26,7 +28,12 @@ final class BionicTraitJeiText {
 	private BionicTraitJeiText() {}
 
 	static List<FormattedText> description(BionicTrait trait) {
-		return List.of(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
+		List<FormattedText> text = new ArrayList<>();
+		text.add(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
+		Component condition = condition(trait);
+		if (condition != null)
+			text.add(tr("condition", condition).withStyle(ChatFormatting.BLACK));
+		return List.copyOf(text);
 	}
 
 	static Component scopeTooltip(BionicTraitScope scope) {
@@ -34,39 +41,37 @@ final class BionicTraitJeiText {
 	}
 
 	static List<Component> ruleTooltip(BionicTrait trait) {
+		BionicTraitRule rule = BionicTraitClientRules.rule(trait);
 		List<Component> text = new ArrayList<>();
-		text.add(field("rule", rule(trait)));
-		Component condition = condition(trait);
-		if (condition != null)
-			text.add(field("condition", condition));
+		String type = switch (rule.type()) {
+		case PRESENCE -> "presence";
+		case COVERAGE_THRESHOLD -> "threshold";
+		case COVERAGE_SCALED -> "scaled";
+		case SPECIAL -> "special";
+		};
+		text.add(field("rule", tr("rule." + type)));
+		switch (rule.type()) {
+		case PRESENCE, COVERAGE_SCALED -> text.add(tr("rule." + type + ".description").withStyle(ChatFormatting.GRAY));
+		case COVERAGE_THRESHOLD -> text.add(tr("rule.threshold.description", percentage(rule.minCoverage()))
+			.withStyle(ChatFormatting.GRAY));
+		case SPECIAL -> { }
+		}
 		return List.copyOf(text);
 	}
 
-	@Nullable
 	static Component donorTooltip(BionicTrait trait) {
 		Component carrier = carrier(trait.carrier());
-		return carrier == null ? null : tr("donors.carrier", carrier).withStyle(ChatFormatting.GRAY);
+		if (carrier == null)
+			carrier = Component.translatable(BionicTraitScope.WHOLE_BODY.descriptionId());
+		return tr("donors.carrier", carrier).withStyle(ChatFormatting.GRAY);
 	}
 
 	private static Component field(String label, Component value) {
 		return tr(label, value.copy().withStyle(ChatFormatting.WHITE)).withStyle(ChatFormatting.GRAY);
 	}
 
-	private static Component rule(BionicTrait trait) {
-		if (trait.isHeadClassification())
-			return tr("rule.head_retention", String.format(Locale.ROOT, "%.0f", trait.rule().minCoverage() * 100.0d));
-		Component type = tr("rule." + switch (trait.rule().type()) {
-		case PRESENCE -> "presence";
-		case COVERAGE_THRESHOLD -> "threshold";
-		case COVERAGE_SCALED -> "scaled";
-		});
-		Component carrier = carrier(trait.carrier());
-		Component detail = carrier;
-		if (trait.rule().type() == BionicTraitType.COVERAGE_THRESHOLD) {
-			String percentage = String.format(Locale.ROOT, "%.0f", trait.rule().minCoverage() * 100.0d);
-			detail = carrier == null ? tr("rule.coverage", percentage) : tr("rule.carrier_coverage", carrier, percentage);
-		}
-		return detail == null ? type : tr("rule.detail", type, detail);
+	private static String percentage(double coverage) {
+		return BigDecimal.valueOf(coverage).movePointRight(2).stripTrailingZeros().toPlainString();
 	}
 
 	/** Null for whole-tissue carriers; paired wings read as one carrier, fallbacks as alternatives. */
@@ -86,6 +91,8 @@ final class BionicTraitJeiText {
 
 	@Nullable
 	private static Component condition(BionicTrait trait) {
+		if (trait.isHeadClassification())
+			return tr("condition.head_retention", percentage(BionicTraitClientRules.rule(trait).minCoverage()));
 		if (trait == BionicTrait.SHELL_DEFENSE)
 			return tr("condition.shell_defense");
 		return switch (trait.condition()) {

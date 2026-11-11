@@ -31,7 +31,12 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 		return new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.0d);
 	}
 
-	/** Threshold acquisition or the full-value volume budget of a numeric trait. */
+	/** Retention is measured by the trait's own evaluator rather than generic regional coverage. */
+	public static BionicTraitRule special(double minimum) {
+		return new BionicTraitRule(BionicTraitType.SPECIAL, minimum);
+	}
+
+	/** Acquisition/retention threshold or the full-value volume budget of a numeric trait. */
 	public BionicTraitRule withMinCoverage(double minimum) {
 		return type == BionicTraitType.PRESENCE ? this : new BionicTraitRule(type, minimum);
 	}

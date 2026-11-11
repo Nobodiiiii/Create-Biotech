@@ -24,19 +24,20 @@ final class BionicTraitInfoWidget implements IRecipeWidget {
 	private static final int CELL = 18;
 	private static final int ITEM_INSET = (CELL - ICON_SIZE) / 2;
 	private final ScreenPosition position;
+	private final BionicTrait trait;
 	private final List<BionicTraitScope> scopes;
-	private final List<Component> ruleTooltip;
 	private final ItemStack transformStack = new ItemStack(CBItems.NECK_JOINT.get());
 	private final ResourceLocation ruleIcon;
 
 	BionicTraitInfoWidget(BionicTrait trait, int x, int y) {
 		position = new ScreenPosition(x, y);
+		this.trait = trait;
 		scopes = trait.scopes().stream().sorted().toList();
-		ruleTooltip = BionicTraitJeiText.ruleTooltip(trait);
 		ruleIcon = CreateBiotech.asResource("jei/trait_rule/" + switch (trait.rule().type()) {
 		case PRESENCE -> "presence";
 		case COVERAGE_THRESHOLD -> "threshold";
 		case COVERAGE_SCALED -> "scaled";
+		case SPECIAL -> "special";
 		});
 	}
 
@@ -69,6 +70,6 @@ final class BionicTraitInfoWidget implements IRecipeWidget {
 				return;
 			tooltip.add(BionicTraitJeiText.scopeTooltip(scopes.get(index)));
 		} else if (index == scopes.size())
-			tooltip.addAll(ruleTooltip);
+			tooltip.addAll(BionicTraitJeiText.ruleTooltip(trait));
 	}
 }

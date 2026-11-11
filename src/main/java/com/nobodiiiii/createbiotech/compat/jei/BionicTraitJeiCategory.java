@@ -77,7 +77,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 		boolean showDonors = CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()
 			&& slots.size() == BionicTraitDonorWidget.PAGE_SIZE;
 		int textHeight = showDonors ? TEXT_HEIGHT : HEIGHT - TEXT_Y;
-		// Keep the scrollbar only for overflowing effects.
+		// Keep the scrollbar only for overflowing descriptions and acquisition conditions.
 		if (fits(text, textHeight))
 			builder.addText(text, WIDTH, textHeight).setPosition(0, TEXT_Y);
 		else

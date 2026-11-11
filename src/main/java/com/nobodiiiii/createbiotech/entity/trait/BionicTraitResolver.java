@@ -62,7 +62,19 @@ public final class BionicTraitResolver {
 			|| results.getOrDefault(BionicTrait.WINGLESS_FLIGHT, BionicTraitResult.ABSENT).active())
 			results.remove(BionicTrait.WING_SLOW_FALL);
 		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
-		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers());
+		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(),
+			tamingChance(results, tissue));
+	}
+
+	private static double tamingChance(Map<BionicTrait, BionicTraitResult> results, BionicTissue tissue) {
+		Set<SurgicalAssembly.CombinationMember> carriers = new HashSet<>();
+		// Behavior suppression must not discard tameable tissue from the probability's numerator.
+		for (BionicTrait trait : List.of(BionicTrait.TAMEABLE, BionicTrait.LIVESTOCK_TAMEABLE)) {
+			BionicTraitResult result = results.getOrDefault(trait, BionicTraitResult.ABSENT);
+			if (result.active()) carriers.addAll(result.members());
+		}
+		return carriers.isEmpty() ? 0.0d
+			: evaluateLimbs(BionicTrait.TAMEABLE, BionicTraitRule.presence(), tissue, carriers, false).coverage();
 	}
 
 	/** Donor tissue properties for box inspection; this does not claim organs are installed. */

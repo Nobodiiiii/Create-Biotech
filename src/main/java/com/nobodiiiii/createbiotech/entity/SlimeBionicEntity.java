@@ -658,21 +658,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (productionResult.consumesAction()) return productionResult;
 		InteractionResult equipmentResult = equipment.interact(player, hand);
 		if (equipmentResult.consumesAction()) return equipmentResult;
-		boolean tameable = getBionicTraits().isTameable();
-		if (ownerId == null && held.is(Items.SLIME_BALL)) {
+		BionicTraitSet traits = getBionicTraits();
+		if (ownerId == null && held.is(Items.SLIME_BALL) && traits.isTameable()) {
 			if (!level().isClientSide) {
-				if (tameable) {
-					if (!player.getAbilities().instabuild)
-						held.shrink(1);
+				if (!player.getAbilities().instabuild)
+					held.shrink(1);
+				boolean tamed = random.nextDouble() < traits.tamingChance();
+				if (tamed) {
 					setBionicOwner(player.getUUID());
 					setOrderedToSit(false);
 					setTarget(null);
 				}
-				level().broadcastEntityEvent(this, (byte) (tameable ? 7 : 6));
+				level().broadcastEntityEvent(this, (byte) (tamed ? 7 : 6));
 			}
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}
-		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
+		if (!traits.has(BionicTrait.TAMEABLE))
 			return super.mobInteract(player, hand);
 		if (ownerId != null && ownerId.equals(player.getUUID())) {
 			if (!level().isClientSide) {

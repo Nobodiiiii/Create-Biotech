@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -34,6 +35,7 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTablePoseReso
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.entity.client.BionicGuardianBeamRenderer;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAttackRangeRenderer;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -52,6 +54,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static final boolean RENDER_ATTACK_RANGE = true;
 	private static final float MIN_SHADOW_RADIUS = 0.15f;
 	private static final float MAX_SHADOW_RADIUS = 1.0f;
+	private static final float SITTING_HEIGHT_SCALE = 0.8f;
 	private static final ResourceLocation SLIME_TEXTURE =
 		ResourceLocation.withDefaultNamespace("textures/entity/slime/slime.png");
 	private static final Map<SlimeBionicEntity, CachedGeometry> GEOMETRY = new WeakHashMap<>();
@@ -239,6 +242,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		MultiBufferSource sourceBuffer = hideOriginal ? hiddenBuffer() : buffer;
 		SurgicalAssembly assembly = entity.getAssembly();
 		if (assembly != null) {
+			sourceBuffer = sittingModelBuffer(entity, poseStack, sourceBuffer);
 			float bodyYaw = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 			BodyFrame bodyFrame = BodyFrame.of(entity, bodyYaw, poseStack.last().pose());
 			if (assembly.preservesLayout() || assembly.sources().size() > 1) {
@@ -319,6 +323,64 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static MultiBufferSource hiddenBuffer() {
 		EntityGeometry.Collector hidden = EntityGeometry.Collector.boundsOnly();
 		return renderType -> hidden;
+	}
+
+	private static MultiBufferSource sittingModelBuffer(SlimeBionicEntity entity, PoseStack poseStack,
+		MultiBufferSource buffer) {
+		if (entity.isDeadOrDying() || entity.getBionicOwnerId() == null || !entity.isOrderedToSit()
+			|| !entity.getBionicTraits().has(BionicTrait.TAMEABLE))
+			return buffer;
+		// Cube rotations are applied after the pose stack. Compress the finished model so every
+		// articulated part and its equipment share the same vertical scale, anchored at the feet.
+		Matrix4f incoming = poseStack.last().pose();
+		Matrix4f transform = new Matrix4f(incoming).scale(1.0f, SITTING_HEIGHT_SCALE, 1.0f)
+			.mul(new Matrix4f(incoming).invert());
+		Matrix3f normal = new Matrix3f(transform).invert().transpose();
+		return renderType -> new SittingVertexConsumer(buffer.getBuffer(renderType), transform, normal,
+			new Vector3f());
+	}
+
+	private record SittingVertexConsumer(VertexConsumer delegate, Matrix4f transform, Matrix3f normal,
+		Vector3f scratch) implements VertexConsumer {
+		@Override
+		public VertexConsumer addVertex(float x, float y, float z) {
+			transform.transformPosition(x, y, z, scratch);
+			delegate.addVertex(scratch.x, scratch.y, scratch.z);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+			delegate.setColor(red, green, blue, alpha);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv(float u, float v) {
+			delegate.setUv(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv1(int u, int v) {
+			delegate.setUv1(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setUv2(int u, int v) {
+			delegate.setUv2(u, v);
+			return this;
+		}
+
+		@Override
+		public VertexConsumer setNormal(float x, float y, float z) {
+			normal.transform(x, y, z, scratch);
+			if (scratch.lengthSquared() > 1.0e-8f)
+				scratch.normalize();
+			delegate.setNormal(scratch.x, scratch.y, scratch.z);
+			return this;
+		}
 	}
 
 	private static void renderComposite(SlimeBionicEntity entity, SurgicalAssembly assembly,

@@ -54,7 +54,8 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid automatic_detection in {}", primary);
 		}
-		if ((rule.type() == BionicTraitType.COVERAGE_THRESHOLD || trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+		if ((rule.type() == BionicTraitType.COVERAGE_THRESHOLD || rule.type() == BionicTraitType.SPECIAL
+			|| trait.valueKind() == BionicTrait.ValueKind.NUMBER)
 			&& root.has("min_coverage")) {
 			Double value = numberValue(root.get("min_coverage"));
 			if (value != null && value <= 1.0d

@@ -11,6 +11,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRulesPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerContraptionAnimationPacket;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerReleaseAnimationPacket;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenVoiceSoundPacket;
@@ -74,7 +75,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "32";
+	private static final String NETWORK_VERSION = "33";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -190,6 +191,7 @@ public final class CBPackets {
 		registerClient(SurgicalTableCubeRotationPacket.Result.class, SurgicalTableCubeRotationPacket.Result::new,
 			SurgicalTableCubeRotationPacket.Result::write);
 		registerClient(GaugeCraftTreePacket.class, GaugeCraftTreePacket::new, GaugeCraftTreePacket::write);
+		registerClient(BionicTraitRulesPacket.class, BionicTraitRulesPacket::new, BionicTraitRulesPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

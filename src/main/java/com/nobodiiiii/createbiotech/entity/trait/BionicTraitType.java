@@ -7,5 +7,7 @@ public enum BionicTraitType {
 	/** 门槛型：占比达标，并满足该特性可选的附加条件后，获得完整特性。 */
 	COVERAGE_THRESHOLD,
 	/** 比例型：特性的强度、概率或数值贡献随载体占比变化。 */
-	COVERAGE_SCALED
+	COVERAGE_SCALED,
+	/** 特殊型：使用特性专属的保留比例与分类汇总规则。 */
+	SPECIAL
 }
