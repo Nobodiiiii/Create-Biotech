@@ -16,7 +16,7 @@ import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 public record BionicTraitRulesPacket(Map<BionicTrait, Double> minCoverage) {
 	public BionicTraitRulesPacket {
 		minCoverage = Map.copyOf(minCoverage);
-		minCoverage.forEach((trait, value) -> trait.rule().withMinCoverage(value));
+		minCoverage.forEach((trait, value) -> new BionicTraitRule(trait.rule().type(), value));
 	}
 
 	public BionicTraitRulesPacket(RegistryFriendlyByteBuf buffer) {

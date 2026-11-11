@@ -93,6 +93,8 @@ final class BionicTraitJeiText {
 	private static Component condition(BionicTrait trait) {
 		if (trait.isHeadClassification())
 			return tr("condition.head_retention", percentage(BionicTraitClientRules.rule(trait).minCoverage()));
+		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+			return tr("condition.numeric");
 		if (trait == BionicTrait.SHELL_DEFENSE)
 			return tr("condition.shell_defense");
 		return switch (trait.condition()) {

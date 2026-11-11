@@ -54,6 +54,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.layers.CrossedArmsItemLayer;
+import net.minecraft.client.renderer.entity.layers.DolphinCarryingItemLayer;
+import net.minecraft.client.renderer.entity.layers.FoxHeldItemLayer;
+import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
+import net.minecraft.client.renderer.entity.layers.PandaHoldsItemLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
@@ -402,6 +407,16 @@ public final class SurgicalCapturedRenderPlan {
 		}
 		return new CapturedInput(List.copyOf(recording.streams), List.copyOf(observedCubes), topology,
 			bindPlayerSkinLayers, Set.copyOf(saddleCubes));
+	}
+
+	/** Held-item layers retain their native geometry, material and glint instead of becoming tissue. */
+	public static MultiBufferSource bufferForLayer(RenderLayer<?, ?> layer, MultiBufferSource buffer) {
+		if (!(buffer instanceof RecordingBuffer recording))
+			return buffer;
+		// Include the non-humanoid held-item layers. Player and witch layers inherit these types.
+		return layer instanceof ItemInHandLayer<?, ?> || layer instanceof CrossedArmsItemLayer<?, ?>
+			|| layer instanceof FoxHeldItemLayer || layer instanceof PandaHoldsItemLayer
+			|| layer instanceof DolphinCarryingItemLayer ? recording.items : buffer;
 	}
 
 	static SurgicalCapturedRenderPlan build(CapturedInput captured) {
@@ -820,7 +835,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		for (CaptureStream stream : streams) {
 			List<CapturedVertex> vertices = stream.vertices;
-			if (stream.renderType.mode() != VertexFormat.Mode.QUADS) {
+			if (stream.preserveSource || stream.renderType.mode() != VertexFormat.Mode.QUADS) {
 				if (!vertices.isEmpty())
 					extras.add(new SourceBatch(stream.renderType, List.copyOf(vertices), false));
 				continue;
@@ -1610,10 +1625,15 @@ public final class SurgicalCapturedRenderPlan {
 
 	private static final class RecordingBuffer implements MultiBufferSource {
 		private final List<CaptureStream> streams = new ArrayList<>();
+		private final MultiBufferSource items = renderType -> record(renderType, true);
 
 		@Override
 		public VertexConsumer getBuffer(RenderType renderType) {
-			CaptureStream stream = new CaptureStream(streams.size(), renderType);
+			return record(renderType, false);
+		}
+
+		private VertexConsumer record(RenderType renderType, boolean preserveSource) {
+			CaptureStream stream = new CaptureStream(streams.size(), renderType, preserveSource);
 			streams.add(stream);
 			return stream.consumer;
 		}
@@ -1627,12 +1647,14 @@ public final class SurgicalCapturedRenderPlan {
 	private static final class CaptureStream {
 		private final int id;
 		private final RenderType renderType;
+		private final boolean preserveSource;
 		private final List<CapturedVertex> vertices = new ArrayList<>();
 		private final RecordingConsumer consumer = new RecordingConsumer(vertices);
 
-		private CaptureStream(int id, RenderType renderType) {
+		private CaptureStream(int id, RenderType renderType, boolean preserveSource) {
 			this.id = id;
 			this.renderType = renderType;
+			this.preserveSource = preserveSource;
 		}
 	}
 

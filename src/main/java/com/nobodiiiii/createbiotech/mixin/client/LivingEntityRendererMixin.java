@@ -13,6 +13,7 @@ import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.client.BioPackagerReleaseAnimationHandler;
 import com.nobodiiiii.createbiotech.content.bouncing.BouncingAnimation;
 import com.nobodiiiii.createbiotech.content.buttercat.ButterRotation;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalCapturedRenderPlan;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -93,6 +94,7 @@ public abstract class LivingEntityRendererMixin {
 		float partialTick, float ageInTicks, float netHeadYaw, float headPitch, Operation<Void> original) {
 		if (EntityGeometry.isBaseModelMeasurement())
 			return;
+		buffer = SurgicalCapturedRenderPlan.bufferForLayer(layer, buffer);
 		original.call(layer, poseStack, buffer, packedLight, entity, limbSwing, limbSwingAmount,
 			partialTick, ageInTicks, netHeadYaw, headPitch);
 	}
