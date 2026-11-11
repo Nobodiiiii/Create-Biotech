@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -78,9 +80,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		Frustum frustum = currentFrustum();
 		List<RenderCandidate> visible = new java.util.ArrayList<>();
-		Map<Integer, SurgicalSubject> subjectsById = new java.util.HashMap<>();
 		for (SurgicalSubject subject : subjects) {
-			subjectsById.put(subject.id(), subject);
 			AABB bounds = subjectRenderBounds(table, subject);
 			if (frustum == null || frustum.isVisible(bounds))
 				visible.add(new RenderCandidate(subject, bounds, distanceToSqr(bounds, camera)));
@@ -93,26 +93,16 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		// the preparation queue. This keeps remote table tiles independent of the controller position
 		// without exposing a half-refreshed glued body.
 		Set<Integer> prepareIds = new LinkedHashSet<>();
-		Map<Integer, Set<Integer>> preparationGroups = new java.util.HashMap<>();
+		Map<Integer, Set<Integer>> groups = table.connectedSubjectGroups();
+		Set<Set<Integer>> visibleGroups = Collections.newSetFromMap(new IdentityHashMap<>());
 		for (RenderCandidate candidate : visible) {
-			SurgicalSubject subject = candidate.subject;
-			Set<Integer> group;
-			if (subject.linkedToOtherSubjects()) {
-				Set<Integer> connected = new LinkedHashSet<>();
-				connected.add(subject.id());
-				connected.addAll(table.connectedSubjectIds(subject.id()));
-				group = Set.copyOf(connected);
-			} else {
-				group = Set.of(subject.id());
-			}
-			preparationGroups.put(subject.id(), group);
-			prepareIds.addAll(group);
+			Set<Integer> group = groups.get(candidate.subject.id());
+			if (visibleGroups.add(group))
+				prepareIds.addAll(group);
 		}
 		List<RenderCandidate> preparation = new java.util.ArrayList<>(prepareIds.size());
 		for (int subjectId : prepareIds) {
-			SurgicalSubject subject = subjectsById.get(subjectId);
-			if (subject == null)
-				continue;
+			SurgicalSubject subject = table.getSubject(subjectId);
 			AABB bounds = subjectRenderBounds(table, subject);
 			preparation.add(new RenderCandidate(subject, bounds, distanceToSqr(bounds, camera)));
 		}
@@ -122,16 +112,13 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 				break;
 		}
 		SurgicalTableClientHandler.completePlacementHandoffIfReady(table);
-		Map<Set<Integer>, Boolean> groupReadiness = new java.util.HashMap<>();
+		Set<Integer> readyIds = new java.util.HashSet<>();
+		for (Set<Integer> group : visibleGroups)
+			if (isPreparationGroupReady(table, group))
+				readyIds.addAll(group);
 		for (RenderCandidate candidate : visible) {
 			SurgicalSubject subject = candidate.subject;
-			Set<Integer> group = preparationGroups.get(subject.id());
-			Boolean ready = groupReadiness.get(group);
-			if (ready == null) {
-				ready = isPreparationGroupReady(table, group);
-				groupReadiness.put(group, ready);
-			}
-			if (ready
+			if (readyIds.contains(subject.id())
 				&& !SurgicalTableClientHandler.suppressForPlacementHandoff(table, subject))
 				renderSubject(table, subject, poseStack, buffer, packedLight, projectSourceGeometry, camera);
 		}
@@ -189,7 +176,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 	private static boolean isPreparationGroupReady(SurgicalTableBlockEntity table, Set<Integer> group) {
 		for (int subjectId : group) {
 			SurgicalSubject connected = table.getSubject(subjectId);
-			if (connected == null || !SurgicalTableClientHandler.isRenderReady(table, connected))
+			if (!SurgicalTableClientHandler.isRenderReady(table, connected))
 				return false;
 			// Geometry readiness and plan readiness are separate caches, and renderSubject() needs both.
 			// A cached snapshot whose plan has been evicted is precisely the case that used to fall

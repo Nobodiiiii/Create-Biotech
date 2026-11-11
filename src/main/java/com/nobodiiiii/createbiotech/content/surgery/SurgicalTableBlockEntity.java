@@ -81,10 +81,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private int clientPlanePower = -1;
 	@Nullable
 	private SurgicalConnectionGraph<UUID> cachedConnectionGraph;
-	private long cachedConnectionSignature = Long.MIN_VALUE;
 	private boolean cachedConnectionValid;
 	private Map<Integer, Set<Integer>> cachedConnectedSubjectGroups = Map.of();
-	private long cachedConnectedSubjectGroupsSignature = Long.MIN_VALUE;
 	private boolean cachedConnectedSubjectGroupsValid;
 	@Nullable
 	private SurgicalTablePlane.Plane serverPlane;
@@ -93,7 +91,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private int consolidatedPlaneTiles = -1;
 	@Nullable
 	private SurgicalConnectionGraph<UUID> variantConnectionGraph;
-	private long variantConnectionSignature = Long.MIN_VALUE;
 	private Set<SurgicalGlueJoint> variantConnectionExcluded = Set.of();
 	private Map<UUID, BitSet> variantConnectionOverrides = Map.of();
 	private boolean variantConnectionCombinations;
@@ -240,10 +237,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	private void addSubject(SurgicalSubject subject) {
+		subject.setTable(this);
 		subjects.add(subject);
 		subjectsById.put(subject.id(), subject);
 		subjectsByPersistentId.put(subject.persistentId(), subject);
-		cachedConnectedSubjectGroupsValid = false;
+		invalidateConnections();
 		SurgicalTableSupportManager.track(this);
 	}
 
@@ -253,18 +251,21 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	private void removeSubject(SurgicalSubject subject) {
+		subject.setTable(null);
 		subjects.remove(subject);
 		subjectsById.remove(subject.id(), subject);
 		subjectsByPersistentId.remove(subject.persistentId(), subject);
-		cachedConnectedSubjectGroupsValid = false;
+		invalidateConnections();
 		SurgicalTableSupportManager.track(this);
 	}
 
 	private void clearSubjects() {
+		for (SurgicalSubject subject : subjects)
+			subject.setTable(null);
 		subjects.clear();
 		subjectsById.clear();
 		subjectsByPersistentId.clear();
-		cachedConnectedSubjectGroupsValid = false;
+		invalidateConnections();
 		SurgicalTableSupportManager.track(this);
 	}
 
@@ -963,7 +964,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !canPayInteractionCost(shears, 1, player))
 			return false;
 
-		subject.cutSeams = cut.proposedCuts;
+		subject.setCutSeams(cut.proposedCuts);
 		List<Integer> updatedOrder = new ArrayList<>(subject.cutOrder);
 		updatedOrder.add(seamId);
 		subject.cutOrder = SurgicalAssembly.normalizeCutOrder(updatedOrder, subject.cutSeams,
@@ -1042,7 +1043,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !canPayInteractionCost(shears, cutCount, player))
 			return false;
 
-		subject.cutSeams = proposedCuts;
+		subject.setCutSeams(proposedCuts);
 		subject.cutOrder = SurgicalAssembly.normalizeCutOrder(updatedOrder, subject.cutSeams,
 			subject.seams.size());
 		subject.applyLayout(proposal);
@@ -1073,7 +1074,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !canPayInteractionCost(shears, cut.cutCount, player))
 			return false;
 
-		subject.cutSeams = cut.proposedCuts;
+		subject.setCutSeams(cut.proposedCuts);
 		List<Integer> updatedOrder = new ArrayList<>(subject.cutOrder);
 		updatedOrder.addAll(cut.cutSeamIds);
 		subject.cutOrder = SurgicalAssembly.normalizeCutOrder(updatedOrder, subject.cutSeams,
@@ -2622,7 +2623,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalSubject subject : subjects) {
 			BitSet cutSeams = cuts.cuts().get(subject.id());
 			if (cutSeams != null) {
-				subject.cutSeams = cutSeams;
+				subject.setCutSeams(cutSeams);
 				subject.cutOrder = SurgicalAssembly.normalizeCutOrder(subject.cutOrder, cutSeams, subject.seams.size());
 			}
 			subject.removeGlueJoints(cuts.glue());
@@ -3000,15 +3001,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private SurgicalConnectionGraph<UUID> connectionGraph(@Nullable SurgicalGlueJoint excluded) {
 		if (excluded != null)
 			return connectionGraph(Set.of(excluded), Map.of());
-		// The unexcluded graph is what connectedGroup, connectedSubjectIds and directConnections all
-		// ask for, several times per edit and — through the cut and selection previews — several times
-		// per frame. Rebuilding it each time is what made unifying glue and native seams expensive, so
-		// it is memoized against a signature of everything it is derived from.
-		long signature = connectionSignature();
-		if (cachedConnectionValid && cachedConnectionSignature == signature)
+		if (cachedConnectionValid)
 			return cachedConnectionGraph;
 		cachedConnectionGraph = buildConnectionGraph(Set.of(), Map.of(), true);
-		cachedConnectionSignature = signature;
 		cachedConnectionValid = true;
 		return cachedConnectionGraph;
 	}
@@ -3028,14 +3023,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	@Nullable
 	private SurgicalConnectionGraph<UUID> connectionGraph(Set<SurgicalGlueJoint> excluded,
 		Map<UUID, BitSet> cutOverrides, boolean includeCombinations) {
-		long signature = connectionSignature();
-		if (variantConnectionValid && variantConnectionSignature == signature
+		if (variantConnectionValid
 			&& variantConnectionCombinations == includeCombinations
 			&& variantConnectionExcluded.equals(excluded)
 			&& variantConnectionOverrides.equals(cutOverrides))
 			return variantConnectionGraph;
 		variantConnectionGraph = buildConnectionGraph(excluded, cutOverrides, includeCombinations);
-		variantConnectionSignature = signature;
 		variantConnectionExcluded = Set.copyOf(excluded);
 		// The override BitSets belong to the caller, so they are copied rather than aliased.
 		Map<UUID, BitSet> overrides = new HashMap<>();
@@ -3046,14 +3039,16 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return variantConnectionGraph;
 	}
 
-	/** @see SurgicalSubject#connectionSignature() */
-	private long connectionSignature() {
-		long signature = subjects.size();
-		for (SurgicalSubject subject : subjects) {
-			signature = signature * 31L + subject.persistentId().hashCode();
-			signature = signature * 31L + subject.connectionSignature();
-		}
-		return signature;
+	/** All topology writes and subject ownership changes invalidate the same derived caches. */
+	void invalidateConnections() {
+		cachedConnectionValid = false;
+		cachedConnectionGraph = null;
+		cachedConnectedSubjectGroupsValid = false;
+		cachedConnectedSubjectGroups = Map.of();
+		variantConnectionValid = false;
+		variantConnectionGraph = null;
+		variantConnectionExcluded = Set.of();
+		variantConnectionOverrides = Map.of();
 	}
 
 	@Nullable
@@ -3139,21 +3134,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	/** Subject ids that currently form one logical editing group through glue or combinations. */
 	public Set<Integer> connectedSubjectIds(int subjectId) {
-		if (!hasSubject(subjectId))
-			return Set.of();
-		return connectedSubjectGroups().getOrDefault(subjectId, Set.of(subjectId));
+		return connectedSubjectGroups().getOrDefault(subjectId, Set.of());
 	}
 
 	/**
 	 * Projects cube-level links onto subject ownership and closes that graph transitively. A subject may
 	 * own several disconnected native components, so reaching any one of them also has to pull in links
 	 * stored on its other components; otherwise grounding can collect a link whose endpoint body was
-	 * omitted. The projection is rebuilt only when the same topology signature used by the connection
-	 * graph changes, then every lookup returns one shared immutable set.
+	 * omitted. Topology edits invalidate this projection with the connection graph; lookups within
+	 * each group share the same immutable member set.
 	 */
-	private Map<Integer, Set<Integer>> connectedSubjectGroups() {
-		long signature = connectionSignature();
-		if (cachedConnectedSubjectGroupsValid && cachedConnectedSubjectGroupsSignature == signature)
+	public Map<Integer, Set<Integer>> connectedSubjectGroups() {
+		if (cachedConnectedSubjectGroupsValid)
 			return cachedConnectedSubjectGroups;
 
 		Map<UUID, Set<UUID>> adjacency = new HashMap<>();
@@ -3190,7 +3182,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				groups.put(id, frozen);
 		}
 		cachedConnectedSubjectGroups = Map.copyOf(groups);
-		cachedConnectedSubjectGroupsSignature = signature;
 		cachedConnectedSubjectGroupsValid = true;
 		return cachedConnectedSubjectGroups;
 	}

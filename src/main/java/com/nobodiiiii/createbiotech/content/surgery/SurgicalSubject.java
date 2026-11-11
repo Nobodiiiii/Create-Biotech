@@ -70,10 +70,10 @@ public final class SurgicalSubject {
 	private final MimicProfile profile;
 	private Direction placementFacing;
 	private SurgicalLayPose layPose;
-	int cubeCount;
-	BitSet presentCubes;
+	final int cubeCount;
+	final BitSet presentCubes;
 	BitSet headCubes;
-	List<SurgicalAssembly.Seam> seams;
+	final List<SurgicalAssembly.Seam> seams;
 	BitSet cutSeams;
 	List<Integer> cutOrder;
 	private double originOffsetX;
@@ -81,10 +81,12 @@ public final class SurgicalSubject {
 	Map<Integer, Vec3> componentOffsets;
 	Map<Integer, SurgicalCubeRotation> componentRotations;
 	List<SurgicalTableLayout.Footprint> occupiedFootprints;
-	List<SurgicalGlueJoint> glueJoints;
-	List<SurgicalCombination> combinations;
+	private List<SurgicalGlueJoint> glueJoints;
+	private List<SurgicalCombination> combinations;
 	List<SurgicalLimbJoint> limbJoints;
 	private int clientRenderRevision;
+	@Nullable
+	private SurgicalTableBlockEntity table;
 
 	SurgicalSubject(int id, UUID persistentId, UUID donorId, BitSet originalHeadCubes,
 		boolean originalHeadKnown, BionicAnatomySnapshot anatomy,
@@ -137,6 +139,21 @@ public final class SurgicalSubject {
 
 	void setId(int id) {
 		this.id = id;
+		connectionsChanged();
+	}
+
+	void setTable(@Nullable SurgicalTableBlockEntity table) {
+		this.table = table;
+	}
+
+	private void connectionsChanged() {
+		if (table != null)
+			table.invalidateConnections();
+	}
+
+	void setCutSeams(BitSet cuts) {
+		cutSeams = cuts;
+		connectionsChanged();
 	}
 
 	public MimicProfile profile() {
@@ -298,29 +315,6 @@ public final class SurgicalSubject {
 		return !glueJoints.isEmpty() || !combinations.isEmpty();
 	}
 
-	/**
-	 * A signature over exactly the fields a {@link SurgicalConnectionGraph} is derived from, so a built
-	 * graph can be reused until one of them moves. It is recomputed from live state on every check
-	 * rather than maintained by the mutators, which is what keeps a missed mutator from producing stale
-	 * connectivity.
-	 *
-	 * <p>{@code seams} is immutable after construction, so its size covers it here.</p>
-	 */
-	long connectionSignature() {
-		long signature = cubeCount;
-		signature = signature * 31L + presentCubes.hashCode();
-		signature = signature * 31L + cutSeams.hashCode();
-		signature = signature * 31L + seams.size();
-		signature = signature * 31L + glueJoints.hashCode();
-		// SurgicalCombination hashes on id alone, so membership has to be folded in separately.
-		signature = signature * 31L + combinations.size();
-		for (SurgicalCombination combination : combinations) {
-			signature = signature * 31L + combination.id().hashCode();
-			signature = signature * 31L + combination.members().hashCode();
-		}
-		return signature;
-	}
-
 	void rebase(BlockPos previousController, BlockPos nextController) {
 		originOffsetX += previousController.getX() - nextController.getX();
 		originOffsetZ += previousController.getZ() - nextController.getZ();
@@ -344,6 +338,7 @@ public final class SurgicalSubject {
 
 	void removeComponent(BitSet component) {
 		presentCubes.andNot(component);
+		connectionsChanged();
 		headCubes.andNot(component);
 		java.util.Set<Integer> packedRoots = new java.util.HashSet<>();
 		for (BitSet nativeComponent : SurgicalAssembly.components(cubeCount, component, seams, cutSeams))
@@ -409,15 +404,19 @@ public final class SurgicalSubject {
 		List<SurgicalGlueJoint> updated = new ArrayList<>(glueJoints);
 		updated.add(joint);
 		glueJoints = List.copyOf(updated);
+		connectionsChanged();
 	}
 
 	void removeGlueJoints(java.util.Set<SurgicalGlueJoint> removed) {
-		if (affects(glueJoints, removed))
+		if (affects(glueJoints, removed)) {
 			glueJoints = glueJoints.stream().filter(joint -> !removed.contains(joint)).toList();
+			connectionsChanged();
+		}
 	}
 
 	void replaceGlueJoints(List<SurgicalGlueJoint> joints) {
 		glueJoints = List.copyOf(joints);
+		connectionsChanged();
 	}
 
 	void addCombination(SurgicalCombination combination) {
@@ -426,15 +425,19 @@ public final class SurgicalSubject {
 		List<SurgicalCombination> updated = new ArrayList<>(combinations);
 		updated.add(combination);
 		combinations = List.copyOf(updated);
+		connectionsChanged();
 	}
 
 	void removeCombinations(java.util.Set<SurgicalCombination> removed) {
-		if (affects(combinations, removed))
+		if (affects(combinations, removed)) {
 			combinations = combinations.stream().filter(combination -> !removed.contains(combination)).toList();
+			connectionsChanged();
+		}
 	}
 
 	void replaceCombinations(List<SurgicalCombination> replacement) {
 		combinations = List.copyOf(replacement);
+		connectionsChanged();
 	}
 
 	void addLimbJoint(SurgicalLimbJoint joint) {

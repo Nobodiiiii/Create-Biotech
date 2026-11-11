@@ -4,11 +4,18 @@ import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.Dynamic;
+import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
@@ -56,6 +63,14 @@ public class CapturedEntityBoxHelper {
 	private static final String CHAMBER_MARKED_TAG = "CreeperBlastChamberMarked";
 	private static final String CHAMBER_CONTROLLER_POS_TAG = "CreeperBlastChamberControllerPos";
 	private static final String CHAMBER_PACKAGER_POS_TAG = "CreeperBlastChamberPackagerPos";
+	private static final MapCodec<Dynamic<?>> CAPTURED_ENTITY_FIELD =
+		Codec.PASSTHROUGH.fieldOf(CAPTURED_ENTITY_TAG);
+	private static final MapCodec<Optional<Float>> CAPTURED_HEALTH_FIELD =
+		Codec.FLOAT.optionalFieldOf(CAPTURED_ENTITY_HEALTH_TAG);
+	// Values contain only scalar metadata, never the weak component key or its entity NBT.
+	private static final LoadingCache<CustomData, CaptureMetadata> CAPTURED_METADATA = CacheBuilder.newBuilder()
+		.weakKeys()
+		.build(CacheLoader.from(CapturedEntityBoxHelper::readCaptureMetadata));
 
 	private CapturedEntityBoxHelper() {}
 
@@ -264,11 +279,13 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean isEmptyBox(ItemStack stack) {
-		return !stack.isEmpty() && !hasCapturedEntity(stack)
+		return !stack.isEmpty()
 			&& (stack.getItem() instanceof EmptyCardboardBoxItem
-				|| stack.getItem() instanceof CapturedEntityBoxItem
-					&& stack.getOrDefault(AllDataComponents.PACKAGE_CONTENTS, ItemContainerContents.EMPTY)
-						.stream().allMatch(ItemStack::isEmpty));
+				|| stack.getItem() instanceof CapturedEntityBoxItem)
+			&& !hasCapturedEntity(stack)
+			&& (stack.getItem() instanceof EmptyCardboardBoxItem
+				|| stack.getOrDefault(AllDataComponents.PACKAGE_CONTENTS, ItemContainerContents.EMPTY)
+					.stream().allMatch(ItemStack::isEmpty));
 	}
 
 	public static boolean isEmptySmallBox(ItemStack stack) {
@@ -321,10 +338,6 @@ public class CapturedEntityBoxHelper {
 		if (entity == null)
 			return false;
 
-		CompoundTag stackTag = CBItemData.getReadOnly(stack);
-		if (stackTag == null || stackTag.isEmpty())
-			return false;
-
 		BlockPos clickedPos = context.getClickedPos();
 		Direction face = context.getClickedFace();
 		BlockState clickedState = level.getBlockState(clickedPos);
@@ -332,9 +345,6 @@ public class CapturedEntityBoxHelper {
 			? clickedPos : clickedPos.relative(face);
 
 		entity.setPos(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
-		if (entity instanceof LivingEntity living && stackTag.contains(CAPTURED_ENTITY_HEALTH_TAG, Tag.TAG_ANY_NUMERIC))
-			living.setHealth(Math.min(living.getMaxHealth(), stackTag.getFloat(CAPTURED_ENTITY_HEALTH_TAG)));
-
 		if (!level.addFreshEntity(entity))
 			return false;
 
@@ -360,7 +370,8 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean containsEntityType(ItemStack stack, EntityType<?> entityType) {
-		return getCapturedEntityData(stack, entityType) != null;
+		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
+		return entityId != null && entityId.toString().equals(captureMetadata(stack).entityId());
 	}
 
 	/**
@@ -368,13 +379,7 @@ public class CapturedEntityBoxHelper {
 	 * a different entity type. Callers must not mutate the returned tag.
 	 */
 	public static CompoundTag getCapturedEntityData(ItemStack stack, EntityType<?> entityType) {
-		CompoundTag entityData = getCapturedEntityData(stack);
-		if (entityData == null)
-			return null;
-
-		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entityType);
-		return entityId != null && entityId.toString()
-			.equals(entityData.getString("id")) ? entityData : null;
+		return containsEntityType(stack, entityType) ? getCapturedEntityData(stack) : null;
 	}
 
 	public static Entity createCapturedEntity(ItemStack stack, Level level) {
@@ -385,8 +390,7 @@ public class CapturedEntityBoxHelper {
 	}
 
 	static Entity createCapturedEntity(CapturedEntityRenderData renderData, Level level) {
-		CompoundTag entityDataForLoad = renderData.entityData
-			.copy();
+		CompoundTag entityDataForLoad = capturedEntityTag(renderData.component()).copy();
 		if (level instanceof ServerLevel serverLevel
 			&& hasUuidCollision(serverLevel.getServer(), entityDataForLoad))
 			reseedEntityTree(entityDataForLoad);
@@ -437,8 +441,7 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean hasCapturedEntity(ItemStack stack) {
-		CompoundTag tag = CBItemData.getReadOnly(stack);
-		return tag != null && tag.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND);
+		return captureMetadata(stack).captured();
 	}
 
 	/**
@@ -465,78 +468,48 @@ public class CapturedEntityBoxHelper {
 		return true;
 	}
 
-	/**
-	 * Builds the small immutable descriptor used by the client render caches. Component
-	 * snapshots are shared read-only through the bounded cache in {@link CBItemData}.
-	 */
+	/** Describes the icon without copying or weighing the captured entity's NBT. */
 	static CapturedEntityRenderData getCapturedEntityRenderData(ItemStack stack) {
 		CustomData component = CBItemData.getReadOnlyComponent(stack);
 		if (component == null)
 			return null;
 
-		CompoundTag root = CBItemData.readOnlySnapshot(component);
-		if (!root.contains(CAPTURED_ENTITY_TAG, Tag.TAG_COMPOUND))
+		CaptureMetadata metadata = CAPTURED_METADATA.getUnchecked(component);
+		if (metadata.entityId().isEmpty())
 			return null;
 
-		CompoundTag entityData = root.getCompound(CAPTURED_ENTITY_TAG);
-		if (!entityData.contains("id", Tag.TAG_STRING))
-			return null;
-
-		String entityId = entityData.getString("id");
-		if (entityId.isEmpty())
-			return null;
-
-		boolean hasHealth = root.contains(CAPTURED_ENTITY_HEALTH_TAG, Tag.TAG_ANY_NUMERIC);
-		boolean prototype = entityData.size() == 1 && !hasHealth && hasOnlyPrototypeRootData(root);
-		return new CapturedEntityRenderData(component, entityData, entityId, prototype,
-			hasHealth, hasHealth ? root.getFloat(CAPTURED_ENTITY_HEALTH_TAG) : 0.0f);
+		return new CapturedEntityRenderData(component, metadata.entityId(), metadata.prototype(),
+			metadata.health().isPresent(), metadata.health().orElse(0.0f));
 	}
 
-	private static boolean hasOnlyPrototypeRootData(CompoundTag root) {
-		for (String key : root.getAllKeys())
-			if (!CAPTURED_ENTITY_TAG.equals(key) && !CAPTURED_ENTITY_DESC_ID_TAG.equals(key))
-				return false;
-		return true;
+	private static CaptureMetadata captureMetadata(ItemStack stack) {
+		CustomData component = CBItemData.getReadOnlyComponent(stack);
+		return component == null ? CaptureMetadata.EMPTY : CAPTURED_METADATA.getUnchecked(component);
 	}
 
-	static final class CapturedEntityRenderData {
-		private final CustomData component;
-		private final CompoundTag entityData;
-		private final String entityId;
-		private final boolean prototype;
-		private final boolean hasCapturedHealth;
-		private final float capturedHealth;
-
-		private CapturedEntityRenderData(CustomData component, CompoundTag entityData, String entityId,
-			boolean prototype, boolean hasCapturedHealth, float capturedHealth) {
-			this.component = component;
-			this.entityData = entityData;
-			this.entityId = entityId;
-			this.prototype = prototype;
-			this.hasCapturedHealth = hasCapturedHealth;
-			this.capturedHealth = capturedHealth;
-		}
-
-		CustomData component() {
-			return component;
-		}
-
-		String entityId() {
-			return entityId;
-		}
-
-		boolean prototype() {
-			return prototype;
-		}
-
-		boolean hasCapturedHealth() {
-			return hasCapturedHealth;
-		}
-
-		float capturedHealth() {
-			return capturedHealth;
-		}
+	private static CaptureMetadata readCaptureMetadata(CustomData component) {
+		CompoundTag entityData = capturedEntityTag(component);
+		if (entityData == null)
+			return CaptureMetadata.EMPTY;
+		Optional<Float> health = component.read(CAPTURED_HEALTH_FIELD).result().orElse(Optional.empty());
+		boolean prototype = entityData.size() == 1 && health.isEmpty()
+			&& component.size() == (component.contains(CAPTURED_ENTITY_DESC_ID_TAG) ? 2 : 1);
+		return new CaptureMetadata(true, entityData.getString("id"), prototype, health);
 	}
+
+	/** Internal read-only view; only entity loading copies it for mutation. */
+	@Nullable
+	private static CompoundTag capturedEntityTag(CustomData component) {
+		Object value = component.read(CAPTURED_ENTITY_FIELD).result().map(Dynamic::getValue).orElse(null);
+		return value instanceof CompoundTag tag ? tag : null;
+	}
+
+	private record CaptureMetadata(boolean captured, String entityId, boolean prototype, Optional<Float> health) {
+		private static final CaptureMetadata EMPTY = new CaptureMetadata(false, "", false, Optional.empty());
+	}
+
+	static record CapturedEntityRenderData(CustomData component, String entityId, boolean prototype,
+		boolean hasCapturedHealth, float capturedHealth) {}
 
 	public static ItemStackHandler applyVirtualSelfFallbackContents(ItemStack box, ItemStackHandler contents) {
 		if (!CapturedEntityBoxItem.isBox(box) || hasAnyPackageContents(contents))

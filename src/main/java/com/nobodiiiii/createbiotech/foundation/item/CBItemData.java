@@ -17,6 +17,7 @@ public final class CBItemData {
 	// Weak keys compare immutable components by identity, without hashing their full NBT.
 	// Snapshots own their tags and never retain the component used as the cache key.
 	private static final LoadingCache<CustomData, CompoundTag> READ_SNAPSHOTS = CacheBuilder.newBuilder()
+		.concurrencyLevel(1)
 		.weakKeys()
 		.maximumWeight(8 * 1024 * 1024)
 		.weigher((CustomData component, CompoundTag snapshot) -> snapshot.sizeInBytes())

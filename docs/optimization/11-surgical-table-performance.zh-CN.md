@@ -108,6 +108,39 @@
 - 无旋转且无位移的 cube 直接复用原 geometry；其余变换使用预分配循环，减少 stream/lambda 和无效 corner
   对象分配。
 
+### PERF-SURGERY-09：按拓扑修改失效连通缓存（2026-11-12）
+
+本节来自 [手术台 Spark 实测](https://spark.lucko.me/Kid9myXPce)：手术台渲染占渲染线程采样的
+75.53%，其中连通签名计算占 64.37%。先前的缓存每次查询仍扫描全部 subject，并深度哈希组合成员，
+可见关联 subject 又逐个发起相同查询。
+
+- 删除 table/subject 的 `connectionSignature`；subject 归属、保留体块、切缝、胶点和组合变更通过一个
+  `invalidateConnections()` 入口失效普通图、参数化图和连通组缓存。读档、网络同步和跨桌迁移沿用
+  subject 的注册/移除入口，旧 subject 脱离桌面时解除归属。
+- 每帧只取一次连通组映射，所有同组 subject 共享成员集合；按集合身份合并准备工作，每组只检查一次
+  就绪状态，删除逐 subject 的集合复制、集合内容哈希和 renderer 内重复维护的 subject 索引。
+- 保留参数化图对调用方可变 cut override 的副本，以及组级渲染就绪检查，避免预览参数后续变更污染
+  缓存或出现半组刷新。
+
+### PERF-SURGERY-10：纸箱查询与完整 NBT 快照分离（2026-11-12）
+
+[装箱后的 Spark 实测](https://spark.lucko.me/VEQCeL2wmn) 中，完整 NBT 快照读取占渲染线程采样
+57.01%（复制 40.89%、计重 15.91%，两者包含在快照读取中）。采样后存档里的目标纸箱计重约
+2.18 MiB；Guava 默认把 8 MiB 预算分为四段，每段只有 2 MiB，该条目每次载入后都会立即被淘汰。
+
+- 完整只读快照缓存显式使用单段，保持 8 MiB 总预算。
+- 生物存在性、类型、血量和 prototype 判定共用按不可变 `CustomData` 身份缓存的轻量元数据；弱 key
+  的 value 不持有组件或实体 NBT，组件替换即自然切换结果。
+- 元数据通过 `CustomData.read` 与 `Codec.PASSTHROUGH` 只读查询需要的字段；不能换成
+  `CompoundTag.CODEC`，后者会复制整个 compound。对应本地 API：
+  `ref/1.21.1/Minecraft/net/minecraft/world/item/component/CustomData.java`、
+  `ref/1.21.1/Minecraft/net/minecraft/nbt/CompoundTag.java`。
+- 图标描述符不再持有完整实体 NBT；只有实际加载实体时复制捕获数据，已有烘焙图标可直接复用。
+  空箱判定先排除无关物品，放出生物沿用统一加载入口的血量恢复，删除重复读取和设置。
+
+本次 `compileJava --offline`、`build --offline` 通过，现有 80 项测试全部通过；没有新增测试文件。
+未启动客户端，修复后的平均 FPS 与 1% low 仍需在相同场景重新采样。
+
 ## 正确性边界
 
 - 服务端 packet 距离、plane、占地与拓扑验证未删除；客户端缓存只影响显示和候选计算。
