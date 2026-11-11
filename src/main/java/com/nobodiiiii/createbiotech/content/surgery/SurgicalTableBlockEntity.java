@@ -21,6 +21,8 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
@@ -1275,7 +1277,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		double bodyVolume,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !CapturedEntityBoxHelper.isEmptyLargeBox(boxes)
@@ -1294,6 +1297,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			groupCombinations, groupLimbs);
 		if (assembly == null)
 			return false;
+		assembly = alignPackedAssembly(assembly, attackGeometry, packingAlignment);
+		if (assembly == null) return false;
 		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
 			|| !validMobilityMeasurements(assembly, bodyBounds))
 			return false;
@@ -1401,7 +1406,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		double bodyVolume,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
 		SurgicalSubject subject = getSubject(subjectId);
 		if (subject == null || !subject.matchesObservedTopology(observedCubeCount, observedSeams)
 			|| !subject.validPresentCube(cubeId) || !SurgicalKitItem.isEmptyTemporaryBox(kit)
@@ -1419,8 +1425,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| !validMobilityMeasurements(sourceAssembly, bodyBounds))
 			return false;
 
-		SurgicalAssembly capturedAssembly = sourceAssembly.withBodyGeometry(bodyBounds, hitboxGeometry,
-			bodyVolume);
+		SurgicalAssembly capturedAssembly = alignPackedAssembly(sourceAssembly, attackGeometry, packingAlignment);
+		if (capturedAssembly == null) return false;
+		capturedAssembly = capturedAssembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
 		int installedArms = (int) capturedAssembly.effectiveLimbs().stream()
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
 		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
@@ -1449,7 +1456,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds, double bodyVolume,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
 		if (level == null || level.isClientSide || !SurgicalKitItem.isEmptyCubeCopier(kit)
 			|| bodyBounds == null || !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return false;
@@ -1457,6 +1465,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (assembly == null || !validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
 			|| !validMobilityMeasurements(assembly, bodyBounds))
 			return false;
+		assembly = alignPackedAssembly(assembly, attackGeometry, packingAlignment);
+		if (assembly == null) return false;
 		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
 		int installedArms = (int) assembly.effectiveLimbs().stream()
 			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
@@ -1471,6 +1481,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.cube_copied"), true);
 		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
+	}
+
+	@Nullable
+	private SurgicalAssembly alignPackedAssembly(SurgicalAssembly assembly,
+		@Nullable SurgicalAssembly.AttackGeometry geometry, @Nullable SurgicalPackingAlignment alignment) {
+		if (alignment == null) return assembly;
+		if (geometry == null || geometry.armCount() != assembly.effectiveLimbs().stream()
+			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count()) return null;
+		assembly = assembly.withAttackGeometry(geometry);
+		if (!BionicTraitResolver.resolve(assembly, level).members(BionicTrait.BLOCK_ATTACHMENT)
+			.contains(alignment.carrier())) return null;
+		return alignment.applyToPacked(assembly, geometry);
 	}
 
 	private static boolean validHitboxGeometry(SurgicalAssembly assembly,

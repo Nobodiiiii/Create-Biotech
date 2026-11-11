@@ -12,6 +12,7 @@ import org.joml.Quaternionf;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalPackingAlignment;
 import com.nobodiiiii.createbiotech.entity.BionicRiding;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 
@@ -19,8 +20,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.event.EventHooks;
 
 /** Six-face support and fixed velocity, following ref/1.21.1/Minecraft/.../monster/Shulker.java.
  * The ordinary bionic collision contract is retained: this entity never becomes a solid block.
@@ -48,6 +53,18 @@ public final class BionicBlockAttachment {
 		return selected == null ? null : selected.member();
 	}
 
+	/** A horizontal eye height cannot describe a head in a wall-mounted or tilted source. */
+	public Vec3 eyePoint() {
+		anchor();
+		if (cachedAssembly != null && cachedAssembly.attackGeometry() != null) {
+			var origins = cachedAssembly.attackGeometry().carrierOrigins();
+			var head = cachedTraits.members(BionicTrait.INTELLIGENCE).stream()
+				.filter(origins::containsKey).min(ORDER).orElse(null);
+			if (head != null) return origins.get(head);
+		}
+		return new Vec3(0, entity.getEyeHeight(), 0);
+	}
+
 	@Nullable private Anchor anchor() {
 		SurgicalAssembly assembly = entity.getAssembly();
 		BionicTraitSet traits = entity.getBionicTraits();
@@ -59,14 +76,31 @@ public final class BionicBlockAttachment {
 		if (assembly == null || assembly.attackGeometry() == null) return null;
 		var cubes = assembly.attackGeometry().carrierCubes();
 		// Compare the upright assembly before any attachment rotation, with stable ties.
-		var member = traits.members(BionicTrait.BLOCK_ATTACHMENT).stream()
+		var member = assembly.blockAttachmentCarrier();
+		if (member == null || !traits.members(BionicTrait.BLOCK_ATTACHMENT).contains(member)
+			|| !cubes.containsKey(member)) member = lowestCarrier(traits, cubes);
+		if (member == null) return null;
+		anchor = anchor(member, cubes.get(member));
+		return anchor;
+	}
+
+	@Nullable private static SurgicalAssembly.CombinationMember lowestCarrier(BionicTraitSet traits,
+		Map<SurgicalAssembly.CombinationMember, List<Vec3>> cubes) {
+		return traits.members(BionicTrait.BLOCK_ATTACHMENT).stream()
 			.filter(cubes::containsKey).min(Comparator
 				.comparingDouble((SurgicalAssembly.CombinationMember key) -> cubes.get(key).stream()
 					.mapToDouble(point -> point.y).min().orElse(Double.POSITIVE_INFINITY))
 				.thenComparing(ORDER)).orElse(null);
+	}
+
+	/** Same base and rest frame as runtime attachment, resolved before physical data is baked. */
+	@Nullable public static SurgicalPackingAlignment packingAlignment(BionicTraitSet traits,
+		Map<SurgicalAssembly.CombinationMember, List<Vec3>> cubes) {
+		var member = lowestCarrier(traits, cubes);
 		if (member == null) return null;
-		anchor = anchor(member, cubes.get(member));
-		return anchor;
+		Anchor selected = anchor(member, cubes.get(member));
+		if (selected == null) return null;
+		return new SurgicalPackingAlignment(member, rotation(selected, Direction.DOWN));
 	}
 
 	/**
@@ -125,15 +159,55 @@ public final class BionicBlockAttachment {
 			cell = BlockPos.containing(point.subtract(down.scale(1.0e-4)));
 		}
 		Direction face = findFace(cell, entity.getBlockAttachmentFace(), selected);
-		if (face == null) {
-			// Without another support, keep the last rigid pose while waiting for one.
+		if (face != null) attach(cell, face, selected);
+		else if (!findNewAttachment(cell, selected)) {
+			// Like Shulker.tick, retry on the next tick if all nearby attempts fail.
 			if (entity.getBlockAttachmentCell() == null || !entity.getBlockAttachmentCell().equals(cell))
 				entity.setBlockAttachment(null, Direction.DOWN);
-		} else attach(cell, face, selected);
+		}
 		entity.setDeltaMovement(Vec3.ZERO);
 		entity.getNavigation().stop();
 		entity.resetFallDistance();
 		entity.lockBlockAttachmentRotation();
+	}
+
+	/** Shulker.findNewAttachment / teleportSomewhere: try another local face first (above),
+	 * then five nearby cells within eight blocks. Body/block overlap remains allowed. */
+	private boolean findNewAttachment(BlockPos origin, Anchor selected) {
+		if (entity.isNoAi() || !entity.isAlive()) return false;
+		var level = entity.level();
+		var random = entity.getRandom();
+		for (int attempt = 0; attempt < 5; attempt++) {
+			BlockPos cell = origin.offset(Mth.randomBetweenInclusive(random, -8, 8),
+				Mth.randomBetweenInclusive(random, -8, 8), Mth.randomBetweenInclusive(random, -8, 8));
+			if (!isTeleportCell(cell)) continue;
+			Direction face = findFace(cell, Direction.DOWN, selected);
+			if (face == null) continue;
+			var event = EventHooks.onEnderTeleport(entity, cell.getX(), cell.getY(), cell.getZ());
+			if (event.isCanceled() || !Double.isFinite(event.getTargetX())
+				|| !Double.isFinite(event.getTargetY()) || !Double.isFinite(event.getTargetZ())) continue;
+			cell = BlockPos.containing(event.getTargetX(), event.getTargetY(), event.getTargetZ());
+			// An event may move the destination; validate the actual support and orientation again.
+			if (!isTeleportCell(cell)) continue;
+			face = findFace(cell, face, selected);
+			if (face == null) continue;
+			Vec3 previous = entity.position();
+			entity.unRide();
+			attach(cell, face, selected);
+			entity.hasImpulse = true;
+			entity.setTarget(null);
+			entity.playSound(SoundEvents.SHULKER_TELEPORT, 1, 1);
+			level.gameEvent(GameEvent.TELEPORT, previous, GameEvent.Context.of(entity));
+			return true;
+		}
+		return false;
+	}
+
+	private boolean isTeleportCell(BlockPos cell) {
+		var level = entity.level();
+		// Match the shulker's empty destination cell without rejecting the rotated body's overlap.
+		return level.isInWorldBounds(cell) && level.hasChunk(cell.getX() >> 4, cell.getZ() >> 4)
+			&& level.isEmptyBlock(cell);
 	}
 
 	@Nullable private Direction findFace(BlockPos cell, Direction preferred, Anchor selected) {

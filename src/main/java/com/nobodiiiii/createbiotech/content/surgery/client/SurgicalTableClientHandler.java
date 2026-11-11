@@ -24,6 +24,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalPackingAlignment;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
@@ -61,6 +62,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalSubject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalVolumeSampler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBlockAttachment;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
@@ -2003,7 +2005,7 @@ public final class SurgicalTableClientHandler {
 			}
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.PACK,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
-				metrics.bodyVolume(), metrics.attackGeometry());
+				metrics.bodyVolume(), metrics.attackGeometry(), metrics.packingAlignment());
 		} else if (SurgicalKitItem.isEmptyCubeCopier(held)) {
 			selected = findConnectedComponentSelection(cubeHit, true);
 			if (selected == null)
@@ -2016,7 +2018,7 @@ public final class SurgicalTableClientHandler {
 			}
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.COPY_COMPONENT,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
-				metrics.bodyVolume(), metrics.attackGeometry());
+				metrics.bodyVolume(), metrics.attackGeometry(), metrics.packingAlignment());
 			suppressCopyUseUntilRelease = true;
 		} else {
 			return;
@@ -4168,8 +4170,13 @@ public final class SurgicalTableClientHandler {
 				return null;
 			SurgicalAssembly assembly = component.assembly();
 			PackedBodyMetrics metrics = measureBodyMetrics(assembly);
-			if (metrics != null)
+			if (metrics != null) {
+				if (metrics.packingAlignment() != null)
+					assembly = metrics.packingAlignment().applyToPacked(assembly, metrics.attackGeometry());
+				if (assembly == null) return null;
 				assembly = assembly.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(), metrics.bodyVolume());
+				if (metrics.attackGeometry() != null) assembly = assembly.withAttackGeometry(metrics.attackGeometry());
+			}
 			PackedBodyPreview preview = new PackedBodyPreview(assembly, metrics, BionicTraitResolver.resolve(assembly, level));
 			cache.put(component.components(), preview);
 			return preview;
@@ -4266,7 +4273,7 @@ public final class SurgicalTableClientHandler {
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal) {
 		sendInteraction(selected, hand, action, proposal, 0.0d, 0.0d, null, null,
-			Double.NaN, null);
+			Double.NaN, null, null);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
@@ -4274,16 +4281,17 @@ public final class SurgicalTableClientHandler {
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		double bodyVolume,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
 		sendInteraction(selected, hand, action, proposal, 0.0d, 0.0d, bodyBounds,
-			hitboxGeometry, bodyVolume, attackGeometry);
+			hitboxGeometry, bodyVolume, attackGeometry, packingAlignment);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
 		SurgicalTableInteractionPacket.Action action, SurgicalTableLayout.Proposal proposal,
 		double originOffsetX, double originOffsetZ) {
 		sendInteraction(selected, hand, action, proposal, originOffsetX, originOffsetZ, null, null,
-			Double.NaN, null);
+			Double.NaN, null, null);
 	}
 
 	private static void sendInteraction(Selection selected, InteractionHand hand,
@@ -4291,10 +4299,11 @@ public final class SurgicalTableClientHandler {
 		double originOffsetX, double originOffsetZ, @Nullable SurgicalAssembly.BodyBounds bodyBounds,
 		@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		double bodyVolume,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
 		CBPackets.sendToServer(new SurgicalTableInteractionPacket(selected.tablePos, hand, action,
 			selected.subjectId, selected.targetId, selected.observedCubeCount, selected.seams,
-			originOffsetX, originOffsetZ, proposal, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry));
+			originOffsetX, originOffsetZ, proposal, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, packingAlignment));
 	}
 
 	private static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
@@ -5539,6 +5548,20 @@ public final class SurgicalTableClientHandler {
 		PackedBodyMeasurement measured = measurePackedBody(preview);
 		if (measured == null)
 			return null;
+		// Resolve model-part labels before choosing the base, including older table subjects.
+		var originalGeometry = SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), Vec3.ZERO);
+		SurgicalPackingAlignment alignment = null;
+		if (originalGeometry != null) {
+			preview = preview.withAttackGeometry(originalGeometry);
+			alignment = BionicBlockAttachment.packingAlignment(
+				BionicTraitResolver.resolve(preview, Minecraft.getInstance().level), originalGeometry.carrierCubes());
+			if (alignment != null) {
+				preview = alignment.applyToMeasured(preview, originalGeometry.carrierCubes());
+				if (preview == null) return null;
+				measured = measurePackedBody(preview);
+				if (measured == null) return null;
+			}
+		}
 		Set<SurgicalAssembly.CombinationMember> armCubes = new java.util.HashSet<>();
 		for (SurgicalAssembly.Limb limb : preview.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.SHOULDER || limb.type() == SurgicalLimbType.ELBOW)
@@ -5575,7 +5598,7 @@ public final class SurgicalTableClientHandler {
 		if (hitboxGeometry == null
 			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return null;
-		return new PackedBodyMetrics(bodyBounds, hitboxGeometry, bodyVolume, attackGeometry);
+		return new PackedBodyMetrics(bodyBounds, hitboxGeometry, bodyVolume, attackGeometry, alignment);
 	}
 
 	/** Runs the same rest-pose render used by the packed entity, once, while generating it. */
@@ -7140,7 +7163,8 @@ public final class SurgicalTableClientHandler {
 	private record PackedBodyMetrics(SurgicalAssembly.BodyBounds bodyBounds,
 		SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		double bodyVolume,
-		@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {}
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {}
 	private record PackedBodyMember(int subjectId, int cubeId) {}
 	private record PackedBodyPreview(SurgicalAssembly assembly, @Nullable PackedBodyMetrics metrics,
 		BionicTraitSet traits) {}

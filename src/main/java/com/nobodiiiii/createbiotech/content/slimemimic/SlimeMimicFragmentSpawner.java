@@ -24,6 +24,11 @@ public final class SlimeMimicFragmentSpawner {
 
 	public static boolean spawn(ServerLevel level, MimicProfile profile, int cube, List<Vec3> corners,
 		@Nullable java.util.UUID owner) {
+		return spawn(level, profile, cube, corners, owner, false);
+	}
+
+	public static boolean spawn(ServerLevel level, MimicProfile profile, int cube, List<Vec3> corners,
+		@Nullable java.util.UUID owner, boolean livestock) {
 		Measure measure = measure(corners);
 		if (level == null || profile == null || cube < 0 || measure == null)
 			return false;
@@ -32,7 +37,7 @@ public final class SlimeMimicFragmentSpawner {
 			measure.volume, slimeSize(measure.volume), corners);
 		if (fragment == null)
 			return false;
-		fragment.setSlimeOwner(owner);
+		fragment.setSlimeOwner(owner, livestock);
 		return level.addFreshEntity(fragment);
 	}
 

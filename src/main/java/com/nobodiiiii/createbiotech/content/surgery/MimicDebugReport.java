@@ -95,6 +95,8 @@ public final class MimicDebugReport {
 		identity.addProperty("slime_mimic", SlimeMimicHandler.isSlimeMimic(entity));
 		identity.addProperty("haunted_mimic", SlimeMimicHandler.isHauntedMimic(entity));
 		identity.add("bounding_box", GSON.toJsonTree(entity.getBoundingBox()));
+		identity.add("eye_position", GSON.toJsonTree(entity.getEyePosition()));
+		identity.add("view_vector", GSON.toJsonTree(entity.getViewVector(1)));
 		report.add("entity", identity);
 
 		CompoundTag saved = entity.saveWithoutId(new CompoundTag());

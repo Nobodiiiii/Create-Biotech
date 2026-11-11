@@ -171,7 +171,8 @@ public final class BionicTraitDonors {
 			&& !type.is(EntityTypeTags.UNDEAD) && type != EntityType.ARMOR_STAND
 			&& !donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value())
 			|| donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value()) && donor.getMaxAirSupply() > 300);
-		case TAMEABLE -> donor instanceof TamableAnimal || donor instanceof AbstractHorse
+		case TAMEABLE -> donor instanceof TamableAnimal;
+		case LIVESTOCK_TAMEABLE -> donor instanceof AbstractHorse
 			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE && type != EntityType.CAMEL;
 		case AGILE_LANDING -> (type == EntityType.CAT || type == EntityType.OCELOT)
 			&& type.is(EntityTypeTags.FALL_DAMAGE_IMMUNE);

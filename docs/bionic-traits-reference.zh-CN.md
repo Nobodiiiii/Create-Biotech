@@ -2,7 +2,7 @@
 
 修订日期：2026-11-11。适用分支：Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。
 
-本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 65 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
+本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 66 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
 
 ## 一、通用规则
 
@@ -87,7 +87,7 @@
 | 全身 | `heat_sensitive` | 高温灼伤 | 被动 | 供体全部保留体块 | 数据：雪傀儡 | c ≥ 0.5；位于 `snow_golem_melts` 群系 | 每 tick 尝试受到 1 点火焰伤害，沿用原版伤害冷却 | 复刻 [SnowGolem.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/SnowGolem.java) 的群系标签判断与伤害调用 |
 | 全身 | `inverted_healing` | 治疗反转 | 被动 | 供体全部保留体块 | 自动：`isInvertedHealAndHarm()`，即 `#undead`（骷髅类、僵尸类、凋灵、幻翼） | c ≥ 0.5 | 瞬间治疗与瞬间伤害效果互换 | 复用 [LivingEntity.isInvertedHealAndHarm](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 与原版瞬时效果入口 |
 | 全身 | `fall_damage_immune` | 摔落免疫 | 被动 | 供体全部保留体块 | 数据：岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 | c ≥ 0.5 | 获得摔落伤害免疫 | 复用 [LivingEntity.causeFallDamage](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 的摔落免疫分支 |
-| 全身 | `shoulder_riding` | 肩上骑乘 | 技能 | 供体全部保留体块 | 数据：鹦鹉 | c ≥ 0.5；已驯服、未坐下；生成或落肩后超过 100 tick；接触符合原版条件的主人 | 骑在主人左右肩膀，每肩一只；保存完整装配、外观和装备；由玩家原版落肩流程恢复实体 | 适配 [LandOnOwnersShoulderGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/LandOnOwnersShoulderGoal.java)、[ShoulderRidingEntity.setEntityOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/ShoulderRidingEntity.java) 和 [Player.setEntityOnShoulder / removeEntitiesOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/player/Player.java)；肩上渲染保留拟态装配 |
+| 全身 | `shoulder_riding` | 肩头伴行 | 技能 | 供体全部保留体块 | 数据：鹦鹉 | c ≥ 0.5；已驯服、未坐下；生成或落肩后超过 100 tick；接触符合原版条件的主人 | 骑在主人左右肩膀，每肩一只；保存完整装配、外观和装备；由玩家原版落肩流程恢复实体 | 适配 [LandOnOwnersShoulderGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/LandOnOwnersShoulderGoal.java)、[ShoulderRidingEntity.setEntityOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/ShoulderRidingEntity.java) 和 [Player.setEntityOnShoulder / removeEntitiesOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/player/Player.java)；肩上渲染保留拟态装配 |
 | 全身 | `web_adapted` | 无视蛛网 | 被动 | 供体全部保留体块 | 数据：蜘蛛、洞穴蜘蛛 | c ≥ 0.5 | 穿过蛛网时保持正常移动速度 | 复刻 [Spider.makeStuckInBlock](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Spider.java) 的蛛网分支 |
 | 全身 | `projectile_deflection` | 弹射物偏转 | 被动 | 供体全部保留体块 | 自动：标签`deflects_projectiles`，即旋风人 | c ≥ 0.5 | 采用原版偏转策略；普通弹射物反弹，风弹沿用原版独立命中规则 | 复用 [Projectile.hitTargetOrDeflectSelf](../ref/1.21.1/Minecraft/net/minecraft/world/entity/projectile/Projectile.java) 与原版偏转策略 |
 | 全身 | `contact_retaliation` | 接触反伤 | 被动 | 守卫者、远古守卫者：全部保留体块；河豚：刺 `SPINE`（`body`／`spikes`／`spine`） | 守卫者、远古守卫者、河豚 | 门槛型，c ≥ 0.5；静止防御状态下受到活体直接攻击 | 向攻击者造成固定 2 点荆棘伤害；按守卫者的荆棘伤害标签判定适用伤害源 | 统一采用守卫者模板，复刻 [Guardian.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Guardian.java) 的触发条件与固定伤害 |
@@ -96,7 +96,7 @@
 | 全身 | `passive_regeneration` | 自然恢复（…/秒） | 被动 | 供体全部保留体块 | 悦灵原始值 2.0／秒；凋灵原始值 1.0／秒；马系原始值约 0.0222／秒，按数值精度规则汇总 | 按数值最高的前 50% 全身体积加权平均；执行数值精度规则 | 生命值低于上限时恢复；每 10 tick 回复汇总每秒数值的一半 | 复用 `LivingEntity.heal`；数值见 [Allay.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/allay/Allay.java)、[WitherBoss.customServerAiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java)；以悦灵的 10 tick 节奏统一执行 |
 | 全身 | `enchant_vulnerability` | 附魔易伤（亡灵杀手／节肢杀手／穿刺） | 被动 | 全部保留体块 | 自动：对应 `sensitive_to_*` 实体标签 | 亡灵杀手、节肢杀手、穿刺子项各自覆盖率 ≥ 0.5 | 对应武器、箭与三叉戟附魔每级增加 2.5 点伤害；节肢杀手直接命中附加缓慢 IV，时间为 30–[30+10×(等级−1)] tick，按附魔效果定义执行 | 复用附魔注册表、`sensitive_to_*` 标签与 [EnchantmentHelper.modifyDamage / doPostAttackEffects](../ref/1.21.1/Minecraft/net/minecraft/world/item/enchantment/EnchantmentHelper.java)；沿用装配子项映射 |
 | 全身 | `ender_teleport` | 末影瞬移 | 技能 | 全部保留体块 | 末影人、潜影贝 | 末影人与潜影贝组织合计 c ≥ 0.5；统一采用末影人模板 | 弹射物命中时最多尝试 64 次 ±32 格瞬移；受到环境等伤害后以 90% 概率瞬移；目标远于 16 格时累计约 30 tick 后追近，不受玩家视线影响；清水药水先结算原版伤害 | 以 [EnderMan.hurt / teleport / teleportTowards / EndermanLookForPlayerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/EnderMan.java) 为模板，移除注视判断与近距离注视闪避；复用 `LivingEntity.randomTeleport` 与 NeoForge 瞬移事件 |
-| 全身 | `block_attachment` | 方块吸附 | 技能 | 潜影贝底座 `BASE`：`base` | 数据：潜影贝 | 存在型；底座可保留在全身任意位置 | 按原始装配 Y 最低的底座选择唯一吸附基准（同高按来源与体块编号）；以实际底座角点确定底面并对齐邻接方块支撑面，底座倾斜时旋转整个模型；主碰撞箱与分部受击箱先同步旋转实际部件角点再重算包围盒；允许旋转后的身体嵌入方块，眼部窒息检测同步旋转并正常承受窒息伤害；吸附后禁止 AI、看向目标或骑乘操作改变整体朝向，锁住主动移动、重力位移、推挤和击退，不获得潜影贝的实体方块碰撞；状态随存档和纸箱保存，重新放出后按新位置寻找支撑面 | 参照 [Shulker.canStayAt / findAttachableSurface](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java) 的六面支撑检查及 [ShulkerRenderer.setupRotations](../ref/1.21.1/Minecraft/net/minecraft/client/renderer/entity/ShulkerRenderer.java) 的朝向；由 `BionicBlockAttachment` 统一提供模型、碰撞和技能起点的旋转 |
+| 全身 | `block_attachment` | 方块吸附 | 技能 | 潜影贝底座 `BASE`：`base` | 数据：潜影贝 | 存在型；底座可保留在全身任意位置 | 按原始装配 Y 最低的底座选择唯一吸附基准（同高按来源与体块编号）；以实际底座角点确定底面；在正式装箱、临时装箱或复制时就将整个装配旋转摆正，并重新烘焙碰撞和技能几何，所选底座随纸箱及存档保存；放出后再按邻接方块支撑面旋转吸附；主碰撞箱与分部受击箱先同步旋转实际部件角点再重算包围盒；允许旋转后的身体嵌入方块，实体眼部、F3+B 视线及窒息采样随实际头部位置同步旋转并正常承受窒息伤害；支撑消失后先原地换面，无面可附时参照潜影贝在八格内每轮尝试五个新落点；吸附后禁止 AI、看向目标或骑乘操作改变整体朝向，锁住主动移动、重力位移、推挤和击退，不获得潜影贝的实体方块碰撞；状态随存档和纸箱保存，重新放出后按新位置寻找支撑面 | 参照 [Shulker.canStayAt / findAttachableSurface](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java) 的六面支撑检查及 [ShulkerRenderer.setupRotations](../ref/1.21.1/Minecraft/net/minecraft/client/renderer/entity/ShulkerRenderer.java) 的朝向；由 `BionicBlockAttachment` 统一提供模型、碰撞和技能起点的旋转 |
 | 全身 | `magic_resistance` | 魔法抗性 | 被动 | 全部保留体块 | 女巫 | c > 0 | `witch_resistant_to` 伤害 ×(1−0.85c) | 复刻 [Witch.getDamageAfterMagicAbsorb](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Witch.java) 的伤害标签分支；沿用覆盖率系数 |
 | 全身 | `wither_shield` | 凋灵护甲 | 被动 | 全部保留体块 | 凋灵 | c ≥ 0.5；生命值 ≤ 50% | 获得凋灵半血护甲对箭、三叉戟和风弹直接伤害的免疫 | 复刻 [WitherBoss.hurt / isPowered](../ref/1.21.1/Minecraft/net/minecraft/world/entity/boss/wither/WitherBoss.java) |
 | 全身 | `wool_shearing` | 可剪毛 | 技能 | 羊身子 `TORSO`：`body`；身体羊毛 `WOOL`：`body_wool` | 数据：成年绵羊 | 存在型：至少保留一个成年羊身子，可支持全身任意数量的成年身体羊毛部件；身子与羊毛可来自不同供体 | 每块羊毛独立剪下 1–3 个对应供体颜色的羊毛，按颜色分别累加；羊毛按拟态生物的被剪毛状态显隐；吃草后统一恢复；支持机械手剪刀 | 复用 [EatBlockGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/EatBlockGoal.java)；复刻 [Sheep.shear / ate / readyForShearing](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Sheep.java)；羊毛材质来自 [SheepFurLayer](../ref/1.21.1/Minecraft/net/minecraft/client/renderer/entity/layers/SheepFurLayer.java) |
@@ -117,7 +117,8 @@
 | 头 | `no_breathing` | 无需呼吸 | 被动 | 头 `HEAD` | 数据：`#minecraft:undead` | 头部载体覆盖率 ≥ 0.5 | 获得水下与陆地持续呼吸；呼吸提示优先显示本项 | 复用 `UNDEAD` 供体标签与 [LivingEntity.baseTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 的呼吸流程 |
 | 头 | `water_breathing` | 水下呼吸 | 被动 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪为 `body`；美西螈为 `topGills` / `leftGills` / `rightGills` / `head`；守卫者、远古守卫者、海龟为 `head`；海豚使用头 `HEAD` | 自动读取水下呼吸标签、NeoForge 水中溺水判定和长氧气供体：美西螈、青蛙、守卫者、远古守卫者、海龟、鱿鱼、发光鱿鱼、鳕鱼、鲑鱼、河豚、热带鱼、蝌蚪、海豚 | 头部安装范围内有对应载体 | 获得完整水下呼吸；海豚供体沿用现有完整水下呼吸转换 | 复用 `CAN_BREATHE_UNDER_WATER`、NeoForge `canDrownInFluidType` 与 [LivingEntity.getMaxAirSupply](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java)；沿用现有头部能力转换 |
 | 头 | `dry_suffocation` | 离水窒息（负面） | 被动 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；其余为 `body` | 数据：鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪 | 头部载体覆盖率 ≥ 0.5；采用水生呼吸模式 | 离水时按鱼类氧气计数：初始 300 tick，计数至 -20 时受到 2 点溺水伤害并重置为 0；水或气泡使氧气补满 | 统一采用鱼类模板，复刻 [WaterAnimal.handleAirSupply](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/WaterAnimal.java) 的 300 tick 初始氧气与 -20 tick 伤害周期 |
-| 头 | `tameable` | 可驯服 | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`；马、驴、骡、羊驼、行商羊驼；数据补充：狐狸、豹猫、悦灵 | 头部安装范围内有对应载体 | 喂史莱姆球获得主人；主人空手切换坐下，超过 10 格开始跟随、近于 2 格停止，远距离按跟随 Goal 尝试回到主人身边；协助主人战斗；分裂史莱姆继承主人 | 沿用史莱姆球驯服与主人继承；复刻 [FollowOwnerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FollowOwnerGoal.java)、[SitWhenOrderedToGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SitWhenOrderedToGoal.java) 与 [TamableAnimal.tryToTeleportToOwner](../ref/1.21.1/Minecraft/net/minecraft/world/entity/TamableAnimal.java) 的行为流程 |
+| 头 | `tameable` | 可驯服（宠物） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`（狼、猫、鹦鹉）；数据补充：狐狸、豹猫、悦灵 | 头部安装范围内有对应载体 | 喂史莱姆球获得主人；主人无特殊交互时右键切换坐下，超过 10 格开始跟随、近于 2 格停止，远距离按跟随 Goal 尝试回到主人身边；协助主人战斗；覆盖家畜驯服，后者不显示也不生效；分裂史莱姆继承主人和宠物行为 | 沿用原 `tameable` ID；复刻 [FollowOwnerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FollowOwnerGoal.java)、[SitWhenOrderedToGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SitWhenOrderedToGoal.java) 与 [TamableAnimal.tryToTeleportToOwner](../ref/1.21.1/Minecraft/net/minecraft/world/entity/TamableAnimal.java) 的行为流程 |
+| 头 | `livestock_tameable` | 可驯服（家畜） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`AbstractHorse`（马、驴、骡、羊驼、行商羊驼；排除骷髅马、僵尸马、骆驼） | 头部安装范围内有对应载体，且无生效的宠物驯服 | 喂史莱姆球获得主人，保留同主识别、治疗和主人专属的骑乘／驮运操作；保留游走、生产与自身防御，不跟随或传送至主人，不接受坐下指令、不协助主人战斗，也不响应同主同伴呼援；分裂史莱姆继承主人和家畜类别 | 仅拆分已有供体；骑乘、驮运及生产仍须各自特性生效。马类原生游走参照 [AbstractHorse.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java) |
 | 头 | `vibration_sense` | 振动感知 | 技能 | 头部主体 `HEAD_CORE` + 触须 `TENDRIL`：监守者 `head` + `left_tendril`／`right_tendril` | 监守者 | 存在型；同一头部链内保留监守者头部主体和至少一根触须；正在追踪目标 | 监听 12 格内已有目标的游戏振动，按潜行与羊毛隔振规则接收；追踪最近声源位置并保留 40 tick 记忆 | 复用 [VibrationSystem.Listener / Ticker / User](../ref/1.21.1/Minecraft/net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java) 与现有 [目标跟踪接入](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicVibrationSense.java) |
 | 头 | `water_aversion` | 避水偏好 | 技能 | 头 `HEAD`：`head`、`head_cube` | 末影人 | 头部安装范围内有对应载体 | 水域节点代价设为 -1.0，按末影人原版避水规则选择路线 | 复用 [Mob.setPathfindingMalus](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；水域代价取 [EnderMan 构造器](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/EnderMan.java) |
 | 头 | `deterrence` | 生物威慑 | 技能 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 头部安装范围内有对应载体 | 按现有威慑关系适配目标生物的避让 Goal／Brain；距离、速度、概率和记忆时长采用关系表模板 | 复用 [AvoidEntityGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/AvoidEntityGoal.java)；Brain 生物沿用 [VillagerHostilesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/VillagerHostilesSensor.java)、[PiglinAi.avoidZombified](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java)；按关系表适配威胁身份 |
@@ -257,7 +258,11 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 
 可剪毛为存在型，只需全身任意一个成年羊身子，即可支持所有保留的成年身体羊毛部件。每块羊毛独立产出 1–3 个自身供体颜色的羊毛，按颜色累加；支撑用身子不计入产量。采集时同时保留基础模型及独立毛层模型的部位名称：原版 `sheep_fur.png` 材质的全部毛块保留 `wool` 标签用于被剪毛状态显隐，仅毛层 `body` 体块额外标记 `body_wool` 并映射为产出载体 `WOOL`；头毛和腿毛不绑定可剪毛、不增加产量，也不能替代身体羊毛满足配套条件。羊毛隐藏不会删除载体或改变装配。羊毛显隐读取拟态生物同步的被剪毛状态，复用 `EatBlockGoal` 的吃草动作和 `ate()` 回调恢复羊毛。产蛋与自然脱鳞甲按各自原始随机区间计时，每轮分别按有效鸡身子与犰狳外壳数量产出，并随存档与纸箱捕获保存。牛和哞菇的乳房不区分来源，可配合任意一个牛身子获取奶桶，或任意一个哞菇身子同时支持奶桶与蘑菇煲，无需额外保留牛身子；两种组合均需乳房，乳房和身体均可保留在全身任意位置，且乳房不会同时充当身体。挤奶与蘑菇煲每次交互只填充一个手持容器，不按部件数量增产；蘑菇煲无需额外蘑菇部件。创造模式沿用原版结果物去重规则。完整捕获的原版生物按其原生交互显示类型，完整哞菇仍可提供原版的牛奶与蘑菇煲。供体颜色、羊驼 Strength、装备、物品栏与生产状态继续随供体档案保存。机械手沿用现有挤奶、蘑菇煲与剪毛交互入口。
 
-已驯服的仿生生物、继承主人的史莱姆及原版可驯服生物，沿用瓶装活性史莱姆恢复 4 点生命、桶装恢复 16 点生命。生命低于上限时消耗一份并返还玻璃瓶或桶，创造模式保留物品。分裂史莱姆保留主人、跟随、停留和后续分裂继承。
+无主仿生生物具有宠物或家畜任一驯服特性时，使用史莱姆球均可建立主人关系并显示爱心粒子；两类都未生效时显示烟雾粒子，不消耗物品。只有宠物在驯服后接受坐下／起身指令：主人右键优先处理生产、装备等特殊交互，其余统一切换；史莱姆球与其他无特殊效果的物品及空手遵循相同规则，不消耗物品，每次点击只切换一次。家畜不接受该指令，也不执行主人跟随、追随传送或助战；自身防御和独立的捕猎本能仍按各自规则执行。
+
+宠物驯服生效时，会从统一特性结果中移除家畜驯服，所有装配预览、纸箱提示与运行逻辑都不再显示或执行被覆盖的家畜驯服。多头装配仍只保留一套主人关系。旧存档中的马、驴、骡、羊驼、行商羊驼供体改按家畜判定，保留原主人并清除旧坐下命令；失去两类驯服特性时才清除主人。本次不增加牛、羊等扩展供体。
+
+已驯服的仿生生物、继承主人的史莱姆及原版可驯服生物，沿用瓶装活性史莱姆恢复 4 点生命、桶装恢复 16 点生命。生命低于上限时消耗一份并返还玻璃瓶或桶，创造模式保留物品。死亡碎块、转化出的史莱姆及其后续分裂均保存主人和宠物／家畜类别；宠物史莱姆保留跟随和停留，家畜史莱姆自由游走、不接受停留指令；两者都不会用原版接触伤害误伤玩家。旧版已经生成且未记录类别的史莱姆继续按宠物处理。
 
 
 ## 四、按生物反查
@@ -273,15 +278,15 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 沼骸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
 | 旋风人 | 摔落免疫、弹射物偏转 | — | 捕猎本能（目标生物…）、头部投射 | — | 强健跳跃 |
 | 骆驼 | — | 可骑乘 | — | — | — |
-| 猫 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
+| 猫 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
 | 洞穴蜘蛛 | 无视蛛网、免疫效果（中毒）、附魔易伤（节肢杀手） | — | 捕猎本能（目标生物…） | 附效攻击（中毒） | 攀墙 |
 | 鳕鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 鲑鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 热带鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 海豚 | 保湿依赖、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、呼唤同伴 | — | — |
-| 驴 | — | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
-| 骡 | — | 可骑乘、驮运箱 | 可驯服 | — | 摔落抵抗 |
-| 马 | — | 可骑乘 | 可驯服 | — | 摔落抵抗、强健跳跃 |
+| 驴 | — | 可骑乘、驮运箱 | 可驯服（家畜） | — | 摔落抵抗 |
+| 骡 | — | 可骑乘、驮运箱 | 可驯服（家畜） | — | 摔落抵抗 |
+| 马 | — | 可骑乘 | 可驯服（家畜） | — | 摔落抵抗、强健跳跃 |
 | 溺尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | 游泳专长 | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 拾取装备 | — |
 | 尸壳 | 治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 附效攻击（饥饿）、破门、拾取装备 | — |
 | 僵尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
@@ -292,7 +297,7 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 末影人 | 遇水受伤、末影瞬移 | — | 避水偏好、捕猎本能（目标生物…） | — | — |
 | 末影螨 | 附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
 | 蠹虫 | 免疫效果（寄生）、附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
-| 狐狸 | — | — | 可驯服、捕猎本能（目标生物…） | — | 细雪行者 |
+| 狐狸 | — | — | 可驯服（宠物）、捕猎本能（目标生物…） | — | 细雪行者 |
 | 青蛙 | — | 游泳专长 | 水下呼吸 | — | 强健跳跃 |
 | 恶魂 | 火焰免疫／火焰抗性 | 悬浮飞行 | 头部投射 | — | — |
 | 山羊 | 可挤奶 | — | — | 近战击飞 | 摔落抵抗、强健跳跃 |
@@ -301,11 +306,11 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 发光鱿鱼 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 疣猪兽 | — | 击退抗性（…%） | 呼唤同伴 | 击退强化（数值）、近战击飞 | — |
 | 铁傀儡 | 摔落免疫 | 击退抗性（…%） | 捕猎本能（目标生物…） | 近战击飞 | — |
-| 羊驼 | — | 可骑乘、驮运箱 | 可驯服、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
-| 行商羊驼 | — | 可骑乘、驮运箱 | 可驯服、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
+| 羊驼 | — | 可骑乘、驮运箱 | 可驯服（家畜）、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
+| 行商羊驼 | — | 可骑乘、驮运箱 | 可驯服（家畜）、生物威慑、捕猎本能（目标生物…）、头部投射 | — | 摔落抵抗 |
 | 岩浆怪 | 火焰免疫／火焰抗性、冻结易伤、摔落免疫、天然护甲（…） | — | 捕猎本能（目标生物…） | — | — |
-| 豹猫 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
-| 鹦鹉 | 肩上骑乘 | — | 可驯服 | 扑翼飞行、扑翼缓降 | — |
+| 豹猫 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
+| 鹦鹉 | 肩头伴行 | — | 可驯服（宠物） | 扑翼飞行、扑翼缓降 | — |
 | 幻翼 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸 | 扑翼飞行 | — |
 | 北极熊 | 冻结免疫／冻结抗性 | — | 生物威慑、捕猎本能（目标生物…） | — | — |
 | 兔 | 天然护甲（杀手兔） | — | — | — | 细雪行者、强健跳跃 |
@@ -323,11 +328,11 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 蝌蚪 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 海龟 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸 | — | — |
 | 恼鬼 | 火焰免疫／火焰抗性 | — | 生物威慑、呼唤同伴 | 扑翼飞行 | — |
-| 悦灵 | 自然恢复（…/秒） | — | 可驯服 | 扑翼飞行 | — |
+| 悦灵 | 自然恢复（…/秒） | — | 可驯服（宠物） | 扑翼飞行 | — |
 | 监守者 | 火焰免疫／火焰抗性 | 击退抗性（…%）、音波冲击 | 振动感知 | 击退强化（数值） | — |
 | 凋灵 | 火焰免疫／火焰抗性、冻结免疫／冻结抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、天然护甲（…）、自然恢复（…/秒）、附魔易伤（亡灵杀手）、凋灵护甲 | 悬浮飞行 | 无需呼吸、捕猎本能（目标生物…）、头部投射 | — | — |
 | 凋灵骷髅 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 附效攻击（凋零）、拾取装备 | — |
-| 狼 | — | — | 可驯服、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
+| 狼 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
 | 僵尸疣猪兽 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 击退抗性（…%） | 无需呼吸、生物威慑、捕猎本能（目标生物…） | 击退强化（数值）、近战击飞 | — |
 | 僵尸猪灵 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、呼唤同伴 | 破门、拾取装备 | — |
 | 唤魔者 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 施法 | — |

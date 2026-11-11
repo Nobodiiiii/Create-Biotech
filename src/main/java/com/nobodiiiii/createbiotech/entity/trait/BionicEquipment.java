@@ -38,7 +38,7 @@ public final class BionicEquipment {
 	public record PassengerSeat(CombinationMember carrier, int slot) {}
 	public BionicEquipment(SlimeBionicEntity entity) { this.entity = entity; }
 	public boolean mayUse(Player player) {
-		return entity.getBionicOwnerId() == null ? !entity.getBionicTraits().has(BionicTrait.TAMEABLE)
+		return entity.getBionicOwnerId() == null ? !entity.getBionicTraits().isTameable()
 			: entity.getBionicOwnerId().equals(player.getUUID());
 	}
 	public boolean saddled() { receive(); return !saddles.isEmpty(); }

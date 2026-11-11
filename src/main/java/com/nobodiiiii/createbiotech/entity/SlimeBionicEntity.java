@@ -41,6 +41,7 @@ import com.nobodiiiii.createbiotech.network.CBPackets;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
@@ -431,6 +432,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			}
 			@Override protected void alertOther(Mob other, LivingEntity attacker) {
 				if (!(other instanceof SlimeBionicEntity companion) || companion.isOrderedToSit()) return;
+				if (companion.getBionicOwnerId() != null && companion.getBionicTraits().has(BionicTrait.LIVESTOCK_TAMEABLE)) return;
 				boolean related = ownerId != null ? ownerId.equals(companion.getBionicOwnerId())
 					: companion.getBionicOwnerId() == null && companion.getBionicTraits().has(BionicTrait.PACK_ALERT);
 				if (!related) return;
@@ -613,10 +615,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
 				dryAir = Integer.MIN_VALUE;
 			if (!level().isClientSide) {
-				if (!bionicTraits.has(BionicTrait.TAMEABLE)) {
+				if (!bionicTraits.isTameable())
 					setBionicOwner(null);
+				if (!bionicTraits.has(BionicTrait.TAMEABLE))
 					setOrderedToSit(false);
-				}
 			}
 		}
 		return bionicTraits;
@@ -657,19 +659,23 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (productionResult.consumesAction()) return productionResult;
 		InteractionResult equipmentResult = equipment.interact(player, hand);
 		if (equipmentResult.consumesAction()) return equipmentResult;
-		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
-			return super.mobInteract(player, hand);
+		boolean tameable = getBionicTraits().isTameable();
 		if (ownerId == null && held.is(Items.SLIME_BALL)) {
 			if (!level().isClientSide) {
-				if (!player.getAbilities().instabuild)
-					held.shrink(1);
-				setBionicOwner(player.getUUID());
-				setOrderedToSit(false);
-				setTarget(null);
+				if (tameable) {
+					if (!player.getAbilities().instabuild)
+						held.shrink(1);
+					setBionicOwner(player.getUUID());
+					setOrderedToSit(false);
+					setTarget(null);
+				}
+				level().broadcastEntityEvent(this, (byte) (tameable ? 7 : 6));
 			}
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}
-		if (ownerId != null && ownerId.equals(player.getUUID()) && held.isEmpty()) {
+		if (!getBionicTraits().has(BionicTrait.TAMEABLE))
+			return super.mobInteract(player, hand);
+		if (ownerId != null && ownerId.equals(player.getUUID())) {
 			if (!level().isClientSide) {
 				setOrderedToSit(!orderedToSit);
 				if (orderedToSit) {
@@ -1569,10 +1575,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override public boolean isInWall() {
 		if (!isBlockAttached()) return super.isInWall();
 		if (noPhysics || isSleeping()) return false;
-		// Entity.getEyePosition is final and assumes an upright body. Rotate its vanilla eye
-		// sampling box with the attachment, retaining the normal block predicate and damage tick.
+		// The eye origin and sampling plane share the same head frame as getEyePosition and F3+B.
+		// Retain the normal suffocating-block predicate and LivingEntity damage tick.
 		double width = getBbWidth() * 0.8;
-		AABB eyes = BionicRiding.rotateBounds(AABB.ofSize(new Vec3(0, getEyeHeight(), 0),
+		AABB eyes = BionicRiding.rotateBounds(AABB.ofSize(blockAttachment.eyePoint(),
 			width, 1.0e-6, width), Vec3.ZERO, blockAttachmentRotation()).move(position());
 		return BlockPos.betweenClosedStream(eyes).anyMatch(pos -> {
 			var state = level().getBlockState(pos);
@@ -1896,7 +1902,16 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void handleEntityEvent(byte event) {
-		if (event == 64 && level().isClientSide) {
+		if ((event == 6 || event == 7) && level().isClientSide) {
+			var particle = event == 7 ? ParticleTypes.HEART : ParticleTypes.SMOKE;
+			for (int i = 0; i < 7; i++) {
+				double dx = random.nextGaussian() * 0.02;
+				double dy = random.nextGaussian() * 0.02;
+				double dz = random.nextGaussian() * 0.02;
+				level().addParticle(particle, getRandomX(1.0), getRandomY() + 0.5,
+					getRandomZ(1.0), dx, dy, dz);
+			}
+		} else if (event == 64 && level().isClientSide) {
 			shellPeekSequence++;
 		} else {
 			super.handleEntityEvent(event);
@@ -1977,11 +1992,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		shellGuardTicks = Mth.clamp(tag.getInt(SHELL_GUARD_TAG), 0, 12000);
 		shellState = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.fromName(tag.getString("BionicShellState"));
 		shellStateTicks = 0;
-		setOrderedToSit(tag.getBoolean(ORDERED_TO_SIT_TAG));
-		if (!getBionicTraits().has(BionicTrait.TAMEABLE)) {
+		setOrderedToSit(tag.getBoolean(ORDERED_TO_SIT_TAG) && getBionicTraits().has(BionicTrait.TAMEABLE));
+		if (!getBionicTraits().isTameable())
 			setBionicOwner(null);
-			setOrderedToSit(false);
-		}
 	}
 
 	@Override public boolean isSaddleable() { return isAlive() && getBionicTraits().has(BionicTrait.RIDEABLE); }
@@ -2211,7 +2224,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 
 		@Override public boolean canUse() {
-			if (bionic.orderedToSit || bionic.ownerId == null)
+			if (bionic.orderedToSit || bionic.ownerId == null || !bionic.getBionicTraits().has(BionicTrait.TAMEABLE))
 				return false;
 			owner = bionic.getCompanionPlayer();
 			return owner != null && !owner.isSpectator() && bionic.distanceToSqr(owner) > 100.0d;

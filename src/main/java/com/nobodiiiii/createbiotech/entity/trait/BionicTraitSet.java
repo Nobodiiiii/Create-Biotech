@@ -21,7 +21,12 @@ public final class BionicTraitSet {
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings) {
-		this.results = Map.copyOf(results);
+		var effective = new java.util.EnumMap<BionicTrait, BionicTraitResult>(BionicTrait.class);
+		effective.putAll(results);
+		// Pet taming replaces livestock taming for both behavior and every assembly preview.
+		if (effective.getOrDefault(BionicTrait.TAMEABLE, BionicTraitResult.ABSENT).active())
+			effective.remove(BionicTrait.LIVESTOCK_TAMEABLE);
+		this.results = Map.copyOf(effective);
 		this.data = Map.copyOf(data);
 		this.headUsesTorso = headUsesTorso;
 		var wingMembers = new java.util.HashSet<>(qualifyingWings);
@@ -58,6 +63,7 @@ public final class BionicTraitSet {
 
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return result(trait).active(); }
+	public boolean isTameable() { return has(BionicTrait.TAMEABLE) || has(BionicTrait.LIVESTOCK_TAMEABLE); }
 	public boolean hasStrongJump() { return has(BionicTrait.STRONG_JUMP); }
 	public double strongJumpBonus() {
 		return hasStrongJump() ? parameter(BionicTrait.STRONG_JUMP, "jump_bonus", 0.2d) : 0;

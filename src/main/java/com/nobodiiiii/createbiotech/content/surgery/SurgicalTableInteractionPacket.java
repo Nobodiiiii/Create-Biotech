@@ -19,7 +19,8 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 	@Nullable SurgicalAssembly.BodyBounds bodyBounds,
 	double bodyVolume,
 	@Nullable SurgicalAssembly.HitboxGeometry hitboxGeometry,
-	@Nullable SurgicalAssembly.AttackGeometry attackGeometry) {
+	@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+	@Nullable SurgicalPackingAlignment packingAlignment) {
 
 	public SurgicalTableInteractionPacket {
 		seams = List.copyOf(seams);
@@ -31,7 +32,7 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			buffer.readVarInt(), buffer.readVarInt(), buffer.readVarInt(), readSeams(buffer), buffer.readDouble(),
 			buffer.readDouble(), readLayout(buffer), readBodyBounds(buffer), buffer.readDouble(),
 			readHitboxGeometry(buffer),
-			readAttackGeometry(buffer));
+			readAttackGeometry(buffer), buffer.readBoolean() ? SurgicalPackingAlignment.read(buffer) : null);
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -86,6 +87,9 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 		buffer.writeBoolean(attackGeometry != null);
 		if (attackGeometry != null)
 			attackGeometry.write(buffer);
+		buffer.writeBoolean(packingAlignment != null);
+		if (packingAlignment != null)
+			packingAlignment.write(buffer);
 	}
 
 	public void handle(ServerPlayer player) {
@@ -135,17 +139,17 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 				break;
 			if (SurgicalKitItem.isEmptyTemporaryBox(held)) {
 				if (!table.captureTemporaryComponent(player, held, subjectId, targetId, observedCubeCount, seams,
-					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry))
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, packingAlignment))
 					operationFailed(player);
 			} else if (com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper.isEmptyLargeBox(held)
 				&& !table.packComponent(player, held, subjectId, targetId, observedCubeCount, seams, bodyBounds,
-					bodyVolume, hitboxGeometry, attackGeometry))
+					bodyVolume, hitboxGeometry, attackGeometry, packingAlignment))
 				operationFailed(player);
 		}
 		case COPY_COMPONENT -> {
 			if (targetId < observedCubeCount && SurgicalKitItem.isEmptyCubeCopier(held)
 				&& !table.captureCopiedComponent(player, held, subjectId, targetId, observedCubeCount, seams,
-					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry))
+					bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, packingAlignment))
 				operationFailed(player);
 		}
 		case CUT_CUBE_CONNECTIONS -> {

@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -31,6 +32,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 public final class SlimeCompanionHandler {
 	private static final String OWNER = "CreateBiotechSlimeOwner";
 	private static final String SITTING = "CreateBiotechSlimeSitting";
+	private static final String LIVESTOCK = "CreateBiotechSlimeLivestock";
 	private SlimeCompanionHandler() {}
 
 	@Nullable public static UUID ownerOf(Entity entity) {
@@ -41,22 +43,28 @@ public final class SlimeCompanionHandler {
 			return entity.getPersistentData().getUUID(OWNER);
 		return null;
 	}
-	public static void tame(Slime slime, @Nullable UUID owner) {
+	public static boolean isLivestock(Entity entity) {
+		if (entity instanceof SlimeBionicEntity bionic) return bionic.getBionicTraits().has(BionicTrait.LIVESTOCK_TAMEABLE);
+		return entity instanceof AbstractHorse || entity instanceof Slime && entity.getPersistentData().getBoolean(LIVESTOCK);
+	}
+	public static void tame(Slime slime, @Nullable UUID owner, boolean livestock) {
 		if (owner == null) return;
 		slime.getPersistentData().putUUID(OWNER, owner);
+		slime.getPersistentData().putBoolean(LIVESTOCK, livestock);
+		if (livestock) slime.getPersistentData().putBoolean(SITTING, false);
 		slime.setPersistenceRequired();
 		slime.setTarget(null);
 	}
 	@SubscribeEvent public static void onSplit(MobSplitEvent event) {
 		UUID owner = ownerOf(event.getParent());
-		for (Mob child : event.getChildren()) if (child instanceof Slime slime) tame(slime, owner);
+		for (Mob child : event.getChildren()) if (child instanceof Slime slime) tame(slime, owner, isLivestock(event.getParent()));
 	}
 	@SubscribeEvent public static void onJoin(EntityJoinLevelEvent event) {
 		if (event.getLevel().isClientSide || !(event.getEntity() instanceof Slime slime) || ownerOf(slime) == null) return;
 		slime.setPersistenceRequired();
 		slime.targetSelector.removeAllGoals(goal -> true);
 		slime.goalSelector.removeAllGoals(goal -> goal instanceof CompanionGoal);
-		slime.goalSelector.addGoal(0, new CompanionGoal(slime));
+		if (!isLivestock(slime)) slime.goalSelector.addGoal(0, new CompanionGoal(slime));
 	}
 	@SubscribeEvent public static void onTarget(LivingChangeTargetEvent event) {
 		if (!(event.getEntity() instanceof Slime slime) || ownerOf(slime) == null) return;
@@ -83,7 +91,7 @@ public final class SlimeCompanionHandler {
 					else if (!player.getInventory().add(container)) player.drop(container, false);
 				}
 			}
-		} else if (living instanceof Slime && held.isEmpty() && player.getUUID().equals(ownerOf(living))) {
+		} else if (living instanceof Slime && !isLivestock(living) && held.isEmpty() && player.getUUID().equals(ownerOf(living))) {
 			if (!living.level().isClientSide)
 				living.getPersistentData().putBoolean(SITTING, !living.getPersistentData().getBoolean(SITTING));
 		} else return;
@@ -96,7 +104,7 @@ public final class SlimeCompanionHandler {
 			this.slime = slime;
 			setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP));
 		}
-		@Override public boolean canUse() { return ownerOf(slime) != null; }
+		@Override public boolean canUse() { return ownerOf(slime) != null && !isLivestock(slime); }
 		@Override public boolean requiresUpdateEveryTick() { return true; }
 		@Override public void tick() {
 			Player owner = slime.level().getPlayerByUUID(ownerOf(slime));

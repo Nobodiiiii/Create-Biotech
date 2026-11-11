@@ -79,6 +79,7 @@ public final class SurgicalAssembly {
 	private static final String BODY_VOLUME_TAG = "BodyVolume";
 	private static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
 	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
+	private static final String BLOCK_ATTACHMENT_CARRIER_TAG = "BlockAttachmentCarrier";
 	private static final String RIGHT_ARMS_TAG = "RightArms";
 	private static final String LEFT_ARMS_TAG = "LeftArms";
 	private static final String ATTACK_RADIUS_TAG = "Radius";
@@ -134,12 +135,22 @@ public final class SurgicalAssembly {
 	private final HitboxGeometry hitboxGeometry;
 	@Nullable
 	private final AttackGeometry attackGeometry;
+	@Nullable
+	private final CombinationMember blockAttachmentCarrier;
 
 	private SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
 		List<Limb> limbs, boolean preserveLayout,
 		Direction layoutFacing, SurgicalLayPose layoutLayPose, @Nullable BodyBounds bodyBounds,
 		double bodyVolume, @Nullable HitboxGeometry hitboxGeometry,
 		@Nullable AttackGeometry attackGeometry) {
+		this(sources, joints, combinations, limbs, preserveLayout, layoutFacing, layoutLayPose,
+			bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, null);
+	}
+
+	private SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
+		List<Limb> limbs, boolean preserveLayout, Direction layoutFacing, SurgicalLayPose layoutLayPose,
+		@Nullable BodyBounds bodyBounds, double bodyVolume, @Nullable HitboxGeometry hitboxGeometry,
+		@Nullable AttackGeometry attackGeometry, @Nullable CombinationMember blockAttachmentCarrier) {
 		this.sources = List.copyOf(sources);
 		this.joints = List.copyOf(joints);
 		this.combinations = List.copyOf(combinations);
@@ -151,6 +162,7 @@ public final class SurgicalAssembly {
 		this.bodyVolume = bodyVolume;
 		this.hitboxGeometry = hitboxGeometry;
 		this.attackGeometry = attackGeometry;
+		this.blockAttachmentCarrier = blockAttachmentCarrier;
 	}
 
 	@Nullable
@@ -251,6 +263,7 @@ public final class SurgicalAssembly {
 			|| hasWrongType(tag, PRESERVE_LAYOUT_TAG, Tag.TAG_BYTE)
 			|| hasWrongType(tag, BODY_VOLUME_TAG, Tag.TAG_ANY_NUMERIC)
 			|| hasWrongType(tag, ATTACK_GEOMETRY_TAG, Tag.TAG_COMPOUND)
+			|| hasWrongType(tag, BLOCK_ATTACHMENT_CARRIER_TAG, Tag.TAG_INT_ARRAY)
 			|| hasWrongType(tag, HITBOX_GEOMETRY_TAG, Tag.TAG_COMPOUND))
 			return null;
 
@@ -419,6 +432,12 @@ public final class SurgicalAssembly {
 		if (assembly.hasBodyVolume() && assembly.hitboxGeometry != null
 			&& !SurgicalHealthCalibration.validMeasuredVolume(assembly.bodyVolume, assembly.hitboxGeometry))
 			return null;
+		if (tag.contains(BLOCK_ATTACHMENT_CARRIER_TAG, Tag.TAG_INT_ARRAY)) {
+			int[] carrier = tag.getIntArray(BLOCK_ATTACHMENT_CARRIER_TAG);
+			if (carrier.length != 2 || carrier[0] < 0 || carrier[0] >= assembly.sources.size()
+				|| !assembly.sources.get(carrier[0]).containsCube(carrier[1])) return null;
+			assembly = assembly.withBlockAttachmentCarrier(new CombinationMember(carrier[0], carrier[1]));
+		}
 		return assembly;
 	}
 
@@ -500,6 +519,9 @@ public final class SurgicalAssembly {
 			tag.putDouble(BODY_VOLUME_TAG, bodyVolume);
 		if (attackGeometry != null)
 			tag.put(ATTACK_GEOMETRY_TAG, attackGeometry.save());
+		if (blockAttachmentCarrier != null)
+			tag.putIntArray(BLOCK_ATTACHMENT_CARRIER_TAG,
+				new int[] { blockAttachmentCarrier.source(), blockAttachmentCarrier.cube() });
 		if (hitboxGeometry != null)
 			tag.put(HITBOX_GEOMETRY_TAG, hitboxGeometry.save());
 		return tag;
@@ -601,40 +623,50 @@ public final class SurgicalAssembly {
 	public HitboxGeometry hitboxGeometry() { return hitboxGeometry; }
 	@Nullable
 	public AttackGeometry attackGeometry() { return attackGeometry; }
+	@Nullable
+	public CombinationMember blockAttachmentCarrier() { return blockAttachmentCarrier; }
+
+	public SurgicalAssembly withBlockAttachmentCarrier(CombinationMember carrier) {
+		if (carrier == null || carrier.source() < 0 || carrier.source() >= sources.size()
+			|| !sources.get(carrier.source()).containsCube(carrier.cube()))
+			throw new IllegalArgumentException("An attachment carrier must belong to the assembly");
+		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, carrier);
+	}
 
 	public SurgicalAssembly withBodyBounds(BodyBounds bounds) {
 		if (bounds == null)
 			throw new IllegalArgumentException("A surgical body requires valid bounds");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, bodyVolume, hitboxGeometry, attackGeometry);
+			layoutLayPose, bounds, bodyVolume, hitboxGeometry, attackGeometry, blockAttachmentCarrier);
 	}
 
 	public SurgicalAssembly withHitboxGeometry(HitboxGeometry geometry) {
 		if (geometry == null)
 			throw new IllegalArgumentException("A surgical hitbox geometry cannot be null");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, bodyVolume, geometry, attackGeometry);
+			layoutLayPose, bodyBounds, bodyVolume, geometry, attackGeometry, blockAttachmentCarrier);
 	}
 
 	public SurgicalAssembly withBodyGeometry(BodyBounds bounds, HitboxGeometry geometry) {
 		if (bounds == null || geometry == null)
 			throw new IllegalArgumentException("A surgical body requires complete physical geometry");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, bodyVolume, geometry, attackGeometry);
+			layoutLayPose, bounds, bodyVolume, geometry, attackGeometry, blockAttachmentCarrier);
 	}
 
 	public SurgicalAssembly withBodyGeometry(BodyBounds bounds, HitboxGeometry geometry, double volume) {
 		if (bounds == null || geometry == null || !SurgicalHealthCalibration.validMeasuredVolume(volume, geometry))
 			throw new IllegalArgumentException("A surgical body requires complete physical geometry");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bounds, volume, geometry, attackGeometry);
+			layoutLayPose, bounds, volume, geometry, attackGeometry, blockAttachmentCarrier);
 	}
 
 	public SurgicalAssembly withBodyVolume(double volume) {
 		if (!SurgicalHealthCalibration.validVolume(volume))
 			throw new IllegalArgumentException("A surgical body requires a valid volume");
 		return new SurgicalAssembly(sources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, volume, hitboxGeometry, attackGeometry);
+			layoutLayPose, bodyBounds, volume, hitboxGeometry, attackGeometry, blockAttachmentCarrier);
 	}
 
 	public SurgicalAssembly withAttackGeometry(AttackGeometry geometry) {
@@ -663,7 +695,7 @@ public final class SurgicalAssembly {
 				geometry.ridingSeats(), geometry.carrierCubes(), geometry.equipmentBounds());
 		}
 		return new SurgicalAssembly(refreshedSources, joints, combinations, limbs, preserveLayout, layoutFacing,
-			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, geometry);
+			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, geometry, blockAttachmentCarrier);
 	}
 
 	/**

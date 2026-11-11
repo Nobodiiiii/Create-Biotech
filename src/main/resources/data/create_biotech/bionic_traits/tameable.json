@@ -24,36 +24,6 @@
         "head_cube"
       ]
     },
-    "minecraft:horse": {
-      "HEAD": [
-        "head",
-        "head_cube"
-      ]
-    },
-    "minecraft:donkey": {
-      "HEAD": [
-        "head",
-        "head_cube"
-      ]
-    },
-    "minecraft:mule": {
-      "HEAD": [
-        "head",
-        "head_cube"
-      ]
-    },
-    "minecraft:llama": {
-      "HEAD": [
-        "head",
-        "head_cube"
-      ]
-    },
-    "minecraft:trader_llama": {
-      "HEAD": [
-        "head",
-        "head_cube"
-      ]
-    },
     "minecraft:fox": {
       "HEAD": [
         "head",

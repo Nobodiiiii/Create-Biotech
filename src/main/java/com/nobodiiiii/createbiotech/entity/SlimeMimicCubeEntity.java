@@ -49,7 +49,11 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 	private MimicProfile profile;
 	private int cube;
 	@Nullable private java.util.UUID slimeOwner;
-	public void setSlimeOwner(@Nullable java.util.UUID owner) { slimeOwner = owner; }
+	private boolean slimeLivestock;
+	public void setSlimeOwner(@Nullable java.util.UUID owner, boolean livestock) {
+		slimeOwner = owner;
+		slimeLivestock = livestock;
+	}
 	private float initialWidth = 0.5f;
 	private float initialHeight = 0.5f;
 	private float initialDepth = 0.5f;
@@ -163,7 +167,7 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 			Slime slime = EntityType.SLIME.create(level());
 			if (slime != null) {
 				slime.setSize(slimeSize, true);
-				com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler.tame(slime, slimeOwner);
+				com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler.tame(slime, slimeOwner, slimeLivestock);
 				slime.moveTo(getX(), getY(), getZ(), random.nextFloat() * 360.0f, 0.0f);
 				slime.setDeltaMovement(Vec3.ZERO);
 				level().addFreshEntity(slime);
@@ -253,6 +257,7 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 		if (profile != null)
 			tag.put(PROFILE_TAG, profile.save());
 		if (slimeOwner != null) tag.putUUID("SlimeOwner", slimeOwner);
+		tag.putBoolean("SlimeLivestock", slimeLivestock);
 		tag.putInt(CUBE_TAG, cube);
 		tag.putFloat(WIDTH_TAG, initialWidth);
 		tag.putFloat(HEIGHT_TAG, initialHeight);
@@ -269,6 +274,7 @@ public class SlimeMimicCubeEntity extends Entity implements IEntityWithComplexSp
 		profile = tag.contains(PROFILE_TAG, Tag.TAG_COMPOUND)
 			? MimicProfile.load(tag.getCompound(PROFILE_TAG)) : null;
 		slimeOwner = tag.hasUUID("SlimeOwner") ? tag.getUUID("SlimeOwner") : null;
+		slimeLivestock = tag.getBoolean("SlimeLivestock");
 		cube = Math.max(0, tag.getInt(CUBE_TAG));
 		initialWidth = sanitizeDimension(tag.getFloat(WIDTH_TAG));
 		initialHeight = sanitizeDimension(tag.getFloat(HEIGHT_TAG));

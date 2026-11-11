@@ -22,7 +22,7 @@
 
 | 字段 | 内容及用途 |
 | --- | --- |
-| `entity` | 实体类型、UUID、名称、位置、生命值、拟态状态及运行时主碰撞箱 `bounding_box`。 |
+| `entity` | 实体类型、UUID、名称、位置、生命值、拟态状态、运行时主碰撞箱 `bounding_box`、真实眼部坐标 `eye_position` 和视线方向 `view_vector`。 |
 | `block_attachment` | 装配体当前是否吸附、支撑方向、吸附格坐标、选中的底座、整体旋转四元数和窒息检测结果。与静态 `assembly.HitboxGeometry` 区分，用于核对实际旋转状态。 |
 | `assembly_status` | `assembled` 为有效装配体；`invalid_or_missing` 表示装配数据无法加载；`unassembled_mimic` 为尚无手术装配信息的完整拟态生物。 |
 | `assembly` | 服务端保存的完整 `SurgicalAssembly`，以 JSON 展开，包含供体档案、解剖标记、模型立方体、切缝、偏移、旋转、胶水连接、组合、关节及身体/攻击/碰撞几何。 |
@@ -47,6 +47,13 @@
 吸附现在只要求有效支撑及世界范围，允许旋转后的身体嵌入方块。主碰撞箱和分部受击箱先旋转实际部件角点，
 再重算轴对齐包围盒，避免旋转旧包围盒中的空白区域而额外膨胀。窒息检测随整体旋转变换原版眼部采样区域，
 继续由正常的 `LivingEntity` 窒息伤害流程处理，不因吸附而免疫；非窒息方块和 `noPhysics` 等原版例外仍有效。
+
+吸附时的眼部位置优先读取保留头部的三维中心，缺头时回退到身体眼高，再应用整体吸附旋转。
+F3+B 自行构造 `(0, eyeHeight, 0)`，不调用实体眼部坐标；因此单独修正蓝线起点与红色眼平面，
+并使实体眼部坐标、视线向量和窒息采样使用同一头部位置及旋转。
+支撑消失后参照 [Shulker.findNewAttachment / teleportSomewhere](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java)：
+先尝试当前吸附格的其他五个方向，均无支撑时每轮随机尝试八格范围内的五个落点；成功后重新对齐底座，
+未成功则下一 tick 继续。传送遵守 NeoForge 事件取消及目标重定向，并重新检查最终支撑，仍允许身体嵌入方块。
 
 ## 鞍座与玩家位置不一致
 
