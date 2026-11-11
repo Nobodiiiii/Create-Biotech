@@ -82,6 +82,12 @@ public final class BionicTraitDonorIndex {
 	}
 
 	public static List<EntityType<?>> donors(BionicTrait trait) { return DONORS.getOrDefault(trait, List.of()); }
+	public static List<BionicTrait> traits(EntityType<?> donor) {
+		return DONORS.entrySet().stream()
+			.filter(entry -> entry.getValue().contains(donor))
+			.map(Map.Entry::getKey)
+			.toList();
+	}
 	public static boolean complete() { return complete; }
 	public static int checked() { return checked; }
 	public static int total() { return total; }

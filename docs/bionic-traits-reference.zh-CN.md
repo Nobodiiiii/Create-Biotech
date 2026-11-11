@@ -2,7 +2,7 @@
 
 修订日期：2026-11-12。适用分支：Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。
 
-本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 66 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
+本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 67 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
 
 ## 一、通用规则
 
@@ -73,6 +73,35 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 
 供体覆盖按自动探测、实体标签、精确实体 ID 的顺序应用。规范文件位于 `data/create_biotech/bionic_traits/`；扩展命名空间的同名文件提供 `values` 覆盖。性情和智力分类分别沿用 `bionic_head/disposition/`、`bionic_head/intelligence/`。数值项的 `min_coverage` 表示取值体积比例，门槛型表示获取比例，特殊型表示供体原始头部保留比例，存在型和普通比例型按各自规则计算。
 
+### 4. 特性覆盖配置
+
+特性之间的覆盖统一写在**覆盖方**的 `data/create_biotech/bionic_traits/<特性 ID>.json` 顶层 `overrides` 数组中。例如 `fire_immune.json`：
+
+```json
+{
+  "automatic_detection": true,
+  "min_coverage": 0.5,
+  "overrides": ["fire_resistance", "sun_sensitive"],
+  "values": {}
+}
+```
+
+数组接受特性短 ID 或 `create_biotech:<特性 ID>`；省略字段或设为 `[]` 表示不覆盖任何特性。修改覆盖关系应使用数据包替换 `create_biotech` 命名空间下覆盖方的同名文件，其他命名空间仍只扩展 `values`。
+
+| 覆盖方 JSON | 默认 `overrides` |
+| --- | --- |
+| `fire_immune.json` | `fire_resistance`、`sun_sensitive` |
+| `freeze_immune.json` | `freeze_resistance` |
+| `fall_damage_immune.json` | `agile_landing` |
+| `no_breathing.json` | `water_breathing`、`dry_suffocation` |
+| `wing_flight.json` | `wing_slow_fall` |
+| `wingless_flight.json` | `wing_slow_fall` |
+| `tameable.json` | `livestock_tameable` |
+
+解析先完成位置、覆盖率、数量、承重及配套部件判定，再由有效覆盖方移除目标特性；被覆盖项统一不显示、不生效，供体原始事实不变。覆盖方未生效时不会压制目标。覆盖链按强者优先处理：若 A 覆盖 B、B 覆盖 C，且三者原本均生效，则保留 A、C；已被 A 覆盖的 B 不再压制 C。未知 ID、非字符串和自身覆盖会记录警告并忽略；循环中的覆盖边全部忽略，其他规则继续生效。这里配置的是特性结果的替换关系；伤害免疫等能力本身的效果仍由对应特性执行。
+
+覆盖配置在登录和 `/reload` 后同步到客户端，并使特性预览缓存失效；退出服务器清空客户端覆盖配置。手术台、纸箱和实体行为使用同一覆盖判定。翅膀的解剖归属与两类驯服组织的概率贡献在覆盖前保留，不因标签被移除而丢失。
+
 ## 二、按作用部位排列的特性总表（`bionic_traits`）
 
 下表每项均列出供体、载体、生效规则、效果与方法依据。全身和腿部的“摔落免疫”保留各自 ID 与获取范围。
@@ -85,10 +114,11 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 | 全身 | `freeze_immune` | 冻结免疫 | 被动 | 供体全部保留体块 | 自动：标签`freeze_immune_entity_types`，即流浪者、北极熊、雪傀儡、凋灵 | c ≥ 0.5 | 获得冻结与冰冻伤害免疫；提示显示冻结免疫 | 复用 [Entity.canFreeze](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 与 `FREEZE_IMMUNE_ENTITY_TYPES` |
 | 全身 | `freeze_resistance` | 冻结抗性 | 被动 | 供体全部保留体块 | 同冻结免疫的供体，独立数据文件 | c > 0 | 冰冻伤害 ×(1−c)；提示在 c < 0.5 时显示 | 复用 `FREEZE_IMMUNE_ENTITY_TYPES`；沿用现有覆盖率减伤，入口见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
 | 全身 | `freeze_vulnerable` | 冻结易伤 | 被动 | 供体全部保留体块 | 自动：标签`freeze_hurts_extra_types`，即炽足兽、烈焰人、岩浆怪 | c > 0 | 冰冻伤害 ×(1+4c)，与冻结抗性系数相乘 | 复用 `FREEZE_HURTS_EXTRA_TYPES`；按覆盖率映射原版 5 倍冰冻伤害，见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
-| 全身 | `sun_sensitive` | 阳光灼伤 | 被动 | 供体全部保留体块 | 数据：僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | c ≥ 0.5；满足 `isSunBurnTick()` | 日晒时点燃 8 秒；佩戴头盔时先按原方法消耗耐久 | 复用 [Mob.isSunBurnTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；复刻 [Zombie.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java) 的头盔耐久与点燃顺序 |
+| 全身 | `sun_sensitive` | 阳光灼烧 | 被动 | 供体全部保留体块 | 数据：僵尸、僵尸村民、溺尸、骷髅、流浪者、沼骸、幻翼 | c ≥ 0.5；燃烧满足 `isSunBurnTick()` | 日晒点燃 8 秒；头盔遮挡并消耗耐久；白天避开露天路径，空闲时主动寻找阴影；尸壳、亡灵马等不提供本项 | 日晒复用 [Mob.isSunBurnTick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java) 与 [Zombie.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java)；避日适配 [RestrictSunGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/RestrictSunGoal.java)、[FleeSunGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FleeSunGoal.java)，按组合体碰撞箱查找阴影落点 |
+| 全身 | `inverted_healing` | 治疗反转 | 被动 | 供体全部保留体块 | 自动：`isInvertedHealAndHarm()`，即 `#undead` | c ≥ 0.5 | 瞬间治疗与瞬间伤害效果互换 | 复用 [LivingEntity.isInvertedHealAndHarm](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 与原版瞬时效果入口 |
+| 全身 | `water_sinking` | 水中下沉 | 被动 | 供体全部保留体块 | 自动：`#minecraft:undead` | c ≥ 0.5 | 关闭水中自动上浮和地面导航浮水，身体随重力下沉；保留主动游泳、飞行与熔岩行为 | 停用 [FloatGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FloatGoal.java) 的水中跳跃与 [GroundPathNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/navigation/GroundPathNavigation.java) 浮水，沿用 [LivingEntity.travel](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 水中重力 |
 | 全身 | `moisture_dependent` | 保湿依赖 | 被动 | 供体全部保留体块 | 数据：美西螈、海豚 | c ≥ 0.5；统一采用海豚模板 | 保湿值 2400 tick；水、雨或气泡使其补满，干燥时逐 tick 减少，归零后每 tick 尝试受到 1 点干涸伤害 | 以海豚为模板，复刻 [Dolphin.tick](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Dolphin.java) 的保湿计时与伤害触发 |
 | 全身 | `heat_sensitive` | 高温灼伤 | 被动 | 供体全部保留体块 | 数据：雪傀儡 | c ≥ 0.5；位于 `snow_golem_melts` 群系 | 每 tick 尝试受到 1 点火焰伤害，沿用原版伤害冷却 | 复刻 [SnowGolem.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/SnowGolem.java) 的群系标签判断与伤害调用 |
-| 全身 | `inverted_healing` | 治疗反转 | 被动 | 供体全部保留体块 | 自动：`isInvertedHealAndHarm()`，即 `#undead`（骷髅类、僵尸类、凋灵、幻翼） | c ≥ 0.5 | 瞬间治疗与瞬间伤害效果互换 | 复用 [LivingEntity.isInvertedHealAndHarm](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 与原版瞬时效果入口 |
 | 全身 | `fall_damage_immune` | 摔落免疫 | 被动 | 供体全部保留体块 | 数据：岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 | c ≥ 0.5 | 获得摔落伤害免疫 | 复用 [LivingEntity.causeFallDamage](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 的摔落免疫分支 |
 | 全身 | `shoulder_riding` | 肩头伴行 | 技能 | 供体全部保留体块 | 数据：鹦鹉 | c ≥ 0.5；已驯服、未坐下；生成或落肩后超过 100 tick；接触符合原版条件的主人 | 骑在主人左右肩膀，每肩一只；保存完整装配、外观和装备；由玩家原版落肩流程恢复实体 | 适配 [LandOnOwnersShoulderGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/LandOnOwnersShoulderGoal.java)、[ShoulderRidingEntity.setEntityOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/ShoulderRidingEntity.java) 和 [Player.setEntityOnShoulder / removeEntitiesOnShoulder](../ref/1.21.1/Minecraft/net/minecraft/world/entity/player/Player.java)；肩上渲染保留拟态装配 |
 | 全身 | `web_adapted` | 无视蛛网 | 被动 | 供体全部保留体块 | 数据：蜘蛛、洞穴蜘蛛 | c ≥ 0.5 | 穿过蛛网时保持正常移动速度 | 复刻 [Spider.makeStuckInBlock](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Spider.java) 的蛛网分支 |
@@ -282,7 +312,7 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 蝙蝠 | — | — | — | 扑翼飞行 | — |
 | 蜜蜂 | 附魔易伤（节肢杀手） | 授粉催熟 | 呼唤同伴 | 扑翼飞行、附效攻击（中毒） | — |
 | 烈焰人 | 火焰免疫／火焰抗性、遇水受伤、冻结易伤 | 悬浮飞行 | 呼唤同伴、头部投射 | — | — |
-| 沼骸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
+| 沼骸 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
 | 旋风人 | 摔落免疫、弹射物偏转 | — | 捕猎本能（目标生物…）、头部投射 | — | 强健跳跃 |
 | 骆驼 | — | 可骑乘 | — | — | — |
 | 猫 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
@@ -294,10 +324,10 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 驴 | — | 可骑乘、驮运箱 | 可驯服（家畜） | — | 摔落抵抗 |
 | 骡 | — | 可骑乘、驮运箱 | 可驯服（家畜） | — | 摔落抵抗 |
 | 马 | — | 可骑乘 | 可驯服（家畜） | — | 摔落抵抗、强健跳跃 |
-| 溺尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | 游泳专长 | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 拾取装备 | — |
-| 尸壳 | 治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 附效攻击（饥饿）、破门、拾取装备 | — |
-| 僵尸 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
-| 僵尸村民 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
+| 溺尸 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | 游泳专长 | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 拾取装备 | — |
+| 尸壳 | 治疗反转、水中下沉、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 附效攻击（饥饿）、破门、拾取装备 | — |
+| 僵尸 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
+| 僵尸村民 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 破门、拾取装备 | — |
 | 远古守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
 | 守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
 | 末影龙 | 火焰免疫／火焰抗性 | — | 头部投射 | 扑翼飞行、近战击飞 | — |
@@ -318,30 +348,30 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 岩浆怪 | 火焰免疫／火焰抗性、冻结易伤、摔落免疫、天然护甲（…） | — | 捕猎本能（目标生物…） | — | — |
 | 豹猫 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…） | — | 摔落免疫 |
 | 鹦鹉 | 肩头伴行 | — | 可驯服（宠物） | 扑翼飞行、扑翼缓降 | — |
-| 幻翼 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸 | 扑翼飞行 | — |
+| 幻翼 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸 | 扑翼飞行 | — |
 | 北极熊 | 冻结免疫／冻结抗性 | — | 生物威慑、捕猎本能（目标生物…） | — | — |
 | 兔 | 天然护甲（杀手兔） | — | — | — | 细雪行者、强健跳跃 |
 | 劫掠兽 | — | 击退抗性（…%） | 生物威慑、呼唤同伴、咆哮 | 击退强化（数值） | — |
 | 潜影贝 | 火焰免疫／火焰抗性、摔落免疫、末影瞬移、方块吸附 | 缩壳防御 | 呼唤同伴、头部投射 | — | — |
 | 犰狳 | — | 缩壳防御、脱落鳞甲 | 生物威慑 | — | — |
-| 骷髅 | 阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
-| 骷髅马 | 治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
-| 僵尸马 | 治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
+| 骷髅 | 治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
+| 骷髅马 | 治疗反转、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
+| 僵尸马 | 治疗反转、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 可骑乘 | 无需呼吸 | — | 强健跳跃 |
 | 史莱姆 | 免疫效果（渗浆） | — | 捕猎本能（目标生物…） | — | — |
 | 雪傀儡 | 遇水受伤、冻结免疫／冻结抗性、高温灼伤、摔落免疫 | — | 捕猎本能（目标生物…）、头部投射 | — | 积雪足迹 |
 | 蜘蛛 | 无视蛛网、免疫效果（中毒）、附魔易伤（节肢杀手） | — | 捕猎本能（目标生物…） | — | 攀墙 |
-| 流浪者 | 冻结免疫／冻结抗性、阳光灼伤、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
+| 流浪者 | 冻结免疫／冻结抗性、治疗反转、阳光灼烧、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 拾取装备 | — |
 | 炽足兽 | 火焰免疫／火焰抗性、遇水受伤、冻结易伤 | 可骑乘 | — | — | 熔岩行者 |
 | 蝌蚪 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸、离水窒息（负面） | — | — |
 | 海龟 | 附魔易伤（穿刺） | 游泳专长 | 水下呼吸 | — | — |
 | 恼鬼 | 火焰免疫／火焰抗性 | — | 生物威慑、呼唤同伴 | 扑翼飞行 | — |
 | 悦灵 | 自然恢复（…/秒） | — | 可驯服（宠物） | 扑翼飞行 | — |
 | 监守者 | 火焰免疫／火焰抗性 | 击退抗性（…%）、音波冲击 | 振动感知 | 击退强化（数值） | — |
-| 凋灵 | 火焰免疫／火焰抗性、冻结免疫／冻结抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、天然护甲（…）、自然恢复（…/秒）、附魔易伤（亡灵杀手）、凋灵护甲 | 悬浮飞行 | 无需呼吸、捕猎本能（目标生物…）、头部投射 | — | — |
-| 凋灵骷髅 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复、凋零）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 附效攻击（凋零）、拾取装备 | — |
+| 凋灵 | 火焰免疫／火焰抗性、冻结免疫／冻结抗性、治疗反转、水中下沉、免疫效果（中毒、生命恢复、凋零）、天然护甲（…）、自然恢复（…/秒）、附魔易伤（亡灵杀手）、凋灵护甲 | 悬浮飞行 | 无需呼吸、捕猎本能（目标生物…）、头部投射 | — | — |
+| 凋灵骷髅 | 火焰免疫／火焰抗性、治疗反转、水中下沉、免疫效果（中毒、生命恢复、凋零）、附魔易伤（亡灵杀手） | — | 无需呼吸、捕猎本能（目标生物…） | 附效攻击（凋零）、拾取装备 | — |
 | 狼 | — | — | 可驯服（宠物）、生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
-| 僵尸疣猪兽 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 击退抗性（…%） | 无需呼吸、生物威慑、捕猎本能（目标生物…） | 击退强化（数值）、近战击飞 | — |
-| 僵尸猪灵 | 火焰免疫／火焰抗性、治疗反转、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、呼唤同伴 | 破门、拾取装备 | — |
+| 僵尸疣猪兽 | 火焰免疫／火焰抗性、治疗反转、水中下沉、免疫效果（中毒、生命恢复）、附魔易伤（亡灵杀手） | 击退抗性（…%） | 无需呼吸、生物威慑、捕猎本能（目标生物…） | 击退强化（数值）、近战击飞 | — |
+| 僵尸猪灵 | 火焰免疫／火焰抗性、治疗反转、水中下沉、免疫效果（中毒、生命恢复）、天然护甲（…）、附魔易伤（亡灵杀手） | — | 无需呼吸、生物威慑、呼唤同伴 | 破门、拾取装备 | — |
 | 唤魔者 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | 施法 | — |
 | 幻术师 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
 | 掠夺者 | — | — | 生物威慑、捕猎本能（目标生物…）、呼唤同伴 | — | — |
@@ -369,8 +399,8 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 装备与生产 | `BionicEquipment`、`BionicProduction`、`BionicCombatEvents`、`BionicAreaEffectCloud` | 交互、容器、生产、区域效果与主人关系 |
 | 细雪接入 | `PowderSnowBionicFootMixin` | 腿部细雪行走 |
 
-提示先独立显示性情、智力，再按全身、头部、躯干、手臂、腿部归组，空组省略；未安装头部时沿用前述躯干回退提示。技能显示“技能”标签。火焰／冻结免疫、全身摔落免疫、完整飞行分别取得对应抗性、腿部摔落免疫与缓降提示的显示优先级。比例型显示有效占比；数值型显示量化后的有效值。实体、手术台预览、纸箱与 JEI 使用同一解析结果。
+提示先独立显示性情、智力，再按全身、头部、躯干、手臂、腿部归组，空组省略；未安装头部时沿用前述躯干回退提示。技能显示“技能”标签。被 `overrides` 覆盖的特性已从统一结果移除，提示层不再另设覆盖优先级。比例型显示有效占比；数值型显示量化后的有效值。实体、手术台预览、纸箱使用同一解析结果；JEI 展示各特性的独立定义与供体。
 
 `BionicTraitSet.coverage()` 对全身和躯干返回整体占比，对独立肢体返回最高覆盖率；`has()` 表示获取结果，`strength()` 表示执行系数，数量与承重通过附加条件判定。特性功能沿用现有 `BionicTraits.ENABLED` 发布开关。数据与分类覆盖通过玩家登录和 `/reload` 同步并更新缓存。
 
-源码以 [ref/SOURCES.md](../ref/SOURCES.md) 和 [Minecraft/SOURCE.json](../ref/1.21.1/Minecraft/SOURCE.json) 记录的 Minecraft 1.21.1 原版快照为依据；NeoForge 扩展以本地 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 的 `EnderMan`、`Shulker`、`BreakDoorGoal`、`EventHooks` 与瞬移事件源码为依据。目标 Goal 的方法签名及呼援流程还核对了本地 NeoForm 已有 Java 源码归档 `sourcesAndCompiledWithNeoForge_5478701d24f4f19996755d682a4e8b1da115b3b8_output.jar`。附魔时长与原版标签使用 `build/moddev/artifacts/neoforge-21.1.234-client-extra-aka-minecraft-resources.jar` 中 Minecraft 1.21.1 的原版数据；生物反查表按嵌套实体标签展开。本次表格同步通过源码读取、默认数据及实体标签展开、文档结构检查核对，未启动客户端或运行 Gradle 检查。
+源码以 [ref/SOURCES.md](../ref/SOURCES.md) 和 [Minecraft/SOURCE.json](../ref/1.21.1/Minecraft/SOURCE.json) 记录的 Minecraft 1.21.1 原版快照为依据；NeoForge 扩展以本地 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 的 `EnderMan`、`Shulker`、`BreakDoorGoal`、`EventHooks` 与瞬移事件源码为依据。目标 Goal 的方法签名及呼援流程还核对了本地 NeoForm 已有 Java 源码归档 `sourcesAndCompiledWithNeoForge_5478701d24f4f19996755d682a4e8b1da115b3b8_output.jar`。附魔时长与原版标签使用 `build/moddev/artifacts/neoforge-21.1.234-client-extra-aka-minecraft-resources.jar` 中 Minecraft 1.21.1 的原版数据；生物反查表按嵌套实体标签展开。治疗反转／阳光灼烧（含避日）／水中下沉拆分另经 `compileJava processResources --offline`、JSON 与特性目录／文档对应关系检查，未启动客户端。

@@ -31,6 +31,7 @@ import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.neoforge.NeoForgeTypes;
 import mezz.jei.api.recipe.RecipeType;
 import mezz.jei.api.recipe.vanilla.IJeiAnvilRecipe;
+import mezz.jei.api.registration.IAdvancedRegistration;
 import mezz.jei.api.registration.IRecipeCategoryRegistration;
 import mezz.jei.api.registration.IModIngredientRegistration;
 import mezz.jei.api.registration.IRecipeCatalystRegistration;
@@ -70,6 +71,11 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 			.filter(stack -> stack.is(CBItems.MIMIC_DEBUG_STICK.get())).toList();
 		if (!debugSticks.isEmpty())
 			manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, debugSticks);
+	}
+
+	@Override
+	public void registerAdvanced(IAdvancedRegistration registration) {
+		registration.addTypedRecipeManagerPlugin(BionicTraitJeiCategory.TYPE, new BionicTraitRecipeManagerPlugin());
 	}
 
 	@Override

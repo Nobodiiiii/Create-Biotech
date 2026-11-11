@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitOverrides;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRulesPacket;
 
@@ -12,7 +13,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 
-/** Server thresholds for JEI, kept separate from the runtime registry in integrated servers. */
+/** Server rules for JEI and previews, kept separate from the integrated server's runtime registry. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class BionicTraitClientRules {
 	private static Map<BionicTrait, Double> minCoverage = Map.of();
@@ -25,10 +26,12 @@ public final class BionicTraitClientRules {
 
 	public static void accept(BionicTraitRulesPacket packet) {
 		minCoverage = packet.minCoverage();
+		BionicTraitOverrides.acceptClientRules(packet.overrides());
 	}
 
 	@SubscribeEvent
 	public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
 		minCoverage = Map.of();
+		BionicTraitOverrides.resetClientRules();
 	}
 }

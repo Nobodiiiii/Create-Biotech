@@ -112,8 +112,6 @@ final class BionicTraitConditions {
 		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH -> null;
 		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
-		case BREATHING_REQUIRED -> covered.has(BionicTrait.NO_BREATHING)
-			? InactiveReason.BREATHING_NOT_REQUIRED : null;
 		case WING_LIFT -> {
 			var members = covered.members(trait);
 			if (tissue.effectiveLimbCount(trait.scopes(), members) < (int) data.parameter("min_wings", 2))

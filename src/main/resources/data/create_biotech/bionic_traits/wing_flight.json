@@ -1,4 +1,5 @@
 {
+  "overrides": ["wing_slow_fall"],
   "automatic_detection": false,
   "min_coverage": 0.5,
   "parameters": {

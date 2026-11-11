@@ -1,4 +1,5 @@
 {
+  "overrides": ["fire_resistance", "sun_sensitive"],
   "automatic_detection": true,
   "values": {},
   "min_coverage": 0.5

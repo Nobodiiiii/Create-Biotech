@@ -1,4 +1,5 @@
 {
+  "overrides": ["water_breathing", "dry_suffocation"],
   "automatic_detection": false,
   "values": {
     "#minecraft:undead": true

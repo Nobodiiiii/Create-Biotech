@@ -22,12 +22,7 @@ public final class BionicTraitSet {
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings, double tamingChance) {
-		var effective = new java.util.EnumMap<BionicTrait, BionicTraitResult>(BionicTrait.class);
-		effective.putAll(results);
-		// Pet taming replaces livestock taming for both behavior and every assembly preview.
-		if (effective.getOrDefault(BionicTrait.TAMEABLE, BionicTraitResult.ABSENT).active())
-			effective.remove(BionicTrait.LIVESTOCK_TAMEABLE);
-		this.results = Map.copyOf(effective);
+		this.results = Map.copyOf(results);
 		this.data = Map.copyOf(data);
 		this.headUsesTorso = headUsesTorso;
 		this.tamingChance = Double.isFinite(tamingChance) ? Math.clamp(tamingChance, 0.0d, 1.0d) : 0.0d;

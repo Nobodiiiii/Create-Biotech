@@ -1,4 +1,5 @@
 {
+  "overrides": ["wing_slow_fall"],
   "automatic_detection": false,
   "values": {
     "minecraft:ghast": true,

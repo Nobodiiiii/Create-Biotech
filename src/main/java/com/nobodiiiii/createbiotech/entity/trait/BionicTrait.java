@@ -41,6 +41,9 @@ public enum BionicTrait {
 	INVERTED_HEALING("inverted_healing", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
+	WATER_SINKING("water_sinking", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
+		Carrier.allTissue()),
 	FALL_DAMAGE_IMMUNE("fall_damage_immune", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
@@ -66,7 +69,7 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.prefer(BionicAnatomyRole.GILL, BionicAnatomyRole.HEAD)),
 	DRY_SUFFOCATION("dry_suffocation", BionicTraitScope.HEAD,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.BREATHING_REQUIRED,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.prefer(BionicAnatomyRole.GILL, BionicAnatomyRole.HEAD)),
 	TAMEABLE("tameable", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
@@ -252,7 +255,7 @@ public enum BionicTrait {
 		return switch (this) {
 		case DISPOSITION, INTELLIGENCE -> true;
 		case RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
-			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
+			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING, WATER_SINKING,
 			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
 			PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
 			WATER_BREATHING, TAMEABLE, LIVESTOCK_TAMEABLE, DETERRENCE, AGILE_LANDING, POWDER_SNOW_WALK, SWIM_SPECIALIST,
@@ -288,7 +291,7 @@ public enum BionicTrait {
 
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
 	public enum Condition {
-		NONE, LIMB_COUNT, WING_LIFT, BREATHING_REQUIRED, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
+		NONE, LIMB_COUNT, WING_LIFT, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
 		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH
 	}
 }

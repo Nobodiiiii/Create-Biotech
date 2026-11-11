@@ -1,4 +1,5 @@
 {
+  "overrides": ["agile_landing"],
   "automatic_detection": false,
   "values": {
     "minecraft:magma_cube": true,

@@ -125,7 +125,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					.append(Component.translatable("create_biotech.trait.default").withStyle(ChatFormatting.DARK_GRAY)));
 				continue;
 			}
-			if (!result.present() || hiddenByStrongerTrait(trait, traits))
+			if (!result.present())
 				continue;
 			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active() && result.value() == 0)
 				continue;
@@ -217,15 +217,6 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		return Component.translatable(key, alternatives);
 	}
 
-	private static boolean hiddenByStrongerTrait(BionicTrait trait, BionicTraitSet traits) {
-		return switch (trait) {
-		case FIRE_RESISTANCE -> traits.has(BionicTrait.FIRE_IMMUNE);
-		case FREEZE_RESISTANCE -> traits.has(BionicTrait.FREEZE_IMMUNE);
-		case AGILE_LANDING -> traits.has(BionicTrait.FALL_DAMAGE_IMMUNE);
-		default -> false;
-		};
-	}
-
 	private static Component deterrenceName(Set<ResourceLocation> targets) {
 		return targetList(BionicTrait.DETERRENCE, targets);
 	}
@@ -314,7 +305,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				: BionicTraitDonors.get(profile, level);
 			return new BoxDetails(List.of(),
 				BionicTraitResolver.donorProperties(facts,
-					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType())), facts.abilities().stream()
+					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()), level), facts.abilities().stream()
 					.filter(trait -> trait != BionicTrait.MILKABLE && !trait.carrier().isAllTissue())
 					.collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),

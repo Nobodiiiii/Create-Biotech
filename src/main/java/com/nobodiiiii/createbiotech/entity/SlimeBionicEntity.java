@@ -81,15 +81,18 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.FleeSunGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
+import net.minecraft.world.entity.ai.goal.RestrictSunGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
 import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -390,6 +393,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		});
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
 		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
+		goalSelector.addGoal(2, new RestrictSunGoal(this) {
+			@Override public boolean canUse() { return shouldAvoidSun() && super.canUse(); }
+		});
+		goalSelector.addGoal(3, new BionicFleeSunGoal(this));
 		goalSelector.addGoal(3, new com.nobodiiiii.createbiotech.entity.ai.BionicShoulderRidingGoal(this));
 		goalSelector.addGoal(5, new BionicFollowOwnerGoal(this));
 		goalSelector.addGoal(6, new Goal() {
@@ -769,6 +776,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			navigation.stop();
 			navigation = nextNavigation;
 		}
+		if (navigation instanceof GroundPathNavigation) {
+			boolean canFloat = !traits.has(BionicTrait.WATER_SINKING);
+			if (navigation.canFloat() != canFloat) {
+				navigation.stop();
+				navigation.setCanFloat(canFloat);
+			}
+		}
 		if (!changed)
 			return;
 		setSpeed(0.0f);
@@ -860,6 +874,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public boolean isInvertedHealAndHarm() {
 		return getBionicTraits().has(BionicTrait.INVERTED_HEALING);
+	}
+
+	private boolean shouldAvoidSun() {
+		return getBionicTraits().has(BionicTrait.SUN_SENSITIVE);
 	}
 
 	@Override
@@ -1466,8 +1484,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (tickCount % 10 == 0 && traits.value(BionicTrait.PASSIVE_REGENERATION) > 0.0d
 			&& getHealth() < getMaxHealth())
 			heal((float) (traits.value(BionicTrait.PASSIVE_REGENERATION) * 0.5d));
-		double sunSensitivity = traits.strength(BionicTrait.SUN_SENSITIVE);
-		if (sunSensitivity > 0.0d && random.nextDouble() < sunSensitivity && isSunBurnTick()) {
+		if (traits.has(BionicTrait.SUN_SENSITIVE) && isSunBurnTick()) {
 			boolean burns = true;
 			ItemStack headwear = getItemBySlot(EquipmentSlot.HEAD);
 			if (!headwear.isEmpty()) {
@@ -2147,8 +2164,52 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			// Strider buoyancy handles lava without FloatGoal's repeated jump requests.
 			if (bionic.isInLava() && bionic.getBionicTraits().has(BionicTrait.LAVA_WALK))
 				return false;
+			// Sinking bodies use vanilla water gravity instead of jumping to the surface.
+			// Aquatic and flying controllers retain their own vertical movement.
+			if (bionic.isInWater() && !bionic.isInLava()
+				&& bionic.getBionicTraits().has(BionicTrait.WATER_SINKING))
+				return false;
 			// Swimming already steers vertically; keep fluid escape for other bodies.
 			return (!bionic.organSwimEnabled || bionic.isInLava()) && super.canUse();
+		}
+	}
+
+	/** Skeleton-style shade seeking, also usable by assembled bodies with non-ground navigation. */
+	private static final class BionicFleeSunGoal extends FleeSunGoal {
+		private final SlimeBionicEntity bionic;
+
+		private BionicFleeSunGoal(SlimeBionicEntity bionic) {
+			super(bionic, 1.0d);
+			this.bionic = bionic;
+		}
+
+		private boolean needsShade() {
+			return bionic.shouldAvoidSun() && bionic.level().isDay()
+				&& bionic.getItemBySlot(EquipmentSlot.HEAD).isEmpty()
+				&& !bionic.isOrderedToSit() && !bionic.isVehicle() && !bionic.isPassenger()
+				&& bionic.getTarget() == null;
+		}
+
+		@Override public boolean canUse() {
+			// Seek cover before ignition; combat, sitting and rider control retain priority.
+			return needsShade() && bionic.level().canSeeSky(bionic.blockPosition()) && setWantedPos();
+		}
+
+		@Override public boolean canContinueToUse() {
+			return needsShade() && super.canContinueToUse();
+		}
+
+		@Override @Nullable protected Vec3 getHidePos() {
+			for (int attempt = 0; attempt < 10; attempt++) {
+				BlockPos pos = bionic.blockPosition().offset(bionic.random.nextInt(20) - 10,
+					bionic.random.nextInt(6) - 3, bionic.random.nextInt(20) - 10);
+				Vec3 target = Vec3.atBottomCenterOf(pos);
+				// PathfinderMob has no Monster light preference; check shade and room for this body.
+				if (!bionic.level().canSeeSky(pos) && bionic.getNavigation().isStableDestination(pos)
+					&& bionic.level().noCollision(bionic, bionic.getBoundingBox().move(target.subtract(bionic.position()))))
+					return target;
+			}
+			return null;
 		}
 	}
 

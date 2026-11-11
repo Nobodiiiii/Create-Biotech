@@ -39,6 +39,10 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		EnumMap<BionicTrait, BionicTraitData> loaded = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values())
 			loaded.put(trait, read(trait, resources));
+		Map<BionicTrait, Set<BionicTrait>> overrides = new EnumMap<>(BionicTrait.class);
+		loaded.forEach((trait, data) -> overrides.put(trait, data.overrides()));
+		Map<BionicTrait, Set<BionicTrait>> valid = BionicTraitOverrides.validate(overrides);
+		loaded.replaceAll((trait, data) -> data.withOverrides(valid.get(trait)));
 		BionicTraitRegistry.replace(loaded);
 	}
 
@@ -98,7 +102,33 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		Map<ResourceLocation, BionicSubtrait> subtraits = new HashMap<>(BionicHeadTraits.variants(trait));
 		subtraits.putAll(readSubtraits(root, primary));
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
-			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits);
+			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits,
+			readOverrides(root, trait, primary));
+	}
+
+	private static Set<BionicTrait> readOverrides(JsonObject root, BionicTrait source, ResourceLocation file) {
+		Set<BionicTrait> targets = java.util.EnumSet.noneOf(BionicTrait.class);
+		if (!root.has("overrides")) return Set.of();
+		if (!root.get("overrides").isJsonArray()) {
+			LOGGER.warn("Invalid overrides in {}; expected an array of trait IDs", file);
+			return Set.of();
+		}
+		for (JsonElement element : root.getAsJsonArray("overrides")) {
+			BionicTrait target = null;
+			if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
+				String id = element.getAsString();
+				for (BionicTrait trait : BionicTrait.values())
+					if (id.equals(trait.id()) || id.equals(CreateBiotech.MOD_ID + ":" + trait.id())) {
+						target = trait;
+						break;
+					}
+			}
+			if (target == null || target == source)
+				LOGGER.warn("Invalid trait override {} in {}", element, file);
+			else
+				targets.add(target);
+		}
+		return Set.copyOf(targets);
 	}
 
 	private static Map<ResourceLocation, BionicSubtrait> readSubtraits(JsonObject root, ResourceLocation file) {

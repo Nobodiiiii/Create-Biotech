@@ -164,6 +164,7 @@ public final class BionicTraitDonors {
 		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
 		case FREEZE_VULNERABLE -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
 		case INVERTED_HEALING -> donor != null && donor.isInvertedHealAndHarm();
+		case WATER_SINKING -> type.is(EntityTypeTags.UNDEAD);
 		case HUNTING_INSTINCT -> BionicHunting.hasRelations(type);
 		case DETERRENCE -> !BionicDeterrence.targets(type).isEmpty();
 		case PROJECTILE_DEFLECTION -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);

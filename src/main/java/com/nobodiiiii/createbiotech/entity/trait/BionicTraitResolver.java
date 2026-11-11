@@ -22,9 +22,10 @@ import net.minecraft.world.level.Level;
 public final class BionicTraitResolver {
 	private BionicTraitResolver() {}
 
-	public record Revision(long traits, long anatomy) {}
+	public record Revision(long traits, long anatomy, long clientOverrides) {}
 	public static Revision revision() {
-		return new Revision(BionicTraitRegistry.generation(), BionicAnatomyRegistry.generation());
+		return new Revision(BionicTraitRegistry.generation(), BionicAnatomyRegistry.generation(),
+			BionicTraitOverrides.clientGeneration());
 	}
 
 	/** Runtime, boxes and table previews share the union of traits bound to retained assembly parts. */
@@ -57,13 +58,12 @@ public final class BionicTraitResolver {
 			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result)
 				.withBindings(result.bindings());
 		});
-		// Flight must pass its own wing-count/lift checks before it replaces slow falling.
-		if (results.getOrDefault(BionicTrait.WING_FLIGHT, BionicTraitResult.ABSENT).active()
-			|| results.getOrDefault(BionicTrait.WINGLESS_FLIGHT, BionicTraitResult.ABSENT).active())
-			results.remove(BionicTrait.WING_SLOW_FALL);
+		// Preserve anatomical contributions before behavior replacement removes their labels.
+		double tamingChance = tamingChance(results, tissue);
+		BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
 		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
 		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(),
-			tamingChance(results, tissue));
+			tamingChance);
 	}
 
 	private static double tamingChance(Map<BionicTrait, BionicTraitResult> results, BionicTissue tissue) {
@@ -78,9 +78,10 @@ public final class BionicTraitResolver {
 	}
 
 	/** Donor tissue properties for box inspection; this does not claim organs are installed. */
-	public static BionicTraitSet donorProperties(BionicTraitDonors.Facts donor, ResourceLocation donorType) {
+	public static BionicTraitSet donorProperties(BionicTraitDonors.Facts donor, ResourceLocation donorType, Level level) {
 		if (!BionicTraits.ENABLED)
 			return BionicTraitSet.EMPTY;
+		BionicTraitRegistry.Snapshot data = BionicTraitRegistry.snapshot();
 		EnumMap<BionicTrait, BionicTraitResult> results = new EnumMap<>(BionicTrait.class);
 		for (BionicTrait trait : BionicTrait.values()) {
 			if (trait == BionicTrait.MILKABLE && donor.has(trait)) {
@@ -98,7 +99,7 @@ public final class BionicTraitResolver {
 			};
 			if (present && trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET) {
 				Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> variants = new HashMap<>();
-				var definition = BionicTraitRegistry.snapshot().get(trait);
+				var definition = data.get(trait);
 				Set<ResourceLocation> ids = trait.isHeadClassification()
 					? Set.of(BionicHeadTraits.combined(trait, donor.variants(trait))) : donor.variants(trait);
 				for (ResourceLocation id : ids)
@@ -110,7 +111,8 @@ public final class BionicTraitResolver {
 					trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.immuneEffects() : Set.of(),
 					Set.of(), null));
 		}
-		return new BionicTraitSet(results, BionicTraitRegistry.snapshot().traits(), false);
+		BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
+		return new BionicTraitSet(results, data.traits(), false);
 	}
 
 	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,

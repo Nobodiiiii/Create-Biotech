@@ -1,4 +1,5 @@
 {
+  "overrides": ["livestock_tameable"],
   "automatic_detection": true,
   "values": {
     "minecraft:fox": true,
