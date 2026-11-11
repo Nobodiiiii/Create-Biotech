@@ -25,6 +25,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
+import com.nobodiiiii.createbiotech.entity.ai.BionicFlightMovement;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
@@ -210,7 +211,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (attackActionTick > 0 && getBionicTraits().has(BionicTrait.ROAR)) specialAttacks.blockedByShield(victim);
 		else super.blockedByShield(victim);
 	}
-	private boolean hasRiddenFlight() {
+	private boolean hasFlightLocomotion() {
 		return !isSwimming() && (getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || getBionicTraits().has(BionicTrait.WING_FLIGHT));
 	}
 	public boolean canReplaceBionicWeapon(ItemStack incoming, ItemStack current) { return canReplaceCurrentItem(incoming, current); }
@@ -322,7 +323,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			.add(Attributes.MOVEMENT_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
 			.add(Attributes.ATTACK_DAMAGE, 3.0d)
 			.add(Attributes.ARMOR, 0.0d)
-			.add(Attributes.FLYING_SPEED, SurgicalGait.ZOMBIE_WALK_SPEED)
+			.add(Attributes.FLYING_SPEED, 0.0d)
 			.add(Attributes.FOLLOW_RANGE, 35.0d)
 			.add(Attributes.KNOCKBACK_RESISTANCE, BASE_KNOCKBACK_RESISTANCE);
 	}
@@ -548,6 +549,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			// Publish the result before refreshing effects that may query this entity again.
 			refreshNaturalArmor(bionicTraits);
 			refreshKnockbackResistance(bionicTraits);
+			refreshFlyingSpeed(assembly, bionicTraits);
 			refreshLocomotion(bionicTraits);
 			if (!level().isClientSide) {
 				double range = 35;
@@ -647,6 +649,15 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		double value = Mth.clamp(BASE_KNOCKBACK_RESISTANCE + traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
 		if (resistance != null && resistance.getBaseValue() != value)
 			resistance.setBaseValue(value);
+	}
+
+	private void refreshFlyingSpeed(@Nullable SurgicalAssembly assembly, BionicTraitSet traits) {
+		if (level().isClientSide)
+			return;
+		double speed = assembly == null ? 0.0d : SurgicalGait.flyingSpeed(traits.flightVolumeRatio(assembly));
+		var flying = getAttribute(Attributes.FLYING_SPEED);
+		if (flying != null && flying.getBaseValue() != speed)
+			flying.setBaseValue(speed);
 	}
 
 	private void refreshLocomotion(BionicTraitSet traits) {
@@ -878,7 +889,29 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			movement = movement.scale(1.35d);
 		if (isShiftKeyDown() && getBionicTraits().has(BionicTrait.SHELL_DEFENSE))
 			movement = Vec3.ZERO;
-		if ((isSwimming() && isInWaterOrBubble() || hasRiddenFlight() && isVehicle()) && isControlledByLocalInstance()) {
+		if (hasFlightLocomotion()) {
+			if (isControlledByLocalInstance()) {
+				Vec3 input;
+				double speed;
+				if (getControllingPassenger() instanceof Player) {
+					input = movement.yRot(-getYRot() * Mth.DEG_TO_RAD);
+					speed = getSpeed();
+				} else {
+					// FlyingMoveControl embeds speed in its input. Use only its active command
+					// and waypoint direction so AI and riders apply the flight attribute once.
+					var control = getMoveControl();
+					input = movement.lengthSqr() > 0.0d
+						? new Vec3(control.getWantedX(), control.getWantedY(), control.getWantedZ())
+							.subtract(position()).normalize() : Vec3.ZERO;
+					speed = getAttributeValue(Attributes.FLYING_SPEED) * control.getSpeedModifier();
+				}
+				setDeltaMovement(BionicFlightMovement.velocity(getDeltaMovement(), input, speed));
+				move(MoverType.SELF, getDeltaMovement());
+			}
+			calculateEntityAnimation(true);
+			return;
+		}
+		if (isSwimming() && isInWaterOrBubble() && isControlledByLocalInstance()) {
 			// Pair swimming steering with aquatic travel (vanilla Axolotl.travel): land-mob
 			// water gravity and collision jumps fight the controller's vertical input.
 			moveRelative(getSpeed(), movement);
@@ -1904,13 +1937,15 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected Vec3 getRiddenInput(Player player, Vec3 movement) {
 		double forward = player.zza > 0 ? player.zza : player.zza * 0.25;
-		double vertical = hasRiddenFlight() || isSwimming() ? -Math.sin(player.getXRot() * Mth.DEG_TO_RAD) * forward
+		double vertical = hasFlightLocomotion() || isSwimming() ? -Math.sin(player.getXRot() * Mth.DEG_TO_RAD) * forward
 			+ (riderAscending ? 0.8 : 0) : 0;
 		return new Vec3(player.xxa * 0.5, vertical,
-			hasRiddenFlight() || isSwimming() ? forward * Math.cos(player.getXRot() * Mth.DEG_TO_RAD) : forward);
+			hasFlightLocomotion() || isSwimming() ? forward * Math.cos(player.getXRot() * Mth.DEG_TO_RAD) : forward);
 	}
 	@Override protected float getRiddenSpeed(Player player) {
-		return (float) getAttributeValue(hasRiddenFlight() ? Attributes.FLYING_SPEED : Attributes.MOVEMENT_SPEED)
+		if (hasFlightLocomotion())
+			return (float) getAttributeValue(Attributes.FLYING_SPEED);
+		return (float) getAttributeValue(Attributes.MOVEMENT_SPEED)
 			+ (equipment.camel() && player.isSprinting() ? 0.1f : 0);
 	}
 	@Override protected void tickRidden(Player player, Vec3 input) {
@@ -1926,9 +1961,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				setDeltaMovement(getDeltaMovement().add(look.x * 1.5 * riderJump, 0.4 * riderJump, look.z * 1.5 * riderJump));
 			} else setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
 			hasImpulse = true; riderJump = 0;
-		} else if (onGround() && input.horizontalDistanceSqr() > 0 && getLocomotionLegCount() < 2) jumpFromGround();
+		} else if (!hasFlightLocomotion() && onGround() && input.horizontalDistanceSqr() > 0
+			&& getLocomotionLegCount() < 2) jumpFromGround();
 	}
-	@Override public boolean canJump() { return isSaddled() && isSaddleable() && !hasRiddenFlight() && !isSwimming()
+	@Override public boolean canJump() { return isSaddled() && isSaddleable() && !hasFlightLocomotion() && !isSwimming()
 		&& (equipment.jumpingDonor() || getBionicTraits().has(BionicTrait.STRONG_JUMP)); }
 	@Override public int getJumpCooldown() { return riderJumpCooldown; }
 	@Override public void onPlayerJump(int strength) {

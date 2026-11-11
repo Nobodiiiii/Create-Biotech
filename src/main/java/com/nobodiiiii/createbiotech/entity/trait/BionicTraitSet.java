@@ -28,6 +28,24 @@ public final class BionicTraitSet {
 	/** A qualifying wing remains a wing when the assembled body exceeds its lift or wing-count limit. */
 	public Set<SurgicalAssembly.CombinationMember> wingMembers() { return wings; }
 
+	/** Active wings and levitating torso tissue, counted once against all retained captured tissue. */
+	public double flightVolumeRatio(SurgicalAssembly assembly) {
+		var carriers = new java.util.HashSet<>(members(BionicTrait.WING_FLIGHT));
+		carriers.addAll(members(BionicTrait.WINGLESS_FLIGHT));
+		if (carriers.isEmpty()) return 0.0d;
+		double totalVolume = 0.0d;
+		for (var source : assembly.sources())
+			totalVolume += source.anatomy().volume(source.presentCubes());
+		if (!Double.isFinite(totalVolume) || totalVolume <= 0.0d) return 0.0d;
+		double flightVolume = 0.0d;
+		for (var member : carriers)
+			if (member.source() >= 0 && member.source() < assembly.sources().size()) {
+				double volume = assembly.sources().get(member.source()).anatomy().volume(member.cube());
+				if (Double.isFinite(volume) && volume > 0.0d) flightVolume += volume;
+			}
+		return Math.clamp(flightVolume / totalVolume, 0.0d, 1.0d);
+	}
+
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return result(trait).active(); }
 	/** Whole-body/torso ratio, or the highest individual chain ratio for limb abilities. */

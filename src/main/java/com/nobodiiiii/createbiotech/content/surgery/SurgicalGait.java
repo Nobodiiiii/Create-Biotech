@@ -20,6 +20,8 @@ public final class SurgicalGait {
 	public static final double LENGTH_SPEED_HALF_SATURATION = 195.0d / 172.0d;
 	/** Keeps extreme long-leg and multiplier combinations within the intended survival range. */
 	public static final double MAX_MOVEMENT_SPEED = 0.60d;
+	/** Flight shares the land-speed ceiling and the diminishing-return tissue-volume curve. */
+	public static final double MAX_FLYING_SPEED = 0.60d;
 	/** HumanoidModel's normal walking-angle multiplier. */
 	public static final float HUMANOID_LEG_SWING_FACTOR = 1.4f;
 	/** Villager legs reach 1.4 * 0.5 = 0.7 radians. */
@@ -77,8 +79,17 @@ public final class SurgicalGait {
 	 * grounded legs occupy one quarter of the sampled whole-body union volume.
 	 */
 	public static double legVolumeFactor(double legVolumeRatio) {
-		double ratio = Mth.clamp(legVolumeRatio, 0.0d, 1.0d);
-		return 0.8d + 0.4d * Math.log1p(8.0d * ratio) / Math.log(9.0d);
+		return 0.8d + 0.4d * volumeRatioProgress(legVolumeRatio);
+	}
+
+	/** Active flight tissue occupying 25%, 50% and 100% yields about 0.30, 0.44 and 0.60. */
+	public static double flyingSpeed(double flightVolumeRatio) {
+		return MAX_FLYING_SPEED * volumeRatioProgress(flightVolumeRatio);
+	}
+
+	private static double volumeRatioProgress(double volumeRatio) {
+		double ratio = Double.isFinite(volumeRatio) ? Mth.clamp(volumeRatio, 0.0d, 1.0d) : 0.0d;
+		return Math.log1p(8.0d * ratio) / Math.log(9.0d);
 	}
 
 	/** Every grounded knee adds 0.05 within one factor, capped at four knees / +0.2. */

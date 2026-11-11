@@ -37,6 +37,7 @@ final class BionicMilking {
 		Map<BionicSubtrait, Set<SurgicalAssembly.CombinationMember>> products = new HashMap<>();
 		if (!udders.isEmpty()) {
 			addProduct(products, MILK, udders, bodies.getOrDefault(COW, Set.of()));
+			addProduct(products, MILK, udders, bodies.getOrDefault(MOOSHROOM, Set.of()));
 			addProduct(products, STEW, udders, bodies.getOrDefault(MOOSHROOM, Set.of()));
 		}
 		// Vanilla goat models have no separate udder cuboid.

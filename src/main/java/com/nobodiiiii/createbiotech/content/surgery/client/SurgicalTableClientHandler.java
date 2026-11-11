@@ -1622,7 +1622,7 @@ public final class SurgicalTableClientHandler {
 			int revision = level.getBlockEntity(glueHit.tablePos) instanceof SurgicalTableBlockEntity table
 				? table.clientDataRevision() : Integer.MIN_VALUE;
 			if (gluePreview == null || !gluePreview.matches(pendingGlue, glueHit, revision))
-				gluePreview = planGluePreview(level, pendingGlue, glueHit);
+				gluePreview = planGluePreview(level, pendingGlue, glueHit).preview();
 		} else if (pendingSymmetryReference != null && pendingSymmetry != null) {
 			boolean singleCube = pendingSymmetryReference.singleCube(Screen.hasControlDown());
 			symmetryPlaneSelection = findSymmetryPlane(ray,
@@ -2153,7 +2153,13 @@ public final class SurgicalTableClientHandler {
 			SurgicalTableFailure.DIFFERENT_TABLE.display(player);
 			return true;
 		}
-		GluePreview preview = planGluePreview(level, first, hit);
+		GluePreviewPlan planned = planGluePreview(level, first, hit);
+		GluePreview preview = planned.preview();
+		if (preview == null) {
+			clearPendingGlue();
+			planned.failure().display(player);
+			return true;
+		}
 		SurgicalTableLayout.Proposal firstLayout = currentGlueLayout(level, first.selection);
 		SurgicalTableLayout.Proposal secondLayout = currentGlueLayout(level, selected);
 		SurgicalTablePlane.Plane gluePlane = clientPlane(level, selected.tablePos);
@@ -2161,7 +2167,7 @@ public final class SurgicalTableClientHandler {
 			instanceof SurgicalTableBlockEntity table ? table : null;
 		SurgicalSubject firstSubject = glueTable == null ? null : glueTable.getSubject(first.selection.subjectId);
 		SurgicalSubject secondSubject = glueTable == null ? null : glueTable.getSubject(selected.subjectId);
-		if (preview == null || firstLayout == null || secondLayout == null || glueTable == null
+		if (firstLayout == null || secondLayout == null || glueTable == null
 			|| firstSubject == null || secondSubject == null
 			|| firstSubject.cubeCount() != 0
 				&& !glueTable.validateGlueLayout(firstSubject, gluePlane, firstLayout)
@@ -3095,7 +3101,7 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static GluePreview planSymmetryPreview(ClientLevel level, PendingGlue first,
 		SymmetryTarget target) {
-		GluePreview baseline = planGluePreview(level, first, target.mirroredAnchorHit);
+		GluePreview baseline = planGluePreview(level, first, target.mirroredAnchorHit).preview();
 		return baseline == null || target.replayTransform.isIdentity() ? baseline
 			: replayGlueTransform(level, baseline, first.selection.subjectId, first.selection.targetId,
 				target.mirroredAnchorHit.geometry.subjectId, target.mirroredAnchorHit.cubeId,
@@ -3367,24 +3373,23 @@ public final class SurgicalTableClientHandler {
 		return vector.subtract(planeNormal.scale(2.0d * vector.dot(planeNormal)));
 	}
 
-	@Nullable
-	private static GluePreview planGluePreview(ClientLevel level, PendingGlue first, CubeHit targetHit) {
+	private static GluePreviewPlan planGluePreview(ClientLevel level, PendingGlue first, CubeHit targetHit) {
 		if (!first.selection.tablePos.equals(targetHit.tablePos)
 			|| !(level.getBlockEntity(targetHit.tablePos) instanceof SurgicalTableBlockEntity table))
-			return null;
+			return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 		SurgicalSubject targetSubject = table.getSubject(targetHit.geometry.subjectId);
 		if (targetSubject == null)
-			return null;
+			return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 		Map<Integer, BitSet> moving = table.connectedComponents(first.selection.subjectId,
 			first.selection.targetId, first.selection.observedCubeCount, first.selection.seams);
 		Map<Integer, BitSet> anchored = table.connectedComponents(targetHit.geometry.subjectId,
 			targetHit.cubeId, targetHit.geometry.observedCubeCount, targetHit.geometry.seams);
 		if (moving.isEmpty() || anchored.isEmpty() || componentMapsIntersect(moving, anchored))
-			return null;
+			return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 
 		SurgicalTablePlane.Plane plane = clientPlane(level, targetHit.tablePos);
 		if (!plane.valid() || !targetHit.tablePos.equals(plane.source()))
-			return null;
+			return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 		List<SurgicalTableLayout.Footprint> obstacles = gluePreviewObstacles(table, moving, anchored);
 		Vec3 firstPoint = Vec3.atLowerCornerOf(targetHit.tablePos).add(first.hit);
 		Vec3 secondPoint = targetHit.location;
@@ -3397,7 +3402,7 @@ public final class SurgicalTableClientHandler {
 			TableGeometry geometry = TABLES.get(new SubjectKey(targetHit.tablePos, entry.getKey()));
 			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
-				return null;
+				return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 			BitSet cubes = (BitSet) entry.getValue().clone();
 			Vec3 subjectOrigin = Vec3.atLowerCornerOf(targetHit.tablePos)
 				.add(subject.originOffsetX(), 0.0d, subject.originOffsetZ());
@@ -3408,7 +3413,7 @@ public final class SurgicalTableClientHandler {
 				SurgicalModelRenderContext.CubeGeometry base = geometry.baseCubesById.get(cube);
 				SurgicalModelRenderContext.CubeGeometry current = geometry.cubesById.get(cube);
 				if (base == null || current == null)
-					return null;
+					return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 				SurgicalModelRenderContext.CubeGeometry reframedBase = reframeBaseCube(base, subjectOrigin,
 					subject.layPose(), targetPose);
 				SurgicalModelRenderContext.CubeGeometry reframedCurrent = reframeCurrentCube(current,
@@ -3428,19 +3433,19 @@ public final class SurgicalTableClientHandler {
 			TableGeometry geometry = TABLES.get(new SubjectKey(targetHit.tablePos, entry.getKey()));
 			if (subject == null || !geometryReadyForUse(table, subject, geometry)
 				|| !subject.matchesObservedTopology(geometry.observedCubeCount, geometry.seams))
-				return null;
+				return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 			for (int cube = entry.getValue().nextSetBit(0); cube >= 0;
 				cube = entry.getValue().nextSetBit(cube + 1)) {
 				SurgicalModelRenderContext.CubeGeometry current = geometry.cubesById.get(cube);
 				if (current == null)
-					return null;
+					return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 				combinedLowestY = Math.min(combinedLowestY, lowestY(current));
 			}
 		}
 		double surfaceY = plane.workArea().surfaceY() + SurgicalTablePoseResolver.TABLE_CLEARANCE;
 		double groundLiftY = Math.max(0.0d, surfaceY - combinedLowestY);
 		if (!Double.isFinite(groundLiftY) || groundLiftY > SurgicalTablePlane.MAX_TILES + 2.0d)
-			return null;
+			return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 		List<GlueSubjectPreview> previews = new ArrayList<>(planning.size());
 		List<SurgicalTableGluePacket.Move> moves = new ArrayList<>(planning.size());
 		List<SurgicalTableGluePacket.AnchorMove> anchorMoves = new ArrayList<>(anchored.size());
@@ -3448,7 +3453,7 @@ public final class SurgicalTableClientHandler {
 			SurgicalSubject subject = table.getSubject(entry.getKey());
 			TableGeometry geometry = TABLES.get(new SubjectKey(targetHit.tablePos, entry.getKey()));
 			if (subject == null || geometry == null)
-				return null;
+				return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 			List<SurgicalTableGluePacket.CubeTranslation> translations =
 				new ArrayList<>(entry.getValue().cardinality());
 			Map<Integer, Vec3> previewOffsets = new HashMap<>();
@@ -3461,7 +3466,7 @@ public final class SurgicalTableClientHandler {
 				SurgicalTableGluePacket.CubeTranslation translation = new SurgicalTableGluePacket.CubeTranslation(
 					cube, offset, rotation);
 				if (!translation.valid())
-					return null;
+					return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 				translations.add(translation);
 				previewOffsets.put(cube, offset);
 				previewRotations.put(cube, rotation);
@@ -3476,7 +3481,7 @@ public final class SurgicalTableClientHandler {
 				SurgicalModelRenderContext.CubeGeometry base = cubeById(source.baseTarget, cube);
 				SurgicalModelRenderContext.CubeGeometry desired = source.desired.get(cube);
 				if (base == null || desired == null)
-					return null;
+					return GluePreviewPlan.failed(SurgicalTableFailure.OPERATION_FAILED);
 				Vec3 previewOffset = cubeCenter(desired).subtract(cubeCenter(base))
 					.add(0.0d, groundLiftY, 0.0d);
 				confirmedOffsets.put(cube, previewOffset);
@@ -3488,7 +3493,8 @@ public final class SurgicalTableClientHandler {
 				source.subject.cutSeamsForRender(), rotatedBase, confirmedOffsets,
 				plane.workArea(), obstacles);
 			if (planned == null)
-				return null;
+				return GluePreviewPlan.failed(glueLayoutFailure(source, rotatedBase, confirmedOffsets,
+					plane.workArea(), obstacles));
 			List<SurgicalTableGluePacket.CubeTranslation> translations = new ArrayList<>(source.cubes.cardinality());
 			for (int cube = source.cubes.nextSetBit(0); cube >= 0; cube = source.cubes.nextSetBit(cube + 1))
 				translations.add(new SurgicalTableGluePacket.CubeTranslation(cube,
@@ -3498,9 +3504,42 @@ public final class SurgicalTableClientHandler {
 			previews.add(new GlueSubjectPreview(source.subject.id(), source.cubes, targetPose,
 				source.baseTarget, planned.offsets(), source.targetRotations, true));
 		}
-		return new GluePreview(first, targetHit.tablePos, targetHit.geometry.subjectId, targetHit.cubeId,
+		return new GluePreviewPlan(new GluePreview(first, targetHit.tablePos, targetHit.geometry.subjectId, targetHit.cubeId,
 			targetHit.location, table.clientDataRevision(), targetPose, plane.workArea(), obstacles,
-			previews, moves, anchorMoves);
+			previews, moves, anchorMoves), null);
+	}
+
+	/** Diagnoses a rejected initial layout without treating missing geometry as a space failure. */
+	private static SurgicalTableFailure glueLayoutFailure(GluePlanningSubject source,
+		List<SurgicalModelRenderContext.CubeGeometry> rotatedBase, Map<Integer, Vec3> offsets,
+		SurgicalTablePlane.WorkArea area, List<SurgicalTableLayout.Footprint> obstacles) {
+		List<BitSet> components = SurgicalAssembly.components(source.subject.cubeCount(), source.cubes,
+			source.subject.seams(), source.subject.cutSeamsForRender());
+		if (components.isEmpty())
+			return SurgicalTableFailure.OPERATION_FAILED;
+		Map<Integer, SurgicalModelRenderContext.CubeGeometry> indexed = indexCubes(rotatedBase);
+		List<SurgicalTableLayout.Footprint> footprints = new ArrayList<>();
+		List<SurgicalTableLayout.Footprint> envelopes = new ArrayList<>();
+		for (BitSet component : components) {
+			int root = component.nextSetBit(0);
+			AABB envelope = null;
+			for (int cube = root; cube >= 0; cube = component.nextSetBit(cube + 1)) {
+				SurgicalModelRenderContext.CubeGeometry geometry = indexed.get(cube);
+				Vec3 offset = offsets.get(cube);
+				if (!finiteCubeGeometry(geometry) || offset == null || !Double.isFinite(offset.x)
+					|| !Double.isFinite(offset.y) || !Double.isFinite(offset.z))
+					return SurgicalTableFailure.OPERATION_FAILED;
+				AABB bounds = cubeBounds(geometry).move(offset);
+				envelope = envelope == null ? bounds : envelope.minmax(bounds);
+				footprints.add(new SurgicalTableLayout.Footprint(root, bounds.minX, bounds.minZ,
+					bounds.maxX, bounds.maxZ, SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
+			}
+			envelopes.add(new SurgicalTableLayout.Footprint(root, envelope.minX, envelope.minZ,
+				envelope.maxX, envelope.maxZ, SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
+		}
+		return SurgicalTableLayout.lacksSpace(area, envelopes, List.of())
+			|| SurgicalTableLayout.lacksSpace(area, footprints, obstacles)
+			? SurgicalTableFailure.NO_SPACE : SurgicalTableFailure.OPERATION_FAILED;
 	}
 
 	/** Applies a previously recorded smart-glue edit once to a freshly aligned symmetry preview. */
@@ -7805,6 +7844,12 @@ public final class SurgicalTableClientHandler {
 					transformed.put(cube, geometry);
 			}
 			this.transformedCubes = Map.copyOf(transformed);
+		}
+	}
+
+	private record GluePreviewPlan(@Nullable GluePreview preview, @Nullable SurgicalTableFailure failure) {
+		static GluePreviewPlan failed(SurgicalTableFailure failure) {
+			return new GluePreviewPlan(null, failure);
 		}
 	}
 

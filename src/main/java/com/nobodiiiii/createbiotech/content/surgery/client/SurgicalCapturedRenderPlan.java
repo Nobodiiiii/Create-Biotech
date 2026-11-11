@@ -191,7 +191,7 @@ public final class SurgicalCapturedRenderPlan {
 		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras);
 	}
 
-	/** Draw captured native accessories at one retained cube, using that cube's articulation. */
+	/** Draw back-mounted accessories at one retained carrier, using that cube's articulation. */
 	void renderEquipment(SurgicalCapturedRenderPlan equipped, int carrier, Vec3 nativeSeat,
 		PoseStack poseStack, MultiBufferSource buffer, int light, @Nullable Vec3 offset,
 		@Nullable SurgicalCubeRotation rotation, @Nullable Boolean hurt) {
@@ -202,15 +202,28 @@ public final class SurgicalCapturedRenderPlan {
 		Vector3f center = target.center().sub((float) displacement.x, (float) displacement.y, (float) displacement.z);
 		poseStack.pushPose();
 		poseStack.translate(displacement.x, displacement.y, displacement.z);
-		for (Component layer : layers)
+		for (Component layer : layers) {
+			if (isHeadEquipment(layer)) continue;
 			for (SourceBatch batch : layer.batches)
 				batch.renderSource(poseStack, buffer, light, offset, rotation, center, true, hurt);
+		}
 		poseStack.popPose();
+	}
+
+	/** Head tack follows its own retained tissue, once per donor rather than once per saddle. */
+	void renderHeadEquipment(SurgicalCapturedRenderPlan equipped, int expectedCubeCount, BitSet presentCubes,
+		Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations,
+		PoseStack poseStack, MultiBufferSource buffer, int light, @Nullable Boolean hurt) {
+		for (Component layer : equipmentLayers(equipped)) {
+			if (!isHeadEquipment(layer) || !isPresent(layer.id, expectedCubeCount, presentCubes)) continue;
+			layer.renderSource(poseStack, buffer, light, cubeOffsets.get(layer.id), cubeRotations.get(layer.id), true, hurt);
+		}
 	}
 
 	List<Vec3> equipmentCorners(SurgicalCapturedRenderPlan equipped, int carrier, Vec3 nativeSeat) {
 		if (carrier < 0 || carrier >= components.size()) return List.of();
-		var layers = equipmentLayers(equipped);
+		// A saddle's picking envelope must not include head tack at the donor's old head position.
+		var layers = equipmentLayers(equipped).stream().filter(layer -> !isHeadEquipment(layer)).toList();
 		if (layers.isEmpty()) return List.of();
 		Vec3 displacement = equipmentDisplacement(carrier, nativeSeat);
 		double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
@@ -230,10 +243,22 @@ public final class SurgicalCapturedRenderPlan {
 		return equipmentLayers.computeIfAbsent(equipped, plan -> {
 			Set<GeometryKey> naked = new HashSet<>();
 			appearanceComponents.forEach(component -> naked.add(GeometryKey.of(component.corners)));
+			// The saved donor itself may have worn a saddle. Bind to its naked appearance so tack
+			// cannot own itself through the original capture's optional equipment cube ids.
+			List<Component> tissue = appearanceComponents.stream()
+				.filter(component -> component.partNames.stream().noneMatch(SurgicalCapturedRenderPlan::isSaddlePart)).toList();
+			if (tissue.isEmpty()) return List.of();
 			return plan.appearanceComponents.stream().filter(component ->
 				component.partNames.stream().anyMatch(SurgicalCapturedRenderPlan::isSaddlePart)
-				|| !naked.contains(GeometryKey.of(component.corners))).toList();
+				|| !naked.contains(GeometryKey.of(component.corners)))
+				.map(component -> new Component(component, appearanceOwner(component, tissue))).toList();
 		});
+	}
+
+	private static boolean isHeadEquipment(Component component) {
+		return component.head || component.partNames.stream().anyMatch(name -> name.equals("bridle")
+			|| name.equals("reins") || name.equals("head_saddle") || name.contains("saddle_mouth")
+			|| name.contains("saddle_line") || name.equals("mouth_saddle_wrap"));
 	}
 
 	private Vec3 equipmentDisplacement(int carrier, Vec3 nativeSeat) {
@@ -294,15 +319,19 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private Component appearanceOwner(Component visual) {
+		return appearanceOwner(visual, components);
+	}
+
+	private static Component appearanceOwner(Component visual, List<Component> candidates) {
 		// Expanded pig/strider saddle shells fit their underlying cuboid. Horse/camel tack can
 		// cover only part of a body or head, so compare distance to the whole oriented box rather
 		// than its center (which could incorrectly pick a nearby leg or ear).
-		boolean hasHead = visual.head && components.stream().anyMatch(component -> component.head);
+		boolean hasHead = isHeadEquipment(visual) && candidates.stream().anyMatch(component -> component.head);
 		boolean chest = visual.partNames.stream().anyMatch(name -> name.toLowerCase(java.util.Locale.ROOT).contains("chest"));
-		boolean hasBody = chest && components.stream().anyMatch(component -> component.partNames.contains("body"));
-		Component closest = components.getFirst();
+		boolean hasBody = chest && candidates.stream().anyMatch(component -> component.partNames.contains("body"));
+		Component closest = candidates.getFirst();
 		float closestScore = Float.POSITIVE_INFINITY;
-		for (Component candidate : components) {
+		for (Component candidate : candidates) {
 			if (hasHead && !candidate.head)
 				continue;
 			if (hasBody && !candidate.partNames.contains("body")) continue;

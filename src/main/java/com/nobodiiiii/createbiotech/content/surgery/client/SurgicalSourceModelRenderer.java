@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.ToDoubleFunction;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -204,7 +205,7 @@ public final class SurgicalSourceModelRenderer {
 		return plan(preview, 0).withoutWool(presentCubes);
 	}
 
-	/** Render the naked donor once, then attach one native accessory set to each equipped cube. */
+	/** Render the naked donor, carrier equipment, and head tack bound to each retained head cube. */
 	public static SurgicalModelRenderContext.Snapshot renderEquipped(LivingEntity preview, int cubeCount,
 		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets, Map<Integer, SurgicalCubeRotation> cubeRotations,
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick,
@@ -226,11 +227,17 @@ public final class SurgicalSourceModelRenderer {
 		SurgicalCapturedRenderPlan naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
 		var snapshot = naked.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,
 			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
+		// Any installed saddle enables each donor's own bridle, including head-only donors.
+		boolean bridled = owner == null ? !saddles.isEmpty() : owner.isSaddled();
+		if (!bridled && saddles.isEmpty() && chests.isEmpty()) return snapshot;
+		SurgicalCapturedRenderPlan withSaddle = !bridled && saddles.isEmpty() ? naked
+			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
+		if (bridled)
+			naked.renderHeadEquipment(withSaddle, cubeCount, presentCubes, cubeOffsets, cubeRotations,
+				poseStack, buffer, packedLight, hurtOverlay);
 		MimicProfile profile = PREVIEW_PROFILES.get(preview);
 		SourceRidingSeat seat = profile == null ? null : nativeRidingSeat(profile);
 		if (seat == null) return snapshot;
-		SurgicalCapturedRenderPlan withSaddle = saddles.isEmpty() ? naked
-			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
 		SurgicalCapturedRenderPlan withChest = chests.isEmpty() ? naked : chestPlan(preview, 0, false, true, base);
 		for (int carrier : saddles) if (presentCubes.get(carrier))
 			naked.renderEquipment(withSaddle, carrier, seat.first(), poseStack, buffer, packedLight,
@@ -473,19 +480,27 @@ public final class SurgicalSourceModelRenderer {
 	 */
 	private static SurgicalCapturedRenderPlan.CapturedInput captureInputInCanonicalPose(
 		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw) {
-		return captureInputAtAge(renderer, preview, yaw, SurgicalCapturePoseOverrides.captureAgeInTicks(preview));
+		return captureInputAtAge(renderer, preview, yaw, SurgicalCapturePoseOverrides::captureAgeInTicks);
 	}
 
 	private static SurgicalCapturedRenderPlan.CapturedInput captureInputAtAge(
 		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw, float ageInTicks) {
+		return captureInputAtAge(renderer, preview, yaw, ignored -> ageInTicks);
+	}
+
+	private static SurgicalCapturedRenderPlan.CapturedInput captureInputAtAge(
+		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw,
+		ToDoubleFunction<LivingEntity> animationAge) {
 		int id = preview.getId();
 		int tickCount = preview.tickCount;
 		preview.setId(CAPTURE_ENTITY_ID);
-		preview.getRandom().setSeed(captureRandomSeed(preview));
-		// Renderers see the age as tickCount + partialTick, so a fractional age is split across both.
-		int wholeTicks = Mth.floor(ageInTicks);
-		preview.tickCount = wholeTicks;
 		try {
+			preview.getRandom().setSeed(captureRandomSeed(preview));
+			// Resolve the canonical age only after pinning the id: phantom flap offsets depend on it.
+			float ageInTicks = (float) animationAge.applyAsDouble(preview);
+			// Renderers see the age as tickCount + partialTick, so a fractional age is split across both.
+			int wholeTicks = Mth.floor(ageInTicks);
+			preview.tickCount = wholeTicks;
 			return SurgicalCapturedRenderPlan.captureInput(renderer, preview, yaw, ageInTicks - wholeTicks, true);
 		} finally {
 			preview.setId(id);
