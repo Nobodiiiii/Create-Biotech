@@ -233,19 +233,6 @@ public enum BionicTrait {
 	public Condition condition() { return condition; }
 	public boolean isHeadClassification() { return this == DISPOSITION || this == INTELLIGENCE; }
 
-	/** Behavior labels shared by inventory, surgical previews and JEI. */
-	public boolean isSkill() {
-		return switch (this) {
-		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, BLOCK_ATTACHMENT, WINGLESS_FLIGHT, SHOULDER_RIDING,
-			SWIM_SPECIALIST, SHELL_DEFENSE, RIDEABLE, SONIC_BOOM, SELF_DESTRUCT,
-			WOOL_SHEARING, TAMEABLE, LIVESTOCK_TAMEABLE, VIBRATION_SENSE, DETERRENCE,
-			HUNTING_INSTINCT, PACK_ALERT, HEAD_PROJECTILE, GUARDIAN_BEAM,
-			WING_FLIGHT, DOOR_HANDLING, WING_SLOW_FALL, LOOT_PICKUP, SPELLCASTING,
-			LAVA_WALK, WALL_CLIMB, STRONG_JUMP, POLLINATION -> true;
-		default -> false;
-		};
-	}
-
 	boolean automaticDetection() {
 		return switch (this) {
 		case DISPOSITION, INTELLIGENCE -> true;

@@ -106,6 +106,9 @@ final class BionicTraitJeiText {
 
 	@Nullable
 	private static Component condition(BionicTrait trait) {
+		if (trait.isHeadClassification())
+			return tr("condition." + trait.id(),
+				percentage(BionicTraitClientRules.rule(trait).minCoverage()));
 		List<Component> conditions = new ArrayList<>();
 		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);
 		boolean wings = switch (trait.condition()) {
