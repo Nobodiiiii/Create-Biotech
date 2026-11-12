@@ -5,7 +5,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.Tag;
@@ -21,14 +20,16 @@ final class SurgicalTableSubjectSync {
 
 	private SurgicalTableSubjectSync() {}
 
-	static void write(CompoundTag target, ListTag subjects) {
-		if (subjects.sizeInBytes() < COMPRESSION_THRESHOLD) {
+	static void write(CompoundTag target, CompoundTag snapshot) {
+		if (snapshot.sizeInBytes() < COMPRESSION_THRESHOLD) {
 			target.remove(COMPRESSED_SUBJECTS_TAG);
-			target.put(SUBJECTS_TAG, subjects);
+			target.put(SUBJECTS_TAG, snapshot.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND));
+			if (snapshot.contains(SurgicalStorage.SHARED_TAG, Tag.TAG_COMPOUND))
+				target.put(SurgicalStorage.SHARED_TAG, snapshot.getCompound(SurgicalStorage.SHARED_TAG));
+			else
+				target.remove(SurgicalStorage.SHARED_TAG);
 			return;
 		}
-		CompoundTag snapshot = new CompoundTag();
-		snapshot.put(SUBJECTS_TAG, subjects);
 		if (snapshot.sizeInBytes() > MAX_DECOMPRESSED_BYTES)
 			throw new IllegalArgumentException("Surgical table snapshot exceeds decompressed sync budget");
 		try {
@@ -38,22 +39,22 @@ final class SurgicalTableSubjectSync {
 			if (compressed.length > MAX_COMPRESSED_BYTES)
 				throw new IllegalArgumentException("Compressed surgical table snapshot exceeds sync budget");
 			target.remove(SUBJECTS_TAG);
+			target.remove(SurgicalStorage.SHARED_TAG);
 			target.putByteArray(COMPRESSED_SUBJECTS_TAG, compressed);
 		} catch (IOException exception) {
 			throw new IllegalStateException("Unable to encode surgical table snapshot", exception);
 		}
 	}
 
-	static ListTag read(CompoundTag source) {
+	static CompoundTag read(CompoundTag source) {
 		if (!source.contains(COMPRESSED_SUBJECTS_TAG, Tag.TAG_BYTE_ARRAY))
-			return source.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
+			return source;
 		byte[] compressed = source.getByteArray(COMPRESSED_SUBJECTS_TAG);
 		if (compressed.length > MAX_COMPRESSED_BYTES)
 			throw new IllegalArgumentException("Compressed surgical table snapshot exceeds sync budget");
 		try {
-			CompoundTag snapshot = NbtIo.readCompressed(new ByteArrayInputStream(compressed),
+			return NbtIo.readCompressed(new ByteArrayInputStream(compressed),
 				NbtAccounter.create(MAX_DECOMPRESSED_BYTES));
-			return snapshot.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
 		} catch (IOException exception) {
 			throw new IllegalArgumentException("Unable to decode surgical table snapshot", exception);
 		}

@@ -25,19 +25,14 @@ public final class SurgicalSubject {
 	private static final String PERSISTENT_ID_TAG = "PersistentId";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
-	private static final String ANATOMY_TAG = "Anatomy";
-	private static final String LEGACY_ANATOMY_TAG = "AnatomyRoles";
 	private static final String FACING_TAG = "PlacementFacing";
 	private static final String LAY_AXIS_TAG = "LayAxis";
 	private static final String LAY_YAW_TAG = "LayYaw";
 	private static final String LAY_TRANSLATE_X_TAG = "LayTranslateX";
 	private static final String LAY_TRANSLATE_Y_TAG = "LayTranslateY";
 	private static final String LAY_TRANSLATE_Z_TAG = "LayTranslateZ";
-	private static final String PROFILE_TAG = "MimicProfile";
-	private static final String CUBE_COUNT_TAG = "CubeCount";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
 	private static final String HEAD_CUBES_TAG = "HeadCubes";
-	private static final String SEAMS_TAG = "Seams";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
 	private static final String ORIGIN_OFFSET_X_TAG = "OriginOffsetX";
@@ -533,49 +528,52 @@ public final class SurgicalSubject {
 	}
 
 	CompoundTag save() {
+		return save(null);
+	}
+
+	CompoundTag save(@Nullable SurgicalStorage.Writer storage) {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt(ID_TAG, id);
 		tag.putUUID(PERSISTENT_ID_TAG, persistentId);
 		tag.putUUID(DONOR_ID_TAG, donorId);
-		if (originalHeadKnown)
-			tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
-		if (!anatomy.isEmpty())
-			tag.put(ANATOMY_TAG, anatomy.save());
+		SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
+			originalHeadCubes, originalHeadKnown, anatomy);
 		tag.putInt(FACING_TAG, placementFacing.get3DDataValue());
 		tag.putInt(LAY_AXIS_TAG, layPose.axis().ordinal());
 		tag.putInt(LAY_YAW_TAG, layPose.yaw());
 		tag.putDouble(LAY_TRANSLATE_X_TAG, layPose.translation().x);
 		tag.putDouble(LAY_TRANSLATE_Y_TAG, layPose.translation().y);
 		tag.putDouble(LAY_TRANSLATE_Z_TAG, layPose.translation().z);
-		tag.put(PROFILE_TAG, profile.save());
 		if (originOffsetX != 0.0d || originOffsetZ != 0.0d) {
 			tag.putDouble(ORIGIN_OFFSET_X_TAG, originOffsetX);
 			tag.putDouble(ORIGIN_OFFSET_Z_TAG, originOffsetZ);
 		}
 		tag.put(FOOTPRINTS_TAG, writeFootprints(occupiedFootprints));
-		if (!glueJoints.isEmpty()) {
-			ListTag encodedJoints = new ListTag();
-			for (SurgicalGlueJoint joint : glueJoints)
-				encodedJoints.add(joint.save());
-			tag.put(GLUE_JOINTS_TAG, encodedJoints);
+		if (storage != null) {
+			storage.writeRelations(tag, glueJoints, combinations, limbJoints);
+		} else {
+			if (!glueJoints.isEmpty()) {
+				ListTag encodedJoints = new ListTag();
+				for (SurgicalGlueJoint joint : glueJoints)
+					encodedJoints.add(joint.save());
+				tag.put(GLUE_JOINTS_TAG, encodedJoints);
+			}
+			if (!combinations.isEmpty()) {
+				ListTag encodedCombinations = new ListTag();
+				for (SurgicalCombination combination : combinations)
+					encodedCombinations.add(combination.save());
+				tag.put(COMBINATIONS_TAG, encodedCombinations);
+			}
+			if (!limbJoints.isEmpty()) {
+				ListTag encodedLimbs = new ListTag();
+				for (SurgicalLimbJoint joint : limbJoints)
+					encodedLimbs.add(joint.save());
+				tag.put(LIMB_JOINTS_TAG, encodedLimbs);
+			}
 		}
-		if (!combinations.isEmpty()) {
-			ListTag encodedCombinations = new ListTag();
-			for (SurgicalCombination combination : combinations)
-				encodedCombinations.add(combination.save());
-			tag.put(COMBINATIONS_TAG, encodedCombinations);
-		}
-		if (!limbJoints.isEmpty()) {
-			ListTag encodedLimbs = new ListTag();
-			for (SurgicalLimbJoint joint : limbJoints)
-				encodedLimbs.add(joint.save());
-			tag.put(LIMB_JOINTS_TAG, encodedLimbs);
-		}
-		tag.putInt(CUBE_COUNT_TAG, cubeCount);
 		tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
 		if (!headCubes.isEmpty())
 			tag.putLongArray(HEAD_CUBES_TAG, headCubes.toLongArray());
-		tag.putIntArray(SEAMS_TAG, SurgicalAssembly.encodeSeams(seams));
 		if (!cutSeams.isEmpty())
 			tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
 		if (!cutOrder.isEmpty())
@@ -587,12 +585,16 @@ public final class SurgicalSubject {
 
 	@Nullable
 	static SurgicalSubject load(CompoundTag tag) {
+		return load(tag, null);
+	}
+
+	@Nullable
+	static SurgicalSubject load(CompoundTag tag, @Nullable SurgicalStorage.Reader storage) {
+		SurgicalStorage.Donor donor = SurgicalStorage.readDonor(tag, storage);
 		if (!tag.contains(ID_TAG, Tag.TAG_ANY_NUMERIC) || !tag.hasUUID(PERSISTENT_ID_TAG)
 			|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(PROFILE_TAG, Tag.TAG_COMPOUND)
-			|| !tag.contains(CUBE_COUNT_TAG, Tag.TAG_ANY_NUMERIC)
+			|| donor == null
 			|| !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(SEAMS_TAG, Tag.TAG_INT_ARRAY)
 			|| !tag.contains(FOOTPRINTS_TAG, Tag.TAG_LIST))
 			return null;
 		if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
@@ -600,7 +602,7 @@ public final class SurgicalSubject {
 			|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 			|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 			return null;
-		MimicProfile profile = MimicProfile.load(tag.getCompound(PROFILE_TAG));
+		MimicProfile profile = donor.profile();
 		int id = tag.getInt(ID_TAG);
 		UUID persistentId = tag.getUUID(PERSISTENT_ID_TAG);
 		UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : persistentId;
@@ -619,8 +621,8 @@ public final class SurgicalSubject {
 		if (!finiteOffset(originX) || !finiteOffset(originZ))
 			return null;
 
-		int cubeCount = tag.getInt(CUBE_COUNT_TAG);
-		List<SurgicalAssembly.Seam> seams = SurgicalAssembly.decodeSeams(tag.getIntArray(SEAMS_TAG));
+		int cubeCount = donor.cubeCount();
+		List<SurgicalAssembly.Seam> seams = donor.seams();
 		BitSet present = BitSet.valueOf(tag.getLongArray(PRESENT_CUBES_TAG));
 		BitSet cuts = tag.contains(CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 			? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
@@ -628,13 +630,9 @@ public final class SurgicalSubject {
 			? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
 		// These trait fields were optional before the anatomy format changed. Keep the subject even
 		// when its original head or measured tissue is unknown.
-		boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
-		BitSet originalHeads = originalHeadKnown
-			? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
-		BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(
-			tag.contains(ANATOMY_TAG, Tag.TAG_COMPOUND) ? ANATOMY_TAG : LEGACY_ANATOMY_TAG), cubeCount);
-		if (anatomy == null)
-			return null;
+		boolean originalHeadKnown = donor.headKnown();
+		BitSet originalHeads = donor.originalHeads();
+		BionicAnatomySnapshot anatomy = donor.anatomy();
 		BitSet invalidHeads = (BitSet) heads.clone();
 		invalidHeads.andNot(present);
 		if (originalHeadKnown) {
@@ -651,9 +649,12 @@ public final class SurgicalSubject {
 		Map<Integer, Vec3> offsets = readOffsets(tag, cubeCount, present);
 		Map<Integer, SurgicalCubeRotation> rotations = readRotations(tag, cubeCount, present);
 		List<SurgicalTableLayout.Footprint> footprints = readFootprints(tag);
-		List<SurgicalGlueJoint> glueJoints = readGlueJoints(tag);
-		List<SurgicalCombination> combinations = readCombinations(tag);
-		List<SurgicalLimbJoint> limbJoints = readLimbJoints(tag);
+		List<SurgicalGlueJoint> glueJoints = storage != null && tag.contains(SurgicalStorage.GLUE_REFS_TAG)
+			? storage.glue(tag) : readGlueJoints(tag);
+		List<SurgicalCombination> combinations = storage != null && tag.contains(SurgicalStorage.COMBINATION_REFS_TAG)
+			? storage.combinations(tag) : readCombinations(tag);
+		List<SurgicalLimbJoint> limbJoints = storage != null && tag.contains(SurgicalStorage.LIMB_REFS_TAG)
+			? storage.limbs(tag) : readLimbJoints(tag);
 		if (cutOrder == null || offsets == null || rotations == null || footprints == null || footprints.isEmpty()
 			|| glueJoints == null || combinations == null || limbJoints == null)
 			return null;

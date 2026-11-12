@@ -36,17 +36,12 @@ public final class SurgicalAssembly {
 	 * padded span can land a few ulps (or one float ulp) below the minimum.
 	 */
 	private static final double MIN_BODY_SIZE_TOLERANCE = 1.0e-4d;
-	private static final int CURRENT_VERSION = 2;
+	private static final int CURRENT_VERSION = 3;
 	private static final String VERSION_TAG = "Version";
-	private static final String PROFILE_TAG = "MimicProfile";
-	private static final String CUBE_COUNT_TAG = "CubeCount";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
 	private static final String HEAD_CUBES_TAG = "HeadCubes";
 	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
-	private static final String ANATOMY_TAG = "Anatomy";
-	private static final String LEGACY_ANATOMY_TAG = "AnatomyRoles";
 	private static final String DONOR_ID_TAG = "DonorId";
-	private static final String SEAMS_TAG = "Seams";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
 	private static final String SOURCES_TAG = "Sources";
@@ -252,8 +247,8 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
 		int version = tag.getInt(VERSION_TAG);
-		// Version 2 changed trait metadata, not the saved geometry or assembly topology.
-		if ((version != 1 && version != CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
+		// Versions 1/2 stored donor definitions inline; version 3 uses a body-local dictionary.
+		if ((version < 1 || version > CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
 			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(LAYOUT_LAY_POSE_TAG, Tag.TAG_COMPOUND))
 			return null;
@@ -271,8 +266,9 @@ public final class SurgicalAssembly {
 		if (encodedSources.isEmpty() || encodedSources.size() > MAX_SOURCES)
 			return null;
 		List<Source> sources = new ArrayList<>(encodedSources.size());
+		SurgicalStorage.Reader storage = new SurgicalStorage.Reader(tag, MAX_SOURCES);
 		for (int index = 0; index < encodedSources.size(); index++) {
-			Source source = Source.load(encodedSources.getCompound(index));
+			Source source = Source.load(encodedSources.getCompound(index), storage);
 			if (source == null)
 				return null;
 			sources.add(source);
@@ -444,10 +440,12 @@ public final class SurgicalAssembly {
 	public CompoundTag save() {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt(VERSION_TAG, CURRENT_VERSION);
+		SurgicalStorage.Writer storage = new SurgicalStorage.Writer();
 		ListTag encodedSources = new ListTag();
 		for (Source source : sources)
-			encodedSources.add(source.save());
+			encodedSources.add(source.save(storage));
 		tag.put(SOURCES_TAG, encodedSources);
+		storage.save(tag);
 		if (!joints.isEmpty()) {
 			ListTag encodedJoints = new ListTag();
 			for (Joint joint : joints) {
@@ -1236,10 +1234,21 @@ public final class SurgicalAssembly {
 			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many carrier cuboids");
 			for (int i = 0; i < list.size(); i++) {
 				CompoundTag entry = list.getCompound(i);
-				if (!entry.contains("Corners", Tag.TAG_LIST)) continue;
-				ListTag points = entry.getList("Corners", Tag.TAG_COMPOUND);
 				List<Vec3> corners = new ArrayList<>();
-				for (int j = 0; j < points.size(); j++) corners.add(loadPoint(points.getCompound(j)));
+				if (entry.contains("CornerBits")) {
+					if (!entry.contains("CornerBits", Tag.TAG_LONG_ARRAY))
+						throw new IllegalArgumentException("Invalid carrier corner encoding");
+					long[] bits = entry.getLongArray("CornerBits");
+					if (bits.length != 24)
+						throw new IllegalArgumentException("A carrier cuboid requires eight corners");
+					for (int j = 0; j < bits.length; j += 3)
+						corners.add(new Vec3(Double.longBitsToDouble(bits[j]),
+							Double.longBitsToDouble(bits[j + 1]), Double.longBitsToDouble(bits[j + 2])));
+				} else {
+					if (!entry.contains("Corners", Tag.TAG_LIST)) continue;
+					ListTag points = entry.getList("Corners", Tag.TAG_COMPOUND);
+					for (int j = 0; j < points.size(); j++) corners.add(loadPoint(points.getCompound(j)));
+				}
 				cubes.put(new CombinationMember(entry.getInt("Source"), entry.getInt("Cube")), corners);
 			}
 			return cubes;
@@ -1264,9 +1273,15 @@ public final class SurgicalAssembly {
 				}
 				List<Vec3> corners = carrierCubes.get(entry.getKey());
 				if (corners != null) {
-					ListTag points = new ListTag();
-					corners.forEach(corner -> points.add(savePoint(corner)));
-					point.put("Corners", points);
+					// Raw double bits remove per-coordinate tags without rounding collision geometry.
+					long[] bits = new long[corners.size() * 3];
+					for (int index = 0; index < corners.size(); index++) {
+						Vec3 corner = corners.get(index);
+						bits[index * 3] = Double.doubleToRawLongBits(corner.x);
+						bits[index * 3 + 1] = Double.doubleToRawLongBits(corner.y);
+						bits[index * 3 + 2] = Double.doubleToRawLongBits(corner.z);
+					}
+					point.putLongArray("CornerBits", bits);
 				}
 				CarrierEquipmentBounds bounds = equipmentBounds.get(entry.getKey());
 				if (bounds != null) {
@@ -1411,7 +1426,10 @@ public final class SurgicalAssembly {
 		private static AttackGeometry load(CompoundTag tag) {
 			List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
 			List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
-			try { return right == null || left == null ? null : create(right, left, loadOrigins(tag), loadSeats(tag), loadCubes(tag), loadEquipmentBounds(tag)); }
+			if (right == null || left == null)
+				return null;
+			try { return new AttackGeometry(right, left, loadOrigins(tag), loadSeats(tag), loadCubes(tag),
+				loadEquipmentBounds(tag), loadCarrierParts(tag)); }
 			catch (IllegalArgumentException ignored) { return null; }
 		}
 
@@ -2103,19 +2121,14 @@ public final class SurgicalAssembly {
 			return seamId >= 0 && seamId < seams.size() && cutSeams.get(seamId);
 		}
 
-		private CompoundTag save() {
+		private CompoundTag save(SurgicalStorage.Writer storage) {
 			CompoundTag tag = new CompoundTag();
-			tag.put(PROFILE_TAG, profile.save());
+			SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
+				originalHeadCubes, originalHeadKnown, anatomy);
 			tag.putUUID(DONOR_ID_TAG, donorId);
-			tag.putInt(CUBE_COUNT_TAG, cubeCount);
 			tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
 			if (!headCubes.isEmpty())
 				tag.putLongArray(HEAD_CUBES_TAG, headCubes.toLongArray());
-			if (originalHeadKnown)
-				tag.putLongArray(ORIGINAL_HEAD_CUBES_TAG, originalHeadCubes.toLongArray());
-			if (!anatomy.isEmpty())
-				tag.put(ANATOMY_TAG, anatomy.save());
-			tag.putIntArray(SEAMS_TAG, encodeSeams(seams));
 			if (!cutSeams.isEmpty())
 				tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
 			if (!cutOrder.isEmpty())
@@ -2133,11 +2146,9 @@ public final class SurgicalAssembly {
 		}
 
 		@Nullable
-		private static Source load(CompoundTag tag) {
-			if (!tag.contains(PROFILE_TAG, Tag.TAG_COMPOUND)
-				|| !tag.contains(CUBE_COUNT_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				|| !tag.contains(SEAMS_TAG, Tag.TAG_INT_ARRAY)
+		private static Source load(CompoundTag tag, SurgicalStorage.Reader storage) {
+			SurgicalStorage.Donor donor = SurgicalStorage.readDonor(tag, storage);
+			if (donor == null || !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND))
 				return null;
@@ -2146,23 +2157,17 @@ public final class SurgicalAssembly {
 				|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 				return null;
-			MimicProfile profile = MimicProfile.load(tag.getCompound(PROFILE_TAG));
-			int cubeCount = tag.getInt(CUBE_COUNT_TAG);
-			List<Seam> seams = decodeSeams(tag.getIntArray(SEAMS_TAG));
-			if (profile == null || seams == null)
-				return null;
+			MimicProfile profile = donor.profile();
+			int cubeCount = donor.cubeCount();
+			List<Seam> seams = donor.seams();
 			BitSet present = BitSet.valueOf(tag.getLongArray(PRESENT_CUBES_TAG));
 			BitSet cuts = tag.contains(CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
 			BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
-			boolean originalHeadKnown = tag.contains(ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY);
-			BitSet originalHeads = originalHeadKnown
-				? BitSet.valueOf(tag.getLongArray(ORIGINAL_HEAD_CUBES_TAG)) : new BitSet();
-			BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(
-				tag.contains(ANATOMY_TAG, Tag.TAG_COMPOUND) ? ANATOMY_TAG : LEGACY_ANATOMY_TAG), cubeCount);
-			if (anatomy == null)
-				return null;
+			boolean originalHeadKnown = donor.headKnown();
+			BitSet originalHeads = donor.originalHeads();
+			BionicAnatomySnapshot anatomy = donor.anatomy();
 			UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : UUID.randomUUID();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
 				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;

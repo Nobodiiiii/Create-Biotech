@@ -59,7 +59,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private static final String SUBJECTS_TAG = SurgicalTableSubjectSync.SUBJECTS_TAG;
 	private static final String NEXT_SUBJECT_ID_TAG = "NextSubjectId";
 	private static final String FORMAT_VERSION_TAG = "SurgicalFormatVersion";
-	private static final int FORMAT_VERSION = 1;
+	private static final int FORMAT_VERSION = 2;
 	private static final int CLIENT_PLANE_CACHE_TICKS = 5;
 
 	private final List<SurgicalSubject> subjects = new ArrayList<>();
@@ -3558,13 +3558,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		long started = SurgicalProfiler.begin();
 		tag.putInt(FORMAT_VERSION_TAG, FORMAT_VERSION);
 		if (!subjects.isEmpty()) {
+			SurgicalStorage.Writer storage = new SurgicalStorage.Writer();
 			ListTag encoded = new ListTag();
 			for (SurgicalSubject subject : subjects)
-				encoded.add(subject.save());
+				encoded.add(subject.save(storage));
+			CompoundTag snapshot = new CompoundTag();
+			snapshot.put(SUBJECTS_TAG, encoded);
+			storage.save(snapshot);
 			if (clientPacket)
-				SurgicalTableSubjectSync.write(tag, encoded);
+				SurgicalTableSubjectSync.write(tag, snapshot);
 			else
-				tag.put(SUBJECTS_TAG, encoded);
+				for (String key : snapshot.getAllKeys())
+					tag.put(key, snapshot.get(key));
 		}
 		tag.putInt(NEXT_SUBJECT_ID_TAG, nextSubjectId);
 		super.write(tag, registries, clientPacket);
@@ -3577,16 +3582,17 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		boolean previouslyHadSubjects = hasSubjects();
 		super.read(tag, registries, clientPacket);
 		boolean currentFormat = tag.contains(FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.getInt(FORMAT_VERSION_TAG) == FORMAT_VERSION
+			&& tag.getInt(FORMAT_VERSION_TAG) >= 1 && tag.getInt(FORMAT_VERSION_TAG) <= FORMAT_VERSION
 			&& tag.contains(NEXT_SUBJECT_ID_TAG, Tag.TAG_ANY_NUMERIC);
 		List<SurgicalSubject> loaded = new ArrayList<>();
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> persistentIds = new HashSet<>();
 		if (currentFormat) {
-			ListTag encoded = clientPacket ? SurgicalTableSubjectSync.read(tag)
-				: tag.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
+			CompoundTag snapshot = clientPacket ? SurgicalTableSubjectSync.read(tag) : tag;
+			SurgicalStorage.Reader storage = new SurgicalStorage.Reader(snapshot, MAX_SUBJECTS);
+			ListTag encoded = snapshot.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
 			for (int index = 0; index < encoded.size() && loaded.size() < MAX_SUBJECTS; index++) {
-				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index));
+				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index), storage);
 				if (subject == null || !ids.add(subject.id()) || !persistentIds.add(subject.persistentId()))
 					continue;
 				loaded.add(subject);
