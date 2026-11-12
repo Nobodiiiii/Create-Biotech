@@ -17,6 +17,8 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class BionicTraitClientRules {
 	private static Map<BionicTrait, Double> minCoverage = Map.of();
+	private static Map<BionicTrait, Integer> minLimbs = Map.of();
+	private static Map<BionicTrait, Double> wingLift = Map.of();
 
 	private BionicTraitClientRules() {}
 
@@ -24,14 +26,29 @@ public final class BionicTraitClientRules {
 		return trait.rule().withMinCoverage(minCoverage.getOrDefault(trait, trait.rule().minCoverage()));
 	}
 
+	public static int minLimbs(BionicTrait trait) {
+		return minLimbs.getOrDefault(trait, switch (trait.condition()) {
+		case WING_LIFT, LIMB_COUNT -> 2;
+		default -> 1;
+		});
+	}
+
+	public static double maxBodyVolumePerWingVolume(BionicTrait trait) {
+		return wingLift.getOrDefault(trait, 16.0d);
+	}
+
 	public static void accept(BionicTraitRulesPacket packet) {
 		minCoverage = packet.minCoverage();
+		minLimbs = packet.minLimbs();
+		wingLift = packet.wingLift();
 		BionicTraitOverrides.acceptClientRules(packet.overrides());
 	}
 
 	@SubscribeEvent
 	public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
 		minCoverage = Map.of();
+		minLimbs = Map.of();
+		wingLift = Map.of();
 		BionicTraitOverrides.resetClientRules();
 	}
 }

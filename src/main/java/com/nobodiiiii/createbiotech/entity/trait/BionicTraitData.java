@@ -30,6 +30,11 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 			parameters, attackEffects, subtraits, targets);
 	}
 
+	/** Every leg trait requires one qualifying leg by default; zero skips this count check. */
+	int minLegs() {
+		return parameters.getOrDefault("min_legs", 1.0d).intValue();
+	}
+
 	double parameter(String key, double fallback) {
 		double value = parameters.getOrDefault(key, fallback);
 		if (key.equals("max_body_volume_per_wing_volume"))

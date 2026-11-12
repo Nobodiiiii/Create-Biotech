@@ -84,19 +84,19 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	AGILE_LANDING("agile_landing", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	FALL_REDUCTION("fall_reduction", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	POWDER_SNOW_WALK("powder_snow_walk", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.FOOT)),
 	LAVA_WALK("lava_walk", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.FOOT)),
 	WALL_CLIMB("wall_climb", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.LEG)),
 	WING_FLIGHT("wing_flight", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.WING_LIFT,
@@ -142,7 +142,7 @@ public enum BionicTrait {
 		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING)),
 	// JSON restricts other donors to legs; Breeze contributes any tissue, installed in leg chains.
 	STRONG_JUMP("strong_jump", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
 	ENDER_TELEPORT("ender_teleport", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
@@ -169,9 +169,6 @@ public enum BionicTrait {
 	SONIC_BOOM("sonic_boom", BionicTraitScope.TORSO,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.COMPLETE_CHEST,
 		Carrier.of(BionicAnatomyRole.TORSO, BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE)),
-	ROAR("roar", BionicTraitScope.HEAD,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.HEAD_AND_MOUTH,
-		Carrier.of(BionicAnatomyRole.HEAD_CORE, BionicAnatomyRole.MOUTH)),
 	HEAD_PROJECTILE("head_projectile", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.SUBTRAIT_SET, Condition.NONE, Carrier.of(BionicAnatomyRole.HEAD)),
 	GUARDIAN_BEAM("guardian_beam", BionicTraitScope.HEAD,
@@ -181,7 +178,7 @@ public enum BionicTrait {
 	SELF_DESTRUCT("self_destruct", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue()),
 	SNOW_TRAIL("snow_trail", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT, Carrier.of(BionicAnatomyRole.FOOT)),
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.FOOT)),
 	POLLINATION("pollination", BionicTraitScope.TORSO,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	MILKABLE("milkable", BionicTraitScope.WHOLE_BODY,
@@ -242,7 +239,7 @@ public enum BionicTrait {
 		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, BLOCK_ATTACHMENT, WINGLESS_FLIGHT, SHOULDER_RIDING,
 			SWIM_SPECIALIST, SHELL_DEFENSE, RIDEABLE, SONIC_BOOM, SELF_DESTRUCT,
 			WOOL_SHEARING, TAMEABLE, LIVESTOCK_TAMEABLE, VIBRATION_SENSE, DETERRENCE,
-			HUNTING_INSTINCT, PACK_ALERT, ROAR, HEAD_PROJECTILE, GUARDIAN_BEAM,
+			HUNTING_INSTINCT, PACK_ALERT, HEAD_PROJECTILE, GUARDIAN_BEAM,
 			WING_FLIGHT, DOOR_HANDLING, WING_SLOW_FALL, LOOT_PICKUP, SPELLCASTING,
 			LAVA_WALK, WALL_CLIMB, STRONG_JUMP, POLLINATION -> true;
 		default -> false;
@@ -290,6 +287,6 @@ public enum BionicTrait {
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
 	public enum Condition {
 		NONE, LIMB_COUNT, WING_LIFT, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
-		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH
+		SHELL_AND_BODY, COMPLETE_CHEST
 	}
 }

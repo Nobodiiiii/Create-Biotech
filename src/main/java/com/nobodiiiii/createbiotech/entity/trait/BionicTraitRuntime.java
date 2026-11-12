@@ -72,6 +72,13 @@ public final class BionicTraitRuntime {
 			.thenComparing(Map.Entry.comparingByKey())).findFirst().map(entry -> assembly.sources().get(entry.getKey())).orElse(null);
 	}
 
+	/** The client uses the same variant and carrier group as the server's spell scheduler. */
+	public static Set<SurgicalAssembly.CombinationMember> spellcastingMembers(SlimeBionicEntity entity, String kind) {
+		return entity.getBionicTraits().result(BionicTrait.SPELLCASTING).subtraits().entrySet().stream()
+			.filter(entry -> entry.getKey().id().equals(ResourceLocation.withDefaultNamespace(kind)))
+			.findFirst().map(entry -> firstGroup(entity, entry.getValue())).orElse(Set.of());
+	}
+
 	/** Select one physical carrier group, so disjoint heads never fire from empty space between them. */
 	public static Set<SurgicalAssembly.CombinationMember> firstGroup(SlimeBionicEntity entity,
 		Collection<SurgicalAssembly.CombinationMember> members) {

@@ -20,6 +20,7 @@ import com.nobodiiiii.createbiotech.entity.ai.BionicPackAlertGoal;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCarriedDrops;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
@@ -101,7 +102,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -190,6 +190,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private float riderJump;
 	private int riderJumpCooldown;
 	private boolean riderAscending;
+	private int selfDestructFuse, previousSelfDestructFuse;
 	public com.nobodiiiii.createbiotech.entity.trait.BionicEquipment getBionicEquipment() { return equipment; }
 	public BionicBlockAttachment getBlockAttachment() { return blockAttachment; }
 	@Nullable public BlockPos getBlockAttachmentCell() { return entityData.get(ATTACH_CELL_DATA).orElse(null); }
@@ -227,11 +228,25 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			: relative.yRot(yBodyRot * Mth.DEG_TO_RAD);
 	}
 	public com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks getSpecialAttacks() { return specialAttacks; }
+	@Override
+	public void setTarget(@Nullable LivingEntity target) {
+		LivingEntity previous = getTarget();
+		super.setTarget(target);
+		// Read the accepted target after NeoForge's target-change event has run.
+		if (!level().isClientSide && specialAttacks != null && getTarget() != null && getTarget() != previous)
+			specialAttacks.onTargetAcquired();
+	}
 	@Override public void performRangedAttack(LivingEntity target, float power) { specialAttacks.performRangedAttack(target); }
 	public CompoundTag getBionicEquipmentData() { return entityData.get(EQUIPMENT_DATA); }
 	public void setBionicEquipmentData(CompoundTag value) { entityData.set(EQUIPMENT_DATA, value); }
 	public void setBionicSitting(boolean value) { setOrderedToSit(value); }
 	public int getProductionFlags() { return entityData.get(PRODUCTION_DATA); }
+	/** Interpolated Creeper.getSwelling progress from this body's synchronized fuse. */
+	public float getSelfDestructSwelling(float partialTick) {
+		if (selfDestructFuse == 0 && previousSelfDestructFuse == 0) return 0;
+		return Mth.lerp(partialTick, (float) previousSelfDestructFuse, (float) selfDestructFuse)
+			/ (float) Math.max(1, getBionicTraits().parameter(BionicTrait.SELF_DESTRUCT, "fuse_ticks", 30) - 2);
+	}
 	public boolean isSheared() { return (getProductionFlags() & 1) != 0; }
 	public boolean hasBionicPollen() { return entityData.get(POLLEN_DATA); }
 	public void setBionicPollen(boolean value) { entityData.set(POLLEN_DATA, value); }
@@ -239,10 +254,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.values()[entityData.get(SHELL_STATE_DATA)];
 	}
 	public int getShellPeekSequence() { return shellPeekSequence; }
-	public int getSpecialActionTicks() { return (int) Math.max(0, level().getGameTime() - entityData.get(SPECIAL_STARTED)); }
+	public long getSpecialActionStartTick() { return entityData.get(SPECIAL_STARTED); }
+	public int getSpecialActionTicks() { return (int) Math.max(0, level().getGameTime() - getSpecialActionStartTick()); }
 	public void setProductionFlags(int flags) { entityData.set(PRODUCTION_DATA, flags); }
 	public void markSelfDestructing() { dead = true; }
-	public void finishSelfDestruct() { dropPreservedEquipment(); dropEquipment(); triggerOnDeathMobEffects(RemovalReason.KILLED); discard(); }
+	public void finishSelfDestruct() { SlimeMimicCarriedDrops.dropCarriedItems(this); triggerOnDeathMobEffects(RemovalReason.KILLED); discard(); }
 	public int getSpecialAction() { return entityData.get(SPECIAL_ACTION); }
 	public void syncSpecialOrigin(Vec3 worldOrigin) {
 		entityData.set(SPECIAL_ORIGIN, worldToBody(worldOrigin).toVector3f());
@@ -265,10 +281,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable public Vec3 lastHeardPosition(Entity target) { return vibrationSense.lastHeardPosition(target); }
 	public void setRiderAscending(boolean value) { riderAscending = value; }
 	public boolean isSelfDestructing() { return production != null && production.exploding(); }
-	@Override protected void blockedByShield(LivingEntity victim) {
-		if (attackActionTick > 0 && getBionicTraits().has(BionicTrait.ROAR)) specialAttacks.blockedByShield(victim);
-		else super.blockedByShield(victim);
-	}
 	private boolean hasFlightLocomotion() {
 		return !isSwimming() && (getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || getBionicTraits().has(BionicTrait.WING_FLIGHT));
 	}
@@ -1234,7 +1246,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void aiStep() {
-		setCanPickUpLoot(getBionicTraits().has(BionicTrait.LOOT_PICKUP) && !isNoAi() && !isOrderedToSit() && !isVehicle());
+		setCanPickUpLoot(equipment.mainHandArm() != null && !isNoAi() && !isOrderedToSit() && !isVehicle());
 		super.aiStep();
 		if (bodyFlightEnabled)
 			applyCombatFacing();
@@ -1275,12 +1287,18 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		int fixedArmIndex = -1;
 		if (getIntelligence() == BionicIntelligence.SIMPLE) {
 			double highestDps = -1;
+			double baseAttackDamage = getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
+			var weaponArm = equipment.mainHandArm();
+			ItemStack weapon = getMainHandItem();
+			double armedAttackDamage = isAttackWeapon(weapon)
+				? SurgicalCombatCalibration.attackDamageWithWeapon(baseAttackDamage, weapon) : baseAttackDamage;
 			var arms = geometry.arms();
 			for (int index = 0; index < arms.size(); index++) {
 				var arm = arms.get(index);
 				if (isBionicWing(arm)) continue;
 				var stats = SurgicalCombatCalibration.stats(arm);
-				double dps = stats.damageMultiplier() / stats.attackInterval();
+				double attackDamage = arm == weaponArm ? armedAttackDamage : baseAttackDamage;
+				double dps = attackDamage * stats.damageMultiplier() * 20.0d / SurgicalCombatCalibration.armRecovery(stats);
 				if (dps > highestDps) { highestDps = dps; fixedArmIndex = index; }
 			}
 		}
@@ -1386,6 +1404,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void tick() {
+		previousSelfDestructFuse = selfDestructFuse;
+		selfDestructFuse = getProductionFlags() >> 2;
 		blockAttachment.tick();
 		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
 		if (riderJumpCooldown > 0) riderJumpCooldown--;
@@ -1694,11 +1714,24 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	private boolean armHasWeapon(boolean left, int slot) {
-		if (slot != 0)
-			return false;
-		HumanoidArm arm = left ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-		return arm == getMainArm() ? isAttackWeapon(getMainHandItem())
-			: isAttackWeapon(getOffhandItem());
+		SurgicalAssembly assembly = getAssembly();
+		var mainHandArm = equipment.mainHandArm();
+		return isAttackWeapon(getMainHandItem()) && assembly != null && assembly.attackGeometry() != null
+			&& mainHandArm != null && mainHandArm == assembly.attackGeometry().arm(left, slot);
+	}
+
+	@Override
+	public HumanoidArm getMainArm() {
+		HumanoidArm preferred = super.getMainArm();
+		if (equipment == null) return preferred;
+		SurgicalAssembly assembly = getAssembly();
+		if (assembly == null || assembly.attackGeometry() == null) return preferred;
+		var geometry = assembly.attackGeometry();
+		var arms = preferred == HumanoidArm.LEFT ? geometry.left() : geometry.right();
+		if (arms.stream().anyMatch(equipment::canUseWeapon)) return preferred;
+		var other = preferred == HumanoidArm.LEFT ? geometry.right() : geometry.left();
+		return other.stream().anyMatch(equipment::canUseWeapon)
+			? preferred.getOpposite() : preferred;
 	}
 
 	/** Applies one logical attack hit without touching its independent presentation clock. */
@@ -1780,24 +1813,18 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	private boolean attackUsesMainHand() {
-		HumanoidArm attackingArm = attackActionLeft ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-		return attackActionWeapon && attackingArm == getMainArm();
+		return attackActionWeapon && armHasWeapon(attackActionLeft, attackActionArmSlot);
 	}
 
 	private ItemStack selectedAttackWeapon() {
-		if (!attackActionWeapon)
-			return ItemStack.EMPTY;
-		HumanoidArm attackingArm = attackActionLeft ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-		return attackingArm == getMainArm() ? getMainHandItem() : getOffhandItem();
+		return attackUsesMainHand() ? getMainHandItem() : ItemStack.EMPTY;
 	}
 
 	private static HashMultimap<Holder<Attribute>, AttributeModifier> combatModifiers(ItemStack stack) {
 		HashMultimap<Holder<Attribute>, AttributeModifier> modifiers = HashMultimap.create();
 		if (stack == null || stack.isEmpty())
 			return modifiers;
-		stack.getAttributeModifiers().modifiers()
-			.forEach(entry -> modifiers.put(entry.attribute(), entry.modifier()));
-		EnchantmentHelper.forEachModifier(stack, EquipmentSlot.MAINHAND, modifiers::put);
+		stack.forEachModifier(EquipmentSlot.MAINHAND, modifiers::put);
 		return modifiers;
 	}
 
@@ -1946,11 +1973,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	public boolean hasAttackWeapon() {
-		return isAttackWeapon(getMainHandItem()) || isAttackWeapon(getOffhandItem());
+		return equipment.mainHandArm() != null && isAttackWeapon(getMainHandItem());
 	}
 
 	public static boolean isAttackWeapon(ItemStack stack) {
-		return stack != null && stack.is(Tags.Items.MELEE_WEAPON_TOOLS);
+		return stack != null && !stack.isEmpty() && (stack.is(Tags.Items.MELEE_WEAPON_TOOLS)
+			|| stack.getAttributeModifiers().modifiers().stream().anyMatch(entry ->
+				entry.slot().test(EquipmentSlot.MAINHAND) && entry.attribute().equals(Attributes.ATTACK_DAMAGE)
+					&& entry.modifier().amount() > 0));
 	}
 
 	@Override
@@ -2181,10 +2211,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override public List<ItemStack> onSheared(@Nullable Player player, ItemStack item, Level level, BlockPos pos) {
 		return production.shear();
 	}
-	@Override public void thunderHit(net.minecraft.server.level.ServerLevel level, net.minecraft.world.entity.LightningBolt lightning) {
-		super.thunderHit(level, lightning); production.charge();
-	}
-
 	private static final class BionicFloatGoal extends FloatGoal {
 		private final SlimeBionicEntity bionic;
 

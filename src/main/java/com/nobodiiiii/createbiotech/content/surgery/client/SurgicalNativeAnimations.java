@@ -9,15 +9,23 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRuntime;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.animal.armadillo.Armadillo;
 import net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState;
 import net.minecraft.world.entity.monster.Shulker;
+import net.minecraft.world.entity.monster.Evoker;
+import net.minecraft.world.entity.monster.SpellcasterIllager.IllagerSpell;
+import net.minecraft.world.entity.monster.Witch;
+import net.minecraft.world.entity.monster.warden.Warden;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -27,13 +35,15 @@ import net.neoforged.neoforge.event.tick.EntityTickEvent;
  * Per-body native animation entities. Only state inputs are adapted to the assembled body;
  * animation updates and every rendered frame come from Minecraft's entities and renderers.
  * See ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/armadillo/Armadillo.java and
- * ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java.
+ * ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Shulker.java and
+ * ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/warden/Warden.java and
+ * ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/{SpellcasterIllager,Witch}.java.
  */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
-public final class SurgicalShellAnimations {
+public final class SurgicalNativeAnimations {
 	private static final Map<SlimeBionicEntity, BodyAnimations> BODIES = new WeakHashMap<>();
 
-	private SurgicalShellAnimations() {}
+	private SurgicalNativeAnimations() {}
 
 	@SubscribeEvent
 	public static void onEntityTick(EntityTickEvent.Post event) {
@@ -56,7 +66,8 @@ public final class SurgicalShellAnimations {
 	private static BodyAnimations animations(SlimeBionicEntity owner) {
 		SurgicalAssembly assembly = owner.getAssembly();
 		BionicTraitSet traits = owner.getBionicTraits();
-		if (assembly == null || !traits.has(BionicTrait.SHELL_DEFENSE)) {
+		if (assembly == null || !traits.has(BionicTrait.SHELL_DEFENSE) && !traits.has(BionicTrait.SONIC_BOOM)
+			&& !traits.has(BionicTrait.SPELLCASTING)) {
 			BODIES.remove(owner);
 			return null;
 		}
@@ -74,12 +85,26 @@ public final class SurgicalShellAnimations {
 					body.sources.put(source, new SourceAnimation(entity, owner.getShellPeekSequence()));
 				}
 			}
+			for (var member : traits.members(BionicTrait.SONIC_BOOM)) {
+				int source = member.source();
+				if (body.sources.containsKey(source)) continue;
+				LivingEntity entity = assembly.sources().get(source).profile().createPreviewEntity(owner.level());
+				if (entity instanceof Warden)
+					body.sources.put(source, new SourceAnimation(entity, owner.getShellPeekSequence()));
+			}
+			for (var member : traits.members(BionicTrait.SPELLCASTING)) {
+				int source = member.source();
+				if (body.sources.containsKey(source)) continue;
+				LivingEntity entity = assembly.sources().get(source).profile().createPreviewEntity(owner.level());
+				if (entity instanceof Evoker || entity instanceof Witch)
+					body.sources.put(source, new SourceAnimation(entity, owner.getShellPeekSequence()));
+			}
 			BODIES.put(owner, body);
 		}
 		if (body.lastTick != owner.tickCount) {
 			body.lastTick = owner.tickCount;
-			for (SourceAnimation source : body.sources.values())
-				source.tick(owner);
+			for (var source : body.sources.entrySet())
+				source.getValue().tick(owner, source.getKey());
 		}
 		return body;
 	}
@@ -98,17 +123,20 @@ public final class SurgicalShellAnimations {
 
 	private static final class SourceAnimation {
 		private final LivingEntity entity;
+		private final ItemStack idleMainHand;
 		private int peekSequence;
+		private long sonicStarted = Long.MIN_VALUE;
 		private float framePartialTick;
 		private SurgicalCapturedRenderPlan frameBase;
 		private SurgicalCapturedRenderPlan frame;
 
 		private SourceAnimation(LivingEntity entity, int peekSequence) {
 			this.entity = entity;
+			this.idleMainHand = entity.getMainHandItem().copy();
 			this.peekSequence = peekSequence;
 		}
 
-		private void tick(SlimeBionicEntity owner) {
+		private void tick(SlimeBionicEntity owner, int source) {
 			entity.tickCount = owner.tickCount;
 			if (entity instanceof Armadillo armadillo) {
 				armadillo.switchToState(owner.getShellState());
@@ -126,6 +154,32 @@ public final class SurgicalShellAnimations {
 				shulker.setRawPeekAmount(state == ArmadilloState.ROLLING || state == ArmadilloState.SCARED ? 0 : 30);
 				// Native tick endpoints; ShulkerModel reads getClientPeekAmount(partialTick) itself.
 				shulker.updatePeekAmount();
+			} else if (entity instanceof Evoker evoker) {
+				boolean casting = owner.getSpecialAction() == BionicSpecialAttacks.EVOKER_FANGS_ACTION
+					&& BionicTraitRuntime.spellcastingMembers(owner, "fangs").stream().anyMatch(member -> member.source() == source);
+				// IllagerModel owns the arm visibility, raised pose and per-frame oscillation.
+				evoker.setIsCastingSpell(casting ? IllagerSpell.FANGS : IllagerSpell.NONE);
+			} else if (entity instanceof Witch witch) {
+				boolean throwing = owner.getSpecialAction() == BionicSpecialAttacks.WITCH_POTION_ACTION
+					&& BionicTraitRuntime.spellcastingMembers(owner, "potion").stream().anyMatch(member -> member.source() == source);
+				// Native throwing leaves the arms crossed and does not use the drinking pose.
+				witch.setUsingItem(false);
+				witch.setItemSlot(EquipmentSlot.MAINHAND, throwing ? ItemStack.EMPTY : idleMainHand);
+			} else if (entity instanceof Warden warden) {
+				if (owner.getSpecialAction() == 1) {
+					long started = owner.getSpecialActionStartTick();
+					if (sonicStarted != started) {
+						sonicStarted = started;
+						// The same event used by SonicBoom.start; WardenModel owns the complete
+						// three-second keyframes, including the recoil and return to idle.
+						warden.handleEntityEvent((byte) 62);
+						// Joining tracking or rebuilding after a resource reload may happen mid-action.
+						warden.sonicBoomAnimationState.fastForward(owner.getSpecialActionTicks(), 1.0f);
+					}
+				} else {
+					sonicStarted = Long.MIN_VALUE;
+					warden.sonicBoomAnimationState.stop();
+				}
 			}
 			frame = null;
 		}

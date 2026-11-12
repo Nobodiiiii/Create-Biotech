@@ -9,8 +9,5 @@
         "lower_body"
       ]
     }
-  },
-  "parameters": {
-    "min_legs": 1
   }
 }

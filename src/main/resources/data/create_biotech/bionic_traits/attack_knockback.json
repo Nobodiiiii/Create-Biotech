@@ -1,5 +1,11 @@
 {
   "automatic_detection": true,
   "min_coverage": 0.5,
-  "values": {}
+  "values": {},
+  "carriers": {
+    "minecraft:ravager": {
+      "HEAD_CORE": ["head_core"],
+      "MOUTH": ["mouth"]
+    }
+  }
 }

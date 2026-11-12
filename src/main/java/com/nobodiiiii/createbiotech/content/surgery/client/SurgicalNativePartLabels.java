@@ -9,6 +9,7 @@ import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
 import net.minecraft.client.model.ArmadilloModel;
 import net.minecraft.client.model.CowModel;
 import net.minecraft.client.model.EntityModel;
+import net.minecraft.client.model.IllagerModel;
 import net.minecraft.client.model.RavagerModel;
 import net.minecraft.client.model.geom.ModelPart;
 
@@ -18,6 +19,17 @@ final class SurgicalNativePartLabels {
 
 	static void label(EntityModel<?> model, String field, ModelPart part, Map<ModelPart.Cube, Set<String>> names) {
 		var cubes = ((ModelPartAccessor) (Object) part).createBiotech$getCubes();
+		if (model instanceof IllagerModel<?> && field.equals("arms")) {
+			// IllagerModel swaps the folded mesh for right_arm/left_arm while casting.
+			// Give each retained shoulder its unfolded name so native poses keep the same surgical id.
+			for (var cube : cubes)
+				if (cube.maxX < 0)
+					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("right_arm");
+			ModelPart left = ((ModelPartAccessor) (Object) part).createBiotech$getChildren().get("left_shoulder");
+			if (left != null)
+				for (var cube : ((ModelPartAccessor) (Object) left).createBiotech$getCubes())
+					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("left_arm");
+		}
 		if (model instanceof CowModel<?> && field.equals("body"))
 			for (var cube : cubes)
 				if (cube.maxX - cube.minX == 4 && cube.maxY - cube.minY == 6 && cube.maxZ - cube.minZ == 1)

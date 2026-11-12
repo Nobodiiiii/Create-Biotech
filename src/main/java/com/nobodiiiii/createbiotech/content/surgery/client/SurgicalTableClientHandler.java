@@ -1744,7 +1744,7 @@ public final class SurgicalTableClientHandler {
 		if (symmetrySelection != null)
 			highlightSelection(symmetrySelection);
 		else if (jointRemovalSelection != null)
-			highlightSelection(jointRemovalSelection.selection);
+			highlightSelection(jointRemovalSelection.selection, true);
 		else if (limbSelection != null)
 			highlightSelection(limbSelection);
 		else if (slimeSeamSelection != null)
@@ -6541,8 +6541,8 @@ public final class SurgicalTableClientHandler {
 		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(child));
 		cubeEdges.addAll(SurgicalClientTopology.cubeEdges(parent));
 		Selection selection = new Selection(tablePos, childSubject.id(), joint.child().cubeId(),
-			childGeometry.observedCubeCount, childGeometry.seams,
-			contact == null ? List.of() : contact.edges(), List.copyOf(cubeEdges));
+			childGeometry.observedCubeCount, childGeometry.seams, List.of(), List.copyOf(cubeEdges),
+			List.of(), contact == null ? List.of() : contact.edges(), false, false);
 		return new LimbJointSelection(selection, joint, contact);
 	}
 

@@ -1,9 +1,6 @@
 {
   "automatic_detection": false,
   "min_coverage": 0.5,
-  "parameters": {
-    "min_legs": 2
-  },
   "values": {
     "minecraft:spider": true,
     "minecraft:cave_spider": true

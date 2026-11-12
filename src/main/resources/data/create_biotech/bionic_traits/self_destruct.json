@@ -5,7 +5,6 @@
   },
   "parameters": {
     "fuse_ticks": 30,
-    "power": 3,
-    "charged_power": 6
+    "power": 3
   }
 }

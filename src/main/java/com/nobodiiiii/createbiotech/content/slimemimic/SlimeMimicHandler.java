@@ -22,6 +22,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
+import net.neoforged.neoforge.event.entity.living.MobSplitEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -152,9 +153,16 @@ public final class SlimeMimicHandler {
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public static void onMobSplit(MobSplitEvent event) {
+		// Check the parent rather than entity types so modded splitters using this event are covered too.
+		if (isSlimeMimic(event.getParent()))
+			event.setCanceled(true);
+	}
+
+	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDrops(LivingDropsEvent event) {
 		if (isSlimeMimic(event.getEntity()) || event.getEntity() instanceof SlimeBionicEntity)
-			event.getDrops().clear();
+			SlimeMimicCarriedDrops.replaceDrops(event);
 	}
 
 	private static int getHauntCycleTicks() {

@@ -68,15 +68,21 @@ public class SlimeBeltAcquisitionHandler {
 		if (!(event.getEntity() instanceof Slime slime))
 			return;
 
-		boolean magma = slime instanceof MagmaCube;
-		String beltTag = magma ? HAS_MAGMA_BELT_TAG : HAS_SLIME_BELT_TAG;
-		if (!hasBelt(slime, beltTag))
+		ItemStack drop = copyCarriedBelt(slime);
+		if (drop.isEmpty())
 			return;
 
-		ItemStack drop = new ItemStack(magma ? CBItems.MAGMA_BELT_CONNECTOR.get() : CBItems.SLIME_BELT_CONNECTOR.get());
 		event.getDrops().add(new ItemEntity(slime.level(), slime.getX(), slime.getY(), slime.getZ(), drop));
 		if (event.getSource().getEntity() instanceof ServerPlayer player)
-			CBAdvancements.award(player, magma ? CBAdvancements.MAGMA_BELT : CBAdvancements.SLIME_BELT);
+			CBAdvancements.award(player, slime instanceof MagmaCube ? CBAdvancements.MAGMA_BELT : CBAdvancements.SLIME_BELT);
+	}
+
+	public static ItemStack copyCarriedBelt(Slime slime) {
+		boolean magma = slime instanceof MagmaCube;
+		String beltTag = magma ? HAS_MAGMA_BELT_TAG : HAS_SLIME_BELT_TAG;
+		return hasBelt(slime, beltTag)
+			? new ItemStack(magma ? CBItems.MAGMA_BELT_CONNECTOR.get() : CBItems.SLIME_BELT_CONNECTOR.get())
+			: ItemStack.EMPTY;
 	}
 
 	private static boolean hasBelt(Slime slime, String tag) {

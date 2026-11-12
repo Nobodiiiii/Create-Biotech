@@ -54,8 +54,8 @@ public final class BionicCargoScreen extends AbstractContainerScreen<BionicCargo
 			super(x, y, 12, 12, Component.literal(label), onPress, DEFAULT_NARRATION);
 		}
 		@Override public void renderString(GuiGraphics graphics, Font font, int color) {
-			graphics.drawString(font, getMessage(), getX() + (width - font.width(getMessage())) / 2,
-				getY() + (height - font.lineHeight) / 2, color, false);
+			graphics.drawString(font, getMessage(), getX() + (width - font.width(getMessage())) / 2 + 1,
+				getY() + (height - font.lineHeight) / 2 + 1, color, false);
 		}
 	}
 	@Override protected void renderTooltip(GuiGraphics graphics, int mouseX, int mouseY) {

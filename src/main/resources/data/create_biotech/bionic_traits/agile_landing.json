@@ -1,9 +1,6 @@
 {
   "automatic_detection": true,
   "min_coverage": 0.5,
-  "parameters": {
-    "min_legs": 2
-  },
   "values": {},
   "carriers": {
     "minecraft:cat": {

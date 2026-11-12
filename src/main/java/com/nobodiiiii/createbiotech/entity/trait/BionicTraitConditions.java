@@ -24,6 +24,10 @@ final class BionicTraitConditions {
 	/** Keep only complete carrier groups; separate heads cannot lend one another missing organs. */
 	static BionicTraitResult apply(BionicTrait trait, BionicTraitData data, SurgicalAssembly assembly,
 		BionicTissue tissue, BionicTraitSet covered, BionicTraitResult result) {
+		// Leg count is a scope prerequisite, independent of inheritance type and optional conditions.
+		if (trait.scopes().contains(BionicTraitScope.LEG) && data.minLegs() > 0
+			&& tissue.effectiveLimbCount(Set.of(BionicTraitScope.LEG), covered.members(trait)) < data.minLegs())
+			return result.disabled(InactiveReason.PURPOSE_MISMATCH);
 		if (trait == BionicTrait.MILKABLE)
 			return BionicMilking.apply(data, tissue, result);
 		List<Carrier> required = switch (trait.condition()) {
@@ -34,8 +38,6 @@ final class BionicTraitConditions {
 		case COMPLETE_CHEST -> List.of(Carrier.of(BionicAnatomyRole.TORSO)
 			.excluding(BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE),
 			Carrier.of(BionicAnatomyRole.LEFT_RIBCAGE), Carrier.of(BionicAnatomyRole.RIGHT_RIBCAGE));
-		case HEAD_AND_MOUTH -> List.of(Carrier.of(BionicAnatomyRole.HEAD_CORE).excluding(BionicAnatomyRole.MOUTH),
-			Carrier.of(BionicAnatomyRole.MOUTH));
 		default -> List.of();
 		};
 		if (required.isEmpty()) {
@@ -107,7 +109,7 @@ final class BionicTraitConditions {
 		if (data.rule().type() != BionicTraitType.COVERAGE_THRESHOLD)
 			return null;
 		return switch (trait.condition()) {
-		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH -> null;
+		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST -> null;
 		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
 		case WING_LIFT -> {
@@ -121,11 +123,7 @@ final class BionicTraitConditions {
 					? InactiveReason.PURPOSE_MISMATCH : null;
 		}
 		case LIMB_COUNT -> {
-			int minimum = (int) data.parameter(trait == BionicTrait.WING_SLOW_FALL ? "min_wings" : "min_legs",
-				switch (trait) {
-				case AGILE_LANDING, WALL_CLIMB, STRONG_JUMP, WING_SLOW_FALL -> 2;
-				default -> 1;
-				});
+			int minimum = (int) data.parameter("min_wings", 2);
 			boolean supported = tissue.effectiveLimbCount(trait.scopes(), covered.members(trait)) >= minimum;
 			yield supported ? null : InactiveReason.PURPOSE_MISMATCH;
 		}

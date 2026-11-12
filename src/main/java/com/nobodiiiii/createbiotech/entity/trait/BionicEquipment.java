@@ -5,6 +5,7 @@ import java.util.function.Predicate;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.CombinationMember;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.BionicRiding;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu;
@@ -37,6 +38,9 @@ public final class BionicEquipment {
 	@Nullable private CompoundTag lastSnapshot;
 	@Nullable private SurgicalAssembly saddleAssembly;
 	private Set<CombinationMember> saddleCarriers = Set.of();
+	@Nullable private SurgicalAssembly weaponCarrierAssembly;
+	@Nullable private CombinationMember weaponCarrierAnchor;
+	@Nullable private CombinationMember weaponCarrier;
 
 	public record PassengerSeat(CombinationMember carrier, int slot) {}
 	private enum SaddleAction { EQUIP, RIDE, INVENTORY }
@@ -393,28 +397,95 @@ public final class BionicEquipment {
 
 	public Set<SurgicalAssembly.CombinationMember> armMembers(InteractionHand hand) {
 		var assembly = entity.getAssembly();
-		if (assembly == null || assembly.attackGeometry() == null) return Set.of();
-		boolean left = (hand == InteractionHand.MAIN_HAND) == (entity.getMainArm() == HumanoidArm.LEFT);
-		List<SurgicalAssembly.ArmAttackGeometry> arms = left ? assembly.attackGeometry().left() : assembly.attackGeometry().right();
-		Set<SurgicalAssembly.Limb> limbs = arms.stream().filter(arm -> arm.sourceId() >= 0 && !entity.isBionicWing(arm))
-			.map(arm -> assembly.primaryLimbOf(arm.sourceId(), arm.cubeId()))
-			.filter(java.util.Objects::nonNull).collect(java.util.stream.Collectors.toSet());
+		var arm = mainHandArm();
+		if (hand != InteractionHand.MAIN_HAND || arm == null) return Set.of();
+		var limb = assembly.primaryLimbOf(arm.sourceId(), arm.cubeId());
+		if (limb == null) return Set.of();
 		Set<SurgicalAssembly.CombinationMember> members = new java.util.HashSet<>();
 		for (int source = 0; source < assembly.sources().size(); source++) {
 			var present = assembly.sources().get(source).presentCubes();
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
-				if (limbs.contains(assembly.primaryLimbOf(source, cube)))
+				if (limb.equals(assembly.primaryLimbOf(source, cube)))
 					members.add(new SurgicalAssembly.CombinationMember(source, cube));
 		}
 		return Set.copyOf(members);
 	}
+	/** Weapon use belongs to this arm's own active carrier tissue, including its forearm. */
+	public boolean canUseWeapon(SurgicalAssembly.ArmAttackGeometry arm) {
+		var assembly = entity.getAssembly();
+		if (assembly == null || arm.sourceId() < 0 || entity.isBionicWing(arm)) return false;
+		var limb = assembly.primaryLimbOf(arm.sourceId(), arm.cubeId());
+		return limb != null && entity.getBionicTraits().members(BionicTrait.LOOT_PICKUP).stream()
+			.anyMatch(member -> limb.equals(assembly.primaryLimbOf(member.source(), member.cube())));
+	}
+	/** One arm with weapon-use tissue owns the main-hand slot, regardless of the body's number of arms. */
+	@Nullable public SurgicalAssembly.ArmAttackGeometry mainHandArm() {
+		var assembly = entity.getAssembly();
+		if (assembly == null || assembly.attackGeometry() == null) return null;
+		var arms = entity.getMainArm() == HumanoidArm.LEFT ? assembly.attackGeometry().left() : assembly.attackGeometry().right();
+		for (var arm : arms)
+			if (canUseWeapon(arm)) return arm;
+		return null;
+	}
+	/** Bind to the last cube of the distal rigid segment, selected once from the baked rest geometry. */
+	@Nullable public CombinationMember mainHandCarrier() {
+		var arm = mainHandArm();
+		if (arm == null) return null;
+		var assembly = entity.getAssembly();
+		var shoulder = assembly.primaryLimbOf(arm.sourceId(), arm.cubeId());
+		var distal = shoulder;
+		if (shoulder != null)
+			for (var limb : assembly.effectiveLimbs())
+				if (limb.type() == SurgicalLimbType.ELBOW
+					&& shoulder.equals(assembly.primaryLimbOf(limb.parentSource(), limb.parentCube()))) {
+					distal = limb;
+					break;
+				}
+		if (distal == null) return null;
+		var anchor = new CombinationMember(distal.childSource(), distal.childCube());
+		if (weaponCarrierAssembly != assembly || !anchor.equals(weaponCarrierAnchor)) {
+			weaponCarrier = terminalCarrier(assembly, distal);
+			weaponCarrierAssembly = assembly;
+			weaponCarrierAnchor = anchor;
+		}
+		return weaponCarrier;
+	}
+	private static CombinationMember terminalCarrier(SurgicalAssembly assembly, SurgicalAssembly.Limb distal) {
+		var anchor = new CombinationMember(distal.childSource(), distal.childCube());
+		var geometry = assembly.attackGeometry();
+		Vec3 parent = geometry.carrierOrigins().get(new CombinationMember(distal.parentSource(), distal.parentCube()));
+		if (parent == null) return anchor;
+		var members = assembly.rotatingGroup(anchor.source(), anchor.cube());
+		Vec3 center = Vec3.ZERO;
+		int count = 0;
+		for (var member : members) {
+			Vec3 origin = geometry.carrierOrigins().get(member);
+			if (origin != null) { center = center.add(origin); count++; }
+		}
+		if (count == 0) return anchor;
+		Vec3 direction = center.scale(1.0d / count).subtract(parent);
+		if (direction.lengthSqr() < 1.0e-8d) return anchor;
+		direction = direction.normalize();
+		CombinationMember terminal = anchor;
+		double furthest = Double.NEGATIVE_INFINITY;
+		for (var member : members) {
+			var corners = geometry.carrierCubes().get(member);
+			if (corners == null) continue;
+			double projection = Double.NEGATIVE_INFINITY;
+			for (Vec3 corner : corners)
+				projection = Math.max(projection, corner.subtract(parent).dot(direction));
+			if (projection > furthest + 1.0e-8d
+				|| Math.abs(projection - furthest) <= 1.0e-8d && ORDER.compare(member, terminal) < 0) {
+				terminal = member;
+				furthest = projection;
+			}
+		}
+		return terminal;
+	}
 	public boolean accepts(InteractionHand hand, ItemStack stack) {
 		Set<SurgicalAssembly.CombinationMember> members = armMembers(hand);
 		if (members.isEmpty()) return false;
-
-		return stack.getAttributeModifiers().modifiers().stream()
-			.anyMatch(entry -> entry.attribute().equals(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)
-				&& entry.modifier().amount() > 0);
+		return SlimeBionicEntity.isAttackWeapon(stack);
 	}
 
 	/** Axe removal takes precedence over opening the mount inventory, including for loaded boxes. */
@@ -448,16 +519,17 @@ public final class BionicEquipment {
 				}
 			} else if (!mayUse(player)) {
 				return InteractionResult.PASS;
-			} else if (accepts(hand, held)) {
+			} else if (accepts(InteractionHand.MAIN_HAND, held)) {
 				if (!client) {
-					ItemStack previous = entity.getItemInHand(hand);
-					entity.setItemInHand(hand, held.copyWithCount(1)); held.consume(1, player); give(player, previous);
-					entity.setGuaranteedDrop(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
+					normalizeWeaponHands();
+					ItemStack previous = entity.getMainHandItem();
+					entity.equipBionicLoot(EquipmentSlot.MAINHAND, held.copyWithCount(1));
+					held.consume(1, player); give(player, previous);
 				}
 			} else if (held.isEmpty() && hasChest(member)) {
 				openCarrierInventory(player, member);
-			} else if (held.isEmpty() && !entity.getItemInHand(hand).isEmpty()) {
-				if (!client) { give(player, entity.getItemInHand(hand)); entity.setItemInHand(hand, ItemStack.EMPTY); }
+			} else if (held.isEmpty() && !entity.getMainHandItem().isEmpty()) {
+				if (!client) { give(player, entity.getMainHandItem()); entity.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY); }
 			} else return InteractionResult.PASS;
 			return InteractionResult.sidedSuccess(client);
 		}
@@ -526,6 +598,7 @@ public final class BionicEquipment {
 	}
 	public void tick() {
 		if (entity.level().isClientSide) return;
+		normalizeWeaponHands();
 		// Nothing equipped and nobody mounted: every loop below would be a no-op.
 		if (saddles.isEmpty() && chests.isEmpty() && passengers.isEmpty() && entity.getPassengers().isEmpty())
 			return;
@@ -550,19 +623,54 @@ public final class BionicEquipment {
 	/** Mob.aiStep and pickUpItem own discovery, pickup events and removal. */
 	public ItemStack equipLoot(ItemStack incoming) {
 		if (!entity.getBionicTraits().has(BionicTrait.LOOT_PICKUP)) return ItemStack.EMPTY;
-		for (InteractionHand hand : InteractionHand.values()) {
-			if (armMembers(hand).stream().noneMatch(entity.getBionicTraits().members(BionicTrait.LOOT_PICKUP)::contains)
-				|| !accepts(hand, incoming) || !entity.canReplaceBionicWeapon(incoming, entity.getItemInHand(hand))) continue;
-			entity.spawnAtLocation(entity.getItemInHand(hand));
-			ItemStack equipped = incoming.copyWithCount(1);
-			entity.equipBionicLoot(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND, equipped);
-			return equipped;
+		normalizeWeaponHands();
+		if (!accepts(InteractionHand.MAIN_HAND, incoming)
+			|| !entity.canReplaceBionicWeapon(incoming, entity.getMainHandItem())) return ItemStack.EMPTY;
+		entity.spawnAtLocation(entity.getMainHandItem());
+		ItemStack equipped = incoming.copyWithCount(1);
+		entity.equipBionicLoot(EquipmentSlot.MAINHAND, equipped);
+		return equipped;
+	}
+	/** Keep weapons on an eligible arm, dropping invalid or excess equipment without deleting it. */
+	private void normalizeWeaponHands() {
+		if (entity.level().isClientSide || !entity.isAlive()) return;
+		ItemStack offhand = entity.getOffhandItem();
+		if (!offhand.isEmpty()) {
+			entity.setItemSlot(EquipmentSlot.OFFHAND, ItemStack.EMPTY);
+			if (entity.getMainHandItem().isEmpty() && accepts(InteractionHand.MAIN_HAND, offhand)) {
+				entity.equipBionicLoot(EquipmentSlot.MAINHAND, offhand.copyWithCount(1));
+				offhand.shrink(1);
+			}
+			if (!offhand.isEmpty()) entity.spawnAtLocation(offhand);
 		}
-		return ItemStack.EMPTY;
+		ItemStack mainhand = entity.getMainHandItem();
+		if (!mainhand.isEmpty() && !accepts(InteractionHand.MAIN_HAND, mainhand)) {
+			entity.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+			entity.spawnAtLocation(mainhand);
+			return;
+		}
+		if (mainhand.getCount() > 1) {
+			ItemStack surplus = mainhand.copyWithCount(mainhand.getCount() - 1);
+			entity.setItemSlot(EquipmentSlot.MAINHAND, mainhand.copyWithCount(1));
+			entity.spawnAtLocation(surplus);
+		}
 	}
 	private void dropChest(SimpleContainer cargo) {
 		entity.spawnAtLocation(Items.CHEST);
 		for (int slot = 0; slot < cargo.getContainerSize(); slot++) entity.spawnAtLocation(cargo.removeItemNoUpdate(slot));
+	}
+	/** Snapshot actual mounted items before native death processing empties the containers. */
+	public List<ItemStack> copyMountEquipment() {
+		List<ItemStack> items = new ArrayList<>();
+		saddles.values().forEach(stack -> items.add(stack.copy()));
+		for (SimpleContainer cargo : chests.values()) {
+			items.add(new ItemStack(Items.CHEST));
+			for (int slot = 0; slot < cargo.getContainerSize(); slot++) {
+				ItemStack stack = cargo.getItem(slot);
+				if (!stack.isEmpty()) items.add(stack.copy());
+			}
+		}
+		return items;
 	}
 	/** Transfer mount equipment and every cargo stack when unpacking onto a surgical table. */
 	public List<ItemStack> removeMountEquipment() {

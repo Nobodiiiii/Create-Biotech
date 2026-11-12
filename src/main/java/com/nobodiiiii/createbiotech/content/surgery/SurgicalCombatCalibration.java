@@ -5,6 +5,10 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
 
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.item.ItemStack;
 
 /** Shared anatomical calibration for a stitched body's per-arm melee output and cadence. */
 public final class SurgicalCombatCalibration {
@@ -60,6 +64,16 @@ public final class SurgicalCombatCalibration {
 
 	public static int armRecovery(ArmCombatStats stats) {
 		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL, stats.attackInterval());
+	}
+
+	/** Applies the weapon's main-hand damage attributes without attack speed, enchantments or effects. */
+	public static double attackDamageWithWeapon(double baseAttackDamage, ItemStack weapon) {
+		AttributeInstance damage = new AttributeInstance(Attributes.ATTACK_DAMAGE, attribute -> {});
+		damage.setBaseValue(baseAttackDamage);
+		weapon.getAttributeModifiers().forEach(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+			if (attribute.equals(Attributes.ATTACK_DAMAGE)) damage.addTransientModifier(modifier);
+		});
+		return damage.getValue();
 	}
 
 	/**

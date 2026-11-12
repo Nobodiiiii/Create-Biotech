@@ -29,6 +29,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
@@ -65,6 +66,8 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.entity.Saddleable;
 import net.minecraft.world.phys.Vec3;
 
@@ -795,6 +798,46 @@ public final class SurgicalCapturedRenderPlan {
 		if (cube < 0 || cube >= components.size())
 			return null;
 		return components.get(cube).geometry(new PoseStack(), null, null, null);
+	}
+
+	/** Attach the live item to the hand's measured model frame after all surgical animation. */
+	void renderMainHandItem(SlimeBionicEntity owner, int cube, PoseStack poseStack, MultiBufferSource buffer,
+		int packedLight, @Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation) {
+		if (cube < 0 || cube >= components.size() || owner.getMainHandItem().isEmpty()) return;
+		Component hand = components.get(cube);
+		if (hand.modelCorners.isEmpty()) return;
+		Matrix4f modelFrame = cornerFrame(hand.modelCorners, 1.0f / 16.0f);
+		if (Math.abs(modelFrame.determinant()) < 1.0e-12f) return;
+		var geometry = hand.geometry(poseStack, offset, rotation, null);
+		Matrix4f transform = cornerFrame(geometry.corners(), 1.0f).mul(modelFrame.invert());
+		double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY;
+		double maxY = Double.NEGATIVE_INFINITY, minZ = Double.POSITIVE_INFINITY;
+		for (Vec3 point : hand.modelCorners) {
+			minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+			maxY = Math.max(maxY, point.y); minZ = Math.min(minZ, point.z);
+		}
+		PoseStack itemPose = new PoseStack();
+		itemPose.mulPose(transform);
+		// The vanilla humanoid grip is at the lower, front edge of the arm. Use the measured
+		// dimensions so short, long, scaled and transplanted forearms keep their own grip.
+		itemPose.translate((minX + maxX) / 32.0d, maxY / 16.0d, minZ / 16.0d);
+		itemPose.mulPose(Axis.XP.rotationDegrees(-90.0f));
+		itemPose.mulPose(Axis.YP.rotationDegrees(180.0f));
+		boolean left = owner.getMainArm() == HumanoidArm.LEFT;
+		Minecraft.getInstance().getEntityRenderDispatcher().getItemInHandRenderer().renderItem(owner,
+			owner.getMainHandItem(), left ? ItemDisplayContext.THIRD_PERSON_LEFT_HAND
+				: ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, left, itemPose, buffer, packedLight);
+	}
+
+	private static Matrix4f cornerFrame(List<Vec3> corners, float scale) {
+		Vec3 origin = corners.getFirst().scale(scale);
+		Vec3 a = corners.get(1).scale(scale).subtract(origin);
+		Vec3 b = corners.get(2).scale(scale).subtract(origin);
+		Vec3 c = corners.get(4).scale(scale).subtract(origin);
+		return new Matrix4f().setColumn(0, new Vector4f((float) a.x, (float) a.y, (float) a.z, 0))
+			.setColumn(1, new Vector4f((float) b.x, (float) b.y, (float) b.z, 0))
+			.setColumn(2, new Vector4f((float) c.x, (float) c.y, (float) c.z, 0))
+			.setColumn(3, new Vector4f((float) origin.x, (float) origin.y, (float) origin.z, 1));
 	}
 
 	private List<SlimeMimicCubeGeometry> deathGeometry(int source, Vec3 worldOrigin) {

@@ -24,16 +24,19 @@ import net.minecraft.world.phys.Vec3;
 
 /** One server-authoritative scheduler shared by head, torso and spell attacks. */
 public final class BionicSpecialAttacks {
+	public static final int EVOKER_FANGS_ACTION = 5;
+	public static final int WITCH_POTION_ACTION = 8;
+	private static final String SONIC_BOOM_KEY = "sonic_boom/minecraft:sonic_boom";
 	private final SlimeBionicEntity entity;
 	private final Map<String, Integer> cooldowns = new HashMap<>();
 	@Nullable private Choice action;
 	@Nullable private LivingEntity target;
-	private int elapsed, warmup, duration, roarTicks, blazeShots, nextBlazeShot;
+	private int elapsed, warmup, duration, blazeShots, nextBlazeShot;
 	@Nullable private net.minecraft.world.entity.ai.goal.RangedAttackGoal rangedGoal;
 	private boolean fired;
 	public BionicSpecialAttacks(SlimeBionicEntity entity) { this.entity = entity; }
-	public boolean busy() { return action != null || roarTicks > 0; }
-	public boolean locksMovement() { return roarTicks > 0 || action != null && rangedGoal == null && !action.kind().equals("small_fireball"); }
+	public boolean busy() { return action != null; }
+	public boolean locksMovement() { return action != null && rangedGoal == null && !action.kind().equals("small_fireball"); }
 	private record Choice(BionicTrait trait, BionicSubtrait variant,
 		Set<SurgicalAssembly.CombinationMember> members) {
 		String key() { return trait.id() + "/" + variant.id(); }
@@ -45,20 +48,14 @@ public final class BionicSpecialAttacks {
 	public void tick() {
 		cooldowns.replaceAll((key, value) -> Math.max(0, value - 1));
 
-		if (!entity.isAlive() || entity.isNoAi() || entity.isOrderedToSit() || entity.isVehicle()) { cancel(); roarTicks = 0; return; }
-		if (roarTicks > 0) {
-			if (!entity.getBionicTraits().has(BionicTrait.ROAR)) { roarTicks = 0; cancel(); return; }
-			entity.getNavigation().stop(); entity.setDeltaMovement(entity.getDeltaMovement().multiply(0, 1, 0));
-			entity.syncSpecialAction(4, 0);
-			entity.syncSpecialOrigin(BionicTraitRuntime.origin(entity, entity.getBionicTraits().members(BionicTrait.ROAR)));
-			roarTicks--;
-			if (roarTicks == 20) entity.playSound(SoundEvents.RAVAGER_ROAR);
-			if (roarTicks == 10) roar();
-			if (roarTicks == 0) entity.syncSpecialAction(0, 0);
-			return;
-		}
+		if (!entity.isAlive() || entity.isNoAi() || entity.isOrderedToSit() || entity.isVehicle()) { cancel(); return; }
 		if (action != null) {
-			if (target == null || !target.isAlive() || target != entity.getTarget() || !stillAvailable(action)) { cancel(); return; }
+			if (!stillAvailable(action)) { cancel(); return; }
+			if (action.trait == BionicTrait.SONIC_BOOM) {
+				// SonicBoom.canStillUse keeps the native 60-tick action alive even without
+				// an attack target. Resolve the current target at launch; never cut off recovery.
+				target = entity.getTarget();
+			} else if (target == null || !target.isAlive() || target != entity.getTarget()) { cancel(); return; }
 			if (rangedGoal != null) {
 				if (!rangedGoal.canContinueToUse()) { cancel(); return; }
 				rangedGoal.tick();
@@ -69,7 +66,7 @@ public final class BionicSpecialAttacks {
 				}
 				return;
 			}
-			entity.getLookControl().setLookAt(target, 30, 30);
+			if (target != null && target.isAlive()) entity.getLookControl().setLookAt(target, 30, 30);
 			if (action.kind().equals("small_fireball")) {
 				if (entity.distanceToSqr(target) < 4) { cancel(); return; }
 				elapsed++;
@@ -182,6 +179,8 @@ public final class BionicSpecialAttacks {
 		if (usesRangedGoal(choice)) {
 			rangedGoal = new net.minecraft.world.entity.ai.goal.RangedAttackGoal(entity, 1.0,
 				choice.ticks("cooldown_ticks", 40), (float) choice.range());
+			// RangedAttackGoal initializes its internal target in canUse(), not start().
+			if (!rangedGoal.canUse()) { cancel(); return; }
 			rangedGoal.start();
 		}
 		warmup = choice.ticks("warmup_ticks", 0);
@@ -189,7 +188,8 @@ public final class BionicSpecialAttacks {
 		blazeShots = 0; nextBlazeShot = warmup;
 		duration = Math.max(1, choice.ticks("action_ticks", warmup + (choice.kind().equals("small_fireball") ? 18 : 0)));
 		entity.syncSpecialAction(choice.trait == BionicTrait.GUARDIAN_BEAM ? 7 : choice.trait == BionicTrait.SONIC_BOOM ? 1
-			: choice.trait == BionicTrait.SPELLCASTING ? 5 : 3, victim.getId());
+			: choice.trait == BionicTrait.SPELLCASTING
+				? choice.kind().equals("potion") ? WITCH_POTION_ACTION : EVOKER_FANGS_ACTION : 3, victim.getId());
 		if (choice.trait == BionicTrait.SONIC_BOOM) entity.playSound(SoundEvents.WARDEN_SONIC_CHARGE, 3, 1);
 		if (choice.trait == BionicTrait.GUARDIAN_BEAM) entity.playSound(SoundEvents.GUARDIAN_ATTACK, 1, 1);
 		if (choice.kind().equals("fangs")) entity.playSound(SoundEvents.EVOKER_PREPARE_ATTACK);
@@ -226,7 +226,9 @@ public final class BionicSpecialAttacks {
 			victim.hurt(entity.damageSources().indirectMagic(entity, entity), magic);
 			victim.hurt(entity.damageSources().mobAttack(entity), (float) choice.variant.parameter("damage", 6)); return;
 		}
-		if (choice.kind().equals("fangs")) { fangs(origin, victim); return; }
+		if (choice.kind().equals("fangs")) {
+			fangs(origin, victim); entity.playSound(SoundEvents.EVOKER_CAST_SPELL); return;
+		}
 		Projectile projectile;
 		switch (choice.kind()) {
 		case "spit" -> {
@@ -269,7 +271,7 @@ public final class BionicSpecialAttacks {
 			ThrownPotion thrown = new ThrownPotion(level, entity);
 			thrown.setItem(PotionContents.createItemStack(Items.SPLASH_POTION, potion)); thrown.setXRot(thrown.getXRot() + 20);
 			thrown.shoot(delta.x, delta.y + horizontal * 0.2, delta.z, 0.75f, 8); projectile = thrown;
-			entity.playSound(SoundEvents.WITCH_THROW);
+			entity.playSound(SoundEvents.WITCH_THROW, 1, 0.8f + entity.getRandom().nextFloat() * 0.4f);
 		}
 		default -> { return; }
 		}
@@ -306,35 +308,17 @@ public final class BionicSpecialAttacks {
 			BionicCombatEvents.mark(fang, entity); entity.level().addFreshEntity(fang); return;
 		}
 	}
-	public void afterMelee() { cooldowns.put("sonic_boom/minecraft:sonic_boom", 40); }
-	public void blockedByShield(LivingEntity living) {
-		if (roarTicks > 0 && roarTicks <= 20) return;
-		if (entity.getRandom().nextBoolean()) {
-			cancel(); roarTicks = (int) entity.getBionicTraits().parameter(BionicTrait.ROAR, "stun_ticks", 40) + 20;
-			entity.playSound(SoundEvents.RAVAGER_STUNNED); living.push(entity);
-		} else push(living);
-	}
-	private void roar() {
-		for (LivingEntity victim : entity.level().getEntitiesOfClass(LivingEntity.class, entity.getBoundingBox().inflate(
-			entity.getBionicTraits().parameter(BionicTrait.ROAR, "range", 4)), e -> e != entity && e.isAlive() && e.getType() != EntityType.RAVAGER && !entity.isAlliedTo(e))) {
-			if (!(victim instanceof net.minecraft.world.entity.monster.AbstractIllager))
-				victim.hurt(entity.damageSources().mobAttack(entity), (float) entity.getBionicTraits().parameter(BionicTrait.ROAR, "damage", 6));
-			push(victim);
-		}
-		((ServerLevel) entity.level()).sendParticles(ParticleTypes.POOF, entity.getX(), entity.getEyeY(), entity.getZ(), 40, 1, 1, 1, 0.1);
-	}
-	private void push(LivingEntity victim) {
-		Vec3 direction = victim.position().subtract(entity.position()); double squared = Math.max(0.001, direction.horizontalDistanceSqr());
-		victim.push(direction.x / squared * 4, 0.2, direction.z / squared * 4); victim.hurtMarked = true;
-	}
+	/** Matches Warden.setAttackTarget's initial melee window; repeated assignments of one target do not restart it. */
+	public void onTargetAcquired() { cooldowns.put(SONIC_BOOM_KEY, 200); }
+	public void afterMelee() { cooldowns.put(SONIC_BOOM_KEY, 40); }
 	public void save(CompoundTag root) {
 		CompoundTag tag = new CompoundTag(); cooldowns.forEach(tag::putInt);
 		if (action != null) tag.putInt(action.key(), Math.max(tag.getInt(action.key()), action.ticks("cooldown_ticks", 40)));
-		tag.putInt("RoarTicks", roarTicks); root.put("BionicSpecialAttacks", tag);
+		root.put("BionicSpecialAttacks", tag);
 	}
 	public void load(CompoundTag root) {
 		cooldowns.clear(); CompoundTag tag = root.getCompound("BionicSpecialAttacks");
-		for (String key : tag.getAllKeys()) if (!key.equals("RoarTicks")) cooldowns.put(key, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
-		roarTicks = net.minecraft.util.Mth.clamp(tag.getInt("RoarTicks"), 0, 200); action = null;
+		for (String key : tag.getAllKeys()) if (key.contains("/")) cooldowns.put(key, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
+		action = null;
 	}
 }

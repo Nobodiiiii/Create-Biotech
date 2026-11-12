@@ -22,8 +22,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.EntityType;
 
 /**
- * Header tooltips explain inheritance types; acquisition conditions follow the effect description.
- * Coverage thresholds follow server data packs; effect descriptions use reference values.
+ * Header tooltips explain inheritance types; optional limb counts and wing lift follow the effect.
+ * Displayed thresholds, limb counts and lift limits follow server data packs.
  */
 final class BionicTraitJeiText {
 	private static final String PREFIX = "create_biotech.jei.trait.";
@@ -35,7 +35,7 @@ final class BionicTraitJeiText {
 		text.add(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
 		Component condition = condition(trait);
 		if (condition != null)
-			text.add(tr("condition", condition).withStyle(ChatFormatting.BLACK));
+			text.add(tr("condition", condition).withStyle(ChatFormatting.GRAY));
 		return List.copyOf(text);
 	}
 
@@ -82,7 +82,7 @@ final class BionicTraitJeiText {
 		if (roles.isEmpty())
 			return null;
 		boolean requiredTogether = switch (trait.condition()) {
-		case WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH -> true;
+		case WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST -> true;
 		default -> false;
 		};
 		return join(roles.stream().sorted()
@@ -101,23 +101,22 @@ final class BionicTraitJeiText {
 
 	@Nullable
 	private static Component condition(BionicTrait trait) {
-		if (trait.isHeadClassification())
-			return tr("condition.head_retention", percentage(BionicTraitClientRules.rule(trait).minCoverage()));
-		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
-			return tr("condition.numeric");
-		if (trait == BionicTrait.SHELL_DEFENSE)
-			return tr("condition.shell_defense");
-		return switch (trait.condition()) {
-		case NONE -> null;
-		case BODY_VOLUME -> tr("condition.body_volume");
-		case WOOL_AND_BODY -> tr("condition.wool_and_body");
-		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH ->
-			tr("condition." + trait.condition().name().toLowerCase(Locale.ROOT));
-		case WING_LIFT -> tr("condition.wings");
-		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",
-			trait == BionicTrait.AGILE_LANDING || trait == BionicTrait.WALL_CLIMB
-				|| trait == BionicTrait.STRONG_JUMP || trait == BionicTrait.WING_SLOW_FALL ? 2 : 1);
+		List<Component> conditions = new ArrayList<>();
+		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);
+		boolean wings = switch (trait.condition()) {
+		case WING_LIFT, LIMB_COUNT -> true;
+		default -> false;
 		};
+		if (legs || wings) {
+			int minimum = BionicTraitClientRules.minLimbs(trait);
+			// One qualifying chain is implicit in the normal regional acquisition rule.
+			if (minimum != 1)
+				conditions.add(tr(legs ? "condition.legs" : "condition.arms", minimum));
+		}
+		if (trait.condition() == BionicTrait.Condition.WING_LIFT)
+			conditions.add(tr("condition.wing_lift", BigDecimal.valueOf(
+				BionicTraitClientRules.maxBodyVolumePerWingVolume(trait)).stripTrailingZeros().toPlainString()));
+		return conditions.isEmpty() ? null : join(conditions, tr("condition.separator"));
 	}
 
 	private static Component join(List<? extends Component> components, Component separator) {

@@ -38,7 +38,7 @@ public final class BionicProduction {
 	private int flowerCooldown, pollinatingTicks;
 	@Nullable private net.minecraft.world.phys.Vec3 hoverPos;
 	@Nullable private BlockPos flower;
-	private boolean pollen, ignited, charged, exploding;
+	private boolean pollen, ignited, exploding;
 	@Nullable private SurgicalAssembly carrierAssembly;
 	@Nullable private BionicTraitSet carrierTraits;
 	private ProductionCarriers productionCarriers = ProductionCarriers.EMPTY;
@@ -92,11 +92,10 @@ public final class BionicProduction {
 		return Math.max(1, (int) entity.getBionicTraits().parameter(trait, name, fallback));
 	}
 	private void sync() {
-		entity.setProductionFlags((woolTicks > 0 ? 1 : 0) | (charged ? 2 : 0) | fuse << 2);
+		entity.setProductionFlags((woolTicks > 0 ? 1 : 0) | fuse << 2);
 		entity.setBionicPollen(pollen && has(BionicTrait.POLLINATION));
 	}
 	public boolean exploding() { return exploding; }
-	public void charge() { if (has(BionicTrait.SELF_DESTRUCT)) { charged = true; sync(); } }
 	public boolean shearable() {
 		return entity.isAlive() && has(BionicTrait.WOOL_SHEARING) && !entity.isSheared();
 	}
@@ -299,7 +298,7 @@ public final class BionicProduction {
 		exploding = true;
 		entity.markSelfDestructing();
 		entity.level().explode(entity, entity.getX(), entity.getY(), entity.getZ(),
-			parameter(BionicTrait.SELF_DESTRUCT, charged ? "charged_power" : "power", charged ? 6 : 3),
+			parameter(BionicTrait.SELF_DESTRUCT, "power", 3),
 			EventHooks.canEntityGrief(entity.level(), entity) ? Level.ExplosionInteraction.MOB : Level.ExplosionInteraction.NONE);
 		if (!entity.getActiveEffects().isEmpty()) {
 			AreaEffectCloud cloud = new AreaEffectCloud(entity.level(), entity.getX(), entity.getY(), entity.getZ());
@@ -314,7 +313,7 @@ public final class BionicProduction {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt("Egg", eggTicks); tag.putInt("Scute", scuteTicks); tag.putInt("Wool", woolTicks);
 		tag.putInt("FlowerCooldown", flowerCooldown); tag.putInt("PollenTicks", pollenTicks); tag.putInt("Crops", crops); tag.putBoolean("Pollen", pollen);
-		tag.putBoolean("Ignited", ignited); tag.putBoolean("Charged", charged); tag.putInt("Fuse", fuse);
+		tag.putBoolean("Ignited", ignited); tag.putInt("Fuse", fuse);
 		if (flower != null) tag.putLong("Flower", flower.asLong());
 		root.put("BionicProduction", tag);
 	}
@@ -326,7 +325,7 @@ public final class BionicProduction {
 		flowerCooldown = net.minecraft.util.Mth.clamp(tag.getInt("FlowerCooldown"), 0, 200);
 		pollenTicks = net.minecraft.util.Mth.clamp(tag.getInt("PollenTicks"), 0, 24000);
 		crops = net.minecraft.util.Mth.clamp(tag.getInt("Crops"), 0, SurgicalAssembly.MAX_CUBES * 100); pollen = tag.getBoolean("Pollen");
-		ignited = tag.getBoolean("Ignited"); charged = tag.getBoolean("Charged");
+		ignited = tag.getBoolean("Ignited");
 		fuse = net.minecraft.util.Mth.clamp(tag.getInt("Fuse"), 0, 24000);
 		flower = tag.contains("Flower") ? BlockPos.of(tag.getLong("Flower")) : null; sync();
 	}
