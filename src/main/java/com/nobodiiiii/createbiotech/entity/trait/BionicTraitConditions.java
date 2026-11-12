@@ -34,8 +34,6 @@ final class BionicTraitConditions {
 		case COMPLETE_CHEST -> List.of(Carrier.of(BionicAnatomyRole.TORSO)
 			.excluding(BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE),
 			Carrier.of(BionicAnatomyRole.LEFT_RIBCAGE), Carrier.of(BionicAnatomyRole.RIGHT_RIBCAGE));
-		case HEAD_AND_TENDRIL -> List.of(Carrier.of(BionicAnatomyRole.HEAD_CORE).excluding(BionicAnatomyRole.TENDRIL),
-			Carrier.of(BionicAnatomyRole.TENDRIL));
 		case HEAD_AND_MOUTH -> List.of(Carrier.of(BionicAnatomyRole.HEAD_CORE).excluding(BionicAnatomyRole.MOUTH),
 			Carrier.of(BionicAnatomyRole.MOUTH));
 		default -> List.of();
@@ -109,7 +107,7 @@ final class BionicTraitConditions {
 		if (data.rule().type() != BionicTraitType.COVERAGE_THRESHOLD)
 			return null;
 		return switch (trait.condition()) {
-		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH -> null;
+		case NONE, WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH -> null;
 		case BODY_VOLUME -> !assembly.hasBodyVolume() ? InactiveReason.BODY_MEASUREMENT_UNAVAILABLE
 			: assembly.bodyVolume() < data.parameter("min_body_volume", 0.5d) ? InactiveReason.PURPOSE_MISMATCH : null;
 		case WING_LIFT -> {

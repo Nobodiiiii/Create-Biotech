@@ -2,10 +2,13 @@ package com.nobodiiiii.createbiotech.client;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
@@ -26,6 +29,8 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class BionicTraitDonorIndex {
 	private static final Map<BionicTrait, List<EntityType<?>>> DONORS = new EnumMap<>(BionicTrait.class);
+	private static final Map<EntityType<?>, Map<BionicTrait, Set<BionicAnatomyRole>>> CARRIERS = new HashMap<>();
+	private static long revision;
 	private static ClientPacketListener connection;
 	private static long generation = -1;
 	private static long nextRequest;
@@ -77,6 +82,8 @@ public final class BionicTraitDonorIndex {
 			return;
 		if (generation != packet.generation()) {
 			DONORS.clear();
+			CARRIERS.clear();
+			revision++;
 			received = 0;
 			generation = packet.generation();
 		}
@@ -84,11 +91,13 @@ public final class BionicTraitDonorIndex {
 			return;
 		for (var entry : packet.entries()) {
 			BuiltInRegistries.ENTITY_TYPE.getOptional(entry.entity()).ifPresent(type -> {
+				CARRIERS.put(type, entry.carriers());
 				for (BionicTrait trait : BionicTrait.values())
 					if (entry.provides(trait))
 						DONORS.computeIfAbsent(trait, ignored -> new ArrayList<>()).add(type);
 			});
 		}
+		if (!packet.entries().isEmpty()) revision++;
 		received += packet.entries().size();
 		checked = packet.checked();
 		total = packet.total();
@@ -97,6 +106,10 @@ public final class BionicTraitDonorIndex {
 	}
 
 	public static List<EntityType<?>> donors(BionicTrait trait) { return DONORS.getOrDefault(trait, List.of()); }
+	public static Set<BionicAnatomyRole> carriers(BionicTrait trait, EntityType<?> donor) {
+		return CARRIERS.getOrDefault(donor, Map.of()).getOrDefault(trait, Set.of());
+	}
+	public static long revision() { return revision; }
 	public static List<BionicTrait> traits(EntityType<?> donor) {
 		return DONORS.entrySet().stream()
 			.filter(entry -> entry.getValue().contains(donor))
@@ -113,6 +126,8 @@ public final class BionicTraitDonorIndex {
 
 	private static void clear() {
 		DONORS.clear();
+		CARRIERS.clear();
+		revision++;
 		connection = null;
 		generation = -1;
 		nextRequest = 0;

@@ -2,15 +2,17 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
@@ -70,7 +72,8 @@ public final class BionicTraitDonorCatalog {
 				Entity prototype = type.create(server.overworld());
 				if (prototype instanceof LivingEntity living) {
 					BionicTraitDonors.Facts facts = BionicTraitDonors.detect(living);
-					EnumSet<BionicTrait> provided = EnumSet.noneOf(BionicTrait.class);
+					var data = BionicTraitRegistry.snapshot();
+					Map<BionicTrait, Set<BionicAnatomyRole>> provided = new EnumMap<>(BionicTrait.class);
 					for (BionicTrait trait : BionicTrait.values()) {
 						boolean provides = switch (trait.valueKind()) {
 						case ABILITY -> facts.has(trait);
@@ -80,7 +83,8 @@ public final class BionicTraitDonorCatalog {
 						case ATTACK_EFFECT_SET -> !facts.attackEffects().isEmpty();
 						};
 						if (provides)
-							provided.add(trait);
+							provided.put(trait, BionicTraitCarriers.donorRoles(trait, data.get(trait),
+								BuiltInRegistries.ENTITY_TYPE.getKey(type), facts));
 					}
 					if (!provided.isEmpty())
 						scan.entries.add(new BionicTraitDonorsPacket.Entry(BuiltInRegistries.ENTITY_TYPE.getKey(type), provided));
@@ -103,6 +107,8 @@ public final class BionicTraitDonorCatalog {
 		private final long generation = BionicTraitRegistry.generation();
 		private final List<EntityType<?>> types = BuiltInRegistries.ENTITY_TYPE.stream()
 			.filter(type -> type != EntityType.PLAYER)
+			// Assemblies inherit traits from their sources; they are not donor species themselves.
+			.filter(type -> type != CBEntityTypes.SLIME_BIONIC.get())
 			// NeoForge includes mod-registered suppliers in this lookup as well.
 			.filter(DefaultAttributes::hasSupplier)
 			.sorted(Comparator.comparing(type -> BuiltInRegistries.ENTITY_TYPE.getKey(type).toString())).toList();

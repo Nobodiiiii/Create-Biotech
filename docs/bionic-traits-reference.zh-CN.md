@@ -23,8 +23,8 @@
 | 离水窒息 | 鱼类 | `WaterAnimal.handleAirSupply` 的计时与伤害 |
 | 摔落抵抗 | 马 | 安全距离 6、伤害倍率 0.5 |
 | 近战击飞 | 铁傀儡 | 成功命中后纵向增加 0.4×击退抗性系数 |
-| 中毒附效攻击 | 蜜蜂 | 按难度施加中毒的分支 |
-| 呼唤同伴 | 狼 | `HurtByTargetGoal.setAlertOthers` 的受伤呼援流程 |
+| 附效攻击 | 共用近战附效参数 | 中毒、凋零、饥饿均为 I 级、200 tick、必定触发，允许持武器命中 |
+| 呼唤同伴 | 狼的触发流程、各供体的呼援对象 | `HurtByTargetGoal.setAlertOthers` 的受伤呼援流程，保留供体原本呼唤的生物 |
 | 扑翼缓降 | 鸡 | 下落纵向速度 ×0.6 |
 | 游泳物理 | 美西螈 | 平滑游泳控制、中性浮力与水中阻尼 |
 
@@ -69,9 +69,11 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 
 天然护甲、击退抗性、自然恢复、击退强化按供体数值从高到低取前 `min_coverage`（默认 50%）体积加权平均，剩余取值体积以 0 补齐。**汇总原始值达到 0.1 时生效，并四舍五入保留一位小数；计算与提示共用该结果。** 例如单一马系自然恢复约 0.0222／秒，对应有效汇总值为 0.0；完整劫掠兽击退抗性贡献 0.75，量化后为 0.8。
 
-效果免疫按每种效果分别累计体积并判定门槛。附效攻击按命中臂上的对应载体执行。腿部特性按有效腿数判定；扑翼飞行按有效翼数与承重判定；游泳专长按躯干覆盖率判定。持续呼吸模式优先采用“无需呼吸”，其次采用水生或空气呼吸模式。
+效果免疫按每种效果分别累计体积并判定门槛。附效攻击接受供体的全身任意组织，按包含该组织的命中臂执行；各状态效果共用持续时间、等级、概率和空手限制，默认 I 级、200 tick、必定触发且允许持武器，不随难度变化。腿部特性按有效腿数判定；扑翼飞行按有效翼数与承重判定；游泳专长按躯干覆盖率判定。持续呼吸模式优先采用“无需呼吸”，其次采用水生或空气呼吸模式。
 
 供体覆盖按自动探测、实体标签、精确实体 ID 的顺序应用。规范文件位于 `data/create_biotech/bionic_traits/`；扩展命名空间的同名文件提供 `values` 覆盖。性情和智力分类分别沿用 `bionic_head/disposition/`、`bionic_head/intelligence/`。数值项的 `min_coverage` 表示取值体积比例，门槛型表示获取比例，特殊型表示供体原始头部保留比例，存在型和普通比例型按各自规则计算。
+
+`effect_attack.json` 使用共用的 `attack_settings` 声明 `duration_ticks`、`amplifier`、`chance` 和 `unarmed_only`，`effects` 仅列出状态效果 ID。省略或留空 `roles` 表示供体全身组织；旧数据包未声明 `attack_settings` 时仍兼容每效果参数。
 
 ### 4. 特性覆盖配置
 
@@ -152,17 +154,17 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 | 头 | `dry_suffocation` | 离水窒息（负面） | 被动 | 鳃`GILL`：鳕鱼、鲑鱼为 `head`；其余为 `body` | 数据：鳕鱼、鲑鱼、热带鱼、河豚、鱿鱼、发光鱿鱼、蝌蚪 | 头部载体覆盖率 ≥ 0.5；采用水生呼吸模式 | 离水时按鱼类氧气计数：初始 300 tick，计数至 -20 时受到 2 点溺水伤害并重置为 0；水或气泡使氧气补满 | 统一采用鱼类模板，复刻 [WaterAnimal.handleAirSupply](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/WaterAnimal.java) 的 300 tick 初始氧气与 -20 tick 伤害周期 |
 | 头 | `tameable` | 可驯服（宠物） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`（狼、猫、鹦鹉）；数据补充：狐狸、豹猫、悦灵 | 头部安装范围内有对应载体 | 喂史莱姆球获得主人；主人无特殊交互时右键切换坐下，超过 10 格开始跟随、近于 2 格停止，远距离按跟随 Goal 尝试回到主人身边；协助主人战斗；覆盖家畜驯服，后者不显示也不生效；分裂史莱姆继承主人和宠物行为 | 沿用原 `tameable` ID；复刻 [FollowOwnerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FollowOwnerGoal.java)、[SitWhenOrderedToGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SitWhenOrderedToGoal.java) 与 [TamableAnimal.tryToTeleportToOwner](../ref/1.21.1/Minecraft/net/minecraft/world/entity/TamableAnimal.java) 的行为流程 |
 | 头 | `livestock_tameable` | 可驯服（家畜） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`AbstractHorse`（马、驴、骡、羊驼、行商羊驼；排除骷髅马、僵尸马、骆驼） | 头部安装范围内有对应载体，且无生效的宠物驯服 | 喂史莱姆球获得主人，保留同主识别、治疗和主人专属的骑乘／驮运操作；保留游走、生产与自身防御，不跟随或传送至主人，不接受坐下指令、不协助主人战斗，也不响应同主同伴呼援；分裂史莱姆继承主人和家畜类别 | 仅拆分已有供体；骑乘、驮运及生产仍须各自特性生效。马类原生游走参照 [AbstractHorse.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java) |
-| 头 | `vibration_sense` | 振动感知 | 技能 | 头部主体 `HEAD_CORE` + 触须 `TENDRIL`：监守者 `head` + `left_tendril`／`right_tendril` | 监守者 | 存在型；同一头部链内保留监守者头部主体和至少一根触须；正在追踪目标 | 监听 12 格内已有目标的游戏振动，按潜行与羊毛隔振规则接收；追踪最近声源位置并保留 40 tick 记忆 | 复用 [VibrationSystem.Listener / Ticker / User](../ref/1.21.1/Minecraft/net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java) 与现有 [目标跟踪接入](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicVibrationSense.java) |
+| 头 | `vibration_sense` | 振动感知 | 技能 | 触须 `TENDRIL`：监守者 `left_tendril`／`right_tendril` | 监守者 | 存在型；头部范围内保留监守者触须即可，无需头部主体；正在追踪目标 | 监听 12 格内已有目标的游戏振动，按潜行与羊毛隔振规则接收；追踪最近声源位置并保留 40 tick 记忆 | 复用 [VibrationSystem.Listener / Ticker / User](../ref/1.21.1/Minecraft/net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java) 与现有 [目标跟踪接入](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicVibrationSense.java) |
 | 头 | `deterrence` | 生物威慑 | 技能 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 头部安装范围内有对应载体 | 按现有威慑关系适配目标生物的避让 Goal／Brain；距离、速度、概率和记忆时长采用关系表模板 | 复用 [AvoidEntityGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/AvoidEntityGoal.java)；Brain 生物沿用 [VillagerHostilesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/VillagerHostilesSensor.java)、[PiglinAi.avoidZombified](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java)；按关系表适配威胁身份 |
 | 头 | `hunting_instinct` | 捕猎本能（目标生物…） | 技能 | 头 `HEAD`，包括捕获头部 | 见本表“捕猎关系” | 头部安装范围内有对应载体；目标满足捕猎关系表 | 按供体目标谓词、距离、亮度、驯服状态和冷却主动捕猎；沿用主人与盟友关系 | 复用原版目标 Goal、[AxolotlAttackablesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/AxolotlAttackablesSensor.java) 与 [PiglinAi](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java) 的目标谓词；复刻供体约束，见捕猎关系表 |
-| 头 | `pack_alert` | 呼唤同伴 | 技能 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 头部安装范围内有对应载体；进入原版受伤报复流程；统一采用狼模板 | 按原版伤害时间戳触发，通知跟随范围与纵向 ±10 格内符合关系的同伴，沿用原方法的目标与盟友判定；同伴身份映射到供体与主人关系 | 统一采用狼的受伤呼援模板，复用 `HurtByTargetGoal.setAlertOthers / alertOther`；供体入口见 [Wolf.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Wolf.java)；同伴身份沿用供体与主人关系 |
+| 头 | `pack_alert` | 呼唤同伴 | 技能 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 头部安装范围内有对应载体；进入原版受伤报复流程；触发统一采用狼模板 | 按原版伤害时间戳触发，呼唤跟随范围与纵向 ±10 格内供体原本会呼唤的生物；多供体合并对象，不呼唤仿生生物；狼沿用主人关系与坐下限制 | `BionicPackAlertGoal` 复用 `HurtByTargetGoal.setAlertOthers / alertOther`，按有效载体供体选择原生呼援类别；供体入口见 [Wolf.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Wolf.java)、[Zombie.addBehaviourGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java)、[PiglinAi.broadcastAngerTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java)、[HoglinAi.broadcastAttackTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/hoglin/HoglinAi.java) |
 | 头 | `roar` | 咆哮 | 技能 | 头部主体 `HEAD_CORE` + 嘴 `MOUTH`：劫掠兽 `head_core` + `mouth` | 数据：劫掠兽 | 存在型；同一头部链内保留劫掠兽头部主体和嘴；角不提供此能力 | 50% 概率眩晕 40 tick，随后进入 20 tick 咆哮阶段，在剩余 10 tick 时结算；4 格范围内按劫掠兽的伤害与击退筛选造成 6 点伤害和强力击退，另一分支直接强力推开格挡者 | 复刻 [Ravager.blockedByShield / aiStep / roar / strongKnockback](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Ravager.java) |
 | 头 | `head_projectile` | 头部投射 | 技能 | 头`HEAD`：各供体的头部件，见子表 4 | 数据：羊驼、行商羊驼、雪傀儡、烈焰人、恶魂、潜影贝、凋灵、末影龙、旋风人 | 头部安装范围内有对应载体；按智力选择现有投射子项 | 从头部载体质心发射对应原版弹射物，目标选择、预热、射速、连发、散布和冷却采用投射子表；沿用主人、盟友、爆炸与引火规则；龙息云可装瓶 | 复用 [RangedAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/RangedAttackGoal.java) 与原版弹射物实体；按投射子表复刻供体发射方法 |
 | 头 | `guardian_beam` | 守卫者光束 | 技能 | 眼`EYE`：守卫者、远古守卫者的 `eye` | 数据：守卫者、远古守卫者 | 头部安装范围内有眼载体；目标可见，普通守卫者距离 >3 格 | 停止寻路并注视目标，预热 10 tick，普通照射 80 tick、远古 60 tick；失去视线时清除攻击目标；结算基础魔法伤害 1（困难 +2、远古 +2）及原版近战伤害 6／8 | 复刻 [Guardian.GuardianAttackGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Guardian.java) 与 [ElderGuardian.getAttackDuration](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/ElderGuardian.java) |
 | 臂 | `wing_flight` | 扑翼飞行 | 技能 | 左翅`LEFT_WING` 或右翅 `RIGHT_WING`：`leftWing` / `left_wing` / `leftWingBase` / `leftWingTip` 等及其右侧对应部件 | 蜜蜂、鹦鹉、蝙蝠、幻翼、悦灵、恼鬼、末影龙 | 翅膀安装为臂；每臂 c ≥ 0.5；有效翼 ≥2；身体体积 ≤16×有效翼载体体积 | 单臂翼覆盖率达标后作为翅膀；飞行按有效翼数与承重判定，播放供体飞行动画并提供摔落免疫；臂腿行走由装配关节动作驱动，攻击臂集合由普通手臂组成 | 复用飞行控制器、导航与供体 `setupAnim`；模型依据见 [BeeModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/BeeModel.java)、[BatModel](../ref/1.21.1/Minecraft/net/minecraft/client/model/BatModel.java)；装配动作见补充 |
-| 臂 | `effect_attack` | 附效攻击（中毒／凋零／饥饿） | 被动 | 中毒：口器 `MOUTH` 或刺 `SPINE`；凋零、饥饿：攻击手 `ATTACK_HAND` | 洞穴蜘蛛、蜜蜂、河豚：中毒；凋灵骷髅：凋零；尸壳：饥饿 | 对应口器、刺或攻击手装为臂，并由该臂命中；饥饿采用空手命中 | 中毒统一采用蜜蜂模板：普通 200 tick、困难 360 tick；凋零 I 200 tick；饥饿 I 140×局部有效难度整数 tick；每效果保留现有概率、等级与载体参数 | 复用 `LivingEntity.addEffect`；中毒统一取 [Bee.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Bee.java)，凋零取 [WitherSkeleton.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/WitherSkeleton.java)，饥饿取 [Husk.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Husk.java) |
+| 臂 | `effect_attack` | 附效攻击（中毒／凋零／饥饿） | 被动 | 供体全身任意组织 | 洞穴蜘蛛、蜜蜂、河豚：中毒；凋灵骷髅：凋零；尸壳：饥饿 | 存在型；供体任意组织装为臂，并由包含该组织的攻击臂命中；允许持武器 | 三种效果统一为 I 级、200 tick（10 秒）、100% 概率，不随难度变化；仅状态效果种类不同 | 复用 `LivingEntity.addEffect`；共用 [effect_attack.json](../src/main/resources/data/create_biotech/bionic_traits/effect_attack.json) 的 `attack_settings` 参数 |
 | 臂 | `attack_knockback` | 击退强化（数值） | 被动 | 全部保留体块 | 自动读取基础攻击击退：疣猪兽、僵尸疣猪兽 1.0；劫掠兽、监守者 1.5 | 每条臂按数值最高的前 50% 体积加权平均；执行数值精度规则 | 使用出手臂的值；原版近战额外击退强度为值×0.5；提示显示最高臂值 | 复用 `Attributes.ATTACK_KNOCKBACK` 与 [Mob.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java) 的额外击退流程 |
-| 臂 | `door_handling` | 破门 | 技能 | 对应供体全部保留体块，装配范围 `ARM` | 僵尸、尸壳、僵尸村民、僵尸猪灵 | 对应供体体块安装为臂，载体存在；困难难度且采用地面寻路 | 对路径中的关闭木门持续破坏 240 tick，采用原版破门进度与事件流程 | 直接复用 [BreakDoorGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/BreakDoorGoal.java) 与 [DoorInteractGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java)；载体取安装为手臂的供体体块 |
+| 臂 | `door_handling` | 破门 | 技能 | 对应供体全部保留体块，装配范围 `ARM` | 僵尸、尸壳、僵尸村民、僵尸猪灵 | 对应供体体块安装为臂，载体存在；采用地面寻路；实际破门还需困难难度、允许生物破坏并通过保护检查 | 特性刷新及切回地面导航时立即允许寻路经过关闭的可手动开启门，默认门节点附加代价为 0；关闭的铁门仍阻挡；失去特性时清除旧路线；到门前按原版流程持续破坏 240 tick | 寻路设置参照 [Zombie.setCanBreakDoors](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Zombie.java) 与 [WalkNodeEvaluator](../ref/1.21.1/Minecraft/net/minecraft/world/level/pathfinder/WalkNodeEvaluator.java)；直接复用 [BreakDoorGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/BreakDoorGoal.java) 与 [DoorInteractGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/DoorInteractGoal.java)；载体取安装为手臂的供体体块 |
 | 臂 | `wing_slow_fall` | 扑翼缓降 | 技能 | 左右翅 `LEFT_WING` / `RIGHT_WING` | 鸡、鹦鹉 | 翅膀安装为臂；每臂 c ≥ 0.5；有效翼 ≥2 | 下降速度每 tick ×0.6并获得摔落免疫；与扑翼飞行共用供体振翅动作，绕翅膀与连接部件的实际交线旋转；扑翼或悬浮飞行生效时，缓降不显示且不生效 | 以鸡为模板，复刻 [Chicken.aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Chicken.java) 的下降 ×0.6；复用供体翅膀动画 |
 | 臂 | `launch_strike` | 近战击飞 | 被动 | 铁傀儡攻击手、末影龙翼、山羊／成年疣猪兽／成年僵尸疣猪兽的角 `HORN` | 铁傀儡、末影龙、山羊、成年疣猪兽、成年僵尸疣猪兽 | 对应载体装为臂，并由该臂成功命中；统一采用铁傀儡模板 | 目标纵向速度增加 0.4×max(0，1−击退抗性)，每次命中执行一次 | 统一采用铁傀儡模板，复刻 [IronGolem.doHurtTarget](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/IronGolem.java) 中命中成功后的纵向击飞段 |
 | 臂 | `loot_pickup` | 拾取装备 | 技能 | 攻击手`ATTACK_HAND`：`right_arm`、`left_arm` | 数据：僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、骷髅、流浪者、沼骸、凋灵骷髅、猪灵 | 对应攻击手载体装为臂；处于可拾取状态 | 按 `Mob.aiStep` 的拾取时机检查邻近掉落物，复用原版装备优劣判定，将更好的近战武器交给对应攻击臂；主人可潜行右击交接武器 | 复用 [Mob.aiStep / pickUpItem / equipItemIfPossible / canReplaceCurrentItem](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；沿用攻击臂接收武器与主人交接 |
@@ -288,7 +290,7 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 
 ### 6. 呼唤同伴与生产
 
-呼唤同伴统一采用狼的受伤呼援，直接复用 `HurtByTargetGoal.setAlertOthers`，按原方法的伤害时间戳、跟随范围、纵向 ±10 格、同伴当前目标与关系条件触发。混合装配的同伴身份按现有供体集合与主人关系映射；坐下状态沿用主人命令。
+呼唤同伴统一采用狼的受伤呼援触发流程，复用 `HurtByTargetGoal.setAlertOthers / alertOther`，按原方法的伤害时间戳、跟随范围（默认 35 格）、纵向 ±10 格触发。`BionicPackAlertGoal` 从生效的头部载体取得供体，保留供体原本呼唤的生物类别，多供体取并集，不再通知仿生生物。一般按供体运行时类寻找同类，保留僵尸基类可呼唤其他僵尸变种、但排除僵尸猪灵的规则；尸壳、溺尸、僵尸村民等供体仍各自呼唤本类。猪灵呼唤成年猪灵及猪灵蛮兵，疣猪兽呼唤可见且未被安抚的成年疣猪兽，并分别写入原版愤怒记忆与攻击目标记忆。已有战斗目标或与攻击者结盟的生物不响应；狼要求与仿生生物主人相同（或双方均无主），坐下的狼不响应；蜜蜂要求呼唤者能看见攻击者。
 
 授粉只绑定蜜蜂身体 `body`，在躯干内保留即可生效，无需腿部或其他配套。每个有效蜜蜂身体独立提供随机促生尝试，每次携粉共用一个促生计数，总额度为 `10×有效身体数`，不逐个身体单独限制 10 次。采粉参照 `BeePollinateGoal` 的有效花检查、5 格搜索、雨天与战斗状态、悬停累计、400 tick 成功时间、结束判定和再次寻花冷却，由 `BionicProduction.pollinationGoal` 执行。促生由 `BionicProduction.growCrops` 根据携粉状态按身体数量进行随机尝试，检查 `BEE_GROWABLES`、作物年龄与生物破坏规则；促生总数达到共享额度后清除携粉状态。
 
@@ -398,7 +400,7 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 装备与生产 | `BionicEquipment`、`BionicProduction`、`BionicCombatEvents`、`BionicAreaEffectCloud` | 交互、容器、生产、区域效果与主人关系 |
 | 细雪接入 | `PowderSnowBionicFootMixin` | 腿部细雪行走 |
 
-提示先独立显示性情、智力，再按全身、头部、躯干、手臂、腿部归组，空组省略；未安装头部时沿用前述躯干回退提示。技能显示“技能”标签。被 `overrides` 覆盖的特性已从统一结果移除，提示层不再另设覆盖优先级。比例型显示有效占比；数值型显示量化后的有效值。实体、手术台预览、纸箱使用同一解析结果；JEI 展示各特性的独立定义与供体。
+提示先独立显示性情、智力，再按全身、头部、躯干、手臂、腿部归组，空组省略；未安装头部时沿用前述躯干回退提示。技能显示“技能”标签。被 `overrides` 覆盖的特性已从统一结果移除，提示层不再另设覆盖优先级。比例型显示有效占比；数值型显示量化后的有效值。实体、手术台预览、纸箱使用同一解析结果；JEI 展示各特性的独立定义与供体。每个供体的悬停提示按服务端数据单独显示取用部位，例如海豚的头部、鱼类的鳃，铁傀儡的手臂、山羊的角；不再将特性的所有候选部位拼为统一的“供体：a/b/c”。部位数据随供体索引同步，数据包重载后刷新。
 
 `BionicTraitSet.coverage()` 对全身和躯干返回整体占比，对独立肢体返回最高覆盖率；`has()` 表示获取结果，`strength()` 表示执行系数，数量与承重通过附加条件判定。特性功能沿用现有 `BionicTraits.ENABLED` 发布开关。数据与分类覆盖通过玩家登录和 `/reload` 同步并更新缓存。
 

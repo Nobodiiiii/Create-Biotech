@@ -16,6 +16,7 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicDefenses;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBlockAttachment;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.ai.BionicBreakDoorGoal;
+import com.nobodiiiii.createbiotech.entity.ai.BionicPackAlertGoal;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeCompanionHandler;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
@@ -89,7 +90,6 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.RestrictSunGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
@@ -438,22 +438,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		goalSelector.addGoal(7, new BionicSwimStrollGoal(this));
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
 		goalSelector.addGoal(8, new RandomLookAroundGoal(this));
-		targetSelector.addGoal(1, new HurtByTargetGoal(this) {
-			@Override public boolean canUse() {
-				return getDisposition() != BionicDisposition.FRIENDLY && super.canUse();
-			}
-			@Override protected void alertOthers() {
-				if (getBionicTraits().has(BionicTrait.PACK_ALERT)) super.alertOthers();
-			}
-			@Override protected void alertOther(Mob other, LivingEntity attacker) {
-				if (!(other instanceof SlimeBionicEntity companion) || companion.isOrderedToSit()) return;
-				if (companion.getBionicOwnerId() != null && companion.getBionicTraits().has(BionicTrait.LIVESTOCK_TAMEABLE)) return;
-				boolean related = ownerId != null ? ownerId.equals(companion.getBionicOwnerId())
-					: companion.getBionicOwnerId() == null && companion.getBionicTraits().has(BionicTrait.PACK_ALERT);
-				if (!related) return;
-				if (companion.canAttack(attacker)) super.alertOther(other, attacker);
-			}
-		}.setAlertOthers());
+		targetSelector.addGoal(1, new BionicPackAlertGoal(this));
 		targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true) {
 			@Override public boolean canUse() {
 				return ownerId == null && getDisposition() == BionicDisposition.HOSTILE && super.canUse();
@@ -811,7 +796,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			navigation.stop();
 			navigation = nextNavigation;
 		}
-		if (navigation instanceof GroundPathNavigation) {
+		if (navigation instanceof GroundPathNavigation ground) {
+			// Like Zombie.setCanBreakDoors, configure closed-door paths before the AI
+			// requests a route, including after replacing the navigator. The breaking
+			// goal checks difficulty and protection separately when the mob reaches a door.
+			ground.setCanOpenDoors(doors);
 			boolean canFloat = !traits.has(BionicTrait.WATER_SINKING);
 			if (navigation.canFloat() != canFloat) {
 				navigation.stop();
@@ -1398,8 +1387,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			BionicDefenses.tick(this);
 			equipment.tick();
 			production.tick();
-			if (navigation instanceof net.minecraft.world.entity.ai.navigation.GroundPathNavigation ground)
-				ground.setCanOpenDoors(getBionicTraits().has(BionicTrait.DOOR_HANDLING));
 		}
 		if (!level().isClientSide) tickShellDefense();
 		if (!level().isClientSide)
@@ -1767,17 +1754,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				|| attackingGroup.stream().noneMatch(entry.getValue()::contains)
 				|| random.nextDouble() >= effect.chance())
 				continue;
-			int effectTicks = effect.durationTicks();
-			if (effect.effect().equals(ResourceLocation.withDefaultNamespace("poison")))
-				effectTicks = level().getDifficulty() == net.minecraft.world.Difficulty.HARD ? Math.round(effectTicks * 1.8f)
-					: level().getDifficulty() == net.minecraft.world.Difficulty.NORMAL ? effectTicks : 0;
-			else if (effect.effect().equals(ResourceLocation.withDefaultNamespace("hunger")))
-				effectTicks *= (int) level().getCurrentDifficultyAt(blockPosition()).getEffectiveDifficulty();
-			if (effectTicks <= 0) continue;
-			final int durationTicks = effectTicks;
 			net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT.getHolder(effect.effect())
 				.ifPresent(holder -> victim.addEffect(new MobEffectInstance(holder,
-					durationTicks, effect.amplifier()), this));
+					effect.durationTicks(), effect.amplifier()), this));
 		}
 		return hit;
 	}

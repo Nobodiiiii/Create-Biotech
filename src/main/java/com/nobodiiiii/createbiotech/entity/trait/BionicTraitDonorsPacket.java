@@ -1,8 +1,10 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -38,6 +40,11 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 			EnumSet<BionicTrait> traits = EnumSet.noneOf(BionicTrait.class);
 			traits.addAll(entry.traits());
 			buffer.writeEnumSet(traits, BionicTrait.class);
+			for (BionicTrait trait : traits) {
+				EnumSet<BionicAnatomyRole> roles = EnumSet.noneOf(BionicAnatomyRole.class);
+				roles.addAll(entry.carriers().get(trait));
+				buffer.writeEnumSet(roles, BionicAnatomyRole.class);
+			}
 		}
 	}
 
@@ -46,15 +53,25 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		if (count < 0 || count > MAX_ENTRIES)
 			throw new IllegalArgumentException("Too many bionic donor entries");
 		List<Entry> entries = new ArrayList<>(count);
-		for (int i = 0; i < count; i++)
-			entries.add(new Entry(buffer.readResourceLocation(), buffer.readEnumSet(BionicTrait.class)));
+		for (int i = 0; i < count; i++) {
+			ResourceLocation entity = buffer.readResourceLocation();
+			Map<BionicTrait, Set<BionicAnatomyRole>> carriers = new EnumMap<>(BionicTrait.class);
+			for (BionicTrait trait : buffer.readEnumSet(BionicTrait.class))
+				carriers.put(trait, buffer.readEnumSet(BionicAnatomyRole.class));
+			entries.add(new Entry(entity, carriers));
+		}
 		return entries;
 	}
 
-	public record Entry(ResourceLocation entity, Set<BionicTrait> traits) {
-		public Entry { traits = Set.copyOf(traits); }
+	public record Entry(ResourceLocation entity, Map<BionicTrait, Set<BionicAnatomyRole>> carriers) {
+		public Entry {
+			Map<BionicTrait, Set<BionicAnatomyRole>> copy = new EnumMap<>(BionicTrait.class);
+			carriers.forEach((trait, roles) -> copy.put(trait, Set.copyOf(roles)));
+			carriers = Map.copyOf(copy);
+		}
+		public Set<BionicTrait> traits() { return carriers.keySet(); }
 		public boolean provides(BionicTrait trait) {
-			return traits.contains(trait);
+			return carriers.containsKey(trait);
 		}
 	}
 }

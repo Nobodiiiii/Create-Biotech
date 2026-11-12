@@ -161,19 +161,20 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			try {
 				ResourceLocation id = ResourceLocation.parse(entry.getKey());
 				JsonObject settings = entry.getValue().getAsJsonObject();
-				Double duration = numberValue(settings.get("duration_ticks"));
-				Double amplifier = settings.has("amplifier") ? numberValue(settings.get("amplifier")) : 0.0d;
-				Double chance = settings.has("chance") ? numberValue(settings.get("chance")) : 1.0d;
-				Boolean unarmed = settings.has("unarmed_only") ? booleanValue(settings.get("unarmed_only")) : false;
+				// Shared settings take precedence; older data packs may still configure each effect.
+				JsonObject attack = root.has("attack_settings") ? root.getAsJsonObject("attack_settings") : settings;
+				Double duration = numberValue(attack.get("duration_ticks"));
+				Double amplifier = attack.has("amplifier") ? numberValue(attack.get("amplifier")) : 0.0d;
+				Double chance = attack.has("chance") ? numberValue(attack.get("chance")) : 1.0d;
+				Boolean unarmed = attack.has("unarmed_only") ? booleanValue(attack.get("unarmed_only")) : false;
 				if (duration == null || duration < 1 || duration > 12000 || duration != Math.floor(duration)
 					|| amplifier == null || amplifier > 255 || amplifier != Math.floor(amplifier)
 					|| chance == null || chance > 1 || unarmed == null)
 					throw new IllegalArgumentException("Invalid attack parameters");
 				java.util.List<BionicAnatomyRole> roles = new java.util.ArrayList<>();
-				for (JsonElement role : settings.getAsJsonArray("roles"))
-					roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
-				if (roles.isEmpty())
-					throw new IllegalArgumentException("Missing attack carriers");
+				if (settings.has("roles"))
+					for (JsonElement role : settings.getAsJsonArray("roles"))
+						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
 				result.put(id, new BionicAttackEffect(id, duration.intValue(), amplifier.intValue(), chance,
 					unarmed, new BionicTrait.Carrier(roles, List.of())));
 			} catch (RuntimeException exception) {

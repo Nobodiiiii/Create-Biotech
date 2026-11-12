@@ -41,6 +41,7 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 	private final ItemStack[] displayedItems = new ItemStack[PAGE_SIZE];
 	private int page;
 	private int visibleCount;
+	private long donorRevision = -1;
 
 	BionicTraitDonorWidget(BionicTrait trait, int y, List<IRecipeSlotDrawable> slots, IDrawable slotBackground) {
 		this.trait = trait;
@@ -122,19 +123,19 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 	}
 
 	private void updateSlots(List<EntityType<?>> donors) {
+		long revision = BionicTraitDonorIndex.revision();
 		page = Math.min(page, lastPage(donors));
 		int start = page * PAGE_SIZE;
 		visibleCount = Math.min(PAGE_SIZE, donors.size() - start);
 		for (int cell = 0; cell < PAGE_SIZE; cell++) {
 			EntityType<?> type = cell < visibleCount ? donors.get(start + cell) : null;
-			if (displayedTypes[cell] != type) {
+			if (displayedTypes[cell] != type || donorRevision != revision) {
 				displayedTypes[cell] = type;
 				displayedItems[cell] = type == null ? ItemStack.EMPTY
 					: CBItems.BIONIC_DONOR_PREVIEW.get().createStack(type);
-				Component donorTooltip = BionicTraitJeiText.donorTooltip(trait);
-				if (type != null && donorTooltip != null) {
+				if (type != null) {
 					// Native item tooltip content stays below the name and above JEI's mod name.
-					List<Component> lines = List.of(donorTooltip);
+					List<Component> lines = List.of(BionicTraitJeiText.donorTooltip(trait, type));
 					displayedItems[cell].set(DataComponents.LORE, new ItemLore(lines, lines));
 				}
 			}
@@ -146,6 +147,7 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 					slot.createDisplayOverrides().addItemStack(stack);
 			}
 		}
+		donorRevision = revision;
 	}
 
 	@Override

@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.stream.Stream;
+import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
+import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
@@ -17,6 +19,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.entity.EntityType;
 
 /**
  * Header tooltips explain inheritance types; acquisition conditions follow the effect description.
@@ -59,11 +62,10 @@ final class BionicTraitJeiText {
 		return List.copyOf(text);
 	}
 
-	static Component donorTooltip(BionicTrait trait) {
-		Component carrier = carrier(trait.carrier());
-		if (carrier == null)
-			carrier = Component.translatable(BionicTraitScope.WHOLE_BODY.descriptionId());
-		return tr("donors.carrier", carrier).withStyle(ChatFormatting.GRAY);
+	static Component donorTooltip(BionicTrait trait, EntityType<?> donor) {
+		Component carrier = carrier(BionicTraitDonorIndex.carriers(trait, donor));
+		return (carrier == null ? tr("donors.whole_body") : tr("donors.carrier", carrier))
+			.withStyle(ChatFormatting.GRAY);
 	}
 
 	private static Component field(String label, Component value) {
@@ -74,12 +76,12 @@ final class BionicTraitJeiText {
 		return BigDecimal.valueOf(coverage).movePointRight(2).stripTrailingZeros().toPlainString();
 	}
 
-	/** Null for whole-tissue carriers; paired wings read as one carrier, fallbacks as alternatives. */
+	/** Null for whole-tissue carriers; paired wings read as one carrier. */
 	@Nullable
-	private static Component carrier(BionicTrait.Carrier carrier) {
-		if (carrier.isAllTissue())
+	private static Component carrier(Set<BionicAnatomyRole> roles) {
+		if (roles.isEmpty())
 			return null;
-		return join(Stream.concat(carrier.roles().stream(), carrier.fallback().stream())
+		return join(roles.stream().sorted()
 			.map(role -> switch (role) {
 			case LEFT_WING, RIGHT_WING -> "wing";
 			default -> role.name().toLowerCase(Locale.ROOT);
@@ -101,7 +103,7 @@ final class BionicTraitJeiText {
 		case NONE -> null;
 		case BODY_VOLUME -> tr("condition.body_volume");
 		case WOOL_AND_BODY -> tr("condition.wool_and_body");
-		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH ->
+		case UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH ->
 			tr("condition." + trait.condition().name().toLowerCase(Locale.ROOT));
 		case WING_LIFT -> tr("condition.wings");
 		case LIMB_COUNT -> tr(trait == BionicTrait.WING_SLOW_FALL ? "condition.slow_fall_wings" : "condition.legs",

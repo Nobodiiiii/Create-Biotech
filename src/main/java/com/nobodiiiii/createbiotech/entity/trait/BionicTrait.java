@@ -78,8 +78,8 @@ public enum BionicTrait {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
 	VIBRATION_SENSE("vibration_sense", BionicTraitScope.HEAD,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.HEAD_AND_TENDRIL,
-		Carrier.of(BionicAnatomyRole.HEAD_CORE, BionicAnatomyRole.TENDRIL)),
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.TENDRIL)),
 	DETERRENCE("deterrence", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
@@ -106,7 +106,7 @@ public enum BionicTrait {
 		Carrier.allTissue()),
 	EFFECT_ATTACK("effect_attack", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ATTACK_EFFECT_SET, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.MOUTH, BionicAnatomyRole.SPINE, BionicAnatomyRole.ATTACK_HAND)),
+		Carrier.allTissue()),
 	SHELL_DEFENSE("shell_defense", BionicTraitScope.TORSO,
 		BionicTraitRule.scaled(), ValueKind.ABILITY, Condition.SHELL_AND_BODY,
 		Carrier.of(BionicAnatomyRole.SHELL, BionicAnatomyRole.TORSO)),
@@ -289,6 +289,6 @@ public enum BionicTrait {
 	public enum ValueKind { ABILITY, NUMBER, EFFECT_SET, ATTACK_EFFECT_SET, SUBTRAIT_SET }
 	public enum Condition {
 		NONE, LIMB_COUNT, WING_LIFT, BODY_VOLUME, WOOL_AND_BODY, UDDER_AND_BODY,
-		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_TENDRIL, HEAD_AND_MOUTH
+		SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH
 	}
 }

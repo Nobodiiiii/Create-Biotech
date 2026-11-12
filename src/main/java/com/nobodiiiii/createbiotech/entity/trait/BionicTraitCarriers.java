@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.BitSet;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,6 +16,39 @@ import net.minecraft.resources.ResourceLocation;
 /** Selects carrier cubes from already loaded data; it owns no reload listener or cache. */
 final class BionicTraitCarriers {
 	private BionicTraitCarriers() {}
+
+	/** Species-specific carrier labels for JEI; an empty set denotes whole-donor tissue. */
+	static Set<BionicAnatomyRole> donorRoles(BionicTrait trait, BionicTraitData data,
+		ResourceLocation entity, BionicTraitDonors.Facts donor) {
+		List<BionicTrait.Carrier> carriers = switch (trait.valueKind()) {
+		case ATTACK_EFFECT_SET -> donor.attackEffects().stream()
+			.map(data.attackEffects()::get).map(BionicAttackEffect::carrier).toList();
+		case SUBTRAIT_SET -> trait.isHeadClassification() ? List.of(trait.carrier())
+			: donor.variants(trait).stream().map(data.subtraits()::get).map(BionicSubtrait::carrier).toList();
+		default -> List.of(trait.carrier());
+		};
+		Map<BionicAnatomyRole, Set<String>> declared = data.carriers().get(entity);
+		Set<BionicAnatomyRole> result = EnumSet.noneOf(BionicAnatomyRole.class);
+		for (var carrier : carriers) {
+			Set<BionicAnatomyRole> roles = EnumSet.noneOf(BionicAnatomyRole.class);
+			if (carrier.isAllTissue()) {
+				if (declared == null || declared.isEmpty()) return Set.of();
+				declared.forEach((role, names) -> { if (!names.isEmpty()) roles.add(role); });
+			} else if (declared != null && !declared.isEmpty()) {
+				for (var role : carrier.roles())
+					if (!declared.getOrDefault(role, Set.of()).isEmpty()) roles.add(role);
+				if (roles.isEmpty())
+					for (var role : carrier.fallback())
+						if (!declared.getOrDefault(role, Set.of()).isEmpty()) roles.add(role);
+			} else {
+				roles.addAll(carrier.roles());
+				roles.addAll(carrier.fallback());
+			}
+			roles.removeAll(carrier.excluded());
+			result.addAll(roles);
+		}
+		return Set.copyOf(result);
+	}
 
 	/** Bind the same retained anatomical parts for acquisition and inspection, before slot checks. */
 	static BitSet bind(BionicTrait trait, BionicTraitData data, BionicTissue tissue, int source,
