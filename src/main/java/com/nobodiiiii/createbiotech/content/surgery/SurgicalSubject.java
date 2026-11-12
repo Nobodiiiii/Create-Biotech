@@ -172,9 +172,12 @@ public final class SurgicalSubject {
 		return cubeCount;
 	}
 
+	/**
+	 * This subject's own topology was validated when it was created, so an observation that equals it
+	 * is valid by construction and needs no second validation pass.
+	 */
 	public boolean matchesObservedTopology(int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams) {
-		return SurgicalAssembly.validTopology(observedCubeCount, observedSeams)
-			&& cubeCount == observedCubeCount && seams.equals(observedSeams);
+		return cubeCount == observedCubeCount && seams.equals(observedSeams);
 	}
 
 	public BitSet presentCubes() {
@@ -187,6 +190,15 @@ public final class SurgicalSubject {
 
 	public List<SurgicalAssembly.Seam> seams() {
 		return seams;
+	}
+
+	/** Clone-free comparisons for the client's per-frame "did this subject change" check. */
+	public boolean presentCubesEqual(BitSet cubes) {
+		return presentCubes.equals(cubes);
+	}
+
+	public boolean cutSeamsEqual(BitSet cuts) {
+		return cutSeams.equals(cuts);
 	}
 
 	public BitSet cutSeamsForRender() {

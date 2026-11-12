@@ -12,6 +12,8 @@ public final class BionicTraitSet {
 	private final Map<BionicTrait, BionicTraitResult> results;
 	private final Map<BionicTrait, BionicTraitData> data;
 	private final Set<SurgicalAssembly.CombinationMember> wings;
+	/** The active subset of {@code results}; results are immutable, so it cannot go stale. */
+	private final java.util.EnumSet<BionicTrait> active = java.util.EnumSet.noneOf(BionicTrait.class);
 	private final boolean headUsesTorso;
 	private final double tamingChance;
 
@@ -23,6 +25,10 @@ public final class BionicTraitSet {
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings, double tamingChance) {
 		this.results = Map.copyOf(results);
+		this.results.forEach((trait, result) -> {
+			if (result.active())
+				active.add(trait);
+		});
 		this.data = Map.copyOf(data);
 		this.headUsesTorso = headUsesTorso;
 		this.tamingChance = Double.isFinite(tamingChance) ? Math.clamp(tamingChance, 0.0d, 1.0d) : 0.0d;
@@ -59,7 +65,7 @@ public final class BionicTraitSet {
 	}
 
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
-	public boolean has(BionicTrait trait) { return result(trait).active(); }
+	public boolean has(BionicTrait trait) { return active.contains(trait); }
 	public boolean isTameable() { return has(BionicTrait.TAMEABLE) || has(BionicTrait.LIVESTOCK_TAMEABLE); }
 	/** Runtime roll only; kept separate from trait values and tooltip strength. */
 	public double tamingChance() { return tamingChance; }

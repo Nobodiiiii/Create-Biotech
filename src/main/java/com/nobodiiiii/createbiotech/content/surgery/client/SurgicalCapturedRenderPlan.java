@@ -35,6 +35,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
 import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathClient;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderStateAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderTypeAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
@@ -653,7 +654,7 @@ public final class SurgicalCapturedRenderPlan {
 	private static void collectPartNames(ModelPart part, String name,
 		Map<ModelPart.Cube, Set<String>> result) {
 		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
-		if (name.matches("[A-Za-z0-9_./-]{1,64}"))
+		if (BionicAnatomySnapshot.validPartName(name))
 			for (ModelPart.Cube cube : accessor.createBiotech$getCubes()) {
 				Set<String> names = result.computeIfAbsent(cube, ignored -> new HashSet<>());
 				if (names.size() < 16)

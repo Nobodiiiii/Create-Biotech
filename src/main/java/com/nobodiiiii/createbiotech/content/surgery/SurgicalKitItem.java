@@ -5,11 +5,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Supplier;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -36,6 +42,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.Tags;
 
@@ -60,6 +67,14 @@ public class SurgicalKitItem extends Item {
 	private static final String MOVE_SUBJECT_STATE_TAG = "SourceState";
 	private static final String MOVE_ASSEMBLY_TAG = "SourceAssembly";
 	private static final int TEMPORARY_MOVE_VALIDATION_INTERVAL = 20;
+	private static final MapCodec<Optional<String>> SELECTED_TOOL_FIELD =
+		Codec.STRING.optionalFieldOf(SELECTED_TOOL_TAG);
+	// The selected tool is read by several per-frame predicates, so it is decoded straight from the
+	// component by identity instead of through the full custom-data snapshot. Values are enum
+	// constants only, never the weak component key or the body a kit may carry.
+	private static final LoadingCache<CustomData, Optional<Tool>> SELECTED_TOOLS = CacheBuilder.newBuilder()
+		.weakKeys()
+		.build(CacheLoader.from(SurgicalKitItem::readSelectedTool));
 	private final List<Tool> availableTools;
 
 	public SurgicalKitItem(Properties properties) {
@@ -115,11 +130,15 @@ public class SurgicalKitItem extends Item {
 	public static Tool selectedTool(ItemStack stack) {
 		if (!(stack.getItem() instanceof SurgicalKitItem kit))
 			return null;
-		CompoundTag tag = CBItemData.getReadOnly(stack);
-		if (tag == null || !tag.contains(SELECTED_TOOL_TAG))
+		CustomData component = CBItemData.getReadOnlyComponent(stack);
+		if (component == null)
 			return null;
-		Tool tool = Tool.byId(tag.getString(SELECTED_TOOL_TAG));
-		return kit.availableTools.contains(tool) ? tool : null;
+		Tool tool = SELECTED_TOOLS.getUnchecked(component).orElse(null);
+		return tool != null && kit.availableTools.contains(tool) ? tool : null;
+	}
+
+	private static Optional<Tool> readSelectedTool(CustomData component) {
+		return component.read(SELECTED_TOOL_FIELD).result().flatMap(id -> id).map(Tool::byId);
 	}
 
 	public static void setSelectedTool(ItemStack stack, Tool tool) {
@@ -147,23 +166,17 @@ public class SurgicalKitItem extends Item {
 		return stack.getItem() instanceof SurgicalKitItem;
 	}
 
-	public static boolean matches(ItemStack stack, Item item) {
-		if (stack.is(item))
-			return true;
-		Tool selected = selectedTool(stack);
-		return selected != null && selected.displayStack().is(item);
-	}
-
+	/** Whether the kit has its logical shears, honey bottle or slime ball selected. */
 	public static boolean isShears(ItemStack stack) {
-		return matches(stack, Items.SHEARS);
+		return stack.is(Items.SHEARS) || selectedTool(stack) == Tool.SHEARS;
 	}
 
 	public static boolean isHoneyBottle(ItemStack stack) {
-		return matches(stack, Items.HONEY_BOTTLE);
+		return stack.is(Items.HONEY_BOTTLE) || selectedTool(stack) == Tool.HONEY_BOTTLE;
 	}
 
 	public static boolean isSlimeBall(ItemStack stack) {
-		return matches(stack, Items.SLIME_BALL);
+		return stack.is(Items.SLIME_BALL) || selectedTool(stack) == Tool.SLIME_BALL;
 	}
 
 	public static boolean isGlue(ItemStack stack) {
@@ -177,10 +190,6 @@ public class SurgicalKitItem extends Item {
 
 	public static boolean isSmartGlue(ItemStack stack) {
 		return stack.is(CBItems.SMART_SUPER_GLUE.get()) || selectedTool(stack) == Tool.SMART_SUPER_GLUE;
-	}
-
-	public static boolean isStandardGlue(ItemStack stack) {
-		return isGlue(stack) && !isSmartGlue(stack);
 	}
 
 	public static boolean isSymmetryWand(ItemStack stack) {
@@ -267,7 +276,8 @@ public class SurgicalKitItem extends Item {
 		if (anchorComponent == null || anchorCube < 0 || !anchorComponent.get(anchorCube))
 			return null;
 		return new TemporaryMove(dimension, BlockPos.of(encoded.getLong(MOVE_TABLE_POS_TAG)),
-			anchorSubject, anchorCube, components, sourceSubjects, encoded.getCompound(MOVE_ASSEMBLY_TAG));
+			anchorSubject, anchorCube, Map.copyOf(components), Map.copyOf(sourceSubjects),
+			encoded.getCompound(MOVE_ASSEMBLY_TAG));
 	}
 
 	public static void setTemporaryMove(ItemStack stack, ResourceLocation dimension, BlockPos tablePos,
@@ -294,13 +304,14 @@ public class SurgicalKitItem extends Item {
 			CompoundTag component = new CompoundTag();
 			component.putUUID(MOVE_SUBJECT_TAG, subject);
 			component.putLongArray(MOVE_CUBES_TAG, cubes.toLongArray());
-			component.put(MOVE_SUBJECT_STATE_TAG, sourceState.copy());
+			// The caller hands over freshly saved tags, and writing the component copies the root.
+			component.put(MOVE_SUBJECT_STATE_TAG, sourceState);
 			encodedComponents.add(component);
 		});
 		if (encodedComponents.size() != components.size())
 			return;
 		encoded.put(MOVE_COMPONENTS_TAG, encodedComponents);
-		encoded.put(MOVE_ASSEMBLY_TAG, sourceAssembly.copy());
+		encoded.put(MOVE_ASSEMBLY_TAG, sourceAssembly);
 		CBItemData.edit(stack, root -> root.put(TEMPORARY_MOVE_TAG, encoded));
 	}
 
@@ -342,6 +353,9 @@ public class SurgicalKitItem extends Item {
 		@Nullable
 		private final String displayNameKey;
 
+		private static final Map<String, Tool> BY_ID = java.util.Arrays.stream(values())
+			.collect(java.util.stream.Collectors.toUnmodifiableMap(tool -> tool.id, tool -> tool));
+
 		Tool(String id, Supplier<ItemStack> displayStack) {
 			this(id, displayStack, null);
 		}
@@ -368,57 +382,29 @@ public class SurgicalKitItem extends Item {
 		private static Tool byId(String id) {
 			if (id == null || id.isBlank())
 				return null;
-			String normalized = id.toLowerCase(Locale.ROOT);
-			for (Tool tool : values())
-				if (tool.id.equals(normalized))
-					return tool;
-			return null;
+			Tool tool = BY_ID.get(id);
+			// Hand-edited data may carry a mixed-case id; the enum's own ids are lower case.
+			return tool != null ? tool : BY_ID.get(id.toLowerCase(Locale.ROOT));
 		}
 	}
 
+	/**
+	 * A parsed view of a kit's stored temporary move. The tags belong to the stack's read-only
+	 * custom-data snapshot and the cube sets to this record: every reader only compares or looks them
+	 * up, so nothing here is copied again. Treat all of it as read-only.
+	 */
 	public record TemporaryMove(ResourceLocation dimension, BlockPos tablePos,
 		UUID anchorSubject, int anchorCube,
 		Map<UUID, BitSet> components, Map<UUID, CompoundTag> sourceSubjects,
 		CompoundTag sourceAssembly) {
-		public TemporaryMove {
-			Map<UUID, BitSet> frozen = new HashMap<>();
-			components.forEach((subject, cubes) -> frozen.put(subject, (BitSet) cubes.clone()));
-			components = Map.copyOf(frozen);
-			Map<UUID, CompoundTag> frozenSubjects = new HashMap<>();
-			sourceSubjects.forEach((subject, state) -> frozenSubjects.put(subject, state.copy()));
-			sourceSubjects = Map.copyOf(frozenSubjects);
-			sourceAssembly = sourceAssembly.copy();
-		}
-
-		@Override
-		public Map<UUID, BitSet> components() {
-			Map<UUID, BitSet> copy = new HashMap<>();
-			components.forEach((subject, cubes) -> copy.put(subject, (BitSet) cubes.clone()));
-			return Map.copyOf(copy);
-		}
-
-		@Override
-		public CompoundTag sourceAssembly() {
-			return sourceAssembly.copy();
-		}
-
-		@Override
-		public Map<UUID, CompoundTag> sourceSubjects() {
-			Map<UUID, CompoundTag> copy = new HashMap<>();
-			sourceSubjects.forEach((subject, state) -> copy.put(subject, state.copy()));
-			return Map.copyOf(copy);
-		}
-
 		@Nullable
 		public BitSet component(UUID subject) {
-			BitSet cubes = components.get(subject);
-			return cubes == null ? null : (BitSet) cubes.clone();
+			return components.get(subject);
 		}
 
 		@Nullable
 		public CompoundTag sourceSubject(UUID subject) {
-			CompoundTag state = sourceSubjects.get(subject);
-			return state == null ? null : state.copy();
+			return sourceSubjects.get(subject);
 		}
 	}
 }

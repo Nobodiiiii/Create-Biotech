@@ -52,6 +52,7 @@ public final class BionicEquipment {
 		receive(); return cubes(chests.keySet(), source);
 	}
 	private static Set<Integer> cubes(Set<CombinationMember> members, int source) {
+		if (members.isEmpty()) return Set.of();
 		return members.stream().filter(member -> member.source() == source).map(CombinationMember::cube)
 			.collect(java.util.stream.Collectors.toUnmodifiableSet());
 	}
@@ -355,6 +356,9 @@ public final class BionicEquipment {
 	}
 	public void tick() {
 		if (entity.level().isClientSide) return;
+		// Nothing equipped and nobody mounted: every loop below would be a no-op.
+		if (saddles.isEmpty() && chests.isEmpty() && passengers.isEmpty() && entity.getPassengers().isEmpty())
+			return;
 		boolean changed = false;
 		for (var member : Set.copyOf(saddles.keySet())) {
 			if (canSaddle(member)) continue;

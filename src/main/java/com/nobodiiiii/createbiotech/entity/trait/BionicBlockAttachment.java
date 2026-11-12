@@ -44,7 +44,7 @@ public final class BionicBlockAttachment {
 	}
 
 	public boolean locksMovement() {
-		return canAttach() && entity.getBlockAttachmentCell() != null;
+		return entity.getBlockAttachmentCell() != null && canAttach();
 	}
 
 	@Nullable public SurgicalAssembly.CombinationMember carrier() {

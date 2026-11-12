@@ -71,8 +71,8 @@ public final class BionicHunting {
 	}
 
 	public boolean matches(LivingEntity target) {
-		if (target == mob || target instanceof Player || !target.isAlive() || mob.isAlliedTo(target)
-			|| !mob.getBionicTraits().has(BionicTrait.HUNTING_INSTINCT)) return false;
+		if (!mob.getBionicTraits().has(BionicTrait.HUNTING_INSTINCT) || target == mob
+			|| target instanceof Player || !target.isAlive() || mob.isAlliedTo(target)) return false;
 		for (ResourceLocation donor : mob.getBionicTraits().result(BionicTrait.HUNTING_INSTINCT).sourceTypes())
 			if (donor.getNamespace().equals("minecraft") && matches(donor.getPath(), target)) return true;
 		return false;

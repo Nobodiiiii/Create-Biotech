@@ -83,11 +83,8 @@ public final class SlimeBionicAnimator {
 	 */
 	public static Map<Integer, CubeBox> measure(SurgicalModelRenderContext.Snapshot snapshot) {
 		Map<Integer, CubeBox> boxes = new HashMap<>();
-		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes()) {
-			CubeBox box = CubeBox.of(cube.corners(), BODY_SPACE);
-			if (box != null)
-				boxes.put(cube.cubeId(), box);
-		}
+		for (SurgicalModelRenderContext.CubeGeometry cube : snapshot.cubes())
+			boxes.put(cube.cubeId(), CubeBox.of(cube.corners(), BODY_SPACE));
 		return Map.copyOf(boxes);
 	}
 
@@ -302,53 +299,51 @@ public final class SlimeBionicAnimator {
 	}
 
 	/**
-	 * Resolves one animation frame into per-source cube transforms.
-	 *
-	 * <p>{@code sources} is indexed like {@link SurgicalAssembly#sources()}; each returned frame only
-	 * contains the cubes an installed joint actually moves.</p>
-	 */
-	/**
-	 * The limb solve and the leg-length curve derived from it. Both read only the assembly and the
-	 * rest-pose sources - never the entity, the pose or the partial tick - yet they ran on every
-	 * frame, and the pivot search behind them is a fixed 16-iteration power method per limb plus a
-	 * second one per shoulder and hip. The renderer holds one of these for as long as the body is
-	 * unchanged, which is exactly how long it stays valid.
+	 * Everything the per-frame solve needs that reads only the assembly and the rest-pose sources -
+	 * never the entity, the pose or the partial tick: the limb solve (a fixed 16-iteration power
+	 * method per limb plus a second one per shoulder and hip), the gait curve derived from its leg
+	 * length, the torso pivot and the leg cubes the torso rotation skips. The renderer holds one of
+	 * these for as long as the body is unchanged, which is exactly how long it stays valid.
 	 */
 	public static final class Rig {
 		private final SurgicalAssembly assembly;
 		private final List<SourceState> sources;
 		private final List<ResolvedLimb> limbs;
-		private final float legLength;
+		/** Limb indices with every shoulder and hip ahead of the elbow or knee hanging from it. */
+		private final int[] applyOrder;
+		private final float maximumSwingAmount;
+		private final float animationFrequencyScale;
+		private final Vec3 bodyPivot;
+		private final float restSwimPitch;
+		private final Set<Member> legMembers;
 		private final Map<Integer, WingHinge> wingHinges = new HashMap<>();
 
-		private Rig(SurgicalAssembly assembly, List<SourceState> sources, List<ResolvedLimb> limbs,
-			float legLength) {
+		private Rig(SurgicalAssembly assembly, List<SourceState> sources, List<ResolvedLimb> limbs) {
 			this.assembly = assembly;
 			this.sources = sources;
 			this.limbs = limbs;
-			this.legLength = legLength;
-		}
-
-		private boolean matches(SurgicalAssembly otherAssembly, List<SourceState> otherSources) {
-			return assembly == otherAssembly && sources == otherSources;
-		}
-
-		public float legLength() {
-			return legLength;
+			this.applyOrder = java.util.stream.IntStream.range(0, limbs.size()).boxed()
+				.sorted(java.util.Comparator.comparingInt(index -> hierarchyDepth(index, limbs)))
+				.mapToInt(Integer::intValue).toArray();
+			float legLength = averageEffectiveLegLength(limbs, sources);
+			this.maximumSwingAmount = SurgicalGait.maximumHumanoidSwingAmount(legLength);
+			this.animationFrequencyScale = SurgicalGait.animationFrequencyScale(legLength);
+			this.bodyPivot = bodyPivot(limbs, sources);
+			this.restSwimPitch = restSwimPitch(limbs, sources, bodyPivot);
+			this.legMembers = legMembers(limbs);
 		}
 	}
 
 	public static Rig rig(SurgicalAssembly assembly, List<SourceState> sources) {
-		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
-		return new Rig(assembly, sources, limbs, averageEffectiveLegLength(limbs, sources));
+		return new Rig(assembly, sources, resolveLimbs(assembly, sources));
 	}
 
 	/**
 	 * Selects one real arm on the requested side for first-person rendering. An articulated arm is
-	 * returned as one combined upper-arm and forearm selection.
+	 * returned as one combined upper-arm and forearm selection, from upper arm through forearm.
 	 */
 	@Nullable
-	public static FirstPersonArmSelection firstPersonArm(
+	public static List<SurgicalAssembly.CombinationMember> firstPersonArm(
 		SlimeBionicEntity entity, SurgicalAssembly assembly, List<SourceState> sources, boolean left) {
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
 		int shoulderIndex = -1;
@@ -380,24 +375,31 @@ public final class SlimeBionicAnimator {
 					.forEach(members::add);
 				break;
 			}
-		return new FirstPersonArmSelection(List.copyOf(members));
+		return List.copyOf(members);
 	}
 
-	public static List<Frame> resolve(SlimeBionicEntity entity, SurgicalAssembly assembly,
-		List<SourceState> sources, @Nullable Rig rig, float partialTick) {
-		int sourceCount = assembly.sources().size();
+	/**
+	 * Resolves one animation frame into per-source cube transforms.
+	 *
+	 * <p>{@code rig.sources} is indexed like {@link SurgicalAssembly#sources()}; each returned frame
+	 * only contains the cubes an installed joint actually moves.</p>
+	 */
+	public static List<Frame> resolve(SlimeBionicEntity entity, Rig rig, float partialTick) {
+		SurgicalAssembly assembly = rig.assembly;
+		List<SourceState> sources = rig.sources;
+		List<ResolvedLimb> limbs = rig.limbs;
+		int sourceCount = sources.size();
 		List<Frame> frames = new ArrayList<>(sourceCount);
 		for (int source = 0; source < sourceCount; source++)
 			frames.add(Frame.EMPTY);
-		if (sources.size() != sourceCount)
-			return frames;
-		Rig resolved = rig != null && rig.matches(assembly, sources) ? rig : rig(assembly, sources);
-		List<ResolvedLimb> limbs = resolved.limbs;
 		boolean weaponAttack = entity.isAttackAnimationWeapon();
 		Arm preferredAttackArm = entity.isAttackAnimationLeft() ? Arm.LEFT : Arm.RIGHT;
 		Arm attackArm = attackArm(limbs, preferredAttackArm);
-		AttackAnimationTarget attackTarget = attackAnimationTarget(entity, assembly);
-		Context context = animationContext(entity, partialTick, resolved.legLength,
+		// The presentation target is read only while an authored attack is running; idle bodies skip
+		// the sector query behind it.
+		AttackAnimationTarget attackTarget = entity.getAttackAnimationTick() > 0
+			? attackAnimationTarget(entity, assembly) : AttackAnimationTarget.NONE;
+		Context context = animationContext(entity, partialTick, rig,
 			attackArm, attackArmHasElbow(limbs, attackArm, entity.getAttackAnimationArmSlot()),
 			weaponAttack ? AttackStyle.WEAPON : AttackStyle.EMPTY_HAND, attackTarget);
 		Pose pose = SlimeBionicAnimations.sample(context);
@@ -407,9 +409,8 @@ public final class SlimeBionicAnimator {
 		Rotation bodyPose = pose.rotation(Bone.BODY);
 		SurgicalCubeRotation bodyRotation = BODY_SPACE.reframe(SurgicalCubeRotation.IDENTITY,
 			bodyPose.z(), bodyPose.y(), bodyPose.x());
-		float restSwimPitch = restSwimPitch(limbs, sources);
-		Transform swimTransform = swimmingTransform(context, limbs, sources, restSwimPitch);
-		Vec3 pivot = bodyPivot(limbs, sources);
+		Vec3 pivot = rig.bodyPivot;
+		Transform swimTransform = swimmingTransform(context, pivot, rig.restSwimPitch);
 		Transform bodyTransform = swimTransform.rotateAround(swimTransform.apply(pivot),
 			conjugate(swimTransform.rotation(), bodyRotation));
 		boolean anchored = entity.getBlockAttachment().locksMovement();
@@ -426,7 +427,7 @@ public final class SlimeBionicAnimator {
 		}
 		if (anchored) bodyTransform = swimTransform = Transform.IDENTITY;
 		if (!bodyTransform.isIdentity() || !swimTransform.isIdentity()) {
-			Set<Member> legMembers = legMembers(limbs);
+			Set<Member> legMembers = rig.legMembers;
 			for (int source = 0; source < sources.size(); source++)
 				for (int cube : sources.get(source).boxes().keySet()) {
 					Member member = new Member(source, cube);
@@ -435,10 +436,11 @@ public final class SlimeBionicAnimator {
 				}
 		}
 		Transform[] transforms = new Transform[limbs.size()];
-		boolean[] resolving = new boolean[limbs.size()];
-		Map<Member, Integer> appliedDepths = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> wingMembers = entity.getBionicTraits().wingMembers();
-		for (int limbIndex = 0; limbIndex < limbs.size(); limbIndex++) {
+		boolean hasWings = !wingMembers.isEmpty();
+		// Parents are solved and applied before their children, so a child's write lands last without
+		// tracking which limb wrote each cube.
+		for (int limbIndex : rig.applyOrder) {
 			ResolvedLimb limb = limbs.get(limbIndex);
 			// A base remains rigid even if it was installed in an animated arm, head or leg.
 			if (anchorCarrier != null && limb.members().contains(new Member(anchorCarrier.source(), anchorCarrier.cube())))
@@ -446,33 +448,26 @@ public final class SlimeBionicAnimator {
 			if (limb.bone() == null && limb.gait() == null && !(context.swimAmount() > 0.0f
 				&& (limb.type() == SurgicalLimbType.HIP || limb.type() == SurgicalLimbType.KNEE)))
 				continue;
-			Transform transform = resolveTransform(limbIndex, resolved, pose, context, wingMembers, bodyTransform,
-				swimTransform, transforms, resolving);
+			Transform transform = resolveTransform(limbIndex, rig, pose, context, wingMembers, hasWings,
+				bodyTransform, swimTransform, transforms);
 			if (transform.isIdentity())
 				continue;
-			int depth = hierarchyDepth(limbIndex, limbs);
-			for (Member member : limb.members()) {
-				Integer appliedDepth = appliedDepths.get(member);
-				if (appliedDepth != null && appliedDepth > depth)
-					continue;
+			for (Member member : limb.members())
 				applyTransform(member, transform, sources, offsets, rotations);
-				appliedDepths.put(member, depth);
-			}
 		}
 		for (int source = 0; source < sourceCount; source++) {
 			Map<Integer, Vec3> sourceOffsets = offsets.get(source);
 			Map<Integer, SurgicalCubeRotation> sourceRotations = rotations.get(source);
 			if (sourceOffsets != null || sourceRotations != null)
 				frames.set(source, new Frame(
-					sourceOffsets == null ? Map.of() : Map.copyOf(sourceOffsets),
-					sourceRotations == null ? Map.of() : Map.copyOf(sourceRotations)));
+					sourceOffsets == null ? Map.of() : sourceOffsets,
+					sourceRotations == null ? Map.of() : sourceRotations));
 		}
 		return frames;
 	}
 
 	/** Lay an upright head/torso axis forward; already horizontal aquatic bodies keep their rest axis. */
-	private static float restSwimPitch(List<ResolvedLimb> limbs, List<SourceState> sources) {
-		Vec3 pivot = bodyPivot(limbs, sources);
+	private static float restSwimPitch(List<ResolvedLimb> limbs, List<SourceState> sources, Vec3 pivot) {
 		for (ResolvedLimb limb : limbs) {
 			if (limb.type() != SurgicalLimbType.NECK)
 				continue;
@@ -486,8 +481,7 @@ public final class SlimeBionicAnimator {
 		return 0.0f;
 	}
 
-	private static Transform swimmingTransform(Context context, List<ResolvedLimb> limbs,
-		List<SourceState> sources, float restPitch) {
+	private static Transform swimmingTransform(Context context, Vec3 pivot, float restPitch) {
 		float amount = context.swimAmount();
 		if (amount <= 0.0f)
 			return Transform.IDENTITY;
@@ -498,7 +492,7 @@ public final class SlimeBionicAnimator {
 			+ 0.13f * Mth.sin(context.ageInTicks() * 0.33f);
 		float pitch = (restPitch + Mth.lerp(moving, hoveringPitch, movingPitch)) * amount;
 		SurgicalCubeRotation rotation = BODY_SPACE.reframe(SurgicalCubeRotation.IDENTITY, 0, 0, pitch);
-		return Transform.IDENTITY.rotateAround(bodyPivot(limbs, sources), rotation);
+		return Transform.IDENTITY.rotateAround(pivot, rotation);
 	}
 
 	/** Torso attack rotation excludes hip and knee groups so planted legs remain stable. */
@@ -798,8 +792,7 @@ public final class SlimeBionicAnimator {
 				int index = perimeter.get(slot);
 				boolean isLeft = left.contains(index);
 				assigned.set(index, assigned.get(index)
-					.withGait(new GaitChannel(LegStyle.HUMANOID, isLeft, slot,
-						phaseStep * slot)));
+					.withGait(new GaitChannel(LegStyle.HUMANOID, isLeft, phaseStep * slot)));
 			}
 		}
 	}
@@ -845,7 +838,7 @@ public final class SlimeBionicAnimator {
 			int index = indices.get(row);
 			int group = (row + (left ? 1 : 0)) & 1;
 			assigned.set(index, assigned.get(index)
-				.withGait(new GaitChannel(LegStyle.HUMANOID, left, row, group * Mth.PI)));
+				.withGait(new GaitChannel(LegStyle.HUMANOID, left, group * Mth.PI)));
 		}
 	}
 
@@ -854,8 +847,7 @@ public final class SlimeBionicAnimator {
 		for (int row = 0; row < indices.size(); row++) {
 			int index = indices.get(row);
 			assigned.set(index, assigned.get(index)
-				.withGait(new GaitChannel(LegStyle.SPIDER, left, row,
-					spiderPhase(row, rowCount))));
+				.withGait(new GaitChannel(LegStyle.SPIDER, left, spiderPhase(row, rowCount))));
 		}
 	}
 
@@ -932,21 +924,17 @@ public final class SlimeBionicAnimator {
 	}
 
 	private static Transform resolveTransform(int index, Rig rig, Pose pose,
-		Context context, Set<SurgicalAssembly.CombinationMember> wingMembers,
-		Transform bodyTransform, Transform swimTransform,
-		Transform[] cache, boolean[] resolving) {
+		Context context, Set<SurgicalAssembly.CombinationMember> wingMembers, boolean hasWings,
+		Transform bodyTransform, Transform swimTransform, Transform[] cache) {
 		if (cache[index] != null)
 			return cache[index];
-		if (resolving[index])
-			return Transform.IDENTITY;
-		resolving[index] = true;
 		List<ResolvedLimb> limbs = rig.limbs;
 		ResolvedLimb limb = limbs.get(index);
 		Transform parent = limb.parentIndex() < 0
 			? inheritsBodyRotation(limb) ? bodyTransform : swimTransform
-			: resolveTransform(limb.parentIndex(), rig, pose, context, wingMembers, bodyTransform,
-				swimTransform, cache, resolving);
-		Member wing = limb.arm() == null ? null : limb.members().stream()
+			: resolveTransform(limb.parentIndex(), rig, pose, context, wingMembers, hasWings, bodyTransform,
+				swimTransform, cache);
+		Member wing = !hasWings || limb.arm() == null ? null : limb.members().stream()
 			.filter(member -> wingMembers.contains(
 				new SurgicalAssembly.CombinationMember(member.source(), member.cube())))
 			.findFirst().orElse(null);
@@ -960,7 +948,6 @@ public final class SlimeBionicAnimator {
 			SurgicalCubeRotation delta = SurgicalCubeRotation.around(hinge.end().subtract(hinge.start()),
 				Math.toDegrees(angle));
 			Transform resolved = parent.rotateAround(parent.apply(hinge.start()), conjugate(parent.rotation(), delta));
-			resolving[index] = false;
 			cache[index] = resolved;
 			return resolved;
 		}
@@ -1002,7 +989,6 @@ public final class SlimeBionicAnimator {
 			inheritedLocal = conjugate(parent.rotation(), local);
 		}
 		Transform resolved = parent.rotateAround(parent.apply(limb.pivot()), inheritedLocal);
-		resolving[index] = false;
 		cache[index] = resolved;
 		return resolved;
 	}
@@ -1209,13 +1195,6 @@ public final class SlimeBionicAnimator {
 			: (float) Mth.clamp(legVolume / totalVolume, 0.0d, 1.0d);
 		return new MobilityMetrics((float) (totalLength / groundedHips.size()),
 			groundedHips.size(), groundedKnees, legVolumeRatio);
-	}
-
-	/** Retained for animation callers that need only the grounded-leg average. */
-	public static float effectiveLegLength(SurgicalAssembly assembly, List<SourceState> sources) {
-		if (assembly == null || sources == null || sources.size() != assembly.sources().size())
-			return 0.0f;
-		return averageEffectiveLegLength(resolveLimbs(assembly, sources), sources);
 	}
 
 	private static float averageEffectiveLegLength(List<ResolvedLimb> limbs,
@@ -1467,8 +1446,8 @@ public final class SlimeBionicAnimator {
 
 
 	/** Adapts entity state to the animation-only module's narrow, immutable input contract. */
-	private static Context animationContext(SlimeBionicEntity entity, float partialTick,
-		float legLength, Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle,
+	private static Context animationContext(SlimeBionicEntity entity, float partialTick, Rig rig,
+		Arm attackArm, boolean attackArmHasElbow, AttackStyle attackStyle,
 		AttackAnimationTarget attackTarget) {
 		float bodyRot = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 		float headRot = Mth.rotLerp(partialTick, entity.yHeadRotO, entity.yHeadRot);
@@ -1487,10 +1466,10 @@ public final class SlimeBionicAnimator {
 			vanillaLimbSwingAmount = Math.min(entity.walkAnimation.speed(partialTick), 1.0f);
 			// WalkAnimation.position keeps accumulating at the full movement-derived speed. Capping only
 			// the amount therefore converts speed beyond this point into faster steps, not wider swings.
-			float maximumAmount = SurgicalGait.maximumHumanoidSwingAmount(legLength);
+			float maximumAmount = rig.maximumSwingAmount;
 			limbSwingAmount = Math.min(vanillaLimbSwingAmount, maximumAmount);
 			walkWeight = maximumAmount <= 0.0f ? 0.0f : limbSwingAmount / maximumAmount;
-			limbSwing = vanillaLimbSwing * SurgicalGait.animationFrequencyScale(legLength);
+			limbSwing = vanillaLimbSwing * rig.animationFrequencyScale;
 		}
 		limbSwingAmount *= 1.0f - swimAmount;
 		walkWeight *= 1.0f - swimAmount;
@@ -1509,9 +1488,12 @@ public final class SlimeBionicAnimator {
 		Member parent, CubeBox child, CubeBox parentBox) {}
 	private record TipGeometry(Vec3 center, float radius) {}
 	private record ArmChannel(boolean left, int slot, float phase) {}
-	private record GaitChannel(LegStyle style, boolean left, int row, float phase) {}
+	private record GaitChannel(LegStyle style, boolean left, float phase) {}
 	private record LegMeasurement(double soleHeight, double effectiveLength) {}
-	private record AttackAnimationTarget(float yaw, float pitch, float referencePitch) {}
+	private record AttackAnimationTarget(float yaw, float pitch, float referencePitch) {
+		/** Unused presentation values for a body that is not running an authored attack. */
+		private static final AttackAnimationTarget NONE = new AttackAnimationTarget(0.0f, 0.0f, 0.0f);
+	}
 
 	/** Immutable rest-pose measurements used by authoritative movement-speed calibration. */
 	public record MobilityMetrics(float averageLegLength, int groundedLegCount,
@@ -1570,36 +1552,12 @@ public final class SlimeBionicAnimator {
 	public record SourceState(Map<Integer, CubeBox> boxes, Map<Integer, Vec3> offsets,
 		Map<Integer, SurgicalCubeRotation> rotations) {}
 
-	/** All rigid groups belonging to one first-person arm, from upper arm through forearm. */
-	public record FirstPersonArmSelection(List<SurgicalAssembly.CombinationMember> members) {
-		public FirstPersonArmSelection {
-			members = List.copyOf(members);
-		}
-	}
-
-	/** One source's cube transforms for the current frame, in the yaw-zero body frame. */
+	/**
+	 * One source's cube transforms for the current frame, in the yaw-zero body frame. Each entry
+	 * already includes the cube's static transform, so it replaces rather than adds to the rest state.
+	 */
 	public record Frame(Map<Integer, Vec3> offsets, Map<Integer, SurgicalCubeRotation> rotations) {
 		public static final Frame EMPTY = new Frame(Map.of(), Map.of());
-
-		public boolean isEmpty() {
-			return offsets.isEmpty() && rotations.isEmpty();
-		}
-
-		public Map<Integer, Vec3> mergeOffsets(Map<Integer, Vec3> base) {
-			if (offsets.isEmpty())
-				return base;
-			Map<Integer, Vec3> merged = new HashMap<>(base);
-			merged.putAll(offsets);
-			return merged;
-		}
-
-		public Map<Integer, SurgicalCubeRotation> mergeRotations(Map<Integer, SurgicalCubeRotation> base) {
-			if (rotations.isEmpty())
-				return base;
-			Map<Integer, SurgicalCubeRotation> merged = new HashMap<>(base);
-			merged.putAll(rotations);
-			return merged;
-		}
 	}
 
 	/**
@@ -1770,10 +1728,8 @@ public final class SlimeBionicAnimator {
 			points = List.copyOf(points);
 		}
 
-		@Nullable
+		/** {@code corners} are a captured cube's eight corners, which its geometry record guarantees. */
 		private static CubeBox of(List<Vec3> corners, Basis basis) {
-			if (corners.isEmpty())
-				return null;
 			double[] min = { Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE };
 			double[] max = { -Double.MAX_VALUE, -Double.MAX_VALUE, -Double.MAX_VALUE };
 			Vec3 sum = Vec3.ZERO;
@@ -1791,8 +1747,6 @@ public final class SlimeBionicAnimator {
 		/** Longest covariance axis, or null when the group is too cube-like to define one. */
 		@Nullable
 		private Vec3 principalAxis(Basis basis) {
-			if (points.size() < 2)
-				return null;
 			Vec3 mean = Vec3.ZERO;
 			for (Vec3 point : points)
 				mean = mean.add(point);

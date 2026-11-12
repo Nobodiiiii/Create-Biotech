@@ -147,7 +147,7 @@ public final class SurgicalTableSupportManager {
 			if (!source.hasSubjects())
 				continue;
 			BlockPos previousController = source.getBlockPos().immutable();
-			for (SurgicalSubject subject : source.detachSubjectsForSupport())
+			for (SurgicalSubject subject : source.detachSubjects())
 				detached.add(new DetachedSubject(previousController, subject));
 			changed.add(source);
 		}
@@ -158,12 +158,12 @@ public final class SurgicalTableSupportManager {
 			if (target == null || target.source() == null
 				|| !(level.getBlockEntity(target.source()) instanceof SurgicalTableBlockEntity controller))
 				continue;
-			controller.adoptSubjectsForSupport(entry.previousController, List.of(entry.subject));
+			controller.adoptSubjects(entry.previousController, List.of(entry.subject));
 			changed.add(controller);
 		}
 		for (SurgicalTableBlockEntity table : changed)
 			if (!table.isRemoved() && level.getBlockEntity(table.getBlockPos()) == table)
-				table.syncAfterSupportChange();
+				table.setChangedAndSync();
 	}
 
 	private static List<SurgicalTablePlane.Plane> scanRemainingPlanes(ServerLevel level,
@@ -335,6 +335,8 @@ public final class SurgicalTableSupportManager {
 	}
 
 	private static void expireGeometry(ServerLevel level) {
+		if (PENDING_RELEASES.isEmpty())
+			return;
 		long now = level.getGameTime();
 		List<UUID> expired = new ArrayList<>();
 		for (Map.Entry<UUID, PendingRelease> entry : PENDING_RELEASES.entrySet()) {

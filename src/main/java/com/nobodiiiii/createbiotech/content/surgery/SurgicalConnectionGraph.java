@@ -162,10 +162,10 @@ public final class SurgicalConnectionGraph<K> {
 		Map<K, BitSet> members = new LinkedHashMap<>();
 		for (K body : bodyOrder) {
 			BitSet cubes = grouped.get(body);
-			if (cubes != null && !cubes.isEmpty())
+			if (cubes != null)
 				members.put(body, cubes);
 		}
-		return new Component<>(members, true);
+		return new Component<>(members, endpoints.size());
 	}
 
 	public static final class Body<K> {
@@ -200,31 +200,17 @@ public final class SurgicalConnectionGraph<K> {
 	}
 
 	public static final class Component<K> {
-		private static final Component<?> EMPTY = new Component<>(Map.of());
+		private static final Component<?> EMPTY = new Component<>(Map.of(), 0);
 		private final Map<K, BitSet> members;
 		private final int size;
 
-		private Component(Map<K, BitSet> members) {
-			this(members, false);
-		}
-
 		/**
-		 * @param owned when the caller built {@code members} solely for this component, its BitSets are
-		 *              adopted instead of cloned. Cloning them was the third copy of the same data on
-		 *              every component materialization.
+		 * Adopts {@code members}, which {@link #component} builds solely for this instance: one
+		 * non-empty cube set per body, in body order, holding {@code size} cubes in total.
 		 */
-		private Component(Map<K, BitSet> members, boolean owned) {
-			Map<K, BitSet> frozen = new LinkedHashMap<>();
-			int total = 0;
-			for (Map.Entry<K, BitSet> entry : members.entrySet()) {
-				BitSet cubes = owned ? entry.getValue() : (BitSet) entry.getValue().clone();
-				if (cubes.isEmpty())
-					continue;
-				frozen.put(entry.getKey(), cubes);
-				total += cubes.cardinality();
-			}
-			this.members = frozen;
-			this.size = total;
+		private Component(Map<K, BitSet> members, int size) {
+			this.members = members;
+			this.size = size;
 		}
 
 		@SuppressWarnings("unchecked")
@@ -237,10 +223,11 @@ public final class SurgicalConnectionGraph<K> {
 			return cubes == null ? new BitSet() : (BitSet) cubes.clone();
 		}
 
+		/** A caller-owned copy in body order; the map itself is read-only. */
 		public Map<K, BitSet> members() {
 			Map<K, BitSet> copy = new LinkedHashMap<>();
 			members.forEach((body, cubes) -> copy.put(body, (BitSet) cubes.clone()));
-			return Map.copyOf(copy);
+			return java.util.Collections.unmodifiableMap(copy);
 		}
 
 		/** The bodies this component touches, without materializing any cube set. */

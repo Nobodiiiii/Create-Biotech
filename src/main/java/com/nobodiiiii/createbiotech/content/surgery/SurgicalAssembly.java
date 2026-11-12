@@ -1150,7 +1150,7 @@ public final class SurgicalAssembly {
 				Map.Entry::getKey, entry -> Set.copyOf(entry.getValue())));
 			if (!carrierOrigins.keySet().containsAll(carrierParts.keySet()) || carrierParts.values().stream()
 				.anyMatch(names -> names.size() > 16 || names.stream()
-					.anyMatch(name -> !name.matches("[A-Za-z0-9_./-]{1,64}"))))
+					.anyMatch(name -> !BionicAnatomySnapshot.validPartName(name))))
 				throw new IllegalArgumentException("Invalid carrier model-part labels");
 			if (!carrierOrigins.keySet().containsAll(equipmentBounds.keySet()))
 				throw new IllegalArgumentException("Equipment bounds require a carrier cube");
@@ -1368,11 +1368,16 @@ public final class SurgicalAssembly {
 			return right.size() + left.size();
 		}
 
+		/** Right slots first, then left. Both sides are immutable, so a one-sided body shares its list. */
 		public List<ArmAttackGeometry> arms() {
+			if (left.isEmpty())
+				return right;
+			if (right.isEmpty())
+				return left;
 			List<ArmAttackGeometry> arms = new ArrayList<>(armCount());
 			arms.addAll(right);
 			arms.addAll(left);
-			return List.copyOf(arms);
+			return java.util.Collections.unmodifiableList(arms);
 		}
 
 		private CompoundTag save() {

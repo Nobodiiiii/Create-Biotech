@@ -6,6 +6,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.client.animation.SlimeBionicAnimations.Rotation;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
@@ -21,9 +23,15 @@ public final class BionicWingAnimation {
 	private static final Map<MimicProfile, LivingEntity> PREVIEWS = new WeakHashMap<>();
 	private static final Map<String, NativeModel> MODELS = new HashMap<>();
 	private static final Map<MimicProfile, Map<String, Rotation>> REST_POSES = new WeakHashMap<>();
+	/** Which native part drives a wing and where it rests: fixed per donor, labels and side. */
+	private static final Map<MimicProfile, Map<WingSlot, WingTrack>> TRACKS = new WeakHashMap<>();
 	private record NativeModel(EntityModel<LivingEntity> model, Map<String, ModelPart> parts) {}
+	private record WingSlot(Set<String> labels, boolean left) {}
+	private record WingTrack(@Nullable ModelPart part, Rotation neutral) {
+		private static final WingTrack NONE = new WingTrack(null, Rotation.IDENTITY);
+	}
 	private BionicWingAnimation() {}
-	public static void clear() { PREVIEWS.clear(); MODELS.clear(); REST_POSES.clear(); }
+	public static void clear() { PREVIEWS.clear(); MODELS.clear(); REST_POSES.clear(); TRACKS.clear(); }
 
 	/** The animated hinge channel in the donor's model frame, independent of its installed pose. */
 	static Vec3 flapAxis(MimicProfile profile) {
@@ -44,19 +52,38 @@ public final class BionicWingAnimation {
 				(float) -Math.sin(phase) * 0.8f * (left ? 1 : -1));
 		}
 		var level = Minecraft.getInstance().level;
-		if (level == null) return new Rotation(0, 0, 0);
+		if (level == null) return Rotation.IDENTITY;
 		LivingEntity preview = PREVIEWS.computeIfAbsent(profile, key -> key.createPreviewEntity(level));
-		if (preview == null) return new Rotation(0, 0, 0);
+		if (preview == null) return Rotation.IDENTITY;
 		preview.setId(0);
 		NativeModel nativeModel = MODELS.computeIfAbsent(type, ignored -> createModel(preview));
-		if (nativeModel == null) return new Rotation(0, 0, 0);
-		ModelPart part = labels.stream().filter(name -> name.toLowerCase(java.util.Locale.ROOT).contains("wing"))
+		if (nativeModel == null) return Rotation.IDENTITY;
+		WingTrack track = TRACKS.computeIfAbsent(profile, ignored -> new HashMap<>())
+			.computeIfAbsent(new WingSlot(labels, left), slot -> wingTrack(profile, preview, nativeModel, slot));
+		ModelPart part = track.part();
+		if (part == null) return Rotation.IDENTITY;
+		Rotation neutral = track.neutral();
+		preview.setOnGround(false);
+		nativeModel.model.attackTime = 0; nativeModel.model.riding = false; nativeModel.model.young = preview.isBaby();
+		if (preview instanceof net.minecraft.world.entity.ambient.Bat bat) {
+			bat.setResting(false); bat.restAnimationState.stop(); bat.flyAnimationState.start(0);
+		}
+		nativeModel.model.prepareMobModel(preview, 0, 0, 0);
+		float animationAge = type.equals("chicken") || type.equals("parrot") ? (float) (Math.sin(age * 1.8f) + 1) : age;
+		nativeModel.model.setupAnim(preview, 0, 0, animationAge, 0, 0);
+		return new Rotation(part.xRot - neutral.x(), part.yRot - neutral.y(), part.zRot - neutral.z());
+	}
+
+	/** Finds the labelled wing part, falling back to the donor's own wing on that side. */
+	private static WingTrack wingTrack(MimicProfile profile, LivingEntity preview, NativeModel nativeModel,
+		WingSlot slot) {
+		ModelPart part = slot.labels().stream().filter(name -> name.toLowerCase(java.util.Locale.ROOT).contains("wing"))
 			.map(nativeModel.parts::get).filter(java.util.Objects::nonNull).findFirst().orElseGet(() ->
 				nativeModel.parts.entrySet().stream().filter(entry -> {
 					String key = entry.getKey().toLowerCase(java.util.Locale.ROOT);
-					return key.contains("wing") && key.contains(left ? "left" : "right") && !key.contains("tip");
+					return key.contains("wing") && key.contains(slot.left() ? "left" : "right") && !key.contains("tip");
 				}).map(Map.Entry::getValue).findFirst().orElse(null));
-		if (part == null) return new Rotation(0, 0, 0);
+		if (part == null) return WingTrack.NONE;
 		Map<String, Rotation> rest = REST_POSES.computeIfAbsent(profile, ignored -> {
 			float captureAge = com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer.captureAnimationAge(preview);
 			nativeModel.model.attackTime = 0; nativeModel.model.riding = false; nativeModel.model.young = preview.isBaby();
@@ -68,15 +95,7 @@ public final class BionicWingAnimation {
 		});
 		Rotation neutral = nativeModel.parts.entrySet().stream().filter(entry -> entry.getValue() == part)
 			.map(entry -> rest.get(entry.getKey())).findFirst().orElse(Rotation.IDENTITY);
-		preview.setOnGround(false);
-		nativeModel.model.attackTime = 0; nativeModel.model.riding = false; nativeModel.model.young = preview.isBaby();
-		if (preview instanceof net.minecraft.world.entity.ambient.Bat bat) {
-			bat.setResting(false); bat.restAnimationState.stop(); bat.flyAnimationState.start(0);
-		}
-		nativeModel.model.prepareMobModel(preview, 0, 0, 0);
-		float animationAge = type.equals("chicken") || type.equals("parrot") ? (float) (Math.sin(age * 1.8f) + 1) : age;
-		nativeModel.model.setupAnim(preview, 0, 0, animationAge, 0, 0);
-		return new Rotation(part.xRot - neutral.x(), part.yRot - neutral.y(), part.zRot - neutral.z());
+		return new WingTrack(part, neutral);
 	}
 
 	@SuppressWarnings({"rawtypes", "unchecked"})

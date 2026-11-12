@@ -164,25 +164,39 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return getServerPlane();
 		long now = level.getGameTime();
 		if (clientPlane == null || now >= clientPlaneCacheUntil || clientPlaneLayout != tableLayoutRevision) {
-			clientPlane = SurgicalTablePlane.scan(level, worldPosition);
+			SurgicalTablePlane.Plane scanned = SurgicalTablePlane.scan(level, worldPosition);
+			// An unchanged surface keeps its instance. Preview planning reuses its result while the
+			// work area is the same object, so a periodic rescan must not look like a new table.
+			if (clientPlane == null || clientPlane.complete() != scanned.complete()
+				|| !clientPlane.tiles().equals(scanned.tiles()))
+				clientPlane = scanned;
 			clientPlaneCacheUntil = now + CLIENT_PLANE_CACHE_TICKS;
 			clientPlaneLayout = tableLayoutRevision;
-			clientPlaneBounds = new AABB(worldPosition);
-			for (BlockPos tablePos : clientPlane.tiles())
-				clientPlaneBounds = clientPlaneBounds.minmax(new AABB(tablePos));
+			int minX = worldPosition.getX();
+			int minZ = worldPosition.getZ();
+			int maxX = minX;
+			int maxZ = minZ;
+			for (BlockPos tablePos : clientPlane.tiles()) {
+				minX = Math.min(minX, tablePos.getX());
+				minZ = Math.min(minZ, tablePos.getZ());
+				maxX = Math.max(maxX, tablePos.getX());
+				maxZ = Math.max(maxZ, tablePos.getZ());
+			}
+			int y = worldPosition.getY();
+			clientPlaneBounds = new AABB(minX, y, minZ, maxX + 1, y + 1, maxZ + 1);
 			// A topology refresh must also validate the aggregate in case a chunk packet bypassed the
 			// normal block-state transition callback.
 			clientPlanePower = -1;
 		}
 		if (clientPlanePower != tablePowerRevision) {
 			clientProjectsSourceGeometry = false;
-			// Fold local input states over the cached component. A redstone transition never performs
-			// another connectivity BFS and idle table tiles never receive block-entity ticks.
-			for (BlockPos tablePos : clientPlane.tiles()) {
-				if (!clientProjectsSourceGeometry
-					&& level.getBlockState(tablePos).getValue(SurgicalTableBlock.POWERED))
+			// Fold local input states over the cached component, so a redstone transition never
+			// performs another connectivity BFS.
+			for (BlockPos tablePos : clientPlane.tiles())
+				if (level.getBlockState(tablePos).getValue(SurgicalTableBlock.POWERED)) {
 					clientProjectsSourceGeometry = true;
-			}
+					break;
+				}
 			clientPlanePower = tablePowerRevision;
 		}
 		return clientPlane;
@@ -347,8 +361,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return repaired;
 	}
 
+	/** Reported for every prepared subject on every frame, so an already covered box costs nothing. */
 	public void includeClientRenderBounds(AABB bounds) {
-		clientRenderBounds = clientRenderBounds == null ? bounds : clientRenderBounds.minmax(bounds);
+		AABB current = clientRenderBounds;
+		if (current == null)
+			clientRenderBounds = bounds;
+		else if (bounds.minX < current.minX || bounds.minY < current.minY || bounds.minZ < current.minZ
+			|| bounds.maxX > current.maxX || bounds.maxY > current.maxY || bounds.maxZ > current.maxZ)
+			clientRenderBounds = current.minmax(bounds);
 	}
 
 	/**
@@ -707,9 +727,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		ComponentGroup group = sourceTable.connectedGroup(anchor, anchorCube);
 		if (!group.components.equals(components))
 			return null;
-		BitSet anchorComponent = group.components.get(anchor.persistentId());
-		SurgicalAssembly current = sourceTable.packedAssembly(anchor, anchorComponent, group,
-			sourceTable.jointsWithin(group), sourceTable.combinationsWithin(group), sourceTable.limbsWithin(group));
+		SurgicalAssembly current = sourceTable.packedAssembly(group, anchor);
 		if (current == null || !current.save().equals(move.sourceAssembly()))
 			return null;
 		return new TemporaryMoveSource(sourceTable, group, sourceTable.freedSubjectSlots(group));
@@ -743,10 +761,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	private static void commitTemporaryMove(@Nullable TemporaryMoveSource move) {
 		if (move != null)
-			move.sourceTable.removeTemporaryGroup(move.group);
+			move.sourceTable.removeGroup(move.group);
 	}
 
-	private void removeTemporaryGroup(ComponentGroup group) {
+	/** Removes a connectivity-closed group together with every joint, combination and limb inside it. */
+	private void removeGroup(ComponentGroup group) {
 		Set<SurgicalGlueJoint> removedJoints = jointsWithin(group);
 		Set<SurgicalCombination> removedCombinations = combinationsWithin(group);
 		Set<SurgicalLimbJoint> removedLimbs = limbsWithin(group);
@@ -792,7 +811,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return false;
 
 		damageInteractionTool(shovel, 1, player, hand);
-		removeTemporaryGroup(group);
+		removeGroup(group);
 		setChangedAndSync();
 		int drops = SurgicalSlimeDrops.roll(volume, level.getRandom());
 		if (drops > 0)
@@ -818,14 +837,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 		Map<UUID, BitSet> selected = new HashMap<>();
 		int interactionCost = 0;
-		for (SurgicalSubject subject : List.copyOf(subjects)) {
+		for (SurgicalSubject subject : subjects) {
 			for (SurgicalTableLayout.Footprint footprint : subject.occupiedFootprints()) {
 				if (!footprintIntersectsTile(footprint, tilePos))
 					continue;
-			int root = footprint.componentRoot();
-			ComponentGroup group = root >= 0 && subject.validPresentCube(root)
-				? connectedGroup(subject, root) : wholeSubjectGroup(subject);
-			if (mergeNewComponents(selected, group))
+				int root = footprint.componentRoot();
+				ComponentGroup group = root >= 0 && subject.validPresentCube(root)
+					? connectedGroup(subject, root) : wholeSubjectGroup(subject);
+				if (mergeNewComponents(selected, group))
 					interactionCost++;
 			}
 		}
@@ -835,7 +854,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 		double fallbackVolume = selectedProjectionArea(selected);
 		damageInteractionTool(shovel, interactionCost, player, hand);
-		removeTemporaryGroup(new ComponentGroup(selected));
+		removeGroup(new ComponentGroup(selected));
 		setChangedAndSync();
 		double dropVolume = volume > 0.0d ? volume
 			: Math.max(fallbackVolume, SurgicalSlimeDrops.ONE_BALL_VOLUME);
@@ -1291,43 +1310,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		BitSet component = group.components.get(subject.persistentId());
 		if (component == null || component.isEmpty() || level == null)
 			return false;
-		Set<SurgicalGlueJoint> groupJoints = jointsWithin(group);
-		Set<SurgicalCombination> groupCombinations = combinationsWithin(group);
-		Set<SurgicalLimbJoint> groupLimbs = limbsWithin(group);
-		SurgicalAssembly assembly = packedAssembly(subject, component, group, groupJoints,
-			groupCombinations, groupLimbs);
-		if (assembly == null)
-			return false;
-		assembly = alignPackedAssembly(assembly, attackGeometry, packingAlignment);
-		if (assembly == null) return false;
-		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
-			|| !validMobilityMeasurements(assembly, bodyBounds))
-			return false;
-		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
-		// Invalid or stale client combat geometry must not make an otherwise valid body unpackable.
-		// Keep it only when it still describes exactly the effective shoulder joints in this assembly.
-		int installedArms = (int) assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
-			assembly = assembly.withAttackGeometry(attackGeometry);
-		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
-		if (bionic == null)
-			return false;
-		bionic.setAssembly(assembly);
-		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(boxes, player, bionic))
+		SurgicalAssembly assembly = packedAssembly(group, subject);
+		SlimeBionicEntity bionic = assembly == null ? null : measuredBionic(assembly, bodyBounds, bodyVolume,
+			hitboxGeometry, attackGeometry, packingAlignment);
+		if (bionic == null || !CapturedEntityBoxHelper.captureEntityFromPlayerStack(boxes, player, bionic))
 			return false;
 
-		for (SurgicalSubject groupedSubject : List.copyOf(subjects)) {
-			BitSet removed = group.components.get(groupedSubject.persistentId());
-			if (removed != null)
-				groupedSubject.removeComponent(removed);
-			groupedSubject.removeGlueJoints(groupJoints);
-			groupedSubject.removeCombinations(groupCombinations);
-			groupedSubject.removeLimbJoints(groupLimbs);
-			if (groupedSubject.isEmpty())
-				removeSubject(groupedSubject);
-		}
-		clientRenderBounds = null;
+		removeGroup(group);
 		setChangedAndSync();
 		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
@@ -1420,19 +1409,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		BitSet component = group.components.get(subject.persistentId());
 		if (component == null || component.isEmpty())
 			return false;
-		SurgicalAssembly sourceAssembly = packedAssembly(subject, component, group, jointsWithin(group),
-			combinationsWithin(group), limbsWithin(group));
-		if (sourceAssembly == null || !validHitboxGeometry(sourceAssembly, bodyBounds, hitboxGeometry)
-			|| !validMobilityMeasurements(sourceAssembly, bodyBounds))
+		SurgicalAssembly sourceAssembly = packedAssembly(group, subject);
+		if (sourceAssembly == null)
 			return false;
-
-		SurgicalAssembly capturedAssembly = alignPackedAssembly(sourceAssembly, attackGeometry, packingAlignment);
-		if (capturedAssembly == null) return false;
-		capturedAssembly = capturedAssembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
-		int installedArms = (int) capturedAssembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
-			capturedAssembly = capturedAssembly.withAttackGeometry(attackGeometry);
+		SlimeBionicEntity bionic = measuredBionic(sourceAssembly, bodyBounds, bodyVolume, hitboxGeometry,
+			attackGeometry, packingAlignment);
+		if (bionic == null)
+			return false;
 		Map<UUID, CompoundTag> sourceSubjects = new HashMap<>();
 		for (UUID subjectKey : group.components.keySet()) {
 			SurgicalSubject sourceSubject = getSubjectByPersistentId(subjectKey);
@@ -1440,10 +1423,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				return false;
 			sourceSubjects.put(subjectKey, sourceSubject.save());
 		}
-		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
-		if (bionic == null)
-			return false;
-		bionic.setAssembly(capturedAssembly);
 		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
 			return false;
 		SurgicalKitItem.setTemporaryMove(kit, level.dimension().location(), worldPosition,
@@ -1463,37 +1442,61 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			|| bodyBounds == null || !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
 			return false;
 		SurgicalAssembly assembly = previewPackedAssembly(subjectId, cubeId, observedCubeCount, observedSeams);
-		if (assembly == null || !validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
-			|| !validMobilityMeasurements(assembly, bodyBounds))
-			return false;
-		assembly = alignPackedAssembly(assembly, attackGeometry, packingAlignment);
-		if (assembly == null) return false;
-		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
-		int installedArms = (int) assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count();
-		if (attackGeometry != null && attackGeometry.armCount() == installedArms)
-			assembly = assembly.withAttackGeometry(attackGeometry);
-		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
-		if (bionic == null)
-			return false;
-		bionic.setAssembly(assembly);
-		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
+		SlimeBionicEntity bionic = assembly == null ? null : measuredBionic(assembly, bodyBounds, bodyVolume,
+			hitboxGeometry, attackGeometry, packingAlignment);
+		if (bionic == null || !CapturedEntityBoxHelper.captureEntity(kit, bionic))
 			return false;
 		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.cube_copied"), true);
 		level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
 		return true;
 	}
 
+	/**
+	 * A boxed-body entity carrying {@code assembly} with the client's measurements applied, or null
+	 * when those measurements do not describe it. Combat geometry is the one optional part: stale or
+	 * invalid values must not make an otherwise valid body unpackable, so it is kept only while it
+	 * still describes exactly the effective shoulder joints.
+	 */
+	@Nullable
+	private SlimeBionicEntity measuredBionic(SurgicalAssembly assembly,
+		SurgicalAssembly.BodyBounds bodyBounds, double bodyVolume,
+		SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
+		if (!validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
+			|| !validMobilityMeasurements(assembly, bodyBounds))
+			return null;
+		assembly = alignPackedAssembly(assembly, attackGeometry, packingAlignment);
+		if (assembly == null)
+			return null;
+		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
+		if (attackGeometry != null
+			&& attackGeometry.armCount() == limbCount(assembly, SurgicalLimbType.SHOULDER))
+			assembly = assembly.withAttackGeometry(attackGeometry);
+		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
+		if (bionic != null)
+			bionic.setAssembly(assembly);
+		return bionic;
+	}
+
 	@Nullable
 	private SurgicalAssembly alignPackedAssembly(SurgicalAssembly assembly,
 		@Nullable SurgicalAssembly.AttackGeometry geometry, @Nullable SurgicalPackingAlignment alignment) {
 		if (alignment == null) return assembly;
-		if (geometry == null || geometry.armCount() != assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.SHOULDER).count()) return null;
+		if (geometry == null || geometry.armCount() != limbCount(assembly, SurgicalLimbType.SHOULDER))
+			return null;
 		assembly = assembly.withAttackGeometry(geometry);
 		if (!BionicTraitResolver.resolve(assembly, level).members(BionicTrait.BLOCK_ATTACHMENT)
 			.contains(alignment.carrier())) return null;
 		return alignment.applyToPacked(assembly, geometry);
+	}
+
+	private static int limbCount(SurgicalAssembly assembly, SurgicalLimbType type) {
+		int count = 0;
+		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
+			if (limb.type() == type)
+				count++;
+		return count;
 	}
 
 	private static boolean validHitboxGeometry(SurgicalAssembly assembly,
@@ -1511,12 +1514,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	private static boolean validMobilityMeasurements(SurgicalAssembly assembly,
 		SurgicalAssembly.BodyBounds bodyBounds) {
-		long installedHips = assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.HIP).count();
-		long installedKnees = assembly.effectiveLimbs().stream()
-			.filter(limb -> limb.type() == SurgicalLimbType.KNEE).count();
-		return bodyBounds.groundedLegCount() <= installedHips
-			&& bodyBounds.groundedKneeCount() <= installedKnees;
+		return bodyBounds.groundedLegCount() <= limbCount(assembly, SurgicalLimbType.HIP)
+			&& bodyBounds.groundedKneeCount() <= limbCount(assembly, SurgicalLimbType.KNEE);
 	}
 
 	/** Removes one server-authoritative joint with shears and returns its item. */
@@ -1533,17 +1532,13 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		for (SurgicalSubject subject : subjects)
 			subject.removeLimbJoints(removed);
 		if (!player.getAbilities().instabuild)
-			player.getInventory().placeItemBackInInventory(limbItem(joint.type()));
+			player.getInventory().placeItemBackInInventory(SurgicalJointItem.createStack(joint.type()));
 		setChangedAndSync();
 		if (level != null)
 			IWrenchable.playRemoveSound(level, worldPosition);
 		player.displayClientMessage(Component.translatable(
 			"message.create_biotech.surgical_table.limb_detached_" + joint.type().id()), true);
 		return true;
-	}
-
-	private static ItemStack limbItem(SurgicalLimbType type) {
-		return SurgicalJointItem.createStack(type);
 	}
 
 	private boolean refuse(Player player, String message) {
@@ -1616,13 +1611,18 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 
 	/** Whether two endpoints already move as one part because honey fused their combination. */
 	private boolean rotatesTogether(SurgicalGlueJoint.Endpoint first, SurgicalGlueJoint.Endpoint second) {
-		if (first.equals(second))
-			return true;
-		for (SurgicalCombination combination : allCombinations())
-			if (combination.contains(first.subjectKey(), first.cubeId())
-				&& combination.contains(second.subjectKey(), second.cubeId()))
-				return true;
-		return false;
+		return first.equals(second) || sameCombination(first, second);
+	}
+
+	/**
+	 * Whether honey fuses two cubes into one part. A combination is stored on every subject that owns
+	 * one of its members, so the first endpoint's owner alone can answer without collecting the
+	 * whole table's combinations.
+	 */
+	private boolean sameCombination(SurgicalGlueJoint.Endpoint first, SurgicalGlueJoint.Endpoint second) {
+		SurgicalSubject owner = getSubjectByPersistentId(first.subjectKey());
+		SurgicalCombination combination = owner == null ? null : owner.combinationContaining(first.cubeId());
+		return combination != null && combination.contains(second.subjectKey(), second.cubeId());
 	}
 
 	/** A first-level joint may use an existing second-level parent, but never a joint-driven island. */
@@ -2128,11 +2128,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public SurgicalAssembly previewPackedAssembly(int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
 		ComponentGroup group = previewPackedGroup(subjectId, cubeId, observedCubeCount, observedSeams);
-		if (group == null)
-			return null;
-		SurgicalSubject subject = getSubject(subjectId);
-		return packedAssembly(subject, group.components.get(subject.persistentId()), group,
-			jointsWithin(group), combinationsWithin(group), limbsWithin(group));
+		return group == null ? null : packedAssembly(group, getSubject(subjectId));
 	}
 
 	/** Assembly and membership from one connectivity traversal, for indexing a whole component's preview. */
@@ -2145,9 +2141,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Map<Integer, BitSet> components = componentsBySubjectId(group);
 		// A shared preview needs a stable coordinate frame, independent of the first hovered subject.
 		int anchorId = components.keySet().stream().mapToInt(Integer::intValue).min().orElseThrow();
-		SurgicalSubject anchor = getSubject(anchorId);
-		SurgicalAssembly assembly = packedAssembly(anchor, group.components.get(anchor.persistentId()), group,
-			jointsWithin(group), combinationsWithin(group), limbsWithin(group));
+		SurgicalAssembly assembly = packedAssembly(group, getSubject(anchorId));
 		return assembly == null ? null : new PackedAssemblyPreview(assembly, components);
 	}
 
@@ -2163,16 +2157,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		ComponentGroup group = connectedGroup(subject, cubeId);
 		BitSet component = group.components.get(subject.persistentId());
 		return component == null || component.isEmpty() ? null : group;
-	}
-
-	@Nullable
-	private SurgicalAssembly packedAssembly(SurgicalSubject subject, BitSet component,
-		ComponentGroup group, Set<SurgicalGlueJoint> groupJoints,
-		Set<SurgicalCombination> groupCombinations, Set<SurgicalLimbJoint> groupLimbs) {
-		// A single disconnected component still has an edited pose: wrench rotations and former
-		// glue transforms survive after its last joint is cut. Pack the complete source layout even
-		// without joints so both the entity renderer and table placement restore those transforms.
-		return compositeAssembly(group, groupJoints, groupCombinations, groupLimbs, subject);
 	}
 
 	private static BitSet headCubesWithin(SurgicalSubject subject, BitSet cubes) {
@@ -2677,7 +2661,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				cutSeams.set(seamId);
 		}
 		cuts.put(selected.id(), cutSeams);
-		for (SurgicalGlueJoint joint : allGlueJoints())
+		Set<SurgicalGlueJoint> existingGlue = allGlueJoints();
+		for (SurgicalGlueJoint joint : existingGlue)
 			if (detached.contains(joint.other(anchor)))
 				glue.add(joint);
 		for (SurgicalLimbJoint joint : allLimbJoints())
@@ -2701,7 +2686,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				boolean nativeSeam = other.subjectKey().equals(anchor.subjectKey())
 					&& java.util.stream.IntStream.range(0, selected.seams.size()).anyMatch(id ->
 						!cutSeams.get(id) && selected.seams.get(id).equals(SurgicalAssembly.Seam.of(cube, other.cubeId())));
-				if (!nativeSeam && allGlueJoints().stream().noneMatch(joint -> other.equals(joint.other(anchor))))
+				if (!nativeSeam && existingGlue.stream().noneMatch(joint -> other.equals(joint.other(anchor))))
 					added.add(SurgicalGlueJoint.of(anchor, other));
 			}
 		}
@@ -2879,8 +2864,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (groups.isEmpty() || covered != componentSize(affected)
 			|| groups.size() > SurgicalAssembly.MAX_CUBES)
 			return null;
-		return new BatchCutState(proposedCuts, List.copyOf(seamIds), Set.copyOf(glueCuts),
-			List.copyOf(groups), cutCount);
+		return new BatchCutState(proposedCuts, seamIds, glueCuts, groups, cutCount);
 	}
 
 	@Nullable
@@ -3102,13 +3086,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	}
 
 	public boolean isInternalCombinationJoint(SurgicalGlueJoint joint) {
-		if (joint == null)
-			return false;
-		for (SurgicalCombination combination : allCombinations())
-			if (combination.contains(joint.first().subjectKey(), joint.first().cubeId())
-				&& combination.contains(joint.second().subjectKey(), joint.second().cubeId()))
-				return true;
-		return false;
+		return sameCombination(joint.first(), joint.second());
 	}
 
 	public boolean isInternalCombinationSeam(int subjectId, SurgicalAssembly.Seam seam) {
@@ -3216,9 +3194,14 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return combinations;
 	}
 
+	/**
+	 * Encodes {@code group} as the assembly packing would create it, laid out relative to
+	 * {@code anchor}. A single disconnected component still has an edited pose: wrench rotations and
+	 * former glue transforms survive after its last joint is cut, so the complete source layout is
+	 * packed even without joints and both the entity renderer and table placement restore them.
+	 */
 	@Nullable
-	private SurgicalAssembly compositeAssembly(ComponentGroup group, Set<SurgicalGlueJoint> joints,
-		Set<SurgicalCombination> combinations, Set<SurgicalLimbJoint> limbs, SurgicalSubject anchor) {
+	private SurgicalAssembly packedAssembly(ComponentGroup group, SurgicalSubject anchor) {
 		List<SurgicalAssembly.Source> sources = new ArrayList<>();
 		Map<UUID, Integer> sourceIds = new HashMap<>();
 		for (SurgicalSubject grouped : subjects) {
@@ -3249,7 +3232,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			sources.add(source);
 		}
 		List<SurgicalAssembly.Joint> encodedJoints = new ArrayList<>();
-		for (SurgicalGlueJoint joint : joints) {
+		for (SurgicalGlueJoint joint : jointsWithin(group)) {
 			Integer firstSource = sourceIds.get(joint.first().subjectKey());
 			Integer secondSource = sourceIds.get(joint.second().subjectKey());
 			if (firstSource == null || secondSource == null)
@@ -3267,7 +3250,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				secondSource, joint.second().cubeId(), replay));
 		}
 		List<SurgicalAssembly.Combination> encodedCombinations = new ArrayList<>();
-		for (SurgicalCombination combination : combinations) {
+		for (SurgicalCombination combination : combinationsWithin(group)) {
 			List<SurgicalAssembly.CombinationMember> members = new ArrayList<>();
 			for (SurgicalCombination.Member member : combination.members()) {
 				Integer source = sourceIds.get(member.subjectKey());
@@ -3278,7 +3261,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			encodedCombinations.add(new SurgicalAssembly.Combination(combination.id(), members));
 		}
 		List<SurgicalAssembly.Limb> encodedLimbs = new ArrayList<>();
-		for (SurgicalLimbJoint limb : limbs) {
+		for (SurgicalLimbJoint limb : limbsWithin(group)) {
 			Integer childSource = sourceIds.get(limb.child().subjectKey());
 			Integer parentSource = sourceIds.get(limb.parent().subjectKey());
 			if (childSource == null || parentSource == null)
@@ -3290,13 +3273,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			anchor.placementFacing(), anchor.layPose());
 	}
 
+	/**
+	 * Cubes selected per subject. The map and its sets are adopted rather than copied: every caller
+	 * hands over either a graph component's freshly materialized members or a map built for this group.
+	 */
 	private record ComponentGroup(Map<UUID, BitSet> components) {
-		private ComponentGroup {
-			Map<UUID, BitSet> frozen = new HashMap<>();
-			components.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
-			components = Map.copyOf(frozen);
-		}
-
 		private boolean contains(SurgicalGlueJoint.Endpoint endpoint) {
 			BitSet cubes = components.get(endpoint.subjectKey());
 			return cubes != null && cubes.get(endpoint.cubeId());
@@ -3321,53 +3302,20 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		int freedSubjects) {}
 
 	private record GlueCutState(SurgicalGlueJoint joint, ComponentGroup moving, boolean separates) {}
-	private record SeamCutState(BitSet proposedCuts, ComponentGroup moving, boolean separates) {
-		private SeamCutState {
-			proposedCuts = (BitSet) proposedCuts.clone();
-		}
-	}
+	private record SeamCutState(BitSet proposedCuts, ComponentGroup moving, boolean separates) {}
 
+	// The plan records below are built only from freshly computed, exclusively owned collections
+	// (see componentsBySubjectId and the cut-state builders), so they adopt them as given.
 	public record SeamCutPlan(Map<Integer, BitSet> movingComponents, BitSet proposedCuts,
-		boolean separates) {
-		public SeamCutPlan {
-			Map<Integer, BitSet> frozen = new HashMap<>();
-			movingComponents.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
-			movingComponents = Map.copyOf(frozen);
-			proposedCuts = (BitSet) proposedCuts.clone();
-		}
-	}
+		boolean separates) {}
 
 	public record GlueCutPlan(SurgicalGlueJoint joint, Map<Integer, BitSet> movingComponents,
-		boolean separates) {
-		public GlueCutPlan {
-			Map<Integer, BitSet> frozen = new HashMap<>();
-			movingComponents.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
-			movingComponents = Map.copyOf(frozen);
-		}
-	}
+		boolean separates) {}
 
-	public record BatchCutPlan(BitSet proposedCuts, List<Map<Integer, BitSet>> groups) {
-		public BatchCutPlan {
-			proposedCuts = (BitSet) proposedCuts.clone();
-			List<Map<Integer, BitSet>> frozenGroups = new ArrayList<>(groups.size());
-			for (Map<Integer, BitSet> group : groups) {
-				Map<Integer, BitSet> frozen = new HashMap<>();
-				group.forEach((key, value) -> frozen.put(key, (BitSet) value.clone()));
-				frozenGroups.add(Map.copyOf(frozen));
-			}
-			groups = List.copyOf(frozenGroups);
-		}
-	}
+	public record BatchCutPlan(BitSet proposedCuts, List<Map<Integer, BitSet>> groups) {}
 
 	private record BatchCutState(BitSet proposedCuts, List<Integer> cutSeamIds,
-		Set<SurgicalGlueJoint> glueCuts, List<ComponentGroup> groups, int cutCount) {
-		private BatchCutState {
-			proposedCuts = (BitSet) proposedCuts.clone();
-			cutSeamIds = List.copyOf(cutSeamIds);
-			glueCuts = Set.copyOf(glueCuts);
-			groups = List.copyOf(groups);
-		}
-	}
+		Set<SurgicalGlueJoint> glueCuts, List<ComponentGroup> groups, int cutCount) {}
 
 	@Nullable
 	private List<SurgicalTableLayout.Footprint> occupiedForValidation(SurgicalTablePlane.Plane plane,
@@ -3387,7 +3335,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return nextSubjectId++;
 	}
 
-	private void adoptSubjects(BlockPos previousController, List<SurgicalSubject> migrated) {
+	void adoptSubjects(BlockPos previousController, List<SurgicalSubject> migrated) {
 		for (SurgicalSubject subject : migrated) {
 			subject.rebase(previousController, worldPosition);
 			if (subject.id() < 0 || getSubject(subject.id()) != null)
@@ -3399,7 +3347,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		clientRenderBounds = null;
 	}
 
-	private List<SurgicalSubject> detachSubjects() {
+	List<SurgicalSubject> detachSubjects() {
 		List<SurgicalSubject> detached = new ArrayList<>(subjects);
 		clearSubjects();
 		clientRenderBounds = null;
@@ -3479,7 +3427,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			}
 		}
 		if (!unsupported.isEmpty())
-			removeTemporaryGroup(new ComponentGroup(unsupported));
+			removeGroup(new ComponentGroup(unsupported));
 		return List.copyOf(released);
 	}
 
@@ -3594,24 +3542,12 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			new Vec3(minX, maxY, maxZ), new Vec3(maxX, maxY, maxZ));
 	}
 
-	List<SurgicalSubject> detachSubjectsForSupport() {
-		return detachSubjects();
-	}
-
-	void adoptSubjectsForSupport(BlockPos previousController, List<SurgicalSubject> migrated) {
-		adoptSubjects(previousController, migrated);
-	}
-
-	void syncAfterSupportChange() {
-		setChangedAndSync();
-	}
-
 	@FunctionalInterface
 	private interface TilePredicate {
 		boolean test(int x, int z);
 	}
 
-	private void setChangedAndSync() {
+	void setChangedAndSync() {
 		normalizeLimbJoints();
 		setChanged();
 		sendData();
@@ -3636,8 +3572,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
 		long started = SurgicalProfiler.begin();
 		boolean previouslyHadSubjects = hasSubjects();
-		Map<UUID, SurgicalSubject> previousSubjects = clientPacket
-			? new HashMap<>(subjectsByPersistentId) : Map.of();
 		super.read(tag, registries, clientPacket);
 		boolean currentFormat = tag.contains(FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
 			&& tag.getInt(FORMAT_VERSION_TAG) == FORMAT_VERSION
@@ -3654,6 +3588,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 				loaded.add(subject);
 			}
 		}
+		boolean structureChanged = loaded.size() != subjects.size();
+		Set<UUID> changed = clientPacket ? retainUnchangedSubjects(loaded) : Set.of();
 		clearSubjects();
 		addSubjects(loaded);
 		nextSubjectId = Math.max(currentFormat ? tag.getInt(NEXT_SUBJECT_ID_TAG) : 0,
@@ -3663,10 +3599,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			clientPlane = null;
 			clientPlaneBounds = null;
 			clientPlaneCacheUntil = Long.MIN_VALUE;
-			boolean structureChanged = subjects.size() != previousSubjects.size();
-			Set<UUID> changed = adoptUnchangedSubjects(previousSubjects);
-			// Normalizing before the adopt would rewrite the freshly decoded subjects that the adopt is
-			// about to throw away, and both normalizers walk every subject on the table.
+			// Both normalizers walk every subject on the table, and a retained subject was already
+			// normalized when it first arrived, so they only run when the packet changed something.
 			if (structureChanged || !changed.isEmpty()) {
 				normalizeCombinations(false);
 				normalizeLimbJoints();
@@ -3701,58 +3635,43 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private Set<UUID> groundingDependents(Set<UUID> changed) {
 		Set<UUID> stale = new HashSet<>(changed);
 		Map<Integer, Set<Integer>> groups = connectedSubjectGroups();
-		for (UUID persistentId : changed) {
-			SurgicalSubject subject = subjectsByPersistentId.get(persistentId);
-			if (subject == null)
-				continue;
-			for (int subjectId : groups.getOrDefault(subject.id(), Set.of(subject.id()))) {
-				SurgicalSubject dependent = getSubject(subjectId);
-				if (dependent != null)
-					stale.add(dependent.persistentId());
-			}
-		}
+		for (UUID persistentId : changed)
+			for (int subjectId : groups.get(subjectsByPersistentId.get(persistentId).id()))
+				stale.add(getSubject(subjectId).persistentId());
 		return stale;
 	}
 
 	/**
 	 * Every sync packet re-decodes every subject on the table, even the ones the edit never touched.
-	 * Handing those back the instance the client already had keeps the model-preview and captured-
-	 * geometry caches — both keyed on subject identity — warm, so only the subjects that really moved
-	 * pay for a rebuild.
+	 * Swapping those for the instance the client already had, before the decoded list is installed,
+	 * keeps the model-preview and captured-geometry caches — both keyed on subject identity — warm,
+	 * so only the subjects that really moved pay for a rebuild.
 	 *
 	 * @return the persistent ids of the subjects whose content differs from what the client already had
 	 */
-	private Set<UUID> adoptUnchangedSubjects(Map<UUID, SurgicalSubject> previous) {
+	private Set<UUID> retainUnchangedSubjects(List<SurgicalSubject> decoded) {
 		Set<UUID> changed = new HashSet<>();
-		List<SurgicalSubject> reconciled = new ArrayList<>(subjects.size());
-		for (SurgicalSubject subject : subjects) {
-			SurgicalSubject retained = previous.get(subject.persistentId());
-			if (retained != null && retained.contentEquals(subject)) {
-				reconciled.add(retained);
-				continue;
-			}
-			changed.add(subject.persistentId());
-			reconciled.add(subject);
+		for (int index = 0; index < decoded.size(); index++) {
+			SurgicalSubject subject = decoded.get(index);
+			SurgicalSubject retained = subjectsByPersistentId.get(subject.persistentId());
+			if (retained != null && retained.contentEquals(subject))
+				decoded.set(index, retained);
+			else
+				changed.add(subject.persistentId());
 		}
-		clearSubjects();
-		addSubjects(reconciled);
 		return changed;
 	}
 
 	@Override
 	public AABB getRenderBoundingBox() {
 		AABB bounds = new AABB(worldPosition);
-		if (level != null && hasSubjects()) {
-			if (level.isClientSide) {
-				getClientPlane();
-				if (clientPlaneBounds != null)
-					bounds = bounds.minmax(clientPlaneBounds);
-			} else {
-				SurgicalTablePlane.Plane plane = getServerPlane();
-				for (BlockPos tablePos : plane.tiles())
-					bounds = bounds.minmax(new AABB(tablePos));
-			}
-		}
+		// Only the controller owns subjects. Every other tile of the surface draws nothing, so its own
+		// block is all the frustum test needs; the wide fallback below would keep each of them
+		// dispatched to the renderer for no output.
+		if (subjects.isEmpty())
+			return bounds;
+		if (getClientPlane() != null && clientPlaneBounds != null)
+			bounds = bounds.minmax(clientPlaneBounds);
 		if (clientRenderBounds != null)
 			return bounds.minmax(clientRenderBounds).inflate(0.25d);
 		double surfaceY = SurgicalTablePlane.surfaceY(worldPosition.getY());

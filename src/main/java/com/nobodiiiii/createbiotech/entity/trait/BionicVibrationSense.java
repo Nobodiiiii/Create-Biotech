@@ -18,6 +18,8 @@ public final class BionicVibrationSense implements VibrationSystem, VibrationSys
 	private final SlimeBionicEntity entity;
 	private final Data data = new Data();
 	private final DynamicGameEventListener<Listener> listener = new DynamicGameEventListener<>(new Listener(this));
+	@Nullable private PositionSource positionSource;
+	private float positionSourceEyeHeight;
 	@Nullable private Entity heardTarget;
 	@Nullable private Vec3 heardPosition;
 	private long heardAt;
@@ -27,7 +29,15 @@ public final class BionicVibrationSense implements VibrationSystem, VibrationSys
 	@Override public Data getVibrationData() { return data; }
 	@Override public User getVibrationUser() { return this; }
 	@Override public int getListenerRadius() { return 12; }
-	@Override public PositionSource getPositionSource() { return new EntityPositionSource(entity, entity.getEyeHeight()); }
+	/** Asked for twice per delivered game event; the source only changes with the eye height. */
+	@Override public PositionSource getPositionSource() {
+		float eyeHeight = entity.getEyeHeight();
+		if (positionSource == null || eyeHeight != positionSourceEyeHeight) {
+			positionSource = new EntityPositionSource(entity, eyeHeight);
+			positionSourceEyeHeight = eyeHeight;
+		}
+		return positionSource;
+	}
 
 	private boolean tracking(@Nullable Entity source) {
 		return source != null && source == entity.getTarget() && source.isAlive() && !source.isSilent()

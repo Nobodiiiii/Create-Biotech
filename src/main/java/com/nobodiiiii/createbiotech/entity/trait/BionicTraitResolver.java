@@ -23,9 +23,20 @@ public final class BionicTraitResolver {
 	private BionicTraitResolver() {}
 
 	public record Revision(long traits, long anatomy, long clientOverrides) {}
+	private static volatile Revision lastRevision = new Revision(-1L, -1L, -1L);
+
+	/**
+	 * Every trait query validates its cache against this, so the same instance is handed out until
+	 * one of the three counters moves; they only move on a reload or a rules sync.
+	 */
 	public static Revision revision() {
-		return new Revision(BionicTraitRegistry.generation(), BionicAnatomyRegistry.generation(),
-			BionicTraitOverrides.clientGeneration());
+		long traits = BionicTraitRegistry.generation();
+		long anatomy = BionicAnatomyRegistry.generation();
+		long clientOverrides = BionicTraitOverrides.clientGeneration();
+		Revision last = lastRevision;
+		if (last.traits != traits || last.anatomy != anatomy || last.clientOverrides != clientOverrides)
+			lastRevision = last = new Revision(traits, anatomy, clientOverrides);
+		return last;
 	}
 
 	/** Runtime, boxes and table previews share the union of traits bound to retained assembly parts. */

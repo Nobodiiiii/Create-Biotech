@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.entity;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,7 +50,6 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
-	private static final boolean RENDER_ATTACK_RANGE = true;
 	private static final float MIN_SHADOW_RADIUS = 0.15f;
 	private static final float MAX_SHADOW_RADIUS = 1.0f;
 	private static final float SITTING_HEIGHT_SCALE = 0.8f;
@@ -60,10 +58,6 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static final Map<SlimeBionicEntity, CachedGeometry> GEOMETRY = new WeakHashMap<>();
 	private static final Map<SlimeBionicEntity, CompositeCachedGeometry> COMPOSITE_GEOMETRY = new WeakHashMap<>();
 	private static final Map<SlimeBionicEntity, FirstPersonArms> FIRST_PERSON_ARMS = new WeakHashMap<>();
-	private static final Map<SurgicalAssembly, Map<SurgicalAssembly.Source, Map<Integer, Vec3>>>
-		UPRIGHT_OFFSETS = new WeakHashMap<>();
-	private static final Map<SurgicalAssembly, Map<SurgicalAssembly.Source, Map<Integer, SurgicalCubeRotation>>>
-		UPRIGHT_ROTATIONS = new WeakHashMap<>();
 
 	public SlimeBionicRenderer(EntityRendererProvider.Context context) {
 		super(context);
@@ -74,8 +68,6 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		GEOMETRY.clear();
 		COMPOSITE_GEOMETRY.clear();
 		FIRST_PERSON_ARMS.clear();
-		UPRIGHT_OFFSETS.clear();
-		UPRIGHT_ROTATIONS.clear();
 		SlimeBionicAnimator.clearCache();
 		com.nobodiiiii.createbiotech.entity.client.BionicWingAnimation.clear();
 		SlimeBionicAttackRangeRenderer.clearCache();
@@ -88,17 +80,17 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		if (assembly == null)
 			return false;
 		float partialTick = Minecraft.getInstance().getTimer().getGameTimeDeltaPartialTick(false);
-		FirstPersonSourceState sourceState = firstPersonSourceState(entity, assembly, partialTick,
-			packedLight);
-		if (sourceState == null)
+		List<SlimeBionicAnimator.SourceState> sourceStates = firstPersonSourceStates(entity, assembly,
+			partialTick, packedLight);
+		if (sourceStates == null)
 			return false;
 
 		FirstPersonArms arms = FIRST_PERSON_ARMS.get(entity);
-		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceState.sourceStates
+		if (arms == null || arms.assembly != assembly || arms.sourceStates != sourceStates
 			|| !arms.wings.equals(entity.getBionicTraits().wingMembers())) {
-			arms = new FirstPersonArms(assembly, sourceState.sourceStates, entity.getBionicTraits().wingMembers(),
-				measureFirstPersonArm(entity, assembly, sourceState, false),
-				measureFirstPersonArm(entity, assembly, sourceState, true));
+			arms = new FirstPersonArms(assembly, sourceStates, entity.getBionicTraits().wingMembers(),
+				measureFirstPersonArm(entity, assembly, sourceStates, false),
+				measureFirstPersonArm(entity, assembly, sourceStates, true));
 			FIRST_PERSON_ARMS.put(entity, arms);
 		}
 
@@ -117,18 +109,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		// The selected chain keeps its captured rest pose and does not inherit the world-view
 		// shoulder/elbow animation.
 		BodyFrame componentFrame = BodyFrame.of(0.0f, poseStack.last().pose());
-		renderFirstPersonSources(entity, assembly, sourceState, arm.cubes, componentFrame, poseStack, buffer,
+		renderFirstPersonSources(entity, assembly, sourceStates, arm.cubes, componentFrame, poseStack, buffer,
 			packedLight, partialTick);
 		poseStack.popPose();
 		return true;
 	}
 
+	/** The cached rest states of the body being possessed, measuring them first when needed. */
 	@Nullable
-	private static FirstPersonSourceState firstPersonSourceState(SlimeBionicEntity entity,
+	private static List<SlimeBionicAnimator.SourceState> firstPersonSourceStates(SlimeBionicEntity entity,
 		SurgicalAssembly assembly, float partialTick, int packedLight) {
-		boolean composite = assembly.preservesLayout() || assembly.sources().size() > 1;
 		boolean slimeForm = SlimeMimicHandler.isSlimeMimic(entity);
-		if (composite) {
+		if (isComposite(assembly)) {
 			CompositeCachedGeometry cached = COMPOSITE_GEOMETRY.get(entity);
 			if (cached == null || cached.assembly != assembly || cached.slimeForm != slimeForm) {
 				cached = measureComposite(entity, assembly, partialTick, packedLight, slimeForm);
@@ -136,11 +128,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					return null;
 				COMPOSITE_GEOMETRY.put(entity, cached);
 			}
-			List<Map<Integer, Vec3>> offsets = assembly.sources().stream()
-				.map(source -> uprightOffsets(assembly, source)).toList();
-			List<Map<Integer, SurgicalCubeRotation>> rotations = assembly.sources().stream()
-				.map(source -> uprightRotations(assembly, source)).toList();
-			return new FirstPersonSourceState(cached.sources, offsets, rotations, true);
+			return cached.sources;
 		}
 
 		LivingEntity preview = SurgicalSourceModelRenderer.preview(assembly.profile());
@@ -153,26 +141,27 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				return null;
 			GEOMETRY.put(entity, cached);
 		}
-		return new FirstPersonSourceState(cached.sourceStates, List.of(cached.offsets),
-			List.of(assembly.cubeRotations()), false);
+		return cached.sourceStates;
+	}
+
+	/** A body whose sources keep their table layout, as opposed to one unedited single donor. */
+	private static boolean isComposite(SurgicalAssembly assembly) {
+		return assembly.preservesLayout() || assembly.sources().size() > 1;
 	}
 
 	@Nullable
 	private static FirstPersonArm measureFirstPersonArm(SlimeBionicEntity entity, SurgicalAssembly assembly,
-		FirstPersonSourceState sourceState, boolean left) {
-		SlimeBionicAnimator.FirstPersonArmSelection selection = SlimeBionicAnimator
-			.firstPersonArm(entity, assembly, sourceState.sourceStates, left);
-		if (selection == null)
+		List<SlimeBionicAnimator.SourceState> sourceStates, boolean left) {
+		List<SurgicalAssembly.CombinationMember> members = SlimeBionicAnimator
+			.firstPersonArm(entity, assembly, sourceStates, left);
+		if (members == null)
 			return null;
 		Map<Integer, BitSet> cubes = new java.util.HashMap<>();
-		for (SurgicalAssembly.CombinationMember member : selection.members())
+		for (SurgicalAssembly.CombinationMember member : members)
 			cubes.computeIfAbsent(member.source(), ignored -> new BitSet()).set(member.cube());
 		EntityGeometry.Bounds bounds = new EntityGeometry.Bounds();
-		for (SurgicalAssembly.CombinationMember member : selection.members()) {
-			if (member.source() < 0 || member.source() >= sourceState.sourceStates.size())
-				continue;
-			SlimeBionicAnimator.CubeBox box = sourceState.sourceStates.get(member.source())
-				.boxes().get(member.cube());
+		for (SurgicalAssembly.CombinationMember member : members) {
+			SlimeBionicAnimator.CubeBox box = sourceStates.get(member.source()).boxes().get(member.cube());
 			if (box == null)
 				continue;
 			for (Vec3 point : box.points())
@@ -182,10 +171,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	}
 
 	private static void renderFirstPersonSources(SlimeBionicEntity entity, SurgicalAssembly assembly,
-		FirstPersonSourceState sourceState, Map<Integer, BitSet> cubes, BodyFrame componentFrame,
+		List<SlimeBionicAnimator.SourceState> sourceStates, Map<Integer, BitSet> cubes, BodyFrame componentFrame,
 		PoseStack poseStack, MultiBufferSource buffer, int packedLight, float partialTick) {
+		boolean composite = isComposite(assembly);
 		poseStack.pushPose();
-		if (sourceState.composite)
+		if (composite)
 			SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
 		for (int sourceIndex = 0; sourceIndex < assembly.sources().size(); sourceIndex++) {
 			BitSet selected = cubes.get(sourceIndex);
@@ -196,17 +186,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			if (preview == null)
 				continue;
 			poseStack.pushPose();
-			if (sourceState.composite) {
+			if (composite) {
 				poseStack.translate(source.originOffset().x, source.originOffset().y,
 					source.originOffset().z);
 				if (assembly.preservesLayout())
 					SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
 			}
+			SlimeBionicAnimator.SourceState state = sourceStates.get(sourceIndex);
 			// First-person arms do not display the body's hurt overlay.
 			SurgicalSourceModelRenderer.renderEquipped(preview, source.cubeCount(),
 				SurgicalSourceModelRenderer.visibleCubes(preview, selected, entity.isSheared()),
-				componentFrame.rotateOffsets(sourceState.offsets.get(sourceIndex)),
-				componentFrame.rotateRotations(sourceState.rotations.get(sourceIndex)),
+				componentFrame.rotateOffsets(state.offsets(), Map.of()),
+				componentFrame.rotateRotations(state.rotations(), Map.of()),
 				poseStack, buffer, packedLight, partialTick, false, null, true, false,
 				entity.getBionicEquipment().saddleCubes(sourceIndex), entity.getBionicEquipment().chestCubes(sourceIndex), entity, sourceIndex);
 			poseStack.popPose();
@@ -225,10 +216,14 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	public void render(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
 		poseStack.pushPose();
-		float fuse = (entity.getProductionFlags() >> 2) / (float) Math.max(1,
-			entity.getBionicTraits().parameter(com.nobodiiiii.createbiotech.entity.trait.BionicTrait.SELF_DESTRUCT, "fuse_ticks", 30));
-		float swell = 1 + Math.min(1, fuse) * 0.2f;
-		poseStack.scale(swell, swell, swell);
+		// Scaling by one is an exact no-op, so only a lit fuse pays for the trait lookup.
+		int fuseTicks = entity.getProductionFlags() >> 2;
+		if (fuseTicks != 0) {
+			float fuse = fuseTicks / (float) Math.max(1,
+				entity.getBionicTraits().parameter(BionicTrait.SELF_DESTRUCT, "fuse_ticks", 30));
+			float swell = 1 + Math.min(1, fuse) * 0.2f;
+			poseStack.scale(swell, swell, swell);
+		}
 		renderBody(entity, yaw, partialTick, poseStack, buffer, packedLight);
 		poseStack.popPose();
 		if (!entity.isDeadOrDying()) com.nobodiiiii.createbiotech.entity.client.BionicTraitClient.render(entity, partialTick, poseStack, buffer, packedLight);
@@ -245,12 +240,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			sourceBuffer = sittingModelBuffer(entity, poseStack, sourceBuffer);
 			float bodyYaw = Mth.rotLerp(partialTick, entity.yBodyRotO, entity.yBodyRot);
 			BodyFrame bodyFrame = BodyFrame.of(entity, bodyYaw, poseStack.last().pose());
-			if (assembly.preservesLayout() || assembly.sources().size() > 1) {
+			if (isComposite(assembly)) {
 				renderComposite(entity, assembly, bodyFrame, partialTick, poseStack, sourceBuffer, packedLight);
 				if (hideOriginal)
 					return;
-				if (RENDER_ATTACK_RANGE)
-					SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
+				SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
 				super.render(entity, yaw, partialTick, poseStack, buffer, packedLight);
 				return;
 			}
@@ -273,15 +267,14 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			}
 
 			BitSet presentCubes = cached == null ? assembly.presentCubes() : cached.presentCubes;
-			Map<Integer, Vec3> localOffsets = cached == null ? Map.of() : cached.offsets;
+			Map<Integer, Vec3> localOffsets = Map.of();
 			Map<Integer, SurgicalCubeRotation> localRotations = assembly.cubeRotations();
+			SlimeBionicAnimator.Frame frame = SlimeBionicAnimator.Frame.EMPTY;
 			bodyFrame.apply(poseStack);
 			if (cached != null) {
 				poseStack.translate(cached.modelOffset.x, cached.modelOffset.y, cached.modelOffset.z);
-				SlimeBionicAnimator.Frame frame = SlimeBionicAnimator.resolve(entity, assembly,
-					cached.sourceStates, cached.rig, partialTick).getFirst();
-				localOffsets = frame.mergeOffsets(localOffsets);
-				localRotations = frame.mergeRotations(localRotations);
+				localOffsets = cached.sourceStates.getFirst().offsets();
+				frame = SlimeBionicAnimator.resolve(entity, cached.rig, partialTick).getFirst();
 			}
 			if (preview != null) {
 				boolean reportDeath = hideOriginal;
@@ -289,7 +282,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					? Minecraft.getInstance().gameRenderer.getMainCamera().getPosition() : null;
 				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.renderEquipped(preview,
 					assembly.cubeCount(), SurgicalSourceModelRenderer.visibleCubes(preview, presentCubes, entity.isSheared()),
-					bodyFrame.rotateOffsets(localOffsets), bodyFrame.rotateRotations(localRotations),
+					bodyFrame.rotateOffsets(localOffsets, frame.offsets()),
+					bodyFrame.rotateRotations(localRotations, frame.rotations()),
 					poseStack, sourceBuffer, packedLight, partialTick, reportDeath, cameraPosition,
 					!slimeForm, entity.hurtTime > 0 || entity.deathTime > 0,
 					entity.getBionicEquipment().saddleCubes(0), entity.getBionicEquipment().chestCubes(0), entity, 0);
@@ -301,8 +295,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			poseStack.popPose();
 			if (hideOriginal)
 				return;
-			if (RENDER_ATTACK_RANGE)
-				SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
+			SlimeBionicAttackRangeRenderer.render(entity, assembly, partialTick, poseStack, buffer);
 		} else {
 			GEOMETRY.remove(entity);
 			COMPOSITE_GEOMETRY.remove(entity);
@@ -397,9 +390,9 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		}
 
 		List<SlimeBionicAnimator.Frame> frames = cached == null ? List.of()
-			: SlimeBionicAnimator.resolve(entity, assembly, cached.sources, cached.rig, partialTick);
-		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying()
-			&& SlimeMimicHandler.isSlimeMimic(entity) ? new ArrayList<>() : null;
+			: SlimeBionicAnimator.resolve(entity, cached.rig, partialTick);
+		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying() && slimeForm
+			? new ArrayList<>() : null;
 		Vec3 cameraPosition = deathGeometry == null ? null
 			: Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		poseStack.pushPose();
@@ -407,7 +400,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		if (cached != null)
 			poseStack.translate(cached.modelOffset.x, cached.modelOffset.y, cached.modelOffset.z);
 		renderCompositeSources(entity, assembly, bodyFrame, partialTick, poseStack, buffer, packedLight,
-			!slimeForm, frames, null, deathGeometry, cameraPosition);
+			!slimeForm, cached == null ? null : cached.sources, frames, null, deathGeometry, cameraPosition);
 		poseStack.popPose();
 		if (deathGeometry != null)
 			SlimeMimicDeathClient.report(entity, deathGeometry);
@@ -427,7 +420,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		MultiBufferSource measuringBuffer = renderType -> geometry;
 		List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>(assembly.sources().size());
 		renderCompositeSources(entity, assembly, BodyFrame.IDENTITY, partialTick, new PoseStack(),
-			measuringBuffer, packedLight, !slimeForm, List.of(), sources, null, null);
+			measuringBuffer, packedLight, !slimeForm, null, List.of(), sources, null, null);
 		if (!geometry.hasVertices())
 			return null;
 		EntityGeometry.Bounds bounds = geometry.bounds();
@@ -498,11 +491,14 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	 * Renders or measures every source of a composite body.
 	 *
 	 * <p>When {@code restStates} is supplied each source's rest geometry is collected instead of an
-	 * animation frame being applied, which is how the still reference pose is captured.</p>
+	 * animation frame being applied, which is how the still reference pose is captured. A render pass
+	 * hands those states back as {@code cachedStates}, so the upright component transforms measured
+	 * with them are reused instead of being derived again.</p>
 	 */
 	private static void renderCompositeSources(SlimeBionicEntity entity, SurgicalAssembly assembly,
 		BodyFrame bodyFrame, float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight,
-		boolean renderSourceGeometry, List<SlimeBionicAnimator.Frame> frames,
+		boolean renderSourceGeometry, @Nullable List<SlimeBionicAnimator.SourceState> cachedStates,
+		List<SlimeBionicAnimator.Frame> frames,
 		@Nullable List<SlimeBionicAnimator.SourceState> restStates,
 		@Nullable List<SlimeMimicCubeGeometry> deathGeometry, @Nullable Vec3 cameraPosition) {
 		poseStack.pushPose();
@@ -510,21 +506,23 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		List<SurgicalAssembly.Source> sources = assembly.sources();
 		for (int index = 0; index < sources.size(); index++) {
 			SurgicalAssembly.Source source = sources.get(index);
+			Map<Integer, Vec3> offsets = cachedStates == null
+				? uprightOffsets(assembly, source) : cachedStates.get(index).offsets();
+			Map<Integer, SurgicalCubeRotation> rotations = cachedStates == null
+				? uprightRotations(assembly, source) : cachedStates.get(index).rotations();
 			LivingEntity preview = SurgicalSourceModelRenderer.preview(source.profile());
 			if (preview == null) {
 				if (restStates != null)
-					restStates.add(new SlimeBionicAnimator.SourceState(Map.of(), Map.of(), Map.of()));
+					restStates.add(new SlimeBionicAnimator.SourceState(Map.of(), offsets, rotations));
 				continue;
 			}
 			((SlimeMimicAccess) (Object) preview).createBiotech$setSlimeMimic(true);
-			Map<Integer, Vec3> offsets = uprightOffsets(assembly, source);
-			Map<Integer, SurgicalCubeRotation> rotations = uprightRotations(assembly, source);
 			SlimeBionicAnimator.Frame frame = index < frames.size() ? frames.get(index)
 				: SlimeBionicAnimator.Frame.EMPTY;
 			Map<Integer, Vec3> renderOffsets = restStates == null
-				? bodyFrame.rotateOffsets(frame.mergeOffsets(offsets)) : offsets;
+				? bodyFrame.rotateOffsets(offsets, frame.offsets()) : offsets;
 			Map<Integer, SurgicalCubeRotation> renderRotations = restStates == null
-				? bodyFrame.rotateRotations(frame.mergeRotations(rotations)) : rotations;
+				? bodyFrame.rotateRotations(rotations, frame.rotations()) : rotations;
 			poseStack.pushPose();
 			poseStack.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
 			if (assembly.preservesLayout())
@@ -551,40 +549,27 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		poseStack.popPose();
 	}
 
+	/** A source's stored component offsets, turned from the table layout into the upright body frame. */
 	private static Map<Integer, Vec3> uprightOffsets(SurgicalAssembly assembly,
 		SurgicalAssembly.Source source) {
-		Map<SurgicalAssembly.Source, Map<Integer, Vec3>> assemblyOffsets = UPRIGHT_OFFSETS
-			.computeIfAbsent(assembly, ignored -> new IdentityHashMap<>());
-		Map<Integer, Vec3> cached = assemblyOffsets.get(source);
-		if (cached != null)
-			return cached;
-		SurgicalLayPose pose = assembly.layoutLayPose();
 		Map<Integer, Vec3> offsets = source.cubeOffsets();
 		if (offsets.isEmpty())
 			return offsets;
+		SurgicalLayPose pose = assembly.layoutLayPose();
 		Map<Integer, Vec3> transformed = new java.util.HashMap<>();
 		offsets.forEach((cube, offset) -> transformed.put(cube, pose.inverseRotate(offset)));
-		Map<Integer, Vec3> result = Map.copyOf(transformed);
-		assemblyOffsets.put(source, result);
-		return result;
+		return Map.copyOf(transformed);
 	}
 
 	private static Map<Integer, SurgicalCubeRotation> uprightRotations(SurgicalAssembly assembly,
 		SurgicalAssembly.Source source) {
-		Map<SurgicalAssembly.Source, Map<Integer, SurgicalCubeRotation>> assemblyRotations = UPRIGHT_ROTATIONS
-			.computeIfAbsent(assembly, ignored -> new IdentityHashMap<>());
-		Map<Integer, SurgicalCubeRotation> cached = assemblyRotations.get(source);
-		if (cached != null)
-			return cached;
-		SurgicalLayPose pose = assembly.layoutLayPose();
 		Map<Integer, SurgicalCubeRotation> rotations = source.cubeRotations();
 		if (rotations.isEmpty())
 			return rotations;
+		SurgicalLayPose pose = assembly.layoutLayPose();
 		Map<Integer, SurgicalCubeRotation> transformed = new java.util.HashMap<>();
 		rotations.forEach((cube, rotation) -> transformed.put(cube, rotation.inverseRotate(pose)));
-		Map<Integer, SurgicalCubeRotation> result = Map.copyOf(transformed);
-		assemblyRotations.put(source, result);
-		return result;
+		return Map.copyOf(transformed);
 	}
 
 	@Nullable
@@ -617,9 +602,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			List.of(new SlimeBionicAnimator.SourceState(restBoxes, offsets, assembly.cubeRotations()));
 		SurgicalAssembly.BodyBounds bodyBounds = updateClientBodyBounds(entity, assembly, bounds,
 			sourceStates);
-		return new CachedGeometry(assembly, slimeForm, presentCubes, offsets,
-			modelOffset(bounds, bodyBounds), restBoxes, sourceStates,
-			SlimeBionicAnimator.rig(assembly, sourceStates));
+		return new CachedGeometry(assembly, slimeForm, presentCubes, modelOffset(bounds, bodyBounds),
+			sourceStates, SlimeBionicAnimator.rig(assembly, sourceStates));
 	}
 
 	private static Map<Integer, Vec3> componentOffsets(LivingEntity preview, SurgicalAssembly assembly,
@@ -647,22 +631,12 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		return Mth.clamp(horizontalRadius, MIN_SHADOW_RADIUS, MAX_SHADOW_RADIUS);
 	}
 
+	/** {@code presentCubes} is the assembly's own copy, taken once when the entry is built. */
 	private record CachedGeometry(SurgicalAssembly assembly, boolean slimeForm, BitSet presentCubes,
-		Map<Integer, Vec3> offsets, Vec3 modelOffset,
-		Map<Integer, SlimeBionicAnimator.CubeBox> restBoxes,
-		List<SlimeBionicAnimator.SourceState> sourceStates, SlimeBionicAnimator.Rig rig) {
-		private CachedGeometry {
-			presentCubes = (BitSet) presentCubes.clone();
-			offsets = Map.copyOf(offsets);
-		}
-	}
+		Vec3 modelOffset, List<SlimeBionicAnimator.SourceState> sourceStates, SlimeBionicAnimator.Rig rig) {}
 
 	private record CompositeCachedGeometry(SurgicalAssembly assembly, boolean slimeForm,
 		Vec3 modelOffset, List<SlimeBionicAnimator.SourceState> sources, SlimeBionicAnimator.Rig rig) {}
-
-	private record FirstPersonSourceState(List<SlimeBionicAnimator.SourceState> sourceStates,
-		List<Map<Integer, Vec3>> offsets,
-		List<Map<Integer, SurgicalCubeRotation>> rotations, boolean composite) {}
 
 	private record FirstPersonArms(SurgicalAssembly assembly,
 		List<SlimeBionicAnimator.SourceState> sourceStates,
@@ -714,36 +688,50 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				poseStack.mulPose(Axis.YP.rotationDegrees(-yaw));
 		}
 
-		private Map<Integer, Vec3> rotateOffsets(Map<Integer, Vec3> offsets) {
-			if (this == IDENTITY || offsets.isEmpty())
-				return offsets;
-			Map<Integer, Vec3> rotated = new java.util.HashMap<>(offsets.size());
-			offsets.forEach((cube, offset) -> {
-				Vector3f transformed = axes.transformDirection(
-					(float) offset.x, (float) offset.y, (float) offset.z, new Vector3f());
-				rotated.put(cube, new Vec3(transformed.x, transformed.y, transformed.z));
-			});
-			return Map.copyOf(rotated);
+		/**
+		 * Reframes {@code base} overlaid with this frame's {@code animated} entries in one pass. The
+		 * result is handed straight to the render plan, which only looks cubes up by id.
+		 */
+		private Map<Integer, Vec3> rotateOffsets(Map<Integer, Vec3> base, Map<Integer, Vec3> animated) {
+			if (base.isEmpty() && animated.isEmpty())
+				return base;
+			Map<Integer, Vec3> rotated = new java.util.HashMap<>((base.size() + animated.size()) * 2);
+			Vector3f scratch = new Vector3f();
+			for (Map.Entry<Integer, Vec3> entry : base.entrySet())
+				if (!animated.containsKey(entry.getKey()))
+					rotated.put(entry.getKey(), rotate(entry.getValue(), scratch));
+			for (Map.Entry<Integer, Vec3> entry : animated.entrySet())
+				rotated.put(entry.getKey(), rotate(entry.getValue(), scratch));
+			return rotated;
 		}
 
-		private Map<Integer, SurgicalCubeRotation> rotateRotations(
-			Map<Integer, SurgicalCubeRotation> rotations) {
-			if (this == IDENTITY || rotations.isEmpty())
-				return rotations;
-			Quaternionf frame = new Quaternionf(rotation);
-			Quaternionf inverse = new Quaternionf(frame).conjugate();
-			Map<Integer, SurgicalCubeRotation> rotated = new java.util.HashMap<>(rotations.size());
-			rotations.forEach((cube, local) -> {
-				Quaternionf reframed = new Quaternionf(frame).mul(quaternion(local)).mul(inverse);
-				rotated.put(cube, new SurgicalCubeRotation(reframed.x(), reframed.y(), reframed.z(),
-					reframed.w()));
-			});
-			return Map.copyOf(rotated);
+		private Vec3 rotate(Vec3 offset, Vector3f scratch) {
+			axes.transformDirection((float) offset.x, (float) offset.y, (float) offset.z, scratch);
+			return new Vec3(scratch.x, scratch.y, scratch.z);
 		}
 
-		private static Quaternionf quaternion(SurgicalCubeRotation rotation) {
-			return new Quaternionf((float) rotation.x(), (float) rotation.y(), (float) rotation.z(),
-				(float) rotation.w());
+		/** Rotation counterpart of {@link #rotateOffsets}. */
+		private Map<Integer, SurgicalCubeRotation> rotateRotations(Map<Integer, SurgicalCubeRotation> base,
+			Map<Integer, SurgicalCubeRotation> animated) {
+			if (base.isEmpty() && animated.isEmpty())
+				return base;
+			Quaternionf inverse = new Quaternionf(rotation).conjugate();
+			Quaternionf scratch = new Quaternionf();
+			Map<Integer, SurgicalCubeRotation> rotated =
+				new java.util.HashMap<>((base.size() + animated.size()) * 2);
+			for (Map.Entry<Integer, SurgicalCubeRotation> entry : base.entrySet())
+				if (!animated.containsKey(entry.getKey()))
+					rotated.put(entry.getKey(), rotate(entry.getValue(), inverse, scratch));
+			for (Map.Entry<Integer, SurgicalCubeRotation> entry : animated.entrySet())
+				rotated.put(entry.getKey(), rotate(entry.getValue(), inverse, scratch));
+			return rotated;
+		}
+
+		private SurgicalCubeRotation rotate(SurgicalCubeRotation local, Quaternionf inverse,
+			Quaternionf scratch) {
+			scratch.set(rotation).mul((float) local.x(), (float) local.y(), (float) local.z(),
+				(float) local.w()).mul(inverse);
+			return new SurgicalCubeRotation(scratch.x(), scratch.y(), scratch.z(), scratch.w());
 		}
 	}
 }

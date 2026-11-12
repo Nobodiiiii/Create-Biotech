@@ -46,11 +46,7 @@ public final class SlimeBionicAnimations {
 	}
 
 	public static Pose sample(Context context) {
-		if (context == null || context.entity() == null)
-			return Pose.EMPTY;
 		HumanoidModel<LivingEntity> model = humanoidModel();
-		if (model == null)
-			return Pose.EMPTY;
 
 		boolean articulatedAttack = context.attackAnimationTick() > 0
 			&& context.attackArm() != Arm.NONE;
@@ -100,20 +96,18 @@ public final class SlimeBionicAnimations {
 	/** Samples one dynamically assigned humanoid or spider leg channel. */
 	public static Rotation sampleLeg(Context context, boolean knee, LegStyle style, boolean left,
 		float phaseOffset) {
-		if (context == null)
-			return Rotation.IDENTITY;
 		float weight = Mth.clamp(context.walkWeight(), 0.0f, 1.0f);
 		Rotation walking = style == LegStyle.SPIDER ? sampleSpiderLeg(context, knee, left, phaseOffset)
 			: weight <= 0.0f ? Rotation.IDENTITY : sampleHumanoidLeg(context, knee, phaseOffset, weight);
-		return blend(walking, swimmingLimb(context, knee, false, left, phaseOffset), context.swimAmount());
+		// A zero-weight blend returns its first operand, so a body on land skips the stroke entirely.
+		return context.swimAmount() <= 0.0f ? walking
+			: blend(walking, swimmingLimb(context, knee, false, left, phaseOffset), context.swimAmount());
 	}
 
 	/** Samples one of as many as eight independently phased shoulder/elbow chains. */
 	public static Rotation sampleArm(Context context, Rotation sampled, boolean elbow, boolean left,
 		int slot, float phaseOffset, boolean mirrorAttackAcrossHorizontal) {
-		if (context == null)
-			return Rotation.IDENTITY;
-		Rotation result = sampled == null ? Rotation.IDENTITY : sampled;
+		Rotation result = sampled;
 		float phase = context.limbSwing() * WALK_PHASE_SCALE;
 		if (context.walkWeight() > 0.0f) {
 			if (elbow) {
@@ -134,8 +128,9 @@ public final class SlimeBionicAnimations {
 		Rotation attack = armAttackRotation(context, elbow, left);
 		// Keep authored attacks at full strength while the locomotion pose blends.
 		Rotation locomotion = attack == null ? result : result.minus(attack);
-		locomotion = blend(locomotion, swimmingLimb(context, elbow, true, left, phaseOffset),
-			context.swimAmount());
+		if (context.swimAmount() > 0.0f)
+			locomotion = blend(locomotion, swimmingLimb(context, elbow, true, left, phaseOffset),
+				context.swimAmount());
 		result = attack == null ? locomotion : locomotion.plus(attack);
 		if (attack == null)
 			return result;
@@ -276,16 +271,6 @@ public final class SlimeBionicAnimations {
 			context.attackArmHasElbow(), progress);
 	}
 
-	/** Samples only the authored attack channels for generation-time combat-path baking. */
-	public static Pose sampleAttack(float progress, Arm arm, AttackStyle style) {
-		if (arm == null || arm == Arm.NONE || style == null)
-			return Pose.EMPTY;
-		EnumMap<Bone, Rotation> rotations = new EnumMap<>(Bone.class);
-		addArticulatedAttackPose(rotations, arm, style, true,
-			Mth.clamp(progress, 0.0f, 1.0f));
-		return new Pose(rotations);
-	}
-
 	private static void addArticulatedAttackPose(EnumMap<Bone, Rotation> rotations,
 		Arm arm, AttackStyle style, boolean attackArmHasElbow, float progress) {
 		SlimeBionicAttackAnimations.AttackPose attack = attackPose(progress, style,
@@ -328,14 +313,10 @@ public final class SlimeBionicAnimations {
 			: SlimeBionicAttackAnimations.articulatedEmptyHandSwing(progress);
 	}
 
-	@Nullable
 	private static HumanoidModel<LivingEntity> humanoidModel() {
-		if (humanoidModel != null)
-			return humanoidModel;
-		Minecraft minecraft = Minecraft.getInstance();
-		if (minecraft.getEntityModels() == null)
-			return null;
-		humanoidModel = new HumanoidModel<>(minecraft.getEntityModels().bakeLayer(ModelLayers.ZOMBIE));
+		if (humanoidModel == null)
+			humanoidModel = new HumanoidModel<>(
+				Minecraft.getInstance().getEntityModels().bakeLayer(ModelLayers.ZOMBIE));
 		return humanoidModel;
 	}
 
@@ -428,13 +409,8 @@ public final class SlimeBionicAnimations {
 		}
 	}
 
+	/** One frame's bone rotations. The sampler builds the map for this pose alone and hands it over. */
 	public record Pose(Map<Bone, Rotation> rotations) {
-		public static final Pose EMPTY = new Pose(Map.of());
-
-		public Pose {
-			rotations = rotations == null || rotations.isEmpty() ? Map.of() : Map.copyOf(rotations);
-		}
-
 		public Rotation rotation(@Nullable Bone bone) {
 			return bone == null ? Rotation.IDENTITY : rotations.getOrDefault(bone, Rotation.IDENTITY);
 		}

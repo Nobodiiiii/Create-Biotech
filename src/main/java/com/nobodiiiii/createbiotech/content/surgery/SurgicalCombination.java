@@ -61,7 +61,10 @@ public final class SurgicalCombination {
 	}
 
 	public boolean contains(UUID subjectKey, int cubeId) {
-		return members.contains(new Member(subjectKey, cubeId));
+		for (Member member : members)
+			if (member.cubeId == cubeId && member.subjectKey.equals(subjectKey))
+				return true;
+		return false;
 	}
 
 	public boolean contains(Member member) {

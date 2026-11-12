@@ -41,6 +41,14 @@ final class SlimeBionicAttackAnimations {
 	private static final Rotation EMPTY_HAND_STRIKE_ELBOW = Rotation.IDENTITY;
 	private static final Rotation EMPTY_HAND_STRIKE_OPPOSITE_ELBOW =
 		Rotation.degrees(-40.0f, 0.0f, 0.0f);
+	// The opposite shoulder follows its own envelope (emptyHandOppositeShoulder), which overwrites
+	// this channel of both poses after interpolation.
+	private static final AttackPose EMPTY_HAND_WINDUP = new AttackPose(EMPTY_HAND_WINDUP_BODY,
+		EMPTY_HAND_WINDUP_SHOULDER, EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
+		EMPTY_HAND_WINDUP_OPPOSITE_ELBOW);
+	private static final AttackPose EMPTY_HAND_STRIKE = new AttackPose(EMPTY_HAND_STRIKE_BODY,
+		EMPTY_HAND_STRIKE_SHOULDER, EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
+		EMPTY_HAND_STRIKE_OPPOSITE_ELBOW);
 
 	/** One-handed weapon curve for the torso, attacking arm and balancing arm. */
 	private static final RotationTrack WEAPON_SWING_BODY = new RotationTrack(
@@ -98,26 +106,14 @@ final class SlimeBionicAttackAnimations {
 		float tick = Mth.clamp(progress, 0.0f, 1.0f) * ARTICULATED_EMPTY_HAND_CURVE_TICKS;
 		AttackPose pose;
 		if (tick < 10.0f)
-			pose = interpolate(AttackPose.IDENTITY,
-				new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
-					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
-					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW), tick / 10.0f);
+			pose = interpolate(AttackPose.IDENTITY, EMPTY_HAND_WINDUP, tick / 10.0f);
 		else if (tick < ARTICULATED_EMPTY_HAND_IMPACT_TICK)
-			pose = interpolate(new AttackPose(EMPTY_HAND_WINDUP_BODY, EMPTY_HAND_WINDUP_SHOULDER,
-					EMPTY_HAND_WINDUP_ELBOW, EMPTY_HAND_WINDUP_OPPOSITE_SHOULDER,
-					EMPTY_HAND_WINDUP_OPPOSITE_ELBOW),
-				new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
-					EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
-					EMPTY_HAND_STRIKE_OPPOSITE_ELBOW),
+			pose = interpolate(EMPTY_HAND_WINDUP, EMPTY_HAND_STRIKE,
 				(tick - 10.0f) / (ARTICULATED_EMPTY_HAND_IMPACT_TICK - 10.0f));
 		else if (tick < 20.0f)
-			pose = new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
-				EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY,
-				EMPTY_HAND_STRIKE_OPPOSITE_ELBOW);
+			pose = EMPTY_HAND_STRIKE;
 		else
-			pose = interpolate(new AttackPose(EMPTY_HAND_STRIKE_BODY, EMPTY_HAND_STRIKE_SHOULDER,
-				EMPTY_HAND_STRIKE_ELBOW, Rotation.IDENTITY, EMPTY_HAND_STRIKE_OPPOSITE_ELBOW),
-				AttackPose.IDENTITY, (tick - 20.0f) / 5.0f);
+			pose = interpolate(EMPTY_HAND_STRIKE, AttackPose.IDENTITY, (tick - 20.0f) / 5.0f);
 		return pose.withOppositeShoulder(emptyHandOppositeShoulder(tick));
 	}
 

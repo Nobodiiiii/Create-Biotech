@@ -187,6 +187,10 @@ public final class SurgicalTableClientHandler {
 	private static int lastSelectionMode = Integer.MIN_VALUE;
 	@Nullable
 	private static Ray lastSelectionRay;
+	/** The plain cube pick of the last full selection update, republished for the HUD prompt. */
+	@Nullable
+	private static CubeHit lastSelectionCubeHit;
+	private static boolean lastSelectionPlainPick;
 	@Nullable
 	private static PendingGlue lastSelectionPendingGlue;
 	@Nullable
@@ -255,6 +259,9 @@ public final class SurgicalTableClientHandler {
 	private static boolean suppressAttackUntilRelease;
 	@Nullable
 	private static CubeSelectionCache connectedSelectionCache;
+	/** The limb-joint variant of the same selection; one pick can ask for both. */
+	@Nullable
+	private static CubeSelectionCache connectedLimbSelectionCache;
 	@Nullable
 	private static CubeSelectionCache directSelectionCache;
 	/** Each retained cube indexes the same preview as every other member of its connected component. */
@@ -642,15 +649,22 @@ public final class SurgicalTableClientHandler {
 		for (GlueSubjectPreview moved : gluePreview.subjects) {
 			if (moved.subjectId != subject.id())
 				continue;
+			// The unhidden set is the geometry's own, so only a preview that hides cubes copies it.
+			if (visible == present)
+				visible = (BitSet) present.clone();
 			visible.andNot(moved.cubes);
 		}
 		return visible;
 	}
 
+	/**
+	 * The cubes of {@code present} a held temporary box is not carrying. Called per subject per frame,
+	 * so the common case returns {@code present} itself: treat the result as read-only.
+	 */
 	private static BitSet temporaryMoveVisibleCubes(SurgicalSubject subject, BitSet present) {
 		Minecraft minecraft = Minecraft.getInstance();
 		if (minecraft.player == null || minecraft.level == null)
-			return (BitSet) present.clone();
+			return present;
 		for (InteractionHand hand : HANDS) {
 			SurgicalKitItem.TemporaryMove move = cachedTemporaryMove(minecraft.player.getItemInHand(hand));
 			if (move == null || !minecraft.level.dimension().location().equals(move.dimension()))
@@ -662,7 +676,16 @@ public final class SurgicalTableClientHandler {
 			visible.andNot(moved);
 			return visible;
 		}
-		return (BitSet) present.clone();
+		return present;
+	}
+
+	/**
+	 * {@link SurgicalKitItem#hasPlacementCapture} answered from the parsed-move memo, so the per-frame
+	 * placement and prompt probes do not decode the kit's stored move again.
+	 */
+	private static boolean hasPlacementCapture(ItemStack stack) {
+		return cachedTemporaryMove(stack) != null
+			|| SurgicalKitItem.isCubeCopier(stack) && CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
 
 	@Nullable
@@ -1055,7 +1078,7 @@ public final class SurgicalTableClientHandler {
 		for (InteractionHand candidateHand : HANDS) {
 			ItemStack held = player.getItemInHand(candidateHand);
 			if (!(held.getItem() instanceof CapturedEntityBoxItem)
-				&& !SurgicalKitItem.hasPlacementCapture(held)
+				&& !hasPlacementCapture(held)
 				|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 				continue;
 			PlacementCandidate prepared = placementCandidateFor(held, level);
@@ -1610,12 +1633,15 @@ public final class SurgicalTableClientHandler {
 		InteractionHand promptHand = interactionPromptHand(player);
 		boolean selectingSlimeSeam = promptHand != null
 			&& SurgicalKitItem.isSlimeBall(player.getItemInHand(promptHand));
-		CubeHit cubeHit = holdingShears || holdingEmptyBox || holdingGlue || holdingSymmetry || holdingHoney || holdingJoint
-			|| holdingWrench || holdingSlimeBall || holdingEmptyCopier || holdingShovel && !shovelingTile
-			? selectingSlimeSeam
+		boolean picking = holdingShears || holdingEmptyBox || holdingGlue || holdingSymmetry || holdingHoney
+			|| holdingJoint || holdingWrench || holdingSlimeBall || holdingEmptyCopier
+			|| holdingShovel && !shovelingTile;
+		CubeHit cubeHit = !picking ? null
+			: selectingSlimeSeam
 				? findNearestSlimeSeamHit(player, level, ray, pendingSlimeSeam)
-				: findNearestCubeHit(player, level, ray)
-			: null;
+				: findNearestCubeHit(player, level, ray);
+		lastSelectionCubeHit = cubeHit;
+		lastSelectionPlainPick = picking && !selectingSlimeSeam;
 		CubeHit glueHit = holdingGlue || holdingSymmetry && pendingSymmetry == null ? snapGlueHit(cubeHit) : null;
 		hoveredGluePoint = glueHit == null ? null : glueHit.gluePoint;
 		symmetrySelection = null;
@@ -3361,12 +3387,6 @@ public final class SurgicalTableClientHandler {
 		return count == 0 ? null : sum.scale(1.0d / count);
 	}
 
-	@Nullable
-	private static Vec3 horizontalUnit(Vec3 vector) {
-		Vec3 horizontal = new Vec3(vector.x, 0.0d, vector.z);
-		return horizontal.lengthSqr() <= 1.0e-12d ? null : horizontal.normalize();
-	}
-
 	private static Vec3 reflectPoint(Vec3 point, Vec3 planeCenter, Vec3 planeNormal) {
 		return planeCenter.add(reflectVector(point.subtract(planeCenter), planeNormal));
 	}
@@ -3979,7 +3999,11 @@ public final class SurgicalTableClientHandler {
 		ItemStack stack = player.getItemInHand(hand);
 		Ray ray = playerRay(player);
 		boolean editingWrench = wrenchEditor != null && wrenchEditor.hand == hand && SurgicalKitItem.isWrench(stack);
-		CubeHit cubeHit = editingWrench ? null : findNearestCubeHit(player, level, ray);
+		// The selection pass already made this exact pick for the same ray and geometry generation.
+		CubeHit cubeHit = editingWrench ? null
+			: lastSelectionPlainPick && lastSelectionTick == level.getGameTime()
+				&& lastSelectionGeneration == geometryGeneration && ray.equals(lastSelectionRay)
+				? lastSelectionCubeHit : findNearestCubeHit(player, level, ray);
 		boolean hitsCube = editingWrench || cubeHit != null;
 		if (!hitsCube && glueEditor != null && glueEditor.hand == hand)
 			hitsCube = findNearestGluePreviewHit(player, level, glueEditor) != null;
@@ -4195,7 +4219,7 @@ public final class SurgicalTableClientHandler {
 		for (InteractionHand hand : HANDS) {
 			ItemStack stack = player.getItemInHand(hand);
 			if ((stack.getItem() instanceof CapturedEntityBoxItem
-				|| SurgicalKitItem.hasPlacementCapture(stack))
+				|| hasPlacementCapture(stack))
 				&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
 				&& placementCandidateFor(stack, level).result().succeeded())
 				return hand;
@@ -4309,7 +4333,7 @@ public final class SurgicalTableClientHandler {
 	private static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
 		ItemStack held) {
 		if (!(held.getItem() instanceof CapturedEntityBoxItem)
-			&& !SurgicalKitItem.hasPlacementCapture(held)
+			&& !hasPlacementCapture(held)
 			|| !(Minecraft.getInstance().hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))
 			return false;
@@ -4388,22 +4412,24 @@ public final class SurgicalTableClientHandler {
 			abortPendingGlueCut();
 			return;
 		}
-		SurgicalTableBlockEntity.GlueCutPlan current = table.glueCutPlan(pending.subjectId, pending.targetId);
-		if (current == null || !current.separates() || !pending.joint.equals(current.joint())
-			|| !pending.movingComponents.equals(current.movingComponents())) {
-			abortPendingGlueCut();
-			return;
-		}
 		SurgicalTablePlane.Plane plane = clientPlane(level, pending.tablePos);
 		if (!plane.valid() || !pending.tablePos.equals(plane.source())) {
 			abortPendingGlueCut();
 			return;
 		}
 		Vec3 target = tableSurfaceTarget(playerRay(player), plane.workArea().surfaceY() + 0.01d);
+		// The plan is a pure function of synced table data, so it cannot differ from the one validated
+		// when this target was planned until the table revision moves.
 		if (pending.planned != null && componentSelection != null
 			&& pending.plannedTableRevision == table.clientDataRevision()
 			&& sameHorizontalTarget(target, pending.lastTargetX, pending.lastTargetZ)) {
 			highlightSelection(componentSelection);
+			return;
+		}
+		SurgicalTableBlockEntity.GlueCutPlan current = table.glueCutPlan(pending.subjectId, pending.targetId);
+		if (current == null || !current.separates() || !pending.joint.equals(current.joint())
+			|| !pending.movingComponents.equals(current.movingComponents())) {
+			abortPendingGlueCut();
 			return;
 		}
 		FootprintGroups footprints = glueCutFootprints(table, pending.movingComponents);
@@ -4956,23 +4982,6 @@ public final class SurgicalTableClientHandler {
 		return SurgicalTablePlane.scan(level, pos);
 	}
 
-	private static boolean clientAcceptsComponentLayout(ClientLevel level, BlockPos tablePos,
-		int subjectId, BitSet cutSeams, SurgicalTableLayout.Proposal proposal,
-		SurgicalTablePlane.Plane plane) {
-		if (!(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table))
-			return false;
-		SurgicalSubject subject = table.getSubject(subjectId);
-		return subject != null && table.canApplyComponentLayout(subjectId, cutSeams, proposal, plane);
-	}
-
-	@Nullable
-	private static List<SurgicalTableLayout.Footprint> occupiedOutsideEditingGroup(ClientLevel level,
-		SurgicalTablePlane.Plane plane, BlockPos tablePos, int subjectId) {
-		if (!(level.getBlockEntity(tablePos) instanceof SurgicalTableBlockEntity table))
-			return null;
-		return SurgicalTablePlane.occupiedFootprints(level, plane, table.connectedSubjectIds(subjectId));
-	}
-
 	private static SurgicalModelRenderContext.CubeGeometry boundsGeometry(AABB bounds,
 		Vec3 worldOffset) {
 		List<Vec3> corners = new ArrayList<>(8);
@@ -5354,9 +5363,9 @@ public final class SurgicalTableClientHandler {
 		ClientLevel level = Minecraft.getInstance().level;
 		if (level == null || !(level.getBlockEntity(hit.tablePos) instanceof SurgicalTableBlockEntity table))
 			return null;
-		if (connectedSelectionCache != null && connectedSelectionCache.matches(hit,
-			table.clientDataRevision(), includeLimbJoints))
-			return connectedSelectionCache.selection;
+		CubeSelectionCache cached = includeLimbJoints ? connectedLimbSelectionCache : connectedSelectionCache;
+		if (cached != null && cached.matches(hit, table.clientDataRevision()))
+			return cached.selection;
 		Map<Integer, BitSet> components = table.connectedComponents(hit.geometry.subjectId, hit.cubeId,
 			hit.geometry.observedCubeCount, hit.geometry.seams);
 		if (components.isEmpty())
@@ -5368,8 +5377,12 @@ public final class SurgicalTableClientHandler {
 		Selection selection = new Selection(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
 			hit.geometry.observedCubeCount, hit.geometry.seams, List.of(), edges.glueJointEdges,
 			edges.cubeEdges, edges.combinationEdges, edges.limbJointEdges, false, false);
-		connectedSelectionCache = new CubeSelectionCache(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
-			table.clientDataRevision(), hit.geometry.renderRevision, selection, includeLimbJoints);
+		CubeSelectionCache stored = new CubeSelectionCache(hit.tablePos, hit.geometry.subjectId, hit.cubeId,
+			table.clientDataRevision(), hit.geometry.renderRevision, selection);
+		if (includeLimbJoints)
+			connectedLimbSelectionCache = stored;
+		else
+			connectedSelectionCache = stored;
 		return selection;
 	}
 
@@ -6363,16 +6376,13 @@ public final class SurgicalTableClientHandler {
 		return CapturedEntityBoxHelper.isEmptyLargeBox(stack);
 	}
 
-	private static boolean isStandardGlue(ItemStack stack) {
-		return SurgicalKitItem.isStandardGlue(stack);
-	}
-
 	private static boolean isSmartGlue(ItemStack stack) {
 		return SurgicalKitItem.isSmartGlue(stack);
 	}
 
+	/** Smart super glue is a super glue item, so every glue the kit knows is covered by this test. */
 	private static boolean isSurgicalGlue(ItemStack stack) {
-		return isStandardGlue(stack) || isSmartGlue(stack);
+		return SurgicalKitItem.isGlue(stack);
 	}
 
 	private static boolean isSymmetryWand(ItemStack stack) {
@@ -6557,6 +6567,7 @@ public final class SurgicalTableClientHandler {
 		jointRemovalSelection = null;
 		hoveredGluePoint = null;
 		connectedSelectionCache = null;
+		connectedLimbSelectionCache = null;
 		directSelectionCache = null;
 		lastSelectionMode = Integer.MIN_VALUE;
 		lastSelectionRay = null;
@@ -6681,9 +6692,9 @@ public final class SurgicalTableClientHandler {
 			int revision = subject.clientRenderRevision();
 			boolean stateChanged = subjectState == null
 				|| !subjectState.matches(subject, observedCubeCount);
-			OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
 			if (!ownerChanged && revision == renderRevision && !topologyChanged && !stateChanged)
 				return false;
+			OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
 			// A controller migration changes the block-entity revision and transient subject address. If
 			// every member of this grounding group still has the exact cached state and world anchor, the
 			// already-grounded cubes remain valid and only the new owner needs their cached bounds.
@@ -7142,8 +7153,7 @@ public final class SurgicalTableClientHandler {
 				if (members == null || !members.equals(combination.members()))
 					return false;
 			}
-			return presentCubes.equals(subject.presentCubes())
-				&& cutSeams.equals(subject.cutSeamsForRender());
+			return subject.presentCubesEqual(presentCubes) && subject.cutSeamsEqual(cutSeams);
 		}
 
 		private static SubjectGeometryState capture(SurgicalSubject subject, int observedCubeCount) {
@@ -7282,20 +7292,10 @@ public final class SurgicalTableClientHandler {
 	private record CubeTarget(SurgicalModelRenderContext.CubeGeometry geometry, AABB bounds) {}
 
 	private record CubeSelectionCache(BlockPos tablePos, int subjectId, int cubeId, int tableRevision,
-		int renderRevision, Selection selection, boolean limbJointsIncluded) {
-		private CubeSelectionCache(BlockPos tablePos, int subjectId, int cubeId, int tableRevision,
-			int renderRevision, Selection selection) {
-			this(tablePos, subjectId, cubeId, tableRevision, renderRevision, selection, false);
-		}
-
+		int renderRevision, Selection selection) {
 		private boolean matches(CubeHit hit, int revision) {
-			return matches(hit, revision, false);
-		}
-
-		private boolean matches(CubeHit hit, int revision, boolean includeLimbJoints) {
 			return tablePos.equals(hit.tablePos) && subjectId == hit.geometry.subjectId && cubeId == hit.cubeId
-				&& tableRevision == revision && renderRevision == hit.geometry.renderRevision
-				&& limbJointsIncluded == includeLimbJoints;
+				&& tableRevision == revision && renderRevision == hit.geometry.renderRevision;
 		}
 	}
 

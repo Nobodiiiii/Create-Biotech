@@ -282,7 +282,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 				int cube = Integer.parseInt(name.substring(1));
 				return cube < SurgicalAssembly.MAX_CUBES ? "#" + cube : null;
 			}
-			return name.matches("[A-Za-z0-9_./-]{1,64}") ? name : null;
+			return BionicAnatomySnapshot.validPartName(name) ? name : null;
 		} catch (RuntimeException exception) {
 			return null;
 		}

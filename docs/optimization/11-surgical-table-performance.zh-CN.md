@@ -141,6 +141,53 @@
 本次 `compileJava --offline`、`build --offline` 通过，现有 80 项测试全部通过；没有新增测试文件。
 未启动客户端，修复后的平均 FPS 与 1% low 仍需在相同场景重新采样。
 
+### PERF-SURGERY-11：拟态生物 / 手术台全量审计（2026-11-12）
+
+范围是 `content/surgery/**`、`content/slimemimic/**`、`entity/**`（约 4.5 万行），按"过度设计、冗余防御、
+性能"三类逐文件审计，每条结论都对照调用方核实后才落地。这是静态审计，没有新的 Spark 采样；下面的
+"每帧 / 每 tick"均指调用频率，不是实测耗时。共改动 24 个文件，净减 88 行。
+
+逐帧 / 逐 tick 路径：
+
+- **仿生体动画器**（`SlimeBionicAnimator`）：躯干支点、静止游泳俯仰、腿部成员集合、步幅上限与步频系数只
+  依赖装配，移入 `Rig` 随缓存条目计算一次；肢体层级只有"肩/髋 → 肘/膝"两层，删除环检测数组和逐立方体
+  深度表，改为按深度预排序后依次覆盖；逐帧 `Map.copyOf` 删除；未在攻击时不再查询攻击扇区；没有翼时跳过
+  翼成员查找；不在水中时跳过游泳混合。
+- **仿生体渲染器**（`SlimeBionicRenderer`）：静态偏移与动画帧的"合并 + 转到渲染坐标系"合成一次遍历（每个
+  source 每帧 10 次 map 构建降为 4 次）；删除 `UPRIGHT_OFFSETS` / `UPRIGHT_ROTATIONS` 两个静态缓存和
+  `FirstPersonSourceState`，直接读缓存条目里已有的同一份数据；引信未点燃时不查特性参数。
+- **`SurgicalCubeRotation.rotate`**：改为标量展开，运算顺序不变（结果逐位一致），每次调用由 7 个 `Vec3` 降为
+  1 个；它位于逐动画立方体、逐旋转顶点的路径上。
+- **手术台方块实体**：没有 subject 的台面格直接返回单格渲染包围盒（原先每格都是 17³ 的盒子，整张桌子的
+  每一格每帧都被派发到渲染器再空转返回）；连通平面重扫后若格子未变则保留原实例，否则放置预览每 5 tick
+  会因 `WorkArea` 身份变化而整体重新规划；`includeClientRenderBounds` 在已被包含时不再分配。
+- **客户端处理器**：空纸箱的连通选区缓存改为两个变体各一槽（原来单槽在同一次拾取内被两种变体轮流覆盖，
+  从不命中）；HUD 提示在同一射线、同一几何代数下复用选区已算出的拾取结果；放置探测改用已解析的临时
+  移动缓存；粘合剪切预览静止时先返回、不再每帧重算剪切计划；`presentCubesFor` 与
+  `SubjectGeometryState.matches` 的逐帧 `BitSet` 克隆去除。
+- **手术工具包**（`SurgicalKitItem`）：`selectedTool` 改为按 `CustomData` 身份零拷贝读取工具 id（原先每次
+  调用都经过整包自定义数据快照，每帧约 30 次）；`TemporaryMove` 不再在构造和每个访问器里深拷贝源状态与
+  装配 NBT；`Tool.byId` 用静态表。
+- **特性系统**：`BionicTraitResolver.revision()` 在计数器不变时返回同一实例；`BionicTraitSet.has` 用预先
+  算好的 `EnumSet`；附着判定先看同步的格子再查特性；捕猎目标只在拥有该特性时才做范围扫描；`getMind`
+  随特性集一起缓存；无装备、无乘客时装备 tick 直接返回；振动监听的位置源复用；部件名正则预编译，四处
+  相同的校验合并为 `BionicAnatomySnapshot.validPartName`。
+- **其它**：`matchesObservedTopology` 不再为已校验过的拓扑重跑 `validTopology`；
+  `isInternalCombinationJoint` / `rotatesTogether` 直接从端点所属 subject 查询，不再每次收集整桌的组合；
+  `AttackGeometry.arms()` 单侧时直接返回原列表；翼动画的部件解析按（档案、标签、左右）缓存。
+
+冗余的防御性代码：`ComponentGroup`、`SeamCutPlan` / `GlueCutPlan` / `BatchCutPlan` 及对应状态记录在构造期
+对刚生成、独占的集合再做深拷贝，全部改为直接接管；`SurgicalConnectionGraph.Component` 的第三份 map 与
+`members()` 的二次拷贝；`groundingDependents`、动画采样、`CubeBox.of` 中不可达的判空。
+
+过度设计：`packedAssembly` 包装层（带一个未使用的参数）与 `compositeAssembly` 合并；三个仅转发的
+`*ForSupport` 方法；装箱、临时搬运、复制三处重复的"校验 → 对齐 → 写入几何 → 建实体"合并为
+`measuredBionic`；`packComponent` 里与 `removeGroup` 相同的移除循环；`read()` 的两次清空重建；
+`SlimeBionicAnimator.resolve` 的恒定参数与不可达回退；若干无调用方的方法和字段。
+
+验证：`compileJava --offline` 通过，现有 80 项测试全部通过；没有新增测试文件，没有改动 mixin，未启动
+客户端。视觉和手感仍需按下方矩阵抽样。
+
 ## 正确性边界
 
 - 服务端 packet 距离、plane、占地与拓扑验证未删除；客户端缓存只影响显示和候选计算。
@@ -161,6 +208,39 @@
 2. 多个可见 subject仍各自调用一次原实体 `LivingEntityRenderer`。若 GPU/vertex submission占主导，可增加
    可配置手术台专用视距/LOD；不要缓存动态 VertexBuffer，除非解决资源重载、RenderType、动画层和模组实体
    renderer兼容生命周期。
+
+PERF-SURGERY-11 审计中已核实、但因为改动面大、不是严格等价或需要先有 profiler 证据而没有实施的项：
+
+3. `SurgicalCapturedRenderPlan`：`renderSlime` 每个立方体每遍新建 `PoseStack` 与若干矩阵（约 20 个对象）；
+   世界中的活体拟态生物每帧重建整套 plan（`shouldPreserveSource` 为 O(n²) 且每对分配 15–20 个对象）；
+   带壳防御的仿生体每帧带拓扑重新捕获并反射扫描模型字段。这三处很可能是渲染线程上剩余的最大分配来源。
+4. `SlimeBionicGroundNavigation.followThePath` 的直线捷径扫描每个导航 tick 都把失败过的候选重试一遍，在
+   走廊和拐角处估计每实体每 tick 0.3–0.5 ms。节流会让捷径最多晚几 tick 生效，需要取舍。
+5. 客户端处理器：粘液球悬停时对每个候选立方体做一次全桌配对扫描；剪刀拾取对每个胶点 / 关节先做凸裁剪再
+   判射线；对称魔杖第三步每次拾取都重新规划；连通组接地对每个成员重算整组；`PendingCut` 与
+   `PendingGlueCut` 是两份几乎相同的状态机；控制器迁移验证层（`OwnerHandoffKey` 等）只为省一次重新接地。
+6. `SurgicalAssembly`：一个 `Source` 在加载路径上被校验 5–6 次后再深拷贝；`load()` 通过只为它存在的
+   `with*` 方法构造最多 7 个临时装配；约 100 行无调用方或仅测试使用的重载；单体 `components()` 走通用多体
+   图而不是并查集；`validTopology` 为每条缝装箱一个 `Long`。
+7. 手术台数据包：12 个包类里重复的编解码与 10 份相同的"旁观 / 距离 / 平面 / 控制器"前置检查；处理器校验后
+   方块实体再校验同一批条件；`Action.PLACE`、`CUT_CUBE_CONNECTIONS` 及其 9 参数重载无人发送（删除会移动
+   枚举序号，需要同时提升 `NETWORK_VERSION`）。
+8. 实体：`setAssembly` 把刚写出的 NBT 再解析一遍并解析两次特性；每个仿生体预先构造 21 个命中部件实体；
+   `refreshLocomotion` 每 tick 执行两次；`getBoundingBoxForCulling` 每帧 24 个 `Vec3`；
+   `BionicSpecialAttacks.choices()` 每 tick 重建。
+9. `SurgicalClientTopology` 中约 170 行只被死代码引用；`SurgicalSourceModelRenderer.render` 的 10 个重载里
+   6 个无调用方或只是转发，`yaw` 恒为 0、`partialTick` 未被读取。
+
+审计中顺带发现、不属于本轮范围的疑似缺陷（均未改动）：
+
+- `rewriteVillagerTrades` 配置只在 `setSlimeMimic` 检查，四个 mixin 钩子无条件重写，关闭配置不生效。
+- SIMPLE 智力选臂在 `SlimeBionicEntity.selectArm` 内联了一份与 `SurgicalCombatCalibration.highestDpsArmIndex`
+  不同的公式；文档和测试描述的是后者，运行时用的是前者。
+- 带 NBT 复制的手术台（Ctrl + 中键、`/clone`、蓝图）并入同一平面后，`adoptSubjects` 只处理 id 冲突、不处理
+  `persistentId` 冲突，服务端会出现两个 subject 共用一个持久 id，直到下次读档去重。
+- `SurgicalSourceModelRenderer.PREVIEW_PROFILES` 的值强引用了 `PREVIEWS` 的键，两个弱表互相钉住，条目只在
+  换世界或资源重载时释放。
+- `SlimeMimicDeathHandler.PENDING` 中所属世界不再 tick 的条目不会被移除。
 
 ## 性能验证矩阵
 

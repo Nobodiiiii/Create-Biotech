@@ -96,9 +96,14 @@ public record SurgicalCubeRotation(double x, double y, double z, double w) {
 	public Vec3 rotate(Vec3 vector) {
 		if (vector == null || isIdentity())
 			return vector == null ? Vec3.ZERO : vector;
-		Vec3 quaternionVector = new Vec3(x, y, z);
-		Vec3 twiceCross = quaternionVector.cross(vector).scale(2.0d);
-		return vector.add(twiceCross.scale(w)).add(quaternionVector.cross(twiceCross));
+		// v + w * t + q x t with t = 2 * (q x v), written out in the same operation order as the
+		// Vec3 chain it replaces: this runs per animated cube and per rotated vertex every frame.
+		double tx = (y * vector.z - z * vector.y) * 2.0d;
+		double ty = (z * vector.x - x * vector.z) * 2.0d;
+		double tz = (x * vector.y - y * vector.x) * 2.0d;
+		return new Vec3(vector.x + tx * w + (y * tz - z * ty),
+			vector.y + ty * w + (z * tx - x * tz),
+			vector.z + tz * w + (x * ty - y * tx));
 	}
 
 	/** Changes the coordinate frame from one laid source pose to another. */

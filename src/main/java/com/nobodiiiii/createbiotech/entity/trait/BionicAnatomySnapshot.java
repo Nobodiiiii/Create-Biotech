@@ -23,8 +23,15 @@ public final class BionicAnatomySnapshot {
 	private static final double MAX_CUBE_VOLUME = SurgicalAssembly.MAX_BODY_SIZE
 		* SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE;
 	private static final float[] NO_VOLUMES = new float[0];
+	private static final java.util.regex.Pattern PART_NAME =
+		java.util.regex.Pattern.compile("[A-Za-z0-9_./-]{1,64}");
 	public static final BionicAnatomySnapshot EMPTY =
 		new BionicAnatomySnapshot(Map.of(), NO_VOLUMES);
+
+	/** Whether {@code name} is a storable model-part label. */
+	public static boolean validPartName(String name) {
+		return name != null && PART_NAME.matcher(name).matches();
+	}
 	private final Map<Integer, Set<String>> parts;
 	private final float[] volumes;
 
@@ -47,7 +54,7 @@ public final class BionicAnatomySnapshot {
 			Set<String> names = entry.getValue();
 			if (cube == null || cube < 0 || cube >= cubeCount || names == null
 				|| names.size() > 16 || names.stream().anyMatch(name -> name == null
-					|| !name.matches("[A-Za-z0-9_./-]{1,64}")))
+					|| !validPartName(name)))
 				return null;
 		}
 		return parts.isEmpty() ? EMPTY : new BionicAnatomySnapshot(parts, NO_VOLUMES);

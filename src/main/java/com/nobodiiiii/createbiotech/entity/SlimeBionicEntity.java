@@ -161,6 +161,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private BionicTraitResolver.Revision traitRevision;
 	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
+	/** The mind derived from {@link #mindTraits}, resolved together with that trait set. */
+	@Nullable
+	private BionicMind mind;
+	@Nullable
+	private BionicTraitSet mindTraits;
 	private final BionicHunting hunting = new BionicHunting(this);
 	private final BionicBlockAttachment blockAttachment = new BionicBlockAttachment(this);
 	private static final EntityDataAccessor<Optional<BlockPos>> ATTACH_CELL_DATA = SynchedEntityData.defineId(
@@ -190,8 +195,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		entityData.set(ATTACH_FACE_DATA, face);
 		entityData.set(ATTACH_CELL_DATA, Optional.ofNullable(cell));
 	}
+	/** Asked dozens of times per tick by movement and rotation; the synced cell rejects first. */
 	public boolean isBlockAttached() {
-		return blockAttachment != null && blockAttachment.locksMovement() && getBlockAttachmentCell() != null;
+		return blockAttachment != null && getBlockAttachmentCell() != null && blockAttachment.canAttach();
 	}
 	public SurgicalCubeRotation blockAttachmentRotation() {
 		return blockAttachment == null ? SurgicalCubeRotation.IDENTITY : blockAttachment.rotation();
@@ -452,7 +458,16 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			}
 		});
 		targetSelector.addGoal(3, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
-			target -> hunting != null && hunting.matches(target)));
+			target -> hunting != null && hunting.matches(target)) {
+			// Only a hunting body can match anything, so every other body skips the area scan.
+			@Override
+			protected void findTarget() {
+				if (getBionicTraits().has(BionicTrait.HUNTING_INSTINCT))
+					super.findTarget();
+				else
+					target = null;
+			}
+		});
 	}
 
 	@Override public void ate() { super.ate(); if (production != null) production.ate(); }
@@ -571,7 +586,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Current head-derived disposition and intelligence classification. */
 	public BionicMind getMind() {
-		return BionicMind.fromTraits(getAssembly(), getBionicTraits());
+		BionicTraitSet traits = getBionicTraits();
+		// Derived once with the trait set it belongs to; only a query that arrives before that
+		// set exists still works it out directly.
+		return traits == mindTraits ? mind : BionicMind.fromTraits(getAssembly(), traits);
 	}
 
 	public BionicDisposition getDisposition() {
@@ -604,6 +622,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			traitAssembly = assembly;
 			traitRevision = revision;
 			bionicTraits = BionicTraitResolver.resolve(assembly, level());
+			mind = BionicMind.fromTraits(assembly, bionicTraits);
+			mindTraits = bionicTraits;
 			// Publish the result before refreshing effects that may query this entity again.
 			refreshNaturalArmor(bionicTraits);
 			refreshKnockbackResistance(bionicTraits);
@@ -1233,8 +1253,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		int fixedArmIndex = -1;
 		if (getIntelligence() == BionicIntelligence.SIMPLE) {
 			double highestDps = -1;
-			for (int index = 0; index < geometry.arms().size(); index++) {
-				var arm = geometry.arms().get(index);
+			var arms = geometry.arms();
+			for (int index = 0; index < arms.size(); index++) {
+				var arm = arms.get(index);
 				if (isBionicWing(arm)) continue;
 				var stats = SurgicalCombatCalibration.stats(arm);
 				double dps = stats.damageMultiplier() / stats.attackInterval();
