@@ -95,6 +95,12 @@ final class SlimeBionicHitPart extends PartEntity<SlimeBionicEntity> {
 		return this == entity || getParent() == entity;
 	}
 
+	@Override
+	public Entity getRootVehicle() {
+		// Share the riding tree so vanilla ProjectileUtil also excludes our parts from the rider's aim.
+		return getParent().getRootVehicle();
+	}
+
 	@Nullable
 	@Override
 	public ItemStack getPickResult() {

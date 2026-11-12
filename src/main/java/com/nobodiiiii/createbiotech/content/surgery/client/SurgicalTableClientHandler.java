@@ -1406,7 +1406,7 @@ public final class SurgicalTableClientHandler {
 					assemblySource.presentCubes(), sourceGeometry.previewOffsets(),
 					sourceGeometry.renderRotations(),
 					poseStack, buffer, light,
-					0.0f, partialTicks, false, camera, placement.projectSourceGeometry);
+					0.0f, partialTicks, false, camera, placement.projectSourceGeometry, 1.0f, null, false);
 				poseStack.popPose();
 			}
 		} else {
@@ -1414,8 +1414,8 @@ public final class SurgicalTableClientHandler {
 			if (preview != null) {
 				SurgicalTablePoseResolver.resolve(placement.layPose).apply(poseStack);
 				SurgicalSourceModelRenderer.render(preview, placement.source.cubeCount(),
-					placement.source.presentCubes(), placement.renderOffsets, poseStack, buffer, light,
-					0.0f, partialTicks, false, camera, placement.projectSourceGeometry);
+					placement.source.presentCubes(), placement.renderOffsets, Map.of(), poseStack, buffer, light,
+					0.0f, partialTicks, false, camera, placement.projectSourceGeometry, 1.0f, null, false);
 			}
 		}
 		poseStack.popPose();
@@ -1530,7 +1530,7 @@ public final class SurgicalTableClientHandler {
 			SurgicalSourceModelRenderer.render(entity, subject.cubeCount(), moved.cubes, moved.offsets,
 				moved.rotations,
 				poseStack, buffer, light, 0.0f, partialTicks, false, camera, projectSourceGeometry,
-				moved.editable ? GLUE_FIRST_PREVIEW_ALPHA : 1.0f);
+				moved.editable ? GLUE_FIRST_PREVIEW_ALPHA : 1.0f, null, false);
 			poseStack.popPose();
 		}
 		buffer.endBatch();

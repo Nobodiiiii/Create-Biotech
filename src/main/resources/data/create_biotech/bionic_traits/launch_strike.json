@@ -11,29 +11,33 @@
       ]
     },
     "minecraft:ender_dragon": {
-      "LEFT_WING": [
-        "left_wing",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
-        "right_wing",
-        "right_wing_tip"
+      "HEAD": [
+        "head",
+        "jaw"
       ]
     },
     "minecraft:goat": {
-      "HORN": [
+      "HEAD": [
+        "head",
+        "nose",
         "left_horn",
         "right_horn"
       ]
     },
     "minecraft:hoglin": {
-      "HORN": [
+      "HEAD": [
+        "head",
+        "left_ear",
+        "right_ear",
         "left_horn",
         "right_horn"
       ]
     },
     "minecraft:zoglin": {
-      "HORN": [
+      "HEAD": [
+        "head",
+        "left_ear",
+        "right_ear",
         "left_horn",
         "right_horn"
       ]

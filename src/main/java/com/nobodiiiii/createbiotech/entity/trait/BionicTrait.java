@@ -158,7 +158,8 @@ public enum BionicTrait {
 		Carrier.allTissue()),
 	LAUNCH_STRIKE("launch_strike", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.ATTACK_HAND, BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING, BionicAnatomyRole.HORN)),
+		// Species mappings select golem arms and the other donors' entire heads.
+		Carrier.allTissue()),
 	RIDEABLE("rideable", BionicTraitScope.TORSO,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO)),
 	CARGO_CHEST("cargo_chest", BionicTraitScope.TORSO,

@@ -149,6 +149,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				name = Component.translatable(trait.descriptionId(),
 					String.format(java.util.Locale.ROOT, "%.1f", result.value()
 						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
+			if (trait == BionicTrait.RIDEABLE)
+				name = Component.translatable("create_biotech.trait.rideable.count", result.members().size());
 			appendTraitLine(lines, trait, scopes, result, name, result.inactiveReason(), result.missingParts());
 		}
 		tooltip.addAll(classifications);

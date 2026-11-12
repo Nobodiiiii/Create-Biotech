@@ -174,6 +174,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final EntityDataAccessor<Direction> ATTACH_FACE_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.DIRECTION);
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicEquipment equipment = new com.nobodiiiii.createbiotech.entity.trait.BionicEquipment(this);
+	@Nullable private Vec3 interactionHit;
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicProduction production = new com.nobodiiiii.createbiotech.entity.trait.BionicProduction(this);
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
 	private static final EntityDataAccessor<CompoundTag> EQUIPMENT_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
@@ -670,8 +671,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public InteractionResult interactAt(Player player, Vec3 hit, InteractionHand hand) {
-		InteractionResult result = equipment.interact(player, hand, hit);
-		return result.consumesAction() ? result : super.interactAt(player, hit, hand);
+		// Carry the click through Player/Mob's normal item, equipment and riding interaction order.
+		interactionHit = hit;
+		try {
+			return player.interactOn(this, hand);
+		} finally {
+			interactionHit = null;
+		}
 	}
 
 	@Override
@@ -679,7 +685,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		ItemStack held = player.getItemInHand(hand);
 		InteractionResult productionResult = production.interact(player, hand);
 		if (productionResult.consumesAction()) return productionResult;
-		InteractionResult equipmentResult = equipment.interact(player, hand);
+		InteractionResult equipmentResult = equipment.interact(player, hand, interactionHit);
 		if (equipmentResult.consumesAction()) return equipmentResult;
 		BionicTraitSet traits = getBionicTraits();
 		if (ownerId == null && held.is(Items.SLIME_BALL) && traits.isTameable()) {
@@ -696,6 +702,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			}
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}
+		InteractionResult ridingResult = equipment.ride(player, hand, interactionHit);
+		if (ridingResult.consumesAction()) return ridingResult;
 		if (!traits.has(BionicTrait.TAMEABLE))
 			return super.mobInteract(player, hand);
 		if (ownerId != null && ownerId.equals(player.getUUID())) {
@@ -2040,8 +2048,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (source != null) level().playSound(null, this, net.minecraft.sounds.SoundEvents.HORSE_SADDLE, source, 1, 1);
 	}
 	@Override protected boolean canAddPassenger(Entity passenger) {
-		return passenger instanceof Player player && !isOrderedToSit() && isSaddled() && isSaddleable()
-			&& equipment.mayRide(player) && equipment.canSeat(passenger)
+		return passenger instanceof Player && !isOrderedToSit() && isSaddled() && isSaddleable()
+			&& equipment.canSeat(passenger)
 			&& BionicRiding.pose(this, passenger, 1, yBodyRot) != null
 			&& BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger));
 	}
@@ -2055,7 +2063,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override @Nullable public LivingEntity getControllingPassenger() {
 		return isSaddled() && isSaddleable() && ownerId != null && getFirstPassenger() instanceof Player player
-			&& ownerId.equals(player.getUUID())
 			&& equipment.canSeat(player) ? player : null;
 	}
 	@Override protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {

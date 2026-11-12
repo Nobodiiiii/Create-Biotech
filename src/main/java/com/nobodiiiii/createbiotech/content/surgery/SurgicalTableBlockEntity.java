@@ -45,6 +45,8 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Saddleable;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -507,8 +509,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams,
 					componentFootprints, sourceLayouts, occupied))
 					return SurgicalTablePlacementResult.invalidLayout(plane, proposal, componentFootprints, sourceLayouts, occupied);
-				return tryPlaceComposite(box, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ,
+				SurgicalTablePlacementResult result = tryPlaceComposite(box, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ,
 					sourceLayouts, assembly, temporaryMove);
+				if (result.succeeded()) dropPlacedSaddles(captured, placedOriginOffsetX, placedOriginOffsetZ);
+				return result;
 			}
 			if (!sourceLayouts.isEmpty())
 				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
@@ -569,7 +573,22 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
 		finishSubjectPlacement(box, temporaryMove);
+		dropPlacedSaddles(captured, placedOriginOffsetX, placedOriginOffsetZ);
 		return SurgicalTablePlacementResult.SUCCESS;
+	}
+
+	private void dropPlacedSaddles(Entity captured, double originOffsetX, double originOffsetZ) {
+		List<ItemStack> saddles;
+		if (captured instanceof SlimeBionicEntity bionic) {
+			saddles = bionic.getBionicEquipment().removeSaddles();
+		} else if (captured instanceof Saddleable saddleable && saddleable.isSaddled()) {
+			// Horses expose the actual saddle stack at slot 400; pigs and striders store a flag.
+			ItemStack saddle = captured.getSlot(400).get();
+			saddles = List.of(saddle.isEmpty() ? new ItemStack(Items.SADDLE) : saddle.copy());
+		} else return;
+		for (ItemStack saddle : saddles)
+			level.addFreshEntity(new ItemEntity(level, worldPosition.getX() + originOffsetX,
+				SurgicalTablePlane.surfaceY(worldPosition.getY()) + 0.1d, worldPosition.getZ() + originOffsetZ, saddle));
 	}
 
 	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing, SurgicalLayPose layPose,

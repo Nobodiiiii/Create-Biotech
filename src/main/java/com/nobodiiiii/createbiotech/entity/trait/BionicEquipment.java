@@ -41,9 +41,6 @@ public final class BionicEquipment {
 		return entity.getBionicOwnerId() == null ? !entity.getBionicTraits().isTameable()
 			: entity.getBionicOwnerId().equals(player.getUUID());
 	}
-	public boolean mayRide(Player player) {
-		return entity.getBionicOwnerId() == null || entity.getBionicOwnerId().equals(player.getUUID());
-	}
 	public boolean saddled() { receive(); return !saddles.isEmpty(); }
 	public boolean saddled(@Nullable CombinationMember member) { receive(); return saddles.containsKey(member); }
 	public boolean hasChest() { receive(); return !chests.isEmpty(); }
@@ -152,11 +149,31 @@ public final class BionicEquipment {
 		return freeSeat(passenger, null);
 	}
 	@Nullable private PassengerSeat freeSeat(Entity passenger, @Nullable CombinationMember selected) {
-		return saddles.keySet().stream().filter(this::canSaddle)
-			.filter(member -> selected == null || member.equals(selected)).sorted(ORDER)
-			.flatMap(member -> java.util.stream.IntStream.range(0, seats(member)).mapToObj(slot -> new PassengerSeat(member, slot)))
-			.filter(seat -> passengers.entrySet().stream().noneMatch(entry -> !entry.getKey().equals(passenger.getUUID())
-				&& entry.getValue().equals(seat))).findFirst().orElse(null);
+		if (selected != null) {
+			int slot = saddles.containsKey(selected) && canSaddle(selected) ? firstFreeSlot(passenger, selected) : -1;
+			return slot < 0 ? null : new PassengerSeat(selected, slot);
+		}
+		PassengerSeat result = null;
+		for (var member : saddles.keySet()) {
+			if (!canSaddle(member) || result != null && ORDER.compare(member, result.carrier()) >= 0) continue;
+			int slot = firstFreeSlot(passenger, member);
+			if (slot >= 0) result = new PassengerSeat(member, slot);
+		}
+		return result;
+	}
+	private int firstFreeSlot(Entity passenger, CombinationMember member) {
+		for (int slot = 0; slot < seats(member); slot++) {
+			boolean occupied = false;
+			for (var entry : passengers.entrySet()) {
+				var seat = entry.getValue();
+				if (!entry.getKey().equals(passenger.getUUID()) && seat.carrier().equals(member) && seat.slot() == slot) {
+					occupied = true;
+					break;
+				}
+			}
+			if (!occupied) return slot;
+		}
+		return -1;
 	}
 	public boolean canSeat(Entity passenger) { return passengerSeat(passenger) != null; }
 	public void passengerAdded(Entity passenger) {
@@ -188,6 +205,48 @@ public final class BionicEquipment {
 		var carrier = saddleCarrier();
 		return assembly == null || assembly.attackGeometry() == null || carrier == null ? Vec3.ZERO
 			: assembly.attackGeometry().carrierOrigins().getOrDefault(carrier, Vec3.ZERO);
+	}
+
+	/** Only compare eligible saddle origins; a sole candidate needs no click transform or distance check. */
+	@Nullable private CombinationMember nearestSaddle(Player player, @Nullable Vec3 hit, boolean mounting) {
+		var candidates = mounting ? saddles.keySet() : entity.getBionicTraits().members(BionicTrait.RIDEABLE);
+		CombinationMember selected = null;
+		Vec3 point = null;
+		double closest = Double.POSITIVE_INFINITY;
+		var assembly = entity.getAssembly();
+		var origins = assembly == null || assembly.attackGeometry() == null ? Map.<CombinationMember, Vec3>of()
+			: assembly.attackGeometry().carrierOrigins();
+		for (var member : candidates) {
+			if (!canSaddle(member) || (mounting ? firstFreeSlot(player, member) < 0 : saddles.containsKey(member))) continue;
+			if (selected == null) {
+				selected = member;
+				continue;
+			}
+			if (point == null) {
+				point = saddleClickPoint(player, hit);
+				closest = origins.getOrDefault(selected, Vec3.ZERO).distanceToSqr(point);
+			}
+			double distance = origins.getOrDefault(member, Vec3.ZERO).distanceToSqr(point);
+			if (distance < closest || distance == closest && ORDER.compare(member, selected) < 0) {
+				closest = distance;
+				selected = member;
+			}
+		}
+		return selected;
+	}
+	private Vec3 saddleClickPoint(Player player, @Nullable Vec3 hit) {
+		Vec3 worldPoint;
+		if (hit != null) {
+			worldPoint = entity.position().add(hit);
+		} else {
+			Vec3 eye = player.getEyePosition();
+			Vec3 end = eye.add(player.getLookAngle().scale(player.entityInteractionRange() + 1));
+			worldPoint = entity.getBoundingBox().clip(eye, end).orElse(entity.position());
+		}
+		Vec3 point = entity.worldToBody(worldPoint);
+		if (entity.isBlockAttached()) return point;
+		Vec3 pivot = carrierOrigin();
+		return pivot.add(BionicRiding.inverse(BionicRiding.bodyRotation(entity, 1)).rotate(point.subtract(pivot)));
 	}
 
 	/** Pick the first retained cuboid along the same player ray used by entity interaction. */
@@ -295,12 +354,11 @@ public final class BionicEquipment {
 				&& entry.modifier().amount() > 0);
 	}
 
-	public InteractionResult interact(Player player, InteractionHand hand) { return interact(player, hand, null); }
 	public InteractionResult interact(Player player, InteractionHand hand, @Nullable Vec3 hit) {
-		if (!mayRide(player)) return InteractionResult.PASS;
+		if (entity.getBionicOwnerId() != null && !mayUse(player)) return InteractionResult.PASS;
 		receive();
-		var member = pick(player, hit);
 		ItemStack held = player.getItemInHand(hand);
+		var member = player.isShiftKeyDown() || held.is(Items.CHEST) ? pick(player, hit) : null;
 		boolean client = entity.level().isClientSide;
 		if (player.isShiftKeyDown()) {
 			if (held.is(Items.SHEARS) && saddled(member)) {
@@ -341,19 +399,32 @@ public final class BionicEquipment {
 			}
 			return InteractionResult.sidedSuccess(client);
 		}
-		if (held.is(Items.SADDLE) && member != null && entity.isSaddleable()
-			&& canSaddle(member) && !saddled(member)) {
-			if (!client) {
-				equipSaddle(member, held); held.consume(1, player);
-				entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 1, 1);
+		if (held.is(Items.SADDLE) && entity.isSaddleable()) {
+			var saddle = nearestSaddle(player, hit, false);
+			if (saddle != null) {
+				if (!client) {
+					equipSaddle(saddle, held); held.consume(1, player);
+					entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 1, 1);
+				}
+				return InteractionResult.sidedSuccess(client);
 			}
-			return InteractionResult.sidedSuccess(client);
-		}
-		if (held.isEmpty() && saddled(member) && entity.isSaddleable()) {
-			if (!client) mount(player, member);
-			return InteractionResult.sidedSuccess(client);
 		}
 		return InteractionResult.PASS;
+	}
+	/** AbstractHorse/Camel: let the held item interact before falling through to mounting. */
+	public InteractionResult ride(Player player, InteractionHand hand, @Nullable Vec3 hit) {
+		if (player.isSecondaryUseActive()) return InteractionResult.PASS;
+		receive();
+		if (!entity.isSaddleable()) return InteractionResult.PASS;
+		var member = nearestSaddle(player, hit, true);
+		if (member == null) return InteractionResult.PASS;
+		ItemStack held = player.getItemInHand(hand);
+		if (!held.isEmpty()) {
+			InteractionResult result = held.interactLivingEntity(player, entity, hand);
+			if (result.consumesAction()) return result;
+		}
+		if (!entity.level().isClientSide) mount(player, member);
+		return InteractionResult.sidedSuccess(entity.level().isClientSide);
 	}
 
 	private static void give(Player player, ItemStack stack) {
@@ -398,6 +469,16 @@ public final class BionicEquipment {
 	private void dropChest(SimpleContainer cargo) {
 		entity.spawnAtLocation(Items.CHEST);
 		for (int slot = 0; slot < cargo.getContainerSize(); slot++) entity.spawnAtLocation(cargo.removeItemNoUpdate(slot));
+	}
+	/** Transfer installed saddles when the captured body is unpacked onto a surgical table. */
+	public List<ItemStack> removeSaddles() {
+		if (saddles.isEmpty()) return List.of();
+		entity.ejectPassengers();
+		List<ItemStack> removed = new ArrayList<>(saddles.values());
+		saddles.clear();
+		passengers.clear();
+		sync();
+		return removed;
 	}
 	public void drop() {
 		saddles.values().forEach(entity::spawnAtLocation); saddles.clear();

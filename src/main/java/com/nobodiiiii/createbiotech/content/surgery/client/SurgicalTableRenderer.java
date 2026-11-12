@@ -210,7 +210,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		// cuts and component offsets remain dynamic table-space state and are applied here
 		// exactly once, matching the pre-mesh-cache coordinate semantics.
 		SurgicalSourceModelRenderer.render(preview, storedCount, present, offsets, rotations, poseStack, buffer,
-			packedLight, 0.0f, 0.0f, false, camera, projectSourceGeometry);
+			packedLight, 0.0f, 0.0f, false, camera, projectSourceGeometry, 1.0f, null, false);
 		poseStack.popPose();
 	}
 

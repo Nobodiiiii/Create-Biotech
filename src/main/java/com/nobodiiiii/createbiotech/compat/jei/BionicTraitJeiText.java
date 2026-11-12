@@ -63,7 +63,7 @@ final class BionicTraitJeiText {
 	}
 
 	static Component donorTooltip(BionicTrait trait, EntityType<?> donor) {
-		Component carrier = carrier(BionicTraitDonorIndex.carriers(trait, donor));
+		Component carrier = carrier(trait, BionicTraitDonorIndex.carriers(trait, donor));
 		return (carrier == null ? tr("donors.whole_body") : tr("donors.carrier", carrier))
 			.withStyle(ChatFormatting.GRAY);
 	}
@@ -76,19 +76,27 @@ final class BionicTraitJeiText {
 		return BigDecimal.valueOf(coverage).movePointRight(2).stripTrailingZeros().toPlainString();
 	}
 
-	/** Null for whole-tissue carriers; paired wings read as one carrier. */
+	/** Keep coarse anatomical labels while distinguishing required groups from alternatives. */
 	@Nullable
-	private static Component carrier(Set<BionicAnatomyRole> roles) {
+	private static Component carrier(BionicTrait trait, Set<BionicAnatomyRole> roles) {
 		if (roles.isEmpty())
 			return null;
+		boolean requiredTogether = switch (trait.condition()) {
+		case WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST, HEAD_AND_MOUTH -> true;
+		default -> false;
+		};
 		return join(roles.stream().sorted()
 			.map(role -> switch (role) {
 			case LEFT_WING, RIGHT_WING -> "wing";
+			case LEFT_RIBCAGE, RIGHT_RIBCAGE -> "ribcage";
+			case HEAD_CORE -> "head";
+			case MOUTH -> roles.contains(BionicAnatomyRole.HEAD) || roles.contains(BionicAnatomyRole.HEAD_CORE)
+				? "head" : "mouth";
 			default -> role.name().toLowerCase(Locale.ROOT);
 			})
 			.distinct()
 			.map(role -> tr("carrier." + role))
-			.toList(), tr("carrier.separator"));
+			.toList(), tr(requiredTogether ? "carrier.required_separator" : "carrier.separator"));
 	}
 
 	@Nullable
