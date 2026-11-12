@@ -688,6 +688,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
+		InteractionResult chestRemovalResult = equipment.removeChest(player, hand, interactionHit);
+		if (chestRemovalResult.consumesAction()) return chestRemovalResult;
 		if (player.isSecondaryUseActive() && equipment.openInventory(player, interactionHit))
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		ItemStack held = player.getItemInHand(hand);

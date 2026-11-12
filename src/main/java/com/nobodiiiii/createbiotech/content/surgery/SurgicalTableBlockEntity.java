@@ -46,6 +46,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Saddleable;
+import net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -511,7 +512,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					return SurgicalTablePlacementResult.invalidLayout(plane, proposal, componentFootprints, sourceLayouts, occupied);
 				SurgicalTablePlacementResult result = tryPlaceComposite(box, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ,
 					sourceLayouts, assembly, temporaryMove);
-				if (result.succeeded()) dropPlacedSaddles(captured, placedOriginOffsetX, placedOriginOffsetZ);
+				if (result.succeeded()) dropPlacedMountEquipment(captured, placedOriginOffsetX, placedOriginOffsetZ);
 				return result;
 			}
 			if (!sourceLayouts.isEmpty())
@@ -573,22 +574,32 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
 		finishSubjectPlacement(box, temporaryMove);
-		dropPlacedSaddles(captured, placedOriginOffsetX, placedOriginOffsetZ);
+		dropPlacedMountEquipment(captured, placedOriginOffsetX, placedOriginOffsetZ);
 		return SurgicalTablePlacementResult.SUCCESS;
 	}
 
-	private void dropPlacedSaddles(Entity captured, double originOffsetX, double originOffsetZ) {
-		List<ItemStack> saddles;
+	private void dropPlacedMountEquipment(Entity captured, double originOffsetX, double originOffsetZ) {
+		List<ItemStack> equipment = new ArrayList<>();
 		if (captured instanceof SlimeBionicEntity bionic) {
-			saddles = bionic.getBionicEquipment().removeSaddles();
-		} else if (captured instanceof Saddleable saddleable && saddleable.isSaddled()) {
-			// Horses expose the actual saddle stack at slot 400; pigs and striders store a flag.
-			ItemStack saddle = captured.getSlot(400).get();
-			saddles = List.of(saddle.isEmpty() ? new ItemStack(Items.SADDLE) : saddle.copy());
-		} else return;
-		for (ItemStack saddle : saddles)
+			equipment.addAll(bionic.getBionicEquipment().removeMountEquipment());
+		} else {
+			if (captured instanceof Saddleable saddleable && saddleable.isSaddled()) {
+				// Horses expose the actual saddle stack at slot 400; pigs and striders store a flag.
+				ItemStack saddle = captured.getSlot(400).get();
+				equipment.add(saddle.isEmpty() ? new ItemStack(Items.SADDLE) : saddle.copy());
+			}
+			if (captured instanceof AbstractChestedHorse horse && horse.hasChest()) {
+				equipment.add(new ItemStack(Items.CHEST));
+				// AbstractHorse exposes cargo from slot 500; its inventory size also includes the saddle.
+				for (int slot = 0; slot < horse.getInventorySize() - 1; slot++) {
+					ItemStack stack = horse.getSlot(500 + slot).get();
+					if (!stack.isEmpty()) equipment.add(stack.copy());
+				}
+			}
+		}
+		for (ItemStack stack : equipment)
 			level.addFreshEntity(new ItemEntity(level, worldPosition.getX() + originOffsetX,
-				SurgicalTablePlane.surfaceY(worldPosition.getY()) + 0.1d, worldPosition.getZ() + originOffsetZ, saddle));
+				SurgicalTablePlane.surfaceY(worldPosition.getY()) + 0.1d, worldPosition.getZ() + originOffsetZ, stack));
 	}
 
 	private SurgicalTablePlacementResult tryPlaceComposite(ItemStack box, Direction placementFacing, SurgicalLayPose layPose,

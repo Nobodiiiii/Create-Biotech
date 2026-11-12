@@ -317,6 +317,9 @@ public final class MimicProfile {
 
 	private static CompoundTag sanitizePreviewData(CompoundTag source) {
 		CompoundTag preview = source.copy();
+		// Donkey, mule and llama cargo belongs to the installed chest, never to surgical tissue.
+		if (source.contains("ChestedHorse"))
+			preview.remove("Items");
 		// Equipment is an external render attachment, not part of the biological source model.
 		// Keeping it here would replay the same held/armor model for every separately packed part.
 		// Names belong to the donor entity rather than its anatomy. In particular, retaining
@@ -328,7 +331,7 @@ public final class MimicProfile {
 			"AbsorptionAmount", "HurtTime", "DeathTime", "HurtByTimestamp", "Brain", "attributes",
 			"Attributes", "SleepingX", "SleepingY", "SleepingZ", "HandItems", "HandDropChances",
 			"ArmorItems", "ArmorDropChances", "body_armor_item", "body_armor_drop_chance",
-			"CustomName", "CustomNameVisible"))
+			"CustomName", "CustomNameVisible", "Saddle", "SaddleItem", "ChestedHorse"))
 			preview.remove(field);
 		return preview;
 	}

@@ -201,6 +201,12 @@ public final class BionicTraitResolver {
 		}
 		double coverage = total > 0 ? contributing / total : 0;
 		BionicTraitResult result = acquisition(data.rule(), coverage, members, misplaced);
+		if (trait == BionicTrait.RIDEABLE) {
+			int seats = members.stream().mapToInt(member -> tissue.source(member.source()).profile()
+				.entityTypeId().getPath().equals("camel") ? 2 : 1).sum();
+			return new BionicTraitResult(coverage, result.strength(), seats, Set.of(), members,
+				result.inactiveReason());
+		}
 		if (!result.active())
 			return result.withDisplayEntries(detailCarriers.keySet().stream().sorted()
 				.map(id -> new DisplayEntry(DetailKind.EFFECT, id, result.inactiveReason())).toList());

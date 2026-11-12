@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.*;
+import java.util.function.Predicate;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.CombinationMember;
@@ -261,9 +262,17 @@ public final class BionicEquipment {
 			: assembly.attackGeometry().carrierOrigins().getOrDefault(carrier, Vec3.ZERO);
 	}
 
-	/** Only compare eligible saddle origins; a sole candidate needs no click transform or distance check. */
 	@Nullable private CombinationMember nearestSaddle(Player player, @Nullable Vec3 hit, SaddleAction action) {
 		var candidates = action == SaddleAction.RIDE ? saddles.keySet() : entity.getBionicTraits().members(BionicTrait.RIDEABLE);
+		return nearestCarrier(player, hit, candidates, member -> canSaddle(member) && switch (action) {
+			case EQUIP -> !saddles.containsKey(member);
+			case RIDE -> firstFreeSlot(player, member) >= 0;
+			case INVENTORY -> true;
+		});
+	}
+	/** Compare eligible equipment origins; a sole candidate needs no click transform or distance check. */
+	@Nullable private CombinationMember nearestCarrier(Player player, @Nullable Vec3 hit,
+		Set<CombinationMember> candidates, Predicate<CombinationMember> eligible) {
 		CombinationMember selected = null;
 		Vec3 point = null;
 		double closest = Double.POSITIVE_INFINITY;
@@ -271,17 +280,13 @@ public final class BionicEquipment {
 		var origins = assembly == null || assembly.attackGeometry() == null ? Map.<CombinationMember, Vec3>of()
 			: assembly.attackGeometry().carrierOrigins();
 		for (var member : candidates) {
-			if (!canSaddle(member) || switch (action) {
-				case EQUIP -> saddles.containsKey(member);
-				case RIDE -> firstFreeSlot(player, member) < 0;
-				case INVENTORY -> false;
-			}) continue;
+			if (!eligible.test(member)) continue;
 			if (selected == null) {
 				selected = member;
 				continue;
 			}
 			if (point == null) {
-				point = saddleClickPoint(player, hit);
+				point = equipmentClickPoint(player, hit);
 				closest = origins.getOrDefault(selected, Vec3.ZERO).distanceToSqr(point);
 			}
 			double distance = origins.getOrDefault(member, Vec3.ZERO).distanceToSqr(point);
@@ -292,7 +297,7 @@ public final class BionicEquipment {
 		}
 		return selected;
 	}
-	private Vec3 saddleClickPoint(Player player, @Nullable Vec3 hit) {
+	private Vec3 equipmentClickPoint(Player player, @Nullable Vec3 hit) {
 		Vec3 worldPoint;
 		if (hit != null) {
 			worldPoint = entity.position().add(hit);
@@ -412,11 +417,25 @@ public final class BionicEquipment {
 				&& entry.modifier().amount() > 0);
 	}
 
+	/** Axe removal takes precedence over opening the mount inventory, including for loaded boxes. */
+	public InteractionResult removeChest(Player player, InteractionHand hand, @Nullable Vec3 hit) {
+		if (!player.isShiftKeyDown() || !(player.getItemInHand(hand).getItem() instanceof AxeItem) || !mayUse(player))
+			return InteractionResult.PASS;
+		receive();
+		if (chests.isEmpty()) return InteractionResult.PASS;
+		var member = pick(player, hit);
+		if (!chests.containsKey(member)) return InteractionResult.PASS;
+		if (!entity.level().isClientSide) {
+			dropChest(chests.remove(member));
+			sync();
+		}
+		return InteractionResult.sidedSuccess(entity.level().isClientSide);
+	}
 	public InteractionResult interact(Player player, InteractionHand hand, @Nullable Vec3 hit) {
 		if (entity.getBionicOwnerId() != null && !mayUse(player)) return InteractionResult.PASS;
 		receive();
 		ItemStack held = player.getItemInHand(hand);
-		var member = player.isShiftKeyDown() || held.is(Items.CHEST) ? pick(player, hit) : null;
+		var member = player.isShiftKeyDown() ? pick(player, hit) : null;
 		boolean client = entity.level().isClientSide;
 		if (player.isShiftKeyDown()) {
 			if (held.is(Items.SHEARS) && saddled(member)) {
@@ -429,8 +448,6 @@ public final class BionicEquipment {
 				}
 			} else if (!mayUse(player)) {
 				return InteractionResult.PASS;
-			} else if (held.getItem() instanceof AxeItem && hasChest(member) && chests.get(member).isEmpty()) {
-				if (!client) { give(player, new ItemStack(Items.CHEST)); chests.remove(member); sync(); }
 			} else if (accepts(hand, held)) {
 				if (!client) {
 					ItemStack previous = entity.getItemInHand(hand);
@@ -444,15 +461,18 @@ public final class BionicEquipment {
 			} else return InteractionResult.PASS;
 			return InteractionResult.sidedSuccess(client);
 		}
-		if (held.is(Items.CHEST) && member != null && entity.getBionicTraits().members(BionicTrait.CARGO_CHEST).contains(member)
-			&& !hasChest(member) && mayUse(player)) {
-			if (!client) {
-				chests.put(member, newCargo(member)); held.consume(1, player);
-				boolean llama = source(member).profile().entityTypeId().getPath().endsWith("llama");
-				entity.playSound(llama ? net.minecraft.sounds.SoundEvents.LLAMA_CHEST : net.minecraft.sounds.SoundEvents.DONKEY_CHEST,
-					1, (entity.getRandom().nextFloat() - entity.getRandom().nextFloat()) * 0.2f + 1); sync();
+		if (held.is(Items.CHEST) && mayUse(player)) {
+			var chest = nearestCarrier(player, hit, entity.getBionicTraits().members(BionicTrait.CARGO_CHEST),
+				candidate -> !chests.containsKey(candidate));
+			if (chest != null) {
+				if (!client) {
+					chests.put(chest, newCargo(chest)); held.consume(1, player);
+					boolean llama = source(chest).profile().entityTypeId().getPath().endsWith("llama");
+					entity.playSound(llama ? net.minecraft.sounds.SoundEvents.LLAMA_CHEST : net.minecraft.sounds.SoundEvents.DONKEY_CHEST,
+						1, (entity.getRandom().nextFloat() - entity.getRandom().nextFloat()) * 0.2f + 1); sync();
+				}
+				return InteractionResult.sidedSuccess(client);
 			}
-			return InteractionResult.sidedSuccess(client);
 		}
 		if (held.is(Items.SADDLE) && entity.isSaddleable()) {
 			var saddle = nearestSaddle(player, hit, SaddleAction.EQUIP);
@@ -544,12 +564,20 @@ public final class BionicEquipment {
 		entity.spawnAtLocation(Items.CHEST);
 		for (int slot = 0; slot < cargo.getContainerSize(); slot++) entity.spawnAtLocation(cargo.removeItemNoUpdate(slot));
 	}
-	/** Transfer installed saddles when the captured body is unpacked onto a surgical table. */
-	public List<ItemStack> removeSaddles() {
-		if (saddles.isEmpty()) return List.of();
+	/** Transfer mount equipment and every cargo stack when unpacking onto a surgical table. */
+	public List<ItemStack> removeMountEquipment() {
+		if (saddles.isEmpty() && chests.isEmpty()) return List.of();
 		entity.ejectPassengers();
 		List<ItemStack> removed = new ArrayList<>(saddles.values());
+		for (SimpleContainer cargo : chests.values()) {
+			removed.add(new ItemStack(Items.CHEST));
+			for (int slot = 0; slot < cargo.getContainerSize(); slot++) {
+				ItemStack stack = cargo.removeItemNoUpdate(slot);
+				if (!stack.isEmpty()) removed.add(stack);
+			}
+		}
 		saddles.clear();
+		chests.clear();
 		passengers.clear();
 		sync();
 		return removed;

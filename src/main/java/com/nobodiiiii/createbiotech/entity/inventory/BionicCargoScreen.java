@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.inventory;
 
 import java.util.ArrayList;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -19,10 +20,8 @@ public final class BionicCargoScreen extends AbstractContainerScreen<BionicCargo
 	}
 	@Override protected void init() {
 		super.init();
-		previous = addRenderableWidget(Button.builder(Component.literal("<"), button -> turnPage(0))
-			.bounds(leftPos + 80, topPos + 71, 12, 12).build());
-		next = addRenderableWidget(Button.builder(Component.literal(">"), button -> turnPage(1))
-			.bounds(leftPos + 158, topPos + 71, 12, 12).build());
+		previous = addRenderableWidget(new PageButton(leftPos + 80, topPos + 71, "<", button -> turnPage(0)));
+		next = addRenderableWidget(new PageButton(leftPos + 158, topPos + 71, ">", button -> turnPage(1)));
 	}
 	private void turnPage(int button) {
 		minecraft.gameMode.handleInventoryButtonClick(menu.containerId, button);
@@ -44,9 +43,20 @@ public final class BionicCargoScreen extends AbstractContainerScreen<BionicCargo
 		previous.active = menu.page() > 0;
 		next.active = menu.page() + 1 < menu.pageCount();
 		super.render(graphics, mouseX, mouseY, partialTick);
-		if (menu.pageCount() > 1)
-			graphics.drawCenteredString(font, (menu.page() + 1) + "/" + menu.pageCount(), leftPos + 125, topPos + 73, 0x404040);
+		if (menu.pageCount() > 1) {
+			String page = (menu.page() + 1) + "/" + menu.pageCount();
+			graphics.drawString(font, page, leftPos + 125 - font.width(page) / 2, topPos + 73, 0x404040, false);
+		}
 		renderTooltip(graphics, mouseX, mouseY);
+	}
+	private static final class PageButton extends Button {
+		private PageButton(int x, int y, String label, OnPress onPress) {
+			super(x, y, 12, 12, Component.literal(label), onPress, DEFAULT_NARRATION);
+		}
+		@Override public void renderString(GuiGraphics graphics, Font font, int color) {
+			graphics.drawString(font, getMessage(), getX() + (width - font.width(getMessage())) / 2,
+				getY() + (height - font.lineHeight) / 2, color, false);
+		}
 	}
 	@Override protected void renderTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
 		if (menu.getCarried().isEmpty() && hoveredSlot != null && hoveredSlot.isActive()

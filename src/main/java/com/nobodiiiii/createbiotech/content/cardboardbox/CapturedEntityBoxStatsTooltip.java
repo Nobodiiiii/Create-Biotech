@@ -144,7 +144,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					.thenComparing(DisplayEntry::kind).thenComparing(DisplayEntry::id))
 					.forEach(entry -> details.computeIfAbsent(new DetailGroup(entry.kind(), entry.inactiveReason(), entry.missingParts()),
 						ignored -> new java.util.HashSet<>()).add(entry.id()));
-				details.forEach((group, ids) -> appendTraitLine(lines, trait, scopes, result,
+				details.forEach((group, ids) -> appendTraitLine(lines, trait, scopes, traits,
 					detailName(trait, group.kind(), ids, group.reason() == null), group.reason(), group.missingParts()));
 				continue;
 			}
@@ -154,8 +154,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					String.format(java.util.Locale.ROOT, "%.1f", result.value()
 						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
 			if (trait == BionicTrait.RIDEABLE)
-				name = Component.translatable("create_biotech.trait.rideable.count", result.members().size());
-			appendTraitLine(lines, trait, scopes, result, name, result.inactiveReason(), result.missingParts());
+				name = Component.translatable("create_biotech.trait.rideable.count", (int) result.value());
+			appendTraitLine(lines, trait, scopes, traits, name, result.inactiveReason(), result.missingParts());
 		}
 		tooltip.addAll(classifications);
 		appendTraitGroup(tooltip, Component.translatable(BionicTraitScope.WHOLE_BODY.descriptionId()),
@@ -173,7 +173,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	/** Each row has one status; only distinct items with the same reason share parentheses. */
 	private static void appendTraitLine(List<Component> lines, BionicTrait trait, List<BionicTraitScope> scopes,
-		BionicTraitResult result, Component name, @Nullable InactiveReason reason,
+		BionicTraitSet traits, Component name, @Nullable InactiveReason reason,
 		List<List<MissingPart>> missingParts) {
 		if (scopes.size() > 1) {
 			MutableComponent names = Component.empty();
@@ -189,7 +189,16 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				.append(inactiveReason(reason, missingParts)).withStyle(ChatFormatting.DARK_GRAY));
 			return;
 		}
-		if (trait.valueKind() == BionicTrait.ValueKind.ABILITY
+		BionicTraitResult result = traits.result(trait);
+		boolean resistance = trait == BionicTrait.FIRE_RESISTANCE || trait == BionicTrait.FREEZE_RESISTANCE
+			|| trait == BionicTrait.MAGIC_RESISTANCE;
+		if (resistance) {
+			// Show actual damage reduction, including the configured magic-resistance multiplier.
+			double reduction = result.strength() * (trait == BionicTrait.MAGIC_RESISTANCE
+				? traits.parameter(trait, "reduction_multiplier", 0.85d) : 1.0d);
+			name = Component.translatable("create_biotech.trait.partial", name,
+				String.format(java.util.Locale.ROOT, "%.1f", reduction * 100.0d));
+		} else if (trait.valueKind() == BionicTrait.ValueKind.ABILITY
 			&& trait.rule().type() == BionicTraitType.COVERAGE_SCALED
 			&& result.strength() < 1.0d - BionicTraitRule.COVERAGE_EPSILON)
 			name = Component.translatable("create_biotech.trait.partial", name,
