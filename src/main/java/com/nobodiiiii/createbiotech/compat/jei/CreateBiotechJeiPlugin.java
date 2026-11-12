@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberHighPressureRecipe;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
@@ -65,12 +66,18 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void onRuntimeAvailable(IJeiRuntime runtime) {
+		BionicTraitDonorIndex.setJeiRuntimeAvailable(true);
 		// Keep the command-only tool hidden even with JEI's showHiddenIngredients enabled.
 		var manager = runtime.getIngredientManager();
 		List<ItemStack> debugSticks = manager.getAllIngredients(VanillaTypes.ITEM_STACK).stream()
 			.filter(stack -> stack.is(CBItems.MIMIC_DEBUG_STICK.get())).toList();
 		if (!debugSticks.isEmpty())
 			manager.removeIngredientsAtRuntime(VanillaTypes.ITEM_STACK, debugSticks);
+	}
+
+	@Override
+	public void onRuntimeUnavailable() {
+		BionicTraitDonorIndex.setJeiRuntimeAvailable(false);
 	}
 
 	@Override

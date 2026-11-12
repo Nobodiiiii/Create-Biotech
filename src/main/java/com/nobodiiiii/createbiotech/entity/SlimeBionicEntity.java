@@ -772,8 +772,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
 		// Random swim targets are chosen before path creation: amphibious navigation alone
 		// sets this too late, leaving DefaultRandomPos to reject every water candidate.
-		setPathfindingMalus(PathType.WATER, traits.has(BionicTrait.WATER_AVERSION) ? -1.0f
-			: aquatic ? 0.0f : baseWaterPathMalus);
+		float waterPathMalus = traits.hasFullEffect(BionicTrait.WATER_SENSITIVE) ? -1.0f
+			: aquatic ? 0.0f : baseWaterPathMalus;
+		if (getPathfindingMalus(PathType.WATER) != waterPathMalus) {
+			setPathfindingMalus(PathType.WATER, waterPathMalus);
+			navigation.stop();
+		}
 		boolean changed = bodyFlightEnabled != enabled || organSwimEnabled != swimming;
 		bodyFlightEnabled = enabled;
 		organSwimEnabled = swimming;

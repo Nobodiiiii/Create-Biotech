@@ -80,9 +80,6 @@ public enum BionicTrait {
 	VIBRATION_SENSE("vibration_sense", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.HEAD_AND_TENDRIL,
 		Carrier.of(BionicAnatomyRole.HEAD_CORE, BionicAnatomyRole.TENDRIL)),
-	WATER_AVERSION("water_aversion", BionicTraitScope.HEAD,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.HEAD)),
 	DETERRENCE("deterrence", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
@@ -243,7 +240,7 @@ public enum BionicTrait {
 		return switch (this) {
 		case DISPOSITION, INTELLIGENCE, ENDER_TELEPORT, BLOCK_ATTACHMENT, WINGLESS_FLIGHT, SHOULDER_RIDING,
 			SWIM_SPECIALIST, SHELL_DEFENSE, RIDEABLE, SONIC_BOOM, SELF_DESTRUCT,
-			WOOL_SHEARING, TAMEABLE, LIVESTOCK_TAMEABLE, VIBRATION_SENSE, WATER_AVERSION, DETERRENCE,
+			WOOL_SHEARING, TAMEABLE, LIVESTOCK_TAMEABLE, VIBRATION_SENSE, DETERRENCE,
 			HUNTING_INSTINCT, PACK_ALERT, ROAR, HEAD_PROJECTILE, GUARDIAN_BEAM,
 			WING_FLIGHT, DOOR_HANDLING, WING_SLOW_FALL, LOOT_PICKUP, SPELLCASTING,
 			LAVA_WALK, WALL_CLIMB, STRONG_JUMP, POLLINATION -> true;

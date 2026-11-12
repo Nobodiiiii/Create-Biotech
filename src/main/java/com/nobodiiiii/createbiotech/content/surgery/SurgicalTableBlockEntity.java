@@ -56,7 +56,7 @@ import net.minecraft.world.phys.Vec3;
 /** The canonical corner block entity for all surgical subjects on one connected table plane. */
 public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	public static final int MAX_SUBJECTS = SurgicalTablePlane.MAX_TILES * SurgicalTableLayout.SLOTS_PER_TILE;
-	private static final String SUBJECTS_TAG = "SurgicalSubjects";
+	private static final String SUBJECTS_TAG = SurgicalTableSubjectSync.SUBJECTS_TAG;
 	private static final String NEXT_SUBJECT_ID_TAG = "NextSubjectId";
 	private static final String FORMAT_VERSION_TAG = "SurgicalFormatVersion";
 	private static final int FORMAT_VERSION = 1;
@@ -3561,7 +3561,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			ListTag encoded = new ListTag();
 			for (SurgicalSubject subject : subjects)
 				encoded.add(subject.save());
-			tag.put(SUBJECTS_TAG, encoded);
+			if (clientPacket)
+				SurgicalTableSubjectSync.write(tag, encoded);
+			else
+				tag.put(SUBJECTS_TAG, encoded);
 		}
 		tag.putInt(NEXT_SUBJECT_ID_TAG, nextSubjectId);
 		super.write(tag, registries, clientPacket);
@@ -3579,8 +3582,9 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		List<SurgicalSubject> loaded = new ArrayList<>();
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> persistentIds = new HashSet<>();
-		if (currentFormat && tag.contains(SUBJECTS_TAG, Tag.TAG_LIST)) {
-			ListTag encoded = tag.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
+		if (currentFormat) {
+			ListTag encoded = clientPacket ? SurgicalTableSubjectSync.read(tag)
+				: tag.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
 			for (int index = 0; index < encoded.size() && loaded.size() < MAX_SUBJECTS; index++) {
 				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index));
 				if (subject == null || !ids.add(subject.id()) || !persistentIds.add(subject.persistentId()))

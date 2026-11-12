@@ -374,6 +374,13 @@ public class CapturedEntityBoxHelper {
 		return entityId != null && entityId.toString().equals(captureMetadata(stack).entityId());
 	}
 
+	/** Resolves the cached species ID without loading the entity or copying its NBT. */
+	@Nullable
+	public static EntityType<?> getCapturedEntityType(ItemStack stack) {
+		ResourceLocation entityId = ResourceLocation.tryParse(captureMetadata(stack).entityId());
+		return entityId == null ? null : BuiltInRegistries.ENTITY_TYPE.getOptional(entityId).orElse(null);
+	}
+
 	/**
 	 * Zero-copy view of the entity NBT held by the box, or null when the box is empty or holds
 	 * a different entity type. Callers must not mutate the returned tag.

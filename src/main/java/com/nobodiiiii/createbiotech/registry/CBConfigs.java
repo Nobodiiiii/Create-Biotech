@@ -152,7 +152,7 @@ public class CBConfigs {
 				.comment("Render captured creatures on cardboard box fronts. Disable to use the packager-style face and skip entity icon caches.")
 				.define("renderCapturedEntitiesOnBoxes", true);
 			showBionicTraitDonorsInJei = builder
-				.comment("Show donor creatures on bionic trait JEI pages. Disable to stop requesting donor data from the server.")
+				.comment("Show donor creatures on bionic trait JEI pages and enable species trait lookups from previews, spawn eggs and filled boxes. Synchronizes donor data while JEI is available; disable to stop requesting it from the server.")
 				.define("showBionicTraitDonorsInJei", true);
 			creeperBlastChamber = new ClientCreeperBlastChamber(builder);
 			universalJoint = new ClientUniversalJoint(builder);

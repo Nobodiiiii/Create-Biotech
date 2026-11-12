@@ -2,7 +2,7 @@
 
 修订日期：2026-11-12。适用分支：Minecraft 1.21.1、NeoForge 21.1.234、Create 6.0.10-281。
 
-本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 67 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
+本表按当前工作区代码与数据整理 v3 特性规则与方法选用。当前共 66 项，按全身、躯干、头、臂、腿排列。原“修正”列随完整原表归档于[原修正表](bionic-traits-reference-v2-corrections-2026-11-06.zh-CN.md)，此前记录见[特性修正历史](bionic-traits-history.zh-CN.md)。
 
 ## 一、通用规则
 
@@ -110,7 +110,7 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 全身 | `fire_immune` | 火焰免疫 | 被动 | 供体全部保留体块 | 自动：`EntityType.fireImmune()`，即烈焰人、末影龙、恶魂、岩浆怪、潜影贝、炽足兽、恼鬼、监守者、凋灵、凋灵骷髅、僵尸疣猪兽、僵尸猪灵 | c ≥ 0.5 | 获得火焰伤害免疫与灭火效果；提示显示火焰免疫 | 复用 [Entity.fireImmune](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 与火焰伤害标签 |
 | 全身 | `fire_resistance` | 火焰抗性 | 被动 | 供体全部保留体块 | 同火焰免疫的供体，独立数据文件 | c > 0 | 火焰类伤害 ×(1−c)；提示在 c < 0.5 时显示 | 复用 [Entity.fireImmune](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 判定供体；沿用现有覆盖率减伤 |
-| 全身 | `water_sensitive` | 遇水受伤 | 被动 | 供体全部保留体块 | 自动：`isSensitiveToWater()`，即烈焰人、末影人、炽足兽、雪傀儡 | c ≥ 0.5 | 在水、雨或气泡中每 tick 尝试受到 1 点溺水伤害，沿用原版伤害冷却 | 复用 [LivingEntity.isSensitiveToWater / aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
+| 全身 | `water_sensitive` | 遇水受伤 | 被动 | 供体全部保留体块 | 自动：`isSensitiveToWater()`，即烈焰人、末影人、炽足兽、雪傀儡 | c ≥ 0.5；遇水伤害与避水同时生效 | 在水、雨或气泡中每 tick 尝试受到 1 点溺水伤害，沿用原版伤害冷却；水域节点代价设为 -1.0，寻路时视为不可通行，优先于游泳专长，所有供体统一处理 | 复用 [LivingEntity.isSensitiveToWater / aiStep](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) 与 [Mob.setPathfindingMalus](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；水域代价参考 [Blaze 构造器](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Blaze.java)，两栖寻路保留该限制 |
 | 全身 | `freeze_immune` | 冻结免疫 | 被动 | 供体全部保留体块 | 自动：标签`freeze_immune_entity_types`，即流浪者、北极熊、雪傀儡、凋灵 | c ≥ 0.5 | 获得冻结与冰冻伤害免疫；提示显示冻结免疫 | 复用 [Entity.canFreeze](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Entity.java) 与 `FREEZE_IMMUNE_ENTITY_TYPES` |
 | 全身 | `freeze_resistance` | 冻结抗性 | 被动 | 供体全部保留体块 | 同冻结免疫的供体，独立数据文件 | c > 0 | 冰冻伤害 ×(1−c)；提示在 c < 0.5 时显示 | 复用 `FREEZE_IMMUNE_ENTITY_TYPES`；沿用现有覆盖率减伤，入口见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
 | 全身 | `freeze_vulnerable` | 冻结易伤 | 被动 | 供体全部保留体块 | 自动：标签`freeze_hurts_extra_types`，即炽足兽、烈焰人、岩浆怪 | c > 0 | 冰冻伤害 ×(1+4c)，与冻结抗性系数相乘 | 复用 `FREEZE_HURTS_EXTRA_TYPES`；按覆盖率映射原版 5 倍冰冻伤害，见 [LivingEntity.hurt](../ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java) |
@@ -153,7 +153,6 @@ JEI 上方规则图标的悬停提示先显示“载体规则：类型”，下�
 | 头 | `tameable` | 可驯服（宠物） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`TamableAnimal`（狼、猫、鹦鹉）；数据补充：狐狸、豹猫、悦灵 | 头部安装范围内有对应载体 | 喂史莱姆球获得主人；主人无特殊交互时右键切换坐下，超过 10 格开始跟随、近于 2 格停止，远距离按跟随 Goal 尝试回到主人身边；协助主人战斗；覆盖家畜驯服，后者不显示也不生效；分裂史莱姆继承主人和宠物行为 | 沿用原 `tameable` ID；复刻 [FollowOwnerGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/FollowOwnerGoal.java)、[SitWhenOrderedToGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/SitWhenOrderedToGoal.java) 与 [TamableAnimal.tryToTeleportToOwner](../ref/1.21.1/Minecraft/net/minecraft/world/entity/TamableAnimal.java) 的行为流程 |
 | 头 | `livestock_tameable` | 可驯服（家畜） | 技能 | 头`HEAD`：`head`、`head_cube` | 自动：`AbstractHorse`（马、驴、骡、羊驼、行商羊驼；排除骷髅马、僵尸马、骆驼） | 头部安装范围内有对应载体，且无生效的宠物驯服 | 喂史莱姆球获得主人，保留同主识别、治疗和主人专属的骑乘／驮运操作；保留游走、生产与自身防御，不跟随或传送至主人，不接受坐下指令、不协助主人战斗，也不响应同主同伴呼援；分裂史莱姆继承主人和家畜类别 | 仅拆分已有供体；骑乘、驮运及生产仍须各自特性生效。马类原生游走参照 [AbstractHorse.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/horse/AbstractHorse.java) |
 | 头 | `vibration_sense` | 振动感知 | 技能 | 头部主体 `HEAD_CORE` + 触须 `TENDRIL`：监守者 `head` + `left_tendril`／`right_tendril` | 监守者 | 存在型；同一头部链内保留监守者头部主体和至少一根触须；正在追踪目标 | 监听 12 格内已有目标的游戏振动，按潜行与羊毛隔振规则接收；追踪最近声源位置并保留 40 tick 记忆 | 复用 [VibrationSystem.Listener / Ticker / User](../ref/1.21.1/Minecraft/net/minecraft/world/level/gameevent/vibrations/VibrationSystem.java) 与现有 [目标跟踪接入](../src/main/java/com/nobodiiiii/createbiotech/entity/trait/BionicVibrationSense.java) |
-| 头 | `water_aversion` | 避水偏好 | 技能 | 头 `HEAD`：`head`、`head_cube` | 末影人 | 头部安装范围内有对应载体 | 水域节点代价设为 -1.0，按末影人原版避水规则选择路线 | 复用 [Mob.setPathfindingMalus](../ref/1.21.1/Minecraft/net/minecraft/world/entity/Mob.java)；水域代价取 [EnderMan 构造器](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/EnderMan.java) |
 | 头 | `deterrence` | 生物威慑 | 技能 | 头`HEAD`：`head`、`head_cube` | 猫、豹猫、狼、北极熊、羊驼、行商羊驼、守卫者、远古守卫者、犰狳；村民/行商害怕的敌对生物、僵尸猪灵（见下方关系表） | 头部安装范围内有对应载体 | 按现有威慑关系适配目标生物的避让 Goal／Brain；距离、速度、概率和记忆时长采用关系表模板 | 复用 [AvoidEntityGoal](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/goal/AvoidEntityGoal.java)；Brain 生物沿用 [VillagerHostilesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/VillagerHostilesSensor.java)、[PiglinAi.avoidZombified](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java)；按关系表适配威胁身份 |
 | 头 | `hunting_instinct` | 捕猎本能（目标生物…） | 技能 | 头 `HEAD`，包括捕获头部 | 见本表“捕猎关系” | 头部安装范围内有对应载体；目标满足捕猎关系表 | 按供体目标谓词、距离、亮度、驯服状态和冷却主动捕猎；沿用主人与盟友关系 | 复用原版目标 Goal、[AxolotlAttackablesSensor](../ref/1.21.1/Minecraft/net/minecraft/world/entity/ai/sensing/AxolotlAttackablesSensor.java) 与 [PiglinAi](../ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/piglin/PiglinAi.java) 的目标谓词；复刻供体约束，见捕猎关系表 |
 | 头 | `pack_alert` | 呼唤同伴 | 技能 | 头 `HEAD` | 狼、蜜蜂、海豚、烈焰人、末影螨、蠹虫、僵尸、尸壳、僵尸村民、溺尸、僵尸猪灵、潜影贝、唤魔者、幻术师、掠夺者、劫掠兽、恼鬼、卫道士、猪灵、疣猪兽 | 头部安装范围内有对应载体；进入原版受伤报复流程；统一采用狼模板 | 按原版伤害时间戳触发，通知跟随范围与纵向 ±10 格内符合关系的同伴，沿用原方法的目标与盟友判定；同伴身份映射到供体与主人关系 | 统一采用狼的受伤呼援模板，复用 `HurtByTargetGoal.setAlertOthers / alertOther`；供体入口见 [Wolf.registerGoals](../ref/1.21.1/Minecraft/net/minecraft/world/entity/animal/Wolf.java)；同伴身份沿用供体与主人关系 |
@@ -331,7 +330,7 @@ AI 沿用 [WallClimberNavigation](../ref/1.21.1/Minecraft/net/minecraft/world/en
 | 远古守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
 | 守卫者 | 接触反伤、附魔易伤（穿刺） | 游泳专长 | 水下呼吸、生物威慑、捕猎本能（目标生物…）、守卫者光束 | — | — |
 | 末影龙 | 火焰免疫／火焰抗性 | — | 头部投射 | 扑翼飞行、近战击飞 | — |
-| 末影人 | 遇水受伤、末影瞬移 | — | 避水偏好、捕猎本能（目标生物…） | — | — |
+| 末影人 | 遇水受伤、末影瞬移 | — | 捕猎本能（目标生物…） | — | — |
 | 末影螨 | 附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
 | 蠹虫 | 免疫效果（寄生）、附魔易伤（节肢杀手） | — | 呼唤同伴 | — | 细雪行者 |
 | 狐狸 | — | — | 可驯服（宠物）、捕猎本能（目标生物…） | — | 细雪行者 |

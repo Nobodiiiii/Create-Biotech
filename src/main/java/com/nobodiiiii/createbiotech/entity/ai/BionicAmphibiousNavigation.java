@@ -5,12 +5,15 @@ import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.PathNavigationRegion;
 import net.minecraft.world.level.pathfinder.AmphibiousNodeEvaluator;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathFinder;
+import net.minecraft.world.level.pathfinder.PathType;
 
 /** Retain strong-jump paths and wall-climbing pursuit for bodies that also have swimming tissue. */
 public final class BionicAmphibiousNavigation extends AmphibiousPathNavigation {
@@ -64,6 +67,13 @@ public final class BionicAmphibiousNavigation extends AmphibiousPathNavigation {
 
 	@Override protected PathFinder createPathFinder(int visitedNodes) {
 		nodeEvaluator = new AmphibiousNodeEvaluator(false) {
+			@Override public void prepare(PathNavigationRegion region, Mob mob) {
+				float waterMalus = mob.getPathfindingMalus(PathType.WATER);
+				super.prepare(region, mob);
+				// Amphibious preparation must not clear water sensitivity's traversal restriction.
+				mob.setPathfindingMalus(PathType.WATER, waterMalus);
+			}
+
 			@Override public int getNeighbors(Node[] neighbors, Node node) {
 				SlimeBionicEntity bionic = (SlimeBionicEntity) mob;
 				bionic.setEvaluatingJumpPath(true);

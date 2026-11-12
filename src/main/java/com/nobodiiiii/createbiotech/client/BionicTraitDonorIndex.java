@@ -20,8 +20,9 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 
-/** Shared by all trait pages. Polling occurs only while a donor widget is actually visible. */
+/** Shared by trait pages and species lookups; synchronized while JEI's runtime is available. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class BionicTraitDonorIndex {
 	private static final Map<BionicTrait, List<EntityType<?>>> DONORS = new EnumMap<>(BionicTrait.class);
@@ -33,8 +34,22 @@ public final class BionicTraitDonorIndex {
 	private static int total;
 	private static int failures;
 	private static boolean complete;
+	private static boolean jeiRuntimeAvailable;
 
 	private BionicTraitDonorIndex() {}
+
+	public static void setJeiRuntimeAvailable(boolean available) {
+		jeiRuntimeAvailable = available;
+		if (!available)
+			clear();
+	}
+
+	@SubscribeEvent
+	public static void onClientTick(ClientTickEvent.Post event) {
+		// Warm the index before the first egg/box lookup, which has no donor widget to poll it.
+		if (jeiRuntimeAvailable)
+			requestIfNeeded();
+	}
 
 	public static void requestIfNeeded() {
 		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
