@@ -1,7 +1,8 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
-import java.util.EnumMap;
-import java.util.EnumSet;
+import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -40,7 +41,7 @@ public final class BionicTraitDonors {
 	private BionicTraitDonors() {}
 
 	public static Facts get(MimicProfile profile, Level level) {
-		return get(profile, level, BionicTraitRegistry.snapshot());
+		return get(profile, level, BionicTraitRegistry.snapshot(level));
 	}
 
 	static synchronized Facts get(MimicProfile profile, Level level, BionicTraitRegistry.Snapshot data) {
@@ -65,16 +66,16 @@ public final class BionicTraitDonors {
 
 	public static Facts detect(LivingEntity donor) {
 		return !BionicTraits.ENABLED || donor == null ? Facts.EMPTY
-			: detect(donor.getType(), donor, BionicTraitRegistry.snapshot());
+			: detect(donor.getType(), donor, BionicTraitRegistry.snapshot(donor.level()));
 	}
 
 	@SuppressWarnings("deprecation")
 	private static Facts detect(EntityType<?> type, @Nullable LivingEntity donor,
 		BionicTraitRegistry.Snapshot snapshot) {
 		ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
-		Set<BionicTrait> abilities = EnumSet.noneOf(BionicTrait.class);
-		Map<BionicTrait, Double> numbers = new EnumMap<>(BionicTrait.class);
-		for (BionicTrait trait : BionicTrait.values()) {
+		Set<BionicTrait> abilities = new LinkedHashSet<>();
+		Map<BionicTrait, Double> numbers = new LinkedHashMap<>();
+		for (BionicTrait trait : snapshot.definitions()) {
 			BionicTraitData data = snapshot.get(trait);
 			if (trait.valueKind() == BionicTrait.ValueKind.ABILITY) {
 				boolean automatic = false;
@@ -88,51 +89,51 @@ public final class BionicTraitDonors {
 			} else if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
 				double automatic = 0.0d;
 				if (data.automaticDetection() && donor != null) {
-					var attribute = switch (trait) {
-					case ATTACK_KNOCKBACK -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
-					case NATURAL_ARMOR -> donor.getAttribute(Attributes.ARMOR);
-					case KNOCKBACK_RESISTANCE -> donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+					var attribute = switch (trait.id().toString()) {
+					case "create_biotech:attack_knockback" -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
+					case "create_biotech:natural_armor" -> donor.getAttribute(Attributes.ARMOR);
+					case "create_biotech:knockback_resistance" -> donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
 					default -> null;
 					};
 					automatic = attribute == null ? 0.0d : attribute.getBaseValue();
 				}
 				double value = data.numbers().resolve(type, id, automatic);
 				value = Double.isFinite(value) ? Math.max(0.0d, value) : 0.0d;
-				numbers.put(trait, trait == BionicTrait.KNOCKBACK_RESISTANCE ? Math.min(1.0d, value) : value);
+				numbers.put(trait, BionicTrait.KNOCKBACK_RESISTANCE.equals(trait) ? Math.min(1.0d, value) : value);
 			}
 		}
-		Set<ResourceLocation> effects = new HashSet<>();
-		BionicTraitData immunities = snapshot.get(BionicTrait.IMMUNE_EFFECTS);
-		if (immunities.automaticDetection() && donor != null)
-			BuiltInRegistries.MOB_EFFECT.holders().forEach(effect -> {
-				try {
-					if (!donor.canBeAffected(new MobEffectInstance(effect, 20)))
-						effects.add(effect.key().location());
-				} catch (RuntimeException exception) {
-					LogUtils.getLogger().debug("Could not probe {} immunity for {}", effect.key().location(), id, exception);
-				}
-			});
-		immunities.effects().forEach(type, id, overrides -> overrides.forEach((effect, enabled) -> {
-			if (enabled) effects.add(effect);
-			else effects.remove(effect);
-		}));
-		Set<ResourceLocation> attacks = new HashSet<>();
-		BionicTraitData attackData = snapshot.get(BionicTrait.EFFECT_ATTACK);
-		attackData.effects().forEach(type, id, overrides -> overrides.forEach((effect, enabled) -> {
-			if (enabled && attackData.attackEffects().containsKey(effect)) attacks.add(effect);
-			else attacks.remove(effect);
-		}));
-		Map<BionicTrait, Set<ResourceLocation>> variants = new EnumMap<>(BionicTrait.class);
-		for (BionicTrait trait : BionicTrait.values()) {
+		Map<BionicTrait, Set<ResourceLocation>> effectSets = new HashMap<>(), attackSets = new HashMap<>();
+		for (BionicTrait trait : snapshot.definitions()) {
+			if (trait.valueKind() != BionicTrait.ValueKind.EFFECT_SET && trait.valueKind() != BionicTrait.ValueKind.ATTACK_EFFECT_SET) continue;
+			BionicTraitData definition = snapshot.get(trait);
+			Set<ResourceLocation> supplied = new HashSet<>();
+			if (BionicTrait.IMMUNE_EFFECTS.equals(trait) && definition.automaticDetection() && donor != null)
+				BuiltInRegistries.MOB_EFFECT.holders().forEach(effect -> {
+					try {
+						if (!donor.canBeAffected(new MobEffectInstance(effect, 20))) supplied.add(effect.key().location());
+					} catch (RuntimeException exception) {
+						LogUtils.getLogger().debug("Could not probe {} immunity for {}", effect.key().location(), id, exception);
+					}
+				});
+			definition.effects().forEach(type, id, overrides -> overrides.forEach((effect, enabled) -> {
+				if (enabled) supplied.add(effect); else supplied.remove(effect);
+			}));
+			if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
+				supplied.retainAll(definition.attackEffects().keySet());
+				attackSets.put(trait, Set.copyOf(supplied));
+			} else effectSets.put(trait, Set.copyOf(supplied));
+		}
+		Map<BionicTrait, Set<ResourceLocation>> variants = new LinkedHashMap<>();
+		for (BionicTrait trait : snapshot.definitions()) {
 			if (trait.valueKind() != BionicTrait.ValueKind.SUBTRAIT_SET) continue;
 			BionicTraitData definition = snapshot.get(trait);
 			Set<ResourceLocation> supplied = new HashSet<>();
 			if (trait.isHeadClassification() && definition.automaticDetection() && donor != null)
-				supplied.add(trait == BionicTrait.DISPOSITION
+				supplied.add(BionicTrait.DISPOSITION.equals(trait)
 					? BionicHeadTraits.id(BionicDispositionRegistry.get(donor))
 					: BionicHeadTraits.id(BionicIntelligenceRegistry.get(donor)));
-			if (trait == BionicTrait.ENCHANT_VULNERABILITY && definition.automaticDetection()) {
-				for (String enchantment : java.util.List.of("smite", "bane_of_arthropods", "impaling"))
+			if (BionicTrait.ENCHANT_VULNERABILITY.equals(trait) && definition.automaticDetection()) {
+				for (String enchantment : List.of("smite", "bane_of_arthropods", "impaling"))
 					if (type.is(net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ENTITY_TYPE,
 						ResourceLocation.withDefaultNamespace("sensitive_to_" + enchantment))))
 						supplied.add(ResourceLocation.withDefaultNamespace(enchantment));
@@ -150,38 +151,38 @@ public final class BionicTraitDonors {
 		if (donor != null && donor.isBaby())
 			abilities.removeAll(Set.of(BionicTrait.MILKABLE, BionicTrait.WOOL_SHEARING,
 				BionicTrait.EGG_LAYING, BionicTrait.SCUTE_SHEDDING));
-		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type).stream()
+		return new Facts(abilities, numbers, effectSets, attackSets, BionicDeterrence.targets(type).stream()
 			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()),
 			abilities.contains(BionicTrait.PACK_ALERT) ? BionicPackAlert.targets(donor) : Set.of(), variants);
 	}
 
 	@SuppressWarnings("deprecation")
 	private static boolean automatic(BionicTrait trait, EntityType<?> type, @Nullable LivingEntity donor) {
-		return switch (trait) {
-		case RIDEABLE -> donor instanceof net.minecraft.world.entity.Saddleable;
-		case CARGO_CHEST -> donor instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
-		case FIRE_IMMUNE, FIRE_RESISTANCE -> type.fireImmune() || donor != null && donor.fireImmune();
-		case WATER_SENSITIVE -> donor != null && donor.isSensitiveToWater();
-		case FREEZE_IMMUNE, FREEZE_RESISTANCE -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
-		case FREEZE_VULNERABLE -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
-		case INVERTED_HEALING -> donor != null && donor.isInvertedHealAndHarm();
-		case WATER_SINKING -> type.is(EntityTypeTags.UNDEAD);
-		case HUNTING_INSTINCT -> BionicHunting.hasRelations(type);
-		case DETERRENCE -> !BionicDeterrence.targets(type).isEmpty();
-		case PROJECTILE_DEFLECTION -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);
-		case WATER_BREATHING -> donor != null && (type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
+		return switch (trait.id().toString()) {
+		case "create_biotech:rideable" -> donor instanceof net.minecraft.world.entity.Saddleable;
+		case "create_biotech:cargo_chest" -> donor instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
+		case "create_biotech:fire_immune", "create_biotech:fire_resistance" -> type.fireImmune() || donor != null && donor.fireImmune();
+		case "create_biotech:water_sensitive" -> donor != null && donor.isSensitiveToWater();
+		case "create_biotech:freeze_immune", "create_biotech:freeze_resistance" -> type.is(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
+		case "create_biotech:freeze_vulnerable" -> type.is(EntityTypeTags.FREEZE_HURTS_EXTRA_TYPES);
+		case "create_biotech:inverted_healing" -> donor != null && donor.isInvertedHealAndHarm();
+		case "create_biotech:water_sinking" -> type.is(EntityTypeTags.UNDEAD);
+		case "create_biotech:hunting_instinct" -> BionicHunting.hasRelations(type);
+		case "create_biotech:deterrence" -> !BionicDeterrence.targets(type).isEmpty();
+		case "create_biotech:projectile_deflection" -> type.is(EntityTypeTags.DEFLECTS_PROJECTILES);
+		case "create_biotech:water_breathing" -> donor != null && (type.is(EntityTypeTags.CAN_BREATHE_UNDER_WATER)
 			&& !type.is(EntityTypeTags.UNDEAD) && type != EntityType.ARMOR_STAND
 			&& !donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value())
 			|| donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value()) && donor.getMaxAirSupply() > 300);
-		case TAMEABLE -> donor instanceof TamableAnimal;
-		case LIVESTOCK_TAMEABLE -> donor instanceof AbstractHorse
+		case "create_biotech:tameable" -> donor instanceof TamableAnimal;
+		case "create_biotech:livestock_tameable" -> donor instanceof AbstractHorse
 			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE;
-		case FALL_DAMAGE_IMMUNE -> (type == EntityType.CAT || type == EntityType.OCELOT)
+		case "create_biotech:fall_damage_immune" -> (type == EntityType.CAT || type == EntityType.OCELOT)
 			&& type.is(EntityTypeTags.FALL_DAMAGE_IMMUNE);
-		case POWDER_SNOW_WALK -> type.is(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS);
+		case "create_biotech:powder_snow_walk" -> type.is(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS);
 		// Squid swim without water navigation; drowned start with their land navigation.
 		// Generic floating and underwater breathing alone do not establish swimming expertise.
-		case SWIM_SPECIALIST -> donor instanceof WaterAnimal || donor instanceof Drowned
+		case "create_biotech:swim_specialist" -> donor instanceof WaterAnimal || donor instanceof Drowned
 			|| donor instanceof Mob mob && (mob.getNavigation() instanceof WaterBoundPathNavigation
 				|| mob.getNavigation() instanceof AmphibiousPathNavigation
 				|| mob.getMoveControl() instanceof SmoothSwimmingMoveControl);
@@ -192,18 +193,22 @@ public final class BionicTraitDonors {
 	private record Cache(long generation, Map<MimicProfile.BiologicalKey, Facts> facts) {}
 
 	public record Facts(Set<BionicTrait> abilities, Map<BionicTrait, Double> numbers,
-		Set<ResourceLocation> immuneEffects, Set<ResourceLocation> attackEffects, Set<ResourceLocation> deterrenceTargets,
+		Map<BionicTrait, Set<ResourceLocation>> effectSets, Map<BionicTrait, Set<ResourceLocation>> attackSets, Set<ResourceLocation> deterrenceTargets,
 		Set<ResourceLocation> packAlertTargets, Map<BionicTrait, Set<ResourceLocation>> variants) {
-		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of(), Set.of(), Map.of());
+		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Map.of(), Map.of(), Set.of(), Set.of(), Map.of());
 		public Facts {
 			abilities = Set.copyOf(abilities);
 			numbers = Map.copyOf(numbers);
-			immuneEffects = Set.copyOf(immuneEffects);
-			attackEffects = Set.copyOf(attackEffects);
+			effectSets = Map.copyOf(effectSets);
+			attackSets = Map.copyOf(attackSets);
 			deterrenceTargets = Set.copyOf(deterrenceTargets);
 			packAlertTargets = Set.copyOf(packAlertTargets);
 			variants = Map.copyOf(variants);
 		}
+		public Set<ResourceLocation> effects(BionicTrait trait) { return effectSets.getOrDefault(trait, Set.of()); }
+		public Set<ResourceLocation> attacks(BionicTrait trait) { return attackSets.getOrDefault(trait, Set.of()); }
+		public Set<ResourceLocation> immuneEffects() { return effects(BionicTrait.IMMUNE_EFFECTS); }
+		public Set<ResourceLocation> attackEffects() { return attacks(BionicTrait.EFFECT_ATTACK); }
 		public Set<ResourceLocation> variants(BionicTrait trait) { return variants.getOrDefault(trait, Set.of()); }
 		public boolean has(BionicTrait trait) { return abilities.contains(trait); }
 		public double value(BionicTrait trait) { return numbers.getOrDefault(trait, 0.0d); }
@@ -212,8 +217,8 @@ public final class BionicTraitDonors {
 			case ABILITY -> has(trait);
 			case NUMBER -> value(trait) > 0;
 			case SUBTRAIT_SET -> !variants(trait).isEmpty();
-			case EFFECT_SET -> !immuneEffects.isEmpty();
-			case ATTACK_EFFECT_SET -> !attackEffects.isEmpty();
+			case EFFECT_SET -> !effects(trait).isEmpty();
+			case ATTACK_EFFECT_SET -> !attacks(trait).isEmpty();
 			};
 		}
 	}

@@ -65,6 +65,63 @@ public final class SurgicalSourceModelRenderer {
 				return size() > MAX_RENDER_PLANS;
 			}
 		};
+	private static final Map<MimicProfile, DonorGeometry> DONOR_GEOMETRIES = new WeakHashMap<>();
+
+	/** Frozen native geometry and accessory metadata; safe to read on surgical workers. */
+	public record DonorGeometry(Map<Integer, SurgicalModelRenderContext.CubeGeometry> cubes,
+		Map<Integer, SourceRidingSeat> seats, Map<Integer, java.util.List<Vec3>> saddles,
+		Map<Integer, java.util.List<Vec3>> chests) {
+		public DonorGeometry {
+			cubes = Map.copyOf(cubes);
+			seats = Map.copyOf(seats);
+			saddles = Map.copyOf(saddles);
+			chests = Map.copyOf(chests);
+		}
+	}
+
+	@Nullable
+	public static DonorGeometry donorGeometryDeferred(MimicProfile profile) {
+		DonorGeometry cached = DONOR_GEOMETRIES.get(profile);
+		if (cached != null) return cached;
+		LivingEntity entity = previewDeferred(profile);
+		if (entity == null) return null;
+		var snapshot = geometryDeferred(entity, 0, new BitSet(), Map.of(), Map.of(), new PoseStack(), 0, null);
+		if (snapshot == null) return null;
+		if (!SurgicalPreparationBudget.begin(entity instanceof Saddleable)) return null;
+		try { return cacheDonorGeometry(profile, entity, snapshot); }
+		finally { SurgicalPreparationBudget.end(); }
+	}
+
+	/** Existing synchronous consumers share the same metadata, including negative accessory results. */
+	@Nullable
+	public static DonorGeometry donorGeometry(MimicProfile profile) {
+		DonorGeometry cached = DONOR_GEOMETRIES.get(profile);
+		if (cached != null) return cached;
+		LivingEntity entity = preview(profile);
+		if (entity == null) return null;
+		return cacheDonorGeometry(profile, entity,
+			plan(entity, 0).snapshot(new PoseStack(), 0, new BitSet(), Map.of(), Map.of(), null));
+	}
+
+	private static DonorGeometry cacheDonorGeometry(MimicProfile profile, LivingEntity entity,
+		SurgicalModelRenderContext.Snapshot snapshot) {
+		Map<Integer, SurgicalModelRenderContext.CubeGeometry> cubes = new HashMap<>();
+		Map<Integer, SourceRidingSeat> seats = new HashMap<>();
+		Map<Integer, java.util.List<Vec3>> saddles = new HashMap<>(), chests = new HashMap<>();
+		for (var cube : snapshot.cubes()) {
+			cubes.put(cube.cubeId(), cube);
+			if (!(entity instanceof Saddleable)) continue;
+			SourceRidingSeat seat = ridingSeat(profile, cube.cubeId());
+			if (seat == null) continue;
+			seats.put(cube.cubeId(), seat);
+			saddles.put(cube.cubeId(), java.util.List.copyOf(equipmentCorners(profile, cube.cubeId(), false)));
+			chests.put(cube.cubeId(), java.util.List.copyOf(equipmentCorners(profile, cube.cubeId(), true)));
+		}
+		DonorGeometry result = new DonorGeometry(cubes, seats, saddles, chests);
+		DONOR_GEOMETRIES.put(profile, result);
+		return result;
+	}
+
 	private static int resourceGeneration;
 
 	private SurgicalSourceModelRenderer() {}
@@ -77,6 +134,18 @@ public final class SurgicalSourceModelRenderer {
 		READY,
 		PENDING,
 		MISSING
+	}
+
+	/** Budgeted creation for resumable preparation; live entity rendering keeps its synchronous API. */
+	@Nullable
+	public static LivingEntity previewDeferred(MimicProfile profile) {
+		ClientLevel level = Minecraft.getInstance().level;
+		if (level == null) return null;
+		CachedPreview cached = PREVIEWS.get(profile);
+		if (cached != null && cached.level == level) return cached.entity;
+		if (!SurgicalPreparationBudget.begin(true)) return null;
+		try { return preview(profile); }
+		finally { SurgicalPreparationBudget.end(); }
 	}
 
 	@Nullable
@@ -552,24 +621,38 @@ public final class SurgicalSourceModelRenderer {
 	public static SurgicalModelRenderContext.Snapshot captureGeometryDeferred(LivingEntity preview, int cubeCount,
 		BitSet presentCubes, PoseStack poseStack, float yaw, float partialTick,
 		@Nullable Vec3 cameraPosition) {
+		return geometryDeferred(preview, cubeCount, presentCubes, Map.of(), Map.of(), poseStack, yaw, cameraPosition);
+	}
+
+	/** Geometry only: no vertex replay, no synchronous fallback while a plan is pending. */
+	@Nullable
+	public static SurgicalModelRenderContext.Snapshot geometryDeferred(LivingEntity preview, int cubeCount,
+		BitSet presentCubes, Map<Integer, Vec3> offsets, Map<Integer, SurgicalCubeRotation> rotations,
+		PoseStack poseStack, float yaw, @Nullable Vec3 cameraPosition) {
 		preparePreview(preview, yaw);
 		EntityRenderer<LivingEntity> renderer = renderer(preview);
 		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null)
-			return captureGeometry(preview, cubeCount, presentCubes, poseStack, LightTexture.FULL_BRIGHT,
-				yaw, partialTick, cameraPosition, false);
+		if (profile == null) {
+			if (!SurgicalPreparationBudget.begin(true)) return null;
+			try { return plan(preview, yaw).snapshot(poseStack, cubeCount, presentCubes, offsets, rotations, cameraPosition); }
+			finally { SurgicalPreparationBudget.end(); }
+		}
 
 		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
 		SurgicalCapturedRenderPlan plan = completedPlan(key);
 		if (plan == null) {
 			PendingRenderPlan pending = PENDING_RENDER_PLANS.get(key);
 			if (pending == null) {
-				if (PENDING_RENDER_PLANS.size() >= MAX_PENDING_RENDER_PLANS)
+				if (PENDING_RENDER_PLANS.size() >= MAX_PENDING_RENDER_PLANS
+					|| !SurgicalPreparationBudget.begin(true))
 					return null;
 				long started = SurgicalProfiler.begin();
-				SurgicalCapturedRenderPlan.CapturedInput captured =
-					captureInputInCanonicalPose(renderer, preview, yaw);
-				SurgicalProfiler.end("capture(plan-input)", started);
+				SurgicalCapturedRenderPlan.CapturedInput captured;
+				try { captured = captureInputInCanonicalPose(renderer, preview, yaw); }
+				finally {
+					SurgicalPreparationBudget.end();
+					SurgicalProfiler.end("capture(plan-input)", started);
+				}
 				int generation = resourceGeneration;
 				pending = new PendingRenderPlan(generation,
 					SurgicalClientExecutors.submit(() -> buildPlan(captured)));
@@ -583,11 +666,13 @@ public final class SurgicalSourceModelRenderer {
 				return null;
 		}
 
+		if (!SurgicalPreparationBudget.begin(false)) return null;
 		long started = SurgicalProfiler.begin();
-		SurgicalModelRenderContext.Snapshot snapshot = plan.snapshot(poseStack, cubeCount, presentCubes,
-			Map.of(), Map.of(), cameraPosition);
-		SurgicalProfiler.end("captureGeometry", started);
-		return snapshot;
+		try { return plan.snapshot(poseStack, cubeCount, presentCubes, offsets, rotations, cameraPosition); }
+		finally {
+			SurgicalPreparationBudget.end();
+			SurgicalProfiler.end("captureGeometry", started);
+		}
 	}
 
 	private static SurgicalCapturedRenderPlan buildPlan(SurgicalCapturedRenderPlan.CapturedInput captured) {
@@ -692,6 +777,7 @@ public final class SurgicalSourceModelRenderer {
 		TRAIT_RENDER_PLANS.clear();
 		SurgicalNativeAnimations.clear();
 		RIDING_SEATS.clear();
+		DONOR_GEOMETRIES.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}
 

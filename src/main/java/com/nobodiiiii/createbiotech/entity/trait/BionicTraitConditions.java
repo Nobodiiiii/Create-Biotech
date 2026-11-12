@@ -28,7 +28,7 @@ final class BionicTraitConditions {
 		if (trait.scopes().contains(BionicTraitScope.LEG) && data.minLegs() > 0
 			&& tissue.effectiveLimbCount(Set.of(BionicTraitScope.LEG), covered.members(trait)) < data.minLegs())
 			return result.disabled(InactiveReason.PURPOSE_MISMATCH);
-		if (trait == BionicTrait.MILKABLE)
+		if (BionicTrait.MILKABLE.equals(trait))
 			return BionicMilking.apply(data, tissue, result);
 		List<Carrier> required = switch (trait.condition()) {
 		case WOOL_AND_BODY -> List.of(Carrier.of(BionicAnatomyRole.TORSO).excluding(BionicAnatomyRole.WOOL),
@@ -72,7 +72,7 @@ final class BionicTraitConditions {
 			for (var entry : species.entrySet().stream().sorted(Map.Entry.comparingByKey()).toList()) {
 				var members = entry.getValue();
 				// An explicitly empty body carrier permits this species' shell to work alone.
-				boolean shellOnly = trait == BionicTrait.SHELL_DEFENSE && Set.of().equals(
+				boolean shellOnly = BionicTrait.SHELL_DEFENSE.equals(trait) && Set.of().equals(
 					data.carriers().getOrDefault(entry.getKey(), Map.of()).get(BionicAnatomyRole.TORSO));
 				List<MissingPart> absent = required.stream()
 					.filter(carrier -> !shellOnly || !carrier.roles().contains(BionicAnatomyRole.TORSO))
@@ -88,7 +88,7 @@ final class BionicTraitConditions {
 			return result.missingRequiredParts(missing.stream().distinct()
 				.sorted(java.util.Comparator.<List<MissingPart>>comparingInt(List::size)
 					.thenComparing(Object::toString)).toList());
-		if (trait == BionicTrait.SHELL_DEFENSE) {
+		if (BionicTrait.SHELL_DEFENSE.equals(trait)) {
 			// Incomplete shell/body pairs cannot inflate another donor's damage reduction.
 			double total = 0;
 			// Sum all retained cube volumes, including overlapping tissue, just like other trait ratios.

@@ -1,11 +1,13 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
 
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -14,12 +16,15 @@ import net.minecraft.resources.ResourceLocation;
 public record BionicTraitDonorsPacket(long generation, int offset, int checked, int total, int failures,
 	boolean complete, List<Entry> entries) {
 	public static final int MAX_ENTRIES = 128;
+	public static final int MAX_BYTES = 262144;
 
 	public BionicTraitDonorsPacket {
 		entries = List.copyOf(entries);
 		if (offset < 0 || checked < 0 || total < checked || failures < 0 || failures > checked
 			|| entries.size() > MAX_ENTRIES)
 			throw new IllegalArgumentException("Invalid bionic donor index response");
+		if (entries.stream().mapToInt(Entry::encodedSize).sum() + 64 > MAX_BYTES)
+			throw new IllegalArgumentException("Bionic donor index response is too large");
 	}
 
 	public BionicTraitDonorsPacket(RegistryFriendlyByteBuf buffer) {
@@ -37,10 +42,11 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		buffer.writeVarInt(entries.size());
 		for (Entry entry : entries) {
 			buffer.writeResourceLocation(entry.entity());
-			EnumSet<BionicTrait> traits = EnumSet.noneOf(BionicTrait.class);
+			Set<BionicTrait> traits = new LinkedHashSet<>();
 			traits.addAll(entry.traits());
-			buffer.writeEnumSet(traits, BionicTrait.class);
-			for (BionicTrait trait : traits) {
+			buffer.writeVarInt(traits.size());
+			for (BionicTrait trait : traits.stream().sorted().toList()) {
+				buffer.writeResourceLocation(trait.id());
 				EnumSet<BionicAnatomyRole> roles = EnumSet.noneOf(BionicAnatomyRole.class);
 				roles.addAll(entry.carriers().get(trait));
 				buffer.writeEnumSet(roles, BionicAnatomyRole.class);
@@ -53,23 +59,59 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		if (count < 0 || count > MAX_ENTRIES)
 			throw new IllegalArgumentException("Too many bionic donor entries");
 		List<Entry> entries = new ArrayList<>(count);
+		int bytes = 64;
 		for (int i = 0; i < count; i++) {
 			ResourceLocation entity = buffer.readResourceLocation();
-			Map<BionicTrait, Set<BionicAnatomyRole>> carriers = new EnumMap<>(BionicTrait.class);
-			for (BionicTrait trait : buffer.readEnumSet(BionicTrait.class))
-				carriers.put(trait, buffer.readEnumSet(BionicAnatomyRole.class));
-			entries.add(new Entry(entity, carriers));
+			Map<BionicTrait, Set<BionicAnatomyRole>> carriers = new LinkedHashMap<>();
+			int traitCount = buffer.readVarInt();
+			if (traitCount < 0 || traitCount > BionicTraitRulesPacket.MAX_RESOURCES + BionicTrait.builtIns().size())
+				throw new IllegalArgumentException("Invalid donor trait count");
+			for (int j = 0; j < traitCount; j++) {
+				BionicTrait trait = BionicTrait.reference(buffer.readResourceLocation());
+				if (carriers.put(trait, buffer.readEnumSet(BionicAnatomyRole.class)) != null)
+					throw new IllegalArgumentException("Duplicate donor trait");
+			}
+			Entry entry = new Entry(entity, carriers);
+			bytes += entry.encodedSize();
+			if (bytes > MAX_BYTES) throw new IllegalArgumentException("Bionic donor index response is too large");
+			entries.add(entry);
 		}
 		return entries;
 	}
 
+	/** Large catalogs may split one donor's traits across several index entries. */
+	static List<Entry> split(ResourceLocation entity, Map<BionicTrait, Set<BionicAnatomyRole>> carriers) {
+		List<Entry> result = new ArrayList<>();
+		Map<BionicTrait, Set<BionicAnatomyRole>> chunk = new LinkedHashMap<>();
+		int bytes = 0;
+		for (BionicTrait trait : carriers.keySet().stream().sorted().toList()) {
+			int size = traitSize(trait);
+			if (!chunk.isEmpty() && bytes + size > MAX_BYTES / 4) {
+				result.add(new Entry(entity, chunk));
+				chunk = new LinkedHashMap<>(); bytes = 0;
+			}
+			chunk.put(trait, carriers.get(trait)); bytes += size;
+		}
+		if (!chunk.isEmpty()) result.add(new Entry(entity, chunk));
+		return result;
+	}
+
+	private static int traitSize(BionicTrait trait) {
+		return trait.id().toString().getBytes(StandardCharsets.UTF_8).length + 5
+			+ (BionicAnatomyRole.values().length + 7) / 8;
+	}
+
 	public record Entry(ResourceLocation entity, Map<BionicTrait, Set<BionicAnatomyRole>> carriers) {
 		public Entry {
-			Map<BionicTrait, Set<BionicAnatomyRole>> copy = new EnumMap<>(BionicTrait.class);
+			Map<BionicTrait, Set<BionicAnatomyRole>> copy = new LinkedHashMap<>();
 			carriers.forEach((trait, roles) -> copy.put(trait, Set.copyOf(roles)));
 			carriers = Map.copyOf(copy);
 		}
 		public Set<BionicTrait> traits() { return carriers.keySet(); }
+		int encodedSize() {
+			return entity.toString().getBytes(StandardCharsets.UTF_8).length + 10
+				+ carriers.keySet().stream().mapToInt(BionicTraitDonorsPacket::traitSize).sum();
+		}
 		public boolean provides(BionicTrait trait) {
 			return carriers.containsKey(trait);
 		}

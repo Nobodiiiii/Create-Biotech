@@ -1,7 +1,8 @@
 package com.nobodiiiii.createbiotech.client;
 
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +29,7 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 /** Shared by trait pages and species lookups; synchronized while JEI's runtime is available. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public final class BionicTraitDonorIndex {
-	private static final Map<BionicTrait, List<EntityType<?>>> DONORS = new EnumMap<>(BionicTrait.class);
+	private static final Map<BionicTrait, List<EntityType<?>>> DONORS = new LinkedHashMap<>();
 	private static final Map<EntityType<?>, Map<BionicTrait, Set<BionicAnatomyRole>>> CARRIERS = new HashMap<>();
 	private static long revision;
 	private static ClientPacketListener connection;
@@ -57,6 +58,7 @@ public final class BionicTraitDonorIndex {
 	}
 
 	public static void requestIfNeeded() {
+		if (BionicTraitRegistry.clientGeneration() < 0) return;
 		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
 			clear();
 			return;
@@ -74,6 +76,8 @@ public final class BionicTraitDonorIndex {
 	}
 
 	public static void accept(BionicTraitDonorsPacket packet) {
+		long catalogGeneration = BionicTraitRegistry.clientGeneration();
+		if (catalogGeneration < 0 || packet.generation() < catalogGeneration) return;
 		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
 			clear();
 			return;
@@ -91,10 +95,12 @@ public final class BionicTraitDonorIndex {
 			return;
 		for (var entry : packet.entries()) {
 			BuiltInRegistries.ENTITY_TYPE.getOptional(entry.entity()).ifPresent(type -> {
-				CARRIERS.put(type, entry.carriers());
-				for (BionicTrait trait : BionicTrait.values())
-					if (entry.provides(trait))
-						DONORS.computeIfAbsent(trait, ignored -> new ArrayList<>()).add(type);
+				CARRIERS.computeIfAbsent(type, ignored -> new HashMap<>()).putAll(entry.carriers());
+				for (BionicTrait trait : entry.traits())
+					if (entry.provides(trait)) {
+						List<EntityType<?>> donors = DONORS.computeIfAbsent(trait, ignored -> new ArrayList<>());
+						if (!donors.contains(type)) donors.add(type);
+					}
 			});
 		}
 		if (!packet.entries().isEmpty()) revision++;
@@ -113,8 +119,8 @@ public final class BionicTraitDonorIndex {
 	public static List<BionicTrait> traits(EntityType<?> donor) {
 		return DONORS.entrySet().stream()
 			.filter(entry -> entry.getValue().contains(donor))
-			.map(Map.Entry::getKey)
-			.toList();
+			.map(entry -> BionicTraitRegistry.clientTrait(entry.getKey().id()))
+			.filter(java.util.Objects::nonNull).sorted().toList();
 	}
 	public static boolean complete() { return complete; }
 	public static int checked() { return checked; }
@@ -123,6 +129,8 @@ public final class BionicTraitDonorIndex {
 
 	@SubscribeEvent
 	public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) { clear(); }
+
+	public static void catalogChanged() { clear(); }
 
 	private static void clear() {
 		DONORS.clear();

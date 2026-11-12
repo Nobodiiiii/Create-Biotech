@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,20 +37,96 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 	}
 
 	@Override
+	protected Map<ResourceLocation, JsonElement> prepare(ResourceManager manager, ProfilerFiller profiler) {
+		Map<ResourceLocation, JsonElement> resources = new HashMap<>();
+		var converter = net.minecraft.resources.FileToIdConverter.json("bionic_traits");
+		for (var entry : converter.listMatchingResources(manager).entrySet()) {
+			try (var reader = entry.getValue().openAsReader()) {
+				JsonElement json = com.google.gson.JsonParser.parseReader(reader);
+				if (!json.isJsonObject()) throw new IllegalArgumentException("Expected a JSON object");
+				resources.put(converter.fileToId(entry.getKey()), json);
+			} catch (java.io.IOException | RuntimeException exception) {
+				throw new IllegalArgumentException("Cannot load bionic trait resource " + entry.getKey(), exception);
+			}
+		}
+		return resources;
+	}
+
+	@Override
 	protected void apply(Map<ResourceLocation, JsonElement> resources, ResourceManager manager,
 		ProfilerFiller profiler) {
-		EnumMap<BionicTrait, BionicTraitData> loaded = new EnumMap<>(BionicTrait.class);
-		for (BionicTrait trait : BionicTrait.values())
-			loaded.put(trait, read(trait, resources));
-		Map<BionicTrait, Set<BionicTrait>> overrides = new EnumMap<>(BionicTrait.class);
+		Map<ResourceLocation, JsonElement> frozen = new HashMap<>();
+		resources.forEach((id, json) -> frozen.put(id, json.deepCopy()));
+		BionicTraitRulesPacket.validateResources(frozen);
+		BionicTraitRegistry.replace(decode(frozen), frozen);
+	}
+
+	/** Pure loading shared with the client; publication only happens after the complete graph loads. */
+	static Map<BionicTrait, BionicTraitData> decode(Map<ResourceLocation, JsonElement> resources) {
+		Map<ResourceLocation, BionicTrait> definitions = new LinkedHashMap<>();
+		for (BionicTrait trait : BionicTrait.builtIns()) definitions.put(trait.id(), trait);
+		resources.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
+			JsonObject root = object(entry.getValue());
+			if (!root.has("schema_version")) return; // Legacy files extend built-in donor values.
+			if (!root.get("schema_version").isJsonPrimitive()
+				|| !root.getAsJsonPrimitive("schema_version").isNumber()
+				|| root.get("schema_version").getAsBigDecimal().compareTo(java.math.BigDecimal.ONE) != 0)
+				throw new IllegalArgumentException("Unsupported bionic trait schema in " + entry.getKey());
+			definitions.put(entry.getKey(), readDefinition(entry.getKey(), root));
+		});
+		Map<BionicTrait, BionicTraitData> loaded = new LinkedHashMap<>();
+		for (BionicTrait trait : definitions.values()) loaded.put(trait, read(trait, resources, definitions));
+		Map<BionicTrait, Set<BionicTrait>> overrides = new LinkedHashMap<>();
 		loaded.forEach((trait, data) -> overrides.put(trait, data.overrides()));
 		Map<BionicTrait, Set<BionicTrait>> valid = BionicTraitOverrides.validate(overrides);
 		loaded.replaceAll((trait, data) -> data.withOverrides(valid.get(trait)));
-		BionicTraitRegistry.replace(loaded);
+		return loaded;
 	}
 
-	private static BionicTraitData read(BionicTrait trait, Map<ResourceLocation, JsonElement> resources) {
-		ResourceLocation primary = CreateBiotech.asResource(trait.id());
+	private static BionicTrait readDefinition(ResourceLocation id, JsonObject root) {
+		try {
+			if (root.has("behaviors")) throw new IllegalArgumentException("Behavior components are not implemented in phase 1");
+			Set<BionicTraitScope> scopes = java.util.EnumSet.noneOf(BionicTraitScope.class);
+			for (JsonElement scope : root.getAsJsonArray("scopes"))
+				scopes.add(BionicTraitScope.valueOf(scope.getAsString().toUpperCase(java.util.Locale.ROOT)));
+			BionicTrait.ValueKind kind = BionicTrait.ValueKind.valueOf(root.get("value_kind").getAsString().toUpperCase(java.util.Locale.ROOT));
+			JsonObject inheritance = root.getAsJsonObject("inheritance");
+			BionicTraitType type = BionicTraitType.valueOf(inheritance.get("type").getAsString().toUpperCase(java.util.Locale.ROOT));
+			BionicTrait builtin = BionicTrait.builtIn(id);
+			if (builtin != null && kind != builtin.valueKind())
+				throw new IllegalArgumentException("Built-in value kinds cannot change");
+			if (type == BionicTraitType.SPECIAL && (builtin == null || !builtin.isHeadClassification())) throw new IllegalArgumentException("SPECIAL requires a built-in evaluator");
+			double minimum = inheritance.has("min_coverage") ? inheritance.get("min_coverage").getAsDouble()
+				: type == BionicTraitType.COVERAGE_THRESHOLD || type == BionicTraitType.SPECIAL || kind == BionicTrait.ValueKind.NUMBER ? 0.5d : 0;
+			BionicTraitRule rule = new BionicTraitRule(type, minimum);
+			if (kind == BionicTrait.ValueKind.NUMBER && (type != BionicTraitType.COVERAGE_SCALED || minimum <= 0))
+				throw new IllegalArgumentException("Numeric traits require scaled inheritance and a positive volume budget");
+			JsonObject carrier = object(root.get("carrier"));
+			JsonObject display = object(root.get("display"));
+			return new BionicTrait(id, scopes, rule, kind, builtin == null ? BionicTrait.Condition.NONE : builtin.condition(),
+				new BionicTrait.Carrier(roles(carrier.get("roles")), roles(carrier.get("fallback")), roles(carrier.get("excluded"))),
+				component(display.get("name")), component(display.get("description")));
+		} catch (RuntimeException exception) {
+			throw new IllegalArgumentException("Invalid bionic trait definition " + id, exception);
+		}
+	}
+
+	private static List<BionicAnatomyRole> roles(JsonElement json) {
+		if (json == null) return List.of();
+		List<BionicAnatomyRole> roles = new ArrayList<>();
+		for (JsonElement role : json.getAsJsonArray())
+			roles.add(BionicAnatomyRole.valueOf(role.getAsString().toUpperCase(java.util.Locale.ROOT)));
+		return List.copyOf(roles);
+	}
+
+	private static net.minecraft.network.chat.Component component(JsonElement json) {
+		return json == null ? null : net.minecraft.network.chat.ComponentSerialization.CODEC
+			.parse(com.mojang.serialization.JsonOps.INSTANCE, json).getOrThrow();
+	}
+
+	private static BionicTraitData read(BionicTrait trait, Map<ResourceLocation, JsonElement> resources,
+		Map<ResourceLocation, BionicTrait> definitions) {
+		ResourceLocation primary = trait.id();
 		JsonObject root = object(resources.get(primary));
 		boolean automatic = trait.automaticDetection();
 		BionicTraitRule rule = trait.rule();
@@ -85,9 +164,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid {} in {}", key, primary);
 		}
-		// Canonical settings/carriers come from create_biotech; other namespaces extend donor values.
+		// The definition owns its settings; schema-less legacy files extend built-in donor values only.
 		List<Map.Entry<ResourceLocation, JsonElement>> files = resources.entrySet().stream()
-			.filter(entry -> entry.getKey().getPath().equals(trait.id()))
+			.filter(entry -> entry.getKey().equals(primary) || trait.isBuiltIn()
+				&& !object(entry.getValue()).has("schema_version")
+				&& entry.getKey().getPath().equals(primary.getPath()))
 			.sorted(java.util.Comparator.<Map.Entry<ResourceLocation, JsonElement>, Boolean>
 				comparing(entry -> !entry.getKey().equals(primary)).thenComparing(Map.Entry.comparingByKey()))
 			.toList();
@@ -103,11 +184,12 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		subtraits.putAll(readSubtraits(root, primary));
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
 			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits,
-			readOverrides(root, trait, primary));
+			readOverrides(root, trait, primary, definitions));
 	}
 
-	private static Set<BionicTrait> readOverrides(JsonObject root, BionicTrait source, ResourceLocation file) {
-		Set<BionicTrait> targets = java.util.EnumSet.noneOf(BionicTrait.class);
+	private static Set<BionicTrait> readOverrides(JsonObject root, BionicTrait source, ResourceLocation file,
+		Map<ResourceLocation, BionicTrait> definitions) {
+		Set<BionicTrait> targets = new LinkedHashSet<>();
 		if (!root.has("overrides")) return Set.of();
 		if (!root.get("overrides").isJsonArray()) {
 			LOGGER.warn("Invalid overrides in {}; expected an array of trait IDs", file);
@@ -116,14 +198,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		for (JsonElement element : root.getAsJsonArray("overrides")) {
 			BionicTrait target = null;
 			if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
-				String id = element.getAsString();
-				for (BionicTrait trait : BionicTrait.values())
-					if (id.equals(trait.id()) || id.equals(CreateBiotech.MOD_ID + ":" + trait.id())) {
-						target = trait;
-						break;
-					}
+				String text = element.getAsString();
+				ResourceLocation id = ResourceLocation.tryParse(text.contains(":") ? text : CreateBiotech.MOD_ID + ":" + text);
+				target = definitions.get(id);
 			}
-			if (target == null || target == source)
+			if (target == null || source.equals(target))
 				LOGGER.warn("Invalid trait override {} in {}", element, file);
 			else
 				targets.add(target);
@@ -137,7 +216,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			try {
 				ResourceLocation id = ResourceLocation.parse(entry.getKey());
 				JsonObject settings = entry.getValue().getAsJsonObject();
-				java.util.List<BionicAnatomyRole> roles = new java.util.ArrayList<>();
+				List<BionicAnatomyRole> roles = new ArrayList<>();
 				if (settings.has("roles"))
 					for (JsonElement role : settings.getAsJsonArray("roles"))
 						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
@@ -171,7 +250,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 					|| amplifier == null || amplifier > 255 || amplifier != Math.floor(amplifier)
 					|| chance == null || chance > 1 || unarmed == null)
 					throw new IllegalArgumentException("Invalid attack parameters");
-				java.util.List<BionicAnatomyRole> roles = new java.util.ArrayList<>();
+				List<BionicAnatomyRole> roles = new ArrayList<>();
 				if (settings.has("roles"))
 					for (JsonElement role : settings.getAsJsonArray("roles"))
 						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));

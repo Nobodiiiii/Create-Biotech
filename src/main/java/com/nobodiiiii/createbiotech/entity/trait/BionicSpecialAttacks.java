@@ -26,7 +26,7 @@ import net.minecraft.world.phys.Vec3;
 public final class BionicSpecialAttacks {
 	public static final int EVOKER_FANGS_ACTION = 5;
 	public static final int WITCH_POTION_ACTION = 8;
-	private static final String SONIC_BOOM_KEY = "sonic_boom/minecraft:sonic_boom";
+	private static final String SONIC_BOOM_KEY = "create_biotech:sonic_boom/minecraft:sonic_boom";
 	private final SlimeBionicEntity entity;
 	private final Map<String, Integer> cooldowns = new HashMap<>();
 	@Nullable private Choice action;
@@ -51,7 +51,7 @@ public final class BionicSpecialAttacks {
 		if (!entity.isAlive() || entity.isNoAi() || entity.isOrderedToSit() || entity.isVehicle()) { cancel(); return; }
 		if (action != null) {
 			if (!stillAvailable(action)) { cancel(); return; }
-			if (action.trait == BionicTrait.SONIC_BOOM) {
+			if (BionicTrait.SONIC_BOOM.equals(action.trait)) {
 				// SonicBoom.canStillUse keeps the native 60-tick action alive even without
 				// an attack target. Resolve the current target at launch; never cut off recovery.
 				target = entity.getTarget();
@@ -82,17 +82,17 @@ public final class BionicSpecialAttacks {
 			}
 			if (action.kind().equals("fireball") || action.kind().equals("dragon_breath")) {
 				if (!valid(action, target)) { if (elapsed > 0) elapsed--; return; }
-			} else if (action.trait != BionicTrait.SONIC_BOOM && !valid(action, target)) {
-				if (action.trait == BionicTrait.GUARDIAN_BEAM) entity.setTarget(null);
+			} else if (!BionicTrait.SONIC_BOOM.equals(action.trait) && !valid(action, target)) {
+				if (BionicTrait.GUARDIAN_BEAM.equals(action.trait)) entity.setTarget(null);
 				cancel(); return;
 			}
 			entity.getNavigation().stop();
 			elapsed++;
 			if (action.kind().equals("fireball") && elapsed == 10) entity.level().levelEvent(null, 1015, entity.blockPosition(), 0);
-			if (action.trait == BionicTrait.GUARDIAN_BEAM && elapsed == 10) entity.syncSpecialAction(2, target.getId());
+			if (BionicTrait.GUARDIAN_BEAM.equals(action.trait) && elapsed == 10) entity.syncSpecialAction(2, target.getId());
 			boolean launch = elapsed >= warmup && !fired;
 			if (launch && (!action.kind().equals("dragon_breath") || facing(target, Math.cos(Math.toRadians(10))))) {
-				if (action.trait != BionicTrait.SONIC_BOOM || valid(action, target)) {
+				if (!BionicTrait.SONIC_BOOM.equals(action.trait) || valid(action, target)) {
 					if (!action.kind().equals("wind_charge") || facing(target, 0.5)) fire(action, target);
 				}
 				fired = true;
@@ -146,7 +146,7 @@ public final class BionicSpecialAttacks {
 		return choices;
 	}
 	private boolean stillAvailable(Choice choice) {
-		return entity.getBionicTraits().has(choice.trait) && (choice.trait == BionicTrait.SONIC_BOOM
+		return entity.getBionicTraits().has(choice.trait) && (BionicTrait.SONIC_BOOM.equals(choice.trait)
 			? entity.getBionicTraits().members(choice.trait).containsAll(choice.members)
 			: entity.getBionicTraits().result(choice.trait).subtraits().entrySet().stream().anyMatch(e ->
 				e.getKey().equals(choice.variant) && e.getValue().containsAll(choice.members)));
@@ -155,7 +155,7 @@ public final class BionicSpecialAttacks {
 		if (victim == null || !victim.isAlive() || !entity.canAttack(victim) || choice.members.isEmpty()) return false;
 		Vec3 offset = victim.getBoundingBox().getCenter().subtract(BionicTraitRuntime.origin(entity, choice.members));
 		double distance = offset.length();
-		if (choice.trait == BionicTrait.SONIC_BOOM)
+		if (BionicTrait.SONIC_BOOM.equals(choice.trait))
 			return offset.horizontalDistance() <= choice.range() && Math.abs(offset.y) <= choice.variant.parameter("vertical_range", 20);
 		if (usesRangedGoal(choice)) return distance <= Math.max(choice.range(), entity.getAttributeValue(Attributes.FOLLOW_RANGE));
 		return distance < choice.range() && distance > choice.variant.parameter("min_range",
@@ -184,14 +184,14 @@ public final class BionicSpecialAttacks {
 			rangedGoal.start();
 		}
 		warmup = choice.ticks("warmup_ticks", 0);
-		if (choice.trait == BionicTrait.GUARDIAN_BEAM) entity.syncGuardianAttackDuration(warmup - 10);
+		if (BionicTrait.GUARDIAN_BEAM.equals(choice.trait)) entity.syncGuardianAttackDuration(warmup - 10);
 		blazeShots = 0; nextBlazeShot = warmup;
 		duration = Math.max(1, choice.ticks("action_ticks", warmup + (choice.kind().equals("small_fireball") ? 18 : 0)));
-		entity.syncSpecialAction(choice.trait == BionicTrait.GUARDIAN_BEAM ? 7 : choice.trait == BionicTrait.SONIC_BOOM ? 1
-			: choice.trait == BionicTrait.SPELLCASTING
+		entity.syncSpecialAction(BionicTrait.GUARDIAN_BEAM.equals(choice.trait) ? 7 : BionicTrait.SONIC_BOOM.equals(choice.trait) ? 1
+			: BionicTrait.SPELLCASTING.equals(choice.trait)
 				? choice.kind().equals("potion") ? WITCH_POTION_ACTION : EVOKER_FANGS_ACTION : 3, victim.getId());
-		if (choice.trait == BionicTrait.SONIC_BOOM) entity.playSound(SoundEvents.WARDEN_SONIC_CHARGE, 3, 1);
-		if (choice.trait == BionicTrait.GUARDIAN_BEAM) entity.playSound(SoundEvents.GUARDIAN_ATTACK, 1, 1);
+		if (BionicTrait.SONIC_BOOM.equals(choice.trait)) entity.playSound(SoundEvents.WARDEN_SONIC_CHARGE, 3, 1);
+		if (BionicTrait.GUARDIAN_BEAM.equals(choice.trait)) entity.playSound(SoundEvents.GUARDIAN_ATTACK, 1, 1);
 		if (choice.kind().equals("fangs")) entity.playSound(SoundEvents.EVOKER_PREPARE_ATTACK);
 		if (rangedGoal != null) rangedGoal.tick();
 	}
@@ -202,10 +202,10 @@ public final class BionicSpecialAttacks {
 		if (action.kind().equals("shulker_bullet")) cooldown = entity.getRandom().nextInt(10) * 10;
 		cancel();
 		cooldowns.put(completed.key(), cooldown);
-		if (completed.trait == BionicTrait.GUARDIAN_BEAM) entity.setTarget(null);
+		if (BionicTrait.GUARDIAN_BEAM.equals(completed.trait)) entity.setTarget(null);
 	}
 	private void cancel() {
-		if (action != null && action.trait == BionicTrait.SONIC_BOOM) cooldowns.put(action.key(), action.ticks("cooldown_ticks", 40));
+		if (action != null && BionicTrait.SONIC_BOOM.equals(action.trait)) cooldowns.put(action.key(), action.ticks("cooldown_ticks", 40));
 		if (rangedGoal != null) { rangedGoal.stop(); rangedGoal = null; }
 		action = null; target = null; entity.syncSpecialAction(0, 0);
 	}
@@ -213,7 +213,7 @@ public final class BionicSpecialAttacks {
 		Vec3 origin = BionicTraitRuntime.origin(entity, choice.members);
 		Vec3 aim = victim.getBoundingBox().getCenter().subtract(origin);
 		ServerLevel level = (ServerLevel) entity.level();
-		if (choice.trait == BionicTrait.SONIC_BOOM) {
+		if (BionicTrait.SONIC_BOOM.equals(choice.trait)) {
 			beam(origin, victim.getBoundingBox().getCenter(), true); entity.playSound(SoundEvents.WARDEN_SONIC_BOOM, 3, 1);
 			if (victim.hurt(entity.damageSources().sonicBoom(entity), 10)) {
 				double resistance = 1 - victim.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE);
@@ -221,7 +221,7 @@ public final class BionicSpecialAttacks {
 			}
 			return;
 		}
-		if (choice.trait == BionicTrait.GUARDIAN_BEAM) {
+		if (BionicTrait.GUARDIAN_BEAM.equals(choice.trait)) {
 			float magic = (float) choice.variant.parameter("magic_damage", 1) + (level.getDifficulty() == Difficulty.HARD ? 2 : 0);
 			victim.hurt(entity.damageSources().indirectMagic(entity, entity), magic);
 			victim.hurt(entity.damageSources().mobAttack(entity), (float) choice.variant.parameter("damage", 6)); return;
@@ -318,7 +318,13 @@ public final class BionicSpecialAttacks {
 	}
 	public void load(CompoundTag root) {
 		cooldowns.clear(); CompoundTag tag = root.getCompound("BionicSpecialAttacks");
-		for (String key : tag.getAllKeys()) if (key.contains("/")) cooldowns.put(key, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
+		for (String key : tag.getAllKeys()) {
+			int slash = key.indexOf('/');
+			if (slash < 1) continue;
+			// Previous saves used an unqualified built-in trait before the slash.
+			String canonical = key.substring(0, slash).contains(":") ? key : "create_biotech:" + key;
+			cooldowns.put(canonical, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
+		}
 		action = null;
 	}
 }

@@ -40,7 +40,7 @@ public final class BionicTraitRuntime {
 		if (assembly == null) return Set.of();
 		var active = entity.getBionicTraits().members(trait);
 		if (activeOnly && active.isEmpty()) return Set.of();
-		var data = BionicTraitRegistry.snapshot();
+		var data = BionicTraitRegistry.snapshot(entity.level());
 		var tissue = BionicTissue.of(assembly, data);
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		for (int source = 0; source < tissue.sourceCount(); source++) {

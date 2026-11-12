@@ -1,13 +1,12 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -36,20 +35,15 @@ public final class BionicTraitJeiIngredient implements IIngredientHelper<BionicT
 			return BionicTrait.class;
 		}
 	};
-	public static final Codec<BionicTrait> CODEC = Codec.STRING.comapFlatMap(
-		id -> Arrays.stream(BionicTrait.values())
-			.filter(trait -> trait.id().equals(id))
-			.findFirst()
-			.map(DataResult::success)
-			.orElseGet(() -> DataResult.error(() -> "Unknown bionic trait: " + id)),
-		BionicTrait::id);
+	public static final Codec<BionicTrait> CODEC = ResourceLocation.CODEC.xmap(BionicTrait::reference, BionicTrait::id);
 
 	public static Component name(BionicTrait trait) {
-		return Component.translatable(trait.nameDescriptionId());
+		BionicTrait current = BionicTraitRegistry.clientTrait(trait.id());
+		return (current == null ? trait : current).displayName();
 	}
 
 	public static ResourceLocation id(BionicTrait trait) {
-		return CreateBiotech.asResource("bionic_trait/" + trait.id());
+		return ResourceLocation.fromNamespaceAndPath(trait.id().getNamespace(), "bionic_trait/" + trait.id().getPath());
 	}
 
 	@Override

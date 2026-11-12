@@ -28,16 +28,11 @@ import net.minecraft.world.phys.Vec3;
 
 public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableBlockEntity> {
 	private static final BitSet EMPTY_CUBES = new BitSet();
-	private static final int MAX_COLD_SUBJECTS_PER_FRAME = 4;
-	private static final long COLD_BUILD_BUDGET_NANOS = 2_000_000L;
-	private static int coldSubjectsThisFrame;
-	private static long coldBuildStarted;
 
 	public SurgicalTableRenderer(BlockEntityRendererProvider.Context context) {}
 
 	static void beginFrame() {
-		coldSubjectsThisFrame = 0;
-		coldBuildStarted = 0L;
+		SurgicalPreparationBudget.beginFrame();
 		SurgicalSourceModelRenderer.collectCompletedPlans();
 	}
 
@@ -111,6 +106,7 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 			if (!prepareSubjectGeometry(table, candidate.subject, poseStack, camera))
 				break;
 		}
+		SurgicalTableClientHandler.prepareGroundingGroups(table);
 		SurgicalTableClientHandler.completePlacementHandoffIfReady(table);
 		Set<Integer> readyIds = new java.util.HashSet<>();
 		for (Set<Integer> group : visibleGroups)
@@ -136,7 +132,9 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		// plan state could shrink the table's accumulated bounds until the block entity culled itself
 		// out of the very render pass that would have restored them.
 		boolean geometryUpdate = SurgicalTableClientHandler.needsGeometryUpdate(table, subject);
-		LivingEntity preview = SurgicalSourceModelRenderer.preview(subject.profile());
+		if (geometryUpdate && SurgicalPreparationBudget.available()
+			&& SurgicalTableClientHandler.seedPlacementGeometry(table, subject)) return true;
+		LivingEntity preview = SurgicalSourceModelRenderer.previewDeferred(subject.profile());
 		if (preview == null)
 			return true;
 		SurgicalSourceModelRenderer.RenderPlanState planState =
@@ -149,28 +147,29 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		// check may only skip preparation once the plan is known to be live.
 		if (planState == SurgicalSourceModelRenderer.RenderPlanState.READY && !geometryUpdate)
 			return true;
-		if (!claimColdBuildSlot())
-			return false;
+		if (!SurgicalPreparationBudget.begin(false)) return false;
+		try {
 
-		// BlockEntityRenderDispatcher has already established the table's world/camera transform on
-		// this stack. Geometry and grounding operate in that coordinate space, so retain the exact
-		// renderer base pose just as the former one-pass capture did.
-		poseStack.pushPose();
-		poseStack.translate(subject.originOffsetX(), 0.0d, subject.originOffsetZ());
-		SurgicalTablePoseResolver.resolve(subject.layPose()).apply(poseStack);
-		// A subject whose stored count contradicts the model cannot be rendered from its stored
-		// present-set at all, and asking for that set would clip the observation down to an arbitrary
-		// prefix of the replacement model's components. Observe the whole model instead, so the
-		// reserved-column marker measures the height the source model really has.
-		int storedCount = SurgicalTableClientHandler.isReserved(subject) ? 0 : subject.cubeCount();
-		BitSet present = storedCount > 0
-			? SurgicalTableClientHandler.presentCubesFor(table, subject, storedCount) : EMPTY_CUBES;
-		SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.captureGeometryDeferred(preview,
-			storedCount, present, poseStack, 0.0f, 0.0f, camera);
-		poseStack.popPose();
-		if (snapshot != null)
-			SurgicalTableClientHandler.updateGeometry(table, subject, snapshot);
-		return true;
+			// BlockEntityRenderDispatcher has already established the table's world/camera transform on
+			// this stack. Geometry and grounding operate in that coordinate space, so retain the exact
+			// renderer base pose just as the former one-pass capture did.
+			poseStack.pushPose();
+			poseStack.translate(subject.originOffsetX(), 0.0d, subject.originOffsetZ());
+			SurgicalTablePoseResolver.resolve(subject.layPose()).apply(poseStack);
+			// A subject whose stored count contradicts the model cannot be rendered from its stored
+			// present-set at all, and asking for that set would clip the observation down to an arbitrary
+			// prefix of the replacement model's components. Observe the whole model instead, so the
+			// reserved-column marker measures the height the source model really has.
+			int storedCount = SurgicalTableClientHandler.isReserved(subject) ? 0 : subject.cubeCount();
+			BitSet present = storedCount > 0
+				? SurgicalTableClientHandler.presentCubesFor(table, subject, storedCount) : EMPTY_CUBES;
+			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.captureGeometryDeferred(preview,
+				storedCount, present, poseStack, 0.0f, 0.0f, camera);
+			poseStack.popPose();
+			if (snapshot != null)
+				SurgicalTableClientHandler.updateGeometry(table, subject, snapshot);
+			return true;
+		} finally { SurgicalPreparationBudget.end(); }
 	}
 
 	private static boolean isPreparationGroupReady(SurgicalTableBlockEntity table, Set<Integer> group) {
@@ -245,18 +244,6 @@ public class SurgicalTableRenderer implements BlockEntityRenderer<SurgicalTableB
 		double y = Math.max(bounds.minY, Math.min(point.y, bounds.maxY));
 		double z = Math.max(bounds.minZ, Math.min(point.z, bounds.maxZ));
 		return point.distanceToSqr(x, y, z);
-	}
-
-	private static boolean claimColdBuildSlot() {
-		if (coldSubjectsThisFrame >= MAX_COLD_SUBJECTS_PER_FRAME)
-			return false;
-		long now = System.nanoTime();
-		if (coldBuildStarted == 0L)
-			coldBuildStarted = now;
-		else if (now - coldBuildStarted >= COLD_BUILD_BUDGET_NANOS)
-			return false;
-		coldSubjectsThisFrame++;
-		return true;
 	}
 
 	private static Frustum currentFrustum() {

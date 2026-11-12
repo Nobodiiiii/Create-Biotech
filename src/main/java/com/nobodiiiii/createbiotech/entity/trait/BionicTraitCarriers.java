@@ -21,7 +21,7 @@ final class BionicTraitCarriers {
 	static Set<BionicAnatomyRole> donorRoles(BionicTrait trait, BionicTraitData data,
 		ResourceLocation entity, BionicTraitDonors.Facts donor) {
 		List<BionicTrait.Carrier> carriers = switch (trait.valueKind()) {
-		case ATTACK_EFFECT_SET -> donor.attackEffects().stream()
+		case ATTACK_EFFECT_SET -> donor.attacks(trait).stream()
 			.map(data.attackEffects()::get).map(BionicAttackEffect::carrier).toList();
 		case SUBTRAIT_SET -> trait.isHeadClassification() ? List.of(trait.carrier())
 			: donor.variants(trait).stream().map(data.subtraits()::get).map(BionicSubtrait::carrier).toList();
@@ -56,7 +56,7 @@ final class BionicTraitCarriers {
 		BitSet cubes = new BitSet();
 		if (!donor.supplies(trait)) return cubes;
 		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
-			for (var id : donor.attackEffects()) {
+			for (var id : donor.attacks(trait)) {
 				var effect = data.attackEffects().get(id);
 				if (effect != null) cubes.or(select(effect.carrier(), data, tissue, source));
 			}
@@ -65,7 +65,7 @@ final class BionicTraitCarriers {
 				var variant = data.subtraits().get(id);
 				if (variant != null) cubes.or(select(variant.carrier(), data, tissue, source));
 			}
-		} else cubes = trait == BionicTrait.RIDEABLE ? BionicSaddleCarriers.select(tissue.source(source))
+		} else cubes = BionicTrait.RIDEABLE.equals(trait) ? BionicSaddleCarriers.select(tissue.source(source))
 			: select(trait.carrier(), data, tissue, source);
 		cubes.and(tissue.source(source).presentCubes());
 		return cubes;

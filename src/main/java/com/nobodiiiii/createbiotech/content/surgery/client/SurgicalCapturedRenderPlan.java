@@ -852,12 +852,13 @@ public final class SurgicalCapturedRenderPlan {
 	SurgicalModelRenderContext.Snapshot snapshot(PoseStack poseStack, int expectedCubeCount,
 		BitSet presentCubes, Map<Integer, Vec3> cubeOffsets,
 		Map<Integer, SurgicalCubeRotation> cubeRotations, @Nullable Vec3 cameraPosition) {
-		List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>(components.size());
-		for (Component component : components) {
-			if (!isPresent(component.id, expectedCubeCount, presentCubes))
-				continue;
-			Vec3 offset = cubeOffsets.get(component.id);
-			geometry.add(component.geometry(poseStack, offset, cubeRotations.get(component.id), cameraPosition));
+		int count = expectedCubeCount <= 0 ? components.size() : presentCubes.cardinality();
+		List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>(count);
+		for (int cube = expectedCubeCount <= 0 ? 0 : presentCubes.nextSetBit(0);
+			cube >= 0 && cube < components.size();
+			cube = expectedCubeCount <= 0 ? cube + 1 : presentCubes.nextSetBit(cube + 1)) {
+			Component component = components.get(cube);
+			geometry.add(component.geometry(poseStack, cubeOffsets.get(cube), cubeRotations.get(cube), cameraPosition));
 		}
 		return new SurgicalModelRenderContext.Snapshot(components.size(), geometry);
 	}

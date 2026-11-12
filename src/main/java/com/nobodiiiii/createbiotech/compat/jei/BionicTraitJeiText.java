@@ -33,7 +33,7 @@ final class BionicTraitJeiText {
 
 	static List<FormattedText> description(BionicTrait trait) {
 		List<FormattedText> text = new ArrayList<>();
-		text.add(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
+		text.add(trait.displayDescription().copy().withStyle(ChatFormatting.BLACK));
 		Component condition = condition(trait);
 		if (condition != null)
 			text.add(tr("condition", condition.copy().withStyle(ChatFormatting.BLACK))
@@ -114,7 +114,7 @@ final class BionicTraitJeiText {
 	@Nullable
 	private static Component condition(BionicTrait trait) {
 		if (trait.isHeadClassification())
-			return tr("condition." + trait.id(),
+			return tr("condition." + trait.id().getPath(),
 				percentage(BionicTraitClientRules.rule(trait).minCoverage()));
 		List<Component> conditions = new ArrayList<>();
 		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);

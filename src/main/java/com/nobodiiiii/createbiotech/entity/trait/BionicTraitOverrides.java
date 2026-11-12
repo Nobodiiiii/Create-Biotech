@@ -1,7 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
-import java.util.EnumMap;
-import java.util.EnumSet;
+import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,11 +37,11 @@ public final class BionicTraitOverrides {
 
 	/** Ignore every edge participating in a cycle; unrelated rules remain usable. */
 	static Map<BionicTrait, Set<BionicTrait>> validate(Map<BionicTrait, Set<BionicTrait>> rules) {
-		Map<BionicTrait, Set<BionicTrait>> valid = new EnumMap<>(BionicTrait.class);
+		Map<BionicTrait, Set<BionicTrait>> valid = new LinkedHashMap<>();
 		rules.forEach((source, targets) -> {
-			Set<BionicTrait> accepted = EnumSet.noneOf(BionicTrait.class);
+			Set<BionicTrait> accepted = new LinkedHashSet<>();
 			for (BionicTrait target : targets) {
-				if (reaches(target, source, rules, EnumSet.noneOf(BionicTrait.class)))
+				if (reaches(target, source, rules, new LinkedHashSet<>()))
 					LogUtils.getLogger().warn("Ignoring cyclic bionic trait override {} -> {}", source.id(), target.id());
 				else
 					accepted.add(target);
@@ -53,7 +53,7 @@ public final class BionicTraitOverrides {
 
 	private static boolean reaches(BionicTrait current, BionicTrait target,
 		Map<BionicTrait, Set<BionicTrait>> rules, Set<BionicTrait> visited) {
-		if (current == target) return true;
+		if (current.equals(target)) return true;
 		if (!visited.add(current)) return false;
 		return rules.getOrDefault(current, Set.of()).stream().anyMatch(next -> reaches(next, target, rules, visited));
 	}
@@ -62,7 +62,7 @@ public final class BionicTraitOverrides {
 		boolean clientSide) {
 		Map<BionicTrait, Set<BionicTrait>> rules = clientSide ? clientRules : null;
 		if (rules == null) {
-			rules = new EnumMap<>(BionicTrait.class);
+			rules = new LinkedHashMap<>();
 			for (var entry : data.entrySet()) rules.put(entry.getKey(), entry.getValue().overrides());
 		}
 		applyRules(results, rules);
@@ -70,7 +70,7 @@ public final class BionicTraitOverrides {
 
 	private static void applyRules(Map<BionicTrait, BionicTraitResult> results,
 		Map<BionicTrait, Set<BionicTrait>> rules) {
-		Set<BionicTrait> pending = EnumSet.noneOf(BionicTrait.class);
+		Set<BionicTrait> pending = new LinkedHashSet<>();
 		results.forEach((trait, result) -> { if (result.active()) pending.add(trait); });
 		while (!pending.isEmpty()) {
 			List<BionicTrait> strongest = pending.stream().filter(target -> pending.stream()

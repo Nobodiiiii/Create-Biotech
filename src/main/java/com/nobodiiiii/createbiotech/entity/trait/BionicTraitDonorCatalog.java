@@ -1,8 +1,8 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +48,12 @@ public final class BionicTraitDonorCatalog {
 			return;
 		scan.lastRequestedTick = tick;
 		int start = generation == scan.generation && offset >= 0 && offset <= scan.entries.size() ? offset : 0;
-		int end = Math.min(start + BionicTraitDonorsPacket.MAX_ENTRIES, scan.entries.size());
+		int end = start, bytes = 64;
+		while (end < scan.entries.size() && end - start < BionicTraitDonorsPacket.MAX_ENTRIES) {
+			int size = scan.entries.get(end).encodedSize();
+			if (bytes + size > BionicTraitDonorsPacket.MAX_BYTES) break;
+			bytes += size; end++;
+		}
 		CBPackets.sendToPlayer(new BionicTraitDonorsPacket(scan.generation, start, scan.cursor,
 			scan.types.size(), scan.failures, scan.cursor == scan.types.size() && end == scan.entries.size(),
 			List.copyOf(scan.entries.subList(start, end))), player);
@@ -73,21 +78,21 @@ public final class BionicTraitDonorCatalog {
 				if (prototype instanceof LivingEntity living) {
 					BionicTraitDonors.Facts facts = BionicTraitDonors.detect(living);
 					var data = BionicTraitRegistry.snapshot();
-					Map<BionicTrait, Set<BionicAnatomyRole>> provided = new EnumMap<>(BionicTrait.class);
-					for (BionicTrait trait : BionicTrait.values()) {
+					Map<BionicTrait, Set<BionicAnatomyRole>> provided = new LinkedHashMap<>();
+					for (BionicTrait trait : data.definitions()) {
 						boolean provides = switch (trait.valueKind()) {
 						case ABILITY -> facts.has(trait);
 						case NUMBER -> BionicTraitResolver.numericValue(facts.value(trait)) > 0;
 						case SUBTRAIT_SET -> !facts.variants(trait).isEmpty();
-						case EFFECT_SET -> !facts.immuneEffects().isEmpty();
-						case ATTACK_EFFECT_SET -> !facts.attackEffects().isEmpty();
+						case EFFECT_SET -> !facts.effects(trait).isEmpty();
+						case ATTACK_EFFECT_SET -> !facts.attacks(trait).isEmpty();
 						};
 						if (provides)
 							provided.put(trait, BionicTraitCarriers.donorRoles(trait, data.get(trait),
 								BuiltInRegistries.ENTITY_TYPE.getKey(type), facts));
 					}
 					if (!provided.isEmpty())
-						scan.entries.add(new BionicTraitDonorsPacket.Entry(BuiltInRegistries.ENTITY_TYPE.getKey(type), provided));
+						scan.entries.addAll(BionicTraitDonorsPacket.split(BuiltInRegistries.ENTITY_TYPE.getKey(type), provided));
 				}
 			} catch (RuntimeException | StackOverflowError exception) {
 				scan.failures++;

@@ -65,7 +65,6 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBlockAttachment;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
-import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.foundation.utility.CreateLang;
@@ -78,7 +77,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.ChatFormatting;
@@ -219,6 +217,7 @@ public final class SurgicalTableClientHandler {
 	private static WrenchEditor wrenchEditor;
 	private static boolean suppressWrenchUseUntilRelease;
 	private static boolean suppressCopyUseUntilRelease;
+	private static PendingPacking pendingPacking;
 	private static PendingLimb pendingLimb;
 	@Nullable
 	private static PendingSlimeSeam pendingSlimeSeam;
@@ -266,7 +265,17 @@ public final class SurgicalTableClientHandler {
 	private static CubeSelectionCache directSelectionCache;
 	/** Each retained cube indexes the same preview as every other member of its connected component. */
 	private static final Map<SurgicalTableBlockEntity, PackedBodyPreviewCache> PACKED_BODY_PREVIEWS = new WeakHashMap<>();
+	/** Stable member revisions let unrelated table edits retain completed measurements. */
+	private static final Map<PackedComponentKey, PackedPreparation> PACKED_MEASUREMENTS =
+		new java.util.LinkedHashMap<>(16, 0.75f, true) {
+			@Override protected boolean removeEldestEntry(Map.Entry<PackedComponentKey, PackedPreparation> eldest) {
+				if (size() <= 32) return false;
+				eldest.getValue().cancel();
+				return true;
+			}
+		};
 	private static final Map<SurgicalTableBlockEntity, TableGroundingCache> GROUP_GROUNDING = new WeakHashMap<>();
+	private static final Map<SurgicalTableBlockEntity, GroupPreparationCache> GROUP_PREPARATIONS = new WeakHashMap<>();
 
 	private SurgicalTableClientHandler() {}
 
@@ -827,6 +836,7 @@ public final class SurgicalTableClientHandler {
 	public static void clear() {
 		suppressWrenchUseUntilRelease = false;
 		suppressCopyUseUntilRelease = false;
+		pendingPacking = null;
 		pendingCut = null;
 		pendingGlueCut = null;
 		pendingGlue = null;
@@ -837,13 +847,18 @@ public final class SurgicalTableClientHandler {
 		hoveredGluePoint = null;
 		gluePreview = null;
 		glueEditor = null;
+		if (placementCandidate != null && placementCandidate.source() != null) placementCandidate.source().cancel();
 		placementCandidate = null;
 		placementPreviewResult = SurgicalTablePlacementResult.OPERATION_FAILED;
 		placementSuppression = null;
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
 		PACKED_BODY_PREVIEWS.clear();
+		PACKED_MEASUREMENTS.values().forEach(PackedPreparation::cancel);
+		PACKED_MEASUREMENTS.clear();
 		GROUP_GROUNDING.clear();
+		GROUP_PREPARATIONS.values().forEach(GroupPreparationCache::cancel);
+		GROUP_PREPARATIONS.clear();
 		suppressAttackUntilRelease = false;
 		clearPlacementPreview();
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
@@ -989,6 +1004,7 @@ public final class SurgicalTableClientHandler {
 		}
 		updatePlacementPreview();
 		updateSelections();
+		updatePendingPacking();
 		updateShovelTileOutline();
 		updateReservedOutline();
 	}
@@ -1340,6 +1356,7 @@ public final class SurgicalTableClientHandler {
 
 	private static PlacementCandidate cachePlacementCandidate(ItemStack held, @Nullable PlacementSource source,
 		SurgicalTablePlacementResult result) {
+		if (placementCandidate != null && placementCandidate.source() != null) placementCandidate.source().cancel();
 		placementCandidate = new PlacementCandidate(held.copyWithCount(1), source, result);
 		return placementCandidate;
 	}
@@ -2044,10 +2061,11 @@ public final class SurgicalTableClientHandler {
 				return;
 			PackedBodyMetrics metrics = selectedBodyMetrics(selected);
 			if (metrics == null) {
-				SurgicalTableFailure.MODEL_UNAVAILABLE.display(minecraft.player);
+				queuePacking(selected, hand, held, SurgicalTableInteractionPacket.Action.PACK);
 				consumeInteraction(event, hand);
 				return;
 			}
+			pendingPacking = null;
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.PACK,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume(), metrics.attackGeometry(), metrics.packingAlignment());
@@ -2057,10 +2075,12 @@ public final class SurgicalTableClientHandler {
 				return;
 			PackedBodyMetrics metrics = selectedBodyMetrics(selected);
 			if (metrics == null) {
-				SurgicalTableFailure.MODEL_UNAVAILABLE.display(minecraft.player);
+				queuePacking(selected, hand, held, SurgicalTableInteractionPacket.Action.COPY_COMPONENT);
+				suppressCopyUseUntilRelease = true;
 				consumeInteraction(event, hand);
 				return;
 			}
+			pendingPacking = null;
 			sendInteraction(selected, hand, SurgicalTableInteractionPacket.Action.COPY_COMPONENT,
 				SurgicalTableLayout.Proposal.EMPTY, metrics.bodyBounds(), metrics.hitboxGeometry(),
 				metrics.bodyVolume(), metrics.attackGeometry(), metrics.packingAlignment());
@@ -2075,9 +2095,10 @@ public final class SurgicalTableClientHandler {
 	private static boolean cancelPendingInteraction() {
 		if (wrenchEditor != null && wrenchEditor.committing)
 			return true;
-		if (pendingCut == null && pendingGlueCut == null && pendingGlue == null
+		if (pendingPacking == null && pendingCut == null && pendingGlueCut == null && pendingGlue == null
 			&& pendingSymmetry == null && pendingLimb == null && pendingSlimeSeam == null && wrenchEditor == null)
 			return false;
+		pendingPacking = null;
 		abortPendingCut();
 		abortPendingGlueCut();
 		clearPendingGlue();
@@ -3772,6 +3793,31 @@ public final class SurgicalTableClientHandler {
 			cancelPendingVisualCommit(level, !commit.serverAcknowledged);
 	}
 
+	/** Reuses the accepted preview's neutral geometry; identity and edits remain server-owned. */
+	static boolean seedPlacementGeometry(SurgicalTableBlockEntity table, SurgicalSubject subject) {
+		PendingVisualCommit commit = pendingVisualCommit;
+		if (commit == null || !commit.serverAcknowledged || !commit.tablePos.equals(table.getBlockPos())
+			|| commit.placementResources != SurgicalSourceModelRenderer.resourceGeneration()
+			|| commit.placementBaselineSubjectIds.contains(subject.id())) return false;
+		PlacementSeed seed = commit.placementSeeds.get(new PlacementSeedKey(subject.profile(), subject.layPose(),
+			subject.cubeCount(), subject.presentCubes(), subject.originOffsetX(), subject.originOffsetZ()));
+		if (seed == null || !subject.matchesObservedTopology(seed.source().cubeCount(), seed.source().seams())
+			|| !subject.cutSeamsForRender().equals(seed.source().cutSeams())
+			|| !subject.componentRotationsForRender().equals(seed.rotations())) return false;
+		if (!SurgicalPreparationBudget.begin(false)) return false;
+		try {
+			updateGeometry(table, subject, new SurgicalModelRenderContext.Snapshot(subject.cubeCount(),
+				translateCubes(seed.cubes(), Vec3.atLowerCornerOf(table.getBlockPos()))));
+			SurgicalProfiler.count("placementGeometry(handoff)");
+			return true;
+		} finally { SurgicalPreparationBudget.end(); }
+	}
+
+	private record PlacementSeedKey(MimicProfile profile, SurgicalLayPose pose, int count, BitSet present,
+		double x, double z) {}
+	private record PlacementSeed(SurgicalAssembly.Source source, List<SurgicalModelRenderContext.CubeGeometry> cubes,
+		Map<Integer, SurgicalCubeRotation> rotations) {}
+
 	/** Switches from the placement preview only after every newly added subject is render-ready. */
 	static void completePlacementHandoffIfReady(SurgicalTableBlockEntity table) {
 		PendingVisualCommit commit = pendingVisualCommit;
@@ -3857,6 +3903,173 @@ public final class SurgicalTableClientHandler {
 				return true;
 		}
 		return false;
+	}
+
+	/** One dependency counter and worker job per connected group, rather than one graph per subject. */
+	private static void queueGroupedGrounding(SurgicalTableBlockEntity table, SurgicalSubject subject,
+		TableGeometry geometry) {
+		GroupPreparationCache cache = GROUP_PREPARATIONS.get(table);
+		if (cache == null || cache.revision != table.clientDataRevision()) {
+			if (cache != null) cache.cancel();
+			cache = new GroupPreparationCache(table);
+			GROUP_PREPARATIONS.put(table, cache);
+		}
+		GroundingPreparation group = cache.bySubject.get(subject.id());
+		if (group == null) return;
+		group.changed(subject, geometry);
+	}
+
+	static void prepareGroundingGroups(SurgicalTableBlockEntity table) {
+		GroupPreparationCache cache = GROUP_PREPARATIONS.get(table);
+		if (cache == null) return;
+		if (cache.revision != table.clientDataRevision()) {
+			cache.cancel();
+			cache = new GroupPreparationCache(table);
+			GROUP_PREPARATIONS.put(table, cache);
+		}
+		for (GroundingPreparation group : cache.groups) {
+			if (!group.dirty || group.ready.size() != group.members.size()
+				|| group.ready.values().stream().anyMatch(geometry -> geometry.stagedPreview != null)) continue;
+			if (group.job == null) {
+				if (!SurgicalPreparationBudget.begin(false)) return;
+				try {
+					List<GroundingInput> inputs = new ArrayList<>();
+					Set<SurgicalGlueJoint> joints = new HashSet<>();
+					Set<SurgicalCombination> combinations = new HashSet<>();
+					for (int id : group.members) {
+						SurgicalSubject subject = table.getSubject(id);
+						TableGeometry geometry = group.ready.get(id);
+						inputs.add(new GroundingInput(geometry,
+							new SurgicalClientTopology.GroundingBody<>(subject.persistentId(), geometry.observedCubeCount,
+								(BitSet) geometry.presentCubes.clone(), geometry.seams, (BitSet) geometry.cutSeams.clone(),
+								geometry.layoutCubes, geometry.serverOffsets), geometry.groundingInputRevision,
+							geometry.baseCubes, geometry.baseCubesById, geometry.baseContacts, geometry.serverRotations));
+						joints.addAll(subject.glueJoints());
+						combinations.addAll(subject.combinations());
+					}
+					List<SurgicalClientTopology.GroundingLink<UUID>> links = new ArrayList<>();
+					for (var joint : joints)
+						links.add(new SurgicalClientTopology.GroundingLink<>(joint.first().subjectKey(), joint.first().cubeId(),
+							joint.second().subjectKey(), joint.second().cubeId()));
+					for (var combination : combinations) {
+						var anchor = combination.members().getFirst();
+						for (var member : combination.members().subList(1, combination.members().size()))
+							links.add(new SurgicalClientTopology.GroundingLink<>(anchor.subjectKey(), anchor.cubeId(),
+								member.subjectKey(), member.cubeId()));
+					}
+					var frozenInputs = List.copyOf(inputs);
+					var frozenLinks = List.copyOf(links);
+					double surface = SurgicalTablePlane.surfaceY(table.getBlockPos().getY()) + SurgicalTablePoseResolver.TABLE_CLEARANCE;
+					group.job = new SurgicalClientJob<>("groundGroup(async)", () -> prepareGrounding(frozenInputs, frozenLinks, surface));
+				} finally { SurgicalPreparationBudget.end(); }
+			}
+			List<PreparedTableGeometry> prepared = group.job.poll();
+			if (prepared == null) {
+				if (group.job.finished()) group.dirty = false;
+				continue;
+			}
+			if (!SurgicalPreparationBudget.begin(false)) return;
+			try {
+				boolean valid = prepared.stream().allMatch(result -> {
+					var input = result.input();
+					TableGeometry geometry = input.geometry();
+					SurgicalSubject subject = table.getSubject(geometry.subjectId);
+					return subject != null && TABLES.get(new SubjectKey(table.getBlockPos(), geometry.subjectId)) == geometry
+						&& geometry.groundingInputRevision == input.revision() && geometry.stagedPreview == null
+						&& geometry.topologyReady() && geometry.renderRevision == subject.clientRenderRevision();
+				});
+				if (!valid) {
+					group.job.cancel();
+					group.job = null;
+					group.ready.entrySet().removeIf(entry -> TABLES.get(new SubjectKey(table.getBlockPos(), entry.getKey())) != entry.getValue());
+					continue;
+				}
+				// No readiness query can observe a partly published group on this thread.
+				for (var result : prepared) {
+					TableGeometry geometry = result.input().geometry();
+					geometry.offsets = result.offsets();
+					geometry.rotations = result.input().rotations();
+					geometry.cubes = result.cubes();
+					geometry.cubesById = result.byId();
+					geometry.cubeTargets = result.targets();
+					geometry.bounds = result.bounds();
+					geometry.contacts = result.contacts();
+					geometry.contactsByCube = result.contactsByCube();
+					geometry.groundingPending = false;
+					geometry.transformGeneration++;
+					geometry.reportBounds(table);
+				}
+				group.dirty = false;
+				geometryGeneration++;
+				SurgicalProfiler.count("groundGroup(publish)");
+			} finally { SurgicalPreparationBudget.end(); }
+		}
+	}
+
+	private static List<PreparedTableGeometry> prepareGrounding(List<GroundingInput> inputs,
+		List<SurgicalClientTopology.GroundingLink<UUID>> links, double surface) {
+		var grounded = SurgicalClientTopology.groundConnectedBodies(inputs.stream().map(GroundingInput::body).toList(), links, surface);
+		if (grounded == null) return null;
+		List<PreparedTableGeometry> results = new ArrayList<>();
+		for (var input : inputs) {
+			var offsets = grounded.get(input.body().key());
+			if (offsets == null) return null;
+			var cubes = transformCubes(input.baseCubes(), input.rotations(), offsets);
+			var targets = TableGeometry.cubeTargets(cubes);
+			var contacts = TableGeometry.transformContacts(input.contacts(), input.baseById(), input.rotations(), offsets);
+			results.add(new PreparedTableGeometry(input, Map.copyOf(offsets), cubes, indexCubes(cubes), targets,
+				TableGeometry.boundsFor(targets), contacts, TableGeometry.contactsByCube(input.body().cubeCount(), contacts)));
+		}
+		return List.copyOf(results);
+	}
+
+	private record GroundingInput(TableGeometry geometry, SurgicalClientTopology.GroundingBody<UUID> body, long revision,
+		List<SurgicalModelRenderContext.CubeGeometry> baseCubes, Map<Integer, SurgicalModelRenderContext.CubeGeometry> baseById,
+		List<SurgicalClientTopology.Contact> contacts, Map<Integer, SurgicalCubeRotation> rotations) {}
+	private record PreparedTableGeometry(GroundingInput input, Map<Integer, Vec3> offsets,
+		List<SurgicalModelRenderContext.CubeGeometry> cubes, Map<Integer, SurgicalModelRenderContext.CubeGeometry> byId,
+		List<CubeTarget> targets, AABB bounds, List<SurgicalClientTopology.Contact> contacts,
+		List<List<SurgicalClientTopology.Contact>> contactsByCube) {}
+
+	private static final class GroundingPreparation {
+		private final Set<Integer> members;
+		private final Map<Integer, TableGeometry> ready = new HashMap<>();
+		private SurgicalClientJob<List<PreparedTableGeometry>> job;
+		private boolean dirty;
+		private GroundingPreparation(Set<Integer> members) { this.members = Set.copyOf(members); }
+		private void changed(SurgicalSubject subject, TableGeometry geometry) {
+			if (job != null) job.cancel();
+			job = null;
+			dirty = true;
+			if (geometry.topologyReady() && geometry.renderRevision == subject.clientRenderRevision())
+				ready.put(subject.id(), geometry);
+			else ready.remove(subject.id());
+		}
+	}
+
+	private static final class GroupPreparationCache {
+		private final int revision;
+		private final Map<Integer, GroundingPreparation> bySubject = new HashMap<>();
+		private final List<GroundingPreparation> groups = new ArrayList<>();
+		private GroupPreparationCache(SurgicalTableBlockEntity table) {
+			revision = table.clientDataRevision();
+			for (var subject : table.getSubjects()) {
+				if (bySubject.containsKey(subject.id()) || !subject.linkedToOtherSubjects()) continue;
+				GroundingPreparation group = new GroundingPreparation(table.connectedSubjectIds(subject.id()));
+				groups.add(group);
+				for (int id : group.members) {
+					bySubject.put(id, group);
+					var member = table.getSubject(id);
+					var geometry = TABLES.get(new SubjectKey(table.getBlockPos(), id));
+					// A different group may have changed while this one was still preparing.
+					// Its unchanged members will not refresh again, so carry their pending work over.
+					if (geometry != null && geometry.groundingPending) group.dirty = true;
+					if (geometry != null && member != null && geometry.topologyReady()
+						&& geometry.renderRevision == member.clientRenderRevision()) group.ready.put(id, geometry);
+				}
+			}
+		}
+		private void cancel() { for (var group : groups) if (group.job != null) group.job.cancel(); }
 	}
 
 	/**
@@ -4220,11 +4433,11 @@ public final class SurgicalTableClientHandler {
 		SurgicalTableBlockEntity table, int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> seams) {
 		int tableRevision = table.clientDataRevision();
-		BionicTraitResolver.Revision traitRevision = BionicTraitResolver.revision();
+		BionicTraitResolver.Revision traitRevision = BionicTraitResolver.revision(net.minecraft.client.Minecraft.getInstance().level);
 		int resourceGeneration = SurgicalSourceModelRenderer.resourceGeneration();
 		PackedBodyPreviewCache cache = PACKED_BODY_PREVIEWS.get(table);
 		if (cache == null || !cache.matches(tableRevision, traitRevision, resourceGeneration)) {
-			cache = new PackedBodyPreviewCache(tableRevision, traitRevision, resourceGeneration, new HashMap<>());
+			cache = new PackedBodyPreviewCache(tableRevision, traitRevision, resourceGeneration, new HashMap<>(), new HashMap<>());
 			PACKED_BODY_PREVIEWS.put(table, cache);
 		}
 		PackedBodyPreview cached = cache.get(subjectId, cubeId);
@@ -4232,27 +4445,28 @@ public final class SurgicalTableClientHandler {
 			SurgicalProfiler.count("packedPreview(cacheHit)");
 			return cached;
 		}
-		long started = SurgicalProfiler.begin();
-		try {
-			SurgicalTableBlockEntity.PackedAssemblyPreview component = table.previewPackedComponent(
-				subjectId, cubeId, observedCubeCount, seams);
-			if (component == null)
-				return null;
-			SurgicalAssembly assembly = component.assembly();
-			PackedBodyMetrics metrics = measureBodyMetrics(assembly);
-			if (metrics != null) {
-				if (metrics.packingAlignment() != null)
-					assembly = metrics.packingAlignment().applyToPacked(assembly, metrics.attackGeometry());
-				if (assembly == null) return null;
-				assembly = assembly.withBodyGeometry(metrics.bodyBounds(), metrics.hitboxGeometry(), metrics.bodyVolume());
-				if (metrics.attackGeometry() != null) assembly = assembly.withAttackGeometry(metrics.attackGeometry());
-			}
-			PackedBodyPreview preview = new PackedBodyPreview(assembly, metrics, BionicTraitResolver.resolve(assembly, level));
-			cache.put(component.components(), preview);
-			return preview;
-		} finally {
-			SurgicalProfiler.end("packedPreview(build)", started);
+		PackedBodyMember member = new PackedBodyMember(subjectId, cubeId);
+		PackedPreparation preparation = cache.preparing().get(member);
+		if (preparation == null || preparation.cancelled) {
+			if (!SurgicalPreparationBudget.begin(false)) return null;
+			try {
+				var component = table.previewPackedComponent(subjectId, cubeId, observedCubeCount, seams);
+				if (component == null) return null;
+				var revisions = component.components().entrySet().stream().sorted(Map.Entry.comparingByKey())
+					.map(entry -> new PackedSubjectRevision(table.getSubject(entry.getKey()).persistentId(),
+						table.getSubject(entry.getKey()).clientRenderRevision(), (BitSet) entry.getValue().clone())).toList();
+				var key = new PackedComponentKey(level, revisions.getFirst().subject(), revisions,
+					traitRevision, resourceGeneration);
+				preparation = PACKED_MEASUREMENTS.computeIfAbsent(key, ignored -> new PackedPreparation(component.assembly()));
+				for (var entry : component.components().entrySet())
+					for (int cube = entry.getValue().nextSetBit(0); cube >= 0; cube = entry.getValue().nextSetBit(cube + 1))
+						cache.preparing().put(new PackedBodyMember(entry.getKey(), cube), preparation);
+			} finally { SurgicalPreparationBudget.end(); }
 		}
+		PackedBodyPreview ready = preparation.poll(level);
+		if (ready != null) for (var entry : cache.preparing().entrySet())
+			if (entry.getValue() == preparation) cache.byMember().put(entry.getKey(), ready);
+		return ready;
 	}
 
 	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
@@ -5588,6 +5802,46 @@ public final class SurgicalTableClientHandler {
 		return findCubeSelection(hit);
 	}
 
+	private record PendingPacking(Selection selection, InteractionHand hand, ItemStack held,
+		SurgicalTableInteractionPacket.Action action, int revision, int resources, long expires) {}
+
+	private static void queuePacking(Selection selection, InteractionHand hand, ItemStack held,
+		SurgicalTableInteractionPacket.Action action) {
+		ClientLevel level = Minecraft.getInstance().level;
+		if (level != null && level.getBlockEntity(selection.tablePos()) instanceof SurgicalTableBlockEntity table) {
+			// Repeated use events must not extend the timeout or replace an already queued click.
+			if (pendingPacking == null)
+				pendingPacking = new PendingPacking(selection, hand, held.copy(), action, table.clientDataRevision(),
+					SurgicalSourceModelRenderer.resourceGeneration(), level.getGameTime() + 200);
+		}
+	}
+
+	private static void updatePendingPacking() {
+		PendingPacking pending = pendingPacking;
+		if (pending == null) return;
+		Minecraft minecraft = Minecraft.getInstance();
+		ClientLevel level = minecraft.level;
+		LocalPlayer player = minecraft.player;
+		if (level == null || player == null || minecraft.screen != null
+			|| !ItemStack.isSameItemSameComponents(player.getItemInHand(pending.hand()), pending.held())
+			|| SurgicalSourceModelRenderer.resourceGeneration() != pending.resources()
+			|| !(level.getBlockEntity(pending.selection().tablePos()) instanceof SurgicalTableBlockEntity table)
+			|| table.clientDataRevision() != pending.revision()
+			|| player.distanceToSqr(Vec3.atCenterOf(pending.selection().tablePos())) > 64.0d) {
+			pendingPacking = null;
+			return;
+		}
+		PackedBodyMetrics metrics = selectedBodyMetrics(pending.selection());
+		if (metrics != null) {
+			pendingPacking = null;
+			sendInteraction(pending.selection(), pending.hand(), pending.action(), SurgicalTableLayout.Proposal.EMPTY,
+				metrics.bodyBounds(), metrics.hitboxGeometry(), metrics.bodyVolume(), metrics.attackGeometry(), metrics.packingAlignment());
+		} else if (level.getGameTime() >= pending.expires()) {
+			pendingPacking = null;
+			SurgicalTableFailure.MODEL_UNAVAILABLE.display(player);
+		}
+	}
+
 	/** Measures and permanently bakes the selected body's invariant physical data. */
 	@Nullable
 	private static PackedBodyMetrics selectedBodyMetrics(Selection selection) {
@@ -5601,24 +5855,9 @@ public final class SurgicalTableClientHandler {
 	}
 
 	@Nullable
-	private static PackedBodyMetrics measureBodyMetrics(SurgicalAssembly preview) {
-		PackedBodyMeasurement measured = measurePackedBody(preview);
-		if (measured == null)
-			return null;
-		// Resolve model-part labels before choosing the base, including older table subjects.
-		var originalGeometry = SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), Vec3.ZERO);
-		SurgicalPackingAlignment alignment = null;
-		if (originalGeometry != null) {
-			preview = preview.withAttackGeometry(originalGeometry);
-			alignment = BionicBlockAttachment.packingAlignment(
-				BionicTraitResolver.resolve(preview, Minecraft.getInstance().level), originalGeometry.carrierCubes());
-			if (alignment != null) {
-				preview = alignment.applyToMeasured(preview, originalGeometry.carrierCubes());
-				if (preview == null) return null;
-				measured = measurePackedBody(preview);
-				if (measured == null) return null;
-			}
-		}
+	private static PackedBodyMetrics measureBodyMetrics(SurgicalAssembly preview, PackedBodyMeasurement measured,
+		List<SurgicalSourceModelRenderer.DonorGeometry> donors, @Nullable SurgicalPackingAlignment alignment,
+		@Nullable SurgicalAssembly.AttackGeometry originalGeometry) {
 		Set<SurgicalAssembly.CombinationMember> armCubes = new java.util.HashSet<>();
 		for (SurgicalAssembly.Limb limb : preview.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.SHOULDER || limb.type() == SurgicalLimbType.ELBOW)
@@ -5644,8 +5883,10 @@ public final class SurgicalTableClientHandler {
 		SurgicalBodyBounds.Envelope visible = measured.visible();
 		Vec3 bodyOrigin = new Vec3((visible.minX() + visible.maxX()) * 0.5d + bodyBounds.centerX(),
 			visible.minY(), (visible.minZ() + visible.maxZ()) * 0.5d + bodyBounds.centerZ());
-		SurgicalAssembly.AttackGeometry attackGeometry =
-			SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), bodyOrigin);
+		SurgicalAssembly.AttackGeometry attackGeometry = originalGeometry == null ? null
+			: SlimeBionicAnimator.rebaseAttackGeometry(originalGeometry, bodyOrigin);
+		if (attackGeometry == null)
+			attackGeometry = SlimeBionicAnimator.bakeAttackGeometry(preview, measured.sources(), bodyOrigin, donors);
 		List<Map<Integer, List<Vec3>>> hitboxCubes = measured.sources().stream()
 			.map(source -> source.boxes().entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
 				Map.Entry::getKey, entry -> entry.getValue().points())))
@@ -5659,46 +5900,135 @@ public final class SurgicalTableClientHandler {
 		return new PackedBodyMetrics(bodyBounds, hitboxGeometry, bodyVolume, attackGeometry, alignment);
 	}
 
-	/** Runs the same rest-pose render used by the packed entity, once, while generating it. */
-	@Nullable
-	private static PackedBodyMeasurement measurePackedBody(SurgicalAssembly assembly) {
-		EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
-		MultiBufferSource discardedBuffer = renderType -> discarded;
-		AABB logicalEnvelope = null;
-		List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>(assembly.sources().size());
-		PoseStack poseStack = new PoseStack();
-		SurgicalTablePoseResolver.applyInverseRotation(poseStack, assembly.layoutLayPose());
-		for (SurgicalAssembly.Source source : assembly.sources()) {
-			LivingEntity entity = SurgicalSourceModelRenderer.preview(source.profile());
-			if (entity == null)
-				return null;
-			((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(true);
-			Map<Integer, Vec3> offsets = packedUprightOffsets(assembly, source);
-			Map<Integer, SurgicalCubeRotation> rotations = packedUprightRotations(assembly, source);
-			poseStack.pushPose();
-			poseStack.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
-			if (assembly.preservesLayout())
-				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
-			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(entity,
-				source.cubeCount(), source.presentCubes(), offsets, rotations, poseStack, discardedBuffer,
-				LightTexture.FULL_BRIGHT, 0.0f, 0.0f, true, null, false);
-			poseStack.popPose();
-			if (snapshot.observedCubeCount() != source.cubeCount()
-				|| snapshot.cubes().size() != source.presentCubes().cardinality())
-				return null;
-			AABB sourceBounds = logicalBounds(snapshot.cubes(), Map.of());
-			if (sourceBounds == null)
-				return null;
-			logicalEnvelope = logicalEnvelope == null ? sourceBounds : logicalEnvelope.minmax(sourceBounds);
-			sources.add(new SlimeBionicAnimator.SourceState(
-				SlimeBionicAnimator.measure(snapshot), offsets, rotations));
+	/** Resumable client acquisition; no model replay and no entity access from worker jobs. */
+	private static final class PackedCapture {
+		private final SurgicalAssembly assembly;
+		private final List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>();
+		private final List<SurgicalSourceModelRenderer.DonorGeometry> donors = new ArrayList<>();
+		private AABB envelope;
+		private boolean invalid;
+		private PackedCapture(SurgicalAssembly assembly) { this.assembly = assembly; }
+		private PackedBodyMeasurement poll() {
+			if (invalid) return null;
+			while (sources.size() < assembly.sources().size()) {
+				var source = assembly.sources().get(sources.size());
+				var donor = SurgicalSourceModelRenderer.donorGeometryDeferred(source.profile());
+				if (donor == null || !SurgicalPreparationBudget.begin(false)) return null;
+				try {
+					LivingEntity entity = SurgicalSourceModelRenderer.previewDeferred(source.profile());
+					if (entity == null) return null;
+					PoseStack pose = new PoseStack();
+					SurgicalTablePoseResolver.applyInverseRotation(pose, assembly.layoutLayPose());
+					pose.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
+					if (assembly.preservesLayout()) SurgicalTablePoseResolver.resolve(source.layPose()).apply(pose);
+					var offsets = packedUprightOffsets(assembly, source);
+					var rotations = packedUprightRotations(assembly, source);
+					var snapshot = SurgicalSourceModelRenderer.geometryDeferred(entity, source.cubeCount(), source.presentCubes(),
+						offsets, rotations, pose, 0, null);
+					if (snapshot == null) return null;
+					if (snapshot.observedCubeCount() != source.cubeCount()
+						|| snapshot.cubes().size() != source.presentCubes().cardinality()) { invalid = true; return null; }
+					AABB bounds = logicalBounds(snapshot.cubes(), Map.of());
+					if (bounds == null) { invalid = true; return null; }
+					envelope = envelope == null ? bounds : envelope.minmax(bounds);
+					sources.add(new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(snapshot), offsets, rotations));
+					donors.add(donor);
+				} finally { SurgicalPreparationBudget.end(); }
+			}
+			return envelope == null ? null : new PackedBodyMeasurement(List.copyOf(sources),
+				new SurgicalBodyBounds.Envelope(envelope.minX, envelope.minY, envelope.minZ,
+					envelope.maxX, envelope.maxY, envelope.maxZ));
 		}
-		if (logicalEnvelope == null)
-			return null;
-		SurgicalBodyBounds.Envelope envelope = new SurgicalBodyBounds.Envelope(logicalEnvelope.minX,
-			logicalEnvelope.minY, logicalEnvelope.minZ, logicalEnvelope.maxX, logicalEnvelope.maxY,
-			logicalEnvelope.maxZ);
-		return new PackedBodyMeasurement(List.copyOf(sources), envelope);
+	}
+
+	private record PackedSubjectRevision(UUID subject, int revision, BitSet cubes) {}
+	private record PackedComponentKey(ClientLevel level, UUID anchor, List<PackedSubjectRevision> members,
+		BionicTraitResolver.Revision traits, int resources) {}
+
+	private static final class PackedPreparation {
+		private final SurgicalAssembly original;
+		private SurgicalAssembly measuredAssembly;
+		private PackedCapture capture;
+		private PackedBodyMeasurement measured;
+		private SurgicalClientJob<SurgicalAssembly.AttackGeometry> originalGeometry;
+		private SurgicalClientJob<SurgicalAssembly> correction;
+		private SurgicalClientJob<PackedBodyMetrics> metrics;
+		private SurgicalPackingAlignment alignment;
+		private boolean alignmentResolved, correctionApplied, failed, cancelled;
+		private PackedBodyPreview result;
+		private PackedPreparation(SurgicalAssembly assembly) {
+			original = measuredAssembly = assembly;
+			capture = new PackedCapture(assembly);
+		}
+		private PackedBodyPreview poll(ClientLevel level) {
+			if (cancelled) return null;
+			if (result != null || failed) return result;
+			if (measured == null) {
+				measured = capture.poll();
+				if (measured == null) { failed = capture.invalid; return null; }
+			}
+			if (originalGeometry == null) {
+				var frozen = measured;
+				var donors = List.copyOf(capture.donors);
+				originalGeometry = new SurgicalClientJob<>("attackGeometry(async)",
+					() -> SlimeBionicAnimator.bakeAttackGeometry(original, frozen.sources(), Vec3.ZERO, donors));
+			}
+			var geometry = originalGeometry.poll();
+			if (!originalGeometry.finished()) return null;
+			if (!alignmentResolved) {
+				if (!SurgicalPreparationBudget.begin(false)) return null;
+				try {
+					if (geometry != null) {
+						var withGeometry = original.withAttackGeometry(geometry);
+						alignment = BionicBlockAttachment.packingAlignment(BionicTraitResolver.resolve(withGeometry, level), geometry.carrierCubes());
+						if (alignment != null) {
+							var selectedAlignment = alignment;
+							correction = new SurgicalClientJob<>("packingAlignment(async)",
+								() -> selectedAlignment.applyToMeasured(withGeometry, geometry.carrierCubes()));
+						}
+					}
+					alignmentResolved = true;
+				} finally { SurgicalPreparationBudget.end(); }
+			}
+			if (correction != null && !correctionApplied) {
+				var corrected = correction.poll();
+				if (!correction.finished()) return null;
+				if (corrected == null) { failed = true; return null; }
+				measuredAssembly = corrected;
+				capture = new PackedCapture(corrected);
+				measured = null;
+				correctionApplied = true;
+				return null;
+			}
+			if (metrics == null) {
+				var assembly = measuredAssembly;
+				var frozen = measured;
+				var donors = List.copyOf(capture.donors);
+				var selectedAlignment = alignment;
+				// An alignment changes the rest frame: only unchanged geometry can be rebased directly.
+				var reusableGeometry = correctionApplied ? null : geometry;
+				metrics = new SurgicalClientJob<>("bodyMetrics(async)",
+					() -> measureBodyMetrics(assembly, frozen, donors, selectedAlignment, reusableGeometry));
+			}
+			var ready = metrics.poll();
+			if (!metrics.finished() || !SurgicalPreparationBudget.begin(false)) return null;
+			try {
+				SurgicalAssembly packed = original;
+				if (ready != null) {
+					if (ready.packingAlignment() != null) packed = ready.packingAlignment().applyToPacked(packed, ready.attackGeometry());
+					if (packed == null) { failed = true; return null; }
+					packed = packed.withBodyGeometry(ready.bodyBounds(), ready.hitboxGeometry(), ready.bodyVolume());
+					if (ready.attackGeometry() != null) packed = packed.withAttackGeometry(ready.attackGeometry());
+				}
+				return result = new PackedBodyPreview(packed, ready, BionicTraitResolver.resolve(packed, level));
+			} finally { SurgicalPreparationBudget.end(); }
+		}
+		private void cancel() {
+			cancelled = true;
+			if (originalGeometry != null) originalGeometry.cancel();
+			if (correction != null) correction.cancel();
+			if (metrics != null) metrics.cancel();
+		}
 	}
 
 	private static Map<Integer, Vec3> packedUprightOffsets(SurgicalAssembly assembly,
@@ -6675,6 +7005,8 @@ public final class SurgicalTableClientHandler {
 		@Nullable
 		private SurgicalGlueJoint pendingGroundingExcludedJoint;
 		private boolean groundingPending;
+		private boolean groupedGrounding;
+		private long groundingInputRevision;
 		private long lastGroundingAttemptGeneration = Long.MIN_VALUE;
 		/** Bumped by every {@code applyTransforms}, so derived outlines can tell when cubes moved. */
 		private long transformGeneration;
@@ -6738,59 +7070,65 @@ public final class SurgicalTableClientHandler {
 				|| !subjectState.matches(subject, observedCubeCount);
 			if (!ownerChanged && revision == renderRevision && !topologyChanged && !stateChanged)
 				return false;
-			OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
-			// A controller migration changes the block-entity revision and transient subject address. If
-			// every member of this grounding group still has the exact cached state and world anchor, the
-			// already-grounded cubes remain valid and only the new owner needs their cached bounds.
-			if (ownerChanged && !topologyChanged && !stateChanged
-				&& migrationGroupUnchanged(table, subject, handoff)) {
-				renderRevision = revision;
-				ownerChanged = false;
-				cheapOwnerHandoff = handoff;
+			if (!SurgicalPreparationBudget.begin(false)) {
+				renderRevision = Integer.MIN_VALUE;
 				return false;
 			}
-
-			if (subject.cubeCount() == observedCubeCount && !seams.equals(subject.seams())) {
-				List<SurgicalAssembly.Seam> updatedSeams = List.copyOf(subject.seams());
-				seams = updatedSeams;
-				seamIds = seamIds(updatedSeams);
-				if (observedCubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
-					// The same deferral updateGeometry() applies to a first build. contactsFor() runs a
-					// C(12,3) convex clip per seam over up to MAX_SEAMS seams, and this path had no
-					// threshold at all - so a server seam update on a large body solved the entire
-					// contact set inline on the render thread. Publish an empty set now and let
-					// resolvePendingTopology() adopt the real one; topologyReady() keeps consumers off
-					// it in the meantime, exactly as it does for a cold build.
-					List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(baseCubes);
-					baseContacts = List.of();
-					topologyAvailable = false;
-					topologyBuild = () -> {
-						long started = SurgicalProfiler.begin();
-						try {
-							return new SurgicalClientTopology.ContactTopology(updatedSeams,
-								SurgicalClientTopology.contactsFor(updatedSeams, frozenCubes));
-						} finally {
-							SurgicalProfiler.end("contactsFor(async)", started);
-						}
-					};
-					pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
-				} else {
-					baseContacts = SurgicalClientTopology.contactsFor(updatedSeams, baseCubes);
+			try {
+				OwnerHandoffKey handoff = new OwnerHandoffKey(table.getBlockPos(), table.clientDataRevision());
+				// A controller migration changes the block-entity revision and transient subject address. If
+				// every member of this grounding group still has the exact cached state and world anchor, the
+				// already-grounded cubes remain valid and only the new owner needs their cached bounds.
+				if (ownerChanged && !topologyChanged && !stateChanged
+					&& migrationGroupUnchanged(table, subject, handoff)) {
+					renderRevision = revision;
+					ownerChanged = false;
+					cheapOwnerHandoff = handoff;
+					return false;
 				}
-				cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
-			}
-			presentCubes = subject.presentCubes();
-			cutSeams = subject.cutSeamsForRender();
-			serverOffsets = Map.copyOf(subject.componentOffsetsForRender());
-			serverRotations = Map.copyOf(subject.componentRotationsForRender());
-			subjectState = SubjectGeometryState.capture(subject, observedCubeCount);
-			ownerChanged = false;
-			cheapOwnerHandoff = null;
-			// Publish the revision before grounding so a newly refreshed connected group can prove
-			// that every geometry snapshot belongs to the same table update.
-			renderRevision = revision;
-			applyTransforms(table, serverOffsets, serverRotations);
-			return true;
+
+				if (subject.cubeCount() == observedCubeCount && !seams.equals(subject.seams())) {
+					List<SurgicalAssembly.Seam> updatedSeams = List.copyOf(subject.seams());
+					seams = updatedSeams;
+					seamIds = seamIds(updatedSeams);
+					if (observedCubeCount > ASYNC_TOPOLOGY_CUBE_THRESHOLD) {
+						// The same deferral updateGeometry() applies to a first build. contactsFor() runs a
+						// C(12,3) convex clip per seam over up to MAX_SEAMS seams, and this path had no
+						// threshold at all - so a server seam update on a large body solved the entire
+						// contact set inline on the render thread. Publish an empty set now and let
+						// resolvePendingTopology() adopt the real one; topologyReady() keeps consumers off
+						// it in the meantime, exactly as it does for a cold build.
+						List<SurgicalModelRenderContext.CubeGeometry> frozenCubes = List.copyOf(baseCubes);
+						baseContacts = List.of();
+						topologyAvailable = false;
+						topologyBuild = () -> {
+							long started = SurgicalProfiler.begin();
+							try {
+								return new SurgicalClientTopology.ContactTopology(updatedSeams,
+									SurgicalClientTopology.contactsFor(updatedSeams, frozenCubes));
+							} finally {
+								SurgicalProfiler.end("contactsFor(async)", started);
+							}
+						};
+						pendingTopology = SurgicalClientExecutors.submit(topologyBuild);
+					} else {
+						baseContacts = SurgicalClientTopology.contactsFor(updatedSeams, baseCubes);
+					}
+					cacheWeight = estimateCacheWeight(baseCubes, seams, baseContacts);
+				}
+				presentCubes = subject.presentCubes();
+				cutSeams = subject.cutSeamsForRender();
+				serverOffsets = Map.copyOf(subject.componentOffsetsForRender());
+				serverRotations = Map.copyOf(subject.componentRotationsForRender());
+				subjectState = SubjectGeometryState.capture(subject, observedCubeCount);
+				ownerChanged = false;
+				cheapOwnerHandoff = null;
+				// Publish the revision before grounding so a newly refreshed connected group can prove
+				// that every geometry snapshot belongs to the same table update.
+				renderRevision = revision;
+				applyTransforms(table, serverOffsets, serverRotations);
+				return true;
+			} finally { SurgicalPreparationBudget.end(); }
 		}
 
 		private void orphan(long now) {
@@ -6846,6 +7184,17 @@ public final class SurgicalTableClientHandler {
 			// Unifying glue and native seams dropped this guard, which put the full graph build on every
 			// transform of every subject.
 			boolean linked = subject != null && subject.linkedToOtherSubjects();
+			if (linked && stagedPreview == null && excludedJoint == null
+				&& appliedOffsets.equals(serverOffsets) && appliedRotations.equals(serverRotations)
+				&& appliedCutSeams.equals(cutSeams)) {
+				groundingPending = true;
+				groupedGrounding = true;
+				groundingInputRevision++;
+				queueGroupedGrounding(table, subject, this);
+				SurgicalProfiler.end("applyTransforms", started);
+				return;
+			}
+			groupedGrounding = false;
 			Map<Integer, Vec3> grounded = subject == null || !linked ? null
 				: groundConnectedComponents(table, subject, this, appliedOffsets,
 					appliedCutSeams, excludedJoint, surfaceY);
@@ -6895,7 +7244,7 @@ public final class SurgicalTableClientHandler {
 		 * only re-run a full transform pass for the same reason it failed last time.
 		 */
 		private boolean retryPendingGrounding(SurgicalTableBlockEntity table) {
-			if (!groundingPending || lastGroundingAttemptGeneration == geometryGeneration)
+			if (!groundingPending || groupedGrounding || lastGroundingAttemptGeneration == geometryGeneration)
 				return false;
 			lastGroundingAttemptGeneration = geometryGeneration;
 			applyTransforms(table, pendingGroundingOffsets, pendingGroundingRotations,
@@ -7229,7 +7578,7 @@ public final class SurgicalTableClientHandler {
 		BionicTraitSet traits) {}
 	private record PackedBodyPreviewCache(int tableRevision, BionicTraitResolver.Revision traitRevision,
 		int resourceGeneration,
-		Map<PackedBodyMember, PackedBodyPreview> byMember) {
+		Map<PackedBodyMember, PackedBodyPreview> byMember, Map<PackedBodyMember, PackedPreparation> preparing) {
 		private boolean matches(int revision, BionicTraitResolver.Revision traits, int resources) {
 			return tableRevision == revision && traitRevision.equals(traits) && resourceGeneration == resources;
 		}
@@ -7397,11 +7746,13 @@ public final class SurgicalTableClientHandler {
 	}
 
 	private record SourcePlacementGeometry(SurgicalAssembly.PlacedSource placedSource,
-		List<SurgicalModelRenderContext.CubeGeometry> baseCubes, Map<Integer, Vec3> renderOffsets,
+		List<SurgicalModelRenderContext.CubeGeometry> baseCubes,
+		List<SurgicalModelRenderContext.CubeGeometry> unrotatedCubes, Map<Integer, Vec3> renderOffsets,
 		Map<Integer, Vec3> previewOffsets,
 		Map<Integer, SurgicalCubeRotation> renderRotations) {
 		private SourcePlacementGeometry {
 			baseCubes = List.copyOf(baseCubes);
+			unrotatedCubes = List.copyOf(unrotatedCubes);
 			renderOffsets = Map.copyOf(renderOffsets);
 			previewOffsets = Map.copyOf(previewOffsets);
 			renderRotations = Map.copyOf(renderRotations);
@@ -7438,7 +7789,7 @@ public final class SurgicalTableClientHandler {
 
 		@Nullable
 		private LivingEntity preview(MimicProfile sourceProfile) {
-			return SurgicalSourceModelRenderer.preview(sourceProfile);
+			return SurgicalSourceModelRenderer.previewDeferred(sourceProfile);
 		}
 
 		private boolean isComposite() {
@@ -7449,89 +7800,96 @@ public final class SurgicalTableClientHandler {
 			return assembly != null && isComposite() ? assembly.sources().size() : 1;
 		}
 
+		private int measuredResourceGeneration = -1;
+		private final List<SourcePlacementGeometry> preparingSources = new ArrayList<>();
+		private List<SurgicalAssembly.PlacedSource> placedSources;
+		private SurgicalClientJob<PlacementGeometry> measurementJob;
+
 		@Nullable
 		private PlacementGeometry measure(Direction facing, boolean projectSourceGeometry, @Nullable SurgicalLayPose.RotationAxis groundAxis) {
-			if (measuredGeometry != null && measuredFacing == facing
-				&& measuredSourceGeometry == projectSourceGeometry && measuredGroundAxis == groundAxis)
-				return measuredGeometry;
-			if (isComposite()) {
-				measuredGeometry = measureComposite(facing, projectSourceGeometry, groundAxis);
+			int resources = SurgicalSourceModelRenderer.resourceGeneration();
+			if (measuredFacing != facing || measuredSourceGeometry != projectSourceGeometry
+				|| measuredGroundAxis != groundAxis || measuredResourceGeneration != resources) {
+				if (measurementJob != null) measurementJob.cancel();
+				measurementJob = null;
+				measuredGeometry = null;
+				preparingSources.clear();
+				placedSources = null;
 				measuredFacing = facing;
 				measuredSourceGeometry = projectSourceGeometry;
 				measuredGroundAxis = groundAxis;
-				return measuredGeometry;
+				measuredResourceGeneration = resources;
 			}
+			if (measuredGeometry != null) return measuredGeometry;
+			if (measurementJob != null) return measuredGeometry = measurementJob.poll();
+			if (isComposite()) return measureComposite(facing, groundAxis);
 			LivingEntity entity = preview();
-			if (entity == null)
-				return null;
+			if (entity == null) return null;
+			// Prime the native plan before pose selection can enter its renderer measurement.
+			if (SurgicalSourceModelRenderer.geometryDeferred(entity, 0, new BitSet(), Map.of(), Map.of(),
+				new PoseStack(), 0, null) == null || !SurgicalPreparationBudget.begin(false)) return null;
+			try {
+				var resolved = SurgicalTablePoseResolver.resolve(this, profile, entity, facing, groundAxis);
+				PoseStack poseStack = new PoseStack();
+				resolved.apply(poseStack);
+				var snapshot = SurgicalSourceModelRenderer.geometryDeferred(entity, cubeCount(), presentCubes(),
+					Map.of(), Map.of(), poseStack, 0, null);
+				if (snapshot == null || snapshot.cubes().isEmpty()) return null;
+				measurementJob = new SurgicalClientJob<>("placementGeometry(async)",
+					() -> finishSingleMeasurement(snapshot, resolved));
+				return measurementJob.poll();
+			} finally { SurgicalPreparationBudget.end(); }
+		}
 
-			PoseStack poseStack = new PoseStack();
-			SurgicalTablePoseResolver.SurgicalPose resolved =
-				SurgicalTablePoseResolver.resolve(this, profile, entity, facing, groundAxis);
-			resolved.apply(poseStack);
-			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
-			MultiBufferSource discardedBuffer = renderType -> discarded;
-			SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(entity,
-				cubeCount(), presentCubes(), Map.of(), poseStack, discardedBuffer, LightTexture.FULL_BRIGHT,
-				0.0f, 0.0f, true, null, projectSourceGeometry);
-			if (snapshot.cubes().isEmpty())
-				return null;
+		private PlacementGeometry finishSingleMeasurement(SurgicalModelRenderContext.Snapshot snapshot,
+			SurgicalTablePoseResolver.SurgicalPose resolved) {
 			int discoveredCubeCount = 0;
 			List<SurgicalAssembly.Seam> discoveredSeams = List.of();
 			List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes = List.of();
 			if (assembly == null) {
 				discoveredCubeCount = snapshot.observedCubeCount();
 				if (!SurgicalAssembly.validCubeCount(discoveredCubeCount)
-					|| snapshot.cubes().size() != discoveredCubeCount)
-					return null;
-				SurgicalClientTopology.ContactTopology topology = SurgicalClientTopology.buildContactTopology(
-					discoveredCubeCount, snapshot.cubes());
+					|| snapshot.cubes().size() != discoveredCubeCount) return null;
+				var topology = SurgicalClientTopology.buildContactTopology(discoveredCubeCount, snapshot.cubes());
 				discoveredSeams = topology.seams();
 				discoveredCubes = snapshot.cubes();
 			}
-
-			Map<Integer, Vec3> cubeOffsets = groundedOffsets(snapshot, discoveredCubeCount, discoveredSeams);
-			AABB bounds = logicalBounds(snapshot.cubes(), cubeOffsets);
-			if (bounds == null)
-				return null;
-			measuredFacing = facing;
-			measuredSourceGeometry = projectSourceGeometry;
-			measuredGroundAxis = groundAxis;
-			measuredGeometry = new PlacementGeometry(bounds, resolved.layPose(), cubeOffsets, List.of(),
+			Map<Integer, Vec3> offsets = groundedOffsets(snapshot, discoveredCubeCount, discoveredSeams);
+			AABB bounds = logicalBounds(snapshot.cubes(), offsets);
+			return bounds == null ? null : new PlacementGeometry(bounds, resolved.layPose(), offsets, List.of(),
 				discoveredCubeCount, discoveredSeams, discoveredCubes, groundPlaneCorners(
-					groundPlaneBounds(null, snapshot.cubes(), cubeOffsets, resolved.layPose()), resolved.layPose()));
-			return measuredGeometry;
+					groundPlaneBounds(null, snapshot.cubes(), offsets, resolved.layPose()), resolved.layPose()));
 		}
 
 		@Nullable
-		private PlacementGeometry measureComposite(Direction facing, boolean projectSourceGeometry, @Nullable SurgicalLayPose.RotationAxis groundAxis) {
-			if (assembly == null)
-				return null;
-			EntityGeometry.Collector discarded = EntityGeometry.Collector.boundsOnly();
-			MultiBufferSource discardedBuffer = renderType -> discarded;
-			List<SourcePlacementGeometry> geometries = new ArrayList<>(assembly.sources().size());
-			SurgicalLayPose targetPose = groundAxis != null ? assembly.groundPlacementPose(facing, groundAxis) : assembly.placedLayPose(facing);
-			for (SurgicalAssembly.PlacedSource placedSource : assembly.placedSources(facing, targetPose)) {
-				SurgicalAssembly.Source source = placedSource.source();
+		private PlacementGeometry measureComposite(Direction facing, @Nullable SurgicalLayPose.RotationAxis groundAxis) {
+			SurgicalLayPose targetPose = groundAxis != null ? assembly.groundPlacementPose(facing, groundAxis)
+				: assembly.placedLayPose(facing);
+			if (placedSources == null) placedSources = assembly.placedSources(facing, targetPose);
+			while (preparingSources.size() < placedSources.size()) {
+				var placed = placedSources.get(preparingSources.size());
+				var source = placed.source();
 				LivingEntity entity = preview(source.profile());
-				if (entity == null)
-					return null;
-				PoseStack poseStack = sourcePose(placedSource, entity);
-				SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourceModelRenderer.render(entity,
-					source.cubeCount(), source.presentCubes(), Map.of(), placedSource.cubeRotations(),
-					poseStack, discardedBuffer,
-					LightTexture.FULL_BRIGHT, 0.0f, 0.0f, true, null, projectSourceGeometry);
-				if (snapshot.observedCubeCount() != source.cubeCount()
-					|| snapshot.cubes().size() != source.presentCubes().cardinality())
-					return null;
-				// Preserve the packed relative offsets for validation and restoration. A separate
-				// shared grounding pass below applies the same group-wide Y correction used after the
-				// sources become table subjects.
-				Map<Integer, Vec3> renderOffsets = placedSource.cubeOffsets();
-				geometries.add(new SourcePlacementGeometry(placedSource, snapshot.cubes(), renderOffsets,
-					renderOffsets, placedSource.cubeRotations()));
-				discarded.reset();
+				if (entity == null || !SurgicalPreparationBudget.begin(false)) return null;
+				try {
+					var snapshot = SurgicalSourceModelRenderer.geometryDeferred(entity, source.cubeCount(),
+						source.presentCubes(), Map.of(), Map.of(), sourcePose(placed, entity), 0, null);
+					if (snapshot == null) return null;
+					if (snapshot.observedCubeCount() != source.cubeCount()
+						|| snapshot.cubes().size() != source.presentCubes().cardinality()) return null;
+					preparingSources.add(new SourcePlacementGeometry(placed,
+						transformCubes(snapshot.cubes(), placed.cubeRotations(), Map.of()), snapshot.cubes(),
+						placed.cubeOffsets(), placed.cubeOffsets(), placed.cubeRotations()));
+				} finally { SurgicalPreparationBudget.end(); }
 			}
+			List<SourcePlacementGeometry> frozen = List.copyOf(preparingSources);
+			measurementJob = new SurgicalClientJob<>("placementGeometry(async)",
+				() -> finishCompositeMeasurement(assembly, targetPose, frozen));
+			return measurementJob.poll();
+		}
+
+		private static PlacementGeometry finishCompositeMeasurement(SurgicalAssembly assembly,
+			SurgicalLayPose targetPose, List<SourcePlacementGeometry> geometries) {
 			List<SurgicalClientTopology.GroundingBody<Integer>> bodies = new ArrayList<>(geometries.size());
 			for (int sourceId = 0; sourceId < geometries.size(); sourceId++) {
 				SourcePlacementGeometry geometry = geometries.get(sourceId);
@@ -7561,7 +7919,7 @@ public final class SurgicalTableClientHandler {
 				Map<Integer, Vec3> previewOffsets = grounded.get(sourceId);
 				if (previewOffsets == null)
 					return null;
-				previewGeometries.add(new SourcePlacementGeometry(geometry.placedSource(), geometry.baseCubes(),
+				previewGeometries.add(new SourcePlacementGeometry(geometry.placedSource(), geometry.baseCubes(), geometry.unrotatedCubes(),
 					geometry.renderOffsets(), previewOffsets, geometry.renderRotations()));
 			}
 			AABB bounds = null;
@@ -7615,6 +7973,8 @@ public final class SurgicalTableClientHandler {
 				SurgicalTablePlane.SURFACE_HEIGHT + SurgicalTablePoseResolver.TABLE_CLEARANCE);
 		}
 
+		private void cancel() { if (measurementJob != null) measurementJob.cancel(); }
+
 		private int cubeCount() {
 			return assembly == null ? 0 : assembly.cubeCount();
 		}
@@ -7633,6 +7993,8 @@ public final class SurgicalTableClientHandler {
 		private final boolean retainPlacementPreview;
 		private final boolean retainGluePreview;
 		private boolean serverAcknowledged;
+		private final int placementResources = SurgicalSourceModelRenderer.resourceGeneration();
+		private final Map<PlacementSeedKey, PlacementSeed> placementSeeds = new HashMap<>();
 
 		private PendingVisualCommit(BlockPos tablePos, int tableRevision, long expiresAtTick,
 			List<Integer> geometrySubjectIds, boolean retainPlacementPreview, boolean retainGluePreview) {
@@ -7646,6 +8008,17 @@ public final class SurgicalTableClientHandler {
 				? table.getSubjects().stream().map(SurgicalSubject::id).toList() : List.of();
 			this.retainPlacementPreview = retainPlacementPreview;
 			this.retainGluePreview = retainGluePreview;
+			PlacementPreview placement = retainPlacementPreview ? placementPreview : null;
+			if (placement != null) for (var geometry : placement.sourceGeometries()) {
+				var placed = geometry.placedSource();
+				var source = placed.source();
+				double x = placement.plan().originOffsetX() + placed.originOffset().x;
+				double z = placement.plan().originOffsetZ() + placed.originOffset().z;
+				var key = new PlacementSeedKey(source.profile(), placed.layPose(), source.cubeCount(), source.presentCubes(), x, z);
+				var cubes = translateCubes(geometry.unrotatedCubes(), new Vec3(placement.plan().originOffsetX(),
+					-placed.originOffset().y, placement.plan().originOffsetZ()));
+				placementSeeds.put(key, new PlacementSeed(source, cubes, geometry.renderRotations()));
+			}
 		}
 	}
 

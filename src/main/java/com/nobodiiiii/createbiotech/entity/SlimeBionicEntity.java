@@ -138,7 +138,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final String SHELL_GUARD_TAG = "BionicShellGuard";
 	private static final String ORDERED_TO_SIT_TAG = "BionicOrderedToSit";
 	private static final int MAX_MOISTURE = 2400;
-	private static final double BASE_KNOCKBACK_RESISTANCE = 0.15d;
 	private static final double SWIMMING_MOVEMENT_SPEED = 1.0d;
 	private static final double SWIMMING_IDLE_SPEED = 0.5d;
 	private static final double SWIMMING_PURSUIT_SPEED = 0.6d;
@@ -397,7 +396,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			.add(Attributes.ARMOR, 0.0d)
 			.add(Attributes.FLYING_SPEED, 0.0d)
 			.add(Attributes.FOLLOW_RANGE, 35.0d)
-			.add(Attributes.KNOCKBACK_RESISTANCE, BASE_KNOCKBACK_RESISTANCE);
+			.add(Attributes.KNOCKBACK_RESISTANCE, 0.0d);
 	}
 
 	/** Disposition selects natural targets; assigned targets use the ordinary combat goals. */
@@ -627,7 +626,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (bionicTraits == null)
 			return BionicTraitSet.EMPTY;
 		SurgicalAssembly assembly = getAssembly();
-		BionicTraitResolver.Revision revision = BionicTraitResolver.revision();
+		BionicTraitResolver.Revision revision = BionicTraitResolver.revision(level());
 		if (assembly != traitAssembly || !revision.equals(traitRevision)) {
 			traitAssembly = assembly;
 			traitRevision = revision;
@@ -755,7 +754,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	private void refreshKnockbackResistance(BionicTraitSet traits) {
 		var resistance = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-		double value = Mth.clamp(BASE_KNOCKBACK_RESISTANCE + traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
+		double value = Mth.clamp(traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
 		if (resistance != null && resistance.getBaseValue() != value)
 			resistance.setBaseValue(value);
 	}

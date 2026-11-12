@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,7 +22,7 @@ final class BionicTraitRecipeManagerPlugin implements ISimpleRecipeManagerPlugin
 
 	@Override
 	public boolean isHandledInput(ITypedIngredient<?> input) {
-		return donorType(input).isPresent();
+		return input.getIngredient(BionicTraitJeiIngredient.TYPE).isPresent() || donorType(input).isPresent();
 	}
 
 	@Override
@@ -31,6 +32,9 @@ final class BionicTraitRecipeManagerPlugin implements ISimpleRecipeManagerPlugin
 
 	@Override
 	public List<BionicTrait> getRecipesForInput(ITypedIngredient<?> input) {
+		var direct = input.getIngredient(BionicTraitJeiIngredient.TYPE)
+			.map(trait -> BionicTraitRegistry.clientTrait(trait.id()));
+		if (direct.isPresent()) return List.of(direct.get());
 		BionicTraitDonorIndex.requestIfNeeded();
 		return donorType(input)
 			.map(BionicTraitDonorIndex::traits)
@@ -44,8 +48,7 @@ final class BionicTraitRecipeManagerPlugin implements ISimpleRecipeManagerPlugin
 
 	@Override
 	public List<BionicTrait> getAllRecipes() {
-		// Trait pages are already registered normally; this plugin only adds donor lookups.
-		return List.of();
+		return BionicTraitRegistry.clientTraits();
 	}
 
 	private static Optional<EntityType<?>> donorType(ITypedIngredient<?> ingredient) {

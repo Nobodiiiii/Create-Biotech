@@ -104,12 +104,11 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		tooltip.add(CommonComponents.EMPTY);
 		tooltip.add(Component.translatable("create_biotech.tooltip.donor_carrier_traits")
 			.withStyle(ChatFormatting.GOLD));
-		for (BionicTrait trait : BionicTrait.values())
-			if (facts.contains(trait))
-				appendProperty(tooltip, trait == BionicTrait.DETERRENCE ? deterrenceName(targets)
-					: trait == BionicTrait.HUNTING_INSTINCT ? targetList(trait, huntingTargets)
-					: trait == BionicTrait.PACK_ALERT ? targetList(trait, packAlertTargets)
-					: Component.translatable(trait.nameDescriptionId()));
+		for (BionicTrait trait : facts.stream().sorted().toList())
+			appendProperty(tooltip, BionicTrait.DETERRENCE.equals(trait) ? deterrenceName(targets)
+					: BionicTrait.HUNTING_INSTINCT.equals(trait) ? targetList(trait, huntingTargets)
+					: BionicTrait.PACK_ALERT.equals(trait) ? targetList(trait, packAlertTargets)
+					: trait.displayName());
 		if (!attacks.isEmpty()) appendProperty(tooltip, effectList(BionicTrait.EFFECT_ATTACK, attacks));
 	}
 
@@ -122,7 +121,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		Map<BionicTraitScope, List<Component>> groups = new java.util.EnumMap<>(BionicTraitScope.class);
 		for (BionicTraitScope scope : BionicTraitScope.values())
 			groups.put(scope, new ArrayList<>());
-		for (BionicTrait trait : BionicTrait.values()) {
+		for (BionicTrait trait : traits.definitions()) {
 			BionicTraitResult result = traits.result(trait);
 			if (trait.isHeadClassification() && !result.active()) {
 				Component value = Component.translatable("create_biotech.trait.variant."
@@ -148,12 +147,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					detailName(trait, group.kind(), ids, group.reason() == null), group.reason(), group.missingParts()));
 				continue;
 			}
-			Component name = Component.translatable(trait.nameDescriptionId());
-			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
+			Component name = trait.displayName();
+			if (!trait.hasCustomName() && trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
 				name = Component.translatable(trait.descriptionId(),
 					String.format(java.util.Locale.ROOT, "%.1f", result.value()
-						* (trait == BionicTrait.KNOCKBACK_RESISTANCE ? 100 : 1)));
-			if (trait == BionicTrait.RIDEABLE)
+						* (BionicTrait.KNOCKBACK_RESISTANCE.equals(trait) ? 100 : 1)));
+			if (trait.hasCustomName() && trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
+				name = name.copy().append(Component.literal(" (" + String.format(java.util.Locale.ROOT, "%.1f", result.value()) + ")"));
+			if (BionicTrait.RIDEABLE.equals(trait))
 				name = Component.translatable("create_biotech.trait.rideable.count", (int) result.value());
 			appendTraitLine(lines, trait, scopes, traits, name, result.inactiveReason(), result.missingParts());
 		}
@@ -190,11 +191,11 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return;
 		}
 		BionicTraitResult result = traits.result(trait);
-		boolean resistance = trait == BionicTrait.FIRE_RESISTANCE || trait == BionicTrait.FREEZE_RESISTANCE
-			|| trait == BionicTrait.MAGIC_RESISTANCE;
+		boolean resistance = BionicTrait.FIRE_RESISTANCE.equals(trait) || BionicTrait.FREEZE_RESISTANCE.equals(trait)
+			|| BionicTrait.MAGIC_RESISTANCE.equals(trait);
 		if (resistance) {
 			// Show actual damage reduction, including the configured magic-resistance multiplier.
-			double reduction = result.strength() * (trait == BionicTrait.MAGIC_RESISTANCE
+			double reduction = result.strength() * (BionicTrait.MAGIC_RESISTANCE.equals(trait)
 				? traits.parameter(trait, "reduction_multiplier", 0.85d) : 1.0d);
 			name = Component.translatable("create_biotech.trait.partial", name,
 				String.format(java.util.Locale.ROOT, "%.1f", reduction * 100.0d));
@@ -247,10 +248,10 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	}
 
 	private static Component detailName(BionicTrait trait, DetailKind kind, Set<ResourceLocation> ids, boolean active) {
-		Component base = Component.translatable(trait.nameDescriptionId());
+		Component base = trait.displayName();
 		if (ids.isEmpty()) return base;
 		MutableComponent names = Component.empty();
-		List<ResourceLocation> sorted = (trait == BionicTrait.PACK_ALERT ? BionicPackAlert.compactTargets(ids) : ids)
+		List<ResourceLocation> sorted = (BionicTrait.PACK_ALERT.equals(trait) ? BionicPackAlert.compactTargets(ids) : ids)
 			.stream().sorted().toList();
 		int shown = Math.min(3, sorted.size());
 		for (int index = 0; index < shown; index++) {
@@ -261,14 +262,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				.map(type -> Component.translatable(type.getDescriptionId()))
 				.orElseGet(() -> {
 					String key = "create_biotech.trait."
-						+ (trait == BionicTrait.PACK_ALERT ? "pack_alert_target." : "hunt_target.") + id.getPath();
+						+ (BionicTrait.PACK_ALERT.equals(trait) ? "pack_alert_target." : "hunt_target.") + id.getPath();
 					return Language.getInstance().has(key) ? Component.translatable(key) : Component.literal(id.toString());
 				});
 			case EFFECT -> BuiltInRegistries.MOB_EFFECT.getOptional(id)
 				.map(effect -> effect.getDisplayName()).orElseGet(() -> Component.literal(id.toString()));
 			case SUBTRAIT -> Component.translatable("create_biotech.trait.variant." + id.getPath());
 			};
-			if (trait == BionicTrait.DISPOSITION && active)
+			if (BionicTrait.DISPOSITION.equals(trait) && active)
 				value = value.copy().withStyle(switch (id.getPath()) {
 				case "friendly" -> ChatFormatting.GREEN;
 				case "hostile" -> ChatFormatting.RED;
@@ -278,7 +279,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		}
 		if (sorted.size() > shown)
 			names.append(Component.translatable("create_biotech.trait.list_separator")).append(Component.literal("…"));
-		if (trait == BionicTrait.IMMUNE_EFFECTS)
+		if (trait.hasCustomName())
+			return Component.translatable("create_biotech.trait.with_variants", base, names);
+		if (BionicTrait.IMMUNE_EFFECTS.equals(trait))
 			return Component.translatable("create_biotech.trait.effect_immunity", names);
 		if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET || kind != DetailKind.SUBTRAIT)
 			return Component.translatable(trait.descriptionId(), names);
@@ -301,7 +304,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	@Nullable
 	private static BoxDetails details(ItemStack stack, Level level) {
-		BionicTraitResolver.Revision revision = BionicTraitResolver.revision();
+		BionicTraitResolver.Revision revision = BionicTraitResolver.revision(level);
 		if (level == cachedLevel && revision.equals(cachedTraitRevision)
 			&& ItemStack.isSameItemSameComponents(cachedStack, stack))
 			return cachedDetails;
@@ -325,7 +328,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return new BoxDetails(List.of(),
 				BionicTraitResolver.donorProperties(facts,
 					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()), level), facts.abilities().stream()
-					.filter(trait -> trait != BionicTrait.MILKABLE && !trait.carrier().isAllTissue())
+					.filter(trait -> !BionicTrait.MILKABLE.equals(trait) && !trait.carrier().isAllTissue())
 					.collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),
 				com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(Set.of(

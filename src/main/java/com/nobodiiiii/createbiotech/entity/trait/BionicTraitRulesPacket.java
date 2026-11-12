@@ -1,127 +1,97 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
-import java.util.EnumMap;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import com.google.gson.JsonElement;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.network.CBPackets;
-
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 
-/** Thresholds, limb counts, wing lift and replacements from the trait acquisition snapshot. */
+/** Bounded chunks of the full trait catalog, committed atomically by the client. No enum IDs. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
-public record BionicTraitRulesPacket(Map<BionicTrait, Double> minCoverage,
-	Map<BionicTrait, Set<BionicTrait>> overrides, Map<BionicTrait, Integer> minLimbs,
-	Map<BionicTrait, Double> wingLift) {
+public record BionicTraitRulesPacket(long generation, int offset, int total, List<Entry> entries) {
+	public static final int MAX_RESOURCES = 4096;
+	public static final int MAX_RESOURCE_BYTES = 131072;
+	public static final int MAX_CHUNK_BYTES = 262144;
+	public static final int MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024;
+	public record Entry(ResourceLocation id, String json) {
+		public Entry {
+			if (id.toString().length() > 32767) throw new IllegalArgumentException("Bionic trait resource ID is too long");
+			if (json.getBytes(StandardCharsets.UTF_8).length > MAX_RESOURCE_BYTES)
+				throw new IllegalArgumentException("Bionic trait resource is too large: " + id);
+		}
+		public int encodedSize() {
+			return id.toString().getBytes(StandardCharsets.UTF_8).length
+				+ json.getBytes(StandardCharsets.UTF_8).length + 10;
+		}
+	}
 	public BionicTraitRulesPacket {
-		minCoverage = Map.copyOf(minCoverage);
-		minCoverage.forEach((trait, value) -> new BionicTraitRule(trait.rule().type(), value));
-		overrides = BionicTraitOverrides.validate(overrides);
-		minLimbs = Map.copyOf(minLimbs);
-		minLimbs.forEach((trait, minimum) -> {
-			boolean wings = trait.condition() == BionicTrait.Condition.WING_LIFT
-				|| trait.condition() == BionicTrait.Condition.LIMB_COUNT;
-			if ((!trait.scopes().contains(BionicTraitScope.LEG) && !wings) || minimum < 0)
-				throw new IllegalArgumentException("Invalid bionic trait limb count");
-		});
-		wingLift = Map.copyOf(wingLift);
-		wingLift.forEach((trait, limit) -> {
-			if (trait.condition() != BionicTrait.Condition.WING_LIFT || !Double.isFinite(limit) || limit <= 0)
-				throw new IllegalArgumentException("Invalid bionic trait wing lift");
-		});
+		entries = List.copyOf(entries);
+		if (total < 0 || total > MAX_RESOURCES || offset < 0 || offset > total
+			|| offset + entries.size() > total || entries.size() > MAX_RESOURCES)
+			throw new IllegalArgumentException("Invalid bionic trait catalog chunk");
+		int bytes = entries.stream().mapToInt(Entry::encodedSize).sum();
+		if (bytes > MAX_CHUNK_BYTES) throw new IllegalArgumentException("Bionic trait chunk is too large");
 	}
-
 	public BionicTraitRulesPacket(RegistryFriendlyByteBuf buffer) {
-		this(read(buffer), readOverrides(buffer), readMinLimbs(buffer), read(buffer));
+		this(buffer.readLong(), buffer.readVarInt(), buffer.readVarInt(), read(buffer));
 	}
-
 	public void write(RegistryFriendlyByteBuf buffer) {
-		buffer.writeVarInt(minCoverage.size());
-		minCoverage.forEach((trait, value) -> {
-			buffer.writeEnum(trait);
-			buffer.writeDouble(value);
-		});
-		buffer.writeVarInt(overrides.size());
-		overrides.forEach((trait, targets) -> {
-			buffer.writeEnum(trait);
-			var sorted = java.util.EnumSet.noneOf(BionicTrait.class);
-			sorted.addAll(targets);
-			buffer.writeEnumSet(sorted, BionicTrait.class);
-		});
-		buffer.writeVarInt(minLimbs.size());
-		minLimbs.forEach((trait, minimum) -> {
-			buffer.writeEnum(trait);
-			buffer.writeVarInt(minimum);
-		});
-		buffer.writeVarInt(wingLift.size());
-		wingLift.forEach((trait, limit) -> {
-			buffer.writeEnum(trait);
-			buffer.writeDouble(limit);
-		});
+		buffer.writeLong(generation);
+		buffer.writeVarInt(offset);
+		buffer.writeVarInt(total);
+		buffer.writeVarInt(entries.size());
+		for (Entry entry : entries) {
+			buffer.writeResourceLocation(entry.id());
+			buffer.writeByteArray(entry.json().getBytes(StandardCharsets.UTF_8));
+		}
 	}
-
+	private static List<Entry> read(RegistryFriendlyByteBuf buffer) {
+		int count = buffer.readVarInt();
+		if (count < 0 || count > MAX_RESOURCES) throw new IllegalArgumentException("Invalid bionic resource count");
+		List<Entry> entries = new ArrayList<>();
+		int bytes = 0;
+		for (int i = 0; i < count; i++) {
+			ResourceLocation id = buffer.readResourceLocation();
+			byte[] json = buffer.readByteArray(MAX_RESOURCE_BYTES);
+			bytes += json.length + id.toString().getBytes(StandardCharsets.UTF_8).length + 10;
+			if (bytes > MAX_CHUNK_BYTES) throw new IllegalArgumentException("Bionic trait chunk is too large");
+			entries.add(new Entry(id, new String(json, StandardCharsets.UTF_8)));
+		}
+		return entries;
+	}
+	static void validateResources(Map<ResourceLocation, JsonElement> resources) {
+		if (resources.size() > MAX_RESOURCES) throw new IllegalArgumentException("Too many bionic trait resources");
+		int bytes = 0;
+		for (var entry : resources.entrySet()) {
+			bytes += new Entry(entry.getKey(), entry.getValue().toString()).encodedSize();
+		}
+		if (bytes > MAX_SNAPSHOT_BYTES) throw new IllegalArgumentException("Bionic trait catalog is too large");
+	}
 	@SubscribeEvent
 	public static void onDatapackSync(OnDatapackSyncEvent event) {
-		var data = BionicTraitRegistry.snapshot();
-		Map<BionicTrait, Double> values = new EnumMap<>(BionicTrait.class);
-		Map<BionicTrait, Set<BionicTrait>> overrides = new EnumMap<>(BionicTrait.class);
-		Map<BionicTrait, Integer> minLimbs = new EnumMap<>(BionicTrait.class);
-		Map<BionicTrait, Double> wingLift = new EnumMap<>(BionicTrait.class);
-		for (BionicTrait trait : BionicTrait.values()) {
-			values.put(trait, data.get(trait).rule().minCoverage());
-			overrides.put(trait, data.get(trait).overrides());
-			if (trait.scopes().contains(BionicTraitScope.LEG))
-				minLimbs.put(trait, data.get(trait).minLegs());
-			else if (trait.condition() == BionicTrait.Condition.WING_LIFT
-				|| trait.condition() == BionicTrait.Condition.LIMB_COUNT)
-				minLimbs.put(trait, (int) data.get(trait).parameter("min_wings", 2));
-			if (trait.condition() == BionicTrait.Condition.WING_LIFT)
-				wingLift.put(trait, data.get(trait).parameter("max_body_volume_per_wing_volume", 16));
+		var snapshot = BionicTraitRegistry.snapshot();
+		List<Entry> all = snapshot.resources().entrySet().stream().sorted(Map.Entry.comparingByKey())
+			.map(entry -> new Entry(entry.getKey(), entry.getValue().toString())).toList();
+		List<Entry> chunk = new ArrayList<>();
+		int offset = 0, bytes = 0;
+		for (Entry entry : all) {
+			int size = entry.encodedSize();
+			if (!chunk.isEmpty() && bytes + size > MAX_CHUNK_BYTES) {
+				var packet = new BionicTraitRulesPacket(snapshot.generation(), offset, all.size(), chunk);
+				event.getRelevantPlayers().forEach(player -> CBPackets.sendToPlayer(packet, player));
+				offset += chunk.size(); chunk = new ArrayList<>(); bytes = 0;
+			}
+			chunk.add(entry); bytes += size;
 		}
-		BionicTraitRulesPacket packet = new BionicTraitRulesPacket(values, overrides, minLimbs, wingLift);
+		var packet = new BionicTraitRulesPacket(snapshot.generation(), offset, all.size(), chunk);
 		event.getRelevantPlayers().forEach(player -> CBPackets.sendToPlayer(packet, player));
-	}
-
-	private static Map<BionicTrait, Double> read(RegistryFriendlyByteBuf buffer) {
-		int count = buffer.readVarInt();
-		if (count < 0 || count > BionicTrait.values().length)
-			throw new IllegalArgumentException("Invalid bionic trait rule count");
-		Map<BionicTrait, Double> values = new EnumMap<>(BionicTrait.class);
-		for (int index = 0; index < count; index++) {
-			BionicTrait trait = buffer.readEnum(BionicTrait.class);
-			if (values.put(trait, buffer.readDouble()) != null)
-				throw new IllegalArgumentException("Duplicate bionic trait rule");
-		}
-		return values;
-	}
-
-	private static Map<BionicTrait, Integer> readMinLimbs(RegistryFriendlyByteBuf buffer) {
-		int count = buffer.readVarInt();
-		if (count < 0 || count > BionicTrait.values().length)
-			throw new IllegalArgumentException("Invalid bionic trait limb count size");
-		Map<BionicTrait, Integer> values = new EnumMap<>(BionicTrait.class);
-		for (int index = 0; index < count; index++) {
-			BionicTrait trait = buffer.readEnum(BionicTrait.class);
-			if (values.put(trait, buffer.readVarInt()) != null)
-				throw new IllegalArgumentException("Duplicate bionic trait limb count");
-		}
-		return values;
-	}
-
-	private static Map<BionicTrait, Set<BionicTrait>> readOverrides(RegistryFriendlyByteBuf buffer) {
-		int count = buffer.readVarInt();
-		if (count < 0 || count > BionicTrait.values().length)
-			throw new IllegalArgumentException("Invalid bionic trait override count");
-		Map<BionicTrait, Set<BionicTrait>> rules = new EnumMap<>(BionicTrait.class);
-		for (int index = 0; index < count; index++) {
-			BionicTrait trait = buffer.readEnum(BionicTrait.class);
-			if (rules.put(trait, buffer.readEnumSet(BionicTrait.class)) != null)
-				throw new IllegalArgumentException("Duplicate bionic trait overrides");
-		}
-		return rules;
 	}
 }

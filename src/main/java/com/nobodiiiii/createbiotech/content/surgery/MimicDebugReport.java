@@ -161,7 +161,7 @@ public final class MimicDebugReport {
 
 	private static JsonObject traits(BionicTraitSet traits) {
 		JsonObject entries = new JsonObject();
-		for (BionicTrait trait : BionicTrait.values()) {
+		for (BionicTrait trait : traits.definitions()) {
 			var result = traits.result(trait);
 			JsonObject entry = new JsonObject();
 			entry.addProperty("present", result.present());
@@ -233,7 +233,7 @@ public final class MimicDebugReport {
 					effects.add(details);
 				});
 			entry.add("attack_effects", effects);
-			entries.add(trait.id(), entry);
+			entries.add(trait.id().toString(), entry);
 		}
 		return entries;
 	}

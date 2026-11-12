@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -13,7 +15,7 @@ public final class BionicTraitSet {
 	private final Map<BionicTrait, BionicTraitData> data;
 	private final Set<SurgicalAssembly.CombinationMember> wings;
 	/** The active subset of {@code results}; results are immutable, so it cannot go stale. */
-	private final java.util.EnumSet<BionicTrait> active = java.util.EnumSet.noneOf(BionicTrait.class);
+	private final Set<BionicTrait> active = new LinkedHashSet<>();
 	private final boolean headUsesTorso;
 	private final double tamingChance;
 
@@ -33,7 +35,7 @@ public final class BionicTraitSet {
 		this.headUsesTorso = headUsesTorso;
 		this.tamingChance = Double.isFinite(tamingChance) ? Math.clamp(tamingChance, 0.0d, 1.0d) : 0.0d;
 		var wingMembers = new java.util.HashSet<>(qualifyingWings);
-		for (var trait : java.util.List.of(BionicTrait.WING_FLIGHT, BionicTrait.WING_SLOW_FALL)) {
+		for (var trait : List.of(BionicTrait.WING_FLIGHT, BionicTrait.WING_SLOW_FALL)) {
 			var result = this.results.get(trait);
 			if (result != null && (result.active() || result.inactiveReason() == BionicTraitResult.InactiveReason.MISSING_PAIRED_WINGS
 				|| result.inactiveReason() == BionicTraitResult.InactiveReason.PURPOSE_MISMATCH
@@ -64,6 +66,7 @@ public final class BionicTraitSet {
 		return Math.clamp(flightVolume / totalVolume, 0.0d, 1.0d);
 	}
 
+	public List<BionicTrait> definitions() { return data.keySet().stream().sorted().toList(); }
 	public BionicTraitResult result(BionicTrait trait) { return results.getOrDefault(trait, BionicTraitResult.ABSENT); }
 	public boolean has(BionicTrait trait) { return active.contains(trait); }
 	public boolean isTameable() { return has(BionicTrait.TAMEABLE) || has(BionicTrait.LIVESTOCK_TAMEABLE); }
@@ -78,7 +81,12 @@ public final class BionicTraitSet {
 	public double strength(BionicTrait trait) { return result(trait).strength(); }
 	public double value(BionicTrait trait) { return result(trait).value(); }
 	public boolean hasVariant(BionicTrait trait, String id) {
-		return has(trait) && result(trait).subtraits().keySet().stream().anyMatch(v -> v.id().getPath().equals(id));
+		// Preserve legacy short-name queries used by built-in milk products and enchantment hooks.
+		return has(trait) && result(trait).subtraits().keySet().stream()
+			.anyMatch(v -> id.contains(":") ? v.id().equals(ResourceLocation.tryParse(id)) : v.id().getPath().equals(id));
+	}
+	public boolean hasVariant(BionicTrait trait, ResourceLocation id) {
+		return has(trait) && result(trait).subtraits().keySet().stream().anyMatch(v -> v.id().equals(id));
 	}
 	public double armValue(BionicTrait trait, java.util.Collection<SurgicalAssembly.CombinationMember> arm) {
 		return has(trait) ? arm.stream().mapToDouble(member -> result(trait).memberValues().getOrDefault(member, 0.0d))

@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.compat.jei;
 
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import java.util.List;
 import java.util.Objects;
 
@@ -56,6 +57,18 @@ import net.neoforged.neoforge.fluids.FluidType;
 
 @JeiPlugin
 public class CreateBiotechJeiPlugin implements IModPlugin {
+	private static IJeiRuntime traitRuntime;
+	private static boolean catalogListenerRegistered;
+	private static List<BionicTrait> registeredTraits = List.of();
+
+	private static void refreshTraitIngredients() {
+		if (traitRuntime == null) return;
+		var manager = traitRuntime.getIngredientManager();
+		if (!registeredTraits.isEmpty()) manager.removeIngredientsAtRuntime(BionicTraitJeiIngredient.TYPE, registeredTraits);
+		registeredTraits = BionicTraitRegistry.clientTraits();
+		if (!registeredTraits.isEmpty()) manager.addIngredientsAtRuntime(BionicTraitJeiIngredient.TYPE, registeredTraits);
+	}
+
 	private static final RecipeType<AbstractCrushingRecipe> CREATE_CRUSHING =
 		new RecipeType<>(Create.asResource("crushing"), AbstractCrushingRecipe.class);
 
@@ -66,6 +79,13 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void onRuntimeAvailable(IJeiRuntime runtime) {
+		traitRuntime = runtime;
+		registeredTraits = List.copyOf(runtime.getIngredientManager().getAllIngredients(BionicTraitJeiIngredient.TYPE));
+		if (!catalogListenerRegistered) {
+			BionicTraitRegistry.addClientCatalogListener(CreateBiotechJeiPlugin::refreshTraitIngredients);
+			catalogListenerRegistered = true;
+		}
+		refreshTraitIngredients();
 		BionicTraitDonorIndex.setJeiRuntimeAvailable(true);
 		// Keep the command-only tool hidden even with JEI's showHiddenIngredients enabled.
 		var manager = runtime.getIngredientManager();
@@ -77,6 +97,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void onRuntimeUnavailable() {
+		traitRuntime = null; registeredTraits = List.of();
 		BionicTraitDonorIndex.setJeiRuntimeAvailable(false);
 	}
 
@@ -104,7 +125,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerIngredients(IModIngredientRegistration registration) {
-		registration.register(BionicTraitJeiIngredient.TYPE, List.of(BionicTrait.values()),
+		registration.register(BionicTraitJeiIngredient.TYPE, BionicTraitRegistry.clientTraits(),
 			new BionicTraitJeiIngredient(), new BionicTraitJeiIngredient.Renderer(), BionicTraitJeiIngredient.CODEC);
 	}
 
@@ -126,7 +147,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 
 	@Override
 	public void registerRecipes(IRecipeRegistration registration) {
-		registration.addRecipes(BionicTraitJeiCategory.TYPE, List.of(BionicTrait.values()));
+		// Trait pages are supplied by the dynamic recipe-manager plugin.
 		registration.addIngredientInfo(
 			new FluidStack(CBFluids.TELEPORTATION.get(), FluidType.BUCKET_VOLUME),
 			NeoForgeTypes.FLUID_STACK,

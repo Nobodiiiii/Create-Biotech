@@ -92,8 +92,16 @@ public final class SlimeBionicAnimator {
 	@Nullable
 	public static SurgicalAssembly.AttackGeometry bakeAttackGeometry(SurgicalAssembly assembly,
 		List<SourceState> sources, Vec3 bodyOrigin) {
+		return bakeAttackGeometry(assembly, sources, bodyOrigin, assembly == null ? List.of()
+			: assembly.sources().stream().map(source -> SurgicalSourceModelRenderer.donorGeometry(source.profile())).toList());
+	}
+
+	/** All native renderer data is frozen by the client before this worker-safe calculation. */
+	@Nullable
+	public static SurgicalAssembly.AttackGeometry bakeAttackGeometry(SurgicalAssembly assembly,
+		List<SourceState> sources, Vec3 bodyOrigin, List<SurgicalSourceModelRenderer.DonorGeometry> donors) {
 		if (assembly == null || sources == null || bodyOrigin == null
-			|| sources.size() != assembly.sources().size())
+			|| sources.size() != assembly.sources().size() || donors == null || donors.size() != sources.size())
 			return null;
 		List<ResolvedLimb> limbs = resolveLimbs(assembly, sources);
 		List<SurgicalAssembly.ArmAttackGeometry> right = new ArrayList<>();
@@ -127,6 +135,7 @@ public final class SlimeBionicAnimator {
 		Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.RidingSeat> seats = new HashMap<>();
 		Map<SurgicalAssembly.CombinationMember, Set<String>> parts = new HashMap<>();
 		for (int source = 0; source < sources.size(); source++) {
+			var donor = donors.get(source);
 			var present = assembly.sources().get(source).presentCubes();
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
 				CubeBox box = box(sources, new Member(source, cube));
@@ -134,21 +143,19 @@ public final class SlimeBionicAnimator {
 					var member = new SurgicalAssembly.CombinationMember(source, cube);
 					origins.put(member, box.center().subtract(bodyOrigin));
 					cubes.put(member, box.points().stream().map(point -> point.subtract(bodyOrigin)).toList());
-					var original = SurgicalSourceModelRenderer.singleCubeGeometry(
-						assembly.sources().get(source).profile(), cube);
+					var original = donor == null ? null : donor.cubes().get(cube);
 					if (original != null && !original.partNames().isEmpty()) parts.put(member, original.partNames());
 				}
 			}
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
-				var seat = SurgicalSourceModelRenderer.ridingSeat(assembly.sources().get(source).profile(), cube);
+				var seat = donor == null ? null : donor.seats().get(cube);
 				if (seat == null) continue;
 				CubeBox carrier = box(sources, new Member(source, cube));
-				var original = SurgicalSourceModelRenderer.singleCubeGeometry(
-					assembly.sources().get(source).profile(), cube);
+				var original = donor.cubes().get(cube);
 				if (carrier == null || original == null) continue;
-				var saddle = equipmentBounds(assembly.sources().get(source).profile(), cube, false,
+				var saddle = equipmentBounds(donor.saddles().getOrDefault(cube, List.of()),
 					original.corners(), carrier.points(), bodyOrigin);
-				var chest = equipmentBounds(assembly.sources().get(source).profile(), cube, true,
+				var chest = equipmentBounds(donor.chests().getOrDefault(cube, List.of()),
 					original.corners(), carrier.points(), bodyOrigin);
 				if (saddle != null || chest != null) equipment.put(new SurgicalAssembly.CombinationMember(source, cube),
 					new SurgicalAssembly.CarrierEquipmentBounds(saddle, chest));
@@ -163,11 +170,46 @@ public final class SlimeBionicAnimator {
 		return geometry == null ? null : geometry.withCarrierParts(parts);
 	}
 
+	/** Translate an already baked rest frame without repeating limb/volume or accessory measurements. */
+	@Nullable
+	public static SurgicalAssembly.AttackGeometry rebaseAttackGeometry(SurgicalAssembly.AttackGeometry geometry,
+		Vec3 bodyOrigin) {
+		try {
+			var right = geometry.right().stream().map(arm -> rebaseArm(arm, bodyOrigin)).toList();
+			var left = geometry.left().stream().map(arm -> rebaseArm(arm, bodyOrigin)).toList();
+			Map<SurgicalAssembly.CombinationMember, Vec3> origins = new HashMap<>();
+			geometry.carrierOrigins().forEach((member, point) -> origins.put(member, point.subtract(bodyOrigin)));
+			Map<SurgicalAssembly.CombinationMember, List<Vec3>> cubes = new HashMap<>();
+			geometry.carrierCubes().forEach((member, points) ->
+				cubes.put(member, points.stream().map(point -> point.subtract(bodyOrigin)).toList()));
+			Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.RidingSeat> seats = new HashMap<>();
+			geometry.ridingSeats().forEach((member, seat) -> seats.put(member, new SurgicalAssembly.RidingSeat(
+				seat.first().subtract(bodyOrigin), seat.second().subtract(bodyOrigin), seat.rotation())));
+			Map<SurgicalAssembly.CombinationMember, SurgicalAssembly.CarrierEquipmentBounds> equipment = new HashMap<>();
+			geometry.equipmentBounds().forEach((member, bounds) -> equipment.put(member,
+				new SurgicalAssembly.CarrierEquipmentBounds(rebaseBounds(bounds.saddle(), bodyOrigin), rebaseBounds(bounds.chest(), bodyOrigin))));
+			return new SurgicalAssembly.AttackGeometry(right, left, origins, seats, cubes, equipment, geometry.carrierParts());
+		} catch (IllegalArgumentException exception) {
+			return null;
+		}
+	}
+
+	private static SurgicalAssembly.ArmAttackGeometry rebaseArm(SurgicalAssembly.ArmAttackGeometry arm, Vec3 origin) {
+		return new SurgicalAssembly.ArmAttackGeometry(arm.origin().subtract(origin), arm.reach(),
+			arm.minimumY() - (float) origin.y, arm.maximumY() - (float) origin.y,
+			arm.radius(), arm.volume(), arm.restDirection(), arm.hasElbow(), arm.sourceId(), arm.cubeId());
+	}
+
+	@Nullable
+	private static SurgicalAssembly.VisualBounds rebaseBounds(@Nullable SurgicalAssembly.VisualBounds bounds, Vec3 origin) {
+		return bounds == null ? null : new SurgicalAssembly.VisualBounds((float) (bounds.minX() - origin.x),
+			(float) (bounds.minY() - origin.y), (float) (bounds.minZ() - origin.z), (float) (bounds.maxX() - origin.x),
+			(float) (bounds.maxY() - origin.y), (float) (bounds.maxZ() - origin.z));
+	}
+
 	@Nullable
 	private static SurgicalAssembly.VisualBounds equipmentBounds(
-		com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile profile, int cube, boolean chest,
-		List<Vec3> original, List<Vec3> transformed, Vec3 bodyOrigin) {
-		var corners = SurgicalSourceModelRenderer.equipmentCorners(profile, cube, chest);
+		List<Vec3> corners, List<Vec3> original, List<Vec3> transformed, Vec3 bodyOrigin) {
 		if (corners.isEmpty()) return null;
 		double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
 		double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;

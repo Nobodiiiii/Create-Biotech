@@ -164,8 +164,8 @@ public final class BionicEquipment {
 		var geometry = assembly.attackGeometry();
 		var dominant = BionicTraitRuntime.dominant(entity, trait);
 		return entity.getBionicTraits().members(trait).stream().filter(member -> !occupied.contains(member)
-			&& (trait != BionicTrait.RIDEABLE || allowedSaddleCarriers().contains(member))).min(Comparator
-			.comparing((CombinationMember member) -> trait == BionicTrait.RIDEABLE
+			&& (!BionicTrait.RIDEABLE.equals(trait) || allowedSaddleCarriers().contains(member))).min(Comparator
+			.comparing((CombinationMember member) -> BionicTrait.RIDEABLE.equals(trait)
 				&& (geometry == null || !geometry.ridingSeats().containsKey(member)))
 			.thenComparing(member -> assembly.sources().get(member.source()) != dominant)
 			.thenComparing(Comparator.comparingDouble((CombinationMember member) ->

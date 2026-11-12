@@ -22,15 +22,15 @@ public final class BionicHeadTraits {
 	private BionicHeadTraits() {}
 
 	public static ResourceLocation id(Enum<?> value) {
-		return CreateBiotech.asResource(value.name().toLowerCase(Locale.ROOT));
+		return ResourceLocation.fromNamespaceAndPath(CreateBiotech.MOD_ID, value.name().toLowerCase(Locale.ROOT));
 	}
 
 	static Map<ResourceLocation, BionicSubtrait> variants(BionicTrait trait) {
 		Map<ResourceLocation, BionicSubtrait> result = new HashMap<>();
-		if (trait == BionicTrait.DISPOSITION)
+		if (BionicTrait.DISPOSITION.equals(trait))
 			for (BionicDisposition value : BionicDisposition.values())
 				result.put(id(value), new BionicSubtrait(id(value), trait.carrier(), Map.of()));
-		if (trait == BionicTrait.INTELLIGENCE)
+		if (BionicTrait.INTELLIGENCE.equals(trait))
 			for (BionicIntelligence value : BionicIntelligence.values())
 				result.put(id(value), new BionicSubtrait(id(value), trait.carrier(), Map.of()));
 		return Map.copyOf(result);
@@ -55,7 +55,7 @@ public final class BionicHeadTraits {
 	}
 
 	static ResourceLocation combined(BionicTrait trait, Set<ResourceLocation> values) {
-		return trait == BionicTrait.DISPOSITION ? id(disposition(values)) : id(intelligence(values));
+		return BionicTrait.DISPOSITION.equals(trait) ? id(disposition(values)) : id(intelligence(values));
 	}
 
 	/** Keep the original head-retention threshold within the installed head or fallback torso. */
