@@ -1,5 +1,9 @@
 {
   "parent": "create_biotech:item/surgical_kit_base",
+  "textures": {
+    "0": "create_biotech:item/creative_surgical_kit",
+    "particle": "create_biotech:item/creative_surgical_kit"
+  },
   "overrides": [
     {
       "predicate": { "create_biotech:surgical_tool": 1.0 },

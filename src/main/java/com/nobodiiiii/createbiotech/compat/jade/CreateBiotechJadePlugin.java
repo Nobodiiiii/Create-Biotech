@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.compat.jade;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.simibubi.create.content.processing.basin.BasinBlockEntity;
 
 import net.minecraft.network.chat.Component;
@@ -41,6 +42,7 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 
 	/**
 	 * Prefixes the name of slime mimics with the "Mimic" label.
+	 * Assembled bionic creatures keep their own name without the prefix.
 	 * Runs after Jade's core {@code object_name} provider (priority -10100, so the name is
 	 * already present), then replaces that line with a prefixed copy.
 	 */
@@ -50,7 +52,7 @@ public class CreateBiotechJadePlugin implements IWailaPlugin {
 		@Override
 		public void appendTooltip(ITooltip tooltip, EntityAccessor accessor, IPluginConfig config) {
 			Entity entity = accessor.getEntity();
-			if (!SlimeMimicHandler.isSlimeMimic(entity))
+			if (entity instanceof SlimeBionicEntity || !SlimeMimicHandler.isSlimeMimic(entity))
 				return;
 			if (tooltip.get(JadeIds.CORE_OBJECT_NAME).isEmpty())
 				return;
