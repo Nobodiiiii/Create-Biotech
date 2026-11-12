@@ -163,14 +163,38 @@ public final class SurgicalVolumeSampler {
 		int samplesPerBox = Math.min(SAMPLES_PER_BOX,
 			Math.min(pointBudget, coverageBudget));
 		double volume = 0.0d;
+		Vec3[] points = new Vec3[samplesPerBox];
+		VolumeBox[] candidates = new VolumeBox[component.size()];
 		for (int sourceIndex : component) {
 			VolumeBox source = boxes.get(sourceIndex);
 			double sampleWeight = source.volume() / samplesPerBox;
+			double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
+			double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;
 			for (int sample = 0; sample < samplesPerBox; sample++) {
-				Vec3 point = source.sample(sample);
+				Vec3 point = points[sample] = source.sample(sample);
+				minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x);
+				minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
+				minZ = Math.min(minZ, point.z); maxZ = Math.max(maxZ, point.z);
+			}
+			int candidateCount = 0;
+			for (int candidateIndex : component) {
+				VolumeBox candidate = boxes.get(candidateIndex);
+				// Use the actual sample envelope and exactly contains()'s world-space
+				// tolerance. Neither near-touching boxes nor rounding at corners are lost.
+				if (maxX < candidate.minimum[0] - OVERLAP_EPSILON
+					|| minX > candidate.maximum[0] + OVERLAP_EPSILON
+					|| maxY < candidate.minimum[1] - OVERLAP_EPSILON
+					|| minY > candidate.maximum[1] + OVERLAP_EPSILON
+					|| maxZ < candidate.minimum[2] - OVERLAP_EPSILON
+					|| minZ > candidate.maximum[2] + OVERLAP_EPSILON)
+					continue;
+				candidates[candidateCount++] = candidate;
+			}
+			for (int sample = 0; sample < samplesPerBox; sample++) {
+				Vec3 point = points[sample];
 				int coverage = 0;
-				for (int candidateIndex : component)
-					if (boxes.get(candidateIndex).contains(point))
+				for (int candidate = 0; candidate < candidateCount; candidate++)
+					if (candidates[candidate].contains(point))
 						coverage++;
 				double weight = sampleWeight / Math.max(1, coverage);
 				volume += weight;

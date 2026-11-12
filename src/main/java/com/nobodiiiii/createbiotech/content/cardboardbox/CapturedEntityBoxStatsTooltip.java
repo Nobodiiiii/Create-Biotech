@@ -70,8 +70,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	/** Appends the same expandable section to inventory and surgical-table HUD tooltips. */
 	public static void append(ItemStack stack, Level level, List<Component> tooltip) {
-		BoxDetails details = details(stack, level);
-		if (details == null)
+		if (!CapturedEntityBoxHelper.hasCapturedEntity(stack))
 			return;
 
 		boolean expanded = Screen.hasAltDown();
@@ -79,6 +78,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			Component.literal("Alt").withStyle(expanded ? ChatFormatting.WHITE : ChatFormatting.GRAY))
 			.withStyle(ChatFormatting.DARK_GRAY));
 		if (!expanded)
+			return;
+		BoxDetails details = details(stack, level);
+		if (details == null)
 			return;
 
 		if (!details.stats().isEmpty()) {

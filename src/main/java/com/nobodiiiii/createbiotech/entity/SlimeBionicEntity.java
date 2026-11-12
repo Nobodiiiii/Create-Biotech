@@ -155,6 +155,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private CompoundTag cachedAssemblyData;
 	@Nullable
 	private SurgicalAssembly cachedAssembly;
+	private boolean installingAssembly;
 	@Nullable
 	private SurgicalAssembly traitAssembly;
 	@Nullable
@@ -532,9 +533,18 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (assembly == null || !assembly.isReadyForEntity())
 			throw new IllegalArgumentException("A bionic entity requires complete body geometry");
 		CompoundTag encoded = assembly.save();
-		entityData.set(ASSEMBLY, encoded);
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
+		// Publishing synchronously invokes onSyncedDataUpdated. The assembly is already
+		// decoded here; do not load it again or refresh its geometry halfway through installation.
+		installingAssembly = true;
+		try {
+			entityData.set(ASSEMBLY, encoded);
+		} finally {
+			installingAssembly = false;
+			// An equal NBT value need not replace the data item's previous tag instance.
+			cachedAssemblyData = entityData.get(ASSEMBLY);
+		}
 		invalidateTraits();
 		configureHitPartRegistration(assembly);
 		clientBoundsAssembly = null;
@@ -578,7 +588,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		CompoundTag encoded = entityData.get(ASSEMBLY);
 		if (encoded != cachedAssemblyData) {
 			cachedAssemblyData = encoded;
-			SurgicalAssembly loaded = SurgicalAssembly.load(encoded);
+			SurgicalAssembly loaded = SurgicalAssembly.loadCached(encoded);
 			cachedAssembly = loaded != null && loaded.isReadyForEntity() ? loaded : null;
 			invalidateTraits();
 		}
@@ -1976,7 +1986,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			ownerId = entityData.get(OWNER_DATA).orElse(null);
 		if (SITTING_DATA.equals(key))
 			orderedToSit = entityData.get(SITTING_DATA);
-		if (ASSEMBLY.equals(key)) {
+		if (ASSEMBLY.equals(key) && !installingAssembly) {
 			invalidateTraits();
 			clientBoundsAssembly = null;
 			clientBodyBounds = null;
@@ -2020,7 +2030,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (!tag.contains(SOURCE_FORM_TAG, Tag.TAG_BYTE)
 			|| !tag.contains(ASSEMBLY_TAG, Tag.TAG_COMPOUND))
 			return;
-		SurgicalAssembly assembly = SurgicalAssembly.load(tag.getCompound(ASSEMBLY_TAG));
+		SurgicalAssembly assembly = SurgicalAssembly.loadCached(tag.getCompound(ASSEMBLY_TAG));
 		if (assembly == null || !assembly.isReadyForEntity())
 			return;
 		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);

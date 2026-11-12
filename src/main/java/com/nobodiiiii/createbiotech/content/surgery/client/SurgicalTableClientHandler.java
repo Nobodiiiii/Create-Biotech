@@ -266,6 +266,7 @@ public final class SurgicalTableClientHandler {
 	private static CubeSelectionCache directSelectionCache;
 	/** Each retained cube indexes the same preview as every other member of its connected component. */
 	private static final Map<SurgicalTableBlockEntity, PackedBodyPreviewCache> PACKED_BODY_PREVIEWS = new WeakHashMap<>();
+	private static final Map<SurgicalTableBlockEntity, TableGroundingCache> GROUP_GROUNDING = new WeakHashMap<>();
 
 	private SurgicalTableClientHandler() {}
 
@@ -741,6 +742,8 @@ public final class SurgicalTableClientHandler {
 
 	private static void bindGeometry(SubjectKey address, TableGeometry geometry) {
 		SubjectKey previousAddress = geometry.ownerKey;
+		if (address.equals(previousAddress) && TABLES.get(address) == geometry)
+			return;
 		if (previousAddress != null && !previousAddress.equals(address)) {
 			TABLES.remove(previousAddress, geometry);
 			geometry.ownerChanged = true;
@@ -840,6 +843,7 @@ public final class SurgicalTableClientHandler {
 		pendingVisualCommit = null;
 		batchCutAnimation = null;
 		PACKED_BODY_PREVIEWS.clear();
+		GROUP_GROUNDING.clear();
 		suppressAttackUntilRelease = false;
 		clearPlacementPreview();
 		SUBJECT_GEOMETRIES.values().forEach(TableGeometry::dispose);
@@ -1122,12 +1126,13 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 		PlacementPreview previous = placementPreview;
-		if (previous != null && previous.ownerPos.equals(ownerPos) && previous.hand == hand
+		boolean reusablePreview = previous != null && previous.ownerPos.equals(ownerPos) && previous.hand == hand
 			&& previous.source == source && previous.facing == placementFacing
+			&& previous.geometry == placementGeometry
 			&& previous.layPose.equals(placementGeometry.layPose())
 			&& previous.projectSourceGeometry == projectSourceGeometry
-			&& previous.tableRevision == tableRevision && previous.workArea == plane.workArea()
-			&& sameHorizontalTarget(target, previous.targetX, previous.targetZ)) {
+			&& previous.tableRevision == tableRevision && previous.workArea == plane.workArea();
+		if (reusablePreview && sameHorizontalTarget(target, previous.targetX, previous.targetZ)) {
 			placementPreviewResult = SurgicalTablePlacementResult.SUCCESS;
 			refreshPlacementFeedback(player, level);
 			return;
@@ -1183,6 +1188,16 @@ public final class SurgicalTableClientHandler {
 			return;
 		}
 		plan = exactInitialPlacement(source, placementGeometry, plan);
+		if (reusablePreview && previous.plan.equals(plan) && previous.discovered.equals(discovered)
+			&& previous.occupied.equals(occupied)) {
+			// The pointer moved within the same snap result. All inputs to the source
+			// layouts and validation are unchanged, so retain the already verified plan.
+			placementPreview = previous.withTarget(target.x, target.z);
+			placementPreviewResult = SurgicalTablePlacementResult.SUCCESS;
+			SurgicalProfiler.count("placementLayout(cacheHit)");
+			refreshPlacementFeedback(player, level);
+			return;
+		}
 		List<SurgicalTableLayout.Proposal> sourceLayouts = compositeSourceLayouts(source, placementGeometry,
 			ownerPos, plan, plane, occupied);
 		if (sourceLayouts == null || !SurgicalTableLayout.validateSubjectPlacement(plane, source.assembly,
@@ -1198,7 +1213,7 @@ public final class SurgicalTableClientHandler {
 		placementPreview = new PlacementPreview(ownerPos, hand, source, placementFacing,
 			placementGeometry.layPose(), plan, placementGeometry.cubeOffsets(),
 			placementGeometry.sources(), discovered, sourceLayouts, projectSourceGeometry,
-			plane.workArea(), target.x, target.z, tableRevision);
+			plane.workArea(), target.x, target.z, tableRevision, placementGeometry, occupied);
 		SurgicalTableLayout.Footprint footprint = plan.proposal().footprints().getFirst();
 		Outliner.getInstance().showAABB(PLACEMENT_OUTLINE_SLOT,
 			new AABB(footprint.minX(), plane.workArea().surfaceY() + 0.002d, footprint.minZ(),
@@ -1253,6 +1268,10 @@ public final class SurgicalTableClientHandler {
 	private static PlacementCandidate placementCandidateFor(ItemStack held, ClientLevel level) {
 		if (placementCandidate != null && ItemStack.isSameItemSameComponents(placementCandidate.box(), held))
 			return placementCandidate;
+		SurgicalAssembly packed = CapturedEntityBoxHelper.getCapturedAssembly(held);
+		if (packed != null)
+			return cachePlacementCandidate(held,
+				new PlacementSource(held.copyWithCount(1), packed.profile(), packed), SurgicalTablePlacementResult.SUCCESS);
 		Entity captured = CapturedEntityBoxHelper.createCapturedEntity(held, level);
 		if (captured == null)
 			return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_CAPTURE);
@@ -3889,8 +3908,26 @@ public final class SurgicalTableClientHandler {
 				links.add(new SurgicalClientTopology.GroundingLink<>(anchor.subjectKey(), anchor.cubeId(),
 					member.subjectKey(), member.cubeId()));
 		}
-		Map<UUID, Map<Integer, Vec3>> grounded = SurgicalClientTopology.groundConnectedBodies(
-			bodies, links, surfaceY);
+		if (bodies.isEmpty())
+			return null;
+		TableGroundingCache cache = GROUP_GROUNDING.get(table);
+		if (cache == null || cache.tableRevision() != table.clientDataRevision()) {
+			cache = new TableGroundingCache(table.clientDataRevision(), new HashMap<>());
+			GROUP_GROUNDING.put(table, cache);
+		}
+		UUID group = bodies.getFirst().key();
+		Set<SurgicalClientTopology.GroundingLink<UUID>> linkSet = Set.copyOf(links);
+		GroundedGroup previous = cache.groups().get(group);
+		Map<UUID, Map<Integer, Vec3>> grounded;
+		if (previous != null && previous.surfaceY() == surfaceY
+			&& previous.bodies().equals(bodies) && previous.links().equals(linkSet)) {
+			grounded = previous.offsets();
+			SurgicalProfiler.count("groundConnected(cacheHit)");
+		} else {
+			grounded = SurgicalClientTopology.groundConnectedBodies(bodies, links, surfaceY);
+			if (grounded != null)
+				cache.groups().put(group, new GroundedGroup(List.copyOf(bodies), linkSet, surfaceY, grounded));
+		}
 		return grounded == null ? null : grounded.get(currentSubject.persistentId());
 	}
 
@@ -4174,14 +4211,23 @@ public final class SurgicalTableClientHandler {
 	@Nullable
 	private static PackedBodyPreview packedBodyPreview(ClientLevel level,
 		SurgicalTableBlockEntity table, CubeHit hit) {
+		return packedBodyPreview(level, table, hit.geometry.subjectId, hit.cubeId,
+			hit.geometry.observedCubeCount, hit.geometry.seams);
+	}
+
+	@Nullable
+	private static PackedBodyPreview packedBodyPreview(ClientLevel level,
+		SurgicalTableBlockEntity table, int subjectId, int cubeId, int observedCubeCount,
+		List<SurgicalAssembly.Seam> seams) {
 		int tableRevision = table.clientDataRevision();
 		BionicTraitResolver.Revision traitRevision = BionicTraitResolver.revision();
+		int resourceGeneration = SurgicalSourceModelRenderer.resourceGeneration();
 		PackedBodyPreviewCache cache = PACKED_BODY_PREVIEWS.get(table);
-		if (cache == null || !cache.matches(tableRevision, traitRevision)) {
-			cache = new PackedBodyPreviewCache(tableRevision, traitRevision, new HashMap<>());
+		if (cache == null || !cache.matches(tableRevision, traitRevision, resourceGeneration)) {
+			cache = new PackedBodyPreviewCache(tableRevision, traitRevision, resourceGeneration, new HashMap<>());
 			PACKED_BODY_PREVIEWS.put(table, cache);
 		}
-		PackedBodyPreview cached = cache.get(hit.geometry.subjectId, hit.cubeId);
+		PackedBodyPreview cached = cache.get(subjectId, cubeId);
 		if (cached != null) {
 			SurgicalProfiler.count("packedPreview(cacheHit)");
 			return cached;
@@ -4189,7 +4235,7 @@ public final class SurgicalTableClientHandler {
 		long started = SurgicalProfiler.begin();
 		try {
 			SurgicalTableBlockEntity.PackedAssemblyPreview component = table.previewPackedComponent(
-				hit.geometry.subjectId, hit.cubeId, hit.geometry.observedCubeCount, hit.geometry.seams);
+				subjectId, cubeId, observedCubeCount, seams);
 			if (component == null)
 				return null;
 			SurgicalAssembly assembly = component.assembly();
@@ -5549,11 +5595,9 @@ public final class SurgicalTableClientHandler {
 		if (level == null
 			|| !(level.getBlockEntity(selection.tablePos()) instanceof SurgicalTableBlockEntity table))
 			return null;
-		SurgicalAssembly preview = table.previewPackedAssembly(selection.subjectId(), selection.targetId(),
+		PackedBodyPreview preview = packedBodyPreview(level, table, selection.subjectId(), selection.targetId(),
 			selection.observedCubeCount(), selection.seams());
-		if (preview == null)
-			return null;
-		return measureBodyMetrics(preview);
+		return preview == null ? null : preview.metrics();
 	}
 
 	@Nullable
@@ -7177,12 +7221,17 @@ public final class SurgicalTableClientHandler {
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
 		@Nullable SurgicalPackingAlignment packingAlignment) {}
 	private record PackedBodyMember(int subjectId, int cubeId) {}
+	private record TableGroundingCache(int tableRevision, Map<UUID, GroundedGroup> groups) {}
+	private record GroundedGroup(List<SurgicalClientTopology.GroundingBody<UUID>> bodies,
+		Set<SurgicalClientTopology.GroundingLink<UUID>> links, double surfaceY,
+		Map<UUID, Map<Integer, Vec3>> offsets) {}
 	private record PackedBodyPreview(SurgicalAssembly assembly, @Nullable PackedBodyMetrics metrics,
 		BionicTraitSet traits) {}
 	private record PackedBodyPreviewCache(int tableRevision, BionicTraitResolver.Revision traitRevision,
+		int resourceGeneration,
 		Map<PackedBodyMember, PackedBodyPreview> byMember) {
-		private boolean matches(int revision, BionicTraitResolver.Revision traits) {
-			return tableRevision == revision && traitRevision.equals(traits);
+		private boolean matches(int revision, BionicTraitResolver.Revision traits, int resources) {
+			return tableRevision == revision && traitRevision.equals(traits) && resourceGeneration == resources;
 		}
 
 		@Nullable
@@ -7312,11 +7361,19 @@ public final class SurgicalTableClientHandler {
 		Map<Integer, Vec3> renderOffsets,
 		List<SourcePlacementGeometry> sourceGeometries, DiscoveredPlacement discovered,
 		List<SurgicalTableLayout.Proposal> sourceLayouts, boolean projectSourceGeometry,
-		SurgicalTablePlane.WorkArea workArea, double targetX, double targetZ, int tableRevision) {
+		SurgicalTablePlane.WorkArea workArea, double targetX, double targetZ, int tableRevision,
+		PlacementGeometry geometry, List<SurgicalTableLayout.Footprint> occupied) {
 		private PlacementPreview {
 			renderOffsets = Map.copyOf(renderOffsets);
 			sourceGeometries = List.copyOf(sourceGeometries);
 			sourceLayouts = List.copyOf(sourceLayouts);
+			occupied = List.copyOf(occupied);
+		}
+
+		private PlacementPreview withTarget(double x, double z) {
+			return new PlacementPreview(ownerPos, hand, source, facing, layPose, plan, renderOffsets,
+				sourceGeometries, discovered, sourceLayouts, projectSourceGeometry, workArea, x, z,
+				tableRevision, geometry, occupied);
 		}
 	}
 

@@ -76,12 +76,10 @@ final class BakedCapturedEntityIcon {
 					NORMAL_SCRATCH);
 				int color = attributes[intBase];
 				int light = attributes[intBase + 1];
-				consumer.addVertex(POSITION_SCRATCH.x(), POSITION_SCRATCH.y(), POSITION_SCRATCH.z())
-					.setColor(color >>> 24, color >> 16 & 0xFF, color >> 8 & 0xFF, color & 0xFF)
-					.setUv(geometry[floatBase + 3], geometry[floatBase + 4])
-					.setOverlay(attributes[intBase + 2])
-					.setLight(light == LIGHT_SENTINEL ? packedLight : light)
-					.setNormal(NORMAL_SCRATCH.x(), NORMAL_SCRATCH.y(), NORMAL_SCRATCH.z());
+				consumer.addVertex(POSITION_SCRATCH.x(), POSITION_SCRATCH.y(), POSITION_SCRATCH.z(),
+					Integer.rotateRight(color, 8), geometry[floatBase + 3], geometry[floatBase + 4],
+					attributes[intBase + 2], light == LIGHT_SENTINEL ? packedLight : light,
+					NORMAL_SCRATCH.x(), NORMAL_SCRATCH.y(), NORMAL_SCRATCH.z());
 			}
 		}
 	}

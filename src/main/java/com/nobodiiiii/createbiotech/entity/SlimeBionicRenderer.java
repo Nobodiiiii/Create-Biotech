@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
@@ -14,9 +16,13 @@ import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCubeGeometry;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
@@ -27,7 +33,9 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalProfiler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalClientTopology;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalClientExecutors;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalModelRenderContext;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTablePoseResolver;
@@ -58,6 +66,10 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	private static final Map<SlimeBionicEntity, CachedGeometry> GEOMETRY = new WeakHashMap<>();
 	private static final Map<SlimeBionicEntity, CompositeCachedGeometry> COMPOSITE_GEOMETRY = new WeakHashMap<>();
 	private static final Map<SlimeBionicEntity, FirstPersonArms> FIRST_PERSON_ARMS = new WeakHashMap<>();
+	private static final Cache<GeometryKey, CachedGeometry> SHARED_GEOMETRY = CacheBuilder.newBuilder()
+		.concurrencyLevel(1).maximumSize(64).build();
+	private static final Cache<GeometryKey, CompositeCachedGeometry> SHARED_COMPOSITE_GEOMETRY = CacheBuilder.newBuilder()
+		.concurrencyLevel(1).maximumSize(64).build();
 
 	public SlimeBionicRenderer(EntityRendererProvider.Context context) {
 		super(context);
@@ -68,6 +80,8 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		GEOMETRY.clear();
 		COMPOSITE_GEOMETRY.clear();
 		FIRST_PERSON_ARMS.clear();
+		SHARED_GEOMETRY.invalidateAll();
+		SHARED_COMPOSITE_GEOMETRY.invalidateAll();
 		SlimeBionicAnimator.clearCache();
 		com.nobodiiiii.createbiotech.entity.client.BionicWingAnimation.clear();
 		SlimeBionicAttackRangeRenderer.clearCache();
@@ -128,12 +142,14 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 					return null;
 				COMPOSITE_GEOMETRY.put(entity, cached);
 			}
+			cached.bodyGeometry.update(entity);
 			return cached.sources;
 		}
 
 		LivingEntity preview = SurgicalSourceModelRenderer.preview(assembly.profile());
 		if (preview == null)
 			return null;
+		((SlimeMimicAccess) (Object) preview).createBiotech$setSlimeMimic(true);
 		CachedGeometry cached = GEOMETRY.get(entity);
 		if (cached == null || cached.assembly != assembly || cached.slimeForm != slimeForm) {
 			cached = rebuildGeometry(entity, preview, assembly, partialTick, packedLight, slimeForm);
@@ -141,7 +157,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				return null;
 			GEOMETRY.put(entity, cached);
 		}
+		cached.bodyGeometry.update(entity);
 		return cached.sourceStates;
+	}
+
+	/** Warm the rest geometry and await only its worker result before baking an icon. Never blocks. */
+	public static boolean prepareBodyGeometry(SlimeBionicEntity entity) {
+		SurgicalAssembly assembly = entity.getAssembly();
+		if (assembly == null || firstPersonSourceStates(entity, assembly, 1.0f,
+			net.minecraft.client.renderer.LightTexture.FULL_BRIGHT) == null)
+			return true;
+		return isComposite(assembly) ? COMPOSITE_GEOMETRY.get(entity).bodyGeometry.resolved
+			: GEOMETRY.get(entity).bodyGeometry.resolved;
 	}
 
 	/** A body whose sources keep their table layout, as opposed to one unedited single donor. */
@@ -272,7 +299,9 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			SlimeBionicAnimator.Frame frame = SlimeBionicAnimator.Frame.EMPTY;
 			bodyFrame.apply(poseStack);
 			if (cached != null) {
-				poseStack.translate(cached.modelOffset.x, cached.modelOffset.y, cached.modelOffset.z);
+				cached.bodyGeometry.update(entity);
+				Vec3 offset = cached.bodyGeometry.modelOffset;
+				poseStack.translate(offset.x, offset.y, offset.z);
 				localOffsets = cached.sourceStates.getFirst().offsets();
 				frame = SlimeBionicAnimator.resolve(entity, cached.rig, partialTick).getFirst();
 			}
@@ -397,8 +426,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			: Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
 		poseStack.pushPose();
 		bodyFrame.apply(poseStack);
-		if (cached != null)
-			poseStack.translate(cached.modelOffset.x, cached.modelOffset.y, cached.modelOffset.z);
+		if (cached != null) {
+			cached.bodyGeometry.update(entity);
+			Vec3 offset = cached.bodyGeometry.modelOffset;
+			poseStack.translate(offset.x, offset.y, offset.z);
+		}
 		renderCompositeSources(entity, assembly, bodyFrame, partialTick, poseStack, buffer, packedLight,
 			!slimeForm, cached == null ? null : cached.sources, frames, null, deathGeometry, cameraPosition);
 		poseStack.popPose();
@@ -416,6 +448,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	@Nullable
 	private static CompositeCachedGeometry measureComposite(SlimeBionicEntity entity,
 		SurgicalAssembly assembly, float partialTick, int packedLight, boolean slimeForm) {
+		GeometryKey key = new GeometryKey(assembly, slimeForm, SurgicalSourceModelRenderer.resourceGeneration());
+		CompositeCachedGeometry shared = SHARED_COMPOSITE_GEOMETRY.getIfPresent(key);
+		if (shared != null) {
+			SurgicalProfiler.count("bionicGeometry(compositeCacheHit)");
+			shared.bodyGeometry.update(entity);
+			return shared;
+		}
 		EntityGeometry.Collector geometry = EntityGeometry.Collector.boundsOnly();
 		MultiBufferSource measuringBuffer = renderType -> geometry;
 		List<SlimeBionicAnimator.SourceState> sources = new ArrayList<>(assembly.sources().size());
@@ -424,17 +463,28 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		if (!geometry.hasVertices())
 			return null;
 		EntityGeometry.Bounds bounds = geometry.bounds();
-		SurgicalAssembly.BodyBounds bodyBounds = updateClientBodyBounds(entity, assembly, bounds, sources);
 		List<SlimeBionicAnimator.SourceState> frozenSources = List.copyOf(sources);
-		return new CompositeCachedGeometry(assembly, slimeForm,
-			modelOffset(bounds, bodyBounds), frozenSources,
-			SlimeBionicAnimator.rig(assembly, frozenSources));
+		CompositeCachedGeometry measured = new CompositeCachedGeometry(assembly, slimeForm,
+			frozenSources, SlimeBionicAnimator.rig(assembly, frozenSources),
+			new BodyMeasurement(assembly, bounds, frozenSources));
+		SHARED_COMPOSITE_GEOMETRY.put(key, measured);
+		return measured;
 	}
 
 	@Nullable
-	private static SurgicalAssembly.BodyBounds updateClientBodyBounds(SlimeBionicEntity entity,
-		SurgicalAssembly assembly,
-		EntityGeometry.Bounds bounds, List<SlimeBionicAnimator.SourceState> sources) {
+	private static BodyGeometry measureBodyGeometry(SurgicalAssembly assembly,
+		SurgicalBodyBounds.Envelope visible, List<SlimeBionicAnimator.SourceState> sources) {
+		long started = SurgicalProfiler.begin();
+		try {
+			return computeBodyGeometry(assembly, visible, sources);
+		} finally {
+			SurgicalProfiler.end("bionicBodyMetrics(worker)", started);
+		}
+	}
+
+	@Nullable
+	private static BodyGeometry computeBodyGeometry(SurgicalAssembly assembly,
+		SurgicalBodyBounds.Envelope visible, List<SlimeBionicAnimator.SourceState> sources) {
 		Set<SurgicalAssembly.CombinationMember> armCubes = new HashSet<>();
 		for (SurgicalAssembly.Limb limb : assembly.effectiveLimbs())
 			if (limb.type() == SurgicalLimbType.SHOULDER || limb.type() == SurgicalLimbType.ELBOW)
@@ -449,15 +499,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 				if (!armCubes.contains(new SurgicalAssembly.CombinationMember(source, entry.getKey())))
 					bodyCubes.add(points);
 			}
-		SurgicalBodyBounds.Envelope visible = new SurgicalBodyBounds.Envelope(
-			bounds.minX(), bounds.minY(), bounds.minZ(), bounds.maxX(), bounds.maxY(), bounds.maxZ());
 		SurgicalBodyBounds.Measurement bodyMeasurement = SurgicalBodyBounds.measureWithVolume(bodyCubes, allCubes, visible);
 		if (bodyMeasurement == null)
 			return null;
 		SurgicalAssembly.BodyBounds bodyBounds = bodyMeasurement.bounds();
 		double headCenterY = SlimeBionicAnimator.primaryHeadCenterY(assembly, sources);
 		if (Double.isFinite(headCenterY))
-			bodyBounds = bodyBounds.withEyeHeight(Math.max(0.0d, headCenterY - bounds.minY()));
+			bodyBounds = bodyBounds.withEyeHeight(Math.max(0.0d, headCenterY - visible.minY()));
 		SlimeBionicAnimator.MobilityMetrics mobility =
 			SlimeBionicAnimator.measureMobility(assembly, sources);
 		bodyBounds = bodyBounds.withMobility(mobility.averageLegLength(),
@@ -470,16 +518,21 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		SurgicalAssembly.HitboxGeometry hitboxGeometry = SurgicalHitboxGeometry.measure(assembly,
 			hitboxCubes, visible, bodyBounds);
 		double bodyVolume = bodyMeasurement.volume();
-		if (hitboxGeometry != null)
-			entity.setClientBodyGeometry(assembly, bodyBounds, hitboxGeometry, bodyVolume);
-		return bodyBounds;
+		return new BodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
+	}
+
+	private static void applyBodyGeometry(SlimeBionicEntity entity, SurgicalAssembly assembly,
+		@Nullable BodyGeometry geometry) {
+		if (geometry != null && geometry.hitboxes != null)
+			entity.setClientBodyGeometry(assembly, geometry.bounds, geometry.hitboxes, geometry.volume);
 	}
 
 	/** Centres the world entity on the already measured arm-free collision core's XZ projection. */
-	private static Vec3 modelOffset(EntityGeometry.Bounds visible,
+	private static Vec3 modelOffset(SurgicalBodyBounds.Envelope visible,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds) {
-		double centerX = visible.centerX();
-		double centerZ = visible.centerZ();
+		// Preserve Bounds.centerX/Z's float rounding from the captured render geometry.
+		double centerX = ((float) visible.minX() + (float) visible.maxX()) * 0.5f;
+		double centerZ = ((float) visible.minZ() + (float) visible.maxZ()) * 0.5f;
 		if (bodyBounds != null) {
 			centerX += bodyBounds.centerX();
 			centerZ += bodyBounds.centerZ();
@@ -578,6 +631,13 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		float partialTick, int packedLight, boolean slimeForm) {
 		if (preview == null)
 			return null;
+		GeometryKey key = new GeometryKey(assembly, slimeForm, SurgicalSourceModelRenderer.resourceGeneration());
+		CachedGeometry shared = SHARED_GEOMETRY.getIfPresent(key);
+		if (shared != null) {
+			SurgicalProfiler.count("bionicGeometry(singleCacheHit)");
+			shared.bodyGeometry.update(entity);
+			return shared;
+		}
 
 		BitSet presentCubes = assembly.presentCubes();
 		Map<Integer, Vec3> offsets = componentOffsets(preview, assembly, presentCubes, partialTick,
@@ -600,10 +660,11 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 		// limb solve against; all three arguments are already fixed for this cache entry's lifetime.
 		List<SlimeBionicAnimator.SourceState> sourceStates =
 			List.of(new SlimeBionicAnimator.SourceState(restBoxes, offsets, assembly.cubeRotations()));
-		SurgicalAssembly.BodyBounds bodyBounds = updateClientBodyBounds(entity, assembly, bounds,
-			sourceStates);
-		return new CachedGeometry(assembly, slimeForm, presentCubes, modelOffset(bounds, bodyBounds),
-			sourceStates, SlimeBionicAnimator.rig(assembly, sourceStates));
+		CachedGeometry measured = new CachedGeometry(assembly, slimeForm, presentCubes,
+			sourceStates, SlimeBionicAnimator.rig(assembly, sourceStates),
+			new BodyMeasurement(assembly, bounds, sourceStates));
+		SHARED_GEOMETRY.put(key, measured);
+		return measured;
 	}
 
 	private static Map<Integer, Vec3> componentOffsets(LivingEntity preview, SurgicalAssembly assembly,
@@ -633,10 +694,59 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	/** {@code presentCubes} is the assembly's own copy, taken once when the entry is built. */
 	private record CachedGeometry(SurgicalAssembly assembly, boolean slimeForm, BitSet presentCubes,
-		Vec3 modelOffset, List<SlimeBionicAnimator.SourceState> sourceStates, SlimeBionicAnimator.Rig rig) {}
+		List<SlimeBionicAnimator.SourceState> sourceStates, SlimeBionicAnimator.Rig rig,
+		BodyMeasurement bodyGeometry) {}
 
 	private record CompositeCachedGeometry(SurgicalAssembly assembly, boolean slimeForm,
-		Vec3 modelOffset, List<SlimeBionicAnimator.SourceState> sources, SlimeBionicAnimator.Rig rig) {}
+		List<SlimeBionicAnimator.SourceState> sources, SlimeBionicAnimator.Rig rig,
+		BodyMeasurement bodyGeometry) {}
+
+	private record GeometryKey(SurgicalAssembly assembly, boolean slimeForm, int resourceGeneration) {}
+	private record BodyGeometry(SurgicalAssembly.BodyBounds bounds,
+		@Nullable SurgicalAssembly.HitboxGeometry hitboxes, double volume) {}
+
+	/** Only immutable geometry crosses the worker boundary; polling and publication stay on the render thread. */
+	private static final class BodyMeasurement {
+		private final SurgicalAssembly assembly;
+		private final SurgicalBodyBounds.Envelope visible;
+		private final List<SlimeBionicAnimator.SourceState> sources;
+		@Nullable private CompletableFuture<BodyGeometry> pending;
+		@Nullable private BodyGeometry geometry;
+		private boolean resolved;
+		private Vec3 modelOffset;
+
+		private BodyMeasurement(SurgicalAssembly assembly, EntityGeometry.Bounds bounds,
+			List<SlimeBionicAnimator.SourceState> sources) {
+			this.assembly = assembly;
+			this.sources = sources;
+			visible = new SurgicalBodyBounds.Envelope(bounds.minX(), bounds.minY(), bounds.minZ(),
+				bounds.maxX(), bounds.maxY(), bounds.maxZ());
+			// The assembly's frozen body remains usable while this client's visual geometry is measured.
+			modelOffset = modelOffset(visible, assembly.bodyBounds());
+			pending = SurgicalClientExecutors.submit(() -> measureBodyGeometry(assembly, visible, sources));
+		}
+
+		private void update(SlimeBionicEntity entity) {
+			if (!resolved) {
+				if (pending == null)
+					pending = SurgicalClientExecutors.submit(() -> measureBodyGeometry(assembly, visible, sources));
+				if (pending.isDone()) {
+					try {
+						geometry = pending.join();
+						modelOffset = modelOffset(visible, geometry == null ? null : geometry.bounds);
+						resolved = true;
+					} catch (CompletionException exception) {
+						if (!SurgicalClientExecutors.wasQueueFull(exception)) {
+							resolved = true;
+							LogUtils.getLogger().warn("Unable to measure bionic body geometry", exception);
+						}
+					}
+					pending = null;
+				}
+			}
+			applyBodyGeometry(entity, assembly, geometry);
+		}
+	}
 
 	private record FirstPersonArms(SurgicalAssembly assembly,
 		List<SlimeBionicAnimator.SourceState> sourceStates,

@@ -15,6 +15,7 @@ import net.createmod.catnip.outliner.Outline;
 import net.createmod.catnip.render.PonderRenderTypes;
 import net.createmod.catnip.render.SuperRenderTypeBuffer;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -34,6 +35,11 @@ final class SurgicalEdgeOutline extends Outline {
 	private List<SurgicalClientTopology.Edge> edges = List.of();
 	private List<Tube> tubes = List.of();
 	private List<Joint> joints = List.of();
+	private float meshWidth = Float.NaN;
+	private float[] mesh = new float[0];
+	private Vec3 meshOrigin = Vec3.ZERO;
+	private final Vector3f positionScratch = new Vector3f();
+	private final Vector3f normalScratch = new Vector3f();
 
 	void setEdges(List<SurgicalClientTopology.Edge> nextEdges) {
 		Map<EdgeKey, SurgicalClientTopology.Edge> distinct = new LinkedHashMap<>();
@@ -64,6 +70,8 @@ final class SurgicalEdgeOutline extends Outline {
 			builtTubes.add(new Tube(edge, crossAxis));
 		}
 		tubes = List.copyOf(builtTubes);
+		meshWidth = Float.NaN;
+		mesh = new float[0];
 	}
 
 	@Override
@@ -74,11 +82,54 @@ final class SurgicalEdgeOutline extends Outline {
 
 		VertexConsumer consumer = buffer.getBuffer(PonderRenderTypes.outlineSolid());
 		params.loadColor(colorTemp);
-		Vector4f color = colorTemp;
+		if (meshWidth != width)
+			bakeMesh(width);
+		int color = (int) (colorTemp.w() * 255.0f) << 24
+			| (int) (colorTemp.x() * 255.0f) << 16
+			| (int) (colorTemp.y() * 255.0f) << 8 | (int) (colorTemp.z() * 255.0f);
+		poseStack.pushPose();
+		poseStack.translate(meshOrigin.x - camera.x, meshOrigin.y - camera.y, meshOrigin.z - camera.z);
+		PoseStack.Pose pose = poseStack.last();
+		pose.normal().transform(FLAT_NORMAL, normalScratch);
+		for (int offset = 0; offset < mesh.length; offset += 3) {
+			pose.pose().transformPosition(mesh[offset], mesh[offset + 1], mesh[offset + 2], positionScratch);
+			int corner = offset / 3 & 3;
+			consumer.addVertex(positionScratch.x, positionScratch.y, positionScratch.z, color,
+				corner < 2 ? 0 : 1, corner == 1 || corner == 2 ? 1 : 0,
+				OverlayTexture.NO_OVERLAY, LightTexture.FULL_BRIGHT,
+				normalScratch.x, normalScratch.y, normalScratch.z);
+		}
+		poseStack.popPose();
+	}
+
+	/** Cache the final tubes and joints in nearby local coordinates, independent of the camera. */
+	private void bakeMesh(float width) {
+		meshOrigin = edges.getFirst().start();
+		MeshBuilder builder = new MeshBuilder((tubes.size() * 16 + joints.size() * 24) * 3);
+		PoseStack poseStack = new PoseStack();
+		Vector4f white = new Vector4f(1, 1, 1, 1);
 		for (Tube tube : tubes)
-			renderOpenTube(poseStack, consumer, camera, tube, width, color);
+			renderOpenTube(poseStack, builder, meshOrigin, tube, width, white);
 		for (Joint joint : joints)
-			renderJoint(poseStack, consumer, camera, joint, width, color);
+			renderJoint(poseStack, builder, meshOrigin, joint, width, white);
+		mesh = java.util.Arrays.copyOf(builder.positions, builder.size);
+		meshWidth = width;
+	}
+
+	private static final class MeshBuilder implements VertexConsumer {
+		private final float[] positions;
+		private int size;
+
+		private MeshBuilder(int capacity) { positions = new float[capacity]; }
+		@Override public VertexConsumer addVertex(float x, float y, float z) {
+			positions[size++] = x; positions[size++] = y; positions[size++] = z;
+			return this;
+		}
+		@Override public VertexConsumer setColor(int r, int g, int b, int a) { return this; }
+		@Override public VertexConsumer setUv(float u, float v) { return this; }
+		@Override public VertexConsumer setUv1(int u, int v) { return this; }
+		@Override public VertexConsumer setUv2(int u, int v) { return this; }
+		@Override public VertexConsumer setNormal(float x, float y, float z) { return this; }
 	}
 
 	private void renderOpenTube(PoseStack poseStack, VertexConsumer consumer, Vec3 camera,

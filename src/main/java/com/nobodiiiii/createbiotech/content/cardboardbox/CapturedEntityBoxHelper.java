@@ -3,6 +3,10 @@ package com.nobodiiiii.createbiotech.content.cardboardbox;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,10 +17,15 @@ import org.jetbrains.annotations.Nullable;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.hash.HashingOutputStream;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRepair;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.simibubi.create.AllDataComponents;
@@ -71,6 +80,10 @@ public class CapturedEntityBoxHelper {
 	private static final LoadingCache<CustomData, CaptureMetadata> CAPTURED_METADATA = CacheBuilder.newBuilder()
 		.weakKeys()
 		.build(CacheLoader.from(CapturedEntityBoxHelper::readCaptureMetadata));
+	// Computed lazily, once per immutable component. Values never retain the weak key or its NBT.
+	private static final LoadingCache<CustomData, HashCode> CAPTURE_FINGERPRINTS = CacheBuilder.newBuilder()
+		.weakKeys()
+		.build(CacheLoader.from(CapturedEntityBoxHelper::readCaptureFingerprint));
 
 	private CapturedEntityBoxHelper() {}
 
@@ -396,6 +409,16 @@ public class CapturedEntityBoxHelper {
 		return createCapturedEntity(renderData, level);
 	}
 
+	/** Reads the immutable body for planning without constructing an entity and its runtime systems. */
+	@Nullable
+	public static SurgicalAssembly getCapturedAssembly(ItemStack stack) {
+		CompoundTag entityData = getCapturedEntityData(stack, CBEntityTypes.SLIME_BIONIC.get());
+		if (entityData == null || !entityData.contains("SurgicalAssembly", Tag.TAG_COMPOUND))
+			return null;
+		SurgicalAssembly assembly = SurgicalAssembly.loadCached(entityData.getCompound("SurgicalAssembly"));
+		return assembly != null && assembly.isReadyForEntity() ? assembly : null;
+	}
+
 	static Entity createCapturedEntity(CapturedEntityRenderData renderData, Level level) {
 		CompoundTag entityDataForLoad = capturedEntityTag(renderData.component()).copy();
 		if (level instanceof ServerLevel serverLevel
@@ -492,6 +515,45 @@ public class CapturedEntityBoxHelper {
 	private static CaptureMetadata captureMetadata(ItemStack stack) {
 		CustomData component = CBItemData.getReadOnlyComponent(stack);
 		return component == null ? CaptureMetadata.EMPTY : CAPTURED_METADATA.getUnchecked(component);
+	}
+
+	static HashCode captureFingerprint(CapturedEntityRenderData renderData) {
+		return CAPTURE_FINGERPRINTS.getUnchecked(renderData.component());
+	}
+
+	private static HashCode readCaptureFingerprint(CustomData component) {
+		try {
+			HashingOutputStream hash = new HashingOutputStream(Hashing.sha256(), OutputStream.nullOutputStream());
+			DataOutputStream output = new DataOutputStream(hash);
+			writeCanonicalTag(capturedEntityTag(component), output);
+			CaptureMetadata metadata = CAPTURED_METADATA.getUnchecked(component);
+			output.writeBoolean(metadata.health().isPresent());
+			if (metadata.health().isPresent())
+				output.writeFloat(metadata.health().get());
+			return hash.hash();
+		} catch (IOException exception) {
+			throw new UncheckedIOException(exception);
+		}
+	}
+
+	/** Compound insertion order must not make equal captures miss their icon cache. */
+	private static void writeCanonicalTag(Tag tag, DataOutputStream output) throws IOException {
+		output.writeByte(tag.getId());
+		if (tag instanceof CompoundTag compound) {
+			List<String> keys = new ArrayList<>(compound.getAllKeys());
+			keys.sort(String::compareTo);
+			output.writeInt(keys.size());
+			for (String key : keys) {
+				output.writeUTF(key);
+				writeCanonicalTag(compound.get(key), output);
+			}
+		} else if (tag instanceof ListTag list) {
+			output.writeInt(list.size());
+			for (Tag child : list)
+				writeCanonicalTag(child, output);
+		} else {
+			tag.write(output);
+		}
 	}
 
 	private static CaptureMetadata readCaptureMetadata(CustomData component) {

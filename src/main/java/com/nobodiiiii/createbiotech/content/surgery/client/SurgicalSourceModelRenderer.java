@@ -70,6 +70,10 @@ public final class SurgicalSourceModelRenderer {
 
 	private SurgicalSourceModelRenderer() {}
 
+	public static int resourceGeneration() {
+		return resourceGeneration;
+	}
+
 	enum RenderPlanState {
 		READY,
 		PENDING,

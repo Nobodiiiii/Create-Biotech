@@ -2,14 +2,18 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -39,6 +43,8 @@ public final class SurgicalClientTopology {
 	private static final double VERTEX_MERGE_DISTANCE_SQR = 1.0e-14d;
 	private static final double CONTACT_TOLERANCE = 1.0d / 64.0d;
 	private static final double MIN_CONTACT_AREA = 1.0e-8d;
+	private static final Map<SurgicalTablePlane.WorkArea, GridCell[]> GRID_CELLS =
+		Collections.synchronizedMap(new WeakHashMap<>());
 
 	private SurgicalClientTopology() {}
 
@@ -1076,8 +1082,15 @@ public final class SurgicalClientTopology {
 		return workArea.contains(bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ, DISTANCE_EPSILON);
 	}
 
-	private static List<GridCell> orderedCells(SurgicalTablePlane.WorkArea workArea, double targetX,
+	private static Iterable<GridCell> orderedCells(SurgicalTablePlane.WorkArea workArea, double targetX,
 		double targetZ) {
+		GridCell[] cells = GRID_CELLS.computeIfAbsent(workArea, SurgicalClientTopology::gridCells);
+		// Most searches stop at their first free cell. Heapify once in O(N), then
+		// produce only the cells actually visited, in exactly the former sort order.
+		return () -> new NearestCells(cells, targetX, targetZ);
+	}
+
+	private static GridCell[] gridCells(SurgicalTablePlane.WorkArea workArea) {
 		List<GridCell> cells = new ArrayList<>(workArea.tileArea() * SurgicalTableLayout.SLOTS_PER_TILE);
 		for (BlockPos tile : workArea.tiles()) {
 			int minGridX = tile.getX() * SurgicalTableLayout.SUBDIVISIONS;
@@ -1086,9 +1099,64 @@ public final class SurgicalClientTopology {
 				for (int zOffset = 0; zOffset < SurgicalTableLayout.SUBDIVISIONS; zOffset++)
 					cells.add(new GridCell(minGridX + xOffset, minGridZ + zOffset));
 		}
-		cells.sort(Comparator.comparingDouble((GridCell cell) -> cell.distanceToSqr(targetX, targetZ))
-			.thenComparingInt(GridCell::gridX).thenComparingInt(GridCell::gridZ));
-		return cells;
+		return cells.toArray(GridCell[]::new);
+	}
+
+	private static final class NearestCells implements Iterator<GridCell> {
+		private final GridCell[] cells;
+		private final double[] distances;
+		private final int[] heap;
+		private int size;
+
+		private NearestCells(GridCell[] cells, double x, double z) {
+			this.cells = cells;
+			size = cells.length;
+			distances = new double[size];
+			heap = new int[size];
+			for (int index = 0; index < size; index++) {
+				heap[index] = index;
+				distances[index] = cells[index].distanceToSqr(x, z);
+			}
+			for (int parent = size / 2 - 1; parent >= 0; parent--)
+				siftDown(parent);
+		}
+
+		@Override
+		public boolean hasNext() {
+			return size > 0;
+		}
+
+		@Override
+		public GridCell next() {
+			if (!hasNext())
+				throw new NoSuchElementException();
+			GridCell result = cells[heap[0]];
+			heap[0] = heap[--size];
+			if (size > 0)
+				siftDown(0);
+			return result;
+		}
+
+		private void siftDown(int parent) {
+			int value = heap[parent];
+			while (parent < size / 2) {
+				int child = parent * 2 + 1;
+				if (child + 1 < size && compare(heap[child + 1], heap[child]) < 0)
+					child++;
+				if (compare(value, heap[child]) <= 0)
+					break;
+				heap[parent] = heap[child];
+				parent = child;
+			}
+			heap[parent] = value;
+		}
+
+		private int compare(int first, int second) {
+			int distance = Double.compare(distances[first], distances[second]);
+			if (distance != 0) return distance;
+			int x = Integer.compare(cells[first].gridX, cells[second].gridX);
+			return x != 0 ? x : Integer.compare(cells[first].gridZ, cells[second].gridZ);
+		}
 	}
 
 	private static SurgicalTableLayout.Footprint footprint(int root, Bounds bounds, @Nullable GridCell cell) {

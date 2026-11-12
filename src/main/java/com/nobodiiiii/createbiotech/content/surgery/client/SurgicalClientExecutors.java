@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
 /** Bounded workers for immutable surgical render/topology data. */
-final class SurgicalClientExecutors {
+public final class SurgicalClientExecutors {
 	/**
 	 * Cold builds arrive in bursts - a table with many subjects coming into view - and then stop, so
 	 * the pool is sized for the burst rather than for steady state. Two workers serialised an entire
@@ -37,7 +37,7 @@ final class SurgicalClientExecutors {
 
 	private SurgicalClientExecutors() {}
 
-	static <T> CompletableFuture<T> submit(Supplier<T> task) {
+	public static <T> CompletableFuture<T> submit(Supplier<T> task) {
 		try {
 			return CompletableFuture.supplyAsync(task, EXECUTOR);
 		} catch (RejectedExecutionException ignored) {
@@ -45,7 +45,7 @@ final class SurgicalClientExecutors {
 		}
 	}
 
-	static boolean wasQueueFull(Throwable throwable) {
+	public static boolean wasQueueFull(Throwable throwable) {
 		for (Throwable current = throwable; current != null; current = current.getCause())
 			if (current instanceof QueueFullException)
 				return true;

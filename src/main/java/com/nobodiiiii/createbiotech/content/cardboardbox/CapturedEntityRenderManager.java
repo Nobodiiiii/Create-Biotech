@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicRenderer;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.Minecraft;
@@ -16,7 +18,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemDisplayContext;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
@@ -187,10 +188,13 @@ public final class CapturedEntityRenderManager {
 
 		PendingSelection selection = selectPending(startNanos);
 		while (selection != null && completed < maxTasks) {
-			PENDING.remove(selection.key);
-			prepare(selection.key, selection.request, level);
+			boolean finished = prepare(selection.key, selection.request, level);
+			if (finished)
+				PENDING.remove(selection.key);
 			completed++;
-			if (System.nanoTime() - startNanos >= budget)
+			// A heavy request advances at most one stage in a frame, even when there
+			// appears to be enough headroom for another task.
+			if (!finished || System.nanoTime() - startNanos >= budget)
 				break;
 
 			selection = selectPending(startNanos);
@@ -221,7 +225,7 @@ public final class CapturedEntityRenderManager {
 		return selected == null ? null : new PendingSelection(selectedKey, selected);
 	}
 
-	private static void prepare(RenderKey key, PendingRequest request, Level level) {
+	private static boolean prepare(RenderKey key, PendingRequest request, Level level) {
 		try {
 			long now = System.nanoTime();
 			LivingEntity entity = getCached(ENTITY_CACHE, key, now);
@@ -231,23 +235,29 @@ public final class CapturedEntityRenderManager {
 					throw new IllegalStateException(
 						"Captured entity is not a living entity: " + request.renderData.entityId());
 				stabilize(living);
-				entity = living;
+				ENTITY_CACHE.put(key, new CacheEntry<>(living, now));
+				return false;
 			}
 
 			IconAssets assets = getCached(ICON_CACHE, key, now);
-			if (assets == null)
+			if (assets == null) {
+				if (entity instanceof SlimeBionicEntity bionic && !SlimeBionicRenderer.prepareBodyGeometry(bionic))
+					return false;
 				assets = new IconAssets(CapturedEntityBoxIconRenderer.prepareGeometry(entity));
-			if (request.smallFaceRequested && assets.small == null)
+				ICON_CACHE.put(key, new CacheEntry<>(assets, now));
+				return false;
+			}
+			if (request.smallFaceRequested && assets.small == null) {
 				assets.small = CapturedEntityBoxIconRenderer.bakeIcon(entity, assets.profile, false);
+				return !request.largeFaceRequested || assets.large != null;
+			}
 			if (request.largeFaceRequested && assets.large == null)
 				assets.large = CapturedEntityBoxIconRenderer.bakeIcon(entity, assets.profile, true);
-
-			ENTITY_CACHE.put(key, new CacheEntry<>(entity, now));
-			ICON_CACHE.put(key, new CacheEntry<>(assets, now));
 		} catch (RuntimeException exception) {
 			FAILURE_CACHE.put(key, System.nanoTime() + FAILURE_RETRY_NANOS);
 			LOGGER.warn("Unable to prepare captured entity icon for {}", request.renderData.entityId(), exception);
 		}
+		return true;
 	}
 
 	private static void stabilize(LivingEntity entity) {
@@ -299,7 +309,7 @@ public final class CapturedEntityRenderManager {
 	/**
 	 * Drops everything tied to the active level: live entities (which pin their
 	 * client level), pending requests and failures (whose render data may
-	 * reference stacks from that level), and icons keyed by component identity.
+	 * reference stacks from that level), and icons of captured entities.
 	 * Prototype icons carry no level references and are kept.
 	 */
 	private static void clearLevelBound() {
@@ -307,7 +317,7 @@ public final class CapturedEntityRenderManager {
 		FAILURE_CACHE.clear();
 		PENDING.clear();
 		ICON_CACHE.entrySet()
-			.removeIf(entry -> entry.getKey() instanceof ComponentIdentityKey);
+			.removeIf(entry -> entry.getKey() instanceof CapturedContentKey);
 		activeLevel = null;
 		lastFrameNanos = 0L;
 	}
@@ -357,32 +367,15 @@ public final class CapturedEntityRenderManager {
 	private interface RenderKey {
 		static RenderKey of(CapturedEntityBoxHelper.CapturedEntityRenderData renderData) {
 			return renderData.prototype()
-				? new PrototypeKey(renderData.entityId()) : new ComponentIdentityKey(renderData.component());
+				? new PrototypeKey(renderData.entityId())
+				: new CapturedContentKey(CapturedEntityBoxHelper.captureFingerprint(renderData));
 		}
 	}
 
 	private record PrototypeKey(String entityId) implements RenderKey {
 	}
 
-	private static final class ComponentIdentityKey implements RenderKey {
-		private final CustomData component;
-		private final int hash;
-
-		private ComponentIdentityKey(CustomData component) {
-			this.component = component;
-			hash = System.identityHashCode(component);
-		}
-
-		@Override
-		public boolean equals(Object object) {
-			return object instanceof ComponentIdentityKey other && component == other.component;
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-	}
+	private record CapturedContentKey(com.google.common.hash.HashCode fingerprint) implements RenderKey {}
 
 	private static final class PendingRequest {
 		private final CapturedEntityBoxHelper.CapturedEntityRenderData renderData;

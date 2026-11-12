@@ -10,6 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -23,6 +25,10 @@ import net.minecraft.world.phys.Vec3;
 
 /** Immutable, side-safe topology and source-model state for one packed surgical body. */
 public final class SurgicalAssembly {
+	// Assemblies contain no entity/level state. Share the immutable decode across box
+	// previews, icons and world entities, while bounding retained NBT and topology.
+	private static final Cache<CompoundTag, SurgicalAssembly> DECODED = CacheBuilder.newBuilder()
+		.concurrencyLevel(1).maximumSize(64).build();
 	public static final int MAX_CUBES = 1024;
 	public static final int MAX_SEAMS = 4096;
 	public static final int MAX_SOURCES = 256;
@@ -242,6 +248,18 @@ public final class SurgicalAssembly {
 			normalized.add(limb);
 		}
 		return List.copyOf(normalized);
+	}
+
+	@Nullable
+	public static SurgicalAssembly loadCached(CompoundTag tag) {
+		SurgicalAssembly cached = DECODED.getIfPresent(tag);
+		if (cached != null)
+			return cached;
+		SurgicalAssembly loaded = load(tag);
+		if (loaded != null)
+			// The caller owns its mutable NBT; only our private snapshot is a cache key.
+			DECODED.put(tag.copy(), loaded);
+		return loaded;
 	}
 
 	@Nullable
