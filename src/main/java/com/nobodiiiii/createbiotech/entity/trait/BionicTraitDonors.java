@@ -176,7 +176,7 @@ public final class BionicTraitDonors {
 		case TAMEABLE -> donor instanceof TamableAnimal;
 		case LIVESTOCK_TAMEABLE -> donor instanceof AbstractHorse
 			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE;
-		case AGILE_LANDING -> (type == EntityType.CAT || type == EntityType.OCELOT)
+		case FALL_DAMAGE_IMMUNE -> (type == EntityType.CAT || type == EntityType.OCELOT)
 			&& type.is(EntityTypeTags.FALL_DAMAGE_IMMUNE);
 		case POWDER_SNOW_WALK -> type.is(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS);
 		// Squid swim without water navigation; drowned start with their land navigation.

@@ -6,7 +6,6 @@ Local NeoForge launcher for quick-playing the 1.21.1 test world.
 from __future__ import annotations
 
 import argparse
-import glob
 import hashlib
 import io
 import json
@@ -289,6 +288,52 @@ def run_build(offline: bool = True) -> None:
     subprocess.run(command, cwd=PROJECT_ROOT, env=env, check=True)
 
 
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def remove_stale_jar(path: Path) -> None:
+    try:
+        path.unlink()
+    except PermissionError as error:
+        raise RuntimeError(
+            f"Cannot remove stale mod jar: {path}. Close the client using this instance "
+            "and retry. Quick-play aborted."
+        ) from error
+
+
+def copy_verified_jar(source: Path, destination: Path) -> None:
+    source_hash = file_sha256(source)
+    if destination.is_file() and file_sha256(destination) == source_hash:
+        print(f"[JAR][UNCHANGED] {destination} (SHA-256: {source_hash})")
+        return
+
+    # Publish only a complete archive; a failed replacement must never launch an old jar.
+    staged_destination = destination.with_name(
+        f".{destination.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
+    )
+    try:
+        shutil.copy2(source, staged_destination)
+        if file_sha256(staged_destination) != source_hash:
+            raise RuntimeError(f"Jar changed during copy: {source}. Quick-play aborted; retry the build.")
+        os.replace(staged_destination, destination)
+    except PermissionError as error:
+        raise RuntimeError(
+            f"Cannot update mod jar: {destination}. Close the client using this instance "
+            "and retry. Quick-play aborted; the old jar will not be launched."
+        ) from error
+    finally:
+        staged_destination.unlink(missing_ok=True)
+
+    if file_sha256(destination) != source_hash:
+        raise RuntimeError(f"Deployed jar does not match {source}: {destination}. Quick-play aborted.")
+    print(f"[JAR][VERIFIED] {source} -> {destination} (SHA-256: {source_hash})")
+
+
 def copy_runtime_mods(mods_dir: Path, props: dict[str, str]) -> None:
     minecraft_version = props.get("minecraft_version", "1.21.1")
     managed_prefixes = (
@@ -300,47 +345,31 @@ def copy_runtime_mods(mods_dir: Path, props: dict[str, str]) -> None:
     if not staged:
         raise FileNotFoundError(f"Quick-play runtime mods not found under {QUICKPLAY_MODS_DIR}")
 
+    staged_names = {source.name for source in staged}
     for existing in mods_dir.glob("*.jar"):
-        if existing.name.startswith(managed_prefixes):
-            existing.unlink()
+        if existing.name.startswith(managed_prefixes) and existing.name not in staged_names:
+            remove_stale_jar(existing)
     for source in staged:
-        shutil.copy2(source, mods_dir / source.name)
+        copy_verified_jar(source, mods_dir / source.name)
 
 
 def copy_mod_jar(mods_dir: Path) -> Path:
     props = read_gradle_properties()
     mod_id = props.get("mod_id", "create_biotech")
-    pattern = str(PROJECT_ROOT / "build" / "libs" / f"{mod_id}-*.jar")
-    candidates = [Path(path) for path in glob.glob(pattern) if not path.endswith("-sources.jar")]
-    if not candidates:
-        raise FileNotFoundError("Built mod jar not found in build/libs")
+    jar_path = PROJECT_ROOT / "build" / "libs" / (
+        f"{mod_id}-{props['minecraft_version']}-{props['mod_version']}.jar"
+    )
+    if not jar_path.is_file():
+        raise FileNotFoundError(f"Built mod jar not found for the current project version: {jar_path}")
 
     mods_dir.mkdir(exist_ok=True)
-    copy_runtime_mods(mods_dir, props)
-    jar_path = max(candidates, key=lambda path: path.stat().st_mtime)
     destination = mods_dir / jar_path.name
     for existing in mods_dir.glob(f"{mod_id}-*.jar"):
         if existing != destination:
-            try:
-                existing.unlink()
-            except PermissionError:
-                print(f"[WARN] Could not remove locked mod jar: {existing}")
+            remove_stale_jar(existing)
 
-    # Never expose a partially copied archive to a concurrently starting game. Each launcher uses
-    # its own staging name, and os.replace publishes the complete jar in one filesystem operation.
-    staged_destination = destination.with_name(
-        f".{destination.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp"
-    )
-    try:
-        shutil.copy2(jar_path, staged_destination)
-        os.replace(staged_destination, destination)
-    except PermissionError:
-        if destination.exists():
-            print(f"[WARN] Reusing locked mod jar: {destination}")
-        else:
-            raise
-    finally:
-        staged_destination.unlink(missing_ok=True)
+    copy_verified_jar(jar_path, destination)
+    copy_runtime_mods(mods_dir, props)
     return destination
 
 

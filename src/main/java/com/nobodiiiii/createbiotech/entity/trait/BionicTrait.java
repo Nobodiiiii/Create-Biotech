@@ -44,9 +44,6 @@ public enum BionicTrait {
 	WATER_SINKING("water_sinking", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
-	FALL_DAMAGE_IMMUNE("fall_damage_immune", BionicTraitScope.WHOLE_BODY,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
-		Carrier.allTissue()),
 	WEB_ADAPTED("web_adapted", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue()),
@@ -83,9 +80,10 @@ public enum BionicTrait {
 	DETERRENCE("deterrence", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD)),
-	AGILE_LANDING("agile_landing", BionicTraitScope.LEG,
+	// JSON selects feline legs; the other donors contribute any tissue installed in leg chains.
+	FALL_DAMAGE_IMMUNE("fall_damage_immune", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.LEG)),
+		Carrier.allTissue()),
 	FALL_REDUCTION("fall_reduction", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.LEG)),
@@ -238,9 +236,9 @@ public enum BionicTrait {
 		case DISPOSITION, INTELLIGENCE -> true;
 		case RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE, FREEZE_VULNERABLE,
 			SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING, WATER_SINKING,
-			FALL_DAMAGE_IMMUNE, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
+			WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT,
 			PROJECTILE_DEFLECTION, CONTACT_RETALIATION,
-			WATER_BREATHING, TAMEABLE, LIVESTOCK_TAMEABLE, DETERRENCE, AGILE_LANDING, POWDER_SNOW_WALK, SWIM_SPECIALIST,
+			WATER_BREATHING, TAMEABLE, LIVESTOCK_TAMEABLE, DETERRENCE, FALL_DAMAGE_IMMUNE, POWDER_SNOW_WALK, SWIM_SPECIALIST,
 			IMMUNE_EFFECTS, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION -> true;
 		default -> false;
 		};

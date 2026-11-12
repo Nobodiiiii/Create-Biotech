@@ -1,11 +1,45 @@
 {
-  "overrides": ["agile_landing"],
-  "automatic_detection": false,
+  "automatic_detection": true,
+  "min_coverage": 0.5,
   "values": {
     "minecraft:magma_cube": true,
     "minecraft:iron_golem": true,
     "minecraft:snow_golem": true,
     "minecraft:shulker": true,
     "minecraft:breeze": true
+  },
+  "carriers": {
+    "minecraft:cat": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    },
+    "minecraft:ocelot": {
+      "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
+        "leftLeg",
+        "rightLeg",
+        "leftRearFoot",
+        "rightRearFoot",
+        "front_left_leg",
+        "front_right_leg",
+        "back_left_leg",
+        "back_right_leg"
+      ]
+    }
   }
 }

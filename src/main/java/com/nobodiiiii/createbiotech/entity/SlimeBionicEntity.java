@@ -956,7 +956,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		BionicTraitSet traits = getBionicTraits();
 		if (traits.has(BionicTrait.FALL_DAMAGE_IMMUNE)
 			|| traits.has(BionicTrait.WINGLESS_FLIGHT)
-			|| traits.has(BionicTrait.AGILE_LANDING)
 			|| traits.has(BionicTrait.WING_SLOW_FALL)
 			|| bodyFlightEnabled)
 			return false;

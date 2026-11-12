@@ -152,7 +152,7 @@ NeoForge 1.21.1 的 **Data Maps** 适合把可重载配置关联到 `EntityType`
 | `moisture_dependent.json` | 无，默认关闭 | 美西螈、海豚 |
 | `heat_sensitive.json` | 无，默认关闭 | 雪傀儡 |
 | `inverted_healing.json` | `isInvertedHealAndHarm()` | 空 |
-| `fall_damage_immune.json` | 无，默认关闭 | 岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 |
+| `fall_damage_immune.json` | 猫、豹猫且带有原版摔落免疫标签；统一为腿部特性 | 岩浆怪、铁傀儡、雪傀儡、潜影贝、旋风人 |
 | `web_adapted.json` | 无，默认关闭 | 蜘蛛、洞穴蜘蛛 |
 | `immune_effects.json` | `canBeAffected()` | 空 |
 | `natural_armor.json` | 基础护甲属性 | 空 |

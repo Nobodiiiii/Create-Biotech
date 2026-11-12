@@ -67,7 +67,7 @@ final class BionicTraitInfoWidget implements IRecipeWidget {
 			if (cellX < ITEM_INSET || cellX >= ITEM_INSET + ICON_SIZE
 				|| mouseY < ITEM_INSET || mouseY >= ITEM_INSET + ICON_SIZE)
 				return;
-			tooltip.add(BionicTraitJeiText.scopeTooltip(scopes.get(index)));
+			tooltip.addAll(BionicTraitJeiText.scopeTooltip(scopes.get(index)));
 		} else if (index == scopes.size())
 			tooltip.addAll(BionicTraitJeiText.ruleTooltip(trait));
 	}

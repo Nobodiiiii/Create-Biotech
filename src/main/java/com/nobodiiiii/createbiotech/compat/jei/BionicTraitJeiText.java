@@ -36,16 +36,23 @@ final class BionicTraitJeiText {
 		text.add(tr(trait.id() + ".effect").withStyle(ChatFormatting.BLACK));
 		Component condition = condition(trait);
 		if (condition != null)
-			text.add(tr("condition", condition).withStyle(ChatFormatting.GRAY));
+			text.add(tr("condition", condition.copy().withStyle(ChatFormatting.BLACK))
+				.withStyle(ChatFormatting.DARK_GRAY));
 		List<Component> overrides = BionicTraitOverrides.clientTargets(trait).stream().sorted()
 			.map(BionicTraitJeiIngredient::name).toList();
 		if (!overrides.isEmpty())
-			text.add(tr("overrides", join(overrides, tr("overrides.separator"))).withStyle(ChatFormatting.GRAY));
+			text.add(tr("overrides", join(overrides, tr("overrides.separator")).copy().withStyle(ChatFormatting.BLACK))
+				.withStyle(ChatFormatting.DARK_GRAY));
 		return List.copyOf(text);
 	}
 
-	static Component scopeTooltip(BionicTraitScope scope) {
-		return field("scope", Component.translatable(scope.descriptionId()));
+	static List<Component> scopeTooltip(BionicTraitScope scope) {
+		Component label = field("scope", Component.translatable(scope.descriptionId()));
+		return switch (scope) {
+		case HEAD -> List.of(label, tr("scope.head.description").withStyle(ChatFormatting.GRAY));
+		case LEG -> List.of(label, tr("scope.leg.description").withStyle(ChatFormatting.GRAY));
+		default -> List.of(label);
+		};
 	}
 
 	static List<Component> ruleTooltip(BionicTrait trait) {
