@@ -41,6 +41,9 @@ public final class BionicEquipment {
 		return entity.getBionicOwnerId() == null ? !entity.getBionicTraits().isTameable()
 			: entity.getBionicOwnerId().equals(player.getUUID());
 	}
+	public boolean mayRide(Player player) {
+		return entity.getBionicOwnerId() == null || entity.getBionicOwnerId().equals(player.getUUID());
+	}
 	public boolean saddled() { receive(); return !saddles.isEmpty(); }
 	public boolean saddled(@Nullable CombinationMember member) { receive(); return saddles.containsKey(member); }
 	public boolean hasChest() { receive(); return !chests.isEmpty(); }
@@ -132,7 +135,7 @@ public final class BionicEquipment {
 		return member != null && allowedSaddleCarriers().contains(member)
 			&& entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member);
 	}
-	/** The first passenger controls the body, as in Camel and AbstractHorse. */
+	/** The first passenger selects the active saddle and its riding behavior. */
 	@Nullable public CombinationMember saddleCarrier() {
 		receive();
 		var first = entity.getFirstPassenger();
@@ -294,7 +297,7 @@ public final class BionicEquipment {
 
 	public InteractionResult interact(Player player, InteractionHand hand) { return interact(player, hand, null); }
 	public InteractionResult interact(Player player, InteractionHand hand, @Nullable Vec3 hit) {
-		if (!mayUse(player)) return InteractionResult.PASS;
+		if (!mayRide(player)) return InteractionResult.PASS;
 		receive();
 		var member = pick(player, hit);
 		ItemStack held = player.getItemInHand(hand);
@@ -308,6 +311,8 @@ public final class BionicEquipment {
 					}
 					give(player, saddles.remove(member)); sync();
 				}
+			} else if (!mayUse(player)) {
+				return InteractionResult.PASS;
 			} else if (held.getItem() instanceof AxeItem && hasChest(member) && chests.get(member).isEmpty()) {
 				if (!client) { give(player, new ItemStack(Items.CHEST)); chests.remove(member); sync(); }
 			} else if (accepts(hand, held)) {
@@ -327,7 +332,7 @@ public final class BionicEquipment {
 			return InteractionResult.sidedSuccess(client);
 		}
 		if (held.is(Items.CHEST) && member != null && entity.getBionicTraits().members(BionicTrait.CARGO_CHEST).contains(member)
-			&& !hasChest(member)) {
+			&& !hasChest(member) && mayUse(player)) {
 			if (!client) {
 				chests.put(member, newCargo(member)); held.consume(1, player);
 				boolean llama = source(member).profile().entityTypeId().getPath().endsWith("llama");

@@ -392,10 +392,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		goalSelector.addGoal(1, new BionicSitGoal(this));
 		goalSelector.addGoal(1, new Goal() {
 			{ setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP)); }
-			@Override public boolean canUse() { return isVehicle() || specialAttacks != null && specialAttacks.busy(); }
+			// A passive passenger must not suspend autonomous wandering.
+			@Override public boolean canUse() { return hasControllingPassenger() || specialAttacks != null && specialAttacks.busy(); }
 			@Override public boolean canContinueToUse() { return canUse(); }
-			@Override public void start() { if (isVehicle() || specialAttacks.locksMovement()) getNavigation().stop(); }
-			@Override public void tick() { if (isVehicle() || specialAttacks.locksMovement()) getNavigation().stop(); }
+			@Override public void start() { if (hasControllingPassenger() || specialAttacks.locksMovement()) getNavigation().stop(); }
+			@Override public void tick() { if (hasControllingPassenger() || specialAttacks.locksMovement()) getNavigation().stop(); }
 		});
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
 		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
@@ -1367,7 +1368,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		blockAttachment.tick();
 		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
 		if (riderJumpCooldown > 0) riderJumpCooldown--;
-		if (!isVehicle()) { riderJump = 0; riderAscending = false; }
+		if (!hasControllingPassenger()) { riderJump = 0; riderAscending = false; }
 		super.tick();
 		// Spider updates and synchronizes wall contact after movement, for the next tick.
 		if (!level().isClientSide)
@@ -2047,7 +2048,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected boolean canAddPassenger(Entity passenger) {
 		return passenger instanceof Player player && !isOrderedToSit() && isSaddled() && isSaddleable()
-			&& equipment.mayUse(player) && equipment.canSeat(passenger)
+			&& equipment.mayRide(player) && equipment.canSeat(passenger)
 			&& BionicRiding.pose(this, passenger, 1, yBodyRot) != null
 			&& BionicRiding.clear(passenger, BionicRiding.pose(this, passenger, 1, yBodyRot).bounds(passenger));
 	}
@@ -2060,7 +2061,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		equipment.passengerRemoved(passenger);
 	}
 	@Override @Nullable public LivingEntity getControllingPassenger() {
-		return isSaddled() && isSaddleable() && getFirstPassenger() instanceof Player player && equipment.mayUse(player)
+		return isSaddled() && isSaddleable() && ownerId != null && getFirstPassenger() instanceof Player player
+			&& ownerId.equals(player.getUUID())
 			&& equipment.canSeat(player) ? player : null;
 	}
 	@Override protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
@@ -2152,7 +2154,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		} else if (!hasFlightLocomotion() && onGround() && input.horizontalDistanceSqr() > 0
 			&& getLocomotionLegCount() < 2) jumpFromGround();
 	}
-	@Override public boolean canJump() { return isSaddled() && isSaddleable() && !hasFlightLocomotion() && !isSwimming()
+	@Override public boolean canJump() { return hasControllingPassenger() && !hasFlightLocomotion() && !isSwimming()
 		&& (equipment.jumpingDonor() || getBionicTraits().hasStrongJump()); }
 	@Override public int getJumpCooldown() { return riderJumpCooldown; }
 	@Override public void onPlayerJump(int strength) {

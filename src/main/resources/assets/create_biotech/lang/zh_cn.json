@@ -1121,7 +1121,7 @@
   "create_biotech.trait.hunt_target.attackable_creatures": "可攻击生物（排除僵尸疣猪兽、苦力怕、玩家）",
   "create_biotech.trait.hunt_target.non_wither_friends": "非凋灵友方生物",
   "create_biotech.trait.rideable": "可骑乘",
-  "create_biotech.jei.trait.rideable.effect": "存在一个可装鞍供体的有效背部体块即可获得，无覆盖率或最小体积要求；在该体块装鞍后空手点击骑乘，所有供体均直接操控。原版供体只有 body 体块提供此特性，其他部件不提供；其他模组供体按背部名称识别，无法识别时使用点击的部件。骆驼背部双座并可冲刺；强健跳跃支持蓄力跳。飞行和游泳时按视线升降，跳跃键上升。具备可驯服时须先驯服，且仅主人可骑。",
+  "create_biotech.jei.trait.rideable.effect": "存在一个可装鞍供体的有效背部体块即可获得，无覆盖率或最小体积要求；在该体块装鞍后空手点击骑乘。未驯服时只能随生物自主游荡，无法操控；驯服后仅主人可骑乘并操控。原版供体只有 body 体块提供此特性，其他部件不提供；其他模组供体按背部名称识别，无法识别时使用点击的部件。骆驼背部保留双座；操控时可冲刺，强健跳跃支持蓄力跳，飞行和游泳时按视线升降，跳跃键上升。",
   "create_biotech.trait.cargo_chest": "驮运箱",
   "create_biotech.jei.trait.cargo_chest.effect": "箱子右击安装，潜行空手打开。驴、骡 15 格；羊驼按供体 Strength × 3 格。潜行持斧可拆下空箱。死亡掉落箱子和内容；已驯服时仅主人可操作。",
   "create_biotech.trait.loot_pickup": "拾取装备",
