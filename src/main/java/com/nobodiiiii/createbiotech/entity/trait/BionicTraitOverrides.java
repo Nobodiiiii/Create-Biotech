@@ -28,6 +28,11 @@ public final class BionicTraitOverrides {
 		clientGeneration++;
 	}
 
+	/** Server-synced replacement targets; absent rules have no display entry. */
+	public static Set<BionicTrait> clientTargets(BionicTrait trait) {
+		return clientRules == null ? Set.of() : clientRules.getOrDefault(trait, Set.of());
+	}
+
 	static long clientGeneration() { return clientGeneration; }
 
 	/** Ignore every edge participating in a cycle; unrelated rules remain usable. */

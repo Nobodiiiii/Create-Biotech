@@ -94,6 +94,7 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 			}
 
 			@Override
+			@SuppressWarnings("deprecation") // JEI 19 still requires this legacy UID compatibility method.
 			public String getLegacyStringSubtypeInfo(ItemStack stack, UidContext context) {
 				ResourceLocation id = BionicDonorPreviewItem.entityId(stack);
 				return id == null ? "" : id.toString();

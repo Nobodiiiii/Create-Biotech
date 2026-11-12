@@ -12,6 +12,7 @@ import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitOverrides;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
 
@@ -22,8 +23,8 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.EntityType;
 
 /**
- * Header tooltips explain inheritance types; optional limb counts and wing lift follow the effect.
- * Displayed thresholds, limb counts and lift limits follow server data packs.
+ * Header tooltips explain inheritance types; optional conditions and replacements follow the effect.
+ * Displayed thresholds, limb counts, lift limits and replacements follow server data packs.
  */
 final class BionicTraitJeiText {
 	private static final String PREFIX = "create_biotech.jei.trait.";
@@ -36,6 +37,10 @@ final class BionicTraitJeiText {
 		Component condition = condition(trait);
 		if (condition != null)
 			text.add(tr("condition", condition).withStyle(ChatFormatting.GRAY));
+		List<Component> overrides = BionicTraitOverrides.clientTargets(trait).stream().sorted()
+			.map(BionicTraitJeiIngredient::name).toList();
+		if (!overrides.isEmpty())
+			text.add(tr("overrides", join(overrides, tr("overrides.separator"))).withStyle(ChatFormatting.GRAY));
 		return List.copyOf(text);
 	}
 
