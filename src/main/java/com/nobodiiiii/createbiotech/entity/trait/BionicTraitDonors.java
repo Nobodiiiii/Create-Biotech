@@ -151,7 +151,8 @@ public final class BionicTraitDonors {
 			abilities.removeAll(Set.of(BionicTrait.MILKABLE, BionicTrait.WOOL_SHEARING,
 				BionicTrait.EGG_LAYING, BionicTrait.SCUTE_SHEDDING));
 		return new Facts(abilities, numbers, effects, attacks, BionicDeterrence.targets(type).stream()
-			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()), variants);
+			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()),
+			abilities.contains(BionicTrait.PACK_ALERT) ? BionicPackAlert.targets(donor) : Set.of(), variants);
 	}
 
 	@SuppressWarnings("deprecation")
@@ -174,7 +175,7 @@ public final class BionicTraitDonors {
 			|| donor.canDrownInFluidType(NeoForgeMod.WATER_TYPE.value()) && donor.getMaxAirSupply() > 300);
 		case TAMEABLE -> donor instanceof TamableAnimal;
 		case LIVESTOCK_TAMEABLE -> donor instanceof AbstractHorse
-			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE && type != EntityType.CAMEL;
+			&& type != EntityType.SKELETON_HORSE && type != EntityType.ZOMBIE_HORSE;
 		case AGILE_LANDING -> (type == EntityType.CAT || type == EntityType.OCELOT)
 			&& type.is(EntityTypeTags.FALL_DAMAGE_IMMUNE);
 		case POWDER_SNOW_WALK -> type.is(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS);
@@ -192,14 +193,15 @@ public final class BionicTraitDonors {
 
 	public record Facts(Set<BionicTrait> abilities, Map<BionicTrait, Double> numbers,
 		Set<ResourceLocation> immuneEffects, Set<ResourceLocation> attackEffects, Set<ResourceLocation> deterrenceTargets,
-		Map<BionicTrait, Set<ResourceLocation>> variants) {
-		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of(), Map.of());
+		Set<ResourceLocation> packAlertTargets, Map<BionicTrait, Set<ResourceLocation>> variants) {
+		public static final Facts EMPTY = new Facts(Set.of(), Map.of(), Set.of(), Set.of(), Set.of(), Set.of(), Map.of());
 		public Facts {
 			abilities = Set.copyOf(abilities);
 			numbers = Map.copyOf(numbers);
 			immuneEffects = Set.copyOf(immuneEffects);
 			attackEffects = Set.copyOf(attackEffects);
 			deterrenceTargets = Set.copyOf(deterrenceTargets);
+			packAlertTargets = Set.copyOf(packAlertTargets);
 			variants = Map.copyOf(variants);
 		}
 		public Set<ResourceLocation> variants(BionicTrait trait) { return variants.getOrDefault(trait, Set.of()); }

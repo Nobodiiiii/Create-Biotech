@@ -19,6 +19,12 @@
         "head_cube"
       ]
     },
+    "minecraft:camel": {
+      "HEAD": [
+        "head",
+        "head_cube"
+      ]
+    },
     "minecraft:llama": {
       "HEAD": [
         "head",

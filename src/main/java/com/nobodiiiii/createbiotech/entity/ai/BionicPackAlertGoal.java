@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicPackAlert;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 
@@ -18,7 +19,6 @@ import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.animal.Bee;
-import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.monster.ZombifiedPiglin;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.piglin.AbstractPiglin;
@@ -28,7 +28,7 @@ import net.minecraft.world.phys.AABB;
 public final class BionicPackAlertGoal extends HurtByTargetGoal {
 	private final SlimeBionicEntity bionic;
 	private BionicTraitSet resolvedTraits;
-	private List<AlertGroup> groups = List.of();
+	private List<BionicPackAlert.Group> groups = List.of();
 
 	public BionicPackAlertGoal(SlimeBionicEntity bionic) {
 		super(bionic);
@@ -47,7 +47,7 @@ public final class BionicPackAlertGoal extends HurtByTargetGoal {
 		if (resolvedTraits != traits) resolveGroups(traits);
 		double range = getFollowDistance();
 		AABB area = AABB.unitCubeFromLowerCorner(bionic.position()).inflate(range, 10.0d, range);
-		for (AlertGroup group : groups)
+		for (BionicPackAlert.Group group : groups)
 			for (Mob other : bionic.level().getEntitiesOfClass(group.type(), area, EntitySelector.NO_SPECTATORS)) {
 				if (other instanceof SlimeBionicEntity || other.getTarget() != null || !other.canAttack(attacker)
 					|| other.isAlliedTo(attacker)) continue;
@@ -63,7 +63,7 @@ public final class BionicPackAlertGoal extends HurtByTargetGoal {
 	/** Only active, correctly installed trait carriers contribute a reinforcement group. */
 	private void resolveGroups(BionicTraitSet traits) {
 		var assembly = bionic.getAssembly();
-		List<AlertGroup> result = new ArrayList<>();
+		List<BionicPackAlert.Group> result = new ArrayList<>();
 		if (assembly != null) {
 			var donors = new HashSet<EntityType<?>>();
 			for (var member : traits.members(BionicTrait.PACK_ALERT)) {
@@ -72,8 +72,7 @@ public final class BionicPackAlertGoal extends HurtByTargetGoal {
 			}
 			for (EntityType<?> type : donors)
 				if (type.create(bionic.level()) instanceof Mob donor && !(donor instanceof SlimeBionicEntity))
-					result.add(new AlertGroup(donor instanceof AbstractPiglin ? AbstractPiglin.class : donor.getClass(),
-						donor instanceof Zombie && !(donor instanceof ZombifiedPiglin)));
+					result.add(BionicPackAlert.group(donor));
 		}
 		groups = List.copyOf(result);
 		resolvedTraits = traits;
@@ -99,6 +98,4 @@ public final class BionicPackAlertGoal extends HurtByTargetGoal {
 		}
 		super.alertOther(other, attacker);
 	}
-
-	private record AlertGroup(Class<? extends Mob> type, boolean ignoreZombifiedPiglins) {}
 }

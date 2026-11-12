@@ -150,6 +150,7 @@ public final class BionicTraitResolver {
 			Set<ResourceLocation> details = switch (trait) {
 			case DETERRENCE -> donor.deterrenceTargets();
 			case HUNTING_INSTINCT -> BionicHunting.targets(Set.of(tissue.source(sourceId).profile().entityTypeId()));
+			case PACK_ALERT -> donor.packAlertTargets();
 			case IMMUNE_EFFECTS -> donor.immuneEffects();
 			default -> Set.of();
 			};
@@ -181,6 +182,8 @@ public final class BionicTraitResolver {
 			BionicTraitResult limbResult = evaluateLimbs(trait, data.rule(), tissue, members, misplaced);
 			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
 				return evaluateLimbNumbers(trait, data, tissue, donors, limbResult);
+			if (trait == BionicTrait.PACK_ALERT)
+				return limbResult.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
 			if (trait == BionicTrait.HUNTING_INSTINCT) {
 				Set<ResourceLocation> types = new HashSet<>();
 				for (var member : limbResult.members())

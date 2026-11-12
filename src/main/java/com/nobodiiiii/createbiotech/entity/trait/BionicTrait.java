@@ -225,7 +225,7 @@ public enum BionicTrait {
 	/** A value-free name is also used when an installed carrier cannot supply an effective value. */
 	public String nameDescriptionId() {
 		return valueKind == ValueKind.NUMBER || valueKind == ValueKind.SUBTRAIT_SET
-			|| valueKind == ValueKind.ATTACK_EFFECT_SET || this == DETERRENCE || this == HUNTING_INSTINCT
+			|| valueKind == ValueKind.ATTACK_EFFECT_SET || this == DETERRENCE || this == HUNTING_INSTINCT || this == PACK_ALERT
 			? "create_biotech.trait.name." + id : descriptionId();
 	}
 	/** Allowed regions; head, arm and leg coverage is evaluated separately for each installed chain. */

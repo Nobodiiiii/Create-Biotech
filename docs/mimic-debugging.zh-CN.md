@@ -70,6 +70,27 @@
 验证覆盖旧格式加载、新格式读写、供体与编辑状态一致、共享对象复用、同步快照在 2 MiB NBT 预算内解码，
 以及角点位级还原和几何网络往返；非法字典索引与角点长度会被拒绝。该验证不代表游戏帧率或运行时堆占用测量。
 
+## 马腿未显示强健跳跃
+
+2026-11-12 17:50:35（北京时间，`captured_at_utc` 为 `2026-11-12T09:50:35.094838400Z`）
+的报告中，实体 UUID 为 `cd15e374-d641-41aa-8d94-b0e0d999feed`。装配体已有四条有效 `HIP` 腿链，
+但 `traits.strong_jump` 为 `present=false`、`active=false`、`inactive_reason=NO_CARRIER`，
+`bindings` 与 `members` 均为空，所以共用该结果的前端提示不会列出强健跳跃。
+
+报告的 `assembly.SharedSurgicalData.DonorTemplates[0].Anatomy.ModelParts` 将马腿 8–11 号体块记录为
+`rightHindLeg`、`leftHindLeg`、`rightFrontLeg`、`leftFrontLeg`；原先的
+[`strong_jump.json`](../src/main/resources/data/create_biotech/bionic_traits/strong_jump.json)
+仅匹配下划线形式，无法识别这些体块。
+[`SurgicalCapturedRenderPlan.collectModelPartNames`](../src/main/java/com/nobodiiiii/createbiotech/content/surgery/client/SurgicalCapturedRenderPlan.java)
+同时采集模型字段名和子部件名；非层级模型的根部件可能只有字段名。对应名称见本地 1.21.1 原版参考
+[`HorseModel`](../ref/1.21.1/Minecraft/net/minecraft/client/model/HorseModel.java)、
+[`QuadrupedModel`](../ref/1.21.1/Minecraft/net/minecraft/client/model/QuadrupedModel.java)、
+[`FrogModel`](../ref/1.21.1/Minecraft/net/minecraft/client/model/FrogModel.java) 和
+[`RabbitModel`](../ref/1.21.1/Minecraft/net/minecraft/client/model/RabbitModel.java)；这些参考不包含 NeoForge 补丁。
+
+规则现同时接受马、骷髅马、僵尸马、山羊、青蛙及兔相应腿部的字段名与原有子部件名。
+兔仍限于后腿和后足，旋风人的全身载体规则不变。已有数据重新加载规则后即可识别，无需重新打包装配体。
+
 ## 蜘蛛攀墙攻击高处目标后掉落
 
 本次首份蜘蛛报告采集于 2026-11-11 23:39:23（北京时间，`captured_at_utc` 为

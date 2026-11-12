@@ -9,6 +9,10 @@
     "minecraft:breeze": {},
     "minecraft:horse": {
       "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
         "left_hind_leg",
         "right_hind_leg",
         "left_front_leg",
@@ -19,6 +23,10 @@
     },
     "minecraft:skeleton_horse": {
       "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
         "left_hind_leg",
         "right_hind_leg",
         "left_front_leg",
@@ -29,6 +37,10 @@
     },
     "minecraft:zombie_horse": {
       "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
         "left_hind_leg",
         "right_hind_leg",
         "left_front_leg",
@@ -39,6 +51,10 @@
     },
     "minecraft:goat": {
       "LEG": [
+        "leftHindLeg",
+        "rightHindLeg",
+        "leftFrontLeg",
+        "rightFrontLeg",
         "left_hind_leg",
         "right_hind_leg",
         "left_front_leg",
@@ -49,6 +65,8 @@
     },
     "minecraft:frog": {
       "LEG": [
+        "leftLeg",
+        "rightLeg",
         "left_hind_leg",
         "right_hind_leg",
         "left_front_leg",
@@ -59,6 +77,10 @@
     },
     "minecraft:rabbit": {
       "LEG": [
+        "leftHaunch",
+        "rightHaunch",
+        "leftRearFoot",
+        "rightRearFoot",
         "left_haunch",
         "right_haunch",
         "left_hind_foot",

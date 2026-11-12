@@ -7,11 +7,12 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.Combination
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.BionicRiding;
 import com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu;
+import com.nobodiiiii.createbiotech.entity.inventory.BionicInventoryContainer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.Container;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -22,6 +23,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.ticks.ContainerSingleItem;
 
 /** Equipment and native passenger slots belong to individual retained cubes. */
 public final class BionicEquipment {
@@ -36,10 +38,38 @@ public final class BionicEquipment {
 	private Set<CombinationMember> saddleCarriers = Set.of();
 
 	public record PassengerSeat(CombinationMember carrier, int slot) {}
+	private enum SaddleAction { EQUIP, RIDE, INVENTORY }
+
+	/** Stable donor/cube order, shared by every opener until the assembly or box set changes. */
+	public final class InventoryView {
+		private final SurgicalAssembly assembly = entity.getAssembly();
+		private final BionicTraitSet traits = entity.getBionicTraits();
+		private final List<CombinationMember> saddleMembers = traits.members(BionicTrait.RIDEABLE).stream()
+			.filter(BionicEquipment.this::canSaddle).sorted(ORDER).toList();
+		private final List<CombinationMember> chestMembers = chests.keySet().stream().sorted(ORDER).toList();
+		private final List<Container> boxes = chestMembers.stream().map(member -> (Container) chests.get(member)).toList();
+		private final Container saddleInventory = new BionicInventoryContainer(saddleMembers.stream()
+			.map(BionicEquipment.this::saddleInventory).toList());
+		private final Container cargoInventory = new BionicInventoryContainer(boxes);
+		public List<CombinationMember> saddleMembers() { return saddleMembers; }
+		public Container saddles() { return saddleInventory; }
+		public Container cargo() { return cargoInventory; }
+		public boolean stillValid() {
+			if (entity.getAssembly() != assembly || entity.getBionicTraits() != traits || chests.size() != boxes.size()) return false;
+			for (int i = 0; i < chestMembers.size(); i++)
+				if (chests.get(chestMembers.get(i)) != boxes.get(i)) return false;
+			return true;
+		}
+	}
 	public BionicEquipment(SlimeBionicEntity entity) { this.entity = entity; }
 	public boolean mayUse(Player player) {
 		return entity.getBionicOwnerId() == null ? !entity.getBionicTraits().isTameable()
 			: entity.getBionicOwnerId().equals(player.getUUID());
+	}
+	/** AbstractHorse's inventory access: tame first, and only passengers may open an occupied mount. */
+	public boolean mayOpenInventory(Player player) {
+		return entity.isAlive() && (!entity.isVehicle() || entity.hasPassenger(player))
+			&& (!entity.getBionicTraits().isTameable() || entity.getBionicOwnerId() != null);
 	}
 	public boolean saddled() { receive(); return !saddles.isEmpty(); }
 	public boolean saddled(@Nullable CombinationMember member) { receive(); return saddles.containsKey(member); }
@@ -63,6 +93,30 @@ public final class BionicEquipment {
 	private void equipSaddle(CombinationMember member, ItemStack stack) {
 		saddles.put(member, stack.copyWithCount(1)); sync();
 	}
+	/** A live menu view: the slot and direct interactions share the same equipped stack. */
+	public Container saddleInventory(CombinationMember member) {
+		return new ContainerSingleItem() {
+			@Override public ItemStack getTheItem() { return saddles.getOrDefault(member, ItemStack.EMPTY); }
+			@Override public void setTheItem(ItemStack stack) {
+				boolean wasSaddled = saddles.containsKey(member);
+				if (stack.isEmpty()) {
+					saddles.remove(member);
+					for (Entity rider : List.copyOf(entity.getPassengers())) {
+						var seat = passengers.get(rider.getUUID());
+						if (seat != null && seat.carrier().equals(member)) rider.stopRiding();
+					}
+				} else saddles.put(member, stack);
+				sync();
+				if (!wasSaddled && !stack.isEmpty() && entity.tickCount > 20)
+					entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 0.5f, 1);
+			}
+			@Override public void setChanged() { setTheItem(getTheItem()); }
+			@Override public int getMaxStackSize() { return 1; }
+			@Override public boolean stillValid(Player player) {
+				return entity.isAlive() && player.canInteractWithEntity(entity, 4.0) && canSaddle(member);
+			}
+		};
+	}
 	public int capacity() { receive(); return chests.keySet().stream().mapToInt(this::capacity).sum(); }
 	public int capacity(@Nullable CombinationMember member) {
 		var source = source(member);
@@ -75,7 +129,7 @@ public final class BionicEquipment {
 	private SimpleContainer newCargo(CombinationMember member) {
 		return new SimpleContainer(capacity(member)) {
 			@Override public boolean stillValid(Player player) {
-				return entity.isAlive() && entity.distanceToSqr(player) < 64 && mayUse(player)
+				return entity.isAlive() && player.canInteractWithEntity(entity, 4.0)
 					&& chests.get(member) == this && entity.getBionicTraits().members(BionicTrait.CARGO_CHEST).contains(member);
 			}
 		};
@@ -128,7 +182,7 @@ public final class BionicEquipment {
 		}
 		return saddleCarriers;
 	}
-	private boolean canSaddle(@Nullable CombinationMember member) {
+	public boolean canSaddle(@Nullable CombinationMember member) {
 		return member != null && allowedSaddleCarriers().contains(member)
 			&& entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member);
 	}
@@ -208,8 +262,8 @@ public final class BionicEquipment {
 	}
 
 	/** Only compare eligible saddle origins; a sole candidate needs no click transform or distance check. */
-	@Nullable private CombinationMember nearestSaddle(Player player, @Nullable Vec3 hit, boolean mounting) {
-		var candidates = mounting ? saddles.keySet() : entity.getBionicTraits().members(BionicTrait.RIDEABLE);
+	@Nullable private CombinationMember nearestSaddle(Player player, @Nullable Vec3 hit, SaddleAction action) {
+		var candidates = action == SaddleAction.RIDE ? saddles.keySet() : entity.getBionicTraits().members(BionicTrait.RIDEABLE);
 		CombinationMember selected = null;
 		Vec3 point = null;
 		double closest = Double.POSITIVE_INFINITY;
@@ -217,7 +271,11 @@ public final class BionicEquipment {
 		var origins = assembly == null || assembly.attackGeometry() == null ? Map.<CombinationMember, Vec3>of()
 			: assembly.attackGeometry().carrierOrigins();
 		for (var member : candidates) {
-			if (!canSaddle(member) || (mounting ? firstFreeSlot(player, member) < 0 : saddles.containsKey(member))) continue;
+			if (!canSaddle(member) || switch (action) {
+				case EQUIP -> saddles.containsKey(member);
+				case RIDE -> firstFreeSlot(player, member) < 0;
+				case INVENTORY -> false;
+			}) continue;
 			if (selected == null) {
 				selected = member;
 				continue;
@@ -380,10 +438,7 @@ public final class BionicEquipment {
 					entity.setGuaranteedDrop(hand == InteractionHand.MAIN_HAND ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND);
 				}
 			} else if (held.isEmpty() && hasChest(member)) {
-				if (!client) player.openMenu(new SimpleMenuProvider((id, inventory, opener) ->
-					new BionicCargoMenu(id, inventory, entity, member, capacity(member)), Component.translatable("create_biotech.bionic.cargo")),
-					buffer -> { buffer.writeInt(entity.getId()); buffer.writeVarInt(member.source());
-						buffer.writeVarInt(member.cube()); buffer.writeVarInt(capacity(member)); });
+				openCarrierInventory(player, member);
 			} else if (held.isEmpty() && !entity.getItemInHand(hand).isEmpty()) {
 				if (!client) { give(player, entity.getItemInHand(hand)); entity.setItemInHand(hand, ItemStack.EMPTY); }
 			} else return InteractionResult.PASS;
@@ -400,7 +455,7 @@ public final class BionicEquipment {
 			return InteractionResult.sidedSuccess(client);
 		}
 		if (held.is(Items.SADDLE) && entity.isSaddleable()) {
-			var saddle = nearestSaddle(player, hit, false);
+			var saddle = nearestSaddle(player, hit, SaddleAction.EQUIP);
 			if (saddle != null) {
 				if (!client) {
 					equipSaddle(saddle, held); held.consume(1, player);
@@ -411,12 +466,31 @@ public final class BionicEquipment {
 		}
 		return InteractionResult.PASS;
 	}
+	/** Both vanilla's OPEN_INVENTORY command and secondary interaction use this entry point. */
+	public boolean openInventory(Player player, @Nullable Vec3 hit) {
+		if (!entity.isSaddleable() || !mayOpenInventory(player)) return false;
+		receive();
+		var seat = entity.hasPassenger(player) ? passengerSeat(player) : null;
+		var member = seat == null ? nearestSaddle(player, hit, SaddleAction.INVENTORY) : seat.carrier();
+		if (member == null) return false;
+		openCarrierInventory(player, member);
+		return true;
+	}
+	private void openCarrierInventory(Player player, CombinationMember member) {
+		if (entity.level().isClientSide) return;
+		InventoryView view = new InventoryView();
+		int page = Math.max(0, view.saddleMembers().indexOf(member)) / BionicCargoMenu.SADDLES_PER_PAGE;
+		player.openMenu(new SimpleMenuProvider((id, inventory, opener) ->
+			new BionicCargoMenu(id, inventory, entity, view, page), entity.getDisplayName()),
+			buffer -> { buffer.writeInt(entity.getId()); buffer.writeVarInt(view.saddleMembers().size());
+				buffer.writeVarInt(view.cargo().getContainerSize()); buffer.writeVarInt(page); });
+	}
 	/** AbstractHorse/Camel: let the held item interact before falling through to mounting. */
 	public InteractionResult ride(Player player, InteractionHand hand, @Nullable Vec3 hit) {
 		if (player.isSecondaryUseActive()) return InteractionResult.PASS;
 		receive();
 		if (!entity.isSaddleable()) return InteractionResult.PASS;
-		var member = nearestSaddle(player, hit, true);
+		var member = nearestSaddle(player, hit, SaddleAction.RIDE);
 		if (member == null) return InteractionResult.PASS;
 		ItemStack held = player.getItemInHand(hand);
 		if (!held.isEmpty()) {

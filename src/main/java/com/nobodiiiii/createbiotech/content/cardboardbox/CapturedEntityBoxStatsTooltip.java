@@ -15,6 +15,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHeadTraits;
+import com.nobodiiiii.createbiotech.entity.trait.BionicPackAlert;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonors;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
@@ -91,11 +92,13 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				tooltip.add(stat.line());
 		}
 		appendPropertiesSection(tooltip, details.traits());
-		appendDonorFacts(tooltip, details.donorFacts(), details.donorAttacks(), details.deterrenceTargets(), details.huntingTargets());
+		appendDonorFacts(tooltip, details.donorFacts(), details.donorAttacks(), details.deterrenceTargets(),
+			details.huntingTargets(), details.packAlertTargets());
 	}
 
 	private static void appendDonorFacts(List<Component> tooltip, Set<BionicTrait> facts,
-		Set<ResourceLocation> attacks, Set<ResourceLocation> targets, Set<ResourceLocation> huntingTargets) {
+		Set<ResourceLocation> attacks, Set<ResourceLocation> targets, Set<ResourceLocation> huntingTargets,
+		Set<ResourceLocation> packAlertTargets) {
 		if (facts.isEmpty() && attacks.isEmpty())
 			return;
 		tooltip.add(CommonComponents.EMPTY);
@@ -105,7 +108,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			if (facts.contains(trait))
 				appendProperty(tooltip, trait == BionicTrait.DETERRENCE ? deterrenceName(targets)
 					: trait == BionicTrait.HUNTING_INSTINCT ? targetList(trait, huntingTargets)
-					: Component.translatable(trait.descriptionId()));
+					: trait == BionicTrait.PACK_ALERT ? targetList(trait, packAlertTargets)
+					: Component.translatable(trait.nameDescriptionId()));
 		if (!attacks.isEmpty()) appendProperty(tooltip, effectList(BionicTrait.EFFECT_ATTACK, attacks));
 	}
 
@@ -237,7 +241,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		Component base = Component.translatable(trait.nameDescriptionId());
 		if (ids.isEmpty()) return base;
 		MutableComponent names = Component.empty();
-		List<ResourceLocation> sorted = ids.stream().sorted().toList();
+		List<ResourceLocation> sorted = (trait == BionicTrait.PACK_ALERT ? BionicPackAlert.compactTargets(ids) : ids)
+			.stream().sorted().toList();
 		int shown = Math.min(3, sorted.size());
 		for (int index = 0; index < shown; index++) {
 			if (index > 0) names.append(Component.translatable("create_biotech.trait.list_separator"));
@@ -246,7 +251,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			case TARGET -> BuiltInRegistries.ENTITY_TYPE.getOptional(id)
 				.map(type -> Component.translatable(type.getDescriptionId()))
 				.orElseGet(() -> {
-					String key = "create_biotech.trait.hunt_target." + id.getPath();
+					String key = "create_biotech.trait."
+						+ (trait == BionicTrait.PACK_ALERT ? "pack_alert_target." : "hunt_target.") + id.getPath();
 					return Language.getInstance().has(key) ? Component.translatable(key) : Component.literal(id.toString());
 				});
 			case EFFECT -> BuiltInRegistries.MOB_EFFECT.getOptional(id)
@@ -314,7 +320,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 					.collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),
 				com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(Set.of(
-					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()))));
+					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()))), facts.packAlertTargets());
 		}
 		SurgicalAssembly assembly = bionic.getAssembly();
 		if (assembly == null)
@@ -330,7 +336,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
-		return new BoxDetails(List.copyOf(stats), traits, Set.of(), Set.of(), Set.of(), Set.of());
+		return new BoxDetails(List.copyOf(stats), traits, Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
@@ -394,7 +400,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	}
 
 	private record BoxDetails(List<BaseStat> stats, BionicTraitSet traits, Set<BionicTrait> donorFacts,
-		Set<ResourceLocation> donorAttacks, Set<ResourceLocation> deterrenceTargets, Set<ResourceLocation> huntingTargets) {}
+		Set<ResourceLocation> donorAttacks, Set<ResourceLocation> deterrenceTargets, Set<ResourceLocation> huntingTargets,
+		Set<ResourceLocation> packAlertTargets) {}
 
 	private record BaseStat(String descriptionId, double value, ValueFormat format) {
 		private Component line() {

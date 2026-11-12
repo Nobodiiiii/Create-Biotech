@@ -122,7 +122,8 @@ import net.neoforged.neoforge.common.NeoForgeMod;
 
 /** A real entity whose visible body and locomotion are supplied by a surgical assembly. */
 public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.world.entity.Saddleable,
-	net.minecraft.world.entity.PlayerRideableJumping, net.neoforged.neoforge.common.IShearable,
+	net.minecraft.world.entity.PlayerRideableJumping, net.minecraft.world.entity.HasCustomInventoryScreen,
+	net.neoforged.neoforge.common.IShearable,
 	net.minecraft.world.entity.monster.RangedAttackMob {
 	private static final float MAX_COLLISION_WIDTH = 2.0f;
 	private static final float MAX_COLLISION_HEIGHT = 8.0f;
@@ -670,6 +671,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	@Override
+	public void openCustomInventoryScreen(Player player) {
+		equipment.openInventory(player, null);
+	}
+
+	@Override
 	public InteractionResult interactAt(Player player, Vec3 hit, InteractionHand hand) {
 		// Carry the click through Player/Mob's normal item, equipment and riding interaction order.
 		interactionHit = hit;
@@ -682,6 +688,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
+		if (player.isSecondaryUseActive() && equipment.openInventory(player, interactionHit))
+			return InteractionResult.sidedSuccess(level().isClientSide);
 		ItemStack held = player.getItemInHand(hand);
 		InteractionResult productionResult = production.interact(player, hand);
 		if (productionResult.consumesAction()) return productionResult;
