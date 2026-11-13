@@ -25,7 +25,7 @@ final class BionicTraitCarriers {
 			.map(data.attackEffects()::get).map(BionicAttackEffect::carrier).toList();
 		case SUBTRAIT_SET -> trait.isHeadClassification() ? List.of(trait.carrier())
 			: donor.variants(trait).stream().map(data.subtraits()::get).map(BionicSubtrait::carrier).toList();
-		default -> List.of(trait.carrier());
+		default -> List.of(donorCarrier(trait, data, entity));
 		};
 		Map<BionicAnatomyRole, Set<String>> declared = data.carriers().get(entity);
 		Set<BionicAnatomyRole> result = EnumSet.noneOf(BionicAnatomyRole.class);
@@ -66,7 +66,7 @@ final class BionicTraitCarriers {
 				if (variant != null) cubes.or(select(variant.carrier(), data, tissue, source));
 			}
 		} else cubes = BionicTrait.RIDEABLE.equals(trait) ? BionicSaddleCarriers.select(tissue.source(source))
-			: select(trait.carrier(), data, tissue, source);
+			: select(donorCarrier(trait, data, tissue.source(source).profile().entityTypeId()), data, tissue, source);
 		if (!data.extensions().selectors().isEmpty()) {
 			BitSet selected = new BitSet();
 			for (var selector : data.extensions().selectors()) selected.or(selector.select(tissue.source(source)));
@@ -74,6 +74,12 @@ final class BionicTraitCarriers {
 		}
 		cubes.and(tissue.source(source).presentCubes());
 		return cubes;
+	}
+
+	/** Explicit knockback donor mappings replace the default head-and-arm carrier roles. */
+	private static BionicTrait.Carrier donorCarrier(BionicTrait trait, BionicTraitData data, ResourceLocation entity) {
+		return BionicTrait.ATTACK_KNOCKBACK.equals(trait) && !data.carriers().getOrDefault(entity, Map.of()).isEmpty()
+			? BionicTrait.Carrier.allTissue() : trait.carrier();
 	}
 
 	/** Select original carrier tissue before considering how it has been installed or cut. */

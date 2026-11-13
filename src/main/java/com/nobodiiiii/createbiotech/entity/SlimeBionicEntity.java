@@ -58,6 +58,8 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerEntity;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
@@ -106,6 +108,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -195,7 +198,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final EntityDataAccessor<Integer> SPECIAL_TARGET = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Integer> GUARDIAN_ATTACK_DURATION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private float riderJump;
-	private int riderJumpCooldown;
 	private boolean riderAscending;
 	private int selfDestructFuse, previousSelfDestructFuse;
 	public com.nobodiiiii.createbiotech.entity.trait.BionicEquipment getBionicEquipment() { return equipment; }
@@ -1246,19 +1248,67 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public boolean isWithinMeleeAttackRange(LivingEntity target) {
-		return withinCombatEnvelope(target.getBoundingBox());
+		return usesContactAttack() ? super.isWithinMeleeAttackRange(target)
+			: withinCombatEnvelope(target.getBoundingBox());
+	}
+
+	/** A body with no attacking arms, including wing-only bodies, fights by slime-like contact. */
+	public boolean usesContactAttack() {
+		SurgicalAssembly assembly = getAssembly();
+		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
+		return geometry == null || geometry.arms().stream().allMatch(this::isBionicWing);
 	}
 
 	private boolean withinCombatEnvelope(AABB targetBounds) {
+		if (usesContactAttack())
+			return getAttackBoundingBox().intersects(targetBounds);
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		if (geometry == null || geometry.armCount() == 0)
-			return SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), combatBodyYaw(),
-				SlimeBionicCombat.fallbackArm(getBbWidth(), getBbHeight()));
 		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms())
 			if (!isBionicWing(arm) && SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), combatBodyYaw(), arm))
 				return true;
 		return false;
+	}
+
+	private boolean isValidMeleeTarget(@Nullable LivingEntity target) {
+		return target != null && isAlive() && !isNoAi() && target.isAlive()
+			&& !isVehicle() && !specialAttacks.busy()
+			&& target.level() == level() && canAttack(target)
+			&& !isAlliedTo(target) && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(target);
+	}
+
+	@Override
+	public void push(Entity other) {
+		super.push(other);
+		dealContactDamage(other);
+	}
+
+	@Override
+	protected void doPush(Entity other) {
+		super.doPush(other);
+		// Assigned targets can be any living mob, so handle either side initiating the push.
+		dealContactDamage(other);
+	}
+
+	@Override
+	public void playerTouch(Player player) {
+		super.playerTouch(player);
+		dealContactDamage(player);
+	}
+
+	/** Slime.dealDamage: immediate contact damage, with repeated hits governed by hurt immunity. */
+	private void dealContactDamage(Entity other) {
+		if (!(other instanceof LivingEntity target) || target != getTarget()
+			|| !(level() instanceof ServerLevel serverLevel) || !isEffectiveAi()
+			|| !usesContactAttack() || !isValidMeleeTarget(target)
+			|| !super.isWithinMeleeAttackRange(target) || !hasLineOfSight(target))
+			return;
+		var source = damageSources().mobAttack(this);
+		if (target.hurt(source, (float) getAttributeValue(Attributes.ATTACK_DAMAGE))) {
+			playSound(SoundEvents.SLIME_ATTACK, 1.0f, (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
+			EnchantmentHelper.doPostAttackEffects(serverLevel, target, source);
+			specialAttacks.afterMelee();
+		}
 	}
 
 	private float combatBodyYaw() {
@@ -1293,14 +1343,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		@Nullable ArmUse lastArm) {
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		ArmSelection selection = geometry == null || geometry.armCount() == 0 ? fallbackArm(target, rightRecovery[0])
-			: selectArm(target, geometry, rightRecovery, leftRecovery, lastArm);
+		if (geometry == null || usesContactAttack())
+			return null;
+		ArmSelection selection = selectArm(target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
 
 		ArmCandidate selected = selection.arm();
-		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(
-			geometry == null || geometry.armCount() == 0 ? null : selected.arm(), level());
+		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(selected.arm(), level());
 		int recovery = SurgicalCombatCalibration.armRecovery(stats, level());
 		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms(), level());
 		int actionDuration = startAttackAction(selected, interval);
@@ -1379,19 +1429,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return best == null ? null : new ArmSelection(best, Math.max(1, cadenceArms));
 	}
 
-	@Nullable
-	private ArmSelection fallbackArm(LivingEntity target, long readyAt) {
-		SurgicalAssembly.ArmAttackGeometry arm = SlimeBionicCombat.fallbackArm(getBbWidth(), getBbHeight());
-		float bodyYaw = combatBodyYaw();
-		if (readyAt > level().getGameTime()
-			|| !SlimeBionicCombat.canStart(target.getBoundingBox(), position(), bodyYaw, arm)
-			|| !hasAttackLineOfSight(target, arm, bodyYaw))
-			return null;
-		Vec3 aim = SlimeBionicCombat.aimAt(target.getBoundingBox(),
-			SlimeBionicCombat.worldOrigin(position(), bodyYaw, arm), bodyYaw);
-		return new ArmSelection(new ArmCandidate(false, 0, false, arm, aim, 0.0d), 1);
-	}
-
 	private int startAttackAction(ArmCandidate selected, int interval) {
 		attackActionInterval = interval;
 		attackActionLeft = selected.left();
@@ -1450,7 +1487,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		selfDestructFuse = getProductionFlags() >> 2;
 		blockAttachment.tick();
 		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
-		if (riderJumpCooldown > 0) riderJumpCooldown--;
 		if (!hasControllingPassenger()) { riderJump = 0; riderAscending = false; }
 		super.tick();
 		// Spider updates and synchronizes wall contact after movement, for the next tick.
@@ -2252,21 +2288,16 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		yRotO = yBodyRot = yHeadRot = getYRot();
 		if (!isControlledByLocalInstance()) return;
 		if (riderJump > 0 && onGround()) {
-			if (equipment.camel() && !getBionicTraits().hasStrongJump()) {
-				Vec3 look = player.getLookAngle();
-				setDeltaMovement(getDeltaMovement().add(look.x * 1.5 * riderJump, 0.4 * riderJump, look.z * 1.5 * riderJump));
-			} else setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
+			setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
 			hasImpulse = true; riderJump = 0;
 		} else if (!hasFlightLocomotion() && onGround() && input.horizontalDistanceSqr() > 0
 			&& getLocomotionLegCount() < 2) jumpFromGround();
 	}
 	@Override public boolean canJump() { return hasControllingPassenger() && !hasFlightLocomotion() && !isSwimming()
 		&& (equipment.jumpingDonor() || getBionicTraits().hasStrongJump()); }
-	@Override public int getJumpCooldown() { return riderJumpCooldown; }
 	@Override public void onPlayerJump(int strength) {
-		if (!canJump() || riderJumpCooldown > 0) return;
+		if (!canJump()) return;
 		riderJump = strength >= 90 ? 1 : 0.4f + 0.4f * Mth.clamp(strength, 0, 90) / 90;
-		if (equipment.camel() && !getBionicTraits().hasStrongJump()) riderJumpCooldown = 55;
 	}
 	@Override public void handleStartJump(int strength) { onPlayerJump(strength); }
 	@Override public void handleStopJump() {}
@@ -2507,10 +2538,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 
 		private boolean validTarget(@Nullable LivingEntity target) {
-			return target != null && bionic.isAlive() && !bionic.isNoAi() && target.isAlive()
-				&& !bionic.isVehicle() && !bionic.specialAttacks.busy()
-				&& target.level() == bionic.level() && bionic.canAttack(target)
-				&& !bionic.isAlliedTo(target) && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(target);
+			return bionic.isValidMeleeTarget(target);
 		}
 
 		@Override
@@ -2528,7 +2556,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			// Vanilla canPerformAttack() requires eye-to-eye sensing before our complete-AABB arm
 			// checks run. Use only its timing/range portions; per-arm block visibility is checked from
 			// the shoulder to the nearest target-box point in beginAttack() and again on contact.
-			if (pendingAttackTarget != null || !validTarget(target) || !isTimeToAttack()
+			if (bionic.usesContactAttack() || pendingAttackTarget != null || !validTarget(target) || !isTimeToAttack()
 				|| !bionic.isWithinMeleeAttackRange(target))
 				return;
 			AttackStart attack = bionic.beginAttack(target, rightArmRecovery, leftArmRecovery, lastArm);
@@ -2659,9 +2687,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				} else bionic.getNavigation().stop();
 				return;
 			}
-			if (pendingAttackTarget != null && pendingAttackTarget != target)
+			boolean contactAttack = bionic.usesContactAttack();
+			if (pendingAttackTarget != null && (pendingAttackTarget != target || contactAttack))
 				clearPendingAttack();
-			if (pendingAttackTarget != null) {
+			if (contactAttack) {
+				bionic.combatFacingControlled = false;
+			} else if (pendingAttackTarget != null) {
 				advancePendingAttack();
 			} else if (bionic.withinCombatEnvelope(target.getBoundingBox().inflate(0.5d))) {
 				turnBodyToward(target);
@@ -2674,7 +2705,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			if (pendingAttackTarget != null && bionic.shouldPauseAttackMovement())
 				bionic.getNavigation().stop();
 			raiseArmTicks++;
-			bionic.setAggressive(pendingAttackTarget != null
+			bionic.setAggressive(contactAttack || pendingAttackTarget != null
 				|| raiseArmTicks >= 5 && getTicksUntilNextAttack() < getAttackInterval() / 2);
 		}
 	}

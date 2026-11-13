@@ -2,6 +2,9 @@
   "automatic_detection": true,
   "values": {},
   "carriers": {
+    "minecraft:warden": {
+      "ATTACK_HAND": ["left_arm", "right_arm"]
+    },
     "minecraft:ravager": {
       "HEAD_CORE": ["head_core"],
       "MOUTH": ["mouth"]

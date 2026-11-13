@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
 
 import net.minecraft.util.Mth;
@@ -26,6 +25,7 @@ public final class SlimeBionicCombat {
 	private static final int ACTIVE_TICKS = 5;
 	private static final int RIGID_CONTACT_OFFSET = 2;
 	private static final int ARTICULATED_CONTACT_OFFSET = -4;
+	private static final double CONTACT_REACH_SCALE = 1.2d;
 	private static final double EPSILON = 1.0e-8d;
 	private static final AngularRange BODY_RANGE = new AngularRange(-FRONT_HALF_ANGLE_DEGREES,
 		FRONT_HALF_ANGLE_DEGREES, -90.0f, 90.0f);
@@ -50,19 +50,16 @@ public final class SlimeBionicCombat {
 		return elapsed >= contactStart && elapsed < contactStart + ACTIVE_TICKS;
 	}
 
-	/** Missing arm geometry gets a short body strike, including old assemblies and armless bodies. */
-	public static SurgicalAssembly.ArmAttackGeometry fallbackArm(float bodyWidth, float bodyHeight) {
-		float reach = Mth.clamp(bodyWidth * 0.5f + 0.6f, 0.75f, 1.5f);
-		float height = Math.max(0.1f, bodyHeight * 0.5f);
-		return new SurgicalAssembly.ArmAttackGeometry(new Vec3(0.0d, height, 0.0d), reach,
-			height - reach, height + reach, 0.15f, (float) SurgicalCombatCalibration.ZOMBIE_ARM_VOLUME);
-	}
-
 	/** Distance only, so navigation can still approach and turn toward a target behind the body. */
 	public static boolean withinStartEnvelope(AABB target, Vec3 bodyPosition, float bodyYaw,
 		SurgicalAssembly.ArmAttackGeometry arm) {
 		return distanceToSqr(target, worldOrigin(bodyPosition, bodyYaw, arm))
 			<= (double) arm.reach() * arm.reach() + EPSILON;
+	}
+
+	/** Contact and its preview get extra reach without changing anatomy or attack-start thresholds. */
+	public static double contactReach(SurgicalAssembly.ArmAttackGeometry arm) {
+		return arm.reach() * CONTACT_REACH_SCALE;
 	}
 
 	/** A swing can begin only after the body faces the target within the shared anatomical limits. */
@@ -76,9 +73,9 @@ public final class SlimeBionicCombat {
 		if (arm.restDirection() == null
 			&& (pitch(desired) < MIN_AIM_PITCH_DEGREES || pitch(desired) > MAX_AIM_PITCH_DEGREES))
 			return false;
-		// Clamp the aim, then test the whole box. A tall/wide target may enter the allowed sector
+		// Test the whole box at anatomical reach. A tall/wide target may enter the allowed sector
 		// even when its nearest point lies just outside this arm's mounted range.
-		return intersects(target, bodyPosition, bodyYaw, constrainAim(desired, bodyYaw, arm), arm);
+		return intersects(target, bodyPosition, bodyYaw, arm, attackRange(arm), arm.reach());
 	}
 
 	/** Preserve the pre-specialization coordination count: rest posture never changes the cadence. */
@@ -90,7 +87,7 @@ public final class SlimeBionicCombat {
 		return Math.abs(Mth.wrapDegrees(yawOrFallback(desired, bodyYaw) - bodyYaw)) <= MAX_AIM_YAW_DEGREES
 			&& pitch(desired) >= MIN_AIM_PITCH_DEGREES && pitch(desired) <= MAX_AIM_PITCH_DEGREES
 			&& intersects(target, bodyPosition, bodyYaw, arm,
-				attackRange(BODY_RANGE, null));
+				attackRange(BODY_RANGE, null), arm.reach());
 	}
 
 	/** Body-relative angular limits baked from a mounted arm; negative Minecraft pitch points up. */
@@ -173,18 +170,20 @@ public final class SlimeBionicCombat {
 	 * <p>First clip the horizontal rectangle to the yaw sector and front plane. Its attainable radial
 	 * distances form an interval. Clipping that interval times the target's height to the pitch sector
 	 * reduces the remaining test to a circle. This preserves partial box contacts without turning tall
-	 * targets into wide spheres, and every contact remains inside the arm's true shoulder-to-tip reach.</p>
+	 * targets into wide spheres. Contact uses the corrected reach; attack starts retain anatomical reach.</p>
 	 */
 	public static boolean intersects(AABB target, Vec3 bodyPosition, float bodyYaw,
 		Vec3 aimDirection, SurgicalAssembly.ArmAttackGeometry arm) {
-		return intersects(target, bodyPosition, bodyYaw, arm, attackRange(arm));
+		return intersects(target, bodyPosition, bodyYaw, arm, attackRange(arm), contactReach(arm));
 	}
 
 	private static boolean intersects(AABB target, Vec3 bodyPosition, float bodyYaw,
-		SurgicalAssembly.ArmAttackGeometry arm, AngularRange range) {
-		if (range.isEmpty() || !withinStartEnvelope(target, bodyPosition, bodyYaw, arm))
+		SurgicalAssembly.ArmAttackGeometry arm, AngularRange range, double reach) {
+		if (range.isEmpty())
 			return false;
 		Vec3 origin = worldOrigin(bodyPosition, bodyYaw, arm);
+		if (distanceToSqr(target, origin) > reach * reach + EPSILON)
+			return false;
 		List<Point> horizontal = rectangle(target.minX - origin.x, target.minZ - origin.z,
 			target.maxX - origin.x, target.maxZ - origin.z);
 		Vec3 forward = direction(bodyYaw, 0.0f);
@@ -207,7 +206,7 @@ public final class SlimeBionicCombat {
 		vertical = clip(vertical, -Math.sin(lowerElevation), Math.cos(lowerElevation), 0.0d);
 		vertical = clip(vertical, Math.sin(upperElevation), -Math.cos(upperElevation), 0.0d);
 		return !vertical.isEmpty()
-			&& minimumDistanceSqr(vertical) <= (double) arm.reach() * arm.reach() + EPSILON;
+			&& minimumDistanceSqr(vertical) <= reach * reach + EPSILON;
 	}
 
 	public static Vec3 worldOrigin(Vec3 bodyPosition, float bodyYaw,

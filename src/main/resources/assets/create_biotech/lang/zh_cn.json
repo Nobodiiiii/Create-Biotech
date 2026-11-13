@@ -1,4 +1,6 @@
 {
+  "create_biotech.configuration.showBionicAttackRange": "显示仿生生物攻击范围",
+  "create_biotech.configuration.showBionicAttackRange.tooltip": "在仿生生物挥动手臂攻击时显示近战攻击范围预览，默认关闭。",
   "item.create_biotech.mimic_debug_stick": "拟态生物调试棒",
   "item.create_biotech.mimic_debug_stick.saved": "拟态生物诊断报告已保存至服务器世界存档：%s",
   "item.create_biotech.mimic_debug_stick.copy_path": "点击复制报告路径",

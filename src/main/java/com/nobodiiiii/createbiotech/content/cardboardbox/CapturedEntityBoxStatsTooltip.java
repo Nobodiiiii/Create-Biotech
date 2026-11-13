@@ -95,7 +95,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			for (BaseStat stat : details.stats())
 				tooltip.add(stat.line());
 		}
-		appendPropertiesSection(tooltip, details.traits());
+		appendPropertiesSection(tooltip, details.traits(), false);
 		appendDonorFacts(tooltip, details.donorFacts(), details.donorAttacks(), details.deterrenceTargets(),
 			details.huntingTargets(), details.packAlertTargets());
 	}
@@ -118,15 +118,19 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	/** Head classifications always show their runtime value; other inactive traits show reasons. */
 	public static void appendPropertiesSection(List<Component> tooltip, BionicTraitSet traits) {
-		tooltip.add(CommonComponents.EMPTY);
-		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
-			.withStyle(ChatFormatting.GOLD));
+		appendPropertiesSection(tooltip, traits, true);
+	}
+
+	private static void appendPropertiesSection(List<Component> tooltip, BionicTraitSet traits,
+		boolean includeInactive) {
 		List<Component> classifications = new ArrayList<>();
 		Map<BionicTraitScope, List<Component>> groups = new java.util.EnumMap<>(BionicTraitScope.class);
 		for (BionicTraitScope scope : BionicTraitScope.values())
 			groups.put(scope, new ArrayList<>());
 		for (BionicTrait trait : traits.definitions()) {
 			BionicTraitResult result = traits.result(trait);
+			if (!includeInactive && !result.active())
+				continue;
 			if (trait.isHeadClassification() && !result.active()) {
 				Component value = Component.translatable("create_biotech.trait.variant."
 					+ BionicHeadTraits.defaultValue(trait).getPath());
@@ -142,7 +146,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			List<Component> lines = trait.isHeadClassification() ? classifications : groups.get(scopes.getFirst());
 			if (!result.displayEntries().isEmpty()) {
 				Map<DetailGroup, Set<ResourceLocation>> details = new java.util.LinkedHashMap<>();
-				result.displayEntries().stream().sorted(java.util.Comparator
+				result.displayEntries().stream().filter(entry -> includeInactive || entry.active())
+					.sorted(java.util.Comparator
 					.comparing((DisplayEntry entry) -> !entry.active())
 					.thenComparing(DisplayEntry::kind).thenComparing(DisplayEntry::id))
 					.forEach(entry -> details.computeIfAbsent(new DetailGroup(entry.kind(), entry.inactiveReason(), entry.missingParts()),
@@ -162,6 +167,11 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 				name = Component.translatable("create_biotech.trait.rideable.count", (int) result.value());
 			appendTraitLine(lines, trait, scopes, traits, name, result.inactiveReason(), result.missingParts());
 		}
+		if (classifications.isEmpty() && groups.values().stream().allMatch(List::isEmpty))
+			return;
+		tooltip.add(CommonComponents.EMPTY);
+		tooltip.add(Component.translatable("create_biotech.tooltip.properties")
+			.withStyle(ChatFormatting.GOLD));
 		tooltip.addAll(classifications);
 		appendTraitGroup(tooltip, Component.translatable(BionicTraitScope.WHOLE_BODY.descriptionId()),
 			groups.remove(BionicTraitScope.WHOLE_BODY));
@@ -354,9 +364,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);
 		addMovementSpeed(stats, assembly, level);
-		add(stats, bionic, Attributes.ARMOR, ValueFormat.DECIMAL, true);
 		add(stats, bionic, Attributes.ARMOR_TOUGHNESS, ValueFormat.DECIMAL, false);
-		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
 		return new BoxDetails(List.copyOf(stats), traits, Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
@@ -395,8 +403,9 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		double baseDamage = BionicStats.evaluate(
 			BionicStat.ATTACK_DAMAGE, bionic.level(),
 			java.util.Map.of("volume", assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
-		double dps = assembly.attackGeometry() == null || assembly.attackGeometry().armCount() == 0
-			? SurgicalCombatCalibration.nominalDamagePerSecond(baseDamage, assembly.attackGeometry(), bionic.level())
+		// Continuous contact normally lands once per ten ticks of vanilla hurt immunity.
+		double dps = bionic.usesContactAttack()
+			? Math.max(0.0d, baseDamage) * 2.0d
 			: SurgicalCombatCalibration.nominalDamagePerSecond(
 				baseDamage, assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList(),
 				bionic.level(), bionic::armDamageOffset);
@@ -424,7 +433,6 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	private enum ValueFormat {
 		DECIMAL,
-		PERCENTAGE,
 		INTEGER
 	}
 
@@ -436,7 +444,6 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		private Component line() {
 			String formatted = switch (format) {
 			case DECIMAL -> ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(value);
-			case PERCENTAGE -> ItemAttributeModifiers.ATTRIBUTE_MODIFIER_FORMAT.format(value * 100.0d) + "%";
 			case INTEGER -> Long.toString(Math.round(value));
 			};
 			return Component.literal(" ")

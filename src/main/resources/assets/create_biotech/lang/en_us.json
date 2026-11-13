@@ -1,4 +1,6 @@
 {
+  "create_biotech.configuration.showBionicAttackRange": "Show Bionic Attack Range",
+  "create_biotech.configuration.showBionicAttackRange.tooltip": "Show the melee attack range preview while bionic creatures swing their arms. Disabled by default.",
   "item.create_biotech.mimic_debug_stick": "Mimic Debug Stick",
   "item.create_biotech.mimic_debug_stick.saved": "Mimic diagnostic report saved in the server's world folder: %s",
   "item.create_biotech.mimic_debug_stick.copy_path": "Click to copy the report path",

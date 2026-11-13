@@ -10,7 +10,7 @@
 - 判定直接使用目标 AABB：先裁切水平扇区，再检查可达水平距离与高度构成的俯仰扇区。目标仅部分进入范围也可命中；目标高度不会被换算成横向碰撞半径。
 - 准备期间允许有限的转向和瞄准修正，接触阶段同时锁定世界方向与肩部旋转基准。实体移动仍会平移攻击区域，动画和头部转动不会改变它。
 - 攻击还要求目标碰撞箱可见：从肩部向目标完整 AABB 的最近点进行方块射线检查。原版近战的眼睛感知门槛不参与出手，接触阶段会再次执行同一检查。
-- 缺少手臂几何时使用身体中心发起的短距离攻击：距离为 `clamp(身体宽度 / 2 + 0.6, 0.75, 1.5)`，不使用手持武器。这个保底也适用于缺少几何的旧存档。
+- 没有可攻击手臂时（包括只有翅膀、缺少手臂几何的旧存档），改用原版史莱姆式接触伤害：玩家触碰或实体相互推挤时，对当前有效攻击目标检查原版近战范围和视线，立即按攻击伤害属性尝试造成伤害。没有扇区、前摇、挥臂动画或独立攻击冷却，持续接触的伤害频率由目标的受伤无敌时间决定；也不会因撞击暂停追击。友军、坐下、骑乘、无 AI 和特殊攻击占用等限制继续生效。
 
 ## 装配姿态特化
 
@@ -27,7 +27,7 @@
 
 普通和高级智力选臂时会优先考虑装配方向与目标方向的匹配程度，低处优先下垂手臂、高处优先上举手臂，同侧目标优先侧伸手臂；恢复状态、武器与轮换仍参与选择。姿态匹配权重固定为 1.0。简单智力固定使用计入武器伤害后的单臂 DPS 最高的一只手臂，武器攻速不参与计算。
 
-旧存档没有 `RestDirection` 时继续使用原有通用范围，身体攻击也保持通用规则。新打包的生物会保存装配朝向；姿态特化本身不增加攻速修正、恢复惩罚或动作时长。
+旧存档的手臂没有 `RestDirection` 时继续使用原有通用范围；没有可攻击手臂的身体使用上述接触伤害。新打包的生物会保存装配朝向；姿态特化本身不增加攻速修正、恢复惩罚或动作时长。
 
 ## 频率与固定协调参数
 
@@ -76,7 +76,9 @@
 - 预览测试：`src/test/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAttackRangeGeometryTest.java`
 - 姿态及兼容测试：`src/test/java/com/nobodiiiii/createbiotech/entity/SlimeBionicPostureCombatTest.java`、`src/test/java/com/nobodiiiii/createbiotech/content/surgery/SurgicalArmPosturePersistenceTest.java`
 
-运行 `gradlew test` 可检查方向、距离、部分相交、高大目标、肩部偏移、转向角度环绕、保底攻击、阶段边界、智力数值独立性与多臂频率上限；姿态测试还核对各姿态的高低位边界、前方 180° 限制、连续插值、频率不受姿态修正、旧存档与网络传输兼容，预览测试核对裁切面封闭性与真实命中区域的吻合，不启动游戏客户端。纸箱中的 DPS 使用全部手臂可用的固定协调参数，不受智力或装配朝向影响。
+运行 `gradlew test` 可检查方向、距离、部分相交、高大目标、肩部偏移、转向角度环绕、阶段边界、智力数值独立性与多臂频率上限；姿态测试还核对各姿态的高低位边界、前方 180° 限制、连续插值、频率不受姿态修正、旧存档与网络传输兼容，预览测试核对裁切面封闭性与真实命中区域的吻合，不启动游戏客户端。纸箱中的手臂 DPS 使用全部攻击臂可用的固定协调参数，不受智力或装配朝向影响；无攻击臂时按持续接触普通目标、每 10 tick 可再次受伤估算，为基础攻击伤害的两倍。
+
+接触伤害参照本地 Minecraft 1.21.1 原版源码 `ref/1.21.1/Minecraft/net/minecraft/world/entity/monster/Slime.java` 的 `push`、`playerTouch`、`dealDamage`，以及 `ref/1.21.1/Minecraft/net/minecraft/world/entity/LivingEntity.java` 的推挤与受伤无敌时间逻辑。伤害成功后播放史莱姆攻击音效并执行原版攻击后附魔处理；仿生体的当前目标规则扩展到任意有效活体目标，不限定为原版史莱姆的玩家／铁傀儡。
 
 实现以项目自身的几何和 AI 为基础。核对原版近战 Goal、移动及转身调用顺序时，先检索了 `ref/`；其中缺少原版类，故使用当前构建生成的 `build/moddev/artifacts/neoforge-21.1.234-sources.jar` 内的 `net/minecraft/world/entity/ai/goal/MeleeAttackGoal.java`、`net/minecraft/world/entity/Mob.java` 和 `net/minecraft/world/entity/ai/control/MoveControl.java`。
 

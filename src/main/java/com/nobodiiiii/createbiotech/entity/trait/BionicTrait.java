@@ -140,7 +140,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		Carrier.of(BionicAnatomyRole.HEAD));
 	public static final BionicTrait ATTACK_KNOCKBACK = new BionicTrait("attack_knockback", BionicTraitScope.ARM,
 		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
-		Carrier.allTissue());
+		Carrier.of(BionicAnatomyRole.HEAD, BionicAnatomyRole.ATTACK_HAND));
 	public static final BionicTrait DOOR_HANDLING = new BionicTrait("door_handling", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue());

@@ -23,6 +23,7 @@ public final class SlimeBionicAttackRangeGeometry {
 		if (range.isEmpty())
 			return new Mesh(List.of(), List.of(), List.of());
 		Vec3 origin = SlimeBionicCombat.worldOrigin(Vec3.ZERO, bodyYaw, arm);
+		double reach = SlimeBionicCombat.contactReach(arm);
 		Builder builder = new Builder(origin, SlimeBionicCombat.direction(bodyYaw, 0.0f));
 		float minYaw = bodyYaw + range.minimumYaw();
 		float maxYaw = bodyYaw + range.maximumYaw();
@@ -33,7 +34,7 @@ public final class SlimeBionicAttackRangeGeometry {
 		Vec3[][] rim = new Vec3[YAW_STEPS + 1][PITCH_STEPS + 1];
 		for (int yaw = 0; yaw <= YAW_STEPS; yaw++) {
 			for (int pitch = 0; pitch <= PITCH_STEPS; pitch++) {
-				rim[yaw][pitch] = point(origin, arm.reach(),
+				rim[yaw][pitch] = point(origin, reach,
 					Mth.lerp((float) yaw / YAW_STEPS, minYaw, maxYaw),
 					Mth.lerp((float) pitch / PITCH_STEPS, minPitch, maxPitch));
 			}
@@ -64,16 +65,16 @@ public final class SlimeBionicAttackRangeGeometry {
 		// Sparse cross-sections show the spherical depth without a distracting wireframe grid.
 		for (int yaw = 0; yaw < YAW_STEPS; yaw++)
 			builder.line(builder.guides,
-				point(origin, arm.reach(), Mth.lerp((float) yaw / YAW_STEPS, minYaw, maxYaw), guidePitch),
-				point(origin, arm.reach(), Mth.lerp((float) (yaw + 1) / YAW_STEPS, minYaw, maxYaw), guidePitch));
+				point(origin, reach, Mth.lerp((float) yaw / YAW_STEPS, minYaw, maxYaw), guidePitch),
+				point(origin, reach, Mth.lerp((float) (yaw + 1) / YAW_STEPS, minYaw, maxYaw), guidePitch));
 		for (int pitch = 0; pitch < PITCH_STEPS; pitch++)
 			builder.line(builder.guides,
-				point(origin, arm.reach(), guideYaw, Mth.lerp((float) pitch / PITCH_STEPS, minPitch, maxPitch)),
-				point(origin, arm.reach(), guideYaw, Mth.lerp((float) (pitch + 1) / PITCH_STEPS, minPitch, maxPitch)));
-		Vec3 tip = point(origin, arm.reach(), guideYaw, guidePitch);
+				point(origin, reach, guideYaw, Mth.lerp((float) pitch / PITCH_STEPS, minPitch, maxPitch)),
+				point(origin, reach, guideYaw, Mth.lerp((float) (pitch + 1) / PITCH_STEPS, minPitch, maxPitch)));
+		Vec3 tip = point(origin, reach, guideYaw, guidePitch);
 		builder.line(builder.guides, origin, tip);
-		builder.line(builder.outline, point(origin, arm.reach() * 0.82d, Math.max(minYaw, guideYaw - 7.0f), guidePitch), tip);
-		builder.line(builder.outline, point(origin, arm.reach() * 0.82d, Math.min(maxYaw, guideYaw + 7.0f), guidePitch), tip);
+		builder.line(builder.outline, point(origin, reach * 0.82d, Math.max(minYaw, guideYaw - 7.0f), guidePitch), tip);
+		builder.line(builder.outline, point(origin, reach * 0.82d, Math.min(maxYaw, guideYaw + 7.0f), guidePitch), tip);
 		return new Mesh(List.copyOf(builder.faces), List.copyOf(builder.outline), List.copyOf(builder.guides));
 	}
 

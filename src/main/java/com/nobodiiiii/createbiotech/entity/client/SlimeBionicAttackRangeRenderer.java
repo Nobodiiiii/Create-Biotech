@@ -9,8 +9,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -41,12 +41,13 @@ public final class SlimeBionicAttackRangeRenderer {
 
 	public static void render(SlimeBionicEntity entity, SurgicalAssembly assembly, float partialTick,
 		PoseStack poseStack, MultiBufferSource buffer) {
-		if (entity.getAttackActionTick() <= 0 || !entity.isAlive()) {
+		if (!CBConfigs.CLIENT.shouldShowBionicAttackRange()
+			|| entity.getAttackActionTick() <= 0 || !entity.isAlive() || entity.usesContactAttack()) {
 			CACHE.remove(entity);
 			return;
 		}
 		SurgicalAssembly.ArmAttackGeometry arm = assembly.attackGeometry() == null
-			? SlimeBionicCombat.fallbackArm(entity.getBbWidth(), entity.getBbHeight())
+			? null
 			: assembly.attackGeometry().arm(entity.isAttackActionLeft(), entity.getAttackActionArmSlot());
 		if (arm == null || entity.isBionicWing(arm))
 			return;

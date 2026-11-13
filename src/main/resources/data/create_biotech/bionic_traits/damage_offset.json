@@ -1,16 +1,16 @@
 {
   "automatic_detection": false,
   "values": {
-    "minecraft:enderman": 5,
+    "minecraft:enderman": 3,
     "minecraft:giant": 30,
     "minecraft:iron_golem": 10,
     "minecraft:piglin": 2,
-    "minecraft:piglin_brute": 4,
+    "minecraft:piglin_brute": 3,
     "minecraft:pillager": 2,
     "minecraft:vex": 3,
     "minecraft:vindicator": 2,
     "minecraft:warden": 15,
-    "minecraft:wither_skeleton": 2,
+    "minecraft:wither_skeleton": 1,
     "minecraft:zombified_piglin": 2
   }
 }

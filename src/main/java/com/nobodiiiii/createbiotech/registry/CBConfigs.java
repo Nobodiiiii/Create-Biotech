@@ -160,6 +160,7 @@ public class CBConfigs {
 		public final ModConfigSpec.BooleanValue renderExperienceAsFluid;
 		public final ModConfigSpec.BooleanValue renderCapturedEntitiesOnBoxes;
 		public final ModConfigSpec.BooleanValue showBionicTraitDonorsInJei;
+		public final ModConfigSpec.BooleanValue showBionicAttackRange;
 		public final ClientCreeperBlastChamber creeperBlastChamber;
 		public final ClientUniversalJoint universalJoint;
 		public final BeltParticles beltParticles;
@@ -176,6 +177,10 @@ public class CBConfigs {
 			showBionicTraitDonorsInJei = builder
 				.comment("Show donor creatures on bionic trait JEI pages and enable species trait lookups from previews, spawn eggs and filled boxes. Synchronizes donor data while JEI is available; disable to stop requesting it from the server.")
 				.define("showBionicTraitDonorsInJei", true);
+			showBionicAttackRange = builder
+				.comment("Show the melee attack range preview while bionic creatures swing their arms.")
+				.translation("create_biotech.configuration.showBionicAttackRange")
+				.define("showBionicAttackRange", false);
 			creeperBlastChamber = new ClientCreeperBlastChamber(builder);
 			universalJoint = new ClientUniversalJoint(builder);
 			beltParticles = new BeltParticles(builder);
@@ -184,6 +189,10 @@ public class CBConfigs {
 		public boolean shouldRenderCapturedEntitiesOnBoxes() {
 			// Render-frame events can arrive during startup before client configs load.
 			return CLIENT_SPEC.isLoaded() && renderCapturedEntitiesOnBoxes.get();
+		}
+
+		public boolean shouldShowBionicAttackRange() {
+			return CLIENT_SPEC.isLoaded() && showBionicAttackRange.get();
 		}
 	}
 
