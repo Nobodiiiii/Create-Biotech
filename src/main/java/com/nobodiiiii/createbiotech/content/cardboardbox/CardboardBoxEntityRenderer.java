@@ -37,7 +37,7 @@ public class CardboardBoxEntityRenderer extends EntityRenderer<CardboardBoxEntit
 		MultiBufferSource buffer, int light) {
 		ItemStack stack = entity.getBox();
 		boolean captured = CapturedEntityBoxHelper.hasCapturedEntity(stack);
-		boolean renderCapturedEntity = captured && CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get();
+		boolean renderCapturedEntity = captured && CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes();
 		PackageRenderer.renderBox(entity, yaw, poseStack, buffer, light,
 			getModel(stack, captured, renderCapturedEntity));
 		if (renderCapturedEntity && isIconWithinDistance(entity))

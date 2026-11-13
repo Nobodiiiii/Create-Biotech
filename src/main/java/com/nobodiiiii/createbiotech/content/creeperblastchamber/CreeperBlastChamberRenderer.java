@@ -233,7 +233,12 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 		}
 	}
 
-	static void collectCreeperRenderStates(CreeperBlastChamberBlockEntity be, float partialTicks,
+	/**
+	 * Flywheel runs different chambers in parallel, alongside the ordinary block-entity renderer.
+	 * Serialize state collection, including proxy use, attention updates and the chamber's reused lists;
+	 * the resulting records contain only values and can be used by each visual independently.
+	 */
+	static synchronized void collectCreeperRenderStates(CreeperBlastChamberBlockEntity be, float partialTicks,
 		List<CreeperRenderState> states) {
 		states.clear();
 		if (isBeyondCreeperRenderDistance(be))

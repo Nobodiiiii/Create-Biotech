@@ -48,7 +48,7 @@ public final class CapturedEntityBoxJeiRenderer {
 	public static boolean renderCapturedEntityBox(GuiGraphics graphics, ItemStack stack, int x, int y) {
 		if (!(stack.getItem() instanceof CapturedEntityBoxItem) || !CapturedEntityBoxHelper.hasCapturedEntity(stack))
 			return false;
-		if (!CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get()) {
+		if (!CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes()) {
 			CAPTURED_ENTITY.clear();
 			return false;
 		}

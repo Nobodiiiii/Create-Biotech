@@ -50,6 +50,7 @@ final class BionicTraitJeiText {
 		Component label = field("scope", Component.translatable(scope.descriptionId()));
 		return switch (scope) {
 		case HEAD -> List.of(label, tr("scope.head.description").withStyle(ChatFormatting.GRAY));
+		case ARM -> List.of(label, tr("scope.arm.description").withStyle(ChatFormatting.GRAY));
 		case LEG -> List.of(label, tr("scope.leg.description").withStyle(ChatFormatting.GRAY));
 		default -> List.of(label);
 		};
@@ -117,12 +118,6 @@ final class BionicTraitJeiText {
 			return tr("condition." + trait.id().getPath(),
 				percentage(BionicTraitClientRules.rule(trait).minCoverage()));
 		List<Component> conditions = new ArrayList<>();
-		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
-			boolean regional = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
-				|| trait.scopes().contains(BionicTraitScope.TORSO);
-			conditions.add(tr(BionicTrait.DAMAGE_OFFSET.equals(trait) ? "condition.numeric_native_arm"
-				: regional ? "condition.numeric" : "condition.numeric_limb"));
-		}
 		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);
 		boolean wings = switch (trait.condition()) {
 		case WING_LIFT, LIMB_COUNT -> true;

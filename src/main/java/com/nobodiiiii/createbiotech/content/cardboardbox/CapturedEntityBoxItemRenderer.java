@@ -27,7 +27,7 @@ public class CapturedEntityBoxItemRenderer extends CustomRenderedItemModelRender
 	protected void render(ItemStack stack, CustomRenderedItemModel model, PartialItemModelRenderer renderer,
 		ItemDisplayContext transformType, PoseStack poseStack, MultiBufferSource buffer, int light, int overlay) {
 		boolean captured = CapturedEntityBoxHelper.hasCapturedEntity(stack);
-		boolean renderCapturedEntity = captured && CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get();
+		boolean renderCapturedEntity = captured && CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes();
 		renderer.render(getBoxModel(stack, model.getOriginalModel(), transformType, captured, renderCapturedEntity), light);
 		if (renderCapturedEntity)
 			CapturedEntityBoxIconRenderer.renderOnItem(stack, true, transformType, poseStack, buffer, light);

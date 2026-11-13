@@ -21,7 +21,8 @@ public final class ButterFoodProperties {
 	private ButterFoodProperties() {}
 
 	public static FoodProperties create(Variant variant) {
-		return create(variant, false);
+		// Data reload listeners can query food before the server config is loaded.
+		return create(variant, !CBConfigs.SERVER_SPEC.isLoaded());
 	}
 
 	public static FoodProperties createDefault(Variant variant) {

@@ -180,6 +180,11 @@ public class CBConfigs {
 			universalJoint = new ClientUniversalJoint(builder);
 			beltParticles = new BeltParticles(builder);
 		}
+
+		public boolean shouldRenderCapturedEntitiesOnBoxes() {
+			// Render-frame events can arrive during startup before client configs load.
+			return CLIENT_SPEC.isLoaded() && renderCapturedEntitiesOnBoxes.get();
+		}
 	}
 
 	public static class Server {

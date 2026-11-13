@@ -92,7 +92,7 @@ public final class CapturedEntityBoxIconRenderer {
 	private static void render(ItemStack stack, boolean captured, boolean largeBox,
 		PoseStack poseStack, MultiBufferSource buffer, int light, float yaw,
 		CapturedEntityRenderManager.RequestPriority priority, boolean orthographicView) {
-		if (!captured || !CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get())
+		if (!captured || !CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes())
 			return;
 
 		FaceBounds face = FaceBounds.forFace(largeBox);

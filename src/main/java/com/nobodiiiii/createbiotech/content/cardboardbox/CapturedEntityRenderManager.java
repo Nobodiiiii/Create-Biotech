@@ -76,7 +76,7 @@ public final class CapturedEntityRenderManager {
 	@Nullable
 	static BakedCapturedEntityIcon getOrSchedule(CapturedEntityBoxHelper.CapturedEntityRenderData renderData,
 		boolean largeFace, RequestPriority priority) {
-		if (!CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get())
+		if (!CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes())
 			return null;
 
 		Minecraft minecraft = Minecraft.getInstance();
@@ -111,7 +111,7 @@ public final class CapturedEntityRenderManager {
 
 	@SubscribeEvent
 	public static void onRenderFrame(RenderFrameEvent.Post event) {
-		if (!CBConfigs.CLIENT.renderCapturedEntitiesOnBoxes.get()) {
+		if (!CBConfigs.CLIENT.shouldRenderCapturedEntitiesOnBoxes()) {
 			if (activeLevel != null || !ENTITY_CACHE.isEmpty() || !ICON_CACHE.isEmpty() || !FAILURE_CACHE.isEmpty()
 				|| !PENDING.isEmpty())
 				clearAll();
