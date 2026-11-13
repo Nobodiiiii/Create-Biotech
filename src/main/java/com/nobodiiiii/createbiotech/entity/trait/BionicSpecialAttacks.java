@@ -321,9 +321,7 @@ public final class BionicSpecialAttacks {
 		for (String key : tag.getAllKeys()) {
 			int slash = key.indexOf('/');
 			if (slash < 1) continue;
-			// Previous saves used an unqualified built-in trait before the slash.
-			String canonical = key.substring(0, slash).contains(":") ? key : "create_biotech:" + key;
-			cooldowns.put(canonical, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
+			cooldowns.put(key, net.minecraft.util.Mth.clamp(tag.getInt(key), 0, 24000));
 		}
 		action = null;
 	}

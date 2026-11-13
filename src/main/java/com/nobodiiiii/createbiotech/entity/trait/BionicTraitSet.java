@@ -80,11 +80,6 @@ public final class BionicTraitSet {
 	public double coverage(BionicTrait trait) { return result(trait).coverage(); }
 	public double strength(BionicTrait trait) { return result(trait).strength(); }
 	public double value(BionicTrait trait) { return result(trait).value(); }
-	public boolean hasVariant(BionicTrait trait, String id) {
-		// Preserve legacy short-name queries used by built-in milk products and enchantment hooks.
-		return has(trait) && result(trait).subtraits().keySet().stream()
-			.anyMatch(v -> id.contains(":") ? v.id().equals(ResourceLocation.tryParse(id)) : v.id().getPath().equals(id));
-	}
 	public boolean hasVariant(BionicTrait trait, ResourceLocation id) {
 		return has(trait) && result(trait).subtraits().keySet().stream().anyMatch(v -> v.id().equals(id));
 	}

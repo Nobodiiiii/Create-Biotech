@@ -7,11 +7,12 @@ public final class SurgicalHealthCalibration {
 
 	/** The undeformed humanoid cubes in a zombie's base model occupy 1664 model pixels. */
 	private static final double ZOMBIE_VOLUME = 1664.0d / (16.0d * 16.0d * 16.0d);
-	/** Deterministic union-sampler result for the overlapping cubes in an iron golem's rest model. */
-	private static final double IRON_GOLEM_VOLUME = 1.4150238037109375d;
+	/** Deterministic union-sampler result for the overlapping cubes in a ravager's captured rest pose. */
+	private static final double RAVAGER_VOLUME = 5.184234619140625d;
 	private static final double HILL_OFFSET = 9.0d;
-	private static final double HILL_EXPONENT = Math.log(6.0d)
-		/ Math.log(IRON_GOLEM_VOLUME / ZOMBIE_VOLUME);
+	/** A ravager has 100 health, half the ceiling, so its scaled volume equals the Hill offset. */
+	private static final double HILL_EXPONENT = Math.log(HILL_OFFSET)
+		/ Math.log(RAVAGER_VOLUME / ZOMBIE_VOLUME);
 	private static final double MAX_MEASURED_VOLUME = SurgicalAssembly.MAX_BODY_SIZE
 		* SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE;
 	private static final double ENVELOPE_TOLERANCE = 1.05d;
@@ -20,7 +21,7 @@ public final class SurgicalHealthCalibration {
 	private SurgicalHealthCalibration() {}
 
 	/**
-	 * A Hill curve matches the zombie and iron-golem reference bodies, then gives diminishing gains
+	 * A Hill curve matches the zombie (20 health) and ravager (100 health) reference bodies, then gives diminishing gains
 	 * at larger sizes while approaching, but never exceeding, the configured ceiling.
 	 */
 	public static double maximumHealth(double volume) {

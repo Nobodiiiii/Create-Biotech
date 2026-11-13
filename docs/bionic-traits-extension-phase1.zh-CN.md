@@ -53,7 +53,7 @@
 
 | 字段 | 规则 |
 | --- | --- |
-| `schema_version` | 新定义必须为整数 `1`；无此字段的旧文件继续作为内置特性数据或供体补充加载 |
+| `schema_version` | 新定义必须为整数 `1`；仅内置特性原 ID 的配置可省略此字段 |
 | `display` | `name`、`description` 接受文本组件，支持字面文本和翻译键；自定义特性缺省名称为完整 ID |
 | `scopes` | 非空数组：`whole_body`、`head`、`torso`、`arm`、`leg`；全身不能和其他范围混用 |
 | `value_kind` | `ability`、`number`、`effect_set`、`attack_effect_set`、`subtrait_set` |
@@ -70,15 +70,15 @@
 
 同一 ID 的定义遵循资源包优先级，较高优先级的文件整体替换较低优先级文件。第一阶段没有独立供体绑定文件和定向修改器；自定义特性的供体与参数在其定义文件中配置。
 
-## 兼容旧数据
+## 内置特性配置
 
-原来的 `data/create_biotech/bionic_traits/<内置名称>.json` 无需迁移。其他命名空间中、不含 `schema_version` 的同名文件仍只补充该内置特性的供体 `values`。
+`data/create_biotech/bionic_traits/<内置名称>.json` 可直接配置内置特性。其他命名空间中的定义必须声明 `schema_version: 1`；补充内置特性的供体应使用[独立绑定文件](bionic-traits-extension.zh-CN.md)。
 
 带 `schema_version: 1` 的文件按其完整资源 ID 声明独立特性，不会被另一个命名空间的同名内置特性吸收。例如 `example:fire_immune` 是独立条目，不自动执行 `create_biotech:fire_immune` 的免疫逻辑。
 
 需要为内置特性提供完整结构定义时，也可以在其原 ID 下使用新格式；必须保留原 `value_kind`，原有专属条件与效果实现继续按内置 ID 分派。普通门槛调整仍建议使用原有 `min_coverage` 字段。
 
-特殊攻击的冷却存档自动将旧的短特性名迁移为 `create_biotech:<名称>`，声波攻击的初始冷却和近战后冷却继续使用同一标识。
+特殊攻击的冷却存档使用完整特性 ID；声波攻击的初始冷却和近战后冷却使用同一标识。`effect_attack` 的攻击参数统一放在根对象 `attack_settings` 中，`effects` 条目配置效果 ID 与载体角色。
 
 ## Java 查询
 
@@ -95,7 +95,7 @@ if (trait != null && entity.getBionicTraits().has(trait)) {
 
 重载后应重新查找定义以读取最新元数据；旧 ID 句柄仍可用于结果查询，但被移除的特性不再生效。这里是阶段性接入接口，稳定的 API 发布与版本承诺在后续阶段完成。
 
-子特性查询新增 `hasVariant(trait, ResourceLocation)`，按完整 ID 匹配；原有字符串短名称查询保持兼容，新的扩展建议使用完整 ID。
+子特性使用 `hasVariant(trait, ResourceLocation)` 查询，按完整 ID 匹配。
 
 ## 同步与重载
 
@@ -103,6 +103,6 @@ if (trait != null && entity.getBionicTraits().has(trait)) {
 
 单个资源的 JSON 最多 128 KiB，每块资源总量最多 256 KiB，目录最多 4096 个资源、总量最多 8 MiB（计入资源 ID 与编码开销）。供体索引也按字节预算分块，大量特性的单个供体可拆成多条索引记录，客户端合并处理。网络协议由 36 升至 37，联机双方需更新到相同版本。
 
-JSON 解析或结构定义错误会使本次特性目录加载失败，已有快照保留；旧格式中的单项无效参数仍沿用记录警告和缺省处理。原版资源重载不是跨系统事务，不保证其他重载监听器一起回滚。
+JSON 解析或结构定义错误会使本次特性目录加载失败，已有快照保留；内置特性配置中的单项无效参数会记录警告并采用缺省处理。原版资源重载不是跨系统事务，不保证其他重载监听器一起回滚。
 
 本阶段不修改存档中的装配结构，不引入额外客户端效果执行器。

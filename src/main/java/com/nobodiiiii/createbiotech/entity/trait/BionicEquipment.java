@@ -770,16 +770,6 @@ public final class BionicEquipment {
 			if (!saddle.isEmpty()) saddles.put(member, saddle.copyWithCount(1));
 			if (entry.getBoolean("Chest")) { SimpleContainer cargo = newCargo(member); loadItems(cargo, entry); chests.put(member, cargo); }
 		}
-		if (!tag.contains("Cubes", Tag.TAG_LIST)) {
-			// Migrate the original one-saddle/one-chest save onto its former donor carrier.
-			var saddleCarrier = defaultCarrier(BionicTrait.RIDEABLE, Set.of());
-			ItemStack saddle = ItemStack.parseOptional(entity.registryAccess(), tag.getCompound("Saddle"));
-			if (saddleCarrier != null && !saddle.isEmpty()) saddles.put(saddleCarrier, saddle.copyWithCount(1));
-			var chestCarrier = defaultCarrier(BionicTrait.CARGO_CHEST, Set.of());
-			if (chestCarrier != null && tag.getBoolean("Chest")) {
-				SimpleContainer cargo = newCargo(chestCarrier); loadItems(cargo, tag); chests.put(chestCarrier, cargo);
-			}
-		}
 		loadPassengers(tag); sync();
 	}
 }

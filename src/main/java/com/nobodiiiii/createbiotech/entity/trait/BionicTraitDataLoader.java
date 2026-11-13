@@ -88,7 +88,12 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		resources.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
 			JsonObject root = object(entry.getValue());
 			if (root.has("disabled") && root.get("disabled").getAsBoolean()) return;
-			if (!root.has("schema_version")) return; // Legacy files extend built-in donor values.
+			if (!root.has("schema_version")) {
+				// Built-in IDs can override settings without repeating their definition.
+				if (BionicTrait.builtIn(entry.getKey()) == null)
+					throw new IllegalArgumentException("Missing bionic trait schema in " + entry.getKey());
+				return;
+			}
 			if (!root.get("schema_version").isJsonPrimitive()
 				|| !root.getAsJsonPrimitive("schema_version").isNumber()
 				|| root.get("schema_version").getAsBigDecimal().compareTo(java.math.BigDecimal.ONE) != 0)
@@ -187,22 +192,14 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid {} in {}", key, primary);
 		}
-		// The definition owns its settings; schema-less legacy files extend built-in donor values only.
-		List<Map.Entry<ResourceLocation, JsonElement>> files = resources.entrySet().stream()
-			.filter(entry -> entry.getKey().equals(primary) || trait.isBuiltIn()
-				&& !object(entry.getValue()).has("schema_version")
-				&& entry.getKey().getPath().equals(primary.getPath()))
-			.sorted(java.util.Comparator.<Map.Entry<ResourceLocation, JsonElement>, Boolean>
-				comparing(entry -> !entry.getKey().equals(primary)).thenComparing(Map.Entry.comparingByKey()))
-			.toList();
 		BionicDonorOverrides<Boolean> abilities = trait.valueKind() == BionicTrait.ValueKind.ABILITY
-			? overrides(files, BionicTraitDataLoader::booleanValue) : BionicDonorOverrides.empty();
+			? overrides(root, primary, BionicTraitDataLoader::booleanValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Double> numbers = trait.valueKind() == BionicTrait.ValueKind.NUMBER
-			? overrides(files, BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
+			? overrides(root, primary, BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects = (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET
 			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET
 			|| trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
-			? effectOverrides(files) : BionicDonorOverrides.empty();
+			? effectOverrides(root, primary) : BionicDonorOverrides.empty();
 		Map<ResourceLocation, BionicSubtrait> subtraits = new HashMap<>(BionicHeadTraits.variants(trait));
 		subtraits.putAll(readSubtraits(root, primary));
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
@@ -259,12 +256,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 
 	private static Map<ResourceLocation, BionicAttackEffect> readAttackEffects(JsonObject root, ResourceLocation file) {
 		Map<ResourceLocation, BionicAttackEffect> result = new HashMap<>();
+		JsonObject attack = object(root.get("attack_settings"));
 		object(root.get("effects")).entrySet().forEach(entry -> {
 			try {
 				ResourceLocation id = ResourceLocation.parse(entry.getKey());
 				JsonObject settings = entry.getValue().getAsJsonObject();
-				// Shared settings take precedence; older data packs may still configure each effect.
-				JsonObject attack = root.has("attack_settings") ? root.getAsJsonObject("attack_settings") : settings;
 				Double duration = numberValue(attack.get("duration_ticks"));
 				Double amplifier = attack.has("amplifier") ? numberValue(attack.get("amplifier")) : 0.0d;
 				Double chance = attack.has("chance") ? numberValue(attack.get("chance")) : 1.0d;
@@ -286,45 +282,43 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		return Map.copyOf(result);
 	}
 
-	private static <T> BionicDonorOverrides<T> overrides(List<Map.Entry<ResourceLocation, JsonElement>> files,
+	private static <T> BionicDonorOverrides<T> overrides(JsonObject root, ResourceLocation file,
 		Function<JsonElement, T> parse) {
 		Map<ResourceLocation, T> entities = new HashMap<>();
 		Map<ResourceLocation, T> tags = new HashMap<>();
-		for (var file : files)
-			for (var entry : object(object(file.getValue()).get("values")).entrySet()) {
-				Selector selector = selector(entry.getKey());
-				T value = parse.apply(entry.getValue());
-				if (selector == null || value == null) {
-					LOGGER.warn("Invalid trait donor value {} in {}", entry.getKey(), file.getKey());
-					continue;
-				}
-				(selector.tag() ? tags : entities).put(selector.id(), value);
+		for (var entry : object(root.get("values")).entrySet()) {
+			Selector selector = selector(entry.getKey());
+			T value = parse.apply(entry.getValue());
+			if (selector == null || value == null) {
+				LOGGER.warn("Invalid trait donor value {} in {}", entry.getKey(), file);
+				continue;
 			}
+			(selector.tag() ? tags : entities).put(selector.id(), value);
+		}
 		return freeze(entities, tags);
 	}
 
 	private static BionicDonorOverrides<Map<ResourceLocation, Boolean>> effectOverrides(
-		List<Map.Entry<ResourceLocation, JsonElement>> files) {
+		JsonObject root, ResourceLocation file) {
 		Map<ResourceLocation, Map<ResourceLocation, Boolean>> entities = new HashMap<>();
 		Map<ResourceLocation, Map<ResourceLocation, Boolean>> tags = new HashMap<>();
-		for (var file : files)
-			for (var entry : object(object(file.getValue()).get("values")).entrySet()) {
-				Selector selector = selector(entry.getKey());
-				if (selector == null || !entry.getValue().isJsonObject()) {
-					LOGGER.warn("Invalid effect donor {} in {}", entry.getKey(), file.getKey());
-					continue;
-				}
-				Map<ResourceLocation, Boolean> toggles = (selector.tag() ? tags : entities)
-					.computeIfAbsent(selector.id(), ignored -> new HashMap<>());
-				for (var effect : entry.getValue().getAsJsonObject().entrySet()) {
-					ResourceLocation id = ResourceLocation.tryParse(effect.getKey());
-					Boolean value = booleanValue(effect.getValue());
-					if (id != null && value != null)
-						toggles.put(id, value);
-					else
-						LOGGER.warn("Invalid effect toggle {} in {}", effect.getKey(), file.getKey());
-				}
+		for (var entry : object(root.get("values")).entrySet()) {
+			Selector selector = selector(entry.getKey());
+			if (selector == null || !entry.getValue().isJsonObject()) {
+				LOGGER.warn("Invalid effect donor {} in {}", entry.getKey(), file);
+				continue;
 			}
+			Map<ResourceLocation, Boolean> toggles = (selector.tag() ? tags : entities)
+				.computeIfAbsent(selector.id(), ignored -> new HashMap<>());
+			for (var effect : entry.getValue().getAsJsonObject().entrySet()) {
+				ResourceLocation id = ResourceLocation.tryParse(effect.getKey());
+				Boolean value = booleanValue(effect.getValue());
+				if (id != null && value != null)
+					toggles.put(id, value);
+				else
+					LOGGER.warn("Invalid effect toggle {} in {}", effect.getKey(), file);
+			}
+		}
 		entities.replaceAll((id, values) -> Map.copyOf(values));
 		tags.replaceAll((id, values) -> Map.copyOf(values));
 		return freeze(entities, tags);

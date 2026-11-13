@@ -265,8 +265,8 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
 		int version = tag.getInt(VERSION_TAG);
-		// Versions 1/2 stored donor definitions inline; version 3 uses a body-local dictionary.
-		if ((version < 1 || version > CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
+		// beta.2 used version 1; only that release and the current format are supported.
+		if ((version != 1 && version != CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
 			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(LAYOUT_LAY_POSE_TAG, Tag.TAG_COMPOUND))
 			return null;
@@ -1252,21 +1252,16 @@ public final class SurgicalAssembly {
 			if (list.size() > MAX_CUBES) throw new IllegalArgumentException("Too many carrier cuboids");
 			for (int i = 0; i < list.size(); i++) {
 				CompoundTag entry = list.getCompound(i);
+				if (!entry.contains("CornerBits")) continue;
 				List<Vec3> corners = new ArrayList<>();
-				if (entry.contains("CornerBits")) {
-					if (!entry.contains("CornerBits", Tag.TAG_LONG_ARRAY))
-						throw new IllegalArgumentException("Invalid carrier corner encoding");
-					long[] bits = entry.getLongArray("CornerBits");
-					if (bits.length != 24)
-						throw new IllegalArgumentException("A carrier cuboid requires eight corners");
-					for (int j = 0; j < bits.length; j += 3)
-						corners.add(new Vec3(Double.longBitsToDouble(bits[j]),
-							Double.longBitsToDouble(bits[j + 1]), Double.longBitsToDouble(bits[j + 2])));
-				} else {
-					if (!entry.contains("Corners", Tag.TAG_LIST)) continue;
-					ListTag points = entry.getList("Corners", Tag.TAG_COMPOUND);
-					for (int j = 0; j < points.size(); j++) corners.add(loadPoint(points.getCompound(j)));
-				}
+				if (!entry.contains("CornerBits", Tag.TAG_LONG_ARRAY))
+					throw new IllegalArgumentException("Invalid carrier corner encoding");
+				long[] bits = entry.getLongArray("CornerBits");
+				if (bits.length != 24)
+					throw new IllegalArgumentException("A carrier cuboid requires eight corners");
+				for (int j = 0; j < bits.length; j += 3)
+					corners.add(new Vec3(Double.longBitsToDouble(bits[j]),
+						Double.longBitsToDouble(bits[j + 1]), Double.longBitsToDouble(bits[j + 2])));
 				cubes.put(new CombinationMember(entry.getInt("Source"), entry.getInt("Cube")), corners);
 			}
 			return cubes;
@@ -1351,9 +1346,10 @@ public final class SurgicalAssembly {
 			for (int i = 0; i < list.size(); i++) {
 				CompoundTag point = list.getCompound(i);
 				if (!point.contains("Seat", Tag.TAG_COMPOUND)) continue;
+				if (!point.contains("RearSeat", Tag.TAG_COMPOUND))
+					throw new IllegalArgumentException("Missing rear riding seat");
 				Vec3 first = loadPoint(point.getCompound("Seat"));
-				Vec3 second = point.contains("RearSeat", Tag.TAG_COMPOUND)
-					? loadPoint(point.getCompound("RearSeat")) : first;
+				Vec3 second = loadPoint(point.getCompound("RearSeat"));
 				SurgicalCubeRotation rotation = point.contains("SeatRotation", Tag.TAG_COMPOUND)
 					? SurgicalCubeRotation.load(point.getCompound("SeatRotation")) : null;
 				seats.put(new CombinationMember(point.getInt("Source"), point.getInt("Cube")),

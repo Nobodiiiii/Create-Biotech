@@ -5,6 +5,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.Nullable;
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import net.minecraft.core.BlockPos;
@@ -130,8 +131,8 @@ public final class BionicProduction {
 		}
 		if (has(BionicTrait.MILKABLE)) {
 			var traits = entity.getBionicTraits();
-			boolean milk = held.is(Items.BUCKET) && traits.hasVariant(BionicTrait.MILKABLE, "milk_bucket");
-			boolean stew = held.is(Items.BOWL) && traits.hasVariant(BionicTrait.MILKABLE, "mushroom_stew");
+			boolean milk = held.is(Items.BUCKET) && traits.hasVariant(BionicTrait.MILKABLE, CreateBiotech.asResource("milk_bucket"));
+			boolean stew = held.is(Items.BOWL) && traits.hasVariant(BionicTrait.MILKABLE, CreateBiotech.asResource("mushroom_stew"));
 			if (milk || stew) {
 				if (!client) {
 					player.setItemInHand(hand, ItemUtils.createFilledResult(held, player,

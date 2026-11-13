@@ -487,20 +487,26 @@ public final class GaugeCraftJobs extends SavedData {
 		}
 
 		void load(CompoundTag tag) {
+			if (!tag.contains("InFlight", Tag.TAG_INT))
+				throw new IllegalArgumentException("Missing gauge crafting in-flight progress");
 			remaining = tag.getInt("Remaining");
 			baseline = tag.getInt("Baseline");
 			received = tag.getInt("Received");
-			if (tag.contains("InFlight", Tag.TAG_INT)) {
-				inFlight = tag.getInt("InFlight");
-				requestCooldown = tag.getInt("RequestCooldown");
-				migratePromise = tag.getBoolean("MigratePromise");
-			} else if (tag.getBoolean("Waiting")) {
-				inFlight = 1;
-				migratePromise = true;
-			} else {
-				// The oldest saves retained the previous round's received count.
-				received = 0;
-			}
+			inFlight = tag.getInt("InFlight");
+			requestCooldown = tag.getInt("RequestCooldown");
+			migratePromise = tag.getBoolean("MigratePromise");
+			validateProgress();
+		}
+
+		void loadBeta2(CompoundTag tag) {
+			remaining = tag.getInt("Remaining");
+			baseline = tag.getInt("Baseline");
+			inFlight = tag.getBoolean("Waiting") ? 1 : 0;
+			migratePromise = inFlight > 0;
+			validateProgress();
+		}
+
+		private void validateProgress() {
 			if (remaining < 0 || remaining > step.crafts() || inFlight < 0 || inFlight > remaining
 				|| received < 0 || received > inFlight * step.outputPerCraft() || requestCooldown < 0)
 				throw new IllegalArgumentException("Invalid gauge crafting step progress");
@@ -641,8 +647,7 @@ public final class GaugeCraftJobs extends SavedData {
 				for (int index = 0; index < job.executions.size(); index++)
 					job.executions.get(index).load(savedSteps.getCompound(index));
 			} else {
-				// Serial saves contain exactly one current step. Preserve every already
-				// dispatched round; only untouched branches become eligible for parallel work.
+				// beta.2 saved one serial step at the job root.
 				int current = tag.getInt("Index");
 				if (current < 0 || current > job.executions.size())
 					throw new IllegalArgumentException("Invalid legacy gauge crafting index");
@@ -651,7 +656,7 @@ public final class GaugeCraftJobs extends SavedData {
 					if (index < current)
 						state.remaining = 0;
 					else if (index == current)
-						state.load(tag);
+						state.loadBeta2(tag);
 				}
 			}
 			for (Tag raw : tag.getList("Reserved", Tag.TAG_COMPOUND)) {

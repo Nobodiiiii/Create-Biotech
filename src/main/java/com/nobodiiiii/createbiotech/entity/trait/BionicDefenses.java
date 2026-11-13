@@ -71,7 +71,7 @@ public final class BionicDefenses {
 	public static void afterHurt(SlimeBionicEntity mob, DamageSource source) {
 		var traits = mob.getBionicTraits();
 		if (source.getDirectEntity() instanceof LivingEntity
-			&& traits.hasVariant(BionicTrait.ENCHANT_VULNERABILITY, "bane_of_arthropods")) {
+			&& traits.hasVariant(BionicTrait.ENCHANT_VULNERABILITY, ResourceLocation.withDefaultNamespace("bane_of_arthropods"))) {
 			int level = enchantmentLevel(mob, source, ResourceLocation.withDefaultNamespace("bane_of_arthropods"));
 			if (level > 0) mob.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN,
 				30 + mob.getRandom().nextInt(10 * (level - 1) + 1), 3), source.getEntity());
