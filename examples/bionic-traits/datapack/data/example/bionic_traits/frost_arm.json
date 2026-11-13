@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "display": {
+    "name": {
+      "text": "寒霜手臂"
+    },
+    "description": {
+      "text": "由实际参与近战的手臂施加缓慢效果。"
+    }
+  },
+  "scopes": [
+    "arm"
+  ],
+  "value_kind": "ability",
+  "inheritance": {
+    "type": "coverage_threshold",
+    "min_coverage": 0.5
+  },
+  "carrier": {
+    "roles": [
+      "ATTACK_HAND"
+    ]
+  },
+  "automatic_detection": false,
+  "behaviors": [
+    {
+      "type": "create_biotech:on_hit_effect",
+      "effect": "minecraft:slowness",
+      "duration_ticks": 100,
+      "amplifier": 0,
+      "chance": 1
+    }
+  ]
+}

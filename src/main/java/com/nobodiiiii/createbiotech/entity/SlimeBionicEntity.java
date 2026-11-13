@@ -38,6 +38,7 @@ import com.nobodiiiii.createbiotech.entity.animation.SlimeBionicAttackTiming;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
+import com.nobodiiiii.createbiotech.entity.trait.BionicBehaviorRunner;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.BlockPos;
@@ -161,6 +162,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable
 	private BionicTraitResolver.Revision traitRevision;
 	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
+	private final BionicBehaviorRunner extensionBehaviors = new BionicBehaviorRunner(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	/** The mind derived from {@link #mindTraits}, resolved together with that trait set. */
 	@Nullable
@@ -946,7 +948,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public boolean canBeAffected(MobEffectInstance effect) {
 		ResourceLocation effectId = effect.getEffect().unwrapKey()
 			.map(key -> key.location()).orElse(null);
-		return !getBionicTraits().isImmuneTo(effectId) && super.canBeAffected(effect);
+		return !getBionicTraits().isImmuneTo(effectId)
+			&& (extensionBehaviors == null || extensionBehaviors.allowsEffect(effectId)) && super.canBeAffected(effect);
 	}
 
 	@Override
@@ -1088,6 +1091,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		BionicTraitSet traits = getBionicTraits();
 		if (level().isClientSide || isInvulnerableTo(source) || !isAlive() || amount <= 0)
 			return super.hurt(source, amount);
+		if (extensionBehaviors != null) {
+			amount = extensionBehaviors.incomingDamage(source, amount);
+			if (amount <= 0) return false;
+		}
 		if (BionicDefenses.avoids(this, source)) return false;
 		if (traits.has(BionicTrait.ENDER_TELEPORT) && (source.is(DamageTypeTags.IS_PROJECTILE)
 			|| source.getDirectEntity() instanceof net.minecraft.world.entity.projectile.ThrownPotion)) {
@@ -1401,6 +1408,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	@Override
+	public void remove(Entity.RemovalReason reason) {
+		if (extensionBehaviors != null && !level().isClientSide) extensionBehaviors.clear();
+		super.remove(reason);
+	}
+
+	@Override
 	public void tick() {
 		previousSelfDestructFuse = selfDestructFuse;
 		selfDestructFuse = getProductionFlags() >> 2;
@@ -1421,6 +1434,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		if (!level().isClientSide) {
 			BionicDefenses.tick(this);
+			extensionBehaviors.tick();
 			equipment.tick();
 			production.tick();
 		}
@@ -1790,6 +1804,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return hit;
 		List<SurgicalAssembly.CombinationMember> attackingGroup =
 			assembly.rotatingGroup(arm.sourceId(), arm.cubeId());
+		extensionBehaviors.melee(victim, attackingGroup);
 		BionicTraitSet traits = getBionicTraits();
 		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.LAUNCH_STRIKE)::contains)) {
 			double resistance = Math.max(0, 1 - victim.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE));

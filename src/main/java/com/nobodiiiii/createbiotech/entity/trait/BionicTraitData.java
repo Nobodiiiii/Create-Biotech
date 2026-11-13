@@ -10,7 +10,7 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects,
 	Map<ResourceLocation, Map<BionicAnatomyRole, Set<String>>> carriers,
 	Map<String, Double> parameters, Map<ResourceLocation, BionicAttackEffect> attackEffects,
-	Map<ResourceLocation, BionicSubtrait> subtraits, Set<BionicTrait> overrides) {
+	Map<ResourceLocation, BionicSubtrait> subtraits, Set<BionicTrait> overrides, BionicExtensions.Compiled extensions) {
 	BionicTraitData {
 		carriers = Map.copyOf(carriers);
 		parameters = Map.copyOf(parameters);
@@ -22,12 +22,12 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	static BionicTraitData defaults(BionicTrait trait) {
 		return new BionicTraitData(trait.automaticDetection(), trait.rule(),
 			BionicDonorOverrides.empty(), BionicDonorOverrides.empty(), BionicDonorOverrides.empty(),
-			Map.of(), Map.of(), Map.of(), BionicHeadTraits.variants(trait), Set.of());
+			Map.of(), Map.of(), Map.of(), BionicHeadTraits.variants(trait), Set.of(), BionicExtensions.Compiled.EMPTY);
 	}
 
 	BionicTraitData withOverrides(Set<BionicTrait> targets) {
 		return new BionicTraitData(automaticDetection, rule, abilities, numbers, effects, carriers,
-			parameters, attackEffects, subtraits, targets);
+			parameters, attackEffects, subtraits, targets, extensions);
 	}
 
 	/** Every leg trait requires one qualifying leg by default; zero skips this count check. */

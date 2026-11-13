@@ -44,11 +44,25 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			try (var reader = entry.getValue().openAsReader()) {
 				JsonElement json = com.google.gson.JsonParser.parseReader(reader);
 				if (!json.isJsonObject()) throw new IllegalArgumentException("Expected a JSON object");
-				resources.put(converter.fileToId(entry.getKey()), json);
+				ResourceLocation id = converter.fileToId(entry.getKey());
+				if (id.getNamespace().equals("create_biotech") && id.getPath().startsWith("__extension/"))
+					throw new IllegalArgumentException("Reserved bionic trait ID: " + id);
+				resources.put(id, json);
 			} catch (java.io.IOException | RuntimeException exception) {
 				throw new IllegalArgumentException("Cannot load bionic trait resource " + entry.getKey(), exception);
 			}
 		}
+		for (String directory : List.of("bionic_trait_bindings", "bionic_trait_modifiers")) {
+			var extension = net.minecraft.resources.FileToIdConverter.json(directory);
+			extension.listMatchingResources(manager).forEach((file, resource) -> {
+				try (var reader = resource.openAsReader()) {
+					var json = com.google.gson.JsonParser.parseReader(reader);
+					if (!json.isJsonObject()) throw new IllegalArgumentException("Expected extension object");
+					resources.put(BionicTraitResources.transportId(directory, extension.fileToId(file)), json);
+				} catch (java.io.IOException exception) { throw new IllegalArgumentException("Cannot load " + file, exception); }
+			});
+		}
+		BionicExtensions.addDefaults(resources);
 		return resources;
 	}
 
@@ -63,10 +77,17 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 
 	/** Pure loading shared with the client; publication only happens after the complete graph loads. */
 	static Map<BionicTrait, BionicTraitData> decode(Map<ResourceLocation, JsonElement> resources) {
+		return decode(resources, true);
+	}
+	static Map<BionicTrait, BionicTraitData> decode(Map<ResourceLocation, JsonElement> raw, boolean strict) {
+		Map<ResourceLocation, JsonElement> resources = BionicTraitResources.expand(raw);
 		Map<ResourceLocation, BionicTrait> definitions = new LinkedHashMap<>();
-		for (BionicTrait trait : BionicTrait.builtIns()) definitions.put(trait.id(), trait);
+		for (BionicTrait trait : BionicTrait.builtIns())
+			if (!object(resources.get(trait.id())).has("disabled") || !object(resources.get(trait.id())).get("disabled").getAsBoolean())
+				definitions.put(trait.id(), trait);
 		resources.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
 			JsonObject root = object(entry.getValue());
+			if (root.has("disabled") && root.get("disabled").getAsBoolean()) return;
 			if (!root.has("schema_version")) return; // Legacy files extend built-in donor values.
 			if (!root.get("schema_version").isJsonPrimitive()
 				|| !root.getAsJsonPrimitive("schema_version").isNumber()
@@ -75,7 +96,10 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			definitions.put(entry.getKey(), readDefinition(entry.getKey(), root));
 		});
 		Map<BionicTrait, BionicTraitData> loaded = new LinkedHashMap<>();
-		for (BionicTrait trait : definitions.values()) loaded.put(trait, read(trait, resources, definitions));
+		for (BionicTrait trait : definitions.values()) {
+			try { loaded.put(trait, read(trait, resources, definitions, strict)); }
+			catch (RuntimeException exception) { throw new IllegalArgumentException("Cannot load bionic trait " + trait.id(), exception); }
+		}
 		Map<BionicTrait, Set<BionicTrait>> overrides = new LinkedHashMap<>();
 		loaded.forEach((trait, data) -> overrides.put(trait, data.overrides()));
 		Map<BionicTrait, Set<BionicTrait>> valid = BionicTraitOverrides.validate(overrides);
@@ -85,7 +109,6 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 
 	private static BionicTrait readDefinition(ResourceLocation id, JsonObject root) {
 		try {
-			if (root.has("behaviors")) throw new IllegalArgumentException("Behavior components are not implemented in phase 1");
 			Set<BionicTraitScope> scopes = java.util.EnumSet.noneOf(BionicTraitScope.class);
 			for (JsonElement scope : root.getAsJsonArray("scopes"))
 				scopes.add(BionicTraitScope.valueOf(scope.getAsString().toUpperCase(java.util.Locale.ROOT)));
@@ -125,7 +148,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 	}
 
 	private static BionicTraitData read(BionicTrait trait, Map<ResourceLocation, JsonElement> resources,
-		Map<ResourceLocation, BionicTrait> definitions) {
+		Map<ResourceLocation, BionicTrait> definitions, boolean strict) {
 		ResourceLocation primary = trait.id();
 		JsonObject root = object(resources.get(primary));
 		boolean automatic = trait.automaticDetection();
@@ -184,7 +207,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		subtraits.putAll(readSubtraits(root, primary));
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
 			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits,
-			readOverrides(root, trait, primary, definitions));
+			readOverrides(root, trait, primary, definitions), BionicExtensions.compile(root, strict));
 	}
 
 	private static Set<BionicTrait> readOverrides(JsonObject root, BionicTrait source, ResourceLocation file,

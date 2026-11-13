@@ -1,0 +1,72 @@
+package com.nobodiiiii.createbiotech.compat.kubejs;
+
+import com.google.gson.JsonObject;
+import com.nobodiiiii.createbiotech.api.bionic.BionicTraitApi;
+import com.nobodiiiii.createbiotech.api.bionic.BionicTraitEvent;
+import dev.latvian.mods.kubejs.event.*;
+import dev.latvian.mods.kubejs.generator.KubeDataGenerator;
+import dev.latvian.mods.kubejs.plugin.KubeJSPlugin;
+import dev.latvian.mods.kubejs.script.BindingRegistry;
+import net.minecraft.resources.ResourceLocation;
+import net.neoforged.neoforge.common.NeoForge;
+
+/** Loaded only by KubeJS's optional plugin discovery; common code has no references to this class. */
+public final class BiotechKubeJSPlugin implements KubeJSPlugin {
+	public static final EventGroup GROUP = EventGroup.of("BionicTraitEvents");
+	public static final EventHandler DEFINITIONS = GROUP.server("definitions", () -> Definitions.class);
+	public static final TargetedEventHandler<ResourceLocation> TICK = GROUP.server("tick", () -> Runtime.class).supportsTarget(EventTargetType.ID);
+	public static final TargetedEventHandler<ResourceLocation> MELEE = GROUP.server("melee", () -> Melee.class).supportsTarget(EventTargetType.ID);
+	public static final TargetedEventHandler<ResourceLocation> HURT = GROUP.server("hurt", () -> Hurt.class).supportsTarget(EventTargetType.ID).hasResult();
+
+	@Override public void registerEvents(EventGroupRegistry registry) { registry.register(GROUP); }
+	@Override public void registerBindings(BindingRegistry bindings) { bindings.add("BionicTraits", BionicTraitApi.class); }
+	@Override public void init() {
+		NeoForge.EVENT_BUS.addListener(BiotechKubeJSPlugin::tick);
+		NeoForge.EVENT_BUS.addListener(BiotechKubeJSPlugin::melee);
+		NeoForge.EVENT_BUS.addListener(BiotechKubeJSPlugin::hurt);
+	}
+	@Override public void generateData(KubeDataGenerator generator) {
+		if (DEFINITIONS.hasListeners()) DEFINITIONS.post(new Definitions(generator));
+	}
+	private static void tick(BionicTraitEvent.Tick event) {
+		if (TICK.hasListeners(event.getTrait().id())) TICK.post(new Runtime(event), event.getTrait().id());
+	}
+	private static void melee(BionicTraitEvent.Melee event) {
+		if (MELEE.hasListeners(event.getTrait().id())) MELEE.post(new Melee(event), event.getTrait().id());
+	}
+	private static void hurt(BionicTraitEvent.Hurt event) {
+		if (HURT.hasListeners(event.getTrait().id()) && HURT.post(new Hurt(event), event.getTrait().id()).interruptFalse()) event.setAmount(0);
+	}
+
+	public static final class Definitions implements KubeEvent {
+		private final KubeDataGenerator generator;
+		private final java.util.Set<ResourceLocation> written = new java.util.HashSet<>();
+		public Definitions(KubeDataGenerator generator) { this.generator = generator; }
+		public void register(ResourceLocation id, JsonObject definition) { write("bionic_traits", id, definition); }
+		public void bind(ResourceLocation id, JsonObject binding) { write("bionic_trait_bindings", id, binding); }
+		public void modify(ResourceLocation id, JsonObject modifier) { write("bionic_trait_modifiers", id, modifier); }
+		private void write(String directory, ResourceLocation id, JsonObject json) {
+			var resource = id.withPath(directory + "/" + id.getPath() + ".json");
+			if (!written.add(resource)) throw new IllegalArgumentException("Duplicate scripted bionic resource: " + resource);
+			generator.json(resource, json.deepCopy());
+		}
+	}
+	public static class Runtime implements KubeEvent {
+		protected final BionicTraitEvent event;
+		public Runtime(BionicTraitEvent event) { this.event = event; }
+		public com.nobodiiiii.createbiotech.entity.SlimeBionicEntity getEntity() { return event.getEntity(); }
+		public ResourceLocation getId() { return event.getTrait().id(); }
+		public com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult getResult() { return event.getResult(); }
+	}
+	public static final class Melee extends Runtime {
+		public Melee(BionicTraitEvent.Melee event) { super(event); }
+		public net.minecraft.world.entity.LivingEntity getTarget() { return ((BionicTraitEvent.Melee)event).getTarget(); }
+		public java.util.Set<com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.CombinationMember> getArm() { return ((BionicTraitEvent.Melee)event).getArm(); }
+	}
+	public static final class Hurt extends Runtime {
+		public Hurt(BionicTraitEvent.Hurt event) { super(event); }
+		public net.minecraft.world.damagesource.DamageSource getSource() { return ((BionicTraitEvent.Hurt)event).getSource(); }
+		public float getAmount() { return ((BionicTraitEvent.Hurt)event).getAmount(); }
+		public void setAmount(float amount) { ((BionicTraitEvent.Hurt)event).setAmount(amount); }
+	}
+}

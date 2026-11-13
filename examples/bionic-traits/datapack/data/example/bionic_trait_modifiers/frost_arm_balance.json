@@ -1,0 +1,9 @@
+{
+  "trait": "example:frost_arm",
+  "priority": 10,
+  "patch": {
+    "inheritance": {
+      "min_coverage": 0.6
+    }
+  }
+}

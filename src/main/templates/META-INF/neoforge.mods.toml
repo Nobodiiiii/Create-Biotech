@@ -64,3 +64,10 @@ versionRange = "[15.10,)"
 ordering = "AFTER"
 side = "CLIENT"
 
+[[dependencies."${mod_id}"]]
+modId = "kubejs"
+type = "optional"
+versionRange = "[2101.7.2-build.381,2102)"
+ordering = "AFTER"
+side = "BOTH"
+

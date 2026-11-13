@@ -67,6 +67,7 @@ neoForge {
 }
 
 repositories {
+    maven { url = 'https://maven.latvian.dev/releases' }
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
     maven { url = 'https://maven.blamejared.com' }
@@ -81,6 +82,8 @@ configurations {
 }
 
 dependencies {
+    compileOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
+    compileOnly("dev.latvian.mods:rhino:${rhino_version}") { transitive = false }
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 

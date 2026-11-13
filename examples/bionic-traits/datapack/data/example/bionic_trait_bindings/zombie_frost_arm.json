@@ -1,0 +1,16 @@
+{
+  "trait": "example:frost_arm",
+  "values": {
+    "minecraft:zombie": true
+  },
+  "carriers": {
+    "minecraft:zombie": {
+      "ATTACK_HAND": [
+        "right_arm",
+        "left_arm",
+        "rightArm",
+        "leftArm"
+      ]
+    }
+  }
+}

@@ -312,6 +312,7 @@
   "create_biotech.trait.slot.arm": "Arm",
   "create_biotech.trait.slot.leg": "Leg",
   "create_biotech.trait.inactive.body_measurement_unavailable": "Body measurements unavailable",
+  "create_biotech.trait.inactive.extension_condition": "Extension prerequisites not met",
   "create_biotech.trait.inactive.purpose_mismatch": "Joint purpose or load mismatch",
   "create_biotech.trait.vibration_sense": "Vibration Sense",
   "create_biotech.trait.deterrence": "Deterrence (%s)",

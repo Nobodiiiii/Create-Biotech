@@ -70,12 +70,34 @@ public final class BionicTraitResolver {
 			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result)
 				.withBindings(result.bindings());
 		});
+		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
 		// Preserve anatomical contributions before behavior replacement removes their labels.
 		double tamingChance = tamingChance(results, tissue);
 		BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
+		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
 		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
 		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(),
 			tamingChance);
+	}
+
+	private static void applyExtensionConditions(Map<BionicTrait, BionicTraitResult> results,
+		BionicTraitRegistry.Snapshot data, SurgicalAssembly assembly, Level level, boolean headUsesTorso) {
+		if (results.keySet().stream().noneMatch(t -> !data.get(t).extensions().conditions().isEmpty())) return;
+		// Conditions may only disable: converge dependencies after native prerequisites, before overrides.
+		for (int pass = 0; pass < results.size(); pass++) {
+			BionicTraitSet conditioned = new BionicTraitSet(results, data.traits(), headUsesTorso);
+			boolean changed = false;
+			for (var entry : results.entrySet()) {
+				if (!entry.getValue().active()) continue;
+				var context = new com.nobodiiiii.createbiotech.api.bionic.BionicCondition.Context(
+					assembly, level, entry.getKey(), conditioned, entry.getValue());
+				if (data.get(entry.getKey()).extensions().conditions().stream().anyMatch(condition -> !condition.matches(context))) {
+					entry.setValue(entry.getValue().disabled(InactiveReason.EXTENSION_CONDITION));
+					changed = true;
+				}
+			}
+			if (!changed) break;
+		}
 	}
 
 	private static double tamingChance(Map<BionicTrait, BionicTraitResult> results, BionicTissue tissue) {
@@ -192,6 +214,14 @@ public final class BionicTraitResolver {
 				return new BionicTraitResult(limbResult.coverage(), limbResult.strength(), 0, Set.of(),
 					limbResult.members(), limbResult.inactiveReason(), Map.of(), Set.of(), Map.of(), Map.of(), types)
 					.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
+			}
+			if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
+				var entries = carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.EFFECT);
+				Set<ResourceLocation> effects = entries.stream().filter(e -> e.inactiveReason() == null)
+					.map(DisplayEntry::id).collect(java.util.stream.Collectors.toUnmodifiableSet());
+				var evaluated = effects.isEmpty() ? limbResult.disabled(InactiveReason.INSUFFICIENT_COVERAGE)
+					: new BionicTraitResult(limbResult.coverage(), limbResult.strength(), 0, effects, limbResult.members(), null);
+				return evaluated.withDisplayEntries(entries);
 			}
 			if (!BionicTrait.DETERRENCE.equals(trait)) return limbResult;
 			Set<ResourceLocation> targets = new HashSet<>();

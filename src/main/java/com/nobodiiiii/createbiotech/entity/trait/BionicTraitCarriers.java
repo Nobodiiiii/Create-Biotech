@@ -67,6 +67,11 @@ final class BionicTraitCarriers {
 			}
 		} else cubes = BionicTrait.RIDEABLE.equals(trait) ? BionicSaddleCarriers.select(tissue.source(source))
 			: select(trait.carrier(), data, tissue, source);
+		if (!data.extensions().selectors().isEmpty()) {
+			BitSet selected = new BitSet();
+			for (var selector : data.extensions().selectors()) selected.or(selector.select(tissue.source(source)));
+			cubes.and(selected);
+		}
 		cubes.and(tissue.source(source).presentCubes());
 		return cubes;
 	}

@@ -36,7 +36,7 @@ public final class BionicTraitRegistry {
 		current = new Snapshot(current.generation() + 1, data, resources);
 	}
 	public static void acceptClient(long generation, Map<ResourceLocation, JsonElement> resources) {
-		Map<BionicTrait, BionicTraitData> loaded = BionicTraitDataLoader.decode(resources);
+		Map<BionicTrait, BionicTraitData> loaded = BionicTraitDataLoader.decode(resources, false);
 		client = new Snapshot(generation, loaded, resources);
 		CLIENT_LISTENERS.forEach(Runnable::run);
 	}
