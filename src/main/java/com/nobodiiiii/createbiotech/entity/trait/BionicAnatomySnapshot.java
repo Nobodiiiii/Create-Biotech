@@ -34,6 +34,7 @@ public final class BionicAnatomySnapshot {
 	}
 	private final Map<Integer, Set<String>> parts;
 	private final float[] volumes;
+	private final double originalVolume;
 
 	private BionicAnatomySnapshot(Map<Integer, Set<String>> parts, float[] volumes) {
 		Map<Integer, Set<String>> names = new HashMap<>();
@@ -43,6 +44,9 @@ public final class BionicAnatomySnapshot {
 		});
 		this.parts = Map.copyOf(names);
 		this.volumes = volumes.length == 0 ? NO_VOLUMES : volumes.clone();
+		double total = 0;
+		for (float volume : this.volumes) total += volume;
+		this.originalVolume = total;
 	}
 
 	@Nullable
@@ -85,6 +89,8 @@ public final class BionicAnatomySnapshot {
 	public Map<Integer, Set<String>> parts() { return parts; }
 	public boolean hasVolumes() { return volumes.length > 0; }
 	public float[] volumes() { return volumes.clone(); }
+	/** Complete captured donor volume, including cubes removed by later cuts. */
+	public double originalVolume() { return originalVolume; }
 
 	/** Captured volume in blocks³. */
 	public double volume(int cube) {

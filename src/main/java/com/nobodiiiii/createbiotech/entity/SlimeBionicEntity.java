@@ -159,6 +159,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable
 	private SurgicalAssembly cachedAssembly;
 	private boolean installingAssembly;
+	/** Only visible while vanilla computes one selected melee hit; never saved or shared by arms. */
+	private double activeMeleeDamageOffset;
 	@Nullable
 	private SurgicalAssembly traitAssembly;
 	@Nullable
@@ -564,7 +566,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private void refreshBaseStats(SurgicalAssembly assembly) {
 		if (level().isClientSide) return;
 		baseStatsRevision = BionicStats.revision(level());
-		refreshMaximumHealth(assembly);
+		refreshMaximumHealth(assembly, getBionicTraits());
 		refreshMovementSpeed(assembly);
 		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
 		if (attack != null) attack.setBaseValue(anatomicalBaseStat(BionicStat.ATTACK_DAMAGE));
@@ -577,13 +579,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	/** Applies the packed union-volume calibration without healing an already damaged body. */
-	private void refreshMaximumHealth(SurgicalAssembly assembly) {
+	private void refreshMaximumHealth(SurgicalAssembly assembly, BionicTraitSet traits) {
 		if (level().isClientSide)
 			return;
 		var maximumHealth = getAttribute(Attributes.MAX_HEALTH);
 		if (maximumHealth == null)
 			return;
-		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), level());
+		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), level(),
+			traits.value(BionicTrait.HEALTH_OFFSET));
 		if (maximumHealth.getBaseValue() != calibrated)
 			maximumHealth.setBaseValue(calibrated);
 		if (getHealth() > calibrated)
@@ -657,6 +660,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			mind = BionicMind.fromTraits(assembly, bionicTraits);
 			mindTraits = bionicTraits;
 			// Publish the result before refreshing effects that may query this entity again.
+			if (assembly != null) refreshMaximumHealth(assembly, bionicTraits);
 			refreshNaturalArmor(bionicTraits);
 			refreshKnockbackResistance(bionicTraits);
 			refreshFlyingSpeed(assembly, bionicTraits);
@@ -1325,7 +1329,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				if (isBionicWing(arm)) continue;
 				var stats = SurgicalCombatCalibration.stats(arm, level());
 				double attackDamage = arm == weaponArm ? armedAttackDamage : baseAttackDamage;
-				double dps = attackDamage * stats.damageMultiplier() * 20.0d / SurgicalCombatCalibration.armRecovery(stats, level());
+				double dps = SurgicalCombatCalibration.damagePerHit(attackDamage, stats, armDamageOffset(arm))
+					* 20.0d / SurgicalCombatCalibration.armRecovery(stats, level());
 				if (dps > highestDps) { highestDps = dps; fixedArmIndex = index; }
 			}
 		}
@@ -1813,12 +1818,35 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return super.getKnockback(target, source) + (float) inherited;
 	}
 
+	/** The correction follows the entire installed shoulder/elbow chain, including mixed donors. */
+	public double armDamageOffset(@Nullable SurgicalAssembly.ArmAttackGeometry arm) {
+		SurgicalAssembly assembly = getAssembly();
+		return assembly == null || arm == null || arm.sourceId() < 0 ? 0.0d
+			: getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET,
+				assembly.rotatingGroup(arm.sourceId(), arm.cubeId()));
+	}
+
+	@Override
+	public double getAttributeValue(Holder<Attribute> attribute) {
+		double value = super.getAttributeValue(attribute);
+		return attribute.equals(Attributes.ATTACK_DAMAGE) && activeMeleeDamageOffset != 0.0d
+			? Math.max(0.0d, value + activeMeleeDamageOffset) : value;
+	}
+
 	private boolean doSelectedAttack(Entity target) {
 		var selectedAssembly = getAssembly();
 		var selectedGeometry = selectedAssembly == null ? null : selectedAssembly.attackGeometry();
 		var selectedArm = selectedGeometry == null ? null : selectedGeometry.arm(attackActionLeft, attackActionArmSlot);
 		if (selectedArm != null && isBionicWing(selectedArm)) return false;
-		boolean hit = super.doHurtTarget(target);
+		boolean hit;
+		double previousOffset = activeMeleeDamageOffset;
+		activeMeleeDamageOffset = armDamageOffset(selectedArm);
+		try {
+			// Mob reads the corrected attack attribute before its normal enchantment and damage hooks.
+			hit = super.doHurtTarget(target);
+		} finally {
+			activeMeleeDamageOffset = previousOffset;
+		}
 		specialAttacks.afterMelee();
 		if (!hit || level().isClientSide || !(target instanceof LivingEntity victim))
 			return hit;

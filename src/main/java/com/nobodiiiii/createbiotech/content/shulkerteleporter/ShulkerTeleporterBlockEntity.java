@@ -21,8 +21,11 @@ import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
+import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
+import com.simibubi.create.foundation.utility.CreateLang;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
@@ -193,6 +196,23 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		return targetAddress;
 	}
 
+	@Override
+	public boolean addToGoggleTooltip(List<Component> tooltip, boolean isPlayerSneaking) {
+		if (super.addToGoggleTooltip(tooltip, isPlayerSneaking))
+			tooltip.add(Component.empty());
+		CreateLang.builder()
+			.add(Component.translatable("create_biotech.shulker_teleporter.target_address"))
+			.style(ChatFormatting.GRAY)
+			.forGoggles(tooltip);
+		CreateLang.builder()
+			.add(targetAddress.isEmpty()
+				? Component.translatable("create_biotech.shulker_teleporter.target_address.unset")
+				: Component.literal(targetAddress))
+			.style(targetAddress.isEmpty() ? ChatFormatting.DARK_GRAY : ChatFormatting.AQUA)
+			.forGoggles(tooltip, 1);
+		return true;
+	}
+
 	public List<String> getCandidateAddresses() {
 		return List.copyOf(candidateAddresses);
 	}
@@ -215,6 +235,9 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		registerAddress();
 		setChanged();
 		sendBlockUpdate();
+		if (level != null && !level.isClientSide)
+			for (int part = ShulkerTeleporterBlock.BOTTOM; part <= ShulkerTeleporterBlock.TOP; part++)
+				DisplayLinkBlock.notifyGatherers(level, getBottomPos().above(part));
 	}
 
 	public float getClosingProgress(float partialTicks) {

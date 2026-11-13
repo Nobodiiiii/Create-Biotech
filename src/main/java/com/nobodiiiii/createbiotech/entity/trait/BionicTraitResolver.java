@@ -126,7 +126,7 @@ public final class BionicTraitResolver {
 				continue;
 			boolean present = switch (trait.valueKind()) {
 			case ABILITY -> donor.has(trait);
-			case NUMBER -> numericValue(donor.value(trait)) > 0.0d;
+			case NUMBER -> numericValue(trait, donor.value(trait)) != 0.0d;
 			case SUBTRAIT_SET -> !donor.variants(trait).isEmpty();
 			case EFFECT_SET -> !donor.effects(trait).isEmpty();
 			case ATTACK_EFFECT_SET -> !donor.attacks(trait).isEmpty();
@@ -141,7 +141,7 @@ public final class BionicTraitResolver {
 				results.put(trait, new BionicTraitResult(1, 1, 0, Set.of(), Set.of(), null,
 					Map.of(), Set.of(), variants, Map.of(), Set.of()));
 			} else if (present)
-				results.put(trait, new BionicTraitResult(1, 1, numericValue(donor.value(trait)),
+				results.put(trait, new BionicTraitResult(1, 1, numericValue(trait, donor.value(trait)),
 					trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.effects(trait) : Set.of(),
 					Set.of(), null));
 		}
@@ -151,6 +151,8 @@ public final class BionicTraitResolver {
 
 	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,
 		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
+		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+			return evaluateNumbers(trait, tissue, donors, bindings);
 		if (trait.isHeadClassification())
 			return BionicHeadTraits.evaluate(trait, data, tissue, donors, bindings);
 		if (trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
@@ -158,7 +160,6 @@ public final class BionicTraitResolver {
 		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET)
 			return evaluateAttacks(trait, data, tissue, donors, bindings);
 		double total = 0, contributing = 0;
-		List<NumericContribution> numericVolumes = new ArrayList<>();
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		Map<ResourceLocation, Double> effectVolumes = new HashMap<>();
 		Set<ResourceLocation> commonEffects = null;
@@ -186,8 +187,6 @@ public final class BionicTraitResolver {
 			carriers.and(cubes);
 			double carrierVolume = tissue.weight(sourceId, carriers);
 			contributing += carrierVolume;
-			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
-				numericVolumes.add(new NumericContribution(donor.value(trait), carrierVolume));
 			addMembers(members, sourceId, carriers);
 			if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET && volume > 0.0d) {
 				for (ResourceLocation effect : donor.effects(trait))
@@ -203,8 +202,6 @@ public final class BionicTraitResolver {
 		if (!trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
 			&& !trait.scopes().contains(BionicTraitScope.TORSO)) {
 			BionicTraitResult limbResult = evaluateLimbs(trait, data.rule(), tissue, members, misplaced);
-			if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
-				return evaluateLimbNumbers(trait, data, tissue, donors, limbResult);
 			if (BionicTrait.PACK_ALERT.equals(trait))
 				return limbResult.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
 			if (BionicTrait.HUNTING_INSTINCT.equals(trait)) {
@@ -241,21 +238,6 @@ public final class BionicTraitResolver {
 		if (!result.active())
 			return result.withDisplayEntries(detailCarriers.keySet().stream().sorted()
 				.map(id -> new DisplayEntry(DetailKind.EFFECT, id, result.inactiveReason())).toList());
-		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
-			// Pick the highest-valued tissue first; missing positive tissue leaves zero-valued space.
-			double budget = total * data.rule().minCoverage();
-			double remaining = budget, weighted = 0;
-			numericVolumes.sort((a, b) -> Double.compare(b.value(), a.value()));
-			for (NumericContribution contribution : numericVolumes) {
-				double used = Math.min(remaining, contribution.volume());
-				weighted += used * contribution.value();
-				remaining -= used;
-				if (remaining <= 0) break;
-			}
-			double value = numericValue(budget > 0 ? weighted / budget : 0);
-			return value == 0 ? BionicTraitResult.ABSENT
-				: new BionicTraitResult(coverage, result.strength(), value, Set.of(), members, null);
-		}
 		if (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET) {
 			Set<ResourceLocation> effects = new HashSet<>();
 			for (var effect : effectVolumes.entrySet()) {
@@ -273,34 +255,79 @@ public final class BionicTraitResolver {
 		return result;
 	}
 
-	private static BionicTraitResult evaluateLimbNumbers(BionicTrait trait, BionicTraitData data,
-		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, BionicTraitResult result) {
-		if (!result.active()) return result;
+	/** Each retained cube keeps its original donor's fixed share, independently of the new body. */
+	private static BionicTraitResult evaluateNumbers(BionicTrait trait,
+		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
 		Map<SurgicalAssembly.CombinationMember, Double> values = new HashMap<>();
-		double maximum = 0;
-		for (var limb : tissue.limbs(trait.scopes())) {
-			double budget = tissue.weight(limb) * data.rule().minCoverage();
-			double remaining = budget, weighted = 0;
-			for (var member : limb.stream().filter(result.members()::contains)
-				.sorted(java.util.Comparator.comparingDouble((SurgicalAssembly.CombinationMember member) ->
-					donors.get(member.source()).value(trait)).reversed()).toList()) {
-				double used = Math.min(remaining, tissue.source(member.source()).anatomy().volume(member.cube()));
-				weighted += used * donors.get(member.source()).value(trait);
-				remaining -= used;
-				if (remaining <= 0) break;
+		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
+		double total = 0;
+		boolean misplaced = false;
+		for (int sourceId = 0; sourceId < tissue.sourceCount(); sourceId++) {
+			BitSet installed = tissue.selected(sourceId, trait.scopes());
+			total += tissue.weight(sourceId, installed);
+			BitSet carriers = (BitSet) bindings.get(sourceId).clone();
+			BitSet stray = (BitSet) carriers.clone();
+			stray.andNot(installed);
+			misplaced |= !stray.isEmpty();
+			carriers.and(installed);
+			addMembers(members, sourceId, carriers);
+			if (carriers.isEmpty()) continue;
+			var anatomy = tissue.source(sourceId).anatomy();
+			double originalVolume = anatomy.originalVolume();
+			if (originalVolume <= 0) continue;
+			boolean nativeArm = BionicTrait.DAMAGE_OFFSET.equals(trait);
+			Map<Integer, Double> armVolumes = nativeArm ? tissue.originalArmVolumes(sourceId) : Map.of();
+			double donorValue = rawNumericValue(trait, donors.get(sourceId).value(trait));
+			for (int cube = carriers.nextSetBit(0); cube >= 0; cube = carriers.nextSetBit(cube + 1)) {
+				double denominator = nativeArm ? armVolumes.getOrDefault(cube, 0.0d) : originalVolume;
+				if (denominator <= 0) continue;
+				double share = donorValue * (anatomy.volume(cube) / denominator);
+				if (Double.isFinite(share) && share != 0)
+					values.put(new SurgicalAssembly.CombinationMember(sourceId, cube), share);
 			}
-			double value = numericValue(budget > 0 ? weighted / budget : 0);
-			maximum = Math.max(maximum, value);
-			for (var member : limb) values.put(member, value);
 		}
-		return maximum == 0 ? BionicTraitResult.ABSENT
-			: new BionicTraitResult(result.coverage(), result.strength(), maximum, Set.of(), result.members(),
-			null, Map.of(), Set.of(), Map.of(), values, Set.of());
+		boolean regional = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
+			|| trait.scopes().contains(BionicTraitScope.TORSO);
+		// min_coverage no longer supplies a budget or a threshold for numeric traits.
+		BionicTraitResult placement = regional
+			? acquisition(BionicTraitRule.scaled(), total > 0 ? tissue.weight(members) / total : 0, members, misplaced)
+			: evaluateLimbs(trait, BionicTraitRule.scaled(), tissue, members, misplaced);
+		if (!placement.active()) return placement;
+		double value = 0;
+		if (regional) {
+			value = numericValue(trait, values.values().stream().mapToDouble(Double::doubleValue).sum());
+		} else {
+			// The shared label shows the strongest chain; actual attacks sum only their own cubes.
+			for (var limb : tissue.limbs(trait.scopes())) {
+				double local = numericValue(trait,
+					limb.stream().mapToDouble(member -> values.getOrDefault(member, 0.0d)).sum());
+				if (Math.abs(local) > Math.abs(value)
+					|| Math.abs(local) == Math.abs(value) && local > value) value = local;
+			}
+		}
+		return value == 0 ? BionicTraitResult.ABSENT
+			: new BionicTraitResult(placement.coverage(), placement.strength(), value, Set.of(), members,
+				null, Map.of(), Set.of(), Map.of(), values, Set.of());
 	}
 
-	/** Apply the threshold before rounding, once after tissue aggregation. */
+	/** Final sums below 0.1 are absent; other sums take effect rounded to one decimal place. */
 	public static double numericValue(double value) {
-		return value < 0.1d ? 0.0d : Math.round(value * 10.0d) / 10.0d;
+		return roundedNumericValue(Math.max(0.0d, value));
+	}
+
+	public static double numericValue(BionicTrait trait, double value) {
+		return roundedNumericValue(rawNumericValue(trait, value));
+	}
+
+	/** Keep donor pools and cube shares exact until the complete applicable region is summed. */
+	private static double rawNumericValue(BionicTrait trait, double value) {
+		if (!Double.isFinite(value)) return 0.0d;
+		return trait.isStatOffset() ? value : Math.max(0.0d, value);
+	}
+
+	private static double roundedNumericValue(double value) {
+		if (!Double.isFinite(value) || Math.abs(value) < 0.1d) return 0.0d;
+		return java.math.BigDecimal.valueOf(value).setScale(1, java.math.RoundingMode.HALF_UP).doubleValue();
 	}
 
 	private static BionicTraitResult evaluateSubtraits(BionicTrait trait, BionicTraitData data,
@@ -351,7 +378,6 @@ public final class BionicTraitResolver {
 			Map.of(), Set.of(), active.isEmpty() ? evidence : active, Map.of(), Set.of()).withDisplayEntries(entries);
 	}
 
-	private record NumericContribution(double value, double volume) {}
 
 	private static BionicTraitResult evaluateAttacks(BionicTrait trait, BionicTraitData data, BionicTissue tissue,
 		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {

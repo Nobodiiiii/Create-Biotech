@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.simibubi.create.api.equipment.goggles.IProxyHoveringInformation;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.kinetics.base.KineticBlock;
 import com.simibubi.create.content.kinetics.simpleRelays.ICogWheel;
@@ -50,7 +51,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
 public class ShulkerTeleporterBlock extends KineticBlock
-	implements IBE<ShulkerTeleporterBlockEntity>, ICogWheel, CBMultiBlockLifecycle.Part {
+	implements IBE<ShulkerTeleporterBlockEntity>, ICogWheel, CBMultiBlockLifecycle.Part, IProxyHoveringInformation {
 
 	public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
 	public static final IntegerProperty PART = IntegerProperty.create("part", 0, 2);
@@ -318,6 +319,11 @@ public class ShulkerTeleporterBlock extends KineticBlock
 	@Override
 	public BlockEntityType<? extends ShulkerTeleporterBlockEntity> getBlockEntityType() {
 		return CBBlockEntityTypes.SHULKER_TELEPORTER.get();
+	}
+
+	@Override
+	public BlockPos getInformationSource(Level level, BlockPos pos, BlockState state) {
+		return getTopPos(pos, state);
 	}
 
 	public static BlockPos getBottomPos(BlockPos pos, BlockState state) {

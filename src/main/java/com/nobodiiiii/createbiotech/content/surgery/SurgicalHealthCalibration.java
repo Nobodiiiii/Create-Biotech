@@ -31,6 +31,12 @@ public final class SurgicalHealthCalibration {
 		return BionicStats.evaluate(BionicStat.MAX_HEALTH, level, Map.of("volume", volume));
 	}
 
+	/** Add the tissue-weighted correction after volume calibration, then enforce the health limits. */
+	public static double maximumHealth(double volume, Level level, double offset) {
+		return Math.clamp(maximumHealth(volume, level) + (Double.isFinite(offset) ? offset : 0.0d),
+			MIN_HEALTH, BionicStats.parameter(level, "health_maximum"));
+	}
+
 	/** Zero is a valid measurement for planar parts; NaN denotes an unmeasured body. */
 	public static boolean validVolume(double volume) {
 		return Double.isFinite(volume) && volume >= 0.0d && volume <= MAX_MEASURED_VOLUME;

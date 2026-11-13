@@ -115,13 +115,19 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		BionicTraitRule.threshold(0.5d), ValueKind.EFFECT_SET, Condition.NONE,
 		Carrier.allTissue());
 	public static final BionicTrait NATURAL_ARMOR = new BionicTrait("natural_armor", BionicTraitScope.WHOLE_BODY,
-		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
 		Carrier.allTissue());
+	public static final BionicTrait HEALTH_OFFSET = new BionicTrait("health_offset", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
+		Carrier.allTissue());
+	public static final BionicTrait DAMAGE_OFFSET = new BionicTrait("damage_offset", BionicTraitScope.ARM,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
+		Carrier.of(BionicAnatomyRole.ATTACK_HAND));
 	public static final BionicTrait KNOCKBACK_RESISTANCE = new BionicTrait("knockback_resistance", BionicTraitScope.TORSO,
-		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
 		Carrier.allTissue());
 	public static final BionicTrait PASSIVE_REGENERATION = new BionicTrait("passive_regeneration", BionicTraitScope.WHOLE_BODY,
-		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
 		Carrier.allTissue());
 	public static final BionicTrait ENCHANT_VULNERABILITY = new BionicTrait("enchant_vulnerability", BionicTraitScope.WHOLE_BODY,
 		BionicTraitRule.threshold(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
@@ -133,7 +139,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD));
 	public static final BionicTrait ATTACK_KNOCKBACK = new BionicTrait("attack_knockback", BionicTraitScope.ARM,
-		new BionicTraitRule(BionicTraitType.COVERAGE_SCALED, 0.5d), ValueKind.NUMBER, Condition.NONE,
+		BionicTraitRule.scaled(), ValueKind.NUMBER, Condition.NONE,
 		Carrier.allTissue());
 	public static final BionicTrait DOOR_HANDLING = new BionicTrait("door_handling", BionicTraitScope.ARM,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
@@ -277,6 +283,8 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 	public Carrier carrier() { return carrier; }
 	public BionicTraitRule rule() { return rule; }
 	public ValueKind valueKind() { return valueKind; }
+	/** These numeric traits also accept negative donor values and aggregated results. */
+	public boolean isStatOffset() { return equals(HEALTH_OFFSET) || equals(DAMAGE_OFFSET); }
 	public Condition condition() { return condition; }
 	public boolean isHeadClassification() { return equals(DISPOSITION) || equals(INTELLIGENCE); }
 
@@ -324,12 +332,12 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		IMMUNE_EFFECTS, NATURAL_ARMOR, KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION);
 
 	private static final List<BionicTrait> BUILT_INS = List.of(
-		DISPOSITION, INTELLIGENCE, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE,
+		DISPOSITION, INTELLIGENCE, HEALTH_OFFSET, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE,
 		FREEZE_RESISTANCE, FREEZE_VULNERABLE, SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING,
 		WATER_SINKING, WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT, SHOULDER_RIDING, PROJECTILE_DEFLECTION,
 		CONTACT_RETALIATION, WATER_BREATHING, DRY_SUFFOCATION, TAMEABLE, LIVESTOCK_TAMEABLE, VIBRATION_SENSE,
 		DETERRENCE, FALL_DAMAGE_IMMUNE, FALL_REDUCTION, POWDER_SNOW_WALK, LAVA_WALK, WALL_CLIMB,
-		WING_FLIGHT, SWIM_SPECIALIST, EFFECT_ATTACK, SHELL_DEFENSE, IMMUNE_EFFECTS, NATURAL_ARMOR,
+		DAMAGE_OFFSET, WING_FLIGHT, SWIM_SPECIALIST, EFFECT_ATTACK, SHELL_DEFENSE, IMMUNE_EFFECTS, NATURAL_ARMOR,
 		KNOCKBACK_RESISTANCE, PASSIVE_REGENERATION, ENCHANT_VULNERABILITY, HUNTING_INSTINCT, PACK_ALERT, ATTACK_KNOCKBACK,
 		DOOR_HANDLING, WING_SLOW_FALL, STRONG_JUMP, ENDER_TELEPORT, BLOCK_ATTACHMENT, MAGIC_RESISTANCE,
 		WITHER_SHIELD, LAUNCH_STRIKE, RIDEABLE, CARGO_CHEST, LOOT_PICKUP, SONIC_BOOM,

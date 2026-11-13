@@ -36,7 +36,7 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 		return new BionicTraitRule(BionicTraitType.SPECIAL, minimum);
 	}
 
-	/** Acquisition/retention threshold or the full-value volume budget of a numeric trait. */
+	/** Acquisition/retention threshold for coverage-based abilities. Numeric values use donor shares. */
 	public BionicTraitRule withMinCoverage(double minimum) {
 		return type == BionicTraitType.PRESENCE ? this : new BionicTraitRule(type, minimum);
 	}
@@ -53,7 +53,7 @@ public record BionicTraitRule(BionicTraitType type, double minCoverage) {
 			|| coverage + COVERAGE_EPSILON >= minCoverage;
 	}
 
-	/** Binary traits return 0 or 1; numeric traits scale toward their configured volume budget. */
+	/** Binary traits return 0 or 1; proportional ability strength follows coverage. */
 	public double strength(double coverage) {
 		return strength(coverage > 0.0d, coverage);
 	}

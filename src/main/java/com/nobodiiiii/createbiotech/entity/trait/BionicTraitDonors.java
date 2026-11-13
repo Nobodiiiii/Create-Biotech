@@ -98,7 +98,7 @@ public final class BionicTraitDonors {
 					automatic = attribute == null ? 0.0d : attribute.getBaseValue();
 				}
 				double value = data.numbers().resolve(type, id, automatic);
-				value = Double.isFinite(value) ? Math.max(0.0d, value) : 0.0d;
+				value = Double.isFinite(value) ? (trait.isStatOffset() ? value : Math.max(0.0d, value)) : 0.0d;
 				numbers.put(trait, BionicTrait.KNOCKBACK_RESISTANCE.equals(trait) ? Math.min(1.0d, value) : value);
 			}
 		}
@@ -215,7 +215,7 @@ public final class BionicTraitDonors {
 		public boolean supplies(BionicTrait trait) {
 			return switch (trait.valueKind()) {
 			case ABILITY -> has(trait);
-			case NUMBER -> value(trait) > 0;
+			case NUMBER -> Double.isFinite(value(trait)) && (trait.isStatOffset() ? value(trait) != 0 : value(trait) > 0);
 			case SUBTRAIT_SET -> !variants(trait).isEmpty();
 			case EFFECT_SET -> !effects(trait).isEmpty();
 			case ATTACK_EFFECT_SET -> !attacks(trait).isEmpty();

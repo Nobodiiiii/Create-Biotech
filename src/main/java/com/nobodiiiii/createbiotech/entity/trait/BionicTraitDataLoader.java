@@ -124,11 +124,12 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			if (builtin != null && kind != builtin.valueKind())
 				throw new IllegalArgumentException("Built-in value kinds cannot change");
 			if (type == BionicTraitType.SPECIAL && (builtin == null || !builtin.isHeadClassification())) throw new IllegalArgumentException("SPECIAL requires a built-in evaluator");
-			double minimum = inheritance.has("min_coverage") ? inheritance.get("min_coverage").getAsDouble()
-				: type == BionicTraitType.COVERAGE_THRESHOLD || type == BionicTraitType.SPECIAL || kind == BionicTrait.ValueKind.NUMBER ? 0.5d : 0;
+			double minimum = kind == BionicTrait.ValueKind.NUMBER ? 0
+				: inheritance.has("min_coverage") ? inheritance.get("min_coverage").getAsDouble()
+				: type == BionicTraitType.COVERAGE_THRESHOLD || type == BionicTraitType.SPECIAL ? 0.5d : 0;
 			BionicTraitRule rule = new BionicTraitRule(type, minimum);
-			if (kind == BionicTrait.ValueKind.NUMBER && (type != BionicTraitType.COVERAGE_SCALED || minimum <= 0))
-				throw new IllegalArgumentException("Numeric traits require scaled inheritance and a positive volume budget");
+			if (kind == BionicTrait.ValueKind.NUMBER && type != BionicTraitType.COVERAGE_SCALED)
+				throw new IllegalArgumentException("Numeric traits require scaled inheritance");
 			JsonObject carrier = object(root.get("carrier"));
 			JsonObject display = object(root.get("display"));
 			return new BionicTrait(id, scopes, rule, kind, builtin == null ? BionicTrait.Condition.NONE : builtin.condition(),
@@ -165,12 +166,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			else
 				LOGGER.warn("Invalid automatic_detection in {}", primary);
 		}
-		if ((rule.type() == BionicTraitType.COVERAGE_THRESHOLD || rule.type() == BionicTraitType.SPECIAL
-			|| trait.valueKind() == BionicTrait.ValueKind.NUMBER)
+		if (trait.valueKind() != BionicTrait.ValueKind.NUMBER
+			&& (rule.type() == BionicTraitType.COVERAGE_THRESHOLD || rule.type() == BionicTraitType.SPECIAL)
 			&& root.has("min_coverage")) {
 			Double value = numberValue(root.get("min_coverage"));
-			if (value != null && value <= 1.0d
-				&& (trait.valueKind() != BionicTrait.ValueKind.NUMBER || value > 0.0d))
+			if (value != null && value <= 1.0d)
 				rule = new BionicTraitRule(rule.type(), value);
 			else
 				LOGGER.warn("Invalid min_coverage in {}; using {}", primary, rule.minCoverage());
@@ -195,7 +195,8 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		BionicDonorOverrides<Boolean> abilities = trait.valueKind() == BionicTrait.ValueKind.ABILITY
 			? overrides(root, primary, BionicTraitDataLoader::booleanValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Double> numbers = trait.valueKind() == BionicTrait.ValueKind.NUMBER
-			? overrides(root, primary, BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
+			? overrides(root, primary, trait.isStatOffset() ? BionicTraitDataLoader::signedNumberValue
+				: BionicTraitDataLoader::numberValue) : BionicDonorOverrides.empty();
 		BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects = (trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET
 			|| trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET
 			|| trait.valueKind() == BionicTrait.ValueKind.SUBTRAIT_SET)
@@ -397,11 +398,17 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 
 	@Nullable
 	private static Double numberValue(@Nullable JsonElement element) {
+		Double value = signedNumberValue(element);
+		return value != null && value >= 0.0d ? value : null;
+	}
+
+	@Nullable
+	private static Double signedNumberValue(@Nullable JsonElement element) {
 		try {
 			if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber())
 				return null;
 			double value = element.getAsDouble();
-			return Double.isFinite(value) && value >= 0.0d ? value : null;
+			return Double.isFinite(value) ? value : null;
 		} catch (RuntimeException exception) {
 			return null;
 		}

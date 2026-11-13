@@ -84,8 +84,8 @@ public final class BionicTraitSet {
 		return has(trait) && result(trait).subtraits().keySet().stream().anyMatch(v -> v.id().equals(id));
 	}
 	public double armValue(BionicTrait trait, java.util.Collection<SurgicalAssembly.CombinationMember> arm) {
-		return has(trait) ? arm.stream().mapToDouble(member -> result(trait).memberValues().getOrDefault(member, 0.0d))
-			.max().orElse(0) : 0;
+		return has(trait) ? BionicTraitResolver.numericValue(trait, arm.stream().distinct()
+			.mapToDouble(member -> result(trait).memberValues().getOrDefault(member, 0.0d)).sum()) : 0;
 	}
 	public boolean isEmpty() { return results.isEmpty(); }
 	public boolean hasFullEffect(BionicTrait trait) {

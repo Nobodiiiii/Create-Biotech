@@ -154,12 +154,23 @@ public final class SurgicalCombatCalibration {
 
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		java.util.List<SurgicalAssembly.ArmAttackGeometry> arms, Level level) {
+		return nominalDamagePerSecond(baseAttackDamage, arms, level, arm -> 0.0d);
+	}
+
+	/** Arm-local corrections are added after geometry scaling, once for each selected hit. */
+	public static double damagePerHit(double baseAttackDamage, ArmCombatStats stats, double offset) {
+		return Math.max(0.0d, baseAttackDamage * stats.damageMultiplier() + offset);
+	}
+
+	public static double nominalDamagePerSecond(double baseAttackDamage,
+		java.util.List<SurgicalAssembly.ArmAttackGeometry> arms, Level level,
+		java.util.function.ToDoubleFunction<SurgicalAssembly.ArmAttackGeometry> offsets) {
 		if (!Double.isFinite(baseAttackDamage) || baseAttackDamage < 0 || arms.isEmpty()) return 0;
 
 		double totalDps = 0.0d;
 		for (SurgicalAssembly.ArmAttackGeometry arm : arms) {
 			ArmCombatStats armStats = stats(arm, level);
-			totalDps += baseAttackDamage * armStats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL
+			totalDps += damagePerHit(baseAttackDamage, armStats, offsets.applyAsDouble(arm)) * ZOMBIE_ATTACK_INTERVAL
 				/ attackInterval(armStats, arms.size(), level);
 		}
 		return totalDps / arms.size();

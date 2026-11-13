@@ -120,8 +120,8 @@ final class BionicTraitJeiText {
 		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
 			boolean regional = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
 				|| trait.scopes().contains(BionicTraitScope.TORSO);
-			conditions.add(tr(regional ? "condition.numeric" : "condition.numeric_limb",
-				percentage(BionicTraitClientRules.rule(trait).minCoverage())));
+			conditions.add(tr(BionicTrait.DAMAGE_OFFSET.equals(trait) ? "condition.numeric_native_arm"
+				: regional ? "condition.numeric" : "condition.numeric_limb"));
 		}
 		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);
 		boolean wings = switch (trait.condition()) {

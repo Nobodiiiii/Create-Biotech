@@ -80,6 +80,7 @@ public class CreateBiotech {
 		CBPoiTypes.register(modEventBus);
 		CBCreativeModeTabs.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
+		CBDisplaySources.register(modEventBus);
 		modEventBus.addListener(CBCapabilities::register);
 		CBEntityTypes.register(modEventBus);
 		CBMenuTypes.register(modEventBus);

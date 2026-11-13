@@ -75,7 +75,8 @@ public record BionicTraitResult(double coverage, double strength, double value,
 	public BionicTraitResult {
 		coverage = Double.isFinite(coverage) ? Math.clamp(coverage, 0.0d, 1.0d) : 0.0d;
 		strength = Double.isFinite(strength) ? Math.clamp(strength, 0.0d, 1.0d) : 0.0d;
-		value = Double.isFinite(value) ? Math.max(0.0d, value) : 0.0d;
+		// Stat corrections may be negative; individual trait evaluators enforce their value domain.
+		value = Double.isFinite(value) ? value : 0.0d;
 		immuneEffects = Set.copyOf(immuneEffects);
 		members = Set.copyOf(members);
 		bindings = Set.copyOf(bindings);

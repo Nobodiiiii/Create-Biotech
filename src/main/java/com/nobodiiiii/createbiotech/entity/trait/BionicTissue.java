@@ -100,6 +100,44 @@ final class BionicTissue {
 		return cubes == null ? new BitSet() : (BitSet) cubes.clone();
 	}
 
+	/** Each original native arm has its own numeric pool, including tissue removed by later cuts. */
+	Map<Integer, Double> originalArmVolumes(int sourceId) {
+		SurgicalAssembly.Source source = sources.get(sourceId);
+		BitSet arms = roleCubes(sourceId, BionicAnatomyRole.ATTACK_HAND);
+		Map<Integer, Integer> sides = new HashMap<>();
+		for (int cube = arms.nextSetBit(0); cube >= 0; cube = arms.nextSetBit(cube + 1)) {
+			int side = 0;
+			for (String label : source.anatomy().parts().getOrDefault(cube, Set.of())) {
+				String name = label.toLowerCase(java.util.Locale.ROOT);
+				if (name.contains("left")) side |= 1;
+				if (name.contains("right")) side |= 2;
+			}
+			if (side == 1 || side == 2) sides.put(cube, -side);
+		}
+		Map<Integer, BitSet> groups = new HashMap<>();
+		int componentId = 0;
+		// Original seams, never current cuts or installation joints, identify unnamed arm segments.
+		for (BitSet component : SurgicalAssembly.components(source.cubeCount(), arms, source.seams(), new BitSet())) {
+			Set<Integer> known = new HashSet<>();
+			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1))
+				if (sides.containsKey(cube)) known.add(sides.get(cube));
+			int fallback = known.size() == 1 ? known.iterator().next() : ++componentId;
+			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1)) {
+				// An ambiguous bridge between both arms is not another complete native arm.
+				if (!sides.containsKey(cube) && known.size() > 1) continue;
+				groups.computeIfAbsent(sides.getOrDefault(cube, fallback), ignored -> new BitSet()).set(cube);
+			}
+		}
+		Map<Integer, Double> volumes = new HashMap<>();
+		for (BitSet group : groups.values()) {
+			double volume = source.anatomy().volume(group);
+			if (!Double.isFinite(volume) || volume <= 0) continue;
+			for (int cube = group.nextSetBit(0); cube >= 0; cube = group.nextSetBit(cube + 1))
+				volumes.put(cube, volume);
+		}
+		return volumes;
+	}
+
 	/**
 	 * A trait's own JSON carriers when it declares this species and role, else every cube with the
 	 * role. The donor's captured head always matches the HEAD label, regardless of installation.

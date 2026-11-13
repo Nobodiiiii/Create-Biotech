@@ -154,10 +154,10 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			Component name = trait.displayName();
 			if (!trait.hasCustomName() && trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
 				name = Component.translatable(trait.descriptionId(),
-					String.format(java.util.Locale.ROOT, "%.1f", result.value()
+					numericTraitText(trait, result.value()
 						* (BionicTrait.KNOCKBACK_RESISTANCE.equals(trait) ? 100 : 1)));
 			if (trait.hasCustomName() && trait.valueKind() == BionicTrait.ValueKind.NUMBER && result.active())
-				name = name.copy().append(Component.literal(" (" + String.format(java.util.Locale.ROOT, "%.1f", result.value()) + ")"));
+				name = name.copy().append(Component.literal(" (" + numericTraitText(trait, result.value()) + ")"));
 			if (BionicTrait.RIDEABLE.equals(trait))
 				name = Component.translatable("create_biotech.trait.rideable.count", (int) result.value());
 			appendTraitLine(lines, trait, scopes, traits, name, result.inactiveReason(), result.missingParts());
@@ -175,6 +175,10 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	private record DetailGroup(DetailKind kind, @Nullable InactiveReason reason,
 		List<List<MissingPart>> missingParts) {}
+
+	private static String numericTraitText(BionicTrait trait, double value) {
+		return String.format(java.util.Locale.ROOT, trait.isStatOffset() ? "%+.1f" : "%.1f", value);
+	}
 
 	/** Each row has one status; only distinct items with the same reason share parentheses. */
 	private static void appendTraitLine(List<Component> lines, BionicTrait trait, List<BionicTraitScope> scopes,
@@ -366,7 +370,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			add(stats, bionic, Attributes.MAX_HEALTH, ValueFormat.DECIMAL, true);
 			return;
 		}
-		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), bionic.level());
+		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), bionic.level(),
+			bionic.getBionicTraits().value(BionicTrait.HEALTH_OFFSET));
 		stats.add(new BaseStat(Attributes.MAX_HEALTH.value().getDescriptionId(),
 			maximumHealth, ValueFormat.DECIMAL));
 	}
@@ -393,7 +398,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		double dps = assembly.attackGeometry() == null || assembly.attackGeometry().armCount() == 0
 			? SurgicalCombatCalibration.nominalDamagePerSecond(baseDamage, assembly.attackGeometry(), bionic.level())
 			: SurgicalCombatCalibration.nominalDamagePerSecond(
-				baseDamage, assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList(), bionic.level());
+				baseDamage, assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList(),
+				bionic.level(), bionic::armDamageOffset);
 		stats.add(new BaseStat("create_biotech.tooltip.stat.dps", dps, ValueFormat.DECIMAL));
 	}
 
