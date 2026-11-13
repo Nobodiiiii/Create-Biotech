@@ -4,11 +4,15 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
 
-import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import java.util.Map;
+import java.util.HashMap;
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 
 /** Shared anatomical calibration for a stitched body's per-arm melee output and cadence. */
 public final class SurgicalCombatCalibration {
@@ -23,9 +27,6 @@ public final class SurgicalCombatCalibration {
 	public static final int MIN_GLOBAL_ATTACK_INTERVAL = 12;
 	public static final int MAX_GLOBAL_ATTACK_INTERVAL = 40;
 
-	private static final double MAX_DPS_SCALE = 4.0d;
-	private static final int MIN_ATTACK_INTERVAL = 10;
-	private static final int MAX_ATTACK_INTERVAL = 40;
 	private static final double MIN_LENGTH = 1.0d / 64.0d;
 
 	private SurgicalCombatCalibration() {}
@@ -41,20 +42,18 @@ public final class SurgicalCombatCalibration {
 	 * separately after this anatomical calibration.</p>
 	 */
 	public static ArmCombatStats stats(SurgicalAssembly.ArmAttackGeometry arm) {
-		if (arm == null)
-			return ArmCombatStats.ZOMBIE;
-		double volume = Math.max(0.0d, arm.volume());
-		double volumeRoot = Math.cbrt(volume / ZOMBIE_ARM_VOLUME);
-		double dpsScale = volumeRoot <= 0.0d ? 0.0d
-			: MAX_DPS_SCALE * volumeRoot / (MAX_DPS_SCALE - 1.0d + volumeRoot);
+		return stats(arm, null);
+	}
 
-		double length = Math.max(MIN_LENGTH, arm.reach() - arm.radius());
-		double thickness = Math.sqrt(volume / length);
-		double intervalScale = Math.sqrt(thickness / ZOMBIE_ARM_THICKNESS);
-		int attackInterval = Mth.clamp((int) Math.round(ZOMBIE_ATTACK_INTERVAL * intervalScale),
-			MIN_ATTACK_INTERVAL, MAX_ATTACK_INTERVAL);
-		double damageMultiplier = dpsScale * attackInterval / ZOMBIE_ATTACK_INTERVAL;
-		return new ArmCombatStats(damageMultiplier, attackInterval);
+	public static ArmCombatStats stats(SurgicalAssembly.ArmAttackGeometry arm, Level level) {
+		double volume = arm == null ? ZOMBIE_ARM_VOLUME : Math.max(0, arm.volume());
+		double length = arm == null ? ZOMBIE_ARM_LENGTH : Math.max(MIN_LENGTH, arm.reach() - arm.radius());
+		Map<String, Double> inputs = Map.of("arm_volume", volume, "arm_length", length, "arm_thickness", Math.sqrt(volume / length));
+		double dps = BionicStats.evaluate(BionicStat.ARM_DPS_SCALE, level, inputs);
+		int interval = (int) Math.round(BionicStats.evaluate(BionicStat.ARM_ATTACK_INTERVAL, level, inputs));
+		Map<String, Double> damageInputs = new HashMap<>(inputs);
+		damageInputs.put("arm_dps_scale", dps); damageInputs.put("arm_interval", (double) interval);
+		return new ArmCombatStats(BionicStats.evaluate(BionicStat.ARM_DAMAGE_MULTIPLIER, level, damageInputs), interval);
 	}
 
 	/** The runtime's multi-arm global attack interval multiplier for the currently ready arms. */
@@ -63,7 +62,12 @@ public final class SurgicalCombatCalibration {
 	}
 
 	public static int armRecovery(ArmCombatStats stats) {
-		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL, stats.attackInterval());
+		return armRecovery(stats, (Level) null);
+	}
+
+	public static int armRecovery(ArmCombatStats stats, Level level) {
+		return (int) Math.round(BionicStats.evaluate(BionicStat.ARM_RECOVERY, level,
+			Map.of("arm_interval", (double) stats.attackInterval())));
 	}
 
 	/** Applies the weapon's main-hand damage attributes without attack speed, enchantments or effects. */
@@ -103,8 +107,12 @@ public final class SurgicalCombatCalibration {
 
 	/** The caller counts coordination in the generic range before filtering by mounted posture. */
 	public static int attackInterval(ArmCombatStats stats, int eligibleArms) {
-		return Math.max(MIN_GLOBAL_ATTACK_INTERVAL,
-			Math.round(armRecovery(stats) * cadenceScale(eligibleArms)));
+		return attackInterval(stats, eligibleArms, (Level) null);
+	}
+
+	public static int attackInterval(ArmCombatStats stats, int eligibleArms, Level level) {
+		return (int) Math.round(BionicStats.evaluate(BionicStat.ATTACK_INTERVAL, level,
+			Map.of("arm_recovery", (double) armRecovery(stats, level), "arm_count", (double) Math.max(1, eligibleArms))));
 	}
 
 	/** Compatibility overload; strategy supplies eligible arms without an intelligence multiplier. */
@@ -124,34 +132,43 @@ public final class SurgicalCombatCalibration {
 	 */
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		@Nullable SurgicalAssembly.AttackGeometry geometry) {
+		return nominalDamagePerSecond(baseAttackDamage, geometry, null);
+	}
+
+	public static double nominalDamagePerSecond(double baseAttackDamage,
+		@Nullable SurgicalAssembly.AttackGeometry geometry, Level level) {
 		if (!Double.isFinite(baseAttackDamage) || baseAttackDamage < 0.0d)
 			return 0.0d;
-		if (geometry == null || geometry.arms().isEmpty())
-			return baseAttackDamage;
-		return nominalDamagePerSecond(baseAttackDamage, geometry.arms());
+		if (geometry == null || geometry.arms().isEmpty()) {
+			ArmCombatStats fallback = stats(null, level);
+			return baseAttackDamage * fallback.damageMultiplier() * 20 / attackInterval(fallback, 1, level);
+		}
+		return nominalDamagePerSecond(baseAttackDamage, geometry.arms(), level);
 	}
 
 	/** Entity evaluations can omit installed chains currently acting as wings. */
 	public static double nominalDamagePerSecond(double baseAttackDamage,
 		java.util.List<SurgicalAssembly.ArmAttackGeometry> arms) {
+		return nominalDamagePerSecond(baseAttackDamage, arms, null);
+	}
+
+	public static double nominalDamagePerSecond(double baseAttackDamage,
+		java.util.List<SurgicalAssembly.ArmAttackGeometry> arms, Level level) {
 		if (!Double.isFinite(baseAttackDamage) || baseAttackDamage < 0 || arms.isEmpty()) return 0;
 
 		double totalDps = 0.0d;
 		for (SurgicalAssembly.ArmAttackGeometry arm : arms) {
-			ArmCombatStats armStats = stats(arm);
+			ArmCombatStats armStats = stats(arm, level);
 			totalDps += baseAttackDamage * armStats.damageMultiplier() * ZOMBIE_ATTACK_INTERVAL
-				/ attackInterval(armStats, arms.size());
+				/ attackInterval(armStats, arms.size(), level);
 		}
 		return totalDps / arms.size();
 	}
 
 	public record ArmCombatStats(double damageMultiplier, int attackInterval) {
-		private static final ArmCombatStats ZOMBIE =
-			new ArmCombatStats(1.0d, ZOMBIE_ATTACK_INTERVAL);
-
 		public ArmCombatStats {
 			if (!Double.isFinite(damageMultiplier) || damageMultiplier < 0.0d
-				|| attackInterval < MIN_ATTACK_INTERVAL || attackInterval > MAX_ATTACK_INTERVAL)
+				|| attackInterval < 1 || attackInterval > 1200)
 				throw new IllegalArgumentException("Invalid arm combat stats");
 		}
 	}

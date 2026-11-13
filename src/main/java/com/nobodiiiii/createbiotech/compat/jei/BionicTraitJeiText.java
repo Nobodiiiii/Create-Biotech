@@ -117,6 +117,12 @@ final class BionicTraitJeiText {
 			return tr("condition." + trait.id().getPath(),
 				percentage(BionicTraitClientRules.rule(trait).minCoverage()));
 		List<Component> conditions = new ArrayList<>();
+		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
+			boolean regional = trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
+				|| trait.scopes().contains(BionicTraitScope.TORSO);
+			conditions.add(tr(regional ? "condition.numeric" : "condition.numeric_limb",
+				percentage(BionicTraitClientRules.rule(trait).minCoverage())));
+		}
 		boolean legs = trait.scopes().contains(BionicTraitScope.LEG);
 		boolean wings = switch (trait.condition()) {
 		case WING_LIFT, LIMB_COUNT -> true;

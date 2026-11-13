@@ -1,18 +1,15 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
+import java.util.Map;
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+import net.minecraft.world.level.Level;
+
 /** Converts a stitched body's sampled union volume into its maximum health. */
 public final class SurgicalHealthCalibration {
-	public static final double MAX_HEALTH = 200.0d;
+	public static final double MAX_HEALTH = 400.0d;
 	public static final double MIN_HEALTH = 1.0d;
 
-	/** The undeformed humanoid cubes in a zombie's base model occupy 1664 model pixels. */
-	private static final double ZOMBIE_VOLUME = 1664.0d / (16.0d * 16.0d * 16.0d);
-	/** Deterministic union-sampler result for the overlapping cubes in a ravager's captured rest pose. */
-	private static final double RAVAGER_VOLUME = 5.184234619140625d;
-	private static final double HILL_OFFSET = 9.0d;
-	/** A ravager has 100 health, half the ceiling, so its scaled volume equals the Hill offset. */
-	private static final double HILL_EXPONENT = Math.log(HILL_OFFSET)
-		/ Math.log(RAVAGER_VOLUME / ZOMBIE_VOLUME);
 	private static final double MAX_MEASURED_VOLUME = SurgicalAssembly.MAX_BODY_SIZE
 		* SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE;
 	private static final double ENVELOPE_TOLERANCE = 1.05d;
@@ -25,11 +22,13 @@ public final class SurgicalHealthCalibration {
 	 * at larger sizes while approaching, but never exceeding, the configured ceiling.
 	 */
 	public static double maximumHealth(double volume) {
+		return maximumHealth(volume, null);
+	}
+
+	public static double maximumHealth(double volume, Level level) {
 		if (!validVolume(volume))
 			return MIN_HEALTH;
-		double scaledVolume = Math.pow(volume / ZOMBIE_VOLUME, HILL_EXPONENT);
-		double health = MAX_HEALTH * scaledVolume / (HILL_OFFSET + scaledVolume);
-		return Math.max(MIN_HEALTH, Math.min(MAX_HEALTH, health));
+		return BionicStats.evaluate(BionicStat.MAX_HEALTH, level, Map.of("volume", volume));
 	}
 
 	/** Zero is a valid measurement for planar parts; NaN denotes an unmeasured body. */

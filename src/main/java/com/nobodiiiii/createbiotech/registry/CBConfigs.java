@@ -1,5 +1,9 @@
 package com.nobodiiiii.createbiotech.registry;
 
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatParameters;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatsPacket;
+
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.List;
@@ -79,14 +83,32 @@ public class CBConfigs {
 
 	@SubscribeEvent
 	public static void onConfigLoad(ModConfigEvent.Loading event) {
+		configureBionicStats(event.getConfig());
 		migrateShulkerPackagerConfig(event.getConfig());
 		migrateCardboardBoxConfig(event.getConfig());
 	}
 
 	@SubscribeEvent
 	public static void onConfigReload(ModConfigEvent.Reloading event) {
+		configureBionicStats(event.getConfig());
 		migrateShulkerPackagerConfig(event.getConfig());
 		migrateCardboardBoxConfig(event.getConfig());
+	}
+
+	private static void configureBionicStats(ModConfig config) {
+		if (config.getSpec() != SERVER_SPEC) return;
+		var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+		java.util.Map<String, Double> values = new java.util.HashMap<>();
+		SERVER.bionicStats.values.forEach((key, value) -> values.put(key, value.get()));
+		Runnable apply = () -> {
+			BionicStats.configure(values);
+			if (server != null) {
+				var packet = new BionicStatsPacket(
+					BionicStats.exportServer().toString());
+				server.getPlayerList().getPlayers().forEach(player -> com.nobodiiiii.createbiotech.network.CBPackets.sendToPlayer(packet, player));
+			}
+		};
+		if (server != null && !server.isSameThread()) server.execute(apply); else apply.run();
 	}
 
 	private static void migrateShulkerPackagerConfig(ModConfig config) {
@@ -189,6 +211,7 @@ public class CBConfigs {
 		public final TeleportationFluid teleportationFluid;
 		public final AllayCourier allayCourier;
 		public final Features features;
+		public final BionicStatsConfig bionicStats;
 
 		Server(ModConfigSpec.Builder builder) {
 			experience = new Experience(builder);
@@ -219,6 +242,17 @@ public class CBConfigs {
 			teleportationFluid = new TeleportationFluid(builder);
 			allayCourier = new AllayCourier(builder);
 			features = new Features(builder);
+			bionicStats = new BionicStatsConfig(builder);
+		}
+	}
+
+	public static class BionicStatsConfig {
+		public final java.util.Map<String, ModConfigSpec.DoubleValue> values = new java.util.LinkedHashMap<>();
+		BionicStatsConfig(ModConfigSpec.Builder builder) {
+			builder.comment("Anatomical base-stat calibration. Formula overrides belong in data/create_biotech/bionic_stats/. Invalid anchor combinations retain the previous valid calibration.").push("bionicStats");
+			for (var setting : BionicStatParameters.SETTINGS)
+				values.put(setting.key(), builder.comment(setting.comment()).defineInRange(setting.key(), setting.value(), setting.min(), setting.max()));
+			builder.pop();
 		}
 	}
 

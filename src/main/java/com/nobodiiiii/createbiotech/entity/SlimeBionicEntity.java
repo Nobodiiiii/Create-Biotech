@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.entity;
 
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.EnumSet;
@@ -139,7 +142,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final String SHELL_GUARD_TAG = "BionicShellGuard";
 	private static final String ORDERED_TO_SIT_TAG = "BionicOrderedToSit";
 	private static final int MAX_MOISTURE = 2400;
-	private static final double SWIMMING_MOVEMENT_SPEED = 1.0d;
 	private static final double SWIMMING_IDLE_SPEED = 0.5d;
 	private static final double SWIMMING_PURSUIT_SPEED = 0.6d;
 	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
@@ -161,6 +163,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private SurgicalAssembly traitAssembly;
 	@Nullable
 	private BionicTraitResolver.Revision traitRevision;
+	private long baseStatsRevision = Long.MIN_VALUE;
+	private long traitStatsRevision = Long.MIN_VALUE;
 	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private final BionicBehaviorRunner extensionBehaviors = new BionicBehaviorRunner(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
@@ -492,7 +496,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		// Vanilla clamps movement * 4 to 1, so speeds above roughly 0.25 blocks/tick cannot raise
 		// cadence. Preserve the full configured bionic range and let the renderer cap swing angle.
-		float animationSpeed = Math.min(movement * 4.0f, SurgicalGait.MAX_WALK_ANIMATION_SPEED);
+		float animationSpeed = Math.min(movement * 4.0f, SurgicalGait.maximumWalkAnimationSpeed(level()));
 		walkAnimation.update(animationSpeed, 0.4f);
 	}
 
@@ -551,11 +555,25 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		clientBodyBounds = null;
 		clientHitboxGeometry = null;
 		clientBodyVolume = Double.NaN;
-		refreshMaximumHealth(assembly);
-		refreshMovementSpeed(assembly);
+		refreshBaseStats(assembly);
 		getBionicTraits();
 		refreshDimensions();
 		updateHitParts();
+	}
+
+	private void refreshBaseStats(SurgicalAssembly assembly) {
+		if (level().isClientSide) return;
+		baseStatsRevision = BionicStats.revision(level());
+		refreshMaximumHealth(assembly);
+		refreshMovementSpeed(assembly);
+		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
+		if (attack != null) attack.setBaseValue(anatomicalBaseStat(BionicStat.ATTACK_DAMAGE));
+	}
+
+	private double anatomicalBaseStat(BionicStat stat) {
+		SurgicalAssembly assembly = getAssembly();
+		return BionicStats.evaluate(stat, level(),
+			java.util.Map.of("volume", assembly != null && assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
 	}
 
 	/** Applies the packed union-volume calibration without healing an already damaged body. */
@@ -565,7 +583,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		var maximumHealth = getAttribute(Attributes.MAX_HEALTH);
 		if (maximumHealth == null)
 			return;
-		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume());
+		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), level());
 		if (maximumHealth.getBaseValue() != calibrated)
 			maximumHealth.setBaseValue(calibrated);
 		if (getHealth() > calibrated)
@@ -576,8 +594,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private void refreshMovementSpeed(SurgicalAssembly assembly) {
 		if (level().isClientSide)
 			return;
-		double speed = organSwimEnabled ? SWIMMING_MOVEMENT_SPEED
-			: SurgicalGait.movementSpeed(assembly.bodyBounds());
+		double speed = organSwimEnabled ? BionicStats.evaluate(
+			BionicStat.SWIMMING_SPEED, level(), java.util.Map.of())
+			: SurgicalGait.movementSpeed(assembly.bodyBounds(), level());
 		var movement = getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)
 			movement.setBaseValue(speed);
@@ -629,7 +648,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return BionicTraitSet.EMPTY;
 		SurgicalAssembly assembly = getAssembly();
 		BionicTraitResolver.Revision revision = BionicTraitResolver.revision(level());
-		if (assembly != traitAssembly || !revision.equals(traitRevision)) {
+		long statsRevision = BionicStats.revision(level());
+		if (assembly != traitAssembly || !revision.equals(traitRevision) || statsRevision != traitStatsRevision) {
+			traitStatsRevision = statsRevision;
 			traitAssembly = assembly;
 			traitRevision = revision;
 			bionicTraits = BionicTraitResolver.resolve(assembly, level());
@@ -641,7 +662,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			refreshFlyingSpeed(assembly, bionicTraits);
 			refreshLocomotion(bionicTraits);
 			if (!level().isClientSide) {
-				double range = 35;
+				double range = anatomicalBaseStat(BionicStat.FOLLOW_RANGE);
 				for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
 					if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
 						range = Math.max(range, variant.parameter("range", 16));
@@ -756,7 +777,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	private void refreshKnockbackResistance(BionicTraitSet traits) {
 		var resistance = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-		double value = Mth.clamp(traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
+		double value = Mth.clamp(anatomicalBaseStat(BionicStat.KNOCKBACK_RESISTANCE)
+			+ traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
 		if (resistance != null && resistance.getBaseValue() != value)
 			resistance.setBaseValue(value);
 	}
@@ -764,7 +786,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private void refreshFlyingSpeed(@Nullable SurgicalAssembly assembly, BionicTraitSet traits) {
 		if (level().isClientSide)
 			return;
-		double speed = assembly == null ? 0.0d : SurgicalGait.flyingSpeed(traits.flightVolumeRatio(assembly));
+		double speed = assembly == null ? 0.0d : SurgicalGait.flyingSpeed(traits.flightVolumeRatio(assembly), level());
 		var flying = getAttribute(Attributes.FLYING_SPEED);
 		if (flying != null && flying.getBaseValue() != speed)
 			flying.setBaseValue(speed);
@@ -1274,9 +1296,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 		ArmCandidate selected = selection.arm();
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(
-			geometry == null || geometry.armCount() == 0 ? null : selected.arm());
-		int recovery = SurgicalCombatCalibration.armRecovery(stats);
-		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms());
+			geometry == null || geometry.armCount() == 0 ? null : selected.arm(), level());
+		int recovery = SurgicalCombatCalibration.armRecovery(stats, level());
+		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms(), level());
 		int actionDuration = startAttackAction(selected, interval);
 		return new AttackStart(actionDuration,
 			SlimeBionicCombat.contactStartTick(interval, selected.arm().hasElbow(), selected.weapon()),
@@ -1301,9 +1323,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			for (int index = 0; index < arms.size(); index++) {
 				var arm = arms.get(index);
 				if (isBionicWing(arm)) continue;
-				var stats = SurgicalCombatCalibration.stats(arm);
+				var stats = SurgicalCombatCalibration.stats(arm, level());
 				double attackDamage = arm == weaponArm ? armedAttackDamage : baseAttackDamage;
-				double dps = attackDamage * stats.damageMultiplier() * 20.0d / SurgicalCombatCalibration.armRecovery(stats);
+				double dps = attackDamage * stats.damageMultiplier() * 20.0d / SurgicalCombatCalibration.armRecovery(stats, level());
 				if (dps > highestDps) { highestDps = dps; fixedArmIndex = index; }
 			}
 		}
@@ -1415,6 +1437,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void tick() {
+		if (!level().isClientSide && baseStatsRevision != BionicStats.revision(level())) {
+			SurgicalAssembly assembly = getAssembly();
+			if (assembly != null) refreshBaseStats(assembly);
+		}
 		previousSelfDestructFuse = selfDestructFuse;
 		selfDestructFuse = getProductionFlags() >> 2;
 		blockAttachment.tick();
@@ -1965,8 +1991,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return;
 		}
 		attackActionSequence = sequence;
-		attackActionInterval = Mth.clamp(interval, SurgicalCombatCalibration.MIN_GLOBAL_ATTACK_INTERVAL,
-			SurgicalCombatCalibration.MAX_GLOBAL_ATTACK_INTERVAL);
+		attackActionInterval = Mth.clamp(interval, 1, 1200);
 		attackActionLeft = left;
 		attackActionArmSlot = Mth.clamp(slot, 0, SurgicalLimbType.SHOULDER.maxPerBody() - 1);
 		attackActionWeapon = weapon;

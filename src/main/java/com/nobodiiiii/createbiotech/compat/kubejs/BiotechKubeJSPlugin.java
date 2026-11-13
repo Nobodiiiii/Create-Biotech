@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.compat.kubejs;
 
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.api.bionic.BionicStatApi;
+
 import com.google.gson.JsonObject;
 import com.nobodiiiii.createbiotech.api.bionic.BionicTraitApi;
 import com.nobodiiiii.createbiotech.api.bionic.BionicTraitEvent;
@@ -13,13 +16,18 @@ import net.neoforged.neoforge.common.NeoForge;
 /** Loaded only by KubeJS's optional plugin discovery; common code has no references to this class. */
 public final class BiotechKubeJSPlugin implements KubeJSPlugin {
 	public static final EventGroup GROUP = EventGroup.of("BionicTraitEvents");
+	public static final EventGroup STATS_GROUP = EventGroup.of("BionicStatEvents");
+	public static final EventHandler FORMULAS = STATS_GROUP.server("formulas", () -> Formulas.class);
 	public static final EventHandler DEFINITIONS = GROUP.server("definitions", () -> Definitions.class);
 	public static final TargetedEventHandler<ResourceLocation> TICK = GROUP.server("tick", () -> Runtime.class).supportsTarget(EventTargetType.ID);
 	public static final TargetedEventHandler<ResourceLocation> MELEE = GROUP.server("melee", () -> Melee.class).supportsTarget(EventTargetType.ID);
 	public static final TargetedEventHandler<ResourceLocation> HURT = GROUP.server("hurt", () -> Hurt.class).supportsTarget(EventTargetType.ID).hasResult();
 
-	@Override public void registerEvents(EventGroupRegistry registry) { registry.register(GROUP); }
-	@Override public void registerBindings(BindingRegistry bindings) { bindings.add("BionicTraits", BionicTraitApi.class); }
+	@Override public void registerEvents(EventGroupRegistry registry) { registry.register(GROUP); registry.register(STATS_GROUP); }
+	@Override public void registerBindings(BindingRegistry bindings) {
+		bindings.add("BionicTraits", BionicTraitApi.class);
+		bindings.add("BionicStats", BionicStatApi.class);
+	}
 	@Override public void init() {
 		NeoForge.EVENT_BUS.addListener(BiotechKubeJSPlugin::tick);
 		NeoForge.EVENT_BUS.addListener(BiotechKubeJSPlugin::melee);
@@ -27,6 +35,21 @@ public final class BiotechKubeJSPlugin implements KubeJSPlugin {
 	}
 	@Override public void generateData(KubeDataGenerator generator) {
 		if (DEFINITIONS.hasListeners()) DEFINITIONS.post(new Definitions(generator));
+		if (FORMULAS.hasListeners()) FORMULAS.post(new Formulas(generator));
+	}
+	public static final class Formulas implements KubeEvent {
+		private final KubeDataGenerator generator;
+		private final java.util.Set<String> written = new java.util.HashSet<>();
+		public Formulas(KubeDataGenerator generator) { this.generator = generator; }
+		public void set(String stat, String expression) {
+			JsonObject json = new JsonObject(); json.addProperty("expression", expression); define(stat, json);
+		}
+		public void define(String stat, JsonObject definition) {
+			String path = stat.startsWith("create_biotech:") ? stat.substring("create_biotech:".length()) : stat;
+			var key = BionicStat.valueOf(path.toUpperCase(java.util.Locale.ROOT));
+			if (!written.add(key.id())) throw new IllegalArgumentException("Duplicate scripted bionic stat: " + stat);
+			generator.json(ResourceLocation.parse("create_biotech:bionic_stats/" + key.id() + ".json"), definition.deepCopy());
+		}
 	}
 	private static void tick(BionicTraitEvent.Tick event) {
 		if (TICK.hasListeners(event.getTrait().id())) TICK.post(new Runtime(event), event.getTrait().id());

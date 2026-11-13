@@ -61,9 +61,11 @@ Joints adjust their animation to the shape you actually built.
 
 ## How the Finished Stats Are Decided
 
+Base-stat formulas can be customized through data packs, KubeJS, or the Java addon API. Server configuration can change ceilings and anchors while recalibrating the built-in curves. See the [formula and calibration reference](bionic-base-stats-extension.zh-CN.md) for paths, parameters, and examples.
+
 Maximum health follows the final model's non-overlapping volume, with diminishing gains as the body grows. Movement and attacks follow the final shape and working joints; donor stats are not inherited.
 
-The health curve is anchored at 20 health for the standard zombie volume of `0.40625` and 100 health for the complete ravager reference volume of `5.184234619140625`, measured in cubic blocks. It has a minimum of 1 health and approaches a ceiling of 200 as volume increases.
+The default health curve is anchored at 20 health for the standard zombie volume of `0.40625` and 100 health for the complete ravager reference volume of `5.184234619140625`, measured in cubic blocks. It has a minimum of 1 health and approaches a ceiling of 400 as volume increases.
 
 The collision core's horizontal position and width also follow the volume distribution after removing overlap. Duplicate or fully enclosed cubes do not add weight at their location. Arms are excluded from the core, height retains the complete span of non-arm cubes, and thin sheets retain a minimum thickness for collision weighting. Collision-core and health-volume measurements share cuboid preparation and reuse union samples when their selected cubes and thickness rules match.
 

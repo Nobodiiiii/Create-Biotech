@@ -1036,6 +1036,8 @@
   "create_biotech.jei.trait.condition.legs": "Effective legs ≥%s",
   "create_biotech.jei.trait.condition.arms": "Effective arms ≥%s",
   "create_biotech.jei.trait.condition.wing_lift": "body volume ≤ effective wing carrier volume ×%s",
+  "create_biotech.jei.trait.condition.numeric": "Volume-weighted average of the highest-valued %s%% of the applicable region; tissue without this trait counts as zero.",
+  "create_biotech.jei.trait.condition.numeric_limb": "Each limb separately averages its highest-valued %s%% by volume; tissue without this trait counts as zero.",
   "create_biotech.jei.trait.condition.separator": ", and ",
   "create_biotech.jei.trait.condition.disposition": "Disposition is a special head trait. Donors retaining at least %s%% of their original head contribute their disposition. Matching dispositions are kept; conflicting dispositions resolve to neutral.",
   "create_biotech.jei.trait.condition.intelligence": "Intelligence is a special head trait. Donors retaining at least %s%% of their original head contribute their intelligence; the highest eligible tier is used.",

@@ -1,6 +1,10 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
+import java.util.Map;
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 
 /** Shared anatomical calibration for a stitched body's movement and walk animation. */
 public final class SurgicalGait {
@@ -38,9 +42,13 @@ public final class SurgicalGait {
 
 	/** Calculates the authoritative base speed stored on a completed surgical body. */
 	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds) {
-		return bounds == null ? ZOMBIE_WALK_SPEED
+		return movementSpeed(bounds, null);
+	}
+
+	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds, Level level) {
+		return bounds == null ? movementSpeed(0, 0, 0, 0, level)
 			: movementSpeed(bounds.legLength(), bounds.groundedLegCount(),
-				bounds.groundedKneeCount(), bounds.legVolumeRatio());
+				bounds.groundedKneeCount(), bounds.legVolumeRatio(), level);
 	}
 
 	/**
@@ -50,11 +58,14 @@ public final class SurgicalGait {
 	 */
 	public static double movementSpeed(double averageLegLength, int groundedLegCount,
 		int groundedKneeCount, double legVolumeRatio) {
-		if (groundedLegCount <= 1)
-			return ZOMBIE_WALK_SPEED;
-		double speed = lengthSpeed(averageLegLength) * legCountFactor(groundedLegCount)
-			* legVolumeFactor(legVolumeRatio) * kneeFactor(groundedKneeCount);
-		return Mth.clamp(speed, 0.0d, MAX_MOVEMENT_SPEED);
+		return movementSpeed(averageLegLength, groundedLegCount, groundedKneeCount, legVolumeRatio, null);
+	}
+
+	public static double movementSpeed(double averageLegLength, int groundedLegCount,
+		int groundedKneeCount, double legVolumeRatio, Level level) {
+		return BionicStats.evaluate(BionicStat.MOVEMENT_SPEED, level, Map.of(
+			"leg_length", Math.max(0, averageLegLength), "leg_count", (double) groundedLegCount,
+			"knee_count", (double) groundedKneeCount, "leg_volume_ratio", Mth.clamp(legVolumeRatio, 0, 1)));
 	}
 
 	/**
@@ -84,7 +95,16 @@ public final class SurgicalGait {
 
 	/** Active flight tissue occupying 25%, 50% and 100% yields about 0.30, 0.44 and 0.60. */
 	public static double flyingSpeed(double flightVolumeRatio) {
-		return MAX_FLYING_SPEED * volumeRatioProgress(flightVolumeRatio);
+		return flyingSpeed(flightVolumeRatio, null);
+	}
+
+	public static double flyingSpeed(double flightVolumeRatio, Level level) {
+		double ratio = Double.isFinite(flightVolumeRatio) ? Mth.clamp(flightVolumeRatio, 0, 1) : 0;
+		return BionicStats.evaluate(BionicStat.FLYING_SPEED, level, Map.of("flight_volume_ratio", ratio));
+	}
+
+	public static float maximumWalkAnimationSpeed(Level level) {
+		return (float) (BionicStats.parameter(level, "movement_maximum") * 4);
 	}
 
 	private static double volumeRatioProgress(double volumeRatio) {

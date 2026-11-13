@@ -1036,6 +1036,8 @@
   "create_biotech.jei.trait.condition.legs": "有效腿 ≥%s",
   "create_biotech.jei.trait.condition.arms": "有效臂 ≥%s",
   "create_biotech.jei.trait.condition.wing_lift": "身体体积 ≤ 有效翼载体体积 ×%s",
+  "create_biotech.jei.trait.condition.numeric": "取生效部位内数值最高的前%s%%体积加权平均，没有该特性按0计。",
+  "create_biotech.jei.trait.condition.numeric_limb": "每条肢体分别取数值最高的前%s%%体积加权平均，没有该特性按0计。",
   "create_biotech.jei.trait.condition.separator": "，且",
   "create_biotech.jei.trait.condition.disposition": "性情是一种特殊的头部特性。原始头部保留比例达到%s%%的供体参与判定；性情一致时采用该性情，存在冲突时取中立。",
   "create_biotech.jei.trait.condition.intelligence": "智力是一种特殊的头部特性。原始头部保留比例达到%s%%的供体参与判定，取其中最高的智力等级。",

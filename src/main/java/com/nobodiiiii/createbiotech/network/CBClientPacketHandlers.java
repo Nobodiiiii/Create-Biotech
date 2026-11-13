@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.network;
 
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatsPacket;
+
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
@@ -77,6 +79,8 @@ final class CBClientPacketHandlers {
 			headData.handle();
 		} else if (packet instanceof BionicTraitRulesPacket rules) {
 			BionicTraitClientRules.accept(rules);
+		} else if (packet instanceof BionicStatsPacket stats) {
+			stats.handle();
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());

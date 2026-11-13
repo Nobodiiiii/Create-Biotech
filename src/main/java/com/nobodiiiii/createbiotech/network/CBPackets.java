@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.network;
 
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatsPacket;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -75,7 +77,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "38";
+	private static final String NETWORK_VERSION = "39";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -192,6 +194,9 @@ public final class CBPackets {
 			SurgicalTableCubeRotationPacket.Result::write);
 		registerClient(GaugeCraftTreePacket.class, GaugeCraftTreePacket::new, GaugeCraftTreePacket::write);
 		registerClient(BionicTraitRulesPacket.class, BionicTraitRulesPacket::new, BionicTraitRulesPacket::write);
+		registerClient(BionicStatsPacket.class,
+			BionicStatsPacket::new,
+			BionicStatsPacket::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

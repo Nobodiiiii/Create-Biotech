@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.client;
 
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import com.google.gson.JsonElement;
@@ -53,6 +55,7 @@ public final class BionicTraitClientRules {
 	@SubscribeEvent public static void onLogout(ClientPlayerNetworkEvent.LoggingOut event) {
 		pending.clear(); pendingGeneration = -1; pendingTotal = pendingBytes = 0;
 		BionicTraitRegistry.resetClient();
+		BionicStats.resetClient();
 		BionicTraitOverrides.resetClientRules();
 	}
 }

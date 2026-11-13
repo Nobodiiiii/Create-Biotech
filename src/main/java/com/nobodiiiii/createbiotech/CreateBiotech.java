@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech;
 
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatReloadListener;
+
 import net.minecraft.core.registries.Registries;
 
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerArmInteractions;
@@ -100,6 +102,7 @@ public class CreateBiotech {
 	}
 
 	private static void registerReloadListeners(AddReloadListenerEvent event) {
+		event.addListener(BionicStatReloadListener.INSTANCE);
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 		event.addListener(BionicTraitDataLoader.INSTANCE);

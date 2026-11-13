@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +62,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	@Nullable
 	private static BoxDetails cachedDetails;
 	private static BionicTraitResolver.Revision cachedTraitRevision;
+	private static long cachedStatsRevision = Long.MIN_VALUE;
 	@Nullable
 	private static Level cachedLevel;
 
@@ -306,12 +310,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	private static BoxDetails details(ItemStack stack, Level level) {
 		BionicTraitResolver.Revision revision = BionicTraitResolver.revision(level);
 		if (level == cachedLevel && revision.equals(cachedTraitRevision)
+			&& cachedStatsRevision == BionicStats.revision(level)
 			&& ItemStack.isSameItemSameComponents(cachedStack, stack))
 			return cachedDetails;
 
 		cachedStack = stack.copyWithCount(1);
 		cachedLevel = level;
 		cachedTraitRevision = revision;
+		cachedStatsRevision = BionicStats.revision(level);
 		cachedDetails = captureDetails(stack, level);
 		return cachedDetails;
 	}
@@ -339,10 +345,11 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return null;
 
 		BionicTraitSet traits = BionicTraitResolver.resolve(assembly, level);
+		bionic.getBionicTraits();
 		List<BaseStat> stats = new ArrayList<>();
 		addMaximumHealth(stats, bionic, assembly);
 		addDps(stats, bionic, assembly);
-		addMovementSpeed(stats, assembly);
+		addMovementSpeed(stats, assembly, level);
 		add(stats, bionic, Attributes.ARMOR, ValueFormat.DECIMAL, true);
 		add(stats, bionic, Attributes.ARMOR_TOUGHNESS, ValueFormat.DECIMAL, false);
 		add(stats, bionic, Attributes.KNOCKBACK_RESISTANCE, ValueFormat.PERCENTAGE, true);
@@ -359,7 +366,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			add(stats, bionic, Attributes.MAX_HEALTH, ValueFormat.DECIMAL, true);
 			return;
 		}
-		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume());
+		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), bionic.level());
 		stats.add(new BaseStat(Attributes.MAX_HEALTH.value().getDescriptionId(),
 			maximumHealth, ValueFormat.DECIMAL));
 	}
@@ -380,14 +387,18 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		AttributeInstance attackDamage = bionic.getAttribute(Attributes.ATTACK_DAMAGE);
 		if (attackDamage == null || !Double.isFinite(attackDamage.getBaseValue()))
 			return;
-		double dps = assembly.attackGeometry() == null
-			? attackDamage.getBaseValue() : SurgicalCombatCalibration.nominalDamagePerSecond(
-				attackDamage.getBaseValue(), assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList());
+		double baseDamage = BionicStats.evaluate(
+			BionicStat.ATTACK_DAMAGE, bionic.level(),
+			java.util.Map.of("volume", assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
+		double dps = assembly.attackGeometry() == null || assembly.attackGeometry().armCount() == 0
+			? SurgicalCombatCalibration.nominalDamagePerSecond(baseDamage, assembly.attackGeometry(), bionic.level())
+			: SurgicalCombatCalibration.nominalDamagePerSecond(
+				baseDamage, assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList(), bionic.level());
 		stats.add(new BaseStat("create_biotech.tooltip.stat.dps", dps, ValueFormat.DECIMAL));
 	}
 
-	private static void addMovementSpeed(List<BaseStat> stats, SurgicalAssembly assembly) {
-		double speed = SurgicalGait.movementSpeed(assembly.bodyBounds());
+	private static void addMovementSpeed(List<BaseStat> stats, SurgicalAssembly assembly, Level level) {
+		double speed = SurgicalGait.movementSpeed(assembly.bodyBounds(), level);
 		stats.add(new BaseStat(Attributes.MOVEMENT_SPEED.value().getDescriptionId(),
 			speed, ValueFormat.DECIMAL));
 	}
