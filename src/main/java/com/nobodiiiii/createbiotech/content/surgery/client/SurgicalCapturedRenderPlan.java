@@ -78,8 +78,8 @@ import net.minecraft.world.phys.Vec3;
  * cuboids are recovered from the final vertex stream, deduplicated across base and layer
  * passes, and assigned stable surgical ids. Remaining connected model-textured quad islands
  * receive a synthetic oriented bounding box unless they are an exact surface overlay.
- * Everything else is retained as original geometry. This deliberately observes only the public
- * {@link VertexConsumer} contract;
+ * Everything else is retained as original geometry. Geometry recovery observes only the public
+ * {@link VertexConsumer} contract; part-name provenance is collected separately during capture.
  * vanilla {@code ModelPart}, third-party model libraries and hand-written render layers require no
  * individual model bridge.</p>
  */
@@ -399,7 +399,7 @@ public final class SurgicalCapturedRenderPlan {
 		ModelCubeCaptureScope captureScope = topology || observeSaddle
 			? openModelCubeCapture(observedCubes, topology ? headModelCubes(renderer, preview) : Set.of(),
 				namedModelCubes(renderer), topology, saddleCubes) : null;
-		try {
+		try (SurgicalModelPartNames names = topology ? SurgicalModelPartNames.open(renderer) : null) {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
 			try {
@@ -912,6 +912,7 @@ public final class SurgicalCapturedRenderPlan {
 					matches.add(builder);
 				}
 				builder.captureStreams.set(stream.id);
+				if (topology) builder.observeNames(candidateVertices);
 				builder.observeMaterial(stream.renderType);
 				if (hasVisibleQuad(stream.renderType, candidateVertices))
 					builder.addVisibleBatch(stream.renderType, candidateVertices);
@@ -952,6 +953,7 @@ public final class SurgicalCapturedRenderPlan {
 				recoveredBuilders = recovered.values().stream().flatMap(List::stream).toList();
 			}
 			builder.captureStreams.set(mesh.streamId);
+			if (topology) builder.observeNames(mesh.vertices);
 			builder.observeMaterial(mesh.renderType);
 			builder.addVisibleBatch(mesh.renderType, mesh.vertices);
 		}
@@ -1792,22 +1794,24 @@ public final class SurgicalCapturedRenderPlan {
 		private float normalX;
 		private float normalY = 1.0f;
 		private float normalZ;
+		private final SurgicalModelPartNames.Source source;
 
 		private MutableVertex(float x, float y, float z) {
 			this.x = x;
 			this.y = y;
 			this.z = z;
+			this.source = SurgicalModelPartNames.current();
 		}
 
 		private CapturedVertex freeze() {
 			return new CapturedVertex(x, y, z, red, green, blue, alpha, u, v,
-				overlayU, overlayV, lightU, lightV, normalX, normalY, normalZ);
+				overlayU, overlayV, lightU, lightV, normalX, normalY, normalZ, source);
 		}
 	}
 
 	private record CapturedVertex(float x, float y, float z, int red, int green, int blue, int alpha,
 		float u, float v, int overlayU, int overlayV, int lightU, int lightV,
-		float normalX, float normalY, float normalZ) {}
+		float normalX, float normalY, float normalZ, SurgicalModelPartNames.Source source) {}
 
 	private record RecoveredCandidate(RecoveredCuboid cuboid, List<CapturedVertex> vertices) {}
 
@@ -1944,7 +1948,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final int order;
 		private final RecoveredCuboid cuboid;
 		private final List<Vec3> modelCorners;
-		private final boolean head;
+		private boolean head;
 		private final Set<String> partNames;
 		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
@@ -1962,6 +1966,21 @@ public final class SurgicalCapturedRenderPlan {
 			this.head = modelCube.head();
 			this.partNames = new HashSet<>(modelCube.partNames());
 			this.topology = topology;
+		}
+
+		/** Only shared provenance may label a recovered box spanning several emitted faces. */
+		private void observeNames(List<CapturedVertex> vertices) {
+			if (vertices.isEmpty()) return;
+			var first = vertices.getFirst().source;
+			Set<String> common = new HashSet<>(first.names());
+			boolean capturedHead = first.head();
+			for (CapturedVertex vertex : vertices) {
+				if (vertex.source != first) common.retainAll(vertex.source.names());
+				capturedHead &= vertex.source.head();
+			}
+			for (String name : common)
+				if (partNames.size() < 16) partNames.add(name);
+			head |= capturedHead;
 		}
 
 		private void observeMaterial(RenderType renderType) {
