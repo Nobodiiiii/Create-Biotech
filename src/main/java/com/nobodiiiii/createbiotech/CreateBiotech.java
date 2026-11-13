@@ -17,7 +17,6 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHelmMovement
 import com.nobodiiiii.createbiotech.data.CBDataGenerators;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataReloadListeners;
-import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDataLoader;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -107,7 +106,6 @@ public class CreateBiotech {
 		event.addListener(BionicHeadDataReloadListeners.DISPOSITIONS);
 		event.addListener(BionicHeadDataReloadListeners.INTELLIGENCE);
 		event.addListener(BionicTraitDataLoader.INSTANCE);
-		event.addListener(BionicAnatomyRegistry.INSTANCE);
 		event.addListener(FrogPackageContentsReloadListener.INSTANCE);
 	}
 

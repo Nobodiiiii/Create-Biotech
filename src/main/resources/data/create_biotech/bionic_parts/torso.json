@@ -1,0 +1,12 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.torso"
+  },
+  "order": 2,
+  "match": {
+    "contains": [
+      "torso",
+      "chest"
+    ]
+  }
+}

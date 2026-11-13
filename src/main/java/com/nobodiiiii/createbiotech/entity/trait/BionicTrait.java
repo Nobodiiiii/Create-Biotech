@@ -79,7 +79,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		Carrier.of(BionicAnatomyRole.HEAD));
 	public static final BionicTrait VIBRATION_SENSE = new BionicTrait("vibration_sense", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.TENDRIL));
+		Carrier.of(BionicAnatomyRole.TENTACLE));
 	public static final BionicTrait DETERRENCE = new BionicTrait("deterrence", BionicTraitScope.HEAD,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD));
@@ -92,16 +92,16 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		Carrier.of(BionicAnatomyRole.LEG));
 	public static final BionicTrait POWDER_SNOW_WALK = new BionicTrait("powder_snow_walk", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.FOOT));
+		Carrier.of(BionicAnatomyRole.LEG));
 	public static final BionicTrait LAVA_WALK = new BionicTrait("lava_walk", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
-		Carrier.of(BionicAnatomyRole.FOOT));
+		Carrier.of(BionicAnatomyRole.LEG));
 	public static final BionicTrait WALL_CLIMB = new BionicTrait("wall_climb", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.LEG));
 	public static final BionicTrait WING_FLIGHT = new BionicTrait("wing_flight", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.WING_LIFT,
-		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING));
+		Carrier.of(BionicAnatomyRole.WING));
 	public static final BionicTrait SWIM_SPECIALIST = new BionicTrait("swim_specialist", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
 		Carrier.allTissue());
@@ -146,7 +146,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		Carrier.allTissue());
 	public static final BionicTrait WING_SLOW_FALL = new BionicTrait("wing_slow_fall", BionicTraitScope.ARM,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.LIMB_COUNT,
-		Carrier.of(BionicAnatomyRole.LEFT_WING, BionicAnatomyRole.RIGHT_WING));
+		Carrier.of(BionicAnatomyRole.WING));
 	// JSON restricts other donors to legs; Breeze contributes any tissue, installed in leg chains.
 	public static final BionicTrait STRONG_JUMP = new BionicTrait("strong_jump", BionicTraitScope.LEG,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE,
@@ -168,7 +168,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		// Species mappings select golem arms and the other donors' entire heads.
 		Carrier.allTissue());
 	public static final BionicTrait RIDEABLE = new BionicTrait("rideable", BionicTraitScope.TORSO,
-		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO));
+		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.BACK));
 	public static final BionicTrait CARGO_CHEST = new BionicTrait("cargo_chest", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO));
 	public static final BionicTrait LOOT_PICKUP = new BionicTrait("loot_pickup", BionicTraitScope.ARM,
@@ -185,7 +185,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 	public static final BionicTrait SELF_DESTRUCT = new BionicTrait("self_destruct", BionicTraitScope.TORSO,
 		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.allTissue());
 	public static final BionicTrait SNOW_TRAIL = new BionicTrait("snow_trail", BionicTraitScope.LEG,
-		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.FOOT));
+		BionicTraitRule.threshold(0.5d), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.LEG));
 	public static final BionicTrait POLLINATION = new BionicTrait("pollination", BionicTraitScope.TORSO,
 		BionicTraitRule.presence(), ValueKind.ABILITY, Condition.NONE, Carrier.of(BionicAnatomyRole.TORSO));
 	public static final BionicTrait MILKABLE = new BionicTrait("milkable", BionicTraitScope.WHOLE_BODY,

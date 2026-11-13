@@ -32,7 +32,7 @@
   "variants": {
     "minecraft:spit": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 20,
@@ -42,7 +42,7 @@
     },
     "minecraft:snowball": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 10,
@@ -52,7 +52,7 @@
     },
     "minecraft:small_fireball": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 48,
@@ -62,7 +62,7 @@
     },
     "minecraft:fireball": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 64,
@@ -72,7 +72,7 @@
     },
     "minecraft:shulker_bullet": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 20,
@@ -83,7 +83,7 @@
     },
     "minecraft:wither_skull": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 20,
@@ -93,7 +93,7 @@
     },
     "minecraft:dragon_breath": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 64,
@@ -104,7 +104,7 @@
     },
     "minecraft:wind_charge": {
       "roles": [
-        "HEAD"
+        "create_biotech:head"
       ],
       "parameters": {
         "range": 16,
@@ -116,50 +116,50 @@
   },
   "carriers": {
     "minecraft:llama": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:trader_llama": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:snow_golem": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:blaze": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:ghast": {
-      "HEAD": [
+      "create_biotech:head": [
         "body"
       ]
     },
     "minecraft:shulker": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:wither": {
-      "HEAD": [
+      "create_biotech:head": [
         "center_head",
         "left_head",
         "right_head"
       ]
     },
     "minecraft:ender_dragon": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "jaw"
       ]
     },
     "minecraft:breeze": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "eyes"
       ]

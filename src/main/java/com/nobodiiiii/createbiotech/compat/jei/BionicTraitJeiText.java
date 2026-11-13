@@ -2,8 +2,8 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -12,6 +12,7 @@ import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitOverrides;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRule;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitScope;
@@ -89,7 +90,7 @@ final class BionicTraitJeiText {
 		return BigDecimal.valueOf(coverage).movePointRight(2).stripTrailingZeros().toPlainString();
 	}
 
-	/** Keep coarse anatomical labels while distinguishing required groups from alternatives. */
+	/** Display the loaded part definitions, distinguishing required groups from alternatives. */
 	@Nullable
 	private static Component carrier(BionicTrait trait, Set<BionicAnatomyRole> roles) {
 		if (roles.isEmpty())
@@ -98,17 +99,11 @@ final class BionicTraitJeiText {
 		case WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST -> true;
 		default -> false;
 		};
-		return join(roles.stream().sorted()
-			.map(role -> switch (role) {
-			case LEFT_WING, RIGHT_WING -> "wing";
-			case LEFT_RIBCAGE, RIGHT_RIBCAGE -> "ribcage";
-			case HEAD_CORE -> "head";
-			case MOUTH -> roles.contains(BionicAnatomyRole.HEAD) || roles.contains(BionicAnatomyRole.HEAD_CORE)
-				? "head" : "mouth";
-			default -> role.name().toLowerCase(Locale.ROOT);
-			})
-			.distinct()
-			.map(role -> tr("carrier." + role))
+		return join(roles.stream().sorted(Comparator.<BionicAnatomyRole>comparingInt(role -> {
+				var part = BionicTraitRegistry.clientPart(role);
+				return part == null ? Integer.MAX_VALUE : part.order();
+			}).thenComparing(Comparator.naturalOrder()))
+			.map(BionicTraitRegistry::clientPartName)
 			.toList(), tr(requiredTogether ? "carrier.required_separator" : "carrier.separator"));
 	}
 

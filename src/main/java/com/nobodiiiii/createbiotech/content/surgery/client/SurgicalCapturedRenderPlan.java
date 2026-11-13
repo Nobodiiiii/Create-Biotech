@@ -37,16 +37,13 @@ import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathCli
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderStateAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderTypeAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.ModelPartAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.TextureStateShardAccessor;
-import com.simibubi.create.content.trains.schedule.hat.TrainHatInfo;
-import com.simibubi.create.content.trains.schedule.hat.TrainHatInfoReloadListener;
-import com.simibubi.create.foundation.mixin.accessor.AgeableListModelAccessor;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.model.AgeableListModel;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.HierarchicalModel;
 import net.minecraft.client.model.geom.ModelLayers;
@@ -144,7 +141,7 @@ public final class SurgicalCapturedRenderPlan {
 		this.appearanceComponents = List.copyOf(appearanceComponents);
 		this.extras = List.copyOf(extras);
 		for (Component component : components)
-			if (component.partNames.contains("wool"))
+			if (component.batches.stream().anyMatch(batch -> SHEEP_WOOL_TEXTURE.equals(renderTypeTexture(batch.renderType))))
 				woolCubes.set(component.id);
 	}
 
@@ -396,10 +393,12 @@ public final class SurgicalCapturedRenderPlan {
 			|| preview instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse horse && horse.hasChest();
 		// Ordinary live captures keep the fast rejection in observeModelCube. Only saddled models
 		// need the small extra observation for equipment embedded in their main model.
+		ResourceLocation entity = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(preview.getType());
+		ModelNames modelNames = topology || observeSaddle ? namedModelCubes(renderer, entity) : new ModelNames(Map.of(), Set.of());
 		ModelCubeCaptureScope captureScope = topology || observeSaddle
-			? openModelCubeCapture(observedCubes, topology ? headModelCubes(renderer, preview) : Set.of(),
-				namedModelCubes(renderer), topology, saddleCubes) : null;
-		try (SurgicalModelPartNames names = topology ? SurgicalModelPartNames.open(renderer) : null) {
+			? openModelCubeCapture(observedCubes, topology ? modelNames.heads : Set.of(),
+				modelNames.names, topology, saddleCubes) : null;
+		try (SurgicalModelPartNames names = topology ? SurgicalModelPartNames.open(renderer, entity) : null) {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
 		} finally {
 			try {
@@ -547,74 +546,23 @@ public final class SurgicalCapturedRenderPlan {
 		}
 	}
 
-	/** Uses the same model-part selection as Create's logistics/stock-keeper hat layer. */
-	private static Set<ModelPart.Cube> headModelCubes(EntityRenderer<LivingEntity> renderer,
-		LivingEntity preview) {
-		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
-			return Set.of();
-		EntityModel<?> model = livingRenderer.getModel();
-		TrainHatInfo info = TrainHatInfoReloadListener.getHatInfoFor(preview);
-		ModelPart headPart;
-		if (model instanceof AgeableListModel<?> ageable) {
-			ModelPart head = firstPart(((AgeableListModelAccessor) ageable).create$callHeadParts());
-			if (head == null)
-				head = firstPart(((AgeableListModelAccessor) ageable).create$callBodyParts());
-			if (head == null)
-				return Set.of();
-			headPart = resolvedHatPart(info, head, "");
-		} else if (model instanceof HierarchicalModel<?> hierarchical) {
-			headPart = resolvedHatPart(info, hierarchical.root(), "head");
-		} else {
-			return Set.of();
-		}
-		if (headPart == null)
-			return Set.of();
-		Set<ModelPart.Cube> cubes = Collections.newSetFromMap(new IdentityHashMap<>());
-		collectModelCubes(headPart, cubes);
-		return cubes;
-	}
-
-	@Nullable
-	private static ModelPart resolvedHatPart(TrainHatInfo info, ModelPart root, String defaultPart) {
-		List<ModelPart> parts = TrainHatInfo.getAdjustedPart(info, root, defaultPart);
-		if (parts.isEmpty())
-			return null;
-		String requested = !info.part().isEmpty() && !info.part().equals(defaultPart)
-			? info.part() : defaultPart;
-		// Create keeps the nearest resolved parent when a configured child is absent. For surgical
-		// classification that is an unknown head, not permission to classify the whole model as one.
-		if (!requested.isEmpty() && parts.size() != requested.split("/").length + 1)
-			return null;
-		return parts.getLast();
-	}
-
-	@Nullable
-	private static ModelPart firstPart(Iterable<ModelPart> parts) {
-		for (ModelPart part : parts)
-			return part;
-		return null;
-	}
-
-	private static void collectModelCubes(ModelPart part, Set<ModelPart.Cube> cubes) {
-		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
-		cubes.addAll(accessor.createBiotech$getCubes());
-		for (ModelPart child : accessor.createBiotech$getChildren().values())
-			collectModelCubes(child, cubes);
-	}
+	private record ModelNames(Map<ModelPart.Cube, Set<String>> names, Set<ModelPart.Cube> heads) {}
 
 	/** Capture the model's own labels; trait JSON on the server assigns their meaning. */
-	private static Map<ModelPart.Cube, Set<String>> namedModelCubes(
-		EntityRenderer<LivingEntity> renderer) {
+	private static ModelNames namedModelCubes(
+		EntityRenderer<LivingEntity> renderer, ResourceLocation entity) {
 		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
-			return Map.of();
+			return new ModelNames(Map.of(), Set.of());
 		Map<ModelPart.Cube, Set<String>> result = new IdentityHashMap<>();
-		collectModelPartNames(livingRenderer.getModel(), result);
-		collectLayerModelNames(livingRenderer, result);
-		return result;
+		Set<ModelPart.Cube> heads = Collections.newSetFromMap(new IdentityHashMap<>());
+		collectModelPartNames(livingRenderer.getModel(), result, heads, entity);
+		collectLayerModelNames(livingRenderer, result, heads, entity);
+		return new ModelNames(result, heads);
 	}
 
 	/** Independent layer models have their own head/body/limb parts, not just a material. */
-	private static void collectLayerModelNames(Object owner, Map<ModelPart.Cube, Set<String>> result) {
+	private static void collectLayerModelNames(Object owner, Map<ModelPart.Cube, Set<String>> result,
+		Set<ModelPart.Cube> heads, ResourceLocation entity) {
 		for (Class<?> type = owner.getClass(); type != null && type != Object.class; type = type.getSuperclass())
 			for (Field field : type.getDeclaredFields()) {
 				if (java.lang.reflect.Modifier.isStatic(field.getModifiers())
@@ -624,20 +572,21 @@ public final class SurgicalCapturedRenderPlan {
 				try {
 					Object value = field.get(owner);
 					if (value instanceof EntityModel<?> model)
-						collectModelPartNames(model, result);
+						collectModelPartNames(model, result, heads, entity);
 					else if (value instanceof Iterable<?> layers)
 						for (Object layer : layers)
 							if (layer instanceof RenderLayer<?, ?>)
-								collectLayerModelNames(layer, result);
+								collectLayerModelNames(layer, result, heads, entity);
 				} catch (IllegalAccessException ignored) {
 					// Inaccessible third-party layer models retain their material labels only.
 				}
 			}
 	}
 
-	private static void collectModelPartNames(EntityModel<?> model, Map<ModelPart.Cube, Set<String>> result) {
+	private static void collectModelPartNames(EntityModel<?> model, Map<ModelPart.Cube, Set<String>> result,
+		Set<ModelPart.Cube> heads, ResourceLocation entity) {
 		if (model instanceof HierarchicalModel<?> hierarchical)
-			collectPartNames(hierarchical.root(), "root", result);
+			collectPartNames(hierarchical.root(), "root", result, heads, entity, false);
 		for (Class<?> type = model.getClass(); type != null && type != Object.class;
 			type = type.getSuperclass())
 			for (Field field : type.getDeclaredFields()) {
@@ -645,7 +594,7 @@ public final class SurgicalCapturedRenderPlan {
 					continue;
 				try {
 					if (field.get(model) instanceof ModelPart part) {
-						collectPartNames(part, field.getName(), result);
+						collectPartNames(part, field.getName(), result, heads, entity, false);
 						SurgicalNativePartLabels.label(model, field.getName(), part, result);
 					}
 				} catch (IllegalAccessException ignored) {
@@ -655,8 +604,10 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static void collectPartNames(ModelPart part, String name,
-		Map<ModelPart.Cube, Set<String>> result) {
+		Map<ModelPart.Cube, Set<String>> result, Set<ModelPart.Cube> heads, ResourceLocation entity, boolean parentHead) {
+		boolean head = parentHead || BionicTraitRegistry.clientCapturedHead(entity, name);
 		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
+		if (head) heads.addAll(accessor.createBiotech$getCubes());
 		if (BionicAnatomySnapshot.validPartName(name))
 			for (ModelPart.Cube cube : accessor.createBiotech$getCubes()) {
 				Set<String> names = result.computeIfAbsent(cube, ignored -> new HashSet<>());
@@ -664,7 +615,7 @@ public final class SurgicalCapturedRenderPlan {
 					names.add(name);
 			}
 		for (Map.Entry<String, ModelPart> child : accessor.createBiotech$getChildren().entrySet())
-			collectPartNames(child.getValue(), child.getKey(), result);
+			collectPartNames(child.getValue(), child.getKey(), result, heads, entity, head);
 	}
 
 	/**
@@ -1241,7 +1192,7 @@ public final class SurgicalCapturedRenderPlan {
 	 * the shortest edge would incorrectly turn it into a second solid slime body.
 	 */
 	private static boolean shouldPreserveSource(ComponentBuilder candidate, List<ComponentBuilder> components) {
-		if (candidate.partNames.contains("mushroom")) return true;
+		if (candidate.preserveMaterial) return true;
 		ResourceLocation texture = candidate.primaryRenderType == null
 			? null : renderTypeTexture(candidate.primaryRenderType);
 		if (texture != null && SADDLE_TEXTURES.contains(texture))
@@ -1949,6 +1900,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final RecoveredCuboid cuboid;
 		private final List<Vec3> modelCorners;
 		private boolean head;
+		private boolean preserveMaterial;
 		private final Set<String> partNames;
 		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
@@ -1986,16 +1938,17 @@ public final class SurgicalCapturedRenderPlan {
 		private void observeMaterial(RenderType renderType) {
 			if (primaryRenderType == null)
 				primaryRenderType = renderType;
-			// Material identifies the full coat for sheared rendering. Only its anatomical
-			// body part supplies shearable wool; the head and leg coat is not an output organ.
-			if (SHEEP_WOOL_TEXTURE.equals(renderTypeTexture(renderType))) {
-				partNames.add("wool");
-				if (partNames.contains("body")) partNames.add("body_wool");
+			ResourceLocation texture = renderTypeTexture(renderType);
+			if (texture == null) return;
+			for (String name : List.copyOf(partNames)) {
+				if (name.startsWith("material/")) continue;
+				String qualified = "material/" + texture.getNamespace() + "/" + texture.getPath() + "/" + name;
+				if (partNames.size() < 16 && BionicAnatomySnapshot.validPartName(qualified)) partNames.add(qualified);
 			}
 		}
 
 		private void addVisibleBatch(RenderType renderType, List<CapturedVertex> vertices) {
-			if (isMushroomMaterial(renderType, vertices)) partNames.add("mushroom");
+			preserveMaterial |= isMushroomMaterial(renderType, vertices);
 			boolean surfaceOverlay = primaryRenderType != renderType;
 			if (topology && faceGrids.isEmpty())
 				faceGrids = recoverFaceGrids(cuboid, renderType, vertices);

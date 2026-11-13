@@ -5,13 +5,13 @@
   },
   "carriers": {
     "minecraft:warden": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ],
-      "LEFT_RIBCAGE": [
+      "create_biotech:left_ribcage": [
         "left_ribcage"
       ],
-      "RIGHT_RIBCAGE": [
+      "create_biotech:right_ribcage": [
         "right_ribcage"
       ]
     }

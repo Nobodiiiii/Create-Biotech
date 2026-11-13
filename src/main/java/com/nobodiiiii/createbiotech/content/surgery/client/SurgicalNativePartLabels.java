@@ -10,7 +10,6 @@ import net.minecraft.client.model.ArmadilloModel;
 import net.minecraft.client.model.CowModel;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.IllagerModel;
-import net.minecraft.client.model.RavagerModel;
 import net.minecraft.client.model.geom.ModelPart;
 
 /** Separates native cuboids sharing one ModelPart name; see the matching 1.21.1 models in ref/. */
@@ -34,10 +33,6 @@ final class SurgicalNativePartLabels {
 			for (var cube : cubes)
 				if (cube.maxX - cube.minX == 4 && cube.maxY - cube.minY == 6 && cube.maxZ - cube.minZ == 1)
 					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("udder");
-		if (model instanceof RavagerModel && field.equals("head"))
-			for (var cube : cubes)
-				if (cube.maxX - cube.minX == 16 && cube.maxY - cube.minY == 20 && cube.maxZ - cube.minZ == 16)
-					names.computeIfAbsent(cube, ignored -> new HashSet<>()).add("head_core");
 		if (model instanceof ArmadilloModel) {
 			if (field.equals("body") && cubes.size() >= 2) {
 				names.computeIfAbsent(cubes.get(0), ignored -> new HashSet<>()).add("outer_shell");

@@ -9,16 +9,16 @@
   },
   "carriers": {
     "minecraft:shulker": {
-      "SHELL": [
+      "create_biotech:shell": [
         "lid"
       ],
-      "TORSO": []
+      "create_biotech:torso": []
     },
     "minecraft:armadillo": {
-      "SHELL": [
+      "create_biotech:shell": [
         "outer_shell"
       ],
-      "TORSO": [
+      "create_biotech:torso": [
         "inner_body"
       ]
     }

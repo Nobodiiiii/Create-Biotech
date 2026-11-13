@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,7 +51,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 				throw new IllegalArgumentException("Cannot load bionic trait resource " + entry.getKey(), exception);
 			}
 		}
-		for (String directory : List.of("bionic_trait_bindings", "bionic_trait_modifiers")) {
+		for (String directory : List.of("bionic_trait_bindings", "bionic_trait_modifiers", "bionic_parts", "bionic_anatomy")) {
 			var extension = net.minecraft.resources.FileToIdConverter.json(directory);
 			extension.listMatchingResources(manager).forEach((file, resource) -> {
 				try (var reader = resource.openAsReader()) {
@@ -76,10 +75,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 	}
 
 	/** Pure loading shared with the client; publication only happens after the complete graph loads. */
-	static Map<BionicTrait, BionicTraitData> decode(Map<ResourceLocation, JsonElement> resources) {
+	static Catalog decode(Map<ResourceLocation, JsonElement> resources) {
 		return decode(resources, true);
 	}
-	static Map<BionicTrait, BionicTraitData> decode(Map<ResourceLocation, JsonElement> raw, boolean strict) {
+	static Catalog decode(Map<ResourceLocation, JsonElement> raw, boolean strict) {
+		Map<BionicAnatomyRole, BionicPartDefinition> parts = BionicPartDefinition.decode(raw);
 		Map<ResourceLocation, JsonElement> resources = BionicTraitResources.expand(raw);
 		Map<ResourceLocation, BionicTrait> definitions = new LinkedHashMap<>();
 		for (BionicTrait trait : BionicTrait.builtIns())
@@ -109,7 +109,32 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		loaded.forEach((trait, data) -> overrides.put(trait, data.overrides()));
 		Map<BionicTrait, Set<BionicTrait>> valid = BionicTraitOverrides.validate(overrides);
 		loaded.replaceAll((trait, data) -> data.withOverrides(valid.get(trait)));
-		return loaded;
+		loaded.forEach((trait, data) -> {
+			Set<BionicAnatomyRole> referenced = new HashSet<>();
+			collectParts(trait.carrier(), referenced);
+			data.carriers().values().forEach(roles -> referenced.addAll(roles.keySet()));
+			data.subtraits().values().forEach(variant -> collectParts(variant.carrier(), referenced));
+			data.attackEffects().values().forEach(effect -> collectParts(effect.carrier(), referenced));
+			BionicTraitConditions.required(trait).forEach(carrier -> collectParts(carrier, referenced));
+			if (referenced.size() > BionicTraitDonorsPacket.MAX_CARRIER_PARTS)
+				throw new IllegalArgumentException("Too many bionic parts referenced by trait " + trait.id());
+			referenced.forEach(role -> requirePart(role, parts, trait.id()));
+		});
+		return new Catalog(Map.copyOf(loaded), parts, BionicAnatomyRegistry.decode(raw, parts));
+	}
+
+	record Catalog(Map<BionicTrait, BionicTraitData> traits, Map<BionicAnatomyRole, BionicPartDefinition> parts,
+		Map<ResourceLocation, List<BionicAnatomyRegistry.Template>> templates) {}
+
+	private static void collectParts(BionicTrait.Carrier carrier, Set<BionicAnatomyRole> parts) {
+		parts.addAll(carrier.roles());
+		parts.addAll(carrier.fallback());
+		parts.addAll(carrier.excluded());
+	}
+
+	private static void requirePart(BionicAnatomyRole role, Map<BionicAnatomyRole, BionicPartDefinition> parts,
+		ResourceLocation trait) {
+		if (!parts.containsKey(role)) throw new IllegalArgumentException("Undefined bionic part " + role + " in trait " + trait);
 	}
 
 	private static BionicTrait readDefinition(ResourceLocation id, JsonObject root) {
@@ -144,8 +169,8 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 		if (json == null) return List.of();
 		List<BionicAnatomyRole> roles = new ArrayList<>();
 		for (JsonElement role : json.getAsJsonArray())
-			roles.add(BionicAnatomyRole.valueOf(role.getAsString().toUpperCase(java.util.Locale.ROOT)));
-		return List.copyOf(roles);
+			roles.add(BionicAnatomyRole.parse(role.getAsString()));
+		return roles.stream().distinct().toList();
 	}
 
 	private static net.minecraft.network.chat.Component component(JsonElement json) {
@@ -203,8 +228,15 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			? effectOverrides(root, primary) : BionicDonorOverrides.empty();
 		Map<ResourceLocation, BionicSubtrait> subtraits = new HashMap<>(BionicHeadTraits.variants(trait));
 		subtraits.putAll(readSubtraits(root, primary));
+		JsonObject carrier = object(root.get("carrier"));
+		boolean replaceBindings = false;
+		if (carrier.has("replace_with_bindings")) {
+			Boolean value = booleanValue(carrier.get("replace_with_bindings"));
+			if (value == null) throw new IllegalArgumentException("Expected boolean carrier.replace_with_bindings in " + primary);
+			replaceBindings = value;
+		}
 		return new BionicTraitData(automatic, rule, abilities, numbers, effects,
-			readCarriers(root, primary), parameters, readAttackEffects(root, primary), subtraits,
+			readCarriers(root, primary), replaceBindings, parameters, readAttackEffects(root, primary), subtraits,
 			readOverrides(root, trait, primary, definitions), BionicExtensions.compile(root, strict));
 	}
 
@@ -237,10 +269,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 			try {
 				ResourceLocation id = ResourceLocation.parse(entry.getKey());
 				JsonObject settings = entry.getValue().getAsJsonObject();
-				List<BionicAnatomyRole> roles = new ArrayList<>();
-				if (settings.has("roles"))
-					for (JsonElement role : settings.getAsJsonArray("roles"))
-						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
+				List<BionicAnatomyRole> roles = roles(settings.get("roles"));
 				Map<String, Double> parameters = new HashMap<>();
 				object(settings.get("parameters")).entrySet().forEach(parameter -> {
 					Double value = numberValue(parameter.getValue());
@@ -249,7 +278,7 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 				});
 				result.put(id, new BionicSubtrait(id, new BionicTrait.Carrier(roles, List.of()), parameters));
 			} catch (RuntimeException exception) {
-				LOGGER.warn("Invalid trait variant {} in {}", entry.getKey(), file);
+				throw new IllegalArgumentException("Invalid trait variant " + entry.getKey() + " in " + file, exception);
 			}
 		});
 		return Map.copyOf(result);
@@ -270,14 +299,11 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 					|| amplifier == null || amplifier > 255 || amplifier != Math.floor(amplifier)
 					|| chance == null || chance > 1 || unarmed == null)
 					throw new IllegalArgumentException("Invalid attack parameters");
-				List<BionicAnatomyRole> roles = new ArrayList<>();
-				if (settings.has("roles"))
-					for (JsonElement role : settings.getAsJsonArray("roles"))
-						roles.add(BionicAnatomyRole.valueOf(role.getAsString()));
+				List<BionicAnatomyRole> roles = roles(settings.get("roles"));
 				result.put(id, new BionicAttackEffect(id, duration.intValue(), amplifier.intValue(), chance,
 					unarmed, new BionicTrait.Carrier(roles, List.of())));
 			} catch (RuntimeException exception) {
-				LOGGER.warn("Invalid attack effect {} in {}", entry.getKey(), file);
+				throw new IllegalArgumentException("Invalid attack effect " + entry.getKey() + " in " + file, exception);
 			}
 		});
 		return Map.copyOf(result);
@@ -340,10 +366,10 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 				LOGGER.warn("Invalid carrier entity {} in {}", entity.getKey(), file);
 				continue;
 			}
-			EnumMap<BionicAnatomyRole, Set<String>> roles = new EnumMap<>(BionicAnatomyRole.class);
+			Map<BionicAnatomyRole, Set<String>> roles = new HashMap<>();
 			for (var entry : entity.getValue().getAsJsonObject().entrySet()) {
 				try {
-					BionicAnatomyRole role = BionicAnatomyRole.valueOf(entry.getKey());
+					BionicAnatomyRole role = BionicAnatomyRole.parse(entry.getKey());
 					if (!entry.getValue().isJsonArray())
 						throw new IllegalArgumentException("Expected carrier list");
 					Set<String> names = new HashSet<>();
@@ -354,11 +380,12 @@ public final class BionicTraitDataLoader extends SimpleJsonResourceReloadListene
 						else
 							LOGGER.warn("Invalid carrier name in {} for {}", file, id);
 					}
-					roles.put(role, Set.copyOf(names));
+					roles.computeIfAbsent(role, ignored -> new HashSet<>()).addAll(names);
 				} catch (IllegalArgumentException exception) {
-					LOGGER.warn("Invalid carrier role {} in {}", entry.getKey(), file);
+					throw new IllegalArgumentException("Invalid carrier role " + entry.getKey() + " in " + file, exception);
 				}
 			}
+			roles.replaceAll((role, names) -> Set.copyOf(names));
 			result.put(id, Map.copyOf(roles));
 		}
 		return Map.copyOf(result);

@@ -6,7 +6,7 @@
   },
   "carriers": {
     "minecraft:strider": {
-      "FOOT": [
+      "create_biotech:leg": [
         "leftLeg",
         "rightLeg",
         "left_leg",

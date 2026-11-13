@@ -7,7 +7,7 @@
   "carriers": {
     "minecraft:breeze": {},
     "minecraft:horse": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -21,7 +21,7 @@
       ]
     },
     "minecraft:skeleton_horse": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -35,7 +35,7 @@
       ]
     },
     "minecraft:zombie_horse": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -49,7 +49,7 @@
       ]
     },
     "minecraft:goat": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -63,7 +63,7 @@
       ]
     },
     "minecraft:frog": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftLeg",
         "rightLeg",
         "left_hind_leg",
@@ -75,7 +75,7 @@
       ]
     },
     "minecraft:rabbit": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHaunch",
         "rightHaunch",
         "leftRearFoot",

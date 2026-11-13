@@ -1,0 +1,12 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.horn"
+  },
+  "order": 13,
+  "match": {
+    "contains": [
+      "horn",
+      "tusk"
+    ]
+  }
+}

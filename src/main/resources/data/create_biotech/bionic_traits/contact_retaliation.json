@@ -7,7 +7,7 @@
   },
   "carriers": {
     "minecraft:pufferfish": {
-      "SPINE": [
+      "create_biotech:spine": [
         "body",
         "spikes",
         "spine"

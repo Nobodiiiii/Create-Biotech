@@ -1,0 +1,11 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.eye"
+  },
+  "order": 14,
+  "match": {
+    "contains": [
+      "eye"
+    ]
+  }
+}

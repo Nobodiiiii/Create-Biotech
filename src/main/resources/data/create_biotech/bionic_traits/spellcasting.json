@@ -11,7 +11,7 @@
   "variants": {
     "minecraft:fangs": {
       "roles": [
-        "ATTACK_HAND"
+        "create_biotech:attack_hand"
       ],
       "parameters": {
         "range": 20,
@@ -22,7 +22,7 @@
     },
     "minecraft:potion": {
       "roles": [
-        "ATTACK_HAND"
+        "create_biotech:attack_hand"
       ],
       "parameters": {
         "range": 10,
@@ -33,7 +33,7 @@
   },
   "carriers": {
     "minecraft:evoker": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "arms",
         "right_arm",
         "left_arm",
@@ -42,7 +42,7 @@
       ]
     },
     "minecraft:witch": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "arms"
       ]
     }

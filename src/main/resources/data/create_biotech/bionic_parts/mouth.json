@@ -1,0 +1,16 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.mouth"
+  },
+  "order": 11,
+  "match": {
+    "contains": [
+      "mouth",
+      "fang",
+      "jaw",
+      "beak",
+      "snout",
+      "muzzle"
+    ]
+  }
+}

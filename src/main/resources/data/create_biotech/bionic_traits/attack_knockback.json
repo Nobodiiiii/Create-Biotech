@@ -1,13 +1,35 @@
 {
+  "schema_version": 1,
+  "scopes": [
+    "arm"
+  ],
+  "value_kind": "number",
+  "inheritance": {
+    "type": "coverage_scaled"
+  },
+  "carrier": {
+    "roles": [
+      "create_biotech:head",
+      "create_biotech:attack_hand"
+    ],
+    "replace_with_bindings": true
+  },
   "automatic_detection": true,
   "values": {},
   "carriers": {
     "minecraft:warden": {
-      "ATTACK_HAND": ["left_arm", "right_arm"]
+      "create_biotech:attack_hand": [
+        "left_arm",
+        "right_arm"
+      ]
     },
     "minecraft:ravager": {
-      "HEAD_CORE": ["head_core"],
-      "MOUTH": ["mouth"]
+      "create_biotech:head": [
+        "head"
+      ],
+      "create_biotech:mouth": [
+        "mouth"
+      ]
     }
   }
 }

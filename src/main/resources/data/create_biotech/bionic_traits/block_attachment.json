@@ -5,7 +5,7 @@
   },
   "carriers": {
     "minecraft:shulker": {
-      "BASE": ["base"]
+      "create_biotech:base": ["base"]
     }
   }
 }

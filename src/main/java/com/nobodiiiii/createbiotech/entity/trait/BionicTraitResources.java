@@ -11,6 +11,13 @@ final class BionicTraitResources {
 	static ResourceLocation transportId(String directory, ResourceLocation id) {
 		return ResourceLocation.fromNamespaceAndPath("create_biotech", PREFIX + directory + "/" + id.getNamespace() + "/" + id.getPath());
 	}
+	static ResourceLocation resourceId(String directory, ResourceLocation transport) {
+		if (!directory(transport, directory)) return null;
+		String path = transport.getPath().substring((PREFIX + directory + "/").length());
+		int slash = path.indexOf('/');
+		if (slash <= 0 || slash == path.length() - 1) throw new IllegalArgumentException("Invalid catalog resource " + transport);
+		return ResourceLocation.fromNamespaceAndPath(path.substring(0, slash), path.substring(slash + 1));
+	}
 	static Map<ResourceLocation, JsonElement> expand(Map<ResourceLocation, JsonElement> raw) {
 		Map<ResourceLocation, JsonElement> result = new LinkedHashMap<>();
 		raw.entrySet().stream().sorted(Map.Entry.comparingByKey()).filter(e -> !extension(e.getKey()))

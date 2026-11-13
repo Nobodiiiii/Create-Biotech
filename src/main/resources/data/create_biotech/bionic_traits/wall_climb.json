@@ -7,7 +7,7 @@
   },
   "carriers": {
     "minecraft:spider": {
-      "LEG": [
+      "create_biotech:leg": [
         "rightHindLeg",
         "leftHindLeg",
         "rightMiddleHindLeg",
@@ -19,7 +19,7 @@
       ]
     },
     "minecraft:cave_spider": {
-      "LEG": [
+      "create_biotech:leg": [
         "rightHindLeg",
         "leftHindLeg",
         "rightMiddleHindLeg",

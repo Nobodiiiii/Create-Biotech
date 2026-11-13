@@ -1,0 +1,11 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.wing"
+  },
+  "order": 4,
+  "match": {
+    "contains": [
+      "wing"
+    ]
+  }
+}

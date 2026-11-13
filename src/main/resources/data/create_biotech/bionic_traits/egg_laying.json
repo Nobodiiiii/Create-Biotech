@@ -5,7 +5,7 @@
   },
   "carriers": {
     "minecraft:chicken": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     }

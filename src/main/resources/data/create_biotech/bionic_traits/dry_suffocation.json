@@ -12,37 +12,37 @@
   },
   "carriers": {
     "minecraft:cod": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ]
     },
     "minecraft:salmon": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ]
     },
     "minecraft:tropical_fish": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:pufferfish": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:squid": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:glow_squid": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:tadpole": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     }

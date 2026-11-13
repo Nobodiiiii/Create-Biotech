@@ -1,0 +1,11 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.tail"
+  },
+  "order": 6,
+  "match": {
+    "contains": [
+      "tail"
+    ]
+  }
+}

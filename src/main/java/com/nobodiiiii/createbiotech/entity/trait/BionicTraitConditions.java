@@ -30,20 +30,32 @@ final class BionicTraitConditions {
 			return result.disabled(InactiveReason.PURPOSE_MISMATCH);
 		if (BionicTrait.MILKABLE.equals(trait))
 			return BionicMilking.apply(data, tissue, result);
-		List<Carrier> required = switch (trait.condition()) {
+		List<Carrier> required = required(trait);
+		if (required.isEmpty()) {
+			InactiveReason reason = check(trait, data, assembly, tissue, covered);
+			return reason == null ? result : result.disabled(reason);
+		}
+		return completeGroups(trait, data, assembly, tissue, covered, result, required);
+	}
+
+	static List<Carrier> required(BionicTrait trait) {
+		return switch (trait.condition()) {
 		case WOOL_AND_BODY -> List.of(Carrier.of(BionicAnatomyRole.TORSO).excluding(BionicAnatomyRole.WOOL),
 			Carrier.of(BionicAnatomyRole.WOOL));
 		case SHELL_AND_BODY -> List.of(Carrier.of(BionicAnatomyRole.TORSO).excluding(BionicAnatomyRole.SHELL),
 			Carrier.of(BionicAnatomyRole.SHELL));
+		case UDDER_AND_BODY -> List.of(Carrier.of(BionicAnatomyRole.TORSO).excluding(BionicAnatomyRole.UDDER),
+			Carrier.of(BionicAnatomyRole.UDDER));
 		case COMPLETE_CHEST -> List.of(Carrier.of(BionicAnatomyRole.TORSO)
 			.excluding(BionicAnatomyRole.LEFT_RIBCAGE, BionicAnatomyRole.RIGHT_RIBCAGE),
 			Carrier.of(BionicAnatomyRole.LEFT_RIBCAGE), Carrier.of(BionicAnatomyRole.RIGHT_RIBCAGE));
 		default -> List.of();
 		};
-		if (required.isEmpty()) {
-			InactiveReason reason = check(trait, data, assembly, tissue, covered);
-			return reason == null ? result : result.disabled(reason);
-		}
+	}
+
+	private static BionicTraitResult completeGroups(BionicTrait trait, BionicTraitData data,
+		SurgicalAssembly assembly, BionicTissue tissue, BionicTraitSet covered, BionicTraitResult result,
+		List<Carrier> required) {
 		// A supporting body is a shared prerequisite, never consumed by one appendage.
 		Map<Carrier, Set<SurgicalAssembly.CombinationMember>> parts = new HashMap<>();
 		Set<SurgicalAssembly.CombinationMember> participants = new HashSet<>();

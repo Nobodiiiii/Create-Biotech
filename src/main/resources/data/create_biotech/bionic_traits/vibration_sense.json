@@ -5,7 +5,7 @@
   },
   "carriers": {
     "minecraft:warden": {
-      "TENDRIL": [
+      "create_biotech:tentacle": [
         "left_tendril",
         "right_tendril"
       ]

@@ -32,7 +32,7 @@
     "min_coverage": 0.5
   },
   "carrier": {
-    "roles": ["ATTACK_HAND"]
+    "roles": ["create_biotech:attack_hand"]
   },
   "automatic_detection": false,
   "values": {
@@ -41,7 +41,7 @@
   },
   "carriers": {
     "minecraft:zombie": {
-      "ATTACK_HAND": ["right_arm", "left_arm", "rightArm", "leftArm"]
+      "create_biotech:attack_hand": ["right_arm", "left_arm", "rightArm", "leftArm"]
     }
   }
 }
@@ -59,7 +59,7 @@
 | `value_kind` | `ability`、`number`、`effect_set`、`attack_effect_set`、`subtrait_set` |
 | `inheritance.type` | `presence`、`coverage_threshold`、`coverage_scaled`；`special` 仅用于内置头部分类算法 |
 | `inheritance.min_coverage` | `[0,1]`；存在型只能为 `0`。数值型采用 `coverage_scaled`，预算必须大于 `0`，缺省为 `0.5` |
-| `carrier` | `roles`、`fallback`、`excluded` 使用现有组织角色；缺省或空 `roles` 表示全部组织 |
+| `carrier` | `roles`、`fallback`、`excluded` 使用 `bionic_parts` 定义的完整部位 ID；缺省或空 `roles` 表示全部组织 |
 | `values` | 沿用现有供体格式，支持实体 ID 与 `#实体类型标签`；精确实体值覆盖标签值 |
 | `carriers` | 沿用每种实体的组织角色到模型部件名或体块编号的映射 |
 | `parameters` | 沿用现有非负数值参数；腿部默认需要一条达标腿链，可用 `min_legs` 调整 |

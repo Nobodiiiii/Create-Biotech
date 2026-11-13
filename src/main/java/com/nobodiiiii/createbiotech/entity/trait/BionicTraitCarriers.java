@@ -1,8 +1,8 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.BitSet;
-import java.util.EnumMap;
-import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,9 +28,9 @@ final class BionicTraitCarriers {
 		default -> List.of(donorCarrier(trait, data, entity));
 		};
 		Map<BionicAnatomyRole, Set<String>> declared = data.carriers().get(entity);
-		Set<BionicAnatomyRole> result = EnumSet.noneOf(BionicAnatomyRole.class);
+		Set<BionicAnatomyRole> result = new HashSet<>();
 		for (var carrier : carriers) {
-			Set<BionicAnatomyRole> roles = EnumSet.noneOf(BionicAnatomyRole.class);
+			Set<BionicAnatomyRole> roles = new HashSet<>();
 			if (carrier.isAllTissue()) {
 				if (declared == null || declared.isEmpty()) return Set.of();
 				declared.forEach((role, names) -> { if (!names.isEmpty()) roles.add(role); });
@@ -65,8 +65,7 @@ final class BionicTraitCarriers {
 				var variant = data.subtraits().get(id);
 				if (variant != null) cubes.or(select(variant.carrier(), data, tissue, source));
 			}
-		} else cubes = BionicTrait.RIDEABLE.equals(trait) ? BionicSaddleCarriers.select(tissue.source(source))
-			: select(donorCarrier(trait, data, tissue.source(source).profile().entityTypeId()), data, tissue, source);
+		} else cubes = select(donorCarrier(trait, data, tissue.source(source).profile().entityTypeId()), data, tissue, source);
 		if (!data.extensions().selectors().isEmpty()) {
 			BitSet selected = new BitSet();
 			for (var selector : data.extensions().selectors()) selected.or(selector.select(tissue.source(source)));
@@ -76,9 +75,9 @@ final class BionicTraitCarriers {
 		return cubes;
 	}
 
-	/** Explicit knockback donor mappings replace the default head-and-arm carrier roles. */
+	/** Data may let each donor's explicit bindings replace the trait's default carrier roles. */
 	private static BionicTrait.Carrier donorCarrier(BionicTrait trait, BionicTraitData data, ResourceLocation entity) {
-		return BionicTrait.ATTACK_KNOCKBACK.equals(trait) && !data.carriers().getOrDefault(entity, Map.of()).isEmpty()
+		return data.replaceCarrierWithBindings() && !data.carriers().getOrDefault(entity, Map.of()).isEmpty()
 			? BionicTrait.Carrier.allTissue() : trait.carrier();
 	}
 
@@ -110,7 +109,7 @@ final class BionicTraitCarriers {
 
 	static Map<BionicAnatomyRole, BitSet> rolesFor(BionicTraitRegistry.Snapshot data,
 		ResourceLocation entity, Map<Integer, Set<String>> parts, int cubeCount) {
-		EnumMap<BionicAnatomyRole, BitSet> result = new EnumMap<>(BionicAnatomyRole.class);
+		Map<BionicAnatomyRole, BitSet> result = new HashMap<>();
 		data.traits().values().forEach(trait -> trait.carriers().getOrDefault(entity, Map.of())
 			.forEach((role, names) -> result.computeIfAbsent(role, ignored -> new BitSet())
 				.or(selected(names, parts, cubeCount))));

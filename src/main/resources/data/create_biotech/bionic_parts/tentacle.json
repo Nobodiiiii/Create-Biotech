@@ -1,0 +1,12 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.tentacle"
+  },
+  "order": 7,
+  "match": {
+    "contains": [
+      "tentacle",
+      "tendril"
+    ]
+  }
+}

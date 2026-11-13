@@ -7,21 +7,17 @@
   },
   "carriers": {
     "minecraft:chicken": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
-        "left_wing"
-      ],
-      "RIGHT_WING": [
+        "left_wing",
         "rightWing",
         "right_wing"
       ]
     },
     "minecraft:parrot": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
-        "left_wing"
-      ],
-      "RIGHT_WING": [
+        "left_wing",
         "rightWing",
         "right_wing"
       ]

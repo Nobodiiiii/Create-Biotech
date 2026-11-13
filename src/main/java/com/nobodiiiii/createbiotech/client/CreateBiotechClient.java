@@ -431,6 +431,8 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void onClientSetup(FMLClientSetupEvent event) {
 		event.enqueueWork(() -> {
+			com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry
+				.addClientCatalogListener(SurgicalSourceModelRenderer::clear);
 			registerItemTooltips();
 			registerCardboardBoxModelProperties();
 			registerSurgicalKitModelProperties();

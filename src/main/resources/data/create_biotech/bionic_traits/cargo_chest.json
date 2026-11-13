@@ -3,22 +3,22 @@
   "values": {},
   "carriers": {
     "minecraft:donkey": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     },
     "minecraft:mule": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     },
     "minecraft:llama": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     },
     "minecraft:trader_llama": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     }

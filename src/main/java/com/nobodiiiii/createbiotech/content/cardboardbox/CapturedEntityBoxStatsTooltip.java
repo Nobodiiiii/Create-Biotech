@@ -239,14 +239,16 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			for (var part : missing) {
 				if (!parts.getSiblings().isEmpty())
 					parts.append(Component.translatable("create_biotech.trait.list_separator"));
-				String role = part.role().name().toLowerCase(java.util.Locale.ROOT);
+				String role = part.role().id().getPath();
 				String specific = "create_biotech.trait.part." + part.species().getNamespace() + "."
 					+ part.species().getPath() + "." + role;
 				Component species = BuiltInRegistries.ENTITY_TYPE.getOptional(part.species())
 					.map(type -> Component.translatable(type.getDescriptionId()))
 					.orElseGet(() -> Component.literal(part.species().toString()));
-				parts.append(Language.getInstance().has(specific) ? Component.translatable(specific)
-					: Component.translatable("create_biotech.trait.part." + role, species));
+				parts.append(part.role().id().getNamespace().equals("create_biotech")
+					&& Language.getInstance().has(specific) ? Component.translatable(specific)
+					: Component.translatable("create_biotech.trait.part.generic", species,
+						com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry.clientPartName(part.role())));
 			}
 			alternatives.append(parts);
 		}

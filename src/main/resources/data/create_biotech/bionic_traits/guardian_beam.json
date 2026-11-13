@@ -11,7 +11,7 @@
   "variants": {
     "minecraft:guardian": {
       "roles": [
-        "EYE"
+        "create_biotech:eye"
       ],
       "parameters": {
         "range": 16,
@@ -23,7 +23,7 @@
     },
     "minecraft:elder_guardian": {
       "roles": [
-        "EYE"
+        "create_biotech:eye"
       ],
       "parameters": {
         "range": 16,
@@ -35,12 +35,12 @@
   },
   "carriers": {
     "minecraft:guardian": {
-      "EYE": [
+      "create_biotech:eye": [
         "eye"
       ]
     },
     "minecraft:elder_guardian": {
-      "EYE": [
+      "create_biotech:eye": [
         "eye"
       ]
     }

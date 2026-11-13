@@ -4,7 +4,7 @@
   "values": {},
   "carriers": {
     "minecraft:rabbit": {
-      "FOOT": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -20,7 +20,7 @@
       ]
     },
     "minecraft:fox": {
-      "FOOT": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -36,14 +36,14 @@
       ]
     },
     "minecraft:silverfish": {
-      "FOOT": [
+      "create_biotech:leg": [
         "body",
         "segment0",
         "segment_0"
       ]
     },
     "minecraft:endermite": {
-      "FOOT": [
+      "create_biotech:leg": [
         "body",
         "segment0",
         "segment_0"

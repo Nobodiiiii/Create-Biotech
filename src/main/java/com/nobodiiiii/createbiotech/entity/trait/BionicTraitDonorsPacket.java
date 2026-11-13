@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.entity.trait;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -17,6 +16,7 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 	boolean complete, List<Entry> entries) {
 	public static final int MAX_ENTRIES = 128;
 	public static final int MAX_BYTES = 262144;
+	public static final int MAX_CARRIER_PARTS = 256;
 
 	public BionicTraitDonorsPacket {
 		entries = List.copyOf(entries);
@@ -47,9 +47,9 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 			buffer.writeVarInt(traits.size());
 			for (BionicTrait trait : traits.stream().sorted().toList()) {
 				buffer.writeResourceLocation(trait.id());
-				EnumSet<BionicAnatomyRole> roles = EnumSet.noneOf(BionicAnatomyRole.class);
-				roles.addAll(entry.carriers().get(trait));
-				buffer.writeEnumSet(roles, BionicAnatomyRole.class);
+				var roles = entry.carriers().get(trait);
+				buffer.writeVarInt(roles.size());
+				for (BionicAnatomyRole role : roles.stream().sorted().toList()) buffer.writeResourceLocation(role.id());
 			}
 		}
 	}
@@ -62,18 +62,25 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		int bytes = 64;
 		for (int i = 0; i < count; i++) {
 			ResourceLocation entity = buffer.readResourceLocation();
+			bytes += entity.toString().getBytes(StandardCharsets.UTF_8).length + 10;
 			Map<BionicTrait, Set<BionicAnatomyRole>> carriers = new LinkedHashMap<>();
 			int traitCount = buffer.readVarInt();
 			if (traitCount < 0 || traitCount > BionicTraitRulesPacket.MAX_RESOURCES + BionicTrait.builtIns().size())
 				throw new IllegalArgumentException("Invalid donor trait count");
 			for (int j = 0; j < traitCount; j++) {
 				BionicTrait trait = BionicTrait.reference(buffer.readResourceLocation());
-				if (carriers.put(trait, buffer.readEnumSet(BionicAnatomyRole.class)) != null)
+				int partCount = buffer.readVarInt();
+				if (partCount < 0 || partCount > MAX_CARRIER_PARTS) throw new IllegalArgumentException("Invalid donor part count");
+				Set<BionicAnatomyRole> roles = new LinkedHashSet<>();
+				for (int k = 0; k < partCount; k++)
+					if (!roles.add(new BionicAnatomyRole(buffer.readResourceLocation())))
+						throw new IllegalArgumentException("Duplicate donor part");
+				bytes += traitSize(trait, roles);
+				if (bytes > MAX_BYTES) throw new IllegalArgumentException("Bionic donor index response is too large");
+				if (carriers.put(trait, roles) != null)
 					throw new IllegalArgumentException("Duplicate donor trait");
 			}
 			Entry entry = new Entry(entity, carriers);
-			bytes += entry.encodedSize();
-			if (bytes > MAX_BYTES) throw new IllegalArgumentException("Bionic donor index response is too large");
 			entries.add(entry);
 		}
 		return entries;
@@ -85,7 +92,7 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		Map<BionicTrait, Set<BionicAnatomyRole>> chunk = new LinkedHashMap<>();
 		int bytes = 0;
 		for (BionicTrait trait : carriers.keySet().stream().sorted().toList()) {
-			int size = traitSize(trait);
+			int size = traitSize(trait, carriers.get(trait));
 			if (!chunk.isEmpty() && bytes + size > MAX_BYTES / 4) {
 				result.add(new Entry(entity, chunk));
 				chunk = new LinkedHashMap<>(); bytes = 0;
@@ -96,21 +103,24 @@ public record BionicTraitDonorsPacket(long generation, int offset, int checked, 
 		return result;
 	}
 
-	private static int traitSize(BionicTrait trait) {
-		return trait.id().toString().getBytes(StandardCharsets.UTF_8).length + 5
-			+ (BionicAnatomyRole.values().length + 7) / 8;
+	private static int traitSize(BionicTrait trait, Set<BionicAnatomyRole> roles) {
+		return trait.id().toString().getBytes(StandardCharsets.UTF_8).length + 10
+			+ roles.stream().mapToInt(role -> role.toString().getBytes(StandardCharsets.UTF_8).length + 5).sum();
 	}
 
 	public record Entry(ResourceLocation entity, Map<BionicTrait, Set<BionicAnatomyRole>> carriers) {
 		public Entry {
 			Map<BionicTrait, Set<BionicAnatomyRole>> copy = new LinkedHashMap<>();
-			carriers.forEach((trait, roles) -> copy.put(trait, Set.copyOf(roles)));
+			carriers.forEach((trait, roles) -> {
+				if (roles.size() > MAX_CARRIER_PARTS) throw new IllegalArgumentException("Too many donor parts");
+				copy.put(trait, Set.copyOf(roles));
+			});
 			carriers = Map.copyOf(copy);
 		}
 		public Set<BionicTrait> traits() { return carriers.keySet(); }
 		int encodedSize() {
 			return entity.toString().getBytes(StandardCharsets.UTF_8).length + 10
-				+ carriers.keySet().stream().mapToInt(BionicTraitDonorsPacket::traitSize).sum();
+				+ carriers.entrySet().stream().mapToInt(entry -> traitSize(entry.getKey(), entry.getValue())).sum();
 		}
 		public boolean provides(BionicTrait trait) {
 			return carriers.containsKey(trait);

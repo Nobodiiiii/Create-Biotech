@@ -5,10 +5,10 @@
   },
   "carriers": {
     "minecraft:armadillo": {
-      "SHELL": [
+      "create_biotech:shell": [
         "outer_shell"
       ],
-      "TORSO": [
+      "create_biotech:torso": [
         "inner_body"
       ]
     }

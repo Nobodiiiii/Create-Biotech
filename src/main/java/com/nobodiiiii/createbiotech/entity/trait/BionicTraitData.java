@@ -9,6 +9,7 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	BionicDonorOverrides<Boolean> abilities, BionicDonorOverrides<Double> numbers,
 	BionicDonorOverrides<Map<ResourceLocation, Boolean>> effects,
 	Map<ResourceLocation, Map<BionicAnatomyRole, Set<String>>> carriers,
+	boolean replaceCarrierWithBindings,
 	Map<String, Double> parameters, Map<ResourceLocation, BionicAttackEffect> attackEffects,
 	Map<ResourceLocation, BionicSubtrait> subtraits, Set<BionicTrait> overrides, BionicExtensions.Compiled extensions) {
 	BionicTraitData {
@@ -22,11 +23,11 @@ record BionicTraitData(boolean automaticDetection, BionicTraitRule rule,
 	static BionicTraitData defaults(BionicTrait trait) {
 		return new BionicTraitData(trait.automaticDetection(), trait.rule(),
 			BionicDonorOverrides.empty(), BionicDonorOverrides.empty(), BionicDonorOverrides.empty(),
-			Map.of(), Map.of(), Map.of(), BionicHeadTraits.variants(trait), Set.of(), BionicExtensions.Compiled.EMPTY);
+			Map.of(), false, Map.of(), Map.of(), BionicHeadTraits.variants(trait), Set.of(), BionicExtensions.Compiled.EMPTY);
 	}
 
 	BionicTraitData withOverrides(Set<BionicTrait> targets) {
-		return new BionicTraitData(automaticDetection, rule, abilities, numbers, effects, carriers,
+		return new BionicTraitData(automaticDetection, rule, abilities, numbers, effects, carriers, replaceCarrierWithBindings,
 			parameters, attackEffects, subtraits, targets, extensions);
 	}
 

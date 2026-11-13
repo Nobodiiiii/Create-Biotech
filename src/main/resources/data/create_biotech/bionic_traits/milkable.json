@@ -7,24 +7,24 @@
   },
   "carriers": {
     "minecraft:cow": {
-      "UDDER": [
+      "create_biotech:udder": [
         "udder"
       ],
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     },
     "minecraft:mooshroom": {
-      "UDDER": [
+      "create_biotech:udder": [
         "udder"
       ],
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     },
     "minecraft:goat": {
-      "UDDER": [],
-      "TORSO": [
+      "create_biotech:udder": [],
+      "create_biotech:torso": [
         "body"
       ]
     }

@@ -1,0 +1,12 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.attack_hand"
+  },
+  "order": 12,
+  "match": {
+    "contains": [
+      "arm",
+      "hand"
+    ]
+  }
+}

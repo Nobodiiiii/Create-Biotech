@@ -20,10 +20,12 @@ import java.util.stream.Stream;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Library-neutral provenance for collection-backed model parts. Field names and map keys identify
@@ -65,7 +67,7 @@ final class SurgicalModelPartNames implements AutoCloseable {
 		previous = CURRENT.get();
 	}
 
-	static SurgicalModelPartNames open(Object renderer) {
+	static SurgicalModelPartNames open(Object renderer, ResourceLocation entity) {
 		SurgicalModelPartNames scope = new SurgicalModelPartNames();
 		try {
 			scope.discover(renderer);
@@ -73,7 +75,7 @@ final class SurgicalModelPartNames implements AutoCloseable {
 			// remaining part of the captured head, just like vanilla head descendants.
 			Set<Object> heads = Collections.newSetFromMap(new IdentityHashMap<>());
 			for (var entry : scope.parts.entrySet())
-				if (entry.getValue().names.stream().anyMatch(SurgicalModelPartNames::headName))
+				if (entry.getValue().names.stream().anyMatch(label -> BionicTraitRegistry.clientCapturedHead(entity, label)))
 					scope.markHead(entry.getKey(), heads);
 			for (var entry : scope.parts.entrySet()) {
 				Part part = entry.getValue();
@@ -152,11 +154,6 @@ final class SurgicalModelPartNames implements AutoCloseable {
 		if (!heads.add(node)) return;
 		Part part = parts.get(node);
 		if (part != null) for (Object child : part.children) markHead(child, heads);
-	}
-
-	private static boolean headName(String label) {
-		String name = label.toLowerCase(java.util.Locale.ROOT);
-		return name.contains("head") || name.contains("skull");
 	}
 
 	private static boolean isPart(Object value) {

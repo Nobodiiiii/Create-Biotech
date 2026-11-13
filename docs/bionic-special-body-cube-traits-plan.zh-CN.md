@@ -93,7 +93,7 @@
 | `baby` | 可选；只匹配幼体或成体；省略时不限制。 |
 | `cube_count` | 原始捕获体块总数，必须与供体匹配。 |
 | `seams` | 原始接缝端点对数组，必须与供体原始拓扑严格匹配。 |
-| `roles` | 解剖角色到原始体块 ID 数组的映射，可一块多角色；角色名见 `BionicAnatomyRole`。 |
+| `roles` | 完整部位 ID 到原始体块 ID 数组的映射，可一块多部位；部位由 `bionic_parts` 数据包目录定义，见[统一部位定义](bionic-traits-extension.zh-CN.md#统一部位定义)。 |
 
 每项特性的规则在 `data/create_biotech/bionic_traits/` 下。生物类型规则高于标签规则，`false` 可覆盖自动探测。同一个 JSON 的 `carriers` 按生物 ID、解剖角色、模型部件名数组声明载体；数组还可放整数原始体块 ID。以炽足兽的熔岩行走为例：
 
@@ -101,7 +101,7 @@
 {
   "carriers": {
     "minecraft:strider": {
-      "FOOT": ["leftLeg", "rightLeg"]
+      "create_biotech:leg": ["leftLeg", "rightLeg"]
     }
   }
 }

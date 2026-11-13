@@ -10,7 +10,7 @@
   },
   "carriers": {
     "minecraft:bee": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ]
     }

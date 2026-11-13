@@ -7,19 +7,19 @@
   },
   "carriers": {
     "minecraft:cat": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:ocelot": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:wolf": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]

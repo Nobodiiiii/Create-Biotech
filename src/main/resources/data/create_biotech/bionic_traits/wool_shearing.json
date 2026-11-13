@@ -5,11 +5,11 @@
   },
   "carriers": {
     "minecraft:sheep": {
-      "TORSO": [
+      "create_biotech:torso": [
         "body"
       ],
-      "WOOL": [
-        "body_wool"
+      "create_biotech:wool": [
+        "material/minecraft/textures/entity/sheep/sheep_fur.png/body"
       ]
     }
   }

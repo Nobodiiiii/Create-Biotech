@@ -173,7 +173,7 @@ public final class MimicDebugReport {
 				for (var part : alternative) {
 					JsonObject missing = new JsonObject();
 					missing.addProperty("entity_type", part.species().toString());
-					missing.addProperty("role", part.role().name());
+					missing.addProperty("role", part.role().toString());
 					parts.add(missing);
 				}
 				missingParts.add(parts);
@@ -197,7 +197,7 @@ public final class MimicDebugReport {
 					display.addProperty("active", detail.active());
 					display.addProperty("inactive_reason", detail.inactiveReason() == null ? null : detail.inactiveReason().name());
 					display.add("missing_part_alternatives", GSON.toJsonTree(detail.missingParts().stream()
-						.map(parts -> parts.stream().map(part -> Map.of("entity_type", part.species().toString(), "role", part.role().name())).toList())
+						.map(parts -> parts.stream().map(part -> Map.of("entity_type", part.species().toString(), "role", part.role().toString())).toList())
 						.toList()));
 					displayEntries.add(display);
 				});

@@ -8,37 +8,37 @@
   },
   "carriers": {
     "minecraft:wolf": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:cat": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:parrot": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:fox": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:ocelot": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:allay": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]

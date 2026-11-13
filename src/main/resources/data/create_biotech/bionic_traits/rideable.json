@@ -1,4 +1,17 @@
 {
+  "schema_version": 1,
+  "scopes": [
+    "torso"
+  ],
+  "value_kind": "ability",
+  "inheritance": {
+    "type": "presence"
+  },
+  "carrier": {
+    "roles": [
+      "create_biotech:back"
+    ]
+  },
   "automatic_detection": true,
   "values": {}
 }

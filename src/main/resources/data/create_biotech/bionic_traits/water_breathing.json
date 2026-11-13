@@ -5,77 +5,77 @@
   },
   "carriers": {
     "minecraft:cod": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ]
     },
     "minecraft:salmon": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ]
     },
     "minecraft:tropical_fish": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:pufferfish": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:squid": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:glow_squid": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:tadpole": {
-      "GILL": [
+      "create_biotech:gill": [
         "body"
       ]
     },
     "minecraft:axolotl": {
-      "GILL": [
+      "create_biotech:gill": [
         "topGills",
         "leftGills",
         "rightGills",
         "head"
       ],
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:guardian": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ],
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:elder_guardian": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ],
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:turtle": {
-      "GILL": [
+      "create_biotech:gill": [
         "head"
       ],
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     },
     "minecraft:dolphin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head"
       ]
     }

@@ -1,16 +1,18 @@
 # 仿生特性扩展
 
-适用 Minecraft 1.21.1、NeoForge 21.1.234。动态目录、行为组件、可选 KubeJS 插件与公开 Java API 已接入。内置目录包含 66 项特性；新增 ID 通过组件或事件执行行为。当前网络协议 **38**，联机双方需要更新本模组。
+适用 Minecraft 1.21.1、NeoForge 21.1.234。动态目录、行为组件、可选 KubeJS 插件与公开 Java API 已接入。内置目录包含 66 项特性；新增 ID 通过组件或事件执行行为。当前网络协议 **42**，联机双方需要更新本模组。
 
 ## 数据包和附属模组
 
-基础定义仍使用 [第一阶段格式](bionic-traits-extension-phase1.zh-CN.md)。三个目录分别负责：
+基础定义仍使用 [第一阶段格式](bionic-traits-extension-phase1.zh-CN.md)。各目录分别负责：
 
 | 路径 | 内容 |
 | --- | --- |
 | `data/<namespace>/bionic_traits/<path>.json` | 声明 `<namespace>:<path>`，含 `schema_version: 1`、范围、值类型、继承规则等 |
 | `data/<namespace>/bionic_trait_bindings/<path>.json` | 独立向一个特性补充供体和载体 |
 | `data/<namespace>/bionic_trait_modifiers/<path>.json` | 定向修改一个特性的配置或禁用它 |
+| `data/<namespace>/bionic_parts/<path>.json` | 定义部位 ID、显示名称和自动识别规则 |
+| `data/<namespace>/bionic_anatomy/<entity_namespace>/<entity_path>.json` | 按原始体块索引声明精确部位模板 |
 
 同一资源 ID 仍按数据包优先级整体替换。加载顺序是：基础定义 → 按完整资源 ID 排序的绑定 → 按 `priority` 升序、完整资源 ID 排序的修改器。修改器后应用的字段覆盖先应用的字段。
 
@@ -21,12 +23,78 @@
   "trait": "example:frost_arm",
   "values": { "minecraft:zombie": true },
   "carriers": {
-    "minecraft:zombie": { "ATTACK_HAND": ["right_arm", "left_arm"] }
+    "minecraft:zombie": { "create_biotech:attack_hand": ["right_arm", "left_arm"] }
   }
 }
 ```
 
 绑定可包含 `values`、`carriers`、`effects`、`variants`，对象按键递归合并；标签和精确实体值仍按既有规则解析。独立绑定可以扩充任意命名空间的特性，无需复制原定义。
+
+### 统一部位定义
+
+自动识别、特性载体和 JEI“供体：”共用 `bionic_parts` 目录；部位不再是固定枚举。文件路径决定完整 ID，例如 `data/example/bionic_parts/antenna.json` 声明 `example:antenna`：
+
+```json
+{
+  "name": { "text": "触角" },
+  "order": 25,
+  "match": {
+    "contains": ["antenna"],
+    "regex": ["^feelers?[0-9]*$"]
+  },
+  "captured_head": false
+}
+```
+
+- `name` 必填，使用 Minecraft 文本组件；内置定义用 `{"translate":"create_biotech.bionic_part.head"}`。字面文本可直接随服务端数据包同步，翻译键需要客户端语言资源。
+- `order` 是显示排序用的整数，缺省 `0`；同序按部位完整 ID 排序。
+- `match` 可省略。`exact` 为精确名称，`contains` 为子串关键词，`regex` 为 Java 正则；每种最多 64 项，每项最多 256 字符，任一命中即赋予该部位。同一体块可属于多个部位。
+- `target` 缺省 `canonical`，模型标签和关键词转小写并删除非 `a-z0-9` 字符；`raw` 保留原始名称；`leaf` 取最后一个 `/` 或 `.` 后的名称，保留大小写。正则对选定名称执行 `find()`，需要完整匹配时加 `^`、`$`，忽略大小写可加 `(?i)`。
+- `entity_namespaces` 限定实体命名空间，省略表示不限；`excluded_entity_namespaces` 排除指定命名空间。`any_of` 可组合多个匹配对象，任一分支命中即可，最多嵌套 4 层、每层 64 项。
+- `fallback_to_all` 是可选对象，接受相同命名空间过滤字段。当该来源的完整原始体块中没有该部位时，将其原始全部体块归入该部位。先检查原始全集再考虑切割，因此切掉已识别部位不会触发回退。
+- `captured_head` 缺省 `false`；设为 `true` 时，采集器使用本定义匹配模型节点并标记其子树，同时纳入保存的头部体块。原版模型和通用模型采集共用这份规则，已删除 Create 帽子配置及空头部回退整身的旧识别分支。内置 `create_biotech:head` 保留此规则。
+
+新增特性可在 `carrier.roles` 中填写 `["example:antenna"]`。已存在特性的 `carriers` 也可用此 ID 精确绑定某物种的模型标签或体块索引；`carrier.roles`、`fallback`、`excluded`、子特性／攻击效果的 `roles` 和解剖模板的 `roles` 键全部使用完整部位 ID。原始模型标签仍是 `left_arm` 等名称，不改写成部位 ID。
+
+对于限定载体的特性，特性定义中的 `carrier.roles` 或 `fallback` 也需要引用相应部位；仅增加 `carriers` 的键不会改写其载体选择规则。部位识别规则由 `bionic_parts` 决定，物种的精确载体绑定仍优先，空绑定仍表示明确排除。
+
+内置共 20 个部位，命名空间均为 `create_biotech`：
+
+| 部位路径 | 显示名称 | 默认自动识别关键词 |
+| --- | --- | --- |
+| `head` | 头 | `head`、`skull`，另含保存的头部 |
+| `gill` | 鳃 | `gill` |
+| `torso` | 身体 | `torso`、`chest` |
+| `back` | 背部 | 原版精确 `body`；其他命名空间按文件中的背部正则匹配名称末段 |
+| `leg` | 腿 | `leg`、`foot`、`feet`、`paw`、`hoof` |
+| `wing` | 翅膀 | `wing`，包含左右翼 |
+| `fin` | 鳍 | `fin` |
+| `tail` | 尾巴 | `tail` |
+| `tentacle` | 触须 | `tentacle`、`tendril` |
+| `shell` | 壳 | `shell`、`carapace` |
+| `spine` | 刺 | `spine`、`spike`、`stinger`、`quill`、`thorn` |
+| `mouth` | 口器 | `mouth`、`fang`、`jaw`、`beak`、`snout`、`muzzle` |
+| `attack_hand` | 手臂 | `arm`、`hand` |
+| `horn` | 角 | `horn`、`tusk` |
+| `eye` | 眼 | `eye` |
+| `base`、`wool`、`udder` | 底座、羊毛、乳房 | 仅精确绑定 |
+| `left_ribcage`、`right_ribcage` | 左胸腔、右胸腔 | 仅精确绑定，保留独立名称与条件 |
+
+全身表示载体未限定部位，不是部位定义。`body` 等含义不确定的模型名称仍由物种绑定或解剖模板指定。已删除蘑菇分类；腿／足、左右翼、触须／卷须分别共用 `leg`、`wing`、`tentacle`。监守者现有 `body`、`left_ribcage`、`right_ribcage` 绑定和完整胸腔条件保留；翼和腿的安装范围、有效肢体数量及覆盖率条件继续独立判定。
+
+高优先级数据包用同 ID 文件覆盖内置定义；用 `{"disabled":true}` 移除部位。撤下定义该部位的数据包也会在下次重载移除它。删除时需要同时清理引用它的特性和解剖模板；未定义的部位引用、非法正则或超限会拒绝本次加载，保留上次快照，避免悄悄变成全身载体。最多 1024 个部位，每项特性最多引用 256 个不同部位。
+
+部位、解剖模板与特性在一次 `/reload` 中校验并一起替换、同步到客户端，刷新判定、JEI 和供体缓存。旧大写枚举名称与旧协议不再兼容；内置供体数值和已有器官归属保留。
+
+`back.json` 中声明骑乘背部识别及非原版实体缺少背部时的全组织回退；`rideable.json` 的 `carrier.roles` 引用 `create_biotech:back`。鞍座安装直接使用已经判定生效的骑乘体块，已删除独立背部选择器及重复缓存。数据包修改该部位或骑乘定义后，特性、JEI 和鞍座安装一起更新。
+
+`carrier.replace_with_bindings` 缺省 `false`。设为 `true` 时，某物种存在非空 `carriers` 对象便用其中全部部位替代默认 `carrier.roles`，否则保留默认选择；空名称数组仍表示排除。部位定义中的 `captured_head` 仍生效，会纳入保存的整个头部。内置 `attack_knockback.json` 通过此字段声明监守者手臂、劫掠兽整个头与口器的归属，已删除按击退特性 ID 判断的代码分支。其他特性也可使用该字段。
+
+劫掠兽原有的头部主体分类与体块归属已合并到整个 `head`，独立 `head_core` 部位定义、显示名称及专用补标签已删除。近战击退绑定 `head`、`mouth` 并纳入捕获的整个头部，角、耳等头部附属体块也携带该特性。`horn` 的显示名称统一为“角”，仍匹配 `horn`、`tusk`。
+
+捕获器保留原始模型名，并统一补充 `material/<纹理命名空间>/<纹理路径>/<模型名>` 来源标签，例如 `material/minecraft/textures/entity/sheep/sheep_fur.png/body`。剪羊毛数据仅绑定该羊毛材质的身体，避免把头腿毛层或裸身体算作产出器官。旧 `body_wool`、特性专用 `wool` 和 `mushroom` 补标签已删除，不做旧标签兼容；剪毛隐藏毛层和蘑菇原材质外观仍由渲染材质信息处理。
+
+`material/` 是通用来源标签的保留前缀，不能用于部位推断中的普通模型名。仅 `target: "raw"` 或精确 `carriers` 绑定可显式选择此类标签，防止纹理路径中的 `arm`、`eye` 等词误把身体归入其他器官。标签遵循现有 64 字符、每体块 16 项上限，超限的限定标签不补写，原始模型名保留。
 
 修改器格式：
 
@@ -43,7 +111,7 @@
 
 `priority` 为 `[-100000,100000]` 的整数，缺省 `0`。`patch` 使用 JSON merge patch 语义：对象递归合并、数组与标量整体替换、`null` 删除字段。`{"patch":{"disabled":true}}` 禁用目标；禁用内置特性也会阻止它出现在判定结果中。目标不存在默认报错；绑定和修改器可设置 `"optional": true`，允许依赖的附属模组未安装时跳过。`create_biotech:__extension/` 是同步保留路径，不能用于声明特性。
 
-结构、未知服务端组件或组件参数错误会拒绝本次目录加载，保留旧快照。完整目录到齐后客户端才切换，刷新 JEI 和供体缓存；客户端不执行组件行为。所有原始定义、绑定、修改器均纳入第一阶段的同步大小限制。
+结构、未知服务端组件或组件参数错误会拒绝本次目录加载，保留旧快照。完整目录到齐后客户端才切换，刷新 JEI 和供体缓存；客户端不执行组件行为。所有原始定义、绑定、修改器、部位和解剖模板均纳入第一阶段的同步大小限制。
 
 ## 行为组件
 
@@ -84,7 +152,7 @@
 | `create_biotech:requires_trait` | 必填完整 `trait` ID，要求该特性生效 |
 | `create_biotech:source_count` | `min` 默认 1（1–4096），要求实际有效载体至少来自相应数量的不同来源 |
 
-`carrier.selectors` 可以在现有组织角色之外继续限制模型体块。多个选择器取并集，再与原载体取交集；空结果不会回退到其他组织。内置选择器 `create_biotech:parts` 接受非空 `names` 数组，精确匹配保存的模型部件标签。缺少标签时不猜测体块。附属模组可注册任意新的命名空间选择器，不需要扩充内部组织角色枚举。
+`carrier.selectors` 可以在部位定义之外继续限制模型体块。多个选择器取并集，再与原载体取交集；空结果不会回退到其他组织。内置选择器 `create_biotech:parts` 接受非空 `names` 数组，精确匹配保存的模型部件标签。缺少标签时不猜测体块。附属模组可注册任意新的命名空间选择器。
 
 ```json
 "carrier": {

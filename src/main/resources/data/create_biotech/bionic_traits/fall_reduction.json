@@ -16,7 +16,7 @@
   },
   "carriers": {
     "minecraft:horse": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -32,7 +32,7 @@
       ]
     },
     "minecraft:donkey": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -48,7 +48,7 @@
       ]
     },
     "minecraft:mule": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -64,7 +64,7 @@
       ]
     },
     "minecraft:llama": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -80,7 +80,7 @@
       ]
     },
     "minecraft:trader_llama": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -96,7 +96,7 @@
       ]
     },
     "minecraft:goat": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",

@@ -1,0 +1,33 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.back"
+  },
+  "order": 21,
+  "match": {
+    "any_of": [
+      {
+        "entity_namespaces": [
+          "minecraft"
+        ],
+        "target": "raw",
+        "exact": [
+          "body"
+        ]
+      },
+      {
+        "excluded_entity_namespaces": [
+          "minecraft"
+        ],
+        "target": "leaf",
+        "regex": [
+          "(?i)^(?:(?:upper|lower|middle|main|front|rear|central)[_-]?)?(?:body|torso|back|trunk|chest)(?:[_-]?(?:upper|lower|middle|main|front|rear|[0-9]+))?$"
+        ]
+      }
+    ]
+  },
+  "fallback_to_all": {
+    "excluded_entity_namespaces": [
+      "minecraft"
+    ]
+  }
+}

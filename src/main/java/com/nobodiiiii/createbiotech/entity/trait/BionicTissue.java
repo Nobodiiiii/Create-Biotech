@@ -140,11 +140,12 @@ final class BionicTissue {
 
 	/**
 	 * A trait's own JSON carriers when it declares this species and role, else every cube with the
-	 * role. The donor's captured head always matches the HEAD label, regardless of installation.
+	 * role. Definitions can additionally include the donor's captured head, regardless of installation.
 	 */
 	BitSet carriers(int sourceId, BionicAnatomyRole role, @Nullable BitSet named) {
 		BitSet cubes = named != null ? (BitSet) named.clone() : roleCubes(sourceId, role);
-		if (role == BionicAnatomyRole.HEAD)
+		BionicPartDefinition definition = data.parts().get(role);
+		if (definition != null && definition.capturedHead())
 			cubes.or(capturedHead(sources.get(sourceId)));
 		return cubes;
 	}

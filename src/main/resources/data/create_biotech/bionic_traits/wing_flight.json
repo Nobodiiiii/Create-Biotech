@@ -1,5 +1,7 @@
 {
-  "overrides": ["wing_slow_fall"],
+  "overrides": [
+    "wing_slow_fall"
+  ],
   "automatic_detection": false,
   "min_coverage": 0.5,
   "parameters": {
@@ -17,15 +19,13 @@
   },
   "carriers": {
     "minecraft:bee": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -35,15 +35,13 @@
       ]
     },
     "minecraft:parrot": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -53,15 +51,13 @@
       ]
     },
     "minecraft:bat": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -71,15 +67,13 @@
       ]
     },
     "minecraft:phantom": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -89,15 +83,13 @@
       ]
     },
     "minecraft:allay": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -107,15 +99,13 @@
       ]
     },
     "minecraft:vex": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",
@@ -125,15 +115,13 @@
       ]
     },
     "minecraft:ender_dragon": {
-      "LEFT_WING": [
+      "create_biotech:wing": [
         "leftWing",
         "left_wing",
         "leftWingBase",
         "leftWingTip",
         "left_wing_base",
-        "left_wing_tip"
-      ],
-      "RIGHT_WING": [
+        "left_wing_tip",
         "rightWing",
         "right_wing",
         "rightWingBase",

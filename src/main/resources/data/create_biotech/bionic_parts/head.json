@@ -1,0 +1,13 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.head"
+  },
+  "order": 0,
+  "match": {
+    "contains": [
+      "head",
+      "skull"
+    ]
+  },
+  "captured_head": true
+}

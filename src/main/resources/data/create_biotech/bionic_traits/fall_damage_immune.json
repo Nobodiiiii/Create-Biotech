@@ -10,7 +10,7 @@
   },
   "carriers": {
     "minecraft:cat": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",
@@ -26,7 +26,7 @@
       ]
     },
     "minecraft:ocelot": {
-      "LEG": [
+      "create_biotech:leg": [
         "leftHindLeg",
         "rightHindLeg",
         "leftFrontLeg",

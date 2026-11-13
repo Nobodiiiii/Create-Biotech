@@ -1,0 +1,11 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.gill"
+  },
+  "order": 1,
+  "match": {
+    "contains": [
+      "gill"
+    ]
+  }
+}

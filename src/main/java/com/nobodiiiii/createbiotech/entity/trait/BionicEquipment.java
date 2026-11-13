@@ -36,8 +36,6 @@ public final class BionicEquipment {
 	private final Map<CombinationMember, SimpleContainer> chests = new HashMap<>();
 	private final Map<UUID, PassengerSeat> passengers = new HashMap<>();
 	@Nullable private CompoundTag lastSnapshot;
-	@Nullable private SurgicalAssembly saddleAssembly;
-	private Set<CombinationMember> saddleCarriers = Set.of();
 	@Nullable private SurgicalAssembly weaponCarrierAssembly;
 	@Nullable private CombinationMember weaponCarrierAnchor;
 	@Nullable private CombinationMember weaponCarrier;
@@ -163,8 +161,7 @@ public final class BionicEquipment {
 		if (assembly == null) return null;
 		var geometry = assembly.attackGeometry();
 		var dominant = BionicTraitRuntime.dominant(entity, trait);
-		return entity.getBionicTraits().members(trait).stream().filter(member -> !occupied.contains(member)
-			&& (!BionicTrait.RIDEABLE.equals(trait) || allowedSaddleCarriers().contains(member))).min(Comparator
+		return entity.getBionicTraits().members(trait).stream().filter(member -> !occupied.contains(member)).min(Comparator
 			.comparing((CombinationMember member) -> BionicTrait.RIDEABLE.equals(trait)
 				&& (geometry == null || !geometry.ridingSeats().containsKey(member)))
 			.thenComparing(member -> assembly.sources().get(member.source()) != dominant)
@@ -172,24 +169,8 @@ public final class BionicEquipment {
 				assembly.sources().get(member.source()).anatomy().volume(member.cube())).reversed())
 			.thenComparing(ORDER)).orElse(null);
 	}
-	private Set<CombinationMember> allowedSaddleCarriers() {
-		var assembly = entity.getAssembly();
-		if (assembly == null) return Set.of();
-		if (saddleAssembly != assembly) {
-			Set<CombinationMember> carriers = new HashSet<>();
-			for (int source = 0; source < assembly.sources().size(); source++) {
-				var cubes = BionicSaddleCarriers.select(assembly.sources().get(source));
-				for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1))
-					carriers.add(new CombinationMember(source, cube));
-			}
-			saddleCarriers = Set.copyOf(carriers);
-			saddleAssembly = assembly;
-		}
-		return saddleCarriers;
-	}
 	public boolean canSaddle(@Nullable CombinationMember member) {
-		return member != null && allowedSaddleCarriers().contains(member)
-			&& entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member);
+		return member != null && entity.getBionicTraits().members(BionicTrait.RIDEABLE).contains(member);
 	}
 	/** The first passenger selects the active saddle and its riding behavior. */
 	@Nullable public CombinationMember saddleCarrier() {

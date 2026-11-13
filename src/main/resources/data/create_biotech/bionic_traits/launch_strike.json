@@ -5,19 +5,19 @@
   },
   "carriers": {
     "minecraft:iron_golem": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "left_arm",
         "right_arm"
       ]
     },
     "minecraft:ender_dragon": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "jaw"
       ]
     },
     "minecraft:goat": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "nose",
         "left_horn",
@@ -25,7 +25,7 @@
       ]
     },
     "minecraft:hoglin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "left_ear",
         "right_ear",
@@ -34,7 +34,7 @@
       ]
     },
     "minecraft:zoglin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "left_ear",
         "right_ear",

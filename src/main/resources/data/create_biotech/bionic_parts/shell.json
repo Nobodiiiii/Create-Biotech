@@ -1,0 +1,12 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.shell"
+  },
+  "order": 8,
+  "match": {
+    "contains": [
+      "shell",
+      "carapace"
+    ]
+  }
+}

@@ -2,121 +2,121 @@
   "automatic_detection": false,
   "carriers": {
     "minecraft:wolf": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:bee": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:dolphin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:blaze": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:endermite": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:silverfish": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:zombie": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:husk": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:zombie_villager": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:drowned": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:zombified_piglin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:shulker": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:evoker": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:illusioner": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:pillager": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:ravager": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:vex": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:vindicator": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:piglin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]
     },
     "minecraft:hoglin": {
-      "HEAD": [
+      "create_biotech:head": [
         "head",
         "head_cube"
       ]

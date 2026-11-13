@@ -14,7 +14,7 @@
   },
   "carriers": {
     "minecraft:zombie": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -22,7 +22,7 @@
       ]
     },
     "minecraft:husk": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -30,7 +30,7 @@
       ]
     },
     "minecraft:zombie_villager": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -38,7 +38,7 @@
       ]
     },
     "minecraft:drowned": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -46,7 +46,7 @@
       ]
     },
     "minecraft:zombified_piglin": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -54,7 +54,7 @@
       ]
     },
     "minecraft:skeleton": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -62,7 +62,7 @@
       ]
     },
     "minecraft:stray": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -70,7 +70,7 @@
       ]
     },
     "minecraft:bogged": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -78,7 +78,7 @@
       ]
     },
     "minecraft:wither_skeleton": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",
@@ -86,7 +86,7 @@
       ]
     },
     "minecraft:piglin": {
-      "ATTACK_HAND": [
+      "create_biotech:attack_hand": [
         "right_arm",
         "left_arm",
         "rightArm",

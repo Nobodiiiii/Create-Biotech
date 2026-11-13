@@ -1,0 +1,15 @@
+{
+  "name": {
+    "translate": "create_biotech.bionic_part.spine"
+  },
+  "order": 10,
+  "match": {
+    "contains": [
+      "spine",
+      "spike",
+      "stinger",
+      "quill",
+      "thorn"
+    ]
+  }
+}

@@ -18,7 +18,7 @@
   },
   "carrier": {
     "roles": [
-      "ATTACK_HAND"
+      "create_biotech:attack_hand"
     ]
   },
   "automatic_detection": false,
