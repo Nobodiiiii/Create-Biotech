@@ -811,57 +811,57 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	/**
-	 * Returns HOLD when the next sequenced-assembly step needs a machine that is
-	 * currently empty but can still be supplied. This mirrors Create's deployer
-	 * (an empty hand holds the belt item) and spout (an empty tank holds a fillable
-	 * item). Pressing/cutting have no such waiting state and keep passing the item.
+	 * Waits for missing ingredients only when a leg can accept the next step's
+	 * required item or fluid. A partially filled tank keeps waiting for enough fluid.
 	 */
 	private ProcessingResult noPlanResultFor(ItemStack input) {
-		if (input.isEmpty())
+		if (level == null || input.isEmpty())
 			return PASS;
 
-		boolean waitingDeployer = hasWaitingDeployerLeg();
-		if (waitingDeployer && nextStepNeedsDeployer(input))
+		if (!SequencedAssemblyRecipe.getRecipes(level, input, AllRecipeTypes.DEPLOYING.getType(),
+			DeployerApplicationRecipe.class, recipe -> hasWaitingDeployerLeg(recipe.value())).isEmpty())
 			return HOLD;
-		if (hasWaitingSpoutLeg() && nextStepNeedsFilling(input))
+		if (!SequencedAssemblyRecipe.getRecipes(level, input, AllRecipeTypes.FILLING.getType(),
+			FillingRecipe.class, recipe -> hasWaitingSpoutLeg(recipe.value())).isEmpty())
 			return HOLD;
 		return PASS;
 	}
 
-	private boolean hasWaitingDeployerLeg() {
+	private boolean hasWaitingDeployerLeg(DeployerApplicationRecipe recipe) {
 		for (int i = 0; i < LEG_COUNT; i++) {
 			if (getMachineKind(i) != MachineKind.DEPLOYER || slotBlocked[i])
 				continue;
 			if (!fluidTanks[i].getFluid().isEmpty() || !fluidLocks[i].isEmpty())
 				continue;
-			if (inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty())
+			if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty())
+				continue;
+			ItemStack lock = itemLocks[i];
+			if (lock.isEmpty() || recipe.getRequiredHeldItem().test(lock))
 				return true;
 		}
 		return false;
 	}
 
-	private boolean hasWaitingSpoutLeg() {
+	private boolean hasWaitingSpoutLeg(FillingRecipe recipe) {
+		SizedFluidIngredient requiredFluid = recipe.getRequiredFluid();
 		for (int i = 0; i < LEG_COUNT; i++) {
 			if (getMachineKind(i) != MachineKind.SPOUT || slotBlocked[i])
 				continue;
 			if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty() || !itemLocks[i].isEmpty())
 				continue;
-			if (fluidTanks[i].getFluid().isEmpty())
+			if (requiredFluid.amount() > fluidTanks[i].getCapacity())
+				continue;
+			FluidStack lock = fluidLocks[i];
+			if (!lock.isEmpty() && !requiredFluid.ingredient().test(lock))
+				continue;
+			FluidStack available = fluidTanks[i].getFluid();
+			if (available.isEmpty())
+				return true;
+			if (requiredFluid.ingredient().test(available) && available.getAmount() < requiredFluid.amount()
+				&& canHybridTankAcceptFluid(i, available))
 				return true;
 		}
 		return false;
-	}
-
-	private boolean nextStepNeedsDeployer(ItemStack input) {
-		return level != null && SequencedAssemblyRecipe
-			.getRecipe(level, input, AllRecipeTypes.DEPLOYING.getType(), DeployerApplicationRecipe.class)
-			.isPresent();
-	}
-
-	private boolean nextStepNeedsFilling(ItemStack input) {
-		return level != null && SequencedAssemblyRecipe
-			.getRecipe(level, input, AllRecipeTypes.FILLING.getType(), FillingRecipe.class)
-			.isPresent();
 	}
 
 	private boolean promotePreferredWorkpiece(TransportedItemStack transported,
