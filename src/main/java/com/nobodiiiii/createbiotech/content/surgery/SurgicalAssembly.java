@@ -42,43 +42,43 @@ public final class SurgicalAssembly {
 	 * padded span can land a few ulps (or one float ulp) below the minimum.
 	 */
 	private static final double MIN_BODY_SIZE_TOLERANCE = 1.0e-4d;
-	private static final int CURRENT_VERSION = 4;
-	private static final String VERSION_TAG = "Version";
+	static final int CURRENT_VERSION = 4;
+	static final String VERSION_TAG = "Version";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
-	private static final String SOURCES_TAG = "Sources";
-	private static final String JOINTS_TAG = "GlueJoints";
-	private static final String COMBINATIONS_TAG = "Combinations";
-	private static final String COMBINATION_ID_TAG = "Id";
-	private static final String COMBINATION_MEMBERS_TAG = "Members";
-	private static final String MEMBER_SOURCE_TAG = "Source";
-	private static final String MEMBER_CUBE_TAG = "Cube";
-	private static final String LIMBS_TAG = "Limbs";
-	private static final String LIMB_TYPE_TAG = "Type";
-	private static final String LIMB_CHILD_SOURCE_TAG = "ChildSource";
-	private static final String LIMB_CHILD_CUBE_TAG = "ChildCube";
-	private static final String LIMB_PARENT_SOURCE_TAG = "ParentSource";
-	private static final String LIMB_PARENT_CUBE_TAG = "ParentCube";
-	private static final String PRESERVE_LAYOUT_TAG = "PreserveLayout";
-	private static final String LAYOUT_FACING_TAG = "LayoutFacing";
-	private static final String LAYOUT_LAY_POSE_TAG = "LayoutLayPose";
-	private static final String BODY_WIDTH_TAG = "BodyWidth";
-	private static final String BODY_HEIGHT_TAG = "BodyHeight";
-	private static final String BODY_DEPTH_TAG = "BodyDepth";
-	private static final String BODY_CENTER_X_TAG = "BodyCenterX";
-	private static final String BODY_MIN_Y_TAG = "BodyMinY";
-	private static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
-	private static final String BODY_EYE_HEIGHT_TAG = "BodyEyeHeight";
-	private static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
-	private static final String BODY_GROUNDED_LEGS_TAG = "BodyGroundedLegCount";
-	private static final String BODY_GROUNDED_KNEES_TAG = "BodyGroundedKneeCount";
-	private static final String BODY_LEG_VOLUME_RATIO_TAG = "BodyLegVolumeRatio";
-	private static final String BODY_VOLUME_TAG = "BodyVolume";
-	private static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
-	private static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
-	private static final String BLOCK_ATTACHMENT_CARRIER_TAG = "BlockAttachmentCarrier";
+	static final String SOURCES_TAG = "Sources";
+	static final String JOINTS_TAG = "GlueJoints";
+	static final String COMBINATIONS_TAG = "Combinations";
+	static final String COMBINATION_ID_TAG = "Id";
+	static final String COMBINATION_MEMBERS_TAG = "Members";
+	static final String MEMBER_SOURCE_TAG = "Source";
+	static final String MEMBER_CUBE_TAG = "Cube";
+	static final String LIMBS_TAG = "Limbs";
+	static final String LIMB_TYPE_TAG = "Type";
+	static final String LIMB_CHILD_SOURCE_TAG = "ChildSource";
+	static final String LIMB_CHILD_CUBE_TAG = "ChildCube";
+	static final String LIMB_PARENT_SOURCE_TAG = "ParentSource";
+	static final String LIMB_PARENT_CUBE_TAG = "ParentCube";
+	static final String PRESERVE_LAYOUT_TAG = "PreserveLayout";
+	static final String LAYOUT_FACING_TAG = "LayoutFacing";
+	static final String LAYOUT_LAY_POSE_TAG = "LayoutLayPose";
+	static final String BODY_WIDTH_TAG = "BodyWidth";
+	static final String BODY_HEIGHT_TAG = "BodyHeight";
+	static final String BODY_DEPTH_TAG = "BodyDepth";
+	static final String BODY_CENTER_X_TAG = "BodyCenterX";
+	static final String BODY_MIN_Y_TAG = "BodyMinY";
+	static final String BODY_CENTER_Z_TAG = "BodyCenterZ";
+	static final String BODY_EYE_HEIGHT_TAG = "BodyEyeHeight";
+	static final String BODY_LEG_LENGTH_TAG = "BodyLegLength";
+	static final String BODY_GROUNDED_LEGS_TAG = "BodyGroundedLegCount";
+	static final String BODY_GROUNDED_KNEES_TAG = "BodyGroundedKneeCount";
+	static final String BODY_LEG_VOLUME_RATIO_TAG = "BodyLegVolumeRatio";
+	static final String BODY_VOLUME_TAG = "BodyVolume";
+	static final String HITBOX_GEOMETRY_TAG = "HitboxGeometry";
+	static final String ATTACK_GEOMETRY_TAG = "AttackGeometry";
+	static final String BLOCK_ATTACHMENT_CARRIER_TAG = "BlockAttachmentCarrier";
 	private static final String RIGHT_ARMS_TAG = "RightArms";
 	private static final String LEFT_ARMS_TAG = "LeftArms";
 	private static final String ATTACK_RADIUS_TAG = "Radius";
@@ -93,51 +93,51 @@ public final class SurgicalAssembly {
 	private static final String ATTACK_HAS_ELBOW_TAG = "HasElbow";
 	private static final String FACING_TAG = "Facing";
 	private static final String LAY_POSE_TAG = "LayPose";
-	private static final String POSE_AXIS_TAG = "Axis";
-	private static final String POSE_YAW_TAG = "Yaw";
-	private static final String POSE_X_TAG = "TranslateX";
-	private static final String POSE_Y_TAG = "TranslateY";
-	private static final String POSE_Z_TAG = "TranslateZ";
+	static final String POSE_AXIS_TAG = "Axis";
+	static final String POSE_YAW_TAG = "Yaw";
+	static final String POSE_X_TAG = "TranslateX";
+	static final String POSE_Y_TAG = "TranslateY";
+	static final String POSE_Z_TAG = "TranslateZ";
 	private static final String ORIGIN_X_TAG = "OriginX";
 	private static final String ORIGIN_Y_TAG = "OriginY";
 	private static final String ORIGIN_Z_TAG = "OriginZ";
-	private static final String OFFSET_CUBES_TAG = "OffsetCubes";
-	private static final String OFFSET_X_TAG = "OffsetX";
-	private static final String OFFSET_Y_TAG = "OffsetY";
-	private static final String OFFSET_Z_TAG = "OffsetZ";
-	private static final String ROTATIONS_TAG = "CubeRotations";
-	private static final String ROTATION_CUBE_TAG = "Cube";
-	private static final String ROTATION_VALUE_TAG = "Rotation";
-	private static final String FIRST_SOURCE_TAG = "FirstSource";
-	private static final String FIRST_CUBE_TAG = "FirstCube";
-	private static final String SECOND_SOURCE_TAG = "SecondSource";
-	private static final String SECOND_CUBE_TAG = "SecondCube";
-	private static final String JOINT_REPLAY_TAG = "GlueReplay";
-	private static final String MOVING_SOURCE_TAG = "MovingSource";
-	private static final String MOVING_CUBE_TAG = "MovingCube";
-	private static final String GLUE_TRANSFORM_TAG = "Transform";
-	private static final String ANCHOR_CONTACT_TAG = "AnchorContact";
+	static final String OFFSET_CUBES_TAG = "OffsetCubes";
+	static final String OFFSET_X_TAG = "OffsetX";
+	static final String OFFSET_Y_TAG = "OffsetY";
+	static final String OFFSET_Z_TAG = "OffsetZ";
+	static final String ROTATIONS_TAG = "CubeRotations";
+	static final String ROTATION_CUBE_TAG = "Cube";
+	static final String ROTATION_VALUE_TAG = "Rotation";
+	static final String FIRST_SOURCE_TAG = "FirstSource";
+	static final String FIRST_CUBE_TAG = "FirstCube";
+	static final String SECOND_SOURCE_TAG = "SecondSource";
+	static final String SECOND_CUBE_TAG = "SecondCube";
+	static final String JOINT_REPLAY_TAG = "GlueReplay";
+	static final String MOVING_SOURCE_TAG = "MovingSource";
+	static final String MOVING_CUBE_TAG = "MovingCube";
+	static final String GLUE_TRANSFORM_TAG = "Transform";
+	static final String ANCHOR_CONTACT_TAG = "AnchorContact";
 
-	private final List<Source> sources;
-	private final List<Joint> joints;
-	private final List<Combination> combinations;
-	private final List<Limb> limbs;
+	final List<Source> sources;
+	final List<Joint> joints;
+	final List<Combination> combinations;
+	final List<Limb> limbs;
 	@Nullable
-	private transient LimbTopology limbTopology;
-	private final boolean preserveLayout;
-	private final Direction layoutFacing;
-	private final SurgicalLayPose layoutLayPose;
+	transient LimbTopology limbTopology;
+	final boolean preserveLayout;
+	final Direction layoutFacing;
+	final SurgicalLayPose layoutLayPose;
 	@Nullable
-	private final BodyBounds bodyBounds;
-	private final double bodyVolume;
+	final BodyBounds bodyBounds;
+	final double bodyVolume;
 	@Nullable
-	private final HitboxGeometry hitboxGeometry;
+	final HitboxGeometry hitboxGeometry;
 	@Nullable
-	private final AttackGeometry attackGeometry;
+	final AttackGeometry attackGeometry;
 	@Nullable
-	private final CombinationMember blockAttachmentCarrier;
+	final CombinationMember blockAttachmentCarrier;
 
-	private SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
+	SurgicalAssembly(List<Source> sources, List<Joint> joints, List<Combination> combinations,
 		List<Limb> limbs, boolean preserveLayout,
 		Direction layoutFacing, SurgicalLayPose layoutLayPose, @Nullable BodyBounds bodyBounds,
 		double bodyVolume, @Nullable HitboxGeometry hitboxGeometry,
@@ -251,7 +251,7 @@ public final class SurgicalAssembly {
 		SurgicalAssembly cached = DECODED.getIfPresent(tag);
 		if (cached != null)
 			return cached;
-		SurgicalAssembly loaded = load(tag);
+		SurgicalAssembly loaded = SurgicalAssemblyPersistence.load(tag);
 		if (loaded != null)
 			// The caller owns its mutable NBT; only our private snapshot is a cache key.
 			DECODED.put(tag.copy(), loaded);
@@ -260,292 +260,16 @@ public final class SurgicalAssembly {
 
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
-		int version = tag.getInt(VERSION_TAG);
-		if (SurgicalReleaseMigration.supportsAssembly(version)) {
-			CompoundTag upgraded = SurgicalReleaseMigration.assembly(tag, CURRENT_VERSION);
-			return upgraded == null ? null : load(upgraded);
-		}
-		// Model ancestry replaces the independent head metadata in format 4.
-		if (version != CURRENT_VERSION || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
-			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(LAYOUT_LAY_POSE_TAG, Tag.TAG_COMPOUND))
-			return null;
-		if (hasWrongType(tag, JOINTS_TAG, Tag.TAG_LIST)
-			|| hasWrongType(tag, COMBINATIONS_TAG, Tag.TAG_LIST)
-			|| hasWrongType(tag, LIMBS_TAG, Tag.TAG_LIST)
-			|| hasWrongType(tag, PRESERVE_LAYOUT_TAG, Tag.TAG_BYTE)
-			|| hasWrongType(tag, BODY_VOLUME_TAG, Tag.TAG_ANY_NUMERIC)
-			|| hasWrongType(tag, ATTACK_GEOMETRY_TAG, Tag.TAG_COMPOUND)
-			|| hasWrongType(tag, BLOCK_ATTACHMENT_CARRIER_TAG, Tag.TAG_INT_ARRAY)
-			|| hasWrongType(tag, HITBOX_GEOMETRY_TAG, Tag.TAG_COMPOUND))
-			return null;
-
-		ListTag encodedSources = tag.getList(SOURCES_TAG, Tag.TAG_COMPOUND);
-		if (encodedSources.isEmpty() || encodedSources.size() > MAX_SOURCES)
-			return null;
-		List<Source> sources = new ArrayList<>(encodedSources.size());
-		SurgicalStorage.Reader storage = new SurgicalStorage.Reader(tag, MAX_SOURCES);
-		for (int index = 0; index < encodedSources.size(); index++) {
-			Source source = Source.load(encodedSources.getCompound(index), storage);
-			if (source == null)
-				return null;
-			sources.add(source);
-		}
-
-		List<Joint> joints = new ArrayList<>();
-		if (tag.contains(JOINTS_TAG, Tag.TAG_LIST)) {
-			ListTag encodedJoints = (ListTag) tag.get(JOINTS_TAG);
-			if (!encodedJoints.isEmpty() && encodedJoints.getElementType() != Tag.TAG_COMPOUND)
-				return null;
-			if (encodedJoints.size() > MAX_SEAMS)
-				return null;
-			for (int index = 0; index < encodedJoints.size(); index++) {
-				CompoundTag encoded = encodedJoints.getCompound(index);
-				if (!encoded.contains(FIRST_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(FIRST_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(SECOND_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(SECOND_CUBE_TAG, Tag.TAG_ANY_NUMERIC))
-					return null;
-				int firstSource = encoded.getInt(FIRST_SOURCE_TAG);
-				int firstCube = encoded.getInt(FIRST_CUBE_TAG);
-				int secondSource = encoded.getInt(SECOND_SOURCE_TAG);
-				int secondCube = encoded.getInt(SECOND_CUBE_TAG);
-				JointReplay replay = null;
-				if (hasWrongType(encoded, JOINT_REPLAY_TAG, Tag.TAG_COMPOUND))
-					return null;
-				if (encoded.contains(JOINT_REPLAY_TAG, Tag.TAG_COMPOUND)) {
-					CompoundTag encodedReplay = encoded.getCompound(JOINT_REPLAY_TAG);
-					SurgicalGlueTransform transform = encodedReplay.contains(GLUE_TRANSFORM_TAG, Tag.TAG_COMPOUND)
-						? SurgicalGlueTransform.load(encodedReplay.getCompound(GLUE_TRANSFORM_TAG)) : null;
-					SurgicalGlueContact anchorContact = encodedReplay.contains(ANCHOR_CONTACT_TAG, Tag.TAG_COMPOUND)
-						? SurgicalGlueContact.load(encodedReplay.getCompound(ANCHOR_CONTACT_TAG)) : null;
-					if (!encodedReplay.contains(MOVING_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-						|| !encodedReplay.contains(MOVING_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
-						|| transform == null || anchorContact == null)
-						return null;
-					int movingSource = encodedReplay.getInt(MOVING_SOURCE_TAG);
-					int movingCube = encodedReplay.getInt(MOVING_CUBE_TAG);
-					if (movingSource < 0 || movingCube < 0)
-						return null;
-					replay = new JointReplay(movingSource, movingCube, transform, anchorContact);
-				}
-				if (replay != null && !replay.matches(firstSource, firstCube)
-					&& !replay.matches(secondSource, secondCube))
-					return null;
-				joints.add(new Joint(firstSource, firstCube, secondSource, secondCube, replay));
-			}
-		}
-		List<Combination> combinations = new ArrayList<>();
-		if (tag.contains(COMBINATIONS_TAG, Tag.TAG_LIST)) {
-			ListTag encodedCombinations = (ListTag) tag.get(COMBINATIONS_TAG);
-			if (!encodedCombinations.isEmpty() && encodedCombinations.getElementType() != Tag.TAG_COMPOUND)
-				return null;
-			if (encodedCombinations.size() > MAX_CUBES)
-				return null;
-			for (int index = 0; index < encodedCombinations.size(); index++) {
-				CompoundTag encoded = encodedCombinations.getCompound(index);
-				if (!encoded.hasUUID(COMBINATION_ID_TAG)
-					|| !encoded.contains(COMBINATION_MEMBERS_TAG, Tag.TAG_LIST))
-					return null;
-				ListTag encodedMembers = encoded.getList(COMBINATION_MEMBERS_TAG, Tag.TAG_COMPOUND);
-				if (encodedMembers.size() < 2 || encodedMembers.size() > MAX_CUBES)
-					return null;
-				List<CombinationMember> members = new ArrayList<>(encodedMembers.size());
-				for (int memberIndex = 0; memberIndex < encodedMembers.size(); memberIndex++) {
-					CompoundTag member = encodedMembers.getCompound(memberIndex);
-					if (!member.contains(MEMBER_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-						|| !member.contains(MEMBER_CUBE_TAG, Tag.TAG_ANY_NUMERIC))
-						return null;
-					members.add(new CombinationMember(member.getInt(MEMBER_SOURCE_TAG),
-						member.getInt(MEMBER_CUBE_TAG)));
-				}
-				combinations.add(new Combination(encoded.getUUID(COMBINATION_ID_TAG), members));
-			}
-		}
-		List<Limb> limbs = new ArrayList<>();
-		if (tag.contains(LIMBS_TAG, Tag.TAG_LIST)) {
-			ListTag encodedLimbs = (ListTag) tag.get(LIMBS_TAG);
-			if (!encodedLimbs.isEmpty() && encodedLimbs.getElementType() != Tag.TAG_COMPOUND)
-				return null;
-			if (encodedLimbs.size() > MAX_CUBES)
-				return null;
-			for (int index = 0; index < encodedLimbs.size(); index++) {
-				CompoundTag encoded = encodedLimbs.getCompound(index);
-				SurgicalLimbType type = encoded.contains(LIMB_TYPE_TAG, Tag.TAG_STRING)
-					? SurgicalLimbType.byId(encoded.getString(LIMB_TYPE_TAG)) : null;
-				if (type == null || !encoded.contains(LIMB_CHILD_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(LIMB_CHILD_CUBE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(LIMB_PARENT_SOURCE_TAG, Tag.TAG_ANY_NUMERIC)
-					|| !encoded.contains(LIMB_PARENT_CUBE_TAG, Tag.TAG_ANY_NUMERIC))
-					return null;
-				limbs.add(new Limb(type, encoded.getInt(LIMB_CHILD_SOURCE_TAG),
-					encoded.getInt(LIMB_CHILD_CUBE_TAG), encoded.getInt(LIMB_PARENT_SOURCE_TAG),
-					encoded.getInt(LIMB_PARENT_CUBE_TAG)));
-			}
-		}
-		Direction layoutFacing = Direction.from3DDataValue(tag.getInt(LAYOUT_FACING_TAG));
-		SurgicalLayPose layoutLayPose = readLayPose(tag.getCompound(LAYOUT_LAY_POSE_TAG));
-		if (!layoutFacing.getAxis().isHorizontal() || layoutLayPose == null)
-			return null;
-		SurgicalAssembly assembly = createComposite(sources, joints, combinations, limbs, layoutFacing,
-			layoutLayPose);
-		if (assembly == null)
-			return null;
-		assembly = tag.getBoolean(PRESERVE_LAYOUT_TAG) ? assembly
-			: new SurgicalAssembly(assembly.sources, assembly.joints, assembly.combinations,
-				assembly.limbs, false, assembly.layoutFacing,
-				assembly.layoutLayPose, null, Double.NaN, null, null);
-		boolean hasAnyBounds = tag.contains(BODY_WIDTH_TAG) || tag.contains(BODY_HEIGHT_TAG)
-			|| tag.contains(BODY_DEPTH_TAG) || tag.contains(BODY_CENTER_X_TAG)
-			|| tag.contains(BODY_MIN_Y_TAG) || tag.contains(BODY_CENTER_Z_TAG)
-			|| tag.contains(BODY_EYE_HEIGHT_TAG) || tag.contains(BODY_LEG_LENGTH_TAG)
-			|| tag.contains(BODY_GROUNDED_LEGS_TAG) || tag.contains(BODY_GROUNDED_KNEES_TAG)
-			|| tag.contains(BODY_LEG_VOLUME_RATIO_TAG);
-		boolean hasBounds = tag.contains(BODY_WIDTH_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_HEIGHT_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_DEPTH_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_CENTER_X_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_MIN_Y_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_CENTER_Z_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_EYE_HEIGHT_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_LEG_LENGTH_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_GROUNDED_LEGS_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_GROUNDED_KNEES_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.contains(BODY_LEG_VOLUME_RATIO_TAG, Tag.TAG_ANY_NUMERIC);
-		if (hasAnyBounds && !hasBounds)
-			return null;
-		if (hasBounds) {
-			BodyBounds bounds = BodyBounds.create(tag.getDouble(BODY_WIDTH_TAG),
-				tag.getDouble(BODY_HEIGHT_TAG), tag.getDouble(BODY_DEPTH_TAG),
-				tag.getDouble(BODY_CENTER_X_TAG), tag.getDouble(BODY_MIN_Y_TAG),
-				tag.getDouble(BODY_CENTER_Z_TAG), tag.getDouble(BODY_EYE_HEIGHT_TAG),
-				tag.getDouble(BODY_LEG_LENGTH_TAG), tag.getInt(BODY_GROUNDED_LEGS_TAG),
-				tag.getInt(BODY_GROUNDED_KNEES_TAG), tag.getDouble(BODY_LEG_VOLUME_RATIO_TAG));
-			if (bounds == null)
-				return null;
-			assembly = assembly.withBodyBounds(bounds);
-		}
-		if (tag.contains(BODY_VOLUME_TAG, Tag.TAG_ANY_NUMERIC)) {
-			double volume = tag.getDouble(BODY_VOLUME_TAG);
-			if (!SurgicalHealthCalibration.validVolume(volume))
-				return null;
-			assembly = assembly.withBodyVolume(volume);
-		}
-		if (tag.contains(ATTACK_GEOMETRY_TAG, Tag.TAG_COMPOUND)) {
-			AttackGeometry geometry = AttackGeometry.load(tag.getCompound(ATTACK_GEOMETRY_TAG));
-			if (geometry == null)
-				return null;
-			assembly = assembly.withAttackGeometry(geometry);
-		}
-		if (tag.contains(HITBOX_GEOMETRY_TAG, Tag.TAG_COMPOUND)) {
-			HitboxGeometry geometry = HitboxGeometry.load(tag.getCompound(HITBOX_GEOMETRY_TAG));
-			if (geometry == null)
-				return null;
-			assembly = assembly.withHitboxGeometry(geometry);
-		}
-		if (assembly.hasBodyVolume() && assembly.hitboxGeometry != null
-			&& !SurgicalHealthCalibration.validMeasuredVolume(assembly.bodyVolume, assembly.hitboxGeometry))
-			return null;
-		if (tag.contains(BLOCK_ATTACHMENT_CARRIER_TAG, Tag.TAG_INT_ARRAY)) {
-			int[] carrier = tag.getIntArray(BLOCK_ATTACHMENT_CARRIER_TAG);
-			if (carrier.length != 2 || carrier[0] < 0 || carrier[0] >= assembly.sources.size()
-				|| !assembly.sources.get(carrier[0]).containsCube(carrier[1])) return null;
-			assembly = assembly.withBlockAttachmentCarrier(new CombinationMember(carrier[0], carrier[1]));
-		}
-		return assembly;
+		return SurgicalAssemblyPersistence.load(tag);
 	}
 
 	/** Published formats only; callers can persist the decoded body's current save once. */
 	public static boolean needsReleaseMigration(CompoundTag tag) {
-		return SurgicalReleaseMigration.supportsAssembly(tag.getInt(VERSION_TAG));
+		return SurgicalAssemblyPersistence.needsReleaseMigration(tag);
 	}
 
 	public CompoundTag save() {
-		CompoundTag tag = new CompoundTag();
-		tag.putInt(VERSION_TAG, CURRENT_VERSION);
-		SurgicalStorage.Writer storage = new SurgicalStorage.Writer();
-		ListTag encodedSources = new ListTag();
-		for (Source source : sources)
-			encodedSources.add(source.save(storage));
-		tag.put(SOURCES_TAG, encodedSources);
-		storage.save(tag);
-		if (!joints.isEmpty()) {
-			ListTag encodedJoints = new ListTag();
-			for (Joint joint : joints) {
-				CompoundTag encoded = new CompoundTag();
-				encoded.putInt(FIRST_SOURCE_TAG, joint.firstSource);
-				encoded.putInt(FIRST_CUBE_TAG, joint.firstCube);
-				encoded.putInt(SECOND_SOURCE_TAG, joint.secondSource);
-				encoded.putInt(SECOND_CUBE_TAG, joint.secondCube);
-				if (joint.replay != null) {
-					CompoundTag encodedReplay = new CompoundTag();
-					encodedReplay.putInt(MOVING_SOURCE_TAG, joint.replay.movingSource);
-					encodedReplay.putInt(MOVING_CUBE_TAG, joint.replay.movingCube);
-					encodedReplay.put(GLUE_TRANSFORM_TAG, joint.replay.transform.save());
-					encodedReplay.put(ANCHOR_CONTACT_TAG, joint.replay.anchorContact.save());
-					encoded.put(JOINT_REPLAY_TAG, encodedReplay);
-				}
-				encodedJoints.add(encoded);
-			}
-			tag.put(JOINTS_TAG, encodedJoints);
-		}
-		if (!combinations.isEmpty()) {
-			ListTag encodedCombinations = new ListTag();
-			for (Combination combination : combinations) {
-				CompoundTag encoded = new CompoundTag();
-				encoded.putUUID(COMBINATION_ID_TAG, combination.id());
-				ListTag encodedMembers = new ListTag();
-				for (CombinationMember member : combination.members()) {
-					CompoundTag encodedMember = new CompoundTag();
-					encodedMember.putInt(MEMBER_SOURCE_TAG, member.source());
-					encodedMember.putInt(MEMBER_CUBE_TAG, member.cube());
-					encodedMembers.add(encodedMember);
-				}
-				encoded.put(COMBINATION_MEMBERS_TAG, encodedMembers);
-				encodedCombinations.add(encoded);
-			}
-			tag.put(COMBINATIONS_TAG, encodedCombinations);
-		}
-		if (!limbs.isEmpty()) {
-			ListTag encodedLimbs = new ListTag();
-			for (Limb limb : limbs) {
-				CompoundTag encoded = new CompoundTag();
-				encoded.putString(LIMB_TYPE_TAG, limb.type().id());
-				encoded.putInt(LIMB_CHILD_SOURCE_TAG, limb.childSource());
-				encoded.putInt(LIMB_CHILD_CUBE_TAG, limb.childCube());
-				encoded.putInt(LIMB_PARENT_SOURCE_TAG, limb.parentSource());
-				encoded.putInt(LIMB_PARENT_CUBE_TAG, limb.parentCube());
-				encodedLimbs.add(encoded);
-			}
-			tag.put(LIMBS_TAG, encodedLimbs);
-		}
-		if (preserveLayout)
-			tag.putBoolean(PRESERVE_LAYOUT_TAG, true);
-		tag.putInt(LAYOUT_FACING_TAG, layoutFacing.get3DDataValue());
-		tag.put(LAYOUT_LAY_POSE_TAG, writeLayPose(layoutLayPose));
-		if (bodyBounds != null) {
-			tag.putFloat(BODY_WIDTH_TAG, bodyBounds.width());
-			tag.putFloat(BODY_HEIGHT_TAG, bodyBounds.height());
-			tag.putFloat(BODY_DEPTH_TAG, bodyBounds.depth());
-			tag.putFloat(BODY_CENTER_X_TAG, bodyBounds.centerX());
-			tag.putFloat(BODY_MIN_Y_TAG, bodyBounds.minY());
-			tag.putFloat(BODY_CENTER_Z_TAG, bodyBounds.centerZ());
-			tag.putFloat(BODY_EYE_HEIGHT_TAG, bodyBounds.eyeHeight());
-			tag.putFloat(BODY_LEG_LENGTH_TAG, bodyBounds.legLength());
-			tag.putInt(BODY_GROUNDED_LEGS_TAG, bodyBounds.groundedLegCount());
-			tag.putInt(BODY_GROUNDED_KNEES_TAG, bodyBounds.groundedKneeCount());
-			tag.putFloat(BODY_LEG_VOLUME_RATIO_TAG, bodyBounds.legVolumeRatio());
-		}
-		if (hasBodyVolume())
-			tag.putDouble(BODY_VOLUME_TAG, bodyVolume);
-		if (attackGeometry != null)
-			tag.put(ATTACK_GEOMETRY_TAG, attackGeometry.save());
-		if (blockAttachmentCarrier != null)
-			tag.putIntArray(BLOCK_ATTACHMENT_CARRIER_TAG,
-				new int[] { blockAttachmentCarrier.source(), blockAttachmentCarrier.cube() });
-		if (hitboxGeometry != null)
-			tag.put(HITBOX_GEOMETRY_TAG, hitboxGeometry.save());
-		return tag;
+		return SurgicalAssemblyPersistence.save(this);
 	}
 
 	public List<Source> sources() { return sources; }
@@ -605,7 +329,7 @@ public final class SurgicalAssembly {
 				Direction.NORTH, SurgicalLayPose.IDENTITY, null, Double.NaN, null, null);
 	}
 	/** Installed joints that currently satisfy cube ownership and tier-matching rules. */
-	public List<Limb> effectiveLimbs() { return limbTopology().effective; }
+	public List<Limb> effectiveLimbs() { return SurgicalAssemblyLimbTopology.limbTopology(this).effective; }
 
 	/**
 	 * The first-level joint through which a present cube is installed: {@code NECK},
@@ -621,10 +345,10 @@ public final class SurgicalAssembly {
 	/** The individual head, arm or leg chain owning a cube, including its elbow/knee tissue. */
 	@Nullable
 	public Limb primaryLimbOf(int source, int cube) {
-		Limb limb = limbTopology().owners.get(new CombinationMember(source, cube));
+		Limb limb = SurgicalAssemblyLimbTopology.limbTopology(this).owners.get(new CombinationMember(source, cube));
 		if (limb == null || limb.type().primary())
 			return limb;
-		Limb primary = limbTopology().owners.get(new CombinationMember(limb.parentSource(), limb.parentCube()));
+		Limb primary = SurgicalAssemblyLimbTopology.limbTopology(this).owners.get(new CombinationMember(limb.parentSource(), limb.parentCube()));
 		return primary != null && primary.type() == limb.type().matchingPrimary() ? primary : null;
 	}
 	public boolean preservesLayout() { return preserveLayout; }
@@ -722,233 +446,18 @@ public final class SurgicalAssembly {
 	 * with another path back to the parent is structural body material and does not follow the joint.
 	 */
 	public List<CombinationMember> rotatingGroup(int source, int cube) {
-		CombinationMember selected = new CombinationMember(source, cube);
-		List<CombinationMember> automatic = limbTopology().groups.get(selected);
-		if (automatic != null)
-			return automatic;
-		for (Combination combination : combinations)
-			if (combination.members().contains(selected))
-				return combination.members();
-		return List.of(selected);
+		return SurgicalAssemblyLimbTopology.rotatingGroup(this, source, cube);
 	}
 
-	private LimbTopology limbTopology() {
-		LimbTopology cached = limbTopology;
-		if (cached != null)
-			return cached;
-		cached = buildLimbTopology();
-		limbTopology = cached;
-		return cached;
-	}
-
-	/**
-	 * Resolves the two explicit ownership cases:
-	 * <ul>
-	 *   <li>a cube (or honey combination) whose only anatomical attachment is one joint's child side;</li>
-	 *   <li>a middle island attached by one first-level child side and the matching second-level
-	 *       parent side, which belongs to the first-level joint.</li>
-	 * </ul>
-	 * A second-level joint remains serialized when unmatched, but is absent from {@code effective}.
-	 */
-	private LimbTopology buildLimbTopology() {
-		if (limbs.isEmpty())
-			return LimbTopology.EMPTY;
-		// Ordinary model seams and glue do not decide anatomical ownership. Honey combinations are the
-		// sole explicit way to make several cubes one ownership unit.
-		Map<CombinationMember, Integer> componentIds = new HashMap<>();
-		List<List<CombinationMember>> components = new ArrayList<>();
-		for (Combination combination : combinations) {
-			int componentId = components.size();
-			components.add(combination.members());
-			for (CombinationMember member : combination.members())
-				componentIds.put(member, componentId);
-		}
-		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
-			Source source = sources.get(sourceId);
-			for (int cubeId = source.presentCubes.nextSetBit(0); cubeId >= 0;
-				cubeId = source.presentCubes.nextSetBit(cubeId + 1)) {
-				CombinationMember member = new CombinationMember(sourceId, cubeId);
-				if (componentIds.containsKey(member))
-					continue;
-				int componentId = components.size();
-				componentIds.put(member, componentId);
-				components.add(List.of(member));
-			}
-		}
-
-		Map<Integer, List<LimbAttachment>> attachments = new HashMap<>();
-		Map<Limb, Integer> childComponents = new HashMap<>();
-		Map<Limb, Integer> parentComponents = new HashMap<>();
-		for (Limb limb : limbs) {
-			Integer child = componentIds.get(new CombinationMember(limb.childSource(), limb.childCube()));
-			Integer parent = componentIds.get(new CombinationMember(limb.parentSource(), limb.parentCube()));
-			if (child == null || parent == null || child.equals(parent))
-				continue;
-			childComponents.put(limb, child);
-			parentComponents.put(limb, parent);
-			attachments.computeIfAbsent(child, ignored -> new ArrayList<>())
-				.add(new LimbAttachment(limb, true));
-			attachments.computeIfAbsent(parent, ignored -> new ArrayList<>())
-				.add(new LimbAttachment(limb, false));
-		}
-
-		Map<Integer, Limb> owners = new HashMap<>();
-		for (Map.Entry<Integer, List<LimbAttachment>> entry : attachments.entrySet()) {
-			List<LimbAttachment> attached = entry.getValue();
-			List<Limb> primaryChildren = new ArrayList<>();
-			boolean primaryParent = false;
-			List<Limb> secondaryChildren = new ArrayList<>();
-			for (LimbAttachment attachment : attached) {
-				if (attachment.child && attachment.limb.type().primary())
-					primaryChildren.add(attachment.limb);
-				else if (!attachment.child && attachment.limb.type().primary())
-					primaryParent = true;
-				else if (attachment.child && attachment.limb.type().secondary())
-					secondaryChildren.add(attachment.limb);
-			}
-			// Inactive second-level joints may be installed anywhere and therefore do not steal a rigid
-			// island from its one first-level child joint. A primary-to-primary chain remains ambiguous.
-			if (primaryChildren.size() == 1 && !primaryParent)
-				owners.put(entry.getKey(), primaryChildren.getFirst());
-			else if (primaryChildren.isEmpty() && !primaryParent && secondaryChildren.size() == 1
-				&& attached.size() == 1)
-				owners.put(entry.getKey(), secondaryChildren.getFirst());
-		}
-
-		List<Limb> effective = new ArrayList<>();
-		for (Limb limb : limbs) {
-			Integer child = childComponents.get(limb);
-			Integer parent = parentComponents.get(limb);
-			if (child == null || parent == null || owners.get(child) != limb)
-				continue;
-			if (limb.type().primary() && attachments.getOrDefault(parent, List.of()).stream()
-				.anyMatch(attachment -> attachment.child && attachment.limb.type().primary()))
-				continue;
-			if (limb.type().secondary()) {
-				Limb primary = owners.get(parent);
-				if (primary == null || primary.type() != limb.type().matchingPrimary())
-					continue;
-			}
-			effective.add(limb);
-		}
-
-		SurgicalConnectionGraph<Integer> motionGraph = buildMotionGraph();
-		Map<CombinationMember, List<CombinationMember>> groups = new HashMap<>();
-		Map<CombinationMember, Limb> groupOwners = new HashMap<>();
-		for (Limb limb : effective) {
-			Integer ownershipChild = childComponents.get(limb);
-			List<CombinationMember> ownershipGroup = components.get(ownershipChild);
-			List<CombinationMember> group = drivenMotionGroup(motionGraph, limb, ownershipGroup,
-				limbs, childComponents, components);
-			for (CombinationMember member : group) {
-				groups.put(member, group);
-				groupOwners.put(member, limb);
-			}
-		}
-		return new LimbTopology(List.copyOf(effective), Map.copyOf(groups), Map.copyOf(groupOwners));
-	}
-
-	/**
-	 * Builds the rigid graph with every anatomical hinge removed. Per-joint movement then uses this
-	 * graph to retain direct and indirect attachments while rejecting parts with a bypass to the
-	 * parent side.
-	 */
-	@Nullable
-	private SurgicalConnectionGraph<Integer> buildMotionGraph() {
-		Set<ConnectionKey> hingeEdges = new HashSet<>();
-		for (Limb limb : limbs)
-			hingeEdges.add(ConnectionKey.of(limb.childSource(), limb.childCube(),
-				limb.parentSource(), limb.parentCube()));
-
-		List<SurgicalConnectionGraph.Body<Integer>> bodies = new ArrayList<>(sources.size());
-		for (int sourceId = 0; sourceId < sources.size(); sourceId++) {
-			Source source = sources.get(sourceId);
-			BitSet rigidCuts = source.cutSeams();
-			for (int seamId = 0; seamId < source.seams.size(); seamId++) {
-				Seam seam = source.seams.get(seamId);
-				if (hingeEdges.contains(ConnectionKey.of(sourceId, seam.first(), sourceId, seam.second())))
-					rigidCuts.set(seamId);
-			}
-			bodies.add(new SurgicalConnectionGraph.Body<>(sourceId, source.cubeCount,
-				source.presentCubes, source.seams, rigidCuts));
-		}
-
-		List<SurgicalConnectionGraph.Link<Integer>> links = new ArrayList<>();
-		for (Joint joint : joints)
-			if (!hingeEdges.contains(ConnectionKey.of(joint.firstSource(), joint.firstCube(),
-				joint.secondSource(), joint.secondCube())))
-				links.add(new SurgicalConnectionGraph.Link<>(joint.firstSource(), joint.firstCube(),
-					joint.secondSource(), joint.secondCube()));
-		// Honey remains an explicit rigid constraint. Honey across a hinge therefore rejoins both sides,
-		// and the fallback below prevents that closed rigid loop from dragging the parent body around.
-		for (Combination combination : combinations) {
-			CombinationMember anchor = combination.members().getFirst();
-			for (CombinationMember member : combination.members().subList(1, combination.members().size()))
-				links.add(new SurgicalConnectionGraph.Link<>(anchor.source(), anchor.cube(),
-					member.source(), member.cube()));
-		}
-		SurgicalConnectionGraph<Integer> graph = SurgicalConnectionGraph.create(bodies, links);
-		return graph;
-	}
-
-	/**
-	 * A member follows {@code limb} only when its rigid route to the parent side depends on the child
-	 * ownership group. The parent side and every other joint child are outside anchors. Removing an A
-	 * child group exposes bypasses: if A-B-C are pairwise connected and C also reaches the D parent,
-	 * both B and C remain reachable from D and are excluded. Likewise, two zombie legs joined by a
-	 * model seam remain separate because each leg is the child of its own joint. Without an outside
-	 * route or foreign joint child, a direct or indirect branch remains dependent on A and follows it.
-	 */
-	private static List<CombinationMember> drivenMotionGroup(
-		@Nullable SurgicalConnectionGraph<Integer> graph, Limb limb,
-		List<CombinationMember> ownershipGroup, List<Limb> allLimbs,
-		Map<Limb, Integer> childComponents, List<List<CombinationMember>> components) {
-		if (graph == null || ownershipGroup == null || ownershipGroup.isEmpty())
-			return ownershipGroup == null ? List.of() : ownershipGroup;
-
-		SurgicalConnectionGraph.Component<Integer> childSide =
-			graph.componentContaining(limb.childSource(), limb.childCube());
-		if (childSide.isEmpty())
-			return ownershipGroup;
-		Set<SurgicalConnectionGraph.Endpoint<Integer>> blocked = new HashSet<>();
-		for (CombinationMember member : ownershipGroup)
-			blocked.add(new SurgicalConnectionGraph.Endpoint<>(member.source(), member.cube()));
-		Set<SurgicalConnectionGraph.Endpoint<Integer>> outsideAnchors = new HashSet<>();
-		outsideAnchors.add(new SurgicalConnectionGraph.Endpoint<>(limb.parentSource(), limb.parentCube()));
-		for (Limb other : allLimbs) {
-			if (other.equals(limb))
-				continue;
-			Integer childComponent = childComponents.get(other);
-			if (childComponent == null)
-				continue;
-			for (CombinationMember member : components.get(childComponent))
-				outsideAnchors.add(new SurgicalConnectionGraph.Endpoint<>(member.source(), member.cube()));
-		}
-		SurgicalConnectionGraph.Component<Integer> outsideReachable =
-			graph.componentContainingAnyExcluding(outsideAnchors, blocked);
-		Map<Integer, BitSet> outsideMembers = outsideReachable.members();
-		List<CombinationMember> driven = new ArrayList<>();
-		for (Map.Entry<Integer, BitSet> entry : childSide.members().entrySet()) {
-			BitSet dependent = (BitSet) entry.getValue().clone();
-			BitSet bypass = outsideMembers.get(entry.getKey());
-			if (bypass != null)
-				dependent.andNot(bypass);
-			for (int cube = dependent.nextSetBit(0); cube >= 0;
-				cube = dependent.nextSetBit(cube + 1))
-				driven.add(new CombinationMember(entry.getKey(), cube));
-		}
-		return driven.containsAll(ownershipGroup) ? List.copyOf(driven) : ownershipGroup;
-	}
-
-	private record LimbTopology(List<Limb> effective,
+	record LimbTopology(List<Limb> effective,
 		Map<CombinationMember, List<CombinationMember>> groups, Map<CombinationMember, Limb> owners) {
-		private static final LimbTopology EMPTY = new LimbTopology(List.of(), Map.of(), Map.of());
+		static final LimbTopology EMPTY = new LimbTopology(List.of(), Map.of(), Map.of());
 	}
 
-	private record LimbAttachment(Limb limb, boolean child) {}
+	record LimbAttachment(Limb limb, boolean child) {}
 
-	private record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
-		private static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {
+	record ConnectionKey(int firstSource, int firstCube, int secondSource, int secondCube) {
+		static ConnectionKey of(int firstSource, int firstCube, int secondSource, int secondCube) {
 			return firstSource < secondSource || firstSource == secondSource && firstCube <= secondCube
 				? new ConnectionKey(firstSource, firstCube, secondSource, secondCube)
 				: new ConnectionKey(secondSource, secondCube, firstSource, firstCube);
@@ -1072,59 +581,16 @@ public final class SurgicalAssembly {
 	}
 
 	public static int[] encodeSeams(List<Seam> seams) {
-		int[] encoded = new int[seams.size() * 2];
-		for (int i = 0; i < seams.size(); i++) {
-			encoded[i * 2] = seams.get(i).first;
-			encoded[i * 2 + 1] = seams.get(i).second;
-		}
-		return encoded;
+		return SurgicalAssemblyPersistence.encodeSeams(seams);
 	}
 
 	@Nullable
 	public static List<Seam> decodeSeams(int[] encoded) {
-		if (encoded == null || (encoded.length & 1) != 0 || encoded.length > MAX_SEAMS * 2)
-			return null;
-		List<Seam> seams = new ArrayList<>(encoded.length / 2);
-		for (int i = 0; i < encoded.length; i += 2)
-			seams.add(Seam.of(encoded[i], encoded[i + 1]));
-		return List.copyOf(seams);
-	}
-
-	private static BitSet normalize(BitSet input, int size) {
-		BitSet normalized = input == null ? new BitSet() : (BitSet) input.clone();
-		if (normalized.length() > size)
-			normalized.clear(size, normalized.length());
-		return normalized;
+		return SurgicalAssemblyPersistence.decodeSeams(encoded);
 	}
 
 	public static List<Integer> normalizeCutOrder(List<Integer> input, BitSet cutSeams, int seamCount) {
-		BitSet included = new BitSet(seamCount);
-		List<Integer> normalized = new ArrayList<>();
-		if (input != null) {
-			for (Integer seamId : input) {
-				if (seamId == null || seamId < 0 || seamId >= seamCount
-					|| !cutSeams.get(seamId) || included.get(seamId))
-					continue;
-				included.set(seamId);
-				normalized.add(seamId);
-			}
-		}
-		for (int seamId = cutSeams.nextSetBit(0); seamId >= 0 && seamId < seamCount;
-			seamId = cutSeams.nextSetBit(seamId + 1)) {
-			if (!included.get(seamId))
-				normalized.add(seamId);
-		}
-		return List.copyOf(normalized);
-	}
-
-	@Nullable
-	private static List<Integer> decodeCutOrder(int[] encoded) {
-		if (encoded == null || encoded.length > MAX_SEAMS)
-			return null;
-		List<Integer> decoded = new ArrayList<>(encoded.length);
-		for (int seamId : encoded)
-			decoded.add(seamId);
-		return List.copyOf(decoded);
+		return SurgicalAssemblyPersistence.normalizeCutOrder(input, cutSeams, seamCount);
 	}
 
 	public record CarrierEquipmentBounds(@Nullable VisualBounds saddle, @Nullable VisualBounds chest) {}
@@ -1411,7 +877,7 @@ public final class SurgicalAssembly {
 			return java.util.Collections.unmodifiableList(arms);
 		}
 
-		private CompoundTag save() {
+		CompoundTag save() {
 			CompoundTag tag = new CompoundTag();
 			putArms(tag, RIGHT_ARMS_TAG, right);
 			putArms(tag, LEFT_ARMS_TAG, left);
@@ -1439,7 +905,7 @@ public final class SurgicalAssembly {
 		}
 
 		@Nullable
-		private static AttackGeometry load(CompoundTag tag) {
+		static AttackGeometry load(CompoundTag tag) {
 			List<ArmAttackGeometry> right = loadArms(tag, RIGHT_ARMS_TAG);
 			List<ArmAttackGeometry> left = loadArms(tag, LEFT_ARMS_TAG);
 			if (right == null || left == null)
@@ -1664,7 +1130,7 @@ public final class SurgicalAssembly {
 
 		@Nullable
 		static ArmAttackGeometry load(CompoundTag tag) {
-			if (hasWrongType(tag, ATTACK_HAS_ELBOW_TAG, Tag.TAG_BYTE))
+			if (SurgicalAssemblyPersistence.hasWrongType(tag, ATTACK_HAS_ELBOW_TAG, Tag.TAG_BYTE))
 				return null;
 			if (!tag.contains(ATTACK_ORIGIN_X_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(ATTACK_ORIGIN_Y_TAG, Tag.TAG_ANY_NUMERIC)
@@ -1966,7 +1432,7 @@ public final class SurgicalAssembly {
 			return geometry;
 		}
 
-		private CompoundTag save() {
+		CompoundTag save() {
 			CompoundTag tag = new CompoundTag();
 			tag.put(OVERALL_TAG, overall.save());
 			tag.put(BODY_TAG, body.save());
@@ -1978,7 +1444,7 @@ public final class SurgicalAssembly {
 		}
 
 		@Nullable
-		private static HitboxGeometry load(CompoundTag tag) {
+		static HitboxGeometry load(CompoundTag tag) {
 			if (!tag.contains(OVERALL_TAG, Tag.TAG_COMPOUND)
 				|| !tag.contains(BODY_TAG, Tag.TAG_COMPOUND)
 				|| !tag.contains(LIMBS_TAG, Tag.TAG_LIST))
@@ -2004,10 +1470,10 @@ public final class SurgicalAssembly {
 	public static final class Source {
 		private final MimicProfile profile;
 		private final UUID donorId;
-		private final int cubeCount;
-		private final BitSet presentCubes;
+		final int cubeCount;
+		final BitSet presentCubes;
 		private final BionicAnatomySnapshot anatomy;
-		private final List<Seam> seams;
+		final List<Seam> seams;
 		private final BitSet cutSeams;
 		private final List<Integer> cutOrder;
 		private final Direction facing;
@@ -2025,11 +1491,11 @@ public final class SurgicalAssembly {
 			this.profile = profile;
 			this.donorId = donorId;
 			this.cubeCount = cubeCount;
-			this.presentCubes = normalize(presentCubes, cubeCount);
+			this.presentCubes = SurgicalAssemblyPersistence.normalize(presentCubes, cubeCount);
 			this.anatomy = anatomy;
 			this.seams = List.copyOf(seams);
-			this.cutSeams = normalize(cutSeams, seams.size());
-			this.cutOrder = normalizeCutOrder(cutOrder, this.cutSeams, seams.size());
+			this.cutSeams = SurgicalAssemblyPersistence.normalize(cutSeams, seams.size());
+			this.cutOrder = SurgicalAssemblyPersistence.normalizeCutOrder(cutOrder, this.cutSeams, seams.size());
 			this.facing = facing;
 			this.layPose = layPose;
 			this.originOffset = originOffset;
@@ -2050,12 +1516,12 @@ public final class SurgicalAssembly {
 				|| !anatomy.fits(cubeCount)
 				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
 				|| cubeRotations.size() > cubeCount || facing == null || !facing.getAxis().isHorizontal()
-				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
+				|| layPose == null || !layPose.valid() || !SurgicalAssemblyPersistence.finiteVector(originOffset))
 				return null;
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet()) {
 				Integer cube = entry.getKey();
 				if (cube == null || cube < 0 || cube >= cubeCount || !presentCubes.get(cube)
-					|| !finiteVector(entry.getValue()))
+					|| !SurgicalAssemblyPersistence.finiteVector(entry.getValue()))
 					return null;
 			}
 			for (Map.Entry<Integer, SurgicalCubeRotation> entry : cubeRotations.entrySet()) {
@@ -2064,8 +1530,8 @@ public final class SurgicalAssembly {
 					|| entry.getValue() == null)
 					return null;
 			}
-			Map<Integer, Vec3> sanitized = sanitizeOffsets(cubeOffsets, cubeCount, presentCubes);
-			Map<Integer, SurgicalCubeRotation> sanitizedRotations = sanitizeRotations(cubeRotations,
+			Map<Integer, Vec3> sanitized = SurgicalAssemblyPersistence.sanitizeOffsets(cubeOffsets, cubeCount, presentCubes);
+			Map<Integer, SurgicalCubeRotation> sanitizedRotations = SurgicalAssemblyPersistence.sanitizeRotations(cubeRotations,
 				cubeCount, presentCubes);
 			Source source = new Source(profile, donorId, cubeCount, presentCubes, anatomy, seams, cutSeams, cutOrder, facing,
 				layPose,
@@ -2075,10 +1541,10 @@ public final class SurgicalAssembly {
 
 		private boolean valid() {
 			if (profile == null || !validTopology(cubeCount, seams) || presentCubes.isEmpty()
-				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
+				|| layPose == null || !layPose.valid() || !SurgicalAssemblyPersistence.finiteVector(originOffset))
 				return false;
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet())
-				if (entry.getKey() == null || !containsCube(entry.getKey()) || !finiteVector(entry.getValue()))
+				if (entry.getKey() == null || !containsCube(entry.getKey()) || !SurgicalAssemblyPersistence.finiteVector(entry.getValue()))
 					return false;
 			for (Map.Entry<Integer, SurgicalCubeRotation> entry : cubeRotations.entrySet())
 				if (entry.getKey() == null || !containsCube(entry.getKey()) || entry.getValue() == null)
@@ -2110,7 +1576,7 @@ public final class SurgicalAssembly {
 			return seamId >= 0 && seamId < seams.size() && cutSeams.get(seamId);
 		}
 
-		private CompoundTag save(SurgicalStorage.Writer storage) {
+		CompoundTag save(SurgicalStorage.Writer storage) {
 			CompoundTag tag = new CompoundTag();
 			SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
 				anatomy);
@@ -2121,26 +1587,26 @@ public final class SurgicalAssembly {
 			if (!cutOrder.isEmpty())
 				tag.putIntArray(CUT_ORDER_TAG, cutOrder.stream().mapToInt(Integer::intValue).toArray());
 			tag.putInt(FACING_TAG, facing.get3DDataValue());
-			tag.put(LAY_POSE_TAG, writeLayPose(layPose));
+			tag.put(LAY_POSE_TAG, SurgicalAssemblyPersistence.writeLayPose(layPose));
 			if (!originOffset.equals(Vec3.ZERO)) {
 				tag.putDouble(ORIGIN_X_TAG, originOffset.x);
 				tag.putDouble(ORIGIN_Y_TAG, originOffset.y);
 				tag.putDouble(ORIGIN_Z_TAG, originOffset.z);
 			}
-			writeOffsets(tag, cubeOffsets);
-			writeRotations(tag, cubeRotations);
+			SurgicalAssemblyPersistence.writeOffsets(tag, cubeOffsets);
+			SurgicalAssemblyPersistence.writeRotations(tag, cubeRotations);
 			return tag;
 		}
 
 		@Nullable
-		private static Source load(CompoundTag tag, SurgicalStorage.Reader storage) {
+		static Source load(CompoundTag tag, SurgicalStorage.Reader storage) {
 			SurgicalStorage.Donor donor = SurgicalStorage.readDonor(tag, storage);
 			if (donor == null || !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
 				|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND))
 				return null;
-			if (hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
-				|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
+			if (SurgicalAssemblyPersistence.hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
+				|| SurgicalAssemblyPersistence.hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 				return null;
 			MimicProfile profile = donor.profile();
 			int cubeCount = donor.cubeCount();
@@ -2151,12 +1617,12 @@ public final class SurgicalAssembly {
 			BionicAnatomySnapshot anatomy = donor.anatomy();
 			UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : UUID.randomUUID();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
-				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;
-			if (order == null || !normalizeCutOrder(order, cuts, seams.size()).equals(order)
+				? SurgicalAssemblyPersistence.decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;
+			if (order == null || !SurgicalAssemblyPersistence.normalizeCutOrder(order, cuts, seams.size()).equals(order)
 				|| present.isEmpty() || present.length() > cubeCount || cuts.length() > seams.size())
 				return null;
 			Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
-			SurgicalLayPose layPose = readLayPose(tag.getCompound(LAY_POSE_TAG));
+			SurgicalLayPose layPose = SurgicalAssemblyPersistence.readLayPose(tag.getCompound(LAY_POSE_TAG));
 			if (!facing.getAxis().isHorizontal() || layPose == null)
 				return null;
 			boolean hasOrigin = tag.contains(ORIGIN_X_TAG) || tag.contains(ORIGIN_Y_TAG)
@@ -2168,8 +1634,8 @@ public final class SurgicalAssembly {
 			Vec3 origin = hasOrigin
 				? new Vec3(tag.getDouble(ORIGIN_X_TAG), tag.getDouble(ORIGIN_Y_TAG), tag.getDouble(ORIGIN_Z_TAG))
 				: Vec3.ZERO;
-			Map<Integer, Vec3> offsets = readOffsets(tag, cubeCount, present);
-			Map<Integer, SurgicalCubeRotation> rotations = readRotations(tag, cubeCount, present);
+			Map<Integer, Vec3> offsets = SurgicalAssemblyPersistence.readOffsets(tag, cubeCount, present);
+			Map<Integer, SurgicalCubeRotation> rotations = SurgicalAssemblyPersistence.readRotations(tag, cubeCount, present);
 			if (offsets == null || rotations == null)
 				return null;
 			return create(profile, donorId, cubeCount, present, anatomy,
@@ -2227,7 +1693,7 @@ public final class SurgicalAssembly {
 				throw new IllegalArgumentException("Invalid packed surgical glue replay");
 		}
 
-		private boolean matches(int source, int cube) {
+		boolean matches(int source, int cube) {
 			return movingSource == source && movingCube == cube;
 		}
 	}
@@ -2279,42 +1745,6 @@ public final class SurgicalAssembly {
 		}
 	}
 
-	private static boolean finiteVector(Vec3 value) {
-		return value != null && Double.isFinite(value.x) && Double.isFinite(value.y) && Double.isFinite(value.z)
-			&& Math.abs(value.x) <= SurgicalTablePlane.MAX_TILES + 2.0d
-			&& Math.abs(value.y) <= SurgicalTablePlane.MAX_TILES + 2.0d
-			&& Math.abs(value.z) <= SurgicalTablePlane.MAX_TILES + 2.0d;
-	}
-
-	private static CompoundTag writeLayPose(SurgicalLayPose pose) {
-		CompoundTag tag = new CompoundTag();
-		tag.putInt(POSE_AXIS_TAG, pose.axis().ordinal());
-		tag.putInt(POSE_YAW_TAG, pose.yaw());
-		tag.putDouble(POSE_X_TAG, pose.translation().x);
-		tag.putDouble(POSE_Y_TAG, pose.translation().y);
-		tag.putDouble(POSE_Z_TAG, pose.translation().z);
-		return tag;
-	}
-
-	@Nullable
-	private static SurgicalLayPose readLayPose(CompoundTag tag) {
-		if (!tag.contains(POSE_AXIS_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(POSE_YAW_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(POSE_X_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(POSE_Y_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(POSE_Z_TAG, Tag.TAG_ANY_NUMERIC))
-			return null;
-		int axis = tag.getInt(POSE_AXIS_TAG);
-		if (axis < 0 || axis >= SurgicalLayPose.RotationAxis.values().length)
-			return null;
-		try {
-			return new SurgicalLayPose(SurgicalLayPose.RotationAxis.values()[axis], tag.getInt(POSE_YAW_TAG),
-				new Vec3(tag.getDouble(POSE_X_TAG), tag.getDouble(POSE_Y_TAG), tag.getDouble(POSE_Z_TAG)));
-		} catch (IllegalArgumentException ignored) {
-			return null;
-		}
-	}
-
 	private static int clockwiseTurns(Direction from, Direction to) {
 		Direction rotated = horizontal(from);
 		Direction target = horizontal(to);
@@ -2342,132 +1772,5 @@ public final class SurgicalAssembly {
 
 	private static Direction horizontal(Direction direction) {
 		return direction != null && direction.getAxis().isHorizontal() ? direction : Direction.NORTH;
-	}
-
-	private static Map<Integer, Vec3> sanitizeOffsets(Map<Integer, Vec3> offsets, int cubeCount,
-		BitSet presentCubes) {
-		if (offsets == null || offsets.size() > cubeCount)
-			return Map.of();
-		Map<Integer, Vec3> sanitized = new HashMap<>();
-		for (Map.Entry<Integer, Vec3> entry : offsets.entrySet()) {
-			Integer cube = entry.getKey();
-			if (cube == null || cube < 0 || cube >= cubeCount || !presentCubes.get(cube)
-				|| !finiteVector(entry.getValue()))
-				return Map.of();
-			if (!entry.getValue().equals(Vec3.ZERO))
-				sanitized.put(cube, entry.getValue());
-		}
-		return Map.copyOf(sanitized);
-	}
-
-	private static Map<Integer, SurgicalCubeRotation> sanitizeRotations(
-		Map<Integer, SurgicalCubeRotation> rotations, int cubeCount, BitSet presentCubes) {
-		if (rotations == null || rotations.size() > cubeCount)
-			return Map.of();
-		Map<Integer, SurgicalCubeRotation> sanitized = new HashMap<>();
-		for (Map.Entry<Integer, SurgicalCubeRotation> entry : rotations.entrySet()) {
-			Integer cube = entry.getKey();
-			SurgicalCubeRotation rotation = entry.getValue();
-			if (cube == null || cube < 0 || cube >= cubeCount || !presentCubes.get(cube) || rotation == null)
-				return Map.of();
-			if (!rotation.isIdentity())
-				sanitized.put(cube, rotation);
-		}
-		return Map.copyOf(sanitized);
-	}
-
-	private static void writeOffsets(CompoundTag tag, Map<Integer, Vec3> offsets) {
-		if (offsets.isEmpty())
-			return;
-		List<Map.Entry<Integer, Vec3>> entries = offsets.entrySet().stream()
-			.sorted(Map.Entry.comparingByKey()).toList();
-		int[] cubes = new int[entries.size()];
-		long[] x = new long[entries.size()];
-		long[] y = new long[entries.size()];
-		long[] z = new long[entries.size()];
-		for (int index = 0; index < entries.size(); index++) {
-			cubes[index] = entries.get(index).getKey();
-			x[index] = Double.doubleToRawLongBits(entries.get(index).getValue().x);
-			y[index] = Double.doubleToRawLongBits(entries.get(index).getValue().y);
-			z[index] = Double.doubleToRawLongBits(entries.get(index).getValue().z);
-		}
-		tag.putIntArray(OFFSET_CUBES_TAG, cubes);
-		tag.putLongArray(OFFSET_X_TAG, x);
-		tag.putLongArray(OFFSET_Y_TAG, y);
-		tag.putLongArray(OFFSET_Z_TAG, z);
-	}
-
-	@Nullable
-	private static Map<Integer, Vec3> readOffsets(CompoundTag tag, int cubeCount, BitSet present) {
-		boolean presentInTag = tag.contains(OFFSET_CUBES_TAG) || tag.contains(OFFSET_X_TAG)
-			|| tag.contains(OFFSET_Y_TAG) || tag.contains(OFFSET_Z_TAG);
-		if (!presentInTag)
-			return Map.of();
-		if (!tag.contains(OFFSET_CUBES_TAG, Tag.TAG_INT_ARRAY)
-			|| !tag.contains(OFFSET_X_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(OFFSET_Y_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(OFFSET_Z_TAG, Tag.TAG_LONG_ARRAY))
-			return null;
-		int[] cubes = tag.getIntArray(OFFSET_CUBES_TAG);
-		long[] x = tag.getLongArray(OFFSET_X_TAG);
-		long[] y = tag.getLongArray(OFFSET_Y_TAG);
-		long[] z = tag.getLongArray(OFFSET_Z_TAG);
-		if (cubes.length != x.length || cubes.length != y.length || cubes.length != z.length
-			|| cubes.length > cubeCount)
-			return null;
-		Map<Integer, Vec3> offsets = new HashMap<>();
-		for (int index = 0; index < cubes.length; index++) {
-			Vec3 offset = new Vec3(Double.longBitsToDouble(x[index]), Double.longBitsToDouble(y[index]),
-				Double.longBitsToDouble(z[index]));
-			if (cubes[index] < 0 || cubes[index] >= cubeCount || !present.get(cubes[index])
-				|| !finiteVector(offset) || offsets.put(cubes[index], offset) != null)
-				return null;
-		}
-		return Map.copyOf(offsets);
-	}
-
-	private static void writeRotations(CompoundTag tag, Map<Integer, SurgicalCubeRotation> rotations) {
-		if (rotations.isEmpty())
-			return;
-		ListTag encoded = new ListTag();
-		for (Map.Entry<Integer, SurgicalCubeRotation> entry : rotations.entrySet().stream()
-			.sorted(Map.Entry.comparingByKey()).toList()) {
-			CompoundTag value = new CompoundTag();
-			value.putInt(ROTATION_CUBE_TAG, entry.getKey());
-			value.put(ROTATION_VALUE_TAG, entry.getValue().save());
-			encoded.add(value);
-		}
-		tag.put(ROTATIONS_TAG, encoded);
-	}
-
-	@Nullable
-	private static Map<Integer, SurgicalCubeRotation> readRotations(CompoundTag tag, int cubeCount,
-		BitSet present) {
-		if (!tag.contains(ROTATIONS_TAG))
-			return Map.of();
-		if (!tag.contains(ROTATIONS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(ROTATIONS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.size() > cubeCount)
-			return null;
-		Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
-		for (int index = 0; index < encoded.size(); index++) {
-			CompoundTag value = encoded.getCompound(index);
-			if (!value.contains(ROTATION_CUBE_TAG, Tag.TAG_ANY_NUMERIC))
-				return null;
-			int cube = value.getInt(ROTATION_CUBE_TAG);
-			SurgicalCubeRotation rotation = value.contains(ROTATION_VALUE_TAG, Tag.TAG_COMPOUND)
-				? SurgicalCubeRotation.load(value.getCompound(ROTATION_VALUE_TAG)) : null;
-			if (cube < 0 || cube >= cubeCount || !present.get(cube) || rotation == null
-				|| rotations.putIfAbsent(cube, rotation) != null)
-				return null;
-		}
-		return sanitizeRotations(rotations, cubeCount, present);
-	}
-
-	private static boolean hasWrongType(CompoundTag tag, String key, int expectedType) {
-		return tag.contains(key) && !tag.contains(key, expectedType);
 	}
 }

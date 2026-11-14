@@ -1,7 +1,6 @@
 package com.nobodiiiii.createbiotech.content.petridish;
 
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,13 +13,9 @@ import org.slf4j.Logger;
 import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
-import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
-import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
-import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
-import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -36,25 +31,18 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Clearable;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.MobSpawnType;
-import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
@@ -63,8 +51,8 @@ import net.neoforged.neoforge.items.ItemStackHandler;
 
 public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation, Clearable {
 
-	private static final Logger LOGGER = LogUtils.getLogger();
-	private static final int[] FALLBACK_SLIME_SIZES = { 1, 2, 4 };
+	static final Logger LOGGER = LogUtils.getLogger();
+	static final int[] FALLBACK_SLIME_SIZES = { 1, 2, 4 };
 
 	public static final int GROWTH_ANIMATION_DURATION = 8;
 	public static final int EMERGENCE_ANIMATION_DURATION = 20;
@@ -82,11 +70,11 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private static final String EMERGENCE_IN_PROGRESS_TAG = "EmergenceInProgress";
 	private static final String EMERGENCE_TICKS_REMAINING_TAG = "EmergenceTicksRemaining";
 
-	private final ItemStackHandler inventory = new ItemStackHandler(1) {
+	final ItemStackHandler inventory = new ItemStackHandler(1) {
 		@Override
 		protected void onContentsChanged(int slot) {
 			if (slot == 0 && getStackInSlot(slot).isEmpty()) {
-				clearRecordedEntity();
+				PetriDishRecording.clearRecordedEntity(PetriDishBlockEntity.this);
 			}
 			setChanged();
 			sendData();
@@ -103,7 +91,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		}
 	};
 
-	private final FluidTank fluidTank = new FluidTank(getTankCapacity()) {
+	final FluidTank fluidTank = new FluidTank(PetriDishRecording.getTankCapacity()) {
 		@Override
 		public boolean isFluidValid(FluidStack stack) {
 			return isAcceptedFluid(stack);
@@ -119,35 +107,35 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	private final IFluidHandler fluidCapability = new PetriDishFluidHandler();
 
 	@Nullable
-	private ResourceLocation recordedEntityId;
+	ResourceLocation recordedEntityId;
 	@Nullable
-	private MimicProfile recordedMimicProfile;
+	MimicProfile recordedMimicProfile;
 	@Nullable
-	private GameProfile recordedPlayerProfile;
-	private float recordedMaxHealth;
-	private float recordedWidth;
-	private float recordedHeight;
-	private int scanCooldown;
+	GameProfile recordedPlayerProfile;
+	float recordedMaxHealth;
+	float recordedWidth;
+	float recordedHeight;
+	int scanCooldown;
 	@Nullable
 	private UUID advancementOwner;
-	private boolean clientAnimationInitialized;
-	private boolean clientGrowthAnimating;
-	private int clientSettledStage;
-	private int clientGrowthFromStage;
-	private int clientGrowthToStage;
-	private int clientQueuedGrowthSteps;
-	private int clientGrowthAnimationTick;
-	private int clientPreviousGrowthAnimationTick;
-	private boolean emergenceInProgress;
-	private int emergenceTicksRemaining;
-	private boolean clientEmergenceAnimating;
-	private int clientEmergenceAnimationTick;
-	private int clientPreviousEmergenceAnimationTick;
-	private int clientLastSyncedEmergenceTicksRemaining;
+	boolean clientAnimationInitialized;
+	boolean clientGrowthAnimating;
+	int clientSettledStage;
+	int clientGrowthFromStage;
+	int clientGrowthToStage;
+	int clientQueuedGrowthSteps;
+	int clientGrowthAnimationTick;
+	int clientPreviousGrowthAnimationTick;
+	boolean emergenceInProgress;
+	int emergenceTicksRemaining;
+	boolean clientEmergenceAnimating;
+	int clientEmergenceAnimationTick;
+	int clientPreviousEmergenceAnimationTick;
+	int clientLastSyncedEmergenceTicksRemaining;
 	@Nullable
-	private ResourceLocation clientPreviewEntityId;
+	ResourceLocation clientPreviewEntityId;
 	@Nullable
-	private LivingEntity clientPreviewEntity;
+	LivingEntity clientPreviewEntity;
 
 	public PetriDishBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.PETRI_DISH.get(), pos, state);
@@ -164,14 +152,14 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			return;
 
 		if (level.isClientSide) {
-			tickClientAnimation();
+			PetriDishClientAnimation.tickClientAnimation(this);
 			return;
 		}
 
-		refreshTargetMode();
+		PetriDishRecording.refreshTargetMode(this);
 
 		if (emergenceInProgress) {
-			tickEmergence();
+			PetriDishCultivation.tickEmergence(this);
 			return;
 		}
 
@@ -179,103 +167,11 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			scanCooldown--;
 
 		if (hasBionicMechanism() && scanCooldown <= 0) {
-			scanCooldown = getScanInterval();
-			updateRecordedEntityFromNearby();
+			scanCooldown = PetriDishRecording.getScanInterval();
+			PetriDishRecording.updateRecordedEntityFromNearby(this);
 		}
 
-		tryCompleteSpawn();
-	}
-
-	private void tickClientAnimation() {
-		syncClientEmergenceAnimation();
-
-		int actualStage = getSlimeGrowthStage();
-
-		if (!clientAnimationInitialized) {
-			snapClientAnimation(actualStage);
-			return;
-		}
-
-		if (actualStage <= 0) {
-			snapClientAnimation(0);
-			return;
-		}
-
-		int representedStage = clientGrowthAnimating ? clientGrowthToStage + clientQueuedGrowthSteps : clientSettledStage;
-		if (actualStage < clientSettledStage || (clientGrowthAnimating && actualStage < clientGrowthToStage)) {
-			snapClientAnimation(actualStage);
-			return;
-		}
-
-		if (actualStage > representedStage)
-			clientQueuedGrowthSteps += actualStage - representedStage;
-
-		clientPreviousGrowthAnimationTick = clientGrowthAnimationTick;
-
-		if (clientGrowthAnimating) {
-			clientGrowthAnimationTick++;
-			if (clientGrowthAnimationTick >= GROWTH_ANIMATION_DURATION) {
-				clientSettledStage = clientGrowthToStage;
-				clientGrowthAnimating = false;
-				clientGrowthAnimationTick = 0;
-				clientPreviousGrowthAnimationTick = 0;
-			}
-		}
-
-		if (!clientGrowthAnimating && clientQueuedGrowthSteps > 0 && clientSettledStage < actualStage)
-			startNextClientGrowthAnimation();
-
-		if (clientEmergenceAnimating) {
-			clientPreviousEmergenceAnimationTick = clientEmergenceAnimationTick;
-			if (clientEmergenceAnimationTick < EMERGENCE_ANIMATION_DURATION)
-				clientEmergenceAnimationTick++;
-			if (!emergenceInProgress && clientEmergenceAnimationTick >= EMERGENCE_ANIMATION_DURATION)
-				stopClientEmergenceAnimation();
-		}
-	}
-
-	private void syncClientEmergenceAnimation() {
-		if (!emergenceInProgress)
-			return;
-
-		int syncedTick =
-			Mth.clamp(EMERGENCE_ANIMATION_DURATION - emergenceTicksRemaining, 0, EMERGENCE_ANIMATION_DURATION);
-		if (!clientEmergenceAnimating || emergenceTicksRemaining > clientLastSyncedEmergenceTicksRemaining) {
-			clientEmergenceAnimating = true;
-			clientEmergenceAnimationTick = syncedTick;
-			clientPreviousEmergenceAnimationTick = syncedTick;
-		} else if (syncedTick > clientEmergenceAnimationTick) {
-			clientEmergenceAnimationTick = syncedTick;
-			clientPreviousEmergenceAnimationTick = syncedTick;
-		}
-		clientLastSyncedEmergenceTicksRemaining = emergenceTicksRemaining;
-	}
-
-	private void stopClientEmergenceAnimation() {
-		clientEmergenceAnimating = false;
-		clientEmergenceAnimationTick = 0;
-		clientPreviousEmergenceAnimationTick = 0;
-		clientLastSyncedEmergenceTicksRemaining = 0;
-	}
-
-	private void snapClientAnimation(int stage) {
-		clientAnimationInitialized = true;
-		clientGrowthAnimating = false;
-		clientSettledStage = stage;
-		clientGrowthFromStage = stage;
-		clientGrowthToStage = stage;
-		clientQueuedGrowthSteps = 0;
-		clientGrowthAnimationTick = 0;
-		clientPreviousGrowthAnimationTick = 0;
-	}
-
-	private void startNextClientGrowthAnimation() {
-		clientGrowthAnimating = true;
-		clientGrowthFromStage = clientSettledStage;
-		clientGrowthToStage = Math.min(4, clientSettledStage + 1);
-		clientQueuedGrowthSteps = Math.max(0, clientQueuedGrowthSteps - 1);
-		clientGrowthAnimationTick = 0;
-		clientPreviousGrowthAnimationTick = 0;
+		PetriDishCultivation.tryCompleteSpawn(this);
 	}
 
 	public InteractionResult use(Player player, InteractionHand hand) {
@@ -301,7 +197,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			if (!player.isCreative())
 				heldItem.shrink(1);
 			level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_ADD_ITEM, SoundSource.BLOCKS, 0.5f, 1.0f);
-			updateRecordedEntityFromNearby();
+			PetriDishRecording.updateRecordedEntityFromNearby(this);
 			return InteractionResult.SUCCESS;
 		}
 
@@ -312,7 +208,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			player.getInventory().placeItemBackInInventory(extracted);
 			level.playSound(null, worldPosition, SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 0.5f, 1.0f);
 			fluidTank.setFluid(FluidStack.EMPTY);
-			clearRecordedEntity();
+			PetriDishRecording.clearRecordedEntity(this);
 			return InteractionResult.SUCCESS;
 		}
 
@@ -323,7 +219,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public void clearContent() {
 		inventory.setStackInSlot(0, ItemStack.EMPTY);
 		fluidTank.setFluid(FluidStack.EMPTY);
-		clearRecordedEntity();
+		PetriDishRecording.clearRecordedEntity(this);
 	}
 
 	public void setAdvancementOwner(@Nullable LivingEntity placer) {
@@ -351,7 +247,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	public int getRequiredFluidAmount() {
 		if (recordedEntityId == null || recordedMaxHealth <= 0)
 			return 0;
-		return Math.max(1, (int) Math.ceil(recordedMaxHealth)) * getFluidPerHealth();
+		return Math.max(1, (int) Math.ceil(recordedMaxHealth)) * PetriDishRecording.getFluidPerHealth();
 	}
 
 	public float getFillProgress() {
@@ -375,90 +271,55 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 	}
 
 	public int getRenderedSlimeStage() {
-		if (level == null || !level.isClientSide || !clientAnimationInitialized)
-			return getSlimeGrowthStage();
-		return clientGrowthAnimating ? clientGrowthToStage : clientSettledStage;
+		return PetriDishClientAnimation.getRenderedSlimeStage(this);
 	}
 
 	public boolean isGrowthAnimating() {
-		return level != null && level.isClientSide && clientAnimationInitialized && clientGrowthAnimating;
+		return PetriDishClientAnimation.isGrowthAnimating(this);
 	}
 
 	public boolean isEmergenceAnimating() {
-		return level != null && level.isClientSide && clientEmergenceAnimating;
+		return PetriDishClientAnimation.isEmergenceAnimating(this);
 	}
 
 	public float getEmergenceAnimationProgress(float partialTicks) {
-		if (!isEmergenceAnimating())
-			return 0.0f;
-		float tick = Mth.lerp(partialTicks, clientPreviousEmergenceAnimationTick, clientEmergenceAnimationTick);
-		return Mth.clamp(tick / EMERGENCE_ANIMATION_DURATION, 0.0f, 1.0f);
+		return PetriDishClientAnimation.getEmergenceAnimationProgress(this, partialTicks);
 	}
 
 	public float getEmergenceAnimationTick(float partialTicks) {
-		if (!isEmergenceAnimating())
-			return 0.0f;
-		return Mth.clamp(Mth.lerp(partialTicks, clientPreviousEmergenceAnimationTick, clientEmergenceAnimationTick),
-			0.0f, EMERGENCE_ANIMATION_DURATION);
+		return PetriDishClientAnimation.getEmergenceAnimationTick(this, partialTicks);
 	}
 
 	@Nullable
 	public LivingEntity getClientPreviewEntity() {
-		if (level == null || !level.isClientSide || recordedEntityId == null)
-			return null;
-
-		if (clientPreviewEntity != null && Objects.equals(clientPreviewEntityId, recordedEntityId)
-			&& clientPreviewEntity.level() == level)
-			return clientPreviewEntity;
-
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
-			.orElse(null);
-		if (entityType == null)
-			return null;
-
-		Entity preview = entityType.create(level);
-		if (!(preview instanceof Mob livingPreview))
-			return null;
-
-		if (livingPreview instanceof PlayerMimicEntity playerMimic && recordedPlayerProfile != null)
-			playerMimic.setImitatedPlayer(recordedPlayerProfile);
-		if (recordedMimicProfile != null)
-			recordedMimicProfile.apply(livingPreview);
-		SlimeMimicHandler.setSlimeMimic(livingPreview, true);
-		livingPreview.setNoGravity(true);
-		clientPreviewEntityId = recordedEntityId;
-		clientPreviewEntity = livingPreview;
-		return clientPreviewEntity;
+		return PetriDishClientAnimation.getClientPreviewEntity(this);
 	}
 
 	public int getGrowthAnimationFromStage() {
-		return level != null && level.isClientSide && clientAnimationInitialized ? clientGrowthFromStage : getSlimeGrowthStage();
+		return PetriDishClientAnimation.getGrowthAnimationFromStage(this);
 	}
 
 	public int getGrowthAnimationToStage() {
-		return level != null && level.isClientSide && clientAnimationInitialized ? clientGrowthToStage : getSlimeGrowthStage();
+		return PetriDishClientAnimation.getGrowthAnimationToStage(this);
 	}
 
 	public float getGrowthAnimationProgress(float partialTicks) {
-		if (!isGrowthAnimating())
-			return 1.0f;
-		float tick = Mth.lerp(partialTicks, clientPreviousGrowthAnimationTick, clientGrowthAnimationTick);
-		return Mth.clamp(tick / GROWTH_ANIMATION_DURATION, 0.0f, 1.0f);
+		return PetriDishClientAnimation.getGrowthAnimationProgress(this, partialTicks);
 	}
 
 	public boolean canAcceptFluidNow() {
 		if (!hasBionicMechanism())
 			return false;
 		if (level != null && !level.isClientSide)
-			refreshTargetMode();
+			PetriDishRecording.refreshTargetMode(this);
 		if (recordedEntityId == null) {
-			updateRecordedEntityFromNearby();
+			PetriDishRecording.updateRecordedEntityFromNearby(this);
 			return recordedEntityId != null;
 		}
-		return !requiresNearbyMatchingEntity() || hasMatchingEntityNearby();
+		return !PetriDishRecording.requiresNearbyMatchingEntity() || PetriDishRecording.hasMatchingEntityNearby(this);
 	}
 
-	private boolean hasBionicMechanism() {
+	boolean hasBionicMechanism() {
 		return inventory.getStackInSlot(0).is(CBItems.BIONIC_MECHANISM.get());
 	}
 
@@ -478,420 +339,12 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 		return stored.getAmount() < required;
 	}
 
-	private void tryCompleteSpawn() {
-		if (!(level instanceof ServerLevel))
-			return;
-		if (!hasBionicMechanism())
-			return;
-		if (recordedEntityId == null || recordedMaxHealth <= 0)
-			return;
-		if (requiresNearbyMatchingEntity() && !hasMatchingEntityNearby())
-			return;
-
-		int required = getRequiredFluidAmount();
-		if (required <= 0 || fluidTank.getFluidAmount() < required)
-			return;
-
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
-			.orElse(null);
-		if (entityType == null)
-			return;
-
-		if (!hasClearEmergenceSpace())
-			return;
-
-		beginEmergence();
+	boolean isRecordableEntity(Mob entity) {
+		return PetriDishRecording.isRecordableEntity(this, entity);
 	}
 
-	private void beginEmergence() {
-		emergenceInProgress = true;
-		emergenceTicksRemaining = EMERGENCE_ANIMATION_DURATION;
-		setChanged();
-		sendData();
-		level.playSound(null, worldPosition, SoundEvents.SLIME_JUMP, SoundSource.BLOCKS, 0.8f, 0.9f);
-	}
-
-	private void tickEmergence() {
-		if (!(level instanceof ServerLevel serverLevel))
-			return;
-		if (!emergenceInProgress)
-			return;
-		if (emergenceTicksRemaining > 0)
-			emergenceTicksRemaining--;
-		if (emergenceTicksRemaining > 0)
-			return;
-
-		finishEmergence(serverLevel);
-	}
-
-	private void finishEmergence(ServerLevel serverLevel) {
-		if (recordedEntityId == null) {
-			cancelEmergence();
-			return;
-		}
-		EntityType<?> entityType = BuiltInRegistries.ENTITY_TYPE.getOptional(recordedEntityId)
-			.orElse(null);
-		if (entityType == null) {
-			cancelEmergence();
-			return;
-		}
-
-		double spawnX = worldPosition.getX() + 0.5d;
-		double spawnY = worldPosition.getY() + EMERGENCE_SPAWN_Y_OFFSET;
-		double spawnZ = worldPosition.getZ() + 0.5d;
-		BlockPos spawnPos = BlockPos.containing(spawnX, spawnY, spawnZ);
-		if (!hasClearEmergenceSpace()) {
-			cancelEmergence();
-			return;
-		}
-
-		int required = getRequiredFluidAmount();
-		if (required <= 0 || fluidTank.getFluidAmount() < required) {
-			cancelEmergence();
-			return;
-		}
-
-		snapshotPlayerProfileAtSpawn();
-		float spawnYaw = getSpawnYaw();
-		Mob livingEntity = trySpawnRecordedMob(serverLevel, entityType, spawnPos, spawnX, spawnY, spawnZ, spawnYaw);
-		if (livingEntity == null)
-			livingEntity = trySpawnFallbackSlime(serverLevel, entityType, spawnPos, spawnX, spawnY, spawnZ, spawnYaw);
-		if (livingEntity == null) {
-			cancelEmergence();
-			return;
-		}
-
-		emergenceInProgress = false;
-		emergenceTicksRemaining = 0;
-		fluidTank.drain(required, FluidAction.EXECUTE);
-		inventory.extractItem(0, 1, false);
-		awardCultivationAdvancements(serverLevel, livingEntity);
-		clearRecordedEntity();
-		level.playSound(null, worldPosition, SoundEvents.SLIME_BLOCK_PLACE, SoundSource.BLOCKS, 0.7f, 0.9f);
-		sendData();
-	}
-
-	@Nullable
-	private Mob trySpawnRecordedMob(ServerLevel serverLevel, EntityType<?> entityType, BlockPos spawnPos,
-		double spawnX, double spawnY, double spawnZ, float spawnYaw) {
-		Entity created = null;
-		try {
-			// EntityType.spawn() adds the entity before returning it. Keep creation and insertion separate so
-			// unsupported types and failed spawn packets can be discarded before falling back safely.
-			created = entityType.create(serverLevel, null, spawnPos, MobSpawnType.DISPENSER, true, false);
-			if (!(created instanceof Mob mob)) {
-				if (created != null)
-					created.discard();
-				LOGGER.warn("Petri dish at {} recorded non-mob entity type {}; using slime fallback",
-					worldPosition, recordedEntityId);
-				return null;
-			}
-
-			prepareSpawnedMimic(mob);
-			positionSpawnedMob(mob, spawnX, spawnY, spawnZ, spawnYaw);
-			if (!serverLevel.addFreshEntity(mob)) {
-				mob.discard();
-				LOGGER.warn("Petri dish at {} could not add cultivated {}; using slime fallback",
-					worldPosition, recordedEntityId);
-				return null;
-			}
-			return mob;
-		} catch (RuntimeException exception) {
-			if (created != null)
-				created.discard();
-			LOGGER.error("Petri dish at {} failed to cultivate {}; using slime fallback",
-				worldPosition, recordedEntityId, exception);
-			return null;
-		}
-	}
-
-	@Nullable
-	private Slime trySpawnFallbackSlime(ServerLevel serverLevel, EntityType<?> recordedType, BlockPos spawnPos,
-		double spawnX, double spawnY, double spawnZ, float spawnYaw) {
-		Slime slime = null;
-		try {
-			slime = EntityType.SLIME.create(serverLevel, null, spawnPos, MobSpawnType.DISPENSER, true, false);
-			if (slime == null) {
-				LOGGER.error("Petri dish at {} could not create its slime fallback for {}",
-					worldPosition, recordedEntityId);
-				return null;
-			}
-
-			int slimeSize = selectFallbackSlimeSize(slime, recordedType);
-			slime.setSize(slimeSize, true);
-			SlimeMimicHandler.markSpawnedEntity(slime);
-			positionSpawnedMob(slime, spawnX, spawnY, spawnZ, spawnYaw);
-			if (!serverLevel.addFreshEntity(slime)) {
-				slime.discard();
-				LOGGER.error("Petri dish at {} could not add its size-{} slime fallback for {}",
-					worldPosition, slimeSize, recordedEntityId);
-				return null;
-			}
-			LOGGER.warn("Petri dish at {} replaced failed cultivation of {} with a size-{} slime",
-				worldPosition, recordedEntityId, slimeSize);
-			return slime;
-		} catch (RuntimeException exception) {
-			if (slime != null)
-				slime.discard();
-			LOGGER.error("Petri dish at {} failed to spawn its slime fallback for {}",
-				worldPosition, recordedEntityId, exception);
-			return null;
-		}
-	}
-
-	private int selectFallbackSlimeSize(Slime slime, EntityType<?> recordedType) {
-		float targetWidth = sanitizeRecordedDimension(recordedWidth, recordedType.getWidth());
-		float targetHeight = sanitizeRecordedDimension(recordedHeight, recordedType.getHeight());
-		double targetVolume = targetWidth * targetWidth * targetHeight;
-		int closestSize = FALLBACK_SLIME_SIZES[0];
-		double closestDistance = Double.POSITIVE_INFINITY;
-		for (int candidate : FALLBACK_SLIME_SIZES) {
-			slime.setSize(candidate, false);
-			double candidateVolume = slime.getBbWidth() * slime.getBbWidth() * slime.getBbHeight();
-			double distance = Math.abs(Math.log(candidateVolume / targetVolume));
-			if (distance < closestDistance) {
-				closestDistance = distance;
-				closestSize = candidate;
-			}
-		}
-		return closestSize;
-	}
-
-	private static float sanitizeRecordedDimension(float recorded, float fallback) {
-		return Float.isFinite(recorded) && recorded > 0.0f ? recorded : Math.max(fallback, 0.01f);
-	}
-
-	private static void positionSpawnedMob(Mob mob, double spawnX, double spawnY, double spawnZ, float spawnYaw) {
-		mob.moveTo(spawnX, spawnY, spawnZ, spawnYaw, mob.getXRot());
-		mob.setYRot(spawnYaw);
-		mob.yRotO = spawnYaw;
-		mob.setYBodyRot(spawnYaw);
-		mob.yBodyRotO = spawnYaw;
-		mob.setYHeadRot(spawnYaw);
-		mob.yHeadRotO = spawnYaw;
-	}
-
-	private void prepareSpawnedMimic(@Nullable Entity entity) {
-		if (entity instanceof PlayerMimicEntity playerMimic && recordedPlayerProfile != null)
-			playerMimic.setImitatedPlayer(recordedPlayerProfile);
-		if (entity instanceof LivingEntity livingEntity && recordedMimicProfile != null)
-			recordedMimicProfile.apply(livingEntity);
-		SlimeMimicHandler.markSpawnedEntity(entity);
-	}
-
-	private void awardCultivationAdvancements(ServerLevel serverLevel, LivingEntity cultivatedEntity) {
-		Vec3 observationPosition =
-			SubLevelCompat.toWorld(serverLevel, worldPosition, Vec3.atCenterOf(worldPosition));
-		CBAdvancements.awardNearby(serverLevel, observationPosition, 16, CBAdvancements.PETRI_DISH);
-		if (cultivatedEntity.getType() == EntityType.SLIME)
-			CBAdvancements.awardNearby(serverLevel, observationPosition, 16, CBAdvancements.PERFECT_DISGUISE);
-		if (cultivatedEntity.isBaby())
-			CBAdvancements.awardNearby(serverLevel, observationPosition, 16, CBAdvancements.MIMIC_BABY);
-	}
-
-	private boolean hasClearEmergenceSpace() {
-		if (level == null)
-			return false;
-
-		return level.isEmptyBlock(worldPosition.above());
-	}
-
-	private void cancelEmergence() {
-		emergenceInProgress = false;
-		emergenceTicksRemaining = 0;
-		setChanged();
-		sendData();
-	}
-
-	private void refreshTargetMode() {
-		if (recordedEntityId == null)
-			return;
-		if (isPlayerTargetMode() != (recordedPlayerProfile != null))
-			clearRecordedEntity();
-	}
-
-	private boolean isPlayerTargetMode() {
-		return level != null && level.hasNeighborSignal(worldPosition);
-	}
-
-	private void updateRecordedEntityFromNearby() {
-		if (level == null || !hasBionicMechanism())
-			return;
-		if (recordedEntityId != null) {
-			if (requiresNearbyMatchingEntity() && !hasMatchingEntityNearby()) {
-				// Keep the record, but reject further filling until the type comes back nearby.
-				sendData();
-			}
-			return;
-		}
-
-		if (isPlayerTargetMode()) {
-			for (Player player : getNearbyPlayers()) {
-				if (!isRecordablePlayer(player))
-					continue;
-				recordPlayer(player);
-				return;
-			}
-			return;
-		}
-
-		List<Mob> entities = getNearbyMobs();
-		for (Mob entity : entities) {
-			if (!isRecordableEntity(entity))
-				continue;
-			recordEntity(entity);
-			return;
-		}
-	}
-
-	private boolean hasMatchingEntityNearby() {
-		if (recordedEntityId == null)
-			return false;
-		if (recordedPlayerProfile != null) {
-			for (Player player : getNearbyPlayers()) {
-				if (recordedPlayerProfile.getId().equals(player.getGameProfile().getId()))
-					return true;
-			}
-			return false;
-		}
-		for (Mob entity : getNearbyMobs()) {
-			ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-			if (Objects.equals(recordedEntityId, entityId))
-				return true;
-		}
-		return false;
-	}
-
-	private List<Player> getNearbyPlayers() {
-		if (level == null)
-			return List.of();
-		AABB bounds = new AABB(worldPosition).inflate(getScanRadius());
-		return level.getEntitiesOfClass(Player.class, bounds, this::isRecordablePlayer);
-	}
-
-	private List<Mob> getNearbyMobs() {
-		if (level == null)
-			return List.of();
-		AABB bounds = new AABB(worldPosition).inflate(getScanRadius());
-		// LivingEntity is deliberately too broad: Create packages are LivingEntity instances as an
-		// implementation detail. Mob is the gameplay boundary for creatures the dish may imitate.
-		return level.getEntitiesOfClass(Mob.class, bounds, this::isRecordableEntity);
-	}
-
-	private static int getScanInterval() {
-		return CBConfigs.SERVER.petriDish.scanInterval.get();
-	}
-
-	private static int getFluidPerHealth() {
-		return CBConfigs.SERVER.petriDish.fluidPerHealth.get();
-	}
-
-	private static int getScanRadius() {
-		return CBConfigs.SERVER.petriDish.scanRadius.get();
-	}
-
-	private static int getTankCapacity() {
-		return CBConfigs.SERVER.petriDish.tankCapacity.get();
-	}
-
-	private static boolean requiresNearbyMatchingEntity() {
-		return CBConfigs.SERVER.petriDish.requireNearbyMatchingEntity.get();
-	}
-
-	private boolean isRecordableEntity(Mob entity) {
-		if (!entity.isAlive())
-			return false;
-		if (entity.isSpectator())
-			return false;
-		if (entity.blockPosition().equals(worldPosition))
-			return false;
-		if (entity.getType() == CBEntityTypes.PLAYER_MIMIC.get())
-			return false;
-		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-		return entityId != null;
-	}
-
-	private boolean isRecordablePlayer(Player player) {
-		return player.isAlive() && !player.isSpectator();
-	}
-
-	private void recordPlayer(Player player) {
-		recordedEntityId = CBEntityTypes.PLAYER_MIMIC.getId();
-		recordedMimicProfile = null;
-		recordedPlayerProfile = copyPlayerProfile(player);
-		if (recordedPlayerProfile == null) {
-			clearRecordedEntity();
-			return;
-		}
-		recordedMaxHealth = player.getMaxHealth();
-		recordedWidth = PlayerMimicEntity.WIDTH;
-		recordedHeight = PlayerMimicEntity.HEIGHT;
-		clampFluidToRequiredAmount();
-		clientPreviewEntityId = null;
-		clientPreviewEntity = null;
-		setChanged();
-		sendData();
-	}
-
-	private void snapshotPlayerProfileAtSpawn() {
-		if (recordedPlayerProfile == null)
-			return;
-		UUID playerId = recordedPlayerProfile.getId();
-		for (Player player : getNearbyPlayers()) {
-			if (!playerId.equals(player.getGameProfile().getId()))
-				continue;
-			GameProfile currentProfile = copyPlayerProfile(player);
-			if (currentProfile != null)
-				recordedPlayerProfile = currentProfile;
-			return;
-		}
-	}
-
-	@Nullable
-	private static GameProfile copyPlayerProfile(Player player) {
-		return PlayerMimicEntity.decodePlayerProfile(
-			PlayerMimicEntity.encodePlayerProfile(player.getGameProfile()));
-	}
-
-	private void recordEntity(Mob entity) {
-		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-		if (entityId == null)
-			return;
-		recordedEntityId = entityId;
-		recordedMimicProfile = MimicProfile.capture(entity);
-		recordedPlayerProfile = null;
-		recordedMaxHealth = entity.getMaxHealth();
-		recordedWidth = entity.getBbWidth();
-		recordedHeight = entity.getBbHeight();
-		clampFluidToRequiredAmount();
-		clientPreviewEntityId = null;
-		clientPreviewEntity = null;
-		setChanged();
-		sendData();
-	}
-
-	private void clampFluidToRequiredAmount() {
-		int required = getRequiredFluidAmount();
-		if (fluidTank.getFluidAmount() > required) {
-			fluidTank.drain(fluidTank.getFluidAmount() - required, FluidAction.EXECUTE);
-		}
-	}
-
-	private void clearRecordedEntity() {
-		recordedEntityId = null;
-		recordedMimicProfile = null;
-		recordedPlayerProfile = null;
-		recordedMaxHealth = 0;
-		recordedWidth = 0;
-		recordedHeight = 0;
-		scanCooldown = 0;
-		emergenceInProgress = false;
-		emergenceTicksRemaining = 0;
-		clientPreviewEntityId = null;
-		clientPreviewEntity = null;
-		stopClientEmergenceAnimation();
-		setChanged();
-		sendData();
+	boolean isRecordablePlayer(Player player) {
+		return PetriDishRecording.isRecordablePlayer(this, player);
 	}
 
 	public float getSpawnYaw() {
@@ -964,7 +417,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			emergenceTicksRemaining = 0;
 		}
 		if (!emergenceInProgress)
-			stopClientEmergenceAnimation();
+			PetriDishClientAnimation.stopClientEmergenceAnimation(this);
 		clientPreviewEntityId = null;
 		clientPreviewEntity = null;
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(tag);
@@ -1005,7 +458,7 @@ public class PetriDishBlockEntity extends SmartBlockEntity implements IHaveGoggl
 			tooltip.add(Component.translatable("create_biotech.petri_dish.goggles.required_fluid", getRequiredFluidAmount())
 				.withStyle(ChatFormatting.AQUA));
 		} else {
-			String unrecordedKey = isPlayerTargetMode()
+			String unrecordedKey = PetriDishRecording.isPlayerTargetMode(this)
 				? "create_biotech.petri_dish.goggles.unrecorded_player"
 				: "create_biotech.petri_dish.goggles.unrecorded";
 			tooltip.add(Component.translatable(unrecordedKey)

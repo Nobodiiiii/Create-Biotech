@@ -2,11 +2,8 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.BitSet;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.ToDoubleFunction;
 
 import org.jetbrains.annotations.Nullable;
@@ -20,25 +17,18 @@ import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Saddleable;
-import net.minecraft.world.entity.animal.horse.AbstractHorse;
-import net.minecraft.world.entity.animal.camel.Camel;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalSourceModelRenderer {
-	private static final int MAX_RENDER_PLANS = 512;
-	private static final int MAX_PENDING_RENDER_PLANS = 64;
+	static final int MAX_RENDER_PLANS = 512;
+	static final int MAX_PENDING_RENDER_PLANS = 64;
 	private static final int CAPTURE_ENTITY_ID = 0;
 	/**
 	 * One preview per distinct appearance. A preview entity is a pure function of its profile - it is
@@ -47,24 +37,7 @@ public final class SurgicalSourceModelRenderer {
 	 * held its own identical entity. Profiles are interned, so equal appearances land on one entry.
 	 */
 	private static final Map<MimicProfile, CachedPreview> PREVIEWS = new WeakHashMap<>();
-	private static final Map<LivingEntity, MimicProfile> PREVIEW_PROFILES = new WeakHashMap<>();
-	private static final Map<RenderPlanKey, SurgicalCapturedRenderPlan> RENDER_PLANS =
-		new LinkedHashMap<>(64, 0.75f, true) {
-			@Override
-			protected boolean removeEldestEntry(Map.Entry<RenderPlanKey, SurgicalCapturedRenderPlan> eldest) {
-				return size() > MAX_RENDER_PLANS;
-			}
-		};
-	private static final Map<RenderPlanKey, PendingRenderPlan> PENDING_RENDER_PLANS = new HashMap<>();
-	private static final Map<LivingEntity, CachedRenderPlan> FALLBACK_RENDER_PLANS = new WeakHashMap<>();
-	private static final Map<MimicProfile, SourceRidingSeat> RIDING_SEATS = new WeakHashMap<>();
-	private static final Map<SaddlePlanKey, SurgicalCapturedRenderPlan> SADDLE_RENDER_PLANS =
-		new LinkedHashMap<>(64, 0.75f, true) {
-			@Override
-			protected boolean removeEldestEntry(Map.Entry<SaddlePlanKey, SurgicalCapturedRenderPlan> eldest) {
-				return size() > MAX_RENDER_PLANS;
-			}
-		};
+	static final Map<LivingEntity, MimicProfile> PREVIEW_PROFILES = new WeakHashMap<>();
 	private static final Map<MimicProfile, DonorGeometry> DONOR_GEOMETRIES = new WeakHashMap<>();
 
 	/** Frozen native geometry and accessory metadata; safe to read on surgical workers. */
@@ -85,7 +58,7 @@ public final class SurgicalSourceModelRenderer {
 		if (cached != null) return cached;
 		LivingEntity entity = previewDeferred(profile);
 		if (entity == null) return null;
-		var snapshot = geometryDeferred(entity, 0, new BitSet(), Map.of(), Map.of(), new PoseStack(), 0, null);
+		var snapshot = SurgicalSourcePlanCache.geometryDeferred(entity, 0, new BitSet(), Map.of(), Map.of(), new PoseStack(), 0, null);
 		if (snapshot == null) return null;
 		if (!SurgicalPreparationBudget.begin(entity instanceof Saddleable)) return null;
 		try { return cacheDonorGeometry(profile, entity, snapshot); }
@@ -100,7 +73,7 @@ public final class SurgicalSourceModelRenderer {
 		LivingEntity entity = preview(profile);
 		if (entity == null) return null;
 		return cacheDonorGeometry(profile, entity,
-			plan(entity, 0).snapshot(new PoseStack(), 0, new BitSet(), Map.of(), Map.of(), null));
+			SurgicalSourcePlanCache.plan(entity, 0).snapshot(new PoseStack(), 0, new BitSet(), Map.of(), Map.of(), null));
 	}
 
 	private static DonorGeometry cacheDonorGeometry(MimicProfile profile, LivingEntity entity,
@@ -111,18 +84,18 @@ public final class SurgicalSourceModelRenderer {
 		for (var cube : snapshot.cubes()) {
 			cubes.put(cube.cubeId(), cube);
 			if (!(entity instanceof Saddleable)) continue;
-			SourceRidingSeat seat = ridingSeat(profile, cube.cubeId());
+			SourceRidingSeat seat = SurgicalEquipmentRenderPlans.ridingSeat(profile, cube.cubeId());
 			if (seat == null) continue;
 			seats.put(cube.cubeId(), seat);
-			saddles.put(cube.cubeId(), java.util.List.copyOf(equipmentCorners(profile, cube.cubeId(), false)));
-			chests.put(cube.cubeId(), java.util.List.copyOf(equipmentCorners(profile, cube.cubeId(), true)));
+			saddles.put(cube.cubeId(), java.util.List.copyOf(SurgicalEquipmentRenderPlans.equipmentCorners(profile, cube.cubeId(), false)));
+			chests.put(cube.cubeId(), java.util.List.copyOf(SurgicalEquipmentRenderPlans.equipmentCorners(profile, cube.cubeId(), true)));
 		}
 		DonorGeometry result = new DonorGeometry(cubes, seats, saddles, chests);
 		DONOR_GEOMETRIES.put(profile, result);
 		return result;
 	}
 
-	private static int resourceGeneration;
+	static int resourceGeneration;
 
 	private SurgicalSourceModelRenderer() {}
 
@@ -257,11 +230,11 @@ public final class SurgicalSourceModelRenderer {
 		boolean renderSourceGeometry, float alpha, @Nullable Boolean hurtOverlay, @Nullable Boolean saddled,
 		@Nullable Boolean chested) {
 		preparePreview(preview, yaw);
-		SurgicalCapturedRenderPlan plan = plan(preview, yaw);
+		SurgicalCapturedRenderPlan plan = SurgicalSourcePlanCache.plan(preview, yaw);
 		if (saddled != null)
-			plan = saddlePlan(preview, yaw, saddled, plan);
+			plan = SurgicalEquipmentRenderPlans.saddlePlan(preview, yaw, saddled, plan);
 		if (chested != null)
-			plan = chestPlan(preview, yaw, saddled, chested, plan);
+			plan = SurgicalEquipmentRenderPlans.chestPlan(preview, yaw, saddled, chested, plan);
 		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
 		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
 			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
@@ -274,7 +247,7 @@ public final class SurgicalSourceModelRenderer {
 		if (!sheared)
 			return presentCubes;
 		preparePreview(preview, 0);
-		return plan(preview, 0).withoutWool(presentCubes);
+		return SurgicalSourcePlanCache.plan(preview, 0).withoutWool(presentCubes);
 	}
 
 	/** Render the naked donor, carrier equipment, and head tack bound to each retained head cube. */
@@ -295,9 +268,9 @@ public final class SurgicalSourceModelRenderer {
 		@Nullable SlimeBionicEntity owner, int source) {
 		if (owner != null) buffer = selfDestructBuffer(owner, partialTick, buffer);
 		preparePreview(preview, 0);
-		SurgicalCapturedRenderPlan base = plan(preview, 0);
-		if (owner != null) base = traitPlan(preview, owner, source, partialTick, base);
-		SurgicalCapturedRenderPlan naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
+		SurgicalCapturedRenderPlan base = SurgicalSourcePlanCache.plan(preview, 0);
+		if (owner != null) base = SurgicalEquipmentRenderPlans.traitPlan(preview, owner, source, partialTick, base);
+		SurgicalCapturedRenderPlan naked = SurgicalEquipmentRenderPlans.chestPlan(preview, 0, false, false, SurgicalEquipmentRenderPlans.saddlePlan(preview, 0, false, base));
 		var snapshot = naked.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,
 			cubeRotations, collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
 		if (owner != null && !owner.getMainHandItem().isEmpty()) {
@@ -310,14 +283,14 @@ public final class SurgicalSourceModelRenderer {
 		boolean bridled = owner == null ? !saddles.isEmpty() : owner.isSaddled();
 		if (!bridled && saddles.isEmpty() && chests.isEmpty()) return snapshot;
 		SurgicalCapturedRenderPlan withSaddle = !bridled && saddles.isEmpty() ? naked
-			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
+			: SurgicalEquipmentRenderPlans.chestPlan(preview, 0, true, false, SurgicalEquipmentRenderPlans.saddlePlan(preview, 0, true, base));
 		if (bridled)
 			naked.renderHeadEquipment(withSaddle, cubeCount, presentCubes, cubeOffsets, cubeRotations,
 				poseStack, buffer, packedLight, hurtOverlay);
 		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		SourceRidingSeat seat = profile == null ? null : nativeRidingSeat(profile);
+		SourceRidingSeat seat = profile == null ? null : SurgicalEquipmentRenderPlans.nativeRidingSeat(profile);
 		if (seat == null) return snapshot;
-		SurgicalCapturedRenderPlan withChest = chests.isEmpty() ? naked : chestPlan(preview, 0, false, true, base);
+		SurgicalCapturedRenderPlan withChest = chests.isEmpty() ? naked : SurgicalEquipmentRenderPlans.chestPlan(preview, 0, false, true, base);
 		for (int carrier : saddles) if (presentCubes.get(carrier))
 			naked.renderEquipment(withSaddle, carrier, seat.first(), poseStack, buffer, packedLight,
 				cubeOffsets.get(carrier), cubeRotations.get(carrier), hurtOverlay);
@@ -327,166 +300,17 @@ public final class SurgicalSourceModelRenderer {
 		return snapshot;
 	}
 
-	private record TraitPlanKey(RenderPlanKey source, int state) {}
-	private static final Map<TraitPlanKey, SurgicalCapturedRenderPlan> TRAIT_RENDER_PLANS =
-		new LinkedHashMap<>(64, 0.75f, true) {
-			@Override protected boolean removeEldestEntry(Map.Entry<TraitPlanKey, SurgicalCapturedRenderPlan> entry) {
-				return size() > MAX_RENDER_PLANS;
-			}
-		};
-
-	/** Sample native appearance on separate previews, preserving each body's surgical reference ids. */
-	private static SurgicalCapturedRenderPlan traitPlan(LivingEntity preview, SlimeBionicEntity owner,
-		int source, float partialTick, SurgicalCapturedRenderPlan base) {
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null) return base;
-		if (preview instanceof net.minecraft.world.entity.animal.armadillo.Armadillo
-			|| preview instanceof net.minecraft.world.entity.monster.Shulker
-			|| preview instanceof net.minecraft.world.entity.monster.Evoker
-			|| preview instanceof net.minecraft.world.entity.monster.Witch
-			|| preview instanceof net.minecraft.world.entity.monster.warden.Warden)
-			return SurgicalNativeAnimations.plan(owner, source, partialTick, base);
-		int state;
-		if (preview instanceof net.minecraft.world.entity.animal.Bee) state = owner.hasBionicPollen() ? 2 : 1;
-		else return base;
-		var renderer = renderer(preview);
-		TraitPlanKey key = new TraitPlanKey(new RenderPlanKey(profile, renderer, 0), state);
-		SurgicalCapturedRenderPlan cached = TRAIT_RENDER_PLANS.get(key);
-		if (cached != null) return cached;
-		LivingEntity animated = profile.createPreviewEntity(preview.level());
-		if (animated == null) return base;
-		if (animated instanceof net.minecraft.world.entity.animal.Bee bee) {
-			CompoundTag data = bee.saveWithoutId(new CompoundTag());
-			data.putBoolean("HasNectar", state == 2);
-			bee.load(data);
-		}
-		preparePreview(animated, 0);
-		cached = base.withTraitAppearance(captureInCanonicalPose(renderer, animated, 0));
-		TRAIT_RENDER_PLANS.put(key, cached);
-		return cached;
-	}
-
 	/** Accessory envelopes use exactly the same native capture and rebase as live rendering. */
 	public static java.util.List<Vec3> equipmentCorners(MimicProfile profile, int carrier, boolean chest) {
-		LivingEntity preview = preview(profile);
-		SourceRidingSeat seat = nativeRidingSeat(profile);
-		if (preview == null || seat == null) return java.util.List.of();
-		var base = plan(preview, 0);
-		var naked = chestPlan(preview, 0, false, false, saddlePlan(preview, 0, false, base));
-		var equipped = chest ? chestPlan(preview, 0, false, true, base)
-			: chestPlan(preview, 0, true, false, saddlePlan(preview, 0, true, base));
-		return naked.equipmentCorners(equipped, carrier, seat.first());
+		return SurgicalEquipmentRenderPlans.equipmentCorners(profile, carrier, chest);
 	}
-
-	private static final Map<EquipmentPlanKey, SurgicalCapturedRenderPlan> CHEST_RENDER_PLANS =
-		new LinkedHashMap<>(64, 0.75f, true) {
-			@Override protected boolean removeEldestEntry(Map.Entry<EquipmentPlanKey, SurgicalCapturedRenderPlan> entry) {
-				return size() > MAX_RENDER_PLANS;
-			}
-		};
-	private record EquipmentPlanKey(RenderPlanKey source, boolean saddled, boolean chested) {}
-
-	/** Capture the donor's native boxes on the same retained geometry used for live saddles. */
-	private static SurgicalCapturedRenderPlan chestPlan(LivingEntity preview, float yaw,
-		@Nullable Boolean saddled, boolean chested, SurgicalCapturedRenderPlan base) {
-		if (!(preview instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse horse)) return base;
-		boolean saddle = saddled == null ? horse.isSaddled() : saddled;
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null) return base;
-		var renderer = renderer(preview);
-		var key = new EquipmentPlanKey(new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw)), saddle, chested);
-		return CHEST_RENDER_PLANS.computeIfAbsent(key, ignored -> {
-			var equipped = profile.createPreviewEntity(preview.level());
-			if (!(equipped instanceof net.minecraft.world.entity.animal.horse.AbstractChestedHorse mount)) return base;
-			mount.setChest(chested);
-			mount.setFlag(4, saddle);
-			preparePreview(mount, yaw);
-			return base.withAppearance(captureInCanonicalPose(renderer, mount, yaw));
-		});
-	}
-
-	private static SurgicalCapturedRenderPlan saddlePlan(LivingEntity preview, float yaw,
-		boolean saddled, SurgicalCapturedRenderPlan base) {
-		if (!(preview instanceof Saddleable saddleable) || saddleable.isSaddled() == saddled)
-			return base;
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null)
-			return base;
-		EntityRenderer<LivingEntity> renderer = renderer(preview);
-		SaddlePlanKey key = new SaddlePlanKey(new RenderPlanKey(profile, renderer,
-			Float.floatToIntBits(yaw)), saddled);
-		SurgicalCapturedRenderPlan cached = SADDLE_RENDER_PLANS.get(key);
-		if (cached != null)
-			return cached;
-
-		// The ordinary preview is shared with tables, fragments and other bodies. Capture equipment
-		// on a separate entity so one saddled creature cannot change any of their cached appearances.
-		LivingEntity equipped = profile.createPreviewEntity(preview.level());
-		if (!(equipped instanceof Saddleable equippedSaddle))
-			return base;
-		if (saddled) {
-			equippedSaddle.equipSaddle(new ItemStack(Items.SADDLE), null);
-		} else {
-			CompoundTag data = equipped.saveWithoutId(new CompoundTag());
-			data.putBoolean("Saddle", false);
-			data.remove("SaddleItem");
-			equipped.load(data);
-		}
-		// AbstractHorse only synchronizes inventory -> saddle flags on the server. These unspawned
-		// client previews need the same flag explicitly (also covers camels, donkeys and mules).
-		if (equipped instanceof AbstractHorse horse)
-			horse.setFlag(4, saddled);
-		preparePreview(equipped, yaw);
-		SurgicalCapturedRenderPlan appearance = captureInCanonicalPose(renderer, equipped, yaw);
-		cached = base.withAppearance(appearance);
-		SADDLE_RENDER_PLANS.put(key, cached);
-		return cached;
-	}
-
-	/** Native front/back passenger anchors, before projection onto a retained carrier cube. */
-	@Nullable
-	private static SourceRidingSeat nativeRidingSeat(MimicProfile profile) {
-		SourceRidingSeat cached = RIDING_SEATS.get(profile);
-		if (cached != null)
-			return cached;
-		LivingEntity preview = preview(profile);
-		if (!(preview instanceof Saddleable))
-			return null;
-		preparePreview(preview, 0.0f);
-		LivingEntity mount = profile.createPreviewEntity(preview.level());
-		var first = EntityType.ARMOR_STAND.create(preview.level());
-		var second = EntityType.ARMOR_STAND.create(preview.level());
-		if (mount == null || first == null || second == null)
-			return null;
-		// These marker passengers and their mount are never added to the world. Mounting two is
-		// needed for the camel's native front/back offsets; their non-animal type matches players.
-		try {
-			first.startRiding(mount, true);
-			if (mount instanceof Camel)
-				second.startRiding(mount, true);
-			Vec3 front = mount.getPassengerRidingPosition(first).subtract(mount.position());
-			Vec3 rear = mount instanceof Camel
-				? mount.getPassengerRidingPosition(second).subtract(mount.position()) : front;
-			cached = new SourceRidingSeat(front, rear);
-			RIDING_SEATS.put(profile, cached);
-			return cached;
-		} finally {
-			mount.ejectPassengers();
-		}
-	}
-
-	public record SourceRidingSeat(Vec3 first, Vec3 second) {}
 
 	/** Bake against a retained body cube, independently of optional saddle-layer cube ids. */
 	@Nullable
+	public record SourceRidingSeat(Vec3 first, Vec3 second) {}
+
 	public static SourceRidingSeat ridingSeat(MimicProfile profile, int carrier) {
-		SourceRidingSeat nativeSeat = nativeRidingSeat(profile);
-		if (nativeSeat == null) return null;
-		LivingEntity preview = preview(profile);
-		SurgicalCapturedRenderPlan base = plan(preview, 0.0f);
-		if (base.singleCubeGeometry(carrier) == null) return null;
-		Vec3 first = base.equipmentSeat(carrier, nativeSeat.first());
-		return new SourceRidingSeat(first, first.add(nativeSeat.second().subtract(nativeSeat.first())));
+		return SurgicalEquipmentRenderPlans.ridingSeat(profile, carrier);
 	}
 
 	/** Renders exactly one captured cuboid without duplicating model-wide non-cuboid extras. */
@@ -496,7 +320,7 @@ public final class SurgicalSourceModelRenderer {
 		if (preview == null)
 			return new SurgicalModelRenderContext.Snapshot(0, java.util.List.of());
 		preparePreview(preview, 0.0f);
-		return plan(preview, 0.0f).renderSingleCube(poseStack, buffer, packedLight, cube);
+		return SurgicalSourcePlanCache.plan(preview, 0.0f).renderSingleCube(poseStack, buffer, packedLight, cube);
 	}
 
 	/** Returns the neutral-pose source geometry used to align one released cuboid to its entity. */
@@ -507,7 +331,7 @@ public final class SurgicalSourceModelRenderer {
 		if (preview == null)
 			return null;
 		preparePreview(preview, 0.0f);
-		return plan(preview, 0.0f).singleCubeGeometry(cube);
+		return SurgicalSourcePlanCache.plan(preview, 0.0f).singleCubeGeometry(cube);
 	}
 
 	/**
@@ -525,7 +349,7 @@ public final class SurgicalSourceModelRenderer {
 	 * <p>
 	 * Only animation inputs are pinned; appearance NBT such as wool colour or variants is left untouched.
 	 */
-	private static SurgicalCapturedRenderPlan.CapturedInput captureInputInCanonicalPose(
+	static SurgicalCapturedRenderPlan.CapturedInput captureInputInCanonicalPose(
 		EntityRenderer<LivingEntity> renderer, LivingEntity preview, float yaw) {
 		return captureInputAtAge(renderer, preview, yaw, SurgicalCapturePoseOverrides::captureAgeInTicks);
 	}
@@ -550,7 +374,7 @@ public final class SurgicalSourceModelRenderer {
 		}
 	}
 
-	private static SurgicalCapturedRenderPlan captureInCanonicalPose(EntityRenderer<LivingEntity> renderer,
+	static SurgicalCapturedRenderPlan captureInCanonicalPose(EntityRenderer<LivingEntity> renderer,
 		LivingEntity preview, float yaw) {
 		return SurgicalCapturedRenderPlan.build(captureInputInCanonicalPose(renderer, preview, yaw));
 	}
@@ -563,53 +387,8 @@ public final class SurgicalSourceModelRenderer {
 		return BuiltInRegistries.ENTITY_TYPE.getKey(preview.getType()).toString().hashCode();
 	}
 
-	/**
-	 * Captured plans are a fixed pose, not a frame of a running animation, so callers' frame partial
-	 * ticks are deliberately not forwarded here - see {@link #captureInputInCanonicalPose}.
-	 */
-	private static SurgicalCapturedRenderPlan plan(LivingEntity preview, float yaw) {
-		EntityRenderer<LivingEntity> renderer = renderer(preview);
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile != null) {
-			RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
-			SurgicalCapturedRenderPlan plan = completedPlan(key);
-			if (plan == null) {
-				// Deliberately leave any in-flight build alone. cancel(false) cannot stop a worker that
-				// has already started, so cancelling only discarded a result that was often milliseconds
-				// from completion while the thread kept running - paying for the same plan twice and
-				// stalling this frame either way. collectCompletedPlans() harvests the duplicate on a
-				// later frame and overwrites this entry with an equal, immutable plan.
-				long started = SurgicalProfiler.begin();
-				plan = captureInCanonicalPose(renderer, preview, yaw);
-				SurgicalProfiler.end("capture(plan)", started);
-				RENDER_PLANS.put(key, plan);
-			}
-			return plan;
-		}
-
-		CachedRenderPlan cached = FALLBACK_RENDER_PLANS.get(preview);
-		if (cached == null || cached.renderer != renderer
-			|| Float.floatToIntBits(cached.yaw) != Float.floatToIntBits(yaw)) {
-			SurgicalCapturedRenderPlan plan = captureInCanonicalPose(renderer, preview, yaw);
-			cached = new CachedRenderPlan(renderer, yaw, plan);
-			FALLBACK_RENDER_PLANS.put(preview, cached);
-		}
-		return cached.plan;
-	}
-
 	static RenderPlanState renderPlanState(LivingEntity preview, float yaw) {
-		EntityRenderer<LivingEntity> renderer = renderer(preview);
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null)
-			return RenderPlanState.MISSING;
-		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
-		// get(), not containsKey(): RENDER_PLANS is an access-ordered LRU and only get() marks an entry
-		// as recently used. Probing with containsKey() left a plan looking stale to the eviction policy
-		// however often it was asked about, so the very plan a visible subject checks every frame could
-		// still be evicted - and plan() would then rebuild it synchronously on the render thread.
-		if (RENDER_PLANS.get(key) != null)
-			return RenderPlanState.READY;
-		return PENDING_RENDER_PLANS.containsKey(key) ? RenderPlanState.PENDING : RenderPlanState.MISSING;
+		return SurgicalSourcePlanCache.renderPlanState(preview, yaw);
 	}
 
 	/**
@@ -621,7 +400,7 @@ public final class SurgicalSourceModelRenderer {
 	public static SurgicalModelRenderContext.Snapshot captureGeometryDeferred(LivingEntity preview, int cubeCount,
 		BitSet presentCubes, PoseStack poseStack, float yaw, float partialTick,
 		@Nullable Vec3 cameraPosition) {
-		return geometryDeferred(preview, cubeCount, presentCubes, Map.of(), Map.of(), poseStack, yaw, cameraPosition);
+		return SurgicalSourcePlanCache.captureGeometryDeferred(preview, cubeCount, presentCubes, poseStack, yaw, partialTick, cameraPosition);
 	}
 
 	/** Geometry only: no vertex replay, no synchronous fallback while a plan is pending. */
@@ -629,111 +408,12 @@ public final class SurgicalSourceModelRenderer {
 	public static SurgicalModelRenderContext.Snapshot geometryDeferred(LivingEntity preview, int cubeCount,
 		BitSet presentCubes, Map<Integer, Vec3> offsets, Map<Integer, SurgicalCubeRotation> rotations,
 		PoseStack poseStack, float yaw, @Nullable Vec3 cameraPosition) {
-		preparePreview(preview, yaw);
-		EntityRenderer<LivingEntity> renderer = renderer(preview);
-		MimicProfile profile = PREVIEW_PROFILES.get(preview);
-		if (profile == null) {
-			if (!SurgicalPreparationBudget.begin(true)) return null;
-			try { return plan(preview, yaw).snapshot(poseStack, cubeCount, presentCubes, offsets, rotations, cameraPosition); }
-			finally { SurgicalPreparationBudget.end(); }
-		}
-
-		RenderPlanKey key = new RenderPlanKey(profile, renderer, Float.floatToIntBits(yaw));
-		SurgicalCapturedRenderPlan plan = completedPlan(key);
-		if (plan == null) {
-			PendingRenderPlan pending = PENDING_RENDER_PLANS.get(key);
-			if (pending == null) {
-				if (PENDING_RENDER_PLANS.size() >= MAX_PENDING_RENDER_PLANS
-					|| !SurgicalPreparationBudget.begin(true))
-					return null;
-				long started = SurgicalProfiler.begin();
-				SurgicalCapturedRenderPlan.CapturedInput captured;
-				try { captured = captureInputInCanonicalPose(renderer, preview, yaw); }
-				finally {
-					SurgicalPreparationBudget.end();
-					SurgicalProfiler.end("capture(plan-input)", started);
-				}
-				int generation = resourceGeneration;
-				pending = new PendingRenderPlan(generation,
-					SurgicalClientExecutors.submit(() -> buildPlan(captured)));
-				PENDING_RENDER_PLANS.put(key, pending);
-				// Publish only from the next frame. Besides keeping the handoff deterministic, this
-				// prevents a full worker queue from causing several same-frame recaptures of one profile.
-				return null;
-			}
-			plan = completedPlan(key);
-			if (plan == null)
-				return null;
-		}
-
-		if (!SurgicalPreparationBudget.begin(false)) return null;
-		long started = SurgicalProfiler.begin();
-		try { return plan.snapshot(poseStack, cubeCount, presentCubes, offsets, rotations, cameraPosition); }
-		finally {
-			SurgicalPreparationBudget.end();
-			SurgicalProfiler.end("captureGeometry", started);
-		}
-	}
-
-	private static SurgicalCapturedRenderPlan buildPlan(SurgicalCapturedRenderPlan.CapturedInput captured) {
-		long started = SurgicalProfiler.begin();
-		try {
-			return SurgicalCapturedRenderPlan.build(captured);
-		} finally {
-			SurgicalProfiler.end("build(plan)", started);
-		}
+		return SurgicalSourcePlanCache.geometryDeferred(preview, cubeCount, presentCubes, offsets, rotations, poseStack, yaw, cameraPosition);
 	}
 
 	/** Publishes completed worker results on the client thread and frees pending-capacity promptly. */
 	static void collectCompletedPlans() {
-		Iterator<Map.Entry<RenderPlanKey, PendingRenderPlan>> iterator =
-			PENDING_RENDER_PLANS.entrySet().iterator();
-		while (iterator.hasNext()) {
-			Map.Entry<RenderPlanKey, PendingRenderPlan> entry = iterator.next();
-			PendingRenderPlan pending = entry.getValue();
-			if (pending.generation != resourceGeneration) {
-				pending.future.cancel(false);
-				iterator.remove();
-				continue;
-			}
-			if (!pending.future.isDone())
-				continue;
-			iterator.remove();
-			try {
-				SurgicalCapturedRenderPlan completed = pending.future.join();
-				if (pending.generation == resourceGeneration)
-					RENDER_PLANS.put(entry.getKey(), completed);
-			} catch (RuntimeException ignored) {
-				// A later visible-frame request may retry this immutable plan.
-			}
-		}
-	}
-
-	@Nullable
-	private static SurgicalCapturedRenderPlan completedPlan(RenderPlanKey key) {
-		SurgicalCapturedRenderPlan completed = RENDER_PLANS.get(key);
-		if (completed != null)
-			return completed;
-		PendingRenderPlan pending = PENDING_RENDER_PLANS.get(key);
-		if (pending == null)
-			return null;
-		if (pending.generation != resourceGeneration) {
-			pending.future.cancel(false);
-			PENDING_RENDER_PLANS.remove(key);
-			return null;
-		}
-		if (!pending.future.isDone())
-			return null;
-		PENDING_RENDER_PLANS.remove(key);
-		try {
-			completed = pending.future.join();
-		} catch (RuntimeException ignored) {
-			return null;
-		}
-		if (pending.generation != resourceGeneration)
-			return null;
-		RENDER_PLANS.put(key, completed);
-		return completed;
+		SurgicalSourcePlanCache.collectCompletedPlans();
 	}
 
 	/** Captures unoffset source geometry without submitting the temporary model to the visible buffer. */
@@ -742,13 +422,13 @@ public final class SurgicalSourceModelRenderer {
 		@Nullable Vec3 cameraPosition, boolean renderSourceGeometry) {
 		long started = SurgicalProfiler.begin();
 		preparePreview(preview, yaw);
-		SurgicalModelRenderContext.Snapshot snapshot = plan(preview, yaw)
+		SurgicalModelRenderContext.Snapshot snapshot = SurgicalSourcePlanCache.plan(preview, yaw)
 			.snapshot(poseStack, cubeCount, presentCubes, Map.of(), Map.of(), cameraPosition);
 		SurgicalProfiler.end("captureGeometry", started);
 		return snapshot;
 	}
 
-	private static void preparePreview(LivingEntity preview, float yaw) {
+	static void preparePreview(LivingEntity preview, float yaw) {
 		preview.setYRot(yaw);
 		preview.yRotO = yaw;
 		preview.yBodyRot = yaw;
@@ -758,7 +438,7 @@ public final class SurgicalSourceModelRenderer {
 	}
 
 	@SuppressWarnings("unchecked")
-	private static EntityRenderer<LivingEntity> renderer(LivingEntity preview) {
+	static EntityRenderer<LivingEntity> renderer(LivingEntity preview) {
 		EntityRenderer<LivingEntity> renderer = (EntityRenderer<LivingEntity>) Minecraft.getInstance()
 			.getEntityRenderDispatcher().getRenderer(preview);
 		return renderer;
@@ -767,16 +447,16 @@ public final class SurgicalSourceModelRenderer {
 	public static void clear() {
 		PREVIEWS.clear();
 		PREVIEW_PROFILES.clear();
-		RENDER_PLANS.clear();
+		SurgicalSourcePlanCache.RENDER_PLANS.clear();
 		resourceGeneration++;
-		PENDING_RENDER_PLANS.values().forEach(pending -> pending.future.cancel(false));
-		PENDING_RENDER_PLANS.clear();
-		FALLBACK_RENDER_PLANS.clear();
-		SADDLE_RENDER_PLANS.clear();
-		CHEST_RENDER_PLANS.clear();
-		TRAIT_RENDER_PLANS.clear();
+		SurgicalSourcePlanCache.PENDING_RENDER_PLANS.values().forEach(pending -> pending.future().cancel(false));
+		SurgicalSourcePlanCache.PENDING_RENDER_PLANS.clear();
+		SurgicalSourcePlanCache.FALLBACK_RENDER_PLANS.clear();
+		SurgicalEquipmentRenderPlans.SADDLE_RENDER_PLANS.clear();
+		SurgicalEquipmentRenderPlans.CHEST_RENDER_PLANS.clear();
+		SurgicalEquipmentRenderPlans.TRAIT_RENDER_PLANS.clear();
 		SurgicalNativeAnimations.clear();
-		RIDING_SEATS.clear();
+		SurgicalEquipmentRenderPlans.RIDING_SEATS.clear();
 		DONOR_GEOMETRIES.clear();
 		SurgicalCapturedRenderPlan.clearResources();
 	}
@@ -786,15 +466,6 @@ public final class SurgicalSourceModelRenderer {
 	 * reference from the value back to it would pin every entry forever.
 	 */
 	private record CachedPreview(ClientLevel level, LivingEntity entity) {}
-
-	private record RenderPlanKey(MimicProfile profile, EntityRenderer<LivingEntity> renderer, int yawBits) {}
-
-	private record SaddlePlanKey(RenderPlanKey source, boolean saddled) {}
-
-	private record CachedRenderPlan(EntityRenderer<LivingEntity> renderer, float yaw,
-		SurgicalCapturedRenderPlan plan) {}
-
-	private record PendingRenderPlan(int generation, CompletableFuture<SurgicalCapturedRenderPlan> future) {}
 
 	/** CreeperRenderer's white flash, applied at draw time across every retained donor and its tack. */
 	private static MultiBufferSource selfDestructBuffer(SlimeBionicEntity owner, float partialTick,

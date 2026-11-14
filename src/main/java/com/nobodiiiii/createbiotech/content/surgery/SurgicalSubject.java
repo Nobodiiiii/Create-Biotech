@@ -15,64 +15,62 @@ import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import net.minecraft.core.Direction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.world.phys.Vec3;
 
 /** One independently placeable and editable creature stored by a surgical-table controller. */
 public final class SurgicalSubject {
-	private static final String ID_TAG = "SubjectId";
-	private static final String PERSISTENT_ID_TAG = "PersistentId";
-	private static final String DONOR_ID_TAG = "DonorId";
-	private static final String FACING_TAG = "PlacementFacing";
-	private static final String LAY_AXIS_TAG = "LayAxis";
-	private static final String LAY_YAW_TAG = "LayYaw";
-	private static final String LAY_TRANSLATE_X_TAG = "LayTranslateX";
-	private static final String LAY_TRANSLATE_Y_TAG = "LayTranslateY";
-	private static final String LAY_TRANSLATE_Z_TAG = "LayTranslateZ";
-	private static final String PRESENT_CUBES_TAG = "PresentCubes";
-	private static final String CUT_SEAMS_TAG = "CutSeams";
-	private static final String CUT_ORDER_TAG = "CutOrder";
-	private static final String ORIGIN_OFFSET_X_TAG = "OriginOffsetX";
-	private static final String ORIGIN_OFFSET_Z_TAG = "OriginOffsetZ";
-	private static final String OFFSET_CUBES_TAG = "OffsetCubes";
-	private static final String OFFSET_X_TAG = "OffsetX";
-	private static final String OFFSET_Y_TAG = "OffsetY";
-	private static final String OFFSET_Z_TAG = "OffsetZ";
-	private static final String ROTATIONS_TAG = "CubeRotations";
-	private static final String ROTATION_CUBE_TAG = "Cube";
-	private static final String ROTATION_VALUE_TAG = "Rotation";
-	private static final String GLUE_JOINTS_TAG = "GlueJoints";
-	private static final String COMBINATIONS_TAG = "Combinations";
-	private static final String LIMB_JOINTS_TAG = "LimbJoints";
-	private static final String FOOTPRINTS_TAG = "Footprints";
-	private static final String FOOTPRINT_ROOT_TAG = "Root";
-	private static final String FOOTPRINT_MIN_X_TAG = "MinX";
-	private static final String FOOTPRINT_MIN_Z_TAG = "MinZ";
-	private static final String FOOTPRINT_MAX_X_TAG = "MaxX";
-	private static final String FOOTPRINT_MAX_Z_TAG = "MaxZ";
-	private static final String FOOTPRINT_GRID_X_TAG = "GridX";
-	private static final String FOOTPRINT_GRID_Z_TAG = "GridZ";
+	static final String ID_TAG = "SubjectId";
+	static final String PERSISTENT_ID_TAG = "PersistentId";
+	static final String DONOR_ID_TAG = "DonorId";
+	static final String FACING_TAG = "PlacementFacing";
+	static final String LAY_AXIS_TAG = "LayAxis";
+	static final String LAY_YAW_TAG = "LayYaw";
+	static final String LAY_TRANSLATE_X_TAG = "LayTranslateX";
+	static final String LAY_TRANSLATE_Y_TAG = "LayTranslateY";
+	static final String LAY_TRANSLATE_Z_TAG = "LayTranslateZ";
+	static final String PRESENT_CUBES_TAG = "PresentCubes";
+	static final String CUT_SEAMS_TAG = "CutSeams";
+	static final String CUT_ORDER_TAG = "CutOrder";
+	static final String ORIGIN_OFFSET_X_TAG = "OriginOffsetX";
+	static final String ORIGIN_OFFSET_Z_TAG = "OriginOffsetZ";
+	static final String OFFSET_CUBES_TAG = "OffsetCubes";
+	static final String OFFSET_X_TAG = "OffsetX";
+	static final String OFFSET_Y_TAG = "OffsetY";
+	static final String OFFSET_Z_TAG = "OffsetZ";
+	static final String ROTATIONS_TAG = "CubeRotations";
+	static final String ROTATION_CUBE_TAG = "Cube";
+	static final String ROTATION_VALUE_TAG = "Rotation";
+	static final String GLUE_JOINTS_TAG = "GlueJoints";
+	static final String COMBINATIONS_TAG = "Combinations";
+	static final String LIMB_JOINTS_TAG = "LimbJoints";
+	static final String FOOTPRINTS_TAG = "Footprints";
+	static final String FOOTPRINT_ROOT_TAG = "Root";
+	static final String FOOTPRINT_MIN_X_TAG = "MinX";
+	static final String FOOTPRINT_MIN_Z_TAG = "MinZ";
+	static final String FOOTPRINT_MAX_X_TAG = "MaxX";
+	static final String FOOTPRINT_MAX_Z_TAG = "MaxZ";
+	static final String FOOTPRINT_GRID_X_TAG = "GridX";
+	static final String FOOTPRINT_GRID_Z_TAG = "GridZ";
 
-	private int id;
-	private final UUID persistentId;
-	private final UUID donorId;
-	private final BionicAnatomySnapshot anatomy;
-	private final MimicProfile profile;
-	private Direction placementFacing;
-	private SurgicalLayPose layPose;
+	int id;
+	final UUID persistentId;
+	final UUID donorId;
+	final BionicAnatomySnapshot anatomy;
+	final MimicProfile profile;
+	Direction placementFacing;
+	SurgicalLayPose layPose;
 	final int cubeCount;
 	final BitSet presentCubes;
 	final List<SurgicalAssembly.Seam> seams;
 	BitSet cutSeams;
 	List<Integer> cutOrder;
-	private double originOffsetX;
-	private double originOffsetZ;
+	double originOffsetX;
+	double originOffsetZ;
 	Map<Integer, Vec3> componentOffsets;
 	Map<Integer, SurgicalCubeRotation> componentRotations;
 	List<SurgicalTableLayout.Footprint> occupiedFootprints;
-	private List<SurgicalGlueJoint> glueJoints;
-	private List<SurgicalCombination> combinations;
+	List<SurgicalGlueJoint> glueJoints;
+	List<SurgicalCombination> combinations;
 	List<SurgicalLimbJoint> limbJoints;
 	private int clientRenderRevision;
 	@Nullable
@@ -507,238 +505,24 @@ public final class SurgicalSubject {
 	}
 
 	CompoundTag save() {
-		return save(null);
+		return SurgicalSubjectPersistence.save(this);
 	}
 
 	CompoundTag save(@Nullable SurgicalStorage.Writer storage) {
-		CompoundTag tag = new CompoundTag();
-		tag.putInt(ID_TAG, id);
-		tag.putUUID(PERSISTENT_ID_TAG, persistentId);
-		tag.putUUID(DONOR_ID_TAG, donorId);
-		SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
-			anatomy);
-		tag.putInt(FACING_TAG, placementFacing.get3DDataValue());
-		tag.putInt(LAY_AXIS_TAG, layPose.axis().ordinal());
-		tag.putInt(LAY_YAW_TAG, layPose.yaw());
-		tag.putDouble(LAY_TRANSLATE_X_TAG, layPose.translation().x);
-		tag.putDouble(LAY_TRANSLATE_Y_TAG, layPose.translation().y);
-		tag.putDouble(LAY_TRANSLATE_Z_TAG, layPose.translation().z);
-		if (originOffsetX != 0.0d || originOffsetZ != 0.0d) {
-			tag.putDouble(ORIGIN_OFFSET_X_TAG, originOffsetX);
-			tag.putDouble(ORIGIN_OFFSET_Z_TAG, originOffsetZ);
-		}
-		tag.put(FOOTPRINTS_TAG, writeFootprints(occupiedFootprints));
-		if (storage != null) {
-			storage.writeRelations(tag, glueJoints, combinations, limbJoints);
-		} else {
-			if (!glueJoints.isEmpty()) {
-				ListTag encodedJoints = new ListTag();
-				for (SurgicalGlueJoint joint : glueJoints)
-					encodedJoints.add(joint.save());
-				tag.put(GLUE_JOINTS_TAG, encodedJoints);
-			}
-			if (!combinations.isEmpty()) {
-				ListTag encodedCombinations = new ListTag();
-				for (SurgicalCombination combination : combinations)
-					encodedCombinations.add(combination.save());
-				tag.put(COMBINATIONS_TAG, encodedCombinations);
-			}
-			if (!limbJoints.isEmpty()) {
-				ListTag encodedLimbs = new ListTag();
-				for (SurgicalLimbJoint joint : limbJoints)
-					encodedLimbs.add(joint.save());
-				tag.put(LIMB_JOINTS_TAG, encodedLimbs);
-			}
-		}
-		tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
-		if (!cutSeams.isEmpty())
-			tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
-		if (!cutOrder.isEmpty())
-			tag.putIntArray(CUT_ORDER_TAG, cutOrder.stream().mapToInt(Integer::intValue).toArray());
-		writeOffsets(tag);
-		writeRotations(tag);
-		return tag;
+		return SurgicalSubjectPersistence.save(this, storage);
 	}
 
 	@Nullable
 	static SurgicalSubject load(CompoundTag tag) {
-		return load(tag, null);
+		return SurgicalSubjectPersistence.load(tag);
 	}
 
 	@Nullable
 	static SurgicalSubject load(CompoundTag tag, @Nullable SurgicalStorage.Reader storage) {
-		SurgicalStorage.Donor donor = SurgicalStorage.readDonor(tag, storage);
-		if (!tag.contains(ID_TAG, Tag.TAG_ANY_NUMERIC) || !tag.hasUUID(PERSISTENT_ID_TAG)
-			|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
-			|| donor == null
-			|| !tag.contains(PRESENT_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(FOOTPRINTS_TAG, Tag.TAG_LIST))
-			return null;
-		if (hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
-			|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
-			return null;
-		MimicProfile profile = donor.profile();
-		int id = tag.getInt(ID_TAG);
-		UUID persistentId = tag.getUUID(PERSISTENT_ID_TAG);
-		UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : persistentId;
-		Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
-		SurgicalLayPose layPose = readLayPose(tag);
-		if (id < 0 || profile == null || !facing.getAxis().isHorizontal() || layPose == null)
-			return null;
-		boolean hasOrigin = tag.contains(ORIGIN_OFFSET_X_TAG) || tag.contains(ORIGIN_OFFSET_Z_TAG);
-		if (hasOrigin && (!tag.contains(ORIGIN_OFFSET_X_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(ORIGIN_OFFSET_Z_TAG, Tag.TAG_ANY_NUMERIC)))
-			return null;
-		double originX = tag.contains(ORIGIN_OFFSET_X_TAG, Tag.TAG_ANY_NUMERIC)
-			? tag.getDouble(ORIGIN_OFFSET_X_TAG) : 0.0d;
-		double originZ = tag.contains(ORIGIN_OFFSET_Z_TAG, Tag.TAG_ANY_NUMERIC)
-			? tag.getDouble(ORIGIN_OFFSET_Z_TAG) : 0.0d;
-		if (!finiteOffset(originX) || !finiteOffset(originZ))
-			return null;
-
-		int cubeCount = donor.cubeCount();
-		List<SurgicalAssembly.Seam> seams = donor.seams();
-		BitSet present = BitSet.valueOf(tag.getLongArray(PRESENT_CUBES_TAG));
-		BitSet cuts = tag.contains(CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
-			? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
-		BionicAnatomySnapshot anatomy = donor.anatomy();
-		if (seams == null || !SurgicalAssembly.validTopology(cubeCount, seams) || present.isEmpty()
-			|| present.length() > cubeCount || cuts.length() > seams.size())
-			return null;
-		List<Integer> cutOrder = readCutOrder(tag, cuts, seams.size());
-		Map<Integer, Vec3> offsets = readOffsets(tag, cubeCount, present);
-		Map<Integer, SurgicalCubeRotation> rotations = readRotations(tag, cubeCount, present);
-		List<SurgicalTableLayout.Footprint> footprints = readFootprints(tag);
-		List<SurgicalGlueJoint> glueJoints = storage != null && tag.contains(SurgicalStorage.GLUE_REFS_TAG)
-			? storage.glue(tag) : readGlueJoints(tag);
-		List<SurgicalCombination> combinations = storage != null && tag.contains(SurgicalStorage.COMBINATION_REFS_TAG)
-			? storage.combinations(tag) : readCombinations(tag);
-		List<SurgicalLimbJoint> limbJoints = storage != null && tag.contains(SurgicalStorage.LIMB_REFS_TAG)
-			? storage.limbs(tag) : readLimbJoints(tag);
-		if (cutOrder == null || offsets == null || rotations == null || footprints == null || footprints.isEmpty()
-			|| glueJoints == null || combinations == null || limbJoints == null)
-			return null;
-		return new SurgicalSubject(id, persistentId, donorId,
-			anatomy, profile, facing, layPose, cubeCount, present,
-			seams, cuts, cutOrder,
-			originX, originZ, offsets, rotations, footprints, glueJoints, combinations, limbJoints);
+		return SurgicalSubjectPersistence.load(tag, storage);
 	}
 
-	@Nullable
-	private static SurgicalLayPose readLayPose(CompoundTag tag) {
-		if (!tag.contains(LAY_AXIS_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(LAY_YAW_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(LAY_TRANSLATE_X_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(LAY_TRANSLATE_Y_TAG, Tag.TAG_ANY_NUMERIC)
-			|| !tag.contains(LAY_TRANSLATE_Z_TAG, Tag.TAG_ANY_NUMERIC))
-			return null;
-		int axisId = tag.getInt(LAY_AXIS_TAG);
-		if (axisId < 0 || axisId >= SurgicalLayPose.RotationAxis.values().length)
-			return null;
-		try {
-			return new SurgicalLayPose(SurgicalLayPose.RotationAxis.values()[axisId], tag.getInt(LAY_YAW_TAG),
-				new Vec3(tag.getDouble(LAY_TRANSLATE_X_TAG), tag.getDouble(LAY_TRANSLATE_Y_TAG),
-					tag.getDouble(LAY_TRANSLATE_Z_TAG)));
-		} catch (IllegalArgumentException ignored) {
-			return null;
-		}
-	}
-
-	private void writeOffsets(CompoundTag tag) {
-		if (componentOffsets.isEmpty())
-			return;
-		List<Map.Entry<Integer, Vec3>> entries = componentOffsets.entrySet().stream()
-			.sorted(Map.Entry.comparingByKey()).toList();
-		int[] cubes = new int[entries.size()];
-		long[] xOffsets = new long[entries.size()];
-		long[] yOffsets = new long[entries.size()];
-		long[] zOffsets = new long[entries.size()];
-		for (int index = 0; index < entries.size(); index++) {
-			Map.Entry<Integer, Vec3> entry = entries.get(index);
-			cubes[index] = entry.getKey();
-			xOffsets[index] = Double.doubleToRawLongBits(entry.getValue().x);
-			yOffsets[index] = Double.doubleToRawLongBits(entry.getValue().y);
-			zOffsets[index] = Double.doubleToRawLongBits(entry.getValue().z);
-		}
-		tag.putIntArray(OFFSET_CUBES_TAG, cubes);
-		tag.putLongArray(OFFSET_X_TAG, xOffsets);
-		tag.putLongArray(OFFSET_Y_TAG, yOffsets);
-		tag.putLongArray(OFFSET_Z_TAG, zOffsets);
-	}
-
-	@Nullable
-	private static Map<Integer, Vec3> readOffsets(CompoundTag tag, int cubeCount, BitSet present) {
-		boolean presentInTag = tag.contains(OFFSET_CUBES_TAG) || tag.contains(OFFSET_X_TAG)
-			|| tag.contains(OFFSET_Y_TAG) || tag.contains(OFFSET_Z_TAG);
-		if (!presentInTag)
-			return Map.of();
-		if (!tag.contains(OFFSET_CUBES_TAG, Tag.TAG_INT_ARRAY)
-			|| !tag.contains(OFFSET_X_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(OFFSET_Y_TAG, Tag.TAG_LONG_ARRAY)
-			|| !tag.contains(OFFSET_Z_TAG, Tag.TAG_LONG_ARRAY))
-			return null;
-		int[] cubes = tag.getIntArray(OFFSET_CUBES_TAG);
-		long[] xOffsets = tag.getLongArray(OFFSET_X_TAG);
-		long[] yOffsets = tag.getLongArray(OFFSET_Y_TAG);
-		long[] zOffsets = tag.getLongArray(OFFSET_Z_TAG);
-		if (cubes.length != xOffsets.length || cubes.length != yOffsets.length
-			|| cubes.length != zOffsets.length || cubes.length > cubeCount)
-			return null;
-		Map<Integer, Vec3> loaded = new HashMap<>();
-		for (int index = 0; index < cubes.length; index++) {
-			double x = Double.longBitsToDouble(xOffsets[index]);
-			double y = Double.longBitsToDouble(yOffsets[index]);
-			double z = Double.longBitsToDouble(zOffsets[index]);
-			if (cubes[index] < 0 || cubes[index] >= cubeCount || !present.get(cubes[index])
-				|| !finiteOffset(x) || !finiteOffset(y) || !finiteOffset(z)
-				|| loaded.put(cubes[index], new Vec3(x, y, z)) != null)
-				return null;
-		}
-		return Map.copyOf(loaded);
-	}
-
-	private void writeRotations(CompoundTag tag) {
-		if (componentRotations.isEmpty())
-			return;
-		ListTag encoded = new ListTag();
-		for (Map.Entry<Integer, SurgicalCubeRotation> entry : componentRotations.entrySet().stream()
-			.sorted(Map.Entry.comparingByKey()).toList()) {
-			CompoundTag value = new CompoundTag();
-			value.putInt(ROTATION_CUBE_TAG, entry.getKey());
-			value.put(ROTATION_VALUE_TAG, entry.getValue().save());
-			encoded.add(value);
-		}
-		tag.put(ROTATIONS_TAG, encoded);
-	}
-
-	@Nullable
-	private static Map<Integer, SurgicalCubeRotation> readRotations(CompoundTag tag, int cubeCount,
-		BitSet present) {
-		if (!tag.contains(ROTATIONS_TAG))
-			return Map.of();
-		if (!tag.contains(ROTATIONS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(ROTATIONS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.size() > cubeCount)
-			return null;
-		Map<Integer, SurgicalCubeRotation> loaded = new HashMap<>();
-		for (int index = 0; index < encoded.size(); index++) {
-			CompoundTag value = encoded.getCompound(index);
-			if (!value.contains(ROTATION_CUBE_TAG, Tag.TAG_ANY_NUMERIC))
-				return null;
-			int cube = value.getInt(ROTATION_CUBE_TAG);
-			SurgicalCubeRotation rotation = value.contains(ROTATION_VALUE_TAG, Tag.TAG_COMPOUND)
-				? SurgicalCubeRotation.load(value.getCompound(ROTATION_VALUE_TAG)) : null;
-			if (cube < 0 || cube >= cubeCount || !present.get(cube) || rotation == null
-				|| loaded.putIfAbsent(cube, rotation) != null)
-				return null;
-		}
-		return sanitizeRotations(loaded);
-	}
-
-	private static Map<Integer, SurgicalCubeRotation> sanitizeRotations(
+	static Map<Integer, SurgicalCubeRotation> sanitizeRotations(
 		Map<Integer, SurgicalCubeRotation> rotations) {
 		Map<Integer, SurgicalCubeRotation> sanitized = new HashMap<>();
 		rotations.forEach((cube, rotation) -> {
@@ -748,136 +532,8 @@ public final class SurgicalSubject {
 		return Map.copyOf(sanitized);
 	}
 
-	@Nullable
-	private static List<SurgicalGlueJoint> readGlueJoints(CompoundTag tag) {
-		if (!tag.contains(GLUE_JOINTS_TAG))
-			return List.of();
-		if (!tag.contains(GLUE_JOINTS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(GLUE_JOINTS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.size() > SurgicalAssembly.MAX_SEAMS)
-			return null;
-		List<SurgicalGlueJoint> joints = new ArrayList<>();
-		for (int index = 0; index < encoded.size(); index++) {
-			SurgicalGlueJoint joint = SurgicalGlueJoint.load(encoded.getCompound(index));
-			if (joint == null || joints.contains(joint))
-				return null;
-			joints.add(joint);
-		}
-		return List.copyOf(joints);
-	}
-
-	@Nullable
-	private static List<SurgicalLimbJoint> readLimbJoints(CompoundTag tag) {
-		if (!tag.contains(LIMB_JOINTS_TAG))
-			return List.of();
-		if (!tag.contains(LIMB_JOINTS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(LIMB_JOINTS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.size() > SurgicalAssembly.MAX_CUBES)
-			return null;
-		List<SurgicalLimbJoint> joints = new ArrayList<>();
-		for (int index = 0; index < encoded.size(); index++) {
-			SurgicalLimbJoint joint = SurgicalLimbJoint.load(encoded.getCompound(index));
-			if (joint == null || joints.contains(joint))
-				return null;
-			joints.add(joint);
-		}
-		return List.copyOf(joints);
-	}
-
-	@Nullable
-	private static List<SurgicalCombination> readCombinations(CompoundTag tag) {
-		if (!tag.contains(COMBINATIONS_TAG))
-			return List.of();
-		if (!tag.contains(COMBINATIONS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(COMBINATIONS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.size() > SurgicalAssembly.MAX_CUBES)
-			return null;
-		List<SurgicalCombination> combinations = new ArrayList<>();
-		for (int index = 0; index < encoded.size(); index++) {
-			SurgicalCombination combination = SurgicalCombination.load(encoded.getCompound(index));
-			if (combination == null || combinations.contains(combination))
-				return null;
-			combinations.add(combination);
-		}
-		return List.copyOf(combinations);
-	}
-
-	@Nullable
-	private static List<Integer> readCutOrder(CompoundTag tag, BitSet cuts, int seamCount) {
-		if (!tag.contains(CUT_ORDER_TAG))
-			return cuts.isEmpty() ? List.of() : null;
-		if (!tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
-			return null;
-		List<Integer> loaded = new ArrayList<>();
-		for (int seamId : tag.getIntArray(CUT_ORDER_TAG))
-			loaded.add(seamId);
-		List<Integer> normalized = SurgicalAssembly.normalizeCutOrder(loaded, cuts, seamCount);
-		return normalized.equals(loaded) ? normalized : null;
-	}
-
-	private static ListTag writeFootprints(List<SurgicalTableLayout.Footprint> footprints) {
-		ListTag encoded = new ListTag();
-		for (SurgicalTableLayout.Footprint footprint : footprints) {
-			CompoundTag entry = new CompoundTag();
-			entry.putInt(FOOTPRINT_ROOT_TAG, footprint.componentRoot());
-			entry.putDouble(FOOTPRINT_MIN_X_TAG, footprint.minX());
-			entry.putDouble(FOOTPRINT_MIN_Z_TAG, footprint.minZ());
-			entry.putDouble(FOOTPRINT_MAX_X_TAG, footprint.maxX());
-			entry.putDouble(FOOTPRINT_MAX_Z_TAG, footprint.maxZ());
-			entry.putInt(FOOTPRINT_GRID_X_TAG, footprint.gridX());
-			entry.putInt(FOOTPRINT_GRID_Z_TAG, footprint.gridZ());
-			encoded.add(entry);
-		}
-		return encoded;
-	}
-
-	@Nullable
-	private static List<SurgicalTableLayout.Footprint> readFootprints(CompoundTag tag) {
-		if (!tag.contains(FOOTPRINTS_TAG, Tag.TAG_LIST))
-			return null;
-		ListTag encoded = (ListTag) tag.get(FOOTPRINTS_TAG);
-		if (!encoded.isEmpty() && encoded.getElementType() != Tag.TAG_COMPOUND)
-			return null;
-		if (encoded.isEmpty() || encoded.size() > SurgicalAssembly.MAX_CUBES)
-			return null;
-		List<SurgicalTableLayout.Footprint> loaded = new ArrayList<>(encoded.size());
-		for (int index = 0; index < encoded.size(); index++) {
-			CompoundTag entry = encoded.getCompound(index);
-			if (!entry.contains(FOOTPRINT_ROOT_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_MIN_X_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_MIN_Z_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_MAX_X_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_MAX_Z_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_GRID_X_TAG, Tag.TAG_ANY_NUMERIC)
-				|| !entry.contains(FOOTPRINT_GRID_Z_TAG, Tag.TAG_ANY_NUMERIC))
-				return null;
-			SurgicalTableLayout.Footprint footprint = new SurgicalTableLayout.Footprint(
-				entry.getInt(FOOTPRINT_ROOT_TAG), entry.getDouble(FOOTPRINT_MIN_X_TAG),
-				entry.getDouble(FOOTPRINT_MIN_Z_TAG), entry.getDouble(FOOTPRINT_MAX_X_TAG),
-				entry.getDouble(FOOTPRINT_MAX_Z_TAG), entry.getInt(FOOTPRINT_GRID_X_TAG),
-				entry.getInt(FOOTPRINT_GRID_Z_TAG));
-			if (!SurgicalTableLayout.validStoredFootprint(footprint))
-				return null;
-			loaded.add(footprint);
-		}
-		return List.copyOf(loaded);
-	}
-
-	private static boolean finiteOffset(double value) {
+	static boolean finiteOffset(double value) {
 		return Double.isFinite(value) && Math.abs(value) <= SurgicalTablePlane.MAX_TILES + 2.0d;
-	}
-
-	private static boolean hasWrongType(CompoundTag tag, String key, int expectedType) {
-		return tag.contains(key) && !tag.contains(key, expectedType);
 	}
 
 	private static Direction horizontal(Direction direction) {

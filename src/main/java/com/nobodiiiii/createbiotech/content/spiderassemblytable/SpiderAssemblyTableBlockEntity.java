@@ -1,43 +1,32 @@
 package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 
+import java.util.Optional;
+import com.simibubi.create.content.fluids.spout.SpoutBlockEntity;
+
 import net.minecraft.core.HolderLookup;
 
-import static com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult.HOLD;
-import static com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult.PASS;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.AllDataComponents;
 import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.api.stress.BlockStressValues;
-import com.simibubi.create.content.fluids.spout.SpoutBlockEntity;
-import com.simibubi.create.content.fluids.transfer.FillingRecipe;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntity;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour;
-import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
-import com.simibubi.create.content.kinetics.deployer.DeployerApplicationRecipe;
 import com.simibubi.create.content.kinetics.press.PressingBehaviour;
-import com.simibubi.create.content.kinetics.press.PressingRecipe;
 import com.simibubi.create.content.kinetics.saw.CuttingRecipe;
-import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
-import com.simibubi.create.content.processing.sequenced.SequencedAssemblyRecipe;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.simibubi.create.foundation.recipe.RecipeApplier;
 
 import net.createmod.catnip.math.VecHelper;
 import net.minecraft.core.BlockPos;
@@ -54,13 +43,10 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -68,16 +54,12 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.crafting.SizedFluidIngredient;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.IItemHandlerModifiable;
 import net.neoforged.neoforge.items.ItemStackHandler;
-import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 
 public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implements MenuProvider {
 
@@ -87,27 +69,27 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	public static final int HYBRID_SLOT_START = MACHINE_SLOT_START + LEG_COUNT;
 	public static final int SLOT_COUNT = HYBRID_SLOT_START + LEG_COUNT;
 
-	private final SpiderAssemblyInventory inventory = new SpiderAssemblyInventory();
-	private final FluidTank[] fluidTanks = new FluidTank[LEG_COUNT];
-	private final ItemStack[] itemLocks = new ItemStack[LEG_COUNT];
-	private final FluidStack[] fluidLocks = new FluidStack[LEG_COUNT];
-	private final boolean[] slotBlocked = new boolean[LEG_COUNT];
+	final SpiderAssemblyInventory inventory = new SpiderAssemblyInventory();
+	final FluidTank[] fluidTanks = new FluidTank[LEG_COUNT];
+	final ItemStack[] itemLocks = new ItemStack[LEG_COUNT];
+	final FluidStack[] fluidLocks = new FluidStack[LEG_COUNT];
+	final boolean[] slotBlocked = new boolean[LEG_COUNT];
 	private final IItemHandler itemCapability = new HybridItemWrapper();
 	private final IFluidHandler fluidCapability = new SpiderFluidHandler();
 
-	private int nextSlot;
-	private int activeSlot = -1;
-	private MachineKind activeMachine;
-	private int processingTicksRemaining;
-	private int processingTicksTotal;
-	private boolean processAppliedThisCycle;
+	int nextSlot;
+	int activeSlot = -1;
+	MachineKind activeMachine;
+	int processingTicksRemaining;
+	int processingTicksTotal;
+	boolean processAppliedThisCycle;
 	private boolean impactPending;
 	private ItemStack impactDisplayItem = ItemStack.EMPTY;
-	private ItemStack cachedInput = ItemStack.EMPTY;
+	ItemStack cachedInput = ItemStack.EMPTY;
 	@Nullable
 	private Block casing;
 	@Nullable
-	private UUID advancementOwner;
+	UUID advancementOwner;
 
 	protected BeltProcessingBehaviour beltProcessing;
 
@@ -137,7 +119,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			return;
 		}
 
-		tickAssembly();
+		SpiderProcessController.tickAssembly(this);
 	}
 
 	@Override
@@ -322,397 +304,64 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	}
 
 	public boolean isHybridSlotItemOnly(int hybridIndex) {
-		return fluidTanks[hybridIndex].getFluid().isEmpty();
+		return SpiderHybridStorage.isHybridSlotItemOnly(this, hybridIndex);
 	}
 
 	public boolean isHybridSlotFluidOnly(int hybridIndex) {
-		return !fluidTanks[hybridIndex].getFluid().isEmpty();
+		return SpiderHybridStorage.isHybridSlotFluidOnly(this, hybridIndex);
 	}
 
 	public ItemStack getItemLock(int hybridIndex) {
-		return itemLocks[hybridIndex];
+		return SpiderHybridStorage.getItemLock(this, hybridIndex);
 	}
 
 	public FluidStack getFluidLock(int hybridIndex) {
-		return fluidLocks[hybridIndex];
+		return SpiderHybridStorage.getFluidLock(this, hybridIndex);
 	}
 
 	public boolean isHybridSlotLocked(int hybridIndex) {
-		return !itemLocks[hybridIndex].isEmpty() || !fluidLocks[hybridIndex].isEmpty() || slotBlocked[hybridIndex];
+		return SpiderHybridStorage.isHybridSlotLocked(this, hybridIndex);
 	}
 
 	public boolean areAllHybridSlotsLocked() {
-		for (int i = 0; i < LEG_COUNT; i++)
-			if (!isHybridSlotLocked(i))
-				return false;
-		return true;
+		return SpiderHybridStorage.areAllHybridSlotsLocked(this);
 	}
 
 	public boolean isHybridSlotBlocked(int hybridIndex) {
-		return slotBlocked[hybridIndex];
+		return SpiderHybridStorage.isHybridSlotBlocked(this, hybridIndex);
 	}
 
 	public boolean canHybridSlotAcceptItem(int hybridIndex, ItemStack stack) {
-		if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
-			return false;
-		if (stack.isEmpty())
-			return true;
-		if (slotBlocked[hybridIndex])
-			return false;
-		if (!fluidTanks[hybridIndex].getFluid().isEmpty())
-			return false;
-		if (!fluidLocks[hybridIndex].isEmpty())
-			return false;
-		ItemStack lock = itemLocks[hybridIndex];
-		if (!lock.isEmpty() && !ItemStack.isSameItemSameComponents(lock, stack))
-			return false;
-		return true;
+		return SpiderHybridStorage.canHybridSlotAcceptItem(this, hybridIndex, stack);
 	}
 
 	public boolean canHybridTankAcceptFluid(int hybridIndex, FluidStack stack) {
-		if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
-			return false;
-		if (stack.isEmpty())
-			return true;
-		if (slotBlocked[hybridIndex])
-			return false;
-		if (!inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex).isEmpty())
-			return false;
-		if (!itemLocks[hybridIndex].isEmpty())
-			return false;
-		FluidStack lock = fluidLocks[hybridIndex];
-		if (!lock.isEmpty() && !FluidStack.isSameFluidSameComponents(lock, stack))
-			return false;
-		return fluidTanks[hybridIndex].isFluidValid(stack);
+		return SpiderHybridStorage.canHybridTankAcceptFluid(this, hybridIndex, stack);
 	}
 
 	public void handleLockButton(int hybridIndex, ItemStack carried) {
-		if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
-			return;
-
-		if (!carried.isEmpty()) {
-			IFluidHandlerItem fluidHandler = carried.getCapability(Capabilities.FluidHandler.ITEM);
-			FluidStack containerFluid = fluidHandler != null && fluidHandler.getTanks() > 0
-				? fluidHandler.getFluidInTank(0)
-				: FluidStack.EMPTY;
-			if (!containerFluid.isEmpty()) {
-				if (!inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex).isEmpty())
-					return;
-				FluidStack currentFluid = fluidTanks[hybridIndex].getFluid();
-				if (!currentFluid.isEmpty() && !FluidStack.isSameFluidSameComponents(currentFluid, containerFluid))
-					return;
-				FluidStack lock = containerFluid.copy();
-				lock.setAmount(1);
-				fluidLocks[hybridIndex] = lock;
-				itemLocks[hybridIndex] = ItemStack.EMPTY;
-				slotBlocked[hybridIndex] = false;
-			} else {
-				if (!fluidTanks[hybridIndex].getFluid().isEmpty())
-					return;
-				ItemStack slotItem = inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex);
-				if (!slotItem.isEmpty() && !ItemStack.isSameItemSameComponents(slotItem, carried))
-					return;
-				ItemStack lock = carried.copy();
-				lock.setCount(1);
-				itemLocks[hybridIndex] = lock;
-				fluidLocks[hybridIndex] = FluidStack.EMPTY;
-				slotBlocked[hybridIndex] = false;
-			}
-		} else {
-			if (isHybridSlotLocked(hybridIndex)) {
-				itemLocks[hybridIndex] = ItemStack.EMPTY;
-				fluidLocks[hybridIndex] = FluidStack.EMPTY;
-				slotBlocked[hybridIndex] = false;
-			} else {
-				ItemStack slotItem = inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex);
-				FluidStack slotFluid = fluidTanks[hybridIndex].getFluid();
-				if (!slotItem.isEmpty()) {
-					ItemStack lock = slotItem.copy();
-					lock.setCount(1);
-					itemLocks[hybridIndex] = lock;
-				} else if (!slotFluid.isEmpty()) {
-					FluidStack lock = slotFluid.copy();
-					lock.setAmount(1);
-					fluidLocks[hybridIndex] = lock;
-				} else {
-					slotBlocked[hybridIndex] = true;
-				}
-			}
-		}
-
-		setChanged();
-		sendData();
+		SpiderHybridStorage.handleLockButton(this, hybridIndex, carried);
 	}
 
 	public void handleLockAllButton() {
-		boolean anyUnlocked = false;
-		for (int i = 0; i < LEG_COUNT; i++) {
-			if (!isHybridSlotLocked(i)) {
-				anyUnlocked = true;
-				break;
-			}
-		}
-
-		if (anyUnlocked) {
-			for (int i = 0; i < LEG_COUNT; i++) {
-				if (isHybridSlotLocked(i))
-					continue;
-				ItemStack slotItem = inventory.getStackInSlot(HYBRID_SLOT_START + i);
-				FluidStack slotFluid = fluidTanks[i].getFluid();
-				if (!slotItem.isEmpty()) {
-					ItemStack lock = slotItem.copy();
-					lock.setCount(1);
-					itemLocks[i] = lock;
-				} else if (!slotFluid.isEmpty()) {
-					FluidStack lock = slotFluid.copy();
-					lock.setAmount(1);
-					fluidLocks[i] = lock;
-				} else {
-					slotBlocked[i] = true;
-				}
-			}
-		} else {
-			for (int i = 0; i < LEG_COUNT; i++) {
-				itemLocks[i] = ItemStack.EMPTY;
-				fluidLocks[i] = FluidStack.EMPTY;
-				slotBlocked[i] = false;
-			}
-		}
-
-		setChanged();
-		sendData();
-	}
-
-	private int[] computeItemInsertOrder() {
-		int[] order = new int[LEG_COUNT];
-		int idx = 0;
-		for (int i = 0; i < LEG_COUNT; i++)
-			if (getMachineKind(i) == MachineKind.DEPLOYER)
-				order[idx++] = i;
-		for (int i = 0; i < LEG_COUNT; i++)
-			if (getMachineKind(i) != MachineKind.DEPLOYER)
-				order[idx++] = i;
-		return order;
-	}
-
-	private int[] computeItemExtractOrder() {
-		int[] order = new int[LEG_COUNT];
-		int idx = 0;
-		for (int i = 0; i < LEG_COUNT; i++)
-			if (getMachineKind(i) != MachineKind.DEPLOYER)
-				order[idx++] = i;
-		for (int i = 0; i < LEG_COUNT; i++)
-			if (getMachineKind(i) == MachineKind.DEPLOYER)
-				order[idx++] = i;
-		return order;
+		SpiderHybridStorage.handleLockAllButton(this);
 	}
 
 	public FluidExchangeResult exchangeFluidWithItem(int hybridIndex, ItemStack singleItem) {
-		if (hybridIndex < 0 || hybridIndex >= LEG_COUNT)
-			return FluidExchangeResult.failure();
-
-		ItemStack slotItem = inventory.getStackInSlot(HYBRID_SLOT_START + hybridIndex);
-		if (!slotItem.isEmpty())
-			return FluidExchangeResult.failure();
-
-		IFluidHandlerItem itemHandler = singleItem.getCapability(Capabilities.FluidHandler.ITEM);
-		if (itemHandler == null)
-			return FluidExchangeResult.failure();
-
-		FluidTank tank = fluidTanks[hybridIndex];
-		boolean changed = false;
-
-		FluidStack itemFluid = itemHandler.getTanks() > 0 ? itemHandler.getFluidInTank(0).copy() : FluidStack.EMPTY;
-		if (!itemFluid.isEmpty() && canHybridTankAcceptFluid(hybridIndex, itemFluid)) {
-			int canFill = tank.fill(itemFluid, FluidAction.SIMULATE);
-			if (canFill > 0) {
-				FluidStack drained = itemHandler.drain(canFill, FluidAction.EXECUTE);
-				if (!drained.isEmpty()) {
-					tank.fill(drained, FluidAction.EXECUTE);
-					changed = true;
-				}
-			}
-		}
-
-		if (!changed && !tank.getFluid().isEmpty()) {
-			FluidStack tankFluid = tank.getFluid().copy();
-			int filled = itemHandler.fill(tankFluid, FluidAction.EXECUTE);
-			if (filled > 0) {
-				tank.drain(filled, FluidAction.EXECUTE);
-				changed = true;
-			}
-		}
-
-		if (!changed)
-			return FluidExchangeResult.failure();
-
-		setChanged();
-		sendData();
-		return FluidExchangeResult.success(itemHandler.getContainer());
-	}
-
-	private void tickAssembly() {
-		if (activeSlot < 0)
-			return;
-		if (getSpeed() == 0)
-			return;
-
-		if (!processAppliedThisCycle && !cachedInput.isEmpty() && !isCachedInputStillHeld())
-			invalidateCachedInput();
-
-		processingTicksRemaining--;
-		if (processingTicksRemaining > 0)
-			return;
-
-		resetActiveProcess();
-		setChanged();
-		sendData();
+		return SpiderHybridStorage.exchangeFluidWithItem(this, hybridIndex, singleItem);
 	}
 
 	protected ProcessingResult onItemReceived(TransportedItemStack transported,
 		TransportedItemStackHandlerBehaviour handler) {
-		if (handler.blockEntity.isVirtual())
-			return PASS;
-		if (getSpeed() == 0)
-			return PASS;
-		if (activeSlot >= 0)
-			return HOLD;
-		if (transported.stack.isEmpty())
-			return PASS;
-		if (promotePreferredWorkpiece(transported, handler))
-			return HOLD;
-		if (startProcessFor(transported.stack))
-			return HOLD;
-		return noPlanResultFor(transported.stack);
+		return SpiderProcessController.onItemReceived(this, transported, handler);
 	}
 
 	protected ProcessingResult whileItemHeld(TransportedItemStack transported,
 		TransportedItemStackHandlerBehaviour handler) {
-		if (getSpeed() == 0)
-			return PASS;
-
-		if (activeSlot < 0) {
-			if (transported.stack.isEmpty())
-				return PASS;
-			if (promotePreferredWorkpiece(transported, handler))
-				return HOLD;
-			if (startProcessFor(transported.stack))
-				return HOLD;
-			return noPlanResultFor(transported.stack);
-		}
-
-		if (processAppliedThisCycle)
-			return HOLD;
-
-		if (!matchesCachedInput(transported.stack)) {
-			invalidateCachedInput();
-			return HOLD;
-		}
-
-		if (processingTicksRemaining > processingTicksTotal / 2)
-			return HOLD;
-
-		if (!applyActiveProcessToTransported(transported, handler)) {
-			invalidateCachedInput();
-			return HOLD;
-		}
-
-		return HOLD;
+		return SpiderProcessController.whileItemHeld(this, transported, handler);
 	}
 
-	private boolean applyActiveProcessToTransported(TransportedItemStack transported,
-		TransportedItemStackHandlerBehaviour handler) {
-		if (activeMachine == null || activeSlot < 0 || transported.stack.isEmpty())
-			return false;
-
-		ItemStack currentInput = transported.stack.copy();
-		currentInput.setCount(1);
-		if (createPlan(activeSlot, activeMachine, currentInput).isEmpty())
-			return false;
-
-		ItemStack impactItem = resolveImpactItem().copy();
-		List<ItemStack> outputs = applyActiveProcess(currentInput);
-		List<TransportedItemStack> outList = new ArrayList<>();
-		for (ItemStack out : outputs) {
-			if (out.isEmpty())
-				continue;
-			TransportedItemStack copy = transported.copy();
-			copy.stack = out;
-			copy.locked = true;
-			outList.add(copy);
-		}
-
-		ItemStack remaining = transported.stack.copy();
-		remaining.shrink(1);
-		TransportedItemStack held = null;
-		if (!remaining.isEmpty()) {
-			held = transported.copy();
-			held.stack = remaining;
-		}
-
-		transported.clearFanProcessingData();
-
-		if (outList.isEmpty() && held == null) {
-			handler.handleProcessingOnItem(transported, TransportedResult.removeItem());
-		} else if (held == null) {
-			handler.handleProcessingOnItem(transported, TransportedResult.convertTo(outList));
-		} else if (outList.isEmpty()) {
-			handler.handleProcessingOnItem(transported, TransportedResult.convertTo(List.of(held)));
-		} else {
-			handler.handleProcessingOnItem(transported, TransportedResult.convertToAndLeaveHeld(outList, held));
-		}
-
-		if (containsCompletedSequencedAssembly(outputs))
-			PlacedByPlayerAdvancementTracker.awardPlacedBy(level, advancementOwner, CBAdvancements.SPIDER_ASSEMBLY_TABLE);
-
-		processAppliedThisCycle = true;
-		triggerImpact(impactItem);
-		setChanged();
-		return true;
-	}
-
-	private void resetActiveProcess() {
-		activeSlot = -1;
-		activeMachine = null;
-		processingTicksRemaining = 0;
-		processingTicksTotal = 0;
-		processAppliedThisCycle = false;
-		cachedInput = ItemStack.EMPTY;
-	}
-
-	private boolean isCachedInputStillHeld() {
-		if (level == null || cachedInput.isEmpty())
-			return false;
-
-		TransportedItemStackHandlerBehaviour handler =
-			BlockEntityBehaviour.get(level, worldPosition.below(2), TransportedItemStackHandlerBehaviour.TYPE);
-		if (handler == null)
-			return false;
-
-		boolean[] found = { false };
-		handler.handleCenteredProcessingOnAllItems(.51f, transported -> {
-			if (matchesCachedInput(transported.stack))
-				found[0] = true;
-			return TransportedResult.doNothing();
-		});
-		return found[0];
-	}
-
-	private boolean matchesCachedInput(ItemStack input) {
-		return !cachedInput.isEmpty()
-			&& !input.isEmpty()
-			&& ItemStack.isSameItemSameComponents(cachedInput, input);
-	}
-
-	private void invalidateCachedInput() {
-		if (cachedInput.isEmpty())
-			return;
-		cachedInput = ItemStack.EMPTY;
-		setChanged();
-		sendData();
-	}
-
-	private void triggerImpact(ItemStack impactItem) {
+	void triggerImpact(ItemStack impactItem) {
 		if (level == null || activeMachine == null)
 			return;
 		playMachineSound();
@@ -721,7 +370,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		sendData();
 	}
 
-	private ItemStack resolveImpactItem() {
+	ItemStack resolveImpactItem() {
 		if (activeMachine == MachineKind.DEPLOYER && activeSlot >= 0) {
 			ItemStack held = inventory.getStackInSlot(HYBRID_SLOT_START + activeSlot);
 			if (!held.isEmpty())
@@ -780,340 +429,24 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		}
 	}
 
-	private boolean startProcessFor(ItemStack input) {
-		if (input.isEmpty())
-			return false;
-		ItemStack singleInput = input.copy();
-		singleInput.setCount(1);
-
-		for (int attempt = 0; attempt < LEG_COUNT; attempt++) {
-			int slot = (nextSlot + attempt) % LEG_COUNT;
-			MachineKind kind = getMachineKind(slot);
-			if (kind == null)
-				continue;
-
-			Optional<ProcessingPlan> plan = createPlan(slot, kind, singleInput);
-			if (plan.isEmpty())
-				continue;
-
-			activeSlot = slot;
-			activeMachine = kind;
-			processingTicksTotal = Math.max(2, plan.get().duration());
-			processingTicksRemaining = processingTicksTotal;
-			processAppliedThisCycle = false;
-			nextSlot = (slot + 1) % LEG_COUNT;
-			cachedInput = singleInput;
-			setChanged();
-			sendData();
-			return true;
-		}
-		return false;
-	}
-
-	/**
-	 * Waits for missing ingredients only when a leg can accept the next step's
-	 * required item or fluid. A partially filled tank keeps waiting for enough fluid.
-	 */
-	private ProcessingResult noPlanResultFor(ItemStack input) {
-		if (level == null || input.isEmpty())
-			return PASS;
-
-		if (!SequencedAssemblyRecipe.getRecipes(level, input, AllRecipeTypes.DEPLOYING.getType(),
-			DeployerApplicationRecipe.class, recipe -> hasWaitingDeployerLeg(recipe.value())).isEmpty())
-			return HOLD;
-		if (!SequencedAssemblyRecipe.getRecipes(level, input, AllRecipeTypes.FILLING.getType(),
-			FillingRecipe.class, recipe -> hasWaitingSpoutLeg(recipe.value())).isEmpty())
-			return HOLD;
-		return PASS;
-	}
-
-	private boolean hasWaitingDeployerLeg(DeployerApplicationRecipe recipe) {
-		for (int i = 0; i < LEG_COUNT; i++) {
-			if (getMachineKind(i) != MachineKind.DEPLOYER || slotBlocked[i])
-				continue;
-			if (!fluidTanks[i].getFluid().isEmpty() || !fluidLocks[i].isEmpty())
-				continue;
-			if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty())
-				continue;
-			ItemStack lock = itemLocks[i];
-			if (lock.isEmpty() || recipe.getRequiredHeldItem().test(lock))
-				return true;
-		}
-		return false;
-	}
-
-	private boolean hasWaitingSpoutLeg(FillingRecipe recipe) {
-		SizedFluidIngredient requiredFluid = recipe.getRequiredFluid();
-		for (int i = 0; i < LEG_COUNT; i++) {
-			if (getMachineKind(i) != MachineKind.SPOUT || slotBlocked[i])
-				continue;
-			if (!inventory.getStackInSlot(HYBRID_SLOT_START + i).isEmpty() || !itemLocks[i].isEmpty())
-				continue;
-			if (requiredFluid.amount() > fluidTanks[i].getCapacity())
-				continue;
-			FluidStack lock = fluidLocks[i];
-			if (!lock.isEmpty() && !requiredFluid.ingredient().test(lock))
-				continue;
-			FluidStack available = fluidTanks[i].getFluid();
-			if (available.isEmpty())
-				return true;
-			if (requiredFluid.ingredient().test(available) && available.getAmount() < requiredFluid.amount()
-				&& canHybridTankAcceptFluid(i, available))
-				return true;
-		}
-		return false;
-	}
-
-	private boolean promotePreferredWorkpiece(TransportedItemStack transported,
-		TransportedItemStackHandlerBehaviour handler) {
-		if (level == null || transported.stack.isEmpty())
-			return false;
-
-		BlockPos depotPos = worldPosition.below(2);
-		if (!(level.getBlockEntity(depotPos) instanceof DepotBlockEntity))
-			return false;
-
-		IItemHandler depotInventory = level.getCapability(Capabilities.ItemHandler.BLOCK, depotPos, null);
-		if (depotInventory == null || depotInventory.getSlots() < 2)
-			return false;
-
-		float bestPriority = getWorkpiecePriority(transported.stack);
-		int bestSlot = -1;
-		for (int slot = 1; slot < depotInventory.getSlots(); slot++) {
-			ItemStack candidate = depotInventory.getStackInSlot(slot);
-			float priority = getWorkpiecePriority(candidate);
-			if (priority <= bestPriority)
-				continue;
-			bestPriority = priority;
-			bestSlot = slot;
-		}
-		if (bestSlot < 0)
-			return false;
-
-		ItemStack candidate = depotInventory.getStackInSlot(bestSlot).copy();
-		ItemStack simulated = depotInventory.extractItem(bestSlot, candidate.getCount(), true);
-		if (!ItemStack.matches(candidate, simulated))
-			return false;
-		ItemStack extracted = depotInventory.extractItem(bestSlot, candidate.getCount(), false);
-		if (extracted.isEmpty())
-			return false;
-
-		TransportedItemStack displaced = transported.copy();
-		displaced.clearFanProcessingData();
-		TransportedItemStack preferred = transported.copy();
-		preferred.stack = extracted;
-		preferred.locked = true;
-		preferred.clearFanProcessingData();
-		handler.handleProcessingOnItem(transported,
-			TransportedResult.convertToAndLeaveHeld(List.of(displaced), preferred));
-		return true;
-	}
-
-	private float getWorkpiecePriority(ItemStack input) {
-		if (input.isEmpty() || !hasAvailableProcess(input))
-			return -1;
-		if (!input.has(AllDataComponents.SEQUENCED_ASSEMBLY))
-			return 0;
-		return input.get(AllDataComponents.SEQUENCED_ASSEMBLY).progress();
-	}
-
-	private boolean hasAvailableProcess(ItemStack input) {
-		ItemStack singleInput = input.copy();
-		singleInput.setCount(1);
-		for (int attempt = 0; attempt < LEG_COUNT; attempt++) {
-			int slot = (nextSlot + attempt) % LEG_COUNT;
-			MachineKind kind = getMachineKind(slot);
-			if (kind != null && createPlan(slot, kind, singleInput).isPresent())
-				return true;
-		}
-		return false;
-	}
-
-	private Optional<ProcessingPlan> createPlan(int slot, MachineKind kind, ItemStack input) {
-		if (level == null)
-			return Optional.empty();
-		return switch (kind) {
-		case DEPLOYER -> findDeployingRecipe(slot, input).map(recipe -> new ProcessingPlan(kind, getDeployerDuration()));
-		case PRESS -> findPressingRecipe(input).map(recipe -> new ProcessingPlan(kind, getPressDuration()));
-		case SAW -> findCuttingRecipe(input).map(recipe -> new ProcessingPlan(kind, getSawDuration(recipe)));
-		case SPOUT -> findFillingRecipe(slot, input).map(recipe -> new ProcessingPlan(kind, SpoutBlockEntity.FILLING_TIME));
-		};
-	}
-
-	private List<ItemStack> applyActiveProcess(ItemStack input) {
-		if (activeMachine == null || activeSlot < 0 || input.isEmpty())
-			return List.of();
-
-		ItemStack singleInput = input.copy();
-		singleInput.setCount(1);
-
-		return switch (activeMachine) {
-		case DEPLOYER -> processDeploying(activeSlot, singleInput);
-		case PRESS -> processPressing(singleInput);
-		case SAW -> processCutting(singleInput);
-		case SPOUT -> processFilling(activeSlot, singleInput);
-		};
-	}
-
-	private Optional<PressingRecipe> findPressingRecipe(ItemStack input) {
-		return SequencedAssemblyRecipe.getRecipe(level, input, AllRecipeTypes.PRESSING.getType(),
-			PressingRecipe.class).map(RecipeHolder::value);
-	}
-
-	private Optional<CuttingRecipe> findCuttingRecipe(ItemStack input) {
-		return SequencedAssemblyRecipe.getRecipe(level, input, AllRecipeTypes.CUTTING.getType(), CuttingRecipe.class)
-			.map(RecipeHolder::value);
-	}
-
-	private Optional<DeployerApplicationRecipe> findDeployingRecipe(int slot, ItemStack input) {
-		ItemStack held = inventory.getStackInSlot(HYBRID_SLOT_START + slot);
-		if (held.isEmpty())
-			return Optional.empty();
-
-		ItemStackHandler recipeInventory = new ItemStackHandler(2);
-		recipeInventory.setStackInSlot(0, input.copy());
-		recipeInventory.setStackInSlot(1, held.copy());
-		RecipeWrapper wrapper = new RecipeWrapper(recipeInventory);
-		return SequencedAssemblyRecipe.getRecipe(level, wrapper, AllRecipeTypes.DEPLOYING.getType(),
-			DeployerApplicationRecipe.class, recipe -> recipe.value().matches(wrapper, level))
-			.map(RecipeHolder::value);
-	}
-
-	private Optional<FillingRecipe> findFillingRecipe(int slot, ItemStack input) {
-		FluidStack fluid = fluidTanks[slot].getFluid();
-		if (fluid.isEmpty())
-			return Optional.empty();
-
-		SingleRecipeInput recipeInput = new SingleRecipeInput(input.copy());
-		return SequencedAssemblyRecipe.getRecipe(level, recipeInput, AllRecipeTypes.FILLING.getType(),
-			FillingRecipe.class,
-			recipe -> recipe.value().matches(recipeInput, level) && recipe.value().getRequiredFluid().test(fluid))
-			.map(RecipeHolder::value);
-	}
-
-	private List<ItemStack> processPressing(ItemStack input) {
-		return findPressingRecipe(input)
-			.map(recipe -> RecipeApplier.applyRecipeOn(level, input.copy(), recipe, true))
-			.orElse(List.of());
-	}
-
-	private List<ItemStack> processCutting(ItemStack input) {
-		return findCuttingRecipe(input)
-			.map(recipe -> RecipeApplier.applyRecipeOn(level, input.copy(), recipe, true))
-			.orElse(List.of());
-	}
-
-	private List<ItemStack> processDeploying(int slot, ItemStack input) {
-		Optional<DeployerApplicationRecipe> recipe = findDeployingRecipe(slot, input);
-		if (recipe.isEmpty())
-			return List.of();
-		List<ItemStack> outputs = RecipeApplier.applyRecipeOn(level, input.copy(), recipe.get(), true);
-		consumeDeployingItem(slot, recipe.get());
-		return outputs;
-	}
-
-	private List<ItemStack> processFilling(int slot, ItemStack input) {
-		Optional<FillingRecipe> recipeOpt = findFillingRecipe(slot, input);
-		if (recipeOpt.isEmpty())
-			return List.of();
-		FillingRecipe recipe = recipeOpt.get();
-		SizedFluidIngredient requiredFluid = recipe.getRequiredFluid();
-		FluidStack available = fluidTanks[slot].getFluid();
-		if (!requiredFluid.test(available))
-			return List.of();
-		fluidTanks[slot].drain(requiredFluid.amount(), FluidAction.EXECUTE);
-		return recipe.rollResults(level.random);
-	}
-
-	private void consumeDeployingItem(int slot, DeployerApplicationRecipe recipe) {
-		if (recipe.shouldKeepHeldItem())
-			return;
-
-		int hybridSlot = HYBRID_SLOT_START + slot;
-		ItemStack held = inventory.getStackInSlot(hybridSlot);
-		if (held.isEmpty())
-			return;
-
-		ItemStack remainder = held.getCraftingRemainingItem();
-		if (held.isDamageableItem()) {
-			held.setDamageValue(held.getDamageValue() + 1);
-			if (held.getDamageValue() >= held.getMaxDamage())
-				held.shrink(1);
-			inventory.setStackInSlot(hybridSlot, held);
-			return;
-		}
-
-		held.shrink(1);
-		inventory.setStackInSlot(hybridSlot, held);
-		if (!remainder.isEmpty())
-			insertIntoItemCacheOrDrop(slot, remainder);
-	}
-
-	private void insertIntoItemCacheOrDrop(int preferredSlot, ItemStack stack) {
-		if (stack.isEmpty())
-			return;
-
-		int slot = HYBRID_SLOT_START + preferredSlot;
-		if (canHoldItemInHybrid(preferredSlot)) {
-			ItemStack existing = inventory.getStackInSlot(slot);
-			if (existing.isEmpty()) {
-				inventory.setStackInSlot(slot, stack);
-				return;
-			}
-			if (ItemStack.isSameItemSameComponents(existing, stack)) {
-				int moved = Math.min(existing.getMaxStackSize() - existing.getCount(), stack.getCount());
-				existing.grow(moved);
-				stack.shrink(moved);
-				inventory.setStackInSlot(slot, existing);
-				if (stack.isEmpty())
-					return;
-			}
-		}
-
-		for (int i = 0; i < LEG_COUNT; i++) {
-			if (!canHoldItemInHybrid(i))
-				continue;
-			int hybridSlot = HYBRID_SLOT_START + i;
-			ItemStack remainder = inventory.insertItem(hybridSlot, stack, false);
-			if (remainder.isEmpty())
-				return;
-			stack = remainder;
-		}
-
-		dropStackNearTable(stack);
-	}
-
-	private boolean canHoldItemInHybrid(int hybridIndex) {
-		return fluidTanks[hybridIndex].getFluid().isEmpty();
-	}
-
-	private void dropStackNearTable(ItemStack stack) {
-		if (level == null || stack.isEmpty())
-			return;
-		ItemEntity entity = new ItemEntity(level, worldPosition.getX() + 0.5d, worldPosition.getY() + 0.5d,
-			worldPosition.getZ() + 0.5d, stack.copy());
-		entity.setDefaultPickUpDelay();
-		level.addFreshEntity(entity);
-	}
-
-	private boolean containsCompletedSequencedAssembly(List<ItemStack> outputs) {
+	boolean containsCompletedSequencedAssembly(List<ItemStack> outputs) {
 		if (outputs.isEmpty())
 			return false;
 		ItemStack workpiece = outputs.getFirst();
 		return !workpiece.isEmpty() && !workpiece.has(AllDataComponents.SEQUENCED_ASSEMBLY);
 	}
 
-	private int getPressDuration() {
+	int getPressDuration() {
 		int tickSpeed = Math.max(1, (int) Mth.lerp(Mth.clamp(Math.abs(getSpeed()) / 512f, 0, 1), 1, 60));
 		return Mth.ceil(PressingBehaviour.CYCLE / (float) tickSpeed);
 	}
 
-	private int getDeployerDuration() {
+	int getDeployerDuration() {
 		int timerSpeed = Math.max(1, (int) Mth.clamp(Math.abs(getSpeed() * 2), 8, 512));
 		return Mth.ceil((float) getDeployerBaseDuration() / timerSpeed);
 	}
 
-	private int getSawDuration(CuttingRecipe recipe) {
+	int getSawDuration(CuttingRecipe recipe) {
 		int recipeDuration = recipe.getProcessingDuration();
 		if (recipeDuration <= 0)
 			recipeDuration = getSawFallbackDuration();
@@ -1137,7 +470,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		return CBConfigs.SERVER.spiderAssemblyTable.sawSpeedDivisor.get();
 	}
 
-	private MachineKind getMachineKind(int slot) {
+	MachineKind getMachineKind(int slot) {
 		return MachineKind.fromStack(inventory.getStackInSlot(MACHINE_SLOT_START + slot));
 	}
 
@@ -1194,7 +527,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		}
 	}
 
-	private record ProcessingPlan(MachineKind kind, int duration) {}
+	record ProcessingPlan(MachineKind kind, int duration) {}
 
 	public record FluidExchangeResult(boolean success, ItemStack remainingContainer) {
 		public static FluidExchangeResult failure() {
@@ -1206,7 +539,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		}
 	}
 
-	private class SpiderAssemblyInventory extends ItemStackHandler {
+	class SpiderAssemblyInventory extends ItemStackHandler {
 
 		private SpiderAssemblyInventory() {
 			super(SLOT_COUNT);
@@ -1229,7 +562,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 			if (slot < HYBRID_SLOT_START)
 				return MachineKind.fromStack(stack) != null;
 			int hybridIndex = slot - HYBRID_SLOT_START;
-			return canHybridSlotAcceptItem(hybridIndex, stack);
+			return SpiderHybridStorage.canHybridSlotAcceptItem(SpiderAssemblyTableBlockEntity.this, hybridIndex, stack);
 		}
 	}
 
@@ -1249,7 +582,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
 			if (stack.isEmpty())
 				return ItemStack.EMPTY;
-			int[] order = computeItemInsertOrder();
+			int[] order = SpiderHybridStorage.computeItemInsertOrder(SpiderAssemblyTableBlockEntity.this);
 			ItemStack remaining = stack;
 			for (int hybridIdx : order) {
 				remaining = inventory.insertItem(HYBRID_SLOT_START + hybridIdx, remaining, simulate);
@@ -1280,7 +613,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		}
 
 		private int mapExtractIndex(int visibleSlot) {
-			int[] order = computeItemExtractOrder();
+			int[] order = SpiderHybridStorage.computeItemExtractOrder(SpiderAssemblyTableBlockEntity.this);
 			if (visibleSlot < 0 || visibleSlot >= order.length)
 				return 0;
 			return order[visibleSlot];
@@ -1316,7 +649,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 		@Override
 		public boolean isFluidValid(int tank, FluidStack stack) {
-			return canHybridTankAcceptFluid(tank, stack);
+			return SpiderHybridStorage.canHybridTankAcceptFluid(SpiderAssemblyTableBlockEntity.this, tank, stack);
 		}
 
 		@Override
@@ -1337,7 +670,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 					boolean tankNonEmpty = !tank.getFluid().isEmpty();
 					if (passNonEmpty[pass] != tankNonEmpty)
 						continue;
-					if (!canHybridTankAcceptFluid(i, resource))
+					if (!SpiderHybridStorage.canHybridTankAcceptFluid(SpiderAssemblyTableBlockEntity.this, i, resource))
 						continue;
 
 					int remaining = resource.getAmount() - totalFilled;
@@ -1407,5 +740,33 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 
 	public static BlockEntityType<SpiderAssemblyTableBlockEntity> type() {
 		return CBBlockEntityTypes.SPIDER_ASSEMBLY_TABLE.get();
+	}
+
+	// Keep dispatch beside the private enum to retain its direct ordinal switch.
+	Optional<ProcessingPlan> createPlan(int slot, MachineKind kind, ItemStack input) {
+		if (this.getLevel() == null)
+			return Optional.empty();
+		return switch (kind) {
+		case DEPLOYER -> SpiderProcessPlanner.findDeployingRecipe(this, slot, input).map(recipe -> new SpiderAssemblyTableBlockEntity.ProcessingPlan(kind, this.getDeployerDuration()));
+		case PRESS -> SpiderProcessPlanner.findPressingRecipe(this, input).map(recipe -> new SpiderAssemblyTableBlockEntity.ProcessingPlan(kind, this.getPressDuration()));
+		case SAW -> SpiderProcessPlanner.findCuttingRecipe(this, input).map(recipe -> new SpiderAssemblyTableBlockEntity.ProcessingPlan(kind, this.getSawDuration(recipe)));
+		case SPOUT -> SpiderProcessPlanner.findFillingRecipe(this, slot, input).map(recipe -> new SpiderAssemblyTableBlockEntity.ProcessingPlan(kind, SpoutBlockEntity.FILLING_TIME));
+		};
+	}
+
+	// Keep dispatch beside the private enum to retain its direct ordinal switch.
+	List<ItemStack> applyActiveProcess(ItemStack input) {
+		if (this.activeMachine == null || this.activeSlot < 0 || input.isEmpty())
+			return List.of();
+
+		ItemStack singleInput = input.copy();
+		singleInput.setCount(1);
+
+		return switch (this.activeMachine) {
+		case DEPLOYER -> SpiderProcessPlanner.processDeploying(this, this.activeSlot, singleInput);
+		case PRESS -> SpiderProcessPlanner.processPressing(this, singleInput);
+		case SAW -> SpiderProcessPlanner.processCutting(this, singleInput);
+		case SPOUT -> SpiderProcessPlanner.processFilling(this, this.activeSlot, singleInput);
+		};
 	}
 }

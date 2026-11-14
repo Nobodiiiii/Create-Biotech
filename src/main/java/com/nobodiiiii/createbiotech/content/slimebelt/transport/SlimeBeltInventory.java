@@ -12,7 +12,6 @@ import com.nobodiiiii.createbiotech.content.beltsurface.TransportedItemStackSync
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlockEntity;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltInsertionPlanner;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltInsertionPlanner.InsertionPlan;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltLoopGeometry;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltLoopGeometry.LoopSection;
@@ -20,13 +19,11 @@ import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltLoopGeometry.Trac
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltNeighbor;
 import com.simibubi.create.content.kinetics.belt.BeltSlope;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
-import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
 import com.simibubi.create.content.kinetics.belt.behaviour.DirectBeltInputBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.TransportedItemStackHandlerBehaviour.TransportedResult;
 import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.simibubi.create.foundation.utility.BlockHelper;
 import com.simibubi.create.foundation.utility.ServerSpeedProvider;
 
 import net.minecraft.core.BlockPos;
@@ -42,7 +39,7 @@ import net.minecraft.world.phys.Vec3;
 public class SlimeBeltInventory {
 
 	public final SlimeBeltBlockEntity belt;
-	private final List<TransportedItemStack> items;
+	final List<TransportedItemStack> items;
 	final List<TransportedItemStack> toInsert;
 	final List<TransportedItemStack> toRemove;
 	boolean beltMovementPositive;
@@ -54,7 +51,7 @@ public class SlimeBeltInventory {
 	private static final float SEAM_EPSILON = 1 / 1024f;
 	/** Maximum distance between the loop surface and a corner-transfer contact point. */
 	private static final float SIDE_TRANSFER_DISTANCE = 3 / 16f;
-	private static final double SIDE_TRANSFER_DISTANCE_SQR = SIDE_TRANSFER_DISTANCE * SIDE_TRANSFER_DISTANCE;
+	static final double SIDE_TRANSFER_DISTANCE_SQR = SIDE_TRANSFER_DISTANCE * SIDE_TRANSFER_DISTANCE;
 	/** Minimum gap between two items on the same track or turn, in belt segments. */
 	private static final float SPACING = 1;
 
@@ -66,7 +63,7 @@ public class SlimeBeltInventory {
 	 * {@link SlimeBeltNeighbor#handoffInsertSide}); the corner side that resolved the
 	 * geometry is already folded into the contact fields.
 	 */
-	private record SideTransferCandidate(BlockPos targetPos, Direction insertSide,
+	record SideTransferCandidate(BlockPos targetPos, Direction insertSide,
 		float contactProgress, float contactParam, double distanceSqr) {
 	}
 
@@ -88,7 +85,7 @@ public class SlimeBeltInventory {
 				lazyClientItem.locked = true;
 		}
 
-		boolean movementDirectionChanged = refreshMovementDirection();
+		boolean movementDirectionChanged = SlimeBeltInsertion.refreshMovementDirection(this);
 
 		// Added/Removed items from previous cycle
 		if (flushPendingChanges()) {
@@ -235,13 +232,13 @@ public class SlimeBeltInventory {
 			float limitedMovement = movement;
 			if (approachingSeam) {
 				if (endings[track.ordinal()] == Ending.UNRESOLVED)
-					endings[track.ordinal()] = resolveEnding(track);
+					endings[track.ordinal()] = SlimeBeltSideTransfer.resolveEnding(SlimeBeltInventory.this, track);
 				trackEnding = endings[track.ordinal()];
 				float margin;
 				if (trackEnding == Ending.INSERT || trackEnding == Ending.BLOCKED) {
 					margin = trackEnding.margin;
 				} else {
-					transferAtSeam = isTurnClear(exitTurn, currentItem);
+					transferAtSeam = SlimeBeltInsertion.isTurnClear(SlimeBeltInventory.this, exitTurn, currentItem);
 					margin = transferAtSeam ? 0 : TRANSFER_WAIT_MARGIN;
 				}
 				limitedMovement = Math.min(limitedMovement, diffToEnd - margin);
@@ -252,7 +249,7 @@ public class SlimeBeltInventory {
 
 			if (!onClient && horizontalProcessing && track == Track.FRONT) {
 				ItemStack item = currentItem.stack;
-				if (handleBeltProcessingAndCheckIfRemoved(currentItem, nextFrontOffset, noMovement)) {
+				if (SlimeBeltItemProcessing.handleBeltProcessingAndCheckIfRemoved(SlimeBeltInventory.this, currentItem, nextFrontOffset, noMovement)) {
 					items.remove(currentItem);
 					belt.notifyUpdate();
 					return;
@@ -271,7 +268,7 @@ public class SlimeBeltInventory {
 				return;
 			}
 
-			if (tryTransferToAdjacentBelt(currentItem, track, currentProgress, nextProgress, limitedMovement,
+			if (SlimeBeltSideTransfer.tryTransferToAdjacentBelt(SlimeBeltInventory.this, currentItem, track, currentProgress, nextProgress, limitedMovement,
 				onClient)) {
 				stackInFront = currentItem;
 				return;
@@ -313,7 +310,7 @@ public class SlimeBeltInventory {
 			if (!onClient && trackEnding == Ending.INSERT && approachingSeam && limitedMovement != movement) {
 				Direction insertSide = SlimeBeltHelper.getMovementFacingForTrack(belt, track);
 				DirectBeltInputBehaviour inputBehaviour =
-					BlockEntityBehaviour.get(world, getTrackOutputPosition(track), DirectBeltInputBehaviour.TYPE);
+					BlockEntityBehaviour.get(world, SlimeBeltSideTransfer.getTrackOutputPosition(SlimeBeltInventory.this, track), DirectBeltInputBehaviour.TYPE);
 				if (inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide)) {
 					ItemStack remainder = inputBehaviour.handleInsertion(currentItem, insertSide, false);
 					if (!ItemStack.matches(remainder, currentItem.stack)) {
@@ -376,10 +373,10 @@ public class SlimeBeltInventory {
 		private boolean isTrackEntryClear(Track targetTrack, TransportedItemStack currentItem) {
 			float entryPosition = frame.loopPositionOfTrackProgress(targetTrack, WRAP_ENTRY_OFFSET);
 			for (TransportedItemStack stack : items)
-				if (stack != currentItem && !toRemove.contains(stack) && isBlocking(targetTrack, entryPosition, stack))
+				if (stack != currentItem && !toRemove.contains(stack) && SlimeBeltInsertion.isBlocking(SlimeBeltInventory.this, targetTrack, entryPosition, stack))
 					return false;
 			for (TransportedItemStack stack : toInsert)
-				if (isBlocking(targetTrack, entryPosition, stack))
+				if (SlimeBeltInsertion.isBlocking(SlimeBeltInventory.this, targetTrack, entryPosition, stack))
 					return false;
 			return true;
 		}
@@ -397,201 +394,21 @@ public class SlimeBeltInventory {
 		}
 	}
 
-	private boolean tryTransferToAdjacentBelt(TransportedItemStack currentItem, Track track, float currentProgress,
-		float nextProgress, float movement, boolean onClient) {
-		if (movement <= 0)
-			return false;
-		SideTransferCandidate candidate = findSideTransferCandidate(track, currentProgress, nextProgress);
-		if (candidate == null)
-			return false;
-
-		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(belt.getLevel(), candidate.targetPos(), DirectBeltInputBehaviour.TYPE);
-		if (inputBehaviour == null || !inputBehaviour.canInsertFromSide(candidate.insertSide()))
-			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
-
-		ItemStack simulatedRemainder = inputBehaviour.handleInsertion(currentItem.copy(), candidate.insertSide(), true);
-		if (ItemStack.matches(simulatedRemainder, currentItem.stack))
-			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
-
-		if (onClient)
-			moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
-		if (onClient)
-			return true;
-
-		ItemStack remainder = inputBehaviour.handleInsertion(currentItem, candidate.insertSide(), false);
-		if (ItemStack.matches(remainder, currentItem.stack))
-			return waitAtSideTransferPoint(currentItem, track, movement, candidate);
-
-		moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
-		currentItem.stack = remainder;
-		if (remainder.isEmpty()) {
-			lazyClientItem = currentItem;
-			lazyClientItem.locked = false;
-			items.remove(currentItem);
-		}
-		belt.notifyUpdate();
-		return true;
-	}
-
-	private boolean waitAtSideTransferPoint(TransportedItemStack currentItem, Track track, float movement,
-		SideTransferCandidate candidate) {
-		moveItemToSideTransferPoint(currentItem, track, candidate.contactProgress(), movement, candidate.contactParam());
-		return true;
-	}
-
-	@Nullable
-	private SideTransferCandidate findSideTransferCandidate(Track track, float currentProgress, float nextProgress) {
-		Vec3 start = SlimeBeltHelper.getVectorForOffset(belt, getLoopPositionForTrackProgress(track, currentProgress));
-		Vec3 end = SlimeBeltHelper.getVectorForOffset(belt, getLoopPositionForTrackProgress(track, nextProgress));
-		if (start.distanceToSqr(end) < 1.0E-6)
-			return null;
-
-		float currentFrontOffset = getFrontOffsetForTrackProgress(track, currentProgress);
-		float nextFrontOffset = getFrontOffsetForTrackProgress(track, nextProgress);
-		int minSegment = Mth.clamp(Mth.floor(Math.min(currentFrontOffset, nextFrontOffset)) - 1, 0, belt.beltLength - 1);
-		int maxSegment = Mth.clamp(Mth.floor(Math.max(currentFrontOffset, nextFrontOffset)) + 1, 0, belt.beltLength - 1);
-
-		SideTransferCandidate bestCandidate = null;
-		for (int segment = minSegment; segment <= maxSegment; segment++) {
-			Vec3 trackNormal = SlimeBeltHelper.getTrackNormal(belt, segment, track);
-			Direction outgoingSide = Direction.getNearest(trackNormal.x, trackNormal.y, trackNormal.z);
-
-			BlockPos sourceSegmentPos = SlimeBeltHelper.getPositionForOffset(belt, segment);
-			BlockPos targetPos = sourceSegmentPos.relative(outgoingSide);
-			Direction incomingFace = outgoingSide.getOpposite();
-			SlimeBeltNeighbor neighbor = SlimeBeltNeighbor.at(belt.getLevel(), targetPos);
-			if (neighbor == null || neighbor.sameLoopAs(belt))
-				continue;
-
-			for (Direction cornerSide : neighbor.sideTransferInsertSides(incomingFace)) {
-				SideTransferCandidate candidate = createSideTransferCandidate(targetPos, incomingFace, cornerSide,
-					neighbor.handoffInsertSide(incomingFace, cornerSide), currentProgress, nextProgress, start, end);
-				if (candidate != null && (bestCandidate == null || candidate.distanceSqr() < bestCandidate.distanceSqr()))
-					bestCandidate = candidate;
-			}
-		}
-
-		return bestCandidate;
-	}
-
-	@Nullable
-	private SideTransferCandidate createSideTransferCandidate(BlockPos targetPos, Direction incomingFace,
-		Direction cornerSide, Direction insertSide, float currentProgress, float nextProgress, Vec3 start, Vec3 end) {
-		Vec3 transferPoint = getTransferCorner(targetPos, incomingFace, cornerSide);
-		float contactParam = getClosestPointParam(start, end, transferPoint);
-		Vec3 closestPoint = start.lerp(end, contactParam);
-		double distanceSqr = closestPoint.distanceToSqr(transferPoint);
-		if (distanceSqr > SIDE_TRANSFER_DISTANCE_SQR)
-			return null;
-
-		float contactProgress = Mth.lerp(contactParam, currentProgress, nextProgress);
-		return new SideTransferCandidate(targetPos, insertSide, contactProgress, contactParam, distanceSqr);
-	}
-
-	private Vec3 getTransferCorner(BlockPos targetPos, Direction incomingFace, Direction cornerSide) {
-		return Vec3.atCenterOf(targetPos)
-			.add(incomingFace.getStepX() * .5, incomingFace.getStepY() * .5, incomingFace.getStepZ() * .5)
-			.add(cornerSide.getStepX() * .5, cornerSide.getStepY() * .5, cornerSide.getStepZ() * .5);
-	}
-
-	private float getClosestPointParam(Vec3 start, Vec3 end, Vec3 point) {
-		Vec3 delta = end.subtract(start);
-		double lengthSqr = delta.lengthSqr();
-		if (lengthSqr < 1.0E-6)
-			return 0;
-		double projected = point.subtract(start)
-			.dot(delta) / lengthSqr;
-		return (float) Mth.clamp(projected, 0, 1);
-	}
-
-	private void moveItemToSideTransferPoint(TransportedItemStack currentItem, Track track, float contactProgress,
-		float movement, float contactParam) {
-		setLoopPositionFromTrackProgress(currentItem, track, contactProgress);
-		float partialMovement = Math.abs(movement * contactParam);
-		float diffToMiddle = currentItem.getTargetSideOffset() - currentItem.sideOffset;
-		currentItem.sideOffset += Mth.clamp(diffToMiddle * partialMovement * 6f, -Math.abs(diffToMiddle),
-			Math.abs(diffToMiddle));
-	}
-
 	protected boolean handleBeltProcessingAndCheckIfRemoved(TransportedItemStack currentItem, float nextOffset,
 															boolean noMovement) {
-		int currentSegment = (int) SlimeBeltHelper.getFrontOffsetForLoopPosition(belt, currentItem.beltPosition);
-
-		if (currentItem.locked) {
-			BeltProcessingBehaviour processingBehaviour = getBeltProcessingAtSegment(currentSegment);
-			TransportedItemStackHandlerBehaviour stackHandlerBehaviour =
-				getTransportedItemStackHandlerAtSegment(currentSegment);
-
-			if (stackHandlerBehaviour == null)
-				return false;
-			if (processingBehaviour == null) {
-				currentItem.locked = false;
-				belt.notifyUpdate();
-				return false;
-			}
-
-			ProcessingResult result = processingBehaviour.handleHeldItem(currentItem, stackHandlerBehaviour);
-			if (result == ProcessingResult.REMOVE)
-				return true;
-			if (result == ProcessingResult.HOLD)
-				return false;
-
-			currentItem.locked = false;
-			belt.notifyUpdate();
-			return false;
-		}
-
-		if (noMovement)
-			return false;
-
-		float currentFrontOffset = SlimeBeltHelper.getFrontOffsetForLoopPosition(belt, currentItem.beltPosition);
-		if (currentFrontOffset > .5f || beltMovementPositive) {
-			int firstUpcomingSegment = (int) (currentFrontOffset + (beltMovementPositive ? .5f : -.5f));
-			int step = beltMovementPositive ? 1 : -1;
-
-			for (int segment = firstUpcomingSegment; beltMovementPositive ? segment + .5f <= nextOffset
-				: segment + .5f >= nextOffset; segment += step) {
-
-				BeltProcessingBehaviour processingBehaviour = getBeltProcessingAtSegment(segment);
-				TransportedItemStackHandlerBehaviour stackHandlerBehaviour =
-					getTransportedItemStackHandlerAtSegment(segment);
-
-				if (processingBehaviour == null)
-					continue;
-				if (stackHandlerBehaviour == null)
-					continue;
-				if (BeltProcessingBehaviour.isBlocked(belt.getLevel(), SlimeBeltHelper.getPositionForOffset(belt, segment)))
-					continue;
-
-				ProcessingResult result = processingBehaviour.handleReceivedItem(currentItem, stackHandlerBehaviour);
-				if (result == ProcessingResult.REMOVE)
-					return true;
-
-				if (result == ProcessingResult.HOLD) {
-					currentItem.beltPosition = segment + .5f + (beltMovementPositive ? 1 / 512f : -1 / 512f);
-					currentItem.locked = true;
-					belt.notifyUpdate();
-					return false;
-				}
-			}
-		}
-
-		return false;
+		return SlimeBeltItemProcessing.handleBeltProcessingAndCheckIfRemoved(this, currentItem, nextOffset, noMovement);
 	}
 
 	protected BeltProcessingBehaviour getBeltProcessingAtSegment(int segment) {
-		return BlockEntityBehaviour.get(belt.getLevel(), SlimeBeltHelper.getPositionForOffset(belt, segment)
-			.above(2), BeltProcessingBehaviour.TYPE);
+		return SlimeBeltItemProcessing.getBeltProcessingAtSegment(this, segment);
 	}
 
 	protected TransportedItemStackHandlerBehaviour getTransportedItemStackHandlerAtSegment(int segment) {
-		return BlockEntityBehaviour.get(belt.getLevel(), SlimeBeltHelper.getPositionForOffset(belt, segment),
-			TransportedItemStackHandlerBehaviour.TYPE);
+		return SlimeBeltItemProcessing.getTransportedItemStackHandlerAtSegment(this, segment);
 	}
 
 	/** How the world past a track exit treats arriving items; margin = stop distance before the seam. */
-	private enum Ending {
+	enum Ending {
 		UNRESOLVED(0), WRAP(0), INSERT(.25f), BLOCKED(.45f);
 
 		private float margin;
@@ -601,62 +418,16 @@ public class SlimeBeltInventory {
 		}
 	}
 
-	private Ending resolveEnding(Track track) {
-		Level world = belt.getLevel();
-		BlockPos outputPosition = getTrackOutputPosition(track);
-		Direction insertSide = SlimeBeltHelper.getMovementFacingForTrack(belt, track);
-
-		DirectBeltInputBehaviour inputBehaviour =
-			BlockEntityBehaviour.get(world, outputPosition, DirectBeltInputBehaviour.TYPE);
-
-		// Detect a foreign or not-yet-initialized slime belt at the seam — any
-		// "I can't push into it right now" answer should become a hard BLOCK
-		// rather than letting our items fall back to our own connector loop.
-		SlimeBeltBlockEntity adjacentSegment = SlimeBeltHelper.getSegmentBE(world, outputPosition);
-		SlimeBeltBlockEntity adjacentController =
-			adjacentSegment == null ? null : adjacentSegment.getControllerBE();
-		boolean adjacentIsForeignSlimeBelt = adjacentController != null
-			&& !adjacentController.getBlockPos().equals(belt.getBlockPos());
-		boolean adjacentSlimeBeltNeedsHandoff = adjacentSegment != null
-			&& (adjacentController == null || adjacentIsForeignSlimeBelt);
-
-		if (inputBehaviour != null && inputBehaviour.canInsertFromSide(insertSide)) {
-			// Structurally compatible. If the downstream foreign slime belt is currently
-			// occupied (entry slot full), BLOCK rather than let items camp at INSERT
-			// margin retrying every tick or risk slipping into our own connector loop.
-			if (adjacentIsForeignSlimeBelt && inputBehaviour.isOccupied(insertSide))
-				return Ending.BLOCKED;
-			return Ending.INSERT;
-		}
-
-		// Not structurally compatible (e.g. antiparallel rotation). Foreign slime belt
-		// in front of us is still a hard obstruction; do not wrap.
-		if (adjacentSlimeBeltNeedsHandoff)
-			return Ending.BLOCKED;
-
-		if (BlockHelper.hasBlockSolidSide(world.getBlockState(outputPosition), world, outputPosition,
-			insertSide.getOpposite()))
-			return Ending.BLOCKED;
-
-		return Ending.WRAP;
-	}
-
-	private BlockPos getTrackOutputPosition(Track track) {
-		int outputOffset = track == Track.FRONT ? (beltMovementPositive ? belt.beltLength : -1)
-			: (beltMovementPositive ? -1 : belt.beltLength);
-		return SlimeBeltHelper.getPositionForOffset(belt, outputOffset);
-	}
-
 	public boolean canInsertAt(int segment) {
-		return canInsertAtFromSide(segment, Direction.UP);
+		return SlimeBeltInsertion.canInsertAt(this, segment);
 	}
 
 	public boolean canInsertAtFromSide(int segment, Direction side) {
-		return canInsertAtFromSide(segment, side, false);
+		return SlimeBeltInsertion.canInsertAtFromSide(this, segment, side);
 	}
 
 	public boolean canInsertAtFromSide(int segment, Direction side, boolean verticalHorizontalBeltInput) {
-		return canInsert(planInsertion(segment, side, verticalHorizontalBeltInput, null));
+		return SlimeBeltInsertion.canInsertAtFromSide(this, segment, side, verticalHorizontalBeltInput);
 	}
 
 	/**
@@ -667,115 +438,42 @@ public class SlimeBeltInventory {
 	@Nullable
 	public InsertionPlan planInsertion(int segment, Direction side, boolean verticalHorizontalBeltInput,
 		@Nullable TransportedItemStack transported) {
-		refreshMovementDirection();
-		boolean cameFromBelt = transported != null && transported.prevBeltPosition != 0;
-		return SlimeBeltInsertionPlanner.plan(belt, frame(), segment, side, verticalHorizontalBeltInput, cameFromBelt);
+		return SlimeBeltInsertion.planInsertion(this, segment, side, verticalHorizontalBeltInput, transported);
 	}
 
 	/** Occupancy gate for a resolved plan; probes the same landing the item would take. */
 	public boolean canInsert(@Nullable InsertionPlan plan) {
-		if (plan == null)
-			return false;
-		// Landings within one spacing of the track exit additionally require the exit
-		// turn to be clear, so the arriving item cannot overlap one already wrapping.
-		if (plan.occupancyConnector() != null && !isTurnClear(plan.occupancyConnector(), null))
-			return false;
-		for (TransportedItemStack stack : items)
-			if (isBlocking(plan.track(), plan.landingLoopPosition(), stack))
-				return false;
-		for (TransportedItemStack stack : toInsert)
-			if (isBlocking(plan.track(), plan.landingLoopPosition(), stack))
-				return false;
-		return true;
+		return SlimeBeltInsertion.canInsert(this, plan);
 	}
 
 	public boolean canInsertAtOnTrack(int segment, Track track) {
-		return canInsert(planTrackInsertion(segment, track));
+		return SlimeBeltInsertion.canInsertAtOnTrack(this, segment, track);
 	}
 
 	public void prepareInsertedItem(TransportedItemStack transported, int segment, Direction side) {
-		prepareInsertedItem(transported, segment, side, false);
+		SlimeBeltInsertion.prepareInsertedItem(this, transported, segment, side);
 	}
 
 	public void prepareInsertedItem(TransportedItemStack transported, int segment, Direction side,
 		boolean verticalHorizontalBeltInput) {
-		applyInsertion(transported, planInsertion(segment, side, verticalHorizontalBeltInput, transported));
+		SlimeBeltInsertion.prepareInsertedItem(this, transported, segment, side, verticalHorizontalBeltInput);
 	}
 
 	public void prepareInsertedItemOnTrack(TransportedItemStack transported, int segment, Track track) {
-		applyInsertion(transported, planTrackInsertion(segment, track));
-	}
-
-	private InsertionPlan planTrackInsertion(int segment, Track track) {
-		// Entity capture can be the first inventory interaction after loading. Resolve
-		// against the live kinetic direction instead of the persisted/default order.
-		refreshMovementDirection();
-		return SlimeBeltInsertionPlanner.planTrackInsertion(belt, frame(), segment, track);
+		SlimeBeltInsertion.prepareInsertedItemOnTrack(this, transported, segment, track);
 	}
 
 	/** Land a stack according to a plan; gate and landing consume the same resolution. */
 	public void applyInsertion(TransportedItemStack transported, @Nullable InsertionPlan plan) {
-		if (plan == null)
-			return;
-		transported.beltPosition = plan.landingLoopPosition();
-		if (plan.sideOffset() != null)
-			transported.sideOffset = plan.sideOffset();
-		transported.prevBeltPosition = transported.beltPosition;
-		transported.prevSideOffset = transported.sideOffset;
-		transported.insertedAt = plan.insertedAt();
-		transported.insertedFrom = plan.insertedFrom();
-	}
-
-	private boolean refreshMovementDirection() {
-		if (belt.getSpeed() == 0)
-			return false;
-		// Direct insertion may run before this controller's tick after loading or
-		// a kinetic reversal. Coordinate conversion must use the live direction,
-		// not the previous tick's persisted PositiveOrder value.
-		boolean movingPositive = belt.getDirectionAwareBeltMovementSpeed() > 0;
-		if (beltMovementPositive == movingPositive)
-			return false;
-		beltMovementPositive = movingPositive;
-		return true;
-	}
-
-	/** True when no live or queued item occupies the given turn, {@code ignoring} excepted. */
-	private boolean isTurnClear(LoopSection turn, @Nullable TransportedItemStack ignoring) {
-		for (TransportedItemStack stack : items)
-			if (stack != ignoring && !toRemove.contains(stack)
-				&& SlimeBeltHelper.getLoopSection(belt, stack.beltPosition) == turn)
-				return false;
-		for (TransportedItemStack stack : toInsert)
-			if (SlimeBeltHelper.getLoopSection(belt, stack.beltPosition) == turn)
-				return false;
-		return true;
-	}
-
-	private boolean isBlocking(Track track, float insertPos, TransportedItemStack stack) {
-		if (getTrackForLoopPosition(stack.beltPosition) != track)
-			return false;
-		float insertProgress = getTrackProgress(track, insertPos);
-		float currentProgress = getTrackProgress(track, stack.beltPosition);
-		float distanceAhead = currentProgress - insertProgress;
-		return distanceAhead >= 0 && distanceAhead <= 1f;
+		SlimeBeltInsertion.applyInsertion(this, transported, plan);
 	}
 
 	public void addItem(TransportedItemStack newStack) {
-		toInsert.add(newStack);
+		SlimeBeltInsertion.addItem(this, newStack);
 	}
 
 	private void insert(TransportedItemStack newStack) {
-		if (items.isEmpty())
-			items.add(newStack);
-		else {
-			int index = 0;
-			for (TransportedItemStack stack : items) {
-				if (stack.compareTo(newStack) > 0 == beltMovementPositive)
-					break;
-				index++;
-			}
-			items.add(index, newStack);
-		}
+		SlimeBeltInsertion.insert(this, newStack);
 	}
 
 	/**
@@ -783,20 +481,20 @@ public class SlimeBeltInventory {
 	 * conversions below delegate here; the frame is the single home of the
 	 * {@code beltMovementPositive}/track branching.
 	 */
-	private SlimeBeltLoopGeometry.MotionFrame frame() {
+	SlimeBeltLoopGeometry.MotionFrame frame() {
 		return belt.getLoop()
 			.motion(beltMovementPositive);
 	}
 
-	private float getTrackProgress(Track track, float loopPosition) {
+	float getTrackProgress(Track track, float loopPosition) {
 		return frame().trackProgress(track, loopPosition);
 	}
 
-	private float getLoopPositionForTrackProgress(Track track, float progress) {
+	float getLoopPositionForTrackProgress(Track track, float progress) {
 		return frame().loopPositionOfTrackProgress(track, progress);
 	}
 
-	private float getFrontOffsetForTrackProgress(Track track, float progress) {
+	float getFrontOffsetForTrackProgress(Track track, float progress) {
 		return frame().frontOffsetOfTrackProgress(track, progress);
 	}
 
@@ -808,7 +506,7 @@ public class SlimeBeltInventory {
 		currentItem.beltPosition = getLoopPositionForTrackProgress(track, progress);
 	}
 
-	private Track getTrackForLoopPosition(float loopPosition) {
+	Track getTrackForLoopPosition(float loopPosition) {
 		LoopSection section = SlimeBeltHelper.getLoopSection(belt, loopPosition);
 		if (section == LoopSection.FRONT)
 			return Track.FRONT;
@@ -855,7 +553,7 @@ public class SlimeBeltInventory {
 		// sendData() can run immediately after addItem(), before the next inventory tick.
 		// Serialize one coherent snapshot so the client never replaces its live list with
 		// the stale pre-insertion state. This mirrors Create's BeltInventory#write.
-		refreshMovementDirection();
+		SlimeBeltInsertion.refreshMovementDirection(this);
 		flushPendingChanges();
 		CompoundTag nbt = new CompoundTag();
 		itemSync.write(nbt, registries, items, lazyClientItem);
@@ -944,6 +642,4 @@ public class SlimeBeltInventory {
 	public TransportedItemStack getLazyClientItem() {
 		return lazyClientItem;
 	}
-
 }
-

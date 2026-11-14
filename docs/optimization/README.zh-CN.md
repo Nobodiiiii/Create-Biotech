@@ -33,7 +33,7 @@
 | 史莱姆传送带 Create 兼容差异与修复方案 | 已完成 | [09-slime-belt-create-parity-audit-and-fix-plan.zh-CN.md](09-slime-belt-create-parity-audit-and-fix-plan.zh-CN.md) |
 | 新手术台系统性能审计与优化 | 已完成 | [11-surgical-table-performance.zh-CN.md](11-surgical-table-performance.zh-CN.md) |
 | 配方数据驱动审计与 P0 实施方案 | P0 已完成 | [12-recipe-data-driven-audit-and-p0-plan.zh-CN.md](12-recipe-data-driven-audit-and-p0-plan.zh-CN.md) |
-| 超大文件职责拆分 | 方案已完成，尚未实施 | [13-large-file-splitting-plan.zh-CN.md](13-large-file-splitting-plan.zh-CN.md) |
+| 超大文件职责拆分 | 已实施手写代码与模型/blockstate 模板化，思索相关保持原状；验证见第 8 节 | [13-large-file-splitting-plan.zh-CN.md](13-large-file-splitting-plan.zh-CN.md) |
 
 ## 审计基准
 

@@ -5,7 +5,6 @@ import com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent;
 import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -13,9 +12,7 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.google.common.collect.HashMultimap;
 import com.nobodiiiii.createbiotech.entity.trait.BionicVibrationSense;
-import com.nobodiiiii.createbiotech.entity.trait.BionicDeterrence;
 import com.nobodiiiii.createbiotech.entity.trait.BionicHunting;
 import com.nobodiiiii.createbiotech.entity.trait.BionicDefenses;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBlockAttachment;
@@ -35,7 +32,6 @@ import com.nobodiiiii.createbiotech.entity.ai.BionicDisposition;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
 import com.nobodiiiii.createbiotech.entity.ai.BionicMind;
 import com.nobodiiiii.createbiotech.entity.ai.BionicFlightMovement;
-import com.nobodiiiii.createbiotech.entity.ai.BionicWallClimbing;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicBodyRotationControl;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicGroundNavigation;
 import com.nobodiiiii.createbiotech.entity.ai.SlimeBionicMoveControl;
@@ -44,7 +40,6 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.entity.trait.BionicBehaviorRunner;
-import com.nobodiiiii.createbiotech.network.CBPackets;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -62,14 +57,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.tags.BiomeTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
-import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -85,44 +78,30 @@ import net.minecraft.world.entity.ai.control.FlyingMoveControl;
 import net.minecraft.world.entity.ai.control.LookControl;
 import net.minecraft.world.entity.ai.control.SmoothSwimmingLookControl;
 import net.minecraft.world.entity.ai.control.SmoothSwimmingMoveControl;
-import net.minecraft.world.entity.ai.behavior.BehaviorUtils;
 import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.FleeSunGoal;
 import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
-import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.RandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.RestrictSunGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
 import net.minecraft.world.entity.ai.navigation.GroundPathNavigation;
 import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
 import net.minecraft.world.entity.ai.navigation.AmphibiousPathNavigation;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
-import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.ProjectileDeflection;
 import net.neoforged.neoforge.common.Tags;
@@ -136,7 +115,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	net.minecraft.world.entity.monster.RangedAttackMob {
 	private static final float MAX_COLLISION_WIDTH = 2.0f;
 	private static final float MAX_COLLISION_HEIGHT = 8.0f;
-	private static final float MULTIPART_THRESHOLD = 8.0f;
+	static final float MULTIPART_THRESHOLD = 8.0f;
 	private static final int MAX_HIT_PARTS = SurgicalAssembly.MAX_HITBOX_LIMBS + 2;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
@@ -146,10 +125,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private static final String TRUSTED_TAG = "BionicTrustedPlayer";
 	private static final String SHELL_GUARD_TAG = "BionicShellGuard";
 	private static final String ORDERED_TO_SIT_TAG = "BionicOrderedToSit";
-	private static final int MAX_MOISTURE = 2400;
-	private static final double SWIMMING_IDLE_SPEED = 0.5d;
-	private static final double SWIMMING_PURSUIT_SPEED = 0.6d;
-	private static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
+	static final int MAX_MOISTURE = 2400;
+	static final double SWIMMING_IDLE_SPEED = 0.5d;
+	static final double SWIMMING_PURSUIT_SPEED = 0.6d;
+	static final ResourceLocation ANATOMICAL_ATTACK_MODIFIER_ID =
 		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
@@ -170,9 +149,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private SurgicalAssembly traitAssembly;
 	@Nullable
 	private BionicTraitResolver.Revision traitRevision;
-	private long baseStatsRevision = Long.MIN_VALUE;
+	long baseStatsRevision = Long.MIN_VALUE;
 	private long traitStatsRevision = Long.MIN_VALUE;
-	private final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
+	final BionicVibrationSense vibrationSense = new BionicVibrationSense(this);
 	private final BionicBehaviorRunner extensionBehaviors = new BionicBehaviorRunner(this);
 	private BionicTraitSet bionicTraits = BionicTraitSet.EMPTY;
 	/** The mind derived from {@link #mindTraits}, resolved together with that trait set. */
@@ -181,19 +160,19 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable
 	private BionicTraitSet mindTraits;
 	private final BionicHunting hunting = new BionicHunting(this);
-	private final BionicBlockAttachment blockAttachment = new BionicBlockAttachment(this);
+	final BionicBlockAttachment blockAttachment = new BionicBlockAttachment(this);
 	private static final EntityDataAccessor<Optional<BlockPos>> ATTACH_CELL_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_BLOCK_POS);
 	private static final EntityDataAccessor<Direction> ATTACH_FACE_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.DIRECTION);
-	private final com.nobodiiiii.createbiotech.entity.trait.BionicEquipment equipment = new com.nobodiiiii.createbiotech.entity.trait.BionicEquipment(this);
+	final com.nobodiiiii.createbiotech.entity.trait.BionicEquipment equipment = new com.nobodiiiii.createbiotech.entity.trait.BionicEquipment(this);
 	@Nullable private Vec3 interactionHit;
 	private final com.nobodiiiii.createbiotech.entity.trait.BionicProduction production = new com.nobodiiiii.createbiotech.entity.trait.BionicProduction(this);
-	private final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
+	final com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks specialAttacks = new com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks(this);
 	private static final EntityDataAccessor<CompoundTag> EQUIPMENT_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
 	private static final EntityDataAccessor<Integer> PRODUCTION_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Boolean> POLLEN_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.BOOLEAN);
-	private static final EntityDataAccessor<Integer> SHELL_STATE_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+	static final EntityDataAccessor<Integer> SHELL_STATE_DATA = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<Long> SPECIAL_STARTED = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.LONG);
 	private static final EntityDataAccessor<Integer> SPECIAL_ACTION = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
 	private static final EntityDataAccessor<org.joml.Vector3f> SPECIAL_ORIGIN = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.VECTOR3);
@@ -292,9 +271,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Nullable public Vec3 lastHeardPosition(Entity target) { return vibrationSense.lastHeardPosition(target); }
 	public void setRiderAscending(boolean value) { riderAscending = value; }
 	public boolean isSelfDestructing() { return production != null && production.exploding(); }
-	private boolean hasFlightLocomotion() {
-		return !isSwimming() && (getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || getBionicTraits().has(BionicTrait.WING_FLIGHT));
-	}
 	public boolean canReplaceBionicWeapon(ItemStack incoming, ItemStack current) { return canReplaceCurrentItem(incoming, current); }
 	public void equipBionicLoot(EquipmentSlot slot, ItemStack stack) { setItemSlotAndDropWhenKilled(slot, stack); }
 	@Override public ItemStack equipItemIfPossible(ItemStack stack) {
@@ -305,17 +281,17 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private boolean doorBreakingEnabled;
 	private boolean wallClimbEnabled;
 	private boolean bodyFlightEnabled;
-	private boolean organSwimEnabled;
+	boolean organSwimEnabled;
 	private boolean lavaWalkEnabled;
 	private float baseWaterPathMalus = Float.NaN;
-	private int moisture = -1;
-	private int dryAir = Integer.MIN_VALUE;
-	private int shellGuardTicks;
-	private int shellStateTicks;
+	int moisture = -1;
+	int dryAir = Integer.MIN_VALUE;
+	int shellGuardTicks;
+	int shellStateTicks;
 	private int shellPeekSequence;
-	private int shellPeekTicks;
-	private boolean shellDangerWasAround;
-	private net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState shellState = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE;
+	int shellPeekTicks;
+	boolean shellDangerWasAround;
+	net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState shellState = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE;
 	public int teleportPursuitTicks;
 	public boolean isBionicWing(SurgicalAssembly.ArmAttackGeometry arm) {
 		var assembly = getAssembly();
@@ -324,38 +300,38 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return chain.stream().anyMatch(getBionicTraits().wingMembers()::contains);
 	}
 	@Nullable
-	private UUID ownerId;
-	private boolean orderedToSit;
-	private int lastOwnerHurtTimestamp;
-	private int lastOwnerAttackTimestamp;
+	UUID ownerId;
+	boolean orderedToSit;
+	int lastOwnerHurtTimestamp;
+	int lastOwnerAttackTimestamp;
 	@Nullable
-	private SurgicalAssembly clientBoundsAssembly;
+	SurgicalAssembly clientBoundsAssembly;
 	@Nullable
-	private SurgicalAssembly.BodyBounds clientBodyBounds;
+	SurgicalAssembly.BodyBounds clientBodyBounds;
 	@Nullable
-	private SurgicalAssembly.HitboxGeometry clientHitboxGeometry;
-	private double clientBodyVolume = Double.NaN;
-	private final SlimeBionicHitPart[] hitParts;
-	private SlimeBionicHitPart[] registeredHitParts;
+	SurgicalAssembly.HitboxGeometry clientHitboxGeometry;
+	double clientBodyVolume = Double.NaN;
+	final SlimeBionicHitPart[] hitParts;
+	SlimeBionicHitPart[] registeredHitParts;
 	private int attackAnimationTick;
 	private int attackAnimationDuration = SlimeBionicAttackTiming.PLAYBACK_TICKS;
 	private boolean attackAnimationLeft;
 	private int attackAnimationArmSlot;
 	private boolean attackAnimationWeapon;
-	private int attackActionTick;
+	int attackActionTick;
 	private int attackActionSnapshotTick;
-	private int attackActionInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
-	private int attackActionDuration = SlimeBionicCombat.duration(attackActionInterval);
-	private boolean attackActionLeft;
-	private int attackActionArmSlot;
-	private boolean attackActionWeapon;
-	private boolean attackActionHasElbow;
-	private int attackActionSequence;
-	private float attackAimYaw;
-	private float attackAimPitch;
-	private float attackBodyYaw;
-	private boolean combatFacingControlled;
-	private float combatFacingYaw;
+	int attackActionInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
+	int attackActionDuration = SlimeBionicCombat.duration(attackActionInterval);
+	boolean attackActionLeft;
+	int attackActionArmSlot;
+	boolean attackActionWeapon;
+	boolean attackActionHasElbow;
+	int attackActionSequence;
+	float attackAimYaw;
+	float attackAimPitch;
+	float attackBodyYaw;
+	boolean combatFacingControlled;
+	float combatFacingYaw;
 
 	public SlimeBionicEntity(EntityType<? extends SlimeBionicEntity> type, Level level) {
 		super(type, level);
@@ -368,7 +344,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		setId(ENTITY_COUNTER.getAndAdd(hitParts.length + 1) + 1);
 		moveControl = new SlimeBionicMoveControl(this);
 		setPersistenceRequired();
-		updateHitParts();
+		BionicBodyGeometry.updateHitParts(this);
 	}
 
 	@Override
@@ -397,7 +373,19 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public void recreateFromPacket(ClientboundAddEntityPacket packet) {
 		super.recreateFromPacket(packet);
-		setRegisteredHitPartCount(Mth.clamp(packet.getData(), 0, MAX_HIT_PARTS));
+		BionicBodyGeometry.setRegisteredHitPartCount(this, Mth.clamp(packet.getData(), 0, MAX_HIT_PARTS));
+	}
+
+	void checkBionicInsideBlocks() {
+		checkInsideBlocks();
+	}
+
+	boolean isBionicSunBurnTick() {
+		return isSunBurnTick();
+	}
+
+	AABB bionicAttackBoundingBox() {
+		return getAttackBoundingBox();
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -414,8 +402,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	/** Disposition selects natural targets; assigned targets use the ordinary combat goals. */
 	@Override
 	protected void registerGoals() {
-		goalSelector.addGoal(0, new BionicFloatGoal(this));
-		goalSelector.addGoal(1, new BionicSitGoal(this));
+		goalSelector.addGoal(0, new BionicGoalSet.BionicFloatGoal(this));
+		goalSelector.addGoal(1, new BionicGoalSet.BionicSitGoal(this));
 		goalSelector.addGoal(1, new Goal() {
 			{ setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP)); }
 			// A passive passenger must not suspend autonomous wandering.
@@ -425,13 +413,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			@Override public void tick() { if (hasControllingPassenger() || specialAttacks.locksMovement()) getNavigation().stop(); }
 		});
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
-		goalSelector.addGoal(2, new BionicAttackGoal(this, 1.0d, false));
+		goalSelector.addGoal(2, new BionicGoalSet.BionicAttackGoal(this, 1.0d, false));
 		goalSelector.addGoal(2, new RestrictSunGoal(this) {
 			@Override public boolean canUse() { return shouldAvoidSun() && super.canUse(); }
 		});
-		goalSelector.addGoal(3, new BionicFleeSunGoal(this));
+		goalSelector.addGoal(3, new BionicGoalSet.BionicFleeSunGoal(this));
 		goalSelector.addGoal(3, new com.nobodiiiii.createbiotech.entity.ai.BionicShoulderRidingGoal(this));
-		goalSelector.addGoal(5, new BionicFollowOwnerGoal(this));
+		goalSelector.addGoal(5, new BionicGoalSet.BionicFollowOwnerGoal(this));
 		goalSelector.addGoal(6, new Goal() {
 			private Goal delegate;
 			{ setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK, Flag.JUMP)); }
@@ -459,8 +447,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			@Override public void tick() { delegate.tick(); }
 			@Override public void stop() { delegate.stop(); }
 		});
-		goalSelector.addGoal(7, new BionicLandStrollGoal(this));
-		goalSelector.addGoal(7, new BionicSwimStrollGoal(this));
+		goalSelector.addGoal(7, new BionicGoalSet.BionicLandStrollGoal(this));
+		goalSelector.addGoal(7, new BionicGoalSet.BionicSwimStrollGoal(this));
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
 		goalSelector.addGoal(8, new RandomLookAroundGoal(this));
 		targetSelector.addGoal(1, new BionicPackAlertGoal(this));
@@ -496,7 +484,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	protected void updateWalkAnimation(float movement) {
-		if (!isSwimming() && getLocomotionLegCount() < 2) {
+		if (!isSwimming() && BionicLocomotionPolicy.getLocomotionLegCount(this) < 2) {
 			walkAnimation.update(0.0f, 0.4f);
 			return;
 		}
@@ -556,59 +544,17 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			cachedAssemblyData = entityData.get(ASSEMBLY);
 		}
 		invalidateTraits();
-		configureHitPartRegistration(assembly);
+		BionicBodyGeometry.configureHitPartRegistration(this, assembly);
 		clientBoundsAssembly = null;
 		clientBodyBounds = null;
 		clientHitboxGeometry = null;
 		clientBodyVolume = Double.NaN;
-		refreshBaseStats(assembly);
+		BionicAttributeRefresh.refreshBaseStats(this, assembly);
 		getBionicTraits();
 		refreshDimensions();
-		updateHitParts();
+		BionicBodyGeometry.updateHitParts(this);
 		BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.ASSEMBLY, this,
 			com.nobodiiiii.createbiotech.CreateBiotech.asResource("assembly")).after());
-	}
-
-	private void refreshBaseStats(SurgicalAssembly assembly) {
-		if (level().isClientSide) return;
-		baseStatsRevision = BionicStats.revision(level());
-		refreshMaximumHealth(assembly, getBionicTraits());
-		refreshMovementSpeed(assembly);
-		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
-		if (attack != null) attack.setBaseValue(anatomicalBaseStat(BionicStat.ATTACK_DAMAGE));
-	}
-
-	private double anatomicalBaseStat(BionicStat stat) {
-		SurgicalAssembly assembly = getAssembly();
-		return BionicStats.evaluate(stat, level(),
-			java.util.Map.of("volume", assembly != null && assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
-	}
-
-	/** Applies the packed union-volume calibration without healing an already damaged body. */
-	private void refreshMaximumHealth(SurgicalAssembly assembly, BionicTraitSet traits) {
-		if (level().isClientSide)
-			return;
-		var maximumHealth = getAttribute(Attributes.MAX_HEALTH);
-		if (maximumHealth == null)
-			return;
-		double calibrated = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), level(),
-			traits.value(BionicTrait.HEALTH_OFFSET));
-		if (maximumHealth.getBaseValue() != calibrated)
-			maximumHealth.setBaseValue(calibrated);
-		if (getHealth() > calibrated)
-			setHealth((float) calibrated);
-	}
-
-	/** Aquatic speed has its own baseline; land movement retains the anatomical gait calibration. */
-	private void refreshMovementSpeed(SurgicalAssembly assembly) {
-		if (level().isClientSide)
-			return;
-		double speed = organSwimEnabled ? BionicStats.evaluate(
-			BionicStat.SWIMMING_SPEED, level(), java.util.Map.of())
-			: SurgicalGait.movementSpeed(assembly.bodyBounds(), level());
-		var movement = getAttribute(Attributes.MOVEMENT_SPEED);
-		if (movement != null && movement.getBaseValue() != speed)
-			movement.setBaseValue(speed);
 	}
 
 	@Nullable
@@ -666,13 +612,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			mind = BionicMind.fromTraits(assembly, bionicTraits);
 			mindTraits = bionicTraits;
 			// Publish the result before refreshing effects that may query this entity again.
-			if (assembly != null) refreshMaximumHealth(assembly, bionicTraits);
-			refreshNaturalArmor(bionicTraits);
-			refreshKnockbackResistance(bionicTraits);
-			refreshFlyingSpeed(assembly, bionicTraits);
+			if (assembly != null) BionicAttributeRefresh.refreshMaximumHealth(this, assembly, bionicTraits);
+			BionicAttributeRefresh.refreshNaturalArmor(this, bionicTraits);
+			BionicAttributeRefresh.refreshKnockbackResistance(this, bionicTraits);
+			BionicLocomotionPolicy.refreshFlyingSpeed(this, assembly, bionicTraits);
 			refreshLocomotion(bionicTraits);
 			if (!level().isClientSide) {
-				double range = anatomicalBaseStat(BionicStat.FOLLOW_RANGE);
+				double range = BionicAttributeRefresh.anatomicalBaseStat(this, BionicStat.FOLLOW_RANGE);
 				for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
 					if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
 						range = Math.max(range, variant.parameter("range", 16));
@@ -698,7 +644,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	@Nullable
-	private Player getCompanionPlayer() {
+	Player getCompanionPlayer() {
 		return getBionicOwner();
 	}
 
@@ -797,30 +743,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		bionicTraits = BionicTraitSet.EMPTY;
 	}
 
-	private void refreshNaturalArmor(BionicTraitSet traits) {
-		var armor = getAttribute(Attributes.ARMOR);
-		if (armor != null && armor.getBaseValue() != traits.value(BionicTrait.NATURAL_ARMOR))
-			armor.setBaseValue(traits.value(BionicTrait.NATURAL_ARMOR));
-	}
-
-	private void refreshKnockbackResistance(BionicTraitSet traits) {
-		var resistance = getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-		double value = Mth.clamp(anatomicalBaseStat(BionicStat.KNOCKBACK_RESISTANCE)
-			+ traits.value(BionicTrait.KNOCKBACK_RESISTANCE), 0.0d, 1.0d);
-		if (resistance != null && resistance.getBaseValue() != value)
-			resistance.setBaseValue(value);
-	}
-
-	private void refreshFlyingSpeed(@Nullable SurgicalAssembly assembly, BionicTraitSet traits) {
-		if (level().isClientSide)
-			return;
-		double speed = assembly == null ? 0.0d : SurgicalGait.flyingSpeed(traits.flightVolumeRatio(assembly), level());
-		var flying = getAttribute(Attributes.FLYING_SPEED);
-		if (flying != null && flying.getBaseValue() != speed)
-			flying.setBaseValue(speed);
-	}
-
-	private void refreshLocomotion(BionicTraitSet traits) {
+	void refreshLocomotion(BionicTraitSet traits) {
 		if (level().isClientSide)
 			return;
 		boolean jump = traits.hasStrongJump();
@@ -841,7 +764,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			// Do not keep a route computed with the old lava/fire traversal costs.
 			navigation.stop();
 		}
-		boolean swimming = shouldUseSwimmingLocomotion(aquatic);
+		boolean swimming = BionicLocomotionPolicy.shouldUseSwimmingLocomotion(this, aquatic);
 		boolean enabled = !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
 			|| traits.has(BionicTrait.WING_FLIGHT));
 		if (Float.isNaN(baseWaterPathMalus))
@@ -912,46 +835,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		setNoGravity(enabled);
 		SurgicalAssembly assembly = getAssembly();
 		if (assembly != null)
-			refreshMovementSpeed(assembly);
-	}
-
-	/**
-	 * Water touching the outer hitbox is not a stable medium for a large assembled body. Keep the
-	 * controller selected by the path's next node while crossing the shoreline, and require a
-	 * meaningful water depth before returning to land locomotion.
-	 */
-	private boolean shouldUseSwimmingLocomotion(boolean aquatic) {
-		if (!aquatic || !isAlive() || isPassenger())
-			return false;
-		if (!isInWaterOrBubble())
-			return false;
-		return isInStableWater() || pathLeadsThroughWater();
-	}
-
-	@SuppressWarnings("deprecation")
-	private boolean isInStableWater() {
-		double minimumDepth = organSwimEnabled ? 0.05d : 0.25d;
-		return getFluidHeight(FluidTags.WATER) >= minimumDepth
-			|| level().getBlockState(blockPosition()).is(Blocks.BUBBLE_COLUMN);
-	}
-
-	private boolean pathLeadsThroughWater() {
-		Path currentPath = navigation == null ? null : navigation.getPath();
-		if (currentPath == null || currentPath.isDone())
-			return false;
-		PathType nextType = currentPath.getNextNode().type;
-		if (nextType == PathType.WATER || nextType == PathType.WATER_BORDER)
-			return true;
-		BlockPos target = currentPath.getTarget();
-		return target != null && level().getFluidState(target).is(FluidTags.WATER);
+			BionicLocomotionPolicy.refreshMovementSpeed(this, assembly);
 	}
 
 	@Override
 	public void updateSwimming() {
-		// Axolotl activity is water-based, not dependent on sprinting or submerged eyes.
-		// Entity.baseTick calls this after updating fluids and before ticking the AI.
-		if (!level().isClientSide)
-			refreshLocomotion(getBionicTraits());
+		BionicLocomotionPolicy.updateSwimming(this);
 	}
 
 	@Override
@@ -981,7 +870,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return getBionicTraits().has(BionicTrait.INVERTED_HEALING);
 	}
 
-	private boolean shouldAvoidSun() {
+	boolean shouldAvoidSun() {
 		return getBionicTraits().has(BionicTrait.SUN_SENSITIVE);
 	}
 
@@ -1070,7 +959,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 
 	public boolean canUseWallClimbing() {
-		return getBionicTraits().has(BionicTrait.WALL_CLIMB) && !isSwimming() && !hasFlightLocomotion();
+		return getBionicTraits().has(BionicTrait.WALL_CLIMB) && !isSwimming() && !BionicLocomotionPolicy.hasFlightLocomotion(this);
 	}
 
 	/** Airborne climbers need wall pressure even while a melee action is playing. */
@@ -1094,7 +983,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			setJumping(false);
 			setDeltaMovement(0, Math.min(0, getDeltaMovement().y), 0);
 		}
-		if (hasFlightLocomotion()) {
+		if (BionicLocomotionPolicy.hasFlightLocomotion(this)) {
 			if (isControlledByLocalInstance()) {
 				Vec3 input;
 				double speed;
@@ -1207,38 +1096,23 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Only rest-pose hips touching the ground can drive locomotion or leg animation. */
 	public int getLocomotionLegCount() {
-		SurgicalAssembly assembly = getAssembly();
-		SurgicalAssembly.BodyBounds bounds = assembly == null ? null : assembly.bodyBounds();
-		return bounds == null ? 0 : bounds.groundedLegCount();
+		return BionicLocomotionPolicy.getLocomotionLegCount(this);
 	}
 
 	/** Whether the currently installed movement controller makes this body travel by hopping. */
 	public boolean usesHopLocomotion() {
-		return moveControl instanceof SlimeBionicMoveControl && getLocomotionLegCount() < 2;
+		return BionicLocomotionPolicy.usesHopLocomotion(this);
 	}
 
 	/** Applies the renderer's exact visible envelope on the client, including slime-shell inflation. */
 	public void setClientBodyGeometry(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bounds,
 		SurgicalAssembly.HitboxGeometry hitboxGeometry, double bodyVolume) {
-		if (!level().isClientSide || assembly == null || bounds == null || hitboxGeometry == null
-			|| getAssembly() != assembly
-			|| !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry))
-			return;
-		if (clientBoundsAssembly == assembly && bounds.equals(clientBodyBounds)
-			&& hitboxGeometry.equals(clientHitboxGeometry)
-			&& Double.compare(bodyVolume, clientBodyVolume) == 0)
-			return;
-		clientBoundsAssembly = assembly;
-		clientBodyBounds = bounds;
-		clientHitboxGeometry = hitboxGeometry;
-		clientBodyVolume = bodyVolume;
-		refreshDimensions();
-		updateHitParts();
+		BionicBodyGeometry.setClientBodyGeometry(this, assembly, bounds, hitboxGeometry, bodyVolume);
 	}
 
 	@Override
 	protected EntityDimensions getDefaultDimensions(Pose pose) {
-		SurgicalAssembly.BodyBounds bounds = authoritativeBodyBounds();
+		SurgicalAssembly.BodyBounds bounds = BionicBodyGeometry.authoritativeBodyBounds(this);
 		if (bounds == null)
 			return super.getDefaultDimensions(pose);
 		// Vanilla mobs use one centred, yaw-independent square footprint whose side is the body's
@@ -1256,47 +1130,24 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	 */
 	@Nullable
 	SurgicalAssembly.BodyBounds authoritativeBodyBounds() {
-		SurgicalAssembly assembly = getAssembly();
-		return assembly == null ? null : assembly.bodyBounds();
+		return BionicBodyGeometry.authoritativeBodyBounds(this);
 	}
 
 	/** Render-only envelope: this client's own measurement when it has one, else the shared bounds. */
 	@Nullable
 	SurgicalAssembly.BodyBounds renderBodyBounds() {
-		SurgicalAssembly assembly = getAssembly();
-		return level().isClientSide && clientBoundsAssembly == assembly && clientBodyBounds != null
-			? clientBodyBounds : authoritativeBodyBounds();
+		return BionicBodyGeometry.renderBodyBounds(this);
 	}
 
 	@Override
 	public boolean isWithinMeleeAttackRange(LivingEntity target) {
-		return usesContactAttack() ? super.isWithinMeleeAttackRange(target)
-			: withinCombatEnvelope(target.getBoundingBox());
+		return BionicMeleeController.usesContactAttack(this) ? super.isWithinMeleeAttackRange(target)
+			: BionicMeleeController.withinCombatEnvelope(this, target.getBoundingBox());
 	}
 
 	/** A body with no attacking arms, including wing-only bodies, fights by slime-like contact. */
 	public boolean usesContactAttack() {
-		SurgicalAssembly assembly = getAssembly();
-		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		return geometry == null || geometry.arms().stream().allMatch(this::isBionicWing);
-	}
-
-	private boolean withinCombatEnvelope(AABB targetBounds) {
-		if (usesContactAttack())
-			return getAttackBoundingBox().intersects(targetBounds);
-		SurgicalAssembly assembly = getAssembly();
-		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		for (SurgicalAssembly.ArmAttackGeometry arm : geometry.arms())
-			if (!isBionicWing(arm) && SlimeBionicCombat.withinStartEnvelope(targetBounds, position(), combatBodyYaw(), arm))
-				return true;
-		return false;
-	}
-
-	private boolean isValidMeleeTarget(@Nullable LivingEntity target) {
-		return target != null && isAlive() && !isNoAi() && target.isAlive()
-			&& !isVehicle() && !specialAttacks.busy()
-			&& target.level() == level() && canAttack(target)
-			&& !isAlliedTo(target) && EntitySelector.NO_CREATIVE_OR_SPECTATOR.test(target);
+		return BionicMeleeController.usesContactAttack(this);
 	}
 
 	@Override
@@ -1322,7 +1173,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private void dealContactDamage(Entity other) {
 		if (!(other instanceof LivingEntity target) || target != getTarget()
 			|| !(level() instanceof ServerLevel serverLevel) || !isEffectiveAi()
-			|| !usesContactAttack() || !isValidMeleeTarget(target)
+			|| !BionicMeleeController.usesContactAttack(this) || !BionicMeleeController.isValidMeleeTarget(this, target)
 			|| !super.isWithinMeleeAttackRange(target) || !hasLineOfSight(target))
 			return;
 		var source = damageSources().mobAttack(this);
@@ -1333,18 +1184,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 	}
 
-	private float combatBodyYaw() {
-		return combatFacingControlled ? combatFacingYaw : getYRot();
-	}
-
 	/** Movement and visual body smoothing follow the server's combat facing, never the reverse. */
 	public boolean applyCombatFacing() {
-		if (isBlockAttached()) return false;
-		if (!combatFacingControlled || isNoAi() || !isAlive())
-			return false;
-		setYRot(combatFacingYaw);
-		yBodyRot = combatFacingYaw;
-		return true;
+		return BionicMeleeController.applyCombatFacing(this);
 	}
 
 	@Override
@@ -1352,7 +1194,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		setCanPickUpLoot(equipment.mainHandArm() != null && !isNoAi() && !isOrderedToSit() && !isVehicle());
 		super.aiStep();
 		if (bodyFlightEnabled)
-			applyCombatFacing();
+			BionicMeleeController.applyCombatFacing(this);
 		if (attackAnimationTick > 0)
 			attackAnimationTick--;
 		if (attackActionTick > 0)
@@ -1361,13 +1203,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Selects the best ready arm and snapshots gameplay and presentation state for one attack. */
 	@Nullable
-	private AttackStart beginAttack(LivingEntity target, long[] rightRecovery, long[] leftRecovery,
+	AttackStart beginAttack(LivingEntity target, long[] rightRecovery, long[] leftRecovery,
 		@Nullable ArmUse lastArm) {
 		SurgicalAssembly assembly = getAssembly();
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
-		if (geometry == null || usesContactAttack())
+		if (geometry == null || BionicMeleeController.usesContactAttack(this))
 			return null;
-		ArmSelection selection = selectArm(target, geometry, rightRecovery, leftRecovery, lastArm);
+		ArmSelection selection = BionicMeleeController.selectArm(this, target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
 
@@ -1375,122 +1217,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		SurgicalCombatCalibration.ArmCombatStats stats = SurgicalCombatCalibration.stats(selected.arm(), level());
 		int recovery = SurgicalCombatCalibration.armRecovery(stats, level());
 		int interval = SurgicalCombatCalibration.attackInterval(stats, selection.cadenceArms(), level());
-		int actionDuration = startAttackAction(selected, interval);
+		int actionDuration = BionicMeleeController.startAttackAction(this, selected, interval);
 		return new AttackStart(actionDuration,
 			SlimeBionicCombat.contactStartTick(interval, selected.arm().hasElbow(), selected.weapon()),
 			interval, recovery, stats.damageMultiplier(),
 			selected.arm(), selected.aim(), selected.left(), selected.slot());
-	}
-
-	@Nullable
-	private ArmSelection selectArm(LivingEntity target, SurgicalAssembly.AttackGeometry geometry,
-		long[] rightRecovery, long[] leftRecovery, @Nullable ArmUse lastArm) {
-		ArmCandidate best = null;
-		int cadenceArms = 0;
-		int fixedArmIndex = -1;
-		if (getIntelligence() == BionicIntelligence.SIMPLE) {
-			double highestDps = -1;
-			double baseAttackDamage = getAttributeBaseValue(Attributes.ATTACK_DAMAGE);
-			var weaponArm = equipment.mainHandArm();
-			ItemStack weapon = getMainHandItem();
-			double armedAttackDamage = isAttackWeapon(weapon)
-				? SurgicalCombatCalibration.attackDamageWithWeapon(baseAttackDamage, weapon) : baseAttackDamage;
-			var arms = geometry.arms();
-			for (int index = 0; index < arms.size(); index++) {
-				var arm = arms.get(index);
-				if (isBionicWing(arm)) continue;
-				var stats = SurgicalCombatCalibration.stats(arm, level());
-				double attackDamage = arm == weaponArm ? armedAttackDamage : baseAttackDamage;
-				double dps = SurgicalCombatCalibration.damagePerHit(attackDamage, stats, armDamageOffset(arm))
-					* 20.0d / SurgicalCombatCalibration.armRecovery(stats, level());
-				if (dps > highestDps) { highestDps = dps; fixedArmIndex = index; }
-			}
-		}
-		long now = level().getGameTime();
-		float bodyYaw = combatBodyYaw();
-		for (int side = 0; side < 2; side++) {
-			boolean left = side == 1;
-			List<SurgicalAssembly.ArmAttackGeometry> arms = left ? geometry.left() : geometry.right();
-			long[] recovery = left ? leftRecovery : rightRecovery;
-			for (int slot = 0; slot < arms.size(); slot++) {
-				// A simple mind waits for its favourite, even when another arm could hit now.
-				int armIndex = left ? geometry.right().size() + slot : slot;
-				if (fixedArmIndex >= 0 && armIndex != fixedArmIndex)
-					continue;
-				if (slot >= recovery.length || recovery[slot] > now)
-					continue;
-				SurgicalAssembly.ArmAttackGeometry arm = arms.get(slot);
-				if (isBionicWing(arm)) continue;
-				if (!SlimeBionicCombat.withinStartEnvelope(target.getBoundingBox(), position(), bodyYaw, arm)
-					|| !hasAttackLineOfSight(target, arm, bodyYaw))
-					continue;
-				// Count coordination before posture filtering, preserving the existing attack cadence.
-				if (SlimeBionicCombat.contributesToCadence(target.getBoundingBox(), position(), bodyYaw, arm))
-					cadenceArms++;
-				if (!SlimeBionicCombat.canStart(target.getBoundingBox(), position(), bodyYaw, arm))
-					continue;
-				Vec3 origin = SlimeBionicCombat.worldOrigin(position(), bodyYaw, arm);
-				Vec3 aim = SlimeBionicCombat.constrainAim(
-					SlimeBionicCombat.aimAt(target.getBoundingBox(), origin, bodyYaw), bodyYaw, arm);
-				float relativeYaw = Mth.wrapDegrees(SlimeBionicCombat.yaw(aim) - bodyYaw);
-				boolean weapon = armHasWeapon(left, slot);
-				Vec3 localTarget = target.getBoundingBox().getCenter().subtract(position())
-					.yRot(bodyYaw * Mth.DEG_TO_RAD);
-				boolean crossesBody = left ? localTarget.x < -0.05d : localTarget.x > 0.05d;
-				double score = Math.abs(relativeYaw)
-					+ Math.abs(SlimeBionicCombat.pitch(aim)) * 0.35d
-					+ SlimeBionicCombat.posturePreferencePenalty(aim, bodyYaw, arm)
-					+ (crossesBody ? 30.0d : 0.0d)
-					+ (lastArm != null && lastArm.left() == left && lastArm.slot() == slot ? 18.0d : 0.0d)
-					- (weapon ? 12.0d : 0.0d) + slot * 1.0e-3d;
-				ArmCandidate candidate = new ArmCandidate(left, slot, weapon, arm, aim, score);
-				if (best == null || candidate.score() < best.score())
-					best = candidate;
-			}
-		}
-		return best == null ? null : new ArmSelection(best, Math.max(1, cadenceArms));
-	}
-
-	private int startAttackAction(ArmCandidate selected, int interval) {
-		attackActionInterval = interval;
-		attackActionLeft = selected.left();
-		attackActionArmSlot = selected.slot();
-		attackActionWeapon = selected.weapon();
-		attackActionHasElbow = selected.arm().hasElbow();
-		attackActionDuration = SlimeBionicCombat.duration(interval);
-		attackActionTick = attackActionDuration;
-		attackBodyYaw = combatBodyYaw();
-		attackActionSequence++;
-		setAttackAim(selected.aim());
-		CBPackets.sendToTrackingEntity(SlimeBionicAttackActionPacket.start(this), this);
-		return attackActionDuration;
-	}
-
-	private void setAttackAim(Vec3 aim) {
-		attackAimYaw = SlimeBionicCombat.yaw(aim);
-		attackAimPitch = SlimeBionicCombat.pitch(aim);
-	}
-
-	private void synchronizeAttackAim(Vec3 aim, float bodyYaw, int remainingTicks) {
-		setAttackAim(aim);
-		attackBodyYaw = bodyYaw;
-		attackActionTick = remainingTicks;
-		CBPackets.sendToTrackingEntity(SlimeBionicAttackActionPacket.aim(this), this);
-	}
-
-	/** Shared across server and clients; see {@link #authoritativeBodyBounds()}. */
-	@Nullable
-	private SurgicalAssembly.HitboxGeometry authoritativeHitboxGeometry() {
-		SurgicalAssembly assembly = getAssembly();
-		return assembly == null ? null : assembly.hitboxGeometry();
-	}
-
-	/** Render-only envelope: this client's own measurement when it has one. */
-	@Nullable
-	private SurgicalAssembly.HitboxGeometry renderHitboxGeometry() {
-		SurgicalAssembly assembly = getAssembly();
-		return level().isClientSide && clientBoundsAssembly == assembly && clientHitboxGeometry != null
-			? clientHitboxGeometry : authoritativeHitboxGeometry();
 	}
 
 	@Override
@@ -1503,7 +1234,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public void tick() {
 		if (!level().isClientSide && baseStatsRevision != BionicStats.revision(level())) {
 			SurgicalAssembly assembly = getAssembly();
-			if (assembly != null) refreshBaseStats(assembly);
+			if (assembly != null) BionicAttributeRefresh.refreshBaseStats(this, assembly);
 		}
 		previousSelfDestructFuse = selfDestructFuse;
 		selfDestructFuse = getProductionFlags() >> 2;
@@ -1514,7 +1245,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		// Spider updates and synchronizes wall contact after movement, for the next tick.
 		if (!level().isClientSide)
 			entityData.set(CLIMBING_DATA, horizontalCollision && canUseWallClimbing());
-		tickLavaWalking();
+		BionicEnvironment.tickLavaWalking(this);
 		if (getBionicTraits().has(BionicTrait.WING_SLOW_FALL) && !onGround() && !isInWaterOrBubble()
 			&& !isInLava() && getDeltaMovement().y < 0) {
 			setDeltaMovement(getDeltaMovement().multiply(1, getBionicTraits().parameter(
@@ -1527,228 +1258,31 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			equipment.tick();
 			production.tick();
 		}
-		if (!level().isClientSide) tickShellDefense();
+		if (!level().isClientSide) BionicEnvironment.tickShellDefense(this);
 		if (!level().isClientSide)
 			refreshLocomotion(getBionicTraits());
 		vibrationSense.tick();
-		updateOwnerTarget();
-		tickHeadRespiration();
-		tickBodyEnvironment();
+		BionicEnvironment.updateOwnerTarget(this);
+		BionicEnvironment.tickHeadRespiration(this);
+		BionicEnvironment.tickBodyEnvironment(this);
 		lockBlockAttachmentRotation();
 		if (isBlockAttached()) setBoundingBox(makeBoundingBox());
-		updateHitParts();
-	}
-
-	/** Native armadillo roll states, triggered only by damage to the assembled body. */
-	private void tickShellDefense() {
-		var idle = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.IDLE;
-		var rolling = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.ROLLING;
-		var scared = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.SCARED;
-		var unrolling = net.minecraft.world.entity.animal.armadillo.Armadillo.ArmadilloState.UNROLLING;
-		boolean enabled = getBionicTraits().has(BionicTrait.SHELL_DEFENSE) && !isNoAi() && isAlive();
-		boolean allowed = enabled && !isInLiquid() && !isLeashed() && !isPassenger() && !isVehicle();
-		if (shellGuardTicks > 0) shellGuardTicks--;
-		if (shellPeekTicks > 0) shellPeekTicks--;
-		boolean dangerAround = shellGuardTicks > 75;
-		if (dangerAround != shellDangerWasAround) shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
-		shellDangerWasAround = dangerAround;
-		if (shellState == scared && shellPeekTicks == 0 && dangerAround) {
-			level().broadcastEntityEvent(this, (byte) 64);
-			shellPeekTicks = scared.animationDuration() + 100 + random.nextInt(301);
-		}
-		var next = shellState;
-		if (!allowed || shellGuardTicks == 0) next = idle;
-		else if (shellState == idle) next = rolling;
-		else if (shellState == rolling && shellStateTicks > rolling.animationDuration()) next = scared;
-		else if (shellState == scared && shellGuardTicks < unrolling.animationDuration()) next = unrolling;
-		else if (shellState == unrolling && shellGuardTicks > unrolling.animationDuration()) next = scared;
-		if (next != shellState) {
-			if (next == rolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_ROLL);
-			if (next == unrolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_UNROLL_START);
-			if (next == scared && shellState == rolling) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_LAND);
-			if (next == idle && shellState != idle) playSound(net.minecraft.sounds.SoundEvents.ARMADILLO_UNROLL_FINISH);
-			shellState = next; shellStateTicks = 0;
-		} else shellStateTicks++;
-		if (entityData.get(SHELL_STATE_DATA) != shellState.ordinal()) {
-			entityData.set(SHELL_STATE_DATA, shellState.ordinal());
-		}
-		setShiftKeyDown(shellState != idle);
-		if (isShiftKeyDown()) { getNavigation().stop(); setDeltaMovement(getDeltaMovement().multiply(0, 1, 0)); }
-	}
-
-	private void tickLavaWalking() {
-		if (!getBionicTraits().has(BionicTrait.LAVA_WALK))
-			return;
-		// Vanilla Strider.floatStrider runs after super.tick on both sides. Use the
-		// same half-block support shape as LiquidBlock, not the rendered fluid height.
-		if (isInLava()) {
-			if (CollisionContext.of(this).isAbove(LiquidBlock.STABLE_SHAPE, blockPosition(), true)
-				&& !level().getFluidState(blockPosition().above()).is(FluidTags.LAVA)) {
-				setOnGround(true);
-			} else {
-				setDeltaMovement(getDeltaMovement().scale(0.5d).add(0.0d, 0.05d, 0.0d));
-			}
-		}
-		checkInsideBlocks();
-	}
-
-	private void updateOwnerTarget() {
-		if (level().isClientSide || ownerId == null || orderedToSit
-			|| !getBionicTraits().has(BionicTrait.TAMEABLE))
-			return;
-		Player owner = getBionicOwner();
-		if (owner == null)
-			return;
-		LivingEntity candidate = null;
-		if (owner.getLastHurtByMobTimestamp() != lastOwnerHurtTimestamp) {
-			lastOwnerHurtTimestamp = owner.getLastHurtByMobTimestamp();
-			candidate = owner.getLastHurtByMob();
-		}
-		if (candidate == null && owner.getLastHurtMobTimestamp() != lastOwnerAttackTimestamp) {
-			lastOwnerAttackTimestamp = owner.getLastHurtMobTimestamp();
-			candidate = owner.getLastHurtMob();
-		}
-		if (candidate != null && candidate.isAlive() && candidate != this
-			&& !isAlliedTo(candidate)) {
-			if (canAttack(candidate))
-				setTarget(candidate);
-		}
+		BionicBodyGeometry.updateHitParts(this);
 	}
 
 	@Override
 	public void updateDynamicGameEventListener(java.util.function.BiConsumer<net.minecraft.world.level.gameevent.DynamicGameEventListener<?>,
 		net.minecraft.server.level.ServerLevel> consumer) {
-		if (level() instanceof net.minecraft.server.level.ServerLevel server && vibrationSense != null)
-			consumer.accept(vibrationSense.listener(), server);
-	}
-
-
-
-	private void tickHeadRespiration() {
-		if (level().isClientSide || !isAlive())
-			return;
-		if (!getBionicTraits().has(BionicTrait.DRY_SUFFOCATION)) {
-			dryAir = Integer.MIN_VALUE;
-			return;
-		}
-		if (isInWaterOrBubble()) {
-			dryAir = 300;
-			return;
-		}
-		if (dryAir == Integer.MIN_VALUE) dryAir = 300;
-		if (--dryAir == -20) { dryAir = 0; hurt(damageSources().drown(), 2.0f); }
-	}
-
-	private void tickBodyEnvironment() {
-		if (level().isClientSide || !isAlive())
-			return;
-		BionicTraitSet traits = getBionicTraits();
-		if (tickCount % 10 == 0 && traits.value(BionicTrait.PASSIVE_REGENERATION) > 0.0d
-			&& getHealth() < getMaxHealth())
-			heal((float) (traits.value(BionicTrait.PASSIVE_REGENERATION) * 0.5d));
-		if (traits.has(BionicTrait.SUN_SENSITIVE) && isSunBurnTick()) {
-			boolean burns = true;
-			ItemStack headwear = getItemBySlot(EquipmentSlot.HEAD);
-			if (!headwear.isEmpty()) {
-				if (headwear.isDamageableItem()) {
-					Item item = headwear.getItem();
-					headwear.setDamageValue(headwear.getDamageValue() + random.nextInt(2));
-					if (headwear.getDamageValue() >= headwear.getMaxDamage()) {
-						onEquippedItemBroken(item, EquipmentSlot.HEAD);
-						setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
-					}
-				}
-				burns = false;
-			}
-			if (burns)
-				igniteForSeconds(8.0f);
-		}
-
-		double heatSensitivity = traits.strength(BionicTrait.HEAT_SENSITIVE);
-		if (heatSensitivity > 0.0d
-			&& level().getBiome(blockPosition()).is(BiomeTags.SNOW_GOLEM_MELTS))
-			hurt(damageSources().onFire(), (float) heatSensitivity);
-
-		double moistureDependence = traits.strength(BionicTrait.MOISTURE_DEPENDENT);
-		if (moistureDependence <= 0.0d) {
-			moisture = -1;
-			return;
-		}
-		if (isNoAi()) return;
-		if (isInWaterRainOrBubble()) {
-			moisture = MAX_MOISTURE;
-			return;
-		}
-		if (moisture < 0) moisture = MAX_MOISTURE;
-		moisture = Math.max(0, moisture - 1);
-		if (moisture <= 0)
-			hurt(damageSources().dryOut(), (float) moistureDependence);
-	}
-
-	private void updateHitParts() {
-		if (hitParts == null || registeredHitParts.length == 0)
-			return;
-		SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
-		List<SurgicalAssembly.VisualBounds> bounds = geometry == null ? List.of()
-			: geometry.partBounds(MULTIPART_THRESHOLD);
-		AABB equipmentBounds = equipment.interactionBounds();
-		if (bounds.size() + (equipmentBounds == null ? 0 : 1) > registeredHitParts.length) {
-			if (geometry == null) return;
-			bounds = List.of(geometry.overall());
-		}
-		for (int index = 0; index < registeredHitParts.length; index++)
-			registeredHitParts[index].setHitBounds(index < bounds.size() ? worldBounds(bounds.get(index))
-				: index == bounds.size() ? equipmentBounds : null);
-	}
-
-	/** Chooses the cached subset before level tracking starts; tracked part maps cannot grow later. */
-	private void configureHitPartRegistration(SurgicalAssembly assembly) {
-		if (isAddedToLevel())
-			return;
-		SurgicalAssembly.HitboxGeometry geometry = assembly == null ? null : assembly.hitboxGeometry();
-		if (geometry != null)
-			setRegisteredHitPartCount(geometry.partBounds(MULTIPART_THRESHOLD).size()
-				+ (assembly.attackGeometry() != null && !assembly.attackGeometry().equipmentBounds().isEmpty() ? 1 : 0));
-	}
-
-	private void setRegisteredHitPartCount(int count) {
-		registeredHitParts = count >= hitParts.length ? hitParts
-			: Arrays.copyOf(hitParts, Mth.clamp(count, 0, hitParts.length));
-	}
-
-	private AABB worldBounds(SurgicalAssembly.VisualBounds bounds) {
-		if (isBlockAttached()) {
-			AABB rotated = blockAttachment.bounds(bounds);
-			if (rotated != null) return rotated.move(position());
-		}
-		double minX = Double.POSITIVE_INFINITY;
-		double minY = Double.POSITIVE_INFINITY;
-		double minZ = Double.POSITIVE_INFINITY;
-		double maxX = Double.NEGATIVE_INFINITY;
-		double maxY = Double.NEGATIVE_INFINITY;
-		double maxZ = Double.NEGATIVE_INFINITY;
-		for (int xSide = 0; xSide < 2; xSide++)
-			for (int ySide = 0; ySide < 2; ySide++)
-			for (int zSide = 0; zSide < 2; zSide++) {
-				Vec3 rotated = bodyToWorld(new Vec3(xSide == 0 ? bounds.minX() : bounds.maxX(),
-					ySide == 0 ? bounds.minY() : bounds.maxY(), zSide == 0 ? bounds.minZ() : bounds.maxZ()));
-				minX = Math.min(minX, rotated.x);
-				minY = Math.min(minY, rotated.y);
-				minZ = Math.min(minZ, rotated.z);
-				maxX = Math.max(maxX, rotated.x);
-				maxY = Math.max(maxY, rotated.y);
-				maxZ = Math.max(maxZ, rotated.z);
-			}
-		return new AABB(minX, minY, minZ, maxX, maxY, maxZ);
+		BionicEnvironment.updateDynamicGameEventListener(this, consumer);
 	}
 
 	@Override protected AABB makeBoundingBox() {
 		if (isBlockAttached()) {
-			SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
+			SurgicalAssembly.HitboxGeometry geometry = BionicMeleeController.authoritativeHitboxGeometry(this);
 			// Use the measured envelope, including its depth and offsets, rather than rotating
 			// vanilla's upright square footprint. Hit parts use this same rest-to-world transform.
 			if (geometry != null)
-				return worldBounds(geometry.requiresMultipart(MULTIPART_THRESHOLD) ? geometry.body() : geometry.overall());
+				return BionicBodyGeometry.worldBounds(this, geometry.requiresMultipart(MULTIPART_THRESHOLD) ? geometry.body() : geometry.overall());
 			return BionicRiding.rotateBounds(super.makeBoundingBox(), position(), blockAttachmentRotation());
 		}
 		return super.makeBoundingBox();
@@ -1786,9 +1320,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public AABB getBoundingBoxForCulling() {
-		SurgicalAssembly.HitboxGeometry geometry = renderHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = BionicMeleeController.renderHitboxGeometry(this);
 		AABB bounds = geometry == null ? super.getBoundingBoxForCulling()
-			: getBoundingBox().minmax(worldBounds(geometry.overall()));
+			: getBoundingBox().minmax(BionicBodyGeometry.worldBounds(this, geometry.overall()));
 		AABB accessories = equipment.interactionBounds();
 		return accessories == null ? bounds : bounds.minmax(accessories);
 	}
@@ -1797,28 +1331,21 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public boolean shouldRenderAtSqrDistance(double distance) {
 		if (super.shouldRenderAtSqrDistance(distance))
 			return true;
-		SurgicalAssembly.HitboxGeometry geometry = renderHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = BionicMeleeController.renderHitboxGeometry(this);
 		if (geometry == null)
 			return false;
 		double physicalSize = Math.max(getBoundingBox().getSize(), 1.0e-6d);
-		double visualSize = Math.max(worldBounds(geometry.overall()).getSize(), physicalSize);
+		double visualSize = Math.max(BionicBodyGeometry.worldBounds(this, geometry.overall()).getSize(), physicalSize);
 		double scale = visualSize / physicalSize;
 		return super.shouldRenderAtSqrDistance(distance / (scale * scale));
 	}
 
 	@Override
 	public boolean isPickable() {
-		SurgicalAssembly.HitboxGeometry geometry = authoritativeHitboxGeometry();
+		SurgicalAssembly.HitboxGeometry geometry = BionicMeleeController.authoritativeHitboxGeometry(this);
 		boolean multipartActive = registeredHitParts.length > 0 && geometry != null
 			&& geometry.requiresMultipart(MULTIPART_THRESHOLD);
 		return !multipartActive && super.isPickable();
-	}
-
-	private boolean armHasWeapon(boolean left, int slot) {
-		SurgicalAssembly assembly = getAssembly();
-		var mainHandArm = equipment.mainHandArm();
-		return isAttackWeapon(getMainHandItem()) && assembly != null && assembly.attackGeometry() != null
-			&& mainHandArm != null && mainHandArm == assembly.attackGeometry().arm(left, slot);
 	}
 
 	@Override
@@ -1835,37 +1362,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			? preferred.getOpposite() : preferred;
 	}
 
-	/** Applies one logical attack hit without touching its independent presentation clock. */
-	private boolean performAttackDamage(Entity target, double damageMultiplier) {
-		boolean replaceMainHand = !attackUsesMainHand();
-		HashMultimap<Holder<Attribute>, AttributeModifier> mainHandModifiers = replaceMainHand
-			? combatModifiers(getMainHandItem()) : null;
-		HashMultimap<Holder<Attribute>, AttributeModifier> selectedModifiers = replaceMainHand
-			? combatModifiers(selectedAttackWeapon()) : null;
-		if (replaceMainHand) {
-			getAttributes().removeAttributeModifiers(mainHandModifiers);
-			getAttributes().addTransientAttributeModifiers(selectedModifiers);
-		}
-		var attackDamage = getAttribute(Attributes.ATTACK_DAMAGE);
-		try {
-			if (attackDamage == null || Math.abs(damageMultiplier - 1.0d) < 1.0e-8d)
-				return doSelectedAttack(target);
-			attackDamage.removeModifier(ANATOMICAL_ATTACK_MODIFIER_ID);
-			attackDamage.addTransientModifier(new AttributeModifier(ANATOMICAL_ATTACK_MODIFIER_ID,
-				damageMultiplier - 1.0d, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
-			try {
-				return doSelectedAttack(target);
-			} finally {
-				attackDamage.removeModifier(ANATOMICAL_ATTACK_MODIFIER_ID);
-			}
-		} finally {
-			if (replaceMainHand) {
-				getAttributes().removeAttributeModifiers(selectedModifiers);
-				getAttributes().addTransientAttributeModifiers(mainHandModifiers);
-			}
-		}
-	}
-
 	@Override
 	protected float getKnockback(Entity target, net.minecraft.world.damagesource.DamageSource source) {
 		SurgicalAssembly assembly = getAssembly();
@@ -1878,10 +1374,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** The correction follows the entire installed shoulder/elbow chain, including mixed donors. */
 	public double armDamageOffset(@Nullable SurgicalAssembly.ArmAttackGeometry arm) {
-		SurgicalAssembly assembly = getAssembly();
-		return assembly == null || arm == null || arm.sourceId() < 0 ? 0.0d
-			: getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET,
-				assembly.rotatingGroup(arm.sourceId(), arm.cubeId()));
+		return BionicMeleeController.armDamageOffset(this, arm);
 	}
 
 	@Override
@@ -1891,14 +1384,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			? Math.max(0.0d, value + activeMeleeDamageOffset) : value;
 	}
 
-	private boolean doSelectedAttack(Entity target) {
+	boolean doSelectedAttack(Entity target) {
 		var selectedAssembly = getAssembly();
 		var selectedGeometry = selectedAssembly == null ? null : selectedAssembly.attackGeometry();
 		var selectedArm = selectedGeometry == null ? null : selectedGeometry.arm(attackActionLeft, attackActionArmSlot);
 		if (selectedArm != null && isBionicWing(selectedArm)) return false;
 		boolean hit;
 		double previousOffset = activeMeleeDamageOffset;
-		activeMeleeDamageOffset = armDamageOffset(selectedArm);
+		activeMeleeDamageOffset = BionicMeleeController.armDamageOffset(this, selectedArm);
 		try {
 			// Mob reads the corrected attack attribute before its normal enchantment and damage hooks.
 			hit = super.doHurtTarget(target);
@@ -1937,48 +1430,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return hit;
 	}
 
-	private boolean attackUsesMainHand() {
-		return attackActionWeapon && armHasWeapon(attackActionLeft, attackActionArmSlot);
-	}
-
-	private ItemStack selectedAttackWeapon() {
-		return attackUsesMainHand() ? getMainHandItem() : ItemStack.EMPTY;
-	}
-
-	private static HashMultimap<Holder<Attribute>, AttributeModifier> combatModifiers(ItemStack stack) {
-		HashMultimap<Holder<Attribute>, AttributeModifier> modifiers = HashMultimap.create();
-		if (stack == null || stack.isEmpty())
-			return modifiers;
-		stack.forEachModifier(EquipmentSlot.MAINHAND, modifiers::put);
-		return modifiers;
-	}
-
 	@Override
 	public ItemStack getWeaponItem() {
-		return attackActionTick > 0 ? selectedAttackWeapon() : super.getWeaponItem();
+		return attackActionTick > 0 ? BionicMeleeController.selectedAttackWeapon(this) : super.getWeaponItem();
 	}
 
-	private boolean hasAttackLineOfSight(LivingEntity target, SurgicalAssembly.ArmAttackGeometry arm,
-		float bodyYaw) {
-		Vec3 origin = SlimeBionicCombat.worldOrigin(position(), bodyYaw, arm);
-		Vec3 targetPoint = SlimeBionicCombat.aimPoint(target.getBoundingBox(), origin);
-		if (origin.distanceToSqr(targetPoint) < 1.0e-8d)
-			return true;
-		return level().clip(new ClipContext(origin, targetPoint, ClipContext.Block.COLLIDER,
-			ClipContext.Fluid.NONE, this)).getType() == HitResult.Type.MISS;
-	}
-
-	private record AttackStart(int actionDuration, int contactStartTick,
+	record AttackStart(int actionDuration, int contactStartTick,
 		int globalAttackInterval, int armRecovery,
 		double damageMultiplier, SurgicalAssembly.ArmAttackGeometry arm, Vec3 aim,
 		boolean left, int slot) {}
 
-	private record ArmCandidate(boolean left, int slot, boolean weapon,
+	record ArmCandidate(boolean left, int slot, boolean weapon,
 		SurgicalAssembly.ArmAttackGeometry arm, Vec3 aim, double score) {}
 
-	private record ArmSelection(ArmCandidate arm, int cadenceArms) {}
+	record ArmSelection(ArmCandidate arm, int cadenceArms) {}
 
-	private record ArmUse(boolean left, int slot) {}
+	record ArmUse(boolean left, int slot) {}
 
 	public int getAttackActionTick() {
 		return attackActionTick;
@@ -2131,7 +1598,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (ATTACH_CELL_DATA.equals(key) || ATTACH_FACE_DATA.equals(key)) {
 			lockBlockAttachmentRotation();
 			setBoundingBox(makeBoundingBox());
-			updateHitParts();
+			BionicBodyGeometry.updateHitParts(this);
 		}
 		if (OWNER_DATA.equals(key))
 			ownerId = entityData.get(OWNER_DATA).orElse(null);
@@ -2144,7 +1611,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			clientHitboxGeometry = null;
 			clientBodyVolume = Double.NaN;
 			refreshDimensions();
-			updateHitParts();
+			BionicBodyGeometry.updateHitParts(this);
 		}
 	}
 
@@ -2287,13 +1754,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override protected Vec3 getRiddenInput(Player player, Vec3 movement) {
 		double forward = player.zza > 0 ? player.zza : player.zza * 0.25;
-		double vertical = hasFlightLocomotion() || isSwimming() ? -Math.sin(player.getXRot() * Mth.DEG_TO_RAD) * forward
+		double vertical = BionicLocomotionPolicy.hasFlightLocomotion(this) || isSwimming() ? -Math.sin(player.getXRot() * Mth.DEG_TO_RAD) * forward
 			+ (riderAscending ? 0.8 : 0) : 0;
 		return new Vec3(player.xxa * 0.5, vertical,
-			hasFlightLocomotion() || isSwimming() ? forward * Math.cos(player.getXRot() * Mth.DEG_TO_RAD) : forward);
+			BionicLocomotionPolicy.hasFlightLocomotion(this) || isSwimming() ? forward * Math.cos(player.getXRot() * Mth.DEG_TO_RAD) : forward);
 	}
 	@Override protected float getRiddenSpeed(Player player) {
-		if (hasFlightLocomotion())
+		if (BionicLocomotionPolicy.hasFlightLocomotion(this))
 			return (float) getAttributeValue(Attributes.FLYING_SPEED);
 		return (float) getAttributeValue(Attributes.MOVEMENT_SPEED)
 			+ (equipment.camel() && player.isSprinting() ? 0.1f : 0);
@@ -2312,10 +1779,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (riderJump > 0 && onGround()) {
 			setDeltaMovement(getDeltaMovement().x, getJumpPower() * riderJump, getDeltaMovement().z);
 			hasImpulse = true; riderJump = 0;
-		} else if (!hasFlightLocomotion() && onGround() && input.horizontalDistanceSqr() > 0
-			&& getLocomotionLegCount() < 2) jumpFromGround();
+		} else if (!BionicLocomotionPolicy.hasFlightLocomotion(this) && onGround() && input.horizontalDistanceSqr() > 0
+			&& BionicLocomotionPolicy.getLocomotionLegCount(this) < 2) jumpFromGround();
 	}
-	@Override public boolean canJump() { return hasControllingPassenger() && !hasFlightLocomotion() && !isSwimming()
+	@Override public boolean canJump() { return hasControllingPassenger() && !BionicLocomotionPolicy.hasFlightLocomotion(this) && !isSwimming()
 		&& (equipment.jumpingDonor() || getBionicTraits().hasStrongJump()); }
 	@Override public void onPlayerJump(int strength) {
 		if (!canJump()) return;
@@ -2329,406 +1796,5 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override public List<ItemStack> onSheared(@Nullable Player player, ItemStack item, Level level, BlockPos pos) {
 		return production.shear();
-	}
-	private static final class BionicFloatGoal extends FloatGoal {
-		private final SlimeBionicEntity bionic;
-
-		private BionicFloatGoal(SlimeBionicEntity bionic) {
-			super(bionic);
-			this.bionic = bionic;
-		}
-
-		@Override public boolean canUse() {
-			// Strider buoyancy handles lava without FloatGoal's repeated jump requests.
-			if (bionic.isInLava() && bionic.getBionicTraits().has(BionicTrait.LAVA_WALK))
-				return false;
-			// Sinking bodies use vanilla water gravity instead of jumping to the surface.
-			// Aquatic and flying controllers retain their own vertical movement.
-			if (bionic.isInWater() && !bionic.isInLava()
-				&& bionic.getBionicTraits().has(BionicTrait.WATER_SINKING))
-				return false;
-			// Swimming already steers vertically; keep fluid escape for other bodies.
-			return (!bionic.organSwimEnabled || bionic.isInLava()) && super.canUse();
-		}
-	}
-
-	/** Skeleton-style shade seeking, also usable by assembled bodies with non-ground navigation. */
-	private static final class BionicFleeSunGoal extends FleeSunGoal {
-		private final SlimeBionicEntity bionic;
-
-		private BionicFleeSunGoal(SlimeBionicEntity bionic) {
-			super(bionic, 1.0d);
-			this.bionic = bionic;
-		}
-
-		private boolean needsShade() {
-			return bionic.shouldAvoidSun() && bionic.level().isDay()
-				&& bionic.getItemBySlot(EquipmentSlot.HEAD).isEmpty()
-				&& !bionic.isOrderedToSit() && !bionic.isVehicle() && !bionic.isPassenger()
-				&& bionic.getTarget() == null;
-		}
-
-		@Override public boolean canUse() {
-			// Seek cover before ignition; combat, sitting and rider control retain priority.
-			return needsShade() && bionic.level().canSeeSky(bionic.blockPosition()) && setWantedPos();
-		}
-
-		@Override public boolean canContinueToUse() {
-			return needsShade() && super.canContinueToUse();
-		}
-
-		@Override @Nullable protected Vec3 getHidePos() {
-			for (int attempt = 0; attempt < 10; attempt++) {
-				BlockPos pos = bionic.blockPosition().offset(bionic.random.nextInt(20) - 10,
-					bionic.random.nextInt(6) - 3, bionic.random.nextInt(20) - 10);
-				Vec3 target = Vec3.atBottomCenterOf(pos);
-				// PathfinderMob has no Monster light preference; check shade and room for this body.
-				if (!bionic.level().canSeeSky(pos) && bionic.getNavigation().isStableDestination(pos)
-					&& bionic.level().noCollision(bionic, bionic.getBoundingBox().move(target.subtract(bionic.position()))))
-					return target;
-			}
-			return null;
-		}
-	}
-
-	private static final class BionicSitGoal extends Goal {
-		private final SlimeBionicEntity bionic;
-
-		private BionicSitGoal(SlimeBionicEntity bionic) {
-			this.bionic = bionic;
-			setFlags(EnumSet.of(Flag.MOVE, Flag.JUMP));
-		}
-
-		@Override public boolean canUse() {
-			return bionic.orderedToSit && bionic.getBionicTraits().has(BionicTrait.TAMEABLE)
-				&& bionic.onGround() && !bionic.isInWaterOrBubble();
-		}
-		@Override public boolean canContinueToUse() { return canUse(); }
-		@Override public void start() { bionic.getNavigation().stop(); }
-		@Override public void stop() { bionic.getNavigation().stop(); }
-	}
-
-	private static final class BionicLandStrollGoal extends WaterAvoidingRandomStrollGoal {
-		private final SlimeBionicEntity bionic;
-		private BionicLandStrollGoal(SlimeBionicEntity bionic) {
-			super(bionic, 1.0d);
-			this.bionic = bionic;
-		}
-		@Override public boolean canUse() {
-			return !bionic.isSwimming() && super.canUse();
-		}
-		@Override public boolean canContinueToUse() {
-			return !bionic.isSwimming() && super.canContinueToUse();
-		}
-	}
-
-	private static final class BionicSwimStrollGoal extends RandomStrollGoal {
-		private static final int[][] DISTANCES = {{1, 1}, {3, 3}, {5, 5}, {6, 5}, {7, 7}, {10, 7}};
-		private final SlimeBionicEntity bionic;
-		private BionicSwimStrollGoal(SlimeBionicEntity bionic) {
-			// Unlike land wandering, water activity must not stop after noActionTime >= 100.
-			super(bionic, SWIMMING_IDLE_SPEED, 20, false);
-			this.bionic = bionic;
-		}
-		@Override public boolean canUse() {
-			return bionic.isSwimming() && super.canUse();
-		}
-		@Override public boolean canContinueToUse() {
-			return bionic.isSwimming() && super.canContinueToUse();
-		}
-		@Nullable
-		@Override protected Vec3 getPosition() {
-			// AxolotlAi uses RandomStroll.swim: choose nearby water, then extend that
-			// direction in tiers and retain the last water point before reaching shore.
-			Vec3 target = null;
-			for (int[] distance : DISTANCES) {
-				Vec3 candidate = target == null
-					? BehaviorUtils.getRandomSwimmablePos(bionic, distance[0], distance[1])
-					: bionic.position().add(target.subtract(bionic.position()).normalize()
-						.multiply(distance[0], distance[1], distance[0]));
-				if (candidate == null || !bionic.level().getFluidState(BlockPos.containing(candidate))
-					.is(FluidTags.WATER))
-					break;
-				target = candidate;
-			}
-			return target;
-		}
-	}
-
-	private static final class BionicFollowOwnerGoal extends Goal {
-		private final SlimeBionicEntity bionic;
-		@Nullable private Player owner;
-		private int recalculate;
-
-		private BionicFollowOwnerGoal(SlimeBionicEntity bionic) {
-			this.bionic = bionic;
-			setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
-		}
-
-		@Override public boolean canUse() {
-			if (bionic.orderedToSit || bionic.ownerId == null || !bionic.getBionicTraits().has(BionicTrait.TAMEABLE))
-				return false;
-			owner = bionic.getCompanionPlayer();
-			return owner != null && !owner.isSpectator() && bionic.distanceToSqr(owner) > 100.0d;
-		}
-		@Override public boolean canContinueToUse() {
-			return owner != null && owner.isAlive() && !bionic.orderedToSit
-				&& (bionic.ownerId != null && bionic.getBionicTraits().has(BionicTrait.TAMEABLE))
-				&& bionic.distanceToSqr(owner) > 4.0d && (!bionic.getNavigation().isDone()
-					|| BionicWallClimbing.isInProgress(bionic.getNavigation()));
-		}
-		@Override public void stop() { owner = null; bionic.getNavigation().stop(); }
-		@Override public void tick() {
-			if (owner == null)
-				return;
-			bionic.getLookControl().setLookAt(owner, 10.0f, bionic.getMaxHeadXRot());
-			if (--recalculate <= 0) {
-				recalculate = adjustedTickDelay(10);
-				if (bionic.distanceToSqr(owner) >= 144 && !bionic.isLeashed() && !bionic.isPassenger()) {
-					for (int attempt = 0; attempt < 10; attempt++) {
-						BlockPos pos = owner.blockPosition().offset(bionic.random.nextInt(7) - 3,
-							bionic.random.nextInt(3) - 1, bionic.random.nextInt(7) - 3);
-						if (Math.abs(pos.getX() - owner.getBlockX()) < 2 && Math.abs(pos.getZ() - owner.getBlockZ()) < 2) continue;
-						if (net.minecraft.world.level.pathfinder.WalkNodeEvaluator.getPathTypeStatic(bionic, pos) == PathType.WALKABLE
-							&& !(bionic.level().getBlockState(pos.below()).getBlock() instanceof net.minecraft.world.level.block.LeavesBlock)
-							&& bionic.level().noCollision(bionic, bionic.getBoundingBox().move(Vec3.atBottomCenterOf(pos).subtract(bionic.position())))) {
-							bionic.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, bionic.getYRot(), bionic.getXRot());
-							bionic.getNavigation().stop(); break;
-						}
-					}
-				} else bionic.getNavigation().moveTo(owner, bionic.isSwimming() ? SWIMMING_PURSUIT_SPEED : 1.2d);
-			}
-		}
-	}
-
-	/** Vanilla pursuit with independent, directional melee actions and persistent recovery deadlines. */
-	private static class BionicAttackGoal extends MeleeAttackGoal {
-		private final SlimeBionicEntity bionic;
-		private final double pursuitSpeed;
-		private final long[] rightArmRecovery = new long[SurgicalLimbType.SHOULDER.maxPerBody()];
-		private final long[] leftArmRecovery = new long[SurgicalLimbType.SHOULDER.maxPerBody()];
-		private int raiseArmTicks;
-		private long nextAttackTick;
-		private int currentAttackInterval = SurgicalCombatCalibration.ZOMBIE_ATTACK_INTERVAL;
-		@Nullable
-		private LivingEntity pendingAttackTarget;
-		private long pendingAttackStartedAt;
-		private int pendingAttackDuration;
-		private int pendingContactStartTick;
-		private boolean pendingImpactApplied;
-		private double pendingDamageMultiplier = 1.0d;
-		@Nullable
-		private SurgicalAssembly.ArmAttackGeometry pendingArmGeometry;
-		@Nullable
-		private Vec3 pendingAim;
-		private float pendingBodyYaw;
-		private boolean pendingAimSynchronized;
-		@Nullable
-		private ArmUse lastArm;
-
-		private BionicAttackGoal(SlimeBionicEntity bionic, double speedModifier, boolean followingTargetEvenIfNotSeen) {
-			super(bionic, speedModifier, followingTargetEvenIfNotSeen);
-			this.bionic = bionic;
-			pursuitSpeed = speedModifier;
-		}
-
-		@Override
-		public boolean canUse() {
-			return validTarget(bionic.getTarget()) && (bionic.vibrationSense.lastHeardPosition(bionic.getTarget()) != null
-				|| super.canUse() || bionic.canUseWallClimbing());
-		}
-
-		@Override
-		public void start() {
-			super.start();
-			// MeleeAttackGoal can have no cached path (or one from a previous attempt)
-			// when climbing is what allowed this goal to start.
-			if (bionic.canUseWallClimbing() && bionic.getTarget() != null)
-				bionic.getNavigation().moveTo(bionic.getTarget(), pursuitSpeed);
-			raiseArmTicks = 0;
-			clearPendingAttack();
-			// Deadlines deliberately survive Goal restarts and target changes.
-			bionic.combatFacingControlled = false;
-		}
-
-		@Override
-		public void stop() {
-			super.stop();
-			clearPendingAttack();
-			bionic.combatFacingControlled = false;
-			bionic.setAggressive(false);
-		}
-
-		private boolean validTarget(@Nullable LivingEntity target) {
-			return bionic.isValidMeleeTarget(target);
-		}
-
-		@Override
-		public boolean canContinueToUse() {
-			LivingEntity target = bionic.getTarget();
-			return validTarget(target) && bionic.isWithinRestriction(target.blockPosition())
-				&& (pendingAttackTarget == target || bionic.isWithinMeleeAttackRange(target)
-					|| bionic.vibrationSense.lastHeardPosition(target) != null
-					// SpiderAttackGoal keeps pursuing a valid target after its ground path ends.
-					|| bionic.canUseWallClimbing() || super.canContinueToUse());
-		}
-
-		@Override
-		protected void checkAndPerformAttack(LivingEntity target) {
-			// Vanilla canPerformAttack() requires eye-to-eye sensing before our complete-AABB arm
-			// checks run. Use only its timing/range portions; per-arm block visibility is checked from
-			// the shoulder to the nearest target-box point in beginAttack() and again on contact.
-			if (bionic.usesContactAttack() || pendingAttackTarget != null || !validTarget(target) || !isTimeToAttack()
-				|| !bionic.isWithinMeleeAttackRange(target))
-				return;
-			AttackStart attack = bionic.beginAttack(target, rightArmRecovery, leftArmRecovery, lastArm);
-			if (attack == null)
-				return;
-			long now = bionic.level().getGameTime();
-			nextAttackTick = now + attack.globalAttackInterval();
-			currentAttackInterval = attack.globalAttackInterval();
-			bionic.swing(net.minecraft.world.InteractionHand.MAIN_HAND);
-			pendingAttackDuration = attack.actionDuration();
-			pendingContactStartTick = attack.contactStartTick();
-			pendingArmGeometry = attack.arm();
-			pendingAim = attack.aim();
-			pendingBodyYaw = bionic.combatBodyYaw();
-			pendingDamageMultiplier = attack.damageMultiplier();
-			pendingAttackTarget = target;
-			pendingAttackStartedAt = now;
-			pendingImpactApplied = false;
-			pendingAimSynchronized = false;
-			long[] recovery = attack.left() ? leftArmRecovery : rightArmRecovery;
-			recovery[attack.slot()] = now + attack.armRecovery();
-			lastArm = new ArmUse(attack.left(), attack.slot());
-		}
-
-		private void advancePendingAttack() {
-			LivingEntity target = pendingAttackTarget;
-			if (!validTarget(target) || target != bionic.getTarget()
-				|| pendingArmGeometry == null || pendingAim == null) {
-				clearPendingAttack();
-				return;
-			}
-			long elapsed = bionic.level().getGameTime() - pendingAttackStartedAt;
-			if (elapsed < 0 || elapsed >= pendingAttackDuration) {
-				clearPendingAttack();
-				return;
-			}
-			int pendingAttackElapsed = (int) elapsed;
-			int activeStart = pendingContactStartTick;
-			// The final preparation tick commits both the aim and shoulder orientation. Neither
-			// navigation nor model/body smoothing can sweep the strike around after this point.
-			if (pendingAttackElapsed < activeStart) {
-				turnBodyToward(target);
-				pendingBodyYaw = bionic.combatBodyYaw();
-				trackAim(target);
-				bionic.synchronizeAttackAim(pendingAim, pendingBodyYaw, pendingAttackDuration - pendingAttackElapsed);
-			}
-			if (!pendingAimSynchronized && pendingAttackElapsed >= activeStart) {
-				pendingAimSynchronized = true;
-				bionic.synchronizeAttackAim(pendingAim, pendingBodyYaw, pendingAttackDuration - pendingAttackElapsed);
-			}
-			if (!pendingImpactApplied && SlimeBionicCombat.isContactTick(pendingAttackElapsed,
-				pendingContactStartTick)
-				&& SlimeBionicCombat.intersects(target.getBoundingBox(), bionic.position(), pendingBodyYaw,
-					pendingAim, pendingArmGeometry)
-				&& bionic.hasAttackLineOfSight(target, pendingArmGeometry, pendingBodyYaw)) {
-				// Contact consumes the swing even when a shield, hurt immunity or an event blocks damage.
-				pendingImpactApplied = true;
-				bionic.performAttackDamage(target, pendingDamageMultiplier);
-			}
-		}
-
-		private void turnBodyToward(LivingEntity target) {
-			float current = bionic.combatBodyYaw();
-			Vec3 direction = target.getBoundingBox().getCenter().subtract(bionic.position());
-			float desired = direction.horizontalDistanceSqr() < 1.0e-8d ? current : SlimeBionicCombat.yaw(direction);
-			bionic.combatFacingYaw = Mth.approachDegrees(current, desired,
-				SlimeBionicCombat.BODY_TURN_DEGREES);
-			bionic.combatFacingControlled = true;
-			bionic.applyCombatFacing();
-		}
-
-		private void trackAim(LivingEntity target) {
-			Vec3 origin = SlimeBionicCombat.worldOrigin(bionic.position(), pendingBodyYaw, pendingArmGeometry);
-			Vec3 desired = SlimeBionicCombat.constrainAim(
-				SlimeBionicCombat.aimAt(target.getBoundingBox(), origin, pendingBodyYaw), pendingBodyYaw, pendingArmGeometry);
-			pendingAim = SlimeBionicCombat.constrainAim(SlimeBionicCombat.approachAim(
-				pendingAim, desired, SlimeBionicCombat.AIM_TRACKING_DEGREES), pendingBodyYaw, pendingArmGeometry);
-		}
-
-		private void clearPendingAttack() {
-			boolean wasPending = pendingAttackTarget != null;
-			pendingAttackTarget = null;
-			pendingAttackStartedAt = 0L;
-			pendingAttackDuration = 0;
-			pendingContactStartTick = 0;
-			pendingImpactApplied = false;
-			pendingArmGeometry = null;
-			pendingAim = null;
-			pendingAimSynchronized = false;
-			pendingDamageMultiplier = 1.0d;
-			bionic.attackActionTick = 0;
-			if (wasPending)
-				CBPackets.sendToTrackingEntity(SlimeBionicAttackActionPacket.aim(bionic), bionic);
-		}
-
-		@Override
-		protected boolean isTimeToAttack() {
-			return bionic.level().getGameTime() >= nextAttackTick;
-		}
-
-		@Override
-		protected int getTicksUntilNextAttack() {
-			return (int) Math.max(0L, nextAttackTick - bionic.level().getGameTime());
-		}
-
-		@Override
-		protected int getAttackInterval() {
-			return currentAttackInterval;
-		}
-
-		@Override
-		public void tick() {
-			LivingEntity target = bionic.getTarget();
-			if (!validTarget(target)) {
-				clearPendingAttack();
-				bionic.combatFacingControlled = false;
-				bionic.getNavigation().stop();
-				return;
-			}
-			if (bionic.getBionicTraits().has(BionicTrait.VIBRATION_SENSE) && !bionic.hasLineOfSight(target)) {
-				clearPendingAttack();
-				bionic.combatFacingControlled = false;
-				Vec3 heard = bionic.vibrationSense.lastHeardPosition(target);
-				if (heard != null) {
-					bionic.getLookControl().setLookAt(heard.x, heard.y, heard.z);
-					bionic.getNavigation().moveTo(heard.x, heard.y, heard.z,
-						bionic.isSwimming() ? SWIMMING_PURSUIT_SPEED : 1.0d);
-				} else bionic.getNavigation().stop();
-				return;
-			}
-			boolean contactAttack = bionic.usesContactAttack();
-			if (pendingAttackTarget != null && (pendingAttackTarget != target || contactAttack))
-				clearPendingAttack();
-			if (contactAttack) {
-				bionic.combatFacingControlled = false;
-			} else if (pendingAttackTarget != null) {
-				advancePendingAttack();
-			} else if (bionic.withinCombatEnvelope(target.getBoundingBox().inflate(0.5d))) {
-				turnBodyToward(target);
-			} else {
-				bionic.combatFacingControlled = false;
-			}
-			super.tick();
-			if (bionic.isSwimming())
-				bionic.getNavigation().setSpeedModifier(SWIMMING_PURSUIT_SPEED);
-			if (pendingAttackTarget != null && bionic.shouldPauseAttackMovement())
-				bionic.getNavigation().stop();
-			raiseArmTicks++;
-			bionic.setAggressive(contactAttack || pendingAttackTarget != null
-				|| raiseArmTicks >= 5 && getTicksUntilNextAttack() < getAttackInterval() / 2);
-		}
 	}
 }

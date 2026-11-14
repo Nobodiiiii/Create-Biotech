@@ -1,158 +1,79 @@
 package com.nobodiiiii.createbiotech.client;
 
-import java.util.function.Predicate;
 
-import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineRenderer;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineVisual;
-import com.nobodiiiii.createbiotech.content.bionicmechanism.BionicMechanismItemRenderer;
-import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingMachineVisual;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestScreen;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
-import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineVisual;
-import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerVisual;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetRenderer;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxEntityRenderer;
-import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenRenderer;
-import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
-import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberVisual;
 import com.nobodiiiii.createbiotech.CreateBiotech;
-import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderManager;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
-import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
-import com.nobodiiiii.createbiotech.content.fixedcarrotfishingrod.FixedCarrotFishingRodRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetSnapOverlay;
-import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonAssemblyStationRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
-import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntityRenderer;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScreen;
-import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterRenderer;
-import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
-import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogRenderer;
 import com.nobodiiiii.createbiotech.content.giantfrog.GiantFrogMachineVisual;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltHelper;
-import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltVisual;
-import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerRenderer;
 import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerVisual;
-import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltRenderer;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltVisual;
-import com.nobodiiiii.createbiotech.content.petridish.PetriDishRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalSourceModelRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableClientHandler;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteractionOverlay;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableModel;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableRenderer;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalJointItemDecorator;
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
-import com.nobodiiiii.createbiotech.content.schrodingerscat.SchrodingersCatRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagePartials;
-import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
-import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterRenderer;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterScreen;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltHelper;
-import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltRenderer;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltVisual;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltSpriteShifts;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCasingModel;
-import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableCogRenderer;
-import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableRenderer;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableScreen;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableVisual;
-import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterRenderer;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterVisual;
-import com.nobodiiiii.createbiotech.content.sonicdogcannon.SonicDogCannonUpgrade;
 import com.nobodiiiii.createbiotech.content.universaljoint.HalfShaftVisual;
 import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointVisual;
-import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
-import com.nobodiiiii.createbiotech.content.universaljoint.UniversalJointRenderer;
-import com.nobodiiiii.createbiotech.entity.PlayerMimicRenderer;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicRenderer;
-import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeRenderer;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestScreen;
-import com.simibubi.create.content.kinetics.transmission.SplitShaftRenderer;
-import com.simibubi.create.content.logistics.tableCloth.TableClothModel;
-import com.simibubi.create.content.logistics.tableCloth.TableClothRenderer;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortScreen;
 import com.nobodiiiii.createbiotech.content.allay.client.gui.hud.AllayCourierHudOverlay;
-import com.nobodiiiii.createbiotech.content.allay.client.render.AllayCourierEntityRenderer;
-import com.nobodiiiii.createbiotech.content.allay.client.render.AllayPortRenderer;
 import com.nobodiiiii.createbiotech.content.allay.client.render.AllayPortVisual;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierScreen;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreateBiotechPonderPlugin;
 import com.nobodiiiii.createbiotech.foundation.ponder.CreatePonderCompatPlugin;
-import com.nobodiiiii.createbiotech.client.particle.CourierNoteParticle;
-import com.nobodiiiii.createbiotech.client.particle.FrogPortalParticle;
-import com.nobodiiiii.createbiotech.client.particle.SonicConeWaveParticle;
-import com.nobodiiiii.createbiotech.client.particle.SquidPrinterInkParticle;
-import com.nobodiiiii.createbiotech.client.particle.StraightEnchantParticle;
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
-import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
-import com.nobodiiiii.createbiotech.client.CasingConnectedHorizontalCTBehaviour;
-import com.simibubi.create.Create;
 import com.simibubi.create.CreateClient;
-import com.simibubi.create.AllBlocks;
-import com.simibubi.create.AllPartialModels;
 import com.simibubi.create.content.contraptions.render.ContraptionVisual;
-import com.simibubi.create.content.decoration.encasing.EncasedCTBehaviour;
-import com.simibubi.create.content.decoration.MetalScaffoldingCTBehaviour;
-import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorRenderer;
-import com.simibubi.create.content.equipment.armor.CardboardArmorStealthOverlay;
-import com.simibubi.create.content.fluids.PipeAttachmentModel;
 import com.simibubi.create.content.kinetics.base.SingleAxisRotatingVisual;
-import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import com.simibubi.create.content.kinetics.simpleRelays.encased.EncasedCogVisual;
 import com.simibubi.create.content.kinetics.transmission.SplitShaftVisual;
-import com.simibubi.create.foundation.block.connected.CTModel;
-import com.simibubi.create.foundation.block.connected.SimpleCTBehaviour;
-import com.simibubi.create.foundation.item.ItemDescription;
-import com.simibubi.create.foundation.item.KineticStats;
-import com.simibubi.create.foundation.item.TooltipModifier;
 
 import dev.engine_room.flywheel.lib.model.Models;
-import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import dev.engine_room.flywheel.lib.visualization.SimpleBlockEntityVisualizer;
 import dev.engine_room.flywheel.lib.visualization.SimpleEntityVisualizer;
 
-import net.createmod.catnip.lang.FontHelper;
-import net.createmod.catnip.data.Couple;
 import net.createmod.ponder.foundation.PonderIndex;
 
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.client.renderer.block.BlockModelShaper;
-import net.minecraft.client.renderer.item.ItemProperties;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.BakedModel;
-import net.minecraft.client.resources.model.Material;
-import net.minecraft.client.resources.model.ModelResourceLocation;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
@@ -163,8 +84,6 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.neoforged.neoforge.client.model.BakedModelWrapper;
-import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -174,143 +93,19 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public class CreateBiotechClient {
 
-	private static boolean customBlockModelsRegistered;
-
 	@SubscribeEvent
 	public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.HONEYCOMB_GAUGE_CLUSTER.get(),
-			HoneycombGaugeClusterRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.AUTOMATIC_FISH_RELEASE_MACHINE.get(),
-			AutomaticFishReleaseMachineRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.EVOKER_ENCHANTING_CHAMBER.get(),
-			EvokerEnchantingChamberRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.EXPERIENCE_PUMP.get(), ExperiencePumpRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SQUID_PRINTER.get(), SquidPrinterRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SLIME_BELT.get(), SlimeBeltRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.MAGMA_BELT.get(), MagmaBeltRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.MAGMA_CUBE_BURNER.get(), MagmaCubeBurnerRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.POWER_BELT.get(), PowerBeltRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.UNIVERSAL_JOINT.get(), UniversalJointRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.HALF_SHAFT.get(),
-			KineticBlockEntityRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SLIME_CLUTCH.get(), SplitShaftRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SCHRODINGERS_CAT.get(), SchrodingersCatRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SPIDER_ASSEMBLY_TABLE.get(),
-			SpiderAssemblyTableRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SPIDER_ASSEMBLY_TABLE_COG.get(),
-			SpiderAssemblyTableCogRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.FIXED_CARROT_FISHING_ROD.get(),
-			FixedCarrotFishingRodRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.BLAST_PROOF_CHAIN_DRIVE.get(),
-			BlastProofChainDriveRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.CREEPER_BLAST_CHAMBER.get(),
-			CreeperBlastChamberRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get(),
-			GhastHotAirBalloonAssemblyStationRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.BIO_PACKAGER.get(), BioPackagerRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_PACKAGER.get(), ShulkerPackagerRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.BONE_RATCHET.get(), BoneRatchetRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.PETRI_DISH.get(), PetriDishRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.SURGICAL_TABLE.get(), SurgicalTableRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.BUTTER_CAT_ENGINE.get(), ButterCatEngineRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.ALLAY_PORT.get(), AllayPortRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.GIANT_FROG.get(), GiantFrogRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.TABLE_CLOTH.get(), TableClothRenderer::new);
-		event.registerBlockEntityRenderer(CBBlockEntityTypes.ASURINE_DOOR.get(), SlidingDoorRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON.get(),
-			GhastHotAirBalloonEntityRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.GHAST_HOT_AIR_BALLOON_SEAT.get(),
-			GhastHotAirBalloonSeatEntity.Render::new);
-		event.registerEntityRenderer(CBEntityTypes.CARDBOARD_BOX.get(), CardboardBoxEntityRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.ALLAY_COURIER.get(),
-			context -> new AllayCourierEntityRenderer(context));
-		event.registerEntityRenderer(CBEntityTypes.DING_DONG_CHICKEN.get(), DingDongChickenRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.SLIME_BIONIC.get(), SlimeBionicRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.BIONIC_EFFECT_CLOUD.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.PLAYER_MIMIC.get(), PlayerMimicRenderer::new);
-		event.registerEntityRenderer(CBEntityTypes.SLIME_MIMIC_CUBE.get(), SlimeMimicCubeRenderer::new);
+		CBClientRenderRegistration.registerRenderers(event);
 	}
 
 	@SubscribeEvent
 	public static void addEntityLayers(EntityRenderersEvent.AddLayers event) {
-		for (var skin : event.getSkins()) {
-			net.minecraft.client.renderer.entity.player.PlayerRenderer renderer = event.getSkin(skin);
-			if (renderer != null)
-				renderer.addLayer(new com.nobodiiiii.createbiotech.entity.client.BionicOnShoulderLayer(renderer));
-		}
+		CBClientRenderRegistration.addEntityLayers(event);
 	}
 
 	@SubscribeEvent
 	public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
-		java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register = location ->
-			event.register(new ModelResourceLocation(location, ModelResourceLocation.STANDALONE_VARIANT));
-		MachineCreatureModels.allPartials()
-			.forEach(partial -> register.accept(partial.modelLocation()));
-		register.accept(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
-		PartialModel asurineDoorFoldLeft = PartialModel.of(
-			CreateBiotech.asResource("block/asurine_door/fold_left"));
-		PartialModel asurineDoorFoldRight = PartialModel.of(
-			CreateBiotech.asResource("block/asurine_door/fold_right"));
-		AllPartialModels.FOLDING_DOORS.put(CreateBiotech.asResource("asurine_door"),
-			Couple.create(asurineDoorFoldLeft, asurineDoorFoldRight));
-		register.accept(asurineDoorFoldLeft.modelLocation());
-		register.accept(asurineDoorFoldRight.modelLocation());
-		register.accept(DingDongChickenRenderer.BELL_BASE_MODEL.modelLocation());
-		register.accept(DingDongChickenRenderer.BELL_MODEL.modelLocation());
-		register.accept(DingDongChickenRenderer.BELL_PLUNGER_MODEL.modelLocation());
-		register.accept(AutomaticFishReleaseMachineRenderer.BLADE_CLAMP_MODEL_LOCATION);
-		register.accept(HalfShaftVisual.MODEL.modelLocation());
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/panel"));
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/dial"));
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
-		register.accept(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
-		register.accept(ExperiencePumpRenderer.COG_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.HALF_OPEN_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.HALF_OPEN_LEFT_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.LOOK_RIGHT_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.LOOK_CENTER_MODEL_LOCATION);
-		register.accept(BionicMechanismItemRenderer.LOOK_LEFT_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.GEAR_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.SCOPE_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.LEFT_SCOPE_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.FOLDED_SCOPE_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.LEFT_FOLDED_SCOPE_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.COLLAR_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.WOLF_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.WOLF_ANGRY_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.SHRIEK_EYES_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.PAW_LEFT_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.PAW_RIGHT_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.PAW_LEFT_ANGRY_MODEL_LOCATION);
-		register.accept(SonicDogCannonItemRenderer.PAW_RIGHT_ANGRY_MODEL_LOCATION);
-		register.accept(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_on"));
-		register.accept(CreateBiotech.asResource("block/schrodingers_cat/redstone_torch_off"));
-		register.accept(CreateBiotech.asResource("block/spider_assembly_table/body"));
-		register.accept(CreateBiotech.asResource("block/spider_assembly_table/head"));
-		register.accept(CreateBiotech.asResource("block/spider_assembly_table/abdomen"));
-		register.accept(CreateBiotech.asResource("block/spider_assembly_table/leg"));
-		register.accept(CreateBiotech.asResource("block/ghast_helm/block_open"));
-		register.accept(CreateBiotech.asResource("block/ghast_helm/train/cover"));
-		register.accept(CreateBiotech.asResource("block/ghast_helm/train/lever"));
-		register.accept(CreateBiotech.asResource("block/bio_packager/hatch_open"));
-		register.accept(CreateBiotech.asResource("block/bio_packager/hatch_closed"));
-		register.accept(CreateBiotech.asResource("block/bio_packager/tray"));
-		register.accept(CreateBiotech.asResource("block/shulker_packager/hatch_open"));
-		register.accept(CreateBiotech.asResource("block/shulker_packager/hatch_closed"));
-		register.accept(CreateBiotech.asResource("block/shulker_packager/tray"));
-		AllayPortRenderer.CURTAIN_MODEL_LOCATIONS.forEach(register);
-		register.accept(CreateBiotech.asResource("item/shulker_package"));
-		register.accept(CreateBiotech.asResource("item/cardboard_box"));
-		register.accept(CreateBiotech.asResource("item/small_cardboard_box"));
-		register.accept(CreateBiotech.asResource("item/small_cardboard_box_captured"));
-		register.accept(CardboardBoxPartials.SMALL_BOX_LOGISTICS_LOCATION);
-		register.accept(CreateBiotech.asResource("item/large_cardboard_box"));
-		register.accept(CreateBiotech.asResource("item/large_cardboard_box_captured"));
-		register.accept(CardboardBoxPartials.LARGE_BOX_LOGISTICS_LOCATION);
-		register.accept(CreateBiotech.asResource("item/allay_courier_package"));
-		ButterCatPartials.allModels()
-			.forEach(model -> register.accept(model.modelLocation()));
+		CBClientModelRegistration.registerAdditionalModels(event);
 	}
 
 	@SubscribeEvent
@@ -344,28 +139,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void modifyBakedModels(ModelEvent.ModifyBakingResult event) {
-		var models = event.getModels();
-		TextureAtlasSprite wheelParticle = event.getTextureGetter().apply(new Material(
-			InventoryMenu.BLOCK_ATLAS, ResourceLocation.withDefaultNamespace("block/oak_planks")));
-		// Create's invisible wheel structure uses the air model, whose particle is missing.
-		for (var state : AllBlocks.WATER_WHEEL_STRUCTURAL.get().getStateDefinition().getPossibleStates()) {
-			ModelResourceLocation location = BlockModelShaper.stateToModelLocation(state);
-			BakedModel model = models.get(location);
-			if (model != null)
-				models.put(location, new BakedModelWrapper<BakedModel>(model) {
-					@Override
-					public TextureAtlasSprite getParticleIcon(ModelData data) {
-						return wheelParticle;
-					}
-				});
-		}
-		for (String path : java.util.List.of("surgical_kit", "creative_surgical_kit")) {
-			ModelResourceLocation modelLocation = ModelResourceLocation.inventory(
-				CreateBiotech.asResource(path));
-			var model = models.get(modelLocation);
-			if (model != null)
-				models.put(modelLocation, new SurgicalKitItemModel(model));
-		}
+		CBClientModelRegistration.modifyBakedModels(event);
 	}
 
 	@SubscribeEvent
@@ -374,7 +148,7 @@ public class CreateBiotechClient {
 		MagmaBeltSpriteShifts.init();
 		PowerBeltSpriteShifts.init();
 		CBSpriteShifts.init();
-		registerCustomBlockModels();
+		CBClientModelRegistration.registerCustomBlockModels();
 		event.registerReloadListener(new ResourceManagerReloadListener() {
 			@Override
 			public void onResourceManagerReload(ResourceManager resourceManager) {
@@ -399,33 +173,17 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerParticleProviders(RegisterParticleProvidersEvent event) {
-		event.registerSpriteSet(CBParticleTypes.STRAIGHT_ENCHANT.get(), StraightEnchantParticle.Provider::new);
-		event.registerSpriteSet(CBParticleTypes.ALLAY_COURIER_NOTE.get(), CourierNoteParticle.Provider::new);
-		event.registerSpriteSet(CBParticleTypes.FROG_PORTAL.get(), FrogPortalParticle.Provider::new);
-		event.registerSpriteSet(CBParticleTypes.SONIC_CONE_WAVE.get(), SonicConeWaveParticle.Provider::new);
-		event.registerSpriteSet(CBParticleTypes.SQUID_PRINTER_INK.get(), SquidPrinterInkParticle.Provider::new);
+		CBClientRenderRegistration.registerParticleProviders(event);
 	}
 
 	@SubscribeEvent
 	public static void registerItemColors(RegisterColorHandlersEvent.Item event) {
-		event.register((stack, tintIndex) -> net.minecraft.util.FastColor.ARGB32.opaque(
-			((SpawnEggItem) Items.SLIME_SPAWN_EGG).getColor(tintIndex)),
-			CBItems.SLIME_DATA.get());
-		event.register((stack, tintIndex) -> tintIndex == 0
-			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
-			? SonicDogCannonUpgrade.getCollarColor(stack).getTextureDiffuseColor()
-			: -1, CBItems.SONIC_DOG_CANNON.get());
-		event.register((stack, tintIndex) -> tintIndex == 0
-			&& SurgicalKitItem.selectedTool(stack) == SurgicalKitItem.Tool.MIMIC_RESTORATIVE
-			? net.minecraft.util.FastColor.ARGB32.opaque(0xCD5CAB) : -1, CBItems.CREATIVE_SURGICAL_KIT.get());
+		CBClientRenderRegistration.registerItemColors(event);
 	}
 
 	@SubscribeEvent
 	public static void registerClientExtensions(RegisterClientExtensionsEvent event) {
-		CBClientExtensions.register(event);
-		// Slime armour shares Create's cardboard stealth blur overlay on the helmet slot; the overlay's
-		// opacity is driven by Create's testForStealth, which a full slime set satisfies.
-		event.registerItem(new CardboardArmorStealthOverlay(), CBItems.SLIME_HELMET.get());
+		CBClientRenderRegistration.registerClientExtensions(event);
 	}
 
 	@SubscribeEvent
@@ -433,9 +191,9 @@ public class CreateBiotechClient {
 		event.enqueueWork(() -> {
 			com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry
 				.addClientCatalogListener(SurgicalSourceModelRenderer::clear);
-			registerItemTooltips();
-			registerCardboardBoxModelProperties();
-			registerSurgicalKitModelProperties();
+			CBClientTooltipRegistration.registerItemTooltips();
+			CBClientModelRegistration.registerCardboardBoxModelProperties();
+			CBClientModelRegistration.registerSurgicalKitModelProperties();
 			PonderIndex.addPlugin(new CreateBiotechPonderPlugin());
 			PonderIndex.addPlugin(new CreatePonderCompatPlugin());
 			CardboardBoxPartials.register();
@@ -542,138 +300,5 @@ public class CreateBiotechClient {
 		event.register(CBItems.SURGICAL_JOINT.get(), SurgicalJointItemDecorator.INSTANCE);
 		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 		event.register(CBItems.CREATIVE_SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
-	}
-
-	/**
-	 * Create snapshots its custom block model registrations during the first model bake and does not invalidate that
-	 * snapshot. This must run before the initial resource reload instead of from the parallel client setup event.
-	 */
-	private static synchronized void registerCustomBlockModels() {
-		if (customBlockModelsRegistered)
-			return;
-
-		var customBlockModels = CreateClient.MODEL_SWAPPER.getCustomBlockModels();
-		customBlockModels.register(CreateBiotech.asResource("experience_pump"), PipeAttachmentModel::withAO);
-		customBlockModels.register(Create.asResource("andesite_belt_funnel"), SlimeBeltFunnelModel::new);
-		customBlockModels.register(Create.asResource("brass_belt_funnel"), SlimeBeltFunnelModel::new);
-		customBlockModels.register(CreateBiotech.asResource("magma_belt"),
-			com.simibubi.create.content.kinetics.belt.BeltModel::new);
-		customBlockModels.register(CreateBiotech.asResource("power_belt"),
-			com.simibubi.create.content.kinetics.belt.BeltModel::new);
-		customBlockModels.register(CreateBiotech.asResource("asurine_casing"),
-			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.ASURINE_CASING)));
-		customBlockModels.register(CreateBiotech.asResource("asurine_scaffolding"),
-			model -> new CTModel(model, new MetalScaffoldingCTBehaviour(CBSpriteShifts.ASURINE_SCAFFOLD,
-				CBSpriteShifts.ASURINE_SCAFFOLD_INSIDE, CBSpriteShifts.ASURINE_CASING)));
-		customBlockModels.register(CreateBiotech.asResource("biotech_casing"),
-			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.BIOTECH_CASING)));
-		customBlockModels.register(CreateBiotech.asResource("explosion_proof_casing"),
-			model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
-				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE, CBSpriteShifts.EXPLOSION_PROOF_CASING)));
-		customBlockModels.register(CreateBiotech.asResource("creeper_blast_chamber"),
-			model -> new CTModel(model, new CasingConnectedHorizontalCTBehaviour(
-				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE, CBSpriteShifts.EXPLOSION_PROOF_CASING)));
-		customBlockModels.register(CreateBiotech.asResource("explosion_proof_item_vault"),
-			model -> new CTModel(model, new ExplosionProofItemVaultCTBehaviour()));
-		customBlockModels.register(CreateBiotech.asResource("blast_proof_chain_drive"),
-			model -> new CTModel(model, new EncasedCTBehaviour(CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE)));
-		customBlockModels.register(CreateBiotech.asResource("blast_proof_framed_glass"),
-			model -> new CTModel(model, new SimpleCTBehaviour(CBSpriteShifts.BLAST_PROOF_FRAMED_GLASS)));
-		customBlockModels.register(CreateBiotech.asResource("asurine_table_cloth"), TableClothModel::new);
-		customBlockModels.register(CreateBiotech.asResource("surgical_table"), SurgicalTableModel::new);
-		customBlockModelsRegistered = true;
-	}
-
-	private static void registerItemTooltips() {
-		ItemDescription.useKey(CBFluids.TELEPORTATION_BUCKET.get(), "fluid.create_biotech.teleportation");
-		ItemDescription.useKey(CBItems.SMALL_EXPERIENCE_BUD.get(), "block.create_biotech.experience_bud");
-		ItemDescription.useKey(CBItems.MEDIUM_EXPERIENCE_BUD.get(), "block.create_biotech.experience_bud");
-		ItemDescription.useKey(CBItems.LARGE_EXPERIENCE_BUD.get(), "block.create_biotech.experience_bud");
-		CBItems.BUFFER_PADS.values()
-			.forEach(entry -> ItemDescription.useKey(entry.get(), "block.create_biotech.buffer_pad"));
-		ItemDescription.useKey(CBItems.ASURINE_TABLE_CLOTH.get(), "block.create.table_cloth");
-
-		registerCreateStyleTooltip(CBFluids.TELEPORTATION_BUCKET.get());
-		registerCreateStyleTooltip(CBItems.BUDDING_EXPERIENCE.get());
-		registerCreateStyleTooltip(CBItems.AUTOMATIC_FISH_RELEASE_MACHINE.get());
-		registerCreateStyleTooltip(CBItems.SMALL_EXPERIENCE_BUD.get());
-		registerCreateStyleTooltip(CBItems.MEDIUM_EXPERIENCE_BUD.get());
-		registerCreateStyleTooltip(CBItems.LARGE_EXPERIENCE_BUD.get());
-		registerCreateStyleTooltip(CBItems.EXPERIENCE_CLUSTER.get());
-		registerCapturedBoxTooltip(CBItems.CARDBOARD_BOX.get());
-		registerCapturedBoxTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
-		registerCreateStyleTooltip(CBItems.EMPTY_CARDBOARD_BOX.get());
-		registerCreateStyleTooltip(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
-		registerCreateStyleTooltip(CBItems.CAPTURED_SMALL_SLIME.get());
-		registerCreateStyleTooltip(CBItems.DING_DONG_CHICKEN.get());
-		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());
-		registerCreateStyleTooltip(CBItems.FIXED_CARROT_FISHING_ROD.get());
-		registerCreateStyleTooltip(CBItems.WIRELESS_TERMINAL.get());
-		registerCreateStyleTooltip(CBItems.MAGMA_CUBE_BURNER.get());
-		registerCreateStyleTooltip(CBItems.SHULKER_PACKAGER.get());
-		registerCreateStyleTooltip(CBItems.SHULKER_TELEPORTER.get());
-		registerCreateStyleTooltip(CBItems.GIANT_FROG.get());
-		registerCreateStyleTooltip(CBItems.GIANT_FROG_FACTORY.get());
-		registerCreateStyleTooltip(CBItems.SURGICAL_KIT.get());
-		registerCreateStyleTooltip(CBItems.SURGICAL_JOINT.get());
-		registerCreateStyleTooltip(CBItems.CREATIVE_SURGICAL_KIT.get());
-		registerCreateStyleTooltip(CBItems.SURGICAL_TABLE.get());
-		registerCreateStyleTooltip(CBItems.SURGERY_GUIDE.get());
-		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());
-		registerCreateStyleTooltip(CBItems.ALLAY_COURIER.get());
-		registerCreateStyleTooltip(CBItems.CUTE_CAT_ON_SHAFT.get());
-		registerCreateStyleTooltip(CBItems.ASURINE_TABLE_CLOTH.get());
-		TooltipModifier.REGISTRY.register(CBItems.SONIC_DOG_CANNON.get(),
-			new SonicDogCannonTooltipModifier()::modify);
-		registerKineticCreateStyleTooltip(CBItems.BUTTER_CAT_ENGINE.get());
-		registerKineticCreateStyleTooltip(CBItems.BUTTER.get());
-		registerKineticCreateStyleTooltip(CBItems.INCOMPLETE_SUPER_BUTTER.get());
-		registerKineticCreateStyleTooltip(CBItems.SUPER_BUTTER.get());
-		registerKineticCreateStyleTooltip(CBFluids.CREAM_BUCKET.get());
-		CBItems.BUFFER_PADS.values()
-			.forEach(entry -> registerCreateStyleTooltip(entry.get()));
-	}
-
-	private static void registerCreateStyleTooltip(Item item) {
-		registerCreateStyleTooltip(item, stack -> false);
-	}
-
-	private static void registerCreateStyleTooltip(Item item, Predicate<ItemStack> skipCondition) {
-		TooltipModifier description = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE);
-		TooltipModifier.REGISTRY.register(item, context -> {
-			if (skipCondition.test(context.getItemStack()))
-				return;
-			description.modify(context);
-		});
-	}
-
-	private static void registerCapturedBoxTooltip(Item item) {
-		TooltipModifier description = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE);
-		TooltipModifier stats = new CapturedEntityBoxStatsTooltip();
-		TooltipModifier.REGISTRY.register(item, context -> {
-			if (!CapturedEntityBoxHelper.hasCapturedEntity(context.getItemStack()))
-				description.modify(context);
-			stats.modify(context);
-		});
-	}
-
-	private static void registerKineticCreateStyleTooltip(Item item) {
-		TooltipModifier modifier = new ItemDescription.Modifier(item, FontHelper.Palette.STANDARD_CREATE)
-			.andThen(TooltipModifier.mapNull(KineticStats.create(item)));
-		TooltipModifier.REGISTRY.register(item, modifier::modify);
-	}
-
-	private static void registerCardboardBoxModelProperties() {
-		ItemProperties.register(CBItems.CARDBOARD_BOX.get(), CreateBiotech.asResource("captured"),
-			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
-		ItemProperties.register(CBItems.LARGE_CARDBOARD_BOX.get(), CreateBiotech.asResource("captured"),
-			(stack, level, entity, seed) -> CapturedEntityBoxHelper.hasCapturedEntity(stack) ? 1.0f : 0.0f);
-	}
-
-	private static void registerSurgicalKitModelProperties() {
-		ItemProperties.register(CBItems.SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
-			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
-		ItemProperties.register(CBItems.CREATIVE_SURGICAL_KIT.get(), CreateBiotech.asResource("surgical_tool"),
-			(stack, level, entity, seed) -> SurgicalKitItem.modelValue(stack));
 	}
 }

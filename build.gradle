@@ -136,6 +136,8 @@ sourceSets.main.resources {
     exclude '.cache/'
 }
 
+apply from: 'gradle/compact-resources.gradle'
+
 def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
     def replaceProperties = [
             minecraft_version      : minecraft_version,

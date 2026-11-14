@@ -1,0 +1,52 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+
+// Authoring templates expand to the same standard Minecraft/NeoForge JSON.
+// No runtime loader, extra resource lookup, or Python build dependency is involved.
+def compactSources = layout.projectDirectory.dir('src/main/resource-templates')
+def generateCompactResources = tasks.register('generateCompactResources') {
+    group = 'build'
+    description = 'Expands belt variants and composite model templates.'
+    inputs.dir(compactSources)
+    outputs.dir(layout.buildDirectory.dir('generated/compactResources'))
+    doLast {
+        def source = compactSources.asFile
+        def output = outputs.files.singleFile
+        def parse = { File path -> new JsonSlurper().parse(path, 'UTF-8') }
+        def write = { String relative, Object value ->
+            def target = new File(output, "assets/create_biotech/${relative}")
+            target.parentFile.mkdirs()
+            def json = JsonOutput.prettyPrint(JsonOutput.toJson(value))
+                    .replaceAll(/(?m)^ +/) { spaces -> ' ' * spaces.length().intdiv(2) }
+            target.setText(json + '\n', 'UTF-8')
+        }
+        ['power_belt', 'magma_belt'].each { name ->
+            def variants = new LinkedHashMap()
+            parse(new File(source, "blockstates/${name}.json")).each { id, group ->
+                group.variants.each { variant ->
+                    if (variants.containsKey(variant)) {
+                        throw new GradleException("Duplicate ${name} variant ${variant}")
+                    }
+                    variants[variant] = group.value
+                }
+            }
+            write("blockstates/${name}.json", [variants: variants])
+        }
+        def modelDir = new File(source, 'models/automatic_fish_release_machine')
+        def model = parse(new File(modelDir, 'model.json'))
+        def templates = parse(new File(modelDir, 'templates.json'))
+        def children = new LinkedHashMap()
+        parse(new File(modelDir, 'children.json')).each { name, child ->
+            def template = templates[child.template]
+            if (template == null) throw new GradleException("Missing model template ${child.template}")
+            def expanded = new LinkedHashMap(template)
+            if (child.containsKey('transform')) expanded.transform = child.transform
+            children[name] = expanded
+        }
+        model.children = children
+        write('models/item/automatic_fish_release_machine.json', model)
+    }
+}
+
+sourceSets.main.resources.srcDir(generateCompactResources)
+neoForge.ideSyncTask(generateCompactResources)
