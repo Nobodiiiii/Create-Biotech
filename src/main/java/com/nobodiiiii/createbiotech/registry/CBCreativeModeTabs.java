@@ -213,8 +213,6 @@ public class CBCreativeModeTabs {
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
 			visible(CBItems.SLIME_DATA.get()),
-			visible(CBItems.ENDERMAN_STOCK_KEEPER.get()),
-			visible(CBItems.HONEYCOMB_GAUGE_CLUSTER.get()),
 			visible(CBItems.SURGERY_GUIDE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),

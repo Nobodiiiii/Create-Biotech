@@ -8,7 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
-/** Localised surgery-guide body assembled for the scrollable text field. */
+/** Localised chapters for the collapsible surgery guide. */
 @OnlyIn(Dist.CLIENT)
 public final class SurgeryGuideText {
 	private static final String PREFIX = "create_biotech.surgery_guide.";
@@ -16,17 +16,31 @@ public final class SurgeryGuideText {
 
 	private SurgeryGuideText() {}
 
-	public static String build() {
+	public static List<Chapter> chapters() {
+		List<Chapter> chapters = new ArrayList<>();
+		Component title = null;
 		StringBuilder text = new StringBuilder();
 		Kind previous = null;
 		for (Block block : CONTENT) {
+			if (block.kind() == Kind.HEADING) {
+				if (title != null)
+					chapters.add(new Chapter(title, text.toString()));
+				title = Component.translatable(PREFIX + block.key());
+				text.setLength(0);
+				previous = null;
+				continue;
+			}
 			if (!text.isEmpty())
 				text.append(previous == Kind.SUBHEADING ? "\n" : "\n\n");
 			text.append(format(block));
 			previous = block.kind();
 		}
-		return text.toString();
+		if (title != null)
+			chapters.add(new Chapter(title, text.toString()));
+		return List.copyOf(chapters);
 	}
+
+	public record Chapter(Component title, String body) {}
 
 	private static String format(Block block) {
 		String content = Component.translatable(PREFIX + block.key()).getString();
@@ -43,6 +57,7 @@ public final class SurgeryGuideText {
 
 	private static List<Block> content() {
 		List<Block> out = new ArrayList<>();
+		out.add(new Block(Kind.HEADING, "intro"));
 		numbered(out, "intro", 4);
 
 		out.add(new Block(Kind.HEADING, "quick_start"));
@@ -61,6 +76,9 @@ public final class SurgeryGuideText {
 		entries(out, "joints", "neck", "shoulder", "elbow", "hip", "knee");
 		out.add(new Block(Kind.BODY, "joints.rules"));
 		out.add(new Block(Kind.BODY, "joints.animation"));
+
+		out.add(new Block(Kind.HEADING, "traits"));
+		numbered(out, "traits", 3);
 
 		out.add(new Block(Kind.HEADING, "stats"));
 		numbered(out, "stats", 2);
