@@ -1,7 +1,6 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -33,9 +32,9 @@ final class SurgicalStorage {
 	private SurgicalStorage() {}
 
 	static void writeDonor(CompoundTag tag, @Nullable Writer storage, MimicProfile profile,
-		int cubeCount, List<SurgicalAssembly.Seam> seams, BitSet originalHeads, boolean headKnown,
+		int cubeCount, List<SurgicalAssembly.Seam> seams,
 		BionicAnatomySnapshot anatomy) {
-		Donor donor = new Donor(profile, cubeCount, seams, originalHeads, headKnown, anatomy);
+		Donor donor = new Donor(profile, cubeCount, seams, anatomy);
 		if (storage == null)
 			donor.write(tag);
 		else
@@ -53,18 +52,15 @@ final class SurgicalStorage {
 
 	/** Immutable model data; the subject/source keeps all identity and editing state separately. */
 	record Donor(MimicProfile profile, int cubeCount, List<SurgicalAssembly.Seam> seams,
-		BitSet originalHeads, boolean headKnown, BionicAnatomySnapshot anatomy) {
+		BionicAnatomySnapshot anatomy) {
 		Donor {
 			seams = List.copyOf(seams);
-			originalHeads = (BitSet) originalHeads.clone();
 		}
 
 		void write(CompoundTag tag) {
 			tag.put("MimicProfile", profile.save());
 			tag.putInt("CubeCount", cubeCount);
 			tag.putIntArray("Seams", SurgicalAssembly.encodeSeams(seams));
-			if (headKnown)
-				tag.putLongArray("OriginalHeadCubes", originalHeads.toLongArray());
 			if (!anatomy.isEmpty())
 				tag.put("Anatomy", anatomy.save());
 		}
@@ -79,20 +75,16 @@ final class SurgicalStorage {
 		static Donor load(CompoundTag tag) {
 			if (!tag.contains("MimicProfile", Tag.TAG_COMPOUND)
 				|| !tag.contains("CubeCount", Tag.TAG_ANY_NUMERIC)
-				|| !tag.contains("Seams", Tag.TAG_INT_ARRAY)
-				|| (tag.contains("OriginalHeadCubes") && !tag.contains("OriginalHeadCubes", Tag.TAG_LONG_ARRAY)))
+				|| !tag.contains("Seams", Tag.TAG_INT_ARRAY))
 				return null;
 			int count = tag.getInt("CubeCount");
 			List<SurgicalAssembly.Seam> seams = SurgicalAssembly.decodeSeams(tag.getIntArray("Seams"));
 			if (seams == null || !SurgicalAssembly.validTopology(count, seams))
 				return null;
 			MimicProfile profile = MimicProfile.load(tag.getCompound("MimicProfile"));
-			boolean known = tag.contains("OriginalHeadCubes", Tag.TAG_LONG_ARRAY);
-			BitSet heads = BitSet.valueOf(tag.getLongArray("OriginalHeadCubes"));
-			BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound(
-				tag.contains("Anatomy", Tag.TAG_COMPOUND) ? "Anatomy" : "AnatomyRoles"), count);
-			return profile == null || anatomy == null || heads.length() > count ? null
-				: new Donor(profile, count, seams, heads, known, anatomy);
+			BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.load(tag.getCompound("Anatomy"), count);
+			return profile == null || anatomy == null ? null
+				: new Donor(profile, count, seams, anatomy);
 		}
 	}
 

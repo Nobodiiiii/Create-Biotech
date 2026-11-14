@@ -1,0 +1,19 @@
+{
+  "model_aliases": [
+    {
+      "part": "arms",
+      "cubes": [
+        0
+      ],
+      "names": [
+        "right_arm"
+      ]
+    },
+    {
+      "part": "left_shoulder",
+      "names": [
+        "left_arm"
+      ]
+    }
+  ]
+}

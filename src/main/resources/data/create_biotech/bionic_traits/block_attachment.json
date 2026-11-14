@@ -4,8 +4,19 @@
     "minecraft:shulker": true
   },
   "carriers": {
-    "minecraft:shulker": {
-      "create_biotech:base": ["base"]
+    "minecraft:shulker": {}
+  },
+  "parts": {
+    "base": {
+      "name": {
+        "translate": "create_biotech.bionic_part.base"
+      },
+      "order": 9,
+      "bindings": {
+        "minecraft:shulker": [
+          "base"
+        ]
+      }
     }
   }
 }

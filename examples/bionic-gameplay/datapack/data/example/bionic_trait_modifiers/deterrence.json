@@ -1,0 +1,29 @@
+{
+  "trait": "create_biotech:deterrence",
+  "patch": {
+    "gameplay": {
+      "relations": {
+        "replace_native": false,
+        "rules": [
+          {
+            "donors": [
+              "minecraft:cow"
+            ],
+            "targets": [
+              "minecraft:zombie"
+            ],
+            "range": 16,
+            "cooldown_ticks": 200,
+            "condition": {
+              "type": "create_biotech:environment",
+              "line_of_sight": true
+            }
+          }
+        ]
+      }
+    },
+    "values": {
+      "minecraft:cow": true
+    }
+  }
+}

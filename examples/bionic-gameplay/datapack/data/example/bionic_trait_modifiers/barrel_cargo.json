@@ -1,0 +1,16 @@
+{
+  "trait": "create_biotech:cargo_chest",
+  "patch": {
+    "gameplay": {
+      "equipment": [
+        {
+          "donors": [
+            "minecraft:donkey"
+          ],
+          "chest_item": "minecraft:barrel",
+          "capacity": 27
+        }
+      ]
+    }
+  }
+}

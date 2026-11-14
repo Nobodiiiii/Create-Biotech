@@ -105,7 +105,6 @@ class SurgicalFlatComponentPackingTest {
 		BitSet present = new BitSet();
 		present.set(0);
 		SurgicalAssembly assembly = SurgicalAssembly.create(profile, new UUID(0L, 1L), 1, present,
-			new BitSet(), new BitSet(), true,
 			BionicAnatomySnapshot.EMPTY.withVolumes(new float[] {0.125f}),
 			List.of(), new BitSet(), List.of());
 		assertNotNull(assembly);

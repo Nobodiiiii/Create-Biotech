@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent;
+import com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRuntime;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 import java.util.ArrayList;
@@ -144,6 +147,9 @@ public class CapturedEntityBoxHelper {
 		if (stack.isEmpty() || stack.getItem() instanceof EmptyCardboardBoxItem || hasCapturedEntity(stack))
 			return false;
 
+		BionicGameplayEvent packEvent = target instanceof SlimeBionicEntity bionic
+			? BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.PACK, bionic, CreateBiotech.asResource("pack")).interaction(null, null, stack)) : null;
+		if (packEvent != null && packEvent.isCancelled()) return false;
 		CompoundTag entityData = new CompoundTag();
 		target.saveWithoutId(entityData);
 
@@ -159,6 +165,7 @@ public class CapturedEntityBoxHelper {
 		stackTag.putString(CAPTURED_ENTITY_DESC_ID_TAG, target.getType().getDescriptionId());
 		stackTag.putFloat(CAPTURED_ENTITY_HEALTH_TAG, target.getHealth());
 		CBItemData.set(stack, stackTag);
+		if (packEvent != null) BionicGameplayRuntime.post(packEvent.after());
 		return true;
 	}
 
@@ -358,12 +365,16 @@ public class CapturedEntityBoxHelper {
 			? clickedPos : clickedPos.relative(face);
 
 		entity.setPos(spawnPos.getX() + 0.5, spawnPos.getY(), spawnPos.getZ() + 0.5);
+		BionicGameplayEvent releaseEvent = entity instanceof SlimeBionicEntity bionic
+			? BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.RELEASE, bionic, CreateBiotech.asResource("release")).interaction(context.getPlayer(), context.getHand(), stack)) : null;
+		if (releaseEvent != null && releaseEvent.isCancelled()) return false;
 		if (!level.addFreshEntity(entity))
 			return false;
 
 		clearCapturedEntity(stack);
 		if (context.getPlayer() != null)
 			context.getPlayer().setItemInHand(context.getHand(), createEmptyBox(stack));
+		if (releaseEvent != null) BionicGameplayRuntime.post(releaseEvent.after());
 		return true;
 	}
 
@@ -375,10 +386,14 @@ public class CapturedEntityBoxHelper {
 		entity.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, entity.getYRot(), entity.getXRot());
 		entity.setDeltaMovement(motion);
 		entity.fallDistance = 0;
+		BionicGameplayEvent releaseEvent = entity instanceof SlimeBionicEntity bionic
+			? BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.RELEASE, bionic, CreateBiotech.asResource("release")).interaction(null, null, stack)) : null;
+		if (releaseEvent != null && releaseEvent.isCancelled()) return false;
 		if (!level.addFreshEntity(entity))
 			return false;
 
 		clearCapturedEntity(stack);
+		if (releaseEvent != null) BionicGameplayRuntime.post(releaseEvent.after());
 		return true;
 	}
 

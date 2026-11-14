@@ -109,11 +109,30 @@ public final class BionicProduction {
 			addDrops(drops, BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace(color.getName() + "_wool")), count);
 		});
 		if (drops.isEmpty()) return List.of();
+		var generated = BionicGameplayRuntime.output(entity, BionicTrait.WOOL_SHEARING, "shear", drops, carriers().wool().values().stream().mapToInt(Integer::intValue).sum());
+		drops.clear(); drops.addAll(generated);
+		if (drops.isEmpty()) return List.of();
 		woolTicks = 1;
 		sync();
 		entity.playSound(SoundEvents.SHEEP_SHEAR);
 		entity.gameEvent(GameEvent.SHEAR);
+		BionicGameplayRuntime.produced(entity, BionicTrait.WOOL_SHEARING, "shear", drops);
 		return List.copyOf(drops);
+	}
+	public InteractionResult interactShears(Player player, InteractionHand hand) {
+		if (!entity.isAlive()) return InteractionResult.PASS;
+		ItemStack held = player.getItemInHand(hand);
+		boolean client = entity.level().isClientSide;
+		if (held.getItem() instanceof ShearsItem && shearable()) {
+			if (!client) {
+				var drops = shear();
+				if (drops.isEmpty()) return InteractionResult.FAIL;
+				drops.forEach(drop -> entity.spawnShearedDrop(entity.level(), entity.blockPosition(), drop));
+				held.hurtAndBreak(1, player, LivingEntity.getSlotForHand(hand));
+			}
+			return InteractionResult.sidedSuccess(client);
+		}
+		return InteractionResult.PASS;
 	}
 	public InteractionResult interact(Player player, InteractionHand hand) {
 		if (!entity.isAlive()) return InteractionResult.PASS;
@@ -129,23 +148,29 @@ public final class BionicProduction {
 			}
 			return InteractionResult.sidedSuccess(client);
 		}
-		if (has(BionicTrait.MILKABLE)) {
+		if (has(BionicTrait.MILKABLE) && BionicGameplayRuntime.nativeInteractions(entity, BionicTrait.MILKABLE)) {
 			var traits = entity.getBionicTraits();
 			boolean milk = held.is(Items.BUCKET) && traits.hasVariant(BionicTrait.MILKABLE, CreateBiotech.asResource("milk_bucket"));
 			boolean stew = held.is(Items.BOWL) && traits.hasVariant(BionicTrait.MILKABLE, CreateBiotech.asResource("mushroom_stew"));
 			if (milk || stew) {
 				if (!client) {
-					player.setItemInHand(hand, ItemUtils.createFilledResult(held, player,
-						new ItemStack(stew ? Items.MUSHROOM_STEW : Items.MILK_BUCKET)));
+					var outputs = BionicGameplayRuntime.output(entity, BionicTrait.MILKABLE, stew ? "stew" : "milk",
+						List.of(new ItemStack(stew ? Items.MUSHROOM_STEW : Items.MILK_BUCKET)), 1);
+					if (outputs.isEmpty()) return InteractionResult.FAIL;
+					player.setItemInHand(hand, ItemUtils.createFilledResult(held, player, outputs.getFirst().copy()));
+					for (var extra : outputs.subList(1, outputs.size())) {
+						var remainder = extra.copy(); if (!player.getInventory().add(remainder)) player.drop(remainder, false);
+					}
+					BionicGameplayRuntime.produced(entity, BionicTrait.MILKABLE, stew ? "stew" : "milk", outputs);
 					entity.playSound(stew ? SoundEvents.MOOSHROOM_MILK : SoundEvents.COW_MILK);
 					entity.gameEvent(GameEvent.ENTITY_INTERACT);
 				}
 				return InteractionResult.sidedSuccess(client);
 			}
 		}
-		if (has(BionicTrait.SCUTE_SHEDDING) && held.is(Items.BRUSH)) {
+		if (has(BionicTrait.SCUTE_SHEDDING) && held.is(Items.BRUSH) && BionicGameplayRuntime.nativeInteractions(entity, BionicTrait.SCUTE_SHEDDING)) {
 			if (!client) {
-				drop(Items.ARMADILLO_SCUTE, carriers().scutes());
+				if (!BionicGameplayRuntime.drop(entity, BionicTrait.SCUTE_SHEDDING, "brush", Items.ARMADILLO_SCUTE, carriers().scutes())) return InteractionResult.FAIL;
 				held.hurtAndBreak(16, player, LivingEntity.getSlotForHand(hand));
 				entity.playSound(SoundEvents.ARMADILLO_BRUSH); entity.gameEvent(GameEvent.ENTITY_INTERACT);
 			}
@@ -156,13 +181,14 @@ public final class BionicProduction {
 
 	public void tick() {
 		if (!entity.isAlive()) return;
+		BionicGameplayRuntime.tick(entity);
 		if (has(BionicTrait.EGG_LAYING)) {
 			if (eggTicks < 0) eggTicks = interval(BionicTrait.EGG_LAYING);
-			if (--eggTicks <= 0) { drop(Items.EGG, carriers().eggs()); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
+			if (--eggTicks <= 0) { BionicGameplayRuntime.drop(entity, BionicTrait.EGG_LAYING, "egg", Items.EGG, carriers().eggs()); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
 		}
 		if (has(BionicTrait.SCUTE_SHEDDING)) {
 			if (scuteTicks < 0) scuteTicks = interval(BionicTrait.SCUTE_SHEDDING);
-			if (--scuteTicks <= 0) { drop(Items.ARMADILLO_SCUTE, carriers().scutes()); entity.playSound(SoundEvents.ARMADILLO_SCUTE_DROP); scuteTicks = interval(BionicTrait.SCUTE_SHEDDING); }
+			if (--scuteTicks <= 0) { BionicGameplayRuntime.drop(entity, BionicTrait.SCUTE_SHEDDING, "scute", Items.ARMADILLO_SCUTE, carriers().scutes()); entity.playSound(SoundEvents.ARMADILLO_SCUTE_DROP); scuteTicks = interval(BionicTrait.SCUTE_SHEDDING); }
 		}
 		if (flowerCooldown > 0) flowerCooldown--;
 		if (has(BionicTrait.SNOW_TRAIL) && EventHooks.canEntityGrief(entity.level(), entity)) snow();

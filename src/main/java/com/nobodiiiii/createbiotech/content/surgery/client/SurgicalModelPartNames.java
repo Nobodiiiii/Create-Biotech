@@ -21,6 +21,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
+import com.nobodiiiii.createbiotech.entity.trait.BionicModelNode;
+import com.nobodiiiii.createbiotech.entity.trait.BionicModelAlias;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
@@ -34,7 +37,7 @@ import net.minecraft.resources.ResourceLocation;
  */
 final class SurgicalModelPartNames implements AutoCloseable {
 
-	static final Source UNKNOWN = new Source(Set.of(), false);
+	static final Source UNKNOWN = new Source(Set.of(), false, Set.of());
 	private static final ThreadLocal<SurgicalModelPartNames> CURRENT = new ThreadLocal<>();
 	private static final int MAX_OBJECTS = 4096;
 	private static final Set<String> NAME_FIELDS = Set.of("name", "boxname", "bonename", "partname");
@@ -59,6 +62,7 @@ final class SurgicalModelPartNames implements AutoCloseable {
 	private final SurgicalModelPartNames previous;
 	private final Set<Object> visited = Collections.newSetFromMap(new IdentityHashMap<>());
 	private final Map<Object, Part> parts = new IdentityHashMap<>();
+	private final Map<Object, Map<Object, Source>> geometrySources = new IdentityHashMap<>();
 	private final List<Replacement> replacements = new ArrayList<>();
 	private Source current = UNKNOWN;
 	private boolean closed;
@@ -71,15 +75,17 @@ final class SurgicalModelPartNames implements AutoCloseable {
 		SurgicalModelPartNames scope = new SurgicalModelPartNames();
 		try {
 			scope.discover(renderer);
-			// Parent links are observed separately from names: a horn keeps its own name while
-			// remaining part of the captured head, just like vanilla head descendants.
-			Set<Object> heads = Collections.newSetFromMap(new IdentityHashMap<>());
-			for (var entry : scope.parts.entrySet())
-				if (entry.getValue().names.stream().anyMatch(label -> BionicTraitRegistry.clientCapturedHead(entity, label)))
-					scope.markHead(entry.getKey(), heads);
+			Map<Object, Set<BionicModelNode>> paths = new IdentityHashMap<>();
+			Set<Object> children = Collections.newSetFromMap(new IdentityHashMap<>());
+			scope.parts.values().forEach(part -> children.addAll(part.children));
+			for (Object node : scope.parts.keySet()) if (!children.contains(node))
+				scope.collectPaths(node, null, paths, Collections.newSetFromMap(new IdentityHashMap<>()));
 			for (var entry : scope.parts.entrySet()) {
 				Part part = entry.getValue();
-				part.source = new Source(Set.copyOf(part.names), heads.contains(entry.getKey()));
+				Set<BionicModelNode> nodes = paths.getOrDefault(entry.getKey(), Set.of(new BionicModelNode(part.names, null)));
+				part.source = new Source(Set.copyOf(part.names),
+					BionicTraitRegistry.clientMatchesPart(BionicAnatomyRole.HEAD, entity, part.names, nodes), Set.copyOf(nodes));
+				scope.collectGeometryAliases(entry.getKey(), part.source, entity);
 				scope.instrument(entry.getKey());
 			}
 			CURRENT.set(scope);
@@ -150,16 +156,45 @@ final class SurgicalModelPartNames implements AutoCloseable {
 		if (parent != null) parent.children.add(value);
 	}
 
-	private void markHead(Object node, Set<Object> heads) {
-		if (!heads.add(node)) return;
+	private void collectPaths(Object node, BionicModelNode parent, Map<Object, Set<BionicModelNode>> paths, Set<Object> branch) {
+		if (!branch.add(node)) return;
 		Part part = parts.get(node);
-		if (part != null) for (Object child : part.children) markHead(child, heads);
+		if (part != null) {
+			BionicModelNode path = new BionicModelNode(part.names, parent);
+			Set<BionicModelNode> known = paths.computeIfAbsent(node, ignored -> new LinkedHashSet<>());
+			if (known.size() < 16 && known.add(path))
+				for (Object child : part.children) collectPaths(child, path, paths, branch);
+		}
+		branch.remove(node);
 	}
 
 	private static boolean isPart(Object value) {
 		return value != null && !(value instanceof EntityModel<?>) && !(value instanceof ModelPart)
 			&& !(value instanceof Iterable<?>) && !(value instanceof Map<?, ?>)
 			&& !value.getClass().isArray() && SHAPES.get(value.getClass()).part;
+	}
+
+	/** Geometry collection indices are local to their owning node, independent of render order. */
+	private void collectGeometryAliases(Object owner, Source source, ResourceLocation entity) {
+		List<BionicModelAlias> aliases = BionicTraitRegistry.clientModelAliases(entity);
+		if (aliases.isEmpty()) return;
+		Map<Object, Source> sources = new IdentityHashMap<>();
+		for (Field field : SHAPES.get(owner.getClass()).fields) {
+			if (!(read(field, owner) instanceof Iterable<?> values)) continue;
+			int index = 0;
+			for (Object element : values) {
+				if (element != null && !isPart(element)) {
+					Set<String> names = new LinkedHashSet<>(source.names());
+					for (BionicModelAlias alias : aliases)
+						if (alias.matches(source.names(), index))
+							for (String name : alias.names()) if (names.size() < 16) names.add(name);
+					if (!names.equals(source.names())) sources.put(element, new Source(Set.copyOf(names),
+						BionicTraitRegistry.clientMatchesPart(BionicAnatomyRole.HEAD, entity, names, source.nodes()), source.nodes()));
+				}
+				index++;
+			}
+		}
+		if (!sources.isEmpty()) geometrySources.put(owner, sources);
 	}
 
 	private void instrument(Object owner) {
@@ -220,6 +255,8 @@ final class SurgicalModelPartNames implements AutoCloseable {
 	}
 
 	private void select(Object owner, Object element) {
+		Source geometry = geometrySources.getOrDefault(owner, Map.of()).get(element);
+		if (geometry != null) { current = geometry; return; }
 		Part part = parts.get(element);
 		if (part == null) part = parts.get(owner);
 		current = part == null ? UNKNOWN : part.source;
@@ -254,7 +291,7 @@ final class SurgicalModelPartNames implements AutoCloseable {
 		if (failure != null) throw failure;
 	}
 
-	record Source(Set<String> names, boolean head) {}
+	record Source(Set<String> names, boolean head, Set<BionicModelNode> nodes) {}
 	private record Shape(List<Field> fields, boolean part) {}
 	private record Replacement(Object owner, Field field, Object value) {}
 	private static final class Part {

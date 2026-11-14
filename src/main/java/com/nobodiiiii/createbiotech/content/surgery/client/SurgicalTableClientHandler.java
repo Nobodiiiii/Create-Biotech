@@ -1191,7 +1191,7 @@ public final class SurgicalTableClientHandler {
 			}
 			plan = discoveredPlan.placement();
 			discovered = new DiscoveredPlacement(placementGeometry.discoveredCubeCount(),
-				placementGeometry.discoveredSeams(), discoveredHeadCubes(placementGeometry.discoveredCubes()),
+				placementGeometry.discoveredSeams(),
 				discoveredAnatomy(placementGeometry.discoveredCubes(),
 					placementGeometry.discoveredCubeCount()),
 				discoveredPlan.componentFootprints());
@@ -4615,7 +4615,7 @@ public final class SurgicalTableClientHandler {
 		CBPackets.sendToServer(new SurgicalTablePlacementPacket(placement.ownerPos, hand, placement.facing,
 			placement.plan.originOffsetX(), placement.plan.originOffsetZ(), placement.layPose,
 			placement.plan.proposal(), placement.discovered.cubeCount(), placement.discovered.seams(),
-			placement.discovered.headCubes(), placement.discovered.anatomy(),
+			placement.discovered.anatomy(),
 			placement.discovered.footprints(),
 			placement.sourceLayouts));
 		beginVisualCommit(level, placement.ownerPos, placement.tableRevision, List.of(), true, false);
@@ -8106,28 +8106,23 @@ public final class SurgicalTableClientHandler {
 		}
 	}
 
-	private static BitSet discoveredHeadCubes(List<SurgicalModelRenderContext.CubeGeometry> cubes) {
-		BitSet heads = new BitSet();
-		for (SurgicalModelRenderContext.CubeGeometry cube : cubes)
-			if (cube.head())
-				heads.set(cube.cubeId());
-		return heads;
-	}
 
 	private static BionicAnatomySnapshot discoveredAnatomy(
 		List<SurgicalModelRenderContext.CubeGeometry> cubes, int cubeCount) {
 		Map<Integer, java.util.Set<String>> parts = new HashMap<>();
+		Map<Integer, java.util.Set<com.nobodiiiii.createbiotech.entity.trait.BionicModelNode>> nodes = new HashMap<>();
 		float[] volumes = new float[cubeCount];
 		BitSet measured = new BitSet(cubeCount);
 		for (SurgicalModelRenderContext.CubeGeometry cube : cubes) {
 			if (!cube.partNames().isEmpty())
 				parts.put(cube.cubeId(), cube.partNames());
+			if (!cube.nodes().isEmpty()) nodes.put(cube.cubeId(), cube.nodes());
 			if (cube.cubeId() >= 0 && cube.cubeId() < cubeCount) {
 				volumes[cube.cubeId()] = (float) SurgicalVolumeSampler.cubeVolume(cube.corners());
 				measured.set(cube.cubeId());
 			}
 		}
-		BionicAnatomySnapshot snapshot = BionicAnatomySnapshot.ofParts(parts, cubeCount);
+		BionicAnatomySnapshot snapshot = BionicAnatomySnapshot.ofParts(parts, nodes, cubeCount);
 		if (snapshot == null)
 			return BionicAnatomySnapshot.EMPTY;
 		// Trait coverage is volume weighted; a partial measurement leaves the body unmeasured.
@@ -8136,15 +8131,14 @@ public final class SurgicalTableClientHandler {
 		return weighted == null ? snapshot : weighted;
 	}
 
-	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams, BitSet headCubes,
+	private record DiscoveredPlacement(int cubeCount, List<SurgicalAssembly.Seam> seams,
 		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> footprints) {
 		private static final DiscoveredPlacement EMPTY =
-			new DiscoveredPlacement(0, List.of(), new BitSet(), BionicAnatomySnapshot.EMPTY, List.of());
+			new DiscoveredPlacement(0, List.of(), BionicAnatomySnapshot.EMPTY, List.of());
 
 		private DiscoveredPlacement {
 			seams = List.copyOf(seams);
-			headCubes = (BitSet) headCubes.clone();
 			footprints = List.copyOf(footprints);
 		}
 	}

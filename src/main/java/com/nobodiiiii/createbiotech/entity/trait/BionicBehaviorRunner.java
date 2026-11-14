@@ -29,6 +29,7 @@ public final class BionicBehaviorRunner {
 		changing = true;
 		try {
 			var previous = bindings;
+			var oldTraits = last;
 			bindings = List.of(); active = List.of(); failed.clear(); last = traits;
 			for (var binding : previous) remove(binding);
 			List<Binding> next = new ArrayList<>();
@@ -42,6 +43,13 @@ public final class BionicBehaviorRunner {
 			if (!entity.isRemoved()) {
 				bindings = List.copyOf(next);
 				active = traits.definitions().stream().filter(traits::has).toList();
+			}
+			Set<BionicTrait> changedTraits = new TreeSet<>(traits.definitions());
+			if (oldTraits != null) changedTraits.addAll(oldTraits.definitions());
+			for (var trait : changedTraits) {
+				var oldResult = oldTraits == null ? BionicTraitResult.ABSENT : oldTraits.result(trait);
+				if (!oldResult.equals(traits.result(trait))) BionicGameplayRuntime.post(BionicGameplayRuntime.event(
+					com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent.Kind.TRAIT_CHANGED, entity, trait.id()).amount(traits.has(trait) ? 1 : 0).after());
 			}
 			return traits;
 		} finally { changing = false; }

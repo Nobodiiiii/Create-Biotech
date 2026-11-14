@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "scopes": [
+    "head"
+  ],
+  "value_kind": "subtrait_set",
+  "inheritance": {
+    "type": "presence"
+  },
+  "automatic_detection": false,
+  "values": {
+    "minecraft:zombie": {
+      "example:ice_ball": true
+    }
+  },
+  "carrier": {
+    "roles": [
+      "create_biotech:head"
+    ]
+  },
+  "variants": {
+    "example:ice_ball": {
+      "roles": [
+        "create_biotech:head"
+      ],
+      "parameters": {
+        "range": 16,
+        "warmup_ticks": 10,
+        "cooldown_ticks": 60
+      }
+    }
+  },
+  "gameplay": {
+    "attacks": {
+      "example:ice_ball": {
+        "type": "create_biotech:projectile",
+        "entity": "minecraft:snowball",
+        "speed": 1.6,
+        "inaccuracy": 3,
+        "count": 2
+      }
+    }
+  }
+}

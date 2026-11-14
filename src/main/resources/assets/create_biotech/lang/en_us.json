@@ -1118,7 +1118,7 @@
   "create_biotech.trait.variant.enderman": "Enderman",
   "create_biotech.trait.variant.shulker": "Shulker",
   "create_biotech.trait.hunt_target.hostiles": "hostile mobs",
-  "create_biotech.trait.hunt_target.attackable_creatures": "attackable creatures (except zoglins, creepers and players)",
+  "create_biotech.trait.hunt_target.attackable_creatures": "attackable creatures",
   "create_biotech.trait.hunt_target.non_wither_friends": "non-Wither-friendly creatures",
   "create_biotech.trait.rideable": "Rideable",
   "create_biotech.trait.rideable.count": "Rideable (%s)",

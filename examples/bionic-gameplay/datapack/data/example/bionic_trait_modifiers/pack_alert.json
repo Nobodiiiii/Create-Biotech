@@ -1,0 +1,29 @@
+{
+  "trait": "create_biotech:pack_alert",
+  "patch": {
+    "gameplay": {
+      "relations": {
+        "replace_native": false,
+        "rules": [
+          {
+            "donors": [
+              "minecraft:cow"
+            ],
+            "targets": [
+              "minecraft:iron_golem"
+            ],
+            "range": 16,
+            "cooldown_ticks": 200,
+            "condition": {
+              "type": "create_biotech:environment",
+              "line_of_sight": true
+            }
+          }
+        ]
+      }
+    },
+    "values": {
+      "minecraft:cow": true
+    }
+  }
+}

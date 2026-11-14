@@ -99,12 +99,28 @@ final class BionicTraitCarriers {
 
 	private static BitSet selectRoles(List<BionicAnatomyRole> roles, BionicTraitData data,
 		BionicTissue tissue, int sourceId) {
-		SurgicalAssembly.Source source = tissue.source(sourceId);
 		BitSet cubes = new BitSet();
 		for (BionicAnatomyRole role : roles)
-			cubes.or(tissue.carriers(sourceId, role, cubesFor(data, source.profile().entityTypeId(),
-				source.anatomy().parts(), source.cubeCount(), role)));
+			cubes.or(tissue.binding(data, sourceId, role, () -> selectRole(role, data, tissue, sourceId)));
 		return cubes;
+	}
+
+	private static BitSet selectRole(BionicAnatomyRole role, BionicTraitData data, BionicTissue tissue, int sourceId) {
+		SurgicalAssembly.Source source = tissue.source(sourceId);
+		BitSet named = cubesFor(data, source.profile().entityTypeId(), source.anatomy().parts(), source.cubeCount(), role);
+		BionicPartDefinition local = data.localParts().get(role);
+		if (named != null && data.descendantBindings().getOrDefault(source.profile().entityTypeId(), Set.of()).contains(role)) {
+			Set<String> names = data.carriers().get(source.profile().entityTypeId()).get(role);
+			Map<BionicModelNode, Boolean> matches = new HashMap<>();
+			source.anatomy().nodes().forEach((cube, nodes) -> {
+				if (nodes.stream().anyMatch(node -> matches.computeIfAbsent(node, path -> {
+					for (BionicModelNode parent = path; parent != null; parent = parent.parent())
+						if (parent.names().stream().anyMatch(names::contains)) return true;
+					return false;
+				}))) named.set(cube);
+			});
+		}
+		return named != null ? named : local != null ? tissue.inlinePart(sourceId, local) : tissue.roleCubes(sourceId, role);
 	}
 
 	static Map<BionicAnatomyRole, BitSet> rolesFor(BionicTraitRegistry.Snapshot data,
@@ -116,12 +132,12 @@ final class BionicTraitCarriers {
 		return result;
 	}
 
-	/** Null preserves saved-role/template fallback when no usable carrier mapping was supplied. */
+	/** A missing mapping uses inference; an explicit empty or unmatched mapping stays empty. */
 	@Nullable
 	static BitSet cubesFor(BionicTraitData data, ResourceLocation entity,
 		Map<Integer, Set<String>> parts, int cubeCount, BionicAnatomyRole role) {
 		Set<String> names = data.carriers().getOrDefault(entity, Map.of()).get(role);
-		if (names == null || !names.isEmpty() && parts.isEmpty() && names.stream().noneMatch(name -> name.startsWith("#")))
+		if (names == null)
 			return null;
 		return selected(names, parts, cubeCount);
 	}

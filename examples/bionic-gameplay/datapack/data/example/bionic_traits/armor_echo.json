@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "scopes": [
+    "whole_body"
+  ],
+  "value_kind": "number",
+  "inheritance": {
+    "type": "coverage_scaled"
+  },
+  "automatic_detection": true,
+  "behaviors": [
+    {
+      "type": "create_biotech:attribute",
+      "attribute": "minecraft:generic.armor",
+      "amount": 1,
+      "scale": "value"
+    }
+  ],
+  "gameplay": {
+    "detector": {
+      "type": "create_biotech:attribute",
+      "attribute": "minecraft:generic.armor",
+      "scale": 0.5
+    }
+  }
+}

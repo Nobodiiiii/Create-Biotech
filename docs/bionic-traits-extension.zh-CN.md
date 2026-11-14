@@ -1,6 +1,6 @@
 # 仿生特性扩展
 
-适用 Minecraft 1.21.1、NeoForge 21.1.234。动态目录、行为组件、可选 KubeJS 插件与公开 Java API 已接入。内置目录包含 66 项特性；新增 ID 通过组件或事件执行行为。当前网络协议 **42**，联机双方需要更新本模组。
+适用 Minecraft 1.21.1、NeoForge 21.1.234。动态目录、行为组件、可选 KubeJS 插件与公开 Java API 已接入。内置目录包含 66 项特性；新增 ID 通过组件或事件执行行为。当前网络协议 **45**，联机双方需要更新本模组。
 
 ## 数据包和附属模组
 
@@ -28,11 +28,11 @@
 }
 ```
 
-绑定可包含 `values`、`carriers`、`effects`、`variants`，对象按键递归合并；标签和精确实体值仍按既有规则解析。独立绑定可以扩充任意命名空间的特性，无需复制原定义。
+绑定可包含 `values`、`carriers`、`parts`、`effects`、`variants`，对象按键递归合并；标签和精确实体值仍按既有规则解析。独立绑定可以扩充任意命名空间的特性，无需复制原定义。
 
 ### 统一部位定义
 
-自动识别、特性载体和 JEI“供体：”共用 `bionic_parts` 目录；部位不再是固定枚举。文件路径决定完整 ID，例如 `data/example/bionic_parts/antenna.json` 声明 `example:antenna`：
+自动识别、特性载体和 JEI“供体：”共用一份部位目录。通用部位来自 `bionic_parts`，特性专用部位可在特性内部声明；部位不再是固定枚举。文件路径决定完整 ID，例如 `data/example/bionic_parts/antenna.json` 声明 `example:antenna`：
 
 ```json
 {
@@ -42,7 +42,7 @@
     "contains": ["antenna"],
     "regex": ["^feelers?[0-9]*$"]
   },
-  "captured_head": false
+  "include_children": false
 }
 ```
 
@@ -52,17 +52,17 @@
 - `target` 缺省 `canonical`，模型标签和关键词转小写并删除非 `a-z0-9` 字符；`raw` 保留原始名称；`leaf` 取最后一个 `/` 或 `.` 后的名称，保留大小写。正则对选定名称执行 `find()`，需要完整匹配时加 `^`、`$`，忽略大小写可加 `(?i)`。
 - `entity_namespaces` 限定实体命名空间，省略表示不限；`excluded_entity_namespaces` 排除指定命名空间。`any_of` 可组合多个匹配对象，任一分支命中即可，最多嵌套 4 层、每层 64 项。
 - `fallback_to_all` 是可选对象，接受相同命名空间过滤字段。当该来源的完整原始体块中没有该部位时，将其原始全部体块归入该部位。先检查原始全集再考虑切割，因此切掉已识别部位不会触发回退。
-- `captured_head` 缺省 `false`；设为 `true` 时，采集器使用本定义匹配模型节点并标记其子树，同时纳入保存的头部体块。原版模型和通用模型采集共用这份规则，已删除 Create 帽子配置及空头部回退整身的旧识别分支。内置 `create_biotech:head` 保留此规则。
+- `include_children` 缺省 `false`。设为 `true` 时，匹配节点及其全部后代体块；原始模型名保持不变。规则读取通用父节点数据，不另存“头部归属”。内置 `create_biotech:head` 使用此规则；已删除 `captured_head`、独立头部快照及整身兜底。
 
 新增特性可在 `carrier.roles` 中填写 `["example:antenna"]`。已存在特性的 `carriers` 也可用此 ID 精确绑定某物种的模型标签或体块索引；`carrier.roles`、`fallback`、`excluded`、子特性／攻击效果的 `roles` 和解剖模板的 `roles` 键全部使用完整部位 ID。原始模型标签仍是 `left_arm` 等名称，不改写成部位 ID。
 
 对于限定载体的特性，特性定义中的 `carrier.roles` 或 `fallback` 也需要引用相应部位；仅增加 `carriers` 的键不会改写其载体选择规则。部位识别规则由 `bionic_parts` 决定，物种的精确载体绑定仍优先，空绑定仍表示明确排除。
 
-内置共 20 个部位，命名空间均为 `create_biotech`：
+内置通用部位共 15 个，命名空间均为 `create_biotech`：
 
 | 部位路径 | 显示名称 | 默认自动识别关键词 |
 | --- | --- | --- |
-| `head` | 头 | `head`、`skull`，另含保存的头部 |
+| `head` | 头 | `head`、`skull`，包含模型子节点 |
 | `gill` | 鳃 | `gill` |
 | `torso` | 身体 | `torso`、`chest` |
 | `back` | 背部 | 原版精确 `body`；其他命名空间按文件中的背部正则匹配名称末段 |
@@ -77,8 +77,6 @@
 | `attack_hand` | 手臂 | `arm`、`hand` |
 | `horn` | 角 | `horn`、`tusk` |
 | `eye` | 眼 | `eye` |
-| `base`、`wool`、`udder` | 底座、羊毛、乳房 | 仅精确绑定 |
-| `left_ribcage`、`right_ribcage` | 左胸腔、右胸腔 | 仅精确绑定，保留独立名称与条件 |
 
 全身表示载体未限定部位，不是部位定义。`body` 等含义不确定的模型名称仍由物种绑定或解剖模板指定。已删除蘑菇分类；腿／足、左右翼、触须／卷须分别共用 `leg`、`wing`、`tentacle`。监守者现有 `body`、`left_ribcage`、`right_ribcage` 绑定和完整胸腔条件保留；翼和腿的安装范围、有效肢体数量及覆盖率条件继续独立判定。
 
@@ -88,13 +86,89 @@
 
 `back.json` 中声明骑乘背部识别及非原版实体缺少背部时的全组织回退；`rideable.json` 的 `carrier.roles` 引用 `create_biotech:back`。鞍座安装直接使用已经判定生效的骑乘体块，已删除独立背部选择器及重复缓存。数据包修改该部位或骑乘定义后，特性、JEI 和鞍座安装一起更新。
 
-`carrier.replace_with_bindings` 缺省 `false`。设为 `true` 时，某物种存在非空 `carriers` 对象便用其中全部部位替代默认 `carrier.roles`，否则保留默认选择；空名称数组仍表示排除。部位定义中的 `captured_head` 仍生效，会纳入保存的整个头部。内置 `attack_knockback.json` 通过此字段声明监守者手臂、劫掠兽整个头与口器的归属，已删除按击退特性 ID 判断的代码分支。其他特性也可使用该字段。
+`carrier.replace_with_bindings` 缺省 `false`。设为 `true` 时，某物种存在非空 `carriers` 对象便用其中全部部位替代默认 `carrier.roles`，否则保留默认选择；空名称数组仍表示排除。精确绑定不会再额外并入头部；需要子树时在绑定中显式设置 `include_children`。内置 `attack_knockback.json` 通过此字段声明监守者手臂、劫掠兽整个头与口器的归属，已删除按击退特性 ID 判断的代码分支。其他特性也可使用该字段。
 
-劫掠兽原有的头部主体分类与体块归属已合并到整个 `head`，独立 `head_core` 部位定义、显示名称及专用补标签已删除。近战击退绑定 `head`、`mouth` 并纳入捕获的整个头部，角、耳等头部附属体块也携带该特性。`horn` 的显示名称统一为“角”，仍匹配 `horn`、`tusk`。
+劫掠兽原有的头部主体分类与体块归属已合并到整个 `head`，独立 `head_core` 部位定义、显示名称及专用补标签已删除。近战击退通过 `head` 绑定的 `include_children: true` 明确包含头部子树，并保留 `mouth` 绑定；角、耳等原有归属保持。`horn` 的显示名称统一为“角”，仍匹配 `horn`、`tusk`。
 
 捕获器保留原始模型名，并统一补充 `material/<纹理命名空间>/<纹理路径>/<模型名>` 来源标签，例如 `material/minecraft/textures/entity/sheep/sheep_fur.png/body`。剪羊毛数据仅绑定该羊毛材质的身体，避免把头腿毛层或裸身体算作产出器官。旧 `body_wool`、特性专用 `wool` 和 `mushroom` 补标签已删除，不做旧标签兼容；剪毛隐藏毛层和蘑菇原材质外观仍由渲染材质信息处理。
 
 `material/` 是通用来源标签的保留前缀，不能用于部位推断中的普通模型名。仅 `target: "raw"` 或精确 `carriers` 绑定可显式选择此类标签，防止纹理路径中的 `arm`、`eye` 等词误把身体归入其他器官。标签遵循现有 64 字符、每体块 16 项上限，超限的限定标签不补写，原始模型名保留。
+
+### 特性内部的命名供体
+
+在特性根对象的 `parts` 中定义局部部位，再在 `carrier.roles`、`fallback`、`excluded`、攻击效果／子特性的 `roles` 或 `carriers` 键中用 `#局部名称` 引用。例如完整的特性定义：
+
+```json
+{
+  "schema_version": 1,
+  "scopes": ["whole_body"],
+  "value_kind": "ability",
+  "inheritance": { "type": "presence" },
+  "automatic_detection": false,
+  "values": { "example:beast": true },
+  "carrier": { "roles": ["#crystal_core"] },
+  "parts": {
+    "crystal_core": {
+      "name": { "text": "结晶核心" },
+      "order": 25,
+      "bindings": { "example:beast": [7] }
+    }
+  }
+}
+```
+
+`bindings` 按实体完整 ID 指定模型标签或原始体块编号，例如 `["crystal"]`、`[7]` 或 `["#7"]`。编号从 0 开始，随实体模型版本变化；同名模型节点可能有多个体块，单个体块用编号选择。`name` 是显示名称，不参与匹配；字面名称随目录同步到客户端并用于 JEI 和缺失器官提示。`values` 或自动检测仍决定该生物是否提供特性，部位定义本身不赋予特性。
+
+局部部位也可使用与通用定义相同的 `match` 正则、命名空间过滤、`include_children`、`fallback_to_all`。指定物种的 `bindings` 优先于该局部规则，包括空数组和未命中的数组；缺少该物种绑定时才使用规则。根对象的同部位 `carriers` 显式配置优先于局部 `bindings`。
+
+局部键仅允许小写字母、数字和下划线。内部 ID 为 `<特性命名空间>:trait/<特性路径>/<局部键>`，只供所属特性使用，不参与其他特性的通用部位推断，也不能被其他特性或全局解剖模板引用。不同特性可以使用相同局部键并定义不同名字。局部部位可与通用部位一起放在 `carrier.roles` 中；只写 `parts` 不会自动改变特性的载体选择。独立绑定文件支持补充 `parts`，修改器可用 `"parts": {"key": null}` 删除局部定义，同时清理引用。
+
+普通 `carriers` 名称／编号数组是精确选择，即使引用的通用部位定义启用了子节点匹配，也不会自动扩大。需要整个节点子树时使用对象形式：
+
+```json
+"carriers": {
+  "minecraft:ravager": {
+    "create_biotech:head": { "names": ["head"], "include_children": true }
+  }
+}
+```
+
+局部部位的 `include_children` 同时作为它的绑定默认值；绑定对象中的同名字段可单独覆盖。数字编号始终精确，不因 `include_children` 扩展成同一节点下的其他体块。
+
+内置 5 个专用定义已迁入所属特性，名称、绑定与条件保持：
+
+| 特性 | 局部供体 |
+| --- | --- |
+| `block_attachment` | `#base` 底座 |
+| `wool_shearing` | `#wool` 身体羊毛 |
+| `milkable` | `#udder` 乳房 |
+| `sonic_boom` | `#left_ribcage` 左胸腔、`#right_ribcage` 右胸腔 |
+
+### 通用原始数据与存储
+
+`bionic_anatomy` 资源还支持 `model_aliases`，按实体、模型节点和节点内的体块序号补名。例如 `data/example/bionic_anatomy/minecraft/cow.json`：
+
+```json
+{
+  "model_aliases": [
+    { "part": "body", "cubes": [1], "names": ["udder"] }
+  ]
+}
+```
+
+该规则选择牛的 `body` 节点中第 2 个体块（序号从 0 开始），给它补上 `udder`；它仍保留 `body` 等原名。`cubes` 省略表示节点内全部体块，空数组表示不选择。这里的序号属于节点自己的几何集合，和特性绑定中 `[7]` 表示的最终全模型体块编号不同。`part` 精确匹配原始节点名称，不连锁匹配其他规则补上的别名。模型资源改变节点内部顺序时需要更新数据。
+
+资源路径按 `<实体命名空间>/<实体路径>` 选择实体，也可用 `entity_type` 指定完整实体 ID。规则适用于该实体的主模型及图层模型、成年和幼年；`baby`、`cube_count`、`seams` 只限制同文件内的服务端部位模板，不限制补名规则。仅配置补名时不需要模板字段。每文件最多 256 条规则，每条最多 16 个别名，节点内编号范围为 0～1023。使用同 ID 数据包覆盖或 `{"disabled":true}` 可移除；重载时与供体目录一起验证、同步、清理客户端采集缓存。已有身体仍保留采集时的原始标签，新规则用于后续采集。
+
+原版乳房、灾厄村民交叉手臂和犰狳内外壳均使用此规则，数据位于 `data/create_biotech/bionic_anatomy/minecraft/`。牛和哞菇为 `body[1] → udder`；灾厄村民为 `arms[0] → right_arm`、`left_shoulder[*] → left_arm`；犰狳为 `body[0] → outer_shell`、`body[1] → inner_body`、`cube[*] → outer_shell`。蜷缩外壳共用 `outer_shell` 别名，通过通用同名体块匹配关联原外壳，不再保留 `rolled_shell` 分支。已删除 `SurgicalNativePartLabels` 中按模型类、尺寸和序号判断的 Java 特判。
+
+原版 `ModelPart` 与通用集合模型共用上述规则；集合模型的序号对应节点内遍历的几何集合。集合不可拦截或模型不暴露节点名时，仍可使用最终体块编号绑定。
+
+采集时保存模型节点名称、父节点关系、体块引用和材质来源，以及原始体块体积。原版 `ModelPart` 和通用集合模型共用此结构。切割保留完整原始数据，仅修改剩余体块集合；覆盖率仍以原始组织为依据。没有 `OriginalHeadCubes`、`HeadCubes` 或头部已知标记；头部和其他部位一样通过数据规则选择。缰绳等外观附着仍可在客户端缓存由规则推导出的头部标记，不写入身体 NBT。
+
+NBT 用名称字典、父节点字典和整数引用去重；体积以保存浮点位模式的整数数组编码。匹配按唯一名称组和节点复用结果，同一次特性求值中的部位选择缓存，实体已有装配／目录版本缓存继续生效。上限为每来源 4096 个节点、父链深度 64、每体块 16 个直接标签和 16 个节点引用；拒绝非法父引用及超限数据。
+
+网络协议 45、装配体格式 4、手术台格式 3。本次不兼容旧头部快照和旧解剖 NBT 格式。
 
 修改器格式：
 
@@ -200,7 +274,7 @@ BionicTraitEvents.hurt('example:regeneration', event => {
 
 | 入口 | 说明 |
 | --- | --- |
-| `definitions` | 服务端脚本加载后、数据包生成期间执行；`register(id, json)`、`bind(id, json)`、`modify(id, json)` 对应三个目录。同一次事件不能重复写同一资源 ID |
+| `definitions` | 服务端脚本加载后、数据包生成期间执行；`register(id, json)`、`bind(id, json)`、`modify(id, json)`、`anatomy(id, json)` 分别写入特性、绑定、修改器和解剖规则目录。同一次事件不能重复写同一资源 ID |
 | `tick` | 每个有效特性每服务端 tick 一次，组件 tick 之后；支持可选特性 ID 过滤 |
 | `melee` | 成功近战且该特性的有效载体与实际攻击手臂相交；额外提供 `target`、`arm`，组件近战回调之后 |
 | `hurt` | 原有防御前，组件伤害倍率之后；提供 `source`、可写的非负有限 `amount`；支持 `cancel()`，按特性目录顺序累积 |
@@ -227,6 +301,7 @@ BionicTraitApi.registerBehavior(ResourceLocation.parse("addon:wet_regeneration")
 - `registerCondition(id, factory)`：JSON 编译到纯 `BionicCondition`，上下文有装配、世界、当前特性、候选结果集合和当前结果。
 - `registerCarrierSelector(id, factory)`：JSON 编译到纯 `BionicCarrierSelector`，返回原始体块索引的 `BitSet`；返回新集合，勿修改保存的装配。
 - `registerDefault(id, json)`：注册没有资源文件的默认定义；数据包同 ID 定义优先。实际资源随目录同步，不要求客户端重复注册默认值。
+- `registerAnatomyDefault(id, json)`：同样注册默认 `bionic_anatomy` 资源，支持部位模板与 `model_aliases`。例如 ID `addon:minecraft/cow`，内容同上；KJS 可在 `BionicTraitEvents.definitions` 中使用 `event.anatomy('addon:minecraft/cow', {...})` 生成相同规则。
 
 重复类型 ID、重复默认定义和第一次服务端加载后的注册均明确报错。工厂在每次重载时调用，返回的组件在实体间共享，不能把单个实体状态放在组件字段中。需要临时属性等副作用时在 `removed` 中对称清理。公开的 `BionicTraitEvent.Tick`、`.Melee`、`.Hurt` 可由附属模组在 `NeoForge.EVENT_BUS` 监听，时机与 KubeJS 相同；受伤事件可 `setAmount`。这些入口仅服务端触发。
 
@@ -261,3 +336,7 @@ KubeJS 接口参考本地 `ref/1.21.1/KubeJS/` 的 `KubeJSPlugin`、`EventGroup`
 例如：完整末影人的体质为 +20，切下原体积 30% 的组织贡献 +6；其余 70% 贡献 +14，两部分合回仍为 +20。再拼入一个或两个等体积的无修正体块，体质都保持 +20；若使用两个完整末影人供体则为 +40。牛的体质 −10 按相同方式分配，不会被额外的 0 值组织稀释。铁傀儡的力量 +10 则是每条原生手臂的总额：某条出手臂安装了其一条原生手臂体积 30% 的组织，就取得 +3 力量；完整该臂取得 +10，两条完整原生手臂拼成同一出手臂则为 +20。
 
 体质在全身几何血量后相加；力量在出手臂的几何伤害后、附魔和正常伤害处理前相加。更新后 `/reload` 会重算已有实体，增加生命上限不会自动治疗。
+
+## 玩法规则扩展
+
+关系表、原生产物、自定义采集与周期、装备参数、器官组合、供体检测器、攻击类型及 Java/KubeJS 操作事件，见 [仿生玩法规则与扩展接口](bionic-gameplay-extension.zh-CN.md)。

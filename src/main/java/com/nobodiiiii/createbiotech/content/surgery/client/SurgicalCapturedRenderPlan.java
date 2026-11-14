@@ -37,6 +37,9 @@ import com.nobodiiiii.createbiotech.content.slimemimic.client.SlimeMimicDeathCli
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
+import com.nobodiiiii.createbiotech.entity.trait.BionicModelNode;
+import com.nobodiiiii.createbiotech.entity.trait.BionicModelAlias;
+import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRole;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderStateAccessor;
 import com.nobodiiiii.createbiotech.mixin.client.CompositeRenderTypeAccessor;
@@ -183,9 +186,8 @@ public final class SurgicalCapturedRenderPlan {
 				.findFirst().orElse(null);
 			if (owner == null && matchParts) {
 				owner = components.stream().filter(candidate -> !matched.contains(candidate))
-					.filter(candidate -> visual.partNames.contains("rolled_shell")
-						? candidate.partNames.contains("outer_shell")
-						: visual.partNames.stream().anyMatch(name -> !name.equals("root") && candidate.partNames.contains(name)))
+					.filter(candidate -> visual.partNames.stream()
+						.anyMatch(name -> !name.equals("root") && candidate.partNames.contains(name)))
 					// Moving parts retain their anatomical ids even when another cube is now closer.
 					.min(Comparator.comparing((Component candidate) -> !candidate.partNames.equals(visual.partNames))
 						.thenComparingDouble(candidate -> visual.center().distanceSquared(candidate.center()))).orElse(null);
@@ -394,9 +396,9 @@ public final class SurgicalCapturedRenderPlan {
 		// Ordinary live captures keep the fast rejection in observeModelCube. Only saddled models
 		// need the small extra observation for equipment embedded in their main model.
 		ResourceLocation entity = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(preview.getType());
-		ModelNames modelNames = topology || observeSaddle ? namedModelCubes(renderer, entity) : new ModelNames(Map.of(), Set.of());
+		ModelNames modelNames = topology || observeSaddle ? namedModelCubes(renderer, entity) : new ModelNames(Map.of(), Set.of(), Map.of());
 		ModelCubeCaptureScope captureScope = topology || observeSaddle
-			? openModelCubeCapture(observedCubes, topology ? modelNames.heads : Set.of(),
+			? openModelCubeCapture(observedCubes, topology ? modelNames.heads : Set.of(), modelNames.nodes,
 				modelNames.names, topology, saddleCubes) : null;
 		try (SurgicalModelPartNames names = topology ? SurgicalModelPartNames.open(renderer, entity) : null) {
 			renderer.render(preview, yaw, partialTick, neutralPose, recording, CAPTURE_LIGHT);
@@ -469,7 +471,7 @@ public final class SurgicalCapturedRenderPlan {
 			}
 		}
 		boolean head = capture.headCubes.contains(cube);
-		capture.observedCubes.add(new ObservedCube(transformed, model, head, partNames));
+		capture.observedCubes.add(new ObservedCube(transformed, model, head, partNames, capture.nodes.getOrDefault(cube, Set.of())));
 	}
 
 	private static boolean isSaddlePart(String name) {
@@ -479,10 +481,10 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static ModelCubeCaptureScope openModelCubeCapture(List<ObservedCube> observedCubes,
-		Set<ModelPart.Cube> headCubes,
+		Set<ModelPart.Cube> headCubes, Map<ModelPart.Cube, Set<BionicModelNode>> nodes,
 		Map<ModelPart.Cube, Set<String>> namedCubes, boolean topology, Set<GeometryKey> saddleCubes) {
 		ModelCubeCaptureScope scope = new ModelCubeCaptureScope(Thread.currentThread(),
-			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes, namedCubes, topology, saddleCubes);
+			CURRENT_MODEL_CUBE_CAPTURE.get(), observedCubes, headCubes, nodes, namedCubes, topology, saddleCubes);
 		CURRENT_MODEL_CUBE_CAPTURE.set(scope);
 		ACTIVE_MODEL_CUBE_CAPTURES.incrementAndGet();
 		return scope;
@@ -494,19 +496,21 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<ObservedCube> observedCubes;
 		private final Set<ModelPart.Cube> headCubes;
 		private final Map<ModelPart.Cube, Set<String>> namedCubes;
+		private final Map<ModelPart.Cube, Set<BionicModelNode>> nodes;
 		private final boolean topology;
 		private final Set<GeometryKey> saddleCubes;
 		private boolean recordingCube;
 		private boolean closed;
 
 		private ModelCubeCaptureScope(Thread owner, ModelCubeCaptureScope parent,
-			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes,
+			List<ObservedCube> observedCubes, Set<ModelPart.Cube> headCubes, Map<ModelPart.Cube, Set<BionicModelNode>> nodes,
 			Map<ModelPart.Cube, Set<String>> namedCubes, boolean topology, Set<GeometryKey> saddleCubes) {
 			this.owner = owner;
 			this.parent = parent;
 			this.observedCubes = observedCubes;
 			this.headCubes = headCubes;
 			this.namedCubes = namedCubes;
+			this.nodes = nodes;
 			this.topology = topology;
 			this.saddleCubes = saddleCubes;
 		}
@@ -546,23 +550,24 @@ public final class SurgicalCapturedRenderPlan {
 		}
 	}
 
-	private record ModelNames(Map<ModelPart.Cube, Set<String>> names, Set<ModelPart.Cube> heads) {}
+	private record ModelNames(Map<ModelPart.Cube, Set<String>> names, Set<ModelPart.Cube> heads, Map<ModelPart.Cube, Set<BionicModelNode>> nodes) {}
 
 	/** Capture the model's own labels; trait JSON on the server assigns their meaning. */
 	private static ModelNames namedModelCubes(
 		EntityRenderer<LivingEntity> renderer, ResourceLocation entity) {
 		if (!(renderer instanceof LivingEntityRenderer<?, ?> livingRenderer))
-			return new ModelNames(Map.of(), Set.of());
+			return new ModelNames(Map.of(), Set.of(), Map.of());
 		Map<ModelPart.Cube, Set<String>> result = new IdentityHashMap<>();
 		Set<ModelPart.Cube> heads = Collections.newSetFromMap(new IdentityHashMap<>());
-		collectModelPartNames(livingRenderer.getModel(), result, heads, entity);
-		collectLayerModelNames(livingRenderer, result, heads, entity);
-		return new ModelNames(result, heads);
+		Map<ModelPart.Cube, Set<BionicModelNode>> nodes = new IdentityHashMap<>();
+		collectModelPartNames(livingRenderer.getModel(), result, heads, nodes, entity);
+		collectLayerModelNames(livingRenderer, result, heads, nodes, entity);
+		return new ModelNames(result, heads, nodes);
 	}
 
 	/** Independent layer models have their own head/body/limb parts, not just a material. */
 	private static void collectLayerModelNames(Object owner, Map<ModelPart.Cube, Set<String>> result,
-		Set<ModelPart.Cube> heads, ResourceLocation entity) {
+		Set<ModelPart.Cube> heads, Map<ModelPart.Cube, Set<BionicModelNode>> nodes, ResourceLocation entity) {
 		for (Class<?> type = owner.getClass(); type != null && type != Object.class; type = type.getSuperclass())
 			for (Field field : type.getDeclaredFields()) {
 				if (java.lang.reflect.Modifier.isStatic(field.getModifiers())
@@ -572,11 +577,11 @@ public final class SurgicalCapturedRenderPlan {
 				try {
 					Object value = field.get(owner);
 					if (value instanceof EntityModel<?> model)
-						collectModelPartNames(model, result, heads, entity);
+						collectModelPartNames(model, result, heads, nodes, entity);
 					else if (value instanceof Iterable<?> layers)
 						for (Object layer : layers)
 							if (layer instanceof RenderLayer<?, ?>)
-								collectLayerModelNames(layer, result, heads, entity);
+								collectLayerModelNames(layer, result, heads, nodes, entity);
 				} catch (IllegalAccessException ignored) {
 					// Inaccessible third-party layer models retain their material labels only.
 				}
@@ -584,9 +589,9 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static void collectModelPartNames(EntityModel<?> model, Map<ModelPart.Cube, Set<String>> result,
-		Set<ModelPart.Cube> heads, ResourceLocation entity) {
+		Set<ModelPart.Cube> heads, Map<ModelPart.Cube, Set<BionicModelNode>> nodes, ResourceLocation entity) {
 		if (model instanceof HierarchicalModel<?> hierarchical)
-			collectPartNames(hierarchical.root(), "root", result, heads, entity, false);
+			collectPartNames(hierarchical.root(), "root", result, heads, nodes, entity, null);
 		for (Class<?> type = model.getClass(); type != null && type != Object.class;
 			type = type.getSuperclass())
 			for (Field field : type.getDeclaredFields()) {
@@ -594,8 +599,7 @@ public final class SurgicalCapturedRenderPlan {
 					continue;
 				try {
 					if (field.get(model) instanceof ModelPart part) {
-						collectPartNames(part, field.getName(), result, heads, entity, false);
-						SurgicalNativePartLabels.label(model, field.getName(), part, result);
+						collectPartNames(part, field.getName(), result, heads, nodes, entity, null);
 					}
 				} catch (IllegalAccessException ignored) {
 					// Other model libraries can keep their fields inaccessible.
@@ -604,10 +608,15 @@ public final class SurgicalCapturedRenderPlan {
 	}
 
 	private static void collectPartNames(ModelPart part, String name,
-		Map<ModelPart.Cube, Set<String>> result, Set<ModelPart.Cube> heads, ResourceLocation entity, boolean parentHead) {
-		boolean head = parentHead || BionicTraitRegistry.clientCapturedHead(entity, name);
+		Map<ModelPart.Cube, Set<String>> result, Set<ModelPart.Cube> heads, Map<ModelPart.Cube, Set<BionicModelNode>> nodes, ResourceLocation entity, BionicModelNode parent) {
+		BionicModelNode node = new BionicModelNode(BionicAnatomySnapshot.validPartName(name) ? Set.of(name) : Set.of(), parent);
+		boolean head = BionicTraitRegistry.clientMatchesPart(BionicAnatomyRole.HEAD, entity, node.names(), Set.of(node));
 		ModelPartAccessor accessor = (ModelPartAccessor) (Object) part;
 		if (head) heads.addAll(accessor.createBiotech$getCubes());
+		for (ModelPart.Cube cube : accessor.createBiotech$getCubes()) {
+			Set<BionicModelNode> known = nodes.computeIfAbsent(cube, ignored -> new HashSet<>());
+			if (known.size() < 16) known.add(node);
+		}
 		if (BionicAnatomySnapshot.validPartName(name))
 			for (ModelPart.Cube cube : accessor.createBiotech$getCubes()) {
 				Set<String> names = result.computeIfAbsent(cube, ignored -> new HashSet<>());
@@ -615,7 +624,17 @@ public final class SurgicalCapturedRenderPlan {
 					names.add(name);
 			}
 		for (Map.Entry<String, ModelPart> child : accessor.createBiotech$getChildren().entrySet())
-			collectPartNames(child.getValue(), child.getKey(), result, heads, entity, head);
+			collectPartNames(child.getValue(), child.getKey(), result, heads, nodes, entity, node);
+		List<BionicModelAlias> aliases = BionicTraitRegistry.clientModelAliases(entity);
+		for (int index = 0; index < accessor.createBiotech$getCubes().size(); index++) {
+			ModelPart.Cube cube = accessor.createBiotech$getCubes().get(index);
+			Set<String> names = result.computeIfAbsent(cube, ignored -> new HashSet<>());
+			for (BionicModelAlias alias : aliases)
+				if (alias.matches(node.names(), index))
+					for (String label : alias.names()) if (names.size() < 16) names.add(label);
+			if (BionicTraitRegistry.clientMatchesPart(BionicAnatomyRole.HEAD, entity, names, nodes.getOrDefault(cube, Set.of())))
+				heads.add(cube);
+		}
 	}
 
 	/**
@@ -1796,14 +1815,14 @@ public final class SurgicalCapturedRenderPlan {
 				ordered.add(observed.modelCorners.get(match));
 			}
 			if (ordered.size() == 8)
-				return new ModelCubeMatch(ordered, observed.head, observed.partNames);
+				return new ModelCubeMatch(ordered, observed.head, observed.partNames, observed.nodes);
 		}
 		return ModelCubeMatch.NONE;
 	}
 
 	private record ModelCubeMatch(List<Vec3> corners, boolean head,
-		Set<String> partNames) {
-		private static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false, Set.of());
+		Set<String> partNames, Set<BionicModelNode> nodes) {
+		private static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false, Set.of(), Set.of());
 
 		private ModelCubeMatch {
 			corners = List.copyOf(corners);
@@ -1902,6 +1921,7 @@ public final class SurgicalCapturedRenderPlan {
 		private boolean head;
 		private boolean preserveMaterial;
 		private final Set<String> partNames;
+		private final Set<BionicModelNode> nodes;
 		private final boolean topology;
 		private final List<SourceBatch> batches = new ArrayList<>();
 		private final List<SourceBatch> surfaceOverlays = new ArrayList<>();
@@ -1917,6 +1937,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.modelCorners = modelCube.corners();
 			this.head = modelCube.head();
 			this.partNames = new HashSet<>(modelCube.partNames());
+			this.nodes = new HashSet<>(modelCube.nodes());
 			this.topology = topology;
 		}
 
@@ -1925,14 +1946,16 @@ public final class SurgicalCapturedRenderPlan {
 			if (vertices.isEmpty()) return;
 			var first = vertices.getFirst().source;
 			Set<String> common = new HashSet<>(first.names());
+			Set<BionicModelNode> commonNodes = new HashSet<>(first.nodes());
 			boolean capturedHead = first.head();
 			for (CapturedVertex vertex : vertices) {
-				if (vertex.source != first) common.retainAll(vertex.source.names());
+				if (vertex.source != first) { common.retainAll(vertex.source.names()); commonNodes.retainAll(vertex.source.nodes()); }
 				capturedHead &= vertex.source.head();
 			}
 			for (String name : common)
 				if (partNames.size() < 16) partNames.add(name);
 			head |= capturedHead;
+			for (BionicModelNode node : commonNodes) if (nodes.size() < 16) nodes.add(node);
 		}
 
 		private void observeMaterial(RenderType renderType) {
@@ -1970,7 +1993,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private Component build(int id, boolean preserveSource) {
 			return new Component(id, cuboid.corners, cuboid.a, cuboid.b, cuboid.c,
-				modelCorners, faceGrids, head, partNames, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
+				modelCorners, faceGrids, head, partNames, nodes, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
 		}
 	}
 
@@ -1981,17 +2004,19 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<Vec3> modelCorners;
 		private final boolean head;
 		private final Set<String> partNames;
+		private final Set<BionicModelNode> nodes;
 		/** Computed once here rather than per comparison in {@link #matchingModelCube}. */
 		private final GeometryKey key;
 
 		private ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners,
-			boolean head, Set<String> partNames) {
+			boolean head, Set<String> partNames, Set<BionicModelNode> nodes) {
 			// Both lists are built fresh per cube at the single call site and handed straight over, so
 			// they only need freezing, not the deep Vector3f copy this used to make.
 			this.transformedCorners = List.copyOf(transformedCorners);
 			this.modelCorners = List.copyOf(modelCorners);
 			this.head = head;
 			this.partNames = Set.copyOf(partNames);
+			this.nodes = Set.copyOf(nodes);
 			this.key = GeometryKey.of(this.transformedCorners);
 		}
 	}
@@ -2033,6 +2058,7 @@ public final class SurgicalCapturedRenderPlan {
 		private final List<SurgicalModelRenderContext.FaceGrid> faceGrids;
 		private final boolean head;
 		private final Set<String> partNames;
+		private final Set<BionicModelNode> nodes;
 		private final boolean preserveSource;
 		private final List<SourceBatch> batches;
 		private final List<SourceBatch> surfaceOverlays;
@@ -2040,7 +2066,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private Component(int id, List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c,
 			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean head,
-			Set<String> partNames,
+			Set<String> partNames, Set<BionicModelNode> nodes,
 			boolean preserveSource,
 			List<SourceBatch> batches, List<SourceBatch> surfaceOverlays) {
 			this.id = id;
@@ -2052,6 +2078,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.faceGrids = List.copyOf(faceGrids);
 			this.head = head;
 			this.partNames = Set.copyOf(partNames);
+			this.nodes = Set.copyOf(nodes);
 			this.preserveSource = preserveSource;
 			this.batches = batches;
 			this.surfaceOverlays = surfaceOverlays;
@@ -2068,6 +2095,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.faceGrids = appearance.faceGrids;
 			this.head = appearance.head;
 			this.partNames = appearance.partNames;
+			this.nodes = appearance.nodes;
 			this.preserveSource = appearance.preserveSource;
 			this.batches = appearance.batches;
 			this.surfaceOverlays = appearance.surfaceOverlays;
@@ -2163,7 +2191,7 @@ public final class SurgicalCapturedRenderPlan {
 				transformed.add(worldPoint.add(offsetX + cameraX, offsetY + cameraY, offsetZ + cameraZ));
 			}
 			return new SurgicalModelRenderContext.CubeGeometry(id, transformed, modelCorners, faceGrids,
-				head, partNames);
+				head, partNames, nodes);
 		}
 
 		private Vector3f center() {

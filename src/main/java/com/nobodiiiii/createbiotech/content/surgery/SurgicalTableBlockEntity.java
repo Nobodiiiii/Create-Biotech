@@ -61,7 +61,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private static final String SUBJECTS_TAG = SurgicalTableSubjectSync.SUBJECTS_TAG;
 	private static final String NEXT_SUBJECT_ID_TAG = "NextSubjectId";
 	private static final String FORMAT_VERSION_TAG = "SurgicalFormatVersion";
-	private static final int FORMAT_VERSION = 2;
+	private static final int FORMAT_VERSION = 3;
 	private static final int CLIENT_PLANE_CACHE_TICKS = 5;
 
 	private final List<SurgicalSubject> subjects = new ArrayList<>();
@@ -464,7 +464,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		SurgicalLayPose layPose, double placedOriginOffsetX, double placedOriginOffsetZ,
 		SurgicalTableLayout.Proposal proposal,
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
-		BitSet headCubes,
 		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
@@ -479,7 +478,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			return SurgicalTablePlacementResult.INVALID_TABLE;
 		if (!(box.getItem() instanceof CapturedEntityBoxItem) && !SurgicalKitItem.hasPlacementCapture(box)
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
-			|| headCubes == null || anatomy == null || componentFootprints == null || sourceLayouts == null
+			|| anatomy == null || componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
 			return SurgicalTablePlacementResult.INVALID_CAPTURE;
 
@@ -490,10 +489,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		MimicProfile profile;
 		int cubeCount;
 		BitSet present;
-		BitSet heads;
 		UUID donorId;
-		BitSet originalHeads;
-		boolean originalHeadKnown;
 		BionicAnatomySnapshot originalAnatomy;
 		List<SurgicalAssembly.Seam> seams;
 		BitSet cuts;
@@ -519,11 +515,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			profile = assembly.profile();
 			cubeCount = assembly.cubeCount();
 			present = assembly.presentCubes();
-			heads = assembly.headCubes();
 			SurgicalAssembly.Source originalSource = assembly.sources().getFirst();
 			donorId = originalSource.donorId();
-			originalHeads = originalSource.originalHeadCubes();
-			originalHeadKnown = originalSource.originalHeadKnown();
 			originalAnatomy = originalSource.anatomy();
 			seams = assembly.seams();
 			cuts = assembly.cutSeams();
@@ -541,12 +534,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			present = new BitSet(cubeCount);
 			if (cubeCount > 0)
 				present.set(0, cubeCount);
-			if (headCubes.length() > cubeCount)
-				return SurgicalTablePlacementResult.INVALID_CAPTURE;
-			heads = (BitSet) headCubes.clone();
 			donorId = UUID.randomUUID();
-			originalHeads = (BitSet) heads.clone();
-			originalHeadKnown = true;
 			originalAnatomy = anatomy;
 			seams = List.copyOf(observedSeams);
 			cuts = new BitSet();
@@ -567,8 +555,8 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			donorId = placementDonorIds(placementAssembly, temporaryMove, SurgicalKitItem.isCubeCopier(box))
 				.get(donorId);
 		SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(), donorId,
-			originalHeads, originalHeadKnown, originalAnatomy, profile, placementFacing, layPose, cubeCount,
-			present, heads, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
+			originalAnatomy, profile, placementFacing, layPose, cubeCount,
+			present, seams, cuts, cutOrder, placedOriginOffsetX, placedOriginOffsetZ,
 			placementOffsets(proposal), Map.of(), storedFootprints, List.of(), List.of(), List.of());
 		commitTemporaryMove(temporaryMove);
 		addSubject(subject);
@@ -605,10 +593,10 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 			SurgicalAssembly.PlacedSource placed = placedSources.get(sourceId);
 			SurgicalAssembly.Source source = placed.source();
 			SurgicalSubject subject = new SurgicalSubject(allocateSubjectId(), UUID.randomUUID(),
-				donorIds.get(source.donorId()), source.originalHeadCubes(), source.originalHeadKnown(),
+				donorIds.get(source.donorId()),
 				source.anatomy(),
 				source.profile(), placed.facing(), placed.layPose(), source.cubeCount(),
-				source.presentCubes(), source.headCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
+				source.presentCubes(), source.seams(), source.cutSeams(), source.cutOrder(),
 				placedOriginOffsetX + placed.originOffset().x,
 				placedOriginOffsetZ + placed.originOffset().z, restoredOffsets(placed), placed.cubeRotations(),
 				sourceLayouts.get(sourceId).footprints(), List.of(), List.of(), List.of());
@@ -2172,11 +2160,6 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		return component == null || component.isEmpty() ? null : group;
 	}
 
-	private static BitSet headCubesWithin(SurgicalSubject subject, BitSet cubes) {
-		BitSet heads = subject.headCubes();
-		heads.and(cubes);
-		return heads;
-	}
 
 	public boolean canApplyGlueCut(int subjectId, int glueJointId, double moveX, double moveZ,
 		SurgicalTablePlane.Plane plane) {
@@ -3232,8 +3215,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 					rotations.put(cube, rotation);
 			}
 			SurgicalAssembly.Source source = SurgicalAssembly.Source.create(grouped.profile(),
-				grouped.donorId(), grouped.cubeCount, included, headCubesWithin(grouped, included),
-				grouped.originalHeadCubes(), grouped.originalHeadKnown(), grouped.anatomy(),
+				grouped.donorId(), grouped.cubeCount, included, grouped.anatomy(),
 				grouped.seams, grouped.cutSeams,
 				grouped.cutOrder, grouped.placementFacing(),
 				grouped.layPose(),
@@ -3595,7 +3577,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		boolean previouslyHadSubjects = hasSubjects();
 		super.read(tag, registries, clientPacket);
 		boolean currentFormat = tag.contains(FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
-			&& tag.getInt(FORMAT_VERSION_TAG) >= 1 && tag.getInt(FORMAT_VERSION_TAG) <= FORMAT_VERSION
+			&& tag.getInt(FORMAT_VERSION_TAG) == FORMAT_VERSION
 			&& tag.contains(NEXT_SUBJECT_ID_TAG, Tag.TAG_ANY_NUMERIC);
 		List<SurgicalSubject> loaded = new ArrayList<>();
 		Set<Integer> ids = new HashSet<>();

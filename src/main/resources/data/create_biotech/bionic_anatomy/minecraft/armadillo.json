@@ -1,0 +1,28 @@
+{
+  "model_aliases": [
+    {
+      "part": "body",
+      "cubes": [
+        0
+      ],
+      "names": [
+        "outer_shell"
+      ]
+    },
+    {
+      "part": "body",
+      "cubes": [
+        1
+      ],
+      "names": [
+        "inner_body"
+      ]
+    },
+    {
+      "part": "cube",
+      "names": [
+        "outer_shell"
+      ]
+    }
+  ]
+}

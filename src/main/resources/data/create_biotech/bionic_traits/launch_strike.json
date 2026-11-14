@@ -11,36 +11,16 @@
       ]
     },
     "minecraft:ender_dragon": {
-      "create_biotech:head": [
-        "head",
-        "jaw"
-      ]
+      "create_biotech:head": {"names": ["head", "jaw"], "include_children": true}
     },
     "minecraft:goat": {
-      "create_biotech:head": [
-        "head",
-        "nose",
-        "left_horn",
-        "right_horn"
-      ]
+      "create_biotech:head": {"names": ["head", "nose", "left_horn", "right_horn"], "include_children": true}
     },
     "minecraft:hoglin": {
-      "create_biotech:head": [
-        "head",
-        "left_ear",
-        "right_ear",
-        "left_horn",
-        "right_horn"
-      ]
+      "create_biotech:head": {"names": ["head", "left_ear", "right_ear", "left_horn", "right_horn"], "include_children": true}
     },
     "minecraft:zoglin": {
-      "create_biotech:head": [
-        "head",
-        "left_ear",
-        "right_ear",
-        "left_horn",
-        "right_horn"
-      ]
+      "create_biotech:head": {"names": ["head", "left_ear", "right_ear", "left_horn", "right_horn"], "include_children": true}
     }
   },
   "values": {

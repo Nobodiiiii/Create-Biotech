@@ -29,7 +29,7 @@ final class BionicTraitResources {
 			var target = ResourceLocation.parse(root.get("trait").getAsString());
 			if (!exists(result, target, root)) continue;
 			var definition = result.get(target).getAsJsonObject();
-			for (String key : List.of("values", "carriers", "effects", "variants"))
+			for (String key : List.of("values", "carriers", "parts", "effects", "variants"))
 				if (root.has(key)) {
 					var merged = BionicExtensions.object(definition.get(key)).deepCopy();
 					merge(merged, root.getAsJsonObject(key));

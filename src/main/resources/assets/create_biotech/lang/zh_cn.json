@@ -1118,7 +1118,7 @@
   "create_biotech.trait.variant.enderman": "末影人",
   "create_biotech.trait.variant.shulker": "潜影贝",
   "create_biotech.trait.hunt_target.hostiles": "敌对生物",
-  "create_biotech.trait.hunt_target.attackable_creatures": "可攻击生物（排除僵尸疣猪兽、苦力怕、玩家）",
+  "create_biotech.trait.hunt_target.attackable_creatures": "可攻击生物",
   "create_biotech.trait.hunt_target.non_wither_friends": "非凋灵友方生物",
   "create_biotech.trait.rideable": "可骑乘",
   "create_biotech.trait.rideable.count": "可骑乘（%s）",

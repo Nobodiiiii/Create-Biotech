@@ -47,6 +47,14 @@ public final class BionicPackAlertGoal extends HurtByTargetGoal {
 		if (resolvedTraits != traits) resolveGroups(traits);
 		double range = getFollowDistance();
 		AABB area = AABB.unitCubeFromLowerCorner(bionic.position()).inflate(range, 10.0d, range);
+		var customRules = com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRules.get(bionic.level(), BionicTrait.PACK_ALERT);
+		double customRange = customRules.relations().stream().mapToDouble(r -> r.range()).max().orElse(0);
+		if (customRange > 0) for (Mob other : bionic.level().getEntitiesOfClass(Mob.class, bionic.getBoundingBox().inflate(customRange), EntitySelector.NO_SPECTATORS)) {
+			if (other == bionic || other.getTarget() != null || !other.canAttack(attacker) || other.isAlliedTo(attacker)) continue;
+			if (other instanceof TamableAnimal pet && (pet.isOrderedToSit() || !Objects.equals(bionic.getBionicOwnerId(), pet.getOwnerUUID()))) continue;
+			if (com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRelations.matches(bionic, BionicTrait.PACK_ALERT, other)) alertOther(other, attacker);
+		}
+		if (com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRules.get(bionic.level(), BionicTrait.PACK_ALERT).replacesRelations()) return;
 		for (BionicPackAlert.Group group : groups)
 			for (Mob other : bionic.level().getEntitiesOfClass(group.type(), area, EntitySelector.NO_SPECTATORS)) {
 				if (other instanceof SlimeBionicEntity || other.getTarget() != null || !other.canAttack(attacker)

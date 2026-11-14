@@ -9,5 +9,5 @@
       "skull"
     ]
   },
-  "captured_head": true
+  "include_children": true
 }

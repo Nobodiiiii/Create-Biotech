@@ -1,12 +1,7 @@
 package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.HashMap;
-import java.util.HashSet;
 
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
@@ -27,7 +22,6 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 	 double originOffsetX, double originOffsetZ, SurgicalLayPose layPose,
 	 SurgicalTableLayout.Proposal envelope,
 	 int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
-	 BitSet headCubes,
 	 BionicAnatomySnapshot anatomy,
 	 List<SurgicalTableLayout.Footprint> componentFootprints,
 	 List<SurgicalTableLayout.Proposal> sourceLayouts) {
@@ -37,15 +31,13 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		layPose = layPose == null ? SurgicalLayPose.IDENTITY : layPose;
 		envelope = envelope == null ? SurgicalTableLayout.Proposal.EMPTY : envelope;
 		observedSeams = observedSeams == null ? List.of() : List.copyOf(observedSeams);
-		headCubes = headCubes == null ? new BitSet() : (BitSet) headCubes.clone();
 		if (anatomy == null)
 			throw new IllegalArgumentException("Surgical placement requires measured anatomy");
 		componentFootprints = componentFootprints == null ? List.of() : List.copyOf(componentFootprints);
 		sourceLayouts = sourceLayouts == null ? List.of() : List.copyOf(sourceLayouts);
 		if (observedCubeCount < 0 || observedCubeCount > SurgicalAssembly.MAX_CUBES
 			|| observedSeams.size() > SurgicalAssembly.MAX_SEAMS
-			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES
-			|| headCubes.length() > observedCubeCount)
+			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES)
 			throw new IllegalArgumentException("Oversized discovered surgical placement topology");
 		if (sourceLayouts.size() > SurgicalAssembly.MAX_SOURCES)
 			throw new IllegalArgumentException("Too many surgical placement sources " + sourceLayouts.size());
@@ -54,16 +46,11 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Anatomy cube outside discovered placement");
 	}
 
-	@Override
-	public BitSet headCubes() {
-		return (BitSet) headCubes.clone();
-	}
-
 	public SurgicalTablePlacementPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readEnum(Direction.class),
 			buffer.readDouble(),
 			buffer.readDouble(), SurgicalLayPose.read(buffer), readLayout(buffer), buffer.readVarInt(),
-			readSeams(buffer), readHeadCubes(buffer), readAnatomy(buffer),
+			readSeams(buffer), readAnatomy(buffer),
 			readFootprints(buffer), readSourceLayouts(buffer));
 	}
 
@@ -81,21 +68,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			buffer.writeVarInt(seam.first());
 			buffer.writeVarInt(seam.second());
 		}
-		buffer.writeVarInt(headCubes.cardinality());
-		for (int cube = headCubes.nextSetBit(0); cube >= 0; cube = headCubes.nextSetBit(cube + 1))
-			buffer.writeVarInt(cube);
-		buffer.writeVarInt(anatomy.parts().size());
-		for (Map.Entry<Integer, Set<String>> entry : anatomy.parts().entrySet().stream()
-			.sorted(Map.Entry.comparingByKey()).toList()) {
-			buffer.writeVarInt(entry.getKey());
-			buffer.writeVarInt(entry.getValue().size());
-			for (String name : entry.getValue().stream().sorted().toList())
-				buffer.writeUtf(name, 64);
-		}
-		float[] volumes = anatomy.volumes();
-		buffer.writeVarInt(volumes.length);
-		for (float volume : volumes)
-			buffer.writeFloat(volume);
+		buffer.writeNbt(anatomy.save());
 		writeFootprints(buffer, componentFootprints);
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
@@ -118,7 +91,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			return;
 		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,
 			originOffsetX, originOffsetZ, envelope, observedCubeCount, observedSeams,
-			headCubes, anatomy, componentFootprints, sourceLayouts);
+			anatomy, componentFootprints, sourceLayouts);
 		if (result.succeeded() && held.getItem() instanceof CapturedEntityBoxItem)
 			player.setItemInHand(hand, CapturedEntityBoxHelper.createEmptyBox(held));
 		result.display(player);
@@ -153,51 +126,11 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		return List.copyOf(seams);
 	}
 
-	private static BitSet readHeadCubes(FriendlyByteBuf buffer) {
-		int count = buffer.readVarInt();
-		if (count < 0 || count > SurgicalAssembly.MAX_CUBES)
-			throw new IllegalArgumentException("Invalid surgical head cube count " + count);
-		BitSet heads = new BitSet();
-		for (int index = 0; index < count; index++) {
-			int cube = buffer.readVarInt();
-			if (cube < 0 || cube >= SurgicalAssembly.MAX_CUBES || heads.get(cube))
-				throw new IllegalArgumentException("Invalid surgical head cube " + cube);
-			heads.set(cube);
-		}
-		return heads;
-	}
-
 	private static BionicAnatomySnapshot readAnatomy(FriendlyByteBuf buffer) {
-		int partCount = buffer.readVarInt();
-		if (partCount < 0 || partCount > SurgicalAssembly.MAX_CUBES)
-			throw new IllegalArgumentException("Invalid surgical model part count " + partCount);
-		Map<Integer, Set<String>> parts = new HashMap<>();
-		for (int index = 0; index < partCount; index++) {
-			int cube = buffer.readVarInt();
-			int labels = buffer.readVarInt();
-			if (cube < 0 || cube >= SurgicalAssembly.MAX_CUBES || labels < 0 || labels > 16)
-				throw new IllegalArgumentException("Invalid surgical model part labels");
-			Set<String> names = new HashSet<>();
-			for (int label = 0; label < labels; label++)
-				if (!names.add(buffer.readUtf(64)))
-					throw new IllegalArgumentException("Duplicate surgical model part label");
-			if (parts.putIfAbsent(cube, names) != null)
-				throw new IllegalArgumentException("Duplicate surgical model part cube");
-		}
-		int volumeCount = buffer.readVarInt();
-		if (volumeCount < 0 || volumeCount > SurgicalAssembly.MAX_CUBES)
-			throw new IllegalArgumentException("Invalid surgical cube volume count " + volumeCount);
-		float[] volumes = new float[volumeCount];
-		for (int cube = 0; cube < volumeCount; cube++)
-			volumes[cube] = buffer.readFloat();
-		BionicAnatomySnapshot result = BionicAnatomySnapshot.ofParts(parts,
-			SurgicalAssembly.MAX_CUBES);
-		// An existing assembly uses EMPTY instead of sending new measurements. The packet constructor
-		// still requires volumes whenever observedCubeCount is positive.
-		if (result != null && volumeCount > 0)
-			result = result.withVolumes(volumes);
-		if (result == null)
-			throw new IllegalArgumentException("Invalid surgical anatomy");
+		var tag = buffer.readNbt();
+		int count = tag != null && tag.contains("CubeVolumes", net.minecraft.nbt.Tag.TAG_INT_ARRAY) ? tag.getIntArray("CubeVolumes").length : 0;
+		BionicAnatomySnapshot result = BionicAnatomySnapshot.load(tag, count);
+		if (result == null) throw new IllegalArgumentException("Invalid surgical anatomy");
 		return result;
 	}
 

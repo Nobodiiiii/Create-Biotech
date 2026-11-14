@@ -18,7 +18,7 @@
   },
   "carrier": {
     "roles": [
-      "create_biotech:attack_hand"
+      "#frost_hand"
     ]
   },
   "automatic_detection": false,
@@ -30,5 +30,17 @@
       "amplifier": 0,
       "chance": 1
     }
-  ]
+  ],
+  "parts": {
+    "frost_hand": {
+      "name": {
+        "text": "霜化手臂"
+      },
+      "match": {
+        "regex": [
+          "^(?:left|right)arm$"
+        ]
+      }
+    }
+  }
 }

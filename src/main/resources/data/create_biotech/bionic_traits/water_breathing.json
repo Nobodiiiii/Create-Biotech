@@ -46,38 +46,28 @@
         "rightGills",
         "head"
       ],
-      "create_biotech:head": [
-        "head"
-      ]
+      "create_biotech:head": {"names": ["head"], "include_children": true}
     },
     "minecraft:guardian": {
       "create_biotech:gill": [
         "head"
       ],
-      "create_biotech:head": [
-        "head"
-      ]
+      "create_biotech:head": {"names": ["head"], "include_children": true}
     },
     "minecraft:elder_guardian": {
       "create_biotech:gill": [
         "head"
       ],
-      "create_biotech:head": [
-        "head"
-      ]
+      "create_biotech:head": {"names": ["head"], "include_children": true}
     },
     "minecraft:turtle": {
       "create_biotech:gill": [
         "head"
       ],
-      "create_biotech:head": [
-        "head"
-      ]
+      "create_biotech:head": {"names": ["head"], "include_children": true}
     },
     "minecraft:dolphin": {
-      "create_biotech:head": [
-        "head"
-      ]
+      "create_biotech:head": {"names": ["head"], "include_children": true}
     }
   }
 }

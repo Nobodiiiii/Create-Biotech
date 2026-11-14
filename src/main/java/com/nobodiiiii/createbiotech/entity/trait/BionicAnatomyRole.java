@@ -15,17 +15,21 @@ public record BionicAnatomyRole(ResourceLocation id) implements Comparable<Bioni
 	public static final BionicAnatomyRole WING = builtin("wing");
 	public static final BionicAnatomyRole TENTACLE = builtin("tentacle");
 	public static final BionicAnatomyRole SHELL = builtin("shell");
-	public static final BionicAnatomyRole BASE = builtin("base");
+	public static final BionicAnatomyRole BASE = local("block_attachment", "base");
 	public static final BionicAnatomyRole ATTACK_HAND = builtin("attack_hand");
 	public static final BionicAnatomyRole EYE = builtin("eye");
-	public static final BionicAnatomyRole WOOL = builtin("wool");
-	public static final BionicAnatomyRole UDDER = builtin("udder");
-	public static final BionicAnatomyRole LEFT_RIBCAGE = builtin("left_ribcage");
-	public static final BionicAnatomyRole RIGHT_RIBCAGE = builtin("right_ribcage");
+	public static final BionicAnatomyRole WOOL = local("wool_shearing", "wool");
+	public static final BionicAnatomyRole UDDER = local("milkable", "udder");
+	public static final BionicAnatomyRole LEFT_RIBCAGE = local("sonic_boom", "left_ribcage");
+	public static final BionicAnatomyRole RIGHT_RIBCAGE = local("sonic_boom", "right_ribcage");
 
 	public BionicAnatomyRole {
 		Objects.requireNonNull(id);
 		if (id.toString().length() > 256) throw new IllegalArgumentException("Bionic part ID is too long: " + id);
+	}
+
+	private static BionicAnatomyRole local(String trait, String key) {
+		return builtin("trait/" + trait + "/" + key);
 	}
 
 	private static BionicAnatomyRole builtin(String path) {

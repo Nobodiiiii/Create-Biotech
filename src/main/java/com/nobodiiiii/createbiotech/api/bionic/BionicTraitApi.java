@@ -24,6 +24,10 @@ public final class BionicTraitApi {
 	public static void registerDefault(ResourceLocation id, JsonObject definition) {
 		BionicExtensions.registerDefault(id, definition);
 	}
+	/** Same schema and resource ID as data/<namespace>/bionic_anatomy/<path>.json. */
+	public static void registerAnatomyDefault(ResourceLocation id, JsonObject definition) {
+		BionicExtensions.registerAnatomyDefault(id, definition);
+	}
 	public static void registerBehavior(ResourceLocation id, Factory<BionicBehavior> factory) {
 		BionicExtensions.registerBehavior(id, factory);
 	}

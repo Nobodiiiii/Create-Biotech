@@ -5,7 +5,7 @@
   },
   "carriers": {
     "minecraft:zombie": {
-      "create_biotech:attack_hand": [
+      "#frost_hand": [
         "right_arm",
         "left_arm",
         "rightArm",

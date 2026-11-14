@@ -57,8 +57,11 @@ public final class BionicDeterrence {
 	private static boolean threatens(SlimeBionicEntity donor, Mob target) {
 		return donor.isAlive() && !donor.isNoAi() && !donor.isAlliedTo(target)
 			&& donor.getBionicTraits().has(BionicTrait.DETERRENCE)
-			&& donor.getBionicTraits().result(BionicTrait.DETERRENCE).deterrenceTargets()
-				.contains(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(target.getType()));
+			&& (BionicGameplayRelations.matches(donor, BionicTrait.DETERRENCE, target)
+				|| !BionicGameplayRules.get(donor.level(), BionicTrait.DETERRENCE).replacesRelations() && donor.getAssembly() != null
+				&& donor.getBionicTraits().members(BionicTrait.DETERRENCE).stream().anyMatch(m ->
+					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(donor.getAssembly().sources().get(m.source()).profile().entityTypeId())
+						.map(type -> targets(type).contains(target.getType())).orElse(false)));
 	}
 	private static void avoid(PathfinderMob mob, int priority, float range, double walk, double sprint,
 		Predicate<SlimeBionicEntity> predicate, boolean clearTarget) {
@@ -72,6 +75,24 @@ public final class BionicDeterrence {
 	@SubscribeEvent public static void joined(EntityJoinLevelEvent event) {
 		if (event.getLevel().isClientSide() || !(event.getEntity() instanceof PathfinderMob mob)
 			|| INSTALLED.putIfAbsent(mob, Boolean.TRUE) != null) return;
+		mob.goalSelector.addGoal(1, new AvoidEntityGoal<>(mob, SlimeBionicEntity.class,
+			candidate -> candidate instanceof SlimeBionicEntity bionic && bionic.isAlive() && !bionic.isNoAi() && bionic.getBionicTraits().has(BionicTrait.DETERRENCE)
+				&& !bionic.isAlliedTo(mob) && BionicGameplayRelations.matches(bionic, BionicTrait.DETERRENCE, mob),
+			128, 1, 1.2, candidate -> canFlee(mob)) {
+			@Override public boolean canUse() {
+				return BionicGameplayRules.get(mob.level(), BionicTrait.DETERRENCE).relations().stream().anyMatch(r -> r.targets().stream().anyMatch(t -> t.entity(mob.getType()))) && super.canUse();
+			}
+			@Override public boolean canContinueToUse() {
+				return toAvoid != null && toAvoid.isAlive() && !toAvoid.isNoAi()
+					&& BionicGameplayRelations.matches(toAvoid, BionicTrait.DETERRENCE, mob) && super.canContinueToUse();
+			}
+			@Override public void start() { mob.setTarget(null); super.start(); }
+			@Override public void tick() {
+				mob.setTarget(null);
+				super.tick();
+				if (toAvoid != null) mob.getNavigation().setSpeedModifier(BionicGameplayRelations.avoidanceSpeed(toAvoid, mob));
+			}
+		});
 		if (mob instanceof net.minecraft.world.entity.monster.Creeper
 			|| mob instanceof net.minecraft.world.entity.monster.AbstractSkeleton)
 			avoid(mob, 3, 6, 1, 1.2, bionic -> true, false);

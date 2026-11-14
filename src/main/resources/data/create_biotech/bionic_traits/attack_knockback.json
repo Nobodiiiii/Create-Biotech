@@ -24,9 +24,7 @@
       ]
     },
     "minecraft:ravager": {
-      "create_biotech:head": [
-        "head"
-      ],
+      "create_biotech:head": {"names": ["head"], "include_children": true},
       "create_biotech:mouth": [
         "mouth"
       ]

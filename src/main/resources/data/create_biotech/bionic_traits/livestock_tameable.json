@@ -2,40 +2,22 @@
   "automatic_detection": true,
   "carriers": {
     "minecraft:horse": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:donkey": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:mule": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:camel": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:llama": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:trader_llama": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     }
   }
 }

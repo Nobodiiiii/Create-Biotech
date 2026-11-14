@@ -66,7 +66,13 @@ public final class BionicTraitResolver {
 		results.replaceAll((trait, result) -> {
 			if (!result.active())
 				return result;
-			return BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result)
+			return BionicGameplayAnatomy.apply(trait, data.get(trait), assembly, tissue,
+				BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result), valid -> {
+					List<BitSet> restricted = new ArrayList<>();
+					for (int source = 0; source < tissue.sourceCount(); source++) restricted.add(new BitSet());
+					valid.forEach(member -> restricted.get(member.source()).set(member.cube()));
+					return evaluate(trait, data.get(trait), tissue, donors, restricted);
+				})
 				.withBindings(result.bindings());
 		});
 		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
@@ -172,7 +178,8 @@ public final class BionicTraitResolver {
 			BitSet carriers = (BitSet) bindings.get(sourceId).clone();
 			Set<ResourceLocation> details = switch (trait.id().toString()) {
 			case "create_biotech:deterrence" -> donor.deterrenceTargets();
-			case "create_biotech:hunting_instinct" -> BionicHunting.targets(Set.of(tissue.source(sourceId).profile().entityTypeId()));
+			case "create_biotech:hunting_instinct" -> BionicGameplayRelations.targets(data.extensions().gameplay(), tissue.source(sourceId).profile().entityTypeId(),
+				BionicHunting.targets(Set.of(tissue.source(sourceId).profile().entityTypeId())));
 			case "create_biotech:pack_alert" -> donor.packAlertTargets();
 			case "create_biotech:immune_effects" -> donor.effects(trait);
 			default -> trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.effects(trait) : Set.of();

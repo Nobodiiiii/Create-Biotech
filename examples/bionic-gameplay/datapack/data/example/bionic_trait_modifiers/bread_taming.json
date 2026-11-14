@@ -1,0 +1,16 @@
+{
+  "trait": "create_biotech:tameable",
+  "patch": {
+    "gameplay": {
+      "equipment": [
+        {
+          "donors": [
+            "minecraft:wolf"
+          ],
+          "tame_item": "minecraft:bread",
+          "taming_chance": 0.7
+        }
+      ]
+    }
+  }
+}

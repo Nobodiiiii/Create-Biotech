@@ -63,7 +63,7 @@ public record SurgicalPackingAlignment(SurgicalAssembly.CombinationMember carrie
 				rotations.put(cube, rotations.getOrDefault(cube, SurgicalCubeRotation.IDENTITY).then(tableRotation));
 			}
 			var corrected = SurgicalAssembly.Source.create(source.profile(), source.donorId(), source.cubeCount(),
-				present, source.headCubes(), source.originalHeadCubes(), source.originalHeadKnown(), source.anatomy(),
+				present, source.anatomy(),
 				source.seams(), source.cutSeams(), source.cutOrder(), source.facing(), source.layPose(),
 				source.originOffset(), offsets, rotations);
 			if (corrected == null) return null;

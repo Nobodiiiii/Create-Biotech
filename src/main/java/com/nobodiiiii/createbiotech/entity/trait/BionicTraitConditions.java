@@ -28,6 +28,8 @@ final class BionicTraitConditions {
 		if (trait.scopes().contains(BionicTraitScope.LEG) && data.minLegs() > 0
 			&& tissue.effectiveLimbCount(Set.of(BionicTraitScope.LEG), covered.members(trait)) < data.minLegs())
 			return result.disabled(InactiveReason.PURPOSE_MISMATCH);
+		if (data.extensions().gameplay().anatomyEvaluator != null || data.extensions().gameplay().anatomy != null && data.extensions().gameplay().anatomy.replaceNative())
+			return result;
 		if (BionicTrait.MILKABLE.equals(trait))
 			return BionicMilking.apply(data, tissue, result);
 		List<Carrier> required = required(trait);

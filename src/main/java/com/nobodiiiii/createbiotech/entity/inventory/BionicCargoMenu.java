@@ -29,7 +29,7 @@ public final class BionicCargoMenu extends AbstractContainerMenu {
 	public BionicCargoMenu(int id, Inventory inventory, RegistryFriendlyByteBuf buffer) {
 		this(id, inventory, inventory.player.level().getEntity(buffer.readInt()) instanceof SlimeBionicEntity b ? b : null,
 			null, Mth.clamp(buffer.readVarInt(), 0, SurgicalAssembly.MAX_CUBES),
-			Mth.clamp(buffer.readVarInt(), 0, SurgicalAssembly.MAX_CUBES * 15), buffer.readVarInt());
+			Mth.clamp(buffer.readVarInt(), 0, SurgicalAssembly.MAX_CUBES * 54), buffer.readVarInt());
 	}
 	public BionicCargoMenu(int id, Inventory inventory, SlimeBionicEntity entity, InventoryView view, int page) {
 		this(id, inventory, entity, view, view.saddleMembers().size(), view.cargo().getContainerSize(), page);
@@ -53,7 +53,7 @@ public final class BionicCargoMenu extends AbstractContainerMenu {
 			final int local = slot;
 			addSlot(new Slot(saddles, slot, 8, 18 + slot * 18) {
 				@Override public boolean isActive() { return local < visibleSaddles(); }
-				@Override public boolean mayPlace(ItemStack stack) { return isActive() && stack.is(Items.SADDLE) && !hasItem(); }
+				@Override public boolean mayPlace(ItemStack stack) { return isActive() && saddles.canPlaceItem(local, stack) && !hasItem(); }
 				@Override public boolean mayPickup(Player player) { return isActive(); }
 				@Override public int getMaxStackSize() { return 1; }
 			});
@@ -112,8 +112,7 @@ public final class BionicCargoMenu extends AbstractContainerMenu {
 	/** Shift transfer visits the complete inventory, including boxes on other pages. */
 	private boolean moveToEquipment(ItemStack stack) {
 		int saddles = view == null ? visibleSaddles() : allSaddles.getContainerSize();
-		if (stack.is(Items.SADDLE))
-			for (int slot = 0; slot < saddles; slot++) if (allSaddles.getItem(slot).isEmpty()) {
+		for (int slot = 0; slot < saddles; slot++) if (allSaddles.getItem(slot).isEmpty() && allSaddles.canPlaceItem(slot, stack)) {
 				allSaddles.setItem(slot, stack.split(1));
 				return true;
 			}

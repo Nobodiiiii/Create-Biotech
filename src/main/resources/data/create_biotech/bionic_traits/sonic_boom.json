@@ -7,12 +7,6 @@
     "minecraft:warden": {
       "create_biotech:torso": [
         "body"
-      ],
-      "create_biotech:left_ribcage": [
-        "left_ribcage"
-      ],
-      "create_biotech:right_ribcage": [
-        "right_ribcage"
       ]
     }
   },
@@ -22,5 +16,29 @@
     "warmup_ticks": 34,
     "action_ticks": 60,
     "cooldown_ticks": 40
+  },
+  "parts": {
+    "left_ribcage": {
+      "name": {
+        "translate": "create_biotech.bionic_part.left_ribcage"
+      },
+      "order": 18,
+      "bindings": {
+        "minecraft:warden": [
+          "left_ribcage"
+        ]
+      }
+    },
+    "right_ribcage": {
+      "name": {
+        "translate": "create_biotech.bionic_part.right_ribcage"
+      },
+      "order": 19,
+      "bindings": {
+        "minecraft:warden": [
+          "right_ribcage"
+        ]
+      }
+    }
   }
 }

@@ -7,22 +7,13 @@
   },
   "carriers": {
     "minecraft:cat": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:ocelot": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:wolf": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     }
   }
 }

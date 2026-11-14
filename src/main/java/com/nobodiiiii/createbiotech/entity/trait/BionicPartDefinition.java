@@ -20,7 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 
 /** The single data definition used for model-name inference, carrier IDs and donor display names. */
 public record BionicPartDefinition(BionicAnatomyRole role, Component name, int order,
-	NameMatch match, @Nullable NamespaceFilter fallbackToAll, boolean capturedHead) {
+	NameMatch match, @Nullable NamespaceFilter fallbackToAll, boolean includeChildren, @Nullable ResourceLocation owner) {
 	public static final int MAX_PARTS = 1024;
 	private static final Pattern NAME_SYMBOLS = Pattern.compile("[^a-z0-9]");
 
@@ -56,14 +56,28 @@ public record BionicPartDefinition(BionicAnatomyRole role, Component name, int o
 				NameMatch match = NameMatch.decode(root.has("match") ? root.getAsJsonObject("match") : new JsonObject(), 0);
 				NamespaceFilter fallback = root.has("fallback_to_all")
 					? NamespaceFilter.decode(root.getAsJsonObject("fallback_to_all")) : null;
-				boolean head = root.has("captured_head") && root.get("captured_head").getAsBoolean();
-				result.put(role, new BionicPartDefinition(role, name, order, match, fallback, head));
+				if (root.has("include_children") && (!root.get("include_children").isJsonPrimitive()
+					|| !root.getAsJsonPrimitive("include_children").isBoolean())) throw new IllegalArgumentException("Expected boolean include_children");
+				boolean children = root.has("include_children") && root.get("include_children").getAsBoolean();
+				if (root.has("captured_head")) throw new IllegalArgumentException("Use include_children instead of captured_head");
+				result.put(role, new BionicPartDefinition(role, name, order, match, fallback, children, null));
 			} catch (RuntimeException exception) {
 				throw new IllegalArgumentException("Invalid bionic part " + id, exception);
 			}
 		});
 		if (result.size() > MAX_PARTS) throw new IllegalArgumentException("Too many bionic parts");
 		return Map.copyOf(result);
+	}
+
+	static BionicAnatomyRole localRole(ResourceLocation trait, String key) {
+		if (!key.matches("[a-z0-9_]+")) throw new IllegalArgumentException("Invalid local part key " + key);
+		return new BionicAnatomyRole(ResourceLocation.fromNamespaceAndPath(trait.getNamespace(), "trait/" + trait.getPath() + "/" + key));
+	}
+	static BionicPartDefinition local(ResourceLocation trait, String key, JsonObject json) {
+		BionicAnatomyRole role = localRole(trait, key);
+		BionicPartDefinition decoded = decode(Map.of(BionicTraitResources.transportId("bionic_parts", role.id()), json)).get(role);
+		if (decoded == null) throw new IllegalArgumentException("Local parts cannot be disabled individually; remove their entry");
+		return new BionicPartDefinition(role, decoded.name(), decoded.order(), decoded.match(), decoded.fallbackToAll(), decoded.includeChildren(), trait);
 	}
 
 	public record NamespaceFilter(Set<String> included, Set<String> excluded) {

@@ -73,6 +73,8 @@ public final class BionicHunting {
 	public boolean matches(LivingEntity target) {
 		if (!mob.getBionicTraits().has(BionicTrait.HUNTING_INSTINCT) || target == mob
 			|| target instanceof Player || !target.isAlive() || mob.isAlliedTo(target)) return false;
+		if (BionicGameplayRelations.matches(mob, BionicTrait.HUNTING_INSTINCT, target)) return true;
+		if (BionicGameplayRules.get(mob.level(), BionicTrait.HUNTING_INSTINCT).replaceRelations) return false;
 		for (ResourceLocation donor : mob.getBionicTraits().result(BionicTrait.HUNTING_INSTINCT).sourceTypes())
 			if (donor.getNamespace().equals("minecraft") && matches(donor.getPath(), target)) return true;
 		return false;
@@ -110,6 +112,7 @@ public final class BionicHunting {
 		if (hoglinCooldown > 0) hoglinCooldown--;
 		LivingEntity target = mob.getTarget();
 		if (previousTarget != null && (target != previousTarget || !previousTarget.isAlive())) {
+			BionicGameplayRelations.huntingEnded(mob, previousTarget);
 			if (axolotlHunt) axolotlCooldown = 2400;
 			if (hoglinHunt) hoglinCooldown = 600 + mob.getRandom().nextInt(1801);
 			axolotlHunt = hoglinHunt = false;

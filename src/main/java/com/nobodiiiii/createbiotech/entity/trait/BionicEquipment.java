@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.entity.trait;
 
+import com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent;
 import java.util.*;
 import java.util.function.Predicate;
 import org.jetbrains.annotations.Nullable;
@@ -29,6 +30,7 @@ import net.minecraft.world.ticks.ContainerSingleItem;
 
 /** Equipment and native passenger slots belong to individual retained cubes. */
 public final class BionicEquipment {
+	private final Map<SimpleContainer, ItemStack> chestItems = new IdentityHashMap<>();
 	private static final Comparator<CombinationMember> ORDER = Comparator.comparingInt(CombinationMember::source)
 		.thenComparingInt(CombinationMember::cube);
 	private final SlimeBionicEntity entity;
@@ -115,6 +117,7 @@ public final class BionicEquipment {
 			}
 			@Override public void setChanged() { setTheItem(getTheItem()); }
 			@Override public int getMaxStackSize() { return 1; }
+			@Override public boolean canPlaceItem(int slot, ItemStack stack) { return acceptsMount(member, stack, false); }
 			@Override public boolean stillValid(Player player) {
 				return entity.isAlive() && player.canInteractWithEntity(entity, 4.0) && canSaddle(member);
 			}
@@ -124,6 +127,8 @@ public final class BionicEquipment {
 	public int capacity(@Nullable CombinationMember member) {
 		var source = source(member);
 		if (source == null) return 0;
+		var rule = BionicGameplayRuntime.equipment(entity, BionicTrait.CARGO_CHEST, source.profile().entityTypeId());
+		if (rule != null && rule.capacity() >= 0) return rule.capacity();
 		String type = source.profile().entityTypeId().getPath();
 		return type.equals("llama") || type.equals("trader_llama")
 			? 3 * net.minecraft.util.Mth.clamp(source.profile().stableInt("Strength"), 1, 5) : 15;
@@ -138,7 +143,11 @@ public final class BionicEquipment {
 		};
 	}
 	public int seats() { receive(); return saddles.keySet().stream().mapToInt(this::seats).sum(); }
-	private int seats(CombinationMember member) { return isCamel(member) ? 2 : 1; }
+	private int seats(CombinationMember member) {
+		var source = source(member);
+		var rule = source == null ? null : BionicGameplayRuntime.equipment(entity, BionicTrait.RIDEABLE, source.profile().entityTypeId());
+		return rule == null || rule.seats() < 0 ? isCamel(member) ? 2 : 1 : rule.seats();
+	}
 	private boolean isCamel(@Nullable CombinationMember member) {
 		var source = source(member);
 		return source != null && source.profile().entityTypeId().getPath().equals("camel");
@@ -232,6 +241,13 @@ public final class BionicEquipment {
 		entity.setBionicSitting(false);
 		if (!player.startRiding(entity)) passengers.remove(player.getUUID());
 		sync();
+	}
+	public Vec3 seatAnchor(PassengerSeat assigned, SurgicalAssembly.RidingSeat seat) {
+		var source = source(assigned.carrier());
+		var rule = source == null ? null : BionicGameplayRuntime.equipment(entity, BionicTrait.RIDEABLE, source.profile().entityTypeId());
+		if (rule != null && assigned.slot() >= 0 && assigned.slot() < rule.seatOffsets().size())
+			return seat.first().add(seat.rotation().rotate(rule.seatOffsets().get(assigned.slot())));
+		return assigned.slot() == 1 ? seat.second() : seat.first();
 	}
 	@Nullable public SurgicalAssembly.RidingSeat ridingSeat(CombinationMember carrier) {
 		var assembly = entity.getAssembly();
@@ -477,64 +493,78 @@ public final class BionicEquipment {
 		if (chests.isEmpty()) return InteractionResult.PASS;
 		var member = pick(player, hit);
 		if (!chests.containsKey(member)) return InteractionResult.PASS;
+		var removal = BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.EQUIPMENT, entity,
+			com.nobodiiiii.createbiotech.CreateBiotech.asResource("remove_chest")).interaction(player, hand, player.getItemInHand(hand)));
+		if (removal.isCancelled()) return InteractionResult.FAIL;
 		if (!entity.level().isClientSide) {
 			dropChest(chests.remove(member));
-			sync();
+			sync(); BionicGameplayRuntime.post(removal.after());
 		}
 		return InteractionResult.sidedSuccess(entity.level().isClientSide);
+	}
+	private boolean acceptsMount(CombinationMember member, ItemStack item, boolean chest) {
+		var source = source(member); if (source == null) return false;
+		var rule = BionicGameplayRuntime.equipment(entity, chest ? BionicTrait.CARGO_CHEST : BionicTrait.RIDEABLE, source.profile().entityTypeId());
+		var selector = rule == null ? null : chest ? rule.chestItem() : rule.saddleItem();
+		return selector == null ? item.is(chest ? Items.CHEST : Items.SADDLE) : selector.item(item);
+	}
+	private InteractionResult equipmentAction(Player player, InteractionHand hand, Runnable action) {
+		var event = BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.EQUIPMENT, entity,
+			com.nobodiiiii.createbiotech.CreateBiotech.asResource("equipment")).interaction(player, hand, player.getItemInHand(hand)));
+		if (event.isCancelled()) return InteractionResult.FAIL;
+		if (!entity.level().isClientSide) action.run();
+		var result = InteractionResult.sidedSuccess(entity.level().isClientSide);
+		event.setResult(result); BionicGameplayRuntime.post(event.after());
+		return result;
 	}
 	public InteractionResult interact(Player player, InteractionHand hand, @Nullable Vec3 hit) {
 		if (entity.getBionicOwnerId() != null && !mayUse(player)) return InteractionResult.PASS;
 		receive();
 		ItemStack held = player.getItemInHand(hand);
 		var member = player.isShiftKeyDown() ? pick(player, hit) : null;
-		boolean client = entity.level().isClientSide;
 		if (player.isShiftKeyDown()) {
 			if (held.is(Items.SHEARS) && saddled(member)) {
-				if (!client) {
+				return equipmentAction(player, hand, () -> {
 					for (Entity rider : List.copyOf(entity.getPassengers())) {
 						var seat = passengers.get(rider.getUUID());
 						if (seat != null && seat.carrier().equals(member)) rider.stopRiding();
 					}
 					give(player, saddles.remove(member)); sync();
-				}
+				});
 			} else if (!mayUse(player)) {
 				return InteractionResult.PASS;
 			} else if (accepts(InteractionHand.MAIN_HAND, held)) {
-				if (!client) {
+				return equipmentAction(player, hand, () -> {
 					normalizeWeaponHands();
 					ItemStack previous = entity.getMainHandItem();
 					entity.equipBionicLoot(EquipmentSlot.MAINHAND, held.copyWithCount(1));
 					held.consume(1, player); give(player, previous);
-				}
+				});
 			} else if (held.isEmpty() && hasChest(member)) {
-				openCarrierInventory(player, member);
+				return equipmentAction(player, hand, () -> openCarrierInventory(player, member));
 			} else if (held.isEmpty() && !entity.getMainHandItem().isEmpty()) {
-				if (!client) { give(player, entity.getMainHandItem()); entity.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY); }
+				return equipmentAction(player, hand, () -> { give(player, entity.getMainHandItem()); entity.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY); });
 			} else return InteractionResult.PASS;
-			return InteractionResult.sidedSuccess(client);
 		}
-		if (held.is(Items.CHEST) && mayUse(player)) {
+		if (mayUse(player) && entity.getBionicTraits().members(BionicTrait.CARGO_CHEST).stream().anyMatch(m -> acceptsMount(m, held, true))) {
 			var chest = nearestCarrier(player, hit, entity.getBionicTraits().members(BionicTrait.CARGO_CHEST),
-				candidate -> !chests.containsKey(candidate));
+				candidate -> !chests.containsKey(candidate) && acceptsMount(candidate, held, true));
 			if (chest != null) {
-				if (!client) {
-					chests.put(chest, newCargo(chest)); held.consume(1, player);
+				return equipmentAction(player, hand, () -> {
+					var cargo = newCargo(chest); chests.put(chest, cargo); chestItems.put(cargo, held.copyWithCount(1)); held.consume(1, player);
 					boolean llama = source(chest).profile().entityTypeId().getPath().endsWith("llama");
 					entity.playSound(llama ? net.minecraft.sounds.SoundEvents.LLAMA_CHEST : net.minecraft.sounds.SoundEvents.DONKEY_CHEST,
 						1, (entity.getRandom().nextFloat() - entity.getRandom().nextFloat()) * 0.2f + 1); sync();
-				}
-				return InteractionResult.sidedSuccess(client);
+				});
 			}
 		}
-		if (held.is(Items.SADDLE) && entity.isSaddleable()) {
-			var saddle = nearestSaddle(player, hit, SaddleAction.EQUIP);
-			if (saddle != null) {
-				if (!client) {
+		if (entity.isSaddleable() && entity.getBionicTraits().members(BionicTrait.RIDEABLE).stream().anyMatch(m -> acceptsMount(m, held, false))) {
+			var saddle = nearestCarrier(player, hit, entity.getBionicTraits().members(BionicTrait.RIDEABLE), m -> canSaddle(m) && !saddles.containsKey(m) && acceptsMount(m, held, false));
+			if (saddle != null && acceptsMount(saddle, held, false)) {
+				return equipmentAction(player, hand, () -> {
 					equipSaddle(saddle, held); held.consume(1, player);
 					entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 1, 1);
-				}
-				return InteractionResult.sidedSuccess(client);
+				});
 			}
 		}
 		return InteractionResult.PASS;
@@ -584,6 +614,21 @@ public final class BionicEquipment {
 		if (saddles.isEmpty() && chests.isEmpty() && passengers.isEmpty() && entity.getPassengers().isEmpty())
 			return;
 		boolean changed = false;
+		for (var entry : List.copyOf(chests.entrySet())) {
+			int capacity = capacity(entry.getKey()); var old = entry.getValue();
+			if (old.getContainerSize() == capacity) continue;
+			var resized = newCargo(entry.getKey());
+			for (int i = 0; i < old.getContainerSize(); i++) {
+				var stack = old.removeItemNoUpdate(i);
+				if (i < capacity) resized.setItem(i, stack); else entity.spawnAtLocation(stack);
+			}
+			chestItems.put(resized, chestItems.getOrDefault(old, new ItemStack(Items.CHEST))); chestItems.remove(old);
+			chests.put(entry.getKey(), resized); changed = true;
+		}
+		for (Entity rider : List.copyOf(entity.getPassengers())) {
+			var seat = passengers.get(rider.getUUID());
+			if (seat != null && seat.slot() >= seats(seat.carrier())) { rider.stopRiding(); changed = true; }
+		}
 		for (var member : Set.copyOf(saddles.keySet())) {
 			if (canSaddle(member)) continue;
 			for (Entity rider : List.copyOf(entity.getPassengers())) {
@@ -637,7 +682,8 @@ public final class BionicEquipment {
 		}
 	}
 	private void dropChest(SimpleContainer cargo) {
-		entity.spawnAtLocation(Items.CHEST);
+		entity.spawnAtLocation(chestItems.getOrDefault(cargo, new ItemStack(Items.CHEST)));
+		chestItems.remove(cargo);
 		for (int slot = 0; slot < cargo.getContainerSize(); slot++) entity.spawnAtLocation(cargo.removeItemNoUpdate(slot));
 	}
 	/** Snapshot actual mounted items before native death processing empties the containers. */
@@ -645,7 +691,7 @@ public final class BionicEquipment {
 		List<ItemStack> items = new ArrayList<>();
 		saddles.values().forEach(stack -> items.add(stack.copy()));
 		for (SimpleContainer cargo : chests.values()) {
-			items.add(new ItemStack(Items.CHEST));
+			items.add(chestItems.getOrDefault(cargo, new ItemStack(Items.CHEST)).copy());
 			for (int slot = 0; slot < cargo.getContainerSize(); slot++) {
 				ItemStack stack = cargo.getItem(slot);
 				if (!stack.isEmpty()) items.add(stack.copy());
@@ -659,14 +705,14 @@ public final class BionicEquipment {
 		entity.ejectPassengers();
 		List<ItemStack> removed = new ArrayList<>(saddles.values());
 		for (SimpleContainer cargo : chests.values()) {
-			removed.add(new ItemStack(Items.CHEST));
+			removed.add(chestItems.getOrDefault(cargo, new ItemStack(Items.CHEST)).copy());
 			for (int slot = 0; slot < cargo.getContainerSize(); slot++) {
 				ItemStack stack = cargo.removeItemNoUpdate(slot);
 				if (!stack.isEmpty()) removed.add(stack);
 			}
 		}
 		saddles.clear();
-		chests.clear();
+		chests.clear(); chestItems.clear();
 		passengers.clear();
 		sync();
 		return removed;
@@ -706,7 +752,7 @@ public final class BionicEquipment {
 		if (!entity.level().isClientSide) return;
 		CompoundTag snapshot = entity.getBionicEquipmentData();
 		if (snapshot == lastSnapshot) return;
-		lastSnapshot = snapshot; saddles.clear(); chests.clear();
+		lastSnapshot = snapshot; saddles.clear(); chests.clear(); chestItems.clear();
 		ListTag list = snapshot.getList("Cubes", Tag.TAG_COMPOUND);
 		for (int i = 0; i < list.size(); i++) {
 			CompoundTag entry = list.getCompound(i); var member = member(entry);
@@ -723,7 +769,7 @@ public final class BionicEquipment {
 			if (saddles.containsKey(member)) entry.put("Saddle", saddles.get(member).save(entity.registryAccess()));
 			SimpleContainer cargo = chests.get(member);
 			if (cargo != null) {
-				entry.putBoolean("Chest", true); ListTag items = new ListTag();
+				entry.putBoolean("Chest", true); entry.put("ChestItem", chestItems.getOrDefault(cargo, new ItemStack(Items.CHEST)).save(entity.registryAccess())); entry.putInt("Capacity", cargo.getContainerSize()); ListTag items = new ListTag();
 				for (int slot = 0; slot < cargo.getContainerSize(); slot++) if (!cargo.getItem(slot).isEmpty()) {
 					CompoundTag item = new CompoundTag(); item.putInt("Slot", slot);
 					item.put("Item", cargo.getItem(slot).save(entity.registryAccess())); items.add(item);
@@ -743,13 +789,15 @@ public final class BionicEquipment {
 		}
 	}
 	public void load(CompoundTag root) {
-		CompoundTag tag = root.getCompound("BionicEquipment"); saddles.clear(); chests.clear();
+		CompoundTag tag = root.getCompound("BionicEquipment"); saddles.clear(); chests.clear(); chestItems.clear();
 		ListTag list = tag.getList("Cubes", Tag.TAG_COMPOUND);
 		for (int i = 0; i < list.size(); i++) {
 			CompoundTag entry = list.getCompound(i); var member = member(entry);
 			ItemStack saddle = ItemStack.parseOptional(entity.registryAccess(), entry.getCompound("Saddle"));
 			if (!saddle.isEmpty()) saddles.put(member, saddle.copyWithCount(1));
-			if (entry.getBoolean("Chest")) { SimpleContainer cargo = newCargo(member); loadItems(cargo, entry); chests.put(member, cargo); }
+			if (entry.getBoolean("Chest")) { SimpleContainer cargo = new SimpleContainer(Math.clamp(entry.contains("Capacity") ? entry.getInt("Capacity") : capacity(member), 0, 54)); loadItems(cargo, entry); chests.put(member, cargo);
+				ItemStack chestItem = ItemStack.parseOptional(entity.registryAccess(), entry.getCompound("ChestItem"));
+				chestItems.put(cargo, chestItem.isEmpty() ? new ItemStack(Items.CHEST) : chestItem.copyWithCount(1)); }
 		}
 		loadPassengers(tag); sync();
 	}

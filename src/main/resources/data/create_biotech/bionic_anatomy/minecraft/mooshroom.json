@@ -1,0 +1,13 @@
+{
+  "model_aliases": [
+    {
+      "part": "body",
+      "cubes": [
+        1
+      ],
+      "names": [
+        "udder"
+      ]
+    }
+  ]
+}

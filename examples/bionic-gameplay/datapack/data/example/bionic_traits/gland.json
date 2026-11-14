@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "scopes": [
+    "whole_body"
+  ],
+  "value_kind": "ability",
+  "inheritance": {
+    "type": "presence"
+  },
+  "automatic_detection": false,
+  "values": {
+    "minecraft:cow": true
+  },
+  "carrier": {
+    "roles": [
+      "create_biotech:head",
+      "create_biotech:horn"
+    ]
+  },
+  "display": {
+    "name": {
+      "text": "示例：分泌腺"
+    }
+  },
+  "gameplay": {
+    "anatomy": {
+      "replace_native": true,
+      "group_by": "source",
+      "any_of": [
+        [
+          "create_biotech:head",
+          "create_biotech:horn"
+        ]
+      ]
+    },
+    "production": [
+      {
+        "id": "example:gland_secretion",
+        "loot_table": "example:gland_secretion",
+        "min_interval_ticks": 1200,
+        "max_interval_ticks": 2400,
+        "per_organ": "create_biotech:head"
+      }
+    ],
+    "interactions": [
+      {
+        "id": "example:collect_secretion",
+        "ingredient": "minecraft:glass_bottle",
+        "consume": 1,
+        "tool_damage": 0,
+        "cooldown_ticks": 200,
+        "item": "minecraft:honey_bottle"
+      }
+    ]
+  }
+}

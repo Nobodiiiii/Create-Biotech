@@ -141,6 +141,12 @@ public final class BionicExtensions {
 	public static synchronized void registerDefault(ResourceLocation id, JsonObject json) {
 		if (id.getNamespace().equals("create_biotech") && id.getPath().startsWith("__extension/"))
 			throw new IllegalArgumentException("Reserved bionic trait ID: " + id);
+		putDefault(id, json);
+	}
+	public static synchronized void registerAnatomyDefault(ResourceLocation id, JsonObject json) {
+		putDefault(BionicTraitResources.transportId("bionic_anatomy", id), json);
+	}
+	private static void putDefault(ResourceLocation id, JsonObject json) {
 		if (frozen || DEFAULTS.containsKey(id)) throw new IllegalStateException("Late or duplicate bionic definition: " + id);
 		DEFAULTS.put(id, json.deepCopy());
 	}
@@ -155,7 +161,7 @@ public final class BionicExtensions {
 	static Compiled compile(JsonObject root, boolean strict) {
 		return new Compiled(parse(root.get("behaviors"), BEHAVIORS, strict, () -> new BionicBehavior() {}),
 			parse(root.get("conditions"), CONDITIONS, strict, () -> c -> false),
-			parse(object(root.get("carrier")).get("selectors"), SELECTORS, strict, () -> source -> new BitSet()));
+			parse(object(root.get("carrier")).get("selectors"), SELECTORS, strict, () -> source -> new BitSet()), BionicGameplayRules.compile(root, strict));
 	}
 	private static <T> List<T> parse(JsonElement json, Map<ResourceLocation, BionicTraitApi.Factory<T>> types,
 		boolean strict, java.util.function.Supplier<T> unknown) {
@@ -171,8 +177,8 @@ public final class BionicExtensions {
 		}
 		return List.copyOf(values);
 	}
-	record Compiled(List<BionicBehavior> behaviors, List<BionicCondition> conditions, List<BionicCarrierSelector> selectors) {
-		static final Compiled EMPTY = new Compiled(List.of(), List.of(), List.of());
+	record Compiled(List<BionicBehavior> behaviors, List<BionicCondition> conditions, List<BionicCarrierSelector> selectors, BionicGameplayRules gameplay) {
+		static final Compiled EMPTY = new Compiled(List.of(), List.of(), List.of(), BionicGameplayRules.EMPTY);
 	}
 	static JsonObject object(JsonElement json) { return json == null ? new JsonObject() : json.getAsJsonObject(); }
 	private static ResourceLocation id(String path) { return ResourceLocation.fromNamespaceAndPath("create_biotech", path); }

@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 
@@ -138,22 +137,22 @@ final class BionicTissue {
 		return volumes;
 	}
 
-	/**
-	 * A trait's own JSON carriers when it declares this species and role, else every cube with the
-	 * role. Definitions can additionally include the donor's captured head, regardless of installation.
-	 */
-	BitSet carriers(int sourceId, BionicAnatomyRole role, @Nullable BitSet named) {
-		BitSet cubes = named != null ? (BitSet) named.clone() : roleCubes(sourceId, role);
-		BionicPartDefinition definition = data.parts().get(role);
-		if (definition != null && definition.capturedHead())
-			cubes.or(capturedHead(sources.get(sourceId)));
-		return cubes;
+
+	private final Map<BionicTraitData, List<Map<BionicAnatomyRole, BitSet>>> bindingCache = new java.util.IdentityHashMap<>();
+	BitSet binding(BionicTraitData trait, int sourceId, BionicAnatomyRole role, java.util.function.Supplier<BitSet> compute) {
+		var bySource = bindingCache.computeIfAbsent(trait, ignored -> {
+			List<Map<BionicAnatomyRole, BitSet>> values = new ArrayList<>();
+			for (int source = 0; source < sources.size(); source++) values.add(new HashMap<>());
+			return values;
+		});
+		return (BitSet) bySource.get(sourceId).computeIfAbsent(role, ignored -> compute.get()).clone();
 	}
 
-	static BitSet capturedHead(SurgicalAssembly.Source source) {
-		BitSet head = source.originalHeadCubes();
-		head.or(source.headCubes());
-		return head;
+	BitSet inlinePart(int sourceId, BionicPartDefinition part) {
+		SurgicalAssembly.Source source = sources.get(sourceId);
+		BitSet cubes = source.anatomy().select(part, source.profile().entityTypeId());
+		if (cubes.isEmpty() && part.fallsBackToAll(source.profile().entityTypeId())) cubes.set(0, source.cubeCount());
+		return cubes;
 	}
 
 	/**

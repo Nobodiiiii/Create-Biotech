@@ -42,11 +42,9 @@ public final class SurgicalAssembly {
 	 * padded span can land a few ulps (or one float ulp) below the minimum.
 	 */
 	private static final double MIN_BODY_SIZE_TOLERANCE = 1.0e-4d;
-	private static final int CURRENT_VERSION = 3;
+	private static final int CURRENT_VERSION = 4;
 	private static final String VERSION_TAG = "Version";
 	private static final String PRESENT_CUBES_TAG = "PresentCubes";
-	private static final String HEAD_CUBES_TAG = "HeadCubes";
-	private static final String ORIGINAL_HEAD_CUBES_TAG = "OriginalHeadCubes";
 	private static final String DONOR_ID_TAG = "DonorId";
 	private static final String CUT_SEAMS_TAG = "CutSeams";
 	private static final String CUT_ORDER_TAG = "CutOrder";
@@ -186,8 +184,6 @@ public final class SurgicalAssembly {
 			if (origin != null && (origin.cubeCount != source.cubeCount
 				|| !origin.profile.biologicalKey().equals(source.profile.biologicalKey())
 				|| !origin.seams.equals(source.seams)
-				|| origin.originalHeadKnown != source.originalHeadKnown
-				|| !origin.originalHeadCubes.equals(source.originalHeadCubes)
 				|| !origin.anatomy.equals(source.anatomy)))
 				return null;
 			BitSet seen = donorCubes.computeIfAbsent(source.donorId, ignored -> new BitSet());
@@ -265,8 +261,8 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
 		int version = tag.getInt(VERSION_TAG);
-		// beta.2 used version 1; only that release and the current format are supported.
-		if ((version != 1 && version != CURRENT_VERSION) || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
+		// Model ancestry replaces the independent head metadata in format 4.
+		if (version != CURRENT_VERSION || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
 			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
 			|| !tag.contains(LAYOUT_LAY_POSE_TAG, Tag.TAG_COMPOUND))
 			return null;
@@ -591,11 +587,9 @@ public final class SurgicalAssembly {
 
 	@Nullable
 	public static SurgicalAssembly create(MimicProfile profile, UUID donorId, int cubeCount,
-		BitSet presentCubes, BitSet headCubes, BitSet originalHeadCubes,
-		boolean originalHeadKnown, BionicAnatomySnapshot anatomy,
+		BitSet presentCubes, BionicAnatomySnapshot anatomy,
 		List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder) {
-		Source source = Source.create(profile, donorId, cubeCount, presentCubes, headCubes,
-			originalHeadCubes, originalHeadKnown, anatomy, seams, cutSeams, cutOrder,
+		Source source = Source.create(profile, donorId, cubeCount, presentCubes, anatomy, seams, cutSeams, cutOrder,
 			Direction.NORTH, SurgicalLayPose.IDENTITY, Vec3.ZERO, Map.of(), Map.of());
 		return source == null ? null
 			: new SurgicalAssembly(List.of(source), List.of(), List.of(), List.of(), false,
@@ -697,12 +691,12 @@ public final class SurgicalAssembly {
 				for (var entry : geometry.carrierParts().entrySet())
 					if (entry.getKey().source() == index && source.validCubeId(entry.getKey().cube()))
 						parts.put(entry.getKey().cube(), entry.getValue());
-				BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.ofParts(parts, source.cubeCount());
+				BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.ofParts(parts, source.anatomy().nodes(), source.cubeCount());
 				if (anatomy == null) continue;
 				if (source.anatomy().hasVolumes()) anatomy = anatomy.withVolumes(source.anatomy().volumes());
 				if (anatomy == null) continue;
 				refreshedSources.set(index, new Source(source.profile, source.donorId, source.cubeCount,
-					source.presentCubes, source.headCubes, source.originalHeadCubes, source.originalHeadKnown,
+					source.presentCubes,
 					anatomy, source.seams, source.cutSeams, source.cutOrder, source.facing, source.layPose,
 					source.originOffset, source.cubeOffsets, source.cubeRotations));
 			}
@@ -1022,7 +1016,6 @@ public final class SurgicalAssembly {
 	public boolean containsCube(int cubeId) { return sources.getFirst().containsCube(cubeId); }
 	public boolean isSeamCut(int seamId) { return sources.getFirst().isSeamCut(seamId); }
 	public BitSet presentCubes() { return sources.getFirst().presentCubes(); }
-	public BitSet headCubes() { return sources.getFirst().headCubes(); }
 	public List<Seam> seams() { return sources.getFirst().seams; }
 	public BitSet cutSeams() { return sources.getFirst().cutSeams(); }
 	public List<Integer> cutOrder() { return sources.getFirst().cutOrder; }
@@ -2004,9 +1997,6 @@ public final class SurgicalAssembly {
 		private final UUID donorId;
 		private final int cubeCount;
 		private final BitSet presentCubes;
-		private final BitSet headCubes;
-		private final BitSet originalHeadCubes;
-		private final boolean originalHeadKnown;
 		private final BionicAnatomySnapshot anatomy;
 		private final List<Seam> seams;
 		private final BitSet cutSeams;
@@ -2018,7 +2008,6 @@ public final class SurgicalAssembly {
 		private final Map<Integer, SurgicalCubeRotation> cubeRotations;
 
 		private Source(MimicProfile profile, UUID donorId, int cubeCount, BitSet presentCubes,
-			BitSet headCubes, BitSet originalHeadCubes, boolean originalHeadKnown,
 			BionicAnatomySnapshot anatomy,
 			List<Seam> seams,
 			BitSet cutSeams, List<Integer> cutOrder, Direction facing, SurgicalLayPose layPose,
@@ -2028,10 +2017,6 @@ public final class SurgicalAssembly {
 			this.donorId = donorId;
 			this.cubeCount = cubeCount;
 			this.presentCubes = normalize(presentCubes, cubeCount);
-			this.headCubes = normalize(headCubes, cubeCount);
-			this.headCubes.and(this.presentCubes);
-			this.originalHeadCubes = normalize(originalHeadCubes, cubeCount);
-			this.originalHeadKnown = originalHeadKnown;
 			this.anatomy = anatomy;
 			this.seams = List.copyOf(seams);
 			this.cutSeams = normalize(cutSeams, seams.size());
@@ -2045,29 +2030,19 @@ public final class SurgicalAssembly {
 
 		@Nullable
 		public static Source create(MimicProfile profile, UUID donorId, int cubeCount,
-			BitSet presentCubes, BitSet headCubes, BitSet originalHeadCubes, boolean originalHeadKnown,
+			BitSet presentCubes,
 			BionicAnatomySnapshot anatomy,
 			List<Seam> seams, BitSet cutSeams, List<Integer> cutOrder, Direction facing,
 			SurgicalLayPose layPose, Vec3 originOffset, Map<Integer, Vec3> cubeOffsets,
 			Map<Integer, SurgicalCubeRotation> cubeRotations) {
 			if (profile == null || presentCubes == null || seams == null || cutSeams == null
-				|| donorId == null || headCubes == null || originalHeadCubes == null
+				|| donorId == null
 				|| anatomy == null
 				|| !anatomy.fits(cubeCount)
 				|| cubeOffsets == null || cubeOffsets.size() > cubeCount || cubeRotations == null
 				|| cubeRotations.size() > cubeCount || facing == null || !facing.getAxis().isHorizontal()
 				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
 				return null;
-			BitSet invalidHeads = (BitSet) headCubes.clone();
-			invalidHeads.andNot(presentCubes);
-			if (headCubes.length() > cubeCount || !invalidHeads.isEmpty())
-				return null;
-			if (originalHeadKnown) {
-				BitSet outsideOriginal = (BitSet) headCubes.clone();
-				outsideOriginal.andNot(originalHeadCubes);
-				if (originalHeadCubes.length() > cubeCount || !outsideOriginal.isEmpty())
-					return null;
-			}
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet()) {
 				Integer cube = entry.getKey();
 				if (cube == null || cube < 0 || cube >= cubeCount || !presentCubes.get(cube)
@@ -2083,8 +2058,7 @@ public final class SurgicalAssembly {
 			Map<Integer, Vec3> sanitized = sanitizeOffsets(cubeOffsets, cubeCount, presentCubes);
 			Map<Integer, SurgicalCubeRotation> sanitizedRotations = sanitizeRotations(cubeRotations,
 				cubeCount, presentCubes);
-			Source source = new Source(profile, donorId, cubeCount, presentCubes, headCubes,
-				originalHeadCubes, originalHeadKnown, anatomy, seams, cutSeams, cutOrder, facing,
+			Source source = new Source(profile, donorId, cubeCount, presentCubes, anatomy, seams, cutSeams, cutOrder, facing,
 				layPose,
 				originOffset, sanitized, sanitizedRotations);
 			return source.valid() ? source : null;
@@ -2093,10 +2067,6 @@ public final class SurgicalAssembly {
 		private boolean valid() {
 			if (profile == null || !validTopology(cubeCount, seams) || presentCubes.isEmpty()
 				|| layPose == null || !layPose.valid() || !finiteVector(originOffset))
-				return false;
-			BitSet invalidHeads = (BitSet) headCubes.clone();
-			invalidHeads.andNot(presentCubes);
-			if (!invalidHeads.isEmpty())
 				return false;
 			for (Map.Entry<Integer, Vec3> entry : cubeOffsets.entrySet())
 				if (entry.getKey() == null || !containsCube(entry.getKey()) || !finiteVector(entry.getValue()))
@@ -2108,8 +2078,7 @@ public final class SurgicalAssembly {
 		}
 
 		private Source copy() {
-			return new Source(profile, donorId, cubeCount, presentCubes, headCubes,
-				originalHeadCubes, originalHeadKnown, anatomy, seams, cutSeams, cutOrder, facing, layPose,
+			return new Source(profile, donorId, cubeCount, presentCubes, anatomy, seams, cutSeams, cutOrder, facing, layPose,
 				originOffset, cubeOffsets, cubeRotations);
 		}
 
@@ -2117,9 +2086,6 @@ public final class SurgicalAssembly {
 		public UUID donorId() { return donorId; }
 		public int cubeCount() { return cubeCount; }
 		public BitSet presentCubes() { return (BitSet) presentCubes.clone(); }
-		public BitSet headCubes() { return (BitSet) headCubes.clone(); }
-		public BitSet originalHeadCubes() { return (BitSet) originalHeadCubes.clone(); }
-		public boolean originalHeadKnown() { return originalHeadKnown; }
 		public BionicAnatomySnapshot anatomy() { return anatomy; }
 		public List<Seam> seams() { return seams; }
 		public BitSet cutSeams() { return (BitSet) cutSeams.clone(); }
@@ -2138,11 +2104,9 @@ public final class SurgicalAssembly {
 		private CompoundTag save(SurgicalStorage.Writer storage) {
 			CompoundTag tag = new CompoundTag();
 			SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
-				originalHeadCubes, originalHeadKnown, anatomy);
+				anatomy);
 			tag.putUUID(DONOR_ID_TAG, donorId);
 			tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
-			if (!headCubes.isEmpty())
-				tag.putLongArray(HEAD_CUBES_TAG, headCubes.toLongArray());
 			if (!cutSeams.isEmpty())
 				tag.putLongArray(CUT_SEAMS_TAG, cutSeams.toLongArray());
 			if (!cutOrder.isEmpty())
@@ -2166,9 +2130,7 @@ public final class SurgicalAssembly {
 				|| !tag.contains(FACING_TAG, Tag.TAG_ANY_NUMERIC)
 				|| !tag.contains(LAY_POSE_TAG, Tag.TAG_COMPOUND))
 				return null;
-			if (hasWrongType(tag, HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				|| hasWrongType(tag, ORIGINAL_HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				|| hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
+			if (hasWrongType(tag, CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				|| hasWrongType(tag, CUT_ORDER_TAG, Tag.TAG_INT_ARRAY))
 				return null;
 			MimicProfile profile = donor.profile();
@@ -2177,17 +2139,12 @@ public final class SurgicalAssembly {
 			BitSet present = BitSet.valueOf(tag.getLongArray(PRESENT_CUBES_TAG));
 			BitSet cuts = tag.contains(CUT_SEAMS_TAG, Tag.TAG_LONG_ARRAY)
 				? BitSet.valueOf(tag.getLongArray(CUT_SEAMS_TAG)) : new BitSet();
-			BitSet heads = tag.contains(HEAD_CUBES_TAG, Tag.TAG_LONG_ARRAY)
-				? BitSet.valueOf(tag.getLongArray(HEAD_CUBES_TAG)) : new BitSet();
-			boolean originalHeadKnown = donor.headKnown();
-			BitSet originalHeads = donor.originalHeads();
 			BionicAnatomySnapshot anatomy = donor.anatomy();
 			UUID donorId = tag.hasUUID(DONOR_ID_TAG) ? tag.getUUID(DONOR_ID_TAG) : UUID.randomUUID();
 			List<Integer> order = tag.contains(CUT_ORDER_TAG, Tag.TAG_INT_ARRAY)
 				? decodeCutOrder(tag.getIntArray(CUT_ORDER_TAG)) : cuts.isEmpty() ? List.of() : null;
 			if (order == null || !normalizeCutOrder(order, cuts, seams.size()).equals(order)
-				|| present.isEmpty() || present.length() > cubeCount || cuts.length() > seams.size()
-				|| heads.length() > cubeCount)
+				|| present.isEmpty() || present.length() > cubeCount || cuts.length() > seams.size())
 				return null;
 			Direction facing = Direction.from3DDataValue(tag.getInt(FACING_TAG));
 			SurgicalLayPose layPose = readLayPose(tag.getCompound(LAY_POSE_TAG));
@@ -2206,8 +2163,7 @@ public final class SurgicalAssembly {
 			Map<Integer, SurgicalCubeRotation> rotations = readRotations(tag, cubeCount, present);
 			if (offsets == null || rotations == null)
 				return null;
-			return create(profile, donorId, cubeCount, present, heads, originalHeads, originalHeadKnown,
-				anatomy,
+			return create(profile, donorId, cubeCount, present, anatomy,
 				seams, cuts, order, facing, layPose, origin,
 				offsets, rotations);
 		}

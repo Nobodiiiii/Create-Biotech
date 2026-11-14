@@ -84,6 +84,14 @@ public final class BionicTraitDonors {
 				} catch (RuntimeException exception) {
 					LogUtils.getLogger().debug("Could not probe {} for {}", trait.id(), id, exception);
 				}
+				if (data.automaticDetection() && (trait.equals(BionicTrait.HUNTING_INSTINCT) || trait.equals(BionicTrait.DETERRENCE))) {
+					var gameplay = data.extensions().gameplay();
+					automatic = (!gameplay.replaceRelations && automatic) || !gameplay.relationTargets(id).isEmpty();
+				}
+				if (data.automaticDetection() && donor != null && data.extensions().gameplay().detector != null) {
+					Double fact = data.extensions().gameplay().probe(donor);
+					if (fact != null && Double.isFinite(fact)) automatic = fact != 0;
+				}
 				if (data.abilities().resolve(type, id, automatic))
 					abilities.add(trait);
 			} else if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
@@ -96,6 +104,10 @@ public final class BionicTraitDonors {
 					default -> null;
 					};
 					automatic = attribute == null ? 0.0d : attribute.getBaseValue();
+				}
+				if (data.automaticDetection() && donor != null && data.extensions().gameplay().detector != null) {
+					Double fact = data.extensions().gameplay().probe(donor);
+					if (fact != null && Double.isFinite(fact)) automatic = fact;
 				}
 				double value = data.numbers().resolve(type, id, automatic);
 				value = Double.isFinite(value) ? (trait.isStatOffset() ? value : Math.max(0.0d, value)) : 0.0d;
@@ -151,9 +163,9 @@ public final class BionicTraitDonors {
 		if (donor != null && donor.isBaby())
 			abilities.removeAll(Set.of(BionicTrait.MILKABLE, BionicTrait.WOOL_SHEARING,
 				BionicTrait.EGG_LAYING, BionicTrait.SCUTE_SHEDDING));
-		return new Facts(abilities, numbers, effectSets, attackSets, BionicDeterrence.targets(type).stream()
-			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet()),
-			abilities.contains(BionicTrait.PACK_ALERT) ? BionicPackAlert.targets(donor) : Set.of(), variants);
+		return new Facts(abilities, numbers, effectSets, attackSets, BionicGameplayRelations.targets(snapshot.get(BionicTrait.DETERRENCE).extensions().gameplay(), id, BionicDeterrence.targets(type).stream()
+			.map(BuiltInRegistries.ENTITY_TYPE::getKey).collect(java.util.stream.Collectors.toUnmodifiableSet())),
+			abilities.contains(BionicTrait.PACK_ALERT) ? BionicGameplayRelations.targets(snapshot.get(BionicTrait.PACK_ALERT).extensions().gameplay(), id, BionicPackAlert.targets(donor)) : Set.of(), variants);
 	}
 
 	@SuppressWarnings("deprecation")

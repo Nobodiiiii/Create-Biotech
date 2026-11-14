@@ -35,8 +35,7 @@ public final class BionicRiding {
 		if (assigned == null) return null;
 		var seat = equipment.ridingSeat(assigned.carrier());
 		if (seat == null) return null;
-		boolean rear = assigned.slot() == 1;
-		Vec3 anchor = rear ? seat.second() : seat.first();
+		Vec3 anchor = equipment.seatAnchor(assigned, seat);
 		if (mount.isBlockAttached()) {
 			var attachment = mount.blockAttachmentRotation();
 			return new RiderPose(mount.getPosition(partialTick).add(attachment.rotate(anchor)), seat.rotation().then(attachment));

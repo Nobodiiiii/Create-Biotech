@@ -150,9 +150,6 @@ public final class MimicDebugReport {
 			entry.addProperty("entity_type", source.profile().entityTypeId().toString());
 			entry.addProperty("original_cube_count", source.cubeCount());
 			entry.add("present_cube_ids", GSON.toJsonTree(source.presentCubes().stream().toArray()));
-			entry.add("head_cube_ids", GSON.toJsonTree(source.headCubes().stream().toArray()));
-			entry.add("original_head_cube_ids", GSON.toJsonTree(source.originalHeadCubes().stream().toArray()));
-			entry.addProperty("original_head_known", source.originalHeadKnown());
 			sources.add(entry);
 		}
 		summary.add("sources", sources);

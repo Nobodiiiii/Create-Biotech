@@ -39,9 +39,10 @@
 
 ## 共享存储与旧存档
 
-`SurgicalAssembly.Version=3` 将相同的供体模型数据集中到
+`SurgicalAssembly.Version=4` 将相同的供体模型数据集中到
 `SharedSurgicalData.DonorTemplates`。`Sources[i].DonorTemplate` 是该列表的零基索引，
-对应的模板保存 `MimicProfile`、`CubeCount`、`Seams`、`OriginalHeadCubes` 和 `Anatomy`。
+对应的模板保存 `MimicProfile`、`CubeCount`、`Seams` 和 `Anatomy`。
+`Anatomy` 内的名称、模型节点及父关系使用字典，体块通过索引引用；头部与其他部位统一按数据规则识别，不再单独保存头部快照。
 供体 UUID、保留部件、切割、偏移和旋转仍由每个 source 独立保存；不同供体可以共用模板，
 特性覆盖率仍按原有供体身份计算。字典只在当前装配体内部共享，因此实体、纸箱和刷怪蛋可独立携带完整数据。
 
@@ -49,16 +50,15 @@
 `X/Y/Z`，共 24 个 long。每个 long 是 `Double.doubleToRawLongBits` 的结果，读取时用
 `Double.longBitsToDouble` 还原，不能将其直接解释为整数坐标；坐标精度、顺序和负零均保留。
 
-手术台 `SurgicalFormatVersion=2` 使用同样的模板字典，并将胶合连接、组合和肢体关节分别集中到
+手术台 `SurgicalFormatVersion=3` 使用同样的模板字典，并将胶合连接、组合和肢体关节分别集中到
 `SharedSurgicalData.GlueJoints/Combinations/LimbJoints`，每个对象通过
 `GlueRefs/CombinationRefs/LimbRefs` 的 int 数组引用。每个定义只解码一次，共用不可变运行时对象。
 客户端同步在结构去重之后，仍对 NBT 内存计量达到 256 KiB 的整个快照自动使用 GZIP，
 字典与对象列表一起压缩；小快照直接发送。
 
-继续兼容装配体版本 1/2、手术台版本 1 及原有 GZIP 快照。旧数据在正常读取后再次保存时转为新格式，
-已有物品内尚未读取的原始实体 NBT 不做离线批量改写。客户端和服务端需同步更新，网络协议版本为 35。
+本次不兼容旧装配体、手术台及解剖 NBT 格式；客户端和服务端需同步更新，网络协议版本为 45。
 
-2026-11-12 使用当前存档中 `(-260,-60,-456)` 手术台的 186 个对象，以及 UTC `04:07:37.506`
+以下是 2026-11-12 共享存储优化时的历史测量，不代表当前格式。使用当时存档中 `(-260,-60,-456)` 手术台的 186 个对象，以及 UTC `04:07:37.506`
 诊断报告中的 171 个 source 做纯内存读写验证，未修改世界文件。手术台保留 11 个模板、172 条唯一胶合连接
 和 1 个组合；报告中的装配体保留 2 个模板。该报告早于本次优化，仅用作真实数据样本。
 

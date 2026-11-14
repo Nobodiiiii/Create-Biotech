@@ -52,8 +52,15 @@ public final class BionicTraitRegistry {
 	public static List<BionicTrait> clientTraits() { return client.definitions(); }
 	public static BionicTrait clientTrait(ResourceLocation id) { return client.find(id); }
 	public static BionicPartDefinition clientPart(BionicAnatomyRole role) { return client.parts().get(role); }
-	public static boolean clientCapturedHead(ResourceLocation entity, String label) {
-		return client.parts().values().stream().anyMatch(part -> part.capturedHead() && part.matches(entity, label));
+	/** Immutable rules published with the same client catalog as traits and donor names. */
+	public static List<BionicModelAlias> clientModelAliases(ResourceLocation entity) {
+		return client.modelAliases.getOrDefault(entity, List.of());
+	}
+	public static boolean clientMatchesPart(BionicAnatomyRole role, ResourceLocation entity,
+		Set<String> names, Set<BionicModelNode> nodes) {
+		BionicPartDefinition part = client.parts().get(role);
+		return part != null && (names.stream().anyMatch(name -> part.matches(entity, name))
+			|| nodes.stream().anyMatch(node -> node.matches(part, entity)));
 	}
 	public static net.minecraft.network.chat.Component clientPartName(BionicAnatomyRole role) {
 		BionicPartDefinition part = clientPart(role);
@@ -82,6 +89,7 @@ public final class BionicTraitRegistry {
 		private final Map<ResourceLocation, JsonElement> resources;
 		private final Map<BionicAnatomyRole, BionicPartDefinition> parts;
 		private final Map<ResourceLocation, List<BionicAnatomyRegistry.Template>> templates;
+		private final Map<ResourceLocation, List<BionicModelAlias>> modelAliases;
 		private final Map<ResourceLocation, BionicTrait> byId;
 		private final List<BionicTrait> definitions;
 		Snapshot(long generation, Map<BionicTrait, BionicTraitData> traits,
@@ -93,6 +101,10 @@ public final class BionicTraitRegistry {
 			this.resources = Map.copyOf(resources);
 			this.parts = Map.copyOf(parts);
 			this.templates = Map.copyOf(templates);
+			Map<ResourceLocation, List<BionicModelAlias>> aliases = new LinkedHashMap<>();
+			templates.forEach((entity, entries) -> aliases.put(entity,
+				entries.stream().flatMap(template -> template.modelAliases().stream()).toList()));
+			this.modelAliases = Map.copyOf(aliases);
 			this.definitions = traits.keySet().stream().sorted().toList();
 			Map<ResourceLocation, BionicTrait> index = new LinkedHashMap<>();
 			definitions.forEach(trait -> index.put(trait.id(), trait));

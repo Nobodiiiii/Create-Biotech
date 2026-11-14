@@ -2,124 +2,64 @@
   "automatic_detection": false,
   "carriers": {
     "minecraft:wolf": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:bee": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:dolphin": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:blaze": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:endermite": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:silverfish": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:zombie": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:husk": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:zombie_villager": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:drowned": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:zombified_piglin": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:shulker": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:evoker": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:illusioner": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:pillager": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:ravager": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:vex": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:vindicator": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:piglin": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     },
     "minecraft:hoglin": {
-      "create_biotech:head": [
-        "head",
-        "head_cube"
-      ]
+      "create_biotech:head": {"names": ["head", "head_cube"], "include_children": true}
     }
   },
   "values": {

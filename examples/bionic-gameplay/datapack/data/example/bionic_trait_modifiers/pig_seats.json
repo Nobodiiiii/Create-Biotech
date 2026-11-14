@@ -1,0 +1,28 @@
+{
+  "trait": "create_biotech:rideable",
+  "patch": {
+    "gameplay": {
+      "equipment": [
+        {
+          "donors": [
+            "minecraft:pig"
+          ],
+          "saddle_item": "minecraft:leather",
+          "seats": 2,
+          "seat_offsets": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0,
+              -0.8
+            ]
+          ]
+        }
+      ]
+    }
+  }
+}

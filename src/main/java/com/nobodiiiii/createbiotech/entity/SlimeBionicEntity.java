@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.entity;
 
+import com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRuntime;
+import com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent;
 import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 
@@ -563,6 +565,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		getBionicTraits();
 		refreshDimensions();
 		updateHitParts();
+		BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.ASSEMBLY, this,
+			com.nobodiiiii.createbiotech.CreateBiotech.asResource("assembly")).after());
 	}
 
 	private void refreshBaseStats(SurgicalAssembly assembly) {
@@ -728,27 +732,45 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
+		var event = BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.INTERACT, this,
+			com.nobodiiiii.createbiotech.CreateBiotech.asResource("interact")).interaction(player, hand, player.getItemInHand(hand)));
+		if (event.isCancelled()) return InteractionResult.CONSUME;
+		InteractionResult result = event.getResult() == InteractionResult.PASS ? biotechInteract(player, hand) : event.getResult();
+		// Player.interactOn falls back to the held item's handler even for FAIL.
+		// A cancelled transaction must consume the click to prevent fallback saddle/shears actions.
+		if (result == InteractionResult.FAIL) return InteractionResult.CONSUME;
+		if (result.consumesAction()) { event.setResult(result); BionicGameplayRuntime.post(event.after()); }
+		return result;
+	}
+	private InteractionResult biotechInteract(Player player, InteractionHand hand) {
+		InteractionResult customResult = BionicGameplayRuntime.interact(this, player, hand);
+		if (customResult != InteractionResult.PASS) return customResult;
 		InteractionResult chestRemovalResult = equipment.removeChest(player, hand, interactionHit);
-		if (chestRemovalResult.consumesAction()) return chestRemovalResult;
+		if (chestRemovalResult != InteractionResult.PASS) return chestRemovalResult;
 		if (player.isSecondaryUseActive() && equipment.openInventory(player, interactionHit))
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		ItemStack held = player.getItemInHand(hand);
 		InteractionResult productionResult = production.interact(player, hand);
-		if (productionResult.consumesAction()) return productionResult;
+		if (productionResult != InteractionResult.PASS) return productionResult;
 		InteractionResult equipmentResult = equipment.interact(player, hand, interactionHit);
-		if (equipmentResult.consumesAction()) return equipmentResult;
+		if (equipmentResult != InteractionResult.PASS) return equipmentResult;
+		InteractionResult shearingResult = production.interactShears(player, hand);
+		if (shearingResult != InteractionResult.PASS) return shearingResult;
 		BionicTraitSet traits = getBionicTraits();
-		if (ownerId == null && held.is(Items.SLIME_BALL) && traits.isTameable()) {
+		if (ownerId == null && BionicGameplayRuntime.tamingItem(this, held) && traits.isTameable()) {
 			if (!level().isClientSide) {
-				if (!player.getAbilities().instabuild)
-					held.shrink(1);
-				boolean tamed = random.nextDouble() < traits.tamingChance();
+				var tameEvent = BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.TAME, this,
+					com.nobodiiiii.createbiotech.CreateBiotech.asResource("tame")).interaction(player, hand, held).amount(BionicGameplayRuntime.tamingChance(this, held)));
+				if (tameEvent.isCancelled()) return InteractionResult.FAIL;
+				if (!player.getAbilities().instabuild) held.shrink(1);
+				boolean tamed = random.nextDouble() < Math.min(1, tameEvent.getAmount());
 				if (tamed) {
 					setBionicOwner(player.getUUID());
 					setOrderedToSit(false);
 					setTarget(null);
 				}
 				level().broadcastEntityEvent(this, (byte) (tamed ? 7 : 6));
+				tameEvent.setAmount(tamed ? 1 : 0); BionicGameplayRuntime.post(tameEvent.after());
 			}
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		}

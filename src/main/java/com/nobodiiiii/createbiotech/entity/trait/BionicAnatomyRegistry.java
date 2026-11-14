@@ -29,7 +29,7 @@ public final class BionicAnatomyRegistry {
 
 	/**
 	 * Every original role known for this source: a matching template, the model parts' ordinary
-	 * anatomical names, parts named by trait carriers, and the captured head. Installation scopes
+	 * anatomical names, parts named by global trait carriers. Installation scopes
 	 * and coverage denominators are determined separately, without consulting these labels.
 	 */
 	public static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source) {
@@ -43,29 +43,14 @@ public final class BionicAnatomyRegistry {
 		if (configured != null)
 			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
 		ResourceLocation entity = source.profile().entityTypeId();
-		inferNamedRoles(entity, source.anatomy().parts(), roles, data.parts());
-		BionicTraitCarriers.rolesFor(data, source.profile().entityTypeId(),
-			source.anatomy().parts(), source.cubeCount())
-			.forEach((role, cubes) -> merge(roles, role, cubes));
-		data.parts().values().stream().filter(BionicPartDefinition::capturedHead)
-			.forEach(part -> merge(roles, part.role(), BionicTissue.capturedHead(source)));
+		data.parts().values().stream().filter(part -> part.owner() == null)
+			.forEach(part -> merge(roles, part.role(), source.anatomy().select(part, entity)));
+		BionicTraitCarriers.rolesFor(data, entity, source.anatomy().parts(), source.cubeCount())
+			.forEach((role, cubes) -> { if (data.parts().get(role).owner() == null) merge(roles, role, cubes); });
 		for (BionicPartDefinition part : data.parts().values())
-			if (roles.getOrDefault(part.role(), new BitSet()).isEmpty() && part.fallsBackToAll(entity))
+			if (part.owner() == null && roles.getOrDefault(part.role(), new BitSet()).isEmpty() && part.fallsBackToAll(entity))
 				roles.computeIfAbsent(part.role(), ignored -> new BitSet()).set(0, source.cubeCount());
 		return roles;
-	}
-
-	/**
-	 * Infer only names whose anatomical meaning is stable across ordinary entity models. Ambiguous
-	 * names such as {@code body} remain the responsibility of entity-specific carrier data or an
-	 * anatomy template.
-	 */
-	private static void inferNamedRoles(ResourceLocation entity, Map<Integer, java.util.Set<String>> parts,
-		Map<BionicAnatomyRole, BitSet> roles, Map<BionicAnatomyRole, BionicPartDefinition> definitions) {
-		parts.forEach((cube, names) -> names.forEach(label -> {
-			for (BionicPartDefinition part : definitions.values())
-				if (part.matches(entity, label)) set(roles, part.role(), cube);
-		}));
 	}
 
 	private static void set(Map<BionicAnatomyRole, BitSet> roles,
@@ -85,6 +70,8 @@ public final class BionicAnatomyRegistry {
 		resources.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
 			ResourceLocation id = BionicTraitResources.resourceId("bionic_anatomy", entry.getKey());
 			if (id == null) return;
+			if (entry.getValue().getAsJsonObject().has("disabled")
+				&& entry.getValue().getAsJsonObject().get("disabled").getAsBoolean()) return;
 			String path = id.getPath();
 			int slash = path.indexOf('/');
 			if (slash <= 0 || slash == path.length() - 1) {
@@ -120,6 +107,11 @@ public final class BionicAnatomyRegistry {
 			if (!element.isJsonObject())
 				return null;
 			JsonObject json = element.getAsJsonObject();
+			List<BionicModelAlias> aliases = BionicModelAlias.decode(json.get("model_aliases"));
+			if (!json.has("cube_count")) {
+				if (!json.has("model_aliases") || json.has("roles") || json.has("seams")) return null;
+				return new Template(0, Map.of(), null, null, aliases);
+			}
 			int count = json.get("cube_count").getAsInt();
 			if (count <= 0 || count > SurgicalAssembly.MAX_CUBES)
 				return null;
@@ -129,7 +121,7 @@ public final class BionicAnatomyRegistry {
 			Map<BionicAnatomyRole, BitSet> roles = new HashMap<>();
 			for (Map.Entry<String, JsonElement> entry : rolesJson.entrySet()) {
 				BionicAnatomyRole role = BionicAnatomyRole.parse(entry.getKey());
-				if (!parts.containsKey(role)) throw new IllegalArgumentException("Undefined bionic part " + role);
+				if (!parts.containsKey(role) || parts.get(role).owner() != null) throw new IllegalArgumentException("Undefined bionic part " + role);
 				JsonArray ids = entry.getValue().getAsJsonArray();
 				BitSet cubes = new BitSet(count);
 				for (JsonElement id : ids) {
@@ -159,7 +151,7 @@ public final class BionicAnatomyRegistry {
 			if (seams == null)
 				return null;
 			Boolean baby = json.has("baby") ? json.get("baby").getAsBoolean() : null;
-			return new Template(count, roles, seams, baby);
+			return new Template(count, roles, seams, baby, aliases);
 		} catch (RuntimeException exception) {
 			return null;
 		}
@@ -170,16 +162,20 @@ public final class BionicAnatomyRegistry {
 		private final Map<BionicAnatomyRole, BitSet> roles;
 		@Nullable private final List<SurgicalAssembly.Seam> seams;
 		@Nullable private final Boolean baby;
+		private final List<BionicModelAlias> modelAliases;
 
 		private Template(int cubeCount, Map<BionicAnatomyRole, BitSet> roles,
-			@Nullable List<SurgicalAssembly.Seam> seams, @Nullable Boolean baby) {
+			@Nullable List<SurgicalAssembly.Seam> seams, @Nullable Boolean baby, List<BionicModelAlias> modelAliases) {
 			this.cubeCount = cubeCount;
 			Map<BionicAnatomyRole, BitSet> copy = new HashMap<>();
 			roles.forEach((role, cubes) -> copy.put(role, (BitSet) cubes.clone()));
 			this.roles = Map.copyOf(copy);
 			this.seams = seams == null ? null : List.copyOf(seams);
 			this.baby = baby;
+			this.modelAliases = List.copyOf(modelAliases);
 		}
+
+		List<BionicModelAlias> modelAliases() { return modelAliases; }
 
 		private boolean matches(SurgicalAssembly.Source source) {
 			return source.cubeCount() == cubeCount
