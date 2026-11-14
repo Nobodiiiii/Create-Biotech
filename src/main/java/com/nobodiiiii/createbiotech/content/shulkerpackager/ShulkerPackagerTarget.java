@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
+import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPointType;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -32,6 +33,8 @@ public final class ShulkerPackagerTarget extends ArmInteractionPoint {
 	private final boolean absoluteTarget;
 	@Nullable
 	private final UUID targetSubLevelId;
+	@Nullable
+	private ArmInteractionPoint armPoint;
 
 	private ShulkerPackagerTarget(Level level, BlockPos pos, boolean absoluteTarget,
 		@Nullable UUID targetSubLevelId) {
@@ -99,7 +102,31 @@ public final class ShulkerPackagerTarget extends ArmInteractionPoint {
 	public boolean isValid() {
 		return level != null && level.isLoaded(pos)
 			&& SubLevelCompat.matchesSpace(level, pos, targetSubLevelId)
-			&& ShulkerPackagerArmInteractions.isSelectable(level.getBlockState(pos));
+			&& ShulkerPackagerArmInteractions.isSelectable(level, pos, level.getBlockState(pos));
+	}
+
+	/** Resolve the live output type without changing the persisted logical-space address. */
+	@Nullable
+	public ArmInteractionPoint getArmPoint() {
+		if (!isValid()) {
+			armPoint = null;
+			return null;
+		}
+		ArmInteractionPointType outputType = ArmInteractionPointType.getPrimaryType(level, pos, level.getBlockState(pos));
+		if (outputType == null) {
+			armPoint = null;
+			return null;
+		}
+		if (armPoint == null || armPoint.getType() != outputType)
+			armPoint = outputType.createPoint(level, pos, level.getBlockState(pos));
+		return armPoint != null && armPoint.isValid() ? armPoint : null;
+	}
+
+	@Override
+	public void setLevel(Level level) {
+		if (this.level != level)
+			armPoint = null;
+		super.setLevel(level);
 	}
 
 	@Override

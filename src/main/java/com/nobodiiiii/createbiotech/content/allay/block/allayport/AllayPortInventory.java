@@ -27,6 +27,11 @@ final class AllayPortInventory {
 			public boolean isItemValid(int slot, @NotNull ItemStack stack) {
 				return isEmptyCarrier(stack);
 			}
+
+			@Override
+			protected void onContentsChanged(int slot) {
+				port.markPortContentsChanged();
+			}
 		};
 
 		this.combinedHandler = new IItemHandler() {

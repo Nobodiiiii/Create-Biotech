@@ -958,7 +958,7 @@
   "create_biotech.ponder.shulker_packager.header": "潜影打包机",
   "create_biotech.ponder.shulker_packager.text_1": "潜影打包机和普通打包机的工作方式类似",
   "create_biotech.ponder.shulker_packager.text_2": "不同的是，它会在短距离内自动传送其中的包裹",
-  "create_biotech.ponder.shulker_packager.text_3": "放置潜影打包机前，右键另一个潜影打包机（或普通打包机）以选择输出目标",
+  "create_biotech.ponder.shulker_packager.text_3": "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标",
   "create_biotech.ponder.shulker_packager.text_4": "收到请求后，潜影打包机会将包裹传送到选定的目标",
   "create_biotech.ponder.shulker_packager.text_5": "潜影打包机适用于短距离传输，长距离传输可以使用悦灵驿站、货物蛙港、火车与邮箱等",
   "create_biotech.ponder.shulker_packager.text_6": "查看它们的思索界面以了解它们的行为",

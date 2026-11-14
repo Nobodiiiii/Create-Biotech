@@ -958,7 +958,7 @@
   "create_biotech.ponder.shulker_packager.header": "Shulker Packager",
   "create_biotech.ponder.shulker_packager.text_1": "Shulker Packagers work much like regular Packagers.",
   "create_biotech.ponder.shulker_packager.text_2": "The difference is that they automatically teleport their packages over short distances.",
-  "create_biotech.ponder.shulker_packager.text_3": "Before placing a Shulker Packager, right-click another Shulker Packager (or regular Packager) to select an output target.",
+  "create_biotech.ponder.shulker_packager.text_3": "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target.",
   "create_biotech.ponder.shulker_packager.text_4": "After receiving a request, the Shulker Packager teleports the package to its selected target.",
   "create_biotech.ponder.shulker_packager.text_5": "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options.",
   "create_biotech.ponder.shulker_packager.text_6": "Check their Ponder screens to learn how they behave.",

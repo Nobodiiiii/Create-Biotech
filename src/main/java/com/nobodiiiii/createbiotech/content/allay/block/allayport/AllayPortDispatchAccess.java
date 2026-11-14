@@ -7,6 +7,7 @@ import com.nobodiiiii.createbiotech.content.allay.logistics.courier.AllayCourier
 import com.nobodiiiii.createbiotech.content.allay.logistics.courier.AllayCourierTask;
 import com.nobodiiiii.createbiotech.content.allay.logistics.courier.AllayCourierTaskManager;
 import com.nobodiiiii.createbiotech.content.allay.logistics.courier.AllayCourierTarget;
+import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -24,8 +25,13 @@ final class AllayPortDispatchAccess {
 		this.inventory = inventory;
 	}
 
-	@Nullable IItemHandler getItemHandler(@Nullable net.minecraft.core.Direction side) {
-		return inventory.combinedHandler();
+	@Nullable IItemHandler getItemHandler(@Nullable Direction side) {
+		if (side == null) {
+			return inventory.combinedHandler();
+		}
+		return side.getAxis() == Direction.Axis.Y
+			? port.getAutomationItemHandler()
+			: inventory.carrierInventory();
 	}
 
 	boolean tryDispatch() {

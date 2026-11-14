@@ -26,7 +26,7 @@ public class ShulkerPackagerItem extends BlockItem {
 	public InteractionResult useOn(UseOnContext ctx) {
 		Level world = ctx.getLevel();
 		BlockPos pos = ctx.getClickedPos();
-		if (ShulkerPackagerArmInteractions.isSelectable(world.getBlockState(pos)))
+		if (ShulkerPackagerArmInteractions.isSelectable(world, pos, world.getBlockState(pos)))
 			return InteractionResult.SUCCESS;
 		return super.useOn(ctx);
 	}
@@ -59,6 +59,6 @@ public class ShulkerPackagerItem extends BlockItem {
 
 	@Override
 	public boolean canAttackBlock(BlockState state, Level world, BlockPos pos, Player player) {
-		return !ShulkerPackagerArmInteractions.isSelectable(state);
+		return !ShulkerPackagerArmInteractions.isSelectable(world, pos, state);
 	}
 }

@@ -37,6 +37,8 @@ MODRINTH_PROJECT_ID = "UW0IjVT0"
 CURSEFORGE_UPLOAD_API = "https://minecraft.curseforge.com/api"
 CURSEFORGE_PROJECT_ID = 1553210
 
+REQUEST_TIMEOUT = (15, 180)  # 连接超时、读取超时（秒）
+
 # CurseForge 固定版本 ID（1.20.1 / 1.21.1）
 CF_MC_VERSION_IDS = {
     "1.20.1": 9990,
@@ -289,6 +291,60 @@ def run_build(task: str):
     return result.returncode == 0
 
 
+def _api_failure(operation: str, response, reason: str):
+    """保留排错信息，避免 HTML 错误页刷屏。"""
+    content_type = response.headers.get("Content-Type", "未提供")
+    preview = " ".join(response.text.split())
+    if len(preview) > 300:
+        preview = preview[:300] + "...（已截断）"
+    print(f"  {operation}失败 [HTTP {response.status_code}, {content_type}]: {reason}")
+    print(f"  响应摘要: {preview or '(空响应)'}")
+
+
+def _request_json(method: str, url: str, operation: str, expected_type,
+                  success_codes=(200,), **kwargs):
+    """仅接受预期状态码和 JSON 结构，不将重定向后的网页视为成功。"""
+    headers = {"Accept": "application/json", **kwargs.pop("headers", {})}
+    try:
+        response = requests.request(
+            method, url, headers=headers, timeout=REQUEST_TIMEOUT,
+            allow_redirects=False, **kwargs,
+        )
+    except requests.RequestException as exc:
+        print(f"  {operation}失败（未确认成功）: {type(exc).__name__}: {exc}")
+        return None
+
+    # Cloudflare 明确标记的验证页不属于 API 的鉴权或业务响应。
+    if response.headers.get("cf-mitigated", "").strip().lower() == "challenge":
+        print(f"  {operation}失败 [HTTP {response.status_code}]: 请求被 Cloudflare 验证页拦截，未取得 API 响应")
+        print(f"  请求地址: {url}")
+        ray_id = response.headers.get("CF-Ray")
+        if ray_id:
+            print(f"  CF-Ray: {ray_id}")
+        print("  请向平台支持反馈 API 访问拦截并附上以上信息；本次未确认上传成功。")
+        return None
+
+    if response.status_code not in success_codes:
+        _api_failure(operation, response, "未返回预期的成功状态码")
+        return None
+
+    content_type = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+    if content_type in ("text/html", "application/xhtml+xml"):
+        _api_failure(operation, response, "返回了 HTML 页面，预期为 JSON")
+        return None
+
+    try:
+        result = response.json()
+    except ValueError:
+        _api_failure(operation, response, "响应不是有效 JSON")
+        return None
+
+    if not isinstance(result, expected_type):
+        _api_failure(operation, response, "JSON 结构不符合预期")
+        return None
+    return result
+
+
 # ── Modrinth 上传 ──────────────────────────────────────────────────────────
 
 def upload_modrinth(
@@ -318,21 +374,23 @@ def upload_modrinth(
         "dependencies": MODRINTH_DEPENDENCIES,
     }
 
-    resp = requests.post(
-        f"{MODRINTH_API}/version",
-        headers={"Authorization": token},
-        data={"data": json.dumps(data)},
-        files={"file": (jar_path.name, open(jar_path, "rb"), "application/java-archive")},
-    )
+    with jar_path.open("rb") as jar_file:
+        result = _request_json(
+            "POST", f"{MODRINTH_API}/version", "Modrinth 上传", dict,
+            success_codes=(200, 201),
+            headers={"Authorization": token},
+            data={"data": json.dumps(data)},
+            files={"file": (jar_path.name, jar_file, "application/java-archive")},
+        )
 
-    if resp.status_code in (200, 201):
-        result = resp.json()
-        version_id = result.get("id", "")
-        print(f"  Modrinth 上传成功 (version ID: {version_id})")
-        return True
-    else:
-        print(f"  Modrinth 上传失败 [{resp.status_code}]: {resp.text}")
+    if result is None:
         return False
+    version_id = result.get("id")
+    if not isinstance(version_id, str) or not version_id.strip():
+        print("  Modrinth 上传失败: 响应缺少有效 version ID，未确认上传成功")
+        return False
+    print(f"  Modrinth 上传成功 (version ID: {version_id})")
+    return True
 
 
 # ── CurseForge 上传 ─────────────────────────────────────────────────────────
@@ -346,15 +404,15 @@ def get_curseforge_version_types(token: str):
     if _cf_version_types_cache is not None:
         return _cf_version_types_cache
 
-    resp = requests.get(
-        f"{CURSEFORGE_UPLOAD_API}/game/version-types",
+    result = _request_json(
+        "GET", f"{CURSEFORGE_UPLOAD_API}/game/version-types",
+        "CurseForge 获取版本类型列表", list,
         headers={"X-Api-Token": token},
     )
-    if resp.status_code != 200:
-        print(f"  CurseForge 获取版本类型列表失败 [{resp.status_code}]: {resp.text}")
+    if result is None:
         return []
 
-    _cf_version_types_cache = resp.json()
+    _cf_version_types_cache = result
     return _cf_version_types_cache
 
 
@@ -364,15 +422,15 @@ def get_curseforge_game_versions(token: str):
     if _cf_version_cache is not None:
         return _cf_version_cache
 
-    resp = requests.get(
-        f"{CURSEFORGE_UPLOAD_API}/game/versions",
+    result = _request_json(
+        "GET", f"{CURSEFORGE_UPLOAD_API}/game/versions",
+        "CurseForge 获取版本列表", list,
         headers={"X-Api-Token": token},
     )
-    if resp.status_code != 200:
-        print(f"  CurseForge 获取版本列表失败 [{resp.status_code}]: {resp.text}")
+    if result is None:
         return []
 
-    _cf_version_cache = resp.json()
+    _cf_version_cache = result
     return _cf_version_cache
 
 
@@ -453,21 +511,23 @@ def upload_curseforge(
     }
     print(f"  CurseForge gameVersions: {game_version_ids}")
 
-    resp = requests.post(
-        f"{CURSEFORGE_UPLOAD_API}/projects/{project_id}/upload-file",
-        headers={"X-Api-Token": token},
-        data={"metadata": json.dumps(metadata)},
-        files={"file": (jar_path.name, open(jar_path, "rb"), "application/java-archive")},
-    )
+    with jar_path.open("rb") as jar_file:
+        result = _request_json(
+            "POST", f"{CURSEFORGE_UPLOAD_API}/projects/{project_id}/upload-file",
+            "CurseForge 上传", dict,
+            headers={"X-Api-Token": token},
+            data={"metadata": json.dumps(metadata)},
+            files={"file": (jar_path.name, jar_file, "application/java-archive")},
+        )
 
-    if resp.status_code == 200:
-        result = resp.json()
-        file_id = result.get("id", "")
-        print(f"  CurseForge 上传成功 (file ID: {file_id})")
-        return True
-    else:
-        print(f"  CurseForge 上传失败 [{resp.status_code}]: {resp.text}")
+    if result is None:
         return False
+    file_id = result.get("id")
+    if type(file_id) is not int or file_id <= 0:
+        print("  CurseForge 上传失败: 响应缺少有效 file ID，未确认上传成功")
+        return False
+    print(f"  CurseForge 上传成功 (file ID: {file_id})")
+    return True
 
 
 # ── 主流程 ──────────────────────────────────────────────────────────────────
@@ -477,6 +537,9 @@ def main():
     skip_build = "--skip-build" in sys.argv
     only_modrinth = "--only-modrinth" in sys.argv
     only_curseforge = "--only-curseforge" in sys.argv
+    if only_modrinth and only_curseforge:
+        print("错误: --only-modrinth 和 --only-curseforge 不能同时使用")
+        sys.exit(1)
     upload_modrinth_flag = not only_curseforge
     upload_curseforge_flag = not only_modrinth
 
@@ -597,15 +660,22 @@ def main():
         print(f"\n--- Dry Run 完成 ---")
         print(f"  以下文件将被上传:")
         for loader, jar in jars:
-            print(f"    - {jar.name} → Modrinth ({loader['modrinth_loader']}) + CurseForge ({loader['curseforge_loader']})")
+            destinations = []
+            if upload_modrinth_flag:
+                destinations.append(f"Modrinth ({loader['modrinth_loader']})")
+            if upload_curseforge_flag:
+                environments = ' + '.join(CF_ENVIRONMENT_VERSION_IDS)
+                destinations.append(f"CurseForge ({loader['curseforge_loader']}; {environments})")
+            print(f"    - {jar.name} → {' + '.join(destinations)}")
         print(f"\n  去掉 --dry-run 参数以执行实际上传")
         return
 
     # ── 8. 上传 ──
+    upload_results = []
     if upload_modrinth_flag:
         print(f"\n--- 上传到 Modrinth ---\n")
         for loader, jar in jars:
-            upload_modrinth(
+            success = upload_modrinth(
                 token=modrinth_token,
                 jar_path=jar,
                 mod_version=mod_version,
@@ -615,11 +685,12 @@ def main():
                 version_type=version_type,
                 loader_display=loader["display"],
             )
+            upload_results.append(("Modrinth", loader["display"], success))
 
     if upload_curseforge_flag:
         print(f"\n--- 上传到 CurseForge ---\n")
         for loader, jar in jars:
-            upload_curseforge(
+            success = upload_curseforge(
                 token=curseforge_token,
                 project_id=CURSEFORGE_PROJECT_ID,
                 jar_path=jar,
@@ -629,6 +700,16 @@ def main():
                 changelog=changelog,
                 version_type=version_type,
             )
+            upload_results.append(("CurseForge", loader["display"], success))
+
+    print("\n--- 发布结果 ---\n")
+    for platform, loader_display, success in upload_results:
+        print(f"  {platform} / {loader_display}: {'成功' if success else '失败或未确认成功'}")
+
+    failed_count = sum(not success for _, _, success in upload_results)
+    if failed_count:
+        print(f"\n=== 发布失败：{failed_count}/{len(upload_results)} 项未确认成功 ===\n")
+        sys.exit(1)
 
     print(f"\n=== 发布完成! ===\n")
 

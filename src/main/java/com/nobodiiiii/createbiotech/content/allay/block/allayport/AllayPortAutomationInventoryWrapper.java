@@ -22,7 +22,8 @@ final class AllayPortAutomationInventoryWrapper extends ItemHandlerWrapper {
 		}
 
 		String filterString = port.getFilterString();
-		if (filterString == null || !AllayAddressRules.matchesPackage(preview, filterString)) {
+		if (filterString == null || AllayAddressRules.isBlank(filterString)
+			|| !AllayAddressRules.matchesPackage(preview, filterString)) {
 			return ItemStack.EMPTY;
 		}
 
@@ -36,7 +37,8 @@ final class AllayPortAutomationInventoryWrapper extends ItemHandlerWrapper {
 		}
 
 		String filterString = port.getFilterString();
-		if (filterString != null && AllayAddressRules.matchesPackage(stack, filterString)) {
+		if (filterString != null && !AllayAddressRules.isBlank(filterString)
+			&& AllayAddressRules.matchesPackage(stack, filterString)) {
 			return stack;
 		}
 

@@ -14,9 +14,11 @@ import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.utility.SubLevelCompat;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.compat.computercraft.events.PackageEvent;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
+import com.simibubi.create.content.kinetics.mechanicalArm.ArmInteractionPoint;
 import com.simibubi.create.content.logistics.BigItemStack;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
@@ -45,7 +47,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -72,6 +73,8 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	@Nullable
 	private UUID pendingConfigurationNonce;
 	private long pendingConfigurationExpiry;
+	@Nullable
+	private ArmBlockEntity armInsertionContext;
 
 	public ShulkerPackagerBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.SHULKER_PACKAGER.get(), pos, state);
@@ -335,10 +338,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			scanRange = outputs.size();
 
 		for (int i = startIndex; i < scanRange; i++) {
-			PackagerBlockEntity target = getConnectedPackagerTarget(outputs.get(i));
-			if (target == null || target == this || !canTransferHeldBoxTo(target))
-				continue;
-			if (!transferHeldBoxTo(target))
+			if (!transferHeldBoxTo(outputs.get(i)))
 				continue;
 			lastOutputIndex = i;
 			foundOutput = true;
@@ -349,6 +349,54 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			lastOutputIndex = -1;
 		if (lastOutputIndex == outputs.size() - 1)
 			lastOutputIndex = -1;
+	}
+
+	private boolean transferHeldBoxTo(ShulkerPackagerTarget point) {
+		if (level == null || !ShulkerPackagerArmInteractions.isValidConnection(level, worldPosition,
+			SubLevelCompat.getSpaceId(level, worldPosition), point.getPos(), point.targetSubLevelId()))
+			return false;
+		// Packagers keep their existing unpacking and acceptance behavior.
+		if (level.getBlockEntity(point.getPos()) instanceof PackagerBlockEntity packager)
+			return transferHeldBoxTo(packager);
+
+		ArmInteractionPoint output = point.getArmPoint();
+		if (output == null || heldBoxIdleTicks < getTransferDelay())
+			return false;
+		ItemStack available = shulkerInventory.extractItem(0, 1, true);
+		if (!PackageItem.isPackage(available))
+			return false;
+		ArmBlockEntity context = getArmInsertionContext();
+		if (!output.insert(context, singlePackageStack(available), true).isEmpty())
+			return false;
+
+		ItemStack extracted = shulkerInventory.extractItem(0, 1, false);
+		if (extracted.isEmpty())
+			return false;
+		ItemStack remainder = output.insert(context, singlePackageStack(extracted), false);
+		if (!remainder.isEmpty()) {
+			shulkerInventory.setStackInSlot(0, extracted);
+			return false;
+		}
+
+		finishPackageTransfer(SubLevelCompat.toWorld(level, Vec3.atCenterOf(point.getPos())));
+		return true;
+	}
+
+	private ArmBlockEntity getArmInsertionContext() {
+		if (armInsertionContext == null) {
+			// Create's points require an arm owner for capability-cache lifetime checks.
+			// This context is never placed or ticked; its lifetime follows this packager.
+			armInsertionContext = new ArmBlockEntity(AllBlockEntityTypes.MECHANICAL_ARM.get(), worldPosition,
+				AllBlocks.MECHANICAL_ARM.getDefaultState()) {
+				@Override
+				public boolean isRemoved() {
+					return ShulkerPackagerBlockEntity.this.isRemoved()
+						|| getLevel() != ShulkerPackagerBlockEntity.this.getLevel();
+				}
+			};
+			armInsertionContext.setLevel(level);
+		}
+		return armInsertionContext;
 	}
 
 	private boolean canTransferHeldBoxTo(PackagerBlockEntity target) {
@@ -372,11 +420,7 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			return false;
 		}
 
-		playTransferEffects(target);
-		CBAdvancements.awardNearby(level, getTransferEffectPos(this), 16, CBAdvancements.SHULKER_PACKAGER);
-		CBAdvancements.awardNearby(level, getTransferEffectPos(target), 16, CBAdvancements.SHULKER_PACKAGER);
-		heldBoxIdleTicks = 0;
-		setChanged();
+		finishPackageTransfer(getTransferEffectPos(target));
 		return true;
 	}
 
@@ -400,18 +444,21 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 		return copy;
 	}
 
-	private void playTransferEffects(PackagerBlockEntity target) {
-		spawnTransferParticles(this);
-		spawnTransferParticles(target);
+	private void finishPackageTransfer(Vec3 targetPos) {
+		Vec3 sourcePos = getTransferEffectPos(this);
+		spawnTransferParticles(sourcePos);
+		spawnTransferParticles(targetPos);
 		playTransferSound(this);
+		CBAdvancements.awardNearby(level, sourcePos, 16, CBAdvancements.SHULKER_PACKAGER);
+		CBAdvancements.awardNearby(level, targetPos, 16, CBAdvancements.SHULKER_PACKAGER);
+		heldBoxIdleTicks = 0;
+		setChanged();
 	}
 
-	private static void spawnTransferParticles(PackagerBlockEntity packager) {
-		Level level = packager.getLevel();
+	private void spawnTransferParticles(Vec3 effectPos) {
 		if (!(level instanceof ServerLevel serverLevel))
 			return;
 
-		Vec3 effectPos = getTransferEffectPos(packager);
 		serverLevel.sendParticles(ParticleTypes.PORTAL, effectPos.x, effectPos.y, effectPos.z, 32, .35d, .35d,
 			.35d, .08d);
 	}
@@ -437,17 +484,6 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 			.add(Vec3.atLowerCornerOf(facing.getNormal())
 				.scale(.65d));
 		return level == null ? localEffectPos : SubLevelCompat.toWorld(level, localEffectPos);
-	}
-
-	private PackagerBlockEntity getConnectedPackagerTarget(ShulkerPackagerTarget point) {
-		if (level == null || point == null)
-			return null;
-		if (!ShulkerPackagerArmInteractions.isValidConnection(level, worldPosition,
-			SubLevelCompat.getSpaceId(level, worldPosition),
-			point.getPos(), point.targetSubLevelId()))
-			return null;
-		BlockEntity blockEntity = level.getBlockEntity(point.getPos());
-		return blockEntity instanceof PackagerBlockEntity packager ? packager : null;
 	}
 
 	private void initInteractionPoints() {
@@ -553,6 +589,8 @@ public class ShulkerPackagerBlockEntity extends PackagerBlockEntity {
 	@Override
 	public void setLevel(Level level) {
 		super.setLevel(level);
+		if (armInsertionContext != null && armInsertionContext.getLevel() != level)
+			armInsertionContext = null;
 		for (ShulkerPackagerTarget output : outputs)
 			output.setLevel(level);
 	}

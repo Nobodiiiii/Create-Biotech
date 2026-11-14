@@ -94,7 +94,7 @@ public class ShulkerPackagerConnectionHandler {
 
 		BlockPos pos = event.getPos();
 		BlockState state = world.getBlockState(pos);
-		if (!ShulkerPackagerArmInteractions.isSelectable(state))
+		if (!ShulkerPackagerArmInteractions.isSelectable(world, pos, state))
 			return;
 
 		UUID targetSubLevelId = SubLevelCompat.getSpaceId(world, pos);
@@ -140,11 +140,11 @@ public class ShulkerPackagerConnectionHandler {
 		if (!(minecraft.hitResult instanceof BlockHitResult hit))
 			return;
 		BlockPos pos = hit.getBlockPos();
-		if (!ShulkerPackagerArmInteractions.isSelectable(minecraft.level.getBlockState(pos)))
+		if (!ShulkerPackagerArmInteractions.isSelectable(minecraft.level, pos, minecraft.level.getBlockState(pos)))
 			return;
 
 		remove(pos, SubLevelCompat.getSpaceId(minecraft.level, pos));
-		// The item cannot attack selectable packagers. Cancel before Minecraft enters
+		// The item cannot attack selectable outputs. Cancel before Minecraft enters
 		// startDestroyBlock so Sable cannot turn this UI click into a sublevel impulse.
 		event.setSwingHand(false);
 		event.setCanceled(true);

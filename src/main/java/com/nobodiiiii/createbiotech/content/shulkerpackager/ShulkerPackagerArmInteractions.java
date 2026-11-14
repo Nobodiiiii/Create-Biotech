@@ -31,8 +31,12 @@ public class ShulkerPackagerArmInteractions {
 
 	public static void register() {}
 
-	public static boolean isSelectable(BlockState state) {
+	public static boolean isPackager(BlockState state) {
 		return isShulkerPackager(state) || isVanillaPackager(state);
+	}
+
+	public static boolean isSelectable(Level level, BlockPos pos, BlockState state) {
+		return isPackager(state) || ArmInteractionPoint.isInteractable(level, pos, state);
 	}
 
 	public static boolean isShulkerPackager(BlockState state) {
@@ -56,7 +60,7 @@ public class ShulkerPackagerArmInteractions {
 		if (!SubLevelCompat.matchesSpace(level, anchor, anchorSubLevelId)
 			|| !SubLevelCompat.matchesSpace(level, target, targetSubLevelId))
 			return false;
-		if (!isSelectable(level.getBlockState(target)))
+		if (!isSelectable(level, target, level.getBlockState(target)))
 			return false;
 
 		int range = CBConfigs.SERVER.shulkerPackager.connectionRange.get();
@@ -66,7 +70,9 @@ public class ShulkerPackagerArmInteractions {
 	public static class ShulkerPackagerType extends ArmInteractionPointType {
 		@Override
 		public boolean canCreatePoint(Level level, BlockPos pos, BlockState state) {
-			return isSelectable(state);
+			// Keep this registered type specific to packagers so other targets retain
+			// their own interaction point and insertion rules.
+			return isPackager(state);
 		}
 
 		@Override

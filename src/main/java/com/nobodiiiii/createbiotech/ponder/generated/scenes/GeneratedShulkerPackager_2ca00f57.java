@@ -55,7 +55,7 @@ public final class GeneratedShulkerPackager_2ca00f57 {
         scene.idle(20);
         GeneratedPonderSupport.highlightSection(scene, "output", new BlockPos(4, 1, 2), new BlockPos(4, 1, 2), 120);
         GeneratedPonderSupport.showControls(scene, new Vec3(4.5, 2.0, 2.5), "down", 120, "right", "create_biotech:shulker_packager", null, false, false);
-        GeneratedPonderSupport.showText(scene, "放置潜影打包机前，右键另一个潜影打包机（或普通打包机）以选择输出目标", new Vec3(4.5, 2.0, 2.5), 120, null, true);
+        GeneratedPonderSupport.showText(scene, "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标", new Vec3(4.5, 2.0, 2.5), 120, null, true);
         scene.addKeyframe();
         scene.idle(130);
         GeneratedPonderSupport.setBlock(scene, context, "create_biotech:shulker_packager", Map.ofEntries(Map.entry("powered", "false"), Map.entry("facing", "north"), Map.entry("linked", "false")), new BlockPos(0, 1, 2), null, "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}", false, false, "simultaneous", 20, 1, false, null, "down");
