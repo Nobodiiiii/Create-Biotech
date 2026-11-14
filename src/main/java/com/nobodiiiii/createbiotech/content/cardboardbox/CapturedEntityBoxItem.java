@@ -39,6 +39,12 @@ public abstract class CapturedEntityBoxItem extends PackageItem {
 	}
 
 	@Override
+	public void verifyComponentsAfterLoad(ItemStack stack) {
+		super.verifyComponentsAfterLoad(stack);
+		CapturedEntityBoxHelper.migrateReleasedAssembly(stack);
+	}
+
+	@Override
 	public String getDescriptionId() {
 		return descriptionId;
 	}

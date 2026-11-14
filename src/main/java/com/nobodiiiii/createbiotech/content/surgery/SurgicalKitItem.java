@@ -89,6 +89,12 @@ public class SurgicalKitItem extends Item {
 	}
 
 	@Override
+	public void verifyComponentsAfterLoad(ItemStack stack) {
+		super.verifyComponentsAfterLoad(stack);
+		CapturedEntityBoxHelper.migrateReleasedAssembly(stack);
+	}
+
+	@Override
 	public void inventoryTick(ItemStack stack, Level level, Entity entity, int slotId, boolean selected) {
 		if (!availableTools.contains(Tool.TEMPORARY_BOX) || !(level instanceof ServerLevel currentLevel)
 			|| Math.floorMod(level.getGameTime() + entity.getId() + slotId,

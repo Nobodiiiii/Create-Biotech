@@ -261,6 +261,10 @@ public final class SurgicalAssembly {
 	@Nullable
 	public static SurgicalAssembly load(CompoundTag tag) {
 		int version = tag.getInt(VERSION_TAG);
+		if (SurgicalReleaseMigration.supportsAssembly(version)) {
+			CompoundTag upgraded = SurgicalReleaseMigration.assembly(tag, CURRENT_VERSION);
+			return upgraded == null ? null : load(upgraded);
+		}
 		// Model ancestry replaces the independent head metadata in format 4.
 		if (version != CURRENT_VERSION || !tag.contains(SOURCES_TAG, Tag.TAG_LIST)
 			|| !tag.contains(LAYOUT_FACING_TAG, Tag.TAG_ANY_NUMERIC)
@@ -449,6 +453,11 @@ public final class SurgicalAssembly {
 			assembly = assembly.withBlockAttachmentCarrier(new CombinationMember(carrier[0], carrier[1]));
 		}
 		return assembly;
+	}
+
+	/** Published formats only; callers can persist the decoded body's current save once. */
+	public static boolean needsReleaseMigration(CompoundTag tag) {
+		return SurgicalReleaseMigration.supportsAssembly(tag.getInt(VERSION_TAG));
 	}
 
 	public CompoundTag save() {

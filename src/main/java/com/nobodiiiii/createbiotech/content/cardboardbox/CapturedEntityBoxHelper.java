@@ -40,6 +40,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -432,6 +433,23 @@ public class CapturedEntityBoxHelper {
 			return null;
 		SurgicalAssembly assembly = SurgicalAssembly.loadCached(entityData.getCompound("SurgicalAssembly"));
 		return assembly != null && assembly.isReadyForEntity() ? assembly : null;
+	}
+
+	/** Called by the owning item's load hook, never from a tooltip/render/tick loop. */
+	public static void migrateReleasedAssembly(ItemStack stack) {
+		CustomData component = CBItemData.getReadOnlyComponent(stack);
+		if (component == null) return;
+		CompoundTag entity = capturedEntityTag(component);
+		if (entity == null || !entity.getString("id").equals(CreateBiotech.MOD_ID + ":slime_bionic")
+			|| !entity.contains("SurgicalAssembly", Tag.TAG_COMPOUND)) return;
+		CompoundTag encoded = entity.getCompound("SurgicalAssembly");
+		if (!SurgicalAssembly.needsReleaseMigration(encoded)) return;
+		SurgicalAssembly assembly = SurgicalAssembly.loadCached(encoded);
+		if (assembly == null || !assembly.isReadyForEntity()) return;
+		CompoundTag upgraded = assembly.save();
+		// CustomData.update copies once; the component and its shared read-only snapshots stay intact.
+		stack.set(DataComponents.CUSTOM_DATA, component.update(root ->
+			root.getCompound(CAPTURED_ENTITY_TAG).put("SurgicalAssembly", upgraded)));
 	}
 
 	static Entity createCapturedEntity(CapturedEntityRenderData renderData, Level level) {

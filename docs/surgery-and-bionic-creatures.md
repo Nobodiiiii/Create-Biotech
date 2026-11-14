@@ -2,7 +2,7 @@
 
 [English](surgery-and-bionic-creatures.md) · [Chinese](surgery-and-bionic-creatures.zh-CN.md)
 
-This feature is unfinished, and future releases will change it in ways that are not compatible with older versions, so playing with it in a long-term survival world is **not recommended**. It is a fairly large system whose Ponder scenes are not finished yet; this guide covers how it actually plays.
+This feature is still in development. Surgical Table and bionic creature saves from published mod versions are supported by default and converted to the current format once on load; unpublished intermediate formats are not guaranteed to work. See the [save compatibility notes (Chinese)](surgical-save-compatibility.zh-CN.md) for the supported releases and conversion limits. It is a fairly large system whose Ponder scenes are not finished yet; this guide covers how it actually plays.
 
 You can use the Surgical Table to take Slime Mimic Creatures apart and reassemble them. Parts can be rearranged and mixed with parts from other creatures; once joints are fitted, the head, arms and legs can move. Pack the finished body into a box and release it to get the bionic creature "Slime?".
 

@@ -47,7 +47,7 @@
 
 ### 1. 保存供体来源和原始器官
 
-为每个原始供体建立稳定的 `donorId`，随切割、打包、拆箱和再次装配传递。原始体块保存客户端捕获的模型部件名和体积；`presentCubes` 仍表示当前保留体块。切离出来的碎片继承同一 `donorId` 和完整部件名全集，不能把碎片重新视为“完整器官”。不再读取或迁移缺少这些字段的旧手术台数据。
+为每个原始供体建立稳定的 `donorId`，随切割、打包、拆箱和再次装配传递。原始体块保存客户端捕获的模型部件名和体积；`presentCubes` 仍表示当前保留体块。切离出来的碎片继承同一 `donorId` 和完整部件名全集，不能把碎片重新视为“完整器官”。发布版旧存档缺少这些字段时，通过[存档兼容转换](surgical-save-compatibility.zh-CN.md)一次性补齐可恢复信息；开发中间格式不作兼容承诺。
 
 角色建议至少有 `HEAD/GILL/TORSO/WEIGHT_BEARING_LEG/FOOT/LEFT_WING/RIGHT_WING/FIN/TAIL/TENTACLE/SHELL/SPINE/MOUTH/ATTACK_HAND`。一块可持有多个角色。原始角色用于判断器官身份，`effectiveLimbs()`、实际落地腿、攻击手选择和连接图用于判断装配后能否工作。头只需与身体连通，不强制要求脖子关节。
 

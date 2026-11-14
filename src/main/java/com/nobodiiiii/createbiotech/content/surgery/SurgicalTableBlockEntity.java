@@ -71,6 +71,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	private int nextSubjectId;
 	private int clientDataRevision;
 	private boolean pendingSavedSubjectNormalization;
+	private boolean pendingReleaseMigrationSave;
 	@Nullable
 	private AABB clientRenderBounds;
 	@Nullable
@@ -290,9 +291,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		if (level == null)
 			return;
 		pendingSavedSubjectNormalization = false;
+		boolean migrated = pendingReleaseMigrationSave && !level.isClientSide;
+		pendingReleaseMigrationSave = false;
 		boolean repaired = normalizeCombinations(!level.isClientSide);
 		normalizeLimbJoints();
-		if (repaired) {
+		if (repaired || migrated) {
 			setChanged();
 			sendData();
 		}
@@ -3579,15 +3582,24 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		boolean currentFormat = tag.contains(FORMAT_VERSION_TAG, Tag.TAG_ANY_NUMERIC)
 			&& tag.getInt(FORMAT_VERSION_TAG) == FORMAT_VERSION
 			&& tag.contains(NEXT_SUBJECT_ID_TAG, Tag.TAG_ANY_NUMERIC);
+		boolean releasedFormat = !clientPacket && SurgicalReleaseMigration.supportsTable(tag.getInt(FORMAT_VERSION_TAG))
+			&& tag.contains(NEXT_SUBJECT_ID_TAG, Tag.TAG_ANY_NUMERIC)
+			&& tag.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND).size() <= MAX_SUBJECTS
+			&& !tag.contains(SurgicalStorage.SHARED_TAG);
+		pendingReleaseMigrationSave = releasedFormat;
 		List<SurgicalSubject> loaded = new ArrayList<>();
 		Set<Integer> ids = new HashSet<>();
 		Set<UUID> persistentIds = new HashSet<>();
-		if (currentFormat) {
+		if (currentFormat || releasedFormat) {
 			CompoundTag snapshot = clientPacket ? SurgicalTableSubjectSync.read(tag) : tag;
 			SurgicalStorage.Reader storage = new SurgicalStorage.Reader(snapshot, MAX_SUBJECTS);
 			ListTag encoded = snapshot.getList(SUBJECTS_TAG, Tag.TAG_COMPOUND);
+			Map<UUID, BitSet> donorHeads = releasedFormat ? SurgicalReleaseMigration.donorHeads(encoded) : Map.of();
 			for (int index = 0; index < encoded.size() && loaded.size() < MAX_SUBJECTS; index++) {
-				SurgicalSubject subject = SurgicalSubject.load(encoded.getCompound(index), storage);
+				CompoundTag savedSubject = encoded.getCompound(index);
+				if (releasedFormat)
+					savedSubject = SurgicalReleaseMigration.subject(savedSubject, donorHeads);
+				SurgicalSubject subject = savedSubject == null ? null : SurgicalSubject.load(savedSubject, storage);
 				if (subject == null || !ids.add(subject.id()) || !persistentIds.add(subject.persistentId()))
 					continue;
 				loaded.add(subject);
@@ -3597,7 +3609,7 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		Set<UUID> changed = clientPacket ? retainUnchangedSubjects(loaded) : Set.of();
 		clearSubjects();
 		addSubjects(loaded);
-		nextSubjectId = Math.max(currentFormat ? tag.getInt(NEXT_SUBJECT_ID_TAG) : 0,
+		nextSubjectId = Math.max(currentFormat || releasedFormat ? tag.getInt(NEXT_SUBJECT_ID_TAG) : 0,
 			ids.stream().mapToInt(Integer::intValue).max().orElse(-1) + 1);
 		if (clientPacket) {
 			pendingSavedSubjectNormalization = false;
