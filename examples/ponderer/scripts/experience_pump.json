@@ -1,25 +1,36 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:experience_pump",
+  "runtimeSource": "create_biotech:experience_pump",
   "items": [
     "create_biotech:experience_pump"
   ],
-  "editable": true,
-  "tags": [
-    "create:fluids"
-  ],
+  "title": {
+    "zh_cn": "经验泵 输入",
+    "en_us": "Experience Pump Input"
+  },
   "structures": [
     "create_biotech:generated/ponderer/ex_bumper"
   ],
+  "tags": [
+    "create:fluids",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Experience Pump Input",
-        "zh_cn": "经验泵 输入"
+        "zh_cn": "经验泵 输入",
+        "en_us": "Experience Pump Input"
       },
       "steps": [
         {
+          "id": "java_bd7413cfeb8e3737b2afcb54a1f51cbb",
           "type": "show_structure",
+          "structure": "create_biotech:generated/ponderer/ex_bumper",
           "blockPos": [
             0,
             0,
@@ -30,83 +41,82 @@
             0,
             5
           ],
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/ex_bumper"
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_1168356b70cf3a10afedb09d04d91dad",
           "type": "show_section_and_merge",
-          "blockPos": [
-            0,
-            1,
-            0
-          ],
-          "blockPos2": [
-            4,
-            1,
-            5
-          ],
           "duration": 20,
           "direction": "down",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            4,
+            1,
+            5
+          ],
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "id": "step_003"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_004"
+          "duration": 20
         },
         {
+          "id": "java_2be554c6b520377fa4505b66403cbc3a",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "The Experience Pump can transfer experience between its two ends.",
-            "zh_cn": "经验泵可以用于在泵两端传递经验"
+            "zh_cn": "经验泵可以用于在泵两端传递经验",
+            "en_us": "The Experience Pump can transfer experience between its two ends."
           },
           "point": [
             2.0,
             1.5,
             2.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_005",
           "attachKeyFrame": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_006"
+          "duration": 110
         },
         {
+          "id": "java_937b15e763a3363dbc90d9fcc675aacb",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "The input side accepts many forms of experience.",
-            "zh_cn": "输入端接受多种形式的经验"
+            "zh_cn": "输入端接受多种形式的经验",
+            "en_us": "The input side accepts many forms of experience."
           },
           "point": [
             2.5,
             1.5,
             3.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_007",
           "attachKeyFrame": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317_2",
           "type": "idle",
-          "duration": 110,
-          "id": "step_008"
+          "duration": 110
         },
         {
+          "id": "java_72d21cac6425309c9d6b9dc422add91a",
           "type": "create_entity",
           "entity": "minecraft:experience_orb",
           "pos": [
@@ -114,58 +124,58 @@
             1.5,
             3.5
           ],
-          "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-57,Z:-1},Luminosity:0}",
-          "id": "step_009"
+          "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-57,Z:-1},Luminosity:0}"
         },
         {
+          "id": "java_48e563d1c90136af9382e2e820c10c87",
           "type": "text",
+          "duration": 30,
           "text": {
-            "en_us": "Experience orbs...",
-            "zh_cn": "经验球..."
+            "zh_cn": "经验球...",
+            "en_us": "Experience orbs..."
           },
           "point": [
             2.5,
             1.5,
             3.5
           ],
-          "duration": 30,
           "placeNearTarget": true,
-          "id": "step_010",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8",
           "type": "idle",
-          "duration": 40,
-          "id": "step_011"
+          "duration": 40
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_012"
+          "fullScene": true
         },
         {
+          "id": "java_fb21761ed67a3e60abe233d3c5a6eeb2",
           "type": "text",
+          "duration": 30,
           "text": {
-            "en_us": "Experience in tanks or fluid pipes...",
-            "zh_cn": "储罐或流体管道中的经验..."
+            "zh_cn": "储罐或流体管道中的经验...",
+            "en_us": "Experience in tanks or fluid pipes..."
           },
           "point": [
             2.5,
             1.5,
             3.5
           ],
-          "duration": 30,
           "placeNearTarget": true,
-          "id": "step_013",
           "attachKeyFrame": true
         },
         {
+          "id": "java_c47e8315d38232cdbf2e04ab7e34e6d5",
           "type": "set_block",
           "block": "create:fluid_tank",
           "blockProperties": {
-            "shape": "window",
+            "bottom": "false",
             "top": "true",
-            "bottom": "false"
+            "shape": "window"
           },
           "blockPos": [
             2,
@@ -173,18 +183,18 @@
             3
           ],
           "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-58,Z:-1},Luminosity:0}",
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_014"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_bac13ff8203731e88fd4d2af271e1732",
           "type": "set_block",
           "block": "create:fluid_tank",
           "blockProperties": {
-            "shape": "window",
+            "bottom": "true",
             "top": "false",
-            "bottom": "true"
+            "shape": "window"
           },
           "blockPos": [
             2,
@@ -192,13 +202,15 @@
             3
           ],
           "nbt": "{ForgeCaps:{},Height:2,LastKnownPos:{X:-25,Y:-59,Z:-1},Luminosity:0,Size:1,TankContent:{Amount:6000,FluidName:\"create_biotech:experience\"},Window:1b}",
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_015"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_0e002b608ad33b608fd2942b13c9a810",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
           "blockPos": [
             2,
             1,
@@ -209,51 +221,50 @@
             2,
             3
           ],
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "id": "step_016"
+          "entranceInterval": 1
         },
         {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8_2",
           "type": "idle",
-          "duration": 40,
-          "id": "step_017"
+          "duration": 40
         },
         {
+          "id": "java_ecbdb39371e13868945a1171479b48cc",
           "type": "text",
+          "duration": 30,
           "text": {
-            "en_us": "Storage blocks containing experience items...",
-            "zh_cn": "装有经验物品的储物方块..."
+            "zh_cn": "装有经验物品的储物方块...",
+            "en_us": "Storage blocks containing experience items..."
           },
           "point": [
             2.5,
             1.5,
             3.5
           ],
-          "duration": 30,
           "placeNearTarget": true,
-          "id": "step_018",
           "attachKeyFrame": true
         },
         {
+          "id": "java_b68c75b4a55231f5a918647d4e650f9c",
           "type": "destroy_block",
           "blockPos": [
             2,
             2,
             3
-          ],
-          "id": "step_019"
+          ]
         },
         {
+          "id": "java_51e2de2494a13976af45f0008d3c09fa",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "facing": "west",
-            "type": "single"
+            "type": "single",
+            "facing": "west"
           },
           "blockPos": [
             2,
@@ -261,102 +272,102 @@
             3
           ],
           "nbt": "{ForgeCaps:{},Items:[{Slot:0b,id:\"create:experience_nugget\",Count:16b}]}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_020"
+          "entranceInterval": 1
         },
         {
+          "id": "java_c077d1380d9c37b19b615d3c1c27a44e",
           "type": "show_controls",
+          "duration": 40,
           "point": [
             2.5,
             2.0,
             3.5
           ],
           "direction": "down",
-          "duration": 40,
           "item": "create:experience_nugget",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_021"
+          "whileCTRL": false
         },
         {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8_3",
           "type": "idle",
-          "duration": 40,
-          "id": "step_022"
+          "duration": 40
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3_2",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_023"
+          "fullScene": true
         },
         {
+          "id": "java_1cc381b50aaa391ab7978d138afba691",
           "type": "text",
+          "duration": 50,
           "text": {
-            "en_us": "or players.",
-            "zh_cn": "或者玩家"
+            "zh_cn": "或者玩家",
+            "en_us": "or players."
           },
           "point": [
             2.5,
             1.5,
             3.5
           ],
-          "duration": 50,
           "placeNearTarget": true,
-          "id": "step_024",
           "attachKeyFrame": true
         },
         {
+          "id": "java_e25f8cf36b8c3f60872fdf11f78927f1",
           "type": "destroy_block",
           "blockPos": [
             2,
             1,
             3
-          ],
-          "id": "step_025"
+          ]
         },
         {
-          "type": "create_biotech:java/experience_pump/1",
+          "id": "java_629d3e448ba83a7080606ab13b798ee6",
           "parameters": {},
-          "id": "step_026"
+          "type": "create_biotech:java/experience_pump/1"
         },
         {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
           "type": "idle",
-          "duration": 60,
-          "id": "step_027"
+          "duration": 60
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3_3",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_028"
+          "fullScene": true
         },
         {
-          "type": "create_biotech:java/experience_pump/2",
+          "id": "java_0bc5faec3bfc377ba58821fbd94faf06",
           "parameters": {},
-          "id": "step_029"
+          "type": "create_biotech:java/experience_pump/2"
         },
         {
+          "id": "java_43654bee5bf83c1cbf9224919dc5f878",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "Installing a Nozzle on the input side attracts experience orbs from farther away.",
-            "zh_cn": "在输入端安装分散网，可以吸引更远范围的经验球"
+            "zh_cn": "在输入端安装分散网，可以吸引更远范围的经验球",
+            "en_us": "Installing a Nozzle on the input side attracts experience orbs from farther away."
           },
           "point": [
             2.5,
             1.0,
             4.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_030",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7c6bdbb1e9a937e29cc4c5ecbb091d84",
           "type": "set_block",
+          "direction": "down",
           "block": "create:nozzle",
           "blockProperties": {
             "facing": "north"
@@ -367,46 +378,46 @@
             3
           ],
           "nbt": "{ForgeCaps:{}}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_031"
+          "entranceInterval": 1
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317_3",
           "type": "idle",
-          "duration": 110,
-          "id": "step_032"
+          "duration": 110
         }
       ]
     },
     {
       "id": "s_40666",
       "title": {
-        "en_us": "Experience Pump Output",
-        "zh_cn": "经验泵 输出"
+        "zh_cn": "经验泵 输出",
+        "en_us": "Experience Pump Output"
       },
       "steps": [
         {
+          "id": "java_b9defc3d7ddf3cec96aea9b972dbb19f",
           "type": "show_structure",
-          "id": "step_001",
           "structure": "create_biotech:generated/ponderer/ex_bumper"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_f7bdc8b8726a3f8086313b2fede06874",
           "type": "set_block",
+          "direction": "down",
           "block": "create:fluid_tank",
           "blockProperties": {
-            "shape": "window",
+            "bottom": "false",
             "top": "true",
-            "bottom": "false"
+            "shape": "window"
           },
           "blockPos": [
             2,
@@ -414,22 +425,22 @@
             3
           ],
           "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-58,Z:-1},Luminosity:0}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_003"
+          "entranceInterval": 1
         },
         {
+          "id": "java_7e3186478bfa31a0bcbf217c35ffd530",
           "type": "set_block",
+          "direction": "down",
           "block": "create:fluid_tank",
           "blockProperties": {
-            "shape": "window",
+            "bottom": "true",
             "top": "false",
-            "bottom": "true"
+            "shape": "window"
           },
           "blockPos": [
             2,
@@ -437,37 +448,36 @@
             3
           ],
           "nbt": "{ForgeCaps:{},Height:2,LastKnownPos:{X:-25,Y:-59,Z:-1},Luminosity:0,Size:1,TankContent:{Amount:6000,FluidName:\"create_biotech:experience\"},Window:1b}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
+          "id": "java_9ea8dea211933221b53bf7696e83eb17",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "The output side provides experience to compatible fluid endpoints.",
-            "zh_cn": "输出端会向兼容的流体端点提供经验"
+            "zh_cn": "输出端会向兼容的流体端点提供经验",
+            "en_us": "The output side provides experience to compatible fluid endpoints."
           },
           "point": [
             2.5,
             1.0,
             1.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_005",
           "attachKeyFrame": true
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
           "type": "idle",
-          "duration": 10,
-          "id": "step_006"
+          "duration": 10
         },
         {
+          "id": "java_fab9da625f233654aca6407a080e7f09",
           "type": "create_entity",
           "entity": "minecraft:experience_orb",
           "pos": [
@@ -475,42 +485,43 @@
             1.0,
             1.5
           ],
-          "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-57,Z:-1},Luminosity:0}",
-          "id": "step_007"
+          "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-57,Z:-1},Luminosity:0}"
         },
         {
+          "id": "java_e3c67f7e9e37330ab96cc47b9b97de74",
           "type": "idle",
-          "duration": 120,
-          "id": "step_008"
+          "duration": 120
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_009"
+          "fullScene": true
         },
         {
+          "id": "java_70dbf2ab192b349cb2e1319655fe2d0b",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "It can also output experience to fluid tanks and other fluid containers.",
-            "zh_cn": "也可以把经验输出到普通流体储罐或其他流体容器"
+            "zh_cn": "也可以把经验输出到普通流体储罐或其他流体容器",
+            "en_us": "It can also output experience to fluid tanks and other fluid containers."
           },
           "point": [
             2.5,
             1.0,
             1.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_010",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7b1738e3b3ad383d8c1700030e14151a",
           "type": "set_block",
+          "direction": "down",
           "block": "create:fluid_tank",
           "blockProperties": {
-            "shape": "window",
+            "bottom": "true",
             "top": "true",
-            "bottom": "true"
+            "shape": "window"
           },
           "blockPos": [
             2,
@@ -518,22 +529,22 @@
             1
           ],
           "nbt": "{ForgeCaps:{},Height:1,LastKnownPos:{X:-39,Y:-59,Z:6},Luminosity:0,Size:1,TankContent:{Amount:0,FluidName:\"create_biotech:experience\"},Window:1b}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_011"
+          "entranceInterval": 1
         },
         {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
           "type": "idle",
-          "duration": 60,
-          "id": "step_012"
+          "duration": 60
         },
         {
+          "id": "java_66d822b8f400364bb4eceee6a201e862",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:evoker_enchanting_chamber",
           "blockProperties": {
             "half": "lower",
@@ -545,69 +556,69 @@
             1
           ],
           "nbt": "{FluidRemaining:414,FluidTotal:4000,ForgeCaps:{},HeldItem:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},WaitingForFluid:1b}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_013"
+          "entranceInterval": 1
         },
         {
+          "id": "java_cabf9e0843093fda8a832f2c1bcca837",
           "type": "idle",
-          "duration": 70,
-          "id": "step_014"
+          "duration": 70
         },
         {
+          "id": "java_8eb81c2053203387aaf5dde67ba3f9d5",
           "type": "destroy_block",
           "blockPos": [
             2,
             1,
             1
-          ],
-          "id": "step_015"
+          ]
         },
         {
+          "id": "java_a124831945b83e208a96da8d83227056",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "The output side cannot turn experience directly into items.",
-            "zh_cn": "输出端不能直接将经验转化为物品"
+            "zh_cn": "输出端不能直接将经验转化为物品",
+            "en_us": "The output side cannot turn experience directly into items."
           },
           "point": [
             2.5,
             1.0,
             1.5
           ],
-          "duration": 100,
           "color": "red",
           "placeNearTarget": true,
-          "id": "step_016",
           "attachKeyFrame": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_017"
+          "duration": 110
         },
         {
+          "id": "java_fa406f42fa9432e0b4d55ff4384d8838",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "You need to feed the experience into Budding Experience...",
-            "zh_cn": "你需要将经验通入经验母岩..."
+            "zh_cn": "你需要将经验通入经验母岩...",
+            "en_us": "You need to feed the experience into Budding Experience..."
           },
           "point": [
             2.5,
             1.0,
             1.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_018",
           "attachKeyFrame": true
         },
         {
+          "id": "java_09acc90c59c43dab95a5545b7bfba95e",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:budding_experience",
           "blockPos": [
             2,
@@ -615,66 +626,65 @@
             1
           ],
           "nbt": "{Face0:0,Face1:0,Face2:0,Face3:0,Face4:0,Face5:0,ForgeCaps:{}}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_019"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_020"
+          "duration": 20
         },
         {
+          "id": "java_ad95cb10c4483c8eb762c73dc8d5d49d",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/exp1",
+          "rotation": 0.0,
           "blockPos": [
             1,
             1,
             0
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": true,
           "spawnParticles": false,
+          "immediateDisplay": true,
           "entranceAnimation": "none",
-          "id": "step_021"
+          "replaceAir": false
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_022"
+          "duration": 20
         },
         {
+          "id": "java_539a429ce5963d93a5091872116ea774",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/exp2",
+          "rotation": 0.0,
           "blockPos": [
             1,
             1,
             0
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": true,
           "spawnParticles": false,
+          "immediateDisplay": true,
           "entranceAnimation": "none",
-          "id": "step_023"
+          "replaceAir": false
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_024"
+          "duration": 20
         },
         {
+          "id": "java_6866700d64af3a6da19952495a5ba631",
           "type": "set_block",
           "block": "create_biotech:small_experience_bud",
           "blockProperties": {
-            "waterlogged": "false",
-            "facing": "up"
+            "facing": "up",
+            "waterlogged": "false"
           },
           "blockPos": [
             2,
@@ -682,13 +692,11 @@
             1
           ],
           "immediateDisplay": true,
-          "entranceAnimation": "none",
-          "id": "step_025"
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_a71a44baea6e3edda3c37d0a4309091d",
           "type": "create_item_entity",
-          "item": "create_biotech:experience_cluster",
-          "count": 1,
           "pos": [
             2.5,
             2.0,
@@ -699,39 +707,35 @@
             0.25,
             0.0
           ],
-          "id": "step_026"
+          "count": 1,
+          "item": "create_biotech:experience_cluster"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_5",
           "type": "idle",
-          "duration": 20,
-          "id": "step_027"
+          "duration": 20
         },
         {
+          "id": "java_99f08c3cba2c318b93c4a4d461db87d1",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Catalyzed mature Experience Clusters drop naturally and store far more experience than Experience Nuggets.",
-            "zh_cn": "催化成熟的经验簇会自然掉落，它存储的经验值远高于经验颗粒"
+            "zh_cn": "催化成熟的经验簇会自然掉落，它存储的经验值远高于经验颗粒",
+            "en_us": "Catalyzed mature Experience Clusters drop naturally and store far more experience than Experience Nuggets."
           },
           "point": [
             2.5,
             2.5,
             1.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_028"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_029"
+          "duration": 130
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Experience Pump Input",
-    "zh_cn": "经验泵 输入"
-  },
-  "runtimeSource": "create_biotech:experience_pump"
+  ]
 }

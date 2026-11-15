@@ -1,25 +1,37 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:ghast_helm",
+  "runtimeSource": "create_biotech:ghast_helm",
   "items": [
     "create_biotech:ghast_helm"
   ],
-  "editable": true,
-  "tags": [
-    "create:contraption_actor"
-  ],
+  "title": {
+    "zh_cn": "恶魂热气球装配站 组装",
+    "en_us": "Ghast Hot Air Balloon Assembly Station Assembly"
+  },
   "structures": [
     "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base"
   ],
+  "tags": [
+    "create:contraption_actor",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Ghast Hot Air Balloon Assembly Station Assembly",
-        "zh_cn": "恶魂热气球装配站 组装"
+        "zh_cn": "恶魂热气球装配站 组装",
+        "en_us": "Ghast Hot Air Balloon Assembly Station Assembly"
       },
       "steps": [
         {
+          "id": "java_62c6fb034c6f33078b277a2aecfcfa14",
           "type": "show_structure",
+          "structure": "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base",
+          "scale": 0.8,
           "blockPos": [
             0,
             0,
@@ -30,33 +42,34 @@
             0,
             9
           ],
-          "scale": 0.800000011920929,
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base"
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_06919a9ef6813c53982724f2cc91b51f",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_rope",
+          "rotation": 0.0,
           "blockPos": [
             4,
             9,
             0
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
           "entranceAnimation": "none",
-          "id": "step_003"
+          "replaceAir": false
         },
         {
+          "id": "java_4d4aead76b5e378a9f2ac02ef6a146a8",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
+          "linkId": "station",
           "blockPos": [
             4,
             5,
@@ -66,13 +79,10 @@
             4,
             9,
             4
-          ],
-          "linkId": "station",
-          "duration": 20,
-          "direction": "down",
-          "id": "step_004"
+          ]
         },
         {
+          "id": "java_d278aa2cbc9d3c2b82398ac8606af09f",
           "type": "create_entity",
           "entity": "minecraft:ghast",
           "pos": [
@@ -80,25 +90,26 @@
             7.3,
             12.5
           ],
-          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}",
           "linkId": "ghast",
-          "id": "step_005"
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}"
         },
         {
+          "id": "java_75b9a95c36593041acbc528c6e930a78",
           "type": "modify_entities_nbt",
-          "fullScene": false,
+          "duration": 60,
           "linkId": "ghast",
           "offset": [
             0.0,
             0.0,
             -8.0
           ],
-          "duration": 60,
-          "walkAnimation": true,
-          "id": "step_006"
+          "fullScene": false,
+          "walkAnimation": true
         },
         {
+          "id": "java_5d9bdd60825e342c94867b03dbc3f246",
           "type": "move_section",
+          "duration": 0,
           "linkId": "default",
           "blockPos": [
             2,
@@ -114,12 +125,12 @@
             0.0,
             -0.3,
             8.0
-          ],
-          "duration": 0,
-          "id": "step_007"
+          ]
         },
         {
+          "id": "java_a4eb9225e8ee38eaa683f5e7b8fd1ace",
           "type": "move_section",
+          "duration": 0,
           "linkId": "rope",
           "blockPos": [
             4,
@@ -130,101 +141,101 @@
             0.0,
             0.3,
             12.0
-          ],
-          "duration": 0,
-          "id": "step_008"
+          ]
         },
         {
+          "id": "java_85c116cd474f381d9560a3188090ec61",
           "type": "move_section",
+          "duration": 60,
           "linkId": "default",
           "offset": [
             0.0,
             0.0,
             -8.0
-          ],
-          "duration": 60,
-          "id": "step_009"
+          ]
         },
         {
+          "id": "java_33e0bc5c80ac38d3b6551efeaabdd9d6",
           "type": "move_section",
+          "duration": 60,
           "linkId": "rope",
           "offset": [
             0.0,
             0.0,
             -8.0
-          ],
-          "duration": 60,
-          "id": "step_010"
+          ]
         },
         {
+          "id": "java_571afd39788936dc931c0c013aa60528",
           "type": "move_section",
+          "duration": 0,
           "linkId": "default",
           "offset": [
             0.0,
             0.3,
             0.0
-          ],
-          "duration": 0,
-          "id": "step_011"
+          ]
         },
         {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
           "type": "idle",
-          "duration": 60,
-          "id": "step_012"
+          "duration": 60
         },
         {
+          "id": "java_7422fbb27fff3100b89e631dd73d41df",
           "type": "modify_entities_nbt",
-          "fullScene": false,
+          "duration": 0,
           "linkId": "ghast",
           "offset": [
             0.0,
             -0.3,
             0.0
           ],
-          "duration": 0,
-          "id": "step_013"
+          "fullScene": false
         },
         {
+          "id": "java_a5dc4ad3b4be3a79b0d070c41d823c86",
           "type": "hide_section",
+          "duration": 0,
+          "direction": "down",
           "blockPos": [
             4,
             9,
             0
-          ],
-          "duration": 0,
-          "direction": "down",
-          "id": "step_014"
+          ]
         },
         {
+          "id": "java_e0fb48c1d49f36dea55d56b984f2e3e7",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "Use a Ghast Hot Air Balloon Assembly Station to assemble your Ghast Hot Air Balloon.",
-            "zh_cn": "使用恶魂热气球装配站来组装你的恶魂热气球"
+            "zh_cn": "使用恶魂热气球装配站来组装你的恶魂热气球",
+            "en_us": "Use a Ghast Hot Air Balloon Assembly Station to assemble your Ghast Hot Air Balloon."
           },
           "point": [
             4.5,
             6.5,
             4.0
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_015",
           "attachKeyFrame": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_016"
+          "duration": 110
         },
         {
+          "id": "java_8d966a6452753efab933bb2acf0b7a97",
           "type": "clear_entities",
-          "fullScene": true,
-          "entranceAnimation": "simultaneous",
           "direction": "up",
-          "id": "step_017"
+          "entranceAnimation": "simultaneous",
+          "fullScene": true
         },
         {
+          "id": "java_993e5fa84cd9377f91b606315d92d68c",
           "type": "highlight_section",
+          "duration": 60,
           "color": "green",
           "blockPos": [
             6,
@@ -235,43 +246,43 @@
             3,
             2,
             6
-          ],
-          "duration": 60,
-          "id": "step_018"
+          ]
         },
         {
+          "id": "java_6779bd5ba98b3a9fb6935eab79a31c08",
           "type": "show_controls",
+          "duration": 60,
           "point": [
             3.0,
             2.5,
             2.5
           ],
           "direction": "down",
-          "duration": 60,
           "action": "right",
           "item": "create:super_glue",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_019"
+          "whileCTRL": false
         },
         {
+          "id": "java_4cc63e3b2c783fdcb0bfed4e62eb1c0f",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Use Super Glue to glue your balloon together.",
-            "zh_cn": "使用强力胶粘合你的热气球"
+            "zh_cn": "使用强力胶粘合你的热气球",
+            "en_us": "Use Super Glue to glue your balloon together."
           },
           "point": [
             3.0,
             2.5,
             2.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_020",
           "attachKeyFrame": true
         },
         {
+          "id": "java_10669cf618ed365798b2033bc5016ed6",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:lever",
           "blockProperties": {
             "face": "wall",
@@ -283,62 +294,61 @@
             6,
             4
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_021"
+          "entranceInterval": 1
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
-          "duration": 90,
-          "id": "step_022"
+          "duration": 90
         },
         {
+          "id": "java_62ce71d6a6d1300aadb766b0893d38be",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Buffer Pads can prevent the structure from getting stuck in the ground.",
-            "zh_cn": "使用缓冲垫可以防止结构陷入地下"
+            "zh_cn": "使用缓冲垫可以防止结构陷入地下",
+            "en_us": "Buffer Pads can prevent the structure from getting stuck in the ground."
           },
           "point": [
             2.5,
             2.5,
             4.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_023"
+          "placeNearTarget": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_2",
           "type": "idle",
-          "duration": 90,
-          "id": "step_024"
+          "duration": 90
         },
         {
+          "id": "java_f439da00683633e5a49f055fa4b64f20",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Then power the assembly station with redstone...",
-            "zh_cn": "然后为热气球装配站接入红石..."
+            "zh_cn": "然后为热气球装配站接入红石...",
+            "en_us": "Then power the assembly station with redstone..."
           },
           "point": [
             3.5,
             6.5,
             4.0
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_025",
           "attachKeyFrame": true
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
           "type": "idle",
-          "duration": 10,
-          "id": "step_026"
+          "duration": 10
         },
         {
+          "id": "java_3b6f783d6e2432a8b9c82115fd6a1aaf",
           "type": "toggle_redstone_power",
           "blockPos": [
             4,
@@ -349,19 +359,19 @@
             3,
             6,
             4
-          ],
-          "id": "step_027"
+          ]
         },
         {
+          "id": "java_0cd59a73884a38489175e62db62d2d01",
           "type": "indicate_redstone",
           "blockPos": [
             3,
             6,
             4
-          ],
-          "id": "step_028"
+          ]
         },
         {
+          "id": "java_6a1d59beeda93b6fb8bdff7a5ee37a4d",
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
@@ -373,17 +383,17 @@
             4
           ],
           "nbt": "{AssemblyConsumed:0b,Extending:1b,ForgeCaps:{},Offset:0.0f,Retracting:0b,WasPowered:1b}",
-          "immediateDisplay": true,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_029"
+          "immediateDisplay": true,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_4ee927d939b03bc09093e9c8717e890e",
           "type": "idle",
-          "duration": 4,
-          "id": "step_030"
+          "duration": 4
         },
         {
+          "id": "java_5beb1e0ce15935c38c7a416260646b49",
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
@@ -395,33 +405,33 @@
             4
           ],
           "nbt": "{AssemblyConsumed:1b,Extending:0b,ForgeCaps:{},Offset:4.0f,Retracting:0b,WasPowered:1b}",
-          "immediateDisplay": true,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_031"
+          "immediateDisplay": true,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_28fbca7938633afb802473d07adb5862",
           "type": "idle",
-          "duration": 106,
-          "id": "step_032"
+          "duration": 106
         },
         {
+          "id": "java_0d833404050336b68a77169f5a6c9993",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Then place a Ghast above the assembly station...",
-            "zh_cn": "再在装配站上方放一只恶魂..."
+            "zh_cn": "再在装配站上方放一只恶魂...",
+            "en_us": "Then place a Ghast above the assembly station..."
           },
           "point": [
             4.5,
             7.0,
             4.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_033",
           "attachKeyFrame": true
         },
         {
+          "id": "java_50189be47c3e3328bb4f0f1786fb22ad",
           "type": "create_entity",
           "entity": "minecraft:ghast",
           "pos": [
@@ -429,120 +439,120 @@
             7.0,
             4.5
           ],
-          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}",
-          "linkId": "ghast",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_034"
+          "linkId": "ghast",
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_035"
+          "duration": 20
         },
         {
+          "id": "java_0620afcb22993f43bf045815ad82cc6c",
           "type": "modify_entities_nbt",
-          "fullScene": false,
+          "duration": 0,
           "linkId": "ghast",
           "offset": [
             0.0,
             0.3,
             0.0
           ],
-          "duration": 0,
-          "id": "step_036"
+          "fullScene": false
         },
         {
+          "id": "java_571afd39788936dc931c0c013aa60528_2",
           "type": "move_section",
+          "duration": 0,
           "linkId": "default",
           "offset": [
             0.0,
             0.3,
             0.0
-          ],
-          "duration": 0,
-          "id": "step_037"
+          ]
         },
         {
+          "id": "java_b712e0f50cb23151bb557b708455d6c7",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Assembly complete!",
-            "zh_cn": "组装完成！"
+            "zh_cn": "组装完成！",
+            "en_us": "Assembly complete!"
           },
           "point": [
             4.5,
             6.2,
             4.5
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_038"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_039"
+          "duration": 130
         },
         {
+          "id": "java_537d8e8a6df1352a9340479d51cafdc8",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Approach an unpowered assembly station or use Shears on the rope to disassemble the structure.",
-            "zh_cn": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体"
+            "zh_cn": "靠近未充能的装配站或对绳索使用剪刀可以使结构解体",
+            "en_us": "Approach an unpowered assembly station or use Shears on the rope to disassemble the structure."
           },
           "point": [
             4.5,
             4.0,
             4.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_040",
           "attachKeyFrame": true
         },
         {
+          "id": "java_4d0590cf4ffc34cfaa1ff5d6767c4224",
           "type": "show_controls",
+          "duration": 120,
           "point": [
             4.5,
             4.0,
             4.5
           ],
           "direction": "right",
-          "duration": 120,
           "action": "right",
           "item": "minecraft:shears",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_041"
+          "whileCTRL": false
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_2",
           "type": "idle",
-          "duration": 130,
-          "id": "step_042"
+          "duration": 130
         },
         {
+          "id": "java_d9be32a52b4b37ea9a94b06f24e628b6",
           "type": "show_section_and_merge",
+          "duration": 0,
+          "direction": "down",
+          "linkId": "rope2",
           "blockPos": [
             4,
             9,
             0
-          ],
-          "linkId": "rope2",
-          "duration": 0,
-          "direction": "down",
-          "id": "step_043"
+          ]
         },
         {
+          "id": "java_e7faf9f7e90e30088278cf2cf0821e14",
           "type": "move_section",
+          "duration": 0,
           "linkId": "rope2",
           "offset": [
             0.0,
             0.3,
             4.0
-          ],
-          "duration": 0,
-          "id": "step_044"
+          ]
         },
         {
+          "id": "java_0e8a7b8ca96b376a9c77c81188bc29bf",
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
@@ -554,66 +564,66 @@
             4
           ],
           "nbt": "{AssemblyConsumed:0b,Extending:0b,ForgeCaps:{},Offset:0.0f,Retracting:0b,WasPowered:0b}",
-          "immediateDisplay": true,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_045"
+          "immediateDisplay": true,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_730c00fc96ad3efbb3757e8487fccbf6",
           "type": "move_section",
+          "duration": 480,
           "linkId": "rope2",
           "offset": [
             0.0,
             0.0,
             -64.0
-          ],
-          "duration": 480,
-          "id": "step_046"
+          ]
         },
         {
+          "id": "java_7fb475375ad2391a940a99ff5ab06b25",
           "type": "move_section",
+          "duration": 480,
           "linkId": "default",
           "offset": [
             0.0,
             0.0,
             -64.0
-          ],
-          "duration": 480,
-          "id": "step_047"
+          ]
         },
         {
+          "id": "java_5f5ef3f6c47637c5b8fc59d39093eefc",
           "type": "modify_entities_nbt",
-          "fullScene": false,
+          "duration": 480,
           "linkId": "ghast",
           "offset": [
             0.0,
             0.0,
             -64.0
           ],
-          "duration": 480,
-          "id": "step_048"
+          "fullScene": false
         }
       ]
     },
     {
       "id": "s_29671",
       "title": {
-        "en_us": "Ghast Hot Air Balloon Assembly Station Controls",
-        "zh_cn": "恶魂热气球装配站 操纵"
+        "zh_cn": "恶魂热气球装配站 操纵",
+        "en_us": "Ghast Hot Air Balloon Assembly Station Controls"
       },
       "steps": [
         {
+          "id": "java_c32708c2bc84369c949d0ac88238c804",
           "type": "show_structure",
-          "scale": 0.800000011920929,
-          "id": "step_001",
-          "structure": "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base"
+          "structure": "create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base",
+          "scale": 0.8
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_ad7ff46b00ee34e591ed355972c269a3",
           "type": "create_entity",
           "entity": "minecraft:ghast",
           "pos": [
@@ -621,13 +631,14 @@
             7.0,
             4.5
           ],
-          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_003"
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_ad34664dd9763cc88c06624901c3b9f6",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
             "facing": "east"
@@ -638,35 +649,34 @@
             4
           ],
           "nbt": "{AssemblyConsumed:1b,Extending:0b,ForgeCaps:{},Offset:4.0f,Retracting:0b,WasPowered:1b}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f179aaf001d33c18bb2862947b41b1ec",
           "type": "set_block",
           "block": "create_biotech:ghast_helm",
           "blockProperties": {
+            "open": "true",
             "virtual": "true",
-            "waterlogged": "false",
             "facing": "south",
-            "open": "true"
+            "waterlogged": "false"
           },
           "blockPos": [
             4,
             2,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_005"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_0e937e055e393f8381fe18d2e3f918cc",
           "type": "set_block",
           "block": "create_biotech:white_buffer_pad",
           "blockProperties": {
@@ -677,13 +687,15 @@
             1,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_006"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_dee6bc378a143485a0bdf9f7ba99270d",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
           "blockPos": [
             4,
             1,
@@ -694,133 +706,125 @@
             2,
             2
           ],
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "id": "step_007"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_008"
+          "duration": 20
         },
         {
+          "id": "java_cdeb0e2c8aa13e0a8cc0409d4bf7d9ef",
           "type": "text",
-          "text": {
-            "en_us": "Use a Ghast Helm to control the Ghast Hot Air Balloon.",
-            "zh_cn": "使用恶魂驾驶台来操控恶魂热气球"
-          },
-          "point": [
-            4.5,
-            2.5,
-            2.0
-          ],
           "duration": 100,
-          "placeNearTarget": true,
-          "id": "step_009",
-          "attachKeyFrame": true
-        },
-        {
-          "type": "idle",
-          "duration": 110,
-          "id": "step_010"
-        },
-        {
-          "type": "text",
           "text": {
-            "en_us": "W/S moves forward and backward.",
-            "zh_cn": "W/S 前后移动"
+            "zh_cn": "使用恶魂驾驶台来操控恶魂热气球",
+            "en_us": "Use a Ghast Helm to control the Ghast Hot Air Balloon."
           },
           "point": [
             4.5,
             2.5,
             2.0
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_011",
           "attachKeyFrame": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
+          "type": "idle",
+          "duration": 110
+        },
+        {
+          "id": "java_ac05fbec280c34f2ab2404f2a89c6da7",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "A/D turns left and right.",
-            "zh_cn": "A/D 左右转弯"
+            "zh_cn": "W/S 前后移动",
+            "en_us": "W/S moves forward and backward."
+          },
+          "point": [
+            4.5,
+            2.5,
+            2.0
+          ],
+          "placeNearTarget": true,
+          "attachKeyFrame": true
+        },
+        {
+          "id": "java_02c4d32ec0b03a8194b7db70e76d5605",
+          "type": "text",
+          "duration": 120,
+          "text": {
+            "zh_cn": "A/D 左右转弯",
+            "en_us": "A/D turns left and right."
           },
           "point": [
             4.5,
             1.8,
             2.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_012"
+          "placeNearTarget": true
         },
         {
+          "id": "java_9f554de77f0a35bebbe0095fba539241",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Space/Shift moves up and down.",
-            "zh_cn": "空格/Shift 上下移动"
+            "zh_cn": "空格/Shift 上下移动",
+            "en_us": "Space/Shift moves up and down."
           },
           "point": [
             4.5,
             1.1,
             2.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_013"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_014"
+          "duration": 130
         },
         {
+          "id": "java_4f62a840b42730fd864e62dd666a9599",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Ctrl stops controlling.",
-            "zh_cn": "Ctrl 停止操控"
+            "zh_cn": "Ctrl 停止操控",
+            "en_us": "Ctrl stops controlling."
           },
           "point": [
             4.5,
             2.5,
             2.0
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_015",
           "attachKeyFrame": true
         },
         {
+          "id": "java_c6eec09886283041b3e0fd8d0d13d925",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Alt automatically approaches a nearby unpowered assembly station.",
-            "zh_cn": "Alt 自动靠近附近未充能的装配站"
+            "zh_cn": "Alt 自动靠近附近未充能的装配站",
+            "en_us": "Alt automatically approaches a nearby unpowered assembly station."
           },
           "point": [
             4.5,
             1.8,
             2.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_016"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_2",
           "type": "idle",
-          "duration": 130,
-          "id": "step_017"
+          "duration": 130
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Ghast Hot Air Balloon Assembly Station Assembly",
-    "zh_cn": "恶魂热气球装配站 组装"
-  },
-  "runtimeSource": "create_biotech:ghast_helm"
+  ]
 }

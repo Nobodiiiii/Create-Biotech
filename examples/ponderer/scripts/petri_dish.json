@@ -1,93 +1,101 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:petri_dish",
+  "runtimeSource": "create_biotech:petri_dish",
   "items": [
     "create_biotech:petri_dish"
   ],
-  "editable": true,
-  "tags": [
-    "create:fluids"
-  ],
+  "title": {
+    "zh_cn": "培养拟态生物",
+    "en_us": "Cultivating Mimic Creatures"
+  },
   "structures": [
     "create_biotech:generated/ponderer/petri_dish",
     "create_biotech:generated/ponderer/basic_l"
   ],
+  "tags": [
+    "create:fluids",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Cultivating Mimic Creatures",
-        "zh_cn": "培养拟态生物"
+        "zh_cn": "培养拟态生物",
+        "en_us": "Cultivating Mimic Creatures"
       },
       "steps": [
         {
+          "id": "java_19761de21ee63889bcb8ff9eb1468139",
           "type": "show_structure",
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/petri_dish"
+          "structure": "create_biotech:generated/ponderer/petri_dish",
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_776752ca2e76397481f16e957bb19e81",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Slime Petri Dishes can be used to cultivate mimic creatures",
-            "zh_cn": "史莱姆培养皿可以用来培养拟态生物"
+            "zh_cn": "史莱姆培养皿可以用来培养拟态生物",
+            "en_us": "Slime Petri Dishes can be used to cultivate mimic creatures"
           },
           "point": [
             1.5,
             1.5,
             3.5
           ],
-          "duration": 80,
           "placeNearTarget": true,
-          "id": "step_003",
           "attachKeyFrame": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
-          "duration": 90,
-          "id": "step_004"
+          "duration": 90
         },
         {
+          "id": "java_dcfc82899178361f88f2356f67219bac",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Insert a Living Mechanism into the Petri Dish...",
-            "zh_cn": "在培养皿中放入活体构件..."
+            "zh_cn": "在培养皿中放入活体构件...",
+            "en_us": "Insert a Living Mechanism into the Petri Dish..."
           },
           "point": [
             1.5,
             1.5,
             3.5
           ],
-          "duration": 80,
           "placeNearTarget": true,
-          "id": "step_005",
           "attachKeyFrame": true
         },
         {
+          "id": "java_05ad18ad3df83289af8cb4e5e11afbc0",
           "type": "show_controls",
+          "duration": 80,
           "point": [
             1.5,
             1.5,
             3.5
           ],
           "direction": "down",
-          "duration": 80,
           "item": "create_biotech:bionic_mechanism",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_006"
+          "whileCTRL": false
         },
         {
+          "id": "java_2743f8830579393d97018c3981f06914",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:9,Tank:{}}",
-          "reDrawBlocks": true,
           "blockPos": [
             1,
             1,
@@ -98,35 +106,37 @@
             1,
             3
           ],
-          "id": "step_007"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:9,Tank:{}}",
+          "reDrawBlocks": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_2",
           "type": "idle",
-          "duration": 90,
-          "id": "step_008"
+          "duration": 90
         },
         {
+          "id": "java_3e1e92e2ac6e3bc8b75bf142a5f61565",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Then pipe in Liquid Living Slime...",
-            "zh_cn": "然后通入液态活体史莱姆..."
+            "zh_cn": "然后通入液态活体史莱姆...",
+            "en_us": "Then pipe in Liquid Living Slime..."
           },
           "point": [
             1.5,
             1.5,
             3.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_009",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8",
           "type": "idle",
-          "duration": 40,
-          "id": "step_010"
+          "duration": 40
         },
         {
+          "id": "java_67e3b7da314a3e52a6cf61f2b5cd0a16",
           "type": "create_entity",
           "entity": "minecraft:slime",
           "pos": [
@@ -134,33 +144,33 @@
             0.8,
             0.5
           ],
-          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"}],wasOnGround:1b}",
           "linkId": "slime",
-          "id": "step_011"
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"}],wasOnGround:1b}"
         },
         {
+          "id": "java_a6037d2e96143c0a8f74df8d88b06258",
           "type": "modify_entities_nbt",
-          "fullScene": false,
+          "duration": 15,
           "linkId": "slime",
           "offset": [
             0.0,
             0.0,
             2.0
           ],
-          "duration": 15,
-          "id": "step_012"
+          "fullScene": false
         },
         {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf",
           "type": "idle",
-          "duration": 15,
-          "id": "step_013"
+          "duration": 15
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_014"
+          "fullScene": true
         },
         {
+          "id": "java_bbef2faf751b31babc5accb7eef17ffe",
           "type": "create_entity",
           "entity": "minecraft:slime",
           "pos": [
@@ -168,13 +178,12 @@
             1.0,
             3.5
           ],
-          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"}],wasOnGround:1b}",
           "linkId": "slime",
-          "id": "step_015"
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"}],wasOnGround:1b}"
         },
         {
+          "id": "java_f38e50d1651e3bd9a4b361ad5e8fafe9",
           "type": "modify_block_entity_nbt",
-          "nbt": "{ConnectedToExtraKinetics:0b,NeedsUpdate:0b,Network:{AddedStress:4.0f,Capacity:1048576.0f,Id:8796093079492L,Size:16,Stress:512.0f},Running:1b,Source:[I;29,-57,13],Speed:64.0f,Ticks:0}",
           "blockPos": [
             4,
             3,
@@ -185,38 +194,38 @@
             3,
             3
           ],
-          "id": "step_016"
+          "nbt": "{ConnectedToExtraKinetics:0b,NeedsUpdate:0b,Network:{AddedStress:4.0f,Capacity:1048576.0f,Id:8796093079492L,Size:16,Stress:512.0f},Running:1b,Source:[I;29,-57,13],Speed:64.0f,Ticks:0}"
         },
         {
+          "id": "java_e3b5453866d2380da43e44366b5c670d",
           "type": "show_controls",
+          "duration": 60,
           "point": [
             5.0,
             1.5,
             3.5
           ],
           "direction": "right",
-          "duration": 60,
           "item": "create_biotech:captured_small_slime",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_017"
+          "whileCTRL": false
         },
         {
+          "id": "java_cabf9e0843093fda8a832f2c1bcca837",
           "type": "idle",
-          "duration": 70,
-          "id": "step_018"
+          "duration": 70
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3_2",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_019"
+          "fullScene": true
         },
         {
+          "id": "java_ddcf273ed5953daebe1e138e55af00ba",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "down"
           },
-          "nbt": "{DisabledSpoutput:[],Filter:{},FilterAmount:64,FluidOverflow:[],InputItems:{Items:[],Size:9},InputTanks:[{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],OutputItems:{Items:[],Size:9},OutputTanks:[{Level:{Speed:0.25f,Target:0.25f,Value:0.25f},TankContent:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],Overflow:[],UpTo:1b}",
           "blockPos": [
             4,
             1,
@@ -227,49 +236,50 @@
             1,
             3
           ],
-          "id": "step_020"
+          "nbt": "{DisabledSpoutput:[],Filter:{},FilterAmount:64,FluidOverflow:[],InputItems:{Items:[],Size:9},InputTanks:[{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],OutputItems:{Items:[],Size:9},OutputTanks:[{Level:{Speed:0.25f,Target:0.25f,Value:0.25f},TankContent:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],Overflow:[],UpTo:1b}"
         },
         {
+          "id": "java_6aadadfefbc53c229bbe9b892b74a2bf",
           "type": "show_controls",
+          "duration": 60,
           "point": [
             5.0,
             1.5,
             3.5
           ],
           "direction": "right",
-          "duration": 60,
           "item": "create_biotech:liquid_living_slime_bucket",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_021"
+          "whileCTRL": false
         },
         {
+          "id": "java_cc5be713a9de38529967a77e49009608",
           "type": "idle",
-          "duration": 25,
-          "id": "step_022"
+          "duration": 25
         },
         {
+          "id": "java_de16372a7e7b334188ce9c1a4a2e064a",
           "type": "text",
+          "duration": 130,
           "text": {
-            "en_us": "The Liquid Living Slime mimics a nearby mob and grows",
-            "zh_cn": "液态活体史莱姆会模仿附近的生物并长大"
+            "zh_cn": "液态活体史莱姆会模仿附近的生物并长大",
+            "en_us": "The Liquid Living Slime mimics a nearby mob and grows"
           },
           "point": [
             0.5,
             2.0,
             3.5
           ],
-          "duration": 130,
           "placeNearTarget": true,
-          "id": "step_023",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8_2",
           "type": "idle",
-          "duration": 40,
-          "id": "step_024"
+          "duration": 40
         },
         {
+          "id": "java_8dfba9cba9bd3c5b9a4cc7eeae17847e",
           "type": "create_entity",
           "entity": "minecraft:villager",
           "pos": [
@@ -279,17 +289,16 @@
           ],
           "yaw": 180.0,
           "pitch": 0.0,
-          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:447732L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_025"
+          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:447732L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_64c0247dcb6e3c74a7a7a7a186e0d061",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:17,Tank:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}}",
           "blockPos": [
             1,
             1,
@@ -300,19 +309,19 @@
             1,
             3
           ],
-          "id": "step_026"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:17,Tank:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_027"
+          "duration": 20
         },
         {
+          "id": "java_75e14f0e223e349e8f2e358df8f3e5ce",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:4,Tank:{Fluid:{amount:1250,id:\"create_biotech:liquid_living_slime\"}}}",
           "blockPos": [
             1,
             1,
@@ -323,19 +332,19 @@
             1,
             3
           ],
-          "id": "step_028"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:4,Tank:{Fluid:{amount:1250,id:\"create_biotech:liquid_living_slime\"}}}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_029"
+          "duration": 20
         },
         {
+          "id": "java_56ce551197eb3e72a04276bf945b37ee",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:5,Tank:{Fluid:{amount:2858,id:\"create_biotech:liquid_living_slime\"}}}",
           "blockPos": [
             1,
             1,
@@ -346,19 +355,19 @@
             1,
             3
           ],
-          "id": "step_030"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:5,Tank:{Fluid:{amount:2858,id:\"create_biotech:liquid_living_slime\"}}}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_031"
+          "duration": 20
         },
         {
+          "id": "java_8d2cd4d3fbb83a99ad3d7d0019df0679",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:15,Tank:{Fluid:{amount:4250,id:\"create_biotech:liquid_living_slime\"}}}",
           "blockPos": [
             1,
             1,
@@ -369,19 +378,19 @@
             1,
             3
           ],
-          "id": "step_032"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:15,Tank:{Fluid:{amount:4250,id:\"create_biotech:liquid_living_slime\"}}}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_5",
           "type": "idle",
-          "duration": 20,
-          "id": "step_033"
+          "duration": 20
         },
         {
+          "id": "java_33674e93fe5239bcba3ae7c79f108422",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:1b,EmergenceTicksRemaining:20,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:14,Tank:{Fluid:{amount:5000,id:\"create_biotech:liquid_living_slime\"}}}",
           "blockPos": [
             1,
             1,
@@ -392,19 +401,19 @@
             1,
             3
           ],
-          "id": "step_034"
+          "nbt": "{EmergenceInProgress:1b,EmergenceTicksRemaining:20,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:14,Tank:{Fluid:{amount:5000,id:\"create_biotech:liquid_living_slime\"}}}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_6",
           "type": "idle",
-          "duration": 20,
-          "id": "step_035"
+          "duration": 20
         },
         {
+          "id": "java_f78a5733fbeb3b8fb96f05a59dfd229d",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "north"
           },
-          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:0,Tank:{}}",
           "blockPos": [
             1,
             1,
@@ -415,9 +424,10 @@
             1,
             3
           ],
-          "id": "step_036"
+          "nbt": "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:0,Tank:{}}"
         },
         {
+          "id": "java_a5ad31f4a26b315d987da4a169e7ee66",
           "type": "create_entity",
           "entity": "minecraft:villager",
           "pos": [
@@ -427,55 +437,55 @@
           ],
           "yaw": 180.0,
           "pitch": 0.0,
-          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:448496L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.6000000238418579d,id:\"minecraft:generic.step_height\"},{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
-          "id": "step_037"
+          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:448496L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.6000000238418579d,id:\"minecraft:generic.step_height\"},{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_7",
           "type": "idle",
-          "duration": 20,
-          "id": "step_038"
+          "duration": 20
         },
         {
+          "id": "java_f11a63e4a6cd344e9b9c6b5a2f0060b8",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Mobs with more maximum health require more Liquid Living Slime to mimic",
-            "zh_cn": "被模仿的生物血量上限越高，所需的液态活体史莱姆越多"
+            "zh_cn": "被模仿的生物血量上限越高，所需的液态活体史莱姆越多",
+            "en_us": "Mobs with more maximum health require more Liquid Living Slime to mimic"
           },
           "point": [
             0.5,
             2.0,
             3.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_039",
           "attachKeyFrame": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_040"
+          "duration": 130
         }
       ]
     },
     {
       "id": "s_e7373",
       "title": {
-        "en_us": "Haunting Mimic Creatures",
-        "zh_cn": "为拟态生物缠魂"
+        "zh_cn": "为拟态生物缠魂",
+        "en_us": "Haunting Mimic Creatures"
       },
       "steps": [
         {
+          "id": "java_633c5ec3f44d3979a23f3c980d16ec64",
           "type": "show_structure",
-          "id": "step_001",
           "structure": "create_biotech:generated/ponderer/basic_l"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_f10c62a3fcc033e09e8438e951d6d51f",
           "type": "create_entity",
           "entity": "minecraft:cow",
           "pos": [
@@ -485,44 +495,44 @@
           ],
           "yaw": 180.0,
           "pitch": 0.0,
-          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,CreateBiotechSlimeMimic:1b,FallFlying:0b,ForcedAge:0,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,InLove:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,attributes:[{base:0.20000000298023224d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
-          "linkId": "cow",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_003"
+          "linkId": "cow",
+          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,CreateBiotechSlimeMimic:1b,FallFlying:0b,ForcedAge:0,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,InLove:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,attributes:[{base:0.20000000298023224d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_004"
+          "duration": 20
         },
         {
+          "id": "java_ecd0d3aa4ea43a868c399d278b424796",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "Mimic and bionic creatures drop no items when killed, but split into living Slimes",
-            "zh_cn": "击杀拟态或仿生生物不会掉落物品，而会分裂为活体史莱姆"
+            "zh_cn": "击杀拟态或仿生生物不会掉落物品，而会分裂为活体史莱姆",
+            "en_us": "Mimic and bionic creatures drop no items when killed, but split into living Slimes"
           },
           "point": [
             3.5,
             1.0,
             3.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_005",
           "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_006"
+          "duration": 20
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_007"
+          "fullScene": true
         },
         {
+          "id": "java_46b7733f134f324f9d339888ccb633ba",
           "type": "create_entity",
           "entity": "minecraft:slime",
           "pos": [
@@ -532,22 +542,22 @@
           ],
           "yaw": 0.0,
           "pitch": 0.0,
-          "nbt": "{Size:0}",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_008"
+          "nbt": "{Size:0}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
-          "duration": 90,
-          "id": "step_009"
+          "duration": 90
         },
         {
+          "id": "java_8648fc1d68e53f4cb6f16efc0c456fd3_2",
           "type": "clear_entities",
-          "fullScene": true,
-          "id": "step_010"
+          "fullScene": true
         },
         {
+          "id": "java_ccf329b512663ce39d73899f3f0f3e3e",
           "type": "create_entity",
           "entity": "minecraft:villager",
           "pos": [
@@ -557,13 +567,14 @@
           ],
           "yaw": 180.0,
           "pitch": 0.0,
-          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
-          "entranceAnimation": "simultaneous",
           "direction": "down",
-          "id": "step_011"
+          "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
+          "entranceAnimation": "simultaneous"
         },
         {
+          "id": "java_0a3b54507c403938bd7fa9f5247740fd",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:composter",
           "blockProperties": {
             "level": "0"
@@ -573,113 +584,113 @@
             1,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_012"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_013"
+          "duration": 20
         },
         {
+          "id": "java_f877db02103d3ee2bb94bb08a1b06e22",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "Trading with mimic villagers only yields Slimeballs as well",
-            "zh_cn": "与拟态村民交易也只能买到黏液球"
+            "zh_cn": "与拟态村民交易也只能买到黏液球",
+            "en_us": "Trading with mimic villagers only yields Slimeballs as well"
           },
           "point": [
             3.5,
             1.0,
             3.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_014",
           "attachKeyFrame": true
         },
         {
+          "id": "java_0492007fc46933a6b7fe9a9a2e2b2d68",
           "type": "show_controls",
+          "duration": 100,
           "point": [
             4.0,
             1.5,
             3.5
           ],
           "direction": "right",
-          "duration": 100,
           "item": "minecraft:emerald",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_015"
+          "whileCTRL": false
         },
         {
+          "id": "java_262831a5bd5635c28901a6ef17b8010c",
           "type": "show_controls",
+          "duration": 100,
           "point": [
             3.0,
             1.5,
             4.0
           ],
           "direction": "left",
-          "duration": 100,
           "item": "minecraft:slime_ball",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_016"
+          "whileCTRL": false
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_017"
+          "duration": 110
         },
         {
+          "id": "java_bff5ba7f5c863b99a65d96420284f21c",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Apply Regeneration to a mimic creature...",
-            "zh_cn": "对拟态生物施加再生效果..."
+            "zh_cn": "对拟态生物施加再生效果...",
+            "en_us": "Apply Regeneration to a mimic creature..."
           },
           "point": [
             3.5,
             1.0,
             3.5
           ],
-          "duration": 80,
           "placeNearTarget": true,
-          "id": "step_018",
           "attachKeyFrame": true
         },
         {
-          "type": "create_biotech:java/petri_dish/1",
+          "id": "java_7a5316ae0a9137aab8c423a44e9b2fe8",
           "parameters": {},
-          "id": "step_019"
+          "type": "create_biotech:java/petri_dish/1"
         },
         {
+          "id": "java_e44e55c3546b3f3dbecb0d08b85c52ee",
           "type": "idle",
-          "duration": 78,
-          "id": "step_020"
+          "duration": 78
         },
         {
+          "id": "java_993d9fdcb77d369eae1ed086f18e2c91",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Then use an Encased Fan and Soul Campfire to haunt it",
-            "zh_cn": "再使用鼓风机和灵魂营火进行“缠魂”"
+            "zh_cn": "再使用鼓风机和灵魂营火进行“缠魂”",
+            "en_us": "Then use an Encased Fan and Soul Campfire to haunt it"
           },
           "point": [
             3.5,
             1.0,
             6.5
           ],
-          "duration": 80,
           "placeNearTarget": true,
-          "id": "step_021",
           "attachKeyFrame": true
         },
         {
+          "id": "java_e7b39da9527d30ba929161500ef49ede",
           "type": "set_block",
+          "direction": "down",
           "block": "create:encased_fan",
           "blockProperties": {
             "facing": "north"
@@ -690,23 +701,23 @@
             6
           ],
           "nbt": "{ConnectedToExtraKinetics:0b,Network:{AddedStress:2.0f,Capacity:524288.0f,Id:7696581410756L,Size:2,Stress:64.0f},Source:[I;28,-60,3],Speed:-32.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_022"
+          "entranceInterval": 1
         },
         {
+          "id": "java_6a9c8499b7f8322ba2b27d3d6d9f74a1",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:soul_campfire",
           "blockProperties": {
-            "waterlogged": "false",
-            "signal_fire": "false",
             "lit": "true",
-            "facing": "north"
+            "signal_fire": "false",
+            "facing": "north",
+            "waterlogged": "false"
           },
           "blockPos": [
             3,
@@ -714,68 +725,61 @@
             5
           ],
           "nbt": "{CookingTimes:[I;0,0,0,0],CookingTotalTimes:[I;0,0,0,0],Items:[]}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_023"
+          "entranceInterval": 1
         },
         {
-          "type": "create_biotech:java/petri_dish/2",
+          "id": "java_2e32766509163bff9b4da93de97b7a20",
           "parameters": {},
-          "id": "step_024"
+          "type": "create_biotech:java/petri_dish/2"
         },
         {
-          "type": "create_biotech:java/petri_dish/3",
+          "id": "java_9db54395189a32869baefd9805da155a",
           "parameters": {},
-          "id": "step_025"
+          "type": "create_biotech:java/petri_dish/3"
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_2",
           "type": "idle",
-          "duration": 90,
-          "id": "step_026"
+          "duration": 90
         },
         {
+          "id": "java_565a1ff7fce237a49d883b5de538cd9f",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "This transforms the mimic creature into a normal mob",
-            "zh_cn": "即可将拟态生物转化为普通生物"
+            "zh_cn": "即可将拟态生物转化为普通生物",
+            "en_us": "This transforms the mimic creature into a normal mob"
           },
           "point": [
             3.5,
             1.0,
             3.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_027",
           "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_5",
           "type": "idle",
-          "duration": 20,
-          "id": "step_028"
+          "duration": 20
         },
         {
+          "id": "java_ec0a13849e583ac398e784a2284f49d0",
           "type": "modify_entities_nbt",
-          "fullScene": true,
           "nbt": "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:0b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.016211061667201106d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}",
-          "id": "step_029"
+          "fullScene": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_3",
           "type": "idle",
-          "duration": 90,
-          "id": "step_030"
+          "duration": 90
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Cultivating Mimic Creatures",
-    "zh_cn": "培养拟态生物"
-  },
-  "runtimeSource": "create_biotech:petri_dish"
+  ]
 }

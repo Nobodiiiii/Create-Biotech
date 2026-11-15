@@ -49,25 +49,25 @@ public final class GeneratedSchrodingersCat_7d56d990 {
 
     private static DslScene.SceneSegment scene1() {
         var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat"), Map.entry("zh_cn", "薛定谔的猫"))));
-        scene.at("step_001").keyframe().showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
-        scene.at("step_002").idle(20);
-        scene.at("step_003").setBlock("create_biotech:schrodingers_cat", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(2, 1, 1), null, "{DetectionInterval:20,ForgeCaps:{},OutputMode:0,PulseTicks:0,SignalStrength:0,TickCounter:5}", false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_004").setBlock("minecraft:redstone_wire", Map.ofEntries(Map.entry("east", "none"), Map.entry("south", "side"), Map.entry("north", "side"), Map.entry("west", "none"), Map.entry("power", "0")), new BlockPos(2, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_005").setBlock("minecraft:redstone_lamp", Map.ofEntries(Map.entry("lit", "false")), new BlockPos(2, 1, 3), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_006").idle(20);
-        scene.at("step_007").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat randomly outputs redstone signals from its back."), Map.entry("zh_cn", "薛定谔的猫会在其背后随机输出红石信号"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
-        scene.at("step_008").idle(20);
-        scene.at("step_009").toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
-        scene.at("step_010").idle(60);
-        scene.at("step_011").toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
-        scene.at("step_012").idle(50);
-        scene.at("step_013").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Its interval and output mode (sustained or pulse) can be configured from the side."), Map.entry("zh_cn", "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
-        scene.at("step_014").showControls(new Vec3(2.0d, 1.5d, 1.5d), "down", 60, "right", null, null, false, false);
-        scene.at("step_015").idle(10);
-        scene.at("step_016").toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
-        scene.at("step_017").idle(100);
-        scene.at("step_018").toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
-        scene.at("step_019").idle(20);
+        scene.keyframe().showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
+        scene.idle(20);
+        scene.setBlock("create_biotech:schrodingers_cat", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(2, 1, 1), null, "{DetectionInterval:20,ForgeCaps:{},OutputMode:0,PulseTicks:0,SignalStrength:0,TickCounter:5}", false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.setBlock("minecraft:redstone_wire", Map.ofEntries(Map.entry("east", "none"), Map.entry("north", "side"), Map.entry("power", "0"), Map.entry("south", "side"), Map.entry("west", "none")), new BlockPos(2, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.setBlock("minecraft:redstone_lamp", Map.ofEntries(Map.entry("lit", "false")), new BlockPos(2, 1, 3), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.idle(20);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat randomly outputs redstone signals from its back."), Map.entry("zh_cn", "薛定谔的猫会在其背后随机输出红石信号"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
+        scene.idle(20);
+        scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
+        scene.idle(60);
+        scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
+        scene.idle(50);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Its interval and output mode (sustained or pulse) can be configured from the side."), Map.entry("zh_cn", "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
+        scene.showControls(new Vec3(2.0d, 1.5d, 1.5d), "down", 60, "right", null, null, false, false);
+        scene.idle(10);
+        scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
+        scene.idle(100);
+        scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
+        scene.idle(20);
         return scene.build();
     }
 

@@ -1,25 +1,36 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:magma_belt_connector",
+  "runtimeSource": "create_biotech:magma_belt_connector",
   "items": [
     "create_biotech:magma_belt_connector"
   ],
-  "editable": true,
-  "tags": [
-    "create:kinetic_appliances"
-  ],
+  "title": {
+    "zh_cn": "岩浆怪传送带",
+    "en_us": "Magma Cube Belt"
+  },
   "structures": [
     "create_biotech:generated/ponderer/magma_belt_connector_base"
   ],
+  "tags": [
+    "create:kinetic_appliances",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Magma Cube Belt",
-        "zh_cn": "岩浆怪传送带"
+        "zh_cn": "岩浆怪传送带",
+        "en_us": "Magma Cube Belt"
       },
       "steps": [
         {
+          "id": "java_4a67d1dbb4db3d5d897de9d2d51db392",
           "type": "show_structure",
+          "structure": "create_biotech:generated/ponderer/magma_belt_connector_base",
           "blockPos": [
             0,
             0,
@@ -30,26 +41,27 @@
             0,
             5
           ],
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/magma_belt_connector_base"
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_7cd365f5942335169efa79906c8f581e",
           "type": "destroy_block",
           "blockPos": [
             2,
             2,
             2
-          ],
-          "id": "step_003"
+          ]
         },
         {
+          "id": "java_c23da05f206331b9b1b1226481b2b83b",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
           "blockPos": [
             0,
             1,
@@ -60,42 +72,42 @@
             3,
             5
           ],
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": true,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": true,
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_005"
+          "duration": 20
         },
         {
+          "id": "java_0065a4acd49730adac794c7206a478ad",
           "type": "text",
+          "duration": 60,
           "text": {
-            "en_us": "Using a blower to smelt items takes a lot of space.",
-            "zh_cn": "使用鼓风机烧炼物品比较占空间"
+            "zh_cn": "使用鼓风机烧炼物品比较占空间",
+            "en_us": "Using a blower to smelt items takes a lot of space."
           },
           "point": [
             1.0,
             2.5,
             4.5
           ],
-          "duration": 60,
           "placeNearTarget": true,
-          "id": "step_006",
           "attachKeyFrame": true
         },
         {
+          "id": "java_cabf9e0843093fda8a832f2c1bcca837",
           "type": "idle",
-          "duration": 70,
-          "id": "step_007"
+          "duration": 70
         },
         {
+          "id": "java_65eb1f126adc3a50875fec11b60188b2",
           "type": "hide_section",
+          "duration": 20,
+          "direction": "up",
           "blockPos": [
             1,
             2,
@@ -105,25 +117,23 @@
             1,
             1,
             5
-          ],
-          "duration": 20,
-          "direction": "up",
-          "id": "step_008"
+          ]
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_009"
+          "duration": 20
         },
         {
+          "id": "java_4afcdd1ecdf73859b27a379f7a52e2f3",
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "casing": "false",
-            "waterlogged": "false",
             "part": "start",
-            "facing": "west",
-            "slope": "horizontal"
+            "waterlogged": "false",
+            "slope": "horizontal",
+            "casing": "false",
+            "facing": "west"
           },
           "blockPos": [
             3,
@@ -132,18 +142,18 @@
           ],
           "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:10,Stress:32.0f},Source:{X:-21,Y:-59,Z:7},Speed:16.0f}",
           "immediateDisplay": true,
-          "entranceAnimation": "none",
-          "id": "step_010"
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_c738bc38704437ca86f596c682ad65bb",
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "casing": "false",
-            "waterlogged": "false",
             "part": "middle",
-            "facing": "west",
-            "slope": "horizontal"
+            "waterlogged": "false",
+            "slope": "horizontal",
+            "casing": "false",
+            "facing": "west"
           },
           "blockPos": [
             2,
@@ -152,18 +162,18 @@
           ],
           "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:1,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:9,Stress:32.0f},Source:{X:-22,Y:-59,Z:7},Speed:16.0f}",
           "immediateDisplay": true,
-          "entranceAnimation": "none",
-          "id": "step_011"
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_e4954b4f287e32329e89fc18498ee248",
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "casing": "false",
-            "waterlogged": "false",
             "part": "end",
-            "facing": "west",
-            "slope": "horizontal"
+            "waterlogged": "false",
+            "slope": "horizontal",
+            "casing": "false",
+            "facing": "west"
           },
           "blockPos": [
             1,
@@ -172,77 +182,71 @@
           ],
           "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:2,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:8,Stress:32.0f},Source:{X:-22,Y:-59,Z:8},Speed:16.0f}",
           "immediateDisplay": true,
-          "entranceAnimation": "none",
-          "id": "step_012"
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_9355d43961663cb2a92e455cfbd6ef85",
           "type": "text",
+          "duration": 90,
           "text": {
-            "en_us": "Use a Magma Cube Belt instead.",
-            "zh_cn": "使用岩浆怪传送带"
+            "zh_cn": "使用岩浆怪传送带",
+            "en_us": "Use a Magma Cube Belt instead."
           },
           "point": [
             3.5,
             1.5,
             2.0
           ],
-          "duration": 90,
           "placeNearTarget": true,
-          "id": "step_013",
           "attachKeyFrame": true
         },
         {
+          "id": "java_7f6818f272f4300bb7125cd4c822e421",
           "type": "idle",
-          "duration": 100,
-          "id": "step_014"
+          "duration": 100
         },
         {
+          "id": "java_fea4341aa82e3783aeef96669d9c788e",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "It automatically smelts items above it, taking the same amount of time as a blower.",
-            "zh_cn": "它会自动烧炼其上方的物品，所需时间与鼓风机相同"
+            "zh_cn": "它会自动烧炼其上方的物品，所需时间与鼓风机相同",
+            "en_us": "It automatically smelts items above it, taking the same amount of time as a blower."
           },
           "point": [
             3.5,
             1.5,
             2.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_015"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_016"
+          "duration": 130
         },
         {
+          "id": "java_58ac6762608f3f8186f6c99fe7c65a97",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "It does not have a blower's smelting protection, so remember to remove the item before it burns a second time!",
-            "zh_cn": "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！"
+            "zh_cn": "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！",
+            "en_us": "It does not have a blower's smelting protection, so remember to remove the item before it burns a second time!"
           },
           "point": [
             3.5,
             1.5,
             2.0
           ],
-          "duration": 120,
           "color": "red",
-          "placeNearTarget": true,
-          "id": "step_017"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_2",
           "type": "idle",
-          "duration": 130,
-          "id": "step_018"
+          "duration": 130
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Magma Cube Belt",
-    "zh_cn": "岩浆怪传送带"
-  },
-  "runtimeSource": "create_biotech:magma_belt_connector"
+  ]
 }

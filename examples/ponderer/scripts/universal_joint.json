@@ -1,40 +1,51 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:universal_joint",
+  "runtimeSource": "create_biotech:universal_joint",
   "items": [
     "create_biotech:universal_joint"
   ],
-  "editable": true,
-  "tags": [
-    "create:kinetic_relays"
-  ],
+  "title": {
+    "zh_cn": "史莱姆万向节",
+    "en_us": "Universal Joint"
+  },
   "structures": [
     "create_biotech:generated/ponderer/universal_joint_base"
   ],
+  "tags": [
+    "create:kinetic_relays",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Universal Joint",
-        "zh_cn": "史莱姆万向节"
+        "zh_cn": "史莱姆万向节",
+        "en_us": "Universal Joint"
       },
       "steps": [
         {
+          "id": "java_cfd472b5dbed3b8bbb190a159a6cb162",
           "type": "show_structure",
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/universal_joint_base"
+          "structure": "create_biotech:generated/ponderer/universal_joint_base",
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_31a9742eee75326a909ec0536127dae1",
           "type": "set_block",
+          "direction": "down",
           "block": "create:cogwheel",
           "blockProperties": {
-            "waterlogged": "false",
-            "axis": "z"
+            "axis": "z",
+            "waterlogged": "false"
           },
           "blockPos": [
             1,
@@ -42,21 +53,21 @@
             5
           ],
           "nbt": "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-27,Y:-60,Z:10},Speed:32.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_003"
+          "entranceInterval": 1
         },
         {
+          "id": "java_dc730680774f326dbae09a4e8ccd81b0",
           "type": "set_block",
+          "direction": "down",
           "block": "create:shaft",
           "blockProperties": {
-            "waterlogged": "false",
-            "axis": "z"
+            "axis": "z",
+            "waterlogged": "false"
           },
           "blockPos": [
             1,
@@ -64,34 +75,34 @@
             4
           ],
           "nbt": "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-28,Y:-59,Z:10},Speed:32.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
+          "id": "java_7cb43e7a937e3ab48b844896558879c3",
           "type": "set_block",
+          "direction": "down",
           "block": "create:andesite_casing",
           "blockPos": [
             3,
             1,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_005"
+          "entranceInterval": 1
         },
         {
+          "id": "java_85d5979c5f2b35aeb223130a067032d0",
           "type": "set_block",
+          "direction": "down",
           "block": "create:speedometer",
           "blockProperties": {
             "facing": "up",
@@ -103,26 +114,26 @@
             2
           ],
           "nbt": "{Color:0,ForgeCaps:{},HasAttachedComputer:0b,Speed:0.0f,Value:0.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "down",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_006"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_007"
+          "duration": 20
         },
         {
+          "id": "java_0d12c761f70f30618ad005bae83cfc9b",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:universal_joint",
           "blockProperties": {
-            "waterlogged": "false",
-            "facing": "south"
+            "facing": "south",
+            "waterlogged": "false"
           },
           "blockPos": [
             1,
@@ -130,22 +141,22 @@
             3
           ],
           "nbt": "{ForgeCaps:{},LinkedJoint:{X:2,Y:2,Z:2},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:3,Y:1,Z:3},Speed:32.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "down",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_008",
           "attachKeyFrame": true
         },
         {
+          "id": "java_9705e1bf883933c6a6da5a1a264044e2",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:universal_joint",
           "blockProperties": {
-            "waterlogged": "false",
-            "facing": "east"
+            "facing": "east",
+            "waterlogged": "false"
           },
           "blockPos": [
             2,
@@ -153,60 +164,61 @@
             2
           ],
           "nbt": "{ForgeCaps:{},LinkedJoint:{X:1,Y:1,Z:3},Network:{Capacity:262144.0f,Id:-8521215066172L,Size:6,Stress:0.0f},Source:{X:2,Y:2,Z:2},Speed:-32.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "down",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_009"
+          "entranceInterval": 1
         },
         {
+          "id": "java_47ee191ad55e321680497802ad7e8e9d",
           "type": "text",
+          "duration": 90,
           "text": {
-            "en_us": "The Universal Joint can transmit rotational force between any two nearby points.",
-            "zh_cn": "史莱姆万向节可以在相近的任意两个点之间传播应力"
+            "zh_cn": "史莱姆万向节可以在相近的任意两个点之间传播应力",
+            "en_us": "The Universal Joint can transmit rotational force between any two nearby points."
           },
           "point": [
             1.5,
             2.0,
             2.5
           ],
-          "duration": 90,
-          "placeNearTarget": true,
-          "id": "step_010"
+          "placeNearTarget": true
         },
         {
+          "id": "java_c8e5a45331a63286aecf812570159b0f",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
             "facing": "up",
             "axis_along_first": "true"
           },
-          "nbt": "{Color:4170495,ForgeCaps:{},HasAttachedComputer:0b,Network:{Capacity:262144.0f,Id:-8521215066172L,Size:7,Stress:0.0f},Source:{X:-29,Y:-58,Z:7},Speed:-32.0f,Value:0.4585714f}",
           "blockPos": [
             3,
             2,
             2
           ],
-          "id": "step_011"
+          "nbt": "{Color:4170495,ForgeCaps:{},HasAttachedComputer:0b,Network:{Capacity:262144.0f,Id:-8521215066172L,Size:7,Stress:0.0f},Source:{X:-29,Y:-58,Z:7},Speed:-32.0f,Value:0.4585714f}"
         },
         {
+          "id": "java_4906897de54e3799b85bd01129a136c7",
           "type": "indicate_success",
           "blockPos": [
             3,
             2,
             2
-          ],
-          "id": "step_012"
+          ]
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
-          "duration": 90,
-          "id": "step_013"
+          "duration": 90
         },
         {
+          "id": "java_3e067dc74dc8373aa44de692ef7f762a",
           "type": "hide_section",
+          "duration": 20,
+          "direction": "up",
           "blockPos": [
             0,
             1,
@@ -216,13 +228,13 @@
             4,
             4,
             0
-          ],
-          "duration": 20,
-          "direction": "up",
-          "id": "step_014"
+          ]
         },
         {
+          "id": "java_5dec3675788934a1ba44ad1104fa6bda",
           "type": "hide_section",
+          "duration": 20,
+          "direction": "up",
           "blockPos": [
             0,
             0,
@@ -232,22 +244,20 @@
             1,
             1,
             5
-          ],
-          "duration": 20,
-          "direction": "up",
-          "id": "step_015"
+          ]
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_016"
+          "duration": 20
         },
         {
+          "id": "java_1fb0fe8cac9e39faa561c99ee462248e",
           "type": "set_block",
           "block": "create_biotech:universal_joint",
           "blockProperties": {
-            "waterlogged": "false",
-            "facing": "down"
+            "facing": "down",
+            "waterlogged": "false"
           },
           "blockPos": [
             2,
@@ -255,13 +265,13 @@
             2
           ],
           "nbt": "{ForgeCaps:{},LinkedJoint:{X:-30,Y:-59,Z:6},Speed:0.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
           "entranceAnimation": "none",
-          "id": "step_017",
           "attachKeyFrame": true
         },
         {
+          "id": "java_6451b7fdb4be3e76a9a2e9fb23c3acc3",
           "type": "set_block",
           "block": "create:andesite_casing",
           "blockPos": [
@@ -269,12 +279,12 @@
             1,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_018"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_fc43f8d1c6313d988bb756af836acbaa",
           "type": "set_block",
           "block": "create:andesite_casing",
           "blockPos": [
@@ -282,13 +292,15 @@
             2,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_019"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_7a1b27ee445d32a0817630f1056c0542",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
           "blockPos": [
             2,
             1,
@@ -299,21 +311,20 @@
             4,
             2
           ],
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": true,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": true,
-          "id": "step_020"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_021"
+          "duration": 20
         },
         {
+          "id": "java_eaf9b21b13453537890543fe93b39da7",
           "type": "highlight_section",
+          "duration": 90,
           "color": "green",
           "blockPos": [
             0,
@@ -324,36 +335,29 @@
             4,
             5,
             4
-          ],
-          "duration": 90,
-          "id": "step_022"
+          ]
         },
         {
+          "id": "java_2fb6c4f7ac263a34a717bb8335e9ea57",
           "type": "text",
+          "duration": 90,
           "text": {
-            "en_us": "The other node must be within range. Moving structures stretch the shaft; it shifts to the clutch overload colour and snaps when overextended.",
-            "zh_cn": "另一节点必须位于连接范围内。结构移动会拉伸轴体；接近极限时逐渐变为史莱姆离合器的过载色，过度拉伸后断裂。"
+            "zh_cn": "另一节点必须位于连接范围内。结构移动会拉伸轴体；接近极限时逐渐变为史莱姆离合器的过载色，过度拉伸后断裂。",
+            "en_us": "The other node must be within range. Moving structures stretch the shaft; it shifts to the clutch overload colour and snaps when overextended."
           },
           "point": [
             2.0,
             3.5,
             2.5
           ],
-          "duration": 90,
-          "placeNearTarget": true,
-          "id": "step_023"
+          "placeNearTarget": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_2",
           "type": "idle",
-          "duration": 90,
-          "id": "step_024"
+          "duration": 90
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Universal Joint",
-    "zh_cn": "史莱姆万向节"
-  },
-  "runtimeSource": "create_biotech:universal_joint"
+  ]
 }

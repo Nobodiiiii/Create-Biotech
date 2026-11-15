@@ -1,34 +1,44 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:allay_port",
+  "runtimeSource": "create_biotech:allay_port",
   "items": [
     "create_biotech:allay_port"
   ],
-  "editable": true,
-  "tags": [
-    "create:high_logistics"
-  ],
+  "title": {
+    "zh_cn": "悦灵速递",
+    "en_us": "Allay Express Delivery"
+  },
   "structures": [
     "create_biotech:generated/ponderer/basic_xl"
   ],
+  "tags": [
+    "create:high_logistics",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Allay Express Delivery",
-        "zh_cn": "悦灵速递"
+        "zh_cn": "悦灵速递",
+        "en_us": "Allay Express Delivery"
       },
       "steps": [
         {
+          "id": "java_0e84af95622c398b8e4165dff2e74aed",
           "type": "show_structure",
-          "id": "step_001",
           "structure": "create_biotech:generated/ponderer/basic_xl"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_77212e9fe974373db9e64469070d8238",
           "type": "set_block",
           "block": "create_biotech:allay_port",
           "blockProperties": {
@@ -40,13 +50,16 @@
             4
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_003"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_345756d5f19e3899b6e01d3cb12a1ef7",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
+          "linkId": "allay_port",
           "blockPos": [
             4,
             1,
@@ -56,65 +69,63 @@
             4,
             1,
             4
-          ],
-          "linkId": "allay_port",
-          "duration": 20,
-          "direction": "down",
-          "id": "step_004"
+          ]
         },
         {
+          "id": "java_1160dc2ba3eb3801b9461d7d8dd5c61b",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Cargo Allay Stations can be used to deliver packages remotely.",
-            "zh_cn": "悦灵驿站可以用来远程派送包裹"
+            "zh_cn": "悦灵驿站可以用来远程派送包裹",
+            "en_us": "Cargo Allay Stations can be used to deliver packages remotely."
           },
           "point": [
             4.5,
             1.5,
             4.5
           ],
-          "duration": 80,
           "placeNearTarget": true,
-          "id": "step_005",
           "attachKeyFrame": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
-          "duration": 90,
-          "id": "step_006"
+          "duration": 90
         },
         {
+          "id": "java_ab519a9802593875937229a1e3e47241",
           "type": "move_section",
+          "duration": 20,
           "linkId": "allay_port",
           "offset": [
             3.0,
             1.0,
             3.0
-          ],
-          "duration": 20,
-          "id": "step_007"
+          ]
         },
         {
+          "id": "java_e48c0fdfd1343e14affa86372019ddc3",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/allay_port_sender",
+          "rotation": 0.0,
+          "direction": "north",
           "blockPos": [
             6,
             1,
             7
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "north",
-          "id": "step_008"
+          "replaceAir": false
         },
         {
+          "id": "java_11256dfb45c231088640e35103043d8e",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:allay_port",
           "blockProperties": {
             "facing": "east"
@@ -125,220 +136,220 @@
             1
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_009"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_010"
+          "duration": 20
         },
         {
+          "id": "java_4fc896ce12f63b169c707d92f91c1fe2",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Set this station's address in its interface.",
-            "zh_cn": "在界面中设置本站地址"
+            "zh_cn": "在界面中设置本站地址",
+            "en_us": "Set this station's address in its interface."
           },
           "point": [
             7.5,
             3.2,
             7.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_011",
           "attachKeyFrame": true
         },
         {
+          "id": "java_d5983b6abfff3f6fae06778ee91b3bfe",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Peter",
-            "zh_cn": "李华"
+            "zh_cn": "李华",
+            "en_us": "Peter"
           },
           "point": [
             7.5,
             2.5,
             7.5
           ],
-          "duration": 120,
           "color": "blue",
           "placeNearTarget": true,
-          "id": "step_012",
           "attachKeyFrame": true
         },
         {
+          "id": "java_ffa88ed3eeae3b66b9510d8f4bba96f6",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Albert",
-            "zh_cn": "王芳"
+            "zh_cn": "王芳",
+            "en_us": "Albert"
           },
           "point": [
             1.5,
             1.5,
             1.5
           ],
-          "duration": 120,
           "color": "output",
           "placeNearTarget": true,
-          "id": "step_013",
           "attachKeyFrame": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_014"
+          "duration": 130
         },
         {
+          "id": "java_7a66ac2f65e631ffbb55bce172a63bc2",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "Insert an Allay Courier.",
-            "zh_cn": "放入悦灵快递员"
+            "zh_cn": "放入悦灵快递员",
+            "en_us": "Insert an Allay Courier."
           },
           "point": [
             7.5,
             2.5,
             7.5
           ],
-          "duration": 100,
           "placeNearTarget": true,
-          "id": "step_015",
           "attachKeyFrame": true
         },
         {
+          "id": "java_3daba24e4d1a3b94a271475123af71ab",
           "type": "show_controls",
+          "duration": 100,
           "point": [
             8.0,
             2.5,
             7.5
           ],
           "direction": "right",
-          "duration": 100,
           "item": "create_biotech:allay_courier",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_016"
+          "whileCTRL": false
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_017"
+          "duration": 110
         },
         {
+          "id": "java_ee996aa317cb35d187f6ff58b91a1d96",
           "type": "text",
-          "text": {
-            "en_us": "Cargo Allay Stations automatically pull packages from the Packager or container below and dispatch an Allay Courier to the specified Cargo Allay Station.",
-            "zh_cn": "悦灵驿站会自动拉取下方打包机或容器中的包裹，并派出悦灵快递员送往指定悦灵驿站"
-          },
-          "point": [
-            7.5,
-            2.5,
-            7.5
-          ],
           "duration": 180,
-          "placeNearTarget": true,
-          "id": "step_018",
-          "attachKeyFrame": true
-        },
-        {
-          "type": "idle",
-          "duration": 60,
-          "id": "step_019"
-        },
-        {
-          "type": "create_biotech:java/allay_port/1",
-          "parameters": {},
-          "id": "step_020"
-        },
-        {
-          "type": "text",
           "text": {
-            "en_us": "→ Albert",
-            "zh_cn": "→王芳"
+            "zh_cn": "悦灵驿站会自动拉取下方打包机或容器中的包裹，并派出悦灵快递员送往指定悦灵驿站",
+            "en_us": "Cargo Allay Stations automatically pull packages from the Packager or container below and dispatch an Allay Courier to the specified Cargo Allay Station."
           },
           "point": [
             7.5,
             2.5,
             7.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_021",
           "attachKeyFrame": true
         },
         {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
           "type": "idle",
-          "duration": 130,
-          "id": "step_022"
+          "duration": 60
         },
         {
+          "id": "java_11b761c17d4934d7bf4aac8d39ce6f92",
+          "parameters": {},
+          "type": "create_biotech:java/allay_port/1"
+        },
+        {
+          "id": "java_c2eb932c63d43b90b326e015a7befa14",
+          "type": "text",
+          "duration": 120,
+          "text": {
+            "zh_cn": "→王芳",
+            "en_us": "→ Albert"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "placeNearTarget": true,
+          "attachKeyFrame": true
+        },
+        {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_2",
+          "type": "idle",
+          "duration": 130
+        },
+        {
+          "id": "java_8e2117bbbf6e37069ce50b0f2cca5ac0",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/allay_port_nether",
+          "rotation": 0.0,
+          "direction": "down",
           "blockPos": [
             0,
             0,
             0
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_023"
+          "replaceAir": false
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_024"
+          "duration": 20
         },
         {
+          "id": "java_b906670a199f3aeab9710f741eaaf1b7",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "The interface lets you configure whether the Allay Courier returns after delivery.",
-            "zh_cn": "在界面中可以配置悦灵快递员是否返航"
+            "zh_cn": "在界面中可以配置悦灵快递员是否返航",
+            "en_us": "The interface lets you configure whether the Allay Courier returns after delivery."
           },
           "point": [
             1.5,
             3.0,
             1.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_025",
           "attachKeyFrame": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_3",
           "type": "idle",
-          "duration": 130,
-          "id": "step_026"
+          "duration": 130
         },
         {
+          "id": "java_d06567cc6ac4341ca094af3836ee2851",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Allay Couriers have no delivery range limit and can even travel between dimensions.",
-            "zh_cn": "悦灵快递员运输没有距离限制，甚至可以跨越维度"
+            "zh_cn": "悦灵快递员运输没有距离限制，甚至可以跨越维度",
+            "en_us": "Allay Couriers have no delivery range limit and can even travel between dimensions."
           },
           "point": [
             7.5,
             2.5,
             7.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_027",
           "attachKeyFrame": true
         },
         {
+          "id": "java_bcc16de0d0a23b2db6239388498d59f2",
           "type": "highlight_section",
+          "duration": 120,
           "color": "blue",
           "blockPos": [
             6,
@@ -349,55 +360,55 @@
             8,
             3,
             8
-          ],
-          "duration": 120,
-          "id": "step_028"
+          ]
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_4",
           "type": "idle",
-          "duration": 130,
-          "id": "step_029"
+          "duration": 130
         }
       ]
     },
     {
       "id": "s_21db7",
       "title": {
-        "en_us": "Allay Couriers and Players",
-        "zh_cn": "悦灵快递员与玩家"
+        "zh_cn": "悦灵快递员与玩家",
+        "en_us": "Allay Couriers and Players"
       },
       "steps": [
         {
+          "id": "java_0e84af95622c398b8e4165dff2e74aed",
           "type": "show_structure",
-          "id": "step_001",
           "structure": "create_biotech:generated/ponderer/basic_xl"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_e48c0fdfd1343e14affa86372019ddc3",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/allay_port_sender",
+          "rotation": 0.0,
+          "direction": "north",
           "blockPos": [
             6,
             1,
             7
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "north",
-          "id": "step_003"
+          "replaceAir": false
         },
         {
+          "id": "java_56f2845983ef38f595a1c7d66f188865",
           "type": "set_block",
+          "direction": "north",
           "block": "create_biotech:allay_port",
           "blockProperties": {
             "facing": "north"
@@ -408,83 +419,76 @@
             7
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "north",
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
-          "type": "create_biotech:java/allay_port/2",
+          "id": "java_27fb1d1f370f3a72bfaab1801c360861",
           "parameters": {},
-          "id": "step_005"
+          "type": "create_biotech:java/allay_port/2"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_006"
+          "duration": 20
         },
         {
+          "id": "java_099d426394983e0cbcd0b80340f2db0d",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Allay Couriers can target players for delivery.",
-            "zh_cn": "悦灵快递员可以指定玩家为运输目标"
+            "zh_cn": "悦灵快递员可以指定玩家为运输目标",
+            "en_us": "Allay Couriers can target players for delivery."
           },
           "point": [
             7.0,
             2.5,
             7.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_007",
           "attachKeyFrame": true
         },
         {
+          "id": "java_aff98aa3814c3e9a8d49c19b3738895c",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Nobodiiiii",
-            "zh_cn": "Nobodiiiii"
+            "zh_cn": "Nobodiiiii",
+            "en_us": "Nobodiiiii"
           },
           "point": [
             1.5,
             2.0,
             1.5
           ],
-          "duration": 120,
           "color": "blue",
-          "placeNearTarget": true,
-          "id": "step_008"
+          "placeNearTarget": true
         },
         {
+          "id": "java_bafd3adf13223b448d6c530244a60962",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Use \"@player\" in the address field to target a player.",
-            "zh_cn": "在地址栏中使用\"@玩家\"来匹配玩家"
+            "zh_cn": "在地址栏中使用\"@玩家\"来匹配玩家",
+            "en_us": "Use \"@player\" in the address field to target a player."
           },
           "point": [
             1.5,
             2.6,
             1.5
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_009"
+          "placeNearTarget": true
         },
         {
-          "type": "create_biotech:java/allay_port/3",
+          "id": "java_f514a819fc34352e874d6e6645b7b1a4",
           "parameters": {},
-          "id": "step_010"
+          "type": "create_biotech:java/allay_port/3"
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Allay Express Delivery",
-    "zh_cn": "悦灵速递"
-  },
-  "runtimeSource": "create_biotech:allay_port"
+  ]
 }

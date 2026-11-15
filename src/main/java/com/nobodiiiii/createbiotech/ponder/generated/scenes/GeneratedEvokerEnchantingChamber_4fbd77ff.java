@@ -49,38 +49,38 @@ public final class GeneratedEvokerEnchantingChamber_4fbd77ff {
 
     private static DslScene.SceneSegment scene1() {
         var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Squid Printer"), Map.entry("zh_cn", "鱿鱼打印机"))));
-        scene.at("step_001").keyframe().showStructure("create_biotech:generated/ponderer/enchanting_line_base", null, null, null, null);
-        scene.at("step_002").idle(20);
-        scene.at("step_003").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is a simple enchantment production line."), Map.entry("zh_cn", "这是一个简单的附魔流水线"))), new Vec3(4.0d, 3.5d, 4.5d), 90, null, true);
-        scene.at("step_004").setBlock("create:belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("waterlogged", "false"), Map.entry("part", "start"), Map.entry("facing", "west"), Map.entry("slope", "horizontal")), new BlockPos(6, 1, 4), null, "{Casing:\"NONE\",Controller:{X:-21,Y:-59,Z:-3},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:252,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.06666667f,Pos:3.5f,PrevOffset:0.06666667f,PrevPos:3.5f},{Angle:214,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.031481482f,Pos:2.5f,PrevOffset:0.031481482f,PrevPos:2.5f},{Angle:0,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:-0.16666667f,Pos:1.5019531f,PrevOffset:-0.16666667f,PrevPos:1.5019531f},{Angle:284,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:book\"},Offset:0.096296296f,Pos:0.5019531f,PrevOffset:0.096296296f,PrevPos:0.5019531f}],PositiveOrder:1b},IsController:1b,Length:4,Network:{Capacity:262144.0f,Id:-5497558122556L,Size:18,Stress:128.0f},Source:{X:-21,Y:-59,Z:-2},Speed:32.0f}", true, null, "none", null, null, null, null, null);
-        scene.at("step_005").idle(100);
-        scene.at("step_006").keyframe().hideSection(new BlockPos(0, 1, 3), new BlockPos(2, 4, 6), 20, "up");
-        scene.at("step_007").idle(20);
-        scene.at("step_008").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is a Squid Printer."), Map.entry("zh_cn", "这是鱿鱼打印机"))), new Vec3(5.0d, 3.5d, 4.5d), 60, null, true);
-        scene.at("step_009").idle(70);
-        scene.at("step_010").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Mark an enchanted book on the side..."), Map.entry("zh_cn", "在侧面标记一本附魔书..."))), new Vec3(5.0d, 3.5d, 4.5d), 90, null, true);
-        scene.at("step_011").idle(60);
-        scene.at("step_012").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It will process the book below into an Enchanted Book (Copy)."), Map.entry("zh_cn", "它会将下方的书加工为附魔书（复印本）"))), new Vec3(5.5d, 2.0d, 4.5d), 120, null, true);
-        scene.at("step_013").idle(130);
-        scene.at("step_014").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Whether it is working or not, the printer needs a water supply to keep the squid alive."), Map.entry("zh_cn", "无论是否在工作，打印机都需要输入水来保证鱿鱼存活"))), new Vec3(5.0d, 3.5d, 6.5d), 120, null, true);
-        scene.at("step_015").idle(120);
+        scene.keyframe().showStructure("create_biotech:generated/ponderer/enchanting_line_base", null, null, null, null);
+        scene.idle(20);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is a simple enchantment production line."), Map.entry("zh_cn", "这是一个简单的附魔流水线"))), new Vec3(4.0d, 3.5d, 4.5d), 90, null, true);
+        scene.setBlock("create:belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "start"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(6, 1, 4), null, "{Casing:\"NONE\",Controller:{X:-21,Y:-59,Z:-3},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:252,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.06666667f,Pos:3.5f,PrevOffset:0.06666667f,PrevPos:3.5f},{Angle:214,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.031481482f,Pos:2.5f,PrevOffset:0.031481482f,PrevPos:2.5f},{Angle:0,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:-0.16666667f,Pos:1.5019531f,PrevOffset:-0.16666667f,PrevPos:1.5019531f},{Angle:284,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:book\"},Offset:0.096296296f,Pos:0.5019531f,PrevOffset:0.096296296f,PrevPos:0.5019531f}],PositiveOrder:1b},IsController:1b,Length:4,Network:{Capacity:262144.0f,Id:-5497558122556L,Size:18,Stress:128.0f},Source:{X:-21,Y:-59,Z:-2},Speed:32.0f}", true, null, "none", null, null, null, null, null);
+        scene.idle(100);
+        scene.keyframe().hideSection(new BlockPos(0, 1, 3), new BlockPos(2, 4, 6), 20, "up");
+        scene.idle(20);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is a Squid Printer."), Map.entry("zh_cn", "这是鱿鱼打印机"))), new Vec3(5.0d, 3.5d, 4.5d), 60, null, true);
+        scene.idle(70);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Mark an enchanted book on the side..."), Map.entry("zh_cn", "在侧面标记一本附魔书..."))), new Vec3(5.0d, 3.5d, 4.5d), 90, null, true);
+        scene.idle(60);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It will process the book below into an Enchanted Book (Copy)."), Map.entry("zh_cn", "它会将下方的书加工为附魔书（复印本）"))), new Vec3(5.5d, 2.0d, 4.5d), 120, null, true);
+        scene.idle(130);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Whether it is working or not, the printer needs a water supply to keep the squid alive."), Map.entry("zh_cn", "无论是否在工作，打印机都需要输入水来保证鱿鱼存活"))), new Vec3(5.0d, 3.5d, 6.5d), 120, null, true);
+        scene.idle(120);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene2() {
         var scene = new JavaScene("s_8911d", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Evoker Enchanting Chamber"), Map.entry("zh_cn", "唤魔者附魔室"))));
-        scene.at("step_001").showStructure("create_biotech:generated/ponderer/enchanting_line_base", null, null, null, null);
-        scene.at("step_002").idle(20);
-        scene.at("step_003").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is an Evoker Enchanting Chamber."), Map.entry("zh_cn", "这是唤魔者附魔室"))), new Vec3(2.5d, 2.0d, 4.5d), 60, null, true);
-        scene.at("step_004").idle(70);
-        scene.at("step_005").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It can turn copied enchanted books into usable enchanted books."), Map.entry("zh_cn", "它可以将附魔书（复印本）附魔为可以使用的附魔书"))), new Vec3(2.5d, 2.5d, 4.0d), 120, null, true);
-        scene.at("step_006").idle(130);
-        scene.at("step_007").rotateCameraY(-90.0f, 0.0f, 20);
-        scene.at("step_008").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Supply it with the experience needed for enchanting through an Experience Pump."), Map.entry("zh_cn", "通过经验泵向其输送附魔所需要的经验"))), new Vec3(2.0d, 1.5d, 5.5d), 120, null, true);
-        scene.at("step_009").idle(130);
-        scene.at("step_010").rotateCameraY(90.0f, 0.0f, 20);
-        scene.at("step_011").keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The higher the total enchantment level, the more experience and time it requires."), Map.entry("zh_cn", "附魔书的总等级越高，所需的经验越多，时间越长"))), new Vec3(2.5d, 3.5d, 6.0d), 120, null, true);
-        scene.at("step_012").idle(130);
+        scene.showStructure("create_biotech:generated/ponderer/enchanting_line_base", null, null, null, null);
+        scene.idle(20);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is an Evoker Enchanting Chamber."), Map.entry("zh_cn", "这是唤魔者附魔室"))), new Vec3(2.5d, 2.0d, 4.5d), 60, null, true);
+        scene.idle(70);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It can turn copied enchanted books into usable enchanted books."), Map.entry("zh_cn", "它可以将附魔书（复印本）附魔为可以使用的附魔书"))), new Vec3(2.5d, 2.5d, 4.0d), 120, null, true);
+        scene.idle(130);
+        scene.rotateCameraY(-90.0f, 0.0f, 20);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Supply it with the experience needed for enchanting through an Experience Pump."), Map.entry("zh_cn", "通过经验泵向其输送附魔所需要的经验"))), new Vec3(2.0d, 1.5d, 5.5d), 120, null, true);
+        scene.idle(130);
+        scene.rotateCameraY(90.0f, 0.0f, 20);
+        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The higher the total enchantment level, the more experience and time it requires."), Map.entry("zh_cn", "附魔书的总等级越高，所需的经验越多，时间越长"))), new Vec3(2.5d, 3.5d, 6.0d), 120, null, true);
+        scene.idle(130);
         return scene.build();
     }
 

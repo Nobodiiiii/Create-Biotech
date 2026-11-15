@@ -49,30 +49,30 @@ public final class GeneratedUniversalJoint_46e845e1 {
 
     private static DslScene.SceneSegment scene1() {
         var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Universal Joint"), Map.entry("zh_cn", "史莱姆万向节"))));
-        scene.at("step_001").keyframe().showStructure("create_biotech:generated/ponderer/universal_joint_base", null, null, null, null);
-        scene.at("step_002").idle(20);
-        scene.at("step_003").setBlock("create:cogwheel", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("axis", "z")), new BlockPos(1, 1, 5), null, "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-27,Y:-60,Z:10},Speed:32.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_004").setBlock("create:shaft", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("axis", "z")), new BlockPos(1, 1, 4), null, "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-28,Y:-59,Z:10},Speed:32.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_005").setBlock("create:andesite_casing", null, new BlockPos(3, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
-        scene.at("step_006").setBlock("create:speedometer", Map.ofEntries(Map.entry("facing", "up"), Map.entry("axis_along_first", "true")), new BlockPos(3, 2, 2), null, "{Color:0,ForgeCaps:{},HasAttachedComputer:0b,Speed:0.0f,Value:0.0f}", false, false, "down", 20, 1, false, null, "down");
-        scene.at("step_007").idle(20);
-        scene.at("step_008").keyframe().setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("facing", "south")), new BlockPos(1, 1, 3), null, "{ForgeCaps:{},LinkedJoint:{X:2,Y:2,Z:2},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:3,Y:1,Z:3},Speed:32.0f}", false, false, "down", 20, 1, false, null, "down");
-        scene.at("step_009").setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("facing", "east")), new BlockPos(2, 2, 2), null, "{ForgeCaps:{},LinkedJoint:{X:1,Y:1,Z:3},Network:{Capacity:262144.0f,Id:-8521215066172L,Size:6,Stress:0.0f},Source:{X:2,Y:2,Z:2},Speed:-32.0f}", false, false, "down", 20, 1, false, null, "down");
-        scene.at("step_010").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Universal Joint can transmit rotational force between any two nearby points."), Map.entry("zh_cn", "史莱姆万向节可以在相近的任意两个点之间传播应力"))), new Vec3(1.5d, 2.0d, 2.5d), 90, null, true);
-        scene.at("step_011").modifyBlockEntity(Map.ofEntries(Map.entry("facing", "up"), Map.entry("axis_along_first", "true")), "{Color:4170495,ForgeCaps:{},HasAttachedComputer:0b,Network:{Capacity:262144.0f,Id:-8521215066172L,Size:7,Stress:0.0f},Source:{X:-29,Y:-58,Z:7},Speed:-32.0f,Value:0.4585714f}", null, new BlockPos(3, 2, 2), null);
-        scene.at("step_012").indicateSuccess(new BlockPos(3, 2, 2));
-        scene.at("step_013").idle(90);
-        scene.at("step_014").hideSection(new BlockPos(0, 1, 4), new BlockPos(4, 4, 0), 20, "up");
-        scene.at("step_015").hideSection(new BlockPos(0, 0, 5), new BlockPos(1, 1, 5), 20, "up");
-        scene.at("step_016").idle(20);
-        scene.at("step_017").keyframe().setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("waterlogged", "false"), Map.entry("facing", "down")), new BlockPos(2, 3, 2), null, "{ForgeCaps:{},LinkedJoint:{X:-30,Y:-59,Z:6},Speed:0.0f}", false, false, "none", null, null, null, null, null);
-        scene.at("step_018").setBlock("create:andesite_casing", null, new BlockPos(2, 1, 2), null, null, false, false, "none", null, null, null, null, null);
-        scene.at("step_019").setBlock("create:andesite_casing", null, new BlockPos(2, 2, 2), null, null, false, false, "none", null, null, null, null, null);
-        scene.at("step_020").showSectionAndMerge(new BlockPos(2, 1, 2), new BlockPos(2, 4, 2), null, 20, "down", "simultaneous", 20, 1, true);
-        scene.at("step_021").idle(20);
-        scene.at("step_022").highlightSection("green", new BlockPos(0, 1, 0), new BlockPos(4, 5, 4), 90);
-        scene.at("step_023").showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The other node must be within range. Moving structures stretch the shaft; it shifts to the clutch overload colour and snaps when overextended."), Map.entry("zh_cn", "另一节点必须位于连接范围内。结构移动会拉伸轴体；接近极限时逐渐变为史莱姆离合器的过载色，过度拉伸后断裂。"))), new Vec3(2.0d, 3.5d, 2.5d), 90, null, true);
-        scene.at("step_024").idle(90);
+        scene.keyframe().showStructure("create_biotech:generated/ponderer/universal_joint_base", null, null, null, null);
+        scene.idle(20);
+        scene.setBlock("create:cogwheel", Map.ofEntries(Map.entry("axis", "z"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 5), null, "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-27,Y:-60,Z:10},Speed:32.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.setBlock("create:shaft", Map.ofEntries(Map.entry("axis", "z"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 4), null, "{ForgeCaps:{},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:-28,Y:-59,Z:10},Speed:32.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.setBlock("create:andesite_casing", null, new BlockPos(3, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
+        scene.setBlock("create:speedometer", Map.ofEntries(Map.entry("axis_along_first", "true"), Map.entry("facing", "up")), new BlockPos(3, 2, 2), null, "{Color:0,ForgeCaps:{},HasAttachedComputer:0b,Speed:0.0f,Value:0.0f}", false, false, "down", 20, 1, false, null, "down");
+        scene.idle(20);
+        scene.keyframe().setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("facing", "south"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 3), null, "{ForgeCaps:{},LinkedJoint:{X:2,Y:2,Z:2},Network:{Capacity:262144.0f,Id:-7421703438396L,Size:7,Stress:0.0f},Source:{X:3,Y:1,Z:3},Speed:32.0f}", false, false, "down", 20, 1, false, null, "down");
+        scene.setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("facing", "east"), Map.entry("waterlogged", "false")), new BlockPos(2, 2, 2), null, "{ForgeCaps:{},LinkedJoint:{X:1,Y:1,Z:3},Network:{Capacity:262144.0f,Id:-8521215066172L,Size:6,Stress:0.0f},Source:{X:2,Y:2,Z:2},Speed:-32.0f}", false, false, "down", 20, 1, false, null, "down");
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Universal Joint can transmit rotational force between any two nearby points."), Map.entry("zh_cn", "史莱姆万向节可以在相近的任意两个点之间传播应力"))), new Vec3(1.5d, 2.0d, 2.5d), 90, null, true);
+        scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis_along_first", "true"), Map.entry("facing", "up")), "{Color:4170495,ForgeCaps:{},HasAttachedComputer:0b,Network:{Capacity:262144.0f,Id:-8521215066172L,Size:7,Stress:0.0f},Source:{X:-29,Y:-58,Z:7},Speed:-32.0f,Value:0.4585714f}", null, new BlockPos(3, 2, 2), null);
+        scene.indicateSuccess(new BlockPos(3, 2, 2));
+        scene.idle(90);
+        scene.hideSection(new BlockPos(0, 1, 4), new BlockPos(4, 4, 0), 20, "up");
+        scene.hideSection(new BlockPos(0, 0, 5), new BlockPos(1, 1, 5), 20, "up");
+        scene.idle(20);
+        scene.keyframe().setBlock("create_biotech:universal_joint", Map.ofEntries(Map.entry("facing", "down"), Map.entry("waterlogged", "false")), new BlockPos(2, 3, 2), null, "{ForgeCaps:{},LinkedJoint:{X:-30,Y:-59,Z:6},Speed:0.0f}", false, false, "none", null, null, null, null, null);
+        scene.setBlock("create:andesite_casing", null, new BlockPos(2, 1, 2), null, null, false, false, "none", null, null, null, null, null);
+        scene.setBlock("create:andesite_casing", null, new BlockPos(2, 2, 2), null, null, false, false, "none", null, null, null, null, null);
+        scene.showSectionAndMerge(new BlockPos(2, 1, 2), new BlockPos(2, 4, 2), null, 20, "down", "simultaneous", 20, 1, true);
+        scene.idle(20);
+        scene.highlightSection("green", new BlockPos(0, 1, 0), new BlockPos(4, 5, 4), 90);
+        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The other node must be within range. Moving structures stretch the shaft; it shifts to the clutch overload colour and snaps when overextended."), Map.entry("zh_cn", "另一节点必须位于连接范围内。结构移动会拉伸轴体；接近极限时逐渐变为史莱姆离合器的过载色，过度拉伸后断裂。"))), new Vec3(2.0d, 3.5d, 2.5d), 90, null, true);
+        scene.idle(90);
         return scene.build();
     }
 

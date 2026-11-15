@@ -1,40 +1,50 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:shulker_packager",
+  "runtimeSource": "create_biotech:shulker_packager",
   "items": [
     "create_biotech:shulker_packager"
   ],
-  "editable": true,
-  "tags": [
-    "create:high_logistics"
-  ],
+  "title": {
+    "zh_cn": "潜影打包机",
+    "en_us": "Shulker Packager"
+  },
   "structures": [
     "create_biotech:generated/ponderer/basic"
   ],
+  "tags": [
+    "create:high_logistics",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Shulker Packager",
-        "zh_cn": "潜影打包机"
+        "zh_cn": "潜影打包机",
+        "en_us": "Shulker Packager"
       },
       "steps": [
         {
+          "id": "java_ce7b3857854e35748a742373b332adfe",
           "type": "show_structure",
-          "id": "step_001",
           "structure": "create_biotech:generated/ponderer/basic"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_4aab8fb2b80f32e484a6634017426660",
           "type": "set_block",
           "block": "create_biotech:shulker_packager",
           "blockProperties": {
+            "linked": "false",
             "powered": "false",
-            "facing": "north",
-            "linked": "false"
+            "facing": "north"
           },
           "blockPos": [
             2,
@@ -42,18 +52,18 @@
             2
           ],
           "nbt": "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_003"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_cc9edbf7240d3fa4b38ee446b3bb03c4",
           "type": "set_block",
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "facing": "west",
-            "type": "single"
+            "type": "single",
+            "facing": "west"
           },
           "blockPos": [
             2,
@@ -61,13 +71,16 @@
             3
           ],
           "nbt": "{Items:[]}",
-          "immediateDisplay": false,
           "spawnParticles": false,
-          "entranceAnimation": "none",
-          "id": "step_004"
+          "immediateDisplay": false,
+          "entranceAnimation": "none"
         },
         {
+          "id": "java_2fafa64ad9e5364ba957c4fc362560ce",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
+          "linkId": "default",
           "blockPos": [
             2,
             1,
@@ -78,75 +91,73 @@
             1,
             2
           ],
-          "linkId": "default",
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "id": "step_005"
+          "entranceInterval": 1
         },
         {
+          "id": "java_5a1c32799e8b30c5a06ae7ae3dff3945",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "Shulker Packagers work much like regular Packagers.",
-            "zh_cn": "潜影打包机和普通打包机的工作方式类似"
+            "zh_cn": "潜影打包机和普通打包机的工作方式类似",
+            "en_us": "Shulker Packagers work much like regular Packagers."
           },
           "point": [
             2.0,
             1.5,
             2.5
           ],
-          "duration": 80,
-          "placeNearTarget": true,
-          "id": "step_006"
+          "placeNearTarget": true
         },
         {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
           "type": "idle",
           "duration": 90,
-          "id": "step_007",
           "attachKeyFrame": true
         },
         {
+          "id": "java_a9d418bb02363af888120089ded43a14",
           "type": "text",
+          "duration": 100,
           "text": {
-            "en_us": "The difference is that they automatically teleport their packages over short distances.",
-            "zh_cn": "不同的是，它会在短距离内自动传送其中的包裹"
+            "zh_cn": "不同的是，它会在短距离内自动传送其中的包裹",
+            "en_us": "The difference is that they automatically teleport their packages over short distances."
           },
           "point": [
             2.0,
             1.5,
             2.5
           ],
-          "duration": 100,
-          "placeNearTarget": true,
-          "id": "step_008"
+          "placeNearTarget": true
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
           "duration": 110,
-          "id": "step_009",
           "attachKeyFrame": true
         },
         {
+          "id": "java_2d5653f3719c32e79fb164031a24df72",
           "type": "move_section",
+          "duration": 20,
           "linkId": "default",
           "offset": [
             2.0,
             0.0,
             0.0
-          ],
-          "duration": 20,
-          "id": "step_010"
+          ]
         },
         {
+          "id": "java_fc17e7e852fe35d487e9d0b76fb19cba",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "facing": "west",
-            "type": "single"
+            "type": "single",
+            "facing": "west"
           },
           "blockPos": [
             0,
@@ -154,22 +165,22 @@
             3
           ],
           "nbt": "{Items:[]}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "down",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_011"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_012"
+          "duration": 20
         },
         {
+          "id": "java_84f23332631c3208953463ad73d0ac82",
           "type": "highlight_section",
+          "duration": 120,
           "color": "output",
           "blockPos": [
             4,
@@ -180,53 +191,53 @@
             4,
             1,
             2
-          ],
-          "duration": 120,
-          "id": "step_013"
+          ]
         },
         {
+          "id": "java_6d38d708a8d7375d9ec998b90c0f6579",
           "type": "show_controls",
+          "duration": 120,
           "point": [
             4.5,
             2.0,
             2.5
           ],
           "direction": "down",
-          "duration": 120,
           "action": "right",
           "item": "create_biotech:shulker_packager",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_014"
+          "whileCTRL": false
         },
         {
+          "id": "java_6460a92c1fc139c181a376019eb5836b",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target.",
-            "zh_cn": "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标"
+            "zh_cn": "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标",
+            "en_us": "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target."
           },
           "point": [
             4.5,
             2.0,
             2.5
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_015"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
           "duration": 130,
-          "id": "step_016",
           "attachKeyFrame": true
         },
         {
+          "id": "java_9be71d8afeeb3100827369ccf9bbeede",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:shulker_packager",
           "blockProperties": {
+            "linked": "false",
             "powered": "false",
-            "facing": "north",
-            "linked": "false"
+            "facing": "north"
           },
           "blockPos": [
             0,
@@ -234,28 +245,28 @@
             2
           ],
           "nbt": "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_017"
+          "entranceInterval": 1
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
           "type": "idle",
-          "duration": 10,
-          "id": "step_018"
+          "duration": 10
         },
         {
+          "id": "java_cde8eca722dc3401b59be167a6e242a2",
           "type": "set_block",
+          "direction": "south",
           "block": "create:stock_link",
           "blockProperties": {
             "face": "wall",
-            "waterlogged": "false",
             "powered": "false",
-            "facing": "north"
+            "facing": "north",
+            "waterlogged": "false"
           },
           "blockPos": [
             0,
@@ -268,29 +279,26 @@
             1
           ],
           "nbt": "{Added:1b,Freq:[I;1525300355,-1272692006,-1108929138,1505103379],PlacedBy:[I;940439953,-167562164,-1601161573,-1389718966],Power:0}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "south",
-          "id": "step_019"
+          "entranceInterval": 1
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5_2",
           "type": "idle",
-          "duration": 10,
-          "id": "step_020"
+          "duration": 10
         },
         {
+          "id": "java_4a9cc84f38ff38389145af698ef13f3a",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
+            "linked": "true",
             "powered": "false",
-            "facing": "north",
-            "linked": "true"
+            "facing": "north"
           },
-          "nbt": "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}",
-          "reDrawBlocks": true,
           "blockPos": [
             0,
             1,
@@ -301,145 +309,148 @@
             1,
             2
           ],
-          "id": "step_021"
+          "nbt": "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}",
+          "reDrawBlocks": true
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5_3",
           "type": "idle",
-          "duration": 10,
-          "id": "step_022"
+          "duration": 10
         },
         {
+          "id": "java_91dfb452fbcf361b9d354ee4bb5646d3",
           "type": "text",
+          "duration": 80,
           "text": {
-            "en_us": "After receiving a request, the Shulker Packager teleports the package to its selected target.",
-            "zh_cn": "收到请求后，潜影打包机会将包裹传送到选定的目标"
+            "zh_cn": "收到请求后，潜影打包机会将包裹传送到选定的目标",
+            "en_us": "After receiving a request, the Shulker Packager teleports the package to its selected target."
           },
           "point": [
             0.5,
             2.0,
             2.5
           ],
-          "duration": 80,
-          "placeNearTarget": true,
-          "id": "step_023"
+          "placeNearTarget": true
         },
         {
-          "type": "create_biotech:java/shulker_packager/1",
+          "id": "java_e68877cd73623eeb8d7c0669061d09b5",
           "parameters": {},
-          "id": "step_024",
+          "type": "create_biotech:java/shulker_packager/1",
           "attachKeyFrame": true
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5_4",
           "type": "idle",
-          "duration": 10,
-          "id": "step_025"
+          "duration": 10
         },
         {
-          "type": "create_biotech:java/shulker_packager/2",
+          "id": "java_eb2f7fac427f33f5b9c4e322ec343c30",
           "parameters": {},
-          "id": "step_026"
+          "type": "create_biotech:java/shulker_packager/2"
         },
         {
+          "id": "java_54a20f23e2353e849b19a1566269238a",
           "type": "idle",
-          "duration": 28,
-          "id": "step_027"
+          "duration": 28
         },
         {
+          "id": "java_18c26d965d70303983632a543634aaa7",
           "type": "spawn_particles",
-          "particle": "minecraft:portal",
+          "duration": 1,
           "pos": [
             0.5,
             1.5,
             3.15
           ],
-          "distribution": "point",
-          "spread": [
-            0.0,
-            0.0,
-            0.0
-          ],
           "motion": [
             0.0,
             0.0,
             0.0
           ],
           "count": 32,
-          "duration": 1,
-          "id": "step_028"
+          "particle": "minecraft:portal",
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ]
         },
         {
+          "id": "java_3ee9fe9827ae357f8fb81894f9e8db0a",
           "type": "spawn_particles",
-          "particle": "minecraft:portal",
+          "duration": 1,
           "pos": [
             4.5,
             1.5,
             3.15
           ],
-          "distribution": "point",
-          "spread": [
-            0.0,
-            0.0,
-            0.0
-          ],
           "motion": [
             0.0,
             0.0,
             0.0
           ],
           "count": 32,
-          "duration": 1,
-          "id": "step_029"
+          "particle": "minecraft:portal",
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ]
         },
         {
+          "id": "java_913338083ff43a528dc1907d7870fe56",
           "type": "play_sound",
+          "pitch": 1.0,
           "sound": "minecraft:entity.enderman.teleport",
           "soundVolume": 0.8,
-          "pitch": 1.0,
-          "source": "blocks",
-          "id": "step_030"
+          "source": "blocks"
         },
         {
+          "id": "java_1520b2c525af3c46af7cdd24ba7ca249",
           "type": "idle",
-          "duration": 2,
-          "id": "step_031"
+          "duration": 2
         },
         {
-          "type": "create_biotech:java/shulker_packager/3",
+          "id": "java_a46a5f1b803f3cf887e6dbcf70aa565c",
           "parameters": {},
-          "id": "step_032"
+          "type": "create_biotech:java/shulker_packager/3"
         },
         {
-          "type": "create_biotech:java/shulker_packager/4",
+          "id": "java_7b1f8fd630da374f8c69b14ec1c694fb",
           "parameters": {},
-          "id": "step_033"
+          "type": "create_biotech:java/shulker_packager/4"
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_034"
+          "duration": 20
         },
         {
+          "id": "java_5db272c645733cb88a281bf00653764b",
           "type": "idle",
-          "duration": 30,
-          "id": "step_035"
+          "duration": 30
         },
         {
+          "id": "java_ee78014afe7c36aba82d5d31f1d07e2b",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options.",
-            "zh_cn": "潜影打包机适用于短距离传输，长距离传输可以使用悦灵驿站、货物蛙港、火车与邮箱等"
+            "zh_cn": "潜影打包机适用于短距离传输，长距离传输可以使用悦灵驿站、货物蛙港、火车与邮箱等",
+            "en_us": "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options."
           },
           "point": [
             2.5,
             2.0,
             0.5
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_036"
+          "placeNearTarget": true
         },
         {
+          "id": "java_d5decb86b70c3490b24f226ecc13d184",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:allay_port",
           "blockProperties": {
             "facing": "north"
@@ -450,22 +461,22 @@
             0
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_037"
+          "entranceInterval": 1
         },
         {
+          "id": "java_de6586686970389e9b0d69061b75d059",
           "type": "set_block",
+          "direction": "down",
           "block": "create:package_frogport",
           "blockProperties": {
             "waterlogged": "false",
-            "facing": "east",
-            "open": "false"
+            "open": "false",
+            "facing": "east"
           },
           "blockPos": [
             2,
@@ -473,22 +484,22 @@
             0
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",HasAttachedComputer:0b,Inventory:{Items:[],Size:18},Owner:[I;940439953,-167562164,-1601161573,-1389718966],PlacedYaw:0.0f}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_038"
+          "entranceInterval": 1
         },
         {
+          "id": "java_0fcf0bacd6ff33f789eb5829a65d54f2",
           "type": "set_block",
+          "direction": "down",
           "block": "create:white_postbox",
           "blockProperties": {
             "waterlogged": "false",
-            "facing": "east",
-            "open": "false"
+            "open": "false",
+            "facing": "east"
           },
           "blockPos": [
             1,
@@ -496,48 +507,41 @@
             0
           ],
           "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",HasAttachedComputer:0b,Inventory:{Items:[],Size:18}}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_039"
+          "entranceInterval": 1
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425_2",
           "type": "idle",
           "duration": 130,
-          "id": "step_040",
           "attachKeyFrame": true
         },
         {
+          "id": "java_830d7a47d26c32529c96f6287cee148d",
           "type": "text",
+          "duration": 60,
           "text": {
-            "en_us": "Check their Ponder screens to learn how they behave.",
-            "zh_cn": "查看它们的思索界面以了解它们的行为"
+            "zh_cn": "查看它们的思索界面以了解它们的行为",
+            "en_us": "Check their Ponder screens to learn how they behave."
           },
           "point": [
             2.5,
             2.0,
             0.5
           ],
-          "duration": 60,
-          "placeNearTarget": true,
-          "id": "step_041"
+          "placeNearTarget": true
         },
         {
+          "id": "java_cabf9e0843093fda8a832f2c1bcca837",
           "type": "idle",
           "duration": 70,
-          "id": "step_042",
           "attachKeyFrame": true
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Shulker Packager",
-    "zh_cn": "潜影打包机"
-  },
-  "runtimeSource": "create_biotech:shulker_packager"
+  ]
 }

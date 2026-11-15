@@ -1,36 +1,47 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:schrodingers_cat",
+  "runtimeSource": "create_biotech:schrodingers_cat",
   "items": [
     "create_biotech:schrodingers_cat"
   ],
-  "editable": true,
-  "tags": [
-    "create:redstone"
-  ],
+  "title": {
+    "zh_cn": "薛定谔的猫",
+    "en_us": "Schrodinger's Cat"
+  },
   "structures": [
     "create_biotech:generated/ponderer/basic"
   ],
+  "tags": [
+    "create:redstone",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Schrodinger's Cat",
-        "zh_cn": "薛定谔的猫"
+        "zh_cn": "薛定谔的猫",
+        "en_us": "Schrodinger's Cat"
       },
       "steps": [
         {
+          "id": "java_ce7b3857854e35748a742373b332adfe",
           "type": "show_structure",
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/basic"
+          "structure": "create_biotech:generated/ponderer/basic",
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_af169203f7e9376eb304f08791b9738a",
           "type": "set_block",
+          "direction": "down",
           "block": "create_biotech:schrodingers_cat",
           "blockProperties": {
             "facing": "north"
@@ -41,41 +52,41 @@
             1
           ],
           "nbt": "{DetectionInterval:20,ForgeCaps:{},OutputMode:0,PulseTicks:0,SignalStrength:0,TickCounter:5}",
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_003"
+          "entranceInterval": 1
         },
         {
+          "id": "java_431289bf889a397f89fd29de5ab1384b",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:redstone_wire",
           "blockProperties": {
             "east": "none",
-            "south": "side",
+            "power": "0",
             "north": "side",
-            "west": "none",
-            "power": "0"
+            "south": "side",
+            "west": "none"
           },
           "blockPos": [
             2,
             1,
             2
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_004"
+          "entranceInterval": 1
         },
         {
+          "id": "java_a821d991bee5383e8433df9cd60e447f",
           "type": "set_block",
+          "direction": "down",
           "block": "minecraft:redstone_lamp",
           "blockProperties": {
             "lit": "false"
@@ -85,42 +96,41 @@
             1,
             3
           ],
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "direction": "down",
-          "id": "step_005"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_006"
+          "duration": 20
         },
         {
+          "id": "java_efd459c09e0135e3aa35294db4d49167",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Schrodinger's Cat randomly outputs redstone signals from its back.",
-            "zh_cn": "薛定谔的猫会在其背后随机输出红石信号"
+            "zh_cn": "薛定谔的猫会在其背后随机输出红石信号",
+            "en_us": "Schrodinger's Cat randomly outputs redstone signals from its back."
           },
           "point": [
             2.0,
             1.5,
             1.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_007",
           "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_008"
+          "duration": 20
         },
         {
+          "id": "java_6b32072e26ce3d78b3588f3b6a4f80dc",
           "type": "toggle_redstone_power",
           "blockPos": [
             2,
@@ -131,15 +141,15 @@
             2,
             1,
             3
-          ],
-          "id": "step_009"
+          ]
         },
         {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
           "type": "idle",
-          "duration": 60,
-          "id": "step_010"
+          "duration": 60
         },
         {
+          "id": "java_6b32072e26ce3d78b3588f3b6a4f80dc_2",
           "type": "toggle_redstone_power",
           "blockPos": [
             2,
@@ -150,50 +160,50 @@
             2,
             1,
             3
-          ],
-          "id": "step_011"
+          ]
         },
         {
+          "id": "java_67b3fcf47b9734798d27525fe94ea788",
           "type": "idle",
-          "duration": 50,
-          "id": "step_012"
+          "duration": 50
         },
         {
+          "id": "java_6db551ec3f2b3b94954ce9c590118fb7",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Its interval and output mode (sustained or pulse) can be configured from the side.",
-            "zh_cn": "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置"
+            "zh_cn": "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置",
+            "en_us": "Its interval and output mode (sustained or pulse) can be configured from the side."
           },
           "point": [
             2.0,
             1.5,
             1.5
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_013",
           "attachKeyFrame": true
         },
         {
+          "id": "java_69676e8616643240a6cabedcf05bfe45",
           "type": "show_controls",
+          "duration": 60,
           "point": [
             2.0,
             1.5,
             1.5
           ],
           "direction": "down",
-          "duration": 60,
           "action": "right",
           "whileSneaking": false,
-          "whileCTRL": false,
-          "id": "step_014"
+          "whileCTRL": false
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
           "type": "idle",
-          "duration": 10,
-          "id": "step_015"
+          "duration": 10
         },
         {
+          "id": "java_6b32072e26ce3d78b3588f3b6a4f80dc_3",
           "type": "toggle_redstone_power",
           "blockPos": [
             2,
@@ -204,15 +214,15 @@
             2,
             1,
             3
-          ],
-          "id": "step_016"
+          ]
         },
         {
+          "id": "java_7f6818f272f4300bb7125cd4c822e421",
           "type": "idle",
-          "duration": 100,
-          "id": "step_017"
+          "duration": 100
         },
         {
+          "id": "java_6b32072e26ce3d78b3588f3b6a4f80dc_4",
           "type": "toggle_redstone_power",
           "blockPos": [
             2,
@@ -223,20 +233,14 @@
             2,
             1,
             3
-          ],
-          "id": "step_018"
+          ]
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_019"
+          "duration": 20
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Schrodinger's Cat",
-    "zh_cn": "薛定谔的猫"
-  },
-  "runtimeSource": "create_biotech:schrodingers_cat"
+  ]
 }

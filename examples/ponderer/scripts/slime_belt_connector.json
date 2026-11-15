@@ -1,25 +1,36 @@
 {
+  "formatVersion": 1,
+  "requiredCapabilities": [],
   "id": "create_biotech:slime_belt_connector",
+  "runtimeSource": "create_biotech:slime_belt_connector",
   "items": [
     "create_biotech:slime_belt_connector"
   ],
-  "editable": true,
-  "tags": [
-    "create:logistics"
-  ],
+  "title": {
+    "zh_cn": "史莱姆传送带",
+    "en_us": "Slime Belt"
+  },
   "structures": [
     "create_biotech:generated/ponderer/slime_belt_connector_horizontal"
   ],
+  "tags": [
+    "create:logistics",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
   "scenes": [
     {
       "id": "scene_1",
       "title": {
-        "en_us": "Slime Belt",
-        "zh_cn": "史莱姆传送带"
+        "zh_cn": "史莱姆传送带",
+        "en_us": "Slime Belt"
       },
       "steps": [
         {
+          "id": "java_7e45ba3ddc5d34d18d3429caf52b90af",
           "type": "show_structure",
+          "structure": "create_biotech:generated/ponderer/slime_belt_connector_horizontal",
           "blockPos": [
             0,
             0,
@@ -30,17 +41,18 @@
             0,
             7
           ],
-          "id": "step_001",
-          "attachKeyFrame": true,
-          "structure": "create_biotech:generated/ponderer/slime_belt_connector_horizontal"
+          "attachKeyFrame": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be",
           "type": "idle",
-          "duration": 20,
-          "id": "step_002"
+          "duration": 20
         },
         {
+          "id": "java_32be66af704a31c9b5ad03ecc1baa34d",
           "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
           "blockPos": [
             0,
             1,
@@ -51,23 +63,19 @@
             5,
             7
           ],
-          "duration": 20,
-          "direction": "down",
+          "smartDisplay": false,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
-          "entranceInterval": 1,
-          "smartDisplay": false,
-          "id": "step_003"
+          "entranceInterval": 1
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_2",
           "type": "idle",
-          "duration": 20,
-          "id": "step_004"
+          "duration": 20
         },
         {
+          "id": "java_e39aeb50024c32f4a7fb89ac5c2136a8",
           "type": "create_item_entity",
-          "item": "minecraft:oak_log",
-          "count": 1,
           "pos": [
             4.5,
             4.0,
@@ -78,85 +86,89 @@
             0.0,
             0.0
           ],
-          "id": "step_005"
+          "count": 1,
+          "item": "minecraft:oak_log"
         },
         {
+          "id": "java_f67e2b69e95d3da781d9490e8bc70edb",
           "type": "text",
+          "duration": 67,
           "text": {
-            "en_us": "The Slime Belt can transport items like a normal belt.",
-            "zh_cn": "史莱姆传送带可以像一般传送带一样传输物品"
+            "zh_cn": "史莱姆传送带可以像一般传送带一样传输物品",
+            "en_us": "The Slime Belt can transport items like a normal belt."
           },
           "point": [
             4.0,
             2.5,
             3.5
           ],
-          "duration": 67,
           "placeNearTarget": true,
-          "id": "step_006",
           "attachKeyFrame": true
         },
         {
+          "id": "java_a340883b24eb3ee4ba1607046909a934",
           "type": "idle",
-          "duration": 7,
-          "id": "step_007"
+          "duration": 7
         },
         {
+          "id": "java_3a34fb87a95b32df9e76665d7b61c33b",
           "type": "clear_item_entities",
-          "fullScene": true,
-          "id": "step_008"
+          "fullScene": true
         },
         {
+          "id": "java_c56669a7688e31edbe07bd48d3870f0a",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "west",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:16.0f}",
           "blockPos": [
             4,
             2,
             3
           ],
-          "id": "step_009"
+          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:16.0f}"
         },
         {
+          "id": "java_67b3fcf47b9734798d27525fe94ea788",
           "type": "idle",
-          "duration": 50,
-          "id": "step_010"
+          "duration": 50
         },
         {
+          "id": "java_655e38c99d1d3bc889b63457369e4115",
           "type": "rotate_camera_y",
+          "duration": 20,
           "degrees": 35.0,
           "degreesX": 35.0,
-          "duration": 20,
-          "id": "step_011",
           "attachKeyFrame": true
         },
         {
+          "id": "java_0afbe9df7cc83628933c4ad18c294ac9",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "The difference is that items are not thrown off the end, but continue moving onto the back side of the belt.",
-            "zh_cn": "不同的是，物品不会在传送带末端被抛出，而是会继续运动到传送带背面"
+            "zh_cn": "不同的是，物品不会在传送带末端被抛出，而是会继续运动到传送带背面",
+            "en_us": "The difference is that items are not thrown off the end, but continue moving onto the back side of the belt."
           },
           "point": [
             2.5,
             2.5,
             3.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_012"
+          "placeNearTarget": true
         },
         {
+          "id": "java_384f7013be0e32e2bdc3f26e5ae59425",
           "type": "idle",
-          "duration": 130,
-          "id": "step_013"
+          "duration": 130
         },
         {
+          "id": "java_395da038135b344dbdeaf09e6121779b",
           "type": "hide_section",
+          "duration": 20,
+          "direction": "up",
           "blockPos": [
             0,
             1,
@@ -166,91 +178,91 @@
             7,
             7,
             7
-          ],
-          "duration": 20,
-          "direction": "up",
-          "id": "step_014"
+          ]
         },
         {
+          "id": "java_e2e93b225b8337b6b1c2dfba42796286",
           "type": "rotate_camera_y",
+          "duration": 20,
           "degrees": -35.0,
           "degreesX": -35.0,
-          "duration": 20,
-          "id": "step_015",
           "attachKeyFrame": true
         },
         {
+          "id": "java_25499f4c5b0a3800b9a8a3151f3f2459",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/slime_belt_connector_vertical",
+          "rotation": 0.0,
+          "direction": "down",
           "blockPos": [
             2,
             1,
             3
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": true,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": true,
-          "direction": "down",
-          "id": "step_016"
+          "replaceAir": false
         },
         {
+          "id": "java_0b100a859a4b305095bfae445efa543e",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "The Slime Belt can also move items vertically.",
-            "zh_cn": "史莱姆传送带还可以竖直传动物品"
+            "zh_cn": "史莱姆传送带还可以竖直传动物品",
+            "en_us": "The Slime Belt can also move items vertically."
           },
           "point": [
             2.5,
             2.5,
             3.0
           ],
-          "duration": 120,
-          "placeNearTarget": true,
-          "id": "step_017"
+          "placeNearTarget": true
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_3",
           "type": "idle",
-          "duration": 20,
-          "id": "step_018"
+          "duration": 20
         },
         {
+          "id": "java_eaa556bc9670316db446f5d8ff830b97",
           "type": "modify_block_entity_nbt",
-          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_019"
+          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_915a930e3e1a375aaa43ac60af02e317",
           "type": "idle",
-          "duration": 110,
-          "id": "step_020"
+          "duration": 110
         },
         {
+          "id": "java_8bb9dcbd86db3251a04f62f113b32654",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_021"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_7c6462797e233a56801db8f13a7a4191",
           "type": "hide_section",
+          "duration": 20,
+          "direction": "up",
           "blockPos": [
             2,
             1,
@@ -260,271 +272,263 @@
             2,
             6,
             3
-          ],
-          "duration": 20,
-          "direction": "up",
-          "id": "step_022"
+          ]
         },
         {
+          "id": "java_f4f6790e4b313c1abcb8d165edc7f3be_4",
           "type": "idle",
-          "duration": 20,
-          "id": "step_023"
+          "duration": 20
         },
         {
+          "id": "java_c5c30d7d24743d1ea8b35185063e38ce",
           "type": "text",
+          "duration": 120,
           "text": {
-            "en_us": "Connected Slime Belts can form a loop.",
-            "zh_cn": "相连的史莱姆传送带可以形成一个回环"
+            "zh_cn": "相连的史莱姆传送带可以形成一个回环",
+            "en_us": "Connected Slime Belts can form a loop."
           },
           "point": [
             2.5,
             2.5,
             3.0
           ],
-          "duration": 120,
           "placeNearTarget": true,
-          "id": "step_024",
           "attachKeyFrame": true
         },
         {
+          "id": "java_698c33bb11143a0488c8c4b6df662bff",
           "type": "show_extra_structure",
           "structure": "create_biotech:generated/ponderer/slime_belt_connector_loop",
+          "rotation": 0.0,
+          "direction": "down",
           "blockPos": [
             0,
             0,
             3
           ],
-          "rotation": 0,
-          "replaceAir": false,
-          "immediateDisplay": false,
           "spawnParticles": false,
+          "immediateDisplay": false,
+          "smartDisplay": true,
           "entranceAnimation": "simultaneous",
           "entranceDuration": 20,
           "entranceInterval": 1,
-          "smartDisplay": true,
-          "direction": "down",
-          "id": "step_025"
+          "replaceAir": false
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
           "type": "idle",
-          "duration": 10,
-          "id": "step_026"
+          "duration": 10
         },
         {
+          "id": "java_a6019a5d602638238721a7cdb8419732",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "east",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:329,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.0f,Pos:0.0f,PrevOffset:0.0f,PrevPos:0.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:21,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
           "blockPos": [
             1,
             2,
             3
           ],
-          "id": "step_027"
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:329,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.0f,Pos:0.0f,PrevOffset:0.0f,PrevPos:0.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:21,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}"
         },
         {
+          "id": "java_b9f642efaafa33398d87ae09010e4019",
           "type": "idle",
-          "duration": 52,
-          "id": "step_028"
+          "duration": 52
         },
         {
+          "id": "java_084a60cd182331369b0e93a7765cda70",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "east",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
           "blockPos": [
             1,
             2,
             3
           ],
-          "id": "step_029"
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}"
         },
         {
+          "id": "java_d2891dab086e33bab435da1ebe280c01",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:196,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.014814815f,Pos:1.0f,PrevOffset:0.014814815f,PrevPos:1.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_030"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:196,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.014814815f,Pos:1.0f,PrevOffset:0.014814815f,PrevPos:1.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_655e38c99d1d3bc889b63457369e4115_2",
           "type": "rotate_camera_y",
-          "degrees": 35.0,
-          "degreesX": 35.0,
           "duration": 20,
-          "id": "step_031"
+          "degrees": 35.0,
+          "degreesX": 35.0
         },
         {
+          "id": "java_54a20f23e2353e849b19a1566269238a",
           "type": "idle",
-          "duration": 28,
-          "id": "step_032"
+          "duration": 28
         },
         {
+          "id": "java_ea54d7b72fe132e1889780279203375e",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:247,InDirection:4,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.062037036f,Pos:3.0352864f,PrevOffset:0.062037036f,PrevPos:3.0019531f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_033"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:247,InDirection:4,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.062037036f,Pos:3.0352864f,PrevOffset:0.062037036f,PrevPos:3.0019531f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_7b02aa049d043df0ba4bea7b4379e9dd",
           "type": "idle",
-          "duration": 185,
-          "id": "step_034"
+          "duration": 185
         },
         {
+          "id": "java_80d1156580b933beb95e0cbd6f8533bd",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "east",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-37,Y:-57,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-37,Y:-57,Z:7},Speed:-16.0f}",
           "blockPos": [
             4,
             3,
             3
           ],
-          "id": "step_035"
+          "nbt": "{Controller:{X:-37,Y:-57,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-37,Y:-57,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_156f2d5f98b333ef9cbc3c8374498f09",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:253,InDirection:5,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.06759259f,Pos:6.0f,PrevOffset:0.06759259f,PrevPos:6.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_036"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:253,InDirection:5,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.06759259f,Pos:6.0f,PrevOffset:0.06759259f,PrevPos:6.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_9180831805e13a449eb0a4e795895a4f",
           "type": "idle",
-          "duration": 22,
-          "id": "step_037"
+          "duration": 22
         },
         {
+          "id": "java_f3d27bf7d84c3d9092729db761fdaab1",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:278,InDirection:5,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.09074074f,Pos:7.0f,PrevOffset:0.09074074f,PrevPos:7.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_038"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:278,InDirection:5,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.09074074f,Pos:7.0f,PrevOffset:0.09074074f,PrevPos:7.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_9f7367dd0cf93c62839dc75ca722595f",
           "type": "idle",
-          "duration": 24,
-          "id": "step_039"
+          "duration": 24
         },
         {
+          "id": "java_6e1b6f00f40137179ca198a2c5bbd04f",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "east",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:77,InDirection:0,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:-0.09537037f,Pos:3.0f,PrevOffset:-0.09537037f,PrevPos:3.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
           "blockPos": [
             1,
             2,
             3
           ],
-          "id": "step_040"
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:77,InDirection:0,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:-0.09537037f,Pos:3.0f,PrevOffset:-0.09537037f,PrevPos:3.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}"
         },
         {
+          "id": "java_8bb9dcbd86db3251a04f62f113b32654_2",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "vertical",
             "part": "start",
             "facing": "east",
-            "slope": "vertical"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
           "blockPos": [
             3,
             2,
             3
           ],
-          "id": "step_041"
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}"
         },
         {
+          "id": "java_0586f67d08a43ef687b25eaa03304033",
           "type": "idle",
-          "duration": 45,
-          "id": "step_042"
+          "duration": 45
         },
         {
+          "id": "java_084a60cd182331369b0e93a7765cda70_2",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "waterlogged": "false",
+            "slope": "horizontal",
             "part": "start",
             "facing": "east",
-            "slope": "horizontal"
+            "waterlogged": "false"
           },
-          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
           "blockPos": [
             1,
             2,
             3
           ],
-          "id": "step_043"
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}"
         },
         {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5_2",
           "type": "idle",
-          "duration": 10,
-          "id": "step_044"
+          "duration": 10
         },
         {
+          "id": "java_e2e93b225b8337b6b1c2dfba42796286_2",
           "type": "rotate_camera_y",
-          "degrees": -35.0,
-          "degreesX": -35.0,
           "duration": 20,
-          "id": "step_045"
+          "degrees": -35.0,
+          "degreesX": -35.0
         }
       ]
     }
-  ],
-  "title": {
-    "en_us": "Slime Belt",
-    "zh_cn": "史莱姆传送带"
-  },
-  "runtimeSource": "create_biotech:slime_belt_connector"
+  ]
 }
