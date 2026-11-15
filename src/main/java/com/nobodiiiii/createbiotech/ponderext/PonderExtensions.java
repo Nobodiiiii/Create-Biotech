@@ -6,7 +6,6 @@ import com.nododiiiii.ponderer.runtime.api.RuntimeEngine;
 public final class PonderExtensions {
     private PonderExtensions() {}
     public static void install(RuntimeEngine engine) {
-        SceneBounds.install(engine);
         CreeperBlastChamberEffects.install(engine);
         ExperiencePumpEffects.install(engine);
         PowerBeltConnectorEffects.install(engine);
