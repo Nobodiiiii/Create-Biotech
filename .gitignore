@@ -6,6 +6,7 @@ run/
 out/
 bin/
 .minecraft/
+/libs/*.jar
 *.log
 /AGENTS.md
 /CLAUDE.md

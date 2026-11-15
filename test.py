@@ -340,6 +340,7 @@ def copy_runtime_mods(mods_dir: Path, props: dict[str, str]) -> None:
         f"create-{minecraft_version}-",
         f"vanillin-neoforge-{minecraft_version}-",
         f"jei-{minecraft_version}-neoforge-",
+        f"ponderer-{minecraft_version}-neoforge-",
         f"pondererlib-{minecraft_version}-neoforge-",
         "RuntimeNeoForge-",
     )

@@ -67,11 +67,6 @@ neoForge {
 }
 
 repositories {
-    maven {
-        name = 'pondererLib'
-        url = uri(ponderer_lib_repository)
-        content { includeModule 'com.nododiiiii', 'RuntimeNeoForge' }
-    }
     maven { url = 'https://maven.latvian.dev/releases' }
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
@@ -85,6 +80,10 @@ repositories {
 configurations {
     quickPlayMods
 }
+
+// Development artifacts are copied into this project; no local Maven publication is required.
+def pondererLibJar = files("libs/pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar")
+def pondererEditorJar = files("libs/ponderer-${minecraft_version}-neoforge-${ponderer_version}.jar")
 
 dependencies {
     compileOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
@@ -112,10 +111,8 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     runtimeOnly("dev.engine-room.vanillin:vanillin-neoforge-${minecraft_version}:${vanillin_version}")
     implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
-    implementation("com.nododiiiii:RuntimeNeoForge:${ponderer_lib_version}") {
-        // Use this project's newer Ponder coordinate; Lib already embeds its fallback.
-        transitive = false
-    }
+    implementation pondererLibJar
+    runtimeOnly pondererEditorJar
 
     compileOnly("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
     compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}")
@@ -132,9 +129,8 @@ dependencies {
     quickPlayMods("com.simibubi.create:create-${minecraft_version}:${create_version}") {
         transitive = false
     }
-    quickPlayMods("com.nododiiiii:RuntimeNeoForge:${ponderer_lib_version}") {
-        transitive = false
-    }
+    quickPlayMods pondererLibJar
+    quickPlayMods pondererEditorJar
     quickPlayMods("dev.engine-room.vanillin:vanillin-neoforge-${minecraft_version}:${vanillin_version}") {
         transitive = false
     }
@@ -189,12 +185,7 @@ tasks.withType(JavaCompile).configureEach {
 tasks.register('syncQuickPlayMods', Sync) {
     group = 'mod development'
     description = 'Stages the standalone runtime mod dependencies used by quickPlayClient.'
-    from(configurations.quickPlayMods) {
-        rename { name ->
-            name == "RuntimeNeoForge-${ponderer_lib_version}.jar"
-                    ? "pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar" : name
-        }
-    }
+    from(configurations.quickPlayMods)
     into(layout.buildDirectory.dir('quickplay/mods'))
 }
 

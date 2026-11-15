@@ -1,6 +1,8 @@
 {
+  "scene_1.input_lock": "Use the lock buttons to fix the input type or block input.",
+  "scene_1.machine_row": "Place the required machines in the first row.",
   "scene_1.text_1": "The Spider Assembly Table can perform Sequenced Assembly recipes.",
-  "scene_1.text_2": "Right-click to open its interface, then place the required machines in the first row...",
+  "scene_1.text_2": "Right-click to open the interface...",
   "scene_1.text_3": "Place the required ingredients in the second row.",
   "scene_1.text_4": "Assemble!",
   "scene_1.title": "Spider Assembly Table",
