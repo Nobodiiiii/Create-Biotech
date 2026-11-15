@@ -74,10 +74,10 @@ public final class GeneratedAllayPort_458fa519 {
         scene.keyframe().showText(text("scene_1.text_6"), new Vec3(7.5d, 2.5d, 7.5d), 180, null, true);
         scene.idle(60);
         scene.javaStep("create_biotech:java/allay_port/1", new JsonObject());
-        scene.showExtraStructure("create_biotech:generated/ponderer/allay_port_nether", new BlockPos(0, 0, 0), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
         scene.keyframe().showText(text("scene_1.text_8"), new Vec3(1.5d, 3.0d, 1.5d), 120, null, true);
         scene.idle(130);
+        scene.showExtraStructure("create_biotech:generated/ponderer/allay_port_nether", new BlockPos(0, 0, 0), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.keyframe().showText(text("scene_1.text_9"), new Vec3(7.5d, 2.5d, 7.5d), 120, null, true);
         scene.highlightSection("blue", new BlockPos(6, 1, 6), new BlockPos(8, 3, 8), 120);
         scene.idle(130);
@@ -98,6 +98,24 @@ public final class GeneratedAllayPort_458fa519 {
         scene.javaStep("create_biotech:java/allay_port/3", new JsonObject());
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
