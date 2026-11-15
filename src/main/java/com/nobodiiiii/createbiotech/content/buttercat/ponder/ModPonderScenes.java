@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.content.buttercat.ponder;
 
+import com.nododiiiii.ponderer.runtime.api.RuntimeScenes;
+import com.nododiiiii.ponderer.runtime.api.PonderActions;
 import com.simibubi.create.content.kinetics.gauge.StressGaugeBlockEntity;
 import com.simibubi.create.foundation.ponder.CreateSceneBuilder;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
@@ -24,6 +26,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 
 public class ModPonderScenes {
     public static void butterCatEngine(SceneBuilder sceneBuilder, SceneBuildingUtil util){
+        RuntimeScenes.adopt(sceneBuilder.getScene());
         CreateSceneBuilder scene = new CreateSceneBuilder(sceneBuilder);
         scene.title("butter_cat_engine", "Let the Butter Cat spin around");
         scene.configureBasePlate(0, 0, 5 );
@@ -47,10 +50,7 @@ public class ModPonderScenes {
                return c;
         });
 
-        scene.overlay().showText(50)
-                .text("Use a cardboard box containing a cat on the Shafts.")
-                .placeNearTarget()
-                .pointAt(util.vector().topOf(catPos));
+        PonderActions.showText(scene, "Use a cardboard box containing a cat on the Shafts.", util.vector().topOf(catPos), 50, null, true);
         scene.idle(60);
 
         ItemStack emptyBox = CBItems.EMPTY_CARDBOARD_BOX.get().getDefaultInstance();
@@ -69,10 +69,7 @@ public class ModPonderScenes {
                 true);
         scene.idle(60);
 
-        scene.overlay().showText(50)
-                .text("This is a Cute Cat on a Shaft. Add bread and butter to turn it into a Butter Cat Engine.")
-                .placeNearTarget()
-                .pointAt(util.vector().topOf(enginePos));
+        PonderActions.showText(scene, "This is a Cute Cat on a Shaft. Add bread and butter to turn it into a Butter Cat Engine.", util.vector().topOf(enginePos), 50, null, true);
         scene.idle(90);
 
         scene.addKeyframe();
@@ -96,10 +93,7 @@ public class ModPonderScenes {
         scene.effects().indicateSuccess(speedPos);
         scene.effects().indicateRedstone(stressPos);
         scene.idle(60);
-        scene.overlay().showText(50)
-                .text("The more butter you add, the greater its kinetic output.")
-                .placeNearTarget()
-                .pointAt(util.vector().topOf(enginePos));
+        PonderActions.showText(scene, "The more butter you add, the greater its kinetic output.", util.vector().topOf(enginePos), 50, null, true);
 
         scene.idle(90);
         for (int i = 0;i<5 ;i ++){
@@ -121,10 +115,7 @@ public class ModPonderScenes {
 
         scene.addKeyframe();
 
-        scene.overlay().showText(50)
-                .text("And with super butter? Perpetual motion machine.")
-                .placeNearTarget()
-                .pointAt(util.vector().topOf(enginePos));
+        PonderActions.showText(scene, "And with super butter? Perpetual motion machine.", util.vector().topOf(enginePos), 50, null, true);
         scene.idle(90);
         scene.overlay().showControls(util.vector().topOf(enginePos), Pointing.DOWN, 20).rightClick()
 				.withItem(CBItems.SUPER_BUTTER.get().getDefaultInstance());

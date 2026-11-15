@@ -1,0 +1,299 @@
+{
+  "id": "create_biotech:squid_printer",
+  "items": [
+    "create_biotech:squid_printer"
+  ],
+  "editable": true,
+  "tags": [
+    "create:fluids"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/enchanting_line_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Squid Printer",
+        "zh_cn": "鱿鱼打印机"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/enchanting_line_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "This is a simple enchantment production line.",
+            "zh_cn": "这是一个简单的附魔流水线"
+          },
+          "point": [
+            4.0,
+            3.5,
+            4.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_003"
+        },
+        {
+          "type": "set_block",
+          "block": "create:belt",
+          "blockProperties": {
+            "casing": "false",
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "west",
+            "slope": "horizontal"
+          },
+          "blockPos": [
+            6,
+            1,
+            4
+          ],
+          "nbt": "{Casing:\"NONE\",Controller:{X:-21,Y:-59,Z:-3},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:252,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.06666667f,Pos:3.5f,PrevOffset:0.06666667f,PrevPos:3.5f},{Angle:214,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:0.031481482f,Pos:2.5f,PrevOffset:0.031481482f,PrevPos:2.5f},{Angle:0,InDirection:4,InSegment:0,Item:{Count:1b,id:\"create_biotech:enchantment_book_copy\",tag:{StoredEnchantments:[{id:\"minecraft:protection\",lvl:4s}]}},Offset:-0.16666667f,Pos:1.5019531f,PrevOffset:-0.16666667f,PrevPos:1.5019531f},{Angle:284,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:book\"},Offset:0.096296296f,Pos:0.5019531f,PrevOffset:0.096296296f,PrevPos:0.5019531f}],PositiveOrder:1b},IsController:1b,Length:4,Network:{Capacity:262144.0f,Id:-5497558122556L,Size:18,Stress:128.0f},Source:{X:-21,Y:-59,Z:-2},Speed:32.0f}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_004"
+        },
+        {
+          "type": "idle",
+          "duration": 100,
+          "id": "step_005"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            0,
+            1,
+            3
+          ],
+          "blockPos2": [
+            2,
+            4,
+            6
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_006",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_007"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "This is a Squid Printer.",
+            "zh_cn": "这是鱿鱼打印机"
+          },
+          "point": [
+            5.0,
+            3.5,
+            4.5
+          ],
+          "duration": 60,
+          "placeNearTarget": true,
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 70,
+          "id": "step_009"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Mark an enchanted book on the side...",
+            "zh_cn": "在侧面标记一本附魔书..."
+          },
+          "point": [
+            5.0,
+            3.5,
+            4.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_010"
+        },
+        {
+          "type": "idle",
+          "duration": 60,
+          "id": "step_011"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It will process the book below into an Enchanted Book (Copy).",
+            "zh_cn": "它会将下方的书加工为附魔书（复印本）"
+          },
+          "point": [
+            5.5,
+            2.0,
+            4.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_012"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_013"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Whether it is working or not, the printer needs a water supply to keep the squid alive.",
+            "zh_cn": "无论是否在工作，打印机都需要输入水来保证鱿鱼存活"
+          },
+          "point": [
+            5.0,
+            3.5,
+            6.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_014",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 120,
+          "id": "step_015"
+        }
+      ]
+    },
+    {
+      "id": "s_8911d",
+      "title": {
+        "en_us": "Evoker Enchanting Chamber",
+        "zh_cn": "唤魔者附魔室"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/enchanting_line_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "This is an Evoker Enchanting Chamber.",
+            "zh_cn": "这是唤魔者附魔室"
+          },
+          "point": [
+            2.5,
+            2.0,
+            4.5
+          ],
+          "duration": 60,
+          "placeNearTarget": true,
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 70,
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It can turn copied enchanted books into usable enchanted books.",
+            "zh_cn": "它可以将附魔书（复印本）附魔为可以使用的附魔书"
+          },
+          "point": [
+            2.5,
+            2.5,
+            4.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_006"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": -90.0,
+          "degreesX": 0,
+          "duration": 20,
+          "id": "step_007"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Supply it with the experience needed for enchanting through an Experience Pump.",
+            "zh_cn": "通过经验泵向其输送附魔所需要的经验"
+          },
+          "point": [
+            2.0,
+            1.5,
+            5.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_008",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_009"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 90.0,
+          "degreesX": 0,
+          "duration": 20,
+          "id": "step_010"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The higher the total enchantment level, the more experience and time it requires.",
+            "zh_cn": "附魔书的总等级越高，所需的经验越多，时间越长"
+          },
+          "point": [
+            2.5,
+            3.5,
+            6.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_012"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Squid Printer",
+    "zh_cn": "鱿鱼打印机"
+  },
+  "runtimeSource": "create_biotech:squid_printer"
+}

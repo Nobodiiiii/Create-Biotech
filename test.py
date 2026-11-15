@@ -340,12 +340,19 @@ def copy_runtime_mods(mods_dir: Path, props: dict[str, str]) -> None:
         f"create-{minecraft_version}-",
         f"vanillin-neoforge-{minecraft_version}-",
         f"jei-{minecraft_version}-neoforge-",
+        f"pondererlib-{minecraft_version}-neoforge-",
+        "RuntimeNeoForge-",
     )
     staged = list(QUICKPLAY_MODS_DIR.glob("*.jar"))
     if not staged:
         raise FileNotFoundError(f"Quick-play runtime mods not found under {QUICKPLAY_MODS_DIR}")
 
     staged_names = {source.name for source in staged}
+    lib_name = f"pondererlib-{minecraft_version}-neoforge-{props['ponderer_lib_version']}.jar"
+    if lib_name not in staged_names:
+        raise FileNotFoundError(
+            f"External Ponderer Lib not staged: {lib_name}. Run gradlew.bat syncQuickPlayMods first."
+        )
     for existing in mods_dir.glob("*.jar"):
         if existing.name.startswith(managed_prefixes) and existing.name not in staged_names:
             remove_stale_jar(existing)

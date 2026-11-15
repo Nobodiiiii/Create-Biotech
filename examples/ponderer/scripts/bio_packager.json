@@ -1,0 +1,496 @@
+{
+  "id": "create_biotech:bio_packager",
+  "items": [
+    "create_biotech:bio_packager"
+  ],
+  "editable": true,
+  "tags": [
+    "create:contraption_actor"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/basic",
+    "create_biotech:generated/ponderer/bio_packager_capture"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Bio Packager Release",
+        "zh_cn": "生物打包机 释放"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/basic"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:bio_packager",
+          "blockProperties": {
+            "powered": "false",
+            "facing": "north"
+          },
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "nbt": "{Active:0b,AnimationInward:1b,AnimationTicks:0,ForgeCaps:{},HeldBox:{Count:0b,id:\"minecraft:air\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "set_block",
+          "block": "minecraft:chest",
+          "blockProperties": {
+            "waterlogged": "false",
+            "facing": "west",
+            "type": "single"
+          },
+          "blockPos": [
+            2,
+            1,
+            3
+          ],
+          "nbt": "{ForgeCaps:{},Items:[]}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_004"
+        },
+        {
+          "type": "set_block",
+          "block": "minecraft:lever",
+          "blockProperties": {
+            "face": "floor",
+            "powered": "false",
+            "facing": "south"
+          },
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_005"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_006"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Apply a redstone signal...",
+            "zh_cn": "接入红石信号..."
+          },
+          "point": [
+            1.5,
+            1.5,
+            2.0
+          ],
+          "duration": 40,
+          "placeNearTarget": true,
+          "id": "step_007",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_008"
+        },
+        {
+          "type": "toggle_redstone_power",
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "blockPos2": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_009"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "powered": "true",
+            "facing": "north"
+          },
+          "nbt": "{Active:1b,AnimationInward:0b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:cardboard_box\",tag:{CapturedEntity:{AbsorptionAmount:0.0f,Air:300s,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.4000000059604645d,Name:\"minecraft:generic.movement_speed\"},{Base:4.0d,Name:\"minecraft:generic.max_health\"},{Base:2.0d,Name:\"minecraft:generic.attack_damage\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,DeathTime:0s,FallDistance:0.0f,FallFlying:0b,Fire:-1s,ForgeData:{CreateBiotech:{},create_biotech.previous_liquid_living_slime_vertical_speed:-0.0784000015258789d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:4.0f,HurtByTimestamp:0,HurtTime:0s,Invulnerable:0b,LeftHanded:0b,Motion:[0.0d,-0.0784000015258789d,0.0d],OnGround:1b,PersistenceRequired:0b,PortalCooldown:0,Pos:[-37.802770591511454d,-60.0d,15.327114230280523d],Rotation:[348.0f,0.0f],Size:1,UUID:[I;2038756493,-1744745344,-1476000420,301221325],id:\"minecraft:slime\",wasOnGround:1b},CapturedEntityDescId:\"entity.minecraft.slime\",CapturedEntityHealth:4.0f}},InsertedBox:{Count:0b,id:\"minecraft:air\"}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_010"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_011"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:slime",
+          "pos": [
+            2.5,
+            2.0,
+            2.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.30000001192092896d,Name:\"minecraft:generic.movement_speed\"},{Base:1.0d,Name:\"minecraft:generic.max_health\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,Size:0,wasOnGround:1b}",
+          "id": "step_012"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "powered": "true",
+            "facing": "north"
+          },
+          "nbt": "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:empty_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_013"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_014"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Bio Packager pulls boxes containing creatures from its attached inventory and releases them above itself.",
+            "zh_cn": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方"
+          },
+          "point": [
+            2.5,
+            1.0,
+            2.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_015",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_controls",
+          "point": [
+            2.5,
+            2.0,
+            3.5
+          ],
+          "direction": "down",
+          "duration": 120,
+          "item": "create_biotech:empty_cardboard_box",
+          "whileSneaking": false,
+          "whileCTRL": false,
+          "id": "step_016"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_017"
+        }
+      ]
+    },
+    {
+      "id": "s_fe8b2",
+      "title": {
+        "en_us": "Bio Packager Capturing",
+        "zh_cn": "生物打包机 捕捉"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            6,
+            0,
+            6
+          ],
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/bio_packager_capture"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            3,
+            1,
+            0
+          ],
+          "blockPos2": [
+            5,
+            1,
+            1
+          ],
+          "duration": 20,
+          "direction": "west",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_003"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "blockPos2": [
+            3,
+            3,
+            3
+          ],
+          "linkId": "default",
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_004"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:slime",
+          "pos": [
+            1.8,
+            1.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.30000001192092896d,Name:\"minecraft:generic.movement_speed\"},{Base:1.0d,Name:\"minecraft:generic.max_health\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,Size:0,wasOnGround:1b}",
+          "id": "step_005"
+        },
+        {
+          "type": "set_block",
+          "block": "create:mechanical_piston_head",
+          "blockProperties": {
+            "waterlogged": "false",
+            "facing": "south",
+            "type": "sticky"
+          },
+          "blockPos": [
+            2,
+            1,
+            1
+          ],
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_006"
+        },
+        {
+          "type": "set_block",
+          "block": "create:piston_extension_pole",
+          "blockProperties": {
+            "waterlogged": "false",
+            "facing": "south"
+          },
+          "blockPos": [
+            2,
+            1,
+            0
+          ],
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_007"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_008"
+        },
+        {
+          "type": "set_block",
+          "block": "create:sticky_mechanical_piston",
+          "blockProperties": {
+            "facing": "south",
+            "state": "extended",
+            "axis_along_first": "true"
+          },
+          "blockPos": [
+            3,
+            1,
+            1
+          ],
+          "nbt": "{ExtensionLength:1,ForgeCaps:{},Network:{AddedStress:4.0f,Capacity:262144.0f,Id:-3023656943676L,Size:5,Stress:128.0f},Offset:1.0f,Owner:[I;-1968797709,1960923120,-1511276926,529736202],Running:0b,ScrollValue:0,Source:{X:-13,Y:-59,Z:6},Speed:32.0f,Waiting:0b}",
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_009"
+        },
+        {
+          "type": "destroy_block",
+          "blockPos": [
+            3,
+            1,
+            0
+          ],
+          "destroyParticles": false,
+          "id": "step_010"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default2",
+          "blockPos": [
+            2,
+            1,
+            0
+          ],
+          "offset": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "duration": 0,
+          "id": "step_011"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default3",
+          "blockPos": [
+            2,
+            1,
+            1
+          ],
+          "offset": [
+            1.0,
+            0.0,
+            0.0
+          ],
+          "duration": 0,
+          "id": "step_012"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default2",
+          "offset": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "duration": 20,
+          "id": "step_013"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default3",
+          "offset": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "duration": 20,
+          "id": "step_014"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default",
+          "offset": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "duration": 20,
+          "id": "step_015",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 15,
+          "id": "step_016"
+        },
+        {
+          "type": "clear_entities",
+          "fullScene": true,
+          "id": "step_017"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "powered": "false",
+            "facing": "west"
+          },
+          "nbt": "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:empty_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}",
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "id": "step_018"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_019"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Bio Packager automatically pulls cardboard boxes from its attached inventory and captures creatures killed by moving contraptions.",
+            "zh_cn": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"
+          },
+          "point": [
+            2.5,
+            2.0,
+            3.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_020"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_021"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Bio Packager Release",
+    "zh_cn": "生物打包机 释放"
+  },
+  "runtimeSource": "create_biotech:bio_packager"
+}

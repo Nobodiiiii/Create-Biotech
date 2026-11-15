@@ -1,0 +1,248 @@
+{
+  "id": "create_biotech:magma_belt_connector",
+  "items": [
+    "create_biotech:magma_belt_connector"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_appliances"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/magma_belt_connector_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Magma Cube Belt",
+        "zh_cn": "岩浆怪传送带"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            5,
+            0,
+            5
+          ],
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/magma_belt_connector_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "destroy_block",
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "id": "step_003"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            5,
+            3,
+            5
+          ],
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "id": "step_004"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_005"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Using a blower to smelt items takes a lot of space.",
+            "zh_cn": "使用鼓风机烧炼物品比较占空间"
+          },
+          "point": [
+            1.0,
+            2.5,
+            4.5
+          ],
+          "duration": 60,
+          "placeNearTarget": true,
+          "id": "step_006",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 70,
+          "id": "step_007"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            1,
+            2,
+            3
+          ],
+          "blockPos2": [
+            1,
+            1,
+            5
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_009"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:magma_belt",
+          "blockProperties": {
+            "casing": "false",
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "west",
+            "slope": "horizontal"
+          },
+          "blockPos": [
+            3,
+            1,
+            2
+          ],
+          "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:10,Stress:32.0f},Source:{X:-21,Y:-59,Z:7},Speed:16.0f}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_010"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:magma_belt",
+          "blockProperties": {
+            "casing": "false",
+            "waterlogged": "false",
+            "part": "middle",
+            "facing": "west",
+            "slope": "horizontal"
+          },
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:1,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:9,Stress:32.0f},Source:{X:-22,Y:-59,Z:7},Speed:16.0f}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_011"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:magma_belt",
+          "blockProperties": {
+            "casing": "false",
+            "waterlogged": "false",
+            "part": "end",
+            "facing": "west",
+            "slope": "horizontal"
+          },
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "nbt": "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:2,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:8,Stress:32.0f},Source:{X:-22,Y:-59,Z:8},Speed:16.0f}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_012"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Use a Magma Cube Belt instead.",
+            "zh_cn": "使用岩浆怪传送带"
+          },
+          "point": [
+            3.5,
+            1.5,
+            2.0
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_013",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 100,
+          "id": "step_014"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It automatically smelts items above it, taking the same amount of time as a blower.",
+            "zh_cn": "它会自动烧炼其上方的物品，所需时间与鼓风机相同"
+          },
+          "point": [
+            3.5,
+            1.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_015"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_016"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It does not have a blower's smelting protection, so remember to remove the item before it burns a second time!",
+            "zh_cn": "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！"
+          },
+          "point": [
+            3.5,
+            1.5,
+            2.0
+          ],
+          "duration": 120,
+          "color": "red",
+          "placeNearTarget": true,
+          "id": "step_017"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_018"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Magma Cube Belt",
+    "zh_cn": "岩浆怪传送带"
+  },
+  "runtimeSource": "create_biotech:magma_belt_connector"
+}

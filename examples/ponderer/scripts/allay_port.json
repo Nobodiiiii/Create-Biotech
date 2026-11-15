@@ -1,0 +1,490 @@
+{
+  "id": "create_biotech:allay_port",
+  "items": [
+    "create_biotech:allay_port"
+  ],
+  "editable": true,
+  "tags": [
+    "create:high_logistics"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/basic_xl"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Allay Express Delivery",
+        "zh_cn": "悦灵速递"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/basic_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:allay_port",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "blockPos": [
+            4,
+            1,
+            4
+          ],
+          "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_003"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            4,
+            1,
+            4
+          ],
+          "blockPos2": [
+            4,
+            1,
+            4
+          ],
+          "linkId": "allay_port",
+          "duration": 20,
+          "direction": "down",
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Cargo Allay Stations can be used to deliver packages remotely.",
+            "zh_cn": "悦灵驿站可以用来远程派送包裹"
+          },
+          "point": [
+            4.5,
+            1.5,
+            4.5
+          ],
+          "duration": 80,
+          "placeNearTarget": true,
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 90,
+          "id": "step_006"
+        },
+        {
+          "type": "move_section",
+          "linkId": "allay_port",
+          "offset": [
+            3.0,
+            1.0,
+            3.0
+          ],
+          "duration": 20,
+          "id": "step_007"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/allay_port_sender",
+          "blockPos": [
+            6,
+            1,
+            7
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "north",
+          "id": "step_008"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:allay_port",
+          "blockProperties": {
+            "facing": "east"
+          },
+          "blockPos": [
+            1,
+            1,
+            1
+          ],
+          "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_009"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_010"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Set this station's address in its interface.",
+            "zh_cn": "在界面中设置本站地址"
+          },
+          "point": [
+            7.5,
+            3.2,
+            7.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Peter",
+            "zh_cn": "李华"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "duration": 120,
+          "color": "blue",
+          "placeNearTarget": true,
+          "id": "step_012",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Albert",
+            "zh_cn": "王芳"
+          },
+          "point": [
+            1.5,
+            1.5,
+            1.5
+          ],
+          "duration": 120,
+          "color": "output",
+          "placeNearTarget": true,
+          "id": "step_013",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_014"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Insert an Allay Courier.",
+            "zh_cn": "放入悦灵快递员"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_015",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_controls",
+          "point": [
+            8.0,
+            2.5,
+            7.5
+          ],
+          "direction": "right",
+          "duration": 100,
+          "item": "create_biotech:allay_courier",
+          "whileSneaking": false,
+          "whileCTRL": false,
+          "id": "step_016"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_017"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Cargo Allay Stations automatically pull packages from the Packager or container below and dispatch an Allay Courier to the specified Cargo Allay Station.",
+            "zh_cn": "悦灵驿站会自动拉取下方打包机或容器中的包裹，并派出悦灵快递员送往指定悦灵驿站"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "duration": 180,
+          "placeNearTarget": true,
+          "id": "step_018",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 60,
+          "id": "step_019"
+        },
+        {
+          "type": "create_biotech:java/allay_port/1",
+          "parameters": {},
+          "id": "step_020"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "→ Albert",
+            "zh_cn": "→王芳"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_021",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_022"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/allay_port_nether",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_023"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_024"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The interface lets you configure whether the Allay Courier returns after delivery.",
+            "zh_cn": "在界面中可以配置悦灵快递员是否返航"
+          },
+          "point": [
+            1.5,
+            3.0,
+            1.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_025",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_026"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Allay Couriers have no delivery range limit and can even travel between dimensions.",
+            "zh_cn": "悦灵快递员运输没有距离限制，甚至可以跨越维度"
+          },
+          "point": [
+            7.5,
+            2.5,
+            7.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_027",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "highlight_section",
+          "color": "blue",
+          "blockPos": [
+            6,
+            1,
+            6
+          ],
+          "blockPos2": [
+            8,
+            3,
+            8
+          ],
+          "duration": 120,
+          "id": "step_028"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_029"
+        }
+      ]
+    },
+    {
+      "id": "s_21db7",
+      "title": {
+        "en_us": "Allay Couriers and Players",
+        "zh_cn": "悦灵快递员与玩家"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/basic_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/allay_port_sender",
+          "blockPos": [
+            6,
+            1,
+            7
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "north",
+          "id": "step_003"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:allay_port",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "blockPos": [
+            7,
+            2,
+            7
+          ],
+          "nbt": "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "north",
+          "id": "step_004"
+        },
+        {
+          "type": "create_biotech:java/allay_port/2",
+          "parameters": {},
+          "id": "step_005"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_006"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Allay Couriers can target players for delivery.",
+            "zh_cn": "悦灵快递员可以指定玩家为运输目标"
+          },
+          "point": [
+            7.0,
+            2.5,
+            7.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_007",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Nobodiiiii",
+            "zh_cn": "Nobodiiiii"
+          },
+          "point": [
+            1.5,
+            2.0,
+            1.5
+          ],
+          "duration": 120,
+          "color": "blue",
+          "placeNearTarget": true,
+          "id": "step_008"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Use \"@player\" in the address field to target a player.",
+            "zh_cn": "在地址栏中使用\"@玩家\"来匹配玩家"
+          },
+          "point": [
+            1.5,
+            2.6,
+            1.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_009"
+        },
+        {
+          "type": "create_biotech:java/allay_port/3",
+          "parameters": {},
+          "id": "step_010"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Allay Express Delivery",
+    "zh_cn": "悦灵速递"
+  },
+  "runtimeSource": "create_biotech:allay_port"
+}

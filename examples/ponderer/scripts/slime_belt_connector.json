@@ -1,0 +1,530 @@
+{
+  "id": "create_biotech:slime_belt_connector",
+  "items": [
+    "create_biotech:slime_belt_connector"
+  ],
+  "editable": true,
+  "tags": [
+    "create:logistics"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/slime_belt_connector_horizontal"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Slime Belt",
+        "zh_cn": "史莱姆传送带"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            7,
+            0,
+            7
+          ],
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/slime_belt_connector_horizontal"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            7,
+            5,
+            7
+          ],
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_004"
+        },
+        {
+          "type": "create_item_entity",
+          "item": "minecraft:oak_log",
+          "count": 1,
+          "pos": [
+            4.5,
+            4.0,
+            3.5
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "id": "step_005"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Slime Belt can transport items like a normal belt.",
+            "zh_cn": "史莱姆传送带可以像一般传送带一样传输物品"
+          },
+          "point": [
+            4.0,
+            2.5,
+            3.5
+          ],
+          "duration": 67,
+          "placeNearTarget": true,
+          "id": "step_006",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 7,
+          "id": "step_007"
+        },
+        {
+          "type": "clear_item_entities",
+          "fullScene": true,
+          "id": "step_008"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "west",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:16.0f}",
+          "blockPos": [
+            4,
+            2,
+            3
+          ],
+          "id": "step_009"
+        },
+        {
+          "type": "idle",
+          "duration": 50,
+          "id": "step_010"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 35.0,
+          "degreesX": 35.0,
+          "duration": 20,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The difference is that items are not thrown off the end, but continue moving onto the back side of the belt.",
+            "zh_cn": "不同的是，物品不会在传送带末端被抛出，而是会继续运动到传送带背面"
+          },
+          "point": [
+            2.5,
+            2.5,
+            3.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_012"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_013"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            7,
+            7,
+            7
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_014"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": -35.0,
+          "degreesX": -35.0,
+          "duration": 20,
+          "id": "step_015",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/slime_belt_connector_vertical",
+          "blockPos": [
+            2,
+            1,
+            3
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "direction": "down",
+          "id": "step_016"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Slime Belt can also move items vertically.",
+            "zh_cn": "史莱姆传送带还可以竖直传动物品"
+          },
+          "point": [
+            2.5,
+            2.5,
+            3.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_017"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_018"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "nbt": "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_019"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_020"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_021"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            2,
+            1,
+            3
+          ],
+          "blockPos2": [
+            2,
+            6,
+            3
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_022"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_023"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Connected Slime Belts can form a loop.",
+            "zh_cn": "相连的史莱姆传送带可以形成一个回环"
+          },
+          "point": [
+            2.5,
+            2.5,
+            3.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_024",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/slime_belt_connector_loop",
+          "blockPos": [
+            0,
+            0,
+            3
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "direction": "down",
+          "id": "step_025"
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_026"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:329,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.0f,Pos:0.0f,PrevOffset:0.0f,PrevPos:0.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:21,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
+          "blockPos": [
+            1,
+            2,
+            3
+          ],
+          "id": "step_027"
+        },
+        {
+          "type": "idle",
+          "duration": 52,
+          "id": "step_028"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
+          "blockPos": [
+            1,
+            2,
+            3
+          ],
+          "id": "step_029"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:196,InDirection:4,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.014814815f,Pos:1.0f,PrevOffset:0.014814815f,PrevPos:1.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_030"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 35.0,
+          "degreesX": 35.0,
+          "duration": 20,
+          "id": "step_031"
+        },
+        {
+          "type": "idle",
+          "duration": 28,
+          "id": "step_032"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:247,InDirection:4,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.062037036f,Pos:3.0352864f,PrevOffset:0.062037036f,PrevPos:3.0019531f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_033"
+        },
+        {
+          "type": "idle",
+          "duration": 185,
+          "id": "step_034"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-37,Y:-57,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-37,Y:-57,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            4,
+            3,
+            3
+          ],
+          "id": "step_035"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:253,InDirection:5,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.06759259f,Pos:6.0f,PrevOffset:0.06759259f,PrevPos:6.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_036"
+        },
+        {
+          "type": "idle",
+          "duration": 22,
+          "id": "step_037"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:278,InDirection:5,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.09074074f,Pos:7.0f,PrevOffset:0.09074074f,PrevPos:7.0f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_038"
+        },
+        {
+          "type": "idle",
+          "duration": 24,
+          "id": "step_039"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:77,InDirection:0,InSegment:1,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:-0.09537037f,Pos:3.0f,PrevOffset:-0.09537037f,PrevPos:3.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
+          "blockPos": [
+            1,
+            2,
+            3
+          ],
+          "id": "step_040"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "vertical"
+          },
+          "nbt": "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}",
+          "blockPos": [
+            3,
+            2,
+            3
+          ],
+          "id": "step_041"
+        },
+        {
+          "type": "idle",
+          "duration": 45,
+          "id": "step_042"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "part": "start",
+            "facing": "east",
+            "slope": "horizontal"
+          },
+          "nbt": "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}",
+          "blockPos": [
+            1,
+            2,
+            3
+          ],
+          "id": "step_043"
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_044"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": -35.0,
+          "degreesX": -35.0,
+          "duration": 20,
+          "id": "step_045"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Slime Belt",
+    "zh_cn": "史莱姆传送带"
+  },
+  "runtimeSource": "create_biotech:slime_belt_connector"
+}

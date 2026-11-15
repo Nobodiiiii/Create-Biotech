@@ -1,0 +1,226 @@
+{
+  "id": "create_biotech:slime_clutch",
+  "items": [
+    "create_biotech:slime_clutch"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_relays"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/slime_clutch_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Slime Clutch",
+        "zh_cn": "史莱姆离合器"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            4,
+            0,
+            5
+          ],
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/slime_clutch_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            4,
+            1,
+            4
+          ],
+          "duration": 20,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_004"
+        },
+        {
+          "type": "set_block",
+          "block": "create:crushing_wheel",
+          "blockProperties": {
+            "axis": "z"
+          },
+          "blockPos": [
+            3,
+            1,
+            1
+          ],
+          "nbt": "{ForgeCaps:{},Owner:[I;-1584949533,-793555381,-1214961409,1860967820],Speed:0.0f}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "down",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "south",
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false",
+            "axis": "z"
+          },
+          "nbt": "{ForgeCaps:{},Speed:0.0f}",
+          "reDrawBlocks": true,
+          "blockPos": [
+            3,
+            1,
+            2
+          ],
+          "id": "step_006"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "powered": "true",
+            "axis": "z"
+          },
+          "nbt": "{ForgeCaps:{},Network:{Capacity:256.0f,Id:4672924442563L,Size:11,Stress:1008.0f},Source:{X:18,Y:-60,Z:6},Speed:63.0f}",
+          "reDrawBlocks": true,
+          "blockPos": [
+            3,
+            1,
+            3
+          ],
+          "id": "step_007"
+        },
+        {
+          "type": "indicate_redstone",
+          "blockPos": [
+            3,
+            1,
+            3
+          ],
+          "id": "step_008"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Slime Clutch automatically disengages when the input stress cannot drive the entire kinetic network, without affecting the rest of the network.",
+            "zh_cn": "史莱姆离合器会在输入应力不支持驱动整个应力网络时自动断开，而不影响网络的其他部分"
+          },
+          "point": [
+            3.0,
+            1.5,
+            3.5
+          ],
+          "duration": 140,
+          "placeNearTarget": true,
+          "id": "step_009"
+        },
+        {
+          "type": "idle",
+          "duration": 150,
+          "id": "step_010"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            3,
+            1,
+            1
+          ],
+          "duration": 20,
+          "direction": "north",
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_012"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "axis": "z"
+          },
+          "nbt": "{ForgeCaps:{},Network:{Capacity:344064.0f,Id:-7421703438396L,Size:9,Stress:84.0f},Source:{X:-30,Y:-59,Z:9},Speed:-42.0f}",
+          "blockPos": [
+            3,
+            1,
+            2
+          ],
+          "id": "step_013"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "powered": "false",
+            "axis": "z"
+          },
+          "nbt": "{ForgeCaps:{},Network:{Capacity:344064.0f,Id:-7421703438396L,Size:10,Stress:84.0f},Source:{X:-28,Y:-59,Z:9},Speed:-42.0f}",
+          "reDrawBlocks": true,
+          "blockPos": [
+            3,
+            1,
+            3
+          ],
+          "id": "step_014"
+        },
+        {
+          "type": "indicate_success",
+          "blockPos": [
+            3,
+            1,
+            3
+          ],
+          "id": "step_015"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It automatically re-engages when enough stress is available.",
+            "zh_cn": "并在应力充足时自动恢复"
+          },
+          "point": [
+            3.0,
+            1.5,
+            3.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_016"
+        },
+        {
+          "type": "idle",
+          "duration": 90,
+          "id": "step_017"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Slime Clutch",
+    "zh_cn": "史莱姆离合器"
+  },
+  "runtimeSource": "create_biotech:slime_clutch"
+}

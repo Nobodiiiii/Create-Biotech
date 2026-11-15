@@ -1,0 +1,1793 @@
+{
+  "id": "create_biotech:creeper_blast_chamber",
+  "items": [
+    "create_biotech:creeper_blast_chamber"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_appliances"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Creeper Blast Chamber Introduction",
+        "zh_cn": "苦力怕爆破室 介绍"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            9,
+            0,
+            9
+          ],
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_large",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_003"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            6,
+            1,
+            2
+          ],
+          "duration": 20,
+          "direction": "down",
+          "id": "step_004"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_005"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            6,
+            1,
+            2
+          ],
+          "blockPos2": [
+            2,
+            5,
+            6
+          ],
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "west",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "id": "step_006"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_007"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            4.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}",
+          "id": "step_008"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}",
+          "id": "step_009"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            3.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}",
+          "id": "step_010"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}",
+          "id": "step_011"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            4.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}",
+          "id": "step_012"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "This is a Creeper Blast Chamber.",
+            "zh_cn": "这是一个苦力怕爆破室"
+          },
+          "point": [
+            3.5,
+            4.5,
+            2.0
+          ],
+          "duration": 60,
+          "placeNearTarget": true,
+          "id": "step_013",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 70,
+          "id": "step_014"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It can process Crushing Wheel recipes efficiently in bulk.",
+            "zh_cn": "它可以高效批量地执行粉碎配方"
+          },
+          "point": [
+            3.5,
+            4.5,
+            2.0
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_015"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_016"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Or... are you looking for something more explosive?",
+            "zh_cn": "或者...你想来点更劲爆的？"
+          },
+          "point": [
+            3.5,
+            4.5,
+            2.0
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_017"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_018"
+        }
+      ]
+    },
+    {
+      "id": "s_10040",
+      "title": {
+        "en_us": "Creeper Blast Chamber Assembly",
+        "zh_cn": "苦力怕爆破室 搭建"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_small",
+          "blockPos": [
+            4,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The structure supports 3 different sizes.",
+            "zh_cn": "结构支持3种尺寸"
+          },
+          "point": [
+            4.5,
+            4.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_004",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 30,
+          "id": "step_005"
+        },
+        {
+          "type": "set_block",
+          "block": "minecraft:air",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            6,
+            5,
+            6
+          ],
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_006"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_medium",
+          "blockPos": [
+            3,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_007"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            6,
+            5,
+            6
+          ],
+          "duration": 0,
+          "direction": "down",
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 30,
+          "id": "step_009"
+        },
+        {
+          "type": "set_block",
+          "block": "minecraft:air",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            6,
+            5,
+            6
+          ],
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_010"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_large",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_011"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            6,
+            5,
+            6
+          ],
+          "duration": 0,
+          "direction": "down",
+          "id": "step_012"
+        },
+        {
+          "type": "idle",
+          "duration": 80,
+          "id": "step_013"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The center of the top face must be a Mechanical Press.",
+            "zh_cn": "结构顶面中心需为动力冲压机"
+          },
+          "point": [
+            4.5,
+            4.0,
+            4.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_014",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_015"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "blockPos2": [
+            6,
+            4,
+            6
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_016",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_017"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The center of the bottom face must be a Bio Packager.",
+            "zh_cn": "结构底面中心需为生物打包机"
+          },
+          "point": [
+            4.5,
+            1.0,
+            4.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_018"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_019"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:explosion_proof_casing",
+          "blockPos": [
+            5,
+            4,
+            2
+          ],
+          "blockPos2": [
+            3,
+            4,
+            2
+          ],
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_020"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "blockPos2": [
+            6,
+            4,
+            6
+          ],
+          "duration": 20,
+          "direction": "down",
+          "id": "step_021",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_022"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The frame of the structure is built from Explosion-Proof Casing.",
+            "zh_cn": "结构的框架由防爆机壳搭成"
+          },
+          "point": [
+            2.5,
+            3.5,
+            2.0
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_023"
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_024"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The center block of any side face, except the top and bottom, can be replaced with Blast-Proof Glass.",
+            "zh_cn": "除了顶面和底面的任意面中心可以被替换为防爆玻璃"
+          },
+          "point": [
+            4.5,
+            3.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_025",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_026"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "In addition, every structure must include a Blast Chamber Core.",
+            "zh_cn": "除此之外，每个结构还必须包括一个爆破室核心"
+          },
+          "point": [
+            6.5,
+            1.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_027",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_028"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "It also needs two Explosion-Proof Item Vaults of any size; connected vaults count as one.",
+            "zh_cn": "以及两个任意大小的防爆保险库（连接的保险库算做一个）"
+          },
+          "point": [
+            2.0,
+            3.5,
+            4.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_029",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_030"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:explosion_proof_item_vault",
+          "blockProperties": {
+            "large": "false",
+            "axis": "x"
+          },
+          "blockPos": [
+            2,
+            2,
+            3
+          ],
+          "blockPos2": [
+            2,
+            3,
+            4
+          ],
+          "nbt": "{BlastChamberController:-11819750039612L,BlastChamberRole:1,Controller:{X:-44,Y:-59,Z:-10},ForgeCaps:{},Inventory:{Items:[],Size:20},LastKnownPos:{X:-44,Y:-58,Z:-9},ScrollValue:1,StorageType:\"CombinedInv\"}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_031"
+        },
+        {
+          "type": "idle",
+          "duration": 90,
+          "id": "step_032"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "After the structure forms, the top edges are automatically replaced with Encased Chain Drives.",
+            "zh_cn": "结构成型以后，顶面的棱会被自动替换为链式传动箱"
+          },
+          "point": [
+            3.5,
+            4.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_033",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:blast_proof_chain_drive",
+          "blockProperties": {
+            "part": "middle",
+            "axis": "z",
+            "axis_along_first": "true"
+          },
+          "blockPos": [
+            5,
+            4,
+            2
+          ],
+          "blockPos2": [
+            3,
+            4,
+            2
+          ],
+          "nbt": "{ForgeCaps:{},Speed:0.0f}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_034"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_035"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "You can use a Wrench to swap between casings and chain drives, but enough chain drives must remain to power every press.",
+            "zh_cn": "使用扳手可以在机壳和传动箱之间切换，但是需要保证能够剩下的传动箱足以驱动所有冲压机"
+          },
+          "point": [
+            4.5,
+            4.5,
+            2.0
+          ],
+          "duration": 180,
+          "placeNearTarget": true,
+          "id": "step_036",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_controls",
+          "point": [
+            4.5,
+            5.0,
+            2.5
+          ],
+          "direction": "down",
+          "duration": 60,
+          "action": "right",
+          "item": "create:wrench",
+          "whileSneaking": false,
+          "whileCTRL": false,
+          "id": "step_037"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:explosion_proof_casing",
+          "blockProperties": {
+            "part": "middle",
+            "axis": "z",
+            "axis_along_first": "true"
+          },
+          "blockPos": [
+            4,
+            4,
+            2
+          ],
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_038"
+        },
+        {
+          "type": "idle",
+          "duration": 190,
+          "id": "step_039"
+        }
+      ]
+    },
+    {
+      "id": "s_c38b1",
+      "title": {
+        "en_us": "Creeper Blast Chamber Operation",
+        "zh_cn": "苦力怕爆破室 运作"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_large",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_004"
+        },
+        {
+          "type": "set_block",
+          "block": "create:andesite_funnel",
+          "blockProperties": {
+            "waterlogged": "false",
+            "powered": "false",
+            "facing": "north",
+            "extracting": "false"
+          },
+          "blockPos": [
+            6,
+            1,
+            1
+          ],
+          "nbt": "{Filter:{Count:1b,id:\"minecraft:air\"},FilterAmount:64,ForgeCaps:{},Owner:[I;-503341427,743590127,-1630936259,1659302309],TransferCooldown:0,UpTo:1b}",
+          "immediateDisplay": true,
+          "entranceAnimation": "none",
+          "id": "step_005"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Blast Chamber Core can input and output creepers using cardboard boxes.",
+            "zh_cn": "爆炸室核心可以通过纸箱输入和输出苦力怕"
+          },
+          "point": [
+            6.5,
+            1.0,
+            1.5
+          ],
+          "duration": 150,
+          "placeNearTarget": true,
+          "id": "step_006",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_007"
+        },
+        {
+          "type": "create_item_entity",
+          "item": "create_biotech:empty_large_cardboard_box",
+          "count": 1,
+          "pos": [
+            6.5,
+            1.5,
+            1.5
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_009"
+        },
+        {
+          "type": "clear_item_entities",
+          "fullScene": true,
+          "id": "step_010"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 35.0,
+          "degreesX": 35.0,
+          "duration": 10,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_012"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            5.5
+          ],
+          "id": "step_013"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_014"
+        },
+        {
+          "type": "idle",
+          "duration": 60,
+          "id": "step_015"
+        },
+        {
+          "type": "hide_section",
+          "blockPos": [
+            6,
+            1,
+            1
+          ],
+          "duration": 20,
+          "direction": "up",
+          "id": "step_016"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            3.5,
+            2.0,
+            3.5
+          ],
+          "id": "step_017"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            4.5,
+            2.0,
+            3.5
+          ],
+          "id": "step_018"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            3.5
+          ],
+          "id": "step_019"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The largest blast chamber can have up to 9 creepers working at once.",
+            "zh_cn": "最大的爆破室最多可以有9个苦力怕同时工作"
+          },
+          "point": [
+            4.5,
+            3.5,
+            2.0
+          ],
+          "duration": 110,
+          "placeNearTarget": true,
+          "id": "step_020",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_021"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Apply rotational force...",
+            "zh_cn": "通入应力..."
+          },
+          "point": [
+            3.5,
+            4.5,
+            2.0
+          ],
+          "duration": 60,
+          "placeNearTarget": true,
+          "id": "step_022",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_023"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_press_array",
+          "blockPos": [
+            3,
+            4,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_024"
+        },
+        {
+          "type": "create_biotech:java/creeper_blast_chamber/1",
+          "parameters": {},
+          "id": "step_025"
+        },
+        {
+          "type": "create_biotech:java/creeper_blast_chamber/2",
+          "parameters": {},
+          "id": "step_026"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.creeper.primed",
+          "soundVolume": 0.55,
+          "pitch": 1.0,
+          "source": "blocks",
+          "id": "step_027"
+        },
+        {
+          "type": "idle",
+          "duration": 9,
+          "id": "step_028"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.creeper.primed",
+          "soundVolume": 0.7,
+          "pitch": 1.15,
+          "source": "blocks",
+          "id": "step_029"
+        },
+        {
+          "type": "idle",
+          "duration": 6,
+          "id": "step_030"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.generic.explode",
+          "soundVolume": 1.0,
+          "pitch": 1.15,
+          "source": "blocks",
+          "id": "step_031"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            3.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_032"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            4.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_033"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            5.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_034"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            3.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_035"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            4.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 2,
+          "duration": 1,
+          "id": "step_036"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            5.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_037"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            3.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_038"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            4.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_039"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:large_smoke",
+          "pos": [
+            5.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.05,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_040"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            3.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_041"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            4.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_042"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            5.5,
+            2.5,
+            3.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_043"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            3.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_044"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion_emitter",
+          "pos": [
+            4.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_045"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            5.5,
+            2.5,
+            4.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_046"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            3.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_047"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            4.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_048"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:explosion",
+          "pos": [
+            5.5,
+            2.5,
+            5.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 1,
+          "duration": 1,
+          "id": "step_049"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 4.0,
+          "degreesX": 4.0,
+          "duration": 2,
+          "id": "step_050"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": -8.0,
+          "degreesX": -8.0,
+          "duration": 2,
+          "id": "step_051"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": 4.0,
+          "degreesX": 4.0,
+          "duration": 2,
+          "id": "step_052"
+        },
+        {
+          "type": "idle",
+          "duration": 15,
+          "id": "step_053"
+        },
+        {
+          "type": "create_biotech:java/creeper_blast_chamber/3",
+          "parameters": {},
+          "id": "step_054"
+        },
+        {
+          "type": "rotate_camera_y",
+          "degrees": -35.0,
+          "degreesX": -35.0,
+          "duration": 10,
+          "id": "step_055"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "axis": "z",
+            "axis_along_first": "true"
+          },
+          "nbt": "{ForgeCaps:{},Speed:0.0f}",
+          "blockPos": [
+            3,
+            4,
+            2
+          ],
+          "blockPos2": [
+            5,
+            4,
+            1
+          ],
+          "id": "step_056"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_057"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "For each creeper inside, the chamber takes one batch of items from the input vault, runs the matching Crushing Wheel recipe, and outputs the result to the output vault.",
+            "zh_cn": "每有一只苦力怕，爆破室就会提取输入保险库中的一组物品，执行粉碎轮的粉碎配方，输出到输出保险库"
+          },
+          "point": [
+            2.0,
+            3.5,
+            4.5
+          ],
+          "duration": 200,
+          "placeNearTarget": true,
+          "id": "step_058",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 210,
+          "id": "step_059"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Hold right-click on a vault to switch it between input and output.",
+            "zh_cn": "右键长按保险库可以调整其为输入或输出"
+          },
+          "point": [
+            2.0,
+            3.5,
+            4.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_060",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_061"
+        }
+      ]
+    },
+    {
+      "id": "s_2c227",
+      "title": {
+        "en_us": "Creeper Blast Chamber Overload",
+        "zh_cn": "苦力怕爆破室 过载"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_large",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 30,
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Creeper Blast Chamber can handle speeds up to 128 RPM.",
+            "zh_cn": "苦力怕爆破室最高接受128rpm的转速"
+          },
+          "point": [
+            4.5,
+            4.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_128rpm",
+          "blockPos": [
+            3,
+            4,
+            1
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_006"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_007"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Any speed above 128 RPM will send it into an overloaded state.",
+            "zh_cn": "超过128rpm的转速会使其进入过载状态"
+          },
+          "point": [
+            4.0,
+            4.5,
+            1.5
+          ],
+          "duration": 120,
+          "color": "red",
+          "placeNearTarget": true,
+          "id": "step_008",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_256rpm",
+          "blockPos": [
+            3,
+            4,
+            1
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_009"
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_010"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Do not overload it for too long, unless you want an explosion big enough to destroy your base!",
+            "zh_cn": "不要长时间过载，除非你想引起一次足以炸毁你基地的大爆炸！"
+          },
+          "point": [
+            4.0,
+            4.5,
+            1.5
+          ],
+          "duration": 120,
+          "color": "red",
+          "placeNearTarget": true,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_012"
+        }
+      ]
+    },
+    {
+      "id": "s_a77f7",
+      "title": {
+        "en_us": "Creeper Blast Chamber High-Pressure Implosion",
+        "zh_cn": "苦力怕爆破室 高压聚爆"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/creeper_blast_chamber_large",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "direction": "down",
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Feed a high-pressure creeper into the chamber...",
+            "zh_cn": "向爆破室中输入高压苦力怕..."
+          },
+          "point": [
+            6.5,
+            1.5,
+            2.0
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_006"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            5.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}",
+          "id": "step_007"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:creeper",
+          "pos": [
+            4.5,
+            2.0,
+            3.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}",
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 90,
+          "id": "step_009"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "to switch recipes into High-Pressure Implosion mode.",
+            "zh_cn": "可以将配方调整为“高压聚爆”模式"
+          },
+          "point": [
+            6.5,
+            1.5,
+            2.0
+          ],
+          "duration": 100,
+          "color": "input",
+          "placeNearTarget": true,
+          "id": "step_010",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_011"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "High-Pressure Implosion mode has its own recipes and no longer runs Crushing Wheel recipes.",
+            "zh_cn": "“高压聚爆”模式有单独的配方，不再执行粉碎配方"
+          },
+          "point": [
+            6.5,
+            1.5,
+            2.0
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_012",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_013"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Of course, overload explosions also become much more powerful.",
+            "zh_cn": "当然，过载引起的爆炸烈度也会成倍增加"
+          },
+          "point": [
+            4.0,
+            4.5,
+            1.5
+          ],
+          "duration": 120,
+          "color": "red",
+          "placeNearTarget": true,
+          "id": "step_014",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 130,
+          "id": "step_015"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Creeper Blast Chamber Introduction",
+    "zh_cn": "苦力怕爆破室 介绍"
+  },
+  "runtimeSource": "create_biotech:creeper_blast_chamber"
+}

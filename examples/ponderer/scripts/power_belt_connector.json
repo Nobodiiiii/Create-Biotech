@@ -1,0 +1,304 @@
+{
+  "id": "create_biotech:power_belt_connector",
+  "items": [
+    "create_biotech:power_belt_connector"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_sources"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/power_belt_connector_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Power Belt",
+        "zh_cn": "动力传送带"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Power Belt generates stress when creatures move across it.",
+            "zh_cn": "动力传送带会在有生物在其上方运动时产生应力"
+          },
+          "point": [
+            5.0,
+            1.5,
+            2.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_003",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/1",
+          "parameters": {},
+          "id": "step_004"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_64rpm",
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_005"
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/2",
+          "parameters": {},
+          "id": "step_006"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The faster creatures move above it, the higher the speed and stress it produces.",
+            "zh_cn": "上方生物运动的越快，产生的转速越高，应力越高"
+          },
+          "point": [
+            5.0,
+            1.5,
+            2.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_007",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/3",
+          "parameters": {},
+          "id": "step_008"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_144rpm",
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_009"
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/4",
+          "parameters": {},
+          "id": "step_010"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Stress from multiple entities stacks, but speed does not.",
+            "zh_cn": "多个实体产生的应力会叠加，但是转速不会"
+          },
+          "point": [
+            1.5,
+            2.0,
+            3.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_011",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/5",
+          "parameters": {},
+          "id": "step_012"
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/6",
+          "parameters": {},
+          "id": "step_013"
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/7",
+          "parameters": {},
+          "id": "step_014"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_base",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_015"
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_016"
+        },
+        {
+          "type": "set_block",
+          "block": "create:andesite_casing",
+          "blockPos": [
+            6,
+            1,
+            3
+          ],
+          "blockPos2": [
+            6,
+            2,
+            3
+          ],
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_017"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:fixed_carrot_fishing_rod",
+          "blockProperties": {
+            "facing": "west"
+          },
+          "blockPos": [
+            5,
+            2,
+            3
+          ],
+          "nbt": "{ForgeCaps:{},Inventory:{Items:[],Size:1}}",
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_018"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_019"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Use a Fixed Fishing Rod to put animals to work.",
+            "zh_cn": "使用固定的钓竿，让动物为你工作"
+          },
+          "point": [
+            5.0,
+            2.5,
+            3.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_020",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/8",
+          "parameters": {},
+          "id": "step_021"
+        },
+        {
+          "type": "show_controls",
+          "point": [
+            5.5,
+            3.0,
+            3.5
+          ],
+          "direction": "down",
+          "duration": 60,
+          "action": "right",
+          "item": "minecraft:wheat",
+          "whileSneaking": false,
+          "whileCTRL": false,
+          "id": "step_022"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "west"
+          },
+          "nbt": "{ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"minecraft:wheat\"}],Size:1}}",
+          "blockPos": [
+            5,
+            2,
+            3
+          ],
+          "id": "step_023"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_80rpm",
+          "blockPos": [
+            1,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_024"
+        },
+        {
+          "type": "create_biotech:java/power_belt_connector/9",
+          "parameters": {},
+          "id": "step_025"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/power_belt_connector_base",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_026"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Power Belt",
+    "zh_cn": "动力传送带"
+  },
+  "runtimeSource": "create_biotech:power_belt_connector"
+}

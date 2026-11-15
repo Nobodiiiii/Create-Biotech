@@ -1,0 +1,392 @@
+{
+  "id": "create_biotech:shulker_teleporter",
+  "items": [
+    "create_biotech:shulker_teleporter"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_appliances"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/basic"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Shulker Teleport Station",
+        "zh_cn": "场景 1"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/basic"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/shulker_teleporter_station",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_003"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "blockPos2": [
+            2,
+            3,
+            2
+          ],
+          "linkId": "default",
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Shulker Teleport Stations can teleport players, creatures, or dropped items between two stations.",
+            "zh_cn": "潜影传送站可以在两个站点之间传送玩家、生物或掉落物"
+          },
+          "point": [
+            2.5,
+            1.5,
+            2.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_005",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 100,
+          "id": "step_006"
+        },
+        {
+          "type": "move_section",
+          "linkId": "default",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "blockPos2": [
+            2,
+            3,
+            2
+          ],
+          "offset": [
+            2.0,
+            0.0,
+            0.0
+          ],
+          "duration": 20,
+          "id": "step_007"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/shulker_teleporter_station",
+          "blockPos": [
+            0,
+            1,
+            2
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_008"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_009"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Set this station's address and its target address in the interface.",
+            "zh_cn": "在界面中设置本机地址和目标地址"
+          },
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_010",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Alice",
+            "zh_cn": "李华"
+          },
+          "point": [
+            4.5,
+            2.0,
+            2.5
+          ],
+          "duration": 100,
+          "color": "blue",
+          "placeNearTarget": true,
+          "id": "step_011"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Bob",
+            "zh_cn": "王芳"
+          },
+          "point": [
+            0.5,
+            2.0,
+            2.5
+          ],
+          "duration": 100,
+          "color": "blue",
+          "placeNearTarget": true,
+          "id": "step_012"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "-> Bob",
+            "zh_cn": "→王芳"
+          },
+          "point": [
+            4.5,
+            1.2,
+            2.5
+          ],
+          "duration": 100,
+          "color": "output",
+          "placeNearTarget": true,
+          "id": "step_013"
+        },
+        {
+          "type": "idle",
+          "duration": 60,
+          "id": "step_014"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:slime",
+          "pos": [
+            4.5,
+            1.0,
+            2.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.04189728686096652d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"},{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"}],wasOnGround:1b}",
+          "entranceAnimation": "simultaneous",
+          "direction": "down",
+          "id": "step_015",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/shulker_teleporter_drive_stopped",
+          "blockPos": [
+            4,
+            0,
+            3
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": false,
+          "spawnParticles": false,
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "direction": "down",
+          "id": "step_016"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_017"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "part": "2",
+            "facing": "west"
+          },
+          "nbt": "{CandidateAddresses:[\"222\"],Closing:1b,ClosingTicks:8.0f,Network:{Capacity:262144.0f,Id:-824633704505L,Size:3,Stress:0.0f},OwnAddress:\"111\",SealedHoldTicks:0,Source:[I;-3,-58,3],Speed:128.0f,TargetAddress:\"222\"}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_018"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/shulker_teleporter_drive_running",
+          "blockPos": [
+            4,
+            0,
+            3
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_019"
+        },
+        {
+          "type": "idle",
+          "duration": 50,
+          "id": "step_020"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Once sealed, entities inside are teleported to the target station.",
+            "zh_cn": "闭合完成后，站内实体会被传送到目标站点"
+          },
+          "point": [
+            2.5,
+            2.0,
+            2.5
+          ],
+          "duration": 50,
+          "placeNearTarget": true,
+          "id": "step_021"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:portal",
+          "pos": [
+            4.5,
+            2.0,
+            2.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 32,
+          "duration": 1,
+          "id": "step_022"
+        },
+        {
+          "type": "spawn_particles",
+          "particle": "minecraft:portal",
+          "pos": [
+            0.5,
+            2.0,
+            2.5
+          ],
+          "distribution": "point",
+          "spread": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "motion": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "count": 32,
+          "duration": 1,
+          "id": "step_023"
+        },
+        {
+          "type": "play_sound",
+          "sound": "minecraft:entity.enderman.teleport",
+          "soundVolume": 1.0,
+          "pitch": 1.0,
+          "source": "blocks",
+          "id": "step_024"
+        },
+        {
+          "type": "clear_entities",
+          "fullScene": false,
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            4,
+            1,
+            4
+          ],
+          "id": "step_025"
+        },
+        {
+          "type": "create_entity",
+          "entity": "minecraft:slime",
+          "pos": [
+            0.5,
+            1.0,
+            2.5
+          ],
+          "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.04189728686096652d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"},{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"}],wasOnGround:1b}",
+          "id": "step_026"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "part": "2",
+            "facing": "west"
+          },
+          "nbt": "{CandidateAddresses:[\"222\"],Closing:0b,ClosingTicks:124.0f,Network:{Capacity:2097152.0f,Id:-274877890621L,Size:7,Stress:0.0f},OwnAddress:\"111\",SealedHoldTicks:0,Source:[I;-3,-58,3],Speed:128.0f,TargetAddress:\"222\"}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_027"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_028"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Shulker Teleport Station",
+    "zh_cn": "场景 1"
+  },
+  "runtimeSource": "create_biotech:shulker_teleporter"
+}

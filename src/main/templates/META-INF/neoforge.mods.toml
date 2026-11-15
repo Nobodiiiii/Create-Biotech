@@ -44,6 +44,13 @@ ordering = "AFTER"
 side = "BOTH"
 
 [[dependencies."${mod_id}"]]
+modId = "pondererlib"
+type = "required"
+versionRange = "${ponderer_lib_version_range}"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies."${mod_id}"]]
 modId = "sable"
 type = "optional"
 versionRange = "${sable_version_range}"
@@ -67,7 +74,7 @@ side = "CLIENT"
 [[dependencies."${mod_id}"]]
 modId = "kubejs"
 type = "optional"
-versionRange = "[2101.7.2-build.381,2102)"
+versionRange = "${kubejs_version_range}"
 ordering = "AFTER"
 side = "BOTH"
 

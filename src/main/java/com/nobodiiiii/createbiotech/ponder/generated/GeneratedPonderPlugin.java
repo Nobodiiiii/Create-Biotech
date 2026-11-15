@@ -19,6 +19,11 @@ public final class GeneratedPonderPlugin implements PonderPlugin {
     }
 
     @Override
+    public void registerSharedText(net.createmod.ponder.api.registration.SharedTextRegistrationHelper helper) {
+        GeneratedPonderIndex.registerSharedText(helper);
+    }
+
+    @Override
     public void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
         GeneratedPonderAttribution.registerTag(helper);
         GeneratedPonderIndex.registerTags(helper);

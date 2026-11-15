@@ -1,0 +1,183 @@
+{
+  "id": "create_biotech:bone_ratchet",
+  "items": [
+    "create_biotech:bone_ratchet"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_relays"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/bone_ratchet_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Bone Ratchet",
+        "zh_cn": "骨制棘轮"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            4,
+            0,
+            5
+          ],
+          "id": "step_001",
+          "attachKeyFrame": true,
+          "structure": "create_biotech:generated/ponderer/bone_ratchet_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            0,
+            1,
+            0
+          ],
+          "blockPos2": [
+            4,
+            1,
+            5
+          ],
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": true,
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 30,
+          "id": "step_004"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Bone Ratchet only accepts rotation in one direction.",
+            "zh_cn": "骨质棘轮只接受一种方向的旋转"
+          },
+          "point": [
+            1.0,
+            1.5,
+            4.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_005"
+        },
+        {
+          "type": "idle",
+          "duration": 105,
+          "id": "step_006"
+        },
+        {
+          "type": "show_extra_structure",
+          "structure": "create_biotech:generated/ponderer/bone_ratchet_reverse_jam",
+          "blockPos": [
+            1,
+            1,
+            1
+          ],
+          "rotation": 0,
+          "replaceAir": false,
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_007",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 5,
+          "id": "step_008"
+        },
+        {
+          "type": "set_block",
+          "block": "create_biotech:bone_ratchet",
+          "blockProperties": {
+            "facing": "south"
+          },
+          "blockPos": [
+            1,
+            1,
+            4
+          ],
+          "nbt": "{ForgeCaps:{},Network:{AddedStress:20000.0f,Capacity:344064.0f,Id:-7421703438396L,Size:9,Stress:840084.0f},Source:{X:-29,Y:-59,Z:9},Speed:-42.0f}",
+          "immediateDisplay": true,
+          "spawnParticles": false,
+          "entranceAnimation": "none",
+          "id": "step_009"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "nbt": "{Speed:0f}",
+          "reDrawBlocks": true,
+          "blockPos": [
+            0,
+            0,
+            4
+          ],
+          "blockPos2": [
+            4,
+            1,
+            5
+          ],
+          "id": "step_010"
+        },
+        {
+          "type": "indicate_redstone",
+          "blockPos": [
+            1,
+            1,
+            4
+          ],
+          "id": "step_011"
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_012"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "When given stress from the opposite direction, it jams the entire kinetic network.",
+            "zh_cn": "接受反方向应力时，他会卡死整个应力网络"
+          },
+          "point": [
+            1.0,
+            1.5,
+            4.5
+          ],
+          "duration": 90,
+          "placeNearTarget": true,
+          "id": "step_013"
+        },
+        {
+          "type": "idle",
+          "duration": 90,
+          "id": "step_014"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Bone Ratchet",
+    "zh_cn": "骨制棘轮"
+  },
+  "runtimeSource": "create_biotech:bone_ratchet"
+}

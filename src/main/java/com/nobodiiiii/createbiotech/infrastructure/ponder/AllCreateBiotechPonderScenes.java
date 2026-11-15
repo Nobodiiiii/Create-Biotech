@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.infrastructure.ponder;
 
+import com.nododiiiii.ponderer.runtime.api.RuntimeScenes;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.content.buttercat.ponder.ModPonderScenes;
@@ -27,7 +28,10 @@ public class AllCreateBiotechPonderScenes {
 	public static void registerCreateCompat(PonderSceneRegistrationHelper<ResourceLocation> helper) {
 		PonderSceneRegistrationHelper<DeferredHolder<?, ?>> HELPER = helper.withKeyFunction(DeferredHolder::getId);
 		HELPER.forComponents(CBItems.SMART_SUPER_GLUE)
-			.addStoryBoard(CREATE_SUPER_GLUE_SCHEMATIC, ChassisScenes::superGlue,
+			.addStoryBoard(CREATE_SUPER_GLUE_SCHEMATIC, (scene, util) -> {
+				RuntimeScenes.adopt(scene.getScene());
+				ChassisScenes.superGlue(scene, util);
+			},
 				AllCreatePonderTags.CONTRAPTION_ASSEMBLY);
 	}
 }

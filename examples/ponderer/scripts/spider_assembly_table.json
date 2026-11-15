@@ -1,0 +1,444 @@
+{
+  "id": "create_biotech:spider_assembly_table",
+  "items": [
+    "create_biotech:spider_assembly_table"
+  ],
+  "editable": true,
+  "tags": [
+    "create:kinetic_appliances"
+  ],
+  "structures": [
+    "create_biotech:generated/ponderer/spider_assembly_table_base"
+  ],
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "en_us": "Spider Assembly Table",
+        "zh_cn": "蜘蛛装配站"
+      },
+      "steps": [
+        {
+          "type": "show_structure",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            5,
+            0,
+            5
+          ],
+          "id": "step_001",
+          "structure": "create_biotech:generated/ponderer/spider_assembly_table_base"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_002"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            2,
+            1,
+            4
+          ],
+          "blockPos2": [
+            2,
+            3,
+            5
+          ],
+          "duration": 20,
+          "direction": "north",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_003"
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_004"
+        },
+        {
+          "type": "show_section_and_merge",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "blockPos2": [
+            2,
+            3,
+            3
+          ],
+          "duration": 20,
+          "direction": "down",
+          "entranceAnimation": "simultaneous",
+          "entranceDuration": 20,
+          "entranceInterval": 1,
+          "smartDisplay": false,
+          "id": "step_005"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_006"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "The Spider Assembly Table can perform Sequenced Assembly recipes.",
+            "zh_cn": "蜘蛛装配台可以执行序列装配配方"
+          },
+          "point": [
+            2.0,
+            3.5,
+            2.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_007",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 110,
+          "id": "step_008"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Right-click to open its interface, then place the required machines in the first row...",
+            "zh_cn": "右键打开界面，在第一行放入装配所需要的机器..."
+          },
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_009",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_010"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:-1,ActiveSlot:-1,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"}],Size:16},ItemLocks:[{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:0,ProcessingTicksRemaining:0,ProcessingTicksTotal:0,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "reDrawBlocks": true,
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_011"
+        },
+        {
+          "type": "idle",
+          "duration": 100,
+          "id": "step_012"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Place the required ingredients in the second row.",
+            "zh_cn": "在第二行放入装配所需原料"
+          },
+          "point": [
+            2.0,
+            3.5,
+            2.5
+          ],
+          "duration": 100,
+          "placeNearTarget": true,
+          "id": "step_013",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "idle",
+          "duration": 10,
+          "id": "step_014"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:-1,ActiveSlot:-1,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:0,ProcessingTicksRemaining:0,ProcessingTicksTotal:0,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_015"
+        },
+        {
+          "type": "idle",
+          "duration": 100,
+          "id": "step_016"
+        },
+        {
+          "type": "text",
+          "text": {
+            "en_us": "Assemble!",
+            "zh_cn": "装配！"
+          },
+          "point": [
+            2.0,
+            1.5,
+            2.5
+          ],
+          "duration": 120,
+          "placeNearTarget": true,
+          "id": "step_017",
+          "attachKeyFrame": true
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:335,InDirection:0,InSegment:0,Item:{Count:1b,id:\"create:brass_sheet\"},Locked:1b,Offset:0.14351852f,Pos:0.5f,PrevOffset:0.14351852f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_018"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:0,ActiveSlot:0,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create:brass_sheet\"},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:1,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_019"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_020"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.16666667f,Step:1,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_021"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_022"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:1,ActiveSlot:1,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.16666667f,Step:1,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:2,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_023"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_024"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.33333334f,Step:2,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_025"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_026"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:2,ActiveSlot:2,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.33333334f,Step:2,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:3,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_027"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_028"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.5f,Step:3,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_029"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_030"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:3,ActiveSlot:3,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.5f,Step:3,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:4,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_031"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_032"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.6666667f,Step:4,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_033"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_034"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:4,ActiveSlot:4,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.6666667f,Step:4,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:5,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_035"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_036"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.8333334f,Step:5,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_037"
+        },
+        {
+          "type": "idle",
+          "duration": 40,
+          "id": "step_038"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "facing": "north"
+          },
+          "nbt": "{ActiveMachine:5,ActiveSlot:5,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create_biotech:incomplete_bionic_mechanism\",tag:{SequencedAssembly:{Progress:0.8333334f,Step:5,id:\"create_biotech:sequenced_assembly/bionic_mechanism\"}}},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:6,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}",
+          "blockPos": [
+            2,
+            3,
+            2
+          ],
+          "id": "step_039"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_040"
+        },
+        {
+          "type": "modify_block_entity_nbt",
+          "blockProperties": {
+            "waterlogged": "false"
+          },
+          "nbt": "{ForgeCaps:{},HeldItem:{Angle:317,InDirection:3,InSegment:0,Item:{Count:1b,id:\"create_biotech:bionic_mechanism\"},Locked:1b,Offset:0.119444445f,Pos:0.5f,PrevOffset:0.119444445f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}",
+          "blockPos": [
+            2,
+            1,
+            2
+          ],
+          "id": "step_041"
+        },
+        {
+          "type": "idle",
+          "duration": 20,
+          "id": "step_042"
+        }
+      ]
+    }
+  ],
+  "title": {
+    "en_us": "Spider Assembly Table",
+    "zh_cn": "蜘蛛装配站"
+  },
+  "runtimeSource": "create_biotech:spider_assembly_table"
+}
