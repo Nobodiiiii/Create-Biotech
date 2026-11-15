@@ -7,8 +7,8 @@
     "create_biotech:slime_clutch"
   ],
   "title": {
-    "zh_cn": "史莱姆离合器",
-    "en_us": "Slime Clutch"
+    "ref": "create_biotech:slime_clutch",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/slime_clutch_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "史莱姆离合器",
-        "en_us": "Slime Clutch"
+        "ref": "create_biotech:slime_clutch",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -95,8 +95,8 @@
           "id": "java_c30967b186503a39b015e0f9b99028db",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "axis": "z",
-            "waterlogged": "false"
+            "waterlogged": "false",
+            "axis": "z"
           },
           "blockPos": [
             3,
@@ -110,8 +110,8 @@
           "id": "java_00b7818e1f073de0a8acb1a34df91cda",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "axis": "z",
-            "powered": "true"
+            "powered": "true",
+            "axis": "z"
           },
           "blockPos": [
             3,
@@ -131,12 +131,12 @@
           ]
         },
         {
-          "id": "java_1b81521591e934aca389988ce0225f2f",
+          "id": "java_d65ec039c21933afa237bf863b8582bf",
           "type": "text",
           "duration": 140,
           "text": {
-            "zh_cn": "史莱姆离合器会在输入应力不支持驱动整个应力网络时自动断开，而不影响网络的其他部分",
-            "en_us": "The Slime Clutch automatically disengages when the input stress cannot drive the entire kinetic network, without affecting the rest of the network."
+            "ref": "create_biotech:slime_clutch",
+            "key": "scene_1.text_1"
           },
           "point": [
             3.0,
@@ -184,8 +184,8 @@
           "id": "java_1327497c0ef33fb799c6eb97d8c0c50f",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "axis": "z",
-            "powered": "false"
+            "powered": "false",
+            "axis": "z"
           },
           "blockPos": [
             3,
@@ -205,12 +205,12 @@
           ]
         },
         {
-          "id": "java_d719d15998d8301cb416d4ddf9d5b7a3",
+          "id": "java_5276d8fd873334e68fe1ed8b1750a024",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "并在应力充足时自动恢复",
-            "en_us": "It automatically re-engages when enough stress is available."
+            "ref": "create_biotech:slime_clutch",
+            "key": "scene_1.text_2"
           },
           "point": [
             3.0,

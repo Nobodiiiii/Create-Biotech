@@ -7,8 +7,8 @@
     "create_biotech:shulker_teleporter"
   ],
   "title": {
-    "zh_cn": "场景 1",
-    "en_us": "Shulker Teleport Station"
+    "ref": "create_biotech:shulker_teleporter",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/basic"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "场景 1",
-        "en_us": "Shulker Teleport Station"
+        "ref": "create_biotech:shulker_teleporter",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -75,12 +75,12 @@
           "entranceInterval": 1
         },
         {
-          "id": "java_2fc627733c9c3123a6a6a52fc4ce5fb5",
+          "id": "java_8319d43c17e73004a1b2685c0c905bc6",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "潜影传送站可以在两个站点之间传送玩家、生物或掉落物",
-            "en_us": "Shulker Teleport Stations can teleport players, creatures, or dropped items between two stations."
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_1"
           },
           "point": [
             2.5,
@@ -141,23 +141,23 @@
           "duration": 20
         },
         {
-          "id": "java_b249b1aebe9438aea75919ef1eb5209d",
+          "id": "java_5d6974bdcf733769a6a197782334b644",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "在界面中设置本机地址和目标地址",
-            "en_us": "Set this station's address and its target address in the interface."
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_2"
           },
           "placeNearTarget": true,
           "attachKeyFrame": true
         },
         {
-          "id": "java_e78f465071c9341f8d060432501d6f6c",
+          "id": "java_4b445009c0a4348da041a257e515f726",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "李华",
-            "en_us": "Alice"
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_3"
           },
           "point": [
             4.5,
@@ -168,12 +168,12 @@
           "placeNearTarget": true
         },
         {
-          "id": "java_72af715a7e1e348ba0691841486ee240",
+          "id": "java_e15a4e0c6255317d94d31af53911483c",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "王芳",
-            "en_us": "Bob"
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_4"
           },
           "point": [
             0.5,
@@ -184,12 +184,12 @@
           "placeNearTarget": true
         },
         {
-          "id": "java_ca9e3cbce0f439d19b481b382665b6ac",
+          "id": "java_6a6476a6271f360593e0ca83514e0099",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "→王芳",
-            "en_us": "-> Bob"
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_5"
           },
           "point": [
             4.5,
@@ -246,8 +246,8 @@
           "id": "java_91ba4557312638548d1dfec02f5c1447",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "part": "2",
-            "facing": "west"
+            "facing": "west",
+            "part": "2"
           },
           "blockPos": [
             2,
@@ -277,12 +277,12 @@
           "duration": 50
         },
         {
-          "id": "java_600adae3d7d2353f86fe0b83a9966aee",
+          "id": "java_df0b38121933353abeea21dd9f7f9981",
           "type": "text",
           "duration": 50,
           "text": {
-            "zh_cn": "闭合完成后，站内实体会被传送到目标站点",
-            "en_us": "Once sealed, entities inside are teleported to the target station."
+            "ref": "create_biotech:shulker_teleporter",
+            "key": "scene_1.text_6"
           },
           "point": [
             2.5,
@@ -375,8 +375,8 @@
           "id": "java_994e748676fd3ca4863d0291cb4f3ef3",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "part": "2",
-            "facing": "west"
+            "facing": "west",
+            "part": "2"
           },
           "blockPos": [
             2,

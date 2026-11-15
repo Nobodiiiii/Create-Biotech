@@ -7,8 +7,8 @@
     "create_biotech:bio_packager"
   ],
   "title": {
-    "zh_cn": "生物打包机 释放",
-    "en_us": "Bio Packager Release"
+    "ref": "create_biotech:bio_packager",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/basic",
@@ -24,8 +24,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "生物打包机 释放",
-        "en_us": "Bio Packager Release"
+        "ref": "create_biotech:bio_packager",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -67,8 +67,8 @@
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "type": "single",
-            "facing": "west"
+            "facing": "west",
+            "type": "single"
           },
           "blockPos": [
             2,
@@ -89,8 +89,8 @@
           "direction": "down",
           "block": "minecraft:lever",
           "blockProperties": {
-            "face": "floor",
             "powered": "false",
+            "face": "floor",
             "facing": "south"
           },
           "blockPos": [
@@ -111,12 +111,12 @@
           "duration": 20
         },
         {
-          "id": "java_4ea7f66a67093dc79f66ec9c559d0ede",
+          "id": "java_f746f59d6e553829b2ed8cecaaa69281",
           "type": "text",
           "duration": 40,
           "text": {
-            "zh_cn": "接入红石信号...",
-            "en_us": "Apply a redstone signal..."
+            "ref": "create_biotech:bio_packager",
+            "key": "scene_1.text_1"
           },
           "point": [
             1.5,
@@ -195,12 +195,12 @@
           "duration": 20
         },
         {
-          "id": "java_c45fc483b8853d7a825df70f1592c6ab",
+          "id": "java_175d281bdbb03a5db56832dd25c4c79b",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方",
-            "en_us": "The Bio Packager pulls boxes containing creatures from its attached inventory and releases them above itself."
+            "ref": "create_biotech:bio_packager",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.5,
@@ -234,8 +234,8 @@
     {
       "id": "s_fe8b2",
       "title": {
-        "zh_cn": "生物打包机 捕捉",
-        "en_us": "Bio Packager Capturing"
+        "ref": "create_biotech:bio_packager",
+        "key": "s_fe8b2.title"
       },
       "steps": [
         {
@@ -316,8 +316,8 @@
           "block": "create:mechanical_piston_head",
           "blockProperties": {
             "waterlogged": "false",
-            "type": "sticky",
-            "facing": "south"
+            "facing": "south",
+            "type": "sticky"
           },
           "blockPos": [
             2,
@@ -475,12 +475,12 @@
           "duration": 20
         },
         {
-          "id": "java_a1bfc2f5b1a53861bf63b1380a200115",
+          "id": "java_9f2de88df81d3e0181e884e5325a74a1",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物",
-            "en_us": "The Bio Packager automatically pulls cardboard boxes from its attached inventory and captures creatures killed by moving contraptions."
+            "ref": "create_biotech:bio_packager",
+            "key": "s_fe8b2.text_1"
           },
           "point": [
             2.5,

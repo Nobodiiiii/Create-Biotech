@@ -34,12 +34,16 @@ public final class GeneratedBoneRatchet_4e031dbe {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:bone_ratchet", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:bone_ratchet";
         document.runtimeSource = "create_biotech:bone_ratchet";
         document.items = List.of("create_biotech:bone_ratchet");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bone Ratchet"), Map.entry("zh_cn", "骨制棘轮")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/bone_ratchet_base");
         document.tags = List.of("create:kinetic_relays", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,12 +52,12 @@ public final class GeneratedBoneRatchet_4e031dbe {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bone Ratchet"), Map.entry("zh_cn", "骨制棘轮"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/bone_ratchet_base", new BlockPos(0, 0, 0), new BlockPos(4, 0, 5), null, null);
         scene.idle(20);
         scene.showSectionAndMerge(new BlockPos(0, 1, 0), new BlockPos(4, 1, 5), null, 20, "down", "simultaneous", 20, 1, true);
         scene.idle(30);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Bone Ratchet only accepts rotation in one direction."), Map.entry("zh_cn", "骨质棘轮只接受一种方向的旋转"))), new Vec3(1.0d, 1.5d, 4.5d), 90, null, true);
+        scene.showText(text("scene_1.text_1"), new Vec3(1.0d, 1.5d, 4.5d), 90, null, true);
         scene.idle(105);
         scene.keyframe().showExtraStructure("create_biotech:generated/ponderer/bone_ratchet_reverse_jam", new BlockPos(1, 1, 1), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.idle(5);
@@ -61,7 +65,7 @@ public final class GeneratedBoneRatchet_4e031dbe {
         scene.modifyBlockEntity(null, "{Speed:0f}", true, new BlockPos(0, 0, 4), new BlockPos(4, 1, 5));
         scene.indicateRedstone(new BlockPos(1, 1, 4));
         scene.idle(10);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "When given stress from the opposite direction, it jams the entire kinetic network."), Map.entry("zh_cn", "接受反方向应力时，他会卡死整个应力网络"))), new Vec3(1.0d, 1.5d, 4.5d), 90, null, true);
+        scene.showText(text("scene_1.text_2"), new Vec3(1.0d, 1.5d, 4.5d), 90, null, true);
         scene.idle(90);
         return scene.build();
     }
@@ -95,6 +99,7 @@ public final class GeneratedBoneRatchet_4e031dbe {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

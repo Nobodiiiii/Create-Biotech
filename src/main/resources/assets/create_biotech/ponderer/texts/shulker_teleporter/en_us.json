@@ -1,0 +1,10 @@
+{
+  "scene_1.text_1": "Shulker Teleport Stations can teleport players, creatures, or dropped items between two stations.",
+  "scene_1.text_2": "Set this station\u0027s address and its target address in the interface.",
+  "scene_1.text_3": "Alice",
+  "scene_1.text_4": "Bob",
+  "scene_1.text_5": "-\u003e Bob",
+  "scene_1.text_6": "Once sealed, entities inside are teleported to the target station.",
+  "scene_1.title": "Shulker Teleport Station",
+  "title": "Shulker Teleport Station"
+}

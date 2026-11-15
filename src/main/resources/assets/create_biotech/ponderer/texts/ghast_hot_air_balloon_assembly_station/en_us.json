@@ -1,0 +1,18 @@
+{
+  "s_29671.text_1": "Use a Ghast Helm to control the Ghast Hot Air Balloon.",
+  "s_29671.text_2": "W/S moves forward and backward.",
+  "s_29671.text_3": "A/D turns left and right.",
+  "s_29671.text_4": "Space/Shift moves up and down.",
+  "s_29671.text_5": "Ctrl stops controlling.",
+  "s_29671.text_6": "Alt automatically approaches a nearby unpowered assembly station.",
+  "s_29671.title": "Ghast Hot Air Balloon Assembly Station Controls",
+  "scene_1.text_1": "Use a Ghast Hot Air Balloon Assembly Station to assemble your Ghast Hot Air Balloon.",
+  "scene_1.text_2": "Use Super Glue to glue your balloon together.",
+  "scene_1.text_3": "Buffer Pads can prevent the structure from getting stuck in the ground.",
+  "scene_1.text_4": "Then power the assembly station with redstone...",
+  "scene_1.text_5": "Then place a Ghast above the assembly station...",
+  "scene_1.text_6": "Assembly complete!",
+  "scene_1.text_7": "Approach an unpowered assembly station or use Shears on the rope to disassemble the structure.",
+  "scene_1.title": "Ghast Hot Air Balloon Assembly Station Assembly",
+  "title": "Ghast Hot Air Balloon Assembly Station Assembly"
+}

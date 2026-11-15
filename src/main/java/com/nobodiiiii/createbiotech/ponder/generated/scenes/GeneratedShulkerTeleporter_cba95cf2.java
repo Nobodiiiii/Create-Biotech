@@ -34,12 +34,16 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:shulker_teleporter", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:shulker_teleporter";
         document.runtimeSource = "create_biotech:shulker_teleporter";
         document.items = List.of("create_biotech:shulker_teleporter");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Teleport Station"), Map.entry("zh_cn", "场景 1")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/basic");
         document.tags = List.of("create:kinetic_appliances", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,20 +52,20 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Teleport Station"), Map.entry("zh_cn", "场景 1"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_station", new BlockPos(2, 1, 2), 0.0f, false, false, false, "none", null, null, null, null, null);
         scene.showSectionAndMerge(new BlockPos(2, 1, 2), new BlockPos(2, 3, 2), "default", 20, "down", "simultaneous", 20, 1, false);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Teleport Stations can teleport players, creatures, or dropped items between two stations."), Map.entry("zh_cn", "潜影传送站可以在两个站点之间传送玩家、生物或掉落物"))), new Vec3(2.5d, 1.5d, 2.5d), 90, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(2.5d, 1.5d, 2.5d), 90, null, true);
         scene.idle(100);
         scene.moveSection("default", new BlockPos(2, 1, 2), new BlockPos(2, 3, 2), new Vec3(2.0d, 0.0d, 0.0d), 20);
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_station", new BlockPos(0, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Set this station's address and its target address in the interface."), Map.entry("zh_cn", "在界面中设置本机地址和目标地址"))), null, 120, null, true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Alice"), Map.entry("zh_cn", "李华"))), new Vec3(4.5d, 2.0d, 2.5d), 100, "blue", true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bob"), Map.entry("zh_cn", "王芳"))), new Vec3(0.5d, 2.0d, 2.5d), 100, "blue", true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "-> Bob"), Map.entry("zh_cn", "→王芳"))), new Vec3(4.5d, 1.2d, 2.5d), 100, "output", true);
+        scene.keyframe().showText(text("scene_1.text_2"), null, 120, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(4.5d, 2.0d, 2.5d), 100, "blue", true);
+        scene.showText(text("scene_1.text_4"), new Vec3(0.5d, 2.0d, 2.5d), 100, "blue", true);
+        scene.showText(text("scene_1.text_5"), new Vec3(4.5d, 1.2d, 2.5d), 100, "output", true);
         scene.idle(60);
         scene.keyframe().createEntity("minecraft:slime", new Vec3(4.5d, 1.0d, 2.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.04189728686096652d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"},{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"}],wasOnGround:1b}", null, "simultaneous", null, "down");
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_stopped", new BlockPos(4, 0, 3), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
@@ -69,7 +73,7 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west"), Map.entry("part", "2")), "{CandidateAddresses:[\"222\"],Closing:1b,ClosingTicks:8.0f,Network:{Capacity:262144.0f,Id:-824633704505L,Size:3,Stress:0.0f},OwnAddress:\"111\",SealedHoldTicks:0,Source:[I;-3,-58,3],Speed:128.0f,TargetAddress:\"222\"}", null, new BlockPos(2, 3, 2), null);
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_running", new BlockPos(4, 0, 3), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.idle(50);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Once sealed, entities inside are teleported to the target station."), Map.entry("zh_cn", "闭合完成后，站内实体会被传送到目标站点"))), new Vec3(2.5d, 2.0d, 2.5d), 50, null, true);
+        scene.showText(text("scene_1.text_6"), new Vec3(2.5d, 2.0d, 2.5d), 50, null, true);
         scene.spawnParticles("minecraft:portal", new Vec3(4.5d, 2.0d, 2.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
         scene.spawnParticles("minecraft:portal", new Vec3(0.5d, 2.0d, 2.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
         scene.playSound("minecraft:entity.enderman.teleport", 1.0f, 1.0f, "blocks");
@@ -109,6 +113,7 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

@@ -34,12 +34,16 @@ public final class GeneratedSchrodingersCat_7d56d990 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:schrodingers_cat", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:schrodingers_cat";
         document.runtimeSource = "create_biotech:schrodingers_cat";
         document.items = List.of("create_biotech:schrodingers_cat");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat"), Map.entry("zh_cn", "薛定谔的猫")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/basic");
         document.tags = List.of("create:redstone", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,20 +52,20 @@ public final class GeneratedSchrodingersCat_7d56d990 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat"), Map.entry("zh_cn", "薛定谔的猫"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
         scene.idle(20);
         scene.setBlock("create_biotech:schrodingers_cat", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(2, 1, 1), null, "{DetectionInterval:20,ForgeCaps:{},OutputMode:0,PulseTicks:0,SignalStrength:0,TickCounter:5}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("minecraft:redstone_wire", Map.ofEntries(Map.entry("east", "none"), Map.entry("north", "side"), Map.entry("power", "0"), Map.entry("south", "side"), Map.entry("west", "none")), new BlockPos(2, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("minecraft:redstone_lamp", Map.ofEntries(Map.entry("lit", "false")), new BlockPos(2, 1, 3), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Schrodinger's Cat randomly outputs redstone signals from its back."), Map.entry("zh_cn", "薛定谔的猫会在其背后随机输出红石信号"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
         scene.idle(20);
         scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
         scene.idle(60);
         scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
         scene.idle(50);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Its interval and output mode (sustained or pulse) can be configured from the side."), Map.entry("zh_cn", "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置"))), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(2.0d, 1.5d, 1.5d), 120, null, true);
         scene.showControls(new Vec3(2.0d, 1.5d, 1.5d), "down", 60, "right", null, null, false, false);
         scene.idle(10);
         scene.toggleRedstonePower(new BlockPos(2, 1, 1), new BlockPos(2, 1, 3));
@@ -100,6 +104,7 @@ public final class GeneratedSchrodingersCat_7d56d990 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

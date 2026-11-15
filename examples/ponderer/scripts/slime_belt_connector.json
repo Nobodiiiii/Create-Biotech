@@ -7,8 +7,8 @@
     "create_biotech:slime_belt_connector"
   ],
   "title": {
-    "zh_cn": "史莱姆传送带",
-    "en_us": "Slime Belt"
+    "ref": "create_biotech:slime_belt_connector",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/slime_belt_connector_horizontal"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "史莱姆传送带",
-        "en_us": "Slime Belt"
+        "ref": "create_biotech:slime_belt_connector",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -90,12 +90,12 @@
           "item": "minecraft:oak_log"
         },
         {
-          "id": "java_f67e2b69e95d3da781d9490e8bc70edb",
+          "id": "java_d509114b33e13841b5c9951d79350bf7",
           "type": "text",
           "duration": 67,
           "text": {
-            "zh_cn": "史莱姆传送带可以像一般传送带一样传输物品",
-            "en_us": "The Slime Belt can transport items like a normal belt."
+            "ref": "create_biotech:slime_belt_connector",
+            "key": "scene_1.text_1"
           },
           "point": [
             4.0,
@@ -119,10 +119,10 @@
           "id": "java_c56669a7688e31edbe07bd48d3870f0a",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "west",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "west"
           },
           "blockPos": [
             4,
@@ -145,12 +145,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_0afbe9df7cc83628933c4ad18c294ac9",
+          "id": "java_c9b3a6b5808e317e893d8e0ec09fd2d6",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "不同的是，物品不会在传送带末端被抛出，而是会继续运动到传送带背面",
-            "en_us": "The difference is that items are not thrown off the end, but continue moving onto the back side of the belt."
+            "ref": "create_biotech:slime_belt_connector",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.5,
@@ -208,12 +208,12 @@
           "replaceAir": false
         },
         {
-          "id": "java_0b100a859a4b305095bfae445efa543e",
+          "id": "java_d77613168c303bf39a542fa075a13579",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "史莱姆传送带还可以竖直传动物品",
-            "en_us": "The Slime Belt can also move items vertically."
+            "ref": "create_biotech:slime_belt_connector",
+            "key": "scene_1.text_3"
           },
           "point": [
             2.5,
@@ -246,10 +246,10 @@
           "id": "java_8bb9dcbd86db3251a04f62f113b32654",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -280,12 +280,12 @@
           "duration": 20
         },
         {
-          "id": "java_c5c30d7d24743d1ea8b35185063e38ce",
+          "id": "java_c3e83d0c12e6357c843efbd998f1295a",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "相连的史莱姆传送带可以形成一个回环",
-            "en_us": "Connected Slime Belts can form a loop."
+            "ref": "create_biotech:slime_belt_connector",
+            "key": "scene_1.text_4"
           },
           "point": [
             2.5,
@@ -323,10 +323,10 @@
           "id": "java_a6019a5d602638238721a7cdb8419732",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             1,
@@ -344,10 +344,10 @@
           "id": "java_084a60cd182331369b0e93a7765cda70",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             1,
@@ -360,10 +360,10 @@
           "id": "java_d2891dab086e33bab435da1ebe280c01",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -388,10 +388,10 @@
           "id": "java_ea54d7b72fe132e1889780279203375e",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -409,10 +409,10 @@
           "id": "java_80d1156580b933beb95e0cbd6f8533bd",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             4,
@@ -425,10 +425,10 @@
           "id": "java_156f2d5f98b333ef9cbc3c8374498f09",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -446,10 +446,10 @@
           "id": "java_f3d27bf7d84c3d9092729db761fdaab1",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -467,10 +467,10 @@
           "id": "java_6e1b6f00f40137179ca198a2c5bbd04f",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             1,
@@ -483,10 +483,10 @@
           "id": "java_8bb9dcbd86db3251a04f62f113b32654_2",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "vertical",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "vertical",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             3,
@@ -504,10 +504,10 @@
           "id": "java_084a60cd182331369b0e93a7765cda70_2",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "slope": "horizontal",
             "part": "start",
-            "facing": "east",
-            "waterlogged": "false"
+            "slope": "horizontal",
+            "waterlogged": "false",
+            "facing": "east"
           },
           "blockPos": [
             1,

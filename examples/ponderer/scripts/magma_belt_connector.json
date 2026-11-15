@@ -7,8 +7,8 @@
     "create_biotech:magma_belt_connector"
   ],
   "title": {
-    "zh_cn": "岩浆怪传送带",
-    "en_us": "Magma Cube Belt"
+    "ref": "create_biotech:magma_belt_connector",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/magma_belt_connector_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "岩浆怪传送带",
-        "en_us": "Magma Cube Belt"
+        "ref": "create_biotech:magma_belt_connector",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -83,12 +83,12 @@
           "duration": 20
         },
         {
-          "id": "java_0065a4acd49730adac794c7206a478ad",
+          "id": "java_df9818113d2d3dd4b8574c9f9044a570",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "使用鼓风机烧炼物品比较占空间",
-            "en_us": "Using a blower to smelt items takes a lot of space."
+            "ref": "create_biotech:magma_belt_connector",
+            "key": "scene_1.text_1"
           },
           "point": [
             1.0,
@@ -129,11 +129,11 @@
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "part": "start",
-            "waterlogged": "false",
-            "slope": "horizontal",
             "casing": "false",
-            "facing": "west"
+            "slope": "horizontal",
+            "part": "start",
+            "facing": "west",
+            "waterlogged": "false"
           },
           "blockPos": [
             3,
@@ -149,11 +149,11 @@
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "part": "middle",
-            "waterlogged": "false",
-            "slope": "horizontal",
             "casing": "false",
-            "facing": "west"
+            "slope": "horizontal",
+            "part": "middle",
+            "facing": "west",
+            "waterlogged": "false"
           },
           "blockPos": [
             2,
@@ -169,11 +169,11 @@
           "type": "set_block",
           "block": "create_biotech:magma_belt",
           "blockProperties": {
-            "part": "end",
-            "waterlogged": "false",
-            "slope": "horizontal",
             "casing": "false",
-            "facing": "west"
+            "slope": "horizontal",
+            "part": "end",
+            "facing": "west",
+            "waterlogged": "false"
           },
           "blockPos": [
             1,
@@ -185,12 +185,12 @@
           "entranceAnimation": "none"
         },
         {
-          "id": "java_9355d43961663cb2a92e455cfbd6ef85",
+          "id": "java_40f10bdce8d839da813018e52a81429e",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "使用岩浆怪传送带",
-            "en_us": "Use a Magma Cube Belt instead."
+            "ref": "create_biotech:magma_belt_connector",
+            "key": "scene_1.text_2"
           },
           "point": [
             3.5,
@@ -206,12 +206,12 @@
           "duration": 100
         },
         {
-          "id": "java_fea4341aa82e3783aeef96669d9c788e",
+          "id": "java_ce271319861132e89f55d619e432b199",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "它会自动烧炼其上方的物品，所需时间与鼓风机相同",
-            "en_us": "It automatically smelts items above it, taking the same amount of time as a blower."
+            "ref": "create_biotech:magma_belt_connector",
+            "key": "scene_1.text_3"
           },
           "point": [
             3.5,
@@ -226,12 +226,12 @@
           "duration": 130
         },
         {
-          "id": "java_58ac6762608f3f8186f6c99fe7c65a97",
+          "id": "java_c9e5a2782f7d35ada5412bde9242d325",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！",
-            "en_us": "It does not have a blower's smelting protection, so remember to remove the item before it burns a second time!"
+            "ref": "create_biotech:magma_belt_connector",
+            "key": "scene_1.text_4"
           },
           "point": [
             3.5,

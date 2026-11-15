@@ -34,12 +34,16 @@ public final class GeneratedSlimeClutch_a3c9c306 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:slime_clutch", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:slime_clutch";
         document.runtimeSource = "create_biotech:slime_clutch";
         document.items = List.of("create_biotech:slime_clutch");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Slime Clutch"), Map.entry("zh_cn", "史莱姆离合器")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/slime_clutch_base");
         document.tags = List.of("create:kinetic_relays", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,7 +52,7 @@ public final class GeneratedSlimeClutch_a3c9c306 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Slime Clutch"), Map.entry("zh_cn", "史莱姆离合器"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/slime_clutch_base", new BlockPos(0, 0, 0), new BlockPos(4, 0, 5), null, null);
         scene.idle(20);
         scene.showSectionAndMerge(new BlockPos(0, 1, 0), new BlockPos(4, 1, 4), null, 20, "down", null, null, null, null);
@@ -57,14 +61,14 @@ public final class GeneratedSlimeClutch_a3c9c306 {
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis", "z"), Map.entry("waterlogged", "false")), "{ForgeCaps:{},Speed:0.0f}", true, new BlockPos(3, 1, 2), null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis", "z"), Map.entry("powered", "true")), "{ForgeCaps:{},Network:{Capacity:256.0f,Id:4672924442563L,Size:11,Stress:1008.0f},Source:{X:18,Y:-60,Z:6},Speed:63.0f}", true, new BlockPos(3, 1, 3), null);
         scene.indicateRedstone(new BlockPos(3, 1, 3));
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Slime Clutch automatically disengages when the input stress cannot drive the entire kinetic network, without affecting the rest of the network."), Map.entry("zh_cn", "史莱姆离合器会在输入应力不支持驱动整个应力网络时自动断开，而不影响网络的其他部分"))), new Vec3(3.0d, 1.5d, 3.5d), 140, null, true);
+        scene.showText(text("scene_1.text_1"), new Vec3(3.0d, 1.5d, 3.5d), 140, null, true);
         scene.idle(150);
         scene.keyframe().hideSection(new BlockPos(3, 1, 1), null, 20, "north");
         scene.idle(10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis", "z")), "{ForgeCaps:{},Network:{Capacity:344064.0f,Id:-7421703438396L,Size:9,Stress:84.0f},Source:{X:-30,Y:-59,Z:9},Speed:-42.0f}", null, new BlockPos(3, 1, 2), null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis", "z"), Map.entry("powered", "false")), "{ForgeCaps:{},Network:{Capacity:344064.0f,Id:-7421703438396L,Size:10,Stress:84.0f},Source:{X:-28,Y:-59,Z:9},Speed:-42.0f}", true, new BlockPos(3, 1, 3), null);
         scene.indicateSuccess(new BlockPos(3, 1, 3));
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It automatically re-engages when enough stress is available."), Map.entry("zh_cn", "并在应力充足时自动恢复"))), new Vec3(3.0d, 1.5d, 3.5d), 90, null, true);
+        scene.showText(text("scene_1.text_2"), new Vec3(3.0d, 1.5d, 3.5d), 90, null, true);
         scene.idle(90);
         return scene.build();
     }
@@ -98,6 +102,7 @@ public final class GeneratedSlimeClutch_a3c9c306 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

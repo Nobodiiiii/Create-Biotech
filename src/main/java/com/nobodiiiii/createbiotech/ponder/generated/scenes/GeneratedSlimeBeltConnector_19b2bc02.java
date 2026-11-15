@@ -34,12 +34,16 @@ public final class GeneratedSlimeBeltConnector_19b2bc02 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:slime_belt_connector", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:slime_belt_connector";
         document.runtimeSource = "create_biotech:slime_belt_connector";
         document.items = List.of("create_biotech:slime_belt_connector");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Slime Belt"), Map.entry("zh_cn", "史莱姆传送带")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/slime_belt_connector_horizontal");
         document.tags = List.of("create:logistics", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,31 +52,31 @@ public final class GeneratedSlimeBeltConnector_19b2bc02 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Slime Belt"), Map.entry("zh_cn", "史莱姆传送带"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/slime_belt_connector_horizontal", new BlockPos(0, 0, 0), new BlockPos(7, 0, 7), null, null);
         scene.idle(20);
         scene.showSectionAndMerge(new BlockPos(0, 1, 0), new BlockPos(7, 5, 7), null, 20, "down", "simultaneous", 20, 1, false);
         scene.idle(20);
         scene.createItemEntity("minecraft:oak_log", 1, new Vec3(4.5d, 4.0d, 3.5d), new Vec3(0.0d, 0.0d, 0.0d), null, null);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Slime Belt can transport items like a normal belt."), Map.entry("zh_cn", "史莱姆传送带可以像一般传送带一样传输物品"))), new Vec3(4.0d, 2.5d, 3.5d), 67, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(4.0d, 2.5d, 3.5d), 67, null, true);
         scene.idle(7);
         scene.clearItemEntities(true, null, null, null, null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west"), Map.entry("part", "start"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:16.0f}", null, new BlockPos(4, 2, 3), null);
         scene.idle(50);
         scene.keyframe().rotateCameraY(35.0f, 35.0f, 20);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The difference is that items are not thrown off the end, but continue moving onto the back side of the belt."), Map.entry("zh_cn", "不同的是，物品不会在传送带末端被抛出，而是会继续运动到传送带背面"))), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
+        scene.showText(text("scene_1.text_2"), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
         scene.idle(130);
         scene.hideSection(new BlockPos(0, 1, 0), new BlockPos(7, 7, 7), 20, "up");
         scene.keyframe().rotateCameraY(-35.0f, -35.0f, 20);
         scene.showExtraStructure("create_biotech:generated/ponderer/slime_belt_connector_vertical", new BlockPos(2, 1, 3), 0.0f, false, false, false, "simultaneous", 20, 1, true, null, "down");
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Slime Belt can also move items vertically."), Map.entry("zh_cn", "史莱姆传送带还可以竖直传动物品"))), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
         scene.idle(20);
         scene.modifyBlockEntity(null, "{Controller:{X:-37,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:195,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.013888889f,Pos:0.44874692f,PrevOffset:0.013888889f,PrevPos:0.4154136f}],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:9,Stress:0.0f},Source:{X:-37,Y:-58,Z:7},Speed:-16.0f}", null, new BlockPos(3, 2, 3), null);
         scene.idle(110);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "east"), Map.entry("part", "start"), Map.entry("slope", "vertical"), Map.entry("waterlogged", "false")), "{Controller:{X:-38,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:27,Stress:0.0f},Source:{X:-38,Y:-58,Z:7},Speed:-16.0f}", null, new BlockPos(3, 2, 3), null);
         scene.hideSection(new BlockPos(2, 1, 3), new BlockPos(2, 6, 3), 20, "up");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Connected Slime Belts can form a loop."), Map.entry("zh_cn", "相连的史莱姆传送带可以形成一个回环"))), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_4"), new Vec3(2.5d, 2.5d, 3.0d), 120, null, true);
         scene.showExtraStructure("create_biotech:generated/ponderer/slime_belt_connector_loop", new BlockPos(0, 0, 3), 0.0f, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "east"), Map.entry("part", "start"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), "{Controller:{X:-40,Y:-58,Z:6},ForgeCaps:{},Index:0,Inventory:{Items:[{Angle:329,InDirection:1,InSegment:0,Item:{Count:1b,id:\"minecraft:oak_log\"},Offset:0.0f,Pos:0.0f,PrevOffset:0.0f,PrevPos:0.0f}],PositiveOrder:1b},IsController:1b,Length:2,Network:{Capacity:262144.0f,Id:-9895604600892L,Size:21,Stress:0.0f},Source:{X:-39,Y:-58,Z:6},Speed:-16.0f}", null, new BlockPos(1, 2, 3), null);
@@ -126,6 +130,7 @@ public final class GeneratedSlimeBeltConnector_19b2bc02 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

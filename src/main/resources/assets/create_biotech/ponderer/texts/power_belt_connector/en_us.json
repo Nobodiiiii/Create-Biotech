@@ -1,0 +1,8 @@
+{
+  "scene_1.text_1": "The Power Belt generates stress when creatures move across it.",
+  "scene_1.text_2": "The faster creatures move above it, the higher the speed and stress it produces.",
+  "scene_1.text_3": "Stress from multiple entities stacks, but speed does not.",
+  "scene_1.text_4": "Use a Fixed Fishing Rod to put animals to work.",
+  "scene_1.title": "Power Belt",
+  "title": "Power Belt"
+}

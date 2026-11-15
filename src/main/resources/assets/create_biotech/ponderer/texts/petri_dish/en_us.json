@@ -1,0 +1,15 @@
+{
+  "s_e7373.text_1": "Mimic and bionic creatures drop no items when killed, but split into living Slimes",
+  "s_e7373.text_2": "Trading with mimic villagers only yields Slimeballs as well",
+  "s_e7373.text_3": "Apply Regeneration to a mimic creature...",
+  "s_e7373.text_4": "Then use an Encased Fan and Soul Campfire to haunt it",
+  "s_e7373.text_5": "This transforms the mimic creature into a normal mob",
+  "s_e7373.title": "Haunting Mimic Creatures",
+  "scene_1.text_1": "Slime Petri Dishes can be used to cultivate mimic creatures",
+  "scene_1.text_2": "Insert a Living Mechanism into the Petri Dish...",
+  "scene_1.text_3": "Then pipe in Liquid Living Slime...",
+  "scene_1.text_4": "The Liquid Living Slime mimics a nearby mob and grows",
+  "scene_1.text_5": "Mobs with more maximum health require more Liquid Living Slime to mimic",
+  "scene_1.title": "Cultivating Mimic Creatures",
+  "title": "Cultivating Mimic Creatures"
+}

@@ -7,8 +7,8 @@
     "create_biotech:bone_ratchet"
   ],
   "title": {
-    "zh_cn": "骨制棘轮",
-    "en_us": "Bone Ratchet"
+    "ref": "create_biotech:bone_ratchet",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/bone_ratchet_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "骨制棘轮",
-        "en_us": "Bone Ratchet"
+        "ref": "create_biotech:bone_ratchet",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -74,12 +74,12 @@
           "duration": 30
         },
         {
-          "id": "java_6fd05726f7073b18836ba3173151a242",
+          "id": "java_ea689b00e4f83e4a9d360c778772b7d9",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "骨质棘轮只接受一种方向的旋转",
-            "en_us": "The Bone Ratchet only accepts rotation in one direction."
+            "ref": "create_biotech:bone_ratchet",
+            "key": "scene_1.text_1"
           },
           "point": [
             1.0,
@@ -162,12 +162,12 @@
           "duration": 10
         },
         {
-          "id": "java_040c8117c986306fa08ac547296267d5",
+          "id": "java_12b4e7d4943539408b5d5a28575beeee",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "接受反方向应力时，他会卡死整个应力网络",
-            "en_us": "When given stress from the opposite direction, it jams the entire kinetic network."
+            "ref": "create_biotech:bone_ratchet",
+            "key": "scene_1.text_2"
           },
           "point": [
             1.0,

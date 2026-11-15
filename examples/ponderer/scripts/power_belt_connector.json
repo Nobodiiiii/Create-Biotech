@@ -7,8 +7,8 @@
     "create_biotech:power_belt_connector"
   ],
   "title": {
-    "zh_cn": "动力传送带",
-    "en_us": "Power Belt"
+    "ref": "create_biotech:power_belt_connector",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/power_belt_connector_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "动力传送带",
-        "en_us": "Power Belt"
+        "ref": "create_biotech:power_belt_connector",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -38,12 +38,12 @@
           "duration": 20
         },
         {
-          "id": "java_9dc8803c895339ed93e0ed3f9d50843e",
+          "id": "java_b0f38135015e3b27b1812e86b9b70d0a",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "动力传送带会在有生物在其上方运动时产生应力",
-            "en_us": "The Power Belt generates stress when creatures move across it."
+            "ref": "create_biotech:power_belt_connector",
+            "key": "scene_1.text_1"
           },
           "point": [
             5.0,
@@ -79,12 +79,12 @@
           "type": "create_biotech:java/power_belt_connector/2"
         },
         {
-          "id": "java_66cb2c25b8933b83ad3077247dc061f2",
+          "id": "java_169ca4fe233b3aa0854f461c0f3e32c0",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "上方生物运动的越快，产生的转速越高，应力越高",
-            "en_us": "The faster creatures move above it, the higher the speed and stress it produces."
+            "ref": "create_biotech:power_belt_connector",
+            "key": "scene_1.text_2"
           },
           "point": [
             5.0,
@@ -120,12 +120,12 @@
           "type": "create_biotech:java/power_belt_connector/4"
         },
         {
-          "id": "java_b27948a5e7c53471bbea106c99be98a3",
+          "id": "java_748f6a2aa500302f992869587b0779c2",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "多个实体产生的应力会叠加，但是转速不会",
-            "en_us": "Stress from multiple entities stacks, but speed does not."
+            "ref": "create_biotech:power_belt_connector",
+            "key": "scene_1.text_3"
           },
           "point": [
             1.5,
@@ -219,12 +219,12 @@
           "duration": 20
         },
         {
-          "id": "java_c0df01e4bbd537db939ca2945e9af8f2",
+          "id": "java_2cce21ef6a1434d0a677323d7344fde3",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "使用固定的钓竿，让动物为你工作",
-            "en_us": "Use a Fixed Fishing Rod to put animals to work."
+            "ref": "create_biotech:power_belt_connector",
+            "key": "scene_1.text_4"
           },
           "point": [
             5.0,

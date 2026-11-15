@@ -34,12 +34,16 @@ public final class GeneratedPowerBeltConnector_875033c1 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:power_belt_connector", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:power_belt_connector";
         document.runtimeSource = "create_biotech:power_belt_connector";
         document.items = List.of("create_biotech:power_belt_connector");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Power Belt"), Map.entry("zh_cn", "动力传送带")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/power_belt_connector_base");
         document.tags = List.of("create:kinetic_sources", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,18 +52,18 @@ public final class GeneratedPowerBeltConnector_875033c1 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Power Belt"), Map.entry("zh_cn", "动力传送带"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.showStructure("create_biotech:generated/ponderer/power_belt_connector_base", null, null, null, null);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Power Belt generates stress when creatures move across it."), Map.entry("zh_cn", "动力传送带会在有生物在其上方运动时产生应力"))), new Vec3(5.0d, 1.5d, 2.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(5.0d, 1.5d, 2.5d), 120, null, true);
         scene.javaStep("create_biotech:java/power_belt_connector/1", new JsonObject());
         scene.showExtraStructure("create_biotech:generated/ponderer/power_belt_connector_64rpm", new BlockPos(1, 1, 2), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/power_belt_connector/2", new JsonObject());
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The faster creatures move above it, the higher the speed and stress it produces."), Map.entry("zh_cn", "上方生物运动的越快，产生的转速越高，应力越高"))), new Vec3(5.0d, 1.5d, 2.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(5.0d, 1.5d, 2.5d), 120, null, true);
         scene.javaStep("create_biotech:java/power_belt_connector/3", new JsonObject());
         scene.showExtraStructure("create_biotech:generated/ponderer/power_belt_connector_144rpm", new BlockPos(1, 1, 2), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/power_belt_connector/4", new JsonObject());
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Stress from multiple entities stacks, but speed does not."), Map.entry("zh_cn", "多个实体产生的应力会叠加，但是转速不会"))), new Vec3(1.5d, 2.0d, 3.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_3"), new Vec3(1.5d, 2.0d, 3.5d), 120, null, true);
         scene.javaStep("create_biotech:java/power_belt_connector/5", new JsonObject());
         scene.javaStep("create_biotech:java/power_belt_connector/6", new JsonObject());
         scene.javaStep("create_biotech:java/power_belt_connector/7", new JsonObject());
@@ -68,7 +72,7 @@ public final class GeneratedPowerBeltConnector_875033c1 {
         scene.setBlock("create:andesite_casing", null, new BlockPos(6, 1, 3), new BlockPos(6, 2, 3), null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("create_biotech:fixed_carrot_fishing_rod", Map.ofEntries(Map.entry("facing", "west")), new BlockPos(5, 2, 3), null, "{ForgeCaps:{},Inventory:{Items:[],Size:1}}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Use a Fixed Fishing Rod to put animals to work."), Map.entry("zh_cn", "使用固定的钓竿，让动物为你工作"))), new Vec3(5.0d, 2.5d, 3.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_4"), new Vec3(5.0d, 2.5d, 3.5d), 120, null, true);
         scene.javaStep("create_biotech:java/power_belt_connector/8", new JsonObject());
         scene.showControls(new Vec3(5.5d, 3.0d, 3.5d), "down", 60, "right", "minecraft:wheat", null, false, false);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west")), "{ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"minecraft:wheat\"}],Size:1}}", null, new BlockPos(5, 2, 3), null);
@@ -107,6 +111,7 @@ public final class GeneratedPowerBeltConnector_875033c1 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

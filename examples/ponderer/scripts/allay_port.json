@@ -7,8 +7,8 @@
     "create_biotech:allay_port"
   ],
   "title": {
-    "zh_cn": "悦灵速递",
-    "en_us": "Allay Express Delivery"
+    "ref": "create_biotech:allay_port",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/basic_xl"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "悦灵速递",
-        "en_us": "Allay Express Delivery"
+        "ref": "create_biotech:allay_port",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -72,12 +72,12 @@
           ]
         },
         {
-          "id": "java_1160dc2ba3eb3801b9461d7d8dd5c61b",
+          "id": "java_87fdcbcb3de73f0a8a7023fb5f614be0",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "悦灵驿站可以用来远程派送包裹",
-            "en_us": "Cargo Allay Stations can be used to deliver packages remotely."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_1"
           },
           "point": [
             4.5,
@@ -149,12 +149,12 @@
           "duration": 20
         },
         {
-          "id": "java_4fc896ce12f63b169c707d92f91c1fe2",
+          "id": "java_06e7b89db6da31fdba818b322c1b4d20",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "在界面中设置本站地址",
-            "en_us": "Set this station's address in its interface."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_2"
           },
           "point": [
             7.5,
@@ -165,12 +165,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_d5983b6abfff3f6fae06778ee91b3bfe",
+          "id": "java_eb889d3445f13bc9ba23b6285422569d",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "李华",
-            "en_us": "Peter"
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_3"
           },
           "point": [
             7.5,
@@ -182,12 +182,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_ffa88ed3eeae3b66b9510d8f4bba96f6",
+          "id": "java_b342764b0cc53ed399ad3cd5e3511b8b",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "王芳",
-            "en_us": "Albert"
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_4"
           },
           "point": [
             1.5,
@@ -204,12 +204,12 @@
           "duration": 130
         },
         {
-          "id": "java_7a66ac2f65e631ffbb55bce172a63bc2",
+          "id": "java_9948c28b239b3df59235b19f0468a4ac",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "放入悦灵快递员",
-            "en_us": "Insert an Allay Courier."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_5"
           },
           "point": [
             7.5,
@@ -239,12 +239,12 @@
           "duration": 110
         },
         {
-          "id": "java_ee996aa317cb35d187f6ff58b91a1d96",
+          "id": "java_5cc5f1a502cb3ec4aafad64a21a295c7",
           "type": "text",
           "duration": 180,
           "text": {
-            "zh_cn": "悦灵驿站会自动拉取下方打包机或容器中的包裹，并派出悦灵快递员送往指定悦灵驿站",
-            "en_us": "Cargo Allay Stations automatically pull packages from the Packager or container below and dispatch an Allay Courier to the specified Cargo Allay Station."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_6"
           },
           "point": [
             7.5,
@@ -265,12 +265,12 @@
           "type": "create_biotech:java/allay_port/1"
         },
         {
-          "id": "java_c2eb932c63d43b90b326e015a7befa14",
+          "id": "java_9321acf2dd5d32d8a6bebd9e2470c71c",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "→王芳",
-            "en_us": "→ Albert"
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_7"
           },
           "point": [
             7.5,
@@ -310,12 +310,12 @@
           "duration": 20
         },
         {
-          "id": "java_b906670a199f3aeab9710f741eaaf1b7",
+          "id": "java_affd55b1adc934f4b64886e4f891555f",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "在界面中可以配置悦灵快递员是否返航",
-            "en_us": "The interface lets you configure whether the Allay Courier returns after delivery."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_8"
           },
           "point": [
             1.5,
@@ -331,12 +331,12 @@
           "duration": 130
         },
         {
-          "id": "java_d06567cc6ac4341ca094af3836ee2851",
+          "id": "java_347cc49ddd1437c491a4ee27d94955bd",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "悦灵快递员运输没有距离限制，甚至可以跨越维度",
-            "en_us": "Allay Couriers have no delivery range limit and can even travel between dimensions."
+            "ref": "create_biotech:allay_port",
+            "key": "scene_1.text_9"
           },
           "point": [
             7.5,
@@ -372,8 +372,8 @@
     {
       "id": "s_21db7",
       "title": {
-        "zh_cn": "悦灵快递员与玩家",
-        "en_us": "Allay Couriers and Players"
+        "ref": "create_biotech:allay_port",
+        "key": "s_21db7.title"
       },
       "steps": [
         {
@@ -437,12 +437,12 @@
           "duration": 20
         },
         {
-          "id": "java_099d426394983e0cbcd0b80340f2db0d",
+          "id": "java_43cb2282a13a3727b04b320ac57f0af3",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "悦灵快递员可以指定玩家为运输目标",
-            "en_us": "Allay Couriers can target players for delivery."
+            "ref": "create_biotech:allay_port",
+            "key": "s_21db7.text_1"
           },
           "point": [
             7.0,
@@ -453,12 +453,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_aff98aa3814c3e9a8d49c19b3738895c",
+          "id": "java_0f23ee0562da36fbbdc97d8b69222aed",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "Nobodiiiii",
-            "en_us": "Nobodiiiii"
+            "ref": "create_biotech:allay_port",
+            "key": "s_21db7.text_2"
           },
           "point": [
             1.5,
@@ -469,12 +469,12 @@
           "placeNearTarget": true
         },
         {
-          "id": "java_bafd3adf13223b448d6c530244a60962",
+          "id": "java_9de284fae69e3713a4a7414db15db4c2",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "在地址栏中使用\"@玩家\"来匹配玩家",
-            "en_us": "Use \"@player\" in the address field to target a player."
+            "ref": "create_biotech:allay_port",
+            "key": "s_21db7.text_3"
           },
           "point": [
             1.5,

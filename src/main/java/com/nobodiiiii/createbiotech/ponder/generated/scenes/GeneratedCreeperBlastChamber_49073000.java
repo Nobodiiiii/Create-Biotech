@@ -34,12 +34,16 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:creeper_blast_chamber", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:creeper_blast_chamber";
         document.runtimeSource = "create_biotech:creeper_blast_chamber";
         document.items = List.of("create_biotech:creeper_blast_chamber");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber Introduction"), Map.entry("zh_cn", "苦力怕爆破室 介绍")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl");
         document.tags = List.of("create:kinetic_appliances", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,7 +52,7 @@ public final class GeneratedCreeperBlastChamber_49073000 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber Introduction"), Map.entry("zh_cn", "苦力怕爆破室 介绍"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl", new BlockPos(0, 0, 0), new BlockPos(9, 0, 9), null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_large", new BlockPos(2, 1, 2), 0.0f, false, false, false, "none", null, null, null, null, null);
@@ -61,21 +65,21 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}", null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}", null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 4.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}", null, null, null, null);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This is a Creeper Blast Chamber."), Map.entry("zh_cn", "这是一个苦力怕爆破室"))), new Vec3(3.5d, 4.5d, 2.0d), 60, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(3.5d, 4.5d, 2.0d), 60, null, true);
         scene.idle(70);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It can process Crushing Wheel recipes efficiently in bulk."), Map.entry("zh_cn", "它可以高效批量地执行粉碎配方"))), new Vec3(3.5d, 4.5d, 2.0d), 100, null, true);
+        scene.showText(text("scene_1.text_2"), new Vec3(3.5d, 4.5d, 2.0d), 100, null, true);
         scene.idle(110);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Or... are you looking for something more explosive?"), Map.entry("zh_cn", "或者...你想来点更劲爆的？"))), new Vec3(3.5d, 4.5d, 2.0d), 100, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(3.5d, 4.5d, 2.0d), 100, null, true);
         scene.idle(110);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene2() {
-        var scene = new JavaScene("s_10040", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber Assembly"), Map.entry("zh_cn", "苦力怕爆破室 搭建"))));
+        var scene = new JavaScene("s_10040", text("s_10040.title"));
         scene.showStructure("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl", null, null, null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_small", new BlockPos(4, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, true, null, "down");
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The structure supports 3 different sizes."), Map.entry("zh_cn", "结构支持3种尺寸"))), new Vec3(4.5d, 4.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_10040.text_1"), new Vec3(4.5d, 4.5d, 2.0d), 120, null, true);
         scene.idle(30);
         scene.setBlock("minecraft:air", null, new BlockPos(0, 1, 0), new BlockPos(6, 5, 6), null, true, null, "none", null, null, null, null, null);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_medium", new BlockPos(3, 1, 2), 0.0f, false, false, false, "none", null, null, null, null, null);
@@ -85,29 +89,29 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_large", new BlockPos(2, 1, 2), 0.0f, false, false, false, "none", null, null, null, null, null);
         scene.showSectionAndMerge(new BlockPos(0, 0, 0), new BlockPos(6, 5, 6), null, 0, "down", null, null, null, null);
         scene.idle(80);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The center of the top face must be a Mechanical Press."), Map.entry("zh_cn", "结构顶面中心需为动力冲压机"))), new Vec3(4.5d, 4.0d, 4.5d), 100, null, true);
+        scene.keyframe().showText(text("s_10040.text_2"), new Vec3(4.5d, 4.0d, 4.5d), 100, null, true);
         scene.idle(110);
         scene.keyframe().hideSection(new BlockPos(2, 2, 2), new BlockPos(6, 4, 6), 20, "up");
         scene.idle(20);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The center of the bottom face must be a Bio Packager."), Map.entry("zh_cn", "结构底面中心需为生物打包机"))), new Vec3(4.5d, 1.0d, 4.5d), 100, null, true);
+        scene.showText(text("s_10040.text_3"), new Vec3(4.5d, 1.0d, 4.5d), 100, null, true);
         scene.idle(110);
         scene.setBlock("create_biotech:explosion_proof_casing", null, new BlockPos(5, 4, 2), new BlockPos(3, 4, 2), null, false, false, "none", null, null, null, null, null);
         scene.keyframe().showSectionAndMerge(new BlockPos(2, 2, 2), new BlockPos(6, 4, 6), null, 20, "down", null, null, null, null);
         scene.idle(20);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The frame of the structure is built from Explosion-Proof Casing."), Map.entry("zh_cn", "结构的框架由防爆机壳搭成"))), new Vec3(2.5d, 3.5d, 2.0d), 100, null, true);
+        scene.showText(text("s_10040.text_4"), new Vec3(2.5d, 3.5d, 2.0d), 100, null, true);
         scene.idle(110);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The center block of any side face, except the top and bottom, can be replaced with Blast-Proof Glass."), Map.entry("zh_cn", "除了顶面和底面的任意面中心可以被替换为防爆玻璃"))), new Vec3(4.5d, 3.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_10040.text_5"), new Vec3(4.5d, 3.5d, 2.0d), 120, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "In addition, every structure must include a Blast Chamber Core."), Map.entry("zh_cn", "除此之外，每个结构还必须包括一个爆破室核心"))), new Vec3(6.5d, 1.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_10040.text_6"), new Vec3(6.5d, 1.5d, 2.0d), 120, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It also needs two Explosion-Proof Item Vaults of any size; connected vaults count as one."), Map.entry("zh_cn", "以及两个任意大小的防爆保险库（连接的保险库算做一个）"))), new Vec3(2.0d, 3.5d, 4.5d), 120, null, true);
+        scene.keyframe().showText(text("s_10040.text_7"), new Vec3(2.0d, 3.5d, 4.5d), 120, null, true);
         scene.idle(40);
         scene.setBlock("create_biotech:explosion_proof_item_vault", Map.ofEntries(Map.entry("axis", "x"), Map.entry("large", "false")), new BlockPos(2, 2, 3), new BlockPos(2, 3, 4), "{BlastChamberController:-11819750039612L,BlastChamberRole:1,Controller:{X:-44,Y:-59,Z:-10},ForgeCaps:{},Inventory:{Items:[],Size:20},LastKnownPos:{X:-44,Y:-58,Z:-9},ScrollValue:1,StorageType:\"CombinedInv\"}", true, null, "none", null, null, null, null, null);
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "After the structure forms, the top edges are automatically replaced with Encased Chain Drives."), Map.entry("zh_cn", "结构成型以后，顶面的棱会被自动替换为链式传动箱"))), new Vec3(3.5d, 4.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_10040.text_8"), new Vec3(3.5d, 4.5d, 2.0d), 120, null, true);
         scene.setBlock("create_biotech:blast_proof_chain_drive", Map.ofEntries(Map.entry("axis", "z"), Map.entry("axis_along_first", "true"), Map.entry("part", "middle")), new BlockPos(5, 4, 2), new BlockPos(3, 4, 2), "{ForgeCaps:{},Speed:0.0f}", true, null, "none", null, null, null, null, null);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "You can use a Wrench to swap between casings and chain drives, but enough chain drives must remain to power every press."), Map.entry("zh_cn", "使用扳手可以在机壳和传动箱之间切换，但是需要保证能够剩下的传动箱足以驱动所有冲压机"))), new Vec3(4.5d, 4.5d, 2.0d), 180, null, true);
+        scene.keyframe().showText(text("s_10040.text_9"), new Vec3(4.5d, 4.5d, 2.0d), 180, null, true);
         scene.showControls(new Vec3(4.5d, 5.0d, 2.5d), "down", 60, "right", "create:wrench", null, false, false);
         scene.setBlock("create_biotech:explosion_proof_casing", Map.ofEntries(Map.entry("axis", "z"), Map.entry("axis_along_first", "true"), Map.entry("part", "middle")), new BlockPos(4, 4, 2), null, null, true, null, "none", null, null, null, null, null);
         scene.idle(190);
@@ -115,13 +119,13 @@ public final class GeneratedCreeperBlastChamber_49073000 {
     }
 
     private static DslScene.SceneSegment scene3() {
-        var scene = new JavaScene("s_c38b1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber Operation"), Map.entry("zh_cn", "苦力怕爆破室 运作"))));
+        var scene = new JavaScene("s_c38b1", text("s_c38b1.title"));
         scene.showStructure("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl", null, null, null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_large", new BlockPos(2, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(40);
         scene.setBlock("create:andesite_funnel", Map.ofEntries(Map.entry("extracting", "false"), Map.entry("facing", "north"), Map.entry("powered", "false"), Map.entry("waterlogged", "false")), new BlockPos(6, 1, 1), null, "{Filter:{Count:1b,id:\"minecraft:air\"},FilterAmount:64,ForgeCaps:{},Owner:[I;-503341427,743590127,-1630936259,1659302309],TransferCooldown:0,UpTo:1b}", true, null, "none", null, null, null, null, null);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Blast Chamber Core can input and output creepers using cardboard boxes."), Map.entry("zh_cn", "爆炸室核心可以通过纸箱输入和输出苦力怕"))), new Vec3(6.5d, 1.0d, 1.5d), 150, null, true);
+        scene.keyframe().showText(text("s_c38b1.text_1"), new Vec3(6.5d, 1.0d, 1.5d), 150, null, true);
         scene.idle(40);
         scene.createItemEntity("create_biotech:empty_large_cardboard_box", 1, new Vec3(6.5d, 1.5d, 1.5d), new Vec3(0.0d, 0.0d, 0.0d), null, null);
         scene.idle(20);
@@ -135,9 +139,9 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The largest blast chamber can have up to 9 creepers working at once."), Map.entry("zh_cn", "最大的爆破室最多可以有9个苦力怕同时工作"))), new Vec3(4.5d, 3.5d, 2.0d), 110, null, true);
+        scene.keyframe().showText(text("s_c38b1.text_2"), new Vec3(4.5d, 3.5d, 2.0d), 110, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Apply rotational force..."), Map.entry("zh_cn", "通入应力..."))), new Vec3(3.5d, 4.5d, 2.0d), 60, null, true);
+        scene.keyframe().showText(text("s_c38b1.text_3"), new Vec3(3.5d, 4.5d, 2.0d), 60, null, true);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_press_array", new BlockPos(3, 4, 2), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/creeper_blast_chamber/1", new JsonObject());
@@ -173,46 +177,46 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.rotateCameraY(-35.0f, -35.0f, 10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("axis", "z"), Map.entry("axis_along_first", "true")), "{ForgeCaps:{},Speed:0.0f}", null, new BlockPos(3, 4, 2), new BlockPos(5, 4, 1));
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "For each creeper inside, the chamber takes one batch of items from the input vault, runs the matching Crushing Wheel recipe, and outputs the result to the output vault."), Map.entry("zh_cn", "每有一只苦力怕，爆破室就会提取输入保险库中的一组物品，执行粉碎轮的粉碎配方，输出到输出保险库"))), new Vec3(2.0d, 3.5d, 4.5d), 200, null, true);
+        scene.keyframe().showText(text("s_c38b1.text_4"), new Vec3(2.0d, 3.5d, 4.5d), 200, null, true);
         scene.idle(210);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Hold right-click on a vault to switch it between input and output."), Map.entry("zh_cn", "右键长按保险库可以调整其为输入或输出"))), new Vec3(2.0d, 3.5d, 4.5d), 100, null, true);
+        scene.keyframe().showText(text("s_c38b1.text_5"), new Vec3(2.0d, 3.5d, 4.5d), 100, null, true);
         scene.idle(110);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene4() {
-        var scene = new JavaScene("s_2c227", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber Overload"), Map.entry("zh_cn", "苦力怕爆破室 过载"))));
+        var scene = new JavaScene("s_2c227", text("s_2c227.title"));
         scene.showStructure("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl", null, null, null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_large", new BlockPos(2, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(30);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Creeper Blast Chamber can handle speeds up to 128 RPM."), Map.entry("zh_cn", "苦力怕爆破室最高接受128rpm的转速"))), new Vec3(4.5d, 4.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_2c227.text_1"), new Vec3(4.5d, 4.5d, 2.0d), 120, null, true);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_128rpm", new BlockPos(3, 4, 1), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Any speed above 128 RPM will send it into an overloaded state."), Map.entry("zh_cn", "超过128rpm的转速会使其进入过载状态"))), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
+        scene.keyframe().showText(text("s_2c227.text_2"), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_256rpm", new BlockPos(3, 4, 1), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Do not overload it for too long, unless you want an explosion big enough to destroy your base!"), Map.entry("zh_cn", "不要长时间过载，除非你想引起一次足以炸毁你基地的大爆炸！"))), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
+        scene.keyframe().showText(text("s_2c227.text_3"), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
         scene.idle(130);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene5() {
-        var scene = new JavaScene("s_a77f7", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Creeper Blast Chamber High-Pressure Implosion"), Map.entry("zh_cn", "苦力怕爆破室 高压聚爆"))));
+        var scene = new JavaScene("s_a77f7", text("s_a77f7.title"));
         scene.showStructure("create_biotech:generated/ponderer/creeper_blast_chamber_base_xl", null, null, null, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_large", new BlockPos(2, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, true, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Feed a high-pressure creeper into the chamber..."), Map.entry("zh_cn", "向爆破室中输入高压苦力怕..."))), new Vec3(6.5d, 1.5d, 2.0d), 100, null, true);
+        scene.keyframe().showText(text("s_a77f7.text_1"), new Vec3(6.5d, 1.5d, 2.0d), 100, null, true);
         scene.idle(20);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}", null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}", null, null, null, null);
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "to switch recipes into High-Pressure Implosion mode."), Map.entry("zh_cn", "可以将配方调整为“高压聚爆”模式"))), new Vec3(6.5d, 1.5d, 2.0d), 100, "input", true);
+        scene.keyframe().showText(text("s_a77f7.text_2"), new Vec3(6.5d, 1.5d, 2.0d), 100, "input", true);
         scene.idle(110);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "High-Pressure Implosion mode has its own recipes and no longer runs Crushing Wheel recipes."), Map.entry("zh_cn", "“高压聚爆”模式有单独的配方，不再执行粉碎配方"))), new Vec3(6.5d, 1.5d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_a77f7.text_3"), new Vec3(6.5d, 1.5d, 2.0d), 120, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Of course, overload explosions also become much more powerful."), Map.entry("zh_cn", "当然，过载引起的爆炸烈度也会成倍增加"))), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
+        scene.keyframe().showText(text("s_a77f7.text_4"), new Vec3(4.0d, 4.5d, 1.5d), 120, "red", true);
         scene.idle(130);
         return scene.build();
     }
@@ -246,6 +250,7 @@ public final class GeneratedCreeperBlastChamber_49073000 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

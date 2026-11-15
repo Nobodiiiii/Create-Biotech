@@ -7,8 +7,8 @@
     "create_biotech:universal_joint"
   ],
   "title": {
-    "zh_cn": "史莱姆万向节",
-    "en_us": "Universal Joint"
+    "ref": "create_biotech:universal_joint",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/universal_joint_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "史莱姆万向节",
-        "en_us": "Universal Joint"
+        "ref": "create_biotech:universal_joint",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -44,8 +44,8 @@
           "direction": "down",
           "block": "create:cogwheel",
           "blockProperties": {
-            "axis": "z",
-            "waterlogged": "false"
+            "waterlogged": "false",
+            "axis": "z"
           },
           "blockPos": [
             1,
@@ -66,8 +66,8 @@
           "direction": "down",
           "block": "create:shaft",
           "blockProperties": {
-            "axis": "z",
-            "waterlogged": "false"
+            "waterlogged": "false",
+            "axis": "z"
           },
           "blockPos": [
             1,
@@ -172,12 +172,12 @@
           "entranceInterval": 1
         },
         {
-          "id": "java_47ee191ad55e321680497802ad7e8e9d",
+          "id": "java_8511343a9ade37fc98c031c456589711",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "史莱姆万向节可以在相近的任意两个点之间传播应力",
-            "en_us": "The Universal Joint can transmit rotational force between any two nearby points."
+            "ref": "create_biotech:universal_joint",
+            "key": "scene_1.text_1"
           },
           "point": [
             1.5,
@@ -338,12 +338,12 @@
           ]
         },
         {
-          "id": "java_2fb6c4f7ac263a34a717bb8335e9ea57",
+          "id": "java_8a7e52df50dc3a909f02d68ca8df5d31",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "另一节点必须位于连接范围内。结构移动会拉伸轴体；接近极限时逐渐变为史莱姆离合器的过载色，过度拉伸后断裂。",
-            "en_us": "The other node must be within range. Moving structures stretch the shaft; it shifts to the clutch overload colour and snaps when overextended."
+            "ref": "create_biotech:universal_joint",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.0,

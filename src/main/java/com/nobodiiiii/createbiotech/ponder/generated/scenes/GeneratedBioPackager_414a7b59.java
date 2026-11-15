@@ -34,12 +34,16 @@ public final class GeneratedBioPackager_414a7b59 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:bio_packager", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:bio_packager";
         document.runtimeSource = "create_biotech:bio_packager";
         document.items = List.of("create_biotech:bio_packager");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bio Packager Release"), Map.entry("zh_cn", "生物打包机 释放")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/basic", "create_biotech:generated/ponderer/bio_packager_capture");
         document.tags = List.of("create:contraption_actor", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,14 +52,14 @@ public final class GeneratedBioPackager_414a7b59 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bio Packager Release"), Map.entry("zh_cn", "生物打包机 释放"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
         scene.idle(20);
         scene.setBlock("create_biotech:bio_packager", Map.ofEntries(Map.entry("facing", "north"), Map.entry("powered", "false")), new BlockPos(2, 1, 2), null, "{Active:0b,AnimationInward:1b,AnimationTicks:0,ForgeCaps:{},HeldBox:{Count:0b,id:\"minecraft:air\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("minecraft:chest", Map.ofEntries(Map.entry("facing", "west"), Map.entry("type", "single"), Map.entry("waterlogged", "false")), new BlockPos(2, 1, 3), null, "{ForgeCaps:{},Items:[]}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "floor"), Map.entry("facing", "south"), Map.entry("powered", "false")), new BlockPos(1, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Apply a redstone signal..."), Map.entry("zh_cn", "接入红石信号..."))), new Vec3(1.5d, 1.5d, 2.0d), 40, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(1.5d, 1.5d, 2.0d), 40, null, true);
         scene.idle(10);
         scene.toggleRedstonePower(new BlockPos(1, 1, 2), new BlockPos(2, 1, 2));
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north"), Map.entry("powered", "true")), "{Active:1b,AnimationInward:0b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:cardboard_box\",tag:{CapturedEntity:{AbsorptionAmount:0.0f,Air:300s,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.4000000059604645d,Name:\"minecraft:generic.movement_speed\"},{Base:4.0d,Name:\"minecraft:generic.max_health\"},{Base:2.0d,Name:\"minecraft:generic.attack_damage\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,DeathTime:0s,FallDistance:0.0f,FallFlying:0b,Fire:-1s,ForgeData:{CreateBiotech:{},create_biotech.previous_liquid_living_slime_vertical_speed:-0.0784000015258789d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:4.0f,HurtByTimestamp:0,HurtTime:0s,Invulnerable:0b,LeftHanded:0b,Motion:[0.0d,-0.0784000015258789d,0.0d],OnGround:1b,PersistenceRequired:0b,PortalCooldown:0,Pos:[-37.802770591511454d,-60.0d,15.327114230280523d],Rotation:[348.0f,0.0f],Size:1,UUID:[I;2038756493,-1744745344,-1476000420,301221325],id:\"minecraft:slime\",wasOnGround:1b},CapturedEntityDescId:\"entity.minecraft.slime\",CapturedEntityHealth:4.0f}},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 1, 2), null);
@@ -63,14 +67,14 @@ public final class GeneratedBioPackager_414a7b59 {
         scene.createEntity("minecraft:slime", new Vec3(2.5d, 2.0d, 2.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.30000001192092896d,Name:\"minecraft:generic.movement_speed\"},{Base:1.0d,Name:\"minecraft:generic.max_health\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,Size:0,wasOnGround:1b}", null, null, null, null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north"), Map.entry("powered", "true")), "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:empty_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 1, 2), null);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Bio Packager pulls boxes containing creatures from its attached inventory and releases them above itself."), Map.entry("zh_cn", "生物打包机会从其附着的库存中提取装有生物的纸箱并释放到其上方"))), new Vec3(2.5d, 1.0d, 2.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(2.5d, 1.0d, 2.5d), 120, null, true);
         scene.showControls(new Vec3(2.5d, 2.0d, 3.5d), "down", 120, null, "create_biotech:empty_cardboard_box", null, false, false);
         scene.idle(130);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene2() {
-        var scene = new JavaScene("s_fe8b2", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Bio Packager Capturing"), Map.entry("zh_cn", "生物打包机 捕捉"))));
+        var scene = new JavaScene("s_fe8b2", text("s_fe8b2.title"));
         scene.showStructure("create_biotech:generated/ponderer/bio_packager_capture", new BlockPos(0, 0, 0), new BlockPos(6, 0, 6), null, null);
         scene.idle(20);
         scene.showSectionAndMerge(new BlockPos(3, 1, 0), new BlockPos(5, 1, 1), null, 20, "west", "simultaneous", 20, 1, false);
@@ -90,7 +94,7 @@ public final class GeneratedBioPackager_414a7b59 {
         scene.clearEntities(true, null, null, null, null, null, null, null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west"), Map.entry("powered", "false")), "{Active:1b,AnimationInward:1b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:empty_cardboard_box\"},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 2, 2), null);
         scene.idle(20);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Bio Packager automatically pulls cardboard boxes from its attached inventory and captures creatures killed by moving contraptions."), Map.entry("zh_cn", "生物打包机会自动提取附着库存中的纸箱，并捕捉被动态结构杀死的生物"))), new Vec3(2.5d, 2.0d, 3.5d), 120, null, true);
+        scene.showText(text("s_fe8b2.text_1"), new Vec3(2.5d, 2.0d, 3.5d), 120, null, true);
         scene.idle(130);
         return scene.build();
     }
@@ -124,6 +128,7 @@ public final class GeneratedBioPackager_414a7b59 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

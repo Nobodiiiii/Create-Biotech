@@ -34,12 +34,16 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:magma_belt_connector", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:magma_belt_connector";
         document.runtimeSource = "create_biotech:magma_belt_connector";
         document.items = List.of("create_biotech:magma_belt_connector");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Magma Cube Belt"), Map.entry("zh_cn", "岩浆怪传送带")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/magma_belt_connector_base");
         document.tags = List.of("create:kinetic_appliances", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,24 +52,24 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Magma Cube Belt"), Map.entry("zh_cn", "岩浆怪传送带"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/magma_belt_connector_base", new BlockPos(0, 0, 0), new BlockPos(5, 0, 5), null, null);
         scene.idle(20);
         scene.destroyBlock(new BlockPos(2, 2, 2), null, null);
         scene.showSectionAndMerge(new BlockPos(0, 1, 0), new BlockPos(5, 3, 5), null, 20, "down", "simultaneous", 20, 1, true);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Using a blower to smelt items takes a lot of space."), Map.entry("zh_cn", "使用鼓风机烧炼物品比较占空间"))), new Vec3(1.0d, 2.5d, 4.5d), 60, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(1.0d, 2.5d, 4.5d), 60, null, true);
         scene.idle(70);
         scene.hideSection(new BlockPos(1, 2, 3), new BlockPos(1, 1, 5), 20, "up");
         scene.idle(20);
         scene.setBlock("create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "start"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(3, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:0,Inventory:{Items:[],PositiveOrder:1b},IsController:1b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:10,Stress:32.0f},Source:{X:-21,Y:-59,Z:7},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         scene.setBlock("create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "middle"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(2, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:1,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:9,Stress:32.0f},Source:{X:-22,Y:-59,Z:7},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         scene.setBlock("create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "end"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:2,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:8,Stress:32.0f},Source:{X:-22,Y:-59,Z:8},Speed:16.0f}", true, null, "none", null, null, null, null, null);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Use a Magma Cube Belt instead."), Map.entry("zh_cn", "使用岩浆怪传送带"))), new Vec3(3.5d, 1.5d, 2.0d), 90, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(3.5d, 1.5d, 2.0d), 90, null, true);
         scene.idle(100);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It automatically smelts items above it, taking the same amount of time as a blower."), Map.entry("zh_cn", "它会自动烧炼其上方的物品，所需时间与鼓风机相同"))), new Vec3(3.5d, 1.5d, 2.0d), 120, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(3.5d, 1.5d, 2.0d), 120, null, true);
         scene.idle(130);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "It does not have a blower's smelting protection, so remember to remove the item before it burns a second time!"), Map.entry("zh_cn", "它没有鼓风机的烧炼保护，记得在它被第二次燃烧前把它取走！"))), new Vec3(3.5d, 1.5d, 2.0d), 120, "red", true);
+        scene.showText(text("scene_1.text_4"), new Vec3(3.5d, 1.5d, 2.0d), 120, "red", true);
         scene.idle(130);
         return scene.build();
     }
@@ -99,6 +103,7 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

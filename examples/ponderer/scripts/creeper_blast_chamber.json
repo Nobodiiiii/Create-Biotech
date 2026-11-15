@@ -7,8 +7,8 @@
     "create_biotech:creeper_blast_chamber"
   ],
   "title": {
-    "zh_cn": "苦力怕爆破室 介绍",
-    "en_us": "Creeper Blast Chamber Introduction"
+    "ref": "create_biotech:creeper_blast_chamber",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/creeper_blast_chamber_base_xl"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "苦力怕爆破室 介绍",
-        "en_us": "Creeper Blast Chamber Introduction"
+        "ref": "create_biotech:creeper_blast_chamber",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -160,12 +160,12 @@
           "nbt": "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.08d,Name:\"forge:entity_gravity\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b}"
         },
         {
-          "id": "java_c36bb18edb1430c285f2c7a32ba7a8c2",
+          "id": "java_dd1bbaaa829f3b6a8df493fb5e747002",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "这是一个苦力怕爆破室",
-            "en_us": "This is a Creeper Blast Chamber."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "scene_1.text_1"
           },
           "point": [
             3.5,
@@ -181,12 +181,12 @@
           "duration": 70
         },
         {
-          "id": "java_9702ac12fa463e50a88d210a3f6a37b2",
+          "id": "java_0eca7d711a313c70a5066bf229096a1c",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "它可以高效批量地执行粉碎配方",
-            "en_us": "It can process Crushing Wheel recipes efficiently in bulk."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "scene_1.text_2"
           },
           "point": [
             3.5,
@@ -201,12 +201,12 @@
           "duration": 110
         },
         {
-          "id": "java_bbbb2e849c2e335ba1b24638fa3b61ac",
+          "id": "java_5720514dabad31018e4867984cb71347",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "或者...你想来点更劲爆的？",
-            "en_us": "Or... are you looking for something more explosive?"
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "scene_1.text_3"
           },
           "point": [
             3.5,
@@ -225,8 +225,8 @@
     {
       "id": "s_10040",
       "title": {
-        "zh_cn": "苦力怕爆破室 搭建",
-        "en_us": "Creeper Blast Chamber Assembly"
+        "ref": "create_biotech:creeper_blast_chamber",
+        "key": "s_10040.title"
       },
       "steps": [
         {
@@ -259,12 +259,12 @@
           "replaceAir": false
         },
         {
-          "id": "java_cd6afd0a9e3b30e38c37638e164124f4",
+          "id": "java_7e02d25f70e031318f50559a16a9ebe5",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "结构支持3种尺寸",
-            "en_us": "The structure supports 3 different sizes."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_1"
           },
           "point": [
             4.5,
@@ -386,12 +386,12 @@
           "duration": 80
         },
         {
-          "id": "java_d6419edd5053307593b0b4b84f28576c",
+          "id": "java_d62e63c137f63f70a885ced26635da78",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "结构顶面中心需为动力冲压机",
-            "en_us": "The center of the top face must be a Mechanical Press."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_2"
           },
           "point": [
             4.5,
@@ -429,12 +429,12 @@
           "duration": 20
         },
         {
-          "id": "java_e3ff15e824ca3ab19af3510871b77bf2",
+          "id": "java_60b3b5e7205933459950b31e1037f386",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "结构底面中心需为生物打包机",
-            "en_us": "The center of the bottom face must be a Bio Packager."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_3"
           },
           "point": [
             4.5,
@@ -489,12 +489,12 @@
           "duration": 20
         },
         {
-          "id": "java_717389a3516c34d680828a0e1fb1ee89",
+          "id": "java_ac76f5d8919a3c33b803495924588b39",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "结构的框架由防爆机壳搭成",
-            "en_us": "The frame of the structure is built from Explosion-Proof Casing."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_4"
           },
           "point": [
             2.5,
@@ -509,12 +509,12 @@
           "duration": 110
         },
         {
-          "id": "java_a7d7f487c83f312f9be341c263d8cf5c",
+          "id": "java_38f462dab6733b5697844414e66f4e11",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "除了顶面和底面的任意面中心可以被替换为防爆玻璃",
-            "en_us": "The center block of any side face, except the top and bottom, can be replaced with Blast-Proof Glass."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_5"
           },
           "point": [
             4.5,
@@ -530,12 +530,12 @@
           "duration": 130
         },
         {
-          "id": "java_c47f5f711ada3d7a822448e6fd5163e6",
+          "id": "java_e02ee6871fe23a5594650eeac5d8948f",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "除此之外，每个结构还必须包括一个爆破室核心",
-            "en_us": "In addition, every structure must include a Blast Chamber Core."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_6"
           },
           "point": [
             6.5,
@@ -551,12 +551,12 @@
           "duration": 130
         },
         {
-          "id": "java_38d057a85fd7387a94bbfafbe2cb494a",
+          "id": "java_3902c34d7e9f381f8e5a7ec13083ae33",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "以及两个任意大小的防爆保险库（连接的保险库算做一个）",
-            "en_us": "It also needs two Explosion-Proof Item Vaults of any size; connected vaults count as one."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_7"
           },
           "point": [
             2.0,
@@ -599,12 +599,12 @@
           "duration": 90
         },
         {
-          "id": "java_8b40ffd4358f331c8fad42a5cab0171c",
+          "id": "java_4e8dc10928ca36938beceffe2499173c",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "结构成型以后，顶面的棱会被自动替换为链式传动箱",
-            "en_us": "After the structure forms, the top edges are automatically replaced with Encased Chain Drives."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_8"
           },
           "point": [
             3.5,
@@ -620,8 +620,8 @@
           "block": "create_biotech:blast_proof_chain_drive",
           "blockProperties": {
             "axis": "z",
-            "part": "middle",
-            "axis_along_first": "true"
+            "axis_along_first": "true",
+            "part": "middle"
           },
           "blockPos": [
             5,
@@ -643,12 +643,12 @@
           "duration": 130
         },
         {
-          "id": "java_0e1cdf98dd713cfb970385d494503a09",
+          "id": "java_fb789af3cd473635a1e2aaa18e606501",
           "type": "text",
           "duration": 180,
           "text": {
-            "zh_cn": "使用扳手可以在机壳和传动箱之间切换，但是需要保证能够剩下的传动箱足以驱动所有冲压机",
-            "en_us": "You can use a Wrench to swap between casings and chain drives, but enough chain drives must remain to power every press."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_10040.text_9"
           },
           "point": [
             4.5,
@@ -679,8 +679,8 @@
           "block": "create_biotech:explosion_proof_casing",
           "blockProperties": {
             "axis": "z",
-            "part": "middle",
-            "axis_along_first": "true"
+            "axis_along_first": "true",
+            "part": "middle"
           },
           "blockPos": [
             4,
@@ -700,8 +700,8 @@
     {
       "id": "s_c38b1",
       "title": {
-        "zh_cn": "苦力怕爆破室 运作",
-        "en_us": "Creeper Blast Chamber Operation"
+        "ref": "create_biotech:creeper_blast_chamber",
+        "key": "s_c38b1.title"
       },
       "steps": [
         {
@@ -743,10 +743,10 @@
           "type": "set_block",
           "block": "create:andesite_funnel",
           "blockProperties": {
+            "waterlogged": "false",
             "powered": "false",
             "extracting": "false",
-            "facing": "north",
-            "waterlogged": "false"
+            "facing": "north"
           },
           "blockPos": [
             6,
@@ -758,12 +758,12 @@
           "entranceAnimation": "none"
         },
         {
-          "id": "java_1db4f725bad23b08b8578841f3d793c4",
+          "id": "java_ba461ec9756236688f7fe9d5624a74a3",
           "type": "text",
           "duration": 150,
           "text": {
-            "zh_cn": "爆炸室核心可以通过纸箱输入和输出苦力怕",
-            "en_us": "The Blast Chamber Core can input and output creepers using cardboard boxes."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_c38b1.text_1"
           },
           "point": [
             6.5,
@@ -879,12 +879,12 @@
           ]
         },
         {
-          "id": "java_4a63bd02700532abbf0460ede0a132fa",
+          "id": "java_71b0b91aca59328583ed0df8758a6921",
           "type": "text",
           "duration": 110,
           "text": {
-            "zh_cn": "最大的爆破室最多可以有9个苦力怕同时工作",
-            "en_us": "The largest blast chamber can have up to 9 creepers working at once."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_c38b1.text_2"
           },
           "point": [
             4.5,
@@ -900,12 +900,12 @@
           "duration": 130
         },
         {
-          "id": "java_274ef8b7c2c23e3596ed64841174724f",
+          "id": "java_ff2ede4ff3a93e529fdb30397e8e4567",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "通入应力...",
-            "en_us": "Apply rotational force..."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_c38b1.text_3"
           },
           "point": [
             3.5,
@@ -1435,8 +1435,8 @@
           "id": "java_76cfbb7a28b53e79ab2fc4e3b2afa90b",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "axis": "z",
-            "axis_along_first": "true"
+            "axis_along_first": "true",
+            "axis": "z"
           },
           "blockPos": [
             3,
@@ -1456,12 +1456,12 @@
           "duration": 20
         },
         {
-          "id": "java_eccfd65968b73c3d9af37a0116a34fbf",
+          "id": "java_edb5a98b7b193f64a728a7855c3f806e",
           "type": "text",
           "duration": 200,
           "text": {
-            "zh_cn": "每有一只苦力怕，爆破室就会提取输入保险库中的一组物品，执行粉碎轮的粉碎配方，输出到输出保险库",
-            "en_us": "For each creeper inside, the chamber takes one batch of items from the input vault, runs the matching Crushing Wheel recipe, and outputs the result to the output vault."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_c38b1.text_4"
           },
           "point": [
             2.0,
@@ -1477,12 +1477,12 @@
           "duration": 210
         },
         {
-          "id": "java_51d844112f0b3d9bb226d705559b7af1",
+          "id": "java_47269f8fe0dd3480ae5e9dc85a8514ac",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "右键长按保险库可以调整其为输入或输出",
-            "en_us": "Hold right-click on a vault to switch it between input and output."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_c38b1.text_5"
           },
           "point": [
             2.0,
@@ -1502,8 +1502,8 @@
     {
       "id": "s_2c227",
       "title": {
-        "zh_cn": "苦力怕爆破室 过载",
-        "en_us": "Creeper Blast Chamber Overload"
+        "ref": "create_biotech:creeper_blast_chamber",
+        "key": "s_2c227.title"
       },
       "steps": [
         {
@@ -1541,12 +1541,12 @@
           "duration": 30
         },
         {
-          "id": "java_9e53dfb98f573fca9e8900bc2942d2b7",
+          "id": "java_29b66fb92c203af588417682ccf89f12",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "苦力怕爆破室最高接受128rpm的转速",
-            "en_us": "The Creeper Blast Chamber can handle speeds up to 128 RPM."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_2c227.text_1"
           },
           "point": [
             4.5,
@@ -1577,12 +1577,12 @@
           "duration": 130
         },
         {
-          "id": "java_6b1bed9f44a93023865ac235f011cc2b",
+          "id": "java_ed8839efbea13540a765afdf8cffa470",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "超过128rpm的转速会使其进入过载状态",
-            "en_us": "Any speed above 128 RPM will send it into an overloaded state."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_2c227.text_2"
           },
           "point": [
             4.0,
@@ -1614,12 +1614,12 @@
           "duration": 130
         },
         {
-          "id": "java_dc4f9bdefc753fd194e6925751ad2978",
+          "id": "java_f40eedd6ae13351abe75af00b354a5b2",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "不要长时间过载，除非你想引起一次足以炸毁你基地的大爆炸！",
-            "en_us": "Do not overload it for too long, unless you want an explosion big enough to destroy your base!"
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_2c227.text_3"
           },
           "point": [
             4.0,
@@ -1640,8 +1640,8 @@
     {
       "id": "s_a77f7",
       "title": {
-        "zh_cn": "苦力怕爆破室 高压聚爆",
-        "en_us": "Creeper Blast Chamber High-Pressure Implosion"
+        "ref": "create_biotech:creeper_blast_chamber",
+        "key": "s_a77f7.title"
       },
       "steps": [
         {
@@ -1679,12 +1679,12 @@
           "duration": 20
         },
         {
-          "id": "java_a2c62c9745aa3241a1bb8f6b8a59f1e0",
+          "id": "java_2edf0be5d0823ed88057d33fa1469f00",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "向爆破室中输入高压苦力怕...",
-            "en_us": "Feed a high-pressure creeper into the chamber..."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_a77f7.text_1"
           },
           "point": [
             6.5,
@@ -1727,12 +1727,12 @@
           "duration": 90
         },
         {
-          "id": "java_9835778fdfce3ef580382732ec58db05",
+          "id": "java_a6ab43c6aba33d50852fd86e6e0bfbaf",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "可以将配方调整为“高压聚爆”模式",
-            "en_us": "to switch recipes into High-Pressure Implosion mode."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_a77f7.text_2"
           },
           "point": [
             6.5,
@@ -1749,12 +1749,12 @@
           "duration": 110
         },
         {
-          "id": "java_8fedad8c8e583cbb9ae3cd2c2ae8c12a",
+          "id": "java_96a380ae530d3c7b8b4678c039e1664b",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "“高压聚爆”模式有单独的配方，不再执行粉碎配方",
-            "en_us": "High-Pressure Implosion mode has its own recipes and no longer runs Crushing Wheel recipes."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_a77f7.text_3"
           },
           "point": [
             6.5,
@@ -1770,12 +1770,12 @@
           "duration": 130
         },
         {
-          "id": "java_2b1b6278221e3f8182004a6d0359bd19",
+          "id": "java_2f346d6ed8b033b7a0d6b29513c7411b",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "当然，过载引起的爆炸烈度也会成倍增加",
-            "en_us": "Of course, overload explosions also become much more powerful."
+            "ref": "create_biotech:creeper_blast_chamber",
+            "key": "s_a77f7.text_4"
           },
           "point": [
             4.0,

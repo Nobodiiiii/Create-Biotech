@@ -1,0 +1,17 @@
+{
+  "s_40666.text_1": "The output side provides experience to compatible fluid endpoints.",
+  "s_40666.text_2": "It can also output experience to fluid tanks and other fluid containers.",
+  "s_40666.text_3": "The output side cannot turn experience directly into items.",
+  "s_40666.text_4": "You need to feed the experience into Budding Experience...",
+  "s_40666.text_5": "Catalyzed mature Experience Clusters drop naturally and store far more experience than Experience Nuggets.",
+  "s_40666.title": "Experience Pump Output",
+  "scene_1.text_1": "The Experience Pump can transfer experience between its two ends.",
+  "scene_1.text_2": "The input side accepts many forms of experience.",
+  "scene_1.text_3": "Experience orbs...",
+  "scene_1.text_4": "Experience in tanks or fluid pipes...",
+  "scene_1.text_5": "Storage blocks containing experience items...",
+  "scene_1.text_6": "or players.",
+  "scene_1.text_7": "Installing a Nozzle on the input side attracts experience orbs from farther away.",
+  "scene_1.title": "Experience Pump Input",
+  "title": "Experience Pump Input"
+}

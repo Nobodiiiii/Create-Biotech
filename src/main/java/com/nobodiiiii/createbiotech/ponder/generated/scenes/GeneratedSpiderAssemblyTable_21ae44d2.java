@@ -34,12 +34,16 @@ public final class GeneratedSpiderAssemblyTable_21ae44d2 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:spider_assembly_table", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:spider_assembly_table";
         document.runtimeSource = "create_biotech:spider_assembly_table";
         document.items = List.of("create_biotech:spider_assembly_table");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Spider Assembly Table"), Map.entry("zh_cn", "蜘蛛装配站")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/spider_assembly_table_base");
         document.tags = List.of("create:kinetic_appliances", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,24 +52,24 @@ public final class GeneratedSpiderAssemblyTable_21ae44d2 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Spider Assembly Table"), Map.entry("zh_cn", "蜘蛛装配站"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.showStructure("create_biotech:generated/ponderer/spider_assembly_table_base", new BlockPos(0, 0, 0), new BlockPos(5, 0, 5), null, null);
         scene.idle(20);
         scene.showSectionAndMerge(new BlockPos(2, 1, 4), new BlockPos(2, 3, 5), null, 20, "north", "simultaneous", 20, 1, false);
         scene.idle(10);
         scene.showSectionAndMerge(new BlockPos(2, 1, 2), new BlockPos(2, 3, 3), null, 20, "down", "simultaneous", 20, 1, false);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Spider Assembly Table can perform Sequenced Assembly recipes."), Map.entry("zh_cn", "蜘蛛装配台可以执行序列装配配方"))), new Vec3(2.0d, 3.5d, 2.5d), 100, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(2.0d, 3.5d, 2.5d), 100, null, true);
         scene.idle(110);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Right-click to open its interface, then place the required machines in the first row..."), Map.entry("zh_cn", "右键打开界面，在第一行放入装配所需要的机器..."))), new Vec3(2.5d, 3.0d, 2.5d), 100, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(2.5d, 3.0d, 2.5d), 100, null, true);
         scene.idle(10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{ActiveMachine:-1,ActiveSlot:-1,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"}],Size:16},ItemLocks:[{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"},{Count:1b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:0,ProcessingTicksRemaining:0,ProcessingTicksTotal:0,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}", true, new BlockPos(2, 3, 2), null);
         scene.idle(100);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Place the required ingredients in the second row."), Map.entry("zh_cn", "在第二行放入装配所需原料"))), new Vec3(2.0d, 3.5d, 2.5d), 100, null, true);
+        scene.keyframe().showText(text("scene_1.text_3"), new Vec3(2.0d, 3.5d, 2.5d), 100, null, true);
         scene.idle(10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{ActiveMachine:-1,ActiveSlot:-1,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:0,ProcessingTicksRemaining:0,ProcessingTicksTotal:0,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}", null, new BlockPos(2, 3, 2), null);
         scene.idle(100);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Assemble!"), Map.entry("zh_cn", "装配！"))), new Vec3(2.0d, 1.5d, 2.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_4"), new Vec3(2.0d, 1.5d, 2.5d), 120, null, true);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("waterlogged", "false")), "{ForgeCaps:{},HeldItem:{Angle:335,InDirection:0,InSegment:0,Item:{Count:1b,id:\"create:brass_sheet\"},Locked:1b,Offset:0.14351852f,Pos:0.5f,PrevOffset:0.14351852f,PrevPos:0.5f},OutputBuffer:{Items:[],Size:8}}", null, new BlockPos(2, 1, 2), null);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{ActiveMachine:0,ActiveSlot:0,BlockedSlots:[B;0B,0B,0B,0B,0B,0B,0B,0B],CachedInput:{Count:1b,id:\"create:brass_sheet\"},FluidLocks:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],Fluids:[{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"},{Amount:0,FluidName:\"minecraft:empty\"}],ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"create:deployer\"},{Count:1b,Slot:1,id:\"create:deployer\"},{Count:1b,Slot:2,id:\"create:deployer\"},{Count:1b,Slot:3,id:\"create:deployer\"},{Count:1b,Slot:4,id:\"create:deployer\"},{Count:1b,Slot:5,id:\"create:deployer\"},{Count:1b,Slot:6,id:\"create:deployer\"},{Count:1b,Slot:7,id:\"create:deployer\"},{Count:64b,Slot:8,id:\"minecraft:beef\"},{Count:64b,Slot:9,id:\"minecraft:leather\"},{Count:64b,Slot:10,id:\"minecraft:bone\"},{Count:64b,Slot:11,id:\"minecraft:string\"},{Count:64b,Slot:12,id:\"minecraft:poppy\"},{Count:64b,Slot:13,id:\"minecraft:slime_ball\"}],Size:16},ItemLocks:[{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"},{Count:0b,id:\"minecraft:air\"}],Network:{AddedStress:32.0f,Capacity:262144.0f,Id:-7696581345340L,Size:8,Stress:1024.0f},NextSlot:1,ProcessingTicksRemaining:32,ProcessingTicksTotal:32,Source:{X:-29,Y:-57,Z:8},Speed:32.0f}", null, new BlockPos(2, 3, 2), null);
         scene.idle(20);
@@ -123,6 +127,7 @@ public final class GeneratedSpiderAssemblyTable_21ae44d2 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

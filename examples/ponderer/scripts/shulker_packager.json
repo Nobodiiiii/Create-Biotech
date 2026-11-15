@@ -7,8 +7,8 @@
     "create_biotech:shulker_packager"
   ],
   "title": {
-    "zh_cn": "潜影打包机",
-    "en_us": "Shulker Packager"
+    "ref": "create_biotech:shulker_packager",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/basic"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "潜影打包机",
-        "en_us": "Shulker Packager"
+        "ref": "create_biotech:shulker_packager",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -42,8 +42,8 @@
           "type": "set_block",
           "block": "create_biotech:shulker_packager",
           "blockProperties": {
-            "linked": "false",
             "powered": "false",
+            "linked": "false",
             "facing": "north"
           },
           "blockPos": [
@@ -62,8 +62,8 @@
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "type": "single",
-            "facing": "west"
+            "facing": "west",
+            "type": "single"
           },
           "blockPos": [
             2,
@@ -97,12 +97,12 @@
           "entranceInterval": 1
         },
         {
-          "id": "java_5a1c32799e8b30c5a06ae7ae3dff3945",
+          "id": "java_978564d523373cf0910ef3d007afa674",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "潜影打包机和普通打包机的工作方式类似",
-            "en_us": "Shulker Packagers work much like regular Packagers."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_1"
           },
           "point": [
             2.0,
@@ -118,12 +118,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_a9d418bb02363af888120089ded43a14",
+          "id": "java_e140b34553fe30898ca32a1cacb5ef5f",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "不同的是，它会在短距离内自动传送其中的包裹",
-            "en_us": "The difference is that they automatically teleport their packages over short distances."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.0,
@@ -156,8 +156,8 @@
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "type": "single",
-            "facing": "west"
+            "facing": "west",
+            "type": "single"
           },
           "blockPos": [
             0,
@@ -209,12 +209,12 @@
           "whileCTRL": false
         },
         {
-          "id": "java_6460a92c1fc139c181a376019eb5836b",
+          "id": "java_99ccbf3406783c058dee379c242eef50",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标",
-            "en_us": "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_3"
           },
           "point": [
             4.5,
@@ -235,8 +235,8 @@
           "direction": "down",
           "block": "create_biotech:shulker_packager",
           "blockProperties": {
-            "linked": "false",
             "powered": "false",
+            "linked": "false",
             "facing": "north"
           },
           "blockPos": [
@@ -263,10 +263,10 @@
           "direction": "south",
           "block": "create:stock_link",
           "blockProperties": {
-            "face": "wall",
             "powered": "false",
-            "facing": "north",
-            "waterlogged": "false"
+            "face": "wall",
+            "waterlogged": "false",
+            "facing": "north"
           },
           "blockPos": [
             0,
@@ -295,8 +295,8 @@
           "id": "java_4a9cc84f38ff38389145af698ef13f3a",
           "type": "modify_block_entity_nbt",
           "blockProperties": {
-            "linked": "true",
             "powered": "false",
+            "linked": "true",
             "facing": "north"
           },
           "blockPos": [
@@ -318,12 +318,12 @@
           "duration": 10
         },
         {
-          "id": "java_91dfb452fbcf361b9d354ee4bb5646d3",
+          "id": "java_2e3ed6e009df36c48882a42e4cfc8f5c",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "收到请求后，潜影打包机会将包裹传送到选定的目标",
-            "en_us": "After receiving a request, the Shulker Packager teleports the package to its selected target."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_4"
           },
           "point": [
             0.5,
@@ -433,12 +433,12 @@
           "duration": 30
         },
         {
-          "id": "java_ee78014afe7c36aba82d5d31f1d07e2b",
+          "id": "java_b8f2e83ab23d305fa43ae978b170d832",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "潜影打包机适用于短距离传输，长距离传输可以使用悦灵驿站、货物蛙港、火车与邮箱等",
-            "en_us": "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_5"
           },
           "point": [
             2.5,
@@ -474,8 +474,8 @@
           "direction": "down",
           "block": "create:package_frogport",
           "blockProperties": {
-            "waterlogged": "false",
             "open": "false",
+            "waterlogged": "false",
             "facing": "east"
           },
           "blockPos": [
@@ -497,8 +497,8 @@
           "direction": "down",
           "block": "create:white_postbox",
           "blockProperties": {
-            "waterlogged": "false",
             "open": "false",
+            "waterlogged": "false",
             "facing": "east"
           },
           "blockPos": [
@@ -521,12 +521,12 @@
           "attachKeyFrame": true
         },
         {
-          "id": "java_830d7a47d26c32529c96f6287cee148d",
+          "id": "java_59292bbd995330df803017d9b8a98e71",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "查看它们的思索界面以了解它们的行为",
-            "en_us": "Check their Ponder screens to learn how they behave."
+            "ref": "create_biotech:shulker_packager",
+            "key": "scene_1.text_6"
           },
           "point": [
             2.5,

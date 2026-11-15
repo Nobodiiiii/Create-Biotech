@@ -7,8 +7,8 @@
     "create_biotech:evoker_enchanting_chamber"
   ],
   "title": {
-    "zh_cn": "鱿鱼打印机",
-    "en_us": "Squid Printer"
+    "ref": "create_biotech:evoker_enchanting_chamber",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/enchanting_line_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "鱿鱼打印机",
-        "en_us": "Squid Printer"
+        "ref": "create_biotech:evoker_enchanting_chamber",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -39,12 +39,12 @@
           "duration": 20
         },
         {
-          "id": "java_415382f90dfc31bd8f272e7d9d6ebf0f",
+          "id": "java_c5dc9d19f88d35bba3f074d2a2c8bb27",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "这是一个简单的附魔流水线",
-            "en_us": "This is a simple enchantment production line."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "scene_1.text_1"
           },
           "point": [
             4.0,
@@ -58,11 +58,11 @@
           "type": "set_block",
           "block": "create:belt",
           "blockProperties": {
-            "part": "start",
-            "waterlogged": "false",
-            "slope": "horizontal",
             "casing": "false",
-            "facing": "west"
+            "slope": "horizontal",
+            "part": "start",
+            "facing": "west",
+            "waterlogged": "false"
           },
           "blockPos": [
             6,
@@ -101,12 +101,12 @@
           "duration": 20
         },
         {
-          "id": "java_d85fd4ae73ce33d99340890715bbe884",
+          "id": "java_f16cacd678a03b9d87f58c0a0afa3680",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "这是鱿鱼打印机",
-            "en_us": "This is a Squid Printer."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "scene_1.text_2"
           },
           "point": [
             5.0,
@@ -121,12 +121,12 @@
           "duration": 70
         },
         {
-          "id": "java_6f999884d8943ecea7afeb5a7cff0332",
+          "id": "java_3ce6f202cd8536b9841318f0c56a433c",
           "type": "text",
           "duration": 90,
           "text": {
-            "zh_cn": "在侧面标记一本附魔书...",
-            "en_us": "Mark an enchanted book on the side..."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "scene_1.text_3"
           },
           "point": [
             5.0,
@@ -141,12 +141,12 @@
           "duration": 60
         },
         {
-          "id": "java_7566b8480a9e378e951e68c5770bfa3b",
+          "id": "java_ec2b66c60daa35d2a3184999001aea31",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "它会将下方的书加工为附魔书（复印本）",
-            "en_us": "It will process the book below into an Enchanted Book (Copy)."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "scene_1.text_4"
           },
           "point": [
             5.5,
@@ -161,12 +161,12 @@
           "duration": 130
         },
         {
-          "id": "java_029a44ed68343cbb9f71564acfc367f6",
+          "id": "java_5931f70642d33203b45e9a8860f0d4ac",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "无论是否在工作，打印机都需要输入水来保证鱿鱼存活",
-            "en_us": "Whether it is working or not, the printer needs a water supply to keep the squid alive."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "scene_1.text_5"
           },
           "point": [
             5.0,
@@ -186,8 +186,8 @@
     {
       "id": "s_8911d",
       "title": {
-        "zh_cn": "唤魔者附魔室",
-        "en_us": "Evoker Enchanting Chamber"
+        "ref": "create_biotech:evoker_enchanting_chamber",
+        "key": "s_8911d.title"
       },
       "steps": [
         {
@@ -201,12 +201,12 @@
           "duration": 20
         },
         {
-          "id": "java_1e9a66f33e8e31a5b1365f0fad126d48",
+          "id": "java_6c35e5ef0ad634448ad00e58313ff9ae",
           "type": "text",
           "duration": 60,
           "text": {
-            "zh_cn": "这是唤魔者附魔室",
-            "en_us": "This is an Evoker Enchanting Chamber."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "s_8911d.text_1"
           },
           "point": [
             2.5,
@@ -221,12 +221,12 @@
           "duration": 70
         },
         {
-          "id": "java_15506a5bc646333485da83330999f4af",
+          "id": "java_beb050c9b6723e3492cef6e82d25fc5c",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "它可以将附魔书（复印本）附魔为可以使用的附魔书",
-            "en_us": "It can turn copied enchanted books into usable enchanted books."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "s_8911d.text_2"
           },
           "point": [
             2.5,
@@ -249,12 +249,12 @@
           "degreesX": 0.0
         },
         {
-          "id": "java_b33ea0fca94a39c9986dc7d089abf518",
+          "id": "java_f88668bac2043c6f8e9eeba62667d270",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "通过经验泵向其输送附魔所需要的经验",
-            "en_us": "Supply it with the experience needed for enchanting through an Experience Pump."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "s_8911d.text_3"
           },
           "point": [
             2.0,
@@ -277,12 +277,12 @@
           "degreesX": 0.0
         },
         {
-          "id": "java_05dd9fa491853ffda86b15044febfe66",
+          "id": "java_ec53d0ea4e3f3bf9a6aa0f801af18427",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "附魔书的总等级越高，所需的经验越多，时间越长",
-            "en_us": "The higher the total enchantment level, the more experience and time it requires."
+            "ref": "create_biotech:evoker_enchanting_chamber",
+            "key": "s_8911d.text_4"
           },
           "point": [
             2.5,

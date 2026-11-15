@@ -7,8 +7,8 @@
     "create_biotech:petri_dish"
   ],
   "title": {
-    "zh_cn": "培养拟态生物",
-    "en_us": "Cultivating Mimic Creatures"
+    "ref": "create_biotech:petri_dish",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/petri_dish",
@@ -24,8 +24,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "培养拟态生物",
-        "en_us": "Cultivating Mimic Creatures"
+        "ref": "create_biotech:petri_dish",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -40,12 +40,12 @@
           "duration": 20
         },
         {
-          "id": "java_776752ca2e76397481f16e957bb19e81",
+          "id": "java_91f37259ff3a3818b6de008d5ec13f00",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "史莱姆培养皿可以用来培养拟态生物",
-            "en_us": "Slime Petri Dishes can be used to cultivate mimic creatures"
+            "ref": "create_biotech:petri_dish",
+            "key": "scene_1.text_1"
           },
           "point": [
             1.5,
@@ -61,12 +61,12 @@
           "duration": 90
         },
         {
-          "id": "java_dcfc82899178361f88f2356f67219bac",
+          "id": "java_da147ef39cc73b04ba261f8fe1dc203d",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "在培养皿中放入活体构件...",
-            "en_us": "Insert a Living Mechanism into the Petri Dish..."
+            "ref": "create_biotech:petri_dish",
+            "key": "scene_1.text_2"
           },
           "point": [
             1.5,
@@ -115,12 +115,12 @@
           "duration": 90
         },
         {
-          "id": "java_3e1e92e2ac6e3bc8b75bf142a5f61565",
+          "id": "java_37dc686d87cc3fdba72048984e98b708",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "然后通入液态活体史莱姆...",
-            "en_us": "Then pipe in Liquid Living Slime..."
+            "ref": "create_biotech:petri_dish",
+            "key": "scene_1.text_3"
           },
           "point": [
             1.5,
@@ -258,12 +258,12 @@
           "duration": 25
         },
         {
-          "id": "java_de16372a7e7b334188ce9c1a4a2e064a",
+          "id": "java_afa7107ab6033d9cab8f2e007d6cff29",
           "type": "text",
           "duration": 130,
           "text": {
-            "zh_cn": "液态活体史莱姆会模仿附近的生物并长大",
-            "en_us": "The Liquid Living Slime mimics a nearby mob and grows"
+            "ref": "create_biotech:petri_dish",
+            "key": "scene_1.text_4"
           },
           "point": [
             0.5,
@@ -445,12 +445,12 @@
           "duration": 20
         },
         {
-          "id": "java_f11a63e4a6cd344e9b9c6b5a2f0060b8",
+          "id": "java_78a762facc46325b86558596a914cf9e",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "被模仿的生物血量上限越高，所需的液态活体史莱姆越多",
-            "en_us": "Mobs with more maximum health require more Liquid Living Slime to mimic"
+            "ref": "create_biotech:petri_dish",
+            "key": "scene_1.text_5"
           },
           "point": [
             0.5,
@@ -470,8 +470,8 @@
     {
       "id": "s_e7373",
       "title": {
-        "zh_cn": "为拟态生物缠魂",
-        "en_us": "Haunting Mimic Creatures"
+        "ref": "create_biotech:petri_dish",
+        "key": "s_e7373.title"
       },
       "steps": [
         {
@@ -506,12 +506,12 @@
           "duration": 20
         },
         {
-          "id": "java_ecd0d3aa4ea43a868c399d278b424796",
+          "id": "java_8b29d7926eb43975b5a0abc039f43dba",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "击杀拟态或仿生生物不会掉落物品，而会分裂为活体史莱姆",
-            "en_us": "Mimic and bionic creatures drop no items when killed, but split into living Slimes"
+            "ref": "create_biotech:petri_dish",
+            "key": "s_e7373.text_1"
           },
           "point": [
             3.5,
@@ -597,12 +597,12 @@
           "duration": 20
         },
         {
-          "id": "java_f877db02103d3ee2bb94bb08a1b06e22",
+          "id": "java_4866dd2241053a67810997f442a71149",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "与拟态村民交易也只能买到黏液球",
-            "en_us": "Trading with mimic villagers only yields Slimeballs as well"
+            "ref": "create_biotech:petri_dish",
+            "key": "s_e7373.text_2"
           },
           "point": [
             3.5,
@@ -646,12 +646,12 @@
           "duration": 110
         },
         {
-          "id": "java_bff5ba7f5c863b99a65d96420284f21c",
+          "id": "java_9a4b837581773373b16508693db49ca4",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "对拟态生物施加再生效果...",
-            "en_us": "Apply Regeneration to a mimic creature..."
+            "ref": "create_biotech:petri_dish",
+            "key": "s_e7373.text_3"
           },
           "point": [
             3.5,
@@ -672,12 +672,12 @@
           "duration": 78
         },
         {
-          "id": "java_993d9fdcb77d369eae1ed086f18e2c91",
+          "id": "java_3e02a1fbb822378da7a8a78f00ce54dc",
           "type": "text",
           "duration": 80,
           "text": {
-            "zh_cn": "再使用鼓风机和灵魂营火进行“缠魂”",
-            "en_us": "Then use an Encased Fan and Soul Campfire to haunt it"
+            "ref": "create_biotech:petri_dish",
+            "key": "s_e7373.text_4"
           },
           "point": [
             3.5,
@@ -714,10 +714,10 @@
           "direction": "down",
           "block": "minecraft:soul_campfire",
           "blockProperties": {
-            "lit": "true",
             "signal_fire": "false",
-            "facing": "north",
-            "waterlogged": "false"
+            "lit": "true",
+            "waterlogged": "false",
+            "facing": "north"
           },
           "blockPos": [
             3,
@@ -748,12 +748,12 @@
           "duration": 90
         },
         {
-          "id": "java_565a1ff7fce237a49d883b5de538cd9f",
+          "id": "java_2867a143242131b5a6f87d1590734229",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "即可将拟态生物转化为普通生物",
-            "en_us": "This transforms the mimic creature into a normal mob"
+            "ref": "create_biotech:petri_dish",
+            "key": "s_e7373.text_5"
           },
           "point": [
             3.5,

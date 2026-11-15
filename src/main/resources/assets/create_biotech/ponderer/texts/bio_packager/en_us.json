@@ -1,0 +1,8 @@
+{
+  "s_fe8b2.text_1": "The Bio Packager automatically pulls cardboard boxes from its attached inventory and captures creatures killed by moving contraptions.",
+  "s_fe8b2.title": "Bio Packager Capturing",
+  "scene_1.text_1": "Apply a redstone signal...",
+  "scene_1.text_2": "The Bio Packager pulls boxes containing creatures from its attached inventory and releases them above itself.",
+  "scene_1.title": "Bio Packager Release",
+  "title": "Bio Packager Release"
+}

@@ -7,8 +7,8 @@
     "create_biotech:experience_pump"
   ],
   "title": {
-    "zh_cn": "经验泵 输入",
-    "en_us": "Experience Pump Input"
+    "ref": "create_biotech:experience_pump",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/ex_bumper"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "经验泵 输入",
-        "en_us": "Experience Pump Input"
+        "ref": "create_biotech:experience_pump",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -74,12 +74,12 @@
           "duration": 20
         },
         {
-          "id": "java_2be554c6b520377fa4505b66403cbc3a",
+          "id": "java_3a14c9f87cd8396997a33e981992187d",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "经验泵可以用于在泵两端传递经验",
-            "en_us": "The Experience Pump can transfer experience between its two ends."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_1"
           },
           "point": [
             2.0,
@@ -95,12 +95,12 @@
           "duration": 110
         },
         {
-          "id": "java_937b15e763a3363dbc90d9fcc675aacb",
+          "id": "java_4a733f15a38639e9b57ecce14eb63def",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "输入端接受多种形式的经验",
-            "en_us": "The input side accepts many forms of experience."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.5,
@@ -127,12 +127,12 @@
           "nbt": "{Controller:{X:-25,Y:-59,Z:-1},ForgeCaps:{},LastKnownPos:{X:-25,Y:-57,Z:-1},Luminosity:0}"
         },
         {
-          "id": "java_48e563d1c90136af9382e2e820c10c87",
+          "id": "java_ae3b3cc753ec35bd857185c5d99bd636",
           "type": "text",
           "duration": 30,
           "text": {
-            "zh_cn": "经验球...",
-            "en_us": "Experience orbs..."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_3"
           },
           "point": [
             2.5,
@@ -153,12 +153,12 @@
           "fullScene": true
         },
         {
-          "id": "java_fb21761ed67a3e60abe233d3c5a6eeb2",
+          "id": "java_4d4737c46acc3ae6827f64ce0865929c",
           "type": "text",
           "duration": 30,
           "text": {
-            "zh_cn": "储罐或流体管道中的经验...",
-            "en_us": "Experience in tanks or fluid pipes..."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_4"
           },
           "point": [
             2.5,
@@ -232,12 +232,12 @@
           "duration": 40
         },
         {
-          "id": "java_ecbdb39371e13868945a1171479b48cc",
+          "id": "java_15730a4e93893cf5a574cc165def92e9",
           "type": "text",
           "duration": 30,
           "text": {
-            "zh_cn": "装有经验物品的储物方块...",
-            "en_us": "Storage blocks containing experience items..."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_5"
           },
           "point": [
             2.5,
@@ -263,8 +263,8 @@
           "block": "minecraft:chest",
           "blockProperties": {
             "waterlogged": "false",
-            "type": "single",
-            "facing": "west"
+            "facing": "west",
+            "type": "single"
           },
           "blockPos": [
             2,
@@ -304,12 +304,12 @@
           "fullScene": true
         },
         {
-          "id": "java_1cc381b50aaa391ab7978d138afba691",
+          "id": "java_0e791905c0043c4c9cc0b8eb1b55d758",
           "type": "text",
           "duration": 50,
           "text": {
-            "zh_cn": "或者玩家",
-            "en_us": "or players."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_6"
           },
           "point": [
             2.5,
@@ -349,12 +349,12 @@
           "type": "create_biotech:java/experience_pump/2"
         },
         {
-          "id": "java_43654bee5bf83c1cbf9224919dc5f878",
+          "id": "java_ea0836f8870b3966aded469b86100da5",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "在输入端安装分散网，可以吸引更远范围的经验球",
-            "en_us": "Installing a Nozzle on the input side attracts experience orbs from farther away."
+            "ref": "create_biotech:experience_pump",
+            "key": "scene_1.text_7"
           },
           "point": [
             2.5,
@@ -395,8 +395,8 @@
     {
       "id": "s_40666",
       "title": {
-        "zh_cn": "经验泵 输出",
-        "en_us": "Experience Pump Output"
+        "ref": "create_biotech:experience_pump",
+        "key": "s_40666.title"
       },
       "steps": [
         {
@@ -456,12 +456,12 @@
           "entranceInterval": 1
         },
         {
-          "id": "java_9ea8dea211933221b53bf7696e83eb17",
+          "id": "java_20268d35de9b3e3bb8bc3bd1ad26ed49",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "输出端会向兼容的流体端点提供经验",
-            "en_us": "The output side provides experience to compatible fluid endpoints."
+            "ref": "create_biotech:experience_pump",
+            "key": "s_40666.text_1"
           },
           "point": [
             2.5,
@@ -498,12 +498,12 @@
           "fullScene": true
         },
         {
-          "id": "java_70dbf2ab192b349cb2e1319655fe2d0b",
+          "id": "java_a680098fcf0731fb8e4d828df96d5fef",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "也可以把经验输出到普通流体储罐或其他流体容器",
-            "en_us": "It can also output experience to fluid tanks and other fluid containers."
+            "ref": "create_biotech:experience_pump",
+            "key": "s_40666.text_2"
           },
           "point": [
             2.5,
@@ -547,8 +547,8 @@
           "direction": "down",
           "block": "create_biotech:evoker_enchanting_chamber",
           "blockProperties": {
-            "half": "lower",
-            "facing": "north"
+            "facing": "north",
+            "half": "lower"
           },
           "blockPos": [
             2,
@@ -578,12 +578,12 @@
           ]
         },
         {
-          "id": "java_a124831945b83e208a96da8d83227056",
+          "id": "java_d48f70751ebd33d599dbf7df84c51fff",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "输出端不能直接将经验转化为物品",
-            "en_us": "The output side cannot turn experience directly into items."
+            "ref": "create_biotech:experience_pump",
+            "key": "s_40666.text_3"
           },
           "point": [
             2.5,
@@ -600,12 +600,12 @@
           "duration": 110
         },
         {
-          "id": "java_fa406f42fa9432e0b4d55ff4384d8838",
+          "id": "java_3c7246cee4023139b672255801d2f0de",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "你需要将经验通入经验母岩...",
-            "en_us": "You need to feed the experience into Budding Experience..."
+            "ref": "create_biotech:experience_pump",
+            "key": "s_40666.text_4"
           },
           "point": [
             2.5,
@@ -716,12 +716,12 @@
           "duration": 20
         },
         {
-          "id": "java_99f08c3cba2c318b93c4a4d461db87d1",
+          "id": "java_759a8066027d3bd6ab799e93a756b2fc",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "催化成熟的经验簇会自然掉落，它存储的经验值远高于经验颗粒",
-            "en_us": "Catalyzed mature Experience Clusters drop naturally and store far more experience than Experience Nuggets."
+            "ref": "create_biotech:experience_pump",
+            "key": "s_40666.text_5"
           },
           "point": [
             2.5,

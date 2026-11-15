@@ -34,12 +34,16 @@ public final class GeneratedShulkerPackager_15377a92 {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:shulker_packager", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:shulker_packager";
         document.runtimeSource = "create_biotech:shulker_packager";
         document.items = List.of("create_biotech:shulker_packager");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Packager"), Map.entry("zh_cn", "潜影打包机")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/basic");
         document.tags = List.of("create:high_logistics", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,22 +52,22 @@ public final class GeneratedShulkerPackager_15377a92 {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Packager"), Map.entry("zh_cn", "潜影打包机"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.showStructure("create_biotech:generated/ponderer/basic", null, null, null, null);
         scene.idle(20);
         scene.setBlock("create_biotech:shulker_packager", Map.ofEntries(Map.entry("facing", "north"), Map.entry("linked", "false"), Map.entry("powered", "false")), new BlockPos(2, 1, 2), null, "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}", false, false, "none", null, null, null, null, null);
         scene.setBlock("minecraft:chest", Map.ofEntries(Map.entry("facing", "west"), Map.entry("type", "single"), Map.entry("waterlogged", "false")), new BlockPos(2, 1, 3), null, "{Items:[]}", false, false, "none", null, null, null, null, null);
         scene.showSectionAndMerge(new BlockPos(2, 1, 3), new BlockPos(2, 1, 2), "default", 20, "down", "simultaneous", 20, 1, false);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Packagers work much like regular Packagers."), Map.entry("zh_cn", "潜影打包机和普通打包机的工作方式类似"))), new Vec3(2.0d, 1.5d, 2.5d), 80, null, true);
+        scene.showText(text("scene_1.text_1"), new Vec3(2.0d, 1.5d, 2.5d), 80, null, true);
         scene.keyframe().idle(90);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The difference is that they automatically teleport their packages over short distances."), Map.entry("zh_cn", "不同的是，它会在短距离内自动传送其中的包裹"))), new Vec3(2.0d, 1.5d, 2.5d), 100, null, true);
+        scene.showText(text("scene_1.text_2"), new Vec3(2.0d, 1.5d, 2.5d), 100, null, true);
         scene.keyframe().idle(110);
         scene.moveSection("default", null, null, new Vec3(2.0d, 0.0d, 0.0d), 20);
         scene.setBlock("minecraft:chest", Map.ofEntries(Map.entry("facing", "west"), Map.entry("type", "single"), Map.entry("waterlogged", "false")), new BlockPos(0, 1, 3), null, "{Items:[]}", false, false, "down", 20, 1, false, null, "down");
         scene.idle(20);
         scene.highlightSection("output", new BlockPos(4, 1, 2), new BlockPos(4, 1, 2), 120);
         scene.showControls(new Vec3(4.5d, 2.0d, 2.5d), "down", 120, "right", "create_biotech:shulker_packager", null, false, false);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target."), Map.entry("zh_cn", "放置潜影打包机前，右键任意机械臂输出点或打包机以选择输出目标"))), new Vec3(4.5d, 2.0d, 2.5d), 120, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(4.5d, 2.0d, 2.5d), 120, null, true);
         scene.keyframe().idle(130);
         scene.setBlock("create_biotech:shulker_packager", Map.ofEntries(Map.entry("facing", "north"), Map.entry("linked", "false"), Map.entry("powered", "false")), new BlockPos(0, 1, 2), null, "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(10);
@@ -71,7 +75,7 @@ public final class GeneratedShulkerPackager_15377a92 {
         scene.idle(10);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north"), Map.entry("linked", "true"), Map.entry("powered", "false")), "{Active:0b,AnimationInward:1b,AnimationTicks:0,ComputerAddress:\"\",HasAttachedComputer:0b,HasComputerAddress:0b,HeldBox:{},InsertedBox:{},InteractionPoints:[],LastSummary:[],QueuedExitingPackages:[],ScrollValue:0,SignAddress:\"\"}", true, new BlockPos(0, 1, 2), new BlockPos(0, 1, 2));
         scene.idle(10);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "After receiving a request, the Shulker Packager teleports the package to its selected target."), Map.entry("zh_cn", "收到请求后，潜影打包机会将包裹传送到选定的目标"))), new Vec3(0.5d, 2.0d, 2.5d), 80, null, true);
+        scene.showText(text("scene_1.text_4"), new Vec3(0.5d, 2.0d, 2.5d), 80, null, true);
         scene.keyframe().javaStep("create_biotech:java/shulker_packager/1", new JsonObject());
         scene.idle(10);
         scene.javaStep("create_biotech:java/shulker_packager/2", new JsonObject());
@@ -84,12 +88,12 @@ public final class GeneratedShulkerPackager_15377a92 {
         scene.javaStep("create_biotech:java/shulker_packager/4", new JsonObject());
         scene.idle(20);
         scene.idle(30);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options."), Map.entry("zh_cn", "潜影打包机适用于短距离传输，长距离传输可以使用悦灵驿站、货物蛙港、火车与邮箱等"))), new Vec3(2.5d, 2.0d, 0.5d), 120, null, true);
+        scene.showText(text("scene_1.text_5"), new Vec3(2.5d, 2.0d, 0.5d), 120, null, true);
         scene.setBlock("create_biotech:allay_port", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(3, 1, 0), null, "{AcceptsPackages:1b,AddressFilter:\"\",CarrierInventory:{Items:[],Size:1},Inventory:{Items:[],Size:18},ReturnMode:\"always_return\"}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("create:package_frogport", Map.ofEntries(Map.entry("facing", "east"), Map.entry("open", "false"), Map.entry("waterlogged", "false")), new BlockPos(2, 1, 0), null, "{AcceptsPackages:1b,AddressFilter:\"\",HasAttachedComputer:0b,Inventory:{Items:[],Size:18},Owner:[I;940439953,-167562164,-1601161573,-1389718966],PlacedYaw:0.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("create:white_postbox", Map.ofEntries(Map.entry("facing", "east"), Map.entry("open", "false"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 0), null, "{AcceptsPackages:1b,AddressFilter:\"\",HasAttachedComputer:0b,Inventory:{Items:[],Size:18}}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.keyframe().idle(130);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Check their Ponder screens to learn how they behave."), Map.entry("zh_cn", "查看它们的思索界面以了解它们的行为"))), new Vec3(2.5d, 2.0d, 0.5d), 60, null, true);
+        scene.showText(text("scene_1.text_6"), new Vec3(2.5d, 2.0d, 0.5d), 60, null, true);
         scene.keyframe().idle(70);
         return scene.build();
     }
@@ -123,6 +127,7 @@ public final class GeneratedShulkerPackager_15377a92 {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

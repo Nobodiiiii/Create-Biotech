@@ -34,12 +34,16 @@ public final class GeneratedGhastHelm_f923f02a {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:ghast_helm", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:ghast_helm";
         document.runtimeSource = "create_biotech:ghast_helm";
         document.items = List.of("create_biotech:ghast_helm");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Ghast Hot Air Balloon Assembly Station Assembly"), Map.entry("zh_cn", "恶魂热气球装配站 组装")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base");
         document.tags = List.of("create:contraption_actor", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,7 +52,7 @@ public final class GeneratedGhastHelm_f923f02a {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Ghast Hot Air Balloon Assembly Station Assembly"), Map.entry("zh_cn", "恶魂热气球装配站 组装"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base", new BlockPos(0, 0, 0), new BlockPos(9, 0, 9), 0.8f, null);
         scene.idle(20);
         scene.showExtraStructure("create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_rope", new BlockPos(4, 9, 0), 0.0f, false, false, false, "none", null, null, null, null, null);
@@ -63,17 +67,17 @@ public final class GeneratedGhastHelm_f923f02a {
         scene.idle(60);
         scene.modifyEntitiesNbt(false, null, "ghast", null, null, null, new Vec3(0.0d, -0.3d, 0.0d), 0, null);
         scene.hideSection(new BlockPos(4, 9, 0), null, 0, "down");
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Use a Ghast Hot Air Balloon Assembly Station to assemble your Ghast Hot Air Balloon."), Map.entry("zh_cn", "使用恶魂热气球装配站来组装你的恶魂热气球"))), new Vec3(4.5d, 6.5d, 4.0d), 100, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(4.5d, 6.5d, 4.0d), 100, null, true);
         scene.idle(110);
         scene.clearEntities(true, null, null, null, null, "simultaneous", null, "up");
         scene.highlightSection("green", new BlockPos(6, 1, 3), new BlockPos(3, 2, 6), 60);
         scene.showControls(new Vec3(3.0d, 2.5d, 2.5d), "down", 60, "right", "create:super_glue", null, false, false);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Use Super Glue to glue your balloon together."), Map.entry("zh_cn", "使用强力胶粘合你的热气球"))), new Vec3(3.0d, 2.5d, 2.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(3.0d, 2.5d, 2.5d), 120, null, true);
         scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "west"), Map.entry("powered", "false")), new BlockPos(3, 6, 4), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(90);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Buffer Pads can prevent the structure from getting stuck in the ground."), Map.entry("zh_cn", "使用缓冲垫可以防止结构陷入地下"))), new Vec3(2.5d, 2.5d, 4.0d), 120, null, true);
+        scene.showText(text("scene_1.text_3"), new Vec3(2.5d, 2.5d, 4.0d), 120, null, true);
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Then power the assembly station with redstone..."), Map.entry("zh_cn", "然后为热气球装配站接入红石..."))), new Vec3(3.5d, 6.5d, 4.0d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_4"), new Vec3(3.5d, 6.5d, 4.0d), 120, null, true);
         scene.idle(10);
         scene.toggleRedstonePower(new BlockPos(4, 6, 4), new BlockPos(3, 6, 4));
         scene.indicateRedstone(new BlockPos(3, 6, 4));
@@ -81,14 +85,14 @@ public final class GeneratedGhastHelm_f923f02a {
         scene.idle(4);
         scene.setBlock("create_biotech:ghast_hot_air_balloon_assembly_station", Map.ofEntries(Map.entry("facing", "east")), new BlockPos(4, 6, 4), null, "{AssemblyConsumed:1b,Extending:0b,ForgeCaps:{},Offset:4.0f,Retracting:0b,WasPowered:1b}", true, false, "none", null, null, null, null, null);
         scene.idle(106);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Then place a Ghast above the assembly station..."), Map.entry("zh_cn", "再在装配站上方放一只恶魂..."))), new Vec3(4.5d, 7.0d, 4.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_5"), new Vec3(4.5d, 7.0d, 4.5d), 120, null, true);
         scene.createEntity("minecraft:ghast", new Vec3(4.5d, 7.0d, 4.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}", "ghast", "simultaneous", null, "down");
         scene.idle(20);
         scene.modifyEntitiesNbt(false, null, "ghast", null, null, null, new Vec3(0.0d, 0.3d, 0.0d), 0, null);
         scene.moveSection("default", null, null, new Vec3(0.0d, 0.3d, 0.0d), 0);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Assembly complete!"), Map.entry("zh_cn", "组装完成！"))), new Vec3(4.5d, 6.2d, 4.5d), 120, null, true);
+        scene.showText(text("scene_1.text_6"), new Vec3(4.5d, 6.2d, 4.5d), 120, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Approach an unpowered assembly station or use Shears on the rope to disassemble the structure."), Map.entry("zh_cn", "靠近未充能的装配站或对绳索使用剪刀可以使结构解体"))), new Vec3(4.5d, 4.0d, 4.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_7"), new Vec3(4.5d, 4.0d, 4.5d), 120, null, true);
         scene.showControls(new Vec3(4.5d, 4.0d, 4.5d), "right", 120, "right", "minecraft:shears", null, false, false);
         scene.idle(130);
         scene.showSectionAndMerge(new BlockPos(4, 9, 0), null, "rope2", 0, "down", null, null, null, null);
@@ -101,7 +105,7 @@ public final class GeneratedGhastHelm_f923f02a {
     }
 
     private static DslScene.SceneSegment scene2() {
-        var scene = new JavaScene("s_29671", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Ghast Hot Air Balloon Assembly Station Controls"), Map.entry("zh_cn", "恶魂热气球装配站 操纵"))));
+        var scene = new JavaScene("s_29671", text("s_29671.title"));
         scene.showStructure("create_biotech:generated/ponderer/ghast_hot_air_balloon_assembly_station_base", null, null, 0.8f, null);
         scene.idle(20);
         scene.createEntity("minecraft:ghast", new Vec3(4.5d, 7.0d, 4.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.699999988079071d,Name:\"minecraft:generic.movement_speed\"},{Base:0.0d,Name:\"forge:step_height_addition\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionPower:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:0.0d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:1b,NoAI:1b,Passengers:[{Air:300s,CachedMotion:[0.0d,0.0d,0.0d],CanUpdate:1b,Contraption:{Actors:[{Data:{},FirstMovement:0b,Motion:[0.0d,0.0d,0.0d],Pos:{X:0,Y:0,Z:0},Position:[-22.5d,-58.26250000298023d,-13.5d],RelativeMotion:[0.0d,0.0d,0.0d],Stall:0b}],Anchor:{X:-23,Y:-59,Z:-14},Blocks:{BlockList:[{Pos:0L,State:0},{Pos:6L,State:1},{Pos:5L,State:1},{Pos:4L,State:1},{Pos:3L,State:1},{Pos:2L,State:1},{Pos:1L,State:2}],Palette:[{Name:\"create_biotech:white_buffer_pad\",Properties:{facing:\"up\"}},{Name:\"create:rope\",Properties:{waterlogged:\"false\"}},{Name:\"create:pulley_magnet\",Properties:{waterlogged:\"false\"}}]},BottomlessSupply:0b,BoundsFront:[0.0f,0.0f,0.0f,1.0f,7.0f,1.0f],CapturedMultiblocks:[],DisabledActors:[],InitialOffset:6,Interactors:[{Pos:{X:0,Y:6,Z:0}},{Pos:{X:0,Y:5,Z:0}},{Pos:{X:0,Y:4,Z:0}},{Pos:{X:0,Y:3,Z:0}},{Pos:{X:0,Y:2,Z:0}},{Pos:{X:0,Y:1,Z:0}}],Passengers:[],Seats:[],Stalled:0b,SubContraptions:[],Superglue:[],Type:\"create_biotech:ghast_hot_air_balloon\"},FallDistance:0.0f,Fire:0s,ForceYaw:-180.0f,InitialOrientation:\"NORTH\",Initialized:1b,Invulnerable:0b,Motion:[0.0d,0.0d,0.0d],OnGround:0b,Pitch:0.0f,Placed:0b,PortalCooldown:0,Pos:[-22.5d,-58.76250000298023d,-13.5d],Rotation:[0.0f,0.0f],Stalled:0b,UUID:[I;702731896,-1663416467,-1507507076,-549988846],Yaw:-180.0f,id:\"create_biotech:ghast_hot_air_balloon\"}],PersistenceRequired:0b}", null, "simultaneous", null, "down");
@@ -110,14 +114,14 @@ public final class GeneratedGhastHelm_f923f02a {
         scene.setBlock("create_biotech:white_buffer_pad", Map.ofEntries(Map.entry("facing", "up")), new BlockPos(4, 1, 2), null, null, false, false, "none", null, null, null, null, null);
         scene.showSectionAndMerge(new BlockPos(4, 1, 2), new BlockPos(4, 2, 2), null, 20, "down", "simultaneous", 20, 1, false);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Use a Ghast Helm to control the Ghast Hot Air Balloon."), Map.entry("zh_cn", "使用恶魂驾驶台来操控恶魂热气球"))), new Vec3(4.5d, 2.5d, 2.0d), 100, null, true);
+        scene.keyframe().showText(text("s_29671.text_1"), new Vec3(4.5d, 2.5d, 2.0d), 100, null, true);
         scene.idle(110);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "W/S moves forward and backward."), Map.entry("zh_cn", "W/S 前后移动"))), new Vec3(4.5d, 2.5d, 2.0d), 120, null, true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "A/D turns left and right."), Map.entry("zh_cn", "A/D 左右转弯"))), new Vec3(4.5d, 1.8d, 2.0d), 120, null, true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Space/Shift moves up and down."), Map.entry("zh_cn", "空格/Shift 上下移动"))), new Vec3(4.5d, 1.1d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_29671.text_2"), new Vec3(4.5d, 2.5d, 2.0d), 120, null, true);
+        scene.showText(text("s_29671.text_3"), new Vec3(4.5d, 1.8d, 2.0d), 120, null, true);
+        scene.showText(text("s_29671.text_4"), new Vec3(4.5d, 1.1d, 2.0d), 120, null, true);
         scene.idle(130);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Ctrl stops controlling."), Map.entry("zh_cn", "Ctrl 停止操控"))), new Vec3(4.5d, 2.5d, 2.0d), 120, null, true);
-        scene.showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Alt automatically approaches a nearby unpowered assembly station."), Map.entry("zh_cn", "Alt 自动靠近附近未充能的装配站"))), new Vec3(4.5d, 1.8d, 2.0d), 120, null, true);
+        scene.keyframe().showText(text("s_29671.text_5"), new Vec3(4.5d, 2.5d, 2.0d), 120, null, true);
+        scene.showText(text("s_29671.text_6"), new Vec3(4.5d, 1.8d, 2.0d), 120, null, true);
         scene.idle(130);
         return scene.build();
     }
@@ -151,6 +155,7 @@ public final class GeneratedGhastHelm_f923f02a {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

@@ -7,8 +7,8 @@
     "create_biotech:spider_assembly_table"
   ],
   "title": {
-    "zh_cn": "蜘蛛装配站",
-    "en_us": "Spider Assembly Table"
+    "ref": "create_biotech:spider_assembly_table",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/spider_assembly_table_base"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "蜘蛛装配站",
-        "en_us": "Spider Assembly Table"
+        "ref": "create_biotech:spider_assembly_table",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -98,12 +98,12 @@
           "duration": 20
         },
         {
-          "id": "java_75b6e30930783fbab2ae1e28ee56b836",
+          "id": "java_f8ad569d45f4365182f7431d4308d841",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "蜘蛛装配台可以执行序列装配配方",
-            "en_us": "The Spider Assembly Table can perform Sequenced Assembly recipes."
+            "ref": "create_biotech:spider_assembly_table",
+            "key": "scene_1.text_1"
           },
           "point": [
             2.0,
@@ -119,12 +119,12 @@
           "duration": 110
         },
         {
-          "id": "java_267bcc67078234f286a98c82eb3487da",
+          "id": "java_d7a53a96208333e5959f51c5e125d00c",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "右键打开界面，在第一行放入装配所需要的机器...",
-            "en_us": "Right-click to open its interface, then place the required machines in the first row..."
+            "ref": "create_biotech:spider_assembly_table",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.5,
@@ -159,12 +159,12 @@
           "duration": 100
         },
         {
-          "id": "java_35182bde7cff3a86b7d6f68d720e08d8",
+          "id": "java_9f464b95c30b3bd3aa396b25fef574df",
           "type": "text",
           "duration": 100,
           "text": {
-            "zh_cn": "在第二行放入装配所需原料",
-            "en_us": "Place the required ingredients in the second row."
+            "ref": "create_biotech:spider_assembly_table",
+            "key": "scene_1.text_3"
           },
           "point": [
             2.0,
@@ -198,12 +198,12 @@
           "duration": 100
         },
         {
-          "id": "java_a635d9f3507a3fb0bfc3d76aa837eab1",
+          "id": "java_c659746a3e493f519b9070d2f01df229",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "装配！",
-            "en_us": "Assemble!"
+            "ref": "create_biotech:spider_assembly_table",
+            "key": "scene_1.text_4"
           },
           "point": [
             2.0,

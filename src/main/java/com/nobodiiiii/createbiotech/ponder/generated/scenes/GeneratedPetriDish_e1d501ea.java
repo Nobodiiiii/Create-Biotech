@@ -34,12 +34,16 @@ public final class GeneratedPetriDish_e1d501ea {
         com.nobodiiiii.createbiotech.ponderext.PonderExtensions.install(engine);
         return engine;
     }
+    private static LocalizedText text(String key) {
+        return LocalizedText.ref("create_biotech:petri_dish", key);
+    }
+
     private static DslScene loadDocument() {
         var document = new DslScene();
         document.id = "create_biotech:petri_dish";
         document.runtimeSource = "create_biotech:petri_dish";
         document.items = List.of("create_biotech:petri_dish");
-        document.title = LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Cultivating Mimic Creatures"), Map.entry("zh_cn", "培养拟态生物")));
+        document.title = text("title");
         document.structures = List.of("create_biotech:generated/ponderer/petri_dish", "create_biotech:generated/ponderer/basic_l");
         document.tags = List.of("create:fluids", "create_biotech:ponderer_exported");
         document.editable = true;
@@ -48,16 +52,16 @@ public final class GeneratedPetriDish_e1d501ea {
     }
 
     private static DslScene.SceneSegment scene1() {
-        var scene = new JavaScene("scene_1", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Cultivating Mimic Creatures"), Map.entry("zh_cn", "培养拟态生物"))));
+        var scene = new JavaScene("scene_1", text("scene_1.title"));
         scene.keyframe().showStructure("create_biotech:generated/ponderer/petri_dish", null, null, null, null);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Slime Petri Dishes can be used to cultivate mimic creatures"), Map.entry("zh_cn", "史莱姆培养皿可以用来培养拟态生物"))), new Vec3(1.5d, 1.5d, 3.5d), 80, null, true);
+        scene.keyframe().showText(text("scene_1.text_1"), new Vec3(1.5d, 1.5d, 3.5d), 80, null, true);
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Insert a Living Mechanism into the Petri Dish..."), Map.entry("zh_cn", "在培养皿中放入活体构件..."))), new Vec3(1.5d, 1.5d, 3.5d), 80, null, true);
+        scene.keyframe().showText(text("scene_1.text_2"), new Vec3(1.5d, 1.5d, 3.5d), 80, null, true);
         scene.showControls(new Vec3(1.5d, 1.5d, 3.5d), "down", 80, null, "create_biotech:bionic_mechanism", null, false, false);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:9,Tank:{}}", true, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Then pipe in Liquid Living Slime..."), Map.entry("zh_cn", "然后通入液态活体史莱姆..."))), new Vec3(1.5d, 1.5d, 3.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_3"), new Vec3(1.5d, 1.5d, 3.5d), 120, null, true);
         scene.idle(40);
         scene.createEntity("minecraft:slime", new Vec3(4.5d, 0.8d, 0.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.05559309342440811d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"}],wasOnGround:1b}", "slime", null, null, null);
         scene.modifyEntitiesNbt(false, null, "slime", null, null, null, new Vec3(0.0d, 0.0d, 2.0d), 15, null);
@@ -71,7 +75,7 @@ public final class GeneratedPetriDish_e1d501ea {
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "down")), "{DisabledSpoutput:[],Filter:{},FilterAmount:64,FluidOverflow:[],InputItems:{Items:[],Size:9},InputTanks:[{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],OutputItems:{Items:[],Size:9},OutputTanks:[{Level:{Speed:0.25f,Target:0.25f,Value:0.25f},TankContent:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}},{Level:{Speed:0.25f,Target:0.0f,Value:0.0f},TankContent:{}}],Overflow:[],UpTo:1b}", null, new BlockPos(4, 1, 3), new BlockPos(4, 1, 3));
         scene.showControls(new Vec3(5.0d, 1.5d, 3.5d), "right", 60, null, "create_biotech:liquid_living_slime_bucket", null, false, false);
         scene.idle(25);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "The Liquid Living Slime mimics a nearby mob and grows"), Map.entry("zh_cn", "液态活体史莱姆会模仿附近的生物并长大"))), new Vec3(0.5d, 2.0d, 3.5d), 130, null, true);
+        scene.keyframe().showText(text("scene_1.text_4"), new Vec3(0.5d, 2.0d, 3.5d), 130, null, true);
         scene.idle(40);
         scene.createEntity("minecraft:villager", new Vec3(0.5d, 1.0d, 3.5d), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:447732L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, "simultaneous", null, "down");
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:17,Tank:{Fluid:{amount:250,id:\"create_biotech:liquid_living_slime\"}}}", null, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
@@ -87,18 +91,18 @@ public final class GeneratedPetriDish_e1d501ea {
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:0,Tank:{}}", null, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
         scene.createEntity("minecraft:villager", new Vec3(1.5d, 1.0d, 3.5d), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:448496L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.6000000238418579d,id:\"minecraft:generic.step_height\"},{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, null, null, null);
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Mobs with more maximum health require more Liquid Living Slime to mimic"), Map.entry("zh_cn", "被模仿的生物血量上限越高，所需的液态活体史莱姆越多"))), new Vec3(0.5d, 2.0d, 3.5d), 120, null, true);
+        scene.keyframe().showText(text("scene_1.text_5"), new Vec3(0.5d, 2.0d, 3.5d), 120, null, true);
         scene.idle(130);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene2() {
-        var scene = new JavaScene("s_e7373", LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Haunting Mimic Creatures"), Map.entry("zh_cn", "为拟态生物缠魂"))));
+        var scene = new JavaScene("s_e7373", text("s_e7373.title"));
         scene.showStructure("create_biotech:generated/ponderer/basic_l", null, null, null, null);
         scene.idle(20);
         scene.createEntity("minecraft:cow", new Vec3(3.5d, 1.0d, 3.5d), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,CreateBiotechSlimeMimic:1b,FallFlying:0b,ForcedAge:0,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:10.0f,HurtByTimestamp:0,InLove:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.06403808123981149d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,attributes:[{base:0.20000000298023224d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", "cow", "simultaneous", null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Mimic and bionic creatures drop no items when killed, but split into living Slimes"), Map.entry("zh_cn", "击杀拟态或仿生生物不会掉落物品，而会分裂为活体史莱姆"))), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
+        scene.keyframe().showText(text("s_e7373.text_1"), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
         scene.idle(20);
         scene.clearEntities(true, null, null, null, null, null, null, null);
         scene.createEntity("minecraft:slime", new Vec3(3.5d, 1.0d, 3.5d), null, 0.0f, 0.0f, "{Size:0}", null, "simultaneous", null, "down");
@@ -107,20 +111,20 @@ public final class GeneratedPetriDish_e1d501ea {
         scene.createEntity("minecraft:villager", new Vec3(3.5d, 1.0d, 3.5d), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, "simultaneous", null, "down");
         scene.setBlock("minecraft:composter", Map.ofEntries(Map.entry("level", "0")), new BlockPos(3, 1, 2), null, null, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Trading with mimic villagers only yields Slimeballs as well"), Map.entry("zh_cn", "与拟态村民交易也只能买到黏液球"))), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
+        scene.keyframe().showText(text("s_e7373.text_2"), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
         scene.showControls(new Vec3(4.0d, 1.5d, 3.5d), "right", 100, null, "minecraft:emerald", null, false, false);
         scene.showControls(new Vec3(3.0d, 1.5d, 4.0d), "left", 100, null, "minecraft:slime_ball", null, false, false);
         scene.idle(110);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Apply Regeneration to a mimic creature..."), Map.entry("zh_cn", "对拟态生物施加再生效果..."))), new Vec3(3.5d, 1.0d, 3.5d), 80, null, true);
+        scene.keyframe().showText(text("s_e7373.text_3"), new Vec3(3.5d, 1.0d, 3.5d), 80, null, true);
         scene.javaStep("create_biotech:java/petri_dish/1", new JsonObject());
         scene.idle(78);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "Then use an Encased Fan and Soul Campfire to haunt it"), Map.entry("zh_cn", "再使用鼓风机和灵魂营火进行“缠魂”"))), new Vec3(3.5d, 1.0d, 6.5d), 80, null, true);
+        scene.keyframe().showText(text("s_e7373.text_4"), new Vec3(3.5d, 1.0d, 6.5d), 80, null, true);
         scene.setBlock("create:encased_fan", Map.ofEntries(Map.entry("facing", "north")), new BlockPos(3, 1, 6), null, "{ConnectedToExtraKinetics:0b,Network:{AddedStress:2.0f,Capacity:524288.0f,Id:7696581410756L,Size:2,Stress:64.0f},Source:[I;28,-60,3],Speed:-32.0f}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.setBlock("minecraft:soul_campfire", Map.ofEntries(Map.entry("facing", "north"), Map.entry("lit", "true"), Map.entry("signal_fire", "false"), Map.entry("waterlogged", "false")), new BlockPos(3, 1, 5), null, "{CookingTimes:[I;0,0,0,0],CookingTotalTimes:[I;0,0,0,0],Items:[]}", false, false, "simultaneous", 20, 1, false, null, "down");
         scene.javaStep("create_biotech:java/petri_dish/2", new JsonObject());
         scene.javaStep("create_biotech:java/petri_dish/3", new JsonObject());
         scene.idle(90);
-        scene.keyframe().showText(LocalizedText.ofMap(Map.ofEntries(Map.entry("en_us", "This transforms the mimic creature into a normal mob"), Map.entry("zh_cn", "即可将拟态生物转化为普通生物"))), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
+        scene.keyframe().showText(text("s_e7373.text_5"), new Vec3(3.5d, 1.0d, 3.5d), 100, null, true);
         scene.idle(20);
         scene.modifyEntitiesNbt(true, null, null, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:0b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:451869L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.016211061667201106d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:farmer\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, null, null, null, null);
         scene.idle(90);
@@ -156,6 +160,7 @@ public final class GeneratedPetriDish_e1d501ea {
                 .description(definition.description == null ? "" : definition.description.resolve())
                 .item(icon == null ? net.minecraft.world.item.Items.BOOK : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(icon).orElse(net.minecraft.world.item.Items.BOOK))
                 .addToIndex().register();
+            com.nododiiiii.ponderer.runtime.api.SceneTexts.localizeTag(id, definition.title, definition.description);
         }
         RUNTIME.plugin().registerTags(helper);
     }

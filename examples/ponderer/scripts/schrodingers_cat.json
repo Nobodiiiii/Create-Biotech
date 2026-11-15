@@ -7,8 +7,8 @@
     "create_biotech:schrodingers_cat"
   ],
   "title": {
-    "zh_cn": "薛定谔的猫",
-    "en_us": "Schrodinger's Cat"
+    "ref": "create_biotech:schrodingers_cat",
+    "key": "title"
   },
   "structures": [
     "create_biotech:generated/ponderer/basic"
@@ -23,8 +23,8 @@
     {
       "id": "scene_1",
       "title": {
-        "zh_cn": "薛定谔的猫",
-        "en_us": "Schrodinger's Cat"
+        "ref": "create_biotech:schrodingers_cat",
+        "key": "scene_1.title"
       },
       "steps": [
         {
@@ -65,10 +65,10 @@
           "direction": "down",
           "block": "minecraft:redstone_wire",
           "blockProperties": {
-            "east": "none",
-            "power": "0",
-            "north": "side",
             "south": "side",
+            "north": "side",
+            "power": "0",
+            "east": "none",
             "west": "none"
           },
           "blockPos": [
@@ -109,12 +109,12 @@
           "duration": 20
         },
         {
-          "id": "java_efd459c09e0135e3aa35294db4d49167",
+          "id": "java_55f79700b25c324ab9c7808e9d1bf764",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "薛定谔的猫会在其背后随机输出红石信号",
-            "en_us": "Schrodinger's Cat randomly outputs redstone signals from its back."
+            "ref": "create_biotech:schrodingers_cat",
+            "key": "scene_1.text_1"
           },
           "point": [
             2.0,
@@ -168,12 +168,12 @@
           "duration": 50
         },
         {
-          "id": "java_6db551ec3f2b3b94954ce9c590118fb7",
+          "id": "java_094830464aea393197a0e48f14989be7",
           "type": "text",
           "duration": 120,
           "text": {
-            "zh_cn": "其间隔时间和输出模式（持续信号/脉冲信号）可以在侧面配置",
-            "en_us": "Its interval and output mode (sustained or pulse) can be configured from the side."
+            "ref": "create_biotech:schrodingers_cat",
+            "key": "scene_1.text_2"
           },
           "point": [
             2.0,
