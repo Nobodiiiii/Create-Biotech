@@ -81,6 +81,7 @@ public final class GeneratedSlimeClutch_a3c9c306 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

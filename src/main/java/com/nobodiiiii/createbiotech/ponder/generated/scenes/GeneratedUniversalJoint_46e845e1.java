@@ -79,11 +79,31 @@ public final class GeneratedUniversalJoint_46e845e1 {
         scene.highlightSection("green", new BlockPos(0, 1, 0), new BlockPos(4, 5, 4), 90);
         scene.showText(text("scene_1.text_2"), new Vec3(2.0d, 3.5d, 2.5d), 90, null, true);
         scene.idle(90);
-        scene.hideSection(new BlockPos(0, 1, 0), new BlockPos(4, 5, 5), 20, "up");
+        scene.hideSection(new BlockPos(2, 1, 2), new BlockPos(2, 3, 2), 20, "up");
         scene.idle(20);
         scene.javaStep("create_biotech:java/universal_joint/stretch_and_break", new JsonObject());
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -101,6 +121,7 @@ public final class GeneratedUniversalJoint_46e845e1 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

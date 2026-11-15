@@ -80,6 +80,7 @@ public final class GeneratedGhastHotAirBalloonAssemblyStation_517a89d0 {
         scene.keyframe().showText(text("scene_1.text_4"), new Vec3(3.5d, 6.5d, 4.0d), 120, null, true);
         scene.idle(10);
         scene.toggleRedstonePower(new BlockPos(4, 6, 4), new BlockPos(3, 6, 4));
+        scene.playSound("minecraft:block.lever.click", 0.3f, 0.6f, "blocks");
         scene.indicateRedstone(new BlockPos(3, 6, 4));
         scene.setBlock("create_biotech:ghast_hot_air_balloon_assembly_station", Map.ofEntries(Map.entry("facing", "east")), new BlockPos(4, 6, 4), null, "{AssemblyConsumed:0b,Extending:1b,ForgeCaps:{},Offset:0.0f,Retracting:0b,WasPowered:1b}", true, false, "none", null, null, null, null, null);
         scene.idle(4);
@@ -134,6 +135,7 @@ public final class GeneratedGhastHotAirBalloonAssemblyStation_517a89d0 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

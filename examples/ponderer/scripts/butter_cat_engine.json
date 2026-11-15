@@ -1,0 +1,694 @@
+{
+  "formatVersion": 1,
+  "requiredCapabilities": [],
+  "id": "create_biotech:butter_cat_engine",
+  "internalId": "create_biotech:butter_cat_engine",
+  "exported": true,
+  "runtimeSource": "create_biotech:butter_cat_engine",
+  "items": [
+    "create_biotech:butter_cat_engine"
+  ],
+  "title": {
+    "ref": "create_biotech:butter_cat_engine",
+    "key": "title"
+  },
+  "structures": [
+    "create_biotech:generated/create_biotech/butter_cat_engine"
+  ],
+  "tags": [
+    "create:kinetic_sources",
+    "create_biotech:ponderer_exported"
+  ],
+  "customTags": {},
+  "editable": true,
+  "scenes": [
+    {
+      "id": "scene_1",
+      "title": {
+        "ref": "create_biotech:butter_cat_engine",
+        "key": "scene_1.title"
+      },
+      "steps": [
+        {
+          "id": "java_fd2aef843f073cbbb793f2f01cc79868",
+          "type": "show_structure",
+          "structure": "create_biotech:generated/create_biotech/butter_cat_engine",
+          "blockPos": [
+            0,
+            0,
+            0
+          ],
+          "blockPos2": [
+            4,
+            0,
+            4
+          ]
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_8f8936dc9d09337ebff4a423bb7afee9",
+          "type": "show_section_and_merge",
+          "duration": 20,
+          "direction": "down",
+          "blockPos": [
+            0,
+            1,
+            1
+          ],
+          "blockPos2": [
+            4,
+            2,
+            4
+          ]
+        },
+        {
+          "id": "java_af19b18396923844b92492e2fa142659",
+          "type": "create_biotech:java/butter_cat_engine/1"
+        },
+        {
+          "id": "java_a8ed4d1c47d43c44b266d6e8b737b8b5",
+          "type": "idle",
+          "duration": 10
+        },
+        {
+          "id": "java_59276269b35332d1ba0b1deae2dcf677",
+          "type": "create_entity",
+          "entity": "minecraft:cat",
+          "pos": [
+            2.5,
+            1.0,
+            1.5
+          ],
+          "yaw": 180.0,
+          "linkId": "cat",
+          "nbt": "{Sitting:1b,variant:\"minecraft:tabby\"}"
+        },
+        {
+          "id": "java_212a68a0b4f0316fb2c3b1ca0dffe6d3",
+          "type": "text",
+          "duration": 50,
+          "text": {
+            "ref": "create_biotech:butter_cat_engine",
+            "key": "scene_1.text_1"
+          },
+          "point": [
+            2.5,
+            2.0,
+            1.5
+          ],
+          "placeNearTarget": true
+        },
+        {
+          "id": "java_fe94ac3ca7133a41b35572053370533c",
+          "type": "idle",
+          "duration": 60
+        },
+        {
+          "id": "java_6b83d98a124e3ac3848de125e3d933f6",
+          "type": "show_controls",
+          "duration": 40,
+          "point": [
+            2.5,
+            2.0,
+            1.5
+          ],
+          "direction": "left",
+          "action": "right",
+          "item": "create_biotech:empty_cardboard_box",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8",
+          "type": "idle",
+          "duration": 40
+        },
+        {
+          "id": "java_58be5f31bb393acdb1690dc5c9d6d615",
+          "type": "clear_entities",
+          "entity": "minecraft:cat",
+          "linkId": "cat",
+          "fullScene": true
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_2",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_43ffdc559dfd3014b315e59dc5a745f7",
+          "type": "show_controls",
+          "duration": 20,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "left",
+          "action": "right",
+          "item": "create_biotech:cardboard_box",
+          "nbt": "{CapturedEntity:{id:\"minecraft:cat\"},CapturedEntityDescId:\"entity.minecraft.cat\"}",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_3",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_69e63b1f9af43e96aac71df4b3c6147b",
+          "type": "set_block",
+          "block": "create_biotech:cute_cat_on_shaft",
+          "blockProperties": {
+            "facing": "east"
+          },
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "spawnParticles": true,
+          "immediateDisplay": true,
+          "entranceAnimation": "none"
+        },
+        {
+          "id": "java_fe94ac3ca7133a41b35572053370533c_2",
+          "type": "idle",
+          "duration": 60
+        },
+        {
+          "id": "java_48350d7dbd6633db8e7b1bacaffb2750",
+          "type": "text",
+          "duration": 50,
+          "text": {
+            "ref": "create_biotech:butter_cat_engine",
+            "key": "scene_1.text_2"
+          },
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "placeNearTarget": true
+        },
+        {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8",
+          "type": "idle",
+          "duration": 90
+        },
+        {
+          "id": "java_37ffa8012e1538bc9f31aa585bd6cb64",
+          "type": "show_controls",
+          "duration": 20,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "minecraft:bread",
+          "attachKeyFrame": true,
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_4",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_fd1653d6023838f9b044f491ec17791e",
+          "type": "set_block",
+          "block": "create_biotech:butter_cat_engine",
+          "blockProperties": {
+            "facing": "east"
+          },
+          "blockPos": [
+            2,
+            2,
+            2
+          ],
+          "spawnParticles": true,
+          "immediateDisplay": true,
+          "entranceAnimation": "none"
+        },
+        {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8_2",
+          "type": "idle",
+          "duration": 40
+        },
+        {
+          "id": "java_2b857d182b083322a433b9d6002886f3",
+          "type": "show_controls",
+          "duration": 20,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_5",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_689fa59ce5a835f38140a98d8486babf",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.1f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_fe94ac3ca7133a41b35572053370533c_3",
+          "type": "idle",
+          "duration": 60
+        },
+        {
+          "id": "java_d97a6341eea036f39c6eecc840c8f8f2",
+          "type": "text",
+          "duration": 50,
+          "text": {
+            "ref": "create_biotech:butter_cat_engine",
+            "key": "scene_1.text_3"
+          },
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "placeNearTarget": true
+        },
+        {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_2",
+          "type": "idle",
+          "duration": 90
+        },
+        {
+          "id": "java_be3e2ab012653677a3df90254a06de45",
+          "type": "show_controls",
+          "duration": 10,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_6",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587_2",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_168a4d91409b3f109a6abd075ced160f",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.225f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_2",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_2",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf",
+          "type": "idle",
+          "duration": 15
+        },
+        {
+          "id": "java_be3e2ab012653677a3df90254a06de45_2",
+          "type": "show_controls",
+          "duration": 10,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_7",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587_3",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_79176d90dc65389d8c85dd83455c54ac",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.3375f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_3",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_3",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf_2",
+          "type": "idle",
+          "duration": 15
+        },
+        {
+          "id": "java_be3e2ab012653677a3df90254a06de45_3",
+          "type": "show_controls",
+          "duration": 10,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_8",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587_4",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_8d4321a3baf03f4ebb0947a3ed6b3b98",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.45f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_4",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_4",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf_3",
+          "type": "idle",
+          "duration": 15
+        },
+        {
+          "id": "java_be3e2ab012653677a3df90254a06de45_4",
+          "type": "show_controls",
+          "duration": 10,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_9",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587_5",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_829dbcb40a0738bd8dbdb12f427518e1",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.5625f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_5",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_5",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf_4",
+          "type": "idle",
+          "duration": 15
+        },
+        {
+          "id": "java_be3e2ab012653677a3df90254a06de45_5",
+          "type": "show_controls",
+          "duration": 10,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_10",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_af91ee44bac73feeb8b482319efa6587_6",
+          "type": "create_biotech:java/butter_cat_engine/2"
+        },
+        {
+          "id": "java_ffd8488c6f003132b57e04dc5f8534bb",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.675f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_6",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_6",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_966610caf06c36d1aaa8b0a2765694bf_5",
+          "type": "idle",
+          "duration": 15
+        },
+        {
+          "id": "java_7d2e30cdb0f33e6688aadb023feac3e8_3",
+          "type": "idle",
+          "duration": 40
+        },
+        {
+          "id": "java_c7c3fd71e0263a79ae6557824cbcd26e",
+          "type": "text",
+          "duration": 50,
+          "text": {
+            "ref": "create_biotech:butter_cat_engine",
+            "key": "scene_1.text_4"
+          },
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "placeNearTarget": true,
+          "attachKeyFrame": true
+        },
+        {
+          "id": "java_1b81b60200763ca9aa1bc20cfc7ff2c8_3",
+          "type": "idle",
+          "duration": 90
+        },
+        {
+          "id": "java_40593a07162930b69f70e86fc1a4929a",
+          "type": "show_controls",
+          "duration": 20,
+          "point": [
+            2.5,
+            3.0,
+            2.5
+          ],
+          "direction": "down",
+          "action": "right",
+          "item": "create_biotech:super_butter",
+          "whileSneaking": false,
+          "whileCTRL": false
+        },
+        {
+          "id": "java_94c11a81dfb83f0c9d5fc3544547175f_11",
+          "type": "idle",
+          "duration": 5
+        },
+        {
+          "id": "java_6f49b38552ce38e780634488a8cc0175",
+          "type": "create_biotech:java/butter_cat_engine/3"
+        },
+        {
+          "id": "java_ada04b6045903fb68e583bf98fc57057",
+          "type": "modify_block_entity_nbt",
+          "blockPos": [
+            4,
+            2,
+            2
+          ],
+          "nbt": "{Value:0.9f}"
+        },
+        {
+          "id": "java_9575d3112c6c3287915c8671753ae0af_7",
+          "type": "indicate_success",
+          "blockPos": [
+            0,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_63bc445974b83374b85882b4a1e73a00_7",
+          "type": "indicate_redstone",
+          "blockPos": [
+            4,
+            2,
+            2
+          ]
+        },
+        {
+          "id": "java_fe94ac3ca7133a41b35572053370533c_4",
+          "type": "idle",
+          "duration": 60
+        }
+      ]
+    }
+  ]
+}

@@ -83,10 +83,12 @@ public final class GeneratedSquidPrinter_678191a5 {
         scene.javaStep("create_biotech:java/enchantment_line/receive_printed_book", new JsonObject());
         scene.idle(1);
         scene.modifyBlockEntity(null, "{FluidRemaining:4000,FluidTotal:4000,WaitingForFluid:0b,TankContent:{id:\"create_biotech:experience\",amount:4000}}", false, new BlockPos(2, 1, 4), null);
+        scene.playSound("minecraft:entity.evoker.prepare_summon", 0.7f, 1.0f, "blocks");
         scene.idle(70);
         scene.hideSection(new BlockPos(5, 3, 5), null, 20, "up");
         scene.idle(54);
         scene.javaStep("create_biotech:java/enchantment_line/output_enchanted_book", new JsonObject());
+        scene.playSound("minecraft:block.enchantment_table.use", 0.85f, 1.0f, "blocks");
         scene.javaStep("create_biotech:java/squid_printer/dehydration", new JsonObject());
         return scene.build();
     }
@@ -146,6 +148,7 @@ public final class GeneratedSquidPrinter_678191a5 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

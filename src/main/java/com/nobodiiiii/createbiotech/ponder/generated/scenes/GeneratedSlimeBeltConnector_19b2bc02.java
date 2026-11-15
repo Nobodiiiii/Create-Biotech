@@ -109,6 +109,7 @@ public final class GeneratedSlimeBeltConnector_19b2bc02 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

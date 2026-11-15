@@ -83,6 +83,7 @@ public final class GeneratedSchrodingersCat_7d56d990 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

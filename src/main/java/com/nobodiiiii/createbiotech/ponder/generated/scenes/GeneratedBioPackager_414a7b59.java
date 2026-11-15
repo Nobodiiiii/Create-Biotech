@@ -62,6 +62,7 @@ public final class GeneratedBioPackager_414a7b59 {
         scene.keyframe().showText(text("scene_1.text_1"), new Vec3(1.5d, 1.5d, 2.0d), 40, null, true);
         scene.idle(10);
         scene.toggleRedstonePower(new BlockPos(1, 1, 2), new BlockPos(2, 1, 2));
+        scene.playSound("minecraft:block.lever.click", 0.3f, 0.6f, "blocks");
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north"), Map.entry("powered", "true")), "{Active:1b,AnimationInward:0b,AnimationTicks:20,ChainReturnAnimation:1b,ForgeCaps:{},HeldBox:{Count:1b,id:\"create_biotech:cardboard_box\",tag:{CapturedEntity:{AbsorptionAmount:0.0f,Air:300s,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.4000000059604645d,Name:\"minecraft:generic.movement_speed\"},{Base:4.0d,Name:\"minecraft:generic.max_health\"},{Base:2.0d,Name:\"minecraft:generic.attack_damage\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,DeathTime:0s,FallDistance:0.0f,FallFlying:0b,Fire:-1s,ForgeData:{CreateBiotech:{},create_biotech.previous_liquid_living_slime_vertical_speed:-0.0784000015258789d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:4.0f,HurtByTimestamp:0,HurtTime:0s,Invulnerable:0b,LeftHanded:0b,Motion:[0.0d,-0.0784000015258789d,0.0d],OnGround:1b,PersistenceRequired:0b,PortalCooldown:0,Pos:[-37.802770591511454d,-60.0d,15.327114230280523d],Rotation:[348.0f,0.0f],Size:1,UUID:[I;2038756493,-1744745344,-1476000420,301221325],id:\"minecraft:slime\",wasOnGround:1b},CapturedEntityDescId:\"entity.minecraft.slime\",CapturedEntityHealth:4.0f}},InsertedBox:{Count:0b,id:\"minecraft:air\"}}", null, new BlockPos(2, 1, 2), null);
         scene.idle(20);
         scene.createEntity("minecraft:slime", new Vec3(2.5d, 2.0d, 2.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.30000001192092896d,Name:\"minecraft:generic.movement_speed\"},{Base:1.0d,Name:\"minecraft:generic.max_health\"},{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,Size:0,wasOnGround:1b}", null, null, null, null);
@@ -107,6 +108,7 @@ public final class GeneratedBioPackager_414a7b59 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

@@ -17,6 +17,7 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.phys.Vec3;
 import com.nododiiiii.ponderer.runtime.api.RuntimeEngine;
+import com.nododiiiii.ponderer.runtime.api.PonderActions;
 import com.nododiiiii.ponderer.runtime.api.StepBuildContext;
 
 /** Author-owned compiled effects. The Ponderer exporter does not overwrite this class. */
@@ -41,6 +42,7 @@ final class PetriDishEffects {
         });
         scene.idle(12);
         scene.world().modifyEntity(regenerationPotion, Entity::discard);
+        PonderActions.playSound(scene, "minecraft:entity.splash_potion.break", 1.0f, 0.95f, "neutral");
         ColorParticleOption regenerationParticles =
             ColorParticleOption.create(ParticleTypes.ENTITY_EFFECT, 0.8f, 0.36f, 0.67f);
         scene.effects().emitParticles(

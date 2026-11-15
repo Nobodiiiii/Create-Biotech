@@ -314,6 +314,7 @@ public final class GeneratedShulkerPackager_15377a92 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

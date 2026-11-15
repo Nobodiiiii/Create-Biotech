@@ -130,6 +130,7 @@ public final class GeneratedExperiencePump_31b9a53d {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

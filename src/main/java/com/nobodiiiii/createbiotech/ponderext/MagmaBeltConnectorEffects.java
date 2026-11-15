@@ -19,16 +19,16 @@ final class MagmaBeltConnectorEffects {
     private static final BlockPos INPUT_BELT = new BlockPos(3, 1, 2);
     private static final BlockPos INPUT_FUNNEL = INPUT_BELT.above();
     private static final BlockPos OUTPUT_FUNNEL = new BlockPos(1, 2, 2);
+    private static final int INPUT_INTERVAL_TICKS = 60;
     private static final int INGOT_DISPLAY_TICKS = 16;
-    private static final int NEXT_ITEM_DELAY = 10;
 
     private MagmaBeltConnectorEffects() {}
 
     static void install(RuntimeEngine engine) {
         engine.steps().registerJava("create_biotech:java/magma_belt_connector/start_smelting",
-            "开始逐件烧炼粗铁", MagmaBeltConnectorEffects::startSmelting);
+            "开始持续烧炼粗铁", MagmaBeltConnectorEffects::startSmelting);
         engine.steps().registerJava("create_biotech:java/magma_belt_connector/stop_smelting",
-            "结束逐件烧炼粗铁", MagmaBeltConnectorEffects::stopSmelting);
+            "结束持续烧炼粗铁", MagmaBeltConnectorEffects::stopSmelting);
     }
 
     private static void startSmelting(StepBuildContext ctx) {
@@ -53,9 +53,8 @@ final class MagmaBeltConnectorEffects {
 
     private static final class SmeltingCycle extends TickingInstruction {
         private boolean stopped;
-        private boolean itemInFlight;
         private int ingotTicks;
-        private int cooldown;
+        private int inputCooldown;
 
         private SmeltingCycle() {
             super(false, Integer.MAX_VALUE);
@@ -64,9 +63,8 @@ final class MagmaBeltConnectorEffects {
         @Override
         protected void firstTick(PonderScene scene) {
             stopped = false;
-            itemInFlight = false;
             ingotTicks = 0;
-            cooldown = 0;
+            inputCooldown = 0;
             // The exported NBT contains controller coordinates from the original world.
             // Create's Ponder controller fix only handles its own BeltBlockEntity class.
             for (int offset = 0; offset < 3; offset++) {
@@ -81,32 +79,33 @@ final class MagmaBeltConnectorEffects {
             if (stopped || !(scene.getWorld().getBlockEntity(INPUT_BELT) instanceof MagmaBeltBlockEntity belt))
                 return;
 
-            if (!itemInFlight) {
-                if (cooldown > 0) {
-                    cooldown--;
-                    return;
-                }
+            // Feed on a regular beat while earlier items continue moving and smelting.
+            // Retry when blocked without tying the next item to the previous output.
+            if (inputCooldown > 0)
+                inputCooldown--;
+            if (inputCooldown == 0) {
                 var input = belt.getBehaviour(DirectBeltInputBehaviour.TYPE);
                 if (input != null && input.handleInsertion(new ItemStack(Items.RAW_IRON), Direction.WEST, false).isEmpty()) {
-                    itemInFlight = true;
+                    inputCooldown = INPUT_INTERVAL_TICKS;
                     flapFunnel(scene, INPUT_FUNNEL, false);
                 }
-                return;
             }
 
-            var items = belt.getInventory().getTransportedItems();
-            if (items.stream().noneMatch(item -> item.stack.is(Items.IRON_INGOT)))
+            var inventory = belt.getInventory();
+            var output = inventory.getStackAtOffset(belt.beltLength - 1);
+            if (output == null || !output.stack.is(Items.IRON_INGOT)
+                || output.beltPosition < belt.beltLength - .5f) {
+                ingotTicks = 0;
                 return;
+            }
             if (++ingotTicks < INGOT_DISPLAY_TICKS)
                 return;
 
             // Ponder's client world blocks automatic funnel intake. Show it explicitly
-            // after the real smelting result has remained visible for a short time.
-            items.clear();
+            // for the finished item at the outlet, preserving all items behind it.
+            inventory.getTransportedItems().remove(output);
             flapFunnel(scene, OUTPUT_FUNNEL, true);
-            itemInFlight = false;
             ingotTicks = 0;
-            cooldown = NEXT_ITEM_DELAY;
         }
 
         @Override

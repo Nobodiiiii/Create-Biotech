@@ -25,6 +25,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
@@ -76,7 +78,6 @@ final class UniversalJointEffects {
         int originalSize = builder.getScene().getBasePlateSize();
         int originalX = builder.getScene().getBasePlateOffsetX();
         int originalZ = builder.getScene().getBasePlateOffsetZ();
-        int demonstrationSize = (int) Math.ceil(Math.max(6, breakDistance + 3));
         builder.addInstruction(new TickingInstruction(false, 1) {
             @Override
             public void onScheduled(PonderScene scene) {
@@ -87,8 +88,7 @@ final class UniversalJointEffects {
 
             @Override
             protected void firstTick(PonderScene scene) {
-                builder.configureBasePlate(originalX, originalZ + (originalSize - demonstrationSize) / 2,
-                    demonstrationSize);
+                builder.configureBasePlate(0, 0, 5);
             }
         });
         builder.world().showSection(select.fromTo(LEFT.west(), LEFT), Direction.DOWN);
@@ -114,7 +114,9 @@ final class UniversalJointEffects {
             .setValue(HalfShaftBlock.FACING, Direction.WEST), false);
         builder.world().setBlock(RIGHT, CBBlocks.HALF_SHAFT.get().defaultBlockState()
             .setValue(HalfShaftBlock.FACING, Direction.EAST), false);
-        builder.effects().emitParticles(Vec3.atCenterOf(LEFT).add(breakDistance / 2, 0, 0),
+        Vec3 fractureCenter = Vec3.atCenterOf(LEFT).add(breakDistance / 2, 0, 0);
+        builder.world().createItemEntity(fractureCenter, new Vec3(0, 0.08, 0), new ItemStack(Items.SLIME_BALL));
+        builder.effects().emitParticles(fractureCenter,
             builder.effects().particleEmitterWithinBlockSpace(
                 new BlockParticleOption(ParticleTypes.BLOCK, Blocks.SLIME_BLOCK.defaultBlockState()),
                 new Vec3(0, 0.08, 0)), 20, 1);

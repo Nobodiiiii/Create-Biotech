@@ -79,6 +79,7 @@ public final class GeneratedEvokerEnchantingChamber_4fbd77ff {
         scene.idle(1);
         // Keep casting throughout the explanation; only the final output step completes it.
         scene.modifyBlockEntity(null, "{FluidRemaining:4000,FluidTotal:4000,WaitingForFluid:0b,TankContent:{id:\"create_biotech:experience\",amount:4000}}", false, new BlockPos(2, 1, 4), null);
+        scene.playSound("minecraft:entity.evoker.prepare_summon", 0.7f, 1.0f, "blocks");
         scene.idle(119);
         scene.rotateCameraY(-90.0f, 0.0f, 20);
         scene.keyframe().showText(text("s_8911d.text_3"), new Vec3(2.0d, 1.5d, 5.5d), 120, null, true);
@@ -87,6 +88,7 @@ public final class GeneratedEvokerEnchantingChamber_4fbd77ff {
         scene.keyframe().showText(text("s_8911d.text_4"), new Vec3(2.5d, 3.5d, 6.0d), 120, null, true);
         scene.idle(130);
         scene.javaStep("create_biotech:java/enchantment_line/output_enchanted_book", new JsonObject());
+        scene.playSound("minecraft:block.enchantment_table.use", 0.85f, 1.0f, "blocks");
         scene.idle(40);
         return scene.build();
     }
@@ -103,6 +105,7 @@ public final class GeneratedEvokerEnchantingChamber_4fbd77ff {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

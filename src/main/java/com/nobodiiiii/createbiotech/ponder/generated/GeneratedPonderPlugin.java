@@ -8,6 +8,7 @@ import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
 import net.minecraft.resources.ResourceLocation;
 
 public final class GeneratedPonderPlugin implements PonderPlugin {
+    public GeneratedPonderPlugin() { GeneratedPonderIndex.prepare(); }
     @Override
     public String getModId() {
         return "create_biotech";

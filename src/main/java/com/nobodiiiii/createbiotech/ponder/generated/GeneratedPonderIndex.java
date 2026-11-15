@@ -21,6 +21,7 @@ import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSlimeClutch
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSpiderAssemblyTable_21ae44d2;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSquidPrinter_678191a5;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedUniversalJoint_46e845e1;
+import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedButterCatEngine_d32c0901;
 
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
@@ -50,6 +51,7 @@ public final class GeneratedPonderIndex {
         GeneratedSpiderAssemblyTable_21ae44d2.register(helper);
         GeneratedSquidPrinter_678191a5.register(helper);
         GeneratedUniversalJoint_46e845e1.register(helper);
+        GeneratedButterCatEngine_d32c0901.register(helper);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -72,6 +74,7 @@ public final class GeneratedPonderIndex {
         GeneratedSpiderAssemblyTable_21ae44d2.registerTags(helper);
         GeneratedSquidPrinter_678191a5.registerTags(helper);
         GeneratedUniversalJoint_46e845e1.registerTags(helper);
+        GeneratedButterCatEngine_d32c0901.registerTags(helper);
     }
     public static void registerSharedText(net.createmod.ponder.api.registration.SharedTextRegistrationHelper helper) {
         GeneratedAllayPort_458fa519.registerSharedText(helper);
@@ -93,6 +96,7 @@ public final class GeneratedPonderIndex {
         GeneratedSpiderAssemblyTable_21ae44d2.registerSharedText(helper);
         GeneratedSquidPrinter_678191a5.registerSharedText(helper);
         GeneratedUniversalJoint_46e845e1.registerSharedText(helper);
+        GeneratedButterCatEngine_d32c0901.registerSharedText(helper);
     }
     public static void close() {
         GeneratedAllayPort_458fa519.close();
@@ -114,5 +118,28 @@ public final class GeneratedPonderIndex {
         GeneratedSpiderAssemblyTable_21ae44d2.close();
         GeneratedSquidPrinter_678191a5.close();
         GeneratedUniversalJoint_46e845e1.close();
+        GeneratedButterCatEngine_d32c0901.close();
+    }
+    public static void prepare() {
+        GeneratedAllayPort_458fa519.prepare();
+        GeneratedBioPackager_414a7b59.prepare();
+        GeneratedBoneRatchet_4e031dbe.prepare();
+        GeneratedCreeperBlastChamber_49073000.prepare();
+        GeneratedEvokerEnchantingChamber_4fbd77ff.prepare();
+        GeneratedExperiencePump_31b9a53d.prepare();
+        GeneratedGhastHelm_f923f02a.prepare();
+        GeneratedGhastHotAirBalloonAssemblyStation_517a89d0.prepare();
+        GeneratedMagmaBeltConnector_bb6311fb.prepare();
+        GeneratedPetriDish_e1d501ea.prepare();
+        GeneratedPowerBeltConnector_875033c1.prepare();
+        GeneratedSchrodingersCat_7d56d990.prepare();
+        GeneratedShulkerPackager_15377a92.prepare();
+        GeneratedShulkerTeleporter_cba95cf2.prepare();
+        GeneratedSlimeBeltConnector_19b2bc02.prepare();
+        GeneratedSlimeClutch_a3c9c306.prepare();
+        GeneratedSpiderAssemblyTable_21ae44d2.prepare();
+        GeneratedSquidPrinter_678191a5.prepare();
+        GeneratedUniversalJoint_46e845e1.prepare();
+        GeneratedButterCatEngine_d32c0901.prepare();
     }
 }

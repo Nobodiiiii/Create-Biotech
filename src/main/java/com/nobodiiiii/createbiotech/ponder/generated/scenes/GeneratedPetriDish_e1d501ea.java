@@ -60,6 +60,7 @@ public final class GeneratedPetriDish_e1d501ea {
         scene.idle(90);
         scene.keyframe().showText(text("scene_1.text_2"), new Vec3(1.5d, 1.5d, 3.5d), 80, null, true);
         scene.showControls(new Vec3(1.5d, 1.5d, 3.5d), "down", 80, null, "create_biotech:bionic_mechanism", null, false, false);
+        scene.playSound("minecraft:entity.item_frame.add_item", 0.5f, 1.0f, "blocks");
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:9,Tank:{}}", true, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
         scene.idle(90);
         scene.keyframe().showText(text("scene_1.text_3"), new Vec3(1.5d, 1.5d, 3.5d), 120, null, true);
@@ -88,8 +89,10 @@ public final class GeneratedPetriDish_e1d501ea {
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:15,Tank:{Fluid:{amount:4250,id:\"create_biotech:liquid_living_slime\"}}}", null, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
         scene.idle(20);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:1b,EmergenceTicksRemaining:20,Inventory:{Items:[{Slot:0,count:1,id:\"create_biotech:bionic_mechanism\"}],Size:1},RecordedEntityId:\"minecraft:villager\",RecordedMaxHealth:20.0f,ScanCooldown:14,Tank:{Fluid:{amount:5000,id:\"create_biotech:liquid_living_slime\"}}}", null, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
+        scene.playSound("minecraft:entity.slime.jump", 0.8f, 0.9f, "blocks");
         scene.idle(20);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "north")), "{EmergenceInProgress:0b,EmergenceTicksRemaining:0,Inventory:{Items:[],Size:1},RecordedMaxHealth:0.0f,ScanCooldown:0,Tank:{}}", null, new BlockPos(1, 1, 3), new BlockPos(1, 1, 3));
+        scene.playSound("minecraft:block.slime_block.place", 0.7f, 0.9f, "blocks");
         scene.createEntity("minecraft:villager", new Vec3(1.5d, 1.0d, 3.5d), null, 180.0f, 0.0f, "{AbsorptionAmount:0.0f,Age:1,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:1b,CreateBiotechSlimeMimic:1b,FallFlying:0b,FoodLevel:0b,ForcedAge:0,Gossips:[],HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Inventory:[],Invulnerable:0b,LastGossipDecay:448496L,LastRestock:0L,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,RestocksToday:0,VillagerData:{level:1,profession:\"minecraft:none\",type:\"minecraft:plains\"},Xp:0,attributes:[{base:0.6000000238418579d,id:\"minecraft:generic.step_height\"},{base:0.5d,id:\"minecraft:generic.movement_speed\"},{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"}]}", null, null, null, null);
         scene.idle(20);
         scene.keyframe().showText(text("scene_1.text_5"), new Vec3(0.5d, 2.0d, 3.5d), 120, null, true);
@@ -146,6 +149,7 @@ public final class GeneratedPetriDish_e1d501ea {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

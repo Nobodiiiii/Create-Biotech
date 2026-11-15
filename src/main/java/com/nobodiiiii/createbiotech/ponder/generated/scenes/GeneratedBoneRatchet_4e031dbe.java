@@ -78,6 +78,7 @@ public final class GeneratedBoneRatchet_4e031dbe {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

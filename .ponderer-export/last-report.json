@@ -8,542 +8,85 @@
   "warningFindings": [
     {
       "category": "extension required",
-      "sceneId": "create_biotech:allay_port",
-      "sceneKey": "create_biotech:allay_port",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/allay_port/1",
-      "message": "Compiled Java provider required for create_biotech:java/allay_port/1 at step java_11b761c17d4934d7bf4aac8d39ce6f92; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/1",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/1 at step java_af19b18396923844b92492e2fa142659; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:allay_port",
-      "sceneKey": "create_biotech:allay_port",
-      "segmentId": "s_21db7",
-      "stepType": "create_biotech:java/allay_port/2",
-      "message": "Compiled Java provider required for create_biotech:java/allay_port/2 at step java_27fb1d1f370f3a72bfaab1801c360861; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:allay_port",
-      "sceneKey": "create_biotech:allay_port",
-      "segmentId": "s_21db7",
-      "stepType": "create_biotech:java/allay_port/3",
-      "message": "Compiled Java provider required for create_biotech:java/allay_port/3 at step java_f514a819fc34352e874d6e6645b7b1a4; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:creeper_blast_chamber",
-      "sceneKey": "create_biotech:creeper_blast_chamber",
-      "segmentId": "s_c38b1",
-      "stepType": "create_biotech:java/creeper_blast_chamber/1",
-      "message": "Compiled Java provider required for create_biotech:java/creeper_blast_chamber/1 at step java_15c8de697e64302fb86aa7467e7736dc; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:creeper_blast_chamber",
-      "sceneKey": "create_biotech:creeper_blast_chamber",
-      "segmentId": "s_c38b1",
-      "stepType": "create_biotech:java/creeper_blast_chamber/2",
-      "message": "Compiled Java provider required for create_biotech:java/creeper_blast_chamber/2 at step java_d91ee613d1ca3216848e8cc3b52cf31f; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:creeper_blast_chamber",
-      "sceneKey": "create_biotech:creeper_blast_chamber",
-      "segmentId": "s_c38b1",
-      "stepType": "create_biotech:java/creeper_blast_chamber/3",
-      "message": "Compiled Java provider required for create_biotech:java/creeper_blast_chamber/3 at step java_c0e268efeac93ce2bf369f219a65cedb; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:experience_pump",
-      "sceneKey": "create_biotech:experience_pump",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/experience_pump/1",
-      "message": "Compiled Java provider required for create_biotech:java/experience_pump/1 at step java_629d3e448ba83a7080606ab13b798ee6; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:experience_pump",
-      "sceneKey": "create_biotech:experience_pump",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/experience_pump/2",
-      "message": "Compiled Java provider required for create_biotech:java/experience_pump/2 at step java_0bc5faec3bfc377ba58821fbd94faf06; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587_2; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:petri_dish",
-      "sceneKey": "create_biotech:petri_dish",
-      "segmentId": "s_e7373",
-      "stepType": "create_biotech:java/petri_dish/1",
-      "message": "Compiled Java provider required for create_biotech:java/petri_dish/1 at step java_7a5316ae0a9137aab8c423a44e9b2fe8; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:petri_dish",
-      "sceneKey": "create_biotech:petri_dish",
-      "segmentId": "s_e7373",
-      "stepType": "create_biotech:java/petri_dish/2",
-      "message": "Compiled Java provider required for create_biotech:java/petri_dish/2 at step java_2e32766509163bff9b4da93de97b7a20; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:petri_dish",
-      "sceneKey": "create_biotech:petri_dish",
-      "segmentId": "s_e7373",
-      "stepType": "create_biotech:java/petri_dish/3",
-      "message": "Compiled Java provider required for create_biotech:java/petri_dish/3 at step java_9db54395189a32869baefd9805da155a; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/1",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/1 at step java_3e5bda45885f391faa587e0d12552612; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587_3; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/2",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/2 at step java_70831becf02c30e396cc5f03871c27f1; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587_4; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/3",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/3 at step java_fccafc602b2731df9e07ebb376cf8319; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587_5; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/4",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/4 at step java_c3b61381c9a4320b9e173b41f6461041; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/2",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/2 at step java_af91ee44bac73feeb8b482319efa6587_6; register it in PonderExtensions.install."
     },
     {
       "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
       "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/5",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/5 at step java_70ba0b8c78e131d4a202e1ef7c0e8a31; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/6",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/6 at step java_22285a73ea4b3556894bee57c3ab8191; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/7",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/7 at step java_f112a2a1a5f438f698078f222b195ca7; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/8",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/8 at step java_5f008434a5f93369b86653f8fe12c799; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/power_belt_connector/9",
-      "message": "Compiled Java provider required for create_biotech:java/power_belt_connector/9 at step java_f968f25008593533842fb4f123afe036; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:shulker_packager",
-      "sceneKey": "create_biotech:shulker_packager",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/shulker_packager/1",
-      "message": "Compiled Java provider required for create_biotech:java/shulker_packager/1 at step java_e68877cd73623eeb8d7c0669061d09b5; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:shulker_packager",
-      "sceneKey": "create_biotech:shulker_packager",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/shulker_packager/2",
-      "message": "Compiled Java provider required for create_biotech:java/shulker_packager/2 at step java_eb2f7fac427f33f5b9c4e322ec343c30; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:shulker_packager",
-      "sceneKey": "create_biotech:shulker_packager",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/shulker_packager/3",
-      "message": "Compiled Java provider required for create_biotech:java/shulker_packager/3 at step java_a46a5f1b803f3cf887e6dbcf70aa565c; register it in PonderExtensions.install."
-    },
-    {
-      "category": "extension required",
-      "sceneId": "create_biotech:shulker_packager",
-      "sceneKey": "create_biotech:shulker_packager",
-      "segmentId": "scene_1",
-      "stepType": "create_biotech:java/shulker_packager/4",
-      "message": "Compiled Java provider required for create_biotech:java/shulker_packager/4 at step java_7b1f8fd630da374f8c69b14ec1c694fb; register it in PonderExtensions.install."
+      "stepType": "create_biotech:java/butter_cat_engine/3",
+      "message": "Compiled Java provider required for create_biotech:java/butter_cat_engine/3 at step java_6f49b38552ce38e780634488a8cc0175; register it in PonderExtensions.install."
     }
   ],
   "ignoredFindings": [],
   "sceneOutcomes": [
     {
-      "sceneId": "create_biotech:allay_port",
-      "sceneKey": "create_biotech:allay_port",
-      "className": "GeneratedAllayPort_458fa519",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedAllayPort_458fa519.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/allay_port/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/allay_port/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic_xl.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/allay_port_sender.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/allay_port_nether.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:bio_packager",
-      "sceneKey": "create_biotech:bio_packager",
-      "className": "GeneratedBioPackager_414a7b59",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBioPackager_414a7b59.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/bio_packager/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/bio_packager/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bio_packager_capture.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:bone_ratchet",
-      "sceneKey": "create_biotech:bone_ratchet",
-      "className": "GeneratedBoneRatchet_4e031dbe",
+      "sceneId": "create_biotech:butter_cat_engine",
+      "sceneKey": "create_biotech:butter_cat_engine",
+      "className": "GeneratedButterCatEngine_d32c0901",
       "status": "COMPLETE",
       "replaced": true,
       "exportedSegments": 1,
       "blankSegments": 0,
       "omittedSteps": 0,
       "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedBoneRatchet_4e031dbe.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/bone_ratchet/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/bone_ratchet/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone_ratchet_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/bone_ratchet_reverse_jam.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:creeper_blast_chamber",
-      "sceneKey": "create_biotech:creeper_blast_chamber",
-      "className": "GeneratedCreeperBlastChamber_49073000",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 5,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedCreeperBlastChamber_49073000.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/creeper_blast_chamber/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/creeper_blast_chamber/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_base_xl.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_large.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_small.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_medium.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_press_array.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_128rpm.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/creeper_blast_chamber_256rpm.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:evoker_enchanting_chamber",
-      "sceneKey": "create_biotech:evoker_enchanting_chamber",
-      "className": "GeneratedEvokerEnchantingChamber_4fbd77ff",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedEvokerEnchantingChamber_4fbd77ff.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/evoker_enchanting_chamber/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/evoker_enchanting_chamber/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/enchanting_line_base.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:experience_pump",
-      "sceneKey": "create_biotech:experience_pump",
-      "className": "GeneratedExperiencePump_31b9a53d",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedExperiencePump_31b9a53d.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/experience_pump/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/experience_pump/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ex_bumper.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/exp1.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/exp2.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:ghast_helm",
-      "sceneKey": "create_biotech:ghast_helm",
-      "className": "GeneratedGhastHelm_f923f02a",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHelm_f923f02a.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/ghast_helm/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/ghast_helm/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_rope.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:ghast_hot_air_balloon_assembly_station",
-      "sceneKey": "create_biotech:ghast_hot_air_balloon_assembly_station",
-      "className": "GeneratedGhastHotAirBalloonAssemblyStation_517a89d0",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedGhastHotAirBalloonAssemblyStation_517a89d0.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/ghast_hot_air_balloon_assembly_station/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/ghast_hot_air_balloon_assembly_station/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/ghast_hot_air_balloon_assembly_station_rope.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:magma_belt_connector",
-      "sceneKey": "create_biotech:magma_belt_connector",
-      "className": "GeneratedMagmaBeltConnector_bb6311fb",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedMagmaBeltConnector_bb6311fb.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/magma_belt_connector/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/magma_belt_connector/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/magma_belt_connector_base.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:petri_dish",
-      "sceneKey": "create_biotech:petri_dish",
-      "className": "GeneratedPetriDish_e1d501ea",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedPetriDish_e1d501ea.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/petri_dish/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/petri_dish/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/petri_dish.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic_l.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:power_belt_connector",
-      "sceneKey": "create_biotech:power_belt_connector",
-      "className": "GeneratedPowerBeltConnector_875033c1",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedPowerBeltConnector_875033c1.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/power_belt_connector/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/power_belt_connector/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_base.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_64rpm.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_144rpm.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/power_belt_connector_80rpm.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:schrodingers_cat",
-      "sceneKey": "create_biotech:schrodingers_cat",
-      "className": "GeneratedSchrodingersCat_7d56d990",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSchrodingersCat_7d56d990.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/schrodingers_cat/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/schrodingers_cat/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:shulker_packager",
-      "sceneKey": "create_biotech:shulker_packager",
-      "className": "GeneratedShulkerPackager_15377a92",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedShulkerPackager_15377a92.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/shulker_packager/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/shulker_packager/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:shulker_teleporter",
-      "sceneKey": "create_biotech:shulker_teleporter",
-      "className": "GeneratedShulkerTeleporter_cba95cf2",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedShulkerTeleporter_cba95cf2.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/shulker_teleporter/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/shulker_teleporter/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/basic.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/shulker_teleporter_station.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/shulker_teleporter_drive_stopped.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/shulker_teleporter_drive_running.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:slime_belt_connector",
-      "sceneKey": "create_biotech:slime_belt_connector",
-      "className": "GeneratedSlimeBeltConnector_19b2bc02",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSlimeBeltConnector_19b2bc02.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/slime_belt_connector/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/slime_belt_connector/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_horizontal.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_vertical.nbt",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_belt_connector_loop.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:slime_clutch",
-      "sceneKey": "create_biotech:slime_clutch",
-      "className": "GeneratedSlimeClutch_a3c9c306",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSlimeClutch_a3c9c306.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/slime_clutch/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/slime_clutch/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/slime_clutch_base.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:spider_assembly_table",
-      "sceneKey": "create_biotech:spider_assembly_table",
-      "className": "GeneratedSpiderAssemblyTable_21ae44d2",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSpiderAssemblyTable_21ae44d2.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/spider_assembly_table/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/spider_assembly_table/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/spider_assembly_table_base.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:squid_printer",
-      "sceneKey": "create_biotech:squid_printer",
-      "className": "GeneratedSquidPrinter_678191a5",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 2,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSquidPrinter_678191a5.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/squid_printer/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/squid_printer/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/enchanting_line_base.nbt"
-      ],
-      "messages": []
-    },
-    {
-      "sceneId": "create_biotech:universal_joint",
-      "sceneKey": "create_biotech:universal_joint",
-      "className": "GeneratedUniversalJoint_46e845e1",
-      "status": "COMPLETE",
-      "replaced": true,
-      "exportedSegments": 1,
-      "blankSegments": 0,
-      "omittedSteps": 0,
-      "ownedFiles": [
-        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedUniversalJoint_46e845e1.java",
-        "src/main/resources/assets/create_biotech/ponderer/texts/universal_joint/en_us.json",
-        "src/main/resources/assets/create_biotech/ponderer/texts/universal_joint/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/ponderer/universal_joint_base.nbt"
+        "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedButterCatEngine_d32c0901.java",
+        "src/main/resources/assets/create_biotech/ponderer/texts/butter_cat_engine/en_us.json",
+        "src/main/resources/assets/create_biotech/ponderer/texts/butter_cat_engine/zh_cn.json",
+        "src/main/resources/assets/create_biotech/ponder/generated/create_biotech/butter_cat_engine.nbt"
       ],
       "messages": []
     }

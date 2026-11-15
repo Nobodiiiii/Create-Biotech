@@ -76,6 +76,7 @@ public final class GeneratedPowerBeltConnector_875033c1 {
         scene.javaStep("create_biotech:java/power_belt_connector/8", new JsonObject());
         scene.showControls(new Vec3(5.5d, 3.0d, 3.5d), "down", 60, "right", "minecraft:wheat", null, false, false);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west")), "{ForgeCaps:{},Inventory:{Items:[{Count:1b,Slot:0,id:\"minecraft:wheat\"}],Size:1}}", null, new BlockPos(5, 2, 3), null);
+        scene.playSound("minecraft:entity.item_frame.add_item", 1.0f, 1.0f, "blocks");
         scene.showExtraStructure("create_biotech:generated/ponderer/power_belt_connector_80rpm", new BlockPos(1, 1, 2), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/power_belt_connector/9", new JsonObject());
         scene.showExtraStructure("create_biotech:generated/ponderer/power_belt_connector_base", new BlockPos(0, 0, 0), 0.0f, false, true, false, "none", null, null, null, null, null);
@@ -90,6 +91,7 @@ public final class GeneratedPowerBeltConnector_875033c1 {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }

@@ -72,6 +72,7 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
         scene.idle(130);
         scene.showText(text("scene_1.text_4"), new Vec3(3.5d, 1.5d, 2.0d), 120, "red", true);
         scene.idle(130);
+        scene.idle(200);
         scene.javaStep("create_biotech:java/magma_belt_connector/stop_smelting", new JsonObject());
         return scene.build();
     }
@@ -84,6 +85,7 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
             return false;
         }
     }
+    public static void prepare() { reload(); }
     public static void registerSharedText(SharedTextRegistrationHelper helper) {
         RUNTIME.plugin().registerSharedText(helper);
     }
