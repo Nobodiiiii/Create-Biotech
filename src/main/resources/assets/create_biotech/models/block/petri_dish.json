@@ -2,7 +2,7 @@
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
 	"ambientocclusion": false,
-	"render_type": "minecraft:translucent",
+	"render_type": "minecraft:cutout",
 	"textures": {
 		"particle": "create_biotech:block/petri_dish/asurine_fill",
 		"asurine": "create_biotech:block/petri_dish/asurine_fill",

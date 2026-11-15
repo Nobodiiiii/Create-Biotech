@@ -1,4 +1,6 @@
 {
+  "create_biotech.configuration.dehydrationKillsSquid": "Squid Die from Dehydration",
+  "create_biotech.configuration.dehydrationKillsSquid.tooltip": "Enabled by default. Squid printers warn when dry, and prolonged dehydration kills the squid. Disabling resets dehydration progress and hides the corresponding Ponder demonstration.",
   "create_biotech.configuration.showBionicAttackRange": "Show Bionic Attack Range",
   "create_biotech.configuration.showBionicAttackRange.tooltip": "Show the melee attack range preview while bionic creatures swing their arms. Disabled by default.",
   "item.create_biotech.mimic_debug_stick": "Mimic Debug Stick",

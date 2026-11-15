@@ -66,11 +66,13 @@ public final class GeneratedMagmaBeltConnector_bb6311fb {
         scene.setBlock("create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "middle"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(2, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:1,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:9,Stress:32.0f},Source:{X:-22,Y:-59,Z:7},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         scene.setBlock("create_biotech:magma_belt", Map.ofEntries(Map.entry("casing", "false"), Map.entry("facing", "west"), Map.entry("part", "end"), Map.entry("slope", "horizontal"), Map.entry("waterlogged", "false")), new BlockPos(1, 1, 2), null, "{Casing:\"NONE\",Controller:{X:-20,Y:-59,Z:7},Covered:0b,ForgeCaps:{},Index:2,IsController:0b,Length:3,Network:{Capacity:262144.0f,Id:-6047313903676L,Size:8,Stress:32.0f},Source:{X:-22,Y:-59,Z:8},Speed:16.0f}", true, null, "none", null, null, null, null, null);
         scene.keyframe().showText(text("scene_1.text_2"), new Vec3(3.5d, 1.5d, 2.0d), 90, null, true);
+        scene.javaStep("create_biotech:java/magma_belt_connector/start_smelting", new JsonObject());
         scene.idle(100);
         scene.showText(text("scene_1.text_3"), new Vec3(3.5d, 1.5d, 2.0d), 120, null, true);
         scene.idle(130);
         scene.showText(text("scene_1.text_4"), new Vec3(3.5d, 1.5d, 2.0d), 120, "red", true);
         scene.idle(130);
+        scene.javaStep("create_biotech:java/magma_belt_connector/stop_smelting", new JsonObject());
         return scene.build();
     }
 

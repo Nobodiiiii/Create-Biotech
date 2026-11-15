@@ -9,8 +9,12 @@ public final class PonderExtensions {
         CreeperBlastChamberEffects.install(engine);
         ExperiencePumpEffects.install(engine);
         PowerBeltConnectorEffects.install(engine);
+        MagmaBeltConnectorEffects.install(engine);
         ShulkerPackagerEffects.install(engine);
         PetriDishEffects.install(engine);
+        SquidPrinterEffects.install(engine);
         AllayPortEffects.install(engine);
+        UniversalJointEffects.install(engine);
+        EnchantmentLineEffects.install(engine);
     }
 }

@@ -54,6 +54,8 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 安装时单独放置与当前导出 API 兼容的 `pondererlib-1.21.1-neoforge-0.1.0.jar`。完整 Ponderer 是编辑器，可选；上游 Ponder 仍由宿主现有依赖提供。能力声明位于 `META-INF/pondererlib.features.properties`，播放器增强请求的所有者为 `create_biotech`，用户的功能开关优先。
 
+思索半透明场景区块的延后绘制修复现由 Ponderer Lib 的 `core` 提供，本模组不再携带 `client.WorldSectionElementImplMixin`。更新开发依赖时需要同步包含此修复的 Lib JAR。
+
 参数调用形式依赖新版 Lib 的 `JavaScene` API，旧 `.at(...)` 接口已移除。更新时同时替换 `libs/` 中的 Lib 与编辑器，再执行暂存任务；运行客户端时也需要使用对应的新 JAR。本次自动 ID 改动前的生成代码和源文档备份在 `build/ponder-internal-ids-before.zip`；更早的参数格式调整备份在 `build/ponder-parameters-before.zip`。
 
 拆分独立文本资源前的生成源码、源文档、语言文件、扩展与清单备份在 `build/ponder-text-resources-before.zip`。本次 19 组场景的源 JSON 已同步改用文本引用，需与 `ponderer/texts` 资源一起维护或加载。

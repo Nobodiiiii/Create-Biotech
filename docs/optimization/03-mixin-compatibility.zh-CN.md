@@ -65,7 +65,7 @@
 
 - 优先级：P2
 
-`WorldSectionElementImplMixin` 展示了更细粒度的方向：`@Mixin(value = ..., remap = false)` 只用于识别 Ponder/Flywheel 第三方 target，而内部针对 Minecraft `MultiBufferSource#getBuffer(RenderType)` 的操作仍进入 refmap。该类当前确实出现在生成 refmap 中。
+原 `WorldSectionElementImplMixin` 展示了更细粒度的方向：第三方 target 可以保持稳定，而内部针对 Minecraft `MultiBufferSource#getBuffer(RenderType)` 的操作仍进入 refmap。2026-11-16，该半透明延后绘制修复已迁入 Ponderer Lib 的 `core`，本模组对应类及配置项已移除；映射检查现以 Lib 的 Fabric 生成 refmap 为准，NeoForge ModDev 不生成 refmap，另以实际启动检查注入。
 
 建议把类似模式应用到 renderer/JEI/Flap Mixin：不要在最外层 `@WrapOperation/@Inject` 和嵌套 `@At` 上同时机械设置 `remap = false`。
 

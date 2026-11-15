@@ -8,6 +8,9 @@ import com.nododiiiii.ponderer.runtime.api.StepBuildContext;
 
 /** Author-owned compiled effects. The Ponderer exporter does not overwrite this class. */
 final class PowerBeltConnectorEffects {
+    private static final int SHEEP_TIMELINE_TICKS = 110;
+    private static final int SHEEP_RUN_TICKS = 60 * 20;
+
     private PowerBeltConnectorEffects() {}
 
     static void install(RuntimeEngine engine) {
@@ -73,7 +76,13 @@ final class PowerBeltConnectorEffects {
     private static void walkSheep(StepBuildContext ctx) {
         var scene = ctx.builder();
         var entityContext = (PonderEntityAnimations.EntityAnimContext) ctx.state().computeIfAbsent("power_belt.entities", key -> PonderEntityAnimations.newEntityAnimContext());
-        PonderEntityAnimations.playWalkAnimation(scene, entityContext, Map.ofEntries(Map.entry("sheep", 0.5f)), 110);
+        var speeds = Map.of("sheep", 0.5f);
+        PonderEntityAnimations.playWalkAnimation(scene, entityContext, speeds, SHEEP_TIMELINE_TICKS);
+        // Keep the original progress duration while the sheep and 80 RPM structure continue.
+        // The following scene step restores the stopped belt after this extended run.
+        scene.markAsFinished();
+        PonderEntityAnimations.playWalkAnimation(scene, entityContext, speeds,
+            SHEEP_RUN_TICKS - SHEEP_TIMELINE_TICKS);
     }
 
 

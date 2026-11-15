@@ -22,13 +22,14 @@ final class ShulkerPackagerEffects {
     private static void linkEffect(StepBuildContext ctx) {
         var scene = ctx.builder();
         var createScene = new CreateSceneBuilder(scene);
-        PonderHilo.linkEffect(createScene, new BlockPos(0, 1, 1));
+        PonderHilo.linkEffect(createScene, new BlockPos(4, 1, 1));
     }
 
     private static void createPackage(StepBuildContext ctx) {
         var scene = ctx.builder();
         var createScene = new CreateSceneBuilder(scene);
-        var sourcePackager = new BlockPos(0, 1, 2);
+        // The source section is displayed at x=4; block entity effects use its original x=2.
+        var sourcePackager = new BlockPos(2, 1, 2);
         var shulkerPackage = (ItemStack) ctx.state().computeIfAbsent("shulker.package", key -> new ItemStack(CBItems.SHULKER_PACKAGE.get()));
         PonderHilo.packagerCreate(createScene, sourcePackager, shulkerPackage);
     }
@@ -36,14 +37,14 @@ final class ShulkerPackagerEffects {
     private static void clearPackage(StepBuildContext ctx) {
         var scene = ctx.builder();
         var createScene = new CreateSceneBuilder(scene);
-        var sourcePackager = new BlockPos(0, 1, 2);
+        var sourcePackager = new BlockPos(2, 1, 2);
         PonderHilo.packagerClear(createScene, sourcePackager);
     }
 
     private static void unpackPackage(StepBuildContext ctx) {
         var scene = ctx.builder();
         var createScene = new CreateSceneBuilder(scene);
-        var targetPackager = new BlockPos(2, 1, 2);
+        var targetPackager = new BlockPos(0, 1, 2);
         var shulkerPackage = (ItemStack) ctx.state().computeIfAbsent("shulker.package", key -> new ItemStack(CBItems.SHULKER_PACKAGE.get()));
         PonderHilo.packagerUnpack(createScene, targetPackager, shulkerPackage);
     }

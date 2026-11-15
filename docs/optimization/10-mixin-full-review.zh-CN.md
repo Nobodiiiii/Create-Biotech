@@ -4,6 +4,8 @@
 
 后续清理（2026-09-14）：已删除 `SpoutCategoryMixin` 及其配置项。当前自带的鱿鱼打印机制作配方为 `create:item_application`，没有触发该补丁的灌注配方；打印动画由独立的 `SquidPrinterJeiCategory` 直接调用 `AnimatedSquidSpout` 绘制。本报告的数量和验证记录保留 2026-09-04 审计基线。
 
+后续迁移（2026-11-16）：`client.WorldSectionElementImplMixin` 的思索半透明延后绘制修复已移入 Ponderer Lib 的 `core`，本模组不再携带该类或配置项；审计基线数量不回写。
+
 ## 1. 结论摘要
 
 当前三个配置共声明 **92 个 Mixin**，与源码中 92 个带 `@Mixin` 的 Java 文件一一对应：
@@ -294,7 +296,7 @@ Alternate Current 两个可选 Mixin 目前只由 class resource 门控。应再
 | `client.MixinSuperGlueSelectionHandler` | 客户端 Smart Glue 选择 | P2 | 与服务端判定保持一致 |
 | `client.ModelPartAccessor` | 遍历 cubes/children | P2 | 模型内部字段；资源重载和自定义模型测试 |
 | `client.ModelPartCubeGeometryMixin` | 捕获每个 cube 几何 | P2 | 批次 3 已用原子门卫 + 线程局部 frame；补模型库矩阵 |
-| `client.WorldSectionElementImplMixin` | Ponder 透明 late buffer | P2 | Ponder 内部类；渲染阶段/版本检查 |
+| `client.WorldSectionElementImplMixin`（已迁出） | Ponder 透明 late buffer | P2 | 2026-11-16 移入 Ponderer Lib core；渲染阶段/版本检查由 Lib 维护 |
 
 ### 6.3 可选兼容配置（5）
 

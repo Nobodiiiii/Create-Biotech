@@ -107,11 +107,17 @@ public final class CBMachineConfigSections {
 	public static class SquidPrinter {
 		public final ModConfigSpec.IntValue tankCapacity;
 		public final ModConfigSpec.IntValue finishingTicks;
+		public final ModConfigSpec.BooleanValue dehydrationKillsSquid;
 
 		SquidPrinter(ModConfigSpec.Builder builder) {
 			builder.push("squidPrinter");
 			tankCapacity = builder.defineInRange("tankCapacity", 1000, 1, Integer.MAX_VALUE);
 			finishingTicks = builder.defineInRange("finishingTicks", 5, 0, Integer.MAX_VALUE);
+			dehydrationKillsSquid = builder
+				.comment("Whether squid printers warn and eventually lose their squid after running out of water. "
+					+ "Disabling this also resets dehydration progress and hides the dehydration Ponder demonstration.")
+				.translation("create_biotech.configuration.dehydrationKillsSquid")
+				.define("dehydrationKillsSquid", true);
 			builder.pop();
 		}
 	}

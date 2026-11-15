@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.api.equipment.goggles.IHaveGoggleInformation;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour;
 import com.simibubi.create.content.kinetics.belt.behaviour.BeltProcessingBehaviour.ProcessingResult;
@@ -28,13 +29,19 @@ import com.simibubi.create.foundation.blockEntity.behaviour.fluid.SmartFluidTank
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -46,6 +53,9 @@ import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 
 public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGoggleInformation {
 
+	private static final int DEHYDRATION_WARNING_TICKS = 30 * 20;
+	private static final int DEHYDRATION_TICKS = DEHYDRATION_WARNING_TICKS + 5 * 20;
+
 	public int processingTicks;
 	public boolean sendSplash;
 
@@ -56,6 +66,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	private boolean running;
 	private ItemStack processingOutput;
 	private int idleTicksWhileRunning;
+	private int dryTicks;
 	private float squidPose;
 	private float squidPoseOld;
 	@Nullable
@@ -96,6 +107,9 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 			return;
 
 		if (!level.isClientSide) {
+			if (!isVirtual() && level instanceof ServerLevel serverLevel && tickDehydration(serverLevel))
+				return;
+
 			if (running && ++idleTicksWhileRunning >= 3) {
 				clearProcessingState();
 				notifyUpdate();
@@ -113,6 +127,60 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 
 		if (level.isClientSide && running && processingTicks > getFinishingTicks() && level.getGameTime() % 3 == 0)
 			spawnAmbientInk();
+	}
+
+	private boolean tickDehydration(ServerLevel serverLevel) {
+		if (!CBConfigs.SERVER.squidPrinter.dehydrationKillsSquid.get() || !tank.isEmpty()) {
+			if (dryTicks > 0) {
+				dryTicks = 0;
+				setChanged();
+			}
+			return false;
+		}
+		dryTicks++;
+		setChanged();
+
+		boolean dehydrating = dryTicks > DEHYDRATION_WARNING_TICKS;
+		int particleInterval = dehydrating ? 20 : 5 * 20;
+		if (dryTicks % particleInterval == 0) {
+			spawnDehydrationParticles(serverLevel);
+			if (dehydrating && dryTicks < DEHYDRATION_TICKS)
+				serverLevel.playSound(null, worldPosition, SoundEvents.SQUID_HURT, SoundSource.BLOCKS, 0.4f, 1.0f);
+		}
+
+		if (dryTicks < DEHYDRATION_TICKS
+			|| !serverLevel.setBlockAndUpdate(worldPosition, AllBlocks.SPOUT.getDefaultState()))
+			return false;
+
+		serverLevel.playSound(null, worldPosition, SoundEvents.SQUID_DEATH, SoundSource.BLOCKS, 0.4f, 1.0f);
+		Block.popResource(serverLevel, worldPosition, new ItemStack(Items.INK_SAC));
+		return true;
+	}
+
+	private void spawnDehydrationParticles(ServerLevel serverLevel) {
+		forEachDehydrationParticle(serverLevel, worldPosition,
+			(x, y, z, dx, dy, dz) -> serverLevel.sendParticles(ParticleTypes.ANGRY_VILLAGER,
+				x, y, z, 0, dx, dy, dz, 1.0d));
+	}
+
+	@FunctionalInterface
+	public interface DehydrationParticleEmitter {
+		void emit(double x, double y, double z, double dx, double dy, double dz);
+	}
+
+	public static void forEachDehydrationParticle(Level level, BlockPos pos, DehydrationParticleEmitter emitter) {
+		// Match the villager distribution without its extra one-block vertical offset.
+		double width = EntityType.VILLAGER.getWidth();
+		double height = EntityType.VILLAGER.getHeight();
+		for (int i = 0; i < 5; i++) {
+			double dx = level.random.nextGaussian() * 0.02d;
+			double dy = level.random.nextGaussian() * 0.02d;
+			double dz = level.random.nextGaussian() * 0.02d;
+			double x = pos.getX() + 0.5d + (2.0d * level.random.nextDouble() - 1.0d) * width;
+			double y = pos.getY() + level.random.nextDouble() * height;
+			double z = pos.getZ() + 0.5d + (2.0d * level.random.nextDouble() - 1.0d) * width;
+			emitter.emit(x, y, z, dx, dy, dz);
+		}
 	}
 
 	protected ProcessingResult onItemReceived(TransportedItemStack transported,
@@ -341,6 +409,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	@Override
 	protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
 		super.write(compound, registries, clientPacket);
+		compound.putInt("DryTicks", dryTicks);
 		compound.putInt("ProcessingTicks", processingTicks);
 		compound.putBoolean("Running", running);
 		compound.putBoolean("HasProcessingResult", running);
@@ -356,6 +425,7 @@ public class SquidPrinterBlockEntity extends SmartBlockEntity implements IHaveGo
 	@Override
 	protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
 		super.read(compound, registries, clientPacket);
+		dryTicks = Mth.clamp(compound.getInt("DryTicks"), 0, DEHYDRATION_TICKS);
 		processingTicks = compound.getInt("ProcessingTicks");
 		running = compound.getBoolean("Running");
 		boolean hasProcessingResult = compound.getBoolean("HasProcessingResult")

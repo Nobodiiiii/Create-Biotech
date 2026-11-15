@@ -291,7 +291,10 @@ public class UniversalJointBlockEntity extends UniversalJointEndpointBlockEntity
 			return resolveLegacyPeer();
 
 		EndpointAddress address = effectiveAddress(peer.address());
-		BlockEntity candidate = UniversalJointEndpointBlockEntity.resolveLoaded(level, address);
+		BlockEntity candidate = isVirtual() && address.subLevelId() == null
+			&& level.dimension().equals(address.dimension())
+			? level.getBlockEntity(address.rawPos())
+			: UniversalJointEndpointBlockEntity.resolveLoaded(level, address);
 		if (!(candidate instanceof UniversalJointBlockEntity joint) || joint == this
 			|| !joint.isAtExpectedOwnAddress())
 			return null;
@@ -305,7 +308,10 @@ public class UniversalJointBlockEntity extends UniversalJointEndpointBlockEntity
 	private UniversalJointBlockEntity resolveLegacyPeer() {
 		if (legacyPeer == null || level == null)
 			return null;
-		BlockEntity candidate = legacyPeer.spaceKnown()
+		// Ponder stores its block entities directly, outside the real world's chunks.
+		BlockEntity candidate = isVirtual() && legacyPeer.subLevelId() == null
+			? level.getBlockEntity(legacyPeer.rawPos())
+			: legacyPeer.spaceKnown()
 			? SubLevelCompat.resolveBlockEntityFast(level, legacyPeer.rawPos(),
 				legacyPeer.subLevelId())
 			: SubLevelCompat.getLoadedBlockEntity(level, legacyPeer.rawPos());

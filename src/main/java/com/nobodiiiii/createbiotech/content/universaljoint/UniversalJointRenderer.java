@@ -59,7 +59,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		VertexConsumer solidBuffer = buffer.getBuffer(RenderType.solid());
 		renderSyncedRotatingBuffer(be, getRotatedModel(be, state), ms, solidBuffer, light, partialTicks);
 		renderEndpointSlimeOverlay(be, state, ms, buffer, light, partialTicks);
-		if (!VisualizationManager.supportsVisualization(be.getLevel()))
+		if (be.isVirtual() || !VisualizationManager.supportsVisualization(be.getLevel()))
 			renderDriveShaft(be, state, ms, buffer, light, overlay, partialTicks);
 	}
 
@@ -169,20 +169,38 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 		if (length < MIN_SHAFT_LENGTH)
 			return null;
 
-		Vec3 direction = shaft.scale(1 / length);
 		Vec3 worldDirection = endWorld.subtract(startWorld).normalize();
 		float shaftRotationModifier = getShaftRotationModifier(state, linkedState, ownSpace, linkedSpace,
 			worldDirection, partialTicks);
 
+		return new ShaftRenderState(getShaftTransform(start, end,
+			getShaftAngle(be, shaftRotationModifier, partialTicks)),
+			getOverstretchOverlayColor(ownCenterWorld.distanceTo(linkedCenterWorld)));
+	}
+
+	private static PoseStack getShaftTransform(Vec3 start, Vec3 end, float angle) {
+		Vec3 shaft = end.subtract(start);
+		double length = shaft.length();
+		Vec3 direction = shaft.scale(1 / length);
 		PoseStack shaftTransforms = new PoseStack();
 		TransformStack.of(shaftTransforms)
 			.translate(start)
 			.rotateTo(1, 0, 0, (float) direction.x, (float) direction.y, (float) direction.z)
-			.rotateX(getShaftAngle(be, shaftRotationModifier, partialTicks))
+			.rotateX(angle)
 			.translate(length / 2, -SHAFT_RADIUS, 0)
 			.scale((float) (length / SLIME_MODEL_DIAMETER), SHAFT_CROSS_SECTION_SCALE, SHAFT_CROSS_SECTION_SCALE);
-		return new ShaftRenderState(shaftTransforms,
-			getOverstretchOverlayColor(ownCenterWorld.distanceTo(linkedCenterWorld)));
+		return shaftTransforms;
+	}
+
+	/** Renders the same slime shaft between independently animated endpoints. */
+	public void renderShaftBetween(Vec3 start, Vec3 end, float angle, double endpointDistance,
+		PoseStack ms, MultiBufferSource buffer, int light, int overlay) {
+		if (start.distanceToSqr(end) < MIN_SHAFT_LENGTH * MIN_SHAFT_LENGTH)
+			return;
+		ms.pushPose();
+		TransformStack.of(ms).transform(getShaftTransform(start, end, angle));
+		renderSlimeShaft(ms, buffer, light, overlay, getOverstretchOverlayColor(endpointDistance));
+		ms.popPose();
 	}
 
 	record ShaftRenderState(PoseStack transform, int overstretchColor) {}

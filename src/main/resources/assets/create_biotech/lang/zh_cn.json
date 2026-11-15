@@ -1,4 +1,6 @@
 {
+  "create_biotech.configuration.dehydrationKillsSquid": "鱿鱼会因脱水死亡",
+  "create_biotech.configuration.dehydrationKillsSquid.tooltip": "默认开启。鱿鱼打印机缺水时会发出警告，长期脱水会导致鱿鱼死亡。关闭后重置脱水计时，并隐藏对应思索演示。",
   "create_biotech.configuration.showBionicAttackRange": "显示仿生生物攻击范围",
   "create_biotech.configuration.showBionicAttackRange.tooltip": "在仿生生物挥动手臂攻击时显示近战攻击范围预览，默认关闭。",
   "item.create_biotech.mimic_debug_stick": "拟态生物调试棒",

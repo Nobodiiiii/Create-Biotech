@@ -1,14 +1,11 @@
 {
-  "s_8911d.text_1": "This is an Evoker Enchanting Chamber.",
-  "s_8911d.text_2": "It can turn copied enchanted books into usable enchanted books.",
-  "s_8911d.text_3": "Supply it with the experience needed for enchanting through an Experience Pump.",
-  "s_8911d.text_4": "The higher the total enchantment level, the more experience and time it requires.",
-  "s_8911d.title": "Evoker Enchanting Chamber",
+  "scene_1.dehydration_death": "Prolonged dehydration will kill the squid.",
+  "scene_1.dehydration_warning": "When the squid runs out of water, it emits warning particles.",
   "scene_1.text_1": "This is a simple enchantment production line.",
   "scene_1.text_2": "This is a Squid Printer.",
   "scene_1.text_3": "Mark an enchanted book on the side...",
   "scene_1.text_4": "It will process the book below into an Enchanted Book (Copy).",
-  "scene_1.text_5": "Whether it is working or not, the printer needs a water supply to keep the squid alive.",
+  "scene_1.text_5": "Supply the printer with water through pipes.",
   "scene_1.title": "Squid Printer",
   "title": "Squid Printer"
 }
