@@ -24,6 +24,8 @@
   "create_biotech.configuration.netheriteMaxHealth": "下界合金捕捉网血量上限",
   "create_biotech.configuration.fastestEscapeSeconds": "最快挣脱时间（秒）",
   "create_biotech.configuration.slowestEscapeSeconds": "最慢挣脱时间（秒）",
+  "create_biotech.configuration.escapeDurabilityFraction": "挣脱时损耗的最大耐久比例",
+  "create_biotech.configuration.escapeCooldownSeconds": "挣脱后冷却时间（秒）",
   "create_biotech.configuration.dehydrationKillsSquid": "鱿鱼会因脱水死亡",
   "create_biotech.configuration.dehydrationKillsSquid.tooltip": "默认开启。鱿鱼打印机缺水时会发出警告，长期脱水会导致鱿鱼死亡。关闭后重置脱水计时，并隐藏对应思索演示。",
   "create_biotech.configuration.showBionicAttackRange": "显示仿生生物攻击范围",

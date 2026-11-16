@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastCham
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderManager;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
+import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetItemDecorator;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetSnapOverlay;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScreen;
@@ -297,6 +298,12 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerItemDecorations(RegisterItemDecorationsEvent event) {
+		event.register(CBItems.WOODEN_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
+		event.register(CBItems.STONE_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
+		event.register(CBItems.IRON_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
+		event.register(CBItems.GOLDEN_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
+		event.register(CBItems.DIAMOND_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
+		event.register(CBItems.NETHERITE_CAPTURE_NET.get(), CaptureNetItemDecorator.INSTANCE);
 		event.register(CBItems.SURGICAL_JOINT.get(), SurgicalJointItemDecorator.INSTANCE);
 		event.register(CBItems.SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);
 		event.register(CBItems.CREATIVE_SURGICAL_KIT.get(), SurgicalKitItemDecorator.INSTANCE);

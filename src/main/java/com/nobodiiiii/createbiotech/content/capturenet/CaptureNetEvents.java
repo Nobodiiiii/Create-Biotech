@@ -17,10 +17,20 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class CaptureNetEvents {
 	private CaptureNetEvents() {}
+
+	@SubscribeEvent
+	public static void onAttack(AttackEntityEvent event) {
+		Player player = event.getEntity();
+		ItemStack stack = player.getMainHandItem();
+		if (stack.getItem() instanceof CaptureNetItem && (player.getCooldowns().isOnCooldown(stack.getItem())
+			|| CaptureNetItem.isEscapeCoolingDown(stack, player.level())))
+			event.setCanceled(true);
+	}
 
 	/** Direct hits and sweep victims share the player's melee damage source. */
 	@SubscribeEvent(priority = EventPriority.LOWEST)

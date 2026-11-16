@@ -24,6 +24,8 @@
   "create_biotech.configuration.netheriteMaxHealth": "Netherite Net Health Limit",
   "create_biotech.configuration.fastestEscapeSeconds": "Fastest Escape Time (seconds)",
   "create_biotech.configuration.slowestEscapeSeconds": "Slowest Escape Time (seconds)",
+  "create_biotech.configuration.escapeDurabilityFraction": "Maximum Durability Fraction Lost on Escape",
+  "create_biotech.configuration.escapeCooldownSeconds": "Cooldown After Escape (seconds)",
   "create_biotech.configuration.dehydrationKillsSquid": "Squid Die from Dehydration",
   "create_biotech.configuration.dehydrationKillsSquid.tooltip": "Enabled by default. Squid printers warn when dry, and prolonged dehydration kills the squid. Disabling resets dehydration progress and hides the corresponding Ponder demonstration.",
   "create_biotech.configuration.showBionicAttackRange": "Show Bionic Attack Range",
