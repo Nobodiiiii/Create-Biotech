@@ -101,13 +101,7 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		ItemStack stack, float partialTick, float equip, float swing) {
 		float progress = CaptureNetItem.animationProgress(stack, (double) player.level().getGameTime() + partialTick);
 		if (progress < 0) return false;
-		if (!CaptureNetItem.isReleasing(stack)) {
-			CaptureNetFirstPersonAnimation.apply(pose, player, arm, stack, equip, progress);
-			return true;
-		}
-		float side = arm == HumanoidArm.RIGHT ? 1 : -1;
-		// Keep vanilla's equip offset; the Blockbench grip track owns the scoop itself.
-		pose.translate(side * 0.56, -0.52 - equip * 0.6, -0.72);
+		CaptureNetFirstPersonAnimation.apply(pose, player, arm, stack, equip, progress);
 		return true;
 	}
 
@@ -119,7 +113,6 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		float time = AnimationTickHolder.getRenderTime();
 		Level level = Minecraft.getInstance().level;
 		boolean occupied = CaptureNetItem.isOccupied(stack);
-		boolean releasing = CaptureNetItem.isReleasing(stack);
 		float side = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
 			|| context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND ? -1 : 1;
 		pose.pushPose();
@@ -127,17 +120,14 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		// Action timestamps use world game time; Catnip's render clock starts at client login.
 		float progress = level == null ? -1 : CaptureNetItem.animationProgress(stack,
 			(double) level.getGameTime() + AnimationTickHolder.getPartialTicks());
-		float seconds = Math.max(0, progress) * (releasing
-			? CaptureNetAnimation.RELEASE_LENGTH : CaptureNetAnimation.CAPTURE_LENGTH);
+		float seconds = Math.max(0, progress) * CaptureNetAnimation.CAPTURE_LENGTH;
 		float idleWeight = occupied ? (progress < 0 ? 1 : Mth.clamp((progress - 0.75f) * 4, 0, 1)) : 0;
-		if (progress >= 0 && (releasing || !context.firstPerson())) {
-			float[][] position = releasing ? CaptureNetAnimation.RELEASE_GRIP_POSITION
-				: CaptureNetAnimation.CAPTURE_GRIP_POSITION;
+		if (progress >= 0 && !context.firstPerson()) {
+			float[][] position = CaptureNetAnimation.CAPTURE_GRIP_POSITION;
 			pose.translate(side * CaptureNetAnimation.sample(position, seconds, 0) / 16,
 				CaptureNetAnimation.sample(position, seconds, 1) / 16,
 				CaptureNetAnimation.sample(position, seconds, 2) / 16);
-			applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, releasing
-				? CaptureNetAnimation.RELEASE_GRIP_ROTATION : CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
+			applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
 				seconds, 1, side);
 		}
 		renderer.render(FRAMES.get(net.tier()).get(), light);

@@ -81,8 +81,7 @@ public final class CaptureNetEvents {
 	public static void onLivingDamage(LivingDamageEvent.Pre event) {
 		if (!(event.getEntity() instanceof Mob target) || target.level().isClientSide()
 			|| !target.isAlive() || !Float.isFinite(target.getHealth())
-			|| !target.getType().canSerialize() || target.getType().is(CaptureNetItem.CAPTURE_BLACKLIST)
-			|| target.isPassenger() || target.isVehicle() || target.isLeashed())
+			|| !target.getType().canSerialize() || target.getType().is(CaptureNetItem.CAPTURE_BLACKLIST))
 			return;
 		if (!event.getSource().is(DamageTypes.PLAYER_ATTACK)
 			|| !(event.getSource().getEntity() instanceof ServerPlayer player)
@@ -125,24 +124,27 @@ public final class CaptureNetEvents {
 
 	@SubscribeEvent
 	public static void interactSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
-		if (handle(event, event.getTarget())) {
+		InteractionResult result = handle(event, event.getTarget());
+		if (result != InteractionResult.PASS) {
 			event.setCanceled(true);
-			event.setCancellationResult(InteractionResult.sidedSuccess(event.getLevel().isClientSide()));
+			event.setCancellationResult(result);
 		}
 	}
 
 	@SubscribeEvent
 	public static void interact(PlayerInteractEvent.EntityInteract event) {
-		if (handle(event, event.getTarget())) {
+		InteractionResult result = handle(event, event.getTarget());
+		if (result != InteractionResult.PASS) {
 			event.setCanceled(true);
-			event.setCancellationResult(InteractionResult.sidedSuccess(event.getLevel().isClientSide()));
+			event.setCancellationResult(result);
 		}
 	}
 
-	private static boolean handle(PlayerInteractEvent event, net.minecraft.world.entity.Entity target) {
+	private static InteractionResult handle(PlayerInteractEvent event, net.minecraft.world.entity.Entity target) {
 		var stack = event.getItemStack();
-		if (!(stack.getItem() instanceof CaptureNetItem net) || event.getEntity().isSpectator()) return false;
+		if (!(stack.getItem() instanceof CaptureNetItem net) || event.getEntity().isSpectator())
+			return InteractionResult.PASS;
 		net.interact(stack, event.getEntity(), event.getHand(), target);
-		return true;
+		return InteractionResult.sidedSuccess(event.getLevel().isClientSide());
 	}
 }

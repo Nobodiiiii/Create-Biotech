@@ -1,15 +1,14 @@
 package com.nobodiiiii.createbiotech.content.capturenet;
 
-import java.util.List;
-
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -35,7 +34,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.TieredItem;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -43,8 +41,9 @@ import net.neoforged.neoforge.common.ItemAbilities;
 import net.neoforged.neoforge.common.ItemAbility;
 
 public final class CaptureNetItem extends TieredItem {
-	public static final int ANIMATION_TICKS = 12;
-	public static final int CAPTURE_CONTACT_TICK = 6;
+	public static final int ANIMATION_TICKS = 10;
+	public static final int CAPTURE_CONTACT_TICK = 5;
+	private static final int RELEASE_COOLDOWN_TICKS = 12;
 	public static final TagKey<EntityType<?>> CAPTURE_BLACKLIST =
 		TagKey.create(Registries.ENTITY_TYPE, CreateBiotech.asResource("capture_net_blacklist"));
 	private static final String ESCAPE_AT = "CaptureNetEscapeAt";
@@ -93,6 +92,12 @@ public final class CaptureNetItem extends TieredItem {
 		return CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
 
+	/** Transfers the stored creature out of the net without releasing it into the world. */
+	public static void clearCapture(ItemStack stack) {
+		CapturedEntityBoxHelper.clearCapturedEntity(stack);
+		clearCaptureTiming(stack);
+	}
+
 	/** Called before the mob's own interaction, so villagers, horses and pets can be caught. */
 	public void interact(ItemStack stack, Player player, InteractionHand hand, Entity target) {
 		if (player.level().isClientSide() || player.isSpectator() || !player.mayBuild()
@@ -103,16 +108,13 @@ public final class CaptureNetItem extends TieredItem {
 				releaseByPlayer(stack, player, player.position().add(player.getLookAngle().scale(1.5)));
 			return;
 		}
-		if (isOccupied(stack)) {
-			message(player, "occupied");
-			return;
-		}
+		if (isOccupied(stack)) return;
 		if (!(CapturedEntityBoxHelper.resolveLivingTarget(target) instanceof Mob mob)) {
-			message(player, "invalid_target");
+			messageCannotCapture(player);
 			return;
 		}
 		if (!canCapture(player, mob)) return;
-		animate(stack, player, hand, false);
+		animate(stack, player, hand);
 		CaptureNetEvents.queueCapture(player, hand, stack, mob, clock(player.level()));
 		player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
 			SoundSource.PLAYERS, 0.5f, 1.3f);
@@ -120,19 +122,16 @@ public final class CaptureNetItem extends TieredItem {
 
 	private boolean canCapture(Player player, Mob mob) {
 		if (!mob.isAlive() || !mob.getType().canSerialize() || mob.getType().is(CAPTURE_BLACKLIST)) {
-			message(player, "invalid_target");
+			messageCannotCapture(player);
 			return false;
 		}
-		if (mob.isPassenger() || mob.isVehicle() || mob.isLeashed()) {
-			message(player, "attached");
-			return false;
-		}
-		if (!Float.isFinite(mob.getHealth()) || mob.getHealth() > tier.healthLimit()) {
-			player.displayClientMessage(Component.translatable("item.create_biotech.capture_net.too_healthy",
-				formatHealth(tier.healthLimit())), true);
-			return false;
-		}
-		return true;
+		return Float.isFinite(mob.getHealth())
+			&& (mob.getHealth() <= tier.healthLimit() || isMimicTarget(mob));
+	}
+
+	private static boolean isMimicTarget(Mob mob) {
+		return mob instanceof SlimeBionicEntity bionic && bionic.getAssembly() != null
+			|| SlimeMimicHandler.isSlimeMimic(mob);
 	}
 
 	/** The target remains in the world until the descending mouth reaches it. */
@@ -146,8 +145,9 @@ public final class CaptureNetItem extends TieredItem {
 		var config = CBConfigs.SERVER.captureNet;
 		int fastest = Math.min(config.fastestEscapeSeconds.get(), config.slowestEscapeSeconds.get());
 		int slowest = Math.max(config.fastestEscapeSeconds.get(), config.slowestEscapeSeconds.get());
-		double healthRatio = Mth.clamp(mob.getHealth() / tier.healthLimit(), 0, 1);
-		int duration = (int) Math.round(20 * Mth.lerp(healthRatio, slowest, fastest));
+		double escapeSeconds = isMimicTarget(mob) ? slowest
+			: Mth.lerp(Mth.clamp(mob.getHealth() / tier.healthLimit(), 0, 1), slowest, fastest);
+		int duration = (int) Math.round(20 * escapeSeconds);
 		long now = clock(player.level());
 		CBItemData.edit(stack, data -> {
 			data.putLong(ESCAPE_AT, now + duration);
@@ -175,10 +175,8 @@ public final class CaptureNetItem extends TieredItem {
 		if (player.getCooldowns().isOnCooldown(this)
 			|| isEscapeCoolingDown(context.getItemInHand(), context.getLevel()))
 			return InteractionResult.FAIL;
-		if (!player.isShiftKeyDown()) {
-			if (!context.getLevel().isClientSide()) message(player, "occupied");
+		if (!player.isShiftKeyDown())
 			return InteractionResult.sidedSuccess(context.getLevel().isClientSide());
-		}
 		if (!context.getLevel().isClientSide()) {
 			Vec3 origin = Vec3.atBottomCenterOf(context.getClickedPos().relative(context.getClickedFace()));
 			releaseByPlayer(context.getItemInHand(), player, origin);
@@ -194,9 +192,8 @@ public final class CaptureNetItem extends TieredItem {
 			if (isOccupied(stack)) {
 				if (player.isShiftKeyDown())
 					releaseByPlayer(stack, player, player.position().add(player.getLookAngle().scale(1.5)));
-				else message(player, "occupied");
 			} else {
-				animate(stack, player, hand, false);
+				animate(stack, player, hand);
 				level.playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
 					SoundSource.PLAYERS, 0.5f, 1.3f);
 			}
@@ -209,9 +206,7 @@ public final class CaptureNetItem extends TieredItem {
 			|| player.getCooldowns().isOnCooldown(this) || isEscapeCoolingDown(stack, level))
 			return;
 		if (release(stack, level, origin, player))
-			animate(stack, player, player.getMainHandItem() == stack ? InteractionHand.MAIN_HAND
-				: InteractionHand.OFF_HAND, true);
-		else message(player, "no_space");
+			player.getCooldowns().addCooldown(stack.getItem(), RELEASE_COOLDOWN_TICKS);
 	}
 
 	/** Deadline survives slot changes, dropping, storage, logout and server restarts. No per-tick NBT writes. */
@@ -320,13 +315,19 @@ public final class CaptureNetItem extends TieredItem {
 		boolean released = CapturedEntityBoxHelper.releaseCapturedEntity(stack, level, origin, Vec3.ZERO,
 			entity -> findReleasePosition(entity, level, origin, player));
 		if (!released) return false;
-		CBItemData.edit(stack, data -> {
-			data.remove(ESCAPE_AT);
-			data.remove(ESCAPE_DURATION);
-		});
+		clearCaptureTiming(stack);
 		level.playSound(null, BlockPos.containing(origin), SoundEvents.LEASH_KNOT_BREAK,
 			SoundSource.PLAYERS, 0.8f, 1.1f);
 		return true;
+	}
+
+	private static void clearCaptureTiming(ItemStack stack) {
+		CBItemData.edit(stack, data -> {
+			data.remove(ESCAPE_AT);
+			data.remove(ESCAPE_DURATION);
+			data.remove(ACTION_AT);
+			data.remove(RELEASING);
+		});
 	}
 
 	private static boolean findReleasePosition(Entity entity, ServerLevel level, Vec3 origin, Player player) {
@@ -350,10 +351,10 @@ public final class CaptureNetItem extends TieredItem {
 		return false;
 	}
 
-	private static void animate(ItemStack stack, Player player, InteractionHand hand, boolean releasing) {
+	private static void animate(ItemStack stack, Player player, InteractionHand hand) {
 		CBItemData.edit(stack, data -> {
 			data.putLong(ACTION_AT, clock(player.level()));
-			data.putBoolean(RELEASING, releasing);
+			data.remove(RELEASING);
 		});
 		player.getCooldowns().addCooldown(stack.getItem(), ANIMATION_TICKS);
 		player.swing(hand, true);
@@ -361,14 +362,9 @@ public final class CaptureNetItem extends TieredItem {
 
 	public static float animationProgress(ItemStack stack, double renderTime) {
 		CompoundTag data = CBItemData.getReadOnly(stack);
-		if (data == null || !data.contains(ACTION_AT)) return -1;
+		if (data == null || !data.contains(ACTION_AT) || data.getBoolean(RELEASING)) return -1;
 		double elapsed = renderTime - data.getLong(ACTION_AT);
 		return elapsed >= 0 && elapsed < ANIMATION_TICKS ? (float) (elapsed / ANIMATION_TICKS) : -1;
-	}
-
-	public static boolean isReleasing(ItemStack stack) {
-		CompoundTag data = CBItemData.getReadOnly(stack);
-		return data != null && data.getBoolean(RELEASING);
 	}
 
 	private static long clock(Level level) {
@@ -376,32 +372,7 @@ public final class CaptureNetItem extends TieredItem {
 			: level.getGameTime();
 	}
 
-	@Override
-	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-		tooltip.add(Component.translatable("item.create_biotech.capture_net.limit", formatHealth(tier.healthLimit()))
-			.withStyle(ChatFormatting.GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.capture_net.instructions")
-			.withStyle(ChatFormatting.DARK_GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.capture_net.lethal_capture")
-			.withStyle(ChatFormatting.DARK_GRAY));
-		if (!isOccupied(stack)) return;
-		EntityType<?> type = CapturedEntityBoxHelper.getCapturedEntityType(stack);
-		if (type != null)
-			tooltip.add(Component.translatable("item.create_biotech.capture_net.contains", type.getDescription())
-				.withStyle(ChatFormatting.GOLD));
-		CompoundTag data = CBItemData.getReadOnly(stack);
-		if (context.level() != null && data != null) {
-			long seconds = Math.max(0, (data.getLong(ESCAPE_AT) - clock(context.level()) + 19) / 20);
-			tooltip.add(Component.translatable("item.create_biotech.capture_net.escape", seconds)
-				.withStyle(seconds <= 5 ? ChatFormatting.RED : ChatFormatting.YELLOW));
-		}
-	}
-
-	private static String formatHealth(double health) {
-		return java.math.BigDecimal.valueOf(health).stripTrailingZeros().toPlainString();
-	}
-
-	private static void message(Player player, String key) {
-		player.displayClientMessage(Component.translatable("item.create_biotech.capture_net." + key), true);
+	private static void messageCannotCapture(Player player) {
+		player.displayClientMessage(Component.translatable("item.create_biotech.capture_net.invalid_target"), true);
 	}
 }

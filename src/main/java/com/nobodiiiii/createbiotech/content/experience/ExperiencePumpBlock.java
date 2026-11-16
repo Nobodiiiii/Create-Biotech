@@ -45,8 +45,6 @@ public class ExperiencePumpBlock extends PumpBlock {
 			return;
 		for (Direction direction : Direction.values()) {
 			if (pos.relative(direction).equals(neighborPos) && isOpenAt(state, direction)) {
-				// Create 1.21 caches the pump's dynamically exposed source capability.
-				level.invalidateCapabilities(pos);
 				level.scheduleTick(pos, this, 1, TickPriority.HIGH);
 				return;
 			}
@@ -55,6 +53,7 @@ public class ExperiencePumpBlock extends PumpBlock {
 
 	@Override
 	public void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+		super.tick(state, level, pos, random);
 		BlockEntity blockEntity = level.getBlockEntity(pos);
 		if (blockEntity instanceof ExperiencePumpBlockEntity pump)
 			pump.updatePressureChange();

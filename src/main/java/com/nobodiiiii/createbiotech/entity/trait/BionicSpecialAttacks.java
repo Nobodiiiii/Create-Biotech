@@ -329,6 +329,7 @@ public final class BionicSpecialAttacks {
 		} else for (int i = 0; i < 16; i++) fang(origin.x + Math.cos(angle) * 1.25 * (i + 1),
 			origin.z + Math.sin(angle) * 1.25 * (i + 1), angle, i, origin, victim);
 	}
+	@SuppressWarnings("deprecation") // Minecraft 1.21.1 chunk-presence check.
 	private void fang(double x, double z, double angle, int delay, Vec3 origin, LivingEntity victim) {
 		int min = (int) Math.floor(Math.min(origin.y, victim.getY())) - 1;
 		for (int y = (int) Math.floor(Math.max(origin.y, victim.getY())) + 1; y >= min; y--) {

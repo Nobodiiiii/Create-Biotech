@@ -9,7 +9,6 @@ import java.util.Set;
 import java.util.UUID;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombination;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGlueJoint;
@@ -149,7 +148,7 @@ final class SurgicalInteractionPresentation {
 		SYMMETRY_PLANE_SELECTED_OUTLINE.clear();
 	}
 
-	/** A filled box is a valid prompt target on the table surface before any model cube exists. */
+	/** A filled creature container can target the table surface before any model cube exists. */
 	@Nullable
 	static InteractionHand capturedSubjectPlacementPromptHand(LocalPlayer player, ClientLevel level) {
 		Minecraft minecraft = Minecraft.getInstance();
@@ -158,7 +157,7 @@ final class SurgicalInteractionPresentation {
 			return null;
 		for (InteractionHand hand : SurgicalTableClientHandler.HANDS) {
 			ItemStack stack = player.getItemInHand(hand);
-			if ((stack.getItem() instanceof CapturedEntityBoxItem
+			if ((SurgicalTableBlockEntity.isPlacementContainer(stack)
 				|| SurgicalPlacementController.hasPlacementCapture(stack))
 				&& CapturedEntityBoxHelper.hasCapturedEntity(stack)
 				&& SurgicalPlacementController.placementCandidateFor(stack, level).result().succeeded())
@@ -192,7 +191,7 @@ final class SurgicalInteractionPresentation {
 	}
 
 	static boolean isSurgicalInteractionItem(ItemStack stack) {
-		return CapturedEntityBoxItem.isBox(stack) || CapturedEntityBoxHelper.isEmptyLargeBox(stack)
+		return SurgicalTableBlockEntity.isPlacementContainer(stack) || CapturedEntityBoxHelper.isEmptyLargeBox(stack)
 			|| SurgicalKitItem.isShears(stack)
 			|| SurgicalSelectionResolver.isSurgicalGlue(stack) || SurgicalSelectionResolver.isSymmetryWand(stack) || SurgicalKitItem.isHoneyBottle(stack)
 			|| SurgicalKitItem.isSlimeBall(stack) || SurgicalSelectionResolver.heldLimbType(stack) != null

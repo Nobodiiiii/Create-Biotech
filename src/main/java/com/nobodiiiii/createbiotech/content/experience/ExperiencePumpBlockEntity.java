@@ -2,9 +2,12 @@ package com.nobodiiiii.createbiotech.content.experience;
 
 import net.minecraft.core.HolderLookup;
 
+import java.util.EnumMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
@@ -12,18 +15,20 @@ import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.foundation.advancement.PlacedByPlayerAdvancementTracker;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.nobodiiiii.createbiotech.mixin.PipeConnectionAccessor;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllItems;
 import com.simibubi.create.content.fluids.FluidPropagator;
+import com.simibubi.create.content.fluids.FlowSource;
 import com.simibubi.create.content.fluids.FluidTransportBehaviour;
 import com.simibubi.create.content.fluids.PipeConnection;
+import com.simibubi.create.content.fluids.pipes.VanillaFluidTargets;
 import com.simibubi.create.content.fluids.pump.PumpBlockEntity;
 import com.simibubi.create.content.kinetics.fan.NozzleBlock;
-import com.simibubi.create.foundation.advancement.AllAdvancements;
-import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
+import com.simibubi.create.foundation.ICapabilityProvider;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
-import net.createmod.catnip.data.Couple;
+import net.createmod.catnip.math.BlockFace;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -31,9 +36,7 @@ import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -52,6 +55,9 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 	@Nullable
 	private UUID advancementOwner;
 	private final IFluidHandler specialSourceCapability;
+	private long cachedExperience;
+	private long cacheDrainTick = Long.MIN_VALUE;
+	private int cacheDrainedThisTick;
 
 	public ExperiencePumpBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.EXPERIENCE_PUMP.get(), pos, state);
@@ -60,49 +66,63 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 
 	@Override
 	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		behaviours.add(new ExperiencePumpFluidTransferBehaviour(this));
-		registerAwardables(behaviours, FluidPropagator.getSharedTriggers());
-		registerAwardables(behaviours, AllAdvancements.PUMP);
+		super.addBehaviours(behaviours);
+		for (BlockEntityBehaviour behaviour : behaviours) {
+			if (behaviour instanceof FluidTransportBehaviour transport)
+				transport.interfaces = new ExperiencePipeConnections(transport);
+		}
 	}
 
 	@Override
 	public void tick() {
-		super.tick();
-		if (level == null || level.isClientSide || getSpeed() == 0)
-			return;
 		Direction output = getFront();
-		if (output == null)
-			return;
-		Direction input = output.getOpposite();
-		boolean hasOpenExperienceSource = hasOpenExperienceSource(input);
-		if (!hasOpenExperienceSource && !hasExperienceItemEndpoint(input))
-			return;
+		if (level != null && !level.isClientSide && getSpeed() != 0 && output != null)
+			refillExperienceCache(output.getOpposite());
+		if (level != null && !level.isClientSide && output != null)
+			updateSpecialInputSource(output.getOpposite());
+		// All output, including adjacent tanks and open pipe ends, uses Create's network.
+		super.tick();
+	}
 
-		BlockPos outputPos = worldPosition.relative(output);
-		BlockState outputState = level.getBlockState(outputPos);
-		FluidTransportBehaviour outputPipe = FluidPropagator.getPipe(level, outputPos);
-		if (outputPipe != null && outputPipe.canHaveFlowToward(outputState, output.getOpposite())) {
-			if (hasOpenExperienceSource)
-				attractOpenInputExperienceOrbs(input);
+	private void updateSpecialInputSource(Direction input) {
+		FluidTransportBehaviour transport = getBehaviour(FluidTransportBehaviour.TYPE);
+		if (transport == null)
 			return;
+		boolean useCache = usesExperienceCache(input);
+		for (Direction side : Direction.values()) {
+			PipeConnection connection = transport.getConnection(side);
+			if (connection == null)
+				continue;
+			PipeConnectionAccessor access = (PipeConnectionAccessor) connection;
+			boolean cachedSource = access.createBiotech$getSource().orElse(null) instanceof CachedExperienceSource;
+			if (side == input && useCache) {
+				if (cachedSource)
+					continue;
+				access.createBiotech$setSource(Optional.of(new CachedExperienceSource(side)));
+			} else if (cachedSource) {
+				access.createBiotech$setSource(Optional.empty());
+			} else {
+				continue;
+			}
+			// A retained FluidNetwork captures its original source supplier.
+			access.createBiotech$setNetwork(Optional.empty());
 		}
+	}
 
-		int rate = getFluidPumpRatePerTick();
-
-		IFluidHandler target = level.getCapability(Capabilities.FluidHandler.BLOCK, outputPos,
-			output.getOpposite());
-		if (target == null)
+	private void refillExperienceCache(Direction input) {
+		if (hasOrdinaryFluidInput(input))
 			return;
-		FluidStack offered = ExperienceFluidHelper.experienceStack(rate);
-		int accepted = target.fill(offered, IFluidHandler.FluidAction.SIMULATE);
-		if (accepted <= 0)
-			return;
-		if (hasOpenExperienceSource)
+		if (hasOpenExperienceSource(input))
 			attractOpenInputExperienceOrbs(input);
-		FluidStack drained = drainSpecialSource(accepted, IFluidHandler.FluidAction.EXECUTE);
-		if (drained.isEmpty())
+		int missing = (int) Math.max(0, getFluidPumpRatePerTick() - cachedExperience);
+		if (missing == 0)
 			return;
-		target.fill(drained, IFluidHandler.FluidAction.EXECUTE);
+		long absorbed = hasExperienceItemEndpoint(input) ? drainItemInput(input, missing)
+			: hasOpenExperienceSource(input) ? drainOpenInput(input, missing, FluidAction.EXECUTE) : 0;
+		if (absorbed > 0) {
+			cachedExperience += absorbed;
+			setChanged();
+		}
 	}
 
 	@Override
@@ -119,34 +139,40 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		setChanged();
 	}
 
-	@Nullable
-	public IFluidHandler getFluidCapability(@Nullable Direction side) {
-		return side != null && canExposeSpecialSource(side) ? specialSourceCapability : null;
-	}
-
 	@Override
 	protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
 		super.write(compound, registries, clientPacket);
 		PlacedByPlayerAdvancementTracker.writeOwner(compound, advancementOwner);
+		compound.putLong("CachedExperience", cachedExperience);
 	}
 
 	@Override
 	protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
 		super.read(compound, registries, clientPacket);
 		advancementOwner = PlacedByPlayerAdvancementTracker.readOwner(compound);
+		cachedExperience = Math.max(0, compound.getLong("CachedExperience"));
 	}
 
-	private boolean canExposeSpecialSource(Direction side) {
-		Direction output = getFront();
-		return output != null && side == output && hasPotentialSpecialSource(output.getOpposite());
+	private boolean hasOrdinaryFluidInput(Direction input) {
+		if (level == null)
+			return true;
+		BlockPos inputPos = worldPosition.relative(input);
+		if (!level.isLoaded(inputPos))
+			return true;
+		FluidTransportBehaviour pipe = FluidPropagator.getPipe(level, inputPos);
+		return pipe != null && pipe.canHaveFlowToward(level.getBlockState(inputPos), input.getOpposite())
+			|| FluidPropagator.hasFluidCapability(level, inputPos, input.getOpposite())
+			|| !level.getFluidState(inputPos).isEmpty()
+			|| VanillaFluidTargets.canProvideFluidWithoutCapability(level.getBlockState(inputPos));
 	}
 
-	private boolean hasPotentialSpecialSource(Direction input) {
-		return hasOpenExperienceSource(input) || hasExperienceItemEndpoint(input);
+	private boolean usesExperienceCache(Direction input) {
+		return !hasOrdinaryFluidInput(input)
+			&& (cachedExperience > 0 || hasOpenExperienceSource(input) || hasExperienceItemEndpoint(input));
 	}
 
 	private boolean hasOpenExperienceSource(Direction input) {
-		if (level == null || !canDrainOpenExperience())
+		if (level == null || !canDrainOpenExperience() || hasOrdinaryFluidInput(input))
 			return false;
 		BlockPos inputPos = worldPosition.relative(input);
 		if (FluidPropagator.getPipe(level, inputPos) != null)
@@ -166,7 +192,8 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 	}
 
 	private boolean hasExperienceItemEndpoint(Direction input) {
-		return CBConfigs.SERVER.experiencePump.allowItemXpDrain.get() && hasItemEndpoint(input);
+		return !hasOrdinaryFluidInput(input) && CBConfigs.SERVER.experiencePump.allowItemXpDrain.get()
+			&& hasItemEndpoint(input);
 	}
 
 	private boolean hasItemEndpoint(Direction input) {
@@ -174,21 +201,6 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			return false;
 		return level.getCapability(Capabilities.ItemHandler.BLOCK, worldPosition.relative(input),
 			input.getOpposite()) != null;
-	}
-
-	private FluidStack drainSpecialSource(int maxAmount, IFluidHandler.FluidAction action) {
-		maxAmount = limitTransferAmount(maxAmount);
-		if (maxAmount <= 0 || level == null)
-			return FluidStack.EMPTY;
-
-		Direction output = getFront();
-		if (output == null)
-			return FluidStack.EMPTY;
-		Direction input = output.getOpposite();
-		int taken = hasExperienceItemEndpoint(input)
-			? drainItemInput(input, maxAmount, action)
-			: drainOpenInput(input, maxAmount, action);
-		return ExperienceFluidHelper.experienceStack(taken);
 	}
 
 	private void attractOpenInputExperienceOrbs(Direction input) {
@@ -286,33 +298,32 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		return absorbed;
 	}
 
-	private int drainItemInput(Direction input, int maxAmount, IFluidHandler.FluidAction action) {
+	private long drainItemInput(Direction input, int maxAmount) {
 		if (maxAmount <= 0 || level == null)
 			return 0;
 		IItemHandler itemHandler = getItemHandler(input);
 		if (itemHandler == null)
 			return 0;
 
-		int extracted = 0;
+		long extracted = 0;
 		for (int slot = 0; slot < itemHandler.getSlots() && extracted < maxAmount; slot++) {
-			ItemStack peek = getExtractableItemPreview(itemHandler, slot);
-			if (peek.isEmpty())
-				continue;
-			int xpPerItem = xpValueOf(peek);
-			if (xpPerItem <= 0)
-				continue;
-			int missing = maxAmount - extracted;
-			int items = Math.min(peek.getCount(), missing / xpPerItem);
-			if (items <= 0)
-				continue;
-			if (action.simulate()) {
-				extracted += items * xpPerItem;
-				continue;
+			while (extracted < maxAmount) {
+				ItemStack peek = getExtractableItemPreview(itemHandler, slot);
+				if (peek.isEmpty())
+					break;
+				int xpPerItem = xpValueOf(peek);
+				if (xpPerItem <= 0)
+					break;
+				long missing = maxAmount - extracted;
+				int items = (int) Math.min(peek.getCount(), (missing + xpPerItem - 1) / xpPerItem);
+				ItemStack actual = itemHandler.extractItem(slot, items, false);
+				if (actual.isEmpty())
+					break;
+				long value = (long) actual.getCount() * xpValueOf(actual);
+				if (value <= 0)
+					break;
+				extracted += value;
 			}
-			ItemStack actual = itemHandler.extractItem(slot, items, false);
-			if (actual.isEmpty())
-				continue;
-			extracted += actual.getCount() * xpPerItem;
 		}
 		return extracted;
 	}
@@ -323,17 +334,6 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 			return ItemStack.EMPTY;
 		ItemStack extracted = itemHandler.extractItem(slot, 1, true);
 		return extracted.isEmpty() ? ItemStack.EMPTY : preview;
-	}
-
-	private int estimateSpecialSource(int maxAmount) {
-		if (maxAmount <= 0)
-			return 0;
-		Direction input = getFront() == null ? null : getFront().getOpposite();
-		if (input == null)
-			return 0;
-		if (hasExperienceItemEndpoint(input))
-			return drainItemInput(input, maxAmount, IFluidHandler.FluidAction.SIMULATE);
-		return drainOpenInput(input, maxAmount, IFluidHandler.FluidAction.SIMULATE);
 	}
 
 	@Nullable
@@ -375,6 +375,36 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 		return 0;
 	}
 
+	private static class ExperiencePipeConnections extends EnumMap<Direction, PipeConnection> {
+		ExperiencePipeConnections(FluidTransportBehaviour transport) {
+			super(Direction.class);
+			for (Direction side : Direction.values()) {
+				if (transport.canHaveFlowToward(transport.blockEntity.getBlockState(), side))
+					put(side, new ExperiencePipeConnection(side));
+			}
+		}
+
+		@Override
+		public PipeConnection computeIfAbsent(Direction side,
+			Function<? super Direction, ? extends PipeConnection> factory) {
+			// Create adds faces here during NBT reads and pressure rebuilds after rotation.
+			return super.computeIfAbsent(side, ExperiencePipeConnection::new);
+		}
+	}
+
+	private static class ExperiencePipeConnection extends PipeConnection {
+		ExperiencePipeConnection(Direction side) {
+			super(side);
+		}
+
+		@Override
+		public boolean manageFlows(Level world, BlockPos pos, FluidStack internalFluid,
+			Predicate<FluidStack> extractionPredicate) {
+			return super.manageFlows(world, pos, internalFluid,
+				fluid -> ExperienceFluidHelper.isExperience(fluid) && extractionPredicate.test(fluid));
+		}
+	}
+
 	private class SpecialExperienceSourceHandler implements IFluidHandler {
 		@Override
 		public int getTanks() {
@@ -383,18 +413,18 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 
 		@Override
 		public FluidStack getFluidInTank(int tank) {
-			int amount = estimateSpecialSource(Integer.MAX_VALUE / 4);
-			return ExperienceFluidHelper.experienceStack(amount);
+			return tank == 0 ? ExperienceFluidHelper.experienceStack((int) Math.min(Integer.MAX_VALUE, cachedExperience))
+				: FluidStack.EMPTY;
 		}
 
 		@Override
 		public int getTankCapacity(int tank) {
-			return Integer.MAX_VALUE / 4;
+			return tank == 0 ? Integer.MAX_VALUE : 0;
 		}
 
 		@Override
 		public boolean isFluidValid(int tank, FluidStack stack) {
-			return ExperienceFluidHelper.isGeneratedExperience(stack);
+			return tank == 0 && ExperienceFluidHelper.isGeneratedExperience(stack);
 		}
 
 		@Override
@@ -411,42 +441,40 @@ public class ExperiencePumpBlockEntity extends PumpBlockEntity {
 
 		@Override
 		public FluidStack drain(int maxDrain, FluidAction action) {
-			return drainSpecialSource(maxDrain, action);
-		}
-	}
-
-	class ExperiencePumpFluidTransferBehaviour extends FluidTransportBehaviour {
-
-		public ExperiencePumpFluidTransferBehaviour(SmartBlockEntity blockEntity) {
-			super(blockEntity);
-		}
-
-		@Override
-		public void tick() {
-			super.tick();
-			for (Entry<Direction, PipeConnection> entry : interfaces.entrySet()) {
-				boolean pull = isPullingOnSide(isFront(entry.getKey()));
-				Couple<Float> pressure = entry.getValue().getPressure();
-				pressure.set(pull, Math.abs(getSpeed()));
-				pressure.set(!pull, 0f);
+			if (level == null || getSpeed() == 0)
+				return FluidStack.EMPTY;
+			int remaining = getFluidPumpRatePerTick()
+				- (cacheDrainTick == level.getGameTime() ? cacheDrainedThisTick : 0);
+			int drained = (int) Math.min(Math.max(0, Math.min(maxDrain, remaining)), cachedExperience);
+			if (drained > 0 && action.execute()) {
+				if (cacheDrainTick != level.getGameTime()) {
+					cacheDrainTick = level.getGameTime();
+					cacheDrainedThisTick = 0;
+				}
+				cacheDrainedThisTick += drained;
+				cachedExperience -= drained;
+				setChanged();
 			}
-		}
-
-		@Override
-		public boolean canHaveFlowToward(BlockState state, Direction direction) {
-			return isSideAccessible(direction);
-		}
-
-		@Override
-		public boolean canPullFluidFrom(FluidStack fluid, BlockState state, Direction direction) {
-			return ExperienceFluidHelper.isExperience(fluid);
-		}
-
-		@Override
-		public AttachmentTypes getRenderedRimAttachment(BlockAndTintGetter world, BlockPos pos, BlockState state,
-			Direction direction) {
-			AttachmentTypes attachment = super.getRenderedRimAttachment(world, pos, state, direction);
-			return attachment == AttachmentTypes.RIM ? AttachmentTypes.NONE : attachment;
+			return ExperienceFluidHelper.experienceStack(drained);
 		}
 	}
+
+	private class CachedExperienceSource extends FlowSource {
+		private final ICapabilityProvider<IFluidHandler> capability = ICapabilityProvider.of(specialSourceCapability);
+
+		CachedExperienceSource(Direction input) {
+			super(new BlockFace(worldPosition, input));
+		}
+
+		@Override
+		public boolean isEndpoint() {
+			return true;
+		}
+
+		@Override
+		public ICapabilityProvider<IFluidHandler> provideHandler() {
+			return capability;
+		}
+	}
+
 }

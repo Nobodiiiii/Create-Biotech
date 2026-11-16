@@ -41,8 +41,6 @@ public final class CBCapabilities {
 			CBBlocks.EVOKER_ENCHANTING_CHAMBER.get());
 		event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, CBBlockEntityTypes.BUDDING_EXPERIENCE.get(),
 			(be, side) -> be.getFluidCapability(side));
-		event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, CBBlockEntityTypes.EXPERIENCE_PUMP.get(),
-			(be, side) -> be.getFluidCapability(side));
 		event.registerBlockEntity(Capabilities.FluidHandler.BLOCK, CBBlockEntityTypes.NETHER_PORTAL_FLUID.get(),
 			(be, side) -> be.getFluidCapability(side));
 		event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, CBBlockEntityTypes.FIXED_CARROT_FISHING_ROD.get(),

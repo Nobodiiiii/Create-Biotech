@@ -350,7 +350,8 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 			return new BoxDetails(List.of(),
 				BionicTraitResolver.donorProperties(facts,
 					net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(living.getType()), level), facts.abilities().stream()
-					.filter(trait -> !BionicTrait.MILKABLE.equals(trait) && !trait.carrier().isAllTissue())
+					.filter(trait -> !BionicTrait.MILKABLE.equals(trait) && !BionicTrait.EGG_LAYING.equals(trait)
+						&& !trait.carrier().isAllTissue())
 					.collect(java.util.stream.Collectors.toUnmodifiableSet()),
 				facts.attackEffects(), facts.deterrenceTargets(),
 				com.nobodiiiii.createbiotech.entity.trait.BionicHunting.targets(Set.of(

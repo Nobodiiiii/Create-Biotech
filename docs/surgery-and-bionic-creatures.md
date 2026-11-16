@@ -13,9 +13,9 @@ This system may conflict with client-side mods that modify entity models on thei
 ## Quick Start
 
 1. Grow a Mimic Creature with a **Petri Dish**; see the Petri Dish's Ponder scene for details.
-2. Capture the Mimic Creature in a Cardboard Box.
+2. Capture the Mimic Creature in a Cardboard Box or Capture Net.
 3. Lay out Surgical Tables. Tables that are horizontally adjacent and at the same height join into a single work surface, and a complex body needs a large one.
-4. Place the box holding the Mimic Creature on the surface to turn it into parts. This cannot be undone.
+4. Hold the box or net containing the Mimic Creature and right-click the surface to turn it into parts. This cannot be undone. A Capture Net becomes empty after successful placement.
 5. Cut, arrange and glue the parts you need, then fit the joints.
 6. Pack the whole body with an empty Cardboard Box, hold `Alt` to inspect its stats, and sneak-right-click to release the result.
 7. A finished "Slime?" can also go back on the Surgical Table for further work.

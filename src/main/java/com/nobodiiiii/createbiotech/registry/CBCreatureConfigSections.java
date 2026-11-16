@@ -56,6 +56,7 @@ public final class CBCreatureConfigSections {
 	}
 
 	public static class Experience {
+		public final ModConfigSpec.IntValue configVersion;
 		public final ModConfigSpec.IntValue xpPerNugget;
 		public final ModConfigSpec.IntValue clusterXpValue;
 		public final ModConfigSpec.IntValue largeBudXpValue;
@@ -67,11 +68,12 @@ public final class CBCreatureConfigSections {
 
 		Experience(ModConfigSpec.Builder builder) {
 			builder.push("experience");
+			configVersion = builder.defineInRange("configVersion", 0, 0, Integer.MAX_VALUE);
 			xpPerNugget = builder.defineInRange("xpPerNugget", 3, 1, Integer.MAX_VALUE);
-			clusterXpValue = builder.defineInRange("clusterXpValue", 128, 1, Integer.MAX_VALUE);
-			largeBudXpValue = builder.defineInRange("largeBudXpValue", 64, 1, Integer.MAX_VALUE);
-			mediumBudXpValue = builder.defineInRange("mediumBudXpValue", 32, 1, Integer.MAX_VALUE);
-			smallBudXpValue = builder.defineInRange("smallBudXpValue", 16, 1, Integer.MAX_VALUE);
+			clusterXpValue = builder.defineInRange("clusterXpValue", 64 * 3, 1, Integer.MAX_VALUE);
+			largeBudXpValue = builder.defineInRange("largeBudXpValue", 32 * 3, 1, Integer.MAX_VALUE);
+			mediumBudXpValue = builder.defineInRange("mediumBudXpValue", 16 * 3, 1, Integer.MAX_VALUE);
+			smallBudXpValue = builder.defineInRange("smallBudXpValue", 8 * 3, 1, Integer.MAX_VALUE);
 			buddingGrowthChance = builder.defineInRange("buddingGrowthChance", 20, 1, Integer.MAX_VALUE);
 			clusterMaxOrbsPerPinch = builder.defineInRange("clusterMaxOrbsPerPinch", 5, 1, 64);
 			clusterMinXpPerSplitOrb = builder.defineInRange("clusterMinXpPerSplitOrb", 37, 1, Integer.MAX_VALUE);

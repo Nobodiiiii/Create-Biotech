@@ -100,6 +100,7 @@ public final class BionicDefenses {
 			mob.getZ() + (mob.getRandom().nextDouble() - 0.5) * radius * 2);
 	}
 
+	@SuppressWarnings("deprecation") // Keep Minecraft 1.21.1's legacy teleport-support check.
 	private static boolean teleport(SlimeBionicEntity mob, double x, double y, double z) {
 		if (!(mob.level() instanceof ServerLevel level) || !mob.isAlive()) return false;
 		boolean attaching = mob.getBlockAttachment().canAttach();

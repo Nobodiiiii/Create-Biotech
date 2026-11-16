@@ -127,6 +127,11 @@ public final class BionicTraitResolver {
 				results.put(trait, BionicMilking.donorProperties(donorType));
 				continue;
 			}
+			if (BionicTrait.EGG_LAYING.equals(trait) && donor.has(trait)) {
+				results.put(trait, new BionicTraitResult(1, 1, 0, Set.of(), Set.of(), null)
+					.withDisplayEntries(List.of(new DisplayEntry(DetailKind.SUBTRAIT, donorType, null))));
+				continue;
+			}
 			if (!trait.carrier().isAllTissue() && !trait.isHeadClassification())
 				continue;
 			boolean present = switch (trait.valueKind()) {
@@ -181,6 +186,7 @@ public final class BionicTraitResolver {
 			case "create_biotech:hunting_instinct" -> BionicGameplayRelations.targets(data.extensions().gameplay(), tissue.source(sourceId).profile().entityTypeId(),
 				BionicHunting.targets(Set.of(tissue.source(sourceId).profile().entityTypeId())));
 			case "create_biotech:pack_alert" -> donor.packAlertTargets();
+			case "create_biotech:egg_laying" -> Set.of(tissue.source(sourceId).profile().entityTypeId());
 			case "create_biotech:immune_effects" -> donor.effects(trait);
 			default -> trait.valueKind() == BionicTrait.ValueKind.EFFECT_SET ? donor.effects(trait) : Set.of();
 			};
@@ -208,6 +214,8 @@ public final class BionicTraitResolver {
 		if (!trait.scopes().contains(BionicTraitScope.WHOLE_BODY)
 			&& !trait.scopes().contains(BionicTraitScope.TORSO)) {
 			BionicTraitResult limbResult = evaluateLimbs(trait, data.rule(), tissue, members, misplaced);
+			if (BionicTrait.EGG_LAYING.equals(trait))
+				return limbResult.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.SUBTRAIT));
 			if (BionicTrait.PACK_ALERT.equals(trait))
 				return limbResult.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.TARGET));
 			if (BionicTrait.HUNTING_INSTINCT.equals(trait)) {
@@ -235,6 +243,8 @@ public final class BionicTraitResolver {
 		}
 		double coverage = total > 0 ? contributing / total : 0;
 		BionicTraitResult result = acquisition(data.rule(), coverage, members, misplaced);
+		if (BionicTrait.EGG_LAYING.equals(trait))
+			return result.withDisplayEntries(carrierEntries(trait, data.rule(), tissue, detailCarriers, DetailKind.SUBTRAIT));
 		if (BionicTrait.RIDEABLE.equals(trait)) {
 			int seats = members.stream().mapToInt(member -> tissue.source(member.source()).profile()
 				.entityTypeId().getPath().equals("camel") ? 2 : 1).sum();

@@ -1,5 +1,6 @@
 {
   "values": {
+    "create_biotech:ding_dong_chicken": "simple",
     "minecraft:allay": "normal",
     "minecraft:armadillo": "simple",
     "minecraft:axolotl": "simple",

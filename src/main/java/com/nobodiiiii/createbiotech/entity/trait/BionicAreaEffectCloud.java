@@ -42,6 +42,7 @@ public final class BionicAreaEffectCloud extends AreaEffectCloud {
 	}
 
 	@Override
+	@SuppressWarnings("deprecation") // Keep Minecraft 1.21.1's per-effect eligibility check.
 	public void tick() {
 		super.tick();
 		if (level().isClientSide || isRemoved() || tickCount < getWaitTime() || tickCount % 5 != 0) return;

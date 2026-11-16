@@ -1708,6 +1708,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		move.accept(passenger, feet.x, feet.y, feet.z);
 		passenger.setBoundingBox(pose.bounds(passenger));
 	}
+	@SuppressWarnings("deprecation") // Keep Minecraft 1.21.1's legacy landing-position semantics.
 	@Override public void move(net.minecraft.world.entity.MoverType type, Vec3 movement) {
 		if (blockAttachment != null && blockAttachment.locksMovement()) {
 			setDeltaMovement(Vec3.ZERO);
@@ -1742,6 +1743,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		Vec3 velocity = getDeltaMovement();
 		setDeltaMovement(blockedX ? 0 : velocity.x, blockedY ? 0 : velocity.y, blockedZ ? 0 : velocity.z);
 	}
+	@SuppressWarnings("deprecation") // Minecraft 1.21.1 chunk-presence check.
 	@Override public Vec3 getDismountLocationForPassenger(LivingEntity passenger) {
 		for (int y = 0; y <= (int) getBbHeight() + 1; y++) for (int radius = 1; radius <= 3; radius++)
 			for (int[] offset : net.minecraft.world.entity.vehicle.DismountHelper.offsetsForDirection(getDirection())) {

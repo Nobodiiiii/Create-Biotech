@@ -5,7 +5,6 @@ import java.util.function.Predicate;
 
 import com.mojang.serialization.MapCodec;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.foundation.block.CBWrenchHelper;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.AllShapes;
@@ -119,14 +118,14 @@ public class SurgicalTableBlock extends Block
 				return placementHelper.getOffset(player, level, state, pos, hit)
 					.placeInWorld(level, (BlockItem) stack.getItem(), player, hand, hit);
 		}
-		if (!(stack.getItem() instanceof CapturedEntityBoxItem)
+		if (!SurgicalTableBlockEntity.isPlacementContainer(stack)
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(stack))
 			return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
 		SurgicalTablePlane.Plane plane = SurgicalTablePlane.scan(level, pos);
 		if (!plane.valid())
 			return ItemInteractionResult.FAIL;
-		// Filled-box placement is measured and sent by SurgicalTableClientHandler. Consuming the
+		// Captured-subject placement is measured and sent by SurgicalTableClientHandler. Consuming the
 		// vanilla interaction here prevents an unmeasured server-side fallback from bypassing the
 		// work-area check.
 		return ItemInteractionResult.SUCCESS;

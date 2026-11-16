@@ -6,6 +6,14 @@
     "fall_multiplier": 0.6
   },
   "carriers": {
+    "create_biotech:ding_dong_chicken": {
+      "create_biotech:wing": [
+        "leftWing",
+        "left_wing",
+        "rightWing",
+        "right_wing"
+      ]
+    },
     "minecraft:chicken": {
       "create_biotech:wing": [
         "leftWing",
@@ -24,6 +32,7 @@
     }
   },
   "values": {
+    "create_biotech:ding_dong_chicken": true,
     "minecraft:chicken": true,
     "minecraft:parrot": true
   }

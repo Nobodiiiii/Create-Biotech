@@ -14,6 +14,8 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -439,6 +441,11 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 	/** All anatomical joints installed on this table, without the per-subject storage duplicates. */
 	public List<SurgicalLimbJoint> limbJoints() {
 		return List.copyOf(allLimbJoints());
+	}
+
+	/** Creature containers accepted by both placement previews and server validation. */
+	public static boolean isPlacementContainer(ItemStack stack) {
+		return stack.getItem() instanceof CapturedEntityBoxItem || stack.getItem() instanceof CaptureNetItem;
 	}
 
 	public SurgicalTablePlacementResult tryPlaceSubject(ItemStack box, SurgicalTablePlane.Plane plane,

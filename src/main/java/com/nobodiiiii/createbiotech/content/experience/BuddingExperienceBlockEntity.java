@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.experience;
 import net.minecraft.core.HolderLookup;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
@@ -34,6 +35,8 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGoggleInformation {
 
 	private final int[] faceFluidAmounts = new int[6];
+	private final long[] faceOverflowAmounts = new long[6];
+	private int[] savedGrowthThresholds = new int[0];
 	private final IFluidHandler fluidHandler = new ExperienceInputFluidHandler();
 
 	public BuddingExperienceBlockEntity(BlockPos pos, BlockState state) {
@@ -46,18 +49,30 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		List<Direction> open = findOpenFaces();
 		if (open.isEmpty())
 			return 0;
+		int accepted = Math.min(amount, getFluidSpace());
+		if (accepted == 0)
+			return 0;
 		if (simulate)
-			return amount;
+			return accepted;
 
+		open.removeIf(face -> getFaceFluidSpace(face) < accepted);
 		Direction face = open.get(level.random.nextInt(open.size()));
-		applyFluidToFace(face, amount);
-		return amount;
+		applyFluidToFace(face, accepted);
+		return accepted;
 	}
 
 	public int getFluidSpace() {
 		if (level == null)
 			return 0;
-		return findOpenFaces().isEmpty() ? 0 : Integer.MAX_VALUE / 4;
+		long space = 0;
+		for (Direction face : findOpenFaces())
+			space = Math.max(space, getFaceFluidSpace(face));
+		return (int) Math.min(Integer.MAX_VALUE, space);
+	}
+
+	private long getFaceFluidSpace(Direction face) {
+		int idx = face.get3DDataValue();
+		return Math.max(0, Long.MAX_VALUE - faceOverflowAmounts[idx] - faceFluidAmounts[idx]);
 	}
 
 	public boolean isFluidInputBlocked() {
@@ -76,6 +91,10 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		}
 		if (currentStage >= 4)
 			return;
+		if (faceOverflowAmounts[idx] > 0) {
+			applyFluidToFace(face, 0);
+			return;
+		}
 		int targetStage = currentStage + 1;
 		if (!canPlaceStage(serverLevel, face, currentStage))
 			return;
@@ -98,7 +117,8 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 			currentStage = 0;
 		}
 
-		int newAmount = Math.min(ExperienceConstants.buddingMatureXp(), faceFluidAmounts[idx] + amount);
+		long available = faceOverflowAmounts[idx] + faceFluidAmounts[idx] + amount;
+		int newAmount = (int) Math.min(ExperienceConstants.buddingMatureXp(), available);
 		int newStage = stageOf(newAmount);
 
 		while (currentStage < newStage) {
@@ -113,6 +133,7 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		}
 
 		faceFluidAmounts[idx] = newAmount;
+		faceOverflowAmounts[idx] = available - newAmount;
 		syncToClient();
 	}
 
@@ -264,7 +285,56 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		if (faceFluidAmounts[idx] == 0)
 			return;
 		faceFluidAmounts[idx] = 0;
+		// Harvesting consumes this growth cycle, retaining paid overflow on this face.
 		syncToClient();
+	}
+
+	@Override
+	public void onLoad() {
+		super.onLoad();
+		if (level == null || level.isClientSide)
+			return;
+		migrateGrowthProgress();
+	}
+
+	private static int[] growthThresholds() {
+		return new int[] { stageThreshold(1), stageThreshold(2), stageThreshold(3), stageThreshold(4) };
+	}
+
+	private void migrateGrowthProgress() {
+		int[] current = growthThresholds();
+		if (Arrays.equals(savedGrowthThresholds, current))
+			return;
+		int[] previous = savedGrowthThresholds;
+		if (previous.length != 4) {
+			// The published format stored only Face0..Face5, using these old defaults.
+			// An unchanged custom threshold retains its original units.
+			previous = new int[] { current[0] == 24 ? 16 : current[0], current[1] == 48 ? 32 : current[1],
+				current[2] == 96 ? 64 : current[2], current[3] == 192 ? 128 : current[3] };
+		}
+		for (int i = 0; i < 6; i++) {
+			faceFluidAmounts[i] = rebaseGrowthProgress(faceFluidAmounts[i], previous, current);
+			faceOverflowAmounts[i] = Math.min(Long.MAX_VALUE - faceFluidAmounts[i], faceOverflowAmounts[i]);
+		}
+		savedGrowthThresholds = current;
+		setChanged();
+	}
+
+	private static int rebaseGrowthProgress(int amount, int[] previous, int[] current) {
+		if (amount <= 0)
+			return 0;
+		int oldLower = 0;
+		int newLower = 0;
+		for (int i = 0; i < 4; i++) {
+			if (amount < previous[i]) {
+				long offset = (long) (amount - oldLower) * Math.max(0, current[i] - newLower)
+					/ Math.max(1, previous[i] - oldLower);
+				return (int) Math.max(newLower, Math.min((long) current[i] - 1, newLower + offset));
+			}
+			oldLower = previous[i];
+			newLower = current[i];
+		}
+		return current[3];
 	}
 
 	@Override
@@ -272,13 +342,20 @@ public class BuddingExperienceBlockEntity extends BlockEntity implements IHaveGo
 		super.saveAdditional(tag, registries);
 		for (int i = 0; i < 6; i++)
 			tag.putInt("Face" + i, faceFluidAmounts[i]);
+		tag.putLongArray("FaceOverflow", faceOverflowAmounts.clone());
+		tag.putIntArray("GrowthThresholds", growthThresholds());
 	}
 
 	@Override
 	protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
 		super.loadAdditional(tag, registries);
 		for (int i = 0; i < 6; i++)
-			faceFluidAmounts[i] = tag.getInt("Face" + i);
+			faceFluidAmounts[i] = Math.max(0, tag.getInt("Face" + i));
+		long[] overflow = tag.getLongArray("FaceOverflow");
+		for (int i = 0; i < 6; i++)
+			faceOverflowAmounts[i] = i < overflow.length
+				? Math.min(Long.MAX_VALUE - faceFluidAmounts[i], Math.max(0, overflow[i])) : 0;
+		savedGrowthThresholds = tag.getIntArray("GrowthThresholds");
 	}
 
 	@Override

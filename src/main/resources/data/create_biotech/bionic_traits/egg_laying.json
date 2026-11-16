@@ -1,9 +1,15 @@
 {
   "automatic_detection": false,
   "values": {
-    "minecraft:chicken": true
+    "minecraft:chicken": true,
+    "create_biotech:ding_dong_chicken": true
   },
   "carriers": {
+    "create_biotech:ding_dong_chicken": {
+      "create_biotech:torso": [
+        "body"
+      ]
+    },
     "minecraft:chicken": {
       "create_biotech:torso": [
         "body"

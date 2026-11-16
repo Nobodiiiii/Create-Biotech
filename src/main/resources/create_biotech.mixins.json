@@ -41,6 +41,7 @@
     "LivingEntityBiotechDataMixin",
     "HauntingTypeSlimeMimicMixin",
     "NozzleBlockMixin",
+	"PipeConnectionAccessor",
     "NetherPortalBlockMixin",
     "PortalForcerMixin",
 	"PowderSnowBionicFootMixin",

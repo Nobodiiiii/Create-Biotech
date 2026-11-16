@@ -2,12 +2,15 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenEggDrops;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.particles.ParticleTypes;
@@ -44,8 +47,8 @@ public final class BionicProduction {
 	@Nullable private BionicTraitSet carrierTraits;
 	private ProductionCarriers productionCarriers = ProductionCarriers.EMPTY;
 
-	private record ProductionCarriers(Map<DyeColor, Integer> wool, int eggs, int scutes, int pollinators) {
-		private static final ProductionCarriers EMPTY = new ProductionCarriers(Map.of(), 0, 0, 0);
+	private record ProductionCarriers(Map<DyeColor, Integer> wool, int eggs, int dingDongEggs, int scutes, int pollinators) {
+		private static final ProductionCarriers EMPTY = new ProductionCarriers(Map.of(), 0, 0, 0, 0);
 	}
 
 	public BionicProduction(SlimeBionicEntity entity) { this.entity = entity; }
@@ -62,8 +65,13 @@ public final class BionicProduction {
 				var profile = assembly.sources().get(member.source()).profile();
 				wool.merge(DyeColor.byId(profile.stableInt("Color")), 1, Integer::sum);
 			}
-			productionCarriers = new ProductionCarriers(Map.copyOf(wool),
-				BionicTraitRuntime.membersWithRole(entity, BionicTrait.EGG_LAYING, BionicAnatomyRole.TORSO).size(),
+			int eggs = 0, dingDongEggs = 0;
+			for (var member : BionicTraitRuntime.membersWithRole(entity, BionicTrait.EGG_LAYING, BionicAnatomyRole.TORSO)) {
+				if (assembly.sources().get(member.source()).profile().entityTypeId().equals(CBEntityTypes.DING_DONG_CHICKEN.getId()))
+					dingDongEggs++;
+				else eggs++;
+			}
+			productionCarriers = new ProductionCarriers(Map.copyOf(wool), eggs, dingDongEggs,
 				BionicTraitRuntime.membersWithRole(entity, BionicTrait.SCUTE_SHEDDING, BionicAnatomyRole.SHELL).size(),
 				BionicTraitRuntime.membersWithRole(entity, BionicTrait.POLLINATION, BionicAnatomyRole.TORSO).size());
 		}
@@ -87,6 +95,21 @@ public final class BionicProduction {
 		List<ItemStack> drops = new ArrayList<>();
 		addDrops(drops, item, count);
 		drops.forEach(entity::spawnAtLocation);
+	}
+
+	private void layEggs() {
+		var carriers = carriers();
+		Map<Item, Integer> counts = new LinkedHashMap<>();
+		if (carriers.eggs() > 0) counts.put(Items.EGG, carriers.eggs());
+		for (int organ = 0; organ < carriers.dingDongEggs(); organ++)
+			counts.merge(DingDongChickenEggDrops.roll(entity.getRandom()), 1, Integer::sum);
+		List<ItemStack> fallback = new ArrayList<>();
+		counts.forEach((item, count) -> addDrops(fallback, item, count));
+		var outputs = BionicGameplayRuntime.output(entity, BionicTrait.EGG_LAYING, "egg", fallback,
+			carriers.eggs() + carriers.dingDongEggs());
+		if (outputs.isEmpty()) return;
+		outputs.forEach(entity::spawnAtLocation);
+		BionicGameplayRuntime.produced(entity, BionicTrait.EGG_LAYING, "egg", outputs);
 	}
 
 	private int parameter(BionicTrait trait, String name, int fallback) {
@@ -184,7 +207,7 @@ public final class BionicProduction {
 		BionicGameplayRuntime.tick(entity);
 		if (has(BionicTrait.EGG_LAYING)) {
 			if (eggTicks < 0) eggTicks = interval(BionicTrait.EGG_LAYING);
-			if (--eggTicks <= 0) { BionicGameplayRuntime.drop(entity, BionicTrait.EGG_LAYING, "egg", Items.EGG, carriers().eggs()); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
+			if (--eggTicks <= 0) { layEggs(); entity.playSound(SoundEvents.CHICKEN_EGG); eggTicks = interval(BionicTrait.EGG_LAYING); }
 		}
 		if (has(BionicTrait.SCUTE_SHEDDING)) {
 			if (scuteTicks < 0) scuteTicks = interval(BionicTrait.SCUTE_SHEDDING);

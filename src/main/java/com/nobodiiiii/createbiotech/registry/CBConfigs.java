@@ -84,6 +84,7 @@ public class CBConfigs {
 		configureBionicStats(event.getConfig());
 		migrateShulkerPackagerConfig(event.getConfig());
 		migrateCardboardBoxConfig(event.getConfig());
+		migrateExperienceConfig(event.getConfig());
 	}
 
 	@SubscribeEvent
@@ -91,6 +92,7 @@ public class CBConfigs {
 		configureBionicStats(event.getConfig());
 		migrateShulkerPackagerConfig(event.getConfig());
 		migrateCardboardBoxConfig(event.getConfig());
+		migrateExperienceConfig(event.getConfig());
 	}
 
 	private static void configureBionicStats(ModConfig config) {
@@ -138,6 +140,23 @@ public class CBConfigs {
 			cardboardBox.smallBoxEntityAllowlist.set(CARDBOARD_BOX_DEFAULT_SMALL_ENTITY_ALLOWLIST);
 
 		cardboardBox.configVersion.set(CARDBOARD_BOX_CONFIG_VERSION);
+		SERVER_SPEC.save();
+	}
+
+	private static void migrateExperienceConfig(ModConfig config) {
+		if (config.getSpec() != SERVER_SPEC || SERVER.experience.configVersion.get() >= 1)
+			return;
+		Experience experience = SERVER.experience;
+		// Upgrade old defaults once, retaining deliberate server overrides.
+		if (experience.smallBudXpValue.get() == 16)
+			experience.smallBudXpValue.set(24);
+		if (experience.mediumBudXpValue.get() == 32)
+			experience.mediumBudXpValue.set(48);
+		if (experience.largeBudXpValue.get() == 64)
+			experience.largeBudXpValue.set(96);
+		if (experience.clusterXpValue.get() == 128)
+			experience.clusterXpValue.set(192);
+		experience.configVersion.set(1);
 		SERVER_SPEC.save();
 	}
 

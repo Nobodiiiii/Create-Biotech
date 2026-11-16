@@ -51,6 +51,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -144,19 +145,41 @@ public class CapturedEntityBoxHelper {
 		appendContentsTooltip(stack, registries, tooltipComponents);
 	}
 
+	public static boolean hasCaptureAttachments(LivingEntity target) {
+		return target.isPassenger() || target.isVehicle() || target instanceof Mob mob && mob.isLeashed();
+	}
+
+	/** Use normal dismount hooks; a veto leaves the target uncaptured. */
+	private static boolean detachForCapture(LivingEntity target) {
+		if (target.isPassenger()) {
+			target.stopRiding();
+			if (target.isPassenger())
+				return false;
+		}
+		if (target.isVehicle()) {
+			target.ejectPassengers();
+			if (target.isVehicle())
+				return false;
+		}
+		if (target instanceof Mob mob && mob.isLeashed())
+			mob.dropLeash(true, true);
+		return !hasCaptureAttachments(target);
+	}
+
 	public static boolean captureEntity(ItemStack stack, LivingEntity target) {
-		if (stack.isEmpty() || stack.getItem() instanceof EmptyCardboardBoxItem || hasCapturedEntity(stack))
+		if (target.level().isClientSide() || stack.isEmpty()
+			|| stack.getItem() instanceof EmptyCardboardBoxItem || hasCapturedEntity(stack))
+			return false;
+		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
+		if (entityId == null)
 			return false;
 
 		BionicGameplayEvent packEvent = target instanceof SlimeBionicEntity bionic
 			? BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.PACK, bionic, CreateBiotech.asResource("pack")).interaction(null, null, stack)) : null;
 		if (packEvent != null && packEvent.isCancelled()) return false;
+		if (!detachForCapture(target)) return false;
 		CompoundTag entityData = new CompoundTag();
 		target.saveWithoutId(entityData);
-
-		ResourceLocation entityId = BuiltInRegistries.ENTITY_TYPE.getKey(target.getType());
-		if (entityId == null)
-			return false;
 
 		entityData.putString("id", entityId.toString());
 		restoreAiInSavedEntityData(entityData);

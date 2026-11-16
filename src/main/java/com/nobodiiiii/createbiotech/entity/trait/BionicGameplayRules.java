@@ -92,9 +92,11 @@ public final class BionicGameplayRules {
 			Boolean water = nullableBool(json, "target_in_water"), baby = nullableBool(json, "target_baby"), tamed = nullableBool(json, "tamed");
 			boolean sight = bool(json, "line_of_sight", false);
 			double light = number(json, "maximum_light", 0, 1, 1);
-			return (entity, donor, target) -> (!sight || entity.hasLineOfSight(target))
+			@SuppressWarnings("deprecation") // Keep Minecraft 1.21.1's entity-brightness calculation.
+			BionicRelationCondition condition = (entity, donor, target) -> (!sight || entity.hasLineOfSight(target))
 				&& (water == null || water == target.isInWaterOrBubble()) && (baby == null || baby == target.isBaby())
 				&& (tamed == null || tamed == (entity.getBionicOwnerId() != null)) && entity.getLightLevelDependentMagicValue() <= light;
+			return condition;
 		});
 		registerAttack(id("projectile"), json -> {
 			var type = BuiltInRegistries.ENTITY_TYPE.getOptional(ResourceLocation.parse(json.get("entity").getAsString())).orElseThrow();

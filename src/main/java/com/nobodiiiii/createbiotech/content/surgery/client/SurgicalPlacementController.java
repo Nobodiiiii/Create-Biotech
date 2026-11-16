@@ -11,7 +11,6 @@ import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import org.jetbrains.annotations.Nullable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
@@ -204,7 +203,7 @@ final class SurgicalPlacementController {
 		PlacementSource source = null;
 		for (InteractionHand candidateHand : SurgicalTableClientHandler.HANDS) {
 			ItemStack held = player.getItemInHand(candidateHand);
-			if (!(held.getItem() instanceof CapturedEntityBoxItem)
+			if (!SurgicalTableBlockEntity.isPlacementContainer(held)
 				&& !hasPlacementCapture(held)
 				|| !CapturedEntityBoxHelper.hasCapturedEntity(held))
 				continue;
@@ -662,7 +661,7 @@ final class SurgicalPlacementController {
 
 	static boolean tryPlaceSubject(LocalPlayer player, ClientLevel level, InteractionHand hand,
 		ItemStack held) {
-		if (!(held.getItem() instanceof CapturedEntityBoxItem)
+		if (!SurgicalTableBlockEntity.isPlacementContainer(held)
 			&& !hasPlacementCapture(held)
 			|| !(Minecraft.getInstance().hitResult instanceof BlockHitResult hit)
 			|| !(level.getBlockState(hit.getBlockPos()).getBlock() instanceof SurgicalTableBlock))

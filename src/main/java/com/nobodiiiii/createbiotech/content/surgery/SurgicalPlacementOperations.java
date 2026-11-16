@@ -11,7 +11,7 @@ import java.util.UUID;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
 import org.jetbrains.annotations.Nullable;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
-import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicCarriedDrops;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
@@ -54,7 +54,7 @@ final class SurgicalPlacementOperations {
 			? SurgicalPlacementOperations.occupiedOutside(operationOwner, temporaryMove.group()) : operationOwner.occupiedForValidation(plane, -1);
 		if (operationOwner.getLevel() == null || operationOwner.getLevel().isClientSide || !operationOwner.getBlockPos().equals(plane.source()) || occupied == null)
 			return SurgicalTablePlacementResult.INVALID_TABLE;
-		if (!(box.getItem() instanceof CapturedEntityBoxItem) && !SurgicalKitItem.hasPlacementCapture(box)
+		if (!SurgicalTableBlockEntity.isPlacementContainer(box) && !SurgicalKitItem.hasPlacementCapture(box)
 			|| !CapturedEntityBoxHelper.hasCapturedEntity(box) || observedSeams == null
 			|| anatomy == null || componentFootprints == null || sourceLayouts == null
 			|| layPose == null || !layPose.valid())
@@ -511,7 +511,10 @@ final class SurgicalPlacementOperations {
 
 	static void finishSubjectPlacement(SurgicalTableBlockEntity operationOwner, ItemStack box, @Nullable SurgicalTableBlockEntity.TemporaryMoveSource move) {
 		operationOwner.clientRenderBounds = null;
-		CapturedEntityBoxHelper.clearCapturedEntity(box);
+		if (box.getItem() instanceof CaptureNetItem)
+			CaptureNetItem.clearCapture(box);
+		else
+			CapturedEntityBoxHelper.clearCapturedEntity(box);
 		if (move != null)
 			SurgicalKitItem.clearTemporaryMove(box);
 		operationOwner.setChangedAndSync();

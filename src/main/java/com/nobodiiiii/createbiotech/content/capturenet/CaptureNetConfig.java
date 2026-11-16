@@ -19,10 +19,11 @@ public final class CaptureNetConfig {
 			healthLimits.put(tier, builder.comment("Maximum current health that this net can capture.")
 				.defineInRange(tier.id() + "MaxHealth", tier.defaultHealthLimit(), 0.5, 1024.0));
 		fastestEscapeSeconds = builder.comment("Escape time at the net's health limit, in seconds.")
-			.defineInRange("fastestEscapeSeconds", 10, 1, 3600);
+			.defineInRange("fastestEscapeSeconds", 5, 1, 3600);
 		slowestEscapeSeconds = builder.comment("Escape time as captured health approaches zero, in seconds. "
-			+ "The larger of the two escape-time settings is always used as the slow end.")
-			.defineInRange("slowestEscapeSeconds", 60, 1, 3600);
+			+ "The larger of the two escape-time settings is always used as the slow end. "
+			+ "Mimics and assembled bionic creatures always use the slow end.")
+			.defineInRange("slowestEscapeSeconds", 120, 1, 3600);
 		escapeDurabilityFraction = builder.comment("Fraction of maximum durability lost after a successful escape, rounded up. Unbreaking applies normally.")
 			.defineInRange("escapeDurabilityFraction", 0.1, 0.0, 1.0);
 		escapeCooldownSeconds = builder.comment("Cooldown after a successful escape, in seconds.")

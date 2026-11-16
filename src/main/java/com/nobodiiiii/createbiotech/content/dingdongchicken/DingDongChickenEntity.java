@@ -17,8 +17,11 @@ import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.animal.Chicken;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 
@@ -71,6 +74,14 @@ public class DingDongChickenEntity extends Chicken {
 			entityData.set(POWERED, false);
 			unregisterSource();
 		}
+	}
+
+	@Nullable
+	@Override
+	public ItemEntity spawnAtLocation(ItemLike item) {
+		// Chicken.aiStep uses this overload, preserving its laying timer, sound and game event.
+		return super.spawnAtLocation(item == Items.EGG && !level().isClientSide
+			? DingDongChickenEggDrops.roll(getRandom()) : item);
 	}
 
 	@Override
