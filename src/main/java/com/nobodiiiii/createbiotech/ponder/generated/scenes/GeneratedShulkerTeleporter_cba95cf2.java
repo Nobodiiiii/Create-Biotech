@@ -71,9 +71,11 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_stopped", new BlockPos(4, 0, 3), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(40);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west"), Map.entry("part", "2")), "{CandidateAddresses:[\"222\"],Closing:1b,ClosingTicks:8.0f,Network:{Capacity:262144.0f,Id:-824633704505L,Size:3,Stress:0.0f},OwnAddress:\"111\",SealedHoldTicks:0,Source:[I;-3,-58,3],Speed:128.0f,TargetAddress:\"222\"}", null, new BlockPos(2, 3, 2), null);
-        scene.playSound("minecraft:block.shulker_box.close", 1.0f, 1.0f, "blocks");
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_running", new BlockPos(4, 0, 3), 0.0f, false, true, false, "none", null, null, null, null, null);
-        scene.idle(50);
+        // At 128 RPM, (80 - 8) / 2 - 8 = 28 ticks until the close sound.
+        scene.idle(28);
+        scene.playSound("minecraft:block.shulker_box.close", 1.0f, 1.0f, "blocks");
+        scene.idle(22);
         scene.showText(text("scene_1.text_6"), new Vec3(2.5d, 2.0d, 2.5d), 50, null, true);
         scene.spawnParticles("minecraft:portal", new Vec3(4.5d, 2.0d, 2.5d), "box", new Vec3(1.0d, 1.0d, 1.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
         scene.spawnParticles("minecraft:portal", new Vec3(0.5d, 2.0d, 2.5d), "box", new Vec3(1.0d, 1.0d, 1.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);

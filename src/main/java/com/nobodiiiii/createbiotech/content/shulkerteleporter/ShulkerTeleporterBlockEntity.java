@@ -68,6 +68,8 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	public static final float TOP_SHELL_CLOSED_Y = -2.0f;
 	public static final int MAX_ADDRESS_LENGTH = 32;
 	public static final int MAX_CANDIDATE_ADDRESSES = 64;
+	// The vanilla shulker box close sample's impact starts about 0.4 seconds in.
+	private static final int CLOSE_SOUND_LEAD_TICKS = 8;
 	private static final AABB TELEPORT_TRIGGER_AREA = new AABB(1.0d / 16.0d, 0.0d, 1.0d / 16.0d,
 		15.0d / 16.0d, 0.25d, 15.0d / 16.0d);
 	private static final Map<Level, Set<BlockPos>> CLIENT_ACTIVE_TELEPORTERS = new WeakHashMap<>();
@@ -79,6 +81,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 	private float previousClosingTicks;
 	private int sealedHoldTicks;
 	private boolean closing;
+	private boolean closingSoundPlayed;
 	private final Map<UUID, Integer> arrivalCooldowns = new HashMap<>();
 	@Nullable
 	private ShulkerTeleporterSavedData.Location registeredLocation;
@@ -125,13 +128,17 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			float animationStep = getAnimationStep();
 			if (!closing) {
 				closing = true;
-				Vec3 soundPos = SubLevelCompat.toWorld(level, Vec3.atCenterOf(getBottomPos()));
-				level.playSound(null, soundPos.x, soundPos.y, soundPos.z, SoundEvents.SHULKER_BOX_CLOSE,
-					SoundSource.BLOCKS, 1.0f, 1.0f);
+				closingSoundPlayed = false;
 				sendBlockUpdate();
 			}
 			if (closingTicks < CLOSE_TICKS)
 				closingTicks = Math.min(CLOSE_TICKS, closingTicks + animationStep);
+			if (!closingSoundPlayed && closingTicks >= CLOSE_TICKS - animationStep * CLOSE_SOUND_LEAD_TICKS) {
+				closingSoundPlayed = true;
+				Vec3 soundPos = SubLevelCompat.toWorld(level, Vec3.atCenterOf(getBottomPos()));
+				level.playSound(null, soundPos.x, soundPos.y, soundPos.z, SoundEvents.SHULKER_BOX_CLOSE,
+					SoundSource.BLOCKS, 1.0f, 1.0f);
+			}
 			if (closingTicks >= CLOSE_TICKS) {
 				if (sealedHoldTicks < SEALED_HOLD_TICKS)
 					sealedHoldTicks++;
@@ -340,6 +347,8 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 		previousClosingTicks = closingTicks;
 		sealedHoldTicks = Mth.clamp(tag.getInt("SealedHoldTicks"), 0, SEALED_HOLD_TICKS);
 		closing = tag.getBoolean("Closing");
+		// Avoid replaying the sound when resuming an animation past its playback point.
+		closingSoundPlayed = closing && closingTicks >= CLOSE_TICKS - getAnimationStep() * CLOSE_SOUND_LEAD_TICKS;
 		updateClientActiveRegistration();
 	}
 

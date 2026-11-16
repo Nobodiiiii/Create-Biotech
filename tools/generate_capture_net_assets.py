@@ -1,4 +1,5 @@
 """Rebuild pixel textures and export art/capture_net.bbmodel (Pillow required)."""
+import base64
 import json
 from pathlib import Path
 from PIL import Image
@@ -25,14 +26,14 @@ def write(path, content):
 
 
 RAMPS = {
-    "wooden": ("49301d", "694522", "8e622f", "b17e40", "ce9b58", "e5b877"),
-    "stone": ("424b49", "626d68", "818c84", "a0a99e", "bac2b6", "d3d8cb"),
-    "iron": ("4b4a52", "6d6c77", "95949e", "b9b8c1", "d6d6de", "eeeef2"),
-    "golden": ("6a401e", "986526", "bf8b33", "dda948", "f2cf72", "fff0a4"),
-    "diamond": ("164b50", "237b7e", "329f9e", "50c2b8", "88dfcd", "c6f5e6"),
-    "netherite": ("27252e", "3c3642", "574b57", "73616c", "95838c", "b5a5aa"),
+    "wooden": ("654628", "79532e", "906438", "a57843", "b78950", "c99b61"),
+    "stone": ("595753", "6e6c67", "84817c", "96938d", "a5a29c", "b7b4ad"),
+    "iron": ("606064", "828287", "a7a7ab", "bebec1", "d4d4d6", "e8e8e9"),
+    "golden": ("916228", "b58530", "d8a53b", "e8bb48", "f5d36a", "ffe69a"),
+    "diamond": ("236568", "288f92", "29b6b7", "3cceca", "75e3da", "b1f2e7"),
+    "netherite": ("302b2c", "413a3c", "554a4d", "66595b", "7d6c6a", "96817a"),
 }
-HANDLE_RAMP = ("49301c", "68451f", "89602d", "a8793b", "c29451", "dcaf6b")
+HANDLE_RAMP = RAMPS["wooden"]
 
 
 def paint_face(tier, name, direction, width, height):
@@ -43,39 +44,36 @@ def paint_face(tier, name, direction, width, height):
     patch = Image.new("RGBA", (width, height))
     face_seed = ("north", "east", "south", "west", "up", "down").index(direction)
     part_seed = sum(map(ord, name))
-    # Broad clusters along the bars avoid a repeating stripe/checker texture.
-    polished = (3, 3, 2, 2, 3, 4, 4, 3, 3, 2, 3, 4, 3)
-    grain = (0, 0, -1, -1, 0, 0, 1, 1, 0, -1, 0, 0, 1)
+    # Long, low-contrast clusters read as grain and reflections on one-pixel bars.
+    grain = ((0, 0, 0, 1, 1, 1, 0, 0, 0, 0, -1, -1, 0),
+             (0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0))
+    mineral = (3, 3, 2, 2, 2, 3, 3, 3, 4, 4, 3, 3, 3)
+    highlight_start = {"square_hoop_top": 2, "square_hoop_bottom": 6,
+                       "square_hoop_left": 1, "square_hoop_right": 5}.get(name, 0)
     for y in range(height):
         for x in range(width):
             long = y if height > width else x
+            cross = x if height > width else y
             if wooden:
                 if direction in ("up", "down") and name == "wooden_handle":
-                    level = ((3, 2), (1, 3))[y][x]
+                    level = ((3, 2), (2, 3))[y][x]
                 else:
-                    cross = x if height > width else y
-                    level = (3 if cross == 0 else 2) + grain[(long + face_seed * 2) % len(grain)]
-                    # A few dark grain breaks and a worn patch, rather than full-width bands.
-                    if (long + face_seed) % 13 in (3, 10) and cross == 1:
-                        level -= 1
-                    if 5 <= long <= 7 and cross == 0:
-                        level += 1
+                    strand = grain[cross % 2]
+                    level = (3 if cross == 0 else 2) + strand[(long + face_seed * 2) % len(strand)]
+            elif tier == "stone":
+                level = mineral[(long + cross * 3 + part_seed % 4) % len(mineral)]
+                if direction in ("east", "west", "down"):
+                    level -= 1
             elif direction in ("north", "south"):
-                level = polished[(long + part_seed + face_seed * 3) % len(polished)]
-                if long == 0 or long == max(width, height) - 1:
+                level = 4 if highlight_start <= long < highlight_start + 3 else 3
+                if long >= max(width, height) - 2:
                     level = 2
                 if name == "simple_metal_socket":
-                    level = ((3, 4), (2, 3), (1, 2))[y][x]
+                    level = ((3, 4), (3, 4), (2, 3))[y][x]
             else:
-                # The two-pixel depth has a bright lip and a recessed dark edge.
+                # A continuous lip defines the depth without striping the rim.
                 depth = y if direction in ("up", "down") else x
-                level = (4 if depth == 0 else 2) if direction == "up" else (2 if depth == 0 else 1)
-                if (long + part_seed + face_seed) % 9 in (3, 4):
-                    level += 1
-            if tier == "stone" and name != "wooden_handle":
-                # Short mineral seams stay in whole texels, with restrained contrast.
-                if (long + face_seed + part_seed) % 11 in (2, 3):
-                    level -= 1
+                level = 3 if depth == 0 and direction != "down" else 2
             patch.putpixel((x, y), colors[max(0, min(len(colors) - 1, level))])
     return patch
 
@@ -114,14 +112,24 @@ def pixel_textures():
     # Exact opaque colors sampled from Minecraft 1.21.1's cobweb.png.
     # One texel is one model pixel on every face; the mouth has no front quad.
     cobweb = Image.open(ROOT / "art/reference/cobweb.png").convert("RGBA")
-    colors = list(dict.fromkeys(c for c in cobweb.get_flattened_data() if c[3] == 255))
+    colors = sorted(set(c for c in cobweb.get_flattened_data() if c[3] == 255), key=lambda c: sum(c[:3]))
+    shadow, thread, knot = colors
     mesh = Image.new("RGBA", (16, 16))
     for y in range(16):
         for x in range(16):
             if x % 3 == 0 or y % 3 == 0:
-                color = colors[(x // 3 + y // 3) % len(colors)]
+                color = thread
+                if x % 3 == 0 and y % 3 == 0:
+                    color = knot
+                elif (x // 3 + 2 * (y // 3)) % 5 == 0:
+                    color = shadow
                 mesh.putpixel((x, y), color)
     mesh.save(TEXTURES / "mesh.png")
+    # Keep the embedded editor textures identical to the exported PNGs.
+    for texture in source["textures"]:
+        texture["source"] = "data:image/png;base64," + base64.b64encode(
+            (TEXTURES / texture["name"]).read_bytes()).decode("ascii")
+    SOURCE.write_text(json.dumps(source, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
 def export_source():
