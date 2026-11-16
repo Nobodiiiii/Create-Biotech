@@ -4,14 +4,10 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.simibubi.create.content.fluids.tank.FluidTankBlockEntity;
 
 import net.createmod.catnip.animation.AnimationTickHolder;
-import net.createmod.ponder.api.level.PonderLevel;
-import net.createmod.ponder.foundation.PonderScene;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.fluids.FluidStack;
-
-import org.joml.Quaternionf;
 
 public final class FluidTankExperienceOrbRenderer {
 	private static final int FLUID_PER_ORB = 300;
@@ -25,7 +21,7 @@ public final class FluidTankExperienceOrbRenderer {
 	private FluidTankExperienceOrbRenderer() {
 	}
 
-	public static boolean render(FluidTankBlockEntity be, FluidStack fluidStack, float partialTicks, PoseStack poseStack,
+	public static boolean render(FluidTankBlockEntity be, FluidStack fluidStack, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight, float xMin, float yMin, float zMin, float xMax, float yMax,
 		float zMax) {
 		Level level = be.getLevel();
@@ -52,7 +48,6 @@ public final class FluidTankExperienceOrbRenderer {
 		int orbCount = Math.max(1, Math.min(maxOrbsForTank, fluidAmount / FLUID_PER_ORB));
 		float ageTicks = AnimationTickHolder.getRenderTime(level);
 		float time = ageTicks * ORB_SPEED;
-		Quaternionf billboardRotation = createBillboardRotation(level, partialTicks);
 
 		for (int i = 0; i < orbCount; i++) {
 			float seedA = i * 13.7f;
@@ -82,7 +77,7 @@ public final class FluidTankExperienceOrbRenderer {
 			try {
 				poseStack.translate(x, y, z);
 				ExperienceOrbModelRenderer.render(poseStack, buffer, packedLight,
-					ageTicks * ORB_TURN_RATE * 25f + seedA, icon, 1.0f, billboardRotation);
+					ageTicks * ORB_TURN_RATE * 25f + seedA, icon, 1.0f);
 			} finally {
 				poseStack.popPose();
 			}
@@ -116,17 +111,6 @@ public final class FluidTankExperienceOrbRenderer {
 		float capHeight = 1 / 4f;
 		float minPuddleHeight = 1 / 16f;
 		return Math.max(0, be.getHeight() - 2 * capHeight - minPuddleHeight);
-	}
-
-	private static Quaternionf createBillboardRotation(Level level, float partialTicks) {
-		if (!(level instanceof PonderLevel ponderLevel) || ponderLevel.scene == null)
-			return null;
-
-		PonderScene.SceneTransform transform = ponderLevel.scene.getTransform();
-		PonderScene.SceneCamera camera = new PonderScene.SceneCamera();
-		camera.set(transform.xRotation.getValue(partialTicks) + 90.0f,
-			transform.yRotation.getValue(partialTicks) + 180.0f);
-		return new Quaternionf(camera.rotation());
 	}
 
 	private static float animatedCoordinate(float base, float time, float phaseA, float phaseB, float amplitude) {

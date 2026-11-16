@@ -14,6 +14,8 @@ import com.simibubi.create.content.kinetics.deployer.DeployerApplicationRecipe;
 import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import net.minecraft.core.BlockPos;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.items.IItemHandler;
@@ -242,19 +244,23 @@ final class SpiderProcessController {
 		if (held.isEmpty())
 			return;
 
-		ItemStack remainder = held.getCraftingRemainingItem();
+		ItemStack remainder = ItemStack.EMPTY;
 		if (held.isDamageableItem()) {
 			held.setDamageValue(held.getDamageValue() + 1);
 			if (held.getDamageValue() >= held.getMaxDamage())
 				held.shrink(1);
-			operationOwner.inventory.setStackInSlot(hybridSlot, held);
-			return;
+		} else {
+			remainder = held.getCraftingRemainingItem();
+			held.shrink(1);
 		}
 
-		held.shrink(1);
+		boolean depleted = held.isEmpty();
 		operationOwner.inventory.setStackInSlot(hybridSlot, held);
 		if (!remainder.isEmpty())
 			SpiderProcessController.insertIntoItemCacheOrDrop(operationOwner, slot, remainder);
+		if (depleted && operationOwner.getLevel() != null)
+			operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_BREAK,
+				SoundSource.BLOCKS, 0.25f, 1);
 	}
 
 	static void insertIntoItemCacheOrDrop(SpiderAssemblyTableBlockEntity operationOwner, int preferredSlot, ItemStack stack) {

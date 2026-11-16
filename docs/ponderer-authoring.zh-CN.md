@@ -11,12 +11,18 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 | 场景多语言文本 | `src/main/resources/assets/create_biotech/ponderer/texts/<场景>/<语言>.json` |
 | 生成的 Java 文档、索引和客户端入口 | `src/main/java/com/nobodiiiii/createbiotech/ponder/generated/` |
 | 自定义步骤注册入口 | `src/main/java/com/nobodiiiii/createbiotech/ponderext/PonderExtensions.java` |
-| 黄油猫引擎、悦灵配送、压机、玩家、药水、步行动画和潜影打包机 | `ponderext/*Effects.java` |
+| 黄油猫引擎、悦灵配送、压机、药水、步行动画和潜影打包机 | `ponderext/*Effects.java` |
 | 场景范围 | Lib 根据结构和普通步骤坐标维护，无需额外的 Java 边界回调 |
 | 播放器增强请求 | `ponderext/PonderClientFeatures.java` |
 | 苦力怕压缩和机械压机专属实现 | `ponder/PonderSupportExt.java` |
 
 `PonderExtensions.java` 只在首次导出时创建，后续导出不会覆盖；其他扩展类也不属于导出器管理范围。自定义步骤通过 `engine.steps().registerJava` 注册，编辑器显示中文名称和 Java 标记，保留调用位置并跳过 Java 实现解析。普通动作仍可编辑。
+
+经验泵和悦灵驿站的玩家展示使用 Lib 的 `scene.createEntity("minecraft:player", ...)` 数据调用，显示当前观看者的玩家模型，位置、朝向与实体链接可在编辑器中修改。退场通过相同 `linkId` 的 `scene.clearEntities(...)` 执行，保留 10 tick 向下退场和原有等待时序；无需自定义 Java 步骤或单独保存玩家元素链接。玩家参与普通实体清理，避免在退场前先用全场清理将其立即移除。
+
+经验泵入口的经验球仍由普通 `createEntity` 步骤放置，链接为 `experience.input_orb`；`ExperiencePumpOrbEffects` 的 `orbit_input` 步骤在后续 60 tick 内以该位置为中心，按半径 0.2 格、60 tick 一圈的水平轨迹运动，持续到经验球被清除。出口用二十个可编辑的 `createEntity` 步骤，每隔 5 tick 喷出一球，覆盖对应文本的完整 100 tick；通过 NBT 的 `Motion` 设置向外且略向上的初速度、`NoGravity:0b` 恢复自然下落，总等待时序保持不变。场景中两次展示的双层储罐均装入 16000 mB 经验，单格储罐装入 8000 mB，使用 1.21.1 的流体 NBT 和场景内控制器坐标。动画依据本地 `ref/1.21.1/Ponder/common/src/main/java/net/createmod/ponder/foundation/instruction/TickingInstruction.java` 与 `foundation/PonderScene.java` 的非阻塞指令及逐 tick 调度，物理依据 `ref/1.21.1/Minecraft/net/minecraft/world/entity/ExperienceOrb.java`；储罐容量与读取方式参见 `ref/1.21.1/Create/src/main/java/com/simibubi/create/infrastructure/config/CFluids.java` 和 `content/fluids/tank/FluidTankBlockEntity.java`。
+
+思索中普通经验球与储罐经验球的面向由 Ponderer Lib 的 `core` 统一适配：整段场景渲染期间使用思索场景相机的朝向，覆盖普通实体与方块实体，结束后恢复主游戏相机朝向。更新 Lib 后生效，修改经验球的 yaw/pitch 无法替代此修复。`FluidTankExperienceOrbRenderer` / `ExperienceOrbModelRenderer` 保留游戏内与思索共用的储罐经验球数量、游动和绘制逻辑，不再包含思索专用的相机计算分支。
 
 生成 Java 使用 `scene.showText(text("scene_1.text_1"), ...)` 引用文本，正文和标题分别维护在各场景的 `zh_cn.json` / `en_us.json` 中，不再合并进模组总语言文件。已有文本键在调整步骤顺序时保留；手写内容可使用语义键。Lib 负责语言选择、英文回退、资源包覆盖和重载。编辑器直接写回目标工程的 Java 与独立文本资源。
 
@@ -41,14 +47,16 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 | --- | --- |
 | 生物打包机、恶魂装配站和驾驶台场景中拉下拉杆 | `minecraft:block.lever.click`，音量 `0.3`、音高 `0.6`；`ref/1.21.1/Minecraft/net/minecraft/world/level/block/LeverBlock.java` 的开启音效。 |
 | 培养皿放入仿生构件 | `minecraft:entity.item_frame.add_item`，音量 `0.5`、音高 `1.0`；`content/petridish/PetriDishBlockEntity.java` 的 `use`。 |
+| 培养皿场景搅拌活体史莱姆 | 沿用 Create 的 `MIXING` 双层音效：`minecraft:block.gilded_blackstone.break` 和 `minecraft:block.netherrack.break`，每层音量 `0.75 × 0.125`、音高 `0.5`。搅拌头下降 20 tick 后，每隔 2 tick 播放一次，共 23 次，保留原有 70 tick 等待；依据 `ref/1.21.1/Create/src/main/java/com/simibubi/create/content/kinetics/mixer/MechanicalMixerBlockEntity.java` 的 `tickAudio` 与 `AllSoundEvents.java` 的 `MIXING`。 |
 | 培养皿开始出芽、完成生成 | `minecraft:entity.slime.jump`（`0.8 / 0.9`）、`minecraft:block.slime_block.place`（`0.7 / 0.9`）；`content/petridish/PetriDishCultivation.java` 的 `beginEmergence` / `finishEmergence`。 |
-| 再生喷溅药水落地破碎 | `minecraft:entity.splash_potion.break`，音量 `1.0`、音高 `0.95`（原版随机范围内的固定值）；`ref/1.21.1/Minecraft/net/minecraft/client/renderer/LevelRenderer.java` 的事件 `2002` / `2007`。 |
 | 固定钓竿放入小麦诱饵 | `minecraft:entity.item_frame.add_item`，音量 `1.0`、音高 `1.0`；`content/fixedcarrotfishingrod/FixedCarrotFishingRodBlock.java` 的 `interact`。 |
 | 鱿鱼打印机和附魔室流水线开始附魔 | `minecraft:entity.evoker.prepare_summon`，音量 `0.7`、音高 `1.0`；沿用 `content/evokerenchantingchamber/EvokerEnchantingChamberBlockEntity.java` 的 `tryInsertFromPlayer` 中已有的准备声，在思索切换到施法状态时播放。 |
 | 鱿鱼打印机和附魔室流水线完成附魔 | `minecraft:block.enchantment_table.use`，音量 `0.85`、音高 `1.0`；`content/evokerenchantingchamber/EvokerEnchantingChamberBlockEntity.java` 的 `completeCasting`。 |
-| 蜘蛛装配站的六次机械手装配 | 沿用 `content/spiderassemblytable/SpiderAssemblyTableBlockEntity.java` 的 `playMachineSound` 中 `CRAFTER_CLICK`；按 `ref/1.21.1/Create/src/main/java/com/simibubi/create/AllSoundEvents.java` 的复合音效定义，同步播放 `create:crafter_click`（音量 `0.1875`）和 `create:crafter_click_compounded_1`（音量 `0.09375`），音高固定 `0.925`，位于原有随机范围内。每轮 32 tick 的加工在第 16 tick 接触工件时播放，将原等待拆为 `16 + 4`，总时序保持不变。 |
+| 蜘蛛装配站的六次机械手装配 | 与 `content/spiderassemblytable/SpiderAssemblyTableBlockEntity.java` 的 `playMachineSound` 一致，播放 `minecraft:entity.item.pickup`（音量 `0.25`、音高 `0.75`）；依据 `ref/1.21.1/Create/src/main/java/com/simibubi/create/content/kinetics/deployer/BeltDeployerCallbacks.java` 的装配完成音效，不叠加机械合成器的 `CRAFTER_CLICK`。玩法中材料耗尽或工具损坏时额外播放 `minecraft:entity.item.break`（`0.25 / 1.0`），思索中每个材料槽有 64 个物品，无需该音效。每轮 32 tick 的加工在第 16 tick 接触工件时播放，将原等待拆为 `16 + 4`，总时序保持不变。 |
 
 表中的 `content/` 路径均相对于 `src/main/java/com/nobodiiiii/createbiotech/`。保留已有的传送、苦力怕爆炸、鱿鱼脱水音效。生物打包机动画已有客户端声音调用，不再手工叠加；只有操作提示、场景入场、相机运动、结构展示或没有明确音效依据的动作保持静音。蜘蛛装配场景依据现有仿生构件配方和槽位内容，六步均按机械手处理；其旧 `ActiveMachine` 值误用了槽位序号，已统一修正为机械手枚举值 `0`，仅调整思索数据。
+
+培养皿的再生药水演示按设计保持静音。药水消失后保留一次喷溅粒子，并在村民周围每 tick 继续生成一个再生效果粒子，持续剩余的 278 tick，覆盖鼓风机缠魂、转化和最后的文字展示。粒子使用非阻塞的 `emitParticles`，不改变场景等待时序；对应实现为 `ponderext/PetriDishEffects.java`。
 
 ## 运行库与构建
 

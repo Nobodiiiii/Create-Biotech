@@ -1,6 +1,5 @@
 package com.nobodiiiii.createbiotech.ponderext;
 
-import com.nododiiiii.ponderer.runtime.api.PonderPlayerSupport;
 import com.nododiiiii.ponderer.runtime.api.PonderActions;
 import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 import com.simibubi.create.content.logistics.box.PackageItem;
@@ -34,7 +33,6 @@ final class AllayPortEffects {
 
     static void install(RuntimeEngine engine) {
         engine.steps().registerJava("create_biotech:java/allay_port/1", "向驿站配送", AllayPortEffects::deliverToPort);
-        engine.steps().registerJava("create_biotech:java/allay_port/2", "显示收件玩家", AllayPortEffects::showRecipient);
         engine.steps().registerJava("create_biotech:java/allay_port/3", "向玩家配送", AllayPortEffects::deliverToPlayer);
     }
 
@@ -42,11 +40,6 @@ final class AllayPortEffects {
         var scene = ctx.builder();
         playDeliveryAnimation(scene, "→王芳", "blue", "王芳",
             new BlockPos(4, 1, 4), new BlockPos(1, 1, 1), null, (byte) 1);
-    }
-
-    private static void showRecipient(StepBuildContext ctx) {
-        var scene = ctx.builder();
-        PonderPlayerSupport.addPlayer(scene, new Vec3(1.5, 1.0, 1.5), 180f);
     }
 
     private static void deliverToPlayer(StepBuildContext ctx) {

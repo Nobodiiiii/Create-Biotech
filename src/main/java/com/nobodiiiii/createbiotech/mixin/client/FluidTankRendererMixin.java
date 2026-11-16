@@ -28,11 +28,11 @@ public abstract class FluidTankRendererMixin {
 	private void createBiotech$renderExperienceAsOrbs(FluidRenderHelper fluidRenderer, Object fluidStackObject,
 		float xMin, float yMin, float zMin, float xMax, float yMax, float zMax, MultiBufferSource buffer,
 		PoseStack poseStack, int packedLight, boolean renderBottom, boolean invertGases, Operation<Void> original,
-		@Local(argsOnly = true) FluidTankBlockEntity be, @Local(argsOnly = true) float partialTicks) {
+		@Local(argsOnly = true) FluidTankBlockEntity be) {
 		if (!CBConfigs.CLIENT.renderExperienceAsFluid.get()
 			&& fluidStackObject instanceof FluidStack fluidStack
 			&& ExperienceFluidHelper.isExperience(fluidStack)
-			&& FluidTankExperienceOrbRenderer.render(be, fluidStack, partialTicks, poseStack, buffer, packedLight,
+			&& FluidTankExperienceOrbRenderer.render(be, fluidStack, poseStack, buffer, packedLight,
 				xMin, yMin, zMin, xMax, yMax, zMax))
 			return;
 

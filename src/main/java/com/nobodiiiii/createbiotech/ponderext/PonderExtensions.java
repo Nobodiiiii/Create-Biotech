@@ -8,7 +8,7 @@ public final class PonderExtensions {
     public static void install(RuntimeEngine engine) {
         ButterCatEngineEffects.install(engine);
         CreeperBlastChamberEffects.install(engine);
-        ExperiencePumpEffects.install(engine);
+        ExperiencePumpOrbEffects.install(engine);
         PowerBeltConnectorEffects.install(engine);
         MagmaBeltConnectorEffects.install(engine);
         ShulkerPackagerEffects.install(engine);

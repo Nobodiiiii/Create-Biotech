@@ -40,15 +40,19 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
@@ -364,7 +368,7 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 	void triggerImpact(ItemStack impactItem) {
 		if (level == null || activeMachine == null)
 			return;
-		playMachineSound();
+		playMachineSound(impactItem);
 		impactDisplayItem = impactItem.copy();
 		impactPending = true;
 		sendData();
@@ -379,19 +383,30 @@ public class SpiderAssemblyTableBlockEntity extends KineticBlockEntity implement
 		return cachedInput;
 	}
 
-	private void playMachineSound() {
+	private void playMachineSound(ItemStack impactItem) {
 		if (level == null || activeMachine == null)
 			return;
 		float speedFactor = Math.abs(getSpeed()) / 1024f;
 		switch (activeMachine) {
-		case PRESS -> AllSoundEvents.MECHANICAL_PRESS_ACTIVATION.playOnServer(level, worldPosition, 0.5f,
-			0.75f + speedFactor);
-		case SAW -> AllSoundEvents.SAW_ACTIVATE_WOOD.playOnServer(level, worldPosition, 0.75f,
-			0.85f + 0.15f * level.random.nextFloat());
+		case PRESS -> {
+			BlockPos supportPos = worldPosition.below(2);
+			if (level.getBlockState(supportPos).getSoundType(level, supportPos, null) == SoundType.WOOL)
+				AllSoundEvents.MECHANICAL_PRESS_ACTIVATION_ON_BELT.playOnServer(level, worldPosition);
+			else
+				AllSoundEvents.MECHANICAL_PRESS_ACTIVATION.playOnServer(level, worldPosition, 0.5f,
+					0.75f + speedFactor);
+		}
+		case SAW -> {
+			boolean isWood = impactItem.getItem() instanceof BlockItem blockItem
+				&& blockItem.getBlock().getSoundType(blockItem.getBlock().defaultBlockState(), level,
+					worldPosition, null) == SoundType.WOOD;
+			(isWood ? AllSoundEvents.SAW_ACTIVATE_WOOD : AllSoundEvents.SAW_ACTIVATE_STONE)
+				.playOnServer(level, worldPosition, 3, 1);
+		}
 		case SPOUT -> AllSoundEvents.SPOUTING.playOnServer(level, worldPosition, 0.75f,
 			0.9f + 0.2f * level.random.nextFloat());
-		case DEPLOYER -> AllSoundEvents.CRAFTER_CLICK.playOnServer(level, worldPosition, 0.75f,
-			0.85f + 0.15f * level.random.nextFloat());
+		case DEPLOYER -> level.playSound(null, worldPosition, SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS,
+			0.25f, 0.75f);
 		}
 	}
 
