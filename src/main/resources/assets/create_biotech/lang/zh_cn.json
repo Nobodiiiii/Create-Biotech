@@ -7,6 +7,7 @@
   "item.create_biotech.netherite_capture_net": "下界合金捕捉网",
   "item.create_biotech.capture_net.limit": "可捕获的当前血量上限：%s 点",
   "item.create_biotech.capture_net.instructions": "右键捕捉生物，蹲下右键放出",
+  "item.create_biotech.capture_net.lethal_capture": "致死攻击自动消耗背包空纸箱装箱（含横扫）",
   "item.create_biotech.capture_net.contains": "网兜中：%s",
   "item.create_biotech.capture_net.escape": "约 %s 秒后挣脱（血量越高，挣脱越快）",
   "item.create_biotech.capture_net.occupied": "网兜已有生物，蹲下右键可放出。",

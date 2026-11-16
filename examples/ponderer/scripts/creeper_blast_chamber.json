@@ -950,7 +950,7 @@
           "type": "play_sound",
           "pitch": 1.0,
           "sound": "minecraft:entity.creeper.primed",
-          "soundVolume": 0.55,
+          "soundVolume": 0.2,
           "source": "blocks"
         },
         {
@@ -963,7 +963,7 @@
           "type": "play_sound",
           "pitch": 1.15,
           "sound": "minecraft:entity.creeper.primed",
-          "soundVolume": 0.7,
+          "soundVolume": 0.2,
           "source": "blocks"
         },
         {
@@ -976,7 +976,7 @@
           "type": "play_sound",
           "pitch": 1.15,
           "sound": "minecraft:entity.generic.explode",
-          "soundVolume": 1.0,
+          "soundVolume": 0.45,
           "source": "blocks"
         },
         {

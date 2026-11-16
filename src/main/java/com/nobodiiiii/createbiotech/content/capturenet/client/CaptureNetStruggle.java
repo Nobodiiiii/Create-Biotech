@@ -40,5 +40,6 @@ final class CaptureNetStruggle {
 		return (value >>> 8) * 0x1.0p-24f;
 	}
 
+	/** x is the far-wall sway; the renderer reduces it towards the anchored mouth. */
 	record Motion(float x, float y, float z, float pitch) {}
 }

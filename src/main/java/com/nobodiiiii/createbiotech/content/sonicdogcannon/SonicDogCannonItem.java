@@ -177,7 +177,7 @@ public class SonicDogCannonItem extends Item {
 				: CBSoundEvents.SONIC_DOG_CANNON_VOICE_PACK_FIRE_PARTIAL.get()
 			: SoundEvents.WOLF_AMBIENT;
 		level.playSound(null, player.getX(), player.getY(), player.getZ(), fireSound,
-			SoundSource.PLAYERS, 1.0f, 1.0f);
+			SoundSource.PLAYERS, hasVoicePack ? 1.0f : 0.4f, 1.0f);
 		player.getCooldowns().addCooldown(this, COOLDOWN_TICKS);
 		player.awardStat(Stats.ITEM_USED.get(this));
 	}

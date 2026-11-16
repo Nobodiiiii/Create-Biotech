@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "src/main/resources/assets/create_biotech"
 SOURCE = ROOT / "art/capture_net.bbmodel"
 TEXTURES = ASSETS / "textures/item/capture_net"
+MATERIALS = ROOT / "art/reference/capture_net_materials"
 TIERS = ("wooden", "stone", "iron", "golden", "diamond", "netherite")
 DISPLAY = {
     "thirdperson_righthand": {"rotation": [-22.5, 90, 0], "translation": [0, 3.25, -1.5], "scale": [0.8] * 3},
@@ -25,66 +26,73 @@ def write(path, content):
     path.write_text(json.dumps(content, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-RAMPS = {
-    "wooden": ("654628", "79532e", "906438", "a57843", "b78950", "c99b61"),
-    "stone": ("595753", "6e6c67", "84817c", "96938d", "a5a29c", "b7b4ad"),
-    "iron": ("606064", "828287", "a7a7ab", "bebec1", "d4d4d6", "e8e8e9"),
-    "golden": ("916228", "b58530", "d8a53b", "e8bb48", "f5d36a", "ffe69a"),
-    "diamond": ("236568", "288f92", "29b6b7", "3cceca", "75e3da", "b1f2e7"),
-    "netherite": ("302b2c", "413a3c", "554a4d", "66595b", "7d6c6a", "96817a"),
+BLOCK_TEXTURES = {
+    "wooden": "oak_planks",
+    "stone": "stone",
+    "iron": "iron_block",
+    "golden": "gold_block",
+    "diamond": "diamond_block",
+    "netherite": "netherite_block",
 }
-HANDLE_RAMP = RAMPS["wooden"]
+# Interior strips retain each block's grain/reflections without its outer border.
+# Coordinates are native 16x16 source pixels, not colors to be repainted.
+PLANK_STRIPS = ((1, 1), (2, 5), (3, 9), (1, 13))
+BLOCK_STRIPS = ((3, 1), (6, 2), (9, 1), (12, 2))
+HORIZONTAL_BLOCK_STRIPS = ((1, 3), (2, 6), (1, 9), (2, 12))
+PARTS = ("wooden_handle", "simple_metal_socket", "square_hoop_top",
+         "square_hoop_bottom", "square_hoop_left", "square_hoop_right")
+FACES = ("north", "east", "south", "west", "up", "down")
+# Preserve the current wooden frame's six-tone placement, including its hand-edited pixels.
+# Keep the former iron ramp's gray-violet hue, lifted above the stone frame,
+# while retaining a darker highlight than the pale mesh.
+IRON_WOOD_RAMP = ("785c32", "8c6d3c", "967441", "9f844d", "af8f55", "b8945f")
+IRON_RAMP = ("707075", "828288", "94949b", "a3a3ab", "b0b0b8", "bcbcc4")
+IRON_RECOLOR = {tuple(bytes.fromhex(wood)) + (255,): tuple(bytes.fromhex(iron)) + (255,)
+                for wood, iron in zip(IRON_WOOD_RAMP, IRON_RAMP)}
 
 
-def paint_face(tier, name, direction, width, height):
-    """Paint at native resolution; every island belongs to one complete cube face."""
-    wooden = name == "wooden_handle" or tier == "wooden"
-    ramp = HANDLE_RAMP if name == "wooden_handle" else RAMPS[tier]
-    colors = [tuple(bytes.fromhex(c)) + (255,) for c in ramp]
-    patch = Image.new("RGBA", (width, height))
-    face_seed = ("north", "east", "south", "west", "up", "down").index(direction)
-    part_seed = sum(map(ord, name))
-    # Long, low-contrast clusters read as grain and reflections on one-pixel bars.
-    grain = ((0, 0, 0, 1, 1, 1, 0, 0, 0, 0, -1, -1, 0),
-             (0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0))
-    mineral = (3, 3, 2, 2, 2, 3, 3, 3, 4, 4, 3, 3, 3)
-    highlight_start = {"square_hoop_top": 2, "square_hoop_bottom": 6,
-                       "square_hoop_left": 1, "square_hoop_right": 5}.get(name, 0)
-    for y in range(height):
-        for x in range(width):
-            long = y if height > width else x
-            cross = x if height > width else y
-            if wooden:
-                if direction in ("up", "down") and name == "wooden_handle":
-                    level = ((3, 2), (2, 3))[y][x]
-                else:
-                    strand = grain[cross % 2]
-                    level = (3 if cross == 0 else 2) + strand[(long + face_seed * 2) % len(strand)]
-            elif tier == "stone":
-                level = mineral[(long + cross * 3 + part_seed % 4) % len(mineral)]
-                if direction in ("east", "west", "down"):
-                    level -= 1
-            elif direction in ("north", "south"):
-                level = 4 if highlight_start <= long < highlight_start + 3 else 3
-                if long >= max(width, height) - 2:
-                    level = 2
-                if name == "simple_metal_socket":
-                    level = ((3, 4), (3, 4), (2, 3))[y][x]
-            else:
-                # A continuous lip defines the depth without striping the rim.
-                depth = y if direction in ("up", "down") else x
-                level = 3 if depth == 0 and direction != "down" else 2
-            patch.putpixel((x, y), colors[max(0, min(len(colors) - 1, level))])
+def crop_face(blocks, tier, name, direction, width, height):
+    """Copy a contiguous block-texture crop at 1:1 scale, only rotating whole texels."""
+    material = BLOCK_TEXTURES[tier]
+    if name == "wooden_handle":
+        material = "stripped_oak_log_top" if direction in ("up", "down") else "stripped_oak_log"
+    block = blocks[material]
+    strip = (PARTS.index(name) + FACES.index(direction)) % len(BLOCK_STRIPS)
+    long, cross = max(width, height), min(width, height)
+    if material == "oak_planks":
+        # Follow one plank along its grain rather than crossing the dark plank seams.
+        u, v = PLANK_STRIPS[strip]
+        crop_width, crop_height = long, cross
+        rotate = height > width
+    elif material in ("stone", "iron_block"):
+        u, v = HORIZONTAL_BLOCK_STRIPS[strip]
+        crop_width, crop_height = long, cross
+        rotate = height > width
+    else:
+        # The other block materials retain their vertical source strips.
+        u, v = BLOCK_STRIPS[strip]
+        crop_width, crop_height = cross, long
+        rotate = width > height
+    if u + crop_width > block.width or v + crop_height > block.height:
+        raise ValueError(f"{name}/{direction}: block-texture crop exceeds the source image")
+    patch = block.crop((u, v, u + crop_width, v + crop_height))
+    if rotate:
+        patch = patch.transpose(Image.Transpose.ROTATE_90)
+    if patch.size != (width, height):
+        raise ValueError(f"{name}/{direction}: cropped face must retain its native pixel size")
     return patch
 
 
-def pixel_textures():
+def pixel_textures(tiers=TIERS):
     TEXTURES.mkdir(parents=True, exist_ok=True)
     source = json.loads(SOURCE.read_text(encoding="utf-8"))
     atlas_texture = next(t for t in source["textures"] if t["name"] != "mesh.png")
     atlas_size = (atlas_texture["uv_width"], atlas_texture["uv_height"])
     frame_cubes = [e for e in source["elements"] if e["name"] != "single_vertical_net_pouch"]
-    for tier in TIERS:
+    blocks = {name: Image.open(MATERIALS / f"{name}.png").convert("RGBA")
+              for name in (*BLOCK_TEXTURES.values(), "stripped_oak_log", "stripped_oak_log_top")}
+    iron_pattern = Image.open(MATERIALS / "iron_wood_pattern.png").convert("RGBA") if "iron" in tiers else None
+    for tier in tiers:
         atlas = Image.new("RGBA", atlas_size)
         occupied = set()
         for cube in frame_cubes:
@@ -97,7 +105,11 @@ def pixel_textures():
                 if occupied & pixels:
                     raise ValueError("Frame UV islands must not overlap")
                 occupied.update(pixels)
-                patch = paint_face(tier, cube["name"], direction, u2 - u1, v2 - v1)
+                if tier == "iron" and cube["name"] != "wooden_handle":
+                    patch = iron_pattern.crop(face["uv"])
+                    patch.putdata([IRON_RECOLOR[color] for color in patch.get_flattened_data()])
+                else:
+                    patch = crop_face(blocks, tier, cube["name"], direction, u2 - u1, v2 - v1)
                 atlas.paste(patch, (u1, v1))
                 # Duplicate the edge texels into one-pixel gutters for atlas filtering.
                 for u in range(-1, patch.width + 1):
@@ -229,6 +241,12 @@ def export_animation(source, groups):
     for name in ("grip", "bag"):
         xyz = ", ".join(number(v - 8) for v in groups[name][0]["origin"])
         lines.append(f"\tstatic final float[] {name.upper()}_PIVOT = {{{xyz}}};")
+    bag_ids = set(groups["bag"][1])
+    tip_depth = max(e["to"][2] + e.get("inflate", 0) for e in source["elements"] if e["uuid"] in bag_ids)
+    tip_depth -= groups["bag"][0]["origin"][2]
+    if tip_depth <= 0:
+        raise ValueError("The net far wall must extend behind the bag pivot")
+    lines.append(f"\tstatic final float BAG_TIP_DEPTH = {number(tip_depth)};")
     for animation in source["animations"]:
         label = animation["name"].upper()
         lines += ["", f"\tstatic final float {label}_LENGTH = {number(animation['length'])};"]
@@ -253,8 +271,9 @@ def export_animation(source, groups):
                         raise ValueError("Use single-point linear animation keys for exact runtime parity")
                     point = key["data_points"][0]
                     if target == "bag":
+                        # X drives far-wall sway, reduced towards the mouth by the renderer.
                         # Keep the inflated root buried in the rim even at the combined extrema.
-                        limits = (4.5, 0, 0) if channel == "rotation" else (0.05, 0.05, 0.375)
+                        limits = (4.5, 0, 0) if channel == "rotation" else (2, 0.05, 0.375)
                         if any(abs(float(point[axis])) > limit for axis, limit in zip(("x", "y", "z"), limits)):
                             raise ValueError(f"Occupied bag {channel} exceeds the embedded-mouth motion limits")
                     values = [key["time"]] + [float(point[a]) for a in ("x", "y", "z")]

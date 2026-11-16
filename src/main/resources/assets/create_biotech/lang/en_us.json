@@ -7,6 +7,7 @@
   "item.create_biotech.netherite_capture_net": "Netherite Capture Net",
   "item.create_biotech.capture_net.limit": "Maximum current health: %s HP",
   "item.create_biotech.capture_net.instructions": "Right-click to capture; sneak-right-click to release",
+  "item.create_biotech.capture_net.lethal_capture": "Lethal hits and sweeps auto-box creatures using inventory boxes",
   "item.create_biotech.capture_net.contains": "In the net: %s",
   "item.create_biotech.capture_net.escape": "Escapes in %s s (more health = faster escape)",
   "item.create_biotech.capture_net.occupied": "This net is occupied. Sneak-right-click to release the creature.",

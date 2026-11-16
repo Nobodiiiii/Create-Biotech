@@ -1,7 +1,9 @@
 package com.nobodiiiii.createbiotech.content.frogportal;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.nobodiiiii.createbiotech.registry.CBBlocks;
 
@@ -42,6 +44,8 @@ public final class FrogStomachSecretionSpreading {
 	private static final int MAX_CURSORS = 32;
 	private static final int MAX_CURSOR_CHARGE = 1000;
 	private static final int SPREAD_DELAY = 1;
+	private static final int SPREAD_SOUND_COOLDOWN_TICKS = 5;
+	private static final double SPREAD_SOUND_RADIUS_SQR = 8.0d * 8.0d;
 	private static final int MAX_STALLED_UPDATES = 32;
 	private FrogStomachSecretionSpreading() {}
 
@@ -99,7 +103,7 @@ public final class FrogStomachSecretionSpreading {
 		RandomSource random = level.getRandom();
 		sendSecretionParticles(level, pos, 8);
 		level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS,
-			2.0f, 0.6f + random.nextFloat() * 0.4f);
+			1.0f, 0.6f + random.nextFloat() * 0.4f);
 	}
 
 	private static void sendSecretionParticles(ServerLevel level, BlockPos pos, int count) {
@@ -112,6 +116,8 @@ public final class FrogStomachSecretionSpreading {
 	private static final class SpreadingData extends SavedData {
 
 		private final List<ChargeCursor> cursors = new ArrayList<>();
+		// Runtime-only sound throttling shared by nearby cursors; never persisted.
+		private final Map<BlockPos, Long> recentSpreadSounds = new HashMap<>();
 
 		static SpreadingData get(ServerLevel level) {
 			return level.getDataStorage()
@@ -159,6 +165,8 @@ public final class FrogStomachSecretionSpreading {
 		}
 
 		void tick(ServerLevel level) {
+			long gameTime = level.getGameTime();
+			recentSpreadSounds.entrySet().removeIf(entry -> gameTime - entry.getValue() >= SPREAD_SOUND_COOLDOWN_TICKS);
 			if (cursors.isEmpty())
 				return;
 
@@ -189,7 +197,7 @@ public final class FrogStomachSecretionSpreading {
 				setDirty();
 		}
 
-		private static void updateCursor(ServerLevel level, RandomSource random, ChargeCursor cursor) {
+		private void updateCursor(ServerLevel level, RandomSource random, ChargeCursor cursor) {
 			if (!level.getBlockState(cursor.pos).is(CBBlocks.FROG_STOMACH_SECRETION.get())) {
 				cursor.charge = 0;
 				return;
@@ -201,7 +209,7 @@ public final class FrogStomachSecretionSpreading {
 				BlockState secretionState = CBBlocks.FROG_STOMACH_SECRETION.get().defaultBlockState();
 				level.setBlock(spreadPos, secretionState, Block.UPDATE_ALL);
 				Block.pushEntitiesUp(replacedState, secretionState, level, spreadPos);
-				level.playSound(null, spreadPos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0f, 1.0f);
+				playSpreadSound(level, spreadPos);
 				cursor.pos = spreadPos;
 				cursor.charge--;
 				cursor.stalledUpdates = 0;
@@ -216,6 +224,14 @@ public final class FrogStomachSecretionSpreading {
 				cursor.charge /= 2;
 				cursor.stalledUpdates = 0;
 			}
+		}
+
+		private void playSpreadSound(ServerLevel level, BlockPos pos) {
+			for (BlockPos recentPos : recentSpreadSounds.keySet())
+				if (recentPos.distSqr(pos) <= SPREAD_SOUND_RADIUS_SQR)
+					return;
+			level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 0.3f, 1.0f);
+			recentSpreadSounds.put(pos.immutable(), level.getGameTime());
 		}
 
 		private static BlockPos findSpreadPos(ServerLevel level, BlockPos pos, RandomSource random) {

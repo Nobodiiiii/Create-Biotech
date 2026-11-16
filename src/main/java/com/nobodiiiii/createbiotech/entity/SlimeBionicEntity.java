@@ -1676,7 +1676,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override public void equipSaddle(ItemStack stack, @Nullable net.minecraft.sounds.SoundSource source) {
 		if (!isSaddleable()) return;
 		equipment.equipSaddle(stack);
-		if (source != null) level().playSound(null, this, net.minecraft.sounds.SoundEvents.HORSE_SADDLE, source, 1, 1);
+		if (source != null) level().playSound(null, this, net.minecraft.sounds.SoundEvents.HORSE_SADDLE, source, 0.5f, 1);
 	}
 	@Override protected boolean canAddPassenger(Entity passenger) {
 		return passenger instanceof Player && !isOrderedToSit() && isSaddled() && isSaddleable()

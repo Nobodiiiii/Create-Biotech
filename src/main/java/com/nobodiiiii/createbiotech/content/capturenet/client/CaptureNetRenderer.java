@@ -3,7 +3,11 @@ package com.nobodiiiii.createbiotech.content.capturenet.client;
 import java.util.EnumMap;
 import java.util.Map;
 
+import org.joml.Matrix4f;
+
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
@@ -20,6 +24,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -34,8 +39,18 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer implements IClientItemExtensions {
 	private static final Map<CaptureNetTier, PartialModel> FRAMES = new EnumMap<>(CaptureNetTier.class);
 	private static final PartialModel BAG = PartialModel.of(CreateBiotech.asResource("item/capture_net/bag"));
+	private static final float CONTENTS_Z = 5.0f;
 	// The net is a single open shell: its far wall must also be visible from inside the mouth.
 	private static final RenderType NET_RENDER_TYPE = RenderType.entityCutoutNoCull(InventoryMenu.BLOCK_ATLAS);
+	// The block cutout shader retains lightmap and alpha discard without normal-based diffuse shading.
+	private static final RenderType GUI_NET_RENDER_TYPE = RenderType.create("create_biotech_capture_net_gui",
+		DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 256, true, false,
+		RenderType.CompositeState.builder()
+			.setShaderState(RenderStateShard.RENDERTYPE_CUTOUT_SHADER)
+			.setTextureState(new RenderStateShard.TextureStateShard(InventoryMenu.BLOCK_ATLAS, false, false))
+			.setCullState(RenderStateShard.NO_CULL)
+			.setLightmapState(RenderStateShard.LIGHTMAP)
+			.createCompositeState(true));
 	private static final CachedRenderEntity<LivingEntity, ItemStack> CONTENTS = CachedRenderEntity
 		.keyed((Level level, ItemStack stack) -> {
 			var entity = CapturedEntityBoxHelper.createCapturedEntity(stack, level);
@@ -104,14 +119,22 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		renderer.render(FRAMES.get(net.tier()).get(), light);
 		LivingEntity contents = occupied ? CONTENTS.get(Minecraft.getInstance().level, stack) : null;
 		// The pouch and its contents shake together; the embedded mouth stays inside the fixed rim.
+		float horizontalSway = 0;
 		if (idleWeight > 0) {
 			var motion = CaptureNetStruggle.sample(time, contents == null ? 0 : contents.getUUID().hashCode(), idleWeight);
-			pose.translate(side * motion.x() / 16, motion.y() / 16, motion.z() / 16);
+			horizontalSway = side * motion.x() / CaptureNetAnimation.BAG_TIP_DEPTH;
+			pose.translate(0, motion.y() / 16, motion.z() / 16);
 			applyRotation(pose, CaptureNetAnimation.BAG_PIVOT, motion.pitch(), 0, 0);
 		}
-		if (contents != null) renderContents(contents, pose, buffer, light);
+		if (contents != null) renderContents(contents, pose, buffer, light, horizontalSway);
+		// Increase sideways motion towards the far wall while keeping the mouth pinned inside the rim.
+		// Apply this only to the mesh; the creature follows its local offset without being sheared.
+		if (horizontalSway != 0)
+			pose.mulPose(new Matrix4f().m20(horizontalSway)
+				.m30(-horizontalSway * CaptureNetAnimation.BAG_PIVOT[2] / 16));
 		// Entity renderers can use the same singleton partial renderer; reacquire it afterwards.
-		PartialItemModelRenderer.of(stack, context, pose, buffer, overlay).render(BAG.get(), NET_RENDER_TYPE, light);
+		RenderType netRenderType = context == ItemDisplayContext.GUI ? GUI_NET_RENDER_TYPE : NET_RENDER_TYPE;
+		PartialItemModelRenderer.of(stack, context, pose, buffer, overlay).render(BAG.get(), netRenderType, light);
 		pose.popPose();
 	}
 
@@ -132,9 +155,11 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		pose.translate(-pivot[0] / 16, -pivot[1] / 16, -pivot[2] / 16);
 	}
 
-	private static void renderContents(LivingEntity entity, PoseStack pose, MultiBufferSource buffer, int light) {
+	private static void renderContents(LivingEntity entity, PoseStack pose, MultiBufferSource buffer, int light,
+		float horizontalSway) {
 		pose.pushPose();
-		pose.translate(0, 3.0 / 16, 5.0 / 16);
+		pose.translate(horizontalSway * (CONTENTS_Z - CaptureNetAnimation.BAG_PIVOT[2]) / 16,
+			3.0 / 16, CONTENTS_Z / 16);
 		float scale = Math.min(0.30f / Math.max(0.1f, entity.getBbWidth()),
 			0.30f / Math.max(0.1f, entity.getBbHeight()));
 		pose.scale(scale, scale, scale);

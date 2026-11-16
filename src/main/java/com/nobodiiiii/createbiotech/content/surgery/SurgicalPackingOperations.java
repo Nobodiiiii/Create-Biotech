@@ -50,7 +50,7 @@ final class SurgicalPackingOperations {
 
 		SurgicalPlacementOperations.removeGroup(operationOwner, group);
 		operationOwner.setChangedAndSync();
-		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
+		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.2f, 0.85f);
 		return true;
 	}
 
@@ -91,7 +91,7 @@ final class SurgicalPackingOperations {
 			return false;
 		SurgicalKitItem.setTemporaryMove(kit, operationOwner.getLevel().dimension().location(), operationOwner.getBlockPos(),
 			subject.persistentId(), cubeId, group.components(), sourceSubjects, sourceAssembly.save());
-		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
+		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.2f, 0.85f);
 		return true;
 	}
 
@@ -111,7 +111,7 @@ final class SurgicalPackingOperations {
 		if (bionic == null || !CapturedEntityBoxHelper.captureEntity(kit, bionic))
 			return false;
 		player.displayClientMessage(Component.translatable("message.create_biotech.surgical_table.cube_copied"), true);
-		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.7f, 0.85f);
+		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.2f, 0.85f);
 		return true;
 	}
 

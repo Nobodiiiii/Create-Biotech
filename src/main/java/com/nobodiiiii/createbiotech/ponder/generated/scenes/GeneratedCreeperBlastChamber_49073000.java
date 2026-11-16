@@ -150,11 +150,11 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.showExtraStructure("create_biotech:generated/ponderer/creeper_blast_chamber_press_array", new BlockPos(3, 4, 2), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/creeper_blast_chamber/1", new JsonObject());
         scene.javaStep("create_biotech:java/creeper_blast_chamber/2", new JsonObject());
-        scene.playSound("minecraft:entity.creeper.primed", 0.55f, 1.0f, "blocks");
+        scene.playSound("minecraft:entity.creeper.primed", 0.2f, 1.0f, "blocks");
         scene.idle(9);
-        scene.playSound("minecraft:entity.creeper.primed", 0.7f, 1.15f, "blocks");
+        scene.playSound("minecraft:entity.creeper.primed", 0.2f, 1.15f, "blocks");
         scene.idle(6);
-        scene.playSound("minecraft:entity.generic.explode", 1.0f, 1.15f, "blocks");
+        scene.playSound("minecraft:entity.generic.explode", 0.45f, 1.15f, "blocks");
         scene.spawnParticles("minecraft:large_smoke", new Vec3(3.5d, 2.5d, 3.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.05d, 0.0d), 1, 1);
         scene.spawnParticles("minecraft:large_smoke", new Vec3(4.5d, 2.5d, 3.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.05d, 0.0d), 1, 1);
         scene.spawnParticles("minecraft:large_smoke", new Vec3(5.5d, 2.5d, 3.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.05d, 0.0d), 1, 1);

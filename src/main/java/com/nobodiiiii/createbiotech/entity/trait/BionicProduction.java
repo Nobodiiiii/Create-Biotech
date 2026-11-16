@@ -319,7 +319,7 @@ public final class BionicProduction {
 		boolean swell = ignited || entity.getBionicOwnerId() == null && !entity.isNoAi() && !entity.isOrderedToSit()
 			&& target != null && entity.canAttack(target) && entity.hasLineOfSight(target) && entity.distanceToSqr(target) < (fuse > 0 ? 49 : 9);
 		if (swell) entity.getNavigation().stop();
-		if (swell && fuse == 0) entity.playSound(SoundEvents.CREEPER_PRIMED);
+		if (swell && fuse == 0) entity.playSound(SoundEvents.CREEPER_PRIMED, 1.0f, 0.5f);
 		fuse = Math.max(0, fuse + (swell ? 1 : -1)); sync();
 		if (fuse < parameter(BionicTrait.SELF_DESTRUCT, "fuse_ticks", 30)) return;
 		exploding = true;

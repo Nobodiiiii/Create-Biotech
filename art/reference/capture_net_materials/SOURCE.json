@@ -1,0 +1,65 @@
+{
+  "minecraft_version": "1.21.1",
+  "source_archive": "build/moddev/artifacts/neoforge-21.1.234-client-extra-aka-minecraft-resources.jar",
+  "source_archive_sha256": "8e9cf6f4b6eafb1c6bf745a67a61dd1736f31865cad409e5b2bec918667dab5e",
+  "retrieval_method": "Extracted original PNG entries from the existing local Minecraft resource archive; no source decompilation or image modifications.",
+  "usage": "Non-iron capture-net materials use native rectangular block-texture crops, optionally rotated by 90 degrees. Iron recolors the saved wooden-atlas pattern with the generator's gray-violet ramp.",
+  "textures": [
+    {
+      "file": "oak_planks.png",
+      "resource": "assets/minecraft/textures/block/oak_planks.png",
+      "sha256": "3a33db67a3ba30537d0890a5cb37c8087ca336be89cbb1393a71c23224e361a8"
+    },
+    {
+      "file": "stripped_oak_log.png",
+      "resource": "assets/minecraft/textures/block/stripped_oak_log.png",
+      "sha256": "a0beb15ad3d8223308d5b36a3ee9c3b9c2b5ed9b4fadc7c5bdbc69823dfb1bc2"
+    },
+    {
+      "file": "stripped_oak_log_top.png",
+      "resource": "assets/minecraft/textures/block/stripped_oak_log_top.png",
+      "sha256": "381cd4df4f9017c253df5edd9510c482729c477ae7b2ec954dbc3e92638d078f"
+    },
+    {
+      "file": "stone.png",
+      "resource": "assets/minecraft/textures/block/stone.png",
+      "sha256": "33ac70ba8cb701087642a12c5fd29c1ba3006dc4730e9b014ed3a19ce7cdda7b"
+    },
+    {
+      "file": "iron_block.png",
+      "resource": "assets/minecraft/textures/block/iron_block.png",
+      "sha256": "910646c90f391ec42cfebdd356ed1e1be36ad513a684a930e38c36ab610a7a24"
+    },
+    {
+      "file": "gold_block.png",
+      "resource": "assets/minecraft/textures/block/gold_block.png",
+      "sha256": "a66720b7a7a3a253ae02ac9ebafeb74fbe1e933dac1c752c8cd18bcd75422509"
+    },
+    {
+      "file": "diamond_block.png",
+      "resource": "assets/minecraft/textures/block/diamond_block.png",
+      "sha256": "93a63fa544d416188412584fffdf01e7fcb218f8a7e9f3e82232e773fc207fc9"
+    },
+    {
+      "file": "netherite_block.png",
+      "resource": "assets/minecraft/textures/block/netherite_block.png",
+      "sha256": "7f9ec5010d043fb4bafa661f27a255f04db6393d95f83a663f2f92206531298e"
+    }
+  ],
+  "derived_textures": [
+    {
+      "file": "iron_wood_pattern.png",
+      "source": "src/main/resources/assets/create_biotech/textures/item/capture_net/wooden.png",
+      "sha256": "b7e8b7b6198f69916391ca931ad00f8168f0f37aafdcaeaea16da57dd56f8b4b",
+      "usage": "Snapshot of the current wooden atlas. The iron frame and socket copy its exact six-tone pixel distribution, recolored with the darker portion of the previous iron palette; the handle is not recolored."
+    }
+  ],
+  "derived_patterns": [
+    {
+      "file": "iron_wood_pattern.png",
+      "source": "src/main/resources/assets/create_biotech/textures/item/capture_net/wooden.png",
+      "sha256": "b7e8b7b6198f69916391ca931ad00f8168f0f37aafdcaeaea16da57dd56f8b4b",
+      "retrieval_method": "Copied the current wooden capture-net atlas, including existing pixel edits. Only its frame/socket UV islands are used as the six-tone pattern for iron recoloring."
+    }
+  ]
+}

@@ -1,12 +1,14 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
@@ -68,6 +70,10 @@ public class LargeCardboardBoxHandler {
 
 		Player player = getCapturingPlayer(event.getSource());
 		if (player == null)
+			return;
+		// Capture nets select a suitable box from the whole inventory after damage modifiers.
+		if (event.getSource().is(DamageTypes.PLAYER_ATTACK)
+			&& player.getMainHandItem().getItem() instanceof CaptureNetItem)
 			return;
 
 		ItemStack offhandStack = player.getOffhandItem();

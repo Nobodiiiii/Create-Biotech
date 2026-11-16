@@ -563,7 +563,7 @@ public final class BionicEquipment {
 			if (saddle != null && acceptsMount(saddle, held, false)) {
 				return equipmentAction(player, hand, () -> {
 					equipSaddle(saddle, held); held.consume(1, player);
-					entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 1, 1);
+					entity.playSound(net.minecraft.sounds.SoundEvents.HORSE_SADDLE, 0.5f, 1);
 				});
 			}
 		}

@@ -38,9 +38,10 @@ public final class ClientEffect{
 
         ParticleOptions particle = PARTICLE_MAP.get(type);
         SoundEvent soundEvent = SOUND_MAP.get(type);
+        float soundVolume = type == EffectType.BUTTER || type == EffectType.SUPER_BUTTER ? 0.4f : 1.0f;
 
         serverLevel.playSound(null, pos, soundEvent,
-                SoundSource.BLOCKS, 1.0f, 1.0f);
+                SoundSource.BLOCKS, soundVolume, 1.0f);
 
         (serverLevel).sendParticles(
                 particle,

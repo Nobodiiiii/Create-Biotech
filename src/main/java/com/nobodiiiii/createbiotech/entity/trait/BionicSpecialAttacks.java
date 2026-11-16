@@ -209,7 +209,6 @@ public final class BionicSpecialAttacks {
 			: BionicTrait.SPELLCASTING.equals(choice.trait)
 				? choice.kind().equals("potion") ? WITCH_POTION_ACTION : EVOKER_FANGS_ACTION : 3, victim.getId());
 		if (BionicTrait.SONIC_BOOM.equals(choice.trait)) entity.playSound(SoundEvents.WARDEN_SONIC_CHARGE, 3, 1);
-		if (BionicTrait.GUARDIAN_BEAM.equals(choice.trait)) entity.playSound(SoundEvents.GUARDIAN_ATTACK, 1, 1);
 		if (choice.kind().equals("fangs")) entity.playSound(SoundEvents.EVOKER_PREPARE_ATTACK);
 		if (rangedGoal != null) rangedGoal.tick();
 	}
@@ -275,7 +274,7 @@ public final class BionicSpecialAttacks {
 			projectile = new Snowball(level, entity);
 			Vec3 delta = new Vec3(victim.getX() - origin.x, victim.getEyeY() - 1.1 - origin.y, victim.getZ() - origin.z);
 			projectile.shoot(delta.x, delta.y + delta.horizontalDistance() * 0.2, delta.z, (float) choice.variant.parameter("speed", 1.6), (float) choice.variant.parameter("inaccuracy", 12));
-			entity.playSound(SoundEvents.SNOW_GOLEM_SHOOT);
+			entity.playSound(SoundEvents.SNOW_GOLEM_SHOOT, 1.0f, 0.4f / (entity.getRandom().nextFloat() * 0.4f + 0.8f));
 		}
 		case "small_fireball" -> {
 			double spread = Math.sqrt(Math.sqrt(entity.distanceToSqr(victim))) * 0.5;
@@ -285,7 +284,7 @@ public final class BionicSpecialAttacks {
 			level.levelEvent(null, 1018, entity.blockPosition(), 0);
 		}
 		case "fireball" -> { projectile = new LargeFireball(level, entity, aim.normalize(), choice.ticks("explosion_power", 1)); entity.playSound(SoundEvents.GHAST_SHOOT); }
-		case "shulker_bullet" -> { projectile = new ShulkerBullet(level, entity, victim, Direction.Axis.Y); entity.playSound(SoundEvents.SHULKER_SHOOT); }
+		case "shulker_bullet" -> { projectile = new ShulkerBullet(level, entity, victim, Direction.Axis.Y); entity.playSound(SoundEvents.SHULKER_SHOOT, 2.0f, (entity.getRandom().nextFloat() - entity.getRandom().nextFloat()) * 0.2f + 1.0f); }
 		case "wither_skull" -> { WitherSkull skull = new WitherSkull(level, entity, aim.normalize()); skull.setDangerous(entity.getRandom().nextFloat() < 0.001f); projectile = skull; entity.playSound(SoundEvents.WITHER_SHOOT); }
 		case "dragon_breath" -> projectile = new DragonFireball(level, entity, aim.normalize());
 		case "wind_charge" -> {

@@ -19,7 +19,7 @@ public class SonicDogCannonChargeSound extends EntityBoundSoundInstance {
 
 	public SonicDogCannonChargeSound(Player player, SoundEvent sound, boolean looping, boolean expectsVoicePack) {
 		super(sound, SoundSource.PLAYERS,
-			1.0f, 1.0f, player, player.getRandom().nextLong());
+			expectsVoicePack ? 1.0f : 0.4f, 1.0f, player, player.getRandom().nextLong());
 		this.player = player;
 		this.looping = looping;
 		this.expectsVoicePack = expectsVoicePack;

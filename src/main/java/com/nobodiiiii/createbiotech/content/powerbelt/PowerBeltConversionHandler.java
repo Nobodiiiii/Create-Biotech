@@ -16,7 +16,10 @@ import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.foundation.block.ProperWaterloggedBlock;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -26,8 +29,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -116,7 +119,12 @@ public class PowerBeltConversionHandler {
 
 			newState = ProperWaterloggedBlock.withWater(level, newState, beltPos);
 			level.setBlock(beltPos, newState, Block.UPDATE_ALL | Block.UPDATE_MOVE_BY_PISTON);
-			level.levelEvent(LevelEvent.PARTICLES_DESTROY_BLOCK, beltPos, Block.getId(newState));
+			// Event 2001 also plays a break sound for every segment in the chain.
+			if (level instanceof ServerLevel serverLevel) {
+				Vec3 particlePos = SubLevelCompat.toWorld(level, Vec3.atCenterOf(beltPos));
+				serverLevel.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, newState),
+					particlePos.x, particlePos.y, particlePos.z, 16, 0.35d, 0.15d, 0.35d, 0.05d);
+			}
 		}
 
 		PowerBeltBlock.initBelt(level, controllerPos);

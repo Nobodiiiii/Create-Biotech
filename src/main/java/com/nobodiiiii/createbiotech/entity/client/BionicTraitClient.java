@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity.client;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.client.BionicGuardianAttackSound;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks;
 import net.minecraft.client.Minecraft;
@@ -26,6 +27,7 @@ public final class BionicTraitClient {
 			&& bionic.getControllingPassenger() == client.player) bionic.setRiderAscending(client.options.keyJump.isDown());
 	}
 	public static void animate(SlimeBionicEntity entity) {
+		BionicGuardianAttackSound.update(entity);
 		int action = entity.getSpecialAction();
 		if (action == 2) { BionicGuardianBeamRenderer.tick(entity); return; }
 		if (action == BionicSpecialAttacks.EVOKER_FANGS_ACTION) { evokerSpellParticles(entity); return; }

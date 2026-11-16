@@ -217,7 +217,7 @@ public class AllayPortBlockEntity extends PackagePortBlockEntity {
 			return;
 		}
 		level.playSound(null, worldPosition, open ? SoundEvents.BARREL_OPEN : SoundEvents.BARREL_CLOSE,
-			SoundSource.BLOCKS);
+			SoundSource.BLOCKS, 0.5f, level.random.nextFloat() * 0.1f + 0.9f);
 	}
 
 	public float getFlap(float partialTicks) {

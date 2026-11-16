@@ -22,15 +22,21 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EquipmentSlotGroup;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ShovelItem;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.ItemAbilities;
+import net.neoforged.neoforge.common.ItemAbility;
 
 public final class CaptureNetItem extends Item {
 	public static final int ANIMATION_TICKS = 12;
@@ -43,8 +49,16 @@ public final class CaptureNetItem extends Item {
 	private final CaptureNetTier tier;
 
 	public CaptureNetItem(CaptureNetTier tier, Properties properties) {
-		super(properties.stacksTo(1));
+		super(properties.stacksTo(1).attributes(ShovelItem.createAttributes(tier.toolTier(), 1.5f, -3.0f)
+			.withModifierAdded(Attributes.ENTITY_INTERACTION_RANGE,
+				new AttributeModifier(CreateBiotech.asResource("capture_net_entity_interaction_range"), 1,
+					AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)));
 		this.tier = tier;
+	}
+
+	@Override
+	public boolean canPerformAction(ItemStack stack, ItemAbility itemAbility) {
+		return itemAbility == ItemAbilities.SWORD_SWEEP;
 	}
 
 	public CaptureNetTier tier() {
@@ -231,6 +245,8 @@ public final class CaptureNetItem extends Item {
 		tooltip.add(Component.translatable("item.create_biotech.capture_net.limit", formatHealth(tier.healthLimit()))
 			.withStyle(ChatFormatting.GRAY));
 		tooltip.add(Component.translatable("item.create_biotech.capture_net.instructions")
+			.withStyle(ChatFormatting.DARK_GRAY));
+		tooltip.add(Component.translatable("item.create_biotech.capture_net.lethal_capture")
 			.withStyle(ChatFormatting.DARK_GRAY));
 		if (!isOccupied(stack)) return;
 		EntityType<?> type = CapturedEntityBoxHelper.getCapturedEntityType(stack);
