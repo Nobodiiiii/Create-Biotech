@@ -12,6 +12,8 @@ import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsHandler;
 import com.simibubi.create.content.contraptions.actors.trainControls.ControlsInputPacket;
+import com.simibubi.create.content.trains.CameraDistanceModifier;
+import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import net.createmod.catnip.platform.CatnipServices;
 
 import dev.ryanhcode.sable.companion.SubLevelAccess;
@@ -29,6 +31,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
@@ -59,6 +62,8 @@ public class GhastHelmClientHandler {
 		engagedStation = null;
 		scanCooldown = 0;
 		keepAliveCooldown = 0;
+		if (controllingGhastBalloon)
+			CameraDistanceModifier.zoomOut();
 	}
 
 	public static boolean shouldShowMagnetPrompt() {
@@ -78,7 +83,7 @@ public class GhastHelmClientHandler {
 
 		AbstractContraptionEntity contraption = ControlsHandler.getContraption();
 		BlockPos controlsPos = ControlsHandler.getControlsPos();
-		if (contraption == null || controlsPos == null) {
+		if (!(contraption instanceof GhastHotAirBalloonEntity) || contraption.isRemoved() || controlsPos == null) {
 			disengageIfEngaged(contraption);
 			reset();
 			return;
@@ -95,7 +100,15 @@ public class GhastHelmClientHandler {
 		}
 		previousSprintDown = sprintDown;
 
+		// Keep the train-style zoom active even if mounting or dismounting a seat resets it.
+		CameraDistanceModifier.zoomOut();
 		tickMagnetSnap(minecraft, contraption);
+	}
+
+	@SubscribeEvent
+	public static void onLevelUnload(LevelEvent.Unload event) {
+		if (event.getLevel().isClientSide())
+			reset();
 	}
 
 	private static void tickMagnetSnap(Minecraft minecraft, AbstractContraptionEntity contraption) {
@@ -223,6 +236,11 @@ public class GhastHelmClientHandler {
 	}
 
 	private static void reset() {
+		if (controllingGhastBalloon) {
+			Minecraft minecraft = Minecraft.getInstance();
+			if (minecraft.player == null || !(minecraft.player.getVehicle() instanceof CarriageContraptionEntity))
+				CameraDistanceModifier.reset();
+		}
 		controllingGhastBalloon = false;
 		previousSprintDown = false;
 		nearestStation = null;

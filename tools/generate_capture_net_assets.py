@@ -7,8 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / "src/main/resources/assets/create_biotech"
 SOURCE = ROOT / "art/capture_net.bbmodel"
 TEXTURES = ASSETS / "textures/item/capture_net"
-TIERS = {"wooden": (137, 98, 58), "stone": (117, 123, 119), "iron": (184, 183, 190),
-         "golden": (218, 165, 63), "diamond": (59, 182, 170), "netherite": (81, 69, 74)}
+TIERS = ("wooden", "stone", "iron", "golden", "diamond", "netherite")
 DISPLAY = {
     "thirdperson_righthand": {"rotation": [-22.5, 90, 0], "translation": [0, 3.25, -1.5], "scale": [0.8] * 3},
     "thirdperson_lefthand": {"rotation": [-22.5, -90, 0], "translation": [0, 3.25, -1.5], "scale": [0.8] * 3},
@@ -25,29 +24,92 @@ def write(path, content):
     path.write_text(json.dumps(content, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def tint(color, shade):
-    return tuple(max(0, min(255, c + shade)) for c in color) + (255,)
+RAMPS = {
+    "wooden": ("49301d", "694522", "8e622f", "b17e40", "ce9b58", "e5b877"),
+    "stone": ("424b49", "626d68", "818c84", "a0a99e", "bac2b6", "d3d8cb"),
+    "iron": ("4b4a52", "6d6c77", "95949e", "b9b8c1", "d6d6de", "eeeef2"),
+    "golden": ("6a401e", "986526", "bf8b33", "dda948", "f2cf72", "fff0a4"),
+    "diamond": ("164b50", "237b7e", "329f9e", "50c2b8", "88dfcd", "c6f5e6"),
+    "netherite": ("27252e", "3c3642", "574b57", "73616c", "95838c", "b5a5aa"),
+}
+HANDLE_RAMP = ("49301c", "68451f", "89602d", "a8793b", "c29451", "dcaf6b")
+
+
+def paint_face(tier, name, direction, width, height):
+    """Paint at native resolution; every island belongs to one complete cube face."""
+    wooden = name == "wooden_handle" or tier == "wooden"
+    ramp = HANDLE_RAMP if name == "wooden_handle" else RAMPS[tier]
+    colors = [tuple(bytes.fromhex(c)) + (255,) for c in ramp]
+    patch = Image.new("RGBA", (width, height))
+    face_seed = ("north", "east", "south", "west", "up", "down").index(direction)
+    part_seed = sum(map(ord, name))
+    # Broad clusters along the bars avoid a repeating stripe/checker texture.
+    polished = (3, 3, 2, 2, 3, 4, 4, 3, 3, 2, 3, 4, 3)
+    grain = (0, 0, -1, -1, 0, 0, 1, 1, 0, -1, 0, 0, 1)
+    for y in range(height):
+        for x in range(width):
+            long = y if height > width else x
+            if wooden:
+                if direction in ("up", "down") and name == "wooden_handle":
+                    level = ((3, 2), (1, 3))[y][x]
+                else:
+                    cross = x if height > width else y
+                    level = (3 if cross == 0 else 2) + grain[(long + face_seed * 2) % len(grain)]
+                    # A few dark grain breaks and a worn patch, rather than full-width bands.
+                    if (long + face_seed) % 13 in (3, 10) and cross == 1:
+                        level -= 1
+                    if 5 <= long <= 7 and cross == 0:
+                        level += 1
+            elif direction in ("north", "south"):
+                level = polished[(long + part_seed + face_seed * 3) % len(polished)]
+                if long == 0 or long == max(width, height) - 1:
+                    level = 2
+                if name == "simple_metal_socket":
+                    level = ((3, 4), (2, 3), (1, 2))[y][x]
+            else:
+                # The two-pixel depth has a bright lip and a recessed dark edge.
+                depth = y if direction in ("up", "down") else x
+                level = (4 if depth == 0 else 2) if direction == "up" else (2 if depth == 0 else 1)
+                if (long + part_seed + face_seed) % 9 in (3, 4):
+                    level += 1
+            if tier == "stone" and name != "wooden_handle":
+                # Short mineral seams stay in whole texels, with restrained contrast.
+                if (long + face_seed + part_seed) % 11 in (2, 3):
+                    level -= 1
+            patch.putpixel((x, y), colors[max(0, min(len(colors) - 1, level))])
+    return patch
 
 
 def pixel_textures():
     TEXTURES.mkdir(parents=True, exist_ok=True)
-    for tier, base in TIERS.items():
-        atlas = Image.new("RGBA", (64, 32))
-        swatches = [base, (147, 96, 36), (91, 89, 96), (181, 131, 58),
-                    (227, 221, 201), (63, 163, 145), (79, 59, 44), (133, 143, 130)]
-        for index, color in enumerate(swatches):
-            ox, oy = (index % 4) * 16, (index // 4) * 16
-            for y in range(16):
-                for x in range(16):
-                    shade = [13, 4, -12, -4][(x + y // 2) % 4]
-                    if index == 1 or (index == 0 and tier == "wooden"):
-                        shade = [-24, 5, 18, -8][x % 4] + [0, 4, -3, 0][(y // 3) % 4]
-                    elif index == 4:
-                        shade = [7, -4, 2][(x + y) % 3]
-                    atlas.putpixel((ox + x, oy + y), tint(color, shade))
-        for y in (2, 5, 8, 11, 14):
-            for x in range(16):
-                atlas.putpixel((32 + x, 16 + y), tint(swatches[6], -17 if x % 3 else 15))
+    source = json.loads(SOURCE.read_text(encoding="utf-8"))
+    atlas_texture = next(t for t in source["textures"] if t["name"] != "mesh.png")
+    atlas_size = (atlas_texture["uv_width"], atlas_texture["uv_height"])
+    frame_cubes = [e for e in source["elements"] if e["name"] != "single_vertical_net_pouch"]
+    for tier in TIERS:
+        atlas = Image.new("RGBA", atlas_size)
+        occupied = set()
+        for cube in frame_cubes:
+            for direction, face in cube["faces"].items():
+                u1, v1, u2, v2 = face["uv"]
+                if not (all(v == int(v) for v in face["uv"]) and 0 <= u1 < u2 <= atlas.width
+                        and 0 <= v1 < v2 <= atlas.height):
+                    raise ValueError("Pack each frame face into its own integer UV island before painting")
+                pixels = {(u, v) for u in range(u1, u2) for v in range(v1, v2)}
+                if occupied & pixels:
+                    raise ValueError("Frame UV islands must not overlap")
+                occupied.update(pixels)
+                patch = paint_face(tier, cube["name"], direction, u2 - u1, v2 - v1)
+                atlas.paste(patch, (u1, v1))
+                # Duplicate the edge texels into one-pixel gutters for atlas filtering.
+                for u in range(-1, patch.width + 1):
+                    for v in range(-1, patch.height + 1):
+                        if 0 <= u < patch.width and 0 <= v < patch.height:
+                            continue
+                        dest = (u1 + u, v1 + v)
+                        if 0 <= dest[0] < atlas.width and 0 <= dest[1] < atlas.height:
+                            atlas.putpixel(dest, patch.getpixel((max(0, min(patch.width - 1, u)),
+                                                               max(0, min(patch.height - 1, v)))))
         atlas.save(TEXTURES / f"{tier}.png")
     # Exact opaque colors sampled from Minecraft 1.21.1's cobweb.png.
     # One texel is one model pixel on every face; the mouth has no front quad.
@@ -150,7 +212,7 @@ def export_animation(source, groups):
     def number(value):
         return f"{float(value):g}f"
 
-    for name in ("grip", "bag"):
+    for name in ("grip",):
         xyz = ", ".join(number(v - 8) for v in groups[name][0]["origin"])
         lines.append(f"\tstatic final float[] {name.upper()}_PIVOT = {{{xyz}}};")
     for animation in source["animations"]:
@@ -164,8 +226,8 @@ def export_animation(source, groups):
                 raise ValueError("Unsupported animation target")
             if any(k["channel"] not in ("rotation", "position") for k in keyframes):
                 raise ValueError("Only rigid rotation/position animation is supported; do not scale the pixel cuboids")
-            if names[uuid] != "grip" and any(k["channel"] == "position" for k in keyframes):
-                raise ValueError("Only grip position tracks are supported by the renderer")
+            if names[uuid] != "grip":
+                raise ValueError("Animate the shared grip only so the net mouth stays attached to the hoop")
             for channel in ("rotation", "position"):
                 keys = sorted((k for k in keyframes if k["channel"] == channel), key=lambda k: k["time"])
                 if not keys:
@@ -190,8 +252,7 @@ def export_animation(source, groups):
 
 
 if __name__ == "__main__":
+    if not SOURCE.exists():
+        raise SystemExit("Save art/capture_net.bbmodel with independent frame UV islands in Blockbench before exporting.")
     pixel_textures()
-    if SOURCE.exists():
-        export_source()
-    else:
-        print("Textures ready. Save art/capture_net.bbmodel in Blockbench before exporting models.")
+    export_source()

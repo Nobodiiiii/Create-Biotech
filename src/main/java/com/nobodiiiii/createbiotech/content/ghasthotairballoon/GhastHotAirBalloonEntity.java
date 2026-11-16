@@ -40,6 +40,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 	private static final String PERSISTED_SEAT_INDEX_TAG = "CreateBiotechGhastBalloonSeatIndex";
 	private static final String PERSISTED_VEHICLE_TAG = "CreateBiotechGhastBalloonVehicle";
+	private static final String GHAST_WAS_SILENT_TAG = "GhastWasSilent";
 	private static final EntityDataAccessor<Float> SYNCED_YAW =
 		SynchedEntityData.defineId(GhastHotAirBalloonEntity.class, EntityDataSerializers.FLOAT);
 
@@ -56,6 +57,8 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	private boolean inputRight;
 	private boolean inputUp;
 	private boolean inputDown;
+	@Nullable
+	private Boolean ghastWasSilent;
 
 	@Nullable
 	private BlockPos magnetTargetPos;
@@ -106,6 +109,9 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 	protected void readAdditional(CompoundTag compound, boolean spawnPacket) {
 		super.readAdditional(compound, spawnPacket);
 		setControlledYaw(yaw);
+		if (!spawnPacket)
+			ghastWasSilent = compound.contains(GHAST_WAS_SILENT_TAG, Tag.TAG_BYTE)
+				? compound.getBoolean(GHAST_WAS_SILENT_TAG) : null;
 	}
 
 	@Override
@@ -115,6 +121,35 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 		// Mark it as manually placed in OrientedContraptionEntity's spawn/save data so a later
 		// INITIAL_ORIENTATION sync cannot snap the client back to the source-local yaw.
 		compound.putBoolean("Placed", true);
+		if (!spawnPacket && ghastWasSilent != null)
+			compound.putBoolean(GHAST_WAS_SILENT_TAG, ghastWasSilent);
+	}
+
+	@Override
+	public boolean startRiding(Entity vehicle, boolean force) {
+		if (!super.startRiding(vehicle, force))
+			return false;
+		if (!level().isClientSide && vehicle instanceof Ghast ghast)
+			silenceGhast(ghast);
+		return true;
+	}
+
+	@Override
+	public void removeVehicle() {
+		Entity vehicle = getVehicle();
+		super.removeVehicle();
+		if (!level().isClientSide && vehicle instanceof Ghast ghast
+			&& getVehicle() != vehicle && ghastWasSilent != null) {
+			ghast.setSilent(ghastWasSilent);
+			ghastWasSilent = null;
+		}
+	}
+
+	private void silenceGhast(Ghast ghast) {
+		// Capture once so loaded balloons retain the ghast's original sound state.
+		if (ghastWasSilent == null)
+			ghastWasSilent = ghast.isSilent();
+		ghast.setSilent(true);
 	}
 
 	@Override
@@ -138,6 +173,7 @@ public class GhastHotAirBalloonEntity extends OrientedContraptionEntity {
 
 		Ghast ghast = getVehicle() instanceof Ghast g && g.isAlive() ? g : null;
 		if (!level().isClientSide && ghast != null) {
+			silenceGhast(ghast);
 			ghast.setNoAi(true);
 			CapturedEntityBoxHelper.markAiDisabledByMod(ghast);
 			tickInputTimeout();

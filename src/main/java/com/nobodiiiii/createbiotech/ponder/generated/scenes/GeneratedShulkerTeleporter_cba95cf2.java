@@ -63,6 +63,7 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.moveSection("default", new BlockPos(2, 1, 2), new BlockPos(2, 3, 2), new Vec3(2.0d, 0.0d, 0.0d), 20);
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_station", new BlockPos(0, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"point\":[0.08507398042035597,0.9987462165217806,0.0625],\"direction\":\"north\",\"block\":\"create_biotech:shulker_teleporter\",\"blockProperties\":{\"part\":\"2\",\"facing\":\"north\"},\"blockPos\":[0,0,0],\"nbt\":\"{CandidateAddresses:[\\\"111\\\",\\\"222\\\"],Closing:0b,ClosingTicks:0.0f,ConnectedToExtraKinetics:0b,Network:{Capacity:262144.0f,Id:1374389551047L,Size:3,Stress:0.0f},OwnAddress:\\\"\\\",SealedHoldTicks:0,Source:[I;5,-58,3],Speed:16.0f,TargetAddress:\\\"111\\\",x:0,y:0,z:0}\",\"whileSneaking\":false,\"enableNbt\":true},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":20}],\"panelCrop\":[0.35714285714285715,0.0,0.5714285714285714,1.0],\"panelTransform\":[0.0,0.0,0.5],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":true,\"point\":[3.0,2.5,2.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.keyframe().showText(text("scene_1.text_2"), null, 120, null, true);
         scene.showText(text("scene_1.text_3"), new Vec3(4.5d, 2.0d, 2.5d), 100, "blue", true);
         scene.showText(text("scene_1.text_4"), new Vec3(0.5d, 2.0d, 2.5d), 100, "blue", true);
@@ -84,6 +85,22 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.idle(40);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

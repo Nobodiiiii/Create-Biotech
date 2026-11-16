@@ -24,6 +24,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.vehicle.MinecartFurnace;
 import net.minecraft.world.level.Level;
@@ -35,14 +37,16 @@ import net.minecraft.world.phys.Vec3;
 public final class BufferPadCollisionHelper {
 
 	private static final double IMPACT_SAMPLE_DISTANCE = 1.0E-4d;
+	private static final String LAST_IMPACT_SOUND_TICK_TAG = "CreateBiotechBufferPadLastImpactSoundTick";
 
 	private static final CollisionTagSet ACTOR_TAGS = new CollisionTagSet(
 		"EscapePushNormalX", "EscapePushNormalY", "EscapePushNormalZ",
-		"TrainPositiveAxisX", "TrainPositiveAxisY", "TrainPositiveAxisZ");
+		"TrainPositiveAxisX", "TrainPositiveAxisY", "TrainPositiveAxisZ", "ImpactSoundColliding");
 	private static final CollisionTagSet ENTITY_TAGS = new CollisionTagSet(
 		"CreateBiotechBufferPadEscapePushNormalX", "CreateBiotechBufferPadEscapePushNormalY",
 		"CreateBiotechBufferPadEscapePushNormalZ", "CreateBiotechBufferPadTrainPositiveAxisX",
-		"CreateBiotechBufferPadTrainPositiveAxisY", "CreateBiotechBufferPadTrainPositiveAxisZ");
+		"CreateBiotechBufferPadTrainPositiveAxisY", "CreateBiotechBufferPadTrainPositiveAxisZ",
+		"CreateBiotechBufferPadImpactSoundColliding");
 
 	private BufferPadCollisionHelper() {}
 
@@ -56,7 +60,7 @@ public final class BufferPadCollisionHelper {
 
 		Vec3 collisionNormal = getCollisionNormal(context);
 		if (collisionNormal == null) {
-			resolveCollision(context.contraption.entity, context.motion, context.data, ACTOR_TAGS, null, false, -1);
+			resolveCollision(context.contraption.entity, context.motion, context.data, ACTOR_TAGS, null, false, -1, null);
 			return;
 		}
 
@@ -66,7 +70,7 @@ public final class BufferPadCollisionHelper {
 		if (collision && !previouslyColliding)
 			awardSoftLanding(context.contraption.entity);
 		resolveCollision(context.contraption.entity, context.motion, context.data, ACTOR_TAGS,
-			collision ? collisionNormal : null, previouslyColliding, -1);
+			collision ? collisionNormal : null, previouslyColliding, -1, context.position);
 	}
 
 	public static void tickStaticWorldCollision(AbstractContraptionEntity entity) {
@@ -78,12 +82,13 @@ public final class BufferPadCollisionHelper {
 		WorldCollisionCandidate collision = findWorldCollision(entity,
 			getStoredEscapePushNormal(entity.getPersistentData(), ENTITY_TAGS));
 		if (collision == null) {
-			resolveCollision(entity, Vec3.ZERO, entity.getPersistentData(), ENTITY_TAGS, null, false, -1);
+			resolveCollision(entity, Vec3.ZERO, entity.getPersistentData(), ENTITY_TAGS, null, false, -1, null);
 			return;
 		}
 
 		resolveCollision(entity, collision.actorMotion(), entity.getPersistentData(), ENTITY_TAGS,
-			collision.collisionNormal(), collision.previouslyColliding(), collision.positionCorrection());
+			collision.collisionNormal(), collision.previouslyColliding(), collision.positionCorrection(),
+			collision.soundPosition());
 	}
 
 	private static boolean supportsBufferPadCollision(AbstractContraptionEntity entity) {
@@ -92,13 +97,21 @@ public final class BufferPadCollisionHelper {
 
 	private static void resolveCollision(AbstractContraptionEntity entity, Vec3 actorMotion, CompoundTag data,
 		CollisionTagSet tags, @Nullable Vec3 collisionNormal, boolean previouslyColliding,
-		double positionCorrection) {
+		double positionCorrection, @Nullable Vec3 soundPosition) {
 		Vec3 previousEscapePushNormal = getStoredEscapePushNormal(data, tags);
 		if (collisionNormal == null) {
+			data.remove(tags.soundColliding());
 			if (previousEscapePushNormal != null)
 				clearEscapeInfluence(entity, previousEscapePushNormal);
 			clearStoredEscapePushNormal(data, tags);
 			return;
+		}
+
+		if (!data.getBoolean(tags.soundColliding())) {
+			data.putBoolean(tags.soundColliding(), true);
+			if (!previouslyColliding && actorMotion.dot(collisionNormal) > getMovementEpsilon()
+				&& soundPosition != null)
+				playImpactSound(entity, soundPosition);
 		}
 
 		if (previousEscapePushNormal != null && !hasSameDirection(previousEscapePushNormal, collisionNormal)) {
@@ -121,6 +134,17 @@ public final class BufferPadCollisionHelper {
 		}
 
 		clearStoredEscapePushNormal(data, tags);
+	}
+
+	private static void playImpactSound(AbstractContraptionEntity entity, Vec3 position) {
+		CompoundTag data = entity.getPersistentData();
+		long gameTime = entity.level().getGameTime();
+		// Several pads can hit together; broadcast one impact per contraption and tick.
+		if (data.contains(LAST_IMPACT_SOUND_TICK_TAG) && data.getLong(LAST_IMPACT_SOUND_TICK_TAG) == gameTime)
+			return;
+		data.putLong(LAST_IMPACT_SOUND_TICK_TAG, gameTime);
+		entity.level().playSound(null, position.x, position.y, position.z,
+			SoundEvents.WOOL_HIT, SoundSource.BLOCKS, 1.0f, 1.0f);
 	}
 
 	private static boolean collidesWithWorld(Vec3 position, Level world, Vec3 collisionNormal) {
@@ -250,7 +274,7 @@ public final class BufferPadCollisionHelper {
 
 		boolean previouslyColliding = previousPenetration > getMovementEpsilon();
 		return new WorldCollisionCandidate(collisionNormal, sample.motion(), previouslyColliding,
-			Math.max(currentPenetration, 0));
+			Math.max(currentPenetration, 0), padCenter);
 	}
 
 	private static double getCollisionPriority(WorldCollisionCandidate candidate, @Nullable Vec3 preferredNormal) {
@@ -623,7 +647,7 @@ public final class BufferPadCollisionHelper {
 	}
 
 	private record CollisionTagSet(String escapePushNormalX, String escapePushNormalY, String escapePushNormalZ,
-		String trainPositiveAxisX, String trainPositiveAxisY, String trainPositiveAxisZ) {
+		String trainPositiveAxisX, String trainPositiveAxisY, String trainPositiveAxisZ, String soundColliding) {
 	}
 
 	private record BlockSample(BlockPos currentCell, Vec3 currentCenter, Vec3 previousCenter, Vec3 motion,
@@ -631,6 +655,6 @@ public final class BufferPadCollisionHelper {
 	}
 
 	private record WorldCollisionCandidate(Vec3 collisionNormal, Vec3 actorMotion, boolean previouslyColliding,
-		double positionCorrection) {
+		double positionCorrection, Vec3 soundPosition) {
 	}
 }

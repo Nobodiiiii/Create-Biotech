@@ -6,7 +6,6 @@ final class CaptureNetAnimation {
 	private CaptureNetAnimation() {}
 
 	static final float[] GRIP_PIVOT = {0f, -11f, 0f};
-	static final float[] BAG_PIVOT = {0f, 6f, 1f};
 
 	static final float CAPTURE_LENGTH = 0.6f;
 	static final float[][] CAPTURE_GRIP_ROTATION = {
@@ -24,15 +23,6 @@ final class CaptureNetAnimation {
 		{0.24f, 0f, 1f, -3f},
 		{0.32f, 0f, 1f, -2f},
 		{0.46f, 0f, 0f, 0f},
-		{0.6f, 0f, 0f, 0f},
-	};
-	static final float[][] CAPTURE_BAG_ROTATION = {
-		{0f, 0f, 0f, 0f},
-		{0.16f, -5f, 0f, -1f},
-		{0.24f, 8f, 0f, 2f},
-		{0.34f, 4f, 0f, 1f},
-		{0.46f, -3f, 0f, -1f},
-		{0.54f, 1f, 0f, 0f},
 		{0.6f, 0f, 0f, 0f},
 	};
 
@@ -54,26 +44,22 @@ final class CaptureNetAnimation {
 		{0.5f, 0f, 0f, 0f},
 		{0.6f, 0f, 0f, 0f},
 	};
-	static final float[][] RELEASE_BAG_ROTATION = {
-		{0f, 0f, 0f, 0f},
-		{0.2f, 4f, 0f, 1f},
-		{0.3f, -8f, 0f, -2f},
-		{0.4f, -4f, 0f, -1f},
-		{0.5f, 3f, 0f, 0f},
-		{0.6f, 0f, 0f, 0f},
-	};
 
 	static final float OCCUPIED_LENGTH = 2f;
-	static final float[][] OCCUPIED_BAG_ROTATION = {
+	static final float[][] OCCUPIED_GRIP_ROTATION = {
 		{0f, 0f, 0f, 0f},
-		{0.35f, 2f, 0f, 1f},
-		{0.5f, -4f, 1f, -2f},
-		{0.65f, 3f, -1f, 2f},
-		{0.8f, -1f, 0f, -1f},
-		{1.1f, 0f, 0f, 0f},
-		{1.45f, 1f, 0f, 0f},
-		{1.6f, -3f, -1f, 2f},
-		{1.75f, 2f, 0f, -1f},
+		{0.28f, 0f, 0f, 0f},
+		{0.36f, 1.2f, 0.3f, 0.6f},
+		{0.43f, -1.5f, -0.4f, -0.8f},
+		{0.5f, 0.9f, 0.2f, 0.5f},
+		{0.59f, -0.4f, 0f, -0.2f},
+		{0.7f, 0f, 0f, 0f},
+		{1.22f, 0f, 0f, 0f},
+		{1.32f, -0.8f, -0.3f, 0.5f},
+		{1.39f, 1.3f, 0.4f, -0.7f},
+		{1.47f, -0.7f, -0.2f, 0.4f},
+		{1.57f, 0.3f, 0f, -0.1f},
+		{1.7f, 0f, 0f, 0f},
 		{2f, 0f, 0f, 0f},
 	};
 

@@ -12,9 +12,9 @@
     Texture.all.slice().forEach(t => t.remove(true));
     created.length = textures.length = groups.length = animations.length = 0;
     Project.texture_width = 64;
-    Project.texture_height = 32;
+    Project.texture_height = 64;
     Project.box_uv = false;
-    const atlas = new Texture({name: 'iron.png', uv_width: 64, uv_height: 32})
+    const atlas = new Texture({name: 'iron.png', uv_width: 64, uv_height: 64})
         .fromDataURL('data:image/png;base64,' + fs.readFileSync(root + '/src/main/resources/assets/create_biotech/textures/item/capture_net/iron.png').toString('base64')).add(false);
     const mesh = new Texture({name: 'mesh.png', uv_width: 16, uv_height: 16})
         .fromDataURL('data:image/png;base64,' + fs.readFileSync(root + '/src/main/resources/assets/create_biotech/textures/item/capture_net/mesh.png').toString('base64')).add(false);
@@ -27,20 +27,14 @@
     const grip = group('grip', [8, -3, 8]);
     const frame = group('frame', [8, -3, 8], grip);
     const bag = group('bag', [8, 14, 9], grip);
-    const offsets = {material: [0, 0], wood: [16, 0], steel: [32, 0], brass: [48, 0],
-        linen: [0, 16], cyan: [16, 16], leather: [32, 16], rivet: [48, 16], mesh: [0, 0]};
     function cube(name, from, to, material, parent, rotation = [0, 0, 0], origin = [8, 8, 8]) {
         const c = new Cube({name, from, to, rotation, origin, autouv: 0, box_uv: false}).addTo(parent).init();
         created.push(c);
         const [x, y, z] = to.map((v, i) => v - from[i]);
-        const [u, v] = offsets[material];
         const sizes = {north: [x, y], south: [x, y], east: [z, y], west: [z, y], up: [x, z], down: [x, z]};
         Object.entries(sizes).forEach(([face, [w, h]]) => {
             c.faces[face].texture = material === 'mesh' ? mesh.uuid : atlas.uuid;
-            c.faces[face].uv = [u, v, u + w, v + h];
-            if (material === 'material' && (face === 'east' || face === 'west' || face === 'down')) {
-                c.faces[face].uv = [32, 0, 32 + w, h];
-            }
+            c.faces[face].uv = [0, 0, w, h];
         });
         return c;
     }
@@ -55,6 +49,20 @@
     // This is one cuboid. Only its outside faces carry the transparent weave.
     // Stop at the frame's lower edge; the front stays open.
     net.faces.north.texture = null;
+    net.faces.west.uv = [6, 0, 0, 10];
+    net.faces.up.uv = [0, 6, 10, 0];
+    // Independent native-resolution islands, with a one-texel gutter on every edge.
+    const islands = frame.children.flatMap(c => Object.entries(c.faces).map(([direction, face]) => ({
+        face, key: c.name + '/' + direction, w: Math.abs(face.uv[2] - face.uv[0]), h: Math.abs(face.uv[3] - face.uv[1])
+    }))).sort((a, b) => b.h - a.h || b.w - a.w || a.key.localeCompare(b.key));
+    let u = 1, v = 1, rowHeight = 0;
+    islands.forEach(({face, w, h}) => {
+        if (u + w > 63) { u = 1; v += rowHeight + 2; rowHeight = 0; }
+        if (v + h > 63) throw new Error('Frame UV islands exceed the 64x64 atlas');
+        face.uv = [u, v, u + w, v + h];
+        u += w + 2;
+        rowHeight = Math.max(rowHeight, h);
+    });
     function clip(name, length, loop, tracks) {
         const a = new Animation({name, length, loop, snapping: 100}).add();
         animations.push(a);
@@ -69,16 +77,17 @@
     }
     clip('capture', 0.6, 'once', {
         grip: {rotation: [[0,0,0,0],[0.1,20,-8,-8],[0.16,24,-10,-10],[0.24,-68,16,12],[0.32,-48,10,8],[0.46,8,-3,-3],[0.6,0,0,0]],
-            position: [[0,0,0,0],[0.16,0,-1,1],[0.24,0,1,-3],[0.32,0,1,-2],[0.46,0,0,0],[0.6,0,0,0]]},
-        bag: {rotation: [[0,0,0,0],[0.16,-5,0,-1],[0.24,8,0,2],[0.34,4,0,1],[0.46,-3,0,-1],[0.54,1,0,0],[0.6,0,0,0]]}
+            position: [[0,0,0,0],[0.16,0,-1,1],[0.24,0,1,-3],[0.32,0,1,-2],[0.46,0,0,0],[0.6,0,0,0]]}
     });
     clip('release', 0.6, 'once', {
         grip: {rotation: [[0,0,0,0],[0.12,-16,6,5],[0.2,-20,8,6],[0.3,52,-12,-8],[0.38,35,-8,-5],[0.5,-7,2,2],[0.6,0,0,0]],
-            position: [[0,0,0,0],[0.2,0,1,1],[0.3,0,-1,-2],[0.38,0,-1,-1],[0.5,0,0,0],[0.6,0,0,0]]},
-        bag: {rotation: [[0,0,0,0],[0.2,4,0,1],[0.3,-8,0,-2],[0.4,-4,0,-1],[0.5,3,0,0],[0.6,0,0,0]]}
+            position: [[0,0,0,0],[0.2,0,1,1],[0.3,0,-1,-2],[0.38,0,-1,-1],[0.5,0,0,0],[0.6,0,0,0]]}
     });
     clip('occupied', 2, 'loop', {
-        bag: {rotation: [[0,0,0,0],[0.35,2,0,1],[0.5,-4,1,-2],[0.65,3,-1,2],[0.8,-1,0,-1],[1.1,0,0,0],[1.45,1,0,0],[1.6,-3,-1,2],[1.75,2,0,-1],[2,0,0,0]]}
+        grip: {rotation: [[0,0,0,0],[0.28,0,0,0],[0.36,1.2,0.3,0.6],[0.43,-1.5,-0.4,-0.8],
+            [0.50,0.9,0.2,0.5],[0.59,-0.4,0,-0.2],[0.70,0,0,0],[1.22,0,0,0],
+            [1.32,-0.8,-0.3,0.5],[1.39,1.3,0.4,-0.7],[1.47,-0.7,-0.2,0.4],[1.57,0.3,0,-0.1],
+            [1.70,0,0,0],[2,0,0,0]]}
     });
     Undo.finishEdit('Rebuild square capture net from the supplied reference');
     Canvas.updateAll();

@@ -3,7 +3,9 @@ package com.nobodiiiii.createbiotech.content.capturenet.client;
 import java.util.EnumMap;
 import java.util.Map;
 
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
@@ -13,6 +15,7 @@ import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.foundation.render.CachedRenderEntity;
 import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
+import com.simibubi.create.foundation.render.RenderTypes;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
 import net.createmod.catnip.animation.AnimationTickHolder;
@@ -20,6 +23,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
@@ -36,6 +40,19 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 	private static final PartialModel BAG = PartialModel.of(CreateBiotech.asResource("item/capture_net/bag"));
 	// The net is a single open shell: its far wall must also be visible from inside the mouth.
 	private static final RenderType NET_RENDER_TYPE = RenderType.entityCutoutNoCull(InventoryMenu.BLOCK_ATLAS);
+	// Inventory lighting can face away from an entire inner wall. Use the painted shading
+	// in GUI, with Create's diffuse-free item shader; world/hand rendering stays lit.
+	private static final RenderType GUI_NET_RENDER_TYPE = RenderType.create("create_biotech_capture_net_gui",
+		DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 1536, true, true,
+		RenderType.CompositeState.builder()
+			.setShaderState(RenderTypes.GLOWING_SHADER)
+			.setTextureState(RenderStateShard.BLOCK_SHEET)
+			.setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+			.setCullState(RenderStateShard.NO_CULL)
+			.setLightmapState(RenderStateShard.LIGHTMAP)
+			// This shader has no alpha discard: transparent holes must not write depth.
+			.setWriteMaskState(RenderStateShard.COLOR_WRITE)
+			.createCompositeState(true));
 	private static final CachedRenderEntity<LivingEntity, ItemStack> CONTENTS = CachedRenderEntity
 		.keyed((Level level, ItemStack stack) -> {
 			var entity = CapturedEntityBoxHelper.createCapturedEntity(stack, level);
@@ -83,6 +100,7 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		float time = AnimationTickHolder.getRenderTime();
 		boolean occupied = CaptureNetItem.isOccupied(stack);
 		boolean releasing = CaptureNetItem.isReleasing(stack);
+		boolean gui = context == ItemDisplayContext.GUI;
 		float side = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
 			|| context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND ? -1 : 1;
 		pose.pushPose();
@@ -98,19 +116,17 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 			pose.translate(side * CaptureNetAnimation.sample(position, seconds, 0) / 16,
 				CaptureNetAnimation.sample(position, seconds, 1) / 16,
 				CaptureNetAnimation.sample(position, seconds, 2) / 16);
-			applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, releasing
-				? CaptureNetAnimation.RELEASE_GRIP_ROTATION : CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
-				seconds, null, 0, 0, side);
 		}
-		renderer.render(FRAMES.get(net.tier()).get(), light);
-		pose.pushPose();
-		applyJoint(pose, CaptureNetAnimation.BAG_PIVOT, progress < 0 ? null : releasing
-			? CaptureNetAnimation.RELEASE_BAG_ROTATION : CaptureNetAnimation.CAPTURE_BAG_ROTATION,
-			seconds, CaptureNetAnimation.OCCUPIED_BAG_ROTATION, idleSeconds, idleWeight, side);
+		// Shake the hoop and net together: a bag-only rotation pulls its mouth away from the rim.
+		applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, progress < 0 ? null : releasing
+			? CaptureNetAnimation.RELEASE_GRIP_ROTATION : CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
+			seconds, CaptureNetAnimation.OCCUPIED_GRIP_ROTATION, idleSeconds, idleWeight, side);
+		if (gui) renderer.renderSolidGlowing(FRAMES.get(net.tier()).get(), light);
+		else renderer.render(FRAMES.get(net.tier()).get(), light);
 		if (occupied) renderContents(stack, pose, buffer, light);
 		// Entity renderers can use the same singleton partial renderer; reacquire it afterwards.
-		PartialItemModelRenderer.of(stack, context, pose, buffer, overlay).render(BAG.get(), NET_RENDER_TYPE, light);
-		pose.popPose();
+		PartialItemModelRenderer.of(stack, context, pose, buffer, overlay)
+			.render(BAG.get(), gui ? GUI_NET_RENDER_TYPE : NET_RENDER_TYPE, light);
 		pose.popPose();
 	}
 
