@@ -90,7 +90,6 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		float progress = CaptureNetItem.animationProgress(stack, time);
 		float seconds = Math.max(0, progress) * (releasing
 			? CaptureNetAnimation.RELEASE_LENGTH : CaptureNetAnimation.CAPTURE_LENGTH);
-		float idleSeconds = (time / 20) % CaptureNetAnimation.OCCUPIED_LENGTH;
 		float idleWeight = occupied ? (progress < 0 ? 1 : Mth.clamp((progress - 0.75f) * 4, 0, 1)) : 0;
 		if (progress >= 0) {
 			float[][] position = releasing ? CaptureNetAnimation.RELEASE_GRIP_POSITION
@@ -98,23 +97,33 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 			pose.translate(side * CaptureNetAnimation.sample(position, seconds, 0) / 16,
 				CaptureNetAnimation.sample(position, seconds, 1) / 16,
 				CaptureNetAnimation.sample(position, seconds, 2) / 16);
+			applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, releasing
+				? CaptureNetAnimation.RELEASE_GRIP_ROTATION : CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
+				seconds, 1, side);
 		}
-		// Shake the hoop and net together: a bag-only rotation pulls its mouth away from the rim.
-		applyJoint(pose, CaptureNetAnimation.GRIP_PIVOT, progress < 0 ? null : releasing
-			? CaptureNetAnimation.RELEASE_GRIP_ROTATION : CaptureNetAnimation.CAPTURE_GRIP_ROTATION,
-			seconds, CaptureNetAnimation.OCCUPIED_GRIP_ROTATION, idleSeconds, idleWeight, side);
 		renderer.render(FRAMES.get(net.tier()).get(), light);
-		if (occupied) renderContents(stack, pose, buffer, light);
+		LivingEntity contents = occupied ? CONTENTS.get(Minecraft.getInstance().level, stack) : null;
+		// The pouch and its contents shake together; the embedded mouth stays inside the fixed rim.
+		if (idleWeight > 0) {
+			var motion = CaptureNetStruggle.sample(time, contents == null ? 0 : contents.getUUID().hashCode(), idleWeight);
+			pose.translate(side * motion.x() / 16, motion.y() / 16, motion.z() / 16);
+			applyRotation(pose, CaptureNetAnimation.BAG_PIVOT, motion.pitch(), 0, 0);
+		}
+		if (contents != null) renderContents(contents, pose, buffer, light);
 		// Entity renderers can use the same singleton partial renderer; reacquire it afterwards.
 		PartialItemModelRenderer.of(stack, context, pose, buffer, overlay).render(BAG.get(), NET_RENDER_TYPE, light);
 		pose.popPose();
 	}
 
-	private static void applyJoint(PoseStack pose, float[] pivot, float[][] action, float seconds,
-		float[][] idle, float idleSeconds, float idleWeight, float side) {
-		float x = angle(action, seconds, idle, idleSeconds, idleWeight, 0);
-		float y = angle(action, seconds, idle, idleSeconds, idleWeight, 1) * side;
-		float z = angle(action, seconds, idle, idleSeconds, idleWeight, 2) * side;
+	private static void applyJoint(PoseStack pose, float[] pivot, float[][] rotation, float seconds,
+		float weight, float side) {
+		float x = CaptureNetAnimation.sample(rotation, seconds, 0) * weight;
+		float y = CaptureNetAnimation.sample(rotation, seconds, 1) * weight * side;
+		float z = CaptureNetAnimation.sample(rotation, seconds, 2) * weight * side;
+		applyRotation(pose, pivot, x, y, z);
+	}
+
+	private static void applyRotation(PoseStack pose, float[] pivot, float x, float y, float z) {
 		pose.translate(pivot[0] / 16, pivot[1] / 16, pivot[2] / 16);
 		// Generic Model uses ZYX Euler order, matching the Blockbench preview.
 		pose.mulPose(Axis.ZP.rotationDegrees(z));
@@ -123,15 +132,7 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		pose.translate(-pivot[0] / 16, -pivot[1] / 16, -pivot[2] / 16);
 	}
 
-	private static float angle(float[][] action, float seconds, float[][] idle,
-		float idleSeconds, float idleWeight, int axis) {
-		return (action == null ? 0 : CaptureNetAnimation.sample(action, seconds, axis))
-			+ (idle == null || idleWeight == 0 ? 0 : CaptureNetAnimation.sample(idle, idleSeconds, axis) * idleWeight);
-	}
-
-	private static void renderContents(ItemStack stack, PoseStack pose, MultiBufferSource buffer, int light) {
-		LivingEntity entity = CONTENTS.get(Minecraft.getInstance().level, stack);
-		if (entity == null) return;
+	private static void renderContents(LivingEntity entity, PoseStack pose, MultiBufferSource buffer, int light) {
 		pose.pushPose();
 		pose.translate(0, 3.0 / 16, 5.0 / 16);
 		float scale = Math.min(0.30f / Math.max(0.1f, entity.getBbWidth()),

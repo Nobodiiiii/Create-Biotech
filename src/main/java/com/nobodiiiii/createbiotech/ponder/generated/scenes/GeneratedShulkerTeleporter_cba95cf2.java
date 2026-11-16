@@ -74,7 +74,7 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_running", new BlockPos(4, 0, 3), 0.0f, false, true, false, "none", null, null, null, null, null);
         // At 128 RPM, (80 - 8) / 2 - 8 = 28 ticks until the close sound.
         scene.idle(28);
-        scene.playSound("minecraft:block.shulker_box.close", 1.0f, 1.0f, "blocks");
+        scene.playSound("minecraft:block.shulker_box.close", 0.5f, 1.0f, "blocks");
         scene.idle(22);
         scene.showText(text("scene_1.text_6"), new Vec3(2.5d, 2.0d, 2.5d), 50, null, true);
         scene.spawnParticles("minecraft:portal", new Vec3(4.5d, 2.0d, 2.5d), "box", new Vec3(1.0d, 1.0d, 1.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);

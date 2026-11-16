@@ -26,7 +26,7 @@
     }
     const grip = group('grip', [8, -3, 8]);
     const frame = group('frame', [8, -3, 8], grip);
-    const bag = group('bag', [8, 14, 9], grip);
+    const bag = group('bag', [8, 14, 8], grip);
     function cube(name, from, to, material, parent, rotation = [0, 0, 0], origin = [8, 8, 8]) {
         const c = new Cube({name, from, to, rotation, origin, autouv: 0, box_uv: false}).addTo(parent).init();
         created.push(c);
@@ -45,12 +45,14 @@
     f('square_hoop_bottom', [2, 8, 7], [14, 9, 9]);
     f('square_hoop_left', [2, 9, 7], [3, 19, 9]);
     f('square_hoop_right', [13, 9, 7], [14, 19, 9]);
-    const net = cube('single_vertical_net_pouch', [3, 9, 9], [13, 19, 15], 'mesh', bag);
+    // Bury the mouth inside the rim instead of sharing its inner wall planes.
+    const net = cube('single_vertical_net_pouch', [3, 9, 8], [13, 19, 15], 'mesh', bag);
+    net.inflate = 0.125;
     // This is one cuboid. Only its outside faces carry the transparent weave.
     // Stop at the frame's lower edge; the front stays open.
     net.faces.north.texture = null;
-    net.faces.west.uv = [6, 0, 0, 10];
-    net.faces.up.uv = [0, 6, 10, 0];
+    net.faces.west.uv = [7, 0, 0, 10];
+    net.faces.up.uv = [0, 7, 10, 0];
     // Independent native-resolution islands, with a one-texel gutter on every edge.
     const islands = frame.children.flatMap(c => Object.entries(c.faces).map(([direction, face]) => ({
         face, key: c.name + '/' + direction, w: Math.abs(face.uv[2] - face.uv[0]), h: Math.abs(face.uv[3] - face.uv[1])
@@ -84,10 +86,14 @@
             position: [[0,0,0,0],[0.2,0,1,1],[0.3,0,-1,-2],[0.38,0,-1,-1],[0.5,0,0,0],[0.6,0,0,0]]}
     });
     clip('occupied', 2, 'loop', {
-        grip: {rotation: [[0,0,0,0],[0.28,0,0,0],[0.36,1.2,0.3,0.6],[0.43,-1.5,-0.4,-0.8],
-            [0.50,0.9,0.2,0.5],[0.59,-0.4,0,-0.2],[0.70,0,0,0],[1.22,0,0,0],
-            [1.32,-0.8,-0.3,0.5],[1.39,1.3,0.4,-0.7],[1.47,-0.7,-0.2,0.4],[1.57,0.3,0,-0.1],
-            [1.70,0,0,0],[2,0,0,0]]}
+        bag: {rotation: [[0,0,0,0],[0.28,0,0,0],[0.36,3.6,0,0],[0.43,-4.5,0,0],
+            [0.50,2.7,0,0],[0.59,-1.2,0,0],[0.70,0,0,0],[1.22,0,0,0],
+            [1.32,-2.4,0,0],[1.39,3.9,0,0],[1.47,-2.1,0,0],[1.57,0.9,0,0],
+            [1.70,0,0,0],[2,0,0,0]],
+            position: [[0,0,0,0],[0.28,0,0,0],[0.36,0.04,0.025,0.28],[0.43,-0.05,-0.04,-0.375],
+                [0.50,0.035,0.05,0.25],[0.59,-0.015,-0.02,-0.12],[0.70,0,0,0],[1.22,0,0,0],
+                [1.32,-0.03,0.04,-0.3],[1.39,0.05,-0.045,0.35],[1.47,-0.04,0.025,-0.22],
+                [1.57,0.02,-0.01,0.1],[1.70,0,0,0],[2,0,0,0]]}
     });
     Undo.finishEdit('Rebuild square capture net from the supplied reference');
     Canvas.updateAll();

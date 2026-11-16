@@ -137,7 +137,7 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 				closingSoundPlayed = true;
 				Vec3 soundPos = SubLevelCompat.toWorld(level, Vec3.atCenterOf(getBottomPos()));
 				level.playSound(null, soundPos.x, soundPos.y, soundPos.z, SoundEvents.SHULKER_BOX_CLOSE,
-					SoundSource.BLOCKS, 1.0f, 1.0f);
+					SoundSource.BLOCKS, 0.5f, 1.0f);
 			}
 			if (closingTicks >= CLOSE_TICKS) {
 				if (sealedHoldTicks < SEALED_HOLD_TICKS)

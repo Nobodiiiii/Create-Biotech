@@ -169,7 +169,10 @@ def export_source():
             raise ValueError(f"{cube['name']}: only the net panels may have one zero-thickness axis")
         rotation = cube.get("rotation", [0, 0, 0])
         axes = [i for i, v in enumerate(rotation) if v]
-        if cube.get("inflate", 0) or len(axes) > 1 or any(v not in (0, -45, -22.5, 22.5, 45) for v in rotation):
+        inflate = cube.get("inflate", 0)
+        if inflate and (not is_net or inflate != 0.125):
+            raise ValueError(f"{cube['name']}: only the net may use the 1/8-pixel static seam inflation")
+        if len(axes) > 1 or any(v not in (0, -45, -22.5, 22.5, 45) for v in rotation):
             raise ValueError(f"{cube['name']}: use uninflated Java-compatible cuboid rotations")
         faces = {}
         for direction, face in cube["faces"].items():
@@ -184,7 +187,10 @@ def export_source():
             faces[direction] = {"uv": uv, "texture": "#" + texture}
             if face.get("rotation", 0):
                 faces[direction]["rotation"] = face["rotation"]
-        result = {"name": cube["name"], "from": cube["from"], "to": cube["to"], "faces": faces}
+        # Blockbench inflation is static geometry. Embed the net sides in the hoop rather than
+        # leaving them coplanar with its inner walls; keep the source UV islands on whole texels.
+        result = {"name": cube["name"], "from": [v - inflate for v in cube["from"]],
+                  "to": [v + inflate for v in cube["to"]], "faces": faces}
         if axes:
             axis = axes[0]
             result["rotation"] = {"angle": rotation[axis], "axis": "xyz"[axis], "origin": cube["origin"]}
@@ -206,7 +212,7 @@ def export_source():
             "textures": {"particle": f"create_biotech:item/capture_net/{tier}"}, "display": DISPLAY,
         })
     export_animation(source, groups)
-    print(f"Exported {len(elements)} integer cuboids, 6 tiers and {len(source['animations'])} animation clips from {SOURCE.name}")
+    print(f"Exported {len(elements)} cuboids, 6 tiers and {len(source['animations'])} animation clips from {SOURCE.name}")
 
 
 def export_animation(source, groups):
@@ -220,7 +226,7 @@ def export_animation(source, groups):
     def number(value):
         return f"{float(value):g}f"
 
-    for name in ("grip",):
+    for name in ("grip", "bag"):
         xyz = ", ".join(number(v - 8) for v in groups[name][0]["origin"])
         lines.append(f"\tstatic final float[] {name.upper()}_PIVOT = {{{xyz}}};")
     for animation in source["animations"]:
@@ -234,8 +240,9 @@ def export_animation(source, groups):
                 raise ValueError("Unsupported animation target")
             if any(k["channel"] not in ("rotation", "position") for k in keyframes):
                 raise ValueError("Only rigid rotation/position animation is supported; do not scale the pixel cuboids")
-            if names[uuid] != "grip":
-                raise ValueError("Animate the shared grip only so the net mouth stays attached to the hoop")
+            target = "bag" if animation["name"] == "occupied" else "grip"
+            if names[uuid] != target:
+                raise ValueError(f"{animation['name']}: animate only {target}")
             for channel in ("rotation", "position"):
                 keys = sorted((k for k in keyframes if k["channel"] == channel), key=lambda k: k["time"])
                 if not keys:
@@ -245,6 +252,11 @@ def export_animation(source, groups):
                     if key["interpolation"] != "linear" or len(key["data_points"]) != 1:
                         raise ValueError("Use single-point linear animation keys for exact runtime parity")
                     point = key["data_points"][0]
+                    if target == "bag":
+                        # Keep the inflated root buried in the rim even at the combined extrema.
+                        limits = (4.5, 0, 0) if channel == "rotation" else (0.05, 0.05, 0.375)
+                        if any(abs(float(point[axis])) > limit for axis, limit in zip(("x", "y", "z"), limits)):
+                            raise ValueError(f"Occupied bag {channel} exceeds the embedded-mouth motion limits")
                     values = [key["time"]] + [float(point[a]) for a in ("x", "y", "z")]
                     lines.append("\t\t{" + ", ".join(number(v) for v in values) + "},")
                 lines.append("\t};")
