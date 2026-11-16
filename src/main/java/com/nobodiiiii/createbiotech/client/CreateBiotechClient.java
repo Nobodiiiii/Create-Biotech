@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.client;
 
+import java.io.IOException;
 
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineVisual;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingMachineVisual;
@@ -15,6 +16,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityRenderManager;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
 import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetItemDecorator;
+import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastBalloonMagnetSnapOverlay;
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonEntity;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterScreen;
@@ -85,6 +87,7 @@ import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterItemDecorationsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -294,6 +297,11 @@ public class CreateBiotechClient {
 				CBSpriteShifts.EXPLOSION_PROOF_CASING_SIDE,
 				(state, face) -> face.getAxis() != state.getValue(BlockStateProperties.AXIS));
 		});
+	}
+
+	@SubscribeEvent
+	public static void registerShaders(RegisterShadersEvent event) throws IOException {
+		CaptureNetRenderer.registerShaders(event);
 	}
 
 	@SubscribeEvent

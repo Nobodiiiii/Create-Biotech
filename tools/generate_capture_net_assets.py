@@ -15,7 +15,7 @@ DISPLAY = {
     "thirdperson_lefthand": {"rotation": [-22.5, -90, 0], "translation": [0, 3.25, -1.5], "scale": [0.8] * 3},
     "firstperson_righthand": {"rotation": [-4.5, 100.25, 10], "translation": [1, 2, 1], "scale": [0.75] * 3},
     "firstperson_lefthand": {"rotation": [-4.5, -100.25, -10], "translation": [1, 2, 1], "scale": [0.75] * 3},
-    "gui": {"rotation": [-29.13, 157.28, 38.71], "translation": [-0.64, 0.33, 0], "scale": [0.556] * 3},
+    "gui": {"rotation": [-25, 150, 39], "translation": [-0.88, 0.36, 0], "scale": [0.551] * 3},
     "ground": {"rotation": [-90, 0, 0], "translation": [0, 2, 0], "scale": [0.6] * 3},
     "fixed": {"rotation": [0, 180, 0], "translation": [0, 0, -1], "scale": [0.65] * 3},
 }
@@ -220,7 +220,7 @@ def export_source():
             })
     for tier in TIERS:
         write(ASSETS / f"models/item/{tier}_capture_net.json", {
-            "parent": "builtin/entity", "gui_light": "front",
+            "parent": "builtin/entity", "gui_light": "side",
             "textures": {"particle": f"create_biotech:item/capture_net/{tier}"}, "display": DISPLAY,
         })
     export_animation(source, groups)

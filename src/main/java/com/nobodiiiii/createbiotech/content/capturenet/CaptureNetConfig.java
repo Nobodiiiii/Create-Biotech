@@ -26,7 +26,7 @@ public final class CaptureNetConfig {
 		escapeDurabilityFraction = builder.comment("Fraction of maximum durability lost after a successful escape, rounded up. Unbreaking applies normally.")
 			.defineInRange("escapeDurabilityFraction", 0.1, 0.0, 1.0);
 		escapeCooldownSeconds = builder.comment("Cooldown after a successful escape, in seconds.")
-			.defineInRange("escapeCooldownSeconds", 5, 0, 3600);
+			.defineInRange("escapeCooldownSeconds", 10, 0, 3600);
 		builder.pop();
 	}
 }

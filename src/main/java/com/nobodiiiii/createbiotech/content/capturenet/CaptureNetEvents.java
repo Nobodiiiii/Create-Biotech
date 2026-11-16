@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.capturenet;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxHandler;
@@ -7,6 +10,7 @@ import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Mob;
@@ -18,10 +22,50 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class CaptureNetEvents {
+	private static final Map<Player, PendingCapture> PENDING_CAPTURES = new WeakHashMap<>();
+
 	private CaptureNetEvents() {}
+
+	static void queueCapture(Player player, InteractionHand hand, ItemStack stack, Mob target, long startedAt) {
+		PENDING_CAPTURES.put(player, new PendingCapture(hand, stack, target, startedAt));
+	}
+
+	@SubscribeEvent
+	public static void onPlayerTick(PlayerTickEvent.Post event) {
+		if (!(event.getEntity() instanceof ServerPlayer player)) return;
+		PendingCapture pending = PENDING_CAPTURES.get(player);
+		if (pending == null) return;
+		long elapsed = player.server.overworld().getGameTime() - pending.startedAt();
+		if (!player.isAlive() || player.isSpectator() || player.getItemInHand(pending.hand()) != pending.stack()
+			|| pending.target().level() != player.level() || !pending.target().isAlive()
+			|| elapsed < 0 || elapsed >= CaptureNetItem.ANIMATION_TICKS) {
+			PENDING_CAPTURES.remove(player);
+			return;
+		}
+		if (elapsed < CaptureNetItem.CAPTURE_CONTACT_TICK) return;
+		PENDING_CAPTURES.remove(player);
+		if (pending.stack().getItem() instanceof CaptureNetItem net)
+			net.completeCapture(pending.stack(), player, pending.target());
+	}
+
+	@SubscribeEvent
+	public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player)
+			PENDING_CAPTURES.remove(player);
+	}
+
+	@SubscribeEvent
+	public static void onServerStopped(ServerStoppedEvent event) {
+		PENDING_CAPTURES.clear();
+	}
+
+	private record PendingCapture(InteractionHand hand, ItemStack stack, Mob target, long startedAt) {}
 
 	@SubscribeEvent
 	public static void onAttack(AttackEntityEvent event) {

@@ -44,6 +44,7 @@ import net.neoforged.neoforge.common.ItemAbility;
 
 public final class CaptureNetItem extends TieredItem {
 	public static final int ANIMATION_TICKS = 12;
+	public static final int CAPTURE_CONTACT_TICK = 6;
 	public static final TagKey<EntityType<?>> CAPTURE_BLACKLIST =
 		TagKey.create(Registries.ENTITY_TYPE, CreateBiotech.asResource("capture_net_blacklist"));
 	private static final String ESCAPE_AT = "CaptureNetEscapeAt";
@@ -106,20 +107,40 @@ public final class CaptureNetItem extends TieredItem {
 			message(player, "occupied");
 			return;
 		}
-		if (!(CapturedEntityBoxHelper.resolveLivingTarget(target) instanceof Mob mob)
-			|| !mob.isAlive() || !mob.getType().canSerialize() || mob.getType().is(CAPTURE_BLACKLIST)) {
+		if (!(CapturedEntityBoxHelper.resolveLivingTarget(target) instanceof Mob mob)) {
 			message(player, "invalid_target");
 			return;
 		}
+		if (!canCapture(player, mob)) return;
+		animate(stack, player, hand, false);
+		CaptureNetEvents.queueCapture(player, hand, stack, mob, clock(player.level()));
+		player.level().playSound(null, player.blockPosition(), SoundEvents.PLAYER_ATTACK_SWEEP,
+			SoundSource.PLAYERS, 0.5f, 1.3f);
+	}
+
+	private boolean canCapture(Player player, Mob mob) {
+		if (!mob.isAlive() || !mob.getType().canSerialize() || mob.getType().is(CAPTURE_BLACKLIST)) {
+			message(player, "invalid_target");
+			return false;
+		}
 		if (mob.isPassenger() || mob.isVehicle() || mob.isLeashed()) {
 			message(player, "attached");
-			return;
+			return false;
 		}
 		if (!Float.isFinite(mob.getHealth()) || mob.getHealth() > tier.healthLimit()) {
 			player.displayClientMessage(Component.translatable("item.create_biotech.capture_net.too_healthy",
 				formatHealth(tier.healthLimit())), true);
-			return;
+			return false;
 		}
+		return true;
+	}
+
+	/** The target remains in the world until the descending mouth reaches it. */
+	void completeCapture(ItemStack stack, Player player, Mob mob) {
+		if (!(player.level() instanceof ServerLevel level) || player.isSpectator() || !player.mayBuild()
+			|| isOccupied(stack) || isEscapeCoolingDown(stack, level) || mob.level() != level
+			|| !player.canInteractWithEntity(mob, 0) || !player.hasLineOfSight(mob) || !canCapture(player, mob))
+			return;
 		if (!CapturedEntityBoxHelper.captureEntity(stack, mob))
 			return;
 		var config = CBConfigs.SERVER.captureNet;
@@ -133,11 +154,17 @@ public final class CaptureNetItem extends TieredItem {
 			data.putInt(ESCAPE_DURATION, duration);
 		});
 		mob.discard();
-		damageNet(stack, 1, (ServerLevel) player.level(), player, player.position());
+		damageNet(stack, 1, level, player, player.position());
 		if (stack.isEmpty()) return;
-		animate(stack, player, hand, false);
 		player.level().playSound(null, player.blockPosition(), SoundEvents.LEASH_KNOT_PLACE,
 			SoundSource.PLAYERS, 0.8f, 1.2f);
+		CaptureNetAmbientSounds.captured(stack, (ServerLevel) player.level(), mob.ambientSoundTime);
+	}
+
+	@Override
+	public boolean shouldCauseReequipAnimation(ItemStack oldStack, ItemStack newStack, boolean slotChanged) {
+		// Action timestamps, durability and the captured payload must not lower the animated net.
+		return slotChanged || oldStack.getItem() != newStack.getItem();
 	}
 
 	@Override
@@ -198,6 +225,7 @@ public final class CaptureNetItem extends TieredItem {
 		}
 		if (Math.floorMod(level.getGameTime() + slot, 10) == 0)
 			tryEscape(stack, server, holder);
+		CaptureNetAmbientSounds.tick(stack, server, holder);
 	}
 
 	@Override
@@ -214,6 +242,8 @@ public final class CaptureNetItem extends TieredItem {
 				entity.setItem(updated);
 			}
 		}
+		if (entity.level() instanceof ServerLevel server)
+			CaptureNetAmbientSounds.tick(entity.getItem(), server, entity);
 		return false;
 	}
 

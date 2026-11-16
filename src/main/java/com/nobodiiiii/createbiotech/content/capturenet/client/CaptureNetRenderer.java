@@ -1,9 +1,12 @@
 package com.nobodiiiii.createbiotech.content.capturenet.client;
 
+import java.io.IOException;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.WeakHashMap;
 
 import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -15,6 +18,7 @@ import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetTier;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.nobodiiiii.createbiotech.foundation.render.CachedRenderEntity;
+import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
 import com.nobodiiiii.createbiotech.foundation.render.EntityRenderHelper;
 import com.simibubi.create.foundation.item.render.PartialItemModelRenderer;
 
@@ -26,6 +30,7 @@ import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
@@ -33,23 +38,29 @@ import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.event.RegisterShadersEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 
 /** Separate frame and mesh parts follow Create's wrench renderer and the surgical kit's hand transforms. */
 public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer implements IClientItemExtensions {
 	private static final Map<CaptureNetTier, PartialModel> FRAMES = new EnumMap<>(CaptureNetTier.class);
 	private static final PartialModel BAG = PartialModel.of(CreateBiotech.asResource("item/capture_net/bag"));
-	private static final float CONTENTS_Z = 5.0f;
+	// The pouch spans model pixels [3, 9, 8] to [13, 19, 15], around the item's [8, 8, 8] origin.
+	private static final float CONTENTS_Y = 6.0f;
+	private static final float CONTENTS_Z = 3.5f;
+	private static final float CONTENTS_FILL = 0.94f;
+	private static final Map<LivingEntity, ContentsLayout> CONTENTS_LAYOUTS = new WeakHashMap<>();
 	// The net is a single open shell: its far wall must also be visible from inside the mouth.
 	private static final RenderType NET_RENDER_TYPE = RenderType.entityCutoutNoCull(InventoryMenu.BLOCK_ATLAS);
-	// The block cutout shader retains lightmap and alpha discard without normal-based diffuse shading.
+	private static ShaderInstance guiNetShader;
 	private static final RenderType GUI_NET_RENDER_TYPE = RenderType.create("create_biotech_capture_net_gui",
-		DefaultVertexFormat.BLOCK, VertexFormat.Mode.QUADS, 256, true, false,
+		DefaultVertexFormat.NEW_ENTITY, VertexFormat.Mode.QUADS, 256, true, false,
 		RenderType.CompositeState.builder()
-			.setShaderState(RenderStateShard.RENDERTYPE_CUTOUT_SHADER)
+			.setShaderState(new RenderStateShard.ShaderStateShard(() -> guiNetShader))
 			.setTextureState(new RenderStateShard.TextureStateShard(InventoryMenu.BLOCK_ATLAS, false, false))
 			.setCullState(RenderStateShard.NO_CULL)
 			.setLightmapState(RenderStateShard.LIGHTMAP)
+			.setOverlayState(RenderStateShard.OVERLAY)
 			.createCompositeState(true));
 	private static final CachedRenderEntity<LivingEntity, ItemStack> CONTENTS = CachedRenderEntity
 		.keyed((Level level, ItemStack stack) -> {
@@ -69,7 +80,13 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		super(null, null);
 	}
 
+	public static void registerShaders(RegisterShadersEvent event) throws IOException {
+		event.registerShader(new ShaderInstance(event.getResourceProvider(),
+			CreateBiotech.asResource("capture_net_gui"), DefaultVertexFormat.NEW_ENTITY), shader -> guiNetShader = shader);
+	}
+
 	public static void registerModels(java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register) {
+		CONTENTS_LAYOUTS.clear();
 		FRAMES.values().forEach(model -> register.accept(model.modelLocation()));
 		register.accept(BAG.modelLocation());
 	}
@@ -82,8 +99,12 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 	@Override
 	public boolean applyForgeHandTransform(PoseStack pose, LocalPlayer player, HumanoidArm arm,
 		ItemStack stack, float partialTick, float equip, float swing) {
-		float progress = CaptureNetItem.animationProgress(stack, player.level().getGameTime() + partialTick);
+		float progress = CaptureNetItem.animationProgress(stack, (double) player.level().getGameTime() + partialTick);
 		if (progress < 0) return false;
+		if (!CaptureNetItem.isReleasing(stack)) {
+			CaptureNetFirstPersonAnimation.apply(pose, player, arm, stack, equip, progress);
+			return true;
+		}
 		float side = arm == HumanoidArm.RIGHT ? 1 : -1;
 		// Keep vanilla's equip offset; the Blockbench grip track owns the scoop itself.
 		pose.translate(side * 0.56, -0.52 - equip * 0.6, -0.72);
@@ -96,17 +117,20 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		if (!(stack.getItem() instanceof CaptureNetItem net)) return;
 		var renderer = PartialItemModelRenderer.of(stack, context, pose, buffer, overlay);
 		float time = AnimationTickHolder.getRenderTime();
+		Level level = Minecraft.getInstance().level;
 		boolean occupied = CaptureNetItem.isOccupied(stack);
 		boolean releasing = CaptureNetItem.isReleasing(stack);
 		float side = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND
 			|| context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND ? -1 : 1;
 		pose.pushPose();
 		pose.translate(0.5, 0.5, 0.5);
-		float progress = CaptureNetItem.animationProgress(stack, time);
+		// Action timestamps use world game time; Catnip's render clock starts at client login.
+		float progress = level == null ? -1 : CaptureNetItem.animationProgress(stack,
+			(double) level.getGameTime() + AnimationTickHolder.getPartialTicks());
 		float seconds = Math.max(0, progress) * (releasing
 			? CaptureNetAnimation.RELEASE_LENGTH : CaptureNetAnimation.CAPTURE_LENGTH);
 		float idleWeight = occupied ? (progress < 0 ? 1 : Mth.clamp((progress - 0.75f) * 4, 0, 1)) : 0;
-		if (progress >= 0) {
+		if (progress >= 0 && (releasing || !context.firstPerson())) {
 			float[][] position = releasing ? CaptureNetAnimation.RELEASE_GRIP_POSITION
 				: CaptureNetAnimation.CAPTURE_GRIP_POSITION;
 			pose.translate(side * CaptureNetAnimation.sample(position, seconds, 0) / 16,
@@ -157,13 +181,25 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 
 	private static void renderContents(LivingEntity entity, PoseStack pose, MultiBufferSource buffer, int light,
 		float horizontalSway) {
+		ContentsLayout layout = CONTENTS_LAYOUTS.get(entity);
+		if (layout == null) {
+			EntityGeometry.Bounds bounds = EntityGeometry.measureWithFallback(entity,
+				EntityGeometry.Collector.boundsOnly()).bounds();
+			float scale = CONTENTS_FILL / 16 * Math.min(10 / Math.max(0.01f, bounds.sizeX()),
+				Math.min(10 / Math.max(0.01f, bounds.sizeY()), 7 / Math.max(0.01f, bounds.sizeZ())));
+			layout = new ContentsLayout(bounds.center(), scale);
+			CONTENTS_LAYOUTS.put(entity, layout);
+		}
 		pose.pushPose();
 		pose.translate(horizontalSway * (CONTENTS_Z - CaptureNetAnimation.BAG_PIVOT[2]) / 16,
-			3.0 / 16, CONTENTS_Z / 16);
-		float scale = Math.min(0.30f / Math.max(0.1f, entity.getBbWidth()),
-			0.30f / Math.max(0.1f, entity.getBbHeight()));
-		pose.scale(scale, scale, scale);
+			CONTENTS_Y / 16, CONTENTS_Z / 16);
+		// Zero-yaw entities face +Z; the open mouth is on the pouch's -Z side.
+		pose.mulPose(Axis.YP.rotationDegrees(180));
+		pose.scale(layout.scale(), layout.scale(), layout.scale());
+		pose.translate(-layout.center().x(), -layout.center().y(), -layout.center().z());
 		EntityRenderHelper.renderUnoriented(entity, pose, buffer, light);
 		pose.popPose();
 	}
+
+	private record ContentsLayout(Vector3f center, float scale) {}
 }
