@@ -84,7 +84,6 @@ public final class GeneratedAllayPort_458fa519 {
         scene.setBlock("minecraft:chest", Map.ofEntries(Map.entry("facing", "north"), Map.entry("type", "single"), Map.entry("waterlogged", "false")), new BlockPos(0, 1, 1), null, "{Items:[]}", false, false, "none", null, null, null, null, null);
         scene.showSectionAndMerge(new BlockPos(1, 1, 1), new BlockPos(0, 1, 1), null, null, "east", "simultaneous", 20, 1, false);
         scene.keyframe().showText(text("scene_1.text_8_2"), new Vec3(1.5d, 3.0d, 1.5d), 100, null, true);
-        // Preserve the 110-tick pause: finish entering, show the package, then unpack it.
         scene.idle(20);
         scene.modifyBlockEntity(null, "{AnimationInward:0b,AnimationTicks:0,HeldBox:{id:\"create:cardboard_package_12x12\",count:1},InsertedBox:{id:\"minecraft:air\",count:0}}", false, new BlockPos(1, 1, 1), null);
         scene.idle(5);
@@ -110,17 +109,48 @@ public final class GeneratedAllayPort_458fa519 {
         scene.showText(text("s_21db7.text_2"), new Vec3(1.5d, 2.0d, 1.5d), 120, "blue", true);
         scene.showText(text("s_21db7.text_3"), new Vec3(1.5d, 2.6d, 1.5d), 120, null, true);
         scene.javaStep("create_biotech:java/allay_port/3", new JsonObject());
-        scene.clearEntities(false, "minecraft:player", "allay_port.player", null, null, "simultaneous", 10, "down");
+        scene.clearEntities(null, "minecraft:player", "allay_port.player", null, null, null, null, null);
         scene.idle(10);
         scene.showExtraStructure("create_biotech:generated/ponderer/allay_port_nether", new BlockPos(0, 0, 0), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
         scene.keyframe().showText(text("s_21db7.text_4"), new Vec3(7.5d, 2.5d, 7.5d), 120, null, true);
-        scene.highlightSection("blue", new BlockPos(6, 1, 6), new BlockPos(8, 3, 8), 120);
         scene.idle(130);
+        scene.highlightSection("blue", new BlockPos(6, 1, 6), new BlockPos(8, 3, 8), 120);
+        scene.highlightSection("blue", new BlockPos(0, 0, 0), new BlockPos(3, 3, 3), 120);
         scene.keyframe().showText(text("s_21db7.text_5"), new Vec3(7.5d, 2.5d, 7.5d), 120, null, true);
         scene.idle(130);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

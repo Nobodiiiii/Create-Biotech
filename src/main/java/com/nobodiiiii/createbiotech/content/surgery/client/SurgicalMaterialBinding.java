@@ -1,6 +1,9 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -129,71 +132,114 @@ final class SurgicalMaterialBinding {
 	 * Vanilla clothing is usually authored as a normal cuboid inflated by 0.25-0.5
 	 * pixels (the villager jacket is additionally extended downwards), so testing only
 	 * the shortest edge would incorrectly turn it into a second solid slime body.
+	 * At least two base edges must fit inside the candidate's expansion interval, so the
+	 * length-pair index is a conservative filter before the unchanged oriented-box check.
 	 */
-	static boolean shouldPreserveSource(SurgicalCapturedRenderPlan.ComponentBuilder candidate, List<SurgicalCapturedRenderPlan.ComponentBuilder> components) {
-		if (candidate.preserveMaterial) return true;
-		ResourceLocation texture = candidate.primaryRenderType == null
-			? null : renderTypeTexture(candidate.primaryRenderType);
-		if (texture != null && SurgicalCapturedRenderPlan.SADDLE_TEXTURES.contains(texture))
-			return true;
-		SurgicalCapturedRenderPlan.RecoveredCuboid cuboid = candidate.cuboid;
-		float shortestEdge = Math.min(cuboid.a().length(), Math.min(cuboid.b().length(), cuboid.c().length()));
-		if (shortestEdge <= SurgicalCapturedRenderPlan.THIN_EDGE)
-			return true;
+	static final class OverlayIndex {
+		private final Map<Long, List<OverlayBox>> pairs = new HashMap<>();
 
-		for (SurgicalCapturedRenderPlan.ComponentBuilder base : components) {
-			if (base.order >= candidate.order || base == candidate)
-				continue;
-			if (isCloseFittingOverlay(cuboid, base.cuboid))
-				return true;
+		void add(SurgicalCapturedRenderPlan.ComponentBuilder component) {
+			OverlayBox box = component.overlayBox;
+			long first = pairKey(box.lengths[0], box.lengths[1]);
+			long second = pairKey(box.lengths[0], box.lengths[2]);
+			long third = pairKey(box.lengths[1], box.lengths[2]);
+			pairs.computeIfAbsent(first, ignored -> new ArrayList<>()).add(box);
+			if (second != first) pairs.computeIfAbsent(second, ignored -> new ArrayList<>()).add(box);
+			if (third != first && third != second) pairs.computeIfAbsent(third, ignored -> new ArrayList<>()).add(box);
 		}
-		return false;
+
+		boolean shouldPreserveSource(SurgicalCapturedRenderPlan.ComponentBuilder candidate) {
+			if (candidate.preserveMaterial) return true;
+			ResourceLocation texture = candidate.primaryRenderType == null
+				? null : renderTypeTexture(candidate.primaryRenderType);
+			if (texture != null && SurgicalCapturedRenderPlan.SADDLE_TEXTURES.contains(texture)) return true;
+			OverlayBox box = candidate.overlayBox;
+			if (Math.min(box.lengths[0], Math.min(box.lengths[1], box.lengths[2])) <= SurgicalCapturedRenderPlan.THIN_EDGE)
+				return true;
+			for (int a = 0; a < 2; a++) {
+				for (int b = a + 1; b < 3; b++) {
+					int low = bucket(Math.min(box.lengths[a], box.lengths[b]));
+					int high = bucket(Math.max(box.lengths[a], box.lengths[b]));
+					for (int x = 0; x < 2; x++) {
+						for (int y = 0; y < 2; y++) {
+							List<OverlayBox> bases = pairs.get(key(low - x, high - y));
+							if (bases == null) continue;
+							for (OverlayBox base : bases)
+								if (isCloseFittingOverlay(box, base)) return true;
+						}
+					}
+				}
+			}
+			return false;
+		}
+
+		private static int bucket(float length) {
+			// Double division and a cell wider than the maximum float expansion keep
+			// boundary rounding from excluding a valid pair in the previous cell.
+			return (int) Math.floor(length / (2.0d * SurgicalCapturedRenderPlan.OVERLAY_EXPANSION_MAX));
+		}
+
+		private static long pairKey(float a, float b) {
+			return key(bucket(Math.min(a, b)), bucket(Math.max(a, b)));
+		}
+
+		private static long key(int low, int high) {
+			return (long) low << 32 | high & 0xffffffffL;
+		}
+	}
+
+	/** Pose-dependent measurements are computed once per component, not once per pair. */
+	static final class OverlayBox {
+		final Vector3f[] axes;
+		final float[] lengths;
+		final Vector3f center;
+
+		OverlayBox(SurgicalCapturedRenderPlan.RecoveredCuboid cuboid) {
+			axes = new Vector3f[] { new Vector3f(cuboid.a()), new Vector3f(cuboid.b()), new Vector3f(cuboid.c()) };
+			lengths = new float[3];
+			for (int i = 0; i < 3; i++) {
+				lengths[i] = axes[i].length();
+				if (lengths[i] > SurgicalCapturedRenderPlan.POSITION_EPSILON) axes[i].div(lengths[i]);
+			}
+			center = center(cuboid);
+		}
 	}
 
 	static boolean isCloseFittingOverlay(SurgicalCapturedRenderPlan.RecoveredCuboid candidate, SurgicalCapturedRenderPlan.RecoveredCuboid base) {
-		Vector3f[] candidateEdges = { candidate.a(), candidate.b(), candidate.c() };
-		Vector3f[] baseEdges = { base.a(), base.b(), base.c() };
-		boolean[] usedBaseEdges = new boolean[3];
-		Vector3f centerDelta = center(candidate).sub(center(base));
+		return isCloseFittingOverlay(new OverlayBox(candidate), new OverlayBox(base));
+	}
+
+	static boolean isCloseFittingOverlay(OverlayBox candidate, OverlayBox base) {
+		int used = 0;
+		float dx = candidate.center.x - base.center.x;
+		float dy = candidate.center.y - base.center.y;
+		float dz = candidate.center.z - base.center.z;
 		float candidateVolume = 1.0f;
 		float baseVolume = 1.0f;
 		int closeExpandedAxes = 0;
-
-		for (Vector3f candidateEdge : candidateEdges) {
-			float candidateLength = candidateEdge.length();
-			if (candidateLength <= SurgicalCapturedRenderPlan.POSITION_EPSILON)
-				return false;
-			Vector3f candidateAxis = new Vector3f(candidateEdge).div(candidateLength);
+		for (int axis = 0; axis < 3; axis++) {
+			float candidateLength = candidate.lengths[axis];
+			if (candidateLength <= SurgicalCapturedRenderPlan.POSITION_EPSILON) return false;
+			Vector3f direction = candidate.axes[axis];
 			int match = -1;
-			for (int baseIndex = 0; baseIndex < baseEdges.length; baseIndex++) {
-				if (usedBaseEdges[baseIndex])
-					continue;
-				float baseLength = baseEdges[baseIndex].length();
-				if (baseLength <= SurgicalCapturedRenderPlan.POSITION_EPSILON)
-					continue;
-				float dot = Math.abs(candidateAxis.dot(new Vector3f(baseEdges[baseIndex]).div(baseLength)));
-				if (dot >= SurgicalCapturedRenderPlan.PARALLEL_DOT_MIN) {
-					match = baseIndex;
+			for (int i = 0; i < 3; i++) {
+				if ((used & 1 << i) != 0 || base.lengths[i] <= SurgicalCapturedRenderPlan.POSITION_EPSILON) continue;
+				if (Math.abs(direction.dot(base.axes[i])) >= SurgicalCapturedRenderPlan.PARALLEL_DOT_MIN) {
+					match = i;
 					break;
 				}
 			}
-			if (match < 0)
-				return false;
-
-			usedBaseEdges[match] = true;
-			float baseLength = baseEdges[match].length();
-			float axialCenterDelta = Math.abs(centerDelta.dot(candidateAxis));
-			if (axialCenterDelta > (candidateLength + baseLength) * 0.5f + SurgicalCapturedRenderPlan.POSITION_EPSILON)
-				return false;
-
+			if (match < 0) return false;
+			used |= 1 << match;
+			float baseLength = base.lengths[match];
+			float axialCenterDelta = Math.abs(direction.dot(dx, dy, dz));
+			if (axialCenterDelta > (candidateLength + baseLength) * 0.5f + SurgicalCapturedRenderPlan.POSITION_EPSILON) return false;
 			float expansion = candidateLength - baseLength;
 			if (expansion > SurgicalCapturedRenderPlan.POSITION_EPSILON && expansion <= SurgicalCapturedRenderPlan.OVERLAY_EXPANSION_MAX
-				&& axialCenterDelta <= SurgicalCapturedRenderPlan.OVERLAY_CENTER_EPSILON)
-				closeExpandedAxes++;
+				&& axialCenterDelta <= SurgicalCapturedRenderPlan.OVERLAY_CENTER_EPSILON) closeExpandedAxes++;
 			candidateVolume *= candidateLength;
 			baseVolume *= baseLength;
 		}
-
 		return closeExpandedAxes >= 2 && candidateVolume > baseVolume + SurgicalCapturedRenderPlan.POSITION_EPSILON;
 	}
 

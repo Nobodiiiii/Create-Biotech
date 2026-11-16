@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.client;
 
+import java.util.List;
 import java.util.function.Predicate;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
@@ -37,6 +38,11 @@ final class CBClientTooltipRegistration {
 		registerCapturedBoxTooltip(CBItems.LARGE_CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.EMPTY_CARDBOARD_BOX.get());
 		registerCreateStyleTooltip(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
+		for (var entry : List.of(CBItems.WOODEN_CAPTURE_NET, CBItems.STONE_CAPTURE_NET, CBItems.IRON_CAPTURE_NET,
+			CBItems.GOLDEN_CAPTURE_NET, CBItems.DIAMOND_CAPTURE_NET, CBItems.NETHERITE_CAPTURE_NET)) {
+			var item = entry.get();
+			TooltipModifier.REGISTRY.register(item, new CaptureNetTooltipModifier(item.tier()));
+		}
 		registerCreateStyleTooltip(CBItems.CAPTURED_SMALL_SLIME.get());
 		registerCreateStyleTooltip(CBItems.DING_DONG_CHICKEN.get());
 		registerCreateStyleTooltip(CBItems.SMART_SUPER_GLUE.get());

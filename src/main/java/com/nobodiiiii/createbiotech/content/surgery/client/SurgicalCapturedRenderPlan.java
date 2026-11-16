@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -9,6 +10,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix3f;
@@ -96,6 +98,8 @@ public final class SurgicalCapturedRenderPlan {
 	private static final Map<Integer, SurgicalCubeRotation> NO_ROTATIONS = Map.of();
 	/** Render-thread only; cleared every frame by {@link #beginFrame()}. */
 	private static final Map<LivingEntity, LiveFrame> LIVE_FRAMES = new IdentityHashMap<>();
+	/** Weak keys; recipes retain vertex indices, never entities or a previous frame's vertices. */
+	private static final Map<LivingEntity, LiveRecovery> LIVE_RECOVERY = new WeakHashMap<>();
 
 	private final List<Component> components;
 	private final List<Component> appearanceComponents;
@@ -390,7 +394,13 @@ public final class SurgicalCapturedRenderPlan {
 		if (cached != null && cached.yaw == yaw && cached.partialTick == partialTick
 			&& cached.renderer == renderer)
 			return cached.plan;
-		SurgicalCapturedRenderPlan plan = SurgicalRenderCapture.capture(renderer, entity, yaw, partialTick, false);
+		LiveRecovery recovery = LIVE_RECOVERY.get(entity);
+		if (recovery == null || recovery.renderer != renderer) {
+			recovery = new LiveRecovery(renderer, new SurgicalLiveMeshCache());
+			LIVE_RECOVERY.put(entity, recovery);
+		}
+		CapturedInput input = SurgicalRenderCapture.captureInput(renderer, entity, yaw, partialTick, false);
+		SurgicalCapturedRenderPlan plan = SurgicalMeshRecovery.build(input, recovery.cache);
 		LIVE_FRAMES.put(entity, new LiveFrame(renderer, yaw, partialTick, plan));
 		return plan;
 	}
@@ -402,6 +412,8 @@ public final class SurgicalCapturedRenderPlan {
 
 	private record LiveFrame(EntityRenderer<LivingEntity> renderer, float yaw, float partialTick,
 		SurgicalCapturedRenderPlan plan) {}
+
+	private record LiveRecovery(EntityRenderer<LivingEntity> renderer, SurgicalLiveMeshCache cache) {}
 
 	int cubeCount() {
 		return components.size();
@@ -551,6 +563,8 @@ public final class SurgicalCapturedRenderPlan {
 
 	static void clearResources() {
 		resourceGeneration++;
+		LIVE_FRAMES.clear();
+		LIVE_RECOVERY.clear();
 		SurgicalTextureMasks.ALPHA_MASKS.clear();
 		innerCube = null;
 		outerCube = null;
@@ -615,6 +629,7 @@ public final class SurgicalCapturedRenderPlan {
 	static final class ComponentBuilder {
 		final int order;
 		final RecoveredCuboid cuboid;
+		final SurgicalMaterialBinding.OverlayBox overlayBox;
 		private final List<Vec3> modelCorners;
 		private boolean head;
 		boolean preserveMaterial;
@@ -632,6 +647,7 @@ public final class SurgicalCapturedRenderPlan {
 			boolean topology) {
 			this.order = order;
 			this.cuboid = cuboid;
+			this.overlayBox = new SurgicalMaterialBinding.OverlayBox(cuboid);
 			this.modelCorners = modelCube.corners();
 			this.head = modelCube.head();
 			this.partNames = new HashSet<>(modelCube.partNames());
@@ -721,12 +737,15 @@ public final class SurgicalCapturedRenderPlan {
 
 	record GeometryKey(List<QuantizedPoint> points) {
 		static GeometryKey of(List<Vector3f> corners) {
-			List<QuantizedPoint> points = corners.stream()
-				.map(QuantizedPoint::of)
-				.distinct()
-				.sorted()
-				.toList();
-			return new GeometryKey(points);
+			QuantizedPoint[] points = new QuantizedPoint[corners.size()];
+			for (int i = 0; i < points.length; i++)
+				points[i] = QuantizedPoint.of(corners.get(i));
+			Arrays.sort(points);
+			int unique = 0;
+			for (int i = 0; i < points.length; i++)
+				if (unique == 0 || !points[i].equals(points[unique - 1]))
+					points[unique++] = points[i];
+			return new GeometryKey(List.copyOf(Arrays.asList(points).subList(0, unique)));
 		}
 	}
 

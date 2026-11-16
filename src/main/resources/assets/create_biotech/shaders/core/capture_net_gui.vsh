@@ -27,12 +27,14 @@ void main() {
     gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
     vertexDistance = fog_distance(Position, FogShape);
 
-    // Thin cloth receives light on both sides. Keep the contrast gentle and independent
-    // of the camera so an inner wall cannot turn into a dark stripe as the net moves.
+    // Light the visible side of the cloth. Ease through grazing angles instead of
+    // abruptly flipping the normal, and keep enough ambient light for the inner walls.
     vec3 normal = normalize(Normal);
-    float light0 = abs(dot(Light0_Direction, normal));
-    float light1 = abs(dot(Light1_Direction, normal));
-    float brightness = mix(0.72, 0.94, clamp(max(light0, light1), 0.0, 1.0));
+    float facing = normal.z / sqrt(normal.z * normal.z + 0.04);
+    vec3 visibleNormal = normal * facing;
+    float light0 = max(0.0, dot(Light0_Direction, visibleNormal));
+    float light1 = max(0.0, dot(Light1_Direction, visibleNormal));
+    float brightness = mix(0.64, 0.96, clamp(light0 + light1, 0.0, 1.0));
     vertexColor = vec4(Color.rgb * brightness, Color.a);
 
     lightMapColor = texelFetch(Sampler2, UV2 / 16, 0);

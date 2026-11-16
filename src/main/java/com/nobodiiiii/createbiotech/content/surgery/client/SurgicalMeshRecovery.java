@@ -24,13 +24,19 @@ final class SurgicalMeshRecovery {
 
 
 	static SurgicalCapturedRenderPlan build(SurgicalCapturedRenderPlan.CapturedInput captured) {
+		return build(captured, null);
+	}
+
+	static SurgicalCapturedRenderPlan build(SurgicalCapturedRenderPlan.CapturedInput captured,
+		@Nullable SurgicalLiveMeshCache liveCache) {
+		if (liveCache != null) liveCache.begin(captured);
 		return build(captured.streams(), captured.observedCubes(), captured.topology(),
-			captured.bindPlayerSkinLayers(), captured.saddleCubes());
+			captured.bindPlayerSkinLayers(), captured.saddleCubes(), liveCache);
 	}
 
 	static SurgicalCapturedRenderPlan build(List<SurgicalRenderCapture.CaptureStream> streams,
 		List<SurgicalCapturedRenderPlan.ObservedCube> observedCubes, boolean topology, boolean bindPlayerSkinLayers,
-		Set<SurgicalCapturedRenderPlan.GeometryKey> saddleCubes) {
+		Set<SurgicalCapturedRenderPlan.GeometryKey> saddleCubes, @Nullable SurgicalLiveMeshCache liveCache) {
 		Map<SurgicalCapturedRenderPlan.GeometryKey, List<SurgicalCapturedRenderPlan.ComponentBuilder>> recovered = new LinkedHashMap<>();
 		List<SurgicalCapturedRenderPlan.SourceBatch> extras = new ArrayList<>();
 		List<SurgicalCapturedRenderPlan.PendingQuad> pendingQuads = new ArrayList<>();
@@ -46,7 +52,8 @@ final class SurgicalMeshRecovery {
 
 			int cursor = 0;
 			while (cursor + 4 <= vertices.size()) {
-				SurgicalCapturedRenderPlan.RecoveredCandidate candidate = recoverCandidate(vertices, cursor);
+				SurgicalCapturedRenderPlan.RecoveredCandidate candidate = liveCache == null
+					? recoverCandidate(vertices, cursor) : liveCache.recover(stream, cursor);
 				if (candidate == null) {
 					List<SurgicalRenderCapture.CapturedVertex> quad = vertices.subList(cursor, cursor + 4);
 					if (SurgicalMaterialBinding.quadVisible(stream.renderType, quad))
@@ -124,11 +131,13 @@ final class SurgicalMeshRecovery {
 		if (bindPlayerSkinLayers)
 			visible = bindPlayerSkinLayers(visible);
 		List<SurgicalCapturedRenderPlan.Component> components = new ArrayList<>(visible.size());
+		SurgicalMaterialBinding.OverlayIndex materials = new SurgicalMaterialBinding.OverlayIndex();
 		for (int id = 0; id < visible.size(); id++) {
 			SurgicalCapturedRenderPlan.ComponentBuilder builder = visible.get(id);
 			components.add(builder.build(id, !saddleCubes.isEmpty()
 				&& saddleCubes.contains(SurgicalCapturedRenderPlan.GeometryKey.of(builder.cuboid.corners()))
-				|| SurgicalMaterialBinding.shouldPreserveSource(builder, visible)));
+				|| materials.shouldPreserveSource(builder)));
+			materials.add(builder);
 		}
 		return new SurgicalCapturedRenderPlan(components, extras);
 	}
@@ -152,7 +161,7 @@ final class SurgicalMeshRecovery {
 			float closestVolume = Float.NEGATIVE_INFINITY;
 			for (SurgicalCapturedRenderPlan.ComponentBuilder candidate : byVolume) {
 				if (candidate == layer || boundLayers.contains(candidate)
-					|| !SurgicalMaterialBinding.isCloseFittingOverlay(layer.cuboid, candidate.cuboid))
+					|| !SurgicalMaterialBinding.isCloseFittingOverlay(layer.overlayBox, candidate.overlayBox))
 					continue;
 				float volume = cuboidVolume(candidate.cuboid);
 				if (volume > closestVolume) {

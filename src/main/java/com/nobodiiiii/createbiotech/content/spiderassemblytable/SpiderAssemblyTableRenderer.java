@@ -3,8 +3,10 @@ package com.nobodiiiii.createbiotech.content.spiderassemblytable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableBlockEntity.MachineKind;
 import com.nobodiiiii.createbiotech.foundation.render.BlockEntityModelElement;
+import com.nobodiiiii.createbiotech.foundation.render.BufferedModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModels;
 import com.simibubi.create.AllBlocks;
@@ -13,6 +15,8 @@ import com.simibubi.create.content.kinetics.base.DirectionalAxisKineticBlock;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
+import dev.engine_room.flywheel.api.model.Model;
+import dev.engine_room.flywheel.lib.util.RendererReloadCache;
 import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import net.createmod.catnip.animation.AnimationTickHolder;
 import net.createmod.catnip.math.AngleHelper;
@@ -39,10 +43,15 @@ import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.RenderFrameEvent;
 
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+@EventBusSubscriber(modid = CreateBiotech.MOD_ID, value = Dist.CLIENT)
 public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<SpiderAssemblyTableBlockEntity> {
 
 	private static final int EYES_LIGHT = 15728640;
@@ -70,6 +79,28 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 	private static final float JOINT_GEAR_SCALE = 0.22f;
 	private static final float JOINT_GEAR_Y_OFFSET = 0f;
 	private static final float JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES = 90f;
+
+	private static final RendererReloadCache<MachineModelKey, Model> MACHINE_MODELS = new RendererReloadCache<>(key ->
+		BufferedModel.create((pose, buffer) -> {
+			BlockState state = machineStateFor(key.kind);
+			if (key.kind == MachineKind.SPOUT)
+				Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, pose, buffer, 0,
+					OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+			renderMachineStatic(key.kind, state, pose, buffer, 0, key.holding);
+		}));
+	private static final RendererReloadCache<Boolean, Boolean> PREPARED_MODELS = new RendererReloadCache<>(ignored -> {
+		for (MachineKind kind : MachineKind.values()) machineModel(kind, false);
+		machineModel(MachineKind.DEPLOYER, true);
+		return true;
+	});
+
+	@SubscribeEvent
+	public static void prepareVisualModels(RenderFrameEvent.Pre event) {
+		// Flywheel may invoke beginFrame in parallel. Catnip's mutable cached buffers
+		// are only touched during baking here, before any visual frame work starts.
+		var level = Minecraft.getInstance().level;
+		if (level != null && VisualizationManager.supportsVisualization(level)) PREPARED_MODELS.get(true);
+	}
 
 	private final MachineCreatureModel spiderModel;
 	private final MachineCreatureModel spiderEyesModel;
@@ -126,7 +157,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			.render(ms, buffer, (poseStack, buf, lightArg) -> {
 				if (!visualized && casing == null) {
 					spiderModel.render(poseStack, buf, lightArg, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				} else if (casing != null) {
+				} else if (!visualized && casing != null) {
 					casingModel.render(casing, spiderModel.root(), poseStack, buf, lightArg,
 						OverlayTexture.NO_OVERLAY);
 				}
@@ -134,12 +165,48 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 				spiderEyesModel.copyPoseFrom(spiderModel);
 				spiderEyesModel.renderTextured(poseStack, buf, EYES_RENDER_TYPE, EYES_SPRITE,
 					EYES_LIGHT, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
-				renderLegMachines(be, partialTicks, poseStack, buf, lightArg);
+				renderLegMachines(be, partialTicks, poseStack, buf, lightArg, visualized);
 			});
 	}
 
 	private void renderLegMachines(SpiderAssemblyTableBlockEntity be, float partialTicks, PoseStack ms,
-		MultiBufferSource buffer, int light) {
+		MultiBufferSource buffer, int light, boolean visualized) {
+		visitLegs(be, spiderModel, partialTicks, ms, visualized, (slot, kind, state, pose, active) -> {
+			if (!visualized) renderJointGear(pose, buffer, light);
+			applyMachineRoot(pose, kind);
+			if (!visualized) {
+				if (kind == MachineKind.SPOUT)
+					Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, pose, buffer, light,
+						OverlayTexture.NO_OVERLAY, ModelData.EMPTY, null);
+				renderMachineStatic(kind, state, pose, buffer, light,
+					!be.getInventory().getStackInSlot(SpiderAssemblyTableBlockEntity.HYBRID_SLOT_START + slot).isEmpty());
+			}
+			renderMachineExtras(be, slot, kind, state, pose, buffer, light, partialTicks, active);
+		});
+	}
+
+	static Model machineModel(MachineKind kind, boolean holding) {
+		return MACHINE_MODELS.get(new MachineModelKey(kind, kind == MachineKind.DEPLOYER && holding));
+	}
+
+	private record MachineModelKey(MachineKind kind, boolean holding) {}
+
+	static void applyMachineRoot(PoseStack pose, MachineKind kind) {
+		pose.scale(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
+		if (kind == MachineKind.SPOUT) {
+			pose.scale(0.25f, 1.5f, 0.25f);
+			pose.translate(-0.5d, -1.0d, -0.5d);
+		} else pose.translate(-0.5d, -1.625d, -0.5d);
+	}
+
+	@FunctionalInterface
+	interface LegRenderer {
+		void render(int slot, MachineKind kind, BlockState state, PoseStack pose, boolean active);
+	}
+
+	/** Shared authored socket/orientation transforms for BER and Flywheel. */
+	static void visitLegs(SpiderAssemblyTableBlockEntity be, MachineCreatureModel model, float partialTicks,
+		PoseStack ms, boolean extrasOnly, LegRenderer renderer) {
 		ItemStackHandler inventory = be.getInventory();
 		int activeSlot = be.getActiveSlot();
 		float progress = be.getProcessingProgress(partialTicks);
@@ -149,8 +216,13 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			MachineKind kind = MachineKind.fromStack(machineStack);
 			if (kind == null)
 				continue;
+			if (extrasOnly && kind != MachineKind.SAW
+				&& !(kind == MachineKind.DEPLOYER && !inventory.getStackInSlot(
+					SpiderAssemblyTableBlockEntity.HYBRID_SLOT_START + slot).isEmpty())
+				&& !(kind == MachineKind.SPOUT && !be.getFluidTank(slot).getFluid().isEmpty()))
+				continue;
 
-			MachineCreatureModel.Anchor legSocket = getLegSocket(slot);
+			MachineCreatureModel.Anchor legSocket = model.anchor(LEG_SOCKET_ANCHORS[slot]);
 			if (legSocket == null)
 				continue;
 			MachineCreatureModel.Part leg = legSocket.part();
@@ -218,21 +290,7 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			ms.translate(tipMx / 16f, tipMy / 16f, tipMz / 16f);
 			ms.mulPose(orientation);
 			ms.mulPose(Axis.YP.rotationDegrees(180f));
-			renderJointGear(ms, buffer, light);
-			ms.scale(MACHINE_SCALE, MACHINE_SCALE, MACHINE_SCALE);
-
-			if (kind == MachineKind.SPOUT) {
-				ms.scale(0.25f, 1.5f, 0.25f);
-				ms.translate(-0.5d, -1.0d, -0.5d);
-				Minecraft.getInstance()
-					.getBlockRenderer()
-					.renderSingleBlock(machineState, ms, buffer, light, OverlayTexture.NO_OVERLAY,
-						ModelData.EMPTY, null);
-				renderMachineParts(be, slot, kind, machineState, ms, buffer, light, partialTicks, isActive);
-			} else {
-				ms.translate(-0.5d, -1.625d, -0.5d);
-				renderMachineParts(be, slot, kind, machineState, ms, buffer, light, partialTicks, isActive);
-			}
+			renderer.render(slot, kind, machineState, ms, isActive);
 			ms.popPose();
 		}
 	}
@@ -319,14 +377,18 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 
 	private static void renderJointGear(PoseStack ms, MultiBufferSource buffer, int light) {
 		ms.pushPose();
-		ms.translate(0d, JOINT_GEAR_Y_OFFSET, 0d);
-		ms.mulPose(Axis.ZP.rotationDegrees(JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES));
-		ms.scale(JOINT_GEAR_SCALE, JOINT_GEAR_SCALE, JOINT_GEAR_SCALE);
-		ms.translate(-0.5d, -0.5d, -0.5d);
+		applyJointGearTransform(ms);
 		CachedBuffers.partial(AllPartialModels.SHAFTLESS_COGWHEEL, AllBlocks.COGWHEEL.getDefaultState())
 			.light(light)
 			.renderInto(ms, buffer.getBuffer(RenderType.solid()));
 		ms.popPose();
+	}
+
+	static void applyJointGearTransform(PoseStack ms) {
+		ms.translate(0d, JOINT_GEAR_Y_OFFSET, 0d);
+		ms.mulPose(Axis.ZP.rotationDegrees(JOINT_GEAR_PERPENDICULAR_TO_Y_DEGREES));
+		ms.scale(JOINT_GEAR_SCALE, JOINT_GEAR_SCALE, JOINT_GEAR_SCALE);
+		ms.translate(-0.5d, -0.5d, -0.5d);
 	}
 
 	private static Vector3f rotateTowardLegAxis(float dirX, float dirY, float dirZ, float legX, float legY, float legZ,
@@ -366,25 +428,18 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		return state;
 	}
 
-	private static void renderMachineParts(SpiderAssemblyTableBlockEntity be, int slot, MachineKind kind,
-		BlockState state, PoseStack ms, MultiBufferSource buffer, int light, float partialTicks, boolean isActive) {
+	private static void renderMachineStatic(MachineKind kind,
+		BlockState state, PoseStack ms, MultiBufferSource buffer, int light, boolean holding) {
 		VertexConsumer solid = buffer.getBuffer(RenderType.solid());
-		ItemStackHandler inventory = be.getInventory();
 		switch (kind) {
 		case DEPLOYER -> {
-			ItemStack heldItem =
-				inventory.getStackInSlot(SpiderAssemblyTableBlockEntity.HYBRID_SLOT_START + slot);
-			PartialModel handPose = heldItem.isEmpty()
-				? AllPartialModels.DEPLOYER_HAND_POINTING
-				: AllPartialModels.DEPLOYER_HAND_HOLDING;
+			PartialModel handPose = holding ? AllPartialModels.DEPLOYER_HAND_HOLDING : AllPartialModels.DEPLOYER_HAND_POINTING;
 			transformDeployerPart(CachedBuffers.partial(AllPartialModels.DEPLOYER_POLE, state), state, true)
 				.light(light)
 				.renderInto(ms, solid);
 			transformDeployerPart(CachedBuffers.partial(handPose, state), state, false)
 				.light(light)
 				.renderInto(ms, solid);
-			if (!heldItem.isEmpty())
-				renderDeployerHeldItem(be, heldItem, ms, buffer, light);
 		}
 		case PRESS -> {
 			BlockState poleState = deployerPoleState();
@@ -409,16 +464,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 				.light(light)
 				.renderInto(ms, solid);
 
-			boolean axisAlongFirst = state.getValue(DirectionalAxisKineticBlock.AXIS_ALONG_FIRST_COORDINATE);
-			Direction spinAxis = axisAlongFirst ? Direction.EAST : Direction.SOUTH;
-			float spinAngle = isActive
-				? AngleHelper.rad((AnimationTickHolder.getRenderTime(be.getLevel()) + partialTicks) * 24f)
-				: 0f;
-			renderSawBlade(state, ms, buffer, light, axisAlongFirst, spinAxis, spinAngle, 0f);
-			ms.pushPose();
-			ms.translate(0, -SAW_BLADE_ROOT_OFFSET * 2f, 0);
-			renderSawBlade(state, ms, buffer, light, axisAlongFirst, spinAxis, spinAngle, AngleHelper.rad(180));
-			ms.popPose();
 		}
 		case SPOUT -> {
 			CachedBuffers.partial(AllPartialModels.SPOUT_TOP, state)
@@ -430,8 +475,28 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 			CachedBuffers.partial(AllPartialModels.SPOUT_BOTTOM, state)
 				.light(light)
 				.renderInto(ms, solid);
-			renderSpoutFluid(be.getFluidTank(slot), ms, buffer, light);
 		}
+		}
+	}
+
+	private static void renderMachineExtras(SpiderAssemblyTableBlockEntity be, int slot, MachineKind kind,
+		BlockState state, PoseStack ms, MultiBufferSource buffer, int light, float partialTicks, boolean isActive) {
+		if (kind == MachineKind.DEPLOYER) {
+			ItemStack held = be.getInventory().getStackInSlot(SpiderAssemblyTableBlockEntity.HYBRID_SLOT_START + slot);
+			if (!held.isEmpty()) renderDeployerHeldItem(be, held, ms, buffer, light);
+		} else if (kind == MachineKind.SPOUT) {
+			renderSpoutFluid(be.getFluidTank(slot), ms, buffer, light);
+		} else if (kind == MachineKind.SAW) {
+			boolean axisAlongFirst = state.getValue(DirectionalAxisKineticBlock.AXIS_ALONG_FIRST_COORDINATE);
+			Direction spinAxis = axisAlongFirst ? Direction.EAST : Direction.SOUTH;
+			float spinAngle = isActive
+				? AngleHelper.rad((AnimationTickHolder.getRenderTime(be.getLevel()) + partialTicks) * 24f)
+				: 0f;
+			renderSawBlade(state, ms, buffer, light, axisAlongFirst, spinAxis, spinAngle, 0f);
+			ms.pushPose();
+			ms.translate(0, -SAW_BLADE_ROOT_OFFSET * 2f, 0);
+			renderSawBlade(state, ms, buffer, light, axisAlongFirst, spinAxis, spinAngle, AngleHelper.rad(180));
+			ms.popPose();
 		}
 	}
 
@@ -520,12 +585,6 @@ public class SpiderAssemblyTableRenderer extends KineticBlockEntityRenderer<Spid
 		float bend = Mth.sin(progress * Mth.PI) * ACTIVE_LEG_BEND;
 		boolean leftSide = (activeSlot % 2) == 0;
 		activeLeg.zRot += leftSide ? bend : -bend;
-	}
-
-	private MachineCreatureModel.Anchor getLegSocket(int slot) {
-		return slot >= 0 && slot < LEG_SOCKET_ANCHORS.length
-			? spiderModel.anchor(LEG_SOCKET_ANCHORS[slot])
-			: null;
 	}
 
 	private static Vector3f rotateModelVector(float x, float y, float z,

@@ -9,6 +9,7 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.foundation.render.BufferedModel;
 import com.nobodiiiii.createbiotech.foundation.render.MachineCreatureModel;
 import com.simibubi.create.AllBlocks;
 import com.simibubi.create.AllSpriteShifts;
@@ -33,6 +34,8 @@ import net.minecraft.world.level.block.Block;
 import net.neoforged.neoforge.client.model.data.ModelData;
 
 import org.joml.Vector3f;
+import dev.engine_room.flywheel.api.model.Model;
+import dev.engine_room.flywheel.lib.util.RendererReloadCache;
 
 /**
  * Renders an encased spider directly from its casing or item-vault connected-texture sheets.
@@ -63,6 +66,8 @@ public final class SpiderAssemblyTableCasingModel {
 		faceRegion(CreateBiotech.MOD_ID, "explosion_proof_casing", 16, 16));
 	private static final FaceBakery FACE_BAKERY = new FaceBakery();
 	private static final Map<Block, BakedParts> CACHE = new IdentityHashMap<>();
+	private static final RendererReloadCache<Block, Map<String, Model>> VISUAL_MODELS =
+		new RendererReloadCache<>(SpiderAssemblyTableCasingModel::bakeVisualModels);
 	private static final List<CubeSpec> CUBES = createCubes();
 	private static final List<CubeSpec> VAULT_CUBES = createVaultCubes();
 
@@ -82,6 +87,22 @@ public final class SpiderAssemblyTableCasingModel {
 
 	public static synchronized void clearTextureCache() {
 		CACHE.clear();
+		VISUAL_MODELS.clear();
+	}
+
+	static Map<String, Model> visualModels(Block casing) {
+		return VISUAL_MODELS.get(casing);
+	}
+
+	private static Map<String, Model> bakeVisualModels(Block casing) {
+		Map<String, Model> models = new LinkedHashMap<>();
+		getOrCreate(casing).byPart().forEach((part, quads) -> models.put(part,
+			BufferedModel.create((pose, buffers) -> {
+				VertexConsumer consumer = buffers.getBuffer(Sheets.cutoutBlockSheet());
+				for (BakedQuad quad : quads)
+					consumer.putBulkData(pose.last(), quad, 1, 1, 1, 1, 0, 0);
+			})));
+		return Map.copyOf(models);
 	}
 
 	private static synchronized BakedParts getOrCreate(Block casing) {
