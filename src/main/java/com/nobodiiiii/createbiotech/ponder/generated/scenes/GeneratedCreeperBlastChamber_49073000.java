@@ -138,6 +138,11 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 3.5d), null, null, null, null, null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 4.5d), null, null, null, null, null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 4.5d), null, null, null, null, null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 4.5d), null, null, null, null, null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 5.5d), null, null, null, null, null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 5.5d), null, null, null, null, null, null, null, null);
         scene.keyframe().showText(text("s_c38b1.text_2"), new Vec3(4.5d, 3.5d, 2.0d), 110, null, true);
         scene.idle(130);
         scene.keyframe().showText(text("s_c38b1.text_3"), new Vec3(3.5d, 4.5d, 2.0d), 60, null, true);
@@ -210,6 +215,13 @@ public final class GeneratedCreeperBlastChamber_49073000 {
         scene.idle(20);
         scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}", null, null, null, null);
         scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 3.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Attributes:[{Base:0.0d,Name:\"forge:step_height_addition\"},{Base:0.25d,Name:\"minecraft:generic.movement_speed\"},{Base:0.08d,Name:\"forge:entity_gravity\"}],Brain:{memories:{}},CanPickUpLoot:0b,CanUpdate:1b,ExplosionRadius:3b,FallFlying:0b,ForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.078375d,create_biotech.was_touching_liquid_living_slime:0b},Fuse:30s,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:20.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,PersistenceRequired:0b,ignited:0b,powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 3.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 4.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 4.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 4.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(3.5d, 2.0d, 5.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(4.5d, 2.0d, 5.5d), null, null, null, "{powered:1b}", null, null, null, null);
+        scene.createEntity("minecraft:creeper", new Vec3(5.5d, 2.0d, 5.5d), null, null, null, "{powered:1b}", null, null, null, null);
         scene.idle(90);
         scene.keyframe().showText(text("s_a77f7.text_2"), new Vec3(6.5d, 1.5d, 2.0d), 100, "input", true);
         scene.idle(110);

@@ -75,11 +75,11 @@ public final class GaugeCraftJobs extends SavedData {
 		}
 	}
 
-	public boolean submit(ServerPlayer player, BlockPos tickerPos, UUID network, ItemStack output, int count,
+	public boolean submit(ServerPlayer player, StockTickerBlockEntity ticker, UUID network, ItemStack output, int count,
 		String address, GaugeCraftPlan plan) {
 		if (!plan.ready() || isFull(network))
 			return false;
-		Job job = new Job(UUID.randomUUID(), player.getUUID(), player.level().dimension(), tickerPos,
+		Job job = new Job(UUID.randomUUID(), player.getUUID(), ticker.getLevel().dimension(), ticker.getBlockPos(),
 			network, output.copyWithCount(1), count, address, plan.steps());
 		plan.stock().forEach(stock -> reserve(job, stock.network(), stock.stack(), stock.count()));
 		jobs.add(job);

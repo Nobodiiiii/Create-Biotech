@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -43,9 +44,12 @@ public class GhastHotAirBalloonAssemblyStationBlock extends BaseEntityBlock impl
 		simpleCodec(GhastHotAirBalloonAssemblyStationBlock::new);
 
 	public static final DirectionProperty HORIZONTAL_FACING = BlockStateProperties.HORIZONTAL_FACING;
+	public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
+
 	public GhastHotAirBalloonAssemblyStationBlock(Properties properties) {
 		super(properties);
-		registerDefaultState(defaultBlockState().setValue(HORIZONTAL_FACING, Direction.NORTH));
+		registerDefaultState(defaultBlockState().setValue(HORIZONTAL_FACING, Direction.NORTH)
+			.setValue(POWERED, false));
 	}
 
 	@Override
@@ -55,13 +59,14 @@ public class GhastHotAirBalloonAssemblyStationBlock extends BaseEntityBlock impl
 
 	@Override
 	protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-		builder.add(HORIZONTAL_FACING);
+		builder.add(HORIZONTAL_FACING, POWERED);
 		super.createBlockStateDefinition(builder);
 	}
 
 	@Override
 	public BlockState getStateForPlacement(BlockPlaceContext context) {
-		return defaultBlockState().setValue(HORIZONTAL_FACING, context.getHorizontalDirection().getClockWise());
+		return defaultBlockState().setValue(HORIZONTAL_FACING, context.getHorizontalDirection().getClockWise())
+			.setValue(POWERED, context.getLevel().hasNeighborSignal(context.getClickedPos()));
 	}
 
 	@Override
@@ -121,7 +126,8 @@ public class GhastHotAirBalloonAssemblyStationBlock extends BaseEntityBlock impl
 	@Override
 	public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
 		super.onPlace(state, level, pos, oldState, isMoving);
-		updatePoweredState(level, pos);
+		if (!state.is(oldState.getBlock()))
+			updatePoweredState(level, pos);
 	}
 
 	@Override
@@ -141,12 +147,16 @@ public class GhastHotAirBalloonAssemblyStationBlock extends BaseEntityBlock impl
 		updatePoweredState(level, pos);
 	}
 
-	private static void updatePoweredState(Level level, BlockPos pos) {
+	static void updatePoweredState(Level level, BlockPos pos) {
 		if (level.isClientSide)
 			return;
+		boolean powered = level.hasNeighborSignal(pos);
+		BlockState state = level.getBlockState(pos);
+		if (state.getValue(POWERED) != powered)
+			level.setBlock(pos, state.setValue(POWERED, powered), Block.UPDATE_CLIENTS);
 		BlockEntity be = level.getBlockEntity(pos);
 		if (be instanceof GhastHotAirBalloonAssemblyStationBlockEntity station)
-			station.onNeighborSignalChanged(level.hasNeighborSignal(pos));
+			station.onNeighborSignalChanged(powered);
 	}
 
 	public static boolean isSeatOccupied(Level world, BlockPos stationPos) {

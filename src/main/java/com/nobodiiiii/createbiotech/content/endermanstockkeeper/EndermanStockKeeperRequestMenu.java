@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.content.endermanstockkeeper;
 
 import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.mixin.StockKeeperRequestMenuAccessor;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.simibubi.create.content.logistics.stockTicker.StockKeeperRequestMenu;
@@ -34,8 +36,13 @@ public class EndermanStockKeeperRequestMenu extends StockKeeperRequestMenu {
 
 	public EndermanStockKeeperRequestMenu(int id, Inventory inventory, StockTickerBlockEntity stockTicker,
 		BlockPos keeperPos, List<ItemStack> gaugeOutputs) {
-		super(CBMenuTypes.ENDERMAN_STOCK_KEEPER_REQUEST.get(), id, inventory, stockTicker);
-		this.keeperPos = keeperPos.immutable();
+		this(CBMenuTypes.ENDERMAN_STOCK_KEEPER_REQUEST.get(), id, inventory, stockTicker, keeperPos, gaugeOutputs);
+	}
+
+	protected EndermanStockKeeperRequestMenu(MenuType<?> type, int id, Inventory inventory,
+		StockTickerBlockEntity stockTicker, @Nullable BlockPos keeperPos, List<ItemStack> gaugeOutputs) {
+		super(type, id, inventory, stockTicker);
+		this.keeperPos = keeperPos == null ? null : keeperPos.immutable();
 		this.gaugeOutputs = copyOutputs(gaugeOutputs);
 	}
 
@@ -47,9 +54,15 @@ public class EndermanStockKeeperRequestMenu extends StockKeeperRequestMenu {
 		accessor.createBiotech$setLocked(extraData.readBoolean());
 
 		BlockPos stockTickerPos = extraData.readBlockPos();
-		keeperPos = extraData.readBlockPos();
+		keeperPos = extraData.readNullable(RegistryFriendlyByteBuf::readBlockPos);
 		gaugeOutputs = copyOutputs(ItemStack.OPTIONAL_LIST_STREAM_CODEC.decode(extraData));
 
+		return createStockTickerOnClient(stockTickerPos, extraData);
+	}
+
+	@OnlyIn(Dist.CLIENT)
+	protected StockTickerBlockEntity createStockTickerOnClient(BlockPos stockTickerPos,
+		RegistryFriendlyByteBuf extraData) {
 		ClientLevel level = Minecraft.getInstance().level;
 		if (level != null && level.getBlockEntity(stockTickerPos) instanceof StockTickerBlockEntity stockTicker)
 			return stockTicker;
@@ -63,12 +76,17 @@ public class EndermanStockKeeperRequestMenu extends StockKeeperRequestMenu {
 			&& EndermanStockKeeperBlock.isKeeperFor(player.level(), keeperPos, contentHolder.getBlockPos());
 	}
 
+	@Nullable
 	public BlockPos getKeeperPos() {
 		return keeperPos;
 	}
 
+	public boolean supportsGaugeCrafting() {
+		return keeperPos != null;
+	}
+
 	public List<ItemStack> getGaugeOutputs() {
-		return gaugeOutputs == null ? List.of() : gaugeOutputs;
+		return supportsGaugeCrafting() && gaugeOutputs != null ? gaugeOutputs : List.of();
 	}
 
 	private static List<ItemStack> copyOutputs(List<ItemStack> outputs) {

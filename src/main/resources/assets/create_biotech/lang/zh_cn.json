@@ -494,7 +494,7 @@
   "item.create_biotech.wireless_terminal.bind_success": "已绑定到位于 (%s, %s, %s) 的仓库管理员",
   "item.create_biotech.wireless_terminal.unbind_success": "已清除绑定；潜行右击一个末影人仓库管理员以重新绑定",
   "item.create_biotech.wireless_terminal.bind_hint": "潜行右击一个末影人仓库管理员以绑定",
-  "item.create_biotech.wireless_terminal.bind_enderman_only": "末影无线终端只能绑定作为仓库管理员的末影人",
+  "item.create_biotech.wireless_terminal.bind_enderman_only": "请将末影无线终端绑定到末影人仓库管理员",
   "item.create_biotech.wireless_terminal.not_bound": "末影无线终端尚未绑定仓库管理员",
   "item.create_biotech.wireless_terminal.out_of_range": "目标超出范围，需要在 %s 格内",
   "item.create_biotech.wireless_terminal.wrong_dimension": "绑定目标所在维度不可用",

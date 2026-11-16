@@ -9,9 +9,11 @@ import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 /** Preview and final confirmation are separate server-validated actions. */
 public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack stack, int count, String address) {
@@ -36,6 +38,7 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 
 	public void handle(ServerPlayer player) {
 		if (!(player.containerMenu instanceof EndermanStockKeeperRequestMenu menu) || !menu.stillValid(player)
+			|| !menu.supportsGaugeCrafting()
 			|| !(menu.contentHolder instanceof StockTickerBlockEntity ticker)
 			|| !ticker.behaviour.mayInteract(player))
 			return;
@@ -51,16 +54,17 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 			Session session = SESSIONS.remove(player.getUUID());
 			if (session == null || !session.token.equals(token)
 				|| session.server != player.server || player.server.getTickCount() - session.createdTick > 1200
+				|| !session.dimension.equals(ticker.getLevel().dimension())
 				|| !session.network.equals(network) || !session.tickerPos.equals(ticker.getBlockPos()))
 				return;
-			GaugeCraftPlan fresh = GaugeCraftPlan.build(player.level(), network, session.stack, session.count);
+			GaugeCraftPlan fresh = GaugeCraftPlan.build(ticker.getLevel(), network, session.stack, session.count);
 			String signature = signature(fresh);
 			if (!signature.equals(session.signature)) {
 				preview(player, ticker, session.stack, session.count, session.address, fresh);
 				return;
 			}
 			boolean accepted = fresh.ready() && GaugeCraftJobs.get(player.server)
-				.submit(player, ticker.getBlockPos(), network, session.stack, session.count, session.address, fresh);
+				.submit(player, ticker, network, session.stack, session.count, session.address, fresh);
 			if (accepted)
 				player.displayClientMessage(
 					net.minecraft.network.chat.Component.translatable("create_biotech.gauge_craft.queued"), false);
@@ -73,7 +77,7 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 			|| menu.getGaugeOutputs().stream()
 				.noneMatch(output -> ItemStack.isSameItemSameComponents(output, stack)))
 			return;
-		GaugeCraftPlan plan = GaugeCraftPlan.build(player.level(), network, stack, count);
+		GaugeCraftPlan plan = GaugeCraftPlan.build(ticker.getLevel(), network, stack, count);
 		preview(player, ticker, stack.copyWithCount(1), count, address, plan);
 	}
 
@@ -81,7 +85,7 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 		int count, String address, GaugeCraftPlan plan) {
 		UUID token = UUID.randomUUID();
 		SESSIONS.put(player.getUUID(), new Session(token, player.server, player.server.getTickCount(),
-			ticker.getBlockPos(), ticker.behaviour.freqId, stack, count, address, signature(plan)));
+			ticker.getLevel().dimension(), ticker.getBlockPos(), ticker.behaviour.freqId, stack, count, address, signature(plan)));
 		GaugeCraftJobs jobs = GaugeCraftJobs.get(player.server);
 		String status = jobs.isFull(ticker.behaviour.freqId) ? "busy"
 			: !plan.error().isEmpty() ? plan.error() : plan.missing() > 0 ? "missing" : "ready";
@@ -93,6 +97,6 @@ public record GaugeCraftRequestPacket(boolean confirm, UUID token, ItemStack sta
 		return plan.error() + ":" + plan.missing() + ":" + plan.lines() + ":" + plan.steps() + ":" + plan.stock();
 	}
 
-	private record Session(UUID token, MinecraftServer server, int createdTick, BlockPos tickerPos,
+	private record Session(UUID token, MinecraftServer server, int createdTick, ResourceKey<Level> dimension, BlockPos tickerPos,
 		UUID network, ItemStack stack, int count, String address, String signature) {}
 }

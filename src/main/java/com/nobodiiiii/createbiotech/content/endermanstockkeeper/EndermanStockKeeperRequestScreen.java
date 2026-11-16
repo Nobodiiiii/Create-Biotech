@@ -161,6 +161,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	}
 
 	private void openJobs() {
+		if (!((EndermanStockKeeperRequestMenu) getMenu()).supportsGaugeCrafting())
+			return;
 		phase = Phase.JOBS;
 		jobs = List.of();
 		selectedJob = null;
@@ -194,6 +196,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	}
 
 	public void beginCraft(ItemStack stack) {
+		if (!isCraftable(stack))
+			return;
 		selected = stack.copyWithCount(1);
 		phase = Phase.SELECT;
 		preview = List.of();
@@ -256,7 +260,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	private void updateOverlayWidgets() {
 		if (quantityBox == null)
 			return;
-		jobsButton.visible = phase == Phase.NONE;
+		jobsButton.visible = phase == Phase.NONE
+			&& ((EndermanStockKeeperRequestMenu) getMenu()).supportsGaugeCrafting();
 		fitTreeButton.visible = phase == Phase.TREE;
 		compactTreeButton.visible = phase == Phase.TREE;
 		compactTreeButton.active = jobTree.fullView();
@@ -571,6 +576,8 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	@Override
 	protected void containerTick() {
 		super.containerTick();
+		if (!((EndermanStockKeeperRequestMenu) getMenu()).supportsGaugeCrafting())
+			return;
 		if (phase == Phase.JOBS && --jobsRefreshTicks <= 0)
 			refreshJobs();
 		if (phase == Phase.TREE && !jobTree.terminal() && --treeRefreshTicks <= 0)
@@ -603,7 +610,7 @@ public class EndermanStockKeeperRequestScreen extends StockKeeperRequestScreen {
 	@Override
 	public List<Rect2i> getExtraAreas() {
 		List<Rect2i> areas = new ArrayList<>(super.getExtraAreas());
-		if (jobsButton != null)
+		if (jobsButton != null && jobsButton.visible)
 			areas.add(new Rect2i(jobsButton.getX(), jobsButton.getY(), jobsButton.getWidth(), jobsButton.getHeight()));
 		if (phase == Phase.TREE)
 			areas.add(jobTree.bounds());

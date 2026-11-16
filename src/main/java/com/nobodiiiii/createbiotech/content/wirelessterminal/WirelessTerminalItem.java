@@ -1,9 +1,12 @@
 package com.nobodiiiii.createbiotech.content.wirelessterminal;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperBlock;
+import com.nobodiiiii.createbiotech.content.endermanstockkeeper.FactoryGaugeCatalog;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 import com.simibubi.create.Create;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
@@ -41,6 +44,7 @@ public class WirelessTerminalItem extends Item {
 
 	private static final String BOUND_POS_KEY = "BoundPos";
 	private static final String BOUND_DIMENSION_KEY = "BoundDimension";
+	private static final String BOUND_KEEPER_POS_KEY = "BoundKeeperPos";
 
 	public WirelessTerminalItem(Properties properties) {
 		super(properties);
@@ -62,17 +66,39 @@ public class WirelessTerminalItem extends Item {
 		BlockPos stockTickerPos = StockTickerInteractionHandler.getStockTickerPosition(interactionTarget);
 		if (stockTickerPos == null)
 			return InteractionResult.PASS;
-		return bindOrOpenAt(player, player.level(), stack, stockTickerPos, interactionTarget instanceof EnderMan);
+		return bindOrOpenAt(player, player.level(), stack, stockTickerPos, interactionTarget instanceof EnderMan, null);
+	}
+
+	@Override
+	public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context) {
+		if (context.getLevel().getBlockState(context.getClickedPos()).getBlock() instanceof EndermanStockKeeperBlock)
+			return useOn(context);
+		return InteractionResult.PASS;
 	}
 
 	@Override
 	public InteractionResult useOn(UseOnContext context) {
 		Level level = context.getLevel();
 		Player player = context.getPlayer();
-		if (player != null && player.isShiftKeyDown())
-			return clearBindingOrShowHint(player, level, context.getItemInHand());
+		if (player == null)
+			return InteractionResult.PASS;
 
 		BlockPos clickedPos = context.getClickedPos();
+		if (level.getBlockState(clickedPos).getBlock() instanceof EndermanStockKeeperBlock) {
+			StockTickerBlockEntity stockTicker = EndermanStockKeeperBlock.findStockTicker(level, clickedPos);
+			if (stockTicker == null) {
+				if (!level.isClientSide)
+					sendStatus(player, "block.create_biotech.enderman_stock_keeper.missing_stock_ticker", ChatFormatting.RED);
+				return InteractionResult.sidedSuccess(level.isClientSide);
+			}
+			if (player.isShiftKeyDown())
+				return bindToEndermanStockKeeper(player, level, context.getItemInHand(), stockTicker.getBlockPos(), clickedPos);
+			return bindOrOpenAt(player, level, context.getItemInHand(), stockTicker.getBlockPos(), true, clickedPos);
+		}
+
+		if (player.isShiftKeyDown())
+			return clearBindingOrShowHint(player, level, context.getItemInHand());
+
 		if (!(level.getBlockEntity(clickedPos) instanceof BlazeBurnerBlockEntity))
 			return InteractionResult.PASS;
 
@@ -80,7 +106,7 @@ public class WirelessTerminalItem extends Item {
 		if (stockTicker == null)
 			return InteractionResult.PASS;
 
-		return bindOrOpenAt(context.getPlayer(), level, context.getItemInHand(), stockTicker.getBlockPos(), false);
+		return bindOrOpenAt(player, level, context.getItemInHand(), stockTicker.getBlockPos(), false, null);
 	}
 
 	@Override
@@ -112,12 +138,18 @@ public class WirelessTerminalItem extends Item {
 			return InteractionResultHolder.fail(stack);
 		}
 
+		if (boundTarget.keeperPos() != null
+			&& !EndermanStockKeeperBlock.isKeeperFor(targetLevel, boundTarget.keeperPos(), boundTarget.pos())) {
+			sendStatus(player, "item.create_biotech.wireless_terminal.target_missing", ChatFormatting.RED);
+			return InteractionResultHolder.fail(stack);
+		}
+
 		if (!stockTicker.isKeeperPresent()) {
 			player.displayClientMessage(CreateLang.translate("stock_ticker.keeper_missing").component(), true);
 			return InteractionResultHolder.fail(stack);
 		}
 
-		openRequestMenu(player, stockTicker);
+		openRequestMenu(player, stockTicker, boundTarget.keeperPos());
 
 		return InteractionResultHolder.success(stack);
 	}
@@ -133,25 +165,26 @@ public class WirelessTerminalItem extends Item {
 			return;
 		}
 
-		tooltip.add(Component.translatable("item.create_biotech.wireless_terminal.bound", boundTarget.pos().getX(),
-			boundTarget.pos().getY(), boundTarget.pos().getZ()).withStyle(ChatFormatting.GRAY));
+		BlockPos displayPos = boundTarget.keeperPos() == null ? boundTarget.pos() : boundTarget.keeperPos();
+		tooltip.add(Component.translatable("item.create_biotech.wireless_terminal.bound", displayPos.getX(),
+			displayPos.getY(), displayPos.getZ()).withStyle(ChatFormatting.GRAY));
 		tooltip.add(Component.translatable("item.create_biotech.wireless_terminal.bound_dimension",
 			boundTarget.dimension().toString()).withStyle(ChatFormatting.DARK_GRAY));
 	}
 
 	private InteractionResult bindOrOpenAt(@Nullable Player player, Level level, ItemStack stack, BlockPos stockTickerPos,
-		boolean canBind) {
+		boolean canBind, @Nullable BlockPos keeperPos) {
 		if (player == null)
 			return InteractionResult.PASS;
 
 		BoundTarget boundTarget = getBoundTarget(stack);
-		if (boundTarget != null && boundTarget.matches(level, stockTickerPos)) {
+		if (boundTarget != null && boundTarget.matches(level, stockTickerPos, keeperPos)) {
 			if (!level.isClientSide && level.getBlockEntity(stockTickerPos) instanceof StockTickerBlockEntity stockTicker) {
 				if (!stockTicker.isKeeperPresent()) {
 					player.displayClientMessage(CreateLang.translate("stock_ticker.keeper_missing").component(), true);
 					return InteractionResult.SUCCESS;
 				}
-				openRequestMenu(player, stockTicker);
+				openRequestMenu(player, stockTicker, keeperPos);
 			}
 			return InteractionResult.sidedSuccess(level.isClientSide);
 		}
@@ -162,20 +195,20 @@ public class WirelessTerminalItem extends Item {
 			return InteractionResult.sidedSuccess(level.isClientSide);
 		}
 
-		if (!level.isClientSide) {
-			bind(stack, level, stockTickerPos);
-			sendStatus(player, "item.create_biotech.wireless_terminal.bind_success", ChatFormatting.GREEN,
-				stockTickerPos.getX(), stockTickerPos.getY(), stockTickerPos.getZ());
-		}
-
-		return InteractionResult.sidedSuccess(level.isClientSide);
+		return bindToEndermanStockKeeper(player, level, stack, stockTickerPos, keeperPos);
 	}
 
 	InteractionResult bindToEndermanStockKeeper(Player player, Level level, ItemStack stack, BlockPos stockTickerPos) {
+		return bindToEndermanStockKeeper(player, level, stack, stockTickerPos, null);
+	}
+
+	private InteractionResult bindToEndermanStockKeeper(Player player, Level level, ItemStack stack, BlockPos stockTickerPos,
+		@Nullable BlockPos keeperPos) {
 		if (!level.isClientSide) {
-			bind(stack, level, stockTickerPos);
+			bind(stack, level, stockTickerPos, keeperPos);
+			BlockPos displayPos = keeperPos == null ? stockTickerPos : keeperPos;
 			sendStatus(player, "item.create_biotech.wireless_terminal.bind_success", ChatFormatting.GREEN,
-				stockTickerPos.getX(), stockTickerPos.getY(), stockTickerPos.getZ());
+				displayPos.getX(), displayPos.getY(), displayPos.getZ());
 		}
 
 		return InteractionResult.sidedSuccess(level.isClientSide);
@@ -198,7 +231,7 @@ public class WirelessTerminalItem extends Item {
 		return InteractionResult.sidedSuccess(level.isClientSide);
 	}
 
-	private static void openRequestMenu(Player player, StockTickerBlockEntity stockTicker) {
+	private static void openRequestMenu(Player player, StockTickerBlockEntity stockTicker, @Nullable BlockPos keeperPos) {
 		if (!(player instanceof ServerPlayer serverPlayer))
 			return;
 
@@ -212,22 +245,27 @@ public class WirelessTerminalItem extends Item {
 		boolean showLockOption =
 			stockTicker.behaviour.mayAdministrate(player) && Create.LOGISTICS.isLockable(stockTicker.behaviour.freqId);
 		boolean isCurrentlyLocked = Create.LOGISTICS.isLocked(stockTicker.behaviour.freqId);
+		List<ItemStack> gaugeOutputs = keeperPos == null ? List.of()
+			: FactoryGaugeCatalog.getCraftableOutputs(stockTicker.behaviour.freqId);
 
-		serverPlayer.openMenu(createRequestMenuProvider(stockTicker), buf -> {
+		serverPlayer.openMenu(createRequestMenuProvider(stockTicker, keeperPos, gaugeOutputs), buf -> {
 			buf.writeBoolean(showLockOption);
 			buf.writeBoolean(isCurrentlyLocked);
 			buf.writeBlockPos(stockTicker.getBlockPos());
+			buf.writeNullable(keeperPos, (buffer, pos) -> buffer.writeBlockPos(pos));
+			ItemStack.OPTIONAL_LIST_STREAM_CODEC.encode(buf, gaugeOutputs);
 			buf.writeNbt(stockTicker.getUpdateTag(stockTicker.getLevel().registryAccess()));
 		});
 		stockTicker.getRecentSummary()
 			.divideAndSendTo(serverPlayer, stockTicker.getBlockPos());
 	}
 
-	private static MenuProvider createRequestMenuProvider(StockTickerBlockEntity stockTicker) {
+	private static MenuProvider createRequestMenuProvider(StockTickerBlockEntity stockTicker,
+		@Nullable BlockPos keeperPos, List<ItemStack> gaugeOutputs) {
 		return new MenuProvider() {
 			@Override
 			public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
-				return WirelessStockKeeperRequestMenu.create(containerId, playerInventory, stockTicker);
+				return WirelessStockKeeperRequestMenu.create(containerId, playerInventory, stockTicker, keeperPos, gaugeOutputs);
 			}
 
 			@Override
@@ -246,20 +284,26 @@ public class WirelessTerminalItem extends Item {
 		return targetLevel;
 	}
 
-	private static void bind(ItemStack stack, Level level, BlockPos stockTickerPos) {
+	private static void bind(ItemStack stack, Level level, BlockPos stockTickerPos, @Nullable BlockPos keeperPos) {
 		CompoundTag tag = CBItemData.getOrEmpty(stack);
 		tag.put(BOUND_POS_KEY, NbtUtils.writeBlockPos(stockTickerPos));
 		tag.putString(BOUND_DIMENSION_KEY, level.dimension().location().toString());
+		if (keeperPos == null)
+			tag.remove(BOUND_KEEPER_POS_KEY);
+		else
+			tag.put(BOUND_KEEPER_POS_KEY, NbtUtils.writeBlockPos(keeperPos));
 		CBItemData.set(stack, tag);
 	}
 
 	private static boolean clearBinding(ItemStack stack) {
 		CompoundTag tag = CBItemData.get(stack);
-		if (tag == null || (!tag.contains(BOUND_POS_KEY) && !tag.contains(BOUND_DIMENSION_KEY)))
+		if (tag == null || (!tag.contains(BOUND_POS_KEY) && !tag.contains(BOUND_DIMENSION_KEY)
+			&& !tag.contains(BOUND_KEEPER_POS_KEY)))
 			return false;
 
 		tag.remove(BOUND_POS_KEY);
 		tag.remove(BOUND_DIMENSION_KEY);
+		tag.remove(BOUND_KEEPER_POS_KEY);
 		CBItemData.set(stack, tag);
 		return true;
 	}
@@ -277,7 +321,8 @@ public class WirelessTerminalItem extends Item {
 
 		BlockPos pos = NbtUtils.readBlockPos(tag, BOUND_POS_KEY)
 			.orElse(null);
-		return pos == null ? null : new BoundTarget(dimension, pos);
+		BlockPos keeperPos = NbtUtils.readBlockPos(tag, BOUND_KEEPER_POS_KEY).orElse(null);
+		return pos == null ? null : new BoundTarget(dimension, pos, keeperPos);
 	}
 
 	private static void sendStatus(Player player, String key, ChatFormatting style, Object... args) {
@@ -285,10 +330,11 @@ public class WirelessTerminalItem extends Item {
 			.withStyle(style), true);
 	}
 
-	private record BoundTarget(ResourceLocation dimension, BlockPos pos) {
+	private record BoundTarget(ResourceLocation dimension, BlockPos pos, @Nullable BlockPos keeperPos) {
 
-		private boolean matches(Level level, BlockPos stockTickerPos) {
-			return dimension.equals(level.dimension().location()) && pos.equals(stockTickerPos);
+		private boolean matches(Level level, BlockPos stockTickerPos, @Nullable BlockPos keeperPos) {
+			return dimension.equals(level.dimension().location()) && pos.equals(stockTickerPos)
+				&& Objects.equals(this.keeperPos, keeperPos);
 		}
 	}
 }

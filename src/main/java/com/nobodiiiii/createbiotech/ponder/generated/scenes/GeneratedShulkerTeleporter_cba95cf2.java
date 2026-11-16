@@ -63,21 +63,20 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.moveSection("default", new BlockPos(2, 1, 2), new BlockPos(2, 3, 2), new Vec3(2.0d, 0.0d, 0.0d), 20);
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_station", new BlockPos(0, 1, 2), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(20);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"point\":[0.08507398042035597,0.9987462165217806,0.0625],\"direction\":\"north\",\"block\":\"create_biotech:shulker_teleporter\",\"blockProperties\":{\"part\":\"2\",\"facing\":\"north\"},\"blockPos\":[0,0,0],\"nbt\":\"{CandidateAddresses:[\\\"111\\\",\\\"222\\\"],Closing:0b,ClosingTicks:0.0f,ConnectedToExtraKinetics:0b,Network:{Capacity:262144.0f,Id:1374389551047L,Size:3,Stress:0.0f},OwnAddress:\\\"\\\",SealedHoldTicks:0,Source:[I;5,-58,3],Speed:16.0f,TargetAddress:\\\"111\\\",x:0,y:0,z:0}\",\"whileSneaking\":false,\"enableNbt\":true},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":20}],\"panelCrop\":[0.35714285714285715,0.0,0.5714285714285714,1.0],\"panelTransform\":[0.0,0.0,0.5],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":true,\"point\":[3.0,2.5,2.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.keyframe().showText(text("scene_1.text_2"), null, 120, null, true);
-        scene.showText(text("scene_1.text_3"), new Vec3(4.5d, 2.0d, 2.5d), 100, "blue", true);
-        scene.showText(text("scene_1.text_4"), new Vec3(0.5d, 2.0d, 2.5d), 100, "blue", true);
-        scene.showText(text("scene_1.text_5"), new Vec3(4.5d, 1.2d, 2.5d), 100, "output", true);
-        scene.idle(60);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"point\":[0.40670764617392763,0.6394709388004287,0.9375],\"direction\":\"south\",\"block\":\"create_biotech:shulker_teleporter\",\"blockProperties\":{\"part\":\"2\",\"facing\":\"south\"},\"blockPos\":[0,0,0],\"nbt\":\"{CandidateAddresses:[\\\"王芳\\\"],Closing:0b,ClosingTicks:0.0f,OwnAddress:\\\"李华\\\",SealedHoldTicks:0,Speed:0.0f,TargetAddress:\\\"王芳\\\",x:0,y:0,z:0}\",\"whileSneaking\":false,\"enableNbt\":true},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":20},{\"id\":\"2f4ac286-0a4c-44ed-9eca-eb96af24f969\",\"type\":\"text\",\"duration\":100,\"text\":{\"ref\":\"create_biotech:shulker_teleporter\",\"key\":\"scene_1.text_2_2\"},\"point\":[0.3,-0.7,0.0],\"color\":\"blue\",\"placeNearTarget\":true},{\"id\":\"0114c51b-6c41-4a4e-8a14-eba205b5fbb8\",\"type\":\"text\",\"duration\":100,\"text\":{\"ref\":\"create_biotech:shulker_teleporter\",\"key\":\"scene_1.text_3\"},\"point\":[0.3,0.0763051576802195,0.0],\"color\":\"output\",\"placeNearTarget\":true}],\"panelCrop\":[0.3491271820448878,0.0,0.5586034912718204,1.0],\"panelTransform\":[0.0,0.0,0.5],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[5.0,2.5,2.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"6d3ff73b-43b6-45bf-8b70-feb38a0f282b\",\"type\":\"show_interface\",\"point\":[0.3937190724955215,0.7008982421786669,0.9375],\"direction\":\"south\",\"block\":\"create_biotech:shulker_teleporter\",\"blockProperties\":{\"part\":\"2\",\"facing\":\"south\"},\"blockPos\":[0,0,0],\"nbt\":\"{CandidateAddresses:[],Closing:0b,ClosingTicks:0.0f,OwnAddress:\\\"王芳\\\",SealedHoldTicks:0,Speed:0.0f,TargetAddress:\\\"\\\",x:0,y:0,z:0}\",\"whileSneaking\":false,\"enableNbt\":true},{\"id\":\"cbf5e66e-a31d-4d0d-88d8-7b2d648d806c\",\"type\":\"idle\",\"duration\":20},{\"id\":\"697b1402-356c-49d5-af12-2bf993cbc53f\",\"type\":\"text\",\"duration\":100,\"text\":{\"ref\":\"create_biotech:shulker_teleporter\",\"key\":\"scene_1.text_4\"},\"point\":[0.3,-0.7,0.0],\"color\":\"blue\",\"placeNearTarget\":true}],\"panelCrop\":[0.3491271820448878,0.0,0.5586034912718204,1.0],\"panelTransform\":[0.0,0.0,0.5],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[0.0,2.5,2.5],\"direction\":\"left\"}").getAsJsonObject());
+        scene.idle(150);
         scene.keyframe().createEntity("minecraft:slime", new Vec3(4.5d, 1.0d, 2.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.04189728686096652d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"},{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"}],wasOnGround:1b}", null, "simultaneous", null, "down");
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_stopped", new BlockPos(4, 0, 3), 0.0f, false, false, false, "simultaneous", 20, 1, false, null, "down");
         scene.idle(40);
         scene.modifyBlockEntity(Map.ofEntries(Map.entry("facing", "west"), Map.entry("part", "2")), "{CandidateAddresses:[\"222\"],Closing:1b,ClosingTicks:8.0f,Network:{Capacity:262144.0f,Id:-824633704505L,Size:3,Stress:0.0f},OwnAddress:\"111\",SealedHoldTicks:0,Source:[I;-3,-58,3],Speed:128.0f,TargetAddress:\"222\"}", null, new BlockPos(2, 3, 2), null);
+        scene.playSound("minecraft:block.shulker_box.close", 1.0f, 1.0f, "blocks");
         scene.showExtraStructure("create_biotech:generated/ponderer/shulker_teleporter_drive_running", new BlockPos(4, 0, 3), 0.0f, false, true, false, "none", null, null, null, null, null);
         scene.idle(50);
         scene.showText(text("scene_1.text_6"), new Vec3(2.5d, 2.0d, 2.5d), 50, null, true);
-        scene.spawnParticles("minecraft:portal", new Vec3(4.5d, 2.0d, 2.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
-        scene.spawnParticles("minecraft:portal", new Vec3(0.5d, 2.0d, 2.5d), "point", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
+        scene.spawnParticles("minecraft:portal", new Vec3(4.5d, 2.0d, 2.5d), "box", new Vec3(1.0d, 1.0d, 1.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
+        scene.spawnParticles("minecraft:portal", new Vec3(0.5d, 2.0d, 2.5d), "box", new Vec3(1.0d, 1.0d, 1.0d), new Vec3(0.0d, 0.0d, 0.0d), 32, 1);
         scene.playSound("minecraft:entity.enderman.teleport", 1.0f, 1.0f, "blocks");
         scene.clearEntities(false, null, null, new BlockPos(0, 1, 0), new BlockPos(4, 1, 4), null, null, null);
         scene.createEntity("minecraft:slime", new Vec3(0.5d, 1.0d, 2.5d), null, null, null, "{AbsorptionAmount:0.0f,ArmorDropChances:[0.085f,0.085f,0.085f,0.085f],ArmorItems:[{},{},{},{}],Brain:{memories:{}},CanPickUpLoot:0b,FallFlying:0b,HandDropChances:[0.085f,0.085f],HandItems:[{},{}],Health:1.0f,HurtByTimestamp:0,Invulnerable:0b,LeftHanded:0b,NeoForgeData:{create_biotech.previous_liquid_living_slime_vertical_speed:-0.04189728686096652d,create_biotech.was_touching_liquid_living_slime:0b},PersistenceRequired:0b,Size:0,attributes:[{base:0.0d,id:\"minecraft:generic.oxygen_bonus\"},{base:1.0d,id:\"minecraft:generic.max_health\"},{base:0.30000001192092896d,id:\"minecraft:generic.movement_speed\"}],wasOnGround:1b}", null, null, null, null);
@@ -85,6 +84,102 @@ public final class GeneratedShulkerTeleporter_cba95cf2 {
         scene.idle(40);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

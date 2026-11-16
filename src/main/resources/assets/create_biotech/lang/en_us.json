@@ -494,7 +494,7 @@
   "item.create_biotech.wireless_terminal.bind_success": "Bound to the Stock Keeper at (%s, %s, %s)",
   "item.create_biotech.wireless_terminal.unbind_success": "Binding cleared; Sneak-R-Click an Enderman Stock Keeper to bind again",
   "item.create_biotech.wireless_terminal.bind_hint": "Sneak-R-Click an Enderman Stock Keeper to bind",
-  "item.create_biotech.wireless_terminal.bind_enderman_only": "The Ender Wireless Terminal can only bind to an Enderman serving as a Stock Keeper",
+  "item.create_biotech.wireless_terminal.bind_enderman_only": "Bind the Ender Wireless Terminal to an Enderman Stock Keeper",
   "item.create_biotech.wireless_terminal.not_bound": "This Ender Wireless Terminal is not bound to a Stock Keeper",
   "item.create_biotech.wireless_terminal.out_of_range": "Target out of range; stay within %s blocks",
   "item.create_biotech.wireless_terminal.wrong_dimension": "The bound target\u0027s dimension is unavailable",

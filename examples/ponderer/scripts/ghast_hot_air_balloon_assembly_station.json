@@ -375,7 +375,8 @@
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
-            "facing": "east"
+            "facing": "east",
+            "powered": "true"
           },
           "blockPos": [
             4,
@@ -397,7 +398,8 @@
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
-            "facing": "east"
+            "facing": "east",
+            "powered": "true"
           },
           "blockPos": [
             4,
@@ -556,7 +558,8 @@
           "type": "set_block",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
-            "facing": "east"
+            "facing": "east",
+            "powered": "false"
           },
           "blockPos": [
             4,
@@ -641,7 +644,8 @@
           "direction": "down",
           "block": "create_biotech:ghast_hot_air_balloon_assembly_station",
           "blockProperties": {
-            "facing": "east"
+            "facing": "east",
+            "powered": "true"
           },
           "blockPos": [
             4,

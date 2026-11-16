@@ -54,6 +54,13 @@ public class GhastHotAirBalloonAssemblyStationBlockEntity extends BlockEntity {
 		super(CBBlockEntityTypes.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get(), pos, state);
 	}
 
+	@Override
+	public void onLoad() {
+		super.onLoad();
+		if (level != null)
+			GhastHotAirBalloonAssemblyStationBlock.updatePoweredState(level, worldPosition);
+	}
+
 	public static void tick(Level level, BlockPos pos, BlockState state,
 		GhastHotAirBalloonAssemblyStationBlockEntity be) {
 		be.prevOffset = be.offset;

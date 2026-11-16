@@ -125,6 +125,9 @@ public class ShulkerTeleporterBlockEntity extends KineticBlockEntity implements 
 			float animationStep = getAnimationStep();
 			if (!closing) {
 				closing = true;
+				Vec3 soundPos = SubLevelCompat.toWorld(level, Vec3.atCenterOf(getBottomPos()));
+				level.playSound(null, soundPos.x, soundPos.y, soundPos.z, SoundEvents.SHULKER_BOX_CLOSE,
+					SoundSource.BLOCKS, 1.0f, 1.0f);
 				sendBlockUpdate();
 			}
 			if (closingTicks < CLOSE_TICKS)

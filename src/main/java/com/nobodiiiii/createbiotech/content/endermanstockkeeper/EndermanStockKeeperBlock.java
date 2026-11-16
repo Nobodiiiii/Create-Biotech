@@ -111,7 +111,7 @@ public class EndermanStockKeeperBlock extends HorizontalDirectionalBlock {
 			buffer.writeBoolean(showLockOption);
 			buffer.writeBoolean(isCurrentlyLocked);
 			buffer.writeBlockPos(stockTicker.getBlockPos());
-			buffer.writeBlockPos(pos);
+			buffer.writeNullable(pos, (buf, keeperPos) -> buf.writeBlockPos(keeperPos));
 			ItemStack.OPTIONAL_LIST_STREAM_CODEC.encode(buffer, gaugeOutputs);
 		});
 		stockTicker.getRecentSummary().divideAndSendTo(serverPlayer, stockTicker.getBlockPos());

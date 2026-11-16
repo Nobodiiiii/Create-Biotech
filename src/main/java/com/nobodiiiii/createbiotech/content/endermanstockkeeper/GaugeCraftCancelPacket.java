@@ -15,6 +15,7 @@ public record GaugeCraftCancelPacket(int menuId, UUID jobId) {
 
 	public void handle(ServerPlayer player) {
 		if (!(player.containerMenu instanceof EndermanStockKeeperRequestMenu menu) || menu.containerId != menuId
+			|| !menu.supportsGaugeCrafting()
 			|| !menu.stillValid(player)
 			|| !menu.contentHolder.behaviour.mayInteract(player))
 			return;
