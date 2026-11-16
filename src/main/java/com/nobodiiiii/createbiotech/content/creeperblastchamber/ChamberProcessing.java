@@ -13,7 +13,6 @@ import com.simibubi.create.content.kinetics.press.PressingBehaviour;
 import com.simibubi.create.content.processing.recipe.ProcessingRecipe;
 import com.simibubi.create.content.processing.recipe.StandardProcessingRecipe;
 import com.simibubi.create.foundation.item.ItemHelper;
-import net.createmod.catnip.animation.AnimationTickHolder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -432,63 +431,25 @@ final class ChamberProcessing {
 	}
 
 	static List<MechanicalPressBlockEntity> getMechanicalPresses(CreeperBlastChamberBlockEntity operationOwner) {
-		operationOwner.resolvedMechanicalPresses.clear();
+		// Each query owns its result; tooltips and logic must not mutate a render reader's list.
+		List<MechanicalPressBlockEntity> presses = new ArrayList<>(operationOwner.cachedPressPositions.size());
 		if (!operationOwner.structureValid)
-			return operationOwner.resolvedMechanicalPresses;
+			return presses;
 
 		for (BlockPos pressPos : operationOwner.cachedPressPositions) {
 			MechanicalPressBlockEntity press = ChamberProcessing.getMechanicalPress(operationOwner, pressPos);
 			if (press != null)
-				operationOwner.resolvedMechanicalPresses.add(press);
+				presses.add(press);
 		}
-		return operationOwner.resolvedMechanicalPresses;
+		return presses;
 	}
 
 	static float getRenderedPressHeadOffset(CreeperBlastChamberBlockEntity operationOwner, BlockPos packagerPos, float partialTicks) {
-		BlockPos pressPos = operationOwner.cachedPressByPackager.get(packagerPos.asLong());
-		MechanicalPressBlockEntity press = pressPos == null ? null : ChamberProcessing.getMechanicalPress(operationOwner, pressPos);
-		return ChamberClientEffects.getSynchronizedPressHeadOffset(press, partialTicks);
-	}
-
-	/**
-	 * Resolves the press whose cycle every animation in this chamber follows, memoized for the current
-	 * tick. Which press is the master depends only on block state and speed, so it is stable within a
-	 * tick while the head progress derived from it still interpolates per frame.
-	 */
-	static void resolveRenderPressState(CreeperBlastChamberBlockEntity operationOwner) {
-		int tick = AnimationTickHolder.getTicks();
-		if (operationOwner.renderPressStateTick == tick && (operationOwner.renderMasterPress == null || !operationOwner.renderMasterPress.isRemoved()))
-			return;
-
-		operationOwner.renderPressStateTick = tick;
-		operationOwner.renderMasterPress = null;
-		operationOwner.renderPressesUnworkable = false;
-		if (!operationOwner.structureValid || operationOwner.structureOrigin == null)
-			return;
-		List<MechanicalPressBlockEntity> presses = ChamberProcessing.getMechanicalPresses(operationOwner);
-		if (presses.isEmpty())
-			return;
-		operationOwner.renderPressesUnworkable = ChamberProcessing.hasUnworkablePresses(operationOwner, presses);
-		operationOwner.renderMasterPress = ChamberProcessing.getMasterPress(operationOwner, presses);
+		return ChamberClientEffects.pressRenderState(operationOwner).pressOffset(packagerPos.asLong(), partialTicks);
 	}
 
 	static float getRenderedCreeperEffectPressOffset(CreeperBlastChamberBlockEntity operationOwner, BlockPos packagerPos, float partialTicks) {
-		ChamberProcessing.resolveRenderPressState(operationOwner);
-		if (operationOwner.renderMasterPress == null || operationOwner.renderMasterPress.getSpeed() == 0)
-			return 0f;
-		if (!operationOwner.renderPressesUnworkable)
-			return ChamberClientEffects.getLocalPressHeadProgress(operationOwner.renderMasterPress.getPressingBehaviour(), partialTicks)
-				* PressingBehaviour.Mode.WORLD.headOffset;
-
-		// Only the uncommon mixed-speed fallback needs to resolve the press above this particular slot.
-		BlockPos pressPos = operationOwner.cachedPressByPackager.get(packagerPos.asLong());
-		MechanicalPressBlockEntity press = pressPos == null ? null : ChamberProcessing.getMechanicalPress(operationOwner, pressPos);
-		if (press == null)
-			return 0f;
-		PressingBehaviour ownBehaviour = press.getPressingBehaviour();
-		if (ownBehaviour.mode == null)
-			return 0f;
-		return ChamberClientEffects.getLocalPressHeadProgress(ownBehaviour, partialTicks) * ownBehaviour.mode.headOffset;
+		return ChamberClientEffects.pressRenderState(operationOwner).creeperOffset(packagerPos.asLong(), partialTicks);
 	}
 
 	static float getWorkingCreeperCompression(CreeperBlastChamberBlockEntity operationOwner, BlockPos packagerPos, float partialTicks) {

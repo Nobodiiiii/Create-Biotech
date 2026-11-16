@@ -314,11 +314,7 @@ final class ChamberStructure {
 		operationOwner.cachedPackagerPositions.clear();
 		operationOwner.cachedPressPositions.clear();
 		operationOwner.cachedPressByPackager.clear();
-		operationOwner.resolvedMechanicalPresses.clear();
-		operationOwner.renderPressStateTick = Integer.MIN_VALUE;
-		operationOwner.renderMasterPress = null;
-		operationOwner.renderPressesUnworkable = false;
-		operationOwner.clientPressLayoutDirty = true;
+		ChamberClientEffects.invalidatePressRenderStates(operationOwner);
 		if (!operationOwner.structureValid || operationOwner.structureOrigin == null || operationOwner.structureSize <= 2)
 			return;
 

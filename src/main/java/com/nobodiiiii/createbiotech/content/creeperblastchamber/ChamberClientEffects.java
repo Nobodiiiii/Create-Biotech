@@ -1,9 +1,10 @@
 package com.nobodiiiii.createbiotech.content.creeperblastchamber;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import com.nobodiiiii.createbiotech.client.ClientParticleBudget;
@@ -16,20 +17,32 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.state.BlockState;
 
 /** ChamberClientEffects algorithms over the canonical CreeperBlastChamberBlockEntity state. */
 final class ChamberClientEffects {
 	private ChamberClientEffects() {}
 
+	/** Replaced only on the client thread; Visuals retain a complete immutable frame while reading. */
+	private static volatile PressRenderFrame pressRenderFrame = PressRenderFrame.EMPTY;
+	private static boolean pressRenderStatesDirty = true;
+
+	private record PressRenderFrame(@Nullable Level level, Map<Long, ChamberPressRenderState> chambers,
+		Map<Long, ChamberPressRenderState.Phase> presses) {
+		private static final PressRenderFrame EMPTY = new PressRenderFrame(null, Map.of(), Map.of());
+
+		private PressRenderFrame {
+			chambers = Map.copyOf(chambers);
+			presses = Map.copyOf(presses);
+		}
+	}
 
 	static void registerClientLoadedChamber(CreeperBlastChamberBlockEntity operationOwner) {
 		Level level = operationOwner.getLevel();
@@ -37,12 +50,14 @@ final class ChamberClientEffects {
 			return;
 		CreeperBlastChamberBlockEntity.CLIENT_LOADED_CHAMBERS.computeIfAbsent(level, ignored -> new HashSet<>())
 			.add(operationOwner.getBlockPos().immutable());
+		pressRenderStatesDirty = true;
 	}
 
 	static void unregisterClientLoadedChamber(CreeperBlastChamberBlockEntity operationOwner) {
 		Level level = operationOwner.getLevel();
 		if (level == null || !level.isClientSide)
 			return;
+		pressRenderStatesDirty = true;
 		Set<BlockPos> chambers = CreeperBlastChamberBlockEntity.CLIENT_LOADED_CHAMBERS.get(level);
 		if (chambers == null)
 			return;
@@ -52,7 +67,6 @@ final class ChamberClientEffects {
 	}
 
 	static void tickClientAnimations(CreeperBlastChamberBlockEntity operationOwner) {
-		ChamberClientEffects.syncClientPressControllers(operationOwner);
 		ChamberClientEffects.tickClientAppearanceEffects(operationOwner);
 		ChamberClientEffects.tickClientAnimationList(operationOwner.pendingAppearances);
 		ChamberClientEffects.tickClientAnimationList(operationOwner.pendingPackagings);
@@ -91,56 +105,54 @@ final class ChamberClientEffects {
 		}
 	}
 
-	static void syncClientPressControllers(CreeperBlastChamberBlockEntity operationOwner) {
-		Level level = operationOwner.getLevel();
-		if (level == null || !level.isClientSide || !operationOwner.structureValid || operationOwner.structureOrigin == null) {
-			ChamberClientEffects.clearClientTrackedPresses(operationOwner);
-			operationOwner.clientPressLayoutDirty = false;
-			return;
-		}
-		if (!operationOwner.clientPressLayoutDirty)
-			return;
-
-		operationOwner.clientActivePressPositions.clear();
-		for (BlockPos pressPos : operationOwner.cachedPressPositions) {
-			long key = ChamberClientEffects.clientPressKey(level, pressPos);
-			operationOwner.clientActivePressPositions.add(key);
-			CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.put(key, operationOwner.getBlockPos());
-			operationOwner.clientTrackedPressPositions.add(key);
-		}
-
-		operationOwner.clientTrackedPressPositions.removeIf(key -> {
-			if (operationOwner.clientActivePressPositions.contains(key))
-				return false;
-			if (Objects.equals(CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.get(key), operationOwner.getBlockPos()))
-				CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.remove(key);
-			return true;
-		});
-		operationOwner.clientPressLayoutDirty = false;
+	static void invalidatePressRenderStates(CreeperBlastChamberBlockEntity chamber) {
+		Level level = chamber.getLevel();
+		if (level != null && level.isClientSide) pressRenderStatesDirty = true;
 	}
 
-	/**
-	 * The controller registry is keyed by packed position alone, so it is scoped to a single dimension
-	 * at a time: two chambers sharing coordinates across dimensions would otherwise drive each other.
-	 * The client only ever renders one dimension, so switching simply drops the stale mapping.
-	 */
-	static long clientPressKey(Level level, BlockPos pressPos) {
-		ResourceKey<Level> dimension = level.dimension();
-		if (!dimension.equals(CreeperBlastChamberBlockEntity.clientPressControllerDimension)) {
-			CreeperBlastChamberBlockEntity.clientPressControllerDimension = dimension;
-			CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.clear();
-		}
-		return pressPos.asLong();
+	static void prepareDirtyPressRenderStates(@Nullable Level level) {
+		if (pressRenderStatesDirty || pressRenderFrame.level != level)
+			preparePressRenderStates(level);
 	}
 
-	static void clearClientTrackedPresses(CreeperBlastChamberBlockEntity operationOwner) {
-		if (!operationOwner.clientTrackedPressPositions.isEmpty()) {
-			for (long key : operationOwner.clientTrackedPressPositions) {
-				if (Objects.equals(CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.get(key), operationOwner.getBlockPos()))
-					CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.remove(key);
+	/** Called after client ticks or before rendering, never from Flywheel's parallel callbacks. */
+	static void preparePressRenderStates(@Nullable Level level) {
+		if (level == null) {
+			clearPressRenderStates(null);
+			return;
+		}
+		Map<Long, ChamberPressRenderState> chambers = new HashMap<>();
+		Map<Long, ChamberPressRenderState.Phase> presses = new HashMap<>();
+		Set<BlockPos> loaded = CreeperBlastChamberBlockEntity.CLIENT_LOADED_CHAMBERS.get(level);
+		if (loaded != null) {
+			for (BlockPos position : loaded) {
+				if (!(level.getBlockEntity(position) instanceof CreeperBlastChamberBlockEntity chamber)
+					|| chamber.isRemoved()) continue;
+				ChamberPressRenderState state = ChamberPressRenderState.capture(chamber);
+				chambers.put(position.asLong(), state);
+				presses.putAll(state.presses());
 			}
-			operationOwner.clientTrackedPressPositions.clear();
 		}
+		// The level identity, all phases and every chamber's flags become visible together.
+		pressRenderFrame = new PressRenderFrame(level, chambers, presses);
+		pressRenderStatesDirty = false;
+	}
+
+	static void clearPressRenderStates(@Nullable LevelAccessor level) {
+		if (level == null) {
+			CreeperBlastChamberBlockEntity.CLIENT_LOADED_CHAMBERS.clear();
+		} else {
+			CreeperBlastChamberBlockEntity.CLIENT_LOADED_CHAMBERS.remove(level);
+		}
+		if (level == null || pressRenderFrame.level == level) pressRenderFrame = PressRenderFrame.EMPTY;
+		pressRenderStatesDirty = false;
+	}
+
+	static ChamberPressRenderState pressRenderState(CreeperBlastChamberBlockEntity chamber) {
+		PressRenderFrame frame = pressRenderFrame;
+		return frame.level == chamber.getLevel()
+			? frame.chambers.getOrDefault(chamber.getBlockPos().asLong(), ChamberPressRenderState.EMPTY)
+			: ChamberPressRenderState.EMPTY;
 	}
 
 	static void tickClientWorkingCreeperEffects(CreeperBlastChamberBlockEntity operationOwner) {
@@ -154,9 +166,14 @@ final class ChamberClientEffects {
 		operationOwner.clientNextPressOffsets.clear();
 		operationOwner.clientActivePackagers.clear();
 		boolean spawnedReturnEffectThisTick = false;
-		for (CreeperBlastChamberBlockEntity.RenderManagedCreeper creeper : ChamberClientEffects.getWorkingRenderCreepers(operationOwner)) {
+		var working = ChamberClientEffects.getWorkingRenderCreepers(operationOwner);
+		// Tick effects keep their original timing and use a private capture, without publishing
+		// intermediate block-entity tick order to the parallel renderer.
+		ChamberPressRenderState state = working.isEmpty() ? ChamberPressRenderState.EMPTY
+			: ChamberPressRenderState.capture(operationOwner);
+		for (CreeperBlastChamberBlockEntity.RenderManagedCreeper creeper : working) {
 			long key = creeper.packagerPos().asLong();
-			float pressOffset = ChamberProcessing.getRenderedCreeperEffectPressOffset(operationOwner, creeper.packagerPos(), 0);
+			float pressOffset = state.creeperOffset(key, 0);
 			float previousOffset = operationOwner.clientPressOffsets.getOrDefault(key, 0f);
 			boolean returning = ChamberClientEffects.isPressReturning(operationOwner, previousOffset, pressOffset);
 
@@ -386,32 +403,11 @@ final class ChamberClientEffects {
 		if (press == null)
 			return 0f;
 
-		PressingBehaviour pressingBehaviour = press.getPressingBehaviour();
-		if (pressingBehaviour.mode == null)
-			return 0f;
-
-		Level level = press.getLevel();
-		if (level == null || !level.isClientSide)
-			return ChamberClientEffects.getLocalPressHeadProgress(pressingBehaviour, partialTicks);
-
-		BlockPos controllerPos = CreeperBlastChamberBlockEntity.CLIENT_PRESS_CONTROLLERS.get(ChamberClientEffects.clientPressKey(level, press.getBlockPos()));
-		if (controllerPos == null)
-			return ChamberClientEffects.getLocalPressHeadProgress(pressingBehaviour, partialTicks);
-
-		BlockEntity blockEntity = level.getBlockEntity(controllerPos);
-		if (!(blockEntity instanceof CreeperBlastChamberBlockEntity chamber)
-			|| !chamber.structureValid
-			|| !ChamberStructure.isPressPartOfStructure(chamber, press.getBlockPos())) {
-			return ChamberClientEffects.getLocalPressHeadProgress(pressingBehaviour, partialTicks);
-		}
-
-		ChamberProcessing.resolveRenderPressState(chamber);
-		if (chamber.renderPressesUnworkable || chamber.renderMasterPress == null)
-			return ChamberClientEffects.getLocalPressHeadProgress(pressingBehaviour, partialTicks);
-
-		MechanicalPressBlockEntity masterPress = chamber.renderMasterPress;
-
-		return ChamberClientEffects.getLocalPressHeadProgress(masterPress.getPressingBehaviour(), partialTicks);
+		PressRenderFrame frame = pressRenderFrame;
+		ChamberPressRenderState.Phase phase = frame.level != null && frame.level == press.getLevel()
+			? frame.presses.get(press.getBlockPos().asLong()) : null;
+		return phase == null ? ChamberClientEffects.getLocalPressHeadProgress(press.getPressingBehaviour(), partialTicks)
+			: phase.progress(partialTicks);
 	}
 
 	static float getSynchronizedPressHeadOffset(@Nullable MechanicalPressBlockEntity press, float partialTicks) {
@@ -429,13 +425,7 @@ final class ChamberClientEffects {
 	}
 
 	static float getLocalPressHeadProgress(PressingBehaviour pressingBehaviour, float partialTicks) {
-		if (pressingBehaviour.mode == null || !pressingBehaviour.running)
-			return 0f;
-
-		int runningTicks = Math.abs(pressingBehaviour.runningTicks);
-		float renderedTick = Mth.lerp(partialTicks, pressingBehaviour.prevRunningTicks, runningTicks);
-		if (runningTicks < 160)
-			return (float) Mth.clamp(Math.pow(renderedTick / 240f * 2f, 3), 0d, 1d);
-		return Mth.clamp((240f - renderedTick) / 240f * 3f, 0f, 1f);
+		return ChamberPressRenderState.Phase.progress(pressingBehaviour.mode != null && pressingBehaviour.running,
+			pressingBehaviour.prevRunningTicks, pressingBehaviour.runningTicks, partialTicks);
 	}
 }

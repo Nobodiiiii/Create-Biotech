@@ -266,3 +266,31 @@ contraption == null || contraption.level() != level
 - [ ] 无速度或无目标 Shulker Teleporter 不执行实体 AABB 查询。
 - [ ] Allay target lookup 不为“取最优一个”排序全部候选。
 - [ ] 性能改动有默认规模与上限规模的 profiler/基准对比，且玩法时序没有回归。
+
+## 9. 爆破室压力机并行渲染修复（2026-11-17）
+
+仅路过爆破室时，Create `PressVisual.beginFrame` 也会经 Biotech 的压力机同步入口解析爆破室。
+同一结构中多个压力机 Visual 可由 Flywheel 并行更新；此前 `getMechanicalPresses` 清空、重填并
+返回同一个 ArrayList，而 `resolveRenderPressState` 的 tick 标记与主压力机状态也没有同步，
+导致客户端 `ConcurrentModificationException` 和列表读取空指针。该故障不要求玩家操作结构。
+
+修复后：
+
+- `ChamberPressRenderState` 只保存动画的布尔值、tick 数、偏移和不可变位置映射，不保存可变压力机对象。
+- `ChamberPressRenderHandler` 在客户端 tick 结束后统一捕获，完整构建后通过一个 volatile 引用发布。
+  加载、移除、结构/数据包变化会标记失效，在帧前补充更新；卸载世界及断线清理快照和加载结构登记。
+- 压力机与内部苦力怕渲染只查询同一份已发布快照，不再从并行回调重建列表、解析主压力机或修改维度登记。
+  非结构压力机继续使用自身动画。停机、混合转速回退、不同工作模式偏移和 partial tick 插值保持原有规则。
+- `getMechanicalPresses` 返回查询独有的局部列表，工具提示及逻辑调用不能改变其他读者正在遍历的结果。
+  客户端粒子/声音 tick 使用私有捕获，避免改变其原有执行时点，也不发布实体 tick 顺序中的中间状态。
+
+Create 6.0.10 的精确本地参考：
+`ref/1.21.1/Create/src/main/java/com/simibubi/create/content/kinetics/press/PressVisual.java:39`、
+`ref/1.21.1/Create/src/main/java/com/simibubi/create/content/kinetics/press/PressingBehaviour.java:101`。
+客户端事件时序核对了本机 NeoForge 21.1.234 sources.jar 的 `ClientTickEvent.Post` 与
+`RenderFrameEvent.Pre`。未修改 Mixin、存档格式或版本号。
+
+验证：`build --offline` 及现有 80 项测试通过，未创建测试文件。另通过 JShell 在内存中调用实际编译类，
+完成 50,000 组旧/新插值及偏移对照，检查快照防御复制、只读映射和同步/混合转速/停机/缺失位置行为；
+以 100,000 次发布和 10 个读取线程的 1,000,000 次读取检查完整快照可见性。按非 Mixin 改动规则未启动
+客户端；路过运行/停机结构、混合转速切换、拆装及跨区块/世界卸载仍需在游戏内复测。

@@ -1,5 +1,57 @@
 # Changelog
 
+## 2.0.0-beta.4
+
+### 中文
+
+### 新增功能
+
+- **仿生特性**：叮咚鸡供体支持产蛋与扑翼缓降；叮咚鸡本体和对应仿生躯干有概率产出金粒、金锭、金块或呼唤铃，产蛋说明会列出实际保留的供体来源。
+- **捕捉网**：新增木、石、铁、金、钻石和下界合金六种捕捉网，可反复捕捉、携带和释放单个生物；按当前血量判定捕捉条件与挣脱时间，显示网内生物、挣扎动画和倒计时。
+- **捕捉网联动**：支持横扫攻击与致死时消耗背包纸箱自动装箱，可将网内拟态生物直接放上手术台；拟态生物不受捕捉血量上限限制。
+- **潜影物流输出**：潜影打包机可选择机械臂交互目标输出包裹，沿用目标的插入规则与容量检查。
+
+### 改进
+
+- **经验泵**：统一使用 Create 管网的压力、分流与堵塞规则，支持直接连接储罐和开放出口；吸收整件物品后的多余经验会缓存保存，低速或堵塞时不再浪费输入。
+- **经验母岩**：默认四阶段经验值调整为 24、48、96、192，与粉碎产出一致；多余灌注保留到同一面的下一轮生长，并兼容旧存档进度与自定义配置。
+- **思索教程**：重制 20 组现有场景，完善黄油猫、经验泵、悦灵物流、潜影物流等动态演示，以及万向节连接和经验球显示。
+- **生物捕捉**：纸箱与捕捉网会在捕捉前安全解除骑乘、乘客及拴绳关系，并尊重其他模组的下坐骑限制。
+- **音效反馈**：完善仿生守卫者光束蓄力、潜影传送站闭合与缓冲垫碰撞音效，调整多种机器的音量并减少重复播放。
+- **恶魂热气球**：完善第三人称驾驶视距，装配期间静音恶魂、拆卸后恢复原状态，并修正装配站放置和读档后的红石状态同步。
+- **渲染性能**：优化完整拟态模型的几何恢复与材质判定，减少重复计算；补充蜘蛛组装台套壳和机械部件的 Flywheel 实例化渲染。
+- **依赖兼容**：新增 Ponderer Lib 0.1.0 前置，放宽可选 KubeJS 的最低版本至 2101.7.1-build.181。
+
+### 修复
+
+- 修复悦灵驿站自动化从错误方向存取包裹、空地址误匹配及载体库存变化未及时保存的问题。
+
+### English
+
+### New Features
+
+- Added egg laying and wing-assisted slow falling for Ding-Dong Chicken donors. Both living chickens of this type and their bionic torsos can produce Gold Nuggets, Gold Ingots, Gold Blocks, or Desk Bells, with retained donors listed in egg-laying details.
+- Added Wooden, Stone, Iron, Golden, Diamond, and Netherite Capture Nets for repeatedly capturing, carrying, and releasing one creature. Capture limits and escape time use current health, with visible contents, struggle animations, and a countdown bar.
+- Added sweeping attacks and lethal-hit boxing using empty boxes from the inventory, plus direct placement of netted mimics on Surgical Tables. Mimics bypass capture health limits.
+- Extended Shulker Packager outputs to Mechanical Arm interaction targets, respecting their insertion rules and capacity checks.
+
+### Improvements
+
+- Unified Experience Pumps with Create pipe-network pressure, branching, and blockage handling, including direct tank connections and open outlets. Excess experience from whole items is saved in a persistent buffer to avoid wasting inputs at low speeds or during blockages.
+- Changed default experience growth stages to 24, 48, 96, and 192 XP to match crushing yields. Excess infusion is retained for the same face's next growth cycle, with support for old save progress and custom settings.
+- Reworked 20 existing Ponder scenes, improving animated demonstrations for Butter Cats, Experience Pumps, Allay and Shulker logistics, alongside joint connections and experience-orb displays.
+- Made boxes and nets safely detach mounts, passengers, and leashes before capture, respecting other mods' dismount restrictions.
+- Improved bionic Guardian beam charging, Shulker Teleporter closing, and Buffer Pad impact sounds, adjusted machine volumes, and reduced repeated playback.
+- Improved third-person balloon driving distance, silenced Ghasts during assembly with their original state restored after dismantling, and corrected assembly-station redstone synchronization after placement and reloading.
+- Optimized geometry recovery and material checks for intact mimics to reduce repeated calculations. Added Flywheel instancing for Spider Assembly Table casings and mechanical parts.
+- Added Ponderer Lib 0.1.0 as a required dependency and lowered the optional KubeJS minimum version to 2101.7.1-build.181.
+
+### Fixes
+
+- Fixed Allay Post automation accessing packages from incorrect sides, blank addresses matching incorrectly, and carrier inventory changes not being saved promptly.
+
+---
+
 ## 2.0.0-beta.3
 
 ### 中文

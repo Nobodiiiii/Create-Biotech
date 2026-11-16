@@ -41,7 +41,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.monster.Creeper;
@@ -106,9 +105,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	static final RecipeWrapper CRUSHING_RECIPE_WRAPPER = new RecipeWrapper(CRUSHING_RECIPE_INVENTORY);
 	static final ItemStackHandler HIGH_PRESSURE_RECIPE_INVENTORY = new ItemStackHandler(1);
 	static final RecipeWrapper HIGH_PRESSURE_RECIPE_WRAPPER = new RecipeWrapper(HIGH_PRESSURE_RECIPE_INVENTORY);
-	static final Map<Long, BlockPos> CLIENT_PRESS_CONTROLLERS = new HashMap<>();
-	@Nullable
-	static ResourceKey<Level> clientPressControllerDimension;
 	static final Map<Level, Set<BlockPos>> CLIENT_LOADED_CHAMBERS = new WeakHashMap<>();
 
 	public LerpedFloat gauge = LerpedFloat.linear();
@@ -135,34 +131,19 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	final List<BlockPos> cachedPackagerPositions = new ArrayList<>();
 	final List<BlockPos> cachedPressPositions = new ArrayList<>();
 	final Map<Long, BlockPos> cachedPressByPackager = new HashMap<>();
-	/** Reused view of the currently loaded press block entities at {@link #cachedPressPositions}. */
-	final List<MechanicalPressBlockEntity> resolvedMechanicalPresses = new ArrayList<>();
 	int containedDataVersion = CONTAINED_DATA_VERSION;
 	boolean controllerOutputRequested;
 	int controllerOutputRequestTicks;
 	boolean creeperFaceVisible = true;
 	final Map<Long, Float> clientPressOffsets = new HashMap<>();
 	final Set<Long> clientReturnEffectsArmed = new HashSet<>();
-	final Set<Long> clientTrackedPressPositions = new HashSet<>();
-
-	/**
-	 * Per-tick memo of the press that drives every synchronized animation in this chamber. Both the
-	 * contained-creeper renderer and every press head in the structure ask for it once per frame, and
-	 * resolving it from scratch rescans the whole press layer each time.
-	 */
-	int renderPressStateTick = Integer.MIN_VALUE;
-	@Nullable
-	MechanicalPressBlockEntity renderMasterPress;
-	boolean renderPressesUnworkable;
 
 	/** Reused by the render and client-tick paths so neither allocates a fresh list every frame. */
 	final List<RenderManagedCreeper> workingRenderCreepers = new ArrayList<>();
 	final List<RenderCreeperAnimation> renderAnimations = new ArrayList<>();
 	final Map<Long, Float> clientNextPressOffsets = new HashMap<>();
 	final Set<Long> clientActivePackagers = new HashSet<>();
-	final Set<Long> clientActivePressPositions = new HashSet<>();
 	final Set<Long> clientAppearanceEffectsSpawned = new HashSet<>();
-	boolean clientPressLayoutDirty;
 	private final ChamberInputHandler inputHandler = new ChamberInputHandler();
 
 	public CreeperBlastChamberBlockEntity(BlockPos pos, BlockState state) {
@@ -226,7 +207,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	@Override
 	public void setRemoved() {
 		ChamberClientEffects.unregisterClientLoadedChamber(this);
-		ChamberClientEffects.clearClientTrackedPresses(this);
 		super.setRemoved();
 	}
 
@@ -357,6 +337,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 		if (previousStructureValid != structureValid || previousStructureSize != structureSize
 			|| !Objects.equals(previousStructureOrigin, structureOrigin))
 			ChamberStructure.rebuildStructurePositionCache(this);
+		ChamberClientEffects.invalidatePressRenderStates(this);
 	}
 
 	public void forceStructureCheck() {
