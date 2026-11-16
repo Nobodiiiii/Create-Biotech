@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "pattern": [
+    "M#M",
+    "###",
+    " S "
+  ],
+  "key": {
+    "M": {
+      "tag": "minecraft:planks"
+    },
+    "#": {
+      "item": "minecraft:string"
+    },
+    "S": {
+      "item": "minecraft:stick"
+    }
+  },
+  "result": {
+    "id": "create_biotech:wooden_capture_net"
+  }
+}

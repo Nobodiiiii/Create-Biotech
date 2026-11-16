@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatsPacket;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetConfig;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 
@@ -194,6 +195,7 @@ public class CBConfigs {
 	}
 
 	public static class Server {
+		public final CaptureNetConfig captureNet;
 		public final Experience experience;
 		public final CreeperBlastChamber creeperBlastChamber;
 		public final PowerBelt powerBelt;
@@ -225,6 +227,7 @@ public class CBConfigs {
 		public final BionicStatsConfig bionicStats;
 
 		Server(ModConfigSpec.Builder builder) {
+			captureNet = new CaptureNetConfig(builder);
 			experience = new Experience(builder);
 			creeperBlastChamber = new CreeperBlastChamber(builder);
 			powerBelt = new PowerBelt(builder);

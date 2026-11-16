@@ -1,0 +1,72 @@
+{
+  "credit": "Made with Blockbench / Create: Biotech",
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "atlas": "create_biotech:item/capture_net/iron",
+    "mesh": "create_biotech:item/capture_net/mesh",
+    "particle": "create_biotech:item/capture_net/iron"
+  },
+  "elements": [
+    {
+      "name": "single_vertical_net_pouch",
+      "from": [
+        3,
+        9,
+        9
+      ],
+      "to": [
+        13,
+        19,
+        15
+      ],
+      "faces": {
+        "east": {
+          "uv": [
+            0.0,
+            0.0,
+            6.0,
+            10.0
+          ],
+          "texture": "#mesh"
+        },
+        "south": {
+          "uv": [
+            0.0,
+            0.0,
+            10.0,
+            10.0
+          ],
+          "texture": "#mesh"
+        },
+        "west": {
+          "uv": [
+            0.0,
+            0.0,
+            6.0,
+            10.0
+          ],
+          "texture": "#mesh"
+        },
+        "up": {
+          "uv": [
+            0.0,
+            0.0,
+            10.0,
+            6.0
+          ],
+          "texture": "#mesh"
+        },
+        "down": {
+          "uv": [
+            0.0,
+            0.0,
+            10.0,
+            6.0
+          ],
+          "texture": "#mesh"
+        }
+      }
+    }
+  ]
+}

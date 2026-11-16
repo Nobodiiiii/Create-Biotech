@@ -9,6 +9,8 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetTier;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterFoodProperties;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ConfigurableButterFoodItem;
@@ -72,6 +74,18 @@ public class CBItems {
 
 	public static final DeferredRegister<Item> ITEMS =
 		DeferredRegister.create(BuiltInRegistries.ITEM, CreateBiotech.MOD_ID);
+
+	public static final DeferredHolder<Item, CaptureNetItem> WOODEN_CAPTURE_NET = captureNet(CaptureNetTier.WOODEN);
+	public static final DeferredHolder<Item, CaptureNetItem> STONE_CAPTURE_NET = captureNet(CaptureNetTier.STONE);
+	public static final DeferredHolder<Item, CaptureNetItem> IRON_CAPTURE_NET = captureNet(CaptureNetTier.IRON);
+	public static final DeferredHolder<Item, CaptureNetItem> GOLDEN_CAPTURE_NET = captureNet(CaptureNetTier.GOLDEN);
+	public static final DeferredHolder<Item, CaptureNetItem> DIAMOND_CAPTURE_NET = captureNet(CaptureNetTier.DIAMOND);
+	public static final DeferredHolder<Item, CaptureNetItem> NETHERITE_CAPTURE_NET = captureNet(CaptureNetTier.NETHERITE);
+
+	private static DeferredHolder<Item, CaptureNetItem> captureNet(CaptureNetTier tier) {
+		return ITEMS.register(tier.id() + "_capture_net", () -> new CaptureNetItem(tier,
+			tier == CaptureNetTier.NETHERITE ? new Item.Properties().fireResistant() : new Item.Properties()));
+	}
 
 	public static final DeferredHolder<Item, Item> AUTOMATIC_FISH_RELEASE_MACHINE =
 		ITEMS.register("automatic_fish_release_machine",

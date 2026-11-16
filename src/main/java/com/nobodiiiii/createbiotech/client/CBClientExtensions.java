@@ -13,6 +13,8 @@ import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatBlockItem;
 import com.nobodiiiii.createbiotech.content.buttercat.item.ButterCatItemRenderer;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItemRenderer;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
+import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.magmabelt.MagmaBeltBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
@@ -74,6 +76,8 @@ final class CBClientExtensions {
 
 	@Nullable
 	private static IClientItemExtensions createItemExtensions(Item item) {
+		if (item instanceof CaptureNetItem)
+			return new CaptureNetRenderer();
 		if (item instanceof SurgicalJointItem joint && !joint.selectable())
 			return itemRenderer(new SurgicalJointItemRenderer());
 		if (item instanceof BionicDonorPreviewItem)

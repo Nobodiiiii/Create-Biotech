@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.ponderext;
 
 import com.nododiiiii.ponderer.runtime.api.PonderActions;
+import com.nododiiiii.ponderer.scene.LocalizedText;
 import com.nobodiiiii.createbiotech.registry.CBParticleTypes;
 import com.simibubi.create.content.logistics.box.PackageItem;
 import com.simibubi.create.content.logistics.box.PackageStyles;
@@ -38,7 +39,9 @@ final class AllayPortEffects {
 
     private static void deliverToPort(StepBuildContext ctx) {
         var scene = ctx.builder();
-        playDeliveryAnimation(scene, "→王芳", "blue", "王芳",
+        String targetText = LocalizedText.ref("create_biotech:allay_port", "scene_1.text_7").resolve();
+        String address = LocalizedText.ref("create_biotech:allay_port", "scene_1.text_4").resolve();
+        playDeliveryAnimation(scene, targetText, "blue", address,
             new BlockPos(4, 1, 4), new BlockPos(1, 1, 1), null, (byte) 1);
     }
 

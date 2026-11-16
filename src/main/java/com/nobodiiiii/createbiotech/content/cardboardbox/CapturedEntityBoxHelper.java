@@ -380,6 +380,12 @@ public class CapturedEntityBoxHelper {
 	}
 
 	public static boolean releaseCapturedEntity(ItemStack stack, Level level, Vec3 spawnPos, Vec3 motion) {
+		return releaseCapturedEntity(stack, level, spawnPos, motion, entity -> true);
+	}
+
+	/** The placement check may adjust the position; a rejected placement leaves the capture intact. */
+	public static boolean releaseCapturedEntity(ItemStack stack, Level level, Vec3 spawnPos, Vec3 motion,
+		java.util.function.Predicate<Entity> placement) {
 		Entity entity = createCapturedEntity(stack, level);
 		if (entity == null)
 			return false;
@@ -387,6 +393,8 @@ public class CapturedEntityBoxHelper {
 		entity.moveTo(spawnPos.x, spawnPos.y, spawnPos.z, entity.getYRot(), entity.getXRot());
 		entity.setDeltaMovement(motion);
 		entity.fallDistance = 0;
+		if (!placement.test(entity))
+			return false;
 		BionicGameplayEvent releaseEvent = entity instanceof SlimeBionicEntity bionic
 			? BionicGameplayRuntime.post(BionicGameplayRuntime.event(BionicGameplayEvent.Kind.RELEASE, bionic, CreateBiotech.asResource("release")).interaction(null, null, stack)) : null;
 		if (releaseEvent != null && releaseEvent.isCancelled()) return false;

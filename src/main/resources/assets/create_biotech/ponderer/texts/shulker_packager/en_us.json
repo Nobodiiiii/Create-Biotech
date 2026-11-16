@@ -4,6 +4,7 @@
   "scene_1.text_3": "Before placing a Shulker Packager, right-click any Mechanical Arm output point or Packager to select an output target.",
   "scene_1.text_4": "After receiving a request, the Shulker Packager teleports the package to its selected target.",
   "scene_1.text_5": "Shulker Packagers are suited for short-range transport; for long-range transport, use Cargo Allay Stations, Package Frogports, Trains, Postboxes, and similar options.",
+  "scene_1.text_5_2": "The Shulker Packager only teleports packages when the target can accept them. If the target is a Packager, it must be attached to a container.",
   "scene_1.text_6": "Check their Ponder screens to learn how they behave.",
   "scene_1.title": "Shulker Packager",
   "title": "Shulker Packager"

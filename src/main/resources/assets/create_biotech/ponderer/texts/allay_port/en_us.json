@@ -13,8 +13,8 @@
   "scene_1.text_6": "Cargo Allay Stations automatically pull packages from the Packager or container below and dispatch an Allay Courier to the specified Cargo Allay Station.",
   "scene_1.text_7": "→ Albert",
   "scene_1.text_8": "The interface lets you configure whether the Allay Courier returns after delivery.",
-  "scene_1.text_8_2": "The interface lets you configure whether the Allay Courier returns after delivery.",
-  "scene_1.text_9": "The interface lets you configure whether the Allay Courier returns after delivery.",
+  "scene_1.text_8_2": "Packages can be transferred through the top and bottom of a Cargo Allay Station.",
+  "scene_1.text_9": "Allay Couriers can be transferred through the sides.",
   "scene_1.title": "Allay Express Delivery",
   "title": "Allay Express Delivery"
 }
