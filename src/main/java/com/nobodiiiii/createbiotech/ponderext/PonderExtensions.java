@@ -17,5 +17,6 @@ public final class PonderExtensions {
         AllayPortEffects.install(engine);
         UniversalJointEffects.install(engine);
         EnchantmentLineEffects.install(engine);
+        SurgicalTableEffects.install(engine);
     }
 }

@@ -1,6 +1,6 @@
 # 思索场景与自动导出
 
-20 组场景使用 Ponderer 的标准 **Java + Lib** 导出结构。`ponder/generated/` 和 `.ponderer-export/manifest.json` 由真实导出器生成；可以手改场景中的 `JavaScene` 数据调用，Java 实现放在独立扩展类中。
+21 组场景使用 Ponderer 的标准 **Java + Lib** 导出结构。`ponder/generated/` 和 `.ponderer-export/manifest.json` 由真实导出器生成；可以手改场景中的 `JavaScene` 数据调用，Java 实现放在独立扩展类中。
 
 Java 输出使用直接参数调用，每个分段独立成方法，例如 `scene.idle(20)`、`scene.keyframe().showText(...)` 和 `scene.setBlock(...)`。步骤 ID 全部由 API 内部生成和保存，插入步骤无需编号；源码无需 `.at(...)`，也没有额外的 ID 对照资源。
 
@@ -27,6 +27,19 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 生成 Java 使用 `scene.showText(text("scene_1.text_1"), ...)` 引用文本，正文和标题分别维护在各场景的 `zh_cn.json` / `en_us.json` 中，不再合并进模组总语言文件。已有文本键在调整步骤顺序时保留；手写内容可使用语义键。Lib 负责语言选择、英文回退、资源包覆盖和重载。编辑器直接写回目标工程的 Java 与独立文本资源。
 
 文本取值 Mixin 随新版 Lib 分发并由导出能力声明启用，无需给本模组添加 Mixin 配置。资源包可覆盖单个场景的单个语言文件；该文件整体替换，缺少的条目回退到英文。署名分类的中英文资源统一由 Lib 提供。
+
+## 手术台基础思索
+
+`create_biotech:surgical_table` 已实现“放置供体”“切分与重组”“安装关节”三章，分别使用稳定分段 ID `placing`、`recombining`、`joints`。它们绑定手术台、手术盒、关节和手术指南；各章独立建立起始状态，第二章从供体已放置开始，第三章从手臂已替换开始。后续章节可以继续追加到同一文档的 `document.scenes`，保留这三个分段 ID 即可。
+
+- 场景源码：`src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSurgicalTable_7431e38e.java`。
+- 中英文字幕：`src/main/resources/assets/create_biotech/ponderer/texts/surgical_table/`。
+- 编译扩展：`ponderext/SurgicalTableEffects.java`；模型、台面摆放与成品骨架由 `content/surgery/client/SurgicalPonderActors.java` 管理。
+- 共用结构：`assets/create_biotech/ponder/generated/create_biotech/surgical_table/workshop.nbt`；可用 `python tools/generate_surgical_ponder_structure.py` 确定性重建。
+
+扩展使用场景独占的供体模型、当前解剖快照和真实装配骨架演示，不操作玩家世界中的手术台或共享预览。装箱后仅隐藏已连接的成品，旧手臂和剩余供体留在台面。工具轮盘复用 `SurgicalRadialLayout`，作为非交互覆盖层展示；成品属性来自当前装配的实际计算结果。模型与覆盖层通过播放指令加入元素列表，不能在编译故事板时直接加入，否则会被 `PonderScene.begin()` 清除。三章在初始化时统一将整体视角绕 Y 轴转 180°；重播时重新注册元素并重置部件状态、动画计时和覆盖层。
+
+原生覆盖层与逐 tick 指令的参考为 `ref/1.21.1/Ponder/common/src/main/java/net/createmod/ponder/api/element/PonderSceneElement.java`、`api/element/PonderOverlayElement.java` 和 `foundation/instruction/TickingInstruction.java`。该 Ponder 参考为 1.21.1 开发分支快照，API 已通过项目锁定的 Ponder 1.0.82 与 Ponderer Lib 0.1.0 编译检查。
 
 ## 编辑与再次导出
 

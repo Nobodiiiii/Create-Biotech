@@ -23,6 +23,8 @@ import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSquidPrinte
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedUniversalJoint_46e845e1;
 import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedButterCatEngine_d32c0901;
 
+import com.nobodiiiii.createbiotech.ponder.generated.scenes.GeneratedSurgicalTable_7431e38e;
+
 import net.createmod.ponder.api.registration.PonderSceneRegistrationHelper;
 import net.createmod.ponder.api.registration.PonderTagRegistrationHelper;
 import net.minecraft.resources.ResourceLocation;
@@ -52,6 +54,7 @@ public final class GeneratedPonderIndex {
         GeneratedSquidPrinter_678191a5.register(helper);
         GeneratedUniversalJoint_46e845e1.register(helper);
         GeneratedButterCatEngine_d32c0901.register(helper);
+        GeneratedSurgicalTable_7431e38e.register(helper);
     }
 
     public static void registerTags(PonderTagRegistrationHelper<ResourceLocation> helper) {
@@ -75,6 +78,7 @@ public final class GeneratedPonderIndex {
         GeneratedSquidPrinter_678191a5.registerTags(helper);
         GeneratedUniversalJoint_46e845e1.registerTags(helper);
         GeneratedButterCatEngine_d32c0901.registerTags(helper);
+        GeneratedSurgicalTable_7431e38e.registerTags(helper);
     }
     public static void registerSharedText(net.createmod.ponder.api.registration.SharedTextRegistrationHelper helper) {
         GeneratedAllayPort_458fa519.registerSharedText(helper);
@@ -119,6 +123,7 @@ public final class GeneratedPonderIndex {
         GeneratedSquidPrinter_678191a5.close();
         GeneratedUniversalJoint_46e845e1.close();
         GeneratedButterCatEngine_d32c0901.close();
+        GeneratedSurgicalTable_7431e38e.close();
     }
     public static void prepare() {
         GeneratedAllayPort_458fa519.prepare();
@@ -141,5 +146,6 @@ public final class GeneratedPonderIndex {
         GeneratedSquidPrinter_678191a5.prepare();
         GeneratedUniversalJoint_46e845e1.prepare();
         GeneratedButterCatEngine_d32c0901.prepare();
+        GeneratedSurgicalTable_7431e38e.prepare();
     }
 }
