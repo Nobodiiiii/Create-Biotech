@@ -30,7 +30,7 @@ import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
-import com.nobodiiiii.createbiotech.content.slimemimic.SlimeDataItem;
+import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
@@ -212,8 +212,8 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> CAPTURED_SMALL_SLIME = ITEMS.register("captured_small_slime",
 		() -> new CapturedSmallSlimeItem(new Item.Properties().stacksTo(4)));
 
-	public static final DeferredHolder<Item, SlimeDataItem> SLIME_DATA = ITEMS.register("slime_data",
-		() -> new SlimeDataItem(new Item.Properties().stacksTo(1)));
+	public static final DeferredHolder<Item, GreenprintItem> GREENPRINT = ITEMS.register("greenprint",
+		() -> new GreenprintItem(new Item.Properties().stacksTo(1)));
 
 	// Slime armour: a slime counterpart to Create's cardboard armour, obtained by filling each
 	// cardboard piece with 250mb of liquid living slime. Renders as a small slime when crouching.

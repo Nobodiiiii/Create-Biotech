@@ -52,8 +52,6 @@ import com.simibubi.create.content.decoration.slidingDoor.SlidingDoorRenderer;
 import com.simibubi.create.content.equipment.armor.CardboardArmorStealthOverlay;
 import com.simibubi.create.content.kinetics.base.KineticBlockEntityRenderer;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SpawnEggItem;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
@@ -135,9 +133,6 @@ final class CBClientRenderRegistration {
 	}
 
 	static void registerItemColors(RegisterColorHandlersEvent.Item event) {
-		event.register((stack, tintIndex) -> net.minecraft.util.FastColor.ARGB32.opaque(
-			((SpawnEggItem) Items.SLIME_SPAWN_EGG).getColor(tintIndex)),
-			CBItems.SLIME_DATA.get());
 		event.register((stack, tintIndex) -> tintIndex == 0
 			&& SonicDogCannonUpgrade.DOG_COLLAR.isInstalled(stack)
 			? SonicDogCannonUpgrade.getCollarColor(stack).getTextureDiffuseColor()

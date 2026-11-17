@@ -6,7 +6,6 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 
-import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -15,33 +14,44 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
 
 /** A reusable snapshot of a single mimic, including its saved anatomy and equipment. */
-public class SlimeDataItem extends Item {
+public class GreenprintItem extends Item {
 
-	private static final String ENTITY_DATA = "SlimeEntity";
-	private static final String ENTITY_NAME = "SlimeName";
+	private static final String ENTITY_DATA = "MimicEntity";
 
-	public SlimeDataItem(Properties properties) {
+	public GreenprintItem(Properties properties) {
 		super(properties);
+	}
+
+	@Override
+	public boolean isFoil(ItemStack stack) {
+		return recordedEntity(stack) != null;
 	}
 
 	@Override
 	public InteractionResult interactLivingEntity(ItemStack stack, Player player, LivingEntity target,
 		InteractionHand hand) {
-		if (player.isSpectator() || target instanceof Player || !target.isAlive()
+		if (player.isSpectator())
+			return InteractionResult.PASS;
+		if (player.isShiftKeyDown())
+			return clearBinding(stack, player);
+		if (target instanceof Player || !target.isAlive()
 			|| !SlimeMimicHandler.isSlimeMimic(target))
 			return InteractionResult.PASS;
+		// A bound greenprint keeps its snapshot until the player explicitly clears it.
+		if (recordedEntity(stack) != null)
+			return InteractionResult.sidedSuccess(player.level().isClientSide);
 		if (player.level().isClientSide)
 			return InteractionResult.SUCCESS;
 
@@ -49,24 +59,39 @@ public class SlimeDataItem extends Item {
 		if (!target.saveAsPassenger(entityData))
 			return InteractionResult.FAIL;
 		prepareCopy(entityData);
-		CBItemData.edit(stack, data -> {
-			data.put(ENTITY_DATA, entityData);
-			data.putString(ENTITY_NAME, target.getName().getString());
-		});
-		player.displayClientMessage(Component.translatable("message.create_biotech.slime_data.recorded",
+		CBItemData.edit(stack, data -> data.put(ENTITY_DATA, entityData));
+		player.displayClientMessage(Component.translatable("message.create_biotech.greenprint.recorded",
 			target.getDisplayName()), true);
 		return InteractionResult.CONSUME;
 	}
 
 	@Override
+	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+		ItemStack stack = player.getItemInHand(hand);
+		return player.isShiftKeyDown()
+			? new InteractionResultHolder<>(clearBinding(stack, player), stack)
+			: InteractionResultHolder.pass(stack);
+	}
+
+	@Override
+	public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context) {
+		Player player = context.getPlayer();
+		// Clear before chests and other interactive blocks can consume the click.
+		return player != null && player.isShiftKeyDown()
+			? clearBinding(stack, player) : InteractionResult.PASS;
+	}
+
+	@Override
 	public InteractionResult useOn(UseOnContext context) {
 		ItemStack stack = context.getItemInHand();
+		Player player = context.getPlayer();
+		if (player != null && player.isShiftKeyDown())
+			return clearBinding(stack, player);
 		CompoundTag recorded = recordedEntity(stack);
 		if (recorded == null)
 			return InteractionResult.PASS;
 
 		Level level = context.getLevel();
-		Player player = context.getPlayer();
 		BlockPos clickedPos = context.getClickedPos();
 		BlockPos spawnPos = level.getBlockState(clickedPos).getCollisionShape(level, clickedPos).isEmpty()
 			? clickedPos : clickedPos.relative(context.getClickedFace());
@@ -99,18 +124,14 @@ public class SlimeDataItem extends Item {
 		return InteractionResult.CONSUME;
 	}
 
-	@Override
-	public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip,
-		TooltipFlag flag) {
-		super.appendHoverText(stack, context, tooltip, flag);
-		CompoundTag data = CBItemData.getReadOnly(stack);
-		if (recordedEntity(stack) != null && data != null)
-			tooltip.add(Component.translatable("item.create_biotech.slime_data.recorded", data.getString(ENTITY_NAME))
-				.withStyle(ChatFormatting.GREEN));
-		else
-			tooltip.add(Component.translatable("item.create_biotech.slime_data.empty").withStyle(ChatFormatting.GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.slime_data.record_hint").withStyle(ChatFormatting.GRAY));
-		tooltip.add(Component.translatable("item.create_biotech.slime_data.release_hint").withStyle(ChatFormatting.GRAY));
+	InteractionResult clearBinding(ItemStack stack, Player player) {
+		if (player.isSpectator())
+			return InteractionResult.PASS;
+		if (!player.level().isClientSide && recordedEntity(stack) != null) {
+			CBItemData.edit(stack, data -> data.remove(ENTITY_DATA));
+			player.displayClientMessage(Component.translatable("message.create_biotech.greenprint.cleared"), true);
+		}
+		return InteractionResult.sidedSuccess(player.level().isClientSide);
 	}
 
 	@Nullable
@@ -128,7 +149,7 @@ public class SlimeDataItem extends Item {
 
 	private static InteractionResult failedPlacement(@Nullable Player player) {
 		if (player != null)
-			player.displayClientMessage(Component.translatable("message.create_biotech.slime_data.release_failed"), true);
+			player.displayClientMessage(Component.translatable("message.create_biotech.greenprint.release_failed"), true);
 		return InteractionResult.FAIL;
 	}
 }

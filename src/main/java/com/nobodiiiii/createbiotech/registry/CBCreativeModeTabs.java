@@ -218,7 +218,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get())));
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
-			visible(CBItems.SLIME_DATA.get()),
+			visible(CBItems.GREENPRINT.get()),
 			visible(CBItems.SURGERY_GUIDE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),
