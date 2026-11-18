@@ -1,0 +1,486 @@
+<div id="bionic-shoulder">
+  <div class="viz-controls">
+    <label class="form-label">调整对象
+      <select class="form-select" data-object aria-label="调整对象">
+        <option value="armA">胳膊 A</option><option value="armB">胳膊 B</option><option value="body">身体</option>
+        <option value="elbowA" disabled>肘点 A</option><option value="elbowB" disabled>肘点 B</option>
+      </select>
+    </label>
+    <div class="viz-row" role="group" aria-label="调整方式">
+      <button class="btn" type="button" data-mode="translate" aria-pressed="false">移动</button>
+      <button class="btn" type="button" data-mode="rotate" aria-pressed="true">旋转</button>
+      <button class="btn" type="button" data-mode="scale" aria-pressed="false">缩放</button>
+    </div>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-elbow="A"><span class="form-check-label">肘点 A</span></label>
+    <label class="form-check"><input class="form-check-input" type="checkbox" data-elbow="B"><span class="form-check-label">肘点 B</span></label>
+  </div>
+  <div class="scene" role="group" aria-label="身体和双臂的三维肩点判定；可用下方数值输入完成全部调整">
+    <div class="scene-labels" aria-hidden="true"></div>
+    <span class="scene-note text-small text-muted">拖动圆环旋转 · 拖空白转视角 · 滚轮缩放</span>
+    <div class="load-status text-small" role="status">正在加载 Three.js…</div>
+  </div>
+  <div class="coordinates text-small text-muted">模型坐标 / 单位：像素 · X 向左 / Y 向下 / Z 向后</div>
+  <div class="numeric-controls">
+    <div class="field-row" data-fields="position"><span>位置</span></div>
+    <div class="field-row" data-fields="rotation"><span>旋转 °</span></div>
+    <div class="field-row" data-fields="size"><span>尺寸</span></div>
+  </div>
+  <div class="results tabular-nums" aria-live="polite" aria-atomic="true"></div>
+  <div class="text-small text-muted" data-detail></div>
+</div>
+<style>
+  #bionic-shoulder { display:grid; gap:calc(var(--font-size-base) * .7); min-width:0; }
+  #bionic-shoulder .scene { position:relative; height:390px; width:100%; min-width:0; touch-action:none; }
+  #bionic-shoulder canvas { display:block; width:100%; height:100%; }
+  #bionic-shoulder .scene-labels { position:absolute; inset:0; overflow:hidden; pointer-events:none; }
+  #bionic-shoulder .point-label { position:absolute; white-space:nowrap; color:var(--foreground); text-shadow:0 1px 3px var(--background),0 -1px 3px var(--background); }
+  #bionic-shoulder .scene-note { position:absolute; bottom:0; left:0; pointer-events:none; }
+  #bionic-shoulder .load-status { position:absolute; top:42%; left:5%; right:5%; text-align:center; }
+  #bionic-shoulder .numeric-controls { display:grid; gap:calc(var(--font-size-base) * .45); }
+  #bionic-shoulder .field-row { display:grid; grid-template-columns:4em repeat(3,minmax(0,1fr)); gap:calc(var(--font-size-base) * .5); align-items:center; }
+  #bionic-shoulder .field-row[hidden] { display:none; }
+  #bionic-shoulder .field-row .form-label { min-width:0; }
+  #bionic-shoulder .results { display:grid; gap:calc(var(--font-size-base) * .3); overflow-wrap:anywhere; }
+  #bionic-shoulder .result { display:flex; align-items:baseline; flex-wrap:wrap; column-gap:calc(var(--font-size-base) * .5); }
+  #bionic-shoulder .swatch { display:inline-block; width:.65em; height:.65em; margin-inline-end:.4em; background:var(--viz-series-1); border-radius:50%; }
+  #bionic-shoulder .result[data-arm="B"] .swatch { background:var(--viz-series-2); }
+  @media(max-width:420px) { #bionic-shoulder .scene { height:330px; } #bionic-shoulder .field-row { grid-template-columns:3.2em repeat(3,minmax(0,1fr)); } }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('bionic-shoulder');
+  const status = root.querySelector('.load-status');
+  setTimeout(() => {
+    if (!root.dataset.ready) {
+      status.textContent = 'Three.js 加载失败，请检查网络或 WebGL 支持。';
+      status.setAttribute('role', 'alert');
+    }
+  }, 16000);
+})();
+</script>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+// Source snapshot: the existing WORKTREE, including the user's pending pivot changes.
+// src/main/java/com/nobodiiiii/createbiotech/entity/client/BionicRigBuilder.java:499-540
+// SHA256 c5443a25f3a9129765369b783276578bb1be6f5a4bc800f4a58b147888a26ff9
+// src/main/java/com/nobodiiiii/createbiotech/entity/client/SlimeBionicAnimator.java:449-564
+// SHA256 e3380ee62c14a9b606e1d5df842cefc272215a6cd67d5d0aaa5127b26ce816e8
+// Only geometric pivot selection is simulated. Each arm has an installed shoulder
+// connection to the body. Optional elbow markers supply ALREADY RESOLVED secondaryPivot.
+// No distance gate, contact snapping, animation pose or contact-center substitution.
+
+// BEGIN EXACT GEOMETRY PORT (independent of Three.js and the DOM)
+const EPS = 1.0e-10;
+const PRINCIPAL_AXIS_SHARE = .55;
+const BASIS = [[1, 0, 0], [0, -1, 0], [0, 0, -1]];
+const add = (a,b) => a.map((v,i) => v+b[i]);
+const sub = (a,b) => a.map((v,i) => v-b[i]);
+const mul = (a,s) => a.map(v => v*s);
+const dot = (a,b) => a.reduce((v,x,i) => v+x*b[i],0);
+const len2 = a => dot(a,a);
+const norm = a => { const d=Math.sqrt(len2(a)); return d<1e-4 ? [0,0,0] : mul(a,1/d); };
+const project = (p,i) => dot(p,BASIS[i]);
+function cubeBox(points) {
+  const min=[Number.MAX_VALUE,Number.MAX_VALUE,Number.MAX_VALUE];
+  const max=[-Number.MAX_VALUE,-Number.MAX_VALUE,-Number.MAX_VALUE];
+  let sum=[0,0,0];
+  for (const point of points) {
+    for(let i=0;i<3;i++) { const p=project(point,i); min[i]=Math.min(min[i],p); max[i]=Math.max(max[i],p); }
+    sum=add(sum,point);
+  }
+  return {center:mul(sum,1/points.length),min,max,points};
+}
+function principalAxis(box) {
+  let mean=[0,0,0];
+  for(const point of box.points) mean=add(mean,point);
+  mean=mul(mean,1/box.points.length);
+  let xx=0,xy=0,xz=0,yy=0,yz=0,zz=0;
+  for(const point of box.points) {
+    const [x,y,z]=sub(point,mean);
+    xx+=x*x; xy+=x*y; xz+=x*z; yy+=y*y; yz+=y*z; zz+=z*z;
+  }
+  const trace=xx+yy+zz;
+  if(trace<EPS) return {axis:null,share:0};
+  let seed=0;
+  for(let i=1;i<3;i++) if(box.max[i]-box.min[i]>box.max[seed]-box.min[seed]) seed=i;
+  let axis=BASIS[seed];
+  const matrix=a=>[xx*a[0]+xy*a[1]+xz*a[2],xy*a[0]+yy*a[1]+yz*a[2],xz*a[0]+yz*a[1]+zz*a[2]];
+  for(let i=0;i<16;i++) {
+    const next=matrix(axis);
+    if(len2(next)<EPS) return {axis:null,share:0};
+    axis=norm(next);
+  }
+  const share=dot(axis,matrix(axis))/trace;
+  return {axis:share>=PRINCIPAL_AXIS_SHARE ? axis : null,share};
+}
+function supportRadius(box,axis) {
+  let radius=0;
+  for(const point of box.points) radius=Math.max(radius,Math.abs(dot(sub(point,box.center),axis)));
+  return radius;
+}
+function distanceToSqr(box,point) {
+  let distance=0;
+  for(let i=0;i<3;i++) {
+    const p=project(point,i);
+    const outside=p<box.min[i] ? box.min[i]-p : p>box.max[i] ? p-box.max[i] : 0;
+    distance+=outside*outside;
+  }
+  return distance;
+}
+function surfaceToward(child,target) {
+  let direction=sub(target,child.center);
+  if(len2(direction)<EPS) direction=mul(BASIS[1],-1);
+  let scale=Infinity;
+  for(let i=0;i<3;i++) {
+    const component=project(direction,i);
+    if(Math.abs(component)<=EPS) continue;
+    const boundary=component>0 ? child.max[i] : child.min[i];
+    scale=Math.min(scale,(boundary-project(child.center,i))/component);
+  }
+  return Number.isFinite(scale) ? add(child.center,mul(direction,scale)) : child.center;
+}
+function shoulderPivot(child,parent,secondaryPivot=null) {
+  const {axis:principal,share}=principalAxis(child);
+  const fromSecondary=secondaryPivot===null ? [0,0,0] : sub(child.center,secondaryPivot);
+  if(principal===null) {
+    const useElbow=len2(fromSecondary)>EPS;
+    const target=useElbow ? add(child.center,fromSecondary) : parent.center;
+    return {pivot:surfaceToward(child,target),principal,share,endpoints:[],branch:useElbow?'compact-elbow':'compact-parent'};
+  }
+  const radius=supportRadius(child,principal);
+  const first=add(child.center,mul(principal,radius));
+  const second=sub(child.center,mul(principal,radius));
+  const towardProximalEnd=dot(fromSecondary,principal);
+  const hasDistalEnd=Math.abs(towardProximalEnd)>EPS;
+  const parentAlongAxis=Math.abs(dot(sub(parent.center,child.center),principal));
+  const parentRadius=supportRadius(parent,principal);
+  const meta={principal,share,endpoints:[first,second],parentAlongAxis,parentRadius,towardProximalEnd};
+  if(hasDistalEnd && parentAlongAxis<=parentRadius+EPS)
+    return {...meta,pivot:towardProximalEnd>0?first:second,branch:'side-elbow'};
+  const firstDistance=distanceToSqr(parent,first),secondDistance=distanceToSqr(parent,second);
+  const distances=[firstDistance,secondDistance];
+  if(Math.abs(firstDistance-secondDistance)>EPS)
+    return {...meta,distances,pivot:firstDistance<secondDistance?first:second,branch:'nearest-parent'};
+  if(hasDistalEnd)
+    return {...meta,distances,pivot:towardProximalEnd>0?first:second,branch:'tie-elbow'};
+  return {...meta,distances,pivot:project(first,1)<=project(second,1)?first:second,branch:'tie-upper'};
+}
+// END EXACT GEOMETRY PORT
+
+const root=document.getElementById('bionic-shoulder');
+const stage=root.querySelector('.scene');
+const status=root.querySelector('.load-status');
+const $=s=>root.querySelector(s);
+const reasons={
+  'compact-parent':'无显著主轴 → 朝身体中心取包围盒表面',
+  'compact-elbow':'无显著主轴 → 背离肘点取包围盒表面',
+  'side-elbow':'身体位于主轴侧方 → 取背离肘点的一端',
+  'nearest-parent':'两端距离不同 → 取更靠近身体包围盒的一端',
+  'tie-elbow':'两端等距 → 取背离肘点的一端',
+  'tie-upper':'两端等距且无有效肘方向 → 取模型 Y 较小端，同高取第一端'
+};
+const defaults={
+  selected:'armA',mode:'rotate',elbows:{A:false,B:false},
+  objects:{
+    body:{p:[0,0,0],r:[0,0,0],s:[8,12,4]},
+    armA:{p:[5.255611257746709,.378699580918612,-1.8699297998546802],r:[0,0,0],s:[4,10.35,4]},
+    armB:{p:[-6,0,0],r:[0,0,0],s:[4,12,4]},
+    elbowA:{p:[6,6,0],r:[0,0,0],s:[1,1,1]},
+    elbowB:{p:[-6,6,0],r:[0,0,0],s:[1,1,1]}
+  }
+};
+let selected='armA',mode='rotate',elbows={A:false,B:false};
+let results={},applying=false,saveTimer;
+let renderer;
+try { renderer=new THREE.WebGLRenderer({antialias:true,alpha:true}); }
+catch(error) { status.textContent='无法启用 WebGL：'+error.message; status.setAttribute('role','alert'); throw error; }
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setClearColor(0,0);
+renderer.domElement.setAttribute('role','img');
+renderer.domElement.setAttribute('aria-label','身体、胳膊 A 和胳膊 B，圆球标出按仿生算法计算的肩点');
+stage.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(40,1,.1,1200);
+camera.position.set(16,11,25);
+const orbit=new OrbitControls(camera,renderer.domElement);
+orbit.target.set(0,0,0); orbit.minDistance=8; orbit.maxDistance=350; orbit.update();
+const modelSpace=new THREE.Group();
+// Use an exact half-turn quaternion, avoiding sin(PI)'s residual in the model basis.
+modelSpace.quaternion.set(1,0,0,0);
+scene.add(modelSpace);
+scene.add(new THREE.AmbientLight(0xffffff,2.1));
+const light=new THREE.DirectionalLight(0xffffff,2.1);
+light.position.set(-12,25,32);scene.add(light);
+const geometry=new THREE.BoxGeometry(1,1,1);
+const edgeGeometry=new THREE.EdgesGeometry(geometry);
+const meshes={};
+for(const name of ['body','armA','armB']) {
+  const mesh=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({transparent:true,opacity:name==='body'?.12:.32,roughness:.8,depthWrite:false}));
+  const edges=new THREE.LineSegments(edgeGeometry,new THREE.LineBasicMaterial({transparent:true,opacity:.8}));
+  mesh.add(edges);mesh.userData.name=name;modelSpace.add(mesh);meshes[name]=mesh;
+}
+for(const side of ['A','B']) {
+  const marker=new THREE.Mesh(new THREE.OctahedronGeometry(.34),new THREE.MeshBasicMaterial({depthTest:false}));
+  marker.renderOrder=15;modelSpace.add(marker);meshes['elbow'+side]=marker;
+}
+const transform=new TransformControls(camera,renderer.domElement);
+transform.setSize(.9);scene.add(transform.getHelper());
+const bodyBounds=new THREE.Box3Helper(new THREE.Box3());
+bodyBounds.material.transparent=true;bodyBounds.material.opacity=.3;scene.add(bodyBounds);
+const grid=new THREE.GridHelper(80,40);
+grid.position.y=-8;grid.material.transparent=true;grid.material.opacity=.18;scene.add(grid);
+const overlays={},labels=[];
+function makeLabel(text,kind) {
+  const el=document.createElement('span');el.className='point-label text-small';el.textContent=text;
+  $('.scene-labels').append(el);
+  const item={el,position:new THREE.Vector3(),kind};labels.push(item);return item;
+}
+for(const side of ['A','B']) {
+  const shoulder=new THREE.Mesh(new THREE.SphereGeometry(.30,20,14),new THREE.MeshBasicMaterial({depthTest:false}));
+  shoulder.renderOrder=20;scene.add(shoulder);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.48,.025,6,40),new THREE.MeshBasicMaterial({depthTest:false}));
+  ring.renderOrder=19;scene.add(ring);
+  const axisLine=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({transparent:true,opacity:.62,depthTest:false}));
+  axisLine.renderOrder=12;scene.add(axisLine);
+  const candidates=[0,1].map(()=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.14,12,8),new THREE.MeshBasicMaterial({transparent:true,opacity:.65,depthTest:false}));scene.add(m);return m;});
+  overlays[side]={shoulder,ring,axisLine,candidates,label:makeLabel(side+' 肩点','shoulder'),elbowLabel:makeLabel(side+' 肘点','elbow')};
+}
+const axisOrigin=new THREE.Vector3(-12,-6,0);
+const axes=[];
+for(let i=0;i<3;i++) {
+  const arrow=new THREE.ArrowHelper(new THREE.Vector3(...BASIS[i]),axisOrigin,2.5,0, .45,.22);
+  scene.add(arrow);const label=makeLabel(['X 左','Y 下','Z 后'][i],'axis');label.position.copy(axisOrigin).addScaledVector(new THREE.Vector3(...BASIS[i]),3);axes.push(arrow);
+}
+const inputs={},rotationSliders=[];
+for(const field of ['position','rotation','size']) {
+  inputs[field]=[];
+  for(let i=0;i<3;i++) {
+    const label=document.createElement('label');label.className='form-label';label.append(['X','Y','Z'][i]);
+    const input=document.createElement('input');input.className='form-control';input.type='number';input.step=field==='rotation'?'1':'.25';
+    input.setAttribute('aria-label',({position:'位置',rotation:'旋转角度',size:'尺寸'})[field]+' '+['X','Y','Z'][i]);
+    if(field==='size') input.min='.1';
+    label.append(input);$('[data-fields="'+field+'"]').append(label);inputs[field].push(input);
+    input.addEventListener('input',()=>{
+      if(applying || input.value.trim()==='' || !Number.isFinite(input.valueAsNumber)) return;
+      const value=input.valueAsNumber,mesh=meshes[selected],key=['x','y','z'][i];
+      if(field==='size' && value<.1) {input.setAttribute('aria-invalid','true');return;}
+      input.removeAttribute('aria-invalid');
+      if(field==='position') mesh.position[key]=value;
+      else if(field==='rotation') mesh.rotation[key]=THREE.MathUtils.degToRad(value);
+      else mesh.scale[key]=value;
+      update();scheduleSave();
+    });
+    input.addEventListener('blur',syncInputs);
+    if(field==='rotation') {
+      const slider=document.createElement('input');slider.type='range';slider.className='form-range';
+      slider.min='-180';slider.max='180';slider.step='1';slider.value='0';
+      slider.setAttribute('aria-label','绕 '+['X','Y','Z'][i]+' 轴旋转角度');
+      slider.setAttribute('aria-valuetext','0 度');
+      label.append(slider);rotationSliders.push(slider);
+      slider.addEventListener('input',()=>{
+        meshes[selected].rotation[['x','y','z'][i]]=THREE.MathUtils.degToRad(slider.valueAsNumber);
+        update();scheduleSave();
+      });
+    }
+  }
+}
+for(const side of ['A','B']) {
+  const row=document.createElement('div');row.className='result';row.dataset.arm=side;
+  const value=document.createElement('span');value.className='result-value';
+  const swatch=document.createElement('span');swatch.className='swatch';swatch.setAttribute('aria-hidden','true');
+  const label=document.createElement('span');label.append(swatch,side+' 肩点');
+  const reason=document.createElement('span');reason.className='text-small text-muted result-reason';row.append(label,value,reason);$('.results').append(row);
+}
+function format(n) {return (Math.abs(n)<.0005?0:n).toFixed(2);}
+function modelCoordinate(p) {return BASIS.map((_,i)=>project(p,i));}
+function corners(mesh) {
+  const points=[];
+  for(const x of [-.5,.5])for(const y of [-.5,.5])for(const z of [-.5,.5]) points.push(new THREE.Vector3(x,y,z).applyMatrix4(mesh.matrixWorld).toArray());
+  return cubeBox(points);
+}
+function syncInputs() {
+  applying=true;
+  const mesh=meshes[selected],isElbow=selected.startsWith('elbow');
+  for(const field of ['position','rotation','size']) {
+    $('[data-fields="'+field+'"]').hidden=isElbow&&field!=='position';
+    inputs[field].forEach((input,i)=> {
+      const key=['x','y','z'][i];
+      const value=field==='rotation'?THREE.MathUtils.radToDeg(mesh.rotation[key]):field==='size'?mesh.scale[key]:mesh.position[key];
+      if(document.activeElement!==input) {input.value=String(Number(value.toFixed(3)));input.removeAttribute('aria-invalid');}
+      if(field==='rotation') {
+        const slider=rotationSliders[i];
+        const angle=value>=-180&&value<=180?value:((value+180)%360+360)%360-180;
+        if(document.activeElement!==slider)slider.value=String(angle);
+        slider.setAttribute('aria-valuetext',Number(value.toFixed(1))+' 度');
+      }
+    });
+  }
+  applying=false;
+}
+function selectObject(name) {
+  selected=name;$('[data-object]').value=selected;
+  if(selected.startsWith('elbow') && mode!=='translate') setMode('translate');
+  transform.attach(meshes[selected]);
+  for(const button of root.querySelectorAll('[data-mode]'))button.disabled=selected.startsWith('elbow')&&button.dataset.mode!=='translate';
+  syncInputs();update();
+}
+function setMode(next) {
+  mode=next;transform.setMode(mode);transform.setSpace(mode==='translate'?'world':'local');
+  for(const button of root.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
+  $('.scene-note').textContent=({translate:'拖动坐标轴移动',rotate:'拖动圆环旋转',scale:'拖动轴端缩放'})[mode]+' · 拖空白转视角 · 滚轮缩放';
+}
+function update() {
+  modelSpace.updateMatrixWorld(true);
+  const body=corners(meshes.body);
+  bodyBounds.box.setFromPoints(body.points.map(p=>new THREE.Vector3(...p)));
+  const boxes=[body];
+  for(const side of ['A','B']) {
+    const box=corners(meshes['arm'+side]);boxes.push(box);
+    const elbow=elbows[side]?meshes['elbow'+side].getWorldPosition(new THREE.Vector3()).toArray():null;
+    const result=shoulderPivot(box,body,elbow);results[side]=result;
+    const overlay=overlays[side];
+    overlay.shoulder.position.fromArray(result.pivot);overlay.ring.position.copy(overlay.shoulder.position);
+    overlay.label.position.copy(overlay.shoulder.position);
+    overlay.label.el.textContent=side+' 肩点';
+    overlay.elbowLabel.el.hidden=!elbows[side];
+    if(elbow)overlay.elbowLabel.position.fromArray(elbow);
+    meshes['elbow'+side].visible=elbows[side];
+    const active=selected==='arm'+side||selected==='elbow'+side;
+    overlay.axisLine.visible=active&&result.principal!==null;
+    if(overlay.axisLine.visible) {
+      overlay.axisLine.geometry.dispose();overlay.axisLine.geometry=new THREE.BufferGeometry().setFromPoints(result.endpoints.map(p=>new THREE.Vector3(...p)));
+    }
+    overlay.candidates.forEach((mesh,i)=>{mesh.visible=active&&!!result.endpoints[i];if(result.endpoints[i])mesh.position.fromArray(result.endpoints[i]);});
+    const coordinates=modelCoordinate(result.pivot).map(format).join(', ');
+    const row=$('.result[data-arm="'+side+'"]');row.querySelector('.result-value').textContent='('+coordinates+')';row.querySelector('.result-reason').textContent=reasons[result.branch];
+  }
+  const all=boxes.flatMap(b=>b.points);grid.position.y=Math.min(...all.map(p=>p[1]))-1.5;
+  const side=selected.endsWith('B')?'B':'A',r=results[side];
+  let detail='已安装肩关节 · '+side+' 主轴占比 '+(r.share*100).toFixed(1)+'% / 阈值 55%';
+  if(r.distances)detail+=' · 两端到身体包围盒的距离 '+r.distances.map(d=>format(Math.sqrt(d))).join(' / ');
+  else if(r.branch==='side-elbow')detail+=' · 身体轴向偏移 '+format(r.parentAlongAxis)+' ≤ 半径 '+format(r.parentRadius);
+  if(selected==='body')detail='已安装肩关节 · 距离计算使用身体在模型坐标中的轴对齐包围盒';
+  $('[data-detail]').textContent=detail;
+  syncInputs();render();
+}
+function layoutLabels() {
+  const width=stage.clientWidth,height=stage.clientHeight,placed=[];
+  for(const item of labels) {
+    if(item.el.hidden)continue;
+    const p=item.position.clone().project(camera);
+    if(p.z>1||p.z< -1) {item.el.style.visibility='hidden';continue;}
+    item.el.style.visibility='visible';
+    const w=item.el.offsetWidth,h=item.el.offsetHeight;
+    let x=Math.max(0,Math.min(width-w,(p.x+1)*width/2+9));
+    let y=Math.max(0,Math.min(height-h-18,(-p.y+1)*height/2-h-5));
+    for(let attempt=0;attempt<6;attempt++) {
+      const overlap=placed.some(b=>x<b.x+b.w+4&&x+w+4>b.x&&y<b.y+b.h+3&&y+h+3>b.y);
+      if(!overlap)break;
+      y=y+h+4<height-h-18?y+h+4:Math.max(0,y-h-4);
+    }
+    item.el.style.left=x+'px';item.el.style.top=y+'px';placed.push({x,y,w,h});
+  }
+}
+function render() {
+  for(const side of ['A','B'])overlays[side].ring.quaternion.copy(camera.quaternion);
+  renderer.render(scene,camera);layoutLabels();
+}
+function resize() {
+  const width=stage.clientWidth,height=stage.clientHeight;
+  if(!width||!height)return;
+  renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();render();
+}
+function resolveColor(variable) {
+  const probe=document.createElement('span');probe.style.color='var('+variable+')';root.append(probe);
+  const color=getComputedStyle(probe).color;probe.remove();
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=1;
+  const context=canvas.getContext('2d',{willReadFrequently:true});context.fillStyle=color;context.fillRect(0,0,1,1);
+  const rgb=context.getImageData(0,0,1,1).data;
+  return new THREE.Color().setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255,THREE.SRGBColorSpace);
+}
+function theme() {
+  const neutral=resolveColor('--muted-foreground');
+  const series={A:resolveColor('--viz-series-1'),B:resolveColor('--viz-series-2')};
+  meshes.body.material.color.copy(neutral);meshes.body.children[0].material.color.copy(neutral);
+  for(const side of ['A','B']) {
+    const c=series[side],overlay=overlays[side];
+    meshes['arm'+side].material.color.copy(c);meshes['arm'+side].children[0].material.color.copy(c);
+    meshes['elbow'+side].material.color.copy(c);overlay.shoulder.material.color.copy(c);overlay.ring.material.color.copy(c);
+    overlay.axisLine.material.color.copy(neutral);overlay.candidates.forEach(m=>m.material.color.copy(neutral));
+  }
+  grid.material.color.copy(neutral);bodyBounds.material.color.copy(neutral);axes.forEach(a=>a.setColor(neutral));render();
+}
+function snapshot() {
+  const objects={};
+  for(const [name,mesh]of Object.entries(meshes)) objects[name]={p:mesh.position.toArray(),r:[mesh.rotation.x,mesh.rotation.y,mesh.rotation.z].map(THREE.MathUtils.radToDeg),s:mesh.scale.toArray()};
+  return {version:2,selected,mode,elbows:{...elbows},objects,camera:camera.position.toArray(),target:orbit.target.toArray()};
+}
+function scheduleSave() {
+  clearTimeout(saveTimer);saveTimer=setTimeout(()=>{
+    const state=snapshot();
+    const modelContent={selected,mode,arms:Object.fromEntries(['A','B'].map(s=>[s,{...state.objects['arm'+s],elbow:elbows[s]?state.objects['elbow'+s].p:null,shoulder:modelCoordinate(results[s].pivot),branch:results[s].branch}])),body:state.objects.body};
+    window.openai?.setWidgetState?.({modelContent,privateContent:state})?.catch(()=>{});
+  },220);
+}
+function applyState(saved) {
+  const source=saved&&[1,2].includes(saved.version)?saved:defaults;
+  for(const [name,mesh] of Object.entries(meshes)) {
+    const item=source.objects?.[name]||defaults.objects[name];
+    const valid=(value,fallback,positive=false)=>Array.isArray(value)&&value.length===3&&value.every(v=>Number.isFinite(v)&&(!positive||v>=.1))?value:fallback;
+    mesh.position.fromArray(valid(item.p,defaults.objects[name].p));
+    const rotation=valid(item.r,defaults.objects[name].r);mesh.rotation.set(...rotation.map(THREE.MathUtils.degToRad));
+    mesh.scale.fromArray(valid(item.s,defaults.objects[name].s,true));
+  }
+  elbows={A:!!source.elbows?.A,B:!!source.elbows?.B};
+  for(const side of ['A','B']) {$('[data-elbow="'+side+'"]').checked=elbows[side];$('[data-object] option[value="elbow'+side+'"]').disabled=!elbows[side];}
+  let choice=source.selected in meshes?source.selected:'armA';
+  if(choice.startsWith('elbow')&&!elbows[choice.slice(-1)])choice='arm'+choice.slice(-1);
+  setMode(source.version===1?'rotate':['translate','rotate','scale'].includes(source.mode)?source.mode:'rotate');
+  if(Array.isArray(source.camera)&&source.camera.length===3&&source.camera.every(Number.isFinite))camera.position.fromArray(source.camera);
+  if(Array.isArray(source.target)&&source.target.length===3&&source.target.every(Number.isFinite))orbit.target.fromArray(source.target);
+  orbit.update();selectObject(choice);
+}
+$('[data-object]').addEventListener('change',e=>{selectObject(e.target.value);scheduleSave();});
+for(const button of root.querySelectorAll('[data-mode]'))button.addEventListener('click',()=>{setMode(button.dataset.mode);render();scheduleSave();});
+for(const side of ['A','B'])$('[data-elbow="'+side+'"]').addEventListener('change',e=>{
+  elbows[side]=e.target.checked;
+  $('[data-object] option[value="elbow'+side+'"]').disabled=!elbows[side];
+  if(elbows[side]) {
+    // Initialize only when enabled; once supplied the elbow is an independent input.
+    meshes['arm'+side].updateMatrix();const local=new THREE.Vector3(0,.5,0).applyMatrix4(meshes['arm'+side].matrix);meshes['elbow'+side].position.copy(local);
+    selectObject('elbow'+side);
+  } else if(selected==='elbow'+side)selectObject('arm'+side);
+  update();scheduleSave();
+});
+transform.addEventListener('dragging-changed',e=>{orbit.enabled=!e.value;if(!e.value)scheduleSave();});
+transform.addEventListener('change',render);
+transform.addEventListener('objectChange',()=>{
+  const mesh=meshes[selected];
+  mesh.scale.set(Math.max(.1,mesh.scale.x),Math.max(.1,mesh.scale.y),Math.max(.1,mesh.scale.z));
+  update();scheduleSave();
+});
+orbit.addEventListener('change',render);orbit.addEventListener('end',scheduleSave);
+let pointerStart=null;
+renderer.domElement.addEventListener('pointerdown',e=>{pointerStart={x:e.clientX,y:e.clientY,wasGizmo:!!transform.axis};});
+renderer.domElement.addEventListener('pointerup',e=>{
+  if(!pointerStart||pointerStart.wasGizmo||Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>4)return;
+  const rect=renderer.domElement.getBoundingClientRect(),pointer=new THREE.Vector2((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
+  const ray=new THREE.Raycaster();ray.setFromCamera(pointer,camera);
+  const pickable=Object.values(meshes).filter(m=>m.visible);const hit=ray.intersectObjects(pickable,false)[0];
+  if(hit){selectObject(Object.keys(meshes).find(name=>meshes[name]===hit.object));scheduleSave();}
+});
+window.addEventListener('openai:set_globals',e=>{if(e.detail?.globals?.widgetState)applyState(e.detail.globals.widgetState.privateContent);});
+const resizeObserver=new ResizeObserver(resize);resizeObserver.observe(stage);
+const themeObserver=new MutationObserver(theme);
+themeObserver.observe(document.documentElement,{attributes:true,attributeFilter:['class','style','data-theme']});
+if(document.body)themeObserver.observe(document.body,{attributes:true,attributeFilter:['class','style','data-theme']});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',theme);
+applyState(window.openai?.widgetState?.privateContent);theme();resize();
+status.hidden=true;root.dataset.ready='true';
+</script>

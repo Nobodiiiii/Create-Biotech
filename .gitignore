@@ -26,3 +26,5 @@ ref/
 src/generated/resources/.cache/
 
 video-scripts/
+
+__pycache__/

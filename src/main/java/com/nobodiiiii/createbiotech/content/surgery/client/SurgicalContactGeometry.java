@@ -111,32 +111,35 @@ final class SurgicalContactGeometry {
 		return List.copyOf(edges);
 	}
 
-	/** True only for a real shared convex solid or face, without the seam builder's adjacency tolerance. */
+	/** Accepts real solid, face, edge or point contact without the seam builder's adjacency tolerance. */
 	static boolean cubesActuallyIntersect(SurgicalModelRenderContext.CubeGeometry firstGeometry,
 		SurgicalModelRenderContext.CubeGeometry secondGeometry) {
-		if (firstGeometry == null || secondGeometry == null)
-			return false;
-		SurgicalClientTopology.PreparedCube first = SurgicalClientTopology.PreparedCube.of(firstGeometry);
-		SurgicalClientTopology.PreparedCube second = SurgicalClientTopology.PreparedCube.of(secondGeometry);
-		if (!first.bounds().overlapsWithin(second.bounds(), SurgicalClientTopology.POLYHEDRON_EPSILON))
-			return false;
-		List<SurgicalClientTopology.Plane> intersectionPlanes = new ArrayList<>(first.planes().size() + second.planes().size());
-		intersectionPlanes.addAll(first.planes());
-		intersectionPlanes.addAll(second.planes());
-		return !convexIntersectionFaces(intersectionPlanes).isEmpty();
+		return cubesIntersect(firstGeometry, secondGeometry, 0.0d);
 	}
 
-	/** Uses the same overlap and planar adjacency tolerance as automatic seam discovery. */
+	/** Uses seam discovery's adjacency tolerance without requiring a drawable contact polygon. */
 	static boolean cubesConnectWithinTolerance(
 		SurgicalModelRenderContext.CubeGeometry firstGeometry,
 		SurgicalModelRenderContext.CubeGeometry secondGeometry) {
+		return cubesIntersect(firstGeometry, secondGeometry, SurgicalClientTopology.CONTACT_TOLERANCE);
+	}
+
+	private static boolean cubesIntersect(SurgicalModelRenderContext.CubeGeometry firstGeometry,
+		SurgicalModelRenderContext.CubeGeometry secondGeometry, double tolerance) {
 		if (firstGeometry == null || secondGeometry == null)
 			return false;
 		SurgicalClientTopology.PreparedCube first = SurgicalClientTopology.PreparedCube.of(firstGeometry);
 		SurgicalClientTopology.PreparedCube second = SurgicalClientTopology.PreparedCube.of(secondGeometry);
+		if (!first.bounds().overlapsWithin(second.bounds(), tolerance + SurgicalClientTopology.POLYHEDRON_EPSILON))
+			return false;
 		SurgicalClientTopology.PreparedCube smaller = first.volume() <= second.volume() ? first : second;
 		SurgicalClientTopology.PreparedCube other = smaller == first ? second : first;
-		return !contactFaces(smaller, other).isEmpty();
+		List<SurgicalClientTopology.Plane> planes = new ArrayList<>(smaller.planes());
+		for (SurgicalClientTopology.Plane plane : other.planes())
+			planes.add(new SurgicalClientTopology.Plane(plane.normal(), plane.maximum() + tolerance));
+		// A line or single vertex is enough to retain a connection. Polygon extraction intentionally
+		// drops these zero-area intersections and is only appropriate when drawing the contact itself.
+		return !convexIntersectionVertices(planes).isEmpty();
 	}
 
 	@Nullable
@@ -153,7 +156,7 @@ final class SurgicalContactGeometry {
 		return faces.isEmpty() ? null : new SurgicalClientTopology.Contact(seam, smaller.geometry().cubeId(), faces);
 	}
 
-	/** Shared by seam discovery and smart-glue editing so both accept the same contact boundary. */
+	/** Drawable contact polygons for seam discovery and highlighting; zero-area contacts have no face. */
 	static List<List<Vec3>> contactFaces(SurgicalClientTopology.PreparedCube smaller, SurgicalClientTopology.PreparedCube other) {
 		if (!smaller.bounds().overlapsWithin(other.bounds(), SurgicalClientTopology.CONTACT_TOLERANCE))
 			return List.of();

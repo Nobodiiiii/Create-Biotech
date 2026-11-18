@@ -418,7 +418,7 @@ final class SurgicalGlueOperations {
 		SurgicalTableBlockEntity.ComponentGroup moving = SurgicalTableConnections.connectedGroup(operationOwner, first, firstCubeId);
 		SurgicalTableBlockEntity.ComponentGroup anchored = SurgicalTableConnections.connectedGroup(operationOwner, second, secondCubeId);
 		Map<UUID, SurgicalTableBlockEntity.ValidatedGlueMove> validated = SurgicalGlueOperations.validateGlueMoves(operationOwner, moving, anchored, moves, plane,
-			allowEditedTransforms);
+			targetPose, allowEditedTransforms);
 		Map<UUID, Map<Integer, Vec3>> validatedAnchors = SurgicalGlueOperations.validateGlueAnchors(operationOwner, anchored, anchorMoves);
 		if (moving.intersects(anchored) || validated == null || validatedAnchors == null)
 			return null;
@@ -428,7 +428,7 @@ final class SurgicalGlueOperations {
 	static @Nullable
 	Map<UUID, SurgicalTableBlockEntity.ValidatedGlueMove> validateGlueMoves(SurgicalTableBlockEntity operationOwner, SurgicalTableBlockEntity.ComponentGroup moving, SurgicalTableBlockEntity.ComponentGroup anchored,
 		List<SurgicalTableGluePacket.Move> moves, SurgicalTablePlane.Plane plane,
-		boolean allowPerCubeOffsets) {
+		SurgicalLayPose targetPose, boolean allowPerCubeOffsets) {
 		if (moves == null || moves.size() != moving.components().size())
 			return null;
 		int requiredSplits = 0;
@@ -453,7 +453,7 @@ final class SurgicalGlueOperations {
 			if (offsets.size() != selected.cardinality()
 				|| !SurgicalGlueOperations.layoutMatchesTranslations(move.layout(), offsets)
 				|| !permitPerCubeOffsets && !SurgicalGlueOperations.componentYTranslationsMatch(subject, selected, offsets)
-				|| !SurgicalGlueOperations.componentRotationsMatch(subject, selected, rotations)
+				|| !SurgicalGlueOperations.componentRotationsMatch(subject, selected, rotations, targetPose)
 				|| !(permitPerCubeOffsets
 					? SurgicalTableLayout.validateEditedGlueComponents(plane, subject.cubeCount, selected,
 						subject.seams, subject.cutSeams, move.layout(), obstacles)
@@ -569,14 +569,27 @@ final class SurgicalGlueOperations {
 		return false;
 	}
 
+	/** Glue moves each native component rigidly while preserving its existing per-cube orientations. */
 	static boolean componentRotationsMatch(SurgicalSubject subject, BitSet selected,
-		Map<Integer, SurgicalCubeRotation> rotations) {
+		Map<Integer, SurgicalCubeRotation> rotations, SurgicalLayPose targetPose) {
 		for (BitSet component : SurgicalAssembly.components(subject.cubeCount, selected,
 			subject.seams, subject.cutSeams)) {
-			SurgicalCubeRotation expected = rotations.get(component.nextSetBit(0));
-			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1))
-				if (expected == null || !expected.approximatelyEquals(rotations.get(cube), 1.0e-6d))
+			int root = component.nextSetBit(0);
+			SurgicalCubeRotation proposedRoot = rotations.get(root);
+			if (proposedRoot == null)
+				return false;
+			SurgicalCubeRotation storedRoot = subject.componentRotations
+				.getOrDefault(root, SurgicalCubeRotation.IDENTITY).reframe(subject.layPose, targetPose);
+			SurgicalCubeRotation inverseRoot = new SurgicalCubeRotation(
+				-storedRoot.x(), -storedRoot.y(), -storedRoot.z(), storedRoot.w());
+			SurgicalCubeRotation delta = inverseRoot.then(proposedRoot);
+			for (int cube = root; cube >= 0; cube = component.nextSetBit(cube + 1)) {
+				SurgicalCubeRotation expected = subject.componentRotations
+					.getOrDefault(cube, SurgicalCubeRotation.IDENTITY)
+					.reframe(subject.layPose, targetPose).then(delta);
+				if (!expected.approximatelyEquals(rotations.get(cube), 1.0e-6d))
 					return false;
+			}
 		}
 		return true;
 	}

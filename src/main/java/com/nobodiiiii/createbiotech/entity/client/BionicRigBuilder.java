@@ -489,11 +489,9 @@ final class BionicRigBuilder {
 	/**
 	 * Places the hinge on the appropriate end of the rotating child.
 	 *
-	 * <p>Elongated parts use their principal geometric axis, so the calculation follows an arm or leg
-	 * after the player lays it flat or points it upward. Cube-like parts use the surface reached by a
-	 * ray toward the parent, which is the stable choice for heads and other compact pieces. When a
-	 * flush side contact makes both elongated-part ends equally close to the parent, the end farther
-	 * from its elbow or knee wins; without that secondary joint, the upper end wins.</p>
+	 * <p>An elbow or knee gives a compact upper limb its lengthwise direction. For an elongated limb
+	 * mounted beside the parent, the secondary joint identifies the distal end even when the parent's
+	 * bounds happen to reach closer to it. End-mounted limbs use the end nearest the parent.</p>
 	 */
 	static Vec3 pivot(SurgicalLimbType type, SlimeBionicAnimator.CubeBox child, SlimeBionicAnimator.CubeBox parent,
 		@Nullable Vec3 secondaryPivot) {
@@ -502,23 +500,29 @@ final class BionicRigBuilder {
 		if (type == SurgicalLimbType.NECK)
 			return child.contactCenter(parent, SlimeBionicAnimator.BODY_SPACE);
 		Vec3 principal = child.principalAxis(SlimeBionicAnimator.BODY_SPACE);
-		if (principal == null)
-			return child.surfaceToward(parent.center(), type, SlimeBionicAnimator.BODY_SPACE);
+		Vec3 fromSecondary = secondaryPivot == null ? Vec3.ZERO : child.center().subtract(secondaryPivot);
+		if (principal == null) {
+			Vec3 target = fromSecondary.lengthSqr() > SlimeBionicAnimator.GEOMETRY_EPSILON
+				? child.center().add(fromSecondary) : parent.center();
+			return child.surfaceToward(target, type, SlimeBionicAnimator.BODY_SPACE);
+		}
 
 		double radius = child.supportRadius(principal);
 		Vec3 first = child.center().add(principal.scale(radius));
 		Vec3 second = child.center().subtract(principal.scale(radius));
+		double towardProximalEnd = fromSecondary.dot(principal);
+		boolean hasDistalEnd = Math.abs(towardProximalEnd) > SlimeBionicAnimator.GEOMETRY_EPSILON;
+		double parentAlongAxis = Math.abs(parent.center().subtract(child.center()).dot(principal));
+		if (hasDistalEnd && parentAlongAxis <= parent.supportRadius(principal) + SlimeBionicAnimator.GEOMETRY_EPSILON)
+			return towardProximalEnd > 0.0d ? first : second;
+
 		double firstDistance = parent.distanceToSqr(first, SlimeBionicAnimator.BODY_SPACE);
 		double secondDistance = parent.distanceToSqr(second, SlimeBionicAnimator.BODY_SPACE);
 		if (Math.abs(firstDistance - secondDistance) > SlimeBionicAnimator.GEOMETRY_EPSILON)
 			return firstDistance < secondDistance ? first : second;
 
-		if (secondaryPivot != null) {
-			double firstSecondaryDistance = first.distanceToSqr(secondaryPivot);
-			double secondSecondaryDistance = second.distanceToSqr(secondaryPivot);
-			if (Math.abs(firstSecondaryDistance - secondSecondaryDistance) > SlimeBionicAnimator.GEOMETRY_EPSILON)
-				return firstSecondaryDistance > secondSecondaryDistance ? first : second;
-		}
+		if (hasDistalEnd)
+			return towardProximalEnd > 0.0d ? first : second;
 
 		// BODY_SPACE Y follows model-space Y and therefore increases downward.
 		double firstY = SlimeBionicAnimator.BODY_SPACE.project(first, SlimeBionicAnimator.AXIS_Y);

@@ -60,13 +60,13 @@ public final class SurgicalClientTopology {
 		return SurgicalContactGeometry.intersectionEdges(first, second);
 	}
 
-	/** True only for a real shared convex solid or face, without the seam builder's adjacency tolerance. */
+	/** Accepts real solid, face, edge or point contact without the seam builder's adjacency tolerance. */
 	public static boolean cubesActuallyIntersect(SurgicalModelRenderContext.CubeGeometry firstGeometry,
 		SurgicalModelRenderContext.CubeGeometry secondGeometry) {
 		return SurgicalContactGeometry.cubesActuallyIntersect(firstGeometry, secondGeometry);
 	}
 
-	/** Uses the same overlap and planar adjacency tolerance as automatic seam discovery. */
+	/** Uses seam discovery's adjacency tolerance without requiring a drawable contact polygon. */
 	public static boolean cubesConnectWithinTolerance(
 		SurgicalModelRenderContext.CubeGeometry firstGeometry,
 		SurgicalModelRenderContext.CubeGeometry secondGeometry) {

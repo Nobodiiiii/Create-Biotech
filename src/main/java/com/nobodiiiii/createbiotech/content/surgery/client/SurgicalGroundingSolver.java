@@ -219,11 +219,14 @@ final class SurgicalGroundingSolver {
 		List<SurgicalTableLayout.Footprint> footprints = new ArrayList<>(presentCubes.cardinality());
 		for (BitSet component : components) {
 			int root = component.nextSetBit(0);
-			SurgicalClientTopology.Bounds bounds = SurgicalClientTopology.unionBounds(component, baseBounds, plannedOffsets);
-			if (bounds == null || !SurgicalPlacementSearch.fits(workArea, bounds))
-				return null;
 			SurgicalClientTopology.GridCell cell = snapped.get(root);
-			footprints.addAll(SurgicalClientTopology.footprints(root, component, baseBounds, plannedOffsets, cell));
+			List<SurgicalTableLayout.Footprint> componentFootprints =
+				SurgicalClientTopology.footprints(root, component, baseBounds, plannedOffsets, cell);
+			// Match wrench and server validation: empty space between cubes does not occupy table tiles.
+			for (SurgicalTableLayout.Footprint footprint : componentFootprints)
+				if (!workArea.contains(footprint.minX(), footprint.minZ(), footprint.maxX(), footprint.maxZ(), 1.0e-6d))
+					return null;
+			footprints.addAll(componentFootprints);
 		}
 		if (!allowComponentOverlap)
 			for (int first = 0; first < footprints.size(); first++)

@@ -27,7 +27,7 @@ import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.gameevent.GameEvent;
 
-/** A reusable snapshot of a single mimic, including its saved anatomy and equipment. */
+/** A reusable snapshot of a single mimic or bionic body, including its saved anatomy and equipment. */
 public class GreenprintItem extends Item {
 
 	private static final String ENTITY_DATA = "MimicEntity";
@@ -48,8 +48,7 @@ public class GreenprintItem extends Item {
 			return InteractionResult.PASS;
 		if (player.isShiftKeyDown())
 			return clearBinding(stack, player);
-		if (target instanceof Player || !target.isAlive()
-			|| !SlimeMimicHandler.isSlimeMimic(target))
+		if (!target.isAlive() || !isSupportedEntity(target))
 			return InteractionResult.PASS;
 		// A bound greenprint keeps its snapshot until the player explicitly clears it.
 		if (recordedEntity(stack) != null)
@@ -107,7 +106,7 @@ public class GreenprintItem extends Item {
 		prepareCopy(entityData);
 		// Loading the saved entity avoids spawn finalization rerolling its variants or equipment.
 		Entity copy = EntityType.loadEntityRecursive(entityData, serverLevel, entity -> entity);
-		if (!(copy instanceof LivingEntity living) || !SlimeMimicHandler.isSlimeMimic(living))
+		if (!(copy instanceof LivingEntity living) || !isSupportedEntity(living))
 			return failedPlacement(player);
 		// Some entity loaders resize their body after loading health; restore it after the full load.
 		if (entityData.contains("Health", Tag.TAG_ANY_NUMERIC))
@@ -166,8 +165,7 @@ public class GreenprintItem extends Item {
 		String team = snapshot.getString("Team");
 		snapshot.remove("Team");
 		Entity copy = EntityType.loadEntityRecursive(snapshot, level, entity -> entity);
-		if (!(copy instanceof LivingEntity living) || !living.isAlive() || !SlimeMimicHandler.isSlimeMimic(living)
-			|| living instanceof SlimeBionicEntity bionic && bionic.getAssembly() == null)
+		if (!(copy instanceof LivingEntity living) || !living.isAlive() || !isSupportedEntity(living))
 			return null;
 		// Serialize through the entity so migrated surgical assemblies are stored in their current format.
 		CompoundTag current = new CompoundTag();
@@ -181,6 +179,14 @@ public class GreenprintItem extends Item {
 		ItemStack bound = blank.copy();
 		CBItemData.edit(bound, data -> data.put(ENTITY_DATA, current));
 		return bound;
+	}
+
+	private static boolean isSupportedEntity(LivingEntity entity) {
+		if (entity instanceof Player)
+			return false;
+		// Curing changes a bionic body's mimic flag, but preserves its assembly and source form.
+		return entity instanceof SlimeBionicEntity bionic
+			? bionic.getAssembly() != null : SlimeMimicHandler.isSlimeMimic(entity);
 	}
 
 	private static void prepareCopy(CompoundTag data) {

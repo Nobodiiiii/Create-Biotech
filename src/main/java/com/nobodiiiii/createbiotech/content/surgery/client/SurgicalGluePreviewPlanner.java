@@ -515,10 +515,8 @@ final class SurgicalGluePreviewPlanner {
 			return SurgicalTableFailure.OPERATION_FAILED;
 		Map<Integer, SurgicalModelRenderContext.CubeGeometry> indexed = indexCubes(rotatedBase);
 		List<SurgicalTableLayout.Footprint> footprints = new ArrayList<>();
-		List<SurgicalTableLayout.Footprint> envelopes = new ArrayList<>();
 		for (BitSet component : components) {
 			int root = component.nextSetBit(0);
-			AABB envelope = null;
 			for (int cube = root; cube >= 0; cube = component.nextSetBit(cube + 1)) {
 				SurgicalModelRenderContext.CubeGeometry geometry = indexed.get(cube);
 				Vec3 offset = offsets.get(cube);
@@ -526,15 +524,11 @@ final class SurgicalGluePreviewPlanner {
 					|| !Double.isFinite(offset.y) || !Double.isFinite(offset.z))
 					return SurgicalTableFailure.OPERATION_FAILED;
 				AABB bounds = cubeBounds(geometry).move(offset);
-				envelope = envelope == null ? bounds : envelope.minmax(bounds);
 				footprints.add(new SurgicalTableLayout.Footprint(root, bounds.minX, bounds.minZ,
 					bounds.maxX, bounds.maxZ, SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
 			}
-			envelopes.add(new SurgicalTableLayout.Footprint(root, envelope.minX, envelope.minZ,
-				envelope.maxX, envelope.maxZ, SurgicalTableLayout.UNSNAPPED, SurgicalTableLayout.UNSNAPPED));
 		}
-		return SurgicalTableLayout.lacksSpace(area, envelopes, List.of())
-			|| SurgicalTableLayout.lacksSpace(area, footprints, obstacles)
+		return SurgicalTableLayout.lacksSpace(area, footprints, obstacles)
 			? SurgicalTableFailure.NO_SPACE : SurgicalTableFailure.OPERATION_FAILED;
 	}
 
