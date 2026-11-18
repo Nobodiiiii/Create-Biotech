@@ -1,0 +1,5 @@
+{
+  "variants": {
+    "": { "model": "create_biotech:block/greenprint_table" }
+  }
+}

@@ -109,3 +109,19 @@ python ..\ponderer\sync_biotech.py --skip-instance
 `ButterCatEngineEffects` 提供初始化、添加黄油并提高转速、添加超级黄油三个 Java 步骤。普通实体、操作提示、方块切换、仪表数值和提示特效仍是可编辑的数据调用；扩展仅保留基座设置、原有 `addButterCount` / `setInfinite` 调用和 Create 转速更新。累计次数放在每次场景构建独立的 `StepBuildContext.state` 中，重播和关键帧重建不会继承上次计数。
 
 该场景通过本项目 `libs/` 中的真实思索者导出器生成，清单与索引由导出流程更新。新版索引在插件构造时调用 `prepare()`，因此旧的 19 个场景同步补上预加载入口，原有场景数据调用保持不变。迁移前备份位于 `build/ponder-butter-cat/before.zip` 和 `prepare-hooks-before.zip`。
+
+## 手术台前三节的演示实现
+
+`GeneratedSurgicalTable_7431e38e` 保持 `placing`、`recombining`、`joints` 三个稳定章节 ID；原有大纲及中英文字幕资源保持原文。后续章节继续由作者补充。
+
+底板直接收录思索者自带的 XL 模板 `basic_xl`（9×9），与 `../ponderer/Common/src/main/resources/data/ponderer/default_structures/basic_xl.nbt` 字节一致。`tools/generate_surgical_ponder_structure.py` 仅导入该原生模板，台面的放置和分段显示由可编辑 `JavaScene` 步骤完成。僵尸、铁傀儡、掠夺者分别放在台面左、中、右侧；铁傀儡手臂竖直连接躯干，掠夺者双腿接在僵尸双腿下方，最后分别安装膝关节。
+
+红石外观演示之后始终使用供体原生外观。成品使用实际 `SlimeBionicEntity` 的移动控制器、跳跃控制器、地面碰撞和 `SlimeBionicAnimator`，仅由演示提供往返目标点及攻击触发时机。客户端预览的生命、移速、攻击属性使用与服务器相同的校准函数；不再通过渲染时的正弦平移模拟行走或跳跃。
+
+`SurgicalPonderInterfaces` 通过 Lib 的 `InterfaceHost.openPanel` 承载真实 `SurgicalKitRadialScreen` 和纸箱属性子界面，并通过独立沙盒派发绘制与操作。`META-INF/pondererlib.features.properties` 必须包含 `interfaces`，使启动时装载界面沙盒所需能力。轮盘子界面只显示中心 144×144 区域；纸箱子界面只显示物品和基础属性核心区域。所有模型、子界面和动画状态都随场景回放重建，不修改玩家的物品或真实屏幕。
+
+依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
+
+`create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤：`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算部件包围盒并自行绘制轮廓，不调用 Ponder 现有高亮指令；剪切、移动、粘合、成品行走和转身都使用当前模型位置。成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`，释放时同步初始化身体与头部朝向。
+
+高亮线段使用 `POSITION_COLOR` / `DEBUG_LINES`、`LEQUAL` 深度测试、无深度偏移、当前场景渲染目标，并只写颜色；通过 `SuperRenderTypeBuffer.getLateBuffer` 在场景几何之后绘制。不要换回 `RenderType.lines()`：原版 `rendertype_lines.vsh` 自带 `VIEW_SHRINK`，在 Ponder 的 GUI 投影下会把后方轮廓拉到前方，造成遮挡错误。

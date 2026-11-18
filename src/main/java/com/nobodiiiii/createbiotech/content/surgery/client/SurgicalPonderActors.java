@@ -11,19 +11,27 @@ import java.util.Objects;
 import java.util.UUID;
 
 import org.joml.Quaternionf;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
+import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
+import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.createmod.ponder.api.element.PonderSceneElement;
@@ -37,17 +45,26 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.level.Level;
+import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /** Scene-owned surgery models. No world subjects, packets, save formats or global preview entities are edited. */
 public final class SurgicalPonderActors extends PonderElementBase implements PonderSceneElement {
-    public static final Vec3 ZOMBIE_POSITION = new Vec3(3.5, 2, 4.5);
-    public static final Vec3 GOLEM_POSITION = new Vec3(7, 2, 4.5);
-    public static final Vec3 RESULT_POSITION = new Vec3(5, 1, 9);
+    public static final Vec3 ZOMBIE_POSITION = new Vec3(2, 2, 3);
+    public static final Vec3 GOLEM_POSITION = new Vec3(4.5, 2, 3);
+    public static final Vec3 PILLAGER_POSITION = new Vec3(7, 2, 3);
+    public static final Vec3 RESULT_POSITION = new Vec3(4.5, 1, 7);
     private static final SurgicalLayPose FLAT = new SurgicalLayPose(SurgicalLayPose.RotationAxis.X, 0, Vec3.ZERO);
     private final Model zombie;
     private final Model golem;
+    private final Model pillager;
+    private final int rightKnee;
+    private final int leftKnee;
+    private final Map<Integer, Vec3> kneeOffsets;
+    private boolean pillagerPlaced;
     private final int zombieArm;
     private final int golemArm;
     private final int torso;
@@ -65,33 +82,48 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     public SurgicalPonderActors(PonderLevel level) {
         zombie = new Model(Objects.requireNonNull(EntityType.ZOMBIE.create(level)), ZOMBIE_POSITION);
         golem = new Model(Objects.requireNonNull(EntityType.IRON_GOLEM.create(level)), GOLEM_POSITION);
+        pillager = new Model(Objects.requireNonNull(EntityType.PILLAGER.create(level)), PILLAGER_POSITION);
+        rightKnee = pillager.part("right_leg");
+        leftKnee = pillager.part("left_leg");
+        kneeOffsets = Map.of(rightKnee, kneeOffset("right_leg", rightKnee),
+            leftKnee, kneeOffset("left_leg", leftKnee));
         zombieArm = zombie.part("right_arm");
         golemArm = golem.part("right_arm");
         torso = zombie.part("body");
         AABB body = bounds(zombie.cube(torso).corners());
         AABB arm = bounds(golem.cube(golemArm).corners());
         double side = Math.signum(center(zombie.cube(zombieArm)).x - body.getCenter().x);
-        armRotation = SurgicalCubeRotation.around(new Vec3(0, 0, 1), side * 55);
-        // Raise the long donor arm outwards so the original feet still touch the ground.
+        armRotation = SurgicalCubeRotation.IDENTITY;
         Vec3 contact = new Vec3(side > 0 ? arm.minX : arm.maxX, arm.maxY, arm.getCenter().z);
-        Vec3 rotatedContact = arm.getCenter().add(armRotation.rotate(contact.subtract(arm.getCenter())));
         Vec3 target = new Vec3(side > 0 ? body.maxX - 1.0 / 32 : body.minX + 1.0 / 32,
             body.maxY - 1.0 / 16, body.getCenter().z);
-        armOffset = target.subtract(rotatedContact);
+        armOffset = target.subtract(contact);
         reset(null);
     }
 
+    public void placePillager() { pillagerPlaced = true; }
     public void setStage(int value) { stage = value; movement = 1; }
     public void setMovement(float value) { movement = value; }
     public void setSourceAppearance(boolean value) { sourceAppearance = value; }
     public void setJoints(int value) { joints = value; }
-    public void showResult(boolean value) { resultVisible = value; resultTicks = 0; }
-    public void packBody() { packed = true; stage = 7; }
+    public void showResult(boolean value) {
+        resultVisible = value; resultTicks = 0;
+        if (value) {
+            var entity = body(joints).entity;
+            entity.moveTo(RESULT_POSITION.x, RESULT_POSITION.y, RESULT_POSITION.z, 90, 0);
+            entity.yBodyRot = entity.yBodyRotO = entity.yHeadRot = entity.yHeadRotO = 90;
+            entity.setOldPosAndRot();
+            entity.setDeltaMovement(Vec3.ZERO);
+            entity.setOnGround(true);
+        }
+    }
+    public void packBody() { packed = true; stage = 10; }
     public void unpackBody() { packed = false; }
 
     @Override
     public void reset(PonderScene scene) {
         stage = 0;
+        pillagerPlaced = false;
         joints = 0;
         movement = 1;
         sourceAppearance = false;
@@ -106,15 +138,17 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     public void tick(PonderScene scene) {
         if (!resultVisible) return;
         Body body = body(joints);
-        body.entity.tick();
-        body.entity.setDeltaMovement(Vec3.ZERO);
-        body.entity.setOnGround(true);
-        body.entity.walkAnimation.update(joints == 0 ? 0 : 0.65f, 0.4f);
-        body.entity.yHeadRotO = body.entity.yHeadRot;
-        body.entity.yHeadRot = (float) Math.sin(resultTicks * 0.08) * 35;
-        if (joints > 0 && resultTicks % 80 == 30)
-            body.entity.applyAttackAction(resultTicks / 80 + 1, true, body.replacementOnLeft, 0,
-                false, false, 20, 20, 0, 0, 0);
+        SlimeBionicEntity entity = body.entity;
+        // Run the same controls and travel physics as a live body. Only its waypoint is authored.
+        double destination = resultTicks / 100 % 2 == 0 ? 2.4 : 6.6;
+        entity.setOldPosAndRot();
+        entity.getMoveControl().setWantedPosition(destination, RESULT_POSITION.y, RESULT_POSITION.z, 0.65);
+        entity.getLookControl().setLookAt(destination, RESULT_POSITION.y + entity.getEyeHeight(), RESULT_POSITION.z);
+        entity.tick();
+        int period = Math.max(80, body.attackInterval + 20);
+        if (joints > 0 && resultTicks % period == 30)
+            entity.applyAttackAction(resultTicks / period + 1, true, body.replacementOnLeft, 0,
+                false, false, body.attackInterval, 1200, entity.yBodyRot, 0, entity.yBodyRot);
         resultTicks++;
     }
 
@@ -122,6 +156,10 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
 
     public AABB box(String name) {
         return switch (name) {
+            case "donor_right_leg" -> tableBounds(pillager, rightKnee, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
+            case "donor_left_leg" -> tableBounds(pillager, leftKnee, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
+            case "right_knee" -> tableBounds(zombie, pillager, rightKnee, kneeOffsets.get(rightKnee), SurgicalCubeRotation.IDENTITY);
+            case "left_knee" -> tableBounds(zombie, pillager, leftKnee, kneeOffsets.get(leftKnee), SurgicalCubeRotation.IDENTITY);
             case "donor_arm" -> tableBounds(golem, golemArm, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
             case "new_arm" -> tableBounds(zombie, golem, golemArm, armOffset, armRotation);
             case "old_arm" -> tableBounds(zombie, zombieArm,
@@ -154,34 +192,55 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
 
     @Override
     public void renderLast(PonderLevel world, MultiBufferSource buffer, GuiGraphics graphics, float pt) {
-        PoseStack pose = graphics.pose();
+        for (PlacedCube part : visibleParts(pt)) {
+            graphics.pose().pushPose();
+            graphics.pose().mulPose(part.root);
+            draw(part.model, part.cube, part.origin, part.flat, part.offset, part.rotation, graphics.pose(), buffer);
+            graphics.pose().popPose();
+        }
+    }
+
+    private List<PlacedCube> visibleParts(float pt) {
+        List<PlacedCube> parts = new ArrayList<>();
         if (stage > 0) {
             for (int cube = 0; cube < zombie.count(); cube++) {
                 if (packed && cube != zombieArm) continue;
                 Vec3 offset = Vec3.ZERO;
                 if (cube == zombieArm && stage >= 3) {
                     Vec3 move = stage == 3 ? new Vec3(-0.45 * movement, 0, 0)
-                        : new Vec3(-0.45, 0, 0).lerp(new Vec3(-1.3, 0, 1.7), movement);
+                        : new Vec3(-0.45, 0, 0).lerp(new Vec3(-1.3, 0, 1.7), stage == 4 ? movement : 1);
                     offset = FLAT.inverseRotate(move);
                 }
-                draw(zombie, cube, zombie.origin, true, offset, SurgicalCubeRotation.IDENTITY, pose, buffer);
+                parts.add(new PlacedCube(zombie, cube, zombie.origin, true, offset, SurgicalCubeRotation.IDENTITY, new Matrix4f()));
             }
         }
         if (stage >= 2) {
             for (int cube = 0; cube < golem.count(); cube++) {
                 if (cube == golemArm && stage >= 5) continue;
-                draw(golem, cube, golem.origin, true, Vec3.ZERO, SurgicalCubeRotation.IDENTITY, pose, buffer);
+                parts.add(new PlacedCube(golem, cube, golem.origin, true, Vec3.ZERO, SurgicalCubeRotation.IDENTITY, new Matrix4f()));
             }
             if (stage >= 5 && !packed) {
                 float progress = stage == 5 ? 0 : stage == 6 ? movement : 1;
                 Vec3 origin = golem.origin.lerp(zombie.origin, progress);
                 Vec3 offset = armOffset.scale(progress).add(FLAT.inverseRotate(new Vec3(0.5 * (1 - progress), 0, 0.5 * (1 - progress))));
-                SurgicalCubeRotation rotation = new SurgicalCubeRotation(0, 0,
-                    Math.sin(Math.asin(armRotation.z()) * progress), Math.cos(Math.asin(armRotation.z()) * progress));
-                draw(golem, golemArm, origin, true, offset, rotation, pose, buffer);
+                parts.add(new PlacedCube(golem, golemArm, origin, true, offset, armRotation, new Matrix4f()));
             }
         }
-        if (resultVisible) renderResult(pose, buffer, pt);
+        if (pillagerPlaced) {
+            for (int cube = 0; cube < pillager.count(); cube++) {
+                boolean leg = cube == rightKnee || cube == leftKnee;
+                if (leg && stage >= 8) continue;
+                parts.add(new PlacedCube(pillager, cube, pillager.origin, true, Vec3.ZERO, SurgicalCubeRotation.IDENTITY, new Matrix4f()));
+            }
+            if (stage >= 8 && !packed) {
+                float progress = stage == 8 ? 0 : stage == 9 ? movement : 1;
+                for (int cube : List.of(rightKnee, leftKnee))
+                    parts.add(new PlacedCube(pillager, cube, pillager.origin.lerp(zombie.origin, progress), true,
+                        kneeOffsets.get(cube).scale(progress), SurgicalCubeRotation.IDENTITY, new Matrix4f()));
+            }
+        }
+        if (resultVisible) addResultParts(parts, pt);
+        return parts;
     }
 
     private void draw(Model model, int cube, Vec3 origin, boolean flat, Vec3 offset,
@@ -197,33 +256,66 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         BitSet selected = new BitSet();
         selected.set(cube);
         model.plan.render(pose, buffer, LightTexture.FULL_BRIGHT, model.count(), selected,
-            Map.of(), Map.of(), false, null, sourceAppearance, null);
+            Map.of(), Map.of(), false, null, resultVisible || sourceAppearance, null);
         pose.popPose();
     }
 
-    private void renderResult(PoseStack pose, MultiBufferSource buffer, float pt) {
+    private void addResultParts(List<PlacedCube> parts, float pt) {
         Body body = body(joints);
         List<SlimeBionicAnimator.Frame> frames = SlimeBionicAnimator.resolve(body.entity, body.rig, pt);
-        pose.pushPose();
-        double hop = joints == 0 ? Math.abs(Math.sin((resultTicks + pt) * Math.PI / 25)) * 0.55 : 0;
-        double walk = joints == 0 ? Math.sin((resultTicks + pt) * 0.03) * 0.4 : Math.sin((resultTicks + pt) * 0.025) * 1.2;
-        pose.translate(RESULT_POSITION.x + walk, RESULT_POSITION.y + hop, RESULT_POSITION.z);
-        pose.mulPose(Axis.YP.rotationDegrees(160));
-        // Match the body's measured origin while keeping native donor geometry and real animator frames.
-        pose.translate(-body.origin.x, -body.origin.y, -body.origin.z);
-        for (int source = 0; source < 2; source++) {
-            Model model = source == 0 ? zombie : golem;
+        Vec3 position = body.entity.getPosition(pt);
+        // Canonical surgical vertices already face forward; match SlimeBionicRenderer.BodyFrame.
+        Matrix4f root = new Matrix4f().translation((float) position.x, (float) position.y, (float) position.z)
+            .rotateY((float) Math.toRadians(-Mth.rotLerp(pt, body.entity.yBodyRotO, body.entity.yBodyRot)))
+            .translate((float) -body.origin.x, (float) -body.origin.y, (float) -body.origin.z);
+        for (int source = 0; source < 3; source++) {
+            Model model = model(source);
             SurgicalAssembly.Source saved = body.assembly.sources().get(source);
             SlimeBionicAnimator.Frame frame = frames.size() > source ? frames.get(source) : SlimeBionicAnimator.Frame.EMPTY;
             Map<Integer, Vec3> offsets = frame.offsets().isEmpty() ? saved.cubeOffsets() : frame.offsets();
             Map<Integer, SurgicalCubeRotation> rotations = frame.rotations().isEmpty() ? saved.cubeRotations() : frame.rotations();
             BitSet present = saved.presentCubes();
             for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1))
-                draw(model, cube, Vec3.ZERO, false, offsets.getOrDefault(cube, Vec3.ZERO),
-                    rotations.getOrDefault(cube, SurgicalCubeRotation.IDENTITY), pose, buffer);
+                parts.add(new PlacedCube(model, cube, Vec3.ZERO, false, offsets.getOrDefault(cube, Vec3.ZERO),
+                    rotations.getOrDefault(cube, SurgicalCubeRotation.IDENTITY), root));
         }
-        pose.popPose();
     }
+
+    /** The highlight step consumes the very same live transforms as the model renderer. */
+    public List<AABB> highlightBounds(List<String> names, float partialTick) {
+        List<AABB> boxes = new ArrayList<>();
+        for (PlacedCube part : visibleParts(partialTick)) {
+            if (names.stream().noneMatch(name -> matches(part, name))) continue;
+            Vec3 pivot = center(part.model.cube(part.cube));
+            List<Vec3> corners = part.model.cube(part.cube).corners().stream().map(point -> {
+                Vec3 p = pivot.add(part.rotation.rotate(point.subtract(pivot))).add(part.offset);
+                if (part.flat) p = FLAT.rotate(p);
+                p = p.add(part.origin);
+                Vector3f world = part.root.transformPosition(new Vector3f((float) p.x, (float) p.y, (float) p.z));
+                return new Vec3(world.x, world.y, world.z);
+            }).toList();
+            boxes.add(bounds(corners).inflate(0.015));
+        }
+        return boxes;
+    }
+
+    private boolean matches(PlacedCube part, String name) {
+        return switch (name) {
+            case "donor_arm" -> part.model == golem && part.cube == golemArm;
+            case "new_arm" -> part.model == golem && part.cube == golemArm && (!part.flat || stage >= 5);
+            case "old_arm" -> part.model == zombie && part.cube == zombieArm;
+            case "donor_right_leg" -> part.model == pillager && part.cube == rightKnee;
+            case "donor_left_leg" -> part.model == pillager && part.cube == leftKnee;
+            case "right_knee" -> part.model == pillager && part.cube == rightKnee && (!part.flat || stage >= 8);
+            case "left_knee" -> part.model == pillager && part.cube == leftKnee && (!part.flat || stage >= 8);
+            case "body", "head", "left_arm", "right_leg", "left_leg" ->
+                part.model == zombie && part.cube == zombie.part(name);
+            default -> throw new IllegalArgumentException("Unknown surgical Ponder part: " + name);
+        };
+    }
+
+    private record PlacedCube(Model model, int cube, Vec3 origin, boolean flat, Vec3 offset,
+                              SurgicalCubeRotation rotation, Matrix4f root) {}
 
     private Body body(int count) {
         return bodies.computeIfAbsent(count, this::createBody);
@@ -234,23 +326,30 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         remaining.clear(zombieArm);
         BitSet replacement = new BitSet();
         replacement.set(golemArm);
+        BitSet knees = new BitSet();
+        knees.set(rightKnee); knees.set(leftKnee);
         List<SurgicalAssembly.Source> sources = List.of(zombie.source(remaining, Map.of(), Map.of()),
-            golem.source(replacement, Map.of(golemArm, armOffset), Map.of(golemArm, armRotation)));
+            golem.source(replacement, Map.of(golemArm, armOffset), Map.of(golemArm, armRotation)),
+            pillager.source(knees, kneeOffsets, Map.of()));
         List<SurgicalAssembly.Limb> limbs = new ArrayList<>();
         if (count >= 1) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.SHOULDER, 1, golemArm, 0, torso));
         if (count >= 2) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.SHOULDER, 0, zombie.part("left_arm"), 0, torso));
         if (count >= 3) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.NECK, 0, zombie.part("head"), 0, torso));
         if (count >= 4) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.HIP, 0, zombie.part("right_leg"), 0, torso));
         if (count >= 5) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.HIP, 0, zombie.part("left_leg"), 0, torso));
+        if (count >= 6) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.KNEE, 2, rightKnee, 0, zombie.part("right_leg")));
+        if (count >= 7) limbs.add(new SurgicalAssembly.Limb(SurgicalLimbType.KNEE, 2, leftKnee, 0, zombie.part("left_leg")));
         SurgicalAssembly assembly = Objects.requireNonNull(SurgicalAssembly.createComposite(sources,
-            List.of(new SurgicalAssembly.Joint(0, torso, 1, golemArm)), List.of(), limbs,
+            List.of(new SurgicalAssembly.Joint(0, torso, 1, golemArm),
+                new SurgicalAssembly.Joint(0, zombie.part("right_leg"), 2, rightKnee),
+                new SurgicalAssembly.Joint(0, zombie.part("left_leg"), 2, leftKnee)), List.of(), limbs,
             net.minecraft.core.Direction.NORTH, SurgicalLayPose.IDENTITY), "Invalid Ponder assembly");
         List<SlimeBionicAnimator.SourceState> states = new ArrayList<>();
         List<Map<Integer, List<Vec3>>> hitboxes = new ArrayList<>();
         List<List<Vec3>> all = new ArrayList<>();
         List<List<Vec3>> rigid = new ArrayList<>();
-        for (int source = 0; source < 2; source++) {
-            Model model = source == 0 ? zombie : golem;
+        for (int source = 0; source < 3; source++) {
+            Model model = model(source);
             SurgicalAssembly.Source saved = sources.get(source);
             List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>();
             Map<Integer, List<Vec3>> boxes = new HashMap<>();
@@ -284,24 +383,61 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             envelope.minY, (envelope.minZ + envelope.maxZ) / 2 + bounds.centerZ());
         assembly = assembly.withBodyGeometry(bounds, hitbox, measurement.volume());
         var attack = SlimeBionicAnimator.bakeAttackGeometry(assembly, states, origin,
-            List.of(zombie.donorGeometry(), golem.donorGeometry()));
+            List.of(zombie.donorGeometry(), golem.donorGeometry(), pillager.donorGeometry()));
         if (attack != null) assembly = assembly.withAttackGeometry(attack);
-        SlimeBionicEntity entity = Objects.requireNonNull(CBEntityTypes.SLIME_BIONIC.get().create(zombie.entity.level()));
-        entity.setNoAi(true);
-        entity.setNoGravity(true);
-        entity.noPhysics = true;
+        SlimeBionicEntity entity = new SceneBionicEntity(zombie.entity.level());
+        ((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(false);
         entity.setAssembly(assembly);
+        // A real client receives these server-calibrated attributes over the network.
+        // This scene owns no server entity, so seed them from the same gameplay calculations.
+        entity.getAttribute(Attributes.MAX_HEALTH).setBaseValue(SurgicalHealthCalibration.maximumHealth(
+            assembly.bodyVolume(), entity.level(), entity.getBionicTraits().value(BionicTrait.HEALTH_OFFSET)));
+        entity.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(SurgicalGait.movementSpeed(bounds, entity.level()));
+        entity.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(BionicStats.evaluate(BionicStat.ATTACK_DAMAGE,
+            entity.level(), Map.of("volume", assembly.bodyVolume())));
+        entity.setHealth(entity.getMaxHealth());
+        entity.getRandom().setSeed(0x5A71C0DEL + count);
+        entity.setInvulnerable(true);
+        entity.setSilent(true);
         entity.setOnGround(true);
         Vec3 donorCenter = center(golem.cube(golemArm)).add(armOffset).subtract(origin);
         double leftDistance = attack == null ? Double.POSITIVE_INFINITY : attack.left().stream()
             .mapToDouble(arm -> arm.origin().distanceToSqr(donorCenter)).min().orElse(Double.POSITIVE_INFINITY);
         double rightDistance = attack == null ? Double.POSITIVE_INFINITY : attack.right().stream()
             .mapToDouble(arm -> arm.origin().distanceToSqr(donorCenter)).min().orElse(Double.POSITIVE_INFINITY);
-        return new Body(assembly, entity, SlimeBionicAnimator.rig(assembly, states), origin, leftDistance < rightDistance);
+        boolean replacementOnLeft = leftDistance < rightDistance;
+        var arm = attack == null ? null : (replacementOnLeft ? attack.left() : attack.right()).stream()
+            .min(java.util.Comparator.comparingDouble(candidate -> candidate.origin().distanceToSqr(donorCenter)))
+            .orElse(null);
+        int interval = SurgicalCombatCalibration.attackInterval(SurgicalCombatCalibration.stats(arm, entity.level()),
+            attack == null ? 1 : attack.arms().size(), entity.level());
+        return new Body(assembly, entity, SlimeBionicAnimator.rig(assembly, states), origin, replacementOnLeft, interval);
+    }
+
+    private Model model(int source) { return source == 0 ? zombie : source == 1 ? golem : pillager; }
+
+    private Vec3 kneeOffset(String upperLeg, int lowerLeg) {
+        AABB upper = bounds(zombie.cube(zombie.part(upperLeg)).corners());
+        AABB lower = bounds(pillager.cube(lowerLeg).corners());
+        return new Vec3(upper.getCenter().x - lower.getCenter().x,
+            upper.minY - lower.maxY + 1.0 / 32, upper.getCenter().z - lower.getCenter().z);
+    }
+
+    /** Client-owned Ponder body: native travel runs locally, with server AI and packets absent. */
+    private static final class SceneBionicEntity extends SlimeBionicEntity {
+        SceneBionicEntity(Level level) { super(CBEntityTypes.SLIME_BIONIC.get(), level); }
+        @Override public boolean isControlledByLocalInstance() { return true; }
+        @Override public void aiStep() {
+            // Like native AI, update controls after baseTick snapshots the previous head/body angles.
+            getMoveControl().tick();
+            getLookControl().tick();
+            getJumpControl().tick();
+            super.aiStep();
+        }
     }
 
     private record Body(SurgicalAssembly assembly, SlimeBionicEntity entity, SlimeBionicAnimator.Rig rig,
-                        Vec3 origin, boolean replacementOnLeft) {}
+                        Vec3 origin, boolean replacementOnLeft, int attackInterval) {}
 
     private static final class Model {
         final LivingEntity entity;

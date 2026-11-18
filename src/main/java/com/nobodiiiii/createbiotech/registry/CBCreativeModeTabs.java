@@ -219,6 +219,7 @@ public class CBCreativeModeTabs {
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,
 			visible(CBItems.GREENPRINT.get()),
+			visible(CBItems.GREENPRINT_TABLE.get()),
 			visible(CBItems.SURGERY_GUIDE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),

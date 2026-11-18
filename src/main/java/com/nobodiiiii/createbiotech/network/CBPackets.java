@@ -55,6 +55,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableTileShovelPacket;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableSymmetryPacket;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicAttackActionPacket;
+import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintImportPacket;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicDeathGeometryPacket;
 
 import net.createmod.catnip.annotations.ClientOnly;
@@ -77,7 +78,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "45";
+	private static final String NETWORK_VERSION = "46";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -150,6 +151,8 @@ public final class CBPackets {
 			GaugeCraftTreeRequestPacket::write, GaugeCraftTreeRequestPacket::handle);
 		registerServer(SurgicalJointSelectionPacket.class, SurgicalJointSelectionPacket::new,
 			SurgicalJointSelectionPacket::write, SurgicalJointSelectionPacket::handle);
+		registerServer(GreenprintImportPacket.class, GreenprintImportPacket::new,
+			GreenprintImportPacket::write, GreenprintImportPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);

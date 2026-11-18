@@ -4,7 +4,9 @@ import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
+import com.nobodiiiii.createbiotech.registry.CBItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -138,6 +140,47 @@ public class GreenprintItem extends Item {
 	private static CompoundTag recordedEntity(ItemStack stack) {
 		CompoundTag data = CBItemData.getReadOnly(stack);
 		return data != null && data.contains(ENTITY_DATA, Tag.TAG_COMPOUND) ? data.getCompound(ENTITY_DATA) : null;
+	}
+
+	static boolean isBlank(ItemStack stack) {
+		return stack.is(CBItems.GREENPRINT.get()) && recordedEntity(stack) == null;
+	}
+
+	@Nullable
+	static CompoundTag exportBinding(ItemStack stack) {
+		CompoundTag entity = recordedEntity(stack);
+		if (entity == null)
+			return null;
+		CompoundTag file = new CompoundTag();
+		file.put(ENTITY_DATA, entity.copy());
+		return file;
+	}
+
+	@Nullable
+	static ItemStack importBinding(ItemStack blank, CompoundTag file, ServerLevel level) {
+		if (!isBlank(blank) || !file.contains(ENTITY_DATA, Tag.TAG_COMPOUND))
+			return null;
+		CompoundTag snapshot = file.getCompound(ENTITY_DATA);
+		prepareCopy(snapshot);
+		// Entity.load registers the loaded UUID on its scoreboard team, even before it is spawned.
+		String team = snapshot.getString("Team");
+		snapshot.remove("Team");
+		Entity copy = EntityType.loadEntityRecursive(snapshot, level, entity -> entity);
+		if (!(copy instanceof LivingEntity living) || !living.isAlive() || !SlimeMimicHandler.isSlimeMimic(living)
+			|| living instanceof SlimeBionicEntity bionic && bionic.getAssembly() == null)
+			return null;
+		// Serialize through the entity so migrated surgical assemblies are stored in their current format.
+		CompoundTag current = new CompoundTag();
+		if (!living.saveAsPassenger(current))
+			return null;
+		if (snapshot.contains("Health", Tag.TAG_ANY_NUMERIC))
+			current.putFloat("Health", Math.min(snapshot.getFloat("Health"), living.getMaxHealth()));
+		if (!team.isEmpty())
+			current.putString("Team", team);
+		prepareCopy(current);
+		ItemStack bound = blank.copy();
+		CBItemData.edit(bound, data -> data.put(ENTITY_DATA, current));
+		return bound;
 	}
 
 	private static void prepareCopy(CompoundTag data) {

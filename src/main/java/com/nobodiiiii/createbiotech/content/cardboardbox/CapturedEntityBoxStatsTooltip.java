@@ -75,10 +75,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 
 	/** Appends the same expandable section to inventory and surgical-table HUD tooltips. */
 	public static void append(ItemStack stack, Level level, List<Component> tooltip) {
+		append(stack, level, tooltip, Screen.hasAltDown());
+	}
+
+	/** Allows isolated tutorial interfaces to show the same expanded native tooltip. */
+	public static void append(ItemStack stack, Level level, List<Component> tooltip, boolean expanded) {
 		if (!CapturedEntityBoxHelper.hasCapturedEntity(stack))
 			return;
 
-		boolean expanded = Screen.hasAltDown();
 		tooltip.add(Component.translatable("create_biotech.tooltip.hold_for_base_stats",
 			Component.literal("Alt").withStyle(expanded ? ChatFormatting.WHITE : ChatFormatting.GRAY))
 			.withStyle(ChatFormatting.DARK_GRAY));

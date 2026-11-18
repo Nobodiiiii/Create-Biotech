@@ -6,6 +6,7 @@ import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeClusterMenu;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
+import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableMenu;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortMenu;
@@ -49,6 +50,9 @@ public class CBMenuTypes {
 
 	public static final DeferredHolder<MenuType<?>, MenuType<com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu>> BIONIC_CARGO =
 		MENU_TYPES.register("bionic_cargo", () -> IMenuTypeExtension.create(com.nobodiiiii.createbiotech.entity.inventory.BionicCargoMenu::new));
+
+	public static final DeferredHolder<MenuType<?>, MenuType<GreenprintTableMenu>> GREENPRINT_TABLE =
+		MENU_TYPES.register("greenprint_table", () -> IMenuTypeExtension.create(GreenprintTableMenu::new));
 
 	private CBMenuTypes() {}
 

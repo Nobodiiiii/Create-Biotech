@@ -491,7 +491,8 @@
       "runtimeFeatures": [
         "core",
         "render_cache",
-        "text"
+        "text",
+        "interfaces"
       ],
       "javaFiles": [
         "src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSurgicalTable_7431e38e.java"
@@ -499,7 +500,7 @@
       "resourceFiles": [
         "src/main/resources/assets/create_biotech/ponderer/texts/surgical_table/en_us.json",
         "src/main/resources/assets/create_biotech/ponderer/texts/surgical_table/zh_cn.json",
-        "src/main/resources/assets/create_biotech/ponder/generated/create_biotech/surgical_table/workshop.nbt"
+        "src/main/resources/assets/create_biotech/ponder/generated/create_biotech/surgical_table/basic_xl.nbt"
       ],
       "langEntries": {}
     }

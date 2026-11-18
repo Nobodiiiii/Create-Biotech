@@ -215,6 +215,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, GreenprintItem> GREENPRINT = ITEMS.register("greenprint",
 		() -> new GreenprintItem(new Item.Properties().stacksTo(1)));
 
+	public static final DeferredHolder<Item, BlockItem> GREENPRINT_TABLE = ITEMS.register("greenprint_table",
+		() -> new BlockItem(CBBlocks.GREENPRINT_TABLE.get(), new Item.Properties()));
+
 	// Slime armour: a slime counterpart to Create's cardboard armour, obtained by filling each
 	// cardboard piece with 250mb of liquid living slime. Renders as a small slime when crouching.
 	public static final DeferredHolder<Item, Item> SLIME_HELMET = ITEMS.register("slime_helmet",

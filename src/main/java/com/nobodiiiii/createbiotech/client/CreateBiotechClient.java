@@ -114,6 +114,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerMenuScreens(RegisterMenuScreensEvent event) {
+		event.register(CBMenuTypes.GREENPRINT_TABLE.get(), com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableScreen::new);
 		event.register(CBMenuTypes.SPIDER_ASSEMBLY_TABLE.get(), SpiderAssemblyTableScreen::new);
 		event.register(CBMenuTypes.BIONIC_CARGO.get(), com.nobodiiiii.createbiotech.entity.inventory.BionicCargoScreen::new);
 		event.register(CBMenuTypes.ALLAY_PORT.get(), AllayPortScreen::new);
