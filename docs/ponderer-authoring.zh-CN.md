@@ -30,12 +30,14 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 
 ## 手术台基础思索
 
-`create_biotech:surgical_table` 已实现“放置供体”“切分与重组”“安装关节”三章，分别使用稳定分段 ID `placing`、`recombining`、`joints`。它们绑定手术台、手术盒、关节和手术指南；各章独立建立起始状态，第二章从供体已放置开始，第三章从手臂已替换开始。后续章节可以继续追加到同一文档的 `document.scenes`，保留这三个分段 ID 即可。
+`create_biotech:surgical_table` 已实现“放置供体”“切分与重组”“安装关节”“特性介绍”四章，分别使用稳定分段 ID `placing`、`recombining`、`joints`、`traits`。它们绑定手术台、手术盒、关节和手术指南；各章独立建立起始状态，第二章从供体已放置开始，第三章从手臂已替换开始，第四章使用苦力怕和幻翼组成的示例。后续章节可以继续追加到同一文档的 `document.scenes`。
 
 - 场景源码：`src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSurgicalTable_7431e38e.java`。
 - 中英文字幕：`src/main/resources/assets/create_biotech/ponderer/texts/surgical_table/`。
 - 编译扩展：`ponderext/SurgicalTableEffects.java`；模型、台面摆放与成品骨架由 `content/surgery/client/SurgicalPonderActors.java` 管理。
-- 共用结构：`assets/create_biotech/ponder/generated/create_biotech/surgical_table/workshop.nbt`；可用 `python tools/generate_surgical_ponder_structure.py` 确定性重建。
+- 共用结构：`assets/create_biotech/ponder/generated/create_biotech/surgical_table/basic_xl.nbt`；可用 `python tools/generate_surgical_ponder_structure.py` 确定性重建。
+
+第四章的台面模型和演示指令位于 `SurgicalTraitPonderActors.java` 和 `SurgicalTraitPonderEffects.java`。占比条和缺失条件使用实际装配的特性判定。JEI 预览使用原生特性配方布局，接口参考 `ref/1.21.1/JustEnoughItems/CommonApi/src/main/java/mezz/jei/api/recipe/IRecipeManager.java` 和 `gui/IRecipeLayoutDrawable.java`，并使用项目锁定的 JEI 19.39.0.368 编译。
 
 扩展使用场景独占的供体模型、当前解剖快照和真实装配骨架演示，不操作玩家世界中的手术台或共享预览。装箱后仅隐藏已连接的成品，旧手臂和剩余供体留在台面。工具轮盘复用 `SurgicalRadialLayout`，作为非交互覆盖层展示；成品属性来自当前装配的实际计算结果。模型与覆盖层通过播放指令加入元素列表，不能在编译故事板时直接加入，否则会被 `PonderScene.begin()` 清除。三章在初始化时统一将整体视角绕 Y 轴转 180°；重播时重新注册元素并重置部件状态、动画计时和覆盖层。
 
@@ -124,4 +126,4 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 `create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤：`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算部件包围盒并自行绘制轮廓，不调用 Ponder 现有高亮指令；剪切、移动、粘合、成品行走和转身都使用当前模型位置。成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`，释放时同步初始化身体与头部朝向。
 
-高亮线段使用 `POSITION_COLOR` / `DEBUG_LINES`、`LEQUAL` 深度测试、无深度偏移、当前场景渲染目标，并只写颜色；通过 `SuperRenderTypeBuffer.getLateBuffer` 在场景几何之后绘制。不要换回 `RenderType.lines()`：原版 `rendertype_lines.vsh` 自带 `VIEW_SHRINK`，在 Ponder 的 GUI 投影下会把后方轮廓拉到前方，造成遮挡错误。
+高亮使用 `POSITION_COLOR_NORMAL` / `LINES` 与独立 `surgical_ponder_highlight` 顶点着色器，将线段展开为固定 2 GUI 像素宽的屏幕空间四边形，避免原生 OpenGL 线宽被驱动限制。着色器只扩展裁剪坐标 X/Y，保留原始 Z/W；配合 `LEQUAL` 深度测试、无深度偏移、当前场景渲染目标和只写颜色，通过 `SuperRenderTypeBuffer.getLateBuffer` 在场景几何之后绘制。不要换回原版线框着色器：`rendertype_lines.vsh` 自带 `VIEW_SHRINK`，在 Ponder 的 GUI 投影下会把后方轮廓拉到前方，造成遮挡错误。

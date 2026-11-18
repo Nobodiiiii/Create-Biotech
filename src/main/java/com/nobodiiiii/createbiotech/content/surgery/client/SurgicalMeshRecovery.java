@@ -558,7 +558,8 @@ final class SurgicalMeshRecovery {
 				ordered.add(observed.modelCorners.get(match));
 			}
 			if (ordered.size() == 8)
-				return new SurgicalCapturedRenderPlan.ModelCubeMatch(ordered, observed.head, observed.partNames, observed.nodes);
+				return new SurgicalCapturedRenderPlan.ModelCubeMatch(ordered, observed.head, observed.partNames,
+					observed.nodes, observed.pose);
 		}
 		return SurgicalCapturedRenderPlan.ModelCubeMatch.NONE;
 	}

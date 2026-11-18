@@ -9,6 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
 
 import org.joml.Quaternionf;
 import org.joml.Matrix4f;
@@ -57,7 +58,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     public static final Vec3 GOLEM_POSITION = new Vec3(4.5, 2, 3);
     public static final Vec3 PILLAGER_POSITION = new Vec3(7, 2, 3);
     public static final Vec3 RESULT_POSITION = new Vec3(4.5, 1, 7);
-    private static final SurgicalLayPose FLAT = new SurgicalLayPose(SurgicalLayPose.RotationAxis.X, 0, Vec3.ZERO);
+    static final SurgicalLayPose FLAT = new SurgicalLayPose(SurgicalLayPose.RotationAxis.X, 0, Vec3.ZERO);
     private final Model zombie;
     private final Model golem;
     private final Model pillager;
@@ -192,12 +193,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
 
     @Override
     public void renderLast(PonderLevel world, MultiBufferSource buffer, GuiGraphics graphics, float pt) {
-        for (PlacedCube part : visibleParts(pt)) {
-            graphics.pose().pushPose();
-            graphics.pose().mulPose(part.root);
-            draw(part.model, part.cube, part.origin, part.flat, part.offset, part.rotation, graphics.pose(), buffer);
-            graphics.pose().popPose();
-        }
+        for (PlacedCube part : visibleParts(pt))
+            part.draw(graphics.pose(), buffer, resultVisible || sourceAppearance);
     }
 
     private List<PlacedCube> visibleParts(float pt) {
@@ -243,23 +240,6 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         return parts;
     }
 
-    private void draw(Model model, int cube, Vec3 origin, boolean flat, Vec3 offset,
-                      SurgicalCubeRotation rotation, PoseStack pose, MultiBufferSource buffer) {
-        pose.pushPose();
-        pose.translate(origin.x, origin.y, origin.z);
-        if (flat) SurgicalTablePoseResolver.applyRotation(pose, FLAT);
-        pose.translate(offset.x, offset.y, offset.z);
-        Vec3 center = center(model.cube(cube));
-        pose.translate(center.x, center.y, center.z);
-        pose.mulPose(new Quaternionf((float) rotation.x(), (float) rotation.y(), (float) rotation.z(), (float) rotation.w()));
-        pose.translate(-center.x, -center.y, -center.z);
-        BitSet selected = new BitSet();
-        selected.set(cube);
-        model.plan.render(pose, buffer, LightTexture.FULL_BRIGHT, model.count(), selected,
-            Map.of(), Map.of(), false, null, resultVisible || sourceAppearance, null);
-        pose.popPose();
-    }
-
     private void addResultParts(List<PlacedCube> parts, float pt) {
         Body body = body(joints);
         List<SlimeBionicAnimator.Frame> frames = SlimeBionicAnimator.resolve(body.entity, body.rig, pt);
@@ -284,18 +264,9 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     /** The highlight step consumes the very same live transforms as the model renderer. */
     public List<AABB> highlightBounds(List<String> names, float partialTick) {
         List<AABB> boxes = new ArrayList<>();
-        for (PlacedCube part : visibleParts(partialTick)) {
-            if (names.stream().noneMatch(name -> matches(part, name))) continue;
-            Vec3 pivot = center(part.model.cube(part.cube));
-            List<Vec3> corners = part.model.cube(part.cube).corners().stream().map(point -> {
-                Vec3 p = pivot.add(part.rotation.rotate(point.subtract(pivot))).add(part.offset);
-                if (part.flat) p = FLAT.rotate(p);
-                p = p.add(part.origin);
-                Vector3f world = part.root.transformPosition(new Vector3f((float) p.x, (float) p.y, (float) p.z));
-                return new Vec3(world.x, world.y, world.z);
-            }).toList();
-            boxes.add(bounds(corners).inflate(0.015));
-        }
+        for (PlacedCube part : visibleParts(partialTick))
+            if (names.stream().anyMatch(name -> matches(part, name)))
+                boxes.add(part.worldBounds());
         return boxes;
     }
 
@@ -314,8 +285,37 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         };
     }
 
-    private record PlacedCube(Model model, int cube, Vec3 origin, boolean flat, Vec3 offset,
-                              SurgicalCubeRotation rotation, Matrix4f root) {}
+    record PlacedCube(Model model, int cube, Vec3 origin, boolean flat, Vec3 offset,
+                      SurgicalCubeRotation rotation, Matrix4f root) {
+        void draw(PoseStack pose, MultiBufferSource buffer, boolean sourceAppearance) {
+            pose.pushPose();
+            pose.mulPose(root);
+            pose.translate(origin.x, origin.y, origin.z);
+            if (flat) SurgicalTablePoseResolver.applyRotation(pose, FLAT);
+            pose.translate(offset.x, offset.y, offset.z);
+            Vec3 pivot = center(model.cube(cube));
+            pose.translate(pivot.x, pivot.y, pivot.z);
+            pose.mulPose(new Quaternionf((float) rotation.x(), (float) rotation.y(), (float) rotation.z(), (float) rotation.w()));
+            pose.translate(-pivot.x, -pivot.y, -pivot.z);
+            BitSet selected = new BitSet();
+            selected.set(cube);
+            model.plan.render(pose, buffer, LightTexture.FULL_BRIGHT, model.count(), selected,
+                Map.of(), Map.of(), false, null, sourceAppearance, null);
+            pose.popPose();
+        }
+
+        AABB worldBounds() {
+            Vec3 pivot = center(model.cube(cube));
+            List<Vec3> corners = model.cube(cube).corners().stream().map(point -> {
+                Vec3 p = pivot.add(rotation.rotate(point.subtract(pivot))).add(offset);
+                if (flat) p = FLAT.rotate(p);
+                p = p.add(origin);
+                Vector3f world = root.transformPosition(new Vector3f((float) p.x, (float) p.y, (float) p.z));
+                return new Vec3(world.x, world.y, world.z);
+            }).toList();
+            return bounds(corners).inflate(0.015);
+        }
+    }
 
     private Body body(int count) {
         return bodies.computeIfAbsent(count, this::createBody);
@@ -344,47 +344,13 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
                 new SurgicalAssembly.Joint(0, zombie.part("right_leg"), 2, rightKnee),
                 new SurgicalAssembly.Joint(0, zombie.part("left_leg"), 2, leftKnee)), List.of(), limbs,
             net.minecraft.core.Direction.NORTH, SurgicalLayPose.IDENTITY), "Invalid Ponder assembly");
-        List<SlimeBionicAnimator.SourceState> states = new ArrayList<>();
-        List<Map<Integer, List<Vec3>>> hitboxes = new ArrayList<>();
-        List<List<Vec3>> all = new ArrayList<>();
-        List<List<Vec3>> rigid = new ArrayList<>();
-        for (int source = 0; source < 3; source++) {
-            Model model = model(source);
-            SurgicalAssembly.Source saved = sources.get(source);
-            List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>();
-            Map<Integer, List<Vec3>> boxes = new HashMap<>();
-            BitSet present = saved.presentCubes();
-            for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
-                var original = model.cube(cube);
-                Vec3 center = center(original);
-                Vec3 offset = saved.cubeOffsets().getOrDefault(cube, Vec3.ZERO);
-                var rotation = saved.cubeRotations().getOrDefault(cube, SurgicalCubeRotation.IDENTITY);
-                List<Vec3> corners = original.corners().stream()
-                    .map(p -> center.add(rotation.rotate(p.subtract(center))).add(offset)).toList();
-                geometry.add(original.withCorners(corners));
-                boxes.put(cube, corners);
-                all.add(corners);
-                if (!(source == 1 && count >= 1)
-                    && !(source == 0 && count >= 2 && cube == zombie.part("left_arm"))) rigid.add(corners);
-            }
-            hitboxes.add(Map.copyOf(boxes));
-            states.add(new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(
-                new SurgicalModelRenderContext.Snapshot(model.count(), geometry)), saved.cubeOffsets(), saved.cubeRotations()));
-        }
-        AABB envelope = bounds(all.stream().flatMap(List::stream).toList());
-        var visible = new SurgicalBodyBounds.Envelope(envelope.minX, envelope.minY, envelope.minZ,
-            envelope.maxX, envelope.maxY, envelope.maxZ);
-        var measurement = Objects.requireNonNull(SurgicalBodyBounds.measureWithVolume(count == 0 ? all : rigid, all, visible));
-        var mobility = SlimeBionicAnimator.measureMobility(assembly, states);
-        var bounds = measurement.bounds().withMobility(mobility.averageLegLength(), mobility.groundedLegCount(),
-            mobility.groundedKneeCount(), mobility.legVolumeRatio());
-        var hitbox = Objects.requireNonNull(SurgicalHitboxGeometry.measure(assembly, hitboxes, visible, bounds));
-        Vec3 origin = new Vec3((envelope.minX + envelope.maxX) / 2 + bounds.centerX(),
-            envelope.minY, (envelope.minZ + envelope.maxZ) / 2 + bounds.centerZ());
-        assembly = assembly.withBodyGeometry(bounds, hitbox, measurement.volume());
-        var attack = SlimeBionicAnimator.bakeAttackGeometry(assembly, states, origin,
-            List.of(zombie.donorGeometry(), golem.donorGeometry(), pillager.donorGeometry()));
-        if (attack != null) assembly = assembly.withAttackGeometry(attack);
+        var measured = measureBody(assembly, List.of(zombie, golem, pillager), member ->
+            !(member.source() == 1 && count >= 1)
+                && !(member.source() == 0 && count >= 2 && member.cube() == zombie.part("left_arm")));
+        assembly = measured.assembly();
+        Vec3 origin = measured.origin();
+        var bounds = assembly.bodyBounds();
+        var attack = measured.attack();
         SlimeBionicEntity entity = new SceneBionicEntity(zombie.entity.level());
         ((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(false);
         entity.setAssembly(assembly);
@@ -411,8 +377,56 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             .orElse(null);
         int interval = SurgicalCombatCalibration.attackInterval(SurgicalCombatCalibration.stats(arm, entity.level()),
             attack == null ? 1 : attack.arms().size(), entity.level());
-        return new Body(assembly, entity, SlimeBionicAnimator.rig(assembly, states), origin, replacementOnLeft, interval);
+        return new Body(assembly, entity, measured.rig(), origin, replacementOnLeft, interval);
     }
+
+    static MeasuredBody measureBody(SurgicalAssembly assembly, List<Model> models,
+                                    Predicate<SurgicalAssembly.CombinationMember> inCore) {
+        List<SlimeBionicAnimator.SourceState> states = new ArrayList<>();
+        List<Map<Integer, List<Vec3>>> hitboxes = new ArrayList<>();
+        List<List<Vec3>> all = new ArrayList<>();
+        List<List<Vec3>> rigid = new ArrayList<>();
+        for (int source = 0; source < models.size(); source++) {
+            Model model = models.get(source);
+            SurgicalAssembly.Source saved = assembly.sources().get(source);
+            List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>();
+            Map<Integer, List<Vec3>> boxes = new HashMap<>();
+            BitSet present = saved.presentCubes();
+            for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+                var original = model.cube(cube);
+                Vec3 pivot = center(original);
+                Vec3 offset = saved.cubeOffsets().getOrDefault(cube, Vec3.ZERO);
+                var rotation = saved.cubeRotations().getOrDefault(cube, SurgicalCubeRotation.IDENTITY);
+                List<Vec3> corners = original.corners().stream()
+                    .map(p -> pivot.add(rotation.rotate(p.subtract(pivot))).add(offset)).toList();
+                geometry.add(original.withCorners(corners));
+                boxes.put(cube, corners);
+                all.add(corners);
+                if (inCore.test(new SurgicalAssembly.CombinationMember(source, cube))) rigid.add(corners);
+            }
+            hitboxes.add(Map.copyOf(boxes));
+            states.add(new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(
+                new SurgicalModelRenderContext.Snapshot(model.count(), geometry)), saved.cubeOffsets(), saved.cubeRotations()));
+        }
+        AABB envelope = bounds(all.stream().flatMap(List::stream).toList());
+        var visible = new SurgicalBodyBounds.Envelope(envelope.minX, envelope.minY, envelope.minZ,
+            envelope.maxX, envelope.maxY, envelope.maxZ);
+        var measurement = Objects.requireNonNull(SurgicalBodyBounds.measureWithVolume(rigid, all, visible));
+        var mobility = SlimeBionicAnimator.measureMobility(assembly, states);
+        var bounds = measurement.bounds().withMobility(mobility.averageLegLength(), mobility.groundedLegCount(),
+            mobility.groundedKneeCount(), mobility.legVolumeRatio());
+        var hitbox = Objects.requireNonNull(SurgicalHitboxGeometry.measure(assembly, hitboxes, visible, bounds));
+        Vec3 origin = new Vec3((envelope.minX + envelope.maxX) / 2 + bounds.centerX(),
+            envelope.minY, (envelope.minZ + envelope.maxZ) / 2 + bounds.centerZ());
+        assembly = assembly.withBodyGeometry(bounds, hitbox, measurement.volume());
+        var attack = SlimeBionicAnimator.bakeAttackGeometry(assembly, states, origin,
+            models.stream().map(Model::donorGeometry).toList());
+        if (attack != null) assembly = assembly.withAttackGeometry(attack);
+        return new MeasuredBody(assembly, SlimeBionicAnimator.rig(assembly, states), origin, attack);
+    }
+
+    record MeasuredBody(SurgicalAssembly assembly, SlimeBionicAnimator.Rig rig, Vec3 origin,
+                        SurgicalAssembly.AttackGeometry attack) {}
 
     private Model model(int source) { return source == 0 ? zombie : source == 1 ? golem : pillager; }
 
@@ -439,7 +453,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     private record Body(SurgicalAssembly assembly, SlimeBionicEntity entity, SlimeBionicAnimator.Rig rig,
                         Vec3 origin, boolean replacementOnLeft, int attackInterval) {}
 
-    private static final class Model {
+    static final class Model {
         final LivingEntity entity;
         final MimicProfile profile;
         final SurgicalCapturedRenderPlan plan;
@@ -490,8 +504,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         }
     }
 
-    private static Vec3 center(SurgicalModelRenderContext.CubeGeometry cube) { return bounds(cube.corners()).getCenter(); }
-    private static AABB bounds(List<Vec3> corners) {
+    static Vec3 center(SurgicalModelRenderContext.CubeGeometry cube) { return bounds(cube.corners()).getCenter(); }
+    static AABB bounds(List<Vec3> corners) {
         double minX = Double.POSITIVE_INFINITY, minY = minX, minZ = minX;
         double maxX = Double.NEGATIVE_INFINITY, maxY = maxX, maxZ = maxX;
         for (Vec3 p : corners) {

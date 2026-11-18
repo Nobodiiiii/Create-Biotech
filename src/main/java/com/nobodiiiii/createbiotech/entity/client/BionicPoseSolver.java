@@ -108,6 +108,7 @@ final class BionicPoseSolver {
 			for (SlimeBionicAnimator.Member member : limb.members())
 				applyTransform(member, transform, sources, offsets, rotations);
 		}
+		BionicNativePose.apply(entity, partialTick, rig, offsets, rotations);
 		for (int source = 0; source < sourceCount; source++) {
 			Map<Integer, Vec3> sourceOffsets = offsets.get(source);
 			Map<Integer, SurgicalCubeRotation> sourceRotations = rotations.get(source);

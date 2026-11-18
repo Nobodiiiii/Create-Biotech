@@ -2,13 +2,16 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.trait.BionicModelNode;
 import com.nobodiiiii.createbiotech.entity.trait.BionicSpecialAttacks;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRuntime;
@@ -26,6 +29,7 @@ import net.minecraft.world.entity.monster.SpellcasterIllager.IllagerSpell;
 import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.entity.monster.warden.Warden;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -60,6 +64,32 @@ public final class SurgicalNativeAnimations {
 		BodyAnimations body = animations(owner);
 		SourceAnimation animation = body == null ? null : body.sources.get(source);
 		return animation == null ? base : animation.plan(partialTick, base);
+	}
+
+	/** Supplies attachment motion from the same captured frame that will draw the donor. */
+	public static Map<Integer, SourcePose> poses(SlimeBionicEntity owner, float partialTick) {
+		BodyAnimations body = animations(owner);
+		if (body == null) return Map.of();
+		Map<Integer, SourcePose> poses = new HashMap<>();
+		for (var entry : body.sources.entrySet()) {
+			int source = entry.getKey();
+			LivingEntity preview = SurgicalSourceModelRenderer.preview(body.assembly.sources().get(source).profile());
+			if (preview == null) continue;
+			SurgicalSourceModelRenderer.preparePreview(preview, 0);
+			poses.put(source, entry.getValue().poses(partialTick, SurgicalSourcePlanCache.plan(preview, 0)));
+		}
+		return poses;
+	}
+
+	public record SourcePose(Map<Integer, CubePose> cubes, long sonicTimeMillis) {}
+
+	public record CubePose(SurgicalCubeRotation rotation, Vec3 translation, Set<BionicModelNode> nodes) {
+		public boolean inherits(CubePose parent) {
+			for (BionicModelNode node : nodes)
+				for (BionicModelNode ancestor = node; ancestor != null; ancestor = ancestor.parent())
+					if (parent.nodes.contains(ancestor)) return true;
+			return false;
+		}
 	}
 
 	@Nullable
@@ -129,6 +159,7 @@ public final class SurgicalNativeAnimations {
 		private float framePartialTick;
 		private SurgicalCapturedRenderPlan frameBase;
 		private SurgicalCapturedRenderPlan frame;
+		private Map<Integer, CubePose> framePoses;
 
 		private SourceAnimation(LivingEntity entity, int peekSequence) {
 			this.entity = entity;
@@ -193,7 +224,17 @@ public final class SurgicalNativeAnimations {
 			frame = base.withTraitAppearance(SurgicalCapturedRenderPlan.capture(renderer, entity, 0, partialTick, true));
 			frameBase = base;
 			framePartialTick = partialTick;
+			framePoses = null;
 			return frame;
+		}
+
+		private SourcePose poses(float partialTick, SurgicalCapturedRenderPlan base) {
+			SurgicalCapturedRenderPlan captured = plan(partialTick, base);
+			if (framePoses == null)
+				framePoses = captured.nativePoses();
+			long sonicTime = entity instanceof Warden warden && warden.sonicBoomAnimationState.isStarted()
+				? warden.sonicBoomAnimationState.getAccumulatedTime() : -1;
+			return new SourcePose(framePoses, sonicTime);
 		}
 	}
 }

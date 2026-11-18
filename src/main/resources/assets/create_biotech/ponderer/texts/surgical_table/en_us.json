@@ -22,5 +22,19 @@
   "joints.order": "First right-click the moving cube, such as an upper arm, then its supporting cube, such as the torso",
   "joints.contact": "Joints can only be installed between two directly connected cubes",
   "joints.stats_intro": "The finished mimic's base attributes change with factors such as the volume of the corresponding body parts",
-  "joints.stats_shape": "For example, greater overall volume means more health; greater arm volume means more damage; longer legs mean faster movement"
+  "joints.stats_shape": "For example, greater overall volume means more health; greater arm volume means more damage; longer legs mean faster movement",
+  "traits.title": "Introducing Traits",
+  "traits.intro": "Besides changing the creature's appearance and base stats, retained donor tissue can give it unique bionic traits",
+  "traits.example": "For example, combine a Creeper's Self-Destruct with a Phantom's Winged Flight...",
+  "traits.result": "and you get a living bomber",
+  "traits.donors": "Mix tissue from different creatures to combine the traits they provide",
+  "traits.scope": "Each trait has its own scope. Some affect the whole body, while others work only in the relevant body part",
+  "traits.joints": "Joints determine which body part the tissue belongs to",
+  "traits.rules": "Some traits only require the relevant tissue (presence). Others require a minimum share (threshold) or vary in effect with the tissue share (scaled)",
+  "traits.volume": "The tissue share is measured within the trait's scope. Self-Destruct is a torso trait, so Phantom tissue mounted on the arms does not affect it",
+  "traits.mind": "Disposition and Intelligence are the most basic traits. They affect target selection and combat strategy, respectively",
+  "traits.inspect": "Hold a Cardboard Box and hover over a creature on the Surgical Table to see its traits and missing requirements. Gray entries are inactive",
+  "traits.adjust": "Use the hints to adjust the tissue, its placement and the joints. Check the result again to work toward the traits you want",
+  "traits.jei": "Look up the Surgical Table's recipes in JEI to see each trait's effect, requirements and donors",
+  "traits.lookup": "You can also look up traits from donor previews, spawn eggs or filled Cardboard Boxes"
 }

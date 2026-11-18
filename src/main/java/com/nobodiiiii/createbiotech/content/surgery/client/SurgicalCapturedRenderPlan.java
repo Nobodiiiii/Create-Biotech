@@ -103,18 +103,20 @@ public final class SurgicalCapturedRenderPlan {
 
 	private final List<Component> components;
 	private final List<Component> appearanceComponents;
+	private final boolean traitAppearance;
 	private final List<SourceBatch> extras;
 	private final BitSet woolCubes = new BitSet();
 	private final Map<SurgicalCapturedRenderPlan, List<Component>> equipmentLayers = new IdentityHashMap<>();
 
 	SurgicalCapturedRenderPlan(List<Component> components, List<SourceBatch> extras) {
-		this(components, components, extras);
+		this(components, components, extras, false);
 	}
 
 	private SurgicalCapturedRenderPlan(List<Component> components, List<Component> appearanceComponents,
-		List<SourceBatch> extras) {
+		List<SourceBatch> extras, boolean traitAppearance) {
 		this.components = List.copyOf(components);
 		this.appearanceComponents = List.copyOf(appearanceComponents);
+		this.traitAppearance = traitAppearance;
 		this.extras = List.copyOf(extras);
 		for (Component component : components)
 			if (component.batches.stream().anyMatch(batch -> SHEEP_WOOL_TEXTURE.equals(SurgicalMaterialBinding.renderTypeTexture(batch.renderType))))
@@ -141,6 +143,30 @@ public final class SurgicalCapturedRenderPlan {
 
 	SurgicalCapturedRenderPlan withTraitAppearance(SurgicalCapturedRenderPlan appearance) {
 		return withAppearance(appearance, true);
+	}
+
+	/** Rigid motion already baked into each bound native appearance, in the donor's render frame. */
+	Map<Integer, SurgicalNativeAnimations.CubePose> nativePoses() {
+		Map<Integer, SurgicalNativeAnimations.CubePose> poses = new HashMap<>();
+		for (Component visual : appearanceComponents) {
+			Component rest = components.get(visual.id);
+			SurgicalCubeRotation rotation = SurgicalCubeRotation.IDENTITY;
+			Vec3 translation = Vec3.ZERO;
+			if (visual.modelPose != null && rest.modelPose != null
+				&& !visual.modelPose.equals(rest.modelPose, POSITION_EPSILON)
+				&& Math.abs(visual.modelPose.determinant()) > 1.0e-12f
+				&& Math.abs(rest.modelPose.determinant()) > 1.0e-12f) {
+				Matrix4f motion = new Matrix4f(visual.modelPose).mul(new Matrix4f(rest.modelPose).invert());
+				Quaternionf q = motion.getUnnormalizedRotation(new Quaternionf());
+				rotation = new SurgicalCubeRotation(q.x, q.y, q.z, q.w);
+				Vector3f center = visual.center();
+				Vector3f restCenter = rest.center();
+				translation = new Vec3(center.x, center.y, center.z)
+					.subtract(rotation.rotate(new Vec3(restCenter.x, restCenter.y, restCenter.z)));
+			}
+			poses.put(visual.id, new SurgicalNativeAnimations.CubePose(rotation, translation, rest.nodes));
+		}
+		return Map.copyOf(poses);
 	}
 
 	private SurgicalCapturedRenderPlan withAppearance(SurgicalCapturedRenderPlan appearance, boolean matchParts) {
@@ -173,7 +199,7 @@ public final class SurgicalCapturedRenderPlan {
 				owner = appearanceOwner(visual);
 			bound.add(new Component(visual, owner));
 		}
-		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras);
+		return new SurgicalCapturedRenderPlan(components, bound, appearance.extras, matchParts);
 	}
 
 	/** Draw back-mounted accessories at one retained carrier, using that cube's articulation. */
@@ -478,6 +504,14 @@ public final class SurgicalCapturedRenderPlan {
 
 		if (!collectGeometry)
 			return new SurgicalModelRenderContext.Snapshot(components.size(), List.of());
+		if (traitAppearance) {
+			List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>(appearanceComponents.size());
+			for (Component component : appearanceComponents)
+				if (isPresent(component.id, expectedCubeCount, presentCubes))
+					geometry.add(component.geometry(poseStack, cubeOffsets.get(component.id),
+						cubeRotations.get(component.id), cameraPosition));
+			return new SurgicalModelRenderContext.Snapshot(components.size(), geometry);
+		}
 		return snapshot(poseStack, expectedCubeCount, presentCubes, cubeOffsets, cubeRotations, cameraPosition);
 	}
 
@@ -502,8 +536,9 @@ public final class SurgicalCapturedRenderPlan {
 	void renderMainHandItem(SlimeBionicEntity owner, int cube, PoseStack poseStack, MultiBufferSource buffer,
 		int packedLight, @Nullable Vec3 offset, @Nullable SurgicalCubeRotation rotation) {
 		if (cube < 0 || cube >= components.size() || owner.getMainHandItem().isEmpty()) return;
-		Component hand = components.get(cube);
-		if (hand.modelCorners.isEmpty()) return;
+		Component hand = traitAppearance ? appearanceComponents.stream()
+			.filter(component -> component.id == cube).findFirst().orElse(null) : components.get(cube);
+		if (hand == null || hand.modelCorners.isEmpty()) return;
 		Matrix4f modelFrame = cornerFrame(hand.modelCorners, 1.0f / 16.0f);
 		if (Math.abs(modelFrame.determinant()) < 1.0e-12f) return;
 		var geometry = hand.geometry(poseStack, offset, rotation, null);
@@ -617,8 +652,8 @@ public final class SurgicalCapturedRenderPlan {
 		boolean topology, boolean bindPlayerSkinLayers, Set<GeometryKey> saddleCubes) {}
 
 	record ModelCubeMatch(List<Vec3> corners, boolean head,
-		Set<String> partNames, Set<BionicModelNode> nodes) {
-		static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false, Set.of(), Set.of());
+		Set<String> partNames, Set<BionicModelNode> nodes, @Nullable Matrix4f pose) {
+		static final ModelCubeMatch NONE = new ModelCubeMatch(List.of(), false, Set.of(), Set.of(), null);
 
 		ModelCubeMatch {
 			corners = List.copyOf(corners);
@@ -635,6 +670,8 @@ public final class SurgicalCapturedRenderPlan {
 		boolean preserveMaterial;
 		private final Set<String> partNames;
 		private final Set<BionicModelNode> nodes;
+		@Nullable
+		private final Matrix4f modelPose;
 		private final boolean topology;
 		final List<SourceBatch> batches = new ArrayList<>();
 		private final List<SourceBatch> surfaceOverlays = new ArrayList<>();
@@ -652,6 +689,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.head = modelCube.head();
 			this.partNames = new HashSet<>(modelCube.partNames());
 			this.nodes = new HashSet<>(modelCube.nodes());
+			this.modelPose = modelCube.pose();
 			this.topology = topology;
 		}
 
@@ -707,7 +745,8 @@ public final class SurgicalCapturedRenderPlan {
 
 		Component build(int id, boolean preserveSource) {
 			return new Component(id, cuboid.corners, cuboid.a, cuboid.b, cuboid.c,
-				modelCorners, faceGrids, head, partNames, nodes, preserveSource, List.copyOf(batches), List.copyOf(surfaceOverlays));
+				modelCorners, faceGrids, head, partNames, nodes, modelPose, preserveSource,
+				List.copyOf(batches), List.copyOf(surfaceOverlays));
 		}
 	}
 
@@ -719,11 +758,12 @@ public final class SurgicalCapturedRenderPlan {
 		final boolean head;
 		final Set<String> partNames;
 		final Set<BionicModelNode> nodes;
+		final Matrix4f pose;
 		/** Computed once here rather than per comparison in {@link #matchingModelCube}. */
 		final GeometryKey key;
 
 		ObservedCube(List<Vector3f> transformedCorners, List<Vec3> modelCorners,
-			boolean head, Set<String> partNames, Set<BionicModelNode> nodes) {
+			boolean head, Set<String> partNames, Set<BionicModelNode> nodes, Matrix4f pose) {
 			// Both lists are built fresh per cube at the single call site and handed straight over, so
 			// they only need freezing, not the deep Vector3f copy this used to make.
 			this.transformedCorners = List.copyOf(transformedCorners);
@@ -731,6 +771,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.head = head;
 			this.partNames = Set.copyOf(partNames);
 			this.nodes = Set.copyOf(nodes);
+			this.pose = pose;
 			this.key = GeometryKey.of(this.transformedCorners);
 		}
 	}
@@ -776,6 +817,8 @@ public final class SurgicalCapturedRenderPlan {
 		final boolean head;
 		final Set<String> partNames;
 		private final Set<BionicModelNode> nodes;
+		@Nullable
+		private final Matrix4f modelPose;
 		private final boolean preserveSource;
 		private final List<SourceBatch> batches;
 		private final List<SourceBatch> surfaceOverlays;
@@ -783,7 +826,7 @@ public final class SurgicalCapturedRenderPlan {
 
 		private Component(int id, List<Vector3f> corners, Vector3f a, Vector3f b, Vector3f c,
 			List<Vec3> modelCorners, List<SurgicalModelRenderContext.FaceGrid> faceGrids, boolean head,
-			Set<String> partNames, Set<BionicModelNode> nodes,
+			Set<String> partNames, Set<BionicModelNode> nodes, @Nullable Matrix4f modelPose,
 			boolean preserveSource,
 			List<SourceBatch> batches, List<SourceBatch> surfaceOverlays) {
 			this.id = id;
@@ -796,6 +839,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.head = head;
 			this.partNames = Set.copyOf(partNames);
 			this.nodes = Set.copyOf(nodes);
+			this.modelPose = modelPose;
 			this.preserveSource = preserveSource;
 			this.batches = batches;
 			this.surfaceOverlays = surfaceOverlays;
@@ -813,6 +857,7 @@ public final class SurgicalCapturedRenderPlan {
 			this.head = appearance.head;
 			this.partNames = appearance.partNames;
 			this.nodes = appearance.nodes;
+			this.modelPose = appearance.modelPose;
 			this.preserveSource = appearance.preserveSource;
 			this.batches = appearance.batches;
 			this.surfaceOverlays = appearance.surfaceOverlays;
@@ -891,7 +936,7 @@ public final class SurgicalCapturedRenderPlan {
 		private SurgicalModelRenderContext.CubeGeometry geometry(PoseStack poseStack, @Nullable Vec3 offset,
 			@Nullable SurgicalCubeRotation rotation, @Nullable Vec3 cameraPosition) {
 			Matrix4f pose = poseStack.last().pose();
-			Vector3f transformedCenter = pose.transformPosition(center(), new Vector3f());
+			Vector3f transformedCenter = pose.transformPosition(rotationCenter, new Vector3f());
 			Vec3 worldCenter = new Vec3(transformedCenter.x, transformedCenter.y, transformedCenter.z);
 			double offsetX = offset == null ? 0.0d : offset.x;
 			double offsetY = offset == null ? 0.0d : offset.y;

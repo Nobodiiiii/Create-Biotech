@@ -38,6 +38,7 @@ final class SurgicalTableEffects {
     private SurgicalTableEffects() {}
 
     static void install(RuntimeEngine engine) {
+        SurgicalTraitPonderEffects.install(engine);
         engine.steps().register(PREFIX + "highlight_parts", new StepType<SurgicalPonderHighlight.Spec>() {
             @Override public StepCodec<SurgicalPonderHighlight.Spec> codec() { return SurgicalPonderHighlight.CODEC; }
             @Override public String editorLabel() { return "自动计算并高亮手术部件"; }

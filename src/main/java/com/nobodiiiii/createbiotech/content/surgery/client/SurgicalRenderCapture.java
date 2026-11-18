@@ -140,7 +140,8 @@ final class SurgicalRenderCapture {
 			}
 		}
 		boolean head = capture.headCubes.contains(cube);
-		capture.observedCubes.add(new SurgicalCapturedRenderPlan.ObservedCube(transformed, model, head, partNames, capture.nodes.getOrDefault(cube, Set.of())));
+		capture.observedCubes.add(new SurgicalCapturedRenderPlan.ObservedCube(transformed, model, head,
+			partNames, capture.nodes.getOrDefault(cube, Set.of()), new Matrix4f(matrix)));
 	}
 
 	static boolean isSaddlePart(String name) {

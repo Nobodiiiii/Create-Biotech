@@ -117,6 +117,7 @@ public final class SlimeBionicAnimator {
 		final float restSwimPitch;
 		final Set<Member> legMembers;
 		final Map<Integer, WingHinge> wingHinges = new HashMap<>();
+		final BionicNativePose.Attachments nativeAttachments;
 
 		private Rig(SurgicalAssembly assembly, List<SourceState> sources, List<ResolvedLimb> limbs) {
 			this.assembly = assembly;
@@ -131,6 +132,7 @@ public final class SlimeBionicAnimator {
 			this.bodyPivot = BionicRigBuilder.bodyPivot(limbs, sources);
 			this.restSwimPitch = BionicPoseSolver.restSwimPitch(limbs, sources, bodyPivot);
 			this.legMembers = BionicPoseSolver.legMembers(limbs);
+			this.nativeAttachments = new BionicNativePose.Attachments(assembly, limbs);
 		}
 	}
 
@@ -257,6 +259,19 @@ public final class SlimeBionicAnimator {
 
 		Vec3 apply(Vec3 point) {
 			return rotation.rotate(point).add(translation);
+		}
+
+		Transform then(Transform next) {
+			if (next == IDENTITY) return this;
+			if (this == IDENTITY) return next;
+			return new Transform(rotation.then(next.rotation), next.apply(translation));
+		}
+
+		Transform inverse() {
+			if (this == IDENTITY) return this;
+			SurgicalCubeRotation inverse = new SurgicalCubeRotation(-rotation.x(), -rotation.y(),
+				-rotation.z(), rotation.w());
+			return new Transform(inverse, inverse.rotate(translation).scale(-1));
 		}
 
 		Transform rotateAround(Vec3 pivot, SurgicalCubeRotation delta) {

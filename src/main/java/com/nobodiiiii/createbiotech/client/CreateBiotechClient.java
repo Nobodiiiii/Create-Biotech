@@ -303,6 +303,7 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerShaders(RegisterShadersEvent event) throws IOException {
 		CaptureNetRenderer.registerShaders(event);
+		com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderHighlight.registerShaders(event);
 	}
 
 	@SubscribeEvent
