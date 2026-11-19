@@ -29,6 +29,7 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
 import com.nobodiiiii.createbiotech.entity.trait.BionicAnatomySnapshot;
@@ -43,10 +44,13 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.Level;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.AABB;
@@ -54,21 +58,31 @@ import net.minecraft.world.phys.Vec3;
 
 /** Scene-owned surgery models. No world subjects, packets, save formats or global preview entities are edited. */
 public final class SurgicalPonderActors extends PonderElementBase implements PonderSceneElement {
-    public static final Vec3 ZOMBIE_POSITION = new Vec3(2, 2, 3);
-    public static final Vec3 GOLEM_POSITION = new Vec3(4.5, 2, 3);
-    public static final Vec3 PILLAGER_POSITION = new Vec3(7, 2, 3);
-    public static final Vec3 RESULT_POSITION = new Vec3(4.5, 1, 7);
+    public static final Vec3 ZOMBIE_POSITION = new Vec3(2.5, 2, 3.5);
+    public static final Vec3 GOLEM_POSITION = new Vec3(4.5, 2, 3.5);
+    public static final Vec3 PILLAGER_POSITION = GOLEM_POSITION.add(GOLEM_POSITION.subtract(ZOMBIE_POSITION));
+    public static final Vec3 RESULT_POSITION = new Vec3(4.5, 1, 7.5);
+    private static final Vec3 INTRO_POSITION = new Vec3(1.5, 1, 4.5);
+    private static final float RESULT_START_YAW = 20;
+    private static final float RESULT_DISPLAY_YAW = -55;
+    private static final int RESULT_TURN_TICKS = 18;
+    private static final double CONTACT_GAP = 0.05;
+    private static final double ARM_STRIKE_DISTANCE = 1.0;
+    private static final double ARRIVAL_TOLERANCE = 0.001;
+    private static final float[] HIT_YAW_OFFSETS = {0, 8, -4, 0, 0};
     static final SurgicalLayPose FLAT = new SurgicalLayPose(SurgicalLayPose.RotationAxis.X, 0, Vec3.ZERO);
     private final Model zombie;
     private final Model golem;
     private final Model pillager;
     private final int rightKnee;
     private final int leftKnee;
+    private final Map<Integer, Vec3> cutLegOffsets;
     private final Map<Integer, Vec3> kneeOffsets;
     private boolean pillagerPlaced;
     private final int zombieArm;
     private final int golemArm;
     private final int torso;
+    private final Vec3 cutArmOffset;
     private final SurgicalCubeRotation armRotation;
     private final Vec3 armOffset;
     private final Map<Integer, Body> bodies = new HashMap<>();
@@ -79,6 +93,13 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     private boolean resultVisible;
     private boolean packed;
     private int resultTicks;
+    private ArmorStand resultTarget;
+    private Vec3 approachDirection = Vec3.ZERO;
+    private float resultYaw;
+    private boolean reachedTarget;
+    private boolean introResult;
+    private boolean introExiting;
+    private int nextAttackTick;
 
     public SurgicalPonderActors(PonderLevel level) {
         zombie = new Model(Objects.requireNonNull(EntityType.ZOMBIE.create(level)), ZOMBIE_POSITION);
@@ -86,6 +107,10 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         pillager = new Model(Objects.requireNonNull(EntityType.PILLAGER.create(level)), PILLAGER_POSITION);
         rightKnee = pillager.part("right_leg");
         leftKnee = pillager.part("left_leg");
+        double rightLegSide = Math.signum(center(pillager.cube(rightKnee)).x - center(pillager.cube(leftKnee)).x);
+        cutLegOffsets = Map.of(
+            rightKnee, FLAT.inverseRotate(new Vec3(rightLegSide / 8, 0, 0.25)),
+            leftKnee, FLAT.inverseRotate(new Vec3(-rightLegSide / 8, 0, 0.25)));
         kneeOffsets = Map.of(rightKnee, kneeOffset("right_leg", rightKnee),
             leftKnee, kneeOffset("left_leg", leftKnee));
         zombieArm = zombie.part("right_arm");
@@ -93,6 +118,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         torso = zombie.part("body");
         AABB body = bounds(zombie.cube(torso).corners());
         AABB arm = bounds(golem.cube(golemArm).corners());
+        double donorArmSide = Math.signum(arm.getCenter().x - center(golem.cube(golem.part("body"))).x);
+        cutArmOffset = FLAT.inverseRotate(new Vec3(donorArmSide * 0.5, 0, 0.5));
         double side = Math.signum(center(zombie.cube(zombieArm)).x - body.getCenter().x);
         armRotation = SurgicalCubeRotation.IDENTITY;
         Vec3 contact = new Vec3(side > 0 ? arm.minX : arm.maxX, arm.maxY, arm.getCenter().z);
@@ -108,16 +135,51 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     public void setSourceAppearance(boolean value) { sourceAppearance = value; }
     public void setJoints(int value) { joints = value; }
     public void showResult(boolean value) {
-        resultVisible = value; resultTicks = 0;
-        if (value) {
+        showResultAt(value ? RESULT_POSITION : null);
+    }
+
+    public void showIntroResult() {
+        setJoints(7);
+        showResultAt(INTRO_POSITION);
+        introResult = true;
+    }
+
+    public void hideIntroResult() {
+        if (!introResult || resultTarget == null) {
+            showResult(false);
+            return;
+        }
+        introExiting = true;
+    }
+
+    private void showResultAt(Vec3 position) {
+        resultVisible = position != null;
+        resultTicks = 0;
+        resultTarget = null;
+        approachDirection = Vec3.ZERO;
+        resultYaw = RESULT_DISPLAY_YAW;
+        reachedTarget = false;
+        introResult = false;
+        introExiting = false;
+        nextAttackTick = 0;
+        if (position != null) {
             var entity = body(joints).entity;
-            entity.moveTo(RESULT_POSITION.x, RESULT_POSITION.y, RESULT_POSITION.z, 90, 0);
-            entity.yBodyRot = entity.yBodyRotO = entity.yHeadRot = entity.yHeadRotO = 90;
+            entity.moveTo(position.x, position.y, position.z, RESULT_START_YAW, 0);
+            entity.yBodyRot = entity.yBodyRotO = entity.yHeadRot = entity.yHeadRotO = RESULT_START_YAW;
             entity.setOldPosAndRot();
             entity.setDeltaMovement(Vec3.ZERO);
             entity.setOnGround(true);
         }
     }
+
+    public void approachTarget(ArmorStand target) {
+        resultTarget = target;
+        // ArmorStandRenderer uses level time for its native wobble, which need not advance in Ponder.
+        target.lastHit = target.level().getGameTime() - 5;
+        approachDirection = target.position().subtract(body(joints).entity.position()).multiply(1, 0, 1).normalize();
+        resultYaw = SlimeBionicCombat.yaw(approachDirection);
+    }
+
     public void packBody() { packed = true; stage = 10; }
     public void unpackBody() { packed = false; }
 
@@ -128,9 +190,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         joints = 0;
         movement = 1;
         sourceAppearance = false;
-        resultVisible = false;
         packed = false;
-        resultTicks = 0;
+        showResult(false);
         bodies.clear();
         setVisible(true);
     }
@@ -138,22 +199,99 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     @Override
     public void tick(PonderScene scene) {
         if (!resultVisible) return;
-        Body body = body(joints);
-        SlimeBionicEntity entity = body.entity;
-        // Run the same controls and travel physics as a live body. Only its waypoint is authored.
-        double destination = resultTicks / 100 % 2 == 0 ? 2.4 : 6.6;
-        entity.setOldPosAndRot();
-        entity.getMoveControl().setWantedPosition(destination, RESULT_POSITION.y, RESULT_POSITION.z, 0.65);
-        entity.getLookControl().setLookAt(destination, RESULT_POSITION.y + entity.getEyeHeight(), RESULT_POSITION.z);
-        entity.tick();
-        int period = Math.max(80, body.attackInterval + 20);
-        if (joints > 0 && resultTicks % period == 30)
-            entity.applyAttackAction(resultTicks / period + 1, true, body.replacementOnLeft, 0,
-                false, false, body.attackInterval, 1200, entity.yBodyRot, 0, entity.yBodyRot);
+        ArmorStand target = resultTarget;
+        boolean hasTarget = target != null && target.isAlive();
+        if (introExiting && !hasTarget) {
+            showResult(false);
+            return;
+        }
+        if (hasTarget) updateHitPose(target);
         resultTicks++;
+        Body body = body(joints);
+        float bodyYaw = turningYaw(RESULT_TURN_TICKS);
+        float headYaw = turningYaw(RESULT_TURN_TICKS - 6);
+        SceneBionicEntity entity = body.entity;
+        boolean facingTarget = hasTarget && !introExiting && resultTicks > RESULT_TURN_TICKS;
+        Vec3 stop = null;
+        Vec3 destination = null;
+        if (facingTarget && !reachedTarget) {
+            double stopDistance = body.attackArm == null
+                ? (entity.getBbWidth() + target.getBbWidth()) / 2.0 + CONTACT_GAP : ARM_STRIKE_DISTANCE;
+            stop = target.position().subtract(approachDirection.scale(stopDistance));
+            if (beforeStop(entity, stop)) destination = body.attackArm == null ? target.position() : stop;
+        }
+        entity.tickScene(bodyYaw, headYaw, destination);
+        if (!facingTarget) return;
+
+        boolean atStop = stop != null && !beforeStop(entity, stop);
+        if (atStop && body.attackArm != null) {
+            entity.setPos(stop.x, entity.getY(), stop.z);
+            entity.setDeltaMovement(entity.getDeltaMovement().multiply(0, 1, 0));
+        }
+        boolean justArrived = atStop && entity.onGround();
+        if (justArrived) reachedTarget = true;
+        if (body.attackArm == null) {
+            if (justArrived) showImpact(scene.getWorld(), target);
+            return;
+        }
+        if (justArrived || (introResult && reachedTarget && resultTicks >= nextAttackTick)) {
+            Vec3 origin = SlimeBionicCombat.worldOrigin(entity.position(), bodyYaw, body.attackArm);
+            Vec3 aim = SlimeBionicCombat.aimAt(target.getBoundingBox(), origin, bodyYaw);
+            entity.applyAttackAction(entity.getAttackActionSequence() + 1, true, body.replacementOnLeft, body.attackSlot,
+                false, body.attackArm.hasElbow(), body.attackInterval, body.attackInterval,
+                SlimeBionicCombat.yaw(aim), SlimeBionicCombat.pitch(aim), bodyYaw);
+            nextAttackTick = resultTicks + body.attackInterval;
+        }
+        if (entity.getAttackActionTick() > 0
+            && entity.getAttackActionDuration() - entity.getAttackActionTick() == entity.getAttackActionContactStartTick())
+            showImpact(scene.getWorld(), target);
+    }
+
+    private boolean beforeStop(SceneBionicEntity entity, Vec3 stop) {
+        // Compare progress along the release path so a final step across the stop never reverses the body.
+        return stop.subtract(entity.position()).dot(approachDirection) > ARRIVAL_TOLERANCE;
+    }
+
+    private float turningYaw(int duration) {
+        return Mth.rotLerp(ease((float) resultTicks / duration), RESULT_START_YAW, resultYaw);
+    }
+
+    private static float ease(float progress) {
+        progress = Mth.clamp(progress, 0, 1);
+        return progress * progress * (3 - 2 * progress);
+    }
+
+    private static void showImpact(PonderLevel level, ArmorStand target) {
+        target.hurtTime = target.hurtDuration = HIT_YAW_OFFSETS.length - 1;
+        updateHitPose(target);
+        level.playLocalSound(target.getX(), target.getY(), target.getZ(), SoundEvents.ARMOR_STAND_HIT,
+            target.getSoundSource(), 0.3f, 1.0f, false);
+        Vec3 center = target.getBoundingBox().getCenter();
+        var random = target.getRandom();
+        for (int i = 0; i < 8; i++)
+            level.addParticle(ParticleTypes.CRIT, center.x, center.y, center.z,
+                (random.nextDouble() - 0.5) * 0.25, random.nextDouble() * 0.15, (random.nextDouble() - 0.5) * 0.25);
+    }
+
+    private static void updateHitPose(ArmorStand target) {
+        int elapsed = HIT_YAW_OFFSETS.length - 1 - target.hurtTime;
+        if (elapsed < 0 || elapsed >= HIT_YAW_OFFSETS.length - 1) return;
+        float yaw = target.getYRot();
+        target.yBodyRotO = yaw + HIT_YAW_OFFSETS[elapsed];
+        target.yBodyRot = yaw + HIT_YAW_OFFSETS[elapsed + 1];
     }
 
     public Vec3 point(String name) { return box(name).getCenter(); }
+
+    public Vec3 detachedDonorPoint(String name) {
+        Vec3 offset = switch (name) {
+            case "donor_arm" -> cutArmOffset;
+            case "donor_right_leg" -> cutLegOffsets.get(rightKnee);
+            case "donor_left_leg" -> cutLegOffsets.get(leftKnee);
+            default -> throw new IllegalArgumentException("Unknown donor part: " + name);
+        };
+        return point(name).add(FLAT.rotate(offset));
+    }
 
     public AABB box(String name) {
         return switch (name) {
@@ -219,7 +357,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             if (stage >= 5 && !packed) {
                 float progress = stage == 5 ? 0 : stage == 6 ? movement : 1;
                 Vec3 origin = golem.origin.lerp(zombie.origin, progress);
-                Vec3 offset = armOffset.scale(progress).add(FLAT.inverseRotate(new Vec3(0.5 * (1 - progress), 0, 0.5 * (1 - progress))));
+                Vec3 offset = cutArmOffset.scale(stage == 5 ? movement : 1).lerp(armOffset, progress);
                 parts.add(new PlacedCube(golem, golemArm, origin, true, offset, armRotation, new Matrix4f()));
             }
         }
@@ -231,9 +369,13 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             }
             if (stage >= 8 && !packed) {
                 float progress = stage == 8 ? 0 : stage == 9 ? movement : 1;
-                for (int cube : List.of(rightKnee, leftKnee))
-                    parts.add(new PlacedCube(pillager, cube, pillager.origin.lerp(zombie.origin, progress), true,
-                        kneeOffsets.get(cube).scale(progress), SurgicalCubeRotation.IDENTITY, new Matrix4f()));
+                Vec3 origin = pillager.origin.lerp(zombie.origin, progress);
+                for (int cube : List.of(rightKnee, leftKnee)) {
+                    Vec3 offset = cutLegOffsets.get(cube).scale(stage == 8 ? movement : 1)
+                        .lerp(kneeOffsets.get(cube), progress);
+                    parts.add(new PlacedCube(pillager, cube, origin, true, offset,
+                        SurgicalCubeRotation.IDENTITY, new Matrix4f()));
+                }
             }
         }
         if (resultVisible) addResultParts(parts, pt);
@@ -244,6 +386,12 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         Body body = body(joints);
         List<SlimeBionicAnimator.Frame> frames = SlimeBionicAnimator.resolve(body.entity, body.rig, pt);
         Vec3 position = body.entity.getPosition(pt);
+        if (introResult && resultTarget != null) {
+            // Match PonderLevel's entity interpolation, including the armor stand's first frame.
+            double targetY = resultTarget.tickCount == 0 ? resultTarget.getY()
+                : Mth.lerp(pt, resultTarget.yOld, resultTarget.getY());
+            position = position.add(0, targetY - INTRO_POSITION.y, 0);
+        }
         // Canonical surgical vertices already face forward; match SlimeBionicRenderer.BodyFrame.
         Matrix4f root = new Matrix4f().translation((float) position.x, (float) position.y, (float) position.z)
             .rotateY((float) Math.toRadians(-Mth.rotLerp(pt, body.entity.yBodyRotO, body.entity.yBodyRot)))
@@ -268,6 +416,11 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             if (names.stream().anyMatch(name -> matches(part, name)))
                 boxes.add(part.worldBounds());
         return boxes;
+    }
+
+    public List<AABB> zombieHighlightBounds(float partialTick) {
+        return visibleParts(partialTick).stream().filter(part -> part.model == zombie && part.flat)
+            .map(PlacedCube::worldBounds).reduce(AABB::minmax).stream().toList();
     }
 
     private boolean matches(PlacedCube part, String name) {
@@ -305,15 +458,18 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         }
 
         AABB worldBounds() {
+            return bounds(worldCorners()).inflate(0.015);
+        }
+
+        List<Vec3> worldCorners() {
             Vec3 pivot = center(model.cube(cube));
-            List<Vec3> corners = model.cube(cube).corners().stream().map(point -> {
+            return model.cube(cube).corners().stream().map(point -> {
                 Vec3 p = pivot.add(rotation.rotate(point.subtract(pivot))).add(offset);
                 if (flat) p = FLAT.rotate(p);
                 p = p.add(origin);
                 Vector3f world = root.transformPosition(new Vector3f((float) p.x, (float) p.y, (float) p.z));
                 return new Vec3(world.x, world.y, world.z);
             }).toList();
-            return bounds(corners).inflate(0.015);
         }
     }
 
@@ -351,7 +507,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         Vec3 origin = measured.origin();
         var bounds = assembly.bodyBounds();
         var attack = measured.attack();
-        SlimeBionicEntity entity = new SceneBionicEntity(zombie.entity.level());
+        SceneBionicEntity entity = new SceneBionicEntity(zombie.entity.level());
         ((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(false);
         entity.setAssembly(assembly);
         // A real client receives these server-calibrated attributes over the network.
@@ -372,25 +528,24 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         double rightDistance = attack == null ? Double.POSITIVE_INFINITY : attack.right().stream()
             .mapToDouble(arm -> arm.origin().distanceToSqr(donorCenter)).min().orElse(Double.POSITIVE_INFINITY);
         boolean replacementOnLeft = leftDistance < rightDistance;
-        var arm = attack == null ? null : (replacementOnLeft ? attack.left() : attack.right()).stream()
+        List<SurgicalAssembly.ArmAttackGeometry> arms = attack == null ? List.of()
+            : replacementOnLeft ? attack.left() : attack.right();
+        var arm = arms.stream()
             .min(java.util.Comparator.comparingDouble(candidate -> candidate.origin().distanceToSqr(donorCenter)))
             .orElse(null);
         int interval = SurgicalCombatCalibration.attackInterval(SurgicalCombatCalibration.stats(arm, entity.level()),
             attack == null ? 1 : attack.arms().size(), entity.level());
-        return new Body(assembly, entity, measured.rig(), origin, replacementOnLeft, interval);
+        int slot = arm == null ? 0 : arms.indexOf(arm);
+        return new Body(assembly, entity, measured.rig(), origin, arm, replacementOnLeft, slot, interval);
     }
 
     static MeasuredBody measureBody(SurgicalAssembly assembly, List<Model> models,
                                     Predicate<SurgicalAssembly.CombinationMember> inCore) {
         List<SlimeBionicAnimator.SourceState> states = new ArrayList<>();
-        List<Map<Integer, List<Vec3>>> hitboxes = new ArrayList<>();
-        List<List<Vec3>> all = new ArrayList<>();
-        List<List<Vec3>> rigid = new ArrayList<>();
         for (int source = 0; source < models.size(); source++) {
             Model model = models.get(source);
             SurgicalAssembly.Source saved = assembly.sources().get(source);
             List<SurgicalModelRenderContext.CubeGeometry> geometry = new ArrayList<>();
-            Map<Integer, List<Vec3>> boxes = new HashMap<>();
             BitSet present = saved.presentCubes();
             for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
                 var original = model.cube(cube);
@@ -400,13 +555,30 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
                 List<Vec3> corners = original.corners().stream()
                     .map(p -> pivot.add(rotation.rotate(p.subtract(pivot))).add(offset)).toList();
                 geometry.add(original.withCorners(corners));
+            }
+            states.add(new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(
+                new SurgicalModelRenderContext.Snapshot(model.count(), geometry)), saved.cubeOffsets(), saved.cubeRotations()));
+        }
+        return measureBody(assembly, models, states, inCore);
+    }
+
+    static MeasuredBody measureBody(SurgicalAssembly assembly, List<Model> models,
+                                    List<SlimeBionicAnimator.SourceState> states,
+                                    Predicate<SurgicalAssembly.CombinationMember> inCore) {
+        List<Map<Integer, List<Vec3>>> hitboxes = new ArrayList<>();
+        List<List<Vec3>> all = new ArrayList<>();
+        List<List<Vec3>> rigid = new ArrayList<>();
+        for (int source = 0; source < states.size(); source++) {
+            Map<Integer, List<Vec3>> boxes = new HashMap<>();
+            var measured = states.get(source).boxes();
+            BitSet present = assembly.sources().get(source).presentCubes();
+            for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
+                List<Vec3> corners = measured.get(cube).points();
                 boxes.put(cube, corners);
                 all.add(corners);
                 if (inCore.test(new SurgicalAssembly.CombinationMember(source, cube))) rigid.add(corners);
             }
             hitboxes.add(Map.copyOf(boxes));
-            states.add(new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(
-                new SurgicalModelRenderContext.Snapshot(model.count(), geometry)), saved.cubeOffsets(), saved.cubeRotations()));
         }
         AABB envelope = bounds(all.stream().flatMap(List::stream).toList());
         var visible = new SurgicalBodyBounds.Envelope(envelope.minX, envelope.minY, envelope.minZ,
@@ -439,19 +611,48 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
 
     /** Client-owned Ponder body: native travel runs locally, with server AI and packets absent. */
     private static final class SceneBionicEntity extends SlimeBionicEntity {
+        private float sceneBodyYaw;
+        private float sceneHeadYaw;
+        private Vec3 destination;
+
         SceneBionicEntity(Level level) { super(CBEntityTypes.SLIME_BIONIC.get(), level); }
+
+        void tickScene(float bodyYaw, float headYaw, Vec3 destination) {
+            setOldPosAndRot();
+            sceneBodyYaw = bodyYaw;
+            sceneHeadYaw = headYaw;
+            this.destination = destination;
+            tickCount++;
+            tick();
+        }
+
         @Override public boolean isControlledByLocalInstance() { return true; }
+
         @Override public void aiStep() {
-            // Like native AI, update controls after baseTick snapshots the previous head/body angles.
-            getMoveControl().tick();
-            getLookControl().tick();
+            if (destination != null) {
+                getMoveControl().setWantedPosition(destination.x, destination.y, destination.z, 0.65);
+                getMoveControl().tick();
+            } else {
+                setSpeed(0);
+                setXxa(0);
+                setDeltaMovement(getDeltaMovement().multiply(0, 1, 0));
+            }
+            setYRot(sceneBodyYaw);
             getJumpControl().tick();
             super.aiStep();
         }
+
+        @Override protected float tickHeadTurn(float wantedBodyYaw, float walkSpeed) {
+            // The scene supplies one facing for travel and the rendered body. Keep the previous tick for interpolation.
+            yBodyRot = sceneBodyYaw;
+            yHeadRot = sceneHeadYaw;
+            return walkSpeed;
+        }
     }
 
-    private record Body(SurgicalAssembly assembly, SlimeBionicEntity entity, SlimeBionicAnimator.Rig rig,
-                        Vec3 origin, boolean replacementOnLeft, int attackInterval) {}
+    private record Body(SurgicalAssembly assembly, SceneBionicEntity entity, SlimeBionicAnimator.Rig rig,
+                        Vec3 origin, SurgicalAssembly.ArmAttackGeometry attackArm, boolean replacementOnLeft,
+                        int attackSlot, int attackInterval) {}
 
     static final class Model {
         final LivingEntity entity;

@@ -37,7 +37,7 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 - 编译扩展：`ponderext/SurgicalTableEffects.java`；模型、台面摆放与成品骨架由 `content/surgery/client/SurgicalPonderActors.java` 管理。
 - 共用结构：`assets/create_biotech/ponder/generated/create_biotech/surgical_table/basic_xl.nbt`；可用 `python tools/generate_surgical_ponder_structure.py` 确定性重建。
 
-第四章的台面模型和演示指令位于 `SurgicalTraitPonderActors.java` 和 `SurgicalTraitPonderEffects.java`。占比条和缺失条件使用实际装配的特性判定。JEI 预览使用原生特性配方布局，接口参考 `ref/1.21.1/JustEnoughItems/CommonApi/src/main/java/mezz/jei/api/recipe/IRecipeManager.java` 和 `gui/IRecipeLayoutDrawable.java`，并使用项目锁定的 JEI 19.39.0.368 编译。
+第四章的台面模型和演示指令位于 `SurgicalTraitPonderActors.java` 和 `SurgicalTraitPonderEffects.java`。成品使用随场景打包的苦力怕幻翼绿图，特性说明由 Ponder 原生字幕和操作提示呈现。
 
 扩展使用场景独占的供体模型、当前解剖快照和真实装配骨架演示，不操作玩家世界中的手术台或共享预览。装箱后仅隐藏已连接的成品，旧手臂和剩余供体留在台面。工具轮盘复用 `SurgicalRadialLayout`，作为非交互覆盖层展示；成品属性来自当前装配的实际计算结果。模型与覆盖层通过播放指令加入元素列表，不能在编译故事板时直接加入，否则会被 `PonderScene.begin()` 清除。三章在初始化时统一将整体视角绕 Y 轴转 180°；重播时重新注册元素并重置部件状态、动画计时和覆盖层。
 
@@ -124,6 +124,6 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
 
-`create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤：`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算部件包围盒并自行绘制轮廓，不调用 Ponder 现有高亮指令；剪切、移动、粘合、成品行走和转身都使用当前模型位置。成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`，释放时同步初始化身体与头部朝向。
+`create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤。`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`highlight_zombie` 将第一幕台面上僵尸的所有可见体块合成一个框。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算包围盒，再交给 Ponder 场景的 `Outliner` 和 `AABBOutline` 绘制。
 
-高亮使用 `POSITION_COLOR_NORMAL` / `LINES` 与独立 `surgical_ponder_highlight` 顶点着色器，将线段展开为固定 2 GUI 像素宽的屏幕空间四边形，避免原生 OpenGL 线宽被驱动限制。着色器只扩展裁剪坐标 X/Y，保留原始 Z/W；配合 `LEQUAL` 深度测试、无深度偏移、当前场景渲染目标和只写颜色，通过 `SuperRenderTypeBuffer.getLateBuffer` 在场景几何之后绘制。不要换回原版线框着色器：`rendertype_lines.vsh` 自带 `VIEW_SHRINK`，在 Ponder 的 GUI 投影下会把后方轮廓拉到前方，造成遮挡错误。
+成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`。第一幕由 `result_intro` 让成品从 `(1.5, 1, 4.5)` 入场，走到 `intro_target` 盔甲架旁持续挥击，直到 `hide_result` 开始退场。成品的入场和退场直接跟随盔甲架的竖直位移，手术台在两者退场后出现。关节幕给跳跃与步行各绑定一个盔甲架，释放后先转向，抵达盔甲架前并落地后触发一次撞击或挥击。盔甲架的位置由 `contact_target` 和 `strike_target` 对应的场景实体步骤指定。特性幕的俯冲沿用巡航结束时的位置与扑翼动画进度。

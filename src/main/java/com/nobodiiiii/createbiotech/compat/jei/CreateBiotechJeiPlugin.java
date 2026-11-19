@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRegistry;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.ObjIntConsumer;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
@@ -44,7 +43,6 @@ import mezz.jei.api.registration.ISubtypeRegistration;
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -62,33 +60,6 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	private static IJeiRuntime traitRuntime;
 	private static boolean catalogListenerRegistered;
 	private static List<BionicTrait> registeredTraits = List.of();
-
-	/** Draws the native recipe layout inside Ponder without opening the live recipe screen. */
-	public static ObjIntConsumer<GuiGraphics> traitRecipePreview(BionicTrait baseTrait) {
-		var runtime = traitRuntime;
-		if (runtime == null) return null;
-		var manager = runtime.getRecipeManager();
-		var category = manager.getRecipeCategory(BionicTraitJeiCategory.TYPE);
-		var trait = BionicTraitRegistry.clientTrait(baseTrait.id());
-		if (trait == null) trait = baseTrait;
-		var focuses = runtime.getJeiHelpers().getFocusFactory().getEmptyFocusGroup();
-		return manager.createRecipeLayoutDrawable(category, trait, focuses).map(layout -> {
-			layout.setPosition(7, 8);
-			return (ObjIntConsumer<GuiGraphics>) (graphics, age) -> {
-				layout.drawRecipe(graphics, -1, -1);
-				var rect = layout.getRect();
-				int x = rect.getX(), y = rect.getY();
-				int width = rect.getWidth(), height = rect.getHeight();
-				if (age < 48)
-					graphics.renderOutline(x, y + 21, width, height - BionicTraitDonorWidget.HEIGHT - 21, 0xffd8ac51);
-				else if (age < 96)
-					graphics.renderOutline(x + width - 38, y, 38, 19, 0xffd8ac51);
-				else if (CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
-					graphics.renderOutline(x, y + height - BionicTraitDonorWidget.HEIGHT, width,
-						BionicTraitDonorWidget.HEIGHT, 0xffd8ac51);
-			};
-		}).orElse(null);
-	}
 
 	private static void refreshTraitIngredients() {
 		if (traitRuntime == null) return;

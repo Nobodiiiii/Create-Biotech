@@ -26,6 +26,7 @@ import net.createmod.ponder.foundation.ui.PonderUI;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -46,6 +47,8 @@ final class SurgicalTableEffects {
                 SurgicalPonderHighlight.schedule(ctx.builder(), actors(ctx), parameters);
             }
         });
+        engine.steps().registerJava(PREFIX + "highlight_zombie", "高亮僵尸供体全身", ctx ->
+            SurgicalPonderHighlight.schedule(ctx.builder(), PonderPalette.BLUE, 75, actors(ctx)::zombieHighlightBounds));
         engine.steps().registerJava(PREFIX + "prepare", "准备手术演示模型", ctx -> actors(ctx));
         register(engine, "empty", "清空演示台面", actors -> actors.setStage(0));
         register(engine, "place_zombie", "放置僵尸供体", actors -> actors.setStage(1));
@@ -53,7 +56,7 @@ final class SurgicalTableEffects {
         register(engine, "place_pillager", "放置掠夺者供体", SurgicalPonderActors::placePillager);
         register(engine, "original_appearance", "显示供体原本外观", actors -> actors.setSourceAppearance(true));
         register(engine, "slime_appearance", "恢复手术外观", actors -> actors.setSourceAppearance(false));
-        register(engine, "hide_result", "收起演示成品", actors -> actors.showResult(false));
+        register(engine, "hide_result", "让演示成品退场", SurgicalPonderActors::hideIntroResult);
         register(engine, "return_to_table", "将成品放回台面", actors -> { actors.showResult(false); actors.unpackBody(); actors.setStage(10); });
         engine.steps().registerJava(PREFIX + "cut_arm", "剪开僵尸肩部连接", ctx -> move(ctx, 3, 22));
         engine.steps().registerJava(PREFIX + "move_arm", "移开旧手臂", ctx -> move(ctx, 4, 30));
@@ -61,7 +64,7 @@ final class SurgicalTableEffects {
             highlight(ctx, "donor_arm", PonderPalette.RED, 35);
             ctx.builder().overlay().showControls(actors(ctx).point("donor_arm"), Pointing.DOWN, 25)
                 .rightClick().withItem(new ItemStack(Items.SHEARS));
-            ctx.builder().addInstruction(s -> actors(ctx).setStage(5));
+            move(ctx, 5, 16);
         });
         engine.steps().registerJava(PREFIX + "glue_arm", "按选点顺序粘合替换手臂", SurgicalTableEffects::glueArm);
         engine.steps().registerJava(PREFIX + "glue_legs", "截取掠夺者双腿并安装小腿", SurgicalTableEffects::glueLegs);
@@ -80,8 +83,10 @@ final class SurgicalTableEffects {
         });
         engine.steps().registerJava(PREFIX + "release_hopping", "释放无关节成品并演示跳跃", ctx -> release(ctx, false));
         engine.steps().registerJava(PREFIX + "release_walking", "释放成品并演示转头行走挥击", ctx -> release(ctx, true));
-        engine.steps().registerJava(PREFIX + "result_intro", "展示装配完成的仿生生物", ctx -> {
-            ctx.builder().addInstruction(s -> { actors(ctx).setJoints(7); actors(ctx).showResult(true); });
+        engine.steps().registerJava(PREFIX + "result_intro", "让仿生生物入场并攻击盔甲架", ctx -> {
+            var actors = actors(ctx);
+            ctx.builder().addInstruction(s -> actors.showIntroResult());
+            bindTarget(ctx, actors, "intro_target");
         });
         engine.steps().registerJava(PREFIX + "stats", "展示生命伤害移速与成品属性", SurgicalTableEffects::stats);
         engine.steps().registerJava(PREFIX + "tools_note", "右上角工具章节提示", ctx -> {
@@ -131,7 +136,7 @@ final class SurgicalTableEffects {
 
     private static void glueArm(StepBuildContext ctx) {
         var scene = ctx.builder();
-        scene.overlay().showControls(actors(ctx).point("donor_arm"), Pointing.DOWN, 35)
+        scene.overlay().showControls(actors(ctx).detachedDonorPoint("donor_arm"), Pointing.DOWN, 35)
             .rightClick().withItem(new ItemStack(com.simibubi.create.AllItems.SUPER_GLUE.get()));
         highlight(ctx, "donor_arm", PonderPalette.GREEN, 45);
         scene.idle(35);
@@ -162,38 +167,50 @@ final class SurgicalTableEffects {
 
     private static void glueLegs(StepBuildContext ctx) {
         var scene = ctx.builder();
-        for (String leg : List.of("donor_right_leg", "donor_left_leg")) {
-            highlight(ctx, leg, PonderPalette.RED, 30);
-            scene.overlay().showControls(actors(ctx).point(leg), Pointing.DOWN, 25)
-                .rightClick().withItem(new ItemStack(Items.SHEARS));
-            scene.idle(30);
-        }
-        scene.addInstruction(s -> actors(ctx).setStage(8));
+        var actors = actors(ctx);
+        var legs = actors.box("donor_right_leg").minmax(actors.box("donor_left_leg"));
+        SurgicalPonderHighlight.schedule(scene, actors, new SurgicalPonderHighlight.Spec(
+            List.of("donor_right_leg", "donor_left_leg"), PonderPalette.RED, 30));
+        scene.overlay().showControls(new Vec3(legs.getCenter().x, legs.maxY, legs.minZ), Pointing.DOWN, 25)
+            .rightClick().withItem(new ItemStack(Items.SHEARS));
+        scene.idle(15);
+        move(ctx, 8, 15);
+        scene.idle(25);
         for (String side : List.of("right", "left")) {
-            scene.overlay().showControls(actors(ctx).point("donor_" + side + "_leg"), Pointing.DOWN, 25)
+            scene.overlay().showControls(actors.detachedDonorPoint("donor_" + side + "_leg"), Pointing.DOWN, 25)
                 .rightClick().withItem(new ItemStack(com.simibubi.create.AllItems.SUPER_GLUE.get()));
             scene.idle(25);
-            scene.overlay().showControls(actors(ctx).point(side + "_leg"), Pointing.DOWN, 25)
+            scene.overlay().showControls(actors.point(side + "_leg"), Pointing.DOWN, 25)
                 .rightClick().withItem(new ItemStack(com.simibubi.create.AllItems.SUPER_GLUE.get()));
             scene.idle(25);
         }
         move(ctx, 9, 40);
         scene.idle(45);
-        scene.addInstruction(s -> actors(ctx).setStage(10));
+        scene.addInstruction(s -> actors.setStage(10));
         highlight(ctx, "right_knee", PonderPalette.GREEN, 40);
         highlight(ctx, "left_knee", PonderPalette.GREEN, 40);
     }
 
     private static void release(StepBuildContext ctx, boolean articulated) {
         var scene = ctx.builder();
-        scene.overlay().showControls(actors(ctx).point("body"), Pointing.DOWN, 25)
+        var actors = actors(ctx);
+        scene.overlay().showControls(actors.point("body"), Pointing.DOWN, 25)
             .rightClick().withItem(new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()));
         scene.idle(25);
-        scene.addInstruction(s -> { actors(ctx).packBody(); actors(ctx).setJoints(articulated ? 7 : 0); });
+        scene.addInstruction(s -> { actors.packBody(); actors.setJoints(articulated ? 7 : 0); });
         scene.overlay().showControls(SurgicalPonderActors.RESULT_POSITION.add(0, 1.5, 0), Pointing.DOWN, 30)
             .rightClick().whileSneaking().withItem(new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get()));
         scene.idle(20);
-        scene.addInstruction(s -> actors(ctx).showResult(true));
+        scene.addInstruction(s -> actors.showResult(true));
+        bindTarget(ctx, actors, articulated ? "strike_target" : "contact_target");
+    }
+
+    private static void bindTarget(StepBuildContext ctx, SurgicalPonderActors actors, String target) {
+        for (var link : ctx.entities().getOrDefault(target, List.of())) {
+            ctx.builder().world().modifyEntity(link, entity -> {
+                if (entity instanceof ArmorStand stand) actors.approachTarget(stand);
+            });
+        }
     }
 
     private static void wheel(StepBuildContext ctx, boolean joints, int duration) {
