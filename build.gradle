@@ -71,7 +71,12 @@ repositories {
     maven { url = 'https://maven.createmod.net' }
     maven { url = 'https://maven.ithundxr.dev/snapshots' }
     maven { url = 'https://maven.blamejared.com' }
-    maven { url = 'https://api.modrinth.com/maven' }
+    exclusiveContent {
+        forRepository {
+            maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' }
+        }
+        filter { includeGroup 'maven.modrinth' }
+    }
     maven { url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven' }
     maven { url = 'https://maven.ryanhcode.dev/releases/' }
     mavenCentral()
@@ -79,11 +84,9 @@ repositories {
 
 configurations {
     quickPlayMods
+    pondererLib
+    implementation.extendsFrom pondererLib
 }
-
-// Development artifacts are copied into this project; no local Maven publication is required.
-def pondererLibJar = files("libs/pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar")
-def pondererEditorJar = files("libs/ponderer-${minecraft_version}-neoforge-${ponderer_version}.jar")
 
 dependencies {
     compileOnly("dev.latvian.mods:kubejs-neoforge:${kubejs_version}") { transitive = false }
@@ -111,8 +114,8 @@ dependencies {
     runtimeOnly("dev.engine-room.flywheel:flywheel-neoforge-${minecraft_version}:${flywheel_version}")
     runtimeOnly("dev.engine-room.vanillin:vanillin-neoforge-${minecraft_version}:${vanillin_version}")
     implementation("net.createmod.ponder:ponder-neoforge:${ponder_version}+mc${minecraft_version}")
-    implementation pondererLibJar
-    runtimeOnly pondererEditorJar
+    pondererLib(ponderer_lib_coordinate) { transitive = false }
+    runtimeOnly(ponderer_editor_coordinate) { transitive = false }
 
     compileOnly("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
     compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api:${jei_version}")
@@ -129,8 +132,8 @@ dependencies {
     quickPlayMods("com.simibubi.create:create-${minecraft_version}:${create_version}") {
         transitive = false
     }
-    quickPlayMods pondererLibJar
-    quickPlayMods pondererEditorJar
+    quickPlayMods(ponderer_lib_coordinate) { transitive = false }
+    quickPlayMods(ponderer_editor_coordinate) { transitive = false }
     quickPlayMods("dev.engine-room.vanillin:vanillin-neoforge-${minecraft_version}:${vanillin_version}") {
         transitive = false
     }
@@ -186,6 +189,11 @@ tasks.register('syncQuickPlayMods', Sync) {
     group = 'mod development'
     description = 'Stages the standalone runtime mod dependencies used by quickPlayClient.'
     from(configurations.quickPlayMods)
+    // Maven uses module/version filenames; the launcher manages the actual mod names.
+    rename("${ponderer_lib_coordinate.split(':')[1]}-${ponderer_lib_coordinate.split(':')[2]}.jar",
+            "pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar")
+    rename("${ponderer_editor_coordinate.split(':')[1]}-${ponderer_editor_coordinate.split(':')[2]}.jar",
+            "ponderer-${minecraft_version}-neoforge-${ponderer_version}.jar")
     into(layout.buildDirectory.dir('quickplay/mods'))
 }
 
@@ -282,13 +290,72 @@ jar {
     }
 
     from('LICENSE.md') {
-        rename { "${mod_name}_${it}" }
+        rename { "${mod_id}_${it}" }
     }
     from('THIRD_PARTY_NOTICES.md')
     from('LICENSES') {
         into 'LICENSES'
     }
 }
+
+// Keep the ordinary development/CurseForge JAR dependent on the standalone Lib.
+// Modrinth gets the same JAR plus a nested Lib, with its real Maven identity and
+// semantic version (Modrinth's download version ID is not the library version).
+def releaseJar = tasks.named('jar', Jar)
+def generateModrinthJarJarMetadata = tasks.register('generateModrinthJarJarMetadata') {
+    dependsOn releaseJar
+    inputs.file(releaseJar.flatMap { it.archiveFile })
+    inputs.property('libVersion', ponderer_lib_version)
+    inputs.property('libRange', ponderer_lib_version_range)
+    inputs.property('minecraftVersion', minecraft_version)
+    outputs.file(layout.buildDirectory.file('generated/modrinthJarJar/metadata.json'))
+    doLast {
+        def metadata
+        new java.util.zip.ZipFile(releaseJar.get().archiveFile.get().asFile).withCloseable { archive ->
+            def entry = archive.getEntry('META-INF/jarjar/metadata.json')
+            metadata = entry == null ? [jars: []] : archive.getInputStream(entry).withCloseable {
+                new groovy.json.JsonSlurper().parse(it)
+            }
+        }
+        metadata.jars.add([
+                identifier: [group: 'com.nododiiiii', artifact: 'RuntimeNeoForge'],
+                version: [range: ponderer_lib_version_range, artifactVersion: ponderer_lib_version],
+                path: "META-INF/jarjar/pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar",
+                isObfuscated: false
+        ])
+        def output = outputs.files.singleFile
+        output.parentFile.mkdirs()
+        output.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata)), 'UTF-8')
+    }
+}
+
+def modrinthJar = tasks.register('modrinthJar', Jar) {
+    group = 'build'
+    description = 'Builds the Modrinth distribution with Ponderer Lib embedded.'
+    archiveClassifier = 'modrinth'
+    manifest.from(releaseJar.get().manifest)
+    from(releaseJar.map { zipTree(it.archiveFile.get().asFile) }) {
+        exclude 'META-INF/MANIFEST.MF', 'META-INF/jarjar/metadata.json'
+    }
+    from(configurations.pondererLib) {
+        into 'META-INF/jarjar'
+        rename { "pondererlib-${minecraft_version}-neoforge-${ponderer_lib_version}.jar" }
+    }
+    from(generateModrinthJarJarMetadata) { into 'META-INF/jarjar' }
+}
+
+tasks.register('prepareReleaseJars', Sync) {
+    group = 'build'
+    description = 'Stages CurseForge (external Lib) and Modrinth (embedded Lib) distributions.'
+    into layout.buildDirectory.dir('release')
+    from(releaseJar) { into 'curseforge' }
+    from(modrinthJar) {
+        into 'modrinth'
+        rename { releaseJar.get().archiveFileName.get() }
+    }
+}
+
+tasks.named('build') { dependsOn 'prepareReleaseJars' }
 
 tasks.named('test', Test).configure {
     useJUnitPlatform()

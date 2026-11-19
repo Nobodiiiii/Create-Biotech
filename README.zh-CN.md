@@ -16,19 +16,22 @@
 | 加载器         | NeoForge 21.1.219（通过 `net.neoforged.moddev`）                         |
 | Java           | 21                                                                       |
 | 模组 id / 版本 | `create_biotech` / 见 [gradle.properties](gradle.properties)              |
-| 硬依赖         | Create 6.0.10、Registrate、Flywheel、Ponder                              |
+| 硬依赖         | Create 6.0.10、Ponderer Lib 0.1.1（CurseForge 外置，Modrinth 内嵌）；Registrate、Flywheel、Ponder 由 Create 提供 |
 | 软依赖         | JEI、Jade                                                                |
 | Mixin 配置     | [create_biotech.mixins.json](src/main/resources/create_biotech.mixins.json) |
 | 映射表         | Parchment 2024.11.17                                                     |
 
 ```bash
 ./gradlew build                     # 构建 jar
+./gradlew syncQuickPlayMods         # 从 Maven 解析并暂存开发运行模组
 ./gradlew runClient                 # 启动开发客户端
 ./gradlew runServer                 # 启动开发服务端
 ./gradlew runData                   # 重新生成数据生成产物
 ./gradlew quickPlayClient -Pinstance=<name>   # 构建 + 拷贝 + 通过 test.py 启动外部实例
 ./gradlew quickPlaySmoke -Pinstance=<name>    # 进入世界、确认日志标记后自动结束客户端
 ```
+
+Ponderer Lib 与开发用编辑器通过 Modrinth Maven 的固定 NeoForge 版本 ID 拉取，无需本地 `libs/` 或相邻仓库。`build` 将 CurseForge 产物放在 `build/release/curseforge/`，Modrinth 产物放在 `build/release/modrinth/`；普通 `build/libs/` JAR 用于开发，要求外置 Lib。[依赖与发布说明](docs/releasing.zh-CN.md)包含本地预演命令和三个手动 GitHub Actions 工作流的用法。
 
 ## 仓库结构
 

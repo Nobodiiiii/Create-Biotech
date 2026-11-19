@@ -1,0 +1,92 @@
+name: 全部发布
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 仅构建并检查产物，不上传
+        type: boolean
+        default: true
+      version_type:
+        description: 发布类型（auto 根据 mod_version 判断）
+        type: choice
+        options: [auto, release, beta, alpha]
+        default: auto
+  workflow_call:
+    inputs:
+      platforms:
+        type: string
+        required: true
+      dry_run:
+        type: boolean
+        required: true
+      version_type:
+        type: string
+        default: auto
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and check both distributions
+    if: github.ref == 'refs/heads/1.21.1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Build and stage release JARs
+        run: bash ./gradlew --no-daemon --console=plain build
+      - name: Validate CurseForge external Lib and Modrinth embedded Lib
+        run: python3 publish.py --dry-run --skip-build --non-interactive
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: create-biotech-release-jars
+          path: build/release/
+          if-no-files-found: error
+
+  publish:
+    name: Publish to ${{ matrix.site }}
+    if: github.ref == 'refs/heads/1.21.1' && !inputs.dry_run
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: release-1.21.1
+    concurrency:
+      group: create-biotech-release-1.21.1-${{ matrix.site }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        site: ${{ fromJSON(inputs.platforms || '["Modrinth","CurseForge"]') }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python -m pip install requests==2.32.5
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: create-biotech-release-jars
+          path: build/release
+      - name: Upload the platform distribution
+        env:
+          SITE: ${{ matrix.site }}
+          VERSION_TYPE: ${{ inputs.version_type }}
+          MODRINTH_TOKEN: ${{ matrix.site == 'Modrinth' && secrets.MODRINTH_TOKEN || '' }}
+          CURSEFORGE_TOKEN: ${{ matrix.site == 'CurseForge' && secrets.CURSEFORGE_TOKEN || '' }}
+        run: |
+          args=(--skip-build --non-interactive "--only-${SITE,,}")
+          if [[ "$VERSION_TYPE" != auto ]]; then
+            args+=(--version-type "$VERSION_TYPE")
+          fi
+          python publish.py "${args[@]}"

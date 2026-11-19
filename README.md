@@ -16,19 +16,22 @@ This README is mainly for contributors and AI coding agents. If you want a playe
 | Loader | NeoForge 21.1.219 (via `net.neoforged.moddev`) |
 | Java | 21 |
 | Mod id / version | `create_biotech` / see [gradle.properties](gradle.properties) |
-| Hard deps | Create 6.0.10, Registrate, Flywheel, Ponder |
+| Hard deps | Create 6.0.10, Ponderer Lib 0.1.1 (external on CurseForge, embedded on Modrinth); Registrate, Flywheel and Ponder supplied by Create |
 | Soft deps | JEI, Jade |
 | Mixin config | [create_biotech.mixins.json](src/main/resources/create_biotech.mixins.json) |
 | Mappings | Parchment 2024.11.17 |
 
 ```bash
 ./gradlew build                     # build the jar
+./gradlew syncQuickPlayMods         # resolve and stage runtime mods from Maven
 ./gradlew runClient                 # launch dev client
 ./gradlew runServer                 # launch dev server
 ./gradlew runData                   # regenerate datagen output
 ./gradlew quickPlayClient -Pinstance=<name>   # build + copy + launch external instance via test.py
 ./gradlew quickPlaySmoke -Pinstance=<name>    # enter a world, verify the log marker, then stop the client
 ```
+
+Ponderer Lib and the development editor are resolved from Modrinth Maven using pinned NeoForge version IDs; no local `libs/` or sibling checkout is needed. `build` stages the CurseForge distribution in `build/release/curseforge/` and the Modrinth distribution in `build/release/modrinth/`. The ordinary `build/libs/` JAR uses an external Lib for development. See [the dependency and release guide](docs/releasing.zh-CN.md) for dry runs and the three manual GitHub Actions workflows.
 
 ## Repository layout
 

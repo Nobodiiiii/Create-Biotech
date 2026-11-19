@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """
 Create: Biotech 一键构建 + 发布脚本
-用法: python publish.py [--dry-run] [--skip-build] [--version-type release|beta|alpha] [--only-modrinth] [--only-curseforge]
+用法: python publish.py [--dry-run] [--skip-build] [--non-interactive] [--version-type release|beta|alpha] [--only-modrinth | --only-curseforge]
 """
 
+import argparse
 import io
 import json
 import os
 import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
+from zipfile import BadZipFile, ZipFile
 
 # 修复 Windows 终端中文输出
 if sys.platform == "win32":
@@ -20,9 +23,7 @@ if sys.platform == "win32":
 try:
     import requests
 except ImportError:
-    print("缺少 requests 库，正在安装...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
-    import requests
+    requests = None
 
 # ── 常量 ──────────────────────────────────────────────────────────────────────
 
@@ -111,28 +112,28 @@ MODRINTH_DEPENDENCIES = [
     {"project_id": "nvQzSEkH", "dependency_type": "optional"},  # Jade
 ]
 
+CURSEFORGE_DEPENDENCIES = [
+    {"slug": "create", "type": "requiredDependency"},
+    {"slug": "ponderer-lib", "projectID": 1808352, "type": "requiredDependency"},
+    {"slug": "jei", "type": "optionalDependency"},
+    {"slug": "jade", "type": "optionalDependency"},
+]
+
 
 # ── 工具函数 ────────────────────────────────────────────────────────────────
 
 def load_env():
-    """从 .env 文件加载环境变量"""
-    if not ENV_FILE.exists():
-        print(f"错误: 找不到 .env 文件，请在项目根目录创建 .env 并填入:")
-        print(f"  MODRINTH_TOKEN=你的modrinth_token")
-        print(f"  CURSEFORGE_TOKEN=你的curseforge_token")
-        print(f"\nModrinth token: https://modrinth.com/settings/pats")
-        print(f"CurseForge token: https://authors-old.curseforge.com/account/api-tokens")
-        print(f"CurseForge 项目 ID: 在 CurseForge 项目页面 URL 中可以找到")
-        sys.exit(1)
-
+    """本地 .env 可选；GitHub Actions 的环境变量优先。"""
     env = {}
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" in line:
-            key, _, value = line.partition("=")
-            env[key.strip()] = value.strip()
+    if ENV_FILE.exists():
+        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                env[key.strip()] = value.strip()
+    env.update(os.environ)
     return env
 
 
@@ -287,8 +288,59 @@ def run_build(task: str):
     gradlew = PROJECT_ROOT / "gradlew.bat" if os.name == "nt" else PROJECT_ROOT / "gradlew"
     cmd = [str(gradlew), task]
     print(f"  执行: {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd=PROJECT_ROOT)
+    result = subprocess.run(cmd, cwd=PROJECT_ROOT, timeout=1500)
     return result.returncode == 0
+
+
+def validate_release_jar(jar: Path, props: dict, platform: str):
+    """检查实际分发产物；dry-run 与上传前使用同一检查。"""
+    if not jar.is_file():
+        raise ValueError(f"缺少 {platform} 产物: {jar}，请先运行 Gradle build")
+    with ZipFile(jar) as archive:
+        metadata = tomllib.loads(archive.read("META-INF/neoforge.mods.toml").decode("utf-8"))
+        mods = metadata["mods"]
+        if len(mods) != 1 or (mods[0]["modId"], mods[0]["version"]) != (MOD_ID, props["mod_version"]):
+            raise ValueError(f"{jar}: 模组身份或版本不匹配")
+        if not any(item["modId"] == "pondererlib" and item["type"] == "required"
+                   and item["versionRange"] == props["ponderer_lib_version_range"]
+                   for item in metadata["dependencies"][MOD_ID]):
+            raise ValueError(f"{jar}: 缺少正确的 Ponderer Lib 必需依赖")
+        names = archive.namelist()
+        if any(name.startswith("com/nododiiiii/ponderer/") for name in names):
+            raise ValueError(f"{jar}: 不应将 Ponderer 类合并到宿主")
+        embedded = json.loads(archive.read("META-INF/jarjar/metadata.json"))["jars"]
+        lib_entries = []
+        for item in embedded:
+            with ZipFile(io.BytesIO(archive.read(item["path"]))) as nested:
+                if "META-INF/neoforge.mods.toml" not in nested.namelist():
+                    continue
+                nested_mods = tomllib.loads(nested.read("META-INF/neoforge.mods.toml").decode("utf-8"))["mods"]
+                if any(mod["modId"] == "ponderer" for mod in nested_mods):
+                    raise ValueError(f"{jar}: 不应内嵌 Ponderer 编辑器")
+                for mod in nested_mods:
+                    if mod["modId"] == "pondererlib":
+                        lib_entries.append(item)
+                        if mod["version"] != props["ponderer_lib_version"]:
+                            raise ValueError(f"{jar}: 内嵌 Lib 版本错误")
+        expected = 1 if platform == "Modrinth" else 0
+        if len(lib_entries) != expected:
+            raise ValueError(f"{jar}: {platform} 应内嵌 {expected} 份 Lib，实际 {len(lib_entries)}")
+        if lib_entries:
+            lib = lib_entries[0]
+            if lib["identifier"] != {"group": "com.nododiiiii", "artifact": "RuntimeNeoForge"} or lib["version"] != {
+                "range": props["ponderer_lib_version_range"], "artifactVersion": props["ponderer_lib_version"],
+            }:
+                raise ValueError(f"{jar}: Lib JarJar 身份或语义版本错误")
+
+
+def modrinth_dependencies(props: dict):
+    dependencies = list(MODRINTH_DEPENDENCIES)
+    if props["minecraft_version"] == "1.21.1":
+        group, project, version = props["ponderer_lib_coordinate"].split(":")
+        if group != "maven.modrinth":
+            raise ValueError("Ponderer Lib 必须使用固定版本 ID 的 Modrinth Maven 坐标")
+        dependencies.append({"project_id": project, "version_id": version, "dependency_type": "embedded"})
+    return dependencies
 
 
 def _api_failure(operation: str, response, reason: str):
@@ -304,6 +356,8 @@ def _api_failure(operation: str, response, reason: str):
 def _request_json(method: str, url: str, operation: str, expected_type,
                   success_codes=(200,), **kwargs):
     """仅接受预期状态码和 JSON 结构，不将重定向后的网页视为成功。"""
+    if requests is None:
+        raise SystemExit("缺少 requests，请先运行 python -m pip install requests")
     headers = {"Accept": "application/json", **kwargs.pop("headers", {})}
     try:
         response = requests.request(
@@ -371,7 +425,7 @@ def upload_modrinth(
         "featured": True,
         "project_id": MODRINTH_PROJECT_ID,
         "file_parts": ["file"],
-        "dependencies": MODRINTH_DEPENDENCIES,
+        "dependencies": modrinth_dependencies(read_gradle_properties()),
     }
 
     with jar_path.open("rb") as jar_file:
@@ -509,6 +563,8 @@ def upload_curseforge(
         "gameVersions": game_version_ids,
         "releaseType": version_type,
     }
+    if mc_version == "1.21.1":
+        metadata["relations"] = {"projects": CURSEFORGE_DEPENDENCIES}
     print(f"  CurseForge gameVersions: {game_version_ids}")
 
     with jar_path.open("rb") as jar_file:
@@ -533,22 +589,19 @@ def upload_curseforge(
 # ── 主流程 ──────────────────────────────────────────────────────────────────
 
 def main():
-    dry_run = "--dry-run" in sys.argv
-    skip_build = "--skip-build" in sys.argv
-    only_modrinth = "--only-modrinth" in sys.argv
-    only_curseforge = "--only-curseforge" in sys.argv
-    if only_modrinth and only_curseforge:
-        print("错误: --only-modrinth 和 --only-curseforge 不能同时使用")
-        sys.exit(1)
-    upload_modrinth_flag = not only_curseforge
-    upload_curseforge_flag = not only_modrinth
-
-    # 版本类型
-    version_type = "release"
-    for arg in sys.argv[1:]:
-        if arg.startswith("--version-type"):
-            if "=" in arg:
-                version_type = arg.split("=", 1)[1]
+    parser = argparse.ArgumentParser(description="构建并检查两站产物；--dry-run 不读取密钥、不上传。")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--non-interactive", action="store_true", help="用于 CI，使用版本对应的 changelog")
+    parser.add_argument("--version-type", choices=("release", "beta", "alpha"))
+    platform = parser.add_mutually_exclusive_group()
+    platform.add_argument("--only-modrinth", action="store_true")
+    platform.add_argument("--only-curseforge", action="store_true")
+    args = parser.parse_args()
+    dry_run = args.dry_run
+    skip_build = args.skip_build
+    upload_modrinth_flag = not args.only_curseforge
+    upload_curseforge_flag = not args.only_modrinth
 
     # ── 1. 检测分支 ──
     branch = get_current_branch()
@@ -568,6 +621,11 @@ def main():
     if not mod_version:
         print("  错误: gradle.properties 中未找到 mod_version")
         sys.exit(1)
+    if props.get("minecraft_version") != mc_version:
+        parser.error("当前分支与 gradle.properties 的 Minecraft 版本不匹配")
+    version_type = args.version_type or (
+        "alpha" if "alpha" in mod_version.lower() else "beta" if "beta" in mod_version.lower() else "release"
+    )
 
     print(f"  Mod 版本: {mod_version}")
     print(f"  MC 版本: {mc_version}")
@@ -589,20 +647,23 @@ def main():
     else:
         print("  Changelog: (空)")
 
-    print("\n  自定义 changelog (直接回车使用默认提取结果): ", end="")
-    custom_changelog = input()
-    if custom_changelog.strip():
-        changelog = custom_changelog.strip()
-        print("  已使用手动输入的 changelog")
+    if not args.non_interactive:
+        print("\n  自定义 changelog (直接回车使用默认提取结果): ", end="")
+        custom_changelog = input()
+        if custom_changelog.strip():
+            changelog = custom_changelog.strip()
+            print("  已使用手动输入的 changelog")
+    if not changelog:
+        parser.error(f"缺少 {mod_version} 的更新日志，不能准备发布")
 
     # ── 4. 选择版本类型 ──
-    if "--version-type" not in " ".join(sys.argv):
-        print(f"\n  版本类型 [release/beta/alpha] (直接回车默认 release): ", end="")
+    if args.version_type is None and not args.non_interactive:
+        print(f"\n  版本类型 [release/beta/alpha] (直接回车默认 {version_type}): ", end="")
         user_input = input().strip().lower()
         if user_input in ("release", "beta", "alpha"):
             version_type = user_input
         elif user_input:
-            print(f"  无效的版本类型 '{user_input}'，使用默认 release")
+            parser.error(f"无效的版本类型 '{user_input}'")
 
     print(f"  版本类型: {version_type}")
 
@@ -627,7 +688,7 @@ def main():
         if upload_curseforge_flag and not curseforge_token:
             missing.append("CURSEFORGE_TOKEN")
         if missing:
-            print(f"\n  错误: .env 中缺少: {', '.join(missing)}")
+            print(f"\n  错误: 环境变量或 .env 中缺少: {', '.join(missing)}")
             sys.exit(1)
 
     if dry_run:
@@ -649,24 +710,40 @@ def main():
                 sys.exit(1)
             print(f"  {loader_display} 构建成功")
 
-        jar = find_jar(loader["jar_dir"], mc_version, loader["name"], mod_version)
-        if jar is None:
-            sys.exit(1)
-
-        jars.append((loader, jar))
-        print(f"  产物: {jar.name} ({jar.stat().st_size / 1024 / 1024:.1f} MB)")
+        if mc_version == "1.21.1":
+            # The build stages identical public filenames in separate directories.
+            # --skip-build also supports Actions downloading only these artifacts.
+            variants = {
+                site: PROJECT_ROOT / "build" / "release" / site.lower()
+                / f"{MOD_ID}-{mc_version}-{mod_version}.jar"
+                for site in ("Modrinth", "CurseForge")
+            }
+            try:
+                for site, artifact in variants.items():
+                    if (site == "Modrinth" and upload_modrinth_flag) or (site == "CurseForge" and upload_curseforge_flag):
+                        validate_release_jar(artifact, props, site)
+                        print(f"  已检查 {site}: {artifact.relative_to(PROJECT_ROOT)} ({artifact.stat().st_size / 1024 / 1024:.1f} MB)")
+            except (ValueError, KeyError, BadZipFile, OSError) as exc:
+                parser.error(str(exc))
+        else:
+            jar = find_jar(loader["jar_dir"], mc_version, loader["name"], mod_version)
+            if jar is None:
+                sys.exit(1)
+            variants = {"Modrinth": jar, "CurseForge": jar}
+        jars.append((loader, variants))
 
     if dry_run:
         print(f"\n--- Dry Run 完成 ---")
         print(f"  以下文件将被上传:")
-        for loader, jar in jars:
-            destinations = []
+        for loader, variants in jars:
             if upload_modrinth_flag:
-                destinations.append(f"Modrinth ({loader['modrinth_loader']})")
+                print(f"    - {variants['Modrinth']} → Modrinth ({loader['modrinth_loader']}; 内置 Lib)")
+                print(f"      dependencies: {json.dumps(modrinth_dependencies(props), ensure_ascii=False)}")
             if upload_curseforge_flag:
                 environments = ' + '.join(CF_ENVIRONMENT_VERSION_IDS)
-                destinations.append(f"CurseForge ({loader['curseforge_loader']}; {environments})")
-            print(f"    - {jar.name} → {' + '.join(destinations)}")
+                print(f"    - {variants['CurseForge']} → CurseForge ({loader['curseforge_loader']}; {environments}; 外置 Lib)")
+                if mc_version == "1.21.1":
+                    print(f"      relations: {json.dumps(CURSEFORGE_DEPENDENCIES, ensure_ascii=False)}")
         print(f"\n  去掉 --dry-run 参数以执行实际上传")
         return
 
@@ -674,10 +751,10 @@ def main():
     upload_results = []
     if upload_modrinth_flag:
         print(f"\n--- 上传到 Modrinth ---\n")
-        for loader, jar in jars:
+        for loader, variants in jars:
             success = upload_modrinth(
                 token=modrinth_token,
-                jar_path=jar,
+                jar_path=variants["Modrinth"],
                 mod_version=mod_version,
                 mc_version=mc_version,
                 loader=loader["modrinth_loader"],
@@ -689,15 +766,17 @@ def main():
 
     if upload_curseforge_flag:
         print(f"\n--- 上传到 CurseForge ---\n")
-        for loader, jar in jars:
+        for loader, variants in jars:
             success = upload_curseforge(
                 token=curseforge_token,
                 project_id=CURSEFORGE_PROJECT_ID,
-                jar_path=jar,
+                jar_path=variants["CurseForge"],
                 mc_version=mc_version,
                 mod_version=mod_version,
                 loader_name=loader["curseforge_loader"],
-                changelog=changelog,
+                changelog=(f"**必需前置 / Required dependency:** [Ponderer Lib {props['ponderer_lib_version']}]"
+                           "(https://www.curseforge.com/minecraft/mc-mods/ponderer-lib)\n\n" + changelog)
+                if mc_version == "1.21.1" else changelog,
                 version_type=version_type,
             )
             upload_results.append(("CurseForge", loader["display"], success))

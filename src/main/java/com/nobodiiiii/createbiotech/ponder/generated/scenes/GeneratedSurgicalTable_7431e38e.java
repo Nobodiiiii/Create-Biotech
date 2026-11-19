@@ -63,15 +63,11 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.keyframe().javaStep("create_biotech:java/surgical_table/hide_result", null);
         scene.clearEntities(true, "minecraft:armor_stand", "intro_target", null, null, "simultaneous", 18, "up");
         scene.idle(18);
-        scene.setBlock("minecraft:polished_andesite", null, new BlockPos(1, 1, 1), new BlockPos(7, 1, 5), null, false, false, "none", null, null, null, null, null);
-        scene.setBlock("create_biotech:surgical_table", Map.of("powered", "false"), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, false, false, "none", null, null, null, null, null);
-        scene.showSectionAndMerge(new BlockPos(1, 1, 1), new BlockPos(7, 1, 5), null, 15, "down", null, null, null, null);
-        scene.idle(15);
-        scene.showSectionAndMerge(new BlockPos(1, 2, 1), new BlockPos(2, 2, 5), null, 15, "down", null, null, null, null);
-        scene.idle(12);
-        scene.showSectionAndMerge(new BlockPos(3, 2, 1), new BlockPos(4, 2, 5), null, 15, "down", null, null, null, null);
-        scene.idle(12);
-        scene.showSectionAndMerge(new BlockPos(5, 2, 1), new BlockPos(7, 2, 5), null, 15, "down", null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:surgical_table", Map.ofEntries(Map.entry("powered", "false")), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, false, false, "east", 20, 1, false, null, "down");
         scene.showText(text("placing.surface"), new Vec3(2.5d, 2.7d, 3.5d), 90, null, true);
         scene.idle(100);
         scene.keyframe().setBlock("create_biotech:petri_dish", Map.ofEntries(Map.entry("facing", "south")), new BlockPos(0, 1, 7), null, "{RecordedEntityId:\"minecraft:zombie\",RecordedMaxHealth:20f,Inventory:{Size:1,Items:[{Slot:0b,id:\"create_biotech:bionic_mechanism\",count:1}]},Tank:{Fluid:{id:\"create_biotech:liquid_living_slime\",amount:500}}}", true, false, "none", null, null, null, null, null);
@@ -90,14 +86,13 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.playSound("minecraft:block.slime_block.place", 0.7f, 1.0f, "blocks");
         scene.idle(55);
         scene.keyframe().showText(text("placing.capture"), new Vec3(0.5d, 2.0d, 7.5d), 125, null, true);
-        scene.showControls(new Vec3(0.5d, 2.2d, 7.5d), "down", 35, "right", "create_biotech:netherite_capture_net", null, null, null);
+        scene.showControls(new Vec3(0.5d, 3.0d, 7.5d), "down", 35, "right", "create_biotech:diamond_capture_net", null, null, null);
         scene.idle(35);
         scene.clearEntities(true, "minecraft:zombie", "cultivated_zombie", null, null, null, null, null);
-        scene.showControls(new Vec3(2.5d, 2.7d, 3.5d), "down", 35, "right", "create_biotech:netherite_capture_net", "{CapturedEntity:{id:\"minecraft:zombie\",CreateBiotechSlimeMimic:1b}}", null, null);
-        scene.idle(25);
+        scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 35, "right", "create_biotech:diamond_capture_net", "{CapturedEntity:{id:\"minecraft:zombie\",CreateBiotechSlimeMimic:1b}}", null, null);
+        scene.idle(15);
         scene.javaStep("create_biotech:java/surgical_table/place_zombie", null);
-        scene.showControls(new Vec3(1.5d, 3.0d, 5.3d), "down", 35, "right", "create_biotech:empty_cardboard_box", null, null, null);
-        scene.idle(75);
+        scene.idle(85);
         scene.keyframe().showText(text("placing.irreversible"), new Vec3(2.5d, 2.7d, 3.5d), 100, "red", true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_zombie", null);
         scene.idle(110);
@@ -107,14 +102,17 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.showControls(new Vec3(6.5d, 2.7d, 3.5d), "down", 30, "right", "create_biotech:large_cardboard_box", "{CapturedEntity:{id:\"minecraft:pillager\",CreateBiotechSlimeMimic:1b}}", null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/place_pillager", null);
+        scene.idle(25);
         scene.showText(text("placing.multiple"), new Vec3(4.5d, 2.7d, 3.5d), 90, null, true);
         scene.idle(100);
-        scene.keyframe().setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "floor"), Map.entry("facing", "north"), Map.entry("powered", "false")), new BlockPos(8, 1, 3), null, null, true, false, "none", null, null, null, null, null);
-        scene.showControls(new Vec3(8.5d, 1.5d, 3.5d), "down", 30, "right", null, null, null, null);
+        scene.keyframe().setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "east"), Map.entry("powered", "false")), new BlockPos(8, 1, 3), null, null, false, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:biotech_casing", null, new BlockPos(7, 1, 3), null, null, false, false, "none", null, null, null, null, null);
+        scene.showSectionAndMerge(new BlockPos(7, 1, 3), new BlockPos(8, 1, 3), null, 20, "west", null, null, null, null);
         scene.idle(25);
+        scene.showControls(new Vec3(8.5d, 1.5d, 3.5d), "left", 30, "right", null, null, null, null);
         scene.toggleRedstonePower(new BlockPos(8, 1, 3), null);
         scene.toggleRedstonePower(new BlockPos(7, 2, 3), null);
-        scene.indicateRedstone(new BlockPos(7, 2, 3));
+        scene.spawnParticles("minecraft:dust{color:[1.0f,0.0f,0.0f],scale:1.0f}", new Vec3(8.0d, 1.5d, 3.5d), "box", new Vec3(0.5d, 0.5d, 0.5d), new Vec3(0.0d, 0.0d, 0.0d), 10, 2);
         scene.javaStep("create_biotech:java/surgical_table/original_appearance", null);
         scene.showText(text("placing.redstone"), new Vec3(4.5d, 2.7d, 3.5d), 110, null, true);
         scene.idle(120);
@@ -126,14 +124,19 @@ public final class GeneratedSurgicalTable_7431e38e {
         var scene = new JavaScene("recombining", text("recombining.title"));
         scene.showStructure("create_biotech:generated/create_biotech/surgical_table/basic_xl", new BlockPos(0, 0, 0), new BlockPos(8, 0, 8), 0.85f, null);
         scene.javaStep("create_biotech:java/surgical_table/prepare", null);
-        scene.setBlock("minecraft:polished_andesite", null, new BlockPos(1, 1, 1), new BlockPos(7, 1, 5), null, true, false, "none", null, null, null, null, null);
-        scene.setBlock("create_biotech:surgical_table", Map.of("powered", "true"), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:surgical_table", Map.ofEntries(Map.entry("powered", "true")), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:biotech_casing", null, new BlockPos(7, 1, 3), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "east"), Map.entry("powered", "true")), new BlockPos(8, 1, 3), null, null, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/original_appearance", null);
         scene.javaStep("create_biotech:java/surgical_table/place_golem", null);
         scene.javaStep("create_biotech:java/surgical_table/place_pillager", null);
         scene.idle(15);
         scene.keyframe().showText(text("recombining.tools"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[0,0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.idle(110);
         scene.keyframe().showText(text("recombining.cut"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
         scene.showControls(new Vec3(3.0d, 2.6d, 3.5d), "down", 30, "right", "minecraft:shears", null, null, null);
@@ -160,22 +163,26 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.showText(text("recombining.kit"), new Vec3(4.5d, 2.5d, 5.5d), 110, null, true);
         scene.idle(120);
         scene.showText(text("recombining.more_tools"), new Vec3(4.5d, 2.5d, 5.5d), 90, null, true);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[0,0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.idle(95);
         return scene.build();
     }
 
     private static DslScene.SceneSegment scene3() {
         var scene = new JavaScene("joints", text("joints.title"));
-        var targetPosition = new Vec3(7.5d, 1.0d, 7.5d);
         scene.showStructure("create_biotech:generated/create_biotech/surgical_table/basic_xl", new BlockPos(0, 0, 0), new BlockPos(8, 0, 8), 0.85f, null);
         scene.javaStep("create_biotech:java/surgical_table/prepare", null);
-        scene.setBlock("minecraft:polished_andesite", null, new BlockPos(1, 1, 1), new BlockPos(7, 1, 5), null, true, false, "none", null, null, null, null, null);
-        scene.setBlock("create_biotech:surgical_table", Map.of("powered", "true"), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:surgical_table", Map.ofEntries(Map.entry("powered", "true")), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:biotech_casing", null, new BlockPos(7, 1, 3), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "east"), Map.entry("powered", "true")), new BlockPos(8, 1, 3), null, null, true, false, "none", null, null, null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/original_appearance", null);
         scene.javaStep("create_biotech:java/surgical_table/assembled", null);
         scene.idle(20);
-        scene.createEntity("minecraft:armor_stand", targetPosition, null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "contact_target", null, null, null);
+        scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "contact_target", null, null, null);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/release_hopping", null);
         scene.showText(text("joints.hopping"), new Vec3(4.5d, 2.0d, 7.5d), 110, null, true);
         scene.idle(120);
@@ -187,7 +194,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\",\"head\",\"left_arm\",\"right_leg\",\"left_leg\"],\"color\":\"blue\",\"duration\":75}").getAsJsonObject());
         scene.idle(110);
         scene.keyframe().createItemEntity("create_biotech:surgical_joint", 1, new Vec3(4.5d, 2.5d, 5.5d), new Vec3(0.0d, 0.0d, 0.0d), "{NoGravity:1b}", "surgical_joint");
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"type\":\"idle\",\"duration\":170}],\"panelTransform\":[0,0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":170}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.showText(text("joints.types_upper"), new Vec3(4.5d, 2.5d, 5.5d), 180, null, true);
         scene.idle(105);
         scene.idle(90);
@@ -199,7 +206,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.keyframe().showText(text("joints.contact"), new Vec3(2.5d, 2.7d, 3.5d), 110, null, true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\",\"body\"],\"color\":\"green\",\"duration\":110}").getAsJsonObject());
         scene.idle(120);
-        scene.createEntity("minecraft:armor_stand", targetPosition, null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "strike_target", null, null, null);
+        scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "strike_target", null, null, null);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/release_walking", null);
         scene.idle(135);
         scene.clearEntities(true, "minecraft:armor_stand", "strike_target", null, null, null, null, null);
@@ -211,100 +218,94 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(75);
         scene.showControls(new Vec3(4.5d, 3.0d, 7.5d), "down", 70, null, "minecraft:leather_boots", null, null, null);
         scene.idle(85);
-        scene.keyframe().raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_stats\"},{\"type\":\"idle\",\"duration\":120}],\"panelTransform\":[0,0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.keyframe().raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_stats\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":120}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.javaStep("create_biotech:java/surgical_table/pack_result_for_stats", null);
         scene.idle(125);
         return scene.build();
     }
 
-
     private static DslScene.SceneSegment scene4() {
         var scene = new JavaScene("traits", text("traits.title"));
-        var tableFocus = new Vec3(4.5d, 2.8d, 3.5d);
         scene.showStructure("create_biotech:generated/create_biotech/surgical_table/basic_xl", new BlockPos(0, 0, 0), new BlockPos(8, 0, 8), 0.85f, null);
-        scene.setBlock("minecraft:polished_andesite", null, new BlockPos(1, 1, 1), new BlockPos(7, 1, 5), null, true, false, "none", null, null, null, null, null);
-        scene.setBlock("create_biotech:surgical_table", Map.of("powered", "true"), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
-
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 1), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(1, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:asurine_scaffolding", null, new BlockPos(7, 1, 5), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:surgical_table", Map.ofEntries(Map.entry("powered", "true")), new BlockPos(1, 2, 1), new BlockPos(7, 2, 5), null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("create_biotech:biotech_casing", null, new BlockPos(7, 1, 3), null, null, true, false, "none", null, null, null, null, null);
+        scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "east"), Map.entry("powered", "true")), new BlockPos(8, 1, 3), null, null, true, false, "none", null, null, null, null, null);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_donors", null);
-        scene.showText(text("traits.intro"), tableFocus, 110, null, true);
+        scene.showText(text("traits.intro"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
         scene.idle(120);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_dissect", null);
         scene.playSound("minecraft:entity.sheep.shear", 0.7f, 1.0f, "blocks");
-        scene.showText(text("traits.dissect"), tableFocus, 60, null, true);
+        scene.showText(text("traits.dissect"), new Vec3(4.5d, 2.8d, 3.5d), 60, null, true);
         scene.idle(65);
         scene.showText(text("traits.donors"), new Vec3(6.5d, 2.7d, 3.5d), 120, null, true);
         scene.idle(135);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_assemble", null);
-        scene.showText(text("traits.example"), tableFocus, 110, null, true);
+        scene.showText(text("traits.example"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
         scene.idle(120);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_flight", null);
         scene.idle(130);
-        scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90f, 0f, "{NoGravity:1b,ShowArms:1b}", "blast_target", null, null, null);
+        scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,ShowArms:1b}", "blast_target", null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/traits_dive", null);
         scene.idle(22);
         scene.playSound("minecraft:entity.creeper.primed", 1.0f, 0.5f, "hostile");
         scene.idle(30);
         scene.javaStep("create_biotech:java/surgical_table/traits_hide", null);
         scene.clearEntities(true, "minecraft:armor_stand", "blast_target", null, null, null, null, null);
-        scene.spawnParticles("minecraft:explosion_emitter", new Vec3(7.5d, 1.45d, 7.5d), "box", Vec3.ZERO, Vec3.ZERO, 1, 1);
+        scene.spawnParticles("minecraft:explosion_emitter", new Vec3(7.5d, 1.45d, 7.5d), "box", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 1, 1);
         scene.playSound("minecraft:entity.generic.explode", 0.65f, 1.0f, "hostile");
         scene.idle(66);
         scene.javaStep("create_biotech:java/surgical_table/traits_display", null);
         scene.showText(text("traits.result"), new Vec3(1.5d, 2.0d, 7.5d), 85, null, true);
         scene.idle(96);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_table", null);
-        scene.showText(text("traits.scope"), tableFocus, 125, null, true);
+        scene.showText(text("traits.scope"), new Vec3(4.5d, 2.8d, 3.5d), 125, null, true);
         scene.idle(135);
-        scene.showText(text("traits.joints"), tableFocus, 90, null, true);
+        scene.showText(text("traits.joints"), new Vec3(4.5d, 2.8d, 3.5d), 90, null, true);
         scene.idle(101);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_extra_torso", null);
-        scene.showText(text("traits.rules"), tableFocus, 155, null, true);
+        scene.showText(text("traits.rules"), new Vec3(4.5d, 2.8d, 3.5d), 155, null, true);
         scene.idle(88);
         scene.showControls(new Vec3(4.5d, 2.8d, 4.05d), "down", 28, "right", "minecraft:shears", null, null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/traits_detach_torso", null);
         scene.idle(50);
-        scene.showText(text("traits.volume"), tableFocus, 140, null, true);
+        scene.showText(text("traits.volume"), new Vec3(4.5d, 2.8d, 3.5d), 140, null, true);
         scene.idle(150);
-
-        scene.keyframe().showText(text("traits.mind"), tableFocus, 120, null, true);
+        scene.keyframe().showText(text("traits.mind"), new Vec3(4.5d, 2.8d, 3.5d), 120, null, true);
         scene.showControls(new Vec3(4.05d, 2.95d, 3.85d), "down", 55, null, "minecraft:target", null, null, null);
         scene.idle(63);
         scene.showControls(new Vec3(4.95d, 2.95d, 3.85d), "down", 50, null, "minecraft:iron_sword", null, null, null);
         scene.idle(66);
-
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_one_shoulder", null);
-        scene.showControls(tableFocus, "down", 32, null, "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.showText(text("traits.inspect"), tableFocus, 145, null, true);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[-16,0,0.85],\"panelBackground\":false,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 32, null, "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.showText(text("traits.inspect"), new Vec3(4.5d, 2.8d, 3.5d), 145, null, true);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.javaStep("create_biotech:java/surgical_table/traits_preview_box", null);
         scene.idle(72);
-        scene.showControls(tableFocus, "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/traits_pack_missing", null);
         scene.idle(59);
         scene.javaStep("create_biotech:java/surgical_table/traits_one_shoulder", null);
-        scene.showText(text("traits.adjust"), tableFocus, 115, null, true);
+        scene.showText(text("traits.adjust"), new Vec3(4.5d, 2.8d, 3.5d), 115, null, true);
         scene.showControls(new Vec3(4.5d, 2.8d, 3.85d), "down", 32, "right", "create_biotech:shoulder_joint", null, null, null);
         scene.idle(30);
-        scene.showControls(tableFocus, "down", 25, "right", "create_biotech:shoulder_joint", null, null, null);
+        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 25, "right", "create_biotech:shoulder_joint", null, null, null);
         scene.idle(20);
         scene.javaStep("create_biotech:java/surgical_table/traits_table", null);
-        scene.showControls(tableFocus, "down", 23, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 23, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(23);
         scene.javaStep("create_biotech:java/surgical_table/traits_pack_complete", null);
         scene.idle(52);
-
         scene.javaStep("create_biotech:java/surgical_table/traits_table", null);
-        scene.keyframe().showText(text("traits.jei"), tableFocus, 145, null, true);
+        scene.keyframe().showText(text("traits.jei"), new Vec3(4.5d, 2.8d, 3.5d), 145, null, true);
         scene.showControls(new Vec3(5.9d, 3.0d, 4.0d), "down", 42, null, "create_biotech:surgery_guide", null, null, null);
         scene.idle(155);
-        scene.showText(text("traits.lookup"), tableFocus, 125, null, true);
+        scene.showText(text("traits.lookup"), new Vec3(4.5d, 2.8d, 3.5d), 125, null, true);
         scene.showControls(new Vec3(5.3d, 2.9d, 4.6d), "down", 110, null, "create_biotech:bionic_donor_preview", "{EntityType:\"minecraft:phantom\"}", null, null);
         scene.showControls(new Vec3(6.1d, 2.9d, 4.6d), "down", 110, null, "minecraft:phantom_spawn_egg", null, null, null);
         scene.showControls(new Vec3(6.9d, 2.9d, 4.6d), "down", 110, null, "create_biotech:large_cardboard_box", "{CapturedEntity:{id:\"minecraft:phantom\"}}", null, null);
@@ -313,6 +314,287 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(90);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     private static boolean reload() {
         try { DOCUMENT = SOURCE.reload(); return true; }

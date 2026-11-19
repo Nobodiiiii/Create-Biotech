@@ -1,0 +1,27 @@
+name: 发布 Modrinth
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 仅构建并检查产物，不上传
+        type: boolean
+        default: true
+      version_type:
+        description: 发布类型（auto 根据 mod_version 判断）
+        type: choice
+        options: [auto, release, beta, alpha]
+        default: auto
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/1.21.1'
+    uses: ./.github/workflows/release-1.21.1.yml
+    secrets: inherit
+    with:
+      platforms: '["Modrinth"]'
+      dry_run: ${{ inputs.dry_run }}
+      version_type: ${{ inputs.version_type }}
