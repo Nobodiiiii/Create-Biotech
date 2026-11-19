@@ -235,9 +235,7 @@ public final class SurgicalSourceModelRenderer {
 			plan = SurgicalEquipmentRenderPlans.saddlePlan(preview, yaw, saddled, plan);
 		if (chested != null)
 			plan = SurgicalEquipmentRenderPlans.chestPlan(preview, yaw, saddled, chested, plan);
-		float clampedAlpha = Math.max(0.0f, Math.min(1.0f, alpha));
-		MultiBufferSource renderBuffer = clampedAlpha < 1.0f
-			? new AlphaBufferSource(buffer, clampedAlpha) : buffer;
+		MultiBufferSource renderBuffer = alphaBuffer(buffer, alpha);
 		return plan.render(poseStack, renderBuffer, packedLight, cubeCount, presentCubes, cubeOffsets, cubeRotations,
 			collectGeometry, cameraPosition, renderSourceGeometry, hurtOverlay);
 	}
@@ -266,7 +264,7 @@ public final class SurgicalSourceModelRenderer {
 		boolean collectGeometry, @Nullable Vec3 cameraPosition, boolean renderSourceGeometry,
 		@Nullable Boolean hurtOverlay, java.util.Set<Integer> saddles, java.util.Set<Integer> chests,
 		@Nullable SlimeBionicEntity owner, int source) {
-		if (owner != null) buffer = selfDestructBuffer(owner, partialTick, buffer);
+		if (owner != null) buffer = selfDestructBuffer(buffer, owner.getSelfDestructSwelling(partialTick));
 		preparePreview(preview, 0);
 		SurgicalCapturedRenderPlan base = SurgicalSourcePlanCache.plan(preview, 0);
 		if (owner != null) base = SurgicalEquipmentRenderPlans.traitPlan(preview, owner, source, partialTick, base);
@@ -468,9 +466,7 @@ public final class SurgicalSourceModelRenderer {
 	private record CachedPreview(ClientLevel level, LivingEntity entity) {}
 
 	/** CreeperRenderer's white flash, applied at draw time across every retained donor and its tack. */
-	private static MultiBufferSource selfDestructBuffer(SlimeBionicEntity owner, float partialTick,
-		MultiBufferSource buffer) {
-		float swelling = owner.getSelfDestructSwelling(partialTick);
+	static MultiBufferSource selfDestructBuffer(MultiBufferSource buffer, float swelling) {
 		if ((int) (swelling * 10.0f) % 2 == 0) return buffer;
 		int whiteU = net.minecraft.client.renderer.texture.OverlayTexture.u(
 			net.minecraft.util.Mth.clamp(swelling, 0.5f, 1.0f));
@@ -514,6 +510,11 @@ public final class SurgicalSourceModelRenderer {
 			delegate.setNormal(x, y, z);
 			return this;
 		}
+	}
+
+	static MultiBufferSource alphaBuffer(MultiBufferSource buffer, float alpha) {
+		float clamped = Math.max(0.0f, Math.min(1.0f, alpha));
+		return clamped < 1.0f ? new AlphaBufferSource(buffer, clamped) : buffer;
 	}
 
 	private record AlphaBufferSource(MultiBufferSource delegate, float alpha) implements MultiBufferSource {

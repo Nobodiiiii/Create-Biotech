@@ -53,11 +53,11 @@ public final class SurgicalPonderHighlight {
     };
 
     public static void schedule(SceneBuilder scene, SurgicalPonderActors actors, Spec spec) {
-        schedule(scene, spec.color(), spec.duration(), pt -> actors.highlightBounds(spec.parts(), pt));
+        schedule(scene, spec.color(), spec.duration(), pt -> actors.highlightBounds(spec.parts(), pt), true);
     }
 
     public static void schedule(SceneBuilder scene, PonderPalette color, int duration,
-                                Function<Float, List<AABB>> bounds) {
+                                Function<Float, List<AABB>> bounds, boolean fadeOut) {
         var outline = new PartOutline(bounds);
         scene.addInstruction(new TickingInstruction(false, duration) {
             @Override
@@ -70,7 +70,10 @@ public final class SurgicalPonderHighlight {
             @Override
             public void tick(PonderScene playback) {
                 super.tick(playback);
-                playback.getOutliner().keep(this);
+                if (isComplete() && !fadeOut)
+                    playback.getOutliner().remove(this);
+                else
+                    playback.getOutliner().keep(this);
             }
 
             @Override

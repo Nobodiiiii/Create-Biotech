@@ -17,18 +17,17 @@ final class SurgicalTraitPonderEffects {
     private SurgicalTraitPonderEffects() {}
 
     static void install(RuntimeEngine engine) {
-        view(engine, "flight", "展示仿生生物扑翼飞行", View.FLIGHT, COMPLETE);
-        view(engine, "dive", "展示仿生生物接敌自爆", View.DIVE, COMPLETE);
+        view(engine, "flight", "让仿生生物飞向盔甲架", View.FLIGHT, COMPLETE);
+        view(engine, "prime", "点燃仿生生物的自爆引信", View.FUSE, COMPLETE);
         view(engine, "hide", "收起演示成品", View.HIDDEN, COMPLETE);
         view(engine, "display", "定格组装完成的成品", View.DISPLAY, COMPLETE);
         view(engine, "donors", "在手术台两侧展示完整供体", View.DONORS, COMPLETE);
         view(engine, "dissect", "将苦力怕和幻翼拆成独立体块", View.DISSECTING, COMPLETE);
         view(engine, "assemble", "按绿图将所需体块平移到台面中央", View.ASSEMBLING, COMPLETE);
         view(engine, "table", "展示安装关节后的各部位", View.TABLE, COMPLETE);
-        view(engine, "extra_torso", "增加其他供体的躯干组织", View.TABLE, Assembly.EXTRA_TORSO);
-        engine.steps().registerJava(PREFIX + "detach_torso", "剪下多余躯干并留在台面", ctx -> {
+        engine.steps().registerJava(PREFIX + "return_to_table", "成品下落回台面并向上收起剩余部件", ctx -> {
             var actors = actors(ctx);
-            ctx.builder().addInstruction(scene -> actors.detachExtraTorso());
+            ctx.builder().addInstruction(scene -> actors.returnToTable());
         });
         view(engine, "one_shoulder", "拆下一个肩关节", View.TABLE, Assembly.ONE_SHOULDER);
         engine.steps().registerJava(PREFIX + "preview_box", "将台面成品的特性填入纸箱悬停页", ctx -> {

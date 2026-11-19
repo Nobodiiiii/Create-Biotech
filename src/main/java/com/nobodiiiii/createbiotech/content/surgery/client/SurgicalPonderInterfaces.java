@@ -45,7 +45,7 @@ public final class SurgicalPonderInterfaces {
     public static void setCapturedBox(PonderScene scene, ItemStack box) {
         scene.forEach(InterfaceOverlayElement.class, element -> {
             if (element.session().currentScreen() instanceof StatsScreen screen)
-                screen.getMenu().getSlot(0).set(box.copy());
+                screen.setBox(box);
         });
     }
 
@@ -108,20 +108,24 @@ public final class SurgicalPonderInterfaces {
         }
     }
 
-    private static final class StatsScreen extends PageScreen {
+    private static final class StatsScreen extends TooltipScreen {
         private final Level level;
         private final ItemStack emptyBox = new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
 
         StatsScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
-            super(menu, inventory, title, 176, 120);
+            super(menu, inventory, title);
             level = inventory.player.level();
         }
 
+        void setBox(ItemStack box) {
+            menu.getSlot(0).set(box.copy());
+            init();
+        }
+
         @Override
-        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        protected List<Component> tooltip() {
             var slot = menu.getSlot(0);
             ItemStack box = slot.hasItem() ? slot.getItem() : emptyBox;
-            graphics.renderItem(box, leftPos + slot.x, topPos + slot.y);
 
             List<Component> lines = new ArrayList<>();
             lines.add(box.getHoverName());
@@ -134,22 +138,16 @@ public final class SurgicalPonderInterfaces {
                     break;
                 lines.add(line);
             }
-            graphics.renderComponentTooltip(font, lines, leftPos + 4, topPos + 42);
+            return lines;
         }
     }
 
-    private static final class BoxHoverScreen extends PageScreen {
-        private static final int MAX_TEXT_WIDTH = 250;
-        private static final int TOOLTIP_INSET = 8;
-        private static final int TOOLTIP_LINE_HEIGHT = 10;
-
+    private static final class BoxHoverScreen extends TooltipScreen {
         private final ItemStack box = new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
         private BionicTraitSet traits = BionicTraitSet.EMPTY;
-        private List<FormattedCharSequence> lines = List.of();
-        private float scale;
 
         BoxHoverScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
-            super(menu, inventory, title, 0, 0);
+            super(menu, inventory, title);
         }
 
         void setTraits(BionicTraitSet traits) {
@@ -158,12 +156,39 @@ public final class SurgicalPonderInterfaces {
         }
 
         @Override
-        protected void init() {
+        protected List<Component> tooltip() {
             List<Component> tooltip = new ArrayList<>();
             CreateLang.builder().add(box.getHoverName()).forGoggles(tooltip);
             SurgicalInteractionPresentation.addBoxPackControls(tooltip);
             CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
-            lines = tooltip.stream()
+            return tooltip;
+        }
+
+        @Override
+        protected void renderIcon(GuiGraphics graphics) {
+            GuiGameElement.of(box).at(TOOLTIP_INSET - 2, TOOLTIP_INSET - 4, 450).render(graphics);
+        }
+    }
+
+    private abstract static class TooltipScreen extends PageScreen {
+        private static final int MAX_TEXT_WIDTH = 250;
+        protected static final int TOOLTIP_INSET = 8;
+        private static final int TOOLTIP_LINE_HEIGHT = 10;
+
+        private List<FormattedCharSequence> lines = List.of();
+        private float scale;
+
+        TooltipScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
+            super(menu, inventory, title, 0, 0);
+        }
+
+        protected abstract List<Component> tooltip();
+
+        protected void renderIcon(GuiGraphics graphics) {}
+
+        @Override
+        protected void init() {
+            lines = tooltip().stream()
                 .flatMap(line -> font.width(line) <= MAX_TEXT_WIDTH
                     ? Stream.of(line.getVisualOrderText()) : font.split(line, MAX_TEXT_WIDTH).stream())
                 .toList();
@@ -185,7 +210,7 @@ public final class SurgicalPonderInterfaces {
             pose.scale(scale, scale, 1);
             graphics.renderTooltip(font, lines, (screenWidth, screenHeight, x, y, w, h) -> new Vector2i(x, y),
                 TOOLTIP_INSET, TOOLTIP_INSET);
-            GuiGameElement.of(box).at(TOOLTIP_INSET - 2, TOOLTIP_INSET - 4, 450).render(graphics);
+            renderIcon(graphics);
             pose.popPose();
         }
     }

@@ -102,6 +102,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     private final LerpedFloat movement = LerpedFloat.linear();
     private boolean sourceAppearance;
     private boolean resultVisible;
+    private boolean oldArmBoxed;
     private boolean packed;
     private int resultTicks;
     private ArmorStand resultTarget;
@@ -128,8 +129,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         torso = zombie.part("body");
         AABB body = bounds(zombie.cube(torso).corners());
         AABB arm = bounds(golem.cube(golemArm).corners());
-        double donorArmSide = Math.signum(arm.getCenter().x - center(golem.cube(golem.part("body"))).x);
-        cutArmOffset = tabletopOffset(golem, golemArm, donorArmSide * 0.5, 0.5);
+        // Detach along table -X and lower onto the tabletop without shifting Z.
+        cutArmOffset = tabletopOffset(golem, golemArm, -0.5, 0);
         double side = Math.signum(center(zombie.cube(zombieArm)).x - body.getCenter().x);
         cutZombieArmOffset = tabletopOffset(zombie, zombieArm, side * 0.45, 0);
         Vec3 zombieArmCenter = tableBounds(zombie, zombieArm, Vec3.ZERO, SurgicalCubeRotation.IDENTITY).getCenter();
@@ -147,6 +148,16 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     public void startMovement(int value) { stage = value; movement.startWithValue(0); }
     public void setMovement(float progress) { movement.setValue(progress); }
     public void setSourceAppearance(boolean value) { sourceAppearance = value; }
+
+    public void pickUpOldArm() {
+        oldArmBoxed = true;
+    }
+
+    public void placeOldArm() {
+        oldArmBoxed = false;
+        setStage(4);
+    }
+
     public void releaseResult(boolean withJoints) {
         showResultAt(RESULT_POSITION, withJoints ? ResultVariant.WALKING : ResultVariant.HOPPING);
     }
@@ -204,6 +215,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         setStage(0);
         pillagerPlaced = false;
         sourceAppearance = false;
+        oldArmBoxed = false;
         packed = false;
         hideResult();
         greenprints.clear();
@@ -366,11 +378,11 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         Matrix4f tableRoot = new Matrix4f();
         if (stage > 0) {
             for (int cube = 0; cube < zombie.count(); cube++) {
+                if (cube == zombieArm && oldArmBoxed) continue;
                 if (packed && cube != zombieArm) continue;
                 Vec3 offset = Vec3.ZERO;
                 if (cube == zombieArm && stage >= 3)
-                    offset = stage == 3 ? cutZombieArmOffset.scale(movement)
-                        : cutZombieArmOffset.lerp(parkedZombieArmOffset, stage == 4 ? movement : 1);
+                    offset = stage == 3 ? cutZombieArmOffset.scale(movement) : parkedZombieArmOffset;
                 parts.add(new PlacedCube(zombie, cube, zombie.origin, true, offset, SurgicalCubeRotation.IDENTITY, tableRoot));
             }
         }
