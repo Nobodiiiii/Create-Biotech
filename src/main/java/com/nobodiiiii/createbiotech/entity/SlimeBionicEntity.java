@@ -448,6 +448,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			@Override public void stop() { delegate.stop(); }
 		});
 		goalSelector.addGoal(7, new BionicGoalSet.BionicLandStrollGoal(this));
+		goalSelector.addGoal(7, new BionicLowFlightGoal(this));
 		goalSelector.addGoal(7, new BionicGoalSet.BionicSwimStrollGoal(this));
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
 		goalSelector.addGoal(8, new RandomLookAroundGoal(this));

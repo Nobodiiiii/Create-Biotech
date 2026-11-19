@@ -91,6 +91,7 @@ public final class SurgicalTableClientHandler {
 	static final float BATCH_CUT_ANIMATION_TICKS = 5.0f;
 	static final int BATCH_CUT_ANIMATION_TIMEOUT_TICKS = 40;
 	static final InteractionHand[] HANDS = { InteractionHand.MAIN_HAND, InteractionHand.OFF_HAND };
+	private static boolean preparedForWorldRender;
 	private static boolean suppressWrenchUseUntilRelease;
 	private static boolean suppressCopyUseUntilRelease;
 	/** Keeps the cancel click from falling through into vanilla's same-tick/held block attack pass. */
@@ -312,8 +313,8 @@ public final class SurgicalTableClientHandler {
 
 	@SubscribeEvent
 	public static void onRenderFrame(RenderFrameEvent.Pre event) {
-		SurgicalCapturedRenderPlan.beginFrame();
-		SurgicalTableRenderer.beginFrame();
+		beginRenderPreparation();
+		preparedForWorldRender = true;
 		if (Minecraft.getInstance().level != null) {
 			SurgicalVisualCommitCoordinator.updatePendingVisualCommit(Minecraft.getInstance().level);
 			SurgicalCutController.updateBatchCutAnimation(Minecraft.getInstance().level);
@@ -323,6 +324,27 @@ public final class SurgicalTableClientHandler {
 		SurgicalPackedPreviewService.updatePendingPacking();
 		SurgicalPlacementController.updateShovelTileOutline();
 		SurgicalInteractionPresentation.updateReservedOutline();
+	}
+
+	@SubscribeEvent
+	public static void onWorldRender(RenderLevelStageEvent event) {
+		if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_SKY)
+			return;
+		// Replay export calls GameRenderer directly and skips NeoForge's outer frame event.
+		// Refresh the preparation budget and publish completed plans before the world draws subjects.
+		if (!preparedForWorldRender)
+			beginRenderPreparation();
+		preparedForWorldRender = false;
+	}
+
+	@SubscribeEvent
+	public static void onRenderFrameFinished(RenderFrameEvent.Post event) {
+		preparedForWorldRender = false;
+	}
+
+	private static void beginRenderPreparation() {
+		SurgicalCapturedRenderPlan.beginFrame();
+		SurgicalTableRenderer.beginFrame();
 	}
 
 	@SubscribeEvent

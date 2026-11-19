@@ -116,10 +116,10 @@ final class BionicGoalSet {
 			this.bionic = bionic;
 		}
 		@Override public boolean canUse() {
-			return !bionic.isSwimming() && super.canUse();
+			return !bionic.isSwimming() && !BionicLocomotionPolicy.prefersLowFlight(bionic) && super.canUse();
 		}
 		@Override public boolean canContinueToUse() {
-			return !bionic.isSwimming() && super.canContinueToUse();
+			return !bionic.isSwimming() && !BionicLocomotionPolicy.prefersLowFlight(bionic) && super.canContinueToUse();
 		}
 	}
 

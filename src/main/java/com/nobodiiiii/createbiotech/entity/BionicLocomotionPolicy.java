@@ -24,6 +24,10 @@ final class BionicLocomotionPolicy {
 		return !operationOwner.isSwimming() && (operationOwner.getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || operationOwner.getBionicTraits().has(BionicTrait.WING_FLIGHT));
 	}
 
+	static boolean prefersLowFlight(SlimeBionicEntity bionic) {
+		return getLocomotionLegCount(bionic) == 0 && hasFlightLocomotion(bionic);
+	}
+
 	/** Aquatic speed has its own baseline; land movement retains the anatomical gait calibration. */
 	static void refreshMovementSpeed(SlimeBionicEntity operationOwner, SurgicalAssembly assembly) {
 		if (operationOwner.level().isClientSide)
