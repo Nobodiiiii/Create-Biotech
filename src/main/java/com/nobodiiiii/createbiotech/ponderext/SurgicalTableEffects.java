@@ -8,8 +8,6 @@ import com.nododiiiii.ponderer.runtime.api.StepBuildContext;
 import com.nododiiiii.ponderer.runtime.api.StepType;
 import com.nododiiiii.ponderer.runtime.api.StepCodec;
 import com.nobodiiiii.createbiotech.content.petridish.PetriDishBlockEntity;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderInterfaces;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderHighlight;
@@ -19,7 +17,6 @@ import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 
 import net.createmod.catnip.math.Pointing;
 import net.createmod.ponder.api.PonderPalette;
-import net.createmod.ponder.api.scene.SceneBuilder;
 import net.createmod.ponder.foundation.PonderScene;
 import net.createmod.ponder.foundation.instruction.TickingInstruction;
 import net.minecraft.core.BlockPos;
@@ -59,6 +56,8 @@ final class SurgicalTableEffects {
         register(engine, "original_appearance", "显示供体原本外观", actors -> actors.setSourceAppearance(true));
         register(engine, "slime_appearance", "恢复手术外观", actors -> actors.setSourceAppearance(false));
         register(engine, "hide_result", "让演示成品退场", SurgicalPonderActors::hideIntroResult);
+        register(engine, "clear_mimic", "清除演示拟态实体", SurgicalPonderActors::hideResult);
+        register(engine, "pack_body", "收起台面上的仿生体", SurgicalPonderActors::packBody);
         register(engine, "return_to_table", "将成品放回台面", actors -> { actors.hideResult(); actors.unpackBody(); actors.setStage(10); });
         engine.steps().registerJava(PREFIX + "cut_arm", "剪开僵尸肩部连接", ctx -> move(ctx, 3, 22));
         register(engine, "pick_up_arm", "收起旧手臂", SurgicalPonderActors::pickUpOldArm);
@@ -75,8 +74,6 @@ final class SurgicalTableEffects {
         register(engine, "finish_glue_legs", "固定替换小腿", actors -> actors.setStage(10));
         engine.steps().registerJava(PREFIX + "assembled", "恢复已替换手臂的台面", ctx ->
             ctx.builder().addInstruction(s -> { actors(ctx).placePillager(); actors(ctx).setStage(10); }));
-        engine.steps().registerJava(PREFIX + "shoulder", "安装替换手臂的肩关节", SurgicalTableEffects::installShoulder);
-        engine.steps().registerJava(PREFIX + "other_joints", "同时安装颈髋膝关节", SurgicalTableEffects::installOtherJoints);
         engine.steps().registerJava(PREFIX + "release_hopping", "释放无关节成品并演示跳跃", ctx -> release(ctx, false));
         engine.steps().registerJava(PREFIX + "release_walking", "释放成品并演示转头行走挥击", ctx -> release(ctx, true));
         engine.steps().registerJava(PREFIX + "result_intro", "让仿生生物入场并攻击盔甲架", ctx -> {
@@ -118,48 +115,9 @@ final class SurgicalTableEffects {
         });
     }
 
-    private static void installShoulder(StepBuildContext ctx) {
-        var scene = ctx.builder();
-        var actors = actors(ctx);
-        SurgicalPonderHighlight.schedule(scene, actors,
-            new SurgicalPonderHighlight.Spec(List.of("new_arm"), PonderPalette.GREEN, 60));
-        showJointControl(scene, actors.point("new_arm"), Pointing.DOWN, 25, SurgicalLimbType.SHOULDER);
-        scene.idle(25);
-        showJointControl(scene, actors.point("body"), Pointing.DOWN, 25, SurgicalLimbType.SHOULDER);
-        scene.idle(30);
-    }
-
-    private static void installOtherJoints(StepBuildContext ctx) {
-        var scene = ctx.builder();
-        var actors = actors(ctx);
-        int duration = 40;
-        SurgicalPonderHighlight.schedule(scene, actors, new SurgicalPonderHighlight.Spec(
-            List.of("head", "right_leg", "left_leg", "right_knee", "left_knee"), PonderPalette.GREEN, duration + 10));
-        showJointControl(scene, actors.point("head"), Pointing.DOWN, duration, SurgicalLimbType.NECK);
-
-        // Use both sides of the body and stagger the leg prompts so the item icons remain visible.
-        showJointControl(scene, actors.point("right_leg").add(0, 0.25, 0), Pointing.RIGHT, duration, SurgicalLimbType.HIP);
-        showJointControl(scene, actors.point("left_leg").add(0, 0.25, 0), Pointing.LEFT, duration, SurgicalLimbType.HIP);
-        showJointControl(scene, actors.point("right_knee").add(0, -0.85, 0), Pointing.RIGHT, duration, SurgicalLimbType.KNEE);
-        showJointControl(scene, actors.point("left_knee").add(0, -0.85, 0), Pointing.LEFT, duration, SurgicalLimbType.KNEE);
-    }
-
-    private static void showJointControl(SceneBuilder scene, Vec3 point, Pointing direction, int duration, SurgicalLimbType type) {
-        scene.overlay().showControls(point, direction, duration)
-            .rightClick().withItem(SurgicalJointItem.createStack(type));
-    }
-
     private static void release(StepBuildContext ctx, boolean articulated) {
-        var scene = ctx.builder();
         var actors = actors(ctx);
-        scene.overlay().showControls(actors.point("body"), Pointing.DOWN, 25)
-            .rightClick().withItem(new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()));
-        scene.idle(25);
-        scene.addInstruction(s -> actors.packBody());
-        scene.overlay().showControls(SurgicalPonderActors.RESULT_POSITION.add(0, 1.5, 0), Pointing.DOWN, 30)
-            .rightClick().whileSneaking().withItem(new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get()));
-        scene.idle(20);
-        scene.addInstruction(s -> actors.releaseResult(articulated));
+        ctx.builder().addInstruction(s -> actors.releaseResult(articulated));
         bindTarget(ctx, actors, articulated ? "strike_target" : "contact_target");
     }
 

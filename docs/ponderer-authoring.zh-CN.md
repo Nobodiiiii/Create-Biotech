@@ -116,6 +116,8 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 第二章的操作提示、等待和相机设置直接写在 `JavaScene` 中；高亮通过独立、可编辑参数的 `highlight_parts` 步骤调用。剪下手臂、移动手臂、剪下双腿、移动双腿和固定部件各自使用单一的 Java 模型步骤，不在其中夹带提示或等待。铁傀儡手臂剪下后保持 Z 不变，沿 −X 移开并落到台面；随后按原目标粘接到僵尸肩部。第二章统一按“剪刀与红色高亮 → 强力胶与绿色高亮散件 → 强力胶与绿色高亮目标 → 移动到位后同时绿色高亮连接双方”演示。各次操作提示与高亮持续 40 tick，随后留出 10 tick 间隔；粘合移动本身持续 40 tick，到位后再开始结果高亮。双腿的剪切、选点、移动和结果高亮均同时进行，操作提示放在两腿中间。
 
+第三章的装箱、放出和关节安装提示使用可独立编辑的 `showControls` 与 `idle` 步骤。回收成品时用 `clear_mimic` 清除演示拟态实体，放回台面后用 `highlight_parts` 的 `assembled_body` 选中所有已装配的体块，包括铁傀儡手臂与掠夺者小腿。
+
 `GeneratedSurgicalTable_7431e38e` 保持 `placing`、`recombining`、`joints` 三个稳定章节 ID；原有大纲及中英文字幕资源保持原文。后续章节继续由作者补充。
 
 底板直接收录思索者自带的 XL 模板 `basic_xl`（9×9），与 `../ponderer/Common/src/main/resources/data/ponderer/default_structures/basic_xl.nbt` 字节一致。`tools/generate_surgical_ponder_structure.py` 仅导入该原生模板，台面的放置和分段显示由可编辑 `JavaScene` 步骤完成。僵尸、铁傀儡、掠夺者分别放在台面左、中、右侧；铁傀儡手臂竖直连接躯干，掠夺者双腿接在僵尸双腿下方，最后分别安装膝关节。

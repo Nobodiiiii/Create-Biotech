@@ -225,34 +225,52 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.javaStep("create_biotech:java/surgical_table/assembled", null);
         scene.idle(20);
         scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "contact_target", null, null, null);
-        scene.keyframe().javaStep("create_biotech:java/surgical_table/release_hopping", null);
+        scene.keyframe().showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.idle(25);
+        scene.javaStep("create_biotech:java/surgical_table/pack_body", null);
+        scene.showControls(new Vec3(1.5d, 2.5d, 7.5d), "down", 30, "right", "create_biotech:large_cardboard_box", null, true, null);
+        scene.idle(20);
+        scene.javaStep("create_biotech:java/surgical_table/release_hopping", null);
         scene.showText(text("joints.hopping"), new Vec3(1.5d, 2.0d, 7.5d), 110, null, true);
         scene.idle(120);
         scene.clearEntities(true, "minecraft:armor_stand", "contact_target", null, null, null, null, null);
         scene.keyframe().showControls(new Vec3(2.5d, 3.5d, 7.5d), "down", 20, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(20);
-        scene.clearEntities(true, null, null, null, null, null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/clear_mimic", null);
         scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/return_to_table", null);
         scene.idle(20);
         scene.showText(text("joints.intro"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\",\"head\",\"left_arm\",\"right_leg\",\"left_leg\"],\"color\":\"blue\",\"duration\":75}").getAsJsonObject());
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"assembled_body\"],\"color\":\"blue\",\"duration\":75}").getAsJsonObject());
         scene.idle(110);
         scene.keyframe().createItemEntity("create_biotech:surgical_joint", 1, new Vec3(4.5d, 2.5d, 5.5d), new Vec3(0.0d, 0.0d, 0.0d), "{NoGravity:1b}", "surgical_joint");
         scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":140}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,3.0,5.5],\"direction\":\"down\"}").getAsJsonObject());
         scene.showText(text("joints.types_upper"), new Vec3(4.5d, 2.5d, 5.5d), 140, null, true);
         scene.idle(160);
         scene.keyframe().showText(text("joints.order"), new Vec3(2.5d, 2.7d, 3.5d), 120, null, true);
-        scene.javaStep("create_biotech:java/surgical_table/shoulder", null);
-        scene.idle(75);
-        scene.javaStep("create_biotech:java/surgical_table/other_joints", null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\"],\"color\":\"green\",\"duration\":60}").getAsJsonObject());
+        scene.showControls(new Vec3(2.15625d, 2.3175d, 4.0d), "down", 25, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
+        scene.idle(25);
+        scene.showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 25, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
+        scene.idle(105);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"head\",\"right_leg\",\"left_leg\",\"right_knee\",\"left_knee\"],\"color\":\"green\",\"duration\":50}").getAsJsonObject());
+        scene.showControls(new Vec3(2.5d, 2.3175d, 2.75d), "down", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"neck\"}", null, null);
+        scene.showControls(new Vec3(2.38125d, 2.5675d, 4.125d), "right", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
+        scene.showControls(new Vec3(2.61875d, 2.5675d, 4.125d), "left", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
+        scene.showControls(new Vec3(2.38125d, 1.4675d, 4.84375d), "right", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
+        scene.showControls(new Vec3(2.61875d, 1.4675d, 4.84375d), "left", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
         scene.idle(60);
         scene.keyframe().showText(text("joints.contact"), new Vec3(2.5d, 2.7d, 3.5d), 110, null, true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\",\"body\"],\"color\":\"green\",\"duration\":110}").getAsJsonObject());
         scene.idle(120);
         scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "strike_target", null, null, null);
-        scene.keyframe().javaStep("create_biotech:java/surgical_table/release_walking", null);
+        scene.keyframe().showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.idle(25);
+        scene.javaStep("create_biotech:java/surgical_table/pack_body", null);
+        scene.showControls(new Vec3(1.5d, 2.5d, 7.5d), "down", 30, "right", "create_biotech:large_cardboard_box", null, true, null);
+        scene.idle(20);
+        scene.javaStep("create_biotech:java/surgical_table/release_walking", null);
         scene.idle(135);
         scene.clearEntities(true, "minecraft:armor_stand", "strike_target", null, null, null, null, null);
         scene.keyframe().showText(text("joints.stats_intro"), new Vec3(6.5d, 2.0d, 7.5d), 110, null, true);
@@ -283,13 +301,12 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.showText(text("traits.intro"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
         scene.idle(120);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_dissect", null);
+        scene.showControls(new Vec3(6.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
+        scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
         scene.playSound("minecraft:entity.sheep.shear", 0.7f, 1.0f, "blocks");
-        scene.showText(text("traits.dissect"), new Vec3(4.5d, 2.8d, 3.5d), 60, null, true);
-        scene.idle(65);
-        scene.showText(text("traits.donors"), new Vec3(6.5d, 2.7d, 3.5d), 120, null, true);
-        scene.idle(135);
+        scene.idle(90);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_assemble", null);
-        scene.showText(text("traits.example"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
+        scene.showText(text("traits.donors"), new Vec3(6.5d, 2.7d, 3.5d), 120, null, true);
         scene.idle(120);
         scene.keyframe().createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,ShowArms:1b}", "blast_target", null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/traits_flight", null);
@@ -354,6 +371,156 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(90);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

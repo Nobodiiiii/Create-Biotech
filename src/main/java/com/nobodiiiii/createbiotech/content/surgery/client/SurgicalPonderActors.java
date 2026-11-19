@@ -89,7 +89,6 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     private boolean pillagerPlaced;
     private final int zombieArm;
     private final int golemArm;
-    private final int torso;
     private final Vec3 cutZombieArmOffset;
     private final Vec3 parkedZombieArmOffset;
     private final Vec3 cutArmOffset;
@@ -126,14 +125,13 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             leftKnee, kneeOffset("left_leg", leftKnee));
         zombieArm = zombie.part("right_arm");
         golemArm = golem.part("right_arm");
-        torso = zombie.part("body");
-        AABB body = bounds(zombie.cube(torso).corners());
+        AABB body = bounds(zombie.cube(zombie.part("body")).corners());
         AABB arm = bounds(golem.cube(golemArm).corners());
         // Detach along table -X and lower onto the tabletop without shifting Z.
         cutArmOffset = tabletopOffset(golem, golemArm, -0.5, 0);
         double side = Math.signum(center(zombie.cube(zombieArm)).x - body.getCenter().x);
         cutZombieArmOffset = tabletopOffset(zombie, zombieArm, side * 0.45, 0);
-        Vec3 zombieArmCenter = tableBounds(zombie, zombieArm, Vec3.ZERO, SurgicalCubeRotation.IDENTITY).getCenter();
+        Vec3 zombieArmCenter = tableBounds(zombie, zombieArm).getCenter();
         parkedZombieArmOffset = tabletopOffset(zombie, zombieArm, 1.6 - zombieArmCenter.x, 5.2 - zombieArmCenter.z);
         armRotation = SurgicalCubeRotation.IDENTITY;
         Vec3 contact = new Vec3(side > 0 ? arm.minX : arm.maxX, arm.maxY, arm.getCenter().z);
@@ -331,50 +329,16 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         target.yBodyRot = yaw + HIT_YAW_OFFSETS[elapsed + 1];
     }
 
-    public Vec3 point(String name) { return box(name).getCenter(); }
-
-    public Vec3 detachedDonorPoint(String name) {
-        Vec3 offset = switch (name) {
-            case "donor_arm" -> cutArmOffset;
-            case "donor_right_leg" -> cutLegOffsets.get(rightKnee);
-            case "donor_left_leg" -> cutLegOffsets.get(leftKnee);
-            default -> throw new IllegalArgumentException("Unknown donor part: " + name);
-        };
-        return point(name).add(FLAT.rotate(offset));
-    }
-
-    public AABB box(String name) {
-        return switch (name) {
-            case "donor_right_leg" -> tableBounds(pillager, rightKnee, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "donor_left_leg" -> tableBounds(pillager, leftKnee, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "right_knee" -> tableBounds(zombie, pillager, rightKnee, kneeOffsets.get(rightKnee), SurgicalCubeRotation.IDENTITY);
-            case "left_knee" -> tableBounds(zombie, pillager, leftKnee, kneeOffsets.get(leftKnee), SurgicalCubeRotation.IDENTITY);
-            case "donor_arm" -> tableBounds(golem, golemArm, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "new_arm" -> tableBounds(zombie, golem, golemArm, armOffset, armRotation);
-            case "old_arm" -> tableBounds(zombie, zombieArm, parkedZombieArmOffset, SurgicalCubeRotation.IDENTITY);
-            case "head" -> tableBounds(zombie, zombie.part("head"), Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "left_arm" -> tableBounds(zombie, zombie.part("left_arm"), Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "right_leg" -> tableBounds(zombie, zombie.part("right_leg"), Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            case "left_leg" -> tableBounds(zombie, zombie.part("left_leg"), Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-            default -> tableBounds(zombie, torso, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
-        };
-    }
-
     public SlimeBionicEntity result() { return body().entity; }
 
-    private AABB tableBounds(Model frame, int cube, Vec3 offset, SurgicalCubeRotation rotation) {
-        return tableBounds(frame, frame, cube, offset, rotation);
-    }
-
     private Vec3 tabletopOffset(Model model, int cube, double dx, double dz) {
-        AABB box = tableBounds(model, cube, Vec3.ZERO, SurgicalCubeRotation.IDENTITY);
+        AABB box = tableBounds(model, cube);
         return FLAT.inverseRotate(new Vec3(dx, ZOMBIE_POSITION.y + TABLETOP_OFFSET - box.minY, dz));
     }
 
-    private AABB tableBounds(Model frame, Model model, int cube, Vec3 offset, SurgicalCubeRotation rotation) {
-        Vec3 center = center(model.cube(cube));
-        return bounds(model.cube(cube).corners().stream().map(p ->
-            frame.origin.add(FLAT.rotate(center.add(rotation.rotate(p.subtract(center))).add(offset)))).toList());
+    private AABB tableBounds(Model model, int cube) {
+        return bounds(model.cube(cube).corners().stream()
+            .map(corner -> model.origin.add(FLAT.rotate(corner))).toList());
     }
 
     @Override
@@ -473,6 +437,10 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
 
     private boolean matches(PlacedCube part, String name) {
         return switch (name) {
+            case "assembled_body" -> !part.flat || (stage >= 10
+                && (part.model == zombie && part.cube != zombieArm
+                    || part.model == golem && part.cube == golemArm
+                    || part.model == pillager && (part.cube == rightKnee || part.cube == leftKnee)));
             case "donor_arm" -> part.matches(EntityType.IRON_GOLEM, "right_arm");
             case "new_arm" -> part.matches(EntityType.IRON_GOLEM, "right_arm") && (!part.flat || stage >= 5);
             case "old_arm" -> part.matches(EntityType.ZOMBIE, "right_arm");

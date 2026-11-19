@@ -24,7 +24,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 public final class SurgicalPonderHighlight {
-    private static final Set<String> PARTS = Set.of("body", "head", "left_arm", "right_leg", "left_leg",
+    private static final Set<String> PARTS = Set.of("assembled_body", "body", "head", "left_arm", "right_leg", "left_leg",
         "old_arm", "new_arm", "donor_arm", "donor_right_leg", "donor_left_leg", "right_knee", "left_knee");
 
     private SurgicalPonderHighlight() {}
