@@ -277,6 +277,26 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         return leftWing.contains(cube) || rightWing.contains(cube);
     }
 
+    public List<List<Vec3>> highlightCorners(List<String> names, float partialTick) {
+        if (view != View.TABLE) return List.of();
+        Matrix4f root = tableTransform(age + partialTick);
+        return greenprintSources.stream()
+            .flatMap(source -> source.parts(root, SlimeBionicAnimator.Frame.EMPTY).stream())
+            .filter(part -> names.stream().anyMatch(name -> switch (name) {
+                case "creeper_body" -> part.model() == creeper.model() && part.cube() == creeper.model().part("body");
+                case "creeper_head" -> part.model() == creeper.model() && part.cube() == creeper.model().part("head");
+                case "phantom_wings" -> part.model() == phantom.model() && isWing(part.cube());
+                default -> false;
+            }))
+            .map(PlacedCube::worldCorners).toList();
+    }
+
+    private Matrix4f tableTransform(float time) {
+        if (!returningToTable) return tableRoot;
+        float entrance = eased(time, TABLE_TRANSITION_TICKS);
+        return translation(new Vec3(0, TABLE_TRANSITION_DISTANCE * (1 - entrance), 0)).mul(tableRoot);
+    }
+
     @Override
     public void renderFirst(PonderLevel world, MultiBufferSource buffer, GuiGraphics graphics, float pt) {}
 
@@ -302,11 +322,10 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         if (view == View.HIDDEN || view == View.PACKED) return;
 
         Body body = body();
-        Matrix4f root = tableRoot;
+        Matrix4f root = tableTransform(time);
         if (returningToTable) {
             float entrance = eased(time, TABLE_TRANSITION_TICKS);
             if (entrance == 0) return;
-            root = translation(new Vec3(0, TABLE_TRANSITION_DISTANCE * (1 - entrance), 0)).mul(tableRoot);
             buffer = SurgicalSourceModelRenderer.alphaBuffer(buffer, entrance);
         }
         List<SlimeBionicAnimator.Frame> frames = List.of();

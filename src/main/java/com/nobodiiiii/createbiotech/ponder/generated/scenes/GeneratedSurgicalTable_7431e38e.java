@@ -193,6 +193,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(40);
         scene.idle(10);
         scene.javaStep("create_biotech:java/surgical_table/glue_legs", null);
+        scene.showText(text("recombining.text_5"), new Vec3(2.5d, 2.5d, 4.5d), 80, null, true);
         scene.idle(40);
         scene.javaStep("create_biotech:java/surgical_table/finish_glue_legs", null);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"right_knee\",\"left_knee\",\"right_leg\",\"left_leg\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
@@ -302,7 +303,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(20);
         scene.showText(text("traits.intro"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
         scene.idle(120);
-        scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_dissect", null);
+        scene.javaStep("create_biotech:java/surgical_table/traits_dissect", null);
         scene.showControls(new Vec3(6.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
         scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
         scene.playSound("minecraft:entity.sheep.shear", 0.7f, 1.0f, "blocks");
@@ -331,24 +332,266 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.javaStep("create_biotech:java/surgical_table/traits_return_to_table", null);
         scene.idle(10);
         scene.keyframe().showText(text("traits.scope"), new Vec3(4.5d, 2.8d, 3.5d), 120, null, true);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"6bfb3b72-0760-4e7f-bdea-62607fda11a0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"id\":\"782e0fca-18d8-494f-8b1b-21660aa860b6\",\"type\":\"idle\",\"duration\":130},{\"id\":\"3a750aed-4a33-4669-9f40-01b7a42c7012\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_5\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"37b662fb-4ce8-44c3-b37e-64d086993e3c\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6_2\"},\"point\":[0.3,-0.0777191737930163,0.0],\"placeNearTarget\":true},{\"id\":\"legacy_3\",\"type\":\"idle\",\"duration\":150},{\"id\":\"83995ca7-a578-44dd-9dff-78b8c79fb8b8\",\"type\":\"text\",\"duration\":150,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"9c6acf67-4f19-4bb6-a048-f484d1d1784a\",\"type\":\"idle\",\"duration\":150},{\"id\":\"d7cad9d9-5722-404c-a472-cdee4a38942e\",\"type\":\"idle\",\"duration\":150}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"6bfb3b72-0760-4e7f-bdea-62607fda11a0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"id\":\"782e0fca-18d8-494f-8b1b-21660aa860b6\",\"type\":\"idle\",\"duration\":130},{\"id\":\"3a750aed-4a33-4669-9f40-01b7a42c7012\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_5\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"37b662fb-4ce8-44c3-b37e-64d086993e3c\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6_2\"},\"point\":[0.3,-0.0777191737930163,0.0],\"placeNearTarget\":true},{\"id\":\"legacy_3\",\"type\":\"idle\",\"duration\":150},{\"id\":\"83995ca7-a578-44dd-9dff-78b8c79fb8b8\",\"type\":\"text\",\"duration\":150,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"9c6acf67-4f19-4bb6-a048-f484d1d1784a\",\"type\":\"idle\",\"duration\":150},{\"id\":\"d7cad9d9-5722-404c-a472-cdee4a38942e\",\"type\":\"idle\",\"duration\":150},{\"id\":\"d03bf5f4-c2e7-4b3d-b3a8-8143fa1fe237\",\"type\":\"text\",\"duration\":120,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_8\"},\"point\":[-0.4,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"legacy_9\",\"type\":\"idle\",\"duration\":130}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.idle(440);
         scene.keyframe().showText(text("traits.volume"), new Vec3(4.5d, 2.8d, 3.5d), 140, null, true);
-        scene.idle(150);
-        scene.keyframe().showText(text("traits.mind"), new Vec3(4.5d, 2.8d, 3.5d), 120, null, true);
-        scene.showText(text("traits.adjust"), new Vec3(4.5d, 2.8d, 3.5d), 115, null, true);
-        scene.keyframe().showText(text("traits.jei"), new Vec3(4.5d, 2.8d, 3.5d), 145, null, true);
-        scene.showControls(new Vec3(5.9d, 3.0d, 4.0d), "down", 42, null, "create_biotech:surgery_guide", null, null, null);
-        scene.idle(155);
-        scene.showText(text("traits.lookup"), new Vec3(4.5d, 2.8d, 3.5d), 125, null, true);
-        scene.showControls(new Vec3(5.3d, 2.9d, 4.6d), "down", 110, null, "create_biotech:bionic_donor_preview", "{EntityType:\"minecraft:phantom\"}", null, null);
-        scene.showControls(new Vec3(6.1d, 2.9d, 4.6d), "down", 110, null, "minecraft:phantom_spawn_egg", null, null, null);
-        scene.showControls(new Vec3(6.9d, 2.9d, 4.6d), "down", 110, null, "create_biotech:large_cardboard_box", "{CapturedEntity:{id:\"minecraft:phantom\"}}", null, null);
-        scene.idle(135);
-        scene.javaStep("create_biotech:java/surgical_table/traits_display", null);
-        scene.idle(90);
+        scene.javaStep("create_biotech:java/surgical_table/traits_highlight_parts", JsonParser.parseString("{\"parts\":[\"creeper_body\",\"creeper_head\"],\"color\":\"green\",\"duration\":140}").getAsJsonObject());
+        scene.javaStep("create_biotech:java/surgical_table/traits_highlight_parts", JsonParser.parseString("{\"parts\":[\"phantom_wings\"],\"color\":\"blue\",\"duration\":140}").getAsJsonObject());
+        scene.idle(280);
+        scene.keyframe().showText(text("traits.jei"), new Vec3(4.5d, 2.8d, 3.5d), 140, null, true);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_fire_resistance_jei\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":150},{\"id\":\"33ff7e59-c02f-4452-ae70-0f75c97d8d79\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_11\"},\"point\":[0.8075841973546194,-0.8071151853312897,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"legacy_3\",\"type\":\"idle\",\"duration\":150}],\"panelTransform\":[-16.0,0.0,1.0],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":true,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

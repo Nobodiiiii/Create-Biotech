@@ -73,6 +73,9 @@ public class CBMenuTypes {
 	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_SURGICAL_SMART_GLUE_HOVER =
 		ponderPage("ponder_surgical_smart_glue_hover", () -> CBMenuTypes.PONDER_SURGICAL_SMART_GLUE_HOVER.get(), false);
 
+	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_FIRE_RESISTANCE_JEI =
+		ponderPage("ponder_fire_resistance_jei", () -> CBMenuTypes.PONDER_FIRE_RESISTANCE_JEI.get(), false);
+
 	private CBMenuTypes() {}
 
 	private static DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> ponderPage(

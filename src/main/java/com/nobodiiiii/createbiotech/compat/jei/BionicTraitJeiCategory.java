@@ -2,6 +2,8 @@ package com.nobodiiiii.createbiotech.compat.jei;
 
 import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
@@ -24,6 +26,7 @@ import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.entity.EntityType;
 
 /** Trait book and name beside right-aligned info icons, followed by the effect and donor grid. */
 public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicTrait> {
@@ -39,12 +42,18 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	/** Matches the line spacing used by JEI's text and scroll-box widgets. */
 	private static final int LINE_SPACING = 2;
 	private final IDrawable slotBackground;
+	private final @Nullable List<EntityType<?>> previewDonors;
 
 	public BionicTraitJeiCategory(IGuiHelper guiHelper) {
+		this(guiHelper, null);
+	}
+
+	BionicTraitJeiCategory(IGuiHelper guiHelper, @Nullable List<EntityType<?>> previewDonors) {
 		super(TYPE, Component.translatable("create_biotech.jei.traits"),
 			guiHelper.createDrawableIngredient(VanillaTypes.ITEM_STACK, new ItemStack(CBItems.SURGERY_GUIDE.get())),
 			WIDTH, HEIGHT);
 		slotBackground = guiHelper.getSlotDrawable();
+		this.previewDonors = previewDonors == null ? null : List.copyOf(previewDonors);
 	}
 
 	@Override
@@ -57,8 +66,8 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 			.addIngredient(BionicTraitJeiIngredient.TYPE, trait);
 		builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
 			.addItemStack(new ItemStack(CBItems.SURGERY_GUIDE.get()));
-		// The server fills these display-only slots as its donor scan progresses.
-		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+		// The donor widget fills these display-only slots from its selected result list.
+		if (!showDonors())
 			return;
 		for (int slot = 0; slot < BionicTraitDonorWidget.PAGE_SIZE; slot++)
 			builder.addSlot(RecipeIngredientRole.RENDER_ONLY).setStandardSlotBackground();
@@ -74,7 +83,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 			.setTextAlignment(VerticalAlignment.CENTER);
 		List<FormattedText> text = BionicTraitJeiText.description(trait);
 		var slots = builder.getRecipeSlots().getSlots(RecipeIngredientRole.RENDER_ONLY);
-		boolean showDonors = CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()
+		boolean showDonors = showDonors()
 			&& slots.size() == BionicTraitDonorWidget.PAGE_SIZE;
 		int textHeight = showDonors ? TEXT_HEIGHT : HEIGHT - TEXT_Y;
 		// Keep the scrollbar only for overflowing descriptions and acquisition conditions.
@@ -84,7 +93,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 			builder.addScrollBoxWidget(WIDTH, textHeight, 0, TEXT_Y).setContents(text);
 		if (!showDonors)
 			return;
-		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y, slots, slotBackground);
+		BionicTraitDonorWidget donors = new BionicTraitDonorWidget(trait, DONORS_Y, slots, slotBackground, previewDonors);
 		builder.addSlottedWidget(donors, slots);
 		builder.addInputHandler(donors);
 	}
@@ -92,6 +101,10 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 	@Override
 	public ResourceLocation getRegistryName(BionicTrait trait) {
 		return BionicTraitJeiIngredient.id(trait);
+	}
+
+	private boolean showDonors() {
+		return previewDonors != null || CBConfigs.CLIENT.showBionicTraitDonorsInJei.get();
 	}
 
 	/** Wraps exactly like JEI's text widgets at the full category width. */

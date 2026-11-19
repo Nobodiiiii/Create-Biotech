@@ -61,6 +61,10 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 	private static boolean catalogListenerRegistered;
 	private static List<BionicTrait> registeredTraits = List.of();
 
+	static IJeiRuntime traitRuntime() {
+		return Objects.requireNonNull(traitRuntime, "JEI runtime is not available");
+	}
+
 	private static void refreshTraitIngredients() {
 		if (traitRuntime == null) return;
 		var manager = traitRuntime.getIngredientManager();

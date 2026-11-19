@@ -2,11 +2,14 @@ package com.nobodiiiii.createbiotech.ponderext;
 
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.Assembly.COMPLETE;
 
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderHighlight;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.Assembly;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.View;
 import com.nododiiiii.ponderer.runtime.api.RuntimeEngine;
 import com.nododiiiii.ponderer.runtime.api.StepBuildContext;
+import com.nododiiiii.ponderer.runtime.api.StepCodec;
+import com.nododiiiii.ponderer.runtime.api.StepType;
 
 /** Playback instructions for the fourth surgical table chapter. */
 final class SurgicalTraitPonderEffects {
@@ -16,6 +19,15 @@ final class SurgicalTraitPonderEffects {
     private SurgicalTraitPonderEffects() {}
 
     static void install(RuntimeEngine engine) {
+        engine.steps().register(PREFIX + "highlight_parts", new StepType<SurgicalPonderHighlight.Spec>() {
+            @Override public StepCodec<SurgicalPonderHighlight.Spec> codec() { return SurgicalPonderHighlight.CODEC; }
+            @Override public String editorLabel() { return "高亮苦力怕或幻翼部件"; }
+            @Override public void build(SurgicalPonderHighlight.Spec parameters, StepBuildContext ctx) {
+                var actors = actors(ctx);
+                SurgicalPonderHighlight.schedule(ctx.builder(), parameters.color(), parameters.duration(),
+                    pt -> actors.highlightCorners(parameters.parts(), pt), true);
+            }
+        });
         view(engine, "flight", "让仿生生物飞向盔甲架", View.FLIGHT, COMPLETE);
         view(engine, "prime", "点燃仿生生物的自爆引信", View.FUSE, COMPLETE);
         view(engine, "hide", "收起演示成品", View.HIDDEN, COMPLETE);

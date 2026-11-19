@@ -40,9 +40,11 @@
   "traits.result": "The result is a living bomber",
   "traits.rules": "Some traits only require the relevant tissue (presence). Others require a minimum share (threshold) or vary in effect with the tissue share (scaled)",
   "traits.scope": "Each trait has its own scope. Some affect the whole body, while others work only in the relevant body part",
+  "traits.text_11": "You can also look up traits from donor previews, spawn eggs or filled Cardboard Boxes",
   "traits.text_5": "Hold a Cardboard Box and hover over a creature on the Surgical Table to see its traits and missing requirements. Gray entries are inactive",
   "traits.text_6": "Some traits only require the relevant tissue (presence). Others require a minimum share (threshold) or vary in effect with the tissue share (scaled)",
   "traits.text_6_2": "Hold a Cardboard Box and hover over a creature on the Surgical Table to see its traits and missing requirements. Gray entries are inactive",
+  "traits.text_8": "Disposition and Intelligence are the most basic traits. They affect target selection and combat strategy, respectively",
   "traits.title": "Introducing Traits",
   "traits.volume": "The tissue share is measured within the trait's scope. Self-Destruct is a torso trait, so Phantom tissue mounted on the arms does not affect it"
 }

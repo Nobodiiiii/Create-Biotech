@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.compat.jei;
 import java.util.List;
 import java.util.Optional;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
@@ -37,17 +39,20 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 	private final int y;
 	private final List<IRecipeSlotDrawable> slots;
 	private final IDrawable slotBackground;
+	private final @Nullable List<EntityType<?>> previewDonors;
 	private final EntityType<?>[] displayedTypes = new EntityType<?>[PAGE_SIZE];
 	private final ItemStack[] displayedItems = new ItemStack[PAGE_SIZE];
 	private int page;
 	private int visibleCount;
 	private long donorRevision = -1;
 
-	BionicTraitDonorWidget(BionicTrait trait, int y, List<IRecipeSlotDrawable> slots, IDrawable slotBackground) {
+	BionicTraitDonorWidget(BionicTrait trait, int y, List<IRecipeSlotDrawable> slots, IDrawable slotBackground,
+		@Nullable List<EntityType<?>> previewDonors) {
 		this.trait = trait;
 		this.y = y;
 		this.slots = List.copyOf(slots);
 		this.slotBackground = slotBackground;
+		this.previewDonors = previewDonors == null ? null : List.copyOf(previewDonors);
 		for (int cell = 0; cell < PAGE_SIZE; cell++) {
 			displayedItems[cell] = ItemStack.EMPTY;
 			this.slots.get(cell).setPosition(GRID_X + cell * CELL + 1, GRID_Y + 1);
@@ -61,24 +66,26 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public void drawWidget(GuiGraphics graphics, double mouseX, double mouseY) {
-		BionicTraitDonorIndex.requestIfNeeded();
-		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get()) {
+		if (previewDonors == null)
+			BionicTraitDonorIndex.requestIfNeeded();
+		if (!enabled()) {
 			updateSlots(List.of());
 			return;
 		}
-		List<EntityType<?>> donors = BionicTraitDonorIndex.donors(trait);
+		List<EntityType<?>> donors = donors();
 		updateSlots(donors);
 		var font = Minecraft.getInstance().font;
 		graphics.drawString(font, tr("title"), 2, 1, 0x303030, false);
 		int start = page * PAGE_SIZE;
 		int end = Math.min(start + PAGE_SIZE, donors.size());
 		Component counter = tr("page", donors.isEmpty() ? 0 : start + 1, end, donors.size());
-		int counterRight = BionicTraitDonorIndex.failures() > 0 ? WIDTH - 12 : WIDTH - 2;
+		boolean hasFailures = previewDonors == null && BionicTraitDonorIndex.failures() > 0;
+		int counterRight = hasFailures ? WIDTH - 12 : WIDTH - 2;
 		graphics.drawString(font, counter, counterRight - font.width(counter), 1, 0x606060, false);
-		if (BionicTraitDonorIndex.failures() > 0)
+		if (hasFailures)
 			graphics.drawString(font, "!", WIDTH - 9, 1, 0xA06020, false);
 		if (donors.isEmpty()) {
-			graphics.drawString(font, tr(BionicTraitDonorIndex.complete() ? "empty" : "waiting"),
+			graphics.drawString(font, tr(previewDonors != null || BionicTraitDonorIndex.complete() ? "empty" : "waiting"),
 				GRID_X, GRID_Y + (CELL - font.lineHeight) / 2, 0x606060, false);
 			return;
 		}
@@ -96,24 +103,24 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public void getTooltip(ITooltipBuilder tooltip, double mouseX, double mouseY) {
-		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+		if (!enabled())
 			return;
 		if (mouseX < 0 || mouseX >= WIDTH || mouseY < 0 || mouseY >= HEIGHT)
 			return;
 		if (mouseY < GRID_Y) {
 			tooltip.add(tr("scroll"));
-			if (!BionicTraitDonorIndex.complete())
+			if (previewDonors == null && !BionicTraitDonorIndex.complete())
 				tooltip.add(tr("loading", BionicTraitDonorIndex.checked(), BionicTraitDonorIndex.total()));
-			if (BionicTraitDonorIndex.failures() > 0)
+			if (previewDonors == null && BionicTraitDonorIndex.failures() > 0)
 				tooltip.add(tr("incomplete", BionicTraitDonorIndex.failures()));
 		}
 	}
 
 	@Override
 	public Optional<RecipeSlotUnderMouse> getSlotUnderMouse(double mouseX, double mouseY) {
-		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get())
+		if (!enabled())
 			return Optional.empty();
-		updateSlots(BionicTraitDonorIndex.donors(trait));
+		updateSlots(donors());
 		for (int cell = 0; cell < visibleCount; cell++) {
 			IRecipeSlotDrawable slot = slots.get(cell);
 			if (slot.isMouseOver(mouseX, mouseY))
@@ -123,7 +130,7 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 	}
 
 	private void updateSlots(List<EntityType<?>> donors) {
-		long revision = BionicTraitDonorIndex.revision();
+		long revision = previewDonors == null ? BionicTraitDonorIndex.revision() : 0;
 		page = Math.min(page, lastPage(donors));
 		int start = page * PAGE_SIZE;
 		visibleCount = Math.min(PAGE_SIZE, donors.size() - start);
@@ -152,13 +159,21 @@ final class BionicTraitDonorWidget implements ISlottedRecipeWidget, IJeiInputHan
 
 	@Override
 	public boolean handleMouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-		if (!CBConfigs.CLIENT.showBionicTraitDonorsInJei.get() || scrollY == 0)
+		if (!enabled() || scrollY == 0)
 			return false;
-		page = Math.max(0, Math.min(lastPage(BionicTraitDonorIndex.donors(trait)), page + (scrollY > 0 ? -1 : 1)));
+		page = Math.max(0, Math.min(lastPage(donors()), page + (scrollY > 0 ? -1 : 1)));
 		return true;
 	}
 
 	private static int lastPage(List<?> donors) { return Math.max(0, (donors.size() - 1) / PAGE_SIZE); }
+	private List<EntityType<?>> donors() {
+		return previewDonors == null ? BionicTraitDonorIndex.donors(trait) : previewDonors;
+	}
+
+	private boolean enabled() {
+		return previewDonors != null || CBConfigs.CLIENT.showBionicTraitDonorsInJei.get();
+	}
+
 	private static Component tr(String key, Object... args) {
 		return Component.translatable("create_biotech.jei.trait.donors." + key, args);
 	}

@@ -128,6 +128,8 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 第四章的 `create_biotech:ponder_surgical_box_hover` 打开时，直接从自带的 `surgical_table_creeper_phantom.nbt` 读取完整双翼成品，并按当前特性规则生成悬停提示。特性页随原生显示界面步骤自动初始化，重播或重新打开时重新加载自带数据。
 
+第四章介绍 JEI 时，通过 `create_biotech:ponder_fire_resistance_jei` 显示真实的 `BionicTraitJeiCategory` 火焰抗性页面。页面自带 12 种原版供体，供体网格使用独立的固定列表。原生 `interface_action` 滚动子步骤翻到第二页，依次展示全部供体。绘制使用 `ref/1.21.1/JustEnoughItems/CommonApi/src/main/java/mezz/jei/api/gui/IRecipeLayoutDrawable.java` 和 `api/recipe/IRecipeManager.java` 的公开接口，已按项目 JEI 19.39.0.368 编译确认。界面工厂随 JEI 加载。
+
 依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
 
 `create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤。`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`highlight_zombie` 描出第一幕台面上僵尸的可见体块。`SurgicalPonderHighlight` 从模型当前的角点建立各体块的局部坐标系，再由 Ponder 场景的 `Outliner` 和 `AABBOutline` 沿体块边缘绘制。
