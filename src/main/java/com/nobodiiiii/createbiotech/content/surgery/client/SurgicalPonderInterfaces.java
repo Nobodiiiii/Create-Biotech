@@ -2,113 +2,191 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
-import com.nododiiiii.ponderer.runtime.interfaces.host.InterfaceHost;
-import com.nododiiiii.ponderer.runtime.interfaces.sandbox.SandboxSession;
-import com.nododiiiii.ponderer.scene.interfaces.InterfaceDescriptor;
+import org.joml.Vector2i;
+
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalPonderMenu;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.registry.CBItems;
+import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
+import com.nododiiiii.ponderer.runtime.interfaces.host.InterfaceOverlayElement;
+import com.nododiiiii.ponderer.runtime.interfaces.sandbox.SandboxPlayer;
+import com.simibubi.create.foundation.utility.CreateLang;
 
-import net.createmod.catnip.math.Pointing;
-import net.createmod.ponder.api.scene.SceneBuilder;
+import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.ponder.foundation.PonderScene;
-import net.createmod.ponder.foundation.instruction.TickingInstruction;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
-/** Real game screens rendered by Lib's isolated child-interface host. */
+/** Screens opened by Ponderer's native menu-ID interface steps. */
 public final class SurgicalPonderInterfaces {
     private SurgicalPonderInterfaces() {}
 
-    public static void wheel(SceneBuilder scene, boolean joints, int duration) {
-        panel(scene, duration, session -> {
+    public static void registerScreens(RegisterMenuScreensEvent event) {
+        event.<SurgicalPonderMenu, WheelScreen>register(CBMenuTypes.PONDER_SURGICAL_TOOL_WHEEL.get(),
+            (menu, inventory, title) -> new WheelScreen(menu, inventory, title, false));
+        event.<SurgicalPonderMenu, WheelScreen>register(CBMenuTypes.PONDER_SURGICAL_JOINT_WHEEL.get(),
+            (menu, inventory, title) -> new WheelScreen(menu, inventory, title, true));
+        event.register(CBMenuTypes.PONDER_SURGICAL_BOX_STATS.get(), StatsScreen::new);
+        event.register(CBMenuTypes.PONDER_SURGICAL_BOX_HOVER.get(), BoxHoverScreen::new);
+    }
+
+    public static void setCapturedBox(PonderScene scene, ItemStack box) {
+        scene.forEach(InterfaceOverlayElement.class, element -> {
+            if (element.session().currentScreen() instanceof StatsScreen screen)
+                screen.getMenu().getSlot(0).set(box.copy());
+        });
+    }
+
+    public static void setBoxHoverTraits(PonderScene scene, BionicTraitSet traits) {
+        scene.forEach(InterfaceOverlayElement.class, element -> {
+            if (element.session().currentScreen() instanceof BoxHoverScreen screen)
+                screen.setTraits(traits);
+        });
+    }
+
+    private abstract static class PageScreen extends AbstractContainerScreen<SurgicalPonderMenu> {
+        PageScreen(SurgicalPonderMenu menu, Inventory inventory, Component title, int width, int height) {
+            super(menu, inventory, title);
+            imageWidth = width;
+            imageHeight = height;
+        }
+
+        @Override
+        protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {}
+    }
+
+    private static final class WheelScreen extends PageScreen {
+        private final SurgicalKitRadialScreen wheel;
+        private final int optionCount;
+        private int age;
+
+        WheelScreen(SurgicalPonderMenu menu, Inventory inventory, Component title, boolean joints) {
+            super(menu, inventory, title, 144, 144);
             ItemStack stack = new ItemStack(joints ? CBItems.SURGICAL_JOINT.get() : CBItems.SURGICAL_KIT.get());
-            session.player().setItemInHand(InteractionHand.MAIN_HAND, stack);
-            var menu = (net.minecraft.world.inventory.ChestMenu) session.menu();
-            Minecraft.getInstance().setScreen(new ContainerScreen(menu, session.player().getInventory(), Component.empty()) {
-                // Expose a native container rectangle around only the wheel's central controls.
-                // Lib follows this rectangle on resize instead of cropping the whole game window.
-                { imageWidth = 144; imageHeight = 144; }
-                private int age;
-                private final SurgicalKitRadialScreen wheel = new SurgicalKitRadialScreen(InteractionHand.MAIN_HAND, stack);
-                @Override protected void init() { super.init(); wheel.init(minecraft, width, height); }
-                @Override public void containerTick() { age++; wheel.tick(); }
-                @Override public void removed() { wheel.removed(); super.removed(); }
-                @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float pt) {
-                    int count = joints ? SurgicalJointItem.TYPES.size() : SurgicalKitItem.availableTools(stack).size();
-                    int selected = Math.min(count - 1, age / 32);
-                    int x = width / 2 + SurgicalRadialLayout.slotX(selected, count, 1) + 11;
-                    int y = height / 2 + SurgicalRadialLayout.slotY(selected, count, 1) + 11;
-                    wheel.render(graphics, x, y, pt);
-                }
-            });
-        });
+            if (inventory.player instanceof SandboxPlayer player)
+                player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+            wheel = new SurgicalKitRadialScreen(InteractionHand.MAIN_HAND, stack);
+            optionCount = joints ? SurgicalJointItem.TYPES.size() : SurgicalKitItem.availableTools(stack).size();
+        }
+
+        @Override
+        protected void init() {
+            super.init();
+            wheel.init(minecraft, width, height);
+        }
+
+        @Override
+        protected void containerTick() {
+            age++;
+            wheel.tick();
+        }
+
+        @Override
+        public void removed() {
+            wheel.removed();
+            super.removed();
+        }
+
+        @Override
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            int selected = Math.min(optionCount - 1, age / 32);
+            int x = width / 2 + SurgicalRadialLayout.slotX(selected, optionCount, 1) + SurgicalRadialLayout.SLOT_HALF_SIZE;
+            int y = height / 2 + SurgicalRadialLayout.slotY(selected, optionCount, 1) + SurgicalRadialLayout.SLOT_HALF_SIZE;
+            wheel.render(graphics, x, y, partialTick);
+        }
     }
 
-    public static void stats(SceneBuilder scene, ItemStack box, int duration) {
-        panel(scene, duration, session -> {
-            var menu = (net.minecraft.world.inventory.ChestMenu) session.menu();
-            menu.getSlot(13).set(box.copy());
-            var inventory = session.player().getInventory();
-            Minecraft.getInstance().setScreen(new ContainerScreen(menu, inventory, box.getHoverName()) {
-                { imageWidth = 176; imageHeight = 120; }
-                @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float pt) {
-                    graphics.renderItem(menu.getSlot(13).getItem(), leftPos + imageWidth / 2 - 8, topPos + 4);
-                    renderTooltip(graphics, mouseX, mouseY);
-                }
-                @Override protected void renderTooltip(GuiGraphics graphics, int mouseX, int mouseY) {
-                    List<Component> lines = new ArrayList<>();
-                    lines.add(box.getHoverName());
-                    List<Component> details = new ArrayList<>();
-                    CapturedEntityBoxStatsTooltip.append(box, session.level(), details, true);
-                    // Keep the native base-stat section inside the inventory panel.
-                    int emptyLines = 0;
-                    for (Component line : details) {
-                        if (line.getString().isEmpty() && ++emptyLines == 2) break;
-                        lines.add(line);
-                    }
-                    graphics.renderComponentTooltip(font, lines, leftPos + 4, topPos + 42);
-                }
-            });
-        });
+    private static final class StatsScreen extends PageScreen {
+        private final Level level;
+        private final ItemStack emptyBox = new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
+
+        StatsScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
+            super(menu, inventory, title, 176, 120);
+            level = inventory.player.level();
+        }
+
+        @Override
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            var slot = menu.getSlot(0);
+            ItemStack box = slot.hasItem() ? slot.getItem() : emptyBox;
+            graphics.renderItem(box, leftPos + slot.x, topPos + slot.y);
+
+            List<Component> lines = new ArrayList<>();
+            lines.add(box.getHoverName());
+            List<Component> details = new ArrayList<>();
+            CapturedEntityBoxStatsTooltip.append(box, level, details, true);
+            // The second blank line ends the native base-stat section.
+            int emptyLines = 0;
+            for (Component line : details) {
+                if (line.getString().isEmpty() && ++emptyLines == 2)
+                    break;
+                lines.add(line);
+            }
+            graphics.renderComponentTooltip(font, lines, leftPos + 4, topPos + 42);
+        }
     }
 
-    private static void panel(SceneBuilder builder, int duration, java.util.function.Consumer<SandboxSession> open) {
-        builder.addInstruction(new TickingInstruction(false, duration) {
-            private InterfaceHost.Target target;
-            private SandboxSession session;
+    private static final class BoxHoverScreen extends PageScreen {
+        private static final int MAX_TEXT_WIDTH = 250;
+        private static final int TOOLTIP_INSET = 8;
+        private static final int TOOLTIP_LINE_HEIGHT = 10;
 
-            @Override public void reset(PonderScene scene) {
-                super.reset(scene);
-                if (session != null) InterfaceHost.withTarget(target, () -> InterfaceHost.hide(scene));
-                target = null;
-                session = null;
-            }
+        private final ItemStack box = new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
+        private BionicTraitSet traits = BionicTraitSet.EMPTY;
+        private List<FormattedCharSequence> lines = List.of();
+        private float scale;
 
-            @Override protected void firstTick(PonderScene scene) {
-                target = new InterfaceHost.Target();
-                InterfaceDescriptor descriptor = new InterfaceDescriptor();
-                descriptor.targetKind = InterfaceDescriptor.TargetKind.MENU;
-                descriptor.menuType = "minecraft:generic_9x3";
-                descriptor.interaction = InterfaceDescriptor.Interaction.VIEW;
-                session = InterfaceHost.withTarget(target, () -> InterfaceHost.openPanel(scene, descriptor,
-                    SurgicalPonderActors.ZOMBIE_POSITION.add(0, 1, 0), Pointing.RIGHT,
-                    List.of(0.0, 0.0, 0.75), null, true, false));
-                if (session.currentScreen() != null)
-                    session.dispatch("surgical tutorial screen", () -> { open.accept(session); return true; }, false);
-            }
+        BoxHoverScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
+            super(menu, inventory, title, 0, 0);
+        }
 
-            @Override public void tick(PonderScene scene) {
-                super.tick(scene);
-                if (remainingTicks == 0 && session != null)
-                    InterfaceHost.withTarget(target, () -> InterfaceHost.hide(scene));
-            }
-        });
+        void setTraits(BionicTraitSet traits) {
+            this.traits = traits;
+            init();
+        }
+
+        @Override
+        protected void init() {
+            List<Component> tooltip = new ArrayList<>();
+            CreateLang.builder().add(box.getHoverName()).forGoggles(tooltip);
+            SurgicalInteractionPresentation.addBoxPackControls(tooltip);
+            CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
+            lines = tooltip.stream()
+                .flatMap(line -> font.width(line) <= MAX_TEXT_WIDTH
+                    ? Stream.of(line.getVisualOrderText()) : font.split(line, MAX_TEXT_WIDTH).stream())
+                .toList();
+
+            int tooltipWidth = lines.stream().mapToInt(font::width).max().orElse(0);
+            int contentWidth = tooltipWidth + 2 * TOOLTIP_INSET;
+            int contentHeight = lines.size() * TOOLTIP_LINE_HEIGHT + 2 * TOOLTIP_INSET;
+            scale = Math.min(1, Math.min(width / (float) contentWidth, height / (float) contentHeight));
+            imageWidth = Math.min(width, (int) Math.ceil(contentWidth * scale));
+            imageHeight = Math.min(height, (int) Math.ceil(contentHeight * scale));
+            super.init();
+        }
+
+        @Override
+        public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+            var pose = graphics.pose();
+            pose.pushPose();
+            pose.translate(leftPos, topPos, 0);
+            pose.scale(scale, scale, 1);
+            graphics.renderTooltip(font, lines, (screenWidth, screenHeight, x, y, w, h) -> new Vector2i(x, y),
+                TOOLTIP_INSET, TOOLTIP_INSET);
+            GuiGameElement.of(box).at(TOOLTIP_INSET - 2, TOOLTIP_INSET - 4, 450).render(graphics);
+            pose.popPose();
+        }
     }
 }

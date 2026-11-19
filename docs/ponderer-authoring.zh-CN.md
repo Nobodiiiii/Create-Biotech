@@ -37,9 +37,9 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 - 编译扩展：`ponderext/SurgicalTableEffects.java`；模型、台面摆放与成品骨架由 `content/surgery/client/SurgicalPonderActors.java` 管理。
 - 共用结构：`assets/create_biotech/ponder/generated/create_biotech/surgical_table/basic_xl.nbt`；可用 `python tools/generate_surgical_ponder_structure.py` 确定性重建。
 
-第四章的台面模型和演示指令位于 `SurgicalTraitPonderActors.java` 和 `SurgicalTraitPonderEffects.java`。成品使用随场景打包的苦力怕幻翼绿图，特性说明由 Ponder 原生字幕和操作提示呈现。
+第一章开场使用随场景打包的 `surgical_table_intro.nbt`。第三章的僵尸成品使用 `surgical_table_zombie_golem.nbt`，跳跃演示沿用绿图里的部件、摆放和粘接，并省去可动关节。第四章的台面模型和演示指令位于 `SurgicalTraitPonderActors.java` 和 `SurgicalTraitPonderEffects.java`。第四章成品使用苦力怕幻翼绿图，特性说明由 Ponder 原生字幕和操作提示呈现。
 
-扩展使用场景独占的供体模型、当前解剖快照和真实装配骨架演示，不操作玩家世界中的手术台或共享预览。装箱后仅隐藏已连接的成品，旧手臂和剩余供体留在台面。工具轮盘复用 `SurgicalRadialLayout`，作为非交互覆盖层展示；成品属性来自当前装配的实际计算结果。模型与覆盖层通过播放指令加入元素列表，不能在编译故事板时直接加入，否则会被 `PonderScene.begin()` 清除。三章在初始化时统一将整体视角绕 Y 轴转 180°；重播时重新注册元素并重置部件状态、动画计时和覆盖层。
+扩展使用场景独占的供体模型、当前解剖快照和真实装配骨架演示，不操作玩家世界中的手术台或共享预览。装箱后仅隐藏已连接的成品，旧手臂和剩余供体留在台面。第四章的体块从供体原位向外分开并落到台面，保留大致的左右和前后关系。未参与组装的散件和后来剪下的额外躯干在成品起飞、收起和重新展示时都留在台面。工具轮盘复用 `SurgicalKitRadialScreen`，成品属性来自当前装配的实际计算结果。模型与覆盖层通过播放指令加入元素列表，不能在编译故事板时直接加入，否则会被 `PonderScene.begin()` 清除。三章在初始化时统一将整体视角绕 Y 轴转 180°；重播时重新注册元素并重置部件状态、动画计时和覆盖层。
 
 原生覆盖层与逐 tick 指令的参考为 `ref/1.21.1/Ponder/common/src/main/java/net/createmod/ponder/api/element/PonderSceneElement.java`、`api/element/PonderOverlayElement.java` 和 `foundation/instruction/TickingInstruction.java`。该 Ponder 参考为 1.21.1 开发分支快照，API 已通过项目锁定的 Ponder 1.0.82 与 Ponderer Lib 0.1.0 编译检查。
 
@@ -120,10 +120,12 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 红石外观演示之后始终使用供体原生外观。成品使用实际 `SlimeBionicEntity` 的移动控制器、跳跃控制器、地面碰撞和 `SlimeBionicAnimator`，仅由演示提供往返目标点及攻击触发时机。客户端预览的生命、移速、攻击属性使用与服务器相同的校准函数；不再通过渲染时的正弦平移模拟行走或跳跃。
 
-`SurgicalPonderInterfaces` 通过 Lib 的 `InterfaceHost.openPanel` 承载真实 `SurgicalKitRadialScreen` 和纸箱属性子界面，并通过独立沙盒派发绘制与操作。`META-INF/pondererlib.features.properties` 必须包含 `interfaces`，使启动时装载界面沙盒所需能力。轮盘子界面只显示中心 144×144 区域；纸箱子界面只显示物品和基础属性核心区域。所有模型、子界面和动画状态都随场景回放重建，不修改玩家的物品或真实屏幕。
+手术台使用原生 `interface_panel` 步骤，内含按界面 ID 打开的 `show_interface`。工具轮盘、关节轮盘和纸箱属性页的 ID 分别为 `create_biotech:ponder_surgical_tool_wheel`、`create_biotech:ponder_surgical_joint_wheel`、`create_biotech:ponder_surgical_box_stats`。轮盘页显示中心 144×144 区域。第三章在纸箱属性页打开后，通过 `pack_result_for_stats` 把场景当前成品装进演示纸箱，再填入属性页的槽位。`META-INF/pondererlib.features.properties` 通过 `interfaces` 启用界面沙盒，页面及动画状态随场景回放重建。
+
+第四章在第一次装箱前用 `create_biotech:ponder_surgical_box_hover` 演示手持空纸箱悬停检查。`traits_preview_box` 将台面上缺少一个肩关节的幻翼苦力怕的实际特性填入悬停页，沿用手术台提示的操作文案和未生效条件。
 
 依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
 
 `create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤。`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`highlight_zombie` 将第一幕台面上僵尸的所有可见体块合成一个框。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算包围盒，再交给 Ponder 场景的 `Outliner` 和 `AABBOutline` 绘制。
 
-成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`。第一幕由 `result_intro` 让成品从 `(1.5, 1, 4.5)` 入场，走到 `intro_target` 盔甲架旁持续挥击，直到 `hide_result` 开始退场。成品的入场和退场直接跟随盔甲架的竖直位移，手术台在两者退场后出现。关节幕给跳跃与步行各绑定一个盔甲架，释放后先转向，抵达盔甲架前并落地后触发一次撞击或挥击。盔甲架的位置由 `contact_target` 和 `strike_target` 对应的场景实体步骤指定。特性幕的俯冲沿用巡航结束时的位置与扑翼动画进度。
+成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`。第一幕由 `result_intro` 让成品从 `(1.5, 1, 4.5)` 入场，走到 `intro_target` 盔甲架旁持续挥击，再由 `hide_result` 开始退场。成品的入场和退场直接跟随盔甲架的竖直位移，手术台在两者退场后出现。关节幕和特性幕的成品从 `(1.5, 1, 7.5)` 朝 `+X` 出场，盔甲架位于 `(7.5, 1, 7.5)` 并朝 `−X`。关节幕在抵达盔甲架前并落地后触发一次撞击或挥击。特性幕的俯冲沿用巡航结束时的位置与扑翼动画进度。

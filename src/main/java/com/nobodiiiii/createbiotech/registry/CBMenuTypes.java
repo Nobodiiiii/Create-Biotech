@@ -1,5 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
+import java.util.function.Supplier;
+
 import net.minecraft.core.registries.Registries;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
@@ -8,10 +10,12 @@ import com.nobodiiiii.createbiotech.content.honeycombgauge.HoneycombGaugeCluster
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterMenu;
 import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableMenu;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableMenu;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalPonderMenu;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.content.allay.block.allayport.AllayPortMenu;
 import com.nobodiiiii.createbiotech.content.allay.item.allaycourier.AllayCourierMenu;
 
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.inventory.MenuType;
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
 import net.neoforged.bus.api.IEventBus;
@@ -54,7 +58,25 @@ public class CBMenuTypes {
 	public static final DeferredHolder<MenuType<?>, MenuType<GreenprintTableMenu>> GREENPRINT_TABLE =
 		MENU_TYPES.register("greenprint_table", () -> IMenuTypeExtension.create(GreenprintTableMenu::new));
 
+	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_SURGICAL_TOOL_WHEEL =
+		ponderPage("ponder_surgical_tool_wheel", () -> CBMenuTypes.PONDER_SURGICAL_TOOL_WHEEL.get(), false);
+
+	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_SURGICAL_JOINT_WHEEL =
+		ponderPage("ponder_surgical_joint_wheel", () -> CBMenuTypes.PONDER_SURGICAL_JOINT_WHEEL.get(), false);
+
+	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_SURGICAL_BOX_STATS =
+		ponderPage("ponder_surgical_box_stats", () -> CBMenuTypes.PONDER_SURGICAL_BOX_STATS.get(), true);
+
+	public static final DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> PONDER_SURGICAL_BOX_HOVER =
+		ponderPage("ponder_surgical_box_hover", () -> CBMenuTypes.PONDER_SURGICAL_BOX_HOVER.get(), false);
+
 	private CBMenuTypes() {}
+
+	private static DeferredHolder<MenuType<?>, MenuType<SurgicalPonderMenu>> ponderPage(
+		String id, Supplier<MenuType<SurgicalPonderMenu>> type, boolean showBox) {
+		return MENU_TYPES.register(id, () -> new MenuType<>((containerId, inventory) ->
+			new SurgicalPonderMenu(type.get(), containerId, showBox), FeatureFlags.VANILLA_SET));
+	}
 
 	public static void register(IEventBus modEventBus) {
 		MENU_TYPES.register(modEventBus);

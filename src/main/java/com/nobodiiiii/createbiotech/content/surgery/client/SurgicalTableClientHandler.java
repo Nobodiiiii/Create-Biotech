@@ -902,10 +902,7 @@ public final class SurgicalTableClientHandler {
 			SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
 				"create_biotech.gui.surgical_table.action.preview_ground");
 		} else if (SurgicalSelectionResolver.isEmptyBox(stack)) {
-			SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.pack");
-			SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
-				"create_biotech.gui.surgical_table.action.preview_ground");
+			SurgicalInteractionPresentation.addBoxPackControls(tooltip);
 			if (CapturedEntityBoxHelper.isEmptyLargeBox(stack))
 				SurgicalPackedPreviewService.appendPackedProperties(tooltip, level, cubeHit);
 		} else if (SurgicalKitItem.isWrench(stack)) {

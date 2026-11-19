@@ -33,6 +33,7 @@ import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableInteract
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableModel;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemDecorator;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalJointItemDecorator;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderInterfaces;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagePartials;
 import com.nobodiiiii.createbiotech.content.shulkerpackager.ShulkerPackagerVisual;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterScreen;
@@ -114,6 +115,7 @@ public class CreateBiotechClient {
 
 	@SubscribeEvent
 	public static void registerMenuScreens(RegisterMenuScreensEvent event) {
+		SurgicalPonderInterfaces.registerScreens(event);
 		event.register(CBMenuTypes.GREENPRINT_TABLE.get(), com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableScreen::new);
 		event.register(CBMenuTypes.SPIDER_ASSEMBLY_TABLE.get(), SpiderAssemblyTableScreen::new);
 		event.register(CBMenuTypes.BIONIC_CARGO.get(), com.nobodiiiii.createbiotech.entity.inventory.BionicCargoScreen::new);

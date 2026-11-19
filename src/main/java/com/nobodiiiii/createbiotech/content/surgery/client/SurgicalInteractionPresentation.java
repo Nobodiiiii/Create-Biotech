@@ -204,6 +204,12 @@ final class SurgicalInteractionPresentation {
 			"create_biotech.gui.surgical_table.action.cancel", enabled);
 	}
 
+	static void addBoxPackControls(List<Component> tooltip) {
+		addInteractionControl(tooltip, Component.keybind("key.use"), "create_biotech.gui.surgical_table.action.pack");
+		addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
+			"create_biotech.gui.surgical_table.action.preview_ground");
+	}
+
 	static void addInteractionControl(List<Component> tooltip, Component control, String actionKey) {
 		addInteractionControl(tooltip, control, actionKey, true);
 	}

@@ -1,12 +1,9 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
-import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPackedPreviewService.packedUprightOffsets;
-import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPackedPreviewService.packedUprightRotations;
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors.FLAT;
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors.bounds;
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors.center;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.EnumMap;
@@ -19,7 +16,6 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.Limb;
@@ -30,21 +26,19 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors.Model;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors.PlacedCube;
+import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderGreenprint.SourcePose;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.createmod.ponder.api.element.PonderSceneElement;
 import net.createmod.ponder.api.level.PonderLevel;
 import net.createmod.ponder.foundation.PonderScene;
 import net.createmod.ponder.foundation.element.PonderElementBase;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtAccounter;
-import net.minecraft.nbt.NbtIo;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.phys.AABB;
@@ -53,13 +47,14 @@ import net.minecraft.world.phys.Vec3;
 /** Scene-owned donors and assembled bodies for the trait chapter. */
 public final class SurgicalTraitPonderActors extends PonderElementBase implements PonderSceneElement {
     private static final Vec3 TABLE = new Vec3(4.5, 2 + SurgicalTablePlane.SURFACE_HEIGHT + 0.005, 3.5);
-    private static final Vec3 DISPLAY = new Vec3(4.5, 1, 7.5);
-    private static final Vec3 DIVE_END = new Vec3(5.15, 1.05, 7.5);
-    private static final Vec3 TAKEOFF = new Vec3(2.5, 1.1, 7.5);
+    private static final Vec3 DIVE_END = new Vec3(7.15, 1.05, 7.5);
     private static final Vec3 CRUISE = new Vec3(4.5, 2.6, 7.5);
     private static final int DISSECT_TICKS = 35;
-    private static final double DISSECT_SPREAD = 1.5;
+    private static final double DISSECTION_SPREAD = 0.25;
+    private static final double CUBE_SPACING = 0.0625;
+    private static final double SEPARATION_TOLERANCE = 0.0001;
     private static final int ASSEMBLE_TICKS = 52;
+    private static final int DETACH_TICKS = 12;
 
     public enum View { HIDDEN, DONORS, DISSECTING, ASSEMBLING, FLIGHT, DIVE, DISPLAY, TABLE, PACKED }
     public enum Assembly { COMPLETE, EXTRA_TORSO, ONE_SHOULDER }
@@ -79,22 +74,21 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
     private final Vec3 extraOffset;
     private final Matrix4f tableRoot;
     private final List<DonorCube> donors;
+    private final List<PlacedCube> unusedDonorParts;
     private final Map<Assembly, Body> bodies = new EnumMap<>(Assembly.class);
     private View view = View.HIDDEN;
     private Assembly variant = Assembly.COMPLETE;
+    private boolean donorsDissected;
+    private DetachedCube detachedTorso;
+    private int detachedTorsoAge;
     private Vec3 diveStart = CRUISE;
     private int age;
 
     public SurgicalTraitPonderActors(PonderLevel level) {
         this.level = level;
-        greenprint = loadGreenprint();
-        greenprintSources = greenprint.sources().stream().map(source -> {
-            Model model = new Model(Objects.requireNonNull(source.profile().createPreviewEntity(level)), Vec3.ZERO);
-            if (model.count() != source.cubeCount())
-                throw new IllegalStateException("Donor model does not match the surgical table greenprint: "
-                    + source.profile().entityTypeId());
-            return new SourcePose(greenprint, source, model);
-        }).toList();
+        var exported = SurgicalPonderGreenprint.load(level, "surgical_table_creeper_phantom");
+        greenprint = exported.assembly();
+        greenprintSources = exported.sources();
         creeper = donor(EntityType.CREEPER);
         phantom = donor(EntityType.PHANTOM);
         creeperIndex = greenprintSources.indexOf(creeper);
@@ -104,10 +98,12 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         extraTorso = golem.part("body");
         leftWing = List.of(phantom.model().part("left_wing_base"), phantom.model().part("left_wing_tip"));
         rightWing = List.of(phantom.model().part("right_wing_base"), phantom.model().part("right_wing_tip"));
-        var identity = new Matrix4f();
-        AABB layout = bounds(greenprintSources.stream().flatMap(source -> source.parts(identity,
+        // Undo the saved Phantom facing so its model lines up with the donor at native yaw zero.
+        Quaternionf phantomFacing = phantom.tableFrame().getNormalizedRotation(new Quaternionf());
+        Matrix4f alignment = new Matrix4f().rotation(phantomFacing.conjugate());
+        AABB layout = bounds(greenprintSources.stream().flatMap(source -> source.parts(alignment,
             SlimeBionicAnimator.Frame.EMPTY).stream()).flatMap(part -> part.worldCorners().stream()).toList());
-        tableRoot = translation(groundAt(layout, TABLE));
+        tableRoot = translation(groundAt(layout, TABLE)).mul(alignment);
         AABB core = bounds(creeper.restPart(torso, creeper.tableFrame()).worldCorners());
         AABB extra = bounds(golem.cube(extraTorso).corners());
         extraOffset = new Vec3(core.getCenter().x - extra.getCenter().x,
@@ -117,19 +113,8 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         addDonor(cubes, creeper, FLAT, 2.5);
         addDonor(cubes, phantom, SurgicalLayPose.IDENTITY, 6.5);
         donors = List.copyOf(cubes);
-    }
-
-    private static SurgicalAssembly loadGreenprint() {
-        var location = CreateBiotech.asResource("ponder/greenprints/surgical_table_creeper_phantom.nbt");
-        try (var file = Minecraft.getInstance().getResourceManager().open(location)) {
-            CompoundTag snapshot = NbtIo.readCompressed(file, NbtAccounter.create(1_048_576));
-            SurgicalAssembly assembly = SurgicalAssembly.load(snapshot.getCompound("MimicEntity").getCompound("SurgicalAssembly"));
-            if (assembly == null || !assembly.isReadyForEntity())
-                throw new IllegalStateException("Invalid surgical table Ponder greenprint: " + location);
-            return assembly;
-        } catch (IOException error) {
-            throw new IllegalStateException("Could not read surgical table Ponder greenprint: " + location, error);
-        }
+        unusedDonorParts = donors.stream().filter(cube -> !cube.source().saved().containsCube(cube.cube()))
+            .map(DonorCube::loosePart).toList();
     }
 
     private SourcePose donor(EntityType<?> type) {
@@ -143,40 +128,83 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         SurgicalTablePoseResolver.applyRotation(pose, donorPose);
         Matrix4f donorFrame = pose.last().pose();
         Model model = source.model();
-        List<List<Vec3>> donorCorners = model.all().stream()
-            .mapToObj(cube -> source.place(cube, donorFrame, Vec3.ZERO, SurgicalCubeRotation.IDENTITY))
-            .map(PlacedCube::worldCorners).toList();
-        AABB intact = bounds(donorCorners.stream().flatMap(List::stream).toList());
-        Vec3 center = intact.getCenter();
-        Vec3 donorOffset = groundAt(intact, new Vec3(x, TABLE.y, TABLE.z));
-        // Spread the original arrangement by moving each cube away from the donor's center.
-        List<Vec3> separation = donorCorners.stream()
-            .map(corners -> bounds(corners).getCenter().subtract(center).scale(DISSECT_SPREAD - 1)).toList();
-        List<Vec3> expandedCorners = new ArrayList<>();
-        for (int cube = 0; cube < donorCorners.size(); cube++) {
-            Vec3 move = separation.get(cube);
-            for (Vec3 corner : donorCorners.get(cube)) expandedCorners.add(corner.add(move));
-        }
-        AABB expanded = bounds(expandedCorners);
-        // Shift the spread as a group to keep it over the tabletop shown in this chapter.
-        Vec3 expandedOffset = new Vec3(Mth.clamp(donorOffset.x, 1 - expanded.minX, 8 - expanded.maxX),
-            TABLE.y - expanded.minY, Mth.clamp(donorOffset.z, 1 - expanded.minZ, 6 - expanded.maxZ));
-        Vec3 shift = expandedOffset.subtract(donorOffset);
-        Matrix4f relative = new Matrix4f(frame).invert().mul(translation(donorOffset)).mul(donorFrame);
+        AABB intact = model.all().stream()
+            .mapToObj(cube -> bounds(source.place(cube, donorFrame, Vec3.ZERO, SurgicalCubeRotation.IDENTITY).worldCorners()))
+            .reduce(AABB::minmax).orElseThrow();
+        Vec3 donorCenter = new Vec3(x, TABLE.y, TABLE.z);
+        Vec3 donorOffset = groundAt(intact, donorCenter);
+        Matrix4f worldToSource = new Matrix4f(frame).invert();
+        Matrix4f relative = new Matrix4f(worldToSource).mul(translation(donorOffset)).mul(donorFrame);
         var q = relative.getNormalizedRotation(new Quaternionf());
-        var intactRotation = new SurgicalCubeRotation(q.x, q.y, q.z, q.w);
-        var layPose = source.saved().layPose();
+        var intactRotation = source == phantom ? SurgicalCubeRotation.IDENTITY
+            : new SurgicalCubeRotation(q.x, q.y, q.z, q.w);
+        List<Vec3> intactOffsets = new ArrayList<>(model.count());
+        List<AABB> partBounds = new ArrayList<>(model.count());
         for (int cube = 0; cube < model.count(); cube++) {
             Vec3 pivot = center(model.cube(cube));
             var placedPivot = relative.transformPosition((float) pivot.x, (float) pivot.y, (float) pivot.z, new Vector3f());
             Vec3 start = new Vec3(placedPivot.x, placedPivot.y, placedPivot.z).subtract(pivot);
-            Vec3 loose = start.add(layPose.inverseRotate(separation.get(cube).add(shift)));
+            intactOffsets.add(start);
+            partBounds.add(bounds(source.place(cube, frame, start, intactRotation).worldCorners()));
+        }
+        List<Vec3> displacements = dissectionDisplacements(partBounds, donorCenter);
+        for (int cube = 0; cube < model.count(); cube++) {
+            Vec3 start = intactOffsets.get(cube);
+            Vec3 move = displacements.get(cube);
+            var localMove = worldToSource.transformDirection((float) move.x, (float) move.y, (float) move.z, new Vector3f());
+            Vec3 loose = start.add(localMove.x, localMove.y, localMove.z);
             boolean selected = source.saved().containsCube(cube);
             var assembledRotation = selected
                 ? source.rotations().getOrDefault(cube, SurgicalCubeRotation.IDENTITY) : intactRotation;
             Vec3 assembled = selected ? source.offsets().getOrDefault(cube, Vec3.ZERO) : loose;
             cubes.add(new DonorCube(source, cube, frame, start, intactRotation, loose, assembled, assembledRotation));
         }
+    }
+
+    private static List<Vec3> dissectionDisplacements(List<AABB> pieces, Vec3 donorCenter) {
+        List<Vec3> moves = new ArrayList<>(pieces.size());
+        for (AABB piece : pieces) {
+            Vec3 spread = piece.getCenter().subtract(donorCenter).scale(DISSECTION_SPREAD);
+            moves.add(new Vec3(spread.x, TABLE.y - piece.minY, spread.z));
+        }
+        // Only separate pieces whose footprints would overlap after they are laid on the table.
+        for (int pass = 0; pass < pieces.size() * 4; pass++) {
+            boolean adjusted = false;
+            for (int first = 0; first < pieces.size(); first++) {
+                for (int second = first + 1; second < pieces.size(); second++) {
+                    Vec3 firstMove = moves.get(first);
+                    Vec3 secondMove = moves.get(second);
+                    Vec3 shift = footprintSeparation(pieces.get(first), firstMove, pieces.get(second), secondMove);
+                    if (shift == Vec3.ZERO) continue;
+                    moves.set(first, firstMove.subtract(shift));
+                    moves.set(second, secondMove.add(shift));
+                    adjusted = true;
+                }
+            }
+            if (!adjusted) break;
+        }
+        AABB spread = pieces.getFirst().move(moves.getFirst());
+        for (int index = 1; index < pieces.size(); index++)
+            spread = spread.minmax(pieces.get(index).move(moves.get(index)));
+        double dx = Mth.clamp(0, 1 - spread.minX, 8 - spread.maxX);
+        double dz = Mth.clamp(0, 1 - spread.minZ, 6 - spread.maxZ);
+        return moves.stream().map(move -> move.add(dx, 0, dz)).toList();
+    }
+
+    private static Vec3 footprintSeparation(AABB first, Vec3 firstMove, AABB second, Vec3 secondMove) {
+        Vec3 original = second.getCenter().subtract(first.getCenter());
+        Vec3 delta = original.add(secondMove).subtract(firstMove);
+        double overlapX = (first.getXsize() + second.getXsize()) / 2 + CUBE_SPACING - Math.abs(delta.x);
+        double overlapZ = (first.getZsize() + second.getZsize()) / 2 + CUBE_SPACING - Math.abs(delta.z);
+        if (overlapX <= SEPARATION_TOLERANCE || overlapZ <= SEPARATION_TOLERANCE) return Vec3.ZERO;
+
+        // Stacked parts, such as the Creeper's legs, separate front to back on their original side.
+        boolean stacked = original.horizontalDistanceSqr() < SEPARATION_TOLERANCE;
+        if (stacked || overlapZ < overlapX) {
+            double direction = Math.abs(delta.z) > SEPARATION_TOLERANCE ? delta.z : original.y;
+            return new Vec3(0, 0, Math.copySign(overlapZ / 2, direction));
+        }
+        return new Vec3(Math.copySign(overlapX / 2, delta.x), 0, 0);
     }
 
     private static Vec3 groundAt(AABB box, Vec3 target) {
@@ -191,11 +219,20 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
     @Override
     public void reset(PonderScene scene) {
         bodies.clear();
+        donorsDissected = false;
+        detachedTorso = null;
         show(View.HIDDEN, Assembly.COMPLETE);
         setVisible(true);
     }
 
     public void show(View next, Assembly assembly) {
+        if (next == View.DONORS) {
+            donorsDissected = false;
+            detachedTorso = null;
+        } else if (next == View.DISSECTING || next == View.ASSEMBLING) {
+            donorsDissected = true;
+        }
+        if (assembly == Assembly.EXTRA_TORSO) detachedTorso = null;
         boolean continuingFlight = view == View.FLIGHT && next == View.DIVE && variant == assembly;
         if (next == View.DIVE) diveStart = continuingFlight ? flightPosition(age) : CRUISE;
         view = next;
@@ -205,15 +242,33 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
             SlimeBionicEntity entity = body().entity();
             if (!continuingFlight) entity.tickCount = 0;
             entity.setOnGround(view == View.DISPLAY);
-            entity.setYRot(-90);
-            entity.yBodyRot = entity.yBodyRotO = entity.yHeadRot = entity.yHeadRotO = -90;
+            float yaw = SurgicalPonderActors.RESULT_START_YAW;
+            entity.setYRot(yaw);
+            entity.yBodyRot = entity.yBodyRotO = entity.yHeadRot = entity.yHeadRotO = yaw;
         }
+    }
+
+    public void detachExtraTorso() {
+        if (view == View.TABLE && variant == Assembly.EXTRA_TORSO) {
+            SourcePose source = body().sources().getLast();
+            Matrix4f frame = new Matrix4f(tableRoot).mul(source.tableFrame());
+            PlacedCube part = source.restPart(extraTorso, frame);
+            Vec3 shift = groundAt(bounds(part.worldCorners()), TABLE.add(0, 0, 1.75));
+            detachedTorso = new DetachedCube(source, extraTorso, frame, shift);
+            detachedTorsoAge = 0;
+        }
+        show(View.TABLE, Assembly.COMPLETE);
     }
 
     @Override
     public void tick(PonderScene scene) {
         age++;
+        if (detachedTorso != null && detachedTorsoAge < DETACH_TICKS) detachedTorsoAge++;
         if (view == View.FLIGHT || view == View.DIVE) body().entity().tickCount++;
+    }
+
+    public BionicTraitSet traits() {
+        return body().entity().getBionicTraits();
     }
 
     private Body body() { return bodies.computeIfAbsent(variant, this::createBody); }
@@ -238,19 +293,13 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         SurgicalAssembly assembly = version == Assembly.COMPLETE ? greenprint
             : Objects.requireNonNull(SurgicalAssembly.createComposite(sources, connections, greenprint.combinations(),
                 limbs, greenprint.layoutFacing(), greenprint.layoutLayPose()));
-        PoseStack uprightPose = new PoseStack();
-        SurgicalTablePoseResolver.applyInverseRotation(uprightPose, assembly.layoutLayPose());
-        Matrix4f upright = new Matrix4f(uprightPose.last().pose());
+        Matrix4f upright = SurgicalPonderGreenprint.upright(assembly);
         List<SlimeBionicAnimator.SourceState> rest = poses.stream().map(source -> source.measure(upright)).toList();
         if (version != Assembly.COMPLETE) {
             assembly = SurgicalPonderActors.measureBody(assembly, poses.stream().map(SourcePose::model).toList(), rest,
-                member -> member.source() != phantomIndex || !isWing(member.cube())).assembly();
+                member -> member.source() != phantomIndex || !isWing(member.cube()));
         }
-        AABB envelope = bounds(rest.stream().flatMap(source -> source.boxes().values().stream())
-            .flatMap(box -> box.points().stream()).toList());
-        Vec3 center = envelope.getCenter();
-        var bodyBounds = assembly.bodyBounds();
-        Vec3 origin = new Vec3(center.x + bodyBounds.centerX(), envelope.minY, center.z + bodyBounds.centerZ());
+        Vec3 origin = SurgicalPonderActors.bodyOrigin(assembly, rest);
         SlimeBionicEntity entity = Objects.requireNonNull(CBEntityTypes.SLIME_BIONIC.get().create(level));
         ((SlimeMimicAccess) (Object) entity).createBiotech$setSlimeMimic(false);
         entity.setNoAi(true);
@@ -276,10 +325,13 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
     }
 
     private List<PlacedCube> parts(float pt) {
-        if (view == View.HIDDEN || view == View.PACKED) return List.of();
         float time = age + pt;
         if (view == View.DONORS || view == View.DISSECTING || view == View.ASSEMBLING)
             return donors.stream().map(cube -> cube.place(view, time)).toList();
+        List<PlacedCube> parts = new ArrayList<>();
+        if (donorsDissected) parts.addAll(unusedDonorParts);
+        if (detachedTorso != null) parts.add(detachedTorso.place(detachedTorsoAge + pt));
+        if (view == View.HIDDEN || view == View.PACKED) return parts;
         Body body = body();
         Matrix4f root = tableRoot;
         List<SlimeBionicAnimator.Frame> frames = List.of();
@@ -290,16 +342,15 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
                     float progress = Mth.clamp(time / 52, 0, 1);
                     yield diveStart.lerp(DIVE_END, progress * progress);
                 }
-                default -> DISPLAY;
+                default -> SurgicalPonderActors.RESULT_POSITION;
             };
             Vec3 origin = body.origin();
             float swelling = view == View.DIVE ? Mth.clamp((time - 22) / 30, 0, 1) : 0;
             root = translation(position)
-                .rotateY(Mth.HALF_PI).scale(1 + swelling * swelling * 0.3f)
+                .rotateY(-SurgicalPonderActors.RESULT_START_YAW * Mth.DEG_TO_RAD).scale(1 + swelling * swelling * 0.3f)
                 .translate((float) -origin.x, (float) -origin.y, (float) -origin.z).mul(body.upright());
             frames = SlimeBionicAnimator.resolve(body.entity(), body.rig(), view == View.DISPLAY ? 0 : pt);
         }
-        List<PlacedCube> parts = new ArrayList<>();
         for (int index = 0; index < body.sources().size(); index++) {
             var frame = frames.size() > index ? frames.get(index) : SlimeBionicAnimator.Frame.EMPTY;
             parts.addAll(body.sources().get(index).parts(root, frame));
@@ -308,7 +359,7 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
     }
 
     private static Vec3 flightPosition(float time) {
-        return TAKEOFF.lerp(CRUISE, eased(time, 85))
+        return SurgicalPonderActors.RESULT_POSITION.lerp(CRUISE, eased(time, 85))
             .add(0, Math.sin(time / 8) * 0.08, 0);
     }
 
@@ -317,9 +368,22 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
         return t * t * (3 - 2 * t);
     }
 
+    private record DetachedCube(SourcePose source, int cube, Matrix4f frame, Vec3 shift) {
+        PlacedCube place(float time) {
+            float progress = Mth.clamp(time / DETACH_TICKS, 0, 1);
+            float slide = eased(time, DETACH_TICKS);
+            Vec3 offset = new Vec3(shift.x * slide, shift.y * progress * progress, shift.z * slide);
+            return source.restPart(cube, translation(offset).mul(frame));
+        }
+    }
+
     private record DonorCube(SourcePose source, int cube, Matrix4f frame, Vec3 intact,
                              SurgicalCubeRotation intactRotation, Vec3 loose, Vec3 assembled,
                              SurgicalCubeRotation assembledRotation) {
+        PlacedCube loosePart() {
+            return source.place(cube, frame, loose, intactRotation);
+        }
+
         PlacedCube place(View view, float time) {
             if (view == View.DONORS)
                 return source.place(cube, frame, intact, intactRotation);
@@ -340,48 +404,6 @@ public final class SurgicalTraitPonderActors extends PonderElementBase implement
                 .slerp(new Quaternionf((float) assembledRotation.x(), (float) assembledRotation.y(),
                     (float) assembledRotation.z(), (float) assembledRotation.w()), progress);
             return new SurgicalCubeRotation(q.x, q.y, q.z, q.w);
-        }
-    }
-
-    private record SourcePose(Source saved, Model model, Matrix4f tableFrame, Map<Integer, Vec3> offsets,
-                              Map<Integer, SurgicalCubeRotation> rotations) {
-        SourcePose(SurgicalAssembly assembly, Source source, Model model) {
-            this(source, model, tableFrame(source), packedUprightOffsets(assembly, source),
-                packedUprightRotations(assembly, source));
-        }
-
-        private static Matrix4f tableFrame(Source source) {
-            PoseStack pose = new PoseStack();
-            Vec3 position = source.originOffset();
-            pose.translate(position.x, position.y, position.z);
-            SurgicalTablePoseResolver.apply(pose, source.layPose());
-            return new Matrix4f(pose.last().pose());
-        }
-
-        PlacedCube place(int cube, Matrix4f frame, Vec3 offset, SurgicalCubeRotation rotation) {
-            return new PlacedCube(model, cube, Vec3.ZERO, false, offset, rotation, frame);
-        }
-
-        PlacedCube restPart(int cube, Matrix4f frame) {
-            return place(cube, frame, offsets.getOrDefault(cube, Vec3.ZERO),
-                rotations.getOrDefault(cube, SurgicalCubeRotation.IDENTITY));
-        }
-
-        List<PlacedCube> parts(Matrix4f root, SlimeBionicAnimator.Frame animation) {
-            Matrix4f frame = new Matrix4f(root).mul(tableFrame);
-            var placedOffsets = animation.offsets().isEmpty() ? offsets : animation.offsets();
-            var placedRotations = animation.rotations().isEmpty() ? rotations : animation.rotations();
-            return saved.presentCubes().stream().mapToObj(cube -> place(cube, frame,
-                placedOffsets.getOrDefault(cube, Vec3.ZERO),
-                placedRotations.getOrDefault(cube, SurgicalCubeRotation.IDENTITY))).toList();
-        }
-
-        SlimeBionicAnimator.SourceState measure(Matrix4f upright) {
-            Matrix4f frame = new Matrix4f(upright).mul(tableFrame);
-            var geometry = saved.presentCubes().stream().mapToObj(cube ->
-                model.cube(cube).withCorners(restPart(cube, frame).worldCorners())).toList();
-            var snapshot = new SurgicalModelRenderContext.Snapshot(model.count(), geometry);
-            return new SlimeBionicAnimator.SourceState(SlimeBionicAnimator.measure(snapshot), offsets, rotations);
         }
     }
 
