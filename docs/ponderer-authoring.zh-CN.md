@@ -30,7 +30,7 @@ Java 输出使用直接参数调用，每个分段独立成方法，例如 `scen
 
 ## 手术台基础思索
 
-`create_biotech:surgical_table` 已实现“放置供体”“切分与重组”“安装关节”“特性介绍”四章，分别使用稳定分段 ID `placing`、`recombining`、`joints`、`traits`。它们绑定手术台、手术盒、关节和手术指南；各章独立建立起始状态，第二章从供体已放置开始，第三章从手臂已替换开始，第四章使用苦力怕和幻翼组成的示例。后续章节可以继续追加到同一文档的 `document.scenes`。
+`create_biotech:surgical_table` 已实现“放置供体”“切分与重组”“安装关节”“特性介绍”四章，分别使用稳定分段 ID `placing`、`recombining`、`joints`、`traits`。它们仅绑定手术台；各章独立建立起始状态，第二章从供体已放置开始，第三章从手臂已替换开始，第四章使用苦力怕和幻翼组成的示例。后续章节可以继续追加到同一文档的 `document.scenes`。
 
 - 场景源码：`src/main/java/com/nobodiiiii/createbiotech/ponder/generated/scenes/GeneratedSurgicalTable_7431e38e.java`。
 - 中英文字幕：`src/main/resources/assets/create_biotech/ponderer/texts/surgical_table/`。

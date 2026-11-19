@@ -28,7 +28,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.EntityType;
 
-/** Trait book and name beside right-aligned info icons, followed by the effect and donor grid. */
+/** Trait icon and name beside right-aligned info icons, followed by the effect and donor grid. */
 public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicTrait> {
 	public static final RecipeType<BionicTrait> TYPE =
 		RecipeType.create(CreateBiotech.MOD_ID, "bionic_traits", BionicTrait.class);
@@ -65,7 +65,7 @@ public final class BionicTraitJeiCategory extends AbstractRecipeCategory<BionicT
 		builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
 			.addIngredient(BionicTraitJeiIngredient.TYPE, trait);
 		builder.addInvisibleIngredients(RecipeIngredientRole.INPUT)
-			.addItemStack(new ItemStack(CBItems.SURGERY_GUIDE.get()));
+			.addItemStack(new ItemStack(CBItems.SURGICAL_TABLE.get()));
 		// The donor widget fills these display-only slots from its selected result list.
 		if (!showDonors())
 			return;

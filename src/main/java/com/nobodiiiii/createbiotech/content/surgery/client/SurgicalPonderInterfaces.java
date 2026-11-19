@@ -25,6 +25,9 @@ import net.createmod.catnip.gui.element.GuiGameElement;
 import net.createmod.ponder.foundation.PonderScene;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.InteractionHand;
@@ -52,6 +55,23 @@ public final class SurgicalPonderInterfaces {
             if (element.session().currentScreen() instanceof StatsScreen screen)
                 screen.setBox(box);
         });
+    }
+
+    /** Applies source textures to an owned preview snapshot, including its donor profiles. */
+    public static void useSourceAppearance(CompoundTag entity) {
+        removeMimicMarkers(entity);
+        entity.putBoolean("BionicSourceForm", true);
+    }
+
+    private static void removeMimicMarkers(Tag tag) {
+        if (tag instanceof CompoundTag compound) {
+            compound.remove("CreateBiotechSlimeMimic");
+            for (String key : compound.getAllKeys())
+                removeMimicMarkers(compound.get(key));
+        } else if (tag instanceof ListTag list) {
+            for (Tag child : list)
+                removeMimicMarkers(child);
+        }
     }
 
     private abstract static class PageScreen extends AbstractContainerScreen<SurgicalPonderMenu> {
@@ -118,8 +138,8 @@ public final class SurgicalPonderInterfaces {
                 CBItems.LARGE_CARDBOARD_BOX.get(), CBEntityTypes.SLIME_BIONIC.get());
             CBItemData.edit(box, tag -> {
                 var entity = tag.getCompound("CapturedEntity");
-                entity.putBoolean("BionicSourceForm", true);
                 entity.put("SurgicalAssembly", assembly.save());
+                useSourceAppearance(entity);
             });
             menu.getSlot(0).set(box);
         }

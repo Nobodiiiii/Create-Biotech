@@ -35,7 +35,6 @@ import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
-import com.nobodiiiii.createbiotech.content.surgery.SurgeryGuideItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
@@ -159,8 +158,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, SurgicalJointItem> KNEE_JOINT = ITEMS.register("knee_joint",
 		() -> new SurgicalJointItem(SurgicalLimbType.KNEE, new Item.Properties()));
 
-	public static final DeferredHolder<Item, SurgeryGuideItem> SURGERY_GUIDE = ITEMS.register("surgery_guide",
-		() -> new SurgeryGuideItem(new Item.Properties()));
+	// Internal JEI icon only: no guide behavior, creative entry or recipe.
+	public static final DeferredHolder<Item, Item> SURGERY_GUIDE = ITEMS.register("surgery_guide",
+		() -> new Item(new Item.Properties()));
 
 	// Display-only carrier: intentionally omitted from all creative tabs.
 	public static final DeferredHolder<Item, BionicDonorPreviewItem> BIONIC_DONOR_PREVIEW =

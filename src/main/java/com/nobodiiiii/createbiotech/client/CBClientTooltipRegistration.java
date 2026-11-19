@@ -57,7 +57,6 @@ final class CBClientTooltipRegistration {
 		registerCreateStyleTooltip(CBItems.SURGICAL_JOINT.get());
 		registerCreateStyleTooltip(CBItems.CREATIVE_SURGICAL_KIT.get());
 		registerCreateStyleTooltip(CBItems.SURGICAL_TABLE.get());
-		registerCreateStyleTooltip(CBItems.SURGERY_GUIDE.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_PORT.get());
 		registerCreateStyleTooltip(CBItems.ALLAY_COURIER.get());
 		registerCreateStyleTooltip(CBItems.CUTE_CAT_ON_SHAFT.get());

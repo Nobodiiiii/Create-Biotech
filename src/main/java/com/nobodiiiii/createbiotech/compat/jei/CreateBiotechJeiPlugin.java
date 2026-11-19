@@ -91,10 +91,11 @@ public class CreateBiotechJeiPlugin implements IModPlugin {
 		}
 		refreshTraitIngredients();
 		BionicTraitDonorIndex.setJeiRuntimeAvailable(true);
-		// Keep command-only items hidden even with JEI's showHiddenIngredients enabled.
+		// Keep internal and command-only items hidden even with JEI's showHiddenIngredients enabled.
 		var manager = runtime.getIngredientManager();
 		List<ItemStack> hiddenItems = manager.getAllIngredients(VanillaTypes.ITEM_STACK).stream()
 			.filter(stack -> stack.is(CBItems.MIMIC_DEBUG_STICK.get())
+				|| stack.is(CBItems.SURGERY_GUIDE.get())
 				|| stack.is(CBItems.ENDERMAN_STOCK_KEEPER.get())
 				|| stack.is(CBItems.HONEYCOMB_GAUGE_CLUSTER.get())).toList();
 		if (!hiddenItems.isEmpty())

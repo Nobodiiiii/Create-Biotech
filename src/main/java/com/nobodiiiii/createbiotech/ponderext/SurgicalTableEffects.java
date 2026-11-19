@@ -142,6 +142,7 @@ final class SurgicalTableEffects {
         ItemStack box = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
         CompoundTag snapshot = entity.saveWithoutId(new CompoundTag());
         snapshot.putString("id", EntityType.getKey(entity.getType()).toString());
+        SurgicalPonderInterfaces.useSourceAppearance(snapshot);
         // The scene owns this snapshot. Gameplay capture runs on the server.
         CBItemData.edit(box, tag -> {
             tag.put("CapturedEntity", snapshot);
