@@ -124,9 +124,9 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 红石外观演示之后始终使用供体原生外观。成品使用实际 `SlimeBionicEntity` 的移动控制器、跳跃控制器、地面碰撞和 `SlimeBionicAnimator`，仅由演示提供往返目标点及攻击触发时机。客户端预览的生命、移速、攻击属性使用与服务器相同的校准函数；不再通过渲染时的正弦平移模拟行走或跳跃。
 
-手术台使用原生 `interface_panel` 步骤，内含按界面 ID 打开的 `show_interface`。工具轮盘、关节轮盘和纸箱属性页的 ID 分别为 `create_biotech:ponder_surgical_tool_wheel`、`create_biotech:ponder_surgical_joint_wheel`、`create_biotech:ponder_surgical_box_stats`。轮盘页显示中心 144×144 区域。第三章在纸箱属性页打开后，通过 `pack_result_for_stats` 把场景当前成品装进演示纸箱，再填入属性页的槽位。`META-INF/pondererlib.features.properties` 通过 `interfaces` 启用界面沙盒，页面及动画状态随场景回放重建。
+手术台使用原生 `interface_panel` 步骤，内含按界面 ID 打开的 `show_interface`。工具轮盘、关节轮盘和纸箱属性页的 ID 分别为 `create_biotech:ponder_surgical_tool_wheel`、`create_biotech:ponder_surgical_joint_wheel`、`create_biotech:ponder_surgical_box_stats`。轮盘页显示中心 144×144 区域。第三章的纸箱属性页打开时，直接从自带的 `surgical_table_zombie_golem.nbt` 读取完整成品数据，构造独立演示纸箱并计算基础属性。`pack_result_for_stats` 仍可用当前演示实体的快照更新属性页。`META-INF/pondererlib.features.properties` 通过 `interfaces` 启用界面沙盒，页面及动画状态随场景回放重建。
 
-第四章在补装肩关节后、再次装箱前，用 `create_biotech:ponder_surgical_box_hover` 演示手持空纸箱悬停检查。`traits_preview_box` 读取装好双翼的幻翼苦力怕的实际特性，沿用手术台提示的操作文案。
+第四章的 `create_biotech:ponder_surgical_box_hover` 打开时，直接从自带的 `surgical_table_creeper_phantom.nbt` 读取完整双翼成品，并按当前特性规则生成悬停提示。特性页随原生显示界面步骤自动初始化，重播或重新打开时重新加载自带数据。
 
 依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
 

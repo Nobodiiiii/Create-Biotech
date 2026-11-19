@@ -58,6 +58,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.javaStep("create_biotech:java/surgical_table/prepare", null);
         scene.rotateCameraY(180.0f, 0.0f, 0);
         scene.keyframe().createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 4.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "intro_target", "simultaneous", 18, "down");
+        scene.idle(20);
         scene.javaStep("create_biotech:java/surgical_table/result_intro", null);
         scene.showText(text("placing.intro"), new Vec3(4.5d, 2.0d, 4.5d), 155, null, true);
         scene.idle(165);
@@ -138,7 +139,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.javaStep("create_biotech:java/surgical_table/original_appearance", null);
         scene.javaStep("create_biotech:java/surgical_table/place_golem", null);
         scene.javaStep("create_biotech:java/surgical_table/place_pillager", null);
-        scene.idle(15);
+        scene.idle(20);
         scene.keyframe().showText(text("recombining.tools"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
         scene.idle(110);
         scene.keyframe().showText(text("recombining.cut"), new Vec3(2.5d, 2.7d, 3.5d), 90, null, true);
@@ -237,7 +238,7 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.keyframe().showControls(new Vec3(2.5d, 3.5d, 7.5d), "down", 20, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(20);
         scene.javaStep("create_biotech:java/surgical_table/clear_mimic", null);
-        scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 30, "right", "create_biotech:large_cardboard_box", "{CapturedEntity:{BionicSourceForm:1b,Health:31.606956f,SurgicalAssembly:{BodyCenterX:0.060769424f,BodyCenterZ:-0.16076541f,BodyDepth:0.4674682f,BodyEyeHeight:2.2976475f,BodyGroundedKneeCount:0,BodyGroundedLegCount:0,BodyHeight:2.7031145f,BodyLegLength:0.0f,BodyLegVolumeRatio:0.0f,BodyMinY:0.0f,BodyVolume:0.6102061748194781d,BodyWidth:0.64630777f,GlueJoints:[{FirstCube:1,FirstSource:0,GlueReplay:{AnchorContact:{Face:1b,U:0.5d,V:0.08333333333332703d},MovingCube:2,MovingSource:3,Transform:{Rotation:{W:1.0d,X:0.0d,Y:0.0d,Z:0.0d},TranslateX:0.0d,TranslateY:0.0d,TranslateZ:0.0d}},SecondCube:2,SecondSource:3},{FirstCube:5,FirstSource:0,GlueReplay:{AnchorContact:{Face:5b,U:0.5000000000000104d,V:0.5000000149011514d},MovingCube:4,MovingSource:2,Transform:{Rotation:{W:1.0d,X:0.0d,Y:0.0d,Z:0.0d},TranslateX:0.0d,TranslateY:0.0d,TranslateZ:0.0d}},SecondCube:4,SecondSource:2},{FirstCube:4,FirstSource:0,GlueReplay:{AnchorContact:{Face:5b,U:0.5000000298023454d,V:0.49999998509884513d},MovingCube:2,MovingSource:1,Transform:{Rotation:{W:1.0d,X:0.0d,Y:0.0d,Z:0.0d},TranslateX:0.0d,TranslateY:0.0d,TranslateZ:0.0d}},SecondCube:2,SecondSource:1}],HitboxGeometry:{Body:{MaxX:0.45054954f,MaxY:2.7031145f,MaxZ:0.6121384f,MinX:-0.57208836f,MinY:0.0f,MinZ:-0.29060757f},Limbs:[],Overall:{MaxX:0.45054954f,MaxY:2.7031145f,MaxZ:0.6121384f,MinX:-0.57208836f,MinY:0.0f,MinZ:-0.29060757f}},LayoutFacing:4,LayoutLayPose:{Axis:1,TranslateX:1.5006911754608154d,TranslateY:0.31322652101516724d,TranslateZ:0.5000145435333252d,Yaw:90},PreserveLayout:1b,SharedSurgicalData:{DonorTemplates:[{Anatomy:{CubeVolumes:[I;1040187384,1035993085,1027604468,1027604470,1027604473,1027604471],Cubes:[{Cube:0,Names:[I;0,1],Nodes:[I;0]},{Cube:1,Names:[I;2,3],Nodes:[I;1]},{Cube:2,Names:[I;4,5],Nodes:[I;2]},{Cube:3,Names:[I;6,7],Nodes:[I;3]},{Cube:4,Names:[I;8,9],Nodes:[I;4]},{Cube:5,Names:[I;10,11],Nodes:[I;5]}],Names:[\"head\",\"material/minecraft/textures/entity/zombie/zombie.png/head\",\"body\",\"material/minecraft/textures/entity/zombie/zombie.png/body\",\"material/minecraft/textures/entity/zombie/zombie.png/rightArm\",\"rightArm\",\"leftArm\",\"material/minecraft/textures/entity/zombie/zombie.png/leftArm\",\"material/minecraft/textures/entity/zombie/zombie.png/rightLeg\",\"rightLeg\",\"leftLeg\",\"material/minecraft/textures/entity/zombie/zombie.png/leftLeg\"],Nodes:[{Names:[I;0],Parent:-1},{Names:[I;2],Parent:-1},{Names:[I;5],Parent:-1},{Names:[I;6],Parent:-1},{Names:[I;9],Parent:-1},{Names:[I;10],Parent:-1}]},CubeCount:6,MimicProfile:{Baby:0b,EntityType:\"minecraft:zombie\",PreviewData:{CanBreakDoors:0b,CanPickUpLoot:0b,CitadelData:{},CreateBiotechSlimeMimic:1b,DrownedConversionTime:-1,FallFlying:0b,InWaterTime:-1,IsBaby:0b,LeftHanded:0b,NeoForgeData:{},PersistenceRequired:0b,\"neoforge:spawn_type\":\"SPAWN_EGG\"},Version:2},Seams:[I;0,1,0,2,0,3,1,2,1,3,1,4,1,5,4,5]},{Anatomy:{CubeVolumes:[I;1040438780,995291129,1025389565,1025389564,1025389566,1025389565,1038962173,1049117639],Cubes:[{Cube:0,Names:[I;0,1],Nodes:[I;1,2]},{Cube:1,Names:[I;3,4],Nodes:[I;3,4]},{Cube:2,Names:[I;5,6,7,8],Nodes:[I;5,6]},{Cube:3,Names:[I;9,10,11],Nodes:[I;7,8]},{Cube:4,Names:[I;12,13,14],Nodes:[I;9,10]},{Cube:5,Names:[I;15,16,17,18],Nodes:[I;11,12]},{Cube:6,Names:[I;19,20],Nodes:[I;13]},{Cube:7,Names:[I;19,20],Nodes:[I;13]}],Names:[\"head\",\"material/minecraft/textures/entity/illager/pillager.png/head\",\"root\",\"material/minecraft/textures/entity/illager/pillager.png/nose\",\"nose\",\"leftLeg\",\"left_leg\",\"material/minecraft/textures/entity/illager/pillager.png/leftLeg\",\"material/minecraft/textures/entity/illager/pillager.png/left_leg\",\"material/minecraft/textures/entity/illager/pillager.png/rightArm\",\"rightArm\",\"right_arm\",\"material/minecraft/textures/entity/illager/pillager.png/rightLeg\",\"rightLeg\",\"right_leg\",\"leftArm\",\"left_arm\",\"material/minecraft/textures/entity/illager/pillager.png/leftArm\",\"material/minecraft/textures/entity/illager/pillager.png/left_arm\",\"body\",\"material/minecraft/textures/entity/illager/pillager.png/body\"],Nodes:[{Names:[I;2],Parent:-1},{Names:[I;0],Parent:0},{Names:[I;0],Parent:-1},{Names:[I;4],Parent:1},{Names:[I;4],Parent:2},{Names:[I;5],Parent:-1},{Names:[I;6],Parent:0},{Names:[I;10],Parent:-1},{Names:[I;11],Parent:0},{Names:[I;13],Parent:-1},{Names:[I;14],Parent:0},{Names:[I;15],Parent:-1},{Names:[I;16],Parent:0},{Names:[I;19],Parent:0}]},CubeCount:8,MimicProfile:{Baby:0b,EntityType:\"minecraft:pillager\",PreviewData:{CanJoinRaid:1b,CanPickUpLoot:1b,CitadelData:{},CreateBiotechSlimeMimic:1b,FallFlying:0b,Inventory:[],LeftHanded:0b,NeoForgeData:{},PatrolLeader:0b,Patrolling:0b,PersistenceRequired:0b,Wave:0,\"neoforge:spawn_type\":\"SPAWN_EGG\"},Version:2},Seams:[I;0,1,0,3,0,5,0,6,0,7,2,4,2,5,2,6,2,7,3,4,3,6,3,7,4,6,4,7,5,6,5,7,6,7]},{Anatomy:{CubeVolumes:[I;1042284542,998244352,1043595255,1039138812,1043595258,1039138812,1058308091,1037172734],Cubes:[{Cube:0,Names:[I;0],Nodes:[I;1,2]},{Cube:1,Names:[I;0],Nodes:[I;1,2]},{Cube:2,Names:[I;2,3],Nodes:[I;3,4]},{Cube:3,Names:[I;4,5],Nodes:[I;5,6]},{Cube:4,Names:[I;6,7],Nodes:[I;7,8]},{Cube:5,Names:[I;8,9],Nodes:[I;9,10]},{Cube:6,Names:[I;10],Nodes:[I;11]},{Cube:7,Names:[I;10],Nodes:[I;11]}],Names:[\"head\",\"root\",\"rightArm\",\"right_arm\",\"leftLeg\",\"left_leg\",\"leftArm\",\"left_arm\",\"rightLeg\",\"right_leg\",\"body\"],Nodes:[{Names:[I;1],Parent:-1},{Names:[I;0],Parent:0},{Names:[I;0],Parent:-1},{Names:[I;2],Parent:-1},{Names:[I;3],Parent:0},{Names:[I;4],Parent:-1},{Names:[I;5],Parent:0},{Names:[I;6],Parent:-1},{Names:[I;7],Parent:0},{Names:[I;8],Parent:-1},{Names:[I;9],Parent:0},{Names:[I;10],Parent:0}]},CubeCount:8,MimicProfile:{Baby:0b,EntityType:\"minecraft:iron_golem\",PreviewData:{AngerTime:0,CanPickUpLoot:0b,CitadelData:{},CreateBiotechSlimeMimic:1b,FallFlying:0b,LeftHanded:0b,NeoForgeData:{},PersistenceRequired:0b,PlayerCreated:0b,\"neoforge:spawn_type\":\"SPAWN_EGG\"},Version:2},Seams:[I;0,1,0,6,2,6,3,7,4,6,5,7,6,7]}]},Sources:[{CutOrder:[I;1,3],CutSeams:[L;10L],DonorId:[I;-1741032735,332611861,-1555468232,-1243457172],DonorTemplate:0,Facing:4,LayPose:{Axis:1,TranslateX:1.5006911754608154d,TranslateY:0.31322652101516724d,TranslateZ:0.5000145435333252d,Yaw:90},OffsetCubes:[I;0,1,3,4,5],OffsetX:[L;0L,0L,0L,0L,0L],OffsetY:[L;4553247525166907392L,4553247525166907392L,4553247525166907392L,4553247525166907392L,4553247525166907392L],OffsetZ:[L;0L,0L,0L,0L,0L],PresentCubes:[L;59L]},{CutOrder:[I;5,6,7,8,9,12,13],CutSeams:[L;13280L],DonorId:[I;211103570,-1329904990,-1292030270,-2087081957],DonorTemplate:1,Facing:4,LayPose:{Axis:1,TranslateX:1.5006911754608154d,TranslateY:0.31322652101516724d,TranslateZ:0.5000145435333252d,Yaw:90},OffsetCubes:[I;2],OffsetX:[L;-4612600483712871040L],OffsetY:[L;4553247179819974656L],OffsetZ:[L;-4615631135620503424L],OriginX:2.500000536441803d,OriginY:0.0d,OriginZ:1.3636954724788666d,PresentCubes:[L;4L]},{CutOrder:[I;5,6,7,8,9,12,13],CutSeams:[L;13280L],DonorId:[I;211103570,-1329904990,-1292030270,-2087081957],DonorTemplate:1,Facing:4,LayPose:{Axis:1,TranslateX:1.5006911754608154d,TranslateY:0.31322652101516724d,TranslateZ:0.5000145435333252d,Yaw:90},OffsetCubes:[I;4],OffsetX:[L;-4612600483713038848L],OffsetY:[L;4553247455384829952L],OffsetZ:[L;-4613472222766901792L],OriginX:2.500000536441803d,OriginY:0.0d,OriginZ:1.3636954724788666d,PresentCubes:[L;16L]},{CutOrder:[I;2],CutSeams:[L;4L],DonorId:[I;66257538,359288829,-1857981660,-1146300913],DonorTemplate:2,Facing:4,LayPose:{Axis:1,TranslateX:1.5006911754608154d,TranslateY:0.31322652101516724d,TranslateZ:0.5000145435333252d,Yaw:90},OffsetCubes:[I;2],OffsetX:[L;4614078554391725088L],OffsetY:[L;4553247387727953920L],OffsetZ:[L;-4627855905650638848L],OriginX:-2.4999994039535522d,OriginY:0.0d,OriginZ:-0.13630452752113342d,PresentCubes:[L;4L]}],Version:4},id:\"create_biotech:slime_bionic\"},CapturedEntityDescId:\"entity.create_biotech.slime_bionic\",CapturedEntityHealth:31.606956f}", null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/return_to_table", null);
         scene.idle(20);
@@ -248,18 +249,21 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":140}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,3.0,5.5],\"direction\":\"down\"}").getAsJsonObject());
         scene.showText(text("joints.types_upper"), new Vec3(4.5d, 2.5d, 5.5d), 140, null, true);
         scene.idle(160);
-        scene.keyframe().showText(text("joints.order"), new Vec3(2.5d, 2.7d, 3.5d), 120, null, true);
+        scene.clearItemEntities(true, null, null, null, null);
+        scene.keyframe().showText(text("joints.order"), new Vec3(3.0d, 2.5d, 3.5d), 120, null, true);
+        scene.idle(20);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\"],\"color\":\"green\",\"duration\":60}").getAsJsonObject());
-        scene.showControls(new Vec3(2.15625d, 2.3175d, 4.0d), "down", 25, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
-        scene.idle(25);
-        scene.showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 25, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
-        scene.idle(105);
+        scene.showControls(new Vec3(2.1d, 2.8d, 3.2d), "down", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
+        scene.idle(60);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\"],\"color\":\"green\",\"duration\":50}").getAsJsonObject());
+        scene.showControls(new Vec3(2.5d, 2.8d, 3.5d), "down", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"shoulder\"}", null, null);
+        scene.idle(70);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"head\",\"right_leg\",\"left_leg\",\"right_knee\",\"left_knee\"],\"color\":\"green\",\"duration\":50}").getAsJsonObject());
-        scene.showControls(new Vec3(2.5d, 2.3175d, 2.75d), "down", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"neck\"}", null, null);
-        scene.showControls(new Vec3(2.38125d, 2.5675d, 4.125d), "right", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
-        scene.showControls(new Vec3(2.61875d, 2.5675d, 4.125d), "left", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
-        scene.showControls(new Vec3(2.38125d, 1.4675d, 4.84375d), "right", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
-        scene.showControls(new Vec3(2.61875d, 1.4675d, 4.84375d), "left", 40, "right", "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
+        scene.showControls(new Vec3(2.5d, 2.3175d, 2.75d), "down", 40, null, "create_biotech:surgical_joint", "{SurgicalJointType:\"neck\"}", null, null);
+        scene.showControls(new Vec3(2.38125d, 2.5675d, 4.125d), "right", 40, null, "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
+        scene.showControls(new Vec3(2.61875d, 2.5675d, 4.125d), "left", 40, null, "create_biotech:surgical_joint", "{SurgicalJointType:\"hip\"}", null, null);
+        scene.showControls(new Vec3(2.38125d, 1.4675d, 4.84375d), "right", 40, null, "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
+        scene.showControls(new Vec3(2.61875d, 1.4675d, 4.84375d), "left", 40, null, "create_biotech:surgical_joint", "{SurgicalJointType:\"knee\"}", null, null);
         scene.idle(60);
         scene.keyframe().showText(text("joints.contact"), new Vec3(2.5d, 2.7d, 3.5d), 110, null, true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\",\"body\"],\"color\":\"green\",\"duration\":110}").getAsJsonObject());
@@ -268,22 +272,19 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.keyframe().showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/pack_body", null);
-        scene.showControls(new Vec3(1.5d, 2.5d, 7.5d), "down", 30, "right", "create_biotech:large_cardboard_box", null, true, null);
+        scene.showControls(new Vec3(1.5d, 3.5d, 7.5d), "down", 30, "right", "create_biotech:large_cardboard_box", null, true, null);
         scene.idle(20);
         scene.javaStep("create_biotech:java/surgical_table/release_walking", null);
-        scene.idle(135);
-        scene.clearEntities(true, "minecraft:armor_stand", "strike_target", null, null, null, null, null);
-        scene.keyframe().showText(text("joints.stats_intro"), new Vec3(6.5d, 2.0d, 7.5d), 110, null, true);
-        scene.showControls(new Vec3(3.5d, 3.0d, 7.5d), "down", 90, null, "minecraft:golden_apple", null, null, null);
+        scene.idle(90);
+        scene.clearEntities(true, "minecraft:armor_stand", "strike_target", null, null, "simultaneous", null, "up");
+        scene.idle(20);
+        scene.keyframe().showText(text("joints.stats_intro"), new Vec3(6.5d, 2.5d, 7.5d), 110, null, true);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"3bcc1caf-ed38-429e-aaf2-4d0a13237efb\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_stats\"},{\"id\":\"f43d868e-1c0e-43e2-b3d5-dd119866115a\",\"type\":\"idle\",\"duration\":400}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[6.5,2.5,7.5],\"direction\":\"right\"}").getAsJsonObject());
         scene.idle(120);
-        scene.showText(text("joints.stats_shape"), new Vec3(6.5d, 2.0d, 7.5d), 150, null, true);
-        scene.showControls(new Vec3(5.5d, 3.0d, 7.5d), "down", 70, null, "minecraft:iron_sword", null, null, null);
-        scene.idle(75);
-        scene.showControls(new Vec3(4.5d, 3.0d, 7.5d), "down", 70, null, "minecraft:leather_boots", null, null, null);
-        scene.idle(85);
-        scene.keyframe().raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_stats\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":120}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
-        scene.javaStep("create_biotech:java/surgical_table/pack_result_for_stats", null);
-        scene.idle(125);
+        scene.showText(text("joints.stats_shape"), new Vec3(6.5d, 2.5d, 7.5d), 140, null, true);
+        scene.idle(150);
+        scene.keyframe().showText(text("joints.text_8"), new Vec3(6.5d, 2.5d, 7.5d), 120, null, true);
+        scene.idle(130);
         return scene.build();
     }
 
@@ -298,17 +299,23 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.setBlock("create_biotech:biotech_casing", null, new BlockPos(7, 1, 3), null, null, true, false, "none", null, null, null, null, null);
         scene.setBlock("minecraft:lever", Map.ofEntries(Map.entry("face", "wall"), Map.entry("facing", "east"), Map.entry("powered", "true")), new BlockPos(8, 1, 3), null, null, true, false, "none", null, null, null, null, null);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_donors", null);
+        scene.idle(20);
         scene.showText(text("traits.intro"), new Vec3(4.5d, 2.8d, 3.5d), 110, null, true);
         scene.idle(120);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_dissect", null);
         scene.showControls(new Vec3(6.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
         scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 40, null, "minecraft:shears", null, null, null);
         scene.playSound("minecraft:entity.sheep.shear", 0.7f, 1.0f, "blocks");
-        scene.idle(90);
+        scene.idle(50);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_assemble", null);
-        scene.showText(text("traits.donors"), new Vec3(6.5d, 2.7d, 3.5d), 120, null, true);
+        scene.showText(text("traits.donors"), new Vec3(4.5d, 2.5d, 3.5d), 120, null, true);
         scene.idle(120);
-        scene.keyframe().createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,ShowArms:1b}", "blast_target", null, null, null);
+        scene.keyframe().showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.idle(25);
+        scene.javaStep("create_biotech:java/surgical_table/traits_pack_complete", null);
+        scene.showControls(new Vec3(1.5d, 2.5d, 7.5d), "down", 30, "right", "create_biotech:large_cardboard_box", null, true, null);
+        scene.idle(20);
+        scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,ShowArms:1b}", "blast_target", null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/traits_flight", null);
         scene.idle(42);
         scene.javaStep("create_biotech:java/surgical_table/traits_prime", null);
@@ -318,47 +325,18 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.clearEntities(true, "minecraft:armor_stand", "blast_target", null, null, null, null, null);
         scene.spawnParticles("minecraft:explosion_emitter", new Vec3(7.5d, 1.45d, 7.5d), "box", new Vec3(0.0d, 0.0d, 0.0d), new Vec3(0.0d, 0.0d, 0.0d), 1, 1);
         scene.playSound("minecraft:entity.generic.explode", 0.65f, 1.0f, "hostile");
-        scene.idle(66);
-        scene.javaStep("create_biotech:java/surgical_table/traits_display", null);
-        scene.showText(text("traits.result"), new Vec3(1.5d, 2.0d, 7.5d), 85, null, true);
-        scene.idle(96);
-        scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_return_to_table", null);
-        scene.showText(text("traits.scope"), new Vec3(4.5d, 2.8d, 3.5d), 125, null, true);
-        scene.idle(135);
-        scene.showText(text("traits.joints"), new Vec3(4.5d, 2.8d, 3.5d), 90, null, true);
-        scene.idle(101);
-        scene.keyframe().showText(text("traits.rules"), new Vec3(4.5d, 2.8d, 3.5d), 155, null, true);
-        scene.idle(163);
-        scene.showText(text("traits.volume"), new Vec3(4.5d, 2.8d, 3.5d), 140, null, true);
+        scene.idle(10);
+        scene.showText(text("traits.result"), new Vec3(7.5d, 1.0d, 7.5d), 60, null, true);
+        scene.idle(70);
+        scene.javaStep("create_biotech:java/surgical_table/traits_return_to_table", null);
+        scene.idle(10);
+        scene.keyframe().showText(text("traits.scope"), new Vec3(4.5d, 2.8d, 3.5d), 120, null, true);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"6bfb3b72-0760-4e7f-bdea-62607fda11a0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"id\":\"782e0fca-18d8-494f-8b1b-21660aa860b6\",\"type\":\"idle\",\"duration\":130},{\"id\":\"3a750aed-4a33-4669-9f40-01b7a42c7012\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_5\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"37b662fb-4ce8-44c3-b37e-64d086993e3c\",\"type\":\"text\",\"duration\":140,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6_2\"},\"point\":[0.3,-0.0777191737930163,0.0],\"placeNearTarget\":true},{\"id\":\"legacy_3\",\"type\":\"idle\",\"duration\":150},{\"id\":\"83995ca7-a578-44dd-9dff-78b8c79fb8b8\",\"type\":\"text\",\"duration\":150,\"text\":{\"ref\":\"create_biotech:surgical_table\",\"key\":\"traits.text_6\"},\"point\":[0.3,0.3,0.0],\"placeNearTarget\":true,\"attachKeyFrame\":true},{\"id\":\"9c6acf67-4f19-4bb6-a048-f484d1d1784a\",\"type\":\"idle\",\"duration\":150},{\"id\":\"d7cad9d9-5722-404c-a472-cdee4a38942e\",\"type\":\"idle\",\"duration\":150}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
+        scene.idle(440);
+        scene.keyframe().showText(text("traits.volume"), new Vec3(4.5d, 2.8d, 3.5d), 140, null, true);
         scene.idle(150);
         scene.keyframe().showText(text("traits.mind"), new Vec3(4.5d, 2.8d, 3.5d), 120, null, true);
-        scene.showControls(new Vec3(4.05d, 2.95d, 3.85d), "down", 55, null, "minecraft:target", null, null, null);
-        scene.idle(63);
-        scene.showControls(new Vec3(4.95d, 2.95d, 3.85d), "down", 50, null, "minecraft:iron_sword", null, null, null);
-        scene.idle(66);
-        scene.keyframe().javaStep("create_biotech:java/surgical_table/traits_one_shoulder", null);
-        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 32, null, "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.showText(text("traits.inspect"), new Vec3(4.5d, 2.8d, 3.5d), 145, null, true);
-        scene.idle(72);
-        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 25, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.idle(25);
-        scene.javaStep("create_biotech:java/surgical_table/traits_pack_missing", null);
-        scene.idle(59);
-        scene.javaStep("create_biotech:java/surgical_table/traits_one_shoulder", null);
         scene.showText(text("traits.adjust"), new Vec3(4.5d, 2.8d, 3.5d), 115, null, true);
-        scene.showControls(new Vec3(4.5d, 2.8d, 3.85d), "down", 32, "right", "create_biotech:shoulder_joint", null, null, null);
-        scene.idle(30);
-        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 25, "right", "create_biotech:shoulder_joint", null, null, null);
-        scene.idle(20);
-        scene.javaStep("create_biotech:java/surgical_table/traits_table", null);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_box_hover\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[4.5,2.8,3.5],\"direction\":\"right\"}").getAsJsonObject());
-        scene.javaStep("create_biotech:java/surgical_table/traits_preview_box", null);
-        scene.idle(95);
-        scene.showControls(new Vec3(4.5d, 2.8d, 3.5d), "down", 23, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.idle(23);
-        scene.javaStep("create_biotech:java/surgical_table/traits_pack_complete", null);
-        scene.idle(52);
-        scene.javaStep("create_biotech:java/surgical_table/traits_table", null);
         scene.keyframe().showText(text("traits.jei"), new Vec3(4.5d, 2.8d, 3.5d), 145, null, true);
         scene.showControls(new Vec3(5.9d, 3.0d, 4.0d), "down", 42, null, "create_biotech:surgery_guide", null, null, null);
         scene.idle(155);
@@ -371,6 +349,1236 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(90);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

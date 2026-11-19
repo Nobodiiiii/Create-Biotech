@@ -6,11 +6,15 @@ import java.util.stream.Stream;
 
 import org.joml.Vector2i;
 
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxStatsTooltip;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalPonderMenu;
-import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.nododiiiii.ponderer.runtime.interfaces.host.InterfaceOverlayElement;
@@ -47,13 +51,6 @@ public final class SurgicalPonderInterfaces {
         scene.forEach(InterfaceOverlayElement.class, element -> {
             if (element.session().currentScreen() instanceof StatsScreen screen)
                 screen.setBox(box);
-        });
-    }
-
-    public static void setBoxHoverTraits(PonderScene scene, BionicTraitSet traits) {
-        scene.forEach(InterfaceOverlayElement.class, element -> {
-            if (element.session().currentScreen() instanceof BoxHoverScreen screen)
-                screen.setTraits(traits);
         });
     }
 
@@ -116,6 +113,15 @@ public final class SurgicalPonderInterfaces {
         StatsScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
             super(menu, inventory, title);
             level = inventory.player.level();
+            var assembly = SurgicalPonderGreenprint.loadAssembly("surgical_table_zombie_golem");
+            ItemStack box = CapturedEntityBoxHelper.createFilledBox(
+                CBItems.LARGE_CARDBOARD_BOX.get(), CBEntityTypes.SLIME_BIONIC.get());
+            CBItemData.edit(box, tag -> {
+                var entity = tag.getCompound("CapturedEntity");
+                entity.putBoolean("BionicSourceForm", true);
+                entity.put("SurgicalAssembly", assembly.save());
+            });
+            menu.getSlot(0).set(box);
         }
 
         void setBox(ItemStack box) {
@@ -145,15 +151,13 @@ public final class SurgicalPonderInterfaces {
 
     private static final class BoxHoverScreen extends TooltipScreen {
         private final ItemStack box = new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
-        private BionicTraitSet traits = BionicTraitSet.EMPTY;
+        private final SurgicalAssembly assembly;
+        private final Level level;
 
         BoxHoverScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
             super(menu, inventory, title);
-        }
-
-        void setTraits(BionicTraitSet traits) {
-            this.traits = traits;
-            init();
+            assembly = SurgicalPonderGreenprint.loadAssembly("surgical_table_creeper_phantom");
+            level = inventory.player.level();
         }
 
         @Override
@@ -161,7 +165,7 @@ public final class SurgicalPonderInterfaces {
             List<Component> tooltip = new ArrayList<>();
             CreateLang.builder().add(box.getHoverName()).forGoggles(tooltip);
             SurgicalInteractionPresentation.addBoxPackControls(tooltip);
-            CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, traits);
+            CapturedEntityBoxStatsTooltip.appendPropertiesSection(tooltip, BionicTraitResolver.resolve(assembly, level));
             return tooltip;
         }
 

@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.ponderext;
 
 import static com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.Assembly.COMPLETE;
 
-import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderInterfaces;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.Assembly;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTraitPonderActors.View;
@@ -30,10 +29,6 @@ final class SurgicalTraitPonderEffects {
             ctx.builder().addInstruction(scene -> actors.returnToTable());
         });
         view(engine, "one_shoulder", "拆下一个肩关节", View.TABLE, Assembly.ONE_SHOULDER);
-        engine.steps().registerJava(PREFIX + "preview_box", "将台面成品的特性填入纸箱悬停页", ctx -> {
-            var actors = actors(ctx);
-            ctx.builder().addInstruction(scene -> SurgicalPonderInterfaces.setBoxHoverTraits(scene, actors.traits()));
-        });
         view(engine, "pack_missing", "装箱检查未生效的成品", View.PACKED, Assembly.ONE_SHOULDER);
         view(engine, "pack_complete", "再次装箱查看已生效的特性", View.PACKED, COMPLETE);
     }

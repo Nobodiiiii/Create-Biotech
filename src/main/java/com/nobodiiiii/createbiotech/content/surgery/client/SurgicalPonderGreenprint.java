@@ -27,20 +27,25 @@ import net.minecraft.world.phys.Vec3;
 
 record SurgicalPonderGreenprint(SurgicalAssembly assembly, List<SourcePose> sources) {
     static SurgicalPonderGreenprint load(Level level, String name) {
+        var assembly = loadAssembly(name);
+        var sources = assembly.sources().stream().map(source -> {
+            Model model = new Model(Objects.requireNonNull(source.profile().createPreviewEntity(level)), Vec3.ZERO);
+            if (model.count() != source.cubeCount())
+                throw new IllegalStateException("Donor model does not match the surgical table greenprint: "
+                    + source.profile().entityTypeId());
+            return new SourcePose(assembly, source, model);
+        }).toList();
+        return new SurgicalPonderGreenprint(assembly, sources);
+    }
+
+    static SurgicalAssembly loadAssembly(String name) {
         var location = CreateBiotech.asResource("ponder/greenprints/" + name + ".nbt");
         try (var file = Minecraft.getInstance().getResourceManager().open(location)) {
             var snapshot = NbtIo.readCompressed(file, NbtAccounter.create(1_048_576));
             var assembly = SurgicalAssembly.load(snapshot.getCompound("MimicEntity").getCompound("SurgicalAssembly"));
             if (assembly == null || !assembly.isReadyForEntity())
                 throw new IllegalStateException("Invalid surgical table Ponder greenprint: " + location);
-            var sources = assembly.sources().stream().map(source -> {
-                Model model = new Model(Objects.requireNonNull(source.profile().createPreviewEntity(level)), Vec3.ZERO);
-                if (model.count() != source.cubeCount())
-                    throw new IllegalStateException("Donor model does not match the surgical table greenprint: "
-                        + source.profile().entityTypeId());
-                return new SourcePose(assembly, source, model);
-            }).toList();
-            return new SurgicalPonderGreenprint(assembly, sources);
+            return assembly;
         } catch (IOException error) {
             throw new IllegalStateException("Could not read surgical table Ponder greenprint: " + location, error);
         }
