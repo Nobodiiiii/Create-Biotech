@@ -29,6 +29,8 @@
 - 修复短粗或侧接肢体的肩、髋关节转轴定位错误的问题。
 - 修复回放导出时手术台部件渲染准备未刷新而导致的显示异常。
 
+- 补齐手术台思索遗漏的英文字幕，并按中文修正关节、装箱和特性提示。
+
 ### English
 
 Highlights from the four beta releases:
@@ -55,6 +57,8 @@ Highlights from the four beta releases:
 - Fixed placement and glue previews on irregular Surgical Tables counting gaps between cubes as occupied space and incorrectly reporting insufficient room.
 - Fixed shoulder and hip pivot placement for compact or side-mounted limbs.
 - Fixed Surgical Table rendering during replay exports when render preparation was not refreshed.
+
+- Restored missing English captions in the Surgical Table Ponder and corrected the hints for joints, boxed creatures, and traits to match the Chinese text.
 
 ---
 
