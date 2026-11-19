@@ -9,11 +9,13 @@
 | 1.3.1 及以前 | `ce70c1b5` 及以前 | 尚无手术台 | 尚无仿生组装 | 无需转换 |
 | 2.0.0-beta.1 | `44c8bfd5` | 1 | 1 | 直接转换 |
 | 2.0.0-beta.2 | `4c6b5a57` | 1 | 1 | 直接转换，保留新增的供体身份、部位标签和体积 |
+| 2.0.0-beta.3 | `db32bb91` | 3 | 4 | 与当前格式相同，原路径读取 |
+| 2.0.0 | 本次 `mod_version=2.0.0` 发布提交 | 3 | 4 | 与 beta.3 相同，原路径读取 |
 | 当前开发格式 | 工作区 | 3 | 4 | 原路径读取 |
 
-两次发布都使用格式 1，beta.2 增加了可选的 `DonorId`、`OriginalHeadCubes`、`AnatomyRoles`；转换同时处理这些发布差异。开发格式的手术台 2、仿生组装 2/3 不在兼容清单中。格式 1 中带有后续开发版本的 `Anatomy`、供体字典等字段也不作为发布格式处理。
+beta.1 与 beta.2 都使用格式 1，beta.2 增加了可选的 `DonorId`、`OriginalHeadCubes`、`AnatomyRoles`；转换同时处理这些发布差异。beta.3 与 2.0.0 均使用当前的手术台格式 3、仿生组装格式 4，无需转换，继续走当前格式的快速读取路径；`SurgicalReleaseMigration` 保留从 beta.1、beta.2 直接转换的入口。开发格式的手术台 2、仿生组装 2/3 不在兼容清单中。格式 1 中带有后续开发版本的 `Anatomy`、供体字典等字段也不作为发布格式处理。
 
-发布依据为对应提交中的 `gradle.properties`、`SurgicalTableBlockEntity`、`SurgicalSubject`、`SurgicalAssembly` 和 beta.2 的 `BionicAnatomySnapshot`。后续发布必须在此记录边界，并在修改旧格式支持前核对这些源码。
+发布依据为对应提交中的 `gradle.properties`、`SurgicalTableBlockEntity`、`SurgicalSubject`、`SurgicalAssembly` 和 beta.2 的 `BionicAnatomySnapshot`。2.0.0 对应本次将 `gradle.properties` 中 `mod_version` 从 `2.0.0-beta.3` 改为 `2.0.0` 的提交。后续发布必须在此记录边界，并在修改旧格式支持前核对这些源码。
 
 ## 转换与保存
 

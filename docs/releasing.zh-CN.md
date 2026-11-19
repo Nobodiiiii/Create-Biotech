@@ -39,13 +39,15 @@ python publish.py --dry-run --skip-build --non-interactive --only-modrinth
 
 ## GitHub Actions
 
+三个工作流文件同时保留在仓库默认分支 `main`，用于注册手动运行入口；实际发版时选择 `1.21.1` 分支。发布令牌配置在环境 `release-1.21.1` 中。
+
 仅支持 `1.21.1` 分支的手动运行，无 push 或 tag 自动发布触发器：
 
 - **全部发布**：构建、检查两份产物，再按选择发布两站。
 - **发布 CurseForge**：复用同一工作流，只选择 CurseForge 上传任务。
 - **发布 Modrinth**：复用同一工作流，只选择 Modrinth 上传任务。
 
-三个入口的 `dry_run` 默认均为 `true`，只构建、运行现有检查、检查分发并保存 `create-biotech-release-jars` 工件。上传任务只在明确关闭 `dry_run` 时运行，读取环境 `release-1.21.1` 中对应的 `CURSEFORGE_TOKEN` 或 `MODRINTH_TOKEN`。构建任务不接收令牌。上传下载已经检查过的工件，不重新构建；脚本上传前再次检查目标文件。
+三个入口的 `dry_run` 默认均为 `false`，手动运行会先构建、检查两份分发并保存 `create-biotech-release-jars` 工件，再真实上传到所选平台。仅需验证时勾选 `dry_run`，跳过上传任务。上传任务读取环境 `release-1.21.1` 中对应的 `CURSEFORGE_TOKEN` 或 `MODRINTH_TOKEN`，构建任务不接收令牌。上传下载已经检查过的工件，不重新构建；脚本上传前再次检查目标文件。
 
 `version_type=auto` 根据 `mod_version` 中的 `alpha`/`beta` 判断，否则使用 release；也可明确选择类型。更新日志取对应版本的 `CHANGELOG.md`，不存在时沿用脚本的 Git 提交说明回退，仍为空则终止。上传请求有超时，不自动重试创建版本；平台未确认返回有效文件 ID 时任务失败，重试前应检查平台是否已经接收文件。
 

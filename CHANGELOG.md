@@ -1,5 +1,63 @@
 # Changelog
 
+## 2.0.0
+
+### 中文
+
+四轮测试版主要成果：
+
+- 手术台与仿生组装：拆解、重组生物，用关节驱动身体。
+- 供体特性与附身：继承生物能力，支持玩家拟态、附身及特性查询与扩展。
+- 六种捕捉网：捕捉、搬运生物，并与纸箱和手术台联动。
+- 教程与体验完善：扩充装饰和思索，改进经验、物流、渲染及存档兼容。
+
+### 新增功能
+
+- **手术台思索**：新增放置供体、切分与重组、安装关节、特性介绍四章动态教程，替代原手术指南；JEI 特性查询入口改为手术台。
+- **绿图与绿图桌（开发中）**：以绿图替代史莱姆数据，可记录并重复释放拟态或仿生生物副本；绿图桌支持本地 `.nbt` 文件导入、导出，导入实体快照需要创造模式。
+
+### 改进
+
+- **仿生飞行**：没有有效腿部的飞行仿生生物会低空悬停并游荡，改善无腿身体的自主移动。
+- **仿生动画**：完善供体原生动画与组装关节的衔接，音爆动作按实际肩关节播放，持械位置随动作同步。
+- **依赖与分发**：Ponderer Lib 升级至 0.1.1；CurseForge 版本需单独安装该前置，Modrinth 版本内嵌该库。
+
+### 修复
+
+- 修复含有单独旋转体块的部件再次粘合时被错误拒绝，以及仅边或顶点接触的连接被误判的问题。
+- 修复不规则手术台将部件间空隙计入占用范围，导致放置或粘合时误报空间不足的问题。
+- 修复短粗或侧接肢体的肩、髋关节转轴定位错误的问题。
+- 修复回放导出时手术台部件渲染准备未刷新而导致的显示异常。
+
+### English
+
+Highlights from the four beta releases:
+
+- Surgery and bionic assembly: dissect and recombine creatures, then animate their bodies with joints.
+- Donor traits and possession: inherit creature abilities, mimic players, possess mimics, and look up or extend traits.
+- Six Capture Net tiers: capture and carry creatures, with box and Surgical Table integration.
+- Tutorials and polish: expand decorations and Ponder scenes, improving experience systems, logistics, rendering, and save compatibility.
+
+### New Features
+
+- Added four animated Surgical Table tutorial chapters covering donor placement, dissection and recombination, joints, and traits, replacing the Surgery Guide. JEI trait lookup now starts from the Surgical Table.
+- Replaced Slime Data with Greenprints for recording and repeatedly spawning copies of mimics or bionic creatures. The Greenprint Table imports and exports local `.nbt` files; importing entity snapshots requires Creative mode. Both remain under development.
+
+### Improvements
+
+- Added low-altitude hovering and wandering for flying bionic creatures without functional legs, improving autonomous movement for legless bodies.
+- Improved how donor animations follow assembled joints, with Sonic Boom arm motions using the installed shoulders and held items following the animated pose.
+- Updated Ponderer Lib to 0.1.1. CurseForge builds require a separate installation of the library; Modrinth builds bundle it.
+
+### Fixes
+
+- Fixed glue operations rejecting components with individually rotated cubes, and connection checks rejecting edge-only or point-only contact.
+- Fixed placement and glue previews on irregular Surgical Tables counting gaps between cubes as occupied space and incorrectly reporting insufficient room.
+- Fixed shoulder and hip pivot placement for compact or side-mounted limbs.
+- Fixed Surgical Table rendering during replay exports when render preparation was not refreshed.
+
+---
+
 ## 2.0.0-beta.4
 
 ### 中文
