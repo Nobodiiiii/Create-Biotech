@@ -13,15 +13,18 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderActors;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderInterfaces;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderHighlight;
+import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
 
 import net.createmod.catnip.math.Pointing;
 import net.createmod.ponder.api.PonderPalette;
+import net.createmod.ponder.api.scene.SceneBuilder;
 import net.createmod.ponder.foundation.PonderScene;
 import net.createmod.ponder.foundation.instruction.TickingInstruction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -44,7 +47,7 @@ final class SurgicalTableEffects {
         });
         // The 100-tick irreversible warning has five ticks of native fade on each end.
         engine.steps().registerJava(PREFIX + "highlight_zombie", "高亮僵尸供体全身", ctx ->
-            SurgicalPonderHighlight.schedule(ctx.builder(), PonderPalette.BLUE, 110, actors(ctx)::zombieHighlightBounds, false));
+            SurgicalPonderHighlight.schedule(ctx.builder(), PonderPalette.BLUE, 110, actors(ctx)::zombieHighlightCorners, false));
         engine.steps().registerJava(PREFIX + "prepare", "准备手术演示模型", ctx -> actors(ctx));
         engine.steps().registerJava(PREFIX + "clear_petri_dish", "清空培养完成的史莱姆培养皿", ctx ->
             ctx.builder().world().modifyBlockEntity(new BlockPos(0, 1, 7), PetriDishBlockEntity.class,
@@ -59,6 +62,10 @@ final class SurgicalTableEffects {
         register(engine, "return_to_table", "将成品放回台面", actors -> { actors.hideResult(); actors.unpackBody(); actors.setStage(10); });
         engine.steps().registerJava(PREFIX + "cut_arm", "剪开僵尸肩部连接", ctx -> move(ctx, 3, 22));
         register(engine, "pick_up_arm", "收起旧手臂", SurgicalPonderActors::pickUpOldArm);
+        engine.steps().registerJava(PREFIX + "place_arm_hint", "展示装有旧手臂的纸箱", ctx -> {
+            ItemStack box = previewBox(actors(ctx).createOldArmPreview());
+            ctx.builder().overlay().showControls(new Vec3(1.8, 3, 5.2), Pointing.DOWN, 40).rightClick().withItem(box);
+        });
         register(engine, "move_arm", "在台面边缘放下旧手臂", SurgicalPonderActors::placeOldArm);
         engine.steps().registerJava(PREFIX + "cut_donor", "剪下铁傀儡手臂", ctx -> move(ctx, 5, 16));
         engine.steps().registerJava(PREFIX + "glue_arm", "移动替换手臂到肩部", ctx -> move(ctx, 6, 40));
@@ -68,14 +75,8 @@ final class SurgicalTableEffects {
         register(engine, "finish_glue_legs", "固定替换小腿", actors -> actors.setStage(10));
         engine.steps().registerJava(PREFIX + "assembled", "恢复已替换手臂的台面", ctx ->
             ctx.builder().addInstruction(s -> { actors(ctx).placePillager(); actors(ctx).setStage(10); }));
-        engine.steps().registerJava(PREFIX + "shoulder", "安装替换手臂的肩关节", ctx -> joint(ctx, "new_arm", SurgicalLimbType.SHOULDER));
-        engine.steps().registerJava(PREFIX + "other_joints", "安装颈髋膝关节", ctx -> {
-            joint(ctx, "head", SurgicalLimbType.NECK);
-            joint(ctx, "right_leg", SurgicalLimbType.HIP);
-            joint(ctx, "left_leg", SurgicalLimbType.HIP);
-            joint(ctx, "right_knee", SurgicalLimbType.KNEE);
-            joint(ctx, "left_knee", SurgicalLimbType.KNEE);
-        });
+        engine.steps().registerJava(PREFIX + "shoulder", "安装替换手臂的肩关节", SurgicalTableEffects::installShoulder);
+        engine.steps().registerJava(PREFIX + "other_joints", "同时安装颈髋膝关节", SurgicalTableEffects::installOtherJoints);
         engine.steps().registerJava(PREFIX + "release_hopping", "释放无关节成品并演示跳跃", ctx -> release(ctx, false));
         engine.steps().registerJava(PREFIX + "release_walking", "释放成品并演示转头行走挥击", ctx -> release(ctx, true));
         engine.steps().registerJava(PREFIX + "result_intro", "让仿生生物入场并攻击盔甲架", ctx -> {
@@ -117,21 +118,35 @@ final class SurgicalTableEffects {
         });
     }
 
-    private static void highlight(StepBuildContext ctx, String part, PonderPalette color, int duration) {
-        SurgicalPonderHighlight.schedule(ctx.builder(), actors(ctx),
-            new SurgicalPonderHighlight.Spec(List.of(part), color, duration));
+    private static void installShoulder(StepBuildContext ctx) {
+        var scene = ctx.builder();
+        var actors = actors(ctx);
+        SurgicalPonderHighlight.schedule(scene, actors,
+            new SurgicalPonderHighlight.Spec(List.of("new_arm"), PonderPalette.GREEN, 60));
+        showJointControl(scene, actors.point("new_arm"), Pointing.DOWN, 25, SurgicalLimbType.SHOULDER);
+        scene.idle(25);
+        showJointControl(scene, actors.point("body"), Pointing.DOWN, 25, SurgicalLimbType.SHOULDER);
+        scene.idle(30);
     }
 
-    private static void joint(StepBuildContext ctx, String part, SurgicalLimbType type) {
+    private static void installOtherJoints(StepBuildContext ctx) {
         var scene = ctx.builder();
-        String parent = part.equals("right_knee") ? "right_leg" : part.equals("left_knee") ? "left_leg" : "body";
-        highlight(ctx, part, PonderPalette.GREEN, 60);
-        scene.overlay().showControls(actors(ctx).point(part), Pointing.DOWN, 25)
+        var actors = actors(ctx);
+        int duration = 40;
+        SurgicalPonderHighlight.schedule(scene, actors, new SurgicalPonderHighlight.Spec(
+            List.of("head", "right_leg", "left_leg", "right_knee", "left_knee"), PonderPalette.GREEN, duration + 10));
+        showJointControl(scene, actors.point("head"), Pointing.DOWN, duration, SurgicalLimbType.NECK);
+
+        // Use both sides of the body and stagger the leg prompts so the item icons remain visible.
+        showJointControl(scene, actors.point("right_leg").add(0, 0.25, 0), Pointing.RIGHT, duration, SurgicalLimbType.HIP);
+        showJointControl(scene, actors.point("left_leg").add(0, 0.25, 0), Pointing.LEFT, duration, SurgicalLimbType.HIP);
+        showJointControl(scene, actors.point("right_knee").add(0, -0.85, 0), Pointing.RIGHT, duration, SurgicalLimbType.KNEE);
+        showJointControl(scene, actors.point("left_knee").add(0, -0.85, 0), Pointing.LEFT, duration, SurgicalLimbType.KNEE);
+    }
+
+    private static void showJointControl(SceneBuilder scene, Vec3 point, Pointing direction, int duration, SurgicalLimbType type) {
+        scene.overlay().showControls(point, direction, duration)
             .rightClick().withItem(SurgicalJointItem.createStack(type));
-        scene.idle(25);
-        scene.overlay().showControls(actors(ctx).point(parent), Pointing.DOWN, 25)
-            .rightClick().withItem(SurgicalJointItem.createStack(type));
-        scene.idle(30);
     }
 
     private static void release(StepBuildContext ctx, boolean articulated) {
@@ -159,19 +174,22 @@ final class SurgicalTableEffects {
     private static void packResultForStats(StepBuildContext ctx) {
         var actors = actors(ctx);
         ctx.builder().addInstruction(scene -> {
-            var result = actors.result();
-            ItemStack box = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
-            CompoundTag entity = new CompoundTag();
-            result.saveWithoutId(entity);
-            entity.putString("id", "create_biotech:slime_bionic");
-            // Capture gameplay is server-only. This private preview stack uses the actual current entity snapshot.
-            CBItemData.edit(box, tag -> {
-                tag.put("CapturedEntity", entity);
-                tag.putString("CapturedEntityDescId", result.getType().getDescriptionId());
-                tag.putFloat("CapturedEntityHealth", result.getHealth());
-            });
+            ItemStack box = previewBox(actors.result());
             actors.hideResult();
             SurgicalPonderInterfaces.setCapturedBox(scene, box);
         });
+    }
+
+    private static ItemStack previewBox(SlimeBionicEntity entity) {
+        ItemStack box = new ItemStack(CBItems.LARGE_CARDBOARD_BOX.get());
+        CompoundTag snapshot = entity.saveWithoutId(new CompoundTag());
+        snapshot.putString("id", EntityType.getKey(entity.getType()).toString());
+        // The scene owns this snapshot. Gameplay capture runs on the server.
+        CBItemData.edit(box, tag -> {
+            tag.put("CapturedEntity", snapshot);
+            tag.putString("CapturedEntityDescId", entity.getType().getDescriptionId());
+            tag.putFloat("CapturedEntityHealth", entity.getHealth());
+        });
+        return box;
     }
 }

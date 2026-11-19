@@ -210,6 +210,23 @@ final class SurgicalInteractionPresentation {
 			"create_biotech.gui.surgical_table.action.preview_ground");
 	}
 
+	static void addGlueControls(List<Component> tooltip, boolean smartGlue, boolean hasFirstPoint, boolean editing) {
+		addInteractionControl(tooltip, Component.keybind("key.use"),
+			"create_biotech.gui.surgical_table.action.select_first_glue", !hasFirstPoint && !editing);
+		addInteractionControl(tooltip, Component.keybind("key.use"),
+			"create_biotech.gui.surgical_table.action.select_second_glue", hasFirstPoint && !editing);
+		if (smartGlue) {
+			addInteractionControl(tooltip, Component.translatable("create_biotech.gui.surgical_table.control.scroll"),
+				"create_biotech.gui.surgical_table.action.move_glue", editing);
+			addInteractionControl(tooltip, combinedControl(Component.translatable("create_biotech.gui.surgical_table.control.ctrl"),
+				Component.translatable("create_biotech.gui.surgical_table.control.scroll")),
+				"create_biotech.gui.surgical_table.action.rotate_glue", editing);
+			addInteractionControl(tooltip, Component.keybind("key.use"),
+				"create_biotech.gui.surgical_table.action.confirm_glue", editing);
+		}
+		addCancelControl(tooltip, hasFirstPoint);
+	}
+
 	static void addInteractionControl(List<Component> tooltip, Component control, String actionKey) {
 		addInteractionControl(tooltip, control, actionKey, true);
 	}

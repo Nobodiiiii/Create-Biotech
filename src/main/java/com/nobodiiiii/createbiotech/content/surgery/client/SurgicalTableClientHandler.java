@@ -809,25 +809,8 @@ public final class SurgicalTableClientHandler {
 			.add(title)
 			.forGoggles(tooltip);
 		if (SurgicalSelectionResolver.isSurgicalGlue(stack)) {
-			boolean selectingFirst = SurgicalGlueController.pendingGlue == null && SurgicalGlueController.glueEditor == null;
-			boolean selectingSecond = SurgicalGlueController.pendingGlue != null && SurgicalGlueController.glueEditor == null;
-			boolean editing = SurgicalGlueController.glueEditor != null;
-			SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.select_first_glue", selectingFirst);
-			SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.keybind("key.use"),
-				"create_biotech.gui.surgical_table.action.select_second_glue", selectingSecond);
-			if (SurgicalSelectionResolver.isSmartGlue(stack)) {
-				SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.translatable(
-					"create_biotech.gui.surgical_table.control.scroll"),
-					"create_biotech.gui.surgical_table.action.move_glue", editing);
-				SurgicalInteractionPresentation.addInteractionControl(tooltip, SurgicalInteractionPresentation.combinedControl(Component.translatable(
-					"create_biotech.gui.surgical_table.control.ctrl"),
-					Component.translatable("create_biotech.gui.surgical_table.control.scroll")),
-					"create_biotech.gui.surgical_table.action.rotate_glue", editing);
-				SurgicalInteractionPresentation.addInteractionControl(tooltip, Component.keybind("key.use"),
-					"create_biotech.gui.surgical_table.action.confirm_glue", editing);
-			}
-			SurgicalInteractionPresentation.addCancelControl(tooltip, SurgicalGlueController.pendingGlue != null);
+			SurgicalInteractionPresentation.addGlueControls(tooltip, SurgicalSelectionResolver.isSmartGlue(stack),
+				SurgicalGlueController.pendingGlue != null, SurgicalGlueController.glueEditor != null);
 		} else if (SurgicalSelectionResolver.isSymmetryWand(stack)) {
 			boolean selectingFirst = SurgicalSymmetryController.pendingSymmetry == null;
 			boolean selectingReference = SurgicalSymmetryController.pendingSymmetry != null && SurgicalSymmetryController.pendingSymmetryReference == null;

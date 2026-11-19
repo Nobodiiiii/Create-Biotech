@@ -141,66 +141,71 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(15);
         scene.keyframe().showText(text("recombining.tools"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
         scene.idle(110);
-        scene.keyframe().showText(text("recombining.cut"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"old_arm\"],\"color\":\"red\",\"duration\":60}").getAsJsonObject());
-        scene.showControls(new Vec3(2.0d, 3.0d, 3.2d), "down", 60, "right", "minecraft:shears", null, null, null);
-        scene.idle(25);
+        scene.keyframe().showText(text("recombining.cut"), new Vec3(2.5d, 2.7d, 3.5d), 90, null, true);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"old_arm\"],\"color\":\"red\",\"duration\":40}").getAsJsonObject());
+        scene.showControls(new Vec3(2.0d, 3.0d, 3.2d), "down", 40, "right", "minecraft:shears", null, null, null);
         scene.playSound("minecraft:entity.sheep.shear", 0.7f, 1.0f, "blocks");
         scene.javaStep("create_biotech:java/surgical_table/cut_arm", null);
-        scene.idle(85);
-        scene.keyframe().showText(text("recombining.move"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
-        scene.showControls(new Vec3(1.8d, 3.0d, 3.2d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.idle(25);
+        scene.idle(100);
+        scene.keyframe().showText(text("recombining.move"), new Vec3(2.5d, 2.7d, 3.5d), 90, null, true);
+        scene.idle(10);
+        scene.showControls(new Vec3(1.8d, 3.0d, 3.2d), "down", 40, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.idle(10);
         scene.javaStep("create_biotech:java/surgical_table/pick_up_arm", null);
         scene.playSound("minecraft:entity.item.pickup", 0.4f, 1.0f, "blocks");
-        scene.idle(45);
-        scene.showControls(new Vec3(1.8d, 3.0d, 5.2d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
-        scene.idle(25);
+        scene.idle(40);
+        scene.javaStep("create_biotech:java/surgical_table/place_arm_hint", null);
+        scene.idle(10);
         scene.javaStep("create_biotech:java/surgical_table/move_arm", null);
-        scene.idle(15);
+        scene.idle(50);
         scene.keyframe().showText(text("recombining.replace"), new Vec3(4.5d, 2.7d, 3.5d), 140, null, true);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_arm\"],\"color\":\"red\",\"duration\":35}").getAsJsonObject());
-        scene.showControls(new Vec3(3.8125d, 2.38d, 3.6875d), "down", 25, "right", "minecraft:shears", null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_arm\"],\"color\":\"red\",\"duration\":40}").getAsJsonObject());
+        scene.showControls(new Vec3(4.0d, 3.0d, 3.0d), "down", 40, "right", "minecraft:shears", null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/cut_donor", null);
-        scene.idle(35);
-        scene.showControls(new Vec3(3.3125d, 2.255d, 3.6875d), "down", 35, "right", "create:super_glue", null, null, null);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_arm\"],\"color\":\"green\",\"duration\":45}").getAsJsonObject());
-        scene.idle(35);
-        scene.showControls(new Vec3(2.5d, 2.3175d, 3.375d), "down", 35, "right", "create:super_glue", null, null, null);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\"],\"color\":\"blue\",\"duration\":70}").getAsJsonObject());
-        scene.idle(20);
+        scene.idle(40);
+        scene.idle(10);
+        scene.showControls(new Vec3(3.3d, 2.7d, 2.8d), "down", 40, "right", "create:super_glue", null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_arm\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
+        scene.showControls(new Vec3(2.5d, 2.7d, 3.0d), "down", 40, "right", "create:super_glue", null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
         scene.javaStep("create_biotech:java/surgical_table/glue_arm", null);
-        scene.idle(45);
+        scene.idle(40);
         scene.javaStep("create_biotech:java/surgical_table/finish_glue_arm", null);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\"],\"color\":\"green\",\"duration\":45}").getAsJsonObject());
-        scene.showControls(new Vec3(2.15625d, 2.3175d, 4.0d), "down", 25, "right", "create:super_glue", null, null, null);
-        scene.idle(45);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_right_leg\",\"donor_left_leg\"],\"color\":\"red\",\"duration\":30}").getAsJsonObject());
-        scene.showControls(new Vec3(6.5d, 2.4425d, 3.8125d), "down", 25, "right", "minecraft:shears", null, null, null);
-        scene.idle(15);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\",\"body\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_right_leg\",\"donor_left_leg\"],\"color\":\"red\",\"duration\":40}").getAsJsonObject());
+        scene.showControls(new Vec3(6.5d, 2.5d, 3.8d), "down", 40, "right", "minecraft:shears", null, null, null);
         scene.javaStep("create_biotech:java/surgical_table/cut_legs", null);
-        scene.idle(25);
-        scene.showControls(new Vec3(6.25d, 2.1925d, 4.4375d), "down", 25, "right", "create:super_glue", null, null, null);
-        scene.idle(25);
-        scene.showControls(new Vec3(2.38125d, 2.3175d, 4.125d), "down", 25, "right", "create:super_glue", null, null, null);
-        scene.idle(25);
-        scene.showControls(new Vec3(6.75d, 2.1925d, 4.4375d), "down", 25, "right", "create:super_glue", null, null, null);
-        scene.idle(25);
-        scene.showControls(new Vec3(2.61875d, 2.3175d, 4.125d), "down", 25, "right", "create:super_glue", null, null, null);
-        scene.idle(25);
+        scene.idle(40);
+        scene.idle(10);
+        scene.showControls(new Vec3(6.5d, 2.5d, 4.2d), "down", 40, "right", "create:super_glue", null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"donor_right_leg\",\"donor_left_leg\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
+        scene.showControls(new Vec3(2.5d, 2.3175d, 4.125d), "down", 40, "right", "create:super_glue", null, null, null);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"right_leg\",\"left_leg\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
         scene.javaStep("create_biotech:java/surgical_table/glue_legs", null);
-        scene.idle(45);
+        scene.idle(40);
         scene.javaStep("create_biotech:java/surgical_table/finish_glue_legs", null);
-        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"right_knee\",\"left_knee\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
-        scene.idle(30);
-        scene.idle(95);
+        scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"right_knee\",\"left_knee\",\"right_leg\",\"left_leg\"],\"color\":\"green\",\"duration\":40}").getAsJsonObject());
+        scene.idle(40);
+        scene.idle(10);
         scene.keyframe().createItemEntity("create_biotech:surgical_kit", 1, new Vec3(4.5d, 2.5d, 5.5d), new Vec3(0.0d, 0.0d, 0.0d), "{NoGravity:1b}", "surgical_kit");
-        scene.showControls(new Vec3(4.5d, 3.0d, 5.5d), "down", 45, "right", "create_biotech:surgical_kit", null, null, null);
-        scene.showText(text("recombining.kit"), new Vec3(4.5d, 2.5d, 5.5d), 110, null, true);
-        scene.idle(120);
-        scene.showText(text("recombining.more_tools"), new Vec3(4.5d, 2.5d, 5.5d), 90, null, true);
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":90}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
-        scene.idle(95);
+        scene.showText(text("recombining.kit"), new Vec3(4.5d, 2.5d, 5.5d), 100, null, true);
+        scene.idle(10);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"33049cd5-8ef4-4714-8199-1dd33b0d6d24\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_tool_wheel\"},{\"id\":\"b915cbf9-e756-4ec4-a69d-be8b20ce2a2c\",\"type\":\"idle\",\"duration\":100}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":true,\"point\":[4.5,3.0,5.5],\"direction\":\"down\"}").getAsJsonObject());
+        scene.idle(10);
+        scene.clearItemEntities(true, null, null, null, null);
+        scene.keyframe().showText(text("recombining.text_6"), new Vec3(4.5d, 2.7d, 3.5d), 120, null, true);
+        scene.showControls(new Vec3(4.5d, 3.0d, 3.5d), "down", 130, null, "create_biotech:smart_super_glue", null, null, null);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"ec9b11a0-7db5-48d5-b90e-78624d8e36db\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_smart_glue_hover\"},{\"id\":\"58d91d22-10e0-4e60-befa-27d3433fc1a5\",\"type\":\"idle\",\"duration\":130}],\"panelTransform\":[-16.0,0.0,0.85],\"panelBackground\":false,\"panelAnimation\":true,\"panelBlocking\":true,\"point\":[4.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
         return scene.build();
     }
 
@@ -221,25 +226,28 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(20);
         scene.createEntity("minecraft:armor_stand", new Vec3(7.5d, 1.0d, 7.5d), null, 90.0f, 0.0f, "{NoGravity:1b,Invulnerable:1b,ShowArms:1b}", "contact_target", null, null, null);
         scene.keyframe().javaStep("create_biotech:java/surgical_table/release_hopping", null);
-        scene.showText(text("joints.hopping"), new Vec3(4.5d, 2.0d, 7.5d), 110, null, true);
+        scene.showText(text("joints.hopping"), new Vec3(1.5d, 2.0d, 7.5d), 110, null, true);
         scene.idle(120);
         scene.clearEntities(true, "minecraft:armor_stand", "contact_target", null, null, null, null, null);
-        scene.keyframe().showControls(new Vec3(7.0d, 2.0d, 7.5d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.keyframe().showControls(new Vec3(2.5d, 3.5d, 7.5d), "down", 20, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
+        scene.idle(20);
+        scene.clearEntities(true, null, null, null, null, null, null, null);
+        scene.showControls(new Vec3(2.5d, 3.0d, 3.5d), "down", 30, "right", "create_biotech:empty_large_cardboard_box", null, null, null);
         scene.idle(25);
         scene.javaStep("create_biotech:java/surgical_table/return_to_table", null);
+        scene.idle(20);
         scene.showText(text("joints.intro"), new Vec3(2.5d, 2.7d, 3.5d), 100, null, true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"body\",\"head\",\"left_arm\",\"right_leg\",\"left_leg\"],\"color\":\"blue\",\"duration\":75}").getAsJsonObject());
         scene.idle(110);
         scene.keyframe().createItemEntity("create_biotech:surgical_joint", 1, new Vec3(4.5d, 2.5d, 5.5d), new Vec3(0.0d, 0.0d, 0.0d), "{NoGravity:1b}", "surgical_joint");
-        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":170}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":false,\"panelBlocking\":false,\"point\":[2.5,3.0,3.5],\"direction\":\"right\"}").getAsJsonObject());
-        scene.showText(text("joints.types_upper"), new Vec3(4.5d, 2.5d, 5.5d), 180, null, true);
-        scene.idle(105);
-        scene.idle(90);
+        scene.raw("interface_panel", JsonParser.parseString("{\"steps\":[{\"id\":\"legacy_0\",\"type\":\"show_interface\",\"interfaceSource\":\"ui_id\",\"uiId\":\"create_biotech:ponder_surgical_joint_wheel\"},{\"id\":\"legacy_1\",\"type\":\"idle\",\"duration\":140}],\"panelTransform\":[0.0,0.0,0.75],\"panelBackground\":true,\"panelAnimation\":true,\"panelBlocking\":false,\"point\":[4.5,3.0,5.5],\"direction\":\"down\"}").getAsJsonObject());
+        scene.showText(text("joints.types_upper"), new Vec3(4.5d, 2.5d, 5.5d), 140, null, true);
+        scene.idle(160);
         scene.keyframe().showText(text("joints.order"), new Vec3(2.5d, 2.7d, 3.5d), 120, null, true);
         scene.javaStep("create_biotech:java/surgical_table/shoulder", null);
         scene.idle(75);
         scene.javaStep("create_biotech:java/surgical_table/other_joints", null);
-        scene.idle(20);
+        scene.idle(60);
         scene.keyframe().showText(text("joints.contact"), new Vec3(2.5d, 2.7d, 3.5d), 110, null, true);
         scene.javaStep("create_biotech:java/surgical_table/highlight_parts", JsonParser.parseString("{\"parts\":[\"new_arm\",\"body\"],\"color\":\"green\",\"duration\":110}").getAsJsonObject());
         scene.idle(120);
@@ -346,6 +354,756 @@ public final class GeneratedSurgicalTable_7431e38e {
         scene.idle(90);
         return scene.build();
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

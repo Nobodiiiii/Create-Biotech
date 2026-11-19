@@ -40,6 +40,7 @@ public final class SurgicalPonderInterfaces {
             (menu, inventory, title) -> new WheelScreen(menu, inventory, title, true));
         event.register(CBMenuTypes.PONDER_SURGICAL_BOX_STATS.get(), StatsScreen::new);
         event.register(CBMenuTypes.PONDER_SURGICAL_BOX_HOVER.get(), BoxHoverScreen::new);
+        event.register(CBMenuTypes.PONDER_SURGICAL_SMART_GLUE_HOVER.get(), SmartGlueHoverScreen::new);
     }
 
     public static void setCapturedBox(PonderScene scene, ItemStack box) {
@@ -167,6 +168,27 @@ public final class SurgicalPonderInterfaces {
         @Override
         protected void renderIcon(GuiGraphics graphics) {
             GuiGameElement.of(box).at(TOOLTIP_INSET - 2, TOOLTIP_INSET - 4, 450).render(graphics);
+        }
+    }
+
+    private static final class SmartGlueHoverScreen extends TooltipScreen {
+        private final ItemStack glue = new ItemStack(CBItems.SMART_SUPER_GLUE.get());
+
+        SmartGlueHoverScreen(SurgicalPonderMenu menu, Inventory inventory, Component title) {
+            super(menu, inventory, title);
+        }
+
+        @Override
+        protected List<Component> tooltip() {
+            List<Component> tooltip = new ArrayList<>();
+            CreateLang.builder().add(glue.getHoverName()).forGoggles(tooltip);
+            SurgicalInteractionPresentation.addGlueControls(tooltip, true, false, false);
+            return tooltip;
+        }
+
+        @Override
+        protected void renderIcon(GuiGraphics graphics) {
+            GuiGameElement.of(glue).at(TOOLTIP_INSET - 2, TOOLTIP_INSET - 4, 450).render(graphics);
         }
     }
 

@@ -158,6 +158,23 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         setStage(4);
     }
 
+    public SlimeBionicEntity createOldArmPreview() {
+        BitSet selected = new BitSet();
+        selected.set(zombieArm);
+        var source = zombie.source(selected, Map.of(), Map.of());
+        var assembly = Objects.requireNonNull(SurgicalAssembly.createComposite(
+            List.of(source), List.of(), List.of(), List.of(), source.facing(), source.layPose()));
+        var pose = new SourcePose(assembly, source, zombie);
+        var rest = pose.measure(SurgicalPonderGreenprint.upright(assembly));
+        assembly = measureBody(assembly, List.of(zombie), List.of(rest), member -> true);
+
+        var preview = Objects.requireNonNull(CBEntityTypes.SLIME_BIONIC.get().create(zombie.entity.level()));
+        ((SlimeMimicAccess) (Object) preview).createBiotech$setSlimeMimic(false);
+        preview.setAssembly(assembly);
+        preview.setHealth(preview.getMaxHealth());
+        return preview;
+    }
+
     public void releaseResult(boolean withJoints) {
         showResultAt(RESULT_POSITION, withJoints ? ResultVariant.WALKING : ResultVariant.HOPPING);
     }
@@ -441,17 +458,17 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
     }
 
     /** The highlight step consumes the very same live transforms as the model renderer. */
-    public List<AABB> highlightBounds(List<String> names, float partialTick) {
-        List<AABB> boxes = new ArrayList<>();
+    List<List<Vec3>> highlightCorners(List<String> names, float partialTick) {
+        List<List<Vec3>> cuboids = new ArrayList<>();
         for (PlacedCube part : visibleParts(partialTick))
             if (names.stream().anyMatch(name -> matches(part, name)))
-                boxes.add(part.worldBounds());
-        return boxes;
+                cuboids.add(part.worldCorners());
+        return cuboids;
     }
 
-    public List<AABB> zombieHighlightBounds(float partialTick) {
+    public List<List<Vec3>> zombieHighlightCorners(float partialTick) {
         return visibleParts(partialTick).stream().filter(part -> part.model == zombie && part.flat)
-            .map(PlacedCube::worldBounds).reduce(AABB::minmax).stream().toList();
+            .map(PlacedCube::worldCorners).toList();
     }
 
     private boolean matches(PlacedCube part, String name) {
@@ -492,10 +509,6 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             model.plan.render(pose, buffer, LightTexture.FULL_BRIGHT, model.count(), selected,
                 Map.of(), Map.of(), false, null, sourceAppearance, null);
             pose.popPose();
-        }
-
-        AABB worldBounds() {
-            return bounds(worldCorners()).inflate(0.015);
         }
 
         List<Vec3> worldCorners() {

@@ -114,7 +114,7 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 ## 手术台前三节的演示实现
 
-第二章的操作提示、等待和相机设置直接写在 `JavaScene` 中；高亮通过独立、可编辑参数的 `highlight_parts` 步骤调用。剪下手臂、移动手臂、剪下双腿、移动双腿和固定部件各自使用单一的 Java 模型步骤，不在其中夹带提示或等待。铁傀儡手臂剪下后保持 Z 不变，沿 −X 移开并落到台面；随后按原目标粘接到僵尸肩部。
+第二章的操作提示、等待和相机设置直接写在 `JavaScene` 中；高亮通过独立、可编辑参数的 `highlight_parts` 步骤调用。剪下手臂、移动手臂、剪下双腿、移动双腿和固定部件各自使用单一的 Java 模型步骤，不在其中夹带提示或等待。铁傀儡手臂剪下后保持 Z 不变，沿 −X 移开并落到台面；随后按原目标粘接到僵尸肩部。第二章统一按“剪刀与红色高亮 → 强力胶与绿色高亮散件 → 强力胶与绿色高亮目标 → 移动到位后同时绿色高亮连接双方”演示。各次操作提示与高亮持续 40 tick，随后留出 10 tick 间隔；粘合移动本身持续 40 tick，到位后再开始结果高亮。双腿的剪切、选点、移动和结果高亮均同时进行，操作提示放在两腿中间。
 
 `GeneratedSurgicalTable_7431e38e` 保持 `placing`、`recombining`、`joints` 三个稳定章节 ID；原有大纲及中英文字幕资源保持原文。后续章节继续由作者补充。
 
@@ -128,6 +128,6 @@ python ..\ponderer\sync_biotech.py --skip-instance
 
 依赖接口已针对项目使用的 Ponder 1.0.82、Lib 0.1.0 编译确认。`ref/1.21.1/Ponder/` 是开发分支快照，生命周期参考 `foundation/PonderScene.java` 和 `foundation/instruction/TickingInstruction.java`；它不是 1.0.82 的精确发布源码。
 
-`create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤。`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`highlight_zombie` 将第一幕台面上僵尸的所有可见体块合成一个框。`SurgicalPonderHighlight` 每帧从与模型绘制共用的变换计算包围盒，再交给 Ponder 场景的 `Outliner` 和 `AABBOutline` 绘制。
+`create_biotech:java/surgical_table/highlight_parts` 是可编辑参数的独立自定义步骤。`parts` 选择部件，`color` 选择颜色，`duration` 指定持续时间。`highlight_zombie` 描出第一幕台面上僵尸的可见体块。`SurgicalPonderHighlight` 从模型当前的角点建立各体块的局部坐标系，再由 Ponder 场景的 `Outliner` 和 `AABBOutline` 沿体块边缘绘制。
 
 成品朝向与 `SlimeBionicRenderer.BodyFrame` 一致，使用 `-yaw`。第一幕由 `result_intro` 让成品从 `(1.5, 1, 4.5)` 入场，走到 `intro_target` 盔甲架旁持续挥击，再由 `hide_result` 开始退场。成品的入场和退场直接跟随盔甲架的竖直位移，手术台在两者退场后出现。关节幕和特性幕的成品从 `(1.5, 1, 7.5)` 朝 `+X` 出场，盔甲架位于 `(7.5, 1, 7.5)` 并朝 `−X`。关节幕在抵达盔甲架前并落地后触发一次撞击或挥击。特性幕的成品和盔甲架同时出现，成品飞到盔甲架旁后点燃引信。闪白沿用仿生生物的自爆渲染，引信声和爆炸声由场景步骤播放。
