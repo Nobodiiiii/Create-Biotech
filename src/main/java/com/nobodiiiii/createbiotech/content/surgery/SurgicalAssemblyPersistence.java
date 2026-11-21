@@ -220,14 +220,38 @@ final class SurgicalAssemblyPersistence {
 	}
 
 	static CompoundTag save(SurgicalAssembly operationOwner) {
+		return new PreparedSave(operationOwner, operationOwner.sources.size()).finish(operationOwner);
+	}
+
+	/** Only the new donor templates need the final growth timestamp. All poses and geometry can be encoded earlier. */
+	static final class PreparedSave {
+		private final CompoundTag tag;
+		private final ListTag sources = new ListTag();
+		private final SurgicalStorage.Writer storage = new SurgicalStorage.Writer();
+		private final int stampedFrom;
+
+		PreparedSave(SurgicalAssembly assembly, int stampedFrom) {
+			this.stampedFrom = stampedFrom;
+			tag = saveStructure(assembly);
+			for (var source : assembly.sources) {
+				var placed = source.savePlacement();
+				if (sources.size() < stampedFrom) source.writeDonor(placed, storage);
+				sources.add(placed);
+			}
+		}
+
+		CompoundTag finish(SurgicalAssembly assembly) {
+			for (int i = stampedFrom; i < sources.size(); i++)
+				assembly.sources.get(i).writeDonor(sources.getCompound(i), storage);
+			tag.put(SurgicalAssembly.SOURCES_TAG, sources);
+			storage.save(tag);
+			return tag;
+		}
+	}
+
+	private static CompoundTag saveStructure(SurgicalAssembly operationOwner) {
 		CompoundTag tag = new CompoundTag();
 		tag.putInt(SurgicalAssembly.VERSION_TAG, SurgicalAssembly.CURRENT_VERSION);
-		SurgicalStorage.Writer storage = new SurgicalStorage.Writer();
-		ListTag encodedSources = new ListTag();
-		for (SurgicalAssembly.Source source : operationOwner.sources)
-			encodedSources.add(source.save(storage));
-		tag.put(SurgicalAssembly.SOURCES_TAG, encodedSources);
-		storage.save(tag);
 		if (!operationOwner.joints.isEmpty()) {
 			ListTag encodedJoints = new ListTag();
 			for (SurgicalAssembly.Joint joint : operationOwner.joints) {

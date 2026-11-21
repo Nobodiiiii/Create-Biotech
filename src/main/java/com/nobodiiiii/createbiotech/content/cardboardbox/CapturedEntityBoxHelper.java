@@ -462,7 +462,11 @@ public class CapturedEntityBoxHelper {
 		CompoundTag entityData = getCapturedEntityData(stack, CBEntityTypes.SLIME_BIONIC.get());
 		if (entityData == null || !entityData.contains("SurgicalAssembly", Tag.TAG_COMPOUND))
 			return null;
-		SurgicalAssembly assembly = SurgicalAssembly.loadCached(entityData.getCompound("SurgicalAssembly"));
+		// A boxed in-flight batch also carries meals outside this snapshot. Placement will restore the queue.
+		if (entityData.contains(SlimeBionicEntity.QUEUED_PREY_TAG, Tag.TAG_LIST)) return null;
+		String key = entityData.contains(SlimeBionicEntity.PENDING_GROWTH_TAG, Tag.TAG_COMPOUND)
+			? SlimeBionicEntity.PENDING_GROWTH_TAG : "SurgicalAssembly";
+		SurgicalAssembly assembly = SurgicalAssembly.loadCached(entityData.getCompound(key));
 		return assembly != null && assembly.isReadyForEntity() ? assembly : null;
 	}
 

@@ -16,7 +16,9 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.minecraft.core.registries.BuiltInRegistries;
+import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.AgeableMob;
@@ -24,6 +26,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Stable biological data plus an immutable render-only snapshot. Gameplay entities
@@ -38,6 +41,9 @@ public final class MimicProfile {
 	private static final String PREVIEW_DATA_TAG = "PreviewData";
 	private static final String BABY_TAG = "Baby";
 	private static final String ATTRIBUTES_TAG = "attributes";
+	private static final String DEVOURED_ANCHOR_TAG = "DevouredAnchor";
+	private static final String DEVOURED_NORMAL_TAG = "DevouredSurfaceNormal";
+	private static final String DEVOURED_SLIDE_TAG = "DevouredSlide";
 	private static final String VILLAGER_DATA_TAG = "VillagerData";
 	private static final String VILLAGER_TYPE_TAG = "type";
 
@@ -83,6 +89,10 @@ public final class MimicProfile {
 
 	private final ResourceLocation entityTypeId;	private final CompoundTag stableData;
 	private final CompoundTag previewData;
+	@Nullable private transient MimicProfile nativeRenderProfile;
+	@Nullable private final Vec3 devouredAnchor;
+	@Nullable private final Vec3 devouredSurfaceNormal;
+	private final Vec3 devouredSlide;
 	@Nullable
 	private final Boolean baby;
 	private final BiologicalKey biologicalKey;
@@ -100,6 +110,16 @@ public final class MimicProfile {
 		// kilobytes for a villager - on every profile, including one per fragment on a mimic's death.
 		this.stableData = stableData;
 		this.previewData = previewData;
+		var anchor = previewData.get(DEVOURED_ANCHOR_TAG);
+		this.devouredAnchor = anchor == null ? null : Vec3.CODEC.parse(NbtOps.INSTANCE, anchor).result()
+			.filter(p -> Math.abs(p.x) <= devouredWidth() / 2d && Math.abs(p.y) <= devouredHeight() / 2d
+				&& Math.abs(p.z) <= devouredWidth() / 2d).orElse(null);
+		var normal = previewData.get(DEVOURED_NORMAL_TAG);
+		devouredSurfaceNormal = normal == null ? null : Vec3.CODEC.parse(NbtOps.INSTANCE, normal).result()
+			.filter(n -> Math.abs(n.lengthSqr() - 1) < 1e-6).orElse(null);
+		var slide = previewData.get(DEVOURED_SLIDE_TAG);
+		devouredSlide = slide == null ? Vec3.ZERO : Vec3.CODEC.parse(NbtOps.INSTANCE, slide).result()
+			.filter(v -> v.lengthSqr() <= 16 * SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE).orElse(Vec3.ZERO);
 		this.baby = baby;
 		this.biologicalKey = new BiologicalKey(entityTypeId, stableData, baby);
 		this.hash = Objects.hash(entityTypeId, this.stableData, this.previewData, baby);
@@ -157,15 +177,30 @@ public final class MimicProfile {
 	}
 
 	public MimicProfile asDevouredForm(float width, float height, long gameTime, double burial) {
+		return asDevouredForm(width, height, gameTime, burial, null);
+	}
+
+	public MimicProfile asDevouredForm(float width, float height, long gameTime, double burial, @Nullable Vec3 localAnchor) {
+		return asDevouredForm(width, height, gameTime, burial, localAnchor, null, Vec3.ZERO);
+	}
+
+	public MimicProfile asDevouredForm(float width, float height, long gameTime, double burial, @Nullable Vec3 localAnchor,
+		@Nullable Vec3 surfaceNormal, Vec3 localSlide) {
 		CompoundTag data = previewData.copy();
 		data.putFloat("DevouredWidth", width);
 		data.putFloat("DevouredHeight", height);
 		data.putLong("DevouredAt", gameTime);
 		data.putDouble("DevouredBurial", burial);
+		if (localAnchor == null) data.remove(DEVOURED_ANCHOR_TAG);
+		else data.put(DEVOURED_ANCHOR_TAG, Vec3.CODEC.encodeStart(NbtOps.INSTANCE, localAnchor).getOrThrow());
+		if (surfaceNormal == null) data.remove(DEVOURED_NORMAL_TAG);
+		else data.put(DEVOURED_NORMAL_TAG, Vec3.CODEC.encodeStart(NbtOps.INSTANCE, surfaceNormal).getOrThrow());
+		if (localSlide.equals(Vec3.ZERO)) data.remove(DEVOURED_SLIDE_TAG);
+		else data.put(DEVOURED_SLIDE_TAG, Vec3.CODEC.encodeStart(NbtOps.INSTANCE, localSlide).getOrThrow());
 		return POOL.intern(new MimicProfile(entityTypeId, stableData, data, baby));
 	}
 
-	/** After the first surgical placement, the donor uses its ordinary model and cube IDs. */
+	/** A measured donor uses its ordinary model and cube IDs in the world and on the surgical table. */
 	public MimicProfile withNativePreyCubes() {
 		if (!isDevouredForm() || hasNativePreyCubes()) return this;
 		var data = previewData.copy();
@@ -174,6 +209,24 @@ public final class MimicProfile {
 	}
 
 	public boolean hasNativePreyCubes() { return previewData.getBoolean("DevouredNativeCubes"); }
+	public MimicProfile withGrowthStart(long gameTime) {
+		if (!hasNativePreyCubes() || devouredAt() == gameTime) return this;
+		var data = previewData.copy();
+		data.putLong("DevouredAt", gameTime);
+		return POOL.intern(new MimicProfile(entityTypeId, stableData, data, baby));
+	}
+
+	/** The native model captured for measurement is also the model drawn when the growth clock starts. */
+	public MimicProfile renderProfile() {
+		if (!hasNativePreyCubes()) return this;
+		if (nativeRenderProfile == null) {
+			var data = previewData.copy();
+			for (var key : List.of("DevouredNativeCubes", "DevouredWidth", "DevouredHeight", "DevouredAt",
+				"DevouredBurial", DEVOURED_ANCHOR_TAG, DEVOURED_NORMAL_TAG, DEVOURED_SLIDE_TAG)) data.remove(key);
+			nativeRenderProfile = POOL.intern(new MimicProfile(entityTypeId, stableData, data, baby));
+		}
+		return nativeRenderProfile;
+	}
 	public boolean needsPreyTopology() { return isDevouredForm() && !hasNativePreyCubes(); }
 
 	public boolean isDevouredForm() {
@@ -182,16 +235,19 @@ public final class MimicProfile {
 	}
 	public float devouredWidth() { return previewData.getFloat("DevouredWidth"); }
 	public float devouredHeight() { return previewData.getFloat("DevouredHeight"); }
-	@Nullable
-	public SurgicalAssembly devouredAssembly() {
-		return isDevouredForm() && previewData.contains("SurgicalAssembly", Tag.TAG_COMPOUND)
-			? SurgicalAssembly.loadCached(previewData.getCompound("SurgicalAssembly")) : null;
-	}
-
 	public long devouredAt() { return previewData.getLong("DevouredAt"); }
+	@Nullable public Vec3 devouredSurfaceNormal() { return devouredSurfaceNormal; }
+	public Vec3 devouredSlide() { return devouredSlide; }
 	public double devouredBurial() {
 		double depth = previewData.getDouble("DevouredBurial");
-		return Double.isFinite(depth) ? Math.clamp(depth, 0, devouredHeight() / 2d) : 0;
+		double limit = devouredAnchor == null ? devouredHeight() / 2d
+			: Math.hypot(devouredHeight(), Math.sqrt(2) * devouredWidth()) / 2d;
+		return Double.isFinite(depth) ? Math.clamp(depth, 0, limit) : 0;
+	}
+
+	/** Point on the attachment face, in the prey's unrotated coordinates relative to its center. */
+	public Vec3 devouredAnchor() {
+		return devouredAnchor != null ? devouredAnchor : new Vec3(0, devouredBurial() - devouredHeight() / 2d, 0);
 	}
 
 	public int stableInt(String field) {
@@ -369,6 +425,12 @@ public final class MimicProfile {
 
 	private static CompoundTag sanitizePreviewData(CompoundTag source) {
 		CompoundTag preview = source.copy();
+		String key = net.neoforged.neoforge.attachment.AttachmentHolder.ATTACHMENTS_NBT_KEY;
+		if (preview.contains(key, Tag.TAG_COMPOUND)) {
+			var attachments = preview.getCompound(key);
+			attachments.remove(CBAttachmentTypes.DEVOURER_INVENTORY.getId().toString());
+			if (attachments.isEmpty()) preview.remove(key);
+		}
 		// Donkey, mule and llama cargo belongs to the installed chest, never to surgical tissue.
 		if (source.contains("ChestedHorse"))
 			preview.remove("Items");

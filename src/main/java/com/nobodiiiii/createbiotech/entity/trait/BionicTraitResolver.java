@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.entity.trait;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Iterator;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,70 +44,132 @@ public final class BionicTraitResolver {
 	public static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level) {
 		if (!BionicTraits.ENABLED || assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicTraitSet.EMPTY;
-		BionicTraitRegistry.Snapshot data = BionicTraitRegistry.snapshot(level);
-		BionicTissue tissue = BionicTissue.of(assembly, data);
-		List<BionicTraitDonors.Facts> donors = assembly.sources().stream()
-			.map(source -> BionicTraitDonors.get(source.profile(), level, data)).toList();
-		Map<BionicTrait, BionicTraitResult> results = new LinkedHashMap<>();
-		for (BionicTrait trait : data.definitions()) {
-			List<BitSet> bindings = new ArrayList<>();
-			Set<SurgicalAssembly.CombinationMember> owners = new HashSet<>();
-			for (int source = 0; source < tissue.sourceCount(); source++) {
-				BitSet cubes = BionicTraitCarriers.bind(trait, data.get(trait), tissue, source, donors.get(source));
-				bindings.add(cubes);
-				addMembers(owners, source, cubes);
-			}
-			if (owners.isEmpty()) continue;
-			BionicTraitResult result = evaluate(trait, data.get(trait), assembly, tissue, donors, bindings).withBindings(owners);
-			if (result.present())
-				results.put(trait, result);
+		var evaluation = new Evaluation(assembly, level);
+		BionicTraitSet result;
+		do { result = evaluation.step(); } while (result == null);
+		return result;
+	}
+
+	/** Ordinary assembly evaluation with yield points for server-tick budgets. Partial results stay private. */
+	public static final class Evaluation {
+		private final SurgicalAssembly assembly;
+		private final Level level;
+		private final BionicTraitRegistry.Snapshot data;
+		private final BionicTissue tissue;
+		private final List<BionicTraitDonors.Facts> donors;
+		private final Map<BionicTrait, BionicTraitResult> results = new LinkedHashMap<>();
+		private final List<BitSet> bindings = new ArrayList<>();
+		private final Set<SurgicalAssembly.CombinationMember> owners = new HashSet<>();
+		private int traitIndex;
+		private BionicTraitSet covered;
+		private Iterator<Map.Entry<BionicTrait, BionicTraitResult>> nativeConditions;
+		private ExtensionPass extensions;
+		private boolean overridesApplied;
+		private double tamingChance;
+		private BionicTraitSet result;
+
+		public Evaluation(SurgicalAssembly assembly, Level level) {
+			this.assembly = assembly;
+			this.level = level;
+			data = BionicTraitRegistry.snapshot(level);
+			tissue = BionicTissue.of(assembly, data);
+			donors = new ArrayList<>(tissue.sourceCount());
 		}
-		// Conditions may depend on another trait, so evaluate them after all coverage decisions.
-		BionicTraitSet covered = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso());
-		results.replaceAll((trait, result) -> {
-			if (!result.active())
-				return result;
+
+		/** Call on the level's thread. A cold donor probe or an extension callback is indivisible. */
+		@Nullable
+		public BionicTraitSet step() {
+			if (result != null) return result;
+			if (!BionicTraits.ENABLED) return BionicTraitSet.EMPTY;
+			if (donors.size() < tissue.sourceCount()) {
+				donors.add(BionicTraitDonors.get(tissue.source(donors.size()).profile(), level, data));
+				return null;
+			}
+			if (traitIndex < data.definitions().size()) {
+				bindOrEvaluate(data.definitions().get(traitIndex));
+				return null;
+			}
+			if (covered == null) {
+				covered = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso());
+				nativeConditions = results.entrySet().iterator();
+				return null;
+			}
+			if (nativeConditions.hasNext()) {
+				var entry = nativeConditions.next();
+				if (entry.getValue().active()) entry.setValue(checkAnatomy(entry.getKey(), entry.getValue()));
+				return null;
+			}
+			if (extensions == null) extensions = new ExtensionPass();
+			if (!extensions.step()) return null;
+			if (!overridesApplied) {
+				// Tameable tissue contributes before behavior suppression removes its label.
+				tamingChance = tamingChance(results, tissue);
+				BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
+				overridesApplied = true;
+				extensions = null;
+				return null;
+			}
+			result = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(), tamingChance);
+			return result;
+		}
+
+		private void bindOrEvaluate(BionicTrait trait) {
+			if (bindings.size() < tissue.sourceCount()) {
+				int end = Math.min(bindings.size() + 16, tissue.sourceCount());
+				for (int source = bindings.size(); source < end; source++) {
+					BitSet cubes = BionicTraitCarriers.bind(trait, data.get(trait), tissue, source, donors.get(source));
+					bindings.add(cubes);
+					addMembers(owners, source, cubes);
+				}
+				return;
+			}
+			if (!owners.isEmpty()) {
+				var bound = evaluate(trait, data.get(trait), assembly, tissue, donors, bindings).withBindings(owners);
+				if (bound.present()) results.put(trait, bound);
+			}
+			bindings.clear();
+			owners.clear();
+			traitIndex++;
+		}
+
+		private BionicTraitResult checkAnatomy(BionicTrait trait, BionicTraitResult value) {
 			return BionicGameplayAnatomy.apply(trait, data.get(trait), assembly, tissue,
-				BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, result), valid -> {
+				BionicTraitConditions.apply(trait, data.get(trait), assembly, tissue, covered, value), valid -> {
 					List<BitSet> restricted = new ArrayList<>();
 					for (int source = 0; source < tissue.sourceCount(); source++) restricted.add(new BitSet());
 					valid.forEach(member -> restricted.get(member.source()).set(member.cube()));
 					return evaluate(trait, data.get(trait), assembly, tissue, donors, restricted);
-				})
-				.withBindings(result.bindings());
-		});
-		DevouredTraits.apply(assembly, level, data, donors, results);
-		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
-		// Preserve anatomical contributions before behavior replacement removes their labels.
-		double tamingChance = tamingChance(results, tissue);
-		if (List.of(BionicTrait.TAMEABLE, BionicTrait.LIVESTOCK_TAMEABLE).stream()
-			.map(results::get).filter(java.util.Objects::nonNull).filter(BionicTraitResult::active)
-			.anyMatch(result -> result.members().stream().anyMatch(m -> assembly.sources().get(m.source()).isWholePrey())))
-			tamingChance = 1;
-		BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
-		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
-		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
-		return new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(),
-			tamingChance);
-	}
+				}).withBindings(value.bindings());
+		}
 
-	private static void applyExtensionConditions(Map<BionicTrait, BionicTraitResult> results,
-		BionicTraitRegistry.Snapshot data, SurgicalAssembly assembly, Level level, boolean headUsesTorso) {
-		if (results.keySet().stream().noneMatch(t -> !data.get(t).extensions().conditions().isEmpty())) return;
-		// Conditions may only disable: converge dependencies after native prerequisites, before overrides.
-		for (int pass = 0; pass < results.size(); pass++) {
-			BionicTraitSet conditioned = new BionicTraitSet(results, data.traits(), headUsesTorso);
-			boolean changed = false;
-			for (var entry : results.entrySet()) {
-				if (!entry.getValue().active()) continue;
-				var context = new com.nobodiiiii.createbiotech.api.bionic.BionicCondition.Context(
-					assembly, level, entry.getKey(), conditioned, entry.getValue());
-				if (data.get(entry.getKey()).extensions().conditions().stream().anyMatch(condition -> !condition.matches(context))) {
-					entry.setValue(entry.getValue().disabled(InactiveReason.EXTENSION_CONDITION));
-					changed = true;
+		/** Every dependency in a pass sees the same snapshot, even across tick boundaries. */
+		private final class ExtensionPass {
+			private final List<BionicTrait> traits = results.keySet().stream()
+				.filter(t -> !data.get(t).extensions().conditions().isEmpty()).toList();
+			private BionicTraitSet snapshot;
+			private int index;
+			private boolean changed;
+
+			boolean step() {
+				if (traits.isEmpty()) return true;
+				if (snapshot == null) snapshot = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso());
+				var trait = traits.get(index++);
+				var value = results.get(trait);
+				if (value.active()) {
+					var context = new com.nobodiiiii.createbiotech.api.bionic.BionicCondition.Context(
+						assembly, level, trait, snapshot, value);
+					if (data.get(trait).extensions().conditions().stream().anyMatch(condition -> !condition.matches(context))) {
+						results.put(trait, value.disabled(InactiveReason.EXTENSION_CONDITION));
+						changed = true;
+					}
 				}
+				if (index < traits.size()) return false;
+				if (!changed) return true;
+				index = 0;
+				changed = false;
+				snapshot = null;
+				return false;
 			}
-			if (!changed) break;
 		}
 	}
 

@@ -542,7 +542,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	@Nullable
 	private static Vec3 devourShellOffset(SurgicalAssembly assembly, List<SlimeBionicAnimator.SourceState> states) {
 		var geometry = assembly.attackGeometry();
-		if (geometry == null || assembly.sources().stream().noneMatch(s -> s.profile().needsPreyTopology())) return null;
+		if (geometry == null || assembly.sources().stream().noneMatch(s -> s.profile().isDevouredForm())) return null;
 		for (int i = 0; i < assembly.sources().size(); i++) {
 			var source = assembly.sources().get(i);
 			if (!source.profile().matches(CBEntityTypes.DEVOURER.getId())) continue;
@@ -614,16 +614,23 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			poseStack.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
 			if (assembly.preservesLayout())
 				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
-			if (restStates == null && source.profile().needsPreyTopology()) {
+			if (restStates == null && source.profile().isDevouredForm()) {
 				float progress = Mth.clamp((entity.level().getGameTime() - source.profile().devouredAt() + partialTick) / 40f, 0.001f, 1f);
 				if (progress < 1) {
 					float growth = progress * progress * (3 - 2 * progress);
 					double half = source.profile().devouredHeight() / 2d;
-					// Scale around the attachment on the shell, including for a horizontal donor.
-					var rotation = rotations.getOrDefault(0, SurgicalCubeRotation.IDENTITY);
-					Vec3 anchor = rotation.rotate(new Vec3(0, source.profile().devouredBurial() - half, 0)).add(0, half, 0);
-					poseStack.translate(anchor.x * (1 - growth), anchor.y * (1 - growth), anchor.z * (1 - growth));
+					// Scale around the attachment and slide it from inside the shell to its measured position.
+					var rotation = source.cubeRotations().getOrDefault(source.presentCubes().nextSetBit(0),
+						SurgicalCubeRotation.IDENTITY).inverseRotate(source.layPose());
+					Vec3 start = rotation.rotate(source.profile().devouredAnchor().subtract(source.profile().devouredSlide())).add(0, half, 0);
+					poseStack.translate(start.x * (1 - growth), start.y * (1 - growth), start.z * (1 - growth));
 					poseStack.scale(growth, growth, growth);
+					// Per-cube offsets are applied outside the pose stack by the native model renderer.
+					if (!renderOffsets.isEmpty()) {
+						var scaled = new java.util.HashMap<Integer, Vec3>();
+						renderOffsets.forEach((id, v) -> scaled.put(id, v.scale(growth)));
+						renderOffsets = scaled;
+					}
 				}
 			}
 			SurgicalModelRenderContext.Snapshot snapshot = restStates != null

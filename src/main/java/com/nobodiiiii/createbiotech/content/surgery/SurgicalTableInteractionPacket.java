@@ -66,20 +66,7 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 			buffer.writeInt(footprint.gridX());
 			buffer.writeInt(footprint.gridZ());
 		}
-		buffer.writeBoolean(bodyBounds != null);
-		if (bodyBounds != null) {
-			buffer.writeFloat(bodyBounds.width());
-			buffer.writeFloat(bodyBounds.height());
-			buffer.writeFloat(bodyBounds.depth());
-			buffer.writeFloat(bodyBounds.centerX());
-			buffer.writeFloat(bodyBounds.minY());
-			buffer.writeFloat(bodyBounds.centerZ());
-			buffer.writeFloat(bodyBounds.eyeHeight());
-			buffer.writeFloat(bodyBounds.legLength());
-			buffer.writeVarInt(bodyBounds.groundedLegCount());
-			buffer.writeVarInt(bodyBounds.groundedKneeCount());
-			buffer.writeFloat(bodyBounds.legVolumeRatio());
-		}
+		writeBodyBounds(buffer, bodyBounds);
 		buffer.writeDouble(bodyVolume);
 		buffer.writeBoolean(hitboxGeometry != null);
 		if (hitboxGeometry != null)
@@ -216,8 +203,25 @@ public record SurgicalTableInteractionPacket(BlockPos pos, InteractionHand hand,
 		return new SurgicalTableLayout.Proposal(offsets, footprints);
 	}
 
+	static void writeBodyBounds(FriendlyByteBuf buffer, @Nullable SurgicalAssembly.BodyBounds bodyBounds) {
+		buffer.writeBoolean(bodyBounds != null);
+		if (bodyBounds != null) {
+			buffer.writeFloat(bodyBounds.width());
+			buffer.writeFloat(bodyBounds.height());
+			buffer.writeFloat(bodyBounds.depth());
+			buffer.writeFloat(bodyBounds.centerX());
+			buffer.writeFloat(bodyBounds.minY());
+			buffer.writeFloat(bodyBounds.centerZ());
+			buffer.writeFloat(bodyBounds.eyeHeight());
+			buffer.writeFloat(bodyBounds.legLength());
+			buffer.writeVarInt(bodyBounds.groundedLegCount());
+			buffer.writeVarInt(bodyBounds.groundedKneeCount());
+			buffer.writeFloat(bodyBounds.legVolumeRatio());
+		}
+	}
+
 	@Nullable
-	private static SurgicalAssembly.BodyBounds readBodyBounds(FriendlyByteBuf buffer) {
+	static SurgicalAssembly.BodyBounds readBodyBounds(FriendlyByteBuf buffer) {
 		if (!buffer.readBoolean())
 			return null;
 		return SurgicalAssembly.BodyBounds.create(buffer.readFloat(), buffer.readFloat(), buffer.readFloat(),

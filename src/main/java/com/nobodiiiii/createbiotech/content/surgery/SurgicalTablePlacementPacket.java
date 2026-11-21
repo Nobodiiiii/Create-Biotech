@@ -84,10 +84,18 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
 			writeLayout(buffer, sourceLayout);
+		writePreyModels(buffer, preyModels);
+	}
+
+	static void writePreyModels(FriendlyByteBuf buffer, List<DevouredDonorTopology> preyModels) {
 		buffer.writeVarInt(preyModels.size());
 		for (var model : preyModels) {
 			buffer.writeUUID(model.donor());
-			buffer.writeVarInt(model.centers().size());
+			if (model.centers().isEmpty()) {
+				buffer.writeVarInt(-model.cubeCount());
+				continue;
+			}
+			buffer.writeVarInt(model.cubeCount());
 			model.centers().forEach(buffer::writeVec3);
 			buffer.writeVarInt(model.seams().size());
 			for (var seam : model.seams()) {
@@ -96,6 +104,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			}
 			buffer.writeNbt(model.anatomy().save());
 			buffer.writeDouble(model.lowestPointFromPivot());
+			buffer.writeNullable(model.headCenter(), FriendlyByteBuf::writeVec3);
+			buffer.writeDouble(model.outwardMidpoint());
 		}
 	}
 
@@ -121,7 +131,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		result.display(player);
 	}
 
-	private static List<DevouredDonorTopology> readPreyModels(FriendlyByteBuf buffer) {
+	static List<DevouredDonorTopology> readPreyModels(FriendlyByteBuf buffer) {
 		int count = buffer.readVarInt();
 		if (count < 0 || count > SurgicalAssembly.MAX_SOURCES) throw new IllegalArgumentException("Invalid prey count");
 		var result = new ArrayList<DevouredDonorTopology>(count);
@@ -129,11 +139,16 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		for (int i = 0; i < count; i++) {
 			var donor = buffer.readUUID();
 			int cubes = buffer.readVarInt();
+			if (cubes < 0) {
+				result.add(DevouredDonorTopology.oversized(donor, -cubes));
+				continue;
+			}
 			if (cubes < 1 || cubes > remaining) throw new IllegalArgumentException("Invalid native prey cube count");
 			remaining -= cubes;
 			var centers = new ArrayList<Vec3>(cubes);
 			for (int cube = 0; cube < cubes; cube++) centers.add(buffer.readVec3());
-			result.add(new DevouredDonorTopology(donor, centers, readSeams(buffer), readAnatomy(buffer), buffer.readDouble()));
+			result.add(new DevouredDonorTopology(donor, centers, readSeams(buffer), readAnatomy(buffer), buffer.readDouble(),
+				buffer.readNullable(FriendlyByteBuf::readVec3), buffer.readDouble(), cubes));
 		}
 		return result;
 	}

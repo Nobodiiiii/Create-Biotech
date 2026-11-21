@@ -74,7 +74,7 @@ final class SurgicalPlacementOperations {
 		List<Integer> cutOrder;
 		List<SurgicalTableLayout.Footprint> storedFootprints;
 		if (captured instanceof SlimeBionicEntity bionic) {
-			SurgicalAssembly boxed = bionic.getAssembly();
+			SurgicalAssembly boxed = bionic.getAssemblyForPlacement();
 			SurgicalAssembly assembly = boxed == null ? null : DevouredDonorTopology.expand(boxed, preyModels);
 			if (assembly == null)
 				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;

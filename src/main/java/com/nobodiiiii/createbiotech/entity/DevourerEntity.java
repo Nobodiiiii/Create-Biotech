@@ -1,9 +1,13 @@
 package com.nobodiiiii.createbiotech.entity;
 
+import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.animal.IronGolem;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -16,6 +20,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
@@ -45,9 +50,32 @@ public class DevourerEntity extends Slime {
 		SlimeMimicHandler.forceSetSlimeMimic(this, true);
 	}
 
+	static double maxHealthForSize(int size) { return 4.0d * size * size; }
+	static double attackDamageForSize(int size) { return 2.0d * size; }
+
+	@Override
+	public void setSize(int size, boolean heal) {
+		super.setSize(size, false);
+		int actualSize = getSize();
+		getAttribute(Attributes.MAX_HEALTH).setBaseValue(maxHealthForSize(actualSize));
+		getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(attackDamageForSize(actualSize));
+		if (heal) setHealth(getMaxHealth());
+	}
+
 	@Override
 	public void readAdditionalSaveData(CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
+		// LivingEntity restores saved attribute bases after Slime has applied its size.
+		int size = getSize();
+		var health = getAttribute(Attributes.MAX_HEALTH);
+		if (health.getBaseValue() == size * size) {
+			float fraction = getHealth() / getMaxHealth();
+			health.setBaseValue(maxHealthForSize(size));
+			setHealth(getMaxHealth() * fraction);
+		}
+		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
+		if (attack.getBaseValue() == size) attack.setBaseValue(attackDamageForSize(size));
+		if (!tag.contains("Health", Tag.TAG_ANY_NUMERIC)) setHealth(getMaxHealth());
 		if (!tag.contains(SlimeMimicHandler.SLIME_MIMIC_TAG) && !SlimeMimicHandler.isHauntedMimic(this))
 			SlimeMimicHandler.forceSetSlimeMimic(this, true);
 	}
@@ -60,6 +88,13 @@ public class DevourerEntity extends Slime {
 			target -> !(target instanceof Player) || Math.abs(target.getY() - getY()) <= 4));
 		devour = new DevourAttackGoal(this);
 		goalSelector.addGoal(0, devour);
+	}
+
+	@Override
+	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+		if (DevourerInventory.tryOpen(this, player, hand))
+			return InteractionResult.sidedSuccess(level().isClientSide);
+		return super.mobInteract(player, hand);
 	}
 
 	@Override
@@ -79,9 +114,15 @@ public class DevourerEntity extends Slime {
 			super.dealDamage(target);
 	}
 
+	@Override
+	public void push(Entity other) {
+		if (devour == null || !devour.pressing(other)) super.push(other);
+	}
+
 	// Slime handles players and iron golems itself. Extend the same contact path to other prey.
 	@Override
 	protected void doPush(Entity other) {
+		if (devour != null && devour.pressing(other)) return;
 		super.doPush(other);
 		if (other instanceof LivingEntity target && !(target instanceof Player)
 			&& !(target instanceof IronGolem)) dealDamage(target);

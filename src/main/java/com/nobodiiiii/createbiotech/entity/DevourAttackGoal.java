@@ -2,15 +2,19 @@ package com.nobodiiiii.createbiotech.entity;
 
 import java.util.EnumSet;
 
+import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
-
+import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.Mth;
 import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,23 +24,31 @@ import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
-import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.Shapes;
 
 /** A crush requires a ground launch, clearance above the prey and descending contact. */
 public final class DevourAttackGoal extends Goal {
 	private static final double MAX_JUMP_HEIGHT = 4;
+	private static final double LAUNCH_REACH = 3.0;
+	private static final double MIN_CLEARANCE = 0.25;
+	private static final double MAX_HORIZONTAL_SPEED = 0.8;
+	private static final int ASCENT_TICKS = 8;
+	private static final double MIN_DIVE_SPEED = 0.36;
 	private final Mob hunter;
 	private LivingEntity prey;
 	private int flightTicks;
-	private long lastContact;
+	private long reservedUntil;
+	private long groundDeadline;
 	private long retryAt;
 	private boolean running;
-	private double ceiling;
+	private double takeoffY;
+	private double apexY;
 	private double previousBottom;
 	private float crushDamage;
 	private boolean clearedPrey;
+	private boolean diving;
 
 	DevourAttackGoal(Mob hunter) {
 		this.hunter = hunter;
@@ -63,103 +75,181 @@ public final class DevourAttackGoal extends Goal {
 			|| SlimeMimicHandler.isSlimeMimic(entity) || SlimeMimicHandler.isHauntedMimic(entity);
 	}
 
-	/** Only a normal, in-range contact attack can be replaced. The vanilla pursuit goals keep running until then. */
+	/** A contact or arm swing can supply its actual damage before the next goal-selector pass. */
 	boolean replaceContact(LivingEntity target, float damage) {
 		if (running) return true;
-		if (!(hunter.level() instanceof ServerLevel level) || !isPrey(hunter, target, size(hunter))
-			|| !hunter.canAttack(target) || !hunter.hasLineOfSight(target)
-			|| target.getBoundingBox().maxY - hunter.getY() + 0.25 > MAX_JUMP_HEIGHT
-			|| target.getHealth() >= estimatedDamage(level, target, hunter.damageSources().mobAttack(hunter), damage)) return false;
+		if (!(hunter.level() instanceof ServerLevel level) || !available(level)
+			|| !canLaunchAt(level, target, damage)) return false;
+		if (prey == null) reservedUntil = level.getGameTime() + 4;
+		if (prey != null && prey != target) return false;
 		prey = target;
-		lastContact = level.getGameTime();
 		crushDamage = 2 * damage;
 		return true;
 	}
 
+	private boolean available(ServerLevel level) {
+		long now = level.getGameTime();
+		if (prey != null && now > reservedUntil) fail(level);
+		return now >= retryAt;
+	}
+
+	private boolean validPrey(LivingEntity target) {
+		return target != null && target.isAlive() && hunter.isAlive() && target.level() == hunter.level()
+			&& !hunter.isPassenger() && !hunter.hasControllingPassenger()
+			&& isPrey(hunter, target, size(hunter)) && hunter.canAttack(target);
+	}
+
+	private boolean canLaunchAt(ServerLevel level, LivingEntity target, float damage) {
+		// Only players have difficulty-scaled damage. Healthy mobs need no armor/enchantment query on pursuit ticks.
+		return damage > 0 && (target instanceof Player || target.getHealth() <= damage)
+			&& inLaunchRange(hunter.getBoundingBox(), target.getBoundingBox()) && validPrey(target) && hunter.hasLineOfSight(target)
+			&& target.getHealth() <= estimatedDamage(level, target, hunter.damageSources().mobAttack(hunter), damage);
+	}
+
+	private static boolean inLaunchRange(AABB hunter, AABB target) {
+		double dx = Math.max(0, Math.max(target.minX - hunter.maxX, hunter.minX - target.maxX));
+		double dz = Math.max(0, Math.max(target.minZ - hunter.maxZ, hunter.minZ - target.maxZ));
+		return dx * dx + dz * dz <= LAUNCH_REACH * LAUNCH_REACH && target.maxY + MIN_CLEARANCE <= hunter.minY + MAX_JUMP_HEIGHT
+			&& hunter.minY - target.maxY <= MAX_JUMP_HEIGHT;
+	}
+
+	boolean pressing(Entity other) {
+		return running && flightTicks > 0 && other == prey;
+	}
+
 	@Override public boolean canUse() {
-		return hunter.level().getGameTime() >= retryAt && hunter.level().getGameTime() - lastContact <= 10
-			&& validPrey() && hunter.isWithinMeleeAttackRange(prey) && hunter.hasLineOfSight(prey);
+		if (!(hunter.level() instanceof ServerLevel level) || !available(level)) return false;
+		// The selected prey can trigger a ground leap before either mob has physically touched the other.
+		if (prey != null) {
+			if (canLaunchAt(level, prey, crushDamage * 0.5f)) return true;
+			prey = null;
+		}
+		var target = hunter.getTarget();
+		if (target == null || !inLaunchRange(hunter.getBoundingBox(), target.getBoundingBox()) || size(hunter) <= 0) return false;
+		float damage = hunter instanceof SlimeBionicEntity bionic ? bionic.devourAttackDamage()
+			: (float) hunter.getAttributeValue(Attributes.ATTACK_DAMAGE);
+		return replaceContact(target, damage);
 	}
 
-	private boolean validPrey() {
-		return prey != null && prey.isAlive() && hunter.isAlive() && !hunter.isPassenger() && !hunter.hasControllingPassenger()
-			&& hunter.canAttack(prey) && isPrey(hunter, prey, size(hunter));
-	}
-
-	@Override public boolean canContinueToUse() { return running && validPrey(); }
+	@Override public boolean canContinueToUse() { return running && validPrey(prey); }
 	@Override public boolean requiresUpdateEveryTick() { return true; }
 
 	@Override public void start() {
 		running = true;
 		flightTicks = 0;
+		clearedPrey = false;
+		diving = false;
+		groundDeadline = hunter.level().getGameTime() + 20;
 		hunter.getNavigation().stop();
 		if (hunter instanceof SlimeBionicEntity bionic) bionic.setDevourGroundAttack(true);
 	}
 
 	@Override public void stop() {
+		if (running) retryAt = hunter.level().getGameTime() + 10;
 		running = false;
 		flightTicks = 0;
 		prey = null;
 		if (hunter instanceof SlimeBionicEntity bionic) bionic.setDevourGroundAttack(false);
 	}
 
-	@Override public void tick() {
-		if (!(hunter.level() instanceof ServerLevel level) || !running) return;
-		if (flightTicks > 0) {
-			descend(level);
-			return;
-		}
-		if (level.getGameTime() - lastContact > 40 || !hunter.isWithinMeleeAttackRange(prey) || !hunter.hasLineOfSight(prey)) {
-			running = false;
-			return;
-		}
-		if (!hunter.onGround()) return;
-		double rise = prey.getBoundingBox().maxY - hunter.getY() + 0.25;
-		if (rise > MAX_JUMP_HEIGHT) {
-			running = false;
-			return;
-		}
-		previousBottom = hunter.getY();
-		ceiling = previousBottom + MAX_JUMP_HEIGHT;
-		flightTicks = 1;
-		clearedPrey = false;
-		Vec3 toward = prey.position().subtract(hunter.position()).multiply(0.15, 0, 0.15);
-		hunter.setDeltaMovement(toward.add(0, Math.sqrt(2 * 0.08 * Math.max(0.8, rise)) + 0.12, 0));
-		hunter.hasImpulse = true;
+	private void fail(ServerLevel level) {
+		running = false;
+		prey = null;
+		retryAt = level.getGameTime() + 10;
 	}
 
-	private void descend(ServerLevel level) {
-		var movement = hunter.getDeltaMovement();
-		var box = prey.getBoundingBox();
-		double top = box.maxY;
-		double y = hunter.getY();
-		boolean over = hunter.getBoundingBox().maxX > box.minX && hunter.getBoundingBox().minX < box.maxX
-			&& hunter.getBoundingBox().maxZ > box.minZ && hunter.getBoundingBox().minZ < box.maxZ;
-		if (y >= top && over) clearedPrey = true;
-		if (clearedPrey && movement.y <= 0 && previousBottom >= top - 0.15 && y <= top + 0.08
-			&& over && hunter.hasLineOfSight(prey)) {
-			hit(level, crushDamage);
-			running = false;
+	@Override public void tick() {
+		if (!(hunter.level() instanceof ServerLevel level) || !running) return;
+		if (!validPrey(prey)) {
+			fail(level);
 			return;
 		}
-		if (++flightTicks > 45 || flightTicks > 3 && hunter.onGround()) {
-			running = false;
-			retryAt = level.getGameTime() + 10;
-			return;
+		var body = hunter.getBoundingBox();
+		var target = prey.getBoundingBox();
+		if (flightTicks == 0) {
+			if (level.getGameTime() > groundDeadline || !inLaunchRange(body, target) || !hunter.hasLineOfSight(prey)) {
+				fail(level);
+				return;
+			}
+			if (!hunter.onGround()) return;
+			double desired = Mth.clamp(target.maxY - body.minY + 2.0, 3.0, MAX_JUMP_HEIGHT);
+			double room = Shapes.collide(Direction.Axis.Y, body, level.getBlockCollisions(hunter, body.expandTowards(0, desired, 0)), desired);
+			if (room < Math.max(0.8, target.maxY - body.minY + MIN_CLEARANCE)
+				|| prey.getHealth() > estimatedDamage(level, prey, hunter.damageSources().mobAttack(hunter), crushDamage * 0.5f)) {
+				fail(level);
+				return;
+			}
+			takeoffY = previousBottom = body.minY;
+			apexY = takeoffY + room;
+			hunter.setOnGround(false);
+		} else {
+			boolean over = body.maxX > target.minX && body.minX < target.maxX && body.maxZ > target.minZ && body.minZ < target.maxZ;
+			if (over && body.minY >= target.maxY) clearedPrey = true;
+			// Press down through the prey. A moving or airborne target can cross the impact height between ticks.
+			double impactY = target.minY + Math.min(0.2, target.getYsize() * 0.25);
+			if (diving && clearedPrey && over && body.minY <= previousBottom && body.minY <= target.maxY + 1e-5
+				&& (hunter.onGround() && body.maxY >= target.minY || previousBottom >= impactY && body.minY <= impactY)
+				&& hunter.hasLineOfSight(prey)) {
+				running = false;
+				hit(level, crushDamage);
+				return;
+			}
+			if (hunter.onGround() || flightTicks >= 40) {
+				fail(level);
+				return;
+			}
+			if (flightTicks >= ASCENT_TICKS || hunter.verticalCollision && !hunter.verticalCollisionBelow) diving = true;
 		}
-		previousBottom = y;
-		Vec3 offset = prey.position().subtract(hunter.position());
-		hunter.setDeltaMovement(Mth.clamp(offset.x * 0.3, -0.32, 0.32),
-			Math.min(movement.y, ceiling - y), Mth.clamp(offset.z * 0.3, -0.32, 0.32));
+
+		// Each ascent step aims at a point on the arc. Switch directly to the dive at its apex.
+		double vertical;
+		if (diving) {
+			vertical = Math.min(hunter.getDeltaMovement().y, -MIN_DIVE_SPEED);
+		} else {
+			double remaining = 1.0 - (flightTicks + 1.0) / ASCENT_TICKS;
+			vertical = takeoffY + (apexY - takeoffY) * (1.0 - remaining * remaining) - body.minY;
+		}
+		Vec3 aim = target.getCenter().subtract(body.getCenter()).multiply(1, 0, 1);
+		double steeringTicks = diving ? 2.0 : Math.clamp(ASCENT_TICKS - flightTicks, 1, 4);
+		Vec3 horizontal = aim.scale(1.0 / Math.max(steeringTicks, aim.length() / MAX_HORIZONTAL_SPEED));
+		previousBottom = body.minY;
+		flightTicks++;
+		hunter.setDeltaMovement(horizontal.x, vertical, horizontal.z);
+		hunter.hasImpulse = true;
 		hunter.resetFallDistance();
 	}
 
+	/** The drops event confirms a real death, after totems and death cancellation, for this hit only. */
+	static final class CrushDamage extends DamageSource {
+		private final LivingEntity target;
+		private boolean killedTarget;
+
+		CrushDamage(Mob hunter, LivingEntity target) {
+			super(hunter.damageSources().mobAttack(hunter).typeHolder(), hunter);
+			this.target = target;
+		}
+
+		void confirmDeath(LivingEntity victim) {
+			if (victim == target) killedTarget = true;
+		}
+	}
+
 	private void hit(ServerLevel level, float damage) {
-		var source = hunter.damageSources().mobAttack(hunter);
-		if (!prey.hurt(source, damage)) return;
+		LivingEntity target = prey;
+		var source = new CrushDamage(hunter, target);
+		if (!target.hurt(source, damage)) return;
 		hunter.playSound(SoundEvents.SLIME_ATTACK);
-		EnchantmentHelper.doPostAttackEffects(level, prey, source);
-		if (prey.isAlive() && hunter instanceof SlimeBionicEntity bionic) bionic.afterDevourHit(prey);
+		EnchantmentHelper.doPostAttackEffects(level, target, source);
+		if (target.isAlive()) {
+			if (hunter instanceof SlimeBionicEntity bionic) bionic.afterDevourHit(target);
+		} else if (source.killedTarget && !target.isRemoved()) {
+			// As in Frog's ShootTongue, finish removal after hurt has delivered the ordinary death and loot.
+			target.remove(Entity.RemovalReason.KILLED);
+			// Removing a tracked entity notifies its observers. The victim's own connection tracks
+			// its local player separately and has already received the vanilla death-screen packet.
+			if (target instanceof ServerPlayer player)
+				player.connection.send(new ClientboundRemoveEntitiesPacket(player.getId()));
+		}
 	}
 
 	static float estimatedDamage(ServerLevel level, LivingEntity target, DamageSource source, float damage) {

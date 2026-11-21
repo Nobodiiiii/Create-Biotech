@@ -267,13 +267,30 @@ final class SurgicalPackedPreviewService {
 		private SurgicalPackingAlignment alignment;
 		private boolean alignmentResolved, correctionApplied, failed, cancelled;
 		private PackedBodyPreview result;
-		private PackedPreparation(SurgicalAssembly assembly) {
+		PackedPreparation(SurgicalAssembly assembly) {
 			original = measuredAssembly = assembly;
 			capture = new PackedCapture(assembly);
 		}
-		private PackedBodyPreview poll(ClientLevel level) {
+		PackedBodyPreview poll(ClientLevel level) {
 			if (cancelled) return null;
 			if (result != null || failed) return result;
+			var ready = pollMetrics(level);
+			if (failed || metrics == null || !metrics.finished() || !SurgicalPreparationBudget.begin(false)) return null;
+			try {
+				SurgicalAssembly packed = original;
+				if (ready != null) {
+					if (ready.packingAlignment() != null) packed = ready.packingAlignment().applyToPacked(packed, ready.attackGeometry());
+					if (packed == null) { failed = true; return null; }
+					packed = packed.withBodyGeometry(ready.bodyBounds(), ready.hitboxGeometry(), ready.bodyVolume());
+					if (ready.attackGeometry() != null) packed = packed.withAttackGeometry(ready.attackGeometry());
+				}
+				return result = new PackedBodyPreview(packed, ready, BionicTraitResolver.resolve(packed, level));
+			} finally { SurgicalPreparationBudget.end(); }
+		}
+
+		/** Live growth needs the measurements only. The server installs the body and resolves its traits. */
+		PackedBodyMetrics pollMetrics(ClientLevel level) {
+			if (cancelled || failed) return null;
 			if (measured == null) {
 				measured = capture.poll();
 				if (measured == null) { failed = capture.invalid; return null; }
@@ -321,18 +338,7 @@ final class SurgicalPackedPreviewService {
 				metrics = new SurgicalClientJob<>("bodyMetrics(async)",
 					() -> measureBodyMetrics(assembly, frozen, donors, selectedAlignment, reusableGeometry));
 			}
-			var ready = metrics.poll();
-			if (!metrics.finished() || !SurgicalPreparationBudget.begin(false)) return null;
-			try {
-				SurgicalAssembly packed = original;
-				if (ready != null) {
-					if (ready.packingAlignment() != null) packed = ready.packingAlignment().applyToPacked(packed, ready.attackGeometry());
-					if (packed == null) { failed = true; return null; }
-					packed = packed.withBodyGeometry(ready.bodyBounds(), ready.hitboxGeometry(), ready.bodyVolume());
-					if (ready.attackGeometry() != null) packed = packed.withAttackGeometry(ready.attackGeometry());
-				}
-				return result = new PackedBodyPreview(packed, ready, BionicTraitResolver.resolve(packed, level));
-			} finally { SurgicalPreparationBudget.end(); }
+			return metrics.poll();
 		}
 		void cancel() {
 			cancelled = true;

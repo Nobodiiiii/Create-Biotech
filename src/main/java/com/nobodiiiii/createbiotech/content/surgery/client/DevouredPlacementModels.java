@@ -9,6 +9,8 @@ import java.util.Map;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.surgery.DevouredDonorTopology;
+import com.nobodiiiii.createbiotech.content.surgery.DevouredGrowthPose;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 
@@ -21,8 +23,9 @@ final class DevouredPlacementModels {
 	private final List<MimicProfile> nativeProfiles;
 	private final List<DevouredDonorTopology> measured = new ArrayList<>();
 	private SurgicalClientJob<DevouredDonorTopology> job;
+	private SurgicalClientJob<SurgicalAssembly> expansion;
 	private int generation = -1;
-	private SurgicalAssembly expanded;
+	private int remainingCubes;
 
 	DevouredPlacementModels(SurgicalAssembly boxed) {
 		this.boxed = boxed;
@@ -31,7 +34,10 @@ final class DevouredPlacementModels {
 	}
 
 	List<DevouredDonorTopology> observations() { return measured; }
-	void cancel() { if (job != null) job.cancel(); }
+	void cancel() {
+		if (job != null) job.cancel();
+		if (expansion != null) expansion.cancel();
+	}
 
 	SurgicalAssembly prepare(int resources) {
 		if (prey.isEmpty()) return boxed;
@@ -40,9 +46,10 @@ final class DevouredPlacementModels {
 			generation = resources;
 			job = null;
 			measured.clear();
-			expanded = null;
+			remainingCubes = DevouredDonorTopology.availableCubes(boxed);
+			expansion = null;
 		}
-		if (measured.size() == prey.size()) return expanded;
+		if (expansion != null) return expansion.poll();
 		int index = measured.size();
 		if (job == null) {
 			var preview = SurgicalSourceModelRenderer.previewDeferred(nativeProfiles.get(index));
@@ -50,35 +57,65 @@ final class DevouredPlacementModels {
 			var snapshot = SurgicalSourceModelRenderer.geometryDeferred(preview, 0, new BitSet(), Map.of(), Map.of(),
 				new PoseStack(), 0, null);
 			if (snapshot == null) return null;
-			job = new SurgicalClientJob<>("placement(prey topology)", () -> measure(prey.get(index), snapshot));
+			int remaining = remainingCubes;
+			var source = prey.get(index);
+			job = new SurgicalClientJob<>("placement(prey topology)", () -> snapshot.observedCubeCount() > remaining
+				? DevouredDonorTopology.oversized(source.donorId(), snapshot.observedCubeCount()) : measure(source, snapshot));
 		}
 		var topology = job.poll();
 		if (topology == null) return null;
 		measured.add(topology);
+		remainingCubes -= topology.centers().size();
 		job = null;
-		if (measured.size() == prey.size()) expanded = DevouredDonorTopology.expand(boxed, measured);
-		return expanded;
+		if (measured.size() == prey.size()) {
+			var observations = List.copyOf(measured);
+			expansion = new SurgicalClientJob<>("placement(native sources)", () -> DevouredDonorTopology.expand(boxed, observations));
+			return expansion.poll();
+		}
+		return null;
 	}
 
 	private DevouredDonorTopology measure(SurgicalAssembly.Source source, SurgicalModelRenderContext.Snapshot snapshot) {
 		int count = snapshot.observedCubeCount();
 		if (!SurgicalAssembly.validCubeCount(count) || snapshot.cubes().size() != count) return null;
 		var centers = new Vec3[count];
-		var pose = boxed.layoutLayPose();
-		var rotation = source.cubeRotations().getOrDefault(0, SurgicalCubeRotation.IDENTITY);
-		var pivot = new Vec3(0, source.profile().devouredHeight() / 2d, 0);
-		double lowest = Double.POSITIVE_INFINITY;
-		for (var cube : snapshot.cubes()) {
-			if (cube.cubeId() < 0 || cube.cubeId() >= count || centers[cube.cubeId()] != null) return null;
-			centers[cube.cubeId()] = cube.corners().stream().reduce(Vec3.ZERO, Vec3::add).scale(1d / 8);
-			for (Vec3 point : cube.corners()) {
-				Vec3 fromPivot = source.layPose().rotate(point.subtract(pivot));
-				lowest = Math.min(lowest, pose.inverseRotate(rotation.rotate(fromPivot)).y);
-			}
-		}
 		var anatomy = SurgicalPlacementController.discoveredAnatomy(snapshot.cubes(), count);
 		if (!anatomy.hasVolumes()) return null;
-		return new DevouredDonorTopology(source.donorId(), Arrays.asList(centers),
-			SurgicalClientTopology.buildContactTopology(count, snapshot.cubes()).seams(), anatomy, lowest);
+		Vec3 headSum = Vec3.ZERO;
+		double headVolume = 0;
+		for (var cube : snapshot.cubes()) {
+			int id = cube.cubeId();
+			if (id < 0 || id >= count || centers[id] != null) return null;
+			centers[id] = cube.corners().stream().reduce(Vec3.ZERO, Vec3::add).scale(1d / 8);
+			if (cube.head()) {
+				double volume = anatomy.volume(id);
+				headSum = headSum.add(centers[id].scale(volume));
+				headVolume += volume;
+			}
+		}
+		Vec3 headCenter = headVolume > 0 ? headSum.scale(1 / headVolume) : null;
+		var nativeCenters = Arrays.asList(centers);
+		var growth = DevouredGrowthPose.measured(source, nativeCenters, anatomy, headCenter);
+		var pose = boxed.layoutLayPose();
+		var rotation = growth == null ? source.cubeRotations().getOrDefault(0, SurgicalCubeRotation.IDENTITY)
+			: growth.rotation().reframe(SurgicalLayPose.IDENTITY, pose);
+		var pivot = new Vec3(0, source.profile().devouredHeight() / 2d, 0);
+		double lowest = Double.POSITIVE_INFINITY;
+		double minOut = Double.POSITIVE_INFINITY, maxOut = Double.NEGATIVE_INFINITY;
+		var normal = source.profile().devouredSurfaceNormal();
+		for (var cube : snapshot.cubes()) {
+			for (Vec3 point : cube.corners()) {
+				Vec3 fromPivot = source.layPose().rotate(point.subtract(pivot));
+				Vec3 upright = pose.inverseRotate(rotation.rotate(fromPivot));
+				lowest = Math.min(lowest, upright.y);
+				if (normal != null) {
+					double out = upright.dot(normal);
+					minOut = Math.min(minOut, out);
+					maxOut = Math.max(maxOut, out);
+				}
+			}
+		}
+		return new DevouredDonorTopology(source.donorId(), nativeCenters, SurgicalClientTopology.buildContactTopology(count,
+			snapshot.cubes()).seams(), anatomy, lowest, headCenter, normal == null ? 0 : (minOut + maxOut) / 2, count);
 	}
 }

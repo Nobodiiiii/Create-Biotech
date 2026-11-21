@@ -4,6 +4,10 @@ import java.util.function.Supplier;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.buttercat.block.SuperButterStreak;
+import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
+
+import net.minecraft.world.entity.Mob;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.attachment.AttachmentType;
@@ -17,6 +21,10 @@ public final class CBAttachmentTypes {
 	public static final Supplier<AttachmentType<SuperButterStreak>> SUPER_BUTTER_STREAK =
 		ATTACHMENT_TYPES.register("super_butter_streak",
 			() -> AttachmentType.builder(SuperButterStreak::new).build());
+
+	public static final DeferredHolder<AttachmentType<?>, AttachmentType<DevourerInventory>> DEVOURER_INVENTORY =
+		ATTACHMENT_TYPES.register("devourer_inventory",
+			() -> AttachmentType.serializable(holder -> new DevourerInventory((Mob) holder)).build());
 
 	private CBAttachmentTypes() {}
 

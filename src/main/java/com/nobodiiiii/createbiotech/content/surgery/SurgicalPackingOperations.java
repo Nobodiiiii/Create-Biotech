@@ -11,6 +11,7 @@ import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResolver;
+import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -18,6 +19,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 /** SurgicalPackingOperations algorithms over the canonical SurgicalTableBlockEntity state. */
 final class SurgicalPackingOperations {
@@ -42,7 +44,8 @@ final class SurgicalPackingOperations {
 		BitSet component = group.components().get(subject.persistentId());
 		if (component == null || component.isEmpty() || operationOwner.getLevel() == null)
 			return false;
-		SurgicalAssembly assembly = SurgicalTableConnections.packedAssembly(operationOwner, group, subject);
+		var anchor = SurgicalTableConnections.packingAnchor(operationOwner, group);
+		SurgicalAssembly assembly = SurgicalTableConnections.packedAssembly(operationOwner, group, anchor);
 		SlimeBionicEntity bionic = assembly == null ? null : SurgicalPackingOperations.measuredBionic(operationOwner, assembly, bodyBounds, bodyVolume,
 			hitboxGeometry, attackGeometry, packingAlignment);
 		if (bionic == null || !CapturedEntityBoxHelper.captureEntityFromPlayerStack(boxes, player, bionic))
@@ -73,7 +76,8 @@ final class SurgicalPackingOperations {
 		BitSet component = group.components().get(subject.persistentId());
 		if (component == null || component.isEmpty())
 			return false;
-		SurgicalAssembly sourceAssembly = SurgicalTableConnections.packedAssembly(operationOwner, group, subject);
+		var anchor = SurgicalTableConnections.packingAnchor(operationOwner, group);
+		SurgicalAssembly sourceAssembly = SurgicalTableConnections.packedAssembly(operationOwner, group, anchor);
 		if (sourceAssembly == null)
 			return false;
 		SlimeBionicEntity bionic = SurgicalPackingOperations.measuredBionic(operationOwner, sourceAssembly, bodyBounds, bodyVolume, hitboxGeometry,
@@ -90,7 +94,8 @@ final class SurgicalPackingOperations {
 		if (!CapturedEntityBoxHelper.captureEntity(kit, bionic))
 			return false;
 		SurgicalKitItem.setTemporaryMove(kit, operationOwner.getLevel().dimension().location(), operationOwner.getBlockPos(),
-			subject.persistentId(), cubeId, group.components(), sourceSubjects, sourceAssembly.save());
+			anchor.persistentId(), group.components().get(anchor.persistentId()).nextSetBit(0),
+			group.components(), sourceSubjects, sourceAssembly.save());
 		operationOwner.getLevel().playSound(null, operationOwner.getBlockPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.2f, 0.85f);
 		return true;
 	}
@@ -127,32 +132,54 @@ final class SurgicalPackingOperations {
 		SurgicalAssembly.HitboxGeometry hitboxGeometry,
 		@Nullable SurgicalAssembly.AttackGeometry attackGeometry,
 		@Nullable SurgicalPackingAlignment packingAlignment) {
-		if (!SurgicalPackingOperations.validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
-			|| !SurgicalPackingOperations.validMobilityMeasurements(assembly, bodyBounds))
-			return null;
-		assembly = SurgicalPackingOperations.alignPackedAssembly(operationOwner, assembly, attackGeometry, packingAlignment);
-		if (assembly == null)
-			return null;
-		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
-		if (attackGeometry != null
-			&& attackGeometry.armCount() == SurgicalPackingOperations.limbCount(assembly, SurgicalLimbType.SHOULDER))
-			assembly = assembly.withAttackGeometry(attackGeometry);
+		assembly = measuredAssembly(operationOwner.getLevel(), assembly, bodyBounds, bodyVolume, hitboxGeometry,
+			attackGeometry, packingAlignment);
+		if (assembly == null) return null;
 		SlimeBionicEntity bionic = CBEntityTypes.SLIME_BIONIC.get().create(operationOwner.getLevel());
 		if (bionic != null)
 			bionic.setAssembly(assembly);
 		return bionic;
 	}
 
-	static @Nullable
-	SurgicalAssembly alignPackedAssembly(SurgicalTableBlockEntity operationOwner, SurgicalAssembly assembly,
-		@Nullable SurgicalAssembly.AttackGeometry geometry, @Nullable SurgicalPackingAlignment alignment) {
-		if (alignment == null) return assembly;
-		if (geometry == null || geometry.armCount() != SurgicalPackingOperations.limbCount(assembly, SurgicalLimbType.SHOULDER))
+	@Nullable
+	static SurgicalAssembly measuredAssembly(Level level, SurgicalAssembly assembly,
+		SurgicalAssembly.BodyBounds bodyBounds, double bodyVolume, SurgicalAssembly.HitboxGeometry hitboxGeometry,
+		@Nullable SurgicalAssembly.AttackGeometry attackGeometry, @Nullable SurgicalPackingAlignment packingAlignment) {
+		var measured = prepareMeasuredAssembly(assembly, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, packingAlignment);
+		return measured == null ? null : measured.authorized(level);
+	}
+
+	record MeasuredBody(SurgicalAssembly installed, @Nullable SurgicalAssembly beforeAlignment) {
+		boolean acceptsAlignment(BionicTraitSet traits) {
+			return traits.members(BionicTrait.BLOCK_ATTACHMENT).contains(installed.blockAttachmentCarrier());
+		}
+
+		@Nullable SurgicalAssembly authorized(Level level) {
+			if (beforeAlignment != null && !acceptsAlignment(BionicTraitResolver.resolve(beforeAlignment, level))) return null;
+			return installed;
+		}
+	}
+
+	/** Pure geometry preparation. Only the final carrier authorization reads the live trait catalog and level. */
+	@Nullable
+	static MeasuredBody prepareMeasuredAssembly(SurgicalAssembly assembly, SurgicalAssembly.BodyBounds bodyBounds,
+		double bodyVolume, SurgicalAssembly.HitboxGeometry hitboxGeometry, @Nullable SurgicalAssembly.AttackGeometry attackGeometry,
+		@Nullable SurgicalPackingAlignment packingAlignment) {
+		if (bodyBounds == null || !SurgicalHealthCalibration.validMeasuredVolume(bodyVolume, hitboxGeometry)) return null;
+		if (!SurgicalPackingOperations.validHitboxGeometry(assembly, bodyBounds, hitboxGeometry)
+			|| !SurgicalPackingOperations.validMobilityMeasurements(assembly, bodyBounds))
 			return null;
-		assembly = assembly.withAttackGeometry(geometry);
-		if (!BionicTraitResolver.resolve(assembly, operationOwner.getLevel()).members(BionicTrait.BLOCK_ATTACHMENT)
-			.contains(alignment.carrier())) return null;
-		return alignment.applyToPacked(assembly, geometry);
+		SurgicalAssembly beforeAlignment = null;
+		boolean validArms = attackGeometry != null && attackGeometry.armCount() == limbCount(assembly, SurgicalLimbType.SHOULDER);
+		if (packingAlignment != null) {
+			if (!validArms) return null;
+			beforeAlignment = assembly.withAttackGeometry(attackGeometry);
+			assembly = packingAlignment.applyToPacked(beforeAlignment, attackGeometry);
+			if (assembly == null) return null;
+		}
+		assembly = assembly.withBodyGeometry(bodyBounds, hitboxGeometry, bodyVolume);
+		if (validArms) assembly = assembly.withAttackGeometry(attackGeometry);
+		return new MeasuredBody(assembly, beforeAlignment);
 	}
 
 	static int limbCount(SurgicalAssembly assembly, SurgicalLimbType type) {
@@ -190,9 +217,8 @@ final class SurgicalPackingOperations {
 		if (group == null)
 			return null;
 		Map<Integer, BitSet> components = operationOwner.componentsBySubjectId(group);
-		// A shared preview needs a stable coordinate frame, independent of the first hovered subject.
-		int anchorId = components.keySet().stream().mapToInt(Integer::intValue).min().orElseThrow();
-		SurgicalAssembly assembly = SurgicalTableConnections.packedAssembly(operationOwner, group, operationOwner.getSubject(anchorId));
+		var anchor = SurgicalTableConnections.packingAnchor(operationOwner, group);
+		SurgicalAssembly assembly = SurgicalTableConnections.packedAssembly(operationOwner, group, anchor);
 		return assembly == null ? null : new SurgicalTableBlockEntity.PackedAssemblyPreview(assembly, components);
 	}
 

@@ -383,7 +383,8 @@ final class SurgicalGlueOperations {
 	SurgicalAssembly previewPackedAssembly(SurgicalTableBlockEntity operationOwner, int subjectId, int cubeId, int observedCubeCount,
 		List<SurgicalAssembly.Seam> observedSeams) {
 		SurgicalTableBlockEntity.ComponentGroup group = SurgicalPackingOperations.previewPackedGroup(operationOwner, subjectId, cubeId, observedCubeCount, observedSeams);
-		return group == null ? null : SurgicalTableConnections.packedAssembly(operationOwner, group, operationOwner.getSubject(subjectId));
+		return group == null ? null : SurgicalTableConnections.packedAssembly(operationOwner, group,
+			SurgicalTableConnections.packingAnchor(operationOwner, group));
 	}
 
 	/** Uses the exact same non-mutating acceptance path as {@link #glueComponents}. */

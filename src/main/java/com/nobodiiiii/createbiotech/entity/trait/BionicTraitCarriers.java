@@ -55,7 +55,7 @@ final class BionicTraitCarriers {
 	static BitSet bind(BionicTrait trait, BionicTraitData data, BionicTissue tissue, int source,
 		BionicTraitDonors.Facts donor) {
 		BitSet cubes = new BitSet();
-		if (tissue.source(source).isWholePrey() || !donor.supplies(trait)) return cubes;
+		if (!donor.supplies(trait)) return cubes;
 		if (BionicTrait.DEVOUR.equals(trait)) {
 			cubes = select(BionicTrait.Carrier.of(BionicAnatomyRole.DEVOUR_INNER, BionicAnatomyRole.DEVOUR_OUTER), data, tissue, source);
 		} else if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {

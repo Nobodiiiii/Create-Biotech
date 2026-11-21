@@ -400,7 +400,7 @@ final class SurgicalPlacementController {
 		MimicProfile profile;
 		SurgicalAssembly assembly = null;
 		if (captured instanceof SlimeBionicEntity bionic) {
-			assembly = bionic.getAssembly();
+			assembly = bionic.getAssemblyForPlacement();
 			if (assembly == null)
 				return cachePlacementCandidate(held, null, SurgicalTablePlacementResult.INVALID_ASSEMBLY);
 			profile = assembly.profile();

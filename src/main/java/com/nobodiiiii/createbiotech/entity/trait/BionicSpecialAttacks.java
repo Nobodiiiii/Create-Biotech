@@ -59,6 +59,7 @@ public final class BionicSpecialAttacks {
 
 		if (!entity.isAlive() || entity.isNoAi() || entity.isOrderedToSit() || entity.isVehicle()) { cancel(); return; }
 		if (action != null) {
+			if (!fired && entity.preferDevourToSpecial(entity.getTarget())) { cancel(); return; }
 			if (!stillAvailable(action)) { cancel(); return; }
 			if (BionicTrait.SONIC_BOOM.equals(action.trait)) {
 				// SonicBoom.canStillUse keeps the native 60-tick action alive even without
@@ -113,7 +114,7 @@ public final class BionicSpecialAttacks {
 		LivingEntity victim = entity.getTarget();
 		if (victim == null || !victim.isAlive() || !entity.canAttack(victim)) return;
 		List<Choice> ready = choices().stream().filter(c -> cooldowns.getOrDefault(c.key(), 0) == 0 && valid(c, victim)).toList();
-		if (ready.isEmpty()) return;
+		if (ready.isEmpty() || entity.preferDevourToSpecial(victim)) return;
 		start(choose(ready, victim), victim);
 	}
 	private Choice choose(List<Choice> ready, LivingEntity victim) {

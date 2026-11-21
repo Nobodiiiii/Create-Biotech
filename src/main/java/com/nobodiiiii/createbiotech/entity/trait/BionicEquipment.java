@@ -253,14 +253,6 @@ public final class BionicEquipment {
 		var assembly = entity.getAssembly();
 		if (assembly == null || assembly.attackGeometry() == null) return null;
 		var seat = assembly.attackGeometry().ridingSeats().get(carrier);
-		if (seat == null && assembly.sources().get(carrier.source()).isWholePrey()) {
-			var corners = assembly.attackGeometry().carrierCubes().get(carrier);
-			if (corners != null) {
-				Vec3 front = corners.get(0).add(corners.get(1)).scale(0.5);
-				Vec3 back = corners.get(2).add(corners.get(3)).scale(0.5);
-				seat = new SurgicalAssembly.RidingSeat(front.lerp(back, isCamel(carrier) ? 0.3 : 0.5), back.lerp(front, 0.3));
-			}
-		}
 		return seat == null ? null : seat.rotation() != null ? seat
 			: new SurgicalAssembly.RidingSeat(seat.first(), seat.second(), BionicRiding.restRotation(assembly, carrier));
 	}

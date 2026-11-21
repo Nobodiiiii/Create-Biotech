@@ -54,6 +54,7 @@ public final class SurgicalSourceModelRenderer {
 
 	@Nullable
 	public static DonorGeometry donorGeometryDeferred(MimicProfile profile) {
+		profile = profile.renderProfile();
 		DonorGeometry cached = DONOR_GEOMETRIES.get(profile);
 		if (cached != null) return cached;
 		LivingEntity entity = previewDeferred(profile);
@@ -68,6 +69,7 @@ public final class SurgicalSourceModelRenderer {
 	/** Existing synchronous consumers share the same metadata, including negative accessory results. */
 	@Nullable
 	public static DonorGeometry donorGeometry(MimicProfile profile) {
+		profile = profile.renderProfile();
 		DonorGeometry cached = DONOR_GEOMETRIES.get(profile);
 		if (cached != null) return cached;
 		LivingEntity entity = preview(profile);
@@ -112,6 +114,7 @@ public final class SurgicalSourceModelRenderer {
 	/** Budgeted creation for resumable preparation; live entity rendering keeps its synchronous API. */
 	@Nullable
 	public static LivingEntity previewDeferred(MimicProfile profile) {
+		profile = profile.renderProfile();
 		ClientLevel level = Minecraft.getInstance().level;
 		if (level == null) return null;
 		CachedPreview cached = PREVIEWS.get(profile);
@@ -123,6 +126,7 @@ public final class SurgicalSourceModelRenderer {
 
 	@Nullable
 	public static LivingEntity preview(MimicProfile profile) {
+		profile = profile.renderProfile();
 		Minecraft minecraft = Minecraft.getInstance();
 		ClientLevel level = minecraft.level;
 		if (level == null)

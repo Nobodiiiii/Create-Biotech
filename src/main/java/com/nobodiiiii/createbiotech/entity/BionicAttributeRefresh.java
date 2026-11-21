@@ -26,7 +26,7 @@ final class BionicAttributeRefresh {
 	static double anatomicalBaseStat(SlimeBionicEntity operationOwner, BionicStat stat) {
 		int size = operationOwner.wildSlimeSize();
 		if (size > 0) {
-			if (stat == BionicStat.ATTACK_DAMAGE) return size;
+			if (stat == BionicStat.ATTACK_DAMAGE) return DevourerEntity.attackDamageForSize(size);
 			if (stat == BionicStat.FOLLOW_RANGE)
 				return net.minecraft.world.entity.ai.attributes.DefaultAttributes.getSupplier(net.minecraft.world.entity.EntityType.SLIME).getBaseValue(Attributes.FOLLOW_RANGE);
 		}
@@ -43,7 +43,7 @@ final class BionicAttributeRefresh {
 		if (maximumHealth == null)
 			return;
 		int size = operationOwner.wildSlimeSize();
-		double calibrated = size > 0 ? Math.max(1, size * size + traits.value(BionicTrait.HEALTH_OFFSET))
+		double calibrated = size > 0 ? Math.max(1, DevourerEntity.maxHealthForSize(size) + traits.value(BionicTrait.HEALTH_OFFSET))
 			: SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), operationOwner.level(),
 			traits.value(BionicTrait.HEALTH_OFFSET));
 		if (maximumHealth.getBaseValue() != calibrated)

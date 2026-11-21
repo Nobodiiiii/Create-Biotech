@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.entity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.network.chat.Component;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
+import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.damagesource.DamageSource;
@@ -124,6 +125,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	static final float MULTIPART_THRESHOLD = 8.0f;
 	private static final int MAX_HIT_PARTS = SurgicalAssembly.MAX_HITBOX_LIMBS + 2;
 	private static final String ASSEMBLY_TAG = "SurgicalAssembly";
+	public static final String PENDING_GROWTH_TAG = "PendingDevourGrowth";
+	public static final String QUEUED_PREY_TAG = "QueuedDevourPrey";
 	private static final String SOURCE_FORM_TAG = "BionicSourceForm";
 	private static final String MOISTURE_TAG = "BionicMoisture";
 	private static final String DRY_AIR_TAG = "BionicDryAir";
@@ -138,6 +141,15 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		CreateBiotech.asResource("anatomical_attack");
 	private static final EntityDataAccessor<CompoundTag> ASSEMBLY = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
+	private static final EntityDataAccessor<CompoundTag> PENDING_GROWTH = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.COMPOUND_TAG);
+	private static final EntityDataAccessor<Integer> GROWTH_OBSERVER = SynchedEntityData.defineId(
+		SlimeBionicEntity.class, EntityDataSerializers.INT);
+	@Nullable private CompoundTag pendingGrowthData;
+	@Nullable private SurgicalAssembly pendingGrowth;
+	@Nullable private DevourGrowthQueue growthQueue;
+	private long observerSince;
+
 	private static final EntityDataAccessor<Optional<UUID>> OWNER_DATA = SynchedEntityData.defineId(
 		SlimeBionicEntity.class, EntityDataSerializers.OPTIONAL_UUID);
 	private static final EntityDataAccessor<Boolean> SITTING_DATA = SynchedEntityData.defineId(
@@ -570,6 +582,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		super.defineSynchedData(builder);
 		builder.define(ASSEMBLY, new CompoundTag());
+		builder.define(PENDING_GROWTH, new CompoundTag());
+		builder.define(GROWTH_OBSERVER, -1);
 		builder.define(WILD_SLIME_SIZE, 0);
 		builder.define(OWNER_DATA, Optional.empty());
 		builder.define(SITTING_DATA, false);
@@ -600,7 +614,58 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			entityData.set(SITTING_DATA, value);
 	}
 
+	/** A hidden snapshot used by the native-model measurement job. */
+	@Nullable
+	public SurgicalAssembly getPendingGrowth() {
+		var tag = entityData.get(PENDING_GROWTH);
+		if (tag != pendingGrowthData) {
+			pendingGrowthData = tag;
+			pendingGrowth = tag.isEmpty() ? null : SurgicalAssembly.loadCached(tag);
+		}
+		return pendingGrowth;
+	}
+
+	@Nullable
+	public SurgicalAssembly getAssemblyForPlacement() {
+		var pending = getPendingGrowth();
+		var base = pending == null ? getAssembly() : pending;
+		return base == null || growthQueue == null ? base : growthQueue.forPlacement(base);
+	}
+
+	void queueGrowth(DevourGrowthQueue.Meal meal) {
+		var pending = getPendingGrowth();
+		var base = pending == null ? getAssembly() : pending;
+		if (growthQueue == null) growthQueue = new DevourGrowthQueue();
+		growthQueue.add(meal, base.sources().size());
+	}
+
+	void setPendingGrowth(SurgicalAssembly growth, CompoundTag encoded) {
+		entityData.set(PENDING_GROWTH, encoded);
+		pendingGrowthData = entityData.get(PENDING_GROWTH);
+		pendingGrowth = growth;
+		if (level() instanceof ServerLevel level && isAddedToLevel()) selectGrowthObserver(level);
+	}
+
+	public int growthObserver() { return entityData.get(GROWTH_OBSERVER); }
+
+	/** One tracking player supplies the renderer. Rotate after a timeout if another player is available. */
+	private void selectGrowthObserver(ServerLevel level) {
+		var watchers = level.getChunkSource().chunkMap.getPlayersWatching(this);
+		int current = growthObserver();
+		if (watchers.stream().anyMatch(p -> p.getId() == current)
+			&& (watchers.size() == 1 || level.getGameTime() - observerSince < 1200)) return;
+		int next = watchers.stream().mapToInt(Entity::getId).filter(id -> id > current).min()
+			.orElseGet(() -> watchers.stream().mapToInt(Entity::getId).min().orElse(-1));
+		entityData.set(GROWTH_OBSERVER, next);
+		observerSince = level.getGameTime();
+	}
+
 	public void setAssembly(SurgicalAssembly assembly) {
+		installAssembly(assembly, null, null);
+	}
+
+	/** Publish the complete body and its matching prepared trait set in the same server tick. */
+	public void installAssembly(SurgicalAssembly assembly, @Nullable CompoundTag preparedData, @Nullable BionicTraitSet preparedTraits) {
 		if (assembly == null || !assembly.isReadyForEntity())
 			throw new IllegalArgumentException("A bionic entity requires complete body geometry");
 		if (!level().isClientSide && getPersistentData().getBoolean("WildDevourer")) {
@@ -608,7 +673,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			entityData.set(WILD_SLIME_SIZE, size);
 			xpReward = size;
 		}
-		CompoundTag encoded = assembly.save();
+		if (growthQueue != null) growthQueue.invalidate();
+		if (!entityData.get(PENDING_GROWTH).isEmpty()) {
+			entityData.set(PENDING_GROWTH, new CompoundTag());
+			entityData.set(GROWTH_OBSERVER, -1);
+		}
+		CompoundTag encoded = preparedData == null ? assembly.save() : preparedData;
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
 		// Publishing synchronously invokes onSyncedDataUpdated. The assembly is already
@@ -627,6 +697,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		clientBodyBounds = null;
 		clientHitboxGeometry = null;
 		clientBodyVolume = Double.NaN;
+		if (preparedTraits != null) {
+			traitStatsRevision = BionicStats.revision(level());
+			traitRevision = BionicTraitResolver.revision(level());
+			traitAssembly = assembly;
+			bionicTraits = preparedTraits;
+			applyTraitEffects(assembly);
+		}
 		BionicAttributeRefresh.refreshBaseStats(this, assembly);
 		getBionicTraits();
 		refreshDimensions();
@@ -687,33 +764,37 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			traitAssembly = assembly;
 			traitRevision = revision;
 			bionicTraits = BionicTraitResolver.resolve(assembly, level());
-			mind = BionicMind.fromTraits(assembly, bionicTraits);
-			mindTraits = bionicTraits;
-			// Publish the result before refreshing effects that may query this entity again.
-			if (assembly != null) BionicAttributeRefresh.refreshMaximumHealth(this, assembly, bionicTraits);
-			BionicAttributeRefresh.refreshNaturalArmor(this, bionicTraits);
-			BionicAttributeRefresh.refreshKnockbackResistance(this, bionicTraits);
-			BionicLocomotionPolicy.refreshFlyingSpeed(this, assembly, bionicTraits);
-			refreshLocomotion(bionicTraits);
-			if (!level().isClientSide) {
-				double range = BionicAttributeRefresh.anatomicalBaseStat(this, BionicStat.FOLLOW_RANGE);
-				for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
-					if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
-						range = Math.max(range, variant.parameter("range", 16));
-				getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(range);
-			}
-			if (!bionicTraits.has(BionicTrait.MOISTURE_DEPENDENT))
-				moisture = -1;
-			if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
-				dryAir = Integer.MIN_VALUE;
-			if (!level().isClientSide) {
-				if (!bionicTraits.isTameable())
-					setBionicOwner(null);
-				if (!bionicTraits.has(BionicTrait.TAMEABLE))
-					setOrderedToSit(false);
-			}
+			applyTraitEffects(assembly);
 		}
 		return bionicTraits;
+	}
+
+	private void applyTraitEffects(@Nullable SurgicalAssembly assembly) {
+		mind = BionicMind.fromTraits(assembly, bionicTraits);
+		mindTraits = bionicTraits;
+		// Publish the result before refreshing effects that may query this entity again.
+		if (assembly != null) BionicAttributeRefresh.refreshMaximumHealth(this, assembly, bionicTraits);
+		BionicAttributeRefresh.refreshNaturalArmor(this, bionicTraits);
+		BionicAttributeRefresh.refreshKnockbackResistance(this, bionicTraits);
+		BionicLocomotionPolicy.refreshFlyingSpeed(this, assembly, bionicTraits);
+		refreshLocomotion(bionicTraits);
+		if (!level().isClientSide) {
+			double range = BionicAttributeRefresh.anatomicalBaseStat(this, BionicStat.FOLLOW_RANGE);
+			for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
+				if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
+					range = Math.max(range, variant.parameter("range", 16));
+			getAttribute(Attributes.FOLLOW_RANGE).setBaseValue(range);
+		}
+		if (!bionicTraits.has(BionicTrait.MOISTURE_DEPENDENT))
+			moisture = -1;
+		if (!bionicTraits.has(BionicTrait.DRY_SUFFOCATION))
+			dryAir = Integer.MIN_VALUE;
+		if (!level().isClientSide) {
+			if (!bionicTraits.isTameable())
+				setBionicOwner(null);
+			if (!bionicTraits.has(BionicTrait.TAMEABLE))
+				setOrderedToSit(false);
+		}
 	}
 
 	@Nullable
@@ -772,6 +853,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (customResult != InteractionResult.PASS) return customResult;
 		InteractionResult chestRemovalResult = equipment.removeChest(player, hand, interactionHit);
 		if (chestRemovalResult != InteractionResult.PASS) return chestRemovalResult;
+		if (DevourerInventory.tryOpen(this, player, hand))
+			return InteractionResult.sidedSuccess(level().isClientSide);
 		if (player.isSecondaryUseActive() && equipment.openInventory(player, interactionHit))
 			return InteractionResult.sidedSuccess(level().isClientSide);
 		ItemStack held = player.getItemInHand(hand);
@@ -820,6 +903,13 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		traitAssembly = null;
 		traitRevision = null;
 		bionicTraits = BionicTraitSet.EMPTY;
+	}
+
+	/** An inherited special can yield to a lethal leap within its launch range. */
+	public boolean preferDevourToSpecial(@Nullable LivingEntity target) {
+		if (devour == null) return false;
+		return devourGroundAttack || target != null && DevourAttackGoal.size(this) > 0
+			&& devour.replaceContact(target, devourAttackDamage());
 	}
 
 	void setDevourGroundAttack(boolean active) {
@@ -1238,12 +1328,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void push(Entity other) {
+		if (devour != null && devour.pressing(other)) return;
 		super.push(other);
 		if (wildSlimeSize() == 0 || other instanceof net.minecraft.world.entity.animal.IronGolem) dealContactDamage(other);
 	}
 
 	@Override
 	protected void doPush(Entity other) {
+		if (devour != null && devour.pressing(other)) return;
 		super.doPush(other);
 		if (wildSlimeSize() == 0 || !(other instanceof Player) && !(other instanceof net.minecraft.world.entity.animal.IronGolem))
 			dealContactDamage(other);
@@ -1301,7 +1393,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
 		if (geometry == null || BionicMeleeController.usesContactAttack(this))
 			return null;
-		if (super.isWithinMeleeAttackRange(target) && DevourAttackGoal.size(this) > 0 && devour.replaceContact(target, devourAttackDamage())) return null;
+		if (DevourAttackGoal.size(this) > 0 && devour.replaceContact(target, devourAttackDamage())) return null;
 		ArmSelection selection = BionicMeleeController.selectArm(this, target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
@@ -1319,12 +1411,17 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public void remove(Entity.RemovalReason reason) {
+		if (growthQueue != null) growthQueue.invalidate();
 		if (extensionBehaviors != null && !level().isClientSide) extensionBehaviors.clear();
 		super.remove(reason);
 	}
 
 	@Override
 	public void tick() {
+		if (level() instanceof ServerLevel level && isAlive()) {
+			if (growthQueue != null && growthQueue.tick(this)) growthQueue = null;
+			if (!entityData.get(PENDING_GROWTH).isEmpty() && tickCount % 20 == 0) selectGrowthObserver(level);
+		}
 		if (!level().isClientSide && baseStatsRevision != BionicStats.revision(level())) {
 			SurgicalAssembly assembly = getAssembly();
 			if (assembly != null) BionicAttributeRefresh.refreshBaseStats(this, assembly);
@@ -1340,7 +1437,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (!level().isClientSide)
 			entityData.set(CLIMBING_DATA, horizontalCollision && canUseWallClimbing());
 		BionicEnvironment.tickLavaWalking(this);
-		if (getBionicTraits().has(BionicTrait.WING_SLOW_FALL) && !onGround() && !isInWaterOrBubble()
+		if (!devourGroundAttack && getBionicTraits().has(BionicTrait.WING_SLOW_FALL) && !onGround() && !isInWaterOrBubble()
 			&& !isInLava() && getDeltaMovement().y < 0) {
 			setDeltaMovement(getDeltaMovement().multiply(1, getBionicTraits().parameter(
 				BionicTrait.WING_SLOW_FALL, "fall_multiplier", 0.6d), 1));
@@ -1487,8 +1584,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		double previousOffset = activeMeleeDamageOffset;
 		activeMeleeDamageOffset = BionicMeleeController.armDamageOffset(this, selectedArm);
 		try {
-			// Mob reads the corrected attack attribute before its normal enchantment and damage hooks.
-			hit = super.doHurtTarget(target);
+			if (target instanceof LivingEntity victim && level() instanceof ServerLevel level
+				&& DevourAttackGoal.isPrey(this, victim, DevourAttackGoal.size(this))) {
+				hit = hitWithDevouringArm(level, victim);
+			} else {
+				hit = super.doHurtTarget(target);
+			}
 		} finally {
 			activeMeleeDamageOffset = previousOffset;
 		}
@@ -1507,24 +1608,32 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return hit;
 	}
 
-	float devourAttackDamage() {
-		return (float) Math.max(0, getAttributeValue(Attributes.ATTACK_DAMAGE)
-			+ getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET, devourMembers()));
+	/** Mob's melee hit, with a finisher decision after applying the selected arm and weapon's damage. */
+	private boolean hitWithDevouringArm(ServerLevel level, LivingEntity target) {
+		var source = damageSources().mobAttack(this);
+		float damage = EnchantmentHelper.modifyDamage(level, getWeaponItem(), target, source,
+			(float) getAttributeValue(Attributes.ATTACK_DAMAGE));
+		if (devour.replaceContact(target, damage) || !target.hurt(source, damage)) return false;
+
+		float knockback = getKnockback(target, source);
+		if (knockback > 0) {
+			target.knockback(knockback * 0.5, Mth.sin(getYRot() * Mth.DEG_TO_RAD), -Mth.cos(getYRot() * Mth.DEG_TO_RAD));
+			setDeltaMovement(getDeltaMovement().multiply(0.6, 1, 0.6));
+		}
+		EnchantmentHelper.doPostAttackEffects(level, target, source);
+		setLastHurtMob(target);
+		playAttackSound();
+		return true;
 	}
 
-	private List<SurgicalAssembly.CombinationMember> devourMembers() {
-		var assembly = getAssembly();
-		if (assembly == null) return List.of();
-		var members = new java.util.ArrayList<>(getBionicTraits().members(BionicTrait.DEVOUR));
-		for (int source = 0; source < assembly.sources().size(); source++)
-			if (assembly.sources().get(source).isWholePrey())
-				members.add(new SurgicalAssembly.CombinationMember(source, 0));
-		return members;
+	float devourAttackDamage() {
+		return (float) Math.max(0, getAttributeValue(Attributes.ATTACK_DAMAGE)
+			+ getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET, getBionicTraits().members(BionicTrait.DEVOUR)));
 	}
 
 	void afterDevourHit(LivingEntity victim) {
 		specialAttacks.afterMelee();
-		var members = devourMembers();
+		var members = List.copyOf(getBionicTraits().members(BionicTrait.DEVOUR));
 		double knockback = getBionicTraits().armValue(BionicTrait.ATTACK_KNOCKBACK, members);
 		if (knockback > 0) victim.knockback(knockback * 0.5, getX() - victim.getX(), getZ() - victim.getZ());
 		applyMeleeTraits(victim, members, false);
@@ -1716,6 +1825,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
 		super.onSyncedDataUpdated(key);
+		if ((PENDING_GROWTH.equals(key) || GROWTH_OBSERVER.equals(key)) && level().isClientSide && isAddedToLevel())
+			com.nobodiiiii.createbiotech.content.surgery.client.DevouredBodyMeasurements.schedule(this);
 		if (WILD_SLIME_SIZE.equals(key)) refreshDimensions();
 		if (ATTACH_CELL_DATA.equals(key) || ATTACH_FACE_DATA.equals(key)) {
 			lockBlockAttachmentRotation();
@@ -1747,6 +1858,9 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		blockAttachment.save(tag);
 		SlimeMimicAccess slimeState = (SlimeMimicAccess) (Object) this;
 		tag.putBoolean(SOURCE_FORM_TAG, !slimeState.createBiotech$isSlimeMimic());
+		var pending = entityData.get(PENDING_GROWTH);
+		if (!pending.isEmpty()) tag.put(PENDING_GROWTH_TAG, pending.copy());
+		if (growthQueue != null) tag.put(QUEUED_PREY_TAG, growthQueue.save());
 		CompoundTag assembly = entityData.get(ASSEMBLY);
 		if (!assembly.isEmpty())
 			tag.put(ASSEMBLY_TAG, assembly.copy());
@@ -1775,7 +1889,24 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return;
 		boolean sourceForm = tag.getBoolean(SOURCE_FORM_TAG);
 		((SlimeMimicAccess) (Object) this).createBiotech$setSlimeMimic(!sourceForm);
+		SurgicalAssembly pending = tag.contains(PENDING_GROWTH_TAG, Tag.TAG_COMPOUND)
+			? SurgicalAssembly.loadCached(tag.getCompound(PENDING_GROWTH_TAG)) : null;
+		if (pending == null && assembly.sources().stream().anyMatch(s -> s.profile().needsPreyTopology())) {
+			// Older development saves kept the render proxies in the installed body.
+			pending = assembly;
+			assembly = DevourGrowth.installedPrefix(assembly);
+		}
+		double savedHealthBase = getAttributeBaseValue(Attributes.MAX_HEALTH);
+		float savedMaxHealth = getMaxHealth();
+		float savedHealth = getHealth();
 		setAssembly(assembly);
+		int size = wildSlimeSize();
+		if (size > 0 && savedMaxHealth < getMaxHealth() && tag.contains("Health", Tag.TAG_ANY_NUMERIC)
+			&& savedHealthBase == Math.max(1, size * size + getBionicTraits().value(BionicTrait.HEALTH_OFFSET)))
+			setHealth(getMaxHealth() * (savedHealth / savedMaxHealth));
+		if (pending != null && pending.isReadyForEntity()) setPendingGrowth(pending, pending.save());
+		growthQueue = tag.contains(QUEUED_PREY_TAG, Tag.TAG_LIST)
+			? DevourGrowthQueue.load(tag.getList(QUEUED_PREY_TAG, Tag.TAG_COMPOUND)) : null;
 		blockAttachment.load(tag);
 		equipment.load(tag);
 		production.load(tag);

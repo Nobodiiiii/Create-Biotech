@@ -273,6 +273,18 @@ public final class SurgicalAssembly {
 	}
 
 	public List<Source> sources() { return sources; }
+	/** Change the visual clock only for the donors that have just finished native measurement. */
+	public SurgicalAssembly startDevouredGrowth(Set<UUID> donors, long gameTime) {
+		var installed = new ArrayList<Source>(sources.size());
+		for (var source : sources) {
+			if (donors.contains(source.donorId)) source = new Source(source.profile.withGrowthStart(gameTime),
+				source.donorId, source.cubeCount, source.presentCubes, source.anatomy, source.seams, source.cutSeams,
+				source.cutOrder, source.facing, source.layPose, source.originOffset, source.cubeOffsets, source.cubeRotations);
+			installed.add(source);
+		}
+		return new SurgicalAssembly(installed, joints, combinations, limbs, preserveLayout, layoutFacing,
+			layoutLayPose, bodyBounds, bodyVolume, hitboxGeometry, attackGeometry, blockAttachmentCarrier);
+	}
 	public List<Joint> joints() { return joints; }
 	public List<Combination> combinations() { return combinations; }
 	public List<Limb> limbs() { return limbs; }
@@ -1558,10 +1570,6 @@ public final class SurgicalAssembly {
 		}
 
 		public MimicProfile profile() { return profile; }
-		public boolean isWholePrey() {
-			return profile.isDevouredForm() && (!profile.hasNativePreyCubes()
-				|| cutSeams.isEmpty() && presentCubes.cardinality() == cubeCount);
-		}
 		public UUID donorId() { return donorId; }
 		public int cubeCount() { return cubeCount; }
 		public BitSet presentCubes() { return (BitSet) presentCubes.clone(); }
@@ -1580,10 +1588,12 @@ public final class SurgicalAssembly {
 			return seamId >= 0 && seamId < seams.size() && cutSeams.get(seamId);
 		}
 
-		CompoundTag save(SurgicalStorage.Writer storage) {
+		void writeDonor(CompoundTag tag, SurgicalStorage.Writer storage) {
+			SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams, anatomy);
+		}
+
+		CompoundTag savePlacement() {
 			CompoundTag tag = new CompoundTag();
-			SurgicalStorage.writeDonor(tag, storage, profile, cubeCount, seams,
-				anatomy);
 			tag.putUUID(DONOR_ID_TAG, donorId);
 			tag.putLongArray(PRESENT_CUBES_TAG, presentCubes.toLongArray());
 			if (!cutSeams.isEmpty())

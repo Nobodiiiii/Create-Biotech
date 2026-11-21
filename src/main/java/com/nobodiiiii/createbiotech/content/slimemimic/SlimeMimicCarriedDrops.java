@@ -8,6 +8,7 @@ import java.util.WeakHashMap;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltAcquisitionHandler;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.registry.CBAttachmentTypes;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
@@ -74,6 +75,8 @@ public final class SlimeMimicCarriedDrops {
 
 	private static List<ItemStack> copyCarriedItems(LivingEntity entity) {
 		List<ItemStack> items = new ArrayList<>();
+		var swallowed = entity.getExistingDataOrNull(CBAttachmentTypes.DEVOURER_INVENTORY);
+		if (swallowed != null) copyContainer(items, swallowed);
 		// Snapshot before Mob applies drop chances, vanishing and random durability loss.
 		for (EquipmentSlot slot : EquipmentSlot.values())
 			copyItem(items, entity.getItemBySlot(slot));
@@ -112,6 +115,8 @@ public final class SlimeMimicCarriedDrops {
 	}
 
 	private static void clearCarriedItems(LivingEntity entity) {
+		var swallowed = entity.getExistingDataOrNull(CBAttachmentTypes.DEVOURER_INVENTORY);
+		if (swallowed != null) swallowed.clearContent();
 		for (EquipmentSlot slot : EquipmentSlot.values())
 			entity.setItemSlot(slot, ItemStack.EMPTY);
 		if (entity instanceof InventoryCarrier carrier)

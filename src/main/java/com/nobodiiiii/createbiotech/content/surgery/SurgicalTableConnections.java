@@ -278,6 +278,12 @@ final class SurgicalTableConnections {
 		return combinations;
 	}
 
+	/** Restored sources keep their table order. The first retained source defines the packed body's upright frame. */
+	static SurgicalSubject packingAnchor(SurgicalTableBlockEntity table, SurgicalTableBlockEntity.ComponentGroup group) {
+		return table.subjects.stream().filter(s -> group.components().containsKey(s.persistentId()))
+			.findFirst().orElseThrow();
+	}
+
 	/**
 	 * Encodes {@code group} as the assembly packing would create it, laid out relative to
 	 * {@code anchor}. A single disconnected component still has an edited pose: wrench rotations and
