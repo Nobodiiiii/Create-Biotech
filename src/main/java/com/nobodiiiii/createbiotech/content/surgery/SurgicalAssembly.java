@@ -130,6 +130,7 @@ public final class SurgicalAssembly {
 	@Nullable
 	final BodyBounds bodyBounds;
 	final double bodyVolume;
+	private final double equivalentSlimeSize;
 	@Nullable
 	final HitboxGeometry hitboxGeometry;
 	@Nullable
@@ -159,6 +160,9 @@ public final class SurgicalAssembly {
 		this.layoutLayPose = layoutLayPose;
 		this.bodyBounds = bodyBounds;
 		this.bodyVolume = bodyVolume;
+		// The vanilla size-one outer model is an 8-pixel cube, half a block on each side.
+		this.equivalentSlimeSize = SurgicalHealthCalibration.validVolume(bodyVolume)
+			? 2.0d * Math.cbrt(bodyVolume) : -1.0d;
 		this.hitboxGeometry = hitboxGeometry;
 		this.attackGeometry = attackGeometry;
 		this.blockAttachmentCarrier = blockAttachmentCarrier;
@@ -369,6 +373,8 @@ public final class SurgicalAssembly {
 	@Nullable
 	public BodyBounds bodyBounds() { return bodyBounds; }
 	public double bodyVolume() { return bodyVolume; }
+	/** Continuous vanilla slime size by union volume, or -1 before measurement. */
+	public double equivalentSlimeSize() { return equivalentSlimeSize; }
 	public boolean hasBodyVolume() { return SurgicalHealthCalibration.validVolume(bodyVolume); }
 	public boolean isReadyForEntity() {
 		return bodyBounds != null && hitboxGeometry != null

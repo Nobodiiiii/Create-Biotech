@@ -127,7 +127,7 @@ public final class DevourAttackGoal extends Goal {
 		var target = hunter.getTarget();
 		if (target == null || !inLaunchRange(hunter.getBoundingBox(), target.getBoundingBox()) || size(hunter) <= 0) return false;
 		float damage = hunter instanceof SlimeBionicEntity bionic ? bionic.devourAttackDamage()
-			: (float) hunter.getAttributeValue(Attributes.ATTACK_DAMAGE);
+			: ((DevourerEntity) hunter).getAttackDamage();
 		return replaceContact(target, damage);
 	}
 

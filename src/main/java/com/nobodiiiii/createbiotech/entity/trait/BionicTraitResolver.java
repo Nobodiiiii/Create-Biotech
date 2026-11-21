@@ -42,9 +42,13 @@ public final class BionicTraitResolver {
 
 	/** Runtime, boxes and table previews share the union of traits bound to retained assembly parts. */
 	public static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level) {
+		return resolve(assembly, level, false);
+	}
+
+	public static BionicTraitSet resolve(@Nullable SurgicalAssembly assembly, Level level, boolean wildDevourer) {
 		if (!BionicTraits.ENABLED || assembly == null || level == null || assembly.sources().isEmpty())
 			return BionicTraitSet.EMPTY;
-		var evaluation = new Evaluation(assembly, level);
+		var evaluation = new Evaluation(assembly, level, wildDevourer);
 		BionicTraitSet result;
 		do { result = evaluation.step(); } while (result == null);
 		return result;
@@ -54,6 +58,7 @@ public final class BionicTraitResolver {
 	public static final class Evaluation {
 		private final SurgicalAssembly assembly;
 		private final Level level;
+		private final boolean wildDevourer;
 		private final BionicTraitRegistry.Snapshot data;
 		private final BionicTissue tissue;
 		private final List<BionicTraitDonors.Facts> donors;
@@ -69,8 +74,13 @@ public final class BionicTraitResolver {
 		private BionicTraitSet result;
 
 		public Evaluation(SurgicalAssembly assembly, Level level) {
+			this(assembly, level, false);
+		}
+
+		public Evaluation(SurgicalAssembly assembly, Level level, boolean wildDevourer) {
 			this.assembly = assembly;
 			this.level = level;
+			this.wildDevourer = wildDevourer;
 			data = BionicTraitRegistry.snapshot(level);
 			tissue = BionicTissue.of(assembly, data);
 			donors = new ArrayList<>(tissue.sourceCount());
@@ -82,7 +92,9 @@ public final class BionicTraitResolver {
 			if (result != null) return result;
 			if (!BionicTraits.ENABLED) return BionicTraitSet.EMPTY;
 			if (donors.size() < tissue.sourceCount()) {
-				donors.add(BionicTraitDonors.get(tissue.source(donors.size()).profile(), level, data));
+				// A wild host already uses its native health. Every swallowed donor contributes normally.
+				boolean wildHost = wildDevourer && donors.isEmpty();
+				donors.add(BionicTraitDonors.get(tissue.source(donors.size()).profile(), level, data, wildHost));
 				return null;
 			}
 			if (traitIndex < data.definitions().size()) {

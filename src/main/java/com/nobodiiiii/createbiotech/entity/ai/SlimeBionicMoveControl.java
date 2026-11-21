@@ -57,7 +57,7 @@ public final class SlimeBionicMoveControl extends MoveControl {
 			operation = Operation.WAIT;
 			if (jumpDelay-- <= 0) {
 				jumpDelay = MIN_JUMP_DELAY + bionic.getRandom().nextInt(RANDOM_JUMP_DELAY);
-				if (bionic.isAggressive())
+				if (bionic.isAggressive() && !bionic.isTinySlimeBody())
 					jumpDelay = Math.max(1, jumpDelay / 3);
 				applyWantedSpeed();
 				bionic.getJumpControl().jump();

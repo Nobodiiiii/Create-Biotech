@@ -246,6 +246,12 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 			? Component.translatable(nameDescriptionId()) : Component.literal(id.toString());
 	}
 	public Component displayDescription() {
+		if (displayDescription == null && equals(DEVOUR)) {
+			double factor = BionicTraitRegistry.clientParameter(DEVOUR, DevourAnatomy.CONTACT_DAMAGE_FACTOR,
+				DevourAnatomy.DEFAULT_CONTACT_DAMAGE_FACTOR);
+			return Component.translatable("create_biotech.jei.trait.devour.effect",
+				java.math.BigDecimal.valueOf(factor).stripTrailingZeros().toPlainString());
+		}
 		return displayDescription != null ? displayDescription.copy() : isBuiltIn()
 			? Component.translatable("create_biotech.jei.trait." + id.getPath() + ".effect") : Component.empty();
 	}
@@ -326,7 +332,7 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 	}
 
 	private static final Set<BionicTrait> AUTOMATIC = Set.of(
-		DISPOSITION, INTELLIGENCE, RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT,
+		DISPOSITION, INTELLIGENCE, HEALTH_OFFSET, RIDEABLE, CARGO_CHEST, ENCHANT_VULNERABILITY, HUNTING_INSTINCT,
 		ATTACK_KNOCKBACK, FIRE_IMMUNE, FIRE_RESISTANCE, WATER_SENSITIVE, FREEZE_IMMUNE, FREEZE_RESISTANCE,
 		FREEZE_VULNERABLE, SUN_SENSITIVE, MOISTURE_DEPENDENT, HEAT_SENSITIVE, INVERTED_HEALING, WATER_SINKING,
 		WEB_ADAPTED, NO_BREATHING, WINGLESS_FLIGHT, PROJECTILE_DEFLECTION, CONTACT_RETALIATION, WATER_BREATHING,

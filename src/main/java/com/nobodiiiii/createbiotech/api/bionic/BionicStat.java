@@ -5,10 +5,14 @@ import java.util.Set;
 /** Formula outputs for anatomy-derived base stats, independent of inherited traits. */
 public enum BionicStat {
 	MAX_HEALTH(1, 1024, "clamp(health_maximum / (1 + health_offset * pow(health_anchor_volume / max(volume, 1e-12), health_exponent)), 1, health_maximum)", "volume"),
-	MOVEMENT_SPEED(0, 1024, "clamp(leg_count <= 1 ? hopping_speed : length_asymptote * leg_length / (leg_length + length_half_saturation) * (1 + clamp(leg_count - 2, 0, 2) * 0.1 + clamp(leg_count - 4, 0, 4) * 0.05) * (0.8 + 0.4 * log1p(8 * leg_volume_ratio) / log(9)) * (1 + clamp(knee_count, 0, 4) * 0.05), 0, movement_maximum)", "leg_length", "leg_count", "knee_count", "leg_volume_ratio"),
+	MOVEMENT_SPEED(0, 1024, "leg_count <= 1 ? (slime_size >= 0 ? 0.2 + 0.1 * slime_size : min(hopping_speed, movement_maximum))"
+		+ " : clamp(length_asymptote * leg_length / (leg_length + length_half_saturation)"
+		+ " * (1 + clamp(leg_count - 2, 0, 2) * 0.1 + clamp(leg_count - 4, 0, 4) * 0.05)"
+		+ " * (0.8 + 0.4 * log1p(8 * leg_volume_ratio) / log(9)) * (1 + clamp(knee_count, 0, 4) * 0.05), 0, movement_maximum)",
+		"leg_length", "leg_count", "knee_count", "leg_volume_ratio", "slime_size"),
 	FLYING_SPEED(0, 1024, "flight_maximum * pow(log1p(8 * flight_volume_ratio) / log(9), flight_exponent)", "flight_volume_ratio"),
 	SWIMMING_SPEED(0, 1024, "swimming_speed"),
-	ATTACK_DAMAGE(0, 2048, "base_attack_damage", "volume"),
+	ATTACK_DAMAGE(0, 2048, "slime_size >= 0 ? slime_size : base_attack_damage", "volume", "slime_size"),
 	KNOCKBACK_RESISTANCE(0, 1, "base_knockback_resistance", "volume"),
 	FOLLOW_RANGE(0, 2048, "base_follow_range", "volume"),
 	ARM_DPS_SCALE(0, 1024, "arm_volume <= 0 ? 0 : arm_dps_maximum * cbrt(arm_volume / arm_anchor_volume) / (arm_dps_offset + cbrt(arm_volume / arm_anchor_volume))", "arm_volume", "arm_length", "arm_thickness"),

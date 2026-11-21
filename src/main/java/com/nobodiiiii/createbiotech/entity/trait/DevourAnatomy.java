@@ -9,13 +9,27 @@ import java.util.Set;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.CombinationMember;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitResult.InactiveReason;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.phys.Vec3;
 
-final class DevourAnatomy {
+public final class DevourAnatomy {
+	static final String CONTACT_DAMAGE_FACTOR = "contact_damage_factor";
+	static final double DEFAULT_CONTACT_DAMAGE_FACTOR = 2;
+
 	private DevourAnatomy() {}
+
+	public static double nativeContactDamage(DevourerEntity devourer, double damage) {
+		var data = BionicTraitRegistry.snapshot(devourer.level()).traits().get(BionicTrait.DEVOUR);
+		if (!BionicTraits.ENABLED || data == null) return damage;
+		var type = devourer.getType();
+		double size = BionicTraitDonors.resolveNumber(data, type, BuiltInRegistries.ENTITY_TYPE.getKey(type), devourer,
+			data.automaticDetection() ? devourer.getSize() : 0);
+		return size > 0 ? damage * data.parameter(CONTACT_DAMAGE_FACTOR, DEFAULT_CONTACT_DAMAGE_FACTOR) : damage;
+	}
 
 	static BionicTraitResult evaluate(SurgicalAssembly assembly, BionicTraitData data, BionicTissue tissue,
 		List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {

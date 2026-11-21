@@ -1,6 +1,5 @@
 package com.nobodiiiii.createbiotech.content.cardboardbox;
 
-import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 
 import java.util.ArrayList;
@@ -12,8 +11,6 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLimbType;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
@@ -366,12 +363,12 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		if (assembly == null)
 			return null;
 
-		BionicTraitSet traits = BionicTraitResolver.resolve(assembly, level);
-		bionic.getBionicTraits();
+		BionicTraitSet traits = bionic.getBionicTraits();
 		List<BaseStat> stats = new ArrayList<>();
-		addMaximumHealth(stats, bionic, assembly);
+		addMaximumHealth(stats, bionic, assembly, traits);
 		addDps(stats, bionic, assembly);
-		addMovementSpeed(stats, assembly, level);
+		stats.add(new BaseStat(Attributes.MOVEMENT_SPEED.value().getDescriptionId(),
+			bionic.baseGroundSpeed(), ValueFormat.DECIMAL));
 		add(stats, bionic, Attributes.ARMOR_TOUGHNESS, ValueFormat.DECIMAL, false);
 		add(stats, bionic, Attributes.ATTACK_KNOCKBACK, ValueFormat.DECIMAL, false);
 		addAnatomyCounts(stats, assembly);
@@ -379,15 +376,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 	}
 
 	private static void addMaximumHealth(List<BaseStat> stats, SlimeBionicEntity bionic,
-		SurgicalAssembly assembly) {
+		SurgicalAssembly assembly, BionicTraitSet traits) {
 		// Client-side preview entities keep their registered attribute default. Use the measured,
 		// non-overlapping body volume saved in the assembly so Alt shows the actual result.
 		if (!assembly.hasBodyVolume()) {
 			add(stats, bionic, Attributes.MAX_HEALTH, ValueFormat.DECIMAL, true);
 			return;
 		}
-		double maximumHealth = SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), bionic.level(),
-			bionic.getBionicTraits().value(BionicTrait.HEALTH_OFFSET));
+		double maximumHealth = bionic.baseMaximumHealth(assembly, traits);
 		stats.add(new BaseStat(Attributes.MAX_HEALTH.value().getDescriptionId(),
 			maximumHealth, ValueFormat.DECIMAL));
 	}
@@ -408,22 +404,14 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		AttributeInstance attackDamage = bionic.getAttribute(Attributes.ATTACK_DAMAGE);
 		if (attackDamage == null || !Double.isFinite(attackDamage.getBaseValue()))
 			return;
-		double baseDamage = BionicStats.evaluate(
-			BionicStat.ATTACK_DAMAGE, bionic.level(),
-			java.util.Map.of("volume", assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
+		double baseDamage = bionic.baseMeleeDamage();
 		// Continuous contact normally lands once per ten ticks of vanilla hurt immunity.
 		double dps = bionic.usesContactAttack()
-			? Math.max(0.0d, baseDamage) * 2.0d
+			? (bionic.isTinySlimeBody() ? 0.0d : bionic.getBionicTraits().slimeContactDamage(baseDamage) * 2.0d)
 			: SurgicalCombatCalibration.nominalDamagePerSecond(
 				baseDamage, assembly.attackGeometry().arms().stream().filter(arm -> !bionic.isBionicWing(arm)).toList(),
 				bionic.level(), bionic::armDamageOffset);
 		stats.add(new BaseStat("create_biotech.tooltip.stat.dps", dps, ValueFormat.DECIMAL));
-	}
-
-	private static void addMovementSpeed(List<BaseStat> stats, SurgicalAssembly assembly, Level level) {
-		double speed = SurgicalGait.movementSpeed(assembly.bodyBounds(), level);
-		stats.add(new BaseStat(Attributes.MOVEMENT_SPEED.value().getDescriptionId(),
-			speed, ValueFormat.DECIMAL));
 	}
 
 	private static void addAnatomyCounts(List<BaseStat> stats, SurgicalAssembly assembly) {

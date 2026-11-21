@@ -418,6 +418,41 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	protected float getSoundVolume() { return wildSlimeSize() > 0 ? 0.4f * wildSlimeSize() : super.getSoundVolume(); }
 
 	public int wildSlimeSize() { return entityData == null ? 0 : entityData.get(WILD_SLIME_SIZE); }
+
+	public double baseMaximumHealth(SurgicalAssembly assembly, BionicTraitSet traits) {
+		double offset = traits.value(BionicTrait.HEALTH_OFFSET);
+		int size = wildSlimeSize();
+		if (size > 0) {
+			double nativeHealth = Math.min(DevourerEntity.maxHealthForSize(size), BionicStat.MAX_HEALTH.maximum());
+			return Math.clamp(nativeHealth + offset, 1.0d, BionicStat.MAX_HEALTH.maximum());
+		}
+		return SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), level(), offset);
+	}
+
+	public boolean isTinySlimeBody() {
+		int wildSize = wildSlimeSize();
+		if (wildSize > 0) return wildSize <= 1;
+		SurgicalAssembly assembly = getAssembly();
+		return assembly == null || assembly.equivalentSlimeSize() <= 1.0d;
+	}
+
+	public double baseGroundSpeed() {
+		int wildSize = wildSlimeSize();
+		if (wildSize > 0) return 0.2f + 0.1f * wildSize;
+		SurgicalAssembly assembly = getAssembly();
+		return assembly == null ? SurgicalGait.movementSpeed(null, level())
+			: SurgicalGait.movementSpeed(assembly.bodyBounds(), assembly.equivalentSlimeSize(), level());
+	}
+
+	public double baseMeleeDamage() {
+		int wildSize = wildSlimeSize();
+		if (wildSize > 0) return wildSize;
+		SurgicalAssembly assembly = getAssembly();
+		double contactSize = assembly != null && usesContactAttack() ? assembly.equivalentSlimeSize() : -1.0d;
+		return BionicStats.evaluate(BionicStat.ATTACK_DAMAGE, level(), java.util.Map.of(
+			"volume", assembly == null ? 0.0d : assembly.bodyVolume(), "slime_size", contactSize));
+	}
+
 	public boolean usesWildSlimeMovement() { return wildSlime != null && wildSlime.active(); }
 
 	@Override
@@ -668,7 +703,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public void installAssembly(SurgicalAssembly assembly, @Nullable CompoundTag preparedData, @Nullable BionicTraitSet preparedTraits) {
 		if (assembly == null || !assembly.isReadyForEntity())
 			throw new IllegalArgumentException("A bionic entity requires complete body geometry");
-		if (!level().isClientSide && getPersistentData().getBoolean("WildDevourer")) {
+		if (getPersistentData().getBoolean("WildDevourer")) {
 			int size = Mth.clamp(assembly.sources().getFirst().profile().stableInt("Size") + 1, 1, 127);
 			entityData.set(WILD_SLIME_SIZE, size);
 			xpReward = size;
@@ -763,7 +798,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			traitStatsRevision = statsRevision;
 			traitAssembly = assembly;
 			traitRevision = revision;
-			bionicTraits = BionicTraitResolver.resolve(assembly, level());
+			bionicTraits = BionicTraitResolver.resolve(assembly, level(), wildSlimeSize() > 0);
 			applyTraitEffects(assembly);
 		}
 		return bionicTraits;
@@ -779,6 +814,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		BionicLocomotionPolicy.refreshFlyingSpeed(this, assembly, bionicTraits);
 		refreshLocomotion(bionicTraits);
 		if (!level().isClientSide) {
+			// A trait reload can turn the last attacking arm into a wing, or back into an arm.
+			if (assembly != null) getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(baseMeleeDamage());
 			double range = BionicAttributeRefresh.anatomicalBaseStat(this, BionicStat.FOLLOW_RANGE);
 			for (BionicTrait trait : List.of(BionicTrait.HEAD_PROJECTILE, BionicTrait.GUARDIAN_BEAM))
 				if (bionicTraits.has(trait)) for (var variant : bionicTraits.result(trait).subtraits().keySet())
@@ -1008,9 +1045,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (!swimming)
 			setXRot(0.0f);
 		setNoGravity(enabled);
-		SurgicalAssembly assembly = getAssembly();
-		if (assembly != null)
-			BionicLocomotionPolicy.refreshMovementSpeed(this, assembly);
+		if (getAssembly() != null)
+			BionicLocomotionPolicy.refreshMovementSpeed(this);
 	}
 
 	@Override
@@ -1354,11 +1390,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			|| !BionicMeleeController.usesContactAttack(this) || !BionicMeleeController.isValidMeleeTarget(this, target)
 			|| !super.isWithinMeleeAttackRange(target) || !hasLineOfSight(target))
 			return;
-		float damage = (float) getAttributeValue(Attributes.ATTACK_DAMAGE);
-		if (DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this))) {
-			damage = devourAttackDamage();
-			if (devour.replaceContact(target, damage) || wildSlimeSize() == 1) return;
-		}
+		boolean prey = DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this));
+		float damage = (float) getBionicTraits().slimeContactDamage(prey ? devourCarrierDamage() : getAttributeValue(Attributes.ATTACK_DAMAGE));
+		if (prey && devour.replaceContact(target, damage)) return;
+		if (isTinySlimeBody()) return;
 		var source = damageSources().mobAttack(this);
 		if (target.hurt(source, damage)) {
 			playSound(SoundEvents.SLIME_ATTACK, 1.0f, (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
@@ -1626,9 +1661,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		return true;
 	}
 
-	float devourAttackDamage() {
-		return (float) Math.max(0, getAttributeValue(Attributes.ATTACK_DAMAGE)
+	private double devourCarrierDamage() {
+		return Math.max(0, getAttributeValue(Attributes.ATTACK_DAMAGE)
 			+ getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET, getBionicTraits().members(BionicTrait.DEVOUR)));
+	}
+
+	float devourAttackDamage() {
+		double damage = devourCarrierDamage();
+		return (float) (usesContactAttack() ? getBionicTraits().slimeContactDamage(damage) : damage);
 	}
 
 	void afterDevourHit(LivingEntity victim) {
@@ -1827,7 +1867,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		super.onSyncedDataUpdated(key);
 		if ((PENDING_GROWTH.equals(key) || GROWTH_OBSERVER.equals(key)) && level().isClientSide && isAddedToLevel())
 			com.nobodiiiii.createbiotech.content.surgery.client.DevouredBodyMeasurements.schedule(this);
-		if (WILD_SLIME_SIZE.equals(key)) refreshDimensions();
+		if (WILD_SLIME_SIZE.equals(key)) {
+			invalidateTraits();
+			refreshDimensions();
+		}
 		if (ATTACH_CELL_DATA.equals(key) || ATTACH_FACE_DATA.equals(key)) {
 			lockBlockAttachmentRotation();
 			setBoundingBox(makeBoundingBox());

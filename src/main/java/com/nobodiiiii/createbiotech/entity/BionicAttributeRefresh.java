@@ -3,7 +3,6 @@ package com.nobodiiiii.createbiotech.entity;
 import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitSet;
 import net.minecraft.util.Mth;
@@ -18,18 +17,13 @@ final class BionicAttributeRefresh {
 		if (operationOwner.level().isClientSide) return;
 		operationOwner.baseStatsRevision = BionicStats.revision(operationOwner.level());
 		BionicAttributeRefresh.refreshMaximumHealth(operationOwner, assembly, operationOwner.getBionicTraits());
-		BionicLocomotionPolicy.refreshMovementSpeed(operationOwner, assembly);
-		var attack = operationOwner.getAttribute(Attributes.ATTACK_DAMAGE);
-		if (attack != null) attack.setBaseValue(BionicAttributeRefresh.anatomicalBaseStat(operationOwner, BionicStat.ATTACK_DAMAGE));
+		BionicLocomotionPolicy.refreshMovementSpeed(operationOwner);
 	}
 
 	static double anatomicalBaseStat(SlimeBionicEntity operationOwner, BionicStat stat) {
 		int size = operationOwner.wildSlimeSize();
-		if (size > 0) {
-			if (stat == BionicStat.ATTACK_DAMAGE) return DevourerEntity.attackDamageForSize(size);
-			if (stat == BionicStat.FOLLOW_RANGE)
-				return net.minecraft.world.entity.ai.attributes.DefaultAttributes.getSupplier(net.minecraft.world.entity.EntityType.SLIME).getBaseValue(Attributes.FOLLOW_RANGE);
-		}
+		if (size > 0 && stat == BionicStat.FOLLOW_RANGE)
+			return net.minecraft.world.entity.ai.attributes.DefaultAttributes.getSupplier(net.minecraft.world.entity.EntityType.SLIME).getBaseValue(Attributes.FOLLOW_RANGE);
 		SurgicalAssembly assembly = operationOwner.getAssembly();
 		return BionicStats.evaluate(stat, operationOwner.level(),
 			java.util.Map.of("volume", assembly != null && assembly.hasBodyVolume() ? assembly.bodyVolume() : 0.0d));
@@ -42,10 +36,7 @@ final class BionicAttributeRefresh {
 		var maximumHealth = operationOwner.getAttribute(Attributes.MAX_HEALTH);
 		if (maximumHealth == null)
 			return;
-		int size = operationOwner.wildSlimeSize();
-		double calibrated = size > 0 ? Math.max(1, DevourerEntity.maxHealthForSize(size) + traits.value(BionicTrait.HEALTH_OFFSET))
-			: SurgicalHealthCalibration.maximumHealth(assembly.bodyVolume(), operationOwner.level(),
-			traits.value(BionicTrait.HEALTH_OFFSET));
+		double calibrated = operationOwner.baseMaximumHealth(assembly, traits);
 		if (maximumHealth.getBaseValue() != calibrated)
 			maximumHealth.setBaseValue(calibrated);
 		if (operationOwner.getHealth() > calibrated)

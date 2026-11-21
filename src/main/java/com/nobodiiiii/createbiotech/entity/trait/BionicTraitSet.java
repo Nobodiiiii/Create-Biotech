@@ -76,6 +76,10 @@ public final class BionicTraitSet {
 	public double strongJumpBonus() {
 		return hasStrongJump() ? parameter(BionicTrait.STRONG_JUMP, "jump_bonus", 0.2d) : 0;
 	}
+	public double slimeContactDamage(double damage) {
+		return has(BionicTrait.DEVOUR) ? damage * parameter(BionicTrait.DEVOUR,
+			DevourAnatomy.CONTACT_DAMAGE_FACTOR, DevourAnatomy.DEFAULT_CONTACT_DAMAGE_FACTOR) : damage;
+	}
 	/** Whole-body/torso ratio, or the highest individual chain ratio for limb abilities. */
 	public double coverage(BionicTrait trait) { return result(trait).coverage(); }
 	public double strength(BionicTrait trait) { return result(trait).strength(); }

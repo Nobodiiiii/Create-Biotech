@@ -317,7 +317,7 @@ KubeJS 接口参考本地 `ref/1.21.1/KubeJS/` 的 `KubeJSPlugin`、`EventGroup`
 
 ## 体质与力量
 
-内置 `create_biotech:health_offset`（体质）与 `create_biotech:damage_offset`（力量）可通过 `values` 覆写供体的有符号数值，标签绑定和独立绑定沿用现有机制。默认值对应[最终修正表](vanilla-stat-offset-survey.zh-CN.md)；未配置供体为 0。只有这两项内置数值特性接受负值，其他数值特性仍要求非负数。
+内置 `create_biotech:health_offset`（体质）与 `create_biotech:damage_offset`（力量）可通过 `values` 覆写供体的有符号数值，标签绑定和独立绑定沿用现有机制。体质的自动探测按史莱姆、岩浆怪和吞噬者的实际尺寸计算完整供体总额，并按最接近的 5 的倍数取整。切割后按体块捕获体积分摊，例如中型史莱姆体质为 −35，一半组织贡献 −17.5。野生吞噬者本体使用自身原生血量，吞入的组织正常贡献体质。固定值与完整公式见[最终修正表](vanilla-stat-offset-survey.zh-CN.md)。只有这两项内置数值特性接受负值，其他数值特性仍要求非负数。
 
 力量默认值保留原有人工平衡值，仅将末影人与猪灵蛮兵设为 +3，凋灵骷髅设为 +1，其余供体保持本轮 DPS 测算前的原始数值。DPS 测算与候选方案仅保存在[归档](vanilla-stat-offset-survey-archive-2026-11-13.zh-CN.md)，最终采用值以总表和资源文件为准。例如末影人的每臂力量为 +3；该值是每次命中的伤害偏移，不是直接增加 3 DPS。
 

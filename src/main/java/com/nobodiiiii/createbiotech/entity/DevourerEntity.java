@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity;
 
 import com.nobodiiiii.createbiotech.entity.inventory.DevourerInventory;
+import com.nobodiiiii.createbiotech.entity.trait.DevourAnatomy;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -33,6 +34,7 @@ import net.neoforged.neoforge.event.entity.living.FinalizeSpawnEvent;
 
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class DevourerEntity extends Slime {
+	private static final String CONTACT_DAMAGE_MIGRATED = "DevourContactDamageMigrated";
 	private DevourAttackGoal devour;
 	private static final Set<Slime> NATURAL_CANDIDATES =
 		Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
@@ -50,21 +52,37 @@ public class DevourerEntity extends Slime {
 		SlimeMimicHandler.forceSetSlimeMimic(this, true);
 	}
 
-	static double maxHealthForSize(int size) { return 4.0d * size * size; }
-	static double attackDamageForSize(int size) { return 2.0d * size; }
+	public static double maxHealthForSize(int size) { return 4.0d * size * size; }
 
 	@Override
 	public void setSize(int size, boolean heal) {
 		super.setSize(size, false);
 		int actualSize = getSize();
 		getAttribute(Attributes.MAX_HEALTH).setBaseValue(maxHealthForSize(actualSize));
-		getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(attackDamageForSize(actualSize));
 		if (heal) setHealth(getMaxHealth());
+	}
+
+	@Override
+	protected float getAttackDamage() {
+		return (float) DevourAnatomy.nativeContactDamage(this, super.getAttackDamage());
+	}
+
+	@Override
+	public void addAdditionalSaveData(CompoundTag tag) {
+		super.addAdditionalSaveData(tag);
+		tag.putBoolean(CONTACT_DAMAGE_MIGRATED, true);
 	}
 
 	@Override
 	public void readAdditionalSaveData(CompoundTag tag) {
 		super.readAdditionalSaveData(tag);
+		restoreLegacyBaseAttributes(tag);
+		if (!tag.contains("Health", Tag.TAG_ANY_NUMERIC)) setHealth(getMaxHealth());
+		if (!tag.contains(SlimeMimicHandler.SLIME_MIMIC_TAG) && !SlimeMimicHandler.isHauntedMimic(this))
+			SlimeMimicHandler.forceSetSlimeMimic(this, true);
+	}
+
+	private void restoreLegacyBaseAttributes(CompoundTag tag) {
 		// LivingEntity restores saved attribute bases after Slime has applied its size.
 		int size = getSize();
 		var health = getAttribute(Attributes.MAX_HEALTH);
@@ -74,10 +92,9 @@ public class DevourerEntity extends Slime {
 			setHealth(getMaxHealth() * fraction);
 		}
 		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
-		if (attack.getBaseValue() == size) attack.setBaseValue(attackDamageForSize(size));
-		if (!tag.contains("Health", Tag.TAG_ANY_NUMERIC)) setHealth(getMaxHealth());
-		if (!tag.contains(SlimeMimicHandler.SLIME_MIMIC_TAG) && !SlimeMimicHandler.isHauntedMimic(this))
-			SlimeMimicHandler.forceSetSlimeMimic(this, true);
+		// Older devourers stored the contact bonus in their base attack attribute.
+		if (!tag.getBoolean(CONTACT_DAMAGE_MIGRATED) && attack.getBaseValue() == 2.0 * size)
+			attack.setBaseValue(size);
 	}
 
 	@Override

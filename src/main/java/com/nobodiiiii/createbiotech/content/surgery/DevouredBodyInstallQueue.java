@@ -124,7 +124,8 @@ public final class DevouredBodyInstallQueue {
 				return Outcome.INSTALLED;
 			}
 			if (evaluation == null) {
-				evaluation = new BionicTraitResolver.Evaluation(checkingAlignment ? measured.beforeAlignment() : measured.installed(), level);
+				evaluation = new BionicTraitResolver.Evaluation(checkingAlignment ? measured.beforeAlignment() : measured.installed(),
+					level, body.wildSlimeSize() > 0);
 				return Outcome.MORE;
 			}
 			var result = evaluation.step();

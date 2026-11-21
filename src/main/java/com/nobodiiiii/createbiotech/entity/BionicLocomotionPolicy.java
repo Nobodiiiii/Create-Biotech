@@ -29,13 +29,12 @@ final class BionicLocomotionPolicy {
 	}
 
 	/** Aquatic speed has its own baseline; land movement retains the anatomical gait calibration. */
-	static void refreshMovementSpeed(SlimeBionicEntity operationOwner, SurgicalAssembly assembly) {
+	static void refreshMovementSpeed(SlimeBionicEntity operationOwner) {
 		if (operationOwner.level().isClientSide)
 			return;
 		double speed = operationOwner.organSwimEnabled ? BionicStats.evaluate(
 			BionicStat.SWIMMING_SPEED, operationOwner.level(), java.util.Map.of())
-			: operationOwner.wildSlimeSize() > 0 ? 0.2f + 0.1f * operationOwner.wildSlimeSize()
-			: SurgicalGait.movementSpeed(assembly.bodyBounds(), operationOwner.level());
+			: operationOwner.baseGroundSpeed();
 		var movement = operationOwner.getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)
 			movement.setBaseValue(speed);

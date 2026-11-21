@@ -21,6 +21,7 @@ public final class BionicStats {
 	private static final Map<ResourceLocation, BiFunction<BionicStat, JsonObject, BionicStatFormula>> TYPES = new HashMap<>();
 	private static final Map<BionicStat, JsonObject> ADDON_DEFAULTS = new EnumMap<>(BionicStat.class);
 	private static final Map<BionicStat, BionicStatFormula> BUILT_INS = new EnumMap<>(BionicStat.class);
+	private static final Map<String, Double> DEFAULT_PARAMETERS = BionicStatParameters.defaults();
 	private static volatile Snapshot current;
 	private static volatile Snapshot client;
 	private static Map<ResourceLocation, JsonElement> resources = Map.of();
@@ -50,8 +51,18 @@ public final class BionicStats {
 	public static Map<String, Double> parameters(Level level) { return snapshot(level).parameters; }
 	public static double parameter(Level level, String name) { return parameters(level).get(name); }
 	private static Snapshot snapshot(Level level) { return level != null && level.isClientSide ? client : current; }
+	/** The fixed reference curve used to calibrate donor tissue independently of world settings. */
+	public static double defaultMaximumHealth(double volume) {
+		return BUILT_INS.get(BionicStat.MAX_HEALTH).evaluate(
+			new BionicStatFormula.Context(Map.of("volume", volume), DEFAULT_PARAMETERS));
+	}
 	public static double evaluate(BionicStat stat, Level level, Map<String, Double> inputs) {
 		Snapshot snapshot = snapshot(level);
+		// v1 API callers can still evaluate gait or base damage without a measured slime size.
+		if (stat.inputs().contains("slime_size") && !inputs.containsKey("slime_size")) {
+			inputs = new HashMap<>(inputs);
+			inputs.put("slime_size", -1.0d);
+		}
 		for (String name : stat.inputs())
 			if (!inputs.containsKey(name) || !Double.isFinite(inputs.get(name)))
 				throw new IllegalArgumentException("Missing or non-finite input " + name + " for " + stat.id());

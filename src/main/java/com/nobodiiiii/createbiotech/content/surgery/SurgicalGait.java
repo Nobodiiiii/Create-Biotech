@@ -14,7 +14,7 @@ public final class SurgicalGait {
 	public static final double ZOMBIE_LEG_LENGTH = 12.0d / 16.0d;
 	/** Enderman legs are thirty model pixels long. */
 	public static final double ENDERMAN_LEG_LENGTH = 30.0d / 16.0d;
-	/** Ordinary zombie ground speed and the fixed horizontal speed of zero/one-leg hoppers. */
+	/** Ordinary zombie ground speed. */
 	public static final double ZOMBIE_WALK_SPEED = 0.23d;
 	/** An enderman's 0.30 base movement plus its 0.15 attacking modifier. */
 	public static final double ANGRY_ENDERMAN_SPEED = 0.45d;
@@ -42,21 +42,25 @@ public final class SurgicalGait {
 
 	private SurgicalGait() {}
 
-	/** Calculates the authoritative base speed stored on a completed surgical body. */
+	/** Bounds-only callers use the configured fallback when no body volume is available. */
 	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds) {
 		return movementSpeed(bounds, null);
 	}
 
 	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds, Level level) {
-		return bounds == null ? movementSpeed(0, 0, 0, 0, level)
+		return movementSpeed(bounds, -1.0d, level);
+	}
+
+	public static double movementSpeed(SurgicalAssembly.BodyBounds bounds, double slimeSize, Level level) {
+		return bounds == null ? movementSpeed(0, 0, 0, 0, slimeSize, level)
 			: movementSpeed(bounds.legLength(), bounds.groundedLegCount(),
-				bounds.groundedKneeCount(), bounds.legVolumeRatio(), level);
+				bounds.groundedKneeCount(), bounds.legVolumeRatio(), slimeSize, level);
 	}
 
 	/**
 	 * Calibrates two standard zombie-length grounded legs to ordinary zombie speed, then applies the
 	 * diminishing leg-length curve and the bonuses for extra grounded legs, grounded-leg volume and knees.
-	 * Bodies with at most one grounded leg use a fixed hopping speed instead.
+	 * Bodies with at most one grounded leg hop.
 	 */
 	public static double movementSpeed(double averageLegLength, int groundedLegCount,
 		int groundedKneeCount, double legVolumeRatio) {
@@ -65,7 +69,13 @@ public final class SurgicalGait {
 
 	public static double movementSpeed(double averageLegLength, int groundedLegCount,
 		int groundedKneeCount, double legVolumeRatio, Level level) {
+		return movementSpeed(averageLegLength, groundedLegCount, groundedKneeCount, legVolumeRatio, -1.0d, level);
+	}
+
+	private static double movementSpeed(double averageLegLength, int groundedLegCount,
+		int groundedKneeCount, double legVolumeRatio, double slimeSize, Level level) {
 		return BionicStats.evaluate(BionicStat.MOVEMENT_SPEED, level, Map.of(
+			"slime_size", slimeSize,
 			"leg_length", Math.max(0, averageLegLength), "leg_count", (double) groundedLegCount,
 			"knee_count", (double) groundedKneeCount, "leg_volume_ratio", Mth.clamp(legVolumeRatio, 0, 1)));
 	}

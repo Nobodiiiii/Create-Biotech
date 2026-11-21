@@ -17,6 +17,14 @@ public final class SurgicalHealthCalibration {
 
 	private SurgicalHealthCalibration() {}
 
+	/** A complete slime donor has a reference edge of half its size in blocks. */
+	public static int slimeDonorHealthOffset(int size, double nativeHealth) {
+		double referenceVolume = size * size * size / 8.0d;
+		double difference = Math.min(nativeHealth, BionicStat.MAX_HEALTH.maximum())
+			- BionicStats.defaultMaximumHealth(referenceVolume);
+		return 5 * (int) Math.round(difference / 5.0d);
+	}
+
 	/**
 	 * A Hill curve matches the zombie (20 health) and ravager (100 health) reference bodies, then gives diminishing gains
 	 * at larger sizes while approaching, but never exceeding, the configured ceiling.

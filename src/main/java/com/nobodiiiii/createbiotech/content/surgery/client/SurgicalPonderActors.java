@@ -17,20 +17,17 @@ import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicAccess;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalPonderGreenprint.SourcePose;
-import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStats;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicCombat;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAnimator;
@@ -508,7 +505,6 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
                 assembly.combinations(), List.of(), assembly.layoutFacing(), assembly.layoutLayPose()));
             assembly = measureBody(assembly, sources.stream().map(SourcePose::model).toList(), rest, member -> true);
         }
-        var bounds = assembly.bodyBounds();
         Vec3 origin = bodyOrigin(assembly, rest);
         var attack = assembly.attackGeometry();
         SceneBionicEntity entity = new SceneBionicEntity(zombie.entity.level());
@@ -518,9 +514,8 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         // This scene owns no server entity, so seed them from the same gameplay calculations.
         entity.getAttribute(Attributes.MAX_HEALTH).setBaseValue(SurgicalHealthCalibration.maximumHealth(
             assembly.bodyVolume(), entity.level(), entity.getBionicTraits().value(BionicTrait.HEALTH_OFFSET)));
-        entity.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(SurgicalGait.movementSpeed(bounds, entity.level()));
-        entity.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(BionicStats.evaluate(BionicStat.ATTACK_DAMAGE,
-            entity.level(), Map.of("volume", assembly.bodyVolume())));
+        entity.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(entity.baseGroundSpeed());
+        entity.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(entity.baseMeleeDamage());
         entity.setHealth(entity.getMaxHealth());
         entity.getRandom().setSeed(0x5A71C0DEL + (withJoints ? 1 : 0));
         entity.setInvulnerable(true);

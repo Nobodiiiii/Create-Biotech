@@ -1,5 +1,8 @@
 {
   "automatic_detection": true,
+  "parameters": {
+    "contact_damage_factor": 2
+  },
   "parts": {
     "inner": {
       "name": {

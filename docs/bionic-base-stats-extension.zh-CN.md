@@ -26,14 +26,14 @@ health_second_anchor_value = 100.0
 | `health_maximum` | 400 | 生命曲线上限，Minecraft 属性允许最高 1024 |
 | `health_anchor_volume` / `health_anchor_value` | 0.40625 / 20 | 第一个生命锚点 |
 | `health_second_anchor_volume` / `health_second_anchor_value` | 5.184234619140625 / 100 | 第二个生命锚点 |
-| `movement_maximum` | 0.6 | 解剖乘数之后的地面速度上限 |
+| `movement_maximum` | 0.6 | 双腿及以上步行时的速度上限 |
 | `leg_anchor_length` / `leg_anchor_speed` | 0.75 / 0.23 | 腿长曲线第一个锚点，未计腿数、体积和膝盖乘数 |
 | `leg_second_anchor_length` / `leg_second_anchor_speed` | 1.875 / 0.36 | 腿长曲线第二个锚点 |
-| `hopping_speed` | 0.23 | 不超过一条接地腿时的地面速度 |
+| `hopping_speed` | 0.23 | 旧版 API 调用缺少体积测量时的跳动速度 |
 | `flight_maximum` | 0.6 | 有效飞行组织占比 100% 时的速度 |
 | `flight_anchor_ratio` / `flight_anchor_speed` | 0.25 / 0.3 | 飞行曲线锚点；自动重算对数曲线的幂指数 |
 | `swimming_speed` | 1 | 专精游泳启用时的移动属性值 |
-| `base_attack_damage` | 3 | 装备与手臂几何乘数之前的基础近战伤害 |
+| `base_attack_damage` | 3 | 使用攻击臂时，装备与手臂几何乘数之前的基础伤害 |
 | `base_knockback_resistance` | 0 | 固有抗击退；供体特性贡献另外叠加，最终限制到 0–1 |
 | `base_follow_range` | 35 | 基础感知距离；特殊攻击仍可提出更大的距离需求 |
 | `arm_dps_maximum` | 4 | 单臂体积 DPS 倍率曲线的渐近上限 |
@@ -69,10 +69,10 @@ health_second_anchor_value = 100.0
 | 数值 ID | 几何输入变量 | 输出及默认行为 |
 | --- | --- | --- |
 | `max_health` | `volume` | 生命上限；通过两个锚点的 Hill 曲线 |
-| `movement_speed` | `leg_length`、`leg_count`、`knee_count`、`leg_volume_ratio` | 地面速度；腿长曲线与腿数、腿体积、膝盖乘数 |
+| `movement_speed` | `leg_length`、`leg_count`、`knee_count`、`leg_volume_ratio`、`slime_size` | 0–1 条接地腿的跳动移速为 `0.2 + 0.1 × slime_size`，两条及以上按腿长、腿数、腿体积和膝盖计算 |
 | `flying_speed` | `flight_volume_ratio` | 飞行速度；有效飞行组织占比的对数曲线，先满足原有飞行特性条件 |
 | `swimming_speed` | 无 | 专精游泳的移动属性值，启用条件仍由特性决定 |
-| `attack_damage` | `volume` | 基础攻击伤害，默认 3 |
+| `attack_damage` | `volume`、`slime_size` | 碰撞攻击的基础伤害等于等效尺寸，使用攻击臂时默认 3 |
 | `knockback_resistance` | `volume` | 固有抗击退，默认 0，不替换供体特性贡献 |
 | `follow_range` | `volume` | 基础感知距离，默认 35 |
 | `arm_dps_scale` | `arm_volume`、`arm_length`、`arm_thickness` | 单臂几何 DPS 倍率，默认以体积立方根作饱和曲线 |
@@ -80,6 +80,10 @@ health_second_anchor_value = 100.0
 | `arm_damage_multiplier` | 同上，加 `arm_dps_scale`、`arm_interval` | 单次伤害倍率，默认 `arm_dps_scale * arm_interval / arm_reference_interval` |
 | `arm_recovery` | `arm_interval` | 单臂恢复时间，默认 `max(global_minimum_interval, arm_interval)` |
 | `attack_interval` | `arm_recovery`、`arm_count` | 全局出手间隔，默认计入多臂协调与全局上下限 |
+
+原版尺寸 1 的史莱姆外层是边长 0.5 方块的立方体。手术成品按实测非重叠体积 `V` 换算连续的等效尺寸 `S = 2 × ∛V`。例如 `V = 0.25` 时，`S ≈ 1.2599`，跳动基础移速约为 0.326，普通碰撞基础伤害约为 1.26。计算保留小数，纸箱面板最多显示两位。等效尺寸不超过 1 的生物无法用普通碰撞造成伤害，追击时沿用平常的起跳等待。超过 1 时，攻击状态下的起跳等待缩为原来的三分之一。
+
+移动公式中的 `slime_size` 是等效尺寸。攻击公式仅在身体通过碰撞攻击时收到等效尺寸，使用攻击臂时该值为 `-1`。沿用旧版 API、未传入此变量的调用也按 `-1` 处理。
 
 `volume` 是封装成品的非重叠总体积；`leg_length` 是接地腿的平均有效长度；`leg_count`、`knee_count` 只统计接地腿及其膝盖。`arm_length` 是肩至手端的关节链长度，至少按 1/64 方块计；`arm_thickness = sqrt(arm_volume / arm_length)`。`arm_interval` 是解剖间隔的最终整数。`arm_count` 是能参与当前攻击协调的手臂数；纸箱 DPS 按全部可用攻击手臂计算，并排除翅膀。
 
@@ -106,7 +110,7 @@ health_second_anchor_value = 100.0
 ```js
 BionicStatEvents.formulas(event => {
   event.set('max_health', 'clamp(20 + volume * 15, 1, health_maximum)')
-  event.set('movement_speed', 'leg_count <= 1 ? hopping_speed : min(movement_maximum, 0.2 + leg_length * 0.1)')
+  event.set('movement_speed', 'leg_count <= 1 ? (slime_size >= 0 ? 0.2 + 0.1 * slime_size : hopping_speed) : min(movement_maximum, 0.2 + leg_length * 0.1)')
   event.set('attack_interval', 'max(global_minimum_interval, round(arm_recovery / sqrt(arm_count)))')
 })
 ```

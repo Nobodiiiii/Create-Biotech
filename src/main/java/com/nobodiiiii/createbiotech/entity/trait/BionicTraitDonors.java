@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligenceRegistry;
@@ -32,6 +33,7 @@ import net.minecraft.world.entity.ai.navigation.WaterBoundPathNavigation;
 import net.minecraft.world.entity.animal.WaterAnimal;
 import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.monster.Drowned;
+import net.minecraft.world.entity.monster.Slime;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.common.NeoForgeMod;
 
@@ -42,18 +44,19 @@ public final class BionicTraitDonors {
 	private BionicTraitDonors() {}
 
 	public static Facts get(MimicProfile profile, Level level) {
-		return get(profile, level, BionicTraitRegistry.snapshot(level));
+		return get(profile, level, BionicTraitRegistry.snapshot(level), false);
 	}
 
-	static synchronized Facts get(MimicProfile profile, Level level, BionicTraitRegistry.Snapshot data) {
+	static synchronized Facts get(MimicProfile profile, Level level, BionicTraitRegistry.Snapshot data, boolean wildHost) {
 		if (!BionicTraits.ENABLED || profile == null || level == null)
 			return Facts.EMPTY;
 		Cache cache = CACHES.get(level);
 		if (cache == null || cache.generation != data.generation()) {
-			cache = new Cache(data.generation(), new HashMap<>());
+			cache = new Cache(data.generation(), new HashMap<>(), new HashMap<>());
 			CACHES.put(level, cache);
 		}
-		return cache.facts.computeIfAbsent(profile.biologicalKey(), ignored -> {
+		var facts = wildHost ? cache.wildHosts : cache.facts;
+		return facts.computeIfAbsent(profile.biologicalKey(), ignored -> {
 			LivingEntity donor = null;
 			try {
 				donor = profile.createBiologicalEntity(level);
@@ -61,18 +64,18 @@ public final class BionicTraitDonors {
 				LogUtils.getLogger().warn("Could not inspect bionic donor {}", profile.entityTypeId(), exception);
 			}
 			EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(profile.entityTypeId()).orElse(null);
-			return type == null ? Facts.EMPTY : detect(type, donor, data);
+			return type == null ? Facts.EMPTY : detect(type, donor, data, wildHost);
 		});
 	}
 
 	public static Facts detect(LivingEntity donor) {
 		return !BionicTraits.ENABLED || donor == null ? Facts.EMPTY
-			: detect(donor.getType(), donor, BionicTraitRegistry.snapshot(donor.level()));
+			: detect(donor.getType(), donor, BionicTraitRegistry.snapshot(donor.level()), false);
 	}
 
 	@SuppressWarnings("deprecation")
 	private static Facts detect(EntityType<?> type, @Nullable LivingEntity donor,
-		BionicTraitRegistry.Snapshot snapshot) {
+		BionicTraitRegistry.Snapshot snapshot, boolean wildHost) {
 		ResourceLocation id = BuiltInRegistries.ENTITY_TYPE.getKey(type);
 		Set<BionicTrait> abilities = new LinkedHashSet<>();
 		Map<BionicTrait, Double> numbers = new LinkedHashMap<>();
@@ -100,6 +103,12 @@ public final class BionicTraitDonors {
 				if (data.automaticDetection() && donor != null) {
 					if (BionicTrait.DEVOUR.equals(trait)) {
 						if (donor instanceof DevourerEntity devourer) automatic = devourer.getSize();
+					} else if (BionicTrait.HEALTH_OFFSET.equals(trait) && donor instanceof Slime slime) {
+						int size = slime.getSize();
+						if (type == EntityType.SLIME || type == EntityType.MAGMA_CUBE)
+							automatic = SurgicalHealthCalibration.slimeDonorHealthOffset(size, size * size);
+						else if (donor instanceof DevourerEntity && !wildHost)
+							automatic = SurgicalHealthCalibration.slimeDonorHealthOffset(size, DevourerEntity.maxHealthForSize(size));
 					} else {
 						var attribute = switch (trait.id().toString()) {
 						case "create_biotech:attack_knockback" -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
@@ -110,11 +119,7 @@ public final class BionicTraitDonors {
 						automatic = attribute == null ? 0.0d : attribute.getBaseValue();
 					}
 				}
-				if (data.automaticDetection() && donor != null && data.extensions().gameplay().detector != null) {
-					Double fact = data.extensions().gameplay().probe(donor);
-					if (fact != null && Double.isFinite(fact)) automatic = fact;
-				}
-				double value = data.numbers().resolve(type, id, automatic);
+				double value = resolveNumber(data, type, id, donor, automatic);
 				value = Double.isFinite(value) ? (trait.isStatOffset() ? value : Math.max(0.0d, value)) : 0.0d;
 				numbers.put(trait, BionicTrait.KNOCKBACK_RESISTANCE.equals(trait) ? Math.min(1.0d, value) : value);
 			}
@@ -173,6 +178,15 @@ public final class BionicTraitDonors {
 			abilities.contains(BionicTrait.PACK_ALERT) ? BionicGameplayRelations.targets(snapshot.get(BionicTrait.PACK_ALERT).extensions().gameplay(), id, BionicPackAlert.targets(donor)) : Set.of(), variants);
 	}
 
+	static double resolveNumber(BionicTraitData data, EntityType<?> type, ResourceLocation id,
+		@Nullable LivingEntity donor, double automatic) {
+		if (data.automaticDetection() && donor != null && data.extensions().gameplay().detector != null) {
+			Double fact = data.extensions().gameplay().probe(donor);
+			if (fact != null && Double.isFinite(fact)) automatic = fact;
+		}
+		return data.numbers().resolve(type, id, automatic);
+	}
+
 	@SuppressWarnings("deprecation")
 	private static boolean automatic(BionicTrait trait, EntityType<?> type, @Nullable LivingEntity donor) {
 		return switch (trait.id().toString()) {
@@ -207,7 +221,8 @@ public final class BionicTraitDonors {
 		};
 	}
 
-	private record Cache(long generation, Map<MimicProfile.BiologicalKey, Facts> facts) {}
+	private record Cache(long generation, Map<MimicProfile.BiologicalKey, Facts> facts,
+		Map<MimicProfile.BiologicalKey, Facts> wildHosts) {}
 
 	public record Facts(Set<BionicTrait> abilities, Map<BionicTrait, Double> numbers,
 		Map<BionicTrait, Set<ResourceLocation>> effectSets, Map<BionicTrait, Set<ResourceLocation>> attackSets, Set<ResourceLocation> deterrenceTargets,
