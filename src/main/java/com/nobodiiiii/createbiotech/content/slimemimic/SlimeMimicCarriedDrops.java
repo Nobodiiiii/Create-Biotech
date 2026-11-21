@@ -40,7 +40,7 @@ public final class SlimeMimicCarriedDrops {
 	public static void onLivingDeath(LivingDeathEvent event) {
 		LivingEntity entity = event.getEntity();
 		if (entity.level() instanceof ServerLevel
-			&& (SlimeMimicHandler.isSlimeMimic(entity) || entity instanceof SlimeBionicEntity))
+			&& (SlimeMimicHandler.usesMimicDeath(entity) || entity instanceof SlimeBionicEntity))
 			PENDING.put(entity, copyCarriedItems(entity));
 	}
 

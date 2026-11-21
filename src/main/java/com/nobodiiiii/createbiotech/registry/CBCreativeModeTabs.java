@@ -219,6 +219,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.BIOTECH_CASING.get()),
 			visible(CBItems.ASURINE_TABLE_CLOTH.get()),
 			visible(CBFluids.CREAM_BUCKET.get()),
+			visible(CBItems.DEVOURER_SPAWN_EGG.get()),
 			visible(CBItems.DING_DONG_CHICKEN_SPAWN_EGG.get())));
 
 		sections.add(section(CBCreativeTabSection.WORK_IN_PROGRESS,

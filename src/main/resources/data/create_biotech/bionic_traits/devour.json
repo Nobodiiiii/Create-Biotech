@@ -1,0 +1,27 @@
+{
+  "automatic_detection": true,
+  "parts": {
+    "inner": {
+      "name": {
+        "translate": "create_biotech.bionic_part.devour_inner"
+      },
+      "order": 20,
+      "bindings": {
+        "create_biotech:devourer": [
+          "devour_inner"
+        ]
+      }
+    },
+    "outer": {
+      "name": {
+        "translate": "create_biotech.bionic_part.devour_outer"
+      },
+      "order": 21,
+      "bindings": {
+        "create_biotech:devourer": [
+          "devour_outer"
+        ]
+      }
+    }
+  }
+}

@@ -1,5 +1,11 @@
 package com.nobodiiiii.createbiotech.entity;
 
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.network.chat.Component;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.damagesource.DamageSource;
 import com.nobodiiiii.createbiotech.entity.trait.BionicGameplayRuntime;
 import com.nobodiiiii.createbiotech.api.bionic.BionicGameplayEvent;
 import com.nobodiiiii.createbiotech.api.bionic.BionicStat;
@@ -221,6 +227,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public void setTarget(@Nullable LivingEntity target) {
 		LivingEntity previous = getTarget();
+		if (target != null && DevourAttackGoal.protectedPrey(target) && (wildSlimeSize() > 0 || DevourAttackGoal.size(this) > 0)) target = null;
 		super.setTarget(target);
 		// Read the accepted target after NeoForge's target-change event has run.
 		if (!level().isClientSide && specialAttacks != null && getTarget() != null && getTarget() != previous)
@@ -281,6 +288,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	private boolean doorBreakingEnabled;
 	private boolean wallClimbEnabled;
 	private boolean bodyFlightEnabled;
+	boolean devourGroundAttack;
+	private DevourAttackGoal devour;
+	WildDevourerSlime wildSlime;
+	private static final EntityDataAccessor<Integer> WILD_SLIME_SIZE = SynchedEntityData.defineId(SlimeBionicEntity.class, EntityDataSerializers.INT);
+
 	boolean organSwimEnabled;
 	private boolean lavaWalkEnabled;
 	private float baseWaterPathMalus = Float.NaN;
@@ -335,6 +347,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	public SlimeBionicEntity(EntityType<? extends SlimeBionicEntity> type, Level level) {
 		super(type, level);
+		if (wildSlime == null) wildSlime = new WildDevourerSlime(this); // Client mobs do not register AI goals.
 		hitParts = new SlimeBionicHitPart[MAX_HIT_PARTS];
 		for (int index = 0; index < hitParts.length; index++)
 			hitParts[index] = new SlimeBionicHitPart(this);
@@ -346,6 +359,54 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		setPersistenceRequired();
 		BionicBodyGeometry.updateHitParts(this);
 	}
+
+	@Override
+	public int getMaxHeadXRot() { return wildSlimeSize() > 0 ? 0 : super.getMaxHeadXRot(); }
+
+	@Override
+	public void jumpFromGround() {
+		if (wildSlimeSize() == 0) {
+			super.jumpFromGround();
+			return;
+		}
+		var motion = getDeltaMovement();
+		setDeltaMovement(motion.x, getJumpPower(), motion.z);
+		hasImpulse = true;
+	}
+
+	@Override
+	protected boolean shouldDespawnInPeaceful() { return wildSlimeSize() > 0 || super.shouldDespawnInPeaceful(); }
+
+	@Override
+	public MobCategory getClassification(boolean forSpawnCount) {
+		return wildSlimeSize() > 0 ? MobCategory.MONSTER : super.getClassification(forSpawnCount);
+	}
+
+	@Override
+	protected Component getTypeName() {
+		return wildSlimeSize() > 0 ? CBEntityTypes.DEVOURER.get().getDescription() : super.getTypeName();
+	}
+
+	@Override
+	public SoundSource getSoundSource() {
+		return wildSlimeSize() > 0 ? SoundSource.HOSTILE : super.getSoundSource();
+	}
+
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return wildSlimeSize() == 0 ? super.getHurtSound(source) : wildSlimeSize() == 1 ? SoundEvents.SLIME_HURT_SMALL : SoundEvents.SLIME_HURT;
+	}
+
+	@Override
+	protected SoundEvent getDeathSound() {
+		return wildSlimeSize() == 0 ? super.getDeathSound() : wildSlimeSize() == 1 ? SoundEvents.SLIME_DEATH_SMALL : SoundEvents.SLIME_DEATH;
+	}
+
+	@Override
+	protected float getSoundVolume() { return wildSlimeSize() > 0 ? 0.4f * wildSlimeSize() : super.getSoundVolume(); }
+
+	public int wildSlimeSize() { return entityData == null ? 0 : entityData.get(WILD_SLIME_SIZE); }
+	public boolean usesWildSlimeMovement() { return wildSlime != null && wildSlime.active(); }
 
 	@Override
 	public void setId(int id) {
@@ -412,6 +473,10 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			@Override public void start() { if (hasControllingPassenger() || specialAttacks.locksMovement()) getNavigation().stop(); }
 			@Override public void tick() { if (hasControllingPassenger() || specialAttacks.locksMovement()) getNavigation().stop(); }
 		});
+		devour = new DevourAttackGoal(this);
+		goalSelector.addGoal(1, devour);
+		wildSlime = new WildDevourerSlime(this);
+		goalSelector.addGoal(2, wildSlime);
 		goalSelector.addGoal(2, new BionicBreakDoorGoal(this));
 		goalSelector.addGoal(2, new BionicGoalSet.BionicAttackGoal(this, 1.0d, false));
 		goalSelector.addGoal(2, new RestrictSunGoal(this) {
@@ -453,6 +518,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		goalSelector.addGoal(8, new LookAtPlayerGoal(this, Player.class, 8.0f));
 		goalSelector.addGoal(8, new RandomLookAroundGoal(this));
 		targetSelector.addGoal(1, new BionicPackAlertGoal(this));
+		targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, LivingEntity.class, 10, true, false,
+			target -> DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this))) {
+			@Override public boolean canUse() {
+				return !isOrderedToSit() && DevourAttackGoal.size(SlimeBionicEntity.this) > 0 && super.canUse();
+			}
+		});
 		targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(this, Player.class, true) {
 			@Override public boolean canUse() {
 				return ownerId == null && getDisposition() == BionicDisposition.HOSTILE && super.canUse();
@@ -499,6 +570,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		super.defineSynchedData(builder);
 		builder.define(ASSEMBLY, new CompoundTag());
+		builder.define(WILD_SLIME_SIZE, 0);
 		builder.define(OWNER_DATA, Optional.empty());
 		builder.define(SITTING_DATA, false);
 		builder.define(CLIMBING_DATA, false);
@@ -531,6 +603,11 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public void setAssembly(SurgicalAssembly assembly) {
 		if (assembly == null || !assembly.isReadyForEntity())
 			throw new IllegalArgumentException("A bionic entity requires complete body geometry");
+		if (!level().isClientSide && getPersistentData().getBoolean("WildDevourer")) {
+			int size = Mth.clamp(assembly.sources().getFirst().profile().stableInt("Size") + 1, 1, 127);
+			entityData.set(WILD_SLIME_SIZE, size);
+			xpReward = size;
+		}
 		CompoundTag encoded = assembly.save();
 		cachedAssemblyData = encoded;
 		cachedAssembly = assembly;
@@ -586,7 +663,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	public boolean canAttack(LivingEntity target) {
 		if (!super.canAttack(target) || isAlliedTo(target))
 			return false;
-		if (orderedToSit)
+		if (orderedToSit || wildSlimeSize() > 0 && !DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this)))
 			return false;
 		// As in vanilla, natural target selection supplies disposition rules. Once a target has
 		// been assigned, combat does not require it to be prey or the last creature to hurt us.
@@ -654,7 +731,8 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	public boolean isAlliedTo(Entity other) {
-		return ownerId != null && ownerId.equals(other.getUUID())
+		return DevourAttackGoal.protectedPrey(other) && (wildSlimeSize() > 0 || DevourAttackGoal.size(this) > 0)
+			|| ownerId != null && ownerId.equals(other.getUUID())
 			|| ownerId != null && other instanceof SlimeBionicEntity bionic && ownerId.equals(bionic.getBionicOwnerId())
 			|| ownerId != null && other instanceof net.minecraft.world.entity.TamableAnimal tameable && ownerId.equals(tameable.getOwnerUUID())
 			|| ownerId != null && ownerId.equals(SlimeCompanionHandler.ownerOf(other))
@@ -744,6 +822,12 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		bionicTraits = BionicTraitSet.EMPTY;
 	}
 
+	void setDevourGroundAttack(boolean active) {
+		if (active == devourGroundAttack) return;
+		devourGroundAttack = active;
+		refreshLocomotion(getBionicTraits());
+	}
+
 	void refreshLocomotion(BionicTraitSet traits) {
 		if (level().isClientSide)
 			return;
@@ -766,7 +850,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			navigation.stop();
 		}
 		boolean swimming = BionicLocomotionPolicy.shouldUseSwimmingLocomotion(this, aquatic);
-		boolean enabled = !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
+		boolean enabled = !devourGroundAttack && !swimming && (traits.has(BionicTrait.WINGLESS_FLIGHT)
 			|| traits.has(BionicTrait.WING_FLIGHT));
 		if (Float.isNaN(baseWaterPathMalus))
 			baseWaterPathMalus = getPathfindingMalus(PathType.WATER);
@@ -1113,6 +1197,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	@Override
 	protected EntityDimensions getDefaultDimensions(Pose pose) {
+		if (wildSlimeSize() > 0) return EntityType.SLIME.getDimensions().scale(wildSlimeSize());
 		SurgicalAssembly.BodyBounds bounds = BionicBodyGeometry.authoritativeBodyBounds(this);
 		if (bounds == null)
 			return super.getDefaultDimensions(pose);
@@ -1154,14 +1239,14 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public void push(Entity other) {
 		super.push(other);
-		dealContactDamage(other);
+		if (wildSlimeSize() == 0 || other instanceof net.minecraft.world.entity.animal.IronGolem) dealContactDamage(other);
 	}
 
 	@Override
 	protected void doPush(Entity other) {
 		super.doPush(other);
-		// Assigned targets can be any living mob, so handle either side initiating the push.
-		dealContactDamage(other);
+		if (wildSlimeSize() == 0 || !(other instanceof Player) && !(other instanceof net.minecraft.world.entity.animal.IronGolem))
+			dealContactDamage(other);
 	}
 
 	@Override
@@ -1172,16 +1257,22 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 
 	/** Slime.dealDamage: immediate contact damage, with repeated hits governed by hurt immunity. */
 	private void dealContactDamage(Entity other) {
-		if (!(other instanceof LivingEntity target) || target != getTarget()
+		if (!(other instanceof LivingEntity target) || wildSlimeSize() == 0 && target != getTarget()
 			|| !(level() instanceof ServerLevel serverLevel) || !isEffectiveAi()
 			|| !BionicMeleeController.usesContactAttack(this) || !BionicMeleeController.isValidMeleeTarget(this, target)
 			|| !super.isWithinMeleeAttackRange(target) || !hasLineOfSight(target))
 			return;
+		float damage = (float) getAttributeValue(Attributes.ATTACK_DAMAGE);
+		if (DevourAttackGoal.isPrey(this, target, DevourAttackGoal.size(this))) {
+			damage = devourAttackDamage();
+			if (devour.replaceContact(target, damage) || wildSlimeSize() == 1) return;
+		}
 		var source = damageSources().mobAttack(this);
-		if (target.hurt(source, (float) getAttributeValue(Attributes.ATTACK_DAMAGE))) {
+		if (target.hurt(source, damage)) {
 			playSound(SoundEvents.SLIME_ATTACK, 1.0f, (random.nextFloat() - random.nextFloat()) * 0.2f + 1.0f);
 			EnchantmentHelper.doPostAttackEffects(serverLevel, target, source);
-			specialAttacks.afterMelee();
+			if (DevourAttackGoal.size(this) > 0 && target.isAlive()) afterDevourHit(target);
+			else specialAttacks.afterMelee();
 		}
 	}
 
@@ -1210,6 +1301,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		SurgicalAssembly.AttackGeometry geometry = assembly == null ? null : assembly.attackGeometry();
 		if (geometry == null || BionicMeleeController.usesContactAttack(this))
 			return null;
+		if (super.isWithinMeleeAttackRange(target) && DevourAttackGoal.size(this) > 0 && devour.replaceContact(target, devourAttackDamage())) return null;
 		ArmSelection selection = BionicMeleeController.selectArm(this, target, geometry, rightRecovery, leftRecovery, lastArm);
 		if (selection == null)
 			return null;
@@ -1243,6 +1335,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		if (!level().isClientSide) { hunting.tick(); specialAttacks.tick(); }
 		if (!hasControllingPassenger()) { riderJump = 0; riderAscending = false; }
 		super.tick();
+		if (wildSlimeSize() > 0) wildSlime.animate(wildSlimeSize());
 		// Spider updates and synchronizes wall contact after movement, for the next tick.
 		if (!level().isClientSide)
 			entityData.set(CLIMBING_DATA, horizontalCollision && canUseWallClimbing());
@@ -1410,6 +1503,34 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 			return hit;
 		List<SurgicalAssembly.CombinationMember> attackingGroup =
 			assembly.rotatingGroup(arm.sourceId(), arm.cubeId());
+		applyMeleeTraits(victim, attackingGroup, attackActionWeapon);
+		return hit;
+	}
+
+	float devourAttackDamage() {
+		return (float) Math.max(0, getAttributeValue(Attributes.ATTACK_DAMAGE)
+			+ getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET, devourMembers()));
+	}
+
+	private List<SurgicalAssembly.CombinationMember> devourMembers() {
+		var assembly = getAssembly();
+		if (assembly == null) return List.of();
+		var members = new java.util.ArrayList<>(getBionicTraits().members(BionicTrait.DEVOUR));
+		for (int source = 0; source < assembly.sources().size(); source++)
+			if (assembly.sources().get(source).isWholePrey())
+				members.add(new SurgicalAssembly.CombinationMember(source, 0));
+		return members;
+	}
+
+	void afterDevourHit(LivingEntity victim) {
+		specialAttacks.afterMelee();
+		var members = devourMembers();
+		double knockback = getBionicTraits().armValue(BionicTrait.ATTACK_KNOCKBACK, members);
+		if (knockback > 0) victim.knockback(knockback * 0.5, getX() - victim.getX(), getZ() - victim.getZ());
+		applyMeleeTraits(victim, members, false);
+	}
+
+	private void applyMeleeTraits(LivingEntity victim, List<SurgicalAssembly.CombinationMember> attackingGroup, boolean armed) {
 		extensionBehaviors.melee(victim, attackingGroup);
 		BionicTraitSet traits = getBionicTraits();
 		if (attackingGroup.stream().anyMatch(traits.members(BionicTrait.LAUNCH_STRIKE)::contains)) {
@@ -1420,7 +1541,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 		}
 		for (var entry : traits.result(BionicTrait.EFFECT_ATTACK).attackEffects().entrySet()) {
 			var effect = entry.getKey();
-			if (effect.unarmedOnly() && attackActionWeapon
+			if (effect.unarmedOnly() && armed
 				|| attackingGroup.stream().noneMatch(entry.getValue()::contains)
 				|| random.nextDouble() >= effect.chance())
 				continue;
@@ -1428,7 +1549,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 				.ifPresent(holder -> victim.addEffect(new MobEffectInstance(holder,
 					effect.durationTicks(), effect.amplifier()), this));
 		}
-		return hit;
 	}
 
 	@Override
@@ -1596,6 +1716,7 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	@Override
 	public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
 		super.onSyncedDataUpdated(key);
+		if (WILD_SLIME_SIZE.equals(key)) refreshDimensions();
 		if (ATTACH_CELL_DATA.equals(key) || ATTACH_FACE_DATA.equals(key)) {
 			lockBlockAttachmentRotation();
 			setBoundingBox(makeBoundingBox());

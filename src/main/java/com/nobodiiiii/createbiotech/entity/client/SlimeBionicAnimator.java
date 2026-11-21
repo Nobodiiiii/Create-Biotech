@@ -42,7 +42,6 @@ public final class SlimeBionicAnimator {
 	static final double GEOMETRY_EPSILON = 1.0e-10d;
 	/** Includes SpiderModel's outer legs, whose rest pose is exactly 45 degrees from horizontal. */
 	static final double SPIDER_HORIZONTAL_TO_VERTICAL_RATIO = 0.75d;
-	static final double GROUND_CONTACT_TOLERANCE = 2.0d / 16.0d;
 	/**
 	 * Connection graphs keyed by the immutable assembly they describe. Weak so a despawned body's
 	 * graph is collected with it.

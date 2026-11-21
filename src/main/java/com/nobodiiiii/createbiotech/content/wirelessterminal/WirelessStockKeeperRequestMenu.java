@@ -4,12 +4,17 @@ import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.google.common.reflect.TypeToken;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperBlock;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestMenu;
 import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 import com.simibubi.create.AllBlockEntityTypes;
 import com.simibubi.create.AllBlocks;
+import com.simibubi.create.content.logistics.stockTicker.StockCheckingBlockEntity;
+import com.simibubi.create.content.logistics.stockTicker.StockKeeperCategoryEditPacket;
+import com.simibubi.create.content.logistics.stockTicker.StockKeeperCategoryRefundPacket;
 import com.simibubi.create.content.logistics.stockTicker.StockTickerBlockEntity;
+import com.simibubi.create.foundation.networking.BlockEntityConfigurationPacket;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -26,6 +31,15 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 
 public class WirelessStockKeeperRequestMenu extends EndermanStockKeeperRequestMenu {
+
+	private static final ClassValue<Class<?>> PACKET_TARGET_TYPES = new ClassValue<>() {
+		@Override
+		protected Class<?> computeValue(Class<?> packetClass) {
+			return TypeToken.of(packetClass)
+				.resolveType(BlockEntityConfigurationPacket.class.getTypeParameters()[0])
+				.getRawType();
+		}
+	};
 
 	public WirelessStockKeeperRequestMenu(int id, Inventory inv, RegistryFriendlyByteBuf extraData) {
 		this(CBMenuTypes.WIRELESS_STOCK_KEEPER_REQUEST.get(), id, inv, extraData);
@@ -44,6 +58,14 @@ public class WirelessStockKeeperRequestMenu extends EndermanStockKeeperRequestMe
 		StockTickerBlockEntity stockTickerBlockEntity, @Nullable BlockPos keeperPos, List<ItemStack> gaugeOutputs) {
 		return new WirelessStockKeeperRequestMenu(CBMenuTypes.WIRELESS_STOCK_KEEPER_REQUEST.get(), containerId,
 			playerInventory, stockTickerBlockEntity, keeperPos, gaugeOutputs);
+	}
+
+	public boolean acceptsWirelessPacketType(BlockEntityConfigurationPacket<?> packet) {
+		// These actions belong to Create's local category editor.
+		if (packet instanceof StockKeeperCategoryEditPacket || packet instanceof StockKeeperCategoryRefundPacket)
+			return false;
+		Class<?> targetType = PACKET_TARGET_TYPES.get(packet.getClass());
+		return StockCheckingBlockEntity.class.isAssignableFrom(targetType) && targetType.isInstance(contentHolder);
 	}
 
 	@Override

@@ -191,6 +191,7 @@ public final class CapturedEntityBoxStatsTooltip implements TooltipModifier {
 		List<List<MissingPart>> missingParts) {}
 
 	private static String numericTraitText(BionicTrait trait, double value) {
+		if (BionicTrait.DEVOUR.equals(trait)) return Integer.toString((int) value);
 		return String.format(java.util.Locale.ROOT, trait.isStatOffset() ? "%+.1f" : "%.1f", value);
 	}
 

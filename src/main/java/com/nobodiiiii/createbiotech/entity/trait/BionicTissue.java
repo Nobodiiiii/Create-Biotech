@@ -30,7 +30,7 @@ final class BionicTissue {
 			java.util.EnumMap<BionicTraitScope, BitSet> bySlot = new java.util.EnumMap<>(BionicTraitScope.class);
 			for (BionicTraitScope slot : BionicTraitScope.values())
 				bySlot.put(slot, new BitSet());
-			BitSet present = sources.get(sourceId).presentCubes();
+			BitSet present = sources.get(sourceId).isWholePrey() ? new BitSet() : sources.get(sourceId).presentCubes();
 			bySlot.put(BionicTraitScope.WHOLE_BODY, (BitSet) present.clone());
 			for (int cube = present.nextSetBit(0); cube >= 0; cube = present.nextSetBit(cube + 1)) {
 				SurgicalAssembly.Limb limb = assembly.primaryLimbOf(sourceId, cube);

@@ -4,6 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.nobodiiiii.createbiotech.registry.CBItems;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
@@ -34,6 +35,11 @@ public final class SlimeMimicHandler {
 	public static final String HAUNTED_MIMIC_TAG = "CreateBiotechHauntedMimic";
 
 	private SlimeMimicHandler() {
+	}
+
+	public static boolean usesMimicDeath(Entity entity) {
+		return isSlimeMimic(entity) || entity instanceof DevourerEntity
+			|| entity instanceof SlimeBionicEntity bionic && bionic.wildSlimeSize() > 0;
 	}
 
 	public static boolean isSlimeMimic(Entity entity) {
@@ -155,13 +161,13 @@ public final class SlimeMimicHandler {
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onMobSplit(MobSplitEvent event) {
 		// Check the parent rather than entity types so modded splitters using this event are covered too.
-		if (isSlimeMimic(event.getParent()))
+		if (usesMimicDeath(event.getParent()))
 			event.setCanceled(true);
 	}
 
 	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDrops(LivingDropsEvent event) {
-		if (isSlimeMimic(event.getEntity()) || event.getEntity() instanceof SlimeBionicEntity)
+		if (usesMimicDeath(event.getEntity()) || event.getEntity() instanceof SlimeBionicEntity)
 			SlimeMimicCarriedDrops.replaceDrops(event);
 	}
 

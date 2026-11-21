@@ -13,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.mojang.logging.LogUtils;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.entity.ai.BionicDispositionRegistry;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligenceRegistry;
 
@@ -97,13 +98,17 @@ public final class BionicTraitDonors {
 			} else if (trait.valueKind() == BionicTrait.ValueKind.NUMBER) {
 				double automatic = 0.0d;
 				if (data.automaticDetection() && donor != null) {
-					var attribute = switch (trait.id().toString()) {
-					case "create_biotech:attack_knockback" -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
-					case "create_biotech:natural_armor" -> donor.getAttribute(Attributes.ARMOR);
-					case "create_biotech:knockback_resistance" -> donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
-					default -> null;
-					};
-					automatic = attribute == null ? 0.0d : attribute.getBaseValue();
+					if (BionicTrait.DEVOUR.equals(trait)) {
+						if (donor instanceof DevourerEntity devourer) automatic = devourer.getSize();
+					} else {
+						var attribute = switch (trait.id().toString()) {
+						case "create_biotech:attack_knockback" -> donor.getAttribute(Attributes.ATTACK_KNOCKBACK);
+						case "create_biotech:natural_armor" -> donor.getAttribute(Attributes.ARMOR);
+						case "create_biotech:knockback_resistance" -> donor.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+						default -> null;
+						};
+						automatic = attribute == null ? 0.0d : attribute.getBaseValue();
+					}
 				}
 				if (data.automaticDetection() && donor != null && data.extensions().gameplay().detector != null) {
 					Double fact = data.extensions().gameplay().probe(donor);

@@ -456,7 +456,19 @@ public class SurgicalTableBlockEntity extends SmartBlockEntity {
 		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
 		List<SurgicalTableLayout.Proposal> sourceLayouts) {
-		return SurgicalPlacementOperations.tryPlaceSubject(this, box, plane, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams, anatomy, componentFootprints, sourceLayouts);
+		return tryPlaceSubject(box, plane, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ, proposal,
+			observedCubeCount, observedSeams, anatomy, componentFootprints, sourceLayouts, List.of());
+	}
+
+	public SurgicalTablePlacementResult tryPlaceSubject(ItemStack box, SurgicalTablePlane.Plane plane,
+		Direction placementFacing,
+		SurgicalLayPose layPose, double placedOriginOffsetX, double placedOriginOffsetZ,
+		SurgicalTableLayout.Proposal proposal,
+		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
+		BionicAnatomySnapshot anatomy,
+		List<SurgicalTableLayout.Footprint> componentFootprints,
+		List<SurgicalTableLayout.Proposal> sourceLayouts, List<DevouredDonorTopology> preyModels) {
+		return SurgicalPlacementOperations.tryPlaceSubject(this, box, plane, placementFacing, layPose, placedOriginOffsetX, placedOriginOffsetZ, proposal, observedCubeCount, observedSeams, anatomy, componentFootprints, sourceLayouts, preyModels);
 	}
 
 	/** Performs a read-only validity check once the source chunk is available. */

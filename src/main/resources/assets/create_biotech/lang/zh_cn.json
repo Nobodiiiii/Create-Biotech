@@ -1,4 +1,13 @@
 {
+  "entity.create_biotech.devourer": "吞噬者",
+  "item.create_biotech.devourer_spawn_egg": "吞噬者刷怪蛋",
+  "create_biotech.trait.name.devour": "吞噬",
+  "create_biotech.trait.devour": "吞噬（%s）",
+  "create_biotech.jei.trait.devour.effect": "按最大尺寸捕猎，压杀后长出拟态并继承特性。",
+  "create_biotech.jei.trait.condition.devour_ground": "内外层齐全，外层需要接地",
+  "create_biotech.bionic_part.devour_inner": "内层",
+  "create_biotech.bionic_part.devour_outer": "外层",
+  "create_biotech.trait.inactive.not_grounded": "吞噬者外层未接地",
   "item.create_biotech.wooden_capture_net": "木捕捉网",
   "item.create_biotech.stone_capture_net": "石捕捉网",
   "item.create_biotech.iron_capture_net": "铁捕捉网",

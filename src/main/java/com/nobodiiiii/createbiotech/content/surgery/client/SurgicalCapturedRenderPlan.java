@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.surgery.client;
 
+import com.nobodiiiii.createbiotech.entity.DevourGrowth;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
+import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -392,8 +395,9 @@ public final class SurgicalCapturedRenderPlan {
 	@SuppressWarnings("unchecked")
 	public static boolean tryRenderSlimeMimic(EntityRenderer<?> renderer, LivingEntity entity, float yaw,
 		float partialTick, PoseStack poseStack, MultiBufferSource buffer, int packedLight) {
-		if (entity instanceof SlimeBionicEntity || !SlimeMimicHandler.isSlimeMimic(entity)
-			|| entity.isInvisible())
+		if (entity instanceof SlimeBionicEntity || entity.isInvisible()
+			|| entity instanceof DevourerEntity && !entity.isDeadOrDying()
+			|| !SlimeMimicHandler.usesMimicDeath(entity))
 			return false;
 		if (entity.isDeadOrDying() && SlimeMimicDeathClient.hasReported(entity))
 			return true;
@@ -440,6 +444,30 @@ public final class SurgicalCapturedRenderPlan {
 		SurgicalCapturedRenderPlan plan) {}
 
 	private record LiveRecovery(EntityRenderer<LivingEntity> renderer, SurgicalLiveMeshCache cache) {}
+
+	/** Keep every native cuboid visible while exposing the swallowed form as one surgical organ. */
+	SurgicalCapturedRenderPlan forProfile(MimicProfile profile) {
+		if (!profile.needsPreyTopology()) return this;
+		var points = DevourGrowth.corners(profile.devouredWidth(), 0, profile.devouredHeight());
+		var corners = points.stream().map(Vec3::toVector3f).toList();
+		Vector3f origin = corners.getFirst();
+		Component organ = new Component(0, corners, corners.get(1).sub(origin, new Vector3f()),
+			corners.get(2).sub(origin, new Vector3f()), corners.get(4).sub(origin, new Vector3f()),
+			List.of(), List.of(), false, Set.of("devoured_form"), Set.of(), null, false, List.of(), List.of());
+		return new SurgicalCapturedRenderPlan(List.of(organ),
+			appearanceComponents.stream().map(cube -> new Component(cube, organ)).toList(), List.of(), false);
+	}
+
+	/** Report the intact donor's native cube IDs while rotating all of them about the shared attachment. */
+	SurgicalModelRenderContext.Snapshot devouredDeathSnapshot(PoseStack pose, Vec3 offset,
+		SurgicalCubeRotation rotation, Vec3 cameraPosition) {
+		var cubes = new ArrayList<SurgicalModelRenderContext.CubeGeometry>(appearanceComponents.size());
+		for (var component : appearanceComponents) {
+			var box = component.geometry(pose, offset, rotation, cameraPosition);
+			cubes.add(new SurgicalModelRenderContext.CubeGeometry(cubes.size(), box.corners()));
+		}
+		return new SurgicalModelRenderContext.Snapshot(cubes.size(), cubes);
+	}
 
 	int cubeCount() {
 		return components.size();

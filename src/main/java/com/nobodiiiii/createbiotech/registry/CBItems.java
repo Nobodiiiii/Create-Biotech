@@ -185,6 +185,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> POWER_BELT_CONNECTOR = ITEMS.register("power_belt_connector",
 		() -> new PowerBeltConnectorItem(new Item.Properties()));
 
+	public static final DeferredHolder<Item, Item> DEVOURER_SPAWN_EGG = ITEMS.register("devourer_spawn_egg",
+		() -> new DeferredSpawnEggItem(CBEntityTypes.DEVOURER, 0x79BC65, 0xB6DFA5, new Item.Properties()));
+
 	public static final DeferredHolder<Item, Item> DING_DONG_CHICKEN_SPAWN_EGG =
 		ITEMS.register("ding_dong_chicken_spawn_egg",
 			() -> new DeferredSpawnEggItem(CBEntityTypes.DING_DONG_CHICKEN, 0xA1A1A1, 0xD8A52A,

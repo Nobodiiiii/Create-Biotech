@@ -47,7 +47,7 @@ final class SurgicalSourcePlanCache {
 				// stalling this frame either way. collectCompletedPlans() harvests the duplicate on a
 				// later frame and overwrites this entry with an equal, immutable plan.
 				long started = SurgicalProfiler.begin();
-				plan = SurgicalSourceModelRenderer.captureInCanonicalPose(renderer, preview, yaw);
+				plan = SurgicalSourceModelRenderer.captureInCanonicalPose(renderer, preview, yaw).forProfile(profile);
 				SurgicalProfiler.end("capture(plan)", started);
 				RENDER_PLANS.put(key, plan);
 			}
@@ -122,7 +122,7 @@ final class SurgicalSourcePlanCache {
 				}
 				int generation = SurgicalSourceModelRenderer.resourceGeneration;
 				pending = new PendingRenderPlan(generation,
-					SurgicalClientExecutors.submit(() -> buildPlan(captured)));
+					SurgicalClientExecutors.submit(() -> buildPlan(captured).forProfile(profile)));
 				PENDING_RENDER_PLANS.put(key, pending);
 				// Publish only from the next frame. Besides keeping the handoff deterministic, this
 				// prevents a full worker queue from causing several same-frame recaptures of one profile.

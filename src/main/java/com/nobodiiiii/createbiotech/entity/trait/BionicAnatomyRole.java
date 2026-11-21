@@ -15,6 +15,8 @@ public record BionicAnatomyRole(ResourceLocation id) implements Comparable<Bioni
 	public static final BionicAnatomyRole WING = builtin("wing");
 	public static final BionicAnatomyRole TENTACLE = builtin("tentacle");
 	public static final BionicAnatomyRole SHELL = builtin("shell");
+	public static final BionicAnatomyRole DEVOUR_INNER = local("devour", "inner");
+	public static final BionicAnatomyRole DEVOUR_OUTER = local("devour", "outer");
 	public static final BionicAnatomyRole BASE = local("block_attachment", "base");
 	public static final BionicAnatomyRole ATTACK_HAND = builtin("attack_hand");
 	public static final BionicAnatomyRole EYE = builtin("eye");

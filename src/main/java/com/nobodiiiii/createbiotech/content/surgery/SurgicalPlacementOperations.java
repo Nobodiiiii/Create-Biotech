@@ -44,7 +44,7 @@ final class SurgicalPlacementOperations {
 		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 		BionicAnatomySnapshot anatomy,
 		List<SurgicalTableLayout.Footprint> componentFootprints,
-		List<SurgicalTableLayout.Proposal> sourceLayouts) {
+		List<SurgicalTableLayout.Proposal> sourceLayouts, List<DevouredDonorTopology> preyModels) {
 		SurgicalTableBlockEntity.TemporaryMoveSource temporaryMove = SurgicalKitItem.hasTemporaryCapture(box)
 			? SurgicalPlacementOperations.resolveTemporaryMove(operationOwner, box) : null;
 		if (SurgicalKitItem.isTemporaryBox(box) && temporaryMove == null)
@@ -74,7 +74,8 @@ final class SurgicalPlacementOperations {
 		List<Integer> cutOrder;
 		List<SurgicalTableLayout.Footprint> storedFootprints;
 		if (captured instanceof SlimeBionicEntity bionic) {
-			SurgicalAssembly assembly = bionic.getAssembly();
+			SurgicalAssembly boxed = bionic.getAssembly();
+			SurgicalAssembly assembly = boxed == null ? null : DevouredDonorTopology.expand(boxed, preyModels);
 			if (assembly == null)
 				return SurgicalTablePlacementResult.INVALID_ASSEMBLY;
 			placementAssembly = assembly;
@@ -101,7 +102,7 @@ final class SurgicalPlacementOperations {
 			cutOrder = assembly.cutOrder();
 			storedFootprints = proposal.footprints();
 		} else if (captured instanceof LivingEntity living && SlimeMimicHandler.isSlimeMimic(living)) {
-			if (!sourceLayouts.isEmpty())
+			if (!sourceLayouts.isEmpty() || !preyModels.isEmpty())
 				return SurgicalTablePlacementResult.INVALID_CAPTURE;
 			if (!SurgicalAssembly.validTopology(observedCubeCount, observedSeams))
 				return SurgicalTablePlacementResult.INVALID_CAPTURE;

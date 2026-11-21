@@ -154,6 +154,7 @@ final class SurgicalGlueController {
 		SurgicalTablePlane.Plane plane = SurgicalSelectionResolver.clientPlane(level, preview.ownerPos());
 		if (table == null || firstSubject == null || secondSubject == null
 			|| table.clientDataRevision() != preview.tableRevision()) {
+			clearPendingGlue();
 			SurgicalTableFailure.PREVIEW_CHANGED.display(player);
 			return;
 		}
@@ -167,6 +168,8 @@ final class SurgicalGlueController {
 		}
 		SurgicalTableFailure previewFailure = SurgicalSymmetryController.finalGluePreviewFailure(table, preview);
 		if (previewFailure != null) {
+			if (previewFailure == SurgicalTableFailure.PREVIEW_CHANGED)
+				clearPendingGlue();
 			previewFailure.display(player);
 			return;
 		}

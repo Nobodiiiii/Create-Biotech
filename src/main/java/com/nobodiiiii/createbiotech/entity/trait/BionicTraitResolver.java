@@ -57,7 +57,7 @@ public final class BionicTraitResolver {
 				addMembers(owners, source, cubes);
 			}
 			if (owners.isEmpty()) continue;
-			BionicTraitResult result = evaluate(trait, data.get(trait), tissue, donors, bindings).withBindings(owners);
+			BionicTraitResult result = evaluate(trait, data.get(trait), assembly, tissue, donors, bindings).withBindings(owners);
 			if (result.present())
 				results.put(trait, result);
 		}
@@ -71,13 +71,18 @@ public final class BionicTraitResolver {
 					List<BitSet> restricted = new ArrayList<>();
 					for (int source = 0; source < tissue.sourceCount(); source++) restricted.add(new BitSet());
 					valid.forEach(member -> restricted.get(member.source()).set(member.cube()));
-					return evaluate(trait, data.get(trait), tissue, donors, restricted);
+					return evaluate(trait, data.get(trait), assembly, tissue, donors, restricted);
 				})
 				.withBindings(result.bindings());
 		});
+		DevouredTraits.apply(assembly, level, data, donors, results);
 		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
 		// Preserve anatomical contributions before behavior replacement removes their labels.
 		double tamingChance = tamingChance(results, tissue);
+		if (List.of(BionicTrait.TAMEABLE, BionicTrait.LIVESTOCK_TAMEABLE).stream()
+			.map(results::get).filter(java.util.Objects::nonNull).filter(BionicTraitResult::active)
+			.anyMatch(result -> result.members().stream().anyMatch(m -> assembly.sources().get(m.source()).isWholePrey())))
+			tamingChance = 1;
 		BionicTraitOverrides.apply(results, data.traits(), level.isClientSide);
 		applyExtensionConditions(results, data, assembly, level, tissue.headUsesTorso());
 		// Suppressed slow falling does not turn anatomical wings into ordinary attack arms.
@@ -159,8 +164,9 @@ public final class BionicTraitResolver {
 		return new BionicTraitSet(results, data.traits(), false);
 	}
 
-	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data,
+	private static BionicTraitResult evaluate(BionicTrait trait, BionicTraitData data, SurgicalAssembly assembly,
 		BionicTissue tissue, List<BionicTraitDonors.Facts> donors, List<BitSet> bindings) {
+		if (trait.equals(BionicTrait.DEVOUR)) return DevourAnatomy.evaluate(assembly, data, tissue, donors, bindings);
 		if (trait.valueKind() == BionicTrait.ValueKind.NUMBER)
 			return evaluateNumbers(trait, tissue, donors, bindings);
 		if (trait.isHeadClassification())

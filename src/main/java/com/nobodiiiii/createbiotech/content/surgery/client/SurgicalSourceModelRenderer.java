@@ -267,6 +267,13 @@ public final class SurgicalSourceModelRenderer {
 		if (owner != null) buffer = selfDestructBuffer(buffer, owner.getSelfDestructSwelling(partialTick));
 		preparePreview(preview, 0);
 		SurgicalCapturedRenderPlan base = SurgicalSourcePlanCache.plan(preview, 0);
+		MimicProfile sourceProfile = PREVIEW_PROFILES.get(preview);
+		if (sourceProfile != null && sourceProfile.needsPreyTopology()) {
+			if (collectGeometry && cameraPosition != null && owner != null && owner.isDeadOrDying() && presentCubes.get(0))
+				return base.devouredDeathSnapshot(poseStack, cubeOffsets.get(0), cubeRotations.get(0), cameraPosition);
+			return base.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,
+				cubeRotations, collectGeometry, cameraPosition, false, hurtOverlay);
+		}
 		if (owner != null) base = SurgicalEquipmentRenderPlans.traitPlan(preview, owner, source, partialTick, base);
 		SurgicalCapturedRenderPlan naked = SurgicalEquipmentRenderPlans.chestPlan(preview, 0, false, false, SurgicalEquipmentRenderPlans.saddlePlan(preview, 0, false, base));
 		var snapshot = naked.render(poseStack, buffer, packedLight, cubeCount, presentCubes, cubeOffsets,

@@ -12,6 +12,8 @@ import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -117,7 +119,7 @@ public final class MimicProfile {
 			copyField(completeData, stableData, "ForcedAge");
 		}
 
-		for (String field : STABLE_FIELDS.getOrDefault(entity.getType(), List.of()))
+		for (String field : stableFields(entity.getType()))
 			copyField(completeData, stableData, field);
 
 		if (entity.getType() == EntityType.VILLAGER || entity.getType() == EntityType.ZOMBIE_VILLAGER)
@@ -147,6 +149,49 @@ public final class MimicProfile {
 			? sanitizePreviewData(tag.getCompound(PREVIEW_DATA_TAG)) : new CompoundTag();
 		Boolean baby = tag.contains(BABY_TAG, Tag.TAG_BYTE) ? tag.getBoolean(BABY_TAG) : null;
 		return POOL.intern(new MimicProfile(entityTypeId, stableData, previewData, baby));
+	}
+
+	/** Retain the intact donor until its native cuboids and seams are measured for surgery. */
+	public MimicProfile asDevouredForm(float width, float height, long gameTime) {
+		return asDevouredForm(width, height, gameTime, 0);
+	}
+
+	public MimicProfile asDevouredForm(float width, float height, long gameTime, double burial) {
+		CompoundTag data = previewData.copy();
+		data.putFloat("DevouredWidth", width);
+		data.putFloat("DevouredHeight", height);
+		data.putLong("DevouredAt", gameTime);
+		data.putDouble("DevouredBurial", burial);
+		return POOL.intern(new MimicProfile(entityTypeId, stableData, data, baby));
+	}
+
+	/** After the first surgical placement, the donor uses its ordinary model and cube IDs. */
+	public MimicProfile withNativePreyCubes() {
+		if (!isDevouredForm() || hasNativePreyCubes()) return this;
+		var data = previewData.copy();
+		data.putBoolean("DevouredNativeCubes", true);
+		return POOL.intern(new MimicProfile(entityTypeId, stableData, data, baby));
+	}
+
+	public boolean hasNativePreyCubes() { return previewData.getBoolean("DevouredNativeCubes"); }
+	public boolean needsPreyTopology() { return isDevouredForm() && !hasNativePreyCubes(); }
+
+	public boolean isDevouredForm() {
+		return previewData.contains("DevouredAt", Tag.TAG_LONG) && devouredWidth() > 0 && devouredHeight() > 0
+			&& devouredWidth() <= SurgicalAssembly.MAX_BODY_SIZE && devouredHeight() <= SurgicalAssembly.MAX_BODY_SIZE;
+	}
+	public float devouredWidth() { return previewData.getFloat("DevouredWidth"); }
+	public float devouredHeight() { return previewData.getFloat("DevouredHeight"); }
+	@Nullable
+	public SurgicalAssembly devouredAssembly() {
+		return isDevouredForm() && previewData.contains("SurgicalAssembly", Tag.TAG_COMPOUND)
+			? SurgicalAssembly.loadCached(previewData.getCompound("SurgicalAssembly")) : null;
+	}
+
+	public long devouredAt() { return previewData.getLong("DevouredAt"); }
+	public double devouredBurial() {
+		double depth = previewData.getDouble("DevouredBurial");
+		return Double.isFinite(depth) ? Math.clamp(depth, 0, devouredHeight() / 2d) : 0;
 	}
 
 	public int stableInt(String field) {
@@ -222,6 +267,9 @@ public final class MimicProfile {
 		living.setUUID(UUID.nameUUIDFromBytes(("create_biotech:mimic_preview/" + entityTypeId)
 			.getBytes(StandardCharsets.UTF_8)));
 		apply(living);
+		// Some donors restore a visible name themselves when their appearance data is loaded.
+		living.setCustomName(null);
+		living.setCustomNameVisible(false);
 		SlimeMimicHandler.setSlimeMimic(living, true);
 		living.setYRot(0.0f);
 		living.setXRot(0.0f);
@@ -280,6 +328,10 @@ public final class MimicProfile {
 		entity.setHealth(entity.getMaxHealth());
 	}
 
+	private static List<String> stableFields(EntityType<?> type) {
+		return CBEntityTypes.DEVOURER.getId().equals(BuiltInRegistries.ENTITY_TYPE.getKey(type)) ? List.of("Size") : STABLE_FIELDS.getOrDefault(type, List.of());
+	}
+
 	private static void copyField(CompoundTag source, CompoundTag target, String field) {
 		Tag value = source.get(field);
 		if (value != null)
@@ -307,7 +359,7 @@ public final class MimicProfile {
 		// simply ignore these keys when the filtered data is merged back in.
 		copyField(savedData, sanitizedData, "Age");
 		copyField(savedData, sanitizedData, "ForcedAge");
-		for (String field : STABLE_FIELDS.getOrDefault(entityType, List.of()))
+		for (String field : stableFields(entityType))
 			copyField(savedData, sanitizedData, field);
 
 		if (entityType == EntityType.VILLAGER || entityType == EntityType.ZOMBIE_VILLAGER)

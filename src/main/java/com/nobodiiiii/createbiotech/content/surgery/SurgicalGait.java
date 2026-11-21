@@ -38,6 +38,8 @@ public final class SurgicalGait {
 	private static final float MIN_ANIMATION_FREQUENCY_SCALE = 0.25f;
 	private static final float MAX_ANIMATION_FREQUENCY_SCALE = 4.0f;
 
+	public static final double GROUND_CONTACT_TOLERANCE = 2.0d / 16.0d;
+
 	private SurgicalGait() {}
 
 	/** Calculates the authoritative base speed stored on a completed surgical body. */

@@ -22,6 +22,7 @@ public final class SlimeBionicMoveControl extends MoveControl {
 
 	@Override
 	public void tick() {
+		if (bionic.usesWildSlimeMovement()) return;
 		if (bionic.getAttackActionTick() > 0 && bionic.shouldPauseAttackMovement()) {
 			stopOnGround();
 			bionic.applyCombatFacing();

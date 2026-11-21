@@ -20,6 +20,7 @@ final class BionicTraitCarriers {
 	/** Species-specific carrier labels for JEI; an empty set denotes whole-donor tissue. */
 	static Set<BionicAnatomyRole> donorRoles(BionicTrait trait, BionicTraitData data,
 		ResourceLocation entity, BionicTraitDonors.Facts donor) {
+		if (BionicTrait.DEVOUR.equals(trait)) return Set.of(BionicAnatomyRole.DEVOUR_INNER, BionicAnatomyRole.DEVOUR_OUTER);
 		List<BionicTrait.Carrier> carriers = switch (trait.valueKind()) {
 		case ATTACK_EFFECT_SET -> donor.attacks(trait).stream()
 			.map(data.attackEffects()::get).map(BionicAttackEffect::carrier).toList();
@@ -54,8 +55,10 @@ final class BionicTraitCarriers {
 	static BitSet bind(BionicTrait trait, BionicTraitData data, BionicTissue tissue, int source,
 		BionicTraitDonors.Facts donor) {
 		BitSet cubes = new BitSet();
-		if (!donor.supplies(trait)) return cubes;
-		if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
+		if (tissue.source(source).isWholePrey() || !donor.supplies(trait)) return cubes;
+		if (BionicTrait.DEVOUR.equals(trait)) {
+			cubes = select(BionicTrait.Carrier.of(BionicAnatomyRole.DEVOUR_INNER, BionicAnatomyRole.DEVOUR_OUTER), data, tissue, source);
+		} else if (trait.valueKind() == BionicTrait.ValueKind.ATTACK_EFFECT_SET) {
 			for (var id : donor.attacks(trait)) {
 				var effect = data.attackEffects().get(id);
 				if (effect != null) cubes.or(select(effect.carrier(), data, tissue, source));

@@ -44,6 +44,7 @@ import com.nobodiiiii.createbiotech.entity.client.BionicGuardianBeamRenderer;
 import com.nobodiiiii.createbiotech.entity.client.SlimeBionicAttackRangeRenderer;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.foundation.render.EntityGeometry;
+import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.Minecraft;
@@ -240,9 +241,19 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 	}
 
 	@Override
+	protected boolean shouldShowName(SlimeBionicEntity entity) {
+		return entity.wildSlimeSize() == 0 && super.shouldShowName(entity);
+	}
+
+	@Override
 	public void render(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
 		poseStack.pushPose();
+		if (entity.wildSlimeSize() > 0) {
+			float squish = Mth.lerp(partialTick, entity.wildSlime.oldSquish, entity.wildSlime.squish);
+			float stretch = 1 + squish / (entity.wildSlimeSize() * 0.5f + 1);
+			poseStack.scale(1 / stretch, stretch, 1 / stretch);
+		}
 		// Scaling by one is an exact no-op, so only a lit fuse pays for the trait lookup.
 		int fuseTicks = entity.getProductionFlags() >> 2;
 		if (fuseTicks != 0) {
@@ -258,7 +269,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 	private void renderBody(SlimeBionicEntity entity, float yaw, float partialTick, PoseStack poseStack,
 		MultiBufferSource buffer, int packedLight) {
-		boolean hideOriginal = entity.isDeadOrDying() && SlimeMimicHandler.isSlimeMimic(entity);
+		boolean hideOriginal = entity.isDeadOrDying() && SlimeMimicHandler.usesMimicDeath(entity);
 		if (hideOriginal && SlimeMimicDeathClient.hasReported(entity))
 			return;
 		MultiBufferSource sourceBuffer = hideOriginal ? hiddenBuffer() : buffer;
@@ -420,7 +431,7 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 
 		List<SlimeBionicAnimator.Frame> frames = cached == null ? List.of()
 			: SlimeBionicAnimator.resolve(entity, cached.rig, partialTick);
-		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying() && slimeForm
+		List<SlimeMimicCubeGeometry> deathGeometry = entity.isDeadOrDying() && SlimeMimicHandler.usesMimicDeath(entity)
 			? new ArrayList<>() : null;
 		Vec3 cameraPosition = deathGeometry == null ? null
 			: Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
@@ -527,6 +538,29 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			entity.setClientBodyGeometry(assembly, geometry.bounds, geometry.hitboxes, geometry.volume);
 	}
 
+	/** Growth keeps its existing carrier coordinates even if a new donor changes the visible envelope. */
+	@Nullable
+	private static Vec3 devourShellOffset(SurgicalAssembly assembly, List<SlimeBionicAnimator.SourceState> states) {
+		var geometry = assembly.attackGeometry();
+		if (geometry == null || assembly.sources().stream().noneMatch(s -> s.profile().needsPreyTopology())) return null;
+		for (int i = 0; i < assembly.sources().size(); i++) {
+			var source = assembly.sources().get(i);
+			if (!source.profile().matches(CBEntityTypes.DEVOURER.getId())) continue;
+			for (var entry : states.get(i).boxes().entrySet()) {
+				if (!source.anatomy().parts().getOrDefault(entry.getKey(), Set.of()).contains("devour_outer")) continue;
+				var shell = new SurgicalAssembly.CombinationMember(i, entry.getKey());
+				var saved = geometry.carrierOrigins().get(shell);
+				var corners = geometry.carrierCubes().get(shell);
+				if (saved == null || corners == null) continue;
+				var measured = entry.getValue();
+				double floor = corners.stream().mapToDouble(Vec3::y).min().orElseThrow();
+				double rawFloor = measured.points().stream().mapToDouble(Vec3::y).min().orElseThrow();
+				return new Vec3(saved.x - measured.center().x, floor - rawFloor, saved.z - measured.center().z);
+			}
+		}
+		return null;
+	}
+
 	/** Centres the world entity on the already measured arm-free collision core's XZ projection. */
 	private static Vec3 modelOffset(SurgicalBodyBounds.Envelope visible,
 		@Nullable SurgicalAssembly.BodyBounds bodyBounds) {
@@ -580,6 +614,18 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			poseStack.translate(source.originOffset().x, source.originOffset().y, source.originOffset().z);
 			if (assembly.preservesLayout())
 				SurgicalTablePoseResolver.resolve(source.layPose()).apply(poseStack);
+			if (restStates == null && source.profile().needsPreyTopology()) {
+				float progress = Mth.clamp((entity.level().getGameTime() - source.profile().devouredAt() + partialTick) / 40f, 0.001f, 1f);
+				if (progress < 1) {
+					float growth = progress * progress * (3 - 2 * progress);
+					double half = source.profile().devouredHeight() / 2d;
+					// Scale around the attachment on the shell, including for a horizontal donor.
+					var rotation = rotations.getOrDefault(0, SurgicalCubeRotation.IDENTITY);
+					Vec3 anchor = rotation.rotate(new Vec3(0, source.profile().devouredBurial() - half, 0)).add(0, half, 0);
+					poseStack.translate(anchor.x * (1 - growth), anchor.y * (1 - growth), anchor.z * (1 - growth));
+					poseStack.scale(growth, growth, growth);
+				}
+			}
 			SurgicalModelRenderContext.Snapshot snapshot = restStates != null
 				? SurgicalSourceModelRenderer.render(preview, source.cubeCount(), source.presentCubes(),
 					renderOffsets, renderRotations, poseStack, buffer, packedLight, 0, partialTick, true, cameraPosition,
@@ -721,6 +767,12 @@ public class SlimeBionicRenderer extends EntityRenderer<SlimeBionicEntity> {
 			this.sources = sources;
 			visible = new SurgicalBodyBounds.Envelope(bounds.minX(), bounds.minY(), bounds.minZ(),
 				bounds.maxX(), bounds.maxY(), bounds.maxZ());
+			modelOffset = devourShellOffset(assembly, sources);
+			if (modelOffset != null) {
+				// The authored core, hitboxes and volume already include the rotated prey in this frame.
+				resolved = true;
+				return;
+			}
 			// The assembly's frozen body remains usable while this client's visual geometry is measured.
 			modelOffset = modelOffset(visible, assembly.bodyBounds());
 			pending = SurgicalClientExecutors.submit(() -> measureBodyGeometry(assembly, visible, sources));

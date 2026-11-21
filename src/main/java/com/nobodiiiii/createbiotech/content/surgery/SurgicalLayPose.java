@@ -17,7 +17,9 @@ public record SurgicalLayPose(RotationAxis axis, int yaw, Vec3 translation) {
 	public SurgicalLayPose {
 		axis = axis == null ? RotationAxis.NONE : axis;
 		yaw = Math.floorMod(yaw, 360);
-		translation = translation == null ? Vec3.ZERO : translation;
+		// Cardinal rotations can produce -0.0. NBT stores both zeros as +0.0, while Vec3.equals
+		// distinguishes them. Adding +0.0 preserves every nonzero coordinate exactly.
+		translation = translation == null ? Vec3.ZERO : translation.add(0.0d, 0.0d, 0.0d);
 		if (yaw % 90 != 0 || !finiteBounded(translation))
 			throw new IllegalArgumentException("Invalid surgical lay pose");
 	}

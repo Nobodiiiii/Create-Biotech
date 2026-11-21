@@ -95,7 +95,7 @@ final class BionicTraitJeiText {
 	private static Component carrier(BionicTrait trait, Set<BionicAnatomyRole> roles) {
 		if (roles.isEmpty())
 			return null;
-		boolean requiredTogether = switch (trait.condition()) {
+		boolean requiredTogether = BionicTrait.DEVOUR.equals(trait) || switch (trait.condition()) {
 		case WOOL_AND_BODY, UDDER_AND_BODY, SHELL_AND_BODY, COMPLETE_CHEST -> true;
 		default -> false;
 		};
@@ -109,6 +109,7 @@ final class BionicTraitJeiText {
 
 	@Nullable
 	private static Component condition(BionicTrait trait) {
+		if (trait.equals(BionicTrait.DEVOUR)) return tr("condition.devour_ground");
 		if (trait.isHeadClassification())
 			return tr("condition." + trait.id().getPath(),
 				percentage(BionicTraitClientRules.rule(trait).minCoverage()));

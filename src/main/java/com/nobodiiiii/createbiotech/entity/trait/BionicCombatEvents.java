@@ -24,6 +24,7 @@ public final class BionicCombatEvents {
 	private BionicCombatEvents() {}
 	public static void mark(Entity attack, SlimeBionicEntity owner) {
 		CompoundTag tag = new CompoundTag(); tag.putUUID("Source", owner.getUUID());
+		tag.putBoolean("Devourer", owner.wildSlimeSize() > 0 || owner.getBionicTraits().has(BionicTrait.DEVOUR));
 		if (owner.getBionicOwnerId() != null) tag.putUUID("Owner", owner.getBionicOwnerId());
 		if (owner.getTeam() != null) tag.putString("Team", owner.getTeam().getName());
 		attack.getPersistentData().put(MARK, tag);
@@ -41,6 +42,7 @@ public final class BionicCombatEvents {
 		if (attack instanceof Projectile && owner != null) return false;
 		CompoundTag tag = attack.getPersistentData().getCompound(MARK);
 		if (!tag.hasUUID("Source")) return false;
+		if (tag.getBoolean("Devourer") && com.nobodiiiii.createbiotech.entity.DevourAttackGoal.protectedPrey(victim)) return true;
 		if (tag.getUUID("Source").equals(victim.getUUID())) return true;
 		if (tag.hasUUID("Owner")) {
 			var id = tag.getUUID("Owner");

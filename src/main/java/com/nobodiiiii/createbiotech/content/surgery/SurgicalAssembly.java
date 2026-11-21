@@ -1558,6 +1558,10 @@ public final class SurgicalAssembly {
 		}
 
 		public MimicProfile profile() { return profile; }
+		public boolean isWholePrey() {
+			return profile.isDevouredForm() && (!profile.hasNativePreyCubes()
+				|| cutSeams.isEmpty() && presentCubes.cardinality() == cubeCount);
+		}
 		public UUID donorId() { return donorId; }
 		public int cubeCount() { return cubeCount; }
 		public BitSet presentCubes() { return (BitSet) presentCubes.clone(); }

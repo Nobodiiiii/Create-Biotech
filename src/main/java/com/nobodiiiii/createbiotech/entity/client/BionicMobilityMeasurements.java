@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.entity.client;
 
+import com.nobodiiiii.createbiotech.content.surgery.SurgicalGait;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -118,7 +119,7 @@ final class BionicMobilityMeasurements {
 				continue;
 			SlimeBionicAnimator.LegMeasurement measurement = measureLeg(index, limbs, sources);
 			if (measurement != null
-				&& groundHeight - measurement.soleHeight() < SlimeBionicAnimator.GROUND_CONTACT_TOLERANCE)
+				&& groundHeight - measurement.soleHeight() < SurgicalGait.GROUND_CONTACT_TOLERANCE)
 				grounded.add(index);
 		}
 		return Set.copyOf(grounded);

@@ -8,6 +8,8 @@ import net.minecraft.network.chat.Component;
 
 /** Immutable ID-based definition. Built-in constants are defaults; loaded catalogs may contain any ID. */
 public final class BionicTrait implements Comparable<BionicTrait> {
+	public static final BionicTrait DEVOUR = new BionicTrait("devour", BionicTraitScope.WHOLE_BODY,
+		BionicTraitRule.presence(), ValueKind.NUMBER, Condition.NONE, Carrier.allTissue());
 	public static final BionicTrait DISPOSITION = new BionicTrait("disposition", BionicTraitScope.HEAD,
 		BionicTraitRule.special(0.5d), ValueKind.SUBTRAIT_SET, Condition.NONE,
 		Carrier.of(BionicAnatomyRole.HEAD));
@@ -342,5 +344,5 @@ public final class BionicTrait implements Comparable<BionicTrait> {
 		DOOR_HANDLING, WING_SLOW_FALL, STRONG_JUMP, ENDER_TELEPORT, BLOCK_ATTACHMENT, MAGIC_RESISTANCE,
 		WITHER_SHIELD, LAUNCH_STRIKE, RIDEABLE, CARGO_CHEST, LOOT_PICKUP, SONIC_BOOM,
 		HEAD_PROJECTILE, GUARDIAN_BEAM, SPELLCASTING, SELF_DESTRUCT, SNOW_TRAIL, POLLINATION,
-		MILKABLE, WOOL_SHEARING, EGG_LAYING, SCUTE_SHEDDING);
+		MILKABLE, WOOL_SHEARING, EGG_LAYING, SCUTE_SHEDDING, DEVOUR);
 }

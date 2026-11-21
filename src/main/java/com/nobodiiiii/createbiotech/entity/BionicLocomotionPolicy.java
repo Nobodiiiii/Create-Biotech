@@ -21,7 +21,7 @@ final class BionicLocomotionPolicy {
 	private BionicLocomotionPolicy() {}
 
 	static boolean hasFlightLocomotion(SlimeBionicEntity operationOwner) {
-		return !operationOwner.isSwimming() && (operationOwner.getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || operationOwner.getBionicTraits().has(BionicTrait.WING_FLIGHT));
+		return !operationOwner.devourGroundAttack && !operationOwner.isSwimming() && (operationOwner.getBionicTraits().has(BionicTrait.WINGLESS_FLIGHT) || operationOwner.getBionicTraits().has(BionicTrait.WING_FLIGHT));
 	}
 
 	static boolean prefersLowFlight(SlimeBionicEntity bionic) {
@@ -34,6 +34,7 @@ final class BionicLocomotionPolicy {
 			return;
 		double speed = operationOwner.organSwimEnabled ? BionicStats.evaluate(
 			BionicStat.SWIMMING_SPEED, operationOwner.level(), java.util.Map.of())
+			: operationOwner.wildSlimeSize() > 0 ? 0.2f + 0.1f * operationOwner.wildSlimeSize()
 			: SurgicalGait.movementSpeed(assembly.bodyBounds(), operationOwner.level());
 		var movement = operationOwner.getAttribute(Attributes.MOVEMENT_SPEED);
 		if (movement != null && movement.getBaseValue() != speed)

@@ -45,6 +45,11 @@ public final class BionicTraitRuntime {
 		Set<SurgicalAssembly.CombinationMember> members = new HashSet<>();
 		for (int source = 0; source < tissue.sourceCount(); source++) {
 			if (species != null && !tissue.source(source).profile().entityTypeId().equals(species)) continue;
+			if (tissue.source(source).isWholePrey()) {
+				var organ = new SurgicalAssembly.CombinationMember(source, 0);
+				if (active.contains(organ)) members.add(organ);
+				continue;
+			}
 			var cubes = BionicTraitCarriers.select(BionicTrait.Carrier.of(role), data.get(trait), tissue, source);
 			cubes.and(tissue.source(source).presentCubes());
 			for (int cube = cubes.nextSetBit(0); cube >= 0; cube = cubes.nextSetBit(cube + 1)) {

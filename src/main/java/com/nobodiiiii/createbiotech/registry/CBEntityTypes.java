@@ -11,12 +11,15 @@ import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloo
 import com.nobodiiiii.createbiotech.content.ghasthotairballoon.GhastHotAirBalloonSeatEntity;
 import com.simibubi.create.content.logistics.box.PackageEntity;
 import com.nobodiiiii.createbiotech.content.allay.entity.courier.AllayCourierEntity;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
 import com.nobodiiiii.createbiotech.entity.PlayerMimicEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 import com.nobodiiiii.createbiotech.entity.SlimeMimicCubeEntity;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.SpawnPlacements;
+import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
 import net.minecraft.world.entity.animal.allay.Allay;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
 import net.neoforged.bus.api.IEventBus;
@@ -82,6 +85,11 @@ public class CBEntityTypes {
 			.setShouldReceiveVelocityUpdates(true)
 			.build("ding_dong_chicken"));
 
+	public static final DeferredHolder<EntityType<?>, EntityType<DevourerEntity>> DEVOURER =
+		ENTITY_TYPES.register("devourer", () -> EntityType.Builder.of(DevourerEntity::new, MobCategory.MONSTER)
+			.sized(EntityType.SLIME.getWidth(), EntityType.SLIME.getHeight()).eyeHeight(0.325f)
+			.spawnDimensionsScale(4).clientTrackingRange(10).updateInterval(1).build("devourer"));
+
 	public static final DeferredHolder<EntityType<?>, EntityType<SlimeBionicEntity>> SLIME_BIONIC =
 		ENTITY_TYPES.register("slime_bionic", () -> EntityType.Builder
 			.<SlimeBionicEntity>of(SlimeBionicEntity::new, MobCategory.CREATURE)
@@ -117,6 +125,14 @@ public class CBEntityTypes {
 	public static void register(IEventBus modEventBus) {
 		ENTITY_TYPES.register(modEventBus);
 		modEventBus.addListener(CBEntityTypes::registerEntityAttributes);
+		modEventBus.addListener(CBEntityTypes::registerSpawnPlacements);
+	}
+
+	private static void registerSpawnPlacements(RegisterSpawnPlacementsEvent event) {
+		event.register(DEVOURER.get(), (level, pos, type) -> SpawnPlacements.isSpawnPositionOk(EntityType.SLIME, level, pos),
+			SpawnPlacements.getHeightmapType(EntityType.SLIME),
+			(type, level, reason, pos, random) -> SpawnPlacements.checkSpawnRules(EntityType.SLIME, level, reason, pos, random),
+			RegisterSpawnPlacementsEvent.Operation.REPLACE);
 	}
 
 	private static void registerEntityAttributes(EntityAttributeCreationEvent event) {
@@ -125,6 +141,7 @@ public class CBEntityTypes {
 		event.put(ALLAY_COURIER.get(), Allay.createAttributes().build());
 		event.put(DING_DONG_CHICKEN.get(), DingDongChickenEntity.createAttributes().build());
 		event.put(SLIME_BIONIC.get(), SlimeBionicEntity.createAttributes().build());
+		event.put(DEVOURER.get(), net.minecraft.world.entity.monster.Monster.createMonsterAttributes().build());
 		event.put(PLAYER_MIMIC.get(), PlayerMimicEntity.createAttributes().build());
 	}
 }

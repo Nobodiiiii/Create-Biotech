@@ -1,5 +1,6 @@
 package com.nobodiiiii.createbiotech.client;
 
+import com.nobodiiiii.createbiotech.entity.client.DevourerRenderer;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineRenderer;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberRenderer;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
@@ -109,6 +110,7 @@ final class CBClientRenderRegistration {
 		event.registerEntityRenderer(CBEntityTypes.CARDBOARD_BOX.get(), CardboardBoxEntityRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.ALLAY_COURIER.get(),
 			context -> new AllayCourierEntityRenderer(context));
+		event.registerEntityRenderer(CBEntityTypes.DEVOURER.get(), DevourerRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.DING_DONG_CHICKEN.get(), DingDongChickenRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.SLIME_BIONIC.get(), SlimeBionicRenderer::new);
 		event.registerEntityRenderer(CBEntityTypes.BIONIC_EFFECT_CLOUD.get(), net.minecraft.client.renderer.entity.NoopRenderer::new);

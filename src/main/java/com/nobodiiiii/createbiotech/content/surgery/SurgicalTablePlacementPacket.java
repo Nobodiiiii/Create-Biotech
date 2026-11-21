@@ -24,7 +24,7 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 	 int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams,
 	 BionicAnatomySnapshot anatomy,
 	 List<SurgicalTableLayout.Footprint> componentFootprints,
-	 List<SurgicalTableLayout.Proposal> sourceLayouts) {
+	 List<SurgicalTableLayout.Proposal> sourceLayouts, List<DevouredDonorTopology> preyModels) {
 
 	public SurgicalTablePlacementPacket {
 		placementFacing = placementFacing == null ? Direction.NORTH : placementFacing;
@@ -35,6 +35,9 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Surgical placement requires measured anatomy");
 		componentFootprints = componentFootprints == null ? List.of() : List.copyOf(componentFootprints);
 		sourceLayouts = sourceLayouts == null ? List.of() : List.copyOf(sourceLayouts);
+		preyModels = List.copyOf(preyModels);
+		if (preyModels.size() > SurgicalAssembly.MAX_SOURCES || preyModels.stream().mapToInt(t -> t.centers().size()).sum() > SurgicalAssembly.MAX_CUBES)
+			throw new IllegalArgumentException("Too many native prey cubes");
 		if (observedCubeCount < 0 || observedCubeCount > SurgicalAssembly.MAX_CUBES
 			|| observedSeams.size() > SurgicalAssembly.MAX_SEAMS
 			|| componentFootprints.size() > SurgicalAssembly.MAX_CUBES)
@@ -46,12 +49,20 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			throw new IllegalArgumentException("Anatomy cube outside discovered placement");
 	}
 
+	public SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, Direction placementFacing,
+		double originOffsetX, double originOffsetZ, SurgicalLayPose layPose, SurgicalTableLayout.Proposal envelope,
+		int observedCubeCount, List<SurgicalAssembly.Seam> observedSeams, BionicAnatomySnapshot anatomy,
+		List<SurgicalTableLayout.Footprint> componentFootprints, List<SurgicalTableLayout.Proposal> sourceLayouts) {
+		this(pos, hand, placementFacing, originOffsetX, originOffsetZ, layPose, envelope, observedCubeCount, observedSeams,
+			anatomy, componentFootprints, sourceLayouts, List.of());
+	}
+
 	public SurgicalTablePlacementPacket(FriendlyByteBuf buffer) {
 		this(buffer.readBlockPos(), buffer.readEnum(InteractionHand.class), buffer.readEnum(Direction.class),
 			buffer.readDouble(),
 			buffer.readDouble(), SurgicalLayPose.read(buffer), readLayout(buffer), buffer.readVarInt(),
 			readSeams(buffer), readAnatomy(buffer),
-			readFootprints(buffer), readSourceLayouts(buffer));
+			readFootprints(buffer), readSourceLayouts(buffer), readPreyModels(buffer));
 	}
 
 	public void write(FriendlyByteBuf buffer) {
@@ -73,6 +84,19 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 		buffer.writeVarInt(sourceLayouts.size());
 		for (SurgicalTableLayout.Proposal sourceLayout : sourceLayouts)
 			writeLayout(buffer, sourceLayout);
+		buffer.writeVarInt(preyModels.size());
+		for (var model : preyModels) {
+			buffer.writeUUID(model.donor());
+			buffer.writeVarInt(model.centers().size());
+			model.centers().forEach(buffer::writeVec3);
+			buffer.writeVarInt(model.seams().size());
+			for (var seam : model.seams()) {
+				buffer.writeVarInt(seam.first());
+				buffer.writeVarInt(seam.second());
+			}
+			buffer.writeNbt(model.anatomy().save());
+			buffer.writeDouble(model.lowestPointFromPivot());
+		}
 	}
 
 	public void handle(ServerPlayer player) {
@@ -91,10 +115,27 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			return;
 		SurgicalTablePlacementResult result = table.tryPlaceSubject(held, plane, placementFacing, layPose,
 			originOffsetX, originOffsetZ, envelope, observedCubeCount, observedSeams,
-			anatomy, componentFootprints, sourceLayouts);
+			anatomy, componentFootprints, sourceLayouts, preyModels);
 		if (result.succeeded() && held.getItem() instanceof CapturedEntityBoxItem)
 			player.setItemInHand(hand, CapturedEntityBoxHelper.createEmptyBox(held));
 		result.display(player);
+	}
+
+	private static List<DevouredDonorTopology> readPreyModels(FriendlyByteBuf buffer) {
+		int count = buffer.readVarInt();
+		if (count < 0 || count > SurgicalAssembly.MAX_SOURCES) throw new IllegalArgumentException("Invalid prey count");
+		var result = new ArrayList<DevouredDonorTopology>(count);
+		int remaining = SurgicalAssembly.MAX_CUBES;
+		for (int i = 0; i < count; i++) {
+			var donor = buffer.readUUID();
+			int cubes = buffer.readVarInt();
+			if (cubes < 1 || cubes > remaining) throw new IllegalArgumentException("Invalid native prey cube count");
+			remaining -= cubes;
+			var centers = new ArrayList<Vec3>(cubes);
+			for (int cube = 0; cube < cubes; cube++) centers.add(buffer.readVec3());
+			result.add(new DevouredDonorTopology(donor, centers, readSeams(buffer), readAnatomy(buffer), buffer.readDouble()));
+		}
+		return result;
 	}
 
 	private static List<SurgicalTableLayout.Proposal> readSourceLayouts(FriendlyByteBuf buffer) {

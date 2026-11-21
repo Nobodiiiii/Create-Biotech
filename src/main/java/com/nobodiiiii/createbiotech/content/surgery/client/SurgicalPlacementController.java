@@ -686,7 +686,7 @@ final class SurgicalPlacementController {
 			placement.plan.proposal(), placement.discovered.cubeCount(), placement.discovered.seams(),
 			placement.discovered.anatomy(),
 			placement.discovered.footprints(),
-			placement.sourceLayouts));
+			placement.sourceLayouts, placement.source.preyModels == null ? List.of() : placement.source.preyModels.observations()));
 		SurgicalVisualCommitCoordinator.beginVisualCommit(level, placement.ownerPos, placement.tableRevision, List.of(), true, false);
 		return true;
 	}
@@ -757,7 +757,8 @@ final class SurgicalPlacementController {
 		final ItemStack box;
 		private final MimicProfile profile;
 		@Nullable
-		private final SurgicalAssembly assembly;
+		private SurgicalAssembly assembly;
+		private final DevouredPlacementModels preyModels;
 		@Nullable
 		private LivingEntity preview;
 		@Nullable
@@ -772,6 +773,7 @@ final class SurgicalPlacementController {
 			this.box = box;
 			this.profile = profile;
 			this.assembly = assembly;
+			this.preyModels = assembly == null ? null : new DevouredPlacementModels(assembly);
 		}
 
 		@Nullable
@@ -813,6 +815,11 @@ final class SurgicalPlacementController {
 				measuredSourceGeometry = projectSourceGeometry;
 				measuredGroundAxis = groundAxis;
 				measuredResourceGeneration = resources;
+			}
+			if (preyModels != null) {
+				var prepared = preyModels.prepare(resources);
+				if (prepared == null) return null;
+				assembly = prepared;
 			}
 			if (measuredGeometry != null) return measuredGeometry;
 			if (measurementJob != null) return measuredGeometry = measurementJob.poll();
@@ -967,7 +974,10 @@ final class SurgicalPlacementController {
 				SurgicalTablePlane.SURFACE_HEIGHT + SurgicalTablePoseResolver.TABLE_CLEARANCE);
 		}
 
-		void cancel() { if (measurementJob != null) measurementJob.cancel(); }
+		void cancel() {
+			if (measurementJob != null) measurementJob.cancel();
+			if (preyModels != null) preyModels.cancel();
+		}
 
 		private int cubeCount() {
 			return assembly == null ? 0 : assembly.cubeCount();

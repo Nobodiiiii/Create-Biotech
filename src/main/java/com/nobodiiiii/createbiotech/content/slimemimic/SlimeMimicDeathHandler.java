@@ -10,6 +10,8 @@ import java.util.UUID;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.entity.DevourerEntity;
+import com.nobodiiiii.createbiotech.entity.DevourGrowth;
 import com.nobodiiiii.createbiotech.entity.SlimeBionicEntity;
 
 import net.minecraft.server.level.ServerLevel;
@@ -35,14 +37,15 @@ public final class SlimeMimicDeathHandler {
 	@SubscribeEvent
 	public static void onLivingDeath(LivingDeathEvent event) {
 		LivingEntity entity = event.getEntity();
-		if (event.isCanceled() || !SlimeMimicHandler.isSlimeMimic(entity)
+		if (event.isCanceled() || !SlimeMimicHandler.usesMimicDeath(entity)
 			|| !(entity.level() instanceof ServerLevel level))
 			return;
 		List<MimicProfile> profiles = profiles(entity);
 		if (profiles.isEmpty())
 			return;
-		PENDING.putIfAbsent(entity.getUUID(), new PendingDeath(level, entity.getBoundingBox(), profiles,
-			fallbackCube(entity), level.getGameTime(), SlimeCompanionHandler.ownerOf(entity), SlimeCompanionHandler.isLivestock(entity)));
+		PENDING.putIfAbsent(entity.getUUID(), new PendingDeath(level,
+			entity instanceof SlimeBionicEntity bionic ? bionic.getBoundingBoxForCulling() : entity.getBoundingBox(), profiles,
+			fallbackGeometry(entity), level.getGameTime(), SlimeCompanionHandler.ownerOf(entity), SlimeCompanionHandler.isLivestock(entity)));
 	}
 
 	@SubscribeEvent
@@ -55,7 +58,7 @@ public final class SlimeMimicDeathHandler {
 			PendingDeath pending = entry.getValue();
 			if (pending.level != level || now - pending.createdTick < GEOMETRY_WAIT_TICKS)
 				continue;
-			spawn(pending, List.of(pending.fallback));
+			spawn(pending, pending.fallback, pending.profiles);
 			expired.add(entry.getKey());
 		}
 		expired.forEach(PENDING::remove);
@@ -67,7 +70,7 @@ public final class SlimeMimicDeathHandler {
 			return;
 		Entity found = player.level().getEntity(entityId);
 		if (!(found instanceof LivingEntity dying) || !dying.isDeadOrDying()
-			|| !SlimeMimicHandler.isSlimeMimic(dying)
+			|| !SlimeMimicHandler.usesMimicDeath(dying)
 			|| player.distanceToSqr(dying) > MAX_REPORT_DISTANCE_SQR)
 			return;
 		PendingDeath pending = PENDING.get(dying.getUUID());
@@ -77,7 +80,8 @@ public final class SlimeMimicDeathHandler {
 		if (validated.isEmpty())
 			return;
 		PENDING.remove(dying.getUUID());
-		spawn(pending, validated);
+		// Client death reports identify the native cubes, including those of still-intact prey.
+		spawn(pending, validated, pending.profiles.stream().map(MimicProfile::withNativePreyCubes).toList());
 	}
 
 	private static List<SlimeMimicCubeGeometry> validate(PendingDeath pending,
@@ -110,11 +114,11 @@ public final class SlimeMimicDeathHandler {
 		return List.copyOf(validated);
 	}
 
-	private static void spawn(PendingDeath pending, List<SlimeMimicCubeGeometry> cubes) {
+	private static void spawn(PendingDeath pending, List<SlimeMimicCubeGeometry> cubes, List<MimicProfile> profiles) {
 		for (SlimeMimicCubeGeometry geometry : cubes) {
 			if (geometry.source() < 0 || geometry.source() >= pending.profiles.size())
 				continue;
-			SlimeMimicFragmentSpawner.spawn(pending.level, pending.profiles.get(geometry.source()),
+			SlimeMimicFragmentSpawner.spawn(pending.level, profiles.get(geometry.source()),
 				geometry.cube(), geometry.corners(), pending.owner, pending.livestock);
 		}
 	}
@@ -127,6 +131,28 @@ public final class SlimeMimicDeathHandler {
 		}
 		MimicProfile profile = MimicProfile.capture(entity);
 		return profile == null ? List.of() : List.of(profile);
+	}
+
+	/** Without a tracking renderer, devourers still have server-known shell and attachment geometry. */
+	private static List<SlimeMimicCubeGeometry> fallbackGeometry(LivingEntity entity) {
+		if (entity instanceof DevourerEntity slime) {
+			double edge = slime.getSize() * slime.getScale() / 2d;
+			return List.of(new SlimeMimicCubeGeometry(0, 0, DevourGrowth.corners(edge * 0.75, edge / 8, edge * 0.75)
+					.stream().map(entity.position()::add).toList()),
+				new SlimeMimicCubeGeometry(0, 1, DevourGrowth.corners(edge, 0, edge)
+					.stream().map(entity.position()::add).toList()));
+		}
+		if (entity instanceof SlimeBionicEntity bionic && bionic.getAssembly() != null) {
+			var assembly = bionic.getAssembly();
+			var geometry = assembly.attackGeometry();
+			if (geometry != null && (bionic.wildSlimeSize() > 0 || assembly.sources().stream().anyMatch(s -> s.profile().needsPreyTopology()))) {
+				var result = new ArrayList<SlimeMimicCubeGeometry>();
+				geometry.carrierCubes().forEach((member, points) -> result.add(new SlimeMimicCubeGeometry(member.source(),
+					member.cube(), points.stream().map(bionic::bodyToWorld).toList())));
+				if (!result.isEmpty()) return List.copyOf(result);
+			}
+		}
+		return List.of(fallbackCube(entity));
 	}
 
 	private static SlimeMimicCubeGeometry fallbackCube(LivingEntity entity) {
@@ -152,7 +178,7 @@ public final class SlimeMimicDeathHandler {
 	}
 
 	private record PendingDeath(ServerLevel level, AABB bounds,
-		List<MimicProfile> profiles, SlimeMimicCubeGeometry fallback, long createdTick, UUID owner, boolean livestock) {
+		List<MimicProfile> profiles, List<SlimeMimicCubeGeometry> fallback, long createdTick, UUID owner, boolean livestock) {
 		private PendingDeath {
 			profiles = List.copyOf(profiles);
 		}

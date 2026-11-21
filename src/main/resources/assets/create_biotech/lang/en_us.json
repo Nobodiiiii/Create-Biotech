@@ -1,4 +1,13 @@
 {
+  "entity.create_biotech.devourer": "Devourer",
+  "item.create_biotech.devourer_spawn_egg": "Devourer Spawn Egg",
+  "create_biotech.trait.name.devour": "Devour",
+  "create_biotech.trait.devour": "Devour (%s)",
+  "create_biotech.jei.trait.devour.effect": "Uses the largest size to hunt. Crushes weakened prey to grow their forms and inherit their traits.",
+  "create_biotech.jei.trait.condition.devour_ground": "Both layers present, outer layer grounded",
+  "create_biotech.bionic_part.devour_inner": "Inner layer",
+  "create_biotech.bionic_part.devour_outer": "Outer layer",
+  "create_biotech.trait.inactive.not_grounded": "Devourer outer layer is off the ground",
   "item.create_biotech.wooden_capture_net": "Wooden Capture Net",
   "item.create_biotech.stone_capture_net": "Stone Capture Net",
   "item.create_biotech.iron_capture_net": "Iron Capture Net",
