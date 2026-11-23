@@ -444,7 +444,8 @@ public final class SurgicalAssembly {
 						parts.put(entry.getKey().cube(), entry.getValue());
 				BionicAnatomySnapshot anatomy = BionicAnatomySnapshot.ofParts(parts, source.anatomy().nodes(), source.cubeCount());
 				if (anatomy == null) continue;
-				if (source.anatomy().hasVolumes()) anatomy = anatomy.withVolumes(source.anatomy().volumes());
+				if (source.anatomy().hasVolumes())
+					anatomy = anatomy.withVolumes(source.anatomy().volumes(), source.anatomy().nativeUnionVolume(), source.anatomy().nativeArms());
 				if (anatomy == null) continue;
 				refreshedSources.set(index, new Source(source.profile, source.donorId, source.cubeCount,
 					source.presentCubes,

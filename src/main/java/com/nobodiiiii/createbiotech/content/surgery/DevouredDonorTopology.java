@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.content.surgery;
 
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,25 +25,30 @@ import net.minecraft.world.phys.Vec3;
 
 /** Native model observations for one pending donor, whether it is in the world or on the table. */
 public record DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> seams, BionicAnatomySnapshot anatomy,
-	double lowestPointFromPivot, @Nullable Vec3 headCenter, double outwardMidpoint, int cubeCount) {
-	public DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> seams, BionicAnatomySnapshot anatomy,
-		double lowestPointFromPivot) {
-		this(donor, centers, seams, anatomy, lowestPointFromPivot, null, 0, centers.size());
+	double lowestPointFromPivot, @Nullable Vec3 headCenter, @Nullable Contact contact, int cubeCount) {
+	/** Two interior points of the same native cube in rotated body space, relative to the prey pivot. */
+	public record Contact(int cube, Vec3 inward, Vec3 lowest) {
+		public Contact {
+			double limit = 4 * SurgicalAssembly.MAX_BODY_SIZE;
+			if (cube < 0 || !(inward.lengthSqr() <= limit * limit) || !(lowest.lengthSqr() <= limit * limit)
+				|| lowest.y > inward.y + 1e-6)
+				throw new IllegalArgumentException("Invalid native prey contact");
+		}
 	}
 
 	public static DevouredDonorTopology oversized(UUID donor, int cubeCount) {
-		return new DevouredDonorTopology(donor, List.of(), List.of(), BionicAnatomySnapshot.EMPTY, 0, null, 0, cubeCount);
+		return new DevouredDonorTopology(donor, List.of(), List.of(), BionicAnatomySnapshot.EMPTY, 0, null, null, cubeCount);
 	}
 
 	public DevouredDonorTopology {
 		centers = List.copyOf(centers);
 		seams = List.copyOf(seams);
-		if (donor == null || cubeCount <= 0 || anatomy == null || !(Math.abs(outwardMidpoint) <= 4 * SurgicalAssembly.MAX_BODY_SIZE)
+		if (donor == null || cubeCount <= 0 || anatomy == null || contact != null && contact.cube() >= centers.size()
 			|| headCenter != null && !(headCenter.lengthSqr() <= 12 * SurgicalAssembly.MAX_BODY_SIZE * SurgicalAssembly.MAX_BODY_SIZE))
 			throw new IllegalArgumentException("Invalid native prey model");
 		if (centers.isEmpty()) {
 			if (!seams.isEmpty() || anatomy != BionicAnatomySnapshot.EMPTY || lowestPointFromPivot != 0
-				|| headCenter != null || outwardMidpoint != 0)
+				|| headCenter != null)
 				throw new IllegalArgumentException("An oversized model only reports its cube count");
 		} else if (centers.size() != cubeCount || !SurgicalAssembly.validTopology(cubeCount, seams)
 			|| !anatomy.fits(cubeCount) || !anatomy.hasVolumes()
@@ -66,6 +72,17 @@ public record DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> s
 		var anchors = new HashMap<Integer, Integer>();
 		var organJoints = new ArrayList<Joint>();
 		var geometry = assembly.attackGeometry();
+		var shells = new HashMap<Integer, List<Vec3>>();
+		if (geometry != null) {
+			// Growth appends the prey after its shell and records their joint in source order.
+			for (var joint : assembly.joints()) {
+				if (joint.firstSource() == joint.secondSource() || joint.secondCube() != 0
+					|| !assembly.sources().get(joint.secondSource()).profile().needsPreyTopology()) continue;
+				var shell = new CombinationMember(joint.firstSource(), joint.firstCube());
+				var corners = geometry.carrierCubes().get(shell);
+				if (corners != null) shells.putIfAbsent(joint.secondSource(), corners);
+			}
+		}
 		double floor = geometry == null ? 0 : geometry.carrierCubes().entrySet().stream()
 			.filter(e -> !assembly.sources().get(e.getKey().source()).profile().isDevouredForm())
 			.flatMap(e -> e.getValue().stream()).mapToDouble(Vec3::y).min().orElse(0);
@@ -85,14 +102,10 @@ public record DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> s
 				}
 				if (model.cubeCount > remaining) return null;
 				remaining -= model.cubeCount;
-				// Attach existing exterior joints to the substantial central tissue of the intact prey.
-				int anchor = 0;
-				for (int cube = 1; cube < model.centers.size(); cube++)
-					if (model.anatomy.volume(cube) > model.anatomy.volume(anchor)) anchor = cube;
+				int anchor = model.contact == null ? model.largestCube() : model.contact.cube();
 				anchors.put(index, anchor);
-				// Native feet, tails or wings may extend outside the original mob hitbox. Lift only that donor.
 				Vec3 pivot = geometry == null ? null : geometry.carrierOrigins().get(new CombinationMember(index, 0));
-				source = model.expandSource(source, assembly.layoutLayPose(), pivot, floor);
+				source = model.expandSource(source, assembly.layoutLayPose(), pivot, shells.get(index), floor);
 				if (source == null) return null;
 				// Detached native parts (for example floating eyes) still belong to the swallowed body.
 				// Ordinary glue keeps each island in the component that the table will pack.
@@ -128,34 +141,38 @@ public record DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> s
 		return SurgicalAssembly.createComposite(sources, joints, combinations, limbs, root.facing(), root.layPose());
 	}
 
-	private Source expandSource(Source source, SurgicalLayPose layout, @Nullable Vec3 oldCenter, double floor) {
+	private int largestCube() {
+		int largest = 0;
+		for (int cube = 1; cube < centers.size(); cube++)
+			if (anatomy.volume(cube) > anatomy.volume(largest)) largest = cube;
+		return largest;
+	}
+
+	private Source expandSource(Source source, SurgicalLayPose layout, @Nullable Vec3 oldCenter,
+		@Nullable List<Vec3> shell, double floor) {
 		BitSet present = new BitSet();
 		present.set(0, centers.size());
 		Vec3 offset = source.cubeOffsets().getOrDefault(0, Vec3.ZERO);
 		var rotation = source.cubeRotations().getOrDefault(0, SurgicalCubeRotation.IDENTITY);
 		MimicProfile profile = source.profile();
 		Vec3 pivot = new Vec3(0, profile.devouredHeight() / 2, 0);
-		Vec3 shift = Vec3.ZERO, extra = Vec3.ZERO;
+		Vec3 shift;
 		var measured = DevouredGrowthPose.measured(source, centers, anatomy, headCenter);
 		if (measured != null) {
+			if (contact == null) return null;
 			var oldRotation = rotation.inverseRotate(layout);
-			Vec3 normal = profile.devouredSurfaceNormal();
-			Vec3 anchor = measured.rotation().rotate(measured.anchor());
-			// Keep the selected face contact while turning the real model about its own pivot.
-			shift = oldRotation.rotate(profile.devouredAnchor()).subtract(anchor);
-			double outer = outwardMidpoint;
-			if (headCenter != null) outer = Math.min(outer, measured.rotation().rotate(headCenter.subtract(pivot)).dot(normal)
-				- Math.min(0.04, profile.devouredWidth() * 0.1));
-			extra = normal.scale(Math.max(0, anchor.dot(normal) - outer));
-			shift = shift.add(extra);
-		}
-		double lift = oldCenter == null ? 0 : Math.max(0, floor - oldCenter.y - shift.y - lowestPointFromPivot);
-		shift = shift.add(0, lift, 0);
-		if (measured != null) {
-			Vec3 slide = rotation.inverseRotate(layout).rotate(profile.devouredSlide()).add(extra).add(0, lift, 0);
+			Vec3 oldAnchor = oldRotation.rotate(profile.devouredAnchor());
+			Vec3 start = oldAnchor.subtract(oldRotation.rotate(profile.devouredSlide()));
+			shift = oldCenter == null || shell == null ? start.subtract(contact.inward())
+				: contactShift(oldCenter, oldAnchor, shell, floor);
+			// Keep the growth start in the shell after moving the native model's pivot.
+			Vec3 localStart = BionicRiding.inverse(measured.rotation()).rotate(start.subtract(shift));
 			profile = profile.asDevouredForm(profile.devouredWidth(), profile.devouredHeight(), profile.devouredAt(),
-				measured.burial(), measured.anchor(), null, BionicRiding.inverse(measured.rotation()).rotate(slide));
+				measured.burial(), measured.anchor(), null, measured.anchor().subtract(localStart));
 			rotation = measured.rotation().reframe(SurgicalLayPose.IDENTITY, layout);
+		} else {
+			double lift = oldCenter == null ? 0 : Math.max(0, floor - oldCenter.y - lowestPointFromPivot);
+			shift = new Vec3(0, lift, 0);
 		}
 		Map<Integer, Vec3> offsets = new HashMap<>();
 		Map<Integer, SurgicalCubeRotation> rotations = new HashMap<>();
@@ -170,5 +187,30 @@ public record DevouredDonorTopology(UUID donor, List<Vec3> centers, List<Seam> s
 		}
 		return Source.create(profile.withNativePreyCubes(), source.donorId(), centers.size(), present,
 			anatomy, seams, new BitSet(), List.of(), source.facing(), source.layPose(), source.originOffset().add(layout.rotate(shift)), offsets, rotations);
+	}
+
+	private Vec3 contactShift(Vec3 oldCenter, Vec3 oldAnchor, List<Vec3> shell, double floor) {
+		var corners = DevouredGrowthPose.orderedCorners(shell);
+		Vec3 origin = corners.getFirst();
+		Vec3 desired = oldCenter.add(oldAnchor).subtract(origin);
+		Vec3 target = origin;
+		double inset = 0.025;
+		// Clamp in the shell's local axes to leave overlap even at a tilted edge or corner.
+		for (int bit = 1; bit <= 4; bit <<= 1) {
+			Vec3 edge = corners.get(bit).subtract(origin);
+			double lengthSqr = edge.lengthSqr();
+			if (lengthSqr > 1e-12)
+				target = target.add(edge.scale(Math.clamp(desired.dot(edge) / lengthSqr, inset, 1 - inset)));
+		}
+		Vec3 center = origin.lerp(corners.getLast(), 0.5);
+		Vec3 highest = corners.stream().max(Comparator.comparingDouble(Vec3::y)).orElseThrow().lerp(center, 2 * inset);
+		Vec3 nativePoint = contact.inward();
+		double requiredY = floor - lowestPointFromPivot;
+		double drop = nativePoint.y - contact.lowest().y;
+		if (requiredY + nativePoint.y > highest.y && drop > 1e-8)
+			nativePoint = nativePoint.lerp(contact.lowest(), Math.min(1, (requiredY + nativePoint.y - highest.y) / drop));
+		if (requiredY + nativePoint.y > target.y && highest.y > target.y)
+			target = target.lerp(highest, Math.min(1, (requiredY + nativePoint.y - target.y) / (highest.y - target.y)));
+		return target.subtract(oldCenter).subtract(nativePoint);
 	}
 }

@@ -48,12 +48,56 @@ public final class SurgicalCombatCalibration {
 	public static ArmCombatStats stats(SurgicalAssembly.ArmAttackGeometry arm, Level level) {
 		double volume = arm == null ? ZOMBIE_ARM_VOLUME : Math.max(0, arm.volume());
 		double length = arm == null ? ZOMBIE_ARM_LENGTH : Math.max(MIN_LENGTH, arm.reach() - arm.radius());
+		return stats(volume, length, level);
+	}
+
+	private static ArmCombatStats stats(double volume, double length, Level level) {
 		Map<String, Double> inputs = Map.of("arm_volume", volume, "arm_length", length, "arm_thickness", Math.sqrt(volume / length));
-		double dps = BionicStats.evaluate(BionicStat.ARM_DPS_SCALE, level, inputs);
 		int interval = (int) Math.round(BionicStats.evaluate(BionicStat.ARM_ATTACK_INTERVAL, level, inputs));
+		return new ArmCombatStats(damageMultiplier(inputs, interval, level), interval);
+	}
+
+	/** Strength changes the tissue driving the hit. The measured arm still determines its cadence and reach. */
+	public static double damageMultiplier(double volume, SurgicalAssembly.ArmAttackGeometry arm, int interval, Level level) {
+		double length = Math.max(MIN_LENGTH, arm.reach() - arm.radius());
+		return damageMultiplier(volume, length, interval, level);
+	}
+
+	private static double damageMultiplier(double volume, double length, int interval, Level level) {
+		return damageMultiplier(Map.of("arm_volume", volume, "arm_length", length,
+			"arm_thickness", Math.sqrt(volume / length)), interval, level);
+	}
+
+	private static double damageMultiplier(Map<String, Double> inputs, int interval, Level level) {
+		double dps = BionicStats.evaluate(BionicStat.ARM_DPS_SCALE, level, inputs);
 		Map<String, Double> damageInputs = new HashMap<>(inputs);
 		damageInputs.put("arm_dps_scale", dps); damageInputs.put("arm_interval", (double) interval);
-		return new ArmCombatStats(BionicStats.evaluate(BionicStat.ARM_DAMAGE_MULTIPLIER, level, damageInputs), interval);
+		return BionicStats.evaluate(BionicStat.ARM_DAMAGE_MULTIPLIER, level, damageInputs);
+	}
+
+	/** Convert at the intact donor's own unarmed cadence, before any host or weapon is selected. */
+	public static double strengthVolumeOffset(double volume, double nativeLength, double points, double base, Level level) {
+		double length = Double.isFinite(nativeLength) ? Math.max(MIN_LENGTH, nativeLength)
+			: Math.max(MIN_LENGTH, ZOMBIE_ARM_LENGTH * Math.cbrt(volume / ZOMBIE_ARM_VOLUME));
+		if (base <= 0 || points == 0) return 0;
+		var stats = stats(volume, length, level);
+		int interval = stats.attackInterval();
+		return volumeForHit(volume, base * stats.damageMultiplier() + points, base, interval, level,
+			v -> base * damageMultiplier(v, length, interval, level)) - volume;
+	}
+
+	private static double volumeForHit(double reference, double target, double baseDamage, int interval,
+		Level level, java.util.function.DoubleUnaryOperator hit) {
+		if (!BionicStats.usesDefaultFormula(BionicStat.ARM_DPS_SCALE, level)
+			|| !BionicStats.usesDefaultFormula(BionicStat.ARM_DAMAGE_MULTIPLIER, level))
+			return SurgicalStatVolume.forValue(hit, reference, target);
+		if (target <= 0) return 0;
+		var parameters = BionicStats.parameters(level);
+		target = Math.min(target, baseDamage * BionicStat.ARM_DAMAGE_MULTIPLIER.maximum());
+		double ceiling = baseDamage * parameters.get("arm_dps_maximum") * interval / parameters.get("arm_reference_interval");
+		if (target >= ceiling) return SurgicalStatVolume.LIMIT;
+		double root = parameters.get("arm_dps_offset") * target / (ceiling - target);
+		return Math.min(SurgicalStatVolume.LIMIT, parameters.get("arm_anchor_volume") * root * root * root);
 	}
 
 	/** The runtime's multi-arm global attack interval multiplier for the currently ready arms. */

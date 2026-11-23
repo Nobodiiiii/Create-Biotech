@@ -77,7 +77,7 @@ public final class DevourAttackGoal extends Goal {
 
 	/** A contact or arm swing can supply its actual damage before the next goal-selector pass. */
 	boolean replaceContact(LivingEntity target, float damage) {
-		if (running) return true;
+		if (running) return DevourGrowth.canDevour(hunter);
 		if (!(hunter.level() instanceof ServerLevel level) || !available(level)
 			|| !canLaunchAt(level, target, damage)) return false;
 		if (prey == null) reservedUntil = level.getGameTime() + 4;
@@ -96,7 +96,7 @@ public final class DevourAttackGoal extends Goal {
 	private boolean validPrey(LivingEntity target) {
 		return target != null && target.isAlive() && hunter.isAlive() && target.level() == hunter.level()
 			&& !hunter.isPassenger() && !hunter.hasControllingPassenger()
-			&& isPrey(hunter, target, size(hunter)) && hunter.canAttack(target);
+			&& isPrey(hunter, target, size(hunter)) && hunter.canAttack(target) && DevourGrowth.canDevour(hunter);
 	}
 
 	private boolean canLaunchAt(ServerLevel level, LivingEntity target, float damage) {
@@ -114,7 +114,7 @@ public final class DevourAttackGoal extends Goal {
 	}
 
 	boolean pressing(Entity other) {
-		return running && flightTicks > 0 && other == prey;
+		return running && flightTicks > 0 && other == prey && DevourGrowth.canDevour(hunter);
 	}
 
 	@Override public boolean canUse() {

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -26,7 +27,7 @@ public final class BionicAnatomySnapshot {
 	private static final java.util.regex.Pattern PART_NAME =
 		java.util.regex.Pattern.compile("[A-Za-z0-9_./-]{1,64}");
 	public static final BionicAnatomySnapshot EMPTY =
-		new BionicAnatomySnapshot(Map.of(), Map.of(), NO_VOLUMES);
+		new BionicAnatomySnapshot(Map.of(), Map.of(), NO_VOLUMES, Double.NaN, Map.of());
 
 	/** Whether {@code name} is a storable model-part label. */
 	public static boolean validPartName(String name) {
@@ -36,8 +37,12 @@ public final class BionicAnatomySnapshot {
 	private final Map<Integer, Set<BionicModelNode>> nodes;
 	private final float[] volumes;
 	private final double originalVolume;
+	private final double nativeUnionVolume;
+	public record NativeArm(double volume, double length) {}
+	private final Map<List<Integer>, NativeArm> nativeArms;
 
-	private BionicAnatomySnapshot(Map<Integer, Set<String>> parts, Map<Integer, Set<BionicModelNode>> nodes, float[] volumes) {
+	private BionicAnatomySnapshot(Map<Integer, Set<String>> parts, Map<Integer, Set<BionicModelNode>> nodes, float[] volumes,
+		double nativeUnionVolume, Map<List<Integer>, NativeArm> nativeArms) {
 		Map<Integer, Set<String>> names = new HashMap<>();
 		parts.forEach((cube, labels) -> {
 			if (labels != null && !labels.isEmpty())
@@ -51,6 +56,8 @@ public final class BionicAnatomySnapshot {
 		double total = 0;
 		for (float volume : this.volumes) total += volume;
 		this.originalVolume = total;
+		this.nativeUnionVolume = nativeUnionVolume;
+		this.nativeArms = Map.copyOf(nativeArms);
 	}
 
 	@Nullable
@@ -81,18 +88,46 @@ public final class BionicAnatomySnapshot {
 		Set<String> allNames = new java.util.HashSet<>();
 		parts.values().forEach(allNames::addAll); unique.forEach(node -> allNames.addAll(node.names()));
 		if (allNames.size() > MAX_NAMES) return null;
-		return parts.isEmpty() && nodes.isEmpty() ? EMPTY : new BionicAnatomySnapshot(parts, nodes, NO_VOLUMES);
+		return parts.isEmpty() && nodes.isEmpty() ? EMPTY : new BionicAnatomySnapshot(parts, nodes, NO_VOLUMES, Double.NaN, Map.of());
 	}
 
 	/** Adds one captured volume per original cube; {@link #fits} checks the count against a model. */
 	@Nullable
 	public BionicAnatomySnapshot withVolumes(float[] volumes) {
+		return withVolumes(volumes, Double.NaN);
+	}
+
+	@Nullable
+	public BionicAnatomySnapshot withVolumes(float[] volumes, double unionVolume) {
+		return withVolumes(volumes, unionVolume, Map.of());
+	}
+
+	@Nullable
+	public BionicAnatomySnapshot withVolumes(float[] volumes, double unionVolume, Map<List<Integer>, NativeArm> arms) {
 		if (volumes == null || volumes.length == 0 || volumes.length > SurgicalAssembly.MAX_CUBES)
 			return null;
+		if (!Double.isNaN(unionVolume) && !(unionVolume >= 0 && unionVolume <= MAX_CUBE_VOLUME)) return null;
 		for (float volume : volumes)
 			if (!validVolume(volume))
 				return null;
-		return new BionicAnatomySnapshot(parts, nodes, volumes);
+		double raw = 0;
+		for (float v : volumes) raw += v;
+		if (unionVolume > raw * 1.00001 + 1e-9) return null;
+		var used = new BitSet(volumes.length);
+		var measured = new HashMap<List<Integer>, NativeArm>();
+		for (var entry : arms.entrySet()) {
+			int previous = -1;
+			double armTotal = 0;
+			for (int cube : entry.getKey()) {
+				if (cube <= previous || cube >= volumes.length || used.get(cube)) return null;
+				used.set(cube); previous = cube; armTotal += volumes[cube];
+			}
+			var arm = entry.getValue();
+			if (previous < 0 || !(arm.volume >= 0 && arm.volume <= armTotal * 1.00001 + 1e-9)
+				|| !(arm.length > 0 && arm.length <= SurgicalAssembly.MAX_BODY_SIZE * 4)) return null;
+			measured.put(List.copyOf(entry.getKey()), arm);
+		}
+		return new BionicAnatomySnapshot(parts, nodes, volumes, unionVolume, measured);
 	}
 
 	private static boolean validVolume(float volume) {
@@ -134,6 +169,8 @@ public final class BionicAnatomySnapshot {
 	public float[] volumes() { return volumes.clone(); }
 	/** Complete captured donor volume, including cubes removed by later cuts. */
 	public double originalVolume() { return originalVolume; }
+	public double nativeUnionVolume() { return nativeUnionVolume; }
+	public Map<List<Integer>, NativeArm> nativeArms() { return nativeArms; }
 
 	/** Captured volume in blocks³. */
 	public double volume(int cube) {
@@ -187,6 +224,18 @@ public final class BionicAnatomySnapshot {
 			int[] bits = new int[volumes.length];
 			for (int cube = 0; cube < volumes.length; cube++) bits[cube] = Float.floatToIntBits(volumes[cube]);
 			tag.putIntArray(CUBE_VOLUMES_TAG, bits);
+			if (Double.isFinite(nativeUnionVolume)) tag.putDouble("NativeUnionVolume", nativeUnionVolume);
+			if (!nativeArms.isEmpty()) {
+				var arms = new ListTag();
+				nativeArms.entrySet().stream().sorted(java.util.Comparator.comparingInt(e -> e.getKey().getFirst())).forEach(entry -> {
+					var arm = new CompoundTag();
+					arm.putIntArray("Cubes", entry.getKey());
+					arm.putDouble("Volume", entry.getValue().volume);
+					arm.putDouble("Length", entry.getValue().length);
+					arms.add(arm);
+				});
+				tag.put("NativeArms", arms);
+			}
 		}
 		return tag;
 	}
@@ -245,7 +294,16 @@ public final class BionicAnatomySnapshot {
 				int[] bits = tag.getIntArray(CUBE_VOLUMES_TAG); if (bits.length != cubeCount) return null;
 				float[] measured = new float[bits.length];
 				for (int i = 0; i < bits.length; i++) measured[i] = Float.intBitsToFloat(bits[i]);
-				return result.withVolumes(measured);
+				var arms = new HashMap<List<Integer>, NativeArm>();
+				for (var item : tag.getList("NativeArms", Tag.TAG_COMPOUND)) {
+					var arm = (CompoundTag) item;
+					if (!arm.contains("Volume", Tag.TAG_DOUBLE) || !arm.contains("Length", Tag.TAG_DOUBLE)
+						|| !arm.contains("Cubes", Tag.TAG_INT_ARRAY)) return null;
+					var ids = Arrays.stream(arm.getIntArray("Cubes")).boxed().toList();
+					if (arms.put(ids, new NativeArm(arm.getDouble("Volume"), arm.getDouble("Length"))) != null) return null;
+				}
+				return result.withVolumes(measured, tag.contains("NativeUnionVolume", Tag.TAG_DOUBLE)
+					? tag.getDouble("NativeUnionVolume") : Double.NaN, arms);
 			}
 			return result;
 		} catch (IllegalArgumentException exception) { return null; }
@@ -256,11 +314,12 @@ public final class BionicAnatomySnapshot {
 		return other instanceof BionicAnatomySnapshot snapshot
 			&& parts.equals(snapshot.parts)
 			&& nodes.equals(snapshot.nodes)
-			&& Arrays.equals(volumes, snapshot.volumes);
+			&& Arrays.equals(volumes, snapshot.volumes) && Double.compare(nativeUnionVolume, snapshot.nativeUnionVolume) == 0
+			&& nativeArms.equals(snapshot.nativeArms);
 	}
 
 	@Override
 	public int hashCode() {
-		return 31 * (31 * parts.hashCode() + nodes.hashCode()) + Arrays.hashCode(volumes);
+		return java.util.Objects.hash(parts, nodes, Arrays.hashCode(volumes), nativeUnionVolume, nativeArms);
 	}
 }

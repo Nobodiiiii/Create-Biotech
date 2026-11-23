@@ -134,6 +134,7 @@ public class CBCreativeModeTabs {
 			visible(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get()),
 			visible(CBItems.BIO_PACKAGER.get()),
 			visible(CBItems.PETRI_DISH.get()),
+			visible(CBItems.SLIME_CULTURE_CHAMBER.get()),
 			visible(CBItems.SURGICAL_TABLE.get()),
 			visible(CBItems.SURGICAL_KIT.get()),
 			visible(CBItems.CREATIVE_SURGICAL_KIT.get()),

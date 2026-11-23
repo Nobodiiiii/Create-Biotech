@@ -52,7 +52,7 @@ public class DevourerEntity extends Slime {
 		SlimeMimicHandler.forceSetSlimeMimic(this, true);
 	}
 
-	public static double maxHealthForSize(int size) { return 4.0d * size * size; }
+	public static double maxHealthForSize(int size) { return 2.0d * size * size; }
 
 	@Override
 	public void setSize(int size, boolean heal) {
@@ -86,10 +86,14 @@ public class DevourerEntity extends Slime {
 		// LivingEntity restores saved attribute bases after Slime has applied its size.
 		int size = getSize();
 		var health = getAttribute(Attributes.MAX_HEALTH);
-		if (health.getBaseValue() == size * size) {
+		double savedBase = health.getBaseValue();
+		if (savedBase == size * size) {
 			float fraction = getHealth() / getMaxHealth();
 			health.setBaseValue(maxHealthForSize(size));
 			setHealth(getMaxHealth() * fraction);
+		} else if (savedBase == 4.0d * size * size) {
+			health.setBaseValue(maxHealthForSize(size));
+			if (getHealth() > getMaxHealth()) setHealth(getMaxHealth());
 		}
 		var attack = getAttribute(Attributes.ATTACK_DAMAGE);
 		// Older devourers stored the contact bonus in their base attack attribute.
@@ -122,6 +126,11 @@ public class DevourerEntity extends Slime {
 	@Override
 	public boolean canAttack(LivingEntity target) {
 		return super.canAttack(target) && DevourAttackGoal.isPrey(this, target, getSize());
+	}
+
+	@Override
+	protected boolean isDealsDamage() {
+		return super.isDealsDamage() || isEffectiveAi() && !DevourGrowth.canDevour(this);
 	}
 
 	@Override

@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.entity;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -99,6 +100,11 @@ final class SlimeBionicHitPart extends PartEntity<SlimeBionicEntity> {
 	public Entity getRootVehicle() {
 		// Share the riding tree so vanilla ProjectileUtil also excludes our parts from the rider's aim.
 		return getParent().getRootVehicle();
+	}
+
+	@Override
+	public Component getName() {
+		return getParent().getName();
 	}
 
 	@Nullable

@@ -48,6 +48,7 @@ public final class BionicTraitRegistry {
 	public static long generation() { return current.generation(); }
 	public static long clientGeneration() { return client.generation(); }
 	static Snapshot snapshot() { return current; }
+	static Snapshot clientSnapshot() { return client; }
 	static Snapshot snapshot(Level level) { return level != null && level.isClientSide ? client : current; }
 	public static List<BionicTrait> clientTraits() { return client.definitions(); }
 	public static BionicTrait clientTrait(ResourceLocation id) { return client.find(id); }

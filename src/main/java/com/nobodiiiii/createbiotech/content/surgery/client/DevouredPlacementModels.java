@@ -3,6 +3,7 @@ package com.nobodiiiii.createbiotech.content.surgery.client;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +19,7 @@ import net.minecraft.world.phys.Vec3;
 
 /** Resolve intact prey against the local renderer, exactly once per placement and resource generation. */
 final class DevouredPlacementModels {
+	private static final Vec3 UP = new Vec3(0, 1, 0);
 	private final SurgicalAssembly boxed;
 	private final List<SurgicalAssembly.Source> prey;
 	private final List<MimicProfile> nativeProfiles;
@@ -79,7 +81,8 @@ final class DevouredPlacementModels {
 		int count = snapshot.observedCubeCount();
 		if (!SurgicalAssembly.validCubeCount(count) || snapshot.cubes().size() != count) return null;
 		var centers = new Vec3[count];
-		var anatomy = SurgicalPlacementController.discoveredAnatomy(snapshot.cubes(), count);
+		var seams = SurgicalClientTopology.buildContactTopology(count, snapshot.cubes()).seams();
+		var anatomy = SurgicalPlacementController.discoveredAnatomy(snapshot.cubes(), count, source.profile(), seams);
 		if (!anatomy.hasVolumes()) return null;
 		Vec3 headSum = Vec3.ZERO;
 		double headVolume = 0;
@@ -101,21 +104,44 @@ final class DevouredPlacementModels {
 			: growth.rotation().reframe(SurgicalLayPose.IDENTITY, pose);
 		var pivot = new Vec3(0, source.profile().devouredHeight() / 2d, 0);
 		double lowest = Double.POSITIVE_INFINITY;
-		double minOut = Double.POSITIVE_INFINITY, maxOut = Double.NEGATIVE_INFINITY;
+		double anchorVolume = -1;
+		DevouredDonorTopology.Contact contact = null;
 		var normal = source.profile().devouredSurfaceNormal();
 		for (var cube : snapshot.cubes()) {
-			for (Vec3 point : cube.corners()) {
+			var uprightCorners = new ArrayList<Vec3>(8);
+			for (var point : cube.corners()) {
 				Vec3 fromPivot = source.layPose().rotate(point.subtract(pivot));
 				Vec3 upright = pose.inverseRotate(rotation.rotate(fromPivot));
 				lowest = Math.min(lowest, upright.y);
-				if (normal != null) {
-					double out = upright.dot(normal);
-					minOut = Math.min(minOut, out);
-					maxOut = Math.max(maxOut, out);
-				}
+				if (normal != null) uprightCorners.add(upright);
 			}
+			if (normal == null) continue;
+			Vec3 origin = uprightCorners.getFirst();
+			double volume = Math.abs(uprightCorners.get(1).subtract(origin).dot(
+				uprightCorners.get(2).subtract(origin).cross(uprightCorners.get(4).subtract(origin))));
+			if (volume < 1e-10) volume = 0;
+			if (contact != null && (volume < anchorVolume || volume == anchorVolume && cube.cubeId() >= contact.cube())) continue;
+			anchorVolume = volume;
+			Vec3 center = origin.lerp(uprightCorners.getLast(), 0.5);
+			Vec3 inward = supportPoint(uprightCorners, normal);
+			double depth = center.subtract(inward).dot(normal);
+			double inset = depth > 1e-8 ? Math.clamp(source.profile().devouredBurial() / depth, 0.1, 0.65) : 0.1;
+			// Points inset toward the center stay on this cube when the shell needs extra clearance.
+			contact = new DevouredDonorTopology.Contact(cube.cubeId(), inward.lerp(center, inset),
+				supportPoint(uprightCorners, UP).lerp(center, 0.1));
 		}
-		return new DevouredDonorTopology(source.donorId(), nativeCenters, SurgicalClientTopology.buildContactTopology(count,
-			snapshot.cubes()).seams(), anatomy, lowest, headCenter, normal == null ? 0 : (minOut + maxOut) / 2, count);
+		return new DevouredDonorTopology(source.donorId(), nativeCenters, seams, anatomy, lowest, headCenter, contact, count);
+	}
+
+	private static Vec3 supportPoint(List<Vec3> corners, Vec3 direction) {
+		double nearest = corners.stream().mapToDouble(point -> point.dot(direction)).min().orElseThrow();
+		Vec3 sum = Vec3.ZERO;
+		int count = 0;
+		for (var point : corners) {
+			if (point.dot(direction) > nearest + 1e-8) continue;
+			sum = sum.add(point);
+			count++;
+		}
+		return sum.scale(1d / count);
 	}
 }

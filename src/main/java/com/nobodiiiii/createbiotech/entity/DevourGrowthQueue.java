@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.entity;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,8 @@ import net.minecraft.nbt.Tag;
 
 /** Meals remain durable until their placement snapshot is ready. New kills append behind the in-flight batch. */
 final class DevourGrowthQueue {
+	private static final int MAX_PREY = 16;
+
 	record Meal(MimicProfile profile, float width, float height, UUID donor, UUID shellDonor, int shellCube, long seed) {
 		boolean valid() {
 			return profile != null && width > 0 && width <= SurgicalAssembly.MAX_BODY_SIZE
@@ -41,9 +44,22 @@ final class DevourGrowthQueue {
 	private int batchSize;
 	private long retryAfter;
 
-	void add(Meal meal, int existingSources) {
-		if (existingSources + meals.size() < SurgicalAssembly.MAX_SOURCES) meals.add(meal);
+	static boolean hasCapacity(SurgicalAssembly base, int queued) {
+		int totalSources = base.sources().size() + queued;
+		if (queued >= MAX_PREY || totalSources >= SurgicalAssembly.MAX_SOURCES) return false;
+		if (totalSources < MAX_PREY) return true;
+
+		// Surgical pieces of the same swallowed creature share a donor UUID.
+		var donors = new HashSet<UUID>();
+		for (var source : base.sources())
+			if (source.profile().isDevouredForm() && donors.add(source.donorId()) && donors.size() + queued >= MAX_PREY)
+				return false;
+		return true;
 	}
+
+	int size() { return meals.size(); }
+
+	void add(Meal meal) { meals.add(meal); }
 
 	ListTag save() {
 		var list = new ListTag();

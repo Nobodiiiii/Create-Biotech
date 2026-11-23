@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
@@ -49,44 +51,53 @@ import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 public final class DevourGrowth {
 	private DevourGrowth() {}
 
+	static boolean canDevour(Mob hunter) {
+		return DevourerInventory.hasEmptySlot(hunter)
+			&& (!(hunter instanceof SlimeBionicEntity bionic) || bionic.hasDevourCapacity());
+	}
+
 	/** Death loot is reached after totems and cancelled deaths, including kills by inherited attacks. */
 	@SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
 	public static void onDeathDrops(LivingDropsEvent event) {
 		var prey = event.getEntity();
 		if (!(prey.level() instanceof ServerLevel level)) return;
-		if (event.getSource() instanceof DevourAttackGoal.CrushDamage crush) crush.confirmDeath(prey);
 		if (!(event.getSource().getEntity() instanceof Mob hunter) || !hunter.isAlive()
-			|| !DevourerInventory.canCollect(hunter)) return;
-		Mob recipient = DevourAttackGoal.isPrey(hunter, prey, DevourAttackGoal.size(hunter))
-			? absorb(level, hunter, prey) : hunter;
+			|| !DevourerInventory.canCollect(hunter) || !canDevour(hunter)) return;
+		Mob recipient = hunter;
+		if (DevourAttackGoal.isPrey(hunter, prey, DevourAttackGoal.size(hunter))) {
+			var grown = absorb(level, hunter, prey);
+			if (grown != null) {
+				recipient = grown;
+				if (event.getSource() instanceof DevourAttackGoal.CrushDamage crush) crush.confirmDeath(prey);
+			}
+		}
 		if (!event.isCanceled() && !event.getDrops().isEmpty())
 			recipient.getData(CBAttachmentTypes.DEVOURER_INVENTORY).collect(event.getDrops());
 	}
 
+	@Nullable
 	private static Mob absorb(ServerLevel level, Mob hunter, LivingEntity prey) {
 		SurgicalAssembly base = hunter instanceof SlimeBionicEntity body ? body.getAssembly() : slimeBody((DevourerEntity) hunter);
-		if (base == null || base.attackGeometry() == null) return hunter;
+		if (base == null || base.attackGeometry() == null) return null;
 		var anchor = shellAnchor(base, hunter instanceof SlimeBionicEntity body
 			? body.getBionicTraits().members(BionicTrait.DEVOUR) : Set.of(new CombinationMember(0, 1)));
-		if (anchor == null) return hunter;
+		if (anchor == null) return null;
 		LivingEntity donor = prey;
 		if (prey instanceof Player player) {
 			var proxy = CBEntityTypes.PLAYER_MIMIC.get().create(level);
-			if (proxy == null) return hunter;
+			if (proxy == null) return null;
 			proxy.setImitatedPlayer(player.getGameProfile());
 			donor = proxy;
 		}
 		var profile = MimicProfile.capture(donor);
-		if (profile == null) return hunter;
+		if (profile == null) return null;
 		var meal = new DevourGrowthQueue.Meal(profile, prey.getBbWidth(), prey.getBbHeight(), UUID.randomUUID(),
 			base.sources().get(anchor.source()).donorId(), anchor.cube(), hunter.getRandom().nextLong());
-		if (!meal.valid()) return hunter;
-		if (hunter instanceof SlimeBionicEntity bionic) {
-			bionic.queueGrowth(meal);
-			return hunter;
-		}
+		if (!meal.valid()) return null;
+		if (hunter instanceof SlimeBionicEntity bionic)
+			return bionic.queueGrowth(meal) ? bionic : null;
 		var bionic = CBEntityTypes.SLIME_BIONIC.get().create(level);
-		if (bionic == null) return hunter;
+		if (bionic == null) return null;
 		// Preserve vanilla mob state (persistence, effects, name, motion, equipment and custom loot).
 		// The proxy needs its own UUID while the slime is still registered with the level.
 		var state = hunter.saveWithoutId(new CompoundTag());
@@ -95,10 +106,10 @@ public final class DevourGrowth {
 		bionic.load(state);
 		bionic.getPersistentData().putBoolean("WildDevourer", true);
 		bionic.setAssembly(base);
-		bionic.queueGrowth(meal);
+		if (!bionic.queueGrowth(meal)) return null;
 		bionic.setHealth(bionic.getMaxHealth() * hunter.getHealth() / hunter.getMaxHealth());
 		SlimeMimicHandler.forceSetSlimeMimic(bionic, true);
-		if (!level.addFreshEntity(bionic)) return hunter;
+		if (!level.addFreshEntity(bionic)) return null;
 		hunter.discard();
 		return bionic;
 	}
@@ -119,7 +130,7 @@ public final class DevourGrowth {
 		origins.keySet().removeIf(m -> m.source() >= installed);
 		cubes.keySet().retainAll(origins.keySet());
 		var attacks = AttackGeometry.create(geometry.right(), geometry.left(), origins, geometry.ridingSeats(), cubes, geometry.equipmentBounds());
-		double volume = SurgicalVolumeSampler.unionVolume(cubes.values().stream().map(DevourGrowth::volumeCorners).toList());
+		double volume = SurgicalVolumeSampler.unionVolume(cubes.values().stream().map(DevouredGrowthPose::orderedCorners).toList());
 		if (attacks == null || !SurgicalHealthCalibration.validMeasuredVolume(volume, saved.hitboxGeometry()))
 			return saved;
 		var parts = new HashMap<>(geometry.carrierParts());
@@ -133,7 +144,7 @@ public final class DevourGrowth {
 		float edge = slime.getSize() * 0.5f;
 		var profile = MimicProfile.capture(slime);
 		var anatomy = BionicAnatomySnapshot.ofParts(Map.of(0, Set.of("devour_inner"), 1, Set.of("devour_outer")), 2)
-			.withVolumes(new float[]{(float)Math.pow(edge * 0.75, 3), edge * edge * edge});
+			.withVolumes(new float[]{(float)Math.pow(edge * 0.75, 3), edge * edge * edge}, edge * edge * edge);
 		BitSet both = new BitSet();
 		both.set(0, 2);
 		var base = SurgicalAssembly.create(profile, UUID.randomUUID(), 2, both, anatomy,
@@ -181,7 +192,8 @@ public final class DevourGrowth {
 		Vec3 bodyOrigin = base.layoutLayPose().inverseRotate(tableCenter).subtract(geometry.carrierOrigins().get(anchor));
 		var previous = base.hitboxGeometry();
 		float width = meal.width(), height = meal.height();
-		GrowthPlacement growth = GrowthPlacement.sample(volumeCorners(shellCorners), width, height, meal.donor(), RandomSource.create(meal.seed()));
+		GrowthPlacement growth = GrowthPlacement.sample(DevouredGrowthPose.orderedCorners(shellCorners), width, height,
+			meal.donor(), RandomSource.create(meal.seed()));
 		if (growth == null) return null;
 		var prey = meal.profile().asDevouredForm(width, height, 0L, growth.pose().burial(), growth.pose().anchor(),
 			growth.normal(), growth.localSlide());
@@ -228,17 +240,6 @@ public final class DevourGrowth {
 		return grown.isReadyForEntity() ? grown : null;
 	}
 
-	/** Earlier proxy boxes enumerated the perimeter of each face instead of its binary corner indices. */
-	private static List<Vec3> volumeCorners(List<Vec3> points) {
-		Vec3 a = points.get(1).subtract(points.get(0));
-		Vec3 b = points.get(2).subtract(points.get(0));
-		Vec3 diagonal = points.get(3).subtract(points.get(0));
-		if (b.distanceToSqr(a.add(diagonal)) < 1e-12 && Math.abs(a.dot(diagonal)) < 1e-6)
-			return List.of(points.get(0), points.get(1), points.get(3), points.get(2),
-				points.get(4), points.get(5), points.get(7), points.get(6));
-		return points;
-	}
-
 	private record GrowthPlacement(Vec3 center, DevouredGrowthPose pose, Vec3 normal, Vec3 localSlide, List<Vec3> corners) {
 		static GrowthPlacement sample(List<Vec3> shell, double width, double height, UUID donor, RandomSource random) {
 			Vec3 shellCenter = shell.get(0).lerp(shell.get(7), 0.5);
@@ -270,10 +271,9 @@ public final class DevourGrowth {
 					surface = surface.lerp(highest, t + random.nextDouble() * (1 - t));
 				}
 				double lift = Math.max(0, requiredY - surface.y);
-				Vec3 contact = surface.add(0, lift, 0);
-				Vec3 center = contact.subtract(offset);
+				Vec3 center = surface.subtract(offset);
 				Vec3 inside = surface.lerp(shellCenter, 0.5);
-				Vec3 slide = BionicRiding.inverse(pose.rotation()).rotate(contact.subtract(inside));
+				Vec3 slide = BionicRiding.inverse(pose.rotation()).rotate(surface.subtract(inside));
 				var placement = new GrowthPlacement(center, pose, normal, slide, rotated.stream().map(center::add).toList());
 				if (lift <= 1e-8) return placement;
 				if (lift < leastLift) { fallback = placement; leastLift = lift; }

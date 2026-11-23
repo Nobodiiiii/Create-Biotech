@@ -30,6 +30,7 @@ import com.nobodiiiii.createbiotech.content.magmacubeburner.MagmaCubeBurnerItem;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltConnectorItem;
 import com.nobodiiiii.createbiotech.content.processing.basin.CapturedSmallSlimeItem;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltConnectorItem;
+import com.nobodiiiii.createbiotech.content.slimeculturechamber.SlimeCultureChamberItem;
 import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
@@ -124,6 +125,9 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> PETRI_DISH = ITEMS.register("petri_dish",
 		() -> new BlockItem(CBBlocks.PETRI_DISH.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> SLIME_CULTURE_CHAMBER = ITEMS.register("slime_culture_chamber",
+		() -> new SlimeCultureChamberItem(CBBlocks.SLIME_CULTURE_CHAMBER.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, Item> SURGICAL_TABLE = ITEMS.register("surgical_table",
 		() -> new BlockItem(CBBlocks.SURGICAL_TABLE.get(), new Item.Properties()));

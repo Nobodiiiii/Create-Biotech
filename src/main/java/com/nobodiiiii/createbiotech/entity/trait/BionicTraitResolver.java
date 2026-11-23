@@ -71,6 +71,8 @@ public final class BionicTraitResolver {
 		private ExtensionPass extensions;
 		private boolean overridesApplied;
 		private double tamingChance;
+		private BionicTissueStats tissueStats;
+		private int statsSource;
 		private BionicTraitSet result;
 
 		public Evaluation(SurgicalAssembly assembly, Level level) {
@@ -91,6 +93,7 @@ public final class BionicTraitResolver {
 		public BionicTraitSet step() {
 			if (result != null) return result;
 			if (!BionicTraits.ENABLED) return BionicTraitSet.EMPTY;
+			if (tissueStats != null) return finishStats();
 			if (donors.size() < tissue.sourceCount()) {
 				// A wild host already uses its native health. Every swallowed donor contributes normally.
 				boolean wildHost = wildDevourer && donors.isEmpty();
@@ -121,7 +124,19 @@ public final class BionicTraitResolver {
 				extensions = null;
 				return null;
 			}
-			result = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(), tamingChance);
+			tissueStats = new BionicTissueStats(assembly, level, wildDevourer, results);
+			return finishStats();
+		}
+
+		@Nullable
+		private BionicTraitSet finishStats() {
+			if (tissueStats.hasOffsets() && statsSource < tissue.sourceCount()) {
+				tissueStats.addSource(statsSource, tissue, donors.get(statsSource));
+				statsSource++;
+				return null;
+			}
+			if (tissueStats.nextArm(tissue)) return null;
+			result = new BionicTraitSet(results, data.traits(), tissue.headUsesTorso(), covered.wingMembers(), tamingChance, tissueStats.finish());
 			return result;
 		}
 
@@ -373,10 +388,11 @@ public final class BionicTraitResolver {
 			double originalVolume = anatomy.originalVolume();
 			if (originalVolume <= 0) continue;
 			boolean nativeArm = BionicTrait.DAMAGE_OFFSET.equals(trait);
-			Map<Integer, Double> armVolumes = nativeArm ? tissue.originalArmVolumes(sourceId) : Map.of();
+			var armVolumes = nativeArm ? tissue.originalArmVolumes(sourceId) : Map.<Integer, BionicTissue.ArmVolume>of();
 			double donorValue = rawNumericValue(trait, donors.get(sourceId).value(trait));
 			for (int cube = carriers.nextSetBit(0); cube >= 0; cube = carriers.nextSetBit(cube + 1)) {
-				double denominator = nativeArm ? armVolumes.getOrDefault(cube, 0.0d) : originalVolume;
+				if (nativeArm && !armVolumes.containsKey(cube)) continue;
+				double denominator = nativeArm ? armVolumes.get(cube).captured() : originalVolume;
 				if (denominator <= 0) continue;
 				double share = donorValue * (anatomy.volume(cube) / denominator);
 				if (Double.isFinite(share) && share != 0)
@@ -402,7 +418,8 @@ public final class BionicTraitResolver {
 					|| Math.abs(local) == Math.abs(value) && local > value) value = local;
 			}
 		}
-		return value == 0 ? BionicTraitResult.ABSENT
+		// Equal positive and negative points on unlike donors can represent different volumes.
+		return value == 0 && (!trait.isStatOffset() || values.isEmpty()) ? BionicTraitResult.ABSENT
 			: new BionicTraitResult(placement.coverage(), placement.strength(), value, Set.of(), members,
 				null, Map.of(), Set.of(), Map.of(), values, Set.of());
 	}

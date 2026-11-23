@@ -36,13 +36,30 @@ public final class SurgicalHealthCalibration {
 	public static double maximumHealth(double volume, Level level) {
 		if (!validVolume(volume))
 			return MIN_HEALTH;
-		return BionicStats.evaluate(BionicStat.MAX_HEALTH, level, Map.of("volume", volume));
+		return Math.min(BionicStats.parameter(level, "health_maximum"),
+			BionicStats.evaluate(BionicStat.MAX_HEALTH, level, Map.of("volume", volume)));
 	}
 
-	/** Add the tissue-weighted correction after volume calibration, then enforce the health limits. */
+	/** A single intact donor. Assemblies combine the donors' equivalent volumes before evaluating health. */
 	public static double maximumHealth(double volume, Level level, double offset) {
-		return Math.clamp(maximumHealth(volume, level) + (Double.isFinite(offset) ? offset : 0.0d),
-			MIN_HEALTH, BionicStats.parameter(level, "health_maximum"));
+		return maximumHealth(volume + healthVolumeOffset(volume, level, offset), level);
+	}
+
+	public static double healthVolumeOffset(double volume, Level level, double offset) {
+		if (offset == 0 || !Double.isFinite(offset) || !validVolume(volume)) return 0;
+		double target = maximumHealth(volume, level) + offset;
+		return volumeForHealth(volume, target, level) - volume;
+	}
+
+	public static double volumeForHealth(double reference, double target, Level level) {
+		if (!BionicStats.usesDefaultFormula(BionicStat.MAX_HEALTH, level))
+			return SurgicalStatVolume.forValue(v -> maximumHealth(v, level), reference, target);
+		if (target <= MIN_HEALTH) return 0;
+		var parameters = BionicStats.parameters(level);
+		double ceiling = parameters.get("health_maximum");
+		if (target >= ceiling) return SurgicalStatVolume.LIMIT;
+		double ratio = parameters.get("health_offset") * target / (ceiling - target);
+		return Math.min(SurgicalStatVolume.LIMIT, parameters.get("health_anchor_volume") * Math.pow(ratio, 1 / parameters.get("health_exponent")));
 	}
 
 	/** Zero is a valid measurement for planar parts; NaN denotes an unmeasured body. */

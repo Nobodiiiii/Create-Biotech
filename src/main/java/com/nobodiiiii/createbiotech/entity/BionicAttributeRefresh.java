@@ -39,8 +39,8 @@ final class BionicAttributeRefresh {
 		double calibrated = operationOwner.baseMaximumHealth(assembly, traits);
 		if (maximumHealth.getBaseValue() != calibrated)
 			maximumHealth.setBaseValue(calibrated);
-		if (operationOwner.getHealth() > calibrated)
-			operationOwner.setHealth((float) calibrated);
+		if (operationOwner.getHealth() > operationOwner.getMaxHealth())
+			operationOwner.setHealth(operationOwner.getMaxHealth());
 	}
 
 	static void refreshNaturalArmor(SlimeBionicEntity operationOwner, BionicTraitSet traits) {

@@ -23,7 +23,6 @@ import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalBodyBounds;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCubeRotation;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
-import com.nobodiiiii.createbiotech.content.surgery.SurgicalHealthCalibration;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalHitboxGeometry;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalLayPose;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTablePlane;
@@ -512,8 +511,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
         entity.setAssembly(assembly);
         // A real client receives these server-calibrated attributes over the network.
         // This scene owns no server entity, so seed them from the same gameplay calculations.
-        entity.getAttribute(Attributes.MAX_HEALTH).setBaseValue(SurgicalHealthCalibration.maximumHealth(
-            assembly.bodyVolume(), entity.level(), entity.getBionicTraits().value(BionicTrait.HEALTH_OFFSET)));
+        entity.getAttribute(Attributes.MAX_HEALTH).setBaseValue(entity.baseMaximumHealth(assembly, entity.getBionicTraits()));
         entity.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(entity.baseGroundSpeed());
         entity.getAttribute(Attributes.ATTACK_DAMAGE).setBaseValue(entity.baseMeleeDamage());
         entity.setHealth(entity.getMaxHealth());
@@ -643,7 +641,7 @@ public final class SurgicalPonderActors extends PonderElementBase implements Pon
             plan = SurgicalSourcePlanCache.plan(entity, 0);
             cubes = plan.snapshot(new PoseStack(), 0, new BitSet(), Map.of(), Map.of(), null).cubes();
             seams = SurgicalClientTopology.buildContactTopology(cubes.size(), cubes).seams();
-            anatomy = SurgicalPlacementController.discoveredAnatomy(cubes, cubes.size());
+            anatomy = SurgicalPlacementController.discoveredAnatomy(cubes, cubes.size(), profile, seams);
             AABB flat = bounds(cubes.stream().flatMap(c -> c.corners().stream()).map(FLAT::rotate).toList());
             origin = position.add(-flat.getCenter().x, TABLETOP_OFFSET - flat.minY, -flat.getCenter().z);
         }

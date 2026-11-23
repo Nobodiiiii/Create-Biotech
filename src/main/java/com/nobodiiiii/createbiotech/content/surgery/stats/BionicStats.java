@@ -48,6 +48,9 @@ public final class BionicStats {
 			throw new IllegalArgumentException("Duplicate bionic default " + stat);
 	}
 	public static long revision(Level level) { return snapshot(level).revision; }
+	public static boolean usesDefaultFormula(BionicStat stat, Level level) {
+		return snapshot(level).formulas.get(stat) == BUILT_INS.get(stat);
+	}
 	public static Map<String, Double> parameters(Level level) { return snapshot(level).parameters; }
 	public static double parameter(Level level, String name) { return parameters(level).get(name); }
 	private static Snapshot snapshot(Level level) { return level != null && level.isClientSide ? client : current; }
@@ -135,8 +138,11 @@ public final class BionicStats {
 			ResourceLocation type = ResourceLocation.parse(json.has("type") ? json.get("type").getAsString() : "create_biotech:expression");
 			try {
 				BionicStatFormula formula;
-				if (type.equals(ResourceLocation.parse("create_biotech:expression")))
-					formula = BionicStatExpression.compile(json.get("expression").getAsString(), variables(stat));
+				if (type.equals(ResourceLocation.parse("create_biotech:expression"))) {
+					String expression = json.get("expression").getAsString();
+					formula = stat.defaultExpression().equals(expression) ? BUILT_INS.get(stat)
+						: BionicStatExpression.compile(expression, variables(stat));
+				}
 				else if (TYPES.containsKey(type)) formula = TYPES.get(type).apply(stat, json.deepCopy());
 				else if (!strict) { formula = BUILT_INS.get(stat); LogUtils.getLogger().warn("Client is missing bionic formula type {}; using default preview for {}", type, stat.id()); }
 				else throw new IllegalArgumentException("Unknown formula type " + type);

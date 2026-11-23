@@ -298,8 +298,7 @@ final class SurgicalPlacementController {
 			plan = discoveredPlan.placement();
 			discovered = new DiscoveredPlacement(placementGeometry.discoveredCubeCount(),
 				placementGeometry.discoveredSeams(),
-				discoveredAnatomy(placementGeometry.discoveredCubes(),
-					placementGeometry.discoveredCubeCount()),
+				placementGeometry.anatomy(),
 				discoveredPlan.componentFootprints());
 		} else {
 			plan = SurgicalClientTopology.planInitialPlacement(List.of(renderedBounds),
@@ -729,7 +728,7 @@ final class SurgicalPlacementController {
 	record PlacementGeometry(AABB bounds, SurgicalLayPose layPose,
 		Map<Integer, Vec3> cubeOffsets, List<SourcePlacementGeometry> sources,
 		int discoveredCubeCount, List<SurgicalAssembly.Seam> discoveredSeams,
-		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes, List<Vec3> groundPlane) {
+		List<SurgicalModelRenderContext.CubeGeometry> discoveredCubes, BionicAnatomySnapshot anatomy, List<Vec3> groundPlane) {
 		PlacementGeometry {
 			cubeOffsets = Map.copyOf(cubeOffsets);
 			sources = List.copyOf(sources);
@@ -858,7 +857,8 @@ final class SurgicalPlacementController {
 			Map<Integer, Vec3> offsets = groundedOffsets(snapshot, discoveredCubeCount, discoveredSeams);
 			AABB bounds = SurgicalSelectionResolver.logicalBounds(snapshot.cubes(), offsets);
 			return bounds == null ? null : new PlacementGeometry(bounds, resolved.layPose(), offsets, List.of(),
-				discoveredCubeCount, discoveredSeams, discoveredCubes, groundPlaneCorners(
+				discoveredCubeCount, discoveredSeams, discoveredCubes, discoveredCubeCount == 0 ? BionicAnatomySnapshot.EMPTY
+					: discoveredAnatomy(discoveredCubes, discoveredCubeCount, profile, discoveredSeams), groundPlaneCorners(
 					groundPlaneBounds(null, snapshot.cubes(), offsets, resolved.layPose()), resolved.layPose()));
 		}
 
@@ -936,7 +936,7 @@ final class SurgicalPlacementController {
 			for (SourcePlacementGeometry geometry : previewGeometries)
 				uprightBounds = groundPlaneBounds(uprightBounds, geometry.baseCubes(), geometry.previewOffsets(), targetPose);
 			return new PlacementGeometry(bounds, targetPose, Map.of(),
-				previewGeometries, 0, List.of(), List.of(), groundPlaneCorners(uprightBounds, targetPose));
+				previewGeometries, 0, List.of(), List.of(), BionicAnatomySnapshot.EMPTY, groundPlaneCorners(uprightBounds, targetPose));
 		}
 
 		private PoseStack sourcePose(SurgicalAssembly.PlacedSource placedSource, LivingEntity entity) {
@@ -990,7 +990,7 @@ final class SurgicalPlacementController {
 
 
 	static BionicAnatomySnapshot discoveredAnatomy(
-		List<SurgicalModelRenderContext.CubeGeometry> cubes, int cubeCount) {
+		List<SurgicalModelRenderContext.CubeGeometry> cubes, int cubeCount, MimicProfile profile, List<SurgicalAssembly.Seam> seams) {
 		Map<Integer, java.util.Set<String>> parts = new HashMap<>();
 		Map<Integer, java.util.Set<com.nobodiiiii.createbiotech.entity.trait.BionicModelNode>> nodes = new HashMap<>();
 		float[] volumes = new float[cubeCount];
@@ -1008,8 +1008,25 @@ final class SurgicalPlacementController {
 		if (snapshot == null)
 			return BionicAnatomySnapshot.EMPTY;
 		// Trait coverage is volume weighted; a partial measurement leaves the body unmeasured.
-		BionicAnatomySnapshot weighted = measured.cardinality() == cubeCount
-			? snapshot.withVolumes(volumes) : null;
+		if (measured.cardinality() != cubeCount) return snapshot;
+		var arms = new HashMap<List<Integer>, BionicAnatomySnapshot.NativeArm>();
+		for (BitSet group : com.nobodiiiii.createbiotech.entity.trait.BionicAnatomyRegistry.clientArmGroups(profile, cubeCount, seams, snapshot)) {
+			var boxes = cubes.stream().filter(c -> group.get(c.cubeId())).map(SurgicalModelRenderContext.CubeGeometry::corners).toList();
+			// Project the whole native arm onto its longest model edge. Rigid table rotation leaves its length unchanged.
+			Vec3 longest = Vec3.ZERO;
+			for (var box : boxes) for (int axis = 1; axis <= 4; axis *= 2) {
+				var edge = box.get(axis).subtract(box.getFirst());
+				if (edge.lengthSqr() > longest.lengthSqr()) longest = edge;
+			}
+			var direction = longest.normalize();
+			var span = boxes.stream().flatMap(List::stream).mapToDouble(direction::dot).summaryStatistics();
+			double length = span.getMax() - span.getMin();
+			if (length > 0 && length <= 4 * SurgicalAssembly.MAX_BODY_SIZE)
+				arms.put(group.stream().boxed().toList(), new BionicAnatomySnapshot.NativeArm(SurgicalVolumeSampler.unionVolume(boxes), length));
+		}
+		BionicAnatomySnapshot weighted = snapshot.withVolumes(volumes, SurgicalVolumeSampler.unionVolume(cubes.stream()
+			.map(SurgicalModelRenderContext.CubeGeometry::corners).toList()), arms);
+		if (weighted == null) weighted = snapshot.withVolumes(volumes);
 		return weighted == null ? snapshot : weighted;
 	}
 

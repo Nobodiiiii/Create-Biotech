@@ -12,6 +12,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
+import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 
 import net.minecraft.resources.ResourceLocation;
 
@@ -20,9 +21,10 @@ public final class BionicAnatomyRegistry {
 	private BionicAnatomyRegistry() {}
 
 	@Nullable
-	private static Template get(SurgicalAssembly.Source source, BionicTraitRegistry.Snapshot data) {
-		for (Template template : data.templates().getOrDefault(source.profile().entityTypeId(), List.of()))
-			if (template.matches(source))
+	private static Template get(MimicProfile profile, int count, List<SurgicalAssembly.Seam> seams, BionicTraitRegistry.Snapshot data) {
+		for (Template template : data.templates().getOrDefault(profile.entityTypeId(), List.of()))
+			if (template.cubeCount == count && (template.seams == null || template.seams.equals(seams))
+				&& (template.baby == null || template.baby.equals(profile.baby())))
 				return template;
 		return null;
 	}
@@ -38,18 +40,29 @@ public final class BionicAnatomyRegistry {
 
 	static Map<BionicAnatomyRole, BitSet> roles(SurgicalAssembly.Source source,
 		BionicTraitRegistry.Snapshot data) {
+		return roles(source.profile(), source.cubeCount(), source.seams(), source.anatomy(), data);
+	}
+
+	public static List<BitSet> clientArmGroups(MimicProfile profile, int count, List<SurgicalAssembly.Seam> seams,
+		BionicAnatomySnapshot anatomy) {
+		var roles = roles(profile, count, seams, anatomy, BionicTraitRegistry.clientSnapshot());
+		return BionicTissue.armGroups(count, seams, anatomy, roles.getOrDefault(BionicAnatomyRole.ATTACK_HAND, new BitSet()));
+	}
+
+	private static Map<BionicAnatomyRole, BitSet> roles(MimicProfile profile, int count, List<SurgicalAssembly.Seam> seams,
+		BionicAnatomySnapshot anatomy, BionicTraitRegistry.Snapshot data) {
 		Map<BionicAnatomyRole, BitSet> roles = new HashMap<>();
-		Template configured = get(source, data);
+		Template configured = get(profile, count, seams, data);
 		if (configured != null)
 			configured.roles.forEach((role, cubes) -> merge(roles, role, cubes));
-		ResourceLocation entity = source.profile().entityTypeId();
+		ResourceLocation entity = profile.entityTypeId();
 		data.parts().values().stream().filter(part -> part.owner() == null)
-			.forEach(part -> merge(roles, part.role(), source.anatomy().select(part, entity)));
-		BionicTraitCarriers.rolesFor(data, entity, source.anatomy().parts(), source.cubeCount())
+			.forEach(part -> merge(roles, part.role(), anatomy.select(part, entity)));
+		BionicTraitCarriers.rolesFor(data, entity, anatomy.parts(), count)
 			.forEach((role, cubes) -> { if (data.parts().get(role).owner() == null) merge(roles, role, cubes); });
 		for (BionicPartDefinition part : data.parts().values())
 			if (part.owner() == null && roles.getOrDefault(part.role(), new BitSet()).isEmpty() && part.fallsBackToAll(entity))
-				roles.computeIfAbsent(part.role(), ignored -> new BitSet()).set(0, source.cubeCount());
+				roles.computeIfAbsent(part.role(), ignored -> new BitSet()).set(0, count);
 		return roles;
 	}
 
@@ -177,10 +190,5 @@ public final class BionicAnatomyRegistry {
 
 		List<BionicModelAlias> modelAliases() { return modelAliases; }
 
-		private boolean matches(SurgicalAssembly.Source source) {
-			return source.cubeCount() == cubeCount
-				&& (seams == null || seams.equals(source.seams()))
-				&& (baby == null || baby.equals(source.profile().baby()));
-		}
 	}
 }

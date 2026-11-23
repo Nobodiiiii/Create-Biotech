@@ -105,7 +105,11 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			buffer.writeNbt(model.anatomy().save());
 			buffer.writeDouble(model.lowestPointFromPivot());
 			buffer.writeNullable(model.headCenter(), FriendlyByteBuf::writeVec3);
-			buffer.writeDouble(model.outwardMidpoint());
+			buffer.writeNullable(model.contact(), (buf, contact) -> {
+				buf.writeVarInt(contact.cube());
+				buf.writeVec3(contact.inward());
+				buf.writeVec3(contact.lowest());
+			});
 		}
 	}
 
@@ -148,7 +152,8 @@ public record SurgicalTablePlacementPacket(BlockPos pos, InteractionHand hand, D
 			var centers = new ArrayList<Vec3>(cubes);
 			for (int cube = 0; cube < cubes; cube++) centers.add(buffer.readVec3());
 			result.add(new DevouredDonorTopology(donor, centers, readSeams(buffer), readAnatomy(buffer), buffer.readDouble(),
-				buffer.readNullable(FriendlyByteBuf::readVec3), buffer.readDouble(), cubes));
+				buffer.readNullable(FriendlyByteBuf::readVec3), buffer.readNullable(buf ->
+					new DevouredDonorTopology.Contact(buf.readVarInt(), buf.readVec3(), buf.readVec3())), cubes));
 		}
 		return result;
 	}

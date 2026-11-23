@@ -6,7 +6,6 @@ import com.google.common.collect.HashMultimap;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalCombatCalibration;
 import com.nobodiiiii.createbiotech.entity.ai.BionicIntelligence;
-import com.nobodiiiii.createbiotech.entity.trait.BionicTrait;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import net.minecraft.core.Holder;
 import net.minecraft.util.Mth;
@@ -86,7 +85,7 @@ final class BionicMeleeController {
 				if (operationOwner.isBionicWing(arm)) continue;
 				var stats = SurgicalCombatCalibration.stats(arm, operationOwner.level());
 				double attackDamage = arm == weaponArm ? armedAttackDamage : baseAttackDamage;
-				double dps = SurgicalCombatCalibration.damagePerHit(attackDamage, stats, BionicMeleeController.armDamageOffset(operationOwner, arm))
+				double dps = attackDamage * operationOwner.getBionicTraits().armDamageMultiplier(arm, stats.damageMultiplier())
 					* 20.0d / SurgicalCombatCalibration.armRecovery(stats, operationOwner.level());
 				if (dps > highestDps) { highestDps = dps; fixedArmIndex = index; }
 			}
@@ -218,10 +217,9 @@ final class BionicMeleeController {
 
 	/** The correction follows the entire installed shoulder/elbow chain, including mixed donors. */
 	static double armDamageOffset(SlimeBionicEntity operationOwner, @Nullable SurgicalAssembly.ArmAttackGeometry arm) {
-		SurgicalAssembly assembly = operationOwner.getAssembly();
-		return assembly == null || arm == null || arm.sourceId() < 0 ? 0.0d
-			: operationOwner.getBionicTraits().armValue(BionicTrait.DAMAGE_OFFSET,
-				assembly.rotatingGroup(arm.sourceId(), arm.cubeId()));
+		if (arm == null) return 0;
+		double geometric = SurgicalCombatCalibration.stats(arm, operationOwner.level()).damageMultiplier();
+		return operationOwner.baseMeleeDamage() * (operationOwner.getBionicTraits().armDamageMultiplier(arm, geometric) - geometric);
 	}
 
 	static boolean attackUsesMainHand(SlimeBionicEntity operationOwner) {

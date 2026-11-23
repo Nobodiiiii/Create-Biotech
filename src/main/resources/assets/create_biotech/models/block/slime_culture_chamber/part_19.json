@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "create:block/zinc_block"
+  },
+  "loader": "neoforge:obj",
+  "render_type": "minecraft:cutout",
+  "model": "create_biotech:models/block/slime_culture_chamber/part_19.obj",
+  "flip_v": true,
+  "automatic_culling": false
+}

@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "textures": {
+    "particle": "create:block/zinc_block"
+  }
+}

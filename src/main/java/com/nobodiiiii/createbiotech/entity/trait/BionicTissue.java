@@ -49,6 +49,7 @@ final class BionicTissue {
 	}
 
 	int sourceCount() { return sources.size(); }
+	Set<SurgicalAssembly.CombinationMember> limbMembers(SurgicalAssembly.Limb limb) { return limbs.getOrDefault(limb, Set.of()); }
 	SurgicalAssembly.Source source(int sourceId) { return sources.get(sourceId); }
 	boolean headUsesTorso() { return headUsesTorso; }
 
@@ -99,13 +100,11 @@ final class BionicTissue {
 	}
 
 	/** Each original native arm has its own numeric pool, including tissue removed by later cuts. */
-	Map<Integer, Double> originalArmVolumes(int sourceId) {
-		SurgicalAssembly.Source source = sources.get(sourceId);
-		BitSet arms = roleCubes(sourceId, BionicAnatomyRole.ATTACK_HAND);
+	static List<BitSet> armGroups(int count, List<SurgicalAssembly.Seam> seams, BionicAnatomySnapshot anatomy, BitSet arms) {
 		Map<Integer, Integer> sides = new HashMap<>();
 		for (int cube = arms.nextSetBit(0); cube >= 0; cube = arms.nextSetBit(cube + 1)) {
 			int side = 0;
-			for (String label : source.anatomy().parts().getOrDefault(cube, Set.of())) {
+			for (String label : anatomy.parts().getOrDefault(cube, Set.of())) {
 				String name = label.toLowerCase(java.util.Locale.ROOT);
 				if (name.contains("left")) side |= 1;
 				if (name.contains("right")) side |= 2;
@@ -115,7 +114,7 @@ final class BionicTissue {
 		Map<Integer, BitSet> groups = new HashMap<>();
 		int componentId = 0;
 		// Original seams, never current cuts or installation joints, identify unnamed arm segments.
-		for (BitSet component : SurgicalAssembly.components(source.cubeCount(), arms, source.seams(), new BitSet())) {
+		for (BitSet component : SurgicalAssembly.components(count, arms, seams, new BitSet())) {
 			Set<Integer> known = new HashSet<>();
 			for (int cube = component.nextSetBit(0); cube >= 0; cube = component.nextSetBit(cube + 1))
 				if (sides.containsKey(cube)) known.add(sides.get(cube));
@@ -126,12 +125,25 @@ final class BionicTissue {
 				groups.computeIfAbsent(sides.getOrDefault(cube, fallback), ignored -> new BitSet()).set(cube);
 			}
 		}
-		Map<Integer, Double> volumes = new HashMap<>();
-		for (BitSet group : groups.values()) {
+		return List.copyOf(groups.values());
+	}
+
+	record ArmVolume(double captured, double union, double length) {}
+	private final Map<Integer, Map<Integer, ArmVolume>> originalArms = new HashMap<>();
+	Map<Integer, ArmVolume> originalArmVolumes(int sourceId) {
+		return originalArms.computeIfAbsent(sourceId, this::measureOriginalArms);
+	}
+
+	private Map<Integer, ArmVolume> measureOriginalArms(int sourceId) {
+		var source = sources.get(sourceId);
+		Map<Integer, ArmVolume> volumes = new HashMap<>();
+		for (BitSet group : armGroups(source.cubeCount(), source.seams(), source.anatomy(), roleCubes(sourceId, BionicAnatomyRole.ATTACK_HAND))) {
 			double volume = source.anatomy().volume(group);
 			if (!Double.isFinite(volume) || volume <= 0) continue;
-			for (int cube = group.nextSetBit(0); cube >= 0; cube = group.nextSetBit(cube + 1))
-				volumes.put(cube, volume);
+			var measured = source.anatomy().nativeArms().get(group.stream().boxed().toList());
+			var arm = new ArmVolume(volume, measured == null ? volume : measured.volume(),
+				measured == null ? Double.NaN : measured.length());
+			for (int cube = group.nextSetBit(0); cube >= 0; cube = group.nextSetBit(cube + 1)) volumes.put(cube, arm);
 		}
 		return volumes;
 	}

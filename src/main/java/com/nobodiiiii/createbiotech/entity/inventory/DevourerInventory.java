@@ -34,6 +34,14 @@ public final class DevourerInventory extends SimpleContainer implements INBTSeri
 			&& (bionic.wildSlimeSize() > 0 || bionic.getBionicTraits().has(BionicTrait.DEVOUR));
 	}
 
+	public static boolean hasEmptySlot(Mob hunter) {
+		var inventory = hunter.getExistingDataOrNull(CBAttachmentTypes.DEVOURER_INVENTORY);
+		if (inventory == null) return true;
+		for (var stack : inventory.getItems())
+			if (stack.isEmpty()) return true;
+		return false;
+	}
+
 	public static boolean tryOpen(Mob holder, Player player, InteractionHand hand) {
 		if (!player.isSecondaryUseActive() || !player.getItemInHand(hand).isEmpty()
 			|| !(canCollect(holder) || holder.hasData(CBAttachmentTypes.DEVOURER_INVENTORY))) return false;

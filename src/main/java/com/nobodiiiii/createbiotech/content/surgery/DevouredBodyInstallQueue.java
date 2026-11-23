@@ -120,7 +120,7 @@ public final class DevouredBodyInstallQueue {
 			}
 			if (traits != null) {
 				var installed = measured.installed().startDevouredGrowth(donors, level.getGameTime());
-				body.installAssembly(installed, save.finish(installed), traits);
+				body.installDevouredAssembly(installed, save.finish(installed), traits);
 				return Outcome.INSTALLED;
 			}
 			if (evaluation == null) {

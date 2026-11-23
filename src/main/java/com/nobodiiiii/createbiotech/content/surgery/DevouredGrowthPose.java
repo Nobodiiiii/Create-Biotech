@@ -17,6 +17,17 @@ public record DevouredGrowthPose(SurgicalCubeRotation rotation, Vec3 anchor, dou
 	private static final Vec3 UP = new Vec3(0, 1, 0);
 	private static final Vec3 FORWARD = new Vec3(0, 0, 1);
 
+	/** Earlier growth proxies listed the corners around each face instead of using binary indices. */
+	public static List<Vec3> orderedCorners(List<Vec3> points) {
+		Vec3 a = points.get(1).subtract(points.get(0));
+		Vec3 b = points.get(2).subtract(points.get(0));
+		Vec3 c = points.get(3).subtract(points.get(0));
+		if (b.distanceToSqr(a.add(c)) < 1e-12 && Math.abs(a.dot(c)) < 1e-6)
+			return List.of(points.get(0), points.get(1), points.get(3), points.get(2),
+				points.get(4), points.get(5), points.get(7), points.get(6));
+		return points;
+	}
+
 	@Nullable
 	public static DevouredGrowthPose measured(SurgicalAssembly.Source source, List<Vec3> centers,
 		BionicAnatomySnapshot anatomy, @Nullable Vec3 headCenter) {

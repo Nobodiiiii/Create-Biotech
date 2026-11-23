@@ -38,6 +38,7 @@ import com.nobodiiiii.createbiotech.content.petridish.PetriDishBlock;
 import com.nobodiiiii.createbiotech.content.powerbelt.PowerBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimebelt.SlimeBeltBlock;
 import com.nobodiiiii.createbiotech.content.slimeclutch.SlimeClutchBlock;
+import com.nobodiiiii.createbiotech.content.slimeculturechamber.SlimeCultureChamberBlock;
 import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableBlock;
 import com.nobodiiiii.createbiotech.content.squidprinter.SquidPrinterBlock;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalTableBlock;
@@ -160,6 +161,12 @@ public class CBBlocks {
 			.strength(1.5f)
 			.mapColor(MapColor.METAL)
 			.noOcclusion()));
+
+	public static final DeferredHolder<Block, SlimeCultureChamberBlock> SLIME_CULTURE_CHAMBER =
+		BLOCKS.register("slime_culture_chamber",
+			() -> new SlimeCultureChamberBlock(CBSharedProperties.createSoftMetal()
+				.mapColor(MapColor.METAL)
+				.noOcclusion()));
 
 	public static final DeferredHolder<Block, SurgicalTableBlock> SURGICAL_TABLE = BLOCKS.register("surgical_table",
 		() -> new SurgicalTableBlock(CBSharedProperties.createSoftMetal()

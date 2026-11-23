@@ -18,6 +18,7 @@ public final class BionicTraitSet {
 	private final Set<BionicTrait> active = new LinkedHashSet<>();
 	private final boolean headUsesTorso;
 	private final double tamingChance;
+	private final BionicTissueStats.Values tissueStats;
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso) {
@@ -26,6 +27,13 @@ public final class BionicTraitSet {
 
 	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
 		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings, double tamingChance) {
+		this(results, data, headUsesTorso, qualifyingWings, tamingChance, BionicTissueStats.Values.EMPTY);
+	}
+
+	BionicTraitSet(Map<BionicTrait, BionicTraitResult> results, Map<BionicTrait, BionicTraitData> data,
+		boolean headUsesTorso, Set<SurgicalAssembly.CombinationMember> qualifyingWings, double tamingChance,
+		BionicTissueStats.Values tissueStats) {
+		this.tissueStats = tissueStats;
 		this.results = Map.copyOf(results);
 		this.results.forEach((trait, result) -> {
 			if (result.active())
@@ -47,6 +55,11 @@ public final class BionicTraitSet {
 	public Set<SurgicalAssembly.CombinationMember> wingMembers() { return wings; }
 	/** True only for assembly evaluations with no installed head; donor facts have no such scope. */
 	public boolean headUsesTorso() { return headUsesTorso; }
+	public double calibratedHealth() { return tissueStats.health(); }
+	public double armDamageMultiplier(SurgicalAssembly.ArmAttackGeometry arm, double geometric) {
+		return arm == null ? geometric : tissueStats.armMultipliers().getOrDefault(arm, geometric);
+	}
+	public double devourDamageOffset() { return tissueStats.devourDamageOffset(); }
 
 	/** Active wings and levitating torso tissue, counted once against all retained captured tissue. */
 	public double flightVolumeRatio(SurgicalAssembly assembly) {

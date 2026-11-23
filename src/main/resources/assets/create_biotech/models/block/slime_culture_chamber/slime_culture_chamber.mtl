@@ -1,0 +1,15 @@
+newmtl materials
+Ka 0 0 0
+map_Kd create_biotech:block/slime_culture_chamber/materials
+
+newmtl glass
+Ka 0 0 0
+map_Kd create_biotech:block/slime_culture_chamber/glass
+
+newmtl slime_shell
+Ka 0 0 0
+map_Kd create_biotech:block/slime_culture_chamber/slime_shell
+
+newmtl phosphor
+Ka 1 1 1
+map_Kd create_biotech:block/slime_culture_chamber/phosphor
