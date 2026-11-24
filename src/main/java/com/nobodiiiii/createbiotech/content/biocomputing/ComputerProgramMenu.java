@@ -14,7 +14,6 @@ import com.nobodiiiii.createbiotech.registry.CBMenuTypes;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -50,11 +49,11 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 	static void open(ServerPlayer player, ComputerBlockEntity computer) {
 		ProgramState state = programsOf(computer);
 		player.openMenu(new SimpleMenuProvider((id, inventory, owner) -> new ComputerProgramMenu(id, player, computer, state),
-			Component.translatable("block.create_biotech.computer")), state::write);
+			computer.getBlockState().getBlock().getName()), state::write);
 	}
 
 	private static ProgramState programsOf(ComputerBlockEntity computer) {
-		return new ProgramState(computer.programRevision(), computer.program(), computer.restartProgram());
+		return new ProgramState(computer.programRevision(), computer.program(), computer.restartProgram(), computer.library());
 	}
 
 	public ProgramState programState() { return programState; }
@@ -95,10 +94,14 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 			return;
 		}
 		ComputerProgram submitted = program.orElseThrow();
+		if (submitted.firstUnavailable(computer.library()) != null) {
+			sendPrograms(programsOf(computer), EditResult.LIBRARY_LOCKED);
+			return;
+		}
 		if (action == Action.SAVE)
 			computer.saveProgram(submitted);
 		else
-			computer.run(submitted);
+			computer.run(submitted, player.getUUID());
 		sendPrograms(programsOf(computer), EditResult.ACCEPTED);
 		updateCooldown = 0;
 	}
@@ -136,7 +139,8 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 		BlockPos pos = computer.getBlockPos();
 		return !player.isSpectator() && player == viewer && !computer.isRemoved() && computer.getLevel() == level
 			&& level.isLoaded(pos) && player.canInteractWithBlock(pos, 1)
-			&& level.getBlockEntity(pos) == computer && ComputerBlock.hasPair(level, pos, computer.getBlockState());
+			&& level.getBlockEntity(pos) == computer && ComputerBlock.hasPair(level, pos, computer.getBlockState())
+			&& computer.mayEdit(player);
 	}
 
 	@Override

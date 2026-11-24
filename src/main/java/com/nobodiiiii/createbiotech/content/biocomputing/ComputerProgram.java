@@ -1,5 +1,8 @@
 package com.nobodiiiii.createbiotech.content.biocomputing;
 
+import static com.nobodiiiii.createbiotech.content.biocomputing.ComputerLibrary.*;
+
+import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -22,6 +25,21 @@ public record ComputerProgram(List<Block> commands) {
 			requireCommand(command);
 			remaining = count(command, 1, remaining);
 		}
+	}
+
+	@Nullable
+	public Op firstUnavailable(ComputerLibrary library) {
+		return library == ALL ? null : firstUnavailable(commands, library);
+	}
+
+	@Nullable
+	private static Op firstUnavailable(List<Block> stack, ComputerLibrary library) {
+		for (Block block : stack) {
+			Op unavailable = block.firstUnavailable(library);
+			if (unavailable != null)
+				return unavailable;
+		}
+		return null;
 	}
 
 	/** Assigns deterministic pre-order indices to every command block (matching ScratchCanvas layout traversal). */
@@ -56,6 +74,8 @@ public record ComputerProgram(List<Block> commands) {
 	private static int count(Block block, int depth, int remaining) {
 		if (depth > MAX_DEPTH || remaining <= 0)
 			throw new IllegalArgumentException("Computer program exceeds its block or nesting limit");
+		if (depth > 1 && block.op().isDeclaration())
+			throw new IllegalArgumentException("Procedure and event declarations belong at the top level");
 		remaining--;
 		for (Input input : block.inputs())
 			if (input instanceof Block reporter)
@@ -98,8 +118,16 @@ public record ComputerProgram(List<Block> commands) {
 					case Literal literal -> {
 						if (socket == Socket.CONDITION && !literal.text().equals("true") && !literal.text().equals("false"))
 							throw new IllegalArgumentException("A condition requires true or false");
-						if (socket == Socket.PORT && ComputerIO.Port.parse(literal.text()) == null)
-							throw new IllegalArgumentException("A port socket requires left, right, back, or top");
+						if (socket == Socket.CHANNEL) {
+							String channel = ComputerIO.Channel.migrate(literal.text());
+							if (ComputerIO.Channel.parse(channel) == null)
+								throw new IllegalArgumentException("A channel socket requires a number from 1 to 4");
+							if (!channel.equals(literal.text())) {
+								List<Input> migrated = new ArrayList<>(inputs);
+								migrated.set(i, new Literal(channel));
+								inputs = List.copyOf(migrated);
+							}
+						}
 						if (socket == Socket.SLOT && parseSlotIndex(literal.text()) < 0)
 							throw new IllegalArgumentException("A slot socket requires a number from 1 to 8");
 					}
@@ -108,6 +136,25 @@ public record ComputerProgram(List<Block> commands) {
 			for (List<Block> body : bodies)
 				body.forEach(ComputerProgram::requireCommand);
 		}
+
+		@Nullable
+		private Op firstUnavailable(ComputerLibrary library) {
+			if (!library.allows(op))
+				return op;
+			for (Input input : inputs) {
+				if (input instanceof Block reporter) {
+					Op unavailable = reporter.firstUnavailable(library);
+					if (unavailable != null)
+						return unavailable;
+				}
+			}
+			for (List<Block> body : bodies) {
+				Op unavailable = ComputerProgram.firstUnavailable(body, library);
+				if (unavailable != null)
+					return unavailable;
+			}
+			return null;
+		}
 	}
 
 	public enum Category { EVENTS, CONTROL, OPERATORS, VARIABLES, SENSING, OUTPUT }
@@ -115,72 +162,131 @@ public record ComputerProgram(List<Block> commands) {
 	public enum Shape { COMMAND, REPORTER, BOOLEAN }
 
 	public enum Socket {
-		VALUE, CONDITION, NAME, PORT, SLOT;
+		VALUE, CONDITION, NAME, CHANNEL, SLOT;
 
 		public boolean accepts(Shape shape) {
 			return switch (this) {
 				case VALUE -> shape != Shape.COMMAND;
 				case CONDITION -> shape == Shape.BOOLEAN;
-				case NAME, PORT, SLOT -> false;
+				case NAME, CHANNEL, SLOT -> false;
 			};
 		}
 
 		public boolean isSelector() {
-			return this == CONDITION || this == PORT || this == SLOT;
+			return this == CONDITION || this == CHANNEL || this == SLOT;
 		}
 	}
 
 	public record Slot(Socket socket, String initial) {}
 
 	public enum Op {
+		DEFINE_PROCEDURE(Category.EVENTS, 1, name("procedure")),
+		CALL_PROCEDURE(Category.EVENTS, 0, name("procedure")),
+		WHEN_SIGNAL_CHANGED(TIMING, Category.EVENTS, 1, channel()),
+		WHEN_INPUT_CHANGED(TIMING, Category.EVENTS, 1, slot("1")),
+		ON_BROADCAST(TIMING, Category.EVENTS, 1, name("message")),
+		BROADCAST(TIMING, Category.EVENTS, 0, value("message")),
+
 		WAIT(Category.CONTROL, 0, value("1")),
 		WAIT_TICKS(Category.CONTROL, 0, value("1")),
-		WAIT_UNTIL(Category.CONTROL, 0, condition()),
-		REPEAT(Category.CONTROL, 1, value("10"), value("1")),
+		WAIT_UNTIL(TIMING, Category.CONTROL, 0, condition()),
+		WAIT_STABLE(TIMING, Category.CONTROL, 0, condition(), value("1")),
+		COOLDOWN(TIMING, Category.CONTROL, 1, value("1")),
+		REPEAT(TIMING, Category.CONTROL, 1, value("10"), value("1")),
 		FOREVER(Category.CONTROL, 1, value("1")),
-		REPEAT_UNTIL(Category.CONTROL, 1, condition(), value("1")),
+		REPEAT_UNTIL(TIMING, Category.CONTROL, 1, condition(), value("1")),
 		IF(Category.CONTROL, 1, condition()),
 		IF_ELSE(Category.CONTROL, 2, condition()),
 		STOP(Category.CONTROL, 0),
+		RANDOM_WAIT(RANDOMNESS, Category.CONTROL, 0, value("1"), value("5")),
 
 		ADD(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
 		SUBTRACT(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
-		MULTIPLY(Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
-		DIVIDE(Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
-		MOD(Category.OPERATORS, Shape.REPORTER, value("10"), value("3")),
-		ROUND(Category.OPERATORS, Shape.REPORTER, value("0")),
-		FLOOR(Category.OPERATORS, Shape.REPORTER, value("0")),
-		ABS(Category.OPERATORS, Shape.REPORTER, value("0")),
-		RANDOM(Category.OPERATORS, Shape.REPORTER, value("1"), value("10")),
 		EQUALS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("0")),
 		LESS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("1")),
 		GREATER(Category.OPERATORS, Shape.BOOLEAN, value("1"), value("0")),
-		AND(Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
-		OR(Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
 		NOT(Category.OPERATORS, Shape.BOOLEAN, condition()),
-		JOIN(Category.OPERATORS, Shape.REPORTER, value(""), value("")),
-		LENGTH(Category.OPERATORS, Shape.REPORTER, value("")),
-		CONTAINS(Category.OPERATORS, Shape.BOOLEAN, value(""), value("")),
-		PARSE_NUMBER(Category.OPERATORS, Shape.REPORTER, value("0")),
+		MULTIPLY(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
+		DIVIDE(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
+		MOD(MATH, Category.OPERATORS, Shape.REPORTER, value("10"), value("3")),
+		ROUND(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		FLOOR(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		CEIL(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		ABS(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		MAP_RANGE(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("0"), value("100"), value("0"), value("15")),
+		CLAMP(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("0"), value("15")),
+		MIN(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
+		MAX(MATH, Category.OPERATORS, Shape.REPORTER, value("0"), value("1")),
+		POWER(MATH, Category.OPERATORS, Shape.REPORTER, value("2"), value("2")),
+		SQRT(MATH, Category.OPERATORS, Shape.REPORTER, value("4")),
+		SIN(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		COS(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		TAN(MATH, Category.OPERATORS, Shape.REPORTER, value("0")),
+		RANDOM(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("1"), value("10")),
+		CHANCE(RANDOMNESS, Category.OPERATORS, Shape.BOOLEAN, value("50")),
+		PICK_TEXT(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("a,b,c"), value(",")),
+		PICK_LIST(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("a,b,c")),
+		SEED_RANDOM(RANDOMNESS, Category.OPERATORS, 0, value("0")),
+		AND(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
+		OR(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
+		XOR(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
+		PACK_BITS(SIGNAL, Category.OPERATORS, Shape.REPORTER, condition(), condition(), condition(), condition()),
+		UNPACK_BIT(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, value("0"), value("1")),
+		JOIN(TEXT, Category.OPERATORS, Shape.REPORTER, value(""), value("")),
+		LENGTH(TEXT, Category.OPERATORS, Shape.REPORTER, value("")),
+		CONTAINS(TEXT, Category.OPERATORS, Shape.BOOLEAN, value(""), value("")),
+		PARSE_NUMBER(TEXT, Category.OPERATORS, Shape.REPORTER, value("0")),
+		SUBSTRING(TEXT, Category.OPERATORS, Shape.REPORTER, value(""), value("1"), value("3")),
+		REPLACE_TEXT(TEXT, Category.OPERATORS, Shape.REPORTER, value("abc"), value("a"), value("")),
+		FORMAT_NUMBER(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("2")),
+		PROGRESS_BAR(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("100"), value("10")),
 
 		SET(Category.VARIABLES, 0, variable(), value("0")),
 		CHANGE(Category.VARIABLES, 0, variable(), value("1")),
 		VARIABLE(Category.VARIABLES, Shape.REPORTER, variable()),
+		TOGGLE(SIGNAL, Category.VARIABLES, 0, variable()),
+		LATCH(SIGNAL, Category.VARIABLES, 0, variable(), condition()),
+		SPLIT_TEXT(TEXT, Category.VARIABLES, 0, value("a,b,c"), value(","), name("list")),
+		LIST_ADD(TEXT, Category.VARIABLES, 0, name("list"), value("")),
+		LIST_REMOVE(TEXT, Category.VARIABLES, 0, name("list"), value("1")),
+		LIST_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value("1")),
+		LIST_SET(TEXT, Category.VARIABLES, 0, name("list"), value("1"), value("")),
+		LIST_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("list")),
+		LIST_JOIN(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value(",")),
+		MAP_SET(TEXT, Category.VARIABLES, 0, name("map"), value("key"), value("")),
+		MAP_REMOVE(TEXT, Category.VARIABLES, 0, name("map"), value("key")),
+		MAP_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("map"), value("key")),
+		MAP_HAS(TEXT, Category.VARIABLES, Shape.BOOLEAN, name("map"), value("key")),
+		MAP_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("map")),
 
-		READ_REDSTONE(Category.SENSING, Shape.REPORTER, port("left")),
-		HAS_REDSTONE(Category.SENSING, Shape.BOOLEAN, port("left")),
+		HAS_REDSTONE(Category.SENSING, Shape.BOOLEAN, channel()),
 		READ_INPUT(Category.SENSING, Shape.REPORTER, slot("1")),
-		TIMER(Category.SENSING, Shape.REPORTER),
+		READ_REDSTONE(SIGNAL, Category.SENSING, Shape.REPORTER, channel()),
+		RISING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
+		FALLING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
+		TIMER(TIMING, Category.SENSING, Shape.REPORTER),
+		STOCK_COUNT(LOGISTICS, Category.SENSING, Shape.REPORTER, value("minecraft:iron_ingot")),
+		HAS_STOCK(LOGISTICS, Category.SENSING, Shape.BOOLEAN, value("minecraft:iron_ingot"), value("1")),
+		STOCK_TOTAL(LOGISTICS, Category.SENSING, Shape.REPORTER),
+		STOCK_TYPES(LOGISTICS, Category.SENSING, Shape.REPORTER),
+		LAST_ORDER(LOGISTICS, Category.SENSING, Shape.BOOLEAN),
 
-		SET_REDSTONE(Category.OUTPUT, 0, port("left"), value("15")),
-		SET_LINE(Category.OUTPUT, 0, slot("1"), value("")),
+		BIND_FREQUENCY(Category.OUTPUT, 0, channel(), name("minecraft:redstone"), name("minecraft:stick")),
+		SEND_REDSTONE(Category.OUTPUT, 0, channel(), condition()),
 		DISPLAY(Category.OUTPUT, 0, value("")),
 		CLEAR_OUTPUT(Category.OUTPUT, 0),
-		RESET_TIMER(Category.OUTPUT, 0),
-		UPDATE_DISPLAY(Category.OUTPUT, 0);
+		UPDATE_DISPLAY(Category.OUTPUT, 0),
+		SET_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15")),
+		TUNE_FREQUENCY(SIGNAL, Category.OUTPUT, 0, channel(), value("minecraft:redstone"), value("minecraft:stick")),
+		PULSE_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15"), value("10")),
+		SET_LINE(TEXT, Category.OUTPUT, 0, slot("1"), value("")),
+		RESET_TIMER(TIMING, Category.OUTPUT, 0),
+		ORDER_ITEM(LOGISTICS, Category.OUTPUT, 0, value("minecraft:iron_ingot"), value("1"), value("Workshop")),
+		ORDER_BATCH(LOGISTICS, Category.OUTPUT, 0, value("iron_ingot=2,stick=4"), value("Workshop"));
 
 		private static final Map<String, Op> BY_KEY = buildKeyMap();
 
+		private final ComputerLibrary library;
 		private final Category category;
 		private final Shape shape;
 		private final int bodyCount;
@@ -188,14 +294,23 @@ public record ComputerProgram(List<Block> commands) {
 		private final String key;
 
 		Op(Category category, int bodyCount, Slot... slots) {
-			this(category, Shape.COMMAND, bodyCount, slots);
+			this(CORE, category, Shape.COMMAND, bodyCount, slots);
 		}
 
 		Op(Category category, Shape shape, Slot... slots) {
-			this(category, shape, 0, slots);
+			this(CORE, category, shape, 0, slots);
 		}
 
-		Op(Category category, Shape shape, int bodyCount, Slot... slots) {
+		Op(ComputerLibrary library, Category category, int bodyCount, Slot... slots) {
+			this(library, category, Shape.COMMAND, bodyCount, slots);
+		}
+
+		Op(ComputerLibrary library, Category category, Shape shape, Slot... slots) {
+			this(library, category, shape, 0, slots);
+		}
+
+		Op(ComputerLibrary library, Category category, Shape shape, int bodyCount, Slot... slots) {
+			this.library = library;
 			this.category = category;
 			this.shape = shape;
 			this.bodyCount = bodyCount;
@@ -203,11 +318,19 @@ public record ComputerProgram(List<Block> commands) {
 			this.key = name().toLowerCase(Locale.ROOT);
 		}
 
+		public ComputerLibrary library() { return library; }
 		public Category category() { return category; }
 		public Shape shape() { return shape; }
 		public int bodyCount() { return bodyCount; }
 		public List<Slot> slots() { return slots; }
 		public String key() { return key; }
+
+		public boolean isDeclaration() {
+			return switch (this) {
+				case DEFINE_PROCEDURE, WHEN_SIGNAL_CHANGED, WHEN_INPUT_CHANGED, ON_BROADCAST -> true;
+				default -> false;
+			};
+		}
 
 		@Nullable
 		public static Op byKey(String key) {
@@ -223,8 +346,9 @@ public record ComputerProgram(List<Block> commands) {
 
 		private static Slot value(String initial) { return new Slot(Socket.VALUE, initial); }
 		private static Slot condition() { return new Slot(Socket.CONDITION, "false"); }
-		private static Slot variable() { return new Slot(Socket.NAME, "count"); }
-		private static Slot port(String initial) { return new Slot(Socket.PORT, initial); }
+		private static Slot name(String initial) { return new Slot(Socket.NAME, initial); }
+		private static Slot variable() { return name("count"); }
+		private static Slot channel() { return new Slot(Socket.CHANNEL, "1"); }
 		private static Slot slot(String initial) { return new Slot(Socket.SLOT, initial); }
 	}
 }

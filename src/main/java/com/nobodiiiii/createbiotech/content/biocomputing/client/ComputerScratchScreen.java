@@ -11,7 +11,8 @@ import java.util.Optional;
 import org.lwjgl.glfw.GLFW;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Port;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerLibrary;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Category;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
@@ -22,6 +23,7 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.A
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.EditResult;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.ProgramState;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.ProgramUpdate;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.ChannelState;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Snapshot;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Status;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.Drop;
@@ -40,12 +42,13 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Inventory;
 
 public final class ComputerScratchScreen extends AbstractContainerScreen<ComputerProgramMenu> {
 	private static final int PALETTE_ROW = 27;
 	private static final List<Category> CATEGORIES = List.of(
-		Category.CONTROL, Category.OPERATORS, Category.VARIABLES, Category.SENSING, Category.OUTPUT
+		Category.EVENTS, Category.CONTROL, Category.OPERATORS, Category.VARIABLES, Category.SENSING, Category.OUTPUT
 	);
 
 	private enum ConsoleMode { OUTPUT, VARIABLES, IO }
@@ -53,7 +56,11 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private final ScratchDraft draft;
 	private final CanvasViewport viewport = new CanvasViewport();
 	private Category category = Category.CONTROL;
-	private List<Op> prototypes = prototypes(Category.CONTROL);
+	private ComputerLibrary library;
+	private List<Op> prototypes;
+	private ComputerLibrary validatedLibrary;
+	private long validatedRevision = -1;
+	private Op unavailable;
 	private ScratchCanvas canvas;
 	private Rect paletteArea, canvasArea, consoleArea;
 	private final Button[] tabs = new Button[CATEGORIES.size()];
@@ -83,6 +90,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		ProgramState programs = menu.programState();
 		draft = new ScratchDraft(programs.saved());
 		draftBaseRevision = programs.revision();
+		library = programs.library();
+		prototypes = prototypes(category);
 	}
 
 	@Override
@@ -194,8 +203,26 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			.withStyle(mode == consoleMode ? ChatFormatting.GOLD : ChatFormatting.WHITE);
 	}
 
-	private static List<Op> prototypes(Category category) {
-		return Arrays.stream(Op.values()).filter(op -> op.category() == category).toList();
+	private List<Op> prototypes(Category category) {
+		return Arrays.stream(Op.values()).filter(op -> op.category() == category && library.allows(op)).toList();
+	}
+
+	private Op unavailableBlock() {
+		if (validatedLibrary != library || validatedRevision != draft.revision()) {
+			validatedLibrary = library;
+			validatedRevision = draft.revision();
+			unavailable = draft.snapshot().firstUnavailable(library);
+		}
+		return unavailable;
+	}
+
+	private static Component libraryLabel(ComputerLibrary library) {
+		return text("library." + library.key());
+	}
+
+	private static Component libraryRequired(Op op) {
+		return op == null ? text("status.library_locked")
+			: text("library_required", text("palette." + op.key()), libraryLabel(op.library()));
 	}
 
 	private void saveProgram() {
@@ -211,6 +238,12 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return;
 		if (input != null)
 			finishInput();
+		Op blocked = unavailableBlock();
+		if (blocked != null) {
+			closeRequested = false;
+			flashStatus(libraryRequired(blocked), 0xffff8983);
+			return;
+		}
 		ComputerProgram program = draft.snapshot();
 		pendingAction = action;
 		submittedDraftRevision = draft.revision();
@@ -225,8 +258,12 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		return draftBaseRevision != menu.programState().revision();
 	}
 
+	private boolean canReload() {
+		return hasConflict() || (unavailableBlock() != null && draft.isDirty());
+	}
+
 	private void reloadProgram() {
-		if (pendingAction != null || !hasConflict())
+		if (pendingAction != null || !canReload())
 			return;
 		if (input != null)
 			finishInput();
@@ -254,6 +291,11 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return;
 		Optional<ComputerProgram> parsed = ComputerProgramJson.fromJson(minecraft.keyboardHandler.getClipboard());
 		if (parsed.isPresent()) {
+			Op blocked = parsed.get().firstUnavailable(library);
+			if (blocked != null) {
+				flashStatus(libraryRequired(blocked), 0xffff8983);
+				return;
+			}
 			draft.replaceWith(parsed.get());
 			viewport.reset();
 			flashStatus(text("pasted"), 0xff9bdb9a);
@@ -271,6 +313,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	@Override
 	protected void containerTick() {
 		super.containerTick();
+		if (library != menu.programState().library()) {
+			library = menu.programState().library();
+			prototypes = prototypes(category);
+			paletteScroll = 0;
+			if (drag != null && drag.from == null && !library.allows(drag.tile.op))
+				drag = null;
+		}
 		if (statusFlashTicks > 0 && --statusFlashTicks == 0)
 			statusFlash = null;
 		ProgramUpdate response = menu.takeEditResponse();
@@ -285,6 +334,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		closeRequested = false;
 		if (response.result() == EditResult.REJECTED) {
 			flashStatus(text("edit_rejected"), 0xffff8983);
+			return;
+		}
+		if (response.result() == EditResult.LIBRARY_LOCKED) {
+			flashStatus(libraryRequired(unavailableBlock()), 0xffff8983);
 			return;
 		}
 		if (response.result() != EditResult.ACCEPTED)
@@ -331,11 +384,12 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 	@Override
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-		boolean canSubmit = drag == null && pendingAction == null && !hasConflict();
+		boolean canSubmit = drag == null && pendingAction == null && !hasConflict() && unavailableBlock() == null;
 		run.active = canSubmit;
 		save.active = canSubmit;
-		stop.active = menu.snapshot().status() == Status.RUNNING;
-		reload.visible = hasConflict();
+		stop.active = menu.snapshot().status() == Status.RUNNING
+			|| menu.snapshot().channels().stream().anyMatch(channel -> channel.output() > 0);
+		reload.visible = canReload();
 		reload.active = pendingAction == null;
 		super.render(graphics, mouseX, mouseY, partialTick);
 		if (drag != null) {
@@ -378,9 +432,19 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		graphics.enableScissor(paletteArea.x(), paletteArea.y(), paletteArea.right(), paletteArea.bottom());
 		for (int i = 0; i < prototypes.size(); i++) {
 			Rect row = paletteRow(i);
-			if (row.intersects(paletteArea))
-				canvas.paletteBlock(graphics, prototypes.get(i), row, drag == null && row.contains(mouseX, mouseY)
-					&& paletteArea.contains(mouseX, mouseY));
+			if (row.intersects(paletteArea)) {
+				Op op = prototypes.get(i);
+				boolean hovered = drag == null && row.contains(mouseX, mouseY) && paletteArea.contains(mouseX, mouseY);
+				canvas.paletteBlock(graphics, op, row, hovered);
+				if (hovered) {
+					MutableComponent tooltip = text("palette." + op.key()).append(" · ").append(libraryLabel(op.library()));
+					if (op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY)
+						tooltip.append("\n").append(text("frequency_help"));
+					if (op == Op.ORDER_ITEM || op == Op.ORDER_BATCH)
+						tooltip.append("\n").append(text("order_help"));
+					setTooltipForNextRenderPass(tooltip);
+				}
+			}
 		}
 		graphics.disableScissor();
 		drawScrollbar(graphics, paletteArea.right() - 4, paletteArea.y(), paletteArea.height(),
@@ -427,17 +491,23 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		} else if (statusFlash != null) {
 			statusLabel = canvas.shorten(statusFlash.getString(), maxStatusWidth);
 			statusColor = statusFlashColor;
+		} else if (unavailableBlock() != null) {
+			statusLabel = canvas.shorten(libraryRequired(unavailableBlock()).getString(), maxStatusWidth);
+			statusColor = 0xffff8983;
 		} else {
 			Status status = snapshot.status();
 			statusLabel = canvas.shorten(text("status." + status.name().toLowerCase(Locale.ROOT)).getString(), maxStatusWidth);
 			statusColor = switch (status) {
 				case RUNNING -> 0xff9bdb9a;
-				case EMPTY_VARIABLE, VARIABLE_LIMIT -> 0xffff8983;
+				case EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT -> 0xffff8983;
 				default -> 0xffa9bdcc;
 			};
 		}
 		graphics.drawString(font, statusLabel, statusRight - font.width(statusLabel), consoleArea.y() + 9,
 			statusColor, false);
+		if (unavailableBlock() != null && drag == null
+			&& new Rect(statusLeft, consoleArea.y() + 4, maxStatusWidth, 17).contains(mouseX, mouseY))
+			setTooltipForNextRenderPass(libraryRequired(unavailableBlock()));
 
 		int rowHeight = font.lineHeight + 2;
 		int startY = consoleArea.y() + 25;
@@ -479,23 +549,26 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private List<String> formatIoLines(Snapshot snapshot) {
-		List<String> lines = new ArrayList<>(2 + ComputerIO.INPUT_SLOTS);
-		lines.add(formatRedstoneRow("io.redstone_in", snapshot.redstoneIn()));
-		lines.add(formatRedstoneRow("io.redstone_out", snapshot.redstoneOut()));
+		List<String> lines = new ArrayList<>(2 + Channel.VALUES.length + ComputerIO.INPUT_SLOTS);
+		lines.add(text("io.library", libraryLabel(library)).getString());
+		for (Channel channel : Channel.VALUES) {
+			ChannelState state = snapshot.channels().get(channel.ordinal());
+			lines.add(state.isBound()
+				? text("io.channel", channel.key(), emptyPlaceholder(state.first()), emptyPlaceholder(state.second()),
+					state.input(), state.output()).getString()
+				: text("io.channel_unbound", channel.key()).getString());
+		}
+		if (library.includesLogistics() || snapshot.stockLinkBound())
+			lines.add(text(snapshot.stockLinkBound() ? "io.stock_bound" : "io.stock_unbound").getString());
 		List<String> slots = snapshot.inputSlots();
 		for (int i = 0; i < ComputerIO.INPUT_SLOTS; i++) {
-			String value = slots.get(i);
-			lines.add(text("io.input_slot", i + 1, value.isEmpty() ? "—" : value).getString());
+			lines.add(text("io.input_slot", i + 1, emptyPlaceholder(slots.get(i))).getString());
 		}
 		return lines;
 	}
 
-	private String formatRedstoneRow(String prefixKey, int[] values) {
-		StringBuilder sb = new StringBuilder(text(prefixKey).getString());
-		for (Port port : Port.VALUES) {
-			sb.append("  ").append(text("port." + port.key()).getString()).append(':').append(values[port.ordinal()]);
-		}
-		return sb.toString();
+	private static String emptyPlaceholder(String value) {
+		return value.isEmpty() ? "—" : value;
 	}
 
 	private int visibleLines() { return Math.max(1, (consoleArea.height() - 26) / (font.lineHeight + 2)); }
@@ -619,10 +692,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			draft.recordUndo();
 			switch (field.slot.socket()) {
 				case CONDITION -> field.literal = Boolean.toString(!Boolean.parseBoolean(field.literal));
-				case PORT -> {
-					Port current = Port.parse(field.literal);
-					field.literal = (current == null ? Port.LEFT : current.next()).key();
-				}
+				case CHANNEL -> field.literal = Channel.next(field.literal);
 				case SLOT -> field.literal = ComputerProgram.nextSlot(field.literal);
 				default -> {}
 			}

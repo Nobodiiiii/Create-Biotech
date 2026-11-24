@@ -35,6 +35,7 @@ public final class CBDisplaySources {
 		DisplaySource.BY_BLOCK.add(CBBlocks.MAGMA_BELT.get(), AllDisplaySources.ITEM_NAMES.get());
 		DisplaySource.BY_BLOCK.add(CBBlocks.SHULKER_TELEPORTER.get(), SHULKER_TELEPORTER_TARGET_ADDRESS.get());
 		DisplaySource.BY_BLOCK.add(CBBlocks.COMPUTER.get(), COMPUTER_OUTPUT.get());
+		DisplaySource.BY_BLOCK.add(CBBlocks.CREATIVE_COMPUTER.get(), COMPUTER_OUTPUT.get());
 		registered = true;
 	}
 }

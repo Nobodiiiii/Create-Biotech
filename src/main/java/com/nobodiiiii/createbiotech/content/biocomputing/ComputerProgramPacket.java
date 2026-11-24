@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.ChannelState;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Snapshot;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Status;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Variable;
@@ -16,7 +18,7 @@ import net.minecraft.world.entity.player.Player;
 
 public record ComputerProgramPacket(int menuId, Action action, long expectedRevision, Optional<ComputerProgram> program) {
 	public enum Action { SAVE, RUN, STOP }
-	public enum EditResult { SYNC, ACCEPTED, CONFLICT, REJECTED }
+	public enum EditResult { SYNC, ACCEPTED, CONFLICT, REJECTED, LIBRARY_LOCKED }
 
 	public ComputerProgramPacket(RegistryFriendlyByteBuf buffer) {
 		this(
@@ -40,10 +42,10 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			menu.apply(player, action, expectedRevision, program);
 	}
 
-	public record ProgramState(long revision, ComputerProgram saved, @Nullable ComputerProgram running) {
+	public record ProgramState(long revision, ComputerProgram saved, @Nullable ComputerProgram running, ComputerLibrary library) {
 		ProgramState(RegistryFriendlyByteBuf buffer) {
 			this(buffer.readVarLong(), ComputerProgramWire.read(buffer),
-				buffer.readBoolean() ? ComputerProgramWire.read(buffer) : null);
+				buffer.readBoolean() ? ComputerProgramWire.read(buffer) : null, buffer.readEnum(ComputerLibrary.class));
 		}
 
 		void write(RegistryFriendlyByteBuf buffer) {
@@ -52,6 +54,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			buffer.writeBoolean(running != null);
 			if (running != null)
 				ComputerProgramWire.write(buffer, running);
+			buffer.writeEnum(library);
 		}
 	}
 
@@ -92,13 +95,13 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 				buffer.writeUtf(variable.value(), ComputerRuntime.MAX_VALUE_LENGTH);
 			}
 
-			int[] rsIn = snapshot.redstoneIn();
-			for (int i = 0; i < ComputerIO.PORT_COUNT; i++)
-				buffer.writeByte(rsIn[i]);
-
-			int[] rsOut = snapshot.redstoneOut();
-			for (int i = 0; i < ComputerIO.PORT_COUNT; i++)
-				buffer.writeByte(rsOut[i]);
+			for (ChannelState channel : snapshot.channels()) {
+				buffer.writeUtf(channel.first(), ComputerRuntime.MAX_VALUE_LENGTH);
+				buffer.writeUtf(channel.second(), ComputerRuntime.MAX_VALUE_LENGTH);
+				buffer.writeByte(channel.input());
+				buffer.writeByte(channel.output());
+			}
+			buffer.writeBoolean(snapshot.stockLinkBound());
 
 			List<String> inputSlots = snapshot.inputSlots();
 			for (int i = 0; i < ComputerIO.INPUT_SLOTS; i++)
@@ -120,19 +123,18 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 				variables.add(new Variable(buffer.readUtf(ComputerProgram.MAX_LITERAL_LENGTH),
 					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH)));
 
-			int[] rsIn = new int[ComputerIO.PORT_COUNT];
-			for (int i = 0; i < ComputerIO.PORT_COUNT; i++)
-				rsIn[i] = Math.clamp(buffer.readByte(), 0, 15);
-
-			int[] rsOut = new int[ComputerIO.PORT_COUNT];
-			for (int i = 0; i < ComputerIO.PORT_COUNT; i++)
-				rsOut[i] = Math.clamp(buffer.readByte(), 0, 15);
+			List<ChannelState> channels = new ArrayList<>(Channel.VALUES.length);
+			for (Channel channel : Channel.VALUES)
+				channels.add(new ChannelState(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH),
+					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH), Math.clamp(buffer.readByte(), 0, 15),
+					Math.clamp(buffer.readByte(), 0, 15)));
+			boolean stockLinkBound = buffer.readBoolean();
 
 			List<String> inputSlots = new ArrayList<>(ComputerIO.INPUT_SLOTS);
 			for (int i = 0; i < ComputerIO.INPUT_SLOTS; i++)
 				inputSlots.add(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH));
 
-			return new Snapshot(status, activeBlockIndex, lines, variables, rsIn, rsOut, inputSlots);
+			return new Snapshot(status, activeBlockIndex, lines, variables, channels, inputSlots, stockLinkBound);
 		}
 
 		public void handle(Player player) {

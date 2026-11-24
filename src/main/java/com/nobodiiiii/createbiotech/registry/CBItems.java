@@ -35,6 +35,7 @@ import com.nobodiiiii.createbiotech.content.slimemimic.GreenprintItem;
 import com.nobodiiiii.createbiotech.content.smartglue.SmartSuperGlueItem;
 import com.nobodiiiii.createbiotech.content.spiderassemblytable.SpiderAssemblyTableItem;
 import com.nobodiiiii.createbiotech.content.surgery.CreativeSurgicalKitItem;
+import com.nobodiiiii.createbiotech.content.biopackager.CreatureStockItem;
 import com.nobodiiiii.createbiotech.content.surgery.BionicDonorPreviewItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalJointItem;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalKitItem;
@@ -131,6 +132,9 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> COMPUTER = ITEMS.register("computer",
 		() -> new BlockItem(CBBlocks.COMPUTER.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, Item> CREATIVE_COMPUTER = ITEMS.register("creative_computer",
+		() -> new BlockItem(CBBlocks.CREATIVE_COMPUTER.get(), new Item.Properties()));
 
 	public static final DeferredHolder<Item, Item> SURGICAL_TABLE = ITEMS.register("surgical_table",
 		() -> new BlockItem(CBBlocks.SURGICAL_TABLE.get(), new Item.Properties()));
@@ -286,6 +290,9 @@ public class CBItems {
 
 	public static final DeferredHolder<Item, Item> BIO_PACKAGER = ITEMS.register("bio_packager",
 		() -> new BlockItem(CBBlocks.BIO_PACKAGER.get(), new Item.Properties()));
+
+	public static final DeferredHolder<Item, CreatureStockItem> CREATURE_STOCK = ITEMS.register("creature_stock",
+		() -> new CreatureStockItem(new Item.Properties().stacksTo(64)));
 
 	public static final DeferredHolder<Item, Item> POWERED_CAPTURE_NET = ITEMS.register("powered_capture_net",
 		() -> new BlockItem(CBBlocks.POWERED_CAPTURE_NET.get(), new Item.Properties()));

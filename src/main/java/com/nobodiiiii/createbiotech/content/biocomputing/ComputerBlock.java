@@ -2,12 +2,14 @@ package com.nobodiiiii.createbiotech.content.biocomputing;
 
 import java.util.List;
 
-import org.jetbrains.annotations.Nullable;
-
+import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Port;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.foundation.block.CBMultiBlockLifecycle;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.AllBlocks;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 
 import net.createmod.catnip.math.VoxelShaper;
@@ -16,7 +18,11 @@ import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -50,7 +56,10 @@ import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 public final class ComputerBlock extends BaseEntityBlock implements IWrenchable, CBMultiBlockLifecycle.Part {
-	public static final MapCodec<ComputerBlock> CODEC = simpleCodec(ComputerBlock::new);
+	public static final MapCodec<ComputerBlock> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+		Codec.BOOL.optionalFieldOf("creative", false).forGetter(ComputerBlock::isCreative),
+		propertiesCodec()
+	).apply(instance, ComputerBlock::new));
 	public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 	public static final EnumProperty<DoubleBlockHalf> HALF = BlockStateProperties.DOUBLE_BLOCK_HALF;
 
@@ -62,10 +71,15 @@ public final class ComputerBlock extends BaseEntityBlock implements IWrenchable,
 	private static final VoxelShape UPPER_SHAPE = Shapes.or(box(0, 14, 0, 16, 16, 16),
 		box(2, 13, 2, 14, 14, 14), box(3, 7, 3, 13, 13, 13));
 
-	public ComputerBlock(Properties properties) {
+	private final boolean creative;
+
+	public ComputerBlock(boolean creative, Properties properties) {
 		super(properties);
+		this.creative = creative;
 		registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH).setValue(HALF, DoubleBlockHalf.LOWER));
 	}
+
+	boolean isCreative() { return creative; }
 
 	@Override
 	protected MapCodec<ComputerBlock> codec() { return CODEC; }
@@ -149,17 +163,44 @@ public final class ComputerBlock extends BaseEntityBlock implements IWrenchable,
 
 	@Override
 	protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState replacement, boolean moving) {
-		super.onRemove(state, level, pos, replacement, moving);
-		if (level.isClientSide || replacement.is(this) || moving || level.restoringBlockSnapshots)
-			return;
-		level.updateNeighborsAt(pos, this);
-		boolean lower = isLower(state);
-		BlockPos otherPos = lower ? pos.above() : pos.below();
-		BlockState other = state.setValue(HALF, lower ? DoubleBlockHalf.UPPER : DoubleBlockHalf.LOWER);
-		if (level.getBlockState(otherPos) == other) {
-			CBMultiBlockLifecycle.removeSilently(level, otherPos);
-			level.updateNeighborsAt(otherPos, this);
+		if (!level.isClientSide && !replacement.is(this) && !moving && !level.restoringBlockSnapshots) {
+			boolean lower = isLower(state);
+			BlockPos otherPos = lower ? pos.above() : pos.below();
+			BlockState other = state.setValue(HALF, lower ? DoubleBlockHalf.UPPER : DoubleBlockHalf.LOWER);
+			if (lower && level.getBlockEntity(pos) instanceof ComputerBlockEntity computer) {
+				ItemStack box = computer.takeVillagerBox();
+				if (!box.isEmpty())
+					Containers.dropItemStack(level, pos.getX(), pos.getY(), pos.getZ(), box);
+			}
+			if (level.getBlockState(otherPos) == other)
+				CBMultiBlockLifecycle.removeSilently(level, otherPos);
 		}
+		super.onRemove(state, level, pos, replacement, moving);
+	}
+
+	@Override
+	protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+		Player player, InteractionHand hand, BlockHitResult hit) {
+		boolean installVillager = !creative && CapturedEntityBoxItem.isBox(stack)
+			&& CapturedEntityBoxHelper.containsEntityType(stack, EntityType.VILLAGER);
+		boolean stockLink = AllBlocks.STOCK_LINK.isIn(stack);
+		if (!installVillager && !stockLink)
+			return super.useItemOn(stack, state, level, pos, player, hand, hit);
+		BlockPos anchor = getMultiBlockAnchor(pos, state);
+		if (player.isSpectator() || !level.mayInteract(player, anchor)
+			|| !hasPair(level, anchor, state.setValue(HALF, DoubleBlockHalf.LOWER)))
+			return ItemInteractionResult.FAIL;
+		if (!level.isClientSide && level.getBlockEntity(anchor) instanceof ComputerBlockEntity computer) {
+			if (computer.mayEdit(player)) {
+				if (installVillager)
+					computer.installVillager(player, stack);
+				else
+					computer.configureStockLink(player, stack);
+			} else {
+				computer.showInteractionMessage(player, "stock_protected");
+			}
+		}
+		return ItemInteractionResult.sidedSuccess(level.isClientSide);
 	}
 
 	@Override
@@ -169,8 +210,16 @@ public final class ComputerBlock extends BaseEntityBlock implements IWrenchable,
 			|| !level.mayInteract(player, lowerPos))
 			return InteractionResult.PASS;
 		if (player instanceof ServerPlayer serverPlayer
-			&& level.getBlockEntity(lowerPos) instanceof ComputerBlockEntity computer)
-			ComputerProgramMenu.open(serverPlayer, computer);
+			&& level.getBlockEntity(lowerPos) instanceof ComputerBlockEntity computer) {
+			if (!computer.mayEdit(player)) {
+				computer.showInteractionMessage(player, "stock_protected");
+			} else if (player.isShiftKeyDown() && player.getMainHandItem().isEmpty() && player.getOffhandItem().isEmpty()
+				&& computer.hasVillagerBox()) {
+				player.getInventory().placeItemBackInInventory(computer.ejectVillager());
+			} else {
+				ComputerProgramMenu.open(serverPlayer, computer);
+			}
+		}
 		return InteractionResult.sidedSuccess(level.isClientSide);
 	}
 
@@ -192,34 +241,6 @@ public final class ComputerBlock extends BaseEntityBlock implements IWrenchable,
 			IWrenchable.playRotateSound(level, context.getClickedPos());
 		}
 		return InteractionResult.sidedSuccess(level.isClientSide);
-	}
-
-	@Override
-	protected boolean isSignalSource(BlockState state) {
-		return true;
-	}
-
-	@Override
-	protected int getSignal(BlockState state, BlockGetter level, BlockPos pos, Direction side) {
-		Port port = portForFace(state, side.getOpposite());
-		if (port == null)
-			return 0;
-		BlockPos anchor = getMultiBlockAnchor(pos, state);
-		if (level.getBlockEntity(anchor) instanceof ComputerBlockEntity computer)
-			return computer.getRedstoneOutput(port);
-		return 0;
-	}
-
-	@Override
-	public boolean canConnectRedstone(BlockState state, BlockGetter level, BlockPos pos, @Nullable Direction direction) {
-		return direction != null && portForFace(state, direction.getOpposite()) != null;
-	}
-
-	@Nullable
-	private static Port portForFace(BlockState state, Direction worldFace) {
-		if (isLower(state) && worldFace == Direction.UP)
-			return null;
-		return Port.fromWorldDirection(state.getValue(FACING), worldFace);
 	}
 
 	@Override

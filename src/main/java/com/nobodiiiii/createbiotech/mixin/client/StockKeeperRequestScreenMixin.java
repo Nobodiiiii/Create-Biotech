@@ -12,16 +12,21 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.nobodiiiii.createbiotech.content.biopackager.CreatureStockItem;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestScreen;
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.GaugeOutputBigItemStack;
 import com.nobodiiiii.createbiotech.content.wirelessterminal.WirelessStockKeeperRequestScreen;
 import com.simibubi.create.content.logistics.BigItemStack;
+import com.simibubi.create.content.logistics.packager.InventorySummary;
+import com.simibubi.create.content.logistics.stockTicker.PackageOrderRequestPacket;
+import com.simibubi.create.content.logistics.stockTicker.PackageOrderWithCrafts;
 import com.simibubi.create.content.logistics.stockTicker.StockKeeperRequestScreen;
 import com.simibubi.create.content.logistics.stockTicker.StockKeeperRequestMenu;
 import com.simibubi.create.content.processing.burner.BlazeBurnerBlockEntity;
 
 import net.createmod.catnip.data.Couple;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
@@ -39,11 +44,23 @@ public abstract class StockKeeperRequestScreenMixin {
 	@Shadow
 	public java.util.List<java.util.List<BigItemStack>> displayedItems;
 
+	@Shadow private InventorySummary forcedEntries;
+
 	@Shadow
 	protected abstract Couple<Integer> getHoveredSlot(int x, int y);
 
 	@Shadow
 	protected abstract void drawItemCount(GuiGraphics graphics, int count, int customCount);
+
+	@WrapOperation(method = "sendIt", at = @At(value = "NEW",
+		target = "(Lnet/minecraft/core/BlockPos;Lcom/simibubi/create/content/logistics/stockTicker/PackageOrderWithCrafts;Ljava/lang/String;Z)Lcom/simibubi/create/content/logistics/stockTicker/PackageOrderRequestPacket;"))
+	private PackageOrderRequestPacket createBiotech$useActualStockAfterCreatureOrder(BlockPos pos,
+		PackageOrderWithCrafts order, String address, boolean encodeRequester, Operation<PackageOrderRequestPacket> original) {
+		// Shared stock can make either side of a mixed order fail after the snapshot was sent.
+		if (CreatureStockItem.isCreatureOrder(order))
+			forcedEntries = new InventorySummary();
+		return original.call(pos, order, address, encodeRequester);
+	}
 
 	@Inject(method = "<init>", at = @At("RETURN"))
 	private void createBiotech$hideWirelessTerminalKeeper(StockKeeperRequestMenu menu, Inventory inventory,

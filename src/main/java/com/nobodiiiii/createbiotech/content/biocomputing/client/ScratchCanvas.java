@@ -43,7 +43,8 @@ final class ScratchCanvas {
 
 	Layout layout(ScratchDraft draft, int activeCommandIndex) {
 		Layout layout = new Layout(activeCommandIndex);
-		String label = text("startup").getString();
+		boolean hasDeclarations = draft.commands.stream().anyMatch(tile -> tile.op.isDeclaration());
+		String label = text(hasDeclarations ? "program_root" : "startup").getString();
 		Rect hat = new Rect(14, 14, Math.max(102, font.width(label) + 20), 26);
 		layout.art(hat, Category.EVENTS, Region.HAT);
 		layout.label(label, hat.x + 10, hat.y + 4, hat.height, INK);
@@ -93,8 +94,7 @@ final class ScratchCanvas {
 	private String literalLabel(Field field) {
 		return switch (field.slot.socket()) {
 			case CONDITION -> text("boolean." + field.literal).getString();
-			case PORT -> text("port." + field.literal).getString();
-			case SLOT -> text("slot", field.literal).getString();
+			case CHANNEL, SLOT -> text("slot", field.literal).getString();
 			case VALUE, NAME -> field.literal.isEmpty() ? "…" : field.literal;
 		};
 	}

@@ -28,6 +28,7 @@ public final class CBDisplayTargets {
 		if (registered)
 			return;
 		DisplayTarget.BY_BLOCK.register(CBBlocks.COMPUTER.get(), COMPUTER_INPUT.get());
+		DisplayTarget.BY_BLOCK.register(CBBlocks.CREATIVE_COMPUTER.get(), COMPUTER_INPUT.get());
 		registered = true;
 	}
 }

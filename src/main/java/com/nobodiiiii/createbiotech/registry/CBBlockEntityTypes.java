@@ -134,7 +134,8 @@ public class CBBlockEntityTypes {
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ComputerBlockEntity>> COMPUTER =
 		BLOCK_ENTITY_TYPES.register("computer",
-			() -> BlockEntityType.Builder.of(ComputerBlockEntity::new, CBBlocks.COMPUTER.get()).build(null));
+			() -> BlockEntityType.Builder.of(ComputerBlockEntity::new,
+				CBBlocks.COMPUTER.get(), CBBlocks.CREATIVE_COMPUTER.get()).build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PetriDishBlockEntity>> PETRI_DISH =
 		BLOCK_ENTITY_TYPES.register("petri_dish",

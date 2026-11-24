@@ -5,21 +5,30 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Port;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
+import com.simibubi.create.Create;
+import com.simibubi.create.content.logistics.packagerLink.LogisticallyLinkedBlockItem;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlock;
 import com.simibubi.create.content.redstone.displayLink.DisplayLinkBlockEntity;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -32,7 +41,9 @@ public final class ComputerBlockEntity extends BlockEntity {
 	private static final String KEY_RUNNING_PROGRAM = "RunningProgram";
 	private static final String KEY_INPUT_SLOTS = "InputSlots";
 	private static final String KEY_OUTPUT_LINES = "OutputLines";
-	private static final String KEY_REDSTONE_OUT = "RedstoneOut";
+	private static final String KEY_WIRELESS = "WirelessChannels";
+	private static final String KEY_LOGISTICS = "Logistics";
+	private static final String KEY_VILLAGER = "VillagerBox";
 	private static final String KEY_DISPLAY_PENDING = "DisplayPending";
 
 	private ComputerProgram program = ComputerProgram.EMPTY;
@@ -40,9 +51,10 @@ public final class ComputerBlockEntity extends BlockEntity {
 	@Nullable
 	private ComputerProgram restartProgram;
 	private final ComputerRuntime runtime = new ComputerRuntime();
-	private final int[] redstoneIn = new int[ComputerIO.PORT_COUNT];
-	private final int[] redstoneOut = new int[ComputerIO.PORT_COUNT];
-	private final int[] publishedRedstoneOut = new int[ComputerIO.PORT_COUNT];
+	private final ComputerWireless wireless = new ComputerWireless(this);
+	private final ComputerLogistics logistics = new ComputerLogistics();
+	private ItemStack villagerBox = ItemStack.EMPTY;
+	private ComputerLibrary villagerLibrary = ComputerLibrary.CORE;
 	private final String[] inputSlots = createEmptySlots();
 	private final List<String> outputLines = new ArrayList<>();
 	private boolean pendingAutoStart;
@@ -54,18 +66,20 @@ public final class ComputerBlockEntity extends BlockEntity {
 
 	private final ComputerIO io = new ComputerIO() {
 		@Override
-		public int readRedstone(Port port) {
-			return redstoneIn[port.ordinal()];
+		public int readRedstone(Channel channel) {
+			return wireless.read(channel);
 		}
 
 		@Override
-		public void writeRedstone(Port port, int power) {
-			int clamped = Math.clamp(power, 0, 15);
-			int index = port.ordinal();
-			if (redstoneOut[index] != clamped) {
-				redstoneOut[index] = clamped;
-				ioVersion++;
-			}
+		public void writeRedstone(Channel channel, int power, int pulseTicks) {
+			if (wireless.write(channel, power, pulseTicks, currentGameTick()))
+				markIoChanged();
+		}
+
+		@Override
+		public void tuneRedstone(Channel channel, String first, String second) {
+			if (wireless.tune(channel, first, second))
+				markIoChanged();
 		}
 
 		@Override
@@ -114,6 +128,27 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
+		public long stockCount(String filter) {
+			return library().includesLogistics() ? logistics.count(filter.strip()) : 0;
+		}
+
+		@Override
+		public long stockTotal() {
+			return library().includesLogistics() ? logistics.total() : 0;
+		}
+
+		@Override
+		public int stockTypes() {
+			return library().includesLogistics() ? logistics.types() : 0;
+		}
+
+		@Override
+		public boolean orderStock(String address, String items) {
+			return library().includesLogistics()
+				&& logistics.order(address.strip(), items, currentGameTick(), ComputerBlockEntity.this::setChanged);
+		}
+
+		@Override
 		public long gameTick() {
 			return currentGameTick();
 		}
@@ -132,19 +167,90 @@ public final class ComputerBlockEntity extends BlockEntity {
 	ComputerProgram program() { return program; }
 	long programRevision() { return programRevision; }
 	@Nullable ComputerProgram restartProgram() { return restartProgram; }
-	ComputerRuntime runtime() { return runtime; }
 	long syncVersion() { return runtime.version() + ioVersion; }
 
 	ComputerRuntime.Snapshot snapshot() {
-		return runtime.snapshot(List.copyOf(outputLines), redstoneIn, redstoneOut, Arrays.asList(inputSlots));
+		return runtime.snapshot(outputLines, wireless.snapshot(), Arrays.asList(inputSlots), logistics.isBound());
 	}
 
 	public List<String> outputLinesSnapshot() {
 		return List.copyOf(outputLines);
 	}
 
-	public int getRedstoneOutput(Port port) {
-		return redstoneOut[port.ordinal()];
+	ComputerLibrary library() {
+		return getBlockState().getBlock() instanceof ComputerBlock block && block.isCreative()
+			? ComputerLibrary.ALL : villagerLibrary;
+	}
+
+	boolean mayEdit(Player player) {
+		return logistics.mayEdit(player);
+	}
+
+	boolean hasVillagerBox() {
+		return !villagerBox.isEmpty();
+	}
+
+	void installVillager(Player player, ItemStack stack) {
+		if (hasVillagerBox()) {
+			showInteractionMessage(player, "villager_occupied");
+			return;
+		}
+		if (!setVillagerBox(stack))
+			return;
+		stack.shrink(1);
+		markIoChanged();
+		player.displayClientMessage(Component.translatable("create_biotech.biocomputing.villager_installed",
+			Component.translatable("create_biotech.biocomputing.scratch.library." + villagerLibrary.key())), true);
+	}
+
+	ItemStack ejectVillager() {
+		ItemStack box = takeVillagerBox();
+		stopProgram();
+		markIoChanged();
+		return box;
+	}
+
+	ItemStack takeVillagerBox() {
+		ItemStack box = villagerBox;
+		villagerBox = ItemStack.EMPTY;
+		villagerLibrary = ComputerLibrary.CORE;
+		return box;
+	}
+
+	private boolean setVillagerBox(ItemStack stack) {
+		if (!CapturedEntityBoxItem.isBox(stack))
+			return false;
+		CompoundTag villager = CapturedEntityBoxHelper.getCapturedEntityData(stack, EntityType.VILLAGER);
+		if (villager == null)
+			return false;
+		villagerBox = stack.copyWithCount(1);
+		villagerLibrary = ComputerLibrary.forProfession(villager.getCompound("VillagerData").getString("profession"));
+		return true;
+	}
+
+	void configureStockLink(Player player, ItemStack link) {
+		UUID network = LogisticallyLinkedBlockItem.networkFromStack(link);
+		if (network != null && !library().includesLogistics()) {
+			showInteractionMessage(player, "stock_requires_library");
+			return;
+		}
+		if (network != null && !Create.LOGISTICS.mayInteract(network, player)) {
+			showInteractionMessage(player, "stock_protected");
+			return;
+		}
+		if (network != null && !Create.LOGISTICS.logisticsNetworks.containsKey(network)) {
+			showInteractionMessage(player, "stock_missing");
+			return;
+		}
+		if (logistics.bind(network)) {
+			stopProgram();
+			markIoChanged();
+		}
+		showInteractionMessage(player, network == null ? "stock_unbound" : "stock_bound");
+	}
+
+	void showInteractionMessage(Player player, String key) {
+		player.displayClientMessage(Component.translatable("create_biotech.biocomputing." + key), true);
 	}
 
 	public void setInputSlot(int slotIndex, String text) {
@@ -153,8 +259,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		String sanitized = ComputerRuntime.clampValue(sanitizeDisplayText(text));
 		if (!sanitized.equals(inputSlots[slotIndex])) {
 			inputSlots[slotIndex] = sanitized;
-			ioVersion++;
-			setChanged();
+			markIoChanged();
 		}
 	}
 
@@ -166,13 +271,15 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 	}
 
-	void run(ComputerProgram newProgram) {
+	void run(ComputerProgram newProgram, UUID operator) {
 		saveProgram(newProgram);
 		this.restartProgram = newProgram.commands().isEmpty() ? null : newProgram;
 		this.pendingAutoStart = false;
 		clearOutputInternal();
-		resetRedstoneOutputs();
-		runtime.start(newProgram, currentGameTick());
+		if (wireless.resetOutputs())
+			markIoChanged();
+		logistics.setOperator(operator);
+		runtime.start(newProgram, io);
 		setChanged();
 	}
 
@@ -180,30 +287,51 @@ public final class ComputerBlockEntity extends BlockEntity {
 		this.restartProgram = null;
 		this.pendingAutoStart = false;
 		runtime.stop();
-		resetRedstoneOutputs();
+		if (wireless.resetOutputs())
+			markIoChanged();
+		logistics.setOperator(null);
 		setChanged();
 	}
 
 	void serverTick() {
-		if (level == null || level.isClientSide)
+		if (!(level instanceof ServerLevel serverLevel))
 			return;
-		sampleRedstoneInputs();
+		if (wireless.tickInputs(serverLevel, serverLevel.getGameTime()))
+			ioVersion++;
 		tickProgram();
-		flushRedstoneOutputs();
+		wireless.flushOutputs();
 		tickDisplayOutput();
 	}
 
 	private void tickProgram() {
 		if (pendingAutoStart) {
 			pendingAutoStart = false;
-			if (restartProgram != null)
-				runtime.start(restartProgram, currentGameTick());
+			if (restartProgram != null) {
+				if (restartProgram.firstUnavailable(library()) == null) {
+					runtime.start(restartProgram, io);
+				} else {
+					stopProgram();
+					runtime.showLockedLibrary();
+				}
+			}
 		}
 		runtime.tick(io);
 		if (restartProgram != null && !runtime.isRunning()) {
 			restartProgram = null;
 			setChanged();
 		}
+	}
+
+	@Override
+	public void onChunkUnloaded() {
+		wireless.disconnect();
+		super.onChunkUnloaded();
+	}
+
+	@Override
+	public void setRemoved() {
+		wireless.disconnect();
+		super.setRemoved();
 	}
 
 	private void tickDisplayOutput() {
@@ -253,71 +381,6 @@ public final class ComputerBlockEntity extends BlockEntity {
 		return true;
 	}
 
-	private void sampleRedstoneInputs() {
-		BlockState state = getBlockState();
-		if (!(state.getBlock() instanceof ComputerBlock))
-			return;
-		Direction facing = state.getValue(ComputerBlock.FACING);
-		BlockPos lowerPos = worldPosition;
-		BlockPos upperPos = worldPosition.above();
-		for (Port port : Port.VALUES) {
-			Direction dir = port.worldDirection(facing);
-			int power = port == Port.TOP
-				? sampleNeighborSignal(upperPos, dir)
-				: Math.max(sampleNeighborSignal(lowerPos, dir), sampleNeighborSignal(upperPos, dir));
-			int index = port.ordinal();
-			if (redstoneIn[index] != power) {
-				redstoneIn[index] = power;
-				ioVersion++;
-			}
-		}
-	}
-
-	private int sampleNeighborSignal(BlockPos selfPos, Direction dirToNeighbor) {
-		BlockPos neighborPos = selfPos.relative(dirToNeighbor);
-		if (level == null || !level.isLoaded(neighborPos))
-			return 0;
-		return Math.clamp(level.getSignal(neighborPos, dirToNeighbor), 0, 15);
-	}
-
-	private void resetRedstoneOutputs() {
-		boolean anyChanged = false;
-		for (int i = 0; i < ComputerIO.PORT_COUNT; i++) {
-			if (redstoneOut[i] != 0) {
-				redstoneOut[i] = 0;
-				anyChanged = true;
-			}
-		}
-		if (anyChanged)
-			ioVersion++;
-		flushRedstoneOutputs();
-	}
-
-	private void flushRedstoneOutputs() {
-		boolean horizontalChanged = false;
-		boolean topChanged = false;
-		for (Port port : Port.VALUES) {
-			int idx = port.ordinal();
-			if (redstoneOut[idx] != publishedRedstoneOut[idx]) {
-				publishedRedstoneOut[idx] = redstoneOut[idx];
-				if (port == Port.TOP)
-					topChanged = true;
-				else
-					horizontalChanged = true;
-			}
-		}
-		if (!horizontalChanged && !topChanged)
-			return;
-		setChanged();
-		if (level == null || level.isClientSide)
-			return;
-		BlockState state = getBlockState();
-		if (horizontalChanged)
-			level.updateNeighborsAt(worldPosition, state.getBlock());
-		if (horizontalChanged || topChanged)
-			level.updateNeighborsAt(worldPosition.above(), state.getBlock());
-	}
-
 	private void clearOutputInternal() {
 		if (!outputLines.isEmpty()) {
 			outputLines.clear();
@@ -327,6 +390,10 @@ public final class ComputerBlockEntity extends BlockEntity {
 
 	private void markOutputChanged() {
 		displayDirty = true;
+		markIoChanged();
+	}
+
+	private void markIoChanged() {
 		ioVersion++;
 		setChanged();
 	}
@@ -360,7 +427,10 @@ public final class ComputerBlockEntity extends BlockEntity {
 			outputList.add(StringTag.valueOf(line));
 		tag.put(KEY_OUTPUT_LINES, outputList);
 
-		tag.putIntArray(KEY_REDSTONE_OUT, Arrays.copyOf(redstoneOut, ComputerIO.PORT_COUNT));
+		tag.put(KEY_WIRELESS, wireless.save());
+		tag.put(KEY_LOGISTICS, logistics.save());
+		if (!villagerBox.isEmpty())
+			tag.put(KEY_VILLAGER, villagerBox.save(registries));
 	}
 
 	@Override
@@ -395,16 +465,10 @@ public final class ComputerBlockEntity extends BlockEntity {
 				outputLines.add(ComputerRuntime.clampValue(outputList.getString(i)));
 		}
 
-		Arrays.fill(redstoneOut, 0);
-		Arrays.fill(publishedRedstoneOut, 0);
-		if (tag.contains(KEY_REDSTONE_OUT, Tag.TAG_INT_ARRAY)) {
-			int[] saved = tag.getIntArray(KEY_REDSTONE_OUT);
-			for (int i = 0; i < Math.min(saved.length, ComputerIO.PORT_COUNT); i++) {
-				int clamped = Math.clamp(saved[i], 0, 15);
-				redstoneOut[i] = clamped;
-				publishedRedstoneOut[i] = clamped;
-			}
-		}
+		wireless.load(tag.getList(KEY_WIRELESS, Tag.TAG_COMPOUND));
+		logistics.load(tag.getCompound(KEY_LOGISTICS));
+		takeVillagerBox();
+		setVillagerBox(ItemStack.parseOptional(registries, tag.getCompound(KEY_VILLAGER)));
 
 		pendingDisplayLinks.clear();
 		displayDirty = tag.getBoolean(KEY_DISPLAY_PENDING);

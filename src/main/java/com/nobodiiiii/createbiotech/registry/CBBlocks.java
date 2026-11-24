@@ -171,8 +171,13 @@ public class CBBlocks {
 				.noOcclusion()));
 
 	public static final DeferredHolder<Block, ComputerBlock> COMPUTER = BLOCKS.register("computer",
-		() -> new ComputerBlock(CBSharedProperties.createSoftMetal()
+		() -> new ComputerBlock(false, CBSharedProperties.createSoftMetal()
 			.mapColor(MapColor.COLOR_LIGHT_BLUE)
+			.noOcclusion()));
+
+	public static final DeferredHolder<Block, ComputerBlock> CREATIVE_COMPUTER = BLOCKS.register("creative_computer",
+		() -> new ComputerBlock(true, CBSharedProperties.createSoftMetal()
+			.mapColor(MapColor.COLOR_PURPLE)
 			.noOcclusion()));
 
 	public static final DeferredHolder<Block, SurgicalTableBlock> SURGICAL_TABLE = BLOCKS.register("surgical_table",

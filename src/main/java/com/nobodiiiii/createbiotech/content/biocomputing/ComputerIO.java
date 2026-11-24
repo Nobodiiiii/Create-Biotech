@@ -4,17 +4,16 @@ import java.util.Locale;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.core.Direction;
-
-/** World-agnostic I/O boundary connecting the Scratch runtime to native Redstone and Create Display Links. */
+/** Connects the interpreter to Create's Redstone Links, Display Links and Stock Links. */
 public interface ComputerIO {
-	int PORT_COUNT = Port.VALUES.length;
 	int INPUT_SLOTS = 8;
 	int OUTPUT_LINES = 8;
 
-	int readRedstone(Port port);
+	int readRedstone(Channel channel);
 
-	void writeRedstone(Port port, int power);
+	void writeRedstone(Channel channel, int power, int pulseTicks);
+
+	void tuneRedstone(Channel channel, String first, String second);
 
 	String readInputSlot(int slotIndex);
 
@@ -26,66 +25,50 @@ public interface ComputerIO {
 
 	void updateDisplay();
 
+	long stockCount(String filter);
+
+	long stockTotal();
+
+	int stockTypes();
+
+	boolean orderStock(String address, String items);
+
 	long gameTick();
 
-	ComputerIO NOOP = new ComputerIO() {
-		@Override public int readRedstone(Port port) { return 0; }
-		@Override public void writeRedstone(Port port, int power) {}
-		@Override public String readInputSlot(int slotIndex) { return ""; }
-		@Override public void setOutputLine(int lineIndex, String text) {}
-		@Override public void appendOutput(String text) {}
-		@Override public void clearOutput() {}
-		@Override public void updateDisplay() {}
-		@Override public long gameTick() { return 0L; }
-	};
+	/** Numbered bindings to pairs of Create frequency items. */
+	enum Channel {
+		ONE, TWO, THREE, FOUR;
 
-	/** Relative redstone sides, defined from the viewpoint of a player facing the computer's front screen. */
-	enum Port {
-		LEFT, RIGHT, BACK, TOP;
-
-		public static final Port[] VALUES = values();
+		public static final Channel[] VALUES = values();
 
 		public String key() {
-			return name().toLowerCase(Locale.ROOT);
-		}
-
-		public Port next() {
-			return VALUES[(ordinal() + 1) % VALUES.length];
-		}
-
-		public Direction worldDirection(Direction facing) {
-			return switch (this) {
-				case LEFT -> facing.getClockWise();
-				case RIGHT -> facing.getCounterClockWise();
-				case BACK -> facing.getOpposite();
-				case TOP -> Direction.UP;
-			};
+			return Integer.toString(ordinal() + 1);
 		}
 
 		@Nullable
-		public static Port parse(String value) {
-			if (value == null)
-				return null;
-			return switch (value.toLowerCase(Locale.ROOT)) {
-				case "left" -> LEFT;
-				case "right" -> RIGHT;
-				case "back" -> BACK;
-				case "top" -> TOP;
+		static Channel parse(String value) {
+			return switch (value) {
+				case "1" -> ONE;
+				case "2" -> TWO;
+				case "3" -> THREE;
+				case "4" -> FOUR;
 				default -> null;
 			};
 		}
 
-		@Nullable
-		public static Port fromWorldDirection(Direction facing, Direction worldFace) {
-			if (worldFace == Direction.UP)
-				return TOP;
-			if (worldFace == facing.getClockWise())
-				return LEFT;
-			if (worldFace == facing.getCounterClockWise())
-				return RIGHT;
-			if (worldFace == facing.getOpposite())
-				return BACK;
-			return null;
+		public static String next(String value) {
+			Channel current = parse(value);
+			return (current == null ? ONE : VALUES[(current.ordinal() + 1) % VALUES.length]).key();
+		}
+
+		static String migrate(String value) {
+			return switch (value.toLowerCase(Locale.ROOT)) {
+				case "left" -> "1";
+				case "right" -> "2";
+				case "back" -> "3";
+				case "top" -> "4";
+				default -> value;
+			};
 		}
 	}
 }

@@ -20,8 +20,8 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 public final class ComputerProgramJson {
 	private static final String FORMAT_ID = "create_biotech.scratch";
 	private static final int FORMAT_VERSION = 1;
-	// A full program can have two literals per block, with up to six JSON characters per UTF-16 code unit.
-	private static final int MAX_JSON_LENGTH = 128 * 1024;
+	// Blocks can contain multiple literals and JSON can escape each UTF-16 code unit as six characters.
+	private static final int MAX_JSON_LENGTH = 192 * 1024;
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	private ComputerProgramJson() {}

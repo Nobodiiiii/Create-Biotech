@@ -1,0 +1,7 @@
+{
+  "parent": "create_biotech:item/computer",
+  "textures": {
+    "1": "create_biotech:block/computer/creative_base",
+    "particle": "#1"
+  }
+}

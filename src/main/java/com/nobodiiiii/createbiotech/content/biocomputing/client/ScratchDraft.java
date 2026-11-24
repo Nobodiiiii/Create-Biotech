@@ -112,6 +112,8 @@ final class ScratchDraft {
 	boolean canDrop(Tile tile, Location from, Location to) {
 		if (!to.accepts(tile) || tile.contains(to.owner()))
 			return false;
+		if (tile.op.isDeclaration() && to.owner() != null)
+			return false;
 		if (from instanceof ReporterPoint origin && to instanceof ReporterPoint target && origin.field == target.field)
 			return false;
 		if (to.depth() + tile.depth() - 1 > ComputerProgram.MAX_DEPTH)

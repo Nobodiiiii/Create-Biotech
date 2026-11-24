@@ -30,6 +30,7 @@ public class ShulkerPackagerRenderer extends SmartBlockEntityRenderer<ShulkerPac
 		PartialModel.of(CreateBiotech.asResource("block/shulker_packager/hatch_closed"));
 	private static final PartialModel TRAY =
 		PartialModel.of(CreateBiotech.asResource("block/shulker_packager/tray"));
+	private static final float BOX_SCALE = 1.49f;
 
 	public ShulkerPackagerRenderer(Context context) {
 		super(context);
@@ -83,11 +84,11 @@ public class ShulkerPackagerRenderer extends SmartBlockEntityRenderer<ShulkerPac
 
 		ms.pushPose();
 		var msr = TransformStack.of(ms);
+		// FIXED centers and halves the model, placing its bottom a quarter block below the origin.
 		msr.translate(Vec3.atLowerCornerOf(facing.getNormal()).scale(trayOffset))
-			.translate(.5f, .5f, .5f)
+			.translate(.5f, BOX_SCALE / 4, .5f)
 			.rotateYDegrees(facing.toYRot())
-			.translate(0, 2 / 16f, 0)
-			.scale(1.49f, 1.49f, 1.49f);
+			.scale(BOX_SCALE, BOX_SCALE, BOX_SCALE);
 		Minecraft.getInstance()
 			.getItemRenderer()
 			.renderStatic(null, renderedBox, ItemDisplayContext.FIXED, false, ms, buffer, level, light, overlay, 0);

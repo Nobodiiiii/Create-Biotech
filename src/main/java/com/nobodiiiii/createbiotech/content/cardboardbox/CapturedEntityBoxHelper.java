@@ -735,17 +735,10 @@ public class CapturedEntityBoxHelper {
 		if (tag == null)
 			return;
 
-		CompoundTag entityData = tag.getCompound(CAPTURED_ENTITY_TAG);
-		if (entityData.contains("CustomName", Tag.TAG_STRING)) {
-			try {
-				Component customName = Component.Serializer.fromJson(entityData.getString("CustomName"), registries);
-				if (customName != null) {
-					entries.add(new TooltipEntry(customName, 1));
-					return;
-				}
-			} catch (RuntimeException ignored) {
-				// Damaged or legacy custom-name data falls back to the entity type below.
-			}
+		Component customName = getCapturedEntityCustomName(stack, registries);
+		if (customName != null) {
+			entries.add(new TooltipEntry(customName, 1));
+			return;
 		}
 
 		if (!tag.contains(CAPTURED_ENTITY_DESC_ID_TAG, Tag.TAG_STRING))
@@ -756,6 +749,18 @@ public class CapturedEntityBoxHelper {
 			return;
 
 		entries.add(new TooltipEntry(Component.translatable(entityDescId), 1));
+	}
+
+	@Nullable
+	public static Component getCapturedEntityCustomName(ItemStack stack, HolderLookup.Provider registries) {
+		CompoundTag entityData = getCapturedEntityData(stack);
+		if (registries == null || entityData == null || !entityData.contains("CustomName", Tag.TAG_STRING))
+			return null;
+		try {
+			return Component.Serializer.fromJson(entityData.getString("CustomName"), registries);
+		} catch (RuntimeException ignored) {
+			return null;
+		}
 	}
 
 	private record TooltipEntry(Component name, int count) {
