@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "ceiling=false": { "model": "create_biotech:block/powered_capture_net" },
+    "ceiling=true": { "model": "create_biotech:block/powered_capture_net", "x": 180 }
+  }
+}

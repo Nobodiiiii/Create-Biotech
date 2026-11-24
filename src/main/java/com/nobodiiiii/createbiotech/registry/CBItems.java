@@ -287,6 +287,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> BIO_PACKAGER = ITEMS.register("bio_packager",
 		() -> new BlockItem(CBBlocks.BIO_PACKAGER.get(), new Item.Properties()));
 
+	public static final DeferredHolder<Item, Item> POWERED_CAPTURE_NET = ITEMS.register("powered_capture_net",
+		() -> new BlockItem(CBBlocks.POWERED_CAPTURE_NET.get(), new Item.Properties()));
+
 	public static final DeferredHolder<Item, Item> SHULKER_PACKAGER = ITEMS.register("shulker_packager",
 		() -> new ShulkerPackagerItem(CBBlocks.SHULKER_PACKAGER.get(), new Item.Properties()));
 

@@ -15,6 +15,7 @@ import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterBlock;
 import com.nobodiiiii.createbiotech.content.buttercat.block.SuperButterBlock;
 import com.nobodiiiii.createbiotech.content.bufferpad.BufferPadBlock;
+import com.nobodiiiii.createbiotech.content.capturenet.PoweredCaptureNetBlock;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlock;
 import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlock;
 import com.nobodiiiii.createbiotech.content.experience.ExperienceClusterBlock;
@@ -324,6 +325,9 @@ public class CBBlocks {
 			.isRedstoneConductor(($1, $2, $3) -> false)
 			.mapColor(MapColor.TERRACOTTA_BLUE)
 			.sound(SoundType.NETHERITE_BLOCK)));
+
+	public static final DeferredHolder<Block, PoweredCaptureNetBlock> POWERED_CAPTURE_NET = BLOCKS.register("powered_capture_net",
+		() -> new PoweredCaptureNetBlock(CBSharedProperties.createSoftMetal().mapColor(MapColor.TERRACOTTA_YELLOW)));
 
 	public static final DeferredHolder<Block, ShulkerPackagerBlock> SHULKER_PACKAGER = BLOCKS.register("shulker_packager",
 		() -> new ShulkerPackagerBlock(CBSharedProperties.createSoftMetal()

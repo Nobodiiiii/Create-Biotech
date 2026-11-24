@@ -215,6 +215,7 @@ public class CBConfigs {
 
 	public static class Server {
 		public final CaptureNetConfig captureNet;
+		public final PoweredCaptureNet poweredCaptureNet;
 		public final Experience experience;
 		public final CreeperBlastChamber creeperBlastChamber;
 		public final PowerBelt powerBelt;
@@ -247,6 +248,7 @@ public class CBConfigs {
 
 		Server(ModConfigSpec.Builder builder) {
 			captureNet = new CaptureNetConfig(builder);
+			poweredCaptureNet = new PoweredCaptureNet(builder);
 			experience = new Experience(builder);
 			creeperBlastChamber = new CreeperBlastChamber(builder);
 			powerBelt = new PowerBelt(builder);
@@ -276,6 +278,31 @@ public class CBConfigs {
 			allayCourier = new AllayCourier(builder);
 			features = new Features(builder);
 			bionicStats = new BionicStatsConfig(builder);
+		}
+	}
+
+	public static class PoweredCaptureNet {
+		public final ModConfigSpec.BooleanValue consumeDurability;
+		public final ModConfigSpec.IntValue captureRange;
+		public final ModConfigSpec.IntValue trackingRadius;
+		public final ModConfigSpec.DoubleValue captureMargin;
+
+		PoweredCaptureNet(ModConfigSpec.Builder builder) {
+			builder.push("poweredCaptureNet");
+			consumeDurability = builder.comment("Spend one point of net durability after a successful automatic capture.")
+				.translation("create_biotech.configuration.poweredCaptureNet.consumeDurability")
+				.define("consumeDurability", false);
+			captureRange = builder.comment("Maximum distance from the block center to the creature's hitbox center, in blocks.",
+					"Set to zero to use Create's Mechanical Arm range.")
+				.translation("create_biotech.configuration.poweredCaptureNet.captureRange")
+				.defineInRange("captureRange", 0, 0, 32);
+			trackingRadius = builder.comment("Extra blocks on each side of the block's tracking cube. The capture range is also scanned.")
+				.translation("create_biotech.configuration.poweredCaptureNet.trackingRadius")
+				.defineInRange("trackingRadius", 3, 0, 32);
+			captureMargin = builder.comment("Extra space along each axis of a creature's hitbox when testing net contact.")
+				.translation("create_biotech.configuration.poweredCaptureNet.captureMargin")
+				.defineInRange("captureMargin", 0.5, 0.0, 2.0);
+			builder.pop();
 		}
 	}
 

@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerBlockEntity;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetBlockEntity;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
+import com.nobodiiiii.createbiotech.content.capturenet.PoweredCaptureNetBlockEntity;
 import com.nobodiiiii.createbiotech.content.evokerenchantingchamber.EvokerEnchantingChamberBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.BuddingExperienceBlockEntity;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpBlockEntity;
@@ -209,6 +210,11 @@ public class CBBlockEntityTypes {
 		BLOCK_ENTITY_TYPES.register("blast_proof_chain_drive",
 			() -> BlockEntityType.Builder
 				.of(BlastProofChainDriveBlockEntity::new, CBBlocks.BLAST_PROOF_CHAIN_DRIVE.get())
+				.build(null));
+
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PoweredCaptureNetBlockEntity>> POWERED_CAPTURE_NET =
+		BLOCK_ENTITY_TYPES.register("powered_capture_net",
+			() -> BlockEntityType.Builder.of(PoweredCaptureNetBlockEntity::new, CBBlocks.POWERED_CAPTURE_NET.get())
 				.build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BioPackagerBlockEntity>> BIO_PACKAGER =

@@ -4,14 +4,12 @@ import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.content.capturenet.ArmCaptureBehaviour;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.compat.computercraft.events.PackageEvent;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
 import com.simibubi.create.content.logistics.packager.PackagerItemHandler;
 import com.simibubi.create.content.logistics.packager.PackagingRequest;
@@ -35,7 +33,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 	private boolean chainReturnAnimation;
 	private boolean biologicalTray;
 	private boolean chamberAnimation;
-	private boolean checkLegacyArmCapture;
 
 	public BioPackagerBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.BIO_PACKAGER.get(), pos, state);
@@ -43,14 +40,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 
 	@Override
 	public void tick() {
-		if (level instanceof ServerLevel && checkLegacyArmCapture) {
-			checkLegacyArmCapture = false;
-			if (isCreaturePackage(heldBox) && level.getBlockEntity(worldPosition.above()) instanceof ArmBlockEntity arm
-				&& ArmCaptureBehaviour.hasNet(arm)) {
-				captureOutput = heldBox;
-				setChanged();
-			}
-		}
 		boolean wasAnimating = animationTicks > 0;
 		super.tick();
 		if (!(level instanceof ServerLevel server) || animationTicks != 0)
@@ -269,8 +258,6 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		biologicalTray = tag.contains("BiologicalTray") ? tag.getBoolean("BiologicalTray") : animationTicks > 0;
 		animationTicks = Mth.clamp(animationTicks, 0, getAnimationCycle());
 		captureOutput = tag.getBoolean("PackedBoxPending") ? heldBox : ItemStack.EMPTY;
-		checkLegacyArmCapture = !clientPacket && !tag.contains("PackedBoxPending") && animationInward
-			&& !chainReturnAnimation && isCreaturePackage(heldBox);
 	}
 
 	@Override

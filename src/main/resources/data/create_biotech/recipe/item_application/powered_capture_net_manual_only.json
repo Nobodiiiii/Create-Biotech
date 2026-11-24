@@ -1,0 +1,10 @@
+{
+  "type": "create:item_application",
+  "ingredients": [
+    { "item": "create:mechanical_arm" },
+    { "tag": "create_biotech:capture_nets" }
+  ],
+  "results": [
+    { "id": "create_biotech:powered_capture_net" }
+  ]
+}

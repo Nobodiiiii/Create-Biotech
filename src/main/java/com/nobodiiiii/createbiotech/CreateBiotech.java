@@ -130,6 +130,8 @@ public class CreateBiotech {
 			ExperienceOpenPipeEffectHandler.register();
 			ExplosionProofItemVaultCompat.register();
 			BlockStressValues.IMPACTS.register(CBBlocks.EXPERIENCE_PUMP.get(), () -> 4.0d);
+			BlockStressValues.IMPACTS.register(CBBlocks.POWERED_CAPTURE_NET.get(),
+				() -> BlockStressValues.getImpact(AllBlocks.MECHANICAL_ARM.get()));
 			BlockStressValues.CAPACITIES.register(CBBlocks.AUTOMATIC_FISH_RELEASE_MACHINE.get(),
 				() -> BlockStressValues.getCapacity(AllBlocks.LARGE_WATER_WHEEL.get()));
 			BlockStressValues.RPM.register(CBBlocks.AUTOMATIC_FISH_RELEASE_MACHINE.get(),

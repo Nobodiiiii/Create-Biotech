@@ -4,7 +4,6 @@
   "package": "com.nobodiiiii.createbiotech.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ArmBlockEntityCaptureMixin",
     "EntityBionicRidingMixin",
     "AbstractContraptionEntityBufferPadMixin",
     "AbstractVillagerAccessor",
@@ -73,7 +72,6 @@
     "RedStoneWireEntityRedstoneMixin"
   ],
   "client": [
-    "client.ArmRendererCaptureMixin",
     "client.EntityBionicRidingViewMixin",
     "client.BasinRendererMixin",
     "client.CameraMixin",

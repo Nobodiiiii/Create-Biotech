@@ -10,6 +10,7 @@ import net.minecraft.world.phys.Vec3;
 
 public record ArmCapturePose(float yaw, float shoulder, float elbow, float head, float extension) {
 
+	static final ArmCapturePose RESTING = new ArmCapturePose(0, 135, 45, 0, 0);
 	public static final float NET_SCALE = 0.85f;
 	public static final float CLAW_GRIP = 7 / 16f;
 	// The claw grips the wooden shaft at model Y = -2, measured from the item origin at Y = 8.
@@ -50,7 +51,10 @@ public record ArmCapturePose(float yaw, float shoulder, float elbow, float head,
 	}
 
 	public static ArmCapturePose ready(BlockPos pos, boolean ceiling, float previousYaw, @Nullable Vec3 trackingPoint) {
-		Vec3 offset = trackingPoint == null ? Vec3.ZERO : trackingPoint.subtract(jointOrigin(pos, ceiling));
+		// Create's ArmAngleTarget.NO_TARGET keeps the last base bearing.
+		if (trackingPoint == null)
+			return new ArmCapturePose(previousYaw, RESTING.shoulder(), RESTING.elbow(), RESTING.head(), RESTING.extension());
+		Vec3 offset = trackingPoint.subtract(jointOrigin(pos, ceiling));
 		float up = ceiling ? -1 : 1;
 		return readyJoints(elevation(offset.y, offset.horizontalDistance()), up).atYaw(yawTowards(offset, up, previousYaw));
 	}

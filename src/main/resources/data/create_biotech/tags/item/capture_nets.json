@@ -1,0 +1,10 @@
+{
+  "values": [
+    "create_biotech:wooden_capture_net",
+    "create_biotech:stone_capture_net",
+    "create_biotech:iron_capture_net",
+    "create_biotech:golden_capture_net",
+    "create_biotech:diamond_capture_net",
+    "create_biotech:netherite_capture_net"
+  ]
+}

@@ -7,6 +7,7 @@ import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineRenderer;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerRenderer;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetRenderer;
+import com.nobodiiiii.createbiotech.content.capturenet.client.PoweredCaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxEntityRenderer;
 import com.nobodiiiii.createbiotech.content.dingdongchicken.DingDongChickenRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.BlastProofChainDriveRenderer;
@@ -93,6 +94,7 @@ final class CBClientRenderRegistration {
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.GHAST_HOT_AIR_BALLOON_ASSEMBLY_STATION.get(),
 			GhastHotAirBalloonAssemblyStationRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BIO_PACKAGER.get(), BioPackagerRenderer::new);
+		event.registerBlockEntityRenderer(CBBlockEntityTypes.POWERED_CAPTURE_NET.get(), PoweredCaptureNetRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_PACKAGER.get(), ShulkerPackagerRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.SHULKER_TELEPORTER.get(), ShulkerTeleporterRenderer::new);
 		event.registerBlockEntityRenderer(CBBlockEntityTypes.BONE_RATCHET.get(), BoneRatchetRenderer::new);

@@ -10,6 +10,7 @@ import com.nobodiiiii.createbiotech.client.render.SlimeBeltFunnelModel;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxPartials;
 import com.nobodiiiii.createbiotech.content.capturenet.client.CaptureNetRenderer;
+import com.nobodiiiii.createbiotech.content.capturenet.client.PoweredCaptureNetRenderer;
 import com.nobodiiiii.createbiotech.content.explosionproofitemvault.ExplosionProofItemVaultCTBehaviour;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalTableModel;
 import com.nobodiiiii.createbiotech.content.surgery.client.SurgicalKitItemModel;
@@ -56,6 +57,7 @@ final class CBClientModelRegistration {
 		MachineCreatureModels.allPartials()
 			.forEach(partial -> register.accept(partial.modelLocation()));
 		CaptureNetRenderer.registerModels(register);
+		register.accept(PoweredCaptureNetRenderer.CLAW_BASE.modelLocation());
 		register.accept(CreateBiotech.asResource("block/universal_joint/endpoint_slime_overlay"));
 		PartialModel asurineDoorFoldLeft = PartialModel.of(
 			CreateBiotech.asResource("block/asurine_door/fold_left"));

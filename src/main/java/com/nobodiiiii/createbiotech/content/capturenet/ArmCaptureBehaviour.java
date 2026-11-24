@@ -6,14 +6,11 @@ import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxHandler;
 import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxHandler;
-import com.simibubi.create.AllBlockEntityTypes;
-import com.simibubi.create.api.event.BlockEntityBehaviourEvent;
-import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlock;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
@@ -22,18 +19,13 @@ import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Containers;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -41,25 +33,18 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.common.util.TriState;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
 
-@EventBusSubscriber(modid = CreateBiotech.MOD_ID)
-public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
+final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 
 	private static final BehaviourType<ArmCaptureBehaviour> TYPE = new BehaviourType<>();
 	private static final String NET_TAG = "CreateBiotechCaptureNet";
 	private static final String MOTION_TAG = "CreateBiotechCaptureMotion";
-	private static final int TRACKING_RADIUS = 3;
 	private static final int SCAN_INTERVAL = 3;
-	private static final double CAPTURE_MARGIN = 0.5;
+	private static final float SWEEP_SOUND_RPM_THRESHOLD = 128;
 
-	private final ArmBlockEntity arm;
+	private final PoweredCaptureNetBlockEntity arm;
 	private ItemStack net = ItemStack.EMPTY;
 	private int trackedMobId = -1;
 	private @Nullable ArmCapturePose.Swing swing;
@@ -71,22 +56,21 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	private @Nullable TrackingTurn trackingTurn;
 	private long nextScanTick;
 
-	private ArmCaptureBehaviour(ArmBlockEntity arm) {
+	ArmCaptureBehaviour(PoweredCaptureNetBlockEntity arm) {
 		super(arm);
 		this.arm = arm;
 	}
 
-	public static @Nullable ArmCaptureBehaviour get(ArmBlockEntity arm) {
-		return arm.getBehaviour(TYPE);
-	}
-
-	public static boolean hasNet(ArmBlockEntity arm) {
-		ArmCaptureBehaviour capture = get(arm);
-		return capture != null && capture.net.getItem() instanceof CaptureNetItem;
-	}
-
-	public ItemStack getNet() {
+	ItemStack getNet() {
 		return net;
+	}
+
+	ItemStack replaceNet(ItemStack replacement) {
+		ItemStack previous = net;
+		net = replacement;
+		clearMotion();
+		nextScanTick = 0;
+		return previous;
 	}
 
 	private @Nullable Vec3 getTrackingPoint() {
@@ -94,20 +78,20 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 			? mob.getBoundingBox().getCenter() : null;
 	}
 
-	public boolean isSwinging() {
+	boolean isSwinging() {
 		return swing != null;
 	}
 
-	public float getMovementStep() {
+	float getMovementStep() {
 		return ArmCapturePose.movementStep(arm.getSpeed());
 	}
 
-	public ArmCapturePose getClientPose(float previousYaw) {
+	ArmCapturePose getClientPose(float previousYaw) {
 		return swing == null ? trackingPose(previousYaw, getMovementStep()) : swing.sample(poseProgress);
 	}
 
 	private ArmCapturePose trackingPose(float previousYaw, float step) {
-		boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
+		boolean ceiling = arm.getBlockState().getValue(PoweredCaptureNetBlock.CEILING);
 		Vec3 trackingPoint = getTrackingPoint();
 		ArmCapturePose ready = ArmCapturePose.ready(getPos(), ceiling, previousYaw, trackingPoint);
 		if (trackingPoint == null) {
@@ -140,55 +124,6 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		}
 	}
 
-	@SubscribeEvent
-	public static void attachToArm(BlockEntityBehaviourEvent event) {
-		event.forType(AllBlockEntityTypes.MECHANICAL_ARM.get(), arm -> {
-			if (arm.getBehaviour(TYPE) == null)
-				event.attach(new ArmCaptureBehaviour(arm));
-		});
-	}
-
-	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public static void useNetOnArm(PlayerInteractEvent.RightClickBlock event) {
-		Player player = event.getEntity();
-		ItemStack held = event.getItemStack();
-		boolean installing = held.getItem() instanceof CaptureNetItem;
-		boolean removing = held.isEmpty() && event.getHand() == InteractionHand.MAIN_HAND && player.isShiftKeyDown();
-		if ((!installing && !removing) || player.isSpectator() || !player.mayBuild()
-			|| event.getUseBlock() == TriState.FALSE || installing && event.getUseItem() == TriState.FALSE
-			|| !(event.getLevel().getBlockEntity(event.getPos()) instanceof ArmBlockEntity arm)
-			|| arm.getType() != AllBlockEntityTypes.MECHANICAL_ARM.get())
-			return;
-
-		ArmCaptureBehaviour capture = arm.getBehaviour(TYPE);
-		if (removing && (capture == null || capture.net.isEmpty()))
-			return;
-		event.setCanceled(true);
-		event.setCancellationResult(InteractionResult.sidedSuccess(event.getLevel().isClientSide()));
-		if (!(event.getLevel() instanceof ServerLevel level) || !level.mayInteract(player, event.getPos()))
-			return;
-
-		if (CaptureNetItem.isOccupied(held)) {
-			player.displayClientMessage(Component.translatable("create_biotech.arm_capture.net_occupied"), true);
-			return;
-		}
-		if (capture == null) {
-			capture = new ArmCaptureBehaviour(arm);
-			arm.attachBehaviourLate(capture);
-		}
-		ItemStack previous = capture.net;
-		capture.net = installing ? held.split(1) : ItemStack.EMPTY;
-		capture.clearMotion();
-		capture.nextScanTick = 0;
-		arm.notifyUpdate();
-		if (!previous.isEmpty())
-			player.getInventory().placeItemBackInInventory(previous);
-		if (installing)
-			player.displayClientMessage(Component.translatable("create_biotech.arm_capture.net_installed",
-				capture.net.getHoverName()), true);
-		level.playSound(null, event.getPos(), SoundEvents.ITEM_PICKUP, SoundSource.BLOCKS, 0.4f, 1.2f);
-	}
-
 	@Override
 	public BehaviourType<?> getType() {
 		return TYPE;
@@ -218,7 +153,7 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 				progress = Math.max(swingProgress, ArmCapturePose.CONTACT_AT - getMovementStep());
 		} else {
 			Vec3 point = new Vec3(motion.getDouble("X"), motion.getDouble("Y"), motion.getDouble("Z"));
-			boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
+			boolean ceiling = arm.getBlockState().getValue(PoweredCaptureNetBlock.CEILING);
 			swing = ArmCapturePose.planSwing(getPos(), ceiling, motion.getFloat("StartYaw"), point);
 			swingStart = start;
 			trackingTurn = null;
@@ -275,7 +210,7 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 				serverYaw = trackingPose(serverYaw, step).yaw();
 			return;
 		}
-		if (step == 0 || level.hasNeighborSignal(getPos()) || !((ArmCaptureAccess) arm).createBiotech$isCaptureArmIdle()) {
+		if (step == 0 || level.hasNeighborSignal(getPos())) {
 			nextScanTick = now + SCAN_INTERVAL;
 			if (clearMotion())
 				arm.sendData();
@@ -288,7 +223,8 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 			float previous = swingProgress;
 			boolean contact = advanceSwing(step);
 			serverYaw = current.yawAt(swingProgress);
-			if (previous < ArmCapturePose.LOWERING_AT && swingProgress >= ArmCapturePose.LOWERING_AT)
+			if (previous < ArmCapturePose.LOWERING_AT && swingProgress >= ArmCapturePose.LOWERING_AT
+				&& Math.abs(arm.getSpeed()) > SWEEP_SOUND_RPM_THRESHOLD)
 				level.playSound(null, getPos(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.BLOCKS, 0.5f, 1.3f);
 			if (contact && canCatch(level))
 				capture(level, captureNet, current.strikeAt(getPos()));
@@ -332,8 +268,8 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 
 	private boolean scan(ServerLevel level, CaptureNetItem captureNet, long now) {
 		Vec3 center = Vec3.atCenterOf(getPos());
-		int reach = ArmBlockEntity.getRange();
-		AABB trackingArea = new AABB(getPos()).inflate(TRACKING_RADIUS);
+		int reach = captureRange();
+		AABB trackingArea = new AABB(getPos()).inflate(CBConfigs.SERVER.poweredCaptureNet.trackingRadius.get());
 		AABB searchArea = trackingArea.minmax(new AABB(center, center).inflate(reach));
 		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, searchArea, Mob::isAlive);
 		Mob nearest = findNearest(mobs, center, mob -> trackingArea.contains(mob.getBoundingBox().getCenter())
@@ -349,7 +285,7 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		if (boxes == null)
 			return changed;
 		Vec3 origin = captureOrigin();
-		boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
+		boolean ceiling = arm.getBlockState().getValue(PoweredCaptureNetBlock.CEILING);
 		mobs.sort(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(center)));
 		for (Mob mob : mobs) {
 			if (!isWithinReach(mob, reach) || !captureNet.canCapture(mob) || boxes.slotFor(mob) < 0
@@ -372,6 +308,11 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		return getPos().closerToCenterThan(mob.getBoundingBox().getCenter(), reach);
 	}
 
+	private static int captureRange() {
+		int configured = CBConfigs.SERVER.poweredCaptureNet.captureRange.get();
+		return configured == 0 ? ArmBlockEntity.getRange() : configured;
+	}
+
 	private static @Nullable Mob findNearest(List<Mob> mobs, Vec3 center, Predicate<Mob> filter) {
 		Mob nearest = null;
 		double bestDistance = Double.POSITIVE_INFINITY;
@@ -391,9 +332,10 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		if (boxes == null)
 			return;
 		Vec3 origin = captureOrigin();
-		int reach = ArmBlockEntity.getRange();
-		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, strike.searchArea().inflate(CAPTURE_MARGIN),
-			mob -> mob.isAlive() && isWithinReach(mob, reach) && touchesNet(strike, mob.getBoundingBox()));
+		int reach = captureRange();
+		double margin = CBConfigs.SERVER.poweredCaptureNet.captureMargin.get();
+		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, strike.searchArea().inflate(margin),
+			mob -> mob.isAlive() && isWithinReach(mob, reach) && touchesNet(strike, mob.getBoundingBox(), margin));
 		mobs.sort(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(strike.center())));
 		ItemStack equippedNet = net;
 		for (Mob mob : mobs) {
@@ -402,14 +344,14 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 				return;
 			int slot = boxes.slotFor(mob);
 			if (slot >= 0 && mob.level() == level && isWithinReach(mob, reach) && captureNet.canCapture(mob)
-				&& touchesNet(strike, mob.getBoundingBox()) && hasClearPath(level, origin, mob)
+				&& touchesNet(strike, mob.getBoundingBox(), margin) && hasClearPath(level, origin, mob)
 				&& pack(level, packager, boxes, slot, mob, equippedNet, origin))
 				return;
 		}
 	}
 
-	private static boolean touchesNet(ArmCapturePose.Strike strike, AABB bounds) {
-		return strike.intersects(bounds.inflate(CAPTURE_MARGIN));
+	private static boolean touchesNet(ArmCapturePose.Strike strike, AABB bounds, double margin) {
+		return strike.intersects(bounds.inflate(margin));
 	}
 
 	private boolean pack(ServerLevel level, BioPackagerBlockEntity packager, BoxSupply boxes, int slot, Mob mob,
@@ -429,11 +371,11 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		Vec3 caughtAt = mob.getBoundingBox().getCenter();
 		level.playSound(null, caughtAt.x, caughtAt.y, caughtAt.z, SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, 0.8f, 1.2f);
 		mob.discard();
-		CaptureNetItem.damageNet(equippedNet, 1, level, null, origin);
+		if (CBConfigs.SERVER.poweredCaptureNet.consumeDurability.get())
+			CaptureNetItem.damageNet(equippedNet, 1, level, null, origin);
 		if (equippedNet.isEmpty())
 			clearMotion();
 		arm.notifyUpdate();
-		level.sendParticles(ParticleTypes.POOF, caughtAt.x, caughtAt.y, caughtAt.z, 5, 0.2, 0.2, 0.2, 0.02);
 		return true;
 	}
 
@@ -457,7 +399,7 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	}
 
 	private Vec3 captureOrigin() {
-		return ArmCapturePose.jointOrigin(getPos(), arm.getBlockState().getValue(ArmBlock.CEILING));
+		return ArmCapturePose.jointOrigin(getPos(), arm.getBlockState().getValue(PoweredCaptureNetBlock.CEILING));
 	}
 
 	private boolean hasClearPath(ServerLevel level, Vec3 origin, Mob mob) {

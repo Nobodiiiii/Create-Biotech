@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.capturenet.PoweredCaptureNetConversion;
 import com.simibubi.create.AllRecipeTypes;
 import com.simibubi.create.content.kinetics.deployer.ManualApplicationRecipe;
 import com.simibubi.create.foundation.utility.BlockHelper;
@@ -43,6 +44,7 @@ import net.neoforged.neoforge.items.wrapper.RecipeWrapper;
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public class ManualItemApplicationOrientationHandler {
 	private static final Set<ResourceLocation> CUSTOM_CONVERSIONS = Set.of(
+		PoweredCaptureNetConversion.RECIPE_ID,
 		CreateBiotech.asResource("item_application/power_belt"),
 		CreateBiotech.asResource("item_application/explosion_proof_item_vault"),
 		CreateBiotech.asResource("item_application/shulker_packager_manual_only")

@@ -3,6 +3,7 @@
     "create_biotech:slime_belt",
     "create_biotech:magma_belt",
     "create_biotech:power_belt",
+    "create_biotech:powered_capture_net",
     "create_biotech:automatic_fish_release_machine",
     "create_biotech:slime_clutch",
     "create_biotech:bone_ratchet",
