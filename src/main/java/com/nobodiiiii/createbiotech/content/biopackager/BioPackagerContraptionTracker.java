@@ -30,9 +30,9 @@ import net.neoforged.neoforge.items.ItemHandlerHelper;
 /**
  * Server-side tracker for in-flight biological packaging operations inside moving contraptions.
  *
- * Contraption-stored block entities don't tick — we keep transient busy-state plus the deferred
- * deposit here. At CYCLE/2 we drop the filled box into the contraption inventory; on disassembly
- * any still-undeposited entries release the captured mob as a fail-safe so no work is lost.
+ * Contraption-stored block entities do not tick, so the tracker deposits the box and
+ * keeps the tray busy during a successful deposit's animation. If the contraption
+ * disassembles before the deposit, the tracker releases the captured mob.
  */
 public final class BioPackagerContraptionTracker {
 
@@ -50,11 +50,7 @@ public final class BioPackagerContraptionTracker {
 		UUID id = contraptionEntity.getUUID();
 		ContraptionEntry entry = ACTIVE.computeIfAbsent(id, k -> new ContraptionEntry(contraptionEntity));
 		entry.entityRef = new WeakReference<>(contraptionEntity);
-		entry.states.put(localPos, new PackagingState(filledBox.copy(), BioPackagerBlockEntity.getCycleTicks()));
-		CBPackets.sendToTrackingEntity(
-			new BioPackagerContraptionAnimationPacket(contraptionEntity.getId(), localPos, filledBox, ItemStack.EMPTY,
-				true),
-			contraptionEntity);
+		entry.states.put(localPos, new PackagingState(filledBox.copy()));
 	}
 
 	public static void tickAll(Level level) {
@@ -76,12 +72,19 @@ public final class BioPackagerContraptionTracker {
 			while (inner.hasNext()) {
 				Map.Entry<BlockPos, PackagingState> stateEntry = inner.next();
 				PackagingState state = stateEntry.getValue();
-				state.ticksRemaining--;
-				if (!state.deposited && state.ticksRemaining <= 0) {
-					depositIntoContraption(contraption, stateEntry.getKey(), state.filledBox);
+				if (!state.deposited) {
+					BlockPos localPos = stateEntry.getKey();
+					if (!depositIntoContraption(contraption, localPos, state.box)) {
+						inner.remove();
+						continue;
+					}
 					state.deposited = true;
+					state.ticksRemaining = BioPackagerBlockEntity.getCycleTicks();
+					CBPackets.sendToTrackingEntity(new BioPackagerContraptionAnimationPacket(contraption.getId(),
+						localPos, ItemStack.EMPTY, state.box, true), contraption);
+					continue;
 				}
-				if (state.ticksRemaining <= 0)
+				if (--state.ticksRemaining <= 0)
 					inner.remove();
 			}
 			if (contraptionEntry.states.isEmpty())
@@ -104,9 +107,9 @@ public final class BioPackagerContraptionTracker {
 			if (state.deposited)
 				continue;
 			Vec3 anchor = contraptionEntity.toGlobalVector(Vec3.atCenterOf(entry.getKey()), 1f);
-			Entity captured = CapturedEntityBoxHelper.createCapturedEntity(state.filledBox, level);
+			Entity captured = CapturedEntityBoxHelper.createCapturedEntity(state.box, level);
 			if (captured == null) {
-				Containers.dropItemStack(level, anchor.x, anchor.y, anchor.z, state.filledBox.copy());
+				Containers.dropItemStack(level, anchor.x, anchor.y, anchor.z, state.box.copy());
 				continue;
 			}
 			captured.setPos(anchor.x, anchor.y, anchor.z);
@@ -114,7 +117,7 @@ public final class BioPackagerContraptionTracker {
 				mob.setNoAi(false);
 			CapturedEntityBoxHelper.unmarkAiDisabledByMod(captured);
 			if (!level.addFreshEntity(captured))
-				Containers.dropItemStack(level, anchor.x, anchor.y, anchor.z, state.filledBox.copy());
+				Containers.dropItemStack(level, anchor.x, anchor.y, anchor.z, state.box.copy());
 		}
 		states.clear();
 	}
@@ -182,21 +185,15 @@ public final class BioPackagerContraptionTracker {
 		return CapturedEntityBoxHelper.isEmptyLargeBox(stack);
 	}
 
-	private static void depositIntoContraption(AbstractContraptionEntity contraptionEntity, BlockPos packagerLocal,
-		ItemStack filledBox) {
+	private static boolean depositIntoContraption(AbstractContraptionEntity contraptionEntity, BlockPos packagerLocal,
+		ItemStack box) {
 		Contraption contraption = contraptionEntity.getContraption();
-		if (contraption == null) {
-			dropAtAnchor(contraptionEntity, packagerLocal, filledBox);
-			return;
-		}
-		IItemHandlerModifiable allItems = getAllItems(contraption);
-		if (allItems != null) {
-			ItemStack leftover = ItemHandlerHelper.insertItemStacked(allItems, filledBox.copy(), false);
-			if (leftover.isEmpty())
-				return;
-			filledBox = leftover;
-		}
-		dropAtAnchor(contraptionEntity, packagerLocal, filledBox);
+		IItemHandlerModifiable allItems = contraption == null ? null : getAllItems(contraption);
+		ItemStack leftover = allItems == null ? box : ItemHandlerHelper.insertItemStacked(allItems, box.copy(), false);
+		if (leftover.isEmpty())
+			return true;
+		dropAtAnchor(contraptionEntity, packagerLocal, leftover);
+		return false;
 	}
 
 	private static void dropAtAnchor(AbstractContraptionEntity contraptionEntity, BlockPos packagerLocal,
@@ -225,15 +222,13 @@ public final class BioPackagerContraptionTracker {
 		}
 	}
 
-	public static class PackagingState {
-		public final ItemStack filledBox;
-		public int ticksRemaining;
-		public boolean deposited;
+	private static class PackagingState {
+		final ItemStack box;
+		int ticksRemaining;
+		boolean deposited;
 
-		public PackagingState(ItemStack filledBox, int ticksRemaining) {
-			this.filledBox = filledBox;
-			this.ticksRemaining = ticksRemaining;
-			this.deposited = false;
+		PackagingState(ItemStack box) {
+			this.box = box;
 		}
 	}
 }

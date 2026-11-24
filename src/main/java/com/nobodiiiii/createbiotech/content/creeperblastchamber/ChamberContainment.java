@@ -74,14 +74,12 @@ final class ChamberContainment {
 					continue;
 				}
 				pending.transitioned = true;
-				ItemStack emptyBox = CapturedEntityBoxHelper.createEmptyBox(pending.boxStack).copyWithCount(1);
-				packager.startChamberAnimation(emptyBox, true);
 			}
 
 			if (pending.ticksRemaining > 0)
 				continue;
 
-			ChamberContainment.clearPackagerAnimationState(operationOwner, pending.packagerPos);
+			packager.releaseChamberReservation();
 			iterator.remove();
 			changed = true;
 		}
@@ -149,15 +147,10 @@ final class ChamberContainment {
 			if (pending.ticksRemaining > 0)
 				pending.ticksRemaining--;
 
-			if (!pending.transitioned && pending.ticksRemaining <= BioPackagerBlockEntity.getCycleTicks()) {
-				pending.transitioned = true;
-				packager.startChamberAnimation(pending.boxStack, true);
-			}
-
 			if (pending.ticksRemaining > 0)
 				continue;
 
-			packager.clearChamberAnimation();
+			packager.releaseChamberReservation();
 			operationOwner.storedCreepers.remove(pending.packagerPos);
 			operationOwner.readyOutputs.add(new CreeperBlastChamberBlockEntity.ReadyOutput(pending.packagerPos, pending.boxStack.copy(), CreeperBlastChamberBlockEntity.getReadyOutputTimeout()));
 			iterator.remove();
@@ -297,7 +290,7 @@ final class ChamberContainment {
 		if (!ChamberContainment.isPackagerSlotEmpty(operationOwner, packagerPos) || !ChamberContainment.canUsePackagerForInternalTransfer(operationOwner, packager))
 			return false;
 
-		packager.startChamberAnimation(boxStack, false);
+		packager.reserveForChamber();
 
 		operationOwner.pendingUnpacks.add(new CreeperBlastChamberBlockEntity.PendingUnpack(packagerPos, boxStack.copy(),
 			BioPackagerBlockEntity.getCycleTicks() * 2, false, returnBox));
@@ -433,16 +426,12 @@ final class ChamberContainment {
 		if (!ChamberContainment.canUsePackagerForInternalTransfer(operationOwner, packager))
 			return false;
 
-		packager.startChamberAnimation(ChamberContainment.createEmptyPackageVisual(operationOwner), false);
+		packager.reserveForChamber();
 		operationOwner.pendingPackagings.add(new CreeperBlastChamberBlockEntity.PendingPackaging(target.packagerPos(), output.copy(),
-			BioPackagerBlockEntity.getCycleTicks() * 2, false));
+			BioPackagerBlockEntity.getCycleTicks() * 2));
 		operationOwner.setChanged();
 		operationOwner.notifyUpdate();
 		return true;
-	}
-
-	static ItemStack createEmptyPackageVisual(CreeperBlastChamberBlockEntity operationOwner) {
-		return new ItemStack(CBItems.EMPTY_LARGE_CARDBOARD_BOX.get());
 	}
 
 	static @Nullable
@@ -569,7 +558,7 @@ final class ChamberContainment {
 		ChamberContainment.migrateLegacyContainedCreepers(operationOwner);
 
 		for (CreeperBlastChamberBlockEntity.PendingPackaging pending : operationOwner.pendingPackagings)
-			ChamberContainment.clearPackagerAnimationState(operationOwner, pending.packagerPos);
+			ChamberContainment.releasePackagerReservation(operationOwner, pending.packagerPos);
 
 		for (CreeperBlastChamberBlockEntity.StoredCreeper stored : new ArrayList<>(operationOwner.storedCreepers.values())) {
 			if (!ChamberContainment.materializeStoredCreeper(operationOwner, stored))
@@ -686,11 +675,11 @@ final class ChamberContainment {
 		CapturedEntityBoxHelper.clearLegacyCreeperBlastChamberMarkers(box);
 	}
 
-	static void clearPackagerAnimationState(CreeperBlastChamberBlockEntity operationOwner, BlockPos packagerPos) {
+	static void releasePackagerReservation(CreeperBlastChamberBlockEntity operationOwner, BlockPos packagerPos) {
 		BioPackagerBlockEntity packager = operationOwner.getPackager(packagerPos);
 		if (packager == null)
 			return;
-		packager.clearChamberAnimation();
+		packager.releaseChamberReservation();
 	}
 
 	static void releaseManagedCreeper(CreeperBlastChamberBlockEntity operationOwner, Creeper creeper) {
@@ -723,7 +712,7 @@ final class ChamberContainment {
 		Level level = operationOwner.getLevel();
 		if (level == null)
 			return;
-		ChamberContainment.clearPackagerAnimationState(operationOwner, pending.packagerPos);
+		ChamberContainment.releasePackagerReservation(operationOwner, pending.packagerPos);
 		if (pending.transitioned || pending.boxStack.isEmpty() || !pending.returnBox)
 			return;
 		ItemStack toDrop = pending.boxStack.copy();

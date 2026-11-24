@@ -670,14 +670,11 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 	static class PendingPackaging extends TimedAnimation {
 		final BlockPos packagerPos;
 		final ItemStack boxStack;
-		boolean transitioned;
 
-		PendingPackaging(BlockPos packagerPos, ItemStack boxStack, int ticksRemaining,
-			boolean transitioned) {
+		PendingPackaging(BlockPos packagerPos, ItemStack boxStack, int ticksRemaining) {
 			super(ticksRemaining, BioPackagerBlockEntity.getCycleTicks() * 2);
 			this.packagerPos = packagerPos;
 			this.boxStack = boxStack;
-			this.transitioned = transitioned;
 		}
 
 		private CompoundTag write(HolderLookup.Provider registries) {
@@ -685,7 +682,6 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			tag.putLong("PackagerPos", packagerPos.asLong());
 			tag.put("Box", boxStack.save(registries));
 			tag.putInt("TicksRemaining", ticksRemaining);
-			tag.putBoolean("Transitioned", transitioned);
 			return tag;
 		}
 
@@ -693,8 +689,7 @@ public class CreeperBlastChamberBlockEntity extends SyncedBlockEntity implements
 			return new PendingPackaging(
 				BlockPos.of(tag.getLong("PackagerPos")),
 				ItemStack.parseOptional(registries, tag.getCompound("Box")),
-				tag.getInt("TicksRemaining"),
-				tag.getBoolean("Transitioned"));
+				tag.getInt("TicksRemaining"));
 		}
 	}
 
