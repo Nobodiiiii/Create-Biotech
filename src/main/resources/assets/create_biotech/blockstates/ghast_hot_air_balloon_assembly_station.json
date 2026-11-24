@@ -16,18 +16,18 @@
       "y": 270
     },
     "facing=north,powered=true": {
-      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station_powered"
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station/block_powered"
     },
     "facing=east,powered=true": {
-      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station_powered",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station/block_powered",
       "y": 90
     },
     "facing=south,powered=true": {
-      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station_powered",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station/block_powered",
       "y": 180
     },
     "facing=west,powered=true": {
-      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station_powered",
+      "model": "create_biotech:block/ghast_hot_air_balloon_assembly_station/block_powered",
       "y": 270
     }
   }

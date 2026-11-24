@@ -3,9 +3,9 @@
   "parent": "create:block/scaffold/block",
   "textures": {
     "casing": "create_biotech:block/asurine_casing",
-    "inside": "create_biotech:block/scaffold/asurine_scaffold_inside",
-    "particle": "create_biotech:block/scaffold/asurine_scaffold",
-    "side": "create_biotech:block/scaffold/asurine_scaffold",
-    "top": "create_biotech:block/funnel/asurine_funnel_frame"
+    "inside": "create_biotech:block/asurine_scaffolding/inside",
+    "particle": "create_biotech:block/asurine_scaffolding/side",
+    "side": "create_biotech:block/asurine_scaffolding/side",
+    "top": "create_biotech:block/asurine_scaffolding/top"
   }
 }

@@ -1,6 +1,7 @@
 {
   "variants": {
-    "powered=false": { "model": "create_biotech:block/surgical_table" },
-    "powered=true": { "model": "create_biotech:block/surgical_table" }
+    "": {
+      "model": "create_biotech:block/surgical_table"
+    }
   }
 }

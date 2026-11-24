@@ -2,12 +2,12 @@
   "multipart": [
     {
       "apply": {
-        "model": "create_biotech:block/asurine_post_ends"
+        "model": "create_biotech:block/asurine_bars_post_ends"
       }
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_post"
+        "model": "create_biotech:block/asurine_bars_post"
       },
       "when": {
         "east": "false",
@@ -18,7 +18,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_cap"
+        "model": "create_biotech:block/asurine_bars_cap"
       },
       "when": {
         "east": "false",
@@ -29,7 +29,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_cap",
+        "model": "create_biotech:block/asurine_bars_cap",
         "y": 90
       },
       "when": {
@@ -41,7 +41,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_cap_alt"
+        "model": "create_biotech:block/asurine_bars_cap_alt"
       },
       "when": {
         "east": "false",
@@ -52,7 +52,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_cap_alt",
+        "model": "create_biotech:block/asurine_bars_cap_alt",
         "y": 90
       },
       "when": {
@@ -64,7 +64,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_side"
+        "model": "create_biotech:block/asurine_bars_side"
       },
       "when": {
         "north": "true"
@@ -72,7 +72,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_side",
+        "model": "create_biotech:block/asurine_bars_side",
         "y": 90
       },
       "when": {
@@ -81,7 +81,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_side_alt"
+        "model": "create_biotech:block/asurine_bars_side_alt"
       },
       "when": {
         "south": "true"
@@ -89,7 +89,7 @@
     },
     {
       "apply": {
-        "model": "create_biotech:block/asurine_side_alt",
+        "model": "create_biotech:block/asurine_bars_side_alt",
         "y": 90
       },
       "when": {

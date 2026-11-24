@@ -132,7 +132,7 @@ public final class CaptureNetItem extends TieredItem {
 		return isValidTarget(mob) && meetsHealthLimit(mob);
 	}
 
-	private static boolean isValidTarget(Mob mob) {
+	static boolean isValidTarget(Mob mob) {
 		return mob.isAlive() && mob.getType().canSerialize() && !mob.getType().is(CAPTURE_BLACKLIST);
 	}
 

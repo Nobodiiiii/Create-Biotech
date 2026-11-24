@@ -686,7 +686,7 @@ public final class BionicEquipment {
 		chestItems.remove(cargo);
 		for (int slot = 0; slot < cargo.getContainerSize(); slot++) entity.spawnAtLocation(cargo.removeItemNoUpdate(slot));
 	}
-	/** Snapshot actual mounted items before native death processing empties the containers. */
+	/** Copies the mounted items and cargo for the carried-item snapshot. */
 	public List<ItemStack> copyMountEquipment() {
 		List<ItemStack> items = new ArrayList<>();
 		saddles.values().forEach(stack -> items.add(stack.copy()));
@@ -711,15 +711,21 @@ public final class BionicEquipment {
 				if (!stack.isEmpty()) removed.add(stack);
 			}
 		}
-		saddles.clear();
-		chests.clear(); chestItems.clear();
-		passengers.clear();
-		sync();
+		clearMountEquipment();
 		return removed;
 	}
-	public void drop() {
-		saddles.values().forEach(entity::spawnAtLocation); saddles.clear();
-		chests.values().forEach(this::dropChest); chests.clear(); passengers.clear(); sync();
+
+	public void clearMountEquipmentAfterDeath() {
+		chests.values().forEach(SimpleContainer::clearContent);
+		clearMountEquipment();
+	}
+
+	private void clearMountEquipment() {
+		saddles.clear();
+		chests.clear();
+		chestItems.clear();
+		passengers.clear();
+		sync();
 	}
 	private static CompoundTag memberTag(CombinationMember member) {
 		CompoundTag tag = new CompoundTag(); tag.putInt("Source", member.source()); tag.putInt("Cube", member.cube()); return tag;

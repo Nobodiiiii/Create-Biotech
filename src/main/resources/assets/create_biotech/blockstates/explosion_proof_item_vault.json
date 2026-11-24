@@ -1,17 +1,10 @@
 {
   "variants": {
-    "axis=x,large=false": {
+    "axis=x": {
       "model": "create_biotech:block/explosion_proof_item_vault",
       "y": 90
     },
-    "axis=x,large=true": {
-      "model": "create_biotech:block/explosion_proof_item_vault",
-      "y": 90
-    },
-    "axis=z,large=false": {
-      "model": "create_biotech:block/explosion_proof_item_vault"
-    },
-    "axis=z,large=true": {
+    "axis=z": {
       "model": "create_biotech:block/explosion_proof_item_vault"
     }
   }

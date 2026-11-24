@@ -1,6 +1,6 @@
 {
   "variants": {
     "formed=false": { "model": "create_biotech:block/creeper_blast_chamber" },
-    "formed=true": { "model": "create_biotech:block/creeper_blast_chamber_formed" }
+    "formed=true": { "model": "create_biotech:block/creeper_blast_chamber/block_formed" }
   }
 }

@@ -35,7 +35,7 @@ public class UniversalJointRenderer extends KineticBlockEntityRenderer<Universal
 	private static final double MIN_SHAFT_LENGTH = 1.0E-4d;
 	private static final double PERPENDICULAR_EPSILON = 1.0E-7d;
 	private static final PartialModel ENDPOINT_SLIME_OVERLAY =
-		PartialModel.of(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
+		PartialModel.of(CreateBiotech.asResource("block/universal_joint/endpoint_slime_overlay"));
 	private static final float SLIME_MODEL_DIAMETER = 8 / 16f;
 	private static final float SHAFT_DIAMETER = 4 / 16f;
 	private static final float SHAFT_RADIUS = SHAFT_DIAMETER / 2;

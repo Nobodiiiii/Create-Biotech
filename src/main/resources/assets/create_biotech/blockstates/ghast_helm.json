@@ -1,123 +1,48 @@
 {
   "variants": {
-    "facing=east,open=false,virtual=false,waterlogged=false": {
+    "facing=east,open=false,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_closed",
       "y": 90
     },
-    "facing=east,open=false,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_closed",
-      "y": 90
-    },
-    "facing=east,open=false,virtual=true,waterlogged=false": {
+    "facing=east,virtual=true": {
       "model": "create_biotech:block/ghast_helm/block_virtual",
       "y": 90
     },
-    "facing=east,open=false,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 90
-    },
-    "facing=east,open=true,virtual=false,waterlogged=false": {
+    "facing=east,open=true,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_open",
       "y": 90
     },
-    "facing=east,open=true,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_open",
-      "y": 90
-    },
-    "facing=east,open=true,virtual=true,waterlogged=false": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 90
-    },
-    "facing=east,open=true,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 90
-    },
-    "facing=north,open=false,virtual=false,waterlogged=false": {
+    "facing=north,open=false,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_closed"
     },
-    "facing=north,open=false,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_closed"
-    },
-    "facing=north,open=false,virtual=true,waterlogged=false": {
+    "facing=north,virtual=true": {
       "model": "create_biotech:block/ghast_helm/block_virtual"
     },
-    "facing=north,open=false,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual"
-    },
-    "facing=north,open=true,virtual=false,waterlogged=false": {
+    "facing=north,open=true,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_open"
     },
-    "facing=north,open=true,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_open"
-    },
-    "facing=north,open=true,virtual=true,waterlogged=false": {
-      "model": "create_biotech:block/ghast_helm/block_virtual"
-    },
-    "facing=north,open=true,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual"
-    },
-    "facing=south,open=false,virtual=false,waterlogged=false": {
+    "facing=south,open=false,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_closed",
       "y": 180
     },
-    "facing=south,open=false,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_closed",
-      "y": 180
-    },
-    "facing=south,open=false,virtual=true,waterlogged=false": {
+    "facing=south,virtual=true": {
       "model": "create_biotech:block/ghast_helm/block_virtual",
       "y": 180
     },
-    "facing=south,open=false,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 180
-    },
-    "facing=south,open=true,virtual=false,waterlogged=false": {
+    "facing=south,open=true,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_open",
       "y": 180
     },
-    "facing=south,open=true,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_open",
-      "y": 180
-    },
-    "facing=south,open=true,virtual=true,waterlogged=false": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 180
-    },
-    "facing=south,open=true,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 180
-    },
-    "facing=west,open=false,virtual=false,waterlogged=false": {
+    "facing=west,open=false,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_closed",
       "y": 270
     },
-    "facing=west,open=false,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_closed",
-      "y": 270
-    },
-    "facing=west,open=false,virtual=true,waterlogged=false": {
+    "facing=west,virtual=true": {
       "model": "create_biotech:block/ghast_helm/block_virtual",
       "y": 270
     },
-    "facing=west,open=false,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 270
-    },
-    "facing=west,open=true,virtual=false,waterlogged=false": {
+    "facing=west,open=true,virtual=false": {
       "model": "create_biotech:block/ghast_helm/block_open",
-      "y": 270
-    },
-    "facing=west,open=true,virtual=false,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_open",
-      "y": 270
-    },
-    "facing=west,open=true,virtual=true,waterlogged=false": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
-      "y": 270
-    },
-    "facing=west,open=true,virtual=true,waterlogged=true": {
-      "model": "create_biotech:block/ghast_helm/block_virtual",
       "y": 270
     }
   }

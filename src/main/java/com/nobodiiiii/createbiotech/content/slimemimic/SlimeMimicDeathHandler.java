@@ -20,12 +20,15 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
-/** Turns the renderer's dying cuboids into server-authoritative falling fragment entities. */
+/** Captures pre-loot death state and coordinates carried drops and mimic fragments. */
 @EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class SlimeMimicDeathHandler {
 	private static final int GEOMETRY_WAIT_TICKS = 8;
@@ -34,18 +37,32 @@ public final class SlimeMimicDeathHandler {
 
 	private SlimeMimicDeathHandler() {}
 
-	@SubscribeEvent
+	@SubscribeEvent(priority = EventPriority.LOWEST)
 	public static void onLivingDeath(LivingDeathEvent event) {
 		LivingEntity entity = event.getEntity();
-		if (event.isCanceled() || !SlimeMimicHandler.usesMimicDeath(entity)
-			|| !(entity.level() instanceof ServerLevel level))
+		if (!(entity.level() instanceof ServerLevel level))
 			return;
+		boolean spawnsFragments = SlimeMimicHandler.usesMimicDeath(entity);
+		if (spawnsFragments || entity instanceof SlimeBionicEntity)
+			SlimeMimicCarriedDrops.snapshot(entity);
+		if (!spawnsFragments)
+			return;
+		PendingDeath earlier = PENDING.get(entity.getUUID());
+		if (earlier != null && earlier.deathEvent.getEntity() == entity && !earlier.deathEvent.isCanceled())
+			return;
+
 		List<MimicProfile> profiles = profiles(entity);
 		if (profiles.isEmpty())
 			return;
-		PENDING.putIfAbsent(entity.getUUID(), new PendingDeath(level,
+		PENDING.put(entity.getUUID(), new PendingDeath(event, level,
 			entity instanceof SlimeBionicEntity bionic ? bionic.getBoundingBoxForCulling() : entity.getBoundingBox(), profiles,
 			fallbackGeometry(entity), level.getGameTime(), SlimeCompanionHandler.ownerOf(entity), SlimeCompanionHandler.isLivestock(entity)));
+	}
+
+	@SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
+	public static void onLivingDrops(LivingDropsEvent event) {
+		SlimeMimicCarriedDrops.handleDeathDrops(event);
+		DevourGrowth.handleDeathDrops(event);
 	}
 
 	@SubscribeEvent
@@ -53,15 +70,27 @@ public final class SlimeMimicDeathHandler {
 		if (!(event.getLevel() instanceof ServerLevel level) || PENDING.isEmpty())
 			return;
 		long now = level.getGameTime();
-		List<UUID> expired = new ArrayList<>();
-		for (Map.Entry<UUID, PendingDeath> entry : PENDING.entrySet()) {
-			PendingDeath pending = entry.getValue();
-			if (pending.level != level || now - pending.createdTick < GEOMETRY_WAIT_TICKS)
+		List<PendingDeath> expired = new ArrayList<>();
+		for (var iterator = PENDING.values().iterator(); iterator.hasNext();) {
+			PendingDeath pending = iterator.next();
+			if (pending.level != level)
 				continue;
-			spawn(pending, pending.fallback, pending.profiles);
-			expired.add(entry.getKey());
+			// Another LOWEST listener can still cancel the death after the snapshot.
+			if (pending.deathEvent.isCanceled()) {
+				iterator.remove();
+			} else if (now - pending.createdTick >= GEOMETRY_WAIT_TICKS) {
+				iterator.remove();
+				expired.add(pending);
+			}
 		}
-		expired.forEach(PENDING::remove);
+		for (PendingDeath pending : expired)
+			spawn(pending, pending.fallback, pending.profiles);
+	}
+
+	@SubscribeEvent
+	public static void onLevelUnload(LevelEvent.Unload event) {
+		if (event.getLevel() instanceof ServerLevel level)
+			PENDING.values().removeIf(pending -> pending.level == level);
 	}
 
 	static void acceptGeometry(ServerPlayer player, int entityId, List<SlimeMimicCubeGeometry> reported) {
@@ -74,7 +103,8 @@ public final class SlimeMimicDeathHandler {
 			|| player.distanceToSqr(dying) > MAX_REPORT_DISTANCE_SQR)
 			return;
 		PendingDeath pending = PENDING.get(dying.getUUID());
-		if (pending == null || pending.level != player.level())
+		if (pending == null || pending.level != player.level() || pending.deathEvent.getEntity() != dying
+			|| pending.deathEvent.isCanceled())
 			return;
 		List<SlimeMimicCubeGeometry> validated = validate(pending, reported);
 		if (validated.isEmpty())
@@ -177,7 +207,7 @@ public final class SlimeMimicDeathHandler {
 			new Vec3(box.minX, box.maxY, box.maxZ), new Vec3(box.maxX, box.maxY, box.maxZ)));
 	}
 
-	private record PendingDeath(ServerLevel level, AABB bounds,
+	private record PendingDeath(LivingDeathEvent deathEvent, ServerLevel level, AABB bounds,
 		List<MimicProfile> profiles, List<SlimeMimicCubeGeometry> fallback, long createdTick, UUID owner, boolean livestock) {
 		private PendingDeath {
 			profiles = List.copyOf(profiles);

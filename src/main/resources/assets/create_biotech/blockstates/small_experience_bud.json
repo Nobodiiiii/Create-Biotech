@@ -1,16 +1,30 @@
 {
   "variants": {
-    "facing=down,waterlogged=false":  { "model": "create_biotech:block/small_experience_bud", "x": 180 },
-    "facing=down,waterlogged=true":   { "model": "create_biotech:block/small_experience_bud", "x": 180 },
-    "facing=east,waterlogged=false":  { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 90 },
-    "facing=east,waterlogged=true":   { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 90 },
-    "facing=north,waterlogged=false": { "model": "create_biotech:block/small_experience_bud", "x": 90 },
-    "facing=north,waterlogged=true":  { "model": "create_biotech:block/small_experience_bud", "x": 90 },
-    "facing=south,waterlogged=false": { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 180 },
-    "facing=south,waterlogged=true":  { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 180 },
-    "facing=up,waterlogged=false":    { "model": "create_biotech:block/small_experience_bud" },
-    "facing=up,waterlogged=true":     { "model": "create_biotech:block/small_experience_bud" },
-    "facing=west,waterlogged=false":  { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 270 },
-    "facing=west,waterlogged=true":   { "model": "create_biotech:block/small_experience_bud", "x": 90, "y": 270 }
+    "facing=down": {
+      "model": "create_biotech:block/small_experience_bud",
+      "x": 180
+    },
+    "facing=east": {
+      "model": "create_biotech:block/small_experience_bud",
+      "x": 90,
+      "y": 90
+    },
+    "facing=north": {
+      "model": "create_biotech:block/small_experience_bud",
+      "x": 90
+    },
+    "facing=south": {
+      "model": "create_biotech:block/small_experience_bud",
+      "x": 90,
+      "y": 180
+    },
+    "facing=up": {
+      "model": "create_biotech:block/small_experience_bud"
+    },
+    "facing=west": {
+      "model": "create_biotech:block/small_experience_bud",
+      "x": 90,
+      "y": 270
+    }
   }
 }

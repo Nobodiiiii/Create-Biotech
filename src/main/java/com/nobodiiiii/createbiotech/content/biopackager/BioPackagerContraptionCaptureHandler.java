@@ -5,22 +5,20 @@ import java.util.Map;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxHandler;
+import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxHandler;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 import com.simibubi.create.content.contraptions.AbstractContraptionEntity;
 import com.simibubi.create.content.contraptions.Contraption;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate.StructureBlockInfo;
 import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
@@ -29,57 +27,42 @@ public class BioPackagerContraptionCaptureHandler {
 
 	private BioPackagerContraptionCaptureHandler() {}
 
-	@SubscribeEvent(priority = EventPriority.LOW)
-	public static void onLivingDamage(LivingDamageEvent.Pre event) {
-		LivingEntity target = event.getEntity();
-		Level level = target.level();
-		if (level.isClientSide)
-			return;
-		if (!(target instanceof Mob mob))
-			return;
+	public static boolean tryLethalCapture(LivingDamageEvent.Pre event, Mob target) {
 		if (!CBConfigs.SERVER.bioPackager.enableContraptionLethalCapture.get())
-			return;
-		if (mob.getHealth() > event.getNewDamage())
-			return;
-		if (!CBConfigs.SERVER.cardboardBox.lethalCaptureEnabled.get())
-			return;
+			return false;
 
 		AbstractContraptionEntity contraptionEntity =
 			BioPackagerContraptionDamageTracker.resolveDamagingContraption(target, event.getSource());
 		if (contraptionEntity == null)
-			return;
+			return false;
 		Contraption contraption = contraptionEntity.getContraption();
 		if (contraption == null)
-			return;
+			return false;
 
-		boolean smallMob = CardboardBoxHandler.isSmallMobType(mob);
-		boolean largeBoxAllowed = CBConfigs.isEntityTypeAllowed(mob.getType(),
-			CBConfigs.SERVER.cardboardBox.largeBoxEntityListMode.get(),
-			CBConfigs.SERVER.cardboardBox.largeBoxEntityAllowlist.get(),
-			CBConfigs.SERVER.cardboardBox.largeBoxEntityDenylist.get());
+		boolean smallMob = CardboardBoxHandler.isSmallMobType(target);
+		boolean largeBoxAllowed = LargeCardboardBoxHandler.canLargeBoxCapture(target);
 		if (!smallMob && !largeBoxAllowed)
-			return;
+			return false;
 		BlockPos freePackagerLocal = findFreePackager(contraption, contraptionEntity.getUUID());
 		if (freePackagerLocal == null)
-			return;
+			return false;
 
 		ItemStack emptyBox = BioPackagerContraptionTracker.consumeBoxFromContraption(
 			contraptionEntity, smallMob, largeBoxAllowed);
 		if (emptyBox.isEmpty())
-			return;
+			return false;
 
 		ItemStack filledBox = CapturedEntityBoxHelper.createCaptureBox(emptyBox);
 		if (!CapturedEntityBoxHelper.captureEntity(filledBox, target)) {
 			// can't capture — refund box
 			BioPackagerContraptionTracker.startServerCapture(contraptionEntity, freePackagerLocal, emptyBox);
-			return;
+			return false;
 		}
 
 		BioPackagerContraptionTracker.startServerCapture(contraptionEntity, freePackagerLocal, filledBox);
-
-		event.setNewDamage(0);
-		target.discard();
-		CBAdvancements.awardNearby(level, target.blockPosition(), 16, CBAdvancements.BIO_PACKAGER);
+		CardboardBoxHandler.finishLethalCapture(event);
+		CBAdvancements.awardNearby(target.level(), target.blockPosition(), 16, CBAdvancements.BIO_PACKAGER);
+		return true;
 	}
 
 	@SubscribeEvent

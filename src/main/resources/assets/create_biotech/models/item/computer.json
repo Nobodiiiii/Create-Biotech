@@ -9,12 +9,12 @@
 		"fixed": {"translation": [0, -3, 0], "scale": [0.42, 0.42, 0.42]}
 	},
 	"textures": {
-		"1": "create_biotech:block/biocomputing/computer/base",
-		"4": "create_biotech:block/biocomputing/computer/stage",
-		"5": "create_biotech:block/biocomputing/computer/restrictor_feet_2",
-		"6": "create_biotech:block/biocomputing/computer/restrictor_feet_1",
-		"8": "create_biotech:block/biocomputing/computer/restrictor_head",
-		"particle": "create_biotech:block/biocomputing/computer/base"
+		"1": "create_biotech:block/computer/base",
+		"4": "create_biotech:block/computer/stage",
+		"5": "create_biotech:block/computer/restrictor_feet_2",
+		"6": "create_biotech:block/computer/restrictor_feet_1",
+		"8": "create_biotech:block/computer/restrictor_head",
+		"particle": "create_biotech:block/computer/base"
 	},
 	"elements": [
 		{

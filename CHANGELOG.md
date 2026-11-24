@@ -20,6 +20,7 @@
 
 - **仿生飞行**：没有有效腿部的飞行仿生生物会低空悬停并游荡，改善无腿身体的自主移动。
 - **仿生动画**：完善供体原生动画与组装关节的衔接，音爆动作按实际肩关节播放，持械位置随动作同步。
+- **资源**：精简方块模型状态，统一部件和贴图命名，补齐培养皿、恶魂舵和热气球装配站掉落。覆盖旧路径的资源包可查阅[路径对应表](docs/resource-layout.zh-CN.md)。
 - **依赖与分发**：Ponderer Lib 升级至 0.1.1；CurseForge 版本需单独安装该前置，Modrinth 版本内嵌该库。
 
 ### 修复
@@ -47,6 +48,7 @@ Highlights from the four beta releases:
 
 ### Improvements
 
+- Simplified block model states, grouped models and textures by device, and restored drops for the Petri Dish, Ghast Helm, and Ghast Hot Air Balloon Assembly Station. See the [resource path changes](docs/resource-layout.zh-CN.md) for pack overrides.
 - Added low-altitude hovering and wandering for flying bionic creatures without functional legs, improving autonomous movement for legless bodies.
 - Improved how donor animations follow assembled joints, with Sonic Boom arm motions using the installed shoulders and held items following the animated pose.
 - Updated Ponderer Lib to 0.1.1. CurseForge builds require a separate installation of the library; Modrinth builds bundle it.

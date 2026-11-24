@@ -1,5 +1,5 @@
 {
-  "parent": "minecraft:item/generated",
+  "parent": "minecraft:item/amethyst_bud",
   "textures": {
     "layer0": "create_biotech:block/large_experience_bud"
   }

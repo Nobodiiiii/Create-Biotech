@@ -20,6 +20,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
@@ -56,9 +57,20 @@ public final class SlimeCompanionHandler {
 		slime.setPersistenceRequired();
 		slime.setTarget(null);
 	}
-	@SubscribeEvent public static void onSplit(MobSplitEvent event) {
-		UUID owner = ownerOf(event.getParent());
-		for (Mob child : event.getChildren()) if (child instanceof Slime slime) tame(slime, owner, isLivestock(event.getParent()));
+	@SubscribeEvent(priority = EventPriority.LOWEST)
+	public static void onSplit(MobSplitEvent event) {
+		Mob parent = event.getParent();
+		if (SlimeMimicHandler.usesMimicDeath(parent)) {
+			event.setCanceled(true);
+			return;
+		}
+		UUID owner = ownerOf(parent);
+		if (owner == null)
+			return;
+		boolean livestock = isLivestock(parent);
+		for (Mob child : event.getChildren())
+			if (child instanceof Slime slime)
+				tame(slime, owner, livestock);
 	}
 	@SubscribeEvent public static void onJoin(EntityJoinLevelEvent event) {
 		if (event.getLevel().isClientSide || !(event.getEntity() instanceof Slime slime) || ownerOf(slime) == null) return;

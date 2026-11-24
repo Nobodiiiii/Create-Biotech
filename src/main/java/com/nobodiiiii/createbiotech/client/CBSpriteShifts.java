@@ -10,8 +10,8 @@ import net.createmod.catnip.data.Couple;
 public class CBSpriteShifts {
 
 	public static final CTSpriteShiftEntry ASURINE_CASING = omni("asurine_casing"),
-		ASURINE_SCAFFOLD = horizontal("scaffold/asurine_scaffold"),
-		ASURINE_SCAFFOLD_INSIDE = horizontal("scaffold/asurine_scaffold_inside"),
+		ASURINE_SCAFFOLD = horizontal("asurine_scaffolding/side"),
+		ASURINE_SCAFFOLD_INSIDE = horizontal("asurine_scaffolding/inside"),
 		BIOTECH_CASING = omni("biotech_casing"),
 		EXPLOSION_PROOF_CASING = omni("explosion_proof_casing"),
 		EXPLOSION_PROOF_CASING_SIDE = omni("explosion_proof_casing_side"),

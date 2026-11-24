@@ -6,7 +6,7 @@ import groovy.json.JsonSlurper
 def compactSources = layout.projectDirectory.dir('src/main/resource-templates')
 def generateCompactResources = tasks.register('generateCompactResources') {
     group = 'build'
-    description = 'Expands belt variants and composite model templates.'
+    description = 'Generates blockstates and models from resource templates.'
     inputs.dir(compactSources)
     outputs.dir(layout.buildDirectory.dir('generated/compactResources'))
     doLast {
@@ -32,6 +32,34 @@ def generateCompactResources = tasks.register('generateCompactResources') {
             }
             write("blockstates/${name}.json", [variants: variants])
         }
+        def honeycomb = parse(new File(source, 'models/honeycomb_gauge_cluster.json'))
+        def axes = [down: 'y', up: 'y', north: 'z', south: 'z', west: 'x', east: 'x']
+        def honeycombVariants = new LinkedHashMap()
+        axes.each { facing, axis ->
+            def order = honeycomb.workspace_up_by_rotation[facing] ?: []
+            def perpendicular = axes.findAll { direction, directionAxis -> directionAxis != axis }.keySet()
+            if (order.size() != perpendicular.size() || order.toSet() != perpendicular) {
+                throw new GradleException("Invalid honeycomb gauge orientations for ${facing}")
+            }
+            order.eachWithIndex { up, index ->
+                def faces = axes.keySet().collectEntries { side ->
+                    [(side): [texture: (side == facing ? '#front' : '#honeycomb'), cullface: side]]
+                }
+                faces[facing].rotation = index * 90
+                def element = [from: [0, 0, 0], to: [16, 16, 16], faces: faces]
+                write("models/block/honeycomb_gauge_cluster_${facing}_${up}.json",
+                    [textures: honeycomb.textures, elements: [element]])
+            }
+            // Match the default workspace orientation for parallel and antiparallel states.
+            def fallback = axis == 'y' ? 'north' : 'up'
+            axes.each { workspaceUp, upAxis ->
+                def modelUp = upAxis == axis ? fallback : workspaceUp
+                honeycombVariants["facing=${facing},workspace_up=${workspaceUp}".toString()] =
+                    [model: "create_biotech:block/honeycomb_gauge_cluster_${facing}_${modelUp}"]
+            }
+        }
+        write('blockstates/honeycomb_gauge_cluster.json', [variants: honeycombVariants])
+
         def modelDir = new File(source, 'models/automatic_fish_release_machine')
         def model = parse(new File(modelDir, 'model.json'))
         def templates = parse(new File(modelDir, 'templates.json'))

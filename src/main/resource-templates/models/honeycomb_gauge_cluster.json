@@ -1,0 +1,45 @@
+{
+  "textures": {
+    "particle": "minecraft:block/honeycomb_block",
+    "honeycomb": "minecraft:block/honeycomb_block",
+    "front": "minecraft:block/magenta_glazed_terracotta"
+  },
+  "workspace_up_by_rotation": {
+    "down": [
+      "south",
+      "east",
+      "north",
+      "west"
+    ],
+    "east": [
+      "up",
+      "north",
+      "down",
+      "south"
+    ],
+    "north": [
+      "up",
+      "west",
+      "down",
+      "east"
+    ],
+    "south": [
+      "up",
+      "east",
+      "down",
+      "west"
+    ],
+    "up": [
+      "north",
+      "east",
+      "south",
+      "west"
+    ],
+    "west": [
+      "up",
+      "south",
+      "down",
+      "north"
+    ]
+  }
+}

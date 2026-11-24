@@ -11,7 +11,6 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.slimemimic.MimicProfile;
 import com.nobodiiiii.createbiotech.content.slimemimic.SlimeMimicHandler;
 import com.nobodiiiii.createbiotech.content.surgery.SurgicalAssembly.AttackGeometry;
@@ -41,13 +40,9 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 
 /** Grow one intact mimic organ on the existing body. All previous sources and joints keep their indices. */
-@EventBusSubscriber(modid = CreateBiotech.MOD_ID)
 public final class DevourGrowth {
 	private DevourGrowth() {}
 
@@ -57,8 +52,7 @@ public final class DevourGrowth {
 	}
 
 	/** Death loot is reached after totems and cancelled deaths, including kills by inherited attacks. */
-	@SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
-	public static void onDeathDrops(LivingDropsEvent event) {
+	public static void handleDeathDrops(LivingDropsEvent event) {
 		var prey = event.getEntity();
 		if (!(prey.level() instanceof ServerLevel level)) return;
 		if (!(event.getSource().getEntity() instanceof Mob hunter) || !hunter.isAlive()

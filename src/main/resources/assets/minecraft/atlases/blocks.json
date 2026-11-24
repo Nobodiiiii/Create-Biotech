@@ -54,7 +54,7 @@
     },
     {
       "type": "single",
-      "resource": "create_biotech:block/universal_joint_endpoint_slime_overlay"
+      "resource": "create_biotech:block/universal_joint/endpoint_slime_overlay"
     },
     {
       "type": "single",
@@ -62,11 +62,11 @@
     },
     {
       "type": "single",
-      "resource": "create_biotech:block/scaffold/asurine_scaffold_connected"
+      "resource": "create_biotech:block/asurine_scaffolding/side_connected"
     },
     {
       "type": "single",
-      "resource": "create_biotech:block/scaffold/asurine_scaffold_inside_connected"
+      "resource": "create_biotech:block/asurine_scaffolding/inside_connected"
     },
     {
       "type": "single",

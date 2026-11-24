@@ -2,7 +2,7 @@
 
 Run: python tools/import_compact_resources.py
 Then: gradlew generateCompactResources (also runs with processResources/build).
-The three runtime paths are produced under build/generated/compactResources.
+The belt and fish runtime paths are produced under build/generated/compactResources.
 """
 from collections import OrderedDict
 from pathlib import Path
@@ -27,6 +27,21 @@ def write(path, data, compact=False):
     path.write_text(text + '\n', encoding='utf-8')
 
 
+def without_redundant_waterlogging(variants):
+    dry, wet = {}, {}
+    for selector, model in variants.items():
+        properties = dict(pair.split('=', 1) for pair in selector.split(',') if pair)
+        waterlogged = properties.pop('waterlogged', None)
+        if waterlogged not in ('true', 'false'):
+            return variants
+        reduced = ','.join(f'{key}={value}' for key, value in sorted(properties.items()))
+        states = wet if waterlogged == 'true' else dry
+        if reduced in states:
+            return variants
+        states[reduced] = model
+    return dry if dry == wet else variants
+
+
 def import_resources():
     imported = []
     for name in ('power_belt', 'magma_belt'):
@@ -36,7 +51,7 @@ def import_resources():
         if set(original) != {'variants'}:
             raise ValueError('Unsupported blockstate structure: ' + str(path))
         grouped = OrderedDict()
-        for variant, value in original['variants'].items():
+        for variant, value in without_redundant_waterlogging(original['variants']).items():
             identity = json.dumps(value, sort_keys=True)
             grouped.setdefault(identity, {'value': value, 'variants': []})['variants'].append(variant)
         write(SOURCES / 'blockstates' / (name + '.json'),

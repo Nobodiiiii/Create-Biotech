@@ -15,7 +15,7 @@ import net.minecraft.core.Direction;
 public class HalfShaftVisual extends SingleAxisRotatingVisual<HalfShaftBlockEntity> {
 
 	public static final PartialModel MODEL =
-		PartialModel.of(CreateBiotech.asResource("block/half_shaft_world"));
+		PartialModel.of(CreateBiotech.asResource("block/half_shaft/world"));
 
 	public HalfShaftVisual(VisualizationContext context, HalfShaftBlockEntity blockEntity, float partialTick) {
 		super(context, blockEntity, partialTick, Direction.NORTH, Models.partial(MODEL));

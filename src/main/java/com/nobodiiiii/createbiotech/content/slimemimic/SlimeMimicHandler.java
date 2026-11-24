@@ -21,10 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
-import net.neoforged.neoforge.event.entity.living.MobSplitEvent;
-import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 
@@ -156,19 +153,6 @@ public final class SlimeMimicHandler {
 		level.playSound(null, mimic.blockPosition(), SoundEvents.GENERIC_EXTINGUISH_FIRE, SoundSource.NEUTRAL,
 			1.25f, 0.65f);
 		setSlimeMimic(mimic, false);
-	}
-
-	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public static void onMobSplit(MobSplitEvent event) {
-		// Check the parent rather than entity types so modded splitters using this event are covered too.
-		if (usesMimicDeath(event.getParent()))
-			event.setCanceled(true);
-	}
-
-	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public static void onLivingDrops(LivingDropsEvent event) {
-		if (usesMimicDeath(event.getEntity()) || event.getEntity() instanceof SlimeBionicEntity)
-			SlimeMimicCarriedDrops.replaceDrops(event);
 	}
 
 	private static int getHauntCycleTicks() {

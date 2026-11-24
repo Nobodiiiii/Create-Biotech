@@ -1,0 +1,8 @@
+{
+  "parent": "create:block/steam_engine/gauge",
+  "render_type": "cutout",
+  "textures": {
+    "0": "create_biotech:block/creeper_blast_chamber/display/panel",
+    "particle": "create_biotech:block/creeper_blast_chamber/display/panel"
+  }
+}

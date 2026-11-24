@@ -1,28 +1,10 @@
 {
-  "multipart": [
-    {
-      "when": { "facing": "north" },
-      "apply": { "model": "create_biotech:block/half_shaft_world" }
-    },
-    {
-      "when": { "facing": "east" },
-      "apply": { "model": "create_biotech:block/half_shaft_world", "y": 90 }
-    },
-    {
-      "when": { "facing": "south" },
-      "apply": { "model": "create_biotech:block/half_shaft_world", "y": 180 }
-    },
-    {
-      "when": { "facing": "west" },
-      "apply": { "model": "create_biotech:block/half_shaft_world", "y": 270 }
-    },
-    {
-      "when": { "facing": "up" },
-      "apply": { "model": "create_biotech:block/half_shaft_world", "x": 270 }
-    },
-    {
-      "when": { "facing": "down" },
-      "apply": { "model": "create_biotech:block/half_shaft_world", "x": 90 }
-    }
-  ]
+  "variants": {
+    "facing=north": {"model": "create_biotech:block/half_shaft/world"},
+    "facing=east": {"model": "create_biotech:block/half_shaft/world", "y": 90},
+    "facing=south": {"model": "create_biotech:block/half_shaft/world", "y": 180},
+    "facing=west": {"model": "create_biotech:block/half_shaft/world", "y": 270},
+    "facing=up": {"model": "create_biotech:block/half_shaft/world", "x": 270},
+    "facing=down": {"model": "create_biotech:block/half_shaft/world", "x": 90}
+  }
 }

@@ -1,0 +1,19 @@
+{
+	"credit": "Made with Blockbench",
+	"render_type": "cutout",
+	"texture_size": [8, 8],
+	"textures": {
+		"0": "create_biotech:block/creeper_blast_chamber/display/creeper_face",
+		"particle": "create_biotech:block/creeper_blast_chamber/display/creeper_face"
+	},
+	"elements": [
+		{
+			"name": "face",
+			"from": [16.01, 4, 4],
+			"to": [16.01, 12, 12],
+			"faces": {
+				"east": {"uv": [0, 0, 16, 16], "texture": "#0"}
+			}
+		}
+	]
+}

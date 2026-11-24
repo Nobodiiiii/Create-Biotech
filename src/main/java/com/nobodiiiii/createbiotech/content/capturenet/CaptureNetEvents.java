@@ -6,17 +6,17 @@ import java.util.WeakHashMap;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CardboardBoxHandler;
+import com.nobodiiiii.createbiotech.content.cardboardbox.LargeCardboardBoxHandler;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
-import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
@@ -77,38 +77,23 @@ public final class CaptureNetEvents {
 	}
 
 	/** Direct hits and sweep victims share the player's melee damage source. */
-	@SubscribeEvent(priority = EventPriority.LOWEST)
-	public static void onLivingDamage(LivingDamageEvent.Pre event) {
-		if (!(event.getEntity() instanceof Mob target) || target.level().isClientSide()
-			|| !target.isAlive() || !Float.isFinite(target.getHealth())
-			|| !target.getType().canSerialize() || target.getType().is(CaptureNetItem.CAPTURE_BLACKLIST))
+	public static void captureLethalHit(LivingDamageEvent.Pre event, Mob target) {
+		DamageSource source = event.getSource();
+		if (!source.is(DamageTypes.PLAYER_ATTACK) || !(source.getEntity() instanceof ServerPlayer player)
+			|| source.getDirectEntity() != player || player.isSpectator() || !player.mayBuild()
+			|| !(player.getMainHandItem().getItem() instanceof CaptureNetItem) || !CaptureNetItem.isValidTarget(target))
 			return;
-		if (!event.getSource().is(DamageTypes.PLAYER_ATTACK)
-			|| !(event.getSource().getEntity() instanceof ServerPlayer player)
-			|| event.getSource().getDirectEntity() != player || player.isSpectator() || !player.mayBuild()
-			|| !(player.getMainHandItem().getItem() instanceof CaptureNetItem))
-			return;
-		// Pre runs before absorption hearts are deducted from the remaining damage.
-		if (!(event.getNewDamage() - target.getAbsorptionAmount() >= target.getHealth())
-			|| !CBConfigs.SERVER.cardboardBox.lethalCaptureEnabled.get())
-			return;
-
 		ItemStack box = CardboardBoxHandler.isSmallMobType(target)
 			? findEmptyBox(player, false) : ItemStack.EMPTY;
-		if (box.isEmpty()) {
-			var config = CBConfigs.SERVER.cardboardBox;
-			if (CBConfigs.isEntityTypeAllowed(target.getType(), config.largeBoxEntityListMode.get(),
-				config.largeBoxEntityAllowlist.get(), config.largeBoxEntityDenylist.get()))
-				box = findEmptyBox(player, true);
-		}
+		if (box.isEmpty() && LargeCardboardBoxHandler.canLargeBoxCapture(target))
+			box = findEmptyBox(player, true);
 		if (box.isEmpty())
 			return;
 		boolean large = CapturedEntityBoxHelper.isEmptyLargeBox(box);
 		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(box, player, target))
 			return;
 
-		event.setNewDamage(0);
-		target.discard();
+		CardboardBoxHandler.finishLethalCapture(event);
 		CBAdvancements.award(player, large ? CBAdvancements.LARGE_CARDBOARD_BOX : CBAdvancements.CARDBOARD_BOX);
 	}
 

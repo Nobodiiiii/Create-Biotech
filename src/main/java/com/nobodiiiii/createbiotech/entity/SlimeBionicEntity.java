@@ -2098,7 +2098,6 @@ public class SlimeBionicEntity extends PathfinderMob implements net.minecraft.wo
 	}
 	@Override public void handleStartJump(int strength) { onPlayerJump(strength); }
 	@Override public void handleStopJump() {}
-	@Override protected void dropEquipment() { super.dropEquipment(); equipment.drop(); }
 	@Override public boolean isShearable(@Nullable Player player, ItemStack item, Level level, BlockPos pos) {
 		return production.shearable();
 	}

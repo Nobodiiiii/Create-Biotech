@@ -56,7 +56,7 @@ final class CBClientModelRegistration {
 		MachineCreatureModels.allPartials()
 			.forEach(partial -> register.accept(partial.modelLocation()));
 		CaptureNetRenderer.registerModels(register);
-		register.accept(CreateBiotech.asResource("block/universal_joint_endpoint_slime_overlay"));
+		register.accept(CreateBiotech.asResource("block/universal_joint/endpoint_slime_overlay"));
 		PartialModel asurineDoorFoldLeft = PartialModel.of(
 			CreateBiotech.asResource("block/asurine_door/fold_left"));
 		PartialModel asurineDoorFoldRight = PartialModel.of(
@@ -70,9 +70,9 @@ final class CBClientModelRegistration {
 		register.accept(DingDongChickenRenderer.BELL_PLUNGER_MODEL.modelLocation());
 		register.accept(AutomaticFishReleaseMachineRenderer.BLADE_CLAMP_MODEL_LOCATION);
 		register.accept(HalfShaftVisual.MODEL.modelLocation());
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/panel"));
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/dial"));
-		register.accept(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
+		register.accept(CreateBiotech.asResource("block/creeper_blast_chamber/display/panel"));
+		register.accept(CreateBiotech.asResource("block/creeper_blast_chamber/display/dial"));
+		register.accept(CreateBiotech.asResource("block/creeper_blast_chamber/display/creeper_face"));
 		register.accept(BoneRatchetRenderer.COGWHEEL_MODEL_LOCATION);
 		register.accept(ExperiencePumpRenderer.COG_MODEL_LOCATION);
 		register.accept(BionicMechanismItemRenderer.HALF_OPEN_MODEL_LOCATION);

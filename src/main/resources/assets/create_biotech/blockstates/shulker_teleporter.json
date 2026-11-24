@@ -1,16 +1,19 @@
 {
   "variants": {
-    "facing=north,part=0": { "model": "create_biotech:block/shulker_teleporter" },
-    "facing=east,part=0": { "model": "create_biotech:block/shulker_teleporter", "y": 90 },
-    "facing=south,part=0": { "model": "create_biotech:block/shulker_teleporter", "y": 180 },
-    "facing=west,part=0": { "model": "create_biotech:block/shulker_teleporter", "y": 270 },
-    "facing=north,part=1": { "model": "create_biotech:block/shulker_teleporter" },
-    "facing=east,part=1": { "model": "create_biotech:block/shulker_teleporter", "y": 90 },
-    "facing=south,part=1": { "model": "create_biotech:block/shulker_teleporter", "y": 180 },
-    "facing=west,part=1": { "model": "create_biotech:block/shulker_teleporter", "y": 270 },
-    "facing=north,part=2": { "model": "create_biotech:block/shulker_teleporter" },
-    "facing=east,part=2": { "model": "create_biotech:block/shulker_teleporter", "y": 90 },
-    "facing=south,part=2": { "model": "create_biotech:block/shulker_teleporter", "y": 180 },
-    "facing=west,part=2": { "model": "create_biotech:block/shulker_teleporter", "y": 270 }
+    "facing=north": {
+      "model": "create_biotech:block/shulker_teleporter"
+    },
+    "facing=east": {
+      "model": "create_biotech:block/shulker_teleporter",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "create_biotech:block/shulker_teleporter",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "create_biotech:block/shulker_teleporter",
+      "y": 270
+    }
   }
 }

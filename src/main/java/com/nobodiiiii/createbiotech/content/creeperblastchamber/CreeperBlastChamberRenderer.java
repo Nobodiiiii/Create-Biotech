@@ -78,11 +78,11 @@ public class CreeperBlastChamberRenderer implements BlockEntityRenderer<CreeperB
 	private static final double CREEPER_RENDER_DISTANCE = 32d;
 	private static final int MAX_CACHED_CREEPERS = 16 * 9;
 	private static final PartialModel DISPLAY_PANEL =
-		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/panel"));
+		PartialModel.of(CreateBiotech.asResource("block/creeper_blast_chamber/display/panel"));
 	private static final PartialModel DISPLAY_DIAL =
-		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/dial"));
+		PartialModel.of(CreateBiotech.asResource("block/creeper_blast_chamber/display/dial"));
 	private static final PartialModel CREEPER_FACE =
-		PartialModel.of(CreateBiotech.asResource("block/blast_chamber_display/creeper_face"));
+		PartialModel.of(CreateBiotech.asResource("block/creeper_blast_chamber/display/creeper_face"));
 	/** Retains payload flags and attention inputs only; drawing always uses the fixed machine model. */
 	private static final BoundedRenderEntityCache<CreeperCacheKey, Creeper> CREEPER_CACHE =
 		new BoundedRenderEntityCache<>(MAX_CACHED_CREEPERS, (level, key) -> {

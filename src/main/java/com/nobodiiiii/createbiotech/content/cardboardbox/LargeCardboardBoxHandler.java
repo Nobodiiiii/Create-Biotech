@@ -5,11 +5,11 @@ import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
 import com.nobodiiiii.createbiotech.foundation.advancement.CBAdvancements;
 import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -53,44 +53,24 @@ public class LargeCardboardBoxHandler {
 		mobTarget.discard();
 	}
 
-	@SubscribeEvent
-	public static void onLivingDamage(LivingDamageEvent.Pre event) {
-		if (!CBConfigs.SERVER.cardboardBox.lethalCaptureEnabled.get())
-			return;
-
-		LivingEntity target = event.getEntity();
-		if (target.level().isClientSide())
-			return;
-		if (!(target instanceof Mob mobTarget))
-			return;
-		if (!canLargeBoxCapture(mobTarget))
-			return;
-		if (target.getHealth() > event.getNewDamage())
-			return;
-
-		Player player = getCapturingPlayer(event.getSource());
-		if (player == null)
-			return;
-		// Capture nets select a suitable box from the whole inventory after damage modifiers.
-		if (event.getSource().is(DamageTypes.PLAYER_ATTACK)
+	static boolean tryLethalCapture(LivingDamageEvent.Pre event, Mob target) {
+		DamageSource source = event.getSource();
+		if (!(source.getEntity() instanceof Player player))
+			return false;
+		// Capture nets select a suitable box from the player's entire inventory.
+		if (source.is(DamageTypes.PLAYER_ATTACK)
 			&& player.getMainHandItem().getItem() instanceof CaptureNetItem)
-			return;
+			return false;
 
 		ItemStack offhandStack = player.getOffhandItem();
-		if (!CapturedEntityBoxHelper.isEmptyLargeBox(offhandStack))
-			return;
+		if (!CapturedEntityBoxHelper.isEmptyLargeBox(offhandStack) || !canLargeBoxCapture(target))
+			return false;
 		if (!CapturedEntityBoxHelper.captureEntityFromPlayerStack(offhandStack, player, target))
-			return;
+			return false;
 
-		event.setNewDamage(0);
-		target.discard();
-		CBAdvancements.awardPlayer((net.minecraft.server.level.ServerLevel) player.level(), player.getUUID(),
-			CBAdvancements.LARGE_CARDBOARD_BOX);
-	}
-
-	private static Player getCapturingPlayer(DamageSource source) {
-		Entity sourceEntity = source.getEntity();
-		return sourceEntity instanceof Player player ? player : null;
+		CardboardBoxHandler.finishLethalCapture(event);
+		CBAdvancements.awardPlayer((ServerLevel) player.level(), player.getUUID(), CBAdvancements.LARGE_CARDBOARD_BOX);
+		return true;
 	}
 
 	public static boolean canLargeBoxCapture(Mob target) {
