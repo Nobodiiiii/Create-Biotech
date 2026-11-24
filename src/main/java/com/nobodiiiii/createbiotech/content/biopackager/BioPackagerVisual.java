@@ -28,7 +28,7 @@ public class BioPackagerVisual extends AbstractBlockEntityVisual<BioPackagerBloc
 	public BioPackagerVisual(VisualizationContext ctx, BioPackagerBlockEntity blockEntity, float partialTick) {
 		super(ctx, blockEntity, partialTick);
 
-		lastHatchPartial = BioPackagerRenderer.getHatchModel(blockEntity.animationInward, blockEntity.animationTicks);
+		lastHatchPartial = BioPackagerRenderer.getHatchModel(blockEntity);
 		hatch = instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(lastHatchPartial))
 			.createInstance();
 
@@ -55,7 +55,7 @@ public class BioPackagerVisual extends AbstractBlockEntityVisual<BioPackagerBloc
 	}
 
 	public void animate(float partialTick) {
-		var hatchPartial = BioPackagerRenderer.getHatchModel(blockEntity.animationInward, blockEntity.animationTicks);
+		var hatchPartial = BioPackagerRenderer.getHatchModel(blockEntity);
 		if (hatchPartial != lastHatchPartial) {
 			instancerProvider().instancer(InstanceTypes.TRANSFORMED, Models.partial(hatchPartial))
 				.stealInstance(hatch);

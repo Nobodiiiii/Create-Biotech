@@ -50,7 +50,7 @@ public final class CBMachineConfigSections {
 				.comment("Allow moving bio-packagers to replace a contraption's lethal mob hit with capture.")
 				.define("enableContraptionLethalCapture", true);
 			cycleTicks = builder
-				.comment("Duration of one bio-packager tray movement. Values below 6 are invalid for its animation curve.")
+				.comment("Duration of one tray movement for biological capture, release, or blast chamber operations.")
 				.defineInRange("cycleTicks", 20, 6, 1200);
 			builder.pop();
 		}

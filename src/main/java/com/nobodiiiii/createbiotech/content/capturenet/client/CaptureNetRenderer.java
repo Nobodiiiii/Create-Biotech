@@ -96,6 +96,14 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		return this;
 	}
 
+	public static void renderMounted(ItemStack stack, PoseStack pose, MultiBufferSource buffer, int light, int overlay) {
+		if (!(stack.getItem() instanceof CaptureNetItem net))
+			return;
+		var renderer = PartialItemModelRenderer.of(stack, ItemDisplayContext.NONE, pose, buffer, overlay);
+		renderer.render(FRAMES.get(net.tier()).get(), light);
+		renderer.render(BAG.get(), NET_RENDER_TYPE, light);
+	}
+
 	@Override
 	public boolean applyForgeHandTransform(PoseStack pose, LocalPlayer player, HumanoidArm arm,
 		ItemStack stack, float partialTick, float equip, float swing) {

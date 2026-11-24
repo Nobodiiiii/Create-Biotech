@@ -93,7 +93,7 @@ public class LargeCardboardBoxHandler {
 		return sourceEntity instanceof Player player ? player : null;
 	}
 
-	private static boolean canLargeBoxCapture(Mob target) {
+	public static boolean canLargeBoxCapture(Mob target) {
 		CBConfigs.CardboardBox config = CBConfigs.SERVER.cardboardBox;
 		return CBConfigs.isEntityTypeAllowed(target.getType(), config.largeBoxEntityListMode.get(),
 			config.largeBoxEntityAllowlist.get(), config.largeBoxEntityDenylist.get());

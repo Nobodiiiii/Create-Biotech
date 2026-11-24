@@ -18,8 +18,6 @@ public final class CBCapabilities {
 		event.registerItem(Capabilities.FluidHandler.ITEM,
 			(stack, context) -> new LiquidLivingSlimeBottleFluidHandler(stack),
 			CBFluids.LIQUID_LIVING_SLIME_BOTTLE.get());
-		event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, CBBlockEntityTypes.BIO_PACKAGER.get(),
-			(be, side) -> be.getItemCapability(side));
 		event.registerBlockEntity(Capabilities.ItemHandler.BLOCK, CBBlockEntityTypes.SHULKER_PACKAGER.get(),
 			(be, side) -> be.shulkerInventory);
 		// Registered per block rather than per block entity: the chamber's upper half has

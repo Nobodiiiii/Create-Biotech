@@ -1,0 +1,7 @@
+{
+  "render_type": "minecraft:cutout_mipped",
+  "parent": "create_biotech:block/bio_packager/horizontal_unpowered",
+  "textures": {
+    "2": "create_biotech:block/bio_packager/horizontal_linked"
+  }
+}

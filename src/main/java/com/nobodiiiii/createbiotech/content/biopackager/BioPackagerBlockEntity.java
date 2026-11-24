@@ -1,22 +1,24 @@
 package com.nobodiiiii.createbiotech.content.biopackager;
 
-import net.minecraft.core.HolderLookup;
-
 import java.util.List;
 
+import org.jetbrains.annotations.Nullable;
+
+import com.nobodiiiii.createbiotech.content.capturenet.ArmCaptureBehaviour;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
+import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxItem;
 import com.nobodiiiii.createbiotech.network.CBPackets;
 import com.nobodiiiii.createbiotech.registry.CBBlockEntityTypes;
-import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
-import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
-import com.simibubi.create.foundation.blockEntity.behaviour.inventory.CapManipulationBehaviourBase.InterfaceProvider;
-import com.simibubi.create.foundation.blockEntity.behaviour.inventory.InvManipulationBehaviour;
+import com.nobodiiiii.createbiotech.registry.CBConfigs;
+import com.simibubi.create.compat.computercraft.events.PackageEvent;
+import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
+import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
+import com.simibubi.create.content.logistics.packager.PackagerItemHandler;
+import com.simibubi.create.content.logistics.packager.PackagingRequest;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.Containers;
@@ -26,247 +28,282 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemHandlerHelper;
-import com.nobodiiiii.createbiotech.registry.CBConfigs;
 
-public class BioPackagerBlockEntity extends SmartBlockEntity {
+public class BioPackagerBlockEntity extends PackagerBlockEntity {
 
-	public static final int DEFAULT_CYCLE_TICKS = 20;
+	private ItemStack captureOutput = ItemStack.EMPTY;
+	private boolean chainReturnAnimation;
+	private boolean biologicalTray;
+	private boolean chamberAnimation;
+	private boolean checkLegacyArmCapture;
 
-	public ItemStack heldBox;
-	public ItemStack previouslyUnwrapped;
-	public int animationTicks;
-	public boolean animationInward;
-	public boolean redstonePowered;
-	public boolean chainReturnAnimation;
-
-	public InvManipulationBehaviour targetInventory;
-	public BioPackagerItemHandler inventory;
 	public BioPackagerBlockEntity(BlockPos pos, BlockState state) {
 		super(CBBlockEntityTypes.BIO_PACKAGER.get(), pos, state);
-		heldBox = ItemStack.EMPTY;
-		previouslyUnwrapped = ItemStack.EMPTY;
-		animationTicks = 0;
-		animationInward = true;
-		chainReturnAnimation = false;
-		redstonePowered = state.getOptionalValue(BioPackagerBlock.POWERED).orElse(false);
-		inventory = new BioPackagerItemHandler(this);
-	}
-
-	@Override
-	public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-		behaviours.add(targetInventory = new InvManipulationBehaviour(this, InterfaceProvider.oppositeOfBlockFacing()));
 	}
 
 	@Override
 	public void tick() {
-		super.tick();
-
-		if (animationTicks == 0) {
-			previouslyUnwrapped = ItemStack.EMPTY;
-			if (!level.isClientSide && heldBox.isEmpty() && !chainReturnAnimation && isRedstonePowered())
-				attemptAutoExtract();
-			return;
-		}
-
-		if (level.isClientSide) {
-			if (animationTicks == getCycleTicks() - (animationInward ? 5 : 1))
-				level.playLocalSound(worldPosition, SoundEvents.UI_TOAST_IN, SoundSource.BLOCKS, 0.5f, 1f, true);
-			if (animationTicks == (animationInward ? 1 : 5))
-				level.playLocalSound(worldPosition, SoundEvents.IRON_TRAPDOOR_CLOSE, SoundSource.BLOCKS, 0.25f, 0.75f,
-					true);
-		}
-
-		animationTicks--;
-
-		if (animationTicks == 0 && !level.isClientSide) {
-			if (chainReturnAnimation) {
-				if (!animationInward) {
-					releaseCapturedEntityForReturn();
-					animationInward = true;
-					animationTicks = getCycleTicks();
-					notifyUpdate();
-				} else {
-					depositReturnedBox();
-					chainReturnAnimation = false;
-				}
+		if (level instanceof ServerLevel && checkLegacyArmCapture) {
+			checkLegacyArmCapture = false;
+			if (isCreaturePackage(heldBox) && level.getBlockEntity(worldPosition.above()) instanceof ArmBlockEntity arm
+				&& ArmCaptureBehaviour.hasNet(arm)) {
+				captureOutput = heldBox;
+				setChanged();
 			}
-			setChanged();
+		}
+		boolean wasAnimating = animationTicks > 0;
+		super.tick();
+		if (!(level instanceof ServerLevel server) || animationTicks != 0)
+			return;
+		if (!wasAnimating) {
+			if (canReleaseCreature())
+				tryReleaseFromAttachedInventory();
+			return;
+		}
+
+		if (chamberAnimation) {
+			// The blast chamber owns this tray until it advances or clears its operation.
+			animationTicks = 1;
+			return;
+		}
+		biologicalTray = false;
+		if (chainReturnAnimation) {
+			if (!animationInward) {
+				releaseCreature(server);
+				startBiologicalAnimation(heldBox, true);
+			} else {
+				ItemStack leftover = insertIntoAttachedInventory(heldBox);
+				heldBox = ItemStack.EMPTY;
+				chainReturnAnimation = false;
+				triggerStockCheck();
+				dropAtPackager(leftover);
+			}
+			notifyUpdate();
+		} else if (hasCaptureOutput()) {
+			depositCapture();
+			if (!heldBox.isEmpty())
+				super.wakeTheFrogs();
 		}
 	}
 
-	private void attemptAutoExtract() {
-		if (targetInventory == null)
-			return;
-		if (isReleaseBlocked())
-			return;
-		IItemHandler inv = targetInventory.getInventory();
-		if (inv == null || inv instanceof BioPackagerItemHandler)
-			return;
-		for (int slot = 0; slot < inv.getSlots(); slot++) {
-			ItemStack candidate = inv.getStackInSlot(slot);
-			if (!inventory.isItemValid(0, candidate))
-				continue;
-			ItemStack extracted = inv.extractItem(slot, 1, false);
-			if (extracted.isEmpty())
-				continue;
-			startUnpacking(extracted);
-			return;
+	@Override
+	public void lazyTick() {
+		if (level instanceof ServerLevel && animationTicks == 0) {
+			if (hasCaptureOutput())
+				depositCapture();
+			else
+				captureOutput = ItemStack.EMPTY;
 		}
+		super.lazyTick();
 	}
 
-	public boolean startUnpacking(ItemStack box) {
-		if (!heldBox.isEmpty() || animationTicks > 0 || !isRedstonePowered())
+	@Override
+	protected void wakeTheFrogs() {
+		if (!chainReturnAnimation && !chamberAnimation && !hasCaptureOutput())
+			super.wakeTheFrogs();
+	}
+
+	@Nullable
+	public IItemHandler getAttachedInventory() {
+		IItemHandler handler = targetInventory.getInventory();
+		return handler instanceof PackagerItemHandler ? null : handler;
+	}
+
+	public boolean canStartPacking() {
+		return level instanceof ServerLevel && !isRemoved() && !chainReturnAnimation && !chamberAnimation
+			&& animationTicks == 0 && heldBox.isEmpty() && queuedExitingPackages.isEmpty();
+	}
+
+	public boolean startPacking(ItemStack box) {
+		if (!canStartPacking() || !isCreaturePackage(box))
 			return false;
-		if (isReleaseBlocked())
-			return false;
-		heldBox = box.copy();
-		previouslyUnwrapped = ItemStack.EMPTY;
-		animationInward = false;
-		animationTicks = getCycleTicks();
-		chainReturnAnimation = true;
+		captureOutput = box.copyWithCount(1);
+		startBiologicalAnimation(captureOutput, true);
 		notifyUpdate();
 		return true;
 	}
 
-	public boolean isReleaseBlocked() {
-		if (level == null)
+	@Override
+	public boolean unwrapBox(ItemStack box, boolean simulate) {
+		if (!isCreaturePackage(box) || !canReleaseCreature())
 			return false;
-		BlockPos releasePos = worldPosition.above();
-		BlockState state = level.getBlockState(releasePos);
-		return !state.getCollisionShape(level, releasePos).isEmpty();
+		if (!simulate) {
+			chainReturnAnimation = true;
+			startBiologicalAnimation(box.copyWithCount(1), false);
+			computerBehaviour.prepareComputerEvent(new PackageEvent(box.copyWithCount(1), "package_received"));
+			notifyUpdate();
+		}
+		return true;
 	}
 
-	private void releaseCapturedEntityForReturn() {
-		if (heldBox.isEmpty() || !CapturedEntityBoxHelper.hasCapturedEntity(heldBox))
-			return;
-		if (isReleaseBlocked())
-			return;
+	@Override
+	public void attemptToSend(@Nullable List<PackagingRequest> requests) {
+		if (requests != null) {
+			super.attemptToSend(requests);
+		} else if (canReleaseCreature()) {
+			tryReleaseFromAttachedInventory();
+		}
+	}
 
-		Entity entity = createEntityFromBox(heldBox);
+	private boolean canReleaseCreature() {
+		return canStartPacking() && getBlockState().getValue(BioPackagerBlock.POWERED) && !isReleaseBlocked();
+	}
+
+	private void tryReleaseFromAttachedInventory() {
+		IItemHandler handler = getAttachedInventory();
+		if (handler == null)
+			return;
+		for (int slot = 0; slot < handler.getSlots(); slot++) {
+			if (!isCreaturePackage(handler.getStackInSlot(slot)) || !isCreaturePackage(handler.extractItem(slot, 1, true)))
+				continue;
+			ItemStack box = handler.extractItem(slot, 1, false);
+			if (box.isEmpty())
+				continue;
+			if (isCreaturePackage(box) && unwrapBox(box, false)) {
+				triggerStockCheck();
+				return;
+			}
+			ItemStack remainder = handler.insertItem(slot, box, false);
+			dropAtPackager(ItemHandlerHelper.insertItemStacked(handler, remainder, false));
+			return;
+		}
+	}
+
+	private boolean isReleaseBlocked() {
+		BlockPos pos = worldPosition.above();
+		return !level.getBlockState(pos).getCollisionShape(level, pos).isEmpty();
+	}
+
+	private void releaseCreature(ServerLevel server) {
+		if (!isCreaturePackage(heldBox) || isReleaseBlocked())
+			return;
+		Entity entity = CapturedEntityBoxHelper.createCapturedEntity(heldBox, server);
 		if (entity == null)
 			return;
-
-		BlockPos releasePos = worldPosition.above();
-		entity.setPos(releasePos.getX() + 0.5d, releasePos.getY(), releasePos.getZ() + 0.5d);
+		BlockPos pos = worldPosition.above();
+		entity.setPos(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5);
 		if (entity instanceof Mob mob)
 			mob.setNoAi(false);
 		CapturedEntityBoxHelper.unmarkAiDisabledByMod(entity);
-
-		if (!level.addFreshEntity(entity))
+		if (!server.addFreshEntity(entity))
 			return;
-		if (level instanceof ServerLevel serverLevel)
-			CBPackets.sendToTrackingChunk(new BioPackagerReleaseAnimationPacket(entity.getId()), serverLevel,
-				releasePos);
 
-		ItemStack emptyBox = CapturedEntityBoxHelper.createEmptyBox(heldBox).copyWithCount(1);
-
-		heldBox = emptyBox;
-		previouslyUnwrapped = ItemStack.EMPTY;
+		heldBox = CapturedEntityBoxHelper.createEmptyBox(heldBox).copyWithCount(1);
+		CBPackets.sendToTrackingChunk(new BioPackagerReleaseAnimationPacket(entity.getId()), server, pos);
 	}
 
-	private void depositReturnedBox() {
-		if (heldBox.isEmpty())
+	private boolean hasCaptureOutput() {
+		// The inherited inventory can take the package when the tray is idle.
+		return !heldBox.isEmpty() && heldBox == captureOutput;
+	}
+
+	private void depositCapture() {
+		ItemStack remainder = insertIntoAttachedInventory(heldBox);
+		if (remainder.getCount() == heldBox.getCount())
 			return;
-		ItemStack leftover = pushToTargetOrDrop(heldBox);
-		heldBox = ItemStack.EMPTY;
-		if (!leftover.isEmpty())
-			Containers.dropItemStack(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5,
-				worldPosition.getZ() + 0.5, leftover);
+		heldBox = remainder;
+		captureOutput = remainder;
+		triggerStockCheck();
 		notifyUpdate();
 	}
 
-	private Entity createEntityFromBox(ItemStack box) {
-		return CapturedEntityBoxHelper.createCapturedEntity(box, level);
+	private ItemStack insertIntoAttachedInventory(ItemStack stack) {
+		IItemHandler handler = getAttachedInventory();
+		return handler == null ? stack : ItemHandlerHelper.insertItemStacked(handler, stack, false);
 	}
 
-	private ItemStack pushToTargetOrDrop(ItemStack stack) {
-		if (targetInventory == null)
-			return stack;
-		IItemHandler inv = targetInventory.getInventory();
-		if (inv == null || inv instanceof BioPackagerItemHandler)
-			return stack;
-		return ItemHandlerHelper.insertItemStacked(inv, stack, false);
+	private void dropAtPackager(ItemStack stack) {
+		if (!stack.isEmpty())
+			Containers.dropItemStack(level, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5,
+				worldPosition.getZ() + 0.5, stack);
 	}
 
-	public void triggerStockCheck() {
-		// kept for parity with packager-style neighbor change hook
+	public static boolean isCreaturePackage(ItemStack stack) {
+		return stack.getItem() instanceof CapturedEntityBoxItem && CapturedEntityBoxHelper.hasCapturedEntity(stack);
 	}
 
-	public boolean isRedstonePowered() {
-		if (level == null)
-			return redstonePowered;
-		return getBlockState().getOptionalValue(BioPackagerBlock.POWERED).orElse(redstonePowered);
+	private void startBiologicalAnimation(ItemStack box, boolean inward) {
+		setTrayAnimation(box, ItemStack.EMPTY, inward, getCycleTicks());
 	}
 
-	public void onRedstoneUpdate(boolean powered) {
-		redstonePowered = powered;
-		setChanged();
-		if (!level.isClientSide && powered && heldBox.isEmpty() && animationTicks == 0)
-			attemptAutoExtract();
+	public void startChamberAnimation(ItemStack trayBox, boolean inward) {
+		chamberAnimation = true;
+		startBiologicalAnimation(trayBox.copy(), inward);
+		notifyUpdate();
 	}
 
-	public void activate() {
-		onRedstoneUpdate(true);
+	public void clearChamberAnimation() {
+		chamberAnimation = false;
+		setTrayAnimation(ItemStack.EMPTY, ItemStack.EMPTY, true, 0);
+		notifyUpdate();
+	}
+
+	public void setTrayAnimation(ItemStack box, ItemStack insertedBox, boolean inward, int remainingTicks) {
+		heldBox = box;
+		previouslyUnwrapped = insertedBox;
+		animationInward = inward;
+		animationTicks = remainingTicks;
+		biologicalTray = remainingTicks > 0;
+	}
+
+	@Override
+	public void clearContent() {
+		super.clearContent();
+		captureOutput = ItemStack.EMPTY;
+		chainReturnAnimation = false;
 	}
 
 	@Override
 	public void destroy() {
+		if (chamberAnimation)
+			heldBox = ItemStack.EMPTY;
 		super.destroy();
-		if (heldBox.isEmpty())
-			return;
-		// drop the held box; if it has a captured entity, drop the box (player can release later)
-		Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(),
-			heldBox.copy());
-		heldBox = ItemStack.EMPTY;
-	}
-
-	public IItemHandler getItemCapability(Direction side) {
-		return inventory;
 	}
 
 	@Override
-	protected void read(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-		super.read(compound, registries, clientPacket);
-		redstonePowered = compound.getBoolean("Active");
-		animationInward = compound.getBoolean("AnimationInward");
-		animationTicks = Mth.clamp(compound.getInt("AnimationTicks"), 0, getCycleTicks());
-		chainReturnAnimation = compound.getBoolean("ChainReturnAnimation");
-		heldBox = ItemStack.parseOptional(registries, compound.getCompound("HeldBox"));
-		previouslyUnwrapped = ItemStack.parseOptional(registries, compound.getCompound("InsertedBox"));
+	protected void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		super.read(tag, registries, clientPacket);
+		chainReturnAnimation = tag.getBoolean("ChainReturnAnimation");
+		chamberAnimation = tag.getBoolean("ChamberAnimation");
+		biologicalTray = tag.contains("BiologicalTray") ? tag.getBoolean("BiologicalTray") : animationTicks > 0;
+		animationTicks = Mth.clamp(animationTicks, 0, getAnimationCycle());
+		captureOutput = tag.getBoolean("PackedBoxPending") ? heldBox : ItemStack.EMPTY;
+		checkLegacyArmCapture = !clientPacket && !tag.contains("PackedBoxPending") && animationInward
+			&& !chainReturnAnimation && isCreaturePackage(heldBox);
 	}
 
 	@Override
-	protected void write(CompoundTag compound, HolderLookup.Provider registries, boolean clientPacket) {
-		super.write(compound, registries, clientPacket);
-		compound.putBoolean("Active", redstonePowered);
-		compound.putBoolean("AnimationInward", animationInward);
-		compound.putInt("AnimationTicks", animationTicks);
-		compound.putBoolean("ChainReturnAnimation", chainReturnAnimation);
-		compound.put("HeldBox", heldBox.saveOptional(registries));
-		compound.put("InsertedBox", previouslyUnwrapped.saveOptional(registries));
+	protected void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+		super.write(tag, registries, clientPacket);
+		tag.putBoolean("ChainReturnAnimation", chainReturnAnimation);
+		tag.putBoolean("ChamberAnimation", chamberAnimation);
+		tag.putBoolean("BiologicalTray", biologicalTray);
+		tag.putBoolean("PackedBoxPending", hasCaptureOutput());
 	}
 
+	public int getAnimationCycle() {
+		return biologicalTray ? getCycleTicks() : CYCLE;
+	}
+
+	@Override
 	public float getTrayOffset(float partialTicks) {
-		return calculateTrayOffset(animationInward, animationTicks - partialTicks);
-	}
-
-	public static float calculateTrayOffset(boolean animationInward, float remainingTicks) {
-		float tickCycle = animationInward ? remainingTicks : remainingTicks - 5;
-		float progress = Mth.clamp(tickCycle / (getCycleTicks() - 5) * 2 - 1, -1, 1);
+		if (!biologicalTray)
+			return super.getTrayOffset(partialTicks);
+		float tickCycle = animationTicks - partialTicks - (animationInward ? 0 : 5);
+		float progress = Mth.clamp(tickCycle / (getAnimationCycle() - 5) * 2 - 1, -1, 1);
 		progress = 1 - progress * progress;
 		return progress * progress;
 	}
 
+	@Override
 	public ItemStack getRenderedBox() {
-		return getRenderedBox(animationInward, animationTicks, heldBox, previouslyUnwrapped);
-	}
-
-	public static ItemStack getRenderedBox(boolean animationInward, int animationTicks, ItemStack heldBox,
-		ItemStack previouslyUnwrapped) {
+		if (!biologicalTray)
+			return super.getRenderedBox();
+		int halfway = getAnimationCycle() / 2;
 		if (animationInward)
-			return animationTicks <= getCycleTicks() / 2 ? ItemStack.EMPTY
+			return animationTicks <= halfway ? ItemStack.EMPTY
 				: previouslyUnwrapped.isEmpty() ? heldBox : previouslyUnwrapped;
-		return animationTicks >= getCycleTicks() / 2 ? ItemStack.EMPTY : heldBox;
+		return animationTicks >= halfway ? ItemStack.EMPTY : heldBox;
 	}
 
 	public static int getCycleTicks() {

@@ -121,10 +121,22 @@ public final class CaptureNetItem extends TieredItem {
 	}
 
 	private boolean canCapture(Player player, Mob mob) {
-		if (!mob.isAlive() || !mob.getType().canSerialize() || mob.getType().is(CAPTURE_BLACKLIST)) {
+		if (!isValidTarget(mob)) {
 			messageCannotCapture(player);
 			return false;
 		}
+		return meetsHealthLimit(mob);
+	}
+
+	boolean canCapture(Mob mob) {
+		return isValidTarget(mob) && meetsHealthLimit(mob);
+	}
+
+	private static boolean isValidTarget(Mob mob) {
+		return mob.isAlive() && mob.getType().canSerialize() && !mob.getType().is(CAPTURE_BLACKLIST);
+	}
+
+	private boolean meetsHealthLimit(Mob mob) {
 		return Float.isFinite(mob.getHealth())
 			&& (mob.getHealth() <= tier.healthLimit() || isMimicTarget(mob));
 	}
@@ -286,7 +298,7 @@ public final class CaptureNetItem extends TieredItem {
 	}
 
 	/** Always use vanilla durability processing, including Unbreaking and creative immunity. */
-	private static void damageNet(ItemStack stack, int amount, ServerLevel level, @Nullable LivingEntity holder, Vec3 origin) {
+	static void damageNet(ItemStack stack, int amount, ServerLevel level, @Nullable LivingEntity holder, Vec3 origin) {
 		if (amount <= 0) return;
 		ItemStack captured = isOccupied(stack) ? stack.copy() : ItemStack.EMPTY;
 		EquipmentSlot slot = holder == null ? null : holder.getMainHandItem() == stack ? EquipmentSlot.MAINHAND

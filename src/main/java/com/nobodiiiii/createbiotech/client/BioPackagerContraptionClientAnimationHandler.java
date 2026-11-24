@@ -77,10 +77,7 @@ public final class BioPackagerContraptionClientAnimationHandler {
 
 		int remainingTicks = (int) Math.max(0,
 			BioPackagerBlockEntity.getCycleTicks() - (level.getGameTime() - state.startTick));
-		packager.animationInward = state.animationInward;
-		packager.animationTicks = remainingTicks;
-		packager.heldBox = state.heldBox.copy();
-		packager.previouslyUnwrapped = state.previouslyUnwrapped.copy();
+		packager.setTrayAnimation(state.heldBox, state.previouslyUnwrapped, state.animationInward, remainingTicks);
 	}
 
 	private static void resetAnimation(Level level, AnimationKey key) {
@@ -88,10 +85,7 @@ public final class BioPackagerContraptionClientAnimationHandler {
 		if (packager == null)
 			return;
 
-		packager.animationInward = true;
-		packager.animationTicks = 0;
-		packager.heldBox = ItemStack.EMPTY;
-		packager.previouslyUnwrapped = ItemStack.EMPTY;
+		packager.setTrayAnimation(ItemStack.EMPTY, ItemStack.EMPTY, true, 0);
 	}
 
 	private static BioPackagerBlockEntity getRenderedPackager(Level level, AnimationKey key) {

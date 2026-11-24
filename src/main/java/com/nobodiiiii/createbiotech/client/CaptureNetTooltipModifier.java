@@ -27,6 +27,7 @@ public final class CaptureNetTooltipModifier implements TooltipModifier {
 				I18n.get(TOOLTIP_KEY + ".behaviour1", healthLimit))
 			.addBehaviour(I18n.get(TOOLTIP_KEY + ".condition2"), I18n.get(TOOLTIP_KEY + ".behaviour2"))
 			.addBehaviour(I18n.get(TOOLTIP_KEY + ".condition3"), I18n.get(TOOLTIP_KEY + ".behaviour3"))
+			.addBehaviour(I18n.get(TOOLTIP_KEY + ".arm_condition"), I18n.get(TOOLTIP_KEY + ".arm_behaviour"))
 			.build();
 		context.getToolTip().addAll(1, description.getCurrentLines());
 	}

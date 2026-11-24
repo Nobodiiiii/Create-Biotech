@@ -3,6 +3,8 @@ package com.nobodiiiii.createbiotech.content.biopackager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.simibubi.create.foundation.blockEntity.renderer.SmartBlockEntityRenderer;
+import com.simibubi.create.content.logistics.packager.PackagerBlockEntity;
+import com.simibubi.create.content.logistics.packager.PackagerRenderer;
 
 import dev.engine_room.flywheel.api.visualization.VisualizationManager;
 import dev.engine_room.flywheel.lib.model.baked.PartialModel;
@@ -38,28 +40,19 @@ public class BioPackagerRenderer extends SmartBlockEntityRenderer<BioPackagerBlo
 
 		BlockState blockState = be.getBlockState();
 		renderAnimated(blockState, be.getLevel(), be.getRenderedBox(), be.getTrayOffset(partialTicks),
-			getHatchModel(be.animationInward, be.animationTicks), ms, buffer, light, overlay);
+			getHatchModel(be), ms, buffer, light, overlay);
 	}
 
-	private static PartialModel getHatchModel(BioPackagerBlockEntity be) {
-		return getHatchModel(be.animationInward, be.animationTicks);
-	}
-
-	private static boolean isHatchOpen(BioPackagerBlockEntity be) {
-		return isHatchOpen(be.animationInward, be.animationTicks);
-	}
-
-	public static PartialModel getHatchModel(boolean animationInward, int animationTicks) {
-		return isHatchOpen(animationInward, animationTicks) ? HATCH_OPEN : HATCH_CLOSED;
+	public static PartialModel getHatchModel(BioPackagerBlockEntity be) {
+		int cycle = be.getAnimationCycle();
+		boolean open = cycle == PackagerBlockEntity.CYCLE ? PackagerRenderer.isHatchOpen(be)
+			: be.animationTicks > (be.animationInward ? 1 : 5)
+				&& be.animationTicks < cycle - (be.animationInward ? 5 : 1);
+		return open ? HATCH_OPEN : HATCH_CLOSED;
 	}
 
 	public static PartialModel getTrayModel(BlockState blockState) {
 		return TRAY;
-	}
-
-	public static boolean isHatchOpen(boolean animationInward, int animationTicks) {
-		return animationTicks > (animationInward ? 1 : 5)
-			&& animationTicks < BioPackagerBlockEntity.getCycleTicks() - (animationInward ? 5 : 1);
 	}
 
 	public static void renderAnimated(BlockState blockState, Level level, ItemStack renderedBox, float trayOffset,

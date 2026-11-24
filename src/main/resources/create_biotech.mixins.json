@@ -4,6 +4,7 @@
   "package": "com.nobodiiiii.createbiotech.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "ArmBlockEntityCaptureMixin",
     "EntityBionicRidingMixin",
     "AbstractContraptionEntityBufferPadMixin",
     "AbstractVillagerAccessor",
@@ -34,6 +35,7 @@
     "FunnelItemMixin",
     "FluidTankBlockEntityMixin",
 	"FactoryPanelBehaviourMixin",
+    "FactoryPanelBlockEntityMixin",
     "FollowTemptationFixedCarrotFishingRodMixin",
     "ItemHelperMixin",
     "MagmaBeltFunnelBlockMixin",
@@ -47,6 +49,7 @@
 	"PowderSnowBionicFootMixin",
     "MobAccessor",
     "PackagerBlockEntityMixin",
+    "PackagerItemHandlerMixin",
     "PackageItemCardboardBoxMixin",
     "PressingBehaviourSoundMixin",
     "PowerBeltWalkAnimationMixin",
@@ -70,6 +73,7 @@
     "RedStoneWireEntityRedstoneMixin"
   ],
   "client": [
+    "client.ArmRendererCaptureMixin",
     "client.EntityBionicRidingViewMixin",
     "client.BasinRendererMixin",
     "client.CameraMixin",
@@ -83,6 +87,7 @@
 	"client.CreativeModeInventoryScreenMixin",
     "client.DeltaTrackerTimerMixin",
 	"client.EntityRenderDispatcherSlimeMimicMixin",
+    "client.FactoryPanelConnectionHandlerMixin",
     "client.FlapStuffsMixin",
     "client.FluidTankRendererMixin",
     "client.FunnelRendererMixin",
