@@ -1,5 +1,13 @@
 # Third-Party Notices
 
+## Scratch Blocks
+
+The biocomputer editor uses a raster atlas adapted from Scratch Blocks by the
+Scratch Foundation, MIT and the Blockly contributors. The original artwork is
+licensed under Apache-2.0. The atlas crops, scales and recolors the original block
+silhouettes for the in-game editor. The upstream license is included at
+`src/main/resources/META-INF/licenses/scratch-blocks.txt`.
+
 ## SylviaX-390/createbuttercat
 
 This repository contains material adapted from or derived from:

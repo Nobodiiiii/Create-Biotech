@@ -30,6 +30,7 @@ import com.nobodiiiii.createbiotech.registry.CBContraptionTypes;
 import com.nobodiiiii.createbiotech.registry.CBCreativeModeTabs;
 import com.nobodiiiii.createbiotech.registry.CBDataComponents;
 import com.nobodiiiii.createbiotech.registry.CBDisplaySources;
+import com.nobodiiiii.createbiotech.registry.CBDisplayTargets;
 import com.nobodiiiii.createbiotech.registry.CBEntityTypes;
 import com.nobodiiiii.createbiotech.registry.CBFluids;
 import com.nobodiiiii.createbiotech.registry.CBItems;
@@ -80,6 +81,7 @@ public class CreateBiotech {
 		CBCreativeModeTabs.register(modEventBus);
 		CBBlockEntityTypes.register(modEventBus);
 		CBDisplaySources.register(modEventBus);
+		CBDisplayTargets.register(modEventBus);
 		modEventBus.addListener(CBCapabilities::register);
 		CBEntityTypes.register(modEventBus);
 		CBMenuTypes.register(modEventBus);
@@ -124,6 +126,7 @@ public class CreateBiotech {
 			CBFluids.registerFluidInteractions();
 			CBMultiBlockLifecycle.registerMovementChecks();
 			CBDisplaySources.register();
+			CBDisplayTargets.register();
 			ExperienceOpenPipeEffectHandler.register();
 			ExplosionProofItemVaultCompat.register();
 			BlockStressValues.IMPACTS.register(CBBlocks.EXPERIENCE_PUMP.get(), () -> 4.0d);

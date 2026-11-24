@@ -10,6 +10,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsRequestPacket;
@@ -79,7 +80,7 @@ import net.neoforged.api.distmarker.OnlyIn;
 
 public final class CBPackets {
 
-	private static final String NETWORK_VERSION = "51";
+	private static final String NETWORK_VERSION = "53";
 	private static final List<ServerRegistration<?>> SERVERBOUND = new ArrayList<>();
 	private static final List<ClientRegistration<?>> CLIENTBOUND = new ArrayList<>();
 	private static final Map<Class<?>, Integer> SERVERBOUND_IDS = new HashMap<>();
@@ -157,6 +158,8 @@ public final class CBPackets {
 
 		registerServer(DevouredBodyMeasurementPacket.class, DevouredBodyMeasurementPacket::new,
 			DevouredBodyMeasurementPacket::write, DevouredBodyMeasurementPacket::handle);
+		registerServer(ComputerProgramPacket.class, ComputerProgramPacket::new,
+			ComputerProgramPacket::write, ComputerProgramPacket::handle);
 
 		registerClient(PowerBeltEntityAnimationPacket.class, PowerBeltEntityAnimationPacket::new,
 			PowerBeltEntityAnimationPacket::write);
@@ -204,6 +207,10 @@ public final class CBPackets {
 		registerClient(BionicStatsPacket.class,
 			BionicStatsPacket::new,
 			BionicStatsPacket::write);
+		registerClient(ComputerProgramPacket.StatusUpdate.class, ComputerProgramPacket.StatusUpdate::new,
+			ComputerProgramPacket.StatusUpdate::write);
+		registerClient(ComputerProgramPacket.ProgramUpdate.class, ComputerProgramPacket.ProgramUpdate::new,
+			ComputerProgramPacket.ProgramUpdate::write);
 
 		CatnipPacketRegistry registry = new CatnipPacketRegistry(CreateBiotech.MOD_ID, NETWORK_VERSION);
 		registry.registerPacket(new CatnipPacketRegistry.PacketType<>(

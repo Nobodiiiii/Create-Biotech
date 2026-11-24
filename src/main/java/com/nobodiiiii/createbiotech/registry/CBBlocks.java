@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineBlock;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerBlock;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetBlock;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlock;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlock;
@@ -167,6 +168,11 @@ public class CBBlocks {
 			() -> new SlimeCultureChamberBlock(CBSharedProperties.createSoftMetal()
 				.mapColor(MapColor.METAL)
 				.noOcclusion()));
+
+	public static final DeferredHolder<Block, ComputerBlock> COMPUTER = BLOCKS.register("computer",
+		() -> new ComputerBlock(CBSharedProperties.createSoftMetal()
+			.mapColor(MapColor.COLOR_LIGHT_BLUE)
+			.noOcclusion()));
 
 	public static final DeferredHolder<Block, SurgicalTableBlock> SURGICAL_TABLE = BLOCKS.register("surgical_table",
 		() -> new SurgicalTableBlock(CBSharedProperties.createSoftMetal()

@@ -4,6 +4,7 @@ import com.nobodiiiii.createbiotech.content.surgery.stats.BionicStatsPacket;
 
 import com.nobodiiiii.createbiotech.client.BionicTraitDonorIndex;
 import com.nobodiiiii.createbiotech.client.BionicTraitClientRules;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket;
 import com.nobodiiiii.createbiotech.entity.ai.BionicHeadDataPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitDonorsPacket;
 import com.nobodiiiii.createbiotech.entity.trait.BionicTraitRulesPacket;
@@ -81,6 +82,10 @@ final class CBClientPacketHandlers {
 			BionicTraitClientRules.accept(rules);
 		} else if (packet instanceof BionicStatsPacket stats) {
 			stats.handle();
+		} else if (packet instanceof ComputerProgramPacket.StatusUpdate computerStatus) {
+			computerStatus.handle(player);
+		} else if (packet instanceof ComputerProgramPacket.ProgramUpdate computerPrograms) {
+			computerPrograms.handle(player);
 		} else {
 			throw new IllegalArgumentException("Unhandled Create Biotech clientbound packet "
 				+ packet.getClass().getName());

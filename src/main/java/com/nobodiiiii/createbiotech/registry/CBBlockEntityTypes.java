@@ -4,6 +4,7 @@ import net.minecraft.core.registries.Registries;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
 import com.nobodiiiii.createbiotech.content.automaticfishreleasemachine.AutomaticFishReleaseMachineBlockEntity;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerBlockEntity;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetBlockEntity;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerBlockEntity;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineBlockEntity;
@@ -129,6 +130,10 @@ public class CBBlockEntityTypes {
 				.of((pos, state) -> new SquidPrinterBlockEntity(CBBlockEntityTypes.SQUID_PRINTER.get(), pos, state),
 					CBBlocks.SQUID_PRINTER.get())
 				.build(null));
+
+	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<ComputerBlockEntity>> COMPUTER =
+		BLOCK_ENTITY_TYPES.register("computer",
+			() -> BlockEntityType.Builder.of(ComputerBlockEntity::new, CBBlocks.COMPUTER.get()).build(null));
 
 	public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<PetriDishBlockEntity>> PETRI_DISH =
 		BLOCK_ENTITY_TYPES.register("petri_dish",

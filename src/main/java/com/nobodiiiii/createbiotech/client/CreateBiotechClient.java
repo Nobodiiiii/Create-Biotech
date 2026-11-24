@@ -8,6 +8,7 @@ import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKee
 import com.nobodiiiii.createbiotech.content.endermanstockkeeper.EndermanStockKeeperRequestScreen;
 import com.nobodiiiii.createbiotech.content.experience.ExperiencePumpRenderer;
 import com.nobodiiiii.createbiotech.content.buttercat.block.ButterCatEngineVisual;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ComputerScratchScreen;
 import com.nobodiiiii.createbiotech.content.biopackager.BioPackagerVisual;
 import com.nobodiiiii.createbiotech.content.boneratchet.BoneRatchetRenderer;
 import com.nobodiiiii.createbiotech.content.creeperblastchamber.CreeperBlastChamberBlock;
@@ -116,6 +117,7 @@ public class CreateBiotechClient {
 	@SubscribeEvent
 	public static void registerMenuScreens(RegisterMenuScreensEvent event) {
 		SurgicalPonderInterfaces.registerScreens(event);
+		event.register(CBMenuTypes.COMPUTER_PROGRAM.get(), ComputerScratchScreen::new);
 		if (net.neoforged.fml.ModList.get().isLoaded("jei"))
 			com.nobodiiiii.createbiotech.compat.jei.BionicTraitPonderScreen.registerScreen(event);
 		event.register(CBMenuTypes.GREENPRINT_TABLE.get(), com.nobodiiiii.createbiotech.content.slimemimic.GreenprintTableScreen::new);

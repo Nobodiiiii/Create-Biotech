@@ -129,6 +129,9 @@ public class CBItems {
 	public static final DeferredHolder<Item, Item> SLIME_CULTURE_CHAMBER = ITEMS.register("slime_culture_chamber",
 		() -> new SlimeCultureChamberItem(CBBlocks.SLIME_CULTURE_CHAMBER.get(), new Item.Properties()));
 
+	public static final DeferredHolder<Item, Item> COMPUTER = ITEMS.register("computer",
+		() -> new BlockItem(CBBlocks.COMPUTER.get(), new Item.Properties()));
+
 	public static final DeferredHolder<Item, Item> SURGICAL_TABLE = ITEMS.register("surgical_table",
 		() -> new BlockItem(CBBlocks.SURGICAL_TABLE.get(), new Item.Properties()));
 

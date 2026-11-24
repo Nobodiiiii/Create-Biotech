@@ -56,6 +56,7 @@ public class CBBlockTagsProvider extends BlockTagsProvider {
 			CBBlocks.SQUID_PRINTER.get(),
 			CBBlocks.PETRI_DISH.get(),
 			CBBlocks.SLIME_CULTURE_CHAMBER.get(),
+			CBBlocks.COMPUTER.get(),
 			CBBlocks.SURGICAL_TABLE.get(),
 			CBBlocks.UNIVERSAL_JOINT.get(),
 			CBBlocks.HALF_SHAFT.get(),

@@ -1,6 +1,7 @@
 package com.nobodiiiii.createbiotech.registry;
 
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerDisplaySource;
 import com.nobodiiiii.createbiotech.content.shulkerteleporter.ShulkerTeleporterTargetAddressDisplaySource;
 import com.simibubi.create.AllDisplaySources;
 import com.simibubi.create.api.behaviour.display.DisplaySource;
@@ -16,6 +17,8 @@ public final class CBDisplaySources {
 
 	public static final DeferredHolder<DisplaySource, ShulkerTeleporterTargetAddressDisplaySource> SHULKER_TELEPORTER_TARGET_ADDRESS =
 		DISPLAY_SOURCES.register("shulker_teleporter_target_address", ShulkerTeleporterTargetAddressDisplaySource::new);
+	public static final DeferredHolder<DisplaySource, ComputerDisplaySource> COMPUTER_OUTPUT =
+		DISPLAY_SOURCES.register("computer_output", ComputerDisplaySource::new);
 
 	private static boolean registered;
 
@@ -31,6 +34,7 @@ public final class CBDisplaySources {
 		DisplaySource.BY_BLOCK.add(CBBlocks.SLIME_BELT.get(), AllDisplaySources.ITEM_NAMES.get());
 		DisplaySource.BY_BLOCK.add(CBBlocks.MAGMA_BELT.get(), AllDisplaySources.ITEM_NAMES.get());
 		DisplaySource.BY_BLOCK.add(CBBlocks.SHULKER_TELEPORTER.get(), SHULKER_TELEPORTER_TARGET_ADDRESS.get());
+		DisplaySource.BY_BLOCK.add(CBBlocks.COMPUTER.get(), COMPUTER_OUTPUT.get());
 		registered = true;
 	}
 }
