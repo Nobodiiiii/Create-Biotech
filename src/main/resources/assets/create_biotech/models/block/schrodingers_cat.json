@@ -5,7 +5,7 @@
 	"textures": {
 		"0": "create_biotech:item/package/cardboard",
 		"front": "create_biotech:item/package/cardboard_front",
-		"particle": "create_biotech:item/package/cardboard_particle"
+		"particle": "create:item/package/cardboard_particle"
 	},
 	"elements": [
 		{

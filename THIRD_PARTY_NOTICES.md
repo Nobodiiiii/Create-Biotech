@@ -79,6 +79,36 @@ adapted portions remains with L_Ender and the Cataclysm contributors. The rest
 of Create: Biotech remains under the licenses described in
 [LICENSE.md](LICENSE.md).
 
+## DragonsPlusMinecraft/CreateEnchantmentIndustry
+
+The liquid experience fluid textures and animation metadata in this repository
+are reused verbatim from Create: Enchantment Industry:
+
+- Repository: [`DragonsPlusMinecraft/CreateEnchantmentIndustry`](https://github.com/DragonsPlusMinecraft/CreateEnchantmentIndustry)
+- Reference branch and revision: [`1.21.1/6.0.0-dev` at
+  `37ec6810531895292d51d878ef8e7f7e8f83e992`](https://github.com/DragonsPlusMinecraft/CreateEnchantmentIndustry/tree/37ec6810531895292d51d878ef8e7f7e8f83e992)
+- Upstream asset files:
+  - `src/main/resources/assets/create_enchantment_industry/textures/fluid/experience_flow.png`
+  - `src/main/resources/assets/create_enchantment_industry/textures/fluid/experience_flow.png.mcmeta`
+  - `src/main/resources/assets/create_enchantment_industry/textures/fluid/experience_still.png`
+  - `src/main/resources/assets/create_enchantment_industry/textures/fluid/experience_still.png.mcmeta`
+- Local files in Create: Biotech:
+  - `src/main/resources/assets/create_biotech/textures/fluid/experience_flow.png`
+  - `src/main/resources/assets/create_biotech/textures/fluid/experience_flow.png.mcmeta`
+  - `src/main/resources/assets/create_biotech/textures/fluid/experience_still.png`
+  - `src/main/resources/assets/create_biotech/textures/fluid/experience_still.png.mcmeta`
+
+Create: Enchantment Industry declares its repository under the GNU Lesser
+General Public License version 3.0 or later (`LGPL-3.0-or-later`, with no
+separate All Rights Reserved exclusion for assets). These four experience fluid
+asset files remain subject to the GNU Lesser General Public License version 3.0
+or later, and copyright in them remains with DragonsPlus and the Create:
+Enchantment Industry contributors. Copies of the
+[GNU LGPL version 3.0](LICENSES/LGPL-3.0-only.txt) and the
+[GNU GPL version 3.0](LICENSES/GPL-3.0-only.txt) incorporated by that license
+are included in this repository and its distributable jar. The rest of Create:
+Biotech remains under the licenses described in [LICENSE.md](LICENSE.md).
+
 ## yision1/CreatePhantom
 
 The Allay logistics implementation in this repository references source code from:

@@ -26,6 +26,14 @@ adapted portions remain available under the upstream GNU Lesser General Public
 License version 3.0 only. Their scope, provenance, modifications, and license
 copies are recorded in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
+The liquid experience fluid textures (`experience_flow.png`,
+`experience_still.png`) and their `.mcmeta` animation files are reused from
+[`DragonsPlusMinecraft/CreateEnchantmentIndustry`](https://github.com/DragonsPlusMinecraft/CreateEnchantmentIndustry).
+Those files are not covered by the All Rights Reserved asset notice above and
+remain available under the upstream GNU Lesser General Public License version
+3.0 or later (`LGPL-3.0-or-later`), as recorded in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## Repository Code License (MIT)
 
 Unless a file or adapted portion is covered by the section above, the remaining code and documentation in this repository are licensed under the MIT License:

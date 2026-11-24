@@ -13,7 +13,9 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import com.nobodiiiii.createbiotech.CreateBiotech;
+import com.nobodiiiii.createbiotech.content.capturenet.ArmCapturePose;
 import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetItem;
+import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetScoop;
 import com.nobodiiiii.createbiotech.content.capturenet.CaptureNetTier;
 import com.nobodiiiii.createbiotech.content.cardboardbox.CapturedEntityBoxHelper;
 import com.nobodiiiii.createbiotech.foundation.item.CBItemData;
@@ -44,7 +46,11 @@ import net.neoforged.neoforge.client.extensions.common.IClientItemExtensions;
 /** Separate frame and mesh parts follow Create's wrench renderer and the surgical kit's hand transforms. */
 public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer implements IClientItemExtensions {
 	private static final Map<CaptureNetTier, PartialModel> FRAMES = new EnumMap<>(CaptureNetTier.class);
+	private static final Map<CaptureNetTier, PartialModel> MOUNTED_HEADS = new EnumMap<>(CaptureNetTier.class);
+	private static final PartialModel MOUNTED_SHAFT = PartialModel.of(CreateBiotech.asResource("item/capture_net/mounted/shaft"));
 	private static final PartialModel BAG = PartialModel.of(CreateBiotech.asResource("item/capture_net/bag"));
+	// The wooden shaft runs from model Y = -8 to the socket at Y = 5.
+	private static final float SHAFT_LENGTH = 13 / 16f;
 	// The pouch spans model pixels [3, 9, 8] to [13, 19, 15], around the item's [8, 8, 8] origin.
 	private static final float CONTENTS_Y = 6.0f;
 	private static final float CONTENTS_Z = 3.5f;
@@ -72,8 +78,10 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		.cacheCapacity(12);
 
 	static {
-		for (CaptureNetTier tier : CaptureNetTier.values())
+		for (CaptureNetTier tier : CaptureNetTier.values()) {
 			FRAMES.put(tier, PartialModel.of(CreateBiotech.asResource("item/capture_net/" + tier.id() + "_frame")));
+			MOUNTED_HEADS.put(tier, PartialModel.of(CreateBiotech.asResource("item/capture_net/mounted/" + tier.id() + "_head")));
+		}
 	}
 
 	public CaptureNetRenderer() {
@@ -88,6 +96,8 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 	public static void registerModels(java.util.function.Consumer<net.minecraft.resources.ResourceLocation> register) {
 		CONTENTS_LAYOUTS.clear();
 		FRAMES.values().forEach(model -> register.accept(model.modelLocation()));
+		MOUNTED_HEADS.values().forEach(model -> register.accept(model.modelLocation()));
+		register.accept(MOUNTED_SHAFT.modelLocation());
 		register.accept(BAG.modelLocation());
 	}
 
@@ -96,12 +106,30 @@ public final class CaptureNetRenderer extends BlockEntityWithoutLevelRenderer im
 		return this;
 	}
 
-	public static void renderMounted(ItemStack stack, PoseStack pose, MultiBufferSource buffer, int light, int overlay) {
+	public static void renderMounted(ItemStack stack, PoseStack pose, MultiBufferSource buffer, int light, int overlay,
+		float extension) {
 		if (!(stack.getItem() instanceof CaptureNetItem net))
 			return;
 		var renderer = PartialItemModelRenderer.of(stack, ItemDisplayContext.NONE, pose, buffer, overlay);
-		renderer.render(FRAMES.get(net.tier()).get(), light);
+		if (extension == 0) {
+			renderer.render(FRAMES.get(net.tier()).get(), light);
+			renderer.render(BAG.get(), NET_RENDER_TYPE, light);
+			return;
+		}
+
+		float extraLength = extension / ArmCapturePose.NET_SCALE;
+		pose.pushPose();
+		pose.translate(0, CaptureNetScoop.HANDLE_BOTTOM, 0);
+		pose.scale(1, 1 + extraLength / SHAFT_LENGTH, 1);
+		pose.translate(0, -CaptureNetScoop.HANDLE_BOTTOM, 0);
+		renderer.render(MOUNTED_SHAFT.get(), light);
+		pose.popPose();
+
+		pose.pushPose();
+		pose.translate(0, extraLength, 0);
+		renderer.render(MOUNTED_HEADS.get(net.tier()).get(), light);
 		renderer.render(BAG.get(), NET_RENDER_TYPE, light);
+		pose.popPose();
 	}
 
 	@Override

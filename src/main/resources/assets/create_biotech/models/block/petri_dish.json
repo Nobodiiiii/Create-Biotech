@@ -4,8 +4,8 @@
 	"ambientocclusion": false,
 	"render_type": "minecraft:cutout",
 	"textures": {
-		"particle": "create_biotech:block/petri_dish/asurine_fill",
-		"asurine": "create_biotech:block/petri_dish/asurine_fill",
+		"particle": "create_biotech:block/biotech_casing",
+		"asurine": "create_biotech:block/biotech_casing",
 		"outer": "create_biotech:block/petri_dish/asurine_rim",
 		"glass": "create_biotech:block/petri_dish/glass_cube"
 	},

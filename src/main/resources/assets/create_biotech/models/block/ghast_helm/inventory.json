@@ -1,10 +1,10 @@
 {
 	"credit": "Made with Blockbench",
 	"textures": {
-		"3": "create_biotech:block/ghast_helm/train_controller_base",
+		"3": "create:block/andesite_casing",
 		"4": "create_biotech:block/ghast_helm/controls_frame",
 		"1_7": "create_biotech:block/ghast_helm/controls",
-		"particle": "create_biotech:block/ghast_helm/particle"
+		"particle": "create:block/andesite_casing"
 	},
 	"elements": [
 		{

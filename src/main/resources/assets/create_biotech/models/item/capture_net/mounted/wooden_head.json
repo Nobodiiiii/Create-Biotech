@@ -1,0 +1,7 @@
+{
+  "parent": "create_biotech:item/capture_net/mounted/head",
+  "textures": {
+    "atlas": "create_biotech:item/capture_net/wooden",
+    "particle": "create_biotech:item/capture_net/wooden"
+  }
+}

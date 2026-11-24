@@ -1,0 +1,74 @@
+{
+  "parent": "create_biotech:item/capture_net/iron_frame",
+  "elements": [
+    {
+      "name": "wooden_handle",
+      "from": [
+        7,
+        -8,
+        7
+      ],
+      "to": [
+        9,
+        5,
+        9
+      ],
+      "faces": {
+        "north": {
+          "uv": [
+            1.25,
+            0.25,
+            1.75,
+            3.5
+          ],
+          "texture": "#atlas"
+        },
+        "east": {
+          "uv": [
+            0.25,
+            0.25,
+            0.75,
+            3.5
+          ],
+          "texture": "#atlas"
+        },
+        "south": {
+          "uv": [
+            2.25,
+            0.25,
+            2.75,
+            3.5
+          ],
+          "texture": "#atlas"
+        },
+        "west": {
+          "uv": [
+            3.25,
+            0.25,
+            3.75,
+            3.5
+          ],
+          "texture": "#atlas"
+        },
+        "up": {
+          "uv": [
+            1.25,
+            5.0,
+            1.75,
+            5.5
+          ],
+          "texture": "#atlas"
+        },
+        "down": {
+          "uv": [
+            0.25,
+            5.0,
+            0.75,
+            5.5
+          ],
+          "texture": "#atlas"
+        }
+      }
+    }
+  ]
+}

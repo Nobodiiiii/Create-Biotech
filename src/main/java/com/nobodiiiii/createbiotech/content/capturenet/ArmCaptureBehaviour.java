@@ -18,6 +18,7 @@ import com.simibubi.create.content.kinetics.mechanicalArm.ArmBlockEntity;
 import com.simibubi.create.foundation.blockEntity.behaviour.BehaviourType;
 import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 
+import net.createmod.catnip.math.AngleHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
@@ -35,6 +36,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.AABB;
@@ -53,18 +55,20 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	private static final BehaviourType<ArmCaptureBehaviour> TYPE = new BehaviourType<>();
 	private static final String NET_TAG = "CreateBiotechCaptureNet";
 	private static final String MOTION_TAG = "CreateBiotechCaptureMotion";
-	private static final int CAPTURE_RADIUS = 2;
 	private static final int TRACKING_RADIUS = 3;
 	private static final int SCAN_INTERVAL = 3;
+	private static final double CAPTURE_MARGIN = 0.5;
 
 	private final ArmBlockEntity arm;
 	private ItemStack net = ItemStack.EMPTY;
 	private int trackedMobId = -1;
-	private @Nullable Vec3 swingPoint;
+	private @Nullable ArmCapturePose.Swing swing;
 	private long swingStart;
-	private int swingDuration;
-	private @Nullable ArmCapturePose.Swing clientSwing;
-	private boolean contacted;
+	private float swingProgress;
+	private float poseProgress;
+	private boolean contactPending;
+	private float serverYaw;
+	private @Nullable TrackingTurn trackingTurn;
 	private long nextScanTick;
 
 	private ArmCaptureBehaviour(ArmBlockEntity arm) {
@@ -91,19 +95,49 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	}
 
 	public boolean isSwinging() {
-		return swingPoint != null;
+		return swing != null;
+	}
+
+	public float getMovementStep() {
+		return ArmCapturePose.movementStep(arm.getSpeed());
 	}
 
 	public ArmCapturePose getClientPose(float previousYaw) {
+		return swing == null ? trackingPose(previousYaw, getMovementStep()) : swing.sample(poseProgress);
+	}
+
+	private ArmCapturePose trackingPose(float previousYaw, float step) {
 		boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
-		if (swingPoint == null) {
-			clientSwing = null;
-			return ArmCapturePose.ready(getPos(), ceiling, previousYaw, getTrackingPoint());
+		Vec3 trackingPoint = getTrackingPoint();
+		ArmCapturePose ready = ArmCapturePose.ready(getPos(), ceiling, previousYaw, trackingPoint);
+		if (trackingPoint == null) {
+			trackingTurn = null;
+			return ready;
 		}
-		if (clientSwing == null || !clientSwing.matches(swingPoint, ceiling))
-			clientSwing = ArmCapturePose.planSwing(getPos(), ceiling, previousYaw, swingPoint);
-		float progress = (getWorld().getGameTime() - swingStart) / (float) swingDuration;
-		return clientSwing.sample(previousYaw, progress);
+		if (trackingTurn == null || trackingTurn.mobId != trackedMobId)
+			trackingTurn = new TrackingTurn(trackedMobId, previousYaw);
+		float yaw = trackingTurn.advance(previousYaw, ready.yaw(), step);
+		return new ArmCapturePose(yaw, ready.shoulder(), ready.elbow(), ready.head(), ready.extension());
+	}
+
+	private static final class TrackingTurn {
+		private final int mobId;
+		private final float startYaw;
+		private float progress;
+
+		private TrackingTurn(int mobId, float startYaw) {
+			this.mobId = mobId;
+			this.startYaw = startYaw;
+		}
+
+		private float advance(float previousYaw, float targetYaw, float step) {
+			progress = Math.min(1, progress + step);
+			if (Mth.equal(previousYaw, targetYaw))
+				return previousYaw;
+			float facing = AngleHelper.angleLerp(progress, startYaw, targetYaw);
+			// The bearing can change as the mob moves. Limit that correction to Create's maximum turn per tick.
+			return Mth.approachDegrees(previousYaw, facing, 180 * step);
+		}
 	}
 
 	@SubscribeEvent
@@ -163,34 +197,54 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 	@Override
 	public void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
 		net = ItemStack.parseOptional(registries, tag.getCompound(NET_TAG));
-		clearMotion();
-		if (!clientPacket || !tag.contains(MOTION_TAG))
+		if (!clientPacket || !tag.contains(MOTION_TAG)) {
+			clearMotion();
 			return;
-		CompoundTag motion = tag.getCompound(MOTION_TAG);
-		if (motion.contains("Mob"))
-			trackedMobId = motion.getInt("Mob");
-		if (motion.getInt("Duration") > 0) {
-			swingPoint = new Vec3(motion.getDouble("X"), motion.getDouble("Y"), motion.getDouble("Z"));
-			swingStart = motion.getLong("Start");
-			swingDuration = motion.getInt("Duration");
 		}
+		CompoundTag motion = tag.getCompound(MOTION_TAG);
+		trackedMobId = motion.contains("Mob") ? motion.getInt("Mob") : -1;
+		if (!motion.contains("Progress")) {
+			swing = null;
+			contactPending = false;
+			return;
+		}
+		long start = motion.getLong("Start");
+		float progress = Mth.clamp(motion.getFloat("Progress"), -1, 1);
+		if (swing != null && swingStart == start) {
+			if (progress <= swingProgress)
+				return;
+			// A late client should reach the contact pose on its next tick.
+			if (swingProgress < ArmCapturePose.CONTACT_AT && progress >= ArmCapturePose.CONTACT_AT)
+				progress = Math.max(swingProgress, ArmCapturePose.CONTACT_AT - getMovementStep());
+		} else {
+			Vec3 point = new Vec3(motion.getDouble("X"), motion.getDouble("Y"), motion.getDouble("Z"));
+			boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
+			swing = ArmCapturePose.planSwing(getPos(), ceiling, motion.getFloat("StartYaw"), point);
+			swingStart = start;
+			trackingTurn = null;
+			contactPending = false;
+		}
+		swingProgress = progress;
+		poseProgress = progress;
 	}
 
 	@Override
 	public void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
 		if (!net.isEmpty())
 			tag.put(NET_TAG, net.save(registries));
-		if (!clientPacket || (trackedMobId < 0 && swingPoint == null))
+		if (!clientPacket || (trackedMobId < 0 && swing == null))
 			return;
 		CompoundTag motion = new CompoundTag();
 		if (trackedMobId >= 0)
 			motion.putInt("Mob", trackedMobId);
-		if (swingPoint != null) {
-			motion.putDouble("X", swingPoint.x);
-			motion.putDouble("Y", swingPoint.y);
-			motion.putDouble("Z", swingPoint.z);
+		if (swing != null) {
+			Vec3 point = swing.point();
+			motion.putDouble("X", point.x);
+			motion.putDouble("Y", point.y);
+			motion.putDouble("Z", point.z);
 			motion.putLong("Start", swingStart);
-			motion.putInt("Duration", swingDuration);
+			motion.putFloat("StartYaw", swing.startYaw());
+			motion.putFloat("Progress", swingProgress);
 		}
 		tag.put(MOTION_TAG, motion);
 	}
@@ -205,14 +259,23 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 
 	@Override
 	public void tick() {
-		if (!(getWorld() instanceof ServerLevel level) || arm.isVirtual()
-			|| !(net.getItem() instanceof CaptureNetItem captureNet))
+		Level world = getWorld();
+		if (world == null || arm.isVirtual() || !(net.getItem() instanceof CaptureNetItem captureNet))
 			return;
+		float step = getMovementStep();
+		if (!(world instanceof ServerLevel level)) {
+			if (swing != null)
+				advanceSwing(step);
+			return;
+		}
+
 		long now = level.getGameTime();
-		if (swingPoint == null && now < nextScanTick)
+		if (swing == null && now < nextScanTick) {
+			if (step > 0 && trackedMobId >= 0)
+				serverYaw = trackingPose(serverYaw, step).yaw();
 			return;
-		float speed = Math.abs(arm.getSpeed());
-		if (speed == 0 || level.hasNeighborSignal(getPos()) || !((ArmCaptureAccess) arm).createBiotech$isCaptureArmIdle()) {
+		}
+		if (step == 0 || level.hasNeighborSignal(getPos()) || !((ArmCaptureAccess) arm).createBiotech$isCaptureArmIdle()) {
 			nextScanTick = now + SCAN_INTERVAL;
 			if (clearMotion())
 				arm.sendData();
@@ -220,29 +283,46 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		}
 
 		boolean changed = false;
-		if (swingPoint != null) {
-			long swingTicks = now - swingStart;
-			if (swingTicks >= swingDuration) {
-				swingPoint = null;
-				changed = true;
-			} else if (!contacted && swingTicks >= Mth.ceil(swingDuration * CaptureNetScoop.CONTACT)) {
-				contacted = true;
-				if (canCatch(level))
-					capture(level, captureNet);
-			}
+		if (swing != null) {
+			ArmCapturePose.Swing current = swing;
+			float previous = swingProgress;
+			boolean contact = advanceSwing(step);
+			serverYaw = current.yawAt(swingProgress);
+			if (previous < ArmCapturePose.LOWERING_AT && swingProgress >= ArmCapturePose.LOWERING_AT)
+				level.playSound(null, getPos(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.BLOCKS, 0.5f, 1.3f);
+			if (contact && canCatch(level))
+				capture(level, captureNet, current.strikeAt(getPos()));
+			if (swing != current || swingProgress < 1)
+				return;
+			swing = null;
+			changed = true;
 		}
-		if (!net.isEmpty() && now >= nextScanTick) {
-			nextScanTick = now + SCAN_INTERVAL;
-			changed |= scan(level, captureNet, now, speed);
-		}
+		nextScanTick = now + SCAN_INTERVAL;
+		changed |= scan(level, captureNet, now);
+		if (swing == null && trackedMobId >= 0)
+			serverYaw = trackingPose(serverYaw, step).yaw();
 		if (changed)
 			arm.sendData();
 	}
 
+	private boolean advanceSwing(float step) {
+		// The last tick supplies the contact pose for client interpolation. Catch as the mouth arrives.
+		boolean contact = contactPending;
+		float previous = swingProgress;
+		swingProgress = Math.min(1, swingProgress + step);
+		contactPending = previous < ArmCapturePose.CONTACT_AT && swingProgress >= ArmCapturePose.CONTACT_AT;
+		poseProgress = contactPending ? ArmCapturePose.CONTACT_AT : swingProgress;
+		return contact;
+	}
+
 	private boolean clearMotion() {
-		boolean changed = trackedMobId >= 0 || swingPoint != null;
+		boolean changed = trackedMobId >= 0 || swing != null;
 		trackedMobId = -1;
-		swingPoint = null;
+		trackingTurn = null;
+		swing = null;
+		swingProgress = 0;
+		poseProgress = 0;
+		contactPending = false;
 		return changed;
 	}
 
@@ -250,34 +330,46 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		return !CaptureNetItem.isOccupied(net) && !CaptureNetItem.isEscapeCoolingDown(net, level);
 	}
 
-	private boolean scan(ServerLevel level, CaptureNetItem captureNet, long now, float speed) {
+	private boolean scan(ServerLevel level, CaptureNetItem captureNet, long now) {
 		Vec3 center = Vec3.atCenterOf(getPos());
+		int reach = ArmBlockEntity.getRange();
 		AABB trackingArea = new AABB(getPos()).inflate(TRACKING_RADIUS);
-		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, trackingArea, Mob::isAlive);
-		Mob nearest = findNearest(mobs, center, mob -> trackingArea.contains(mob.getBoundingBox().getCenter()));
+		AABB searchArea = trackingArea.minmax(new AABB(center, center).inflate(reach));
+		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, searchArea, Mob::isAlive);
+		Mob nearest = findNearest(mobs, center, mob -> trackingArea.contains(mob.getBoundingBox().getCenter())
+			|| isWithinReach(mob, reach));
 		int mobId = nearest == null ? -1 : nearest.getId();
 		boolean changed = trackedMobId != mobId;
 		trackedMobId = mobId;
-		if (nearest == null || swingPoint != null || !canCatch(level))
+		if (nearest == null || !canCatch(level))
 			return changed;
 
 		BioPackagerBlockEntity packager = getReadyPackager(level);
 		BoxSupply boxes = packager == null ? null : BoxSupply.find(packager.getAttachedInventory());
 		if (boxes == null)
 			return changed;
-		AABB captureArea = new AABB(getPos()).inflate(CAPTURE_RADIUS);
 		Vec3 origin = captureOrigin();
-		Mob swingAt = findNearest(mobs, center, mob -> captureArea.contains(mob.getBoundingBox().getCenter())
-			&& captureNet.canCapture(mob) && boxes.slotFor(mob) >= 0 && hasClearPath(level, origin, mob));
-		if (swingAt == null)
-			return changed;
+		boolean ceiling = arm.getBlockState().getValue(ArmBlock.CEILING);
+		mobs.sort(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(center)));
+		for (Mob mob : mobs) {
+			if (!isWithinReach(mob, reach) || !captureNet.canCapture(mob) || boxes.slotFor(mob) < 0
+				|| !hasClearPath(level, origin, mob))
+				continue;
+			ArmCapturePose.Swing plan = ArmCapturePose.planSwing(getPos(), ceiling, serverYaw, mob.getBoundingBox());
+			if (plan == null)
+				continue;
+			swing = plan;
+			swingStart = now;
+			swingProgress = poseProgress = plan.initialProgress();
+			contactPending = false;
+			trackingTurn = null;
+			return true;
+		}
+		return changed;
+	}
 
-		swingPoint = swingAt.getBoundingBox().getCenter();
-		swingStart = now;
-		swingDuration = Mth.clamp(Mth.ceil(1024 / Math.max(1, speed)), CaptureNetItem.ANIMATION_TICKS, 1024);
-		contacted = false;
-		level.playSound(null, getPos(), SoundEvents.PLAYER_ATTACK_SWEEP, SoundSource.BLOCKS, 0.5f, 1.3f);
-		return true;
+	private boolean isWithinReach(Mob mob, int reach) {
+		return getPos().closerToCenterThan(mob.getBoundingBox().getCenter(), reach);
 	}
 
 	private static @Nullable Mob findNearest(List<Mob> mobs, Vec3 center, Predicate<Mob> filter) {
@@ -293,27 +385,31 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		return nearest;
 	}
 
-	private void capture(ServerLevel level, CaptureNetItem captureNet) {
+	private void capture(ServerLevel level, CaptureNetItem captureNet, ArmCapturePose.Strike strike) {
 		BioPackagerBlockEntity packager = getReadyPackager(level);
 		BoxSupply boxes = packager == null ? null : BoxSupply.find(packager.getAttachedInventory());
 		if (boxes == null)
 			return;
-		Vec3 center = Vec3.atCenterOf(getPos());
 		Vec3 origin = captureOrigin();
-		AABB captureArea = new AABB(getPos()).inflate(CAPTURE_RADIUS);
-		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, captureArea,
-			mob -> mob.isAlive() && captureArea.contains(mob.getBoundingBox().getCenter()));
-		mobs.sort(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(center)));
+		int reach = ArmBlockEntity.getRange();
+		List<Mob> mobs = level.getEntitiesOfClass(Mob.class, strike.searchArea().inflate(CAPTURE_MARGIN),
+			mob -> mob.isAlive() && isWithinReach(mob, reach) && touchesNet(strike, mob.getBoundingBox()));
+		mobs.sort(Comparator.comparingDouble(mob -> mob.getBoundingBox().getCenter().distanceToSqr(strike.center())));
 		ItemStack equippedNet = net;
 		for (Mob mob : mobs) {
 			if (net != equippedNet || arm.isRemoved() || !packager.canStartPacking()
 				|| packager.getAttachedInventory() != boxes.inventory())
 				return;
 			int slot = boxes.slotFor(mob);
-			if (slot >= 0 && mob.level() == level && captureNet.canCapture(mob) && hasClearPath(level, origin, mob)
+			if (slot >= 0 && mob.level() == level && isWithinReach(mob, reach) && captureNet.canCapture(mob)
+				&& touchesNet(strike, mob.getBoundingBox()) && hasClearPath(level, origin, mob)
 				&& pack(level, packager, boxes, slot, mob, equippedNet, origin))
 				return;
 		}
+	}
+
+	private static boolean touchesNet(ArmCapturePose.Strike strike, AABB bounds) {
+		return strike.intersects(bounds.inflate(CAPTURE_MARGIN));
 	}
 
 	private boolean pack(ServerLevel level, BioPackagerBlockEntity packager, BoxSupply boxes, int slot, Mob mob,
@@ -331,12 +427,12 @@ public final class ArmCaptureBehaviour extends BlockEntityBehaviour {
 		}
 
 		Vec3 caughtAt = mob.getBoundingBox().getCenter();
+		level.playSound(null, caughtAt.x, caughtAt.y, caughtAt.z, SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, 0.8f, 1.2f);
 		mob.discard();
 		CaptureNetItem.damageNet(equippedNet, 1, level, null, origin);
 		if (equippedNet.isEmpty())
 			clearMotion();
 		arm.notifyUpdate();
-		level.playSound(null, mob.blockPosition(), SoundEvents.LEASH_KNOT_PLACE, SoundSource.BLOCKS, 0.8f, 1.2f);
 		level.sendParticles(ParticleTypes.POOF, caughtAt.x, caughtAt.y, caughtAt.z, 5, 0.2, 0.2, 0.2, 0.02);
 		return true;
 	}

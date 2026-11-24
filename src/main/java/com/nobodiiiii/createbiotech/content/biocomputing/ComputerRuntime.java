@@ -19,8 +19,9 @@ public final class ComputerRuntime {
 	static final int MAX_VARIABLES = 24;
 	static final int MAX_OUTPUT_LINES = ComputerIO.OUTPUT_LINES;
 	static final int MAX_VALUE_LENGTH = 128;
-	private static final int STEPS_PER_TICK = 24;
-	private static final int MAX_EVALS_PER_TICK = 256;
+	// Defensive fail-safes well above the worst-case single-pass cost of MAX_BLOCKS.
+	private static final int MAX_STEPS_PER_TICK = ComputerProgram.MAX_BLOCKS * 4;
+	private static final int MAX_EVALS_PER_TICK = ComputerProgram.MAX_BLOCKS * 4;
 	private static final int MAX_WAIT_TICKS = 20 * 60 * 60;
 
 	private final Deque<Frame> frames = new ArrayDeque<>();
@@ -41,7 +42,7 @@ public final class ComputerRuntime {
 		activeBlockIndex = -1;
 		timerStartTick = gameTick;
 		if (!program.commands().isEmpty())
-			frames.push(new Frame(program.commands(), null, 1));
+			frames.push(new Frame(program.commands(), null, 1, gameTick));
 		status = frames.isEmpty() ? Status.FINISHED : Status.RUNNING;
 		version++;
 	}
@@ -63,12 +64,23 @@ public final class ComputerRuntime {
 		if (status != Status.RUNNING || (waitTicks > 0 && --waitTicks > 0))
 			return;
 		evalBudget = MAX_EVALS_PER_TICK;
-		// Empty loop bodies and loop transitions also spend the tick budget.
-		for (int steps = 0; steps < STEPS_PER_TICK && !frames.isEmpty() && waitTicks == 0 && status == Status.RUNNING; steps++) {
+		boolean executedThisTick = false;
+		long now = io.gameTick();
+		for (int steps = 0; steps < MAX_STEPS_PER_TICK && !frames.isEmpty() && waitTicks == 0 && status == Status.RUNNING; steps++) {
 			Frame frame = frames.peek();
+			if (frame.awaitingNextIteration) {
+				frame.awaitingNextIteration = false;
+				if (frame.loop != null && frame.loop.op() == Op.REPEAT_UNTIL && condition(frame.loop, 0, io)) {
+					frames.pop();
+					continue;
+				}
+				frame.next = 0;
+				frame.iterationStartTick = now;
+			}
 			if (frame.next < frame.commands.size()) {
 				Block block = frame.commands.get(frame.next);
 				setActiveBlock(commandIndices.getOrDefault(block, -1));
+				executedThisTick = true;
 				if (block.op() == Op.WAIT_UNTIL) {
 					if (condition(block, 0, io)) {
 						frame.next++;
@@ -77,15 +89,22 @@ public final class ComputerRuntime {
 					}
 				} else {
 					frame.next++;
-					execute(block, io);
+					execute(block, io, now);
 				}
-			} else if (frame.loop != null && switch (frame.loop.op()) {
-				case REPEAT -> --frame.remaining > 0;
-				case REPEAT_UNTIL -> !condition(frame.loop, 0, io);
-				case FOREVER -> true;
-				default -> false;
-			}) {
+			} else if (frame.loop != null && shouldContinueLoop(frame, io)) {
+				long elapsed = Math.max(0L, now - frame.iterationStartTick);
+				int interval = loopInterval(frame.loop, io);
+				int remainingWait = (int) Math.max(0L, interval - elapsed);
+				if (remainingWait == 0 && (executedThisTick || frame.commands.isEmpty()))
+					remainingWait = 1;
+				if (remainingWait > 0) {
+					frame.awaitingNextIteration = true;
+					setActiveBlock(commandIndices.getOrDefault(frame.loop, -1));
+					waitTicks = remainingWait;
+					break;
+				}
 				frame.next = 0;
+				frame.iterationStartTick = now;
 			} else {
 				frames.pop();
 			}
@@ -96,7 +115,21 @@ public final class ComputerRuntime {
 			finish(Status.FINISHED);
 	}
 
-	private void execute(Block block, ComputerIO io) {
+	private boolean shouldContinueLoop(Frame frame, ComputerIO io) {
+		return switch (frame.loop.op()) {
+			case REPEAT -> --frame.remaining > 0;
+			case REPEAT_UNTIL -> !condition(frame.loop, 0, io);
+			case FOREVER -> true;
+			default -> false;
+		};
+	}
+
+	private int loopInterval(Block loop, ComputerIO io) {
+		int slot = loop.op() == Op.FOREVER ? 0 : 1;
+		return (int) Math.clamp(Math.round(number(input(loop, slot, io))), 1, MAX_WAIT_TICKS);
+	}
+
+	private void execute(Block block, ComputerIO io, long now) {
 		switch (block.op()) {
 			case WAIT -> waitTicks = (int) Math.clamp(Math.ceil(number(input(block, 0, io)) * 20.0), 1, MAX_WAIT_TICKS);
 			case WAIT_TICKS -> waitTicks = (int) Math.clamp(Math.round(number(input(block, 0, io))), 1, MAX_WAIT_TICKS);
@@ -104,16 +137,16 @@ public final class ComputerRuntime {
 			case IF, IF_ELSE -> {
 				int body = condition(block, 0, io) ? 0 : 1;
 				if (body < block.bodies().size())
-					frames.push(new Frame(block.bodies().get(body), null, 1));
+					frames.push(new Frame(block.bodies().get(body), null, 1, now));
 			}
 			case REPEAT -> {
 				int count = Math.clamp(Math.round(number(input(block, 0, io))), 0, Integer.MAX_VALUE);
 				if (count > 0 && !block.bodies().getFirst().isEmpty())
-					frames.push(new Frame(block.bodies().getFirst(), block, count));
+					frames.push(new Frame(block.bodies().getFirst(), block, count, now));
 			}
 			case FOREVER, REPEAT_UNTIL -> {
 				if (block.op() == Op.FOREVER || !condition(block, 0, io))
-					frames.push(new Frame(block.bodies().getFirst(), block, 0));
+					frames.push(new Frame(block.bodies().getFirst(), block, 0, now));
 			}
 			case SET, CHANGE -> {
 				String name = input(block, 0, io).strip();
@@ -374,11 +407,14 @@ public final class ComputerRuntime {
 		private final Block loop;
 		private int remaining;
 		private int next;
+		private long iterationStartTick;
+		private boolean awaitingNextIteration;
 
-		private Frame(List<Block> commands, Block loop, int remaining) {
+		private Frame(List<Block> commands, Block loop, int remaining, long iterationStartTick) {
 			this.commands = commands;
 			this.loop = loop;
 			this.remaining = remaining;
+			this.iterationStartTick = iterationStartTick;
 		}
 	}
 }

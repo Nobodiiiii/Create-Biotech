@@ -4,7 +4,7 @@
 	"credit": "Made with Blockbench",
 	"parent": "block/block",
 	"textures": {
-		"0": "create_biotech:block/allay_port/port2",
+		"0": "create:block/port2",
 		"3": "create_biotech:block/allay_port/allay_port",
 		"particle": "create:block/andesite_block"
 	},

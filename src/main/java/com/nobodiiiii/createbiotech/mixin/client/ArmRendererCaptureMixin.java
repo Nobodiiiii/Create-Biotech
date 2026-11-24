@@ -46,7 +46,7 @@ public abstract class ArmRendererCaptureMixin {
 			transform.rotateYDegrees(180);
 		pose.scale(ArmCapturePose.NET_SCALE, ArmCapturePose.NET_SCALE, ArmCapturePose.NET_SCALE);
 		pose.translate(0, -ArmCapturePose.GRIP_Y, 0);
-		CaptureNetRenderer.renderMounted(capture.getNet(), pose, buffer, light, overlay);
+		CaptureNetRenderer.renderMounted(capture.getNet(), pose, buffer, light, overlay, angles.extension());
 		pose.popPose();
 	}
 }

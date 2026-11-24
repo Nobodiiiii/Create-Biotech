@@ -1,10 +1,10 @@
 {
 	"format_version": "1.21.11",
 	"credit": "Made with Blockbench",
-	"parent": "create_biotech:item/package_transforms",
+	"parent": "create:item/package_transforms",
 	"textures": {
 		"0": "create_biotech:item/package/cardboard",
-		"particle": "create_biotech:item/package/cardboard_particle"
+		"particle": "create:item/package/cardboard_particle"
 	},
 	"elements": [
 		{

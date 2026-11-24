@@ -2,6 +2,7 @@ package com.nobodiiiii.createbiotech.mixin;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -26,6 +27,8 @@ public abstract class ArmBlockEntityCaptureMixin implements ArmCaptureAccess {
 	@Shadow(remap = false) LerpedFloat headAngle;
 	@Shadow(remap = false) float previousBaseAngle;
 
+	@Unique private final LerpedFloat createBiotech$netExtension = LerpedFloat.linear();
+
 	@Override
 	public boolean createBiotech$isCaptureArmIdle() {
 		return phase == Phase.SEARCH_INPUTS;
@@ -34,7 +37,8 @@ public abstract class ArmBlockEntityCaptureMixin implements ArmCaptureAccess {
 	@Override
 	public ArmCapturePose createBiotech$getCapturePose(float partialTicks) {
 		return new ArmCapturePose(baseAngle.getValue(partialTicks), lowerArmAngle.getValue(partialTicks),
-			upperArmAngle.getValue(partialTicks), headAngle.getValue(partialTicks));
+			upperArmAngle.getValue(partialTicks), headAngle.getValue(partialTicks),
+			createBiotech$netExtension.getValue(partialTicks));
 	}
 
 	@Inject(method = "searchForItem", at = @At("HEAD"), cancellable = true, remap = false)
@@ -65,12 +69,13 @@ public abstract class ArmBlockEntityCaptureMixin implements ArmCaptureAccess {
 			return;
 
 		ArmCapturePose target = capture.getClientPose(baseAngle.getValue());
-		float response = capture.isSwinging() ? 1 : 0.42f;
-		previousBaseAngle = AngleHelper.angleLerp(response, baseAngle.getValue(), target.yaw());
+		float response = capture.isSwinging() ? 1 : capture.getMovementStep();
+		previousBaseAngle = target.yaw();
 		baseAngle.setValue(previousBaseAngle);
 		lowerArmAngle.setValue(AngleHelper.angleLerp(response, lowerArmAngle.getValue(), target.shoulder()));
 		upperArmAngle.setValue(AngleHelper.angleLerp(response, upperArmAngle.getValue(), target.elbow()));
 		headAngle.setValue(AngleHelper.angleLerp(response, headAngle.getValue(), target.head()));
+		createBiotech$netExtension.setValue(target.extension());
 		cir.setReturnValue(false);
 	}
 }

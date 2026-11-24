@@ -1,7 +1,7 @@
 {
   "parent": "block/block",
   "textures": {
-    "base": "create_biotech:block/allay_port/port2",
+    "base": "create:block/port2",
     "cover": "create_biotech:block/allay_port/allay_port",
     "particle": "create:block/andesite_block"
   },

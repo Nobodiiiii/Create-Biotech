@@ -56,8 +56,7 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 		if (!(level instanceof ServerLevel server) || animationTicks != 0)
 			return;
 		if (!wasAnimating) {
-			if (canReleaseCreature())
-				tryReleaseFromAttachedInventory();
+			tryReleaseFromAttachedInventory();
 			return;
 		}
 
@@ -140,16 +139,18 @@ public class BioPackagerBlockEntity extends PackagerBlockEntity {
 	public void attemptToSend(@Nullable List<PackagingRequest> requests) {
 		if (requests != null) {
 			super.attemptToSend(requests);
-		} else if (canReleaseCreature()) {
+		} else {
 			tryReleaseFromAttachedInventory();
 		}
 	}
 
 	private boolean canReleaseCreature() {
-		return canStartPacking() && getBlockState().getValue(BioPackagerBlock.POWERED) && !isReleaseBlocked();
+		return canStartPacking() && !isReleaseBlocked();
 	}
 
 	private void tryReleaseFromAttachedInventory() {
+		if (!getBlockState().getValue(BioPackagerBlock.POWERED) || !canReleaseCreature())
+			return;
 		IItemHandler handler = getAttachedInventory();
 		if (handler == null)
 			return;

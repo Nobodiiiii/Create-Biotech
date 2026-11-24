@@ -2,7 +2,7 @@
 	"credit": "Made with Blockbench",
 	"textures": {
 		"1_7": "create_biotech:block/ghast_helm/controls",
-		"particle": "create_biotech:block/ghast_helm/particle"
+		"particle": "create:block/andesite_casing"
 	},
 	"elements": [
 		{
