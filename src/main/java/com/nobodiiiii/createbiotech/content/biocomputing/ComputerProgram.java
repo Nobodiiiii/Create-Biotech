@@ -2,7 +2,6 @@ package com.nobodiiiii.createbiotech.content.biocomputing;
 
 import static com.nobodiiiii.createbiotech.content.biocomputing.ComputerLibrary.*;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -13,11 +12,11 @@ import org.jetbrains.annotations.Nullable;
 /** The standalone computer's startup script and its inline value blocks. */
 public record ComputerProgram(List<Block> commands) {
 
+	static final int FORMAT_VERSION = 4;
 	public static final int MAX_BLOCKS = 128;
 	public static final int MAX_DEPTH = 10;
 	public static final int MAX_LITERAL_LENGTH = 48;
 	public static final int MAX_COLLECTION_ROWS = 8;
-	static final int MAX_ITEM_LITERAL_LENGTH = ComputerRuntime.MAX_VALUE_LENGTH;
 	private static final String EXAMPLE_ITEM = "minecraft:iron_ingot";
 	public static final ComputerProgram EMPTY = new ComputerProgram(List.of());
 
@@ -28,6 +27,10 @@ public record ComputerProgram(List<Block> commands) {
 			requireCommand(command);
 			remaining = count(command, 1, remaining);
 		}
+	}
+
+	public boolean hasEmptyInputs() {
+		return commands.stream().anyMatch(Block::hasEmptyInputs);
 	}
 
 	@Nullable
@@ -60,29 +63,21 @@ public record ComputerProgram(List<Block> commands) {
 		}
 	}
 
-	public static int parseSlotIndex(String text) {
-		if (text == null || text.length() != 1)
-			return -1;
-		char c = text.charAt(0);
-		int index = c - '1';
-		return index >= 0 && index < ComputerIO.INPUT_SLOTS ? index : -1;
-	}
-
-	public static String nextSlot(String text) {
-		int index = parseSlotIndex(text);
-		int next = index < 0 ? 0 : (index + 1) % ComputerIO.INPUT_SLOTS;
-		return Integer.toString(next + 1);
-	}
-
 	private static int count(Block block, int depth, int remaining) {
 		if (depth > MAX_DEPTH || remaining <= 0)
 			throw new IllegalArgumentException("Computer program exceeds its block or nesting limit");
 		if (depth > 1 && block.op().isDeclaration())
 			throw new IllegalArgumentException("Procedure and event declarations belong at the top level");
 		remaining--;
-		for (Input input : block.inputs())
+		for (Input input : block.inputs()) {
 			if (input instanceof Block reporter)
 				remaining = count(reporter, depth + 1, remaining);
+			else if (input instanceof Literal literal && literal.type() == DataType.ITEM) {
+				if (depth >= MAX_DEPTH || remaining <= 0)
+					throw new IllegalArgumentException("Computer program exceeds its block or nesting limit");
+				remaining--;
+			}
+		}
 		for (List<Block> body : block.bodies())
 			for (Block command : body)
 				remaining = count(command, depth + 1, remaining);
@@ -94,11 +89,13 @@ public record ComputerProgram(List<Block> commands) {
 			throw new IllegalArgumentException("A script body requires command blocks");
 	}
 
-	public sealed interface Input permits Block, Literal {}
+	public sealed interface Input permits Block, Literal, EmptyInput {}
 
-	public record Literal(String text) implements Input {
+	public enum EmptyInput implements Input { INSTANCE }
+
+	public record Literal(String text, DataType type) implements Input {
 		public Literal {
-			if (text == null || text.length() > MAX_ITEM_LITERAL_LENGTH)
+			if (text == null || type == null || text.length() > type.maxLength() || !type.isValid(text))
 				throw new IllegalArgumentException("Computer literal is invalid or too long");
 		}
 	}
@@ -107,42 +104,22 @@ public record ComputerProgram(List<Block> commands) {
 		public Block {
 			if (op == null)
 				throw new IllegalArgumentException("Computer block op cannot be null");
-			inputs = List.copyOf(inputs);
 			bodies = bodies.stream().map(List::copyOf).toList();
 			if (!op.acceptsInputCount(inputs.size()) || bodies.size() != op.bodyCount())
 				throw new IllegalArgumentException("Incorrect inputs or bodies for " + op);
-			for (int i = 0; i < inputs.size(); i++) {
-				Slot slot = op.slot(i);
-				Socket socket = slot.socket();
-				switch (inputs.get(i)) {
-					case Block reporter -> {
-						if (!socket.accepts(reporter.op()))
-							throw new IllegalArgumentException("Incompatible reporter for " + op);
-					}
-					case Literal literal -> {
-						if (socket.requiredStructure() != null)
-							throw new IllegalArgumentException("Expected structured input for " + op);
-						if (literal.text().length() > slot.maxLiteralLength())
-							throw new IllegalArgumentException("Computer literal is too long for " + op);
-						if (socket == Socket.CONDITION && !literal.text().equals("true") && !literal.text().equals("false"))
-							throw new IllegalArgumentException("A condition requires true or false");
-						if (socket == Socket.CHANNEL) {
-							String channel = ComputerIO.Channel.migrate(literal.text());
-							if (ComputerIO.Channel.parse(channel) == null)
-								throw new IllegalArgumentException("A channel socket requires a number from 1 to 4");
-							if (!channel.equals(literal.text())) {
-								List<Input> migrated = new ArrayList<>(inputs);
-								migrated.set(i, new Literal(channel));
-								inputs = List.copyOf(migrated);
-							}
-						}
-						if (socket == Socket.SLOT && parseSlotIndex(literal.text()) < 0)
-							throw new IllegalArgumentException("A slot socket requires a number from 1 to 8");
-					}
-				}
-			}
+			inputs = List.copyOf(inputs);
+			for (Input input : inputs)
+				if (input instanceof Block reporter && reporter.op().shape() == Shape.COMMAND)
+					throw new IllegalArgumentException("A value slot requires a value for " + op);
 			for (List<Block> body : bodies)
 				body.forEach(ComputerProgram::requireCommand);
+		}
+
+		private boolean hasEmptyInputs() {
+			for (Input input : inputs)
+				if (input == EmptyInput.INSTANCE || (input instanceof Block reporter && reporter.hasEmptyInputs()))
+					return true;
+			return bodies.stream().flatMap(List::stream).anyMatch(Block::hasEmptyInputs);
 		}
 
 		@Nullable
@@ -165,60 +142,70 @@ public record ComputerProgram(List<Block> commands) {
 		}
 	}
 
-	public enum Category { EVENTS, CONTROL, OPERATORS, VARIABLES, SENSING, OUTPUT }
+	public enum Category { EVENTS, CONTROL, OPERATORS, VARIABLES, SENSING, OUTPUT, DATA }
 
 	public enum Shape { COMMAND, REPORTER, BOOLEAN }
 
-	public enum Socket {
-		VALUE, CONDITION, NAME, CHANNEL, SLOT, LITERAL, LIST, MAP;
+	public enum DataType {
+		NUMBER("0"), TEXT(""), BOOLEAN("false"), ITEM(EXAMPLE_ITEM), VARIABLE_NAME("count");
 
-		public boolean accepts(Shape shape) {
+		private final String initial;
+		private final String key;
+
+		DataType(String initial) {
+			this.initial = initial;
+			key = name().toLowerCase(Locale.ROOT);
+		}
+
+		public String initial() { return initial; }
+		public String key() { return key; }
+
+		public int maxLength() {
+			return this == ITEM ? ComputerRuntime.MAX_VALUE_LENGTH : MAX_LITERAL_LENGTH;
+		}
+
+		public boolean isValid(String text) {
 			return switch (this) {
-				case VALUE -> shape != Shape.COMMAND;
-				case CONDITION -> shape == Shape.BOOLEAN;
-				case NAME, CHANNEL, SLOT, LITERAL, LIST, MAP -> false;
+				case NUMBER -> isNumber(text);
+				case BOOLEAN -> text.equals("true") || text.equals("false");
+				case TEXT, ITEM, VARIABLE_NAME -> true;
 			};
 		}
 
-		public boolean accepts(Op reporter) {
-			Op structure = requiredStructure();
-			if (structure != null)
-				return reporter == structure;
-			return this == NAME ? reporter == Op.ITEM_ID : !reporter.isStructuredData() && accepts(reporter.shape());
+		static DataType byKey(String key) {
+			DataType type = valueOf(key.toUpperCase(Locale.ROOT));
+			if (!type.key.equals(key))
+				throw new IllegalArgumentException("Unknown computer data type");
+			return type;
 		}
 
-		public boolean acceptsReporter() {
-			return requiredStructure() != null || this == NAME || accepts(Shape.REPORTER) || accepts(Shape.BOOLEAN);
+		private static boolean isNumber(String text) {
+			return Double.isFinite(ComputerValue.Scalar.parseNumber(text, false));
 		}
+	}
+
+	/** Supplies editor defaults and hints for a value slot. */
+	public enum Socket {
+		VALUE, CONDITION, VARIABLE_NAME, CHANNEL, SLOT, LIST, MAP, LIST_REFERENCE, MAP_REFERENCE, LIST_TARGET, MAP_TARGET;
 
 		@Nullable
-		public Op requiredStructure() {
+		public Op defaultStructure() {
 			return switch (this) {
 				case LIST -> Op.LIST;
 				case MAP -> Op.MAP;
 				default -> null;
 			};
 		}
-
-		public boolean isSelector() {
-			return this == CONDITION || this == CHANNEL || this == SLOT;
-		}
 	}
 
-	public enum ItemInput { NONE, ID }
-
-	public record Slot(Socket socket, String initial, ItemInput itemInput, boolean itemAlternative, int maxLiteralLength) {
-		public Slot(Socket socket, String initial) {
-			this(socket, initial, ItemInput.NONE, false, MAX_LITERAL_LENGTH);
-		}
-	}
+	public record Slot(Socket socket, String initial, DataType dataType) {}
 
 	public enum Op {
-		DEFINE_PROCEDURE(Category.EVENTS, 1, name("procedure")),
-		CALL_PROCEDURE(Category.EVENTS, 0, name("procedure")),
+		DEFINE_PROCEDURE(Category.EVENTS, 1, value("procedure")),
+		CALL_PROCEDURE(Category.EVENTS, 0, value("procedure")),
 		WHEN_SIGNAL_CHANGED(TIMING, Category.EVENTS, 1, channel()),
 		WHEN_INPUT_CHANGED(TIMING, Category.EVENTS, 1, slot("1")),
-		ON_BROADCAST(TIMING, Category.EVENTS, 1, name("message")),
+		ON_BROADCAST(TIMING, Category.EVENTS, 1, value("message")),
 		BROADCAST(TIMING, Category.EVENTS, 0, value("message")),
 
 		WAIT(Category.CONTROL, 0, value("1")),
@@ -236,7 +223,8 @@ public record ComputerProgram(List<Block> commands) {
 
 		ADD(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
 		SUBTRACT(Category.OPERATORS, Shape.REPORTER, value("0"), value("0")),
-		EQUALS(Category.OPERATORS, Shape.BOOLEAN, value("0"), itemChoice(Socket.VALUE, "0")),
+		EQUALS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("0")),
+		TEXT_EQUALS(Category.OPERATORS, Shape.BOOLEAN, value(""), value("")),
 		LESS(Category.OPERATORS, Shape.BOOLEAN, value("0"), value("1")),
 		GREATER(Category.OPERATORS, Shape.BOOLEAN, value("1"), value("0")),
 		NOT(Category.OPERATORS, Shape.BOOLEAN, condition()),
@@ -259,7 +247,7 @@ public record ComputerProgram(List<Block> commands) {
 		RANDOM(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("1"), value("10")),
 		CHANCE(RANDOMNESS, Category.OPERATORS, Shape.BOOLEAN, value("50")),
 		PICK_TEXT(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("a,b,c"), value(",")),
-		PICK_LIST(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("a,b,c")),
+		PICK_LIST(RANDOMNESS, Category.OPERATORS, Shape.REPORTER, value("example")),
 		SEED_RANDOM(RANDOMNESS, Category.OPERATORS, 0, value("0")),
 		AND(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
 		OR(SIGNAL, Category.OPERATORS, Shape.BOOLEAN, condition(), condition()),
@@ -275,23 +263,23 @@ public record ComputerProgram(List<Block> commands) {
 		FORMAT_NUMBER(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("2")),
 		PROGRESS_BAR(TEXT, Category.OPERATORS, Shape.REPORTER, value("0"), value("100"), value("10")),
 
-		SET(Category.VARIABLES, 0, name("count"), value("0")),
-		CHANGE(Category.VARIABLES, 0, name("count"), value("1")),
-		VARIABLE(Category.VARIABLES, Shape.REPORTER, name("count")),
+		SET(Category.VARIABLES, 0, variable(), value("0")),
+		CHANGE(Category.VARIABLES, 0, variable(), value("1")),
+		VARIABLE(Category.VARIABLES, Shape.REPORTER, variable()),
 		TOGGLE(SIGNAL, Category.VARIABLES, 0, variable()),
 		LATCH(SIGNAL, Category.VARIABLES, 0, variable(), condition()),
-		SPLIT_TEXT(TEXT, Category.VARIABLES, 0, value("a,b,c"), value(","), name("list")),
-		LIST_ADD(TEXT, Category.VARIABLES, 0, name("list"), itemChoice(Socket.VALUE, "")),
-		LIST_REMOVE(TEXT, Category.VARIABLES, 0, name("list"), value("1")),
-		LIST_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value("1")),
-		LIST_SET(TEXT, Category.VARIABLES, 0, name("list"), value("1"), itemChoice(Socket.VALUE, "")),
-		LIST_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("list")),
-		LIST_JOIN(TEXT, Category.VARIABLES, Shape.REPORTER, name("list"), value(",")),
-		MAP_SET(TEXT, Category.VARIABLES, 0, name("map"), itemChoice(Socket.VALUE, "key"), value("")),
-		MAP_REMOVE(TEXT, Category.VARIABLES, 0, name("map"), itemChoice(Socket.VALUE, "key")),
-		MAP_GET(TEXT, Category.VARIABLES, Shape.REPORTER, name("map"), itemChoice(Socket.VALUE, "key")),
-		MAP_HAS(TEXT, Category.VARIABLES, Shape.BOOLEAN, name("map"), itemChoice(Socket.VALUE, "key")),
-		MAP_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, name("map")),
+		SPLIT_TEXT(TEXT, Category.VARIABLES, 0, value("a,b,c"), value(","), listTarget()),
+		LIST_ADD(TEXT, Category.VARIABLES, 0, listTarget(), value("")),
+		LIST_REMOVE(TEXT, Category.VARIABLES, 0, listTarget(), value("1")),
+		LIST_GET(TEXT, Category.VARIABLES, Shape.REPORTER, listReference(), value("1")),
+		LIST_SET(TEXT, Category.VARIABLES, 0, listTarget(), value("1"), value("")),
+		LIST_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, listReference()),
+		LIST_JOIN(TEXT, Category.VARIABLES, Shape.REPORTER, listReference(), value(",")),
+		MAP_SET(TEXT, Category.VARIABLES, 0, mapTarget(), value("key"), value("")),
+		MAP_REMOVE(TEXT, Category.VARIABLES, 0, mapTarget(), value("key")),
+		MAP_GET(TEXT, Category.VARIABLES, Shape.REPORTER, mapReference(), value("key")),
+		MAP_HAS(TEXT, Category.VARIABLES, Shape.BOOLEAN, mapReference(), value("key")),
+		MAP_LENGTH(TEXT, Category.VARIABLES, Shape.REPORTER, mapReference()),
 
 		HAS_REDSTONE(Category.SENSING, Shape.BOOLEAN, channel()),
 		READ_INPUT(Category.SENSING, Shape.REPORTER, slot("1")),
@@ -299,28 +287,26 @@ public record ComputerProgram(List<Block> commands) {
 		RISING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
 		FALLING_EDGE(SIGNAL, Category.SENSING, Shape.BOOLEAN, channel()),
 		TIMER(TIMING, Category.SENSING, Shape.REPORTER),
-		STOCK_COUNT(LOGISTICS, Category.SENSING, Shape.REPORTER, new Slot(Socket.LIST, "")),
-		HAS_STOCK(LOGISTICS, Category.SENSING, Shape.BOOLEAN, new Slot(Socket.LIST, ""), value("1")),
+		STOCK_COUNT(LOGISTICS, Category.SENSING, Shape.REPORTER, collection(Socket.LIST)),
+		HAS_STOCK(LOGISTICS, Category.SENSING, Shape.BOOLEAN, collection(Socket.LIST), value("1")),
 		STOCK_TOTAL(LOGISTICS, Category.SENSING, Shape.REPORTER),
 		STOCK_TYPES(LOGISTICS, Category.SENSING, Shape.REPORTER),
 		LAST_ORDER(LOGISTICS, Category.SENSING, Shape.BOOLEAN),
 
-		BIND_FREQUENCY(Category.OUTPUT, 0, channel(), new Slot(Socket.LIST, "")),
+		BIND_FREQUENCY(Category.OUTPUT, 0, channel(), collection(Socket.LIST)),
 		SEND_REDSTONE(Category.OUTPUT, 0, channel(), condition()),
 		DISPLAY(Category.OUTPUT, 0, value("")),
 		CLEAR_OUTPUT(Category.OUTPUT, 0),
 		UPDATE_DISPLAY(Category.OUTPUT, 0),
 		SET_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15")),
-		TUNE_FREQUENCY(SIGNAL, Category.OUTPUT, 0, channel(), new Slot(Socket.LIST, "")),
+		TUNE_FREQUENCY(SIGNAL, Category.OUTPUT, 0, channel(), collection(Socket.LIST)),
 		PULSE_REDSTONE(SIGNAL, Category.OUTPUT, 0, channel(), value("15"), value("10")),
 		SET_LINE(TEXT, Category.OUTPUT, 0, slot("1"), value("")),
 		RESET_TIMER(TIMING, Category.OUTPUT, 0),
-		ORDER_ITEM(LOGISTICS, Category.OUTPUT, 0,
-			new Slot(Socket.VALUE, EXAMPLE_ITEM, ItemInput.NONE, true, MAX_ITEM_LITERAL_LENGTH), value("1"), value("Workshop")),
-		ORDER_BATCH(LOGISTICS, Category.OUTPUT, 0, new Slot(Socket.MAP, ""), value("Workshop")),
-		ITEM_ID(Category.SENSING, Shape.REPORTER, ingredient(Socket.LITERAL, ItemInput.ID, EXAMPLE_ITEM)),
-		LIST(Category.VARIABLES, Shape.REPORTER, itemChoice(Socket.VALUE, EXAMPLE_ITEM)),
-		MAP(Category.VARIABLES, Shape.REPORTER, itemChoice(Socket.VALUE, EXAMPLE_ITEM), value("1"));
+		ORDER_ITEM(LOGISTICS, Category.OUTPUT, 0, item(), value("1"), value("Workshop")),
+		ORDER_BATCH(LOGISTICS, Category.OUTPUT, 0, collection(Socket.MAP), value("Workshop")),
+		LIST(Category.DATA, Shape.REPORTER, item()),
+		MAP(Category.DATA, Shape.REPORTER, item(), value("1"));
 
 		private static final Map<String, Op> BY_KEY = buildKeyMap();
 
@@ -367,14 +353,6 @@ public record ComputerProgram(List<Block> commands) {
 			return this == LIST || this == MAP;
 		}
 
-		public boolean isInlineData() {
-			return this == ITEM_ID || isStructuredData();
-		}
-
-		public boolean isStructuredData() {
-			return isCollection();
-		}
-
 		public Slot slot(int index) {
 			return slots.get(isCollection() ? index % slots.size() : index);
 		}
@@ -406,17 +384,21 @@ public record ComputerProgram(List<Block> commands) {
 			return Map.copyOf(map);
 		}
 
-		private static Slot value(String initial) { return new Slot(Socket.VALUE, initial); }
-		private static Slot itemChoice(Socket socket, String initial) {
-			return new Slot(socket, initial, ItemInput.NONE, true, MAX_LITERAL_LENGTH);
+		private static Slot value(String initial) {
+			return new Slot(Socket.VALUE, initial, DataType.isNumber(initial) ? DataType.NUMBER : DataType.TEXT);
 		}
-		private static Slot ingredient(Socket socket, ItemInput itemInput, String initial) {
-			return new Slot(socket, initial, itemInput, false, MAX_ITEM_LITERAL_LENGTH);
+		private static Slot item() { return new Slot(Socket.VALUE, EXAMPLE_ITEM, DataType.ITEM); }
+		private static Slot condition() { return new Slot(Socket.CONDITION, "false", DataType.BOOLEAN); }
+		private static Slot variable() { return variableName(Socket.VARIABLE_NAME, "count"); }
+		private static Slot channel() { return new Slot(Socket.CHANNEL, "1", DataType.NUMBER); }
+		private static Slot slot(String initial) { return new Slot(Socket.SLOT, initial, DataType.NUMBER); }
+		private static Slot collection(Socket socket) { return new Slot(socket, "", DataType.TEXT); }
+		private static Slot listReference() { return variableName(Socket.LIST_REFERENCE, "list"); }
+		private static Slot listTarget() { return variableName(Socket.LIST_TARGET, "list"); }
+		private static Slot mapReference() { return variableName(Socket.MAP_REFERENCE, "map"); }
+		private static Slot mapTarget() { return variableName(Socket.MAP_TARGET, "map"); }
+		private static Slot variableName(Socket socket, String initial) {
+			return new Slot(socket, initial, DataType.VARIABLE_NAME);
 		}
-		private static Slot condition() { return new Slot(Socket.CONDITION, "false"); }
-		private static Slot name(String initial) { return new Slot(Socket.NAME, initial); }
-		private static Slot variable() { return name("count"); }
-		private static Slot channel() { return new Slot(Socket.CHANNEL, "1"); }
-		private static Slot slot(String initial) { return new Slot(Socket.SLOT, initial); }
 	}
 }

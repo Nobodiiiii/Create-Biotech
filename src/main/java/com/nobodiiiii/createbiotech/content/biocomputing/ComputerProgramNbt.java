@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Literal;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
@@ -12,29 +14,30 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 
-/** Single-version bounded NBT persistence for Scratch programs, keyed by stable Op names. */
+/** Bounded NBT persistence for Scratch programs, keyed by stable Op names. */
 final class ComputerProgramNbt {
-	static final int FORMAT_VERSION = 2;
-
 	private static final String KEY_VERSION = "Version";
 	private static final String KEY_COMMANDS = "Commands";
 	private static final String KEY_OP = "Op";
 	private static final String KEY_INPUTS = "Inputs";
 	private static final String KEY_BODIES = "Bodies";
 	private static final String KEY_LITERAL = "Literal";
+	private static final String KEY_TYPE = "Type";
+	private static final String KEY_EMPTY = "Empty";
 	private static final String KEY_BLOCK = "Block";
 
 	private ComputerProgramNbt() {}
 
 	static CompoundTag write(ComputerProgram program) {
 		CompoundTag tag = new CompoundTag();
-		tag.putInt(KEY_VERSION, FORMAT_VERSION);
+		tag.putInt(KEY_VERSION, ComputerProgram.FORMAT_VERSION);
 		tag.put(KEY_COMMANDS, writeCommands(program.commands()));
 		return tag;
 	}
 
 	static ComputerProgram read(CompoundTag tag) {
-		if (tag == null || tag.getInt(KEY_VERSION) != FORMAT_VERSION || !tag.contains(KEY_COMMANDS, Tag.TAG_LIST))
+		if (tag == null || !tag.contains(KEY_COMMANDS, Tag.TAG_LIST)
+			|| !tag.contains(KEY_VERSION, Tag.TAG_INT) || tag.getInt(KEY_VERSION) != ComputerProgram.FORMAT_VERSION)
 			return ComputerProgram.EMPTY;
 		try {
 			Reader reader = new Reader();
@@ -59,8 +62,12 @@ final class ComputerProgramNbt {
 			for (Input input : block.inputs()) {
 				CompoundTag entry = new CompoundTag();
 				switch (input) {
-					case Literal literal -> entry.putString(KEY_LITERAL, literal.text());
+					case Literal literal -> {
+						entry.putString(KEY_LITERAL, literal.text());
+						entry.putString(KEY_TYPE, literal.type().key());
+					}
 					case Block reporter -> entry.put(KEY_BLOCK, writeBlock(reporter));
+					case EmptyInput ignored -> entry.putBoolean(KEY_EMPTY, true);
 				}
 				inputs.add(entry);
 			}
@@ -102,8 +109,12 @@ final class ComputerProgramNbt {
 				CompoundTag entry = inputTags.getCompound(i);
 				if (entry.contains(KEY_BLOCK, Tag.TAG_COMPOUND)) {
 					inputs.add(block(entry.getCompound(KEY_BLOCK), depth + 1));
+				} else if (entry.getBoolean(KEY_EMPTY)) {
+					inputs.add(EmptyInput.INSTANCE);
+				} else if (entry.contains(KEY_TYPE, Tag.TAG_STRING) && entry.contains(KEY_LITERAL, Tag.TAG_STRING)) {
+					inputs.add(new Literal(entry.getString(KEY_LITERAL), DataType.byKey(entry.getString(KEY_TYPE))));
 				} else {
-					inputs.add(new Literal(entry.getString(KEY_LITERAL)));
+					throw new IllegalArgumentException("Expected typed value, block or empty input");
 				}
 			}
 

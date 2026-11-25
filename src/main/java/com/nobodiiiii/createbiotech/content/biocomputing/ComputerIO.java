@@ -1,9 +1,6 @@
 package com.nobodiiiii.createbiotech.content.biocomputing;
 
 import java.util.List;
-import java.util.Locale;
-
-import org.jetbrains.annotations.Nullable;
 
 /** Connects the interpreter to Create's Redstone Links, Display Links and Stock Links. */
 public interface ComputerIO {
@@ -32,6 +29,8 @@ public interface ComputerIO {
 
 	int stockTypes();
 
+	boolean isItem(String reference, boolean allowColor);
+
 	boolean orderStock(String address, List<OrderEntry> items);
 
 	long gameTick();
@@ -48,32 +47,6 @@ public interface ComputerIO {
 
 		public String key() {
 			return Integer.toString(ordinal() + 1);
-		}
-
-		@Nullable
-		static Channel parse(String value) {
-			return switch (value) {
-				case "1" -> ONE;
-				case "2" -> TWO;
-				case "3" -> THREE;
-				case "4" -> FOUR;
-				default -> null;
-			};
-		}
-
-		public static String next(String value) {
-			Channel current = parse(value);
-			return (current == null ? ONE : VALUES[(current.ordinal() + 1) % VALUES.length]).key();
-		}
-
-		static String migrate(String value) {
-			return switch (value.toLowerCase(Locale.ROOT)) {
-				case "left" -> "1";
-				case "right" -> "2";
-				case "back" -> "3";
-				case "top" -> "4";
-				default -> value;
-			};
 		}
 	}
 }

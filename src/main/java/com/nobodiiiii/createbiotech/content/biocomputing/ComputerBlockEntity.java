@@ -143,6 +143,11 @@ public final class ComputerBlockEntity extends BlockEntity {
 		}
 
 		@Override
+		public boolean isItem(String reference, boolean allowColor) {
+			return !ComputerItemReference.read(reference, allowColor).isEmpty();
+		}
+
+		@Override
 		public boolean orderStock(String address, List<OrderEntry> items) {
 			return library().includesLogistics()
 				&& logistics.order(address.strip(), items, currentGameTick(), ComputerBlockEntity.this::setChanged);
@@ -166,7 +171,9 @@ public final class ComputerBlockEntity extends BlockEntity {
 
 	ComputerProgram program() { return program; }
 	long programRevision() { return programRevision; }
-	@Nullable ComputerProgram restartProgram() { return restartProgram; }
+	@Nullable ComputerProgram executionProgram() {
+		return restartProgram != null ? restartProgram : runtime.diagnosedProgram();
+	}
 	long syncVersion() { return runtime.version() + ioVersion; }
 
 	ComputerRuntime.Snapshot snapshot() {
@@ -446,7 +453,7 @@ public final class ComputerBlockEntity extends BlockEntity {
 		ComputerProgram savedRunningProgram = tag.contains(KEY_RUNNING_PROGRAM, Tag.TAG_COMPOUND)
 			? ComputerProgramNbt.read(tag.getCompound(KEY_RUNNING_PROGRAM))
 			: program;
-		restartProgram = tag.getBoolean(KEY_AUTO_RUN) && !savedRunningProgram.commands().isEmpty()
+		restartProgram = tag.getBoolean(KEY_AUTO_RUN) && !savedRunningProgram.commands().isEmpty() && !savedRunningProgram.hasEmptyInputs()
 			? savedRunningProgram : null;
 		pendingAutoStart = restartProgram != null;
 		runtime.stop();

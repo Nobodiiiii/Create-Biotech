@@ -8,6 +8,8 @@ import org.jetbrains.annotations.Nullable;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.ChannelState;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Diagnostic;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Problem;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Snapshot;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Status;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Variable;
@@ -18,7 +20,7 @@ import net.minecraft.world.entity.player.Player;
 
 public record ComputerProgramPacket(int menuId, Action action, long expectedRevision, Optional<ComputerProgram> program) {
 	public enum Action { SAVE, RUN, STOP }
-	public enum EditResult { SYNC, ACCEPTED, CONFLICT, REJECTED, LIBRARY_LOCKED }
+	public enum EditResult { SYNC, ACCEPTED, CONFLICT, REJECTED, LIBRARY_LOCKED, INCOMPLETE }
 
 	public ComputerProgramPacket(RegistryFriendlyByteBuf buffer) {
 		this(
@@ -42,7 +44,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			menu.apply(player, action, expectedRevision, program);
 	}
 
-	public record ProgramState(long revision, ComputerProgram saved, @Nullable ComputerProgram running, ComputerLibrary library) {
+	public record ProgramState(long revision, ComputerProgram saved, @Nullable ComputerProgram execution, ComputerLibrary library) {
 		ProgramState(RegistryFriendlyByteBuf buffer) {
 			this(buffer.readVarLong(), ComputerProgramWire.read(buffer),
 				buffer.readBoolean() ? ComputerProgramWire.read(buffer) : null, buffer.readEnum(ComputerLibrary.class));
@@ -51,9 +53,9 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 		void write(RegistryFriendlyByteBuf buffer) {
 			buffer.writeVarLong(revision);
 			ComputerProgramWire.write(buffer, saved);
-			buffer.writeBoolean(running != null);
-			if (running != null)
-				ComputerProgramWire.write(buffer, running);
+			buffer.writeBoolean(execution != null);
+			if (execution != null)
+				ComputerProgramWire.write(buffer, execution);
 			buffer.writeEnum(library);
 		}
 	}
@@ -84,6 +86,12 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			buffer.writeVarInt(menuId);
 			buffer.writeEnum(snapshot.status());
 			buffer.writeVarInt(snapshot.activeBlockIndex());
+			Diagnostic diagnostic = snapshot.diagnostic();
+			buffer.writeBoolean(diagnostic != null);
+			if (diagnostic != null) {
+				buffer.writeEnum(diagnostic.problem());
+				buffer.writeVarInt(diagnostic.blockIndex());
+			}
 
 			buffer.writeVarInt(snapshot.output().size());
 			for (String line : snapshot.output())
@@ -91,7 +99,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 
 			buffer.writeVarInt(snapshot.variables().size());
 			for (Variable variable : snapshot.variables()) {
-				buffer.writeUtf(variable.name(), ComputerProgram.MAX_ITEM_LITERAL_LENGTH);
+				buffer.writeUtf(variable.name(), ComputerRuntime.MAX_VALUE_LENGTH);
 				buffer.writeUtf(variable.value(), ComputerRuntime.MAX_VALUE_LENGTH);
 			}
 
@@ -110,7 +118,10 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 
 		private static Snapshot readSnapshot(RegistryFriendlyByteBuf buffer) {
 			Status status = buffer.readEnum(Status.class);
-			int activeBlockIndex = Math.clamp(buffer.readVarInt(), -1, ComputerProgram.MAX_BLOCKS);
+			int activeBlockIndex = Math.clamp(buffer.readVarInt(), -1, ComputerProgram.MAX_BLOCKS - 1);
+			Diagnostic diagnostic = buffer.readBoolean()
+				? new Diagnostic(buffer.readEnum(Problem.class), Math.clamp(buffer.readVarInt(), -1, ComputerProgram.MAX_BLOCKS - 1))
+				: null;
 
 			int lineCount = ComputerProgramWire.readCount(buffer, ComputerRuntime.MAX_OUTPUT_LINES);
 			List<String> lines = new ArrayList<>(lineCount);
@@ -120,7 +131,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			int variableCount = ComputerProgramWire.readCount(buffer, ComputerRuntime.MAX_VARIABLES);
 			List<Variable> variables = new ArrayList<>(variableCount);
 			for (int i = 0; i < variableCount; i++)
-				variables.add(new Variable(buffer.readUtf(ComputerProgram.MAX_ITEM_LITERAL_LENGTH),
+				variables.add(new Variable(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH),
 					buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH)));
 
 			List<ChannelState> channels = new ArrayList<>(Channel.VALUES.length);
@@ -134,7 +145,7 @@ public record ComputerProgramPacket(int menuId, Action action, long expectedRevi
 			for (int i = 0; i < ComputerIO.INPUT_SLOTS; i++)
 				inputSlots.add(buffer.readUtf(ComputerRuntime.MAX_VALUE_LENGTH));
 
-			return new Snapshot(status, activeBlockIndex, lines, variables, channels, inputSlots, stockLinkBound);
+			return new Snapshot(status, activeBlockIndex, diagnostic, lines, variables, channels, inputSlots, stockLinkBound);
 		}
 
 		public void handle(Player player) {

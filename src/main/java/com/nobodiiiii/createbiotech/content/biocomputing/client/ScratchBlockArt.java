@@ -22,7 +22,6 @@ final class ScratchBlockArt {
 		FOOT(3, 82, 18, 42, 5, 6, 7, 4),
 		REPORTER(4, 60, 22, 11, 12, 0, 0, 0),
 		BOOLEAN(5, 76, 22, 11, 12, 0, 0, 0),
-		LITERAL(6, 22, 18, 9, 9, 0, 0, 0),
 		RAIL(7, 18, 6, 0, 0, 0, 0, 0),
 		CAP(10, 84, 26, 26, 5, 6, 4, 0),
 		MIDDLE(11, 82, 24, 42, 5, 8, 7, 4);
@@ -49,6 +48,7 @@ final class ScratchBlockArt {
 			case CONTROL -> 1;
 			case OPERATORS -> 2;
 			case VARIABLES -> 3;
+			case DATA -> 4;
 			case SENSING -> 6;
 			case OUTPUT -> 5;
 		};

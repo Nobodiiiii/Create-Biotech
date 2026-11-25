@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Literal;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
@@ -13,6 +15,12 @@ import net.minecraft.network.FriendlyByteBuf;
 
 /** Bounded transport for the menu and run action. */
 final class ComputerProgramWire {
+	private static final int BLOCK_INPUT = 0;
+	private static final int EMPTY_INPUT = 1;
+	private static final int LITERAL_INPUT = 2;
+	private static final int MAX_OP_KEY_LENGTH = 32;
+	private static final int MAX_TYPE_KEY_LENGTH = 16;
+
 	private ComputerProgramWire() {}
 
 	static ComputerProgram read(FriendlyByteBuf buffer) {
@@ -35,17 +43,21 @@ final class ComputerProgramWire {
 
 	private static void writeBlock(FriendlyByteBuf buffer, Block block) {
 		Op op = block.op();
-		buffer.writeEnum(op);
+		buffer.writeUtf(op.key(), MAX_OP_KEY_LENGTH);
 		if (op.isCollection())
 			buffer.writeVarInt(block.inputs().size());
-		for (int i = 0; i < block.inputs().size(); i++) {
-			Input input = block.inputs().get(i);
-			if (input instanceof Block reporter) {
-				buffer.writeBoolean(true);
-				writeBlock(buffer, reporter);
-			} else {
-				buffer.writeBoolean(false);
-				buffer.writeUtf(((Literal) input).text(), op.slot(i).maxLiteralLength());
+		for (Input input : block.inputs()) {
+			switch (input) {
+				case Block reporter -> {
+					buffer.writeByte(BLOCK_INPUT);
+					writeBlock(buffer, reporter);
+				}
+				case Literal literal -> {
+					buffer.writeByte(LITERAL_INPUT);
+					buffer.writeUtf(literal.type().key(), MAX_TYPE_KEY_LENGTH);
+					buffer.writeUtf(literal.text(), literal.type().maxLength());
+				}
+				case EmptyInput ignored -> buffer.writeByte(EMPTY_INPUT);
 			}
 		}
 		for (List<Block> body : block.bodies())
@@ -78,14 +90,24 @@ final class ComputerProgramWire {
 		private Block block(int depth) {
 			if (depth > ComputerProgram.MAX_DEPTH || remaining-- <= 0)
 				throw new DecoderException("Computer program exceeds its block or nesting limit");
-			Op op = buffer.readEnum(Op.class);
+			Op op = Op.byKey(buffer.readUtf(MAX_OP_KEY_LENGTH));
+			if (op == null)
+				throw new DecoderException("Unknown computer operation");
 			int inputCount = op.isCollection() ? readCount(buffer, op.maxInputs()) : op.slots().size();
 			if (!op.acceptsInputCount(inputCount))
 				throw new DecoderException("Mismatched computer inputs for " + op);
 			List<Input> inputs = new ArrayList<>(inputCount);
 			for (int i = 0; i < inputCount; i++) {
-				inputs.add(buffer.readBoolean() ? block(depth + 1)
-					: new Literal(buffer.readUtf(op.slot(i).maxLiteralLength())));
+				int inputKind = buffer.readUnsignedByte();
+				inputs.add(switch (inputKind) {
+					case BLOCK_INPUT -> block(depth + 1);
+					case EMPTY_INPUT -> EmptyInput.INSTANCE;
+					case LITERAL_INPUT -> {
+						DataType type = DataType.byKey(buffer.readUtf(MAX_TYPE_KEY_LENGTH));
+						yield new Literal(buffer.readUtf(type.maxLength()), type);
+					}
+					default -> throw new DecoderException("Unknown computer input type");
+				});
 			}
 			List<List<Block>> bodies = new ArrayList<>(op.bodyCount());
 			for (int i = 0; i < op.bodyCount(); i++)

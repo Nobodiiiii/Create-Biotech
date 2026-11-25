@@ -17,8 +17,10 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerLibrary;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Category;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.ItemInput;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Socket;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramJson;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramMenu;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket;
@@ -27,16 +29,19 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.E
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.ProgramState;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgramPacket.ProgramUpdate;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.ChannelState;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Diagnostic;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Snapshot;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerRuntime.Status;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.Drop;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.ListControl;
-import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.LiteralSpot;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.Placed;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.Preview;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchCanvas.Rect;
-import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Field;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Datum;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Element;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.InputPoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Location;
-import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.ReporterPoint;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.LoosePoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Tile;
 import com.nobodiiiii.createbiotech.foundation.gui.CanvasViewport;
 import com.nobodiiiii.createbiotech.network.CBPackets;
@@ -62,9 +67,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private static final int MIN_EDITOR_WIDTH = 224;
 	private static final int INVENTORY_COLUMNS = 9;
 	private static final int INVENTORY_SLOT_SIZE = 18;
-	private static final List<Category> CATEGORIES = List.of(
-		Category.EVENTS, Category.CONTROL, Category.OPERATORS, Category.VARIABLES, Category.SENSING, Category.OUTPUT
-	);
+	private static final List<Category> CATEGORIES = List.of(Category.values());
 
 	private enum ConsoleMode { OUTPUT, VARIABLES, IO, INVENTORY }
 
@@ -88,12 +91,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private InventoryPick inventoryPick;
 	private int panButton = -1;
 	private EditBox input;
-	private LiteralSpot editingSpot;
-	private String editingInitial;
-	private ComputerProgram editingBefore;
-	private ComputerProgram runningProgram;
-	private long runningCheckRevision = -1;
-	private boolean matchesRunning = true;
+	private Placed editingSpot;
+	private ComputerProgram executionProgram;
+	private long executionCheckRevision = -1;
+	private boolean matchesExecution;
 	private long draftBaseRevision;
 	private Action pendingAction;
 	private long submittedDraftRevision;
@@ -164,13 +165,15 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 
 		int sideWidth = paletteArea.width();
 		int halfTab = (sideWidth - 3) / 2;
+		int tabHeight = categoryTabHeight();
 		for (int i = 0; i < CATEGORIES.size(); i++) {
 			Category option = CATEGORIES.get(i);
 			boolean fullRow = i == CATEGORIES.size() - 1 && CATEGORIES.size() % 2 == 1;
 			int tabX = paletteArea.x() + (fullRow ? 0 : (i % 2) * (halfTab + 3));
-			int tabY = canvasArea.y() + (i / 2) * 20;
+			int tabY = canvasArea.y() + (i / 2) * (tabHeight + 2);
 			int tabW = fullRow ? sideWidth : halfTab;
-			tabs[i] = button(tabX, tabY, tabW, categoryLabel(option, tabW), () -> select(option));
+			tabs[i] = addRenderableWidget(Button.builder(categoryLabel(option, tabW), ignored -> select(option))
+				.bounds(tabX, tabY, tabW, tabHeight).build());
 			tabs[i].setTooltip(Tooltip.create(categoryName(option)));
 		}
 
@@ -199,9 +202,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		consoleArea = new Rect(leftPos + 7, bottom - consoleHeight, imageWidth - 14, consoleHeight);
 		int canvasX = leftPos + sideWidth + 13;
 		canvasArea = new Rect(canvasX, topPos + 31, right - canvasX, consoleArea.y() - topPos - 36);
-		paletteArea = new Rect(leftPos + 7, canvasArea.y() + 61, sideWidth, Math.max(0, canvasArea.height() - 61));
+		int tabRows = (tabs.length + 1) / 2;
+		int tabSpace = tabRows * (categoryTabHeight() + 2) + 1;
+		paletteArea = new Rect(leftPos + 7, canvasArea.y() + tabSpace, sideWidth, Math.max(0, canvasArea.height() - tabSpace));
 		paletteScroll = Math.min(paletteScroll, paletteLimit());
 	}
+
+	private int categoryTabHeight() { return imageHeight < 270 ? 14 : 18; }
 
 	private void resetView() {
 		viewport.reset();
@@ -261,39 +268,34 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private void rebuildPalette() {
 		List<PaletteEntry> entries = new ArrayList<>();
 		int y = PALETTE_PADDING;
-		for (Op op : Op.values()) {
-			if (op == Op.ITEM_ID || op.category() != category || !library.allows(op))
-				continue;
-			boolean paired = op.slots().stream().anyMatch(ComputerProgram.Slot::itemAlternative);
-			PaletteEntry plain = paletteEntry(op, false, paired, y);
-			entries.add(plain);
-			y += plain.height();
-			if (paired) {
-				PaletteEntry item = paletteEntry(op, true, true, y);
-				entries.add(item);
-				y += item.height();
+		if (category == Category.DATA) {
+			for (DataType type : DataType.values()) {
+				PaletteEntry entry = paletteEntry(new Datum(type, type.initial()), text("data." + type.key()), true, y);
+				entries.add(entry);
+				y += entry.height();
 			}
+		}
+		for (Op op : Op.values()) {
+			if (op.category() != category || !library.allows(op))
+				continue;
+			PaletteEntry entry = paletteEntry(Tile.create(op), text("palette." + op.key()), false, y);
+			entries.add(entry);
+			y += entry.height();
 		}
 		paletteEntries = List.copyOf(entries);
 		paletteContentHeight = y + PALETTE_PADDING;
 		paletteScroll = Math.min(paletteScroll, paletteLimit());
 	}
 
-	private PaletteEntry paletteEntry(Op op, boolean withItemId, boolean paired, int y) {
-		Tile tile = Tile.create(op, withItemId);
-		Preview preview = canvas.preview(tile);
+	private PaletteEntry paletteEntry(Element element, Component name, boolean showName, int y) {
+		Preview preview = canvas.preview(element);
 		int width = paletteArea.width() - PALETTE_PADDING - PALETTE_SCROLLBAR_GUTTER - 2;
 		float scale = Math.min(1, width / (float) preview.bounds().width());
 		int previewHeight = (int) Math.ceil(preview.bounds().height() * scale);
-		String form = paired ? text(withItemId ? "item_form" : "text_form").getString() : "";
-		String caption = form;
-		if (font.lineHeight * scale < 6) {
-			String name = text("palette." + op.key()).getString();
-			caption = form.isEmpty() ? name : form + " · " + name;
-		}
+		String caption = showName || font.lineHeight * scale < 6 ? name.getString() : "";
 		int contentHeight = previewHeight + (caption.isEmpty() ? 0 : font.lineHeight + 2);
 		int rowHeight = Math.max(24, contentHeight + 6);
-		return new PaletteEntry(tile.snapshot(), preview, scale, y, rowHeight, previewHeight, contentHeight, form, caption);
+		return new PaletteEntry(element.snapshot(), preview, scale, y, rowHeight, previewHeight, contentHeight, name, caption);
 	}
 
 	private Op unavailableBlock() {
@@ -334,6 +336,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return;
 		}
 		ComputerProgram program = draft.snapshot();
+		if (action == Action.RUN && program.hasEmptyInputs()) {
+			flashStatus(text("fill_inputs"), 0xffffd17a);
+			return;
+		}
 		pendingAction = action;
 		submittedDraftRevision = draft.revision();
 		CBPackets.sendToServer(new ComputerProgramPacket(menu.containerId, action, draftBaseRevision, Optional.of(program)));
@@ -406,7 +412,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			library = menu.programState().library();
 			paletteScroll = 0;
 			rebuildPalette();
-			if (drag != null && drag.from == null && !library.allows(drag.tile.op))
+			if (drag != null && drag.source == null && drag.element instanceof Tile tile && !library.allows(tile.op))
 				drag = null;
 		}
 		if (statusFlashTicks > 0 && --statusFlashTicks == 0)
@@ -429,15 +435,21 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			flashStatus(libraryRequired(unavailableBlock()), 0xffff8983);
 			return;
 		}
+		if (response.result() == EditResult.INCOMPLETE) {
+			flashStatus(text("fill_inputs"), 0xffffd17a);
+			return;
+		}
 		if (response.result() != EditResult.ACCEPTED)
 			return;
 		ComputerProgram saved = response.state().saved();
 		if (draft.revision() == submittedDraftRevision && !draft.snapshot().equals(saved)) {
 			if (input != null)
 				finishInput();
-			drag = null;
-			inventoryPick = null;
-			draft.replaceWith(saved);
+			if (draft.revision() == submittedDraftRevision) {
+				drag = null;
+				inventoryPick = null;
+				draft.replaceWith(saved);
+			}
 		}
 		draft.markSaved(saved);
 		draftBaseRevision = response.state().revision();
@@ -463,14 +475,14 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		}
 	}
 
-	private boolean draftMatchesRunning() {
-		ComputerProgram running = menu.programState().running();
-		if (runningProgram != running || runningCheckRevision != draft.revision()) {
-			runningProgram = running;
-			runningCheckRevision = draft.revision();
-			matchesRunning = runningProgram != null && draft.snapshot().equals(runningProgram);
+	private boolean draftMatchesExecution() {
+		ComputerProgram execution = menu.programState().execution();
+		if (executionProgram != execution || executionCheckRevision != draft.revision()) {
+			executionProgram = execution;
+			executionCheckRevision = draft.revision();
+			matchesExecution = execution != null && draft.snapshot().equals(execution);
 		}
-		return matchesRunning;
+		return matchesExecution;
 	}
 
 	@Override
@@ -483,10 +495,10 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		reload.visible = canReload();
 		reload.active = pendingAction == null;
 		super.render(graphics, mouseX, mouseY, partialTick);
-		if (drag != null) {
+		if (drag != null && (drag.source == null || drag.moved)) {
 			graphics.pose().pushPose();
 			graphics.pose().translate(0, 0, 250);
-			drag.preview().render(graphics, mouseX + 7, mouseY + 7, 1);
+			drag.preview.render(graphics, mouseX + 7, mouseY + 7, 1);
 			graphics.pose().popPose();
 		}
 		if (inventoryPick != null) {
@@ -540,7 +552,6 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		for (PaletteEntry entry : paletteEntries) {
 			Rect row = paletteRow(entry);
 			if (row.intersects(paletteArea)) {
-				Op op = entry.template().op();
 				boolean hovered = drag == null && row.contains(mouseX, mouseY) && paletteArea.contains(mouseX, mouseY);
 				if (hovered)
 					fill(graphics, row, 0xff25313c);
@@ -551,16 +562,17 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 					graphics.drawString(font, label, row.x() + 1, y + entry.previewHeight() + 2, 0xffd2e9ff, false);
 				}
 				if (hovered) {
-					MutableComponent tooltip = text("palette." + op.key());
-					if (!entry.form().isEmpty())
-						tooltip.append(" · ").append(entry.form());
-					tooltip.append(" · ").append(libraryLabel(op.library()));
-					if (op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY)
-						tooltip.append("\n").append(text("frequency_help"));
-					if (op == Op.STOCK_COUNT || op == Op.HAS_STOCK)
-						tooltip.append("\n").append(text("stock_list_help"));
-					if (op == Op.ORDER_ITEM || op == Op.ORDER_BATCH)
-						tooltip.append("\n").append(text("order_help"));
+					MutableComponent tooltip = entry.name().copy();
+					if (entry.template() instanceof Block block && block.op().category() != Category.DATA) {
+						Op op = block.op();
+						tooltip.append(" · ").append(libraryLabel(op.library()));
+						if (op == Op.BIND_FREQUENCY || op == Op.TUNE_FREQUENCY)
+							tooltip.append("\n").append(text("frequency_help"));
+						if (op == Op.STOCK_COUNT || op == Op.HAS_STOCK)
+							tooltip.append("\n").append(text("stock_list_help"));
+						if (op == Op.ORDER_ITEM || op == Op.ORDER_BATCH)
+							tooltip.append("\n").append(text("order_help"));
+					}
 					setTooltipForNextRenderPass(tooltip);
 				}
 			}
@@ -573,46 +585,55 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private void drawCanvas(GuiGraphics graphics, int mouseX, int mouseY) {
 		fill(graphics, canvasArea, 0xff18232b);
 		Snapshot snapshot = menu.snapshot();
-		int activeBlock = snapshot.status() == Status.RUNNING && draftMatchesRunning()
-			? snapshot.activeBlockIndex() : -1;
-		ScratchCanvas.Layout layout = canvas.layout(draft, activeBlock);
+		boolean sameProgram = draftMatchesExecution();
+		int activeBlock = sameProgram && snapshot.status() == Status.RUNNING ? snapshot.activeBlockIndex() : -1;
+		int problemBlock = sameProgram && snapshot.diagnostic() != null ? snapshot.diagnostic().blockIndex() : -1;
+		ScratchCanvas.Layout layout = canvas.layout(draft, activeBlock, problemBlock);
 		graphics.enableScissor(canvasArea.x(), canvasArea.y(), canvasArea.right(), canvasArea.bottom());
 		graphics.pose().pushPose();
 		graphics.pose().translate(canvasArea.x() + viewport.screenX(0), canvasArea.y() + viewport.screenY(0), 0);
 		float scale = (float) viewport.scale();
 		graphics.pose().scale(scale, scale, 1);
-		int x = (int) Math.floor(worldX(canvasArea.x()));
-		int y = (int) Math.floor(worldY(canvasArea.y()));
-		layout.render(graphics, new Rect(x, y, (int) Math.ceil(canvasArea.width() / scale) + 2,
+		int visibleLeft = (int) Math.floor(worldX(canvasArea.x()));
+		int visibleTop = (int) Math.floor(worldY(canvasArea.y()));
+		layout.render(graphics, new Rect(visibleLeft, visibleTop, (int) Math.ceil(canvasArea.width() / scale) + 2,
 			(int) Math.ceil(canvasArea.height() / scale) + 2));
 		Drop target = dropAt(layout, mouseX, mouseY);
 		if (target != null)
 			target.highlight(graphics);
 		if (inventoryPick != null) {
-			for (LiteralSpot spot : layout.literals()) {
-				if (takesItem(spot.field())) {
-					Rect bounds = spot.bounds();
-					graphics.renderOutline(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0xffa8dcff);
-				}
+			for (Placed spot : layout.items()) {
+				Rect bounds = spot.bounds();
+				graphics.renderOutline(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0xffa8dcff);
 			}
 		}
 		graphics.pose().popPose();
 		graphics.disableScissor();
 		if (drag == null && inventoryPick == null && panButton == -1 && canvasArea.contains(mouseX, mouseY)) {
-			Field field = itemFieldAt(layout, mouseX, mouseY);
-			if (field != null) {
+			Placed itemSpot = itemSpotAt(layout, mouseX, mouseY);
+			if (itemSpot != null) {
 				Component help = text("item_input_help");
-				setTooltipForNextRenderPass(field.literal.isEmpty() ? help : Component.literal(field.literal).append("\n").append(help));
+				String item = itemSpot.item().text;
+				setTooltipForNextRenderPass(item.isEmpty() ? help : Component.literal(item).append("\n").append(help));
 			} else if (input == null) {
-				double worldX = worldX(mouseX);
-				double worldY = worldY(mouseY);
-				ListControl control = layout.listControlAt(worldX, worldY);
+				double x = worldX(mouseX);
+				double y = worldY(mouseY);
+				Placed placed = layout.blockAt(x, y);
+				ListControl control = layout.listControlAt(placed, x, y);
 				if (control != null) {
 					setTooltipForNextRenderPass(text(control.row() < 0 ? "add_list_entry" : "remove_list_entry"));
-				} else {
-					ScratchCanvas.Placed placed = layout.blockAt(worldX, worldY);
-					if (placed != null && placed.tile().op == Op.ITEM_ID)
-						setTooltipForNextRenderPass(text("detach_item_id"));
+				} else if (layout.emptyAt(placed, x, y) != null) {
+					setTooltipForNextRenderPass(text("empty_input"));
+				} else if (placed != null && placed.element() instanceof Datum datum) {
+					setTooltipForNextRenderPass(text("data." + datum.type.key()).append("\n").append(text("edit_data_help")));
+				} else if (placed != null && placed.element().isData()) {
+					MutableComponent help = text("drag_data_help");
+					if (placed.location() instanceof InputPoint point) {
+						Socket socket = point.field().slot.socket();
+						if (socket == Socket.LIST_TARGET || socket == Socket.MAP_TARGET)
+							help.append("\n").append(text("inline_collection_help"));
+					}
+					setTooltipForNextRenderPass(help);
 				}
 			}
 		}
@@ -639,12 +660,19 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		} else if (unavailableBlock() != null) {
 			statusMessage = libraryRequired(unavailableBlock());
 			statusColor = 0xffff8983;
+		} else if (snapshot.diagnostic() != null) {
+			Diagnostic diagnostic = snapshot.diagnostic();
+			statusMessage = text("problem." + diagnostic.problem().name().toLowerCase(Locale.ROOT));
+			if (diagnostic.blockIndex() >= 0)
+				statusMessage = text("problem_at", diagnostic.blockIndex() + 1, statusMessage);
+			statusMessage = text("status." + snapshot.status().name().toLowerCase(Locale.ROOT)).append(" · ").append(statusMessage);
+			statusColor = 0xffff8983;
 		} else {
 			Status status = snapshot.status();
 			statusMessage = text("status." + status.name().toLowerCase(Locale.ROOT));
 			statusColor = switch (status) {
 				case RUNNING -> 0xff9bdb9a;
-				case EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT -> 0xffff8983;
+				case EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT, COLLECTION_LIMIT -> 0xffff8983;
 				default -> 0xffa9bdcc;
 			};
 		}
@@ -784,7 +812,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		if (input != null) {
 			if (input.isMouseOver(mouseX, mouseY))
 				return super.mouseClicked(mouseX, mouseY, button);
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && takesItem(editingSpot.field())
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && editingSpot.item() != null
 				&& consoleTabs[ConsoleMode.INVENTORY.ordinal()].isMouseOver(mouseX, mouseY)) {
 				selectConsole(ConsoleMode.INVENTORY);
 				return true;
@@ -794,7 +822,7 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && paletteArea.contains(mouseX, mouseY)) {
 			for (PaletteEntry entry : paletteEntries) {
 				if (paletteRow(entry).contains(mouseX, mouseY)) {
-					beginDrag(new Tile(entry.template()), null, mouseX, mouseY);
+					beginDrag(ScratchDraft.element(entry.template()), null, mouseX, mouseY);
 					break;
 				}
 			}
@@ -809,32 +837,35 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		ScratchCanvas.Layout layout = canvas.layout(draft);
 		double x = worldX(mouseX);
 		double y = worldY(mouseY);
-		ListControl control = layout.listControlAt(x, y);
+		Placed picked = layout.blockAt(x, y);
+		ListControl control = layout.listControlAt(picked, x, y);
 		if (control != null) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT)
-				draft.editCollection(control.tile(), control.row());
+				draft.editCollection(control.tile(), control.row(), control.depth());
 			return true;
 		}
-		LiteralSpot literal = layout.literalAt(x, y);
-		if (literal != null) {
-			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT)
-				edit(literal);
+		Drop empty = layout.emptyAt(picked, x, y);
+		if (empty != null) {
+			if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT && empty.location() instanceof InputPoint point) {
+				DataType type = point.field().slot.dataType() == DataType.VARIABLE_NAME ? DataType.VARIABLE_NAME : DataType.TEXT;
+				Datum datum = new Datum(type, "");
+				edit(new Placed(empty.area(), datum, point, false), datum);
+			}
 			return true;
 		}
-		ScratchCanvas.Placed picked = layout.blockAt(x, y);
 		if (picked != null) {
 			if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT)
 				draft.remove(picked.location());
 			else if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT)
-				beginDrag(picked.tile(), picked.location(), mouseX, mouseY);
+				beginDrag(picked.element(), picked, mouseX, mouseY);
 		} else if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			panButton = button;
 		}
 		return true;
 	}
 
-	private void beginDrag(Tile tile, Location from, double x, double y) {
-		drag = new Drag(tile, from, canvas.preview(tile), x, y);
+	private void beginDrag(Element element, Placed source, double x, double y) {
+		drag = new Drag(element, source, canvas.preview(element), x, y);
 	}
 
 	@Override
@@ -843,6 +874,8 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			viewport.pan(dx, dy);
 			return true;
 		}
+		if (drag != null)
+			drag.track(mouseX, mouseY);
 		return drag != null || inventoryPick != null || super.mouseDragged(mouseX, mouseY, button, dx, dy);
 	}
 
@@ -851,13 +884,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		if (inventoryPick != null && button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
 			InventoryPick pick = inventoryPick;
 			inventoryPick = null;
-			Field field = null;
-			if (inventoryIndexAt(mouseX, mouseY) == pick.index() && editingSpot != null && takesItem(editingSpot.field()))
-				field = editingSpot.field();
+			Placed spot = null;
+			if (inventoryIndexAt(mouseX, mouseY) == pick.index() && editingSpot != null && editingSpot.item() != null)
+				spot = editingSpot;
 			else if (canvasArea.contains(mouseX, mouseY))
-				field = itemFieldAt(canvas.layout(draft), mouseX, mouseY);
-			if (field != null)
-				setItem(field, pick.stack());
+				spot = itemSpotAt(canvas.layout(draft), mouseX, mouseY);
+			if (spot != null)
+				setItem(spot, pick.stack());
 			return true;
 		}
 		if (panButton == button) {
@@ -866,16 +899,26 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		}
 		if (drag == null || button != GLFW.GLFW_MOUSE_BUTTON_LEFT)
 			return super.mouseReleased(mouseX, mouseY, button);
-		if (drag.movedTo(mouseX, mouseY)) {
+		Drag released = drag;
+		released.track(mouseX, mouseY);
+		if (released.moved) {
 			ScratchCanvas.Layout layout = canvas.layout(draft);
 			Drop target = dropAt(layout, mouseX, mouseY);
 			if (target != null) {
-				draft.drop(drag.tile, drag.from, target.location());
-			} else if (drag.tile.op == Op.ITEM_ID && drag.from instanceof ReporterPoint
-				&& (paletteArea.contains(mouseX, mouseY) || (canvasArea.contains(mouseX, mouseY)
-					&& layout.blockAt(worldX(mouseX), worldY(mouseY)) == null))) {
-				draft.remove(drag.from);
+				draft.drop(released.element, released.from(), target.location());
+			} else if (released.element.isData()) {
+				if (paletteArea.contains(mouseX, mouseY) && released.source != null) {
+					draft.remove(released.from());
+				} else if (canvasArea.contains(mouseX, mouseY)) {
+					double x = worldX(mouseX);
+					double y = worldY(mouseY);
+					Placed hit = layout.blockAt(x, y);
+					if (hit == null || (released.from() instanceof LoosePoint && hit.element() == released.element))
+						draft.placeLoose(released.element, released.from(), (int) Math.floor(x), (int) Math.floor(y));
+				}
 			}
+		} else if (released.source != null && released.element instanceof Datum datum) {
+			edit(released.source, datum);
 		}
 		drag = null;
 		return true;
@@ -913,16 +956,13 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	private double worldY(double y) { return viewport.worldY(y - canvasArea.y()); }
 
 	private Drop dropAt(ScratchCanvas.Layout layout, double x, double y) {
-		return drag == null || !canvasArea.contains(x, y) ? null : layout.dropAt(draft, drag.tile, drag.from, worldX(x), worldY(y));
+		return drag == null || !drag.moved || !canvasArea.contains(x, y) ? null
+			: layout.dropAt(draft, drag.element, drag.from(), worldX(x), worldY(y));
 	}
 
-	private static boolean takesItem(Field field) {
-		return field.slot.itemInput() != ItemInput.NONE;
-	}
-
-	private Field itemFieldAt(ScratchCanvas.Layout layout, double x, double y) {
-		LiteralSpot spot = input != null && input.isMouseOver(x, y) ? editingSpot : layout.literalAt(worldX(x), worldY(y));
-		return spot != null && takesItem(spot.field()) ? spot.field() : null;
+	private Placed itemSpotAt(ScratchCanvas.Layout layout, double x, double y) {
+		Placed spot = input != null && input.isMouseOver(x, y) ? editingSpot : layout.blockAt(worldX(x), worldY(y));
+		return spot != null && spot.item() != null ? spot : null;
 	}
 
 	public List<ItemDropTarget> itemDropTargets() {
@@ -931,24 +971,24 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 			return new ItemDropTarget(new Rect2i(area.x(), area.y(), area.width(), area.height()), stack -> {
 				// JEI keeps the original targets for the duration of a drag.
 				if (visibleItemTargets().contains(target))
-					setItem(target.field(), stack);
+					setItem(target.spot(), stack);
 			});
 		}).toList();
 	}
 
-	private List<FieldTarget> visibleItemTargets() {
+	private List<ItemTarget> visibleItemTargets() {
 		if (canvas == null || drag != null || inventoryPick != null || panButton != -1)
 			return List.of();
-		List<FieldTarget> targets = new ArrayList<>();
+		List<ItemTarget> targets = new ArrayList<>();
 		Rect editArea = input == null ? null : new Rect(input.getX(), input.getY(), input.getWidth(), input.getHeight());
-		if (editArea != null && takesItem(editingSpot.field()))
-			targets.add(new FieldTarget(editArea, editingSpot.field()));
-		for (LiteralSpot spot : canvas.layout(draft).literals()) {
-			if (!takesItem(spot.field()) || (editingSpot != null && spot.field() == editingSpot.field()))
+		if (editArea != null && editingSpot.item() != null)
+			targets.add(new ItemTarget(editArea, editingSpot));
+		for (Placed spot : canvas.layout(draft).items()) {
+			if (editingSpot != null && spot.element() == editingSpot.element())
 				continue;
 			Rect area = visibleScreenArea(spot.bounds());
 			if (area != null && (editArea == null || !editArea.intersects(area)))
-				targets.add(new FieldTarget(area, spot.field()));
+				targets.add(new ItemTarget(area, spot));
 		}
 		return targets;
 	}
@@ -961,55 +1001,37 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		return right > x && bottom > y ? new Rect(x, y, right - x, bottom - y) : null;
 	}
 
-	private void setItem(Field field, ItemStack stack) {
+	private void setItem(Placed spot, ItemStack stack) {
 		if (stack.isEmpty())
 			return;
-		ItemInput kind = field.slot.itemInput();
-		String value = ComputerItemReference.write(stack, field.includeItemColor);
-		if (value.length() > field.slot.maxLiteralLength()) {
+		String value = ComputerItemReference.write(stack, spot.includeItemColor());
+		if (value.length() > DataType.ITEM.maxLength()) {
 			flashStatus(text("item_input_too_long"), 0xffff8983);
 			return;
 		}
-		if (editingSpot != null && editingSpot.field() == field) {
-			if (!field.literal.equals(value))
-				input.setValue(value);
+		if (editingSpot != null && editingSpot.element() == spot.element()) {
+			input.setValue(value);
 			finishInput();
-		} else if (!field.literal.equals(value)) {
+		} else {
 			if (input != null)
 				finishInput();
-			draft.recordUndo();
-			field.literal = value;
-			draft.markMutated();
+			draft.setData(spot.item(), value);
 		}
 	}
 
-	private void edit(LiteralSpot spot) {
-		Field field = spot.field();
-		if (field.slot.socket().isSelector()) {
-			draft.recordUndo();
-			switch (field.slot.socket()) {
-				case CONDITION -> field.literal = Boolean.toString(!Boolean.parseBoolean(field.literal));
-				case CHANNEL -> field.literal = Channel.next(field.literal);
-				case SLOT -> field.literal = ComputerProgram.nextSlot(field.literal);
-				default -> {}
-			}
-			draft.markMutated();
+	private void edit(Placed spot, Datum datum) {
+		if (datum.type == DataType.BOOLEAN) {
+			draft.setData(datum, Boolean.toString(!Boolean.parseBoolean(datum.text)));
 			return;
 		}
 		editingSpot = spot;
-		editingInitial = field.literal;
-		editingBefore = draft.snapshot();
 
 		Rect bounds = spot.bounds();
 		int boxWidth = Math.min(canvasArea.width(), Math.max(74, (int) (bounds.width() * viewport.scale())));
 		int x = Math.clamp(canvasArea.x() + (int) viewport.screenX(bounds.x()), canvasArea.x(), canvasArea.right() - boxWidth);
 		input = new EditBox(font, x, editBoxY(bounds), boxWidth, 18, text("edit_literal"));
-		input.setMaxLength(field.slot.maxLiteralLength());
-		input.setValue(field.literal);
-		input.setResponder(value -> {
-			field.literal = value;
-			draft.markMutated();
-		});
+		input.setMaxLength(datum.type.maxLength());
+		input.setValue(datum.text);
 		addRenderableWidget(input);
 		setFocused(input);
 		input.setHighlightPos(0);
@@ -1020,11 +1042,15 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 	}
 
 	private void finishInput() {
-		if (!editingSpot.field().literal.equals(editingInitial))
-			draft.pushUndoSnapshot(editingBefore);
+		Datum datum = (Datum) editingSpot.element();
+		String value = input.getValue();
+		if (editingSpot.location() instanceof InputPoint point && point.field().value == null) {
+			if (!value.isEmpty())
+				draft.drop(new Datum(datum.type, value), null, point);
+		} else {
+			draft.setData(datum, value);
+		}
 		editingSpot = null;
-		editingInitial = null;
-		editingBefore = null;
 		setFocused(null);
 		removeWidget(input);
 		input = null;
@@ -1071,12 +1097,28 @@ public final class ComputerScratchScreen extends AbstractContainerScreen<Compute
 		return super.keyPressed(key, scanCode, modifiers);
 	}
 
-	private record PaletteEntry(Block template, Preview preview, float scale, int y, int height, int previewHeight,
-		int contentHeight, String form, String caption) {}
-	private record Drag(Tile tile, Location from, Preview preview, double startX, double startY) {
-		boolean movedTo(double x, double y) { return Math.abs(x - startX) >= 4 || Math.abs(y - startY) >= 4; }
+	private record PaletteEntry(Input template, Preview preview, float scale, int y, int height, int previewHeight,
+		int contentHeight, Component name, String caption) {}
+
+	private static final class Drag {
+		final Element element;
+		final Placed source;
+		final Preview preview;
+		final double startX, startY;
+		boolean moved;
+
+		Drag(Element element, Placed source, Preview preview, double startX, double startY) {
+			this.element = element;
+			this.source = source;
+			this.preview = preview;
+			this.startX = startX;
+			this.startY = startY;
+		}
+
+		Location from() { return source == null ? null : source.location(); }
+		void track(double x, double y) { moved |= Math.abs(x - startX) >= 4 || Math.abs(y - startY) >= 4; }
 	}
 	private record InventoryPick(int index, ItemStack stack) {}
-	private record FieldTarget(Rect area, Field field) {}
+	private record ItemTarget(Rect area, Placed spot) {}
 	public record ItemDropTarget(Rect2i area, Consumer<ItemStack> accept) {}
 }

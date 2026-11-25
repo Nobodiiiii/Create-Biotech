@@ -9,14 +9,17 @@ import java.util.function.Consumer;
 
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerItemReference;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Category;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.ItemInput;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Shape;
-import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Socket;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchBlockArt.Region;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Datum;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Element;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Field;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.InputPoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Location;
-import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.ReporterPoint;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.LooseData;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.LoosePoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.StackPoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Tile;
 
@@ -30,6 +33,7 @@ final class ScratchCanvas {
 	private static final int GAP = 5;
 	private static final int INDENT = 18;
 	private static final int HEADER_HEIGHT = 22;
+	private static final int DATA_HEIGHT = 15;
 	private static final int LIST_ROW_HEIGHT = 20;
 	private static final int LIST_ITEM_WIDTH = 68;
 	private static final int LIST_QUANTITY_WIDTH = 32;
@@ -38,7 +42,8 @@ final class ScratchCanvas {
 	private static final int INK = 0xff151b20;
 	private static final int GUIDE = 0xffd2e9ff;
 	private static final int ACTIVE_OUTLINE = 0xffffe866;
-	private static final int ACTIVE_GLOW = 0x33ffe866;
+	private static final int PROBLEM_OUTLINE = 0xffff8983;
+	private static final int NAME_INK = 0xff483580;
 	private final Font font;
 
 	ScratchCanvas(Font font) {
@@ -46,26 +51,27 @@ final class ScratchCanvas {
 	}
 
 	Layout layout(ScratchDraft draft) {
-		return layout(draft, -1);
+		return layout(draft, -1, -1);
 	}
 
-	Layout layout(ScratchDraft draft, int activeCommandIndex) {
-		Layout layout = new Layout(activeCommandIndex);
+	Layout layout(ScratchDraft draft, int activeCommandIndex, int problemCommandIndex) {
+		Layout layout = new Layout(activeCommandIndex, problemCommandIndex);
 		boolean hasDeclarations = draft.commands.stream().anyMatch(tile -> tile.op.isDeclaration());
 		String label = text(hasDeclarations ? "program_root" : "startup").getString();
 		Rect hat = new Rect(14, 14, Math.max(102, font.width(label) + 20), 26);
 		layout.art(hat, Category.EVENTS, Region.HAT);
 		layout.label(label, hat.x + 10, hat.y + 4, hat.height, INK);
 		layout.stack(draft.commands, null, 1, hat.x, hat.bottom() + GAP);
+		for (LooseData data : draft.looseData)
+			layout.element(data.element(), new LoosePoint(draft.looseData, data), data.x(), data.y());
 		return layout;
 	}
 
-	Preview preview(Tile tile) {
-		Layout layout = new Layout(-1);
-		Header header = layout.measure(tile);
-		layout.header(tile, null, 0, 0, header, false);
-		Rect bounds = ScratchBlockArt.paintedBounds(new Rect(0, 0, header.width, header.height), region(tile.op));
-		return new Preview(layout, bounds);
+	Preview preview(Element element) {
+		Layout layout = new Layout(-1, -1);
+		Rect bounds = layout.element(element, null, 0, 0);
+		Region region = element instanceof Tile tile ? region(tile.op) : region((Datum) element);
+		return new Preview(layout, ScratchBlockArt.paintedBounds(bounds, region));
 	}
 
 	private static Region region(Op op) {
@@ -74,6 +80,10 @@ final class ScratchCanvas {
 			case REPORTER -> Region.REPORTER;
 			case BOOLEAN -> Region.BOOLEAN;
 		};
+	}
+
+	private static Region region(Datum datum) {
+		return datum.type == DataType.BOOLEAN ? Region.BOOLEAN : Region.REPORTER;
 	}
 
 	String shorten(String label, int maxWidth) {
@@ -90,19 +100,28 @@ final class ScratchCanvas {
 		return Component.translatable("create_biotech.biocomputing.scratch." + key, args);
 	}
 
-	private String literalLabel(Field field) {
-		return switch (field.slot.socket()) {
-			case CONDITION -> text("boolean." + field.literal).getString();
-			case CHANNEL, SLOT -> text("slot", field.literal).getString();
-			case VALUE, NAME, LITERAL -> field.literal.isEmpty() ? "…" : field.literal;
-			case LIST, MAP ->
-				throw new IllegalStateException("Structured input requires a child block");
+	private String dataLabel(Datum datum) {
+		return switch (datum.type) {
+			case BOOLEAN -> text("boolean." + datum.text).getString();
+			case TEXT, NUMBER -> datum.text;
+			case ITEM -> datum.text.isEmpty() ? text("data.item").getString() : datum.text;
+			case VARIABLE_NAME -> text("variable_name_label", datum.text).getString();
 		};
 	}
 
-	private void drawItemLiteral(GuiGraphics graphics, Rect bounds, Field field) {
-		ItemStack stack = ComputerItemReference.read(field.literal.strip(), field.includeItemColor);
-		String label = literalLabel(field);
+	private int dataWidth(Datum datum) {
+		int label = font.width(dataLabel(datum));
+		return switch (datum.type) {
+			case BOOLEAN -> Math.clamp(label + 22, 40, 76);
+			case ITEM -> Math.clamp(label + 24, 48, 100);
+			case VARIABLE_NAME -> Math.clamp(label + 14, 48, 110);
+			default -> Math.clamp(label + 14, 26, 82);
+		};
+	}
+
+	private void drawItem(GuiGraphics graphics, Rect bounds, Datum datum) {
+		ItemStack stack = ComputerItemReference.read(datum.text.strip(), true);
+		String label = dataLabel(datum);
 		int labelX;
 		if (stack.isEmpty()) {
 			label = shorten(label, bounds.width - 10);
@@ -121,16 +140,19 @@ final class ScratchCanvas {
 
 	final class Layout {
 		private final int activeCommandIndex;
+		private final int problemCommandIndex;
 		private final Map<Tile, Header> headers = new IdentityHashMap<>();
 		private final List<Piece> pieces = new ArrayList<>();
 		private final List<Placed> placed = new ArrayList<>();
 		private final List<Drop> drops = new ArrayList<>();
-		private final List<LiteralSpot> literals = new ArrayList<>();
+		private final List<Placed> items = new ArrayList<>();
+		private final List<Drop> emptySlots = new ArrayList<>();
 		private final List<ListControl> listControls = new ArrayList<>();
 		private int nextCommandIndex;
 
-		private Layout(int activeCommandIndex) {
+		private Layout(int activeCommandIndex, int problemCommandIndex) {
 			this.activeCommandIndex = activeCommandIndex;
+			this.problemCommandIndex = problemCommandIndex;
 		}
 
 		void render(GuiGraphics graphics, Rect visible) {
@@ -146,30 +168,31 @@ final class ScratchCanvas {
 			return null;
 		}
 
-		LiteralSpot literalAt(double x, double y) {
-			for (LiteralSpot literal : literals)
-				if (literal.bounds.contains(x, y))
-					return literal;
+		Drop emptyAt(Placed picked, double x, double y) {
+			if (picked != null)
+				for (Drop slot : emptySlots)
+					if (slot.location.owner() == picked.element() && slot.area.contains(x, y))
+						return slot;
 			return null;
 		}
 
-		List<LiteralSpot> literals() { return literals; }
+		List<Placed> items() { return items; }
 
-		ListControl listControlAt(double x, double y) {
+		ListControl listControlAt(Placed picked, double x, double y) {
 			for (ListControl control : listControls)
-				if (control.bounds.contains(x, y))
+				if (picked != null && control.tile == picked.element && control.bounds.contains(x, y))
 					return control;
 			return null;
 		}
 
-		Drop dropAt(ScratchDraft draft, Tile tile, Location from, double x, double y) {
+		Drop dropAt(ScratchDraft draft, Element element, Location from, double x, double y) {
 			for (Drop drop : drops.reversed()) {
 				if (!drop.area.contains(x, y))
 					continue;
 				// Dropping back onto the original slot must not replace an enclosing reporter.
-				if (from instanceof ReporterPoint && drop.location.equals(from))
+				if (from instanceof InputPoint && drop.location.equals(from))
 					return null;
-				if (draft.canDrop(tile, from, drop.location))
+				if (draft.canDrop(element, from, drop.location))
 					return drop;
 			}
 			return null;
@@ -206,8 +229,9 @@ final class ScratchCanvas {
 		}
 
 		private int command(Tile tile, StackPoint from, int x, int y, Header header) {
-			boolean active = nextCommandIndex++ == activeCommandIndex;
-			header(tile, from, x, y, header, active);
+			int index = nextCommandIndex++;
+			int outline = index == problemCommandIndex ? PROBLEM_OUTLINE : index == activeCommandIndex ? ACTIVE_OUTLINE : 0;
+			header(tile, from, x, y, header, outline);
 			y += header.height;
 			for (int body = 0; body < tile.bodies.size(); body++) {
 				int end = stack(tile.bodies.get(body), tile, from.depth() + 1, x + INDENT, y + GAP);
@@ -227,21 +251,22 @@ final class ScratchCanvas {
 			return y;
 		}
 
-		private void header(Tile tile, Location from, int x, int y, Header header, boolean active) {
+		private void header(Tile tile, Location from, int x, int y, Header header, int outline) {
 			Rect bounds = new Rect(x, y, header.width, header.height);
 			art(bounds, tile.op.category(), region(tile.op));
-			if (active) {
+			if (outline != 0) {
 				Rect glow = new Rect(x - 2, y - 2, header.width + 4, header.height + 4);
 				pieces.add(new Piece(glow, graphics -> {
-					graphics.fill(bounds.x, bounds.y, bounds.right(), bounds.bottom(), ACTIVE_GLOW);
-					graphics.renderOutline(glow.x, glow.y, glow.width, glow.height, ACTIVE_OUTLINE);
+					graphics.fill(bounds.x, bounds.y, bounds.right(), bounds.bottom(), (outline & 0xffffff) | 0x33000000);
+					graphics.renderOutline(glow.x, glow.y, glow.width, glow.height, outline);
 				}));
 			}
-			if (from != null && !(from instanceof ReporterPoint point && point.field().slot.socket().requiredStructure() != null))
-				placed.add(new Placed(bounds, tile, from));
+			if (from != null)
+				placed.add(new Placed(bounds, tile, from, false));
 			int inputDepth = from == null ? 1 : from.depth() + 1;
 			if (tile.op.isCollection()) {
-				itemList(tile, bounds, header, inputDepth);
+				Op parent = from instanceof InputPoint point ? point.owner().op : null;
+				itemList(tile, bounds, header, inputDepth, parent);
 				return;
 			}
 			int left = x + header.inset;
@@ -254,60 +279,82 @@ final class ScratchCanvas {
 				if (i < tile.fields.size()) {
 					Field field = tile.fields.get(i);
 					int width = fieldWidth(field);
-					input(tile, field, left, y, width, header.height, inputDepth);
+					input(tile, field, left, y, width, header.height, inputDepth, false);
 					left += width + 4;
 				}
 			}
 		}
 
-		private void input(Tile tile, Field field, int x, int y, int width, int height, int depth) {
-			ReporterPoint point = new ReporterPoint(tile, field, depth);
-			if (field.reporter != null) {
-				Header child = measure(field.reporter);
-				int childY = y + (height - child.height) / 2;
-				Rect childBounds = new Rect(x, childY, child.width, child.height);
-				// Register replacement target before recursing so nested slots keep hit priority.
-				drops.add(new Drop(childBounds, childBounds, point));
-				header(field.reporter, point, x, childY, child, false);
-			} else {
-				Rect slot = literal(tile.op.category(), field, x, y, width, height);
-				if (field.slot.socket().acceptsReporter())
-					drops.add(new Drop(slot, slot, point));
+		private Rect element(Element element, Location from, int x, int y) {
+			if (element instanceof Tile tile) {
+				Header header = measure(tile);
+				header(tile, from, x, y, header, 0);
+				return new Rect(x, y, header.width, header.height);
+			}
+			Datum datum = (Datum) element;
+			Rect bounds = new Rect(x, y, dataWidth(datum), DATA_HEIGHT);
+			datum(datum, from, bounds, false);
+			return bounds;
+		}
+
+		private void input(Tile tile, Field field, int x, int y, int width, int height, int depth, boolean coloredItems) {
+			InputPoint point = new InputPoint(tile, field, depth);
+			Header childHeader = field.value instanceof Tile child ? measure(child) : null;
+			int inputHeight = childHeader == null ? DATA_HEIGHT : childHeader.height;
+			int inputWidth = childHeader == null ? width : childHeader.width;
+			Rect slot = new Rect(x, y + (height - inputHeight) / 2, inputWidth, inputHeight);
+			// Register the outer slot first so drops can prefer nested slots.
+			Drop drop = new Drop(slot, slot, point);
+			drops.add(drop);
+			switch (field.value) {
+				case Tile child -> header(child, point, slot.x, slot.y, childHeader, 0);
+				case Datum value -> datum(value, point, slot, coloredItems);
+				case null -> {
+					emptySlots.add(drop);
+					pieces.add(new Piece(slot, graphics -> {
+						graphics.fill(slot.x, slot.y, slot.right(), slot.bottom(), 0xff25303b);
+						graphics.renderOutline(slot.x, slot.y, slot.width, slot.height, 0xff546777);
+					}));
+				}
 			}
 		}
 
-		private Rect literal(Category category, Field field, int x, int y, int width, int height) {
-			Rect slot = new Rect(x, y + (height - 15) / 2, width, 15);
-			boolean bool = field.slot.socket() == Socket.CONDITION;
-			art(slot, category, bool ? Region.BOOLEAN : Region.LITERAL);
-			if (field.slot.itemInput() != ItemInput.NONE) {
-				pieces.add(new Piece(slot, graphics -> drawItemLiteral(graphics, slot, field)));
-			} else {
-				String value = shorten(literalLabel(field), width - (bool ? 20 : 10));
-				label(value, slot.x + (width - font.width(value)) / 2, slot.y, slot.height, INK);
+		private void datum(Datum datum, Location from, Rect bounds, boolean coloredItems) {
+			art(bounds, Category.DATA, region(datum));
+			if (from != null) {
+				Placed placement = new Placed(bounds, datum, from, coloredItems);
+				placed.add(placement);
+				if (datum.type == DataType.ITEM)
+					items.add(placement);
 			}
-			literals.add(new LiteralSpot(slot, field));
-			return slot;
+			if (datum.type == DataType.ITEM) {
+				pieces.add(new Piece(bounds, graphics -> drawItem(graphics, bounds, datum)));
+			} else {
+				String value = shorten(dataLabel(datum), bounds.width - (datum.type == DataType.BOOLEAN ? 20 : 10));
+				int ink = datum.type == DataType.VARIABLE_NAME ? NAME_INK : INK;
+				label(value, bounds.x + (bounds.width - font.width(value)) / 2, bounds.y, bounds.height, ink);
+			}
 		}
 
-		private void itemList(Tile tile, Rect bounds, Header header, int depth) {
+		private void itemList(Tile tile, Rect bounds, Header header, int depth, Op parent) {
 			int x = bounds.x + header.inset;
 			int controlX = bounds.right() - header.inset - LIST_CONTROL_SIZE;
+			boolean coloredItems = parent == Op.BIND_FREQUENCY || parent == Op.TUNE_FREQUENCY;
 			label(header.spans.getFirst(), x, bounds.y, HEADER_HEIGHT, INK);
 			if (tile.fields.size() < tile.op.maxInputs())
-				listControl(tile, -1, controlX, bounds.y + (HEADER_HEIGHT - LIST_CONTROL_SIZE) / 2);
+				listControl(tile, -1, depth, controlX, bounds.y + (HEADER_HEIGHT - LIST_CONTROL_SIZE) / 2);
 			ListColumns columns = listColumns(tile);
 			int rowSize = tile.op.slots().size();
 			int y = bounds.y + HEADER_HEIGHT;
 			for (int index = 0; index < tile.fields.size(); index += rowSize) {
 				int rowHeight = listRowHeight(tile, index, rowSize);
-				input(tile, tile.fields.get(index), x, y, columns.item(), rowHeight, depth);
+				input(tile, tile.fields.get(index), x, y, columns.item(), rowHeight, depth, coloredItems);
 				if (tile.op == Op.MAP) {
-					label("×", x + columns.item() + 3, y, rowHeight, INK);
+					label(parent == Op.ORDER_BATCH ? "×" : "→", x + columns.item() + 3, y, rowHeight, INK);
 					input(tile, tile.fields.get(index + 1), x + columns.item() + LIST_QUANTITY_GAP,
-						y, columns.quantity(), rowHeight, depth);
+						y, columns.quantity(), rowHeight, depth, false);
 				}
-				listControl(tile, index / rowSize, controlX, y + (rowHeight - LIST_CONTROL_SIZE) / 2);
+				listControl(tile, index / rowSize, depth, controlX, y + (rowHeight - LIST_CONTROL_SIZE) / 2);
 				y += rowHeight;
 			}
 		}
@@ -331,9 +378,9 @@ final class ScratchCanvas {
 			return height;
 		}
 
-		private void listControl(Tile tile, int row, int x, int y) {
+		private void listControl(Tile tile, int row, int depth, int x, int y) {
 			Rect bounds = new Rect(x, y, LIST_CONTROL_SIZE, LIST_CONTROL_SIZE);
-			listControls.add(new ListControl(bounds, tile, row));
+			listControls.add(new ListControl(bounds, tile, row, depth));
 			pieces.add(new Piece(bounds, graphics -> graphics.fill(x, y, bounds.right(), bounds.bottom(), 0xff314350)));
 			String sign = row < 0 ? "+" : "−";
 			label(sign, x + (LIST_CONTROL_SIZE - font.width(sign)) / 2, y, LIST_CONTROL_SIZE, 0xfff1f5f8);
@@ -383,17 +430,19 @@ final class ScratchCanvas {
 		}
 
 		private int nestedHeight(Field field) {
-			return field.reporter == null ? 0 : measure(field.reporter).height + 6;
+			return field.value instanceof Tile tile ? measure(tile).height + 6 : 0;
 		}
 
 		private int fieldWidth(Field field) {
-			if (field.reporter != null)
-				return measure(field.reporter).width;
-			if (field.slot.socket() == Socket.CONDITION)
-				return Math.clamp(font.width(literalLabel(field)) + 22, 40, 76);
-			if (field.slot.itemInput() != ItemInput.NONE)
-				return Math.clamp(font.width(literalLabel(field)) + 12, 42, 76);
-			return Math.clamp(font.width(literalLabel(field)) + 12, 26, 76);
+			return switch (field.value) {
+				case Tile tile -> measure(tile).width;
+				case Datum datum -> dataWidth(datum);
+				case null -> switch (field.slot.socket()) {
+				case LIST, MAP, LIST_REFERENCE, MAP_REFERENCE, LIST_TARGET, MAP_TARGET, VARIABLE_NAME -> 58;
+					case CONDITION -> 40;
+					default -> 26;
+				};
+			};
 		}
 
 		private void art(Rect bounds, Category category, Region region) {
@@ -436,9 +485,10 @@ final class ScratchCanvas {
 		}
 	}
 
-	record Placed(Rect bounds, Tile tile, Location location) {}
-	record LiteralSpot(Rect bounds, Field field) {}
-	record ListControl(Rect bounds, Tile tile, int row) {}
+	record Placed(Rect bounds, Element element, Location location, boolean includeItemColor) {
+		Datum item() { return element instanceof Datum datum && datum.type == DataType.ITEM ? datum : null; }
+	}
+	record ListControl(Rect bounds, Tile tile, int row, int depth) {}
 	private record ListColumns(int item, int quantity) {}
 	private record Header(int width, int height, int inset, List<String> spans) {}
 	private record Piece(Rect bounds, Consumer<GuiGraphics> draw) {}

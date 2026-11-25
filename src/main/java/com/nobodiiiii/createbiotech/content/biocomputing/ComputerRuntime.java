@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import org.jetbrains.annotations.Nullable;
@@ -20,8 +19,15 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.Channel;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.FrequencyPair;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerIO.OrderEntry;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Literal;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.ListValue;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.MapValue;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.Missing;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerValue.Scalar;
 
 /** Deterministic tick-driven Scratch interpreter with bounded budgets and decoupled I/O. */
 public final class ComputerRuntime {
@@ -32,14 +38,14 @@ public final class ComputerRuntime {
 	private static final int MAX_EVALS_PER_TICK = ComputerProgram.MAX_BLOCKS * 4;
 	private static final int MAX_WAIT_TICKS = 20 * 60 * 60;
 	private static final int MAX_PROCEDURE_FRAMES = 32;
-	private static final int MAX_COLLECTIONS = 16;
-	private static final int MAX_ENTRIES = 64;
+	static final int MAX_ENTRIES = 64;
+	private static final ListValue EMPTY_LIST = new ListValue(List.of());
+	private static final MapValue EMPTY_MAP = new MapValue(Map.of());
 
 	private final List<Script> scripts = new ArrayList<>();
 	private final Map<String, List<Block>> procedures = new HashMap<>();
-	private final Map<String, String> variables = new LinkedHashMap<>();
-	private final Map<String, List<String>> lists = new HashMap<>();
-	private final Map<String, Map<String, String>> maps = new HashMap<>();
+	private final Map<String, ValueCell> variables = new LinkedHashMap<>();
+	private final Map<Block, ValueCell> inlineCollections = new IdentityHashMap<>();
 	private final Map<Block, Long> cooldowns = new IdentityHashMap<>();
 	private final Random random = new Random();
 	private final int[] lastSignal = new int[Channel.VALUES.length];
@@ -48,6 +54,8 @@ public final class ComputerRuntime {
 	private Status status = Status.READY;
 	private int nextScript;
 	private int activeBlockIndex = -1;
+	@Nullable private ComputerProgram executionProgram;
+	@Nullable private Diagnostic diagnostic;
 	private int rising;
 	private int falling;
 	private boolean lastOrder;
@@ -60,13 +68,17 @@ public final class ComputerRuntime {
 		scripts.clear();
 		procedures.clear();
 		variables.clear();
-		lists.clear();
-		maps.clear();
+		inlineCollections.clear();
 		cooldowns.clear();
 		commandIndices = program.indexCommands();
+		executionProgram = program;
+		diagnostic = null;
 		nextScript = 0;
 		activeBlockIndex = -1;
 		lastOrder = false;
+		rising = 0;
+		falling = 0;
+		evalBudget = MAX_EVALS_PER_TICK;
 		timerStartTick = io.gameTick();
 		for (Channel channel : Channel.VALUES)
 			lastSignal[channel.ordinal()] = io.readRedstone(channel);
@@ -75,14 +87,29 @@ public final class ComputerRuntime {
 
 		List<Block> startup = new ArrayList<>();
 		for (Block command : program.commands()) {
-			if (command.op() == Op.DEFINE_PROCEDURE) {
-				procedures.put(declarationName(command), command.bodies().getFirst());
-			} else if (command.op().isDeclaration()) {
-				List<Block> body = command.bodies().getFirst();
-				if (!body.isEmpty())
-					scripts.add(new Script(command, body));
-			} else {
+			if (!command.op().isDeclaration()) {
 				startup.add(command);
+				continue;
+			}
+			try {
+				List<Block> body = command.bodies().getFirst();
+				if (command.op() == Op.DEFINE_PROCEDURE) {
+					procedures.put(input(command, 0, io).strip(), body);
+				} else if (!body.isEmpty()) {
+					Event event = switch (command.op()) {
+						case WHEN_SIGNAL_CHANGED -> new Event(command.op(), channel(command, io).ordinal(), "");
+						case WHEN_INPUT_CHANGED -> new Event(command.op(),
+							index(command, io, ComputerIO.INPUT_SLOTS, Problem.INPUT_SLOT), "");
+						case ON_BROADCAST -> new Event(command.op(), -1, input(command, 0, io).strip());
+						default -> throw new IllegalStateException("Expected an event declaration");
+					};
+					scripts.add(new Script(event, body));
+				}
+			} catch (InvalidInput invalid) {
+				report(command, invalid.problem);
+			} catch (ComputerValue.LimitExceeded ignored) {
+				finish(Status.COLLECTION_LIMIT);
+				return;
 			}
 		}
 		if (!startup.isEmpty()) {
@@ -90,8 +117,12 @@ public final class ComputerRuntime {
 			script.begin(timerStartTick);
 			scripts.addFirst(script);
 		}
-		status = scripts.isEmpty() ? Status.FINISHED : Status.RUNNING;
-		version++;
+		if (scripts.isEmpty()) {
+			finish(Status.FINISHED);
+		} else {
+			status = Status.RUNNING;
+			version++;
+		}
 	}
 
 	void stop() {
@@ -100,7 +131,12 @@ public final class ComputerRuntime {
 	}
 
 	void showLockedLibrary() {
+		diagnostic = null;
 		finish(Status.LIBRARY_LOCKED);
+	}
+
+	@Nullable ComputerProgram diagnosedProgram() {
+		return diagnostic == null ? null : executionProgram;
 	}
 
 	boolean isRunning() {
@@ -119,7 +155,12 @@ public final class ComputerRuntime {
 			nextScript = (nextScript + 1) % scripts.size();
 			if (script.frames.isEmpty() && script.pending)
 				script.begin(now);
-			tickScript(script, io, now);
+			try {
+				tickScript(script, io, now);
+			} catch (ComputerValue.LimitExceeded ignored) {
+				finish(Status.COLLECTION_LIMIT);
+				return;
+			}
 		}
 		if (status == Status.RUNNING && scripts.stream().noneMatch(script -> script.event != null || !script.frames.isEmpty()))
 			finish(scripts.getFirst().stopped ? Status.STOPPED : Status.FINISHED);
@@ -151,12 +192,12 @@ public final class ComputerRuntime {
 			}
 		}
 		for (Script script : scripts) {
-			Block event = script.event;
+			Event event = script.event;
 			if (event == null)
 				continue;
 			script.pending |= switch (event.op()) {
-				case WHEN_SIGNAL_CHANGED -> (signalChanged & (1 << channel(event, io).ordinal())) != 0;
-				case WHEN_INPUT_CHANGED -> (inputChanged & (1 << slot(event, io))) != 0;
+				case WHEN_SIGNAL_CHANGED -> (signalChanged & (1 << event.index())) != 0;
+				case WHEN_INPUT_CHANGED -> (inputChanged & (1 << event.index())) != 0;
 				case ON_BROADCAST -> script.broadcast;
 				default -> false;
 			};
@@ -170,46 +211,59 @@ public final class ComputerRuntime {
 		for (int steps = 0; steps < ComputerProgram.MAX_BLOCKS * 2 && stepBudget > 0 && evalBudget > 0
 			&& !frames.isEmpty() && now >= script.wakeTick && status == Status.RUNNING; steps++, stepBudget--) {
 			Frame frame = frames.getFirst();
-			if (frame.awaitingNextIteration) {
-				frame.awaitingNextIteration = false;
-				if (frame.loop != null && frame.loop.op() == Op.REPEAT_UNTIL && condition(frame.loop, 0, io)) {
-					frames.pop();
-					continue;
-				}
-				frame.next = 0;
-				frame.iterationStartTick = now;
-			}
-			if (frame.next < frame.commands.size()) {
-				Block block = frame.commands.get(frame.next);
-				setActiveBlock(commandIndices.getOrDefault(block, -1));
-				executedThisTick = true;
-				if (block.op() == Op.WAIT_UNTIL || block.op() == Op.WAIT_STABLE) {
-					if (waitSatisfied(block, frame, io, now))
-						frame.next++;
-					else
-						script.wakeTick = now + 1;
-				} else {
-					frame.next++;
-					execute(block, script, io, now);
-				}
-			} else if (frame.loop != null && shouldContinueLoop(frame, io)) {
-				long elapsed = Math.max(0L, now - frame.iterationStartTick);
-				int interval = loopInterval(frame.loop, io);
-				int remainingWait = (int) Math.max(0L, interval - elapsed);
-				if (remainingWait == 0 && (executedThisTick || frame.commands.isEmpty()))
-					remainingWait = 1;
-				if (remainingWait > 0) {
-					frame.awaitingNextIteration = true;
-					setActiveBlock(commandIndices.getOrDefault(frame.loop, -1));
-					script.wakeTick = now + remainingWait;
-				} else {
+			try {
+				if (frame.awaitingNextIteration) {
+					frame.awaitingNextIteration = false;
+					if (frame.loop != null && frame.loop.op() == Op.REPEAT_UNTIL && condition(frame.loop, 0, io)) {
+						frames.pop();
+						continue;
+					}
 					frame.next = 0;
 					frame.iterationStartTick = now;
 				}
-			} else {
+				if (frame.next < frame.commands.size()) {
+					Block block = frame.commands.get(frame.next);
+					setActiveBlock(commandIndices.getOrDefault(block, -1));
+					executedThisTick = true;
+					executeStep(block, frame, script, io, now);
+				} else if (frame.loop != null && shouldContinueLoop(frame, io)) {
+					long elapsed = Math.max(0L, now - frame.iterationStartTick);
+					int interval = loopInterval(frame.loop, io);
+					int remainingWait = (int) Math.max(0L, interval - elapsed);
+					if (remainingWait == 0 && (executedThisTick || frame.commands.isEmpty()))
+						remainingWait = 1;
+					if (remainingWait > 0) {
+						frame.awaitingNextIteration = true;
+						setActiveBlock(commandIndices.getOrDefault(frame.loop, -1));
+						script.wakeTick = now + remainingWait;
+					} else {
+						frame.next = 0;
+						frame.iterationStartTick = now;
+					}
+				} else {
+					frames.pop();
+				}
+			} catch (InvalidInput invalid) {
+				report(frame.loop, invalid.problem);
 				frames.pop();
 			}
 		}
+	}
+
+	private void executeStep(Block block, Frame frame, Script script, ComputerIO io, long now) {
+		boolean waiting = block.op() == Op.WAIT_UNTIL || block.op() == Op.WAIT_STABLE;
+		try {
+			if (waiting && !waitSatisfied(block, frame, io, now)) {
+				script.wakeTick = now + 1;
+				return;
+			}
+			if (!waiting)
+				execute(block, script, io, now);
+		} catch (InvalidInput invalid) {
+			report(block, invalid.problem);
+			frame.stableSince = -1;
+		}
+		frame.next++;
 	}
 
 	private boolean waitSatisfied(Block block, Frame frame, ComputerIO io, long now) {
@@ -222,7 +276,7 @@ public final class ComputerRuntime {
 		if (frame.stableSince < 0 || frame.lastStableCheck != now - 1)
 			frame.stableSince = now;
 		frame.lastStableCheck = now;
-		if (now - frame.stableSince < seconds(number(input(block, 1, io))))
+		if (now - frame.stableSince < seconds(number(block, 1, io)))
 			return false;
 		frame.stableSince = -1;
 		return true;
@@ -245,9 +299,9 @@ public final class ComputerRuntime {
 	private void execute(Block block, Script script, ComputerIO io, long now) {
 		Deque<Frame> frames = script.frames;
 		switch (block.op()) {
-			case WAIT -> script.wakeTick = now + seconds(number(input(block, 0, io)));
+			case WAIT -> script.wakeTick = now + seconds(number(block, 0, io));
 			case WAIT_TICKS -> script.wakeTick = now + rounded(block, 0, io, 1, MAX_WAIT_TICKS);
-			case RANDOM_WAIT -> script.wakeTick = now + seconds(randomBetween(number(input(block, 0, io)), number(input(block, 1, io))));
+			case RANDOM_WAIT -> script.wakeTick = now + seconds(randomBetween(number(block, 0, io), number(block, 1, io)));
 			case STOP -> {
 				frames.clear();
 				script.stopped = true;
@@ -265,7 +319,7 @@ public final class ComputerRuntime {
 				String message = input(block, 0, io).strip();
 				for (Script listener : scripts)
 					if (listener.event != null && listener.event.op() == Op.ON_BROADCAST
-						&& declarationName(listener.event).equals(message))
+						&& listener.event.message().equals(message))
 						listener.broadcast = true;
 			}
 			case IF, IF_ELSE -> {
@@ -275,12 +329,12 @@ public final class ComputerRuntime {
 			}
 			case COOLDOWN -> {
 				if (now >= cooldowns.getOrDefault(block, 0L)) {
-					cooldowns.put(block, now + seconds(number(input(block, 0, io))));
+					cooldowns.put(block, now + seconds(number(block, 0, io)));
 					frames.push(new Frame(block.bodies().getFirst(), null, 1, now));
 				}
 			}
 			case REPEAT -> {
-				int count = Math.clamp(Math.round(number(input(block, 0, io))), 0, Integer.MAX_VALUE);
+				int count = Math.clamp(Math.round(number(block, 0, io)), 0, Integer.MAX_VALUE);
 				if (count > 0 && !block.bodies().getFirst().isEmpty())
 					frames.push(new Frame(block.bodies().getFirst(), block, count, now));
 			}
@@ -288,257 +342,348 @@ public final class ComputerRuntime {
 				if (block.op() == Op.FOREVER || !condition(block, 0, io))
 					frames.push(new Frame(block.bodies().getFirst(), block, 0, now));
 			}
-			case SET, CHANGE -> {
+			case SET -> putVariable(input(block, 0, io).strip(), value(block, 1, io));
+			case CHANGE -> {
 				String name = input(block, 0, io).strip();
-				String value = clampValue(input(block, 1, io));
-				if (block.op() == Op.CHANGE)
-					value = format(number(variables.getOrDefault(name, "0")) + number(value));
-				putVariable(name, value);
+				putVariable(name, numeric(variableValue(name).asNumber() + number(block, 1, io)));
 			}
 			case TOGGLE -> {
 				String name = input(block, 0, io).strip();
-				putVariable(name, Boolean.toString(!Boolean.parseBoolean(variables.get(name))));
+				putVariable(name, bool(!variableValue(name).asBoolean()));
 			}
-			case LATCH -> putVariable(input(block, 0, io).strip(), Boolean.toString(condition(block, 1, io)));
-			case SEED_RANDOM -> random.setSeed((long) number(input(block, 0, io)));
+			case LATCH -> putVariable(input(block, 0, io).strip(), bool(condition(block, 1, io)));
+			case SEED_RANDOM -> random.setSeed((long) number(block, 0, io));
 			case SPLIT_TEXT -> {
-				List<String> list = obtain(lists, input(block, 2, io).strip(), ArrayList::new);
-				if (list != null) {
-					List<String> split = splitText(input(block, 0, io), input(block, 1, io));
-					list.clear();
-					list.addAll(split.subList(0, Math.min(split.size(), MAX_ENTRIES)));
-				}
+				List<ComputerValue> entries = splitText(input(block, 0, io), input(block, 1, io)).stream()
+					.limit(MAX_ENTRIES).<ComputerValue>map(Scalar::new).toList();
+				ValueCell target = collectionTarget(block, 2, Op.LIST, true, io);
+				if (target != null)
+					setValue(target, new ListValue(entries));
 			}
 			case LIST_ADD -> {
-				List<String> list = obtain(lists, input(block, 0, io).strip(), ArrayList::new);
-				if (list != null && list.size() < MAX_ENTRIES)
-					list.add(clampValue(input(block, 1, io)));
+				ComputerValue entry = value(block, 1, io);
+				ValueCell target = collectionTarget(block, 0, Op.LIST, true, io);
+				if (target != null) {
+					List<ComputerValue> entries = target.value.asList();
+					if (entries.size() < MAX_ENTRIES) {
+						List<ComputerValue> updated = new ArrayList<>(entries);
+						updated.add(entry);
+						setValue(target, new ListValue(updated));
+					}
+				}
 			}
 			case LIST_REMOVE, LIST_SET -> {
-				List<String> list = list(block, io);
+				ValueCell target = collectionTarget(block, 0, Op.LIST, false, io);
 				int index = listIndex(block, io);
-				if (index >= 0 && index < list.size()) {
+				if (target == null)
+					break;
+				List<ComputerValue> entries = target.value.asList();
+				if (index >= 0 && index < entries.size()) {
+					List<ComputerValue> updated = new ArrayList<>(entries);
 					if (block.op() == Op.LIST_REMOVE)
-						list.remove(index);
+						updated.remove(index);
 					else
-						list.set(index, clampValue(input(block, 2, io)));
+						updated.set(index, value(block, 2, io));
+					setValue(target, new ListValue(updated));
 				}
 			}
 			case MAP_SET -> {
-				Map<String, String> map = obtain(maps, input(block, 0, io).strip(), LinkedHashMap::new);
-				String key = clampValue(input(block, 1, io));
-				if (map != null && (map.size() < MAX_ENTRIES || map.containsKey(key)))
-					map.put(key, clampValue(input(block, 2, io)));
+				String key = input(block, 1, io);
+				ComputerValue entry = value(block, 2, io);
+				ValueCell target = collectionTarget(block, 0, Op.MAP, true, io);
+				if (target != null) {
+					Map<String, ComputerValue> entries = target.value.asMap();
+					if (entries.size() < MAX_ENTRIES || entries.containsKey(key)) {
+						Map<String, ComputerValue> updated = new LinkedHashMap<>(entries);
+						updated.put(key, entry);
+						setValue(target, new MapValue(updated));
+					}
+				}
 			}
 			case MAP_REMOVE -> {
-				Map<String, String> map = maps.get(input(block, 0, io).strip());
-				if (map != null)
-					map.remove(input(block, 1, io));
+				ValueCell target = collectionTarget(block, 0, Op.MAP, false, io);
+				if (target != null) {
+					String key = input(block, 1, io);
+					Map<String, ComputerValue> entries = target.value.asMap();
+					if (entries.containsKey(key)) {
+						Map<String, ComputerValue> updated = new LinkedHashMap<>(entries);
+						updated.remove(key);
+						setValue(target, new MapValue(updated));
+					}
+				}
 			}
-			case BIND_FREQUENCY, TUNE_FREQUENCY -> {
-				Block pair = (Block) block.inputs().get(1);
-				io.tuneRedstone(channel(block, io), new FrequencyPair(collectionInput(pair, 0, io), collectionInput(pair, 1, io)));
-			}
+			case BIND_FREQUENCY, TUNE_FREQUENCY -> tuneFrequency(block, io);
 			case SEND_REDSTONE -> io.writeRedstone(channel(block, io), condition(block, 1, io) ? 15 : 0, 0);
-			case SET_REDSTONE -> io.writeRedstone(channel(block, io), rounded(block, 1, io, 0, 15), 0);
-			case PULSE_REDSTONE -> io.writeRedstone(channel(block, io), rounded(block, 1, io, 0, 15),
-				rounded(block, 2, io, 1, MAX_WAIT_TICKS));
-			case SET_LINE -> io.setOutputLine(slot(block, io), clampValue(input(block, 1, io)));
-			case DISPLAY -> io.appendOutput(clampValue(input(block, 0, io)));
+			case SET_REDSTONE -> io.writeRedstone(channel(block, io), power(block, io), 0);
+			case PULSE_REDSTONE -> io.writeRedstone(channel(block, io), power(block, io),
+				Math.clamp(Math.round(requireNumber(value(block, 2, io), Problem.DURATION)), 1, MAX_WAIT_TICKS));
+			case SET_LINE -> io.setOutputLine(index(block, io, ComputerIO.OUTPUT_LINES, Problem.OUTPUT_LINE), input(block, 1, io));
+			case DISPLAY -> io.appendOutput(input(block, 0, io));
 			case CLEAR_OUTPUT -> io.clearOutput();
 			case RESET_TIMER -> timerStartTick = now;
 			case UPDATE_DISPLAY -> io.updateDisplay();
-			case ORDER_ITEM -> {
-				String item = input(block, 0, io);
-				long count = Math.round(number(input(block, 1, io)));
-				lastOrder = io.orderStock(input(block, 2, io), List.of(new OrderEntry(item, count)));
+			case ORDER_ITEM, ORDER_BATCH -> {
+				lastOrder = false;
+				lastOrder = order(block, io);
 			}
-			case ORDER_BATCH -> lastOrder = io.orderStock(input(block, 1, io), orderEntries((Block) block.inputs().getFirst(), io));
 			default -> throw new IllegalStateException("Expected a computer command: " + block.op());
 		}
 	}
 
 	private String input(Block block, int index, ComputerIO io) {
+		return value(block, index, io).asText();
+	}
+
+	private ComputerValue value(Block block, int index, ComputerIO io) {
 		return switch (block.inputs().get(index)) {
-			case Literal literal -> literal.text();
+			case Literal literal -> new Scalar(literal.text(), literal.type());
 			case Block reporter -> evaluate(reporter, io);
+			case EmptyInput ignored -> throw new IllegalStateException("Unfilled computer input in " + block.op());
 		};
 	}
 
-	private String evaluate(Block block, ComputerIO io) {
+	private ComputerValue evaluate(Block block, ComputerIO io) {
 		evalBudget--;
 		return switch (block.op()) {
-			case VARIABLE -> variables.getOrDefault(input(block, 0, io).strip(), "0");
-			case ITEM_ID -> itemId(block);
-			case ADD -> format(number(input(block, 0, io)) + number(input(block, 1, io)));
-			case SUBTRACT -> format(number(input(block, 0, io)) - number(input(block, 1, io)));
-			case MULTIPLY -> format(number(input(block, 0, io)) * number(input(block, 1, io)));
-			case DIVIDE -> format(number(input(block, 0, io)) / number(input(block, 1, io)));
+			case ADD -> numeric(number(block, 0, io) + number(block, 1, io));
+			case SUBTRACT -> numeric(number(block, 0, io) - number(block, 1, io));
+			case MULTIPLY -> numeric(number(block, 0, io) * number(block, 1, io));
+			case DIVIDE -> numeric(number(block, 0, io) / number(block, 1, io));
 			case MOD -> {
-				double a = number(input(block, 0, io));
-				double b = number(input(block, 1, io));
-				yield b == 0 ? "0" : format(a - Math.floor(a / b) * b);
+				double a = number(block, 0, io);
+				double b = number(block, 1, io);
+				yield numeric(b == 0 ? 0 : a - Math.floor(a / b) * b);
 			}
-			case ROUND -> format(Math.floor(number(input(block, 0, io)) + 0.5));
-			case FLOOR -> format(Math.floor(number(input(block, 0, io))));
-			case CEIL -> format(Math.ceil(number(input(block, 0, io))));
-			case ABS -> format(Math.abs(number(input(block, 0, io))));
+			case ROUND -> numeric(Math.floor(number(block, 0, io) + 0.5));
+			case FLOOR -> numeric(Math.floor(number(block, 0, io)));
+			case CEIL -> numeric(Math.ceil(number(block, 0, io)));
+			case ABS -> numeric(Math.abs(number(block, 0, io)));
 			case MAP_RANGE -> {
-				double value = number(input(block, 0, io));
-				double fromLow = number(input(block, 1, io));
-				double fromHigh = number(input(block, 2, io));
-				double toLow = number(input(block, 3, io));
-				double toHigh = number(input(block, 4, io));
-				yield format(fromLow == fromHigh ? toLow : lerp(toLow, toHigh, (value - fromLow) / (fromHigh - fromLow)));
+				double value = number(block, 0, io);
+				double fromLow = number(block, 1, io);
+				double fromHigh = number(block, 2, io);
+				double toLow = number(block, 3, io);
+				double toHigh = number(block, 4, io);
+				yield numeric(fromLow == fromHigh ? toLow : lerp(toLow, toHigh, (value - fromLow) / (fromHigh - fromLow)));
 			}
 			case CLAMP -> {
-				double value = number(input(block, 0, io));
-				double a = number(input(block, 1, io));
-				double b = number(input(block, 2, io));
-				yield format(Math.clamp(value, Math.min(a, b), Math.max(a, b)));
+				double value = number(block, 0, io);
+				double a = number(block, 1, io);
+				double b = number(block, 2, io);
+				yield numeric(Math.clamp(value, Math.min(a, b), Math.max(a, b)));
 			}
-			case MIN -> format(Math.min(number(input(block, 0, io)), number(input(block, 1, io))));
-			case MAX -> format(Math.max(number(input(block, 0, io)), number(input(block, 1, io))));
-			case POWER -> format(Math.pow(number(input(block, 0, io)), number(input(block, 1, io))));
-			case SQRT -> format(Math.sqrt(number(input(block, 0, io))));
-			case SIN -> format(Math.sin(Math.toRadians(number(input(block, 0, io)))));
-			case COS -> format(Math.cos(Math.toRadians(number(input(block, 0, io)))));
-			case TAN -> format(Math.tan(Math.toRadians(number(input(block, 0, io)))));
-			case RANDOM -> random(input(block, 0, io), input(block, 1, io));
-			case CHANCE -> Boolean.toString(random.nextDouble() * 100 < number(input(block, 0, io)));
-			case PICK_TEXT -> pick(splitText(input(block, 0, io), input(block, 1, io)));
-			case PICK_LIST -> {
-				String source = input(block, 0, io);
-				List<String> entries = lists.get(source.strip());
-				yield pick(entries == null ? splitText(source, ",") : entries);
-			}
-			case EQUALS -> Boolean.toString(compare(input(block, 0, io), input(block, 1, io)) == 0);
-			case LESS -> Boolean.toString(compare(input(block, 0, io), input(block, 1, io)) < 0);
-			case GREATER -> Boolean.toString(compare(input(block, 0, io), input(block, 1, io)) > 0);
-			case AND -> Boolean.toString(condition(block, 0, io) && condition(block, 1, io));
-			case OR -> Boolean.toString(condition(block, 0, io) || condition(block, 1, io));
-			case XOR -> Boolean.toString(condition(block, 0, io) ^ condition(block, 1, io));
-			case NOT -> Boolean.toString(!condition(block, 0, io));
+			case MIN -> numeric(Math.min(number(block, 0, io), number(block, 1, io)));
+			case MAX -> numeric(Math.max(number(block, 0, io), number(block, 1, io)));
+			case POWER -> numeric(Math.pow(number(block, 0, io), number(block, 1, io)));
+			case SQRT -> numeric(Math.sqrt(number(block, 0, io)));
+			case SIN -> numeric(Math.sin(Math.toRadians(number(block, 0, io))));
+			case COS -> numeric(Math.cos(Math.toRadians(number(block, 0, io))));
+			case TAN -> numeric(Math.tan(Math.toRadians(number(block, 0, io))));
+			case RANDOM -> random(value(block, 0, io), value(block, 1, io));
+			case CHANCE -> bool(random.nextDouble() * 100 < number(block, 0, io));
+			case PICK_TEXT -> new Scalar(pick(splitText(input(block, 0, io), input(block, 1, io))));
+			case EQUALS -> bool(value(block, 0, io).equivalent(value(block, 1, io)));
+			case TEXT_EQUALS -> bool(input(block, 0, io).equals(input(block, 1, io)));
+			case LESS -> bool(compare(value(block, 0, io), value(block, 1, io)) < 0);
+			case GREATER -> bool(compare(value(block, 0, io), value(block, 1, io)) > 0);
+			case AND -> bool(condition(block, 0, io) && condition(block, 1, io));
+			case OR -> bool(condition(block, 0, io) || condition(block, 1, io));
+			case XOR -> bool(condition(block, 0, io) ^ condition(block, 1, io));
+			case NOT -> bool(!condition(block, 0, io));
 			case PACK_BITS -> {
 				int mask = 0;
 				for (int i = 0; i < 4; i++)
 					if (condition(block, i, io))
 						mask |= 1 << i;
-				yield Integer.toString(mask);
+				yield numeric(mask);
 			}
 			case UNPACK_BIT -> {
 				int bits = rounded(block, 0, io, 0, 15);
 				int bit = rounded(block, 1, io, 1, 4) - 1;
-				yield Boolean.toString((bits & (1 << bit)) != 0);
+				yield bool((bits & (1 << bit)) != 0);
 			}
-			case JOIN -> clampValue(input(block, 0, io) + input(block, 1, io));
+			case JOIN -> new Scalar(input(block, 0, io) + input(block, 1, io));
 			case LENGTH -> {
 				String text = input(block, 0, io);
-				yield Integer.toString(text.codePointCount(0, text.length()));
+				yield numeric(text.codePointCount(0, text.length()));
 			}
-			case CONTAINS -> Boolean.toString(
+			case CONTAINS -> bool(
 				input(block, 0, io).toLowerCase(Locale.ROOT).contains(input(block, 1, io).toLowerCase(Locale.ROOT)));
-			case PARSE_NUMBER -> format(extractNumber(input(block, 0, io)));
+			case PARSE_NUMBER -> numeric(extractNumber(input(block, 0, io)));
 			case SUBSTRING -> {
 				String text = input(block, 0, io);
 				int length = text.codePointCount(0, text.length());
 				int first = rounded(block, 1, io, 1, length + 1) - 1;
 				int count = rounded(block, 2, io, 0, length - first);
 				int start = text.offsetByCodePoints(0, first);
-				yield text.substring(start, text.offsetByCodePoints(start, count));
+				yield new Scalar(text.substring(start, text.offsetByCodePoints(start, count)));
 			}
 			case REPLACE_TEXT -> {
 				String text = input(block, 0, io);
 				String target = input(block, 1, io);
-				yield target.isEmpty() ? text : clampValue(text.replace(target, input(block, 2, io)));
+				yield new Scalar(target.isEmpty() ? text : text.replace(target, input(block, 2, io)));
 			}
 			case FORMAT_NUMBER -> {
-				double value = number(input(block, 0, io));
+				double value = number(block, 0, io);
 				int decimals = rounded(block, 1, io, 0, 8);
-				yield clampValue(String.format(Locale.ROOT, "%." + decimals + "f", value));
+				yield new Scalar(String.format(Locale.ROOT, "%." + decimals + "f", value));
 			}
 			case PROGRESS_BAR -> {
-				double value = number(input(block, 0, io));
-				double total = number(input(block, 1, io));
+				double value = number(block, 0, io);
+				double total = number(block, 1, io);
 				int width = rounded(block, 2, io, 1, 32);
 				int filled = total <= 0 ? 0 : Math.clamp(Math.round(value / total * width), 0, width);
-				yield "█".repeat(filled) + "░".repeat(width - filled);
+				yield new Scalar("█".repeat(filled) + "░".repeat(width - filled));
 			}
+			case LIST_LENGTH -> numeric(list(block, io).size());
+			case LIST_JOIN -> new Scalar(String.join(input(block, 1, io), list(block, io).stream().map(ComputerValue::asText).toList()));
+			case MAP_HAS -> bool(map(block, io).containsKey(input(block, 1, io)));
+			case MAP_LENGTH -> numeric(map(block, io).size());
+			case READ_REDSTONE -> numeric(io.readRedstone(channel(block, io)));
+			case HAS_REDSTONE -> bool(io.readRedstone(channel(block, io)) > 0);
+			case RISING_EDGE -> bool((rising & (1 << channel(block, io).ordinal())) != 0);
+			case FALLING_EDGE -> bool((falling & (1 << channel(block, io).ordinal())) != 0);
+			case READ_INPUT -> new Scalar(io.readInputSlot(index(block, io, ComputerIO.INPUT_SLOTS, Problem.INPUT_SLOT)));
+			case TIMER -> numeric(Math.max(0L, io.gameTick() - timerStartTick) / 20.0);
+			case STOCK_COUNT -> numeric(io.stockCount(stockFilters(list(block, io))));
+			case HAS_STOCK -> {
+				List<String> filters = stockFilters(list(block, io));
+				yield bool(!filters.isEmpty() && io.stockCount(filters) >= number(block, 1, io));
+			}
+			case STOCK_TOTAL -> numeric(io.stockTotal());
+			case STOCK_TYPES -> numeric(io.stockTypes());
+			case LAST_ORDER -> bool(lastOrder);
+			case VARIABLE -> variableValue(input(block, 0, io).strip());
+			case LIST, MAP -> evaluateCollection(block, io);
 			case LIST_GET -> {
-				List<String> list = list(block, io);
+				List<ComputerValue> entries = list(block, io);
 				int index = listIndex(block, io);
-				yield index < 0 || index >= list.size() ? "" : list.get(index);
+				yield index < 0 || index >= entries.size() ? Missing.INSTANCE : entries.get(index);
 			}
-			case LIST_LENGTH -> Integer.toString(list(block, io).size());
-			case LIST_JOIN -> clampValue(String.join(input(block, 1, io), list(block, io)));
-			case MAP_GET -> map(block, io).getOrDefault(input(block, 1, io), "");
-			case MAP_HAS -> Boolean.toString(map(block, io).containsKey(input(block, 1, io)));
-			case MAP_LENGTH -> Integer.toString(map(block, io).size());
-			case READ_REDSTONE -> Integer.toString(io.readRedstone(channel(block, io)));
-			case HAS_REDSTONE -> Boolean.toString(io.readRedstone(channel(block, io)) > 0);
-			case RISING_EDGE -> Boolean.toString((rising & (1 << channel(block, io).ordinal())) != 0);
-			case FALLING_EDGE -> Boolean.toString((falling & (1 << channel(block, io).ordinal())) != 0);
-			case READ_INPUT -> io.readInputSlot(slot(block, io));
-			case TIMER -> format(Math.max(0L, io.gameTick() - timerStartTick) / 20.0);
-			case STOCK_COUNT -> Long.toString(io.stockCount(stockFilters((Block) block.inputs().getFirst(), io)));
-			case HAS_STOCK -> Boolean.toString(io.stockCount(stockFilters((Block) block.inputs().getFirst(), io))
-				>= number(input(block, 1, io)));
-			case STOCK_TOTAL -> Long.toString(io.stockTotal());
-			case STOCK_TYPES -> Integer.toString(io.stockTypes());
-			case LAST_ORDER -> Boolean.toString(lastOrder);
+			case MAP_GET -> map(block, io).getOrDefault(input(block, 1, io), Missing.INSTANCE);
+			case PICK_LIST -> {
+				List<ComputerValue> entries = list(block, io);
+				yield entries.isEmpty() ? Missing.INSTANCE : entries.get(random.nextInt(entries.size()));
+			}
 			default -> throw new IllegalStateException("Expected a computer reporter: " + block.op());
 		};
 	}
 
-	private List<String> stockFilters(Block list, ComputerIO io) {
-		List<String> filters = new ArrayList<>(list.inputs().size());
-		for (int i = 0; i < list.inputs().size(); i++) {
-			String filter = collectionInput(list, i, io).strip();
-			if (!filter.isEmpty())
-				filters.add(filter);
+	private ComputerValue evaluateCollection(Block block, ComputerIO io) {
+		ValueCell stored = inlineCollections.get(block);
+		if (stored != null)
+			return stored.value;
+		if (block.op() == Op.LIST) {
+			List<ComputerValue> entries = new ArrayList<>(block.inputs().size());
+			for (int i = 0; i < block.inputs().size(); i++)
+				entries.add(value(block, i, io));
+			return new ListValue(entries);
+		}
+		Map<String, ComputerValue> entries = new LinkedHashMap<>();
+		for (int i = 0; i < block.inputs().size(); i += 2)
+			entries.put(clampValue(input(block, i, io)), value(block, i + 1, io));
+		return new MapValue(entries);
+	}
+
+	private void tuneFrequency(Block block, ComputerIO io) {
+		Channel channel = channel(block, io);
+		String first = "";
+		String second = "";
+		if (block.inputs().get(1) instanceof Block inline && inline.op() == Op.LIST && !inlineCollections.containsKey(inline)) {
+			// Evaluate only the two frequency items, even if the inline list has additional rows.
+			if (!inline.inputs().isEmpty())
+				first = input(inline, 0, io).strip();
+			if (inline.inputs().size() >= 2)
+				second = input(inline, 1, io).strip();
+		} else {
+			List<ComputerValue> entries = collectionValue(value(block, 1, io)).asList();
+			if (!entries.isEmpty())
+				first = entries.getFirst().asText().strip();
+			if (entries.size() >= 2)
+				second = entries.get(1).asText().strip();
+		}
+		if ((!first.isEmpty() && !io.isItem(first, true)) || (!second.isEmpty() && !io.isItem(second, true)))
+			throw new InvalidInput(Problem.FREQUENCY);
+		io.tuneRedstone(channel, new FrequencyPair(first, second));
+	}
+
+	private static List<String> stockFilters(List<ComputerValue> entries) {
+		List<String> filters = new ArrayList<>(entries.size());
+		for (ComputerValue entry : entries) {
+			if (entry instanceof Scalar scalar && !scalar.text().isBlank())
+				filters.add(scalar.text().strip());
 		}
 		return filters;
 	}
 
-	private List<OrderEntry> orderEntries(Block list, ComputerIO io) {
-		List<OrderEntry> entries = new ArrayList<>(list.inputs().size() / 2);
-		for (int i = 0; i < list.inputs().size(); i += 2) {
-			String item = collectionInput(list, i, io).strip();
-			if (!item.isEmpty())
-				entries.add(new OrderEntry(item, Math.round(number(collectionInput(list, i + 1, io)))));
+	private boolean order(Block block, ComputerIO io) {
+		String address = input(block, block.op() == Op.ORDER_ITEM ? 2 : 1, io);
+		if (address.isBlank())
+			throw new InvalidInput(Problem.ADDRESS);
+		if (block.op() == Op.ORDER_ITEM)
+			return io.orderStock(address, List.of(orderEntry(input(block, 0, io), value(block, 1, io), io)));
+
+		List<OrderEntry> entries = new ArrayList<>();
+		if (block.inputs().getFirst() instanceof Block inline && inline.op() == Op.MAP && !inlineCollections.containsKey(inline)) {
+			// Inline orders can have repeated item rows, which the logistics layer sums.
+			for (int i = 0; i < inline.inputs().size(); i += 2) {
+				String item = input(inline, i, io).strip();
+				if (!item.isEmpty())
+					entries.add(orderEntry(item, value(inline, i + 1, io), io));
+			}
+		} else {
+			map(block, io).forEach((key, value) -> {
+				if (!key.isBlank())
+					entries.add(orderEntry(key, value, io));
+			});
 		}
-		return entries;
+		if (entries.isEmpty())
+			throw new InvalidInput(Problem.ORDER_ITEMS);
+		return io.orderStock(address, entries);
 	}
 
-	private String collectionInput(Block collection, int index, ComputerIO io) {
-		return index >= 0 && index < collection.inputs().size() ? input(collection, index, io) : "";
+	private static OrderEntry orderEntry(String reference, ComputerValue quantity, ComputerIO io) {
+		String item = reference.strip();
+		if (item.isEmpty() || !io.isItem(item, false))
+			throw new InvalidInput(Problem.ITEM);
+		long count = Math.round(requireNumber(quantity, Problem.QUANTITY));
+		if (count < 1)
+			throw new InvalidInput(Problem.QUANTITY);
+		return new OrderEntry(item, count);
 	}
 
 	private boolean condition(Block block, int index, ComputerIO io) {
-		return Boolean.parseBoolean(input(block, index, io));
+		return value(block, index, io).asBoolean();
 	}
 
 	private Channel channel(Block block, ComputerIO io) {
-		return Channel.parse(input(block, 0, io));
+		return Channel.VALUES[index(block, io, Channel.VALUES.length, Problem.CHANNEL)];
 	}
 
-	private int slot(Block block, ComputerIO io) {
-		return ComputerProgram.parseSlotIndex(input(block, 0, io));
+	private int index(Block block, ComputerIO io, int range, Problem problem) {
+		double number = value(block, 0, io).tryNumber(false);
+		if (!Double.isFinite(number) || number < 1 || number > range || number != Math.rint(number))
+			throw new InvalidInput(problem);
+		return (int) number - 1;
+	}
+
+	private int power(Block block, ComputerIO io) {
+		return Math.clamp(Math.round(requireNumber(value(block, 1, io), Problem.SIGNAL_STRENGTH)), 0, 15);
+	}
+
+	private static double requireNumber(ComputerValue value, Problem problem) {
+		double number = value.tryNumber(true);
+		if (!Double.isFinite(number))
+			throw new InvalidInput(problem);
+		return number;
+	}
+
+	private double number(Block block, int index, ComputerIO io) {
+		return value(block, index, io).asNumber();
 	}
 
 	private int rounded(Block block, int index, ComputerIO io, int min, int max) {
-		return Math.clamp(Math.round(number(input(block, index, io))), min, max);
-	}
-
-	private static String declarationName(Block block) {
-		return switch (block.inputs().getFirst()) {
-			case Literal literal -> literal.text().strip();
-			case Block item -> itemId(item).strip();
-		};
-	}
-
-	private static String itemId(Block block) {
-		return ((Literal) block.inputs().getFirst()).text();
+		return Math.clamp(Math.round(number(block, index, io)), min, max);
 	}
 
 	private static int seconds(double value) {
@@ -553,42 +698,77 @@ public final class ComputerRuntime {
 		return delimiter.isEmpty() ? List.of(text) : List.of(text.split(Pattern.quote(delimiter), -1));
 	}
 
-	@Nullable
-	private static <T> T obtain(Map<String, T> collections, String name, Supplier<T> create) {
-		T existing = collections.get(name);
-		if (existing != null)
-			return existing;
-		if (name.isEmpty() || collections.size() >= MAX_COLLECTIONS)
-			return null;
-		T created = create.get();
-		collections.put(name, created);
-		return created;
-	}
-
-	private List<String> list(Block block, ComputerIO io) {
-		return lists.getOrDefault(input(block, 0, io).strip(), List.of());
+	private List<ComputerValue> list(Block block, ComputerIO io) {
+		return collectionValue(value(block, 0, io)).asList();
 	}
 
 	private int listIndex(Block block, ComputerIO io) {
 		return rounded(block, 1, io, 0, MAX_ENTRIES + 1) - 1;
 	}
 
-	private Map<String, String> map(Block block, ComputerIO io) {
-		return maps.getOrDefault(input(block, 0, io).strip(), Map.of());
+	private Map<String, ComputerValue> map(Block block, ComputerIO io) {
+		return collectionValue(value(block, 0, io)).asMap();
+	}
+
+	private ComputerValue collectionValue(ComputerValue value) {
+		return value instanceof Scalar name && name.type() == DataType.VARIABLE_NAME
+			? variableValue(name.text().strip()) : value;
+	}
+
+	@Nullable
+	private ValueCell collectionTarget(Block block, int index, Op kind, boolean create, ComputerIO io) {
+		Input source = block.inputs().get(index);
+		if (source instanceof Block reporter && reporter.op() == Op.VARIABLE) {
+			evalBudget--;
+			return namedCollection(input(reporter, 0, io).strip(), kind, create);
+		}
+		ComputerValue value = value(block, index, io);
+		if (value instanceof Scalar name && name.type() == DataType.VARIABLE_NAME)
+			return namedCollection(name.text().strip(), kind, create);
+		Block owner = source instanceof Block reporter && reporter.op().isCollection() ? reporter : block;
+		// An inline destination holds its edits until the program is restarted.
+		return inlineCollections.computeIfAbsent(owner, ignored -> new ValueCell(value));
+	}
+
+	@Nullable
+	private ValueCell namedCollection(String name, Op kind, boolean create) {
+		ValueCell variable = variables.get(name);
+		if (variable != null || !create)
+			return variable;
+		putVariable(name, kind == Op.LIST ? EMPTY_LIST : EMPTY_MAP);
+		return variables.get(name);
+	}
+
+	private ComputerValue variableValue(String name) {
+		ValueCell cell = variables.get(name);
+		return cell == null ? Missing.INSTANCE : cell.value;
 	}
 
 	private String pick(List<String> values) {
 		return values.isEmpty() ? "" : values.get(random.nextInt(values.size()));
 	}
 
-	private void putVariable(String name, String value) {
+	private void putVariable(String name, ComputerValue value) {
 		if (name.isEmpty()) {
 			finish(Status.EMPTY_VARIABLE);
 		} else if (variables.size() == MAX_VARIABLES && !variables.containsKey(name)) {
 			finish(Status.VARIABLE_LIMIT);
-		} else if (!value.equals(variables.put(name, value))) {
-			version++;
+		} else {
+			ValueCell cell = variables.get(name);
+			if (cell == null) {
+				variables.put(name, new ValueCell(value));
+				version++;
+			} else {
+				setValue(cell, value);
+			}
 		}
+	}
+
+	private void setValue(ValueCell cell, ComputerValue value) {
+		ComputerValue previous = cell.value;
+		cell.value = value;
+		if (value != previous && (!value.equals(previous) || !value.asText().equals(previous.asText())))
+			version++;
 	}
 
 	private void setActiveBlock(int index) {
@@ -598,10 +778,21 @@ public final class ComputerRuntime {
 		}
 	}
 
+	private void report(Block block, Problem problem) {
+		Diagnostic next = new Diagnostic(problem, commandIndices.getOrDefault(block, -1));
+		if (!next.equals(diagnostic)) {
+			diagnostic = next;
+			version++;
+		}
+	}
+
 	private void finish(Status result) {
 		scripts.clear();
 		procedures.clear();
+		inlineCollections.clear();
 		commandIndices = Map.of();
+		if (diagnostic == null)
+			executionProgram = null;
 		activeBlockIndex = -1;
 		status = result;
 		version++;
@@ -610,8 +801,8 @@ public final class ComputerRuntime {
 	long version() { return version; }
 
 	Snapshot snapshot(List<String> output, List<ChannelState> channels, List<String> inputSlots, boolean stockLinkBound) {
-		return new Snapshot(status, activeBlockIndex, output,
-			variables.entrySet().stream().map(entry -> new Variable(entry.getKey(), entry.getValue())).toList(),
+		return new Snapshot(status, activeBlockIndex, diagnostic, output,
+			variables.entrySet().stream().map(entry -> new Variable(entry.getKey(), entry.getValue().value.asText())).toList(),
 			channels, inputSlots, stockLinkBound);
 	}
 
@@ -626,21 +817,21 @@ public final class ComputerRuntime {
 		return value.substring(0, end);
 	}
 
-	private String random(String first, String second) {
-		double a = number(first);
-		double b = number(second);
+	private Scalar random(ComputerValue first, ComputerValue second) {
+		double a = first.asNumber();
+		double b = second.asNumber();
 		double low = Math.min(a, b);
 		double high = Math.max(a, b);
 		if (low == high)
-			return format(low);
-		boolean ints = !first.contains(".") && !second.contains(".") && low == Math.rint(low) && high == Math.rint(high)
+			return numeric(low);
+		boolean ints = !first.asText().contains(".") && !second.asText().contains(".") && low == Math.rint(low) && high == Math.rint(high)
 			&& low >= Integer.MIN_VALUE && high <= Integer.MAX_VALUE;
 		if (ints) {
 			long min = (long) low;
 			long max = (long) high;
-			return Long.toString(random.nextLong(min, max + 1));
+			return numeric(random.nextLong(min, max + 1));
 		}
-		return format(randomBetween(low, high));
+		return numeric(randomBetween(low, high));
 	}
 
 	private double randomBetween(double a, double b) {
@@ -689,7 +880,7 @@ public final class ComputerRuntime {
 				}
 			}
 			if (seenDigit) {
-				double parsed = parse(sb.toString());
+				double parsed = Scalar.parseNumber(sb.toString(), false);
 				if (Double.isFinite(parsed))
 					return parsed;
 			}
@@ -698,35 +889,34 @@ public final class ComputerRuntime {
 		return 0;
 	}
 
-	private static double parse(String value) {
-		try {
-			return Double.parseDouble(value.strip());
-		} catch (NumberFormatException ignored) {
-			return Double.NaN;
-		}
-	}
-
-	private static double number(String value) {
-		double parsed = parse(value);
-		return Double.isFinite(parsed) ? parsed : 0;
-	}
-
-	private static int compare(String first, String second) {
-		double a = parse(first);
-		double b = parse(second);
+	private static int compare(ComputerValue first, ComputerValue second) {
+		double a = first.tryNumber(true);
+		double b = second.tryNumber(true);
 		if (Double.isFinite(a) && Double.isFinite(b))
 			return a == b ? 0 : Double.compare(a, b);
-		return first.compareToIgnoreCase(second);
+		return first.asText().compareToIgnoreCase(second.asText());
 	}
 
-	private static String format(double number) {
+	private static Scalar numeric(double number) {
 		if (!Double.isFinite(number) || number == 0)
-			return "0";
+			return numeric(0L);
 		String value = Double.toString(number);
-		return value.endsWith(".0") ? value.substring(0, value.length() - 2) : value;
+		return new Scalar(value.endsWith(".0") ? value.substring(0, value.length() - 2) : value, DataType.NUMBER);
 	}
 
-	public enum Status { READY, RUNNING, FINISHED, STOPPED, EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT }
+	private static Scalar numeric(long number) {
+		return new Scalar(Long.toString(number), DataType.NUMBER);
+	}
+
+	private static Scalar bool(boolean value) {
+		return new Scalar(Boolean.toString(value), DataType.BOOLEAN);
+	}
+
+	public enum Status { READY, RUNNING, FINISHED, STOPPED, EMPTY_VARIABLE, VARIABLE_LIMIT, LIBRARY_LOCKED, PROCEDURE_LIMIT, COLLECTION_LIMIT }
+
+	public enum Problem { CHANNEL, INPUT_SLOT, OUTPUT_LINE, SIGNAL_STRENGTH, DURATION, FREQUENCY, ITEM, QUANTITY, ADDRESS, ORDER_ITEMS }
+
+	public record Diagnostic(Problem problem, int blockIndex) {}
 
 	public record Variable(String name, String value) {}
 
@@ -737,6 +927,7 @@ public final class ComputerRuntime {
 	public record Snapshot(
 		Status status,
 		int activeBlockIndex,
+		@Nullable Diagnostic diagnostic,
 		List<String> output,
 		List<Variable> variables,
 		List<ChannelState> channels,
@@ -744,7 +935,7 @@ public final class ComputerRuntime {
 		boolean stockLinkBound
 	) {
 		static final Snapshot EMPTY = new Snapshot(
-			Status.READY, -1, List.of(), List.of(),
+			Status.READY, -1, null, List.of(), List.of(),
 			Collections.nCopies(Channel.VALUES.length, new ChannelState("", "", 0, 0)),
 			Collections.nCopies(ComputerIO.INPUT_SLOTS, ""), false
 		);
@@ -757,15 +948,34 @@ public final class ComputerRuntime {
 		}
 	}
 
+	private static final class InvalidInput extends RuntimeException {
+		private final Problem problem;
+
+		private InvalidInput(Problem problem) {
+			super(null, null, false, false);
+			this.problem = problem;
+		}
+	}
+
+	private record Event(Op op, int index, String message) {}
+
+	private static final class ValueCell {
+		private ComputerValue value;
+
+		private ValueCell(ComputerValue value) {
+			this.value = value;
+		}
+	}
+
 	private static final class Script {
 		@Nullable
-		private final Block event;
+		private final Event event;
 		private final List<Block> commands;
 		private final Deque<Frame> frames = new ArrayDeque<>();
 		private boolean broadcast, pending, stopped;
 		private long wakeTick;
 
-		private Script(@Nullable Block event, List<Block> commands) {
+		private Script(@Nullable Event event, List<Block> commands) {
 			this.event = event;
 			this.commands = commands;
 		}

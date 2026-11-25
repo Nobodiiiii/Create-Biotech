@@ -66,7 +66,7 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 	}
 
 	private static ProgramState programsOf(ComputerBlockEntity computer) {
-		return new ProgramState(computer.programRevision(), computer.program(), computer.restartProgram(), computer.library());
+		return new ProgramState(computer.programRevision(), computer.program(), computer.executionProgram(), computer.library());
 	}
 
 	public ProgramState programState() { return programState; }
@@ -109,6 +109,10 @@ public final class ComputerProgramMenu extends AbstractContainerMenu {
 		ComputerProgram submitted = program.orElseThrow();
 		if (submitted.firstUnavailable(computer.library()) != null) {
 			sendPrograms(programsOf(computer), EditResult.LIBRARY_LOCKED);
+			return;
+		}
+		if (action == Action.RUN && submitted.hasEmptyInputs()) {
+			sendPrograms(programsOf(computer), EditResult.INCOMPLETE);
 			return;
 		}
 		if (action == Action.SAVE)

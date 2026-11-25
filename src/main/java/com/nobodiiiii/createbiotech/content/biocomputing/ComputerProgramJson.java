@@ -8,10 +8,13 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Block;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
+import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.EmptyInput;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Input;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Literal;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
@@ -19,9 +22,8 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 /** Bounded clipboard JSON import/export for sharing Scratch programs. */
 public final class ComputerProgramJson {
 	private static final String FORMAT_ID = "create_biotech.scratch";
-	private static final int FORMAT_VERSION = 2;
-	// Allow a full program containing maximum-size order lists even when JSON escapes each code unit.
-	private static final int MAX_JSON_LENGTH = 576 * 1024;
+	// Includes explicit type keys and worst-case escaping for all literal slots.
+	private static final int MAX_JSON_LENGTH = 768 * 1024;
 	private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
 
 	private ComputerProgramJson() {}
@@ -29,7 +31,7 @@ public final class ComputerProgramJson {
 	public static String toJson(ComputerProgram program) {
 		JsonObject root = new JsonObject();
 		root.addProperty("format", FORMAT_ID);
-		root.addProperty("version", FORMAT_VERSION);
+		root.addProperty("version", ComputerProgram.FORMAT_VERSION);
 		root.add("commands", writeCommands(program.commands()));
 		return GSON.toJson(root);
 	}
@@ -46,7 +48,7 @@ public final class ComputerProgramJson {
 				return Optional.empty();
 			JsonElement version = root.get("version");
 			if (version == null || !version.isJsonPrimitive() || !version.getAsJsonPrimitive().isNumber()
-				|| version.getAsInt() != FORMAT_VERSION)
+				|| !version.getAsString().equals(Integer.toString(ComputerProgram.FORMAT_VERSION)))
 				return Optional.empty();
 			JsonElement commands = root.get("commands");
 			if (commands == null || !commands.isJsonArray())
@@ -72,8 +74,14 @@ public final class ComputerProgramJson {
 			JsonArray inputs = new JsonArray();
 			for (Input input : block.inputs()) {
 				switch (input) {
-					case Literal literal -> inputs.add(literal.text());
+					case Literal literal -> {
+						JsonObject data = new JsonObject();
+						data.addProperty("type", literal.type().key());
+						data.addProperty("value", literal.text());
+						inputs.add(data);
+					}
 					case Block reporter -> inputs.add(writeBlock(reporter));
+					case EmptyInput ignored -> inputs.add(JsonNull.INSTANCE);
 				}
 			}
 			obj.add("inputs", inputs);
@@ -124,13 +132,15 @@ public final class ComputerProgramJson {
 			List<Input> inputs = new ArrayList<>(inputCount);
 			if (inputArray != null) {
 				for (JsonElement element : inputArray) {
-					if (element.isJsonObject()) {
-						inputs.add(block(element.getAsJsonObject(), depth + 1));
+					if (element.isJsonNull()) {
+						inputs.add(EmptyInput.INSTANCE);
+					} else if (element.isJsonObject()) {
+						JsonObject data = element.getAsJsonObject();
+						String type = stringOrNull(data.get("type"));
+						inputs.add(type == null ? block(data, depth + 1)
+							: new Literal(stringOrNull(data.get("value")), DataType.byKey(type)));
 					} else {
-						String literal = stringOrNull(element);
-						if (literal == null)
-							throw new IllegalArgumentException("Invalid literal");
-						inputs.add(new Literal(literal));
+						throw new IllegalArgumentException("Expected typed value, block or empty input");
 					}
 				}
 			}
