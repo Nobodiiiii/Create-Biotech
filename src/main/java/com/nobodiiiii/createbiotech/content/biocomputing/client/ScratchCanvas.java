@@ -14,6 +14,7 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Categor
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataType;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Shape;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchBlockArt.Outline;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchBlockArt.Region;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Datum;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Element;
@@ -24,6 +25,7 @@ import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Loo
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.LoosePoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.StackPoint;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Tile;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchPanelArt.Symbol;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -32,7 +34,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.ItemStack;
 
 final class ScratchCanvas {
-	private static final int GAP = 5;
+	private static final int STACK_SPACING = 2;
 	private static final int INDENT = 18;
 	private static final int HEADER_HEIGHT = 22;
 	private static final int DATA_HEIGHT = 15;
@@ -41,13 +43,13 @@ final class ScratchCanvas {
 	private static final int LIST_QUANTITY_WIDTH = 32;
 	private static final int LIST_QUANTITY_GAP = 12;
 	private static final int LIST_CONTROL_SIZE = 14;
-	private static final int INK = 0xff151b20;
-	private static final int GUIDE = 0xffd2e9ff;
-	private static final int SOCKET_FILL = 0xff25303b;
-	private static final int SOCKET_EDGE = 0xff526977;
+	private static final int BLOCK_INK = 0xfff7ecd9;
+	private static final int VALUE_INK = 0xff2b261e;
+	private static final int LITERAL_TINT = 0xfffff4de;
+	private static final int GUIDE = 0xffdfc895;
+	private static final int SOCKET_FILL = 0xff2a2c29;
+	private static final int SOCKET_EDGE = 0xff7c7465;
 	private static final int MISMATCH_EDGE = 0xffffc084;
-	private static final int ACTIVE_OUTLINE = 0xffffe866;
-	private static final int PROBLEM_OUTLINE = 0xffff8983;
 	private final Font font;
 
 	ScratchCanvas(Font font) {
@@ -62,10 +64,11 @@ final class ScratchCanvas {
 		Layout layout = new Layout(activeCommandIndex, problemCommandIndex);
 		boolean hasDeclarations = draft.commands.stream().anyMatch(tile -> tile.op.isDeclaration());
 		String label = text(hasDeclarations ? "program_root" : "startup").getString();
-		Rect hat = new Rect(14, 14, Math.max(102, font.width(label) + 20), 26);
+		Rect hat = new Rect(14, 14, Math.max(102, font.width(label) + 34), 24);
 		layout.art(hat, Category.EVENTS, Region.HAT);
-		layout.label(label, hat.x + 10, hat.y + 4, hat.height, INK);
-		layout.stack(draft.commands, null, 1, hat.x, hat.bottom() + GAP);
+		layout.symbol(Symbol.FLAG, hat.x + 9, hat.y + 9, 0xfff4d78d);
+		layout.label(label, hat.x + 24, hat.y + 3, hat.height, BLOCK_INK);
+		layout.stack(draft.commands, null, 1, hat.x, hat.bottom() + STACK_SPACING);
 		for (LooseData data : draft.looseData)
 			layout.element(data.element(), new LoosePoint(draft.looseData, data), data.x(), data.y());
 		return layout;
@@ -74,8 +77,11 @@ final class ScratchCanvas {
 	Preview preview(Element element) {
 		Layout layout = new Layout(-1, -1);
 		Rect bounds = layout.element(element, null, 0, 0);
-		if (element instanceof Tile tile && tile.op.shape() == Shape.COMMAND)
+		if (element instanceof Tile tile && tile.op.shape() == Shape.COMMAND) {
+			int end = layout.bodies(tile, null, bounds.x, bounds.bottom(), bounds.width);
+			bounds = new Rect(bounds.x, bounds.y, bounds.width, end - bounds.y);
 			bounds = ScratchBlockArt.paintedBounds(bounds, commandRegion(tile.op));
+		}
 		return new Preview(layout, bounds);
 	}
 
@@ -84,9 +90,14 @@ final class ScratchCanvas {
 	}
 
 	String shorten(String label, int maxWidth) {
+		return shorten(font, label, maxWidth);
+	}
+
+	static String shorten(Font font, String label, int maxWidth) {
 		if (font.width(label) <= maxWidth)
 			return label;
-		return font.plainSubstrByWidth(label, Math.max(0, maxWidth - font.width("…"))) + "…";
+		int suffixWidth = font.width("…");
+		return maxWidth < suffixWidth ? "" : font.plainSubstrByWidth(label, maxWidth - suffixWidth) + "…";
 	}
 
 	static MutableComponent text(String key) {
@@ -111,7 +122,8 @@ final class ScratchCanvas {
 		return switch (datum.type) {
 			case BOOLEAN -> Math.clamp(label + 22, 40, 76);
 			case ITEM -> Math.clamp(label + 24, 48, 100);
-			default -> Math.clamp(label + 14, 26, 82);
+			case NUMBER -> Math.clamp(label + 12, 18, 82);
+			case TEXT -> Math.clamp(label + 14, 26, 82);
 		};
 	}
 
@@ -131,7 +143,7 @@ final class ScratchCanvas {
 			label = shorten(stack.getHoverName().getString(), bounds.width - 23);
 			labelX = bounds.x + 18;
 		}
-		graphics.drawString(font, label, labelX, bounds.y + (bounds.height - font.lineHeight) / 2, INK, false);
+		graphics.drawString(font, label, labelX, bounds.y + (bounds.height - font.lineHeight) / 2, VALUE_INK, false);
 	}
 
 	final class Layout {
@@ -219,11 +231,10 @@ final class ScratchCanvas {
 				String hint = owner == null ? text("drop_here").getString() : "";
 				Rect hole = new Rect(x, y, Math.max(98, font.width(hint) + 14), 18);
 				pieces.add(new Piece(hole, graphics -> {
-					graphics.fill(hole.x, hole.y, hole.right(), hole.bottom(), 0xff303c48);
-					graphics.renderOutline(hole.x, hole.y, hole.width, hole.height, 0xff4a5e70);
+					ScratchPanelArt.recess(graphics, hole, 0xff302e28, 0xff6e6456);
 				}));
 				if (!hint.isEmpty())
-					label(hint, hole.x + 7, hole.y, hole.height, 0xffb6c5d4);
+					label(hint, hole.x + 7, hole.y, hole.height, 0xffc6bbaa);
 				drops.add(new Drop(hole, hole, new StackPoint(owner, stack, 0, depth)));
 				return hole.bottom();
 			}
@@ -233,7 +244,7 @@ final class ScratchCanvas {
 				Header header = measure(tile);
 				StackPoint location = new StackPoint(owner, stack, i, depth);
 				insertGuide(location, x, y - 2, Math.max(lastWidth, header.width));
-				y = command(tile, location, x, y, header) + GAP;
+				y = command(tile, location, x, y, header) + STACK_SPACING;
 				lastWidth = Math.max(98, header.width);
 			}
 			insertGuide(new StackPoint(owner, stack, stack.size(), depth), x, y - 2, lastWidth);
@@ -246,40 +257,39 @@ final class ScratchCanvas {
 
 		private int command(Tile tile, StackPoint from, int x, int y, Header header) {
 			int index = nextCommandIndex++;
-			int outline = index == problemCommandIndex ? PROBLEM_OUTLINE : index == activeCommandIndex ? ACTIVE_OUTLINE : 0;
+			Outline outline = index == problemCommandIndex ? Outline.PROBLEM : index == activeCommandIndex ? Outline.ACTIVE : Outline.NONE;
 			header(tile, from, x, y, header, outline);
-			y += header.height;
+			return bodies(tile, from, x, y + header.height, header.width);
+		}
+
+		private int bodies(Tile tile, @Nullable StackPoint from, int x, int y, int width) {
 			for (int body = 0; body < tile.bodies.size(); body++) {
-				int end = stack(tile.bodies.get(body), tile, from.depth() + 1, x + INDENT, y + GAP);
-				art(new Rect(x, y, INDENT, end - y + 2), tile.op.category(), Region.RAIL);
-				y = end + 2;
+				int end = from == null ? y + 15
+					: stack(tile.bodies.get(body), tile, from.depth() + 1, x + INDENT, y + STACK_SPACING);
+				art(new Rect(x, y, INDENT, end - y + 1), tile.op.category(), Region.RAIL);
+				y = end;
 				if (body + 1 < tile.bodies.size()) {
-					Rect divider = new Rect(x, y, header.width, 19);
+					Rect divider = new Rect(x, y, width, 19);
 					art(divider, tile.op.category(), Region.MIDDLE);
-					label(text("else").getString(), x + 9, divider.y, divider.height, INK);
+					label(text("else").getString(), x + 9, divider.y, divider.height, BLOCK_INK);
 					y = divider.bottom();
 				} else {
-					Rect foot = new Rect(x, y, header.width, 12);
+					Rect foot = new Rect(x, y, width, 14);
 					art(foot, tile.op.category(), Region.FOOT);
+					if (tile.op == Op.FOREVER || tile.op == Op.REPEAT || tile.op == Op.REPEAT_UNTIL)
+						symbol(Symbol.LOOP, foot.right() - 16, foot.y + 1, 0xffe0b58b);
 					y = foot.bottom();
 				}
 			}
 			return y;
 		}
 
-		private void header(Tile tile, Location from, int x, int y, Header header, int outline) {
+		private void header(Tile tile, Location from, int x, int y, Header header, Outline outline) {
 			Rect bounds = new Rect(x, y, header.width, header.height);
 			if (tile.op.shape() == Shape.COMMAND)
-				art(bounds, tile.op.category(), commandRegion(tile.op));
+				art(bounds, tile.op.category(), commandRegion(tile.op), outline);
 			else
 				valueArt(bounds, tile.op.category(), ScratchValueShape.of(tile));
-			if (outline != 0) {
-				Rect glow = new Rect(x - 2, y - 2, header.width + 4, header.height + 4);
-				pieces.add(new Piece(glow, graphics -> {
-					graphics.fill(bounds.x, bounds.y, bounds.right(), bounds.bottom(), (outline & 0xffffff) | 0x33000000);
-					graphics.renderOutline(glow.x, glow.y, glow.width, glow.height, outline);
-				}));
-			}
 			if (from != null)
 				placed.add(new Placed(bounds, tile, from, false));
 			int inputDepth = from == null ? 1 : from.depth() + 1;
@@ -292,7 +302,7 @@ final class ScratchCanvas {
 			for (int i = 0; i < header.spans.size(); i++) {
 				String span = header.spans.get(i);
 				if (!span.isEmpty()) {
-					label(span, left, y, header.height, INK);
+					label(span, left, y, header.height, BLOCK_INK);
 					left += font.width(span) + 4;
 				}
 				if (i < tile.fields.size()) {
@@ -308,7 +318,7 @@ final class ScratchCanvas {
 		private Rect element(Element element, Location from, int x, int y) {
 			if (element instanceof Tile tile) {
 				Header header = measure(tile);
-				header(tile, from, x, y, header, 0);
+				header(tile, from, x, y, header, Outline.NONE);
 				return new Rect(x, y, header.width, header.height);
 			}
 			Datum datum = (Datum) element;
@@ -329,19 +339,21 @@ final class ScratchCanvas {
 			Drop drop = new Drop(socket, socket, point, expected);
 			// Register the outer slot first so drops can prefer nested slots.
 			drops.add(drop);
-			if (actual == null || different) {
+			if (actual == null || different || childHeader != null) {
 				int edge = different && actual != ScratchValueShape.ANY ? MISMATCH_EDGE : SOCKET_EDGE;
-				pieces.add(new Piece(socket, graphics -> ScratchBlockArt.drawValue(graphics, socket, expected, SOCKET_FILL, edge)));
+				Rect recess = childHeader == null ? socket : slot.inflate(2);
+				pieces.add(new Piece(recess, graphics -> ScratchBlockArt.drawValue(graphics, recess, expected, SOCKET_FILL, edge)));
 			}
 			switch (field.value) {
-				case Tile child -> header(child, point, slot.x, slot.y, childHeader, 0);
+				case Tile child -> header(child, point, slot.x, slot.y, childHeader, Outline.NONE);
 				case Datum value -> datum(value, point, slot, coloredItems);
 				case null -> emptySlots.add(drop);
 			}
 		}
 
 		private void datum(Datum datum, Location from, Rect bounds, boolean coloredItems) {
-			valueArt(bounds, Category.DATA, ScratchValueShape.of(datum));
+			ScratchValueShape shape = ScratchValueShape.of(datum);
+			pieces.add(new Piece(bounds, graphics -> ScratchBlockArt.drawValue(graphics, bounds, shape, LITERAL_TINT, 0)));
 			if (from != null) {
 				Placed placement = new Placed(bounds, datum, from, coloredItems);
 				placed.add(placement);
@@ -352,7 +364,7 @@ final class ScratchCanvas {
 				pieces.add(new Piece(bounds, graphics -> drawItem(graphics, bounds, datum)));
 			} else {
 				String value = shorten(dataLabel(datum), bounds.width - (datum.type == DataType.BOOLEAN ? 20 : 10));
-				label(value, bounds.x + (bounds.width - font.width(value)) / 2, bounds.y, bounds.height, INK);
+				label(value, bounds.x + (bounds.width - font.width(value)) / 2, bounds.y, bounds.height, VALUE_INK);
 			}
 		}
 
@@ -364,7 +376,7 @@ final class ScratchCanvas {
 			boolean itemMap = tile.op == Op.MAP && (parent == Op.ORDER_BATCH || parent == Op.DISPLAY_ITEM_LIST);
 			ScratchValueShape itemShape = itemList || itemMap ? ScratchValueShape.ITEM : ScratchValueShape.ANY;
 			ScratchValueShape quantityShape = itemMap ? ScratchValueShape.NUMBER : ScratchValueShape.ANY;
-			label(header.spans.getFirst(), x, bounds.y, HEADER_HEIGHT, INK);
+			label(header.spans.getFirst(), x, bounds.y, HEADER_HEIGHT, BLOCK_INK);
 			if (tile.fields.size() < tile.op.maxInputs())
 				listControl(tile, -1, depth, controlX, bounds.y + (HEADER_HEIGHT - LIST_CONTROL_SIZE) / 2);
 			ListColumns columns = listColumns(tile);
@@ -374,7 +386,7 @@ final class ScratchCanvas {
 				int rowHeight = listRowHeight(tile, index, rowSize);
 				input(tile, tile.fields.get(index), new Rect(x, y, columns.item(), rowHeight), depth, itemShape, coloredItems);
 				if (tile.op == Op.MAP) {
-					label(parent == Op.ORDER_BATCH ? "×" : "→", x + columns.item() + 3, y, rowHeight, INK);
+					label(parent == Op.ORDER_BATCH ? "×" : "→", x + columns.item() + 3, y, rowHeight, BLOCK_INK);
 					Rect cell = new Rect(x + columns.item() + LIST_QUANTITY_GAP, y, columns.quantity(), rowHeight);
 					input(tile, tile.fields.get(index + 1), cell, depth, quantityShape, false);
 				}
@@ -405,7 +417,7 @@ final class ScratchCanvas {
 		private void listControl(Tile tile, int row, int depth, int x, int y) {
 			Rect bounds = new Rect(x, y, LIST_CONTROL_SIZE, LIST_CONTROL_SIZE);
 			listControls.add(new ListControl(bounds, tile, row, depth));
-			pieces.add(new Piece(bounds, graphics -> graphics.fill(x, y, bounds.right(), bounds.bottom(), 0xff314350)));
+			pieces.add(new Piece(bounds, graphics -> ScratchPanelArt.recess(graphics, bounds, 0xff3b3933, 0xff9c9078)));
 			String sign = row < 0 ? "+" : "−";
 			label(sign, x + (LIST_CONTROL_SIZE - font.width(sign)) / 2, y, LIST_CONTROL_SIZE, 0xfff1f5f8);
 		}
@@ -418,7 +430,7 @@ final class ScratchCanvas {
 				String title = text("palette." + tile.op.key()).getString();
 				ListColumns columns = listColumns(tile);
 				int rowWidth = columns.item() + (tile.op == Op.MAP ? columns.quantity() + LIST_QUANTITY_GAP : 0);
-				int width = 24 + Math.max(font.width(title), rowWidth) + GAP + LIST_CONTROL_SIZE;
+				int width = 29 + Math.max(font.width(title), rowWidth) + LIST_CONTROL_SIZE;
 				int height = HEADER_HEIGHT + (tile.fields.isEmpty() ? 0 : 3);
 				int rowSize = tile.op.slots().size();
 				for (int index = 0; index < tile.fields.size(); index += rowSize)
@@ -446,8 +458,12 @@ final class ScratchCanvas {
 				width += fieldWidth(field) + 4;
 				height = Math.max(height, nestedHeight(field));
 			}
-			if (tile.op.bodyCount() > 0)
+			if (tile.op.bodyCount() > 0) {
 				width = Math.max(118, width);
+				for (List<Tile> body : tile.bodies)
+					for (Tile child : body)
+						width = Math.max(width, INDENT + measure(child).width + 6);
+			}
 			Header header = new Header(width, height, inset, spans);
 			headers.put(tile, header);
 			return header;
@@ -470,18 +486,27 @@ final class ScratchCanvas {
 		}
 
 		private void art(Rect bounds, Category category, Region region) {
+			art(bounds, category, region, Outline.NONE);
+		}
+
+		private void art(Rect bounds, Category category, Region region, Outline outline) {
 			pieces.add(new Piece(ScratchBlockArt.paintedBounds(bounds, region),
-				graphics -> ScratchBlockArt.draw(graphics, bounds, category, region)));
+				graphics -> ScratchBlockArt.draw(graphics, bounds, category, region, outline)));
 		}
 
 		private void valueArt(Rect bounds, Category category, ScratchValueShape shape) {
-			pieces.add(new Piece(bounds, graphics -> ScratchBlockArt.drawValue(graphics, bounds, category, shape)));
+			pieces.add(new Piece(bounds, graphics -> ScratchBlockArt.drawValue(graphics, bounds, shape, ScratchBlockArt.tint(category), 0)));
 		}
 
 		private void label(String label, int x, int y, int height, int color) {
 			int baseline = y + (height - font.lineHeight) / 2;
 			pieces.add(new Piece(new Rect(x, baseline, font.width(label), font.lineHeight),
-				graphics -> graphics.drawString(font, label, x, baseline, color, false)));
+				graphics -> graphics.drawString(font, label, x, baseline, color, color == BLOCK_INK)));
+		}
+
+		private void symbol(Symbol symbol, int x, int y, int color) {
+			pieces.add(new Piece(new Rect(x, y, ScratchPanelArt.SYMBOL_SIZE, ScratchPanelArt.SYMBOL_SIZE),
+				graphics -> symbol.draw(graphics, x, y, color)));
 		}
 	}
 

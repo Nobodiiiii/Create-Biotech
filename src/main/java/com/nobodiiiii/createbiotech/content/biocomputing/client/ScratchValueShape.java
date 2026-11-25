@@ -4,15 +4,19 @@ import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.DataTyp
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Op;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Shape;
 import com.nobodiiiii.createbiotech.content.biocomputing.ComputerProgram.Slot;
+import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchBlockArt.Region;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Datum;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Element;
 import com.nobodiiiii.createbiotech.content.biocomputing.client.ScratchDraft.Tile;
 
 /** Editor silhouettes for preferred input types and the known results of value blocks. */
 enum ScratchValueShape {
-	ANY, NUMBER, TEXT, BOOLEAN, ITEM, LIST, MAP;
+	ANY(Region.ANY), NUMBER(Region.NUMBER), TEXT(Region.TEXT), BOOLEAN(Region.BOOLEAN),
+	ITEM(Region.ITEM), LIST(Region.LIST), MAP(Region.MAP);
 
-	private static final int[] NUMBER_CORNER = {6, 4, 3, 2, 1, 1};
+	final Region region;
+
+	ScratchValueShape(Region region) { this.region = region; }
 
 	static ScratchValueShape of(Element element) {
 		return switch (element) {
@@ -56,25 +60,4 @@ enum ScratchValueShape {
 		};
 	}
 
-	int inset(int row, int height, boolean right, boolean interior) {
-		int edge = inset(row, height, right);
-		if (!interior)
-			return edge;
-		// Leave a stroke at the vertical steps as well as along the sides.
-		return Math.max(edge + 1, Math.max(inset(row - 1, height, right), inset(row + 1, height, right)));
-	}
-
-	private int inset(int row, int height, boolean right) {
-		int end = Math.min(row, height - 1 - row);
-		int middle = (height - 1) / 2;
-		return switch (this) {
-			case ANY -> Math.max(0, 3 - 2 * end);
-			case NUMBER -> end < NUMBER_CORNER.length ? NUMBER_CORNER[end] : 0;
-			case TEXT -> right ? Math.max(0, 6 - row) : 0;
-			case BOOLEAN -> 9 - 9 * end / middle;
-			case ITEM -> Math.max(0, 4 - end);
-			case LIST -> end < 3 ? 0 : 4;
-			case MAP -> Math.clamp(2 * (middle - end - 1), 0, 4);
-		};
-	}
 }

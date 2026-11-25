@@ -180,6 +180,8 @@
   "create_biotech.biocomputing.scratch.pasted": "已导入脚本",
   "create_biotech.biocomputing.scratch.invalid_json": "剪贴板内容不是有效脚本",
   "create_biotech.biocomputing.scratch.reset_view": "将画布居中",
+  "create_biotech.biocomputing.scratch.help_title": "帮助",
+  "create_biotech.biocomputing.scratch.library_title": "积木库",
   "create_biotech.biocomputing.scratch.help": "槽位轮廓提示所需类型，形状不同的值仍可放入。值槽会在运行时自动转换输入。用「变量」读取变量值，把固定数据积木放进名称槽。用「文本」输入普通文字。用「转为物品」将物品 ID 文本显示为本地化名称。单击空槽可直接输入。将连接器上的物品按顺序放进列表，再用变量传入无线频段积木。显示链接器可写入 8 个输入槽或读取 8 行输出，槽位变量填入对应编号。用已调谐的仓储链接站绑定网络。手持装有村民的纸箱右击普通计算机可装入村民，双手空着潜行右击可停机取回。右击可移除积木，Ctrl+Z/Y 撤销重做，Ctrl+S 保存。区块重载时，运行中的程序会从头启动。",
   "create_biotech.biocomputing.scratch.program_root": "程序",
   "create_biotech.biocomputing.scratch.frequency_help": "频段变量使用列表的前两项，物品顺序与红石连接器一致。需要指定染色颜色时可输入 物品ID@RRGGBB。",

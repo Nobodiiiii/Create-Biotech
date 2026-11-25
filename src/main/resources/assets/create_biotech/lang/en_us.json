@@ -180,6 +180,8 @@
   "create_biotech.biocomputing.scratch.pasted": "Script imported",
   "create_biotech.biocomputing.scratch.invalid_json": "Clipboard does not contain a valid script",
   "create_biotech.biocomputing.scratch.reset_view": "Center the workspace",
+  "create_biotech.biocomputing.scratch.help_title": "Help",
+  "create_biotech.biocomputing.scratch.library_title": "Block Library",
   "create_biotech.biocomputing.scratch.help": "Socket outlines show the preferred type. You can still insert values with a different shape. Value sockets convert inputs when used. Use Variable to read a value. Drop a literal into its name socket. Use Text for ordinary text. Use Convert to Item to display an ID as a localized item name. Click an empty socket to type. Put the Redstone Link's items in a list in the same order and pass it to wireless blocks through a variable. Display Links connect to eight input slots and eight output lines. Use the slot number as the variable value. Use a tuned Stock Link to bind logistics. Use a boxed villager to install it and sneak-use with empty hands to retrieve it. Right-click to remove blocks, Ctrl+Z/Y to undo or redo, and Ctrl+S to save. Active programs restart on chunk reload.",
   "create_biotech.biocomputing.scratch.program_root": "Program",
   "create_biotech.biocomputing.scratch.frequency_help": "The frequency variable uses the first two items in the list, in Redstone Link order. Use item@RRGGBB to specify a dye color.",
